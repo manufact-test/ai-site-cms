@@ -390,3 +390,11 @@ AI Site CMS — **внутренняя разработка команды** д�
 
 Исследование делает manifest/bindings approach перспективнее, **но не выбирает** ни Jedison/RJSF, ни метод рендеринга, ни окончательный стек. [Полное обоснование и дальнейшие неизвестные](STAGE-1-ANNOTATED-HTML-COVERAGE-RESEARCH.md). Этап 1 не принят, этап 2 не начат, 0/135 product accepted.
 
+
+
+## 20. Реальный responsive editor input + проверка editable coverage — checkpoint v1.20 (18.10.2026)
+
+Full GitHub Actions [#39073198622](https://github.com/manufact-test/ai-site-cms/actions/runs/39073198622) **PASS** на research branch. В `annotated-editor-css.cjs` **4/4** actual upstream Jedison/RJSF sessions на `story/board`, fontSize/gap/background изменены в **настоящем GUI input**, а не прямым bridge patch (как было в v1.19), после этого Chromium подтвердил computed font-size/gap на 1200/720/360px и board background RGB. UI здесь штатные nested JSON Schema string fields, а **не** законченные adaptive color/length widgets. 0 browser JS errors; identity/iframe checks preserved.
+
+Отдельный `annotated-coverage-audit.cjs` сверяет заранее объявленный **external intent ledger** с извлечённым manifest, плюс проверяет неразмеченные текстовые leaf nodes (3 positive fixtures, 13 adversarial mismatch cases). Без независимого trusted specification этот аудит не доказывает полноту arbitrarily AI-authored сайта: одновременный пропуск поля из HTML и ledger невидим. Reusable typed manifest editor paradigm стал обоснованнее, но никто не выбрал Jedison или RJSF, полную A/B/C архитектуру или runtime. [Подробно](STAGE-1-EDITOR-CSS-COVERAGE-AUDIT-RESEARCH.md). Этап 1 не принят, product acceptance **0/135**.
+
