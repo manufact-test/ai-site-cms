@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Tide Atlas builds instruments for a living coastline.">
+<title>Tide Atlas — Field notes from the coast</title>
+<style>
+:root{--night:#0b2134;--sea:#33d2c4;--sand:#ffc38b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--night);color:#f5f9fa;font:16px/1.6 system-ui,sans-serif}
+a{color:inherit}
+.wrap{width:min(1160px,calc(100% - 48px));margin-inline:auto}
+nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0}
+nav a{padding:8px 15px}
+.hero{position:relative;min-height:650px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(20px,5vw,90px);align-items:center}
+.eyebrow{letter-spacing:.3em;text-transform:uppercase;color:var(--sea)}
+h1{font-size:clamp(48px,7vw,112px);line-height:1.02;max-width:11ch;margin:10px 0}
+.deck{font-size:clamp(18px,2vw,23px);max-width:45ch}
+.cta{display:inline-flex;background:var(--sea);color:var(--night);padding:15px 30px;border-radius:999px;text-decoration:none;font-weight:700}
+.orbit{min-height:400px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#78fff3,transparent 30%),conic-gradient(from 40deg,var(--sea),#195072,var(--sand),var(--sea));filter:drop-shadow(0 32px 46px #020b1a);animation:float 8s ease-in-out infinite;transform-style:preserve-3d}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-24px) rotate(4deg)}}
+.lower{display:grid;grid-template-columns:1fr 1fr;gap:24px;padding-bottom:80px}
+.lower article{border:1px solid #448c99;border-radius:24px;padding:30px}
+label{display:block}
+input{padding:12px;margin:8px 0;color:#001a20}
+dialog{background:#f4fcfa;color:#102638;border:0;border-radius:20px;max-width:360px}
+@media(max-width:760px){.hero,.lower{grid-template-columns:1fr}.hero{min-height:unset}.orbit{min-height:280px;width:280px;margin:auto}nav{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.orbit{animation:none}}
+</style>
+</head>
+<body>
+<header class="wrap"><nav aria-label="Primary navigation"><a id="nav-home" href="#home">Tide Atlas</a><a href="#faq">Process</a><a href="#join">Field notes</a></nav></header>
+<main class="wrap" id="home">
+<section class="hero" aria-label="Introduction">
+<div>
+<p class="eyebrow">A field instrument studio</p>
+<h1 id="hero-title">The coast is alive.</h1>
+<p id="hero-deck" class="deck">Tools for people listening to the changing ocean.</p>
+<a id="hero-link" class="cta" href="#join">Receive field notes ↗</a>
+</div>
+<div class="orbit" id="hero-visual" role="img" aria-label="Abstract rotating ocean sphere">
+<svg id="skyline" viewBox="0 0 200 60" role="img" aria-label="Wave diagram" xmlns="http://www.w3.org/2000/svg"><path d="M0 30 Q25 0 50 30 T100 30 T150 30 T200 30" stroke="#ffffff" fill="none" stroke-width="3"/></svg>
+</div>
+</section>
+<section class="lower" aria-label="Explore our work">
+<article id="faq">
+<h2>Questions at the waterline</h2>
+<details id="faq-first"><summary>How do you measure a shifting coastline?</summary><p>We combine accessible sensors with patient observation.</p></details>
+<p id="score">12 stations. A thousand tides.</p>
+</article>
+<article id="join">
+<h2 id="signup-title">Notes from the field</h2>
+<form id="signup-form" action="/subscribe" method="post">
+<label>Email <input id="signup-email" type="email" placeholder="you@example.com" required></label>
+<button type="submit">Subscribe</button>
+</form>
+<button id="modal-open" type="button">Read privacy details</button>
+<dialog id="modal"><p>We only send occasional updates.</p><button type="button" id="modal-close">Close</button></dialog>
+</article>
+</section>
+</main>
+<footer class="wrap"><p>© Tide Atlas. Built for coastal curiosity.</p></footer>
+<script>
+window.__siteExecuted=true;
+const opener=document.getElementById('modal-open');
+const dialog=document.getElementById('modal');
+opener.addEventListener('click',()=>dialog.showModal());
+document.getElementById('modal-close').addEventListener('click',()=>dialog.close());
+document.getElementById('signup-form').addEventListener('submit',event=>{event.preventDefault();console.log('Demo only');});
+</script>
+</body>
+</html>
