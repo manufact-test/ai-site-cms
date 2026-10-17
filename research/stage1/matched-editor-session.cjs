@@ -8,7 +8,7 @@ const {schema,initial,Section}=require('./adapter-section.cjs');
 const chrome=['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium'].find(fs.existsSync);
 if(!chrome)throw Error('Chromium required');
 const raw=renderToStaticMarkup(React.createElement(Section,{kind:'session-fixture'}));
-const N_CYCLES=3,EDIT_RUNS=16;
+const N_CYCLES=8,EDIT_RUNS=32;
 function bundle(name){
  const imports=name==='jedison'
  ? "import Jedison from 'jedison';window.__lib=Jedison;"
@@ -65,19 +65,11 @@ async function current(page){return page.evaluate(()=>window.__get())}
 async function editByValue(page,oldValue,newValue,context){
  const matches=await page.locator('#editor input').evaluateAll((elements,old)=>elements.filter(e=>e.type!=='hidden'&&e.value===old).map(e=>({id:e.id,type:e.type,value:e.value})),oldValue);
  assert.equal(matches.length,1,context+' input not unique: '+oldValue+' / '+JSON.stringify(matches));
- const input=page.locator('#editor input').filter({visible:true}).filter({hasNot:page.locator('[type=hidden]')});
  // Locate by exact original field ID; avoids selector conventions varying across editor libraries.
  const target=page.locator('#editor input[id='+JSON.stringify(matches[0].id)+']');
  await target.fill(newValue);
  await target.dispatchEvent('change');
  await target.blur();
-}
-async function editPath(page,pathKey,oldVal,newVal,context){
- const nodes=await page.locator('#editor input').evaluateAll((xs,k)=>xs.filter(x=>x.type!=='hidden'&&x.id.toLowerCase().includes(k.toLowerCase())).map(x=>({id:x.id,value:x.value})),pathKey);
- if(nodes.length!==1)throw Error(context+' unexpected path selector '+pathKey+' '+JSON.stringify(nodes));
- assert.equal(nodes[0].value,oldVal,context+' initial field value mismatch '+pathKey);
- const t=page.locator('#editor input[id='+JSON.stringify(nodes[0].id)+']');
- await t.fill(newVal);await t.dispatchEvent('change');await t.blur();
 }
 const clone=o=>JSON.parse(JSON.stringify(o));
 async function runVariant(name,browser){
@@ -168,8 +160,9 @@ async function runVariant(name,browser){
  const browser=await chromium.launch({executablePath:chrome,headless:true,args:['--no-sandbox','--enable-precise-memory-info']});
  try{
   const tests=[];
-  for(const name of ['jedison','rjsf'])tests.push(await runVariant(name,browser));
+  const order=process.env.STAGE1_EDITOR_ORDER==='reverse'?['rjsf','jedison']:['jedison','rjsf'];
+  for(const name of order)tests.push(await runVariant(name,browser));
   assert.deepEqual(tests[0].observed,tests[1].observed,'editor output divergence on the same actions');
-  console.log('STAGE1_MATCHED_EDITOR_SESSION='+JSON.stringify({pass:true,cycles:N_CYCLES,repeatedEditsPerCycle:EDIT_RUNS,schemaProperties:Object.keys(schema.properties).length,stableIds:12,tests:tests.map(t=>({name:t.name,gzipBytes:t.gzipBytes,samples:t.samples,pageErrors:t.pageErrors,metaSections:t.metaSections,iframes:t.iframes})),outputsIdentical:true,metricsLimits:'One GitHub runner Chromium process, 3 cycles per editor, sparse CDP GC snapshots; order Jedison then RJSF, no SLO, CPU/RAM production conclusions or statistical significance; no server/hosting proof'}));
+  console.log('STAGE1_MATCHED_EDITOR_SESSION='+JSON.stringify({pass:true,cycles:N_CYCLES,repeatedEditsPerCycle:EDIT_RUNS,runOrder:order,schemaProperties:Object.keys(schema.properties).length,stableIds:12,tests:tests.map(t=>({name:t.name,gzipBytes:t.gzipBytes,samples:t.samples,pageErrors:t.pageErrors,metaSections:t.metaSections,iframes:t.iframes})),outputsIdentical:true,metricsLimits:'One GitHub runner Chromium process, 8 cycles per editor in each order per separate run, sparse CDP GC snapshots; no hours-long session, no SLO, production conclusions or statistical significance; no server/hosting proof'}));
  }finally{await browser.close()}
 })().catch(e=>{console.error('STAGE1_MATCHED_EDITOR_SESSION_FAIL='+String(e.stack||e));process.exitCode=1});
