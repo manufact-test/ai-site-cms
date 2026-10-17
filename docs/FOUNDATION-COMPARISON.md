@@ -355,3 +355,10 @@ AI Site CMS — **внутренняя разработка команды** д�
 
 **Вывод:** оба кандидата уже обладают достаточной исследовательской точкой расширения для четырёх проверенных composite UI-контролов. Нельзя экстраполировать на готовый визуальный редактор, AI-generated untrusted HTML, Canvas/WebGL/real video, production renderer isolation, performance или уязвимости. Исследовательское переиспользование setup-функций выполнено текстовым извлечением — **это не production модульная архитектура**. Выбор редактора по-прежнему открыт. Методика и ограничения: [STAGE-1-COMPOSITE-MEDIA-RESEARCH.md](STAGE-1-COMPOSITE-MEDIA-RESEARCH.md), [STAGE-1-TEST-LOG.md §18](STAGE-1-TEST-LOG.md).
 
+
+## 16. HTML trust boundary и обязательные требования — checkpoint v1.16 (17.10.2026)
+
+[CI #39067271214](https://github.com/manufact-test/ai-site-cms/actions/runs/39067271214) **весь workflow PASS**. Узкий fail-closed Hero HTML fragment preflight: parse5 syntax errors + strict AST/DOM tag/attribute allowlist and unique 12 IDs, **20/20 hostile/malformed cases rejected**, 2 positive accepted. Chromium nonce-protected opaque sandbox iframe with HTTP parent, native srcdoc, typed postMessage; wrong token, extra fields, rogue frame sender/parent spoof rejected; inline script without matching nonce doesn't run; no page errors. Применимость ограничена однотипным Hero fixture и не доказывает произвольную безопасную AI-generated HTML/CSS/JS или production CSP. Эти меры дополняют, но не заменяют, валидатор JSON Schema и threat model.
+
+[Полная 135-ID evidence/gap matrix](STAGE-1-MANDATORY-EVIDENCE-MATRIX.md) получена из `requirements/requirements.csv`. Из 135 mandatory ровно 43 частично сопоставлены с исследованиями либо спецификацией, 92 не имеют предметного исследовательского теста. **Реальная производственная приёмка 0/135**. Ни одна библиотека/рендерер по-прежнему не выбрана, реальный PHP shared-hosting не тестирован. [Подробнее](STAGE-1-HTML-BOUNDARY-RESEARCH.md). Решение об этапе 2 только после владельца.
+
