@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-17",
-  "status": "documentation-roadmap-awaiting-owner-approval",
+  "status": "stage-1-ready-not-started",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -13,26 +13,38 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Owner reviews ROADMAP v1.0. Then stage 1: compare active open-source bases, licensing, fit with all 135 mandatory requirements and shared hosting; no coding before approval.",
+  "next_step": "Begin stage 1: audit existing open-source CMS/editor candidates, licensing, maintainability, shared hosting and coverage of 135 mandatory requirements; present comparison before technology selection, forking, or coding.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.0",
+  "checkpoint_version": "1.2",
   "current_stage": {
-    "number": 0,
-    "name": "Документация, согласование плана",
-    "state": "in_progress",
-    "approval": "pending_owner_review"
+    "number": 1,
+    "name": "Исследование готовых open-source основ",
+    "state": "ready_not_started",
+    "approval": "roadmap_approved_by_owner_2026-10-17"
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
-  "roadmap_version": "1.0",
+  "roadmap_version": "1.1",
   "project_map_path": "docs/PROJECT-MAP.md",
   "handoff_path": "docs/NEXT-CHAT.md",
   "next_stage": {
-    "number": 1,
-    "name": "Исследование готовых open-source основ",
+    "number": 2,
+    "name": "Выбор технической основы и архитектуры",
     "state": "not_started"
   },
-  "release_policy": "No MVP. First complete release after 135/135 mandatory requirements accepted and full system verification."
+  "release_policy": "No MVP. First complete release after 135/135 mandatory requirements accepted and full system verification.",
+  "completed_stages": [
+    {
+      "number": 0,
+      "name": "Документация и согласование ROADMAP",
+      "accepted_at": "2026-10-17",
+      "scope": "roadmap and project baseline approved; technical research issues remain open"
+    }
+  ],
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/main/docs/NEXT-CHAT.md",
+  "owner_approved_roadmap_at": "2026-10-17",
+  "celikom_pilot_stage": 17,
+  "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation."
 }
