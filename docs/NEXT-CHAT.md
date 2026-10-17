@@ -1,6 +1,6 @@
 # AI Site CMS — постоянный файл передачи между чатами
 
-**Контрольная точка:** v1.13 · **дата:** 17.10.2026  
+**Контрольная точка:** v1.14 · **дата:** 17.10.2026  
 **Единственный постоянный путь:** `docs/NEXT-CHAT.md`  
 **Постоянная ссылка:** https://github.com/manufact-test/ai-site-cms/blob/main/docs/NEXT-CHAT.md  
 **Проект:** AI Site CMS, без MFT/MANUFACT в названии.  
@@ -325,4 +325,29 @@
 ### Текст для перехода в следующий чат, когда это понадобится
 
 > Продолжаем **AI Site CMS** с checkpoint **v1.13**, репозиторий `manufact-test/ai-site-cms`. Сначала прочитай `docs/NEXT-CHAT.md` **раздел 18**, `PROJECT-STATUS.json`, `docs/STAGE-1-TEST-LOG.md` §16, `docs/FOUNDATION-COMPARISON.md` §13, затем все нормативные документы. Последний полный успешный исследовательский CI: https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770. Исправлена отсутствующая `>` в HTML `</section>`, из-за которой srcdoc bridge не запускался; все 4 HTML/PHP/React/Next-static + RJSF теперь 4/4 PASS с нативной CSP nonce загрузкой без Playwright injection; positive/negative nonce тесты тоже PASS. Остаёмся ТОЛЬКО на **этапе 1**. Следующий фрагмент — честный одинаковый long-session Jedison/RJSF workload и проверки HTML safety/hosting по разрешению. Исследовательскую ветку `research/stage1-editor-comparison` НЕ сливать в `main`, этап 2 НЕ начинать без согласования. Для handoff обновлять только существующий `docs/NEXT-CHAT.md` и `PROJECT-STATUS.json`.
+
+
+## 19. Идентичные многоэлементные сеансы Jedison/RJSF — checkpoint v1.14 (17.10.2026)
+
+**ПОСЛЕДНИЙ ПОДТВЕРЖДЁННЫЙ ПОЛНЫЙ CI PASS:** [GitHub Actions #39065084450](https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450), исследовательский commit [1bfb163492e72947616717d4d4e3f8a8e44642d8](https://github.com/manufact-test/ai-site-cms/commit/1bfb163492e72947616717d4d4e3f8a8e44642d8), ветка **research/stage1-editor-comparison**. В неё добавлен [matched-editor-session.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/matched-editor-session.cjs); рабочий `main` содержит только официальную документацию и статус, НЕ продуктовый код. Исследовательскую ветку НЕ сливать в `main` без решения владельца.
+
+### Подтверждённый новый результат
+
+- **Настоящие Jedison 1.27.1 и RJSF 6.11.0**, оба на одном и том же `adapter-section.cjs`, **9 root JSON Schema properties**, **12 stable ID** (Hero с элементами CTA/feature/card/stat), 50 metadata-only записей и один sandbox iframe с нативным bridge. Реальные браузерные изменения: title, lead, 2 CTA, feature, card, stat, tablet responsive 48→52px, mobile inherits 52px и явный override 32px, ещё 32 последовательных изменения title за цикл. Ни одно значение published baseline не теряется от draft.
+- Две очередности сравнения в ОДНОМ полном CI: (1) Jedison→RJSF, (2) RJSF→Jedison, **8 полных циклов mount/edit/unmount на каждую очередь** = **16 циклов и 656 зарегистрированных событий изменения модели на редактор**. После каждого изменения сопоставлено typed nested JSON, итоговые output библиотек `deepEqual`; одно iframe, 50 metadata elements, pageerror **0**. **PASS обеих библиотек**.
+- **Наблюдения только внутри этого тестового Chromium/CI**, не свойства конечного продукта: gzip конкретной test entry сборки Jedison **48 284 байта**, RJSF с React+AJV2020 **190 905 байт**. Это НЕ полностью сопоставимые validator-included сборки. После GC цифры heap Jedison примерно 2.24→2.63 МБ по циклам, RJSF примерно 3.90→4.30 МБ, при обоих есть рост: **memory leaks ни доказаны, ни опровергнуты**. Полный scripted Playwright cycle в этих двух очередностях иногда проходил быстрее на RJSF; это не user-first-input SLO и не доказательство быстродействия реального UI. Тест — не многочасовая сессия.
+- **Полный технический отчёт** с методикой, таблицей, caveats и воспроизведением: [STAGE-1-MATCHED-EDITOR-SESSIONS.md](STAGE-1-MATCHED-EDITOR-SESSIONS.md), [STAGE-1-TEST-LOG.md §17](STAGE-1-TEST-LOG.md), [FOUNDATION-COMPARISON.md §14](FOUNDATION-COMPARISON.md), [FOUNDATIONS.md](FOUNDATIONS.md), [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md), [PROJECT-MAP.md](PROJECT-MAP.md), обновлённый [PROJECT-STATUS.json](../PROJECT-STATUS.json) checkpoint 1.14. Все эти документы находятся в `main`.
+
+### Что следующим брать внутри этапа 1
+
+1. Сравнить **одни и те же собственные composite custom editors** обоих кандидатов на одной более тяжёлой многоэлементной странице с имитированными медиа/анимацией, оценить проблемы длинной пользовательской сессии и синхронизации. Старые customWidgets были тестированы отдельно и не доказывают общий end-to-end UX.
+2. Дополнить adversarial HTML syntax/inline rawtext CSS/JS и typed postMessage/nonce lifecycle проверки перед адаптерами; пройти реальные ресурсы, строгие права, медиа, конкурентность/rollback. В браузерных фикстурах PASS не означает production security.
+3. **РЕАЛЬНЫЙ текущий Hostinger/PHP shared-hosting НЕ проверялся.** По [STAGE-1-HOSTING-SMOKE-PLAN.md](STAGE-1-HOSTING-SMOKE-PLAN.md) первоначально только разрешённый read-only осмотр, без изменения тарифа/работающих сайтов; отдельный smoke в изоляции возможен при доступе и отдельном разрешении.
+4. Сопоставить все **135 обязательных ID** с доказанным/непроверенным и подготовить владельцу вариант решения. **Не утверждать технологию**, не принимать этап 1 без владельца, **не начинать этап 2**, не разрабатывать готовую CMS или ограниченный MVP.
+
+**Неизменные условия:** 18 этапов 0–17, этап 0 принят, **этап 1 в работе, НЕ принят, этап 2 не начат**; 193 требований: 135 обязательных, 42 желательных, 16 не нужны. Первый официальный релиз только после 135/135 настоящих принятых mandatory требований, без MVP; permissive open-source с лицензиями; текущий PHP shared hosting без апгрейдов; CELIKOM — независимый первый пилот на этапе 17 только после полноценного релиза CMS. **Ни один из 135 обязательных пунктов не получил продуктовую приёмку от этой серии исследовательских стендов.** Этот `docs/NEXT-CHAT.md` — единственный постоянный handoff.
+
+### Для нового чата, когда понадобится
+
+> Продолжаем **AI Site CMS** с checkpoint **v1.14**, GitHub `manufact-test/ai-site-cms`. Прочитай из **main** `docs/NEXT-CHAT.md` **раздел 19**, `PROJECT-STATUS.json`, `docs/STAGE-1-TEST-LOG.md` §17, `docs/STAGE-1-MATCHED-EDITOR-SESSIONS.md` и остальные нормативные документы. Последний полный успешный CI: https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450. В research-ветке подтверждены одинаковые JSON Jedison/RJSF на 12-ID многоэлементной схеме, по 16 циклов mount/edit/unmount и 656 изменений на редактор в двух порядках; page errors 0. Различия bundle/heap/time диагностические и недостаточны для выбора стека. Следующий фрагмент этапа 1: идентичные сложные custom composite widgets/media-мокки, продлённая сессия, security и read-only hosting при доступе; затем покрытие 135 обязательных ID. НЕ сливать research в main, не начинать этап 2 без отдельного согласия; единственный handoff — этот же `docs/NEXT-CHAT.md`.
 
