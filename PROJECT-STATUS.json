@@ -17,7 +17,7 @@
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.2",
+  "checkpoint_version": "1.3",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
