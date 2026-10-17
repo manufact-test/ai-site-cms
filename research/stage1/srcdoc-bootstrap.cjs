@@ -66,7 +66,7 @@ if(!chrome)throw Error('Chromium missing');
     const csp='<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;nonce-'+allow+'&#39;; connect-src &#39;none&#39;">';
     document.getElementById('p').srcdoc='<html><head>'+csp+'</head><body><main>Nonce negative control</main><script nonce="'+deny+'">document.body.dataset.illicit="yes";parent.postMessage({kind:"unexpected"},"*")</scr'+'ipt></body></html>';
    });
-   await blockedPage.frameLocator('#p').locator('script').waitFor();
+   await blockedPage.frameLocator('#p').locator('script').waitFor({state:'attached'});
    await blockedPage.waitForTimeout(150);
    assert.equal(await blockedPage.frameLocator('#p').locator('script').count(),1);
    assert.equal(await blockedPage.frameLocator('#p').locator('body').getAttribute('data-illicit'),null);
