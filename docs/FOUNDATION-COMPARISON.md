@@ -104,6 +104,12 @@ AI Site CMS — **внутренняя разработка команды** д�
 
 **Новая гипотеза, не решение:** Jedison лучше под нашу приоритетную цель `минимум зависимостей` (№193), **но** пока нет испытаний сложных пользовательских типов, responsive, iframe/preview, безопасности и shared hosting; успех двух стандартных редакторов не означает покрытие 135 пунктов. Исходный код CMS по-прежнему отсутствует, экспериментальная ветка изолирована.
 
+## 3.5. Nested responsive, shadow, animation, single preview — реальный Chromium PASS
+
+17.10.2026: [GitHub Actions #39054829619](https://github.com/manufact-test/ai-site-cms/actions/runs/39054829619) успешно проверил **оригинальные Jedison и RJSF** с единой вложенной схемой Hero: \`responsive\` (desktop/tablet/mobile), \`shadow\` (x/y/blur/color), \`animation\` (enabled/duration/easing). Через реальный браузерный ввод у **обоих** desktop меняется \`64px → 58px\`, tablet \`48px\` и mobile \`36px\` сохраняются; blur \`10 → 18\`, duration \`400 → 650\`. Список из 50 metadata секций не вызывает создания дополнительных iframe; **ровно один** iframe подтверждает применение font-size \`58px\`; draft dirty не означает saved/published.
+
+**Рамки:** задействованы стандартные вложенные поля, а **не кастомные field factories** для красивого CSS-интерфейса. В тестовом bridge есть \`postMessage("*")\` и фиксированный nonce — **не образец безопасного production-кода**. Не проверены настоящий сайт, Hostinger, CSS unit parsing, validators PHP/JSON Schema, тяжёлые секции, cookies/CSP/XSS, реальные timings/FPS/RAM, сохранение в БД. Исследовательский приоритет остаётся Jedison благодаря меньшему размеру предыдущего JS-entry, но **стек не утверждён**. Подробный честный протокол — [STAGE-1-TEST-LOG.md](STAGE-1-TEST-LOG.md) §8.
+
 ## 4. Честная матрица соответствия 135 обязательным ID
 
 Здесь **не проценты реализации и не тестовые результаты**: категории — документальные гипотезы.
