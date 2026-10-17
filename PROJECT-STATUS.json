@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Keep stage 1 open. Verify custom and responsive controls (length/shadow/animation), preview bridge and schema coverage against 135 IDs; review actual PHP shared hosting prerequisites before architecture/stack approval. Research harness only on branch research/stage1-editor-comparison.",
+  "next_step": "Continue stage 1 only. Run real custom field controls (length units, composite shadow/gradient, animation) and server validation; verify secure iframe preview cross-framework with actual HTML/PHP/React, production PHP-only shared hosting, and representative performance before stage 1 acceptance and owner stack decision. Research code solely in branch research/stage1-editor-comparison; main remains documentation-only.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.6",
+  "checkpoint_version": "1.7",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -42,7 +42,19 @@
       "gzip_entry_bytes": {
         "jedison": 48287,
         "rjsf_with_validator": 130517
-      }
+      },
+      "advanced_browser_nested_fields_tested": true,
+      "advanced_browser_test_passed_both": true,
+      "advanced_browser_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39054829619",
+      "advanced_fields_tested": [
+        "responsive desktop/tablet/mobile unchanged inheritance except edited desktop",
+        "shadow.blur",
+        "animation.duration",
+        "one iframe and 50 metadata entries",
+        "iframe ack and dirty not saved"
+      ],
+      "custom_field_renderers_tested": false,
+      "production_preview_security_tested": false
     },
     "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
     "research_branch": "research/stage1-editor-comparison"
