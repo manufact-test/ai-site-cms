@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "description": "Disposable stage-1 evaluation harness. Not AI Site CMS.",
-  "scripts": {"test": "node research/stage1/compare.cjs"},
+  "scripts": {
+    "test": "node compare.cjs"
+  },
   "dependencies": {
     "jedison": "1.27.1",
     "@rjsf/core": "6.11.0",
