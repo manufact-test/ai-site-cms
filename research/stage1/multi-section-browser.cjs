@@ -68,6 +68,14 @@ function childRuntime(kind,token,origin){
   }catch{post({kind:'refused',seq:m.seq})}
  });
  document.addEventListener('click',e=>{
+  if(kind==='contact'&&e.target.matches('button[type=submit]')){
+   e.preventDefault();
+   const form=e.target.closest('form[data-action=local-form]');
+   if(!form||!form.checkValidity()||!current)return;
+   document.querySelector('[data-stable-id=contact-success]').textContent=current.successText;
+   post({kind:'interaction',action:'form',value:'validated-in-preview-only'});
+   return;
+  }
   const button=e.target.closest('button[data-action]');
   if(!button||!current||!document.getElementById('slot').contains(button))return;
   const act=button.dataset.action;
