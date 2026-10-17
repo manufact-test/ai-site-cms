@@ -14,17 +14,17 @@ function mountRjsfCustom(){
    React.createElement('input',{type:'number','data-part':'amount',value:n,onChange:e=>commit(e.target.value,u)}),
    React.createElement('select',{'data-part':'unit',value:u,onChange:e=>commit(n,e.target.value)},...['px','rem','%'].map(v=>React.createElement('option',{key:v,value:v},v))));
  };
- const CompositeField=({schema,formData,onChange})=>{
+ const CompositeField=({schema,formData,onChange,fieldPathId})=>{
   const kind=schema['x-cms-kind'];
   const values=formData||{};
   return React.createElement('div',{'data-cms-widget':kind},...Object.entries(schema.properties).map(([key,s])=>{
    const value=values[key]??(s.type==='boolean'?false:s.type==='integer'?0:'');
    const input=s.enum?
-    React.createElement('select',{'data-part':key,value:String(value),onChange:e=>onChange({...values,[key]:e.target.value})},
+    React.createElement('select',{'data-part':key,value:String(value),onChange:e=>onChange({...values,[key]:e.target.value},fieldPathId.path)},
      ...s.enum.map(v=>React.createElement('option',{key:v,value:v},v))):
     React.createElement('input',{'data-part':key,type:s.type==='boolean'?'checkbox':s.type==='integer'?'number':['color','from','to'].includes(key)?'color':'text',
      ...(s.type==='boolean'?{checked:Boolean(value)}:{value:String(value)}),
-     onChange:e=>{const v=s.type==='boolean'?e.target.checked:s.type==='integer'?Number(e.target.value):e.target.value;onChange({...values,[key]:v})}});
+     onChange:e=>{const v=s.type==='boolean'?e.target.checked:s.type==='integer'?Number(e.target.value):e.target.value;onChange({...values,[key]:v},fieldPathId.path)}});
    return React.createElement('label',{key},key,': ',input);
   }));
  };
