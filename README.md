@@ -33,6 +33,7 @@
 | `docs/ACCEPTANCE.md` | Проверки первой **полной** версии |
 | `docs/FOUNDATIONS.md` | Актуальный shortlist open-source, без преждевременного выбора |
 | `docs/STAGE-1-TEST-LOG.md` | Лог исследовательских тестов этапа 1 (не код CMS; гипотезы и блокеры) |
+| `docs/STAGE-1-SNAPSHOT-PUBLISH-RESEARCH.md` | Отчёт checkpoint v1.11: PHP-only Opis validated publication, fallback/rollback; GitHub Actions PASS, **НЕ** product и не тест Hostinger |
 | `docs/FOUNDATION-COMPARISON.md` | **Этап 1 в работе:** сравнительный отчёт, матрица 135 обязательных ID, детали исходников и программа проверок |
 | `docs/NEXT-CHAT.md` | **ЕДИНЫЙ ПОСТОЯННЫЙ CHECKPOINT:** ссылка не меняется, по просьбе обновлять этот же файл, передавать в следующий чат | 
 | `docs/PROJECT-MAP.md` | **Карта папок и файлов GitHub, инструкция перехода в отдельный ChatGPT-проект** |
