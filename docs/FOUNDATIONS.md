@@ -65,3 +65,9 @@
 ## Обновление checkpoint v1.11 — PHP-only guarded publish, 17.10.2026
 
 [CI #39059714864](https://github.com/manufact-test/ai-site-cms/actions/runs/39059714864) PASS: Opis 2.6.0 валидирует перед записью; PHP public renderer работает только с валидным published snapshot и fallback last-known-good (200 при повреждении current), при двойном повреждении fail-closed 503, доступен explicit rollback из history. 7 запрещённых кандидатов отклонены, 4 параллельных CLI writer отработали через flock. Это не тест реального Hostinger, не product publisher и не решение о стеке. Подробнее [STAGE-1-SNAPSHOT-PUBLISH-RESEARCH.md](STAGE-1-SNAPSHOT-PUBLISH-RESEARCH.md) и [STAGE-1-TEST-LOG.md §14](STAGE-1-TEST-LOG.md).
+
+
+## Контрольная точка v1.12 — 4 renderer boundary + реальный RJSF (17.10.2026)
+
+[Успешный GitHub Actions #39062360601](https://github.com/manufact-test/ai-site-cms/actions/runs/39062360601): сложная секция с 12 stable IDs собрана идентично для HTML, PHP CLI, React static render, Next.js static export; в каждом Chromium iframe RJSF 6.11.0 изменил CTA/feature/card и responsive tablet→mobile. 4/4 PASS. Это расширяет доказанное подмножество возможностей **обоих редакторов**, но не утверждает ни Jedison, ни RJSF и не тестирует React/Next.js SSR на текущем хостинге. Bridge в новом функциональном тесте bootstrapped через Playwright после srcdoc загрузки; production CSP/bootstrap остаётся открытым. См. [журнал §15](STAGE-1-TEST-LOG.md), [матрицу §12](FOUNDATION-COMPARISON.md) и [план безопасной проверки имеющегося хостинга](STAGE-1-HOSTING-SMOKE-PLAN.md). Этап 1 не принят; 135 обязательных требований не закрыты.
+
