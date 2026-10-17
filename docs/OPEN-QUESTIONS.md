@@ -46,3 +46,8 @@
 
 [CI #39064252770](https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770): недостаток склейки HTML с JS был обусловлен незавершённым `</section` в исследовательском HTML, не свойством Next.js/PHP/RJSF. После исправления нативные `srcdoc` + nonce работают во всех четырёх адаптерах, nonce-mismatch блокируется в отдельном Chromium сценарии. Это **не закрывает** вопросы Q01–Q14: ещё требуется реальная CSP/nonce lifecycle/доверие HTML, защита обмена сообщениями, безопасный хостинг, различия Next SSR/static, версия схемы и migrations, production security. [Подробности §16](STAGE-1-TEST-LOG.md); все Q остаются «Открыто».
 
+
+## checkpoint v1.14 — единая модель Jedison/RJSF, архитектурные вопросы остаются открытыми (17.10.2026)
+
+[CI #39065084450](https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450) доказал одинаковое управление 12-ID секцией на идентичном JSON при 16 циклах/редактор и 656 редакторских изменениях на каждого; это **исследовательская** модель, не CMS. Q01–Q14 НЕ закрыты: только long-running production sessions, рост heap/GC, custom complex controls, посторонний JS/медиа и реальные угрозы, авторизация/публикация/backup, поддержка SSR и текущее PHP shared-hosting требуют отдельных доказательств и решений владельца. Матрица 135 ID не получила новых product acceptance. Подробности [STAGE-1-MATCHED-EDITOR-SESSIONS.md](STAGE-1-MATCHED-EDITOR-SESSIONS.md). Ни окончательного выбора Jedison/RJSF, ни этапа 2 нет.
+
