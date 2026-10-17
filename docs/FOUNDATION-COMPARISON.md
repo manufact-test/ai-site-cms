@@ -339,3 +339,12 @@ AI Site CMS — **внутренняя разработка команды** д�
 
 **Вывод ограниченный:** техническая возможность типизированного responsive preview без runtime сайта подтверждена на research-фикстуре, production интеграция, CDN, lifecycle nonce CSP, XSS/RBAC и работа на current PHP shared hosting НЕ доказаны. Старые сравнения Jedison/RJSF не дают fair heavy-session benchmark, подходы остаются кандидатами. Следующая задача — сопоставимый 12-ID UI workload и нагрузка/долгие сессии. Матрица 135 ID не считается закрытой, этап 1 не принят, стек не выбран. [Журнал §16](STAGE-1-TEST-LOG.md).
 
+
+## 14. Сопоставимый 12-ID Jedison/RJSF session stress — checkpoint v1.14 (17.10.2026)
+
+[GitHub Actions #39065084450](https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450) PASS: **одни и те же** девять свойств манифеста, 12 stable IDs, изменения 2 CTA/feature/card/stat/описания/адаптива и 32 последовательные правки заголовка на цикл. Два порядка библиотек, по **16 полных циклов mount/edit/unmount** и 656 модельных изменений на **каждый** редактор. **JSON output Jedison 1.27.1 и RJSF 6.11.0 равен**, 0 JS ошибок, published baseline в исследовательской памяти не мутирует, без добавления iframe/неожиданных DOM inputs.
+
+**Различия, подтверждённые лишь для pinned research entry:** gzip Jedison 48.3 КБ, RJSF+React+AJV2020 190.9 КБ; отдельные GC heap measurements меньше у Jedison, scripted Playwright action wall time меньше у RJSF. Однако разные validation dependencies включены в бандлы; CI jitter и порядок запуска влияют на тайминги, GC residual повышался у обоих. **Недостаточно для выбора продукта** или заявления о performance/SLO/отсутствии memory leak. Источник, все значения, воспроизведение и методологические caveats — [STAGE-1-MATCHED-EDITOR-SESSIONS.md](STAGE-1-MATCHED-EDITOR-SESSIONS.md).
+
+**Осталось исследовать**: одинаковые custom composite controls и media-heavy fixtures, более долгие сессии, неоднородные user devices, HTML trust/security/CSP lifecycle, PHP-only hosting именно существующего тарифа. **Ни одного из 135 обязательных требований не засчитывать как product acceptance только по стенду**. Этап 1 НЕ принят, этап 2 НЕ начат; технология НЕ выбрана.
+
