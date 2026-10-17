@@ -83,7 +83,7 @@ async function run(){
      window.paint=()=>{if(window.probe.ready)frame.contentWindow.postMessage({kind:'render',token,state:window.current,device:window.probe.device},'*')};
      window.choose=device=>{window.probe.device=device;frame.style.width=({desktop:1200,tablet:750,mobile:375})[device]+'px';window.paint()};
      window.addEventListener('message',event=>{const m=event.data;if(event.source!==frame.contentWindow||event.origin!=='null'||m?.token!==token)return;if(m.kind==='ready'){window.probe.ready=true;window.paint()}if(m.kind==='applied')window.probe.acks.push(m)});
-     frame.srcdoc='<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;unsafe-inline&#39;; style-src &#39;unsafe-inline&#39;; connect-src &#39;none&#39;; img-src &#39;none&#39;"><style>'+css+'</style></head><body>'+markup+'<script>'+script.replace('__TOKEN__',JSON.stringify(token))+'</scr'+'ipt></body></html>';
+     frame.srcdoc='<!doctype html><html><head><style>'+css+'</style></head><body>'+markup+'<script>'+script.replace('__TOKEN__',JSON.stringify(token))+'</scr'+'ipt></body></html>';
     },{markup,css,script:childScript});
     try{await page.waitForFunction(()=>window.probe?.acks.some(a=>a.font==='64px'),null,{timeout:10000})}
     catch(error){
