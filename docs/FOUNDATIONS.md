@@ -60,3 +60,8 @@
 ## Исследовательские проверки Hero, overrides и PHP HTTP (17.10.2026)
 
 [CI #39058603992](https://github.com/manufact-test/ai-site-cms/actions/runs/39058603992) PASS: 14 алгоритмических проверок сохранения owner overrides и конфликтов миграции, настоящий Jedison с responsive Hero в одном iframe и PHP HTTP страница из published JSON без admin JS. Настоящий Hostinger shared hosting, тяжёлые production блоки и security не проверены. Подробнее [STAGE-1-TEST-LOG.md §13](STAGE-1-TEST-LOG.md). Этап 1 продолжается, стек не выбран.
+
+
+## Обновление checkpoint v1.11 — PHP-only guarded publish, 17.10.2026
+
+[CI #39059714864](https://github.com/manufact-test/ai-site-cms/actions/runs/39059714864) PASS: Opis 2.6.0 валидирует перед записью; PHP public renderer работает только с валидным published snapshot и fallback last-known-good (200 при повреждении current), при двойном повреждении fail-closed 503, доступен explicit rollback из history. 7 запрещённых кандидатов отклонены, 4 параллельных CLI writer отработали через flock. Это не тест реального Hostinger, не product publisher и не решение о стеке. Подробнее [STAGE-1-SNAPSHOT-PUBLISH-RESEARCH.md](STAGE-1-SNAPSHOT-PUBLISH-RESEARCH.md) и [STAGE-1-TEST-LOG.md §14](STAGE-1-TEST-LOG.md).
