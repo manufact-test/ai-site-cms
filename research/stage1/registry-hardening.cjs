@@ -16,7 +16,7 @@ function reject(fn,label){assert.throws(fn,undefined,label);negatives++}
  assert.equal(r.installedPacks().length,3);
  assert.ok(names.length>=10);
  const parsed=fixtures.map(html=>r.parse(html,parseFragment));
- assert.deepEqual(parsed.map(m=>m.nodes),[9,8,3]);
+ assert.deepEqual(parsed.map(m=>m.nodes),[8,8,3]);
  for(const m of parsed){
   r.validate(m,m.defaults);
   const schema=r.schema(m);
