@@ -23,6 +23,8 @@ jobs:
           node-version: '22'
       - name: Install pinned research dependencies
         run: npm install --no-audit --no-fund
+      - name: Reviewed site capability packs - live link, disclosure, dialog and preview-only form
+        run: node trusted-behavior-browser.cjs
       - name: Install explicit media fixture toolchain
         run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
       - name: Real local media and upload adversarial boundaries
@@ -45,8 +47,6 @@ jobs:
         run: node independent-site-render-parity.cjs
       - name: Full-site opaque browser trust boundary, CSS and blocked behaviors
         run: node independent-site-sandbox.cjs
-      - name: Reviewed site capability packs - live link, disclosure, dialog and preview-only form
-        run: node trusted-behavior-browser.cjs
       - name: Native browser editor test of new geometry and appearance property packs
         run: node registry-editor-browser.cjs
       - name: Adversarial HTML grammar and native nonce/origin preview boundary
