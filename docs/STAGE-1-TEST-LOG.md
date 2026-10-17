@@ -385,3 +385,21 @@
 
 Промежуточный FAIL [#39073066570](https://github.com/manufact-test/ai-site-cms/actions/runs/39073066570) — race, snapshot iframe innerWidth после изменения ширины. Исправлена синхронизация реального resize перед measured computed CSS в старом и новом probe, **без** смягчения проверок. Итоговый полный CI PASS. Подробный [технический отчёт](STAGE-1-EDITOR-CSS-COVERAGE-AUDIT-RESEARCH.md). Никакого продуктового acceptance: 43 partial/doc, 92 no matched target, **0/135 accepted**, stage1 not accepted.
 
+
+
+## 24. Extensible trusted property packs, hardening and native editor computed CSS — checkpoint v1.21 (18.10.2026)
+
+[**Полный GitHub Actions #39075385172 PASS**](https://github.com/manufact-test/ai-site-cms/actions/runs/39075385172), research HEAD `fba0093dc836ad8aa0695c34839b30d9f8efb6af`. Весь workflow success, включая все старые медиа, редакторские parity, HTML/nonce boundary, HTML/PHP/React/Next-static и PHP Opis/publish/rollback.
+
+В research-only добавлено 3 модуля: `extensible-style-registry.cjs` (trusted property packs + immutable typed model/schema/apply/migrate/audit), `registry-hardening.cjs` (51 negative cases + AJV schema parity), `registry-editor-browser.cjs` (actual 4 Chromium editor runs).
+
+**10 разрешённых типов настроек:** text, fontSize, padding, borderRadius, maxWidth, gap, backgroundColor, borderColor, opacity, flexDirection; собраны из 3 independently registered trusted developer packs. Свободные уникальные по структуре markup sections объявляют stable-ID/editables без отдельного hand-coded layout renderer.
+
+**Static proof:** 3 исследовательских layout (8 nodes/13 fields; 8/11; 3/2), **51/51** негативных input/HTML/plugin cases отказаны, AJV 2020 ↔ custom typed validation согласуются. Проверены конфликтующие pack registration, atomic refusal, unsafe CSS, missing ID, outsider intent ledger, несовместимые owner override migrations. Частный HTML parser `parse5` tolerant repair усекал закрывающий tag — добавлена проверка на исходный закрывающий `</section>`; это не universal HTML sanitizer.
+
+**Native browser proof:** 2 distinct sections `canvas`/`brief` × реальные Jedison 1.27.1/RJSF 6.11.0 = **4/4 PASS**. Через настоящие UI inputs отредактированы fontSize/padding/borderRadius/gap/backgroundColor/opacity/flexDirection. В реальном Chromium `getComputedStyle`: desktop 1200px padding40/font49/gap30; tablet720 padding26/font49/gap17; mobile360 same inherited; radius22px, background rgb(19,68,119), opacity0.5, flex column. **0** browser JS errors, both editors parity; isolated immutable published baseline, opaque sandbox protocol negatives. Not production security (test CSP `style-src-attr unsafe-inline`), not arbitrary CSS/JS and no independent blind LLM site or rich widgets.
+
+Diagnostic FAIL in earlier research runs: malformed generated JS schema replacement (JS replacement `$'` suffix interpolation), repaired using original committed file; tolerant HTML fragment accepted truncated root, explicitly denied afterward. Final CI all green.
+
+Полный [STAGE-1-EXTENSIBLE-STYLE-PACKS-RESEARCH.md](STAGE-1-EXTENSIBLE-STYLE-PACKS-RESEARCH.md). **Stage 1 in progress not accepted, stage2 not started, stack unselected, product acceptance 0/135, research/doc signal 43, gaps 92.**
+
