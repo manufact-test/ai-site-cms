@@ -362,3 +362,12 @@ AI Site CMS — **внутренняя разработка команды** д�
 
 [Полная 135-ID evidence/gap matrix](STAGE-1-MANDATORY-EVIDENCE-MATRIX.md) получена из `requirements/requirements.csv`. Из 135 mandatory ровно 43 частично сопоставлены с исследованиями либо спецификацией, 92 не имеют предметного исследовательского теста. **Реальная производственная приёмка 0/135**. Ни одна библиотека/рендерер по-прежнему не выбрана, реальный PHP shared-hosting не тестирован. [Подробнее](STAGE-1-HTML-BOUNDARY-RESEARCH.md). Решение об этапе 2 только после владельца.
 
+
+
+## 17. Real media + двухпрофильный typed AST: ограничения выбора — checkpoint v1.17 (17.10.2026)
+
+В полном [CI #39068226228](https://github.com/manufact-test/ai-site-cms/actions/runs/39068226228) **PASS**: small real PNG/JPEG/WebM HTTP fixtures (включая video metadata/playback), opaque frame, browser file upload 3 accept/5 reject, неактивные published assets; типизированный AI-site AST с `hero` и `media` профилями и 21/21 негативными отказами. Это существенно шире старых media DOM mocks и одной фиксированной HTML Hero-грамматики, но **не демонстрирует создание произвольных AI-композиций, production media pipeline, редакторских media operations и привилегий**, поэтому не может быть критерием выбора редактора или runtime.
+
+Варианты для отдельного исследования, **без решения о технологии**: (A) строго типизированный AST и registry renderers — уменьшает поверхность untrusted HTML, но рискует ограничить свободу ИИ; (B) parse5/HTML + modular policy packs — гибко, однако сложнее эффективно проверить весь CSS/JS/foreign namespace; (C) trusted site source + typed manifest/owner patches, изолированное preview и immutable publish — требует проверяемой границы доверия, авторизации, миграций. Прежде чем рекомендовать владельцу, сравнить эти подходы на принципиально различных AI-секциях и техрежимах, в том числе реальном разрешённом read-only осмотре shared hosting. [Методика и приоритеты 135 требований](STAGE-1-MEDIA-AST-GAPS-RESEARCH.md).
+
+Продуктовых приёмок по-прежнему **0/135**, этап 1 не принят, этап 2 не начат, финальный стек не утверждён, код исследовательской ветки не мержить в main.
