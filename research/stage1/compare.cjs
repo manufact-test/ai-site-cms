@@ -28,9 +28,9 @@ function run(label, fn) {
 }
 run('jedison_dom', () => {
   const dom = new JSDOM('<!doctype html><html><body><main id="fields"></main></body></html>', { url: 'https://research.invalid/' });
-  const old = {};
-  for (const k of ['window','document','navigator','HTMLElement','Element','Node','Event','MutationObserver','CustomEvent']) { old[k] = globalThis[k]; }
-  Object.assign(globalThis, { window: dom.window, document: dom.window.document, navigator: dom.window.navigator, HTMLElement: dom.window.HTMLElement, Element: dom.window.Element, Node: dom.window.Node, Event: dom.window.Event, MutationObserver: dom.window.MutationObserver, CustomEvent: dom.window.CustomEvent });
+  const keys = ['window','document','navigator','HTMLElement','Element','Node','Event','MutationObserver','CustomEvent'];
+  const old = Object.fromEntries(keys.map(k => [k, Object.getOwnPropertyDescriptor(globalThis, k)]));
+  for (const k of keys) Object.defineProperty(globalThis, k, { configurable: true, writable: true, value: dom.window[k] });
   try {
     const Jedison = require('jedison');
     assert.equal(typeof Jedison.Create, 'function');
@@ -52,7 +52,7 @@ run('jedison_dom', () => {
     instance.destroy();
     return { inputs: inputs.length, initial: sourceValues, changed: newValues, note: 'jsdom harness, not full Chromium browser' };
   } finally {
-    for (const k of Object.keys(old)) { if (old[k] === undefined) delete globalThis[k]; else globalThis[k] = old[k]; }
+    for (const k of Object.keys(old)) { if (!old[k]) delete globalThis[k]; else Object.defineProperty(globalThis, k, old[k]); }
     dom.window.close();
   }
 });
@@ -81,7 +81,7 @@ for (const [name, src] of [
       absWorkingDir: __dirname, bundle: true, minify: true, write: false,
       platform: 'browser', format: 'iife', target: ['chrome120'], logLevel: 'silent'
     });
-    const js = output.outputFiles.find(x => x.path.endsWith('.js')).contents;
+    const js = output.outputFiles[0].contents;
     return { minifiedBytes: js.length, gzipBytes: zlib.gzipSync(js, { level: 9 }).length,
       note: 'Test entry import bundle, NOT final app size or measured transfer' };
   });
