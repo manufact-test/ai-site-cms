@@ -97,3 +97,6 @@
 
 **Контрольная точка v1.14:** новый исследовательский файл `research/stage1/matched-editor-session.cjs` (только `research/stage1-editor-comparison`), документация с проверенными числами `docs/STAGE-1-MATCHED-EDITOR-SESSIONS.md` (main), регрессии `docs/STAGE-1-TEST-LOG.md §17`, анализ `docs/FOUNDATION-COMPARISON.md §14`. Успешный полный CI: [#39065084450](https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450). Постоянный handoff остаётся один — `docs/NEXT-CHAT.md`.
 
+
+**Checkpoint v1.15:** `research/stage1/matched-custom-media.cjs` (исследовательская ветка) — одинаковые собственные составные UI-контролы Jedison/RJSF с typed iframe preview и **локальными media-заглушками**. [CI #39066085194](https://github.com/manufact-test/ai-site-cms/actions/runs/39066085194) PASS; объяснение, ограничения и воспроизведение — новый документ [STAGE-1-COMPOSITE-MEDIA-RESEARCH.md](STAGE-1-COMPOSITE-MEDIA-RESEARCH.md), журнал `STAGE-1-TEST-LOG.md §18`, сравнение `FOUNDATION-COMPARISON.md §15`, тот же единственный `NEXT-CHAT.md §20`. No production CMS.
+
