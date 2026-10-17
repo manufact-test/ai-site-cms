@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Continue stage 1 only. Run real custom field controls (length units, composite shadow/gradient, animation) and server validation; verify secure iframe preview cross-framework with actual HTML/PHP/React, production PHP-only shared hosting, and representative performance before stage 1 acceptance and owner stack decision. Research code solely in branch research/stage1-editor-comparison; main remains documentation-only.",
+  "next_step": "Continue stage 1 only: evaluate full server JSON Schema validation in PHP, compare equivalent RJSF custom widgets, then test real authorized existing shared-hosting environment and representative heavy sections/publish security. Do not start stage 2 or merge research branch without owner acceptance.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.7",
+  "checkpoint_version": "1.8",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -53,11 +53,25 @@
         "one iframe and 50 metadata entries",
         "iframe ack and dirty not saved"
       ],
-      "custom_field_renderers_tested": false,
-      "production_preview_security_tested": false
+      "custom_field_renderers_tested": true,
+      "production_preview_security_tested": false,
+      "custom_field_proof": "real Jedison 1.27.1 length/shadow/gradient/animation customEditors in Chromium PASS",
+      "isolated_preview_security_probe_passed": true,
+      "php_cli_typed_validation_passed": true,
+      "php_cli_version": "8.3.6",
+      "full_php_json_schema_validator_tested": false,
+      "html_php_react_rendered_string_preview_passed": true,
+      "synthetic_first_input_performance_tested": true,
+      "synthetic_first_input_median_ms": {
+        "jedison": 46.5,
+        "rjsf": 63.1
+      },
+      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39055909594",
+      "rjsf_complex_custom_fields_tested": false
     },
     "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
-    "research_branch": "research/stage1-editor-comparison"
+    "research_branch": "research/stage1-editor-comparison",
+    "research_state_note": "Proofs show feasibility only, not accepted CMS requirements, production security, PHP hosting verification or final framework selection."
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
