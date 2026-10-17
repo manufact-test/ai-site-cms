@@ -126,9 +126,12 @@
 
 **Установленные факты исследования:** прочитаны MASTER-TZ, ROADMAP, REQUIREMENTS, FOUNDATIONS, AI-SITE-CONTRACT, ARCHITECTURE, OPEN-QUESTIONS, ACCEPTANCE и весь CSV. Верифицированы официальные репозитории и релизы Puck, GrapesJS, VvvebJs, Craft.js, Winter, Microweber, Payload и ряда JS/PHP библиотек. Выявлены перспективные направления: schema-driven формы (JSON Forms/RJSF), изолированный preview и PHP runtime; альтернативы — адаптация Puck и готового PHP backend. Ни одна система целиком не покрывает AI-first manifest + три семейства сайтов + сохранение overrides.
 
+
+**Новый факт из осмотра кода:** Puck AutoField/Preview тесно связаны с Puck store, а GrapesJS Style Manager — с моделями DOM/CSS/editor. JSON Forms и RJSF имеют более независимые schema-driven interfaces, поэтому их проверяем первыми; Winter имеет backend widgets, но их выделение тоже непросто. Осмотр GitHub-кода **не** заменяет runtime-tests. См. FOUNDATION-COMPARISON §3.1.
+
 **Непроверенное:** реальные затраты адаптации, bundle/CPU/RAM, PHP-only deployment, backup/revision engine, качество нестандартных адаптеров. Оценки в сравнении — гипотезы, не прохождение тестов и не доказанные проценты готовности. Этап 1 **идёт**, но **не принят**; этап 2 не открыт. Не менялись исходники CMS и исходные приоритеты.
 
-**Документы:** `docs/FOUNDATIONS.md` (shortlist и критерии), `docs/FOUNDATION-COMPARISON.md` (протокол сравнительного аудита; создаётся в рамках текущего исследования), `docs/MASTER-TZ.md` §1.4 (внутренний характер и лицензии), `PROJECT-STATUS.json` (in_progress).
+**Документы:** `docs/FOUNDATIONS.md` (shortlist и критерии), `docs/FOUNDATION-COMPARISON.md` (уже записан: 135 строк, сравнительные гипотезы, code inspection, протокол испытаний), `docs/MASTER-TZ.md` §1.4 (внутренний характер и лицензии), `PROJECT-STATUS.json` (in_progress).
 
 **При переносе в новый чат:** сначала прочитать этот файл и PROJECT-STATUS.json из GitHub, затем два исследовательских документа. Продолжать этап 1, без преждевременного выбора стека, без релиза MVP и без работы с CELIKOM.
 
