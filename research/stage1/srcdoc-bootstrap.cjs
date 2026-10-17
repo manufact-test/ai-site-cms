@@ -54,6 +54,25 @@ if(!chrome)throw Error('Chromium missing');
    results.push({policy,ready:true,ack:true,scriptElement:1,escapedText:true,errors:0});
    await page.close();
   }
+  // Negative control: CSP nonce is actually enforced, not merely present in markup.
+  // A mismatching script must remain in DOM but NOT execute or contact its parent.
+  const blockedPage=await browser.newPage();
+  try{
+   await blockedPage.setContent('<!doctype html><html><body><iframe id="p" sandbox="allow-scripts"></iframe></body></html>');
+   await blockedPage.evaluate(()=>{
+    window.illicitMessages=0;
+    window.addEventListener('message',e=>{if(e.data?.kind==='unexpected')window.illicitMessages++});
+    const allow='0123456789abcdef0123456789abcdef',deny='fedcba9876543210fedcba9876543210';
+    const csp='<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;nonce-'+allow+'&#39;; connect-src &#39;none&#39;">';
+    document.getElementById('p').srcdoc='<html><head>'+csp+'</head><body><main>Nonce negative control</main><script nonce="'+deny+'">document.body.dataset.illicit="yes";parent.postMessage({kind:"unexpected"},"*")</scr'+'ipt></body></html>';
+   });
+   await blockedPage.frameLocator('#p').locator('script').waitFor();
+   await blockedPage.waitForTimeout(150);
+   assert.equal(await blockedPage.frameLocator('#p').locator('script').count(),1);
+   assert.equal(await blockedPage.frameLocator('#p').locator('body').getAttribute('data-illicit'),null);
+   assert.equal(await blockedPage.evaluate(()=>window.illicitMessages),0);
+   results.push({policy:'nonce-mismatch',scriptPresent:true,blocked:true,unexpectedMessages:0});
+  }finally{await blockedPage.close()}
   console.log('STAGE1_SRCDOC_BOOTSTRAP='+JSON.stringify({pass:true,results,scope:'research Chrome srcdoc, nonce meta CSP only, NOT production CSP deployment'}));
  }finally{await browser.close()}
 })().catch(e=>{console.error('STAGE1_SRCDOC_BOOTSTRAP_FAIL='+String(e.stack||e));process.exitCode=1});
