@@ -2,7 +2,7 @@
 
 **Дата:** 17.10.2026 · **Статус:** только исследование этапа 1, не готовая CMS и не производственный security audit.  
 **Код:** отдельная ветка `research/stage1-editor-comparison`: [media-fixtures.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/media-fixtures.cjs) и [typed-ast-probe.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/typed-ast-probe.cjs).  
-**CI:** [#39068226228](https://github.com/manufact-test/ai-site-cms/actions/runs/39068226228); отдельные шаги новых двух стендов прошли PASS. Итог **полного** workflow проверяется отдельно и фиксируется в журнале.
+**CI:** [#39068226228](https://github.com/manufact-test/ai-site-cms/actions/runs/39068226228); **весь workflow PASS**, включая новые media/AST, предыдущие браузерные сравнения, HTML boundary, PHP Opis, rollback и adapters.
 
 ## 1. Что действительно проверили: не media mocks
 
