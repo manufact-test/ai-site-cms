@@ -93,3 +93,7 @@
 **Исследовательский технический чеклист checkpoint v1.12:** `docs/STAGE-1-HOSTING-SMOKE-PLAN.md` — безопасная последовательность проверки текущего PHP shared-hosting (пока только план). Фактические результаты многоэлементных HTML/PHP/React/Next-static адаптеров и RJSF — `docs/STAGE-1-TEST-LOG.md §15`, выводы — `docs/FOUNDATION-COMPARISON.md §12`. Постоянный файл передачи **по-прежнему один** — `docs/NEXT-CHAT.md`, никаких конкурирующих handoff документов.
 
 **Исследование — контрольная точка v1.13:** `research/stage1/srcdoc-bootstrap.cjs` — независимая браузерная проверка родного `srcdoc` с правильным и неправильным CSP nonce. `research/stage1/complex-adapters.cjs` — исправленный многоэлементный HTML/PHP/React/Next-static regression с нативным iframe bootstrap и обязательной проверкой завершённости HTML-фрагмента. CI [#39064252770](https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770) PASS. Официальные сведения — `docs/STAGE-1-TEST-LOG.md §16` и `docs/NEXT-CHAT.md §18`; новый самостоятельный handoff не создавался.
+
+
+**Контрольная точка v1.14:** новый исследовательский файл `research/stage1/matched-editor-session.cjs` (только `research/stage1-editor-comparison`), документация с проверенными числами `docs/STAGE-1-MATCHED-EDITOR-SESSIONS.md` (main), регрессии `docs/STAGE-1-TEST-LOG.md §17`, анализ `docs/FOUNDATION-COMPARISON.md §14`. Успешный полный CI: [#39065084450](https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450). Постоянный handoff остаётся один — `docs/NEXT-CHAT.md`.
+
