@@ -207,3 +207,11 @@
 
 Эти узкие исследования не означают, что реализованы требования редактирования/адаптива/контракта для полнофункциональной CMS. Нет generated-by-LLM независимого сайта, full field coverage, arbitrary CSS, visual custom UX или production publishing. Классификация **43 R/D / 92 N неизменна**; **0/135** product accepted. Этап 1 ещё не принят, стек не выбран.
 
+
+
+## Дополнение v1.21: trusted CSS property packs расширяются, но 135 требований не закрыты (18.10.2026)
+
+Research full CI [#39075385172](https://github.com/manufact-test/ai-site-cms/actions/runs/39075385172), модели 10 whitelisted typed CSS/owner properties, 3 trusted packs, AJV/schema/migrate/negative HTML cases **51/51 PASS**; 2 новых ручных annotated layouts × реальные Jedison/RJSF 4/4 native browser sessions, реальная computed CSS geometry/appearance на desktop/tablet/mobile. [Технический отчет](STAGE-1-EXTENSIBLE-STYLE-PACKS-RESEARCH.md).
+
+Новые изменения — целевые исследовательские пробы, **НЕ** end-to-end implementation всех properties/canvas/editor/AI-site requirements 135-ID source. Не поддержаны произвольные скрипты/HTML, полная геометрия, анимации, формы, SEO/кроссстраничность, реальный public runtime Hostinger и самостоятельная blind генерация сайта/манифеста. Строгий status 43 R/D limited research/document signals, 92 no matching target product probe и **0/135 продуктовых приёмок** не изменён. Выбор production архитектуры только после owner approval.
+
