@@ -56,3 +56,8 @@
 
 [CI #39066085194](https://github.com/manufact-test/ai-site-cms/actions/runs/39066085194) подтвердил технический typed-edit path четырёх специальных типов полей length/shadow/gradient/animation в обоих upstream редакторах на одном preview fixture с image/video/animated mock placeholders и CSP nonce. Это **НЕ доказательство** настоящих медиа/CDN/3D, безопасной генерации произвольного HTML, устойчивости многочасового редактора, разрешённого текущего PHP shared-hosting, RBAC или production publishing. Все незакрытые Q01–Q14 остаются открыты; финальный editor/foundation не выбран. [Исследовательский отчёт](STAGE-1-COMPOSITE-MEDIA-RESEARCH.md).
 
+
+## checkpoint v1.16 — HTML threat boundary уточнён, production trust всё ещё открыто (17.10.2026)
+
+[CI #39067271214](https://github.com/manufact-test/ai-site-cms/actions/runs/39067271214): ограниченный HTML preflight 20/20 malicious/invalid reject, нативный nonce-protected opaque iframe bridge и rogue message source negative PASS. Но **конкретный production policy для AI-authored HTML** и расширяемая schema/AST/URL sanitizer, CSP response headers, allowed external media origins, versioned nonce lifecycle, WebGL, XSS/CSRF/Auth и multiuser защита остаются нерешёнными. Узкая фиксированная Hero grammar НЕ гарантирует работу универсального AI site builder. Матрица mandatory: 135 ID, 43 частичных исследования/описания, 92 без исследования, 0 продуктово принято. [Отчёт](STAGE-1-HTML-BOUNDARY-RESEARCH.md), [матрица](STAGE-1-MANDATORY-EVIDENCE-MATRIX.md). Stage 1 in_progress / stage 2 not_started.
+
