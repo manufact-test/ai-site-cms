@@ -1,6 +1,6 @@
 # AI Site CMS — постоянный файл передачи между чатами
 
-**Контрольная точка:** v1.14 · **дата:** 17.10.2026  
+**Контрольная точка:** v1.15 · **дата:** 17.10.2026  
 **Единственный постоянный путь:** `docs/NEXT-CHAT.md`  
 **Постоянная ссылка:** https://github.com/manufact-test/ai-site-cms/blob/main/docs/NEXT-CHAT.md  
 **Проект:** AI Site CMS, без MFT/MANUFACT в названии.  
@@ -350,4 +350,31 @@
 ### Для нового чата, когда понадобится
 
 > Продолжаем **AI Site CMS** с checkpoint **v1.14**, GitHub `manufact-test/ai-site-cms`. Прочитай из **main** `docs/NEXT-CHAT.md` **раздел 19**, `PROJECT-STATUS.json`, `docs/STAGE-1-TEST-LOG.md` §17, `docs/STAGE-1-MATCHED-EDITOR-SESSIONS.md` и остальные нормативные документы. Последний полный успешный CI: https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450. В research-ветке подтверждены одинаковые JSON Jedison/RJSF на 12-ID многоэлементной схеме, по 16 циклов mount/edit/unmount и 656 изменений на редактор в двух порядках; page errors 0. Различия bundle/heap/time диагностические и недостаточны для выбора стека. Следующий фрагмент этапа 1: идентичные сложные custom composite widgets/media-мокки, продлённая сессия, security и read-only hosting при доступе; затем покрытие 135 обязательных ID. НЕ сливать research в main, не начинать этап 2 без отдельного согласия; единственный handoff — этот же `docs/NEXT-CHAT.md`.
+
+
+## 20. Одинаковые составные поля Jedison/RJSF и безопасные media mocks — checkpoint v1.15 (17.10.2026)
+
+**ПОСЛЕДНИЙ ПОЛНЫЙ УСПЕШНЫЙ CI:** [GitHub Actions #39066085194](https://github.com/manufact-test/ai-site-cms/actions/runs/39066085194), ветка `research/stage1-editor-comparison`, экспериментальный commit [fb12a4ea6ac27808e583207240d182edde997659](https://github.com/manufact-test/ai-site-cms/commit/fb12a4ea6ac27808e583207240d182edde997659). Проверено в логах `STAGE1_MATCHED_CUSTOM_MEDIA={"pass":true,...,"equalOutput":true}`. Все прежние тесты 12-ID HTML/PHP/React/Next static + native CSP nonce и 16-cycle/656-editor-event stress вновь PASS, PHP/Opis/rollback/parity PASS. Исследовательский код **НЕ сливался в main**, где живут только нормативные документы.
+
+### Что реально сделали и подтвердили
+
+- Добавлен [research/stage1/matched-custom-media.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/matched-custom-media.cjs) — сравнительный **настоящий Chrome** тест настоящих pinned **Jedison 1.27.1 / RJSF 6.11.0** по одному `typed-manifest.schema.json` Draft 2020-12.
+- **4 composite kinds** по одной модели: `length` (number + px/rem/%), `shadow` (x/y/blur/color), `gradient` (angle/from/to), `animation` (enabled/duration/easing). Для каждого editor **два цикла mount/edit/unmount**, **девять UI правок в цикл**. Итог одинаков `fontSize:72rem`, shadow blur 25/color #abcdef, gradient 120/from #aabbcc, animation disabled/duration 850/easing linear. Nested JSON обоих кандидатов сравнивается `deepEqual`. Browser pageerrors **0**, 4/4 виджета и оба цикла PASS.
+- Предпросмотр — одна нативно загруженная `iframe.srcdoc sandbox=allow-scripts`, opaque origin, токен и CSP nonce для JS, строго типизированная проверка входящего `postMessage`, **12 stable IDs**, 50 metadata-only записей без новых iframe. Контролы обновляют стиль реальной Hero-разметки; в ней только **3 DOM/CSS media mocks (image/video/animation)**, совершенно **БЕЗ загрузки реальных фото/видео/3D/WebGL/CDN**.
+- Негативный CSS packet `shadow.color='url(javascript:alert(1))'` не даёт applied acknowledgment; published baseline не меняется от draft; controls исчезают после unmount. Это **узкое** исследование, не гарантия production безопасности, CSP/nonce lifecycle либо защищённости от недоверенной AI HTML.
+- Важно: исследовательский harness переиспользует **существующие** реальные классы Jedison из `custom-widgets.cjs` и React RJSF fields из `rjsf-custom.cjs`, извлекая setup-функции как фрагменты текста. Это полезно для честного тестового reuse, но **НЕ production module/API design**; в проекте потребуются обычные модульные экспорты.
+- **Новый подробный отчёт:** [docs/STAGE-1-COMPOSITE-MEDIA-RESEARCH.md](STAGE-1-COMPOSITE-MEDIA-RESEARCH.md). Прописали в [STAGE-1-TEST-LOG.md §18](STAGE-1-TEST-LOG.md), [FOUNDATION-COMPARISON.md §15](FOUNDATION-COMPARISON.md), [FOUNDATIONS.md](FOUNDATIONS.md), [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md), [PROJECT-MAP.md](PROJECT-MAP.md), в машиночитаемом [PROJECT-STATUS.json](../PROJECT-STATUS.json) checkpoint **1.15**. Всё на `main`, перепроверять именно последний раздел этого единственного файла `NEXT-CHAT.md`.
+
+### Где остановились и что делать дальше — только этап 1
+
+1. **Следующий небольшой исследовательский кусок**: независимый adversarial test слоя AI-generated HTML/iframe, включая rawtext `<script>`/`<style>`, незавершённые теги, CSS injection, message source/token/origin; тест должен честно различать доверенный adapter HTML и недоверенный HTML, не обещая что production sanitizer уже есть.
+2. Затем реальная **локальная media fixture** (фото, видео, отсутствие/ошибка resource, задержка, ограничения размера) без подключения к реальным сайтам, не забывая SSR/Next/static и UI fidelity; продлённая reliability-сессия, дизайн модульных интерфейсов custom editors.
+3. Продолжать разбор **матрицы 135 mandatory ID**, доказательства против непроверенных ограничений; передавать владельцу оценку на этапе 1, НЕ утверждать окончательный стек. **Текущий реальный Hostinger/shared PHP ни разу не проверяли**: сначала только авторизованный read-only осмотр по [STAGE-1-HOSTING-SMOKE-PLAN.md](STAGE-1-HOSTING-SMOKE-PLAN.md) без изменений тарифа/реальных сайтов.
+4. Этап 0 принят; **этап 1 = in_progress, НЕ принят**; **этап 2 = not_started**. Никакого внедрения product CMS, выбора framework или merge экспериментальной ветки без отдельного разрешения владельца. Ни одно из 135 обязательных требований не принято как продукт только по test harnesses.
+
+**Неизменная политика:** 193 требования = 135 mandatory + 42 желательных + 16 не нужных, никакого MVP и первого релиза раньше реальных 135/135. Существующий PHP shared-hosting не апгрейдить, Node допустим для offline tooling. CELIKOM — **отдельный пилот на этапе 17, после полного релиза**, без смешивания репозиториев, баз данных, ключей или деплоя. Постоянный handoff один — этот `docs/NEXT-CHAT.md`.
+
+### Стартовое сообщение для следующего чата (при необходимости)
+
+> Продолжаем AI Site CMS с checkpoint **v1.15**. Репозиторий `manufact-test/ai-site-cms`. Открой на **main** `docs/NEXT-CHAT.md` раздел **20**, `PROJECT-STATUS.json`, `STAGE-1-TEST-LOG.md` §18 и `docs/STAGE-1-COMPOSITE-MEDIA-RESEARCH.md`. Последний полный CI PASS: https://github.com/manufact-test/ai-site-cms/actions/runs/39066085194. На research-ветке реальный Jedison 1.27.1 и RJSF 6.11.0 успешно тестированы с одинаковой Draft2020 моделью четырёх custom composite UI, нативной CSP nonce iframe, 12 stable IDs, тремя **только имитационными** media placeholders; 2×9 UI edits на редактор, JSON parity и pageerrors 0. Продолжай **исключительно этап 1**: next adversarial AI-generated HTML/iframe safety boundary, затем локальные real-media fixtures и 135 mandatory ID gap matrix. Не выбирать стек, не сливать research в main, не менять тариф/реальные сайты, не начинать этап 2 без согласия. Документы обновлять в **этом же** NEXT-CHAT и PROJECT-STATUS.
 
