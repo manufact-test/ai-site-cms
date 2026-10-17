@@ -23,8 +23,10 @@ jobs:
           node-version: '22'
       - name: Install pinned research dependencies
         run: npm install --no-audit --no-fund
+      - name: Diagnose complex adapter native bootstrap first
+        run: node complex-adapters.cjs
       - name: Run actual upstream package checks
-        run: node srcdoc-bootstrap.cjs && npm test && node secure-preview.cjs && node performance.cjs && node multirender.cjs && node rjsf-custom.cjs && node schema-parity.cjs && node override-evolution.cjs && node representative-hero.cjs && node public-runtime.cjs && node complex-adapters.cjs
+        run: node srcdoc-bootstrap.cjs && npm test && node secure-preview.cjs && node performance.cjs && node multirender.cjs && node rjsf-custom.cjs && node schema-parity.cjs && node override-evolution.cjs && node representative-hero.cjs && node public-runtime.cjs
       - name: PHP-only typed validation research
         run: php -v && php php-validation-smoke.php
       - name: Actual Opis JSON Schema 2.6.0 research
