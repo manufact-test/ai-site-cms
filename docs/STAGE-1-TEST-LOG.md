@@ -137,3 +137,51 @@
 
 **Для завершения этапа 1 остаётся:** (1) реальный custom field renderer (\`length\` с единицами, композитная тень/градиент, анимационный объект), (2) проверки недопустимых значений на server-side, (3) проверка работы preview с реальными HTML/PHP/React-разработками и изоляцией, (4) hosting smoke test на текущем PHP shared hosting без расширения, (5) безопасность/производительность/зависимости, итоговый вывод и согласование владельца. **Этап 1 в работе; этап 2 не открыт.**
 
+
+## 9. Новая серия реальных браузерных/PHP проверок — 17.10.2026
+
+**Подтверждённый полный запуск:** [GitHub Actions #39055909594](https://github.com/manufact-test/ai-site-cms/actions/runs/39055909594), ветка [research/stage1-editor-comparison](https://github.com/manufact-test/ai-site-cms/tree/research/stage1-editor-comparison). Предыдущие успешные промежуточные CI: #39055561627 (кастомные контролы), #39055701112 (изоляция и PHP), #39055820132 (производительность). Всё — исключительно исследовательский код; main остаётся без исходников CMS.
+
+### 9.1. Настоящие customEditors Jedison 1.27.1
+
+Сценарий [custom-widgets.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/custom-widgets.cjs) зарегистрировал классы, расширяющие оригинальные Jedison.EditorStringInput и Jedison.EditorObject. Через UI headless Chrome проверены:
+- length: изменение числа и единицы с 64px на 72rem — PASS;
+- shadow: blur 10→25 и color #112233→#abcdef, исходные x/y сохранены — PASS;
+- gradient: angle 45→120, from #112233→#aabbcc, цвет to сохранён — PASS;
+- animation: enabled true→false, duration 400→850, easing ease→linear — PASS;
+- структуры JSON не разрушены, отсутствующее borderRadius не появилось, ошибок pageerror 0 — PASS.
+
+Этот UI — иллюстративный стенд, не утверждённое оформление. У него нет тестов дробных единиц, responsive override inheritance, Undo, реального сохранения и равнозначной RJSF custom UI-реализации. Стек НЕ выбран.
+
+### 9.2. PHP typed validation
+
+[php-validation-smoke.php](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/php-validation-smoke.php) успешно выполнен на PHP **8.3.6 CLI** в GitHub Actions. Без Composer, без Node runtime на PHP-стороне. Проведено **16 случаев**: 2 корректных приняты, 14 некорректных отвергнуты, включая CSS injection, HTML injection, запрещённую единицу, отрицательную длину и blur, недопустимые цвета/диапазоны, строку вместо числа, лишние вложенные и корневые свойства, отсутствие поля, неверный JSON и превышение глубины JSON. PASS. Это специально написанный ограниченный валидатор 4 типов, НЕ полноценная JSON Schema-совместимость и НЕ испытание Hostinger.
+
+### 9.3. Безопасность и три формата предпросмотра
+
+[secure-preview.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/secure-preview.cjs): Chrome подтвердил opaque origin = null iframe без allow-same-origin, запрет доступа к parent DOM, запрет сетевого запроса дочерней CSP, подтверждённый 58px, отказ фальшивым сообщениям и значениям не из allowlist. PASS.
+
+[multirender.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/multirender.cjs): подтверждён рендер и стилевой ack 58px в одном iframe для (1) статического HTML, (2) HTML-строки, полученной реальным PHP CLI, (3) ReactDOMServer SSR HTML. Все 3 PASS. Это не настоящие размещённые сайты, не Next.js SSR, не production origins; multi-render harness использует упрощённый статический token, неприемлемый для продукта. Изоляция preview и CSP требуют отдельного production-аудита; postMessage к opaque iframe использует targetOrigin=* с отдельными строгими проверками.
+
+### 9.4. Диагностические замеры в Chrome
+
+[performance.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/performance.cjs): пять повторов на каждом оригинальном редакторе, 50 лёгких записей в индексе, 1 iframe, маленькая форма 3 input. JS загружен ДО начала таймера (время загрузки бандла НЕ учитывается).
+
+| Результат run #39055909594 | Jedison | RJSF |
+|---|---:|---:|
+| Время до появления input, пять замеров, мс | 35.3, 46.5, 58.1, 68.3, 43.7 | 73.7, 51.0, 72.6, 52.6, 63.1 |
+| Медиана, мс | 46.5 | 63.1 |
+| gzip тестового браузерного entry, байт | 48 331 | 187 917 |
+| JS heap sample, приблизительно, MB | 4.5 | 8.5 |
+
+Нельзя считать это полноценным benchmark: CI runner нестабилен, React и vanilla отличаются, не было сети и загрузки JS внутри таймера, сложного контента, heavy-video/3D, 50 реально смонтированных блоков, долгих сессий и измерения полного RAM. Performance budget НЕ утверждён. Объём JS entry также не означает размер готовой CMS.
+
+## 10. Оставшиеся исследования, запреты на досрочное закрытие
+
+1. На том же JSON Schema проверить реальный PHP validator (например, Opis, если совместим по лицензии/среде), условные и составные типы, unknown fields, URLs/uploads, защиту API, версии схем.
+2. Испытать **именно текущий shared hosting** с реальными версиями PHP/ext, правами файлов, URL routing, uploads/DB, без его расширения. GitHub Actions PHP CLI этого не заменяет.
+3. Испытать реальные HTML/PHP/React/Next.js секции (не только отрендеренные строки), CSP/origin, XSS/CSRF, media, коммуникации, publish, откат, сохранение overrides.
+4. Сопоставимые кастомные редакторы RJSF, качественный UX, доступность, inheritance, сложные элементы, долгие сессии и реалистичная нагрузка.
+5. Контроль лицензий/third-party assets, сопровождения, миграций и итоговое сравнение всей матрицы 135 обязательных требований.
+
+**Этап 1 выполняется, не принят; этап 2 не начат; окончательный стек не утверждён.**
