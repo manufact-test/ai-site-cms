@@ -112,3 +112,28 @@
 
 **Следующее разумное испытание:** один и тот же вложенный responsive field с `desktop/tablet/mobile`, custom typed UI для `length` и `shadow`, отключение неиспользуемых property groups, live preview с commit only on Save; затем PHP/shared hosting smoke test в разрешённом изолированном окружении.
 
+## 8. Последний проход: вложенный responsive / shadow / animation / preview в настоящем Chromium — 17.10.2026
+
+**Зафиксированный успешный GitHub Actions запуск:** [#39054829619](https://github.com/manufact-test/ai-site-cms/actions/runs/39054829619), изолированная исследовательская ветка [research/stage1-editor-comparison](https://github.com/manufact-test/ai-site-cms/tree/research/stage1-editor-comparison); запускаемый тест: [research/stage1/advanced.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/advanced.cjs). Настоящие \`jedison@1.27.1\` и \`@rjsf/core@6.11.0\` + validator AJV8 проверены в **headless Google Chrome**. Это **не код AI Site CMS**, не публичный релиз и не развертывание клиента.
+
+**Единая тестовая JSON Schema:** объект Hero с \`title\`, вложенными \`responsive.desktop/tablet/mobile\` (строковый \`length\`, pattern на \`px\`), \`shadow.{x,y,blur,color}\`, \`animation.{enabled,duration,easing}\`. Тест использует **штатные поля JSON Schema**, **не собственный custom control** для CSS shadow/animation. До ввода: desktop \`64px\`, tablet \`48px\`, mobile \`36px\`, blur \`10\`, duration \`400\`.
+
+| Реальный Chromium тест | Jedison | RJSF |
+|---|---|---|
+| Редактирование responsive desktop: \`64px → 58px\` через UI | PASS | PASS |
+| Tablet \`48px\` и mobile \`36px\` не затронуты | PASS | PASS |
+| Shadow blur \`10 → 18\` через UI | PASS | PASS |
+| Animation duration \`400 → 650\` через UI | PASS | PASS |
+| 50 метаданных секций, только **один** iframe в DOM | PASS | PASS |
+| Изменение desktop передано в iframe, получено подтверждение \`58px\` | PASS | PASS |
+| Нет постороннего borderRadius в панели по отсутствующему свойству | PASS | PASS |
+| Тестовый флаг dirty меняется; saved остаётся false, published heading не изменён | PASS | PASS |
+| Ошибки выполнения JS в browser \`pageerror\` | 0 | 0 |
+| Количество input DOM элементов (типовые поля) | 10 | 10 |
+
+**Важные технические оговорки:** система создала одно iframe с \`sandbox="allow-scripts"\` и \`srcdoc\`, но это **исследовательский упрощённый bridge**, а не безопасная production-схема: использованы \`postMessage(..., "*")\` и фиксированный nonce; parent проверял \`event.source\` и nonce. Перед реальным использованием нужна согласованная изоляция origins, строгая проверка протокола и типов сообщений/URL, корректный CSP и защита от XSS. \`iframe\` не обслуживал реальную PHP/React секцию, не загружал внешние ресурсы, не проверял видео/3D. Тест не измерял время открытия, FPS, память или сумму JS/CSS/HTML всей CMS.
+
+**Технический результат:** обе библиотеки поддерживают в тестовом сценарии вложенные typed JSON Schema поля и передачу значений во внешнее preview. Jedison по-прежнему предпочтителен по предварительной простоте и замеренной ранее стоимости JS entry, **но окончательно не выбран**.
+
+**Для завершения этапа 1 остаётся:** (1) реальный custom field renderer (\`length\` с единицами, композитная тень/градиент, анимационный объект), (2) проверки недопустимых значений на server-side, (3) проверка работы preview с реальными HTML/PHP/React-разработками и изоляцией, (4) hosting smoke test на текущем PHP shared hosting без расширения, (5) безопасность/производительность/зависимости, итоговый вывод и согласование владельца. **Этап 1 в работе; этап 2 не открыт.**
+
