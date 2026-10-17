@@ -163,6 +163,12 @@ async function test(browser,site,editor,bundles,manifests,origin){
    await page.evaluate(view=>window.__view(view),view);
    const seq=await page.evaluate(()=>window.__seq);
    await page.waitForFunction(seq=>window.__messages.some(m=>m.kind==='applied'&&m.seq>=seq),seq);
+   // Wait for actual iframe layout, not only for postMessage ack (avoids a race with resize).
+   const wanted={desktop:1200,tablet:720,mobile:360}[view];
+   await frame.locator('body').evaluate(async (_,wanted)=>{
+    for(let i=0;i<120;i++){if(innerWidth===wanted)return;await new Promise(r=>requestAnimationFrame(r))}
+    throw Error('iframe viewport did not settle: expected '+wanted+' got '+innerWidth);
+   },wanted);
    const data=await frame.locator('[data-stable-id='+JSON.stringify(styleId)+']').evaluate((n,id)=>({
     font:getComputedStyle(n).fontSize,
     gap:getComputedStyle(document.querySelector('[data-stable-id="'+id+'"]')).gap,
