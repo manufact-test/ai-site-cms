@@ -1,0 +1,14 @@
+{
+  "name": "research/ai-site-cms-stage1-only",
+  "description": "Throwaway PHP JSON Schema validation experiment, NOT CMS code",
+  "type": "project",
+  "license": "UNLICENSED",
+  "require": {
+    "php": ">=8.1",
+    "ext-json": "*",
+    "opis/json-schema": "2.6.0"
+  },
+  "config": {
+    "sort-packages": true
+  }
+}
