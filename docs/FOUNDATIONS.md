@@ -16,7 +16,7 @@
 
 | Направление | Кандидаты | Задача | Предварительная оценка |
 |---|---|---|---|
-| Framework-agnostic schema UI | [Jedison](https://github.com/germanbisurgi/jedison) (MIT, 1.27.1, 0 runtime/peer deps) | JSON Schema → HTML inputs без React; custom editors/events | **Приоритет реального A/B теста**; без реальной установки кандидат ещё не принят |
+| Framework-agnostic schema UI | [Jedison](https://github.com/germanbisurgi/jedison) (MIT, 1.27.1, 0 runtime/peer deps) | JSON Schema → HTML inputs без React; custom editors/events | **Реальный базовый A/B тест пройден в CI**; по custom/responsive полям и архитектуре кандидат ещё не принят |
 | Готовый JS field editor | [JSON Forms](https://github.com/eclipsesource/jsonforms) (MIT), [RJSF](https://github.com/rjsf-team/react-jsonschema-form) (Apache-2.0) | Автоматически строить настройки из schema | **Первая исследовательская ветка** |
 | Готовая оболочка редактора | [Puck](https://github.com/puckeditor/puck) (MIT) | Property UI, preview | Сравнить с полями без DnD, не брать целиком заранее |
 | Visual editor primitives | [GrapesJS](https://github.com/GrapesJS/grapesjs) (BSD-3-Clause), [VvvebJs](https://github.com/givanz/VvvebJs) (Apache-2.0) | CSS-controls, selection, HTML preview | Только пригодные компоненты при отделимости от builder model |
