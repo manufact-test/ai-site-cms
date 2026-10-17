@@ -2,7 +2,6 @@
    Property packs are developer-reviewed JavaScript, never executable user/AI input.
    Not a general arbitrary-HTML parser or production CSS sanitizer. */
 'use strict';
-const assert=require('node:assert/strict');
 const allowedTags=new Set(['section','div','header','footer','main','article','aside','h1','h2','h3','h4','p','span','strong','small','ul','li','figure','figcaption','blockquote']);
 const allowedStyles=Object.freeze({
  fontSize:'fontSize',padding:'padding',borderRadius:'borderRadius',
