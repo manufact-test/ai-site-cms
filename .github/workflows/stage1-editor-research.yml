@@ -23,6 +23,8 @@ jobs:
           node-version: '22'
       - name: Install pinned research dependencies
         run: npm install --no-audit --no-fund
+      - name: Adversarial HTML grammar and native nonce/origin preview boundary
+        run: node html-boundary-adversarial.cjs
       - name: Diagnose complex adapter native bootstrap first
         run: node complex-adapters.cjs
       - name: Run actual upstream package checks
@@ -31,8 +33,6 @@ jobs:
         run: node matched-editor-session.cjs && STAGE1_EDITOR_ORDER=reverse node matched-editor-session.cjs
       - name: Matched custom widgets and media mock preview
         run: node matched-custom-media.cjs
-      - name: Adversarial HTML grammar and native nonce/origin preview boundary
-        run: node html-boundary-adversarial.cjs
       - name: PHP-only typed validation research
         run: php -v && php php-validation-smoke.php
       - name: Actual Opis JSON Schema 2.6.0 research
