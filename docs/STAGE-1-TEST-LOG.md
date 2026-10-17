@@ -361,3 +361,17 @@
 **Диагностический FAIL и исправление:** [#39069807024](https://github.com/manufact-test/ai-site-cms/actions/runs/39069807024) — browser sandbox без `allow-forms` блокирует обычный submit. Вместо ослабления sandbox сценарий переписан как **local click/validity/preview-only interaction** с явным `preventDefault`, без server request. Повторный полный CI PASS. Подробный [отчёт](STAGE-1-MULTI-SECTION-RESEARCH.md) включая угрозы, варианты A/B/C, ограничения и рекомендации.
 
 **Инварианты:** этап 1 не принят, стек не выбран, этап 2 не начат, 135 требований все без продуктовой приёмки, экспериментальный код не вливать в main, Hostinger/CELIKOM не трогали.
+
+
+## 22. Annotated HTML discovery, generated typed manifest, computed CSS and owner conflict quarantine — checkpoint v1.19 (18.10.2026)
+
+**Full GitHub Actions PASS**: [#39072109263](https://github.com/manufact-test/ai-site-cms/actions/runs/39072109263), `research/stage1-editor-comparison` SHA `e56834d379db2688bf22ad841213d48b0ab5cdd3`. Все прежние тесты Jedison/RJSF, HTML security, real media, HTML/PHP/React/Next-static и PHP Opis/publishing/rollback также PASS в том же workflow. Новый исследовательский код остаётся только в research branch.
+
+**Исследование, не product CMS:** `annotated-html-contract.cjs` выводит field registry и JSON Schema из двух принципиально разных, **вручную аннотированных** HTML секций, без отдельного template renderer на каждый профиль. `story`: 11 DOM nodes и 8 controls; `board`: 13 nodes и 10 controls. Дженерированы полевые ключи по stable-id+property, проверены one-to-one coverage и закрытая grammar `text,fontSize,gap,backgroundColor`; **19/19 отрицательных HTML/manifest вариантов отклонены**. Не поддерживает arbitrary HTML/CSS/JS/медиа/формы и не доказывает независимую генерацию корректных аннотаций ИИ.
+
+**Реальный браузер и редакторы:** 2 annotated HTML structures × настоящие Jedison 1.27.1 и RJSF 6.11.0 = **4/4 browser PASS**. Текст изменён в обоих upstream editor UI с безопасным escaping HTML-похожего содержимого. Chromium real `getComputedStyle` font-size/gap на 1200/720/360 px: `52px/30px`, `35px/18px`, `35px/11px` у обеих структур и редакторов, плюс board background `rgb(18,52,86)`. **Ограничение:** font/gap/background изменены через programmed typed preview patches, а не через widgets upstream editor; это не доказательство редакторского UX по всем свойствам.
+
+**Typed override migration:** при обновлении исходной разметки с неизменным stable ID owner heading сохраняется; rename stable ID блокирует публикацию конфликтом `removed-or-renamed`, неизвестный key тоже блокирует. Нет реальной DB/CMS migration. Sandbox opaque iframe, native nonce script/style, exact origin/source/token/seq checks, rejected bad token/extra key/replay/invalid CSS/rogue ack; 0 browser JS errors. Использовано `style-src-attr 'unsafe-inline'` для fixture DOM style — это **не** утверждённая production CSP.
+
+**Результат в CI**: `STAGE1_ANNOTATED_HTML={"pass":true,"uniqueStructures":["story","board"],"runs":4,"preflightNegatives":19,"computedCss3Devices":true,...}`. Подробнее в [STAGE-1-ANNOTATED-HTML-COVERAGE-RESEARCH.md](STAGE-1-ANNOTATED-HTML-COVERAGE-RESEARCH.md). Матрица 135: **43 partial/doc, 92 without matched target, 0/135 product acceptance** без изменений. Этап 1 не принят, этап 2 не начат.
+
