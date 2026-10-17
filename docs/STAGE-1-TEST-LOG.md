@@ -218,3 +218,32 @@
 - [schema-parity.php](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/schema-parity.php)
 
 **Границы:** доказана согласованность лишь проверенного подмножества JSON Schema, не всей Draft 2020-12. Производственная XSS/CSRF защита, хостинг Hostinger, URL/media, продвинутая CSS-вёрстка, адаптивное inheritance, сложные HTML/PHP/React/Next проекты, реальные нагрузка, сохранение и откат ещё не приняты. Этап 1 in_progress, стек не утверждён, этап 2 не начат; ни одно из 135 обязательных требований не помечать завершённым на основании исследований.
+
+
+## 13. Эволюция overrides, реалистичный Hero и PHP HTTP preview — 17.10.2026 (checkpoint v1.10)
+
+**Полный успешный запуск:** [Actions #39058603992](https://github.com/manufact-test/ai-site-cms/actions/runs/39058603992). Код — исключительно исследовательская ветка [research/stage1-editor-comparison](https://github.com/manufact-test/ai-site-cms/tree/research/stage1-editor-comparison), не CMS и не production.
+
+### 13.1. Owner overrides и ревизии (проверки в памяти)
+
+[override-evolution.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/override-evolution.cjs) — 14 именованных сценариев PASS. Проверено: inheritance desktop→tablet→mobile; отдельные overrides на стабильном ID элемента; возврат к наследованию при очистке mobile override; draft/live/published не смешиваются; AI v1→v2 меняет базовые значения без затрагивания ручных текста и размера; удалённое поле и сужение диапазона вызывают конфликты (2 rejected update), а опубликованное значение остаётся прежним; отклонение CSS injection, неизвестных полей/breakpoints; точный rollback к первой из двух published-ревизий.
+
+**Это алгоритмический стенд в памяти, НЕ БД, транзакции, версии сайта, real code migrations или CMS.** Тесты не свидетельствуют о завершении обязательных требований.
+
+### 13.2. Настоящий Jedison + составная адаптивная Hero
+
+[representative-hero.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/representative-hero.cjs): реальный Jedison 1.27.1 менял поля одной HTML/CSS Hero-секции с карточками, CTA, адаптивной сеткой, градиентом и типографикой в sandbox iframe без внешних запросов. В DOM 50 записей каталога и 1 iframe. В настоящем Chromium PASS: desktop 64px, tablet UI 48px→52px, mobile при пустом поле наследует tablet 52px, затем mobile override 32px. CSS mobile-компоновка перешла в одну колонку; HTML-подобный текст с onerror стал текстом, не элементом img; published title не менялся при live-редактировании; JS pageerrors 0.
+
+**Ошибка исследований:** два промежуточных CI [#39058137775](https://github.com/manufact-test/ai-site-cms/actions/runs/39058137775) и [#39058260391](https://github.com/manufact-test/ai-site-cms/actions/runs/39058260391) — FAIL из-за переходного CSS font-size: iframe подтверждал присваивание 64px, но getComputedStyle() не показывал финальный размер (offscreen frame/transition). Исследовательский тест адаптива изменён: viewport прокручивается к iframe, CSS transition исключена из этого конкретного теста. [#39058376654](https://github.com/manufact-test/ai-site-cms/actions/runs/39058376654) PASS. Ack CSS assignment ≠ завершение CSS-анимации; настоящие анимации проверить отдельно.
+
+Ограничения: искусственный насыщенный Hero, НЕ рабочий клиентский сайт, не heavy video/3D/remote resources, не равнозначная вторая RJSF-Hero реализация, не полный UX.
+
+### 13.3. PHP HTTP-public snapshot без CMS runtime
+
+[public-runtime/index.php](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/public-runtime/index.php) и [public-runtime.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/public-runtime.cjs): PHP 8.3.6 CLI встроенный HTTP-сервер на GitHub runner. Только публичный JSON snapshot вне document root, без Node/admin на PHP-стороне. PASS: GET 200, /admin 404, POST 405; замена published JSON отражается в следующем GET; HTML-подобный текст безопасно экранирован; напрямую подменённый неверным CSS snapshot отклоняется 503; возврат прежнего JSON восстанавливает исходный Hero с HTTP 200; в публичном HTML нет script/Jedison/RJSF.
+
+**Не доказано:** работа именно на Hostinger/shared hosting, реальный FPM/Apache, MySQL, права файлов, upload, SEO, Node SSR. 503 при повреждении snapshot — fail closed, но для полной отказоустойчивости потребуется проверка до атомарного publish и last-known-good с безопасным восстановлением. Не следует показывать результат как законченную CMS.
+
+### 13.4. Невыполненное и дальнейшие проверки
+
+Реальная PHP shared-hosting среда, настоящие тяжёлые HTML/PHP/React/Next секции, реальные публичные источники данных/версии в БД, конкурирующие администраторы, CSP/XSS/CSRF/API auth, media/uploads, long-session performance и полные условия лицензий остаются открытыми. **Этап 1 в работе; стек не выбран; этап 2 не открыт; 135 обязательных требований не приняты.**
