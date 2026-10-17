@@ -40,7 +40,7 @@ function mountRjsfCustom(){
  try{
   const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.setContent('<!doctype html><html><body><div id="editor"></div></body></html>');
-  const src=["im","port React from 'react'; im","port {createRoot} from 'react-dom/client'; im","port Form from '@rjsf/core'; im","port validator from '@rjsf/validator-ajv8'; window.React=React;window.createRoot=createRoot;window.Form=Form;window.validator=validator;"].join('');
+  const src=["im","port React from 'react'; im","port {createRoot} from 'react-dom/client'; im","port Form from '@rjsf/core'; im","port {customizeValidator} from '@rjsf/validator-ajv8'; import Ajv2020 from 'ajv/dist/2020.js'; window.React=React;window.createRoot=createRoot;window.Form=Form;window.validator=customizeValidator({AjvClass:Ajv2020});"].join('');
   const js=esbuild.buildSync({stdin:{contents:src,sourcefile:'rjsf-composite-entry.js',resolveDir:__dirname,loader:'js'},absWorkingDir:__dirname,bundle:true,minify:true,platform:'browser',target:['chrome120'],format:'iife',write:false,logLevel:'silent'}).outputFiles[0].text;
   await page.addScriptTag({content:js});await page.evaluate(mountRjsfCustom);
   await page.evaluate(({schema,initial})=>window.mount(document.getElementById('editor'),schema,initial),{schema,initial});
