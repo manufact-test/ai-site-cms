@@ -10,22 +10,10 @@ if (!in_array($path, ['/', '/index.php'], true)) {
 if (!in_array($_SERVER['REQUEST_METHOD'] ?? '', ['GET','HEAD'], true)) {
   http_response_code(405);header('Allow: GET, HEAD');echo 'Method Not Allowed';exit;
 }
-$file=getenv('STAGE1_PUBLISHED_FIXTURE');
-if (!is_string($file)||!is_file($file)||!is_readable($file)) {
-  http_response_code(503);header('Content-Type: text/plain; charset=UTF-8');echo 'Missing published snapshot';exit;
-}
-try {
-  $data=json_decode(file_get_contents($file),false,16,JSON_THROW_ON_ERROR);
-  if (!is_object($data) ||
-      !isset($data->title,$data->fontSize,$data->accent,$data->cta) ||
-      !is_string($data->title)||strlen($data->title)>500 ||
-      !is_string($data->cta)||strlen($data->cta)>200 ||
-      !is_string($data->fontSize)||!preg_match('/^[0-9]{1,3}px$/D',$data->fontSize) ||
-      !is_string($data->accent)||!preg_match('/^#[0-9a-fA-F]{6}$/D',$data->accent)) {
-    throw new UnexpectedValueException('Invalid published snapshot');
-  }
-} catch (Throwable $e) {
-  http_response_code(503);header('Content-Type: text/plain; charset=UTF-8');echo 'Published snapshot invalid';exit;
+require __DIR__.'/snapshot-store.php';
+$data=stage1PublicSnapshot();
+if ($data === null) {
+  http_response_code(503);header('Content-Type: text/plain; charset=UTF-8');echo 'No valid published snapshot';exit;
 }
 $s=static fn (string $v):string=>htmlspecialchars($v,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
 header('Content-Type: text/html; charset=UTF-8');
