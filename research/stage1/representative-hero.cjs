@@ -76,11 +76,12 @@ function boot(){
   await page.evaluate(()=>window.sendRender());
   await page.waitForFunction(()=>window.previewState.acks.some(x=>x.fontSize==='64px'));
   const frame=page.frameLocator('#preview');
-  assert.equal(await frame.locator('#hero-title').evaluate(x=>getComputedStyle(x).fontSize),'64px');
+  async function waitComputed(size){await frame.locator('#hero-title').evaluate(async(el,want)=>{for(let i=0;i<85;i++){if(getComputedStyle(el).fontSize===want)return;await new Promise(r=>setTimeout(r,20))}throw Error('CSS transition did not settle: expected '+want+' actual '+getComputedStyle(el).fontSize)},size)}
+  await waitComputed('64px');
   assert.equal(await page.locator('#index>div').count(),50);assert.equal(await page.locator('iframe').count(),1);
   await page.evaluate(()=>window.setDevice('tablet'));
   await page.waitForFunction(()=>window.previewState.acks.some(x=>x.fontSize==='48px'));
-  assert.equal(await frame.locator('#hero-title').evaluate(x=>getComputedStyle(x).fontSize),'48px');
+  await waitComputed('48px');
   async function edit(oldVal,newVal){
    const values=await page.locator('#fields input').evaluateAll(xs=>xs.map(x=>({value:x.value,type:x.type})));
    const i=values.findIndex(x=>x.value===oldVal&&x.type!=='hidden');assert.ok(i>=0,'input not found '+oldVal+' '+JSON.stringify(values));
@@ -90,11 +91,11 @@ function boot(){
   await page.waitForFunction(()=>window.editorValue()?.responsive.tablet==='52px');
   await page.waitForFunction(()=>window.previewState.acks.some(x=>x.fontSize==='52px'));
   await page.evaluate(()=>window.setDevice('mobile'));
-  assert.equal(await frame.locator('#hero-title').evaluate(x=>getComputedStyle(x).fontSize),'52px','mobile empty field inherits tablet');
+  await waitComputed('52px'); // mobile empty field inherits tablet
   await edit('','32px');
   await page.waitForFunction(()=>window.editorValue()?.responsive.mobile==='32px');
   await page.waitForFunction(()=>window.previewState.acks.some(x=>x.fontSize==='32px'));
-  assert.equal(await frame.locator('#hero-title').evaluate(x=>getComputedStyle(x).fontSize),'32px');
+  await waitComputed('32px');
   const payload='<img src=x onerror=alert(1)>';
   await edit('Explore tomorrow',payload);
   await page.waitForFunction(()=>window.editorValue()?.title==='<img src=x onerror=alert(1)>');
