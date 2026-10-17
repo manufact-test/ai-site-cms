@@ -348,3 +348,10 @@ AI Site CMS — **внутренняя разработка команды** д�
 
 **Осталось исследовать**: одинаковые custom composite controls и media-heavy fixtures, более долгие сессии, неоднородные user devices, HTML trust/security/CSP lifecycle, PHP-only hosting именно существующего тарифа. **Ни одного из 135 обязательных требований не засчитывать как product acceptance только по стенду**. Этап 1 НЕ принят, этап 2 НЕ начат; технология НЕ выбрана.
 
+
+## 15. Составные редакторы на одинаковой секции с media mocks — checkpoint v1.15 (17.10.2026)
+
+[GitHub Actions #39066085194](https://github.com/manufact-test/ai-site-cms/actions/runs/39066085194) **PASS**. Реальные Jedison `EditorStringInput`/`EditorObject` custom classes и RJSF `ui:widget`/`ui:field` + AJV Draft2020 модифицировали **те же** четыре typed поля length/shadow/gradient/animation; одинаковая валидная модель после девяти правок, два mount/edit/unmount цикла на редактор, 12 stable IDs, одна native CSP nonce sandbox iframe, три media DOM placeholders, без pageerror. Неизменность опубликованного baseline и отклонение явно запрещённого CSS подтверждены внутри контролируемого fixture.
+
+**Вывод:** оба кандидата уже обладают достаточной исследовательской точкой расширения для четырёх проверенных composite UI-контролов. Нельзя экстраполировать на готовый визуальный редактор, AI-generated untrusted HTML, Canvas/WebGL/real video, production renderer isolation, performance или уязвимости. Исследовательское переиспользование setup-функций выполнено текстовым извлечением — **это не production модульная архитектура**. Выбор редактора по-прежнему открыт. Методика и ограничения: [STAGE-1-COMPOSITE-MEDIA-RESEARCH.md](STAGE-1-COMPOSITE-MEDIA-RESEARCH.md), [STAGE-1-TEST-LOG.md §18](STAGE-1-TEST-LOG.md).
+
