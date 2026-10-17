@@ -371,3 +371,12 @@ AI Site CMS — **внутренняя разработка команды** д�
 Варианты для отдельного исследования, **без решения о технологии**: (A) строго типизированный AST и registry renderers — уменьшает поверхность untrusted HTML, но рискует ограничить свободу ИИ; (B) parse5/HTML + modular policy packs — гибко, однако сложнее эффективно проверить весь CSS/JS/foreign namespace; (C) trusted site source + typed manifest/owner patches, изолированное preview и immutable publish — требует проверяемой границы доверия, авторизации, миграций. Прежде чем рекомендовать владельцу, сравнить эти подходы на принципиально различных AI-секциях и техрежимах, в том числе реальном разрешённом read-only осмотре shared hosting. [Методика и приоритеты 135 требований](STAGE-1-MEDIA-AST-GAPS-RESEARCH.md).
 
 Продуктовых приёмок по-прежнему **0/135**, этап 1 не принят, этап 2 не начат, финальный стек не утверждён, код исследовательской ветки не мержить в main.
+
+
+## 18. Пять неодинаковых typed sections и реальное редактирование на upstream Jedison/RJSF — checkpoint v1.18 (18.10.2026)
+
+[GitHub Actions #39069971771](https://github.com/manufact-test/ai-site-cms/actions/runs/39069971771) весь **PASS**. Реальные Jedison **1.27.1** и RJSF **6.11.0** с одной сгенерированной JSON Schema на каждом из **пяти** manually defined trusted profile renderers: FAQ/Contact/Pricing/Gallery/Tabs. **10/10 editor×profile runs PASS**, typed JSON после правок у библиотек одинаковый; HTML/DOM 5–10 стабильных ID, 30/30 ограниченных adversarial AST/typed fields отвергнуты, настоящий локальный image/video gallery decoded, parent/child iframe CSP nonce и негативный протокол проверены. Ни в одном browser probe не возникло pageerrors; прежние suite повторно PASS.
+
+**Вывод для сравнения:** оба editor candidates умеют работать на нескольких разных форм-факторных контрактах, однако **проблема произвольной AI-generated секции остаётся открытой**: новые пять renderer templates кодировались вручную. Произвольный JS/CSS, automatic contract discovery/version migration, реальные forms, production security, measured computed CSS/device visuals, click-through tree, large site performance, Hostinger не проверены. Важный boundary: sandbox без `allow-forms` не должен превращаться в реально отправляющий формы preview; локальная реакция проверена отдельно. Результат не даёт оснований окончательно предпочесть Jedison/RJSF, AST approach A/B/C или новый стек.
+
+[Методика, отчёт и стратегия следующих экспериментов](STAGE-1-MULTI-SECTION-RESEARCH.md). Product acceptance **0/135**, этап 1 НЕ принят, этап 2 не начат.
