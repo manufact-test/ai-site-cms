@@ -185,3 +185,17 @@
 5. Контроль лицензий/third-party assets, сопровождения, миграций и итоговое сравнение всей матрицы 135 обязательных требований.
 
 **Этап 1 выполняется, не принят; этап 2 не начат; окончательный стек не утверждён.**
+
+
+## 11. Реальный upstream PHP JSON Schema валидатор Opis 2.6.0 — 17.10.2026
+
+**Успешный GitHub Actions [#39056405362](https://github.com/manufact-test/ai-site-cms/actions/runs/39056405362)** на PHP 8.3.6 CLI и Composer 2.10.3. Репозиторий исследования содержит [composer.json](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/composer.json), [typed-manifest.schema.json](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/typed-manifest.schema.json), [opis-schema-smoke.php](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/opis-schema-smoke.php).
+
+- Установлен настоящий upstream пакет opis/json-schema версии **2.6.0**, лицензия **Apache-2.0** (официальные composer metadata), поддержка PHP 7.4+/8; дополнительно его транзитивные зависимости opis/string и opis/uri.
+- Тот же набор typed fields fontSize/shadow/gradient/animation формализован в JSON Schema Draft 2020-12.
+- Реальный Opis CompliantValidator принял 2 корректных JSON-объекта, отверг 14 некорректных схемно (unit, regex, extra/missing properties, type, ranges, enum), ещё 2 malformed/depth JSON отклонены парсером (всего 18 основных случаев).
+- 4 дополнительные проверки conditional/array: static без frames принимается, animated без frames отклоняется, корректный frames array принимается, превышение maxItems отклоняется. PASS.
+
+**Что НЕ доказано:** совместимость со всеми возможными манифестами, полная сходимость диалектов браузера и PHP, безопасная доставка schema, отладка доступов/CSRF, реальные Hostinger PHP/ext/ограничения, полная производительность и нагрузка, пакетирование vendor без Composer на хостинге. Composer выполнялся на CI-раннере, не на рабочем shared hosting; composer.lock в исследовательскую ветку пока не зафиксирован, транзитивные версии на разных запусках могут различаться. Перед продуктовым использованием зафиксировать проверенные зависимости/NOTICE и отдельный аудит.
+
+**Промежуточный вывод:** Opis — сильный доказанный кандидат серверной схемной валидации, но пока не выбран как окончательная библиотека CMS. Этап 1 открыт.
