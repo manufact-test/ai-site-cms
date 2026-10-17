@@ -199,3 +199,11 @@
 
 **Классификация не изменена**: 43 строки с узкими исследовательскими/documentary signal и 92 без сопоставленного целевого подтверждения. Причина: новые исследования не испытали в настоящей CMS end-to-end функционал всех соответствующих ID; `style` patched программно, не editor UI, `data-editable` введено человеком, не реально автономным ИИ. Этот эксперимент **не** принимает требования №3/9/10–20/103–119 и не заменяет все 135 тестов. **Product acceptance 0/135**, этап 1 не принят.
 
+
+
+## Дополнение v1.20: настоящий edit-through CSS и coverage ledger (18.10.2026)
+
+[GitHub Actions #39073198622](https://github.com/manufact-test/ai-site-cms/actions/runs/39073198622) PASS. 2 разные `annotated HTML` структуры × настоящие Jedison/RJSF: **4/4** real UI input modifications fontSize desktop/tablet, gap desktop/tablet/mobile, board background; по preview computed CSS подтверждены; 0 page errors. Независимая проверка correspondence с human-prepared intent ledger: 3 audited fixtures, 13 mismatches correctly caught, включая unannotated text. Отчёт [STAGE-1-EDITOR-CSS-COVERAGE-AUDIT-RESEARCH.md](STAGE-1-EDITOR-CSS-COVERAGE-AUDIT-RESEARCH.md).
+
+Эти узкие исследования не означают, что реализованы требования редактирования/адаптива/контракта для полнофункциональной CMS. Нет generated-by-LLM независимого сайта, full field coverage, arbitrary CSS, visual custom UX или production publishing. Классификация **43 R/D / 92 N неизменна**; **0/135** product accepted. Этап 1 ещё не принят, стек не выбран.
+
