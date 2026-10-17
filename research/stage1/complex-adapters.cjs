@@ -10,7 +10,7 @@ const chrome=['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin
 if(!chrome)throw Error('Chrome required');
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const element=(id,t,tag='span')=>'<'+tag+' data-stable-id="hero-'+id+'">'+esc(t)+'</'+tag+'>';
-function html(d){return '<section data-kind="html" data-stable-id="hero-section" class="hero"><div class="left">'+element('title',d.title,'h1')+element('lead',d.lead,'p')+'<div class="actions">'+element('primary',d.primary,'button')+element('secondary',d.secondary,'button')+'</div><div class="features">'+d.features.map((x,i)=>element('feature-'+i,x)).join('')+'</div></div><aside class="right"><div class="cards">'+d.cards.map((x,i)=>element('card-'+i,x,'article')).join('')+'</div><div class="stats">'+d.stats.map((x,i)=>element('stat-'+i,x,'strong')).join('')+'</div></aside></section';}
+function html(d){return '<section data-kind="html" data-stable-id="hero-section" class="hero"><div class="left">'+element('title',d.title,'h1')+element('lead',d.lead,'p')+'<div class="actions">'+element('primary',d.primary,'button')+element('secondary',d.secondary,'button')+'</div><div class="features">'+d.features.map((x,i)=>element('feature-'+i,x)).join('')+'</div></div><aside class="right"><div class="cards">'+d.cards.map((x,i)=>element('card-'+i,x,'article')).join('')+'</div><div class="stats">'+d.stats.map((x,i)=>element('stat-'+i,x,'strong')).join('')+'</div></aside></section>';}
 const phpCode=[
  '<?php $d=json_decode(stream_get_contents(STDIN),true,32,JSON_THROW_ON_ERROR);',
  '$e=static fn($s)=>htmlspecialchars((string)$s,ENT_QUOTES|ENT_SUBSTITUTE,"UTF-8");',
@@ -64,6 +64,8 @@ async function run(){
   const nextSection=new JSDOM(fs.readFileSync(artifact,'utf8')).window.document.querySelector('[data-kind="next-static"]');
   assert.ok(nextSection,'Next exported section missing');variants['next-static']=nextSection.outerHTML;
   const ids=['hero-section','hero-title','hero-lead','hero-primary','hero-secondary','hero-feature-0','hero-feature-1','hero-feature-2','hero-card-0','hero-card-1','hero-stat-0','hero-stat-1'];
+  // Browser/JSDOM often silently repairs missing trailing > at EOF.
+  for(const [kind,markup] of Object.entries(variants))assert.ok(markup.trimEnd().endsWith('</section>'),kind+' invalid section terminator');
   const reference=new JSDOM(html(initial)).window.document;
   for(const [kind,markup] of Object.entries(variants)){const doc=new JSDOM(markup).window.document;for(const id of ids){assert.equal(doc.querySelectorAll('[data-stable-id="'+id+'"]').length,1,kind+' missing/duplicate '+id);assert.equal(doc.querySelector('[data-stable-id="'+id+'"]').textContent,reference.querySelector('[data-stable-id="'+id+'"]').textContent,kind+' differs '+id);}}
   const hostile={...initial,title:'<img src=x onerror=alert(1)>'};
