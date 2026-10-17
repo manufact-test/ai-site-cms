@@ -398,3 +398,13 @@ Full GitHub Actions [#39073198622](https://github.com/manufact-test/ai-site-cms/
 
 Отдельный `annotated-coverage-audit.cjs` сверяет заранее объявленный **external intent ledger** с извлечённым manifest, плюс проверяет неразмеченные текстовые leaf nodes (3 positive fixtures, 13 adversarial mismatch cases). Без независимого trusted specification этот аудит не доказывает полноту arbitrarily AI-authored сайта: одновременный пропуск поля из HTML и ledger невидим. Reusable typed manifest editor paradigm стал обоснованнее, но никто не выбрал Jedison или RJSF, полную A/B/C архитектуру или runtime. [Подробно](STAGE-1-EDITOR-CSS-COVERAGE-AUDIT-RESEARCH.md). Этап 1 не принят, product acceptance **0/135**.
 
+
+
+## 21. Разрешённые property packs расширяют AI-site manifest без новых layout templates — checkpoint v1.21 (18.10.2026)
+
+[Full GitHub Actions #39075385172 PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39075385172). Research-only `extensible-style-registry.cjs` позволяет собирать `text,fontSize,padding,borderRadius,maxWidth,gap,backgroundColor,borderColor,opacity,flexDirection` в **3 developer-reviewed packs** с фиксированными безопасными CSS targets, typed values, JSON Schema, однообразным DOM apply и миграцией owner overrides. Секции-источники разной компоновки не требуют собственного renderer-кода, если соответствуют узкой поддерживаемой grammar. Schema parity с AJV Draft2020, 51 negative/invalid cases rejected, coverage ledger flags known missing/extra fields, incompatible/renamed IDs quarantined. Это еще не полномасштабная CMS или универсальный tokenizer для AI HTML.
+
+Нативный Chromium с настоящими upstream Jedison/RJSF подтвердил на 2 новых секциях **4/4 runs**, 3 viewport (1200/720/360) реальные UI правки geometry/appearance → computed CSS, parity между редакторами и 0 pageerrors. Все 5/2 предыдущих профиля, native media, HTML boundary, adapters, PHP publication tests прошли в same workflow.
+
+**Вывод к A/B/C:** Schema-driven registry + trusted render path выглядит технически осуществимым для заявленных типизированных свойств с ограниченной свободой layout, но **не** доказывает произвольную AI-генерацию полного HTML/CSS/JS или самодостаточную полноту editable manifest. CSS/style pack code доверенный, не user-scriptable. Собственную архитектуру не выбирать без approval, Jedison vs RJSF пока эксперимент. [Подробный отчёт](STAGE-1-EXTENSIBLE-STYLE-PACKS-RESEARCH.md). Stage1 unaccepted, 0/135 product acceptance.
+
