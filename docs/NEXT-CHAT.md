@@ -129,6 +129,8 @@
 
 **Новый факт из осмотра кода:** Puck AutoField/Preview тесно связаны с Puck store, а GrapesJS Style Manager — с моделями DOM/CSS/editor. JSON Forms и RJSF имеют более независимые schema-driven interfaces, поэтому их проверяем первыми; Winter имеет backend widgets, но их выделение тоже непросто. Осмотр GitHub-кода **не** заменяет runtime-tests. См. FOUNDATION-COMPARISON §3.1.
 
+**Новое из PHP/runtime manifest:** Slim рассчитан на поддерживаемые версии PHP 7.4–8.5, Winter — PHP >=8.1, Symfony HttpKernel/Routing 7.4 — PHP >=8.2; версия реального текущего хостинга ещё не проверена. UI schema-библиотека не принимает наш AI manifest без mapping; live-preview onChange не равен автосохранению. Детали в FOUNDATION-COMPARISON §3.2. **PHP/runtime manifest ≠ тест на хостинге.**
+
 **Непроверенное:** реальные затраты адаптации, bundle/CPU/RAM, PHP-only deployment, backup/revision engine, качество нестандартных адаптеров. Оценки в сравнении — гипотезы, не прохождение тестов и не доказанные проценты готовности. Этап 1 **идёт**, но **не принят**; этап 2 не открыт. Не менялись исходники CMS и исходные приоритеты.
 
 **Документы:** `docs/FOUNDATIONS.md` (shortlist и критерии), `docs/FOUNDATION-COMPARISON.md` (уже записан: 135 строк, сравнительные гипотезы, code inspection, протокол испытаний), `docs/MASTER-TZ.md` §1.4 (внутренний характер и лицензии), `PROJECT-STATUS.json` (in_progress).
