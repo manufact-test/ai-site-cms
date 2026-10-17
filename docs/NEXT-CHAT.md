@@ -1,6 +1,6 @@
 # AI Site CMS — постоянный файл передачи между чатами
 
-**Контрольная точка:** v1.12 · **дата:** 17.10.2026  
+**Контрольная точка:** v1.13 · **дата:** 17.10.2026  
 **Единственный постоянный путь:** `docs/NEXT-CHAT.md`  
 **Постоянная ссылка:** https://github.com/manufact-test/ai-site-cms/blob/main/docs/NEXT-CHAT.md  
 **Проект:** AI Site CMS, без MFT/MANUFACT в названии.  
@@ -295,3 +295,34 @@
 ### Для следующего чата
 
 > Продолжаем **AI Site CMS** с checkpoint **v1.12**. Открой прежде всего [docs/NEXT-CHAT.md](https://github.com/manufact-test/ai-site-cms/blob/main/docs/NEXT-CHAT.md) §17 и [PROJECT-STATUS.json](https://github.com/manufact-test/ai-site-cms/blob/main/PROJECT-STATUS.json), затем журнал §15 и связанные документы. Последний полный успешный CI: [#39062360601](https://github.com/manufact-test/ai-site-cms/actions/runs/39062360601). В research-ветке HTML/PHP/React/Next-static сложная секция с 12 stable IDs и RJSF 4/4 PASS; inline iframe srcdoc bootstrap дал диагностические FAIL, итоговый functional PASS использовал post-load Playwright injection; CSP/bootstrap production НЕ доказан, Hostinger не тестировался. Продолжай **только этап 1**, исследуй реальный bridge bootstrap/CSP и честные Jedison/RJSF сравнения. Исследовательскую ветку не сливать в main, технологию не утверждать, тариф не менять, этап 2 не начинать без моего отдельного согласования. Документы обновлять в **этом же** NEXT-CHAT и PROJECT-STATUS.
+
+
+## 18. Разобран srcdoc bootstrap, подтверждён CSP nonce — checkpoint v1.13 (17.10.2026)
+
+**ПОСЛЕДНИЙ ДОКАЗАННЫЙ ПОЛНЫЙ CI PASS:** [GitHub Actions #39064252770](https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770), исследовательский commit [c6d98dd64722a6e50e9a0708d5850e00cd9df465](https://github.com/manufact-test/ai-site-cms/commit/c6d98dd64722a6e50e9a0708d5850e00cd9df465), ветка `research/stage1-editor-comparison`. Основная `main` содержит документацию/статус, **исследовательскую ветку НЕ вливать** без отдельного решения владельца. Этап 1 всё ещё НЕ принят.
+
+### Подтверждённый результат нового фрагмента
+
+- Точная первопричина старых ошибок `iframe.srcdoc` из v1.12 найдена: **только HTML fixture** заканчивался на `</section` без финального `>`; одиночный DOM-parser/JSDOM молча закрывал тег в конце фрагмента, поэтому 12 stable IDs выглядели корректно. После конкатенации inline script получался `</section<script nonce=...`, содержимое bridge становилось текстом, `document.scripts.length=0`. **PHP-fixture был корректен**. Проблема не в природе CSP/React/Next.js/RJSF.
+- Исправлен HTML closing tag и добавлен fail-fast assert, что **каждый из четырёх renderer-фрагментов** заканчивается полным `</section>`. Этот кейс демонстрирует, что browser DOM parity недостаточно для проверки корректности границы HTML-артефакта.
+- **HTML, настоящий PHP CLI renderer, React static HTML, настоящий Next.js static export** снова дали одинаковые 12 stable IDs. Но теперь все 4 сценария с настоящим **RJSF 6.11.0** запускают preview bridge через **нативный `iframe.srcdoc` inline script с CSP nonce**, а не через Playwright injection. Один sandbox iframe на секцию, tablet 48→52px, mobile inherit 52px/override 32px, CTA/feature/card обновляются, XSS-подобная строка — текст, некорректный CSS отклонён, editor draft не меняет опубликованный baseline, page errors 0. **4/4 PASS**.
+- Новый [srcdoc-bootstrap.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/srcdoc-bootstrap.cjs): (а) обычный native script PASS, (б) правильный nonce + CSP meta PASS, (в) **неправильный nonce: script остаётся в DOM, но НЕ выполняется и НЕ отправляет сообщение** — PASS. Метаполитика использована в CI; полноценный production CSP/header/nonce lifecycle пока НЕ испытан.
+- Цепочка промежуточных failures задокументирована в [STAGE-1-TEST-LOG.md §16](STAGE-1-TEST-LOG.md): [#39063380496](https://github.com/manufact-test/ai-site-cms/actions/runs/39063380496), [#39063563592](https://github.com/manufact-test/ai-site-cms/actions/runs/39063563592), [#39063776817](https://github.com/manufact-test/ai-site-cms/actions/runs/39063776817) — дефект HTML; [#39063941053](https://github.com/manufact-test/ai-site-cms/actions/runs/39063941053) — рабочий полный bootstrap; [#39064099051](https://github.com/manufact-test/ai-site-cms/actions/runs/39064099051) — ошибочное ожидание *видимости* script вместо `attached` в отрицательном тесте; [#39064252770](https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770) — окончательный **весь workflow PASS**, в том числе старые Opis/override/publisher.
+
+### Где результаты находятся в main
+
+[STAGE-1-TEST-LOG.md §16](STAGE-1-TEST-LOG.md), [FOUNDATION-COMPARISON.md §13](FOUNDATION-COMPARISON.md), [FOUNDATIONS.md](FOUNDATIONS.md), [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) и машиночитаемый [PROJECT-STATUS.json](../PROJECT-STATUS.json) — checkpoint **1.13**. Постоянный файл передачи всё ещё единственный: **этот** `docs/NEXT-CHAT.md`; старые разделы содержат исторические результаты, актуальна последняя контрольная точка.
+
+### Оставшиеся ограничения и точный следующий фрагмент этапа 1
+
+1. **Сопоставимый по данным и сложности нагрузочный тест Jedison 1.27.1 vs RJSF 6.11.0** на одинаковых 12 stable IDs, одинаковых многоэлементных полях, частых изменениях, повторных монтированиях/размонтированиях, более долгой сессии; браузерные метрики не выдавать за реальные пользовательские SLO.
+2. Проверка AI-generated HTML syntax/rawtext edge cases до внедрения preview bridge; CSP nonce lifecycle, взаимодействие с недоверенной HTML/CSS/медиа, protocol-level postMessage, права доступа и production security всё ещё не закрыты.
+3. **На реальном PHP shared-hosting/Hostinger ни разу не тестировали**: сначала согласованный read-only осмотр фактических PHP/extension/permissions по [STAGE-1-HOSTING-SMOKE-PLAN.md](STAGE-1-HOSTING-SMOKE-PLAN.md); никаких апгрейдов тарифов, глобальных настроек, реальных сайтов или CELIKOM.
+4. Затем интегральное заключение по требованиям: 135 обязательных ID, корректное покрытие/недоказанные пункты, предложение владельцу. **Не начинать этап 2 / не выбирать окончательный стек** до явного согласования и приёмки этапа 1.
+
+**Неизменные условия:** 18 этапов (0–17), этап 0 принят, этап 1 `in_progress` и НЕ принят, этап 2 `not_started`. Из 193 требований 135 обязательных / 42 желательных / 16 ненужных; никакого сокращённого MVP и первого релиза до реальной приёмки 135/135. Максимальное законное переиспользование permissive open-source, существующий PHP shared-hosting без расширения тарифа, CELIKOM — независимый будущий пилот на этапе 17 ПОСЛЕ полноценного релиза. Production CMS не написана; исследовательские harnesses — не релизный код.
+
+### Текст для перехода в следующий чат, когда это понадобится
+
+> Продолжаем **AI Site CMS** с checkpoint **v1.13**, репозиторий `manufact-test/ai-site-cms`. Сначала прочитай `docs/NEXT-CHAT.md` **раздел 18**, `PROJECT-STATUS.json`, `docs/STAGE-1-TEST-LOG.md` §16, `docs/FOUNDATION-COMPARISON.md` §13, затем все нормативные документы. Последний полный успешный исследовательский CI: https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770. Исправлена отсутствующая `>` в HTML `</section>`, из-за которой srcdoc bridge не запускался; все 4 HTML/PHP/React/Next-static + RJSF теперь 4/4 PASS с нативной CSP nonce загрузкой без Playwright injection; positive/negative nonce тесты тоже PASS. Остаёмся ТОЛЬКО на **этапе 1**. Следующий фрагмент — честный одинаковый long-session Jedison/RJSF workload и проверки HTML safety/hosting по разрешению. Исследовательскую ветку `research/stage1-editor-comparison` НЕ сливать в `main`, этап 2 НЕ начинать без согласования. Для handoff обновлять только существующий `docs/NEXT-CHAT.md` и `PROJECT-STATUS.json`.
+
