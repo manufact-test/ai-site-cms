@@ -79,7 +79,7 @@ function parentInit({html,manifest,lib,libraryBundle,apiBundle,childSource}){
  };
  window.__updateTyped=(key,value)=>{
   const next=structuredClone(window.__model);next[key]=value;
-  if(!window.__validateNext(next))throw Error('invalid typed update');
+  if(!manifest.fields.some(f=>f.key===key))throw Error('unknown typed field');
   window.__model=next;window.__render();
  };
  window.__view=mode=>{
