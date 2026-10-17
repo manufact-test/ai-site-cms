@@ -28,4 +28,4 @@ jobs:
       - name: PHP-only typed validation research
         run: php -v && php php-validation-smoke.php
       - name: Actual Opis JSON Schema 2.6.0 research
-        run: composer --version && composer install --no-interaction --prefer-dist --no-progress && php opis-schema-smoke.php && php schema-parity.php
+        run: composer --version && composer install --no-interaction --prefer-dist --no-progress && php opis-schema-smoke.php && php schema-parity.php && node publish-rollback.cjs
