@@ -51,3 +51,8 @@
 
 [CI #39065084450](https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450) доказал одинаковое управление 12-ID секцией на идентичном JSON при 16 циклах/редактор и 656 редакторских изменениях на каждого; это **исследовательская** модель, не CMS. Q01–Q14 НЕ закрыты: только long-running production sessions, рост heap/GC, custom complex controls, посторонний JS/медиа и реальные угрозы, авторизация/публикация/backup, поддержка SSR и текущее PHP shared-hosting требуют отдельных доказательств и решений владельца. Матрица 135 ID не получила новых product acceptance. Подробности [STAGE-1-MATCHED-EDITOR-SESSIONS.md](STAGE-1-MATCHED-EDITOR-SESSIONS.md). Ни окончательного выбора Jedison/RJSF, ни этапа 2 нет.
 
+
+## checkpoint v1.15 — исследованы composite widgets, вопросы Q01–Q14 остаются открытыми (17.10.2026)
+
+[CI #39066085194](https://github.com/manufact-test/ai-site-cms/actions/runs/39066085194) подтвердил технический typed-edit path четырёх специальных типов полей length/shadow/gradient/animation в обоих upstream редакторах на одном preview fixture с image/video/animated mock placeholders и CSP nonce. Это **НЕ доказательство** настоящих медиа/CDN/3D, безопасной генерации произвольного HTML, устойчивости многочасового редактора, разрешённого текущего PHP shared-hosting, RBAC или production publishing. Все незакрытые Q01–Q14 остаются открыты; финальный editor/foundation не выбран. [Исследовательский отчёт](STAGE-1-COMPOSITE-MEDIA-RESEARCH.md).
+
