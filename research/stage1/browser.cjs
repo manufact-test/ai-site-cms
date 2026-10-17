@@ -32,7 +32,10 @@ async function fieldEdit(page, name) {
   const indexes=await page.locator('input').evaluateAll(nodes=>nodes.map((n,i)=>({i,id:n.id,type:n.type,value:n.value})));
   const target=indexes.find(x=>x.type!=='hidden'&&x.value==='Welcome');
   assert.ok(target, name+' missing input with original headline; DOM='+JSON.stringify(indexes));
-  await page.locator('input').nth(target.i).fill('Browser edit');
+  const input = page.locator('input').nth(target.i);
+  await input.fill('Browser edit');
+  await input.dispatchEvent('change');
+  await input.blur();
   return indexes;
 }
 async function testBrowser() {
@@ -57,8 +60,9 @@ async function testBrowser() {
       await page.locator('input').first().waitFor({state:'attached'});
       await page.waitForFunction(()=>document.querySelectorAll('#editor input').length>=4,{timeout:10000});
       const inputsBefore=await fieldEdit(page,name);
+      console.log('STAGE1_UI_AFTER_INPUT='+JSON.stringify({library:name,inputs:inputsBefore,model:await page.evaluate(name==='jedison' ? ()=>window.__editor.getValue() : ()=>window.__lastData),errors}));
       if(name==='jedison') {
-        await page.waitForFunction(()=>window.__editor.getValue().headline==='Browser edit',{timeout:5000});
+        await page.waitForFunction(()=>window.__editor.getValue().headline==='Browser edit',null,{timeout:6500});
       } else {
         await page.waitForFunction(()=>window.__lastData&&window.__lastData.headline==='Browser edit',{timeout:5000});
       }
