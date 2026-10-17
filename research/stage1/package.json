@@ -14,6 +14,7 @@
     "react-dom": "19.2.0",
     "jsdom": "27.0.0",
     "esbuild": "0.25.12",
-    "playwright-core": "1.55.1"
+    "playwright-core": "1.55.1",
+    "ajv": "8.20.0"
   }
 }
