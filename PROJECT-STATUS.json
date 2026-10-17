@@ -1,0 +1,21 @@
+{
+  "working_name": "AI Site CMS",
+  "date": "2026-10-17",
+  "status": "documentation-only",
+  "github_repository": "manufact-test/ai-site-cms",
+  "first_official_release": "full-135-required-no-mvp",
+  "requirements": {
+    "total": 193,
+    "required": 135,
+    "desirable": 42,
+    "not_needed": 16
+  },
+  "celikom_independent": true,
+  "code_exists": false,
+  "technology_selected": false,
+  "next_step": "review open architectural questions; accept complete master specification; select technical foundation after approval",
+  "project_name": "AI Site CMS",
+  "branch": "main",
+  "repo_visibility": "private",
+  "checkpoint_version": "0.2"
+}
