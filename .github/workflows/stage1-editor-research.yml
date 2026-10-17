@@ -23,8 +23,12 @@ jobs:
           node-version: '22'
       - name: Install pinned research dependencies
         run: npm install --no-audit --no-fund
+      - name: Install explicit media fixture toolchain
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
       - name: Real local media and upload adversarial boundaries
         run: command -v ffmpeg && node media-fixtures.cjs
+      - name: Typed AI-site AST profiles and adversarial contracts
+        run: node typed-ast-probe.cjs
       - name: Adversarial HTML grammar and native nonce/origin preview boundary
         run: node html-boundary-adversarial.cjs
       - name: Diagnose complex adapter native bootstrap first
