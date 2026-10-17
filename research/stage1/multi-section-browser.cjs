@@ -90,7 +90,7 @@ function parentRuntime({initial,schema,kind,lib,compiler,childCode}){
  window.__published=structuredClone(initial);window.__acks=[];window.__rejections=0;window.__ready=false;
  window.__seq=0;window.__device='desktop';window.__changeCount=0;
  window.__paint=()=>{
-  if(window.__ready)frame.contentWindow.postMessage({kind:'render',token,seq:++window.__seq,device:window.__device,values:window.__draft},location.origin);
+  if(window.__ready)frame.contentWindow.postMessage({kind:'render',token,seq:++window.__seq,device:window.__device,values:window.__draft},'*');
  };
  window.__deviceSet=value=>{window.__device=value;window.__paint()};
  window.__forged=(what)=>{
@@ -99,7 +99,7 @@ function parentRuntime({initial,schema,kind,lib,compiler,childCode}){
   if(what==='token')payload.token='fake';
   if(what==='old')payload.seq=window.__seq;
   if(what==='css'){payload.values.headingSize={desktop:'10px',tablet:'',mobile:'url(javascript:evil())'}}
-  frame.contentWindow.postMessage(payload,location.origin);
+  frame.contentWindow.postMessage(payload,'*');
  };
  window.addEventListener('message',e=>{
   const m=e.data;
