@@ -1,4 +1,4 @@
-# AI Site CMS — карта проекта и инструкция для нового чата (v1.1)
+# AI Site CMS — карта проекта и инструкция для нового чата (v1.2)
 
 **Дата:** 17.10.2026  
 **Проект:** **AI Site CMS** (без MFT, MANUFACT и CELIKOM в названии).  
@@ -53,7 +53,7 @@
 
 В новом ChatGPT-проекте владелец может вставить:
 
-> Продолжаем самостоятельный проект **AI Site CMS**. GitHub: https://github.com/manufact-test/ai-site-cms, приватный, рабочая ветка main. Прежде чем что-либо менять, прочитай README.md, PROJECT-STATUS.json, docs/NEXT-CHAT.md, docs/MASTER-TZ.md, docs/ROADMAP.md, docs/PROJECT-MAP.md, docs/REQUIREMENTS.md, docs/OPEN-QUESTIONS.md, docs/FOUNDATIONS.md, docs/ARCHITECTURE.md и docs/AI-SITE-CONTRACT.md. Наш опрос завершён: 193 требования, из них 135 обязательных, 42 желательных, 16 не нужны. Это CMS для ИИ-сайтов, не конструктор. Никакого MVP: первая полноценная версия только после выполнения 135/135 и приёмки. Пока кода нет. Начни с проверки актуального состояния GitHub: **план 18 этапов уже утверждён 17.10.2026**, этап 0 принят, этап 1 — анализ готовых open-source основ — следующий, ещё не начат. CELIKOM и репозиторий manufact-test/nomusic не трогать. После каждого принятого этапа обновляй GitHub-документацию и checkpoint.
+> Продолжаем самостоятельный проект **AI Site CMS**. GitHub: https://github.com/manufact-test/ai-site-cms, приватный, рабочая ветка main. Прежде чем что-либо менять, прочитай README.md, PROJECT-STATUS.json, docs/NEXT-CHAT.md, docs/MASTER-TZ.md, docs/ROADMAP.md, docs/PROJECT-MAP.md, docs/REQUIREMENTS.md, docs/OPEN-QUESTIONS.md, docs/FOUNDATIONS.md, docs/ARCHITECTURE.md и docs/AI-SITE-CONTRACT.md. Наш опрос завершён: 193 требования, из них 135 обязательных, 42 желательных, 16 не нужны. Это CMS для ИИ-сайтов, не конструктор. Никакого MVP: первая полноценная версия только после выполнения 135/135 и приёмки. Пока кода нет. Начни с проверки актуального состояния GitHub: **план 18 этапов уже утверждён 17.10.2026**, этап 0 принят, этап 1 — анализ готовых open-source основ — следующий, ещё не начат. После каждого принятого этапа обновляй GitHub-документацию и checkpoint.
 
 **Порядок первого чтения:**
 1. README.md и PROJECT-STATUS.json — что это за проект и какая реальная стадия.
