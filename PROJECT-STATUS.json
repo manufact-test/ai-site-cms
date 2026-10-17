@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Stage 1 ONLY, still unaccepted: next investigate realistic local image/video media fixtures incl failures/security/CSP, compose expandable AI HTML AST/sanitization/trust architecture (NOT a finished product), targeted requirements gap analysis (135 mandatory IDs), authorized READ-ONLY PHP shared hosting review. Present tech options and risk matrix for owner approval before stage 2; don't select framework, merge research, deploy, change tariff, or touch CELIKOM.",
+  "next_step": "Stage 1 ONLY, still unaccepted: research unique AI-authored section AST/HTML policy packs and real editor bindings across more section families, extend media source/upload threat tests (decode/CSP/size/ACL/authorization/responsive), gap-based full 135-mandatory coverage, permitted read-only existing PHP shared-hosting review. No chosen stack, main research merge, stage 2, release or CELIKOM.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.16",
+  "checkpoint_version": "1.17",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -66,7 +66,7 @@
         "jedison": 46.5,
         "rjsf": 63.1
       },
-      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39067271214",
+      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39068226228",
       "rjsf_complex_custom_fields_tested": true,
       "rjsf_custom_fields_chromium_passed": true,
       "php_opis_schema_validator_tested": true,
@@ -118,7 +118,7 @@
       "complex_adapter_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770",
       "hosting_smoke_plan_path": "docs/STAGE-1-HOSTING-SMOKE-PLAN.md",
       "hosting_smoke_plan_executed": false,
-      "research_state_note": "v1.16: full GitHub Actions #39067271214 PASS on separate research branch. Hero-only parse5 preflight accepts 2 safe/escaped fixtures and rejects 20 malformed/hostile fragments. Native localhost Chromium opaque srcdoc CSP nonce, parent origin/source/token/shape checks, rogue iframe messages rejected, script without nonce blocked, no page errors. NOT universal AI HTML sanitizer or production security validation. Source-of-truth requirements.csv 193 IDs: 135 required; all 135 enumerated in main evidence matrix, 43 tagged with limited research/doc signal, 92 with no matched targeted probe, 0/135 product accepted. No actual PHP shared hosting, SSR, complete CMS, owner stack approval or stage2.",
+      "research_state_note": "v1.17 full GitHub Actions #39068226228 PASS research branch commit f53d6d20a13a138270520aa97eefb022a55c3a32. Real local runner-generated PNG JPEG VP8 WebM browser loaded; 3 upload accepted, 5 rejected; video playback and opaque sandbox frame PASS; no storage or production security. Two typed AST profiles hero/media, 21/21 adversarial cases denied. Original 135 mandatory matrix remains 43 limited research/doc signals, 92 no matched end-to-end feature proof and 0/135 product acceptance. Existing PHP shared hosting not tested. No approved stack, stage2 or CMS production.",
       "complex_adapter_native_srcdoc_nonce_bridge_passed": true,
       "complex_adapter_native_srcdoc_nonce_variants_passed": 4,
       "srcdoc_csp_positive_without_policy_passed": true,
@@ -184,7 +184,28 @@
       "mandatory_evidence_matrix_verified_ids": 135,
       "mandatory_evidence_matrix_research_or_documentation_mapped": 43,
       "mandatory_evidence_matrix_no_matched_targeted_probe": 92,
-      "mandatory_product_requirements_accepted": 0
+      "mandatory_product_requirements_accepted": 0,
+      "real_local_media_fixtures_browser_passed": true,
+      "real_local_media_fixtures_types": [
+        "PNG",
+        "JPEG",
+        "WebM/VP8"
+      ],
+      "real_local_media_video_playback_passed": true,
+      "real_local_media_opaque_sandbox_passed": true,
+      "real_local_media_accepted_uploads": 3,
+      "real_local_media_rejected_uploads": 5,
+      "real_local_media_pageerrors": 0,
+      "real_local_media_software": "ffmpeg on GitHub Actions runner only (explicit apt install)",
+      "real_local_media_production_pipeline_verified": false,
+      "typed_ai_ast_profiles_tested": [
+        "hero",
+        "media"
+      ],
+      "typed_ai_ast_adversarial_rejections": 21,
+      "typed_ai_ast_profiles_passed": true,
+      "typed_ai_ast_production_generalized_html_verified": false,
+      "media_ast_gap_report_path": "docs/STAGE-1-MEDIA-AST-GAPS-RESEARCH.md"
     },
     "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
     "research_branch": "research/stage1-editor-comparison",
