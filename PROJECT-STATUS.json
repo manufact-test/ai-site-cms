@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Stage 1 research ONLY: fair same 12-stable-ID, multiple-field Jedison/RJSF editor workload and extended session/resource/security probes, then authorized read-only review of current shared PHP hosting per docs/STAGE-1-HOSTING-SMOKE-PLAN.md. Investigate production CSP/nonce lifecycle and AI-generated HTML boundary. Do not start stage 2 or merge research into main.",
+  "next_step": "Stage 1 research only: same-content custom composite Jedison/RJSF widgets under a richer media/mock section; longer session and HTML trust/security/CSP probes; authorized read-only inspection of existing PHP shared-hosting per docs/STAGE-1-HOSTING-SMOKE-PLAN.md; refresh gaps against 135 mandatory requirement IDs and prepare unbiased owner-facing foundation conclusion. No stage 2 or research merge.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.13",
+  "checkpoint_version": "1.14",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -66,7 +66,7 @@
         "jedison": 46.5,
         "rjsf": 63.1
       },
-      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770",
+      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450",
       "rjsf_complex_custom_fields_tested": true,
       "rjsf_custom_fields_chromium_passed": true,
       "php_opis_schema_validator_tested": true,
@@ -118,7 +118,7 @@
       "complex_adapter_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770",
       "hosting_smoke_plan_path": "docs/STAGE-1-HOSTING-SMOKE-PLAN.md",
       "hosting_smoke_plan_executed": false,
-      "research_state_note": "v1.13: whole GitHub Actions #39064252770 PASS; HTML/PHP/React/Next-static representative sections with 12 stable IDs each, actual RJSF editor and native srcdoc CSP nonce bridge in all 4 (no Playwright script injection). Initial bootstrap failures traced to missing > in HTML fixture closing </section; early terminator regression now required. Positive/negative nonce tests PASS. No full production CSP/auth assurance, hosting test, SSR, fair long-session comparison, stack choice or accepted 135 requirements.",
+      "research_state_note": "v1.14: full CI #39065084450 PASS. Matched Jedison 1.27.1 / RJSF 6.11.0 9-root-property manifest, 12 stable IDs, 50 metadata entries, single native sandbox iframe, 16 mount/edit/unmount cycles and 656 model edits per editor across two library orders; nested JSON exactly equal, no pageerrors. Diagnostic entry gzip 48,284 / 190,905 bytes with DIFFERENT bundled validator coverage; memory and Playwright timings inconclusive for production. No stack approval, product CMS, real Hostinger testing or 135 mandatory acceptance.",
       "complex_adapter_native_srcdoc_nonce_bridge_passed": true,
       "complex_adapter_native_srcdoc_nonce_variants_passed": 4,
       "srcdoc_csp_positive_without_policy_passed": true,
@@ -126,11 +126,26 @@
       "srcdoc_csp_negative_mismatched_nonce_blocked": true,
       "srcdoc_script_dom_negative_mismatch_messages": 0,
       "complex_adapter_html_terminator_bug_fixed": true,
-      "complex_adapter_html_terminator_bug_cause": "HTML fixture lacked > in </section; DOM at EOF was silently repaired; appended <script> became text from malformed </section<script...; PHP fixture already valid"
+      "complex_adapter_html_terminator_bug_cause": "HTML fixture lacked > in </section; DOM at EOF was silently repaired; appended <script> became text from malformed </section<script...; PHP fixture already valid",
+      "matched_editors_test_passed": true,
+      "matched_editors_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450",
+      "matched_editors_fixture_root_properties": 9,
+      "matched_editors_fixture_stable_ids": 12,
+      "matched_editors_cycles_per_library": 16,
+      "matched_editors_model_changes_per_library": 656,
+      "matched_editors_two_orders_tested": true,
+      "matched_editors_models_identical": true,
+      "matched_editors_pageerrors": 0,
+      "matched_editors_minified_entry_gzip_bytes": {
+        "jedison": 48284,
+        "rjsf_with_react_ajv2020": 190905
+      },
+      "matched_editors_test_limits": "Diagnostic GitHub Chromium with Playwright time including automated actions, 8 cycles per order and 2 orders; CDP post-GC heap snapshots, different validator bundle coverage. NOT production SLO, leak analysis or hours-long session.",
+      "production_editor_long_session_verified": false
     },
     "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
     "research_branch": "research/stage1-editor-comparison",
-    "research_state_note": "v1.13: whole GitHub Actions #39064252770 PASS; HTML/PHP/React/Next-static representative sections with 12 stable IDs each, actual RJSF editor and native srcdoc CSP nonce bridge in all 4 (no Playwright script injection). Initial bootstrap failures traced to missing > in HTML fixture closing </section; early terminator regression now required. Positive/negative nonce tests PASS. No full production CSP/auth assurance, hosting test, SSR, fair long-session comparison, stack choice or accepted 135 requirements."
+    "research_state_note": "v1.14: full CI #39065084450 PASS. Matched Jedison 1.27.1 / RJSF 6.11.0 9-root-property manifest, 12 stable IDs, 50 metadata entries, single native sandbox iframe, 16 mount/edit/unmount cycles and 656 model edits per editor across two library orders; nested JSON exactly equal, no pageerrors. Diagnostic entry gzip 48,284 / 190,905 bytes with DIFFERENT bundled validator coverage; memory and Playwright timings inconclusive for production. No stack approval, product CMS, real Hostinger testing or 135 mandatory acceptance."
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
