@@ -9,8 +9,9 @@ function stage1HeroValid(mixed $data): bool
     $keys = array_keys(get_object_vars($data));
     sort($keys);
     if ($keys !== ['accent', 'cta', 'fontSize', 'title']) return false;
-    if (!is_string($data->title) || mb_strlen($data->title, 'UTF-8') > 500) return false;
-    if (!is_string($data->cta) || mb_strlen($data->cta, 'UTF-8') > 200) return false;
+    // JSON Schema maxLength counts Unicode code points; PCRE /u avoids ext-mbstring dependency.
+    if (!is_string($data->title) || ($n = preg_match_all('/./us', $data->title)) === false || $n > 500) return false;
+    if (!is_string($data->cta) || ($n = preg_match_all('/./us', $data->cta)) === false || $n > 200) return false;
     if (!is_string($data->fontSize) || !preg_match('/^[0-9]{1,3}px$/D', $data->fontSize)) return false;
     return is_string($data->accent) && (bool)preg_match('/^#[0-9a-fA-F]{6}$/D', $data->accent);
 }
