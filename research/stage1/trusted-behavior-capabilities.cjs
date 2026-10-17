@@ -120,7 +120,7 @@ function sourceAndReviewedModel(){
  const subtitle=lookup('signup-title','h2').textContent.trim();
  const section='<section id="home" data-component="reviewed-tide"><h1>'+esc(title)+'</h1><p>'+esc(deck)+'</p>'+
   '<a id="hero-link" href="'+esc(defaults.linkHref)+'">'+esc(defaults.linkText)+'</a>'+
-  '<details id="faq-first"><summary>'+esc(faqLabel)+'</summary><p>'+esc(faqBody)+'</p></details>'+
+  '<div id="faq"><details id="faq-first"><summary>'+esc(faqLabel)+'</summary><p>'+esc(faqBody)+'</p></details></div>'+
   '<section id="join"><h2>'+esc(subtitle)+'</h2><form id="signup-form" method="post">'+
   '<label>Email <input id="signup-email" type="email" required placeholder="'+esc(defaults.emailPlaceholder)+'"></label>'+
   '<button id="signup-button" type="submit">Preview sign-up</button></form>'+
