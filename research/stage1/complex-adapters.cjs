@@ -88,7 +88,7 @@ async function run(){
     try{await page.waitForFunction(()=>window.probe?.acks.some(a=>a.font==='64px'),null,{timeout:10000})}
     catch(error){
      const info=await page.evaluate(()=>({probe:window.probe,current:window.current,frameSrcdoc:document.getElementById('preview').srcdoc.slice(-550)}));
-     const child=await page.frameLocator('#preview').locator('body').evaluate(e=>({ready:document.readyState,globalToken:typeof t==='undefined'?'undefined':t,bodyText:e.textContent.slice(0,130)})).catch(e=>({frameError:String(e)}));
+     const child=await page.frameLocator('#preview').locator('body').evaluate(e=>{const s=document.querySelector('script');let syntax='missing';if(s){try{new Function(s.textContent);syntax='valid'}catch(err){syntax=String(err)}}return {ready:document.readyState,globalToken:typeof t==='undefined'?'undefined':t,bodyText:e.textContent.slice(0,130),scriptCount:document.scripts.length,scriptHead:s?.textContent.slice(0,330),scriptLength:s?.textContent.length,syntax}}).catch(e=>({frameError:String(e)}));
      console.error('STAGE1_ADAPTER_DIAGNOSTIC='+JSON.stringify({kind,info,child,errors}));
      throw error;
     }
