@@ -1,11 +1,11 @@
 # AI Site CMS — постоянный файл передачи между чатами
 
-**Контрольная точка:** v1.10 · **дата:** 17.10.2026  
+**Контрольная точка:** v1.11 · **дата:** 17.10.2026  
 **Единственный постоянный путь:** `docs/NEXT-CHAT.md`  
 **Постоянная ссылка:** https://github.com/manufact-test/ai-site-cms/blob/main/docs/NEXT-CHAT.md  
 **Проект:** AI Site CMS, без MFT/MANUFACT в названии.  
 **Репозиторий:** https://github.com/manufact-test/ai-site-cms · private · ветка `main`.  
-**Состояние на эту дату:** документация готова; **18 этапов (0–17) утверждены владельцем 17.10.2026**. Этап 0 принят, **этап 1 начат и продолжается, не принят**. Код CMS не написан, основа/фреймворк не выбраны, продуктовых тестов/выпусков нет; выполнены локальные исследовательские тесты и реальные сравнения Jedison/RJSF, включая custom-editors Jedison/RJSF, Opis/AJV parity, 14 сценариев owner overrides и сложный Hero/публичную PHP HTTP-страницу (STAGE-1-TEST-LOG.md §§7–13).
+**Состояние на эту дату:** документация готова; **18 этапов (0–17) утверждены владельцем 17.10.2026**. Этап 0 принят, **этап 1 начат и продолжается, не принят**. Код CMS не написан, основа/фреймворк не выбраны, продуктовых тестов/выпусков нет; выполнены локальные исследовательские тесты и реальные сравнения Jedison/RJSF, включая custom-editors Jedison/RJSF, Opis/AJV parity, 14 сценариев owner overrides, сложный Hero и защищённый исследовательский PHP HTTP publish с fallback/rollback (STAGE-1-TEST-LOG.md §§7–14).
 
 > **ЭТО РАБОЧИЙ ЖУРНАЛ ПРОЕКТА И ФАЙЛ ДЛЯ ПЕРЕХОДА МЕЖДУ ЧАТАМИ.** Не начинать работу «по памяти»: сперва прочитать этот файл **напрямую из GitHub**, затем проверить PROJECT-STATUS.json и документы. При просьбе владельца «обнови этот файл», «обнови файл для следующего чата», «заканчиваем чат» **перезаписывать именно `docs/NEXT-CHAT.md`**, а не создавать новые независимые документы-копии. Ссылка на файл не меняется, изменяется его содержимое. После успешной записи давать владельцу эту же GitHub-ссылку и по возможности **свежую скачиваемую .md-копию**, которую можно приложить к следующему чату.
 
@@ -240,3 +240,28 @@
 **ТОЧНЫЙ СЛЕДУЮЩИЙ ШАГ:** в этапе 1 проверить реальный многоэлементный PHP/React/Next-static блок в preview через adapter boundaries, сравнить такой же сложный сценарий на RJSF, проверить server-side publish validation с last-known-good/rollback под невалидными данными и выполнить доступный разрешённый smoke test именно на существующем shared hosting без расширения среды. Затем подготовить объективный вывод по foundation matrix и 135 обязательным ID, предъявить владельцу для согласования выбора направления. **Этап 1 не принят. Этап 2 не начинать без подтверждения владельца.**
 
 **Последние документы:** [STAGE-1-TEST-LOG.md §13](STAGE-1-TEST-LOG.md), [FOUNDATION-COMPARISON.md §10](FOUNDATION-COMPARISON.md), [FOUNDATIONS.md](FOUNDATIONS.md), [PROJECT-STATUS.json](../PROJECT-STATUS.json), [ROADMAP.md](ROADMAP.md). В будущем обновлять **именно этот** docs/NEXT-CHAT.md. Владелец утвердил 193 требования: 135 обязательно, 42 желательно, 16 не нужно. Весь первый официальный релиз — только после реальной 135/135 приёмки, без MVP. Этап 0 принят; этап 1 in_progress; этап 2 not_started; этап 17 CELIKOM — только отдельный пилот после полного релиза, вне текущего проекта. Исследовательская ветка отдельно от main; main — документация.
+
+
+## 16. Фрагмент этапа 1 завершён, передача в новый чат — checkpoint v1.11 (17.10.2026)
+
+**ПОСЛЕДНИЙ ПОДТВЕРЖДЁННЫЙ ПОЛНЫЙ CI PASS:** [GitHub Actions #39059714864](https://github.com/manufact-test/ai-site-cms/actions/runs/39059714864); отдельная research-ветка [research/stage1-editor-comparison](https://github.com/manufact-test/ai-site-cms/tree/research/stage1-editor-comparison), исследовательский commit **a7d8ac5e068d619397ab77c699a046bb73b3768a**. В main сохранены только документы; исследовательский код не сливать. Статус [PROJECT-STATUS.json](../PROJECT-STATUS.json) checkpoint **1.11**.
+
+### Что только что реально сделано
+
+- В research-ветке добавлены [public-runtime/published-hero.schema.json](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/public-runtime/published-hero.schema.json), [snapshot-store.php](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/public-runtime/snapshot-store.php), [publish-cli.php](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/public-runtime/publish-cli.php), [publish-rollback.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/publish-rollback.cjs); изменены исследовательские public-runtime/index.php, public-runtime.cjs и CI workflow.
+- Настоящий **PHP 8.3.6 HTTP + CLI на GitHub runner и Opis JSON Schema 2.6.0**. Перед публикацией валидатор отклоняет 7 вредоносных/некорректных входов без изменения опубликованного файла. 500 кодовых точек Unicode корректны, 501 — отвергнуты. Проверены HTML escaping, сохранение истории ревизий, явный CLI rollback, отказ path traversal, 4 одновременных CLI writer под flock, временная запись+rename на одной файловой системе.
+- При **повреждении current.json** публичная PHP-страница возвращает HTTP **200** из проверенного **last-good.json**, без Node/admin/editor JavaScript. Publisher не перезаписывает повреждённый current до явного rollback. Если повреждены и current, и last-good — **HTTP 503 fail closed**; отдельный rollback из валидной истории восстанавливает HTTP 200. В сценарии создано 11 сохранённых исследовательских ревизий. Это однофайловый snapshot Hero, а не реальное долговременное хранилище проекта.
+- Ошибка: [#39059638142](https://github.com/manufact-test/ai-site-cms/actions/runs/39059638142) FAIL старого regression из-за изменившегося текста ответа 503, его HTTP-статус не менялся. Assertion исправлен, итоговый [#39059714864](https://github.com/manufact-test/ai-site-cms/actions/runs/39059714864) PASS всех прежних и новых тестов.
+- **Подробный технический отчёт в main:** [STAGE-1-SNAPSHOT-PUBLISH-RESEARCH.md](STAGE-1-SNAPSHOT-PUBLISH-RESEARCH.md); [STAGE-1-TEST-LOG.md §14](STAGE-1-TEST-LOG.md); [FOUNDATION-COMPARISON.md §11](FOUNDATION-COMPARISON.md); [FOUNDATIONS.md](FOUNDATIONS.md); [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md); [PROJECT-MAP.md](PROJECT-MAP.md); [ROADMAP.md](ROADMAP.md); [README](../README.md). Документы и PROJECT-STATUS синхронизированы.
+
+### Границы — не преувеличивать
+
+**Настоящий текущий shared hosting/Hostinger НЕ проверен.** Версия PHP, расширения, Composer vendor на реальном hosting неизвестны; нет реального Apache/Nginx/FPM, БД, файловых прав, uploads, подключения клиентского сайта или auth. Нет production fsync/offsite backups/distributed locks/rollback при потере питания, RBAC/CSRF/XSS assurance, CDN, real traffic или multiple-editor conflict resolution. Четыре CLI writer — ограниченный smoke-test. Ни одно из 135 обязательных требований CMS не принято из-за тестов. CMS не разрабатывалась, итоговый стек не утверждён. Jedison/RJSF/Opis остаются кандидатами, а не выбранной основой.
+
+### Точный следующий исследовательский фрагмент — следующий чат
+
+**Продолжить ЭТАП 1, а НЕ начинать этап 2:** исследовать real representative multi-element HTML/PHP/React/Next-static preview adapter boundaries, проверить сопоставимый тяжёлый Hero на втором редакторе RJSF с идентичными данными и breakpoints, затем при наличии санкционированного доступа выполнить изолированный smoke-test **существующего** PHP shared-hosting без расширения тарифов. Далее — security/performance/migrations, матрица 135 обязательных ID и отчёт для владельца. Next.js SSR на обычном PHP shared-hosting нельзя обещать: отличать Next static export от Node SSR. До начала продуктовой разработки/этапа 2 необходимо отдельное подтверждение владельца.
+
+### Официальный статус и ограничения
+
+193 требования: **135 обязательных / 42 желательных / 16 ненужных**; первая официальная версия только полная **135/135, без MVP**. Этапы 0–17: **0 принят, 1 in_progress/НЕ принят, 2 not_started**. CMS — независимый внутренний AI-first инструмент для сайтов клиентов, повторное использование permissive open-source, **никаких апгрейдов текущего PHP shared hosting**. CELIKOM не объединять с репозиторием: только отдельный пилот после полного выпуска CMS (этап 17). **Нельзя вливать research в main и нельзя создавать параллельный NEXT-CHAT.** При новых результатах сначала проверить CI, затем актуализировать main docs и **этот же** постоянный handoff.
