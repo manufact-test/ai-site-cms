@@ -1,0 +1,324 @@
+{
+  "description": "Stage 1 parity fixtures for RJSF AJV8 and Opis 2.6.0; same draft-2020-12 typed manifest",
+  "cases": [
+    {
+      "name": "valid-initial",
+      "valid": true,
+      "instance": {
+        "fontSize": "64px",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 10,
+          "color": "#112233"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": true,
+          "duration": 400,
+          "easing": "ease"
+        }
+      }
+    },
+    {
+      "name": "valid-edited",
+      "valid": true,
+      "instance": {
+        "fontSize": "72rem",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 25,
+          "color": "#112233"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": true,
+          "duration": 850,
+          "easing": "ease"
+        }
+      }
+    },
+    {
+      "name": "unit-rejected",
+      "valid": false,
+      "instance": {
+        "fontSize": "10vh",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 10,
+          "color": "#112233"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": true,
+          "duration": 400,
+          "easing": "ease"
+        }
+      }
+    },
+    {
+      "name": "css-expression-rejected",
+      "valid": false,
+      "instance": {
+        "fontSize": "calc(2em + 1px)",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 10,
+          "color": "#112233"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": true,
+          "duration": 400,
+          "easing": "ease"
+        }
+      }
+    },
+    {
+      "name": "shadow-negative-blur",
+      "valid": false,
+      "instance": {
+        "fontSize": "64px",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": -1,
+          "color": "#112233"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": true,
+          "duration": 400,
+          "easing": "ease"
+        }
+      }
+    },
+    {
+      "name": "shadow-invalid-hex",
+      "valid": false,
+      "instance": {
+        "fontSize": "64px",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 10,
+          "color": "#gggggg"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": true,
+          "duration": 400,
+          "easing": "ease"
+        }
+      }
+    },
+    {
+      "name": "gradient-invalid-angle",
+      "valid": false,
+      "instance": {
+        "fontSize": "64px",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 10,
+          "color": "#112233"
+        },
+        "gradient": {
+          "angle": 361,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": true,
+          "duration": 400,
+          "easing": "ease"
+        }
+      }
+    },
+    {
+      "name": "duration-as-string",
+      "valid": false,
+      "instance": {
+        "fontSize": "64px",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 10,
+          "color": "#112233"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": true,
+          "duration": "400",
+          "easing": "ease"
+        }
+      }
+    },
+    {
+      "name": "easing-unlisted",
+      "valid": false,
+      "instance": {
+        "fontSize": "64px",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 10,
+          "color": "#112233"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": true,
+          "duration": 400,
+          "easing": "steps(3)"
+        }
+      }
+    },
+    {
+      "name": "extra-root",
+      "valid": false,
+      "instance": {
+        "fontSize": "64px",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 10,
+          "color": "#112233"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": true,
+          "duration": 400,
+          "easing": "ease"
+        },
+        "borderRadius": "12px"
+      }
+    },
+    {
+      "name": "extra-nested",
+      "valid": false,
+      "instance": {
+        "fontSize": "64px",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 10,
+          "color": "#112233",
+          "radius": "5px"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": true,
+          "duration": 400,
+          "easing": "ease"
+        }
+      }
+    },
+    {
+      "name": "missing-field",
+      "valid": false,
+      "instance": {
+        "fontSize": "64px",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 10,
+          "color": "#112233"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        }
+      }
+    },
+    {
+      "name": "boolean-string",
+      "valid": false,
+      "instance": {
+        "fontSize": "64px",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 10,
+          "color": "#112233"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": "false",
+          "duration": 400,
+          "easing": "ease"
+        }
+      }
+    },
+    {
+      "name": "all-default-typed",
+      "valid": true,
+      "instance": {
+        "fontSize": "0%",
+        "shadow": {
+          "x": 0,
+          "y": 5,
+          "blur": 0,
+          "color": "#112233"
+        },
+        "gradient": {
+          "angle": 45,
+          "from": "#112233",
+          "to": "#334455"
+        },
+        "animation": {
+          "enabled": false,
+          "duration": 400,
+          "easing": "ease"
+        }
+      }
+    }
+  ]
+}
