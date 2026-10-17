@@ -330,3 +330,12 @@ AI Site CMS — **внутренняя разработка команды** д�
 
 [Тестовый журнал §15](STAGE-1-TEST-LOG.md) · [Безопасный план проверки текущего shared-hosting](STAGE-1-HOSTING-SMOKE-PLAN.md).
 
+
+## 13. Нативный HTML adapter bootstrap с CSP nonce — checkpoint v1.13 (17.10.2026)
+
+[GitHub Actions #39064252770](https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770) PASS: четыре идентичных по stable IDs многоэлементных HTML-артефакта (чистый HTML, PHP CLI, React static HTML, настоящий Next static export) теперь запускают typed bridge **не через инъекцию Playwright**, а через собственный `iframe.srcdoc` inline script с nonce и мета-CSP. RJSF 6.11.0 на всех четырёх — 4/4 PASS, включая адаптив, CTA/карточки, отсутствие HTML injection. Отдельный test proof показал разрешение nonce-мэтча и блокирование nonce-mismatch.
+
+**Найденное ограничение адаптеров:** исходный HTML fragment имел синтаксическую ошибку `</section` вместо `</section>`. JSDOM исправлял конец фрагмента автоматически, что маскировало проблему; при последующей конкатенации `<script>` не создавался. Исправлено, добавлен ранний assert завершённого markup во всех четырёх артефактах. Это особенно важно для ИИ-генерации уникальных секций: нельзя считать простую DOM parity проверкой корректной сериализации границы адаптера. На следующем этапе исследования нужен отдельный HTML syntax/AST validation, устойчивость к nested rawtext/script/style edge cases и security boundary от недоверенной разметки.
+
+**Вывод ограниченный:** техническая возможность типизированного responsive preview без runtime сайта подтверждена на research-фикстуре, production интеграция, CDN, lifecycle nonce CSP, XSS/RBAC и работа на current PHP shared hosting НЕ доказаны. Старые сравнения Jedison/RJSF не дают fair heavy-session benchmark, подходы остаются кандидатами. Следующая задача — сопоставимый 12-ID UI workload и нагрузка/долгие сессии. Матрица 135 ID не считается закрытой, этап 1 не принят, стек не выбран. [Журнал §16](STAGE-1-TEST-LOG.md).
+
