@@ -81,3 +81,8 @@
 
 [Полный CI #39065084450](https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450) PASS для **обоих** pinned open-source редакторов: Jedison 1.27.1 и RJSF 6.11.0 с 9 одинаковыми schema properties, 12 stable IDs и одним preview. В двух порядках сравнения по 16 mount/edit/unmount циклов и 656 модельных изменений на редактор, итоговые JSON идентичны, browser errors 0. Test entry gzip Jedison ~48.3 КБ, RJSF+React+AJV2020 ~190.9 КБ, но dependency coverage отличается; меньшая heap snapshot Jedison и меньшее scripted action wall time RJSF — только ограниченные CI наблюдения. **Ни один не выбран.** См. [STAGE-1-MATCHED-EDITOR-SESSIONS.md](STAGE-1-MATCHED-EDITOR-SESSIONS.md) и [STAGE-1-TEST-LOG.md §17](STAGE-1-TEST-LOG.md).
 
+
+## checkpoint v1.15 — true composite widgets and media placeholders (17.10.2026)
+
+[CI #39066085194](https://github.com/manufact-test/ai-site-cms/actions/runs/39066085194) полный PASS: Jedison 1.27.1 и RJSF 6.11.0 расширены собственными length/shadow/gradient/animation полями в одинаковой Draft2020 JSON Schema, по 2 полных mount/edit/unmount цикла и 9 правок каждому, выходной JSON идентичен, одна nonce-CSP iframe с 12 stable ID, 3 **фиктивные DOM/CSS media-placeholder** (НЕ actual медиа), hostile CSS отказ, published baseline не меняется, pageerrors 0. Это ограниченная исследовательская функциональность, стек НЕ выбран; подробности [STAGE-1-COMPOSITE-MEDIA-RESEARCH.md](STAGE-1-COMPOSITE-MEDIA-RESEARCH.md).
+
