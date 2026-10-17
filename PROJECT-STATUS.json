@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Stage 1 only: validate difficult schema edge cases plus real representative heavy HTML/PHP/React/Next component preview and update-preserving overrides; audit production iframe/API security and performance; test existing PHP shared-hosting in an authorized isolated site without increasing hosting, then present evidence for owner's stage-1 acceptance and stage-2 stack decision. Do not merge research branch into main.",
+  "next_step": "Remain in stage 1: test actual representative PHP/React/Next static-export section integration, equal heavyweight RJSF hero, long-session resource usage, hostile iframe/API and realistic persistent override/rollback; then authorized smoke test on the CURRENT PHP shared hosting without an upgrade. Do not begin stage 2 or merge research into main before owner's decision.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.9",
+  "checkpoint_version": "1.10",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -66,7 +66,7 @@
         "jedison": 46.5,
         "rjsf": 63.1
       },
-      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39057234158",
+      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39058603992",
       "rjsf_complex_custom_fields_tested": true,
       "rjsf_custom_fields_chromium_passed": true,
       "php_opis_schema_validator_tested": true,
@@ -74,11 +74,25 @@
       "rjsf_schema_dialect": "draft-2020-12 via customizeValidator Ajv2020 (default incompatible)",
       "cross_runtime_schema_parity_tested": true,
       "cross_runtime_schema_parity_cases": 14,
-      "cross_runtime_schema_parity_passed": true
+      "cross_runtime_schema_parity_passed": true,
+      "override_evolution_research_cases": 14,
+      "override_evolution_research_passed": true,
+      "override_migration_conflict_rejections": 2,
+      "representative_html_hero_jedison_chromium_passed": true,
+      "representative_html_hero_features": [
+        "responsive inheritance",
+        "one isolated iframe and 50 metadata sections",
+        "tablet UI 48px to 52px",
+        "mobile inherited 52px and explicit override 32px",
+        "HTML-like text treated as text"
+      ],
+      "php_http_published_snapshot_probe_passed": true,
+      "php_http_probe_host": "GitHub runner PHP 8.3.6 built-in server, NOT actual shared hosting",
+      "php_invalid_published_snapshot_behavior": "HTTP 503 fail-closed; production last-known-good not built"
     },
     "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
     "research_branch": "research/stage1-editor-comparison",
-    "research_state_note": "Real upstream Jedison 1.27.1 and RJSF 6.11.0 both passed complex custom widget test; RJSF Ajv2020 and PHP Opis 2.6.0 agreed on 14 fixtures. Results are feasibility probes, NOT product requirements acceptance, hosting validation, or stack selection."
+    "research_state_note": "Stage 1: custom Jedison/RJSF controls + Opis/AJV parity and 14 override-evolution research cases, real Jedison responsive Hero browser test, and PHP HTTP-only published JSON reader passed. All are research harnesses, not CMS implementation. Real Hostinger, real complex client sites, publish resilience and security unverified."
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
