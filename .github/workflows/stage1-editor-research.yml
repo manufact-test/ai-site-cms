@@ -39,6 +39,10 @@ jobs:
         run: node annotated-coverage-audit.cjs
       - name: Trusted extensible CSS packs, schema parity, hostile fragments and migrations
         run: node registry-hardening.cjs
+      - name: Uninstrumented AI-site contract preflight, unsupported components and migrations
+        run: node independent-site-preflight.cjs
+      - name: Full-site opaque browser trust boundary, CSS and blocked behaviors
+        run: node independent-site-sandbox.cjs
       - name: Native browser editor test of new geometry and appearance property packs
         run: node registry-editor-browser.cjs
       - name: Adversarial HTML grammar and native nonce/origin preview boundary
