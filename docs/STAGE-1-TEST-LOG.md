@@ -199,3 +199,22 @@
 **Что НЕ доказано:** совместимость со всеми возможными манифестами, полная сходимость диалектов браузера и PHP, безопасная доставка schema, отладка доступов/CSRF, реальные Hostinger PHP/ext/ограничения, полная производительность и нагрузка, пакетирование vendor без Composer на хостинге. Composer выполнялся на CI-раннере, не на рабочем shared hosting; composer.lock в исследовательскую ветку пока не зафиксирован, транзитивные версии на разных запусках могут различаться. Перед продуктовым использованием зафиксировать проверенные зависимости/NOTICE и отдельный аудит.
 
 **Промежуточный вывод:** Opis — сильный доказанный кандидат серверной схемной валидации, но пока не выбран как окончательная библиотека CMS. Этап 1 открыт.
+
+
+## 12. RJSF custom controls and browser/server JSON Schema parity — 17.10.2026 (checkpoint v1.9)
+
+**Последний подтверждённый PASS:** [GitHub Actions #39057234158](https://github.com/manufact-test/ai-site-cms/actions/runs/39057234158) на отдельной ветке [research/stage1-editor-comparison](https://github.com/manufact-test/ai-site-cms/tree/research/stage1-editor-comparison).
+
+Реальный RJSF 6.11.0 (ui:widget для length, ui:field для составных объектов) теперь через Chrome PASS тех же собственных редакторов, что Jedison 1.27.1: fontSize 64px → 72rem, shadow blur 10 → 25 и color #112233 → #abcdef, gradient angle 45 → 120 и from → #aabbcc, animation enabled true → false, duration 400 → 850, easing ease → linear. Оба выдали одинаковый typed JSON, сохранили остальные параметры, не добавили borderRadius, ошибок pageerror 0. Это не готовый UI, а равнозначный исследовательский стенд.
+
+**Отрицательные контрольные запуски (сохранить как изученные ошибки):**
+- [#39056526064](https://github.com/manufact-test/ai-site-cms/actions/runs/39056526064) и [#39056622168](https://github.com/manufact-test/ai-site-cms/actions/runs/39056622168) — nested RJSF field сообщал объект без пути; данные ошибочно попадали в корень. Исправление: onChange(value, fieldPathId.path) по реальному API RJSF 6, [#39056922334](https://github.com/manufact-test/ai-site-cms/actions/runs/39056922334) PASS.
+- [#39057088160](https://github.com/manufact-test/ai-site-cms/actions/runs/39057088160) — default RJSF AJV8 validator не распознал JSON Schema Draft 2020-12. Исправление в сравнительном тесте: штатный customizeValidator({AjvClass: Ajv2020}), pinned ajv@8.20.0.
+
+**Новая совместимая schema validation:** один и тот же typed-manifest.schema.json Draft 2020-12 и 14 fixtures (3 корректных, 11 некорректных) прошли через RJSF validator-ajv8 6.11.0 с Ajv2020 и реальный PHP Opis 2.6.0. Результат — **14/14 одинаковых ожидаемых результатов с каждой стороны**, [#39057234158](https://github.com/manufact-test/ai-site-cms/actions/runs/39057234158). Некорректные случаи: опасные CSS-выражения, запрещённые единицы, отрицательные значения, ошибочный hex, некорректный angle/easing, неверные типы, лишние и отсутствующие свойства. Исходники:
+- [rjsf-custom.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/rjsf-custom.cjs)
+- [schema-parity-fixtures.json](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/schema-parity-fixtures.json)
+- [schema-parity.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/schema-parity.cjs)
+- [schema-parity.php](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/schema-parity.php)
+
+**Границы:** доказана согласованность лишь проверенного подмножества JSON Schema, не всей Draft 2020-12. Производственная XSS/CSRF защита, хостинг Hostinger, URL/media, продвинутая CSS-вёрстка, адаптивное inheritance, сложные HTML/PHP/React/Next проекты, реальные нагрузка, сохранение и откат ещё не приняты. Этап 1 in_progress, стек не утверждён, этап 2 не начат; ни одно из 135 обязательных требований не помечать завершённым на основании исследований.
