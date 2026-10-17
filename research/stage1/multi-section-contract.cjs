@@ -67,7 +67,7 @@ function jsonSchema(kind){
 const tag=(name,id,attrs={},body='')=>{
  if(!/^[a-z][a-z0-9-]+$/.test(id))throw Error('unstable element id');
  const attributes=['data-stable-id="'+id+'"',...Object.entries(attrs).map(([k,v])=>{if(!/^(?:class|type|href|src|alt|id|for|role|aria-[a-z-]+|data-[a-z-]+|required|hidden|muted|playsinline|preload)$/.test(k))throw Error('not permitted attribute');return k+'="'+esc(v)+'"'})];
- return '<'+name+' '+attributes.join(' ')+'>' +body+'</'+name+'>';
+ return '<'+name+' '+attributes.join(' ')+'>'+(['img','input'].includes(name)?'':body+'</'+name+'>');
 };
 function render(kind,v,device='desktop'){
  validate(kind,v);
