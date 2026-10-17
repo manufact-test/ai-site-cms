@@ -2,7 +2,7 @@
 
 **Дата:** 17.10.2026 · **Статус:** исследование начато; ни стек, ни fork, ни CMS не утверждены.
 
-Основной документ с индивидуальной матрицей всех 135 обязательных требований: [FOUNDATION-COMPARISON.md](FOUNDATION-COMPARISON.md). Главные бизнес/технические условия: [MASTER-TZ.md](MASTER-TZ.md) §1.4, [ROADMAP.md](ROADMAP.md) этап 1.
+Основной документ с индивидуальной матрицей всех 135 обязательных требований: [FOUNDATION-COMPARISON.md](FOUNDATION-COMPARISON.md). Результаты исследовательских локальных тестов: [STAGE-1-TEST-LOG.md](STAGE-1-TEST-LOG.md). Главные бизнес/технические условия: [MASTER-TZ.md](MASTER-TZ.md) §1.4, [ROADMAP.md](ROADMAP.md) этап 1.
 
 ## Рамки поиска
 
@@ -16,6 +16,7 @@
 
 | Направление | Кандидаты | Задача | Предварительная оценка |
 |---|---|---|---|
+| Framework-agnostic schema UI | [Jedison](https://github.com/germanbisurgi/jedison) (MIT, 1.27.1, 0 runtime/peer deps) | JSON Schema → HTML inputs без React; custom editors/events | **Приоритет реального A/B теста**; без реальной установки кандидат ещё не принят |
 | Готовый JS field editor | [JSON Forms](https://github.com/eclipsesource/jsonforms) (MIT), [RJSF](https://github.com/rjsf-team/react-jsonschema-form) (Apache-2.0) | Автоматически строить настройки из schema | **Первая исследовательская ветка** |
 | Готовая оболочка редактора | [Puck](https://github.com/puckeditor/puck) (MIT) | Property UI, preview | Сравнить с полями без DnD, не брать целиком заранее |
 | Visual editor primitives | [GrapesJS](https://github.com/GrapesJS/grapesjs) (BSD-3-Clause), [VvvebJs](https://github.com/givanz/VvvebJs) (Apache-2.0) | CSS-controls, selection, HTML preview | Только пригодные компоненты при отделимости от builder model |
@@ -30,7 +31,7 @@
 
 ## Исследовательские приоритеты
 
-1. **Модули:** JSON Forms/RJSF + PHP API + isolated iframe + versioned manifest. Выбирать после фактической проверки.
+1. **Модули:** Jedison **или** JSON Forms/RJSF + PHP API + isolated iframe + versioned manifest. Jedison — новый первый кандидат за счёт vanilla JS и нулевых runtime-зависимостей; работоспособность ещё не доказана. Выбирать после фактической проверки.
 2. **Альтернатива:** Puck editor shell + отдельный PHP backend; узнать, можно ли использовать редактор без React page-builder model.
 3. **Альтернатива backend:** Winter CMS или ProcessWire + собственный block editor; оценить сложность адаптации.
 4. **Идеи/компоненты UX:** GrapesJS/VvvebJs style controls; выбирать реализацию по лицензии и независимости.
