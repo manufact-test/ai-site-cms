@@ -1,6 +1,6 @@
 {
   "working_name": "AI Site CMS",
-  "date": "2026-10-17",
+  "date": "2026-10-18",
   "status": "stage-1-research-in-progress",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Stage 1 ONLY, still unaccepted: research unique AI-authored section AST/HTML policy packs and real editor bindings across more section families, extend media source/upload threat tests (decode/CSP/size/ACL/authorization/responsive), gap-based full 135-mandatory coverage, permitted read-only existing PHP shared-hosting review. No chosen stack, main research merge, stage 2, release or CELIKOM.",
+  "next_step": "Stage 1 research only, NOT accepted. Go beyond five manually prepared section profiles: test independent AI-generated markup/manifest/unknown component registration and property coverage, real computed CSS responsiveness and cross-renderer parity, adversarial real media/decoding/safe source policy, preview token lifecycle and isolated form threat model. Hosting review only permitted read-only, no stack selection or stage2.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.17",
+  "checkpoint_version": "1.18",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -66,7 +66,7 @@
         "jedison": 46.5,
         "rjsf": 63.1
       },
-      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39068226228",
+      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39069971771",
       "rjsf_complex_custom_fields_tested": true,
       "rjsf_custom_fields_chromium_passed": true,
       "php_opis_schema_validator_tested": true,
@@ -118,7 +118,7 @@
       "complex_adapter_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770",
       "hosting_smoke_plan_path": "docs/STAGE-1-HOSTING-SMOKE-PLAN.md",
       "hosting_smoke_plan_executed": false,
-      "research_state_note": "v1.17 full GitHub Actions #39068226228 PASS research branch commit f53d6d20a13a138270520aa97eefb022a55c3a32. Real local runner-generated PNG JPEG VP8 WebM browser loaded; 3 upload accepted, 5 rejected; video playback and opaque sandbox frame PASS; no storage or production security. Two typed AST profiles hero/media, 21/21 adversarial cases denied. Original 135 mandatory matrix remains 43 limited research/doc signals, 92 no matched end-to-end feature proof and 0/135 product acceptance. Existing PHP shared hosting not tested. No approved stack, stage2 or CMS production.",
+      "research_state_note": "v1.18 full GitHub Actions #39069971771 SUCCESS on research branch commit 60f530745bfd324d9cedca8172e5300f0e61f9ea. Five manually designed typed section profiles faq/contact/pricing/gallery/tabs; actual Jedison 1.27.1 and RJSF 6.11.0 10/10 browser sessions PASS with equal typed result, unique 5-10 stable IDs, 30 adversarial typed input variations refused, real local media, local-only form preview, no JS pageerrors. Unknown AI-generated arbitrary sections, computed CSS, real form sending, production auth/security/Hostinger still untested. Requirements matrix remains 43 partial R/D, 92 no matched targeted proof, 0/135 accepted.",
       "complex_adapter_native_srcdoc_nonce_bridge_passed": true,
       "complex_adapter_native_srcdoc_nonce_variants_passed": 4,
       "srcdoc_csp_positive_without_policy_passed": true,
@@ -205,7 +205,31 @@
       "typed_ai_ast_adversarial_rejections": 21,
       "typed_ai_ast_profiles_passed": true,
       "typed_ai_ast_production_generalized_html_verified": false,
-      "media_ast_gap_report_path": "docs/STAGE-1-MEDIA-AST-GAPS-RESEARCH.md"
+      "media_ast_gap_report_path": "docs/STAGE-1-MEDIA-AST-GAPS-RESEARCH.md",
+      "multi_section_upstream_editors_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39069971771",
+      "multi_section_research_profiles": [
+        "faq",
+        "contact",
+        "pricing",
+        "gallery",
+        "tabs"
+      ],
+      "multi_section_research_actual_editors": [
+        "jedison-1.27.1",
+        "rjsf-6.11.0"
+      ],
+      "multi_section_research_editor_runs": 10,
+      "multi_section_research_editor_runs_passed": 10,
+      "multi_section_adversarial_typed_cases_rejected": 30,
+      "multi_section_upstream_models_equal": true,
+      "multi_section_actual_media_decoded": true,
+      "multi_section_chromium_page_errors": 0,
+      "multi_section_real_form_submission_tested": false,
+      "multi_section_published_snapshot_preserved_in_fixture": true,
+      "multi_section_sandbox_without_allow_forms": true,
+      "multi_section_generated_by_independent_ai": false,
+      "multi_section_computed_css_measured": false,
+      "multi_section_report_path": "docs/STAGE-1-MULTI-SECTION-RESEARCH.md"
     },
     "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
     "research_branch": "research/stage1-editor-comparison",
