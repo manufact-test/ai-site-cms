@@ -24,7 +24,7 @@ jobs:
       - name: Install pinned research dependencies
         run: npm install --no-audit --no-fund
       - name: Run actual upstream package checks
-        run: npm test && node secure-preview.cjs && node performance.cjs && node multirender.cjs && node rjsf-custom.cjs && node schema-parity.cjs
+        run: npm test && node secure-preview.cjs && node performance.cjs && node multirender.cjs && node rjsf-custom.cjs && node schema-parity.cjs && node override-evolution.cjs && node representative-hero.cjs
       - name: PHP-only typed validation research
         run: php -v && php php-validation-smoke.php
       - name: Actual Opis JSON Schema 2.6.0 research
