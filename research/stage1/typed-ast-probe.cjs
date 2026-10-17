@@ -50,7 +50,7 @@ function compile(contract){
   if(hasLiteral)assert.ok(typeof node.textLiteral==='string'&&node.textLiteral.length<=1000);
   if(hasTextField)assert.ok(typeof node.textField==='string');
   const body=hasChildren?node.children.map(child=>walk(child,depth+1)).join(''):hasTextField?safeText(use(node.textField,'text')):hasLiteral?safeText(node.textLiteral):'';
-  return '<'+node.tag+' '+attrs.join(' ')+(hasAsset&&node.tag==='img'?'/':'>'+body+'</'+node.tag+'>');
+  return '<'+node.tag+' '+attrs.join(' ')+(hasAsset&&node.tag==='img'?'/>' :'>'+body+'</'+node.tag+'>');
  }
  const html=walk(contract.root,0);
  assert.ok([...usages.values()].every(Boolean),'declared but unused control');
