@@ -112,7 +112,7 @@ async function browserProtocol(fragment){
    window.__wrong=()=>preview.contentWindow.postMessage({kind:'set-text',token:'wrong',value:'WRONG'},'*');
    window.__extra=()=>preview.contentWindow.postMessage({kind:'set-text',token,value:'EXTRA',target:'innerHTML'},'*');
    window.__spoof=()=>window.postMessage({kind:'applied',token,value:'SPOOF'},'*');
-   window.__rogue=()=>rogue.contentWindow.postMessage({kind:'applied',token,value:'ROGUE'},'*');
+   // Negative-control sender is executed from the separate rogue frame below.
   },fragment);
   await page.waitForFunction(()=>window.__securityProbe.ready,null,{timeout:12000});
   const frame=page.frameLocator('#preview');
@@ -124,7 +124,9 @@ async function browserProtocol(fragment){
   await page.waitForFunction(()=>window.__securityProbe.acks.length===1,null,{timeout:9000});
   assert.equal(await frame.locator('[data-stable-id=hero-title]').innerText(),'<img src=x onerror=evil()>');
   assert.equal(await frame.locator('img').count(),0);
-  await page.evaluate(()=>{window.__wrong();window.__extra();window.__spoof();window.__rogue()});
+  await page.evaluate(()=>{window.__wrong();window.__extra();window.__spoof()});
+  // This must originate FROM the rogue browsing context, not be posted TO it.
+  await page.frameLocator('#rogue').locator('body').evaluate(t=>parent.postMessage({kind:'applied',token:t,value:'ROGUE'},'*'),await page.evaluate(()=>window.__securityProbe.token));
   await page.waitForTimeout(170);
   const stats=await page.evaluate(()=>window.__securityProbe);
   assert.equal(stats.illicit,0,'nonce-less child script ran');
