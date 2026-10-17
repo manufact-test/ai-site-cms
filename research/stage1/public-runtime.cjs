@@ -37,7 +37,7 @@ const socket=net.createServer();socket.listen(0,'127.0.0.1');
   assert.ok(html.includes('&lt;img'));assert.ok(html.includes('&lt;svg'));
   assert.ok(!html.includes('<img'));assert.ok(!html.includes('<svg'));
   publish({...initial,fontSize:'calc(1px + url(https://example.invalid))'});
-  resp=await request('/');assert.equal(resp.status,503);assert.equal(await resp.text(),'Published snapshot invalid');
+  resp=await request('/');assert.equal(resp.status,503);assert.equal(await resp.text(),'No valid published snapshot');
   publish(previous);
   resp=await request('/');html=await resp.text();assert.equal(resp.status,200);
   assert.ok(html.includes('Owner published hero'));assert.ok(html.includes('font-size:58px'));
