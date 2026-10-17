@@ -2,7 +2,9 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const mod=require('@rjsf/validator-ajv8');
-const validator=mod.default||mod;
+const Ajv2020Module=require('ajv/dist/2020');
+const Ajv2020=Ajv2020Module.default||Ajv2020Module;
+const validator=mod.customizeValidator({AjvClass:Ajv2020});
 const schema=JSON.parse(fs.readFileSync(path.join(__dirname,'typed-manifest.schema.json'),'utf8'));
 const fixtures=JSON.parse(fs.readFileSync(path.join(__dirname,'schema-parity-fixtures.json'),'utf8'));
 let passed=0;
