@@ -191,3 +191,11 @@
 ## Дополнение v1.18: пять разных редакторских preview, без автоматического принятия (18.10.2026)
 
 [Full CI #39069971771](https://github.com/manufact-test/ai-site-cms/actions/runs/39069971771): 5 вручную подготовленных типов секций FAQ/Contact/Pricing/Gallery/Tabs, настоящие Jedison/RJSF на каждом, **10/10 actual editor runs**, 30/30 hostile typed inputs rejected, равноценные итоговые модели. [Технический отчёт](STAGE-1-MULTI-SECTION-RESEARCH.md). Это новые ограниченные **исследовательские сигналы**, в частности для media alt/video, text, interactions, local form validity, responsive-value inheritance; **не** завершённые продуктовые e2e этих требований. Даже успешное переключение вкладок в sandbox **не** доказывает полную функцию №74 в готовой CMS, а локальная форма без отправки **не** выполняет №80/81/83. Ни одного новой строке нельзя приписать product accepted status. Исходная матрица и подсчёт **43 R/D, 92 N, 0/135 принято** сохранены, пока нет сопоставимого строго целевого end-to-end evidence.
+
+
+## Дополнение v1.19 — annotated HTML / actual computed CSS не равно приёмке (18.10.2026)
+
+[Full CI #39072109263](https://github.com/manufact-test/ai-site-cms/actions/runs/39072109263), две вручную размеченные, но не подогнанные под один шаблон HTML-структуры; dynamic field+schema discovery; Jedison/RJSF 4/4 UI text edits, `getComputedStyle` по fontSize/gap на desktop/tablet/mobile; миграция owner override и quarantine конфликтов; 19 hostile markup negatives denied. [Отчёт и ограничения](STAGE-1-ANNOTATED-HTML-COVERAGE-RESEARCH.md).
+
+**Классификация не изменена**: 43 строки с узкими исследовательскими/documentary signal и 92 без сопоставленного целевого подтверждения. Причина: новые исследования не испытали в настоящей CMS end-to-end функционал всех соответствующих ID; `style` patched программно, не editor UI, `data-editable` введено человеком, не реально автономным ИИ. Этот эксперимент **не** принимает требования №3/9/10–20/103–119 и не заменяет все 135 тестов. **Product acceptance 0/135**, этап 1 не принят.
+
