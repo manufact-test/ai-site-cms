@@ -41,6 +41,8 @@ jobs:
         run: node registry-hardening.cjs
       - name: Uninstrumented AI-site contract preflight, unsupported components and migrations
         run: node independent-site-preflight.cjs
+      - name: Mapped standalone site safe-content HTML/PHP/React parity
+        run: node independent-site-render-parity.cjs
       - name: Full-site opaque browser trust boundary, CSS and blocked behaviors
         run: node independent-site-sandbox.cjs
       - name: Native browser editor test of new geometry and appearance property packs
