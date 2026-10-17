@@ -45,6 +45,8 @@ jobs:
         run: node independent-site-render-parity.cjs
       - name: Full-site opaque browser trust boundary, CSS and blocked behaviors
         run: node independent-site-sandbox.cjs
+      - name: Reviewed site capability packs - live link, disclosure, dialog and preview-only form
+        run: node trusted-behavior-browser.cjs
       - name: Native browser editor test of new geometry and appearance property packs
         run: node registry-editor-browser.cjs
       - name: Adversarial HTML grammar and native nonce/origin preview boundary
