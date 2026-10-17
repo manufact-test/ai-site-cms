@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Stage 1 research only: same-content custom composite Jedison/RJSF widgets under a richer media/mock section; longer session and HTML trust/security/CSP probes; authorized read-only inspection of existing PHP shared-hosting per docs/STAGE-1-HOSTING-SMOKE-PLAN.md; refresh gaps against 135 mandatory requirement IDs and prepare unbiased owner-facing foundation conclusion. No stage 2 or research merge.",
+  "next_step": "Only stage 1 research: investigate hostile AI-generated HTML/rawtext/script/style boundary, CSP/nonce and postMessage trust, and real local media resource failure probes; longer editor sessions and 135-mandatory evidence matrix; actual current PHP shared hosting only with authorized read-only access under docs/STAGE-1-HOSTING-SMOKE-PLAN.md. No stage 2, product code, merge or tariff change.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.14",
+  "checkpoint_version": "1.15",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -66,7 +66,7 @@
         "jedison": 46.5,
         "rjsf": 63.1
       },
-      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450",
+      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39066085194",
       "rjsf_complex_custom_fields_tested": true,
       "rjsf_custom_fields_chromium_passed": true,
       "php_opis_schema_validator_tested": true,
@@ -118,7 +118,7 @@
       "complex_adapter_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770",
       "hosting_smoke_plan_path": "docs/STAGE-1-HOSTING-SMOKE-PLAN.md",
       "hosting_smoke_plan_executed": false,
-      "research_state_note": "v1.14: full CI #39065084450 PASS. Matched Jedison 1.27.1 / RJSF 6.11.0 9-root-property manifest, 12 stable IDs, 50 metadata entries, single native sandbox iframe, 16 mount/edit/unmount cycles and 656 model edits per editor across two library orders; nested JSON exactly equal, no pageerrors. Diagnostic entry gzip 48,284 / 190,905 bytes with DIFFERENT bundled validator coverage; memory and Playwright timings inconclusive for production. No stack approval, product CMS, real Hostinger testing or 135 mandatory acceptance.",
+      "research_state_note": "v1.15: GitHub full CI #39066085194 PASS. True pinned upstream Jedison/RJSF custom length/shadow/gradient/animation editors, same Draft2020 schema, same nested data, two mount/edit/unmount cycles and 9 control edits per cycle each. Native iframe nonce typed DOM preview with 12 stable IDs, three local-only fake media placeholders, hostile CSS refused, published baseline untouched, JSON parity and zero browser errors. No real video/image/3D, full CSP/security, Hostinger or production CMS; no technology selection.",
       "complex_adapter_native_srcdoc_nonce_bridge_passed": true,
       "complex_adapter_native_srcdoc_nonce_variants_passed": 4,
       "srcdoc_csp_positive_without_policy_passed": true,
@@ -141,11 +141,34 @@
         "rjsf_with_react_ajv2020": 190905
       },
       "matched_editors_test_limits": "Diagnostic GitHub Chromium with Playwright time including automated actions, 8 cycles per order and 2 orders; CDP post-GC heap snapshots, different validator bundle coverage. NOT production SLO, leak analysis or hours-long session.",
-      "production_editor_long_session_verified": false
+      "production_editor_long_session_verified": false,
+      "matched_composite_widgets_browser_passed": true,
+      "matched_composite_widgets_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39066085194",
+      "matched_composite_widgets_upstream_versions": {
+        "jedison": "1.27.1",
+        "rjsf": "6.11.0"
+      },
+      "matched_composite_widget_types": [
+        "length",
+        "shadow",
+        "gradient",
+        "animation"
+      ],
+      "matched_composite_edit_cycles_per_editor": 2,
+      "matched_composite_control_edits_per_cycle": 9,
+      "matched_composite_json_equal": true,
+      "matched_composite_media_mock_count": 3,
+      "matched_composite_stable_ids": 12,
+      "matched_composite_preview_native_srcdoc_csp_nonce_passed": true,
+      "matched_composite_hostile_css_refused": true,
+      "matched_composite_published_unchanged": true,
+      "matched_composite_page_errors": 0,
+      "matched_composite_real_media_tested": false,
+      "matched_composite_test_adapter_caveat": "Research extracts function bodies from existing custom-widgets.cjs and rjsf-custom.cjs; brittle, not production module integration."
     },
     "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
     "research_branch": "research/stage1-editor-comparison",
-    "research_state_note": "v1.14: full CI #39065084450 PASS. Matched Jedison 1.27.1 / RJSF 6.11.0 9-root-property manifest, 12 stable IDs, 50 metadata entries, single native sandbox iframe, 16 mount/edit/unmount cycles and 656 model edits per editor across two library orders; nested JSON exactly equal, no pageerrors. Diagnostic entry gzip 48,284 / 190,905 bytes with DIFFERENT bundled validator coverage; memory and Playwright timings inconclusive for production. No stack approval, product CMS, real Hostinger testing or 135 mandatory acceptance."
+    "research_state_note": "v1.15: GitHub full CI #39066085194 PASS. True pinned upstream Jedison/RJSF custom length/shadow/gradient/animation editors, same Draft2020 schema, same nested data, two mount/edit/unmount cycles and 9 control edits per cycle each. Native iframe nonce typed DOM preview with 12 stable IDs, three local-only fake media placeholders, hostile CSS refused, published baseline untouched, JSON parity and zero browser errors. No real video/image/3D, full CSP/security, Hostinger or production CMS; no technology selection."
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
