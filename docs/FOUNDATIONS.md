@@ -50,3 +50,8 @@
 ## Проверенный дополнительный стенд 17.10.2026
 
 [CI #39055909594](https://github.com/manufact-test/ai-site-cms/actions/runs/39055909594) PASS: четыре настоящих кастомных Jedison-контрола, 16 PHP CLI проверок данных, sandbox/CSP + typed iframe messages, preview HTML/PHP CLI/React SSR и пять измерений лёгких редакторов (медиана первого input 46.5/63.1 мс для Jedison/RJSF после загрузки JS). Подробности — [STAGE-1-TEST-LOG.md](STAGE-1-TEST-LOG.md). **Не проверены настоящий shared-hosting, Next.js SSR, безопасный production API, полноценная PHP JSON Schema библиотека, тяжёлые реальные сайты и равнозначные custom RJSF контролы. Этап 1 и стек не утверждены.**
+
+
+## Подтверждённое дополнение: RJSF widgets и PHP/client parity (17.10.2026)
+
+[GitHub Actions #39057234158](https://github.com/manufact-test/ai-site-cms/actions/runs/39057234158) PASS: RJSF 6.11.0 повторил четыре собственных сложных Jedison-контрола (length, shadow, gradient, animation) с одинаковыми результатами. RJSF AJV8 после явной настройки Draft 2020-12 и PHP Opis 2.6.0 подтвердили согласованность 14/14 одинаковых fixtures каждый. Отрицательные промежуточные запуски раскрыли особенности nested field path в RJSF 6 и несовместимость AJV default с Draft 2020-12. Подробнее [STAGE-1-TEST-LOG.md §12](STAGE-1-TEST-LOG.md). Реальный shared-hosting и окончательный стек не проверены/не выбраны.
