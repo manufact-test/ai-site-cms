@@ -56,6 +56,7 @@ function mountRjsfCustom(){
   await edit('shadow','blur','25');await edit('shadow','color','#abcdef');
   await edit('gradient','angle','120');await edit('gradient','from','#aabbcc');
   await edit('animation','enabled','false');await edit('animation','duration','850');await edit('animation','easing','linear');
+  console.log('STAGE1_RJSF_BEFORE_WAIT='+JSON.stringify(await page.evaluate(()=>window.latest)));
   await page.waitForFunction(()=>window.latest?.fontSize==='72rem'&&window.latest.animation?.easing==='linear',null,{timeout:9000});
   const out=await page.evaluate(()=>window.latest);
   assert.equal(out.fontSize,'72rem');assert.deepEqual(out.shadow,{x:0,y:5,blur:25,color:'#abcdef'});
