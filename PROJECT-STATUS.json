@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Remain in stage 1: test actual representative PHP/React/Next static-export section integration, equal heavyweight RJSF hero, long-session resource usage, hostile iframe/API and realistic persistent override/rollback; then authorized smoke test on the CURRENT PHP shared hosting without an upgrade. Do not begin stage 2 or merge research into main before owner's decision.",
+  "next_step": "Stage 1 RESEARCH only: real representative HTML/PHP/React/Next-static adapter integration and equivalent complex RJSF Hero, authorized smoke test on CURRENT PHP shared hosting without upgrades, heavy-section load/security, owner-facing 135 mandatory foundation coverage and explicit decision. Current CI PHP last-known-good is only a research harness. Do not start stage 2 or merge research branch.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.10",
+  "checkpoint_version": "1.11",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -66,7 +66,7 @@
         "jedison": 46.5,
         "rjsf": 63.1
       },
-      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39058603992",
+      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39059714864",
       "rjsf_complex_custom_fields_tested": true,
       "rjsf_custom_fields_chromium_passed": true,
       "php_opis_schema_validator_tested": true,
@@ -88,11 +88,21 @@
       ],
       "php_http_published_snapshot_probe_passed": true,
       "php_http_probe_host": "GitHub runner PHP 8.3.6 built-in server, NOT actual shared hosting",
-      "php_invalid_published_snapshot_behavior": "HTTP 503 fail-closed; production last-known-good not built"
+      "php_invalid_published_snapshot_behavior": "HTTP 503 fail-closed; production last-known-good not built",
+      "php_snapshot_prevalidation_upstream_opis_passed": true,
+      "php_published_last_known_good_fallback_passed": true,
+      "php_published_both_copies_corrupt_returns_503": true,
+      "php_explicit_rollback_from_history_passed": true,
+      "php_cli_parallel_publish_probe_writers": 4,
+      "php_guarded_publish_invalid_candidates_rejected": 7,
+      "php_publish_integration_test_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39059714864",
+      "php_public_server_hosting_verified": false,
+      "production_publish_transactional_durability_verified": false,
+      "production_backup_recovery_verified": false
     },
     "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
     "research_branch": "research/stage1-editor-comparison",
-    "research_state_note": "Stage 1: custom Jedison/RJSF controls + Opis/AJV parity and 14 override-evolution research cases, real Jedison responsive Hero browser test, and PHP HTTP-only published JSON reader passed. All are research harnesses, not CMS implementation. Real Hostinger, real complex client sites, publish resilience and security unverified."
+    "research_state_note": "Checkpoint v1.11: PHP 8.3.6/Opis 2.6.0 CLI guarded publisher and PHP HTTP last-known-good sample PASS in GitHub runner, with seven bad inputs rejected, 4 concurrency writer probes, revision rollback, 503 fail-closed when both copies corrupt; no real hosting, production durability, product CMS or stack decision. Earlier Jedison/RJSF/Opis and responsive Hero tests still PASS."
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
