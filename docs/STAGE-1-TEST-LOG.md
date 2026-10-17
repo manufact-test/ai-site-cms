@@ -375,3 +375,13 @@
 
 **Результат в CI**: `STAGE1_ANNOTATED_HTML={"pass":true,"uniqueStructures":["story","board"],"runs":4,"preflightNegatives":19,"computedCss3Devices":true,...}`. Подробнее в [STAGE-1-ANNOTATED-HTML-COVERAGE-RESEARCH.md](STAGE-1-ANNOTATED-HTML-COVERAGE-RESEARCH.md). Матрица 135: **43 partial/doc, 92 without matched target, 0/135 product acceptance** без изменений. Этап 1 не принят, этап 2 не начат.
 
+
+
+## 23. Native editor-driven computed CSS + manifest coverage audit — checkpoint v1.20 (18.10.2026)
+
+**Полный workflow PASS:** [#39073198622](https://github.com/manufact-test/ai-site-cms/actions/runs/39073198622), `research/stage1-editor-comparison`, HEAD `c6c7eaaeacdc665ba1b9b753a8591db533004779`; все старые regression checks также PASS. В новой `annotated-editor-css.cjs` CSS больше не подаётся вручную через `__updateTyped`: Playwright **заполняет реальные upstream Jedison 1.27.1 / RJSF 6.11.0 input** fontSize.desktop/tablet, gap.desktop/tablet/mobile, board background hex; CSS увидели `getComputedStyle` в Chromium. **4/4** scenarios `story/board × 2 editors`, desktop 1200px `52px/30px`, tablet 720px `35px/18px`, mobile 360px `35px/11px` (font inherits tablet), board rgb(18,52,86), **0 pageerrors**. Соблюдены snapshot-isolation, typed model, postMessage ACK и sandbox rules. Это native schema inputs, а НЕ готовый custom responsive UI или all properties editor.
+
+Новый `annotated-coverage-audit.cjs`: отдельные manually authored timeline/dashboard/readonly fixture, source intent ledger vs auto-discovered manifest, **3 audited positive fixtures + 13 negative mismatch detections**, включая 2/2 пропущенных text leaf annotations; readonly copy разрешён только с explicit exception. Аудит НЕ угадывает неотмеченные CSS свойства и не способен защитить от пропуска одновременно в HTML и ledger; AI-independent generation НЕ проверена.
+
+Промежуточный FAIL [#39073066570](https://github.com/manufact-test/ai-site-cms/actions/runs/39073066570) — race, snapshot iframe innerWidth после изменения ширины. Исправлена синхронизация реального resize перед measured computed CSS в старом и новом probe, **без** смягчения проверок. Итоговый полный CI PASS. Подробный [технический отчёт](STAGE-1-EDITOR-CSS-COVERAGE-AUDIT-RESEARCH.md). Никакого продуктового acceptance: 43 partial/doc, 92 no matched target, **0/135 accepted**, stage1 not accepted.
+
