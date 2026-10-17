@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "fontSize",
+    "shadow",
+    "gradient",
+    "animation"
+  ],
+  "properties": {
+    "fontSize": {
+      "type": "string",
+      "x-cms-kind": "length",
+      "pattern": "^(?:0|[1-9][0-9]{0,2})(?:px|rem|%)$"
+    },
+    "shadow": {
+      "type": "object",
+      "x-cms-kind": "shadow",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y",
+        "blur",
+        "color"
+      ],
+      "properties": {
+        "x": {
+          "type": "integer",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "y": {
+          "type": "integer",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "blur": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 200
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        }
+      }
+    },
+    "gradient": {
+      "type": "object",
+      "x-cms-kind": "gradient",
+      "additionalProperties": false,
+      "required": [
+        "angle",
+        "from",
+        "to"
+      ],
+      "properties": {
+        "angle": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "from": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        }
+      }
+    },
+    "animation": {
+      "type": "object",
+      "x-cms-kind": "animation",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "duration",
+        "easing"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "duration": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "easing": {
+          "type": "string",
+          "enum": [
+            "ease",
+            "ease-in",
+            "ease-out",
+            "linear"
+          ]
+        }
+      }
+    }
+  }
+}
