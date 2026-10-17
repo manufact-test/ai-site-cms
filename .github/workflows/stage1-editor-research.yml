@@ -1,0 +1,27 @@
+name: Stage 1 editor research (non-production)
+on:
+  push:
+    branches:
+      - research/stage1-editor-comparison
+    paths:
+      - 'research/stage1/**'
+      - '.github/workflows/stage1-editor-research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: research/stage1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned research dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run actual upstream package checks
+        run: npm test
