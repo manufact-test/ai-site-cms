@@ -247,3 +247,25 @@
 ### 13.4. Невыполненное и дальнейшие проверки
 
 Реальная PHP shared-hosting среда, настоящие тяжёлые HTML/PHP/React/Next секции, реальные публичные источники данных/версии в БД, конкурирующие администраторы, CSP/XSS/CSRF/API auth, media/uploads, long-session performance и полные условия лицензий остаются открытыми. **Этап 1 в работе; стек не выбран; этап 2 не открыт; 135 обязательных требований не приняты.**
+
+
+## 14. Fail-safe PHP snapshot publication / last-known-good / rollback — checkpoint v1.11 (17.10.2026)
+
+**Подтверждён полный PASS:** [GitHub Actions #39059714864](https://github.com/manufact-test/ai-site-cms/actions/runs/39059714864), research branch [research/stage1-editor-comparison](https://github.com/manufact-test/ai-site-cms/tree/research/stage1-editor-comparison). Этот запуск вновь исполнил прежние исследования редакторов, Opis/AJV, responsive Hero и старую PHP HTTP-проверку. Новый фрагмент проверяет **PHP-only публикацию только в экспериментальном окружении CI**, НЕ продукт.
+
+**Новые исходники:** [published-hero.schema.json](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/public-runtime/published-hero.schema.json), [snapshot-store.php](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/public-runtime/snapshot-store.php), [publish-cli.php](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/public-runtime/publish-cli.php), [publish-rollback.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/publish-rollback.cjs); изменён исследовательский public-runtime/index.php и тестовый workflow.
+
+**Что проходит в реальном PHP 8.3.6 CLI / HTTP с Opis 2.6.0:**
+1. Publisher CLI предварительно валидирует кандидат настоящим Opis JSON Schema Draft 2020-12 и отдельным ограниченным PHP reader-validator; семь hostile/некорректных вариантов не меняют текущую опубликованную ревизию и резервную копию (CSS expression, посторонние поля, неверный тип, 501 ASCII, 501 Unicode, сломанный JSON, oversize файл). Unicode 500 символов проходит.
+2. Файлы current.json, last-good.json и отдельные immutable revision files хранятся **вне document root** test runner, запись через temp+rename внутри одной файловой системы; CLI-писатели синхронизируются advisory flock.
+3. При внешнем повреждении current.json HTTP **200** с содержимым валидного last-good.json; publish поверх повреждённого current запрещён, recovery через явный rollback на валидную историю.
+4. При одновременной порче current и last-good HTTP **503 fail closed**, восстановление валидной ревизией возвращает HTTP 200.
+5. Попытка path traversal в ID ревизии отвергнута; 4 параллельных CLI publish завершены с успехом, файлы указателей и 10 созданных к тому моменту исторических ревизий корректны. Итоговый rollback создаёт ещё одну, всего 11 ревизий за сценарий. Не доказательство отсутствия гонок в production.
+6. HTML-подобные строки экранируются; публичная страница работает без React/Jedison/RJSF, Node и серверной админки; GET /admin=404 и POST /=405.
+7. Ранее существовавший smoke public-runtime.cjs также PASS, теперь ответ на отсутствие валидной копии — 503 с телом No valid published snapshot.
+
+**Зафиксирован промежуточный FAIL:** [#39059638142](https://github.com/manufact-test/ai-site-cms/actions/runs/39059638142) из-за устаревшего ожидания текста тела 503 в прежнем тесте после рефакторинга; при неизменном статусе код возвращал новый текст. Тест исправлен и перепроверен в [#39059714864](https://github.com/manufact-test/ai-site-cms/actions/runs/39059714864). Это не было доказательством отказа PHP-публикации.
+
+**Ограничения:** PHP сервер был php -S в GitHub runner, НЕ настоящий Hostinger; Composer/Opis устанавливался в CI, НЕ на hosting. Нет БД, аутентификации/RBAC/CSRF, backup offsite, fsync, аварийных power-off, защиты от неконтролируемых сторонних writers, реального многопользовательского API, heavy media, production permissions или rollout. Резервная копия только одна, двойная порча даёт 503. Два reader-validator не гарантированно семантически совпадут на всех допустимых схемах. **Этап 1 не принят, этап 2 не начат, 135 требований НЕ приняты.**
+
+Полный технический отчёт и источники: [STAGE-1-SNAPSHOT-PUBLISH-RESEARCH.md](STAGE-1-SNAPSHOT-PUBLISH-RESEARCH.md). Дальше исследовать реальные адаптеры HTML/PHP/React/Next-static, тяжёлый эквивалентный RJSF, реальный разрешённый текущий PHP shared hosting, нагрузки/security и матрицу 135 ID до выбора направления.
