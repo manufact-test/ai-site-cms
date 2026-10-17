@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-17",
-  "status": "documentation-only",
+  "status": "documentation-roadmap-awaiting-owner-approval",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -13,9 +13,26 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "review open architectural questions; accept complete master specification; select technical foundation after approval",
+  "next_step": "Owner reviews ROADMAP v1.0. Then stage 1: compare active open-source bases, licensing, fit with all 135 mandatory requirements and shared hosting; no coding before approval.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "0.2"
+  "checkpoint_version": "1.0",
+  "current_stage": {
+    "number": 0,
+    "name": "Документация, согласование плана",
+    "state": "in_progress",
+    "approval": "pending_owner_review"
+  },
+  "total_stages": 18,
+  "roadmap_path": "docs/ROADMAP.md",
+  "roadmap_version": "1.0",
+  "project_map_path": "docs/PROJECT-MAP.md",
+  "handoff_path": "docs/NEXT-CHAT.md",
+  "next_stage": {
+    "number": 1,
+    "name": "Исследование готовых open-source основ",
+    "state": "not_started"
+  },
+  "release_policy": "No MVP. First complete release after 135/135 mandatory requirements accepted and full system verification."
 }
