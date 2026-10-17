@@ -31,6 +31,8 @@ jobs:
         run: node typed-ast-probe.cjs
       - name: Five AI-authored section families with upstream Jedison/RJSF and native media
         run: node multi-section-browser.cjs
+      - name: Annotated HTML discovery, stable IDs and computed CSS across devices
+        run: node annotated-html-browser.cjs
       - name: Adversarial HTML grammar and native nonce/origin preview boundary
         run: node html-boundary-adversarial.cjs
       - name: Diagnose complex adapter native bootstrap first
