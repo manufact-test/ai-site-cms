@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Continue stage 1 only: evaluate full server JSON Schema validation in PHP, compare equivalent RJSF custom widgets, then test real authorized existing shared-hosting environment and representative heavy sections/publish security. Do not start stage 2 or merge research branch without owner acceptance.",
+  "next_step": "Stage 1 only: validate difficult schema edge cases plus real representative heavy HTML/PHP/React/Next component preview and update-preserving overrides; audit production iframe/API security and performance; test existing PHP shared-hosting in an authorized isolated site without increasing hosting, then present evidence for owner's stage-1 acceptance and stage-2 stack decision. Do not merge research branch into main.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.8",
+  "checkpoint_version": "1.9",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -66,12 +66,19 @@
         "jedison": 46.5,
         "rjsf": 63.1
       },
-      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39055909594",
-      "rjsf_complex_custom_fields_tested": false
+      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39057234158",
+      "rjsf_complex_custom_fields_tested": true,
+      "rjsf_custom_fields_chromium_passed": true,
+      "php_opis_schema_validator_tested": true,
+      "php_opis_version": "2.6.0",
+      "rjsf_schema_dialect": "draft-2020-12 via customizeValidator Ajv2020 (default incompatible)",
+      "cross_runtime_schema_parity_tested": true,
+      "cross_runtime_schema_parity_cases": 14,
+      "cross_runtime_schema_parity_passed": true
     },
     "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
     "research_branch": "research/stage1-editor-comparison",
-    "research_state_note": "Proofs show feasibility only, not accepted CMS requirements, production security, PHP hosting verification or final framework selection."
+    "research_state_note": "Real upstream Jedison 1.27.1 and RJSF 6.11.0 both passed complex custom widget test; RJSF Ajv2020 and PHP Opis 2.6.0 agreed on 14 fixtures. Results are feasibility probes, NOT product requirements acceptance, hosting validation, or stack selection."
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
