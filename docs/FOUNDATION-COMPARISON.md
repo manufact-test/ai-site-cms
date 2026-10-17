@@ -380,3 +380,13 @@ AI Site CMS — **внутренняя разработка команды** д�
 **Вывод для сравнения:** оба editor candidates умеют работать на нескольких разных форм-факторных контрактах, однако **проблема произвольной AI-generated секции остаётся открытой**: новые пять renderer templates кодировались вручную. Произвольный JS/CSS, automatic contract discovery/version migration, реальные forms, production security, measured computed CSS/device visuals, click-through tree, large site performance, Hostinger не проверены. Важный boundary: sandbox без `allow-forms` не должен превращаться в реально отправляющий формы preview; локальная реакция проверена отдельно. Результат не даёт оснований окончательно предпочесть Jedison/RJSF, AST approach A/B/C или новый стек.
 
 [Методика, отчёт и стратегия следующих экспериментов](STAGE-1-MULTI-SECTION-RESEARCH.md). Product acceptance **0/135**, этап 1 НЕ принят, этап 2 не начат.
+
+
+## 19. Редактируемый HTML без профиля-шаблона и реальные computed CSS — checkpoint v1.19 (18.10.2026)
+
+Полный [CI #39072109263](https://github.com/manufact-test/ai-site-cms/actions/runs/39072109263) PASS. Исследовательская ветка добавляет prototype `annotated-html-contract.cjs` и `annotated-html-browser.cjs`: 2 разных вручную аннотированных HTML layout, 11 и 13 nodes; typed field/schema discovery 8 и 10 полей без заранее фиксированного section renderer; Jedison/RJSF успешно меняют текст через реальные контролы (4/4 browser); Chromium подтверждает `getComputedStyle(fontSize,gap)` на 1200/720/360px, а не только data-attributes. Три миграционных исхода: stable-ID override survives, renamed ID conflict quarantined, unknown key quarantined. **19/19 malformed/hostile input rejected**.
+
+**Решающий оставшийся вопрос для A/B/C:** proof-of-concept работает исключительно с trusted limited HTML, заранее поставленными `data-stable-id/data-editable` и четырьмя whitelisted видами поля. Некорректно размеченный AI-generated сайт не покрыт автоматически, неотмеченные поля пропадают. CSS изменения отправлялись программными typed patches, **не** реальным UI редактора. Новые произвольные behaviors/forms/media/custom CSS, полный visual click/tree/undo, public versions и security model всё ещё за пределами этого теста. Использован nonce CSP с style-src-attr unsafe-inline только в стенде, не в production.
+
+Исследование делает manifest/bindings approach перспективнее, **но не выбирает** ни Jedison/RJSF, ни метод рендеринга, ни окончательный стек. [Полное обоснование и дальнейшие неизвестные](STAGE-1-ANNOTATED-HTML-COVERAGE-RESEARCH.md). Этап 1 не принят, этап 2 не начат, 0/135 product accepted.
+
