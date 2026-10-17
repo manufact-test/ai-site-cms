@@ -54,7 +54,7 @@ function boot(){
  const hero=[
  '<html><head><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;unsafe-inline&#39;; style-src &#39;unsafe-inline&#39;; connect-src &#39;none&#39;; img-src &#39;none&#39;">',
  '<style>html,body{margin:0;background:#0b1013;color:white;font-family:Arial,sans-serif}#hero{--accent:#66e0c4;--duration:500ms;min-height:500px;display:grid;grid-template-columns:1.2fr 1fr;gap:2rem;align-items:center;padding:32px;box-sizing:border-box}',
- '.card{border:1px solid var(--accent);border-radius:24px;background:linear-gradient(135deg,#20343b,#0b1013);padding:40px}.label{color:var(--accent)}h1{line-height:1.1;max-width:680px;margin:14px 0;transition:font-size var(--duration)}',
+ '.card{border:1px solid var(--accent);border-radius:24px;background:linear-gradient(135deg,#20343b,#0b1013);padding:40px}.label{color:var(--accent)}h1{line-height:1.1;max-width:680px;margin:14px 0;transition:none}',
  '#hero-cta{background:var(--accent);border:0;padding:16px 28px;border-radius:999px;color:#0b1013}.features{display:flex;gap:16px;flex-wrap:wrap}',
  '@media(max-width:800px){#hero{grid-template-columns:1fr;gap:16px;padding:24px}}@media(max-width:480px){#hero{padding:14px}.card{padding:18px}}',
  '</style></head><body><section id="hero"><div><div class="label">AI SITE CMS RESEARCH</div><h1 id="hero-title">Explore tomorrow</h1><p>Substantial section with multi-element layout, styles, CTA and responsive breakpoints.</p><button id="hero-cta">Discover more</button>',
@@ -73,6 +73,7 @@ function boot(){
   await page.addScriptTag({content:js});
   await page.evaluate(({schema,data})=>window.attachEditor(schema,data),{schema,data});
   await page.waitForFunction(()=>document.querySelectorAll('#fields input').length>=6,{timeout:10000});
+  await page.locator('#preview').scrollIntoViewIfNeeded();
   await page.evaluate(()=>window.sendRender());
   await page.waitForFunction(()=>window.previewState.acks.some(x=>x.fontSize==='64px'));
   const frame=page.frameLocator('#preview');
