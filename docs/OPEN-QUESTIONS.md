@@ -41,3 +41,8 @@
 
 [CI #39062360601](https://github.com/manufact-test/ai-site-cms/actions/runs/39062360601) подтверждает сопоставимость stable ID/типизированного редактирования в HTML/PHP CLI/React static/Next static export *на исследовательской секции*, но **не закрывает** архитектурные вопросы реальных интеграций, смешанного runtime, безопасности iframe bridge и hosting. Первоначальная загрузка `iframe.srcdoc` inline script дала 4 диагностических FAIL; переход на тестовую инъекцию через Playwright доказывает функциональность протокола после запуска скрипта, **не готовность production CSP/bootstrap**. Next.js SSR остаётся неопределённым для PHP-only shared hosting; реальные PHP handler/extensions/permissions неизвестны. Рабочий план проверки — [STAGE-1-HOSTING-SMOKE-PLAN.md](STAGE-1-HOSTING-SMOKE-PLAN.md), не исполнен. **Q01–Q14 сохраняют открытый статус; решений владельца нет.**
 
+
+## checkpoint v1.13 — дополнительное доказательство, но решения по-прежнему открыты (17.10.2026)
+
+[CI #39064252770](https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770): недостаток склейки HTML с JS был обусловлен незавершённым `</section` в исследовательском HTML, не свойством Next.js/PHP/RJSF. После исправления нативные `srcdoc` + nonce работают во всех четырёх адаптерах, nonce-mismatch блокируется в отдельном Chromium сценарии. Это **не закрывает** вопросы Q01–Q14: ещё требуется реальная CSP/nonce lifecycle/доверие HTML, защита обмена сообщениями, безопасный хостинг, различия Next SSR/static, версия схемы и migrations, production security. [Подробности §16](STAGE-1-TEST-LOG.md); все Q остаются «Открыто».
+
