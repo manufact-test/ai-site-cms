@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-17",
-  "status": "stage-1-ready-not-started",
+  "status": "stage-1-research-in-progress",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -13,16 +13,18 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Begin stage 1: audit existing open-source CMS/editor candidates, licensing, maintainability, shared hosting and coverage of 135 mandatory requirements; present comparison before technology selection, forking, or coding.",
+  "next_step": "Continue stage 1: audit exact reusable modules/source licenses and architecture, prepare 135-ID comparison and limited representative non-production tests; do not implement CMS or choose stack before owner's architecture approval.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.3",
+  "checkpoint_version": "1.4",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
-    "state": "ready_not_started",
-    "approval": "roadmap_approved_by_owner_2026-10-17"
+    "state": "in_progress",
+    "approval": "roadmap_approved_by_owner_2026-10-17",
+    "research_started_at": "2026-10-17",
+    "owner_approved_stage_start": true
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
@@ -46,5 +48,7 @@
   "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/main/docs/NEXT-CHAT.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
-  "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation."
+  "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
+  "reuse_policy": "Internal agency tool with client-facing admin access; reuse permissively licensed open-source components or fragments (including substantial modified parts), comply with original notices; avoid restrictive/GPL/AGPL by default.",
+  "hosting_policy": "Keep current PHP shared hosting; no hosting upgrades without owner's later approval; Node allowed for offline asset builds only."
 }
