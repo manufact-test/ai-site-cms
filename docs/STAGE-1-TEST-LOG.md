@@ -1,13 +1,13 @@
 # AI Site CMS — журнал исследовательских испытаний этапа 1
 
 **Контрольная точка:** 17.10.2026 · **Этап:** 1, в работе, не принят.  
-**ВАЖНО:** это не испытания CMS, а **изолированные, одноразовые исследовательские макеты**. Код продукта не создавался, чужие библиотеки не устанавливались, итоговый стек не выбирался.
+**ВАЖНО:** это не испытания CMS, а **изолированные исследовательские стенды**. Исходный код продукта не создавался, итоговый стек не выбирался. После первых макетов настоящие библиотеки Jedison/RJSF испытаны отдельно в GitHub Actions, см. §7.
 
 ## 1. Среда и ограничения
 
 - Исследовательское окружение: Node.js v22.16.0, PHP CLI 8.4.24, Chromium headless 144.0.7559.96, Python Playwright.
 - **Существующий Hostinger-сервер пользователя не тестировался**. Версия PHP, доступность MySQL/MariaDB, параметры rewrite, backup, Composer, CLI и ограничения Hostinger остаются неподтверждёнными.
-- npm-зависимости JSON Forms, RJSF, Jedison и Puck **не установлены**: запрос к registry.npmjs.org завершился `EAI_AGAIN`; Composer CLI отсутствует. Сборку/размер/производительность этих библиотек **не измеряли**.
+- На локальном исследовательском хосте npm-зависимости **не устанавливались** из-за `EAI_AGAIN`, Composer CLI отсутствовал; **в отдельном GitHub Actions CI позднее успешно установлены и испытаны Jedison 1.27.1 и RJSF 6.11.0** (§7). JSON Forms/Puck не запускались.
 - Chromium из этой среды запрещает открывать `file://` и `http://127.0.0.1` (`ERR_BLOCKED_BY_ADMINISTRATOR`); браузерный документ передан через Playwright `page.set_content`, iframe создавался через `srcdoc`. Это ограничивает интерпретацию результатов.
 - Макеты локальные в рабочей среде теста и **не включены в GitHub как продуктовый код**. Ни одного изменения в репозиториях клиентских сайтов.
 
@@ -71,6 +71,44 @@
 4. Проверить отдельно server-side schema validation, auth, защита конфликта двух редакторов и миграции. Нельзя объявлять 135 требований реализованными из-за 10 успешных тестов алгоритма.
 5. Аудит реальных **зафиксированных версий и вложенных лицензий** тех частей чужого кода, которые будем использовать (MIT/BSD/Apache приоритет); не использовать GPL/AGPL автоматически.
 
-**Вывод:** Три локальных исследовательских сценария работоспособны, но **ни один сторонний редактор ещё не был запущен**, реальный хостинг не проверен, архитектура не утверждена. На основании документов и src-source Jedison стал самым интересным *кандидатом для первой проверки* за счёт framework-agnostic API и отсутствия прямых runtime dependencies. Это **не окончательный выбор**.
+**Вывод на момент первых локальных стендов (до §7):** Три локальных сценария работоспособны, сторонние редакторы тогда не запускались. **Последующее подтверждение реального запуска Jedison/RJSF — §7**. Реальный хостинг не проверен, архитектура не утверждена. На основании документов и src-source Jedison стал самым интересным *кандидатом для первой проверки* за счёт framework-agnostic API и отсутствия прямых runtime dependencies. Это **не окончательный выбор**.
 
 Связанные документы: [FOUNDATION-COMPARISON.md](FOUNDATION-COMPARISON.md), [FOUNDATIONS.md](FOUNDATIONS.md), [NEXT-CHAT.md](NEXT-CHAT.md).
+
+## 7. Реальный upstream A/B test: Jedison 1.27.1 vs RJSF 6.11.0
+
+**Дата:** 17.10.2026; **условия:** отдельная ветка [`research/stage1-editor-comparison`](https://github.com/manufact-test/ai-site-cms/tree/research/stage1-editor-comparison), изолированный GitHub Actions runner Ubuntu 24.04, Node 22.23.3, npm 10.9.9. Источники — фактически установленные пакеты из npm (зафиксированные точные версии), **не имитации API**. **Успешный прогон:** [Actions #39054261780](https://github.com/manufact-test/ai-site-cms/actions/runs/39054261780). Код исследовательского стенда только в ветке `research/`, не в `main`, не является исходниками CMS.
+
+### 7.1. Схема эксперимента
+
+Одинаковая JSON Schema для отдельного Hero: `headline` (string), `fontSize` (integer 12–120), `color` (string hex), `showBadge` (boolean). Исходные значения заданы, незарегистрированное поле `borderRadius` отсутствует.
+
+1. **Jedison:** реальный `new Jedison.Create({container, theme, schema, data, keepMissingSchemaFields:true})` в jsdom — создан UI, `getValue()/setValue()` сохранили все четыре значения. В Chromium поле заголовка изменено пользователем через `fill` + DOM `change`/blur, `getValue().headline` вернул `Browser edit`.
+2. **RJSF:** реально установлен `@rjsf/core` + `@rjsf/validator-ajv8`, React19. Сформирован HTML формы через `renderToStaticMarkup` со всеми четырьмя полями; Chromium отрисовал клиентскую форму и после ввода в поле `onChange.formData.headline` вернул `Browser edit`.
+3. **Bundle test:** `esbuild 0.25.12`, `bundle=true`, `minify=true`, browser IIFE, target `chrome120`, gzip level 9. Сравнивались точечные тестовые JS entrypoints, не вся будущая админка.
+
+### 7.2. Подтверждённые фактические числа
+
+| Показатель | Jedison | RJSF + AJV8 validator |
+|---|---:|---:|
+| Исследовательский entry import, minified | **253 935 bytes** | **394 917 bytes** |
+| Тот же entry import, gzip | **48 287 bytes** | **130 517 bytes** |
+| Полная тестовая Chromium entry (включая mounting code), minified | **254 064 bytes** | **580 804 bytes** |
+| Та же Chromium entry, gzip | **48 345 bytes** | **187 930 bytes** |
+| Ввод заголовка через Chromium | **PASS** | **PASS** |
+| Сквозные пользовательские настройки цвета/адаптива/animations | Не проверены | Не проверены |
+
+**Оговорка о сопоставимости:** RJSF требует React/ReactDOM + validator в проверенной браузерной entry; Jedison уже содержит большую часть поведения. Эти bundle-числа репрезентативны для заданных imports, **но не являются прямым прогнозом размера AI Site CMS**, реальных загрузок с cache/CDN, fps или задержки редактирования. Исходная Jedison CJS поставка отдельно измерена: **255 930 bytes raw / 47 738 bytes gzip**.
+
+**Наблюдение по событиям:** в первом Chromium-прогоне `page.fill()` без `change`/blur **не привёл к ожидаемому изменению Jedison-модели в пределах тестового ожидания**. После `dispatchEvent('change')` и blur — PASS. Событийная семантика зависит от поля и типа редактора; для live preview нужно протестировать `showErrors:'input'` и последующую корректность значения. Это **не доказанный баг Jedison**, а установленная интеграционная особенность базовой конфигурации.
+
+**Boolean rendering:** в Jedison `showBadge` может быть select вместо input-checkbox (его исходный `EditorBooleanSelect` использует select), поэтому число элементов `input` **нельзя** использовать как доказательство отсутствия поля. Проверку доступности и управления всеми четырьмя типами сделаем отдельно.
+
+### 7.3. Реально выполнено vs ещё неизвестно
+
+**Проверено:** настоящие пакеты установились на CI; schema-controlled field rendering, пользовательский ввод заголовка через Chromium, передача данных через API/callback, воспроизводимая минимизированная браузерная сборка; по этому сценарию Jedison заметно компактнее. Репозиторий проекта и production не затронуты.
+
+**Не проверено:** кастомные editors для `length/shadow/background/animation`, desktop/tablet/mobile inheritance и optional+required behaviour, достаточно ли гибок UX Jedison, CSP, предотвращение XSS, iframe bridge, сохранение drafts и публикация, dual editor locking, реальные 50 тяжёлых секций, быстродействие в ms/FPS/RAM на устройстве, хостинг Hostinger, безопасность и восстановление. **Стек пока НЕ выбран, этап 1 НЕ принят.**
+
+**Следующее разумное испытание:** один и тот же вложенный responsive field с `desktop/tablet/mobile`, custom typed UI для `length` и `shadow`, отключение неиспользуемых property groups, live preview с commit only on Save; затем PHP/shared hosting smoke test в разрешённом изолированном окружении.
+
