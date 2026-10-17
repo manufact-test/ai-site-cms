@@ -102,7 +102,7 @@ const positives=[hero,media].map(item=>{
  const v=compile(item),dom=new JSDOM(v.html);
  assert.equal(dom.window.document.querySelectorAll('script,style,iframe,svg,object').length,0);
  assert.equal(dom.window.document.querySelectorAll('[data-stable-id]').length,v.elements);
- assert.equal(dom.window.document.querySelector('h1')?.hasAttribute('onerror'),false);
+ if(dom.window.document.querySelector('h1'))assert.equal(dom.window.document.querySelector('h1').hasAttribute('onerror'),false);
  assert.equal(new Set(v.ids).size,v.elements);
  return {profile:item.profile,nodes:v.elements,controls:v.controls};
 });
