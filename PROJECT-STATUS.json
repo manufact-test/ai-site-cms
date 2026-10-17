@@ -13,18 +13,27 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Continue stage 1: audit exact reusable modules/source licenses and architecture, prepare 135-ID comparison and limited representative non-production tests; do not implement CMS or choose stack before owner's architecture approval.",
+  "next_step": "Stage 1 remains in progress. Test original Jedison vs JSON Forms/RJSF on same Hero manifest once dependency packages are accessible; benchmark published JS bytes and actual browser behavior; inspect real PHP shared-hosting environment only when permitted; no CMS implementation or final stack approval yet.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.4",
+  "checkpoint_version": "1.5",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
     "state": "in_progress",
     "approval": "roadmap_approved_by_owner_2026-10-17",
     "research_started_at": "2026-10-17",
-    "owner_approved_stage_start": true
+    "owner_approved_stage_start": true,
+    "research_test_log_path": "docs/STAGE-1-TEST-LOG.md",
+    "local_research_checks": {
+      "schema_migration_checks_passed": 10,
+      "browser_one_iframe_research_passed": true,
+      "local_php_published_config_independence_passed": true,
+      "third_party_editor_runtime_tested": false,
+      "actual_shared_hosting_tested": false
+    },
+    "new_candidate": "Jedison v1.27.1 MIT vanilla-JS schema-based forms; not yet selected or runtime-tested"
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
