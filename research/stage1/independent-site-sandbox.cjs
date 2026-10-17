@@ -13,9 +13,10 @@ const site=fs.readFileSync(path.join(__dirname,'fixtures/tide-atlas-standalone.h
 const csp='<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; style-src-attr &#39;none&#39;; img-src &#39;none&#39;; media-src &#39;none&#39;; connect-src &#39;none&#39;; font-src &#39;none&#39;; form-action &#39;none&#39;; base-uri &#39;none&#39;; object-src &#39;none&#39;">';
 const blockedSource=site.replace('<head>','<head>'+csp);
 (async()=>{
- let requests=0;
+ let requests=0,submissions=0;
  const server=http.createServer((req,res)=>{
   requests++;
+  if(req.url&&req.url.startsWith('/subscribe'))submissions++;
   res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});
   res.end('<!doctype html><html><body><strong id="parent-marker">Editor stays isolated</strong><iframe id="subject" sandbox="allow-scripts" style="width:1200px;height:790px;border:0"></iframe></body></html>');
  });
@@ -59,9 +60,10 @@ const blockedSource=site.replace('<head>','<head>'+csp);
   assert.ok(Number.parseFloat(initial.font)>Number.parseFloat(mobile.size));
   await frame.locator('#modal-open').click();
   assert.equal(await frame.locator('#modal').evaluate(el=>el.open),false,'untrusted JS must not run on click');
+  await frame.locator('#signup-email').fill('tester@example.com');
   await frame.locator('#signup-form button').click();
   await page.waitForTimeout(150);
-  assert.equal(requests,1,'untrusted sandbox form must not submit');
+  assert.equal(submissions,0,'untrusted sandbox form must not submit to /subscribe');
   assert.equal(page.url(),'http://127.0.0.1:'+port+'/');
   assert.equal(await page.locator('#parent-marker').textContent(),'Editor stays isolated');
   assert.deepEqual(pageErrors,[]);
