@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Stage 1 research only, NOT accepted. Go beyond five manually prepared section profiles: test independent AI-generated markup/manifest/unknown component registration and property coverage, real computed CSS responsiveness and cross-renderer parity, adversarial real media/decoding/safe source policy, preview token lifecycle and isolated form threat model. Hosting review only permitted read-only, no stack selection or stage2.",
+  "next_step": "Stage 1 research ONLY, NOT accepted: independent AI-generated whole-page markup and self-registered manifest completeness/collision audit; actual editor widgets -> computed responsive CSS (not just programmatic typed patch), arbitrary design-safe component/property extension, realistic media/form source/security policy, and owner architecture tradeoffs A/B/C. Permitted real shared hosting read-only only, no stage 2, no stack selection, no research merge to main.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.18",
+  "checkpoint_version": "1.19",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -66,7 +66,7 @@
         "jedison": 46.5,
         "rjsf": 63.1
       },
-      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39069971771",
+      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39072109263",
       "rjsf_complex_custom_fields_tested": true,
       "rjsf_custom_fields_chromium_passed": true,
       "php_opis_schema_validator_tested": true,
@@ -118,7 +118,7 @@
       "complex_adapter_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770",
       "hosting_smoke_plan_path": "docs/STAGE-1-HOSTING-SMOKE-PLAN.md",
       "hosting_smoke_plan_executed": false,
-      "research_state_note": "v1.18 full GitHub Actions #39069971771 SUCCESS on research branch commit 60f530745bfd324d9cedca8172e5300f0e61f9ea. Five manually designed typed section profiles faq/contact/pricing/gallery/tabs; actual Jedison 1.27.1 and RJSF 6.11.0 10/10 browser sessions PASS with equal typed result, unique 5-10 stable IDs, 30 adversarial typed input variations refused, real local media, local-only form preview, no JS pageerrors. Unknown AI-generated arbitrary sections, computed CSS, real form sending, production auth/security/Hostinger still untested. Requirements matrix remains 43 partial R/D, 92 no matched targeted proof, 0/135 accepted.",
+      "research_state_note": "Checkpoint v1.19: full CI #39072109263 completed success on research head e56834d379db2688bf22ad841213d48b0ab5cdd3. Annotated manually authored HTML discovery (story: 11 nodes/8 fields, board: 13 nodes/10 fields), generated typed JSON schemas and actual Jedison/RJSF text UI edits 4/4, 19/19 hostile malformed HTML negative controls rejected; actual Chromium computed font-size and gap on desktop/tablet/mobile via programmatic typed bridge, plus board color. Owner overrides persist with stable IDs; renamed or unknown override quarantined and publishBlocked in limited algorithm. No independent LLM generation, missing data-editable fields cannot be inferred, no production CSS/JS/hosting/form/asset security; stage1 unaccepted, stack unselected, 0/135 product acceptance.",
       "complex_adapter_native_srcdoc_nonce_bridge_passed": true,
       "complex_adapter_native_srcdoc_nonce_variants_passed": 4,
       "srcdoc_csp_positive_without_policy_passed": true,
@@ -229,7 +229,30 @@
       "multi_section_sandbox_without_allow_forms": true,
       "multi_section_generated_by_independent_ai": false,
       "multi_section_computed_css_measured": false,
-      "multi_section_report_path": "docs/STAGE-1-MULTI-SECTION-RESEARCH.md"
+      "multi_section_report_path": "docs/STAGE-1-MULTI-SECTION-RESEARCH.md",
+      "annotated_html_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39072109263",
+      "annotated_html_research_profiles": [
+        "story",
+        "board"
+      ],
+      "annotated_html_research_dom_nodes": {
+        "story": 11,
+        "board": 13
+      },
+      "annotated_html_derived_fields": {
+        "story": 8,
+        "board": 10
+      },
+      "annotated_html_editor_runs": 4,
+      "annotated_html_editor_runs_passed": 4,
+      "annotated_html_adversarial_rejected": 19,
+      "annotated_html_computed_css_3_viewports_passed": true,
+      "annotated_html_editor_css_widgets_tested": false,
+      "annotated_html_generated_by_independent_ai": false,
+      "annotated_html_unknown_property_inference_tested": false,
+      "annotated_html_override_rename_conflict_blocks_publish_fixture": true,
+      "annotated_html_production_security_verified": false,
+      "annotated_html_report_path": "docs/STAGE-1-ANNOTATED-HTML-COVERAGE-RESEARCH.md"
     },
     "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
     "research_branch": "research/stage1-editor-comparison",
