@@ -86,3 +86,8 @@
 
 [CI #39066085194](https://github.com/manufact-test/ai-site-cms/actions/runs/39066085194) полный PASS: Jedison 1.27.1 и RJSF 6.11.0 расширены собственными length/shadow/gradient/animation полями в одинаковой Draft2020 JSON Schema, по 2 полных mount/edit/unmount цикла и 9 правок каждому, выходной JSON идентичен, одна nonce-CSP iframe с 12 stable ID, 3 **фиктивные DOM/CSS media-placeholder** (НЕ actual медиа), hostile CSS отказ, published baseline не меняется, pageerrors 0. Это ограниченная исследовательская функциональность, стек НЕ выбран; подробности [STAGE-1-COMPOSITE-MEDIA-RESEARCH.md](STAGE-1-COMPOSITE-MEDIA-RESEARCH.md).
 
+
+## checkpoint v1.16 — raw AI HTML boundary + mandatory evidence (17.10.2026)
+
+[Полный CI #39067271214](https://github.com/manufact-test/ai-site-cms/actions/runs/39067271214) PASS: 20/20 adversarial HTML payload отклонены ограниченным Hero grammar/preflight (parse5 + DOM, ID/attribute allowlist), корректно escaped HTML text PASS, native opaque iframe script-src nonce CSP негативный контроль PASS, strict HTTP origin/source/token/shape postMessage и rogue frame negative sender PASS. Это только исследовательский fixture, не production sanitizer и не комплексный XSS аудит. Исходные [135 обязательных ID с evidence gaps](STAGE-1-MANDATORY-EVIDENCE-MATRIX.md): 43 частично сопоставлены, 92 без предметной проверки, 0/135 принято как продукт. [Отчёт](STAGE-1-HTML-BOUNDARY-RESEARCH.md). Framework не утверждён.
+
