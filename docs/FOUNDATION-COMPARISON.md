@@ -50,6 +50,24 @@ AI Site CMS — **внутренняя разработка команды** д�
 
 **Исследовательское предпочтение (не решение):** сначала A, в качестве сравнения B и C; D — точечный источник готового UX-кода, а не готовое ядро.
 
+### 3.1. Осмотр реального исходного кода: важные границы переиспользования
+
+Это **структурная проверка кода GitHub**, а не запуск/benchmark и не лицензирование импортированных зависимостей.
+
+| Осмотренный узел | Что обнаружено в исходниках | Что это значит для AI Site CMS |
+|---|---|---|
+| [Puck AutoField](https://github.com/puckeditor/puck/blob/main/packages/core/components/AutoField/index.tsx), [Fields](https://github.com/puckeditor/puck/blob/main/packages/core/components/Puck/components/Fields/index.tsx) | Поля импортируют `useAppStore`, `AutoField/store`, типы Puck и внутренние overrides; компонент `Fields` зависит от dispatch/store | Нельзя считать панель полей независимым npm-пакетом; извлечение значимого фрагмента требует адаптера или форка с поддержкой обновлений |
+| [Puck Preview](https://github.com/puckeditor/puck/blob/main/packages/core/components/Puck/components/Preview/index.tsx), [AutoFrame](https://github.com/puckeditor/puck/blob/main/packages/core/components/AutoFrame/index.tsx) | iframe связан с Puck store, edit/preview mode, React portal и зеркалированием CSS; код содержит CSP-оговорки | Нужно проверить режим строго одного внешнего HTML/PHP блока, sandbox/iframe policy и производительность |
+| [Puck migrate](https://github.com/puckeditor/puck/blob/main/packages/core/lib/migrate.ts) | Есть миграции внутренних data structures, включая DropZone→slot | **Не** приравнивать к нашему обязательному защите user overrides при изменении AI manifest |
+| [GrapesJS StyleManager](https://github.com/GrapesJS/grapesjs/blob/dev/packages/core/src/style_manager/index.ts) | Непосредственные импорты `CssRule`, `Component`, `StyleableModel`, `EditorModel`, sector models | Использовать автономно «30% style manager» без зависимостей GrapesJS может быть сложнее, чем собственный UI поверх JSON Schema |
+| [Winter Form Widgets](https://github.com/wintercms/winter/tree/develop/modules/backend/formwidgets) | Богатая коллекция PHP widgets, включая ColorPicker, Repeater, FileUpload; классы опираются на внутренние `formField`/backend API | Пригодны внутри Winter, но перенос отдельных виджетов в небольшой standalone PHP API может потребовать много сопутствующих классов |
+| [JSON Forms React](https://github.com/eclipsesource/jsonforms/blob/master/packages/react/src/JsonForms.tsx), [custom renderers](https://jsonforms.io/docs/tutorial/custom-renderers) | API разделяет `schema`, `uischema`, `renderers` и `data`; подбирает renderer по tester | Хорошая архитектурная совместимость с нашим типизированным manifest; собственного site renderer/publish всё равно нет |
+| [RJSF Form](https://github.com/rjsf-team/react-jsonschema-form/blob/main/packages/core/src/components/Form.tsx), [custom fields](https://rjsf-team.github.io/react-jsonschema-form/docs/advanced-customization/custom-widgets-fields/) | Форма принимает JSON Schema, `uiSchema`, field/widget registry и отдельный validator | Второй сильный кандидат на **только панель свойств**, без конструкторской модели страницы |
+
+**Результат осмотра:** гипотеза schema-driven fields + независимый PHP API пока предпочтительнее именно по **границе модулей**, но не подтверждена тестами размера, ввода, сохранения, совместимости с необычными controls. Пока **Puck/GrapesJS не исключены**. В документации Winter упоминается Froala с отдельной лицензией поставщика: лицензии *встроенных дополнительных модулей* нельзя автоматически приравнивать к MIT самой CMS.
+
+**Ограничение стенда:** Node и PHP CLI в рабочем окружении инструментов доступны, но настоящие npm-пакеты для сравнения из сети в этом проходе не устанавливались; никаких runtime/lighthouse/performance результатов не заявлено.
+
 ## 4. Честная матрица соответствия 135 обязательным ID
 
 Здесь **не проценты реализации и не тестовые результаты**: категории — документальные гипотезы.
