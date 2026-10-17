@@ -83,8 +83,16 @@ async function run(){
      window.paint=()=>{if(window.probe.ready)frame.contentWindow.postMessage({kind:'render',token,state:window.current,device:window.probe.device},'*')};
      window.choose=device=>{window.probe.device=device;frame.style.width=({desktop:1200,tablet:750,mobile:375})[device]+'px';window.paint()};
      window.addEventListener('message',event=>{const m=event.data;if(event.source!==frame.contentWindow||event.origin!=='null'||m?.token!==token)return;if(m.kind==='ready'){window.probe.ready=true;window.paint()}if(m.kind==='applied')window.probe.acks.push(m)});
-     frame.srcdoc='<!doctype html><html><head><style>'+css+'</style></head><body>'+markup+'<script>'+script.replace('__TOKEN__',JSON.stringify(token))+'</scr'+'ipt></body></html>';
+     frame.srcdoc='<!doctype html><html><head><style>'+css+'</style></head><body>'+markup+'</body></html>';
     },{markup,css,script:childScript});
+    // Explicit functional harness boot inside opaque sandbox after DOM is loaded.
+    // The independent CSP test remains mandatory elsewhere in the workflow.
+    const previewBody=page.frameLocator('#preview').locator('body');
+    await previewBody.waitFor();
+    const bridgeToken=await page.evaluate(()=>window.probe.token);
+    await previewBody.evaluate((body, source)=>{
+     const el=document.createElement('script');el.textContent=source;body.appendChild(el);
+    },childScript.replace('__TOKEN__',JSON.stringify(bridgeToken)));
     try{await page.waitForFunction(()=>window.probe?.acks.some(a=>a.font==='64px'),null,{timeout:10000})}
     catch(error){
      const info=await page.evaluate(()=>({probe:window.probe,current:window.current,frameSrcdoc:document.getElementById('preview').srcdoc.slice(-550)}));
