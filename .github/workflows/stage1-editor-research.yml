@@ -29,6 +29,8 @@ jobs:
         run: node srcdoc-bootstrap.cjs && npm test && node secure-preview.cjs && node performance.cjs && node multirender.cjs && node rjsf-custom.cjs && node schema-parity.cjs && node override-evolution.cjs && node representative-hero.cjs && node public-runtime.cjs
       - name: Matched complex editor sessions
         run: node matched-editor-session.cjs && STAGE1_EDITOR_ORDER=reverse node matched-editor-session.cjs
+      - name: Matched custom widgets and media mock preview
+        run: node matched-custom-media.cjs
       - name: PHP-only typed validation research
         run: php -v && php php-validation-smoke.php
       - name: Actual Opis JSON Schema 2.6.0 research
