@@ -94,6 +94,7 @@ function setup({markup,schema,defaults,library,bridge}){
 }
 async function field(page,name,value){
  const match=await page.locator('#editor input').evaluateAll((els,key)=>els.filter(e=>e.type!=='hidden'&&(e.id||'').toLowerCase().includes(key.toLowerCase())).map(e=>({id:e.id,type:e.type,checked:e.checked,value:e.value})),name);
+ if(match.length!==1){const all=await page.locator('#editor input, #editor select, #editor button').evaluateAll(els=>els.map(e=>({tag:e.tagName,id:e.id,name:e.name,type:e.type,outer:e.outerHTML.slice(0,240),parent:e.parentElement?.textContent?.trim().slice(0,110)})));console.log('STAGE1_REVIEWED_FIELD_DISCOVERY='+JSON.stringify({name,match,all}));}
  assert.equal(match.length,1,'one native editor input for '+name+': '+JSON.stringify(match));
  const node=page.locator('#editor input[id='+JSON.stringify(match[0].id)+']');
  if(match[0].type==='checkbox'){
