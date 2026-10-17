@@ -311,3 +311,14 @@
 
 **Подробный самостоятельный технический отчёт:** [STAGE-1-MATCHED-EDITOR-SESSIONS.md](STAGE-1-MATCHED-EDITOR-SESSIONS.md). Оба редактора пригодны для дальнейшего исследования, **лидер не утверждён**, выбор стека НЕ состоялся, матрица 135 mandatory НЕ принята. Осталось: составные editors на одинаковой тяжёлой странице, долгие/медиа/много редакторов, security/CSP, реальный разрешённый PHP shared-hosting (план без обновления тарифа), формальное заключение по 135 обязательным ID. Этап 1 всё ещё in_progress, этап 2 not_started.
 
+
+## 18. Jedison и RJSF: идентичные composite widgets + медиа-заглушки — checkpoint v1.15 (17.10.2026)
+
+**Полный GitHub CI PASS:** [#39066085194](https://github.com/manufact-test/ai-site-cms/actions/runs/39066085194), исследовательская ветка `research/stage1-editor-comparison`, commit `fb12a4ea6ac27808e583207240d182edde997659`. Все ранее существовавшие проверки HTML/PHP/React/Next-static, native CSP nonce и matched-session 16 циклов/656 events снова PASS. Новый [matched-custom-media.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/matched-custom-media.cjs) отдельно проверил настоящее взаимодействие с pinned **Jedison 1.27.1** и **RJSF 6.11.0** по одной схеме Draft 2020-12.
+
+**Одинаковые UI/данные:** четыре собственных composite widget kinds: length (amount/unit), shadow (x/y/blur/color), gradient (angle/from/to), animation (enabled/duration/easing), по девять control edits в 2 mount/edit/unmount циклах **для каждой** библиотеки. Expected values: fontSize `72rem`, shadow blur `25`, color `#abcdef`, gradient angle `120` and from `#aabbcc`, animation disabled, duration `850` ms, easing `linear`. Итоговый typed JSON для обоих library **deepEqual**. 0 JS page errors и 4/4 собственных widget kinds render/pass у обоих.
+
+**Нативный preview:** ровно один opaque sandbox iframe с `srcdoc` inline script/CSP nonce + typed message protocol, 12 stable IDs, 50 индексных записей без iframe. CSS ограничен проверенной моделью; значения font/box-shadow/gradient/transition попадают в настоящую DOM Hero-секцию. 3 fake local placeholders (image/video/animated) НЕ являются реальными media resources. Негативный пакет с CSS `url(javascript:alert(1))` отвергнут (без `applied` acknowledgment), published baseline неизменён, после unmount контролы удалены.
+
+**Ограничения:** стенд извлекает две уже написанные setup-функции из существующих research-файлов как текстовые фрагменты для сравнения **реальных** custom implementations (в production потребуется модульное подключение); CSS CSP содержит `unsafe-inline` для fixture; parent/child trust полная безопасность не доказана. Нет реального video/image/3D/network, hours-long sessions, реального Hostinger, production CMS, approved stack или 135/135 product acceptance. Подробно в [STAGE-1-COMPOSITE-MEDIA-RESEARCH.md](STAGE-1-COMPOSITE-MEDIA-RESEARCH.md). Этап 1 продолжается, этап 2 не начат.
+
