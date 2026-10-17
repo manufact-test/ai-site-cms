@@ -37,6 +37,10 @@ jobs:
         run: node annotated-editor-css.cjs
       - name: Audit manifest coverage against external editable intent
         run: node annotated-coverage-audit.cjs
+      - name: Trusted extensible CSS packs, schema parity, hostile fragments and migrations
+        run: node registry-hardening.cjs
+      - name: Native browser editor test of new geometry and appearance property packs
+        run: node registry-editor-browser.cjs
       - name: Adversarial HTML grammar and native nonce/origin preview boundary
         run: node html-boundary-adversarial.cjs
       - name: Diagnose complex adapter native bootstrap first
