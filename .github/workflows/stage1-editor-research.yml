@@ -24,6 +24,6 @@ jobs:
       - name: Install pinned research dependencies
         run: npm install --no-audit --no-fund
       - name: Run actual upstream package checks
-        run: npm test && node secure-preview.cjs
+        run: npm test && node secure-preview.cjs && node performance.cjs
       - name: PHP-only typed validation research
         run: php -v && php php-validation-smoke.php
