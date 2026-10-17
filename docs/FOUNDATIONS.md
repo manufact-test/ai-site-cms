@@ -71,3 +71,8 @@
 
 [Успешный GitHub Actions #39062360601](https://github.com/manufact-test/ai-site-cms/actions/runs/39062360601): сложная секция с 12 stable IDs собрана идентично для HTML, PHP CLI, React static render, Next.js static export; в каждом Chromium iframe RJSF 6.11.0 изменил CTA/feature/card и responsive tablet→mobile. 4/4 PASS. Это расширяет доказанное подмножество возможностей **обоих редакторов**, но не утверждает ни Jedison, ни RJSF и не тестирует React/Next.js SSR на текущем хостинге. Bridge в новом функциональном тесте bootstrapped через Playwright после srcdoc загрузки; production CSP/bootstrap остаётся открытым. См. [журнал §15](STAGE-1-TEST-LOG.md), [матрицу §12](FOUNDATION-COMPARISON.md) и [план безопасной проверки имеющегося хостинга](STAGE-1-HOSTING-SMOKE-PLAN.md). Этап 1 не принят; 135 обязательных требований не закрыты.
 
+
+## checkpoint v1.13 — исправление iframe adapter bootstrap (17.10.2026)
+
+[Полный CI #39064252770](https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770) PASS: HTML/PHP CLI/React static/Next static export (по 12 ID) + реальный RJSF 6.11.0 теперь работают с нативным `iframe.srcdoc` bridge и CSP nonce **без внедрения JS через Playwright**; отдельно проверен запрещённый nonce mismatch. Первоначальные ошибки происходили из-за неполного `</section` исключительно в HTML-фикстуре. Добавлен fail-fast assert закрытия секции. Это доказательство ограниченного исследовательского подмножества, не production CSP и не финальный выбор Jedison/RJSF. [STAGE-1-TEST-LOG.md §16](STAGE-1-TEST-LOG.md), [FOUNDATION-COMPARISON.md §13](FOUNDATION-COMPARISON.md).
+
