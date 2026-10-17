@@ -55,3 +55,8 @@
 ## Подтверждённое дополнение: RJSF widgets и PHP/client parity (17.10.2026)
 
 [GitHub Actions #39057234158](https://github.com/manufact-test/ai-site-cms/actions/runs/39057234158) PASS: RJSF 6.11.0 повторил четыре собственных сложных Jedison-контрола (length, shadow, gradient, animation) с одинаковыми результатами. RJSF AJV8 после явной настройки Draft 2020-12 и PHP Opis 2.6.0 подтвердили согласованность 14/14 одинаковых fixtures каждый. Отрицательные промежуточные запуски раскрыли особенности nested field path в RJSF 6 и несовместимость AJV default с Draft 2020-12. Подробнее [STAGE-1-TEST-LOG.md §12](STAGE-1-TEST-LOG.md). Реальный shared-hosting и окончательный стек не проверены/не выбраны.
+
+
+## Исследовательские проверки Hero, overrides и PHP HTTP (17.10.2026)
+
+[CI #39058603992](https://github.com/manufact-test/ai-site-cms/actions/runs/39058603992) PASS: 14 алгоритмических проверок сохранения owner overrides и конфликтов миграции, настоящий Jedison с responsive Hero в одном iframe и PHP HTTP страница из published JSON без admin JS. Настоящий Hostinger shared hosting, тяжёлые production блоки и security не проверены. Подробнее [STAGE-1-TEST-LOG.md §13](STAGE-1-TEST-LOG.md). Этап 1 продолжается, стек не выбран.
