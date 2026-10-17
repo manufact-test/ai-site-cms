@@ -4,7 +4,7 @@
   "private": true,
   "description": "Disposable stage-1 evaluation harness. Not AI Site CMS.",
   "scripts": {
-    "test": "node compare.cjs"
+    "test": "node compare.cjs && node browser.cjs"
   },
   "dependencies": {
     "jedison": "1.27.1",
@@ -13,6 +13,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "jsdom": "27.0.0",
-    "esbuild": "0.25.12"
+    "esbuild": "0.25.12",
+    "playwright-core": "1.55.1"
   }
 }
