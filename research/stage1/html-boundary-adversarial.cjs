@@ -126,7 +126,7 @@ async function browserProtocol(fragment){
   assert.equal(await frame.locator('img').count(),0);
   await page.evaluate(()=>{window.__wrong();window.__extra();window.__spoof()});
   // This must originate FROM the rogue browsing context, not be posted TO it.
-  await page.frameLocator('#rogue').locator('body').evaluate(t=>parent.postMessage({kind:'applied',token:t,value:'ROGUE'},'*'),await page.evaluate(()=>window.__securityProbe.token));
+  await page.frameLocator('#rogue').locator('body').evaluate((_body,t)=>parent.postMessage({kind:'applied',token:t,value:'ROGUE'},'*'),await page.evaluate(()=>window.__securityProbe.token));
   await page.waitForTimeout(170);
   const stats=await page.evaluate(()=>window.__securityProbe);
   assert.equal(stats.illicit,0,'nonce-less child script ran');
