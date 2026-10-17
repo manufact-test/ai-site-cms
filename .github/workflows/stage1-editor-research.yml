@@ -35,6 +35,8 @@ jobs:
         run: node annotated-html-browser.cjs
       - name: Native Jedison and RJSF responsive field edits drive computed CSS
         run: node annotated-editor-css.cjs
+      - name: Audit manifest coverage against external editable intent
+        run: node annotated-coverage-audit.cjs
       - name: Adversarial HTML grammar and native nonce/origin preview boundary
         run: node html-boundary-adversarial.cjs
       - name: Diagnose complex adapter native bootstrap first
