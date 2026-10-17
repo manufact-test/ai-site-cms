@@ -51,7 +51,7 @@ function createRegistry(){
   packs.add(packName);
  }
  function parse(html,parseFragment){
-  if(typeof html!=='string'||html.length>20000)throw Error('HTML too large');
+  if(typeof html!=='string'||html.length>20000||!html.trim().endsWith('</section>'))throw Error('HTML size or root-closing boundary');
   const parseErrors=[];
   const fragment=parseFragment(html,{sourceCodeLocationInfo:true,onParseError:e=>parseErrors.push(e.code)});
   if(parseErrors.length)throw Error('parser errors '+parseErrors.join(','));
