@@ -1,11 +1,11 @@
 # AI Site CMS — постоянный файл передачи между чатами
 
-**Контрольная точка:** v1.7 · **дата:** 17.10.2026  
+**Контрольная точка:** v1.8 · **дата:** 17.10.2026  
 **Единственный постоянный путь:** `docs/NEXT-CHAT.md`  
 **Постоянная ссылка:** https://github.com/manufact-test/ai-site-cms/blob/main/docs/NEXT-CHAT.md  
 **Проект:** AI Site CMS, без MFT/MANUFACT в названии.  
 **Репозиторий:** https://github.com/manufact-test/ai-site-cms · private · ветка `main`.  
-**Состояние на эту дату:** документация готова; **18 этапов (0–17) утверждены владельцем 17.10.2026**. Этап 0 принят, **этап 1 начат и продолжается, не принят**. Код CMS не написан, основа/фреймворк не выбраны, продуктовых тестов/выпусков нет; выполнены локальные исследовательские тесты и реальные сравнения Jedison/RJSF, включая advanced Chromium PASS (STAGE-1-TEST-LOG.md §§7–8).
+**Состояние на эту дату:** документация готова; **18 этапов (0–17) утверждены владельцем 17.10.2026**. Этап 0 принят, **этап 1 начат и продолжается, не принят**. Код CMS не написан, основа/фреймворк не выбраны, продуктовых тестов/выпусков нет; выполнены локальные исследовательские тесты и реальные сравнения Jedison/RJSF, включая custom-editor, iframe/CSP, PHP CLI и performance-проверки (STAGE-1-TEST-LOG.md §§7–10).
 
 > **ЭТО РАБОЧИЙ ЖУРНАЛ ПРОЕКТА И ФАЙЛ ДЛЯ ПЕРЕХОДА МЕЖДУ ЧАТАМИ.** Не начинать работу «по памяти»: сперва прочитать этот файл **напрямую из GitHub**, затем проверить PROJECT-STATUS.json и документы. При просьбе владельца «обнови этот файл», «обнови файл для следующего чата», «заканчиваем чат» **перезаписывать именно `docs/NEXT-CHAT.md`**, а не создавать новые независимые документы-копии. Ссылка на файл не меняется, изменяется его содержимое. После успешной записи давать владельцу эту же GitHub-ссылку и по возможности **свежую скачиваемую .md-копию**, которую можно приложить к следующему чату.
 
@@ -103,9 +103,9 @@
 - этап 17 конкретизирован: **CELIKOM — будущий первый испытательный сайт готовой CMS**, после него — другие сайты;
 - все основные документы и реестр требований подготовлены, roadmap утверждён.
 
-**Пока НЕ сделано:** выбор фреймворка/базы, завершённые испытания реальных библиотек этапа 1, прототипы, программный код CMS, тесты, релиз, интеграции с CELIKOM.
+**Пока НЕ сделано:** утверждение фреймворка/основы, завершение ВСЕХ испытаний этапа 1 и проверка на реальном текущем shared hosting; продуктовый код CMS, продуктовые интеграции, релиз и CELIKOM-пилот. Исследовательские CI-тесты выполнены, но не означают создание CMS.
 
-**СЛЕДУЮЩИЙ ШАГ:** продолжить **этап 1**: завершить документальную матрицу 135 обязательных ID и сравнение модулей, проверить 2–3 технических сочетания в изолированных не-продуктовых тестах (в т.ч. PHP-only hosting, один блок, schema UI, обновление с сохранением overrides). Затем передать владельцу рекомендацию для приёмки направления и будущего этапа 2. CMS не писать и итоговый стек не утверждать до согласования.
+**СЛЕДУЮЩИЙ ШАГ (обновление v1.8 ниже):** продолжить **этап 1**: проверить полноценную server-side JSON Schema validation на PHP, сравнить собственные RJSF widgets с Jedison, затем испытать текущий PHP shared hosting в разрешённом изолированном окружении и реальные тяжёлые секции. CMS не писать и стек не утверждать до согласования; матрица всех 135 обязательных ID остаётся критерием последующей приёмки.
 
 ## 8. Краткая хронология
 
@@ -173,3 +173,29 @@
 
 **Источники истины:** [STAGE-1-TEST-LOG.md](STAGE-1-TEST-LOG.md) §8, [FOUNDATION-COMPARISON.md](FOUNDATION-COMPARISON.md) §3.5, [FOUNDATIONS.md](FOUNDATIONS.md), [PROJECT-STATUS.json](../PROJECT-STATUS.json), [ROADMAP.md](ROADMAP.md), [MASTER-TZ.md](MASTER-TZ.md), [REQUIREMENTS.md](REQUIREMENTS.md).
 
+## 13. Новые проверенные результаты этапа 1 — checkpoint v1.8 (17.10.2026)
+
+**Новый последний успешный прогон:** [GitHub Actions #39055909594](https://github.com/manufact-test/ai-site-cms/actions/runs/39055909594). Изменён исключительно исследовательский код ветки [research/stage1-editor-comparison](https://github.com/manufact-test/ai-site-cms/tree/research/stage1-editor-comparison); **НЕ сливать в main**. Новые файлы:
+- [custom-widgets.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/custom-widgets.cjs)
+- [secure-preview.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/secure-preview.cjs)
+- [php-validation-smoke.php](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/php-validation-smoke.php)
+- [performance.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/performance.cjs)
+- [multirender.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/multirender.cjs)
+
+**Что реально успешно проверено:**
+1. Оригинальный Jedison 1.27.1 в настоящем Chrome с настоящими customEditors: изменение length 64px→72rem, составной shadow blur/color, gradient angle/from, animation enabled/duration/easing через самостоятельные контролы; конечный typed JSON цел, ошибок pageerror = 0. Внутренняя пользовательская конфигурация ещё НЕ окончательно определена.
+2. Изолированный Chrome iframe без allow-same-origin получил opaque origin null, не смог обратиться к parent DOM, тестовый CSP заблокировал сетевой запрос; проверяемый typed postMessage-контракт применил 58px и отверг фальшивые/опасные сообщения. **Это стенд, НЕ production security certification.**
+3. PHP 8.3.6 CLI в CI (без Composer/Node runtime PHP части) выполнил 16 кейсов собственного минимального typed-валидатора: 2 корректных принято, 14 ошибочных/вредоносных отклонено, включая 2 JSON parse/depth случая. **Полного JSON Schema валидатора ещё нет; реальный Hostinger не проверен.**
+4. В отдельном тестовом iframe успешно менялся стиль у markup-строки статического HTML, PHP CLI output и React SSR output. **Не** настоящий Next.js SSR и **не** реальные клиентские сайты; упрощённый bridge из этого сценария нельзя копировать в production.
+5. Первые диагностические замеры в Chrome, 5 прогонов: Jedison медиана 46.5 ms, RJSF медиана 63.1 ms до появления трёх полей, при 50 записях метаиндекса и одном iframe, JS загружен до таймера. **Не доказывает performance готовой CMS, не считается SLO**. Исследовательские browser gzip entries в этом эксперименте ~48.3 KB против ~187.9 KB, только для этих imports.
+
+**Что осталось обязательно проверить ДО завершения этапа 1:**
+- Полноценный PHP JSON Schema validator и соответствие dialect/семантики браузера и сервера, hostile payloads, медиатипы, URL, conditional/dependencies, неизвестные свойства; security API.
+- Собственные составные editors RJSF на той же схеме для честного сравнения UX, нагрузок и сложности поддержки.
+- Реальные сложные HTML/PHP/React/Next.js компоненты, сохранение overrides, responsive inheritance, тяжёлые секции и ресурсы, долгие сессии и rollback (не только строки markup).
+- Изолированный smoke test **на текущем shared-hosting** без расширения тарифов и runtime, проверки версии PHP/extensions, прав/DB/rewrites/upload, security и backup в согласованном окружении.
+- Итоговое исследовательское заключение для владельца с матрицей 135 обязательных ID и открытыми Q01–Q14. Отдельного согласования стека и приёмки этапа 1 пока НЕ было.
+
+**ТОЧНЫЙ СЛЕДУЮЩИЙ ШАГ:** рассмотреть выбранный PHP JSON Schema валидатор (Opis или эквивалент с допустимой лицензией/доступным PHP), запустить его на том же manifest schema вместе с негативными fixtures через GitHub Actions; затем сопоставимое RJSF custom UI исследование. Документы — [STAGE-1-TEST-LOG.md](STAGE-1-TEST-LOG.md) §§9–10, [FOUNDATION-COMPARISON.md](FOUNDATION-COMPARISON.md) §8, [FOUNDATIONS.md](FOUNDATIONS.md), [PROJECT-STATUS.json](../PROJECT-STATUS.json).
+
+**Границы без изменений:** 18 этапов 0–17; этап 0 принят; этап 1 *в работе, НЕ принят*; этап 2 *не начат*; 193 ответа (135 обязательных / 42 желательных / 16 ненужных), никакого MVP до 135/135; внутренний собственный AI Site CMS с законным максимальным повторным использованием permissive open-source; текущий PHP shared hosting не расширяем; CELIKOM только независимый пилот после полного выпуска на этапе 17. Код продукта CMS по-прежнему НЕ написан, выбранного стека НЕТ. Все следующие handoff-обновления — в ЭТОМ ЖЕ файле docs/NEXT-CHAT.md.
