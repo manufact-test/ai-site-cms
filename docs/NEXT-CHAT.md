@@ -1,11 +1,11 @@
 # AI Site CMS — постоянный файл передачи между чатами
 
-**Контрольная точка:** v1.9 · **дата:** 17.10.2026  
+**Контрольная точка:** v1.10 · **дата:** 17.10.2026  
 **Единственный постоянный путь:** `docs/NEXT-CHAT.md`  
 **Постоянная ссылка:** https://github.com/manufact-test/ai-site-cms/blob/main/docs/NEXT-CHAT.md  
 **Проект:** AI Site CMS, без MFT/MANUFACT в названии.  
 **Репозиторий:** https://github.com/manufact-test/ai-site-cms · private · ветка `main`.  
-**Состояние на эту дату:** документация готова; **18 этапов (0–17) утверждены владельцем 17.10.2026**. Этап 0 принят, **этап 1 начат и продолжается, не принят**. Код CMS не написан, основа/фреймворк не выбраны, продуктовых тестов/выпусков нет; выполнены локальные исследовательские тесты и реальные сравнения Jedison/RJSF, включая custom-editors Jedison/RJSF, iframe/CSP, PHP Opis Draft 2020-12, cross-runtime schema parity 14/14 и performance-пробы (STAGE-1-TEST-LOG.md §§7–12).
+**Состояние на эту дату:** документация готова; **18 этапов (0–17) утверждены владельцем 17.10.2026**. Этап 0 принят, **этап 1 начат и продолжается, не принят**. Код CMS не написан, основа/фреймворк не выбраны, продуктовых тестов/выпусков нет; выполнены локальные исследовательские тесты и реальные сравнения Jedison/RJSF, включая custom-editors Jedison/RJSF, Opis/AJV parity, 14 сценариев owner overrides и сложный Hero/публичную PHP HTTP-страницу (STAGE-1-TEST-LOG.md §§7–13).
 
 > **ЭТО РАБОЧИЙ ЖУРНАЛ ПРОЕКТА И ФАЙЛ ДЛЯ ПЕРЕХОДА МЕЖДУ ЧАТАМИ.** Не начинать работу «по памяти»: сперва прочитать этот файл **напрямую из GitHub**, затем проверить PROJECT-STATUS.json и документы. При просьбе владельца «обнови этот файл», «обнови файл для следующего чата», «заканчиваем чат» **перезаписывать именно `docs/NEXT-CHAT.md`**, а не создавать новые независимые документы-копии. Ссылка на файл не меняется, изменяется его содержимое. После успешной записи давать владельцу эту же GitHub-ссылку и по возможности **свежую скачиваемую .md-копию**, которую можно приложить к следующему чату.
 
@@ -105,7 +105,7 @@
 
 **Пока НЕ сделано:** утверждение фреймворка/основы, завершение ВСЕХ испытаний этапа 1 и проверка на реальном текущем shared hosting; продуктовый код CMS, продуктовые интеграции, релиз и CELIKOM-пилот. Исследовательские CI-тесты выполнены, но не означают создание CMS.
 
-**СЛЕДУЮЩИЙ ШАГ (актуализация v1.9 в конце файла):** продолжить **этап 1**: PHP Opis schema validation и эквивалентные RJSF/Jedison widgets предварительно PASS; теперь нужны сложные реальные секции и проверка совместимости адаптеров, secure publish/rollback, performance/security и настоящий текущий PHP shared-hosting в разрешённом изолированном окружении. CMS не писать и стек не утверждать до согласования; матрица всех 135 обязательных ID остаётся критерием последующей приёмки.
+**СЛЕДУЮЩИЙ ШАГ (актуализация v1.10 ниже):** продолжить только **этап 1**: after successful synthetic Hero/override/PHP HTTP research, испытать реальные сложные PHP/React/Next/static секции, устойчивость публикации, долгие сессии, security/API и реальную доступную PHP shared-hosting среду без расширения. CMS не писать и стек не утверждать до согласования; матрица всех 135 обязательных ID остаётся критерием последующей приёмки.
 
 ## 8. Краткая хронология
 
@@ -218,3 +218,25 @@
 **ТОЧНЫЙ СЛЕДУЮЩИЙ ШАГ после v1.9:** продолжить этап 1 с проверок real-world сложного Hero/многошаговой секции на HTML/PHP/React (Next/SSR отдельно), корректного наследования desktop/tablet/mobile и сохранения owner overrides при смене manifest; сравнить нагрузку при длинной сессии и враждебные payloads. Проверить текущий PHP shared-hosting в разрешённой изолированной среде БЕЗ расширения тарифа и потом подготовить доказательную рекомендацию владельцу. Новые существенные тесты и ошибки писать в docs/STAGE-1-TEST-LOG.md и синхронизировать этот же файл docs/NEXT-CHAT.md при переходе в новый чат.
 
 **Неизменные правила:** 193 приоритета (135 обязательных, 42 желательных, 16 ненужных), первый полноценный релиз только после приёмки 135/135, этапы 0–17 утверждены; этап 0 принят, **этап 1 продолжается, не принят**, этап 2 **не начат**. Jedison — предварительный лидер, RJSF — доказанная альтернатива, Opis — доказанный кандидат PHP validation; окончательный стек никто не утвердил. Код CMS не написан, пилот CELIKOM только после полного релиза этапа 16, как этап 17. Не вливать исследовательскую ветку в main без отдельного решения, не создавать параллельный handoff-файл.
+
+
+## 15. Следующий исследовательский проход — checkpoint v1.10 (17.10.2026)
+
+**Новый подтверждённый полный PASS:** [GitHub Actions #39058603992](https://github.com/manufact-test/ai-site-cms/actions/runs/39058603992), ветка [research/stage1-editor-comparison](https://github.com/manufact-test/ai-site-cms/tree/research/stage1-editor-comparison), НЕЛЬЗЯ автоматически вливать в main. Исследовательские исходники:
+- [override-evolution.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/override-evolution.cjs)
+- [representative-hero.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/representative-hero.cjs)
+- [public-runtime/index.php](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/public-runtime/index.php)
+- [public-runtime.cjs](https://github.com/manufact-test/ai-site-cms/blob/research/stage1-editor-comparison/research/stage1/public-runtime.cjs)
+
+**Что проверено:**
+1. 14 сценариев модельного поведения stable IDs / responsive desktop, tablet, mobile inheritance, owner overrides, separate live/draft/published state, два revisions и rollback. При AI v1→v2 пользовательские текст и desktop/tablet размеры не перезаписаны. Попытки удалить используемый параметр или сделать старое owner значение недопустимым дают два явных конфликта; published snapshot при ошибке не изменяется. Опасные CSS и неизвестные поля отклоняются. PASS. Это исключительно исследовательская модель в памяти, не CMS и не реально мигрированная БД.
+2. В Chromium настоящий Jedison 1.27.1 управляет более сложным HTML/CSS Hero с карточками, CTA, адаптивной сеткой и цветами. Слева 50 записей метаиндекса, смонтирован один sandbox iframe. Desktop 64px, tablet через UI 48→52px, mobile наследует tablet 52px, собственный mobile 32px. Строка похожая на HTML с onerror появляется только текстом. Published title не затронут live editing. JS errors 0. PASS. Это искусственная HTML секция, без внешней сети, тяжёлых 3D/видео и production-адаптеров.
+3. Ранние [CI #39058137775](https://github.com/manufact-test/ai-site-cms/actions/runs/39058137775) и [#39058260391](https://github.com/manufact-test/ai-site-cms/actions/runs/39058260391) FAIL: мгновенный postMessage ack не гарантировал завершение CSS transition и computed font-size. В тесте responsive CSS transition отключена, iframe прокручивается в видимую область; [#39058376654](https://github.com/manufact-test/ai-site-cms/actions/runs/39058376654) PASS. Отдельные проверки CSS animations остаются нужны.
+4. PHP 8.3.6 built-in HTTP server на runner GitHub Actions отдал HTML Hero из **отдельного опубликованного JSON файла**, без Node/admin/editor JavaScript. GET 200, /admin 404, POST 405, атомарная замена опубликованного snapshot отображается в новом GET, HTML escaping защищает от разметочной инъекции, rollback восстанавливает предыдущий контент. Неверный напрямую подменённый CSS snapshot даёт 503 (fail closed), а не опасный CSS. PASS. Не проверено реальное окружение Hostinger, защита и устойчивость к повреждению опубликованных данных — для production нужен last-known-good и prepublish validation.
+5. Предыдущие успехи: RJSF/Jedison custom widgets одинаково меняют четыре сложных типа, RJSF AJV Draft 2020-12 и PHP Opis 2.6.0 одинаково принимают/отвергают все 14 schema fixtures. Это покрытие отдельных сценариев, не готовая CMS.
+
+**Ограничения (не выдавать за сделанное):** фреймворк окончательно не выбран; настоящая CMS/база/выпуск не написаны; Hostinger shared hosting НИ РАЗУ не тестирован; реальный Next.js SSR может требовать Node, не обещать PHP-only SSR; не проверены конкурентные изменения пользователей, filesystem/DB backups, реальные многосекционные сайты, hosting rewrite/uploads/extensions, реальные CSP/CSRF/XSS/API правила, реальные большие 3D/video, performance на пользовательском устройстве и при длительном редактировании.
+
+**ТОЧНЫЙ СЛЕДУЮЩИЙ ШАГ:** в этапе 1 проверить реальный многоэлементный PHP/React/Next-static блок в preview через adapter boundaries, сравнить такой же сложный сценарий на RJSF, проверить server-side publish validation с last-known-good/rollback под невалидными данными и выполнить доступный разрешённый smoke test именно на существующем shared hosting без расширения среды. Затем подготовить объективный вывод по foundation matrix и 135 обязательным ID, предъявить владельцу для согласования выбора направления. **Этап 1 не принят. Этап 2 не начинать без подтверждения владельца.**
+
+**Последние документы:** [STAGE-1-TEST-LOG.md §13](STAGE-1-TEST-LOG.md), [FOUNDATION-COMPARISON.md §10](FOUNDATION-COMPARISON.md), [FOUNDATIONS.md](FOUNDATIONS.md), [PROJECT-STATUS.json](../PROJECT-STATUS.json), [ROADMAP.md](ROADMAP.md). В будущем обновлять **именно этот** docs/NEXT-CHAT.md. Владелец утвердил 193 требования: 135 обязательно, 42 желательно, 16 не нужно. Весь первый официальный релиз — только после реальной 135/135 приёмки, без MVP. Этап 0 принят; этап 1 in_progress; этап 2 not_started; этап 17 CELIKOM — только отдельный пилот после полного релиза, вне текущего проекта. Исследовательская ветка отдельно от main; main — документация.
