@@ -85,7 +85,13 @@ async function run(){
      window.addEventListener('message',event=>{const m=event.data;if(event.source!==frame.contentWindow||event.origin!=='null'||m?.token!==token)return;if(m.kind==='ready'){window.probe.ready=true;window.paint()}if(m.kind==='applied')window.probe.acks.push(m)});
      frame.srcdoc='<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;unsafe-inline&#39;; style-src &#39;unsafe-inline&#39;; connect-src &#39;none&#39;; img-src &#39;none&#39;"><style>'+css+'</style></head><body>'+markup+'<script>'+script.replace('__TOKEN__',JSON.stringify(token))+'</scr'+'ipt></body></html>';
     },{markup,css,script:childScript});
-    await page.waitForFunction(()=>window.probe?.acks.some(a=>a.font==='64px'),null,{timeout:15000});
+    try{await page.waitForFunction(()=>window.probe?.acks.some(a=>a.font==='64px'),null,{timeout:10000})}
+    catch(error){
+     const info=await page.evaluate(()=>({probe:window.probe,current:window.current,frameSrcdoc:document.getElementById('preview').srcdoc.slice(-550)}));
+     const child=await page.frameLocator('#preview').locator('body').evaluate(e=>({ready:document.readyState,globalToken:typeof t==='undefined'?'undefined':t,bodyText:e.textContent.slice(0,130)})).catch(e=>({frameError:String(e)}));
+     console.error('STAGE1_ADAPTER_DIAGNOSTIC='+JSON.stringify({kind,info,child,errors}));
+     throw error;
+    }
     const frame=page.frameLocator('#preview');assert.equal(await page.locator('iframe').count(),1);assert.equal(await frame.locator('[data-stable-id]').count(),ids.length);
     await page.evaluate(()=>window.choose('tablet'));await page.waitForFunction(()=>window.probe.acks.some(x=>x.device==='tablet'&&x.font==='48px'));
     await page.locator('#root_font_tablet').fill('52px');await page.waitForFunction(()=>window.current.font.tablet==='52px'&&window.probe.acks.some(x=>x.font==='52px'));
