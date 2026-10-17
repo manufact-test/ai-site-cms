@@ -79,20 +79,16 @@ async function run(){
     await page.evaluate(mount);await page.locator('#root_title').waitFor({timeout:15000});
     await page.evaluate(({markup,css,script})=>{
      const frame=document.getElementById('preview');const token=Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
+     const nonce=Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
      window.probe={token,ready:false,acks:[],device:'desktop'};
      window.paint=()=>{if(window.probe.ready)frame.contentWindow.postMessage({kind:'render',token,state:window.current,device:window.probe.device},'*')};
      window.choose=device=>{window.probe.device=device;frame.style.width=({desktop:1200,tablet:750,mobile:375})[device]+'px';window.paint()};
      window.addEventListener('message',event=>{const m=event.data;if(event.source!==frame.contentWindow||event.origin!=='null'||m?.token!==token)return;if(m.kind==='ready'){window.probe.ready=true;window.paint()}if(m.kind==='applied')window.probe.acks.push(m)});
-     frame.srcdoc='<!doctype html><html><head><style>'+css+'</style></head><body>'+markup+'</body></html>';
+     const meta='<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;nonce-'+nonce+'&#39;; style-src &#39;unsafe-inline&#39;; img-src &#39;none&#39;; connect-src &#39;none&#39;">';
+     frame.srcdoc='<!doctype html><html><head>'+meta+'<style>'+css+'</style></head><body>'+markup+'<script nonce="'+nonce+'">'+script.replace('__TOKEN__',JSON.stringify(token))+'</scr'+'ipt></body></html>';
     },{markup,css,script:childScript});
-    // Explicit functional harness boot inside opaque sandbox after DOM is loaded.
-    // The independent CSP test remains mandatory elsewhere in the workflow.
-    const previewBody=page.frameLocator('#preview').locator('body');
-    await previewBody.waitFor();
-    const bridgeToken=await page.evaluate(()=>window.probe.token);
-    await previewBody.evaluate((body, source)=>{
-     const el=document.createElement('script');el.textContent=source;body.appendChild(el);
-    },childScript.replace('__TOKEN__',JSON.stringify(bridgeToken)));
+    // Browser parses and runs the nonce-authorized srcdoc script itself.
+    // No Playwright injection into the child document.
     try{await page.waitForFunction(()=>window.probe?.acks.some(a=>a.font==='64px'),null,{timeout:10000})}
     catch(error){
      const info=await page.evaluate(()=>({probe:window.probe,current:window.current,frameSrcdoc:document.getElementById('preview').srcdoc.slice(-550)}));
