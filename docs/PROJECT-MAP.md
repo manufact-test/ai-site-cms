@@ -100,3 +100,6 @@
 
 **Checkpoint v1.15:** `research/stage1/matched-custom-media.cjs` (исследовательская ветка) — одинаковые собственные составные UI-контролы Jedison/RJSF с typed iframe preview и **локальными media-заглушками**. [CI #39066085194](https://github.com/manufact-test/ai-site-cms/actions/runs/39066085194) PASS; объяснение, ограничения и воспроизведение — новый документ [STAGE-1-COMPOSITE-MEDIA-RESEARCH.md](STAGE-1-COMPOSITE-MEDIA-RESEARCH.md), журнал `STAGE-1-TEST-LOG.md §18`, сравнение `FOUNDATION-COMPARISON.md §15`, тот же единственный `NEXT-CHAT.md §20`. No production CMS.
 
+
+**Checkpoint v1.16 (17.10.2026):** `research/stage1/html-boundary-adversarial.cjs` и pinned `parse5 8.0.0` — исключительно `research/stage1-editor-comparison`; CI [#39067271214](https://github.com/manufact-test/ai-site-cms/actions/runs/39067271214) полный PASS, 20 adversarial fragment rejects плюс native opaque iframe HTTP origin/nonce/rogue sender negative controls. Основная ветка **main** обновлена [STAGE-1-HTML-BOUNDARY-RESEARCH.md](STAGE-1-HTML-BOUNDARY-RESEARCH.md), [STAGE-1-MANDATORY-EVIDENCE-MATRIX.md](STAGE-1-MANDATORY-EVIDENCE-MATRIX.md) с оригинальными 135 ID/43 mapped/92 no test/0 accepted, `STAGE-1-TEST-LOG.md §19`, `FOUNDATION-COMPARISON.md §16`, статус и единственный handoff `NEXT-CHAT.md §21`. Без merge исследовательского runtime в main.
+
