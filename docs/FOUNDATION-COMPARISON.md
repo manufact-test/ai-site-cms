@@ -68,6 +68,24 @@ AI Site CMS — **внутренняя разработка команды** д�
 
 **Ограничение стенда:** Node и PHP CLI в рабочем окружении инструментов доступны, но настоящие npm-пакеты для сравнения из сети в этом проходе не устанавливались; никаких runtime/lighthouse/performance результатов не заявлено.
 
+### 3.2. Проверка manifest-зависимостей и PHP/runtime границ
+
+Открыты `composer.json`/ `package.json` именно исходников соответствующих проектов, **не** сделана установка. Результаты для предварительного фильтра:
+
+| Пакет | Проверенное объявление | Последствие |
+|---|---|---|
+| [Slim](https://github.com/slimphp/Slim/blob/4.x/composer.json) | PHP ~7.4 / ~8.0–~8.5, `ext-json`, 9 прямых composer requires | Возможен PHP-only API на современных версиях PHP; нужно проверить нужную host PHP + webserver rewrite/session/storage |
+| [Winter](https://github.com/wintercms/winter/blob/develop/composer.json) | PHP >=8.1, 7 top-level composer requires | PHP-only runtime по ядру, но фактические установки/пакеты/шаблоны/виджеты могут потребовать больше; не считать приложение «из 7 зависимостей» |
+| [Opis JSON Schema](https://github.com/opis/json-schema/blob/master/composer.json) | PHP ^7.4 или ^8.0, `ext-json`, 4 требует | Возможен server-side validator; поддержку конкретных draft/форматов/злонамеренных ссылок в схеме проверять отдельно |
+| [Symfony HttpKernel](https://github.com/symfony/http-kernel/blob/7.4/composer.json) и [Routing](https://github.com/symfony/routing/blob/7.4/composer.json) | PHP >=8.2 для выбранной ветки | Если PHP на текущем hosting ниже 8.2 — это блокер для этих версий; **не** предполагать версию тарифа по локальной PHP CLI |
+| [JSON Forms React](https://github.com/eclipsesource/jsonforms/blob/master/packages/react/package.json) | 1 direct dependency + peer `@jsonforms/core`, React | Следует считать полный набор packages/renderer deps, не только оболочку; текущая ветка `master` может содержать alpha peer, поэтому фиксировать **стабильный релиз**, а не master |
+| [RJSF core](https://github.com/rjsf-team/react-jsonschema-form/blob/main/packages/core/package.json) | 1 direct dependency + peer `@rjsf/utils`, React>=18, Node>=20 в `engines` | Проверить сборку в CI отдельно; готовый статический UI может работать на PHP backend без Node runtime, но это надо доказать сборкой |
+| [Puck core](https://github.com/puckeditor/puck/blob/main/packages/core/package.json) | 36 direct dependencies, React 18/19, Node>=20 для toolchain | Нельзя считать модуль независимым; нужно замерить фактический статический bundle и проверить работу вне React-сайта |
+
+**Контракт не равен JSON Schema 1:1.** У AI Site CMS есть собственные `content/style/behavior`, responsive inheritance, stable IDs, defaults и schema versions. Даже если RJSF/JSON Forms создают контролы из JSON Schema, понадобится детерминированное преобразование **manifest → поля**, а обратное изменение должно адресно менять published config/preview, **не** писать CSS/JS и не перезаписывать авторские defaults. UI `onChange` нужен для живого предпросмотра, но **не означает автосохранение** (№132 «Не нужно»). Сервер повторно проверяет все значения.
+
+**Доказать позднее:** фактическую PHP-версию и расширения существующего хостинга, возможность установки архивом без Composer на сервере, наличие rewrite/HTTPS, правильность cookie/CSRF, скорость и размер статической JS-панели, импорт ровно допустимых лицензированных зависимостей.
+
 ## 4. Честная матрица соответствия 135 обязательным ID
 
 Здесь **не проценты реализации и не тестовые результаты**: категории — документальные гипотезы.
