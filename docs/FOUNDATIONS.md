@@ -76,3 +76,8 @@
 
 [Полный CI #39064252770](https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770) PASS: HTML/PHP CLI/React static/Next static export (по 12 ID) + реальный RJSF 6.11.0 теперь работают с нативным `iframe.srcdoc` bridge и CSP nonce **без внедрения JS через Playwright**; отдельно проверен запрещённый nonce mismatch. Первоначальные ошибки происходили из-за неполного `</section` исключительно в HTML-фикстуре. Добавлен fail-fast assert закрытия секции. Это доказательство ограниченного исследовательского подмножества, не production CSP и не финальный выбор Jedison/RJSF. [STAGE-1-TEST-LOG.md §16](STAGE-1-TEST-LOG.md), [FOUNDATION-COMPARISON.md §13](FOUNDATION-COMPARISON.md).
 
+
+## checkpoint v1.14 — matched 12-ID editor sessions (17.10.2026)
+
+[Полный CI #39065084450](https://github.com/manufact-test/ai-site-cms/actions/runs/39065084450) PASS для **обоих** pinned open-source редакторов: Jedison 1.27.1 и RJSF 6.11.0 с 9 одинаковыми schema properties, 12 stable IDs и одним preview. В двух порядках сравнения по 16 mount/edit/unmount циклов и 656 модельных изменений на редактор, итоговые JSON идентичны, browser errors 0. Test entry gzip Jedison ~48.3 КБ, RJSF+React+AJV2020 ~190.9 КБ, но dependency coverage отличается; меньшая heap snapshot Jedison и меньшее scripted action wall time RJSF — только ограниченные CI наблюдения. **Ни один не выбран.** См. [STAGE-1-MATCHED-EDITOR-SESSIONS.md](STAGE-1-MATCHED-EDITOR-SESSIONS.md) и [STAGE-1-TEST-LOG.md §17](STAGE-1-TEST-LOG.md).
+
