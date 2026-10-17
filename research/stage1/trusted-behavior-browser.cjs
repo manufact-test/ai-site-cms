@@ -37,7 +37,10 @@ function childReceiver(token,parentOrigin){
  }
  el('modal-open').addEventListener('click',()=>{if(values&&values.dialogEnabled&&!el('modal').open)el('modal').showModal()});
  el('modal-close').addEventListener('click',()=>{if(el('modal').open)el('modal').close()});
- el('signup-form').addEventListener('submit',ev=>{ev.preventDefault();submits++;el('submit-message').textContent='Preview only — no data sent'});
+ el('signup-form').addEventListener('submit',ev=>ev.preventDefault());
+ // Opaque iframe without allow-forms can suppress the native submit event;
+ // reviewed click-handler provides a PREVIEW-ONLY confirmation and never posts.
+ el('signup-button').addEventListener('click',ev=>{ev.preventDefault();if(values?.subscribeEnabled&&el('signup-email').checkValidity()){submits++;el('submit-message').textContent='Preview only — no data sent'}});
  window.addEventListener('message',ev=>{
   const m=ev.data;
   if(ev.source!==parent||ev.origin!==parentOrigin||!m||typeof m!=='object'||Array.isArray(m)||
