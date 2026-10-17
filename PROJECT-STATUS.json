@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Stage 1 remains in progress. Test original Jedison vs JSON Forms/RJSF on same Hero manifest once dependency packages are accessible; benchmark published JS bytes and actual browser behavior; inspect real PHP shared-hosting environment only when permitted; no CMS implementation or final stack approval yet.",
+  "next_step": "Keep stage 1 open. Verify custom and responsive controls (length/shadow/animation), preview bridge and schema coverage against 135 IDs; review actual PHP shared hosting prerequisites before architecture/stack approval. Research harness only on branch research/stage1-editor-comparison.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.5",
+  "checkpoint_version": "1.6",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -30,10 +30,22 @@
       "schema_migration_checks_passed": 10,
       "browser_one_iframe_research_passed": true,
       "local_php_published_config_independence_passed": true,
-      "third_party_editor_runtime_tested": false,
-      "actual_shared_hosting_tested": false
+      "third_party_editor_runtime_tested": true,
+      "actual_shared_hosting_tested": false,
+      "upstream_chromium_user_input_tested": true,
+      "real_editor_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39054261780",
+      "real_editor_versions": {
+        "jedison": "1.27.1",
+        "@rjsf/core": "6.11.0",
+        "@rjsf/validator-ajv8": "6.11.0"
+      },
+      "gzip_entry_bytes": {
+        "jedison": 48287,
+        "rjsf_with_validator": 130517
+      }
     },
-    "new_candidate": "Jedison v1.27.1 MIT vanilla-JS schema-based forms; not yet selected or runtime-tested"
+    "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
+    "research_branch": "research/stage1-editor-comparison"
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
