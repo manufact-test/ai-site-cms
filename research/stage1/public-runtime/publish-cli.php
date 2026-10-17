@@ -50,10 +50,10 @@ function main(array $argv): array
         $lastGoodPath = $directory.'/last-good.json';
         $current = stage1ReadFile($currentPath);
         $lastGood = stage1ReadFile($lastGoodPath);
-        if (is_file($currentPath) && $current === null) {
+        if ($command === 'publish' && is_file($currentPath) && $current === null) {
             throw new RuntimeException('Current snapshot is corrupt: rollback explicitly before publishing again');
         }
-        if ($current === null && $lastGood !== null) {
+        if ($command === 'publish' && $current === null && $lastGood !== null) {
             throw new RuntimeException('Current snapshot is missing: rollback explicitly before publishing again');
         }
         if ($command === 'publish') {
