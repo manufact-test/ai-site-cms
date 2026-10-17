@@ -403,3 +403,15 @@ Diagnostic FAIL in earlier research runs: malformed generated JS schema replacem
 
 Полный [STAGE-1-EXTENSIBLE-STYLE-PACKS-RESEARCH.md](STAGE-1-EXTENSIBLE-STYLE-PACKS-RESEARCH.md). **Stage 1 in progress not accepted, stage2 not started, stack unselected, product acceptance 0/135, research/doc signal 43, gaps 92.**
 
+
+## 25. Uninstrumented full-site / coverage gaps / Chromium trust / safe renderer slice — v1.22 (18.10.2026)
+
+**Полный Actions PASS:** https://github.com/manufact-test/ai-site-cms/actions/runs/39077113741, research HEAD 7d8178c54e557ec4a37f1427f0917dab2d9daabd, весь прежний suite также зелёный. Новая standalone Tide Atlas HTML/CSS/JS страница, не созданная под parser grammar: original SVG, details/dialog/form, JS, CSS variables/grid/gradients/animation/media. Это отдельная модельная композиция, **не независимый слепой второй LLM**.
+
+STAGE1_INDEPENDENT_SITE_PREFLIGHT: 17 HTML IDs, 9 unkeyed text; 16 вручную ожидаемых bindings, 12 candidate, 4 missing (antispam, placeholder, SVG, SEO); после explicit repair 10 unsupported trusted property packs и auto-publish refused. 15 negative/audit/migration: compatible owner overrides survive, rename/type changes/unsafe aliases quarantined.
+
+STAGE1_INDEPENDENT_SITE_RENDER_PARITY: manually mapped content-only 3-node view; HTML/PHP CLI/React static × 2 states = **6/6 semantic parity**, XSS-like content escaped, 18 bad payload refusals. NOT original site's CSS/SVG/forms/JS conversion; PHP only GitHub runner, not actual Hostinger.
+
+STAGE1_INDEPENDENT_SITE_SANDBOX: native Chromium opaque iframe source rendered with desktop CSS H1 84px / mobile 48px; script-src none, parent DOM inaccessible, click dialog inactive, valid email form to /subscribe blocked, 0 page errors. Test inline styles permitted, NOT production CSP. Diagnostic FAIL #39076877639 favicon mistakenly counted as HTTP form request, fixed by filtering /subscribe and filling email, final full CI green.
+
+Details: [STAGE-1-INDEPENDENT-SITE-CONTRACT-RESEARCH.md](STAGE-1-INDEPENDENT-SITE-CONTRACT-RESEARCH.md). Stage1 in_progress not accepted; Stage2 not started, technology not selected, product **0/135**; R/D 43, gaps 92.

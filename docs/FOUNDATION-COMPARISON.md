@@ -408,3 +408,11 @@ Full GitHub Actions [#39073198622](https://github.com/manufact-test/ai-site-cms/
 
 **Вывод к A/B/C:** Schema-driven registry + trusted render path выглядит технически осуществимым для заявленных типизированных свойств с ограниченной свободой layout, но **не** доказывает произвольную AI-генерацию полного HTML/CSS/JS или самодостаточную полноту editable manifest. CSS/style pack code доверенный, не user-scriptable. Собственную архитектуру не выбирать без approval, Jedison vs RJSF пока эксперимент. [Подробный отчёт](STAGE-1-EXTENSIBLE-STYLE-PACKS-RESEARCH.md). Stage1 unaccepted, 0/135 product acceptance.
 
+
+## 22. Uninstrumented AI-authored full-site preflight: missing/unsupported capability detection — v1.22 (18.10.2026)
+
+[Full GitHub Actions PASS #39077113741](https://github.com/manufact-test/ai-site-cms/actions/runs/39077113741). One separately model-authored standalone HTML/CSS/JS Tide Atlas page uses custom layout, responsive grid, CSS variables/gradients, SVG, dialog/form/details and scripts; **not** blinded second independent LLM. The narrow typed annotated-section grammar correctly rejects entire uninstrumented full document rather than pretend to import. 17 HTML IDs, 9 unkeyed text elements; independent manual expectation ledger 16 fields vs 12 declared, 4 missing, 10 unsupported even after repairing coverage; auto-publish must be blocked.
+
+The only renderer proof from this source is a **manually mapped three-node content-only projection**: HTML/PHP CLI/React static 6/6 semantic parity, 18 invalid refusals. Original full CSS/JS is not migrated. Chromium isolated original CSS desktop/mobile while source JS/form deliberately blocked; no function-preserving arbitrary-site import. Actual PHP shared Hostinger remains untested.
+
+Alternatives A modular PHP+typed registry, B Puck fields/PHP, C Winter/custom editor and D selective GrapesJS UI remain open; no final stack selection. Capabilities registry, provenance, CSS trust, behavior/media/SEO, versioned alias and migrations remain blockers. [Technical report](STAGE-1-INDEPENDENT-SITE-CONTRACT-RESEARCH.md). Stage 1 not accepted; product 0/135.
