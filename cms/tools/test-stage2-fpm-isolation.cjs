@@ -127,7 +127,12 @@ function ngConfig(dir,sites,ports){
    'root '+x.site+'/public;',
    'autoindex off;','disable_symlinks on;',
    'location ~ \\.(?:php|phtml|phar|env|sqlite|db|sql)$ { return 404; }',
-   'location / { try_files $uri $uri/ /index.html; }','}'
+   // Do not report successful SPA HTML for missing .json/.js/assets.
+   'location ~ \\.[A-Za-z0-9]+$ { try_files $uri =404; }',
+   x.family==='react-spa'
+     ? 'location / { try_files $uri $uri/ /index.html; }'
+     : 'location / { try_files $uri $uri/ =404; }',
+   '}'
   ].join('\n'));
  }
  write(conf,[
@@ -249,6 +254,13 @@ async function main(){
      'independent visitor site served by real Nginx');
    check((await request(vis+'/vendor/autoload.php')).status===404,
      'visitor webroot cannot expose the separate CMS private vendor');
+  }
+  // HTML and SPA have different real webserver deep-link semantics.
+  for(let i=0;i<sites.length;i++){
+   const r=await request(visitorUrls[i]+'/dashboard/deep-link');
+   check(i===0?r.status===404:
+     r.status===200&&r.body.includes('VISITOR-REACT-INDEPENDENT'),
+     'actual Nginx plain HTML 404 versus React SPA history fallback');
   }
   // Deliberate corruption: first CMS fails closed with real FastCGI and FPM.
   // Other PHP process and both visitor sites remain usable.
