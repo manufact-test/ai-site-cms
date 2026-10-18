@@ -51,6 +51,11 @@ jobs:
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
         run: php tests/lab-generation-switcher.php
+      - name: Refuse version flip while three real PHP requests hold code-generation leases
+        working-directory: cms
+        env:
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+        run: php tests/lab-generation-leases.php
       - name: Exercise immutable lab release staging, fault injection and rollback
         working-directory: cms
         run: node tools/test-lab-rollout.cjs
