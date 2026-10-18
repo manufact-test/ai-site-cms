@@ -164,11 +164,37 @@ function manifestFixtures(){
  const removed=clone(v2);removed.version='3.1.0';removed.components=removed.components.filter(x=>x.id!=='signup-block');
  return {v1,v2,changed,removed,aliases:[{from:'hero-anchor',to:'hero-focal',kind:'hero',approved:true}]};
 }
-function createRevisionStore(input){
+function createRevisionStore(input,persisted=null){
  validateManifest(input);
  let manifest=clone(input),draft={},saved={},generation=1,draftSaved=true,seq=1;
  let published={revision:1,sourceRevision:null,manifest:clone(manifest),overrides:{},shape:publicShape(manifest,{})};
  let history=[clone(published)],pending=new Map(),stageSeq=0;
+ if(persisted!==null){
+  // Treat persisted JSON as untrusted. Validate all layers, not just manifest;
+  // PHP performs its own independent validation at the file boundary.
+  if(!exact(persisted,['generation','manifest','draft','saved','draftSaved','published','history'])||
+     !Number.isSafeInteger(persisted.generation)||persisted.generation<1||
+     typeof persisted.draftSaved!=='boolean'||!Array.isArray(persisted.history)||
+     persisted.history.length<1||persisted.history.length>80)throw Error('persisted-envelope');
+  validateManifest(persisted.manifest);
+  if(JSON.stringify(input)!==JSON.stringify(persisted.manifest))throw Error('rehydration-manifest-mismatch');
+  if(!plain(persisted.draft)||!plain(persisted.saved))throw Error('rehydration-owner-shape');
+  for(const [key,value] of Object.entries(persisted.draft))validateOverride(input,key,value);
+  for(const [key,value] of Object.entries(persisted.saved))validateOverride(input,key,value);
+  if(persisted.draftSaved&&JSON.stringify(persisted.draft)!==JSON.stringify(persisted.saved))throw Error('rehydration-dirty-flag');
+  for(let n=0;n<persisted.history.length;n++){
+   const record=persisted.history[n];
+   if(!exact(record,['revision','sourceRevision','manifest','overrides','shape'])||record.revision!==n+1)throw Error('rehydration-history-gap');
+   validateManifest(record.manifest);
+   if(!plain(record.overrides)||!Array.isArray(record.shape))throw Error('rehydration-publication-shape');
+   const regenerated=publicShape(record.manifest,record.overrides);
+   if(JSON.stringify(regenerated)!==JSON.stringify(record.shape))throw Error('rehydration-publication-tamper');
+  }
+  if(JSON.stringify(persisted.published)!==JSON.stringify(persisted.history.at(-1)))throw Error('rehydration-current-vs-history');
+  manifest=clone(persisted.manifest);draft=clone(persisted.draft);saved=clone(persisted.saved);
+  generation=persisted.generation;draftSaved=persisted.draftSaved;
+  published=clone(persisted.published);history=clone(persisted.history);seq=history.at(-1).revision;
+ }
  const invalidate=()=>{pending.clear();generation++};
  const snapshot=()=>({generation,manifest:clone(manifest),draft:clone(draft),saved:clone(saved),
   draftSaved,published:clone(published),history:clone(history)});
