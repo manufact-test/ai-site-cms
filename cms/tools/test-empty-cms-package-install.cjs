@@ -113,7 +113,7 @@ async function main(){
       check(!fs.existsSync(data),'no database created by read-only package preflight '+name);
       const topo=success(topology(cms,website,caps),'shipped PHP topology CLI runs '+name);
       check(topo.declarationCompatible && !topo.actualHostTested && !topo.productionReady
-        && topo.cmsPublicFiles===1 && topo.sitePublicFiles===1,
+        && topo.cmsPublicFiles===2 && topo.sitePublicFiles===1,
         'independent CMS and site roots, self-declared host capabilities '+name);
       const empty=schema(cms,data,'sandbox-'+name);
       check(empty.status===3 && JSON.parse(empty.stdout).state==='uninitialized',
