@@ -302,6 +302,7 @@ try{
     const record={
       format:'ai-site-cms-stage2-preactivation-approval-v1',
       siteId:'labsite',nonce:crypto.randomBytes(16).toString('hex'),
+      switchRootSha256:sha(Buffer.from(authorizedRoot)),
       sequence,fromVersion,version:x.metadata.version,minimumVersion:v1,
       previousReceiptSha256:previousHead,publisherFingerprint:fp,
       manifestSha256:x.metadata.packageManifestSha256,
@@ -356,6 +357,13 @@ try{
   denied(['new-sealed',db,operatorPin,operatorPin],
     'signed-only root cannot conflate publisher and operator signing keys');
   const firstPermit=issuePermit(a,cp1,1,null,null);
+  const otherRoot=success(['new-sealed',db,operatorPin,fp],
+    'independent parallel sealed CMS generation root').root;
+  installedLabs.push(otherRoot);
+  const replayOtherRoot=authorized(a,firstPermit,null,null,0);
+  replayOtherRoot[2]=otherRoot;
+  denied(replayOtherRoot,
+    'signed permit cannot be replayed on a different sealed root with identical signer pins');
   denied(authorized(a,'f'.repeat(64),null,null,0),
     'unsigned or independently unpinned permit cannot register a release');
   denied(authorized(a,firstPermit,null,null,0,'none','0'.repeat(64)),
@@ -526,7 +534,7 @@ try{
   fs.writeFileSync(leasePath,originalAnchor);
   ok(success(settledRead(approvedHead2,settlementHead2),'untouched sealed release').sequence===2,
     'direct raw switch and seal-deletion downgrade rejected before changing active version');
-  ok(count>=155,'signed-only preactivation, receipt, settlement and crash checks executed');
+  ok(count>=157,'signed-only root-pinned permit, receipt, settlement and crash checks executed');
 
   console.log('Stage2 Ed25519 ZIP -> safe extraction -> native PHP -> DB checkpoint -> CAS PASS: '+
     count+' checks; '+first.files+' files; CI disposable only, no real host or data migrations');
