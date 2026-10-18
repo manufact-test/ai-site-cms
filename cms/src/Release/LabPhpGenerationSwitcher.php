@@ -41,6 +41,7 @@ final class LabPhpGenerationSwitcher
         if (!mkdir($root, 0700)) throw new RuntimeException('Cannot create switcher lab');
         $lab = new self($root);
         $lab->writeFresh('releases.json', ['format'=>self::FORMAT, 'releases'=>[]]);
+        $lab->createLeaseAnchor();
         return $lab;
     }
 
@@ -66,6 +67,78 @@ final class LabPhpGenerationSwitcher
     }
 
     private function file(string $name): string { return $this->root . '/' . $name; }
+
+    // Every cooperative reader and writer holds a stable local-filesystem inode.
+    // Not a distributed lock and not a proof of PHP-FPM/OPcache compatibility.
+    private function createLeaseAnchor(): void
+    {
+        $handle = @fopen($this->file('request-lease.lock'), 'x');
+        if ($handle === false) throw new RuntimeException('Cannot create permanent lease anchor');
+        try {
+            if (fwrite($handle, "ai-site-cms-php-lease-v1\n") !== 25 || !fflush($handle)) {
+                throw new RuntimeException('Incomplete lease anchor');
+            }
+            if (function_exists('fsync')) fsync($handle);
+        } finally { fclose($handle); }
+    }
+
+    /** @return resource */
+    private function acquireLease(int $kind)
+    {
+        $this->assertRoot();
+        $file = $this->file('request-lease.lock');
+        $before = @lstat($file);
+        if ($before === false || is_link($file) || !is_file($file)
+            || ($before['nlink'] ?? 0) !== 1 || ($before['size'] ?? 0) !== 25) {
+            throw new RuntimeException('Missing or replaced request lease anchor');
+        }
+        $handle = @fopen($file, 'rb');
+        if ($handle === false) throw new RuntimeException('Cannot open request lease');
+        $opened = fstat($handle);
+        if ($opened === false || $opened['ino'] !== $before['ino']
+            || $opened['dev'] !== $before['dev']
+            || !hash_equals("ai-site-cms-php-lease-v1\n", stream_get_contents($handle) ?: '')) {
+            fclose($handle);
+            throw new RuntimeException('Request lease anchor mutated');
+        }
+        if (!flock($handle, $kind | LOCK_NB)) {
+            fclose($handle);
+            throw new RuntimeException('Concurrent PHP request or activation holds generation lease');
+        }
+        $now = @lstat($file);
+        if ($now === false || is_link($file) || $now['ino'] !== $opened['ino']
+            || $now['dev'] !== $opened['dev'] || ($now['nlink'] ?? 0) !== 1) {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+            throw new RuntimeException('Request lease replaced during acquisition');
+        }
+        return $handle;
+    }
+
+    /** @param resource $handle */
+    private static function releaseLease($handle): void
+    {
+        flock($handle, LOCK_UN);
+        fclose($handle);
+    }
+
+    /**
+     * The shared lease is retained until the handler returns or throws.
+     * CLI-only rehearsal, not an installed web endpoint.
+     *
+     * @template T
+     * @param callable(array<string,mixed>):T $handler
+     * @return T
+     */
+    public function withRequestLease(string $externalMinVersion, callable $handler): mixed
+    {
+        $lease = $this->acquireLease(LOCK_SH);
+        try {
+            return $handler($this->resolve($externalMinVersion));
+        } finally {
+            self::releaseLease($lease);
+        }
+    }
 
     private static function present(string $path): bool
     {
@@ -211,6 +284,12 @@ final class LabPhpGenerationSwitcher
     public function inspect(?string $externalMinVersion = null): array
     {
         $this->assertRoot();
+        $leaseStat = @lstat($this->file('request-lease.lock'));
+        if ($leaseStat === false || is_link($this->file('request-lease.lock'))
+            || !is_file($this->file('request-lease.lock'))
+            || ($leaseStat['size'] ?? 0) !== 25 || ($leaseStat['nlink'] ?? 0) !== 1) {
+            throw new RuntimeException('Missing or unsafe request lease anchor');
+        }
         if (!$this->locked && self::present($this->file('switch-exclusive.lock'))) {
             throw new RuntimeException('Switch lock held or stale; operator investigation required');
         }
@@ -221,7 +300,7 @@ final class LabPhpGenerationSwitcher
             }
         }
         $allow = ['.','..','releases.json','active.json','switch-intent.json',
-                  'active-receipt.json','switch-exclusive.lock'];
+                  'active-receipt.json','switch-exclusive.lock','request-lease.lock'];
         foreach (scandir($this->root) ?: [] as $name) {
             if (!in_array($name, $allow, true)) {
                 throw new RuntimeException('Foreign switch sandbox file');
@@ -315,21 +394,26 @@ final class LabPhpGenerationSwitcher
     private function exclusive(callable $work): mixed
     {
         $this->assertRoot();
-        $lock = $this->file('switch-exclusive.lock');
-        if (!mkdir($lock, 0700)) throw new RuntimeException('Concurrent/stale switch lock');
-        $stat = lstat($lock);
-        if ($stat === false) throw new RuntimeException('Cannot inspect lock');
-        $this->locked = true;
-        try { return $work(); }
-        finally {
-            $this->locked = false;
-            $now = @lstat($lock);
-            if ($now === false || !is_dir($lock) || is_link($lock)
-                || $now['ino'] !== $stat['ino'] || $now['dev'] !== $stat['dev']
-                || count(scandir($lock) ?: []) !== 2) {
-                throw new RuntimeException('Exclusive switch lock modified; manual intervention');
+        $lease = $this->acquireLease(LOCK_EX);
+        try {
+            $lock = $this->file('switch-exclusive.lock');
+            if (!@mkdir($lock, 0700)) throw new RuntimeException('Concurrent/stale switch lock');
+            $stat = lstat($lock);
+            if ($stat === false) throw new RuntimeException('Cannot inspect lock');
+            $this->locked = true;
+            try { return $work(); }
+            finally {
+                $this->locked = false;
+                $now = @lstat($lock);
+                if ($now === false || !is_dir($lock) || is_link($lock)
+                    || $now['ino'] !== $stat['ino'] || $now['dev'] !== $stat['dev']
+                    || count(scandir($lock) ?: []) !== 2) {
+                    throw new RuntimeException('Exclusive switch lock modified; manual intervention');
+                }
+                rmdir($lock);
             }
-            rmdir($lock);
+        } finally {
+            self::releaseLease($lease);
         }
     }
 
