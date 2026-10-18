@@ -55,9 +55,12 @@ final class LabPhpGenerationSwitcher
      * New CI switch roots can opt into a fail-closed signed-only mutation mode.
      * Existing unsealed switch fixtures are deliberately left intact.
      */
-    public static function createSealed(string $operatorPin, string $publisherPin): self
+    public static function createSealed(string $siteId, string $operatorPin, string $publisherPin): self
     {
         self::requireCI();
+        if (!preg_match('/^[a-zA-Z0-9_-]{1,80}$/D', $siteId)) {
+            throw new RuntimeException('Invalid site identity in sealed switcher');
+        }
         foreach ([$operatorPin,$publisherPin] as $pin) {
             if (!preg_match('/^[a-f0-9]{64}$/D', $pin)) {
                 throw new RuntimeException('Sealed release roots require two independent SHA-256 signer pins');
@@ -74,7 +77,7 @@ final class LabPhpGenerationSwitcher
         $lab->writeFresh('releases.json', ['format'=>self::FORMAT,'releases'=>[]]);
         $lab->writeFresh('signed-only.json', [
             'format'=>'ai-site-cms-stage2-signed-switch-v1',
-            'operatorFingerprint'=>$operatorPin,'publisherFingerprint'=>$publisherPin,
+            'siteId'=>$siteId,'operatorFingerprint'=>$operatorPin,'publisherFingerprint'=>$publisherPin,
             'productionReady'=>false
         ]);
         // Independent identity also encoded in the permanent lease anchor:
@@ -123,9 +126,11 @@ final class LabPhpGenerationSwitcher
         $config = $this->json('signed-only.json');
         if ($config !== null) {
             self::exact($config, [
-                'format','operatorFingerprint','publisherFingerprint','productionReady'
+                'format','siteId','operatorFingerprint','publisherFingerprint','productionReady'
             ]);
             if ($config['format'] !== 'ai-site-cms-stage2-signed-switch-v1'
+                || !is_string($config['siteId'])
+                || !preg_match('/^[a-zA-Z0-9_-]{1,80}$/D', $config['siteId'])
                 || $config['productionReady'] !== false
                 || !is_string($config['operatorFingerprint'])
                 || !is_string($config['publisherFingerprint'])
@@ -159,6 +164,7 @@ final class LabPhpGenerationSwitcher
         $this->assertRoot();
         $seal = $this->sealedConfig();
         if ($seal === null
+            || $seal['siteId'] !== $siteId
             || !hash_equals($seal['operatorFingerprint'], $operatorPin)
             || !hash_equals($seal['publisherFingerprint'], $publisherPin)
             || $this->signedWriteGrant !== null) {
@@ -169,6 +175,9 @@ final class LabPhpGenerationSwitcher
             $pendingDir, $operatorPem, $operatorPin, $permitHead,
             $previousReceiptHead, $siteId, $publisherPin
         );
+        if (!hash_equals($approval['switchRootSha256'], hash('sha256', $this->root))) {
+            throw new RuntimeException('Signed operator permit was issued for another isolated generation root');
+        }
         $this->signedWriteGrant = [
             'version'=>$approval['version'],'fromVersion'=>$approval['fromVersion'],
             'sequence'=>$approval['sequence'],'digest'=>$approval['manifestSha256'],
