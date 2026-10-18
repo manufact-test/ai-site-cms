@@ -6,3 +6,5 @@
 /var/
 /node_modules/
 /dist/
+
+/.build/

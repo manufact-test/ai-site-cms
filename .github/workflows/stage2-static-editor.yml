@@ -28,6 +28,27 @@ jobs:
         run: npm run build
       - name: Verify real Chromium browser editor interactions
         run: npm run test:browser
+      - name: Install pinned PHP runtime for internal offline distribution only
+        working-directory: cms
+        run: composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader
+      - name: Assemble safe internal package with private editor assets
+        working-directory: cms
+        run: node tools/build-internal-package.cjs && node tools/test-internal-package.cjs
+      - name: Check packaged document root by HTTP and block private package files
+        working-directory: cms
+        run: |
+          php -S 127.0.0.1:8097 -t .build/internal-stage2-package/public .build/internal-stage2-package/public/index.php >/tmp/ai-site-stage2-package-http.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:8097/api/health >/tmp/stage2-package-health; then break; fi
+            sleep 1
+          done
+          grep -q '"status":"ok"' /tmp/stage2-package-health
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8097/api/publish)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8097/private/editor/editor.js)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8097/vendor/autoload.php)" = 404
+          echo "Stage2 packaged HTTP PASS: health 200, write endpoint and private editor/vendor 404"
       - name: Repeat deterministic clean asset build
         run: |
           test -s dist/editor.js && test -s dist/THIRD_PARTY_LICENSES.txt
@@ -44,5 +65,6 @@ jobs:
             cms/editor/dist/meta.json
             cms/editor/dist/THIRD_PARTY_LICENSES.txt
             cms/editor/dist/editor.js.LEGAL.txt
+            cms/.build/internal-stage2-package/**
           if-no-files-found: error
           retention-days: 7
