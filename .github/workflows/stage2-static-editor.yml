@@ -74,6 +74,11 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends nginx php8.3-fpm php8.3-sqlite3
           node --check tools/test-stage2-fpm-isolation.cjs
           node tools/test-stage2-fpm-isolation.cjs
+      - name: Five-family virtual hosting on one real Nginx listener with isolated CMS FPM, visitor PHP FPM, static exports and independent Node proxy failures
+        working-directory: cms
+        run: |
+          node --check tools/test-stage2-five-family-hosting.cjs
+          node tools/test-stage2-five-family-hosting.cjs
       - name: Independently verify and install full 429-file package with PHP-only temp journal
         working-directory: cms
         env:
