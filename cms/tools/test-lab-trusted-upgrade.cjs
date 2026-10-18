@@ -278,6 +278,7 @@ try{
   // Separate second switch sandbox: the NEW guarded write path requires
   // operator approval signed BEFORE touching code. Never reuses production data.
   const authorizedRoot=success(['new',db],'independent preauthorized sandbox').root;
+  installedLabs.push(authorizedRoot);
   const approvedReceipts=path.join(temp,'approved-receipts');
   const pending=path.join(temp,'approval-pending');
   const archived=path.join(temp,'approval-archived');
