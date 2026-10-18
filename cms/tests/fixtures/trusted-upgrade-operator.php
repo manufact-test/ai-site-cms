@@ -78,7 +78,7 @@ try {
             $failAt==='none'?null:$failAt
         );
         echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
-    } elseif ($action==='approval-review' && $argc===11) {
+    } elseif ($action==='approval-review' && $argc===10) {
         [$root,$pending,$operatorPem,$operatorPin,$permitHead,$previousHead,$publisherPin]
             =array_slice($argv,3);
         $pdo=new PDO('sqlite:'.$dbPath);
@@ -101,7 +101,7 @@ try {
             ]
         );
         echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
-elseif ($action==='attested-serve' && $argc===9) {
+    } elseif ($action==='attested-serve' && $argc===9) {
         [$root,$chain,$pem,$pin,$head,$publisherPin]=array_slice($argv,3);
         $pdo=new PDO('sqlite:'.$dbPath);
         $result=Attested::withVerifiedRequest(
