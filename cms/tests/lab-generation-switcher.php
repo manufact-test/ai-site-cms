@@ -5,6 +5,7 @@ declare(strict_types=1);
 // selection; no real Apache/FPM, OPcache reset, DNS or database access.
 require dirname(__DIR__).'/src/Release/LabPackageStager.php';
 require dirname(__DIR__).'/src/Release/LabPhpGenerationSwitcher.php';
+require dirname(__DIR__).'/src/Storage/SchemaManager.php';
 
 use AiSiteCms\Release\LabPackageStager as Stager;
 use AiSiteCms\Release\LabPhpGenerationSwitcher as Switcher;
@@ -179,6 +180,28 @@ try {
     file_put_contents($pointer,$oldPointer);
     swOk(Switcher::reopen($sw->root())->resolve($v2)['version']===$v2,
         'separate operator process sees verified generation');
+    // Run a real SQLite readiness check inside the same migration lock used by
+    // SchemaManager before committing the generation pointer.
+    $schemaDb = new PDO('sqlite:'.$testRoot.'/generation-schema.sqlite');
+    $siteManager = new \AiSiteCms\Storage\SchemaManager($schemaDb, true);
+    swReject(static fn()=> $sw->switchToWithSchema(
+        $schemaDb,'lab-site',$v1,$v2,5,$v1),
+        'uninstalled DB cannot activate a code rollback');
+    swOk($sw->inspect()['sequence']===5,'failed schema gate leaves pointer untouched');
+    $siteManager->installSite('lab-site');
+    swReject(static fn()=> $sw->switchToWithSchema(
+        $schemaDb,'foreign-site',$v1,$v2,5,$v1),
+        'foreign site binding cannot activate');
+    swOk($sw->switchToWithSchema(
+        $schemaDb,'lab-site',$v1,$v2,5,$v1)['sequence']===6,
+        'verified DB v2 and correct site allow guarded generation switch');
+    swOk(!$schemaDb->inTransaction(),'schema coordination releases SQLite migration fence');
+    $schemaDb->exec("UPDATE cms_schema_migrations SET checksum='bad' WHERE version=1");
+    swReject(static fn()=> $sw->switchToWithSchema(
+        $schemaDb,'lab-site',$v2,$v1,6,$v1),
+        'broken real migration journal blocks code change');
+    swOk($sw->inspect()['current']===$v1,'failed migration policy cannot corrupt active pointer');
+    $schemaDb=null;
     swOk($count >= 50,'coverage includes real CI package when present, pointer failures and tampering');
     echo "Stage2 PHP isolated generation switch/rollback PASS: $count checks, no FPM/DB/site writes\n";
 } finally {
