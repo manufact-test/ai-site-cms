@@ -78,13 +78,13 @@ try {
             $failAt==='none'?null:$failAt
         );
         echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
-    } elseif ($action==='approval-review' && $argc===10) {
-        [$root,$pending,$operatorPem,$operatorPin,$permitHead,$previousHead,$publisherPin]
-            =array_slice($argv,3);
+    } elseif ($action==='approval-review' && $argc===13) {
+        [$root,$receipts,$pending,$operatorPem,$operatorPin,$permitHead,$previousHead,
+            $bundle,$publisherPem,$publisherPin]=array_slice($argv,3);
         $pdo=new PDO('sqlite:'.$dbPath);
         $result=Approval::reviewInterrupted(
-            $pdo,$site,Switcher::reopen($root),$pending,$operatorPem,$operatorPin,
-            $permitHead,$previousHead==='none'?null:$previousHead,$publisherPin
+            $pdo,$site,Switcher::reopen($root),$receipts,$pending,$operatorPem,$operatorPin,
+            $permitHead,$previousHead==='none'?null:$previousHead,$bundle,$publisherPem,$publisherPin
         );
         echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
     } elseif ($action==='approval-serve' && $argc===10) {
