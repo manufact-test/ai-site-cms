@@ -4,7 +4,9 @@
  */
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const {chromium}=require('playwright');
+const {chromium}=require('playwright-core');
+const chrome=['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium'].find(fs.existsSync);
+assert.ok(chrome,'system Chromium required');
 const original=fs.readFileSync(path.join(__dirname,'fixtures/cedar-lab-standalone.html'),'utf8');
 const csp="default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; media-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'";
 const secured=original.replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="'+csp+'">');
@@ -33,7 +35,7 @@ function snapshot(){
  };
 }
 (async()=>{
- const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+ const browser=await chromium.launch({headless:true,executablePath:chrome,args:['--no-sandbox']});
  try{
   const ctx=await browser.newContext({viewport:{width:1280,height:800},reducedMotion:'no-preference'});
   let requests=0;await ctx.route('**/*',route=>{requests++;route.abort();});
