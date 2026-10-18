@@ -118,8 +118,8 @@ async function main(){
       const empty=schema(cms,data,'sandbox-'+name);
       check(empty.status===3 && JSON.parse(empty.stdout).state==='uninitialized',
         'read-only schema preflight returns exit 3 for uninitialized empty CMS '+name);
-      // SQLite connection may create a zero-byte file during read-only inspection,
-      // so only the subsequent explicit installer is allowed to create CMS tables.
+      check(!fs.existsSync(data),
+        'read-only SQLite schema preflight does not create even an empty database '+name);
       check(install(cms,data,'sandbox-'+name).status===0,'explicit shipped CLI initializes empty CMS '+name);
       const ready=success(schema(cms,data,'sandbox-'+name),'schema inspected after install '+name);
       check(ready.state==='ready','separately journaled empty CMS schema ready '+name);

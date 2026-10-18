@@ -22,6 +22,24 @@ if ($isSqlite && (getenv('CMS_ENV') !== 'test' || getenv('CMS_ALLOW_SQLITE_TEST_
     fwrite(STDERR, "SQLite preflight is restricted to explicit test mode\n");
     exit(2);
 }
+// SQLite test-mode preflight must not create a missing database merely by
+// opening a PDO connection. Report "uninitialized" without ANY filesystem
+// mutation. This does not authorize installation or verify the target host.
+if ($isSqlite) {
+    $databaseFile = substr($dsn, 7);
+    $parent = dirname($databaseFile);
+    if (!str_starts_with($databaseFile, '/') || str_contains($databaseFile, "\0")
+        || str_contains($databaseFile, '?') || str_contains($databaseFile, '#')
+        || str_contains($databaseFile, '\\') || realpath($parent) !== $parent
+        || is_link($databaseFile)) {
+        fwrite(STDERR, "Read-only schema preflight refused: invalid SQLite test path\n");
+        exit(2);
+    }
+    if (!file_exists($databaseFile)) {
+        echo '{"state":"uninitialized","reason":"no_cms_tables","version":null}', "\n";
+        exit(3);
+    }
+}
 try {
     $pdo = new PDO($dsn, getenv('CMS_DB_USER') ?: null, getenv('CMS_DB_PASSWORD') ?: null);
     $snapshot = (new SchemaManager($pdo, $isSqlite))->inspectSite($siteId);
