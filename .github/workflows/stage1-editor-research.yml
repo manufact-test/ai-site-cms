@@ -112,3 +112,7 @@ jobs:
         run: node capability-provenance-threat.cjs
       - name: Full heterogeneous AI-regeneration view parity across HTML, PHP, React and real Next static export
         run: php -v && node heterogeneous-regeneration-parity.cjs
+      - name: Novel standalone site source versus reviewer oracle and manifest omissions
+        run: node novel-source-contract-audit.cjs
+      - name: PHP persistent signed capability trust, restart, revocation and local rollback threat cases
+        run: php -v && php -m | grep -i sodium && node persistent-capability-trust-test.cjs
