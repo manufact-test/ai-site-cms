@@ -1,8 +1,8 @@
 # AI Site CMS — постоянный файл передачи между чатами
 
-> **ТЕКУЩАЯ КОНТРОЛЬНАЯ ТОЧКА v1.39 (18.10.2026): см. §44 в самом конце.** Этапы **0/1 ПРИНЯТЫ**; **этап 2 выполняется / НЕ ПРИНЯТ**, этап 3 не начат. Стек **Slim4+Opis2.6+Jedison1.27.1**. В `main` появился **единый лабораторный signed Ed25519 ZIP → безопасная распаковка → PHP проверка файлов → DB foundation checkpoint → CAS переключатель версий**, а также отдельные PHP HTTP / SIGKILL / SQLite / MySQL испытания. CI: [PHP 7/7 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39149669381), [полная сборка 1/1 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39149669508). Только disposable CI; НЕ production, НЕ реальный Hostinger, НЕ готовая админка. **0/135 обязательных продуктовых требований принято.** Все разделы до §44 — исторический журнал, если противоречат §44 — §44 главнее.
+> **ТЕКУЩАЯ КОНТРОЛЬНАЯ ТОЧКА v1.40 (18.10.2026): см. §45 в самом конце.** Этапы 0/1 ПРИНЯТЫ; Stage2 В РАБОТЕ / НЕ ПРИНЯТ, Stage3 НЕ НАЧАТ. После §44 появился CI-only независимый подписанный оператором журнал активаций и защищённый read gate: 7/7 PHP, 1/1 editor SUCCESS. Старые прямые lab APIs по-прежнему доступны, это НЕ production non-bypassable installer, 0/135 требований принято. Все предыдущие разделы исторические; §45 главнее.
 
-**Контрольная точка:** v1.39 · **дата:** 18.10.2026  
+**Контрольная точка:** v1.40 · **дата:** 18.10.2026  
 **Единственный постоянный путь:** `docs/NEXT-CHAT.md`  
 **Постоянная ссылка:** https://github.com/manufact-test/ai-site-cms/blob/main/docs/NEXT-CHAT.md  
 **Проект:** AI Site CMS, без MFT/MANUFACT в названии.  
@@ -13,22 +13,17 @@
 
 ## 1. Готовое первое сообщение нового чата
 
-> Привет! Продолжаем самостоятельную разработку **AI Site CMS** с контрольной точки **v1.39 от 18.10.2026**.
-> 
-> **GitHub:** https://github.com/manufact-test/ai-site-cms (private, `main`).
-> **Сначала изучи прямо в GitHub** `docs/NEXT-CHAT.md` **§44 — последнюю актуальную секцию**, `PROJECT-STATUS.json`, `docs/STAGE-2-UNIFIED-TRUSTED-UPGRADE.md`, `docs/ADR/0007-stage2-unified-trusted-upgrade-lab.md`, `docs/MASTER-TZ.md`, `docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, затем фактический `cms/` и свежие GitHub Actions. Старые разделы документов — исторический журнал.
-> 
-> **Исходный код на момент проверки:** `6ca20882232d262a2fe37b909918a7ac68d7f287`; PHP CI [#39149669381 7/7 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39149669381), редактор + полная сборка [#39149669508 1/1 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39149669508). После тестов добавлены только документальные коммиты; сверь текущий HEAD.
-> 
-> Статусы: **Stage0/Stage1 приняты; Stage2 IN PROGRESS, NOT ACCEPTED; Stage3 NOT STARTED; продуктовых обязательных требований принято 0/135** (всего 193: 135 обязательных, 42 желательных, 16 не нужны). Никакого сокращённого MVP. Выбран Slim4 + Opis2.6 + Jedison1.27.1, RJSF резерв, технические решения делегированы ассистенту.
-> 
-> Уже реализованы и успешно проверены **только в изолированной CI-среде**: PHP readonly health, SQLite/MySQL schema manager, самостоятельный Jedison browser build и 429-file internal package, подпись Ed25519 тестовым временным ключом, безопасная распаковка ZIP, PHP verifier, PHP-only temp stager, generation switcher с CAS, межпроцессными PHP блокировками, аварийным восстановлением и настоящим loopback HTTP, DB foundation snapshot/checkpoint и его проверкой при восстановлении. **Последний крупный блок:** `cms/src/Release/LabTrustedUpgradeCoordinator.php` объединяет подписанный архив → PHP проверку полного состава → заранее утверждённый отпечаток служебной SQLite/MySQL базы → отдельную установку → CAS переключение. Негативные тесты: подмена ключа, ZIP, редактора, поколения, DB snapshot, replay/downgrade.
-> 
-> **Важная незавершённость:** это пока предпочтительный **лабораторный** путь, а не обязательный production-путь. Старые прямые `LabPhpGenerationSwitcher::switchTo` / `switchToWithSchema` всё ещё существуют в CI-тестах и обходят подписанный+DB coordinator. Не утверждать, что production upgrade невозможно обойти. БД fingerprint охватывает ТОЛЬКО служебную foundation, НЕ содержимое страниц, медиа, ревизии или полное восстановление. Реальный PHP-FPM/OPcache, MySQL DDL/data rollback, cold power loss/directory fsync, Hostinger и реальные издательские ключи не проверены. Никаких настоящих сайтов, админки/auth/publish пока нет.
-> 
-> **Продолжай самостоятельно Stage2**, следующий логичный крупный блок: проектирование обязательного non-bypassable production-oriented release gate и независимого хранения подписанных receipts/антиоткатных и DB checkpoint доказательств (сначала только в disposable lab), плюс опасные сценарии с повреждением состояния обновления и корректное восстановление. Тестировать на GitHub Actions, по возможности большим куском, не тормозить согласованиями мелких технических деталей.
-> 
-> **Запреты:** не трогать Hostinger даже read-only без нового явного разрешения владельца; никакого настоящего деплоя, изменений CELIKOM/клиентских сайтов; не merge `research/stage1-editor-comparison`. Документацию не переписывать после каждого маленького шага — только когда владелец просит, на передаче чата или после действительно большого завершённого блока. Весь актуальный handoff хранить в одном `docs/NEXT-CHAT.md`.
+> Привет! Продолжаем **AI Site CMS v1.40 (18.10.2026)**, GitHub https://github.com/manufact-test/ai-site-cms (private, `main`). **Сначала прочитай `docs/NEXT-CHAT.md` §45 (самый новый раздел), `PROJECT-STATUS.json`, `docs/STAGE-2-ATTESTED-ACTIVATION-CHAIN.md`, `docs/ADR/0008-stage2-independent-operator-activation-receipts.md`, затем ADR0007, `docs/STAGE-2-UNIFIED-TRUSTED-UPGRADE.md`, MASTER-TZ, ROADMAP и текущий `cms/`**. Исторические разделы не считаются актуальным статусом.
+>
+> Stage0 и Stage1 ПРИНЯТЫ; **Stage2 выполняется, НЕ ПРИНЯТ**, Stage3 НЕ НАЧАТ; 18 этапов 0–17. Стек Slim4 + Opis2.6 + Jedison1.27.1, RJSF резерв. **0/135 обязательных продуктовых требований принято**, 193 = 135 обязательных + 42 желательных + 16 не нужны, NO MVP.
+>
+> **Кодовая точка:** `0a9ed93201f32fa4746d2ccac1d69785e0491fcb`; GitHub Actions [PHP 8.1–8.4/SQLite/MySQL 8.4 — 7/7 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39151122738), [editor/full compiled release — 1/1 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39151122684). После этих проверок были только docs/status commits.
+>
+> Ранее: Ed25519 подписанный ZIP → Python safe extraction → PHP full inventory → foundation DB checkpoint → immutable staging → CAS generation switch с PHP lease и SQLite/MySQL fence, всё disposable CI-only. **Новое v1.40:** `cms/src/Release/LabAttestedActivationGate.php` проверяет отдельно подписанные оператором Ed25519 post-activation receipts в отдельном каталоге и out-of-band ключи оператора, ключ издателя и SHA-256 головы цепочки. Цепочка последовательных hash-linked receipt проверяет код, номер переключения, предыдущую версию, монотонный floor и DB foundation checkpoint. Даже прямой raw lab rollback обнаруживается защищённым read gate. Есть сценарии валидно подписанных, но семантически недопустимых receipt.
+>
+> **НЕ УТВЕРЖДАТЬ production:** это не обязательный непроходимый в обход installer или маршрутизатор. Старые raw lab методы и необёрнутые читатели всё ещё доступны для исследований; новый guard защищает только вызовы через него. Отсутствуют долговременные publisher/operator private-key custody, физически защищённый внешний watermark, PHP-FPM/OPcache/shared-host и cold power-loss тесты, full site/media/content backup и data rollback; foundation DB fingerprint не охватывает пользовательский контент.
+>
+> **Продолжай Stage2 самостоятельно**: следующий большой блок — формальный обязательный будущий entrypoint с preactivation signed authorization, двухфазным crash fail-closed handoff и anti-replay/watermark, затем ещё adversarial tests. Не переходить в Stage3 без явной приёмки. Hostinger НЕ трогать даже read-only без отдельного явного разрешения владельца, CELIKOM/клиентские проекты не трогать, `research/stage1-editor-comparison` не merge. Документы обновлять только после очень большого блока или по просьбе. Canonical handoff — этот же файл.
 
 ## 2. Что такое AI Site CMS
 
@@ -925,3 +920,38 @@
 
 **Запреты:** не трогать Hostinger даже read-only без нового явного разрешения владельца; никакого настоящего деплоя, изменений CELIKOM/клиентских сайтов; не merge `research/stage1-editor-comparison`. Документацию не переписывать после каждого маленького шага — только когда владелец просит, на передаче чата или после действительно большого завершённого блока. Весь актуальный handoff хранить в одном `docs/NEXT-CHAT.md`.
 
+
+## 45. Отдельная Ed25519 цепочка операторских подтверждений + отказ при обходе переключателя — v1.40 (18.10.2026) — **ТЕКУЩАЯ ТОЧКА**
+
+**Статус:** Stage0+1 приняты, **Stage2 в работе/НЕ ПРИНЯТ**, Stage3 не начат. 135 required / 42 desirable / 16 not needed = 193; **0/135 обязательных требований принято**, первого MVP нет. Slim4 / Opis2.6 / Jedison1.27.1.
+
+### Проделано непосредственно в `main`
+
+- Новый `cms/src/Release/LabAttestedActivationGate.php` — самостоятельный **CI-only guarded-read** для подтверждений от *отдельного* оператора, подписанных Ed25519 ПОСЛЕ переключения кода. PHP никогда не получает приватный ключ подписания. Содержимое receipt: siteId, возрастающий generation sequence, priorVersion → newVersion, минимум допустимой версии, независимый pinned publisher fingerprint, SHA-256 manifest/ZIP, точный независимый отпечаток **только служебной foundation DB**, hash предыдущего receipt.
+- Каталог signed receipt физически отдельно от lab switch root, а главное — вызывающая сторона обязана независимо удерживать SHA-256 **актуальной головы цепочки**, fingerprint operator public key и fingerprint publisher public key. Все записи подписи проверяются, gap/foreign files, downgrade, replay, неверные key pins, повреждение данных, валидно подписанное, но ложное содержимое — deny. При попытке подменить целиком старый локальный журнал independent head не совпадёт (при условии, что этот head надёжно хранится отдельно).
+- `withVerifiedRequest` повторно сверяет цепочку внутри существующего shared request lease + DB checkpoint fence и проверяет фактические generation CAS sequence, version, previous, installed manifest SHA. При отсутствующем post-activation receipt защищённый reader не обслуживает ничего: промежуток между switch и операторским подписанием — **fail closed**, автоматического rollback нет.
+- `cms/tests/fixtures/trusted-upgrade-operator.php` добавлены `attested-serve` и `raw-rollback`; `cms/tools/test-lab-trusted-upgrade.cjs` выпускает отдельные ephemeral *operator* Ed25519 keys, подписывает два receipt после настоящих интегрированных signed ZIP upgrades и проверяет осмысленно неверные, но валидно подписанные records. В конце старый `switchTo` реально возвращает поколение назад без coordinator; **новый read gate его детектирует и запрещает read**.
+- Решение и технические границы: [Stage2 attested activation report](STAGE-2-ATTESTED-ACTIVATION-CHAIN.md), [ADR 0008](ADR/0008-stage2-independent-operator-activation-receipts.md). Исторический integrated ZIP+DB stage: [ADR0007](ADR/0007-stage2-unified-trusted-upgrade-lab.md).
+
+### Проверено CI
+
+**Исходный код:** `0a9ed93201f32fa4746d2ccac1d69785e0491fcb`.
+
+- [GitHub Actions Stage2 PHP+SQLite+real ephemeral MySQL8.4 — **7/7 SUCCESS**, run 39151122738](https://github.com/manufact-test/ai-site-cms/actions/runs/39151122738).
+- [GitHub Actions Stage2 editor full compiled archive — **1/1 SUCCESS**, run 39151122684](https://github.com/manufact-test/ai-site-cms/actions/runs/39151122684).
+
+В этих двух CI запусках проверен новый функционал; после них есть только документальные/статусные коммиты, не изменяющие `cms/`.
+
+### Критически не готово
+
+Это **только лабораторная модель принудительного чтения через отдельный gate**, не настоящий защищённый/единственный production entrypoint. Старые низкоуровневые `switchTo`, `switchToWithSchema` и прежний `serve` намеренно существуют и МОГУТ обходить gate, если их напрямую вызвать. Мы не удаляли их, чтобы не сломать CI-исследование. Не существует production-bootstrap/router, куда gate обязательно встроен. Локальный файловый каталог не защищён от привилегированного противника; out-of-band head/pins должны удерживаться вне контроля обновляющего кода. Отсутствует preactivation операторский signed approval, настоящий двухфазный durable receipt handoff, real power cut/fsync, PHP-FPM/Apache/OPcache, Hostinger и полное восстановление данных страниц/медиа/ревизий. Никакого реального деплоя, админки, пользователей/аутентификации или публикации.
+
+### Следующий большой блок Stage2
+
+Спроектировать и испытать **единую строго обязательную future production-oriented авторизацию обновления ДО switch** (с отдельными ключами operator/publisher, nonce, expected generation CAS/head и approved DB snapshot), guarded activation и recovery после SIGKILL между switch и receipt. Убрать возможность нового production web bootstrap вызвать lower-level raw методы напрямую; при восстановлении подписи и внешнего highwater обязательны. Затем независимая процедура host preflight (только после явного разрешения) и поэтапная работа над настоящим backup/restore, когда будут данные. **Stage2 НЕ ПРИНИМАТЬ**, 135 обязательных требований не менять.
+
+**Ограничения и правила:** Hostinger даже read-only без явного разрешения запрещён; CELIKOM/клиентские сайты не трогать; research branch не сливать. Документы не обновлять на каждом маленьком шаге; текущая точка на §45.
+
+### ГОТОВОЕ ПЕРВОЕ СООБЩЕНИЕ ДЛЯ СЛЕДУЮЩЕГО ЧАТА
+
+Привет! Продолжаем самостоятельную разработку **AI Site CMS v1.40 (18.10.2026)**. Приватный репозиторий: https://github.com/manufact-test/ai-site-cms, `main`. **Сначала изучи непосредственно в GitHub `docs/NEXT-CHAT.md` §45**, затем `PROJECT-STATUS.json`, `docs/STAGE-2-ATTESTED-ACTIVATION-CHAIN.md`, ADR0008, ADR0007, Master ТЗ, Roadmap, реальный код `cms/`. В main кодовая точка `0a9ed93201f32fa4746d2ccac1d69785e0491fcb` подтверждена GitHub Actions [PHP matrix + SQLite/MySQL8.4 7/7 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39151122738) и [full editor 1/1 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39151122684). После code SHA — только документальные коммиты. Stage0+1 ПРИНЯТЫ, **Stage2 IN PROGRESS, NOT ACCEPTED**, Stage3 NOT STARTED, продуктово **0/135 required**. Стек Slim4/Opis2.6/Jedison1.27.1. Уже реализовано в disposable CI-only lab: Ed25519 signed ZIP + safe extraction + PHP full-inventory stager + DB foundation fingerprint + CAS switch with request leases; новое v1.40 — отдельный operator Ed25519 signed post-activation hash-chain receipt и pinned read gate, запрещающий старый raw switch rollback при защищённом чтении. Не production-enforced: raw APIs остаются, полноценный trust custody, preactivation approval, atomic code/data backup, shared-host FPM/OPcache, реальный хост и power cut не проверены. **Продолжай Stage2**, следующий большой блок — обязательный future production-oriented preauthorization/write entrypoint с independent signed approvals и crash-consistent handoff. Никаких Hostinger даже read-only без отдельного согласия, никакого CELIKOM/клиентских сайтов, не merge research ветку. Нет MVP до всех 135/135. Документы не обновлять после каждого мелкого куска.
