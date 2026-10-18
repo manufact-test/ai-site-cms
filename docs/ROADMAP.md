@@ -241,3 +241,8 @@ AI Site CMS — независимый редактор **готовых сай�
 Папка ChatGPT-проекта и папки репозитория GitHub — **не одно и то же**. В новом ChatGPT-проекте укажите этот репозиторий и попросите сначала прочесть файлы. Ни один чат сам по себе не меняет GitHub без подтверждённых записей.
 
 **Принято 17.10.2026:** пользователь утвердил план **0–17** и уточнил этап 17 как самостоятельный безопасный пилот на CELIKOM без объединения проектов. **Следующее действие — этап 1**, провести доказательное сравнение готовых open-source основ; пока не начинали. **Единый постоянный файл перехода между чатами:** `docs/NEXT-CHAT.md`. В новой папке/чате начать с него и `PROJECT-STATUS.json`.
+
+
+### Stage 1 checkpoint note — v1.29 (18.10.2026; approved scope unchanged)
+
+The Stage 1 **acceptance remains** research shortlist + evidence-based recommended foundation / fallback / reusable libraries and **owner agreement** (see original Stage 1 description above), NOT completed implementation of later contract, CMS core, security and deployment stages. Research trials now include original HTML + reviewed owner overrides persisted by separate PHP CLI processes and read in real Chromium [full 4/4 PASS #39122533764](https://github.com/manufact-test/ai-site-cms/actions/runs/39122533764). **Stage1 NOT accepted, Stage2 not started, no stack selected.** Separate [Stage1 exit checklist and subjective 80–85% estimate](STAGE-1-EXIT-CHECKLIST.md). All original requirements, priorities, stage boundaries and release policy unchanged.
