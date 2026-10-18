@@ -47,7 +47,7 @@ try {
         echo json_encode(['root'=>Switcher::create()->root()],JSON_THROW_ON_ERROR),"\n";
     } elseif ($action==='new-sealed' && $argc===5) {
         echo json_encode([
-            'root'=>Switcher::createSealed($argv[3],$argv[4])->root()
+            'root'=>Switcher::createSealed($site,$argv[3],$argv[4])->root()
         ],JSON_THROW_ON_ERROR),"\n";
     } elseif ($action==='raw-register' && $argc===7) {
         $result=Switcher::reopen($argv[3])->register($argv[4],$argv[5],$argv[6]);
