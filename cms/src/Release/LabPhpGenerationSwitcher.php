@@ -24,9 +24,11 @@ final class LabPhpGenerationSwitcher
         $this->assertRoot();
     }
 
-    private static function requireCI(): void
+    private static function requireCI(bool $readOnly = false): void
     {
-        if (PHP_SAPI !== 'cli' || getenv('CI') !== 'true'
+        $readOnlyHttp = $readOnly && PHP_SAPI === 'cli-server'
+            && getenv('CMS_PHP_LAB_HTTP_ONLY') === '1';
+        if (!(PHP_SAPI === 'cli' || $readOnlyHttp) || getenv('CI') !== 'true'
             || getenv('CMS_ALLOW_PHP_INSTALL_LAB') !== '1') {
             throw new RuntimeException('Version switching only in disposable CLI CI lab');
         }
@@ -56,7 +58,7 @@ final class LabPhpGenerationSwitcher
 
     private function assertRoot(): void
     {
-        self::requireCI();
+        self::requireCI(true);
         $temp = realpath(sys_get_temp_dir());
         if ($temp === false || dirname($this->root) !== $temp
             || !preg_match('/^'.preg_quote(self::PREFIX, '/').'[0-9a-f]{32}$/D', basename($this->root))
@@ -393,6 +395,7 @@ final class LabPhpGenerationSwitcher
     /** @return mixed */
     private function exclusive(callable $work): mixed
     {
+        self::requireCI(); // Never allow HTTP-driven registration, recovery or activation.
         $this->assertRoot();
         $lease = $this->acquireLease(LOCK_EX);
         try {
