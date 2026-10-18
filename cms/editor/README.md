@@ -2,11 +2,15 @@
 
 This is **NOT the production editor**, NOT an editable CMS and NOT a client-facing admin route. It bundles the **real upstream Jedison 1.27.1** into a browser-only IIFE, and runs native Chromium interaction against a **hardcoded trusted** schema and data. `cms/public/` does not serve it; no public website JS imports it.
 
+**Verified 18.10.2026:** [Editor Actions #39129269825 — 1/1 PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39129269825). The committed npm lock pins 29 package records; browser smoke proves native upstream interaction; upstream Jedison MIT notice is bundled in `dist/THIRD_PARTY_LICENSES.txt`. This is **still not a live CMS admin**.
+
 ## Build/test (Node 22 on developer/CI only)
 
 ```bash
 cd cms/editor
 npm ci
+npm run verify:deps
+npm audit --audit-level=high
 npm run build
 npm run test:browser
 ```

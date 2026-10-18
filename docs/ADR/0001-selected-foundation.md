@@ -26,3 +26,8 @@ Slim MIT, Jedison MIT, Opis Apache-2.0; RJSF Apache-2.0 if fallback; each actual
 - Independent second-model AI-generated source + separate manifest proof: **NO**.
 - Stage1 research: **accepted as closed research recommendation** after delegated decision; Stage2: **in progress, not accepted**.
 - 193 requirements (135 mandatory, 42 desired, 16 excluded), no MVP, 0/135 product accepted.
+
+
+## Implementation note v1.33 — tested actual Jedison dependency and isolated browser build
+
+The Stage2 selected editor direction now has actual isolated source `cms/editor/`, pinned npm dependencies and Chromium tests via [#39129269825](https://github.com/manufact-test/ai-site-cms/actions/runs/39129269825). This confirms upstream Jedison fields working on a built-in closed object fixture, a byte-identical static browser build, and no Node hosting requirement. This **does not** fulfill production-level AI schema, authenticated admin, iframe preview, published data or arbitrary site support. See [report](../STAGE-2-EDITOR-BUILD.md).
