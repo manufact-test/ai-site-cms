@@ -58,6 +58,9 @@ jobs:
       - name: Full 5-family CMS operator plan/apply/recovery, concurrent install and independent live HTTP integration
         working-directory: cms
         run: node tools/test-stage2-full-empty-installer.cjs
+      - name: Fleet-wide explicit PLAN/APPLY with real isolated site packages, SQLite recovery, HTTP and cross-site failure isolation
+        working-directory: cms
+        run: node tools/test-stage2-fleet-operator.cjs
       - name: Independently verify and install full 429-file package with PHP-only temp journal
         working-directory: cms
         env:
