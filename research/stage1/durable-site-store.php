@@ -139,13 +139,30 @@ function compareForCommit(object $old,object $candidate,mixed $aliases): void {
          isset($nextComponents[$src])||isset($targets[$dst]))deny('unreviewed-or-ambiguous-alias');
       $targets[$dst]=true;
     }
-    foreach(get_object_vars($old->saved) as $path=>$value){
-      [$src,$field]=explode('/',$path,2);
-      $target=property_exists($aliases,$src)?$aliases->$src:$src;
-      $newPath=$target.'/'.$field;
-      if(!property_exists($candidate->saved,$newPath))deny('owner-override-lost-'.$path);
-      // A reviewed stable ID rename must preserve the original owner value.
-      if($target!==$src&&!same($candidate->saved->$newPath,$value))deny('renamed-owner-edits-mutated');
+    // Rollback is a separate, explicit transaction: the appended publication
+    // must reference one ORIGINAL immutable history entry verbatim. Only then
+    // may it intentionally restore former IDs and former owner overrides.
+    $rollback=false;
+    if(count($nextHistory)===count($previousHistory)+1&&is_int($candidate->published->sourceRevision)){
+      $sourceRevision=$candidate->published->sourceRevision;
+      $source=$previousHistory[$sourceRevision-1]??null;
+      if($source===null||!same($candidate->published->manifest,$source->manifest)||
+         !same($candidate->published->overrides,$source->overrides)||
+         !same($candidate->published->shape,$source->shape)||
+         !same($candidate->manifest,$source->manifest)||
+         !same($candidate->saved,$source->overrides)||!same($candidate->draft,$source->overrides)||
+         $candidate->draftSaved!==true)deny('rollback-is-not-identical-to-signed-history');
+      $rollback=true;
+    }
+    if(!$rollback){
+      foreach(get_object_vars($old->saved) as $path=>$value){
+        [$src,$field]=explode('/',$path,2);
+        $target=property_exists($aliases,$src)?$aliases->$src:$src;
+        $newPath=$target.'/'.$field;
+        if(!property_exists($candidate->saved,$newPath))deny('owner-override-lost-'.$path);
+        // A reviewed stable ID rename must preserve the original owner value.
+        if($target!==$src&&!same($candidate->saved->$newPath,$value))deny('renamed-owner-edits-mutated');
+      }
     }
 }
 function handle(array $args): array {
