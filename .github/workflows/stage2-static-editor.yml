@@ -1,0 +1,45 @@
+name: Stage 2 static Jedison editor (internal CI only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cms/editor/**'
+      - '.github/workflows/stage2-static-editor.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  editor-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: cms/editor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate initial npm dependency lock (to be committed after exact review)
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install pinned upstream Jedison, esbuild and Chromium driver
+        run: npm ci --no-audit --no-fund
+      - name: Build real self-contained static bundle
+        run: npm run build
+      - name: Verify real Chromium browser editor interactions
+        run: npm run test:browser
+      - name: Print resolver lock for audit and later commit (temporary)
+        run: |
+          test -s package-lock.json
+          printf 'CMS_NPM_LOCK_BEGIN\n'
+          base64 package-lock.json | sed 's/^/CMS_NPM_LOCK:/'
+          printf 'CMS_NPM_LOCK_END\n'
+      - name: Internal-only static JS build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage2-jedison-static-ci-only
+          path: |
+            cms/editor/dist/editor.js
+            cms/editor/dist/meta.json
+          if-no-files-found: error
+          retention-days: 7
