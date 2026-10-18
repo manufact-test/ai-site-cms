@@ -1,0 +1,40 @@
+# ADR 0002 — PHP runtime, storage boundaries, lifecycle and data ownership
+
+**18.10.2026 · APPROVED ARCHITECTURAL DIRECTION, hosting compatibility still unverified.**
+
+## Runtime split
+
+```text
+AI creator -> original site source + complete manifest + reviewable generated defaults
+                                      |
+                            CMS-owned typed adapter boundary
+                                      |
+       per-site PHP shared-host CMS instance (Slim API + Opis validation)
+        |             |            |                |
+   authenticated     drafts      revisions        media & audit
+   admins and ACL       |            |                |
+        +----> validated explicit publication transaction ----> immutable/safe public snapshot
+                                      |
+                       independent public site runtime
+   HTML/CSS/JS | PHP | React static export | Next static export
+```
+
+The public site never downloads admin bundles or requires live CMS services. Next.js SSR and app server functions require their **own host runtime**; PHP-only hosting does NOT satisfy it. Node is only for asset compiling in this CMS architecture.
+
+## Hosting baseline
+
+Primary intended deployment: PHP >=8.1 (provisional compatibility floor), HTTPS, PHP JSON, PDO MySQL/MariaDB driver, adequate file permissions and web root pointed to `cms/public`. Select **PDO MySQL/MariaDB as primary for state**, with **PDO SQLite as an optional local test adapter**; do not claim equivalent transaction/failure semantics. This is a **choice subject to read-only verification on existing Hostinger**; if not supported, reconsider the implementation *within the current tariff* before requiring an upgrade. Composer runs only in developer/CI, distributable will include vendor + built JS; Node and Composer on production host not assumed.
+
+## Data contracts (planned, not implemented)
+
+- Separate site identity and own credentials/DB tables/files/migration state; one CMS per site, no global shared data/control keys.
+- Schema/manifest/revision IDs are stable and signed or otherwise authenticated according to the later security design. Never rely on SHA256 hashes as attacker-authentication proof.
+- Draft and published revisions are distinct; `Save` is never `Publish`. Store owner overrides separately from regenerated defaults; detect ID/type conflicts before publication.
+- Publish via DB transactional pointer to a validated durable generation; blob/media staging and fsync/retention/atomic filesystem behavior require explicit research and fault tests. `last-good` in research v1.29 can lose last published state; no production silent rollback to stale version.
+- Backup + restore + cross-process/multiadmin consistency must be verified on the supported DB/filesystem and failure scenarios; no automatic trust in PHP CLI lab results.
+- No real secret values in source repo; `public` webroot must not expose source, DB, vendor, private uploads, revisions or keys.
+- Auth/session/CSRF/rate limits/security headers/audit and privilege boundaries are mandatory before introducing real writable admin endpoints. If auth is not implemented, no edit/publish APIs are registered.
+
+## Migration and safety rules
+
+Versioned forward-only schema migrations and validated rollback, DB migrations before feature enable, independent release package updates preserving site data, mandatory restore test before changes. Installer/upgrader and hosting smoke remain Stage2 exit work. No customer sites, CELIKOM or Hostinger access authorized by this ADR.

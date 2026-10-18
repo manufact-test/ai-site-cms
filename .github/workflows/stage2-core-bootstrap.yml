@@ -1,0 +1,45 @@
+name: Stage 2 PHP kernel bootstrap (internal)
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'cms/**'
+      - '.github/workflows/stage2-core-bootstrap.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  php-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: cms
+    steps:
+      - uses: actions/checkout@v4
+      - name: Runtime versions
+        run: php -v && composer --version
+      - name: Validate Composer manifest
+        run: composer validate --no-check-publish
+      - name: Install dependencies on CI only
+        run: composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
+      - name: PHP syntax
+        run: php -l src/HttpKernel.php && php -l public/index.php && php -l tests/smoke.php
+      - name: No admin and write routes registered
+        run: composer test
+      - name: Serve over HTTP using temporary PHP built-in server
+        run: |
+          php -S 127.0.0.1:8086 -t public public/index.php >/tmp/ai-site-cms-stage2-php.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl --silent --fail http://127.0.0.1:8086/api/health > /tmp/ai-site-cms-health.json; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" -eq 1
+          grep -q '"status":"ok"' /tmp/ai-site-cms-health.json
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' -X POST http://127.0.0.1:8086/api/publish)
+          test "$status" = 404
+          echo "Stage2 PHP HTTP kernel: health 200, unimplemented write route 404"
