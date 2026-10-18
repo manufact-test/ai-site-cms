@@ -80,3 +80,17 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Independently validate AI regeneration, owner overrides, explicit publish and rollback
         run: node versioned-site-reconciliation-browser.cjs
+
+  durability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    defaults:
+      run:
+        working-directory: research/stage1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Independent PHP CLI persistent state, restart, corruption, CAS and recovery
+        run: php -v && node durable-site-recovery.cjs
