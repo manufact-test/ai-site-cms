@@ -231,3 +231,10 @@ GitHub Actions [#39111755170](https://github.com/manufact-test/ai-site-cms/actio
 [Actions #39115456497](https://github.com/manufact-test/ai-site-cms/actions/runs/39115456497) all **4/4 jobs PASS**. Two additional targeted research strands: complete **known reviewed** 4→5 heterogeneous typed-component view across HTML/PHP CLI/React static/Next static (7 semantic comparisons; 675 assertions, 10 detected markup mutants, 11 PHP invalid refusals; six retained owner overrides, explicit rollback); and signed vs reviewed capability provenance (38 assertions, 30 denials; eight pinned targets, two SVG hashes, test-only Ed25519 keys, no arbitrary code privilege). [Report](STAGE-1-MIXED-SITE-PROVENANCE-RESEARCH.md).
 
 **DO NOT upgrade product acceptance/evidence classifications:** no independently blinded AI-generated source/manifest, no arbitrary-original-site fidelity, no Hostinger, no trusted production plugin distribution, no production admin/auth or full release. Existing 135 rows and the count **43 limited research/document signals, 92 missing matching target proof; product 0/135** remain unchanged.
+
+
+## v1.25 scoped research-only evidence (18.10.2026)
+
+[Actions #39117432469 full 4/4 jobs PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39117432469). A distinct **researcher-authored, not blinded second-model** standalone site probed against a separate manual oracle: 46 source obligations, 12 declared, 34 missing, 18 unsupported, 8 missing versus external ledger, 12 injected errors detected. Persistent extension trust: PHP CLI Ed25519 + independently reviewed static target allowlist + HMAC local state, 74 checks/20 denials, 36 distinct PHP processes, 4 competing writers/1 accepted, persistent revocation, two owner edits retained. **Negative evidence:** whole-volume HMAC-valid rollback bypasses local revocation.
+
+These are not product E2E proof of independent AI generation, exhaustive design editability, production authorization or real PHP shared-hosting. **43 limited R/D and 92 matching target gaps; 0/135 product accepted** unchanged. See [report](STAGE-1-NOVEL-SITE-PERSISTENT-TRUST-RESEARCH.md).

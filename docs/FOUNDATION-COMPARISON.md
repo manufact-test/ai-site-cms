@@ -434,3 +434,12 @@ Separate independent PHP CLI file-store research tests validate generation-CAS/f
 Reviewed capability provenance: 38 checks/30 negative refusals using test Ed25519 signatures, pinned asset hashes, separate capability review ledger, monotonic in-memory upgrades, owner migration preserving two edits. A signed package can still be malicious; authorization derives from *reviewed typed operation allowlist*, NOT the signature. No real plugin sandbox, signing infrastructure, verified persistent anti-rollback or production permission model.
 
 A PHP-first adapter, B schema/React-first with independently maintained PHP rendering, C selectively embedded editor controls still carry unresolved cost/trust tradeoffs; no winner. The independent blind LLM source+manifest evidence remains **missing**. [Deep report](STAGE-1-MIXED-SITE-PROVENANCE-RESEARCH.md). Stage1 in_progress not accepted; **0/135** mandatory acceptance, matrix 43 limited/92 missing.
+
+
+## 25. Uninstrumented source obligation discovery & PHP-signed extension state persistence — v1.25 (18.10.2026)
+
+[Full CI #39117432469 PASS — four jobs](https://github.com/manufact-test/ai-site-cms/actions/runs/39117432469). Distinct Cedar Lab unannotated full-site markup inventory **46** obligations vs 12 manifest declarations: 34 missing, 18 unsupported, separate reviewer ledger exposes 8 important missing fields, 12 hostile/mutation tests recognized. This demonstrates a reason for independent source/manifest/intent cross-checking, **not** completeness across arbitrary AI-generated designs; novel fixture and oracle researcher-authored, second independent LLM still not run. Full supported-property CSS/JS coverage remains impossible to infer from parser heuristics alone.
+
+A separate **real PHP CLI persistent trust** experiment exercises reviewed signed extension fields and owner migration across 36 independent processes with 74 checks, 20 denials and 1 winner across 4 competing signed installs. HMAC/anchor detects partial rollback, **cannot detect restoring both HMAC-valid local files simultaneously** — external secure monotonic state is a material architectural trust decision. Node-hosting assumptions not added; shared Hostinger unchanged and untested.
+
+**A/B/C stack direction remains for owner approval only.** This work narrows contract audit/security gaps while exposing unsolved limits; no editor, store or runtime selected. [Full report](STAGE-1-NOVEL-SITE-PERSISTENT-TRUST-RESEARCH.md). Stage1 not accepted; 0/135 product accepted.
