@@ -78,6 +78,15 @@ async function main(){
   write(fleetFile,JSON.stringify(fleet));write(blueprintFile,JSON.stringify(document));
   const check=(f=blueprintFile,override={})=>invoke(STAGE+'/bin/lab-deployment-blueprint.php',
     ['--check','--config='+f],override);
+  const exitReview=(config=blueprintFile,overrides={})=>invoke(
+    STAGE+'/bin/lab-stage2-exit-review.php',
+    ['--check','--config='+config],overrides);
+  const reviewReport=(expectedStatus)=>{
+    const r=exitReview();
+    ok(r.status===expectedStatus&&r.stderr==='',
+      'exit review refuses to count unready fleet as architecture-review ready');
+    return JSON.parse(r.stdout);
+  };
   const fleetCmd=(mode,approval='none')=>invoke(STAGE+'/bin/lab-fleet-operator.php',
     [mode,'--config='+fleetFile,'--approval='+approval]);
   const read=()=>{
@@ -86,6 +95,30 @@ async function main(){
     return JSON.parse(r.stdout);
   };
   const initial=read();
+  const initialReview=reviewReport(4);
+  ok(initialReview.instances.length===5
+    &&initialReview.fleetState==='not_yet_ready'
+    &&initialReview.stage2Accepted===false
+    &&initialReview.readyForOwnerArchitectureReview===false
+    &&initialReview.productRequirementsAccepted===0
+    &&initialReview.remainingAcceptanceGates.length===4,
+    'architecture report distinguishes lab installation from Stage2 acceptance');
+  ok(!JSON.stringify(initialReview).includes(base)
+    && initialReview.instances.every(item=>/^[a-f0-9]{64}$/.test(item.cmsPackageSha256)),
+    'operator report is digest-bound and does not print private filesystem paths');
+  const profiles=new Map(initialReview.instances.map(x=>[x.family,x.requiredWebServerProfiles]));
+  ok(profiles.get('php').nginx.visitor.independentPhpWorkerRequired
+    &&profiles.get('next-ssr').apache.visitor.nodeServerAndReverseProxyRequired
+    &&!profiles.get('next-static').nginx.visitor.nodeServerAndReverseProxyRequired
+    &&profiles.get('react-spa').nginx.visitor.historyFallbackRequired,
+    'five family runtime prerequisites are generated for both webservers');
+  ok(initialReview.criteria.empty_cms_starts_on_target_host.status==='not_tested_permission_required'
+    &&initialReview.actualTargetHostTested===false
+    &&initialReview.criteria.owner_accepts_final_architecture.ownerApproved===undefined,
+    'report cannot turn offline CI into target hosting verification or owner approval');
+  err(exitReview(blueprintFile,{CMS_ENV:'production'}),'STAGE2_EXIT_REVIEW_REFUSED',
+    'exit review refuses production environment');
+
   ok(initial.sites===5&&initial.fleetState==='not_yet_ready'
     && initial.localCliCompatible&&initial.placeholderOriginsOnly
     && initial.productionReady===false
@@ -155,6 +188,28 @@ async function main(){
   ok(applied.status===0&&JSON.parse(applied.stdout).state==='ready',
     'five independent installations complete after reapproval');
   const ready=read();
+  const approvedReview=reviewReport(0);
+  ok(approvedReview.readyForOwnerArchitectureReview
+    &&approvedReview.instances.every(x=>x.fleetState==='ready')
+    &&approvedReview.stage2Accepted===false
+    &&approvedReview.stage3Authorized===false,
+    'complete local bootstrap can request architectural review, not acceptance');
+  ok(approvedReview.packageSetSha256===initialReview.packageSetSha256
+    &&approvedReview.deploymentIntentSha256!==initialReview.deploymentIntentSha256,
+    'package identity remains stable; approved deployment intent changes on install');
+  const damagedHt=items[1].cmsRoot+'/public/.htaccess';
+  const originalHt=fs.readFileSync(damagedHt);
+  fs.appendFileSync(damagedHt,'\n# altered test host policy\n');
+  err(exitReview(),'STAGE2_EXIT_REVIEW_REFUSED',
+    'exit-review rejects altered packaged Apache policy even after READY');
+  fs.writeFileSync(damagedHt,originalHt);
+  ok(reviewReport(0).packageSetSha256===approvedReview.packageSetSha256,
+    'restoring approved Apache policy restores exact evidence fingerprint');
+  const aliasReview=base+'/private/exit-alias.json';
+  fs.symlinkSync(blueprintFile,aliasReview);
+  err(exitReview(aliasReview),'STAGE2_EXIT_REVIEW_REFUSED',
+    'exit review refuses symlinked operator declaration');
+
   ok(ready.fleetState==='ready'&&ready.deploymentIntentSha256!==initial.deploymentIntentSha256,
     'ABI/origin plan reflects actual ready fleet, not uninitialized state');
   for(const x of items)ok(fs.existsSync(x.dbFile)&&fs.existsSync(x.bindingFile),

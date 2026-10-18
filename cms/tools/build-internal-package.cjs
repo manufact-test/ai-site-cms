@@ -21,6 +21,7 @@ const PARTS = [
   ['bin/lab-fleet-operator.php', 'bin/lab-fleet-operator.php'],
   ['bin/lab-foundation-transfer.php', 'bin/lab-foundation-transfer.php'],
   ['bin/lab-deployment-blueprint.php', 'bin/lab-deployment-blueprint.php'],
+  ['bin/lab-stage2-exit-review.php', 'bin/lab-stage2-exit-review.php'],
   ['composer.json', 'composer.json'], ['composer.lock', 'composer.lock'],
   ['editor/dist/editor.js', 'private/editor/editor.js'],
   ['editor/dist/meta.json', 'private/editor/meta.json'],

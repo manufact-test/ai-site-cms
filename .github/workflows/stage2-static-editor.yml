@@ -67,6 +67,9 @@ jobs:
       - name: Stage2 five-family route and runtime ABI blueprint, site-byte-bound approvals, real independent HTTP
         working-directory: cms
         run: node tools/test-stage2-deployment-blueprint.cjs
+      - name: Host requirement profiles and explicit owner/target-host Stage2 exit review contract
+        working-directory: cms
+        run: php tests/lab-stage2-exit-review-contract.php
       - name: Lab-only strict actual FastCGI mapping source contract
         working-directory: cms
         run: php tests/lab-web-sapi-mapping.php
