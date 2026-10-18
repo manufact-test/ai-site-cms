@@ -277,7 +277,8 @@ try{
   denied(attested(head2),'raw low-level rollback cannot bypass signed read gate');
   // Separate second switch sandbox: the NEW guarded write path requires
   // operator approval signed BEFORE touching code. Never reuses production data.
-  const authorizedRoot=success(['new',db],'independent preauthorized sandbox').root;
+  const authorizedRoot=success(['new-sealed',db,operatorPin,fp],
+    'independent operator and publisher pinned signed-only sandbox').root;
   installedLabs.push(authorizedRoot);
   const approvedReceipts=path.join(temp,'approved-receipts');
   const pending=path.join(temp,'approval-pending');
@@ -352,6 +353,8 @@ try{
     fs.writeFileSync(path.join(settlementDir,filename+'.sig'),sig,{flag:'wx',mode:0o600});
     return sha(Buffer.concat([settlementDomain,raw,sig]));
   }
+  denied(['new-sealed',db,operatorPin,operatorPin],
+    'signed-only root cannot conflate publisher and operator signing keys');
   const firstPermit=issuePermit(a,cp1,1,null,null);
   denied(authorized(a,'f'.repeat(64),null,null,0),
     'unsigned or independently unpinned permit cannot register a release');
@@ -374,6 +377,13 @@ try{
   const authFirst=success(authorized(a,firstPermit,null,null,0),
     'operator-authorized signed ZIP and matching independent DB');
   installedLabs.push(authFirst.installedLabRoot);
+  ok(authFirst.signedOnlySwitch===true,
+    'accepted authorization uses signed-only CAS boundary');
+  denied(['raw-register',db,authorizedRoot,authFirst.installedLabRoot,
+    authFirst.manifestSha256,v1],
+    'raw register forbidden on a signed-only code-switch root');
+  denied(['raw-recover',db,authorizedRoot,v1],
+    'unauthorized manual journal recovery forbidden on signed-only roots');
   ok(authFirst.sequence===1&&authFirst.operatorReceiptPending===true
     &&authFirst.preactivationPermitHead===firstPermit,
     'preauthorized activation keeps external pending marker after code switch');
@@ -498,13 +508,11 @@ try{
   withdrawPermit();
   ok(success(settledRead(approvedHead2,settlementHead2),'settled read after stale permit retired').version===v2,
     'operator rejection of stale permit leaves prior signed settlement intact');
-  const rawReverted=success(['raw-rollback',db,authorizedRoot,v1],
-    'direct legacy switcher allowed only in disposable CI');
-  ok(rawReverted.sequence===3&&rawReverted.current===v1,
-    'unprotected laboratory API still demonstrates production bypass hazard');
-  denied(settledRead(approvedHead2,settlementHead2),
-    'three-phase settlement gate detects raw switcher rollback beyond highwater');
-  ok(count>=146,'signed preactivation, receipt, settlement and crash reconciliation checks executed');
+  denied(['raw-rollback',db,authorizedRoot,v1],
+    'sealed version pointer refuses direct laboratory rollback without fresh signed permit');
+  ok(success(settledRead(approvedHead2,settlementHead2),'untouched sealed release').sequence===2,
+    'direct raw switch rejected before changing settled authenticated active version');
+  ok(count>=150,'signed-only preactivation, receipt, settlement and crash checks executed');
 
   console.log('Stage2 Ed25519 ZIP -> safe extraction -> native PHP -> DB checkpoint -> CAS PASS: '+
     count+' checks; '+first.files+' files; CI disposable only, no real host or data migrations');
