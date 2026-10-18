@@ -320,6 +320,37 @@ try{
         path.join(archived,'permit-'+crypto.randomBytes(6).toString('hex')+'-'+f));
     }
   }
+  // Third independently signed confirmation. "pending is empty" is NOT a
+  // sufficient authorization; preserve original Ed25519 pre-approvals and
+  // bind them to the real activation receipts with a monotonic settlement.
+  const settlementDir=path.join(temp,'signed-settlements');
+  const proofsDir=path.join(temp,'approved-permit-proofs');
+  for(const d of [settlementDir,proofsDir])fs.mkdirSync(d,{mode:0o700});
+  const settlementDomain=Buffer.from('AI-SITE-CMS-STAGE2-SETTLEMENT-V1\0');
+  const settledRead=(receiptHead,settlementHead,ledger=settlementDir,proofs=proofsDir)=>[
+    'settled-serve',db,authorizedRoot,ledger,approvedReceipts,proofs,pending,
+    operatorPem,operatorPin,fp,receiptHead,settlementHead
+  ];
+  function archivePermit(seq){
+    const directory=path.join(proofsDir,'permit-'+String(seq).padStart(6,'0'));
+    fs.mkdirSync(directory,{mode:0o700});
+    fs.copyFileSync(permitFile,path.join(directory,'permit.json'),fs.constants.COPYFILE_EXCL);
+    fs.copyFileSync(signatureFile,path.join(directory,'permit.sig'),fs.constants.COPYFILE_EXCL);
+  }
+  function signSettlement(seq,version,permitHead,receiptHead,previousSettlement){
+    const payload={
+      format:'ai-site-cms-stage2-settlement-v1',
+      siteId:'labsite',sequence:seq,version,
+      permitSha256:permitHead,receiptSha256:receiptHead,
+      previousSettlementSha256:previousSettlement,productionReady:false
+    };
+    const raw=Buffer.from(JSON.stringify(payload)+'\n');
+    const sig=crypto.sign(null,Buffer.concat([settlementDomain,raw]),operatorKeys.privateKey);
+    const filename='settlement-'+String(seq).padStart(6,'0');
+    fs.writeFileSync(path.join(settlementDir,filename+'.json'),raw,{flag:'wx',mode:0o600});
+    fs.writeFileSync(path.join(settlementDir,filename+'.sig'),sig,{flag:'wx',mode:0o600});
+    return sha(Buffer.concat([settlementDomain,raw,sig]));
+  }
   const firstPermit=issuePermit(a,cp1,1,null,null);
   denied(authorized(a,'f'.repeat(64),null,null,0),
     'unsigned or independently unpinned permit cannot register a release');
@@ -348,11 +379,17 @@ try{
   denied(strictRead('f'.repeat(64)),
     'code remains unreadable with pending operator receipt');
   const approvedHead1=signActivation(authFirst,cp1,null,null,approvedReceipts);
+  archivePermit(1);
   denied(strictRead(approvedHead1),
     'even after signing receipt the unresolved external pending marker blocks reads');
+  denied(settledRead(approvedHead1,'f'.repeat(64)),
+    'even a valid approved release must remain unavailable before a settlement certificate');
   withdrawPermit();
-  ok(success(strictRead(approvedHead1),'fully attested first authorized release').preauthorizedRead,
-    'explicit operator clearance restores strictly gated request after first attestation');
+  denied(settledRead(approvedHead1,'f'.repeat(64)),
+    'premature clearing of pending marker cannot authorize release without settlement');
+  const settlementHead1=signSettlement(1,v1,firstPermit,approvedHead1,null);
+  ok(success(settledRead(approvedHead1,settlementHead1),'fully settled genesis activation').settled,
+    'read needs independently pinned signed permit, receipt and settlement evidence');
 
   const secondPermit=issuePermit(b,cp2,2,v1,approvedHead1);
   denied(strictRead(approvedHead1),
@@ -394,25 +431,69 @@ try{
       &&reviewed.manifestSha256===b.metadata.packageManifestSha256,
     'crash review obtains independently verified code+DB evidence for later signing');
   const approvedHead2=signActivation(reviewed,cp2,v1,approvedHead1,approvedReceipts);
-  denied(strictRead(approvedHead2),
-    'operator-signed recovery receipt alone does not clear pending approval');
+  archivePermit(2);
+  denied(settledRead(approvedHead2,settlementHead1),
+    'valid signed recovery receipt does not bypass outstanding permit/settlement');
   withdrawPermit();
-  ok(success(strictRead(approvedHead2),'manual explicit crash reconciliation').sequence===2,
-    'manual signed receipt plus approval retirement resumes guarded CMS read');
-  denied(strictRead(approvedHead1),
-    'out-of-band head prevents serving older receipt after manually reconciled crash');
+  denied(settledRead(approvedHead2,settlementHead1),
+    'old settlement cannot authorize newer code even after pending marker removed');
+  const settlementHead2=signSettlement(2,v2,secondPermit,approvedHead2,settlementHead1);
+  ok(success(settledRead(approvedHead2,settlementHead2),'fully signed manual crash reconciliation').sequence===2,
+    'only signed settlement for current code/DB and current operator approval restores read');
+  denied(settledRead(approvedHead2,settlementHead1),
+    'external settlement highwater blocks replay of prior settlement');
+  denied(settledRead(approvedHead1,settlementHead2),
+    'external receipt highwater blocks old signed activation lineage');
+  const s2file=path.join(settlementDir,'settlement-000002.json');
+  const s2sigfile=path.join(settlementDir,'settlement-000002.sig');
+  const s2original=fs.readFileSync(s2file);
+  const s2sig=fs.readFileSync(s2sigfile);
+  function alteredSettlement(modify,label){
+    const record=JSON.parse(s2original.toString('utf8'));
+    modify(record);
+    const raw=Buffer.from(JSON.stringify(record)+'\n');
+    const sig=crypto.sign(null,Buffer.concat([settlementDomain,raw]),operatorKeys.privateKey);
+    fs.writeFileSync(s2file,raw);
+    fs.writeFileSync(s2sigfile,sig);
+    denied(settledRead(approvedHead2,sha(Buffer.concat([settlementDomain,raw,sig]))),label);
+    fs.writeFileSync(s2file,s2original);
+    fs.writeFileSync(s2sigfile,s2sig);
+  }
+  alteredSettlement(x=>{x.permitSha256='f'.repeat(64)},
+    'even valid operator signature cannot replace original approved permit digest');
+  alteredSettlement(x=>{x.receiptSha256='e'.repeat(64)},
+    'even valid operator signature cannot settle another activation receipt');
+  alteredSettlement(x=>{x.previousSettlementSha256='0'.repeat(64)},
+    'even valid operator signature cannot sever settlement lineage');
+  const proof=path.join(proofsDir,'permit-000002','permit.sig');
+  const goodProof=fs.readFileSync(proof);
+  const badProof=Buffer.from(goodProof);badProof[2]^=1;
+  fs.writeFileSync(proof,badProof);
+  denied(settledRead(approvedHead2,settlementHead2),
+    'modified archived signed preactivation permit invalidates all settled reads');
+  fs.writeFileSync(proof,goodProof);
+  fs.renameSync(proof,proof+'.partial');
+  denied(settledRead(approvedHead2,settlementHead2),
+    'incomplete archived permit evidence keeps CMS unavailable');
+  fs.renameSync(proof+'.partial',proof);
+  fs.writeFileSync(s2sigfile,Buffer.from([1,2,3]));
+  denied(settledRead(approvedHead2,settlementHead2),
+    'truncated post-activation settlement signature blocks reads');
+  fs.writeFileSync(s2sigfile,s2sig);
+  ok(success(settledRead(approvedHead2,settlementHead2),'authentic settlement restored').version===v2,
+    'exact authentic evidence recovery restores current generation only');
 
   // Validly signed, semantically hostile preapproval; never reuses old CAS.
   const stalePermit=issuePermit(b,cp2,2,v1,approvedHead1);
   denied(authorized(b,stalePermit,approvedHead1,v1,1),
     'signed replay after successful reconciliation fails on current generation');
-  denied(strictRead(approvedHead2),
-    'stale permit blocks reads until operator explicitly cancels/retires it');
+  denied(settledRead(approvedHead2,settlementHead2),
+    'stale permit blocks even fully settled reads until operator explicitly cancels it');
   withdrawPermit();
-  ok(success(strictRead(approvedHead2),'read after revoked stale permit').version===v2,
-    'explicit operator rejection of old authorization restores same attested version');
+  ok(success(settledRead(approvedHead2,settlementHead2),'settled read after stale permit retired').version===v2,
+    'operator rejection of stale permit leaves prior signed settlement intact');
 
-  ok(count>=123,'signed preactivation, crash reconciliation and negative test suite executed');
+  ok(count>=143,'signed preactivation, receipt, settlement and crash reconciliation checks executed');
 
   console.log('Stage2 Ed25519 ZIP -> safe extraction -> native PHP -> DB checkpoint -> CAS PASS: '+
     count+' checks; '+first.files+' files; CI disposable only, no real host or data migrations');
