@@ -54,6 +54,11 @@ jobs:
         env:
           CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
         run: php -m | grep -i sodium && node tools/test-lab-php-release-verifier.cjs
+      - name: Signed dual-consent key rotation, retirement and interrupted trust recovery laboratory
+        working-directory: cms
+        env:
+          CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
+        run: node tools/test-lab-key-lifecycle.cjs
       - name: Operator replay guard and interrupted release recovery laboratory
         working-directory: cms
         env:
