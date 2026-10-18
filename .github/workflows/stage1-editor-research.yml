@@ -120,3 +120,7 @@ jobs:
         run: php -v && node external-trust-witness.cjs
       - name: Chromium original rich-site CSS SEO media fidelity with unsafe JavaScript quarantined
         run: node cedar-rich-browser-boundary.cjs
+      - name: Frozen paired source and manifest grading protocol with correlated missing-intent refusals
+        run: node external-generator-contract-gate.cjs
+      - name: Real browser reviewed behavior adapter restores typed navigation and safe form preview
+        run: node reviewed-rich-behavior-browser.cjs
