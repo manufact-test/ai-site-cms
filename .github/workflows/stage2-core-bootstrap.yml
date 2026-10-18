@@ -61,6 +61,11 @@ jobs:
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
         run: php tests/lab-foundation-checkpoint.php
+      - name: Unified real Ed25519 release PHP activation under independent SQLite checkpoint
+        env:
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+          CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
+        run: node tools/test-lab-trusted-upgrade.cjs
       - name: Verify health only, no exposed write routes
         run: composer test
       - name: HTTP public route boundary
@@ -182,6 +187,7 @@ jobs:
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-generation-leases.php
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-schema-gate.php
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-foundation-checkpoint.php
+          CMS_ALLOW_PHP_INSTALL_LAB=1 CMS_ALLOW_EPHEMERAL_SIGNING_LAB=1 node tools/test-lab-trusted-upgrade.cjs
           CMS_ALLOW_PHP_INSTALL_LAB=1 node tools/test-lab-php-http-switch-crash.cjs
           composer test
           php tests/storage.php
