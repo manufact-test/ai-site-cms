@@ -62,8 +62,17 @@ function write(file,data) {
   fs.writeFileSync(file,data,{mode:0o600});
 }
 function inspect(cms) {
-  return php(path.join(cms,'bin/package-preflight.php'),
+  const result=php(path.join(cms,'bin/package-preflight.php'),
     ['--check','--package-root='+cms]);
+  if(result.status!==0){
+    const diagnostic=php('-r',[
+      'require $argv[1]; try {\\AiSiteCms\\Hosting\\PackageArtifactVerifier::verify($argv[2]);} catch (Throwable $e) {fwrite(STDERR,$e->getMessage());exit(1);}',
+      path.join(cms,'src/Hosting/PackageArtifactVerifier.php'),cms
+    ]);
+    // Generic failure category only: no filesystem paths or credentials.
+    result.stderr+=' [CI category: '+diagnostic.stderr+']';
+  }
+  return result;
 }
 function install(cms,db,siteId,mode='apply') {
   return php(path.join(cms,'bin/install.php'),['--'+mode],{
@@ -115,8 +124,9 @@ async function main(){
       check(topo.declarationCompatible && !topo.actualHostTested && !topo.productionReady
         && topo.cmsPublicFiles===1 && topo.sitePublicFiles===1,
         'independent CMS and site roots, self-declared host capabilities '+name);
-      check(success(schema(cms,data,'sandbox-'+name),'pre-install schema inspection '+name).state==='uninitialized',
-        'empty schema safely detected '+name);
+      const empty=schema(cms,data,'sandbox-'+name);
+      check(empty.status===3 && JSON.parse(empty.stdout).state==='uninitialized',
+        'read-only schema preflight returns exit 3 for uninitialized empty CMS '+name);
       // SQLite connection may create a zero-byte file during read-only inspection,
       // so only the subsequent explicit installer is allowed to create CMS tables.
       check(install(cms,data,'sandbox-'+name).status===0,'explicit shipped CLI initializes empty CMS '+name);
