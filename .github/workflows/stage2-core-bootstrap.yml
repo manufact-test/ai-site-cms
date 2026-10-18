@@ -135,6 +135,12 @@ jobs:
         env:
           CMS_ALLOW_DESTRUCTIVE_MYSQL_CI: '1'
         run: php tests/backup-mysql.php
+      - name: Check real MySQL 8.4 schema-version gate and migration named-lock isolation
+        env:
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+          CMS_ALLOW_DESTRUCTIVE_MYSQL_CI: '1'
+          CMS_TEST_MYSQL_ROOT_PASSWORD: ephemeral_root_ci_only
+        run: php tests/lab-schema-gate-mysql.php
 
   php-compatibility:
     runs-on: ubuntu-latest
