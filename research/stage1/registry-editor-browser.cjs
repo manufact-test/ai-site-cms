@@ -89,7 +89,7 @@ async function editChoice(page,key,newValue){
  assert.equal(selects.length,1,'need exact enum select '+key);
  await page.locator('#editor select[id='+JSON.stringify(selects[0])+']').selectOption(newValue);
  await page.waitForFunction(({key,val})=>window.__draft[key]===val,{key,val:newValue},{timeout:12000});
- const seq=await page.evaluate(()=>window.__seq);await page.waitForFunction(n=>window.__acks.some(x=>x.seq>=n),seq);
+ const seq=await page.evaluate(()=>window.__seq);await page.waitForFunction(n=>window.__acks.some(x=>x.seq>=n),seq,{timeout:12000});
 }
 async function run(browser,site,editor,manifest,reg,origin){
  const page=await browser.newPage({viewport:{width:1520,height:920}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -118,7 +118,7 @@ async function run(browser,site,editor,manifest,reg,origin){
   const snapshots=[];
   for(const [device,width,font,pad,gap] of [['desktop',1200,'49px','40px','30px'],['tablet',720,'49px','26px','17px'],['mobile',360,'49px','26px','17px']]){
    await page.evaluate(device=>window.__view(device),device);
-   await frame.locator('body').evaluate(async (_,w)=>{for(let i=0;i<100;i++){if(innerWidth===w)return;await new Promise(r=>requestAnimationFrame(r))}throw Error('iframe width race')},width);
+   await frame.locator('body').evaluate(async (_,w)=>{for(let i=0;i<120;i++){if(innerWidth===w)return;await new Promise(resolve=>setTimeout(resolve,20))}throw Error('iframe width race')},width,{timeout:10000});
    const seq=await page.evaluate(()=>window.__seq);await page.waitForFunction(n=>window.__acks.some(x=>x.seq>=n),seq);
    const result=await frame.locator('[data-stable-id='+JSON.stringify(fields.padding.id)+']').evaluate((el,ids)=>{
     const by=id=>document.querySelector('[data-stable-id="'+id+'"]'),css=id=>getComputedStyle(by(id));
