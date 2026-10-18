@@ -166,6 +166,12 @@ function config(home,port,sites,upstreams,phpSiteUpstream,nodeUpstream){
   else rules=staticRules(x);
   list.push(serverBlock(port,siteHost(x),x.siteRoot+'/public',rules));
  }
+ // Deliberately wrong public docroot with a VALID CMS front-controller
+ // FastCGI upstream: only the actual PHP request's mapping gate can detect
+ // this, not a static Nginx allowlist or operator's offline declaration.
+ list.push(serverBlock(port,'cms-mismapped.lab.test',
+  sites[0].siteRoot+'/public',
+  cmsRules(sites[0],upstreams[sites[0].siteId])));
  list.push('}');
  const file=home+'/config/nginx.conf';write(file,list.join('\n'));
  return file;
@@ -298,6 +304,10 @@ http.createServer((request,response)=>{
 
   try{
     for(const x of sites)await expectStatus(port,cmsHost(x),'/api/health',200);
+  const wrongMapping=await expectStatus(port,'cms-mismapped.lab.test','/api/health',503);
+  ok(wrongMapping.body==='{"error":"service_unavailable"}',
+    'actual FPM mapping gate rejects wrong DOCROOT with a valid PHP front-controller');
+
   }catch(e){
     const shortLog=name=>{
       const file=home+'/'+name;
