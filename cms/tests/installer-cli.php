@@ -50,6 +50,20 @@ try {
     $count = (int) $db->query('SELECT COUNT(*) FROM cms_schema_migrations')->fetchColumn();
     if ($count !== 2) throw new RuntimeException('Expected two journaled migrations');
     $checks++;
+    // Run a separate read-only preflight process. This must not alter the DB.
+    $preflightScript = dirname(__DIR__).'/bin/schema-preflight.php';
+    $command = [PHP_BINARY, $preflightScript, '--inspect'];
+    $pipesSpec = [['pipe','r'],['pipe','w'],['pipe','w']];
+    $p = proc_open($command, $pipesSpec, $pipes, dirname(__DIR__), $baseEnv);
+    if (!is_resource($p)) throw new RuntimeException('Cannot launch preflight PHP process');
+    fclose($pipes[0]);
+    $json=stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    if(proc_close($p)!==0 || json_decode($json,true)['state']!=='ready') {
+        throw new RuntimeException('CLI read-only schema preflight must succeed after installation');
+    }
+    $checks++;
     echo "Stage2 cross-process CLI installer PASS: {$checks} assertions\n";
 } finally {
     if (is_file($file)) unlink($file);

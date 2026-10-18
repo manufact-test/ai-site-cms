@@ -21,17 +21,22 @@ function denied(callable $operation, string $name): void {
 function conn(): PDO { return new PDO('sqlite::memory:'); }
 $db = conn();
 $store = new SchemaManager($db, true);
+must($store->inspectSite('alpha-demo')['state'] === 'uninitialized', 'Read-only preflight on blank SQLite DB');
 denied(fn() => new SchemaManager($db), 'SQLite requires explicit test grant');
 denied(fn() => $store->migrate(0), 'Invalid old version');
 denied(fn() => $store->migrate(3), 'Invalid future target');
 denied(fn() => $store->assertSite('alpha-demo'), 'Uninstalled database');
 must($store->migrate(1) === 1, 'v1 installed');
+must($store->inspectSite('alpha-demo')['state'] === 'upgrade_required', 'Preflight detects v1 migration needed');
 must((int) $db->query('SELECT COUNT(*) FROM cms_schema_migrations')->fetchColumn() === 1, 'v1 journal');
 must($store->migrate(2) === 2, 'v1->v2');
+must($store->inspectSite('alpha-demo')['state'] === 'schema_ready_unbound', 'Preflight detects schema not yet bound');
 must($store->migrate(2) === 2, 'idempotent upgrade');
 denied(fn() => $store->migrate(1), 'No silent downgrade');
 $store->installSite('alpha-demo');
 $store->assertSite('alpha-demo');
+must($store->inspectSite('alpha-demo')['state'] === 'ready', 'Preflight site is ready');
+must($store->inspectSite('other-demo')['reason'] === 'site_identity_mismatch', 'Read-only preflight rejects another site');
 must((string) $db->query('SELECT storage_generation FROM cms_installation')->fetchColumn() === '0', 'CAS generation starts at zero');
 $store->installSite('alpha-demo');
 must((int) $db->query('SELECT COUNT(*) FROM cms_installation')->fetchColumn() === 1, 'Same site repeat does not create new install');
@@ -48,6 +53,7 @@ must((string) $otherDb->query('SELECT site_id FROM cms_installation')->fetchColu
 must((string) $db->query('SELECT site_id FROM cms_installation')->fetchColumn() === 'alpha-demo', 'Original site unchanged');
 $db->exec("UPDATE cms_schema_migrations SET checksum = 'bad' WHERE version = 1");
 denied(fn() => $store->migrate(2), 'Tampered checksum fail closed');
+must($store->inspectSite('alpha-demo')['state'] === 'blocked', 'Preflight detects checksum manipulation');
 denied(fn() => $store->assertSite('alpha-demo'), 'Tampered schema blocked for use');
 $db->exec("DELETE FROM cms_schema_migrations WHERE version = 1");
 denied(fn() => $store->migrate(2), 'Noncontiguous journal denied');
@@ -69,4 +75,13 @@ $partial->exec("CREATE TABLE cms_installation (site_id TEXT)");
 $partialStore = new SchemaManager($partial, true);
 denied(fn() => $partialStore->migrate(2), 'Interrupted unjournaled schema cannot be overwritten');
 
+$foreignDb = conn();
+$foreignDb->exec('CREATE TABLE wp_posts (id INTEGER PRIMARY KEY, content TEXT)');
+$foreignStore = new SchemaManager($foreignDb, true);
+must($foreignStore->inspectSite('alpha-demo')['state'] === 'blocked', 'Foreign SQLite schema blocked by read-only preflight');
+denied(fn() => $foreignStore->migrate(2), 'Foreign SQLite database refuses schema migration before DDL');
+must((int)$foreignDb->query("SELECT COUNT(*) FROM sqlite_master WHERE name = 'cms_schema_migrations'")->fetchColumn() === 0,
+    'Foreign DB received no CMS journal side effect');
+must((int)$foreignDb->query("SELECT COUNT(*) FROM sqlite_master WHERE name = 'wp_posts'")->fetchColumn() === 1,
+    'Foreign application table survives denied installation');
 echo "Stage2 SQLite schema/isolation checks PASS: {$checks}\n";
