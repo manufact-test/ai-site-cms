@@ -29,7 +29,7 @@ function cssReplace(css,gutter){
 function htmlFrom(sourceCode,values,parse5){
  if(typeof sourceCode!=='string'||sourceCode.length>85000)throw Error('source-size');
  const errors=[];
- const doc=parse5.parse(sourceCode,{onParseError:e=>errors.push(e.code)});
+ const doc=parse5(sourceCode,{onParseError:e=>errors.push(e.code)});
  if(errors.length)throw Error('invalid-original-html: '+errors.slice(0,3).join(','));
  const index=new Map(),duplicates=[];
  const walk=n=>{
