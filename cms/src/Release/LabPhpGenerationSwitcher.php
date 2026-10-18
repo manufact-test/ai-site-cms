@@ -732,6 +732,130 @@ final class LabPhpGenerationSwitcher
         }
     }
 
+
+    /**
+     * Re-enter an actual SIGKILL journal only under the original pinned
+     * operator permit, publisher-signed archive, previous receipt head and
+     * independent foundation DB checkpoint. CI-only, not power-cut proof.
+     * The pending operator permit is NEVER cleared automatically.
+     */
+    public function recoverWithSignedPermit(
+        \PDO $pdo, string $siteId, string $receiptDir, string $pending,
+        string $operatorPem, string $operatorPin, string $permitHead,
+        ?string $previousReceiptHead, string $bundle, string $extracted,
+        string $publisherPem, string $publisherPin, string $expectedStatus,
+        string $mode
+    ): array {
+        self::requireCI();
+        $seal = $this->sealedConfig();
+        if ($seal === null || $seal['siteId'] !== $siteId
+            || !hash_equals($seal['operatorFingerprint'], $operatorPin)
+            || !hash_equals($seal['publisherFingerprint'], $publisherPin)
+            || $this->signedWriteGrant !== null) {
+            throw new RuntimeException('Refusing recovery outside pinned signed-only switch root');
+        }
+        $directions = [
+            'pending-before-switch'=>'abort',
+            'pending-after-switch'=>'finalize',
+            'committed-needs-cleanup'=>'finalize'
+        ];
+        if (($directions[$expectedStatus] ?? null) !== $mode) {
+            throw new RuntimeException('Signed recovery direction conflicts with commit boundary');
+        }
+        require_once __DIR__.'/LabPreauthorizedUpgradeGate.php';
+        require_once __DIR__.'/LabAttestedActivationGate.php';
+        require_once __DIR__.'/LabTrustedUpgradeCoordinator.php';
+        require_once __DIR__.'/LabSchemaVersionGate.php';
+        $p = LabPreauthorizedUpgradeGate::verifyPermit(
+            $pending,$operatorPem,$operatorPin,$permitHead,
+            $previousReceiptHead,$siteId,$publisherPin
+        );
+        if (!hash_equals($p['switchRootSha256'], hash('sha256',$this->root))) {
+            throw new RuntimeException('Signed recovery permit belongs to another switcher');
+        }
+        if ($p['sequence'] > 1) {
+            $chain = LabAttestedActivationGate::verifyChain(
+                $receiptDir,$operatorPem,$operatorPin,$previousReceiptHead,$siteId,$publisherPin
+            );
+            if ($chain['count'] !== $p['sequence'] - 1
+                || $chain['receipt']['version'] !== $p['fromVersion']) {
+                throw new RuntimeException('Wrong independent predecessor activation');
+            }
+        } else {
+            $entries = @scandir($receiptDir);
+            if ($entries === false || array_values(array_diff($entries, ['.','..'])) !== []) {
+                throw new RuntimeException('Genesis signed recovery cannot skip older receipts');
+            }
+        }
+        $preflight = LabTrustedUpgradeCoordinator::preflight(
+            $pdo,$siteId,$bundle,$extracted,$publisherPem,$publisherPin,
+            $p['version'],$p['minimumVersion'],$p['dbCheckpoint']
+        );
+        if (!hash_equals($p['manifestSha256'], $preflight['manifestSha256'])
+            || !hash_equals($p['archiveSha256'], $preflight['archiveSha256'])) {
+            throw new RuntimeException('Signed recovery original publisher archive changed');
+        }
+        return LabSchemaVersionGate::withCheckpointFence(
+            $pdo,$siteId,$p['version'],$p['dbCheckpoint'],
+            function () use (
+                $p,$siteId,$pending,$operatorPem,$operatorPin,$permitHead,
+                $previousReceiptHead,$publisherPin,$expectedStatus,$mode
+            ): array {
+                $again = LabPreauthorizedUpgradeGate::verifyPermit(
+                    $pending,$operatorPem,$operatorPin,$permitHead,
+                    $previousReceiptHead,$siteId,$publisherPin
+                );
+                if ($again !== $p) {
+                    throw new RuntimeException('Operator permit changed after DB fence');
+                }
+                $j = $this->json('switch-intent.json',true);
+                if ($j['format'] !== self::FORMAT || $j['kind'] !== 'upgrade'
+                    || $j['to'] !== $p['version'] || $j['from'] !== $p['fromVersion']
+                    || $j['targetSequence'] !== $p['sequence']
+                    || $j['sequence'] !== $p['sequence']-1
+                    || !hash_equals($j['digest'], $p['manifestSha256'])) {
+                    throw new RuntimeException('Killed journal not bound to original signed permit');
+                }
+                $before = $expectedStatus === 'pending-before-switch';
+                $current = $before ? $p['fromVersion'] : $p['version'];
+                $sequence = $before ? $p['sequence']-1 : $p['sequence'];
+                $this->signedWriteGrant = ['recovery'=>true];
+                try {
+                    $unlocked = $this->releaseStaleOperatorLock(
+                        $current,$sequence,$expectedStatus,$p['minimumVersion']
+                    );
+                    if ($unlocked['status'] !== $expectedStatus) {
+                        throw new RuntimeException('Operator journal changed during stale lock release');
+                    }
+                    $done = $this->recover($mode,$p['minimumVersion']);
+                    if ($done['status'] !== 'clean' || $done['current'] !== $current
+                        || $done['sequence'] !== $sequence) {
+                        throw new RuntimeException('Signed recovery produced unexpected pointer');
+                    }
+                    if (!$before) {
+                        $resolved = $this->resolve($p['minimumVersion']);
+                        if (!hash_equals($resolved['digest'], $p['manifestSha256'])) {
+                            throw new RuntimeException('Recovered signed code digest changed');
+                        }
+                    }
+                    LabPreauthorizedUpgradeGate::verifyPermit(
+                        $pending,$operatorPem,$operatorPin,$permitHead,
+                        $previousReceiptHead,$siteId,$publisherPin
+                    );
+                    return [
+                        'status'=>$done['status'],'version'=>$done['current'],
+                        'sequence'=>$done['sequence'],'mode'=>$mode,
+                        'interruptedStatus'=>$expectedStatus,
+                        'receiptRequired'=>!$before,
+                        'permitStillPending'=>true,'productionReady'=>false
+                    ];
+                } finally {
+                    $this->signedWriteGrant = null;
+                }
+            }
+        );
+    }
+
     /**
      * Stronger read-only lab contract: refuse a code swap if the separately
      * retained foundation checkpoint is stale, including storage_generation.
