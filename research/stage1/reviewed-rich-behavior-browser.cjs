@@ -39,14 +39,18 @@ function childAdapter(token,parentOrigin){
   button.setAttribute('aria-expanded',button.getAttribute('aria-expanded')==='false'?'true':'false');
   events++;send('menu',{expanded:button.getAttribute('aria-expanded'),events});
  });
- get('newsletter-form').addEventListener('submit',e=>{
-  e.preventDefault();
+ function localFormPreview(){
   if(!configured||!config.formPreviewEnabled)return;
   const entry=get('newsletter-email');
   if(!entry.checkValidity())return;
-  // NEVER forward arbitrary user input or submit to original action.
+  // NEVER forward user input or submit to original action.
   send('preview-form',{validated:true,action:'local-preview-only'});
- });
+ }
+ // With iframe sandbox lacking allow-forms, Chromium can suppress a submit
+ // event entirely. Handle reviewed button click explicitly, not as a
+ // permission to submit forms or send any network request.
+ get('newsletter-submit').addEventListener('click',e=>{e.preventDefault();localFormPreview();});
+ get('newsletter-form').addEventListener('submit',e=>{e.preventDefault();localFormPreview();});
  send('ready','reviewed-adapter-installed');
 }
 function checkedArtifact(source,parse5,token,parentOrigin){
