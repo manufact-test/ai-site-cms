@@ -23,6 +23,12 @@ jobs:
         run: composer validate --no-check-publish
       - name: Install dependencies on CI only
         run: composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
+      - name: Capture resolved Composer dependency lock for permanent pinning
+        run: |
+          test -s composer.lock
+          printf 'CMS_LOCK_BEGIN\n'
+          base64 composer.lock | sed 's/^/CMS_LOCK:/'
+          printf 'CMS_LOCK_END\n'
       - name: PHP syntax (all source/test/installer files)
         run: find src tests bin public -name '*.php' -print -exec php -l {} \;
       - name: Verify health only, no exposed write routes
