@@ -57,6 +57,10 @@ jobs:
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
         run: node tools/test-lab-php-http-switch-crash.cjs
+      - name: Independently checkpoint real SQLite schema and detect DB drift during interrupted releases
+        env:
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+        run: php tests/lab-foundation-checkpoint.php
       - name: Verify health only, no exposed write routes
         run: composer test
       - name: HTTP public route boundary
@@ -177,6 +181,7 @@ jobs:
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-generation-switcher.php
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-generation-leases.php
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-schema-gate.php
+          CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-foundation-checkpoint.php
           CMS_ALLOW_PHP_INSTALL_LAB=1 node tools/test-lab-php-http-switch-crash.cjs
           composer test
           php tests/storage.php
