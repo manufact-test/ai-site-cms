@@ -11,7 +11,7 @@ await build({
   format: 'iife',
   platform: 'browser',
   target: ['chrome120', 'firefox120', 'safari17'],
-  legalComments: 'none', // License/NOTICE is packaged separately; not removed from provenance.
+  legalComments: 'linked', // Preserve vendor license comments via the linked LEGAL file.
   sourcemap: false,
   outfile: output,
   write: true,
@@ -23,6 +23,7 @@ await build({
     throw new Error('Editor output is absent or outside expected Stage2 bounds');
   }
   const metaPath = path.join(root, 'dist', 'meta.json');
+  fs.copyFileSync(path.join(root, 'THIRD_PARTY_LICENSES.txt'), path.join(root, 'dist', 'THIRD_PARTY_LICENSES.txt'));
   fs.writeFileSync(metaPath, JSON.stringify({
     stage: 2, editor: 'jedison', editorVersion: '1.27.1',
     entry: 'src/index.js',

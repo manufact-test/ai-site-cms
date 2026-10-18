@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "test:browser": "node tests/browser-smoke.cjs",
-    "test": "npm run build && npm run test:browser"
+    "test": "npm run build && npm run test:browser",
+    "verify:deps": "node scripts/verify-deps.cjs"
   },
   "dependencies": {
     "jedison": "1.27.1"

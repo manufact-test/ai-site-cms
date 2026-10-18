@@ -20,20 +20,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Generate initial npm dependency lock (to be committed after exact review)
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Install pinned upstream Jedison, esbuild and Chromium driver
         run: npm ci --no-audit --no-fund
+      - name: Verify exact npm lock and declared licensing
+        run: npm run verify:deps && npm audit --audit-level=high
       - name: Build real self-contained static bundle
         run: npm run build
       - name: Verify real Chromium browser editor interactions
         run: npm run test:browser
-      - name: Print resolver lock for audit and later commit (temporary)
+      - name: Repeat deterministic clean asset build
         run: |
-          test -s package-lock.json
-          printf 'CMS_NPM_LOCK_BEGIN\n'
-          base64 package-lock.json | sed 's/^/CMS_NPM_LOCK:/'
-          printf 'CMS_NPM_LOCK_END\n'
+          test -s dist/editor.js && test -s dist/THIRD_PARTY_LICENSES.txt
+          cp dist/editor.js /tmp/ai-site-cms-editor.js.first
+          npm run build
+          cmp /tmp/ai-site-cms-editor.js.first dist/editor.js
+          grep -q 'German Bisurgi' dist/THIRD_PARTY_LICENSES.txt
       - name: Internal-only static JS build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -41,5 +42,7 @@ jobs:
           path: |
             cms/editor/dist/editor.js
             cms/editor/dist/meta.json
+            cms/editor/dist/THIRD_PARTY_LICENSES.txt
+            cms/editor/dist/editor.js.LEGAL.txt
           if-no-files-found: error
           retention-days: 7
