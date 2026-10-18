@@ -224,8 +224,9 @@ final class LabPhpGenerationSwitcher
 
     private function demandUnsealedRecovery(): void
     {
-        if ($this->sealedConfig() !== null) {
-            throw new RuntimeException('Sealed generation crash recovery requires a future signed operator recovery path');
+        if ($this->sealedConfig() !== null
+            && (($this->signedWriteGrant['recovery'] ?? false) !== true)) {
+            throw new RuntimeException('Sealed generation recovery requires independently signed interrupted intent');
         }
     }
 
@@ -655,6 +656,7 @@ final class LabPhpGenerationSwitcher
             $this->writeAtomic('active-receipt.json', ['format'=>self::FORMAT,
                 'sequence'=>$pointer['sequence'],'pointerSha256'=>self::pointerHash($pointer)]);
             if ($failAt === 'after-receipt') throw new RuntimeException('Injected failure after receipt');
+            if ($failAt === 'pause-after-receipt') usleep(15000000);
             unlink($this->file('switch-intent.json'));
             return $this->inspect($externalMinVersion);
         });
