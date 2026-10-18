@@ -53,6 +53,10 @@ jobs:
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
         run: php tests/lab-schema-gate.php
+      - name: Real parallel loopback PHP HTTP code leases and SIGKILL operator recovery
+        env:
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+        run: node tools/test-lab-php-http-switch-crash.cjs
       - name: Verify health only, no exposed write routes
         run: composer test
       - name: HTTP public route boundary
@@ -173,6 +177,7 @@ jobs:
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-generation-switcher.php
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-generation-leases.php
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-schema-gate.php
+          CMS_ALLOW_PHP_INSTALL_LAB=1 node tools/test-lab-php-http-switch-crash.cjs
           composer test
           php tests/storage.php
           php tests/installer-cli.php
