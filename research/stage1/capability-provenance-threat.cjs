@@ -45,7 +45,7 @@ function scannedAsset(key,digest){
  const a=ASSETS[key];
  if(a.mime!=='image/svg+xml'||!a.path.startsWith('/fixtures/')||
     !a.svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')||
-    /<script\b|<foreignObject\b|on[a-z]+\s*=|<image\b|<use\b|(?:https?:|data:|javascript:|url\s*\()/i.test(a.svg))throw Error('unsafe asset');
+    /<script\b|<foreignObject\b|on[a-z]+\s*=|<image\b|<use\b|(?:https?:|data:|javascript:|url\s*\()/i.test(a.svg.replace('xmlns="http://www.w3.org/2000/svg"','')))throw Error('unsafe asset');
  if(digest!==hash(a.svg))throw Error('asset digest mismatch');
 }
 function signed(payload,privateKey){
