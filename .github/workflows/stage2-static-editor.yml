@@ -67,6 +67,13 @@ jobs:
       - name: Stage2 five-family route and runtime ABI blueprint, site-byte-bound approvals, real independent HTTP
         working-directory: cms
         run: node tools/test-stage2-deployment-blueprint.cjs
+      - name: Real isolated Nginx + two PHP 8.3-FPM worker pools, independent CMS/visitor vhosts, outages and symlink refusal
+        working-directory: cms
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends nginx php8.3-fpm php8.3-sqlite3
+          node --check tools/test-stage2-fpm-isolation.cjs
+          node tools/test-stage2-fpm-isolation.cjs
       - name: Independently verify and install full 429-file package with PHP-only temp journal
         working-directory: cms
         env:
