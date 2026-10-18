@@ -90,3 +90,8 @@
 ## Актуальные архитектурные решения после изучения вариантов
 
 [ADR 0001](ADR/0001-selected-foundation.md): выбрано модульное PHP-направление Slim 4 + Opis 2.6 + Jedison 1.27.1 с замещаемым editor adapter (RJSF fallback). [ADR 0002](ADR/0002-hosting-storage-isolation.md): PHP-only runtime, изоляция отдельных инсталляций, условно PDO MySQL/MariaDB (реальный хостинг/права не проверялись), изолированное чтение публикаций; Node только build-time. [ADR 0003](ADR/0003-preview-adapter-boundaries.md): AI/site/manifest contracts, безопасный preview одного блока и границы multi-renderer. Старые варианты в разделе B остаются историей исследования, **не действующими альтернативными решениями**. Реализован пока только `cms/` read-only health kernel. Никаких продуктовых API на запись нет, Stage2 не принят.
+
+
+### Stage2 offline supply-chain research boundary (18.10.2026, v1.37)
+
+[ADR 0005](ADR/0005-offline-release-and-sbom.md) records the locked machine CycloneDX component ledger, copies of installed runtime third-party licenses, private-notice placement and **disposable code-only immutable version-slot rollback simulation**. This is **not** authenticated production distribution, multi-process cutover, data rollback or host validation. Stage2 remains not accepted; Stage3 has not started. See [test log](STAGE-2-SBOM-ROLLOUT.md).

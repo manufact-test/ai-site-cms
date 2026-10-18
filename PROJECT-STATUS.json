@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Remain Stage2. Next block: machine-readable dependency SBOM/full vendor license NOTICE verification, immutable/offline versioned release package and rollback failure tests; full site backup only after content/media/revision schema exists. Hostinger and client sites off-limits without authorization.",
+  "next_step": "Stage2 continues NOT accepted. Next: publisher-authenticated offline release provenance/signature and safe extraction negative tests on disposable CI only, then operator recovery/host compatibility evidence. Never touch Hostinger/CELIKOM/clients without explicit independent authorization. No product acceptance (0/135).",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.36",
+  "checkpoint_version": "1.37",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -33,11 +33,11 @@
     "dependency_lock_committed": true,
     "stage_accepted": false,
     "main_blockers": [
-      "Only foundation metadata restore tested in CI; complete pages/media/owner overrides/published revisions backup does NOT exist",
-      "Real Hostinger PHP/shared-host compatibility and empty CMS install untested, separate explicit owner permissions required",
-      "Full production installer, immutable releases, operator-reviewed rollback and backup recovery under actual MySQL/host failures absent",
-      "Full legal SBOM/NOTICE and authenticated package distribution/provenance absent",
-      "Real authenticated admin/RBAC/CSRF, AI manifest contract, single-block preview and publishing not implemented"
+      "Only foundation metadata backup/restore exists; no complete pages/media/owner overrides/published revisions DB+files backup",
+      "Actual Hostinger shared-host compatibility still untested; require separate permission for read-only inspection and later deployment",
+      "Offline package SHA256 and versioned rollback demonstrated ONLY in disposable lab: no authenticated signature/provenance, verified extraction, live installer, data migrations or real host cutover",
+      "Machine SBOM and installed Composer license text present; independent full distribution legal NOTICE/license audit for future assets remains",
+      "No authenticated admin/RBAC/CSRF or real site AI manifest/preview/publishing; later stages still required"
     ],
     "storage_migration_version": 2,
     "schema_implementation": "cms/src/Storage/SchemaManager.php; CLI-only installer cms/bin/install.php, no HTTP admin/write routes",
@@ -52,8 +52,8 @@
       "Idempotent same-site initialization",
       "Refuses database reuse by different site identity"
     ],
-    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39134298097",
-    "last_full_ci_result": "7/7 SUCCESS with independent disposable database foundation restore",
+    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39135702765",
+    "last_full_ci_result": "7/7 SUCCESS on PHP 8.1-8.4, SQLite and disposable MySQL 8.4",
     "last_full_ci_checks": {
       "kernel_smoke": 10,
       "sqlite_schema_checks": 37,
@@ -72,7 +72,7 @@
     "php_dependency_pin_ledger": "docs/STAGE-2-COMPOSER-PINS.md",
     "php_dependency_security_audit": "Composer audit reported no known advisories for current lock in CI run 39127678056; not comprehensive security proof",
     "php_dependency_metadata_licenses_checked": true,
-    "actual_license_notice_files_bundled_and_verified": false,
+    "actual_license_notice_files_bundled_and_verified": true,
     "npm_jedison_bundle_not_started": false,
     "editor_static_build": {
       "package_path": "cms/editor/",
@@ -96,23 +96,23 @@
       "ci_result": "success 1/1 job, pinned deps, npm audit, browser integration and reproducible JS build",
       "artifact_id": 12137545566
     },
-    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39134298097",
-    "latest_php_ci_result": "7/7 SUCCESS with independent disposable database foundation restore",
+    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39135702765",
+    "latest_php_ci_result": "7/7 SUCCESS on PHP 8.1-8.4, SQLite and disposable MySQL 8.4",
     "package_research": {
       "internal_only": true,
       "production_ready": false,
       "build_cli": "node cms/tools/build-internal-package.cjs",
-      "verified_manifest": "private/package-manifest.json",
-      "file_count": 425,
+      "verified_manifest": "private/package-manifest.json (format ai-site-cms-internal-stage2-v2; releaseVersion 0.2.0-stage2.1)",
+      "file_count": 429,
       "hashes": "SHA-256 inventory; local integrity only, NOT a trusted software signature",
       "apache_webroot_requires": "cms package/public only; wrong document root is NOT safe",
       "private_browser_editor": "private/editor/editor.js (never directly served in this stage)",
       "packaged_composer_dependencies": true,
       "hosting_requires_node_or_composer_at_runtime": false,
-      "package_integration_tests": 19,
+      "package_integration_tests": 25,
       "php_http_boundary": "GET /api/health 200; publish/private editor/vendor HTTP 404",
-      "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39131661335",
-      "artifact_id": 12138351903,
+      "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39135702759",
+      "artifact_id": null,
       "untested": [
         "Actual target webserver rewriting/headers/access rights",
         "Production safe extraction and deployment/upgrade rollback",
@@ -147,8 +147,8 @@
       "matrix_and_integration_job_count": 7,
       "passed": 7
     },
-    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39132844902",
-    "latest_editor_ci_result": "success 1/1: native Jedison, pinned offline PHP editor package, integrity and HTTP isolation after packaging CI trigger hardening",
+    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39135702759",
+    "latest_editor_ci_result": "1/1 SUCCESS: 429-file package, 43-component CycloneDX BOM, 14 Composer license copies, 25 package and 24 lab rollout assertions, Chromium 12",
     "storage_safety_preflight": {
       "implementation": "cms/src/Storage/SchemaManager.php::inspectSite, cms/bin/schema-preflight.php --inspect",
       "supported_drivers": [
@@ -191,6 +191,29 @@
       "production_restore_ready": false,
       "actual_hostinger_tested": false,
       "complete_site_backup_implemented": false
+    },
+    "stage2_supply_chain": {
+      "generator": "cms/tools/generate-compliance.cjs",
+      "internal_version": "0.2.0-stage2.1",
+      "format": "CycloneDX 1.5 components-only, unsigned",
+      "composer_shipped_runtime_components": 14,
+      "npm_lock_entries": 29,
+      "npm_runtime_shipped_as_browser_bundle": [
+        "jedison@1.27.1"
+      ],
+      "sbom_components": 43,
+      "installed_composer_upstream_license_texts_included": true,
+      "upstream_jedison_mit_notice_included": true,
+      "files_in_internal_package": 429,
+      "package_adversarial_assertions": 25,
+      "lab_rollout_assertions": 24,
+      "lab_only_switch_verified": true,
+      "production_updater_ready": false,
+      "source_authentication_or_signatures_implemented": false,
+      "has_live_website_or_database_rollback": false,
+      "tests_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39135702759",
+      "report": "docs/STAGE-2-SBOM-ROLLOUT.md",
+      "adr": "docs/ADR/0005-offline-release-and-sbom.md"
     }
   },
   "total_stages": 18,

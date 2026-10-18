@@ -47,3 +47,8 @@ Research branch remains unmerged. CELIKOM and all client websites untouched. Sta
 ## Next Stage2 engineering increment
 
 Test fail-closed recovery from interrupted MySQL DDL / migration gaps, include reproducible independent SBOM/NOTICE ledger and safely versioned offline deployment packaging with explicitly tested rollback before any target-host execution. Do not enable writable HTTP routes prior to production auth/CSRF/validation or consider this initial package as deployable product.
+
+
+## Postscript v1.37 (18.10.2026) — NEWER STATUS
+
+The earlier 425-file package was superseded by **429-file Stage2 internal package** version `0.2.0-stage2.1`. It now embeds private CycloneDX 1.5 SBOM (43 lock components), Composer vendor license texts + Jedison literal MIT notice, per-package local SHA256, and disposable temp-only switching/rollback fault tests. [Full new report](STAGE-2-SBOM-ROLLOUT.md), [ADR 0005](ADR/0005-offline-release-and-sbom.md); latest [editor/package CI 1/1 PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39135702759), [PHP CI 7/7 PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39135702765). Still not a production release/updater; unauthenticated hashes, no DB rollback, Hostinger untested, Stage2 NOT accepted and 0/135 mandatory product accepted.
