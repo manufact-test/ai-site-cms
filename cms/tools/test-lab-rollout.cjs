@@ -1,5 +1,5 @@
 'use strict';
-const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),crypto=require('node:crypto');
 const {STAGE,verify}=require('./build-internal-package.cjs');
 const {LabRollout}=require('./lab-versioned-rollout.cjs');
 let count=0;
@@ -13,6 +13,14 @@ try{
   const oldManifest=path.join(source,'private/package-manifest.json');
   const altered=JSON.parse(fs.readFileSync(oldManifest,'utf8'));
   altered.releaseVersion='0.2.0-stage2.0';
+  const sbomFile=path.join(source,'private/compliance/sbom.cdx.json');
+  const oldSbom=JSON.parse(fs.readFileSync(sbomFile,'utf8'));
+  oldSbom.metadata.component.version='0.2.0-stage2.0';
+  fs.writeFileSync(sbomFile,JSON.stringify(oldSbom,null,2)+'\n');
+  const sbomBytes=fs.readFileSync(sbomFile);
+  const sbomEntry=altered.files.find(f=>f.path==='private/compliance/sbom.cdx.json');
+  sbomEntry.bytes=sbomBytes.length;
+  sbomEntry.sha256=crypto.createHash('sha256').update(sbomBytes).digest('hex');
   fs.writeFileSync(oldManifest,JSON.stringify(altered,null,2)+'\n');
   ok(verify(source).releaseVersion==='0.2.0-stage2.0','Synthetic old lab slot');
   ok(lab.stage(source)==='0.2.0-stage2.0','Stage isolated old version');
