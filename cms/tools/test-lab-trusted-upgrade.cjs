@@ -598,7 +598,7 @@ try{
       'cannot repair real SIGKILL using unpinned unsigned authorization: '+phase);
     denied(recover(status,mode,head,'f'.repeat(64)),
       'wrong release publisher pin cannot unlock a killed operator: '+phase);
-    denied(recover(status,mode==='abort'?'abort':'abort'),
+    denied(recover(status,mode==='abort'?'finalize':'abort'),
       'wrong operator recovery direction never repairs sealed state: '+phase);
     if(phase==='pointer') {
       const zip=path.join(a.bundle,'package.zip');
