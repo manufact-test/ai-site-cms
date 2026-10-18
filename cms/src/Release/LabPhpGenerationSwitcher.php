@@ -15,6 +15,8 @@ final class LabPhpGenerationSwitcher
 {
     private const FORMAT = 'ai-site-cms-php-generation-switch-lab-v1';
     private const PREFIX = 'ai-site-cms-php-switch-lab-';
+    private const PLAIN_ANCHOR = "ai-site-cms-php-lease-v1\n";
+    private const SEALED_ANCHOR = "ai-site-cms-php-signed-v1\n";
     private string $root;
     private bool $locked = false;
     /** @var array<string,mixed>|null Permit-bound scoped writer, never persisted. */
@@ -64,12 +66,20 @@ final class LabPhpGenerationSwitcher
         if (hash_equals($operatorPin,$publisherPin)) {
             throw new RuntimeException('Release publisher and operator identities must be independent');
         }
-        $lab = self::create();
+        $tmp = realpath(sys_get_temp_dir());
+        if ($tmp === false) throw new RuntimeException('No OS temp directory');
+        $root = $tmp . '/' . self::PREFIX . bin2hex(random_bytes(16));
+        if (!mkdir($root, 0700)) throw new RuntimeException('Cannot create signed-only switch lab');
+        $lab = new self($root);
+        $lab->writeFresh('releases.json', ['format'=>self::FORMAT,'releases'=>[]]);
         $lab->writeFresh('signed-only.json', [
             'format'=>'ai-site-cms-stage2-signed-switch-v1',
             'operatorFingerprint'=>$operatorPin,'publisherFingerprint'=>$publisherPin,
             'productionReady'=>false
         ]);
+        // Independent identity also encoded in the permanent lease anchor:
+        // deleting signed-only.json cannot silently downgrade the root.
+        $lab->createLeaseAnchor(true);
         $lab->inspect();
         return $lab;
     }
@@ -212,12 +222,13 @@ final class LabPhpGenerationSwitcher
 
     // Every cooperative reader and writer holds a stable local-filesystem inode.
     // Not a distributed lock and not a proof of PHP-FPM/OPcache compatibility.
-    private function createLeaseAnchor(): void
+    private function createLeaseAnchor(bool $sealed = false): void
     {
         $handle = @fopen($this->file('request-lease.lock'), 'x');
         if ($handle === false) throw new RuntimeException('Cannot create permanent lease anchor');
         try {
-            if (fwrite($handle, "ai-site-cms-php-lease-v1\n") !== 25 || !fflush($handle)) {
+            $marker = $sealed ? self::SEALED_ANCHOR : self::PLAIN_ANCHOR;
+            if (fwrite($handle, $marker) !== strlen($marker) || !fflush($handle)) {
                 throw new RuntimeException('Incomplete lease anchor');
             }
             if (function_exists('fsync')) fsync($handle);
@@ -229,9 +240,11 @@ final class LabPhpGenerationSwitcher
     {
         $this->assertRoot();
         $file = $this->file('request-lease.lock');
+        $marker = $this->sealedConfig() === null ? self::PLAIN_ANCHOR : self::SEALED_ANCHOR;
         $before = @lstat($file);
         if ($before === false || is_link($file) || !is_file($file)
-            || ($before['nlink'] ?? 0) !== 1 || ($before['size'] ?? 0) !== 25) {
+            || ($before['nlink'] ?? 0) !== 1
+            || ($before['size'] ?? 0) !== strlen($marker)) {
             throw new RuntimeException('Missing or replaced request lease anchor');
         }
         $handle = @fopen($file, 'rb');
@@ -239,7 +252,7 @@ final class LabPhpGenerationSwitcher
         $opened = fstat($handle);
         if ($opened === false || $opened['ino'] !== $before['ino']
             || $opened['dev'] !== $before['dev']
-            || !hash_equals("ai-site-cms-php-lease-v1\n", stream_get_contents($handle) ?: '')) {
+            || !hash_equals($marker, stream_get_contents($handle) ?: '')) {
             fclose($handle);
             throw new RuntimeException('Request lease anchor mutated');
         }
@@ -426,10 +439,12 @@ final class LabPhpGenerationSwitcher
     public function inspect(?string $externalMinVersion = null): array
     {
         $this->assertRoot();
+        $leaseMarker = $this->sealedConfig() === null ? self::PLAIN_ANCHOR : self::SEALED_ANCHOR;
         $leaseStat = @lstat($this->file('request-lease.lock'));
         if ($leaseStat === false || is_link($this->file('request-lease.lock'))
             || !is_file($this->file('request-lease.lock'))
-            || ($leaseStat['size'] ?? 0) !== 25 || ($leaseStat['nlink'] ?? 0) !== 1) {
+            || ($leaseStat['size'] ?? 0) !== strlen($leaseMarker) || ($leaseStat['nlink'] ?? 0) !== 1
+            || !hash_equals($leaseMarker, @file_get_contents($this->file('request-lease.lock')) ?: '')) {
             throw new RuntimeException('Missing or unsafe request lease anchor');
         }
         if (!$this->locked && self::present($this->file('switch-exclusive.lock'))) {
