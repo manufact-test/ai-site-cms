@@ -248,7 +248,11 @@ final class LabSettledUpgradeGate
                     || $verified['count'] !== $generation['sequence']) {
                     throw new RuntimeException('Settlement changed while serving protected request');
                 }
-                return $handler($generation);
+                $response = $handler($generation);
+                // A new pending grant may appear while the read-only handler
+                // executes; never emit a successful response if so.
+                LabPreauthorizedUpgradeGate::assertNoPending($pending);
+                return $response;
             }
         );
     }
