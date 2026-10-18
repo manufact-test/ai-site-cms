@@ -7,7 +7,7 @@ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const assert=require('node:assert/strict'),crypto=require('node:crypto');
 const {spawnSync}=require('node:child_process');
 const {STAGE,verify}=require('./build-internal-package.cjs');
-const {buildSignedLabBundle}=require('./lab-signed-offline-release.cjs');
+const {buildSignedLabBundle,metadata,writeEnvelope,runArchive}=require('./lab-signed-offline-release.cjs');
 if(process.env.CI!=='true'||process.env.CMS_ALLOW_PHP_INSTALL_LAB!=='1'
   ||process.env.CMS_ALLOW_EPHEMERAL_SIGNING_LAB!=='1')
   throw Error('Explicit ephemeral CI release lab required');
@@ -48,7 +48,8 @@ function payload(version){
   const bundle=path.join(temp,'signed-'+version);
   const extracted=path.join(temp,'extracted-'+version);
   fs.mkdirSync(source);fs.mkdirSync(bundle);fs.mkdirSync(extracted);
-  if(fs.existsSync(path.join(STAGE,'private/package-manifest.json'))){
+  const compiled=fs.existsSync(path.join(STAGE,'private/package-manifest.json'));
+  if(compiled){
     fs.cpSync(STAGE,source,{recursive:true});
     const mf=path.join(source,'private/package-manifest.json');
     const sf=path.join(source,'private/compliance/sbom.cdx.json');
@@ -62,14 +63,27 @@ function payload(version){
     sbomEntry.bytes=newData.length;sbomEntry.sha256=sha(newData);
     fs.writeFileSync(mf,JSON.stringify(m,null,2)+'\n');
   }else synthetic(source,version);
-  const found=verify(source);
-  ok(found.releaseVersion===version,'prepared package passes byte-level source verification');
-  const metadata=buildSignedLabBundle(source,bundle,keys.privateKey,keys.publicKey);
-  ok(metadata.version===version,'signed envelope pins selected release version');
+  const found=compiled ? verify(source) : JSON.parse(fs.readFileSync(
+    path.join(source,'private/package-manifest.json'),'utf8'));
+  ok(found.releaseVersion===version,'prepared release manifest binds selected code version');
+  let info;
+  if(compiled){
+    info=buildSignedLabBundle(source,bundle,keys.privateKey,keys.publicKey);
+  }else{
+    // The PHP 8.1-8.4 matrix deliberately has no built Jedison bundle.
+    // Sign a small *real ZIP* with the identical envelope format and Ed25519
+    // verification path. Full inventory+SBOM tested on editor CI separately.
+    const zip=path.join(bundle,'package.zip');
+    runArchive('pack',source,zip);
+    info=metadata(version,fs.readFileSync(zip),sha(fs.readFileSync(
+      path.join(source,'private/package-manifest.json'))),keys.publicKey);
+    writeEnvelope(bundle,info,keys.privateKey);
+  }
+  ok(info.version===version,'signed envelope pins selected release version');
   const result=run('python3',[path.join(ROOT,'tools/safe-offline-archive.py'),
     'extract',path.join(bundle,'package.zip'),extracted]);
   ok(result.status===0,'restricted archive extractor accepts signed '+version);
-  return {source,bundle,extracted,metadata};
+  return {source,bundle,extracted,metadata:info};
 }
 const keys=crypto.generateKeyPairSync('ed25519');
 const pem=path.join(temp,'publisher-test-root.pem');
