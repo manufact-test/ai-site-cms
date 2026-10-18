@@ -416,3 +416,12 @@ Full GitHub Actions [#39073198622](https://github.com/manufact-test/ai-site-cms/
 The only renderer proof from this source is a **manually mapped three-node content-only projection**: HTML/PHP CLI/React static 6/6 semantic parity, 18 invalid refusals. Original full CSS/JS is not migrated. Chromium isolated original CSS desktop/mobile while source JS/form deliberately blocked; no function-preserving arbitrary-site import. Actual PHP shared Hostinger remains untested.
 
 Alternatives A modular PHP+typed registry, B Puck fields/PHP, C Winter/custom editor and D selective GrapesJS UI remain open; no final stack selection. Capabilities registry, provenance, CSS trust, behavior/media/SEO, versioned alias and migrations remain blockers. [Technical report](STAGE-1-INDEPENDENT-SITE-CONTRACT-RESEARCH.md). Stage 1 not accepted; product 0/135.
+
+
+## 23. Versioned reviewed capability packs and storage-persistence probes — v1.23, 18.10.2026
+
+**Verified full CI [#39111755170](https://github.com/manufact-test/ai-site-cms/actions/runs/39111755170)** (32ab15f4ec523597724610011a71695bd05d5784, 3 green jobs). Jedison 1.27.1 / RJSF 6.11.0 both retain native UI edit-through behavior for manually reviewed link/disclosure/dialog/preview form (20 edits), visual gradients/motion/curated SVG (18 edits), and versioned 4→5 component regeneration with 6 owner overrides kept and semantic rename review. No independent blinded second-model input, no full arbitrary source-site import and no production publishing. The two editors remain **comparative candidates; neither selected**. Safety depends on centrally reviewed capabilities, typed generated schemas and sandbox; unrestricted JS/CSS/SVG or user plug-ins NOT approved.
+
+Separate independent PHP CLI file-store research tests validate generation-CAS/flock, draft-published separation, atomic rename, checksum and last-good fallback, historical rollback/recovery across new Node process, with **48 checks**. This probes only local GitHub runner process/filesystem; not PHP shared hosting, fsync/power-loss durability, distributed locking, authorized administration, off-site backup, database or performance at scale. SHA256 != MAC.
+
+**Outcome:** strengthen evidence for the viability of trusted typed extensions + PHP snapshots as candidates; not an architectural decision. Evidence matrix category totals unchanged (43 limited research/doc, 92 target gaps); product 0/135; Stage1 open. [Deep technical report](STAGE-1-DURABLE-REGENERATION-RESEARCH.md).

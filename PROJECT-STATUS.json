@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Stage 1 ONLY: independently blinded second-model full AI-site plus manifest and independent expectation scoring; trusted reviewed versioned behavior/media/SEO/CSS extensions, real rich renderer compatibility and update migrations; read-only shared PHP Hostinger only if authorized. No technology selection, no Stage2, no main experiment merge, no CELIKOM.",
+  "next_step": "Stage1 ONLY: truly blind independently generated AI site+intent (not tuned to grammar), heterogeneous complete-site fidelity across HTML/PHP/React/Next, trusted capability registration/provenance and storage durability/trust analysis; read-only Hostinger only with explicit authorization. No final stack selection, no stage2, no product CMS rollout, no CELIKOM.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.22",
+  "checkpoint_version": "1.23",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -66,7 +66,7 @@
         "jedison": 46.5,
         "rjsf": 63.1
       },
-      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39077113741",
+      "latest_research_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39111755170",
       "rjsf_complex_custom_fields_tested": true,
       "rjsf_custom_fields_chromium_passed": true,
       "php_opis_schema_validator_tested": true,
@@ -118,7 +118,7 @@
       "complex_adapter_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39064252770",
       "hosting_smoke_plan_path": "docs/STAGE-1-HOSTING-SMOKE-PLAN.md",
       "hosting_smoke_plan_executed": false,
-      "research_state_note": "v1.22 FULL Actions PASS #39077113741 at research 7d8178c54e557ec4a37f1427f0917dab2d9daabd: one uninstrumented standalone independently structured (not blind second-model) Tide Atlas HTML/CSS/JS, 17 ids/9 unkeyed text, 16 manual expected properties vs 12 candidate, 4 missing, 10 unsupported even after manual repair, 15 negative/migration; manually mapped safe 3-node HTML/PHP/React parity 6/6 + 18 invalid refusals, full source Chromium opaque CSS H1 84/48px, source JS and POST form blocked, 0 pageerrors. No full automatic site adapter or Hostinger production proof. Stage1 not accepted, product 0/135.",
+      "research_state_note": "v1.23 research branch 32ab15f4ec523597724610011a71695bd05d5784 all three CI jobs PASS #39111755170. Reviewed links/accordion/dialog/preview-form across Jedison/RJSF (20 browser edits), reviewed gradient/animation/two curated SVGs (18 browser edits), regenerated 4→5 typed site components with 6 owner overrides retained and real editor browser tests, file-based PHP CLI snapshot persistence, CAS/flock, corruption fallback, explicit restore, 48 checks, three fresh JS process rehydrations. Original AI site not genuinely blind second-model, production Hostinger untested, SHA256 not MAC, no fsync/auth/product. Stage1 not accepted, technology not selected, product 0/135.",
       "complex_adapter_native_srcdoc_nonce_bridge_passed": true,
       "complex_adapter_native_srcdoc_nonce_variants_passed": 4,
       "srcdoc_csp_positive_without_policy_passed": true,
@@ -316,7 +316,21 @@
       "independent_site_manually_mapped_renderer_states": 6,
       "independent_site_renderer_invalid_refusals": 18,
       "independent_site_opaque_iframe_browser_passed": true,
-      "independent_site_full_source_automatic_parity_verified": false
+      "independent_site_full_source_automatic_parity_verified": false,
+      "reviewed_behavior_capabilities_browser_passed": true,
+      "reviewed_behavior_native_ui_edits": 20,
+      "reviewed_visual_asset_browser_passed": true,
+      "reviewed_visual_native_ui_edits": 18,
+      "ai_regeneration_owner_migration_browser_passed": true,
+      "ai_regeneration_browser_owner_overrides_retained": 6,
+      "ai_regeneration_reviewed_stable_id_aliases": 1,
+      "php_durable_store_local_cli_passed": true,
+      "php_durable_store_assertions": 48,
+      "php_durable_store_fresh_node_rehydrations": 3,
+      "php_durable_store_actual_hostinger_tested": false,
+      "php_durable_store_power_loss_fsync_tested": false,
+      "php_durable_store_multi_host_auth_tested": false,
+      "php_durable_store_sha256_note": "Detect accidental corruption, NOT malicious file tampering by an actor able to recompute digest."
     },
     "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
     "research_branch": "research/stage1-editor-comparison",
@@ -346,5 +360,6 @@
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
   "reuse_policy": "Internal agency tool with client-facing admin access; reuse permissively licensed open-source components or fragments (including substantial modified parts), comply with original notices; avoid restrictive/GPL/AGPL by default.",
-  "hosting_policy": "Keep current PHP shared hosting; no hosting upgrades without owner's later approval; Node allowed for offline asset builds only."
+  "hosting_policy": "Keep current PHP shared hosting; no hosting upgrades without owner's later approval; Node allowed for offline asset builds only.",
+  "documentation_update_policy": "Batch after substantive coherent work or when owner asks for new chat. Single handoff docs/NEXT-CHAT.md. Experimental code stays only in research/stage1-editor-comparison."
 }

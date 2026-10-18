@@ -415,3 +415,14 @@ STAGE1_INDEPENDENT_SITE_RENDER_PARITY: manually mapped content-only 3-node view;
 STAGE1_INDEPENDENT_SITE_SANDBOX: native Chromium opaque iframe source rendered with desktop CSS H1 84px / mobile 48px; script-src none, parent DOM inaccessible, click dialog inactive, valid email form to /subscribe blocked, 0 page errors. Test inline styles permitted, NOT production CSP. Diagnostic FAIL #39076877639 favicon mistakenly counted as HTTP form request, fixed by filtering /subscribe and filling email, final full CI green.
 
 Details: [STAGE-1-INDEPENDENT-SITE-CONTRACT-RESEARCH.md](STAGE-1-INDEPENDENT-SITE-CONTRACT-RESEARCH.md). Stage1 in_progress not accepted; Stage2 not started, technology not selected, product **0/135**; R/D 43, gaps 92.
+
+
+## 26. Trusted behavior/visual, AI site re-generation and persistent PHP CLI snapshot research — v1.23 · 18.10.2026
+
+**Final full Actions CI:** [#39111755170](https://github.com/manufact-test/ai-site-cms/actions/runs/39111755170), head 32ab15f4ec523597724610011a71695bd05d5784, comparison/regeneration/durability **all completed/success**. In previous CI rounds #39079526881, #39109244889, #39110896781 all full PASS.
+
+- Native reviewed behavior widget sessions: Jedison/RJSF, **20 edits**, internal anchor/disclosure/dialog/preview-form; original JS/POST blocked, CSP/origin restrictions preserved, 9 bad model values refused.
+- Native reviewed visual widget sessions: Jedison/RJSF, **18 edits**, 8 typed fields, two actual decoded local SVGs, gradient/animation computed CSS, reduced motion, nonce CSP and no unsafe inline CSS attributes, 16 invalid values rejected. Curated SVG is not arbitrary SVG safety.
+- Typed component regeneration: 4→5 with rename/reorder/insert; **6 owner overrides** retained in both browsers, type-changing component quarantined, published unchanged until explicit publication, rollback as new immutable history revision; old RAF iframe wait replaced with bounded time-based wait to stop incidental CI stalls.
+- NEW persistent PHP CLI store: durable-site-store.php, durable-site-recovery.cjs; CAS, flock, generation, bounded checked snapshots and SHA256 hash, atomic rename and last-good, failpoint before current swap, invalid/malicious input, stale writer, corrupted current fallback, corrupted both copies fails closed, explicit backup repair. **48 checks and 3 fresh JS Node process rehydrations**; corrected rollback-vs-retained-owner conflict to demand sourceRevision matching an identical saved history entry.
+- No actual Hostinger, fsync-power loss, auth, DB, real backups or deployment. Full production 0/135; Stage1 still not accepted; no selection/Stage2. [Technical report](STAGE-1-DURABLE-REGENERATION-RESEARCH.md).
