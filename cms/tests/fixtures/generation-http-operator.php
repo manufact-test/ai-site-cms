@@ -36,12 +36,8 @@ try {
             (int)$argv[5],$argv[6],$argv[7]==='none'?null:$argv[7]);
         echo json_encode($state,JSON_THROW_ON_ERROR),"\n";
     } elseif ($mode==='--unlock' && $argc===7) {
-        // Reopen cannot proceed with the stale mkdir lock, so the constructor
-        // is allowed through via a restricted read-only reflection call.
-        $class=new ReflectionClass(Switcher::class);
-        $constructor=$class->getConstructor();
-        $instance=$class->newInstanceWithoutConstructor();
-        $constructor->invoke($instance,$argv[2]);
+        // Explicit operator-only bypass of auto-inspect, not an HTTP action.
+        $instance=Switcher::reopenForStaleLockReview($argv[2]);
         $state=$instance->releaseStaleOperatorLock(
             $argv[3]==='none'?null:$argv[3],(int)$argv[4],$argv[5],$argv[6]);
         echo json_encode($state,JSON_THROW_ON_ERROR),"\n";
