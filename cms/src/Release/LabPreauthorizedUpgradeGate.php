@@ -63,10 +63,18 @@ final class LabPreauthorizedUpgradeGate
     private static function directory(string $pending): string
     {
         $real = realpath($pending);
-        if ($real === false || is_link($pending) || !is_dir($real)
-            || dirname($real) !== realpath(sys_get_temp_dir())
-                && dirname(dirname($real)) !== realpath(sys_get_temp_dir())
-            || !preg_match('/^ai-site-cms-trusted-upgrade-fixture-[a-f0-9]{16}$/D', basename(dirname($real)))) {
+        $tmp = realpath(sys_get_temp_dir());
+        $parent = $real === false ? '' : dirname($real);
+        $grandparent = dirname($parent);
+        $direct = $grandparent === $tmp
+            && preg_match('/^ai-site-cms-trusted-upgrade-fixture-[a-f0-9]{16}$/D', basename($parent));
+        $archived = dirname($grandparent) === $tmp
+            && preg_match('/^ai-site-cms-trusted-upgrade-fixture-[a-f0-9]{16}$/D', basename($grandparent))
+            && preg_match('/^permit-[0-9]{6}$/D', basename($real))
+            && basename($parent) === 'approved-permit-proofs'
+            && !is_link($parent);
+        if ($tmp === false || $real === false || is_link($pending)
+            || !is_dir($real) || (!$direct && !$archived)) {
             throw new RuntimeException('Approval must be in disposable CI test sandbox');
         }
         return $real;
