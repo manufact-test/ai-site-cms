@@ -25,6 +25,7 @@ function snapshot(){
   heroBackground:style('hero','backgroundImage'),
   gridColumns:style('field-notes','gridTemplateColumns').split(' ').length,
   heroFontSize:style('hero-title','fontSize'),
+  pulseAnimation:style('weather-icon','animationName'),
   pictureSrcset:el('hero-mobile').getAttribute('srcset'),
   imageAlt:el('hero-image').getAttribute('alt'),
   videoSource:el('gallery-source').getAttribute('src'),
@@ -51,6 +52,7 @@ function snapshot(){
   pass(s.ids.length>=23,'DOM ids');
   pass(s.heroBackground.includes('linear-gradient'),'computed gradient');
   equal(s.gridColumns,3,'desktop grid');
+  equal(s.pulseAnimation,'breathe','original CSS animation actually active');
   equal(s.description,'Environmental signals from the field','SEO description');
   equal(s.canonical,'https://cedarlab.example/research','SEO canonical');
   equal(s.videoSource,'/assets/trail.mp4','video source retained');
@@ -64,9 +66,11 @@ function snapshot(){
   await frame.locator('#faq-title').click();
   pass(await originalPage.locator('#faq-first').evaluate(x=>x.open),'native FAQ original');
   pass(await frame.locator('#faq-first').evaluate(x=>x.open),'native FAQ in quarantine');
+  const requestsBeforeSubmit=requests;
   await frame.locator('#newsletter-email').fill('test@example.org');
   await frame.locator('#newsletter-submit').click();
-  const before=requests;
+  await sandboxPage.waitForTimeout(100);
+  equal(requests,requestsBeforeSubmit,'quarantined form must not generate external requests');
   const assertDevice=async(width,reduced)=>{
    await originalPage.setViewportSize({width,height:800});
    await sandboxPage.setViewportSize({width,height:800});
@@ -82,14 +86,15 @@ function snapshot(){
   let mobile=await assertDevice(390,false);
   equal(mobile.gridColumns,1,'mobile grid');
   equal(mobile.heroFontSize,'36px','mobile font');
+  equal(mobile.pulseAnimation,'breathe','animation enabled without reduced motion');
   mobile=await assertDevice(390,true);
   equal(mobile.gridColumns,1,'reduced-motion device retains geometry');
+  equal(mobile.pulseAnimation,'none','prefers-reduced-motion disables source CSS animation');
   equal(errors,0,'no runtime errors');
-  pass(requests>=before,'all external requests are intercepted by research runner');
   console.log('STAGE1_CEDAR_BROWSER_PARITY='+JSON.stringify({pass:true,checks,
     actualChromium:true,desktopColumns:3,mobileColumns:1,mobileH1px:36,
     originalJsExecuted:true,isolatedJsDisabled:true,nativeDetailsWorksBoth:true,
-    visualStyleAndSeoMediaDomParity:true,networkDeniedByResearchRoute:true,
+    visualStyleAndSeoMediaDomParity:true,reducedMotionMeasured:true,quarantinedFormRequestsBlocked:true,networkDeniedByResearchRoute:true,
     limitations:'Original CSS retained because identical untrusted source is shown in sandbox; JS blocked intentionally, not equivalent dynamic behavior or arbitrary site import; form action is not approved; no PHP/Next full site runtime, no second blind LLM.'}));
   await ctx.close();
  }finally{await browser.close();}
