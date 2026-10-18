@@ -31,6 +31,8 @@ jobs:
         run: find src tests bin public -name '*.php' -print -exec php -l {} \;
       - name: Read-only hosting compatibility doctor, negative fixtures and CLI
         run: php tests/doctor.php && php bin/doctor.php --check --document-root=public
+      - name: Shared-host PHP/FPM/Apache offline boundary and negative fixtures
+        run: php tests/shared-host-preflight.php && php bin/shared-host-preflight.php --check --document-root=public
       - name: Verify health only, no exposed write routes
         run: composer test
       - name: HTTP public route boundary
@@ -138,6 +140,7 @@ jobs:
         run: |
           composer install --no-interaction --prefer-dist --no-progress
           php tests/dependency-lock.php
+          php tests/shared-host-preflight.php
           composer test
           php tests/storage.php
           php tests/installer-cli.php
