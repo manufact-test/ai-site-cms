@@ -49,7 +49,7 @@ function validateManifest(manifest){
 function parseOwnerPath(p,manifest){
  if(typeof p!=='string'||p.length>120||!p.includes('/'))return null;
  const parts=p.split('/');
- if(parts.length!==2||!idRe.test(parts[0])||!idRe.test(parts[1]))return null;
+ if(parts.length!==2||!idRe.test(parts[0])||!/^[a-z][a-zA-Z0-9]{1,40}$/.test(parts[1]))return null;
  const component=manifest.components.find(c=>c.id===parts[0]);
  if(!component||!Object.hasOwn(catalog[component.kind],parts[1]))return null;
  return {component,field:parts[1],type:catalog[component.kind][parts[1]]};
