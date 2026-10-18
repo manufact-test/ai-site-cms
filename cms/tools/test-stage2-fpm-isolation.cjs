@@ -113,6 +113,7 @@ function ngConfig(dir,sites,ports){
    'fastcgi_param SCRIPT_NAME /index.php;',
    'fastcgi_param CMS_ENV test;',
    'fastcgi_param CMS_STAGE2_RUNTIME_GATE ci-bound;',
+   'fastcgi_param CMS_STAGE2_REQUIRE_FPM_MAPPING 1;',
    'fastcgi_param CMS_ALLOW_SQLITE_TEST_ONLY 1;',
    'fastcgi_param CMS_SITE_ID '+x.id+';',
    'fastcgi_param CMS_DB_DSN sqlite:'+x.db+';',
