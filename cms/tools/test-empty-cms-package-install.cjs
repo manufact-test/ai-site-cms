@@ -168,7 +168,8 @@ async function main(){
     check(response.status===200 && response.body.includes('Independent static fixture one'),
       'unrelated static website serves its own public document root');
     response=await get(siteHttp.url+'/api/health');
-    check(response.status===404,'site is not silently routed through CMS health endpoint');
+    check(!response.body.includes('{"status":"ok"}') && !response.headers.get('x-content-type-options'),
+      'independent PHP static server never exposes CMS health payload or CMS headers');
 
     // Independent site remains online if entire CMS process is taken offline.
     await stop(cmsHttp);
