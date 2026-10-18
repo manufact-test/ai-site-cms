@@ -128,7 +128,21 @@ final class LabSettledUpgradeGate
         if ($entries !== $wanted) {
             throw new RuntimeException('Settlement chain incomplete, foreign, or replayed');
         }
+        $proofEntries = @scandir($permits);
+        if ($proofEntries === false) {
+            throw new RuntimeException('Operator permit archive is unreadable');
+        }
+        $proofEntries = array_values(array_diff($proofEntries, ['.','..']));
+        $expectedProofDirs = [];
+        for ($i = 1; $i <= $count; ++$i) {
+            $expectedProofDirs[] = sprintf('permit-%06d', $i);
+        }
+        sort($proofEntries, SORT_STRING);
+        if ($proofEntries !== $expectedProofDirs) {
+            throw new RuntimeException('Missing, extra or replayed archived operator permits');
+        }
         $public = self::key($operatorPem, $operatorPin, $dir);
+        $seenNonces = [];
         $lastSettlement = null;
         $lastReceipt = null;
         $lastVersion = null;
@@ -165,6 +179,10 @@ final class LabSettledUpgradeGate
                 $permitFolder,$operatorPem,$operatorPin,$r['permitSha256'],
                 $lastReceipt,$siteId,$publisherPin
             );
+            if (isset($seenNonces[$p['nonce']])) {
+                throw new RuntimeException('Operator preactivation nonce reused across generations');
+            }
+            $seenNonces[$p['nonce']] = true;
             $receiptRaw = self::node($receipts . '/receipt-' . $stem . '.json', 8192);
             $receiptSig = self::node($receipts . '/receipt-' . $stem . '.sig', 64);
             if (strlen($receiptSig) !== 64) throw new RuntimeException('Truncated activated receipt signature');
