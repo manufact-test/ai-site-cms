@@ -45,7 +45,7 @@ try {
         (new SchemaManager($pdo,true))->assertSite($site);
         $pdo->exec('UPDATE cms_installation SET storage_generation='.(int)$argv[3].' WHERE singleton_id=1');
         echo '{"mutated":true}',"\n";
-    } elseif ($action==='activate' && $argc===14) {
+    } elseif ($action==='activate' && $argc===13) {
         [$root,$expectedFile,$bundle,$extracted,$pem,$fingerprint,$version,$minimum,
             $current,$generation]=array_slice($argv,3);
         $bytes=file_get_contents($expectedFile);
