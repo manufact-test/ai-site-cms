@@ -189,15 +189,16 @@ final class SchemaManager
     private function withMigrationLock(callable $callback): int
     {
         if ($this->driver === 'sqlite') {
+            // BEGIN IMMEDIATE is raw SQLite SQL; PDO::commit() may not know that
+            // this transaction was started outside PDO::beginTransaction().
+            // Use SQL COMMIT/ROLLBACK symmetrically to maintain the write lock.
             $this->pdo->exec('BEGIN IMMEDIATE');
             try {
                 $result = $callback();
-                $this->pdo->commit();
+                $this->pdo->exec('COMMIT');
                 return $result;
             } catch (Throwable $e) {
-                if ($this->pdo->inTransaction()) {
-                    $this->pdo->rollBack();
-                }
+                $this->pdo->exec('ROLLBACK');
                 throw $e;
             }
         }
