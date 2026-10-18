@@ -45,6 +45,16 @@ try {
             JSON_THROW_ON_ERROR),"\n";
     } elseif ($action==='new' && $argc===3) {
         echo json_encode(['root'=>Switcher::create()->root()],JSON_THROW_ON_ERROR),"\n";
+    } elseif ($action==='new-sealed' && $argc===5) {
+        echo json_encode([
+            'root'=>Switcher::createSealed($argv[3],$argv[4])->root()
+        ],JSON_THROW_ON_ERROR),"\n";
+    } elseif ($action==='raw-register' && $argc===7) {
+        $result=Switcher::reopen($argv[3])->register($argv[4],$argv[5],$argv[6]);
+        echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
+    } elseif ($action==='raw-recover' && $argc===5) {
+        $result=Switcher::reopen($argv[3])->recover('abort',$argv[4]);
+        echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
     } elseif ($action==='mutate' && $argc===4) {
         if (!in_array($argv[3],['0','1','2'],true)) throw new RuntimeException('Invalid synthetic generation');
         $pdo=new PDO('sqlite:'.$dbPath);
