@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Stage2: design per-site restore-safe backup/upgrade contract and test recoveries on disposable MySQL/SQLite databases; complete license/SBOM and signed packaging; require separate read-only permission for actual Hostinger compatibility, and separate install approval if later needed. Do not touch CELIKOM/real sites. Stage2 remains in progress and product 0/135.",
+  "next_step": "Remain Stage2. Next block: machine-readable dependency SBOM/full vendor license NOTICE verification, immutable/offline versioned release package and rollback failure tests; full site backup only after content/media/revision schema exists. Hostinger and client sites off-limits without authorization.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.35",
+  "checkpoint_version": "1.36",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -33,11 +33,11 @@
     "dependency_lock_committed": true,
     "stage_accepted": false,
     "main_blockers": [
-      "Real Hostinger/read-only compatibility and actual target empty CMS run not tested (separate explicit permission required)",
-      "Full site content, media and DB backup/restore and interrupted DDL operator recovery remain UNSOLVED; fail-closed simulation is not a recovery solution",
-      "Real editor auth/session/RBAC/CSRF, manifest completeness, single-block preview, publish and adapters absent",
-      "Full upstream LICENSE/NOTICE/SBOM plus signed release provenance and verified versioned safe upgrade/rollback absent",
-      "Production installer/isolated deployment is not built; internal CI bundle should not be installed on a live site"
+      "Only foundation metadata restore tested in CI; complete pages/media/owner overrides/published revisions backup does NOT exist",
+      "Real Hostinger PHP/shared-host compatibility and empty CMS install untested, separate explicit owner permissions required",
+      "Full production installer, immutable releases, operator-reviewed rollback and backup recovery under actual MySQL/host failures absent",
+      "Full legal SBOM/NOTICE and authenticated package distribution/provenance absent",
+      "Real authenticated admin/RBAC/CSRF, AI manifest contract, single-block preview and publishing not implemented"
     ],
     "storage_migration_version": 2,
     "schema_implementation": "cms/src/Storage/SchemaManager.php; CLI-only installer cms/bin/install.php, no HTTP admin/write routes",
@@ -52,8 +52,8 @@
       "Idempotent same-site initialization",
       "Refuses database reuse by different site identity"
     ],
-    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39132640890",
-    "last_full_ci_result": "7/7 PASS including safe schema inspection and 19 ephemeral MySQL negative checks",
+    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39134298097",
+    "last_full_ci_result": "7/7 SUCCESS with independent disposable database foundation restore",
     "last_full_ci_checks": {
       "kernel_smoke": 10,
       "sqlite_schema_checks": 37,
@@ -96,8 +96,8 @@
       "ci_result": "success 1/1 job, pinned deps, npm audit, browser integration and reproducible JS build",
       "artifact_id": 12137545566
     },
-    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39132640890",
-    "latest_php_ci_result": "success 7/7 jobs: PHP 8.1/8.2/8.3/8.4, php-core, sqlite, real ephemeral MySQL fault simulation",
+    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39134298097",
+    "latest_php_ci_result": "7/7 SUCCESS with independent disposable database foundation restore",
     "package_research": {
       "internal_only": true,
       "production_ready": false,
@@ -179,6 +179,18 @@
       "automatic_schema_repair_implemented": false,
       "backup_restore_implemented": false,
       "operator_report_warning": "Advisory snapshot, not transactionally consistent and not a production recovery procedure"
+    },
+    "foundation_restore": {
+      "implementation": "cms/src/Storage/FoundationSnapshot.php",
+      "scope": "ONLY empty CMS foundation v2 site id and storage generation, NOT full site content/media/overrides/revisions",
+      "allowed": "explicit test-mode SQLite and specifically named disposable MySQL CI target, separate empty DB; no production restore",
+      "source_export": "read-only validated schema, bounded strict JSON, SHA256 accidental-corruption detection only not signature",
+      "validation": "typed exact fields, matching site and schema, strict generation and length, reject corruption/unknown fields and nonempty target",
+      "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39134298097",
+      "ci_result": "completed SUCCESS 7/7; SQLite foundation restore 47 assertions, real MySQL 8.4 separate-database restore 13 assertions, PHP 8.1–8.4",
+      "production_restore_ready": false,
+      "actual_hostinger_tested": false,
+      "complete_site_backup_implemented": false
     }
   },
   "total_stages": 18,
