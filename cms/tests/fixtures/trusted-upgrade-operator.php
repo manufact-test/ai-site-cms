@@ -9,12 +9,14 @@ require dirname(__DIR__,2).'/src/Release/LabPackageStager.php';
 require dirname(__DIR__,2).'/src/Release/LabPhpGenerationSwitcher.php';
 require dirname(__DIR__,2).'/src/Release/LabTrustedUpgradeCoordinator.php';
 require dirname(__DIR__,2).'/src/Release/LabAttestedActivationGate.php';
+require dirname(__DIR__,2).'/src/Release/LabPreauthorizedUpgradeGate.php';
 
 use AiSiteCms\Storage\SchemaManager;
 use AiSiteCms\Release\LabSchemaVersionGate as Gate;
 use AiSiteCms\Release\LabPhpGenerationSwitcher as Switcher;
 use AiSiteCms\Release\LabTrustedUpgradeCoordinator as Upgrade;
 use AiSiteCms\Release\LabAttestedActivationGate as Attested;
+use AiSiteCms\Release\LabPreauthorizedUpgradeGate as Approval;
 
 if (PHP_SAPI !== 'cli' || getenv('CI') !== 'true'
     || getenv('CMS_ALLOW_PHP_INSTALL_LAB') !== '1') {
@@ -62,7 +64,44 @@ try {
             $current==='none'?null:$current,(int)$generation
         );
         echo json_encode($active,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR),"\n";
-    } elseif ($action==='attested-serve' && $argc===9) {
+    } elseif ($action==='approved-activate' && $argc===17) {
+        [$root,$receipts,$pending,$operatorPem,$operatorPin,$permitHead,$previousHead,
+            $bundle,$extracted,$publisherPem,$publisherPin,$previousVersion,$previousSequence,$failAt]
+            =array_slice($argv,3);
+        $pdo=new PDO('sqlite:'.$dbPath);
+        $result=Approval::activate(
+            $pdo,$site,Switcher::reopen($root),
+            $receipts,$pending,$operatorPem,$operatorPin,$permitHead,
+            $previousHead==='none'?null:$previousHead,
+            $bundle,$extracted,$publisherPem,$publisherPin,
+            $previousVersion==='none'?null:$previousVersion,(int)$previousSequence,
+            $failAt==='none'?null:$failAt
+        );
+        echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
+    } elseif ($action==='approval-review' && $argc===11) {
+        [$root,$pending,$operatorPem,$operatorPin,$permitHead,$previousHead,$publisherPin]
+            =array_slice($argv,3);
+        $pdo=new PDO('sqlite:'.$dbPath);
+        $result=Approval::reviewInterrupted(
+            $pdo,$site,Switcher::reopen($root),$pending,$operatorPem,$operatorPin,
+            $permitHead,$previousHead==='none'?null:$previousHead,$publisherPin
+        );
+        echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
+    } elseif ($action==='approval-serve' && $argc===10) {
+        [$root,$receipts,$pending,$operatorPem,$operatorPin,$head,$publisherPin]
+            =array_slice($argv,3);
+        $pdo=new PDO('sqlite:'.$dbPath);
+        $result=Approval::withVerifiedRequest(
+            $pdo,$site,Switcher::reopen($root),
+            $receipts,$pending,$operatorPem,$operatorPin,$head,$publisherPin,
+            static fn(array $generation):array => [
+                'version'=>$generation['version'],
+                'sequence'=>$generation['sequence'],
+                'digest'=>$generation['digest'],'preauthorizedRead'=>true
+            ]
+        );
+        echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
+elseif ($action==='attested-serve' && $argc===9) {
         [$root,$chain,$pem,$pin,$head,$publisherPin]=array_slice($argv,3);
         $pdo=new PDO('sqlite:'.$dbPath);
         $result=Attested::withVerifiedRequest(
