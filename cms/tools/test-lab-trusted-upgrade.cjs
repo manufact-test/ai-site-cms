@@ -476,6 +476,11 @@ try{
   denied(settledRead(approvedHead2,settlementHead2),
     'incomplete archived permit evidence keeps CMS unavailable');
   fs.renameSync(proof+'.partial',proof);
+  const unexpectedProof=path.join(proofsDir,'permit-000003');
+  fs.mkdirSync(unexpectedProof);
+  denied(settledRead(approvedHead2,settlementHead2),
+    'foreign operator permit directory makes entire settlement archive fail closed');
+  fs.rmdirSync(unexpectedProof);
   fs.writeFileSync(s2sigfile,Buffer.from([1,2,3]));
   denied(settledRead(approvedHead2,settlementHead2),
     'truncated post-activation settlement signature blocks reads');
@@ -492,8 +497,13 @@ try{
   withdrawPermit();
   ok(success(settledRead(approvedHead2,settlementHead2),'settled read after stale permit retired').version===v2,
     'operator rejection of stale permit leaves prior signed settlement intact');
-
-  ok(count>=143,'signed preactivation, receipt, settlement and crash reconciliation checks executed');
+  const rawReverted=success(['raw-rollback',db,authorizedRoot,v1],
+    'direct legacy switcher allowed only in disposable CI');
+  ok(rawReverted.sequence===3&&rawReverted.current===v1,
+    'unprotected laboratory API still demonstrates production bypass hazard');
+  denied(settledRead(approvedHead2,settlementHead2),
+    'three-phase settlement gate detects raw switcher rollback beyond highwater');
+  ok(count>=146,'signed preactivation, receipt, settlement and crash reconciliation checks executed');
 
   console.log('Stage2 Ed25519 ZIP -> safe extraction -> native PHP -> DB checkpoint -> CAS PASS: '+
     count+' checks; '+first.files+' files; CI disposable only, no real host or data migrations');
