@@ -62,6 +62,8 @@ jobs:
         run: php tests/storage.php
       - name: Real cross-process explicit CLI install, isolated SQLite file
         run: php tests/installer-cli.php
+      - name: Independent SQLite foundation snapshot restore and rejection cases
+        run: php tests/backup-sqlite.php
       - name: Safe CLI installer explicit invocation refusal
         run: |
           if php bin/install.php >/tmp/install_out 2>&1; then exit 1; fi
@@ -102,6 +104,15 @@ jobs:
         env:
           CMS_ALLOW_DESTRUCTIVE_MYSQL_CI: '1'
         run: php tests/storage-mysql-faults.php
+      - name: Provision separate ephemeral MySQL restore database
+        env:
+          CMS_ALLOW_DESTRUCTIVE_MYSQL_CI: '1'
+          CMS_TEST_MYSQL_ROOT_PASSWORD: ephemeral_root_ci_only
+        run: php tests/setup-mysql-restore-ci.php
+      - name: Independent MySQL foundation backup and restore rehearsal
+        env:
+          CMS_ALLOW_DESTRUCTIVE_MYSQL_CI: '1'
+        run: php tests/backup-mysql.php
 
   php-compatibility:
     runs-on: ubuntu-latest
@@ -130,5 +141,6 @@ jobs:
           composer test
           php tests/storage.php
           php tests/installer-cli.php
+          php tests/backup-sqlite.php
       - name: Confirm no write routes in any supported PHP runtime
         run: php -l src/HttpKernel.php && php -l src/Storage/SchemaManager.php
