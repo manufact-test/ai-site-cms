@@ -49,6 +49,11 @@ jobs:
         env:
           CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
         run: node tools/test-signed-offline-release.cjs
+      - name: Operator replay guard and interrupted release recovery laboratory
+        working-directory: cms
+        env:
+          CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
+        run: node tools/test-operator-guard.cjs
       - name: Check packaged document root by HTTP and block private package files
         working-directory: cms
         run: |
