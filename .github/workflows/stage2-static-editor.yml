@@ -5,6 +5,10 @@ on:
     paths:
       - 'cms/editor/**'
       - 'cms/tools/**'
+      - 'cms/src/**'
+      - 'cms/public/**'
+      - 'cms/composer.json'
+      - 'cms/composer.lock'
       - 'cms/.gitignore'
       - '.github/workflows/stage2-static-editor.yml'
   workflow_dispatch:
