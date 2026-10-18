@@ -89,7 +89,7 @@ try {
             $permitHead,$previousHead==='none'?null:$previousHead,$bundle,$publisherPem,$publisherPin
         );
         echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
-    } elseif ($action==='settled-serve' && $argc===14) {
+    } elseif ($action==='settled-serve' && $argc===13) {
         [$root,$settlements,$receipts,$permits,$pending,$operatorPem,$operatorPin,
             $publisherPin,$receiptHead,$settlementHead]=array_slice($argv,3);
         $pdo=new PDO('sqlite:'.$dbPath);
