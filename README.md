@@ -1,9 +1,9 @@
 # AI Site CMS — документация проекта
 
 > **Название:** AI Site CMS · **репозиторий:** `manufact-test/ai-site-cms` (`main`, private)  
-> **Статус v1.36:** Stage0+Stage1 приняты, Stage2 продолжается/НЕ принят. Теперь в `cms/` есть read-only PHP kernel, PDO MySQL/SQLite миграции, приватный статический Jedison, внутренний offline пакет и лабораторный перенос только foundation-метаданных в отдельную тестовую БД. Нет готовой админки, publish или полноценного резервного копирования сайтов. Название проекта утверждено: AI Site CMS. Репозиторий: `manufact-test/ai-site-cms`.
+> **Текущий статус v1.39 (18.10.2026):** этапы 0/1 приняты; **этап 2 в работе, НЕ принят**, этап 3 не начат. В `cms/` есть read-only PHP, тестовые SQLite/MySQL, pinned Jedison и полный внутренний 429-file bundle, Ed25519 signed offline ZIP, безопасная распаковка, PHP slot switching и единый CI-only coordinator с независимым отпечатком служебной базы. **НЕ готовая CMS, НЕ production installer/деплой**: нет админки, auth, публикаций, full-site backup. Hostinger не проверен, **0/135 обязательных продуктовых требований принято**.
 
-[ADR выбора](docs/ADR/0001-selected-foundation.md) · [CI Stage2 backup/restore 7/7 PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39134298097) · [код Stage2](cms/) · [отчёт v1.36](docs/STAGE-2-FOUNDATION-RESTORE.md) · **0/135 продуктовых требований принято; нет MVP, Hostinger не проверен.**
+[Текущий handoff v1.39](docs/NEXT-CHAT.md) · [Отчёт signed upgrade/DB](docs/STAGE-2-UNIFIED-TRUSTED-UPGRADE.md) · [ADR 0007](docs/ADR/0007-stage2-unified-trusted-upgrade-lab.md) · [PHP CI 7/7](https://github.com/manufact-test/ai-site-cms/actions/runs/39149669381) · [Полный bundle CI 1/1](https://github.com/manufact-test/ai-site-cms/actions/runs/39149669508) · **0/135 продуктовых требований принято; нет MVP, Hostinger не проверен.**
 
 ## Что создаём
 
