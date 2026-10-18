@@ -173,6 +173,42 @@ try {
         $pdo,$site,$v1,$v1,$check1,static fn(array $g)=>$g['version']),
         'stale old-code snapshot cannot claim active new release');
 
+    // A REAL second PHP process starts a SQLite write transaction, changes
+    // foundation generation and is SIGKILLed BEFORE COMMIT. SQLite must roll
+    // back the uncommitted change. The active code pointer must remain stable.
+    $child=proc_open([PHP_BINARY,
+        dirname(__DIR__).'/tests/fixtures/foundation-sqlite-uncommitted-worker.php',
+        $dbFile], [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$childPipes);
+    if (!is_resource($child)) throw new RuntimeException('Cannot spawn DB crash worker');
+    try {
+        stream_set_timeout($childPipes[1],8);
+        $line=fgets($childPipes[1]);
+        dbOk($line==="UNCOMMITTED\n",'actual separate PHP process holds uncommitted DB change');
+        dbOk((string)$pdo->query('SELECT storage_generation FROM cms_installation')->fetchColumn()==='0',
+            'concurrent reader cannot see uncommitted storage generation');
+        dbOk(proc_terminate($child,9),'supervisor sends real SIGKILL to SQLite writer');
+    } finally {
+        foreach ($childPipes as $pipe) fclose($pipe);
+        proc_close($child);
+    }
+    dbOk(Gate::assertCheckpoint($pdo,$site,$v2,$check2)['fingerprint']===$check2['fingerprint'],
+        'SQLite automatically undoes killed uncommitted foundation transaction');
+    dbOk($switcher->inspect()['current']===$v2
+        && $switcher->inspect()['sequence']===2,'killed DB writer did not alter release pointer');
+    dbOk($switcher->withRequestLeaseAndCheckpoint(
+        $pdo,$site,$v2,$v1,$check2,static fn(array $g)=>$g['version'])===$v2,
+        'verified release remains healthy after real SIGKILL of uncommitted DB process');
+
+    // Fail closed on altered installation lineage, even without a generation bump.
+    $initialized=(string)$pdo->query('SELECT initialized_at FROM cms_installation')->fetchColumn();
+    $pdo->exec("UPDATE cms_installation SET initialized_at='unexpected' WHERE singleton_id=1");
+    dbDenied(static fn()=>Gate::assertCheckpoint($pdo,$site,$v2,$check2),
+        'unexpected installation metadata changed without generation bump');
+    $restore=$pdo->prepare('UPDATE cms_installation SET initialized_at=? WHERE singleton_id=1');
+    $restore->execute([$initialized]);
+    dbOk(Gate::assertCheckpoint($pdo,$site,$v2,$check2)['storageGeneration']==='0',
+        'original approved lineage fingerprint is restored in disposable fixture');
+
     // An interrupted destructive/unexpected migration must not be hidden.
     $pdo->exec("UPDATE cms_schema_migrations SET checksum='tampered' WHERE version=1");
     dbDenied(static fn()=>Gate::checkpoint($pdo,$site,$v2),
