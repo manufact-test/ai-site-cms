@@ -63,7 +63,7 @@ final class LabInstanceBinding
             if (!is_array($doc)) return self::result(false, 'binding_invalid');
             $keys=array_keys($doc);
             sort($keys,SORT_STRING);
-            $known=['cmsRoot','dbFile','family','format','manifestSha256','siteId','siteRoot'];
+            $known=['cmsRoot','dbFile','family','format','manifestSha256','recordSha256','siteId','siteRoot'];
             sort($known,SORT_STRING);
             if ($keys !== $known
                 || $doc['format'] !== self::FORMAT
@@ -73,8 +73,23 @@ final class LabInstanceBinding
                 || !is_string($doc['family'])
                 || !is_string($doc['siteId'])
                 || !is_string($doc['manifestSha256'])
-                || !preg_match('/^[a-f0-9]{64}$/D',$doc['manifestSha256'])) {
+                || !preg_match('/^[a-f0-9]{64}$/D',$doc['manifestSha256'])
+                || !is_string($doc['recordSha256'])
+                || !preg_match('/^[a-f0-9]{64}$/D',$doc['recordSha256'])) {
                 return self::result(false, 'binding_invalid');
+            }
+            // Unsigned consistency checksum only: prevents accidental edits,
+            // not deliberate forgery by a privileged filesystem writer.
+            $canonical = [
+                'format'=>$doc['format'],'siteId'=>$doc['siteId'],
+                'cmsRoot'=>$doc['cmsRoot'],'siteRoot'=>$doc['siteRoot'],
+                'family'=>$doc['family'],'dbFile'=>$doc['dbFile'],
+                'manifestSha256'=>$doc['manifestSha256']
+            ];
+            if (!hash_equals($doc['recordSha256'],
+                hash('sha256',json_encode($canonical,
+                    JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)))) {
+                return self::result(false, 'binding_checksum_invalid');
             }
             $siteRoot = realpath($doc['siteRoot']);
             if ($doc['cmsRoot'] !== $root
@@ -167,6 +182,10 @@ final class LabInstanceBinding
             'dbFile'=>$dbFile,
             'manifestSha256'=>hash_file('sha256',$cms.'/private/package-manifest.json')
         ];
+        // SHA-256 here is an accidental-change detector, NOT an authenticity
+        // signature. Release signing/key custody remains independent.
+        $document['recordSha256']=hash('sha256',
+            json_encode($document,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));
         $json=json_encode($document,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
         if (strlen($json)>self::MAX_BYTES) throw new RuntimeException('Binding exceeds size budget');
         $old=umask(0077);
