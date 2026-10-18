@@ -38,6 +38,9 @@ jobs:
       - name: Install pinned PHP runtime for internal offline distribution only
         working-directory: cms
         run: composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader
+      - name: Read-only mixed-technology installation topology and isolation tests
+        working-directory: cms
+        run: php tests/site-runtime-topology.php
       - name: Assemble safe internal package with private editor assets
         working-directory: cms
         run: node tools/build-internal-package.cjs && node tools/test-internal-package.cjs
