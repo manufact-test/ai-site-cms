@@ -15,6 +15,7 @@ const MAX_ZIP=64*1024*1024, MAX_META=4096;
 const canonical=obj=>Buffer.from(JSON.stringify(obj)+'\n','utf8');
 const sha=buffer=>crypto.createHash('sha256').update(buffer).digest('hex');
 function assertFile(file,limit){
+  if(!fs.existsSync(file))throw Error('Unsafe/missing signed package file');
   const st=fs.lstatSync(file);
   if(!st.isFile()||st.isSymbolicLink()||st.size<1||st.size>limit)throw Error('Unsafe/missing signed package file');
   return st;
