@@ -59,8 +59,12 @@ async function server(publicPath,env={},router=null){
  }
  child.kill();throw Error('loopback PHP server not available');
 }
-async function close(x){x.child.kill('SIGTERM');await new Promise(done=>
-  x.child.exitCode!==null?done():x.child.once('exit',done));}
+async function close(x){
+ if(x.child.exitCode!==null || x.child.signalCode!==null)return;
+ const stopped=new Promise(done=>x.child.once('exit',done));
+ x.child.kill('SIGTERM');
+ await stopped;
+}
 async function main(){
  verify();
  const base=fs.mkdtempSync(path.join(os.tmpdir(),'ai-cms-deploy-blueprint-'));
@@ -179,7 +183,7 @@ async function main(){
       ok((await fetch(visitor.url+'/vendor/autoload.php')).status===404,
         'site visitor root never serves private CMS vendor');
     }finally{
-      if(cms.child.exitCode===null)await close(cms);
+      if(cms.child.exitCode===null && cms.child.signalCode===null)await close(cms);
       await close(visitor);
     }
   }
