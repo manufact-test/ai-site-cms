@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Continue Stage2 (not accepted). Design production-compatible PHP/FPM shared-host read-only preflight, release trust-root/key custody and safe installer/operator restoration boundaries. Hostinger read-only inspection and deployment each require separate explicit consent. 0/135 product criteria accepted.",
+  "next_step": "Continue Stage2 (IN PROGRESS, NOT ACCEPTED): architect an enforced non-bypassable production future upgrade entrypoint and externally retained signature/DB proof; PHP-FPM/OPcache, real power-loss, full site data/media backup and rollback, and shared-host compatibility remain unproven. No Hostinger even read-only without separate explicit authorization. 0/135 product acceptance.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.38",
+  "checkpoint_version": "1.39",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -25,7 +25,7 @@
     "started_at": "2026-10-18",
     "owner_delegated_selection": true,
     "foundation": "A - Slim/Opis/Jedison",
-    "product_code": "Stage2 read-only Slim HTTP health + CLI-only PDO isolated schema installer + static Jedison field adapter compiled offline; NO authenticated admin, publishing, public site adapters, or production data editing",
+    "product_code": "Stage2 ONLY: read-only Slim health kernel, isolated CLI SQL schema manager, static private Jedison package; signed ZIP offline Ed25519 plus PHP installation / versioned switch / foundation DB checkpoint coordinated in disposable CI. No real admin, auth, publish, site editing, production deploy.",
     "bootstrap_commit": "8eb12e2825ebcf53571e01d15ce947baf6d5d2bc",
     "bootstrap_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39125215551",
     "bootstrap_ci_result": "completed success 1/1; 10 CLI smoke checks + PHP syntax + Composer dependency installation + real HTTP smoke",
@@ -53,8 +53,8 @@
       "Idempotent same-site initialization",
       "Refuses database reuse by different site identity"
     ],
-    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39140562272",
-    "last_full_ci_result": "7/7 SUCCESS: PHP8.1-8.4 + SQLite + real isolated MySQL8.4",
+    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39149669381",
+    "last_full_ci_result": "7/7 SUCCESS (PHP 8.1-8.4, SQLite, isolated MySQL 8.4) at source SHA 6ca20882232d262a2fe37b909918a7ac68d7f287",
     "last_full_ci_checks": {
       "kernel_smoke": 10,
       "sqlite_schema_checks": 37,
@@ -97,8 +97,8 @@
       "ci_result": "success 1/1 job, pinned deps, npm audit, browser integration and reproducible JS build",
       "artifact_id": 12137545566
     },
-    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39140562272",
-    "latest_php_ci_result": "7/7 SUCCESS: PHP8.1-8.4 + SQLite + real isolated MySQL8.4",
+    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39149669381",
+    "latest_php_ci_result": "7/7 SUCCESS (PHP 8.1-8.4, SQLite, isolated MySQL 8.4) at source SHA 6ca20882232d262a2fe37b909918a7ac68d7f287",
     "package_research": {
       "internal_only": true,
       "production_ready": false,
@@ -148,8 +148,8 @@
       "matrix_and_integration_job_count": 7,
       "passed": 7
     },
-    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39140562222",
-    "latest_editor_ci_result": "1/1 SUCCESS: 33 signed ZIP, 41 operator crash, 31 concurrency, 87 integrity, 69 true PHP HTTP assertions + existing checks",
+    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39149669508",
+    "latest_editor_ci_result": "1/1 SUCCESS full 429-file package with signed ZIP -> PHP -> SQLite checkpoint -> generation CAS plus browser/security",
     "storage_safety_preflight": {
       "implementation": "cms/src/Storage/SchemaManager.php::inspectSite, cms/bin/schema-preflight.php --inspect",
       "supported_drivers": [
@@ -251,6 +251,40 @@
       "filesystem_TOCTOU_unresolved": true,
       "report": "docs/STAGE-2-SIGNED-RELEASE-GATED-HTTP.md",
       "adr": "docs/ADR/0006-signed-lab-runtime-boundaries.md"
+    },
+    "unified_signed_php_db_lab": {
+      "checkpoint": "v1.39 2026-10-18",
+      "accepted_as": "CI-only research/evidence, NOT production deployment, NOT Stage2 acceptance",
+      "source_commit": "6ca20882232d262a2fe37b909918a7ac68d7f287",
+      "php_matrix_mysql_sqlite": "https://github.com/manufact-test/ai-site-cms/actions/runs/39149669381",
+      "full_compiled_editor": "https://github.com/manufact-test/ai-site-cms/actions/runs/39149669508",
+      "report": "docs/STAGE-2-UNIFIED-TRUSTED-UPGRADE.md",
+      "adr": "docs/ADR/0007-stage2-unified-trusted-upgrade-lab.md",
+      "components": [
+        "cms/src/Release/LabTrustedUpgradeCoordinator.php",
+        "cms/src/Release/OfflineReleaseVerifier.php",
+        "cms/src/Release/LabPackageStager.php",
+        "cms/src/Release/LabPhpGenerationSwitcher.php",
+        "cms/src/Release/LabSchemaVersionGate.php",
+        "cms/tools/test-lab-trusted-upgrade.cjs"
+      ],
+      "protection": [
+        "ephemeral Ed25519 out-of-band trust pin and package SHA",
+        "restricted ZIP extraction plus PHP full inventory validation",
+        "independently retained site/schema/storage_generation checkpoint",
+        "SQLite/MySQL cooperative schema migration fence, version CAS, immutable temp slots",
+        "real parallel PHP loopback HTTP and SIGKILL crash recovery lab, not FPM",
+        "missing release/trust/DB checkpoint/tampering/downgrade/replay fail closed"
+      ],
+      "limitations": [
+        "older raw lab switch APIs remain callable inside CI tests; integrated coordinator preferred only, NOT enforced production gate",
+        "metadata DB fingerprint is NOT full-site content backup or rollback",
+        "TOCTOU, power loss/directory fsync, PHP-FPM/OPcache, actual shared hosting not proven",
+        "no publisher production key custody, rollback of MySQL DDL or customer data",
+        "no host access, auth/admin/publish and product acceptance 0/135"
+      ],
+      "stage2_accepted": false,
+      "mandatory_product_accepted": 0
     }
   },
   "total_stages": 18,
