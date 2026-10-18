@@ -19,7 +19,7 @@ final class SiteRuntimeTopology
         'php81','pdo','https','privateStorage','isolatedRoots','rewriteRoutes',
         'sitePhp','nodeRuntime','reverseProxy'
     ];
-    private const FAMILIES = ['html','php','next-static','next-ssr'];
+    private const FAMILIES = ['html','php','react-spa','next-static','next-ssr'];
     private const MAX_NODES = 1024;
     private const MAX_FILE_BYTES = 33554432;
     private const MAX_TREE_BYTES = 67108864;
@@ -162,7 +162,7 @@ final class SiteRuntimeTopology
         $required = [
             'php81','pdo','https','privateStorage','isolatedRoots','rewriteRoutes'
         ];
-        $static = $family === 'html' || $family === 'next-static';
+        $static = in_array($family, ['html','react-spa','next-static'], true);
         if ($static) {
             self::child($sitePublic,'index.html',false);
         } elseif ($family === 'php') {
@@ -192,6 +192,7 @@ final class SiteRuntimeTopology
             'siteDelivery'=>match ($family) {
                 'html'=>'static-files',
                 'php'=>'independent-php',
+                'react-spa'=>'static-spa-assets',
                 'next-static'=>'exported-static-files',
                 'next-ssr'=>'independent-node-behind-proxy'
             },

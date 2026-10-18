@@ -58,8 +58,8 @@ function pair(string $base,string $label,string $family):array {
     return [$cms,$site];
 }
 try {
-    yes(Policy::families()===['html','php','next-static','next-ssr'],
-        'strict four architecture families');
+    yes(Policy::families()===['html','php','react-spa','next-static','next-ssr'],
+        'strict five architecture delivery variants');
     $pairs=[];
     foreach(Policy::families() as $family){
         [$cms,$site]=pair($base,$family,$family);
@@ -180,9 +180,9 @@ try {
             'cmsRoot'=>$cs,'siteRoot'=>$ss,'family'=>$family,'capabilities'=>$cap];
     }
     $fleet=Policy::assessFleet($items);
-    yes($fleet['sites']===4&&$fleet['allDeclaredCompatible']
+    yes($fleet['sites']===5&&$fleet['allDeclaredCompatible']
         &&$fleet['dataSharingAllowed']===false&&!$fleet['productionReady'],
-        'four independent technology-family installations can be checked jointly');
+        'five independent technology delivery variants can be checked jointly');
     $bad=$items;$bad[1]['cmsRoot']=$bad[0]['cmsRoot'];
     no(fn()=>Policy::assessFleet($bad),'cross-site CMS installation reuse refused');
     $bad=$items;$bad[1]['siteRoot']=$bad[0]['siteRoot'];
@@ -195,7 +195,7 @@ try {
     no(fn()=>Policy::assessFleet($bad),'fleet invalid host declaration refused');
     $bad=$items;$bad[1]['capabilities']['php81']=false;
     $blocked=Policy::assessFleet($bad);
-    yes(!$blocked['allDeclaredCompatible']&&$blocked['sites']===4,
+    yes(!$blocked['allDeclaredCompatible']&&$blocked['sites']===5,
         'fleet reports self-declared hosting mismatch without silently overriding');
     $bad=$items;$bad[0]['extra']='trust';
     no(fn()=>Policy::assessFleet($bad),'foreign fleet keys forbidden');
@@ -203,7 +203,7 @@ try {
     no(fn()=>Policy::assessFleet(array_fill(0,13,$items[0])),
         'bounded fleet must not scan arbitrary large site collections');
 
-    echo 'Stage2 isolated runtime topology and 4 family compatibility PASS: '.
+    echo 'Stage2 isolated runtime topology and 5 family compatibility PASS: '.
         $checks.' checks; no site deploy, DB mutation, Next build execution or host assertion'."\n";
 } finally {
     if (dirname($base)===realpath(sys_get_temp_dir())

@@ -15,7 +15,7 @@ try {
     if ($args === ['--help']) {
         echo "Usage: php bin/site-runtime-topology.php --check",
             " --cms-root=/canonical/path --site-root=/canonical/path",
-            " --family=html|php|next-static|next-ssr",
+            " --family=html|php|react-spa|next-static|next-ssr",
             " --capabilities-file=/private/capabilities.json\n";
         exit(0);
     }
