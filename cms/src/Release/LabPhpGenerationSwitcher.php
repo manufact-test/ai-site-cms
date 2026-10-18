@@ -568,6 +568,68 @@ final class LabPhpGenerationSwitcher
         }
     }
 
+    /**
+     * Stronger read-only lab contract: refuse a code swap if the separately
+     * retained foundation checkpoint is stale, including storage_generation.
+     * Does not migrate or roll back DB content. No production release support.
+     */
+    public function switchToWithCheckpoint(
+        \PDO $pdo, string $siteId, string $target, ?string $expectedCurrent,
+        int $expectedSequence, string $externalMinVersion,
+        array $expectedCheckpoint, ?string $failAt = null
+    ): array {
+        require_once __DIR__.'/LabSchemaVersionGate.php';
+        return LabSchemaVersionGate::withCheckpointFence(
+            $pdo, $siteId, $target, $expectedCheckpoint,
+            fn (): array => $this->switchTo(
+                $target, $expectedCurrent, $expectedSequence, $externalMinVersion, $failAt
+            )
+        );
+    }
+
+    /**
+     * A post-crash operator is not authorized to finish/abort a journal if
+     * the database foundation has changed in the meantime. The same snapshot
+     * must still match before manually recovering the pointer.
+     */
+    public function recoverWithCheckpoint(
+        \PDO $pdo, string $siteId, string $targetCodeVersion,
+        string $mode, string $externalMinVersion, array $expectedCheckpoint
+    ): array {
+        require_once __DIR__.'/LabSchemaVersionGate.php';
+        return LabSchemaVersionGate::withCheckpointFence(
+            $pdo, $siteId, $targetCodeVersion, $expectedCheckpoint,
+            fn (): array => $this->recover($mode, $externalMinVersion)
+        );
+    }
+
+    /**
+     * CLI-only simulated request gate. Existing request lease remains in force
+     * through the DB checkpoint and handler. The caller must supply the
+     * independently retained expected DB fingerprint, not regenerate it here.
+     *
+     * @template T
+     * @param callable(array<string,mixed>):T $handler
+     * @return T
+     */
+    public function withRequestLeaseAndCheckpoint(
+        \PDO $pdo, string $siteId, string $codeVersion,
+        string $externalMinVersion, array $expectedCheckpoint, callable $handler
+    ): mixed {
+        require_once __DIR__.'/LabSchemaVersionGate.php';
+        return LabSchemaVersionGate::withCheckpointFence(
+            $pdo, $siteId, $codeVersion, $expectedCheckpoint,
+            fn (): mixed => $this->withRequestLease(
+                $externalMinVersion, static function (array $generation) use ($codeVersion,$handler): mixed {
+                    if ($generation['version'] !== $codeVersion) {
+                        throw new RuntimeException('DB checkpoint bound to different active code');
+                    }
+                    return $handler($generation);
+                }
+            )
+        );
+    }
+
     public function recover(string $mode, string $externalMinVersion): array
     {
         return $this->exclusive(function () use ($mode,$externalMinVersion): array {
