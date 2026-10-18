@@ -44,7 +44,12 @@ function fresh(x){
 }
 const php=(script,args=[],environment=grant)=>spawnSync('php',['-r',script,...args],{
   encoding:'utf8',timeout:30000,env:{...process.env,...environment}});
-const transferDoc=(source,target)=>({format:'ai-site-cms-stage2-foundation-transfer-v1',source,target});
+const clean=x=>({
+  siteId:x.siteId,cmsRoot:x.cmsRoot,siteRoot:x.siteRoot,family:x.family,
+  capabilities:x.capabilities,dbFile:x.dbFile,bindingFile:x.bindingFile
+});
+const transferDoc=(source,target)=>({format:'ai-site-cms-stage2-foundation-transfer-v1',
+  source:clean(source),target:clean(target)});
 async function freePort(){
   const s=net.createServer();
   await new Promise((yes,no)=>s.once('error',no).listen(0,'127.0.0.1',yes));
