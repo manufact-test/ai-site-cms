@@ -159,7 +159,7 @@ final class LabAttestedActivationGate
                 throw new RuntimeException('Out-of-order, rollback or replayed signed receipt');
             }
             // Fingerprint must be bound to this exact release version.
-            if ($record['dbCheckpoint']['codeVersion'] ?? null !== $record['version']) {
+            if (($record['dbCheckpoint']['codeVersion'] ?? null) !== $record['version']) {
                 throw new RuntimeException('Signed receipt DB/code mismatch');
             }
             $lastHash = hash('sha256', self::DOMAIN . $raw . $sig);
