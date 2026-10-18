@@ -62,11 +62,11 @@ try {
             $current==='none'?null:$current,(int)$generation
         );
         echo json_encode($active,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR),"\n";
-    } elseif ($action==='attested-serve' && $argc===8) {
-        [$root,$chain,$pem,$pin,$head]=array_slice($argv,3);
+    } elseif ($action==='attested-serve' && $argc===9) {
+        [$root,$chain,$pem,$pin,$head,$publisherPin]=array_slice($argv,3);
         $pdo=new PDO('sqlite:'.$dbPath);
         $result=Attested::withVerifiedRequest(
-            $pdo,$site,Switcher::reopen($root),$chain,$pem,$pin,$head,
+            $pdo,$site,Switcher::reopen($root),$chain,$pem,$pin,$head,$publisherPin,
             static fn(array $generation):array => [
                 'version'=>$generation['version'],
                 'sequence'=>$generation['sequence'],
