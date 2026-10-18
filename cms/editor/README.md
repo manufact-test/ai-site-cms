@@ -23,3 +23,5 @@ npm run test:browser
 - First release only after 135/135 mandatory functionality accepted.
 
 [Foundation ADR](../../docs/ADR/0001-selected-foundation.md) · [Stage2 checkpoint](../../docs/NEXT-CHAT.md).
+
+**v1.34:** the built JS is copied into a private, unhashed-release internal `cms/.build/internal-stage2-package/private/editor/` alongside MIT attribution and the Composer PHP runtime, NOT `public`. [Package/HTTP verified](https://github.com/manufact-test/ai-site-cms/actions/runs/39131661335); this is not an authenticated admin page. See [Stage2 doctor + packaging report](../../docs/STAGE-2-HOSTING-AND-PACKAGE.md).

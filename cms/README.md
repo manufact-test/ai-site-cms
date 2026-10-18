@@ -1,6 +1,6 @@
 # AI Site CMS — Stage 2 PHP foundation (INTERNAL, NOT A RELEASE)
 
-**As of checkpoint v1.33 (18.10.2026):** Slim read-only HTTP `GET /api/health` + **CLI-only** isolated PDO MySQL schema/install framework; SQLite **test-only**. This is not an admin panel or working site CMS. No authentication, edit/save/publish API, revisions engine, media, production backup, or site adapters yet. **0/135 product requirements accepted**. Do not deploy to a client site.
+**As of checkpoint v1.34 (18.10.2026):** Slim read-only HTTP `GET /api/health` + **CLI-only** isolated PDO MySQL schema/install framework; SQLite **test-only**. This is not an admin panel or working site CMS. No authentication, edit/save/publish API, revisions engine, media, production backup, or site adapters yet. **0/135 product requirements accepted**. Do not deploy to a client site.
 
 ## Reproduce on developer machine / GitHub CI (never claim this tests Hostinger)
 
@@ -31,3 +31,9 @@ The MySQL CI integration test runs against the dedicated disposable mysql:8.4 se
 - No live Hostinger access or CELIKOM interaction approved or performed.
 
 See [Stage2 real-CI report](../docs/STAGE-2-STORAGE-RESEARCH.md), [Composer ledger](../docs/STAGE-2-COMPOSER-PINS.md), [hosting/storage architecture ADR](../docs/ADR/0002-hosting-storage-isolation.md), [canonical handoff](../docs/NEXT-CHAT.md).
+
+## Additional internal-only build validation v1.34
+
+Read-only local doctor: `php bin/doctor.php --check [--document-root=/path/to/cms/public]` does **not** contact DB/hosting and always reports `safe_to_deploy=false`. 24 negative/positive checks, PHP 8.1–8.4 CI [7/7 PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39131771955).
+
+Offline internal package (NOT an installer): from `cms/` after `composer install` and `cd editor && npm ci && npm run build`, run `node tools/build-internal-package.cjs && node tools/test-internal-package.cjs`; creates ignored `.build/internal-stage2-package` with `public` webroot and `private/editor` JS. 425 files and 19 integrity/adversarial checks, HTTP verification [PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39131661335). Not a client deliverable; no signed provenance, auth or upgrade/restore. See [technical report](../docs/STAGE-2-HOSTING-AND-PACKAGE.md).

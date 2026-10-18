@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Stage2 next: packaging of bundled static Jedison assets into isolated authenticated future admin distribution, hosting-compatibility CLI doctor and offline artifact integrity, hardened schema/recovery and complete license/SBOM. Hostinger/CELIKOM untouched without separate approval. Stage2 remains not accepted.",
+  "next_step": "Continue Stage2: robust archive extraction/upgrade/rollback and database fail-closed interrupted-DDL recovery tests; extend legal SBOM plus official PHP and JS asset provenance. Real Hostinger requires separate read-only permission; no online deploy, CELIKOM or customers. Keep Stage2 in progress and Stage3 not started.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.33",
+  "checkpoint_version": "1.34",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -33,11 +33,11 @@
     "dependency_lock_committed": true,
     "stage_accepted": false,
     "main_blockers": [
-      "Production auth/session/ACL/CSRF required before any admin/write/publication routes",
-      "Real site adapters, independent versioned manifest & source validation and isolated one-block preview absent",
-      "Complete legal SBOM/NOTICE across all distributable assets and hardened packaging incomplete",
-      "Actual PHP shared-host environment unverified, separate Hostinger read-only permission required",
-      "Installer/migration corruption repair/backup/restore and complete deployable empty CMS not proven on target host"
+      "Actual PHP shared hosting webserver/document root/extensions/database credentials and permission compatibility not tested (requires separately authorized read-only Hostinger access)",
+      "Internal 425-file package is NOT production deployment: safe extraction/upgrade, installer/data recovery and independently authenticated distribution absent",
+      "Core admin auth/session/RBAC/CSRF, manifest validation, one-block preview and publication not implemented",
+      "Full transitive license/NOTICE, release SBOM, signed artifact provenance and restore/fault simulations not complete",
+      "Stage2 formal target-environment empty CMS run remains unproven"
     ],
     "storage_migration_version": 2,
     "schema_implementation": "cms/src/Storage/SchemaManager.php; CLI-only installer cms/bin/install.php, no HTTP admin/write routes",
@@ -90,8 +90,58 @@
       "ci_result": "success 1/1 job, pinned deps, npm audit, browser integration and reproducible JS build",
       "artifact_id": 12137545566
     },
-    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39129269728",
-    "latest_php_ci_result": "success 3/3 jobs php-core, storage-sqlite, storage-mysql"
+    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39131771955",
+    "latest_php_ci_result": "success 7/7 jobs: php-core, SQLite, MySQL 8.4, PHP 8.1/8.2/8.3/8.4 compatibility",
+    "package_research": {
+      "internal_only": true,
+      "production_ready": false,
+      "build_cli": "node cms/tools/build-internal-package.cjs",
+      "verified_manifest": "private/package-manifest.json",
+      "file_count": 425,
+      "hashes": "SHA-256 inventory; local integrity only, NOT a trusted software signature",
+      "apache_webroot_requires": "cms package/public only; wrong document root is NOT safe",
+      "private_browser_editor": "private/editor/editor.js (never directly served in this stage)",
+      "packaged_composer_dependencies": true,
+      "hosting_requires_node_or_composer_at_runtime": false,
+      "package_integration_tests": 19,
+      "php_http_boundary": "GET /api/health 200; publish/private editor/vendor HTTP 404",
+      "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39131661335",
+      "artifact_id": 12138351903,
+      "untested": [
+        "Actual target webserver rewriting/headers/access rights",
+        "Production safe extraction and deployment/upgrade rollback",
+        "Authentication/ACL and public editor delivery",
+        "Independent full legal SBOM/NOTICE/SLSA provenance"
+      ]
+    },
+    "hosting_doctor": {
+      "path": "cms/bin/doctor.php",
+      "minimum_php": "8.1",
+      "cli_only": true,
+      "checks": [
+        "php >=8.1",
+        "ext-json",
+        "ext-pdo",
+        "ext-pdo_mysql",
+        "ext-openssl",
+        "explicit docroot cms/public"
+      ],
+      "read_only": true,
+      "does_not_contact_host_or_database": true,
+      "local_ci_assertions": 24,
+      "current_hostinger_not_tested": true,
+      "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39131771955",
+      "php_version_matrix": [
+        "8.1",
+        "8.2",
+        "8.3",
+        "8.4"
+      ],
+      "matrix_and_integration_job_count": 7,
+      "passed": 7
+    },
+    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39131661335",
+    "latest_editor_ci_result": "success 1/1; Chromium Jedison, built 425-file internal package, 19 security/integrity assertions, private HTTP isolation"
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",

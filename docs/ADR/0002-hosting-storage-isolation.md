@@ -42,3 +42,8 @@ Versioned forward-only schema migrations and validated rollback, DB migrations b
 ## Implementation update v1.32 — still only an internal foundation
 
 The selected MySQL/MariaDB-primary/SQLite-test-only direction now has real code: [SchemaManager](../../cms/src/Storage/SchemaManager.php), CLI-only [installer](../../cms/bin/install.php), [CI tests](../STAGE-2-STORAGE-RESEARCH.md). MySQL8.4 migration and isolation tested via a GitHub ephemeral service, SQLite schema and distinct process installations tested, pin checksum validated. However production publication transaction, auth, backups, partial MySQL DDL recovery, real Hostinger environment, and full AI manifest remain **UNVERIFIED**; the earlier "planned" items above still require Stage2+ engineering. No HTTP write endpoints enabled, Stage2 NOT accepted.
+
+
+## v1.34 test evidence without target-host permission
+
+Read-only `cms/bin/doctor.php` validates PHP 8.1+, required extensions and an explicitly supplied public document root without network/DB/filesystem writes. GitHub Actions PHP 8.1/8.2/8.3/8.4 passed [7/7](https://github.com/manufact-test/ai-site-cms/actions/runs/39131771955), **not actual Hostinger compatibility**. An internal 425-file prebuilt archive preserves PHP vendor dependencies and Jedison JS under private folder only, with SHA-256 manifest (not authenticated signature) and isolated webroot HTTP check [PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39131661335). Real hosting docroot controls, safe installation/backup/upgrade, complete license legal due diligence, auth and real site integration remain future tasks. [Details](../STAGE-2-HOSTING-AND-PACKAGE.md).
