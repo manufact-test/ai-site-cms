@@ -124,7 +124,7 @@ final class PackageArtifactVerifier
             'bin/install.php','bin/schema-preflight.php','bin/site-runtime-topology.php',
             'bin/package-preflight.php','bin/startup-readiness.php',
             'bin/bind-empty-instance.php','bin/lab-empty-installer.php',
-            'bin/lab-fleet-operator.php'] as $essential) {
+            'bin/lab-fleet-operator.php','bin/lab-foundation-transfer.php'] as $essential) {
             if (!isset($listed[$essential])) {
                 self::refuse('Missing isolated empty-CMS package essential');
             }

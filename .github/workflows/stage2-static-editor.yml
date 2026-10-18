@@ -61,6 +61,9 @@ jobs:
       - name: Fleet-wide explicit PLAN/APPLY with real isolated site packages, SQLite recovery, HTTP and cross-site failure isolation
         working-directory: cms
         run: node tools/test-stage2-fleet-operator.cjs
+      - name: Portable empty foundation migration, actual multi-site SIGKILL re-plan and conflicting operator database leases
+        working-directory: cms
+        run: node tools/test-stage2-portable-foundation.cjs
       - name: Independently verify and install full 429-file package with PHP-only temp journal
         working-directory: cms
         env:

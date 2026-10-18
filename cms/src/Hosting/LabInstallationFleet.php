@@ -254,6 +254,22 @@ final class LabInstallationFleet
         if (!hash_equals($initial['token'], $approval)) {
             throw new RuntimeException('Fleet plan is stale or unapproved');
         }
+        // Fleet-level serialization for equivalent resource sets, in addition
+        // to separate per-DB locks. The artificial lock identity cannot collide
+        // with any real database path and never creates a database.
+        $resources = array_map(static fn(array $x): string =>
+            $x['dbFile'], self::validate($document));
+        sort($resources, SORT_STRING);
+        $anchor = dirname($resources[0]).'/.fleet-group-'.substr(hash(
+            'sha256', implode("\n",$resources)
+        ),0,32);
+        return LabPrivateStateLock::withLocks([$anchor], static function () use (
+            $document, $approval
+        ): array {
+            $underLock = self::plan($document);
+            if (!hash_equals($underLock['token'], $approval)) {
+                throw new RuntimeException('Fleet changed while waiting for group lock');
+            }
         $expectedSingles = [];
         foreach (self::validate($document) as $item) {
             $single = LabEmptyCmsInstaller::plan(
@@ -294,6 +310,14 @@ final class LabInstallationFleet
                 self::environment($item), $single['token']
             );
             $results[$item['siteId']] = $done['changed'];
+            // CI-only crash point between two completed site operations. No
+            // production operator path can enter this (explicit env CI gate).
+            if (getenv('CMS_STAGE2_INJECT_FLEET_CRASH') === '1'
+                && getenv('CMS_STAGE2_FAULT_AFTER_SITE') === $item['siteId']) {
+                fwrite(STDERR, "CI_FLEET_FAULT_HOOK\n");
+                fflush(STDERR);
+                sleep(30);
+            }
         }
         $final = self::plan($document);
         if (!$final['allReady']) throw new RuntimeException('Fleet did not reach ready');
@@ -303,5 +327,6 @@ final class LabInstallationFleet
             'ciOnly'=>true, 'productionReady'=>false,
             'atomicAcrossSites'=>false
         ];
+        });
     }
 }

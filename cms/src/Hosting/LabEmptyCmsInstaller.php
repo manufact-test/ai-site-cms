@@ -22,7 +22,6 @@ use Throwable;
 final class LabEmptyCmsInstaller
 {
     private const PLAN_FORMAT = 'ai-site-cms-stage2-install-plan-v1';
-    private const LOCK_PREFIX = '.stage2-empty-install-';
 
     /** @param array<string,mixed> $env */
     private static function paths(string $cms, string $site, string $binding, array $env): array
@@ -162,25 +161,9 @@ final class LabEmptyCmsInstaller
         if (!hash_equals($initial['token'],$approval)) {
             throw new RuntimeException('Stale or mismatched operator approval');
         }
-        $lockFile = dirname($db).'/'.self::LOCK_PREFIX.substr(hash('sha256',
-            $cms."\n".$site."\n".$siteId),0,24).'.lock';
-        if (is_link($lockFile)) {
-            throw new RuntimeException('Unsafe operator lock');
-        }
-        $previousUmask = umask(0077);
-        try {
-            $lock = @fopen($lockFile,'c+');
-        } finally {
-            umask($previousUmask);
-        }
-        if ($lock === false) throw new RuntimeException('Cannot acquire installation lock');
-        try {
-            $stat = @lstat($lockFile);
-            if ($stat === false || !is_file($lockFile) || is_link($lockFile)
-                || ($stat['nlink'] ?? 0) !== 1 || ($stat['mode'] & 0077) !== 0
-                || !flock($lock,LOCK_EX)) {
-                throw new RuntimeException('Unsafe installation lock or lock failure');
-            }
+        return LabPrivateStateLock::withLocks([$db], static function () use (
+            $cms,$site,$family,$capabilities,$binding,$env,$approval,$db,$siteId
+        ): array {
             // Re-evaluate all policy and DB state after obtaining the lock.
             $plan = self::plan($cms,$site,$family,$capabilities,$binding,$env);
             if (!hash_equals($plan['token'],$approval)) {
@@ -215,9 +198,7 @@ final class LabEmptyCmsInstaller
             }
             return ['state'=>'ready','changed'=>true,
                 'ciOnly'=>true,'productionReady'=>false];
-        } finally {
-            flock($lock,LOCK_UN);
-            fclose($lock);
-        }
+
+        });
     }
 }
