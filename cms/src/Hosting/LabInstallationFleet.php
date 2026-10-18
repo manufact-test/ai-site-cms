@@ -264,7 +264,7 @@ final class LabInstallationFleet
             'sha256', implode("\n",$resources)
         ),0,32);
         return LabPrivateStateLock::withLocks([$anchor], static function () use (
-            $document, $approval
+            $document, $approval, $initial
         ): array {
             $underLock = self::plan($document);
             if (!hash_equals($underLock['token'], $approval)) {
