@@ -29,6 +29,8 @@ jobs:
         run: composer audit --no-interaction
       - name: PHP syntax (all source/test/installer files)
         run: find src tests bin public -name '*.php' -print -exec php -l {} \;
+      - name: Read-only hosting compatibility doctor, negative fixtures and CLI
+        run: php tests/doctor.php && php bin/doctor.php --check --document-root=public
       - name: Verify health only, no exposed write routes
         run: composer test
       - name: HTTP public route boundary
