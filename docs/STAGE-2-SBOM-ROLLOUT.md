@@ -30,3 +30,8 @@ See [ADR 0005](ADR/0005-offline-release-and-sbom.md), [package report](STAGE-2-H
 ## Next practical Stage2 work
 
 Harden provenance: publisher-authenticated signed offline artifacts and verified extraction in **isolated test environments**, with explicit version monotonicity and tamper/refusal checks; define installer/operator recovery boundaries and a realistic read-only shared-host checklist. Real Hostinger access only with separately explicit owner permission; no client sites.
+
+
+## Postscript v1.38 — laboratory signing and PHP HTTP progress
+
+Historical v1.37 **unsigned** statements describe the older checkpoint. Today, detached Ed25519 signatures, safe ZIP extraction and crash recovery are tested **only with ephemeral non-publisher CI keys**; full signed production provenance still does NOT exist. A read-only gate checks all files and a separate localhost-only Node facade fronts actual PHP `GET /api/health` in disposable tests, refusing 503 on corruption and 404 for private/write paths. New 33 signed + 41 recovery + 31 file/lock + 87 integrity + 69 HTTP assertions. [1/1 editor SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39140562222), [7/7 PHP SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39140562272). See [v1.38 report](STAGE-2-SIGNED-RELEASE-GATED-HTTP.md), [ADR0006](ADR/0006-signed-lab-runtime-boundaries.md). NOT production-ready or Hostinger-verified. Stage2 NOT accepted.
