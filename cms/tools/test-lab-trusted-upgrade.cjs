@@ -534,7 +534,138 @@ try{
   fs.writeFileSync(leasePath,originalAnchor);
   ok(success(settledRead(approvedHead2,settlementHead2),'untouched sealed release').sequence===2,
     'direct raw switch and seal-deletion downgrade rejected before changing active version');
-  ok(count>=157,'signed-only root-pinned permit, receipt, settlement and crash checks executed');
+  // Three separate sealed installations, each terminated with REAL SIGKILL.
+  // A different PHP process supervises the kill, not an injected exception.
+  // Every recovery requires the unchanged signed permit and original ZIP.
+  for (const phase of ['intent','pointer','receipt']) {
+    const killRoot=success(['new-sealed',db,operatorPin,fp],
+      'new independent sealed sandbox for real '+phase+' SIGKILL').root;
+    installedLabs.push(killRoot);
+    const killPending=path.join(temp,'kill-pending-'+phase);
+    const killReceipts=path.join(temp,'kill-receipts-'+phase);
+    const killProofs=path.join(temp,'kill-proofs-'+phase);
+    const killSettlements=path.join(temp,'kill-settlements-'+phase);
+    for(const directory of [killPending,killReceipts,killProofs,killSettlements])
+      fs.mkdirSync(directory,{mode:0o700});
+    const signedPermit={
+      format:'ai-site-cms-stage2-preactivation-approval-v1',
+      siteId:'labsite',nonce:crypto.randomBytes(16).toString('hex'),
+      switchRootSha256:sha(Buffer.from(killRoot)),
+      sequence:1,fromVersion:null,version:v1,minimumVersion:v1,
+      previousReceiptSha256:null,publisherFingerprint:fp,
+      manifestSha256:a.metadata.packageManifestSha256,
+      archiveSha256:a.metadata.archiveSha256,
+      dbCheckpoint:JSON.parse(fs.readFileSync(cp1,'utf8')),
+      productionReady:false
+    };
+    const bytes=Buffer.from(JSON.stringify(signedPermit)+'\n');
+    const sig=crypto.sign(null,Buffer.concat([permitDomain,bytes]),operatorKeys.privateKey);
+    const head=sha(Buffer.concat([permitDomain,bytes,sig]));
+    fs.writeFileSync(path.join(killPending,'permit.json'),bytes,{flag:'wx',mode:0o600});
+    fs.writeFileSync(path.join(killPending,'permit.sig'),sig,{flag:'wx',mode:0o600});
+    const activateKilled=[
+      'approved-activate',db,killRoot,killReceipts,killPending,
+      operatorPem,operatorPin,head,'none',a.bundle,a.extracted,pem,fp,
+      'none','0','pause-after-'+phase
+    ];
+    const kill=run(process.execPath,[
+      path.join(ROOT,'tools/lab-kill-signed-operator.cjs'),
+      killRoot,phase,...activateKilled
+    ]);
+    if(kill.status!==0)
+      throw Error('Real SIGKILL '+phase+' did not reach boundary: '+kill.stderr+' '+kill.stdout);
+    ok(JSON.parse(kill.stdout).signal==='SIGKILL',
+      'real independent PHP operator SIGKILL at '+phase+' boundary');
+    const releasesAfterKill=JSON.parse(fs.readFileSync(
+      path.join(killRoot,'releases.json'),'utf8'));
+    installedLabs.push(releasesAfterKill.releases[v1].root);
+    denied(['inspect',db,killRoot,v1],
+      'stale exclusive lock after killed signed operator fails closed: '+phase);
+    denied(['approved-activate',db,killRoot,killReceipts,killPending,
+      operatorPem,operatorPin,head,'none',a.bundle,a.extracted,pem,fp,
+      'none','0','none'],
+      'stale signed upgrade cannot be silently rerun: '+phase);
+    const status=phase==='intent'?'pending-before-switch':
+      phase==='pointer'?'pending-after-switch':'committed-needs-cleanup';
+    const mode=phase==='intent'?'abort':'finalize';
+    const recover=(overrideStatus=status,overrideMode=mode,overrideHead=head,
+      overridePublisher=fp)=>[
+      'approved-recover',db,killRoot,killReceipts,killPending,operatorPem,
+      operatorPin,overrideHead,'none',a.bundle,a.extracted,pem,
+      overridePublisher,overrideStatus,overrideMode
+    ];
+    denied(recover(status,mode,'0'.repeat(64)),
+      'cannot repair real SIGKILL using unpinned unsigned authorization: '+phase);
+    denied(recover(status,mode,head,'f'.repeat(64)),
+      'wrong release publisher pin cannot unlock a killed operator: '+phase);
+    denied(recover(status,mode==='abort'?'abort':'abort'),
+      'wrong operator recovery direction never repairs sealed state: '+phase);
+    if(phase==='pointer') {
+      const zip=path.join(a.bundle,'package.zip');
+      fs.appendFileSync(zip,Buffer.from('corrupted-during-recovery'));
+      denied(recover(),'publisher ZIP corruption blocks stale operator recovery');
+      fs.truncateSync(zip,fs.statSync(zip).size-'corrupted-during-recovery'.length);
+    }
+    if(phase==='receipt') {
+      success(['mutate',db,'1'],'simulate unauthorized DB drift during operator outage');
+      denied(recover(),'DB foundation drift prevents signed recovery and preserves stale lock');
+      success(['mutate',db,'0'],'restore independent foundation checkpoint after attack');
+    }
+    const fixed=success(recover(),'explicitly signed '+phase+' crash recovery');
+    ok(fixed.mode===mode&&fixed.interruptedStatus===status
+        &&fixed.permitStillPending===true
+        &&fixed.receiptRequired===(phase!=='intent'),
+      'operator recovers exact approved crash boundary without clearing pending trust: '+phase);
+    const inspected=success(['inspect',db,killRoot,v1],
+      'clean resumed journal after '+phase+' crash');
+    ok(inspected.status==='clean'&&inspected.sequence===(phase==='intent'?0:1)
+        &&inspected.current===(phase==='intent'?null:v1),
+      'abort before commit or finalize after real CAS, no implicit rollback: '+phase);
+    denied(recover(),
+      'second use of same signed stale-lock repair rejected: '+phase);
+    const pendingRead=[
+      'approval-serve',db,killRoot,killReceipts,killPending,
+      operatorPem,operatorPin,'f'.repeat(64),fp
+    ];
+    denied(pendingRead,'failed or unreceipted signed release remains unavailable: '+phase);
+    if(phase!=='intent') {
+      const reviewed=success([
+        'approval-review',db,killRoot,killReceipts,killPending,
+        operatorPem,operatorPin,head,'none',a.bundle,pem,fp
+      ],'review real recovered '+phase+' generation');
+      ok(reviewed.version===v1&&reviewed.manifestSha256===signedPermit.manifestSha256,
+        'post-SIGKILL native release review matches original publisher archive: '+phase);
+      const receiptHash=signActivation(reviewed,cp1,null,null,killReceipts);
+      const proofDir=path.join(killProofs,'permit-000001');
+      fs.mkdirSync(proofDir,{mode:0o700});
+      fs.copyFileSync(path.join(killPending,'permit.json'),path.join(proofDir,'permit.json'));
+      fs.copyFileSync(path.join(killPending,'permit.sig'),path.join(proofDir,'permit.sig'));
+      const settleRecord={
+        format:'ai-site-cms-stage2-settlement-v1',siteId:'labsite',
+        sequence:1,version:v1,permitSha256:head,receiptSha256:receiptHash,
+        previousSettlementSha256:null,productionReady:false
+      };
+      const settleRaw=Buffer.from(JSON.stringify(settleRecord)+'\n');
+      const settleSig=crypto.sign(null,
+        Buffer.concat([settlementDomain,settleRaw]),operatorKeys.privateKey);
+      const settlementHash=sha(Buffer.concat([settlementDomain,settleRaw,settleSig]));
+      fs.writeFileSync(path.join(killSettlements,'settlement-000001.json'),settleRaw);
+      fs.writeFileSync(path.join(killSettlements,'settlement-000001.sig'),settleSig);
+      const settled=[
+        'settled-serve',db,killRoot,killSettlements,killReceipts,
+        killProofs,killPending,operatorPem,operatorPin,fp,receiptHash,settlementHash
+      ];
+      denied(settled,'freshly signed receipt+settlement cannot skip pending operator release: '+phase);
+      fs.renameSync(path.join(killPending,'permit.json'),
+        path.join(temp,'killed-'+phase+'-retired-permit.json'));
+      fs.renameSync(path.join(killPending,'permit.sig'),
+        path.join(temp,'killed-'+phase+'-retired-permit.sig'));
+      ok(success(settled,'fully approved post-SIGKILL settlement: '+phase).settled,
+        'signed release, DB, permit, receipt and settlement restore gated service: '+phase);
+    }
+  }
+  ok(count>=200,'three real SIGKILL cases and signed-only recovery cases executed');
+
 
   console.log('Stage2 Ed25519 ZIP -> safe extraction -> native PHP -> DB checkpoint -> CAS PASS: '+
     count+' checks; '+first.files+' files; CI disposable only, no real host or data migrations');
