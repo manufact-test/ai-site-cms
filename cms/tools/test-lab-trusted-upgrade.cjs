@@ -113,8 +113,8 @@ function signActivation(result,checkpoint,previousVersion,previousHead){
   fs.writeFileSync(base+'.sig',sig,{flag:'wx',mode:0o600});
   return sha(Buffer.concat([signedDomain,raw,sig]));
 }
-const attested=(head,receiptDir=receipts,key=operatorPem,pin=operatorPin)=>[
-  'attested-serve',db,root,receiptDir,key,pin,head
+const attested=(head,receiptDir=receipts,key=operatorPem,pin=operatorPin,publisherPin=fp)=>[
+  'attested-serve',db,root,receiptDir,key,pin,head,publisherPin
 ];
 
 let root=null;
@@ -213,6 +213,31 @@ try{
   fs.writeFileSync(latestSig,badSig);
   denied(attested(head2),'detached operator Ed25519 signature tampering is rejected');
   fs.writeFileSync(latestSig,origSig);
+  // Invalid semantics must also fail when signed with a VALID operator key
+  // and a matching newly pinned head, not only on signature mismatch.
+  const signedBad=(patch,label)=>{
+    const rec=JSON.parse(origReceipt.toString('utf8'));
+    patch(rec);
+    const bytes=Buffer.from(JSON.stringify(rec)+'\n');
+    const signature=crypto.sign(null,Buffer.concat([signedDomain,bytes]),operatorKeys.privateKey);
+    fs.writeFileSync(latest,bytes);
+    fs.writeFileSync(latestSig,signature);
+    denied(attested(sha(Buffer.concat([signedDomain,bytes,signature]))),label);
+    fs.writeFileSync(latest,origReceipt);
+    fs.writeFileSync(latestSig,origSig);
+  };
+  signedBad(x=>{x.previousReceiptSha256='f'.repeat(64)},
+    'valid signature cannot conceal severed previous receipt link');
+  signedBad(x=>{x.sequence=1},
+    'valid operator signature cannot replay an earlier sequence number');
+  signedBad(x=>{x.version=v1;x.dbCheckpoint.codeVersion=v1},
+    'valid signature cannot authorize nonmonotonic code downgrade');
+  signedBad(x=>{x.manifestSha256='f'.repeat(64)},
+    'valid signature cannot attest code digest different from installed files');
+  signedBad(x=>{x.dbCheckpoint.fingerprint='0'.repeat(64)},
+    'valid signature cannot conceal tampered independent DB foundation checkpoint');
+  signedBad(x=>{x.publisherFingerprint='e'.repeat(64)},
+    'valid receipt signer cannot override separately pinned release publisher');
   fs.renameSync(latestSig,latestSig+'.disabled');
   denied(attested(head2),'missing signature or stray ledger file fails closed');
   fs.renameSync(latestSig+'.disabled',latestSig);
@@ -222,6 +247,8 @@ try{
   fs.copyFileSync(path.join(receipts,'receipt-000001.sig'),path.join(oldOnly,'receipt-000001.sig'));
   denied(attested(head2,oldOnly),'replayed old chain cannot match independent head watermark');
   denied(attested(head2,receipts,pem,fp),'publisher key is not an operator receipt signing key');
+  denied(attested(head2,receipts,operatorPem,operatorPin,'0'.repeat(64)),
+    'receipt publisher identity cannot be substituted independently');
   ok(success(attested(head2),'restored operator receipt chain').version===v2,
     'verified chain recovers after restoring exactly authentic bytes');
 
@@ -248,7 +275,7 @@ try{
     'attested read is healthy before legacy laboratory bypass demonstration');
   success(['raw-rollback',db,root,v1],'exercise old direct research rollback method');
   denied(attested(head2),'raw low-level rollback cannot bypass signed read gate');
-  ok(count>=59,'signed independent operator attestations and adversarial checks executed');
+  ok(count>=70,'signed independent operator attestations and adversarial checks executed');
   console.log('Stage2 Ed25519 ZIP -> safe extraction -> native PHP -> DB checkpoint -> CAS PASS: '+
     count+' checks; '+first.files+' files; CI disposable only, no real host or data migrations');
 }finally{
