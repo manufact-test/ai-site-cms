@@ -37,6 +37,8 @@ final class SchemaManager
             throw new InvalidArgumentException('Unsupported schema target');
         }
         return $this->withMigrationLock(function () use ($target): int {
+            // Never run even CREATE TABLE IF NOT EXISTS against a foreign application's DB.
+            $this->assertDedicatedSchema();
             $this->pdo->exec($this->driver === 'mysql'
                 ? 'CREATE TABLE IF NOT EXISTS cms_schema_migrations (version INT UNSIGNED NOT NULL PRIMARY KEY, checksum CHAR(64) NOT NULL, applied_at VARCHAR(35) NOT NULL) ENGINE=InnoDB'
                 : 'CREATE TABLE IF NOT EXISTS cms_schema_migrations (version INTEGER PRIMARY KEY, checksum VARCHAR(64) NOT NULL, applied_at VARCHAR(35) NOT NULL)');
@@ -129,6 +131,88 @@ final class SchemaManager
             }
         }
         $this->verifyStructure(self::LATEST);
+    }
+
+    /**
+     * Diagnostic only; no migrations, repairs, inserts or lock acquisition.
+     * Never returns schema row values, DB names, SQL messages or credentials.
+     * Results are only advisory snapshots, not a concurrency-safe authorization.
+     *
+     * @return array{state:string,reason:string,version:int|null}
+     */
+    public function inspectSite(string $siteId): array
+    {
+        $this->assertValidSiteId($siteId);
+        $report = static fn (string $state, string $reason, ?int $version): array
+            => ['state' => $state, 'reason' => $reason, 'version' => $version];
+        try {
+            $this->assertDedicatedSchema();
+            $journalExists = $this->tableExists('cms_schema_migrations');
+            $siteExists = $this->tableExists('cms_installation');
+            if (!$journalExists && !$siteExists) {
+                return $report('uninitialized', 'no_cms_tables', null);
+            }
+            if (!$journalExists || !$siteExists) {
+                return $report('blocked', 'incomplete_schema', null);
+            }
+            $rows = $this->pdo->query(
+                'SELECT version, checksum FROM cms_schema_migrations ORDER BY version'
+            )->fetchAll(PDO::FETCH_ASSOC);
+            if (!$rows) {
+                return $report('blocked', 'empty_migration_history', null);
+            }
+            if (count($rows) > self::LATEST) {
+                return $report('blocked', 'future_or_invalid_migration', null);
+            }
+            foreach ($rows as $index => $row) {
+                $version = $index + 1;
+                if ((int) $row['version'] !== $version || $row['checksum'] !== $this->checksum($version)) {
+                    return $report('blocked', 'migration_history_mismatch', null);
+                }
+            }
+            $version = count($rows);
+            $this->verifyStructure($version);
+            $siteRows = $this->pdo->query('SELECT site_id FROM cms_installation')->fetchAll(PDO::FETCH_COLUMN);
+            if (!$siteRows) {
+                return $report($version === self::LATEST ? 'schema_ready_unbound' : 'upgrade_required',
+                    'site_identity_missing', $version);
+            }
+            if (count($siteRows) !== 1 || $siteRows[0] !== $siteId) {
+                return $report('blocked', 'site_identity_mismatch', null);
+            }
+            if ($version < self::LATEST) {
+                return $report('upgrade_required', 'schema_version_behind', $version);
+            }
+            return $report('ready', 'matched', $version);
+        } catch (Throwable $e) {
+            return $report('blocked', 'schema_inconsistent_or_foreign', null);
+        }
+    }
+
+    /**
+     * Refuses databases belonging to another application even before creating a
+     * CMS migration journal. The tiny Stage2 schema whitelist must be extended
+     * deliberately whenever CMS adds a new owned table in future migrations.
+     */
+    private function assertDedicatedSchema(): void
+    {
+        if ($this->driver === 'mysql') {
+            $tables = $this->pdo->query(
+                'SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = DATABASE()'
+            )->fetchAll(PDO::FETCH_COLUMN);
+        } else {
+            $tables = $this->pdo->query(
+                "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')"
+            )->fetchAll(PDO::FETCH_COLUMN);
+        }
+        foreach ($tables as $name) {
+            if ($this->driver === 'sqlite' && $name === 'sqlite_sequence') {
+                continue;
+            }
+            if (!in_array($name, ['cms_schema_migrations', 'cms_installation'], true)) {
+                throw new RuntimeException('Foreign/unknown schema objects: dedicated CMS database required');
+            }
+        }
     }
 
     private function assertValidSiteId(string $siteId): void
