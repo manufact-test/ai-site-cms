@@ -85,7 +85,8 @@ final class LabTrustedUpgradeCoordinator
         PDO $pdo, string $siteId, LabPhpGenerationSwitcher $switcher,
         string $bundleFolder, string $extractedFolder, string $publicKeyPem,
         string $pinnedKeyFingerprint, string $expectedVersion, string $minimumVersion,
-        array $expectedDbCheckpoint, ?string $expectedCurrent, int $expectedSequence
+        array $expectedDbCheckpoint, ?string $expectedCurrent, int $expectedSequence,
+        ?string $failAt = null
     ): array {
         self::requireLab();
         require_once __DIR__ . '/LabPhpGenerationSwitcher.php';
@@ -97,7 +98,7 @@ final class LabTrustedUpgradeCoordinator
             $pdo, $siteId, $expectedVersion, $expectedDbCheckpoint,
             static function () use (
                 $switcher, $verified, $extractedFolder,
-                $expectedVersion, $expectedCurrent, $expectedSequence, $minimumVersion
+                $expectedVersion, $expectedCurrent, $expectedSequence, $minimumVersion, $failAt
             ): array {
                 // CAS and clean journal BEFORE creating any new installed slot.
                 $active = $switcher->inspect($minimumVersion);
@@ -125,7 +126,7 @@ final class LabTrustedUpgradeCoordinator
                     $installed->root(), $verified['manifestSha256'], $expectedVersion
                 );
                 $changed = $switcher->switchTo(
-                    $expectedVersion, $expectedCurrent, $expectedSequence, $minimumVersion
+                    $expectedVersion, $expectedCurrent, $expectedSequence, $minimumVersion, $failAt
                 );
                 if ($changed['status'] !== 'clean'
                     || $changed['current'] !== $expectedVersion

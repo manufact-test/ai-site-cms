@@ -250,7 +250,9 @@ final class LabPreauthorizedUpgradeGate
                 $result = LabTrustedUpgradeCoordinator::stageAndActivate(
                     $pdo, $siteId, $switcher, $bundle, $extracted, $publisherPem,
                     $publisherPin, $granted['version'], $granted['minimumVersion'],
-                    $granted['dbCheckpoint'], $expectedCurrent, $expectedSequence
+                    $granted['dbCheckpoint'], $expectedCurrent, $expectedSequence,
+                    in_array($failAt, ['pause-after-intent', 'pause-after-pointer',
+                        'pause-after-receipt'], true) ? $failAt : null
                 );
                 if ($failAt === 'after-activation') {
                     throw new RuntimeException('Injected interrupted postactivation acknowledgment');
