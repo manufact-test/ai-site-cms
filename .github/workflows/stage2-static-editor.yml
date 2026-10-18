@@ -66,6 +66,11 @@ jobs:
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
         run: node tools/test-lab-php-http-switch-crash.cjs
+      - name: Check compiled code version switches with independent SQLite DB checkpoint and crash recovery
+        working-directory: cms
+        env:
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+        run: php tests/lab-foundation-checkpoint.php
       - name: Exercise immutable lab release staging, fault injection and rollback
         working-directory: cms
         run: node tools/test-lab-rollout.cjs
