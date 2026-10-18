@@ -116,3 +116,7 @@ jobs:
         run: node novel-source-contract-audit.cjs
       - name: PHP persistent signed capability trust, restart, revocation and local rollback threat cases
         run: php -v && php -m | grep -i sodium && node persistent-capability-trust-test.cjs
+      - name: Separately signed external witness versus full site rollback and two-volume replay
+        run: php -v && node external-trust-witness.cjs
+      - name: Chromium original rich-site CSS SEO media fidelity with unsafe JavaScript quarantined
+        run: node cedar-rich-browser-boundary.cjs
