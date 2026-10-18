@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cedar Lab · Field research</title>
+<meta name="description" content="Environmental signals from the field">
+<link rel="canonical" href="https://cedarlab.example/research">
+<style>
+:root {--paper:#f5f0e5;--accent:#166e62;--gutter:28px}
+body{margin:0;background:var(--paper);font:16px system-ui}
+#hero{background:linear-gradient(125deg,#e7f0dd,#aadbd0);padding:var(--gutter)}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.pulse{animation:breathe 2s ease-in-out infinite}
+@keyframes breathe{50%{transform:translateY(-4px)}}
+@media(max-width:720px){.cards{grid-template-columns:1fr}#hero-title{font-size:36px}}
+@media(prefers-reduced-motion:reduce){.pulse{animation:none}}
+</style>
+</head>
+<body>
+<main>
+<header id="site-header">
+<a id="brand-link" href="#hero">Cedar Lab</a>
+<button id="menu-toggle" type="button" aria-expanded="false">Menu</button>
+</header>
+<section id="hero">
+<h1 id="hero-title">Signals in the forest.</h1>
+<p id="hero-deck">Open research for people studying local ecosystems.</p>
+<a id="hero-cta" href="#field-notes">Read field notes</a>
+<picture id="hero-picture">
+<source id="hero-mobile" media="(max-width: 720px)" srcset="/assets/cedar-mobile.webp">
+<img id="hero-image" src="/assets/cedar.webp" alt="Cedar grove at morning light">
+</picture>
+</section>
+<section id="field-notes" class="cards">
+<article id="card-soil"><h2 id="soil-title">Soil chemistry</h2><p id="soil-desc">Measurements beneath the canopy.</p></article>
+<article id="card-wind"><h2 id="wind-title">Wind patterns</h2><p id="wind-desc">How the ridge changes airflow.</p></article>
+<article id="card-water"><h2 id="water-title">Stream health</h2><p id="water-desc">Monthly samples from five banks.</p></article>
+</section>
+<section id="gallery">
+<h2 id="gallery-title">On the trail</h2>
+<video id="gallery-video" controls poster="/assets/trail-poster.webp" preload="none">
+<source id="gallery-source" src="/assets/trail.mp4" type="video/mp4">
+</video>
+<svg id="weather-icon" viewBox="0 0 30 30" aria-label="Weather symbol" xmlns="http://www.w3.org/2000/svg">
+<circle cx="15" cy="15" r="10" fill="#166e62"/>
+</svg>
+</section>
+<section id="faq">
+<details id="faq-first"><summary id="faq-title">Can I reuse the findings?</summary><p id="faq-desc">Use with attribution.</p></details>
+</section>
+<section id="newsletter">
+<h2 id="newsletter-title">Monthly field notes</h2>
+<form id="newsletter-form" method="post" action="/api/subscribe">
+<label for="newsletter-email">Email address</label>
+<input id="newsletter-email" type="email" placeholder="you@example.org" required>
+<button id="newsletter-submit" type="submit">Subscribe</button>
+</form>
+</section>
+<dialog id="research-dialog"><p id="dialog-copy">Updates will be posted each month.</p></dialog>
+</main>
+<script>
+const toggle=document.getElementById('menu-toggle');
+toggle.addEventListener('click',()=>toggle.setAttribute('aria-expanded',toggle.getAttribute('aria-expanded')==='false'?'true':'false'));
+document.getElementById('newsletter-form').addEventListener('submit',(event)=>{event.preventDefault();fetch('/api/subscribe',{method:'POST'});});
+</script>
+</body></html>
