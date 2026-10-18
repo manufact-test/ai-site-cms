@@ -234,19 +234,34 @@ final class LabPreauthorizedUpgradeGate
         }
         // Freeze approval semantics before/after entering the underlying DB fence.
         // This is cooperative only; privileged concurrent writes remain a risk.
-        $result = LabTrustedUpgradeCoordinator::stageAndActivate(
-            $pdo, $siteId, $switcher, $bundle, $extracted, $publisherPem,
-            $publisherPin, $r['version'], $r['minimumVersion'],
-            $r['dbCheckpoint'], $expectedCurrent, $expectedSequence
-        );
-        if ($failAt === 'after-activation') {
-            throw new RuntimeException('Injected interrupted postactivation acknowledgment');
-        }
-        self::verifyPermit(
+        return $switcher->withSignedPermitMutation(
             $pending, $operatorPem, $operatorPin, $permitHead,
-            $previousReceiptHead, $siteId, $publisherPin
+            $previousReceiptHead, $siteId, $publisherPin,
+            static function (array $granted) use (
+                $pdo,$siteId,$switcher,$bundle,$extracted,$publisherPem,$publisherPin,
+                $expectedCurrent,$expectedSequence,$failAt,$pending,$operatorPem,
+                $operatorPin,$permitHead,$previousReceiptHead
+            ): array {
+                // The low-level sealed switcher independently restricts register
+                // and switch CAS to this exact signed permit, not caller claims.
+                $result = LabTrustedUpgradeCoordinator::stageAndActivate(
+                    $pdo, $siteId, $switcher, $bundle, $extracted, $publisherPem,
+                    $publisherPin, $granted['version'], $granted['minimumVersion'],
+                    $granted['dbCheckpoint'], $expectedCurrent, $expectedSequence
+                );
+                if ($failAt === 'after-activation') {
+                    throw new RuntimeException('Injected interrupted postactivation acknowledgment');
+                }
+                self::verifyPermit(
+                    $pending, $operatorPem, $operatorPin, $permitHead,
+                    $previousReceiptHead, $siteId, $publisherPin
+                );
+                return $result + [
+                    'preactivationPermitHead'=>$permitHead,
+                    'operatorReceiptPending'=>true,'signedOnlySwitch'=>true
+                ];
+            }
         );
-        return $result + ['preactivationPermitHead'=>$permitHead, 'operatorReceiptPending'=>true];
     }
 
     /**
