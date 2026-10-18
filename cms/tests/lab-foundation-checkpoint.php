@@ -88,7 +88,19 @@ try {
     $switcher=Switcher::create();$labs[]=$switcher->root();
     foreach ([$v1,$v2] as $v) {
         $dir=$fixture.'/source-'.$v;
-        $digest=dbSyntheticPackage($dir,$v);
+        $real=dirname(__DIR__).'/.build/internal-stage2-package';
+        if ($v===$v1 && is_dir($real)) {
+            // Editor CI: exercise the FULL actual compiled distribution, not
+            // only the 4-file standalone synthetic compatibility fixture.
+            $dir=$real;
+            $digest=hash_file('sha256',$dir.'/private/package-manifest.json');
+            if ($digest === false) throw new RuntimeException('Compiled package manifest unreadable');
+            $realInfo=Stager::verifyPackage($dir,$digest);
+            dbOk($realInfo['version']===$v1 && $realInfo['files']>=400,
+                'actual bundled CMS participates in DB-checkpoint version recovery');
+        } else {
+            $digest=dbSyntheticPackage($dir,$v);
+        }
         $installed=Stager::create();$labs[]=$installed->root();
         dbOk($installed->stage($dir,$digest)['ready'],'verified generation installed '.$v);
         dbOk($switcher->register($installed->root(),$digest,$v)['registered']>=1,
