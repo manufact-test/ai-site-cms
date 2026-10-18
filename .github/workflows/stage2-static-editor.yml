@@ -56,6 +56,11 @@ jobs:
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
         run: php tests/lab-generation-leases.php
+      - name: Bind PHP generation activation to real SQLite schema v2 and site identity
+        working-directory: cms
+        env:
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+        run: php tests/lab-schema-gate.php
       - name: Exercise immutable lab release staging, fault injection and rollback
         working-directory: cms
         run: node tools/test-lab-rollout.cjs
