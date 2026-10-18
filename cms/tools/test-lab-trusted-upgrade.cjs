@@ -288,9 +288,9 @@ try{
     'approved-activate',db,authorizedRoot,receiptDir,pending,operatorPem,signerPin,permit,
     prior??'none',x.bundle,x.extracted,pem,publisherPin,current??'none',String(seq),failAt
   ];
-  const review=(permit,prior,publisherPin=fp)=>[
-    'approval-review',db,authorizedRoot,pending,operatorPem,operatorPin,
-    permit,prior??'none',publisherPin
+  const review=(permit,prior,x=a,publisherPin=fp)=>[
+    'approval-review',db,authorizedRoot,approvedReceipts,pending,operatorPem,operatorPin,
+    permit,prior??'none',x.bundle,pem,publisherPin
   ];
   const strictRead=(head,pendingDir=pending,chain=approvedReceipts)=>[
     'approval-serve',db,authorizedRoot,chain,pendingDir,operatorPem,operatorPin,head,fp
@@ -329,7 +329,7 @@ try{
     'preapproval cannot silently change release publisher identity');
   denied(authorized(b,firstPermit,null,null,0),
     'valid signed approval for version 1 cannot authorize version 2 archive');
-  denied(review(firstPermit,null),
+  denied(review(firstPermit,null,a),
     'crash-review refuses to attest a code generation never activated');
   const rawPermit=fs.readFileSync(permitFile),rawPermitSig=fs.readFileSync(signatureFile);
   const changedPermit=Buffer.from(rawPermitSig);changedPermit[0]^=1;
@@ -376,7 +376,19 @@ try{
     'post-switch/pre-receipt crash prevents any strict read, including old head');
   denied(authorized(b,secondPermit,approvedHead1,v1,1),
     'replayed signed approval cannot activate once CAS has advanced');
-  const reviewed=success(review(secondPermit,approvedHead1),
+  const brokenArchive=path.join(b.bundle,'package.zip');
+  fs.appendFileSync(brokenArchive,Buffer.from('corrupted-package'));
+  denied(review(secondPermit,approvedHead1,b),
+    'interrupted activation cannot be approved while publisher ZIP has been tampered');
+  fs.truncateSync(brokenArchive,fs.statSync(brokenArchive).size-'corrupted-package'.length);
+  const previousSig=path.join(approvedReceipts,'receipt-000001.sig');
+  const firstSigOriginal=fs.readFileSync(previousSig);
+  const wrongPreviousSig=Buffer.from(firstSigOriginal);wrongPreviousSig[4]^=1;
+  fs.writeFileSync(previousSig,wrongPreviousSig);
+  denied(review(secondPermit,approvedHead1,b),
+    'post-crash review requires intact signed previous activation lineage');
+  fs.writeFileSync(previousSig,firstSigOriginal);
+  const reviewed=success(review(secondPermit,approvedHead1,b),
     'read-only independent post-crash review of exact manifest, CAS and DB');
   ok(reviewed.version===v2&&reviewed.sequence===2
       &&reviewed.manifestSha256===b.metadata.packageManifestSha256,
@@ -400,7 +412,7 @@ try{
   ok(success(strictRead(approvedHead2),'read after revoked stale permit').version===v2,
     'explicit operator rejection of old authorization restores same attested version');
 
-  ok(count>=119,'signed preactivation, crash reconciliation and negative test suite executed');
+  ok(count>=123,'signed preactivation, crash reconciliation and negative test suite executed');
 
   console.log('Stage2 Ed25519 ZIP -> safe extraction -> native PHP -> DB checkpoint -> CAS PASS: '+
     count+' checks; '+first.files+' files; CI disposable only, no real host or data migrations');
