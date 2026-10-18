@@ -425,3 +425,12 @@ Alternatives A modular PHP+typed registry, B Puck fields/PHP, C Winter/custom ed
 Separate independent PHP CLI file-store research tests validate generation-CAS/flock, draft-published separation, atomic rename, checksum and last-good fallback, historical rollback/recovery across new Node process, with **48 checks**. This probes only local GitHub runner process/filesystem; not PHP shared hosting, fsync/power-loss durability, distributed locking, authorized administration, off-site backup, database or performance at scale. SHA256 != MAC.
 
 **Outcome:** strengthen evidence for the viability of trusted typed extensions + PHP snapshots as candidates; not an architectural decision. Evidence matrix category totals unchanged (43 limited research/doc, 92 target gaps); product 0/135; Stage1 open. [Deep technical report](STAGE-1-DURABLE-REGENERATION-RESEARCH.md).
+
+
+## 24. Reviewed mixed-site cross-runtime parity and signed pack authorization — v1.24 (18.10.2026)
+
+[CI #39115456497 PASS, four independent jobs](https://github.com/manufact-test/ai-site-cms/actions/runs/39115456497). A single **reviewed typed** mixed-site graph now demonstrates 7 semantic render views across HTML, standalone PHP CLI, React static and real Next static export after re-generation 4→5 with 6 owner overrides retained; 675 assertions, 10 DOM corruption mutations caught, 11 PHP invalid payloads refused. This is a substantial improvement over three-node content slice but **does not establish unrestricted original AI HTML/CSS/JS/SEO automatic parity**, browser behavior parity across renderers, Next SSR or actual shared hosting.
+
+Reviewed capability provenance: 38 checks/30 negative refusals using test Ed25519 signatures, pinned asset hashes, separate capability review ledger, monotonic in-memory upgrades, owner migration preserving two edits. A signed package can still be malicious; authorization derives from *reviewed typed operation allowlist*, NOT the signature. No real plugin sandbox, signing infrastructure, verified persistent anti-rollback or production permission model.
+
+A PHP-first adapter, B schema/React-first with independently maintained PHP rendering, C selectively embedded editor controls still carry unresolved cost/trust tradeoffs; no winner. The independent blind LLM source+manifest evidence remains **missing**. [Deep report](STAGE-1-MIXED-SITE-PROVENANCE-RESEARCH.md). Stage1 in_progress not accepted; **0/135** mandatory acceptance, matrix 43 limited/92 missing.

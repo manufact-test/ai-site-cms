@@ -224,3 +224,10 @@ Research full CI [#39075385172](https://github.com/manufact-test/ai-site-cms/act
 ## v1.23 research-only evidence annotation (18.10.2026)
 
 GitHub Actions [#39111755170](https://github.com/manufact-test/ai-site-cms/actions/runs/39111755170) **completed/success** for all three independent CI jobs on research HEAD 32ab15f4ec523597724610011a71695bd05d5784: two upstream editors show reviewed behavioral controls (20 real UI edits), reviewed visual/curated SVG controls (18 edits), modeled AI regeneration 4→5 preserving 6 owner settings, and local PHP CLI durable typed snapshots (48 checks, 3 fresh Node rehydrations; corruption/recovery/CAS/explicit historical rollback). **Do not reclassify a requirement as product-complete:** these are scoped non-production fixtures, no real shared Hostinger proof or blind AI generator, no full-site transformation, no admin authorization/fsync/multi-host storage. Matrix remains **43 limited R/D, 92 missing matched target probes; PRODUCT 0/135**. [Technical report](STAGE-1-DURABLE-REGENERATION-RESEARCH.md).
+
+
+## v1.24 research-only evidence annotation (18.10.2026)
+
+[Actions #39115456497](https://github.com/manufact-test/ai-site-cms/actions/runs/39115456497) all **4/4 jobs PASS**. Two additional targeted research strands: complete **known reviewed** 4→5 heterogeneous typed-component view across HTML/PHP CLI/React static/Next static (7 semantic comparisons; 675 assertions, 10 detected markup mutants, 11 PHP invalid refusals; six retained owner overrides, explicit rollback); and signed vs reviewed capability provenance (38 assertions, 30 denials; eight pinned targets, two SVG hashes, test-only Ed25519 keys, no arbitrary code privilege). [Report](STAGE-1-MIXED-SITE-PROVENANCE-RESEARCH.md).
+
+**DO NOT upgrade product acceptance/evidence classifications:** no independently blinded AI-generated source/manifest, no arbitrary-original-site fidelity, no Hostinger, no trusted production plugin distribution, no production admin/auth or full release. Existing 135 rows and the count **43 limited research/document signals, 92 missing matching target proof; product 0/135** remain unchanged.
