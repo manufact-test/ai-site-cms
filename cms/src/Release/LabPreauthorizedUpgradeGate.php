@@ -98,8 +98,9 @@ final class LabPreauthorizedUpgradeGate
     {
         self::lab();
         $dir = self::directory($pending);
-        if (array_values(array_diff(scandir($dir) ?: [], ['.','..'])) !== []) {
-            throw new RuntimeException('Outstanding or corrupt upgrade approval: maintenance required');
+        $entries = @scandir($dir);
+        if ($entries === false || array_values(array_diff($entries, ['.','..'])) !== []) {
+            throw new RuntimeException('Unreadable/outstanding upgrade approval: maintenance required');
         }
     }
 
@@ -210,7 +211,9 @@ final class LabPreauthorizedUpgradeGate
                 throw new RuntimeException('Cannot approve upgrade from untrusted old code/receipt');
             }
         } else {
-            $entries = array_values(array_diff(scandir($receiptDir) ?: [], ['.','..']));
+            $listing = @scandir($receiptDir);
+            if ($listing === false) throw new RuntimeException('Missing independent receipt directory');
+            $entries = array_values(array_diff($listing, ['.','..']));
             if ($entries !== []) throw new RuntimeException('Genesis must not have older receipts');
         }
         $verified = LabTrustedUpgradeCoordinator::preflight(
@@ -273,7 +276,9 @@ final class LabPreauthorizedUpgradeGate
                 throw new RuntimeException('Crash review previous signed generation invalid');
             }
         } else {
-            $entries = array_values(array_diff(scandir($receiptDir) ?: [], ['.','..']));
+            $listing = @scandir($receiptDir);
+            if ($listing === false) throw new RuntimeException('Missing independent receipt directory');
+            $entries = array_values(array_diff($listing, ['.','..']));
             if ($entries !== []) {
                 throw new RuntimeException('Crash review genesis cannot skip retained receipts');
             }
