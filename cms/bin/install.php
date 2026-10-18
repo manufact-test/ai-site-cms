@@ -27,6 +27,18 @@ if ($driver === 'sqlite' && !$allowSqlite) {
     fwrite(STDERR, "SQLite bootstrap permitted only in explicit test mode\n");
     exit(2);
 }
+if ($allowSqlite) {
+    $file = substr($dsn, 7);
+    if (str_starts_with($file, '/') && (file_exists($file) || is_link($file))) {
+        $stat = @lstat($file);
+        if ($stat === false || is_link($file) || !is_file($file)
+            || ($stat['nlink'] ?? 0) !== 1 || ($stat['mode'] & 0077) !== 0) {
+            fwrite(STDERR, "Unsafe dedicated SQLite test database\n");
+            exit(1);
+        }
+    }
+    umask(0077);
+}
 try {
     $pdo = new PDO($dsn, getenv('CMS_DB_USER') ?: null, getenv('CMS_DB_PASSWORD') ?: null);
     (new SchemaManager($pdo, $allowSqlite))->installSite($siteId);
