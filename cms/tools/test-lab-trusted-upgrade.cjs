@@ -89,6 +89,34 @@ const keys=crypto.generateKeyPairSync('ed25519');
 const pem=path.join(temp,'publisher-test-root.pem');
 fs.writeFileSync(pem,keys.publicKey.export({type:'spki',format:'pem'}));
 const fp=sha(keys.publicKey.export({type:'spki',format:'der'}));
+
+const operatorKeys=crypto.generateKeyPairSync('ed25519');
+const operatorPem=path.join(temp,'external-operator-public.pem');
+fs.writeFileSync(operatorPem,operatorKeys.publicKey.export({type:'spki',format:'pem'}));
+const operatorPin=sha(operatorKeys.publicKey.export({type:'spki',format:'der'}));
+const receipts=path.join(temp,'operator-receipts');
+fs.mkdirSync(receipts,{mode:0o700});
+const signedDomain=Buffer.from('AI-SITE-CMS-STAGE2-OPERATOR-RECEIPT-V1\\0'.replace('\\0','\0'));
+function signActivation(result,checkpoint,previousVersion,previousHead){
+  const record={
+    format:'ai-site-cms-stage2-operator-activation-receipt-v1',
+    siteId:'labsite',sequence:result.sequence,fromVersion:previousVersion,
+    version:result.version,minimumVersion:v1,publisherFingerprint:fp,
+    manifestSha256:result.manifestSha256,archiveSha256:result.archiveSha256,
+    dbCheckpoint:JSON.parse(fs.readFileSync(checkpoint,'utf8')),
+    previousReceiptSha256:previousHead,productionReady:false
+  };
+  const raw=Buffer.from(JSON.stringify(record)+'\\n');
+  const sig=crypto.sign(null,Buffer.concat([signedDomain,raw]),operatorKeys.privateKey);
+  const base=path.join(receipts,'receipt-'+String(result.sequence).padStart(6,'0'));
+  fs.writeFileSync(base+'.json',raw,{flag:'wx',mode:0o600});
+  fs.writeFileSync(base+'.sig',sig,{flag:'wx',mode:0o600});
+  return sha(Buffer.concat([signedDomain,raw,sig]));
+}
+const attested=(head,receiptDir=receipts,key=operatorPem,pin=operatorPin)=>[
+  'attested-serve',db,root,receiptDir,key,pin,head
+];
+
 let root=null;
 const v1='0.2.0-stage2.1',v2='0.2.0-stage2.2';
 try{
@@ -122,6 +150,13 @@ try{
   ok(first.verification==='signed_inventory_and_db_checkpoint_passed'
     &&first.version===v1&&first.sequence===1&&!first.productionReady,
     'first activation binds Ed25519 signature, full inventory, DB baseline, generation');
+  // No signed post-activation receipt: a code pointer alone is never trusted.
+  denied(attested('f'.repeat(64)), 'signed read denies newly switched but unattested first generation');
+  const head1=signActivation(first,cp1,null,null);
+  ok(success(attested(head1),'first signed operator attestation').attested,
+    'signed out-of-band receipt gates the first code plus foundation DB generation');
+  denied(attested('0'.repeat(64)), 'untrusted externally supplied chain tip rejected');
+  denied(attested(head1,receipts,operatorPem,'0'.repeat(64)), 'operator signing key substitution blocked');
   ok(first.manifestSha256===a.metadata.packageManifestSha256
     &&first.archiveSha256===a.metadata.archiveSha256,
     'native PHP result carries true signed archive/hash evidence');
@@ -160,6 +195,36 @@ try{
 
   const second=success(activate(b,cp2,v1,1),'authenticated upgrade to generation 2');
   installedLabs.push(second.installedLabRoot);
+  denied(attested(head1), 'older signed chain cannot authorize newer code pointer');
+  const head2=signActivation(second,cp2,v1,head1);
+  ok(success(attested(head2),'second signed operator receipt').sequence===2,
+    'signed hash-linked version 2 receipt binds code digest and DB foundation');
+  denied(attested(head1), 'independent high-water head rejects replay of previous receipt');
+  const latest=path.join(receipts,'receipt-000002.json');
+  const latestSig=path.join(receipts,'receipt-000002.sig');
+  const origReceipt=fs.readFileSync(latest);
+  const origSig=fs.readFileSync(latestSig);
+  const altered=Buffer.from(origReceipt);
+  altered[20]^=1;
+  fs.writeFileSync(latest,altered);
+  denied(attested(head2),'operator receipt JSON mutation is rejected');
+  fs.writeFileSync(latest,origReceipt);
+  const badSig=Buffer.from(origSig);badSig[0]^=1;
+  fs.writeFileSync(latestSig,badSig);
+  denied(attested(head2),'detached operator Ed25519 signature tampering is rejected');
+  fs.writeFileSync(latestSig,origSig);
+  fs.renameSync(latestSig,latestSig+'.disabled');
+  denied(attested(head2),'missing signature or stray ledger file fails closed');
+  fs.renameSync(latestSig+'.disabled',latestSig);
+  const oldOnly=path.join(temp,'old-signed-receipts');
+  fs.mkdirSync(oldOnly);
+  fs.copyFileSync(path.join(receipts,'receipt-000001.json'),path.join(oldOnly,'receipt-000001.json'));
+  fs.copyFileSync(path.join(receipts,'receipt-000001.sig'),path.join(oldOnly,'receipt-000001.sig'));
+  denied(attested(head2,oldOnly),'replayed old chain cannot match independent head watermark');
+  denied(attested(head2,receipts,pem,fp),'publisher key is not an operator receipt signing key');
+  ok(success(attested(head2),'restored operator receipt chain').version===v2,
+    'verified chain recovers after restoring exactly authentic bytes');
+
   ok(second.version===v2&&second.sequence===2&&second.files===first.files,
     'new immutable code slot installed only via integrated release+DB path');
   ok(success(['serve',db,root,v2,v1,cp2],'serve upgraded package').version===v2,
@@ -179,7 +244,11 @@ try{
     'separate PHP process resumes only with exact independently approved state');
   ok(inspect().status==='clean' && inspect().current===v2,
     'final pointer healthy after signed package and DB gates');
-  ok(count>=39,'verified authentic release and negative cases executed');
+  ok(success(attested(head2),'before direct old API attack').sequence===2,
+    'attested read is healthy before legacy laboratory bypass demonstration');
+  success(['raw-rollback',db,root,v1],'exercise old direct research rollback method');
+  denied(attested(head2),'raw low-level rollback cannot bypass signed read gate');
+  ok(count>=59,'signed independent operator attestations and adversarial checks executed');
   console.log('Stage2 Ed25519 ZIP -> safe extraction -> native PHP -> DB checkpoint -> CAS PASS: '+
     count+' checks; '+first.files+' files; CI disposable only, no real host or data migrations');
 }finally{
