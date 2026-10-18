@@ -54,6 +54,9 @@ jobs:
         env:
           CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
         run: node tools/test-operator-guard.cjs
+      - name: Cross-process update exclusion and hostile filesystem laboratory
+        working-directory: cms
+        run: node tools/test-lab-concurrency-corruption.cjs
       - name: Check packaged document root by HTTP and block private package files
         working-directory: cms
         run: |

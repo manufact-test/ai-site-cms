@@ -7,6 +7,13 @@ const {verify}=require('./build-internal-package.cjs');
 const {validVersion}=require('./lab-versioned-rollout.cjs');
 const {verifyEnvelope,compare}=require('./lab-signed-offline-release.cjs');
 const FORMAT='ai-site-cms-operator-guard-lab-v1';
+// lstat, unlike existsSync, detects dangling symlinks and unsupported file nodes.
+const present=file=>{try{fs.lstatSync(file);return true}catch(e){if(e.code==='ENOENT')return false;throw e;}};
+function regular(file){
+  const st=fs.lstatSync(file);
+  if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1)throw Error('Unsafe operator state node');
+  return st;
+}
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
 function publicKeyHash(key){
   if(!key||key.type==='private')throw Error('Public trust anchor required');
@@ -18,8 +25,8 @@ function exactObject(value,keys){
   if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).sort().join('|')!==keys.slice().sort().join('|'))throw Error('Invalid operator state shape');
 }
 function readStrict(file,max=4096){
-  const st=fs.lstatSync(file);
-  if(!st.isFile()||st.isSymbolicLink()||st.size<2||st.size>max)throw Error('Invalid operator state file');
+  const st=regular(file);
+  if(st.size<2||st.size>max)throw Error('Invalid operator state file');
   return JSON.parse(fs.readFileSync(file,'utf8'));
 }
 function safeTempLab(lab){
@@ -42,9 +49,10 @@ class LabOperatorGuard {
     this.fingerprint=publicKeyHash(trustKey);
     this.policyFile=path.join(lab.root,'operator-policy.json');
     this.pendingFile=path.join(lab.root,'operator-intent.json');
-    if(!fs.existsSync(this.policyFile)){
+    this.lockDir=path.join(lab.root,'operator-exclusive.lock');
+    if(!present(this.policyFile)){
       const state=lab.state();
-      if(state.sequence!==0||state.current!==null||fs.existsSync(this.pendingFile))
+      if(state.sequence!==0||state.current!==null||present(this.pendingFile))
         throw Error('Cannot bootstrap trust for existing activated lab; missing policy');
       writeAtomic(this.policyFile,{
         format:FORMAT,key:this.fingerprint,current:null,sequence:0,highest:null,receipts:{}
@@ -72,7 +80,7 @@ class LabOperatorGuard {
     return p;
   }
   pending(){
-    if(!fs.existsSync(this.pendingFile))return null;
+    if(!present(this.pendingFile))return null;
     const i=readStrict(this.pendingFile);
     exactObject(i,['format','kind','from','to','fromSequence','newHighest','envelopeSha256','receipt']);
     if(i.from!==null)validVersion(i.from);
@@ -86,7 +94,7 @@ class LabOperatorGuard {
   }
   inspect(){
     const p=this.policy(),active=this.lab.state(),i=this.pending();
-    if(fs.existsSync(this.policyFile+'.new'))throw Error('Unresolved policy write: manual intervention required');
+    if(present(this.policyFile+'.new'))throw Error('Unresolved policy write: manual intervention required');
     if(!i){
       if(fs.existsSync(this.lab.pointerPath()+'.tmp')||
          p.current!==active.current||p.sequence!==active.sequence)
@@ -114,7 +122,37 @@ class LabOperatorGuard {
       throw Error('Stale operator state/ABA sequence mismatch');
     return this.policy();
   }
-  execute({kind,version,expectedCurrent,expectedSequence,envelopeFolder=null,failAt=null}){
+  // mkdir is an atomic exclusive claim across processes on the SAME local FS.
+  // A crash leaves a lock behind; never guess its age or break it automatically.
+  withExclusive(work){
+    safeTempLab(this.lab);
+    try{fs.mkdirSync(this.lockDir,{mode:0o700});}
+    catch(e){
+      if(e.code==='EEXIST')throw Error('Operator exclusive lock held or stale: explicit investigation required');
+      throw e;
+    }
+    const dirStat=fs.lstatSync(this.lockDir);
+    const nonce=crypto.randomBytes(32).toString('hex');
+    const owner=path.join(this.lockDir,'owner.json');
+    try{
+      const fd=fs.openSync(owner,'wx',0o600);
+      try{fs.writeFileSync(fd,JSON.stringify({nonce,pid:process.pid})+'\n');fs.fsyncSync(fd)}
+      finally{fs.closeSync(fd)}
+      return work();
+    }finally{
+      // Do not unlink anything if another actor replaced/modified the lock.
+      const current=fs.lstatSync(this.lockDir);
+      if(current.ino!==dirStat.ino||current.dev!==dirStat.dev||
+         !current.isDirectory()||current.isSymbolicLink()||
+         !present(owner)||!regular(owner)||
+         JSON.parse(fs.readFileSync(owner,'utf8')).nonce!==nonce)
+        throw Error('Operator lock changed during critical section; manual review required');
+      fs.unlinkSync(owner);
+      fs.rmdirSync(this.lockDir);
+    }
+  }
+  execute(args){return this.withExclusive(()=>this._execute(args))}
+  _execute({kind,version,expectedCurrent,expectedSequence,envelopeFolder=null,failAt=null}){
     const p=this.assertClean(expectedCurrent,expectedSequence);
     validVersion(version);
     if(kind!=='upgrade'&&kind!=='rollback')throw Error('Invalid operator action');
@@ -155,10 +193,11 @@ class LabOperatorGuard {
       if(failAt==='after-pointer')throw Error('Injected fault AFTER rollback pointer');
     }
     if(failAt==='after-activation')throw Error('Injected fault AFTER activation');
-    this.recover({mode:'finalize'});
+    this._recover({mode:'finalize'});
     return this.inspect();
   }
-  recover({mode}){
+  recover(args){return this.withExclusive(()=>this._recover(args))}
+  _recover({mode}){
     const s=this.inspect();
     if(s.status==='clean')throw Error('No pending operation to recover');
     if(s.status==='pending-before-switch'){
