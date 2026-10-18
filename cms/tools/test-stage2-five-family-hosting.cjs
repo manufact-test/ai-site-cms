@@ -176,14 +176,16 @@ async function http(port,host,uri='/',options={}){
  return {status:result.status,body:await result.text(),headers:result.headers};
 }
 async function expectStatus(port,host,uri,code){
+ let last='connection_unavailable';
  for(let i=0;i<100;i++){
   try {
    const value=await http(port,host,uri);
    if(value.status===code)return value;
-  }catch {}
+   last=String(value.status)+' '+value.body.slice(0,180);
+  }catch(e){last=String(e.message||e);}
   await pause(80);
  }
- throw Error('Expected '+code+' on '+host+uri);
+ throw Error('Expected '+code+' on '+host+uri+'; last='+last);
 }
 async function terminate(child){
  if(!child || child.exitCode!==null || child.signalCode!==null)return;
@@ -275,7 +277,21 @@ http.createServer((request,response)=>{
     {stdio:'ignore'});
   children.push(ng);
 
-  for(const x of sites)await expectStatus(port,cmsHost(x),'/api/health',200);
+  try{
+    for(const x of sites)await expectStatus(port,cmsHost(x),'/api/health',200);
+  }catch(e){
+    const shortLog=name=>{
+      const file=home+'/'+name;
+      return fs.existsSync(file)?fs.readFileSync(file,'utf8').slice(-1500):'absent';
+    };
+    console.error('CI-only shared-listener diagnostic:',e.message,
+      'nginxExit=',ng.exitCode,'nginxSignal=',ng.signalCode,
+      'nginxLog=',shortLog('nginx-error.log'),
+      'cmsFpmExit=',sites.map(x=>[x.siteId,byCms[x.siteId].exitCode,
+       byCms[x.siteId].signalCode]),
+      'fpm1Log=',shortLog('php-cms1.log'));
+    throw e;
+  }
   for(const x of sites){
    const h=cmsHost(x),sh=siteHost(x);
    const health=await http(port,h,'/api/health');
