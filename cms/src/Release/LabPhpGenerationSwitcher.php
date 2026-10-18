@@ -484,6 +484,25 @@ final class LabPhpGenerationSwitcher
         });
     }
 
+    /**
+     * CI-only coordinated activation. Migration mutex is acquired BEFORE the
+     * code switch lock, and the actual site/schema check runs under that mutex.
+     * Code generation and DB identity must be on the same intentionally
+     * isolated test installation. This does not enable production deploy.
+     */
+    public function switchToWithSchema(
+        \PDO $pdo, string $siteId, string $target, ?string $expectedCurrent,
+        int $expectedSequence, string $externalMinVersion, ?string $failAt = null
+    ): array {
+        require_once __DIR__ . '/LabSchemaVersionGate.php';
+        return LabSchemaVersionGate::withMigrationFence(
+            $pdo, $siteId, $target,
+            fn (): array => $this->switchTo(
+                $target, $expectedCurrent, $expectedSequence, $externalMinVersion, $failAt
+            )
+        );
+    }
+
     public function recover(string $mode, string $externalMinVersion): array
     {
         return $this->exclusive(function () use ($mode,$externalMinVersion): array {
