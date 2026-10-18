@@ -14,4 +14,20 @@ if (!is_file($autoload)) {
 
 require $autoload;
 
+// Explicit Stage2 CI-only mode, not a production policy. When requested,
+// reject incomplete or cross-site installations BEFORE returning HTTP health.
+// Unknown mode values fail closed; legacy lab smoke without the opt-in is unchanged.
+$gateMode = getenv('CMS_STAGE2_RUNTIME_GATE');
+if ($gateMode !== false && $gateMode !== '') {
+    $readiness = \AiSiteCms\Hosting\EmptyCmsStartupReadiness::fromProcess(dirname(__DIR__));
+    if (!$readiness['ready']) {
+        http_response_code(503);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        header('X-Content-Type-Options: nosniff');
+        echo '{"error":"service_unavailable"}';
+        exit;
+    }
+}
+
 \AiSiteCms\HttpKernel::create()->run();

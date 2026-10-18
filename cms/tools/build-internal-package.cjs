@@ -15,6 +15,7 @@ const PARTS = [
   ['bin/shared-host-preflight.php', 'bin/shared-host-preflight.php'],
   ['bin/site-runtime-topology.php', 'bin/site-runtime-topology.php'],
   ['bin/package-preflight.php', 'bin/package-preflight.php'],
+  ['bin/startup-readiness.php', 'bin/startup-readiness.php'],
   ['composer.json', 'composer.json'], ['composer.lock', 'composer.lock'],
   ['editor/dist/editor.js', 'private/editor/editor.js'],
   ['editor/dist/meta.json', 'private/editor/meta.json'],

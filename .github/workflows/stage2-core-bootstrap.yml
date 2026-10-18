@@ -35,6 +35,8 @@ jobs:
         run: php tests/shared-host-preflight.php && php bin/shared-host-preflight.php --check --document-root=public
       - name: Independent CMS/site runtime topology and four family matrix (read-only)
         run: php tests/site-runtime-topology.php && php tests/site-runtime-cli.php
+      - name: Empty CMS read-only runtime readiness PHP identity, schema and safety
+        run: php tests/startup-readiness.php
       - name: PHP-only dual-signature trust transitions and incomplete operator journal
         run: php tests/trust-chain.php
       - name: PHP-native Ed25519 signed release metadata and hostile inputs
@@ -99,6 +101,8 @@ jobs:
         run: php tests/storage.php
       - name: Real cross-process explicit CLI install, isolated SQLite file
         run: php tests/installer-cli.php
+      - name: Readiness gate with independent SQLite schema and hostile configurations
+        run: php tests/startup-readiness.php
       - name: Independent SQLite foundation snapshot restore and rejection cases
         run: php tests/backup-sqlite.php
       - name: Safe CLI installer explicit invocation refusal
@@ -184,6 +188,7 @@ jobs:
           php tests/shared-host-preflight.php
           php tests/site-runtime-topology.php
           php tests/site-runtime-cli.php
+          php tests/startup-readiness.php
           php tests/release-verifier.php
           php tests/trust-chain.php
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-package-stager.php

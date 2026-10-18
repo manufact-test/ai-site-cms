@@ -47,6 +47,9 @@ jobs:
       - name: Reproduce isolated empty CMS installs from distribution, SQLite, topology, actual HTTP and hostile fixtures
         working-directory: cms
         run: node tools/test-empty-cms-package-install.cjs
+      - name: Gated empty CMS boot with two isolated databases, real PHP HTTP and fail-closed scenarios
+        working-directory: cms
+        run: node tools/test-empty-cms-readiness.cjs
       - name: Independently verify and install full 429-file package with PHP-only temp journal
         working-directory: cms
         env:
