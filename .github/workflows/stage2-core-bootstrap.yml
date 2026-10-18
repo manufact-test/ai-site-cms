@@ -98,3 +98,33 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Real MySQL schema and fail-closed migration checks
         run: php tests/storage-mysql.php
+
+  php-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.1', '8.2', '8.3', '8.4']
+    defaults:
+      run:
+        working-directory: cms
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: pdo_mysql, pdo_sqlite, openssl
+          tools: composer:v2
+          coverage: none
+      - name: Installed runtime feature check
+        run: php bin/doctor.php --check --document-root=public && php tests/doctor.php
+      - name: Validate same pinned Composer requirements and PHP code
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          php tests/dependency-lock.php
+          composer test
+          php tests/storage.php
+          php tests/installer-cli.php
+      - name: Confirm no write routes in any supported PHP runtime
+        run: php -l src/HttpKernel.php && php -l src/Storage/SchemaManager.php
