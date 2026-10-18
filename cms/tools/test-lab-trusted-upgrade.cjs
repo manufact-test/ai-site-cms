@@ -97,7 +97,7 @@ const operatorPin=sha(operatorKeys.publicKey.export({type:'spki',format:'der'}))
 const receipts=path.join(temp,'operator-receipts');
 fs.mkdirSync(receipts,{mode:0o700});
 const signedDomain=Buffer.from('AI-SITE-CMS-STAGE2-OPERATOR-RECEIPT-V1\\0'.replace('\\0','\0'));
-function signActivation(result,checkpoint,previousVersion,previousHead){
+function signActivation(result,checkpoint,previousVersion,previousHead,where=receipts){
   const record={
     format:'ai-site-cms-stage2-operator-activation-receipt-v1',
     siteId:'labsite',sequence:result.sequence,fromVersion:previousVersion,
@@ -108,7 +108,7 @@ function signActivation(result,checkpoint,previousVersion,previousHead){
   };
   const raw=Buffer.from(JSON.stringify(record)+'\n');
   const sig=crypto.sign(null,Buffer.concat([signedDomain,raw]),operatorKeys.privateKey);
-  const base=path.join(receipts,'receipt-'+String(result.sequence).padStart(6,'0'));
+  const base=path.join(where,'receipt-'+String(result.sequence).padStart(6,'0'));
   fs.writeFileSync(base+'.json',raw,{flag:'wx',mode:0o600});
   fs.writeFileSync(base+'.sig',sig,{flag:'wx',mode:0o600});
   return sha(Buffer.concat([signedDomain,raw,sig]));
@@ -275,7 +275,133 @@ try{
     'attested read is healthy before legacy laboratory bypass demonstration');
   success(['raw-rollback',db,root,v1],'exercise old direct research rollback method');
   denied(attested(head2),'raw low-level rollback cannot bypass signed read gate');
-  ok(count>=70,'signed independent operator attestations and adversarial checks executed');
+  // Separate second switch sandbox: the NEW guarded write path requires
+  // operator approval signed BEFORE touching code. Never reuses production data.
+  const authorizedRoot=success(['new',db],'independent preauthorized sandbox').root;
+  const approvedReceipts=path.join(temp,'approved-receipts');
+  const pending=path.join(temp,'approval-pending');
+  const archived=path.join(temp,'approval-archived');
+  for(const d of [approvedReceipts,pending,archived])fs.mkdirSync(d,{mode:0o700});
+  const permitDomain=Buffer.from('AI-SITE-CMS-STAGE2-PREACTIVATION-V1\0');
+  const authorized=(x,permit,prior,current,seq,failAt='none',signerPin=operatorPin,
+    publisherPin=fp,receiptDir=approvedReceipts)=>[
+    'approved-activate',db,authorizedRoot,receiptDir,pending,operatorPem,signerPin,permit,
+    prior??'none',x.bundle,x.extracted,pem,publisherPin,current??'none',String(seq),failAt
+  ];
+  const review=(permit,prior,publisherPin=fp)=>[
+    'approval-review',db,authorizedRoot,pending,operatorPem,operatorPin,
+    permit,prior??'none',publisherPin
+  ];
+  const strictRead=(head,pendingDir=pending,chain=approvedReceipts)=>[
+    'approval-serve',db,authorizedRoot,chain,pendingDir,operatorPem,operatorPin,head,fp
+  ];
+  const permitFile=path.join(pending,'permit.json'),signatureFile=path.join(pending,'permit.sig');
+  function issuePermit(x,checkpoint,sequence,fromVersion,previousHead,patch=()=>{}){
+    const record={
+      format:'ai-site-cms-stage2-preactivation-approval-v1',
+      siteId:'labsite',nonce:crypto.randomBytes(16).toString('hex'),
+      sequence,fromVersion,version:x.metadata.version,minimumVersion:v1,
+      previousReceiptSha256:previousHead,publisherFingerprint:fp,
+      manifestSha256:x.metadata.packageManifestSha256,
+      archiveSha256:x.metadata.archiveSha256,
+      dbCheckpoint:JSON.parse(fs.readFileSync(checkpoint,'utf8')),
+      productionReady:false
+    };
+    patch(record);
+    const raw=Buffer.from(JSON.stringify(record)+'\n');
+    const sig=crypto.sign(null,Buffer.concat([permitDomain,raw]),operatorKeys.privateKey);
+    fs.writeFileSync(permitFile,raw,{flag:'wx',mode:0o600});
+    fs.writeFileSync(signatureFile,sig,{flag:'wx',mode:0o600});
+    return sha(Buffer.concat([permitDomain,raw,sig]));
+  }
+  function withdrawPermit(){
+    for(const f of ['permit.json','permit.sig']){
+      fs.renameSync(path.join(pending,f),
+        path.join(archived,'permit-'+crypto.randomBytes(6).toString('hex')+'-'+f));
+    }
+  }
+  const firstPermit=issuePermit(a,cp1,1,null,null);
+  denied(authorized(a,'f'.repeat(64),null,null,0),
+    'unsigned or independently unpinned permit cannot register a release');
+  denied(authorized(a,firstPermit,null,null,0,'none','0'.repeat(64)),
+    'approval signer must match out-of-band pinned operator key');
+  denied(authorized(a,firstPermit,null,null,0,'none',operatorPin,'0'.repeat(64)),
+    'preapproval cannot silently change release publisher identity');
+  denied(authorized(b,firstPermit,null,null,0),
+    'valid signed approval for version 1 cannot authorize version 2 archive');
+  denied(review(firstPermit,null),
+    'crash-review refuses to attest a code generation never activated');
+  const rawPermit=fs.readFileSync(permitFile),rawPermitSig=fs.readFileSync(signatureFile);
+  const changedPermit=Buffer.from(rawPermitSig);changedPermit[0]^=1;
+  fs.writeFileSync(signatureFile,changedPermit);
+  denied(authorized(a,firstPermit,null,null,0),
+    'preactivation signature tamper rejected before staging');
+  fs.writeFileSync(signatureFile,rawPermitSig);
+  ok(success(['inspect',db,authorizedRoot,v1],'preauthorized clean switch').registered===0,
+    'rejected operator permits never create a new release slot');
+  const authFirst=success(authorized(a,firstPermit,null,null,0),
+    'operator-authorized signed ZIP and matching independent DB');
+  installedLabs.push(authFirst.installedLabRoot);
+  ok(authFirst.sequence===1&&authFirst.operatorReceiptPending===true
+    &&authFirst.preactivationPermitHead===firstPermit,
+    'preauthorized activation keeps external pending marker after code switch');
+  denied(strictRead('f'.repeat(64)),
+    'code remains unreadable with pending operator receipt');
+  const approvedHead1=signActivation(authFirst,cp1,null,null,approvedReceipts);
+  denied(strictRead(approvedHead1),
+    'even after signing receipt the unresolved external pending marker blocks reads');
+  withdrawPermit();
+  ok(success(strictRead(approvedHead1),'fully attested first authorized release').preauthorizedRead,
+    'explicit operator clearance restores strictly gated request after first attestation');
+
+  const secondPermit=issuePermit(b,cp2,2,v1,approvedHead1);
+  denied(strictRead(approvedHead1),
+    'pending next approval forces temporary maintenance before any switch');
+  denied(authorized(b,secondPermit,'0'.repeat(64),v1,1),
+    'preapproval cannot override independently pinned predecessor chain head');
+  denied(authorized(b,secondPermit,approvedHead1,'none',0),
+    'preapproval requires exact prior code generation CAS');
+  denied(authorized(b,secondPermit,approvedHead1,v1,1,'none',operatorPin,'a'.repeat(64)),
+    'valid operator signature cannot substitute another publisher archive');
+  // Simulate CLI death immediately AFTER the real native PHP CAS switch and
+  // BEFORE the new signed operator receipt. No implicit rollback or unblocking.
+  denied(authorized(b,secondPermit,approvedHead1,v1,1,'after-activation'),
+    'injected post-CAS operator crash provides no success receipt');
+  const crashed=success(['inspect',db,authorizedRoot,v1],'crash aftermath');
+  ok(crashed.current===v2&&crashed.sequence===2&&crashed.status==='clean',
+    'code activation happened, but only independent operator can finalize trust');
+  const registered=JSON.parse(fs.readFileSync(path.join(authorizedRoot,'releases.json'),'utf8'));
+  installedLabs.push(registered.releases[v2].root);
+  denied(strictRead(approvedHead1),
+    'post-switch/pre-receipt crash prevents any strict read, including old head');
+  denied(authorized(b,secondPermit,approvedHead1,v1,1),
+    'replayed signed approval cannot activate once CAS has advanced');
+  const reviewed=success(review(secondPermit,approvedHead1),
+    'read-only independent post-crash review of exact manifest, CAS and DB');
+  ok(reviewed.version===v2&&reviewed.sequence===2
+      &&reviewed.manifestSha256===b.metadata.packageManifestSha256,
+    'crash review obtains independently verified code+DB evidence for later signing');
+  const approvedHead2=signActivation(reviewed,cp2,v1,approvedHead1,approvedReceipts);
+  denied(strictRead(approvedHead2),
+    'operator-signed recovery receipt alone does not clear pending approval');
+  withdrawPermit();
+  ok(success(strictRead(approvedHead2),'manual explicit crash reconciliation').sequence===2,
+    'manual signed receipt plus approval retirement resumes guarded CMS read');
+  denied(strictRead(approvedHead1),
+    'out-of-band head prevents serving older receipt after manually reconciled crash');
+
+  // Validly signed, semantically hostile preapproval; never reuses old CAS.
+  const stalePermit=issuePermit(b,cp2,2,v1,approvedHead1);
+  denied(authorized(b,stalePermit,approvedHead1,v1,1),
+    'signed replay after successful reconciliation fails on current generation');
+  denied(strictRead(approvedHead2),
+    'stale permit blocks reads until operator explicitly cancels/retires it');
+  withdrawPermit();
+  ok(success(strictRead(approvedHead2),'read after revoked stale permit').version===v2,
+    'explicit operator rejection of old authorization restores same attested version');
+
+  ok(count>=119,'signed preactivation, crash reconciliation and negative test suite executed');
+
   console.log('Stage2 Ed25519 ZIP -> safe extraction -> native PHP -> DB checkpoint -> CAS PASS: '+
     count+' checks; '+first.files+' files; CI disposable only, no real host or data migrations');
 }finally{
