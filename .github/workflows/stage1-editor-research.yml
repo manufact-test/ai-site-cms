@@ -65,3 +65,5 @@ jobs:
         run: composer --version && composer install --no-interaction --prefer-dist --no-progress && php opis-schema-smoke.php && php schema-parity.php && node publish-rollback.cjs
       - name: Reviewed visual gradient, animation and SVG asset capabilities with upstream editors
         run: node reviewed-visual-asset-browser.cjs
+      - name: Versioned AI site regeneration, owner override retention, conflict quarantine and rollback
+        run: node versioned-site-reconciliation-browser.cjs
