@@ -54,6 +54,16 @@ final class LabPhpGenerationSwitcher
         return $lab;
     }
 
+    /**
+     * Operator-only reentry when a SIGKILL left the mkdir lock behind.
+     * Does NOT automatically clear, recover, activate or serve anything.
+     */
+    public static function reopenForStaleLockReview(string $root): self
+    {
+        self::requireCI();
+        return new self($root);
+    }
+
     public function root(): string { return $this->root; }
 
     private function assertRoot(): void
