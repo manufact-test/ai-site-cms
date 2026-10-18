@@ -94,6 +94,8 @@ jobs:
           node-version: '22'
       - name: Independent PHP CLI persistent state, restart, corruption, CAS and recovery
         run: php -v && node durable-site-recovery.cjs
+      - name: Original rich HTML source and reviewed owner edits persisted through independent PHP CLI, Chromium and rollback
+        run: php -v && node rich-source-persistent-test.cjs
 
   mixed-site-trust:
     runs-on: ubuntu-latest
