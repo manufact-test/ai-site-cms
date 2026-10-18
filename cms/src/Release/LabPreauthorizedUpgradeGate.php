@@ -244,8 +244,9 @@ final class LabPreauthorizedUpgradeGate
      */
     public static function reviewInterrupted(
         PDO $pdo, string $siteId, LabPhpGenerationSwitcher $switcher,
-        string $pending, string $operatorPem, string $operatorPin,
-        string $permitHead, ?string $previousReceiptHead, string $publisherPin
+        string $receiptDir, string $pending, string $operatorPem, string $operatorPin,
+        string $permitHead, ?string $previousReceiptHead,
+        string $bundle, string $publisherPem, string $publisherPin
     ): array {
         self::lab();
         require_once __DIR__ . '/LabSchemaVersionGate.php';
@@ -253,6 +254,30 @@ final class LabPreauthorizedUpgradeGate
             $pending, $operatorPem, $operatorPin, $permitHead,
             $previousReceiptHead, $siteId, $publisherPin
         );
+        require_once __DIR__ . '/OfflineReleaseVerifier.php';
+        require_once __DIR__ . '/LabAttestedActivationGate.php';
+        $signed = OfflineReleaseVerifier::verify(
+            $bundle, $publisherPem, $r['version'], $publisherPin, $r['minimumVersion']
+        );
+        if (!hash_equals($signed['archive_sha256'], $r['archiveSha256'])
+            || !hash_equals($signed['manifest_sha256'], $r['manifestSha256'])) {
+            throw new RuntimeException('Interrupted release archive no longer matches operator approval');
+        }
+        if ($r['sequence'] > 1) {
+            $chain = LabAttestedActivationGate::verifyChain(
+                $receiptDir, $operatorPem, $operatorPin,
+                $previousReceiptHead, $siteId, $publisherPin
+            );
+            if ($chain['count'] !== $r['sequence'] - 1
+                || $chain['receipt']['version'] !== $r['fromVersion']) {
+                throw new RuntimeException('Crash review previous signed generation invalid');
+            }
+        } else {
+            $entries = array_values(array_diff(scandir($receiptDir) ?: [], ['.','..']));
+            if ($entries !== []) {
+                throw new RuntimeException('Crash review genesis cannot skip retained receipts');
+            }
+        }
         LabSchemaVersionGate::assertCheckpoint($pdo,$siteId,$r['version'],$r['dbCheckpoint']);
         $view = $switcher->inspect($r['minimumVersion']);
         $actual = $switcher->resolve($r['minimumVersion']);
