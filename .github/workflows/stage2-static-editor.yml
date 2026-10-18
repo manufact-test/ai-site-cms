@@ -61,6 +61,11 @@ jobs:
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
         run: php tests/lab-schema-gate.php
+      - name: Full compiled CMS: parallel PHP HTTP, crash-injected operator and restart recovery
+        working-directory: cms
+        env:
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+        run: node tools/test-lab-php-http-switch-crash.cjs
       - name: Exercise immutable lab release staging, fault injection and rollback
         working-directory: cms
         run: node tools/test-lab-rollout.cjs
