@@ -136,7 +136,7 @@ function staticRules(x){
 function nodeProxyRules(upstream){
  return [
  'location ~ /(?:private|vendor|src|bin)(?:/|$) { return 404; }',
- 'location ~ \\.(?:php|phtml|phar|env|sqlite|db|sql|bak)$ { return 404; }',
+ 'location ~ \\.(?:php|phtml|phar|env|sqlite|db|sql|bak|json|pem|key)$ { return 404; }',
  'location / {','proxy_http_version 1.1;',
  'proxy_set_header Host $host;',
  'proxy_set_header X-Real-IP 127.0.0.1;',
@@ -341,6 +341,10 @@ http.createServer((request,response)=>{
      'actual hosted public asset served '+x.family);
    }
   }
+  // Synthetic proxy allows only the limited Stage2 URL surface. Real Next
+  // framework data routes require an independently reviewed adapter later.
+  ok((await http(port,siteHost(ssr),'/random-private.json')).status===404,
+   'Node proxy cannot turn a nonexistent sensitive JSON file into HTTP 200');
   ok((await http(port,siteHost(ssr),'/private/package-manifest.json')).status===404,
    'synthetic SSR reverse proxy refuses CMS private paths at Nginx layer');
   const react=sites.find(x=>x.family==='react-spa');
