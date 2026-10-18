@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'cms/editor/**'
+      - 'cms/tools/**'
+      - 'cms/.gitignore'
       - '.github/workflows/stage2-static-editor.yml'
   workflow_dispatch:
 permissions:
