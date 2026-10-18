@@ -139,7 +139,7 @@ async function main(){
     const restore=php(
       'require $argv[1];$s=new PDO("sqlite:".$argv[2]);$s->exec("PRAGMA query_only=ON");'+
       '$txt=(new AiSiteCms\\Storage\\FoundationSnapshot($s,true))->export($argv[4]);'+
-      '$t=new PDO("sqlite:".$argv[3]);'+
+      'umask(0077);$t=new PDO("sqlite:".$argv[3]);'+
       '(new AiSiteCms\\Storage\\FoundationSnapshot($t,true))->restoreToFreshCiDatabase($txt,$argv[4]);',
       [resumed.cmsRoot+'/vendor/autoload.php',src.dbFile,resumed.dbFile,src.siteId],grant);
     ok(restore.status===0&&fs.existsSync(resumed.dbFile)&&!fs.existsSync(resumed.bindingFile),
