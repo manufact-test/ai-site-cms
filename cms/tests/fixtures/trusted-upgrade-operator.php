@@ -10,6 +10,7 @@ require dirname(__DIR__,2).'/src/Release/LabPhpGenerationSwitcher.php';
 require dirname(__DIR__,2).'/src/Release/LabTrustedUpgradeCoordinator.php';
 require dirname(__DIR__,2).'/src/Release/LabAttestedActivationGate.php';
 require dirname(__DIR__,2).'/src/Release/LabPreauthorizedUpgradeGate.php';
+require dirname(__DIR__,2).'/src/Release/LabSettledUpgradeGate.php';
 
 use AiSiteCms\Storage\SchemaManager;
 use AiSiteCms\Release\LabSchemaVersionGate as Gate;
@@ -17,6 +18,7 @@ use AiSiteCms\Release\LabPhpGenerationSwitcher as Switcher;
 use AiSiteCms\Release\LabTrustedUpgradeCoordinator as Upgrade;
 use AiSiteCms\Release\LabAttestedActivationGate as Attested;
 use AiSiteCms\Release\LabPreauthorizedUpgradeGate as Approval;
+use AiSiteCms\Release\LabSettledUpgradeGate as Settled;
 
 if (PHP_SAPI !== 'cli' || getenv('CI') !== 'true'
     || getenv('CMS_ALLOW_PHP_INSTALL_LAB') !== '1') {
@@ -85,6 +87,22 @@ try {
         $result=Approval::reviewInterrupted(
             $pdo,$site,Switcher::reopen($root),$receipts,$pending,$operatorPem,$operatorPin,
             $permitHead,$previousHead==='none'?null:$previousHead,$bundle,$publisherPem,$publisherPin
+        );
+        echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
+    } elseif ($action==='settled-serve' && $argc===14) {
+        [$root,$settlements,$receipts,$permits,$pending,$operatorPem,$operatorPin,
+            $publisherPin,$receiptHead,$settlementHead]=array_slice($argv,3);
+        $pdo=new PDO('sqlite:'.$dbPath);
+        $result=Settled::withVerifiedRequest(
+            $pdo,$site,Switcher::reopen($root),
+            $settlements,$receipts,$permits,$pending,$operatorPem,$operatorPin,
+            $publisherPin,$receiptHead,$settlementHead,
+            static fn(array $generation):array => [
+                'version'=>$generation['version'],
+                'sequence'=>$generation['sequence'],
+                'digest'=>$generation['digest'],
+                'settled'=>true
+            ]
         );
         echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
     } elseif ($action==='approval-serve' && $argc===10) {
