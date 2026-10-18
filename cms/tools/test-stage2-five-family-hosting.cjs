@@ -10,6 +10,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const net=require('node:net');
+const rawHttp=require('node:http');
 const {spawn,spawnSync}=require('node:child_process');
 const {STAGE,verify}=require('./build-internal-package.cjs');
 
@@ -169,11 +170,28 @@ function config(home,port,sites,upstreams,phpSiteUpstream,nodeUpstream){
  return file;
 }
 const pause=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
-async function http(port,host,uri='/',options={}){
- const result=await fetch('http://127.0.0.1:'+port+uri,{
-  ...options,headers:{...options.headers,host},
-  signal:AbortSignal.timeout(2500)});
- return {status:result.status,body:await result.text(),headers:result.headers};
+// undici/fetch may silently discard a synthetic Host header; explicit
+// http.request is essential for a meaningful virtual-host routing test.
+function http(port,host,uri='/',options={}){
+ return new Promise((resolve,reject)=>{
+  const headers={...(options.headers||{}),Host:host};
+  const req=rawHttp.request({
+   hostname:'127.0.0.1',port,path:uri,method:options.method||'GET',
+   headers,timeout:3000
+  },response=>{
+   const chunks=[];
+   response.on('data',chunk=>chunks.push(chunk));
+   response.once('end',()=>resolve({
+    status:response.statusCode,
+    body:Buffer.concat(chunks).toString('utf8'),
+    headers:{get:name=>response.headers[name.toLowerCase()]||null}
+   }));
+   response.once('error',reject);
+  });
+  req.once('timeout',()=>req.destroy(Error('HTTP timeout')));
+  req.once('error',reject);
+  req.end();
+ });
 }
 async function expectStatus(port,host,uri,code){
  let last='connection_unavailable';
