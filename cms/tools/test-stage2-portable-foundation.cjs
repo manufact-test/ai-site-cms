@@ -107,7 +107,7 @@ async function main(){
     ok(done.status===0&&JSON.parse(done.stdout).state==='ready','portable source->target applied');
     ok(fs.readFileSync(src.dbFile).equals(srcBefore),'source SQLite remained unchanged');
     ok(fs.existsSync(target.dbFile)&&fs.existsSync(target.bindingFile),'target has new private state');
-    const mirror=php('foreach(array_slice($argv,1) as $path){$db=new PDO("sqlite:".$path);echo $db->query("SELECT site_id || \":\" || storage_generation FROM cms_installation")->fetchColumn()."\\n";}',[src.dbFile,target.dbFile]);
+    const mirror=php('foreach(array_slice($argv,1) as $path){$db=new PDO("sqlite:".$path);echo $db->query("SELECT site_id || CHAR(58) || storage_generation FROM cms_installation")->fetchColumn()."\\n";}',[src.dbFile,target.dbFile]);
     ok(mirror.status===0&&mirror.stdout.trim()==='ci-portable:13\nci-portable:13',
       'foundation site ID and generation preserved across roots');
     const finished=command('--plan');ok(finished.status===0&&JSON.parse(finished.stdout).state==='ready',
