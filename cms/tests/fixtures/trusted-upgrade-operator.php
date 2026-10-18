@@ -29,7 +29,7 @@ try {
         || is_link($parent) || is_link($dbPath)) {
         throw new RuntimeException('Refusing non-ephemeral test DB');
     }
-    if ($action==='setup' && $argc===4) {
+    if ($action==='setup' && $argc===3) {
         if (file_exists($dbPath)) throw new RuntimeException('Test DB already exists');
         $pdo=new PDO('sqlite:'.$dbPath);
         $pdo->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
