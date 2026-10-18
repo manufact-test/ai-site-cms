@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-18",
-  "status": "stage-1-research-in-progress",
+  "status": "stage-1-owner-decision-pack-prepared-awaiting-owner-approval",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": false,
   "technology_selected": false,
-  "next_step": "Stage1 ONLY: finish scoped owner-facing open-source foundations decision pack (preferred candidate / fallback / standalone libraries), reconcile 135-ID adoption hypotheses, licensing/maintenance/hosting constraints; mark genuinely external second-model source+manifest and real host tests explicitly unverified if unavailable, present owner options and require owner approval for Stage1 acceptance / any stack choice. Do NOT keep prototyping Stage3+ indefinitely. No Stage2, Hostinger or CELIKOM.",
+  "next_step": "Owner review of docs/STAGE-1-OWNER-DECISION.md + 135-ID docs/STAGE-1-ADOPTION-MATRIX.md. Direction A Jedison/Slim/Opis recommended, B RJSF/Slim/Opis fallback, C Winter conditional. NO stack chosen and Stage1 not accepted until owner explicitly agrees. Stage2 not started; no Hostinger without read-only permission; other-model source/manifest unverified.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.29",
+  "checkpoint_version": "1.30",
   "current_stage": {
     "number": 1,
     "name": "Исследование готовых open-source основ",
@@ -409,11 +409,37 @@
       "original_html_php_production_auth_or_shared_hosting_verified": false,
       "stage1_v129_report_path": "docs/STAGE-1-ORIGINAL-HTML-PHP-PERSISTENCE-RESEARCH.md",
       "stage1_exit_checklist_path": "docs/STAGE-1-EXIT-CHECKLIST.md",
-      "stage1_research_progress_estimate": "approximately 80–85% subjectively, NOT an acceptance metric; 15–20% still research/decision"
+      "stage1_research_progress_estimate": "Owner-ready decision research synthesis delivered; acceptance awaits explicit owner sign-off; no quantitative revised percent justified",
+      "stage1_owner_decision_pack_path": "docs/STAGE-1-OWNER-DECISION.md",
+      "stage1_135_id_adoption_matrix_path": "docs/STAGE-1-ADOPTION-MATRIX.md",
+      "stage1_v130_matrix_counts": {
+        "A": {
+          "ready": 0,
+          "adapt": 70,
+          "build": 65,
+          "unsuitable": 0
+        },
+        "B": {
+          "ready": 0,
+          "adapt": 70,
+          "build": 65,
+          "unsuitable": 0
+        },
+        "C": {
+          "ready": 0,
+          "adapt": 91,
+          "build": 44,
+          "unsuitable": 0
+        }
+      },
+      "stage1_owner_approval_received": false,
+      "stage1_final_stack_selected": false,
+      "stage1_v130_new_code_or_tests": false,
+      "stage1_v130_note": "Documentation-only synthesis, not new CI run; latest observed 4/4 green remains run 39122533764 at research HEAD 78be92fb3d3f2718061c2667e23812b8e4ffa4df. Subjective research preparation 80-85% previously; owner decision pack now prepared, no revised precision claimed."
     },
     "new_candidate": "Jedison v1.27.1 MIT: actual core and Chromium smoke tests PASS, smaller bundles than RJSF in pinned test; no final approval",
     "research_branch": "research/stage1-editor-comparison",
-    "research_state_note": "Stage1 scoped research ≈80–85% subjective, not accepted; final comparison/owner decision missing, external model and shared-host proofs unverified. Product acceptance 0/135, research signals 43 limited/92 not matched."
+    "research_state_note": "v1.30 owner decision pack and 135-ID reuse-vs-build comparative matrix prepared; A recommended, B fallback, C conditional; 4/4 prior CI success #39122533764 (no new source CI run). Owner has not approved technology or stage1. 0/135 product, 43 limited research evidence/92 unmatched. Hostinger, independent other-model artifacts and production security unverified."
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
