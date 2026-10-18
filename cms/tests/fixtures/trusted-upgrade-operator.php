@@ -8,11 +8,13 @@ require dirname(__DIR__,2).'/src/Release/LabSchemaVersionGate.php';
 require dirname(__DIR__,2).'/src/Release/LabPackageStager.php';
 require dirname(__DIR__,2).'/src/Release/LabPhpGenerationSwitcher.php';
 require dirname(__DIR__,2).'/src/Release/LabTrustedUpgradeCoordinator.php';
+require dirname(__DIR__,2).'/src/Release/LabAttestedActivationGate.php';
 
 use AiSiteCms\Storage\SchemaManager;
 use AiSiteCms\Release\LabSchemaVersionGate as Gate;
 use AiSiteCms\Release\LabPhpGenerationSwitcher as Switcher;
 use AiSiteCms\Release\LabTrustedUpgradeCoordinator as Upgrade;
+use AiSiteCms\Release\LabAttestedActivationGate as Attested;
 
 if (PHP_SAPI !== 'cli' || getenv('CI') !== 'true'
     || getenv('CMS_ALLOW_PHP_INSTALL_LAB') !== '1') {
@@ -60,6 +62,24 @@ try {
             $current==='none'?null:$current,(int)$generation
         );
         echo json_encode($active,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR),"\n";
+    } elseif ($action==='attested-serve' && $argc===8) {
+        [$root,$chain,$pem,$pin,$head]=array_slice($argv,3);
+        $pdo=new PDO('sqlite:'.$dbPath);
+        $result=Attested::withVerifiedRequest(
+            $pdo,$site,Switcher::reopen($root),$chain,$pem,$pin,$head,
+            static fn(array $generation):array => [
+                'version'=>$generation['version'],
+                'sequence'=>$generation['sequence'],
+                'digest'=>$generation['digest'],
+                'attested'=>true
+            ]
+        );
+        echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
+    } elseif ($action==='raw-rollback' && $argc===5) {
+        $result=Switcher::reopen($argv[3])->switchTo(
+            '0.2.0-stage2.1','0.2.0-stage2.2',2,$argv[4]
+        );
+        echo json_encode($result,JSON_THROW_ON_ERROR),"\n";
     } elseif ($action==='inspect' && $argc===5) {
         $state=Switcher::reopen($argv[3])->inspect($argv[4]);
         echo json_encode($state,JSON_THROW_ON_ERROR),"\n";
