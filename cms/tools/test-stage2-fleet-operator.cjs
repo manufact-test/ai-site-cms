@@ -70,6 +70,16 @@ async function main(){
   deny(run(config,'--apply',original.token),'pre-interruption fleet approval revoked');
   const recovery=plan();ok(recovery.token!==original.token&&recovery.instances.find(x=>x.siteId===partial.siteId).state==='binding_required','fresh operator recovery plan distinguishes partial site');
   const result=run(config,'--apply',recovery.token);
+  if(result.status!==0){
+    const diagnostic=spawnSync('php',['-r',
+      'require $argv[1]; try{$doc=\\AiSiteCms\\Hosting\\LabInstallationFleet::load($argv[2]);'+
+      '\\AiSiteCms\\Hosting\\LabInstallationFleet::apply($doc,$argv[3]);}'+
+      'catch(Throwable $e){fwrite(STDERR,get_class($e).": ".$e->getMessage());exit(3);}',
+      path.join(STAGE,'vendor/autoload.php'),config,recovery.token],{
+      encoding:'utf8',env:{...process.env,...grant},timeout:20000});
+    console.error('CI-only diagnostic for blocked fleet apply:',
+      diagnostic.status,diagnostic.stderr.slice(0,800));
+  }
   ok(result.status===0&&result.stderr==='', 'all five real isolated CMS installs succeed together');
   const applied=JSON.parse(result.stdout);ok(applied.state==='ready'&&applied.instances===5&&applied.changed===5&&!applied.atomicAcrossSites,'apply reports completed non-atomic group');
   for(const x of xs){
