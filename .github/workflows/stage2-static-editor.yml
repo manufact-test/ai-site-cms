@@ -44,6 +44,11 @@ jobs:
       - name: Exercise immutable lab release staging, fault injection and rollback
         working-directory: cms
         run: node tools/test-lab-rollout.cjs
+      - name: Signed offline archive trust, extraction and negative CI laboratory
+        working-directory: cms
+        env:
+          CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
+        run: node tools/test-signed-offline-release.cjs
       - name: Check packaged document root by HTTP and block private package files
         working-directory: cms
         run: |
