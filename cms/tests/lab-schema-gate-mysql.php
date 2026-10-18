@@ -82,6 +82,45 @@ try {
     $stmt=$other->prepare('SELECT RELEASE_LOCK(?)');$stmt->execute([$lock]);
     mysqlGateOk((int)$stmt->fetchColumn()===1,'control probe releases its MySQL named lock');
 
+    $checkpoint=Gate::checkpoint($pdo,$site,$code);
+    mysqlGateOk($checkpoint['schemaVersion']===2
+        && $checkpoint['storageGeneration']==='0'
+        && strlen($checkpoint['fingerprint'])===64,
+        'real MySQL 8.4 foundation checkpoint includes retained storage generation');
+    mysqlGateOk(Gate::checkpoint($other,$site,$code)['fingerprint']===$checkpoint['fingerprint'],
+        'independent PDO MySQL connection agrees on fingerprint');
+    mysqlGateOk(Gate::withCheckpointFence($pdo,$site,$code,$checkpoint,
+        static fn():string=>'checked')==='checked',
+        'approved MySQL checkpoint survives a no-write guarded operation');
+    mysqlGateReject(static fn()=> Gate::assertCheckpoint(
+        $pdo,$site,'0.2.0-stage2.2',$checkpoint),
+        'checkpoint cannot approve a different target code version');
+    $pdo->exec('UPDATE cms_installation SET storage_generation=1 WHERE singleton_id=1');
+    mysqlGateReject(static fn()=>Gate::assertCheckpoint($pdo,$site,$code,$checkpoint),
+        'valid schema with wrong MySQL storage generation is stale');
+    mysqlGateReject(static fn()=>Gate::withCheckpointFence(
+        $pdo,$site,$code,$checkpoint,static fn()=>null),
+        'checkpoint mismatch refuses activation before running callback');
+    mysqlGateOk((string)$pdo->query('SELECT storage_generation FROM cms_installation')
+        ->fetchColumn()==='1','rejected activation does not repair or overwrite foundation');
+    $pdo->exec('UPDATE cms_installation SET storage_generation=0 WHERE singleton_id=1');
+    mysqlGateOk(Gate::assertCheckpoint($pdo,$site,$code,$checkpoint)['fingerprint']
+        ===$checkpoint['fingerprint'],
+        'explicit test fixture restore matches externally retained checkpoint');
+    // MySQL GET_LOCK protects cooperative migrations, not arbitrary writers.
+    // Demonstrate detection without falsely claiming transactional DML rollback.
+    mysqlGateReject(static fn()=>Gate::withCheckpointFence(
+        $pdo,$site,$code,$checkpoint,static function () use ($pdo):string {
+            $pdo->exec('UPDATE cms_installation SET storage_generation=7 WHERE singleton_id=1');
+            return 'changed';
+        }), 'post-callback DB drift is detected, not silently accepted');
+    mysqlGateOk((string)$pdo->query('SELECT storage_generation FROM cms_installation')
+        ->fetchColumn()==='7',
+        'MySQL checkpoint gate does not undo unexpected external DML');
+    $pdo->exec('UPDATE cms_installation SET storage_generation=0 WHERE singleton_id=1');
+    mysqlGateOk(Gate::assertCheckpoint($pdo,$site,$code,$checkpoint)['storageGeneration']==='0',
+        'only independently approved state satisfies final MySQL gate');
+
     mysqlGateReject(static fn()=>Gate::inspect($pdo,$site,'0.2.0-stage2.999'),
         'unreviewed future code version rejected');
     $pdo->exec("UPDATE cms_schema_migrations SET checksum='tampered' WHERE version=1");
