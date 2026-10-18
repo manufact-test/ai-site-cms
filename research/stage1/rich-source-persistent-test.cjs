@@ -141,7 +141,7 @@ async function browserVerify(draft,published,parse5){
   deny(cli('commit',xssLink,3),'unapproved-field');
   const badAnchor=newState(regenerated,s=>{s.saved['hero-cta/behavior.href']='#missing-target';});
   deny(cli('commit',badAnchor,3),'dangling-reviewed-fragment');
-  const tamperHistory=newState(regenerated,s=>{s.history[0].values={'hero-title/content.text':'malicious changed prior release'}});
+  const tamperHistory=newState(regenerated,s=>{s.history[0].values={'hero-title/content.text':'malicious changed prior release'};s.published=clone(s.history[0]);});
   deny(cli('commit',tamperHistory,3),'history-rewrite');
   const stealth=newState(regenerated,s=>{s.published={...s.published,revision:4}});
   deny(cli('commit',stealth,3),'history-tail-not-published');
