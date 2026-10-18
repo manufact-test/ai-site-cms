@@ -46,7 +46,8 @@ final class PackageArtifactVerifier
     {
         if ($path === '' || str_contains($path, '\\') || str_contains($path, "\0")
             || str_starts_with($path, '/') || strlen($path) > 512
-            || preg_match('/(?:^|\/)(?:\.|\.\.|\.git|\.github|\.env(?:\..*)?|\.ssh|\.npmrc|secrets?|node_modules|\.build|storage)(?:\/|$)/iD', $path)
+            || preg_match('/(?:^|\/)(?:\.|\.\.|\.git|\.github|\.env(?:\..*)?|\.ssh|\.npmrc|secrets?|node_modules|\.build)(?:\/|$)/iD', $path)
+            || preg_match('/^storage(?:\/|$)/iD', $path)
             || preg_match('/\.(?:pem|key|sqlite|sqlite3|db|p12|pfx)$/iD', $path)) {
             self::refuse('Unsafe package inventory member');
         }
