@@ -45,6 +45,10 @@ jobs:
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
         run: php tests/lab-generation-switcher.php
+      - name: Real concurrent PHP subprocess generation leases and recovery
+        env:
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+        run: php tests/lab-generation-leases.php
       - name: Verify health only, no exposed write routes
         run: composer test
       - name: HTTP public route boundary
@@ -157,6 +161,7 @@ jobs:
           php tests/trust-chain.php
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-package-stager.php
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-generation-switcher.php
+          CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-generation-leases.php
           composer test
           php tests/storage.php
           php tests/installer-cli.php
