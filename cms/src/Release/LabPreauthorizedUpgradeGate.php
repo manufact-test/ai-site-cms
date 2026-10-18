@@ -141,12 +141,13 @@ final class LabPreauthorizedUpgradeGate
         try { $r = json_decode($raw, true, 20, JSON_THROW_ON_ERROR); }
         catch (\JsonException $e) { throw new RuntimeException('Malformed approval JSON', 0, $e); }
         if (!is_array($r) || array_keys($r) !== [
-            'format','siteId','nonce','sequence','fromVersion','version','minimumVersion',
+            'format','siteId','nonce','switchRootSha256','sequence','fromVersion','version','minimumVersion',
             'previousReceiptSha256','publisherFingerprint','manifestSha256',
             'archiveSha256','dbCheckpoint','productionReady'
         ] || $r['format'] !== self::FORMAT || $r['siteId'] !== $siteId
             || !preg_match('/^[a-zA-Z0-9_-]{1,80}$/D', $siteId)
             || !is_string($r['nonce']) || !preg_match('/^[a-f0-9]{32}$/D', $r['nonce'])
+            || !is_string($r['switchRootSha256'])
             || !is_int($r['sequence']) || $r['sequence'] < 1 || $r['sequence'] > 16
             || !is_string($r['version']) || !is_string($r['minimumVersion'])
             || !is_string($r['publisherFingerprint'])
@@ -156,6 +157,7 @@ final class LabPreauthorizedUpgradeGate
             || $raw !== json_encode($r, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n") {
             throw new RuntimeException('Unsupported/noncanonical signed operator approval');
         }
+        self::hash($r['switchRootSha256']);
         self::hash($r['manifestSha256']);
         self::hash($r['archiveSha256']);
         if ($r['sequence'] === 1) {
@@ -197,7 +199,8 @@ final class LabPreauthorizedUpgradeGate
             $pending, $operatorPem, $operatorPin, $permitHead,
             $previousReceiptHead, $siteId, $publisherPin
         );
-        if ($r['fromVersion'] !== $expectedCurrent
+        if (!hash_equals($r['switchRootSha256'], hash('sha256', $switcher->root()))
+            || $r['fromVersion'] !== $expectedCurrent
             || $r['sequence'] !== $expectedSequence + 1
             || $expectedSequence < 0) {
             throw new RuntimeException('Preapproval does not authorize supplied generation CAS');
@@ -280,6 +283,9 @@ final class LabPreauthorizedUpgradeGate
             $pending, $operatorPem, $operatorPin, $permitHead,
             $previousReceiptHead, $siteId, $publisherPin
         );
+        if (!hash_equals($r['switchRootSha256'], hash('sha256', $switcher->root()))) {
+            throw new RuntimeException('Crash-review evidence refers to another switcher root');
+        }
         require_once __DIR__ . '/OfflineReleaseVerifier.php';
         require_once __DIR__ . '/LabAttestedActivationGate.php';
         $signed = OfflineReleaseVerifier::verify(
