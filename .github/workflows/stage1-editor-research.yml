@@ -94,3 +94,21 @@ jobs:
           node-version: '22'
       - name: Independent PHP CLI persistent state, restart, corruption, CAS and recovery
         run: php -v && node durable-site-recovery.cjs
+
+  mixed-site-trust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: research/stage1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned research dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify signed extension provenance and independent reviewed-permission gate
+        run: node capability-provenance-threat.cjs
+      - name: Full heterogeneous AI-regeneration view parity across HTML, PHP, React and real Next static export
+        run: php -v && node heterogeneous-regeneration-parity.cjs
