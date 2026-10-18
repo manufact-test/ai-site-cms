@@ -104,6 +104,7 @@ function vhost(port,host,root,mode,upstream=0){
  // dotfiles independently if the host disables overrides accidentally.
  '<FilesMatch "^\\.">','Require all denied','</FilesMatch>'
  ];
+ if(mode==='php') lines.push('DirectoryIndex index.php');
  if(mode==='cms'||mode==='php'){
   lines.push('<Files "index.php">',
    'SetHandler "proxy:fcgi://127.0.0.1:'+upstream+'"',
