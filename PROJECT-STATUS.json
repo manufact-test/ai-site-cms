@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Stage2 still IN PROGRESS and NOT ACCEPTED: move from CI-only signed operator receipt read gate to design of single enforced production-oriented activation entrypoint with preauthorization, durable independent trust head, explicit crash reconciliation. Existing raw lab paths remain bypassable; 0/135 product acceptance. Never contact Hostinger without separate permission.",
+  "next_step": "Stage2 still IN PROGRESS, NOT ACCEPTED: next substantial combined block is reproducible isolated empty-CMS architecture/site adapter runtime topology, read-only HTTP boundaries and shared-host policy; no production host access without permission. No Stage3 before Stage2 owner acceptance.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.40",
+  "checkpoint_version": "1.41",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -25,7 +25,7 @@
     "started_at": "2026-10-18",
     "owner_delegated_selection": true,
     "foundation": "A - Slim/Opis/Jedison",
-    "product_code": "Stage2 ONLY: read-only Slim health kernel, isolated CLI SQL schema manager, static private Jedison package; signed ZIP offline Ed25519 plus PHP installation / versioned switch / foundation DB checkpoint coordinated in disposable CI. No real admin, auth, publish, site editing, production deploy.",
+    "product_code": "Stage2 ONLY: PHP Slim read-only health, service DB foundation schema, private Jedison, signed ZIP and sealed operator approved generation upgrade/recovery in disposable CI, plus new read-only SiteRuntimeTopology compatibility for HTML/PHP/React SPA/Next static/Next SSR. No admin/auth/publish, full content backup, real site adapters, production deploy or real host.",
     "bootstrap_commit": "8eb12e2825ebcf53571e01d15ce947baf6d5d2bc",
     "bootstrap_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39125215551",
     "bootstrap_ci_result": "completed success 1/1; 10 CLI smoke checks + PHP syntax + Composer dependency installation + real HTTP smoke",
@@ -36,9 +36,10 @@
       "Only empty-CMS foundation metadata backup/restore; no full site content/media/owner revisions or coordinated DB/data upgrade/rollback",
       "Hostinger PHP-FPM/Apache, filesystem, TLS and actual shared-host compatibility not tested; read-only and deployment each need separate permission",
       "Detached Ed25519, safe extraction, cross-process locking, startup gate and real PHP HTTP are disposable CI-only; no trusted production publisher keys, CI attestations, signed production release, safe live installer or switch",
-      "Mutable local JSON policy is not tamper-resistant, private PHP listener is locally reachable, TOCTOU remains; Node test facade is NOT a production protection boundary",
       "Future third-party asset license/NOTICE legal review needed; SBOM is a locked-component inventory, not independent audit",
-      "No authenticated admin/RBAC/CSRF, site AI manifest, real editor/publish/website adapters (later stages)"
+      "No authenticated admin/RBAC/CSRF, site AI manifest, real editor/publish/website adapters (later stages)",
+      "Five-site-family topology is offline self-declared/read-only only; Next.js SSR needs Node+proxy, real adapters and actual shared-host behavior are untested",
+      "Production enforced bootstrap, full site content/media/revisions backup and actual data migrations/rollback are not implemented"
     ],
     "storage_migration_version": 2,
     "schema_implementation": "cms/src/Storage/SchemaManager.php; CLI-only installer cms/bin/install.php, no HTTP admin/write routes",
@@ -53,8 +54,8 @@
       "Idempotent same-site initialization",
       "Refuses database reuse by different site identity"
     ],
-    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39151122738",
-    "last_full_ci_result": "7/7 SUCCESS PHP 8.1-8.4, SQLite, isolated MySQL 8.4 at source SHA 0a9ed93201f32fa4746d2ccac1d69785e0491fcb",
+    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39157813640",
+    "last_full_ci_result": "7/7 SUCCESS PHP8.1–8.4 + SQLite + real isolated MySQL8.4 on source f16c6ca19ce840b6dd46bbec74459fa346393cf7",
     "last_full_ci_checks": {
       "kernel_smoke": 10,
       "sqlite_schema_checks": 37,
@@ -97,14 +98,14 @@
       "ci_result": "success 1/1 job, pinned deps, npm audit, browser integration and reproducible JS build",
       "artifact_id": 12137545566
     },
-    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39151122738",
-    "latest_php_ci_result": "7/7 SUCCESS PHP 8.1-8.4, SQLite, isolated MySQL 8.4 at source SHA 0a9ed93201f32fa4746d2ccac1d69785e0491fcb",
+    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39157813640",
+    "latest_php_ci_result": "7/7 SUCCESS PHP8.1–8.4 + SQLite + real isolated MySQL8.4 on source f16c6ca19ce840b6dd46bbec74459fa346393cf7",
     "package_research": {
       "internal_only": true,
       "production_ready": false,
       "build_cli": "node cms/tools/build-internal-package.cjs",
       "verified_manifest": "private/package-manifest.json (format ai-site-cms-internal-stage2-v2; releaseVersion 0.2.0-stage2.1)",
-      "file_count": 429,
+      "file_count": 440,
       "hashes": "SHA-256 inventory; local integrity only, NOT a trusted software signature",
       "apache_webroot_requires": "cms package/public only; wrong document root is NOT safe",
       "private_browser_editor": "private/editor/editor.js (never directly served in this stage)",
@@ -148,8 +149,8 @@
       "matrix_and_integration_job_count": 7,
       "passed": 7
     },
-    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39151122684",
-    "latest_editor_ci_result": "1/1 SUCCESS full compiled package plus independent signed operator activation chain, after source SHA 0a9ed93201f32fa4746d2ccac1d69785e0491fcb",
+    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39157813797",
+    "latest_editor_ci_result": "1/1 SUCCESS real Jedison Chromium and 440-file internal ZIP; 239 signed upgrade checks; 84 topology and 12 CLI; source f16c6ca19ce840b6dd46bbec74459fa346393cf7",
     "storage_safety_preflight": {
       "implementation": "cms/src/Storage/SchemaManager.php::inspectSite, cms/bin/schema-preflight.php --inspect",
       "supported_drivers": [
@@ -205,7 +206,7 @@
       "sbom_components": 43,
       "installed_composer_upstream_license_texts_included": true,
       "upstream_jedison_mit_notice_included": true,
-      "files_in_internal_package": 429,
+      "files_in_internal_package": 440,
       "package_adversarial_assertions": 25,
       "lab_rollout_assertions": 24,
       "lab_only_switch_verified": true,
@@ -310,7 +311,59 @@
         "Stage2 not accepted, product requirements accepted 0/135"
       ],
       "production_ready": false
-    }
+    },
+    "signed_only_operator_recovery_lab": {
+      "checkpoint": "v1.41 handoff 2026-10-18",
+      "source_commit": "197b59ae3960c5c958bb51b99203044092828dd7",
+      "implementation": [
+        "cms/src/Release/LabPreauthorizedUpgradeGate.php",
+        "cms/src/Release/LabSettledUpgradeGate.php",
+        "cms/src/Release/LabPhpGenerationSwitcher.php",
+        "cms/tools/lab-kill-signed-operator.cjs"
+      ],
+      "scope": "CI disposable only; separate operator signed approval, receipt and settlement; root/site bound; real SIGKILL at intent/pointer/receipt; independent DB checkpoint",
+      "current_integrated_checks": 239,
+      "full_compiled_package_files": 440,
+      "production_installer": false,
+      "hostinger_tested": false,
+      "full_site_data_protected": false
+    },
+    "site_runtime_topology": {
+      "checkpoint": "v1.41 handoff 2026-10-18",
+      "source_commit": "f16c6ca19ce840b6dd46bbec74459fa346393cf7",
+      "families": [
+        "html",
+        "php",
+        "react-spa",
+        "next-static",
+        "next-ssr"
+      ],
+      "component": "cms/src/Hosting/SiteRuntimeTopology.php",
+      "command": "cms/bin/site-runtime-topology.php",
+      "tests": [
+        "cms/tests/site-runtime-topology.php",
+        "cms/tests/site-runtime-cli.php"
+      ],
+      "capabilities_self_declared_only": true,
+      "checks": {
+        "architecture": 84,
+        "cli": 12
+      },
+      "php_7_of_7": "https://github.com/manufact-test/ai-site-cms/actions/runs/39157813640",
+      "editor_1_of_1": "https://github.com/manufact-test/ai-site-cms/actions/runs/39157813797",
+      "packaged_files": 440,
+      "independent_cms_site_roots": true,
+      "fleet_cross_site_reuse_denied": true,
+      "private_file_and_symlink_exposure_denied": true,
+      "next_ssr_node_and_reverse_proxy_required": true,
+      "production_site_adapters_implemented": false,
+      "real_host_compatibility_verified": false,
+      "stage2_accepted": false,
+      "report": "docs/STAGE-2-SITE-RUNTIME-TOPOLOGY.md",
+      "adr": "docs/ADR/0009-stage2-site-runtime-topology.md"
+    },
+    "docs_policy": "NO docs updates until explicit owner handoff request; docs/NEXT-CHAT.md §46 canonical (overrides historic large-milestone exceptions).",
+    "next_step": "Stage2 still IN PROGRESS, NOT ACCEPTED: next substantial combined block is reproducible isolated empty-CMS architecture/site adapter runtime topology, read-only HTTP boundaries and shared-host policy; no production host access without permission. No Stage3 before Stage2 owner acceptance."
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
@@ -343,7 +396,7 @@
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
   "reuse_policy": "Internal agency tool with client-facing admin access; reuse permissively licensed open-source components or fragments (including substantial modified parts), comply with original notices; avoid restrictive/GPL/AGPL by default.",
   "hosting_policy": "Keep current PHP shared hosting; no hosting upgrades without owner's later approval; Node allowed for offline asset builds only.",
-  "documentation_update_policy": "Update only after owner explicitly requests handoff or after a genuinely large milestone; docs/NEXT-CHAT.md §45 is canonical.",
+  "documentation_update_policy": "OWNER MANDATORY 2026-10-18: NEVER update documents after ordinary code tasks, even large ones. Update docs/NEXT-CHAT.md, PROJECT-STATUS.json, roadmap and any report ONLY when owner EXPLICITLY requests a handoff to next chat. Code commits normal. Batch several substantial tasks, run one consolidated final CI, minimize updates. Canonical current handoff §46 and docs/DEVELOPMENT-WORKFLOW.md.",
   "selected_technology": {
     "option": "A",
     "php_backend": "Slim 4",

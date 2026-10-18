@@ -1,3 +1,5 @@
+> **АКТУАЛЬНАЯ ТОЧКА v1.41 (18.10.2026, ПЕРЕКРЫВАЕТ СТАРЫЕ v1.39):** Stage0+1 ПРИНЯТЫ, **Stage2 в работе/НЕ ПРИНЯТ**, Stage3 не начат. Новый `SiteRuntimeTopology` проверяет 5 вариантов размещения сайта (HTML/PHP/React SPA/Next Static/Next SSR), отдельную папку CMS и сайта, опасные public files и требования Node+proxy для SSR; только offline/read-only, без host deployment. Кода f16c6ca19ce840b6dd46bbec74459fa346393cf7, CI [PHP 7/7](https://github.com/manufact-test/ai-site-cms/actions/runs/39157813640) и [editor 1/1](https://github.com/manufact-test/ai-site-cms/actions/runs/39157813797), 440 файлов. **0/135 product accepted**. [ADR0009](ADR/0009-stage2-site-runtime-topology.md), [подробности](STAGE-2-SITE-RUNTIME-TOPOLOGY.md), [правила работы](DEVELOPMENT-WORKFLOW.md). **Не обновлять документы между задачами: только по явному запросу владельца при переходе чата.** Работать крупными связанными пакетами + одна итоговая проверка.
+
 # AI Site CMS — утверждённый план работ по этапам v1.1
 
 **Дата:** 17.10.2026  
