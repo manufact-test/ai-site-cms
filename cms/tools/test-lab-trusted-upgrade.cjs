@@ -106,7 +106,7 @@ function signActivation(result,checkpoint,previousVersion,previousHead){
     dbCheckpoint:JSON.parse(fs.readFileSync(checkpoint,'utf8')),
     previousReceiptSha256:previousHead,productionReady:false
   };
-  const raw=Buffer.from(JSON.stringify(record)+'\\n');
+  const raw=Buffer.from(JSON.stringify(record)+'\n');
   const sig=crypto.sign(null,Buffer.concat([signedDomain,raw]),operatorKeys.privateKey);
   const base=path.join(receipts,'receipt-'+String(result.sequence).padStart(6,'0'));
   fs.writeFileSync(base+'.json',raw,{flag:'wx',mode:0o600});
