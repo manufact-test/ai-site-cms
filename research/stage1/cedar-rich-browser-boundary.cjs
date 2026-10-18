@@ -17,7 +17,7 @@ function snapshot(){
  return {
   ids:[...document.querySelectorAll('[id]')].map(x=>x.id),
   title:document.title,
-  description:document.querySelector('meta[name=description')?.content,
+  description:document.querySelector('meta[name=description]')?.content,
   canonical:document.querySelector('link[rel=canonical]')?.getAttribute('href'),
   h1:el('hero-title').textContent,
   heroBackground:style('hero','backgroundImage'),
