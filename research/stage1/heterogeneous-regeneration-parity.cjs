@@ -163,7 +163,7 @@ async function run(){
      assert.throws(()=>semantic(mutated,shape),'mutation was not detected: '+idx);checks++;
     }
     const invalid=[
-     {...shape[0],values:{...shape[0].values,title:'unexpected'}},
+     {...shape[0],values:{...shape[0].values,unexpected:'extra-field'}},
      {...shape[0],id:'../../admin.php'},
      {...shape[2],values:{...shape[2].values,featureAsset:'../secret'}},
      {...shape[2],values:{...shape[2].values,ctaHref:'javascript:evil()'}},
