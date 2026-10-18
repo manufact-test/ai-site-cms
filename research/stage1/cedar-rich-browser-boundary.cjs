@@ -68,8 +68,10 @@ function snapshot(){
   await frame.locator('#newsletter-submit').click();
   const before=requests;
   const assertDevice=async(width,reduced)=>{
-   await ctx.setViewportSize({width,height:800});
-   await ctx.emulateMedia({reducedMotion:reduced?'reduce':'no-preference'});
+   await originalPage.setViewportSize({width,height:800});
+   await sandboxPage.setViewportSize({width,height:800});
+   await originalPage.emulateMedia({reducedMotion:reduced?'reduce':'no-preference'});
+   await sandboxPage.emulateMedia({reducedMotion:reduced?'reduce':'no-preference'});
    await sandboxPage.locator('iframe').evaluate((x,w)=>x.style.width=w+'px',width);
    const a=await originalPage.evaluate(snapshot);
    const b=await frame.locator('body').evaluate(snapshot);
