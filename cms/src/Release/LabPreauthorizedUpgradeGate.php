@@ -71,7 +71,7 @@ final class LabPreauthorizedUpgradeGate
         $archived = dirname($grandparent) === $tmp
             && preg_match('/^ai-site-cms-trusted-upgrade-fixture-[a-f0-9]{16}$/D', basename($grandparent))
             && preg_match('/^permit-[0-9]{6}$/D', basename($real))
-            && basename($parent) === 'approved-permit-proofs'
+            && preg_match('/^(?:approved-permit-proofs|kill-proofs-(?:intent|pointer|receipt))$/D', basename($parent))
             && !is_link($parent);
         if ($tmp === false || $real === false || is_link($pending)
             || !is_dir($real) || (!$direct && !$archived)) {
