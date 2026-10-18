@@ -33,6 +33,8 @@ jobs:
         run: php tests/doctor.php && php bin/doctor.php --check --document-root=public
       - name: Shared-host PHP/FPM/Apache offline boundary and negative fixtures
         run: php tests/shared-host-preflight.php && php bin/shared-host-preflight.php --check --document-root=public
+      - name: PHP-native Ed25519 signed release metadata and hostile inputs
+        run: php tests/release-verifier.php
       - name: Verify health only, no exposed write routes
         run: composer test
       - name: HTTP public route boundary
@@ -131,7 +133,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: pdo_mysql, pdo_sqlite, openssl
+          extensions: pdo_mysql, pdo_sqlite, openssl, sodium
           tools: composer:v2
           coverage: none
       - name: Installed runtime feature check
@@ -141,6 +143,7 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress
           php tests/dependency-lock.php
           php tests/shared-host-preflight.php
+          php tests/release-verifier.php
           composer test
           php tests/storage.php
           php tests/installer-cli.php
