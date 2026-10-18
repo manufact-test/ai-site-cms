@@ -167,7 +167,9 @@ function staticTests(){
  const unapproved=r.migrate(newer,{imageAlt:'My art'},{imageAlt:{to:'imageAlt',approved:false}});
  assert.equal(unapproved.canPublish,false);
  for(const asset of Object.values(ASSETS)){
-  assert.ok(!/<script|onload=|href=|<foreignObject|https?:\/\//i.test(asset.svg));
+  assert.ok(asset.svg.includes('xmlns="http://www.w3.org/2000/svg"'),'expected standard SVG namespace');
+  const excludingRequiredNamespace=asset.svg.replace('xmlns="http://www.w3.org/2000/svg"','');
+  assert.ok(!/<script|onload=|href=|<foreignObject|https?:\/\//i.test(excludingRequiredNamespace),'no active or external SVG content');
   assert.equal(new JSDOM(asset.svg,{contentType:'image/svg+xml'}).window.document.documentElement.localName,'svg');
  }
  console.log('STAGE1_VISUAL_ASSET_UNIT='+JSON.stringify({pass:true,visualFields:Object.keys(definitions).length,invalidValuesRejected:wrong.length,unsafePackAtomicallyRejected:true,AJV2020Parity:true,ownerMigrationPreserved:true,aliasConflictQuarantined:true,reviewedSVGs:Object.keys(ASSETS).length,limits:'trusted, hardcoded site adapter; asset catalog not general SVG security; no production CMS or user-generated CSS'}));
