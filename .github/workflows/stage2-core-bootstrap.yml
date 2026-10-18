@@ -1,8 +1,7 @@
-name: Stage 2 PHP kernel bootstrap (internal)
+name: Stage 2 PHP kernel and isolated DB (internal)
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'cms/**'
       - '.github/workflows/stage2-core-bootstrap.yml'
@@ -24,22 +23,70 @@ jobs:
         run: composer validate --no-check-publish
       - name: Install dependencies on CI only
         run: composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
-      - name: PHP syntax
-        run: php -l src/HttpKernel.php && php -l public/index.php && php -l tests/smoke.php
-      - name: No admin and write routes registered
+      - name: PHP syntax (all source/test/installer files)
+        run: find src tests bin public -name '*.php' -print -exec php -l {} \;
+      - name: Verify health only, no exposed write routes
         run: composer test
-      - name: Serve over HTTP using temporary PHP built-in server
+      - name: HTTP public route boundary
         run: |
           php -S 127.0.0.1:8086 -t public public/index.php >/tmp/ai-site-cms-stage2-php.log 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT
           ready=0
           for attempt in 1 2 3 4 5 6 7 8 9 10; do
-            if curl --silent --fail http://127.0.0.1:8086/api/health > /tmp/ai-site-cms-health.json; then ready=1; break; fi
+            if curl --silent --fail http://127.0.0.1:8086/api/health >/tmp/stage2-health.json; then ready=1; break; fi
             sleep 1
           done
           test "$ready" -eq 1
-          grep -q '"status":"ok"' /tmp/ai-site-cms-health.json
-          status=$(curl --silent --output /dev/null --write-out '%{http_code}' -X POST http://127.0.0.1:8086/api/publish)
-          test "$status" = 404
-          echo "Stage2 PHP HTTP kernel: health 200, unimplemented write route 404"
+          grep -q '"status":"ok"' /tmp/stage2-health.json
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' -X POST http://127.0.0.1:8086/api/publish)" = 404
+  storage-sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    defaults:
+      run:
+        working-directory: cms
+    steps:
+      - uses: actions/checkout@v4
+      - name: PDO drivers
+        run: php -r 'echo implode(",", PDO::getAvailableDrivers()), PHP_EOL;'
+      - name: Install real runtime packages
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: SQLite schema migrate, isolation, integrity refusal
+        run: php tests/storage.php
+      - name: Safe CLI installer explicit invocation refusal
+        run: |
+          if php bin/install.php >/tmp/install_out 2>&1; then exit 1; fi
+          grep -q 'Refusing implicit install' /tmp/install_out
+          if CMS_DB_DSN=sqlite::memory: CMS_SITE_ID=testsite php bin/install.php --apply >/tmp/install_out 2>&1; then exit 1; fi
+          grep -q 'SQLite bootstrap permitted only in explicit test mode' /tmp/install_out
+  storage-mysql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: ai_site_cms_ci
+          MYSQL_USER: cms_ci
+          MYSQL_PASSWORD: ephemeral_ci_only
+          MYSQL_ROOT_PASSWORD: ephemeral_root_ci_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      CMS_TEST_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=ai_site_cms_ci;charset=utf8mb4
+      CMS_TEST_MYSQL_USER: cms_ci
+      CMS_TEST_MYSQL_PASSWORD: ephemeral_ci_only
+    defaults:
+      run:
+        working-directory: cms
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check PHP MySQL PDO
+        run: php -r 'if (!in_array("mysql", PDO::getAvailableDrivers(), true)) exit(1);'
+      - name: Install upstream runtime
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Real MySQL schema and fail-closed migration checks
+        run: php tests/storage-mysql.php
