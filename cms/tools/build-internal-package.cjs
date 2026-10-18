@@ -9,6 +9,12 @@ const ROOT = path.resolve(__dirname, '..');
 const STAGE = path.join(ROOT, '.build', 'internal-stage2-package');
 const PARTS = [
   ['public', 'public'], ['src', 'src'], ['vendor', 'vendor'],
+  ['bin/install.php', 'bin/install.php'],
+  ['bin/schema-preflight.php', 'bin/schema-preflight.php'],
+  ['bin/doctor.php', 'bin/doctor.php'],
+  ['bin/shared-host-preflight.php', 'bin/shared-host-preflight.php'],
+  ['bin/site-runtime-topology.php', 'bin/site-runtime-topology.php'],
+  ['bin/package-preflight.php', 'bin/package-preflight.php'],
   ['composer.json', 'composer.json'], ['composer.lock', 'composer.lock'],
   ['editor/dist/editor.js', 'private/editor/editor.js'],
   ['editor/dist/meta.json', 'private/editor/meta.json'],
