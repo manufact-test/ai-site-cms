@@ -34,4 +34,15 @@ try{
   assert.throws(()=>collect(path.join(trap,'symlink.txt'),'private/editor/malicious.txt',[]),/symbolic link/);checks++;
 }finally{fs.rmSync(trap,{recursive:true,force:true})}
 check(manifest.files.some(f=>f.path==='private/editor/THIRD_PARTY_LICENSES.txt'),'Upstream license included privately');
+const index=JSON.parse(fs.readFileSync(path.join(STAGE,'private/compliance/compliance-index.json'),'utf8'));
+const sbom=JSON.parse(fs.readFileSync(path.join(STAGE,'private/compliance/sbom.cdx.json'),'utf8'));
+check(index.componentCount===43 && sbom.components.length===43,'43 lock-tracked components SBOM');
+check(sbom.components.filter(c=>c.properties.some(p=>p.name==='ai-site-cms:scope'&&p.value==='php-runtime')).length===14,'14 shipped Composer libraries');
+check(sbom.components.filter(c=>c.properties.some(p=>p.name==='ai-site-cms:scope'&&p.value==='browser-runtime')).length===1,'Only Jedison shipped as browser-runtime npm library');
+check(fs.readFileSync(path.join(STAGE,'private/compliance/THIRD_PARTY_NOTICES.txt'),'utf8').includes('Apache License'),'Composer Apache notices retained');
+const sbomPath=path.join(STAGE,'private/compliance/sbom.cdx.json'),saved=fs.readFileSync(sbomPath);
+fs.writeFileSync(sbomPath,'{"invalid":true}');
+assert.throws(()=>verify(),/mismatch/);checks++;
+fs.writeFileSync(sbomPath,saved);
+check(verify().files.length===manifest.files.length,'SBOM damage recovery');
 console.log('Stage2 internal package security/integrity PASS: '+checks+' assertions; no network, host or customer data');

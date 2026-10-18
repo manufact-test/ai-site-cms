@@ -10,6 +10,7 @@ on:
       - 'cms/composer.json'
       - 'cms/composer.lock'
       - 'cms/.gitignore'
+      - 'cms/release.json'
       - '.github/workflows/stage2-static-editor.yml'
   workflow_dispatch:
 permissions:
@@ -40,6 +41,9 @@ jobs:
       - name: Assemble safe internal package with private editor assets
         working-directory: cms
         run: node tools/build-internal-package.cjs && node tools/test-internal-package.cjs
+      - name: Exercise immutable lab release staging, fault injection and rollback
+        working-directory: cms
+        run: node tools/test-lab-rollout.cjs
       - name: Check packaged document root by HTTP and block private package files
         working-directory: cms
         run: |

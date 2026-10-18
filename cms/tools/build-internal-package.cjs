@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const {generate:generateCompliance}=require('./generate-compliance.cjs');
 const ROOT = path.resolve(__dirname, '..');
 const STAGE = path.join(ROOT, '.build', 'internal-stage2-package');
 const PARTS = [
@@ -50,7 +51,7 @@ function collect(source,destination,records){
 }
 function verify(root=STAGE){
   const manifest=JSON.parse(fs.readFileSync(path.join(root,'private','package-manifest.json'),'utf8'));
-  if(manifest.format!=='ai-site-cms-internal-stage2-v1'||manifest.stage!==2||manifest.productionReady!==false||manifest.documentRoot!=='public'){
+  if(manifest.format!=='ai-site-cms-internal-stage2-v2'||manifest.stage!==2||manifest.productionReady!==false||manifest.documentRoot!=='public'||!/^0\.\d+\.\d+-stage2\.\d+$/.test(manifest.releaseVersion)||manifest.isSigned!==false){
     throw Error('Invalid package manifest');
   }
   const listed=new Set();
@@ -79,6 +80,12 @@ function verify(root=STAGE){
   if(listed.has('public/editor.js')||!listed.has('private/editor/editor.js')||!listed.has('vendor/autoload.php')||!listed.has('public/index.php')){
     throw Error('Editor exposure or missing executable package essentials');
   }
+  const compliance=JSON.parse(fs.readFileSync(path.join(root,'private/compliance/compliance-index.json'),'utf8'));
+  const sbom=JSON.parse(fs.readFileSync(path.join(root,'private/compliance/sbom.cdx.json'),'utf8'));
+  const notices=fs.readFileSync(path.join(root,'private/compliance/THIRD_PARTY_NOTICES.txt'),'utf8');
+  if(compliance.format!=='ai-site-cms-stage2-compliance-v1'||compliance.componentCount!==43||compliance.composerRuntime!==14||compliance.npmLocked!==29||compliance.noticeSha256!==sha(path.join(root,'private/compliance/THIRD_PARTY_NOTICES.txt'))||sbom.bomFormat!=='CycloneDX'||sbom.specVersion!=='1.5'||sbom.components?.length!==43||sbom.metadata?.component?.version!==manifest.releaseVersion||!notices.includes('German Bisurgi')){
+    throw Error('Invalid compliance evidence');
+  }
   return manifest;
 }
 function build(){
@@ -96,9 +103,19 @@ function build(){
     if(!fs.existsSync(origin))throw Error('Required offline artifact absent: '+from);
     collect(origin,to,files);
   }
+  const compliance=generateCompliance(STAGE);
+  if(compliance.count!==43)throw Error('Incomplete third-party component accounting');
+  for(const name of ['sbom.cdx.json','THIRD_PARTY_NOTICES.txt','compliance-index.json']){
+    const relative='private/compliance/'+name;
+    const absolute=path.join(STAGE,...relative.split('/'));
+    ensureRealRegular(absolute);
+    files.push({path:relative,bytes:fs.statSync(absolute).size,sha256:sha(absolute)});
+  }
   files.sort((a,b)=>a.path.localeCompare(b.path));
+  const release=JSON.parse(fs.readFileSync(path.join(ROOT,'release.json'),'utf8'));
+  if(!/^0\.\d+\.\d+-stage2\.\d+$/.test(release.version)||release.channel!=='internal-laboratory'||release.productionReady!==false)throw Error('Unsafe/unreviewed release metadata');
   const packageInfo={
-    format:'ai-site-cms-internal-stage2-v1',stage:2,productionReady:false,
+    format:'ai-site-cms-internal-stage2-v2',stage:2,releaseVersion:release.version,productionReady:false,
     documentRoot:'public',adminEditorAssets:'private/editor',
     hostingComposerOrNodeRequired:false,
     writeEndpointsAvailable:false,
