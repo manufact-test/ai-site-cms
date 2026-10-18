@@ -13,7 +13,8 @@ if(process.env.CI!=='true'||process.env.CMS_ALLOW_PHP_INSTALL_LAB!=='1'
   throw Error('Explicit ephemeral CI release lab required');
 const ROOT=path.resolve(__dirname,'..');
 const FIX=path.join(ROOT,'tests/fixtures/trusted-upgrade-operator.php');
-const temp=fs.mkdtempSync(path.join(os.tmpdir(),'ai-site-cms-trusted-upgrade-fixture-'));
+const temp=path.join(os.tmpdir(),'ai-site-cms-trusted-upgrade-fixture-'+crypto.randomBytes(8).toString('hex'));
+fs.mkdirSync(temp,{mode:0o700});
 const db=path.join(temp,'site.sqlite');
 const installedLabs=[];
 let count=0;
