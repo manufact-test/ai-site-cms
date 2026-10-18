@@ -1,6 +1,6 @@
 # AI Site CMS — Stage 2 PHP foundation (INTERNAL, NOT A RELEASE)
 
-**As of checkpoint v1.35 (18.10.2026):** Slim read-only HTTP `GET /api/health` + **CLI-only** isolated PDO MySQL schema/install framework; SQLite **test-only**. This is not an admin panel or working site CMS. No authentication, edit/save/publish API, revisions engine, media, production backup, or site adapters yet. **0/135 product requirements accepted**. Do not deploy to a client site.
+**As of checkpoint v1.36 (18.10.2026):** Slim read-only HTTP `GET /api/health` + **CLI-only** isolated PDO MySQL schema/install framework; SQLite **test-only**. This is not an admin panel or working site CMS. No authentication, edit/save/publish API, revisions engine, media, production backup, or site adapters yet. **0/135 product requirements accepted**. Do not deploy to a client site.
 
 ## Reproduce on developer machine / GitHub CI (never claim this tests Hostinger)
 
@@ -42,3 +42,8 @@ Offline internal package (NOT an installer): from `cms/` after `composer install
 ## Stage2 v1.35 schema integrity and preflight
 
 `php bin/schema-preflight.php --inspect` with explicit `CMS_DB_DSN`/`CMS_SITE_ID` returns a **readonly point-in-time** report with states `ready`, `blocked`, `uninitialized`, `upgrade_required` or `schema_ready_unbound`; exits 0/4/3 respectively (2 on invalid invocation/DB). It NEVER repairs a migration. A new strict table allowlist refuses a DB containing another app's tables before writing any CMS journal. It must evolve with future legitimate CMS tables. [7/7 real CI PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39132640890), incl MySQL interrupted-DDL *simulation* (19 negative checks); [full report](../docs/STAGE-2-RECOVERY-PREFLIGHT.md). Do **not** treat as a backup, restore mechanism or authorization to run on Hostinger.
+
+
+## Stage2 v1.36 foundation metadata snapshot/restore (CI-only)
+
+`src/Storage/FoundationSnapshot.php` implements strict `export()`, `verify()`, and `restoreToFreshCiDatabase()` for **only the empty CMS foundation schema (site ID, v2 migration, storage_generation)**. Backup SHA256 detects accidental corruption **but does not authenticate content**. Restore is allowed only in named disposable MySQL CI or expressly flagged SQLite tests and refuses existing or foreign sites. **No production/full-site backup exists**, no HTTP/admin/CLI restore route. Verified [PHP Actions 7/7](https://github.com/manufact-test/ai-site-cms/actions/runs/39134298097), with **47 SQLite and 13 real MySQL 8.4** restore assertions across isolated databases; [full report](../docs/STAGE-2-FOUNDATION-RESTORE.md), [ADR 0004](../docs/ADR/0004-foundation-backup-restore.md). Never run on live sites.
