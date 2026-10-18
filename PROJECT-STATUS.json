@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Continue Stage2 technical foundation with pinned dependencies/SBOM, PHP PDO MySQL/SQLite local/bootstrap migration tests, secure install packaging. Do not access actual Hostinger without separate read-only authorization. No live CMS, no user sites. Stage2 remains not accepted.",
+  "next_step": "Stage2: bundle pinned Jedison schema controls statically without runtime Node, legal NOTICE/SBOM; further strengthen migrations/restore and isolated empty CMS packaging. Only inspect Hostinger with separately given read-only permission. No admin write endpoints or client website changes.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.31",
+  "checkpoint_version": "1.32",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -33,11 +33,40 @@
     "dependency_lock_committed": false,
     "stage_accepted": false,
     "main_blockers": [
-      "PHP hosting read-only compatibility requires separate permission",
-      "production dependency locks/SBOM and legal asset notices",
-      "database migrations/installer/restore package",
-      "actual isolated empty CMS installed on target environment"
-    ]
+      "Full third-party license/NOTICE and distributable SBOM verification",
+      "Browser Jedison editor bundle npm pin, reproducible offline static assets",
+      "Production-grade schema/installer, backup/restore, auth/RBAC before write endpoints",
+      "Target real shared-host deployment cannot be tested without separate approval; read-only may not prove deployment"
+    ],
+    "storage_migration_version": 2,
+    "schema_implementation": "cms/src/Storage/SchemaManager.php; CLI-only installer cms/bin/install.php, no HTTP admin/write routes",
+    "mysql_database_tested": "MySQL 8.4 dedicated ephemeral GitHub Actions service, not Hostinger",
+    "sqlite_database_tested": "SQLite PDO in-memory + separate file across fresh PHP processes, CI-only",
+    "migration_features_tested": [
+      "Version 1 site identity and journal",
+      "Version 2 storage generation counter",
+      "Checksummed sequential migration journal",
+      "Version/downgrade/checksum/drift/partial-DDL refusal",
+      "MySQL per-database advisory lock; SQLite BEGIN IMMEDIATE + transaction rollback",
+      "Idempotent same-site initialization",
+      "Refuses database reuse by different site identity"
+    ],
+    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39127678056",
+    "last_full_ci_result": "completed SUCCESS all 3 jobs: php-core, storage-sqlite, storage-mysql",
+    "last_full_ci_checks": {
+      "kernel_smoke": 10,
+      "sqlite_schema_checks": 27,
+      "sqlite_cli_separate_process_assertions": 7,
+      "mysql_expected_refusals": 3,
+      "dependencies_locked": 14,
+      "composer_advisories_found": 0
+    },
+    "composer_lock_committed": true,
+    "php_dependency_pin_ledger": "docs/STAGE-2-COMPOSER-PINS.md",
+    "php_dependency_security_audit": "Composer audit reported no known advisories for current lock in CI run 39127678056; not comprehensive security proof",
+    "php_dependency_metadata_licenses_checked": true,
+    "actual_license_notice_files_bundled_and_verified": false,
+    "npm_jedison_bundle_not_started": true
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",

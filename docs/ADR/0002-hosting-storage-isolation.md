@@ -38,3 +38,7 @@ Primary intended deployment: PHP >=8.1 (provisional compatibility floor), HTTPS,
 ## Migration and safety rules
 
 Versioned forward-only schema migrations and validated rollback, DB migrations before feature enable, independent release package updates preserving site data, mandatory restore test before changes. Installer/upgrader and hosting smoke remain Stage2 exit work. No customer sites, CELIKOM or Hostinger access authorized by this ADR.
+
+## Implementation update v1.32 — still only an internal foundation
+
+The selected MySQL/MariaDB-primary/SQLite-test-only direction now has real code: [SchemaManager](../../cms/src/Storage/SchemaManager.php), CLI-only [installer](../../cms/bin/install.php), [CI tests](../STAGE-2-STORAGE-RESEARCH.md). MySQL8.4 migration and isolation tested via a GitHub ephemeral service, SQLite schema and distinct process installations tested, pin checksum validated. However production publication transaction, auth, backups, partial MySQL DDL recovery, real Hostinger environment, and full AI manifest remain **UNVERIFIED**; the earlier "planned" items above still require Stage2+ engineering. No HTTP write endpoints enabled, Stage2 NOT accepted.

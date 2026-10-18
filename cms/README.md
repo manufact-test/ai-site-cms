@@ -1,24 +1,33 @@
-# AI Site CMS — Stage 2 empty PHP kernel (INTERNAL ONLY)
+# AI Site CMS — Stage 2 PHP foundation (INTERNAL, NOT A RELEASE)
 
-**Not a CMS release.** This initial foundation contains a Slim HTTP app with exactly **one GET-only health endpoint**, no authentication, no editing, no storage, no site adapters and **no write operations**. The lack of auth is deliberately safe only because *there are no admin routes yet*. Do not deploy this or a future write route without the security stage.
+**As of checkpoint v1.32 (18.10.2026):** Slim read-only HTTP `GET /api/health` + **CLI-only** isolated PDO MySQL schema/install framework; SQLite **test-only**. This is not an admin panel or working site CMS. No authentication, edit/save/publish API, revisions engine, media, production backup, or site adapters yet. **0/135 product requirements accepted**. Do not deploy to a client site.
 
-## Local reproducibility (developer/CI, not actual Hostinger evidence)
+## Reproduce on developer machine / GitHub CI (never claim this tests Hostinger)
 
-Requires PHP **8.1+** with JSON and Composer locally/CI. Target hosting PHP version is **unverified**; this is a provisional lower bound, not a hosting upgrade authorization.
+Requires PHP >=8.1 as provisional development floor, JSON/PDO + PDO_SQLITE for tests, PDO_MYSQL for MySQL test service; Composer for **offline development/build** only, not intended live hosting requirement.
 
 ```bash
 cd cms
-composer validate --no-check-publish
 composer install --no-interaction --prefer-dist
+composer validate --strict --no-check-publish
+composer audit --no-interaction
+php tests/dependency-lock.php
+php tests/storage.php
+php tests/installer-cli.php
 composer test
 php -S 127.0.0.1:8086 -t public public/index.php
-# Separate terminal: curl -i http://127.0.0.1:8086/api/health
+# separate terminal: curl -i http://127.0.0.1:8086/api/health
 ```
 
-- `GET /api/health`: returns only `{"status":"ok"}`. Other routes are not registered.
-- The PHP document root must be **cms/public/**; Composer vendor, secrets, source and data must stay outside the public root.
-- `vendor/` and generated runtime secrets **must not be committed**.
-- Dependencies are constrained in composer.json but **transitive dependencies are not locked until a committed composer.lock is generated and verified**. No license/SBOM attestation yet.
-- Deployment, DB, authorization, real editors, migration, rollback, backup, audit and safety are **not implemented**.
+The MySQL CI integration test runs against the dedicated disposable mysql:8.4 service defined in [workflow](../.github/workflows/stage2-core-bootstrap.yml) and receives disposable `CMS_TEST_MYSQL_*` values, never live credentials.
 
-Architecture decisions: [ADR 0001](../docs/ADR/0001-selected-foundation.md), [ADR 0002](../docs/ADR/0002-hosting-storage-isolation.md), [ADR 0003](../docs/ADR/0003-preview-adapter-boundaries.md). Full release remains blocked until 135/135 mandatory acceptance; this is only an internal construction checkpoint.
+## Security and installation boundary
+
+- Public webroot is **cms/public**, never the whole `cms/`; PHP `src`, `vendor`, future `storage`, backups and secrets stay outside it.
+- Only `GET /api/health` is exposed and contains fixed nonsensitive JSON; any `admin/publish/write` URL remains **unregistered**. No auth is safe only because no writable/admin routes exist.
+- `bin/install.php` is CLI-only and requires explicit `--apply`, `CMS_DB_DSN` for **a new dedicated DB**, credentials and `CMS_SITE_ID`. It creates/updates schema and must never be run against live Hostinger without separate permission.
+- MySQL is the intended DB, SQLite only in explicit test mode. MySQL DDL cannot be assumed transactional. If an interrupted DDL doesn't match the journal, fail closed; manual recovery, not destructive auto-healing.
+- `composer.lock` pins 14 runtime PHP packages; `tests/dependency-lock.php` verifies declared licenses and known versions; license/NOTICE and SBOM review is still needed before distribution. Jedison browser bundle is NOT yet present.
+- No live Hostinger access or CELIKOM interaction approved or performed.
+
+See [Stage2 real-CI report](../docs/STAGE-2-STORAGE-RESEARCH.md), [Composer ledger](../docs/STAGE-2-COMPOSER-PINS.md), [hosting/storage architecture ADR](../docs/ADR/0002-hosting-storage-isolation.md), [canonical handoff](../docs/NEXT-CHAT.md).
