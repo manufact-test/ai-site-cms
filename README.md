@@ -1,9 +1,9 @@
 # AI Site CMS — документация проекта
 
 > **Название:** AI Site CMS · **репозиторий:** `manufact-test/ai-site-cms` (`main`, private)  
-> **Статус v1.31:** Stage1 принят по делегированному выбору A (Slim/Opis/Jedison), Stage2 в работе. Есть только пустое read-only PHP-ядро, полноценной CMS, админки и интеграции с сайтами ещё нет. Название проекта утверждено: AI Site CMS. Репозиторий: `manufact-test/ai-site-cms`.
+> **Статус v1.36:** Stage0+Stage1 приняты, Stage2 продолжается/НЕ принят. Теперь в `cms/` есть read-only PHP kernel, PDO MySQL/SQLite миграции, приватный статический Jedison, внутренний offline пакет и лабораторный перенос только foundation-метаданных в отдельную тестовую БД. Нет готовой админки, publish или полноценного резервного копирования сайтов. Название проекта утверждено: AI Site CMS. Репозиторий: `manufact-test/ai-site-cms`.
 
-[ADR выбора](docs/ADR/0001-selected-foundation.md) · [CI Stage2 1/1 PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39125215551) · [код пустого PHP-ядра](cms/) · **0/135 продуктовых требований принято; нет MVP, Hostinger не проверен.**
+[ADR выбора](docs/ADR/0001-selected-foundation.md) · [CI Stage2 backup/restore 7/7 PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39134298097) · [код Stage2](cms/) · [отчёт v1.36](docs/STAGE-2-FOUNDATION-RESTORE.md) · **0/135 продуктовых требований принято; нет MVP, Hostinger не проверен.**
 
 ## Что создаём
 
