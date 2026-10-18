@@ -14,11 +14,11 @@ const PARTS = [
   ['editor/dist/editor.js.LEGAL.txt', 'private/editor/editor.js.LEGAL.txt'],
   ['editor/dist/THIRD_PARTY_LICENSES.txt', 'private/editor/THIRD_PARTY_LICENSES.txt']
 ];
-const forbiddenPart = /^(?:\.git|\.github|\.env(?:\..*)?|\.ssh|\.npmrc|storage|secrets?|node_modules|\.build)$/i;
+const forbiddenPart = /^(?:\.git|\.github|\.env(?:\..*)?|\.ssh|\.npmrc|secrets?|node_modules|\.build)$/i;
 const forbiddenFile = /\.(?:pem|key|sqlite|sqlite3|db|p12|pfx)$/i;
 function assertAllowed(relative) {
   const normalized=relative.replaceAll('\\','/');
-  if(!normalized || normalized.startsWith('/') || normalized.split('/').some(s=>!s||s==='.'||s==='..'||forbiddenPart.test(s)) || forbiddenFile.test(normalized)){
+  if(!normalized || normalized.startsWith('/') || normalized.split('/').some(s=>!s||s==='.'||s==='..'||forbiddenPart.test(s)) || normalized.toLowerCase()==='storage' || normalized.toLowerCase().startsWith('storage/') || forbiddenFile.test(normalized)){
     throw Error('Refusing sensitive/unsafe package relative path: '+normalized);
   }
 }
