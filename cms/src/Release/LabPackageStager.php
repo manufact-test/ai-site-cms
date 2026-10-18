@@ -40,9 +40,11 @@ final class LabPackageStager
 
     public function root(): string { return $this->root; }
 
-    private static function requireLab(): void
+    private static function requireLab(bool $readOnly = false): void
     {
-        if (PHP_SAPI !== 'cli' || getenv('CI') !== 'true'
+        $readOnlyHttp = $readOnly && PHP_SAPI === 'cli-server'
+            && getenv('CMS_PHP_LAB_HTTP_ONLY') === '1';
+        if (!(PHP_SAPI === 'cli' || $readOnlyHttp) || getenv('CI') !== 'true'
             || getenv('CMS_ALLOW_PHP_INSTALL_LAB') !== '1') {
             throw new RuntimeException('Only explicit disposable CI installation rehearsal allowed');
         }
@@ -50,7 +52,7 @@ final class LabPackageStager
 
     private function assertLab(): void
     {
-        self::requireLab();
+        self::requireLab(true);
         $tmp = realpath(sys_get_temp_dir());
         if ($tmp === false || dirname($this->root) !== $tmp
             || !preg_match('/^' . preg_quote(self::PREFIX, '/') . '[a-f0-9]{32}$/D', basename($this->root))
@@ -295,6 +297,7 @@ final class LabPackageStager
 
     public function stage(string $source, string $trustedManifestSha256, ?string $failAt = null): array
     {
+        self::requireLab();
         if ($this->inspect()['status'] !== 'empty') {
             throw new RuntimeException('Existing/unresolved installation cannot be overwritten');
         }
@@ -316,6 +319,7 @@ final class LabPackageStager
 
     public function recover(string $mode): array
     {
+        self::requireLab();
         $status = $this->inspect()['status'];
         if ($status === 'pending-before-rename' && $mode === 'abort') {
             if (is_dir($this->file('staging'))) {
