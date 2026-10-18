@@ -135,7 +135,7 @@ class LabOperatorGuard {
         throw Error('Signed package not independently staged/verified');
     }else{
       const active=this.lab.state();
-      if(active.previous===null||active.previous!==version||p.current===null)
+      if(active.previous===null||active.previous!==version||p.current===null||compare(version,p.current)>=0)
         throw Error('Explicit rollback only to recorded immediate previous version');
       receipt=p.receipts[version];
       if(!receipt||!fs.existsSync(this.lab.slot(version))||
