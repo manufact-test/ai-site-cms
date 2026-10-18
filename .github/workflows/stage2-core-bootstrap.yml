@@ -41,6 +41,10 @@ jobs:
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
         run: php tests/lab-package-stager.php
+      - name: PHP generation switch CAS, rollback, crash boundaries and independent live-code gate
+        env:
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+        run: php tests/lab-generation-switcher.php
       - name: Verify health only, no exposed write routes
         run: composer test
       - name: HTTP public route boundary
@@ -152,6 +156,7 @@ jobs:
           php tests/release-verifier.php
           php tests/trust-chain.php
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-package-stager.php
+          CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-generation-switcher.php
           composer test
           php tests/storage.php
           php tests/installer-cli.php
