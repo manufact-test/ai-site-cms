@@ -75,7 +75,7 @@ try{
   finally{fs.unlinkSync(policyTmp)}
   const currentPolicy=fs.readFileSync(policy);
   fs.writeFileSync(policy,'{');
-  try{denied(()=>guard.policy(),/JSON|Unexpected|end of JSON/,'Truncated policy refuses operations')}
+  try{denied(()=>guard.policy(),/Invalid operator state file|JSON|Unexpected|end of JSON/,'Truncated policy refuses operations')}
   finally{fs.writeFileSync(policy,currentPolicy)}
   ok(guard.inspect().status==='clean','Policy restored after injected damage');
   ok(lab.stage(STAGE)===version,'Trusted fixture can stage immutable local code slot');
