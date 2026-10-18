@@ -47,3 +47,8 @@ The selected MySQL/MariaDB-primary/SQLite-test-only direction now has real code:
 ## v1.34 test evidence without target-host permission
 
 Read-only `cms/bin/doctor.php` validates PHP 8.1+, required extensions and an explicitly supplied public document root without network/DB/filesystem writes. GitHub Actions PHP 8.1/8.2/8.3/8.4 passed [7/7](https://github.com/manufact-test/ai-site-cms/actions/runs/39131771955), **not actual Hostinger compatibility**. An internal 425-file prebuilt archive preserves PHP vendor dependencies and Jedison JS under private folder only, with SHA-256 manifest (not authenticated signature) and isolated webroot HTTP check [PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39131661335). Real hosting docroot controls, safe installation/backup/upgrade, complete license legal due diligence, auth and real site integration remain future tasks. [Details](../STAGE-2-HOSTING-AND-PACKAGE.md).
+
+
+## Implementation v1.35 — no automatic recovery from corrupted/incomplete migrations
+
+Stage2 adds `SchemaManager::inspectSite` with a separate read-only CLI report and explicit dedicated-database table allowlist. Ephemeral MySQL8.4 negative tests prove refusal of foreign schema and incomplete v1/v2 journal, **not** genuine backup/restore or crash-recovery. [Proof/report](../STAGE-2-RECOVERY-PREFLIGHT.md), [CI 7/7](https://github.com/manufact-test/ai-site-cms/actions/runs/39132640890). Operator must preserve original data and seek reviewed backup/restore plan; never silently reset migration journal. Target Hostinger untested. Stage2 remains unaccepted.

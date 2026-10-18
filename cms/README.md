@@ -1,6 +1,6 @@
 # AI Site CMS — Stage 2 PHP foundation (INTERNAL, NOT A RELEASE)
 
-**As of checkpoint v1.34 (18.10.2026):** Slim read-only HTTP `GET /api/health` + **CLI-only** isolated PDO MySQL schema/install framework; SQLite **test-only**. This is not an admin panel or working site CMS. No authentication, edit/save/publish API, revisions engine, media, production backup, or site adapters yet. **0/135 product requirements accepted**. Do not deploy to a client site.
+**As of checkpoint v1.35 (18.10.2026):** Slim read-only HTTP `GET /api/health` + **CLI-only** isolated PDO MySQL schema/install framework; SQLite **test-only**. This is not an admin panel or working site CMS. No authentication, edit/save/publish API, revisions engine, media, production backup, or site adapters yet. **0/135 product requirements accepted**. Do not deploy to a client site.
 
 ## Reproduce on developer machine / GitHub CI (never claim this tests Hostinger)
 
@@ -37,3 +37,8 @@ See [Stage2 real-CI report](../docs/STAGE-2-STORAGE-RESEARCH.md), [Composer ledg
 Read-only local doctor: `php bin/doctor.php --check [--document-root=/path/to/cms/public]` does **not** contact DB/hosting and always reports `safe_to_deploy=false`. 24 negative/positive checks, PHP 8.1–8.4 CI [7/7 PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39131771955).
 
 Offline internal package (NOT an installer): from `cms/` after `composer install` and `cd editor && npm ci && npm run build`, run `node tools/build-internal-package.cjs && node tools/test-internal-package.cjs`; creates ignored `.build/internal-stage2-package` with `public` webroot and `private/editor` JS. 425 files and 19 integrity/adversarial checks, HTTP verification [PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39131661335). Not a client deliverable; no signed provenance, auth or upgrade/restore. See [technical report](../docs/STAGE-2-HOSTING-AND-PACKAGE.md).
+
+
+## Stage2 v1.35 schema integrity and preflight
+
+`php bin/schema-preflight.php --inspect` with explicit `CMS_DB_DSN`/`CMS_SITE_ID` returns a **readonly point-in-time** report with states `ready`, `blocked`, `uninitialized`, `upgrade_required` or `schema_ready_unbound`; exits 0/4/3 respectively (2 on invalid invocation/DB). It NEVER repairs a migration. A new strict table allowlist refuses a DB containing another app's tables before writing any CMS journal. It must evolve with future legitimate CMS tables. [7/7 real CI PASS](https://github.com/manufact-test/ai-site-cms/actions/runs/39132640890), incl MySQL interrupted-DDL *simulation* (19 negative checks); [full report](../docs/STAGE-2-RECOVERY-PREFLIGHT.md). Do **not** treat as a backup, restore mechanism or authorization to run on Hostinger.
