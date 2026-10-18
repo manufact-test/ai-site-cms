@@ -59,6 +59,12 @@ jobs:
         env:
           CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
         run: php -m | grep -i sodium && node tools/test-lab-php-release-verifier.cjs
+      - name: End-to-end signed ZIP to PHP native sandbox installation (CI-only)
+        working-directory: cms
+        env:
+          CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+        run: node tools/test-lab-authenticated-php-install.cjs
       - name: Signed dual-consent key rotation, retirement and interrupted trust recovery laboratory
         working-directory: cms
         env:
