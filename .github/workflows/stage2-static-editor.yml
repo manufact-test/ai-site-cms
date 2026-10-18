@@ -62,6 +62,11 @@ jobs:
         env:
           CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
         run: node tools/test-lab-startup-integrity.cjs
+      - name: Gate a real PHP loopback HTTP process by signed immutable code generation
+        working-directory: cms
+        env:
+          CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
+        run: node tools/test-lab-verified-http.cjs
       - name: Check packaged document root by HTTP and block private package files
         working-directory: cms
         run: |
