@@ -49,6 +49,17 @@ function htmlFrom(sourceCode,values,parse5){
   if(!index.has(id))throw Error('missing-stable-id: '+id);
  }
  const get=id=>index.get(id);
+ // Stable ID alone is insufficient: regenerated HTML must retain the
+ // reviewed semantic tag/operation kind before reapplying owner overrides.
+ const expectedTags={'hero-title':'h1','hero-cta':'a','hero-image':'img','hero':'section',
+  'field-notes':'section','faq-first':'details'};
+ for(const [id,tag] of Object.entries(expectedTags))
+  if(get(id).tagName!==tag)throw Error('incompatible-reviewed-element-kind:'+id);
+ for(const [k,v] of Object.entries(values))
+  if(!legal.has(k)||!validators[k](v))throw Error('unapproved-owner-value:'+k);
+ if(Object.hasOwn(values,'hero-cta/behavior.href')&&
+    !index.has(values['hero-cta/behavior.href'].slice(1)))
+  throw Error('unresolved-internal-anchor');
  // Existing original text children are replaced only on approved paths.
  if(Object.hasOwn(values,'hero-title/content.text'))
   get('hero-title').childNodes=[{nodeName:'#text',value:values['hero-title/content.text'],parentNode:get('hero-title')}];
@@ -157,6 +168,12 @@ async function main(){
  const beforeFailed=store.get();
  refuse(()=>store.regenerate(v2.replace('id="hero-title"','id="ai-renamed-title"'),'3.0.0'),'missing renamed reviewed anchor quarantined');
  eq(store.get(),beforeFailed,'failed regen atomic');
+ refuse(()=>store.regenerate(v2.replace('<h1 id="hero-title">Listening to a changing forest.</h1>',
+   '<button id="hero-title" type="button">Listening to a changing forest.</button>'),'3.0.0'),
+   'semantic element replacement with same ID quarantined');
+ eq(store.get(),beforeFailed,'kind conflict atomic');
+ refuse(()=>htmlFrom(v2,{...after.values,'hero-cta/behavior.href':'#no-such-section'},parseRef),
+   'owner CTA cannot silently point to missing in-page anchor');
  refuse(()=>store.regenerate(v2.replace('id="hero-image"','id="hero-title"'),'3.0.0'),'duplicate id rejected');
  eq(store.get(),beforeFailed,'duplicate ids did not update saved state');
  const noAlt=v2.replace('alt="Cedar grove at morning light"','');
