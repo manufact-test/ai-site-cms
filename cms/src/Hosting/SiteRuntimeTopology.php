@@ -86,7 +86,7 @@ final class SiteRuntimeTopology
      * exports, oversized files or huge public trees. This is a sample packaging
      * policy, not a malware scanner, content auditor or real-host access test.
      *
-     * @return array{files:int,bytes:int}
+     * @return array{files:int,bytes:int,sha256:string}
      */
     private static function inspectPublic(string $public, bool $static): array
     {
@@ -94,6 +94,7 @@ final class SiteRuntimeTopology
         $seen = 0;
         $files = 0;
         $bytes = 0;
+        $fingerprints = [];
         while ($stack !== []) {
             $dir = array_pop($stack);
             $names = @scandir($dir);
@@ -125,6 +126,16 @@ final class SiteRuntimeTopology
                     || $stat['size'] < 0 || $stat['size'] > self::MAX_FILE_BYTES) {
                     throw new RuntimeException('Unsafe or oversized public tree file');
                 }
+                // Pinned approval covers BYTES as well as public tree layout,
+                // including same-size HTML/JS edits that node counts miss.
+                // This is an unsigned consistency fingerprint, NOT a publisher
+                // signature or a permission to publish visitor-site updates.
+                $digest = @hash_file('sha256', $entry);
+                if (!is_string($digest)) {
+                    throw new RuntimeException('Cannot fingerprint public site artifact');
+                }
+                $fingerprints[substr($entry, strlen($public) + 1)] =
+                    [$stat['size'], $digest];
                 ++$files;
                 $bytes += $stat['size'];
                 if ($bytes > self::MAX_TREE_BYTES) {
@@ -132,7 +143,12 @@ final class SiteRuntimeTopology
                 }
             }
         }
-        return ['files'=>$files,'bytes'=>$bytes];
+        ksort($fingerprints, SORT_STRING);
+        return [
+            'files'=>$files, 'bytes'=>$bytes,
+            'sha256'=>hash('sha256', json_encode($fingerprints,
+                JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR))
+        ];
     }
 
     /**
@@ -202,6 +218,8 @@ final class SiteRuntimeTopology
             'separateInstallationRoots'=>true,
             'cmsPublicFiles'=>$cmsInventory['files'],
             'sitePublicFiles'=>$siteInventory['files'],
+            'sitePublicFingerprint'=>$siteInventory['sha256'],
+            'cmsPublicFingerprint'=>$cmsInventory['sha256'],
             'nodeRequired'=>$family === 'next-ssr',
             'websiteDependsOnCmsRequest'=>false,
             'declaredCapabilitiesAreVerified'=>false,

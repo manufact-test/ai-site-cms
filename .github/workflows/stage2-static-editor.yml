@@ -64,6 +64,9 @@ jobs:
       - name: Portable empty foundation migration, actual multi-site SIGKILL re-plan and conflicting operator database leases
         working-directory: cms
         run: node tools/test-stage2-portable-foundation.cjs
+      - name: Stage2 five-family route and runtime ABI blueprint, site-byte-bound approvals, real independent HTTP
+        working-directory: cms
+        run: node tools/test-stage2-deployment-blueprint.cjs
       - name: Independently verify and install full 429-file package with PHP-only temp journal
         working-directory: cms
         env:

@@ -128,6 +128,8 @@ final class LabEmptyCmsInstaller
             'cms'=>$cms,'site'=>$site,'family'=>$family,
             'siteId'=>$siteId,'db'=>$db,'binding'=>$binding,
             'capabilities'=>$capabilities,
+            'sitePublicFingerprint'=>$topology['sitePublicFingerprint'],
+            'cmsPublicFingerprint'=>$topology['cmsPublicFingerprint'],
             'packageManifestHash'=>hash_file('sha256',$cms.'/private/package-manifest.json'),
             'state'=>$state
         ];
