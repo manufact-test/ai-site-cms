@@ -37,6 +37,10 @@ jobs:
         run: php tests/trust-chain.php
       - name: PHP-native Ed25519 signed release metadata and hostile inputs
         run: php tests/release-verifier.php
+      - name: PHP-only isolated install journal, no overwrite and manual recovery faults
+        env:
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+        run: php tests/lab-package-stager.php
       - name: Verify health only, no exposed write routes
         run: composer test
       - name: HTTP public route boundary
@@ -147,6 +151,7 @@ jobs:
           php tests/shared-host-preflight.php
           php tests/release-verifier.php
           php tests/trust-chain.php
+          CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-package-stager.php
           composer test
           php tests/storage.php
           php tests/installer-cli.php
