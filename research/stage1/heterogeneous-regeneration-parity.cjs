@@ -72,7 +72,7 @@ function semantic(markup,shape) {
  return result;
 }
 function raw(shape){
- const manifest=shape.map(c=>({...c,defaults:c.values}));
+ const manifest=shape.map(c=>({id:c.id,kind:c.kind,defaults:c.values}));
  // All output must originate in the validated typed manifest.
  const version='9.0.0';
  const result=renderSafe({siteId:'tide-atlas',version,components:manifest},{});
