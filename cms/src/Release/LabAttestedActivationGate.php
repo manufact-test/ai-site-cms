@@ -93,10 +93,11 @@ final class LabAttestedActivationGate
      */
     public static function verifyChain(
         string $directory, string $operatorPem, string $operatorPin,
-        string $expectedHead, string $siteId
+        string $expectedHead, string $siteId, string $publisherPin
     ): array {
         self::lab();
         self::sha($expectedHead);
+        self::sha($publisherPin);
         $real = realpath($directory);
         if ($real === false || is_link($directory) || !is_dir($real)
             || strlen($siteId) < 1 || strlen($siteId) > 80
@@ -149,6 +150,9 @@ final class LabAttestedActivationGate
                 throw new RuntimeException('Noncanonical or unsupported operator receipt');
             }
             self::sha($record['publisherFingerprint']);
+            if (!hash_equals($publisherPin, $record['publisherFingerprint'])) {
+                throw new RuntimeException('Receipt publisher not independently authorized');
+            }
             self::sha($record['manifestSha256']);
             self::sha($record['archiveSha256']);
             if ($record['previousReceiptSha256'] !== $lastHash
@@ -186,21 +190,21 @@ final class LabAttestedActivationGate
     public static function withVerifiedRequest(
         PDO $pdo, string $siteId, LabPhpGenerationSwitcher $switcher,
         string $directory, string $operatorPem, string $operatorPin,
-        string $expectedHead, callable $handler
+        string $expectedHead, string $publisherPin, callable $handler
     ): mixed {
         self::lab();
         require_once __DIR__ . '/LabSchemaVersionGate.php';
-        $chain = self::verifyChain($directory, $operatorPem, $operatorPin, $expectedHead, $siteId);
+        $chain = self::verifyChain($directory, $operatorPem, $operatorPin, $expectedHead, $siteId, $publisherPin);
         $record = $chain['receipt'];
         return $switcher->withRequestLeaseAndCheckpoint(
             $pdo, $siteId, $record['version'], $record['minimumVersion'],
             $record['dbCheckpoint'],
             static function (array $generation) use (
                 $switcher,$directory,$operatorPem,$operatorPin,$expectedHead,
-                $siteId,$record,$handler
+                $siteId,$record,$publisherPin,$handler
             ): mixed {
                 $again = self::verifyChain(
-                    $directory, $operatorPem, $operatorPin, $expectedHead, $siteId
+                    $directory, $operatorPem, $operatorPin, $expectedHead, $siteId, $publisherPin
                 );
                 $view = $switcher->inspect($record['minimumVersion']);
                 if ($view['status'] !== 'clean' || $view['current'] !== $record['version']
