@@ -124,3 +124,5 @@ jobs:
         run: node external-generator-contract-gate.cjs
       - name: Real browser reviewed behavior adapter restores typed navigation and safe form preview
         run: node reviewed-rich-behavior-browser.cjs
+      - name: Original mixed-site HTML regeneration with reviewed owner CSS media content links, draft isolation and rollback in Chromium
+        run: node rich-source-regeneration-browser.cjs
