@@ -1,3 +1,5 @@
+> **Актуальный статус v1.31:** Stage1 исследование принято 18.10.2026 — пользователь делегировал выбор технологии, ассистент выбрал A (Jedison/Slim/Opis), B RJSF резерв. Этап2 начат (не принят), Stage3 не начат. Старый ниже чек-лист описывает исходную подготовку **до** делегирования; оставшиеся реальные hosting/second-LLM/security риски перенесены на соответствующие этапы. Никаких продуктовых требований не принято (0/135). [ADR](ADR/0001-selected-foundation.md), [Stage2 CI](https://github.com/manufact-test/ai-site-cms/actions/runs/39125215551).
+
 # AI Site CMS — Stage 1 remaining work and honest progress estimate (v1.29)
 
 **18.10.2026.** Approved authoritative scope: `docs/ROADMAP.md` Stage 1 is **research and recommendation of an open-source foundation**. It is **not** acceptance of a CMS feature or completion of Stage 3 contracts, Stage 4 product storage, Stage 8 working form handlers, or Stage 17 CELIKOM integration.
