@@ -58,6 +58,8 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: SQLite schema migrate, isolation, integrity refusal
         run: php tests/storage.php
+      - name: Real cross-process explicit CLI install, isolated SQLite file
+        run: php tests/installer-cli.php
       - name: Safe CLI installer explicit invocation refusal
         run: |
           if php bin/install.php >/tmp/install_out 2>&1; then exit 1; fi
