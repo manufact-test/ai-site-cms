@@ -17,6 +17,8 @@ final class LabPhpGenerationSwitcher
     private const PREFIX = 'ai-site-cms-php-switch-lab-';
     private string $root;
     private bool $locked = false;
+    /** @var array<string,mixed>|null Permit-bound scoped writer, never persisted. */
+    private ?array $signedWriteGrant = null;
 
     private function __construct(string $root)
     {
@@ -44,6 +46,31 @@ final class LabPhpGenerationSwitcher
         $lab = new self($root);
         $lab->writeFresh('releases.json', ['format'=>self::FORMAT, 'releases'=>[]]);
         $lab->createLeaseAnchor();
+        return $lab;
+    }
+
+    /**
+     * New CI switch roots can opt into a fail-closed signed-only mutation mode.
+     * Existing unsealed switch fixtures are deliberately left intact.
+     */
+    public static function createSealed(string $operatorPin, string $publisherPin): self
+    {
+        self::requireCI();
+        foreach ([$operatorPin,$publisherPin] as $pin) {
+            if (!preg_match('/^[a-f0-9]{64}$/D', $pin)) {
+                throw new RuntimeException('Sealed release roots require two independent SHA-256 signer pins');
+            }
+        }
+        if (hash_equals($operatorPin,$publisherPin)) {
+            throw new RuntimeException('Release publisher and operator identities must be independent');
+        }
+        $lab = self::create();
+        $lab->writeFresh('signed-only.json', [
+            'format'=>'ai-site-cms-stage2-signed-switch-v1',
+            'operatorFingerprint'=>$operatorPin,'publisherFingerprint'=>$publisherPin,
+            'productionReady'=>false
+        ]);
+        $lab->inspect();
         return $lab;
     }
 
@@ -79,6 +106,109 @@ final class LabPhpGenerationSwitcher
     }
 
     private function file(string $name): string { return $this->root . '/' . $name; }
+
+    /** @return array<string,mixed>|null */
+    private function sealedConfig(): ?array
+    {
+        $config = $this->json('signed-only.json');
+        if ($config !== null) {
+            self::exact($config, [
+                'format','operatorFingerprint','publisherFingerprint','productionReady'
+            ]);
+            if ($config['format'] !== 'ai-site-cms-stage2-signed-switch-v1'
+                || $config['productionReady'] !== false
+                || !is_string($config['operatorFingerprint'])
+                || !is_string($config['publisherFingerprint'])
+                || !preg_match('/^[a-f0-9]{64}$/D', $config['operatorFingerprint'])
+                || !preg_match('/^[a-f0-9]{64}$/D', $config['publisherFingerprint'])
+                || hash_equals($config['operatorFingerprint'], $config['publisherFingerprint'])) {
+                throw new RuntimeException('Untrusted sealed release root configuration');
+            }
+        }
+        return $config;
+    }
+
+    /**
+     * The only mutation scope allowed for opt-in signed-only lab switch roots.
+     * The signed permit MUST bind the root's separately pinned signer identities,
+     * target, CAS sequence, old version and package digest.
+     *
+     * A public callback cannot gain broader raw mutation authority: register and
+     * switchTo recheck all permitted fields before writing under their locks.
+     *
+     * @template T
+     * @param callable(array<string,mixed>):T $action
+     * @return T
+     */
+    public function withSignedPermitMutation(
+        string $pendingDir, string $operatorPem, string $operatorPin,
+        string $permitHead, ?string $previousReceiptHead,
+        string $siteId, string $publisherPin, callable $action
+    ): mixed {
+        self::requireCI();
+        $this->assertRoot();
+        $seal = $this->sealedConfig();
+        if ($seal === null
+            || !hash_equals($seal['operatorFingerprint'], $operatorPin)
+            || !hash_equals($seal['publisherFingerprint'], $publisherPin)
+            || $this->signedWriteGrant !== null) {
+            throw new RuntimeException('Signed-only generation requires its sealed signer pins');
+        }
+        require_once __DIR__.'/LabPreauthorizedUpgradeGate.php';
+        $approval = LabPreauthorizedUpgradeGate::verifyPermit(
+            $pendingDir, $operatorPem, $operatorPin, $permitHead,
+            $previousReceiptHead, $siteId, $publisherPin
+        );
+        $this->signedWriteGrant = [
+            'version'=>$approval['version'],'fromVersion'=>$approval['fromVersion'],
+            'sequence'=>$approval['sequence'],'digest'=>$approval['manifestSha256'],
+            'floor'=>$approval['minimumVersion'],'registered'=>false,'switched'=>false
+        ];
+        try {
+            $result = $action($approval);
+            $again = LabPreauthorizedUpgradeGate::verifyPermit(
+                $pendingDir,$operatorPem,$operatorPin,$permitHead,
+                $previousReceiptHead,$siteId,$publisherPin
+            );
+            if ($again !== $approval || !$this->signedWriteGrant['switched']) {
+                throw new RuntimeException('Signed operator permit changed or no authorized CAS switch occurred');
+            }
+            return $result;
+        } finally {
+            $this->signedWriteGrant = null;
+        }
+    }
+
+    private function demandSignedRegistration(string $version, string $digest): void
+    {
+        if ($this->sealedConfig() === null) return;
+        $grant = $this->signedWriteGrant;
+        if ($grant === null || $grant['registered'] || $grant['switched']
+            || $grant['version'] !== $version
+            || !hash_equals($grant['digest'], $digest)) {
+            throw new RuntimeException('Raw code registration forbidden on signed-only generation root');
+        }
+    }
+
+    private function demandSignedSwitch(
+        string $target, ?string $current, int $sequence, string $floor
+    ): void {
+        if ($this->sealedConfig() === null) return;
+        $grant = $this->signedWriteGrant;
+        if ($grant === null || !$grant['registered'] || $grant['switched']
+            || $grant['version'] !== $target || $grant['fromVersion'] !== $current
+            || $grant['sequence'] !== $sequence + 1
+            || $grant['floor'] !== $floor) {
+            throw new RuntimeException('Raw CAS switching forbidden on signed-only generation root');
+        }
+    }
+
+    private function demandUnsealedRecovery(): void
+    {
+        if ($this->sealedConfig() !== null) {
+            throw new RuntimeException('Sealed generation crash recovery requires a future signed operator recovery path');
+        }
+    }
 
     // Every cooperative reader and writer holds a stable local-filesystem inode.
     // Not a distributed lock and not a proof of PHP-FPM/OPcache compatibility.
@@ -312,12 +442,13 @@ final class LabPhpGenerationSwitcher
             }
         }
         $allow = ['.','..','releases.json','active.json','switch-intent.json',
-                  'active-receipt.json','switch-exclusive.lock','request-lease.lock'];
+                  'active-receipt.json','switch-exclusive.lock','request-lease.lock','signed-only.json'];
         foreach (scandir($this->root) ?: [] as $name) {
             if (!in_array($name, $allow, true)) {
                 throw new RuntimeException('Foreign switch sandbox file');
             }
         }
+        $this->sealedConfig();
         $releases = $this->releases();
         $active = $this->pointer();
         $intent = $this->json('switch-intent.json');
@@ -432,7 +563,8 @@ final class LabPhpGenerationSwitcher
 
     public function register(string $installedLabRoot, string $expectedDigest, string $expectedVersion): array
     {
-        return $this->exclusive(function () use ($installedLabRoot,$expectedDigest,$expectedVersion): array {
+        $this->demandSignedRegistration($expectedVersion, $expectedDigest);
+        $result = $this->exclusive(function () use ($installedLabRoot,$expectedDigest,$expectedVersion): array {
             $view = $this->inspect();
             if ($view['status'] !== 'clean') throw new RuntimeException('Pending switch must be resolved');
             self::validVersion($expectedVersion);
@@ -451,13 +583,16 @@ final class LabPhpGenerationSwitcher
             $this->writeAtomic('releases.json', ['format'=>self::FORMAT,'releases'=>$data]);
             return $this->inspect();
         });
+        if ($this->signedWriteGrant !== null) $this->signedWriteGrant['registered'] = true;
+        return $result;
     }
 
     public function switchTo(
         string $target, ?string $expectedCurrent, int $expectedSequence,
         string $externalMinVersion, ?string $failAt = null
     ): array {
-        return $this->exclusive(function () use ($target,$expectedCurrent,$expectedSequence,$externalMinVersion,$failAt): array {
+        $this->demandSignedSwitch($target,$expectedCurrent,$expectedSequence,$externalMinVersion);
+        $result = $this->exclusive(function () use ($target,$expectedCurrent,$expectedSequence,$externalMinVersion,$failAt): array {
             $view = $this->inspect($externalMinVersion);
             if ($view['status'] !== 'clean') throw new RuntimeException('Unresolved activation intent');
             if ($view['current'] !== $expectedCurrent || $view['sequence'] !== $expectedSequence) {
@@ -499,6 +634,8 @@ final class LabPhpGenerationSwitcher
             unlink($this->file('switch-intent.json'));
             return $this->inspect($externalMinVersion);
         });
+        if ($this->signedWriteGrant !== null) $this->signedWriteGrant['switched'] = true;
+        return $result;
     }
 
     /**
@@ -531,6 +668,7 @@ final class LabPhpGenerationSwitcher
         string $expectedStatus, string $externalMinVersion
     ): array {
         self::requireCI(); // A public HTTP request cannot remove any operator lock.
+        $this->demandUnsealedRecovery();
         $this->assertRoot();
         if (!in_array($expectedStatus, [
             'pending-before-switch','pending-after-switch','committed-needs-cleanup'
@@ -632,6 +770,7 @@ final class LabPhpGenerationSwitcher
 
     public function recover(string $mode, string $externalMinVersion): array
     {
+        $this->demandUnsealedRecovery();
         return $this->exclusive(function () use ($mode,$externalMinVersion): array {
             $view = $this->inspect($externalMinVersion);
             if ($view['status'] === 'pending-before-switch' && $mode === 'abort') {
