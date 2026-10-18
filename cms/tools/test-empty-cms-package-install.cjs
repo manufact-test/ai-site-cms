@@ -62,17 +62,8 @@ function write(file,data) {
   fs.writeFileSync(file,data,{mode:0o600});
 }
 function inspect(cms) {
-  const result=php(path.join(cms,'bin/package-preflight.php'),
+  return php(path.join(cms,'bin/package-preflight.php'),
     ['--check','--package-root='+cms]);
-  if(result.status!==0){
-    const diagnostic=php('-r',[
-      'require $argv[1]; try {\\AiSiteCms\\Hosting\\PackageArtifactVerifier::verify($argv[2]);} catch (Throwable $e) {fwrite(STDERR,$e->getMessage());exit(1);}',
-      path.join(cms,'src/Hosting/PackageArtifactVerifier.php'),cms
-    ]);
-    // Generic failure category only: no filesystem paths or credentials.
-    result.stderr+=' [CI category: '+diagnostic.stderr+']';
-  }
-  return result;
 }
 function install(cms,db,siteId,mode='apply') {
   return php(path.join(cms,'bin/install.php'),['--'+mode],{
