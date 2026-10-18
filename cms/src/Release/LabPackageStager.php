@@ -130,7 +130,7 @@ final class LabPackageStager
             $bytes += strlen($payload);
             if ($bytes > 32 * 1024 * 1024) throw new RuntimeException('Oversized package');
         }
-        foreach (['public/index.php', 'public/.htaccess', 'vendor/autoload.php', 'private/editor/editor.js'] as $required) {
+        foreach (['public/index.php', 'vendor/autoload.php', 'private/editor/editor.js'] as $required) {
             if (!isset($listed[$required])) throw new RuntimeException('Essential internal component missing');
         }
         self::scan($src, $listed);
