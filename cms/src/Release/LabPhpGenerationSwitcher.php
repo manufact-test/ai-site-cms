@@ -475,10 +475,14 @@ final class LabPhpGenerationSwitcher
                 'digest'=>$releases[$target]['digest']];
             $this->writeFresh('switch-intent.json', $intent);
             if ($failAt === 'after-intent') throw new RuntimeException('Injected failure after intent');
+            // SIGKILL test: the supervising CI process must terminate this CLI
+            // operator after it observes the durable journal on disk.
+            if ($failAt === 'pause-after-intent') usleep(15000000);
             $pointer = ['format'=>self::FORMAT,'current'=>$target,'previous'=>$expectedCurrent,
                 'sequence'=>$expectedSequence+1,'kind'=>$kind];
             $this->writeAtomic('active.json', $pointer);
             if ($failAt === 'after-pointer') throw new RuntimeException('Injected failure after pointer');
+            if ($failAt === 'pause-after-pointer') usleep(15000000);
             $this->writeAtomic('active-receipt.json', ['format'=>self::FORMAT,
                 'sequence'=>$pointer['sequence'],'pointerSha256'=>self::pointerHash($pointer)]);
             if ($failAt === 'after-receipt') throw new RuntimeException('Injected failure after receipt');
@@ -504,6 +508,54 @@ final class LabPhpGenerationSwitcher
                 $target, $expectedCurrent, $expectedSequence, $externalMinVersion, $failAt
             )
         );
+    }
+
+    /**
+     * Manual repair of a stale process-killed mkdir lock. The kernel-level
+     * lease MUST be freely and exclusively acquirable: never steal from a live
+     * request/operator. Independently verify expected journal and CAS state.
+     * Cannot repair hostile temporary state or silently finalize a switch.
+     */
+    public function releaseStaleOperatorLock(
+        ?string $expectedCurrent, int $expectedSequence,
+        string $expectedStatus, string $externalMinVersion
+    ): array {
+        self::requireCI(); // A public HTTP request cannot remove any operator lock.
+        $this->assertRoot();
+        if (!in_array($expectedStatus, [
+            'pending-before-switch','pending-after-switch','committed-needs-cleanup'
+        ], true)) {
+            throw new RuntimeException('Explicit pending journal status needed for lock repair');
+        }
+        $lease = $this->acquireLease(LOCK_EX);
+        try {
+            $lock = $this->file('switch-exclusive.lock');
+            $stat = @lstat($lock);
+            if ($stat === false || is_link($lock) || !is_dir($lock)
+                || count(scandir($lock) ?: []) !== 2) {
+                throw new RuntimeException('Unsafe or missing crashed operator lock');
+            }
+            $this->locked = true;
+            try {
+                $state = $this->inspect($externalMinVersion);
+                if ($state['status'] !== $expectedStatus
+                    || $state['current'] !== $expectedCurrent
+                    || $state['sequence'] !== $expectedSequence) {
+                    throw new RuntimeException('Operator lock recovery CAS mismatch');
+                }
+            } finally {
+                $this->locked = false;
+            }
+            $fresh = @lstat($lock);
+            if ($fresh === false || is_link($lock) || !is_dir($lock)
+                || $fresh['ino'] !== $stat['ino'] || $fresh['dev'] !== $stat['dev']
+                || count(scandir($lock) ?: []) !== 2 || !rmdir($lock)) {
+                throw new RuntimeException('Stale operator lock changed during recovery');
+            }
+            return $this->inspect($externalMinVersion);
+        } finally {
+            self::releaseLease($lease);
+        }
     }
 
     public function recover(string $mode, string $externalMinVersion): array
