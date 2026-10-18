@@ -71,6 +71,12 @@ jobs:
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
         run: php tests/lab-foundation-checkpoint.php
+      - name: Unified fully signed 429-file ZIP and DB checkpoint guarded PHP generation activation
+        working-directory: cms
+        env:
+          CMS_ALLOW_PHP_INSTALL_LAB: '1'
+          CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
+        run: node tools/test-lab-trusted-upgrade.cjs
       - name: Exercise immutable lab release staging, fault injection and rollback
         working-directory: cms
         run: node tools/test-lab-rollout.cjs
