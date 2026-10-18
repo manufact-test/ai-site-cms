@@ -52,3 +52,8 @@ Read-only `cms/bin/doctor.php` validates PHP 8.1+, required extensions and an ex
 ## Implementation v1.35 — no automatic recovery from corrupted/incomplete migrations
 
 Stage2 adds `SchemaManager::inspectSite` with a separate read-only CLI report and explicit dedicated-database table allowlist. Ephemeral MySQL8.4 negative tests prove refusal of foreign schema and incomplete v1/v2 journal, **not** genuine backup/restore or crash-recovery. [Proof/report](../STAGE-2-RECOVERY-PREFLIGHT.md), [CI 7/7](https://github.com/manufact-test/ai-site-cms/actions/runs/39132640890). Operator must preserve original data and seek reviewed backup/restore plan; never silently reset migration journal. Target Hostinger untested. Stage2 remains unaccepted.
+
+
+## Update v1.36 — isolated foundation metadata restore is NOT full production backup
+
+A new [FoundationSnapshot.php](../../cms/src/Storage/FoundationSnapshot.php) can serialize validated site identifier/v2 schema/storage generation and rehearse restoration in a separate **test-only** empty SQLite or dedicated MySQL CI database. [CI 7/7](https://github.com/manufact-test/ai-site-cms/actions/runs/39134298097) includes SQLite47 and MySQL13 restoration assertions. This does **not** fulfill CMS site/media/owner changes backups, authenticated restore, offsite retention, live DDL recovery or Hostinger compatibility. [ADR0004](0004-foundation-backup-restore.md) and [report](../STAGE-2-FOUNDATION-RESTORE.md). Stage2 is still NOT accepted.
