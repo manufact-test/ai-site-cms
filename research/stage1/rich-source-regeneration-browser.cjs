@@ -29,7 +29,7 @@ function cssReplace(css,gutter){
 function htmlFrom(sourceCode,values,parse5){
  if(typeof sourceCode!=='string'||sourceCode.length>85000)throw Error('source-size');
  const errors=[];
- const doc=parse5(sourceCode,{onParseError:e=>errors.push(e.code)});
+ const doc=parse5.parse(sourceCode,{onParseError:e=>errors.push(e.code)});
  if(errors.length)throw Error('invalid-original-html: '+errors.slice(0,3).join(','));
  const index=new Map(),duplicates=[];
  const walk=n=>{
@@ -132,7 +132,7 @@ function mutateV2(v){
 function mutateUnsafe(v){return v.replace('id="hero-title"','id="hero-title" onmouseover="parent.evil=true"')
  .replace('</body>','<script>parent.evil=true</script></body>');}
 async function main(){
- parseRef=(await import('parse5')).parse;
+ parseRef=await import('parse5');
  const store=createResearchStore(source);
  let pub=store.get('published');
  eq(pub.revision,1);eq(store.publishedHistory().length,1);
