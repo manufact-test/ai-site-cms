@@ -121,8 +121,8 @@ let parseRef;
 function mutateV2(v){
  const a='<article id="card-soil"><h2 id="soil-title">Soil chemistry</h2><p id="soil-desc">Measurements beneath the canopy.</p></article>';
  const b='<article id="card-wind"><h2 id="wind-title">Wind patterns</h2><p id="wind-desc">How the ridge changes airflow.</p></article>';
- if(!v.includes(a+b))throw Error('source mutation marker absent');
- return v.replace(a+b,b+a)
+ if(!v.includes(a+'\n'+b))throw Error('source mutation marker absent');
+ return v.replace(a+'\n'+b,b+'\n'+a)
   .replace('Signals in the forest.','Listening to a changing forest.')
   .replace('Read field notes','Explore the journal')
   .replace('Monthly field notes','Research updates')
