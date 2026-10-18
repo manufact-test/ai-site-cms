@@ -510,9 +510,23 @@ try{
     'operator rejection of stale permit leaves prior signed settlement intact');
   denied(['raw-rollback',db,authorizedRoot,v1],
     'sealed version pointer refuses direct laboratory rollback without fresh signed permit');
+  const sealFile=path.join(authorizedRoot,'signed-only.json');
+  const authenticSeal=fs.readFileSync(sealFile);
+  fs.unlinkSync(sealFile);
+  denied(['raw-rollback',db,authorizedRoot,v1],
+    'deleting signed-only policy cannot downgrade sealed generation to unprotected legacy switch');
+  denied(settledRead(approvedHead2,settlementHead2),
+    'sealed root rejects read while protected policy file is absent');
+  fs.writeFileSync(sealFile,authenticSeal,{flag:'wx',mode:0o600});
+  const leasePath=path.join(authorizedRoot,'request-lease.lock');
+  const originalAnchor=fs.readFileSync(leasePath);
+  fs.writeFileSync(leasePath,Buffer.from('ai-site-cms-php-lease-v1\n'));
+  denied(['raw-rollback',db,authorizedRoot,v1],
+    'downgrading sealed lease marker to legacy lease is rejected');
+  fs.writeFileSync(leasePath,originalAnchor);
   ok(success(settledRead(approvedHead2,settlementHead2),'untouched sealed release').sequence===2,
-    'direct raw switch rejected before changing settled authenticated active version');
-  ok(count>=150,'signed-only preactivation, receipt, settlement and crash checks executed');
+    'direct raw switch and seal-deletion downgrade rejected before changing active version');
+  ok(count>=155,'signed-only preactivation, receipt, settlement and crash checks executed');
 
   console.log('Stage2 Ed25519 ZIP -> safe extraction -> native PHP -> DB checkpoint -> CAS PASS: '+
     count+' checks; '+first.files+' files; CI disposable only, no real host or data migrations');
