@@ -29,6 +29,7 @@ function makeFixture(string $path): string {
     }
     $files = [
         'public/index.php' => '<?php echo "ok";',
+        'public/.htaccess' => 'FallbackResource /index.php',
         'vendor/autoload.php' => '<?php // simulated Composer autoload',
         'private/editor/editor.js' => '(() => {})();',
         'composer.json' => '{"require":{}}',
@@ -67,7 +68,7 @@ $hash = makeFixture($source);
 $labRoots = [];
 try {
     $valid = Lab::verifyPackage($source, $hash);
-    labOk($valid['files'] === 4 && $valid['version'] === '0.2.0-stage2.1',
+    labOk($valid['files'] === 5 && $valid['version'] === '0.2.0-stage2.1',
         'verified synthetic internal package');
     labReject(static fn () => Lab::verifyPackage($source, str_repeat('0', 64)),
         'unknown supplied package digest');

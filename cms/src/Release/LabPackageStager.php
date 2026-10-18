@@ -130,7 +130,7 @@ final class LabPackageStager
             $bytes += strlen($payload);
             if ($bytes > 32 * 1024 * 1024) throw new RuntimeException('Oversized package');
         }
-        foreach (['public/index.php', 'vendor/autoload.php', 'private/editor/editor.js'] as $required) {
+        foreach (['public/index.php', 'public/.htaccess', 'vendor/autoload.php', 'private/editor/editor.js'] as $required) {
             if (!isset($listed[$required])) throw new RuntimeException('Essential internal component missing');
         }
         self::scan($src, $listed);
@@ -145,7 +145,8 @@ final class LabPackageStager
         foreach (explode('/', $relative) as $part) {
             if ($part === '' || $part === '.' || $part === '..'
                 || !preg_match('/^[a-zA-Z0-9._-]+$/D', $part)
-                || preg_match('/^(?:\.env(?:\..*)?|\.git|\.ssh|\.htaccess|\.user\.ini)$/iD', $part)) {
+                || (preg_match('/^(?:\.env(?:\..*)?|\.git|\.ssh|\.htaccess|\.user\.ini)$/iD', $part)
+                    && $relative !== 'public/.htaccess')) {
                 throw new RuntimeException('Unsafe path component');
             }
         }
