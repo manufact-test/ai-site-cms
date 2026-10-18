@@ -17,6 +17,7 @@ const PARTS = [
   ['bin/package-preflight.php', 'bin/package-preflight.php'],
   ['bin/startup-readiness.php', 'bin/startup-readiness.php'],
   ['bin/bind-empty-instance.php', 'bin/bind-empty-instance.php'],
+  ['bin/lab-empty-installer.php', 'bin/lab-empty-installer.php'],
   ['composer.json', 'composer.json'], ['composer.lock', 'composer.lock'],
   ['editor/dist/editor.js', 'private/editor/editor.js'],
   ['editor/dist/meta.json', 'private/editor/meta.json'],

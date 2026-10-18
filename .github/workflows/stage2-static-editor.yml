@@ -5,6 +5,8 @@ on:
     paths:
       - 'cms/editor/**'
       - 'cms/tools/**'
+      - 'cms/bin/**'
+      - 'cms/tests/**'
       - 'cms/src/**'
       - 'cms/public/**'
       - 'cms/composer.json'
@@ -53,6 +55,9 @@ jobs:
       - name: Bind two empty CMS installations to separate websites, database IDs and package digests, real HTTP and adversaries
         working-directory: cms
         run: node tools/test-empty-cms-instance-binding.cjs
+      - name: Full 5-family CMS operator plan/apply/recovery, concurrent install and independent live HTTP integration
+        working-directory: cms
+        run: node tools/test-stage2-full-empty-installer.cjs
       - name: Independently verify and install full 429-file package with PHP-only temp journal
         working-directory: cms
         env:
