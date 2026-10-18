@@ -40,7 +40,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader
       - name: Read-only mixed-technology installation topology and isolation tests
         working-directory: cms
-        run: php tests/site-runtime-topology.php
+        run: php tests/site-runtime-topology.php && php tests/site-runtime-cli.php
       - name: Assemble safe internal package with private editor assets
         working-directory: cms
         run: node tools/build-internal-package.cjs && node tools/test-internal-package.cjs
