@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Continue Stage2 (IN PROGRESS, NOT ACCEPTED): architect an enforced non-bypassable production future upgrade entrypoint and externally retained signature/DB proof; PHP-FPM/OPcache, real power-loss, full site data/media backup and rollback, and shared-host compatibility remain unproven. No Hostinger even read-only without separate explicit authorization. 0/135 product acceptance.",
+  "next_step": "Stage2 still IN PROGRESS and NOT ACCEPTED: move from CI-only signed operator receipt read gate to design of single enforced production-oriented activation entrypoint with preauthorization, durable independent trust head, explicit crash reconciliation. Existing raw lab paths remain bypassable; 0/135 product acceptance. Never contact Hostinger without separate permission.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.39",
+  "checkpoint_version": "1.40",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -53,8 +53,8 @@
       "Idempotent same-site initialization",
       "Refuses database reuse by different site identity"
     ],
-    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39149669381",
-    "last_full_ci_result": "7/7 SUCCESS (PHP 8.1-8.4, SQLite, isolated MySQL 8.4) at source SHA 6ca20882232d262a2fe37b909918a7ac68d7f287",
+    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39151122738",
+    "last_full_ci_result": "7/7 SUCCESS PHP 8.1-8.4, SQLite, isolated MySQL 8.4 at source SHA 0a9ed93201f32fa4746d2ccac1d69785e0491fcb",
     "last_full_ci_checks": {
       "kernel_smoke": 10,
       "sqlite_schema_checks": 37,
@@ -97,8 +97,8 @@
       "ci_result": "success 1/1 job, pinned deps, npm audit, browser integration and reproducible JS build",
       "artifact_id": 12137545566
     },
-    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39149669381",
-    "latest_php_ci_result": "7/7 SUCCESS (PHP 8.1-8.4, SQLite, isolated MySQL 8.4) at source SHA 6ca20882232d262a2fe37b909918a7ac68d7f287",
+    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39151122738",
+    "latest_php_ci_result": "7/7 SUCCESS PHP 8.1-8.4, SQLite, isolated MySQL 8.4 at source SHA 0a9ed93201f32fa4746d2ccac1d69785e0491fcb",
     "package_research": {
       "internal_only": true,
       "production_ready": false,
@@ -148,8 +148,8 @@
       "matrix_and_integration_job_count": 7,
       "passed": 7
     },
-    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39149669508",
-    "latest_editor_ci_result": "1/1 SUCCESS full 429-file package with signed ZIP -> PHP -> SQLite checkpoint -> generation CAS plus browser/security",
+    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39151122684",
+    "latest_editor_ci_result": "1/1 SUCCESS full compiled package plus independent signed operator activation chain, after source SHA 0a9ed93201f32fa4746d2ccac1d69785e0491fcb",
     "storage_safety_preflight": {
       "implementation": "cms/src/Storage/SchemaManager.php::inspectSite, cms/bin/schema-preflight.php --inspect",
       "supported_drivers": [
@@ -285,6 +285,31 @@
       ],
       "stage2_accepted": false,
       "mandatory_product_accepted": 0
+    },
+    "attested_activation_chain_lab": {
+      "checkpoint": "v1.40 2026-10-18",
+      "source_commit": "0a9ed93201f32fa4746d2ccac1d69785e0491fcb",
+      "report": "docs/STAGE-2-ATTESTED-ACTIVATION-CHAIN.md",
+      "adr": "docs/ADR/0008-stage2-independent-operator-activation-receipts.md",
+      "implementation": "cms/src/Release/LabAttestedActivationGate.php",
+      "tests": "cms/tools/test-lab-trusted-upgrade.cjs",
+      "ci_php_7_of_7": "https://github.com/manufact-test/ai-site-cms/actions/runs/39151122738",
+      "ci_editor_1_of_1": "https://github.com/manufact-test/ai-site-cms/actions/runs/39151122684",
+      "features": [
+        "out-of-band Ed25519 operator receipt signing, entirely outside PHP and code slot",
+        "independent signer pin, publisher pin, and latest signed-chain head required",
+        "contiguous SHA-256 hash-linked signatures, version/floor/sequence anti-replay",
+        "guarded PHP read binds actual code CAS state plus installed manifest plus foundation DB snapshot",
+        "validly signed but inconsistent receipts or direct raw low-level rollback fail closed only on the new guarded read"
+      ],
+      "limits": [
+        "NO mandatory production upgrade entrypoint; raw lab APIs remain available",
+        "NO physical tamper-proof external trust store or durable hardware-backed monotonic counter",
+        "No actual PHP-FPM/OPcache, site content backup, real power loss or Hostinger validation",
+        "No actual publisher identity or operator key custody",
+        "Stage2 not accepted, product requirements accepted 0/135"
+      ],
+      "production_ready": false
     }
   },
   "total_stages": 18,
@@ -318,7 +343,7 @@
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
   "reuse_policy": "Internal agency tool with client-facing admin access; reuse permissively licensed open-source components or fragments (including substantial modified parts), comply with original notices; avoid restrictive/GPL/AGPL by default.",
   "hosting_policy": "Keep current PHP shared hosting; no hosting upgrades without owner's later approval; Node allowed for offline asset builds only.",
-  "documentation_update_policy": "Update only after owner explicitly requests handoff or after a genuinely large milestone; docs/NEXT-CHAT.md §43 is canonical.",
+  "documentation_update_policy": "Update only after owner explicitly requests handoff or after a genuinely large milestone; docs/NEXT-CHAT.md §45 is canonical.",
   "selected_technology": {
     "option": "A",
     "php_backend": "Slim 4",
