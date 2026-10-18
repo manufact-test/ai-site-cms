@@ -146,6 +146,7 @@ final class LabSettledUpgradeGate
         $lastSettlement = null;
         $lastReceipt = null;
         $lastVersion = null;
+        $lastPermit = null;
         $last = null;
         $lastReceiptRecord = null;
         for ($i = 1; $i <= $count; ++$i) {
@@ -208,6 +209,7 @@ final class LabSettledUpgradeGate
             $lastSettlement = hash('sha256', self::DOMAIN . $raw . $sig);
             $lastReceipt = $receiptHash;
             $lastVersion = $r['version'];
+            $lastPermit = $p;
             $last = $r;
             $lastReceiptRecord = $post;
         }
@@ -216,6 +218,7 @@ final class LabSettledUpgradeGate
             throw new RuntimeException('Independent settlement or receipt highwater mismatch');
         }
         return ['count'=>$count,'headSha256'=>$lastSettlement,
+            'permitRootSha256'=>$lastPermit['switchRootSha256'],
             'receipt'=>$lastReceiptRecord,'settlement'=>$last];
     }
 
@@ -234,6 +237,9 @@ final class LabSettledUpgradeGate
         LabPreauthorizedUpgradeGate::assertNoPending($pending);
         $verified = self::verify($settlements,$receipts,$permits,$operatorPem,
             $operatorPin,$publisherPin,$receiptHead,$settlementHead,$siteId);
+        if (!hash_equals($verified['permitRootSha256'], hash('sha256',$switcher->root()))) {
+            throw new RuntimeException('Settled operator grant targets another switcher root');
+        }
         return LabAttestedActivationGate::withVerifiedRequest(
             $pdo,$siteId,$switcher,$receipts,$operatorPem,$operatorPin,
             $receiptHead,$publisherPin,
@@ -245,6 +251,7 @@ final class LabSettledUpgradeGate
                 $again = self::verify($settlements,$receipts,$permits,$operatorPem,
                     $operatorPin,$publisherPin,$receiptHead,$settlementHead,$siteId);
                 if ($verified['headSha256'] !== $again['headSha256']
+                    || $verified['permitRootSha256'] !== $again['permitRootSha256']
                     || $verified['count'] !== $generation['sequence']) {
                     throw new RuntimeException('Settlement changed while serving protected request');
                 }
