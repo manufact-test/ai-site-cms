@@ -57,6 +57,11 @@ jobs:
       - name: Cross-process update exclusion and hostile filesystem laboratory
         working-directory: cms
         run: node tools/test-lab-concurrency-corruption.cjs
+      - name: Verify read-only startup gate and operator recovery after partial code loss
+        working-directory: cms
+        env:
+          CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
+        run: node tools/test-lab-startup-integrity.cjs
       - name: Check packaged document root by HTTP and block private package files
         working-directory: cms
         run: |
