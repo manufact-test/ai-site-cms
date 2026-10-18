@@ -22,6 +22,18 @@ final class LabInstallationFleet
     private const MAX_INSTANCES = 12;
     private const MAX_DOCUMENT_BYTES = 65536;
 
+    private static function requireCiOperator(): void
+    {
+        // Unlike the per-site installer, a fleet derives each site's env
+        // from a declarative file. It must STILL require a real externally
+        // opted-in laboratory process. Never synthesize this authorization.
+        if (getenv('CMS_ENV') !== 'test'
+            || getenv('CMS_STAGE2_RUNTIME_GATE') !== 'ci-bound'
+            || getenv('CMS_ALLOW_SQLITE_TEST_ONLY') !== '1') {
+            throw new RuntimeException('Explicit CI-only fleet operator grant required');
+        }
+    }
+
     private static function keys(array $value, array $expected): bool
     {
         $actual = array_keys($value);
@@ -196,6 +208,7 @@ final class LabInstallationFleet
      */
     public static function plan(array $document): array
     {
+        self::requireCiOperator();
         $instances = self::validate($document);
         $items = [];
         $inputs = [];
@@ -233,6 +246,7 @@ final class LabInstallationFleet
      */
     public static function apply(array $document, string $approval): array
     {
+        self::requireCiOperator();
         if (PHP_SAPI !== 'cli' || !preg_match('/\A[a-f0-9]{64}\z/D', $approval)) {
             throw new RuntimeException('Fleet apply requires explicit 64-hex approval');
         }
