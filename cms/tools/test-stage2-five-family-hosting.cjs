@@ -95,6 +95,7 @@ function serverBlock(listen,hostname,root,rules){
 }
 function cmsRules(x,upstream){
  return [
+  'location ~ /\\. { return 404; }',
  'location / { try_files $uri /index.php$is_args$args; }',
  'location ~ \\.php(?:/|$) { return 404; }',
  'location = /index.php {','internal;',
@@ -114,6 +115,7 @@ function cmsRules(x,upstream){
 }
 function phpVisitorRules(x,upstream){
  return [
+  'location ~ /\\. { return 404; }',
  'location / { try_files $uri /index.php$is_args$args; }',
  'location ~ \\.php(?:/|$) { return 404; }',
  'location = /index.php {','internal;',
@@ -126,6 +128,7 @@ function phpVisitorRules(x,upstream){
 }
 function staticRules(x){
  return [
+  'location ~ /\\. { return 404; }',
  'location ~ \\.(?:php|phtml|phar|sqlite|db|sql|bak|map)$ { return 404; }',
  // Missing file extensions never get successful SPA HTML fallback.
  'location ~ \\.[a-zA-Z0-9]+$ { try_files $uri =404; }',
@@ -136,6 +139,7 @@ function staticRules(x){
 }
 function nodeProxyRules(upstream){
  return [
+  'location ~ /\\. { return 404; }',
  'location ~ /(?:private|vendor|src|bin)(?:/|$) { return 404; }',
  'location ~ \\.(?:php|phtml|phar|env|sqlite|db|sql|bak|json|pem|key)$ { return 404; }',
  'location / {','proxy_http_version 1.1;',

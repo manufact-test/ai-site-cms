@@ -104,6 +104,7 @@ function ngConfig(dir,sites,ports){
    'server_name cms-'+x.name+'.lab.test;',
    'root '+x.cms+'/public;',
    'autoindex off;','disable_symlinks on;',
+   'location ~ /\\. { return 404; }',
    'location / { try_files $uri /index.php$is_args$args; }',
    'location ~ \\.php(?:/|$) { return 404; }',
    'location = /index.php {',
@@ -127,6 +128,7 @@ function ngConfig(dir,sites,ports){
    'server_name site-'+x.name+'.lab.test;',
    'root '+x.site+'/public;',
    'autoindex off;','disable_symlinks on;',
+   'location ~ /\\. { return 404; }',
    'location ~ \\.(?:php|phtml|phar|env|sqlite|db|sql)$ { return 404; }',
    // Do not report successful SPA HTML for missing .json/.js/assets.
    'location ~ \\.[A-Za-z0-9]+$ { try_files $uri =404; }',

@@ -30,7 +30,7 @@ jobs:
       - name: PHP syntax (all source/test/installer files)
         run: find src tests bin public -name '*.php' -print -exec php -l {} \;
       - name: Syntax-check real FPM + Nginx isolated webserver integration harness
-        run: node --check tools/test-stage2-fpm-isolation.cjs && node --check tools/test-stage2-five-family-hosting.cjs
+        run: node --check tools/test-stage2-fpm-isolation.cjs && node --check tools/test-stage2-five-family-hosting.cjs && node --check tools/test-stage2-apache-hosting.cjs
       - name: Read-only hosting compatibility doctor, negative fixtures and CLI
         run: php tests/doctor.php && php bin/doctor.php --check --document-root=public
       - name: Shared-host PHP/FPM/Apache offline boundary and negative fixtures

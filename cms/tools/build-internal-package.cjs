@@ -89,7 +89,7 @@ function verify(root=STAGE){
   visit(root);
   const extra=discovered.filter(p=>p!=='private/package-manifest.json'&&!listed.has(p));
   if(extra.length||discovered.length!==manifest.files.length+1)throw Error('Unlisted/removed package file(s): '+extra.join(','));
-  if(listed.has('public/editor.js')||!listed.has('private/editor/editor.js')||!listed.has('vendor/autoload.php')||!listed.has('public/index.php')){
+  if(!listed.has('public/.htaccess')||listed.has('public/editor.js')||!listed.has('private/editor/editor.js')||!listed.has('vendor/autoload.php')||!listed.has('public/index.php')){
     throw Error('Editor exposure or missing executable package essentials');
   }
   const compliance=JSON.parse(fs.readFileSync(path.join(root,'private/compliance/compliance-index.json'),'utf8'));

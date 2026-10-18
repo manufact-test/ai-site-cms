@@ -82,6 +82,12 @@ jobs:
         run: |
           node --check tools/test-stage2-five-family-hosting.cjs
           node tools/test-stage2-five-family-hosting.cjs
+      - name: Apache 2.4 shared-host FallbackResource, real isolated FPM instances and visitor sites, wrong overrides, tamper and recovery
+        working-directory: cms
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends apache2
+          node --check tools/test-stage2-apache-hosting.cjs
+          node tools/test-stage2-apache-hosting.cjs
       - name: Independently verify and install full 429-file package with PHP-only temp journal
         working-directory: cms
         env:

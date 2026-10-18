@@ -13,6 +13,8 @@ check(manifest.hostingComposerOrNodeRequired===false,'Static package needs no bu
 check(fs.existsSync(path.join(STAGE,'private/editor/editor.js')),'Bundled browser JS private');
 check(!fs.existsSync(path.join(STAGE,'public/editor.js')),'Public editor JS inaccessible');
 check(fs.existsSync(path.join(STAGE,'vendor/autoload.php')),'Composer runtime vendor included');
+check(manifest.files.some(x=>x.path==='public/.htaccess'),
+  'Apache fallback/security rules are fully inventoried in shipped public root');
 for(const dangerous of ['.env','../etc/shadow','private/../public/bad','storage/main.sqlite','private/editor/.npmrc','public/server.key']){
   assert.throws(()=>assertAllowed(dangerous));
   checks++;
@@ -23,6 +25,15 @@ const original=fs.readFileSync(filename);
 fs.appendFileSync(filename,'CORRUPTED');
 assert.throws(()=>verify(),/mismatch/);checks++;
 fs.writeFileSync(filename,original);check(verify().files.length===initial.files.length,'Restoration detects tamper and recovers');
+const ht=path.join(STAGE,'public','.htaccess');
+const htBefore=fs.readFileSync(ht);
+try{
+ fs.appendFileSync(ht,'\n# CI tampering\n');
+ assert.throws(()=>verify(),/mismatch/);
+ checks++;
+}finally{fs.writeFileSync(ht,htBefore);}
+check(verify().files.length===initial.files.length,
+ 'original Apache routing rules restore entire verified package');
 const garbage=path.join(STAGE,'public','extra-secret.txt');
 fs.writeFileSync(garbage,'UNLISTED');
 assert.throws(()=>verify(),/Unlisted/);checks++;
