@@ -37,6 +37,8 @@ jobs:
         run: php tests/site-runtime-topology.php && php tests/site-runtime-cli.php
       - name: Empty CMS read-only runtime readiness PHP identity, schema and safety
         run: php tests/startup-readiness.php
+      - name: CI-only instance binding refuses absent, mismatched or untrusted site configuration
+        run: php tests/lab-instance-binding.php
       - name: PHP-only dual-signature trust transitions and incomplete operator journal
         run: php tests/trust-chain.php
       - name: PHP-native Ed25519 signed release metadata and hostile inputs
@@ -189,6 +191,7 @@ jobs:
           php tests/site-runtime-topology.php
           php tests/site-runtime-cli.php
           php tests/startup-readiness.php
+          php tests/lab-instance-binding.php
           php tests/release-verifier.php
           php tests/trust-chain.php
           CMS_ALLOW_PHP_INSTALL_LAB=1 php tests/lab-package-stager.php

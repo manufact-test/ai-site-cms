@@ -34,7 +34,7 @@ final class EmptyCmsStartupReadiness
     public static function inspect(string $cmsRoot, array $env): array
     {
         // This Stage2 experiment must NEVER silently enable live MySQL access.
-        if (($env['CMS_STAGE2_RUNTIME_GATE'] ?? null) !== 'ci-only'
+        if (!in_array(($env['CMS_STAGE2_RUNTIME_GATE'] ?? null), ['ci-only','ci-bound'], true)
             || ($env['CMS_ENV'] ?? null) !== 'test'
             || ($env['CMS_ALLOW_SQLITE_TEST_ONLY'] ?? null) !== '1') {
             return self::result(false, 'test_gate_required');

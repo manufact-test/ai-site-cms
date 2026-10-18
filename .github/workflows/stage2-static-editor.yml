@@ -50,6 +50,9 @@ jobs:
       - name: Gated empty CMS boot with two isolated databases, real PHP HTTP and fail-closed scenarios
         working-directory: cms
         run: node tools/test-empty-cms-readiness.cjs
+      - name: Bind two empty CMS installations to separate websites, database IDs and package digests, real HTTP and adversaries
+        working-directory: cms
+        run: node tools/test-empty-cms-instance-binding.cjs
       - name: Independently verify and install full 429-file package with PHP-only temp journal
         working-directory: cms
         env:
