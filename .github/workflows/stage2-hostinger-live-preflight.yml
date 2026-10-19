@@ -106,6 +106,15 @@ jobs:
               checks.php81OrLater&&checks.json&&checks.pdo&&checks.pdoMysql&&
               checks.openssl&&(checks.webSapi||liteSpeedObserved),
               'Target PHP dependency check failed');
+            process.stdout.write('Target boolean capabilities: '+
+              JSON.stringify({
+                documentRootMatchesPublic:checks.documentRootMatchesPublicEntrypoint,
+                separateParentReadable:checks.privateParentExistsAndReadable,
+                separateParentAppearsWritable:checks.privateParentAppearsWritable,
+                httpsVisibleInPhp:checks.httpsVisibleToPhp,
+                pdoMysql:checks.pdoMysql,
+                openssl:checks.openssl
+              })+'\\n');
             const requests=[
               ['Private PHP vendor','/vendor/autoload.php',r=>[403,404].includes(r.status)],
               ['Private editor','/private/editor/editor.js',r=>[403,404].includes(r.status)],
