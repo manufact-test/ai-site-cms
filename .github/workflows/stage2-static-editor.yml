@@ -8,6 +8,7 @@ on:
       - 'cms/bin/**'
       - 'cms/tests/**'
       - 'cms/src/**'
+      - 'cms/hosting/**'
       - 'cms/public/**'
       - 'cms/composer.json'
       - 'cms/composer.lock'
@@ -99,6 +100,9 @@ jobs:
           node --check tools/stage2-target-https-check.cjs
           node --check tools/test-stage2-target-https-check.cjs
           node tools/test-stage2-target-https-check.cjs
+      - name: Hostinger deploy-only public PHP probe contract, no real hosting access
+        working-directory: cms
+        run: php -l hosting/hostinger-readonly/index.php && php tests/hostinger-target-preflight.php
       - name: Lab-only strict actual FastCGI mapping source contract
         working-directory: cms
         run: php tests/lab-web-sapi-mapping.php

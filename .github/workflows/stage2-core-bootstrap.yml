@@ -93,6 +93,8 @@ jobs:
           node --check tools/stage2-target-https-check.cjs
           node --check tools/test-stage2-target-https-check.cjs
           node tools/test-stage2-target-https-check.cjs
+      - name: Hostinger readonly target PHP preflight contract, no network or credentials
+        run: php tests/hostinger-target-preflight.php && php -l hosting/hostinger-readonly/index.php
       - name: Verify health only, no exposed write routes
         run: composer test
       - name: HTTP public route boundary

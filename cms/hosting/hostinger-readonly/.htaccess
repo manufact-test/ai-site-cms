@@ -1,0 +1,16 @@
+# Stage2 host capabilities ONLY. Not a CMS / no secrets in this Git branch.
+Options -Indexes -MultiViews -FollowSymLinks
+DirectoryIndex index.php
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+<FilesMatch "^(?!index\.php$).+\.(?:php|phtml|phar|cgi|pl)$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "\.(?:sql|bak|db|sqlite|ini|env|pem|key|log|p12|pfx)$">
+    Require all denied
+</FilesMatch>
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]
