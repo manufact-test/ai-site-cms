@@ -80,6 +80,12 @@ jobs:
           node --check tools/stage2-owner-decision.cjs
           node --check tools/test-stage2-review-dossier.cjs
           node tools/test-stage2-review-dossier.cjs
+      - name: Signed real package operator handoff and owner evidence verification, independent key pin and tamper/replay refusal
+        working-directory: cms
+        run: |
+          node --check tools/stage2-evidence-bundle.cjs
+          node --check tools/test-stage2-signed-evidence.cjs
+          node tools/test-stage2-signed-evidence.cjs
       - name: Read-only HTTPS observation and independent visitor outage against loopback-only TLS fixtures
         working-directory: cms
         run: |

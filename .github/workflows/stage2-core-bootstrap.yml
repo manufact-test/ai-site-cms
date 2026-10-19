@@ -80,6 +80,8 @@ jobs:
         run: |
           node --check tools/stage2-license-dossier.cjs
           node --check tools/stage2-owner-decision.cjs
+          node --check tools/stage2-evidence-bundle.cjs
+          node --check tools/test-stage2-signed-evidence.cjs
           node --check tools/test-stage2-review-dossier.cjs
       - name: Permission-scoped read-only HTTPS probe with two independent disposable TLS site pairs
         run: |
