@@ -73,6 +73,12 @@ jobs:
       - name: Target-host read-only handoff on five independent visitor site families; no real target access
         working-directory: cms
         run: php tests/stage2-target-handoff-contract.php && node tools/test-stage2-target-host-handoff.cjs
+      - name: Operator-side explicit read-only HTTPS evidence, hostile endpoints and independent site outage (disposable local TLS)
+        working-directory: cms
+        run: |
+          node --check tools/stage2-target-https-check.cjs
+          node --check tools/test-stage2-target-https-check.cjs
+          node tools/test-stage2-target-https-check.cjs
       - name: Lab-only strict actual FastCGI mapping source contract
         working-directory: cms
         run: php tests/lab-web-sapi-mapping.php
