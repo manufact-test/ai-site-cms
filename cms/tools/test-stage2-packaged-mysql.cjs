@@ -285,33 +285,33 @@ async function realFpmMysql(instances,home){
   ok((await virtualHttp(listener,a,'/api/health')).code===200,
     'FPM startup recovers after explicit good binding restored');
   const writer=mysqlEnv(instances[0]);
-  const changes=run('php',['-r',\`
+  const changes=run('php',['-r',`
     $pdo=new PDO(getenv("CMS_DB_DSN"),getenv("CMS_DB_USER"),
       getenv("CMS_DB_PASSWORD"),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
     if ($argv[1]==="get") {echo $pdo->query(
       "SELECT checksum FROM cms_schema_migrations WHERE version=1")->fetchColumn();exit;}
     $stmt=$pdo->prepare("UPDATE cms_schema_migrations SET checksum=? WHERE version=1");
-    $stmt->execute([$argv[2]]);\`,
+    $stmt->execute([$argv[2]]);`,
     'get'],writer);
   ok(changes.status===0&&/^[a-f0-9]{64}$/.test(changes.stdout.trim()),
     'dedicated installer MySQL user can read original disposable schema checksum');
   const originalChecksum=changes.stdout.trim();
-  const corrupt=run('php',['-r',\`
+  const corrupt=run('php',['-r',`
     $pdo=new PDO(getenv("CMS_DB_DSN"),getenv("CMS_DB_USER"),
       getenv("CMS_DB_PASSWORD"),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
     $stmt=$pdo->prepare("UPDATE cms_schema_migrations SET checksum=? WHERE version=1");
-    $stmt->execute([$argv[1]]);\`,'0'.repeat(64)],writer);
+    $stmt->execute([$argv[1]]);`,'0'.repeat(64)],writer);
   ok(corrupt.status===0,'fault injected into first dedicated disposable MySQL schema');
   ok((await virtualHttp(listener,a,'/api/health')).code===503,
     'actual PHP-FPM fails closed when bound MySQL migration checksum is corrupted');
   ok((await virtualHttp(listener,b,'/api/health')).code===200
       &&(await virtualHttp(listener,va,'/')).code===200,
       'unaffected PHP-FPM and visitor continue during MySQL schema outage');
-  const restore=run('php',['-r',\`
+  const restore=run('php',['-r',`
     $pdo=new PDO(getenv("CMS_DB_DSN"),getenv("CMS_DB_USER"),
       getenv("CMS_DB_PASSWORD"),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
     $stmt=$pdo->prepare("UPDATE cms_schema_migrations SET checksum=? WHERE version=1");
-    $stmt->execute([$argv[1]]);\`,originalChecksum],writer);
+    $stmt->execute([$argv[1]]);`,originalChecksum],writer);
   ok(restore.status===0
     &&(await virtualHttp(listener,a,'/api/health')).code===200,
     'FPM/MySQL returns to 200 after authorized disposable metadata recovery');
