@@ -193,6 +193,10 @@ function render(packet){
 function readEvidence(file){
   if(typeof file!=='string'||file.length>4096||!path.isAbsolute(file)||
     fs.lstatSync(file).isSymbolicLink())throw Error('Unsafe operator supplied evidence');
+  const parent=path.dirname(file),parentStat=fs.lstatSync(parent);
+  if(!parentStat.isDirectory()||parentStat.isSymbolicLink()
+    ||fs.realpathSync(parent)!==parent||(parentStat.mode&0o077)!==0)
+    throw Error('Unsafe operator evidence directory');
   const st=fs.lstatSync(file);
   if(!st.isFile()||st.nlink!==1||st.size<5||st.size>262144|| (st.mode&0o077)!==0)
     throw Error('Unprotected operator supplied evidence');
