@@ -83,7 +83,8 @@ async function main(){
  let provisioned=false;
  try{
   const setup=manage('--provision');
-  ok(setup.status===0 && setup.stdout.trim()==='STAGE2_PACKAGED_MYSQL_PROVISIONED',
+  if(setup.status!==0)throw Error('Ephemeral MySQL operator refused at stage: '+setup.stderr.trim());
+  ok(setup.stdout.trim()==='STAGE2_PACKAGED_MYSQL_PROVISIONED',
     'two new independent dedicated DB/user pairs provisioned on disposable MySQL only');
   provisioned=true;
   const instances=pairs.map((x,i)=>{

@@ -14,8 +14,9 @@ if (PHP_SAPI!=='cli' || $argc!==2 || !in_array($action,['--provision','--cleanup
     || getenv('CMS_TEST_MYSQL_USER')!=='cms_ci'
     || getenv('CMS_TEST_MYSQL_DSN')!==
         'mysql:host=127.0.0.1;port=3306;dbname=ai_site_cms_ci;charset=utf8mb4') {
-    fwrite(STDERR,"STAGE2_PACKAGED_MYSQL_OPERATOR_REFUSED\n");exit(3);
+    fwrite(STDERR,"STAGE2_PACKAGED_MYSQL_OPERATOR_REFUSED_".strtoupper($stage)."\n");exit(3);
 }
+$stage='connect';
 try {
     $pdo=new PDO('mysql:host=127.0.0.1;port=3306;dbname=ai_site_cms_ci;charset=utf8mb4',
         'root',getenv('CMS_TEST_MYSQL_ROOT_PASSWORD'),[
@@ -23,6 +24,7 @@ try {
             PDO::ATTR_TIMEOUT=>3,
             PDO::ATTR_EMULATE_PREPARES=>false
         ]);
+    $stage='identity';
     if ($pdo->query("SELECT SUBSTRING_INDEX(CURRENT_USER(),'@',1)")->fetchColumn()!=='root'
         || $pdo->query('SELECT DATABASE()')->fetchColumn()!=='ai_site_cms_ci') {
         throw new RuntimeException('Wrong ephemeral MySQL identity');
@@ -31,6 +33,7 @@ try {
         ['ai_stage2_pkg_a_ci','stage2pkg_a_ci','disposable_stage2_a_ci'],
         ['ai_stage2_pkg_b_ci','stage2pkg_b_ci','disposable_stage2_b_ci']
     ];
+    $stage='sql-'.$action;
     if ($action==='--provision') {
         foreach ($pairs as [$db,$user,$password]) {
             $pdo->exec("CREATE DATABASE \`$db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
