@@ -56,7 +56,7 @@ $privateParentUsable = is_string($privateParent) && $privateParent !== $scriptDi
     && is_dir($privateParent) && is_readable($privateParent);
 
 $report = [
-    'probeRevision' => 'stage2-target-host-check-20261020-r1',
+    'probeRevision' => 'stage2-target-host-check-20261020-r2',
     'observationOnly' => true,
     'phpVersionMajorMinor' => PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION,
     'phpSapi' => PHP_SAPI,
