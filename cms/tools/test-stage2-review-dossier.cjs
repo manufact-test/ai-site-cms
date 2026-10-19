@@ -131,6 +131,49 @@ function main(){
     reject(()=>review.assemble({...before,independentLegalApproval:true}),
       'manual legal approval cannot be asserted by metadata');
 
+    // Exercise the REAL offline CLI with a four-file operator handoff.
+    // All records are disposable synthetic fixtures; NEVER publish as proof.
+    const privateDir=path.join(temp,'operator-private');
+    fs.mkdirSync(privateDir,{mode:0o700});
+    const scopeFile=path.join(privateDir,'scope.json');
+    const httpsFile=path.join(privateDir,'https.json');
+    const offlineFile=path.join(privateDir,'offline.json');
+    const dbFile=path.join(privateDir,'database.json');
+    for(const [file,record] of [
+      [scopeFile,grant],[httpsFile,fakeHttps],
+      [offlineFile,offline],[dbFile,database]
+    ])fs.writeFileSync(file,JSON.stringify(record),{mode:0o600});
+    const cli=spawnSync(process.execPath,[
+      path.join(__dirname,'stage2-owner-decision.cjs'),'--build',
+      '--scope='+scopeFile,'--https='+httpsFile,
+      '--offline='+offlineFile,'--database='+dbFile
+    ],{encoding:'utf8'});
+    ok(cli.status===0&&cli.stderr==='',
+      'real offline owner CLI accepts complete four-file aligned operator scope');
+    const attached=JSON.parse(fs.readFileSync(
+      path.join(legal.OUT,'stage2-owner-decision.json'),'utf8'));
+    ok(attached.attachedEvidence.operatorScope.externalReceiptOnly===true
+      &&attached.attachedEvidence.offlineLocal.inspectedManifestSha256===
+        before.packageManifestSha256
+      &&attached.attachedEvidence.externalHttps.liveTargetHostIndependentlyVerified===false
+      &&!attached.stage2Accepted&&!attached.stage3Authorized,
+      'CLI correlates package, scope and URLs without granting host certification');
+    const unscoped=spawnSync(process.execPath,[
+      path.join(__dirname,'stage2-owner-decision.cjs'),'--build',
+      '--https='+httpsFile
+    ],{encoding:'utf8'});
+    ok(unscoped.status===3 && unscoped.stdout==='' &&
+      unscoped.stderr.trim()==='STAGE2_OWNER_REVIEW_REFUSED',
+      'operator CLI rejects unscoped target HTTPS evidence');
+    fs.chmodSync(scopeFile,0o644);
+    const unsafeGrant=spawnSync(process.execPath,[
+      path.join(__dirname,'stage2-owner-decision.cjs'),'--build',
+      '--scope='+scopeFile
+    ],{encoding:'utf8'});
+    ok(unsafeGrant.status===3,
+      'owner CLI rejects world-readable private operator scope');
+    fs.chmodSync(scopeFile,0o600);
+    // Following clean build replaces synthetic fixture report before upload.
     const savedLegal=legal.build();
     const packet=review.build(); // Publish only real package facts, NEVER synthetic fixture claims.
     const dir=legal.OUT;
