@@ -125,7 +125,8 @@ final class PackageArtifactVerifier
             'bin/package-preflight.php','bin/startup-readiness.php',
             'bin/bind-empty-instance.php','bin/lab-empty-installer.php',
             'bin/lab-fleet-operator.php','bin/lab-foundation-transfer.php',
-            'bin/lab-deployment-blueprint.php','bin/lab-stage2-exit-review.php'] as $essential) {
+            'bin/lab-deployment-blueprint.php','bin/lab-stage2-exit-review.php',
+            'private/compliance/npm-package-lock.json'] as $essential) {
             if (!isset($listed[$essential])) {
                 self::refuse('Missing isolated empty-CMS package essential');
             }

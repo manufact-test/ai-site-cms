@@ -25,7 +25,8 @@ const PARTS = [
   ['composer.json', 'composer.json'], ['composer.lock', 'composer.lock'],
   ['editor/dist/editor.js', 'private/editor/editor.js'],
   ['editor/dist/meta.json', 'private/editor/meta.json'],
-  ['editor/dist/THIRD_PARTY_LICENSES.txt', 'private/editor/THIRD_PARTY_LICENSES.txt']
+  ['editor/dist/THIRD_PARTY_LICENSES.txt', 'private/editor/THIRD_PARTY_LICENSES.txt'],
+  ['editor/package-lock.json', 'private/compliance/npm-package-lock.json']
 ];
 const forbiddenPart = /^(?:\.git|\.github|\.env(?:\..*)?|\.ssh|\.npmrc|secrets?|node_modules|\.build)$/i;
 const forbiddenFile = /\.(?:pem|key|sqlite|sqlite3|db|p12|pfx)$/i;

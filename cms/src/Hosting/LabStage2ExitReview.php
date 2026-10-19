@@ -78,8 +78,7 @@ final class LabStage2ExitReview
                 || !str_contains($json['attestation'], 'manual legal review remains required')) {
                 throw new RuntimeException('Dependency/license inventory inconsistent');
             }
-            $webServer = $endpoints[$id]['phpSapi'] === 'apache2handler'
-                ? 'apache-2.4' : 'nginx';
+            $compliance = LabComplianceEvidence::verify($root);
             $profiles = [
                 'apache'=>LabHostRequirementProfiles::describe($site['family'],'apache-2.4'),
                 'nginx'=>LabHostRequirementProfiles::describe($site['family'],'nginx')
@@ -90,7 +89,10 @@ final class LabStage2ExitReview
                 'fleetState'=>$sitePlans[$id]['state'],
                 'cmsPackageSha256'=>$manifestDigest,
                 'packageFilesVerified'=>$verification['filesVerified'],
-                'dependencyInventoryComponents'=>43,
+                'dependencyInventoryComponents'=>$compliance['componentCount'],
+                'dependencyLockEvidenceCrossChecked'=>$compliance['locksMatchSbom'],
+                'thirdPartyNoticeDigestChecked'=>$compliance['noticesMatchIndex'],
+                'independentLegalApproval'=>false,
                 'requiredWebServerProfiles'=>$profiles,
                 'declaredPhpSapi'=>$endpoints[$id]['phpSapi'],
                 'declaredTargetPhp'=>$endpoints[$id]['phpTarget'],
@@ -113,7 +115,9 @@ final class LabStage2ExitReview
             'dependency_inventory_and_licenses'=>[
                 'status'=>'inventory_locked_not_independent_legal_approval',
                 'componentCount'=>43,
-                'manualLicenseReviewRequired'=>true
+                'manualLicenseReviewRequired'=>true,
+                'lockEvidenceReconciledAcrossComposerAndNpm'=>true,
+                'independentLegalApproval'=>false
             ],
             'empty_cms_starts_in_test_environment'=>[
                 'status'=>$local ? 'verified_local_read_only' : 'pending_local_install_or_abi',

@@ -108,7 +108,7 @@ final class LabDeploymentBlueprint
                 || isset($ids[$entry['siteId']])
                 || $entry['cmsMount'] !== '/' || $entry['siteMount'] !== '/'
                 || !in_array($entry['phpTarget'], ['8.1','8.2','8.3','8.4'], true)
-                || !in_array($entry['phpSapi'], ['fpm-fcgi','apache2handler'],true)
+                || $entry['phpSapi'] !== 'fpm-fcgi'
                 || !in_array($entry['siteRuntime'], [
                     'static-files','independent-php','static-spa-assets',
                     'exported-static-files','independent-node-behind-proxy'
@@ -197,6 +197,7 @@ final class LabDeploymentBlueprint
                 'localCliBaselinePass'=>$locallyTestable,
                 'localCliAtLeastDeclaredPhp'=>$phpMinCompatible,
                 'targetSapiExecuted'=>false,
+                'targetSapiDeclaredOnly'=>true,
                 'targetTlsOrDnsVerified'=>false,
                 'targetFrameworkExecuted'=>false
             ];

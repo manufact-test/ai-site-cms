@@ -3,6 +3,7 @@
 // actual offline PHP CLI ABI, website-vs-CMS public boundaries, site-byte-bound
 // operator approval and local HTTP visitor-site independence. NO remote hosts.
 const assert=require('node:assert/strict');
+const crypto=require('node:crypto');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),net=require('node:net');
 const {spawn,spawnSync}=require('node:child_process');
 const {STAGE,verify}=require('./build-internal-package.cjs');
@@ -101,7 +102,9 @@ async function main(){
     &&initialReview.stage2Accepted===false
     &&initialReview.readyForOwnerArchitectureReview===false
     &&initialReview.productRequirementsAccepted===0
-    &&initialReview.remainingAcceptanceGates.length===4,
+    &&initialReview.remainingAcceptanceGates.length===4
+    &&initialReview.instances.every(x=>x.dependencyLockEvidenceCrossChecked
+      &&x.thirdPartyNoticeDigestChecked&&!x.independentLegalApproval),
     'architecture report distinguishes lab installation from Stage2 acceptance');
   ok(!JSON.stringify(initialReview).includes(base)
     && initialReview.instances.every(item=>/^[a-f0-9]{64}$/.test(item.cmsPackageSha256)),
@@ -158,6 +161,7 @@ async function main(){
   invalid(d=>d.endpoints[0].siteDocroot=items[1].siteRoot+'/public','foreign-site-root');
   invalid(d=>d.endpoints[1].siteRuntime='static-files','wrong-delivery');
   invalid(d=>d.endpoints[0].phpSapi='cli-server','not-host-SAPI');
+  invalid(d=>d.endpoints[0].phpSapi='apache2handler','untested-mod-php-not-fpm');
   invalid(d=>d.endpoints[0].phpTarget='8.5','unsupported-target');
   invalid(d=>d.endpoints[0].cmsMount='/cms','unsupported-mounted-path');
   invalid(d=>d.endpoints=d.endpoints.slice(0,4),'missing-vhost');
