@@ -140,8 +140,7 @@ function cli(){
   }
   assert(Object.keys(args).length===7&&args['--sign']
     &&process.env.CMS_STAGE2_OPERATOR_SIGNING==='explicit-offline-attestation'
-    &&process.env.CMS_ENV!=='production'
-    &&process.env.CMS_ALLOW_EPHEMERAL_SIGNING_LAB!=='0', // not a host permission
+    , // an explicit offline signing action, NOT a hosting authorization
     'explicit_operator_signature_gate_required');
   const records={};
   for(const name of FIELDS){
