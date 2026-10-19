@@ -1,3 +1,5 @@
+> **v1.45 / 19.10.2026, ПО ПРЯМОЙ ПРОСЬБЕ ПРИ ПЕРЕДАЧЕ:** проверенный код 493964f32d63dd5552484afbcc972fc614571381; PHP [7/7 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39275005275), редактор/пакет [1/1 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39275005280); внутренний пакет 471 файл; 43 locked deps, 7 owner/legal transfer files, 8 manual exit gates. Stage2 НЕ ПРИНЯТ, Stage3 не начат, 0/135. Hostinger не проверен. Новые будущие ADR0012/ADR0013 ещё не реализованы. Последний §50 NEXT-CHAT — актуальная инструкция, прежние v1.44 — история. Нельзя обновлять документы на обычное 'продолжаем'; текущая запись сделана по явному запросу владельца.
+
 # AI Site CMS — read-only PHP doctor and internal offline package, checkpoint v1.34
 
 **Date 18.10.2026. Stage2 in progress, NOT accepted.** This is a reproducible *internal* empty CMS kernel package; **not** a production-ready deployment, authenticated CMS, client site, or finished editor.
