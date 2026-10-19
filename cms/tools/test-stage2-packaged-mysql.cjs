@@ -130,7 +130,7 @@ function nginxConfig(home,instances,listener,upstreams){
    'fastcgi_param CMS_ALLOW_STAGE2_MYSQL_HTTP_CI 1;',
    'fastcgi_param CI true;','fastcgi_param GITHUB_ACTIONS true;',
    'fastcgi_param CMS_SITE_ID '+x.siteId+';',
-   'fastcgi_param CMS_DB_DSN '+mysqlEnv(x).CMS_DB_DSN+';',
+   'fastcgi_param CMS_DB_DSN "'+mysqlEnv(x).CMS_DB_DSN+'";',
    'fastcgi_param CMS_DB_USER '+x.readUser+';',
    'fastcgi_param CMS_DB_PASSWORD '+x.readPassword+';',
    'fastcgi_param CMS_STAGE2_MYSQL_BINDING_FILE '+x.binding+';',
@@ -238,7 +238,7 @@ async function realFpmMysql(instances,home){
   ok((fs.statSync(config).mode&0o077)===0,
     'MySQL FastCGI fixture credentials never stored in world-readable config');
   const syntax=run('nginx',['-t','-c',config,'-p',home+'/']);
-  ok(syntax.status===0,'actual Nginx accepts two CMS and independent visitors');
+  ok(syntax.status===0,'actual Nginx accepts two CMS and independent visitors (safe vhost config parse)');
   children.push(spawn('nginx',['-c',config,'-p',home+'/','-g','daemon off;'],
     {stdio:'ignore'}));
   const a='cms-0.ci.test',b='cms-1.ci.test';
