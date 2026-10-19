@@ -51,7 +51,15 @@ $canonicalRoot = is_string($documentRoot) ? realpath($documentRoot) : false;
 $scriptDir = realpath(__DIR__);
 $webSapi = in_array(PHP_SAPI, ['fpm-fcgi', 'cgi-fcgi', 'apache2handler'], true);
 
+$privateParent = realpath(dirname(__DIR__));
+$privateParentUsable = is_string($privateParent) && $privateParent !== $scriptDir
+    && is_dir($privateParent) && is_readable($privateParent);
+
 $report = [
+    'probeRevision' => 'stage2-target-host-check-20261020-r1',
+    'observationOnly' => true,
+    'phpVersionMajorMinor' => PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION,
+    'phpSapi' => PHP_SAPI,
     'format' => 'ai-site-cms-stage2-target-php-preflight-v1',
     'purpose' => 'readonly_public_php_environment_observation_only',
     'stage2Accepted' => false,
@@ -73,6 +81,8 @@ $report = [
         'documentRootMatchesPublicEntrypoint' => $canonicalRoot !== false
             && $scriptDir !== false
             && $canonicalRoot === $scriptDir,
+        'privateParentExistsAndReadable' => $privateParentUsable,
+        'privateParentAppearsWritable' => $privateParentUsable && is_writable($privateParent),
         'httpsVisibleToPhp' => ($_SERVER['HTTPS'] ?? '') === 'on'
             || ($_SERVER['SERVER_PORT'] ?? '') === '443'
     ]
