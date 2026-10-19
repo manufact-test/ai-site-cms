@@ -220,6 +220,13 @@ jobs:
           npm run build
           cmp /tmp/ai-site-cms-editor.js.first dist/editor.js
           grep -q 'German Bisurgi' dist/THIRD_PARTY_LICENSES.txt
+      - name: Build and independently verify final offline owner acceptance transfer with real source-bound package and anti-tamper tests
+        working-directory: cms
+        run: |
+          node --check tools/stage2-handoff-index.cjs
+          node --check tools/test-stage2-handoff-index.cjs
+          node tools/test-stage2-handoff-index.cjs
+          node tools/stage2-handoff-index.cjs --verify
       - name: Internal-only static JS build artifact
         uses: actions/upload-artifact@v4
         with:

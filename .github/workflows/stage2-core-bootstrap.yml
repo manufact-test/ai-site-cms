@@ -85,6 +85,8 @@ jobs:
           node --check tools/stage2-evidence-bundle.cjs
           node --check tools/test-stage2-signed-evidence.cjs
           node --check tools/test-stage2-review-dossier.cjs
+          node --check tools/stage2-handoff-index.cjs
+          node --check tools/test-stage2-handoff-index.cjs
       - name: Permission-scoped read-only HTTPS probe with two independent disposable TLS site pairs
         run: |
           node --check tools/stage2-operator-scope.cjs
