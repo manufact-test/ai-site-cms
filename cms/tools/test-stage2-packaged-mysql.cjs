@@ -128,7 +128,7 @@ async function main(){
     const denied=invoke(x,'schema-preflight',['--inspect'],
       mysqlEnv(x,{CMS_DB_DSN:mysqlEnv(other).CMS_DB_DSN}));
     ok(denied.status===2 && denied.stdout==='',
-      'MySQL account cannot access the other site's physical database');
+      "MySQL account cannot access the other site's physical database");
     nonsecret(denied,'DB cross-access refusal');
   }
   for(const x of instances){

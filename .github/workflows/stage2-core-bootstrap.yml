@@ -167,6 +167,7 @@ jobs:
         run: |
           npm ci --prefix editor --no-audit --no-fund
           npm run build --prefix editor
+          node --check tools/test-stage2-packaged-mysql.cjs
           node tools/build-internal-package.cjs
           node tools/test-stage2-packaged-mysql.cjs
       - name: Check real MySQL 8.4 schema-version gate and migration named-lock isolation
