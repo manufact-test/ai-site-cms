@@ -70,6 +70,9 @@ jobs:
       - name: Host requirement profiles and explicit owner/target-host Stage2 exit review contract
         working-directory: cms
         run: php tests/lab-stage2-exit-review-contract.php
+      - name: Target-host read-only handoff on five independent visitor site families; no real target access
+        working-directory: cms
+        run: php tests/stage2-target-handoff-contract.php && node tools/test-stage2-target-host-handoff.cjs
       - name: Lab-only strict actual FastCGI mapping source contract
         working-directory: cms
         run: php tests/lab-web-sapi-mapping.php
