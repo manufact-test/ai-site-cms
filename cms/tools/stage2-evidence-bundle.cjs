@@ -53,7 +53,8 @@ function refuseFields(records) {
   }
 }
 function keyDigest(key){
-  const pub=crypto.createPublicKey(key);
+  const pub=key instanceof crypto.KeyObject&&key.type==='public'
+    ?key:crypto.createPublicKey(key);
   assert(pub.asymmetricKeyType==='ed25519','only_ed25519_allowed');
   return sha(pub.export({format:'der',type:'spki'}));
 }
