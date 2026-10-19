@@ -57,3 +57,7 @@ Stage2 adds `SchemaManager::inspectSite` with a separate read-only CLI report an
 ## Update v1.36 — isolated foundation metadata restore is NOT full production backup
 
 A new [FoundationSnapshot.php](../../cms/src/Storage/FoundationSnapshot.php) can serialize validated site identifier/v2 schema/storage generation and rehearse restoration in a separate **test-only** empty SQLite or dedicated MySQL CI database. [CI 7/7](https://github.com/manufact-test/ai-site-cms/actions/runs/39134298097) includes SQLite47 and MySQL13 restoration assertions. This does **not** fulfill CMS site/media/owner changes backups, authenticated restore, offsite retention, live DDL recovery or Hostinger compatibility. [ADR0004](0004-foundation-backup-restore.md) and [report](../STAGE-2-FOUNDATION-RESTORE.md). Stage2 is still NOT accepted.
+
+## Actual target host observation v1.46 — 20.10.2026
+
+Only owner-authorized disposable Hostinger PHP site. Runtime **LiteSpeed LSAPI** (not CI's actual Nginx/Apache PHP-FPM); PHP 8.3, PDO MySQL/OpenSSL present, Sodium absent. The selected Slim 4 foundation is still viable in principle but LiteSpeed routing, strong per-site filesystem/credential segregation and signed PHP update verification are **unverified**; no forced hosting-plan upgrade. The public two-file Git branch is not a mechanism to deploy private vendor/DB secrets. Owner approved architecture, but Stage2 acceptance requires independent legal check and actual safe target installation/DB/rollback/outage evidence. [Grounded report](../STAGE-2-HOSTINGER-REAL-PREFLIGHT-v1.46.md).

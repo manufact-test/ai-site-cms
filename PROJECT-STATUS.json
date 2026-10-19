@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
-  "date": "2026-10-19",
-  "status": "stage-2-not-accepted-v1.45-verified-offline-review-handoff",
+  "date": "2026-10-20",
+  "status": "stage-2-not-accepted-v1.46-real-hostinger-readonly-lite-speed-sodium-blockers",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Read LAST §50 docs/NEXT-CHAT.md, docs/STAGE-2-FINAL-HANDOFF-v1.45.md, docs/DEVELOPMENT-WORKFLOW.md and current GitHub HEAD. Last verified source code 493964f32d63dd5552484afbcc972fc614571381 CI PHP7/7 + editor1/1 SUCCESS. Stage2 NOT ACCEPTED/Stage3 NOT STARTED, 0/135; final owner/legal/Hostinger signoffs require separate permissions.",
+  "next_step": "Read LAST §51 docs/NEXT-CHAT.md, docs/STAGE-2-HOSTINGER-REAL-PREFLIGHT-v1.46.md and live GitHub Actions. Owner approved architecture, only two isolated Hostinger test domains authorized. Actual PHP8.3 LiteSpeed, sodium false; do not use shared SSH or treat 8/8 GET checks as install readiness. Stage2 NOT ACCEPTED, Stage3 NOT STARTED.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.45",
+  "checkpoint_version": "1.46",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -33,11 +33,12 @@
     "dependency_lock_committed": true,
     "stage_accepted": false,
     "main_blockers": [
-      "Stage2 requires owner architecture agreement: not recorded. The 43-component locked SBOM and NOTICE exist; independent legal/license review not signed off.",
-      "Actual target Hostinger/shared hosting bootstrap has never been tested; ANY read-only access needs explicit owner permission; trial installation/deployment requires separate approval.",
-      "PHP-FPM/Apache/Nginx host runner tests are disposable CI-only, not live target DB/TLS/docroot/permissions verification.",
-      "Signed release, backups and metadata transfer are research only: no production signing key custody or full user content/media/revisions restoration.",
-      "Authenticated admin, AI manifest, real site adapters, publish and true Next.js SSR are later-stage work, not product accepted."
+      "Owner explicitly approved foundation architecture (completed). Independent legally qualified license/NOTICE review for 43 components remains open.",
+      "Hostinger live read-only HTTPS/route/PHP check on two authorized empty test domains succeeded, not full host validation.",
+      "Actual PHP_SAPI=litespeed instead of previously lab-tested FPM/Apache; requires target-compatible routing/security/isolation verification.",
+      "Hostinger web PHP sodium=false, blocking assumptions about current PHP-side Ed25519 signed-release verification; no security downgrade allowed.",
+      "Private CMS outside public_html, MySQL DB identity/permissions and live connection, owner-scoped safe installer, real-site continuity during isolated CMS outage remain unverified.",
+      "Stage2 trial empty CMS install, independent human legal signoff and explicit owner final acceptance remain open; Stage3 unauthorized."
     ],
     "storage_migration_version": 2,
     "schema_implementation": "cms/src/Storage/SchemaManager.php; CLI-only installer cms/bin/install.php, no HTTP admin/write routes",
@@ -52,8 +53,8 @@
       "Idempotent same-site initialization",
       "Refuses database reuse by different site identity"
     ],
-    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39275005275",
-    "last_full_ci_result": "7/7 SUCCESS; dual MySQL8.4 + Nginx/three independent PHP-FPM & visitor sites; SOURCE 493964f32d63dd5552484afbcc972fc614571381",
+    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39338839673",
+    "last_full_ci_result": "7/7 SUCCESS on code e353a2c767a195665d38143a38d340c509790aa9 (must recheck run before final handoff)",
     "last_full_ci_checks": {
       "kernel_smoke": 10,
       "sqlite_schema_checks": 37,
@@ -96,8 +97,8 @@
       "ci_result": "1/1 SUCCESS on code 493964f32d63dd5552484afbcc972fc614571381",
       "artifact_id": 12137545566
     },
-    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39275005275",
-    "latest_php_ci_result": "7/7 SUCCESS on 493964f32d63dd5552484afbcc972fc614571381",
+    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39338839673",
+    "latest_php_ci_result": "7/7 SUCCESS on e353a2c767a195665d38143a38d340c509790aa9",
     "package_research": {
       "internal_only": true,
       "production_ready": false,
@@ -147,8 +148,8 @@
       "matrix_and_integration_job_count": 7,
       "passed": 7
     },
-    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39275005280",
-    "latest_editor_ci_result": "1/1 SUCCESS on 493964f32d63dd5552484afbcc972fc614571381; 7 offline handoff review files in CI artifact",
+    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39338839714",
+    "latest_editor_ci_result": "CHECK run status on e353a2c767a195665d38143a38d340c509790aa9 before representing as success",
     "storage_safety_preflight": {
       "implementation": "cms/src/Storage/SchemaManager.php::inspectSite, cms/bin/schema-preflight.php --inspect",
       "supported_drivers": [
@@ -488,6 +489,48 @@
       "handoff_document": "docs/STAGE-2-FINAL-HANDOFF-v1.45.md",
       "offline_index_cli": "cms/tools/stage2-handoff-index.cjs",
       "docs_sync_only_after_explicit_owner_request": true
+    },
+    "owner_architecture_explicitly_approved": true,
+    "target_public_https_and_php_observed": true,
+    "target_trial_cms_installed": false,
+    "stage2_v1_46_checkpoint": {
+      "date": "2026-10-20",
+      "code_commit": "e353a2c767a195665d38143a38d340c509790aa9",
+      "documentation_report": "docs/STAGE-2-HOSTINGER-REAL-PREFLIGHT-v1.46.md",
+      "source_branch": "main",
+      "public_deploy_branch": "stage2-hostinger-cms-preflight",
+      "deploy_only_public_files": [
+        "index.php",
+        ".htaccess"
+      ],
+      "auto_deployment_observed_revision": "stage2-target-host-check-20261020-r2",
+      "cms_test_origin": "https://lightseagreen-woodpecker-264491.hostingersite.com",
+      "visitor_test_origin": "https://mediumpurple-fox-175549.hostingersite.com",
+      "permission_scope": "Two specified empty test sites only. Read-only allowed; separately consented isolated trial CMS install and CMS-only outage, not shared SSH/other sites.",
+      "host_plan_reported": "Business Web Hosting",
+      "host_php_version_reported": "8.3.35",
+      "host_php_major_minor_observed": "8.3",
+      "host_php_sapi_observed": "litespeed",
+      "host_pdo_mysql": true,
+      "host_openssl": true,
+      "host_sodium": false,
+      "host_web_sapi_lab_allowlist_match": false,
+      "host_document_root_matches_test_script": true,
+      "host_parent_dir_readable_observed": true,
+      "host_parent_dir_appears_writable_observed": true,
+      "host_private_storage_independently_verified": false,
+      "host_actual_mysql_db_connection_verified": false,
+      "host_php_ed25519_upgrade_verifier_verified": false,
+      "git_environment_owner_reported": "stage2-hostinger-lab with 4 DB secrets; values never read",
+      "first_live_observation_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39338300197",
+      "strict_live_observation_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39338839647",
+      "php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39338839673",
+      "editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39338839714",
+      "owner_architecture_accepted": true,
+      "independent_legal_accepted": false,
+      "stage2_accepted": false,
+      "stage3_started": false,
+      "product_requirements_accepted": 0
     }
   },
   "total_stages": 18,

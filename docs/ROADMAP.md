@@ -297,3 +297,7 @@ The Stage 1 **acceptance remains** research shortlist + evidence-based recommend
 | **14–16** | E2E и приёмка: бессрочно/подписка, напоминание через выбранное число дней (пример 30), **без auto-disable**, ручная пауза одной CMS не трогает другие и публичный сайт; качество форм, accessibility, SEO, реальные источники и лицензии повторно используемых библиотек. |
 
 **Минимализм:** никакой самостоятельной платёжной платформы, массового remote shutdown, удаления данных за неоплату или скрытого kill switch на клиентских серверах. Дату напоминания выводить в нашей панели, внешние уведомления необязательны. Примеры сторонних библиотек и стандартов не утверждены к установке и проверяются перед выбором. Все события оплаты/права приостановки регулируются применимыми договорами.
+
+## Реальный Hostinger checkpoint v1.46 — 20.10.2026
+
+Stage2 owner-architecture gate согласован; только два разрешённых тестовых домена. **Впервые** получено узкое target evidence: PHP 8.3 LiteSpeed LSAPI, PDO MySQL/OpenSSL и HTTPS маршруты проверены через read-only GitHub GET, branch auto-deploy r2 доказан. **Sodium отсутствует** (для текущего Ed25519 verifier), PHP-FPM/Apache лабораторные результаты не доказывают LiteSpeed совместимость. Не было target DB connection, secure private install, CMS outage, full legal approval и owner Stage2 acceptance. [Подробности](docs/STAGE-2-HOSTINGER-REAL-PREFLIGHT-v1.46.md); Stage3 не начат, 0/135 принято. Никакого платного тарифного апгрейда без отдельного согласования. Не использовать общий SSH.

@@ -117,3 +117,6 @@
 
 **Checkpoint v1.16 (17.10.2026):** `research/stage1/html-boundary-adversarial.cjs` и pinned `parse5 8.0.0` — исключительно `research/stage1-editor-comparison`; CI [#39067271214](https://github.com/manufact-test/ai-site-cms/actions/runs/39067271214) полный PASS, 20 adversarial fragment rejects плюс native opaque iframe HTTP origin/nonce/rogue sender negative controls. Основная ветка **main** обновлена [STAGE-1-HTML-BOUNDARY-RESEARCH.md](STAGE-1-HTML-BOUNDARY-RESEARCH.md), [STAGE-1-MANDATORY-EVIDENCE-MATRIX.md](STAGE-1-MANDATORY-EVIDENCE-MATRIX.md) с оригинальными 135 ID/43 mapped/92 no test/0 accepted, `STAGE-1-TEST-LOG.md §19`, `FOUNDATION-COMPARISON.md §16`, статус и единственный handoff `NEXT-CHAT.md §21`. Без merge исследовательского runtime в main.
 
+## v1.46 live Hostinger Stage2 evidence and safe deploy-only branch
+
+New authoritative target report: [STAGE-2-HOSTINGER-REAL-PREFLIGHT-v1.46.md](docs/STAGE-2-HOSTINGER-REAL-PREFLIGHT-v1.46.md). Runtime read-only probe in `cms/hosting/hostinger-readonly/`; observer in `cms/tools/stage2-hostinger-target-observer.cjs`, offline parser tests and dedicated GitHub Actions. The **only** web-deployed Git branch is `stage2-hostinger-cms-preflight` (two files), never `main`. Current canonical handoff: LAST §51 in `docs/NEXT-CHAT.md`; older references to §50 are historical.

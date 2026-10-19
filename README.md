@@ -60,3 +60,7 @@
 **Важно:** текущая работа над сайтом CELIKOM + его небольшой админкой продолжается **независимо** в `manufact-test/nomusic`. Здесь нет её исходников и нет деплоя CELIKOM.
 
 **Актуальная контрольная точка:** v1.31 в [docs/NEXT-CHAT.md](docs/NEXT-CHAT.md). Указанные в старом плане ниже шаги 1–3 являются историческим порядком: фактически Stage1 принят 18.10.2026 по делегированному выбору, Stage2 начат и не принят.
+
+## Stage2 checkpoint v1.46 — реальный Hostinger (20.10.2026)
+
+Владелец одобрил архитектуру. Два новых тестовых Hostinger-сайта получили ограниченные реальные read-only проверки HTTPS/PHP и Git auto-deploy; PHP SAPI **LiteSpeed**, PHP Sodium **отсутствует**. Это не установка CMS и не доказательство DB/private code separation. Только отдельная `stage2-hostinger-cms-preflight` с двумя публичными файлами подключена к Git Auto Deploy; `main` НЕ deploy-ветка. Последний §51 в [docs/NEXT-CHAT.md](docs/NEXT-CHAT.md); [технический отчёт](docs/STAGE-2-HOSTINGER-REAL-PREFLIGHT-v1.46.md). Stage2 НЕ принят, Stage3 не начат, 0/135 продукта принято.

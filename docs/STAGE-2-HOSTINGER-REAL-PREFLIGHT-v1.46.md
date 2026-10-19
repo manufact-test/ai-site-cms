@@ -1,0 +1,30 @@
+# Stage 2 — реальный Hostinger: проверенный read-only PHP/HTTPS preflight (v1.46, 20.10.2026)
+
+**Доказательства:** код `e353a2c767a195665d38143a38d340c509790aa9`; GitHub Actions [первый реальный probe, attempt 2](https://github.com/manufact-test/ai-site-cms/actions/runs/39338300197), [строгий observer с открытыми compatibility gaps](https://github.com/manufact-test/ai-site-cms/actions/runs/39338839647), [PHP 7/7](https://github.com/manufact-test/ai-site-cms/actions/runs/39338839673), [editor/package](https://github.com/manufact-test/ai-site-cms/actions/runs/39338839714). Первый проход строгого probe с ожидаемой r2 ревизией был запущен до завершения auto-deploy и закономерно НЕ прошёл; повторный запуск после деплоя дал SUCCESS. Не скрывать эту историю. Полная проверка CI редактора должна быть подтверждена по конечному `main`, а не заявлена заранее.
+
+## Авторизация и границы
+
+Владелец утвердил архитектуру и разрешил **исключительно два специально созданных тестовых домена**: `lightseagreen-woodpecker-264491.hostingersite.com` — тестовая CMS; `mediumpurple-fox-175549.hostingersite.com` — независимый пустой visitor. На этих двух пустых сайтах разрешены read-only проверки, отдельная пробная установка в изолированное окружение и контролируемая остановка исключительно тестовой CMS. Указанные согласия НЕ являются разрешением на действия с любым другим Hostinger сайтом/хостинг-аккаунтом, CELIKOM, клиентскими ресурсами, общим SSH, чужими БД/файлами или на массовые/неограниченные операции. Не делать остановок, пока реально установленная безопасная тестовая CMS не будет изолирована от соседей.
+
+Hostinger **Business Web Hosting**, указанный PHP **8.3.35**, общий SSH для всего тарифа — **не использовать**. Пользователь сообщил о создании отдельной тестовой MySQL базы и четырёх секретов `CMS_DB_HOST`, `CMS_DB_NAME`, `CMS_DB_USER`, `CMS_DB_PASSWORD` в GitHub Environment `stage2-hostinger-lab`. Содержимое секретов инструментом не прочитано и не проверено; никогда не экспортировать в logs, не копировать в Git, не подключать БД удалённо из Actions через публичную сеть. Первый пароль показывался на скриншоте, владелец был предупреждён о необходимости смены; фактическую ротацию пароля невозможно подтвердить инструментом. Хостингового API/SSH/инсталляции CMS не выполнялось.
+
+## Реальный результат, не лабораторные предположения
+
+GitHub Auto-deploy активен со слов владельца и доказан наблюдением новой `r2` revision после коммита в **строго изолированную** ветку `stage2-hostinger-cms-preflight`. В ней только `index.php` и `.htaccess`; **не** выбирать `main` как webroot/deploy branch. Приватный CMS package, `vendor`, секреты, конфиги, миграции и исходники в public_html НЕ деплоились.
+
+Восемь реальных GET с проверкой TLS: CMS `/__stage2/host` 200 JSON, CMS `/` 200 с предупреждением «NOT an installed CMS», `/api/health` 503 «not_installed», `/api/publish` 404, `/vendor/autoload.php` 404, `/private/editor/editor.js` 404, `/.git/config` 403, independent visitor `/` 200 HTML. No-redirect и публичный DNS pin. Это **доказательство только конкретного HTTPS surface**, не работоспособности CMS, её БД или устойчивости при отказе.
+
+Ответ **реального PHP**: version **8.3** (major/minor), `PHP_SAPI=litespeed`, `json=true`, `pdo=true`, `pdoMysql=true`, `openssl=true`, `sodium=false`, `webSapi=false` согласно прежнему тестовому списку Apache/FPM/CGI; `documentRootMatchesPublicEntrypoint=true`, `httpsVisibleToPhp=true`. Родительский относительно public_html каталог `exists/readable=true`, `appearsWritable=true`, однако фактическое безопасное размещение приватного CMS кода **НЕ подтверждено**: внешние сайты могут делить owner credentials/path permissions.
+
+**Два честных host blockers:** (1) PHP выполняется через **LiteSpeed LSAPI**: это может оказаться полностью совместимым со Slim, но не является доказанным CI-only PHP-FPM/Apache SAPI isolation. Нужна узкая проверка реальных LiteSpeed rewrite/front-controller boundary, прав и lifecycle, не предполагать эквивалентность; (2) расширение **Sodium отсутствует** в web PHP, поэтому нельзя считать готовой production-проверку Ed25519, используемую PHP runtime подписанного lab-пакета. Требуется безопасный способ включения Sodium именно для тестового PHP или проверенная альтернативная схема без ослабления доверия. Не требовать более дорогой тариф без отдельного решения владельца.
+
+GitHub Actions с `allChecksPassed=true` означает **только** успешность HTTPS route probe. Новый observer отдельно оставляет `targetRuntimeCompatibilityConfirmed=false` с `compatibilityGaps`: `php_sodium_missing`, `target_web_sapi_requires_compatibility_review`. Это **не** Stage2 gate acceptance.
+
+## Что осталось
+
+- Архитектура: **явно утверждена владельцем** в чате 20.10.2026 (можно помечать owner decision выполненным). Отдельный юридический квалифицированный аудит лицензий 43 компонентов **ещё не проведён**.
+- Target: **частично** проверены публичные HTTPS маршруты, TLS, web PHP и self-reported document root. Не были проверены file isolation/private build/package, независимые права реальной БД, фактический DB connection, PHP CLI/SAPI совпадение, безопасная production-подпись, инсталляция или аварийное восстановление.
+- Independent public site **отвечает**, но отключения CMS не происходило; инвариант при реальном outage не проверен.
+- Отдельное согласие владельца на изолированную тестовую установку и controlled outage дано, но это разрешение **не равно реализации** и не разрешает использовать общий SSH. Не придумывать работающий деплой PHP приватного кода из двух публичных файлов.
+- 135 обязательных продуктовых функций: **0 принято**; Stage2 **НЕ принят**, Stage3 **НЕ начат**.
+- Следующий технический фокус: определить безопасную автономную выкладку *приватного* build вне webroot на Business Web Hosting без общего SSH, проверить LiteSpeed и Sodium; при объективной невозможности спросить **одним сообщением весь пакет необходимых ручных действий**. Не создавать бесконечные лабораторные тесты вместо действительного Hostinger go/no-go.

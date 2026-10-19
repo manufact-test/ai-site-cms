@@ -71,3 +71,7 @@
 **Reuse:** на каждый заимствованный модуль evidence лицензии/NOTICE, версии/lock, support/security/compatibility PHP/HTML/React/Next и регрессии. Запрет на раздувание runtime ненужными зависимостями.
 
 Первый полный релиз: исходные **135/135 обязательно** + применимые новые owner-approved критерии. На текущем Stage2 нет приёмки этих функций.
+
+## v1.46 — фактическое частичное доказательство на двух разрешённых Hostinger-сайтах
+
+Owner architecture agreement получено, но финальная приёмка Stage2 — **НЕТ**. Read-only TLS GET live PHP baseline /api/health 503 (CMS не установлена), private 403/404, visitor / 200 и Git auto-deploy r2: [подробный отчёт](docs/STAGE-2-HOSTINGER-REAL-PREFLIGHT-v1.46.md). Целевой веб SAPI LiteSpeed вместо лабораторного FPM/Apache; PHP Sodium отсутствует, поэтому Ed25519 PHP verification из CI нельзя считать production-ready. Реальный DB handshake, файловая граница, изолированный CLI install, controlled outage и independent 43-license human legal review остаются open. 0/135 обязательных product requirements приняты.
