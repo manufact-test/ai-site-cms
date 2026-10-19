@@ -91,7 +91,11 @@ function request(origin,path,ip,ca) {
       agent:false,servername:origin.hostname,
       rejectUnauthorized:true,
       ca:ca||undefined,
-      lookup:(host,options,callback)=>callback(null,ip,4),
+      // Node 22+ may request all addresses for Happy Eyeballs; keep the
+      // already-approved address pinned in BOTH lookup callback shapes.
+      lookup:(host,options,callback)=>options.all
+        ?callback(null,[{address:ip,family:4}])
+        :callback(null,ip,4),
       headers:{'Accept':'application/json, text/html;q=0.9',
         'Accept-Encoding':'identity','Cache-Control':'no-store',
         'User-Agent':'AI-Site-CMS-Stage2-ReadOnly-Operator-Probe/1'}
