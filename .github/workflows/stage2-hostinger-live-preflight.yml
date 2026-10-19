@@ -96,7 +96,7 @@ jobs:
               p.privateFilesystemVerified===false&&p.cmsVisitorOutageTested===false,
               'Non-authoritative target preflight shape');
             assert(typeof p.phpVersionMajorMinor==='string'&&
-              /^8\\.[1-9]$/.test(p.phpVersionMajorMinor)&&
+              /^8\.[1-9]$/.test(p.phpVersionMajorMinor)&&
               ['fpm-fcgi','cgi-fcgi','apache2handler'].includes(p.phpSapi),
               'Target PHP ABI below Stage2 baseline or unexpected web SAPI');
             assert(checks&&Object.values(checks).every(v=>typeof v==='boolean')&&
