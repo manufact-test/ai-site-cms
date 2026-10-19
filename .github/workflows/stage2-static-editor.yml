@@ -83,6 +83,7 @@ jobs:
       - name: Read-only HTTPS observation and independent visitor outage against loopback-only TLS fixtures
         working-directory: cms
         run: |
+          node --check tools/stage2-operator-scope.cjs
           node --check tools/stage2-target-https-check.cjs
           node --check tools/test-stage2-target-https-check.cjs
           node tools/test-stage2-target-https-check.cjs
