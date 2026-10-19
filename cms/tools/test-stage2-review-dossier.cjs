@@ -102,7 +102,7 @@ function main(){
       'manual legal approval cannot be asserted by metadata');
 
     const savedLegal=legal.build();
-    const packet=review.build({offline,https:{...fakeHttps,ciLoopbackOnly:true},database});
+    const packet=review.build(); // Publish only real package facts, NEVER synthetic fixture claims.
     const dir=legal.OUT;
     const files=['stage2-license-dossier.json','stage2-license-dossier.html',
       'stage2-owner-decision.json','stage2-owner-decision.html'];
@@ -111,10 +111,11 @@ function main(){
       ok(stat.size>100&&(stat.mode&0o077)===0,'private durable CI review artifact '+file);
     }
     ok(packet.remainingCriteria.find(x=>x.id==='target_https_and_routing')
-      .state==='permissioned_target_check_missing',
-      'CI loopback HTTPS evidence explicitly never passes target hosting gate');
+      .state==='permissioned_target_check_missing'
+      &&Object.values(packet.attachedEvidence).every(x=>x===null),
+      'published owner artifact contains NO fabricated CI/host evidence');
     const hashes=files.map(p=>sha(fs.readFileSync(path.join(dir,p))));
-    legal.build();review.build({offline,https:{...fakeHttps,ciLoopbackOnly:true},database});
+    legal.build();review.build();
     ok(files.every((f,i)=>sha(fs.readFileSync(path.join(dir,f)))===hashes[i]),
       'all legal and owner artifacts reproduce byte identically');
     ok(savedLegal.data.packageManifestSha256===packet.packageManifestSha256,
