@@ -67,10 +67,10 @@ final class LabComplianceEvidence
             throw new RuntimeException('Unsafe installed upstream license');
         }
         $bytes = @file_get_contents($file);
-        $header = '===== composer '.$package.' '.$version.' ('.$license.') / '.$name.' ====='."\\n";
+        $header = '===== composer '.$package.' '.$version.' ('.$license.') / '.$name.' ====='."\n";
         if (!is_string($bytes) || strlen($bytes) !== $stat['size']
             || !hash_equals($expectedSha256, hash('sha256', $bytes))
-            || !str_contains($notices, $header.$bytes."\\n")) {
+            || !str_contains($notices, $header.$bytes."\n")) {
             throw new RuntimeException('Copied notice differs from installed upstream license');
         }
     }
