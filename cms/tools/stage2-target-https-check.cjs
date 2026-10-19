@@ -7,13 +7,14 @@ const dns=require('node:dns/promises');
 const net=require('node:net');
 const fs=require('node:fs');
 const crypto=require('node:crypto');
+const scope=require('./stage2-operator-scope.cjs');
 
 const FORMAT='ai-site-cms-stage2-active-https-observation-v1';
 const CI=process.env.CMS_ENV==='test' &&
   process.env.CMS_STAGE2_RUNTIME_GATE==='ci-bound' &&
   process.env.CMS_ALLOW_STAGE2_NETWORK_FIXTURE==='1';
 const ALLOWED=new Set(['--check','--operator-attests-readonly-grant',
-  '--cms-origin','--site-origin','--ci-local','--ci-ca-file']);
+  '--cms-origin','--site-origin','--ci-local','--ci-ca-file','--scope-file']);
 const sha=x=>crypto.createHash('sha256').update(x).digest('hex');
 function argsOf(argv) {
   const args={};
@@ -36,7 +37,8 @@ function argsOf(argv) {
   if(!args['--check']||!args['--operator-attests-readonly-grant']
     ||!args['--cms-origin']||!args['--site-origin']
     ||(args['--ci-local']&&!CI)
-    ||(args['--ci-ca-file']&&(!CI||!args['--ci-local'])))
+    ||(args['--ci-ca-file']&&(!CI||!args['--ci-local']))
+    ||(args['--scope-file']&&args['--ci-local']))
     throw Error('explicit_scope_and_permission_required');
   return args;
 }
@@ -60,18 +62,27 @@ function originOf(raw,ci) {
   }
   return u;
 }
+// Conservative special-purpose IPv4 exclusions (IANA IPv4 special registry).
+// Default deny on unknown or special-use ranges, never connect to a private
+// network or metadata endpoint even if public DNS starts resolving there.
+const RESERVED_IPV4=[
+  ['0.0.0.0',8],['10.0.0.0',8],['100.64.0.0',10],
+  ['127.0.0.0',8],['169.254.0.0',16],['172.16.0.0',12],
+  ['192.0.0.0',24],['192.0.2.0',24],['192.88.99.0',24],
+  ['192.168.0.0',16],['198.18.0.0',15],['198.51.100.0',24],
+  ['203.0.113.0',24],['224.0.0.0',4],['240.0.0.0',4]
+];
+function ipv4Int(ip){
+  const bytes=ip.split('.').map(Number);
+  return ((bytes[0]*16777216)+(bytes[1]<<16)+(bytes[2]<<8)+bytes[3])>>>0;
+}
 function publicIPv4(ip) {
   if(net.isIP(ip)!==4)return false;
-  const a=ip.split('.').map(Number);
-  const [x,y,z]=a;
-  if(x===0||x===10||x===127||x>=224||x===169&&y===254||
-    x===172&&y>=16&&y<=31||x===192&&y===168||
-    x===100&&y>=64&&y<=127||x===198&&y===18||
-    x===192&&y===0||x===192&&y===88||
-    x===198&&y===19||x===192&&y===0&&z===2||
-    x===198&&y===51&&z===100||x===203&&y===0&&z===113)
-    return false;
-  return true;
+  const address=ipv4Int(ip);
+  return RESERVED_IPV4.every(([base,bits])=>{
+    const mask=(0xffffffff<<(32-bits))>>>0;
+    return ((address&mask)>>>0)!==((ipv4Int(base)&mask)>>>0);
+  });
 }
 async function pinAddress(hostname,ci) {
   if(ci)return '127.0.0.1';
@@ -167,12 +178,26 @@ async function observe(argv) {
   const visitor=originOf(args['--site-origin'],ci);
   if(cms.origin===visitor.origin || (!ci&&cms.hostname===visitor.hostname))
     throw Error('cms_site_origins_must_be_independent');
+  // CI fixtures may use a private test CA. Real-host checks additionally
+  // require an explicitly scoped, short-lived 0600 operator record AND
+  // separately enabled permission environment, never only a CLI flag.
+  let grant=null;
+  if(!ci){
+    if(!scope.operatorEnabled()||!args['--scope-file'])
+      throw Error('owner_readonly_host_scope_not_enabled');
+    grant=scope.readScope(args['--scope-file'],{
+      cmsOrigin:cms.origin,siteOrigin:visitor.origin
+    });
+  }
   const ca=args['--ci-ca-file']?fs.readFileSync(args['--ci-ca-file']):null;
   const scopeSha256=sha(JSON.stringify([cms.origin,visitor.origin]));
   const report={
     format:FORMAT,scope:'operator-side-explicit-readonly-https-observations',
     requestedOriginsSha256:scopeSha256,
     operatorGrantFlagIsNotOwnerAuthorization:true,
+    operatorScopeRecordSha256:grant?.operatorScopeRecordSha256||null,
+    operatorScopeExpiresAt:grant?.scopeExpiresAt||null,
+    independentOwnerAuthorizationVerified:false,
     ciLoopbackOnly:ci,
     requestsRestrictedToGet:true,
     actualHttpsRequestsAttempted:false,
@@ -187,6 +212,7 @@ async function observe(argv) {
   try {
     const [cmsIp,siteIp]=await Promise.all([
       pinAddress(cms.hostname,ci),pinAddress(visitor.hostname,ci)]);
+    report.resolvedAddressPairSha256=sha(JSON.stringify([cmsIp,siteIp]));
     report.actualHttpsRequestsAttempted=true;
     for(const [name,url,path,check] of [
       ['cmsHealth',cms,'/api/health',health],
