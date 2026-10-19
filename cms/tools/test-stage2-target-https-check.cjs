@@ -114,6 +114,7 @@ async function main(){
     const validA=await run(goodA);
     const validB=await run(goodB);
     for(const [response,label] of [[validA,'A'],[validB,'B']]){
+      if(response.code!==0)console.error('Local TLS fixture diagnostics:',response.code,JSON.stringify(response.record),response.stderr);
       ok(response.code===0&&response.record?.httpsObservationsPass===true,
         'real CA-checked HTTPS boundary probes pass for site '+label);
       ok(Object.keys(response.record.results).length===5
