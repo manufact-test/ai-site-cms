@@ -86,6 +86,12 @@ jobs:
           node --check tools/stage2-evidence-bundle.cjs
           node --check tools/test-stage2-signed-evidence.cjs
           node tools/test-stage2-signed-evidence.cjs
+      - name: CI-only MySQL HTTP gate syntax and explicit per-site bound startup contract
+        working-directory: cms
+        run: |
+          php -l src/Hosting/Stage2MysqlBoundReadiness.php
+          php -l bin/stage2-mysql-ci-binding.php
+          php tests/stage2-mysql-http-gate.php
       - name: Read-only HTTPS observation and independent visitor outage against loopback-only TLS fixtures
         working-directory: cms
         run: |

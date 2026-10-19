@@ -41,6 +41,8 @@ jobs:
         run: php tests/startup-readiness.php
       - name: CI-only instance binding refuses absent, mismatched or untrusted site configuration
         run: php tests/lab-instance-binding.php
+      - name: Read-only MySQL HTTP binding refuses all real/foreign hosts and disabled CI gates
+        run: php tests/stage2-mysql-http-gate.php
       - name: Full empty-install operator fail-closed contract without host or DB I/O
         run: php tests/lab-empty-install-contract.php && php tests/lab-fleet-contract.php && php tests/lab-deployment-boundary-contract.php && php tests/lab-stage2-exit-review-contract.php && php tests/stage2-target-handoff-contract.php
       - name: PHP-only dual-signature trust transitions and incomplete operator journal
@@ -181,6 +183,7 @@ jobs:
           npm ci --prefix editor --no-audit --no-fund
           npm run build --prefix editor
           node --check tools/test-stage2-packaged-mysql.cjs
+          php tests/stage2-mysql-http-gate.php
           node tools/build-internal-package.cjs
           node tools/test-stage2-packaged-mysql.cjs
       - name: Check real MySQL 8.4 schema-version gate and migration named-lock isolation
@@ -220,6 +223,7 @@ jobs:
           php tests/site-runtime-cli.php
           php tests/startup-readiness.php
           php tests/lab-instance-binding.php
+          php tests/stage2-mysql-http-gate.php
           php tests/lab-empty-install-contract.php
           php tests/lab-fleet-contract.php
           php tests/lab-deployment-boundary-contract.php
