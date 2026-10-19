@@ -23,8 +23,8 @@ if(process.env.CI!=='true'||process.env.GITHUB_ACTIONS!=='true'
   throw Error('Refusing packaged MySQL scenario outside dedicated disposable GitHub Actions');
 }
 const pairs=[
- {db:'ai_stage2_pkg_a_ci',user:'stage2pkg_a_ci',password:'disposable_stage2_a_ci',siteId:'stage2-packaged-a',family:'html'},
- {db:'ai_stage2_pkg_b_ci',user:'stage2pkg_b_ci',password:'disposable_stage2_b_ci',siteId:'stage2-packaged-b',family:'php'}
+ {db:'ai_stage2_pkg_a_ci',user:'stage2pkg_a_ci',password:'disposable_stage2_a_ci',readUser:'stage2pkg_ro_a_ci',readPassword:'disposable_stage2_ro_a_ci',siteId:'stage2-packaged-a',family:'html'},
+ {db:'ai_stage2_pkg_b_ci',user:'stage2pkg_b_ci',password:'disposable_stage2_b_ci',readUser:'stage2pkg_ro_b_ci',readPassword:'disposable_stage2_ro_b_ci',siteId:'stage2-packaged-b',family:'php'}
 ];
 let checks=0;
 function ok(value,label){assert.ok(value,label);++checks;}
@@ -35,6 +35,12 @@ const manage=action=>run('php',[script,action]);
 function mysqlEnv(x,overrides={}){
  return {CMS_DB_DSN:'mysql:host=127.0.0.1;port=3306;dbname='+x.db+';charset=utf8mb4',
   CMS_DB_USER:x.user,CMS_DB_PASSWORD:x.password,CMS_SITE_ID:x.siteId,...overrides};
+}
+function readEnv(x,overrides={}) {
+ return {...mysqlEnv(x),CMS_DB_USER:x.readUser,CMS_DB_PASSWORD:x.readPassword,
+  CMS_ENV:'test',CMS_STAGE2_RUNTIME_GATE:'mysql-ci-bound',
+  CMS_ALLOW_STAGE2_MYSQL_HTTP_CI:'1',
+  CI:'true',GITHUB_ACTIONS:'true',...overrides};
 }
 function invoke(x,name,flags,env){return run('php',[path.join(x.cms,'bin',name+'.php'),...flags],env);}
 function nonsecret(resp,label){
@@ -132,6 +138,48 @@ async function main(){
       "MySQL account cannot access the other site's physical database");
     nonsecret(denied,'DB cross-access refusal');
   }
+  // Real MySQL-backed, public-HTTP readiness: explicit external package/site/DB
+  // binding, an installer-only writer and a SELECT-only HTTP user. This is not
+  // available outside disposable GitHub Actions with exact fixture DB names.
+  const external=path.join(dataRoot,'operator-bindings');
+  fs.mkdirSync(external,{mode:0o700});
+  for(const x of instances){
+    x.binding=path.join(external,x.siteId+'.json');
+    const env=readEnv(x,{CMS_STAGE2_MYSQL_BINDING_FILE:x.binding});
+    const premature=invoke(x,'startup-readiness',['--check'],env);
+    ok(premature.status===4&&JSON.parse(premature.stdout).state==='binding_missing_or_invalid',
+      'actual MySQL HTTP/CLI readiness is 503/not-ready until explicit operator binding');
+    const noArgs=invoke(x,'stage2-mysql-ci-binding',[],env);
+    ok(noArgs.status===3&&noArgs.stdout==='','MySQL binding cannot run implicitly');
+    const roProbe=run('php',['-r',`
+      try {
+        $pdo=new PDO(getenv('CMS_DB_DSN'),getenv('CMS_DB_USER'),
+          getenv('CMS_DB_PASSWORD'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+        if ($pdo->query('SELECT site_id FROM cms_installation')->fetchColumn()!==
+            getenv('CMS_SITE_ID'))exit(2);
+        $pdo->beginTransaction();
+        try {
+          $pdo->exec('UPDATE cms_installation SET storage_generation = storage_generation WHERE singleton_id = 1');
+          $pdo->rollBack();exit(3);
+        } catch(PDOException $e) {$pdo->rollBack();exit(0);}
+      } catch(Throwable $e) {exit(4);}
+    `],env);
+    ok(roProbe.status===0,'separate per-site MySQL HTTP user can SELECT but cannot UPDATE even inside a transaction');
+    const prepared=invoke(x,'stage2-mysql-ci-binding',[
+      '--bind','--cms-root='+x.cms,'--site-root='+x.site,'--output='+x.binding
+    ],env);
+    ok(prepared.status===0&&JSON.parse(prepared.stdout).bound===true,
+      'explicit packaged binding command validates real MySQL SELECT-only credentials + visitor');
+    nonsecret(prepared,'read-only HTTP binding operator');
+    const ready=invoke(x,'startup-readiness',['--check'],env);
+    ok(ready.status===0&&JSON.parse(ready.stdout).ready===true,
+      'packaged CLI refuses false MySQL identity and reports true bound startup');
+    const duplicate=invoke(x,'stage2-mysql-ci-binding',[
+      '--bind','--cms-root='+x.cms,'--site-root='+x.site,'--output='+x.binding
+    ],env);
+    ok(duplicate.status===3,'binding cannot be overwritten or silently reset');
+    ok(fs.statSync(x.binding).mode%512===0o600,'binding is private mode 0600');
+  }
   for(const x of instances){
     const cms=await start(x.cms+'/public',x.cms+'/public/index.php');
     processes.push(cms);
@@ -163,9 +211,86 @@ async function main(){
     ok(blocked.code===503,'Stage2 SQLite-only HTTP binding gate refuses MySQL');
     await close(guarded);
   }
+  // Two real independently served CMS + visitor sites, simultaneously bound to
+  // two distinct real MySQL 8.4 DB identities, with application-read-only accounts.
+  const live=[];
+  for(const x of instances){
+    const env=readEnv(x,{CMS_STAGE2_MYSQL_BINDING_FILE:x.binding});
+    const cms=await start(x.cms+'/public',x.cms+'/public/index.php',env);
+    const visitor=await start(x.site+'/public',null);
+    processes.push(cms,visitor);
+    live.push({x,env,cms,visitor});
+    const h=await status(cms.url+'/api/health');
+    ok(h.code===200&&h.body==='{"status":"ok"}',
+      'real packaged CMS HTTP gate proves correct MySQL schema/site/binding');
+    const priv=await status(cms.url+'/vendor/autoload.php');
+    ok(priv.code===404,'bound CMS never exposes composer private runtime');
+    const publish=await status(cms.url+'/api/publish',{method:'POST'});
+    ok(publish.code===404,'read-only HTTP schema binding never enables publish');
+  }
+  for(let i=0;i<live.length;i++){
+    const {x,cms,visitor,env}=live[i],other=live[1-i];
+    ok((await status(other.cms.url+'/api/health')).code===200,
+      'second CMS remains healthy while another is checked');
+    const wrongCred=await start(x.cms+'/public',x.cms+'/public/index.php',
+      {...env,CMS_DB_PASSWORD:'incorrect-disposable-ci-password'});
+    processes.push(wrongCred);
+    ok((await status(wrongCred.url+'/api/health')).code===503,
+      'stale or wrong MySQL HTTP credential fails closed');
+    await close(wrongCred);
+    const wrongSite=await start(x.cms+'/public',x.cms+'/public/index.php',
+      {...env,CMS_SITE_ID:other.x.siteId});
+    processes.push(wrongSite);
+    ok((await status(wrongSite.url+'/api/health')).code===503,
+      'wrong independent site ID cannot activate MySQL-bound CMS');
+    await close(wrongSite);
+    const foreignDb=await start(x.cms+'/public',x.cms+'/public/index.php',
+      {...env,CMS_DB_DSN:other.env.CMS_DB_DSN});
+    processes.push(foreignDb);
+    ok((await status(foreignDb.url+'/api/health')).code===503,
+      'MySQL gate cannot be directed toward the other CMS database');
+    await close(foreignDb);
+    const original=fs.readFileSync(x.binding);
+    fs.writeFileSync(x.binding,Buffer.concat([original,Buffer.from('tamper')]));
+    ok((await status(cms.url+'/api/health')).code===503,
+      'operator binding content tamper returns 503 on actual HTTP process');
+    fs.writeFileSync(x.binding,original);
+    ok((await status(cms.url+'/api/health')).code===200,
+      'operator restores intact binding and CMS recovers without DB writes');
+    const manifest=x.cms+'/private/package-manifest.json';
+    const originalManifest=fs.readFileSync(manifest);
+    fs.appendFileSync(manifest,' ');
+    ok((await status(cms.url+'/api/health')).code===503,
+      'unexpected CMS build/package manifest change fails closed');
+    fs.writeFileSync(manifest,originalManifest);
+    ok((await status(cms.url+'/api/health')).code===200,
+      'restoring exact deployed package manifest recovers HTTP readiness');
+    const index=x.site+'/public/'+(x.family==='html'?'index.html':'index.php');
+    const originalSite=fs.readFileSync(index);
+    fs.appendFileSync(index,' ');
+    ok((await status(cms.url+'/api/health')).code===503,
+      'changed independent visitor files invalidate CMS/site binding');
+    ok((await status(visitor.url+'/')).code===200,
+      'visitor remains available despite CMS readiness revocation');
+    fs.writeFileSync(index,originalSite);
+    ok((await status(cms.url+'/api/health')).code===200,
+      'restored visitor fingerprint permits CMS startup again');
+    await close(cms);
+    ok((await status(visitor.url+'/')).code===200
+       &&(await status(other.cms.url+'/api/health')).code===200,
+      'independent public website and other CMS survive one CMS HTTP outage');
+    const restarted=await start(x.cms+'/public',x.cms+'/public/index.php',env);
+    processes.push(restarted);
+    ok((await status(restarted.url+'/api/health')).code===200,
+      'fresh CMS HTTP process reconnects to its own installed MySQL after outage');
+    // keep it live for cross-site isolation check on following pair
+    live[i].cms=restarted;
+  }
+  console.log('Stage2 CI MySQL instance-bound startup: two true read-only MySQL '
+    +'HTTP identities, explicit operator binding, failure isolation and recovery PASS.');
   console.log('Stage2 verified INTERNAL PHP package + two isolated MySQL 8.4 credentials/DBs,'
     +' CLI install/restart/read-only API, foreign schema refusal and independent visitor PASS: '
-    +checks+' checks. Still NO MySQL-to-HTTP binding or real shared-host/TLS approval.');
+    +checks+' checks. MySQL-to-HTTP binding is disposable CI ONLY; no real shared-host/TLS or production approval.');
  }finally{
   for(const child of processes.reverse())await close(child);
   fs.rmSync(dataRoot,{recursive:true,force:true});
