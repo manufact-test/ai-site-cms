@@ -175,6 +175,12 @@ jobs:
         env:
           CMS_ALLOW_DESTRUCTIVE_MYSQL_CI: '1'
         run: php tests/backup-mysql.php
+      - name: Install actual Nginx and PHP 8.3-FPM MySQL drivers for disposable vhost integration
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends nginx php8.3-fpm php8.3-mysql
+          php-fpm8.3 -v
+          php8.3 -r 'exit(in_array("mysql", PDO::getAvailableDrivers(), true)?0:3);'
       - name: Build exact pinned distributor artifact and install two isolated real MySQL CMS instances
         env:
           CMS_ALLOW_DESTRUCTIVE_MYSQL_CI: '1'
