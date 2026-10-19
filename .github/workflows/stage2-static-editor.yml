@@ -73,7 +73,7 @@ jobs:
       - name: Target-host read-only handoff on five independent visitor site families; no real target access
         working-directory: cms
         run: php tests/stage2-target-handoff-contract.php && node tools/test-stage2-target-host-handoff.cjs
-      - name: Operator-side explicit read-only HTTPS evidence, hostile endpoints and independent site outage (disposable local TLS)
+      - name: Read-only HTTPS observation and independent visitor outage against loopback-only TLS fixtures
         working-directory: cms
         run: |
           node --check tools/stage2-target-https-check.cjs
@@ -100,7 +100,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends apache2
           node --check tools/test-stage2-apache-hosting.cjs
           node tools/test-stage2-apache-hosting.cjs
-      - name: Independently verify and install full 429-file package with PHP-only temp journal
+      - name: Independently verify and install full pinned Stage2 package with PHP-only temp journal
         working-directory: cms
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
@@ -130,7 +130,7 @@ jobs:
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
         run: php tests/lab-foundation-checkpoint.php
-      - name: Unified fully signed 429-file ZIP and DB checkpoint guarded PHP generation activation
+      - name: Unified fully signed Stage2 package ZIP and DB checkpoint guarded PHP generation activation
         working-directory: cms
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'

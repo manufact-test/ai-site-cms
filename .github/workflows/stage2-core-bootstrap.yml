@@ -76,6 +76,11 @@ jobs:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
           CMS_ALLOW_EPHEMERAL_SIGNING_LAB: '1'
         run: node tools/test-lab-trusted-upgrade.cjs
+      - name: Permission-scoped read-only HTTPS probe with two independent disposable TLS site pairs
+        run: |
+          node --check tools/stage2-target-https-check.cjs
+          node --check tools/test-stage2-target-https-check.cjs
+          node tools/test-stage2-target-https-check.cjs
       - name: Verify health only, no exposed write routes
         run: composer test
       - name: HTTP public route boundary
