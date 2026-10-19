@@ -8,6 +8,8 @@ const path=require('node:path');
 const https=require('node:https');
 const {spawn,execFileSync}=require('node:child_process');
 const SCRIPT=path.join(__dirname,'stage2-target-https-check.cjs');
+const scope=require('./stage2-operator-scope.cjs');
+const {publicIPv4,originOf}=require('./stage2-target-https-check.cjs');
 const CI={...process.env,CMS_ENV:'test',CMS_STAGE2_RUNTIME_GATE:'ci-bound',
   CMS_ALLOW_STAGE2_NETWORK_FIXTURE:'1'};
 let checks=0;
@@ -70,6 +72,63 @@ async function main(){
   const keyFile=path.join(temp,'key.pem'),certFile=path.join(temp,'ca.pem');
   const servers=[];
   try{
+    const yes=['8.8.8.8','1.1.1.1','93.184.216.34','192.31.196.1'];
+    const no=['0.0.0.0','0.255.1.1','10.1.2.3','100.64.0.1',
+      '100.127.255.255','127.8.8.8','169.254.169.254','172.16.1.2',
+      '172.31.255.254','192.0.0.11','192.0.2.7','192.88.99.1',
+      '192.168.100.1','198.18.1.1','198.19.255.255',
+      '198.51.100.20','203.0.113.99','224.0.0.1',
+      '240.1.2.3','255.255.255.255','::1','2001:db8::1','not-an-ip'];
+    for(const ip of yes)ok(publicIPv4(ip),'routable IPv4 allowed: '+ip);
+    for(const ip of no)ok(!publicIPv4(ip),'IANA private/special-purpose IPv4 denied: '+ip);
+    assert.throws(()=>originOf('https://127.0.0.1',false));checks++;
+    assert.throws(()=>originOf('http://safe.example.org',false));checks++;
+    assert.throws(()=>originOf('https://cms.example.org:8443',false));checks++;
+    const grantDir=path.join(temp,'scopes');
+    fs.mkdirSync(grantDir,{mode:0o700});
+    const grantPath=path.join(grantDir,'owner-scope.json');
+    const utc=ms=>new Date(ms).toISOString().replace('.000Z','Z');
+    const t=Date.now();
+    const record={format:scope.FORMAT,repository:'manufact-test/ai-site-cms',
+      scope:'target-readonly-https-get',cmsOrigin:'https://cms.acme-hosting.com',
+      siteOrigin:'https://site.acme-hosting.com',reference:'review-scope-20261019',
+      issuedAt:utc(t-300000),expiresAt:utc(t+1800000)};
+    const origins={cmsOrigin:record.cmsOrigin,siteOrigin:record.siteOrigin};
+    fs.writeFileSync(grantPath,JSON.stringify(record),{mode:0o600});
+    const normalized=scope.readScope(grantPath,origins,t);
+    ok(normalized.operatorScopeRecordSha256.length===64 &&
+      normalized.originPairSha256.length===64 &&
+      !normalized.operatorRecordIsIndependentOwnerProof,
+      'private time-bounded operator grant ties exact CMS/site origins; not owner proof');
+    ok(scope.operatorEnabled({CMS_ENV:'production',
+      CMS_STAGE2_OWNER_READONLY_PERMISSION:'owner-grant-recorded-read-only'}) &&
+      !scope.operatorEnabled({CMS_ENV:'test',
+      CMS_STAGE2_OWNER_READONLY_PERMISSION:'owner-grant-recorded-read-only'}),
+      'non-test mode requires separately enabled scope environment');
+    function scopeReject(modified,label){
+      assert.throws(()=>scope.inspectScope(modified,origins,t),undefined,label);checks++;
+    }
+    scopeReject({...record,siteOrigin:'https://attacker.acme-hosting.com'},
+      'scope cannot be transported to another visitor');
+    scopeReject({...record,extra:'approval'},'unrecognized grant field refused');
+    scopeReject({...record,expiresAt:utc(t-60000)},'expired grant refused');
+    scopeReject({...record,expiresAt:utc(t+172800000)},'grant cannot live more than one day');
+    scopeReject({...record,reference:'too short'},'scope reference strict');
+    fs.chmodSync(grantPath,0o644);
+    assert.throws(()=>scope.readScope(grantPath,origins,t));checks++;
+    fs.chmodSync(grantPath,0o600);
+    const alias=path.join(grantDir,'scope-link.json');
+    fs.symlinkSync(grantPath,alias);
+    assert.throws(()=>scope.readScope(alias,origins,t));checks++;
+    fs.chmodSync(grantDir,0o755);
+    assert.throws(()=>scope.readScope(grantPath,origins,t));checks++;
+    fs.chmodSync(grantDir,0o700);
+    const dryRun=await run(['--check','--operator-attests-readonly-grant',
+      '--cms-origin='+record.cmsOrigin,'--site-origin='+record.siteOrigin],
+      {...process.env,CMS_ENV:'production'});
+    ok(dryRun.code===3&&dryRun.stdout===''&&
+      dryRun.stderr.trim()==='STAGE2_HTTPS_OBSERVATION_REFUSED',
+      'real-host path must refuse before DNS/network without explicit scoped grant');
     execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes',
       '-days','1','-keyout',keyFile,'-out',certFile,
       '-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost'],
