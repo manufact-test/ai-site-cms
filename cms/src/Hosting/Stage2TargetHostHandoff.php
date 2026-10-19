@@ -127,6 +127,12 @@ final class Stage2TargetHostHandoff
         // These checks examine only a local, already existing filesystem;
         // they never create a DB, write files or contact a host.
         $package=PackageArtifactVerifier::verify($cms);
+        // Digest the exact artifact just fully checked; not a publisher signature.
+        // Enables offline owner reports to reject evidence for a DIFFERENT CMS build.
+        $manifestSha256=@hash_file('sha256',$cms.'/private/package-manifest.json');
+        if (!is_string($manifestSha256) || !preg_match('/\A[a-f0-9]{64}\z/D',$manifestSha256)) {
+            throw new RuntimeException('Package manifest evidence unavailable');
+        }
         $boundary=SharedHostPreflight::inspect($cms,$public);
         $runtime=RuntimeDoctor::localReport($public,$cms.'/public');
         $allFalse=[
@@ -154,6 +160,7 @@ final class Stage2TargetHostHandoff
             'format'=>self::FORMAT,
             'cmsFamily'=>$family,
             'cmsPackageFilesVerified'=>$package['filesVerified'],
+            'cmsPackageManifestSha256'=>$manifestSha256,
             'sitePublicFingerprintSha256'=>$topology['sitePublicFingerprint'],
             'cmsAndSiteRootsSeparated'=>true,
             'cmsDocumentRootIsPublic'=>true,
