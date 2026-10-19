@@ -23,7 +23,7 @@ function passes(bool $valid,string $name):void {
 $body=runProbe($probe,'GET','/__stage2/host');
 $data=json_decode($body,true,512,JSON_THROW_ON_ERROR);
 passes($data['format']==='ai-site-cms-stage2-target-php-preflight-v1','format');
-passes($data['probeRevision']==='stage2-target-host-check-20261020-r1'&&$data['observationOnly']===true,'revision');
+passes($data['probeRevision']==='stage2-target-host-check-20261020-r2'&&$data['observationOnly']===true,'revision');
 passes($data['phpVersionMajorMinor']===PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION,'phpVersion');
 passes($data['phpSapi']===PHP_SAPI,'actualSapi');
 passes(is_bool($data['requirements']['privateParentExistsAndReadable'])

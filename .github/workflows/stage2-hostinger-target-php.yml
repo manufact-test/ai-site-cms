@@ -1,0 +1,33 @@
+name: Stage2 target Hostinger PHP observation (OWNER-APPROVED GET only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/stage2-hostinger-target-php.yml'
+      - 'cms/tools/stage2-hostinger-target-observer.cjs'
+      - 'cms/tools/test-stage2-hostinger-target-observer.cjs'
+permissions:
+  contents: read
+jobs:
+  owner-consented-target-readonly:
+    if: github.repository == 'manufact-test/ai-site-cms'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check standalone probe shape locally (no external reads)
+        run: node --check cms/tools/stage2-hostinger-target-observer.cjs && node cms/tools/test-stage2-hostinger-target-observer.cjs
+      - name: Verify only two explicitly authorized test domains, HTTPS GET no credentials
+        env:
+          CMS_STAGE2_OWNER_READONLY_PERMISSION: owner-grant-recorded-read-only
+        run: node cms/tools/stage2-hostinger-target-observer.cjs --observe
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stage2-target-host-php-readonly-observation
+          path: ${{ runner.temp }}/stage2-hostinger-php.json
+          if-no-files-found: ignore
+          retention-days: 7
