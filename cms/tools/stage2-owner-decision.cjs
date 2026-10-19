@@ -8,6 +8,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {createDossier,OUT,stable,digest}=require('./stage2-license-dossier.cjs');
 const operatorScope=require('./stage2-operator-scope.cjs');
+const evidenceCrypto=require('./stage2-evidence-bundle.cjs');
 const FORMAT='ai-site-cms-stage2-owner-decision-packet-v1';
 const NAMES=['cmsHealth','cmsPrivateVendor','cmsPrivateEditor',
   'cmsPublishGet','visitorHome'];
@@ -100,13 +101,34 @@ function validated(source,type){
   }
   throw Error('Invalid evidence type');
 }
-function assemble(license,extra={}){
+function assemble(license,extra={},signedOptions=null){
   if(!isObject(license)||license.format!=='ai-site-cms-stage2-license-review-v1'
     ||license.componentCount!==43||license.phpRuntimeComponentCount!==14
     ||license.browserRuntimeComponentCount!==1
     ||license.independentLegalApproval!==false
     ||license.stage2Accepted!==false||!Array.isArray(license.components)
     ||license.components.length!==43)throw Error('Expected verified license inventory');
+  let verifiedSignature=null;
+  if(signedOptions!==null){
+    if(!isObject(signedOptions)||Object.keys(extra).length>0)
+      throw Error('Signed and unsigned evidence cannot be mixed');
+    const result=evidenceCrypto.verifySigned(signedOptions.bundle,
+      signedOptions.publicKey,signedOptions.trustedDigest);
+    extra=result.records;
+    verifiedSignature={
+      format:'ai-site-cms-stage2-offline-signature-record-v1',
+      signatureCryptographicallyValid:true,
+      trustedPublicKeyDigestMatchesPinnedValue:true,
+      operatorSigningKeySha256:result.signingKeySpkiSha256,
+      signedPayloadSha256:result.signedPayloadSha256,
+      observedAt:result.observedAt,
+      expiresAt:result.expiresAt,
+      ownerOfSigningKeyIndependentlyAuthenticated:false,
+      ownerHostAccessAuthorizationVerified:false,
+      observedHostStateIndependentlyVerified:false,
+      notOwnerApproval:true
+    };
+  }
   if(Object.keys(extra).some(k=>!['offline','https','database','scope'].includes(k)))
     throw Error('Unknown decision evidence');
   const evidence={
@@ -159,6 +181,7 @@ function assemble(license,extra={}){
     dossierSha256:shaOf(license),
     dependencyInventoryComponents:license.componentCount,
     attachedEvidence:evidence,
+    cryptographicEvidenceRecord:verifiedSignature,
     remainingCriteria:criteria,
     allCriteriaAutomaticallyApproved:false,
     independentLicenseApproval:false,
@@ -185,6 +208,9 @@ function render(packet){
     '<p>Internal package version <code>'+html(packet.packageVersion)+'</code>; package SHA-256 inventory <code>'+
     html(packet.packageManifestSha256)+'</code>.</p>'+
     '<p>Independent legal sign-off, real target hosting and manual owner acceptance are outstanding. An attached operator claim never upgrades itself to trusted evidence.</p>'+
+    (packet.cryptographicEvidenceRecord
+      ?'<p><strong>Offline Ed25519 signature verified against the independently supplied fingerprint.</strong> This protects the evidence file from alteration; the signing-key owner, permission and real hosting observations are NOT independently authenticated.</p>'
+      :'<p>There is no independently key-pinned signed evidence bundle attached.</p>')+
     '<table><thead><tr><th>Criterion</th><th>Current state</th></tr></thead><tbody>'+
     lines+'</tbody></table>'+
     '<p>See <code>stage2-owner-decision.json</code> for machine-readable evidence limits and <code>stage2-license-dossier.html</code> for 43 dependencies.</p>'+
@@ -202,9 +228,9 @@ function readEvidence(file){
     throw Error('Unprotected operator supplied evidence');
   return JSON.parse(fs.readFileSync(file,'utf8'));
 }
-function build(extra={}){
+function build(extra={},signed=null){
   const license=createDossier();
-  const packet=assemble(license,extra);
+  const packet=assemble(license,extra,signed);
   fs.mkdirSync(OUT,{recursive:true,mode:0o700});
   fs.writeFileSync(path.join(OUT,'stage2-owner-decision.json'),stable(packet),{mode:0o600});
   fs.writeFileSync(path.join(OUT,'stage2-owner-decision.html'),render(packet),{mode:0o600});
@@ -216,16 +242,32 @@ if(require.main===module){
   try{
     const argv=process.argv.slice(2);
     if(!argv.includes('--build')||argv.filter(x=>x==='--build').length!==1||
-      argv.some(x=>!x.startsWith('--build')&&!/^--(?:offline|https|database|scope)=/.test(x)))
+      argv.some(x=>x!=='--build'&&!/^--(?:offline|https|database|scope|signed-bundle|trusted-pubkey|trusted-spki-sha256)=/.test(x)))
       throw Error('Explicit offline build required');
     const sources={};
     for(const token of argv.filter(x=>x!=='--build')){
-      const index=token.indexOf('='),kind=token.slice(2,index),file=token.slice(index+1);
-      if(Object.prototype.hasOwnProperty.call(sources,kind)||!file)
+      const index=token.indexOf('='),kind=token.slice(2,index),value=token.slice(index+1);
+      if(Object.prototype.hasOwnProperty.call(sources,kind)||!value)
         throw Error('Duplicate operator evidence');
-      sources[kind]=readEvidence(file);
+      sources[kind]=value;
     }
-    build(sources);
+    const signed=Object.keys(sources).some(x=>[
+      'signed-bundle','trusted-pubkey','trusted-spki-sha256'].includes(x));
+    if(signed){
+      if(Object.keys(sources).length!==3
+        ||!sources['signed-bundle']||!sources['trusted-pubkey']
+        ||!sources['trusted-spki-sha256'])
+        throw Error('Signed receipt cannot mix unsigned files');
+      const bundle=JSON.parse(readEvidence(sources['signed-bundle']));
+      const pubkey=evidenceCrypto.readPrivate(sources['trusted-pubkey'],8192);
+      build({}, {bundle,publicKey:pubkey,
+        trustedDigest:sources['trusted-spki-sha256']});
+    }else{
+      const extra={};
+      for(const [kind,file] of Object.entries(sources))
+        extra[kind]=readEvidence(file);
+      build(extra);
+    }
   }catch{
     process.stderr.write('STAGE2_OWNER_REVIEW_REFUSED\n');process.exitCode=3;
   }
