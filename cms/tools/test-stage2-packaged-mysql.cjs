@@ -11,6 +11,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const net=require('node:net');
+const rawHttp=require('node:http');
 const {spawnSync,spawn}=require('node:child_process');
 const {STAGE,verify}=require('./build-internal-package.cjs');
 
@@ -82,6 +83,271 @@ async function status(url,init={}){
  const response=await fetch(url,{...init,signal:AbortSignal.timeout(2400)});
  return {code:response.status,body:await response.text()};
 }
+// A second, independent deployment path: actual Nginx -> separate PHP 8.3
+// FPM masters -> two dedicated MySQL 8.4 read-only identities. This is a
+// disposable test, NOT a reusable production Nginx/FPM configuration.
+function privateFile(file,content){
+ fs.mkdirSync(path.dirname(file),{recursive:true,mode:0o700});
+ fs.writeFileSync(file,content,{mode:0o600});
+}
+function fpmConfig(home,label,upstream){
+ const out=path.join(home,'nginx-config','fpm-'+label+'.conf');
+ privateFile(out,[
+  '[global]','pid = '+path.join(home,'fpm-'+label+'.pid'),
+  'error_log = '+path.join(home,'fpm-'+label+'.log'),
+  'daemonize = no','[ci_'+label+']','listen = 127.0.0.1:'+upstream,
+  'listen.backlog = 16','pm = static','pm.max_children = 1',
+  'clear_env = yes','security.limit_extensions = .php',
+  'php_admin_flag[display_errors] = off',
+  'php_admin_flag[log_errors] = off',''
+ ].join('\n'));
+ return out;
+}
+function nginxConfig(home,instances,listener,upstreams){
+ const conf=path.join(home,'nginx-config','nginx.conf');
+ const servers=[
+  'server {','listen 127.0.0.1:'+listener+' default_server;',
+  'server_name _;','return 404;','}'
+ ];
+ function cmsServer(x,index,wrongDocumentRoot=false){
+  const root=wrongDocumentRoot?x.site+'/public':x.cms+'/public';
+  const host=wrongDocumentRoot?'cms-mismapped.ci.test':'cms-'+index+'.ci.test';
+  const pair=upstreams[index];
+  const parts=[
+   'server {','listen 127.0.0.1:'+listener+';',
+   'server_name '+host+';','root '+root+';',
+   'autoindex off;','disable_symlinks on;',
+   'location ~ /\\. { return 404; }',
+   'location / { try_files $uri /index.php$is_args$args; }',
+   'location ~ \\.php(?:/|$) { return 404; }',
+   'location = /index.php {','internal;',
+   'include /etc/nginx/fastcgi_params;',
+   'fastcgi_param SCRIPT_FILENAME '+x.cms+'/public/index.php;',
+   'fastcgi_param SCRIPT_NAME /index.php;',
+   'fastcgi_param CMS_STAGE2_REQUIRE_FPM_MAPPING 1;',
+   'fastcgi_param CMS_ENV test;',
+   'fastcgi_param CMS_STAGE2_RUNTIME_GATE mysql-ci-bound;',
+   'fastcgi_param CMS_ALLOW_STAGE2_MYSQL_HTTP_CI 1;',
+   'fastcgi_param CI true;','fastcgi_param GITHUB_ACTIONS true;',
+   'fastcgi_param CMS_SITE_ID '+x.siteId+';',
+   'fastcgi_param CMS_DB_DSN '+mysqlEnv(x).CMS_DB_DSN+';',
+   'fastcgi_param CMS_DB_USER '+x.readUser+';',
+   'fastcgi_param CMS_DB_PASSWORD '+x.readPassword+';',
+   'fastcgi_param CMS_STAGE2_MYSQL_BINDING_FILE '+x.binding+';',
+   'fastcgi_pass 127.0.0.1:'+pair.cms+';',
+   'fastcgi_read_timeout 4s;',
+   '}','}'
+  ];
+  return parts.join('\n');
+ }
+ function visitorServer(x,index){
+  const p=upstreams[index];
+  const output=[
+   'server {','listen 127.0.0.1:'+listener+';',
+   'server_name visitor-'+index+'.ci.test;',
+   'root '+x.site+'/public;',
+   'autoindex off;','disable_symlinks on;',
+   'location ~ /\\. { return 404; }',
+   'location ~ \\.(?:phtml|phar|sqlite|db|sql|env)$ { return 404; }'
+  ];
+  if(x.family==='php'){
+   output.push('location / { try_files $uri /index.php$is_args$args; }',
+    'location ~ \\.php(?:/|$) { return 404; }',
+    'location = /index.php {','internal;',
+    'include /etc/nginx/fastcgi_params;',
+    'fastcgi_param SCRIPT_FILENAME '+x.site+'/public/index.php;',
+    'fastcgi_param SCRIPT_NAME /index.php;',
+    'fastcgi_pass 127.0.0.1:'+p.visitor+';',
+    'fastcgi_read_timeout 4s;','}');
+  }else{
+   output.push('location ~ \\.(?:php|key|pem)$ { return 404; }',
+    'location / { try_files $uri $uri/ =404; }');
+  }
+  output.push('}');
+  return output.join('\n');
+ }
+ for(let i=0;i<instances.length;i++){
+  servers.push(cmsServer(instances[i],i));
+  servers.push(visitorServer(instances[i],i));
+ }
+ servers.push(cmsServer(instances[0],0,true));
+ privateFile(conf,[
+  'worker_processes 1;',
+  'pid '+path.join(home,'nginx.pid')+';',
+  'error_log '+path.join(home,'nginx-error.log')+' warn;',
+  'events { worker_connections 256; }',
+  'http {','access_log off;',
+  'include /etc/nginx/mime.types;',
+  'default_type application/octet-stream;',
+  'sendfile off;',...servers,'}'
+ ].join('\n'));
+ return conf;
+}
+function virtualHttp(listener,host,uri='/',options={}){
+ return new Promise((resolve,reject)=>{
+  const req=rawHttp.request({
+    hostname:'127.0.0.1',port:listener,path:uri,
+    method:options.method||'GET',timeout:3000,
+    headers:{...(options.headers||{}),Host:host}
+  },response=>{
+    const bytes=[];let size=0;
+    response.on('data',chunk=>{
+      size+=chunk.length;
+      if(size>65536){req.destroy(Error('response_too_large'));return;}
+      bytes.push(chunk);
+    });
+    response.once('end',()=>resolve({code:response.statusCode,
+      body:Buffer.concat(bytes).toString('utf8'),headers:response.headers}));
+    response.once('error',reject);
+  });
+  req.once('timeout',()=>req.destroy(Error('timeout')));
+  req.once('error',reject);req.end();
+ });
+}
+async function expectHttp(listener,host,uri,code){
+ for(let i=0;i<80;i++){
+  try{
+   const result=await virtualHttp(listener,host,uri);
+   if(result.code===code)return result;
+  }catch{}
+  await pause(100);
+ }
+ throw Error('Nginx/FPM integration expected status '+code+' at '+host+uri);
+}
+async function realFpmMysql(instances,home){
+ const v=run('nginx',['-v']);
+ ok(v.status===0,'real Nginx binary installed for MySQL-backed FPM test');
+ ok(run('php-fpm8.3',['-v']).status===0,
+   'real PHP 8.3 FPM installed for MySQL-backed FPM test');
+ const modules=run('php8.3',['-r',
+   'exit(in_array("mysql", PDO::getAvailableDrivers(), true)?0:3);']);
+ ok(modules.status===0,'actual FPM ABI has PHP8.3 PDO MySQL extension');
+ const listener=await port(),children=[];
+ const upstreams=[];
+ for(let i=0;i<instances.length;i++){
+  upstreams.push({cms:await port(),visitor:await port()});
+ }
+ try{
+  for(let i=0;i<instances.length;i++){
+   const config=fpmConfig(home,'cms'+i,upstreams[i].cms);
+   children.push(spawn('php-fpm8.3',['-F','-y',config],{stdio:'ignore'}));
+  }
+  const visitorConfig=fpmConfig(home,'visitor1',upstreams[1].visitor);
+  children.push(spawn('php-fpm8.3',['-F','-y',visitorConfig],{stdio:'ignore'}));
+  const config=nginxConfig(home,instances,listener,upstreams);
+  ok((fs.statSync(config).mode&0o077)===0,
+    'MySQL FastCGI fixture credentials never stored in world-readable config');
+  const syntax=run('nginx',['-t','-c',config,'-p',home+'/']);
+  ok(syntax.status===0,'actual Nginx accepts two CMS and independent visitors');
+  children.push(spawn('nginx',['-c',config,'-p',home+'/','-g','daemon off;'],
+    {stdio:'ignore'}));
+  const a='cms-0.ci.test',b='cms-1.ci.test';
+  const va='visitor-0.ci.test',vb='visitor-1.ci.test';
+  for(const host of [a,b])await expectHttp(listener,host,'/api/health',200);
+  for(const host of [va,vb])await expectHttp(listener,host,'/',200);
+  for(const host of [a,b]){
+   const r=await virtualHttp(listener,host,'/api/health');
+   ok(r.code===200&&r.body==='{"status":"ok"}',
+     'real Nginx FastCGI -> dedicated FPM -> independent MySQL read-only 200');
+   ok(r.headers['cache-control']==='no-store'
+      &&r.headers['x-content-type-options']==='nosniff',
+      'MySQL FPM HTTP health retains no-store and nosniff');
+   for(const forbidden of ['/index.php','/vendor/autoload.php',
+      '/private/package-manifest.json','/bin/install.php',
+      '/private/editor/editor.js']){
+    ok((await virtualHttp(listener,host,forbidden)).code===404,
+      'Nginx/FPM public boundary blocks private executable '+forbidden);
+   }
+   ok((await virtualHttp(listener,host,'/api/publish',{method:'POST'})).code===404,
+     'MySQL FPM does not enable authentication-free write route');
+  }
+  ok((await virtualHttp(listener,'unknown.ci.test','/api/health')).code===404,
+    'default Nginx virtual host is deny-all even if FastCGI is healthy');
+  ok((await virtualHttp(listener,'cms-mismapped.ci.test','/api/health')).code===503,
+    'real FPM request denies a CMS front controller routed from WRONG document root');
+  ok((await virtualHttp(listener,a,'/api/health',{headers:{
+    CMS_SITE_ID:instances[1].siteId,
+    CMS_DB_DSN:mysqlEnv(instances[1]).CMS_DB_DSN
+  }})).code===200,'untrusted HTTP headers cannot override FastCGI identity');
+  ok((await virtualHttp(listener,va,'/')).body.includes('INDEPENDENT-VISITOR-A')
+    &&(await virtualHttp(listener,vb,'/')).body.includes('INDEPENDENT-VISITOR-B'),
+    'static and PHP visitor routes are independent of CMS MySQL identities');
+
+  const original=fs.readFileSync(instances[0].binding);
+  fs.appendFileSync(instances[0].binding,'broken');
+  ok((await virtualHttp(listener,a,'/api/health')).code===503,
+    'real FPM refuses CMS operator-binding corruption');
+  ok((await virtualHttp(listener,b,'/api/health')).code===200
+    &&(await virtualHttp(listener,va,'/')).code===200
+    &&(await virtualHttp(listener,vb,'/')).code===200,
+    'sibling CMS and both visitors survive real FPM binding outage');
+  fs.writeFileSync(instances[0].binding,original);
+  ok((await virtualHttp(listener,a,'/api/health')).code===200,
+    'FPM startup recovers after explicit good binding restored');
+  const writer=mysqlEnv(instances[0]);
+  const changes=run('php',['-r',\`
+    $pdo=new PDO(getenv("CMS_DB_DSN"),getenv("CMS_DB_USER"),
+      getenv("CMS_DB_PASSWORD"),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+    if ($argv[1]==="get") {echo $pdo->query(
+      "SELECT checksum FROM cms_schema_migrations WHERE version=1")->fetchColumn();exit;}
+    $stmt=$pdo->prepare("UPDATE cms_schema_migrations SET checksum=? WHERE version=1");
+    $stmt->execute([$argv[2]]);\`,
+    'get'],writer);
+  ok(changes.status===0&&/^[a-f0-9]{64}$/.test(changes.stdout.trim()),
+    'dedicated installer MySQL user can read original disposable schema checksum');
+  const originalChecksum=changes.stdout.trim();
+  const corrupt=run('php',['-r',\`
+    $pdo=new PDO(getenv("CMS_DB_DSN"),getenv("CMS_DB_USER"),
+      getenv("CMS_DB_PASSWORD"),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+    $stmt=$pdo->prepare("UPDATE cms_schema_migrations SET checksum=? WHERE version=1");
+    $stmt->execute([$argv[1]]);\`,'0'.repeat(64)],writer);
+  ok(corrupt.status===0,'fault injected into first dedicated disposable MySQL schema');
+  ok((await virtualHttp(listener,a,'/api/health')).code===503,
+    'actual PHP-FPM fails closed when bound MySQL migration checksum is corrupted');
+  ok((await virtualHttp(listener,b,'/api/health')).code===200
+      &&(await virtualHttp(listener,va,'/')).code===200,
+      'unaffected PHP-FPM and visitor continue during MySQL schema outage');
+  const restore=run('php',['-r',\`
+    $pdo=new PDO(getenv("CMS_DB_DSN"),getenv("CMS_DB_USER"),
+      getenv("CMS_DB_PASSWORD"),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+    $stmt=$pdo->prepare("UPDATE cms_schema_migrations SET checksum=? WHERE version=1");
+    $stmt->execute([$argv[1]]);\`,originalChecksum],writer);
+  ok(restore.status===0
+    &&(await virtualHttp(listener,a,'/api/health')).code===200,
+    'FPM/MySQL returns to 200 after authorized disposable metadata recovery');
+  await close({child:children[0]});
+  await expectHttp(listener,a,'/api/health',502);
+  ok((await virtualHttp(listener,a,'/api/health')).code===502
+    &&(await virtualHttp(listener,b,'/api/health')).code===200,
+    'killing one FPM master produces only corresponding CMS upstream 502');
+  ok((await virtualHttp(listener,va,'/')).code===200
+    &&(await virtualHttp(listener,vb,'/')).code===200,
+    'two independent visitor sites remain online after CMS PHP-FPM crash');
+  const restarted=spawn('php-fpm8.3',['-F','-y',fpmConfig(home,'cms0',upstreams[0].cms)],
+    {stdio:'ignore'});
+  children.push(restarted);
+  await expectHttp(listener,a,'/api/health',200);
+  ok((await virtualHttp(listener,a,'/api/health')).code===200,
+    'MySQL-bound PHP-FPM reboot reuses exact binding and DB without reinstall');
+  await close({child:children[2]});
+  await expectHttp(listener,vb,'/',502);
+  ok((await virtualHttp(listener,vb,'/')).code===502
+     &&(await virtualHttp(listener,a,'/api/health')).code===200
+     &&(await virtualHttp(listener,va,'/')).code===200,
+     'PHP visitor FPM failure cannot bring down either CMS or static visitor');
+  const visitorRestart=spawn('php-fpm8.3',['-F','-y',
+    fpmConfig(home,'visitor1',upstreams[1].visitor)],{stdio:'ignore'});
+  children.push(visitorRestart);
+  await expectHttp(listener,vb,'/',200);
+  ok((await virtualHttp(listener,vb,'/')).code===200,
+    'isolated PHP visitor recovers without touching either CMS process');
+  console.log('Stage2 real Nginx + 3 independent PHP-FPM pools + two MySQL 8.4 '
+    +'read-only CMS + HTML/PHP visitors, DB drift, FPM crashes and recovery PASS.');
+ } finally {
+  for(const child of children.reverse())await close({child});
+ }
+}
+
 async function main(){
  verify();
  const dataRoot=fs.mkdtempSync(path.join(os.tmpdir(),'ai-cms-pkg-mysql-'));
@@ -286,6 +552,7 @@ async function main(){
     // keep it live for cross-site isolation check on following pair
     live[i].cms=restarted;
   }
+  await realFpmMysql(instances,dataRoot);
   console.log('Stage2 CI MySQL instance-bound startup: two true read-only MySQL '
     +'HTTP identities, explicit operator binding, failure isolation and recovery PASS.');
   console.log('Stage2 verified INTERNAL PHP package + two isolated MySQL 8.4 credentials/DBs,'
