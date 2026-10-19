@@ -37,9 +37,11 @@ if ($mappingMode !== false && $mappingMode !== '') {
 // Unknown mode values fail closed; legacy lab smoke without the opt-in is unchanged.
 $gateMode = getenv('CMS_STAGE2_RUNTIME_GATE');
 if ($gateMode !== false && $gateMode !== '') {
-    $readiness = $gateMode === 'ci-bound'
-        ? \AiSiteCms\Hosting\LabInstanceBinding::fromProcess(dirname(__DIR__))
-        : \AiSiteCms\Hosting\EmptyCmsStartupReadiness::fromProcess(dirname(__DIR__));
+    $readiness = $gateMode === 'mysql-ci-bound'
+        ? \AiSiteCms\Hosting\Stage2MysqlBoundReadiness::fromProcess(dirname(__DIR__))
+        : ($gateMode === 'ci-bound'
+            ? \AiSiteCms\Hosting\LabInstanceBinding::fromProcess(dirname(__DIR__))
+            : \AiSiteCms\Hosting\EmptyCmsStartupReadiness::fromProcess(dirname(__DIR__)));
     if (!$readiness['ready']) {
         http_response_code(503);
         header('Content-Type: application/json; charset=utf-8');
