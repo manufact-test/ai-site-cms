@@ -26,7 +26,7 @@ $server=['DOCUMENT_ROOT'=>$home.'/public',
 try {
     $check(Gate::allows($home,$server,'fpm-fcgi',$env),
         'actual expected document/script mapping permits dedicated lab FPM');
-    foreach (['cli','cli-server','apache2handler','cgi-fcgi'] as $sapi){
+    foreach (['cli','cli-server','apache2handler','cgi-fcgi','litespeed'] as $sapi){
         $check(!Gate::allows($home,$server,$sapi,$env),
             'no other SAPI can imitate the real requested FPM gate');
     }

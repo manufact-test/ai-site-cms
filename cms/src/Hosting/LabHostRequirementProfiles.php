@@ -24,7 +24,7 @@ final class LabHostRequirementProfiles
     public static function describe(string $family, string $webServer): array
     {
         if (!isset(self::FAMILY_RUNTIME[$family])
-            || !in_array($webServer, ['apache-2.4', 'nginx'], true)) {
+            || !in_array($webServer, ['apache-2.4', 'nginx', 'litespeed'], true)) {
             throw new RuntimeException('Unsupported site family or web server profile');
         }
         $siteNeedsPhp = $family === 'php';
@@ -36,7 +36,9 @@ final class LabHostRequirementProfiles
             'webServer'=>$webServer,
             'cms'=>[
                 'phpMinimum'=>'8.1',
-                'phpRuntime'=>'independent-fpm-pool',
+                'phpRuntime'=>$webServer==='litespeed'
+                    ? 'independent-lsapi-pool-requires-target-proof'
+                    : 'independent-fpm-pool',
                 'requiredExtensions'=>['json','pdo','pdo_mysql','openssl'],
                 'documentRoot'=>'cms/public',
                 'privateCodeAndStateOutsideWebroot'=>true,
@@ -55,9 +57,13 @@ final class LabHostRequirementProfiles
                 ? ['apache-2.4','mod_dir','mod_authz_core','mod_proxy_fcgi',
                     'AllowOverride FileInfo Options Indexes AuthConfig',
                     'FallbackResource /index.php','document-root-cms-public']
-                : ['nginx','fastcgi_pass-to-independent-php-fpm',
-                    'internal-front-controller','deny-dotfiles',
-                    'document-root-cms-public'],
+                : ($webServer==='litespeed'
+                    ? ['litespeed','php-lsapi','apache-compatible-rewrite-rules',
+                        'site-level-isolation-not-yet-verified',
+                        'deny-dotfiles','document-root-cms-public']
+                    : ['nginx','fastcgi_pass-to-independent-php-fpm',
+                        'internal-front-controller','deny-dotfiles',
+                        'document-root-cms-public']),
             'targetWebServerTested'=>false,
             'targetDnsTlsTested'=>false,
             'productionReady'=>false

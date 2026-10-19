@@ -75,7 +75,7 @@ final class Stage2TargetHostHandoff
             }
         }
         if (!in_array($input['webSapiReported'], ['fpm-fcgi','apache2handler',
-            'cgi-fcgi','unknown'], true)) {
+            'cgi-fcgi','litespeed','unknown'], true)) {
             throw new RuntimeException('Unsupported declared web SAPI observation');
         }
         $checks = [
@@ -95,6 +95,8 @@ final class Stage2TargetHostHandoff
         return [
             'format'=>'ai-site-cms-stage2-untrusted-operator-observations-v1',
             'reportedFamily'=>$family,
+            'reportedWebSapi'=>$input['webSapiReported'],
+            'litespeedLsapiReportedNotVerified'=>$input['webSapiReported']==='litespeed',
             'claimedChecks'=>$checks,
             'unmetClaimedChecks'=>$unmet,
             'allClaimsPresentAndPositive'=>$unmet===[],

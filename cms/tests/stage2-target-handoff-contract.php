@@ -50,6 +50,15 @@ foreach(['cmsHealth'=>true,'cmsWrite'=>'404','cmsPrivate'=>600,
     hostReject(static fn()=>Handoff::inspectOperatorHttp($variant,'html'),
         'strictly typed observation: '.$key);
 }
+$lsapi=$good;
+$lsapi['webSapiReported']='litespeed';
+$lsapiCheck=Handoff::inspectOperatorHttp($lsapi,'html');
+hostCheck($lsapiCheck['reportedWebSapi']==='litespeed'
+    &&$lsapiCheck['litespeedLsapiReportedNotVerified']===true
+    &&$lsapiCheck['claimedChecks']['separate_fpm_reported']===false
+    &&!$lsapiCheck['allClaimsPresentAndPositive']
+    &&!$lsapiCheck['realTargetHostProven'],
+    'a real LiteSpeed SAPI report never masquerades as verified PHP-FPM');
 $variant=$good;$variant['unexpected']='credential';
 hostReject(static fn()=>Handoff::inspectOperatorHttp($variant,'html'),
     'unexpected metadata rejected');

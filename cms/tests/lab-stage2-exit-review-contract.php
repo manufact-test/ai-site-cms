@@ -18,7 +18,7 @@ function refused(callable $call,string $label):void{
 }
 $families=['html','php','react-spa','next-static','next-ssr'];
 foreach($families as $family){
-    foreach(['apache-2.4','nginx'] as $web){
+    foreach(['apache-2.4','nginx','litespeed'] as $web){
         $p=Host::describe($family,$web);
         ok($p['family']===$family&&$p['webServer']===$web
             &&$p['cms']['documentRoot']==='cms/public'
@@ -36,7 +36,10 @@ foreach($families as $family){
             'declarative profile cannot claim real host evidence');
         ok($web==='nginx'
             ? in_array('deny-dotfiles',$p['webServerPrerequisites'],true)
-            : in_array('FallbackResource /index.php',$p['webServerPrerequisites'],true),
+            : ($web==='litespeed'
+                ? in_array('php-lsapi',$p['webServerPrerequisites'],true)
+                  &&$p['cms']['phpRuntime']==='independent-lsapi-pool-requires-target-proof'
+                : in_array('FallbackResource /index.php',$p['webServerPrerequisites'],true)),
             'host prerequisites specific to web server');
     }
 }
