@@ -37,6 +37,7 @@ function inspectScope(obj,origins,now=Date.now()){
     scopeReferenceSha256:hash(obj.reference),
     scopeExpiresAt:obj.expiresAt,
     originPairSha256:hash(JSON.stringify([obj.cmsOrigin,obj.siteOrigin])),
+    operatorScopeRecordSha256:hash(JSON.stringify(KEYS.map(k=>obj[k]))),
     operatorRecordIsIndependentOwnerProof:false
   });
 }
@@ -55,7 +56,7 @@ function readScope(file,origins,now=Date.now()){
   if(bytes.length!==st.size||bytes.includes(0))throw Error('invalid_scope_file');
   const parsed=JSON.parse(bytes.toString('utf8'));
   const result=inspectScope(parsed,origins,now);
-  return {...result,operatorScopeRecordSha256:hash(bytes)};
+  return result;
 }
 function operatorEnabled(env=process.env){
   return env.CMS_ENV!=='test'&&
