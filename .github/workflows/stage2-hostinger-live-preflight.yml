@@ -95,13 +95,16 @@ jobs:
               p.cmsInstalled===false&&p.databaseConnectionAttempted===false&&
               p.privateFilesystemVerified===false&&p.cmsVisitorOutageTested===false,
               'Non-authoritative target preflight shape');
+            const liteSpeedObserved=p.phpSapi==='litespeed';
+            process.stdout.write('Target safely reported PHP='+String(p.phpVersionMajorMinor).slice(0,8)+
+              '; SAPI='+String(p.phpSapi).slice(0,30)+'; stage2_not_accepted=true\\n');
             assert(typeof p.phpVersionMajorMinor==='string'&&
               /^8\.[1-9]$/.test(p.phpVersionMajorMinor)&&
-              ['fpm-fcgi','cgi-fcgi','apache2handler'].includes(p.phpSapi),
+              ['fpm-fcgi','cgi-fcgi','apache2handler','litespeed'].includes(p.phpSapi),
               'Target PHP ABI below Stage2 baseline or unexpected web SAPI');
             assert(checks&&Object.values(checks).every(v=>typeof v==='boolean')&&
               checks.php81OrLater&&checks.json&&checks.pdo&&checks.pdoMysql&&
-              checks.openssl&&checks.webSapi,
+              checks.openssl&&(checks.webSapi||liteSpeedObserved),
               'Target PHP dependency check failed');
             const requests=[
               ['Private PHP vendor','/vendor/autoload.php',r=>[403,404].includes(r.status)],
@@ -129,6 +132,7 @@ jobs:
               '- Hostinger Git auto-deployment revision observed: **YES**.',
               '- Web PHP: **'+p.phpVersionMajorMinor+'**; SAPI: **'+p.phpSapi+'**.',
               '- PHP 8.1+/JSON/PDO MySQL/OpenSSL: **YES**.',
+              '- LiteSpeed LSAPI alternative to lab PHP-FPM: **'+(liteSpeedObserved?'DETECTED, NOT YET ACCEPTED':'not detected')+'**.',
               '- DocumentRoot matches PHP public script directory: **'+
                 (checks.documentRootMatchesPublicEntrypoint?'YES':'NO — inspect')+'**.',
               '- Non-public parent can be read: **'+(checks.privateParentExistsAndReadable?'YES':'NO')+'**.',
