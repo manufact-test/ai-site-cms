@@ -109,6 +109,42 @@ async function main(){
   ok(!JSON.stringify(initialReview).includes(base)
     && initialReview.instances.every(item=>/^[a-f0-9]{64}$/.test(item.cmsPackageSha256)),
     'operator report is digest-bound and does not print private filesystem paths');
+  // An unsigned package hash can be recomputed by the same party that
+  // modified its lock data. Internal cross-file evidence MUST still refuse
+  // when the newly hashed package is self-inconsistent.
+  const tamperedRoot=items[0].cmsRoot;
+  const manifestFile=tamperedRoot+'/private/package-manifest.json';
+  const lockFile=tamperedRoot+'/private/compliance/npm-package-lock.json';
+  const noticeFile=tamperedRoot+'/private/compliance/THIRD_PARTY_NOTICES.txt';
+  const savedManifest=fs.readFileSync(manifestFile);
+  const savedLock=fs.readFileSync(lockFile);
+  const savedNotice=fs.readFileSync(noticeFile);
+  const unsignedRehash=(relative,newBytes)=>{
+    const content=Buffer.isBuffer(newBytes)?newBytes:Buffer.from(newBytes);
+    const target=tamperedRoot+'/'+relative;
+    fs.writeFileSync(target,content);
+    const manifest=JSON.parse(savedManifest);
+    const rec=manifest.files.find(x=>x.path===relative);
+    assert.ok(rec,'modified compliance file must be inventoried');
+    rec.sha256=crypto.createHash('sha256').update(content).digest('hex');
+    rec.bytes=content.length;
+    fs.writeFileSync(manifestFile,JSON.stringify(manifest,null,2)+'\n');
+    const pf=invoke(tamperedRoot+'/bin/package-preflight.php',
+      ['--check','--package-root='+tamperedRoot]);
+    ok(pf.status===0,'unsigned manifest alone still admits resealed compliant-format bytes');
+    err(exitReview(),'STAGE2_EXIT_REVIEW_REFUSED',
+      'independent exit review catches resealed but contradictory compliance evidence');
+    fs.writeFileSync(target,relative.includes('npm-package-lock')?savedLock:savedNotice);
+    fs.writeFileSync(manifestFile,savedManifest);
+  };
+  const editedLock=JSON.parse(savedLock.toString());
+  assert.equal(editedLock.packages['node_modules/jedison'].license,'MIT');
+  editedLock.packages['node_modules/jedison'].license='BSD-3-Clause';
+  unsignedRehash('private/compliance/npm-package-lock.json',JSON.stringify(editedLock));
+  unsignedRehash('private/compliance/THIRD_PARTY_NOTICES.txt',
+    Buffer.concat([savedNotice,Buffer.from('\nrepacked without changing the notice index\n')]));
+  ok(reviewReport(4).packageSetSha256===initialReview.packageSetSha256,
+    'restoring all pinned evidence returns same review package digest');
   const profiles=new Map(initialReview.instances.map(x=>[x.family,x.requiredWebServerProfiles]));
   ok(profiles.get('php').nginx.visitor.independentPhpWorkerRequired
     &&profiles.get('next-ssr').apache.visitor.nodeServerAndReverseProxyRequired
