@@ -1,3 +1,5 @@
+> **АКТУАЛЬНО v1.44, 19.10.2026:** последнее согласование владельца — ручные лицензии/собственный preview, safe AI-блоки и reuse. Только документация; Stage2 не принят, Stage3 не начат, 0/135, Hostinger не проверен. Предшествующие checkpoint notes ниже исторические.
+
 # Stage2 — проверка критериев завершения и границ хостинга (v1.43, 19.10.2026)
 
 **Статус: НЕ ПРИНЯТ; Stage3 НЕ начат; 0/135 продуктово принято.** В рамках Stage2 создана лабораторная архитектурная доказательная база и удобный read-only handoff для оператора. Код `f9bd4d25c996a8504abcb2ac5a896d70ab853db8` прошёл [PHP 7/7](https://github.com/manufact-test/ai-site-cms/actions/runs/39174335647) и [полный редактор/дистрибутив/E2E 1/1](https://github.com/manufact-test/ai-site-cms/actions/runs/39174335641), внутренний пакет 465 файлов. Лабораторные проверки не дают права работать с Hostinger.
@@ -26,3 +28,11 @@
 - Процент **≈85–90% инженерной готовности Stage2, остаётся ≈10–15%** — экспертная оценка открытых архитектурных и целевых критериев, не официальный KPI и не доля 135 функций. Реальные непредвиденные ограничения хоста могут увеличить остаток.
 
 **Никаких действий с Hostinger, CELIKOM, клиентскими сайтами и веткой `research/stage1-editor-comparison` не выполнялось.**
+
+## Добавление v1.44 — доказательства с последней передачи 19.10.2026
+
+- Последний действительно проверенный **код**: 1b1f154702bc618242f7769524e769a2b1486932; [PHP CI 7/7 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39240517754), [editor+internal package 1/1 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39240517567). Внутренний комплект **469 файлов** (465-file числа в прежнем v1.43 — исторические).
+- Поставлен read-only Stage2TargetHostHandoff + CLI: локальные пакет/root наблюдения и строго типизированные операторские claims; **27 PHP contract + 44 packaged CLI тестов**; никакой live HTTP/TLS/PHP-FPM/DB проверки, самодекларация не доказывает реальный хост.
+- Построен единый packaged→две раздельные disposable MySQL8.4 базы с отдельными пользователями→explicit CLI install→read-only schema preflight→foreign DB/ID denial→independent visitor HTTP smoke. **39 новых интеграционных проверок PASS**. Это не production MySQL-to-HTTP binding, не тест Hostinger и не owner stage acceptance.
+
+**Stage2 остаётся НЕ принят:** нет independent license/legal approval, согласования владельцем закрытия архитектуры, разрешения на Hostinger read-only и отдельного разрешения на установку/target host evidence. Новые бизнес и site-quality решения [ADR0012](ADR/0012-manual-client-licenses-and-project-handover.md), [ADR0013](ADR/0013-ai-site-safe-defaults-and-reuse.md) — будущие product requirements, **не реализованные** и не оправдывающие бесконечный Stage2 lab.

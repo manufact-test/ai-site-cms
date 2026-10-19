@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-19",
-  "status": "stage-2-exit-review-owner-and-target-host-gates-open",
+  "status": "stage-2-not-accepted-with-owner-approved-client-license-and-safe-ai-site-policy",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Stage2 85-90% engineering estimate only; NOT ACCEPTED. Review docs/STAGE-2-EXIT-REVIEW.md and ADR0011. Close owner architecture/license evidence, then ONLY WITH SEPARATE EXPLICIT PERMISSION check target Hostinger read-only and separately request permission for test deployment. Do not start Stage3 or touch client sites. One 'continue' = big integrated 3+ deliverables; no automatic docs updates.",
+  "next_step": "Read last docs/NEXT-CHAT.md §49, docs/DEVELOPMENT-WORKFLOW.md, ADR0012, ADR0013, SITE-QUALITY-BASELINE, current main and CI. Code head before docs-only checkpoint 1b1f154702bc618242f7769524e769a2b1486932 (PHP 7/7/editor 1/1 successful); 469-file CI-only package, new dual-MySQL packaged E2E 39 checks. Stage2 NOT ACCEPTED/Stage3 NOT STARTED, 0/135. Architecture/legal owner review + separate explicit read-only Hostinger permission + separate trial-install approval and real target host evidence remain blockers. New owner-approved manual licensing and AI safe-by-default/reuse policies are FUTURE work not yet implemented. One 'continue' = large integrated 3+ deliverables; NO docs updates except direct owner's request.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "private",
-  "checkpoint_version": "1.43",
+  "checkpoint_version": "1.44",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -25,7 +25,7 @@
     "started_at": "2026-10-18",
     "owner_delegated_selection": true,
     "foundation": "A - Slim/Opis/Jedison",
-    "product_code": "CI-only empty Slim/Opis/Jedison with isolated metadata DB and operator-approved fleet PLAN/APPLY; Apache+Nginx/PHP-FPM real runner tests, five family hosted visitor routing, portable empty metadata, signed upgrade research; read-only exit review and package evidence. No production host or user admin/write API.",
+    "product_code": "CI-only empty Slim4/Opis2.6/Jedison1.27.1 with isolated package verification, local-only handoff, Apache/Nginx PHP-FPM tests, 5 families, 469-file internal package, signed-upgrade laboratory, and dual independent MySQL8.4 packaged CLI+HTTP 39-check E2E. NO authenticated product admin, license control, AI site generator, form handling, publish or real target host test.",
     "bootstrap_commit": "8eb12e2825ebcf53571e01d15ce947baf6d5d2bc",
     "bootstrap_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39125215551",
     "bootstrap_ci_result": "completed success 1/1; 10 CLI smoke checks + PHP syntax + Composer dependency installation + real HTTP smoke",
@@ -52,8 +52,8 @@
       "Idempotent same-site initialization",
       "Refuses database reuse by different site identity"
     ],
-    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39174335647",
-    "last_full_ci_result": "7/7 SUCCESS on f9bd4d25c996a8504abcb2ac5a896d70ab853db8 (PHP 8.1–8.4, SQLite, MySQL, Stage2 architecture profile contract)",
+    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39240517754",
+    "last_full_ci_result": "7/7 SUCCESS on code 1b1f154702bc618242f7769524e769a2b1486932 including isolated dual-MySQL packaged E2E (39 checks)",
     "last_full_ci_checks": {
       "kernel_smoke": 10,
       "sqlite_schema_checks": 37,
@@ -96,8 +96,8 @@
       "ci_result": "success 1/1 job, pinned deps, npm audit, browser integration and reproducible JS build",
       "artifact_id": 12137545566
     },
-    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39174335647",
-    "latest_php_ci_result": "7/7 SUCCESS on f9bd4d25c996a8504abcb2ac5a896d70ab853db8 (PHP 8.1–8.4, SQLite, MySQL, Stage2 architecture profile contract)",
+    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39240517754",
+    "latest_php_ci_result": "7/7 SUCCESS on code 1b1f154702bc618242f7769524e769a2b1486932",
     "package_research": {
       "internal_only": true,
       "production_ready": false,
@@ -147,8 +147,8 @@
       "matrix_and_integration_job_count": 7,
       "passed": 7
     },
-    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39174335641",
-    "latest_editor_ci_result": "1/1 SUCCESS on f9bd4d25c996a8504abcb2ac5a896d70ab853db8; bundled 465-file package; exit review 156 E2E + 45 PHP; all Apache/Nginx and signed upgrade regressions",
+    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39240517567",
+    "latest_editor_ci_result": "1/1 SUCCESS on code 1b1f154702bc618242f7769524e769a2b1486932",
     "storage_safety_preflight": {
       "implementation": "cms/src/Storage/SchemaManager.php::inspectSite, cms/bin/schema-preflight.php --inspect",
       "supported_drivers": [
@@ -438,6 +438,26 @@
       "product_requirements_accepted": 0,
       "stage2_accepted": false,
       "stage3_started": false
+    },
+    "stage2_v1_44_checkpoint": {
+      "code_head_before_docs_only_commit": "1b1f154702bc618242f7769524e769a2b1486932",
+      "code_ci_php": {
+        "url": "https://github.com/manufact-test/ai-site-cms/actions/runs/39240517754",
+        "jobs": "7/7 success"
+      },
+      "code_ci_editor": {
+        "url": "https://github.com/manufact-test/ai-site-cms/actions/runs/39240517567",
+        "jobs": "1/1 success"
+      },
+      "internal_package_file_count": 469,
+      "target_host_handoff_php_contract_checks": 27,
+      "target_host_handoff_packaged_cli_checks": 44,
+      "packaged_dual_mysql_real_disposable_ci_checks": 39,
+      "target_host_tested": false,
+      "stage_2_accepted": false,
+      "stage_3_started": false,
+      "new_product_features_implemented": false,
+      "note": "docs-only owner-requested transfer; updated policy is future and not code"
     }
   },
   "total_stages": 18,
@@ -927,5 +947,58 @@
     "directive": "One 'continue' means a large integrated scope with at least 3 substantial related deliverables as a guideline, not one helper/test/CI; keep working autonomously until vertical slice complete, final combined CI only, report source SHA and evidence",
     "no_document_update_without_explicit_owner_request": true,
     "owner_requested_this_checkpoint_in_same_chat": true
+  },
+  "owner_approved_policy_2026_10_19": {
+    "approved": true,
+    "implemented": false,
+    "documents": [
+      "docs/ADR/0012-manual-client-licenses-and-project-handover.md",
+      "docs/ADR/0013-ai-site-safe-defaults-and-reuse.md",
+      "docs/SITE-QUALITY-BASELINE.md"
+    ],
+    "manual_license": {
+      "modes": [
+        "perpetual",
+        "subscription"
+      ],
+      "reminder_date_configured_manually": true,
+      "reminder_example_days": 30,
+      "reminder_in_internal_agency_panel": true,
+      "auto_billing": false,
+      "auto_suspend_on_due_date": false,
+      "manual_suspend_and_resume_cms_edit_publish": true,
+      "transferred_public_website_remains_available": true,
+      "agency_unpaid_preview_can_be_reversibly_manually_paused_on_agency_controlled_host_with_contractual_right": true,
+      "no_hidden_remote_kill_switch_or_deleting_client_data": true,
+      "cannot_guarantee_php_drm_against_client_with_full_server_access": true
+    },
+    "site_quality": {
+      "AI_generates_safe_runtime_defaults_for_used_blocks_even_without_design": true,
+      "real_form_server_validation_spam_phone_delivery": true,
+      "missing_receiver_or_secrets": "CONFIGURATION_REQUIRED, never fake success",
+      "included_applicable_blocks": [
+        "buttons-and-links",
+        "faq",
+        "menus",
+        "popups",
+        "media",
+        "responsiveness",
+        "accessibility",
+        "SEO",
+        "security"
+      ],
+      "reuse_reviewed_supported_open_source_before_writing_custom_code": true,
+      "evaluation_includes_license_maintenance_security_compatibility_size": true,
+      "source_examples_not_installed_or_approved_dependencies": [
+        "OWASP",
+        "WCAG/WAI-ARIA",
+        "GOV.UK UI patterns",
+        "libphonenumber",
+        "Radix"
+      ]
+    },
+    "original_193_answers_135_42_16_unchanged": true,
+    "existing_18_stages_unchanged": true,
+    "owner_requests_no_automatic_doc_updates": true
   }
 }

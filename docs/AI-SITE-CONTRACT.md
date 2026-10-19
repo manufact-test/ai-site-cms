@@ -75,3 +75,14 @@
 - ✅ публичная страница работает без CMS/editor runtime.
 
 Результаты покрытия связывать с номерами требований из `REQUIREMENTS.md`.
+
+## 6. Согласованный safe-by-default генератор сайтов — 19.10.2026
+
+При создании сайта «на свой вкус», без дизайна или по прототипу ИИ обязан предоставить **рабочее поведение** каждого используемого блока, а не только визуальный HTML и список редактируемых полей. Manifest в будущем будет описывать применимые capabilities, реальные зависимости и проверку. Названия будущих JSON-полей не фиксированы до Stage3.
+
+- **Формы:** серверная валидация, бот-защита/honeypot/rate-limit, international phone, реальная отправка через безопасный обработчик и корректный статус/ошибки; без секретов/получателя — CONFIGURATION_REQUIRED, не фальшивая отправка.
+- **Остальные блоки:** кнопки и ссылки с работающими actions, FAQ/menu/modal keyboard/focus/mobile/reduced-motion, media lazy/optimization с исключениями для важных ресурсов, responsive/a11y/SEO/security всех страниц.
+- **Проверки:** PASS/FAIL/N/A с причиной/CONFIGURATION_REQUIRED; доставка с настоящим тестовым endpoint, negative bot/validation/XSS/CSRF, no horizontal scroll, независимость публичного сайта и заявок от отключённой админки.
+- **Реюз:** до собственного кода исследовать и проверить maintainer/security/license/version/compatibility существующих permissive open-source модулей; адаптировать по HTML/PHP/React/Next без обязательного Node на PHP-хостинге. OWASP/GOV.UK/WCAG/libphonenumber/Radix — кандидаты к оценке, не автоматически включённые библиотеки.
+
+Полный стандарт [SITE-QUALITY-BASELINE](SITE-QUALITY-BASELINE.md) и утверждённая политика [ADR0013](ADR/0013-ai-site-safe-defaults-and-reuse.md). Это **дополнение к будущему контракту**, а не работающая сейчас функциональность Stage2.

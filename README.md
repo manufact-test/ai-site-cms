@@ -1,3 +1,7 @@
+> **АКТУАЛЬНАЯ ПЕРЕДАЧА v1.44 (19.10.2026):** согласованы ручные лицензии MANUFACT, обратимое закрытие только собственного неоплаченного preview, безопасные AI-блоки и исследование open-source. Это пока ДОКУМЕНТЫ, не код. Stage2 НЕ принят, Stage3 не начат, 0/135; код 1b1f154702bc618242f7769524e769a2b1486932, PHP7/7 + editor1/1 PASS; 469 файлов. Подробности в LAST §49 docs/NEXT-CHAT.md, ADR0012/ADR0013/SITE-QUALITY-BASELINE.
+
+[Новые ручные лицензии](docs/ADR/0012-manual-client-licenses-and-project-handover.md) · [AI safe defaults и reuse](docs/ADR/0013-ai-site-safe-defaults-and-reuse.md) · [Стандарт готовности сайтов](docs/SITE-QUALITY-BASELINE.md) · [Последний checkpoint](docs/NEXT-CHAT.md).
+
 # AI Site CMS — документация проекта
 
 > **Название:** AI Site CMS · **репозиторий:** `manufact-test/ai-site-cms` (`main`, private)  
