@@ -87,7 +87,7 @@ async function main(){
     const grantDir=path.join(temp,'scopes');
     fs.mkdirSync(grantDir,{mode:0o700});
     const grantPath=path.join(grantDir,'owner-scope.json');
-    const utc=ms=>new Date(ms).toISOString().replace('.000Z','Z');
+    const utc=ms=>new Date(Math.floor(ms/1000)*1000).toISOString().slice(0,19)+'Z';
     const t=Date.now();
     const record={format:scope.FORMAT,repository:'manufact-test/ai-site-cms',
       scope:'target-readonly-https-get',cmsOrigin:'https://cms.acme-hosting.com',
