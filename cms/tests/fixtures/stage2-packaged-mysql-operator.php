@@ -36,14 +36,14 @@ try {
     $stage='sql-'.$action;
     if ($action==='--provision') {
         foreach ($pairs as [$db,$user,$password]) {
-            $pdo->exec("CREATE DATABASE \`$db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $pdo->exec("CREATE DATABASE `$db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
             $pdo->exec("CREATE USER '$user'@'%' IDENTIFIED BY '$password'");
-            $pdo->exec("GRANT ALL PRIVILEGES ON \`$db\`.* TO '$user'@'%'");
+            $pdo->exec("GRANT ALL PRIVILEGES ON `$db`.* TO '$user'@'%'");
         }
     } else {
         foreach ($pairs as [$db,$user]) {
             $pdo->exec("DROP USER IF EXISTS '$user'@'%'");
-            $pdo->exec("DROP DATABASE IF EXISTS \`$db\`");
+            $pdo->exec("DROP DATABASE IF EXISTS `$db`");
         }
     }
     echo "STAGE2_PACKAGED_MYSQL_".($action==='--provision'?'PROVISIONED':'CLEANED')."\n";
