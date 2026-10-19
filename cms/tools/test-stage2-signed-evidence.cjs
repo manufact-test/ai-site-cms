@@ -85,6 +85,12 @@ function main(){
     ok(noGrant.status===3&&noGrant.stdout===''
       &&noGrant.stderr.trim()==='STAGE2_OPERATOR_SIGNATURE_REFUSED',
       'default signing denied without operator action');
+    // Fail with the actual local cause BEFORE the intentionally opaque CLI,
+    // so CI diagnoses contract errors without exposing private key bytes.
+    ok(signing.readPrivate(privatePath,8192).length>64,
+      'operator private key readable from mode-0600 workspace');
+    ok(signing.makeSigned(records,privatePem).format===signing.FORMAT,
+      'direct disposable evidence signing with Ed25519 key works');
     const signed=run(process.execPath,signArgs,{
       CMS_STAGE2_OPERATOR_SIGNING:'explicit-offline-attestation'});
     ok(signed.status===0&&signed.stderr===''
