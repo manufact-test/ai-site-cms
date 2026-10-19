@@ -20,10 +20,17 @@ final class LabWebSapiGate
     public static function allows(
         string $cmsRoot, array $server, string $sapi, array $env
     ): bool {
+        $sqliteCi = ($env['CMS_STAGE2_RUNTIME_GATE'] ?? null) === 'ci-bound'
+            && ($env['CMS_ALLOW_SQLITE_TEST_ONLY'] ?? null) === '1';
+        // The MySQL path uses a *different* isolated, dedicated CI service.
+        // Never equate this with generic PHP-FPM/production compatibility.
+        $mysqlCi = ($env['CMS_STAGE2_RUNTIME_GATE'] ?? null) === 'mysql-ci-bound'
+            && ($env['CMS_ALLOW_STAGE2_MYSQL_HTTP_CI'] ?? null) === '1'
+            && ($env['CI'] ?? null) === 'true'
+            && ($env['GITHUB_ACTIONS'] ?? null) === 'true';
         if (($env['CMS_STAGE2_REQUIRE_FPM_MAPPING'] ?? null) !== '1'
             || ($env['CMS_ENV'] ?? null) !== 'test'
-            || ($env['CMS_STAGE2_RUNTIME_GATE'] ?? null) !== 'ci-bound'
-            || ($env['CMS_ALLOW_SQLITE_TEST_ONLY'] ?? null) !== '1') {
+            || (!$sqliteCi && !$mysqlCi)) {
             return false;
         }
         if ($cmsRoot === '' || realpath($cmsRoot) !== $cmsRoot
@@ -51,7 +58,8 @@ final class LabWebSapiGate
     {
         $env=[];
         foreach (['CMS_STAGE2_REQUIRE_FPM_MAPPING','CMS_STAGE2_RUNTIME_GATE',
-            'CMS_ENV','CMS_ALLOW_SQLITE_TEST_ONLY'] as $name) {
+            'CMS_ENV','CMS_ALLOW_SQLITE_TEST_ONLY',
+            'CMS_ALLOW_STAGE2_MYSQL_HTTP_CI','CI','GITHUB_ACTIONS'] as $name) {
             $v=getenv($name);
             $env[$name]=$v===false?null:$v;
         }
