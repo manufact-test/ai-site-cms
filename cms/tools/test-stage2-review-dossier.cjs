@@ -5,6 +5,7 @@ const {spawnSync}=require('node:child_process');
 const {STAGE}=require('./build-internal-package.cjs');
 const legal=require('./stage2-license-dossier.cjs');
 const review=require('./stage2-owner-decision.cjs');
+const scope=require('./stage2-operator-scope.cjs');
 let count=0;
 function ok(condition,label){assert.ok(condition,label);count++;}
 function reject(fn,label){
@@ -48,6 +49,8 @@ function main(){
     ok(handoff.status===0&&handoff.stderr===''&&handoff.stdout.length>100,
       'real built package and separate visitor site pass offline handoff CLI');
     const offline=JSON.parse(handoff.stdout);
+    ok(offline.cmsPackageManifestSha256===before.packageManifestSha256,
+      'operator CLI binds local package fingerprint to real reviewed build');
     const attachment=review.assemble(before,{offline});
     ok(attachment.attachedEvidence.offlineLocal.localFilesystemAndPackageCompatible
       &&attachment.remainingCriteria.find(x=>x.id==='target_package_structure')
@@ -62,7 +65,18 @@ function main(){
     ok(browser.includes('owner acceptance checklist')&&browser.includes('No access')
       &&browser.includes('Content-Security-Policy')&&!browser.includes('<script'),
       'offline owner checklist is accessible and not interactive/deceptive');
+    const utc=ms=>new Date(Math.floor(ms/1000)*1000).toISOString().slice(0,19)+'Z';
+    const now=Date.now();
+    const grant={format:scope.FORMAT,repository:'manufact-test/ai-site-cms',
+      scope:'target-readonly-https-get',cmsOrigin:'https://cms.acme-hosting.com',
+      siteOrigin:'https://site.acme-hosting.com',reference:'owner-stage2-review-fixture',
+      issuedAt:utc(now-300000),expiresAt:utc(now+3600000)};
+    const grantDigest=scope.inspectScope(grant,{
+      cmsOrigin:grant.cmsOrigin,siteOrigin:grant.siteOrigin
+    });
     const fakeHttps={
+      requestedOriginsSha256:grantDigest.originPairSha256,
+      operatorScopeRecordSha256:grantDigest.operatorScopeRecordSha256,
       format:'ai-site-cms-stage2-active-https-observation-v1',
       ciLoopbackOnly:false,actualHttpsRequestsAttempted:true,
       httpsObservationsPass:true,targetHostAccepted:false,
@@ -74,7 +88,7 @@ function main(){
         }]))
     };
     const database={state:'ready',reason:'matched',version:2};
-    const submitted=review.assemble(before,{offline,https:fakeHttps,database});
+    const submitted=review.assemble(before,{offline,https:fakeHttps,database,scope:grant});
     ok(submitted.attachedEvidence.externalHttps.claimedHttpsChecksPass
       &&submitted.attachedEvidence.databaseSchema.reportedState==='ready'
       &&submitted.stage2Accepted===false&&submitted.productionReady===false
@@ -91,7 +105,23 @@ function main(){
       [{httpsObservationsPass:false},'contradictory HTTP statuses'],
       [{results:{...fakeHttps.results,leakedNewField:{passed:true}}},'unreviewed HTTP test'],
       [{results:{...fakeHttps.results,cmsHealth:{passed:1,status:200,tlsPeerVerified:true}}},'nonboolean check']
-    ])reject(()=>review.assemble(before,{https:{...fakeHttps,...change}}),label);
+    ])reject(()=>review.assemble(before,{scope:grant,https:{...fakeHttps,...change}}),label);
+    reject(()=>review.assemble(before,{offline:{...offline,
+      cmsPackageManifestSha256:'b'.repeat(64)}}),
+      'operator report from different package must never be attached');
+    reject(()=>review.assemble(before,{https:fakeHttps}),
+      'non-CI HTTPS evidence without grant scope refused');
+    reject(()=>review.assemble(before,{scope:grant,https:{...fakeHttps,
+      requestedOriginsSha256:'a'.repeat(64)}}),
+      'HTTPS report scope origin collision refused');
+    reject(()=>review.assemble(before,{scope:grant,https:{...fakeHttps,
+      operatorScopeRecordSha256:'b'.repeat(64)}}),
+      'HTTPS report wrong operator grant fingerprint refused');
+    reject(()=>review.assemble(before,{scope:{...grant,
+      expiresAt:utc(now-10000)},https:fakeHttps}),
+      'expired permission scope refused for owner evidence');
+    reject(()=>review.assemble(before,{https:{...fakeHttps,ciLoopbackOnly:true}}),
+      'fixture cannot falsely assert a real operator scope');
     reject(()=>review.assemble(before,{offline:{...offline,stage2Accepted:true}}),
       'forged local Stage2 acceptance');
     reject(()=>review.assemble(before,{database:{...database,state:'approved'}}),
