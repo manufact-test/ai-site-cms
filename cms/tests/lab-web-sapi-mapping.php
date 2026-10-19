@@ -66,6 +66,32 @@ try {
     $bad['DOCUMENT_ROOT']='/other';
     $check(!Gate::allows($home,$bad,'fpm-fcgi',$env),
         'spoofed HTTP_DOCUMENT_ROOT never counts as actual webserver DOCUMENT_ROOT');
+    // A genuinely separate MySQL-backed CI-FPM mode must enforce the SAME
+    // actual SCRIPT_FILENAME/DOCUMENT_ROOT gate, never a mere environment flag.
+    $mysql=$env;
+    $mysql['CMS_STAGE2_RUNTIME_GATE']='mysql-ci-bound';
+    unset($mysql['CMS_ALLOW_SQLITE_TEST_ONLY']);
+    $mysql['CMS_ALLOW_STAGE2_MYSQL_HTTP_CI']='1';
+    $mysql['CI']='true';
+    $mysql['GITHUB_ACTIONS']='true';
+    $check(Gate::allows($home,$server,'fpm-fcgi',$mysql),
+        'explicit disposable MySQL 8.4 FastCGI mapping enforces same real PHP executable');
+    foreach (['CI'=>'false','GITHUB_ACTIONS'=>'false','CMS_ENV'=>'production',
+        'CMS_ALLOW_STAGE2_MYSQL_HTTP_CI'=>'0',
+        'CMS_STAGE2_RUNTIME_GATE'=>'ci-only'] as $key=>$value) {
+        $bad=$mysql;$bad[$key]=$value;
+        $check(!Gate::allows($home,$server,'fpm-fcgi',$bad),
+            'MySQL cannot evade separate CI authorization: '.$key);
+        unset($bad[$key]);$check(!Gate::allows($home,$server,'fpm-fcgi',$bad),
+            'missing independent MySQL CI guard denied: '.$key);
+    }
+    foreach (['DOCUMENT_ROOT'=>'/wrong','SCRIPT_FILENAME'=>'/tmp/forged.php'] as $key=>$value) {
+        $bad=$server;$bad[$key]=$value;
+        $check(!Gate::allows($home,$bad,'fpm-fcgi',$mysql),
+            'MySQL mapping must reject wrong real FastCGI filesystem root: '.$key);
+    }
+    $check(!Gate::allows($home,$server,'cgi-fcgi',$mysql),
+        'MySQL test cannot substitute a CLI or ordinary CGI request for real FPM');
     $report=SharedHostPreflight::inspectWebMapping($server,$home.'/public','fpm-fcgi');
     $check(($report['checks']['document_root_maps_only_public']??false)
         && !$report['actual_request_executed']
