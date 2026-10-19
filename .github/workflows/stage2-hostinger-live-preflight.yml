@@ -30,7 +30,7 @@ jobs:
           const {publicIPv4}=require('./cms/tools/stage2-target-https-check.cjs');
           const CMS='lightseagreen-woodpecker-264491.hostingersite.com';
           const VISITOR='mediumpurple-fox-175549.hostingersite.com';
-          const EXPECTED='stage2-target-host-check-20261020-r1';
+          const EXPECTED='stage2-target-host-check-20261020-r2';
           const pause=ms=>new Promise(done=>setTimeout(done,ms));
           function assert(check,reason){if(!check)throw Error(reason);}
           async function safeIp(host){

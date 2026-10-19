@@ -32,4 +32,11 @@ const s=summary({requests:[{name:'phpPreflight',httpStatus:200,
  tlsVerified:true,passed:true,phpVersion:'8.3',webSapi:'fpm-fcgi',
  requirements:good.requirements}],allChecksPassed:true});
 check('summary explicitly not installed',s.includes('CMS is NOT installed'));
-console.log('Stage2 live report parser contract: 13 offline checks PASS; no host I/O');
+const s2=summary({requests:[{name:'phpPreflight',httpStatus:200,tlsVerified:true,
+ passed:true,phpVersion:'8.3',webSapi:'litespeed',requirements:good.requirements}],
+ allChecksPassed:true,targetRuntimeCompatibilityConfirmed:false,
+ compatibilityGaps:['php_sodium_missing','target_web_sapi_requires_compatibility_review']});
+check('two capability gaps shown',s2.includes('php_sodium_missing')
+ &&s2.includes('target_web_sapi_requires_compatibility_review'));
+check('HTTPS pass not deploy acceptance',s2.includes('Target runtime compatibility for the current signed deployment: **STILL OPEN**'));
+console.log('Stage2 live report parser contract: 15 offline checks PASS; no host I/O');

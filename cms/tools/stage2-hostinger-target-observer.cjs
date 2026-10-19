@@ -114,11 +114,28 @@ async function inspect(){
       passed:false,reason:'transport_or_tls_failure'};}
     seen.push(result);
   }
+  const preflight=seen.find(r=>r.name==='phpPreflight');
+  const requirements=preflight?.requirements;
+  // A successful HTTP route check does NOT prove target deployment compatibility.
+  // Our current PHP Ed25519 release verifier uses libsodium. Real target LiteSpeed
+  // has not undergone the independent FPM/Apache isolation and lifecycle tests.
+  const compatibilityGaps=[];
+  if(preflight?.passed!==true)compatibilityGaps.push('live_php_preflight_not_verified');
+  else {
+    if(requirements?.sodium!==true)compatibilityGaps.push('php_sodium_missing');
+    if(requirements?.webSapi!==true)compatibilityGaps.push('target_web_sapi_requires_compatibility_review');
+    for(const key of ['php81OrLater','json','pdo','pdoMysql','openssl',
+      'documentRootMatchesPublicEntrypoint','httpsVisibleToPhp']){
+      if(requirements?.[key]!==true)compatibilityGaps.push('missing_or_invalid_'+key);
+    }
+  }
   return {format:'ai-site-cms-stage2-real-host-readonly-v1',
     currentProbeRevision:REVISION,scope:'two-owner-approved-empty-test-domains',
     permittedOperations:['HTTPS_GET_only'],
     requests:seen,networkAttempted:true,
     allChecksPassed:seen.every(r=>r.passed),
+    targetRuntimeCompatibilityConfirmed:compatibilityGaps.length===0,
+    compatibilityGaps,
     databaseConnected:false,hostFilesystemIndependentlyInspected:false,
     stage2Accepted:false,stage3Authorized:false,productionReady:false,
     visitorDuringCmsOutageVerified:false};
@@ -127,6 +144,7 @@ function summary(report){
   const observations=report.requests;
   const caps=observations.find(x=>x.name==='phpPreflight');
   const rows=observations.map(x=>`| ${x.name} | ${x.httpStatus??'unavailable'} | ${x.tlsVerified?'YES':'NO'} | ${x.passed?'PASS':'NOT YET'} |`).join('\n');
+  const gaps=report.compatibilityGaps||[];
   const flags=caps?.requirements
     ?Object.entries(caps.requirements).map(([k,v])=>`| ${k} | ${v?'yes':'no'} |`).join('\n')
     :'| Runtime capability report | not available |';
@@ -136,7 +154,9 @@ Only owner-approved test domains, HTTPS GET only; no cookies, SSH, DB, host secr
 deployment, downtime, or host filesystem writes. Runtime values are untrusted
 public-source observations and require corroboration before acceptance.
 
-Revision: ${REVISION}; all observation expectations met: **${report.allChecksPassed?'YES':'NO'}**
+Revision: ${REVISION}; HTTP observation expectations met: **${report.allChecksPassed?'YES':'NO'}**.
+Target runtime compatibility for the current signed deployment: **${report.targetRuntimeCompatibilityConfirmed?'NO BLOCKERS DETECTED':'STILL OPEN'}**.
+Observed gaps: ${gaps.join(', ')||'none found by this limited probe'}.
 
 | Route | HTTP status | Verified TLS | Expected result |
 |---|---:|---|---|
@@ -151,7 +171,10 @@ SAPI: ${caps?.webSapi||'unavailable'}.
 
 *Note:* parent path readability/writability is only a capability hint,
 **not** evidence of permitted private code placement or true isolation.
-The CMS is NOT installed. Target database, FPM isolation, rollback, licenses,
+A passing HTTPS probe is NOT a passing deployment gate. LiteSpeed requires
+a separate compatibility review and absent PHP Sodium prevents assuming the
+existing PHP Ed25519 verifier will work. No weaker signature policy is implied.
+The CMS is NOT installed. Target database, runtime isolation, rollback, licenses,
 CMS outage continuity and Stage2 acceptance remain unverified.
 `;
 }
