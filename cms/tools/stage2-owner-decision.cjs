@@ -258,7 +258,7 @@ if(require.main===module){
         ||!sources['signed-bundle']||!sources['trusted-pubkey']
         ||!sources['trusted-spki-sha256'])
         throw Error('Signed receipt cannot mix unsigned files');
-      const bundle=JSON.parse(readEvidence(sources['signed-bundle']));
+      const bundle=readEvidence(sources['signed-bundle']);
       const pubkey=evidenceCrypto.readPrivate(sources['trusted-pubkey'],8192);
       build({}, {bundle,publicKey:pubkey,
         trustedDigest:sources['trusted-spki-sha256']});
