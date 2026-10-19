@@ -11,6 +11,8 @@ DirectoryIndex index.php
     Require all denied
 </FilesMatch>
 RewriteEngine On
+# Refuse all dot-directories (including a deployed .git/config) and dotfiles.
+RewriteRule (^|/)\. - [F,L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [L]
