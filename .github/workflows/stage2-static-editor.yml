@@ -73,6 +73,13 @@ jobs:
       - name: Target-host read-only handoff on five independent visitor site families; no real target access
         working-directory: cms
         run: php tests/stage2-target-handoff-contract.php && node tools/test-stage2-target-host-handoff.cjs
+      - name: Generate source-bound 43-component license dossier and owner Stage2 review matrix from real packaged release
+        working-directory: cms
+        run: |
+          node --check tools/stage2-license-dossier.cjs
+          node --check tools/stage2-owner-decision.cjs
+          node --check tools/test-stage2-review-dossier.cjs
+          node tools/test-stage2-review-dossier.cjs
       - name: Read-only HTTPS observation and independent visitor outage against loopback-only TLS fixtures
         working-directory: cms
         run: |
@@ -210,5 +217,6 @@ jobs:
             cms/editor/dist/THIRD_PARTY_LICENSES.txt
             cms/editor/dist/editor.js.LEGAL.txt
             cms/.build/internal-stage2-package/**
+            cms/.build/stage2-owner-review/**
           if-no-files-found: error
           retention-days: 7
