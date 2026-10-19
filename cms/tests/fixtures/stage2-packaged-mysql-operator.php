@@ -30,18 +30,25 @@ try {
         throw new RuntimeException('Wrong ephemeral MySQL identity');
     }
     $pairs=[
-        ['ai_stage2_pkg_a_ci','stage2pkg_a_ci','disposable_stage2_a_ci'],
-        ['ai_stage2_pkg_b_ci','stage2pkg_b_ci','disposable_stage2_b_ci']
+        ['ai_stage2_pkg_a_ci','stage2pkg_a_ci','disposable_stage2_a_ci',
+            'stage2pkg_ro_a_ci','disposable_stage2_ro_a_ci'],
+        ['ai_stage2_pkg_b_ci','stage2pkg_b_ci','disposable_stage2_b_ci',
+            'stage2pkg_ro_b_ci','disposable_stage2_ro_b_ci']
     ];
     $stage='sql-'.$action;
     if ($action==='--provision') {
-        foreach ($pairs as [$db,$user,$password]) {
+        foreach ($pairs as [$db,$user,$password,$reader,$readerPassword]) {
             $pdo->exec("CREATE DATABASE `$db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
             $pdo->exec("CREATE USER '$user'@'%' IDENTIFIED BY '$password'");
             $pdo->exec("GRANT ALL PRIVILEGES ON `$db`.* TO '$user'@'%'");
+            // Separately provision the HTTP read-only account: it has no DDL,
+            // UPDATE, DELETE, INSERT or cross-schema privileges.
+            $pdo->exec("CREATE USER '$reader'@'%' IDENTIFIED BY '$readerPassword'");
+            $pdo->exec("GRANT SELECT ON `$db`.* TO '$reader'@'%'");
         }
     } else {
-        foreach ($pairs as [$db,$user]) {
+        foreach ($pairs as [$db,$user,$password,$reader]) {
+            $pdo->exec("DROP USER IF EXISTS '$reader'@'%'");
             $pdo->exec("DROP USER IF EXISTS '$user'@'%'");
             $pdo->exec("DROP DATABASE IF EXISTS `$db`");
         }
