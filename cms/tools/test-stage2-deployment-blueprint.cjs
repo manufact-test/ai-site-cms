@@ -122,6 +122,7 @@ async function main(){
   const unsignedRehash=(relative,newBytes)=>{
     const content=Buffer.isBuffer(newBytes)?newBytes:Buffer.from(newBytes);
     const target=tamperedRoot+'/'+relative;
+    const savedData=fs.readFileSync(target);
     fs.writeFileSync(target,content);
     const manifest=JSON.parse(savedManifest);
     const rec=manifest.files.find(x=>x.path===relative);
@@ -134,7 +135,7 @@ async function main(){
     ok(pf.status===0,'unsigned manifest alone still admits resealed compliant-format bytes');
     err(exitReview(),'STAGE2_EXIT_REVIEW_REFUSED',
       'independent exit review catches resealed but contradictory compliance evidence');
-    fs.writeFileSync(target,relative.includes('npm-package-lock')?savedLock:savedNotice);
+    fs.writeFileSync(target,savedData);
     fs.writeFileSync(manifestFile,savedManifest);
   };
   const editedLock=JSON.parse(savedLock.toString());
@@ -143,6 +144,16 @@ async function main(){
   unsignedRehash('private/compliance/npm-package-lock.json',JSON.stringify(editedLock));
   unsignedRehash('private/compliance/THIRD_PARTY_NOTICES.txt',
     Buffer.concat([savedNotice,Buffer.from('\nrepacked without changing the notice index\n')]));
+  const composerLock=JSON.parse(fs.readFileSync(tamperedRoot+'/composer.lock'));
+  const upstreamName=composerLock.packages[0].name;
+  const vendorDir=tamperedRoot+'/vendor/'+upstreamName;
+  const licenseName=fs.readdirSync(vendorDir).filter(name=>
+    /^(?:LICENSE|LICENCE|COPYING)(?:\.(?:md|txt|text))?$/i.test(name)).sort()[0];
+  assert.ok(licenseName,'test requires actual bundled upstream Composer license');
+  const licenseRelative='vendor/'+upstreamName+'/'+licenseName;
+  unsignedRehash(licenseRelative,
+    Buffer.concat([fs.readFileSync(tamperedRoot+'/'+licenseRelative),
+      Buffer.from('\nforged extra license sentence\n')]));
   ok(reviewReport(4).packageSetSha256===initialReview.packageSetSha256,
     'restoring all pinned evidence returns same review package digest');
   const profiles=new Map(initialReview.instances.map(x=>[x.family,x.requiredWebServerProfiles]));

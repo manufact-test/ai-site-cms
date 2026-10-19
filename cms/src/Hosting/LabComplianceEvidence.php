@@ -35,6 +35,46 @@ final class LabComplianceEvidence
         return $decoded;
     }
 
+    /**
+     * Cross-check the ACTUAL bundled upstream Composer license, its SBOM
+     * content digest and the literal notice copy. Metadata alone is not proof
+     * of the license's legal sufficiency or of authentic upstream provenance.
+     */
+    private static function bundledComposerNotice(
+        string $root, string $package, string $version,
+        string $license, string $expectedSha256, string $notices
+    ): void {
+        if (!preg_match('/\\A[a-z0-9_.-]+\\/[a-z0-9_.-]+\\z/D', $package)) {
+            throw new RuntimeException('Invalid installed Composer package name');
+        }
+        $dir = $root.'/vendor/'.$package;
+        $names = @scandir($dir);
+        if (!is_array($names)) {
+            throw new RuntimeException('Missing installed Composer dependency');
+        }
+        $licenses = array_values(array_filter($names, static fn(string $name): bool =>
+            (bool)preg_match('/\\A(?:LICENSE|LICENCE|COPYING)(?:\\.(?:md|txt|text))?\\z/iD', $name)));
+        sort($licenses, SORT_STRING);
+        if ($licenses === []) {
+            throw new RuntimeException('Bundled upstream license missing');
+        }
+        $name = $licenses[0];
+        $file = $dir.'/'.$name;
+        $stat = @lstat($file);
+        if ($stat === false || is_link($file) || !is_file($file)
+            || ($stat['nlink'] ?? 0) !== 1 || $stat['size'] < 20
+            || $stat['size'] > 100000 || realpath($file) !== $file) {
+            throw new RuntimeException('Unsafe installed upstream license');
+        }
+        $bytes = @file_get_contents($file);
+        $header = '===== composer '.$package.' '.$version.' ('.$license.') / '.$name.' ====='."\\n";
+        if (!is_string($bytes) || strlen($bytes) !== $stat['size']
+            || !hash_equals($expectedSha256, hash('sha256', $bytes))
+            || !str_contains($notices, $header.$bytes."\\n")) {
+            throw new RuntimeException('Copied notice differs from installed upstream license');
+        }
+    }
+
     private static function properties(array $component): array
     {
         $out = [];
@@ -117,6 +157,8 @@ final class LabComplianceEvidence
                 || !str_contains($noticeBytes, '===== composer '.$name.' '.$version.' ('.$license[0].') /')) {
                 throw new RuntimeException('Composer license or source evidence mismatch');
             }
+            self::bundledComposerNotice($root, $name, $version, $license[0],
+                $props['ai-site-cms:installed-license-sha256'], $noticeBytes);
             unset($components['pkg:composer/'.$name.'@'.$version]);
         }
         $npmCount = 0;
