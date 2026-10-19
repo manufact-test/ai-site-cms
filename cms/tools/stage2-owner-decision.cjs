@@ -7,6 +7,7 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const {createDossier,OUT,stable,digest}=require('./stage2-license-dossier.cjs');
+const operatorScope=require('./stage2-operator-scope.cjs');
 const FORMAT='ai-site-cms-stage2-owner-decision-packet-v1';
 const NAMES=['cmsHealth','cmsPrivateVendor','cmsPrivateEditor',
   'cmsPublishGet','visitorHome'];
@@ -21,6 +22,9 @@ function validated(source,type){
   if(type==='offline'){
     if(source.format!=='ai-site-cms-stage2-target-handoff-v1'
       ||typeof source.localFilesystemAndPackageCompatible!=='boolean'
+      ||!(/^[a-f0-9]{64}$/.test(source.cmsPackageManifestSha256||''))
+      ||source.cmsAndSiteRootsSeparated!==true
+      ||source.cmsDocumentRootIsPublic!==true
       ||source.actualTargetHostTestedByProject!==false
       ||source.stage2Accepted!==false||source.productionReady!==false
       ||source.networkAttempted!==false||source.databaseConnected!==false)
@@ -28,6 +32,7 @@ function validated(source,type){
     return {
       format:source.format,
       localFilesystemAndPackageCompatible:source.localFilesystemAndPackageCompatible,
+      inspectedManifestSha256:source.cmsPackageManifestSha256,
       externalReceiptOnly:true,
       liveHostVerified:false
     };
@@ -38,6 +43,9 @@ function validated(source,type){
       ||typeof source.ciLoopbackOnly!=='boolean'
       ||typeof source.actualHttpsRequestsAttempted!=='boolean'
       ||typeof source.httpsObservationsPass!=='boolean'
+      ||!(/^[a-f0-9]{64}$/.test(source.requestedOriginsSha256||''))
+      ||!(source.operatorScopeRecordSha256===null||
+        /^[a-f0-9]{64}$/.test(source.operatorScopeRecordSha256||''))
       ||source.targetHostAccepted!==false||source.stage2Accepted!==false
       ||source.productionReady!==false
       ||Object.keys(source.results).sort().join('|')!==NAMES.slice().sort().join('|'))
@@ -60,9 +68,20 @@ function validated(source,type){
       claimedHttpsChecksPass:source.httpsObservationsPass,
       claimedRealHttpsRequests:source.actualHttpsRequestsAttempted,
       disposableCiFixture:source.ciLoopbackOnly,
+      originPairSha256:source.requestedOriginsSha256,
+      scopeRecordSha256:source.operatorScopeRecordSha256,
       checks:names,externalReceiptOnly:true,
       liveTargetHostIndependentlyVerified:false
     };
+  }
+  if(type==='scope'){
+    const inspected=operatorScope.inspectScope(source,{
+      cmsOrigin:source.cmsOrigin,siteOrigin:source.siteOrigin
+    });
+    return {operatorScopeRecordSha256:inspected.operatorScopeRecordSha256,
+      originPairSha256:inspected.originPairSha256,
+      scopeExpiresAt:inspected.scopeExpiresAt,
+      externalReceiptOnly:true,independentOwnerAuthorizationVerified:false};
   }
   if(type==='database'){
     const states=['ready','blocked','uninitialized','schema_ready_unbound','upgrade_required'];
@@ -88,13 +107,26 @@ function assemble(license,extra={}){
     ||license.independentLegalApproval!==false
     ||license.stage2Accepted!==false||!Array.isArray(license.components)
     ||license.components.length!==43)throw Error('Expected verified license inventory');
-  if(Object.keys(extra).some(k=>!['offline','https','database'].includes(k)))
+  if(Object.keys(extra).some(k=>!['offline','https','database','scope'].includes(k)))
     throw Error('Unknown decision evidence');
   const evidence={
     offlineLocal:validated(extra.offline,'offline'),
     externalHttps:validated(extra.https,'https'),
-    databaseSchema:validated(extra.database,'database')
+    databaseSchema:validated(extra.database,'database'),
+    operatorScope:validated(extra.scope,'scope')
   };
+  if(evidence.offlineLocal &&
+    evidence.offlineLocal.inspectedManifestSha256!==license.packageManifestSha256)
+    throw Error('Operator handoff describes different CMS package');
+  if(evidence.externalHttps){
+    const https=evidence.externalHttps,grant=evidence.operatorScope;
+    if(!https.disposableCiFixture && (!grant||
+      https.originPairSha256!==grant.originPairSha256||
+      https.scopeRecordSha256!==grant.operatorScopeRecordSha256))
+      throw Error('HTTPS observations not bound to provided operator scope');
+    if(https.disposableCiFixture && https.scopeRecordSha256!==null)
+      throw Error('CI HTTPS report cannot claim real operator scope');
+  }
   const criteria=[
     {id:'architecture_and_isolation',name:'Owner approves CMS/site and 5-family architecture',
       state:'owner_decision_required',supportedBy:['lab CI','architecture proposal']},
@@ -180,7 +212,7 @@ if(require.main===module){
   try{
     const argv=process.argv.slice(2);
     if(!argv.includes('--build')||argv.filter(x=>x==='--build').length!==1||
-      argv.some(x=>!x.startsWith('--build')&&!/^--(?:offline|https|database)=/.test(x)))
+      argv.some(x=>!x.startsWith('--build')&&!/^--(?:offline|https|database|scope)=/.test(x)))
       throw Error('Explicit offline build required');
     const sources={};
     for(const token of argv.filter(x=>x!=='--build')){
