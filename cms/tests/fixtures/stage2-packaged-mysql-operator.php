@@ -14,7 +14,7 @@ if (PHP_SAPI!=='cli' || $argc!==2 || !in_array($action,['--provision','--cleanup
     || getenv('CMS_TEST_MYSQL_USER')!=='cms_ci'
     || getenv('CMS_TEST_MYSQL_DSN')!==
         'mysql:host=127.0.0.1;port=3306;dbname=ai_site_cms_ci;charset=utf8mb4') {
-    fwrite(STDERR,"STAGE2_PACKAGED_MYSQL_OPERATOR_REFUSED_".strtoupper($stage)."\n");exit(3);
+    fwrite(STDERR,"STAGE2_PACKAGED_MYSQL_OPERATOR_REFUSED_GATE\n");exit(3);
 }
 $stage='connect';
 try {
@@ -48,5 +48,5 @@ try {
     }
     echo "STAGE2_PACKAGED_MYSQL_".($action==='--provision'?'PROVISIONED':'CLEANED')."\n";
 } catch (Throwable $e) {
-    fwrite(STDERR,"STAGE2_PACKAGED_MYSQL_OPERATOR_REFUSED\n");exit(3);
+    fwrite(STDERR,"STAGE2_PACKAGED_MYSQL_OPERATOR_REFUSED_".strtoupper($stage)."\n");exit(3);
 }
