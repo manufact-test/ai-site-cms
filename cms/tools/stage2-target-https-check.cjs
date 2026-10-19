@@ -133,11 +133,14 @@ async function inspectOne(origin,ip,path,ca,check) {
       tlsPeerVerified:response.tlsVerified,
       peerCertificateSha256:response.peerCertSha256
     };
-  }catch{
+  }catch(e){
     // Never echo a transport error which could contain operator hostnames,
     // URL credentials, file paths, certificate details or other secrets.
-    return {status:null,passed:false,tlsPeerVerified:false,
+    const denied={status:null,passed:false,tlsPeerVerified:false,
       peerCertificateSha256:null,error:'transport_or_tls_failure'};
+    if(CI)denied.ciDiagnosticCode=typeof e.code==='string' &&
+      /^[A-Z0-9_]{2,60}$/.test(e.code)?e.code:'NO_ERROR_CODE';
+    return denied;
   }
 }
 function deny(r){return r.status===403||r.status===404;}
