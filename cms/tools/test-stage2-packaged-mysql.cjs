@@ -205,14 +205,17 @@ function virtualHttp(listener,host,uri='/',options={}){
  });
 }
 async function expectHttp(listener,host,uri,code){
+ let lastStatus='transport_unavailable';
  for(let i=0;i<80;i++){
   try{
    const result=await virtualHttp(listener,host,uri);
    if(result.code===code)return result;
-  }catch{}
+   lastStatus='HTTP_'+result.code;
+  }catch{lastStatus='transport_unavailable';}
   await pause(100);
  }
- throw Error('Nginx/FPM integration expected status '+code+' at '+host+uri);
+ // Never emit HTTP bodies, database credentials, private paths or FPM logs.
+ throw Error('Nginx/FPM expected '+code+' at '+host+uri+'; last='+lastStatus);
 }
 async function realFpmMysql(instances,home){
  const v=run('nginx',['-v']);
