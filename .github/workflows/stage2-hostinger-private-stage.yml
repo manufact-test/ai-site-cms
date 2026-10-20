@@ -93,6 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 cms/tools/test-stage2-offweb-upload.py "$RUNNER_TEMP/private-runtime"
+          python3 cms/tools/test-stage2-offweb-upload-fixtures.py "$RUNNER_TEMP/private-runtime"
       - name: Publish downloadable credential-free Hostinger offweb archive
         uses: actions/upload-artifact@v4
         with:
