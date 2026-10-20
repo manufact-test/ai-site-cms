@@ -18,6 +18,15 @@ const r=(s,b,ct='application/json')=>({status:s,
 const check=(n,b)=>assert.strictEqual(Boolean(b),true,n);
 check('valid actual PHP probe',evaluate('phpPreflight',r(200,JSON.stringify(good))).pass);
 check('wrong revision refused',!evaluate('phpPreflight',r(200,JSON.stringify({...good,probeRevision:'old'}))).pass);
+check('old r6 HTTP probe cannot impersonate tightened full-inventory r7',
+ !evaluate('offwebPackage',r(503,JSON.stringify({
+ format:'ai-site-cms-stage2-offweb-package-observation-v1',
+ probeRevision:'stage2-target-host-check-20261020-r6',
+ state:'incomplete',offwebPackageIntegrityVerified:false,
+ verifiedFiles:0,signatureVerified:false,phpFromPackageExecuted:false,
+ databaseConnected:false,cmsInstalled:false,peerAccountIsolationVerified:false,
+ productionReady:false,stage2Accepted:false
+ }))).pass);
 check('cannot claim acceptance',!evaluate('phpPreflight',r(200,JSON.stringify({...good,stage2Accepted:true}))).pass);
 check('no DB claim',!evaluate('phpPreflight',r(200,JSON.stringify({...good,databaseConnectionAttempted:true}))).pass);
 check('invalid shape',!evaluate('phpPreflight',r(200,JSON.stringify({...good,requirements:{}}))).pass);

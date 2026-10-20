@@ -155,7 +155,7 @@ if ($path === '/__stage2/offweb-package') {
     http_response_code($found?200:503);
     echo json_encode([
         'format'=>'ai-site-cms-stage2-offweb-package-observation-v1',
-        'probeRevision'=>'stage2-target-host-check-20261020-r6',
+        'probeRevision'=>'stage2-target-host-check-20261020-r7',
         'state'=>$offweb['state'],'offwebPackageIntegrityVerified'=>$found,
         'verifiedFiles'=>$found?$offweb['count']:0,
         'signatureVerified'=>false,'phpFromPackageExecuted'=>false,
@@ -194,7 +194,7 @@ if ($path === '/__stage2/kernel/smoke') {
     if (!$ok) header('Retry-After: 60');
     echo json_encode([
         'format'=>'ai-site-cms-stage2-live-kernel-smoke-v1',
-        'probeRevision'=>'stage2-target-host-check-20261020-r6',
+        'probeRevision'=>'stage2-target-host-check-20261020-r7',
         'result'=>$ok?'health_only_pass':'not_ready',
         'fullyHashedUnsignedPackage'=>$ready,
         'realSlimKernelHealthPassed'=>$ok,
@@ -219,7 +219,7 @@ if ($path === '/__stage2/private-boundary') {
     http_response_code($found ? 200 : 503);
     echo json_encode([
         'format' => 'ai-site-cms-stage2-private-boundary-observation-v1',
-        'probeRevision' => 'stage2-target-host-check-20261020-r6',
+        'probeRevision' => 'stage2-target-host-check-20261020-r7',
         'outsideThisPublicRootMarkerObserved' => $found,
         'cmsInstalled' => false,
         'privateCmsCodeInstalled' => false,
@@ -238,7 +238,7 @@ if ($path === '/__stage2/rewrite/proof') {
     http_response_code($mapped ? 200 : 503);
     echo json_encode([
         'format' => 'ai-site-cms-stage2-routing-observation-v1',
-        'probeRevision' => 'stage2-target-host-check-20261020-r6',
+        'probeRevision' => 'stage2-target-host-check-20261020-r7',
         'exactNonFileRoute' => true,
         'frontControllerMapped' => $mapped,
         'installationReady' => false,
@@ -268,7 +268,7 @@ $privateParentUsable = is_string($privateParent) && $privateParent !== $scriptDi
     && is_dir($privateParent) && is_readable($privateParent);
 
 $report = [
-    'probeRevision' => 'stage2-target-host-check-20261020-r6',
+    'probeRevision' => 'stage2-target-host-check-20261020-r7',
     'observationOnly' => true,
     'phpVersionMajorMinor' => PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION,
     'phpSapi' => PHP_SAPI,
