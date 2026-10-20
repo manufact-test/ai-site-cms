@@ -93,3 +93,7 @@ No component identified from LOCK METADATA alone declares a copyleft license; no
 The scripts in this folder are **read-only with respect to CMS source, locks, remote services** except optional OSV POST queries. `release-fixture.mjs` creates only ephemeral fixture files under system temp and deletes them. `ed25519-lab.php` uses RFC8032 official known-answer vector. Run instructions are in `RUNBOOK.md`. Native-only vector was checked in isolated PHP8.4; actual `sodium_compat 2.5.2` pure-PHP verification on PHP8.3 target was **NOT performed**, and no Hostinger access was used. PR must be reviewed and not merged automatically.
 
 **Bottom line:** technical inventory complete; source license attestation, fresh comprehensive vulnerabilities and an audited fallback/host proof remain open. Stage2 NOT ACCEPTED. Stage3 NOT STARTED.
+
+### Additional repeatable registry freshness probe
+
+`node research/parallel-security/version-check.mjs` queries live npm/Packagist metadata for all exact locked package names, reports current stable versions and flags only numeric SemVer update candidates; a registry "latest" is NOT proof of correctness, compatibility, security or license approval. If requests fail, it exits non-zero rather than reporting falsely up-to-date versions. No version-registry results were collected in this isolated research session.
