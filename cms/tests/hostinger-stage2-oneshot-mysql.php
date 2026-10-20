@@ -195,6 +195,27 @@ try {
     file_put_contents($local.'/foundation-snapshot.json',$originalSnapshot);
     chmod($local.'/foundation-snapshot.json',0600);
 
+    // Simulate live DB generation drift: verify must never "recover" it by
+    // mutating a real host's schema or counter without operator permission.
+    $pdo->exec('UPDATE cms_installation SET storage_generation=6789');
+    $store($task);
+    $report=Job::run($package,$local);
+    $check($report['status']==='refused'
+        && $report['failureCategory']==='snapshot_refused',
+        'saved snapshot refuses mismatched live MySQL generation');
+    $check((string)$pdo->query('SELECT storage_generation FROM cms_installation')
+        ->fetchColumn()==='6789',
+        'verification does NOT silently restore or rewrite target MySQL');
+    unlink($local.'/receipt.json');
+    // Recovery of disposable TEST metadata is deliberate and independent
+    // of the read-only Stage2 Hostinger operator.
+    $pdo->exec('UPDATE cms_installation SET storage_generation=0');
+    $store($task);
+    $report=Job::run($package,$local);
+    $check($report['status']==='foundation_snapshot_verified',
+        'manual CI fixture recovery verified against original snapshot');
+    unlink($local.'/receipt.json');
+
     $task['operation']='install';
     $task['confirm']='INSTALL_EMPTY_STAGE2_TEST_DB_ONCE';
     $store($task);
