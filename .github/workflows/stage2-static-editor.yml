@@ -14,6 +14,8 @@ on:
       - 'cms/composer.lock'
       - 'cms/.gitignore'
       - 'cms/release.json'
+      - 'research/parallel-security/**'
+      - 'research/parallel-components/**'
       - '.github/workflows/stage2-static-editor.yml'
   workflow_dispatch:
 permissions:
