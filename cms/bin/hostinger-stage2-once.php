@@ -49,7 +49,40 @@ try {
     if (!is_string($digest) || !hash_equals($pin, $digest)) {
         throw new RuntimeException('PACKAGE_MANIFEST_PIN_MISMATCH');
     }
-    require_once $root.'/src/Hosting/PackageArtifactVerifier.php';
+    // Bootstrap exactly one trusted verifier file using PHP primitives only.
+    // Never execute package PHP merely to determine whether it was tampered.
+    $manifestStat = @lstat($manifestFile);
+    if ($manifestStat === false || is_link($manifestFile)
+        || ($manifestStat['nlink'] ?? 0) !== 1
+        || $manifestStat['size'] < 100 || $manifestStat['size'] > 250000) {
+        throw new RuntimeException('UNSAFE_MANIFEST');
+    }
+    $manifest = json_decode((string)file_get_contents($manifestFile), true, 16, JSON_THROW_ON_ERROR);
+    if (!is_array($manifest) || !is_array($manifest['files'] ?? null)) {
+        throw new RuntimeException('INVALID_MANIFEST');
+    }
+    $verifierRelative = 'src/Hosting/PackageArtifactVerifier.php';
+    $verifierRecord = null;
+    foreach ($manifest['files'] as $entry) {
+        if (is_array($entry) && ($entry['path'] ?? null) === $verifierRelative) {
+            if ($verifierRecord !== null) throw new RuntimeException('DUPLICATE_VERIFIER');
+            $verifierRecord = $entry;
+        }
+    }
+    $verifierFile = $root.'/'.$verifierRelative;
+    $verifierStat = @lstat($verifierFile);
+    if (!is_array($verifierRecord) || count($verifierRecord) !== 3
+        || !is_int($verifierRecord['bytes'] ?? null)
+        || !is_string($verifierRecord['sha256'] ?? null)
+        || !preg_match('/\A[a-f0-9]{64}\z/D', $verifierRecord['sha256'])
+        || $verifierStat === false || !is_file($verifierFile)
+        || is_link($verifierFile) || ($verifierStat['nlink'] ?? 0) !== 1
+        || realpath($verifierFile) !== $verifierFile
+        || $verifierStat['size'] !== $verifierRecord['bytes']
+        || !hash_equals($verifierRecord['sha256'], (string)@hash_file('sha256', $verifierFile))) {
+        throw new RuntimeException('VERIFIER_BOOTSTRAP_TAMPER');
+    }
+    require_once $verifierFile;
     \AiSiteCms\Hosting\PackageArtifactVerifier::verify($root);
 } catch (Throwable $ignored) {
     fwrite(STDERR, "STAGE2_PACKAGE_REFUSED\n");
