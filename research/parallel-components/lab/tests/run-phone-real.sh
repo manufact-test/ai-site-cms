@@ -9,6 +9,8 @@ tmp="$(mktemp -d -t cms-phone-real-XXXXXXXX)"
 trap 'rm -rf "$tmp"' EXIT
 (
   cd "$tmp"
+  # A private throwaway project, not publishable package metadata.
+  printf '%s\n' '{"name":"manufact-test/components-phone-lab","type":"project","license":"proprietary"}' > composer.json
   composer require --no-interaction --no-plugins --no-scripts --prefer-dist --no-progress \
     'giggsey/libphonenumber-for-php-lite:9.0.41' \
     'symfony/polyfill-mbstring:1.38.2'
