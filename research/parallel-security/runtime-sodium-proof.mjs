@@ -56,7 +56,27 @@ else{
          test('Pinned compat signed envelope',process.execPath,[path.join(dir,'release-fixture.mjs'),'compat'])
         ];
         if(checks.includes(false))finish(1,'Genuine native-free compat cryptographic checks failed');
-        else{report.compatVerified=true;finish(0,'Native-free RFC and envelope verified locally; host deployment remains unverified');}
+        else{
+          // A reviewed source snapshot is not a durable lock: the files may
+          // have changed between attestation and PHP autoload. Re-attest
+          // AFTER both subprocesses and fail closed on changed/missing code.
+          const after=cp.spawnSync(process.execPath,[path.join(dir,'sodium-compat-attest.mjs')],{
+            encoding:'utf8',timeout:30000,maxBuffer:1024*1024,env:process.env
+          });
+          if(after.error||after.status!==0)
+            finish(3,'BLOCKED: source changed or disappeared after compat verification: '+
+              (after.error?.message||(after.stderr||'').slice(-450)));
+          else {
+            const finalSource=JSON.parse(after.stdout);
+            if(JSON.stringify(finalSource)!==JSON.stringify(report.sourceAttestation))
+              finish(3,'BLOCKED: sodium_compat attested evidence changed across verifier subprocesses');
+            else{
+              report.sourceAttestationRechecked=true;
+              report.compatVerified=true;
+              finish(0,'Native-free RFC and envelope verified with before/after source attestation; host unverified');
+            }
+          }
+        }
       }
     }
    }
