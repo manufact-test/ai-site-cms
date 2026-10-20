@@ -16,7 +16,8 @@ if ($mode==='compat' && !class_exists('ParagonIE_Sodium_Compat', false)) {
 require_once __DIR__.'/../../cms/src/Release/OfflineReleaseVerifier.php';
 try {
     $r = \AiSiteCms\Release\OfflineReleaseVerifier::verify(
-        $argv[1]??'', $argv[2]??'', $argv[3]??'', $argv[4]??'', $argv[5]??''
+        $argv[1]??'', $argv[2]??'', $argv[3]??'', $argv[4]??'', $argv[5]??'',
+        ($argv[6]??'') === '' ? [] : [$argv[6]]
     );
     echo json_encode($r,JSON_THROW_ON_ERROR)."\n";
 } catch (\Throwable $e) {
