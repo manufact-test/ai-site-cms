@@ -22,6 +22,7 @@ return array(
     'AiSiteCms\\Hosting\\RuntimeDoctor' => $baseDir . '/src/Hosting/RuntimeDoctor.php',
     'AiSiteCms\\Hosting\\SharedHostPreflight' => $baseDir . '/src/Hosting/SharedHostPreflight.php',
     'AiSiteCms\\Hosting\\SiteRuntimeTopology' => $baseDir . '/src/Hosting/SiteRuntimeTopology.php',
+    'AiSiteCms\\Hosting\\Stage2MySqlReadOnly' => $baseDir . '/src/Hosting/Stage2MySqlReadOnly.php',
     'AiSiteCms\\Hosting\\Stage2MysqlBoundReadiness' => $baseDir . '/src/Hosting/Stage2MysqlBoundReadiness.php',
     'AiSiteCms\\Hosting\\Stage2TargetHostHandoff' => $baseDir . '/src/Hosting/Stage2TargetHostHandoff.php',
     'AiSiteCms\\HttpKernel' => $baseDir . '/src/HttpKernel.php',

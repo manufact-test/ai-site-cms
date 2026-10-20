@@ -191,7 +191,8 @@ try {
                         && is_string($failure)
                         && in_array($failure, [
                             'local_task_refused','database_connection_refused',
-                            'database_scope_refused','schema_read_refused',
+                            'database_readonly_refused','database_scope_refused',
+                            'schema_read_refused',
                             'schema_install_refused','snapshot_refused'
                         ], true);
                     if (is_array($data)

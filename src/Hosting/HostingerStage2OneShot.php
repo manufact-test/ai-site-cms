@@ -73,6 +73,8 @@ final class HostingerStage2OneShot
             'productionReady' => false
         ];
         $phase = 'local_task';
+        $readOnlyTransactionStarted = false;
+        $pdo = null;
         try {
             self::assertNoRevocation($localRoot);
             // Even a failed attempt consumes the secret-bearing file. Operators
@@ -83,6 +85,15 @@ final class HostingerStage2OneShot
             }
             $phase = 'database_connection';
             $pdo = self::connection($task);
+            if ($operation !== 'install') {
+                // Defense in depth: a PROBE/VERIFY must remain SQL-read-only
+                // even when its dedicated test MySQL account has DDL grants.
+                // SET TRANSACTION scopes the *next* transaction only; it
+                // cannot be inherited by the explicit install operation.
+                $phase = 'database_readonly';
+                Stage2MySqlReadOnly::begin($pdo);
+                $readOnlyTransactionStarted = true;
+            }
             $phase = 'database_scope';
             self::assertDedicatedUserGrants($pdo, $task['db_name']);
             $receipt['dedicatedDbGrantsVerified'] = true;
@@ -156,6 +167,16 @@ final class HostingerStage2OneShot
             $receipt['status'] = 'refused';
             $receipt['failureCategory'] = $phase.'_refused';
         } finally {
+            if ($readOnlyTransactionStarted && $pdo instanceof PDO) {
+                try {
+                    Stage2MySqlReadOnly::finish($pdo);
+                } catch (Throwable $ignored) {
+                    // A lost transaction boundary invalidates a previous
+                    // apparent success. Never claim a read-only probe passed.
+                    $receipt['status'] = 'refused';
+                    $receipt['failureCategory'] = 'database_readonly_refused';
+                }
+            }
             $receipt['finishedAtUtc'] = gmdate('Y-m-d\\TH:i:s\\Z');
             $json = json_encode($receipt, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)."\n";
             rewind($receiptFile);
@@ -209,8 +230,11 @@ final class HostingerStage2OneShot
             PDO::ATTR_EMULATE_PREPARES => false,
             PDO::ATTR_TIMEOUT => 5
         ]);
+        $effectiveUser = $pdo->query('SELECT CURRENT_USER()')->fetchColumn();
         if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'mysql'
-            || $pdo->query('SELECT DATABASE()')->fetchColumn() !== $task['db_name']) {
+            || $pdo->query('SELECT DATABASE()')->fetchColumn() !== $task['db_name']
+            || !is_string($effectiveUser)
+            || !str_starts_with($effectiveUser, $task['db_user'].'@')) {
             throw new RuntimeException('DB_IDENTITY_MISMATCH');
         }
         return $pdo;
