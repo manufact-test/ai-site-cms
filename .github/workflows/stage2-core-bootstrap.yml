@@ -6,6 +6,7 @@ on:
       - 'cms/**'
       - 'research/parallel-security/**'
       - 'research/parallel-components/**'
+      - '.github/workflows/stage2-hostinger-private-stage.yml'
       - '.github/workflows/stage2-core-bootstrap.yml'
   workflow_dispatch:
 permissions:
