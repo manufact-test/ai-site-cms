@@ -32,13 +32,13 @@ const block=(name, reason)=>results.push({name,status:'blocked',reason});
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'ed25519-lab.php','receipt-chain-regression.php','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
-  'notice-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
+  'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
   if(name.endsWith('.mjs'))entry('syntax:'+name,capture('node',['--check',path.join(dirname,name)]));
   else entry('syntax:'+name,capture(runtime,['-l',path.join(dirname,name)]));
 }
-for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs']){
+for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs']){
   entry('mutation:'+name,capture('node',[path.join(dirname,name)],{timeout:30000}));
 }
 const lockPaths=['cms/composer.lock','cms/editor/package-lock.json','cms/editor/package.json'];
@@ -55,12 +55,12 @@ if(completeLock){
   if(csv.status==='passed'&&rawCsv.stdout.trimEnd().split('\n').length!==44){csv.status='failed';csv.validationError='not 43 rows + header';}
   entry('actual-lock:provenance',capture('node',[path.join(dirname,'lock-provenance.mjs')]));
   if(online){
-    entry('online:OSV',capture('node',[path.join(dirname,'inventory-audit.mjs'),'--online'],{timeout:90000}));
+    entry('online:OSV-strict43',capture('node',[path.join(dirname,'osv-strict-snapshot.mjs'),'--fail-on-advisory'],{timeout:100000}));
     entry('online:version-registry',capture('node',[path.join(dirname,'version-check.mjs')],{timeout:240000}));
   }
 } else {
   for(const name of ['actual-lock:json','actual-lock:csv','actual-lock:provenance'])block(name,'Requires original composer.lock, package-lock.json, package.json in complete checkout');
-  if(online)for(const name of ['online:OSV','online:version-registry'])block(name,'Original complete lock files unavailable');
+  if(online)for(const name of ['online:OSV-strict43','online:version-registry'])block(name,'Original complete lock files unavailable');
 }
 const installedNpm=path.join(root,'cms/editor/node_modules');
 if(fs.existsSync(installedNpm)) {
