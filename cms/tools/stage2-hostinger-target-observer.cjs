@@ -54,7 +54,7 @@ function evaluate(name,response) {
   }
   if(name==='lsapiFrontController'){
     let d;try{d=JSON.parse(text)}catch{return {pass:false,reason:'invalid_routing_json'};}
-    const pass=s===200&&/^application\\/json(?:;|$)/i.test(contentType)&&
+    const pass=s===200&&contentType.toLowerCase().startsWith('application/json')&&
       d&&d.format==='ai-site-cms-stage2-routing-observation-v1'&&
       d.probeRevision===REVISION&&d.exactNonFileRoute===true&&
       d.frontControllerMapped===true&&d.installationReady===false&&
