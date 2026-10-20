@@ -95,6 +95,28 @@ try {
         &&$a['offwebPackageIntegrityVerified']===true
         &&$a['phpFromPackageExecuted']===false&&$a['cmsInstalled']===false,
         'full_unsigned_offweb_package_detected');
+    // Extra PHP must block even the health-only vendor boot.
+    $extra=$root.'/vendor/undocumented.php';
+    file_put_contents($extra,'<?php throw new Exception("should never load");');
+    $a=json_decode(runProbe($copy,'GET','/__stage2/offweb-package'),true,16,JSON_THROW_ON_ERROR);
+    passes($a['state']==='incomplete'&&!$a['offwebPackageIntegrityVerified']
+        &&$a['verifiedFiles']===0,'unlisted_vendor_code_refused');
+    passes(str_contains(runProbe($copy,'GET','/__stage2/kernel/smoke'),
+        '"realSlimKernelHealthPassed":false'),'extra_php_blocks_vendor_boot');
+    unlink($extra);
+    $secret=$root.'/private/.env';
+    file_put_contents($secret,'TEST_ONLY_NOT_A_SECRET');
+    $a=json_decode(runProbe($copy,'GET','/__stage2/offweb-package'),true,16,JSON_THROW_ON_ERROR);
+    passes($a['state']==='incomplete','hidden_private_state_refused');
+    unlink($secret);
+    $link=$root.'/vendor/foreign';
+    symlink($root.'/public',$link);
+    $a=json_decode(runProbe($copy,'GET','/__stage2/offweb-package'),true,16,JSON_THROW_ON_ERROR);
+    passes($a['state']==='incomplete','package_symlink_refused');
+    unlink($link);
+    $a=json_decode(runProbe($copy,'GET','/__stage2/offweb-package'),true,16,JSON_THROW_ON_ERROR);
+    passes($a['state']==='verified_unsigned_package'&&$a['verifiedFiles']===20,
+        'clean_fixture_recovers');
     file_put_contents($root.'/public/index.php','tampered');
     $a=json_decode(runProbe($copy,'GET','/__stage2/offweb-package'),true,16,JSON_THROW_ON_ERROR);
     passes($a['state']==='incomplete'&&!$a['offwebPackageIntegrityVerified'],

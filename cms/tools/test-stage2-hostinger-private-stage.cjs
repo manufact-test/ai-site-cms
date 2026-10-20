@@ -48,6 +48,23 @@ try{
  assert.equal(actual.phpFromPackageExecuted,false);
  assert.equal(actual.databaseConnected,false);
  assert.equal(actual.stage2Accepted,false);
+ // A FULL packaged runtime must refuse files missing from the manifest.
+ const extraCode=path.join(dest,'vendor/rogue-extra.php');
+ fs.writeFileSync(extraCode,'<?php throw new Exception("MUST_NOT_EXECUTE");');
+ actual=phpCheck();
+ assert.equal(actual.state,'incomplete');
+ assert.equal(actual.offwebPackageIntegrityVerified,false);
+ assert.equal(phpCheck('/__stage2/kernel/smoke').realSlimKernelHealthPassed,false);
+ fs.unlinkSync(extraCode);
+ const localSecret=path.join(dest,'private/.env');
+ fs.writeFileSync(localSecret,'FIXTURE_NOT_REAL_PASSWORD');
+ assert.equal(phpCheck().state,'incomplete');
+ fs.unlinkSync(localSecret);
+ const injectedLink=path.join(dest,'vendor/foreign-alias');
+ fs.symlinkSync(path.join(dest,'private'),injectedLink,'dir');
+ assert.equal(phpCheck().state,'incomplete');
+ fs.unlinkSync(injectedLink);
+ assert.equal(phpCheck().state,'verified_unsigned_package');
  const editorAsset=path.join(dest,'private/editor/editor.js');
  fs.appendFileSync(editorAsset,'// corrupt');
  actual=phpCheck();

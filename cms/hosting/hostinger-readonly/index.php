@@ -78,12 +78,17 @@ function stage2InspectUnsignedOffwebPackage(): array {
                 && is_array($data['files']??null)
                 && count($data['files'])>=20 && count($data['files'])<=1200) {
                 $ok=true; $total=0; $seen=[];
+                // A manifest is not a complete inventory if another file is
+                // planted in vendor. Enumerate ALL nodes before PHP autoload.
                 foreach ($data['files'] as $record) {
                     if (!is_array($record)||!is_string($record['path']??null)
                         ||!is_int($record['bytes']??null)
                         ||!is_string($record['sha256']??null)) {$ok=false;break;}
                     $rel=$record['path'];
                     if (strlen($rel)>512||!preg_match('~\A[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\z~D',$rel)
+                        ||preg_match('~(?:^|/)(?:\.|\.\.|\.git|\.github|\.env(?:\..*)?|\.ssh|\.npmrc|secrets?|node_modules|\.build)(?:/|$)~iD',$rel)
+                        ||preg_match('~\Astorage(?:/|$)~iD',$rel)
+                        ||preg_match('~\.(?:pem|key|sqlite|sqlite3|db|p12|pfx)\z~iD',$rel)
                         ||in_array('..',explode('/',$rel),true)
                         ||in_array('.',explode('/',$rel),true)
                         ||isset($seen[$rel])||$record['bytes']<0
@@ -103,6 +108,40 @@ function stage2InspectUnsignedOffwebPackage(): array {
                 foreach (['public/index.php','public/.htaccess','vendor/autoload.php',
                     'private/editor/editor.js'] as $required) {
                     if (!isset($seen[$required]))$ok=false;
+                }
+                if ($ok) {
+                    // Refuse any extra file, symlink directory or private
+                    // configuration that hashes of LISTED files cannot see.
+                    $stack=[[$root,'']]; $observed=[]; $nodes=0;
+                    while ($stack!==[] && $ok) {
+                        [$folder,$prefix]=array_pop($stack);
+                        $names=@scandir($folder);
+                        if (!is_array($names)) {$ok=false;break;}
+                        foreach ($names as $name) {
+                            if ($name==='.' || $name==='..') continue;
+                            $rel=$prefix.$name; $file=$folder.'/'.$name;
+                            $s=@lstat($file);
+                            if (++$nodes>3600 || strlen($rel)>512
+                                ||!preg_match('~\A[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\z~D',$rel)
+                                ||preg_match('~(?:^|/)(?:\.|\.\.|\.git|\.github|\.env(?:\..*)?|\.ssh|\.npmrc|secrets?|node_modules|\.build)(?:/|$)~iD',$rel)
+                                ||preg_match('~\Astorage(?:/|$)~iD',$rel)
+                                ||preg_match('~\.(?:pem|key|sqlite|sqlite3|db|p12|pfx)\z~iD',$rel)
+                                ||$s===false || is_link($file) || realpath($file)!==$file) {
+                                $ok=false;break;
+                            }
+                            if (is_dir($file)) {
+                                $stack[]=[$file,$rel.'/'];
+                            } elseif (is_file($file)) {
+                                if (($s['nlink']??0)!==1 ||$s['size']<0
+                                    ||$s['size']>8388608
+                                    ||($rel!=='private/package-manifest.json' && !isset($seen[$rel]))
+                                    ||isset($observed[$rel])) {$ok=false;break;}
+                                $observed[$rel]=true;
+                            } else {$ok=false;break;}
+                        }
+                    }
+                    if (!isset($observed['private/package-manifest.json'])
+                        ||count($observed)!==count($seen)+1) $ok=false;
                 }
                 if ($ok)$state='verified_unsigned_package';
             }
