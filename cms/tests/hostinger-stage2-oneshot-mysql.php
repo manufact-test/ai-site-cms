@@ -89,6 +89,10 @@ try {
         && $preflight['unsignedInventoryFilesVerified']>=470,
         'credential-free packaged CLI preflight and full unsigned inventory');
     $check($preflight['packageManifestSha256']===$task['package_manifest_sha256']
+        && $preflight['packagePhpLoaded']===false
+        && $preflight['receiptState']==='absent'
+        && $preflight['taskState']==='absent'
+        && $preflight['oneShotAvailable']===false
         && $preflight['credentialsRead']===false
         && $preflight['databaseConnectionAttempted']===false
         && $preflight['stage2Accepted']===false,
@@ -97,6 +101,14 @@ try {
         'credential-free preflight is strictly read-only');
     $reject(fn()=>Job::run($package,$local)); // Missing operator task.
     $store($task);
+    [$readyCode,$readyText,$readyErr]=$runCron('hostinger-stage2-preflight.php');
+    $readyReport=json_decode($readyText,true,8,JSON_THROW_ON_ERROR);
+    $check($readyCode===0 && $readyErr==='' && $readyReport['oneShotAvailable']
+        && $readyReport['taskState']==='private_task_present'
+        && $readyReport['receiptState']==='absent',
+        'preflight sees private one-shot task metadata, does not read its password');
+    $check(!str_contains($readyText,'ephemeral_local_ci_only'),
+        'preflight never exposes password from task file');
     chmod($local.'/once.json',0644);
     $reject(fn()=>Job::run($package,$local)); // World-readable credential refused.
     chmod($local.'/once.json',0600);
@@ -114,6 +126,36 @@ try {
     $report=Job::run($package,$local);
     $check(!file_exists($local.'/once.json'),
         'successful cron attempt destroys secret-bearing task file');
+    [$doneCode,$doneText,$doneErr]=$runCron('hostinger-stage2-preflight.php');
+    $doneReport=json_decode($doneText,true,8,JSON_THROW_ON_ERROR);
+    $check($doneCode===0 && $doneErr==='' && !$doneReport['oneShotAvailable']
+        && $doneReport['taskState']==='absent'
+        && $doneReport['receiptState']==='completed_observed'
+        && $doneReport['packagePhpLoaded']===false,
+        'preflight identifies completed one-shot without re-executing MySQL');
+    $check(!str_contains($doneText,'ephemeral_local_ci_only'),
+        'preflight never prints secret on successful receipt');
+    $receiptBefore=file_get_contents($local.'/receipt.json');
+    file_put_contents($local.'/receipt.json','');
+    [$crashCode,$crashText,$crashErr]=$runCron('hostinger-stage2-preflight.php');
+    $crashReport=json_decode($crashText,true,8,JSON_THROW_ON_ERROR);
+    $check($crashCode===0 && $crashErr===''
+        && $crashReport['receiptState']==='manual_review_required'
+        && !$crashReport['oneShotAvailable'],
+        'empty interrupted receipt is quarantined for operator review');
+    file_put_contents($local.'/receipt.json',$receiptBefore);
+    chmod($local.'/receipt.json',0600);
+    $evilReceipt=json_decode($receiptBefore,true,8,JSON_THROW_ON_ERROR);
+    $evilReceipt['db_password']='MUST_NEVER_BE_PRINTED';
+    file_put_contents($local.'/receipt.json',json_encode($evilReceipt,JSON_THROW_ON_ERROR));
+    [$evilCode,$evilText,$evilErr]=$runCron('hostinger-stage2-preflight.php');
+    $evilReport=json_decode($evilText,true,8,JSON_THROW_ON_ERROR);
+    $check($evilCode===0 && $evilErr===''
+        && $evilReport['receiptState']==='manual_review_required'
+        && !str_contains($evilText,'MUST_NEVER_BE_PRINTED'),
+        'malformed secret-bearing receipt never disclosed or falsely accepted');
+    file_put_contents($local.'/receipt.json',$receiptBefore);
+    chmod($local.'/receipt.json',0600);
     $check($report['packageManifestSha256']===hash_file('sha256',
         $package.'/private/package-manifest.json')
         && preg_match('/\\A\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ\\z/D',
@@ -303,6 +345,11 @@ try {
     $check($verifierExit===3 && $verifierOut===''
         && str_contains($verifierErr,'STAGE2_PACKAGE_REFUSED'),
         'tampered package verifier itself is rejected before PHP include');
+    [$preflightAttackCode,$preflightAttackOut,$preflightAttackErr]
+        =$runCron('hostinger-stage2-preflight.php');
+    $check($preflightAttackCode===3 && $preflightAttackOut===''
+        && str_contains($preflightAttackErr,'STAGE2_PREFLIGHT_REFUSED'),
+        'credential-free preflight rejects tampered package without including PHP');
     $check(!is_file($marker) && is_file($local.'/once.json')
         && !is_file($local.'/receipt.json'),
         'corrupted verifier side effect never ran and DB task remains unconsumed');
