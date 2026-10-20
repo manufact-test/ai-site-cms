@@ -40,6 +40,9 @@ final class HostingerStage2OneShot
         if (!is_string($raw)) throw new RuntimeException('TASK_UNREADABLE');
         $task = json_decode($raw, true, 8, JSON_THROW_ON_ERROR);
         self::validateTask($task);
+        if (!hash_equals($manifestDigest, $task['package_manifest_sha256'])) {
+            throw new RuntimeException('PACKAGE_MANIFEST_PIN_MISMATCH');
+        }
         $operation = $task['operation'];
         $receiptPath = $localRoot.'/receipt.json';
         if (file_exists($receiptPath) || is_link($receiptPath)) {
@@ -166,11 +169,14 @@ final class HostingerStage2OneShot
         if (!is_array($task) || array_is_list($task)
             || array_diff(array_keys($task), [
                 'format','target','site','operation','confirm',
-                'db_host','db_name','db_user','db_password'
-            ]) !== [] || count($task) !== 9
+                'db_host','db_name','db_user','db_password',
+                'package_manifest_sha256'
+            ]) !== [] || count($task) !== 10
             || ($task['format'] ?? null) !== 'ai-site-cms-stage2-hostinger-task-v1'
             || ($task['target'] ?? null) !== self::TARGET
             || ($task['site'] ?? null) !== self::SITE
+            || !is_string($task['package_manifest_sha256'] ?? null)
+            || !preg_match('/\A[a-f0-9]{64}\z/D', $task['package_manifest_sha256'])
             || !in_array($task['operation'] ?? null,
                 ['probe','install','verify','snapshot','snapshot-verify'], true)
             || !in_array($task['db_host'] ?? null, ['localhost', '127.0.0.1'], true)
