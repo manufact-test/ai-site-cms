@@ -150,7 +150,8 @@ class BrowserPhpBridge(unittest.TestCase):
         self.page.wait_for_function(
             "document.querySelector('#form-status').textContent.includes('MALFORMED_FORM')")
         self.assertEqual(self.responses, [(422, 'MALFORMED_FORM')])
-        self.assertFalse(self.page.locator('#form-submit').is_disabled())
+        # Default-deny on malformed responses: never retry while result is uncertain.
+        self.assertTrue(self.page.locator('#form-submit').is_disabled())
 
     def test_invalid_region_is_server_rejected_even_without_phone(self):
         self.prepare_valid_form()
