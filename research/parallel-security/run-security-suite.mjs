@@ -41,13 +41,14 @@ function requireProof(row, expectedPattern, evidenceLabel) {
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
-  'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
+  'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
+  'sodium-compat-attest-regression.mjs','runtime-sodium-proof.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
   if(name.endsWith('.mjs'))entry('syntax:'+name,capture('node',['--check',path.join(dirname,name)]));
   else entry('syntax:'+name,capture(runtime,['-l',path.join(dirname,name)]));
 }
-for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs']){
+for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest-regression.mjs']){
   const result=entry('mutation:'+name,capture('node',[path.join(dirname,name)],{timeout:30000}));
   if(name==='osv-strict-regression.mjs')requireProof(result,
     /OSV strict-response \+ transport \+ lock fixture PASS 29 cases;/,
@@ -58,6 +59,9 @@ for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-r
   if(name==='suite-exit-regression.mjs')requireProof(result,
     /Security suite exit-policy offline regression PASS 12 assertions;/,
     '12 strict/online incomplete runner exit-policy assertions');
+  if(name==='sodium-compat-attest-regression.mjs')requireProof(result,
+    /Sodium compat independent source attestation offline regression PASS 20 assertions;/,
+    '20 negative source/version/whole-tree attestation assertions (synthetic only)');
 }
 const lockPaths=['cms/composer.lock','cms/editor/package-lock.json','cms/editor/package.json'];
 const completeLock=lockPaths.every(f=>fs.existsSync(path.join(root,f)));
@@ -157,7 +161,8 @@ const proofNames=[
   'native:operator-receipt-chain','native:operator-preactivation-permit',
   'native:operator-settlement-chain','native:trust-root-rotation',
   'mutation:osv-strict-regression.mjs','mutation:osv-cli-regression.mjs',
-  'mutation:suite-exit-regression.mjs'
+  'mutation:suite-exit-regression.mjs',
+  'mutation:sodium-compat-attest-regression.mjs'
 ];
 console.error('INDEPENDENT_SECURITY_EXACT_HEAD_PROOFS '+JSON.stringify(
   proofNames.map(name=>{
