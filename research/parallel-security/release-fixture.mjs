@@ -12,23 +12,13 @@ const release=path.join(tmp,'release'), keyfile=path.join(tmp,'trusted-public.pe
 const php=process.env.PHP_BINARY||'php', flavor=process.argv[2]||'native';
 if(!['native','absent','compat'].includes(flavor))throw Error('Usage: node release-fixture.mjs native|absent|compat');
 function run(opts) {
-  const code=String.raw`<?php
-declare(strict_types=1);
-$auto=getenv('SODIUM_COMPAT_AUTOLOAD');
-if ($auto) require_once $auto;
-require_once __DIR__.'/../../cms/src/Release/OfflineReleaseVerifier.php';
-use AiSiteCms\Release\OfflineReleaseVerifier as Verifier;
-try {
- $r=Verifier::verify($argv[1],$argv[2],$argv[3],$argv[4],$argv[5]);
- echo json_encode($r);
-} catch(Throwable $e) { fwrite(STDERR,get_class($e).': '.$e->getMessage()); exit(1); }
-`;
   const runner=path.join(__dirname,'release-verify-runner.php');
   // Runner is a checked-in reviewable file. No dynamic PHP eval.
   const args=[...(flavor==='native'?[]:['-n']),runner,release,keyfile,'0.2.1-stage2.1',opts.pin,
     opts.minimum||'0.2.0-stage2.1'];
   return cp.spawnSync(php,args,{encoding:'utf8',env:{...process.env,
-    SODIUM_COMPAT_AUTOLOAD:flavor==='compat'?(process.env.SODIUM_COMPAT_AUTOLOAD||''):''}});
+    SODIUM_COMPAT_AUTOLOAD:flavor==='compat'?(process.env.SODIUM_COMPAT_AUTOLOAD||''):'',
+    ED25519_LAB_MODE:flavor}});
 }
 function check(ok,name){if(!ok)throw Error('FAIL '+name);console.log('PASS '+name);}
 try{

@@ -5,6 +5,14 @@ if ($auto !== false && $auto !== '') {
     if (!is_file($auto)) { fwrite(STDERR, "Untrusted/unavailable compat loader\n"); exit(2); }
     require_once $auto;
 }
+$mode=getenv('ED25519_LAB_MODE');
+$native=function_exists('sodium_crypto_sign_verify_detached');
+if (($mode==='native' && !$native) || (($mode==='compat' || $mode==='absent') && $native)) {
+    fwrite(STDERR,"INVALID LAB RUNTIME: native/compat presence mismatch\n"); exit(2);
+}
+if ($mode==='compat' && !class_exists('ParagonIE_Sodium_Compat', false)) {
+    fwrite(STDERR,"INVALID LAB RUNTIME: missing actual compat class\n"); exit(2);
+}
 require_once __DIR__.'/../../cms/src/Release/OfflineReleaseVerifier.php';
 try {
     $r = \AiSiteCms\Release\OfflineReleaseVerifier::verify(
