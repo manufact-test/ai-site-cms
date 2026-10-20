@@ -40,12 +40,24 @@ else{
     else if(!process.env.SODIUM_COMPAT_AUTOLOAD||!fs.existsSync(process.env.SODIUM_COMPAT_AUTOLOAD))
       finish(3,'Verified no native sodium; independently sourced exact-pinned sodium_compat 2.5.2 still missing');
     else{
-      const checks=[
-       test('Pinned compat RFC8032',binary,['-n',path.join(dir,'ed25519-lab.php'),'compat']),
-       test('Pinned compat signed envelope',process.execPath,[path.join(dir,'release-fixture.mjs'),'compat'])
-      ];
-      if(checks.includes(false))finish(1,'Genuine native-free compat cryptographic checks failed');
-      else{report.compatVerified=true;finish(0,'Native-free RFC and envelope verified locally; host deployment remains unverified');}
+      // A path called "autoload.php" is insufficient evidence of pinned 2.5.2.
+      // Require an independently reviewed whole-tree source digest AND a lock
+      // referring to the upstream verified v2.5.2 commit before loading PHP.
+      const source=cp.spawnSync(process.execPath,[path.join(dir,'sodium-compat-attest.mjs')],{
+        encoding:'utf8',timeout:30000,maxBuffer:1024*1024,env:process.env
+      });
+      if(source.error||source.status!==0){
+        finish(3,'BLOCKED: exact sodium_compat source provenance unavailable: '+
+          (source.error?.message||(source.stderr||'').slice(-450)));
+      }else{
+        report.sourceAttestation=JSON.parse(source.stdout);
+        const checks=[
+         test('Pinned compat RFC8032',binary,['-n',path.join(dir,'ed25519-lab.php'),'compat']),
+         test('Pinned compat signed envelope',process.execPath,[path.join(dir,'release-fixture.mjs'),'compat'])
+        ];
+        if(checks.includes(false))finish(1,'Genuine native-free compat cryptographic checks failed');
+        else{report.compatVerified=true;finish(0,'Native-free RFC and envelope verified locally; host deployment remains unverified');}
+      }
     }
    }
   }catch(e){finish(2,'Invalid PHP probe output: '+e.message);}
