@@ -9,7 +9,9 @@ const required=[
   'stage2-hostinger-offweb-runtime','STAGE_PUBLIC_SOURCE_OFFWEB_ONLY',
   'branches/main', 'node tools/test-stage2-hostinger-private-stage.cjs',
   'node tools/build-internal-package.cjs',
-  'gh auth setup-git', 'refs/heads/$branch'
+  'gh auth setup-git', 'refs/heads/$branch',
+  'git -C "$dst" diff --cached --quiet',
+  'Identical verified package; keep existing deployment branch SHA.'
 ];
 for(const word of required)assert.ok(workflow.includes(word),'Required safe public-source staging control: '+word);
 for(const forbidden of [

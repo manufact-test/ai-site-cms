@@ -111,9 +111,17 @@ jobs:
           fi
           cp -a "$RUNNER_TEMP/private-runtime/." "$dst/"
           git -C "$dst" add --all
-          # Existing stage branch never shares tree or history with main.
-          git -C "$dst" -c user.name=ai-site-cms-stage2             -c user.email=actions@users.noreply.github.com             commit -qm "stage2: offweb inactive CMS package from $VALIDATED_SHA"
-          [[ "$VALIDATED_SHA" == "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" ]]
-          git -C "$dst" push -q origin "HEAD:refs/heads/$branch"
-          echo 'Compiled dependency-complete public-source branch published for separate offweb Git installation ONLY.'
+          # A source-only test/probe change may produce the EXACT same package.
+          # No-op must be successful and must NOT create meaningless commits or
+          # force a Hostinger deployment.
+          if git -C "$dst" diff --cached --quiet; then
+            echo 'Identical verified package; keep existing deployment branch SHA.'
+          else
+            git -C "$dst" -c user.name=ai-site-cms-stage2 \
+              -c user.email=actions@users.noreply.github.com \
+              commit -qm "stage2: offweb inactive CMS package from $VALIDATED_SHA"
+            [[ "$VALIDATED_SHA" == "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" ]]
+            git -C "$dst" push -q origin "HEAD:refs/heads/$branch"
+            echo 'Compiled dependency-complete public-source branch updated safely.'
+          fi
           echo 'Never choose this branch for public_html. No Hostinger, DB or SSH touched.'
