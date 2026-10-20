@@ -20,6 +20,15 @@ if ($root === false || basename($root) !== 'cms-stage2-offweb-runtime') {
     fwrite(STDERR, "STAGE2_OFFWEB_REQUIRED\n");
     exit(3);
 }
+// Verify *all* unsigned package bytes before executing Composer/vendor PHP.
+// This is an integrity boundary only, NOT publisher-signature authentication.
+try {
+    require_once $root.'/src/Hosting/PackageArtifactVerifier.php';
+    \AiSiteCms\Hosting\PackageArtifactVerifier::verify($root);
+} catch (Throwable $ignored) {
+    fwrite(STDERR, "STAGE2_PACKAGE_REFUSED\n");
+    exit(3);
+}
 require $root.'/vendor/autoload.php';
 try {
     $result = \AiSiteCms\Hosting\HostingerStage2OneShot::run(

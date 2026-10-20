@@ -21,8 +21,8 @@
     },
     {
       "path": "bin/hostinger-stage2-once.php",
-      "bytes": 1402,
-      "sha256": "250ae2bf2368e14abb4deae1e1302683f0cb112fafafd37b3d38f9c317af234a"
+      "bytes": 1788,
+      "sha256": "f8ae700741a2fb1955deff859f179401795c08183b6616a4043ee87c1378c708"
     },
     {
       "path": "bin/install.php",
@@ -151,8 +151,8 @@
     },
     {
       "path": "src/Hosting/HostingerStage2OneShot.php",
-      "bytes": 10734,
-      "sha256": "137a626a3402e249c5939f426647b278d8c71c754cdc0bce243d2ac7f4d2f4f1"
+      "bytes": 12687,
+      "sha256": "e527cc3f9d4b1b15d2750d1c7d03dbff4b3614caacfa4040336b995355ece981"
     },
     {
       "path": "src/Hosting/LabComplianceEvidence.php",
@@ -347,7 +347,7 @@
     {
       "path": "vendor/composer/installed.php",
       "bytes": 6387,
-      "sha256": "d91918976c3424479aed9266fdd8a855948cdf4992d4893250f89ae697d6edd5"
+      "sha256": "ea506c7e8c43fddf3220ae72737a2e29b4387a3e8d8cdaaf443a01129221b0fc"
     },
     {
       "path": "vendor/composer/InstalledVersions.php",
