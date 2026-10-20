@@ -48,7 +48,11 @@ jobs:
           fi
           echo 'Exact PR head and research-only scope proven.'
   security:
-    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'research/stage2-supply-chain')
+    needs: research-pr-scope
+    if: >-
+      always() &&
+      (github.event_name != 'pull_request' || needs.research-pr-scope.result == 'success') &&
+      (github.event_name != 'pull_request' || startsWith(github.head_ref, 'research/stage2-supply-chain'))
     name: Security research actual locks, installed sources, crypto
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -161,7 +165,11 @@ jobs:
         run: echo 'This isolated job does not connect to Hostinger or approve Stage2.'
 
   components:
-    if: github.event_name != 'pull_request' || github.head_ref == 'research/editor-component-patterns'
+    needs: research-pr-scope
+    if: >-
+      always() &&
+      (github.event_name != 'pull_request' || needs.research-pr-scope.result == 'success') &&
+      (github.event_name != 'pull_request' || github.head_ref == 'research/editor-component-patterns')
     name: Components research actual PHP, HTTP, Chromium and schema
     runs-on: ubuntu-latest
     timeout-minutes: 15
