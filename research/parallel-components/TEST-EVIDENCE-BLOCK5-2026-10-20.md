@@ -20,3 +20,13 @@
 ## Production exclusion / open tests
 
 No actual email delivery confirmation, no real phone numbering metadata installed, no HMAC ledger clustered outbox/guaranteed exactly-once, no durable database compare-and-swap, no production authenticated editor, no real React/Next SSR hydration, no VoiceOver/TalkBack/Safari automated audits, no WCAG certification and no web-host deployment. The strict decoder/CSRF/Origin policy must be re-evaluated with real request proxies/framework before any adoption. This output makes **zero** claims toward the 135 accepted requirements.
+
+## Important: green workflow tested old main snapshot, NOT this new PR
+
+The pull-request-triggered [research workflow run 39489484536](https://github.com/manufact-test/ai-site-cms/actions/runs/39489484536) completed `SUCCESS` (Components and Security jobs). **Do not attribute that success to the new Block 5 code.** The Components job log explicitly states: `Already integrated research subtree found in current main; test that accepted snapshot, not a pending PR version.` It checked out branch HEAD `df69ab7056a0d610e2078558c8b38d0dcac54ae2` for scope, then tested the previously merged base tree: its PHP log says `RevisionGate PASS: 33` (our new version **39**), and it checks **20 PHP files** (our new suite **22**); browser suite ran **10 tests** (our new version **12**). Thus CI is **green for earlier accepted research**, but **new changes are NOT independently CI-tested**. Only the main integrator may adjust `.github/workflows` to test the actual PR research subtree. 
+
+For a single command that **does** run the current checkout's full research suite in an environment with installed PHP, Python deps, Chromium and Node syntax-check tooling, execute from the folder `research/parallel-components`: `bash lab/tests/run-block5.sh`. This command installs nothing and makes no changes outside the lab. The local per-suite results for the new files are stated above. Do not announce a green Block 5 GitHub CI until its actual head/source appears in logs.
+
+## One-command runner confirmation
+
+After moving the true Chromium suite to **last** (to avoid contaminating later ephemeral PHP subprocess tests), `timeout 120s bash lab/tests/run-block5.sh` also completed with **exit 0** on this Debian developer sandbox and printed `RESEARCH_LAB_TESTS_PASSED` after all 263 PHP assertions, 29 Python tests, PHP/JS syntax checks. It installs nothing and is for a developer with dependencies already present. This does NOT supersede the branch selection flaw in GitHub's existing workflow.

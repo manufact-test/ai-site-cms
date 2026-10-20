@@ -106,3 +106,7 @@ for f in lab/tests/test_*.py; do python -m unittest discover -s lab/tests -p "$(
 ```
 
 Results and versions: `../TEST-EVIDENCE-BLOCK5-2026-10-20.md`. The browser harness uses real Chromium DOM but mocked fetch; Python HTTP tests exercise a real disposable local PHP server. No actual mail, CRM, Hostinger or Next SSR claims.
+
+### Research runner/CI caveat
+
+From this folder: `bash lab/tests/run-block5.sh` executes full PHP syntax, all PHP assertions, per-module Python browser/HTTP/schema suites and JS syntax against **the current checkout** (tools must already be installed). Shared GitHub workflow run `39489484536` was GREEN but explicitly chose old accepted-main subtree after PR #2's merge, so it did **not** independently test PR #4. Details: [block 5 evidence](../TEST-EVIDENCE-BLOCK5-2026-10-20.md). Main integrator must repair shared workflow; this research branch cannot touch Actions.
