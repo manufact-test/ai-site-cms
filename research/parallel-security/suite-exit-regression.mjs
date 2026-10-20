@@ -25,6 +25,8 @@ function read(result){return JSON.parse(result.stdout);}
 try{
   fs.mkdirSync(dir,{recursive:true});
   fs.copyFileSync(source,path.join(dir,'run-security-suite.mjs'));
+  fs.copyFileSync(path.join(path.dirname(source),'online-evidence-proof.mjs'),
+    path.join(dir,'online-evidence-proof.mjs'));
   fs.writeFileSync(path.join(tmp,'fake-php.cjs'),
     '#!/usr/bin/env node\nprocess.stdout.write(process.argv.includes("-n")?"native":"absent");\n',
     {mode:0o700});
@@ -35,7 +37,8 @@ try{
     'osv-strict-regression.mjs':'OSV strict-response + transport + lock fixture PASS 30 cases;',
     'osv-cli-regression.mjs':'OSV exact CLI offline subprocess regression PASS 23 assertions; no HTTP requests, no live audit',
     'suite-exit-regression.mjs':'Security suite exit-policy offline regression PASS 12 assertions; no OSV network, PHP or installed dependencies',
-    'sodium-compat-attest-regression.mjs':'Sodium compat independent source attestation offline regression PASS 20 assertions; synthetic files, NOT actual upstream approval'
+    'sodium-compat-attest-regression.mjs':'Sodium compat independent source attestation offline regression PASS 20 assertions; synthetic files, NOT actual upstream approval',
+    'online-evidence-regression.mjs':'Online OSV and registry evidence offline regression PASS 40 assertions; synthetic data only, no live OSV lookup or production approval'
   };
   for(const [name,msg] of Object.entries(scripts))
     fs.writeFileSync(path.join(dir,name),'console.log('+JSON.stringify(msg)+');\n');
