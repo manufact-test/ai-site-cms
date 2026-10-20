@@ -200,6 +200,7 @@ jobs:
           php tests/stage2-mysql-http-gate.php
           node tools/build-internal-package.cjs
           node tools/test-stage2-packaged-mysql.cjs
+          php tests/hostinger-stage2-oneshot-mysql.php
       - name: Check real MySQL 8.4 schema-version gate and migration named-lock isolation
         env:
           CMS_ALLOW_PHP_INSTALL_LAB: '1'
