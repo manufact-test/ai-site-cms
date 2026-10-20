@@ -11,10 +11,12 @@ const fs=require('node:fs');
 const {publicIPv4}=require('./stage2-target-https-check.cjs');
 const CMS='lightseagreen-woodpecker-264491.hostingersite.com';
 const VISITOR='mediumpurple-fox-175549.hostingersite.com';
-const REVISION='stage2-target-host-check-20261020-r3';
+const REVISION='stage2-target-host-check-20261020-r4';
 const CMS_ROUTES=[
   ['/__stage2/host','phpPreflight'],
   ['/__stage2/rewrite/proof','lsapiFrontController'],
+  ['/__stage2/private-boundary','privateBoundaryMarker'],
+  ['/cms-stage2-private-boundary/probe.json','privateMarkerHttpExposure'],
   ['/','cmsLanding'],
   ['/api/health','notInstalled'],
   ['/api/publish','writeNotExposed'],
@@ -62,6 +64,20 @@ function evaluate(name,response) {
       d.stage2Accepted===false;
     return {pass:Boolean(pass),...(pass?{}:{reason:'front_controller_rewrite_not_verified'})};
   }
+  if(name==='privateBoundaryMarker'){
+    let d;try{d=JSON.parse(text)}catch{return {pass:false,reason:'invalid_marker_json'};}
+    const valid=(s===200||s===503)&&
+      contentType.toLowerCase().startsWith('application/json')&&
+      d?.format==='ai-site-cms-stage2-private-boundary-observation-v1'&&
+      d.probeRevision===REVISION&&
+      typeof d.outsideThisPublicRootMarkerObserved==='boolean'&&
+      (s===200)===d.outsideThisPublicRootMarkerObserved&&
+      d.cmsInstalled===false&&d.privateCmsCodeInstalled===false&&
+      d.peerAccountIsolationVerified===false&&d.databaseConnected===false&&
+      d.stage2Accepted===false;
+    return {pass:Boolean(valid),...(valid?{observed:d.outsideThisPublicRootMarkerObserved}:{reason:'marker_probe_invalid'})};
+  }
+  if(name==='privateMarkerHttpExposure')return {pass:s===403||s===404};
   if(name==='cmsLanding')return {pass:s===200&&text.includes('NOT an installed CMS')};
   if(name==='visitorHome')return {pass:s===200&&/^text\/html(?:;|$)/i.test(contentType)&&text.length>0};
   if(name==='notInstalled')return {pass:s===503&&text.includes('"not_installed"')};
@@ -118,6 +134,7 @@ async function inspect(){
       result={name:r.name,httpStatus:response.status,
         tlsVerified:response.tlsVerified,passed:verdict.pass,
         ...(verdict.reason?{reason:verdict.reason}:{}),
+        ...(r.name==='privateBoundaryMarker'&&verdict.pass?{observed:verdict.observed}:{}),
         ...(r.name==='phpPreflight'&&verdict.pass?{
           phpVersion:verdict.phpVersion,webSapi:verdict.webSapi,
           requirements:verdict.requirements}: {})};
@@ -127,12 +144,16 @@ async function inspect(){
   }
   const preflight=seen.find(r=>r.name==='phpPreflight');
   const routing=seen.find(r=>r.name==='lsapiFrontController');
+  const marker=seen.find(r=>r.name==='privateBoundaryMarker');
+  const markerHttp=seen.find(r=>r.name==='privateMarkerHttpExposure');
   const requirements=preflight?.requirements;
   // A successful HTTP route check does NOT prove target deployment compatibility.
   // Our current PHP Ed25519 release verifier uses libsodium. Real target LiteSpeed
   // has not undergone the independent FPM/Apache isolation and lifecycle tests.
   const compatibilityGaps=[];
   if(routing?.passed!==true)compatibilityGaps.push('front_controller_rewrite_not_verified');
+  if(marker?.observed!==true||markerHttp?.passed!==true)
+    compatibilityGaps.push('private_sibling_git_deployment_not_verified');
   if(preflight?.passed!==true)compatibilityGaps.push('live_php_preflight_not_verified');
   else {
     if(requirements?.sodium!==true)compatibilityGaps.push('php_sodium_missing');
@@ -150,6 +171,7 @@ async function inspect(){
     targetRuntimeCompatibilityConfirmed:compatibilityGaps.length===0,
     compatibilityGaps,
     rewrittenPhpFrontControllerObserved:routing?.passed===true,
+    siblingMarkerOutsideDocumentRootObserved:marker?.observed===true&&markerHttp?.passed===true,
     databaseConnected:false,hostFilesystemIndependentlyInspected:false,
     stage2Accepted:false,stage3Authorized:false,productionReady:false,
     visitorDuringCmsOutageVerified:false};
@@ -172,6 +194,7 @@ Revision: ${REVISION}; HTTP observation expectations met: **${report.allChecksPa
 Target runtime compatibility for the current signed deployment: **${report.targetRuntimeCompatibilityConfirmed?'NO BLOCKERS DETECTED':'STILL OPEN'}**.
 Observed gaps: ${gaps.join(', ')||'none found by this limited probe'}.
 Actual nested-path PHP front controller rewrite observed: **${report.rewrittenPhpFrontControllerObserved?'YES':'NOT VERIFIED'}**.
+Non-secret marker from dedicated private sibling Git deploy: **${report.siblingMarkerOutsideDocumentRootObserved?'OBSERVED':'NOT DEPLOYED/NOT VERIFIED'}**.
 
 | Route | HTTP status | Verified TLS | Expected result |
 |---|---:|---|---|

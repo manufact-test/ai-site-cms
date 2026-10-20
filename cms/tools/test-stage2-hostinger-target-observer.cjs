@@ -34,6 +34,20 @@ check('routing proof cannot claim install',
  !evaluate('lsapiFrontController',r(200,JSON.stringify({...routeGood,installationReady:true}))).pass);
 check('routing proof redirect not accepted',
  !evaluate('lsapiFrontController',r(302,JSON.stringify(routeGood))).pass);
+const privateMarker={format:'ai-site-cms-stage2-private-boundary-observation-v1',
+ probeRevision:REVISION,outsideThisPublicRootMarkerObserved:false,
+ cmsInstalled:false,privateCmsCodeInstalled:false,peerAccountIsolationVerified:false,
+ databaseConnected:false,stage2Accepted:false};
+check('uninstalled sibling marker is not a fake success',
+ evaluate('privateBoundaryMarker',r(503,JSON.stringify(privateMarker))).pass);
+check('real sibling marker can be recorded but not mistaken for CMS install',
+ evaluate('privateBoundaryMarker',r(200,JSON.stringify({...privateMarker,outsideThisPublicRootMarkerObserved:true}))).observed);
+check('fabricated marker not accepted',
+ !evaluate('privateBoundaryMarker',r(200,JSON.stringify(privateMarker))).pass);
+check('public marker blocked',
+ evaluate('privateMarkerHttpExposure',r(404,'not found')).pass);
+check('private marker publicly exposed rejected',
+ !evaluate('privateMarkerHttpExposure',r(200,'secret')).pass);
 check('visitor OK',evaluate('visitorHome',r(200,'<h1>hello</h1>','text/html')).pass);
 check('visitor redirect refused',!evaluate('visitorHome',r(301,'moved','text/html')).pass);
 check('health not installed',evaluate('notInstalled',r(503,'{"status":"not_installed"}')).pass);
@@ -51,4 +65,4 @@ const s2=summary({requests:[{name:'phpPreflight',httpStatus:200,tlsVerified:true
 check('two capability gaps shown',s2.includes('php_sodium_missing')
  &&s2.includes('target_web_sapi_requires_compatibility_review'));
 check('HTTPS pass not deploy acceptance',s2.includes('Target runtime compatibility for the current signed deployment: **STILL OPEN**'));
-console.log('Stage2 live report parser contract: 19 offline checks PASS; no host I/O');
+console.log('Stage2 live report parser contract: 24 offline checks PASS; no host I/O');

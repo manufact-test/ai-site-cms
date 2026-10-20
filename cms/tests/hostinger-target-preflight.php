@@ -24,7 +24,7 @@ function passes(bool $valid,string $name):void {
 $body=runProbe($probe,'GET','/__stage2/host');
 $data=json_decode($body,true,512,JSON_THROW_ON_ERROR);
 passes($data['format']==='ai-site-cms-stage2-target-php-preflight-v1','format');
-passes($data['probeRevision']==='stage2-target-host-check-20261020-r3'&&$data['observationOnly']===true,'revision');
+passes($data['probeRevision']==='stage2-target-host-check-20261020-r4'&&$data['observationOnly']===true,'revision');
 passes($data['phpVersionMajorMinor']===PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION,'phpVersion');
 passes($data['phpSapi']===PHP_SAPI,'actualSapi');
 passes(is_bool($data['requirements']['privateParentExistsAndReadable'])
@@ -43,6 +43,28 @@ passes(str_contains(runProbe($probe,'GET','/__stage2/rewrite/proof'),'"frontCont
     'router_front_controller_mapping');
 passes(str_contains(runProbe($probe,'GET','/__stage2/rewrite/proof',$probe.'-wrong'),'"frontControllerMapped":false'),
     'router_wrong_executable_refused');
+passes(str_contains(runProbe($probe,'GET','/__stage2/private-boundary'),'"outsideThisPublicRootMarkerObserved":false'),
+    'private_boundary_not_fabricated');
+$base = sys_get_temp_dir().'/stage2-private-marker-'.bin2hex(random_bytes(5));
+mkdir($base,0700);
+mkdir($base.'/public_html',0700);
+mkdir($base.'/cms-stage2-private-boundary',0700);
+$copied = $base.'/public_html/index.php';
+try {
+    copy($probe,$copied);
+    $marker = "{\"format\":\"ai-site-cms-stage2-private-boundary-marker-v1\",\"purpose\":\"test-only-no-code-no-secrets\",\"deploymentFolder\":\"cms-stage2-private-boundary\"}"."\\n";
+    file_put_contents($base.'/cms-stage2-private-boundary/probe.json',$marker);
+    passes(str_contains(runProbe($copied,'GET','/__stage2/private-boundary'),'"outsideThisPublicRootMarkerObserved":true'),
+        'real_sibling_folder_marker_detected');
+    passes(str_contains(runProbe($copied,'GET','/cms-stage2-private-boundary/probe.json'),'not_found'),
+        'no_http_exposure_via_front_controller');
+} finally {
+    @unlink($base.'/cms-stage2-private-boundary/probe.json');
+    @unlink($copied);
+    @rmdir($base.'/cms-stage2-private-boundary');
+    @rmdir($base.'/public_html');
+    @rmdir($base);
+}
 passes(str_contains(runProbe($probe,'GET','/api/health'),'not_installed'),'not_installed_health');
 passes(str_contains(runProbe($probe,'GET','/api/publish'),'not_found'),'no_publish');
 passes(str_contains(runProbe($probe,'POST','/__stage2/host'),'method_not_allowed'),'get_only');
