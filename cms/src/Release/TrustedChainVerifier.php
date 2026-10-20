@@ -20,7 +20,7 @@ final class TrustedChainVerifier
     public static function inspect(
         string $chainPath, string $rootPublicPem, string $rootFingerprint, int $externalMinEpoch
     ): array {
-        if (!function_exists('sodium_crypto_sign_verify_detached')
+        if (!Ed25519Backend::available()
             || !preg_match('/^[a-f0-9]{64}$/D', $rootFingerprint)
             || $externalMinEpoch < 0 || $externalMinEpoch > 16) {
             throw new RuntimeException('Explicit trusted root and valid epoch required');
@@ -91,8 +91,8 @@ final class TrustedChainVerifier
             $newSig = hex2bin($event['newSignature']);
             $newKey = substr($der, 12);
             if ($oldSig === false || $newSig === false
-                || !sodium_crypto_sign_verify_detached($oldSig, $signed, $key)
-                || !sodium_crypto_sign_verify_detached($newSig, $signed, $newKey)) {
+                || !Ed25519Backend::verifyDetached($oldSig, $signed, $key)
+                || !Ed25519Backend::verifyDetached($newSig, $signed, $newKey)) {
                 throw new RuntimeException('Both incumbent and successor Ed25519 signatures required');
             }
             $key = $newKey;

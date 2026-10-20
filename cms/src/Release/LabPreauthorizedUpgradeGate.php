@@ -134,7 +134,7 @@ final class LabPreauthorizedUpgradeGate
         $sig = self::bytes($dir . '/permit.sig', 64);
         $key = self::publicKey($operatorPem, $operatorPin, $dir);
         if (strlen($sig) !== 64
-            || !sodium_crypto_sign_verify_detached($sig, self::DOMAIN . $raw, $key)
+            || !Ed25519Backend::verifyDetached($sig, self::DOMAIN . $raw, $key)
             || !hash_equals($independentPermitHead, hash('sha256', self::DOMAIN . $raw . $sig))) {
             throw new RuntimeException('Signed permit or independent nonce/head invalid');
         }

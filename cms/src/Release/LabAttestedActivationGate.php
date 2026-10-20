@@ -131,7 +131,7 @@ final class LabAttestedActivationGate
             $raw = self::bytes($file . '.json', 8192);
             $sig = self::bytes($file . '.sig', 64);
             if (strlen($sig) !== 64
-                || !sodium_crypto_sign_verify_detached($sig, self::DOMAIN . $raw, $public)) {
+                || !Ed25519Backend::verifyDetached($sig, self::DOMAIN . $raw, $public)) {
                 throw new RuntimeException('Untrusted operator receipt signature');
             }
             try { $record = json_decode($raw, true, 20, JSON_THROW_ON_ERROR); }

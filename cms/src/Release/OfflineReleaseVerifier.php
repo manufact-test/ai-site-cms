@@ -34,7 +34,7 @@ final class OfflineReleaseVerifier
         if (!preg_match('/^[a-f0-9]{64}$/D', $pinnedFingerprint)) {
             throw new RuntimeException('Explicit trusted key fingerprint required');
         }
-        if (!function_exists('sodium_crypto_sign_verify_detached')) {
+        if (!Ed25519Backend::available()) {
             throw new RuntimeException('Ed25519 verifier unavailable in current PHP runtime');
         }
         $actualFolder = realpath($folder);
@@ -58,7 +58,7 @@ final class OfflineReleaseVerifier
         $archiveFile = $actualFolder . '/package.zip';
         self::requireRegular($archiveFile, self::MAX_ARCHIVE);
         if (strlen($signature) !== 64
-            || !sodium_crypto_sign_verify_detached($signature, self::DOMAIN . $metadata, $publicRaw)) {
+            || !Ed25519Backend::verifyDetached($signature, self::DOMAIN . $metadata, $publicRaw)) {
             throw new RuntimeException('Invalid detached Ed25519 release signature');
         }
 
