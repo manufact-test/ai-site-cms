@@ -52,10 +52,10 @@ for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-r
   const result=entry('mutation:'+name,capture('node',[path.join(dirname,name)],{timeout:30000}));
   if(name==='osv-strict-regression.mjs')requireProof(result,
     /OSV strict-response \+ transport \+ lock fixture PASS 29 cases;/,
-    '29 offline OSV transport + lock acceptance/rejection assertions');
+    '30 offline OSV transport + lock acceptance/rejection assertions');
   if(name==='osv-cli-regression.mjs')requireProof(result,
-    /OSV exact CLI offline subprocess regression PASS 19 assertions; no HTTP requests, no live audit/,
-    '19 offline OSV CLI exit code, complete report, fake HTTP, and integrity assertions');
+    /OSV exact CLI offline subprocess regression PASS 23 assertions; no HTTP requests, no live audit/,
+    '23 offline OSV CLI, fake HTTP and lockfile TOCTOU assertions');
   if(name==='suite-exit-regression.mjs')requireProof(result,
     /Security suite exit-policy offline regression PASS 12 assertions;/,
     '12 strict/online incomplete runner exit-policy assertions');
