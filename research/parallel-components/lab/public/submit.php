@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../src/FormLab.php';
+require_once __DIR__ . '/../src/OriginPolicy.php';
 ini_set('session.use_strict_mode', '1');
 session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax', 'path' => '/']);
 session_start();
@@ -18,14 +19,15 @@ if ($length > 8192 || $type !== 'application/x-www-form-urlencoded') {
     http_response_code(415);
     echo json_encode(['code' => 'UNSUPPORTED_REQUEST', 'message' => 'Неподдерживаемый формат или размер запроса.'], JSON_UNESCAPED_UNICODE); exit;
 }
-$origin = $_SERVER['HTTP_ORIGIN'] ?? null;
-if (is_string($origin) && $origin !== '') {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $expectedOrigin = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '');
-    if (!hash_equals($expectedOrigin, $origin)) {
-        http_response_code(403);
-        echo json_encode(['code' => 'ORIGIN_INVALID', 'message' => 'Недопустимый источник запроса.'], JSON_UNESCAPED_UNICODE); exit;
-    }
+// Explicit trusted origin: do not infer it from attacker-controlled Host, X-Forwarded-* or proxy metadata.
+$configured = getenv('LAB_PUBLIC_ORIGIN');
+$originGate = OriginPolicy::evaluate($_SERVER['HTTP_ORIGIN'] ?? null,
+    $configured !== false ? $configured : null, $_SERVER['HTTP_HOST'] ?? null,
+    $_SERVER['HTTP_SEC_FETCH_SITE'] ?? null);
+if ($originGate !== 'ALLOW') {
+    http_response_code($originGate === 'ORIGIN_CONFIGURATION_REQUIRED' ? 503 : 403);
+    echo json_encode(['code' => $originGate, 'message' => 'Проверка источника запроса не пройдена. Заявка не отправлена.'], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 $recipient = getenv('LAB_FORM_RECIPIENT_EMAIL');
 $sender = getenv('LAB_FORM_SENDER_EMAIL');

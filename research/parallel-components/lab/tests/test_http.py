@@ -21,6 +21,7 @@ class HttpBoundary(unittest.TestCase):
         env=os.environ.copy()
         env.pop('LAB_FORM_RECIPIENT_EMAIL',None)
         env.pop('LAB_FORM_SENDER_EMAIL',None)
+        env['LAB_PUBLIC_ORIGIN']=cls.url
         cls.server=subprocess.Popen(['php','-S',f'127.0.0.1:{port}','-t',str(PUBLIC)],
                                     stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env=env)
         for _ in range(40):
@@ -36,7 +37,7 @@ class HttpBoundary(unittest.TestCase):
 
     def submit(self, opener, payload, headers=None):
         request=Request(self.url+'/submit.php',data=urlencode(payload).encode(),method='POST',
-                        headers={'Content-Type':'application/x-www-form-urlencoded',**(headers or {})})
+                        headers={'Content-Type':'application/x-www-form-urlencoded', 'Origin': self.url,**(headers or {})})
         try: response=opener.open(request,timeout=3)
         except HTTPError as err:response=err
         with response:
@@ -65,6 +66,12 @@ class HttpBoundary(unittest.TestCase):
         self.assertEqual(self.submit(opener,base)[1]['code'],'CSRF_INVALID')
         base['csrf']=token
         self.assertEqual(self.submit(opener,base,{'Origin':'https://another.example'})[1]['code'],'ORIGIN_INVALID')
+        self.assertEqual(self.submit(opener,base,{'Origin':'null'})[1]['code'],'ORIGIN_INVALID')
+        self.assertEqual(self.submit(opener,base,{'Origin':self.url, 'Host':'evil.test'})[1]['code'],'HOST_INVALID')
+        self.assertEqual(self.submit(opener,base,{'Sec-Fetch-Site':'cross-site'})[1]['code'],'ORIGIN_INVALID')
+        self.assertEqual(self.submit(opener,base,{'Origin':''})[1]['code'],'ORIGIN_INVALID')
+        time.sleep(2.05)
+        self.assertEqual(self.submit(opener,base,{'Origin':self.url, 'X-Forwarded-Host':'evil.test'})[1]['code'],'CONFIGURATION_REQUIRED')
         req=Request(self.url+'/submit.php',method='GET')
         try:opener.open(req)
         except HTTPError as error:self.assertEqual(error.code,405)

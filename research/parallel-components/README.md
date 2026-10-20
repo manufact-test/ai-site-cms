@@ -9,3 +9,7 @@ Research deliverables:
 - [`lab/`](lab/) — independently running PHP form and keyboard-first HTML components, session CSRF/token abuse tests and browser/mobile experiments, with honest delivery configuration states.
 
 [Run the lab](lab/README.md). No third-party code copied, npm/Composer lock changed, CMS/Hostinger or canonical docs touched. Main developer must independently review and merge the PR, then decide if and when an adapter should be implemented after Stage2 acceptance.
+
+## Independent lab hardening — 20.10.2026
+
+The second research pass adds a trusted Origin/Host gate, fail-closed URL semantics, honest unknown transport outcomes and duplicate-submission UI handling, mobile/dialog focus regressions, and per-existing-block editable-path fixtures. Full reproducible tests and tooling versions: [TEST-EVIDENCE-2026-10-20.md](TEST-EVIDENCE-2026-10-20.md). Neither canonical product docs nor the current runtime are changed; PR #2 remains owner-reviewed, unmerged research.

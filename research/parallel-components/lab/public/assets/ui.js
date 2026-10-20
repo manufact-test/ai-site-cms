@@ -10,7 +10,17 @@ toggle.addEventListener('click', () => {
   toggle.setAttribute('aria-expanded', String(toggle.getAttribute('aria-expanded') !== 'true'));
 });
 nav.addEventListener('click', event => {
-  if (event.target.closest('a')) closeNav();
+  const anchor = event.target.closest('a[href^="#"]');
+  if (anchor) {
+    closeNav();
+    const id = anchor.getAttribute('href').slice(1);
+    const target = document.getElementById(id);
+    if (target) {
+      target.tabIndex = -1;
+      // Let the browser update the hash before moving keyboard focus.
+      queueMicrotask(() => target.focus({preventScroll: true}));
+    }
+  }
 });
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') closeNav(true);
@@ -47,6 +57,7 @@ const dialog = document.querySelector('#info-dialog');
 const opener = document.querySelector('#open-dialog');
 opener.addEventListener('click', () => dialog.showModal());
 document.querySelector('#close-dialog').addEventListener('click', () => dialog.close());
+document.querySelector('#dialog-faq').addEventListener('click', () => {dialog.close(); document.querySelector('#faq').focus();});
 dialog.addEventListener('close', () => opener.focus());
 
 const form = document.querySelector('#contact');
@@ -62,7 +73,7 @@ function showErrors(errors) {
     document.getElementById(`${key}-error`).textContent = message;
     if (message && !firstInvalid) firstInvalid = field;
   }
-  if (firstInvalid) firstInvalid.focus();
+  return firstInvalid;
 }
 form.addEventListener('submit', async event => {
   event.preventDefault();
@@ -74,24 +85,29 @@ form.addEventListener('submit', async event => {
   if (name.length < 2 || name.length > 100) errors.name = 'Имя: от 2 до 100 символов.';
   if (!form.elements.namedItem('email').validity.valid || email.length > 254) errors.email = 'Введите корректный адрес email.';
   if (message.length < 10 || message.length > 2000) errors.message = 'Сообщение: от 10 до 2000 символов.';
-  showErrors(errors);
-  if (Object.keys(errors).length) {status.textContent = 'Проверьте поля формы.'; return;}
+  const firstClientInvalid = showErrors(errors);
+  if (firstClientInvalid) {status.textContent = 'Проверьте поля формы.'; firstClientInvalid.focus(); return;}
   send.disabled = true;
   status.textContent = 'Проверяем запрос…';
   try {
     const response = await fetch(form.action, {method: 'POST', body: new URLSearchParams(new FormData(form)),
       headers: {'Accept': 'application/json'}, credentials: 'same-origin'});
     const data = await response.json();
-    showErrors(data.errors || {});
-    status.textContent = `${data.code}: ${data.message}`;
-    if (data.code === 'QUEUED_UNCONFIRMED') {
-      form.reset(); // Token deliberately remains consumed. Refresh required for another delivery.
-      send.disabled = true;
+    if (!data || typeof data.code !== 'string' || typeof data.message !== 'string') {
+      throw new Error('Untrusted response shape');
     }
+    const firstInvalid = showErrors(data.errors && typeof data.errors === 'object' ? data.errors : {});
+    status.textContent = `${data.code}: ${data.message}`;
+    if (data.code === 'QUEUED_UNCONFIRMED') form.reset();
+    // A real recipient may already have accepted the request, and the CSRF token
+    // is consumed for delivery attempts. Require a fresh page before another send.
+    const retryForbidden = ['QUEUED_UNCONFIRMED','DELIVERY_UNCONFIRMED','DELIVERY_FAILED','CSRF_INVALID'].includes(data.code);
+    send.disabled = retryForbidden;
+    if (retryForbidden) status.textContent += ' Для новой попытки обновите страницу.';
+    if (firstInvalid) firstInvalid.focus(); else status.focus();
   } catch {
-    status.textContent = 'NETWORK_UNCONFIRMED: Соединение прервано. Результат отправки неизвестен. Не повторяйте запрос автоматически.';
-  } finally {
-    if (!status.textContent.startsWith('QUEUED_UNCONFIRMED')) send.disabled = false;
+    status.textContent = 'NETWORK_UNCONFIRMED: Соединение прервано. Результат отправки неизвестен. Не повторяйте запрос автоматически. Обновите страницу после проверки статуса.';
+    send.disabled = true;
     status.focus();
   }
 });

@@ -1,0 +1,34 @@
+{
+  "_status": "RESEARCH FIXTURE ONLY: NOT A STAGE3 CONTRACT, NO PUBLISH PIPELINE",
+  "blocks": {
+    "hero-primary": {
+      "kind": "hero",
+      "editable": {
+        "content.heading": {"type": "text", "min": 1, "max": 180},
+        "content.body": {"type": "text", "min": 0, "max": 4000},
+        "style.textPreset": {"type": "enum", "values": ["display", "heading", "body"]},
+        "style.foregroundToken": {"type": "enum", "values": ["ink", "inverse"]},
+        "layout.padding": {"type": "enum", "values": ["sm", "md", "lg"]},
+        "media.assetId": {"type": "asset"},
+        "media.alt": {"type": "text", "min": 0, "max": 250},
+        "action.href": {"type": "same-origin-link"}
+      }
+    },
+    "faq-delivery": {
+      "kind": "faq",
+      "editable": {
+        "content.heading": {"type": "text", "min": 1, "max": 180},
+        "content.body": {"type": "text", "min": 0, "max": 4000},
+        "behavior.expandedInitially": {"type": "boolean"}
+      }
+    },
+    "contact-form": {
+      "kind": "form",
+      "editable": {
+        "content.heading": {"type": "text", "min": 1, "max": 180},
+        "action.label": {"type": "text", "min": 1, "max": 100},
+        "style.backgroundToken": {"type": "enum", "values": ["surface", "surface-alt"]}
+      }
+    }
+  }
+}

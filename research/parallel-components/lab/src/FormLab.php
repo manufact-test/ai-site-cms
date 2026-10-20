@@ -50,7 +50,7 @@ final class FormLab
             || !hash_equals($expected, hash('sha256', $supplied))) {
             return self::result(403, 'CSRF_INVALID', 'Сессия формы устарела. Обновите страницу.');
         }
-        if (!empty($post['company_site'] ?? '')) {
+        if (!is_string($post['company_site'] ?? null) || $post['company_site'] !== '') {
             return self::result(422, 'SPAM_REJECTED', 'Не удалось обработать запрос.');
         }
         if ($now - $issued < 2) {
@@ -96,7 +96,10 @@ final class FormLab
         try {
             $accepted = $deliver($recipient, $fields);
         } catch (Throwable $exception) {
-            $accepted = false; // Deliberately never disclose transport details or contact data.
+            // A transport exception might occur AFTER the external service accepted the request.
+            // Never claim rejection, never retry automatically and never leak the exception.
+            return self::result(502, 'DELIVERY_UNCONFIRMED',
+                'Не удалось установить результат доставки. Не отправляйте повторно автоматически. Обновите форму после проверки статуса.');
         }
         if ($accepted !== true) {
             return self::result(502, 'DELIVERY_FAILED',

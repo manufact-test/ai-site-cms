@@ -33,3 +33,9 @@
 5. How to certify that a CMS-disabled site, including form handling, keeps running independently.
 
 **Acceptance:** this is a lab handoff for architecture review, with no decision delegated away from Stage3.
+
+## Second independent laboratory: per-block edit capabilities (20 Oct 2026)
+
+`fixtures/block-capabilities.research.json`, `lab/src/CapabilityGate.php` and `lab/tests/capability-tests.php` enforce a small, locally declared list of editable paths **for each already existing block**. Example: `contact-form` permits editing the submit label, **not** changing `action.href` or bypassing real transport; `faq-delivery` permits initial expansion but **not** a media asset property; `hero-primary` only permits a same-origin link with strict URL semantics. Unknown block IDs, extra patch keys, non-string text, malicious URL encoding, generic JS/CSS and wrong data types fail closed.
+
+This is a contract *experiment*, not a choice of AI site manifest format, source-of-truth, block renderer, server validation library or UI. The future editor must use a versioned manifest and a trusted server authoritative capability allowlist, resolving roles, site ownership, expected revision, atomic persistence, display escaping, schema-to-Jedison mappings and multi-site isolation before production. This fixture deliberately cannot authorize or persist an edit. Consult the main architect when Stage3 is officially opened.

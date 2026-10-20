@@ -82,6 +82,44 @@ class BrowserLab(unittest.TestCase):
         self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
         page.close()
 
+    def test_network_failure_blocks_duplicate_retry(self):
+        page=self.new_page(viewport={'width':390,'height':844})
+        page.locator('#name').fill('Мария')
+        page.locator('#email').fill('maria@example.test')
+        page.locator('#message').fill('Сообщение для тестирования лабораторной формы.')
+        page.evaluate("() => {window.fetch = async () => {throw new Error('network after acceptance possible')};}")
+        page.locator('#form-submit').click()
+        page.wait_for_function("document.querySelector('#form-status').textContent.includes('NETWORK_UNCONFIRMED')")
+        self.assertTrue(page.locator('#form-submit').is_disabled())
+        self.assertIn('Не повторяйте',page.locator('#form-status').inner_text())
+        page.close()
+
+    def test_transport_exception_blocks_retry(self):
+        page=self.new_page(viewport={'width':390,'height':844})
+        page.locator('#name').fill('Мария')
+        page.locator('#email').fill('maria@example.test')
+        page.locator('#message').fill('Сообщение для тестирования лабораторной формы.')
+        page.evaluate("""window.fetch = async () => ({json: async () => ({code:'DELIVERY_UNCONFIRMED',
+          message:'Результат отправки неизвестен.',errors:{}})})""")
+        page.locator('#form-submit').click()
+        page.wait_for_function("document.querySelector('#form-status').textContent.includes('DELIVERY_UNCONFIRMED')")
+        self.assertTrue(page.locator('#form-submit').is_disabled())
+        page.close()
+
+    def test_mobile_anchor_focus_and_fullsize_modal_trap(self):
+        page=self.new_page(viewport={'width':320,'height':568}, reduced_motion='reduce')
+        page.locator('#nav-toggle').click()
+        page.locator('#site-nav a[href="#faq"]').click()
+        self.assertEqual(page.locator('#nav-toggle').get_attribute('aria-expanded'),'false')
+        page.wait_for_function("document.activeElement.id === 'faq'")
+        self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
+        page.locator('#open-dialog').click()
+        page.keyboard.press('Tab')
+        self.assertTrue(page.locator('#info-dialog').evaluate('(el)=>el.contains(document.activeElement)'))
+        page.keyboard.press('Escape')
+        self.assertFalse(page.locator('#info-dialog').evaluate('(el)=>el.open'))
+        page.close()
+
     def test_form_client_and_server_no_fake_success(self):
         page=self.new_page(viewport={'width':900,'height':800})
         page.locator('#form-submit').click()

@@ -32,10 +32,13 @@ check(FormLab::submit($data, $s, $now, 'team@example.test', static fn()=>true)['
 check($r['code'] === 'CONFIGURATION_REQUIRED', 'invalid recipient refused');
 [$r] = scenario($input, 'team@example.test', static fn()=>false);
 check($r['code'] === 'DELIVERY_FAILED' && $r['http'] === 502, 'transport failure honest');
-[$r] = scenario($input, 'team@example.test', static function(){throw new RuntimeException('private mail error');});
-check($r['code'] === 'DELIVERY_FAILED' && !str_contains($r['message'],'private'), 'exception redacted');
+[$r,$s] = scenario($input, 'team@example.test', static function(){throw new RuntimeException('private mail error');});
+check($r['code'] === 'DELIVERY_UNCONFIRMED' && !str_contains($r['message'],'private'), 'exception redacted');
+check(!isset($s['form_lab_token_hash']), 'transport exception consumes token to prevent silent replay');
 [$r] = scenario(array_replace($input, ['company_site'=>'bot']));
 check($r['code'] === 'SPAM_REJECTED', 'honeypot');
+[$r] = scenario(array_replace($input,['company_site'=>[]]));
+check($r['code'] === 'SPAM_REJECTED', 'array honeypot bypass refused');
 [$r] = scenario($input, 'team@example.test', null, null, 0);
 check($r['code'] === 'TOO_FAST', 'time trap');
 [$r] = scenario($input, 'team@example.test', null, null, 1801);
