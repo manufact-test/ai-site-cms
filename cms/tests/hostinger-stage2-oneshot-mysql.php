@@ -85,6 +85,15 @@ try {
     $reject(fn()=>Job::run($package,$local)); // Atomic one-time lock.
     unlink($local.'/receipt.json');
 
+    // A correct DB password is insufficient if its user also owns other schemas.
+    $root->exec("GRANT SELECT ON ai_site_cms_ci.* TO 'cms_stage2_once_ci'@'%'");
+    $report=Job::run($package,$local);
+    $check($report['status']==='refused'
+        && $report['dedicatedDbGrantsVerified']===false,
+        'cross-database grants refused before DDL');
+    unlink($local.'/receipt.json');
+    $root->exec("REVOKE SELECT ON ai_site_cms_ci.* FROM 'cms_stage2_once_ci'@'%'");
+
     $task['operation']='install';
     $store($task);
     $reject(fn()=>Job::run($package,$local)); // Wrong approval string.
