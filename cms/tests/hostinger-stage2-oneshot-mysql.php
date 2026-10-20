@@ -417,7 +417,92 @@ try {
     $check(hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
         'independent public visitor unaffected by all negative cases');
 
-    echo "Stage2 hPanel CLI-only MySQL8.4 probe/install/verify/snapshot/compare and secret disposal PASS: {$checks} checks; no real host\n";
+    // CRASH-RECOVERY LAB: the server killed PHP after receipt lock, but
+    // before unlink(once.json). Secret revocation must require an explicitly
+    // scoped, private operator request, never a DB restore or auto-retry.
+    $task['target']=Job::TARGET;
+    $store($task);
+    file_put_contents($local.'/receipt.json','');
+    chmod($local.'/receipt.json',0600);
+    $revokeRequest=[
+        'format'=>'ai-site-cms-stage2-revoke-v1',
+        'target'=>Job::TARGET,
+        'site'=>Job::SITE,
+        'package_manifest_sha256'=>$task['package_manifest_sha256'],
+        'confirm'=>'REVOKE_PRIVATE_TASK_ONLY_NO_DATABASE_ROLLBACK',
+        'acknowledge_running_process_may_continue'=>true
+    ];
+    $writeRequest=static function(array $value)use($local):void{
+        file_put_contents($local.'/revoke-request.json',
+            json_encode($value,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES));
+        chmod($local.'/revoke-request.json',0600);
+    };
+    $badRequest=$revokeRequest;
+    $badRequest['package_manifest_sha256']=str_repeat('a',64);
+    $writeRequest($badRequest);
+    [$revokeBadCode,$revokeBadOut,$revokeBadErr]=$runCron('hostinger-stage2-revoke.php');
+    $check($revokeBadCode===3 && $revokeBadOut===''
+        && str_contains($revokeBadErr,'STAGE2_REVOKE_REFUSED')
+        && is_file($local.'/once.json') && !file_exists($local.'/revocation.json'),
+        'wrong manifest pin forbids secret-file revocation');
+    $writeRequest($revokeRequest);
+    chmod($local.'/revoke-request.json',0644);
+    [$revokeLooseCode,$revokeLooseOut,$revokeLooseErr]=$runCron('hostinger-stage2-revoke.php');
+    $check($revokeLooseCode===3 && $revokeLooseOut===''
+        && str_contains($revokeLooseErr,'STAGE2_REVOKE_REFUSED')
+        && is_file($local.'/once.json'),
+        'group-readable revoke authorization is refused');
+    chmod($local.'/revoke-request.json',0600);
+    [$fencedCode,$fencedOut,$fencedErr]=$runCron();
+    $check($fencedCode===3 && $fencedOut===''
+        && str_contains($fencedErr,'STAGE2_PACKAGE_REFUSED')
+        && is_file($local.'/once.json'),
+        'pending revocation fences new MySQL Cron BEFORE Composer code');
+    $reject(fn()=>Job::run($package,$local));
+    [$beforeRevokeCode,$beforeRevokeOut,$beforeRevokeErr]
+        =$runCron('hostinger-stage2-preflight.php');
+    $beforeRevoke=json_decode($beforeRevokeOut,true,8,JSON_THROW_ON_ERROR);
+    $check($beforeRevokeCode===0 && $beforeRevokeErr===''
+        && $beforeRevoke['revocationState']==='requested_manual_review'
+        && !$beforeRevoke['oneShotAvailable'],
+        'password-free preflight reports pending revoke without allowing DB work');
+    [$revokeCode,$revokeOut,$revokeErr]=$runCron('hostinger-stage2-revoke.php');
+    $check($revokeCode===0 && $revokeErr===''
+        && str_contains($revokeOut,'STAGE2_PRIVATE_TASK_REVOKED_DB_STATUS_UNKNOWN')
+        && !str_contains($revokeOut,'ephemeral_local_ci_only')
+        && !is_file($local.'/once.json') && is_file($local.'/revocation.json'),
+        'explicit private revocation removes leftover credentials and preserves audit');
+    $revoked=json_decode(file_get_contents($local.'/revocation.json'),true,8,JSON_THROW_ON_ERROR);
+    $check($revoked['status']==='private_task_revoked_no_db_claim'
+        && $revoked['databaseResult']==='unknown'
+        && $revoked['inFlightProcessMayContinue']===true
+        && $revoked['credentialRead']===false
+        && !str_contains(file_get_contents($local.'/revocation.json'),
+            'ephemeral_local_ci_only'),
+        'private revocation receipt never claims rollback, DB result or secret read');
+    [$postCode,$postOut,$postErr]=$runCron('hostinger-stage2-preflight.php');
+    $post=json_decode($postOut,true,8,JSON_THROW_ON_ERROR);
+    $check($postCode===0 && $postErr===''
+        && $post['revocationState']==='credential_file_revoked_db_unknown'
+        && $post['receiptState']==='manual_review_required'
+        && !$post['oneShotAvailable'] && $post['taskState']==='absent',
+        'read-only preflight reports completed credential removal but unknown DB state');
+    [$againCode,$againOut,$againErr]=$runCron('hostinger-stage2-revoke.php');
+    $check($againCode===3 && $againOut===''
+        && str_contains($againErr,'STAGE2_REVOKE_REFUSED'),
+        'credential revocation is permanently one-shot, cannot silently repeat');
+    $store($task); // Even an incorrectly re-created task cannot bypass fence.
+    [$afterFenceCode,$afterFenceOut,$afterFenceErr]=$runCron();
+    $check($afterFenceCode===3 && $afterFenceOut===''
+        && str_contains($afterFenceErr,'STAGE2_PACKAGE_REFUSED'),
+        'revocation marker irreversibly fences a newly created secret task');
+    $reject(fn()=>Job::run($package,$local));
+    unlink($local.'/once.json');
+    $check((int)$pdo->query('SELECT COUNT(*) FROM cms_schema_migrations')->fetchColumn()===2
+        && hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
+        'emergency revocation never modifies source MySQL or independent visitor');
+
+    echo "Stage2 hPanel CLI-only MySQL8.4 probe/install/verify/snapshot/revoke and secret disposal PASS: {$checks} checks; no real host\n";
 } finally {
     $root->exec('DROP DATABASE IF EXISTS '.$name);
     $root->exec("DROP USER IF EXISTS 'cms_stage2_once_ci'@'%'");
