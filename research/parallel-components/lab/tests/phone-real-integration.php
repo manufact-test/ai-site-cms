@@ -36,6 +36,10 @@ $cases = [
     ['+1 202 555 0123 ext 99','US',null],
     ['+123','ZZ',null],
     ['javascript:alert(1)','ZZ',null],
+    ['Call +1 202 555 0123','US',null],
+    ['+1+2025550123','US',null],
+    ['tel:+12025550123','US',null],
+    ['+1 202 555 0123 ext. 4','US',null],
 ];
 foreach ($cases as [$input,$region,$wanted]) {
     $n++;
