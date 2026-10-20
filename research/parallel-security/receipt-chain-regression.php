@@ -90,7 +90,7 @@ $verify = static fn(string $head, string $pem = '', string $keyPin = '', string 
     Gate::verifyChain($store, $pem ?: $keyfile, $keyPin ?: $pin,
         $head, $siteId ?: $site, $publisherPin ?: $publisher);
 $saveMutatedSecond = static function (callable $fn, string $label, bool $isCanonical = true)
-    use ($recordFile, $sigFile, $r2, $sign, $verify, $reject, $encode, $domain, $secret): void {
+    use ($recordFile, $sigFile, &$r2, $sign, $verify, $reject, $encode, $domain, $secret): void {
     $json = file_get_contents($recordFile(2));
     $sig = file_get_contents($sigFile(2));
     try {
