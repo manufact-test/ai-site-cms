@@ -67,6 +67,7 @@ def validate(upload: Path) -> tuple[dict[str, bytes], str]:
         "public/index.php",
         "bin/hostinger-stage2-once.php",
         "bin/hostinger-stage2-preflight.php",
+        "bin/hostinger-stage2-revoke.php",
         "private/compliance/THIRD_PARTY_NOTICES.txt",
         "vendor/autoload.php",
     }
