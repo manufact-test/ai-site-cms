@@ -11,7 +11,7 @@ const locked=[
  ...Object.entries(n.packages).filter(([x])=>x).map(([x,p])=>({ecosystem:'npm',name:x.slice(13),locked:p.version}))
 ];
 if(locked.length!==43)throw Error('Unexpected lock count');
-const semver=v=>/^\d+\.\d+\.\d+$/.test(v.replace(/^v/,''))?v.replace(/^v/,'').split('.').map(Number):null;
+const semver=v=>/^\d+\.\d+(?:\.\d+)?$/.test(v.replace(/^v/,''))?v.replace(/^v/,'').split('.').map(Number).concat(v.replace(/^v/,'').split('.').length===2?[0]:[]):null;
 const compare=(a,b)=>{const x=semver(a),y=semver(b);if(!x||!y)return 0;for(let i=0;i<3;i++)if(x[i]!==y[i])return x[i]-y[i];return 0};
 async function one(item){
  const url=item.ecosystem==='npm'
