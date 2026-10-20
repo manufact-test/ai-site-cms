@@ -91,14 +91,16 @@ function showErrors(errors) {
   }
   return firstInvalid;
 }
+// JS .length counts UTF-16 code units; PHP server counts Unicode code points.
+const codePointLength = value => Array.from(value).length;
 function validate(keysToCheck) {
   const errors = {};
   const name = form.elements.namedItem('name').value.trim();
   const email = form.elements.namedItem('email').value.trim();
   const message = form.elements.namedItem('message').value.trim();
-  if (keysToCheck.includes('name') && (name.length < 2 || name.length > 100)) errors.name = 'Имя: от 2 до 100 символов.';
+  if (keysToCheck.includes('name') && (codePointLength(name) < 2 || codePointLength(name) > 100)) errors.name = 'Имя: от 2 до 100 символов.';
   if (keysToCheck.includes('email') && (!form.elements.namedItem('email').validity.valid || !email)) errors.email = 'Введите корректный адрес email.';
-  if (keysToCheck.includes('message') && (message.length < 10 || message.length > 2000)) errors.message = 'Сообщение: от 10 до 2000 символов.';
+  if (keysToCheck.includes('message') && (codePointLength(message) < 10 || codePointLength(message) > 2000)) errors.message = 'Сообщение: от 10 до 2000 символов.';
   return showErrors(errors);
 }
 next.addEventListener('click', () => {

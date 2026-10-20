@@ -48,13 +48,14 @@ final class NoJsResult
                 $attrs .= $field === $firstError ? ' autofocus' : '';
                 $html .= '<p><label for="field-' . $field . '">' . $labels[$field] . '</label>';
                 if ($field === 'message') {
-                    $html .= '<textarea id="field-message" name="message" required minlength="10" maxlength="2000"' . $attrs . '>' . $value . '</textarea>';
+                    $html .= '<textarea id="field-message" name="message" required minlength="10"' . $attrs . '>' . $value . '</textarea>';
                 } else {
                     $type = $field === 'email' ? 'email' : ($field === 'phone' ? 'tel' : 'text');
                     $required = in_array($field, ['name','email'], true) ? ' required' : '';
+                    // Native maxlength counts UTF-16 units, but PHP enforces Unicode code points for name.
+                    $max = $field === 'email' ? ' maxlength="254"' : ($field === 'phone' ? ' maxlength="40"' : '');
                     $html .= '<input id="field-' . $field . '" name="' . $field . '" type="' . $type
-                        . '" maxlength="' . ($field === 'email' ? '254' : ($field === 'phone' ? '40' : '100')) . '"'
-                        . $required . $attrs . ' value="' . $value . '">';
+                        . '"' . $max . $required . $attrs . ' value="' . $value . '">';
                 }
                 if ($error !== '') $html .= '<small id="error-' . $field . '">' . $error . '</small>';
                 $html .= '</p>';

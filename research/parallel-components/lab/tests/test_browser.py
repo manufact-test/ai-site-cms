@@ -229,4 +229,30 @@ class BrowserLab(unittest.TestCase):
         self.assertFalse(page.locator('#form-submit').is_disabled())
         page.close()
 
+
+    def test_wizard_unicode_codepoint_limits(self):
+        # PHP preg_match_all('/./us') counts code points, not JavaScript UTF-16 units.
+        page=self.new_page(viewport={'width':375,'height':720})
+        page.locator('#name').fill('😀'*60)
+        self.assertEqual(page.locator('#name').input_value(),'😀'*60)
+        page.locator('#email').fill('unicode@example.test')
+        page.locator('#wizard-next').click()
+        self.assertFalse(page.locator('#wizard-message').is_hidden())
+        page.locator('#message').fill('🌿'*9)
+        page.locator('#form-submit').click()
+        self.assertTrue(page.locator('#message').get_attribute('aria-invalid')=='true')
+        self.assertIn('от 10',page.locator('#message-error').inner_text())
+        page.locator('#message').fill('🌿'*10)
+        page.evaluate("""window.fetch=async()=>({json:async()=>({code:'CONFIGURATION_REQUIRED',
+            message:'Получатель не настроен, отправка не выполнена.',errors:{}})})""")
+        page.locator('#form-submit').click()
+        page.wait_for_function("document.querySelector('#form-status').textContent.includes('CONFIGURATION_REQUIRED')")
+        self.assertFalse(page.locator('#form-submit').is_disabled())
+        page.locator('#wizard-prev').click()
+        page.locator('#name').fill('😀'*101)
+        page.locator('#wizard-next').click()
+        self.assertTrue(page.locator('#wizard-message').is_hidden())
+        self.assertIn('от 2 до 100',page.locator('#name-error').inner_text())
+        page.close()
+
 if __name__=='__main__': unittest.main()

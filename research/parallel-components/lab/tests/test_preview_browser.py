@@ -44,4 +44,22 @@ $res=PreviewLab::render($r,$p,'example.test');if($res['code']!=='PREVIEW_ONLY')e
         self.assertEqual(page.locator('script').count(),0)
         page.close()
 
+
+    def test_exact_csp_hash_allows_styles_but_wrong_hash_blocks(self):
+        import base64
+        import hashlib
+        import re
+        css=re.search(r'<style>([^<]*)</style>',self.markup).group(1)
+        token=base64.b64encode(hashlib.sha256(css.encode()).digest()).decode()
+        good='<meta http-equiv="Content-Security-Policy" content="default-src '+"'none'"+'; style-src '+"'sha256-"+token+"'"+'">'
+        bad='<meta http-equiv="Content-Security-Policy" content="default-src '+"'none'"+'; style-src '+"'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='"+'">'
+        page=self.browser.new_page(viewport={'width':320,'height':720})
+        page.set_content('<!doctype html><html><head>'+good+'</head><body>'+self.markup+'</body></html>')
+        self.assertEqual(page.locator('#research-hero-preview').evaluate('(el)=>getComputedStyle(el).paddingLeft'),'12px')
+        page.close()
+        blocked=self.browser.new_page(viewport={'width':320,'height':720})
+        blocked.set_content('<!doctype html><html><head>'+bad+'</head><body>'+self.markup+'</body></html>')
+        self.assertEqual(blocked.locator('#research-hero-preview').evaluate('(el)=>getComputedStyle(el).paddingLeft'),'0px')
+        blocked.close()
+
 if __name__=='__main__':unittest.main()
