@@ -165,7 +165,42 @@ try {
             if ($privateFile($receipt, 4096)) {
                 try {
                     $data = json_decode((string)file_get_contents($receipt), true, 8, JSON_THROW_ON_ERROR);
+                    $expectedKeys = [
+                        'format','operation','packageManifestSha256','startedAtUtc',
+                        'status','failureCategory','schemaState',
+                        'dedicatedDbGrantsVerified','cmsPublicActivated',
+                        'stage2Accepted','productionReady','finishedAtUtc'
+                    ];
+                    sort($expectedKeys);
+                    $actualKeys = is_array($data) ? array_keys($data) : [];
+                    sort($actualKeys);
+                    $validStatus = [
+                        'probe'=>'observed',
+                        'install'=>'installed_empty_foundation',
+                        'verify'=>'verified',
+                        'snapshot'=>'foundation_snapshot_saved',
+                        'snapshot-verify'=>'foundation_snapshot_verified'
+                    ];
+                    $operation = is_array($data) ? ($data['operation'] ?? null) : null;
+                    $status = is_array($data) ? ($data['status'] ?? null) : null;
+                    $failure = is_array($data) ? ($data['failureCategory'] ?? null) : null;
+                    $success = is_string($operation) && isset($validStatus[$operation])
+                        && $status === $validStatus[$operation]
+                        && $failure === 'none';
+                    $refusal = $status === 'refused'
+                        && is_string($failure)
+                        && in_array($failure, [
+                            'local_task_refused','database_connection_refused',
+                            'database_scope_refused','schema_read_refused',
+                            'schema_install_refused','snapshot_refused'
+                        ], true);
                     if (is_array($data)
+                        && !array_is_list($data)
+                        && $actualKeys === $expectedKeys
+                        && ($success || $refusal)
+                        && is_bool($data['dedicatedDbGrantsVerified'] ?? null)
+                        && in_array($data['schemaState'] ?? null,
+                            ['not_verified','uninitialized','ready','blocked'], true)
                         && ($data['format'] ?? null) === 'ai-site-cms-stage2-hostinger-local-receipt-v1'
                         && ($data['packageManifestSha256'] ?? null) === $manifestDigest
                         && ($data['cmsPublicActivated'] ?? null) === false
@@ -178,7 +213,11 @@ try {
                              'foundation_snapshot_saved','foundation_snapshot_verified','refused'], true)
                         && ($data['failureCategory'] ?? null) !== 'not_started'
                         && is_string($data['startedAtUtc'] ?? null)
-                        && is_string($data['finishedAtUtc'] ?? null)) {
+                        && is_string($data['finishedAtUtc'] ?? null)
+                        && preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/D',
+                            $data['startedAtUtc']) === 1
+                        && preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/D',
+                            $data['finishedAtUtc']) === 1) {
                         $receiptState = $data['status'] === 'refused'
                             ? 'completed_refused' : 'completed_observed';
                     }
