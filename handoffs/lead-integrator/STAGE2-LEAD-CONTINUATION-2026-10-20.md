@@ -1,63 +1,67 @@
-# AI Site CMS — lead integrator handoff, 20 October 2026
+# AI Site CMS — главный разработчик / интегратор — передача 21.10.2026
 
-> This file belongs ONLY to the lead developer / integrator chat and its same-role successor. It is NOT a project-wide status, roadmap, ADR, research brief, canonical NEXT-CHAT or Stage2 acceptance. Do not overwrite other workstreams' documents when updating this lead-only record.
+> Только для главного чата и следующего главного разработчика проекта. Не является общим ROADMAP, NEXT-CHAT, ADR или актом приёмки Stage2. Не изменять параллельные исследовательские документы.
 
-## Exact checkpoint (source code, BEFORE this handoff-only docs commit)
+## Самое важное: новый рабочий договор с владельцем
 
-Repository: https://github.com/manufact-test/ai-site-cms
+**Промежуточные обновления на Hostinger ЗАПРЕЩЕНО требовать.** Ранее владелец справедливо возмутился необходимостью снова и снова вручную менять одну и ту же папку. Он подтвердил новый режим: главный разработчик самостоятельно делает большие связанные блоки задач, сохраняет код в GitHub, прогоняет реальные PHP/MySQL/Browser/E2E в изолированных GitHub Actions, собирает пакеты внутри GitHub. Физический Hostinger НЕ трогать и не просить владельца загружать ZIP после каждой публикации. **Одна согласованная финальная реальная приёмка позже**, после максимальной подготовки. Не просить пользователя вручную выполнять микрозадачи. Входящих запросов на загрузку прямо сейчас нет. Документы сохранять по запросу о переходе чата, а не после каждой задачи.
 
-- Last fully CI-tested **source main**: 2a5fd01b8179a22ef5afd864b3716101aeaae985
-- PHP, core, MySQL8.4: **7/7 SUCCESS** https://github.com/manufact-test/ai-site-cms/actions/runs/39488660720
-- Editor, browser, signed LAB releases, Nginx/Apache HTTP, crash recovery, package: **1/1 SUCCESS** https://github.com/manufact-test/ai-site-cms/actions/runs/39488660507
-- Parallel research independently verified: https://github.com/manufact-test/ai-site-cms/actions/runs/39486899853
-- Offweb publisher SUCCESS, including upload/download/bytewise roundtrip: https://github.com/manufact-test/ai-site-cms/actions/runs/39488978613
-- Offweb Git branch stage2-hostinger-offweb-runtime head: 20f4160957ad501836aa66afa7f7982b0fdf98d6
-- Archive: 477 exact files; GitHub artifact #12295340444: https://github.com/manufact-test/ai-site-cms/actions/runs/39488978613/artifacts/12295340444 ; expires 2026-10-27 20:05:31 UTC.
-- Independent nonsecret roundtrip evidence: GitHub artifact #12295125967 https://github.com/manufact-test/ai-site-cms/actions/runs/39488978613/artifacts/12295125967
-- **Unsigned package MANIFEST SHA256** e45529f968c1a19e7b757eab67dcbe440e69aa8d7ff04acff1f47a75278b2b6a
-- **GitHub artifact ZIP SHA256** cebe07c49e84ab373c820206de3369b8e0cf8e03bf424e38d9298b9ec42569f1
-- The manifest hash, ZIP hash and unsigned publisher evidence are distinct and do NOT constitute trusted cryptographic release signature.
-- This handoff-only Markdown will create a docs-only newer main SHA. The verified exact source SHA ABOVE is unchanged for code. Check branch HEAD before any future GitHub mutation.
+Автоматические реальный Hostinger GET-проверки сознательно выключены в `.github/workflows/stage2-hostinger-target-php.yml`. Только отдельный `workflow_dispatch` на `main` с `inputs.approval=STAGE2_FINAL_HOST_READONLY_GET` после разрешения владельца. Это НЕ право установить БД и НЕ деплой. Shared SSH недопустим: затрагивает несколько сайтов.
 
-## Exact last work block — lead-owned only
+## Точная контрольная точка разработки, перед текущим handoff-docs коммитом
 
-1. New cms/tools/test-stage2-upload-roundtrip.py validates the downloaded GitHub Actions artifact's ALL 477 files byte-for-byte against the pre-publish staging directory. It verifies hidden public/.htaccess, three offweb-only Hostinger PHP CLI scripts, excludes research/parallel-security, research/parallel-components and operator state. JSON evidence explicitly says hostingTouched=false, databaseTouched=false, stage2Accepted=false, publisherSignatureVerified=false.
-2. New cms/tools/test-stage2-upload-roundtrip-fixtures.py exercises nine hostile cases: tampered CLI, missing .htaccess, research subtree injection, operator secret injection, altered manifest, symlink alias, comparing a folder to itself, and successful recovery.
-3. .github/workflows/stage2-hostinger-private-stage.yml now stages → checks → UPLOADS → DOWNLOADS exact real artifact → checks all recovered bytes/negative fixtures → publishes nonsecret evidence artifact → ONLY THEN publishes isolated offweb Git branch. A stale non-current main SHA must refuse publication; never deploy to Hostinger.
-4. .github/workflows/stage2-core-bootstrap.yml and .github/workflows/stage2-static-editor.yml cross-trigger full PHP/MySQL and Editor/E2E checks when release-critical CI or offweb workflow changes. Final source SHA 2a5fd.. passed both matrices.
-5. 11 older hostile ZIP staging checks still pass, plus nine newly added upload/download hostile checks. All 477 recovered files match. Package contains NO parallel research, local DB credentials, or Hostinger webroot secrets.
+- Репозиторий: https://github.com/manufact-test/ai-site-cms
+- Ветка главного интегратора: `main`.
+- Последний полностью проверенный **исходный код**: `7261f70c2861aec161aa811dc5f34049cd5d4cfe`.
+- PHP/ядро/MySQL 8.4: **7/7 SUCCESS**, https://github.com/manufact-test/ai-site-cms/actions/runs/39509444292
+- Jedison/Editor/E2E, браузер, Nginx, FPM, откаты/аварии: **SUCCESS**, https://github.com/manufact-test/ai-site-cms/actions/runs/39509444220
+- Проверенная публикация offweb-пакета внутри GitHub: **SUCCESS**, https://github.com/manufact-test/ai-site-cms/actions/runs/39509801653
+- Файлов в runtime-пакете: **478**, после реального скачивания из Actions повторно сравнены побайтово; 9 hostile-fixture checks пройдены.
+- SHA-256 *неподписанного* package-manifest.json: `f6af3312dc019a2cdbb0d7ebda24ba50952c669446d519e301d37fd9bab48405`.
+- Head изолированной исходной offweb-ветки `stage2-hostinger-offweb-runtime`: `c7c6bdb556b66c85eb2e38643f89f8006b6f9c92`.
+- Подтверждённый artifact #12305420817: https://github.com/manufact-test/ai-site-cms/actions/runs/39509801653/artifacts/12305420817
+- Отдельный artifact побайтового evidence #12305795416: https://github.com/manufact-test/ai-site-cms/actions/runs/39509801653/artifacts/12305795416
+- Промежуточные падавшие publisher jobs при гонках/stale SHA были ожидаемо отклонены; ориентироваться на приведённый позднейший успешный run. **На реальном Hostinger этот 478-файловый пакет НЕ устанавливался.**
+- Handoff-only docs-коммит изменит SHA `main`, не код. Перед продолжением всегда перечитать текущий `main` и CI. Не притворяться, что docs SHA совпадает с проверенным source SHA.
 
-## Work and boundaries inherited from prior lead chats
+## Последний крупный блок — physical schema spoofing / recovery hardening
 
-- The lead developer alone owns main, product PHP kernel, Jedison editor, release/deployment, operator safety, full CI and research PR review/integration. Work in LARGE multi-subsystem blocks, not microtests or one small task per stop. Prioritize real Stage2 completion, not only test counts.
-- Both independent research PRs were independently tested, scope reviewed and SQUASH-MERGED into main:
-  - Security #1 https://github.com/manufact-test/ai-site-cms/pull/1 — only research/parallel-security. 22 PASS, 0 FAIL, 2 genuinely BLOCKED (actual PHP with no native Sodium and true compat). No production approval.
-  - Editor & Components #2 https://github.com/manufact-test/ai-site-cms/pull/2 — only research/parallel-components. Real PHP 8.3, Chromium, localhost HTTP, media, concurrency and schema tests passed. Lab forms/media/phone/revision proposals NOT connected to CMS, NOT Stage3.
-- Never promote research or unreviewed third-party code into production by accident. The 477-file CMS package has zero research files.
-- Hostinger scripts are privately bundled outside public_html: bin/hostinger-stage2-preflight.php (CLI-only code/credential-free, read-only), bin/hostinger-stage2-once.php (strict one-time manifest-pinned CMS dedicated-DB probe/install-empty/verify/foundation snapshot metadata), bin/hostinger-stage2-revoke.php (emergency local SECRET-TASK FILE revocation only, no DB rollback). 78 actual disposable MySQL 8.4 assertions passed in last completed full CI.
-- Previous source lied about true native Sodium absence in forced sodium_compat lab; corrected by lead in main. Native-ext absence on target Hostinger, audited exact library, real secure fallback and professional legal signoff are still outstanding. No production signed release.
-- Previous approved TEST CMS domain: lightseagreen-woodpecker-264491.hostingersite.com. Independent protected visitor domain: mediumpurple-fox-175549.hostingersite.com. Earlier 473-file offweb folder was manually placed by owner. There is NO EVIDENCE that current 477-file archive was actually uploaded, deployed or executed on target Hostinger. The last confirmed real target LiteSpeed test was read-only Slim kernel health; PUBLIC /api/health remains intentionally 503 until installation.
-- GitHub environment stage2-hostinger-lab has four database SECRET names. That does not provision them to Hostinger runtime. Shared SSH is forbidden. Never read or change unrelated websites, accounts, databases, visitor public files or production environment.
-- Hostinger PHP Cron hPanel single-use task config lives in private cms-stage2-local sibling (not public_html, not the package); never copy secrets into GitHub, HTTP, cron arguments, screenshots or chats. Preflight fingerprint is unsigned and must be compared via independent trusted channel before any DB step.
-- Stage2 founder snapshot is EMPTY FOUNDATION METADATA only; NOT a complete pages/media/revisions backup or actual production disaster recovery. Stage2 MUST NOT be marked accepted on the basis of CI alone.
-- Stage0 and Stage1 accepted in existing project baseline; Stage2 NOT ACCEPTED; Stage3 NOT STARTED; 0/135 mandatory product features accepted.
+Коммиты исходников: `4ac0a7138d2710235b2f470df728b459b79e2f9e`, `7261f70c2861aec161aa811dc5f34049cd5d4cfe`.
+- `cms/src/Storage/SchemaManager.php`: ещё **до DDL** проверяет уже существующий журнал миграций (`cms_schema_migrations`), типы/NOT NULL/ключи/default/количество столбцов и `BASE TABLE / InnoDB`. После миграции и при `inspectSite/assertSite` проверяет также физическую схему `cms_installation`, включая уникальность site_id и тип поколения. Никакого автолечения повреждений.
+- `cms/tests/storage-mysql-faults.php`: настоящая одноразовая MySQL 8.4; инъекции фальшивого журнала, неподходящего VARCHAR вместо CHAR, MyISAM, удалённого unique site_id, физического drift; сохраняет данные и требует отказа до миграции. **41 PASS** в последнем CI.
+- `cms/tests/hostinger-stage2-oneshot-mysql.php`: тот же отказ через упакованный CLI Hostinger `verify`, с независимым visitor-фикстурой, секреты consumе-once, штатным восстановлением только в CI; **100 PASS**.
+- Проверка полной упакованной CMS/двух независимых MySQL: **125 PASS**; реальные Hostinger/production сети или MySQL не использовались.
+- Предыдущий блок 20/21.10: защита от чужих таблиц, представлений, ROUTINES/EVENTS/TRIGGERS (включая изменение после установки) с fail-closed. Лабораторный trigger создаёт только изолированный CI root из-за binlog-ограничений, не предлагается изменять гранты Hostinger.
+- Предыдущие блоки: read-only SESSION для probe/verify с тестом реального отказа MySQL DDL, отдельный explicit install, одноразовая фиксация authorization, manifest-pin, безопасный revoke, reproducible Composer `COMPOSER_ROOT_VERSION=0.2.0-alpha1` при внутреннем `0.2.0-stage2.1`, байтовая сверка 478 файлов после скачивания, exact-release hash при финальном read-only host observer r8.
 
-## Fresh research PRs that appeared during this handoff (NOT reviewed/merged)
+## Исследовательские потоки — НЕ интегрированы текущим чатом
 
-- Security PR #3 https://github.com/manufact-test/ai-site-cms/pull/3, head 57519125c27e07ab92fb705f05cf01a3e50fbb50, 9 changed files, all research/parallel-security. New OSV snapshot and signed operator receipt replay research. **OPEN; independent CI/review and exact SHA check required before any merge.** New PR != previously merged #1.
-- Components PR #4 https://github.com/manufact-test/ai-site-cms/pull/4, head df69ab7056a0d610e2078558c8b38d0dcac54ae2, 14 changed files, all research/parallel-components. New form submission/accessible wizard/revision-plan research. **OPEN; independent CI/review required before merge.** New PR != previously merged #2.
-- Both branches are maintained by their parallel research chats. Lead must not edit their files except by reviewed PR integration. User specifically forbids updating their handoff documents for this lead transfer.
+- PR #3 Security: https://github.com/manufact-test/ai-site-cms/pull/3 — open DRAFT, около 22 исследовательских файлов в `research/parallel-security/`, последний наблюдённый HEAD `de1d2e40491764aa60ef0f665797a3b694fc95e4`.
+- PR #4 Editor/Components: https://github.com/manufact-test/ai-site-cms/pull/4 — open, изменения только в `research/parallel-components/` (около 36), последний наблюдённый HEAD `7dc3284c5a6421c4b841a3275ced812e9ce5fae7`.
+- Эти HEAD быстро меняются: заново проверить в момент review, область изменений, результаты независимого CI, adversarial tests, patch, историческое происхождение, не обойти исследования через спонтанный cherry-pick. Не менять ветки других исполнителей. PR #1/#2 ранее исследовательски squash-merged, их материалы не автоматически приняты как продукт.
 
-## Open exit gates / next meaningful large block
+## Hostinger — оставляем без изменений до итоговой проверки
 
-1. Prove actual new offweb 477-file package presence on approved Hostinger CMS site, root identity and restricted sibling private permissions (without using shared SSH or writing visitor/public_html). Operator may need one precise hPanel File Manager task; do not invent real host success.
-2. Reconcile true target Hostinger PHP 8.3 LiteSpeed/Sodium environment, verify independent site-binding, dedicated database GRANT scope, and run **read-only** approved MySQL probe before any DDL. Strong stop-and-review on mismatches.
-3. Only after explicit owner authorization perform scoped EMPTY test CMS schema install, independent visitor availability checks during CMS-only outage, verify/metadata snapshot and non-destructive recovery. Real backup+restore for actual pages/media remains unproven.
-4. Complete 43/43 exact-version vulnerability review, independent licensing and proper signed-release trust and supported crypto runtime before Stage2 owner acceptance. Never start Stage3 without explicit Stage2 signoff.
+- Сайт тестовой CMS: `lightseagreen-woodpecker-264491.hostingersite.com`.
+- Независимый visitor-сайт: `mediumpurple-fox-175549.hostingersite.com`.
+- Только тестовый `public_html/index.php` readonly observer r7 и sibling `cms-stage2-offweb-runtime` со старой сборкой на Hostinger; подтверждена работа read-only Slim kernel ранее. **Там НЕ новая r8/478.** Частные секреты в `cms-stage2-local`, не менять.
+- Actual Hostinger: PHP 8.3, LiteSpeed; native Sodium отсутствовал по прежнему измерению; натурное MySQL probe и DDL не выполнены; лицензионный и crypto release gate остаются открытыми.
+- GitHub Environment содержит имена секретов `CMS_DB_HOST/NAME/USER/PASSWORD`, но это не локальная конфигурация PHP Hostinger. Никогда не выводить сами значения.
+- Обновления Hostinger отменены до единого заранее согласованного периода финальной приёмки. Не путать успешную offweb GitHub-публикацию с деплоем.
+- `cms-stage2-local` и посетительский сайт изолированы; нет прямого доступа к Hostinger File Manager через GitHub connector. Shared SSH нельзя использовать.
 
-## Communication / successor instructions
+## Открытые условия завершения Stage2
 
-- Continue in Russian as identical-role lead/integrator; prefer 3+ linked substantive deliverables before stopping.
-- Start each work block by checking actual main HEAD, latest CI, PRs and this lead-only handoff. Do not ask repetitive owner micro-questions.
-- Respect owner restriction: DO NOT modify docs/NEXT-CHAT.md, PROJECT-STATUS.json, docs/ROADMAP.md, ADRs or parallel research documents for a lead-chat handoff. Update only this handoff location at owner-requested next transfer.
-- This file does NOT amend, replace, or contradict those canonical project documents. Project Stage2 acceptance is still open and must remain honest.
+1. Продолжать крупными GitHub-only блоками с реальной MySQL8.4, PHP 8.1–8.4, Chromium/E2E, восстановлением и безопасностью, закрывать архитектурные и supply-chain gaps; не раздувать этап бесконечными бессодержательными тестами.
+2. Исследовать и проверить реальную совместимость отсутствующей Sodium (кандидат sodium_compat 2.5.2 в одноразовой тестовой среде, **не** в составе production lock), провести independent license/security review всех **43 компонентов**, подписанный release-траст и доказательство publisher key ownership.
+3. Когда готова финальная кандидатная версия, получить разовое согласие владельца на реальную Hostinger-проверку r8, физическую изоляцию и read-only MySQL probe. Никакого shared SSH и автодеплоя на другие сайты.
+4. Перед единственным **разрешённым отдельно** write install пустой тестовой базы требовать точного согласия, строгих грантов и безопасного восстановления; метаданные foundation snapshot не являются полноценным бэкапом содержимого/медиа.
+5. Только после доказательств и отдельного согласия владельца принять Stage2. **Stage2 НЕ ПРИНЯТ. Stage3 НЕ НАЧАТ. 0/135 продуктовых обязательных функций принято.** No production-ready claims.
+
+## Правила следующего главного чата
+
+1. Подключиться к GitHub, прочитать этот файл и `handoffs/lead-integrator/STAGE2-LEAD-PHYSICAL-SCHEMA-CHECKPOINT-2026-10-21.md`, посмотреть текущий `main` SHA, CI, offweb branch и оба PR.
+2. Работать на `main` только в главном направлении, батчами из нескольких больших связанных шагов, CI до отчёта. Отчёт содержит изменения и реальные ссылки GitHub.
+3. **Не просить пользователя обновлять папки Hostinger каждую итерацию.** Работать полностью автономно в GitHub в рамках уже выданного доступа.
+4. Не обновлять lead handoff, общие docs/NEXT-CHAT.md, PROJECT-STATUS.json, docs/ROADMAP.md, ADR или документы параллельных веток после каждой задачи. В конце следующего чата — по просьбе пользователя.
+5. Не выдавать успешный CI за завершение Stage2 и не начинать Stage3 без принятия.
