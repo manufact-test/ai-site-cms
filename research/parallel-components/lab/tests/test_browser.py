@@ -124,6 +124,48 @@ class BrowserLab(unittest.TestCase):
         self.assertTrue(page.locator('#open-dialog').evaluate('(el)=>document.activeElement === el'))
         page.close()
 
+    def test_unrecognized_backend_response_never_resends(self):
+        page=self.new_page(viewport={'width':390,'height':760})
+        page.locator('#name').fill('Мария')
+        page.locator('#email').fill('maria@example.test')
+        page.locator('#wizard-next').click()
+        page.locator('#message').fill('A long message to check retry protection.')
+        page.evaluate("""window.fetch=async()=>({json:async()=>({code:'SOMETHING_NEW',
+            message:'Could be accepted by a transport',errors:{}})})""")
+        page.locator('#form-submit').click()
+        page.wait_for_function("document.querySelector('#form-status').textContent.includes('SOMETHING_NEW')")
+        self.assertTrue(page.locator('#form-submit').is_disabled())
+        self.assertTrue(page.locator('#wizard-next').is_disabled())
+        self.assertTrue(page.locator('#wizard-prev').is_disabled())
+        self.assertIn('обновите страницу',page.locator('#form-status').inner_text())
+        page.close()
+
+    def test_malformed_form_reply_disables_resend(self):
+        page=self.new_page(viewport={'width':390,'height':760})
+        page.locator('#name').fill('Мария')
+        page.locator('#email').fill('maria@example.test')
+        page.locator('#wizard-next').click()
+        page.locator('#message').fill('A long message to check malformed request.')
+        page.evaluate("""window.fetch=async()=>({json:async()=>({code:'MALFORMED_FORM',
+            message:'Unexpected submission shape',errors:{}})})""")
+        page.locator('#form-submit').click()
+        page.wait_for_function("document.querySelector('#form-status').textContent.includes('MALFORMED_FORM')")
+        self.assertTrue(page.locator('#form-submit').is_disabled())
+        page.close()
+
+    def test_configuration_error_is_explicitly_safe_to_retry(self):
+        page=self.new_page(viewport={'width':390,'height':760})
+        page.locator('#name').fill('Мария')
+        page.locator('#email').fill('maria@example.test')
+        page.locator('#wizard-next').click()
+        page.locator('#message').fill('A message prepared for local configuration failure.')
+        page.evaluate("""window.fetch=async()=>({json:async()=>({code:'CONFIGURATION_REQUIRED',
+            message:'No configured recipient',errors:{}})})""")
+        page.locator('#form-submit').click()
+        page.wait_for_function("document.querySelector('#form-status').textContent.includes('CONFIGURATION_REQUIRED')")
+        self.assertFalse(page.locator('#form-submit').is_disabled())
+        page.close()
+
     def test_duplicate_receipt_state_disables_resubmit(self):
         page=self.new_page(viewport={'width':390,'height':844})
         page.locator('#name').fill('Maria')

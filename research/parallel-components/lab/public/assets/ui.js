@@ -65,6 +65,13 @@ const form = document.querySelector('#contact');
 const status = document.querySelector('#form-status');
 const send = document.querySelector('#form-submit');
 const keys = ['name', 'email', 'phone', 'message'];
+// Outbound delivery may have succeeded even when the reply is unknown.
+// Permit another POST only for explicit authoritative pre-delivery responses.
+const SAFE_RETRY_CODES = new Set([
+  'VALIDATION_ERROR', 'TOO_FAST', 'CONFIGURATION_REQUIRED', 'PHONE_VALIDATOR_REQUIRED',
+  'ORIGIN_CONFIGURATION_REQUIRED', 'ANTI_SPAM_CONFIGURATION_REQUIRED',
+  'RECEIPT_STORE_CONFIGURATION_REQUIRED', 'RECEIPT_STORE_UNAVAILABLE', 'RATE_LIMITED'
+]);
 // Server has final authority; avoid stale announced errors after a user correction.
 function clearFieldError(field) {
   if (!keys.includes(field.name)) return;
@@ -147,7 +154,9 @@ form.addEventListener('submit', async event => {
     const firstInvalid = showErrors(data.errors && typeof data.errors === 'object' ? data.errors : {});
     status.textContent = `${data.code}: ${data.message}`;
     if (data.code === 'QUEUED_UNCONFIRMED') form.reset();
-    const retryForbidden = ['QUEUED_UNCONFIRMED','DELIVERY_UNCONFIRMED','DELIVERY_FAILED','DUPLICATE_REQUEST','CSRF_INVALID'].includes(data.code);
+    // Default-deny on novel/mismatched status codes, not only known failures.
+    // In particular MALFORMED_FORM, SPAM_REJECTED and any unknown value cannot silently resend.
+    const retryForbidden = !SAFE_RETRY_CODES.has(data.code);
     send.disabled = retryForbidden;
     next.disabled = retryForbidden;
     previous.disabled = retryForbidden;
