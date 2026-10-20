@@ -171,6 +171,41 @@ try {
     $reject(fn()=>Job::run($package,$local)); // Atomic one-time lock.
     unlink($local.'/receipt.json');
 
+    // Race two genuine packed Cron PHP entrypoints against ONE private task.
+    // Exactly one runner can create receipt.json (O_EXCL), and neither may
+    // mutate a clean probe-only test database or touch the visitor.
+    $store($task);
+    $startParallel=static function()use($package):array{
+        $pipes=[];
+        $process=proc_open([PHP_BINARY,$package.'/bin/hostinger-stage2-once.php'],
+            [['pipe','r'],['pipe','w'],['pipe','w']],$pipes);
+        if (!is_resource($process))throw new RuntimeException('Parallel CI process failed');
+        fclose($pipes[0]);
+        return [$process,$pipes];
+    };
+    [$p1,$io1]=$startParallel();
+    [$p2,$io2]=$startParallel();
+    $finishParallel=static function($proc,array $io):array{
+        $out=stream_get_contents($io[1]);fclose($io[1]);
+        $err=stream_get_contents($io[2]);fclose($io[2]);
+        return [proc_close($proc),$out,$err];
+    };
+    $first=$finishParallel($p1,$io1);
+    $second=$finishParallel($p2,$io2);
+    $successes=count(array_filter([$first,$second],
+        static fn($r)=>$r[0]===0 && str_contains($r[1],'STAGE2_ONCE_RECORDED')));
+    $refusals=count(array_filter([$first,$second],
+        static fn($r)=>$r[0]===3 && str_contains($r[2],'STAGE2_')));
+    $check($successes===1 && $refusals===1,
+        'concurrent actual PHP cron processes consume exactly one authorization');
+    $check(is_file($local.'/receipt.json') && !is_file($local.'/once.json')
+        && (int)$pdo->query('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()')
+            ->fetchColumn()===0,
+        'parallel read-only Cron probe cannot create tables or preserve secrets');
+    $check(hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
+        'parallel Cron cannot mutate independent visitor public root');
+    unlink($local.'/receipt.json');
+
     // A correct DB password is insufficient if its user also owns other schemas.
     $root->exec("GRANT SELECT ON ai_site_cms_ci.* TO 'cms_stage2_once_ci'@'%'");
     $store($task);
