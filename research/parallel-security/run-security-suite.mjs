@@ -133,14 +133,19 @@ if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
   block('no-sodium:cryptography','Native ext-sodium is compiled into this PHP binary, including PHP -n; refusing simulated pass');
   block('compat:cryptography','A genuine Sodium-free PHP binary and vetted 2.5.2 autoloader are required');
 }
+// An explicitly requested online audit is not successful if its actual
+// vulnerability or registry probe was BLOCKED (e.g. missing original locks).
+// Optional offline limitations still use the existing non-strict contract.
+const onlineComplete=!online||['online:OSV-strict43','online:version-registry']
+  .every(name=>results.some(r=>r.name===name&&r.status==='passed'));
 const counts={passed:results.filter(x=>x.status==='passed').length,
   failed:results.filter(x=>x.status==='failed').length,
   blocked:results.filter(x=>x.status==='blocked').length};
 const out={schema:'ai-site-cms-security-evidence-v1',environment:{node:process.version,os:process.platform,
   arch:process.arch,php:runtime,nativeSodiumProbe:isNative.stdout,
   noIniSodiumProbe:isNoNative.stdout},timestamp:new Date().toISOString(),
-  strict,online,counts,allExecutedTestsPassed:counts.failed===0,
-  complete:counts.failed===0&&counts.blocked===0,
+  strict,online,onlineComplete,counts,allExecutedTestsPassed:counts.failed===0,
+  complete:counts.failed===0&&counts.blocked===0&&onlineComplete,
   productionApproved:false,licenseApproved:false,stage2Accepted:false,results};
 console.log(JSON.stringify(out,null,2));
 // Print bounded named evidence to CI stderr: a green aggregate number is not
@@ -154,7 +159,7 @@ console.error('INDEPENDENT_SECURITY_EXACT_HEAD_PROOFS '+JSON.stringify(
   proofNames.map(name=>{
     const r=results.find(x=>x.name===name);
     const lines=(r?.stdout||'').trimEnd().split('\n');
-    const proof=lines.find(line=>/PASS.*assertions|PASS.*cases/.test(line))
+    const proof=lines.filter(line=>/PASS.*assertions|PASS.*cases/.test(line)).at(-1)
       ||lines[lines.length-1]||'';
     return {name,status:r?.status||'absent',exitCode:r?.exitCode??null,
       proof:proof.slice(0,240),validationError:r?.validationError||null};
@@ -170,4 +175,4 @@ if(counts.failed>0){
     }))
   ));
 }else console.error('INDEPENDENT_SECURITY_SUITE_COUNTS '+JSON.stringify(counts));
-process.exitCode=counts.failed>0?1:strict&&counts.blocked>0?3:0;
+process.exitCode=counts.failed>0?1:(strict&&counts.blocked>0)||!onlineComplete?3:0;
