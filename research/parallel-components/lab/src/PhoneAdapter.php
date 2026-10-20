@@ -4,6 +4,12 @@ declare(strict_types=1);
 /** Candidate adapter: only trusted upstream libphonenumber metadata decides validity. */
 final class PhoneAdapter
 {
+    /** UI country choice is typed even when the optional phone is empty. */
+    public static function regionShape(string $region): bool
+    {
+        return $region === 'ZZ' || preg_match('/^[A-Z]{2}$/D', $region) === 1;
+    }
+
     public static function available(): bool
     {
         return class_exists('libphonenumber\\PhoneNumberUtil')

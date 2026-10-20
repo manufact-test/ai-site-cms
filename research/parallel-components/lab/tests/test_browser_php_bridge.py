@@ -61,6 +61,7 @@ class BrowserPhpBridge(unittest.TestCase):
         self.page = self.browser.new_page(viewport={'width':375, 'height':740})
         self.responses = []
         self.force_duplicate = False
+        self.force_region_attack = False
 
         def call_php(source, action, payload):
             if not isinstance(action, str) or not action.endswith('/submit-html.php'):
@@ -69,6 +70,8 @@ class BrowserPhpBridge(unittest.TestCase):
                 raise RuntimeError('Unexpected payload: fail closed')
             if self.force_duplicate:
                 payload += '&name=duplicate'
+            if self.force_region_attack:
+                payload = payload.replace('phone_region=ZZ', 'phone_region=de')
             req = Request(self.origin + '/submit-html.php', data=payload.encode('utf-8'),
                 method='POST', headers={
                     'Origin': self.origin,
@@ -88,7 +91,9 @@ class BrowserPhpBridge(unittest.TestCase):
         self.page.expose_binding('phpBridge', call_php)
         html = html.replace('<link rel="stylesheet" href="/assets/style.css">', '')
         html = html.replace('<script src="/assets/ui.js" defer></script>', '')
-        self.page.set_content(html)
+        # set_content() otherwise has about:blank base, and form.action resolves to ''.
+        # Absolute base is test-only; no Chromium HTTP networking is granted.
+        self.page.set_content(html.replace('<head>', f'<head><base href="{self.origin}/">', 1))
         self.page.add_style_tag(content=(PUBLIC/'assets/style.css').read_text())
         self.page.evaluate("""() => {
           window.fetch = async (action, options) => ({
@@ -143,6 +148,15 @@ class BrowserPhpBridge(unittest.TestCase):
             "document.querySelector('#form-status').textContent.includes('MALFORMED_FORM')")
         self.assertEqual(self.responses, [(422, 'MALFORMED_FORM')])
         self.assertFalse(self.page.locator('#form-submit').is_disabled())
+
+    def test_invalid_region_is_server_rejected_even_without_phone(self):
+        self.prepare_valid_form()
+        self.force_region_attack = True
+        self.page.locator('#form-submit').click()
+        self.page.wait_for_function(
+            "document.querySelector('#form-status').textContent.includes('VALIDATION_ERROR')")
+        self.assertEqual(self.responses, [(422, 'VALIDATION_ERROR')])
+        self.assertEqual(self.page.locator('#phone').get_attribute('aria-invalid'), 'true')
 
     def test_real_phone_validator_refusal(self):
         self.prepare_valid_form()

@@ -55,6 +55,12 @@ final class SubmissionHttp
             return self::result(422, 'MALFORMED_FORM', 'Некорректные поля запроса. Заявка не отправлена.');
         }
         $submitted = $boundary['fields'];
+        // An optional phone may be blank, but never silently accept a forged country field.
+        $region = $submitted['phone_region'];
+        if (!is_string($region) || !PhoneAdapter::regionShape($region)) {
+            return self::result(422, 'VALIDATION_ERROR',
+                'Проверьте поля формы.', ['phone' => 'Укажите корректную страну номера.'], $submitted);
+        }
         // A trusted private autoloader is optional; callers cannot specify it in POST data.
         $autoload = $env('LAB_PHONE_AUTOLOAD');
         if (is_string($autoload) && $autoload !== '') {
