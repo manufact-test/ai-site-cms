@@ -31,6 +31,13 @@ try {
         || realpath($local) !== $local || ($dirStat['mode'] & 0077) !== 0) {
         throw new RuntimeException('PRIVATE_LOCAL_ROOT_REQUIRED');
     }
+    // A pending manual credential-revocation request fences any NEW Cron
+    // attempt even before executing a Composer/vendor bootstrap.
+    foreach (['revoke-request.json','revocation.json'] as $marker) {
+        if (file_exists($local.'/'.$marker) || is_link($local.'/'.$marker)) {
+            throw new RuntimeException('REVOCATION_FENCE');
+        }
+    }
     $taskFile = $local.'/once.json';
     $taskStat = @lstat($taskFile);
     if ($taskStat === false || !is_file($taskFile) || is_link($taskFile)

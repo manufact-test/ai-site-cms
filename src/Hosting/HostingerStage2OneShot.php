@@ -34,6 +34,9 @@ final class HostingerStage2OneShot
         if (!is_string($manifestDigest)) {
             throw new RuntimeException('PACKAGE_DIGEST_UNAVAILABLE');
         }
+        // A request to revoke credentials immediately fences NEW installation
+        // attempts. It cannot terminate any already-running PHP process.
+        self::assertNoRevocation($localRoot);
         $taskFile = $localRoot.'/once.json';
         self::assertPrivateRegular($taskFile, 4096);
         $raw = file_get_contents($taskFile);
@@ -71,6 +74,7 @@ final class HostingerStage2OneShot
         ];
         $phase = 'local_task';
         try {
+            self::assertNoRevocation($localRoot);
             // Even a failed attempt consumes the secret-bearing file. Operators
             // must explicitly create a NEW task after reading the private
             // non-secret receipt; cron logs never show DB credentials.
@@ -240,6 +244,16 @@ final class HostingerStage2OneShot
             $databaseScoped = true;
         }
         if (!$databaseScoped) throw new RuntimeException('DB_GRANTS_MISSING');
+    }
+
+    private static function assertNoRevocation(string $localRoot): void
+    {
+        foreach (['revoke-request.json', 'revocation.json'] as $file) {
+            $path = $localRoot.'/'.$file;
+            if (file_exists($path) || is_link($path)) {
+                throw new RuntimeException('STAGE2_CREDENTIAL_REVOCATION_FENCE');
+            }
+        }
     }
 
     private static function assertRoots(string $packageRoot, string $localRoot): void

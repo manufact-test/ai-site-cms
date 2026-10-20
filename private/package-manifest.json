@@ -21,13 +21,18 @@
     },
     {
       "path": "bin/hostinger-stage2-once.php",
-      "bytes": 4981,
-      "sha256": "3e786cfcccaaa2e57da87dcba77ab39d8638baab5d237152d9912537fc1b2a41"
+      "bytes": 5344,
+      "sha256": "fc477b1bb9bf2d9c671367097ce375efb8ab40360194ea17be354f7f4a409a31"
     },
     {
       "path": "bin/hostinger-stage2-preflight.php",
-      "bytes": 13315,
-      "sha256": "2e9f0336beed2194f6a4426c9c3fedb3de97769295cc1881bf299ed79f33b193"
+      "bytes": 15854,
+      "sha256": "08b3b5d462d4071ccfe679e0d2547745952fc53a52b76e8701b1d7d2bdea00e7"
+    },
+    {
+      "path": "bin/hostinger-stage2-revoke.php",
+      "bytes": 5958,
+      "sha256": "51ca30e95fefb5710cbe0ed9571435c417e104cc7af9513245e1f8cc14dc98e9"
     },
     {
       "path": "bin/install.php",
@@ -156,8 +161,8 @@
     },
     {
       "path": "src/Hosting/HostingerStage2OneShot.php",
-      "bytes": 13045,
-      "sha256": "42b275873afcbe3ad72448a72d1afc88fabb2b4278b671c0d737863e41ac37e3"
+      "bytes": 13655,
+      "sha256": "add6078bb5f06fe33fbef58376a6f8347b308328567663f4eb53ac9e78511e27"
     },
     {
       "path": "src/Hosting/LabComplianceEvidence.php",
@@ -211,8 +216,8 @@
     },
     {
       "path": "src/Hosting/PackageArtifactVerifier.php",
-      "bytes": 8192,
-      "sha256": "5636fad51e9f53c202c52153cae0562bd29f3a2aeb27cc2a3405350d70033b5e"
+      "bytes": 8239,
+      "sha256": "ccbadd7e16f164539ceb8b29c6f51b4a033a5ecb734df766c9fcc27f0abf7e29"
     },
     {
       "path": "src/Hosting/RuntimeDoctor.php",
@@ -352,7 +357,7 @@
     {
       "path": "vendor/composer/installed.php",
       "bytes": 6387,
-      "sha256": "0f52c3b2a7ec7442e37fd2fd518d7388b7936759cd46e27be4dc2d2632072b78"
+      "sha256": "cafcf4165f20db7054e83745b0789e9c63b6de3d46706082cec775e5b1fb91ea"
     },
     {
       "path": "vendor/composer/InstalledVersions.php",
