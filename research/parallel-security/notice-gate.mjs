@@ -6,7 +6,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const required=['opis/json-schema','opis/string'];
-const output=path.resolve(root,'.build/internal-stage2-package/private/compliance/THIRD_PARTY_NOTICES.txt');
+const output=path.resolve(root,'cms/.build/internal-stage2-package/private/compliance/THIRD_PARTY_NOTICES.txt');
 function readSafe(file){
  if(!fs.existsSync(file))throw Object.assign(Error('MISSING: '+file),{exitCode:2});
  const stat=fs.lstatSync(file);

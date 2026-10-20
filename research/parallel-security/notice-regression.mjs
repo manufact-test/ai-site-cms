@@ -10,7 +10,7 @@ const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'ai-cms-notice-'));
 const targets=['opis/json-schema','opis/string'];
 const text=['Opis Json Schema\nCopyright 2018-2021 Zindex Software\nOriginal Author Attribution',
  'Opis String\nCopyright 2018-2021 Zindex Software\nOriginal Author Attribution'];
-const destination=path.join(tmp,'.build/internal-stage2-package/private/compliance/THIRD_PARTY_NOTICES.txt');
+const destination=path.join(tmp,'cms/.build/internal-stage2-package/private/compliance/THIRD_PARTY_NOTICES.txt');
 function assert(ok,name){if(!ok)throw Error('FAIL '+name);console.log('PASS '+name);}
 function check(){return cp.spawnSync(process.execPath,[path.join(tmp,'research/parallel-security/notice-gate.mjs')],{encoding:'utf8',timeout:15000});}
 function write(value){fs.mkdirSync(path.dirname(destination),{recursive:true});fs.writeFileSync(destination,value);}
