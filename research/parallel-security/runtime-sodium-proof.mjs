@@ -21,8 +21,8 @@ else{
   try{
    const env=JSON.parse(p.stdout);
    report.runtime={...env,binary:fs.realpathSync(binary)};
-   if(env.size!==8||env.sapi!=='cli'||env.ext!==false||env.verify!==false)
-    finish(3,'BLOCKED: PHP is not genuinely extension-free (no simulated no-Sodium passes)');
+   if(env.size!==8||env.sapi!=='cli'||!/^8\.3\.[0-9]+$/.test(env.version)||env.ext!==false||env.verify!==false)
+    finish(3,'BLOCKED: only genuinely extension-free PHP 8.3 64-bit CLI is accepted (no simulated passes)');
    else{
     report.nativeFreeProven=true;
     const test=(name,exe,args)=>{
