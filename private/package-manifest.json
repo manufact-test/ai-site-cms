@@ -20,6 +20,11 @@
       "sha256": "d7d612bff13ddd6dc56b0dd0ce95a709966306635103fd9fb49fe3f8d8a202f7"
     },
     {
+      "path": "bin/hostinger-stage2-once.php",
+      "bytes": 1402,
+      "sha256": "250ae2bf2368e14abb4deae1e1302683f0cb112fafafd37b3d38f9c317af234a"
+    },
+    {
       "path": "bin/install.php",
       "bytes": 1932,
       "sha256": "56d33652081fd442de38e0398c0da2d3a03ef024a1134b5d8b7b5c962ee672a7"
@@ -143,6 +148,11 @@
       "path": "src/Hosting/EmptyCmsStartupReadiness.php",
       "bytes": 4159,
       "sha256": "00d0aa47866851e87bd9f086763fed6354bc26e26efec6347a72779e5e132234"
+    },
+    {
+      "path": "src/Hosting/HostingerStage2OneShot.php",
+      "bytes": 10734,
+      "sha256": "137a626a3402e249c5939f426647b278d8c71c754cdc0bce243d2ac7f4d2f4f1"
     },
     {
       "path": "src/Hosting/LabComplianceEvidence.php",
@@ -296,8 +306,8 @@
     },
     {
       "path": "vendor/composer/autoload_classmap.php",
-      "bytes": 43650,
-      "sha256": "726e0e7452ecc2a532e0e41f1ecc33547228c32d5f4a54173fbb7e4ba7e83ecb"
+      "bytes": 43756,
+      "sha256": "957048de032a052e5351277b3f4138bbce36d1313b00fdf3bef1e9493b138a99"
     },
     {
       "path": "vendor/composer/autoload_files.php",
@@ -321,8 +331,8 @@
     },
     {
       "path": "vendor/composer/autoload_static.php",
-      "bytes": 50138,
-      "sha256": "4d621730751b0f6d5b5dfbdfa961fc5a0bd5c0236d6d91beedf55366587ac6e9"
+      "bytes": 50258,
+      "sha256": "bfbf17b00f7645863c89a6635d0a2f021d9508c3cda2e86f231d5dd6e38fc14f"
     },
     {
       "path": "vendor/composer/ClassLoader.php",
@@ -337,7 +347,7 @@
     {
       "path": "vendor/composer/installed.php",
       "bytes": 6387,
-      "sha256": "230796bda817e1d862175b1c335a029eddd601b28601ef23b2f57f6969bccfef"
+      "sha256": "d91918976c3424479aed9266fdd8a855948cdf4992d4893250f89ae697d6edd5"
     },
     {
       "path": "vendor/composer/InstalledVersions.php",

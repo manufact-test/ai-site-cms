@@ -96,6 +96,7 @@ class ComposerStaticInitcdd9b523c235fc6ba8c1e2a62ae88fbe
 
     public static $classMap = array (
         'AiSiteCms\\Hosting\\EmptyCmsStartupReadiness' => __DIR__ . '/../..' . '/src/Hosting/EmptyCmsStartupReadiness.php',
+        'AiSiteCms\\Hosting\\HostingerStage2OneShot' => __DIR__ . '/../..' . '/src/Hosting/HostingerStage2OneShot.php',
         'AiSiteCms\\Hosting\\LabComplianceEvidence' => __DIR__ . '/../..' . '/src/Hosting/LabComplianceEvidence.php',
         'AiSiteCms\\Hosting\\LabDeploymentBlueprint' => __DIR__ . '/../..' . '/src/Hosting/LabDeploymentBlueprint.php',
         'AiSiteCms\\Hosting\\LabEmptyCmsInstaller' => __DIR__ . '/../..' . '/src/Hosting/LabEmptyCmsInstaller.php',

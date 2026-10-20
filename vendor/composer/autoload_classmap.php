@@ -7,6 +7,7 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'AiSiteCms\\Hosting\\EmptyCmsStartupReadiness' => $baseDir . '/src/Hosting/EmptyCmsStartupReadiness.php',
+    'AiSiteCms\\Hosting\\HostingerStage2OneShot' => $baseDir . '/src/Hosting/HostingerStage2OneShot.php',
     'AiSiteCms\\Hosting\\LabComplianceEvidence' => $baseDir . '/src/Hosting/LabComplianceEvidence.php',
     'AiSiteCms\\Hosting\\LabDeploymentBlueprint' => $baseDir . '/src/Hosting/LabDeploymentBlueprint.php',
     'AiSiteCms\\Hosting\\LabEmptyCmsInstaller' => $baseDir . '/src/Hosting/LabEmptyCmsInstaller.php',
