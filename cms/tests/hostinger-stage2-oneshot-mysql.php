@@ -49,6 +49,7 @@ $pdo=new PDO('mysql:host=127.0.0.1;port=3306;dbname='.$name.';charset=utf8mb4',
     'cms_stage2_once_ci','ephemeral_local_ci_only');
 $task=[
     'format'=>'ai-site-cms-stage2-hostinger-task-v1',
+    'package_manifest_sha256'=>hash_file('sha256',$package.'/private/package-manifest.json'),
     'target'=>Job::TARGET,
     'site'=>Job::SITE,
     'operation'=>'probe',
@@ -70,9 +71,9 @@ $reject=static function (callable $action)use($check):void{
     try{$action();}catch(Throwable $e){$check(true,'expected refusal');return;}
     $check(false,'expected refusal');
 };
-$runCron=static function()use($package):array{
+$runCron=static function(string $script='hostinger-stage2-once.php')use($package):array{
     $pipes=[];
-    $process=proc_open([PHP_BINARY,$package.'/bin/hostinger-stage2-once.php'],
+    $process=proc_open([PHP_BINARY,$package.'/bin/'.$script],
         [['pipe','r'],['pipe','w'],['pipe','w']],$pipes);
     if (!is_resource($process))throw new RuntimeException('CLI process failed to start');
     fclose($pipes[0]);
@@ -81,11 +82,35 @@ $runCron=static function()use($package):array{
     return [proc_close($process),$out,$err];
 };
 try {
+    [$preflightCode,$preflightOut,$preflightErr]=$runCron('hostinger-stage2-preflight.php');
+    $preflight=json_decode($preflightOut,true,8,JSON_THROW_ON_ERROR);
+    $check($preflightCode===0 && $preflightErr==='' && $preflight['pdoMysqlAvailable']
+        && $preflight['privateLocalState']==='private_directory_ready'
+        && $preflight['unsignedInventoryFilesVerified']>=470,
+        'credential-free packaged CLI preflight and full unsigned inventory');
+    $check($preflight['packageManifestSha256']===$task['package_manifest_sha256']
+        && $preflight['credentialsRead']===false
+        && $preflight['databaseConnectionAttempted']===false
+        && $preflight['stage2Accepted']===false,
+        'CLI preflight reports pin without password or MySQL connection');
+    $check(!is_file($local.'/receipt.json') && !is_file($local.'/once.json'),
+        'credential-free preflight is strictly read-only');
     $reject(fn()=>Job::run($package,$local)); // Missing operator task.
     $store($task);
     chmod($local.'/once.json',0644);
     $reject(fn()=>Job::run($package,$local)); // World-readable credential refused.
     chmod($local.'/once.json',0600);
+    $wrongPinTask=$task;
+    $wrongPinTask['package_manifest_sha256']=str_repeat('a',64);
+    $store($wrongPinTask);
+    $reject(fn()=>Job::run($package,$local));
+    [$badPinCode,$badPinOut,$badPinErr]=$runCron();
+    $check($badPinCode===3 && $badPinOut==='' &&
+        str_contains($badPinErr,'STAGE2_PACKAGE_REFUSED'),
+        'wrong out-of-band manifest pin blocked before Composer and MySQL');
+    $check(!file_exists($local.'/receipt.json') && is_file($local.'/once.json'),
+        'bad pin cannot consume a database authorization');
+    $store($task);
     $report=Job::run($package,$local);
     $check(!file_exists($local.'/once.json'),
         'successful cron attempt destroys secret-bearing task file');
