@@ -75,6 +75,58 @@ final class LabComplianceEvidence
         }
     }
 
+    /**
+     * Reconcile separately licensed Apache NOTICE files with the ACTUAL
+     * installed vendor tree, literal delivered attribution and SBOM digests.
+     * A complete unsigned bundle is evidence, not legal/publisher approval.
+     * @param array<string,string> $properties
+     */
+    private static function bundledRootNotices(
+        string $root, string $package, string $version,
+        string $license, array $properties, string $notices
+    ): int {
+        $path = $root.'/vendor/'.$package;
+        $files = @scandir($path);
+        if (!is_array($files)) {
+            throw new RuntimeException('Installed Composer NOTICE root unreadable');
+        }
+        $names = array_values(array_filter($files, static fn(string $name): bool =>
+            preg_match('/\ANOTICE(?:\.(?:md|txt|text))?\z/iD', $name) === 1));
+        sort($names, SORT_STRING);
+        if (in_array($package, ['opis/json-schema','opis/string'], true)
+            && ($license !== 'Apache-2.0' || $names === [])) {
+            throw new RuntimeException('Mandatory pinned Apache NOTICE missing');
+        }
+        $verified = [];
+        foreach ($names as $name) {
+            $file = $path.'/'.$name;
+            $stat = @lstat($file);
+            if ($stat === false || is_link($file) || !is_file($file)
+                || realpath($file) !== $file || ($stat['nlink'] ?? 0) !== 1
+                || $stat['size'] < 10 || $stat['size'] > 100000) {
+                throw new RuntimeException('Unsafe installed Composer NOTICE file');
+            }
+            $content = @file_get_contents($file);
+            $key = 'ai-site-cms:installed-notice-sha256:'.$name;
+            if (!is_string($content) || strlen($content) !== $stat['size']
+                || str_contains($content, "\0")
+                || !hash_equals(hash('sha256', $content), $properties[$key] ?? '')
+                || !str_contains($notices, '===== composer '.$package.' '.$version.
+                    ' ('.$license.') / '.$name.' (UPSTREAM NOTICE) ====='."\n".
+                    $content."\n")) {
+                throw new RuntimeException('Composer NOTICE differs from literal attribution or SBOM');
+            }
+            $verified[$key] = true;
+        }
+        foreach ($properties as $key => $value) {
+            if (str_starts_with($key, 'ai-site-cms:installed-notice-sha256:')
+                && !isset($verified[$key])) {
+                throw new RuntimeException('Extraneous NOTICE digest property in SBOM');
+            }
+        }
+        return count($names);
+    }
+
     private static function properties(array $component): array
     {
         $out = [];
@@ -138,6 +190,7 @@ final class LabComplianceEvidence
             }
             $components[$purl] = $component;
         }
+        $composerNoticeCount = 0;
         foreach ($composer['packages'] as $pkg) {
             $name = $pkg['name'] ?? null;
             $version = $pkg['version'] ?? null;
@@ -159,7 +212,16 @@ final class LabComplianceEvidence
             }
             self::bundledComposerNotice($root, $name, $version, $license[0],
                 $props['ai-site-cms:installed-license-sha256'], $noticeBytes);
+            $composerNoticeCount += self::bundledRootNotices(
+                $root, $name, $version, $license[0], $props, $noticeBytes
+            );
             unset($components['pkg:composer/'.$name.'@'.$version]);
+        }
+        if (($index['composerNoticeFiles'] ?? null) !== $composerNoticeCount
+            || $composerNoticeCount < 2
+            || ($index['requiredApacheNoticesPreserved'] ?? null)
+                !== ['opis/json-schema','opis/string']) {
+            throw new RuntimeException('Unreconciled pinned Apache NOTICE provenance');
         }
         $npmCount = 0;
         foreach ($npm['packages'] as $key => $info) {
