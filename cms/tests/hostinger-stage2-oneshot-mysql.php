@@ -283,6 +283,26 @@ try {
     unlink($local.'/receipt.json');
     $root->exec("REVOKE SELECT ON ai_site_cms_ci.* FROM 'cms_stage2_once_ci'@'%'");
 
+    // A database can have correctly scoped grants and still belong to a
+    // FOREIGN application. Probe must refuse a real existing visitor table,
+    // consume its one-shot authorization, and NEVER drop or overwrite it.
+    $root->exec('CREATE TABLE `'.$name.'`.`visitor_owned_data` (id INT PRIMARY KEY)');
+    $root->exec('INSERT INTO `'.$name.'`.`visitor_owned_data` VALUES (17)');
+    $store($task);
+    $foreignProbe=Job::run($package,$local);
+    $check($foreignProbe['status']==='refused'
+        && $foreignProbe['failureCategory']==='schema_read_refused'
+        && $foreignProbe['dedicatedDbGrantsVerified']===true,
+        'existing foreign data blocks scoped read-only CMS probe');
+    $check((int)$pdo->query('SELECT id FROM visitor_owned_data')->fetchColumn()===17
+        && !is_file($local.'/once.json'),
+        'refused probe preserves foreign table and consumes one-use secret');
+    $check(hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
+        'foreign-schema refusal cannot mutate independent visitor files');
+    unlink($local.'/receipt.json');
+    // ONLY the explicitly disposable GitHub Actions test owner may clean up.
+    $root->exec('DROP TABLE `'.$name.'`.`visitor_owned_data`');
+
     // Exercise the actual packaged PHP cron entrypoint as a separate process.
     // No credentials on argv, in process environment, or printed logs.
     $store($task);
