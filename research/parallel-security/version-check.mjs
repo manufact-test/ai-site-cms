@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+const require = createRequire(import.meta.url);
+const __dirname = require('node:path').dirname(fileURLToPath(import.meta.url));
 'use strict';
 // Opt-in exact version freshness check. Read-only; never updates locks.
 // Query registry metadata on trusted networked CI; network errors FAIL CLOSED.

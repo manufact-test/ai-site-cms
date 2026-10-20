@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+const require = createRequire(import.meta.url);
+const __dirname = require('node:path').dirname(fileURLToPath(import.meta.url));
 'use strict';
 // Real Node Ed25519 signing, actual unmodified PHP OfflineReleaseVerifier verification.
 // All keys are temporary, no private keys written, no archives extracted.

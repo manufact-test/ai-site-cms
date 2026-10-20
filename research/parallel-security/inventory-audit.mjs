@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+const require = createRequire(import.meta.url);
+const __dirname = require('node:path').dirname(fileURLToPath(import.meta.url));
 'use strict';
 // Read-only reproducible lock ledger and optional live OSV.dev batch query.
 // Node >=22. Never installs, changes locks, or writes secrets.
