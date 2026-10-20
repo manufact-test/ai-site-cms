@@ -231,7 +231,28 @@ jobs:
           node --check tools/test-stage2-handoff-index.cjs
           node tools/test-stage2-handoff-index.cjs
           node tools/stage2-handoff-index.cjs --verify
+      # A public repository may still run disposable tests, but must not publish
+      # internal vendor/editor/package/owner-review bundles as Actions artifacts.
+      # Verify current API visibility immediately before upload, not merely the
+      # push event's potentially stale repository visibility field.
+      - name: Verify live private repository status before internal artifact export
+        id: private_export
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          set -euo pipefail
+          echo "allowed=false" >> "$GITHUB_OUTPUT"
+          current_private="$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.private')"
+          if [[ "$EVENT_PRIVATE" == "true" && "$current_private" == "true" ]]; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+            echo "Verified private repository: internal artifact upload permitted"
+          else
+            echo "::warning::Repository is public or event visibility is not private: internal distribution artifacts withheld"
+          fi
       - name: Internal-only static JS build artifact
+        if: ${{ steps.private_export.outputs.allowed == 'true' && github.event.repository.private == true }}
         uses: actions/upload-artifact@v4
         with:
           name: stage2-jedison-static-ci-only
