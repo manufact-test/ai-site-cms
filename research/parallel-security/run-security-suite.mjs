@@ -29,6 +29,15 @@ const entry=(name, probe, expected=0)=> {
   results.push(row);return row;
 };
 const block=(name, reason)=>results.push({name,status:'blocked',reason});
+// A zero process exit is insufficient if a native assertion fixture silently
+// exits before it reaches its expected final count/signature verification.
+function requireProof(row, expectedPattern, evidenceLabel) {
+  if(row.status==='passed' && !expectedPattern.test(row.stdout)){
+    row.status='failed';
+    row.validationError='Expected completed assertion evidence: '+evidenceLabel;
+  }
+  return row;
+}
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
@@ -39,7 +48,10 @@ for(const name of scripts){
   else entry('syntax:'+name,capture(runtime,['-l',path.join(dirname,name)]));
 }
 for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs']){
-  entry('mutation:'+name,capture('node',[path.join(dirname,name)],{timeout:30000}));
+  const result=entry('mutation:'+name,capture('node',[path.join(dirname,name)],{timeout:30000}));
+  if(name==='osv-strict-regression.mjs')requireProof(result,
+    /OSV strict-response \+ transport \+ lock fixture PASS 29 cases;/,
+    '29 offline OSV transport + lock acceptance/rejection assertions');
 }
 const lockPaths=['cms/composer.lock','cms/editor/package-lock.json','cms/editor/package.json'];
 const completeLock=lockPaths.every(f=>fs.existsSync(path.join(root,f)));
@@ -77,20 +89,26 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
   entry('native:signed-envelope',capture('node',[path.join(dirname,'release-fixture.mjs'),'native'],{timeout:30000}));
   const receiptFixture=path.join(dirname,'receipt-chain-regression.php');
   if(fs.existsSync(receiptFixture)) {
-    entry('native:operator-receipt-chain',
+    requireProof(entry('native:operator-receipt-chain',
       capture(runtime,[receiptFixture],{timeout:45000,
-        env:{CI:'true',CMS_ALLOW_PHP_INSTALL_LAB:'1'}}));
+        env:{CI:'true',CMS_ALLOW_PHP_INSTALL_LAB:'1'}})),
+      /Stage2 research operator receipt chain: 36 independent assertions PASS;/,
+      '36 real signed operator receipt assertions');
   } else block('native:operator-receipt-chain','Research receipt verification fixture unavailable');
   const permitFixture=path.join(dirname,'permit-gate-regression.php');
   if(fs.existsSync(permitFixture)) {
-    entry('native:operator-preactivation-permit',
+    requireProof(entry('native:operator-preactivation-permit',
       capture(runtime,[permitFixture],{timeout:45000,
-        env:{CI:'true',CMS_ALLOW_PHP_INSTALL_LAB:'1'}}));
+        env:{CI:'true',CMS_ALLOW_PHP_INSTALL_LAB:'1'}})),
+      /Stage2 signed permit adversarial research PASS: 46 assertions;/,
+      '46 signed preactivation permit/CAS-boundary assertions');
   } else block('native:operator-preactivation-permit','Signed preactivation permit fixture unavailable');
   const rootTrustFixture=path.join(root,'cms/tests/trust-chain.php');
   if(fs.existsSync(rootTrustFixture)) {
-    entry('native:trust-root-rotation',
-      capture(runtime,[rootTrustFixture],{timeout:45000}));
+    requireProof(entry('native:trust-root-rotation',
+      capture(runtime,[rootTrustFixture],{timeout:45000})),
+      /Stage2 PHP-only dual-signature trust history PASS: 18 assertions/,
+      '18 signed key-rotation assertions');
   } else block('native:trust-root-rotation','Original PHP trust-chain contract unavailable in partial checkout');
 }else block('native:cryptography','Native ext-sodium not available');
 if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
