@@ -1,8 +1,8 @@
 # AI Site CMS — Security & Dependencies independent research
 
-**Branch:** `research/stage2-supply-chain` (PR to `main`, never merge by this researcher).
+**Current research branch:** `research/stage2-supply-chain-followup` — [OPEN DRAFT PR #3](https://github.com/manufact-test/ai-site-cms/pull/3), **never merge autonomously**. Historical predecessor `research/stage2-supply-chain` was merged as read-only research.
 **Allowed writes only:** `research/parallel-security/`.
-**As of 2026-10-20:** Stage2 not accepted, Stage3 not started.
+**Checkpoint 2026-10-21:** Stage2 not accepted; this research does not authorize Stage3 or production.
 
 Deliverables:
 - [AUDIT.md](AUDIT.md) — 43-line exact lock inventory (14 Composer runtime and 29 npm), SPDX metadata, NOTICE/commercial-license restrictions, evidence-limited advisory triage, P0/P1/P2 remediation.
@@ -55,6 +55,21 @@ Do not call `php -n` a true no-Sodium environment without checking `extension_lo
 
 **Merged baseline:** PR #1 was merged to `main` as **READ-ONLY RESEARCH** only. Follow-up is intentionally on separate `research/stage2-supply-chain-followup` branch, [draft PR #3](https://github.com/manufact-test/ai-site-cms/pull/3). All edits are only inside this directory.
 
-- [RECEIPT-CHAIN-REVIEW.md](RECEIPT-CHAIN-REVIEW.md): 36 scripted ephemeral operator Ed25519 receipt acceptance/rejection assertions against original PHP `LabAttestedActivationGate`; newly wired to research suite but **exact-head CI execution still needed**.
-- [OSV-SNAPSHOT-REVIEW.md](OSV-SNAPSHOT-REVIEW.md): complete-response 43/43 OSV API evidence format plus 10 synthetic failure/positive cases; live API not yet executed.
+- [RECEIPT-CHAIN-REVIEW.md](RECEIPT-CHAIN-REVIEW.md): 36 scripted ephemeral operator Ed25519 receipt acceptance/rejection assertions against original PHP `LabAttestedActivationGate`; newly wired to research suite but **exact-head CI passed, including 36 receipt, 46 permit and 38 settlement native PHP assertions**.
+- [OSV-SNAPSHOT-REVIEW.md](OSV-SNAPSHOT-REVIEW.md): complete-response 43/43 OSV API evidence format plus 30 offline response cases, 23 CLI cases and 54 online/archive evidence cases; live API not yet executed.
 - [NEXT-CHAT.md](NEXT-CHAT.md): authoritative **security chat-only handoff**, not a main project roadmap.
+
+
+## Verified continuation checkpoint — 21 October 2026
+
+**Exact tested pre-documentation HEAD:** `635597bdbf474fc2b09cce37cd371b6667c7930a`.
+**Actual GitHub Actions:** [run #39509439870](https://github.com/manufact-test/ai-site-cms/actions/runs/39509439870), independent Security job `118926532347`, **46 PASS / 0 FAIL / 2 BLOCKED** on exact candidate overlay atop disposable main. CI counts are *suite entries*, not raw assertion total. Named native results: **36** operator receipt, **46** permit, **38** settlement, **18** trust-root tests. Offline OSV: **30** schema, **23** CLI, **54** online/advisory evidence assertions; additional 12 suite-exit, 20 sodium source and 15 false-pass PHP-wrapper assertions. **NO live OSV or physical Sodium-free runtime tested.**
+
+New research-only tooling:
+- [osv-strict-snapshot.mjs](osv-strict-snapshot.mjs): opt-in full 43-package HTTPS OSV querybatch, strict pagination/result checks, exactly locked source bytes and SHA, fails closed if either lock changes while waiting for the response.
+- [online-evidence-proof.mjs](online-evidence-proof.mjs): verifies saved OSV/registry JSON, original lock hashes, 43 package identities, timestamps, advisory counts, source endpoints, and zero-advisory semantics; supports explicit **historical finding evidence** without ever authorizing release.
+- [osv-advisory-triage.mjs](osv-advisory-triage.mjs): safe offline examination of a previously captured, **complete** JSON output. Produces a full independent review summary with input SHA-256, pinned package inventory and advisory IDs; exit `4` if findings, `0` if the archived OSV lookup reports zero findings, `3` invalid/changed input, `2` usage. Historical reports require `--historical` and cannot claim current security clearance.
+- [online-evidence-regression.mjs](online-evidence-regression.mjs), [osv-cli-regression.mjs](osv-cli-regression.mjs), [runtime-sodium-proof-regression.mjs](runtime-sodium-proof-regression.mjs): offline adversarial report, lockfile-TOCTOU and simulated-PHP false-PASS tests. Their synthetic PASS results do not imply an external scan occurred.
+- [sodium-compat-attest.mjs](sodium-compat-attest.mjs), [runtime-sodium-proof.mjs](runtime-sodium-proof.mjs): independently reviewed full-tree hash and exact `v2.5.2` reference required to begin genuine PHP 8.3/64-bit Sodium-free signed-envelope/RFC testing; source re-attested afterwards.
+
+**Current blocked gates:** (1) real outbound 43/43 OSV querybatch with full saved JSON + human triage, (2) physically native-Sodium-free PHP 8.3 64-bit with vetted `paragonie/sodium_compat@2.5.2` and source snapshot, (3) qualified license/legal and release acceptance. This PR remains Draft for integration-owner review. **Only the Security folder is writable by this developer.** For next-chat instructions see [NEXT-CHAT.md](NEXT-CHAT.md); for exact commands see [RUNBOOK.md](RUNBOOK.md).
