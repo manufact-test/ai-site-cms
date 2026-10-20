@@ -13,6 +13,7 @@ from playwright.sync_api import sync_playwright
 # Also exercise the live PHP/session bridge when the shared CI runs this older entrypoint.
 # unittest's standard class discovery includes this imported TestCase without workflow edits.
 from test_browser_php_bridge import BrowserPhpBridge
+from test_preview_browser import BrowserPreview
 
 PUBLIC = Path(__file__).resolve().parents[1] / 'public'
 

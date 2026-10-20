@@ -11,6 +11,9 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import build_opener, HTTPCookieProcessor, Request
+# Shared CI still names this legacy suite explicitly; imported cases add real HTML and CSP endpoint coverage.
+from test_nojs import NativeFormHttp
+from test_preview_http import PreviewHttp
 
 PUBLIC = Path(__file__).resolve().parents[1] / 'public'
 class HttpBoundary(unittest.TestCase):

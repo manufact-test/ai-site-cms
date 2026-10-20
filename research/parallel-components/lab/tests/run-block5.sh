@@ -16,14 +16,15 @@ node --check lab/public/assets/ui.js
 # A per-suite cap reports failure rather than hanging the pipeline indefinitely.
 command -v timeout >/dev/null || { echo 'TIMEOUT_REQUIRED_ON_LINUX_RUNNER' >&2; exit 2; }
 for file in lab/tests/test_*.py; do
-    if [[ "$file" == *browser*.py ]]; then continue; fi
+    # Imported by test_http.py for compatibility with the shared fixed-list CI job.
+    if [[ "$file" == *browser*.py || "$file" == *test_nojs.py || "$file" == *test_preview_http.py ]]; then continue; fi
     timeout 40s python -m unittest discover -s lab/tests -p "$(basename "$file")" -q
 done
 # Run every actual Chromium suite at the end, after isolated HTTP sessions.
 for file in lab/tests/test_*browser*.py; do
     # The bridge suite is deliberately imported by test_browser.py so that the
     # shared fixed-list GitHub workflow exercises it too. Avoid running twice.
-    if [[ "$file" == *test_browser_php_bridge.py ]]; then continue; fi
+    if [[ "$file" == *test_browser_php_bridge.py || "$file" == *test_preview_browser.py ]]; then continue; fi
     timeout 60s python -m unittest discover -s lab/tests -p "$(basename "$file")" -q
 done
 printf '%s\n' 'RESEARCH_LAB_TESTS_PASSED (NOT production, no real mail/phone/Next SSR)'
