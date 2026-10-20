@@ -55,7 +55,7 @@ function sha(file){return crypto.createHash('sha256').update(fs.readFileSync(pat
 export async function snapshot(rows,post=fetch){
   const queries=rows.map(p=>({package:{ecosystem:p.ecosystem,name:p.name},version:p.version}));
   const response=await post('https://api.osv.dev/v1/querybatch',{
-    method:'POST',headers:{'content-type':'application/json','accept':'application/json'},
+    method:'POST',redirect:'error',headers:{'content-type':'application/json','accept':'application/json'},
     body:JSON.stringify({queries}),signal:AbortSignal.timeout(60000)
   });
   assert(response&&response.ok,'OSV HTTP '+(response?.status??'unreachable'));
