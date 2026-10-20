@@ -203,6 +203,11 @@ async function main(){
   if(process.env.GITHUB_STEP_SUMMARY)
     fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary(report));
   // No direct JSON/body dump in logs. No secrets or absolute paths.
+  // Only fixed route names and enum-level reasons; never dump response bodies,
+  // absolute paths, TLS peer details, remote addresses or credentials.
+  const failed=report.requests.filter(r=>!r.passed).map(r=>
+    r.name+':'+(r.reason||('http_'+String(r.httpStatus??'unavailable'))));
+  if(failed.length)process.stdout.write('Unmet safe route expectations: '+failed.join(', ')+'\\n');
   process.stdout.write('Stage2 owner-scoped Hostinger GET observations: '+report.requests.length+
     ' routes, all expectations '+(report.allChecksPassed?'PASS':'NOT YET')+
     '; no CMS install or database access.\n');
