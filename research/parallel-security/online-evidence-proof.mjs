@@ -36,12 +36,14 @@ function comparesNewer(latest,locked){
   }
   return false;
 }
-function withinWindow(iso){
+function withinWindow(iso,{historical=false}={}){
   demand(typeof iso==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(iso),
     'missing UTC ISO millisecond timestamp');
   const millis=Date.parse(iso);
-  demand(Number.isFinite(millis)&&Math.abs(Date.now()-millis)<=300000,
-    'stale or future-dated online evidence');
+  const age=Date.now()-millis;
+  demand(Number.isFinite(millis)&&(historical
+      ?age>=-300000:Math.abs(age)<=300000),
+    historical?'future-dated historical evidence':'stale or future-dated online evidence');
 }
 function locks(root){
   demand(typeof root==='string'&&path.isAbsolute(root),'invalid absolute checkout root');
@@ -86,14 +88,14 @@ function exactRows(actual,expected,map){
     seen.add(key);
   }
 }
-export function verifyOsvEvidence(stdout,root){
+export function verifyOsvEvidence(stdout,root,{allowFindings=false,historical=false}={}){
   const r=record(stdout,'OSV');
   const source=locks(root);
   demand(r.format==='ai-site-cms-point-in-time-osv-v1'&&
     r.source==='https://api.osv.dev/v1/querybatch'&&
     r.completeQueryResponse===true&&r.lockSnapshotVerifiedUnchanged===true,
     'OSV exact-query response not independently completed');
-  withinWindow(r.checkedAt);
+  withinWindow(r.checkedAt,{historical});
   demand(r.covered===43&&r.composer===14&&r.npm===29,
     'OSV query coverage must exactly equal 43');
   demand(r.lockSha256&&typeof r.lockSha256==='object'&&
@@ -105,19 +107,31 @@ export function verifyOsvEvidence(stdout,root){
   exactRows(r.results,source.rows,x=>x.version);
   let count=0,advisories=0;
   for(const x of r.results){
-    demand(Array.isArray(x.advisoryIds)&&x.advisoryIds.every(k=>typeof k==='string'),
+    demand(Array.isArray(x.advisoryIds)&&x.advisoryIds.every(k=>
+      typeof k==='string'&&/^[A-Za-z0-9._:-]{4,128}$/.test(k)),
       'missing/invalid advisory ID collection');
-    demand(x.count===x.advisoryIds.length,'inconsistent advisory count');
+    demand(new Set(x.advisoryIds).size===x.advisoryIds.length,
+      'duplicate advisory IDs in a package result');
+    demand(Number.isSafeInteger(x.count)&&x.count===x.advisoryIds.length,
+      'inconsistent advisory count');
     if(x.count){count++;advisories+=x.count;}
   }
   // --fail-on-advisory must exit 4 when real advisories are present, so
   // zero-exit path must never be accepted alongside nonzero findings.
-  demand(r.packagesWithAdvisories===count&&r.advisoryReferences===advisories&&
-    count===0&&advisories===0,
+  demand(r.packagesWithAdvisories===count&&r.advisoryReferences===advisories,
+    'advisory summary differs from the 43 actual rows');
+  demand(allowFindings||(count===0&&advisories===0),
     'OSV has findings but reported a successful fail-on-advisory exit');
-  return {proof:'43 exact locked packages, complete OSV querybatch, matching SHA256, no reported advisories',
-    checkedAt:r.checkedAt,lockSha256:source.sha256,covered:43,advisoryReferences:0,
-    securityApproved:false,legalApproved:false};
+  const findings=r.results.filter(x=>x.count).map(x=>({
+    ecosystem:x.ecosystem,name:x.name,version:x.version,
+    advisoryIds:[...x.advisoryIds].sort()
+  }));
+  return {proof:count
+      ?'complete 43-version historical/advisory OSV evidence REQUIRES HUMAN TRIAGE'
+      :'43 exact locked packages, complete OSV querybatch, matching SHA256, no reported advisories',
+    checkedAt:r.checkedAt,lockSha256:source.sha256,covered:43,
+    packagesWithAdvisories:count,advisoryReferences:advisories,findings,
+    historical,securityApproved:false,legalApproved:false};
 }
 export function verifyRegistryEvidence(stdout,root){
   const r=record(stdout,'registry');
