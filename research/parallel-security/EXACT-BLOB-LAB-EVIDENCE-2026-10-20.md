@@ -54,3 +54,13 @@ This is **targeted triage only**, not proof of zero OSV advisories across the 43
 4. Actual installed npm and Composer binary/source provenance, live DB/CAS/crash/privileged actor behavior, human legal/crypto signoff and Stage2 acceptance remain integrator-owned or unverified.
 
 **Conclusion:** new offline receipt and OSV transport fixtures have local **byte-identical source** evidence. Full checkout CI, network advisories and Sodium-free target compatibility are still open. PR #3 stays Draft; Stage2 and production are NOT accepted by this report.
+
+## Additional exact-blob trust-root rotation execution (same session)
+
+Subsequently reconstructed and byte-for-byte Git-blob verified both real files independently of the above signed-operator fixture:
+- `cms/src/Release/TrustedChainVerifier.php` — `c6767b5be8d4dc9ffd2582ecd9c8c16dbe64f4bc`.
+- `cms/tests/trust-chain.php` — `88a796c35a8febd6e45b2c3873b8323fbc49ecf4`.
+
+`php -l cms/src/Release/TrustedChainVerifier.php` and `php -l cms/tests/trust-chain.php`: **exit 0**. `php cms/tests/trust-chain.php`: **exit 0, 18/18 assertions PASS**, exactly as original checked-out GitHub source, using temporary A→B→C Ed25519 keys and external root/epoch floor checks. These cover forged incumbent/successor signatures, fake key replacement, unfinished journal, old-chain replay, signed lower release floor and file/lock interruptions. Original 36 receipt assertions were also rerun **three more times**, each **36/36 PASS**, with temporary receipt directories removed. Without `CI=true CMS_ALLOW_PHP_INSTALL_LAB=1`, receipt fixture correctly exits **2** with an explicit block. Local `php -n` still reports native Sodium loaded, so this **does not** qualify as an extension-free execution.
+
+**Current local source-level executed totals: 36 signed receipt + 18 trust rotation + 29 expanded offline OSV = 83 passing scripted assertions (across three separate commands)**. Do not add these counts to the historic PR #1 CI 22 jobs; they are different evidence units and environments. All exact-head full-tree GitHub CI, networked OSV and true PHP8.3 Sodium-free checks still remain open.
