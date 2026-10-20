@@ -26,7 +26,8 @@ FORBIDDEN = re.compile(
 
 def validate(upload: Path) -> tuple[dict[str, bytes], str]:
     # Preserve a plain known basename, not a path inside a webroot.
-    if upload.name != "private-runtime" or upload.is_symlink() or not upload.is_dir():
+    if (upload.name != "private-runtime" or upload.is_symlink() or upload.parent.is_symlink()
+            or not upload.is_dir()):
         raise ValueError("INVALID_PRIVATE_UPLOAD_ROOT")
     if upload.parent.name == "public_html" or "public_html" in upload.parts[-3:]:
         raise ValueError("WEBROOT_UPLOAD_REFUSED")
@@ -49,7 +50,7 @@ def validate(upload: Path) -> tuple[dict[str, bytes], str]:
     for item in declared:
         if not isinstance(item, dict) or set(item) != {"path", "bytes", "sha256"}:
             raise ValueError("INVALID_MANIFEST_RECORD")
-        p, length, sha = item.values() if False else (item["path"], item["bytes"], item["sha256"])
+        p, length, sha = item["path"], item["bytes"], item["sha256"]
         if (not isinstance(p, str) or not REL.fullmatch(p)
                 or FORBIDDEN.search(p) or p.startswith("/")
                 or p in expected or p == "private/package-manifest.json"
@@ -135,7 +136,7 @@ def main() -> int:
         print("OFFWEB_UPLOAD_ARGUMENT_REFUSED", file=sys.stderr)
         return 3
     try:
-        files, digest = validate(Path(sys.argv[1]).resolve())
+        files, digest = validate(Path(sys.argv[1]).absolute())
         archive_rehearsal(files, digest)
         return 0
     except (OSError, ValueError, TypeError, KeyError, zipfile.BadZipFile) as exc:
