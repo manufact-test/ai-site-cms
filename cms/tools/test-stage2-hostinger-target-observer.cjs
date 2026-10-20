@@ -48,6 +48,22 @@ check('public marker blocked',
  evaluate('privateMarkerHttpExposure',r(404,'not found')).pass);
 check('private marker publicly exposed rejected',
  !evaluate('privateMarkerHttpExposure',r(200,'secret')).pass);
+const offweb={format:'ai-site-cms-stage2-offweb-package-observation-v1',
+ probeRevision:REVISION,state:'absent',offwebPackageIntegrityVerified:false,
+ verifiedFiles:0,signatureVerified:false,phpFromPackageExecuted:false,
+ databaseConnected:false,cmsInstalled:false,peerAccountIsolationVerified:false,
+ productionReady:false,stage2Accepted:false};
+check('missing offweb package reported',evaluate('offwebPackage',r(503,JSON.stringify(offweb))).pass);
+check('full unsigned offweb package reported without CMS activation',
+ evaluate('offwebPackage',r(200,JSON.stringify({...offweb,state:'verified_unsigned_package',
+ offwebPackageIntegrityVerified:true,verifiedFiles:473}))).observed);
+check('unsigned inventory cannot impersonate signed release',
+ !evaluate('offwebPackage',r(200,JSON.stringify({...offweb,state:'verified_unsigned_package',
+ offwebPackageIntegrityVerified:true,verifiedFiles:473,signatureVerified:true}))).pass);
+check('offweb manifest not reachable on HTTP',
+ evaluate('offwebManifestHttpExposure',r(404,'Not Found')).pass);
+check('offweb manifest accidentally exposed is refused',
+ !evaluate('offwebManifestHttpExposure',r(200,'contents')).pass);
 check('visitor OK',evaluate('visitorHome',r(200,'<h1>hello</h1>','text/html')).pass);
 check('visitor redirect refused',!evaluate('visitorHome',r(301,'moved','text/html')).pass);
 check('health not installed',evaluate('notInstalled',r(503,'{"status":"not_installed"}')).pass);
@@ -65,4 +81,4 @@ const s2=summary({requests:[{name:'phpPreflight',httpStatus:200,tlsVerified:true
 check('two capability gaps shown',s2.includes('php_sodium_missing')
  &&s2.includes('target_web_sapi_requires_compatibility_review'));
 check('HTTPS pass not deploy acceptance',s2.includes('Target runtime compatibility for the current signed deployment: **STILL OPEN**'));
-console.log('Stage2 live report parser contract: 24 offline checks PASS; no host I/O');
+console.log('Stage2 live report parser contract: 29 offline checks PASS; no host I/O');

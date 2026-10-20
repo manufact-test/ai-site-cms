@@ -30,7 +30,7 @@ jobs:
           const {publicIPv4}=require('./cms/tools/stage2-target-https-check.cjs');
           const CMS='lightseagreen-woodpecker-264491.hostingersite.com';
           const VISITOR='mediumpurple-fox-175549.hostingersite.com';
-          const EXPECTED='stage2-target-host-check-20261020-r4';
+          const EXPECTED='stage2-target-host-check-20261020-r5';
           const pause=ms=>new Promise(done=>setTimeout(done,ms));
           function assert(check,reason){if(!check)throw Error(reason);}
           async function safeIp(host){
@@ -141,6 +141,25 @@ jobs:
                 }catch{return false;}
               }],
               ['Private marker not HTTP exposed','/cms-stage2-private-boundary/probe.json',r=>[403,404].includes(r.status)],
+              ['Compiled offweb package integrity (optional until separate installation)','/__stage2/offweb-package',r=>{
+                if(![200,503].includes(r.status)||!r.type.toLowerCase().startsWith('application/json'))return false;
+                try{
+                  const v=JSON.parse(r.body);
+                  const full=v.state==='verified_unsigned_package'&&
+                    v.offwebPackageIntegrityVerified===true&&
+                    Number.isInteger(v.verifiedFiles)&&v.verifiedFiles>=20&&v.verifiedFiles<=1200;
+                  const absent=['absent','incomplete'].includes(v.state)&&
+                    v.offwebPackageIntegrityVerified===false&&v.verifiedFiles===0;
+                  return v.format==='ai-site-cms-stage2-offweb-package-observation-v1'&&
+                    v.probeRevision===EXPECTED&&
+                    ((r.status===200&&full)||(r.status===503&&absent))&&
+                    v.signatureVerified===false&&v.phpFromPackageExecuted===false&&
+                    v.databaseConnected===false&&v.cmsInstalled===false&&
+                    v.peerAccountIsolationVerified===false&&v.productionReady===false&&
+                    v.stage2Accepted===false;
+                }catch{return false;}
+              }],
+              ['No public access to offweb CMS manifest','/cms-stage2-offweb-runtime/private/package-manifest.json',r=>[403,404].includes(r.status)],
               ['Private PHP vendor','/vendor/autoload.php',r=>[403,404].includes(r.status)],
               ['Private editor','/private/editor/editor.js',r=>[403,404].includes(r.status)],
               ['Hidden Git configuration','/.git/config',r=>[403,404].includes(r.status)],

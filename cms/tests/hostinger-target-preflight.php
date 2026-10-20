@@ -24,7 +24,7 @@ function passes(bool $valid,string $name):void {
 $body=runProbe($probe,'GET','/__stage2/host');
 $data=json_decode($body,true,512,JSON_THROW_ON_ERROR);
 passes($data['format']==='ai-site-cms-stage2-target-php-preflight-v1','format');
-passes($data['probeRevision']==='stage2-target-host-check-20261020-r4'&&$data['observationOnly']===true,'revision');
+passes($data['probeRevision']==='stage2-target-host-check-20261020-r5'&&$data['observationOnly']===true,'revision');
 passes($data['phpVersionMajorMinor']===PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION,'phpVersion');
 passes($data['phpSapi']===PHP_SAPI,'actualSapi');
 passes(is_bool($data['requirements']['privateParentExistsAndReadable'])
@@ -64,6 +64,48 @@ try {
     @rmdir($base.'/cms-stage2-private-boundary');
     @rmdir($base.'/public_html');
     @rmdir($base);
+}
+
+passes(str_contains(runProbe($probe,'GET','/__stage2/offweb-package'),'"state":"absent"'),
+    'missing_offweb_package');
+$base=sys_get_temp_dir().'/stage2-offweb-'.bin2hex(random_bytes(6));
+mkdir($base,0700);mkdir($base.'/public_html',0700);
+$copy=$base.'/public_html/index.php';copy($probe,$copy);
+$root=$base.'/cms-stage2-offweb-runtime';mkdir($root,0700);
+$paths=['public/index.php','public/.htaccess','vendor/autoload.php','private/editor/editor.js'];
+for($i=0;$i<16;$i++)$paths[]='src/Test/Item'.$i.'.php';
+try {
+    $entries=[];
+    foreach($paths as $rel) {
+        $f=$root.'/'.$rel;
+        if(!is_dir(dirname($f)))mkdir(dirname($f),0700,true);
+        $body='INERT-CONTENTS:'.$rel.chr(10);
+        file_put_contents($f,$body);
+        $entries[]=['path'=>$rel,'bytes'=>strlen($body),'sha256'=>hash('sha256',$body)];
+    }
+    $meta=['format'=>'ai-site-cms-internal-stage2-v2','stage'=>2,
+        'documentRoot'=>'public','productionReady'=>false,'isSigned'=>false,
+        'writeEndpointsAvailable'=>false,'files'=>$entries];
+    file_put_contents($root.'/private/package-manifest.json',
+        json_encode($meta,JSON_THROW_ON_ERROR));
+    $a=json_decode(runProbe($copy,'GET','/__stage2/offweb-package'),true,16,JSON_THROW_ON_ERROR);
+    passes($a['state']==='verified_unsigned_package'&&$a['verifiedFiles']===20
+        &&$a['offwebPackageIntegrityVerified']===true
+        &&$a['phpFromPackageExecuted']===false&&$a['cmsInstalled']===false,
+        'full_unsigned_offweb_package_detected');
+    file_put_contents($root.'/public/index.php','tampered');
+    $a=json_decode(runProbe($copy,'GET','/__stage2/offweb-package'),true,16,JSON_THROW_ON_ERROR);
+    passes($a['state']==='incomplete'&&!$a['offwebPackageIntegrityVerified'],
+        'tampered_offweb_package_refused');
+    passes(str_contains(runProbe($copy,'GET',
+        '/cms-stage2-offweb-runtime/private/package-manifest.json'),'not_found'),
+        'private_manifest_not_exposed_by_controller');
+} finally {
+    foreach($paths as $rel)@unlink($root.'/'.$rel);
+    @unlink($root.'/private/package-manifest.json');
+    foreach(['src/Test','src','private/editor','private','public','vendor'] as $d)
+        @rmdir($root.'/'.$d);
+    @rmdir($root);@unlink($copy);@rmdir($base.'/public_html');@rmdir($base);
 }
 passes(str_contains(runProbe($probe,'GET','/api/health'),'not_installed'),'not_installed_health');
 passes(str_contains(runProbe($probe,'GET','/api/publish'),'not_found'),'no_publish');

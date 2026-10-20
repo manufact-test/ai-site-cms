@@ -43,6 +43,79 @@ if ($path === '/api/health') {
 // sibling folder. No recursive scans, directory listings or cross-site paths.
 // This proves only that PHP can read one known file outside THIS public_html,
 // NOT isolation from other hosting users, actual private CMS install or DB.
+// Exact non-webroot package location; NO package PHP is loaded or executed.
+// SHA-256 is installation-completeness evidence, not authenticated publisher trust.
+if ($path === '/__stage2/offweb-package') {
+    $state='absent'; $count=0;
+    $parent=realpath(dirname(__DIR__)); $web=realpath(__DIR__);
+    $root=$parent===false?'':$parent.'/cms-stage2-offweb-runtime';
+    $actual=$root===''?false:realpath($root);
+    if ($parent!==false && $actual!==false) {
+        $state='incomplete';
+        $manifestFile=$root.'/private/package-manifest.json';
+        if ($actual===$root && !is_link($root) && is_dir($root)
+            && $web!==false && realpath((string)($_SERVER['DOCUMENT_ROOT']??''))===$web
+            && realpath((string)($_SERVER['SCRIPT_FILENAME']??''))===realpath(__FILE__)
+            && $actual!==$web && !str_starts_with($actual,$web.'/')
+            && !str_starts_with($web,$actual.'/')
+            && !is_link($manifestFile) && realpath($manifestFile)===$manifestFile
+            && is_file($manifestFile) && @filesize($manifestFile)<=250000
+            && @filesize($manifestFile)>=100) {
+            $data=json_decode((string)@file_get_contents($manifestFile),true,16);
+            if (is_array($data)
+                && ($data['format']??null)==='ai-site-cms-internal-stage2-v2'
+                && ($data['documentRoot']??null)==='public'
+                && ($data['stage']??null)===2
+                && ($data['productionReady']??null)===false
+                && ($data['isSigned']??null)===false
+                && ($data['writeEndpointsAvailable']??null)===false
+                && is_array($data['files']??null)
+                && count($data['files'])>=20 && count($data['files'])<=1200) {
+                $ok=true; $total=0; $seen=[];
+                foreach ($data['files'] as $record) {
+                    if (!is_array($record)||!is_string($record['path']??null)
+                        ||!is_int($record['bytes']??null)
+                        ||!is_string($record['sha256']??null)) {$ok=false;break;}
+                    $rel=$record['path'];
+                    if (strlen($rel)>512||!preg_match('~\A[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\z~D',$rel)
+                        ||in_array('..',explode('/',$rel),true)
+                        ||in_array('.',explode('/',$rel),true)
+                        ||isset($seen[$rel])||$record['bytes']<0
+                        ||$record['bytes']>8388608
+                        ||!preg_match('/\A[a-f0-9]{64}\z/D',$record['sha256'])) {$ok=false;break;}
+                    $seen[$rel]=true; $total+=$record['bytes'];
+                    if ($total>180000000) {$ok=false;break;}
+                    $f=$root.'/'.$rel; $stat=@lstat($f);
+                    if ($stat===false||!is_file($f)||is_link($f)
+                        ||realpath($f)!==$f||$stat['size']!==$record['bytes']
+                        ||($stat['nlink']??0)!==1
+                        ||!hash_equals($record['sha256'],(string)@hash_file('sha256',$f))) {
+                        $ok=false;break;
+                    }
+                    $count++;
+                }
+                foreach (['public/index.php','public/.htaccess','vendor/autoload.php',
+                    'private/editor/editor.js'] as $required) {
+                    if (!isset($seen[$required]))$ok=false;
+                }
+                if ($ok)$state='verified_unsigned_package';
+            }
+        }
+    }
+    $found=$state==='verified_unsigned_package';
+    http_response_code($found?200:503);
+    echo json_encode([
+        'format'=>'ai-site-cms-stage2-offweb-package-observation-v1',
+        'probeRevision'=>'stage2-target-host-check-20261020-r5',
+        'state'=>$state,'offwebPackageIntegrityVerified'=>$found,
+        'verifiedFiles'=>$found?$count:0,
+        'signatureVerified'=>false,'phpFromPackageExecuted'=>false,
+        'databaseConnected'=>false,'cmsInstalled'=>false,
+        'peerAccountIsolationVerified'=>false,'productionReady'=>false,
+        'stage2Accepted'=>false
+    ], JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+    exit;
+}
 if ($path === '/__stage2/private-boundary') {
     $siteParent = realpath(dirname(__DIR__));
     $privatePath = $siteParent === false ? '' : $siteParent . '/cms-stage2-private-boundary';
@@ -58,7 +131,7 @@ if ($path === '/__stage2/private-boundary') {
     http_response_code($found ? 200 : 503);
     echo json_encode([
         'format' => 'ai-site-cms-stage2-private-boundary-observation-v1',
-        'probeRevision' => 'stage2-target-host-check-20261020-r4',
+        'probeRevision' => 'stage2-target-host-check-20261020-r5',
         'outsideThisPublicRootMarkerObserved' => $found,
         'cmsInstalled' => false,
         'privateCmsCodeInstalled' => false,
@@ -77,7 +150,7 @@ if ($path === '/__stage2/rewrite/proof') {
     http_response_code($mapped ? 200 : 503);
     echo json_encode([
         'format' => 'ai-site-cms-stage2-routing-observation-v1',
-        'probeRevision' => 'stage2-target-host-check-20261020-r4',
+        'probeRevision' => 'stage2-target-host-check-20261020-r5',
         'exactNonFileRoute' => true,
         'frontControllerMapped' => $mapped,
         'installationReady' => false,
@@ -107,7 +180,7 @@ $privateParentUsable = is_string($privateParent) && $privateParent !== $scriptDi
     && is_dir($privateParent) && is_readable($privateParent);
 
 $report = [
-    'probeRevision' => 'stage2-target-host-check-20261020-r4',
+    'probeRevision' => 'stage2-target-host-check-20261020-r5',
     'observationOnly' => true,
     'phpVersionMajorMinor' => PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION,
     'phpSapi' => PHP_SAPI,
