@@ -120,6 +120,34 @@ class BrowserLab(unittest.TestCase):
         self.assertFalse(page.locator('#info-dialog').evaluate('(el)=>el.open'))
         page.close()
 
+    def test_real_avif_and_webp_decode_offline(self):
+        import base64
+        page=self.browser.new_page()
+        try:
+            for fmt in ('avif','webp'):
+                raw=(PUBLIC/f'assets/media/workshop-640.{fmt}').read_bytes()
+                uri=f'data:image/{fmt};base64,'+base64.b64encode(raw).decode('ascii')
+                result=page.evaluate("async uri => {const image=new Image();image.src=uri;await image.decode();return [image.naturalWidth,image.naturalHeight]}",uri)
+                self.assertEqual(result,[640,360])
+        finally:
+            page.close()
+
+    def test_media_semantics_and_phone_input(self):
+        page=self.new_page(viewport={'width':320,'height':720}, reduced_motion='reduce')
+        self.assertEqual(page.locator('picture source').count(),2)
+        self.assertEqual(page.locator('picture source').first.get_attribute('type'),'image/avif')
+        self.assertIn('320w',page.locator('picture source').first.get_attribute('srcset'))
+        image=page.locator('.media-demo img')
+        self.assertEqual(image.get_attribute('loading'),'eager')
+        self.assertEqual(image.get_attribute('fetchpriority'),'high')
+        self.assertEqual(image.get_attribute('width'),'960')
+        self.assertEqual(image.get_attribute('height'),'540')
+        self.assertTrue(image.get_attribute('alt'))
+        self.assertEqual(page.locator('#phone_region option').count(),6)
+        self.assertEqual(page.locator('#phone_region').input_value(),'ZZ')
+        self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
+        page.close()
+
     def test_form_client_and_server_no_fake_success(self):
         page=self.new_page(viewport={'width':900,'height':800})
         page.locator('#form-submit').click()

@@ -28,7 +28,7 @@ final class FormLab
     /**
      * Delivery callable: function(string $recipient, array $safeFields): bool.
      * A true return means ACCEPTED BY TRANSPORT, never final inbox delivery.
-     * Phone validator must be a real region-aware server implementation (not a regex).
+     * Phone validator returns canonical E.164 string or null; must use a region-aware implementation (not regex).
      * Session throttling is a demo layer only; production requires shared-IP/account throttles.
      */
     public static function submit(array $post, array &$session, int $now, ?string $recipient,
@@ -81,9 +81,18 @@ final class FormLab
             return self::result(503, 'PHONE_VALIDATOR_REQUIRED',
                 'Проверка международного телефона не настроена. Можно отправить форму без телефона.');
         }
-        if ($fields['phone'] !== '' && !$phoneValidator($fields['phone'])) {
-            return self::result(422, 'VALIDATION_ERROR', 'Проверьте поля формы.',
-                ['phone' => 'Номер телефона не прошёл международную проверку.']);
+        if ($fields['phone'] !== '') {
+            try {
+                $canonicalPhone = $phoneValidator($fields['phone']);
+            } catch (Throwable) {
+                return self::result(503, 'PHONE_VALIDATOR_REQUIRED',
+                    'Серверная проверка телефонного номера временно недоступна. Заявка не отправлена.');
+            }
+            if (!is_string($canonicalPhone) || preg_match('/^\+[1-9][0-9]{1,14}$/D', $canonicalPhone) !== 1) {
+                return self::result(422, 'VALIDATION_ERROR', 'Проверьте поля формы.',
+                    ['phone' => 'Номер телефона не прошёл международную проверку.']);
+            }
+            $fields['phone'] = $canonicalPhone;
         }
         if ($recipient === null || filter_var($recipient, FILTER_VALIDATE_EMAIL) === false
             || preg_match('/[\r\n]/', $recipient)) {

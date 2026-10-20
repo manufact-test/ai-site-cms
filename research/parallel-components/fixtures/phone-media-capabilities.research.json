@@ -1,0 +1,26 @@
+{
+  "_status": "NONCANONICAL STAGE2 RESEARCH; OWNED BY FUTURE STAGE3 DESIGN",
+  "existingBlocks": [
+    {
+      "id": "contact-form-phone",
+      "kind": "form",
+      "editable": {
+        "content.phoneLabel": {"type": "string", "minLength": 1, "maxLength": 90},
+        "behavior.phoneOptional": {"type": "boolean"},
+        "behavior.phoneCountryPreset": {"type": "string", "enum": ["ZZ", "DE", "PL", "GB", "FR", "US"]}
+      },
+      "immutableRuntime": ["delivery.recipient", "delivery.credentials", "delivery.endpoint", "security.phoneValidator", "security.sharedThrottle", "security.csrf"]
+    },
+    {
+      "id": "hero-image-primary",
+      "kind": "media",
+      "editable": {
+        "content.alt": {"type": "string", "maxLength": 250},
+        "content.caption": {"type": "string", "maxLength": 300},
+        "media.assetId": {"type": "string", "pattern": "^asset_[a-z0-9]{8,40}$"},
+        "layout.cropMode": {"type": "string", "enum": ["cover", "contain"]}
+      },
+      "immutableRuntime": ["media.src", "media.srcset", "media.remoteUrl", "media.rawSvg", "media.mime", "media.byteSize", "media.lcpPriority", "media.imageTransformCode"]
+    }
+  ]
+}

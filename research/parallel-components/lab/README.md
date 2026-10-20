@@ -33,3 +33,33 @@ States: `ORIGIN_CONFIGURATION_REQUIRED`/503, `ORIGIN_INVALID`/403, `HOST_INVALID
 - Keyboard tests cover 320px reduced-motion navigation focus, 375px menu Escape, 1280px tabs/dialog, focus return, and delivery-failure states. They load PHP-rendered HTML via Python into Chromium, not a Chromium→PHP HTTP E2E. Android/iOS VoiceOver/TalkBack/Safari/Firefox and real Next SSR remain untested.
 
 See `../TEST-EVIDENCE-2026-10-20.md` for exact captured command outcomes and versions.
+
+## Third experiment: international phones, shared throttle, real responsive media
+
+All additions remain isolated under this laboratory. PHP runtime on a website **requires no Node.js**; the test-only image generator used Pillow, and images themselves are committed as original assets. From `research/parallel-components`:
+
+```bash
+php lab/tests/phone-tests.php       # API protocol double; real libphonenumber NOT installed
+php lab/tests/throttle-tests.php    # including 12 parallel PHP child processes
+php lab/tests/media-tests.php       # fixed HTML attribute and URL/alt guards
+python -m unittest discover -s lab/tests -p test_browser.py -v
+for p in test_adapter_capabilities.py test_capabilities.py test_http.py test_http_configured.py test_media_assets.py test_schema.py; do
+  python -m unittest discover -s lab/tests -p "$p" -v || exit 1
+done
+```
+
+### Phone adapter is real-library-or-refusal, not regex validity
+
+When phone is provided, `PhoneAdapter.php` requires server-side `libphonenumber` classes and returns normalized E.164 via `parse`, `isValidNumber` / `isValidNumberForRegion` and `format`. No vendored library or changed Composer lock in this branch. `LAB_PHONE_AUTOLOAD` may be set by an operator **only** to the absolute file path of a pinned Composer autoloader outside the public webroot; the lab includes no dependency auto-installer. Example local-only preparation in a **separate disposable directory** (not in this repository): pin `giggsey/libphonenumber-for-php-lite` and its dependencies, then set `LAB_PHONE_AUTOLOAD=/absolute/private/vendor/autoload.php` with all legal/security checks. PHP extension `mbstring` is required upstream; this container lacks it. The optional phone can be omitted to demonstrate other gates. A visible `phone_region` enum is merely a UX hint, and region code / E.164 / actual numbering validity are verified **server-side**. The adapter rejects extensions and ambiguous national numbers without a country. Tests with a double prove API binding and fail-closed logic **only**, not genuine libphonenumber metadata accuracy or telecom reachability. Server errors are redacted and do not cause positive delivery assertions.
+
+### Shared rate gate (per-origin server identity)
+
+To test a *configured recipient* on a throwaway **local-only** server, `LAB_ABUSE_DIR` must point to an existing operator-owned writable PRIVATE directory outside `lab/public`, permissions allowing no access by other users; `LAB_ABUSE_SECRET` must be a long random operator-held value of at least 32 bytes (do not commit it). Client IP is **only** PHP's `REMOTE_ADDR`; arbitrary forwarded headers are ignored. If site is behind a trusted reverse proxy, mapping of client identity requires a separately audited trusted-proxy policy; this lab does **not** guess it. HMAC bucketing + file `flock()` protect against overlapping PHP workers on a single reliable local filesystem. This is not distributed/production spam protection: directory growth needs protected rotation/cleanup, privacy retention decisions, private logging, queuing and limits by ASN/account, proxy-aware identity, bandwidth budgets and CAPTCHA/challenge strategy where justified.
+
+When a recipient is configured but this guard is not properly configured: HTTP **503 `ANTI_SPAM_CONFIGURATION_REQUIRED`** and **no delivery attempt**. When configured and threshold reached: HTTP **429 `RATE_LIMITED`**, also no delivery. When phone is filled without the real server library: **503 `PHONE_VALIDATOR_REQUIRED`**. When transport is unconfigured or rejects delivery: **502 `DELIVERY_FAILED`** (never fictitious 200). `test_http_configured.py` verifies these with actual loopback PHP HTTP (and no real outbound mail).
+
+### Picture fixture
+
+`fixtures/media-candidates.research.json` is a strictly bounded visual fixture rendered by `MediaLab.php` into native `<picture>` with three widths each for AVIF and WebP plus WebP `<img>` fallback, intrinsically sized 960×540, meaningful escaped alt and caption, no browser CDN. The only original image is a synthetic factory-themed diagram created for this research lab, not copied from third parties. Source assets total < 50 KB; Pillow **and actual Chromium** decode their bytes offline via data URLs. This proves file-format validity, not HTTP negotiation/cache/LCP metrics. Render-time strict path allowlist intentionally does **not** accept arbitrary uploads, remote URLs, SVG, or URI escapes. It is not a production asset pipeline, image optimizer or gallery.
+
+Responsive visual smoke inspects the generated markup at 320px in Chromium, and prohibits document horizontal overflow. The `role=lcp` fixture uses eager/high priority, while `role=content` uses lazy. Future Stage3 should derive these from actual placement/measurement and keep them non-editable as arbitrary raw URLs.

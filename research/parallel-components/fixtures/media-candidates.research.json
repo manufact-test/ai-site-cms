@@ -1,0 +1,17 @@
+{
+  "alt": "Лабораторная иллюстрация производственной линии с круглыми механизмами",
+  "caption": "Локальные AVIF/WebP-файлы трёх размеров; без внешних сервисов",
+  "role": "lcp",
+  "width": 960,
+  "height": 540,
+  "avif": {
+    "320": "/assets/media/workshop-320.avif",
+    "640": "/assets/media/workshop-640.avif",
+    "960": "/assets/media/workshop-960.avif"
+  },
+  "webp": {
+    "320": "/assets/media/workshop-320.webp",
+    "640": "/assets/media/workshop-640.webp",
+    "960": "/assets/media/workshop-960.webp"
+  }
+}
