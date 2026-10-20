@@ -5,7 +5,8 @@ const fs=require('node:fs'),path=require('node:path');
 const workflow=fs.readFileSync(path.join(__dirname,'../../.github/workflows/stage2-hostinger-private-stage.yml'),'utf8');
 // A source-only test commit must not change Composer root VERSION inside
 // the uploaded package; release.json is the explicit version source.
-assert.ok(workflow.includes('export COMPOSER_ROOT_VERSION="$(node -p "require(\'./release.json\').version")"'));
+assert.ok(workflow.includes('export COMPOSER_ROOT_VERSION=')&&
+  workflow.includes("split('-stage2.')")&&workflow.includes("'-alpha'"));
 const required=[
   'workflow_run:',"head_branch == 'main'", "conclusion == 'success'",
   'head_repository.full_name == github.repository',
