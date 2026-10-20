@@ -18,14 +18,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
+      - name: Checkout currently approved main as disposable integration base
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: project
+          fetch-depth: 0
+          persist-credentials: false
       - name: Checkout original unmerged Security branch (NO write credentials)
         uses: actions/checkout@v4
         with:
           ref: research/stage2-supply-chain
+          path: candidate
           fetch-depth: 0
           persist-credentials: false
       - name: Prove research-only branch scope against current main
         shell: bash
+        working-directory: candidate
         run: |
           set -euo pipefail
           git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
@@ -38,6 +47,13 @@ jobs:
           git rev-parse HEAD
           git rev-parse origin/main
           echo 'Security PR changes restricted to research/parallel-security/'
+      - name: Apply only the reviewed research subtree to a disposable current-main tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e project/research/parallel-security
+          cp -a candidate/research/parallel-security project/research/parallel-security
+          echo 'Only permitted research files copied; no GitHub writes, Hostinger or production deployment'
       - name: Install pinned Node 22 and PHP 8.3 for disposable CI only
         uses: actions/setup-node@v4
         with:
@@ -47,18 +63,35 @@ jobs:
           php-version: '8.3'
           tools: composer:v2
           coverage: none
-      - name: Install original pinned build-only dependencies
+      - name: Install original pinned build-only dependencies from current main
         shell: bash
+        working-directory: project
         run: |
           set -euo pipefail
           (cd cms && composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader)
           (cd cms/editor && npm ci --no-audit --no-fund && npm run build)
           (cd cms && node tools/build-internal-package.cjs)
-      - name: Run original independent Security suite and enforce real evidence
+      - name: Run independent Security suite with transparent failure classification
         shell: bash
+        working-directory: project
         run: |
           set -euo pipefail
+          set +e
           node research/parallel-security/run-security-suite.mjs > "$RUNNER_TEMP/security-results.json"
+          suite_status=$?
+          set -e
+          node - "$RUNNER_TEMP/security-results.json" <<'DEBUG'
+          const fs=require('node:fs');
+          const report=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          for(const result of report.results){
+            if(result.status==='failed')console.log(JSON.stringify({
+              failed:result.name,exitCode:result.exitCode,
+              message:(result.stderr||result.validationError||result.stdout||'').slice(-1300)
+            }));
+          }
+          console.log('EXECUTED_TESTS',report.counts);
+          DEBUG
+          test "$suite_status" -eq 0
           node - "$RUNNER_TEMP/security-results.json" <<'JS'
           const fs=require('node:fs');
           const report=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
@@ -93,14 +126,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Checkout currently approved main as disposable integration base
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: project
+          fetch-depth: 0
+          persist-credentials: false
       - name: Checkout original unmerged Components branch (NO write credentials)
         uses: actions/checkout@v4
         with:
           ref: research/editor-component-patterns
+          path: candidate
           fetch-depth: 0
           persist-credentials: false
       - name: Prove research-only branch scope against current main
         shell: bash
+        working-directory: candidate
         run: |
           set -euo pipefail
           git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
@@ -113,6 +155,13 @@ jobs:
           git rev-parse HEAD
           git rev-parse origin/main
           echo 'Components PR changes restricted to research/parallel-components/'
+      - name: Apply only the reviewed research subtree to a disposable current-main tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e project/research/parallel-components
+          cp -a candidate/research/parallel-components project/research/parallel-components
+          echo 'Only permitted research files copied; no GitHub writes, Hostinger or production deployment'
       - name: PHP 8.3 from target runtime family
         uses: shivammathur/setup-php@v2
         with:
@@ -120,7 +169,7 @@ jobs:
           coverage: none
       - name: Exact local research PHP syntax and concurrency tests
         shell: bash
-        working-directory: research/parallel-components
+        working-directory: project/research/parallel-components
         run: |
           set -euo pipefail
           for file in lab/src/*.php lab/public/*.php lab/tests/*.php; do php -l "$file"; done
@@ -136,11 +185,11 @@ jobs:
           python -m playwright install --with-deps chromium
           CHROME="$(find "$HOME/.cache/ms-playwright" -type f -name chrome -path '*/chrome-linux*/chrome' -print -quit)"
           test -n "$CHROME" && test -x "$CHROME"
-          sudo ln -s "$CHROME" /usr/bin/chromium
+          sudo ln -sfn "$CHROME" /usr/bin/chromium
           /usr/bin/chromium --version
       - name: Independent isolated PHP localhost HTTP, schema, real Chromium and media tests
         shell: bash
-        working-directory: research/parallel-components
+        working-directory: project/research/parallel-components
         run: |
           set -euo pipefail
           for module in test_adapter_capabilities.py test_capabilities.py test_http.py test_http_configured.py test_media_assets.py test_schema.py test_browser.py; do
