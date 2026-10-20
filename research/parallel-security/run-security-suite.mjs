@@ -97,4 +97,14 @@ const out={schema:'ai-site-cms-security-evidence-v1',environment:{node:process.v
   complete:counts.failed===0&&counts.blocked===0,
   productionApproved:false,licenseApproved:false,stage2Accepted:false,results};
 console.log(JSON.stringify(out,null,2));
+if(counts.failed>0){
+  // CI normally redirects the structured stdout report into RUNNER_TEMP.
+  // Emit bounded failure diagnostics on stderr for a reproducible PR review.
+  console.error('INDEPENDENT_SECURITY_SUITE_FAILURE '+JSON.stringify(
+    results.filter(x=>x.status==='failed').map(x=>({
+      name:x.name,exitCode:x.exitCode,validationError:x.validationError||null,
+      stderr:(x.stderr||'').slice(-500),stdout:(x.stdout||'').slice(-350)
+    }))
+  ));
+}else console.error('INDEPENDENT_SECURITY_SUITE_COUNTS '+JSON.stringify(counts));
 process.exitCode=counts.failed>0?1:strict&&counts.blocked>0?3:0;
