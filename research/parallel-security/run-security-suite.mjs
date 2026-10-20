@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import cp from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {verifyOsvEvidence,verifyRegistryEvidence} from './online-evidence-proof.mjs';
 const dirname=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(dirname,'../..');
 const args=process.argv.slice(2);
@@ -42,13 +43,14 @@ const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
-  'sodium-compat-attest-regression.mjs','runtime-sodium-proof.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
+  'sodium-compat-attest-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
+  'online-evidence-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
   if(name.endsWith('.mjs'))entry('syntax:'+name,capture('node',['--check',path.join(dirname,name)]));
   else entry('syntax:'+name,capture(runtime,['-l',path.join(dirname,name)]));
 }
-for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest-regression.mjs']){
+for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest-regression.mjs','online-evidence-regression.mjs']){
   const result=entry('mutation:'+name,capture('node',[path.join(dirname,name)],{timeout:30000}));
   if(name==='osv-strict-regression.mjs')requireProof(result,
     /OSV strict-response \+ transport \+ lock fixture PASS 30 cases;/,
@@ -62,6 +64,9 @@ for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-r
   if(name==='sodium-compat-attest-regression.mjs')requireProof(result,
     /Sodium compat independent source attestation offline regression PASS 20 assertions;/,
     '20 negative source/version/whole-tree attestation assertions (synthetic only)');
+  if(name==='online-evidence-regression.mjs')requireProof(result,
+    /Online OSV and registry evidence offline regression PASS 40 assertions;/,
+    '40 adversarial OSV online and registry exit-zero report evidence assertions');
 }
 const lockPaths=['cms/composer.lock','cms/editor/package-lock.json','cms/editor/package.json'];
 const completeLock=lockPaths.every(f=>fs.existsSync(path.join(root,f)));
@@ -77,8 +82,18 @@ if(completeLock){
   if(csv.status==='passed'&&rawCsv.stdout.trimEnd().split('\n').length!==44){csv.status='failed';csv.validationError='not 43 rows + header';}
   entry('actual-lock:provenance',capture('node',[path.join(dirname,'lock-provenance.mjs')]));
   if(online){
-    entry('online:OSV-strict43',capture('node',[path.join(dirname,'osv-strict-snapshot.mjs'),'--fail-on-advisory'],{timeout:100000}));
-    entry('online:version-registry',capture('node',[path.join(dirname,'version-check.mjs')],{timeout:240000}));
+    const rawOsv=capture('node',[path.join(dirname,'osv-strict-snapshot.mjs'),'--fail-on-advisory'],{timeout:100000});
+    const os=entry('online:OSV-strict43',rawOsv);
+    if(os.status==='passed'){
+      try{os.verifiedEvidence=verifyOsvEvidence(rawOsv.stdout,root);}
+      catch(e){os.status='failed';os.validationError=String(e.message||e);}
+    }
+    const rawRegistry=capture('node',[path.join(dirname,'version-check.mjs')],{timeout:240000});
+    const registry=entry('online:version-registry',rawRegistry);
+    if(registry.status==='passed'){
+      try{registry.verifiedEvidence=verifyRegistryEvidence(rawRegistry.stdout,root);}
+      catch(e){registry.status='failed';registry.validationError=String(e.message||e);}
+    }
   }
 } else {
   for(const name of ['actual-lock:json','actual-lock:csv','actual-lock:provenance'])block(name,'Requires original composer.lock, package-lock.json, package.json in complete checkout');
@@ -162,7 +177,8 @@ const proofNames=[
   'native:operator-settlement-chain','native:trust-root-rotation',
   'mutation:osv-strict-regression.mjs','mutation:osv-cli-regression.mjs',
   'mutation:suite-exit-regression.mjs',
-  'mutation:sodium-compat-attest-regression.mjs'
+  'mutation:sodium-compat-attest-regression.mjs',
+  'mutation:online-evidence-regression.mjs'
 ];
 console.error('INDEPENDENT_SECURITY_EXACT_HEAD_PROOFS '+JSON.stringify(
   proofNames.map(name=>{
