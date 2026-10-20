@@ -30,7 +30,7 @@ const entry=(name, probe, expected=0)=> {
 };
 const block=(name, reason)=>results.push({name,status:'blocked',reason});
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
-  'ed25519-lab.php','release-fixture.mjs','release-verify-runner.php',
+  'ed25519-lab.php','receipt-chain-regression.php','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
@@ -75,6 +75,17 @@ const isNoNative=capture(runtime,['-n','-r','echo extension_loaded("sodium") ? "
 if(isNative.exitCode===0&&isNative.stdout==='native'){
   entry('native:RFC8032',capture(runtime,[path.join(dirname,'ed25519-lab.php'),'native'],{timeout:30000}));
   entry('native:signed-envelope',capture('node',[path.join(dirname,'release-fixture.mjs'),'native'],{timeout:30000}));
+  const receiptFixture=path.join(dirname,'receipt-chain-regression.php');
+  if(fs.existsSync(receiptFixture)) {
+    entry('native:operator-receipt-chain',
+      capture(runtime,[receiptFixture],{timeout:45000,
+        env:{CI:'true',CMS_ALLOW_PHP_INSTALL_LAB:'1'}}));
+  } else block('native:operator-receipt-chain','Research receipt verification fixture unavailable');
+  const rootTrustFixture=path.join(root,'cms/tests/trust-chain.php');
+  if(fs.existsSync(rootTrustFixture)) {
+    entry('native:trust-root-rotation',
+      capture(runtime,[rootTrustFixture],{timeout:45000}));
+  } else block('native:trust-root-rotation','Original PHP trust-chain contract unavailable in partial checkout');
 }else block('native:cryptography','Native ext-sodium not available');
 if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
   entry('no-sodium:RFC8032-rejection',capture(runtime,['-n',path.join(dirname,'ed25519-lab.php'),'absent']));
