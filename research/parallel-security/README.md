@@ -34,3 +34,9 @@ Pure PHP mode requires an independently verified local sodium_compat 2.5.2 autol
 - [EVIDENCE-2026-10-20.md](EVIDENCE-2026-10-20.md) — exact local runtime, commands, exit codes, hashes, remaining unexecuted checks.
 
 No production file changes and no legal clearance or Hostinger crypto confirmation.
+
+### One-command audit and explicit coverage
+
+Run from a **complete Git checkout**: `node research/parallel-security/run-security-suite.mjs --strict`. JSON report carries individual commands, actual exit codes, runtime detection, and `passed / failed / blocked` statuses. Exit `0` = executed tests passed (does not imply complete or approved); `1` = an executed test failed; `3` = strict mode and one or more checks **blocked**; `2` = invalid CLI usage. Optional `--online` adds point-in-time OSV and version-registry checks and fails on failed network calls. Neither stage acceptance nor legal compliance can be inferred from exit 0.
+
+Do not call `php -n` a true no-Sodium environment without checking `extension_loaded('sodium')`: this runner checks it before selecting absent/compat mode. `SODIUM_COMPAT_AUTOLOAD` must point to an independently verified exact 2.5.2 local archive and only works when native extension is genuinely absent. The runner does not download or install upstream packages.
