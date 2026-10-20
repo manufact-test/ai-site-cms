@@ -13,6 +13,15 @@ check(manifest.hostingComposerOrNodeRequired===false,'Static package needs no bu
 check(fs.existsSync(path.join(STAGE,'private/editor/editor.js')),'Bundled browser JS private');
 check(!fs.existsSync(path.join(STAGE,'public/editor.js')),'Public editor JS inaccessible');
 check(fs.existsSync(path.join(STAGE,'vendor/autoload.php')),'Composer runtime vendor included');
+check(manifest.files.some(x=>x.path==='bin/hostinger-stage2-once.php'),
+  'One-shot Hostinger operator is packaged off-web only');
+check(manifest.files.some(x=>x.path==='src/Hosting/HostingerStage2OneShot.php'),
+  'One-shot implementation is inventoried');
+for(const unsafe of ['public/hostinger-stage2-once.php','cms-stage2-local/once.json',
+  'public/once.json','public/receipt.json','private/once.json']){
+  check(!manifest.files.some(x=>x.path===unsafe),
+    'No operator credentials, tasks or receipts in source package: '+unsafe);
+}
 check(manifest.files.some(x=>x.path==='public/.htaccess'),
   'Apache fallback/security rules are fully inventoried in shipped public root');
 for(const dangerous of ['.env','../etc/shadow','private/../public/bad','storage/main.sqlite','private/editor/.npmrc','public/server.key']){
