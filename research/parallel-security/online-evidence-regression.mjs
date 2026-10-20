@@ -5,6 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import cp from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {verifyOsvEvidence,verifyRegistryEvidence} from './online-evidence-proof.mjs';
 
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'cms-online-evidence-'));
@@ -114,6 +116,76 @@ try{
     ['registry false future timestamp',r=>r.checkedAt='2099-01-01T00:00:00.000Z']
   ]){const x=registry();alter(x);reject(label,()=>registryValidate(x));}
   check(validate(makeOsv()).covered===43,'source snapshots still valid after negative mutations');
+  // The archived report must preserve advisory-bearing evidence, never claim
+  // that a nonzero advisory count is a clean zero-exit audit.
+  const withFindings=makeOsv();
+  withFindings.results[0].advisoryIds=['GHSA-aaaa-bbbb-cccc'];
+  withFindings.results[0].count=1;
+  withFindings.packagesWithAdvisories=1;
+  withFindings.advisoryReferences=1;
+  const findingSummary=verifyOsvEvidence(JSON.stringify(withFindings),dir,
+    {allowFindings:true});
+  check(findingSummary.advisoryReferences===1&&findingSummary.findings.length===1&&
+    findingSummary.securityApproved===false,'complete advisory case is triaged, never approved');
+  reject('advisory must fail ordinary zero-exit verifier',()=>validate(withFindings));
+  const duplicate=copy(withFindings);
+  duplicate.results[0].advisoryIds.push('GHSA-aaaa-bbbb-cccc');
+  duplicate.results[0].count=2;
+  duplicate.advisoryReferences=2;
+  reject('duplicate advisory evidence',()=>verifyOsvEvidence(JSON.stringify(duplicate),dir,{allowFindings:true}));
+  const invalid=copy(withFindings);
+  invalid.results[0].advisoryIds=['<script>'];
+  reject('invalid malicious advisory ID',()=>verifyOsvEvidence(JSON.stringify(invalid),dir,{allowFindings:true}));
+  // This subprocess copies the REAL triage CLI and REAL verification helper
+  // into a disposable checkout; no actual network requests or project writes.
+  const src=path.dirname(fileURLToPath(import.meta.url));
+  const isolated=path.join(dir,'research/parallel-security');
+  fs.mkdirSync(isolated,{recursive:true});
+  for(const file of ['osv-advisory-triage.mjs','online-evidence-proof.mjs'])
+    fs.copyFileSync(path.join(src,file),path.join(isolated,file));
+  const saved=path.join(dir,'snapshot.json');
+  const run=(value,params=[])=>{
+    if(value!==null)fs.writeFileSync(saved,JSON.stringify(value));
+    const r=cp.spawnSync(process.execPath,
+      [path.join(isolated,'osv-advisory-triage.mjs'),saved,...params],
+      {encoding:'utf8',timeout:12000,maxBuffer:1024*1024});
+    assert.equal(r.error,undefined,String(r.error));
+    return r;
+  };
+  const clean=run(makeOsv());
+  check(clean.status===0&&JSON.parse(clean.stdout).verifiedExactPins===43&&
+    JSON.parse(clean.stdout).status==='no-database-advisories-at-checked-time',
+    'saved complete 43-version clean transcript is independently reconciled');
+  const advisory=run(withFindings);
+  check(advisory.status===4&&JSON.parse(advisory.stdout).advisoryReferences===1&&
+    JSON.parse(advisory.stdout).findings[0].advisoryIds[0]==='GHSA-aaaa-bbbb-cccc'&&
+    JSON.parse(advisory.stdout).stage2Accepted===false,
+    'saved finding produces exit 4 with full triage evidence and no production authorization');
+  const stale=copy(withFindings);stale.checkedAt='2023-01-01T00:00:00.000Z';
+  const staleDefault=run(stale);
+  check(staleDefault.status===3&&!staleDefault.stdout.trim(),
+    'stale saved OSV report refused as current');
+  const historic=run(stale,['--historical']);
+  check(historic.status===4&&JSON.parse(historic.stdout).historicalSnapshot===true,
+    'historical advisory transcript accepted ONLY as historical triage with exit 4');
+  const tampered=copy(makeOsv());
+  tampered.lockSha256['cms/composer.lock']='b'.repeat(64);
+  const badHash=run(tampered,['--historical']);
+  check(badHash.status===3&&!badHash.stdout.trim(),
+    'invalid original lock fingerprint refused in historical mode');
+  fs.writeFileSync(saved,'broken');
+  const broken=run(null);
+  check(broken.status===3&&broken.stderr.includes('OSV_TRIAGE_UNVERIFIED'),
+    'invalid JSON evidence refused before any success report');
+  fs.unlinkSync(saved);
+  const absent=run(null);
+  check(absent.status===3,'missing evidence file refused');
+  const relative=cp.spawnSync(process.execPath,
+    [path.join(isolated,'osv-advisory-triage.mjs'),'relative.json'],
+    {encoding:'utf8',timeout:12000});
+  check(relative.status===2,'relative input path is rejected');
+  const extra=run(makeOsv(),['--historical','--unsupported']);
+  check(extra.status===2,'extra unsupported triage options are rejected');
   console.log('Online OSV and registry evidence offline regression PASS '+count+
     ' assertions; synthetic data only, no live OSV lookup or production approval');
 }finally{fs.rmSync(dir,{recursive:true,force:true,maxRetries:2});}
