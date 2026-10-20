@@ -52,7 +52,7 @@ if ($path === '/api/health') {
  * @return array{state:string,count:int,root:string}
  */
 function stage2InspectUnsignedOffwebPackage(): array {
-    $state='absent'; $count=0;
+    $state='absent'; $count=0; $manifestSha256=null;
     $parent=realpath(dirname(__DIR__)); $web=realpath(__DIR__);
     $root=$parent===false?'':$parent.'/cms-stage2-offweb-runtime';
     $actual=$root===''?false:realpath($root);
@@ -67,7 +67,10 @@ function stage2InspectUnsignedOffwebPackage(): array {
             && !is_link($manifestFile) && realpath($manifestFile)===$manifestFile
             && is_file($manifestFile) && @filesize($manifestFile)<=250000
             && @filesize($manifestFile)>=100) {
-            $data=json_decode((string)@file_get_contents($manifestFile),true,16);
+            $manifestBytes=@file_get_contents($manifestFile);
+            $data=is_string($manifestBytes)
+                && strlen($manifestBytes)===(int)@filesize($manifestFile)
+                ?json_decode($manifestBytes,true,16):null;
             if (is_array($data)
                 && ($data['format']??null)==='ai-site-cms-internal-stage2-v2'
                 && ($data['documentRoot']??null)==='public'
@@ -143,11 +146,14 @@ function stage2InspectUnsignedOffwebPackage(): array {
                     if (!isset($observed['private/package-manifest.json'])
                         ||count($observed)!==count($seen)+1) $ok=false;
                 }
-                if ($ok)$state='verified_unsigned_package';
+                if ($ok) {
+                    $state='verified_unsigned_package';
+                    $manifestSha256=hash('sha256',$manifestBytes);
+                }
             }
         }
     }
-    return ['state'=>$state,'count'=>$count,'root'=>$root];
+    return ['state'=>$state,'count'=>$count,'root'=>$root,'manifestSha256'=>$manifestSha256];
 }
 if ($path === '/__stage2/offweb-package') {
     $offweb=stage2InspectUnsignedOffwebPackage();
@@ -155,9 +161,10 @@ if ($path === '/__stage2/offweb-package') {
     http_response_code($found?200:503);
     echo json_encode([
         'format'=>'ai-site-cms-stage2-offweb-package-observation-v1',
-        'probeRevision'=>'stage2-target-host-check-20261020-r7',
+        'probeRevision'=>'stage2-target-host-check-20261020-r8',
         'state'=>$offweb['state'],'offwebPackageIntegrityVerified'=>$found,
         'verifiedFiles'=>$found?$offweb['count']:0,
+        'manifestSha256'=>$found?$offweb['manifestSha256']:null,
         'signatureVerified'=>false,'phpFromPackageExecuted'=>false,
         'databaseConnected'=>false,'cmsInstalled'=>false,
         'peerAccountIsolationVerified'=>false,'productionReady'=>false,
@@ -194,9 +201,10 @@ if ($path === '/__stage2/kernel/smoke') {
     if (!$ok) header('Retry-After: 60');
     echo json_encode([
         'format'=>'ai-site-cms-stage2-live-kernel-smoke-v1',
-        'probeRevision'=>'stage2-target-host-check-20261020-r7',
+        'probeRevision'=>'stage2-target-host-check-20261020-r8',
         'result'=>$ok?'health_only_pass':'not_ready',
         'fullyHashedUnsignedPackage'=>$ready,
+        'manifestSha256'=>$ready?$offweb['manifestSha256']:null,
         'realSlimKernelHealthPassed'=>$ok,
         'testOnly'=>true,'signedRelease'=>false,
         'schemaInitialized'=>false,'publicCmsActivated'=>false,
@@ -219,7 +227,7 @@ if ($path === '/__stage2/private-boundary') {
     http_response_code($found ? 200 : 503);
     echo json_encode([
         'format' => 'ai-site-cms-stage2-private-boundary-observation-v1',
-        'probeRevision' => 'stage2-target-host-check-20261020-r7',
+        'probeRevision' => 'stage2-target-host-check-20261020-r8',
         'outsideThisPublicRootMarkerObserved' => $found,
         'cmsInstalled' => false,
         'privateCmsCodeInstalled' => false,
@@ -238,7 +246,7 @@ if ($path === '/__stage2/rewrite/proof') {
     http_response_code($mapped ? 200 : 503);
     echo json_encode([
         'format' => 'ai-site-cms-stage2-routing-observation-v1',
-        'probeRevision' => 'stage2-target-host-check-20261020-r7',
+        'probeRevision' => 'stage2-target-host-check-20261020-r8',
         'exactNonFileRoute' => true,
         'frontControllerMapped' => $mapped,
         'installationReady' => false,
@@ -268,7 +276,7 @@ $privateParentUsable = is_string($privateParent) && $privateParent !== $scriptDi
     && is_dir($privateParent) && is_readable($privateParent);
 
 $report = [
-    'probeRevision' => 'stage2-target-host-check-20261020-r7',
+    'probeRevision' => 'stage2-target-host-check-20261020-r8',
     'observationOnly' => true,
     'phpVersionMajorMinor' => PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION,
     'phpSapi' => PHP_SAPI,

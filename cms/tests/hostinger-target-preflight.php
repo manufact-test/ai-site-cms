@@ -24,7 +24,7 @@ function passes(bool $valid,string $name):void {
 $body=runProbe($probe,'GET','/__stage2/host');
 $data=json_decode($body,true,512,JSON_THROW_ON_ERROR);
 passes($data['format']==='ai-site-cms-stage2-target-php-preflight-v1','format');
-passes($data['probeRevision']==='stage2-target-host-check-20261020-r7'&&$data['observationOnly']===true,'revision');
+passes($data['probeRevision']==='stage2-target-host-check-20261020-r8'&&$data['observationOnly']===true,'revision');
 passes($data['phpVersionMajorMinor']===PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION,'phpVersion');
 passes($data['phpSapi']===PHP_SAPI,'actualSapi');
 passes(is_bool($data['requirements']['privateParentExistsAndReadable'])
@@ -92,6 +92,7 @@ try {
         json_encode($meta,JSON_THROW_ON_ERROR));
     $a=json_decode(runProbe($copy,'GET','/__stage2/offweb-package'),true,16,JSON_THROW_ON_ERROR);
     passes($a['state']==='verified_unsigned_package'&&$a['verifiedFiles']===20
+        &&$a['manifestSha256']===hash_file('sha256',$root.'/private/package-manifest.json')
         &&$a['offwebPackageIntegrityVerified']===true
         &&$a['phpFromPackageExecuted']===false&&$a['cmsInstalled']===false,
         'full_unsigned_offweb_package_detected');

@@ -11,7 +11,7 @@ const fs=require('node:fs');
 const {publicIPv4}=require('./stage2-target-https-check.cjs');
 const CMS='lightseagreen-woodpecker-264491.hostingersite.com';
 const VISITOR='mediumpurple-fox-175549.hostingersite.com';
-const REVISION='stage2-target-host-check-20261020-r7';
+const REVISION='stage2-target-host-check-20261020-r8';
 const CMS_ROUTES=[
   ['/__stage2/host','phpPreflight'],
   ['/__stage2/rewrite/proof','lsapiFrontController'],
@@ -32,7 +32,7 @@ const allowMain=process.argv.length===3&&process.argv[2]==='--observe'&&
   process.env.GITHUB_REPOSITORY==='manufact-test/ai-site-cms'&&
   process.env.CMS_STAGE2_OWNER_READONLY_PERMISSION==='owner-grant-recorded-read-only';
 const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
-function evaluate(name,response) {
+function evaluate(name,response,expectedManifestSha256=null) {
   const s=response.status;
   const contentType=response.headers['content-type']||'';
   const text=response.body.toString('utf8');
@@ -87,14 +87,18 @@ function evaluate(name,response) {
       Number.isInteger(d.verifiedFiles)&&d.verifiedFiles>=20&&d.verifiedFiles<=1200;
     const missing=['absent','incomplete'].includes(d?.state)&&
       d.offwebPackageIntegrityVerified===false&&d.verifiedFiles===0;
-    const pass=((s===200&&found)||(s===503&&missing))&&
+    const digestValid=found
+      ?typeof d.manifestSha256==='string'&&/^[a-f0-9]{64}$/.test(d.manifestSha256)
+        &&(!expectedManifestSha256||d.manifestSha256===expectedManifestSha256)
+      :d?.manifestSha256===null;
+    const pass=digestValid&&((s===200&&found)||(s===503&&missing))&&
       contentType.toLowerCase().startsWith('application/json')&&
       d.format==='ai-site-cms-stage2-offweb-package-observation-v1'&&
       d.probeRevision===REVISION&&d.signatureVerified===false&&
       d.phpFromPackageExecuted===false&&d.databaseConnected===false&&
       d.cmsInstalled===false&&d.peerAccountIsolationVerified===false&&
       d.productionReady===false&&d.stage2Accepted===false;
-    return {pass:Boolean(pass),...(pass?{observed:found}:{reason:'offweb_invalid'})};
+    return {pass:Boolean(pass),...(pass?{observed:found}:{reason:'offweb_or_exact_manifest_pin_invalid'})};
   }
   if(name==='realKernelHealth'){
     let d;try{d=JSON.parse(text)}catch{return {pass:false,reason:'invalid_kernel_smoke_json'};}
@@ -103,9 +107,13 @@ function evaluate(name,response) {
       d.signedRelease===false&&d.schemaInitialized===false&&
       d.publicCmsActivated===false&&d.stage2Accepted===false;
     const live=s===200&&d.result==='health_only_pass'&&
-      d.fullyHashedUnsignedPackage===true&&d.realSlimKernelHealthPassed===true;
+      d.fullyHashedUnsignedPackage===true&&d.realSlimKernelHealthPassed===true&&
+      typeof d.manifestSha256==='string'&&/^[a-f0-9]{64}$/.test(d.manifestSha256)&&
+      (!expectedManifestSha256||d.manifestSha256===expectedManifestSha256);
     const notReady=s===503&&d.result==='not_ready'&&
-      d.realSlimKernelHealthPassed===false&&typeof d.fullyHashedUnsignedPackage==='boolean';
+      d.realSlimKernelHealthPassed===false&&typeof d.fullyHashedUnsignedPackage==='boolean'&&
+      (d.manifestSha256===null||
+       (typeof d.manifestSha256==='string'&&/^[a-f0-9]{64}$/.test(d.manifestSha256)));
     return {pass:Boolean(shape&&(live||notReady)),
       ...(shape&&(live||notReady)?{observed:live}:{reason:'kernel_smoke_invalid'})};
   }
@@ -158,12 +166,13 @@ async function inspect(){
   const ips=await Promise.all([approvedIPv4(CMS),approvedIPv4(VISITOR)]);
   const routes=[...CMS_ROUTES.map(([p,name])=>({host:CMS,ip:ips[0],path:p,name})),
     {host:VISITOR,ip:ips[1],path:'/',name:'visitorHome'}];
+  const expectedManifestSha256=process.env.CMS_STAGE2_EXPECTED_MANIFEST_SHA256;
   const seen=[];
   for(const r of routes){
     let result;
     try{
       const response=await get(r.host,r.ip,r.path);
-      const verdict=evaluate(r.name,response);
+      const verdict=evaluate(r.name,response,expectedManifestSha256);
       result={name:r.name,httpStatus:response.status,
         tlsVerified:response.tlsVerified,passed:verdict.pass,
         ...(verdict.reason?{reason:verdict.reason}:{}),
@@ -238,7 +247,7 @@ Target runtime compatibility for the current signed deployment: **${report.targe
 Observed gaps: ${gaps.join(', ')||'none found by this limited probe'}.
 Actual nested-path PHP front controller rewrite observed: **${report.rewrittenPhpFrontControllerObserved?'YES':'NOT VERIFIED'}**.
 Non-secret marker from dedicated private sibling Git deploy: **${report.siblingMarkerOutsideDocumentRootObserved?'OBSERVED':'NOT DEPLOYED/NOT VERIFIED'}**.
-Offweb runtime package integrity: **${report.offwebCompiledPackageVerified?'FULL HASH INVENTORY VERIFIED (UNSIGNED)':'NOT PRESENT/NOT VERIFIED'}**.
+Offweb runtime exact published manifest: **${report.offwebCompiledPackageVerified?'HASH INVENTORY AND PIN MATCH (UNSIGNED)':'NOT CURRENT/NOT VERIFIED'}**.
 Actual LiteSpeed read-only Slim health: **${report.realReadOnlyKernelHealthObserved?'LIVE PASS (NOT CMS ACTIVATION)':'NOT VERIFIED'}**.
 
 | Route | HTTP status | Verified TLS | Expected result |
@@ -262,7 +271,7 @@ CMS outage continuity and Stage2 acceptance remain unverified.
 `;
 }
 async function main(){
-  if(!allowMain){process.stderr.write('STAGE2_TARGET_READONLY_REFUSED\n');process.exitCode=3;return;}
+  if(!allowMain || !/^[a-f0-9]{64}$/.test(process.env.CMS_STAGE2_EXPECTED_MANIFEST_SHA256||'')){process.stderr.write('STAGE2_TARGET_READONLY_REFUSED\n');process.exitCode=3;return;}
   const report=await inspect();
   const output=JSON.stringify(report)+'\n';
   if(process.env.RUNNER_TEMP){

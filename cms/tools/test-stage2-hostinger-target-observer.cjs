@@ -18,12 +18,12 @@ const r=(s,b,ct='application/json')=>({status:s,
 const check=(n,b)=>assert.strictEqual(Boolean(b),true,n);
 check('valid actual PHP probe',evaluate('phpPreflight',r(200,JSON.stringify(good))).pass);
 check('wrong revision refused',!evaluate('phpPreflight',r(200,JSON.stringify({...good,probeRevision:'old'}))).pass);
-check('old r6 HTTP probe cannot impersonate tightened full-inventory r7',
+check('old r7 HTTP probe cannot impersonate exact-manifest r8',
  !evaluate('offwebPackage',r(503,JSON.stringify({
  format:'ai-site-cms-stage2-offweb-package-observation-v1',
- probeRevision:'stage2-target-host-check-20261020-r6',
+ probeRevision:'stage2-target-host-check-20261020-r7',
  state:'incomplete',offwebPackageIntegrityVerified:false,
- verifiedFiles:0,signatureVerified:false,phpFromPackageExecuted:false,
+ verifiedFiles:0,manifestSha256:null,signatureVerified:false,phpFromPackageExecuted:false,
  databaseConnected:false,cmsInstalled:false,peerAccountIsolationVerified:false,
  productionReady:false,stage2Accepted:false
  }))).pass);
@@ -57,24 +57,38 @@ check('public marker blocked',
  evaluate('privateMarkerHttpExposure',r(404,'not found')).pass);
 check('private marker publicly exposed rejected',
  !evaluate('privateMarkerHttpExposure',r(200,'secret')).pass);
+const latest='a'.repeat(64),previous='b'.repeat(64);
 const offweb={format:'ai-site-cms-stage2-offweb-package-observation-v1',
  probeRevision:REVISION,state:'absent',offwebPackageIntegrityVerified:false,
- verifiedFiles:0,signatureVerified:false,phpFromPackageExecuted:false,
+ verifiedFiles:0,manifestSha256:null,signatureVerified:false,phpFromPackageExecuted:false,
  databaseConnected:false,cmsInstalled:false,peerAccountIsolationVerified:false,
  productionReady:false,stage2Accepted:false};
 check('missing offweb package reported',evaluate('offwebPackage',r(503,JSON.stringify(offweb))).pass);
 check('full unsigned offweb package reported without CMS activation',
  evaluate('offwebPackage',r(200,JSON.stringify({...offweb,state:'verified_unsigned_package',
- offwebPackageIntegrityVerified:true,verifiedFiles:473}))).observed);
+ offwebPackageIntegrityVerified:true,verifiedFiles:473,manifestSha256:latest})),latest).observed);
 check('unsigned inventory cannot impersonate signed release',
  !evaluate('offwebPackage',r(200,JSON.stringify({...offweb,state:'verified_unsigned_package',
- offwebPackageIntegrityVerified:true,verifiedFiles:473,signatureVerified:true}))).pass);
+ offwebPackageIntegrityVerified:true,verifiedFiles:473,manifestSha256:latest,signatureVerified:true})),latest).pass);
+check('stale manifest rejected',
+ !evaluate('offwebPackage',r(200,JSON.stringify({...offweb,state:'verified_unsigned_package',
+ offwebPackageIntegrityVerified:true,verifiedFiles:477,manifestSha256:previous})),latest).pass);
+check('omitted manifest fingerprint rejected',
+ !evaluate('offwebPackage',r(200,JSON.stringify({...offweb,state:'verified_unsigned_package',
+ offwebPackageIntegrityVerified:true,verifiedFiles:478,manifestSha256:null})),latest).pass);
+check('wrong healthy kernel manifest fingerprint rejected',
+ !evaluate('realKernelHealth',r(200,JSON.stringify({
+ format:'ai-site-cms-stage2-live-kernel-smoke-v1',probeRevision:REVISION,
+ result:'health_only_pass',fullyHashedUnsignedPackage:true,realSlimKernelHealthPassed:true,
+ manifestSha256:previous,testOnly:true,signedRelease:false,
+ schemaInitialized:false,publicCmsActivated:false,stage2Accepted:false})),latest).pass);
 const kernel={format:'ai-site-cms-stage2-live-kernel-smoke-v1',probeRevision:REVISION,
+ manifestSha256:latest,
  result:'health_only_pass',fullyHashedUnsignedPackage:true,realSlimKernelHealthPassed:true,
  testOnly:true,signedRelease:false,schemaInitialized:false,publicCmsActivated:false,
  stage2Accepted:false};
 check('actual Slim health is not release activation',
- evaluate('realKernelHealth',r(200,JSON.stringify(kernel))).observed);
+ evaluate('realKernelHealth',r(200,JSON.stringify(kernel)),latest).observed);
 check('missing kernel cannot be spoofed as running',
  !evaluate('realKernelHealth',r(503,JSON.stringify(kernel))).pass);
 check('unsigned/test kernel disallows accepted claim',
@@ -103,4 +117,4 @@ const s2=summary({requests:[{name:'phpPreflight',httpStatus:200,tlsVerified:true
 check('two capability gaps shown',s2.includes('php_sodium_missing')
  &&s2.includes('target_web_sapi_requires_compatibility_review'));
 check('HTTPS pass not deploy acceptance',s2.includes('Target runtime compatibility for the current signed deployment: **STILL OPEN**'));
-console.log('Stage2 live report parser contract: 33 offline checks PASS; no host I/O');
+console.log('Stage2 live report parser contract with pinned offweb manifest PASS; no host I/O');

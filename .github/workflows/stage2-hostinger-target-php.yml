@@ -20,6 +20,26 @@ jobs:
           node-version: '22'
       - name: Check standalone probe shape locally (no external reads)
         run: node --check cms/tools/stage2-hostinger-target-observer.cjs && node cms/tools/test-stage2-hostinger-target-observer.cjs
+      - name: Pin SHA256 from published offweb Git branch without host access
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin refs/heads/stage2-hostinger-offweb-runtime
+          git show FETCH_HEAD:private/package-manifest.json > "$RUNNER_TEMP/stage2-expected-manifest.json"
+          node - "$RUNNER_TEMP/stage2-expected-manifest.json" <<'JS'
+          const fs=require('node:fs'),crypto=require('node:crypto');
+          const bytes=fs.readFileSync(process.argv[2]);
+          if(bytes.length<100||bytes.length>250000)throw Error('Published manifest size invalid');
+          const m=JSON.parse(bytes.toString('utf8'));
+          if(m.format!=='ai-site-cms-internal-stage2-v2'||m.stage!==2||
+             m.isSigned!==false||m.productionReady!==false||
+             !Array.isArray(m.files)||m.files.length<470||m.files.length>1200)
+            throw Error('Published manifest invalid');
+          const digest=crypto.createHash('sha256').update(bytes).digest('hex');
+          fs.appendFileSync(process.env.GITHUB_ENV,
+            'CMS_STAGE2_EXPECTED_MANIFEST_SHA256='+digest+'\n');
+          console.log('Expected offweb manifest pinned from GitHub; no Hostinger writes.');
+          JS
       - name: Verify only two explicitly authorized test domains, HTTPS GET no credentials
         env:
           CMS_STAGE2_OWNER_READONLY_PERMISSION: owner-grant-recorded-read-only
