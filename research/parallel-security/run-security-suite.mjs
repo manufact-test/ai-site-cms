@@ -44,13 +44,13 @@ const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
-  'online-evidence-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
+  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
   if(name.endsWith('.mjs'))entry('syntax:'+name,capture('node',['--check',path.join(dirname,name)]));
   else entry('syntax:'+name,capture(runtime,['-l',path.join(dirname,name)]));
 }
-for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest-regression.mjs','online-evidence-regression.mjs']){
+for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest-regression.mjs','online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs']){
   const result=entry('mutation:'+name,capture('node',[path.join(dirname,name)],{timeout:30000}));
   if(name==='osv-strict-regression.mjs')requireProof(result,
     /OSV strict-response \+ transport \+ lock fixture PASS 30 cases;/,
@@ -67,6 +67,9 @@ for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-r
   if(name==='online-evidence-regression.mjs')requireProof(result,
     /Online OSV and registry evidence offline regression PASS 40 assertions;/,
     '40 adversarial OSV online and registry exit-zero report evidence assertions');
+  if(name==='runtime-sodium-proof-regression.mjs')requireProof(result,
+    /Sodium-free wrapper false-pass offline regression PASS 15 assertions;/,
+    '15 fake-PHP classification and missing crypto-output proof regressions');
 }
 const lockPaths=['cms/composer.lock','cms/editor/package-lock.json','cms/editor/package.json'];
 const completeLock=lockPaths.every(f=>fs.existsSync(path.join(root,f)));
@@ -178,7 +181,8 @@ const proofNames=[
   'mutation:osv-strict-regression.mjs','mutation:osv-cli-regression.mjs',
   'mutation:suite-exit-regression.mjs',
   'mutation:sodium-compat-attest-regression.mjs',
-  'mutation:online-evidence-regression.mjs'
+  'mutation:online-evidence-regression.mjs',
+  'mutation:runtime-sodium-proof-regression.mjs'
 ];
 console.error('INDEPENDENT_SECURITY_EXACT_HEAD_PROOFS '+JSON.stringify(
   proofNames.map(name=>{
