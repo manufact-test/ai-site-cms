@@ -41,13 +41,13 @@ function requireProof(row, expectedPattern, evidenceLabel) {
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
-  'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
+  'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
   if(name.endsWith('.mjs'))entry('syntax:'+name,capture('node',['--check',path.join(dirname,name)]));
   else entry('syntax:'+name,capture(runtime,['-l',path.join(dirname,name)]));
 }
-for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs']){
+for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs']){
   const result=entry('mutation:'+name,capture('node',[path.join(dirname,name)],{timeout:30000}));
   if(name==='osv-strict-regression.mjs')requireProof(result,
     /OSV strict-response \+ transport \+ lock fixture PASS 29 cases;/,
@@ -55,6 +55,9 @@ for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-r
   if(name==='osv-cli-regression.mjs')requireProof(result,
     /OSV exact CLI offline subprocess regression PASS 19 assertions; no HTTP requests, no live audit/,
     '19 offline OSV CLI exit code, complete report, fake HTTP, and integrity assertions');
+  if(name==='suite-exit-regression.mjs')requireProof(result,
+    /Security suite exit-policy offline regression PASS 12 assertions;/,
+    '12 strict/online incomplete runner exit-policy assertions');
 }
 const lockPaths=['cms/composer.lock','cms/editor/package-lock.json','cms/editor/package.json'];
 const completeLock=lockPaths.every(f=>fs.existsSync(path.join(root,f)));
@@ -153,7 +156,8 @@ console.log(JSON.stringify(out,null,2));
 const proofNames=[
   'native:operator-receipt-chain','native:operator-preactivation-permit',
   'native:operator-settlement-chain','native:trust-root-rotation',
-  'mutation:osv-strict-regression.mjs','mutation:osv-cli-regression.mjs'
+  'mutation:osv-strict-regression.mjs','mutation:osv-cli-regression.mjs',
+  'mutation:suite-exit-regression.mjs'
 ];
 console.error('INDEPENDENT_SECURITY_EXACT_HEAD_PROOFS '+JSON.stringify(
   proofNames.map(name=>{
