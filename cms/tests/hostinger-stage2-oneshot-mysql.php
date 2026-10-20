@@ -274,6 +274,23 @@ try {
         'package tamper cannot consume credential task');
     $check(!is_file($local.'/receipt.json'),'tamper cannot consume DB authorization');
     unlink($package.'/unexpected.txt');
+
+    // A self-consistent but republished/rewritten UNSIGNED manifest still
+    // passes the internal inventory. The independently chosen pin must refuse.
+    $manifestFile=$package.'/private/package-manifest.json';
+    $originalManifest=file_get_contents($manifestFile);
+    file_put_contents($manifestFile,$originalManifest."\n");
+    $check(\AiSiteCms\Hosting\PackageArtifactVerifier::verify($package)
+        ['filesVerified']>=470,
+        'unsigned self-consistent manifest rewrite still hashes all files');
+    $store($task); // Original, independently pinned CI package fingerprint.
+    [$modifiedCode,$modifiedOut,$modifiedErr]=$runCron();
+    $check($modifiedCode===3 && $modifiedOut===''
+        && str_contains($modifiedErr,'STAGE2_PACKAGE_REFUSED')
+        && is_file($local.'/once.json') && !is_file($local.'/receipt.json'),
+        'out-of-band pin blocks republished unsigned manifest before vendor code');
+    file_put_contents($manifestFile,$originalManifest);
+
     $task['target']='other.hostinger.site';
     $store($task);
     $reject(fn()=>Job::run($package,$local));
