@@ -17,8 +17,12 @@ node --check lab/public/assets/ui.js
 command -v timeout >/dev/null || { echo 'TIMEOUT_REQUIRED_ON_LINUX_RUNNER' >&2; exit 2; }
 for file in lab/tests/test_*.py; do
     # Imported by test_http.py for compatibility with the shared fixed-list CI job.
-    if [[ "$file" == *browser*.py || "$file" == *test_nojs.py || "$file" == *test_preview_http.py ]]; then continue; fi
-    timeout 40s python -m unittest discover -s lab/tests -p "$(basename "$file")" -q
+    if [[ "$file" == *browser*.py || "$file" == *test_nojs.py || "$file" == *test_preview_http.py || "$file" == *test_phone_real.py ]]; then continue; fi
+    # The adapter suite imports the real Composer metadata probe once; allow for
+    # a cold upstream dependency download, without running it a second time.
+    cap=40
+    if [[ "$file" == *test_adapter_capabilities.py ]]; then cap=130; fi
+    timeout "${cap}s" python -m unittest discover -s lab/tests -p "$(basename "$file")" -q
 done
 # Run every actual Chromium suite at the end, after isolated HTTP sessions.
 for file in lab/tests/test_*browser*.py; do
