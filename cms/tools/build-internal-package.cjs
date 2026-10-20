@@ -12,6 +12,7 @@ const PARTS = [
   ['bin/install.php', 'bin/install.php'],
   ['bin/hostinger-stage2-once.php', 'bin/hostinger-stage2-once.php'],
   ['bin/hostinger-stage2-preflight.php', 'bin/hostinger-stage2-preflight.php'],
+  ['bin/hostinger-stage2-revoke.php', 'bin/hostinger-stage2-revoke.php'],
   ['bin/schema-preflight.php', 'bin/schema-preflight.php'],
   ['bin/doctor.php', 'bin/doctor.php'],
   ['bin/shared-host-preflight.php', 'bin/shared-host-preflight.php'],
