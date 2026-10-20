@@ -13,7 +13,7 @@ const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'cms-fake-php-proof-'));
 const fake=path.join(tmp,'fake-php.cjs');
 let count=0;
 const check=(v,label)=>{assert.ok(v,label);count++;console.log('PASS RUNTIME PROOF '+label);};
-const code=`#!/usr/bin/env node
+const code=String.raw`#!/usr/bin/env node
 const args=process.argv.slice(2), env=process.env;
 if(args.includes('-r')){
   if(env.FAKE_PHP_JSON==='bad')process.stdout.write('this is not PHP JSON');
