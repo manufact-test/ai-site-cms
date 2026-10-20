@@ -25,11 +25,39 @@ else{
     finish(3,'BLOCKED: only genuinely extension-free PHP 8.3 64-bit CLI is accepted (no simulated passes)');
    else{
     report.nativeFreeProven=true;
+    const proof=(name,stdout)=>{
+      const lines=stdout.trimEnd().split('\n');
+      let final;
+      try{final=JSON.parse(lines.at(-1));}catch{final=null;}
+      switch(name){
+        case 'RFC8032 absent rejects':
+          return lines.includes('PASS strict backend availability')&&
+            lines.includes('PASS missing backend fails closed')&&
+            lines.includes('NO_CRYPTO_TEST: absent mode correctly rejects all signatures');
+        case 'Signed-envelope absent rejects':
+          return lines.some(s=>s.startsWith('PASS missing verifier fails closed'))&&
+            final?.mode==='absent'&&final?.status==='passed'&&
+            final?.securityApproved===false;
+        case 'Pinned compat RFC8032':
+          return lines.includes('PASS RFC 8032 Ed25519 valid detached')&&
+            lines.includes('PASS short signature rejected')&&
+            lines.includes('PASS domain mismatch rejected')&&
+            final?.backend==='compat'&&final?.checks==='passed'&&
+            final?.verifications===8&&final?.productionApproved===false;
+        case 'Pinned compat signed envelope':
+          return lines.some(s=>s.startsWith('PASS genuine signed envelope accepted'))&&
+            lines.some(s=>s.startsWith('PASS genuine signed envelope still accepted'))&&
+            final?.mode==='compat'&&final?.status==='passed'&&
+            final?.securityApproved===false;
+        default:return false;
+      }
+    };
     const test=(name,exe,args)=>{
       const r=cp.spawnSync(exe,args,{encoding:'utf8',timeout:120000,
-       env:{...process.env,PHP_BINARY:binary}});
-      const ok=r.status===0;
-      report.tests.push({name,exitCode:r.status,passed:ok,stderr:(r.stderr||'').slice(-250)});
+       env:{...process.env,PHP_BINARY:binary},maxBuffer:2*1024*1024});
+      const ok=!r.error&&!r.signal&&r.status===0&&proof(name,r.stdout||'');
+      report.tests.push({name,exitCode:r.status,passed:ok,
+        proofCompleted:ok,stderr:(r.stderr||r.error?.message||'').slice(-250)});
       return ok;
     };
     const absent=[
