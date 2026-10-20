@@ -32,7 +32,7 @@ const block=(name, reason)=>results.push({name,status:'blocked',reason});
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'ed25519-lab.php','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
-  'notice-regression.mjs','run-security-suite.mjs'];
+  'notice-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
   if(name.endsWith('.mjs'))entry('syntax:'+name,capture('node',['--check',path.join(dirname,name)]));
@@ -62,6 +62,14 @@ if(completeLock){
   for(const name of ['actual-lock:json','actual-lock:csv','actual-lock:provenance'])block(name,'Requires original composer.lock, package-lock.json, package.json in complete checkout');
   if(online)for(const name of ['online:OSV','online:version-registry'])block(name,'Original complete lock files unavailable');
 }
+const installedNpm=path.join(root,'cms/editor/node_modules');
+if(fs.existsSync(installedNpm)) {
+  entry('npm:installed-source-notices',capture('node',[path.join(dirname,'npm-source-gate.mjs')]));
+} else block('npm:installed-source-notices','Trusted npm ci and installed LICENSE/ThirdPartyNotices are required for archive verification');
+const bundledNotice=path.join(root,'cms/.build/internal-stage2-package/private/compliance/THIRD_PARTY_NOTICES.txt');
+if(fs.existsSync(bundledNotice)) {
+  entry('composer:actual-bundled-NOTICE',capture('node',[path.join(dirname,'notice-gate.mjs')]));
+} else block('composer:actual-bundled-NOTICE','Vendor files and complete internal distribution build are needed to verify copied Apache NOTICE');
 const isNative=capture(runtime,['-r','echo extension_loaded("sodium") ? "native" : "absent";']);
 const isNoNative=capture(runtime,['-n','-r','echo extension_loaded("sodium") ? "native" : "absent";']);
 if(isNative.exitCode===0&&isNative.stdout==='native'){
