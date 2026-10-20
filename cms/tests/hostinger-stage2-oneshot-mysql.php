@@ -103,12 +103,25 @@ try {
     } catch (PDOException $ignored) {
         $ddlRejected=true;
     }
-    $check($ddlRejected,'real MySQL server rejects CREATE TABLE in read-only transaction');
+    $check($ddlRejected,'real MySQL server rejects CREATE TABLE under read-only session');
+    // MySQL implicitly commits BEFORE a DDL statement, even when it then
+    // refuses CREATE TABLE. PDO can still report a stale transaction flag.
+    // The guard must reject that lost boundary, not claim a completed probe.
+    $reject(fn()=>Guard::finish($guardPdo));
+    $check((int)$guardPdo->query('SELECT @@SESSION.transaction_read_only')
+        ->fetchColumn()===1,'implicit DDL commit did not relax session-level SQL protection');
+    unset($guardPdo);
+    $guardPdo = new PDO('mysql:host=127.0.0.1;port=3306;dbname='.$name.';charset=utf8mb4',
+        'cms_stage2_once_ci','ephemeral_local_ci_only',[
+            PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_EMULATE_PREPARES=>false
+        ]);
+    Guard::begin($guardPdo);
     Guard::finish($guardPdo);
     $check(!$guardPdo->inTransaction()
         && (int)$guardPdo->query("SELECT COUNT(*) FROM information_schema.tables
             WHERE table_schema=DATABASE() AND table_name='stage2_guard_must_not_exist'")
-            ->fetchColumn()===0,'guard rolls back and DDL canary was never created');
+            ->fetchColumn()===0,'clean read-only connection rolls back and DDL canary is absent');
     $reject(fn()=>Guard::finish($guardPdo)); // No false close success.
     $check(hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
         'read-only transaction exercise cannot alter independent visitor');
