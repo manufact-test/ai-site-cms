@@ -51,7 +51,7 @@ for(const name of scripts){
 for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest-regression.mjs']){
   const result=entry('mutation:'+name,capture('node',[path.join(dirname,name)],{timeout:30000}));
   if(name==='osv-strict-regression.mjs')requireProof(result,
-    /OSV strict-response \+ transport \+ lock fixture PASS 29 cases;/,
+    /OSV strict-response \+ transport \+ lock fixture PASS 30 cases;/,
     '30 offline OSV transport + lock acceptance/rejection assertions');
   if(name==='osv-cli-regression.mjs')requireProof(result,
     /OSV exact CLI offline subprocess regression PASS 23 assertions; no HTTP requests, no live audit/,
