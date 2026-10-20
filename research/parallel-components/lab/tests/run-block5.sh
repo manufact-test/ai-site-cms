@@ -16,8 +16,11 @@ node --check lab/public/assets/ui.js
 # A per-suite cap reports failure rather than hanging the pipeline indefinitely.
 command -v timeout >/dev/null || { echo 'TIMEOUT_REQUIRED_ON_LINUX_RUNNER' >&2; exit 2; }
 for file in lab/tests/test_*.py; do
-    if [[ "$file" == *test_browser.py ]]; then continue; fi
+    if [[ "$file" == *browser*.py ]]; then continue; fi
     timeout 40s python -m unittest discover -s lab/tests -p "$(basename "$file")" -q
 done
-timeout 45s python -m unittest discover -s lab/tests -p test_browser.py -q
+# Run every actual Chromium suite at the end, after isolated HTTP sessions.
+for file in lab/tests/test_*browser*.py; do
+    timeout 45s python -m unittest discover -s lab/tests -p "$(basename "$file")" -q
+done
 printf '%s\n' 'RESEARCH_LAB_TESTS_PASSED (NOT production, no real mail/phone/Next SSR)'
