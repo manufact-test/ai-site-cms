@@ -24,7 +24,7 @@ function check(){
   const nm=path.join(editor,'node_modules');
   const jedison=file(path.join(nm,'jedison'),['LICENSE','LICENSE.md']);
   if(!jedison.includes('German Bisurgi')||!jedison.includes('MIT License'))fail('Jedison upstream MIT attribution missing');
-  const bundled=file(editor,['THIRD_PARTY_LICENSES.txt']);
+  const bundled=file(path.join(editor,'dist'),['THIRD_PARTY_LICENSES.txt']);
   if(!bundled.includes('German Bisurgi')||!bundled.includes('MIT License'))fail('Jedison bundle attribution missing');
   const esbuild=file(path.join(nm,'esbuild'),['LICENSE.md','LICENSE']);
   if(!esbuild.includes('Evan Wallace')||!esbuild.includes('MIT License'))fail('esbuild MIT attribution missing');
@@ -34,7 +34,7 @@ function check(){
   if(!notices.includes('THIRD-PARTY SOFTWARE NOTICES')||!notices.includes('agent-base@'))fail('Playwright embedded third party notices missing');
   const entries=[...notices.matchAll(/^-\s*([^\n(]+)/gm)].length;
   if(entries<30)fail('Playwright third party attribution unexpectedly short');
-  console.log(JSON.stringify({status:'installed-archive-legal-text-present',checked:['jedison/LICENSE','editor/THIRD_PARTY_LICENSES.txt',
+  console.log(JSON.stringify({status:'installed-archive-legal-text-present',checked:['jedison/LICENSE','editor/dist/THIRD_PARTY_LICENSES.txt',
     'esbuild/LICENSE.md','playwright-core/LICENSE','playwright-core/ThirdPartyNotices.txt'],entries,
     note:'Not verification of tarball original bytes or embedded licenses; build-only playwright/esbuild not distributed by current CMS package',
     independentlyApproved:false}));
