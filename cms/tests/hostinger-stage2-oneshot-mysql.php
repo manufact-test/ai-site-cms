@@ -89,6 +89,13 @@ try {
     $report=Job::run($package,$local);
     $check(!file_exists($local.'/once.json'),
         'successful cron attempt destroys secret-bearing task file');
+    $check($report['packageManifestSha256']===hash_file('sha256',
+        $package.'/private/package-manifest.json')
+        && preg_match('/\\A\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ\\z/D',
+            $report['startedAtUtc']) === 1
+        && preg_match('/\\A\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ\\z/D',
+            $report['finishedAtUtc']) === 1,
+        'nonsecret package hash and UTC receipt timestamps');
     $check($report['dedicatedDbGrantsVerified']===true,'strict scoped DB grant');
     $check($report['operation']==='probe' && $report['status']==='observed'
         && $report['schemaState']==='uninitialized','read-only empty DB probe');
