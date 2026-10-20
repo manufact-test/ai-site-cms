@@ -25,6 +25,8 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
       - name: Lock consistency and allowed declared package licenses
         run: php tests/dependency-lock.php && composer validate --strict --no-check-publish
+      - name: Independent pinned Apache root NOTICE provenance and hostile-file regression
+        run: node --check tools/test-compliance-notices.cjs && node tools/test-compliance-notices.cjs
       - name: Composer dependency security audit
         run: composer audit --no-interaction
       - name: Sodium-free Ed25519 candidate on an isolated runner (not included in CMS package)
