@@ -1,0 +1,11 @@
+{
+  "format": "ai-site-cms-stage2-compliance-v1",
+  "composerRuntime": 14,
+  "npmLocked": 29,
+  "browserRuntime": [
+    "jedison@1.27.1"
+  ],
+  "noticeSha256": "4b45232c5da77e435ccaccd23afaed5a670fa2f719703b3f02d486e530bf8d3f",
+  "componentCount": 43,
+  "attestation": "lock-metadata-and-installed-license-text-only; not signed; manual legal review remains required"
+}

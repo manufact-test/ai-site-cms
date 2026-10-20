@@ -1,0 +1,11 @@
+{
+  "stage": 2,
+  "editor": "jedison",
+  "editorVersion": "1.27.1",
+  "entry": "src/index.js",
+  "javascriptBytes": 254753,
+  "sourceFiles": [
+    "node_modules/jedison/dist/esm/jedison.js",
+    "src/index.js"
+  ]
+}
