@@ -20,7 +20,7 @@ MAX_SIZE = 180_000_000
 REL = re.compile(r"\A[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\Z")
 FORBIDDEN = re.compile(
     r"(?:^|/)(?:\.git|\.github|\.ssh|\.env(?:\..*)?|\.npmrc|"
-    r"node_modules|\.build|secrets?|storage)(?:/|$)", re.I
+    r"node_modules|\.build|secrets?)(?:/|$)|^storage(?:/|$)", re.I
 )
 
 
@@ -146,7 +146,9 @@ def main() -> int:
         archive_rehearsal(files, digest)
         return 0
     except (OSError, ValueError, TypeError, KeyError, zipfile.BadZipFile) as exc:
-        print("OFFWEB_UPLOAD_REFUSED: " + type(exc).__name__, file=sys.stderr)
+        print("OFFWEB_UPLOAD_REFUSED: " + (
+            str(exc) if isinstance(exc, ValueError) else type(exc).__name__
+        ), file=sys.stderr)
         return 3
 
 
