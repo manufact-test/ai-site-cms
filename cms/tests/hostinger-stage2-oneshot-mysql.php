@@ -70,6 +70,16 @@ $reject=static function (callable $action)use($check):void{
     try{$action();}catch(Throwable $e){$check(true,'expected refusal');return;}
     $check(false,'expected refusal');
 };
+$runCron=static function()use($package):array{
+    $pipes=[];
+    $process=proc_open([PHP_BINARY,$package.'/bin/hostinger-stage2-once.php'],
+        [['pipe','r'],['pipe','w'],['pipe','w']],$pipes);
+    if (!is_resource($process))throw new RuntimeException('CLI process failed to start');
+    fclose($pipes[0]);
+    $out=stream_get_contents($pipes[1]);fclose($pipes[1]);
+    $err=stream_get_contents($pipes[2]);fclose($pipes[2]);
+    return [proc_close($process),$out,$err];
+};
 try {
     $reject(fn()=>Job::run($package,$local)); // Missing operator task.
     $store($task);
@@ -99,6 +109,19 @@ try {
         'rejected DB privilege scope also consumes secret-bearing task');
     unlink($local.'/receipt.json');
     $root->exec("REVOKE SELECT ON ai_site_cms_ci.* FROM 'cms_stage2_once_ci'@'%'");
+
+    // Exercise the actual packaged PHP cron entrypoint as a separate process.
+    // No credentials on argv, in process environment, or printed logs.
+    $store($task);
+    [$cronExit,$cronOut,$cronErr]=$runCron();
+    $check($cronExit===0 && str_contains($cronOut,'STAGE2_ONCE_RECORDED')
+        && $cronErr==='','real packaged Cron entrypoint probes dedicated MySQL');
+    $check(!is_file($local.'/once.json') && is_file($local.'/receipt.json'),
+        'Cron process consumes local task and keeps nonsecret receipt');
+    $check(!str_contains($cronOut,'ephemeral_local_ci_only')
+        && !str_contains($cronErr,'ephemeral_local_ci_only'),
+        'Cron output never prints database secret');
+    unlink($local.'/receipt.json');
 
     $task['operation']='install';
     $store($task);
@@ -190,6 +213,12 @@ try {
     $store($task);
     file_put_contents($package.'/unexpected.txt','tamper');
     $reject(fn()=>Job::run($package,$local)); // Verify BEFORE DB.
+    [$tamperedExit,$tamperedOut,$tamperedErr]=$runCron();
+    $check($tamperedExit===3 && $tamperedOut===''
+        && str_contains($tamperedErr,'STAGE2_PACKAGE_REFUSED'),
+        'packaged Cron bootstrap detects tampering BEFORE Composer autoload');
+    $check(is_file($local.'/once.json'),
+        'package tamper cannot consume credential task');
     $check(!is_file($local.'/receipt.json'),'tamper cannot consume DB authorization');
     unlink($package.'/unexpected.txt');
     $task['target']='other.hostinger.site';
