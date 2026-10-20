@@ -80,7 +80,7 @@ jobs:
           # Composer must not invent a new root version for every CI commit.
           # The real Stage2 source-bound package version is release.json.
           export COMPOSER_ROOT_VERSION="$(node -p "require('./release.json').version")"
-          [[ "$COMPOSER_ROOT_VERSION" =~ ^0\\.[0-9]+\\.[0-9]+-stage2\\.[0-9]+$ ]]
+          [[ "$COMPOSER_ROOT_VERSION" =~ ^0\.[0-9]+\.[0-9]+-stage2\.[0-9]+$ ]]
           composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader
           npm ci --prefix editor --no-audit --no-fund
           npm run build --prefix editor
