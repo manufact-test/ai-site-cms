@@ -51,6 +51,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p project/research
           test ! -e project/research/parallel-security
           cp -a candidate/research/parallel-security project/research/parallel-security
           echo 'Only permitted research files copied; no GitHub writes, Hostinger or production deployment'
@@ -159,6 +160,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p project/research
           test ! -e project/research/parallel-components
           cp -a candidate/research/parallel-components project/research/parallel-components
           echo 'Only permitted research files copied; no GitHub writes, Hostinger or production deployment'
