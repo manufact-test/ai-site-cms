@@ -37,7 +37,7 @@ export function evaluateBatch(rows,data){
     const response=data.results[i];
     assert(response&&typeof response==='object'&&!Array.isArray(response),
       'missing OSV result object at '+i);
-    assert(!response.next_page_token,
+    assert(!Object.hasOwn(response,'next_page_token'),
       'OSV page token remains unread for '+row.ecosystem+':'+row.name);
     assert(response.vulns===undefined||Array.isArray(response.vulns),
       'OSV vulns field invalid for '+row.name);
@@ -51,7 +51,33 @@ export function evaluateBatch(rows,data){
     return {...row,advisoryIds:ids.sort(),count:ids.length};
   });
 }
-function sha(file){return crypto.createHash('sha256').update(fs.readFileSync(path.join(root,file))).digest('hex');}
+// Freeze BOTH original lockfiles before querying OSV. The previous runner
+// recomputed SHA only after the HTTP request, so a concurrent update could
+// falsely attach the new lock hash to an OLD 43-version query response.
+const shaBytes=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
+function originalLockSnapshot(files){
+  return Object.fromEntries(files.map(file=>{
+    const name=path.join(root,file),stat=fs.lstatSync(name);
+    assert(stat.isFile()&&!stat.isSymbolicLink()&&stat.nlink===1&&
+      stat.size>0&&stat.size<=16*1024*1024,
+      'unsafe original lockfile: '+file);
+    const bytes=fs.readFileSync(name);
+    assert(bytes.length===stat.size,'original lockfile changed while reading: '+file);
+    return [file,{bytes,digest:shaBytes(bytes),dev:stat.dev,ino:stat.ino}];
+  }));
+}
+function assertLockSnapshotUnchanged(snapshot){
+  for(const [file,origin] of Object.entries(snapshot)){
+    const name=path.join(root,file),stat=fs.lstatSync(name);
+    assert(stat.isFile()&&!stat.isSymbolicLink()&&stat.nlink===1&&
+      stat.dev===origin.dev&&stat.ino===origin.ino,
+      'original lockfile replaced during OSV request: '+file);
+    assert(stat.size===origin.bytes.length &&
+      crypto.timingSafeEqual(Buffer.from(shaBytes(fs.readFileSync(name)),'hex'),
+        Buffer.from(origin.digest,'hex')),
+      'original lockfile changed during OSV request: '+file);
+  }
+}
 export async function snapshot(rows,post=fetch){
   const queries=rows.map(p=>({package:{ecosystem:p.ecosystem,name:p.name},version:p.version}));
   const response=await post('https://api.osv.dev/v1/querybatch',{
@@ -85,12 +111,19 @@ async function main(){
   assert(args.every(a=>['--csv','--fail-on-advisory'].includes(a))&&new Set(args).size===args.length,
     'Usage: node osv-strict-snapshot.mjs [--csv] [--fail-on-advisory]');
   const files=['cms/composer.lock','cms/editor/package-lock.json'];
-  const rows=makeRows(read(files[0]),read(files[1]));
+  const origin=originalLockSnapshot(files);
+  const rows=makeRows(
+    JSON.parse(origin[files[0]].bytes.toString('utf8')),
+    JSON.parse(origin[files[1]].bytes.toString('utf8')));
   const results=await snapshot(rows);
+  // No report, advisory exit 4, or CSV can claim coverage until every
+  // lockfile still matches the exact bytes used to construct the OSV POST.
+  assertLockSnapshotUnchanged(origin);
   const affected=results.filter(r=>r.count>0);
   const report={format:'ai-site-cms-point-in-time-osv-v1',source:'https://api.osv.dev/v1/querybatch',
     checkedAt:new Date().toISOString(),completeQueryResponse:true,covered:results.length,
-    composer:14,npm:29,lockSha256:Object.fromEntries(files.map(f=>[f,sha(f)])),
+    composer:14,npm:29,lockSha256:Object.fromEntries(files.map(f=>[f,origin[f].digest])),
+    lockSnapshotVerifiedUnchanged:true,
     packagesWithAdvisories:affected.length,advisoryReferences:results.reduce((n,r)=>n+r.count,0),
     qualifiedApproval:false,notSecurityClearance:true,
     note:'Database lookup at this time only. No offline claim or source/tarball/legal approval; all findings need explicit human triage.',
