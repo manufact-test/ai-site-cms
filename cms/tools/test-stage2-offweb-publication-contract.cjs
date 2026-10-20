@@ -31,7 +31,7 @@ assert.ok(node.includes('verify(destination)')&&node.includes('manifest.files.ma
 // metadata inside the runnable offweb package. This is a byte-level stability
 // prerequisite, not publisher signature evidence.
 const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'../release.json'),'utf8'));
-const releaseMatch=/^0\\.([0-9]+)\\.([0-9]+)-stage2\\.([0-9]+)$/.exec(manifest.version);
+const releaseMatch=/^0\.([0-9]+)\.([0-9]+)-stage2\.([0-9]+)$/.exec(manifest.version);
 assert.ok(releaseMatch,'Stage2 explicit version required');
 const expectedVersion=manifest.version.split('-stage2.')[0]+'-alpha'+releaseMatch[3];
 const installedFile=path.join(__dirname,'../.build/internal-stage2-package/vendor/composer/installed.php');
