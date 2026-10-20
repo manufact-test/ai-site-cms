@@ -42,6 +42,14 @@ $store->installSite('alpha-demo');
 must((int) $db->query('SELECT COUNT(*) FROM cms_installation')->fetchColumn() === 1, 'Same site repeat does not create new install');
 denied(fn() => $store->installSite('other-demo'), 'No other site takeover');
 denied(fn() => $store->assertSite('other-demo'), 'Wrong site connection');
+$db->exec('CREATE VIEW foreign_reporting AS SELECT site_id FROM cms_installation');
+must($store->inspectSite('alpha-demo')['state']==='blocked',
+    'Foreign SQLite view blocks existing CMS');
+denied(fn() => $store->assertSite('alpha-demo'),
+    'Existing SQLite site identity must not bypass foreign view refusal');
+$db->exec('DROP VIEW foreign_reporting');
+must($store->inspectSite('alpha-demo')['state']==='ready',
+    'Read-only site preflight recovers after test-only foreign view removal');
 foreach (['','../etc/passwd','Two_CMS','a','a.b','demo\' OR 1=1 --'] as $bad) {
     denied(fn() => $store->installSite($bad), 'Invalid site identifier rejected');
 }

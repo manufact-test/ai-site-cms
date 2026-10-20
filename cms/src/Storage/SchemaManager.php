@@ -113,6 +113,10 @@ final class SchemaManager
     public function assertSite(string $siteId): void
     {
         $this->assertValidSiteId($siteId);
+        // A once-valid CMS can later share its DB with another application.
+        // Identity and journal checks do not authorize foreign routines,
+        // events, views or triggers. Refuse use without changing anything.
+        $this->assertDedicatedSchema();
         if (!$this->tableExists('cms_installation')) {
             throw new RuntimeException('Site not installed');
         }
@@ -211,6 +215,22 @@ final class SchemaManager
             }
             if (!in_array($name, ['cms_schema_migrations', 'cms_installation'], true)) {
                 throw new RuntimeException('Foreign/unknown schema objects: dedicated CMS database required');
+            }
+        }
+        if ($this->driver === 'mysql') {
+            // INFORMATION_SCHEMA.TABLES includes ordinary tables and views,
+            // but not routines, events, or triggers. A DB with one of those
+            // objects is NOT an empty dedicated CMS database. Probe/migrate/
+            // assertSite share this fail-closed read-only ownership boundary.
+            // These three fixed queries contain no user-controlled SQL tokens.
+            foreach ([
+                'SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() LIMIT 1',
+                'SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() LIMIT 1',
+                'SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() LIMIT 1',
+            ] as $sql) {
+                if ($this->pdo->query($sql)->fetchColumn() !== false) {
+                    throw new RuntimeException('Foreign MySQL procedure, event or trigger: dedicated CMS database required');
+                }
             }
         }
     }

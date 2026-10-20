@@ -56,6 +56,35 @@ checkFault((string)$db->query('SELECT note FROM wp_posts WHERE id=1')->fetchColu
     'Existing non-CMS data remains intact');
 $db->exec('DROP TABLE wp_posts');
 
+// 1b: A schema with NO TABLES can still contain another app's procedure
+// or scheduled event. Those survive CREATE TABLE unless explicitly checked.
+// All DDL below is strictly limited to the disposable GitHub MySQL service.
+$db->exec('CREATE PROCEDURE visitor_owned_proc() SELECT 17');
+checkFault($store->inspectSite('fault-demo')['state']==='blocked',
+    'Foreign stored procedure makes apparently empty MySQL database unsafe');
+refuseFault(fn()=> $store->installSite('fault-demo'),
+    'Installer refuses non-table foreign procedure before migration journal');
+checkFault((int)$db->query("SELECT COUNT(*) FROM information_schema.routines
+    WHERE routine_schema=DATABASE() AND routine_name='visitor_owned_proc'")->fetchColumn()===1,
+    'Blocked installer preserves preexisting stored procedure');
+checkFault((int)$db->query("SELECT COUNT(*) FROM information_schema.tables
+    WHERE table_schema=DATABASE()")->fetchColumn()===0,
+    'No CMS table created next to foreign stored procedure');
+$db->exec('DROP PROCEDURE visitor_owned_proc');
+
+$db->exec('CREATE EVENT visitor_owned_event ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 YEAR DO SELECT 17');
+checkFault($store->inspectSite('fault-demo')['state']==='blocked',
+    'Foreign scheduled event makes apparently empty MySQL database unsafe');
+refuseFault(fn()=> $store->migrate(2),
+    'Migration refuses foreign scheduled event before creating journal');
+checkFault((int)$db->query("SELECT COUNT(*) FROM information_schema.events
+    WHERE event_schema=DATABASE() AND event_name='visitor_owned_event'")->fetchColumn()===1,
+    'Blocked migration preserves foreign scheduled event');
+checkFault((int)$db->query("SELECT COUNT(*) FROM information_schema.tables
+    WHERE table_schema=DATABASE()")->fetchColumn()===0,
+    'Event refusal leaves dedicated test schema empty');
+$db->exec('DROP EVENT visitor_owned_event');
+
 // 2: MySQL DDL was applied, but migration v1 journal lost before commit.
 $store->migrate(1);
 $db->exec('DROP TABLE cms_schema_migrations');
@@ -81,6 +110,21 @@ checkFault($store->inspectSite('fault-demo')['state'] === 'uninitialized', 'Fres
 $store->installSite('fault-demo');
 $store->assertSite('fault-demo');
 checkFault($store->inspectSite('fault-demo')['state'] === 'ready', 'Valid installation ready');
+// Even an authentic, fully journaled CMS is not allowed to coexist with
+// a newly planted foreign trigger. Reads must refuse, never delete it.
+$db->exec('CREATE TRIGGER visitor_owned_trigger BEFORE UPDATE ON cms_installation
+    FOR EACH ROW SET NEW.initialized_at = OLD.initialized_at');
+checkFault($store->inspectSite('fault-demo')['state']==='blocked',
+    'Foreign trigger attached to legitimate CMS table blocks reuse');
+refuseFault(fn()=> $store->assertSite('fault-demo'),
+    'Existing CMS identity cannot silently bypass foreign trigger refusal');
+checkFault((int)$db->query("SELECT COUNT(*) FROM information_schema.triggers
+    WHERE trigger_schema=DATABASE() AND trigger_name='visitor_owned_trigger'")->fetchColumn()===1,
+    'Read-only refusal preserves foreign trigger');
+$db->exec('DROP TRIGGER visitor_owned_trigger');
+checkFault($store->inspectSite('fault-demo')['state']==='ready'
+    && (string)$db->query('SELECT site_id FROM cms_installation')->fetchColumn()==='fault-demo',
+    'Normal valid CMS resumes only after disposable fixture cleanup');
 checkFault($store->inspectSite('another-demo')['reason'] === 'site_identity_mismatch',
     'Read-only mismatch does not expose site ID');
 $db->exec('DELETE FROM cms_schema_migrations WHERE version=1');
