@@ -5,6 +5,10 @@ namespace AiSiteCms\Release;
 
 use RuntimeException;
 
+// Some standalone Stage2 CLI fixtures include this verifier directly without Composer.
+// Keep the cryptographic backend explicitly loaded even in those paths.
+require_once __DIR__ . '/Ed25519Backend.php';
+
 /**
  * Stage2 READ-ONLY verification of the Node lab trust succession chain.
  * Public trust root and retained minimum epoch are independent operator inputs.

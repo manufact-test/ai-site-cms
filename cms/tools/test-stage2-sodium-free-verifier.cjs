@@ -21,7 +21,7 @@ try{
   if(packages.length!==1||packages[0].name!=='paragonie/sodium_compat'||
      packages[0].version!=='v2.5.2'||!packages[0].license.includes('ISC'))
     throw Error('Pinned sodium_compat candidate/license mismatch (not approved for distribution)');
-  const [pub,priv]=crypto.generateKeyPairSync('ed25519');
+  const {publicKey:pub,privateKey:priv}=crypto.generateKeyPairSync('ed25519');
   const other=crypto.generateKeyPairSync('ed25519').publicKey;
   const b64=x=>Buffer.from(x).toString('base64');
   const msg=Buffer.from('AI-SITE-CMS-STAGE2-POLYFILL-CROSS-RUNTIME-V1\0signed');

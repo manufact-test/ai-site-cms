@@ -52,7 +52,7 @@ mkdir($base.'/cms-stage2-private-boundary',0700);
 $copied = $base.'/public_html/index.php';
 try {
     copy($probe,$copied);
-    $marker = "{\"format\":\"ai-site-cms-stage2-private-boundary-marker-v1\",\"purpose\":\"test-only-no-code-no-secrets\",\"deploymentFolder\":\"cms-stage2-private-boundary\"}"."\\n";
+    $marker = "{\"format\":\"ai-site-cms-stage2-private-boundary-marker-v1\",\"purpose\":\"test-only-no-code-no-secrets\",\"deploymentFolder\":\"cms-stage2-private-boundary\"}".chr(10);
     file_put_contents($base.'/cms-stage2-private-boundary/probe.json',$marker);
     passes(str_contains(runProbe($copied,'GET','/__stage2/private-boundary'),'"outsideThisPublicRootMarkerObserved":true'),
         'real_sibling_folder_marker_detected');

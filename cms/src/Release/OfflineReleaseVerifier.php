@@ -5,6 +5,10 @@ namespace AiSiteCms\Release;
 
 use RuntimeException;
 
+// Some standalone Stage2 CLI fixtures include this verifier directly without Composer.
+// Keep the cryptographic backend explicitly loaded even in those paths.
+require_once __DIR__ . '/Ed25519Backend.php';
+
 /**
  * Stage2 OFFLINE, read-only PHP verifier for Node-created Ed25519 lab envelopes.
  * Does NOT extract archives, install code, attest publisher identity, or authorize deployment.

@@ -48,7 +48,7 @@ if ($path === '/__stage2/private-boundary') {
     $privatePath = $siteParent === false ? '' : $siteParent . '/cms-stage2-private-boundary';
     $actualPrivate = $privatePath === '' ? false : realpath($privatePath);
     $markerFile = $privatePath . '/probe.json';
-    $expected = '{"format":"ai-site-cms-stage2-private-boundary-marker-v1","purpose":"test-only-no-code-no-secrets","deploymentFolder":"cms-stage2-private-boundary"}' . "\\n";
+    $expected = '{"format":"ai-site-cms-stage2-private-boundary-marker-v1","purpose":"test-only-no-code-no-secrets","deploymentFolder":"cms-stage2-private-boundary"}' . chr(10);
     $found = $siteParent !== false
         && $actualPrivate === $privatePath
         && !is_link($privatePath)
