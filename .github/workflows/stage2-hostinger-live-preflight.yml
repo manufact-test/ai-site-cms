@@ -30,7 +30,7 @@ jobs:
           const {publicIPv4}=require('./cms/tools/stage2-target-https-check.cjs');
           const CMS='lightseagreen-woodpecker-264491.hostingersite.com';
           const VISITOR='mediumpurple-fox-175549.hostingersite.com';
-          const EXPECTED='stage2-target-host-check-20261020-r5';
+          const EXPECTED='stage2-target-host-check-20261020-r6';
           const pause=ms=>new Promise(done=>setTimeout(done,ms));
           function assert(check,reason){if(!check)throw Error(reason);}
           async function safeIp(host){
@@ -157,6 +157,20 @@ jobs:
                     v.databaseConnected===false&&v.cmsInstalled===false&&
                     v.peerAccountIsolationVerified===false&&v.productionReady===false&&
                     v.stage2Accepted===false;
+                }catch{return false;}
+              }],
+              ['Real Slim kernel health-only smoke with full integrity prerequisite','/__stage2/kernel/smoke',r=>{
+                if(![200,503].includes(r.status)||!r.type.toLowerCase().startsWith('application/json'))return false;
+                try{
+                  const v=JSON.parse(r.body);
+                  const live=r.status===200&&v.result==='health_only_pass'&&
+                    v.fullyHashedUnsignedPackage===true&&v.realSlimKernelHealthPassed===true;
+                  const missing=r.status===503&&v.result==='not_ready'&&
+                    v.realSlimKernelHealthPassed===false;
+                  return v.format==='ai-site-cms-stage2-live-kernel-smoke-v1'&&
+                    v.probeRevision===EXPECTED&&v.testOnly===true&&
+                    v.signedRelease===false&&v.schemaInitialized===false&&
+                    v.publicCmsActivated===false&&v.stage2Accepted===false&&(live||missing);
                 }catch{return false;}
               }],
               ['No public access to offweb CMS manifest','/cms-stage2-offweb-runtime/private/package-manifest.json',r=>[403,404].includes(r.status)],

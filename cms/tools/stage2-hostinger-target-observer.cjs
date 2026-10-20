@@ -17,6 +17,7 @@ const CMS_ROUTES=[
   ['/__stage2/rewrite/proof','lsapiFrontController'],
   ['/__stage2/private-boundary','privateBoundaryMarker'],
   ['/__stage2/offweb-package','offwebPackage'],
+  ['/__stage2/kernel/smoke','realKernelHealth'],
   ['/cms-stage2-offweb-runtime/private/package-manifest.json','offwebManifestHttpExposure'],
   ['/cms-stage2-private-boundary/probe.json','privateMarkerHttpExposure'],
   ['/','cmsLanding'],
@@ -95,6 +96,19 @@ function evaluate(name,response) {
       d.productionReady===false&&d.stage2Accepted===false;
     return {pass:Boolean(pass),...(pass?{observed:found}:{reason:'offweb_invalid'})};
   }
+  if(name==='realKernelHealth'){
+    let d;try{d=JSON.parse(text)}catch{return {pass:false,reason:'invalid_kernel_smoke_json'};}
+    const shape=d?.format==='ai-site-cms-stage2-live-kernel-smoke-v1'&&
+      d.probeRevision===REVISION&&d.testOnly===true&&
+      d.signedRelease===false&&d.schemaInitialized===false&&
+      d.publicCmsActivated===false&&d.stage2Accepted===false;
+    const live=s===200&&d.result==='health_only_pass'&&
+      d.fullyHashedUnsignedPackage===true&&d.realSlimKernelHealthPassed===true;
+    const notReady=s===503&&d.result==='not_ready'&&
+      d.realSlimKernelHealthPassed===false&&typeof d.fullyHashedUnsignedPackage==='boolean';
+    return {pass:Boolean(shape&&(live||notReady)),
+      ...(shape&&(live||notReady)?{observed:live}:{reason:'kernel_smoke_invalid'})};
+  }
   if(name==='offwebManifestHttpExposure')return {pass:s===403||s===404};
   if(name==='privateMarkerHttpExposure')return {pass:s===403||s===404};
   if(name==='cmsLanding')return {pass:s===200&&text.includes('NOT an installed CMS')};
@@ -155,6 +169,7 @@ async function inspect(){
         ...(verdict.reason?{reason:verdict.reason}:{}),
         ...(r.name==='privateBoundaryMarker'&&verdict.pass?{observed:verdict.observed}:{}),
         ...(r.name==='offwebPackage'&&verdict.pass?{observed:verdict.observed}:{}),
+        ...(r.name==='realKernelHealth'&&verdict.pass?{observed:verdict.observed}:{}),
         ...(r.name==='phpPreflight'&&verdict.pass?{
           phpVersion:verdict.phpVersion,webSapi:verdict.webSapi,
           requirements:verdict.requirements}: {})};
@@ -168,12 +183,14 @@ async function inspect(){
   const markerHttp=seen.find(r=>r.name==='privateMarkerHttpExposure');
   const offweb=seen.find(r=>r.name==='offwebPackage');
   const offwebHttp=seen.find(r=>r.name==='offwebManifestHttpExposure');
+  const kernel=seen.find(r=>r.name==='realKernelHealth');
   const requirements=preflight?.requirements;
   // A successful HTTP route check does NOT prove target deployment compatibility.
   // Our current PHP Ed25519 release verifier uses libsodium. Real target LiteSpeed
   // has not undergone the independent FPM/Apache isolation and lifecycle tests.
   const compatibilityGaps=[];
   if(routing?.passed!==true)compatibilityGaps.push('front_controller_rewrite_not_verified');
+  if(kernel?.observed!==true)compatibilityGaps.push('real_litespeed_kernel_health_not_verified');
   if(offweb?.observed!==true||offwebHttp?.passed!==true)
     compatibilityGaps.push('offweb_compiled_package_not_yet_verified');
   if(marker?.observed!==true||markerHttp?.passed!==true)
@@ -197,6 +214,7 @@ async function inspect(){
     rewrittenPhpFrontControllerObserved:routing?.passed===true,
     siblingMarkerOutsideDocumentRootObserved:marker?.observed===true&&markerHttp?.passed===true,
     offwebCompiledPackageVerified:offweb?.observed===true&&offwebHttp?.passed===true,
+    realReadOnlyKernelHealthObserved:kernel?.observed===true,
     databaseConnected:false,hostFilesystemIndependentlyInspected:false,
     stage2Accepted:false,stage3Authorized:false,productionReady:false,
     visitorDuringCmsOutageVerified:false};
@@ -221,6 +239,7 @@ Observed gaps: ${gaps.join(', ')||'none found by this limited probe'}.
 Actual nested-path PHP front controller rewrite observed: **${report.rewrittenPhpFrontControllerObserved?'YES':'NOT VERIFIED'}**.
 Non-secret marker from dedicated private sibling Git deploy: **${report.siblingMarkerOutsideDocumentRootObserved?'OBSERVED':'NOT DEPLOYED/NOT VERIFIED'}**.
 Offweb runtime package integrity: **${report.offwebCompiledPackageVerified?'FULL HASH INVENTORY VERIFIED (UNSIGNED)':'NOT PRESENT/NOT VERIFIED'}**.
+Actual LiteSpeed read-only Slim health: **${report.realReadOnlyKernelHealthObserved?'LIVE PASS (NOT CMS ACTIVATION)':'NOT VERIFIED'}**.
 
 | Route | HTTP status | Verified TLS | Expected result |
 |---|---:|---|---|

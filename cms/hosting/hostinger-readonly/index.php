@@ -45,7 +45,13 @@ if ($path === '/api/health') {
 // NOT isolation from other hosting users, actual private CMS install or DB.
 // Exact non-webroot package location; NO package PHP is loaded or executed.
 // SHA-256 is installation-completeness evidence, not authenticated publisher trust.
-if ($path === '/__stage2/offweb-package') {
+/**
+ * Read-only bounded integrity check. NOT a signed release/production attestation.
+ * Deliberately shares the complete package inventory between its evidence
+ * endpoint and the separate health-only real-kernel exercise.
+ * @return array{state:string,count:int,root:string}
+ */
+function stage2InspectUnsignedOffwebPackage(): array {
     $state='absent'; $count=0;
     $parent=realpath(dirname(__DIR__)); $web=realpath(__DIR__);
     $root=$parent===false?'':$parent.'/cms-stage2-offweb-runtime';
@@ -102,16 +108,59 @@ if ($path === '/__stage2/offweb-package') {
             }
         }
     }
-    $found=$state==='verified_unsigned_package';
+    return ['state'=>$state,'count'=>$count,'root'=>$root];
+}
+if ($path === '/__stage2/offweb-package') {
+    $offweb=stage2InspectUnsignedOffwebPackage();
+    $found=$offweb['state']==='verified_unsigned_package';
     http_response_code($found?200:503);
     echo json_encode([
         'format'=>'ai-site-cms-stage2-offweb-package-observation-v1',
-        'probeRevision'=>'stage2-target-host-check-20261020-r5',
-        'state'=>$state,'offwebPackageIntegrityVerified'=>$found,
-        'verifiedFiles'=>$found?$count:0,
+        'probeRevision'=>'stage2-target-host-check-20261020-r6',
+        'state'=>$offweb['state'],'offwebPackageIntegrityVerified'=>$found,
+        'verifiedFiles'=>$found?$offweb['count']:0,
         'signatureVerified'=>false,'phpFromPackageExecuted'=>false,
         'databaseConnected'=>false,'cmsInstalled'=>false,
         'peerAccountIsolationVerified'=>false,'productionReady'=>false,
+        'stage2Accepted'=>false
+    ],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+    exit;
+}
+// This is NOT the site's CMS front controller and must never become one.
+// Only the fixed synthetic GET /api/health route is invoked in memory.
+// The package must be fully checked before ANY vendor PHP is loaded.
+// No request data, proxy headers, DB secrets or client site settings passed in.
+if ($path === '/__stage2/kernel/smoke') {
+    $offweb=stage2InspectUnsignedOffwebPackage();
+    $ready=$offweb['state']==='verified_unsigned_package';
+    $kernelExecuted=false;
+    if ($ready) {
+        try {
+            $root=$offweb['root'];
+            require_once $root.'/vendor/autoload.php';
+            $app=\\AiSiteCms\\HttpKernel::create();
+            $factory=new \\Slim\\Psr7\\Factory\\ServerRequestFactory();
+            $request=$factory->createServerRequest('GET','/api/health');
+            $response=$app->handle($request);
+            $body=(string)$response->getBody();
+            $kernelExecuted=$response->getStatusCode()===200
+                && $body==='{"status":"ok"}'
+                && str_contains(strtolower($response->getHeaderLine('content-type')),'application/json');
+        } catch (\\Throwable $ignored) {
+            $kernelExecuted=false;
+        }
+    }
+    $ok=$ready && $kernelExecuted;
+    http_response_code($ok?200:503);
+    if (!$ok) header('Retry-After: 60');
+    echo json_encode([
+        'format'=>'ai-site-cms-stage2-live-kernel-smoke-v1',
+        'probeRevision'=>'stage2-target-host-check-20261020-r6',
+        'result'=>$ok?'health_only_pass':'not_ready',
+        'fullyHashedUnsignedPackage'=>$ready,
+        'realSlimKernelHealthPassed'=>$ok,
+        'testOnly'=>true,'signedRelease'=>false,
+        'schemaInitialized'=>false,'publicCmsActivated'=>false,
         'stage2Accepted'=>false
     ], JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
     exit;
@@ -131,7 +180,7 @@ if ($path === '/__stage2/private-boundary') {
     http_response_code($found ? 200 : 503);
     echo json_encode([
         'format' => 'ai-site-cms-stage2-private-boundary-observation-v1',
-        'probeRevision' => 'stage2-target-host-check-20261020-r5',
+        'probeRevision' => 'stage2-target-host-check-20261020-r6',
         'outsideThisPublicRootMarkerObserved' => $found,
         'cmsInstalled' => false,
         'privateCmsCodeInstalled' => false,
@@ -150,7 +199,7 @@ if ($path === '/__stage2/rewrite/proof') {
     http_response_code($mapped ? 200 : 503);
     echo json_encode([
         'format' => 'ai-site-cms-stage2-routing-observation-v1',
-        'probeRevision' => 'stage2-target-host-check-20261020-r5',
+        'probeRevision' => 'stage2-target-host-check-20261020-r6',
         'exactNonFileRoute' => true,
         'frontControllerMapped' => $mapped,
         'installationReady' => false,
@@ -180,7 +229,7 @@ $privateParentUsable = is_string($privateParent) && $privateParent !== $scriptDi
     && is_dir($privateParent) && is_readable($privateParent);
 
 $report = [
-    'probeRevision' => 'stage2-target-host-check-20261020-r5',
+    'probeRevision' => 'stage2-target-host-check-20261020-r6',
     'observationOnly' => true,
     'phpVersionMajorMinor' => PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION,
     'phpSapi' => PHP_SAPI,

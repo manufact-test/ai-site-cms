@@ -23,9 +23,9 @@ try{
  fs.mkdirSync(web,{mode:0o700});
  const gate=path.join(web,'index.php');
  fs.copyFileSync(path.join(__dirname,'../hosting/hostinger-readonly/index.php'),gate);
- const phpCheck=()=>{
+ const phpCheck=(route='/__stage2/offweb-package')=>{
    const code='$_SERVER["REQUEST_METHOD"]="GET";'+
-     '$_SERVER["REQUEST_URI"]="/__stage2/offweb-package";'+
+     '$_SERVER["REQUEST_URI"]='+JSON.stringify(route)+';'+
      '$_SERVER["DOCUMENT_ROOT"]='+JSON.stringify(web)+';'+
      '$_SERVER["SCRIPT_FILENAME"]='+JSON.stringify(gate)+';'+
      'include '+JSON.stringify(gate)+';';
@@ -33,6 +33,15 @@ try{
  };
  let actual=phpCheck();
  assert.equal(actual.state,'verified_unsigned_package');
+ const smoke=phpCheck('/__stage2/kernel/smoke');
+ assert.equal(smoke.result,'health_only_pass');
+ assert.equal(smoke.realSlimKernelHealthPassed,true);
+ assert.equal(smoke.fullyHashedUnsignedPackage,true);
+ assert.equal(smoke.testOnly,true);
+ assert.equal(smoke.publicCmsActivated,false);
+ assert.equal(smoke.signedRelease,false);
+ assert.equal(smoke.schemaInitialized,false);
+ assert.equal(smoke.stage2Accepted,false);
  assert.equal(actual.offwebPackageIntegrityVerified,true);
  assert.equal(actual.verifiedFiles,result.files-1);
  assert.equal(actual.signatureVerified,false);
@@ -44,8 +53,12 @@ try{
  actual=phpCheck();
  assert.equal(actual.state,'incomplete');
  assert.equal(actual.offwebPackageIntegrityVerified,false);
+ const tamper=phpCheck('/__stage2/kernel/smoke');
+ assert.equal(tamper.result,'not_ready');
+ assert.equal(tamper.realSlimKernelHealthPassed,false);
  fs.copyFileSync(path.join(STAGE,'private/editor/editor.js'),editorAsset);
  assert.equal(phpCheck().state,'verified_unsigned_package');
+ assert.equal(phpCheck('/__stage2/kernel/smoke').result,'health_only_pass');
  assert.equal(fs.existsSync(path.join(web,'vendor/autoload.php')),false);
  assert.throws(()=>prepare(STAGE,dest),/UNSAFE/);
  assert.throws(()=>prepare(STAGE,path.join(STAGE,'injected')),/UNSAFE/);

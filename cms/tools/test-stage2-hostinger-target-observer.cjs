@@ -60,6 +60,19 @@ check('full unsigned offweb package reported without CMS activation',
 check('unsigned inventory cannot impersonate signed release',
  !evaluate('offwebPackage',r(200,JSON.stringify({...offweb,state:'verified_unsigned_package',
  offwebPackageIntegrityVerified:true,verifiedFiles:473,signatureVerified:true}))).pass);
+const kernel={format:'ai-site-cms-stage2-live-kernel-smoke-v1',probeRevision:REVISION,
+ result:'health_only_pass',fullyHashedUnsignedPackage:true,realSlimKernelHealthPassed:true,
+ testOnly:true,signedRelease:false,schemaInitialized:false,publicCmsActivated:false,
+ stage2Accepted:false};
+check('actual Slim health is not release activation',
+ evaluate('realKernelHealth',r(200,JSON.stringify(kernel))).observed);
+check('missing kernel cannot be spoofed as running',
+ !evaluate('realKernelHealth',r(503,JSON.stringify(kernel))).pass);
+check('unsigned/test kernel disallows accepted claim',
+ !evaluate('realKernelHealth',r(200,JSON.stringify({...kernel,stage2Accepted:true}))).pass);
+check('missing offweb kernel is safe observed nonready',
+ evaluate('realKernelHealth',r(503,JSON.stringify({...kernel,result:'not_ready',
+   realSlimKernelHealthPassed:false,fullyHashedUnsignedPackage:false}))).pass);
 check('offweb manifest not reachable on HTTP',
  evaluate('offwebManifestHttpExposure',r(404,'Not Found')).pass);
 check('offweb manifest accidentally exposed is refused',
@@ -81,4 +94,4 @@ const s2=summary({requests:[{name:'phpPreflight',httpStatus:200,tlsVerified:true
 check('two capability gaps shown',s2.includes('php_sodium_missing')
  &&s2.includes('target_web_sapi_requires_compatibility_review'));
 check('HTTPS pass not deploy acceptance',s2.includes('Target runtime compatibility for the current signed deployment: **STILL OPEN**'));
-console.log('Stage2 live report parser contract: 29 offline checks PASS; no host I/O');
+console.log('Stage2 live report parser contract: 33 offline checks PASS; no host I/O');
