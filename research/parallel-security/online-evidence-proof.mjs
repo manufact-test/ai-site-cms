@@ -20,6 +20,22 @@ function record(stdout,label){
     throw Error('ONLINE_EVIDENCE_UNVERIFIED: '+label+' output is not single JSON');
   }
 }
+function versionTuple(input){
+  if(typeof input!=='string')return null;
+  const value=input.replace(/^v/,'');
+  if(!/^\d+\.\d+(?:\.\d+)?$/.test(value))return null;
+  const parts=value.split('.').map(Number);
+  if(parts.length===2)parts.push(0);
+  return parts;
+}
+function comparesNewer(latest,locked){
+  const a=versionTuple(latest),b=versionTuple(locked);
+  if(!a||!b)return false; // mirrors version-check.mjs's unknown semantics
+  for(let i=0;i<3;i++){
+    if(a[i]!==b[i])return a[i]>b[i];
+  }
+  return false;
+}
 function withinWindow(iso){
   demand(typeof iso==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(iso),
     'missing UTC ISO millisecond timestamp');
@@ -121,6 +137,8 @@ export function verifyRegistryEvidence(stdout,root){
       'registry latest not numeric semver for '+x.name);
     demand(typeof x.upgradeCandidate==='boolean',
       'registry upgrade candidate flag missing for '+x.name);
+    demand(x.upgradeCandidate===comparesNewer(x.latest,x.locked),
+      'registry upgrade classification contradicts pinned and latest versions for '+x.name);
     const prefix=x.ecosystem==='npm'
       ? 'https://registry.npmjs.org/'+encodeURIComponent(x.name)+'/latest'
       : 'https://repo.packagist.org/p2/'+x.name+'.json';
