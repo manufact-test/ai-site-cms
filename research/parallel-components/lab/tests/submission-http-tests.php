@@ -45,7 +45,10 @@ $html=NoJsResult::page($out,$out['submitted']);
 expectHttp(str_contains($html,'&lt;script&gt;') && !str_contains($html,'<script>'),'escaped HTML retry');
 expectHttp(str_contains($html,'name="csrf" value="'.$token.'"'),'safe retry CSRF');
 expectHttp(str_contains($html,'id="field-message"') && str_contains($html,'aria-invalid="true"'),'HTML error focus');
-$spam=postHttp($server,http_build_query(array_replace($fields,['company_site'=>'spam'])),$session,$config,$now);
+// Isolate the honeypot case: the previous scenarios deliberately spent 5 per-session attempts.
+$spamSession=[];
+$spamToken=FormLab::issueToken($spamSession,$now-5);
+$spam=postHttp($server,http_build_query(array_replace($fields,['csrf'=>$spamToken,'company_site'=>'spam'])),$spamSession,$config,$now);
 expectHttp($spam['code']==='SPAM_REJECTED','honeypot maintained');
 $fastSession=[];$fastToken=FormLab::issueToken($fastSession,$now);
 $tooFast=postHttp($server,http_build_query(array_replace($fields,['csrf'=>$fastToken])),$fastSession,$config,$now);
