@@ -23,6 +23,7 @@ bad({results:[{}]},'incomplete response count');
 bad({results:[{vulns:[]}, {},{}]},'unexpected extra responses');
 bad({results:[null,{}]},'missing OSV object');
 bad({results:[{next_page_token:'unread'},{}]},'unconsumed pagination');
+bad({results:[{next_page_token:''},{}]},'present but empty pagination token');
 bad({results:[{vulns:{}},{}]},'malformed vulnerability body');
 bad({results:[{vulns:[{id:'GHSA-A'}, {id:'GHSA-A'}]},{}]},'duplicate advisory');
 bad({results:[{vulns:[{id:'<script>'}]},{}]},'invalid advisory ID');
