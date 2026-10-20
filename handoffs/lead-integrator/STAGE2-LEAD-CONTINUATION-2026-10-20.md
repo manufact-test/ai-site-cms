@@ -42,6 +42,12 @@ Repository: https://github.com/manufact-test/ai-site-cms
 - Stage2 founder snapshot is EMPTY FOUNDATION METADATA only; NOT a complete pages/media/revisions backup or actual production disaster recovery. Stage2 MUST NOT be marked accepted on the basis of CI alone.
 - Stage0 and Stage1 accepted in existing project baseline; Stage2 NOT ACCEPTED; Stage3 NOT STARTED; 0/135 mandatory product features accepted.
 
+## Fresh research PRs that appeared during this handoff (NOT reviewed/merged)
+
+- Security PR #3 https://github.com/manufact-test/ai-site-cms/pull/3, head 57519125c27e07ab92fb705f05cf01a3e50fbb50, 9 changed files, all research/parallel-security. New OSV snapshot and signed operator receipt replay research. **OPEN; independent CI/review and exact SHA check required before any merge.** New PR != previously merged #1.
+- Components PR #4 https://github.com/manufact-test/ai-site-cms/pull/4, head df69ab7056a0d610e2078558c8b38d0dcac54ae2, 14 changed files, all research/parallel-components. New form submission/accessible wizard/revision-plan research. **OPEN; independent CI/review required before merge.** New PR != previously merged #2.
+- Both branches are maintained by their parallel research chats. Lead must not edit their files except by reviewed PR integration. User specifically forbids updating their handoff documents for this lead transfer.
+
 ## Open exit gates / next meaningful large block
 
 1. Prove actual new offweb 477-file package presence on approved Hostinger CMS site, root identity and restricted sibling private permissions (without using shared SSH or writing visitor/public_html). Operator may need one precise hPanel File Manager task; do not invent real host success.
