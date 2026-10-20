@@ -23,6 +23,14 @@ check(manifest.files.some(x=>x.path==='bin/hostinger-stage2-preflight.php'),
   'Credential-free Stage2 Hostinger CLI preflight is packaged off-web');
 check(!manifest.files.some(x=>x.path==='public/hostinger-stage2-preflight.php'),
   'Credential-free CLI is NOT exposed through the webroot');
+// Parallel research is integrated as non-runtime evidence only. It must never
+// enter a downloadable CMS package or a shared-host public document root.
+check(!manifest.files.some(x=>x.path.startsWith('research/')
+  || x.path.includes('parallel-security/')
+  || x.path.includes('parallel-components/')
+  || x.path.includes('lab/public/')
+  || x.path.includes('test_browser.py')),
+  'Independent Security/Components research and standalone form lab cannot enter Hostinger distribution');
 check(manifest.files.some(x=>x.path==='src/Hosting/HostingerStage2OneShot.php'),
   'One-shot implementation is inventoried');
 for(const unsafe of ['public/hostinger-stage2-once.php','cms-stage2-local/once.json',
