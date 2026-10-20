@@ -143,6 +143,23 @@ const out={schema:'ai-site-cms-security-evidence-v1',environment:{node:process.v
   complete:counts.failed===0&&counts.blocked===0,
   productionApproved:false,licenseApproved:false,stage2Accepted:false,results};
 console.log(JSON.stringify(out,null,2));
+// Print bounded named evidence to CI stderr: a green aggregate number is not
+// enough to prove which exact-head fixtures reached their final assertion count.
+const proofNames=[
+  'native:operator-receipt-chain','native:operator-preactivation-permit',
+  'native:operator-settlement-chain','native:trust-root-rotation',
+  'mutation:osv-strict-regression.mjs','mutation:osv-cli-regression.mjs'
+];
+console.error('INDEPENDENT_SECURITY_EXACT_HEAD_PROOFS '+JSON.stringify(
+  proofNames.map(name=>{
+    const r=results.find(x=>x.name===name);
+    const lines=(r?.stdout||'').trimEnd().split('\n');
+    const proof=lines.find(line=>/PASS.*assertions|PASS.*cases/.test(line))
+      ||lines[lines.length-1]||'';
+    return {name,status:r?.status||'absent',exitCode:r?.exitCode??null,
+      proof:proof.slice(0,240),validationError:r?.validationError||null};
+  })
+));
 if(counts.failed>0){
   // CI normally redirects the structured stdout report into RUNNER_TEMP.
   // Emit bounded failure diagnostics on stderr for a reproducible PR review.
