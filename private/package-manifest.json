@@ -26,8 +26,8 @@
     },
     {
       "path": "bin/hostinger-stage2-preflight.php",
-      "bytes": 2644,
-      "sha256": "81b358e513b86d13f7f23cc8b29b1d6ecaa5340fe4c865b04d7d17aadef28cb0"
+      "bytes": 13315,
+      "sha256": "2e9f0336beed2194f6a4426c9c3fedb3de97769295cc1881bf299ed79f33b193"
     },
     {
       "path": "bin/install.php",
@@ -106,8 +106,8 @@
     },
     {
       "path": "private/compliance/compliance-index.json",
-      "bytes": 369,
-      "sha256": "9f1fa907bb7f8620bc9a28862301d79ab5bd38be14f4c84e7c94a151447bd91b"
+      "bytes": 521,
+      "sha256": "928827554d4039aabc5cd3f29e36534cf75e62cc89716ce060e2757b118e2010"
     },
     {
       "path": "private/compliance/npm-package-lock.json",
@@ -116,13 +116,13 @@
     },
     {
       "path": "private/compliance/sbom.cdx.json",
-      "bytes": 26722,
-      "sha256": "272eacb8069f79d56ab1bacad0d5db8cf121c435975b960e95e18c1f8d15e89b"
+      "bytes": 27064,
+      "sha256": "24678c9c0a19f65cf918a058324d4dc90b5f6ec5f58f66a384c14b692b5a92b8"
     },
     {
       "path": "private/compliance/THIRD_PARTY_NOTICES.txt",
-      "bytes": 46216,
-      "sha256": "4b45232c5da77e435ccaccd23afaed5a670fa2f719703b3f02d486e530bf8d3f"
+      "bytes": 47000,
+      "sha256": "9ab16e99c0cb2baa74a82efcf73171422a35ce7163db53797eb7785768933a93"
     },
     {
       "path": "private/editor/editor.js",
@@ -161,8 +161,8 @@
     },
     {
       "path": "src/Hosting/LabComplianceEvidence.php",
-      "bytes": 10283,
-      "sha256": "1675e9569a6b0d4f350750b9856d436f6dd4197cd7608eee73833863cc4dd774"
+      "bytes": 13360,
+      "sha256": "3a2c01f69466cf96e97b70486f0ccbc17c3fefac67f739db1c69f2dff8b48452"
     },
     {
       "path": "src/Hosting/LabDeploymentBlueprint.php",
@@ -352,7 +352,7 @@
     {
       "path": "vendor/composer/installed.php",
       "bytes": 6387,
-      "sha256": "9abd7d1997cb2a7376529102aaef015753e4c910d0d0ac173d94b0b968046ba9"
+      "sha256": "d87974f5503c2094d6f7dc3122a23b2255c043569b19ce3d9d0842247932950e"
     },
     {
       "path": "vendor/composer/InstalledVersions.php",

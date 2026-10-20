@@ -88,6 +88,10 @@
         {
           "name": "ai-site-cms:source-ref",
           "value": "8458763e0dd0b6baa310e04f1829fc73da4e8c8a"
+        },
+        {
+          "name": "ai-site-cms:installed-notice-sha256:NOTICE",
+          "value": "7ec8033bcc41b35a191f367017c3344aa5b386a213c803796a7e314b90850e70"
         }
       ]
     },
@@ -115,6 +119,10 @@
         {
           "name": "ai-site-cms:source-ref",
           "value": "3e4d2aaff518ac518530b89bb26ed40f4503635e"
+        },
+        {
+          "name": "ai-site-cms:installed-notice-sha256:NOTICE",
+          "value": "c9b1825aa319a00daba53745daa5c6b3aef44be7c79ebfeb7af48f37e642a04b"
         }
       ]
     },

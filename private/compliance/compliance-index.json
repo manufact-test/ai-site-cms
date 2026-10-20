@@ -5,7 +5,12 @@
   "browserRuntime": [
     "jedison@1.27.1"
   ],
-  "noticeSha256": "4b45232c5da77e435ccaccd23afaed5a670fa2f719703b3f02d486e530bf8d3f",
+  "noticeSha256": "9ab16e99c0cb2baa74a82efcf73171422a35ce7163db53797eb7785768933a93",
+  "composerNoticeFiles": 2,
+  "requiredApacheNoticesPreserved": [
+    "opis/json-schema",
+    "opis/string"
+  ],
   "componentCount": 43,
-  "attestation": "lock-metadata-and-installed-license-text-only; not signed; manual legal review remains required"
+  "attestation": "lock-metadata-and-installed-license-plus-root-notice-text; not signed; nested notices unreviewed; manual legal review remains required"
 }
