@@ -44,7 +44,11 @@ jobs:
         run: npm run test:browser
       - name: Install pinned PHP runtime for internal offline distribution only
         working-directory: cms
-        run: composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader
+        shell: bash
+        run: |
+          set -euo pipefail
+          export COMPOSER_ROOT_VERSION="$(node -p "const v=require('./release.json').version.split('-stage2.'); v[0]+'-alpha'+v[1]")"
+          composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader
       - name: Read-only mixed-technology installation topology and isolation tests
         working-directory: cms
         run: php tests/site-runtime-topology.php && php tests/site-runtime-cli.php
