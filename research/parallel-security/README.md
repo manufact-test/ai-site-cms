@@ -46,3 +46,7 @@ Do not call `php -n` a true no-Sodium environment without checking `extension_lo
 - [SODIUM-DECISION-REVIEW.md](SODIUM-DECISION-REVIEW.md) — options and strict cross-backend/replay/security preconditions; candidate 2.5.2 remains CONDITIONAL.
 - [NPM-ARCHIVE-REVIEW.md](NPM-ARCHIVE-REVIEW.md), [npm-source-gate.mjs](npm-source-gate.mjs) — build/test-only embedded third-party notices and installed-archive checks.
 - `release-fixture.mjs native` now exercises 20 independent valid/negative signed release cases, confirmed on the actual original PHP verifier. Pure-PHP still blocked absent truly extension-free PHP.
+
+### Original, not synthetic GitHub Actions evidence
+
+[Run 39485991908](https://github.com/manufact-test/ai-site-cms/actions/runs/39485991908): standalone **Security & Dependencies job** executed on Node 22 and PHP 8.3.35 against the real 14 PHP + 29 npm dependency manifests/installed package and completed with **22 PASS / 0 FAIL / 2 BLOCKED**. Missing native-Sodium extension/compat pathways intentionally remain BLOCKED and Stage2 has not been accepted. See EVIDENCE-2026-10-20.md for complete history and scope.
