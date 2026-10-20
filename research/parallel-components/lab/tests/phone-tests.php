@@ -6,7 +6,7 @@ $n=0;
 function must(bool $state, string $what): void {global $n; $n++; if (!$state) throw new RuntimeException($what);}
 final class PhoneDouble {
     public function parse(string $phone, ?string $region): object {
-        if ($phone === 'BAD') throw new RuntimeException('test parse rejection');
+        if ($phone === '9999') throw new RuntimeException('test parse rejection');
         $canonical = match($phone) {
             '0151 23456789', '+4915123456789' => '+4915123456789',
             '+447911123456' => '+447911123456',
@@ -14,10 +14,10 @@ final class PhoneDouble {
         };
         return new class($canonical, $region, $phone) {
             public function __construct(public string $canonical, public ?string $region, public string $phone) {}
-            public function hasExtension(): bool { return $this->phone === 'EXT'; }
+            public function hasExtension(): bool { return $this->phone === '+7777'; }
         };
     }
-    public function isValidNumber(object $p): bool { return $p->phone !== 'INVALID'; }
+    public function isValidNumber(object $p): bool { return $p->phone !== '8888'; }
     public function isValidNumberForRegion(object $p,string $region): bool {
         return $p->canonical === '+4915123456789' && $region === 'DE'
             || $p->canonical === '+447911123456' && $region === 'GB';
@@ -34,16 +34,16 @@ must(PhoneAdapter::normalize('+447911123456','GB',$d,1)==='+447911123456','GB re
 must(PhoneAdapter::normalize('+447911123456','DE',$d,1)===null,'region mismatch refused');
 must(PhoneAdapter::normalize('0151 23456789','ZZ',$d,1)===null,'countryless national refused');
 must(PhoneAdapter::normalize('+447911123456','ZZ',$d,1)==='+447911123456','international with ZZ');
-must(PhoneAdapter::normalize('BAD','DE',$d,1)===null,'parse errors refused');
+must(PhoneAdapter::normalize('9999','DE',$d,1)===null,'parse errors refused');
 must(PhoneAdapter::normalize('Call +4915123456789','DE',$d,1)===null,'embedded prose rejected before metadata');
 must(PhoneAdapter::normalize('tel:+4915123456789','DE',$d,1)===null,'URI scheme rejected');
 must(PhoneAdapter::normalize('+49+15123456789','DE',$d,1)===null,'multiple plus rejected');
 must(PhoneAdapter::normalize('+49 151 23456789 ext 5','DE',$d,1)===null,'extensions in freeform text rejected');
-must(PhoneAdapter::normalize('+49\xE2\x80\xAE15123456789','DE',$d,1)===null,'bidi-format control rejected');
+must(PhoneAdapter::normalize("+49\xE2\x80\xAE15123456789",'DE',$d,1)===null,'bidi-format control rejected');
 must(PhoneAdapter::normalize('0151 23456789','DE',$d,1)==='+4915123456789','normal national separators remain valid');
-must(PhoneAdapter::normalize('INVALID','DE',$d,1)===null,'invalid numbering metadata refused');
+must(PhoneAdapter::normalize('8888','DE',$d,1)===null,'invalid numbering metadata refused');
 must(PhoneAdapter::normalize('0000','ZZ',$d,1)===null,'country code must not begin zero');
-must(PhoneAdapter::normalize('EXT','DE',$d,1)===null,'extensions not guessed');
+must(PhoneAdapter::normalize('+7777','ZZ',$d,1)===null,'extensions not guessed');
 must(PhoneAdapter::normalize('+4915123456789','de',$d,1)===null,'noncanonical region refused');
 must(PhoneAdapter::normalize('+4915123456789','ABC',$d,1)===null,'non ISO region refused');
 must(PhoneAdapter::normalize("+49\r123",'DE',$d,1)===null,'header/control refused');
