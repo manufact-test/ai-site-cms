@@ -52,6 +52,10 @@ try {
   fs.writeFileSync(cPath,JSON.stringify(composer));
   fs.writeFileSync(nPath,JSON.stringify(npm));
   const preload = `// Fake OSV querybatch; no outbound network possible in this fixture.
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+const base=path.dirname(fileURLToPath(import.meta.url));
 const kind=process.env.OSV_CLI_FAKE_SCENARIO;
 globalThis.fetch=async (url, options)=>{
   if(url!=='https://api.osv.dev/v1/querybatch' || options.method!=='POST' ||
@@ -71,6 +75,18 @@ globalThis.fetch=async (url, options)=>{
   if(kind==='broken-json')bytes=new TextEncoder().encode('broken json');
   if(kind==='invalid-utf8')bytes=new Uint8Array([255,254]);
   if(kind==='oversize')bytes=new Uint8Array(4*1024*1024+1);
+  // The mutation runs AFTER the OSV POST body was captured, but BEFORE the
+  // response reaches the audited CLI. A mismatch must invalidate the report.
+  const composerPath=path.join(base,'cms/composer.lock');
+  const npmPath=path.join(base,'cms/editor/package-lock.json');
+  if(kind==='mutate-composer')fs.appendFileSync(composerPath,' ');
+  if(kind==='mutate-npm')fs.appendFileSync(npmPath,' ');
+  if(kind==='unlink-composer')fs.unlinkSync(composerPath);
+  if(kind==='swap-composer'){
+    const saved=fs.readFileSync(composerPath);
+    fs.renameSync(composerPath,composerPath+'.original');
+    fs.writeFileSync(composerPath,saved);
+  }
   return {ok:kind!=='http-error',status:kind==='http-error'?429:200,
     body:new ReadableStream({start(controller){controller.enqueue(bytes);controller.close();}})};
 };
@@ -84,7 +100,8 @@ globalThis.fetch=async (url, options)=>{
   check(data.lockSha256['cms/composer.lock']===sha(fs.readFileSync(cPath))&&
     data.lockSha256['cms/editor/package-lock.json']===sha(fs.readFileSync(nPath)),
     'exact lock byte digests retained');
-  check(data.qualifiedApproval===false&&data.notSecurityClearance===true,
+  check(data.lockSnapshotVerifiedUnchanged===true&&
+    data.qualifiedApproval===false&&data.notSecurityClearance===true,
     'no accidental security or legal approval');
   check(!Number.isNaN(Date.parse(data.checkedAt)),'machine-parsable snapshot time');
   const advisory=invoke('advisory',['--fail-on-advisory']);
@@ -102,6 +119,19 @@ globalThis.fetch=async (url, options)=>{
     check(r.status===1&&r.stderr.includes('OSV_EXACT_PIN_FAILED')&&
       !r.stdout.includes('completeQueryResponse'),scenario+' cannot claim complete coverage');
   }
+  // Mutate BOTH individual original locks, remove one, and silently swap
+  // its inode while preserving identical bytes. All must fail closed.
+  for(const scenario of ['mutate-composer','mutate-npm','unlink-composer','swap-composer']){
+    fs.writeFileSync(cPath,JSON.stringify(composer));
+    fs.writeFileSync(nPath,JSON.stringify(npm));
+    const r=invoke(scenario);
+    check(r.status===1&&r.stderr.includes('OSV_EXACT_PIN_FAILED')&&
+      !r.stdout.includes('completeQueryResponse')&&
+      !r.stdout.includes('ecosystem,name,version'),
+      scenario+' rejects lockfile TOCTOU without JSON or CSV success');
+  }
+  fs.writeFileSync(cPath,JSON.stringify(composer));
+  fs.writeFileSync(nPath,JSON.stringify(npm));
   const invalid=invoke('clean',['--unsupported']);
   check(invalid.status===1&&invalid.stderr.includes('OSV_EXACT_PIN_FAILED'),
     'unexpected option rejected before query');
