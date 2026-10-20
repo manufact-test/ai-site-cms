@@ -87,7 +87,12 @@ final class HostingerStage2OneShot
                     $data = (new FoundationSnapshot($pdo))->export(self::SITE);
                     FoundationSnapshot::verify($data, self::SITE);
                     $destination = $localRoot.'/foundation-snapshot.json';
-                    $handle = @fopen($destination, 'xb');
+                    $oldUmask = umask(0077);
+                    try {
+                        $handle = @fopen($destination, 'xb');
+                    } finally {
+                        umask($oldUmask);
+                    }
                     if ($handle === false) throw new RuntimeException('SNAPSHOT_EXISTS');
                     try {
                         if (fwrite($handle, $data."\n") !== strlen($data)+1) {
