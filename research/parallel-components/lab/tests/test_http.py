@@ -53,6 +53,19 @@ class HttpBoundary(unittest.TestCase):
         self.assertIsNotNone(token)
         return opener,token.group(1)
 
+    def test_ssr_native_form_remains_valid_without_script(self):
+        opener, token = self.setup_session()
+        with opener.open(self.url, timeout=4) as response:
+            html=response.read().decode('utf-8')
+            self.assertIn('no-store', response.headers.get('Cache-Control',''))
+        self.assertIn('<form id="contact" action="/submit-html.php" method="post">',html)
+        self.assertIn('name="csrf"',html)
+        self.assertIn('id="nav-toggle"',html)
+        self.assertIn('aria-controls="site-nav" hidden',html)
+        self.assertIn('aria-label="Среда сайта" hidden',html)
+        self.assertIn('id="dialog-nojs"',html)
+        self.assertNotIn('id="panel-react" role="tabpanel" aria-labelledby="tab-react" tabindex="0" hidden',html)
+
     def test_post_and_configuration_gate(self):
         opener,token=self.setup_session()
         payload={'csrf':token,'company_site':'','name':'Alex','email':'alex@example.test',

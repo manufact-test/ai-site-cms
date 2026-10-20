@@ -53,6 +53,54 @@ class BrowserLab(unittest.TestCase):
         return page
 
 
+
+    def test_no_script_has_usable_nav_tabs_dialog_info_and_native_form_validation(self):
+        html = urlopen(self.backend, timeout=5).read().decode('utf-8')
+        self.assertNotIn('id="contact" action="/submit-html.php" method="post" novalidate', html)
+        self.assertIn('id="panel-react"', html)
+        css = (PUBLIC/'assets/style.css').read_text()
+        # No-JS mode is actually Chromium with scripting disabled, not just a source-string check.
+        context = self.browser.new_context(java_script_enabled=False,
+                                           viewport={'width':320,'height':720})
+        page = context.new_page()
+        try:
+            page.set_content(html.replace('</head>', '<style>'+css+'</style></head>', 1))
+            self.assertFalse(page.locator('#nav-toggle').is_visible())
+            self.assertTrue(page.locator('#site-nav').is_visible())
+            self.assertTrue(page.locator('#site-nav a[href="#faq"]').is_visible())
+            self.assertFalse(page.locator('[role="tablist"]').is_visible())
+            self.assertTrue(page.locator('#panel-php').is_visible())
+            self.assertTrue(page.locator('#panel-react').is_visible())
+            self.assertFalse(page.locator('#open-dialog').is_visible())
+            self.assertTrue(page.locator('#dialog-nojs').is_visible())
+            self.assertIn('Исследовательский прототип',page.locator('#dialog-nojs').inner_text())
+            self.assertTrue(page.locator('#wizard-identity').is_visible())
+            self.assertTrue(page.locator('#wizard-message').is_visible())
+            self.assertTrue(page.locator('#form-submit').is_visible())
+            self.assertIsNone(page.locator('#contact').get_attribute('novalidate'))
+            # Browser blocks an empty native submit locally; no network request is made.
+            page.locator('#form-submit').click()
+            self.assertTrue(page.locator('#name').evaluate('(el) => el === document.activeElement'))
+            self.assertNotIn('submit-html.php',page.url)
+        finally:
+            context.close()
+
+    def test_no_script_desktop_panels_not_hidden_and_controls_not_dead(self):
+        html = urlopen(self.backend, timeout=5).read().decode('utf-8')
+        context = self.browser.new_context(java_script_enabled=False,
+                                           viewport={'width':1200,'height':840})
+        page=context.new_page()
+        try:
+            page.set_content(html.replace('</head>',
+                '<style>'+(PUBLIC/'assets/style.css').read_text()+'</style></head>',1))
+            self.assertTrue(page.locator('#site-nav').is_visible())
+            self.assertTrue(page.locator('#panel-php').is_visible())
+            self.assertTrue(page.locator('#panel-react').is_visible())
+            self.assertFalse(page.locator('[role="tablist"]').is_visible())
+            self.assertTrue(page.locator('#faq details').first.is_visible())
+        finally:
+            context.close()
+
     def test_enhanced_page_initializes_controls_after_progressive_html(self):
         page=self.new_page(viewport={'width':375,'height':740})
         self.assertTrue(page.locator('#nav-toggle').is_visible())
