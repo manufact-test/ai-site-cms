@@ -100,6 +100,13 @@ try {
     $check(!is_file($local.'/receipt.json') && !is_file($local.'/once.json'),
         'credential-free preflight is strictly read-only');
     $reject(fn()=>Job::run($package,$local)); // Missing operator task.
+    chmod($local,0755);
+    [$looseCode,$looseText,$looseErr]=$runCron('hostinger-stage2-preflight.php');
+    $loose=json_decode($looseText,true,8,JSON_THROW_ON_ERROR);
+    $check($looseCode===0 && $looseErr==='' && !$loose['oneShotAvailable']
+        && $loose['privateLocalState']==='private_directory_refused',
+        'preflight refuses unsafe private directory without touching database');
+    chmod($local,0700);
     $store($task);
     [$readyCode,$readyText,$readyErr]=$runCron('hostinger-stage2-preflight.php');
     $readyReport=json_decode($readyText,true,8,JSON_THROW_ON_ERROR);
@@ -110,6 +117,13 @@ try {
     $check(!str_contains($readyText,'ephemeral_local_ci_only'),
         'preflight never exposes password from task file');
     chmod($local.'/once.json',0644);
+    [$looseTaskCode,$looseTaskText,$looseTaskErr]
+        =$runCron('hostinger-stage2-preflight.php');
+    $looseTask=json_decode($looseTaskText,true,8,JSON_THROW_ON_ERROR);
+    $check($looseTaskCode===0 && $looseTaskErr==='' && !$looseTask['oneShotAvailable']
+        && $looseTask['taskState']==='unsafe_task_refused'
+        && !str_contains($looseTaskText,'ephemeral_local_ci_only'),
+        'preflight detects group-readable credential file without reading it');
     $reject(fn()=>Job::run($package,$local)); // World-readable credential refused.
     chmod($local.'/once.json',0600);
     $wrongPinTask=$task;
@@ -214,6 +228,12 @@ try {
         && $report['dedicatedDbGrantsVerified']===false
         && $report['failureCategory']==='database_scope_refused',
         'cross-database grants refused before DDL');
+    [$refusedCode,$refusedText,$refusedErr]=$runCron('hostinger-stage2-preflight.php');
+    $refusedMeta=json_decode($refusedText,true,8,JSON_THROW_ON_ERROR);
+    $check($refusedCode===0 && $refusedErr==='' &&
+        $refusedMeta['receiptState']==='completed_refused'
+        && !$refusedMeta['oneShotAvailable'],
+        'preflight reports failed MySQL attempt without exposing credential details');
     $check(!file_exists($local.'/once.json'),
         'rejected DB privilege scope also consumes secret-bearing task');
     unlink($local.'/receipt.json');
