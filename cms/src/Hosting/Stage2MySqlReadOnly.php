@@ -22,11 +22,15 @@ final class Stage2MySqlReadOnly
             || $pdo->inTransaction()) {
             throw new RuntimeException('MYSQL_READONLY_BOUNDARY_REQUIRED');
         }
-        // MySQL applies this to the NEXT transaction, not globally or to
-        // the distinct install action's fresh connection.
-        $pdo->exec('SET TRANSACTION READ ONLY');
+        // SET TRANSACTION READ ONLY protects only ONE transaction.
+        // Permanent DDL may implicitly end that transaction, so it is NOT
+        // sufficient when the dedicated operator also has installer grants.
+        // Pin the entire disposable CONNECTION to READ ONLY instead.
+        // A separate install action always opens its own new connection.
+        $pdo->exec('SET SESSION TRANSACTION READ ONLY');
         $pdo->beginTransaction();
-        if (!$pdo->inTransaction()) {
+        if (!$pdo->inTransaction()
+            || (int) $pdo->query('SELECT @@SESSION.transaction_read_only')->fetchColumn() !== 1) {
             throw new RuntimeException('MYSQL_READONLY_TRANSACTION_NOT_STARTED');
         }
     }
@@ -37,8 +41,12 @@ final class Stage2MySqlReadOnly
             || !$pdo->inTransaction()) {
             throw new RuntimeException('MYSQL_READONLY_TRANSACTION_LOST');
         }
+        if ((int) $pdo->query('SELECT @@SESSION.transaction_read_only')->fetchColumn() !== 1) {
+            throw new RuntimeException('MYSQL_READONLY_SESSION_LOST');
+        }
         $pdo->rollBack();
-        if ($pdo->inTransaction()) {
+        if ($pdo->inTransaction()
+            || (int) $pdo->query('SELECT @@SESSION.transaction_read_only')->fetchColumn() !== 1) {
             throw new RuntimeException('MYSQL_READONLY_ROLLBACK_INCOMPLETE');
         }
     }
