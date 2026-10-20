@@ -11,7 +11,7 @@ const fs=require('node:fs');
 const {publicIPv4}=require('./stage2-target-https-check.cjs');
 const CMS='lightseagreen-woodpecker-264491.hostingersite.com';
 const VISITOR='mediumpurple-fox-175549.hostingersite.com';
-const REVISION='stage2-target-host-check-20261020-r5';
+const REVISION='stage2-target-host-check-20261020-r6';
 const CMS_ROUTES=[
   ['/__stage2/host','phpPreflight'],
   ['/__stage2/rewrite/proof','lsapiFrontController'],
