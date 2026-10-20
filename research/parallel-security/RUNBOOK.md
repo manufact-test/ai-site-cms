@@ -75,3 +75,19 @@ node research/parallel-security/npm-source-gate.mjs
 ```
 
 The first exits **3** when required checks are blocked (e.g. unavailable true no-Sodium PHP, absent npm vendor trees). The second runs 20 real signed-release acceptance/rejection assertions on native. The npm archive gate requires a trusted `npm ci` checkout; no manual package downloads or build/production file modification occur. Review [NPM-ARCHIVE-REVIEW.md](NPM-ARCHIVE-REVIEW.md) and [SODIUM-DECISION-REVIEW.md](SODIUM-DECISION-REVIEW.md) before selecting anything for production.
+
+## Follow-up PR #3: independent source testing (20 Oct 2026)
+
+Do **not** use a green badge of the existing main `stage2-independent-research.yml` as proof for new follow-up test code: it explicitly checks out previous `research/stage2-supply-chain` and tests the already accepted `main` snapshot. Run on **PR #3 HEAD**:
+
+```sh
+php -l research/parallel-security/receipt-chain-regression.php
+CI=true CMS_ALLOW_PHP_INSTALL_LAB=1 php research/parallel-security/receipt-chain-regression.php
+php cms/tests/trust-chain.php
+node --check research/parallel-security/osv-strict-snapshot.mjs
+node --check research/parallel-security/osv-strict-regression.mjs
+node research/parallel-security/osv-strict-regression.mjs
+node research/parallel-security/run-security-suite.mjs
+```
+
+See [RECEIPT-CHAIN-REVIEW.md](RECEIPT-CHAIN-REVIEW.md) and [OSV-SNAPSHOT-REVIEW.md](OSV-SNAPSHOT-REVIEW.md). Full online vulnerability audit requires explicit opt-in `node research/parallel-security/osv-strict-snapshot.mjs` in an isolated networked runner and capture of the untruncated stdout JSON.

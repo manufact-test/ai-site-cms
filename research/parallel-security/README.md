@@ -50,3 +50,11 @@ Do not call `php -n` a true no-Sodium environment without checking `extension_lo
 ### Original, not synthetic GitHub Actions evidence
 
 [Run 39485991908](https://github.com/manufact-test/ai-site-cms/actions/runs/39485991908): standalone **Security & Dependencies job** executed on Node 22 and PHP 8.3.35 against the real 14 PHP + 29 npm dependency manifests/installed package and completed with **22 PASS / 0 FAIL / 2 BLOCKED**. Missing native-Sodium extension/compat pathways intentionally remain BLOCKED and Stage2 has not been accepted. See EVIDENCE-2026-10-20.md for complete history and scope.
+
+## Follow-up research — merged PR #1 → draft PR #3 (20 Oct 2026)
+
+**Merged baseline:** PR #1 was merged to `main` as **READ-ONLY RESEARCH** only. Follow-up is intentionally on separate `research/stage2-supply-chain-followup` branch, [draft PR #3](https://github.com/manufact-test/ai-site-cms/pull/3). All edits are only inside this directory.
+
+- [RECEIPT-CHAIN-REVIEW.md](RECEIPT-CHAIN-REVIEW.md): 36 scripted ephemeral operator Ed25519 receipt acceptance/rejection assertions against original PHP `LabAttestedActivationGate`; newly wired to research suite but **exact-head CI execution still needed**.
+- [OSV-SNAPSHOT-REVIEW.md](OSV-SNAPSHOT-REVIEW.md): complete-response 43/43 OSV API evidence format plus 10 synthetic failure/positive cases; live API not yet executed.
+- [NEXT-CHAT.md](NEXT-CHAT.md): authoritative **security chat-only handoff**, not a main project roadmap.
