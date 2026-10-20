@@ -130,7 +130,7 @@ final class HostingerStage2OneShot
             || ($task['site'] ?? null) !== self::SITE
             || !in_array($task['operation'] ?? null,
                 ['probe','install','verify','snapshot'], true)
-            || ($task['db_host'] ?? null) !== 'localhost'
+            || !in_array($task['db_host'] ?? null, ['localhost', '127.0.0.1'], true)
             || !is_string($task['db_name'] ?? null)
             || !preg_match('/\A[A-Za-z0-9_]{3,64}\z/D', $task['db_name'])
             || !is_string($task['db_user'] ?? null)
@@ -150,7 +150,7 @@ final class HostingerStage2OneShot
     /** @param array<string,mixed> $task */
     private static function connection(array $task): PDO
     {
-        $dsn = 'mysql:host=localhost;dbname='.$task['db_name'].';charset=utf8mb4';
+        $dsn = 'mysql:host='.$task['db_host'].';dbname='.$task['db_name'].';charset=utf8mb4';
         $pdo = new PDO($dsn, $task['db_user'], $task['db_password'], [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_EMULATE_PREPARES => false,
