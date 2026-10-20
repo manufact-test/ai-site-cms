@@ -10,7 +10,7 @@ if (!in_array($mode, ['native','absent','compat'], true)) {
 }
 $autoload = getenv('SODIUM_COMPAT_AUTOLOAD');
 if ($mode === 'compat') {
-    if (function_exists('sodium_crypto_sign_verify_detached')) {
+    if (extension_loaded('sodium')) {
         fwrite(STDERR, "INVALID TEST: compat mode must run without native ext-sodium (try php -n)\n");
         exit(2);
     }
@@ -24,11 +24,11 @@ if ($mode === 'compat') {
         exit(2);
     }
 }
-if ($mode === 'native' && !function_exists('sodium_crypto_sign_verify_detached')) {
+if ($mode === 'native' && !extension_loaded('sodium')) {
     fwrite(STDERR, "BLOCKED: native ext-sodium not present\n");
     exit(2);
 }
-if ($mode === 'absent' && (function_exists('sodium_crypto_sign_verify_detached')
+if ($mode === 'absent' && (extension_loaded('sodium')
     || class_exists('ParagonIE_Sodium_Compat', false))) {
     fwrite(STDERR, "INVALID TEST: absent mode has a verifier; use php -n\n");
     exit(2);

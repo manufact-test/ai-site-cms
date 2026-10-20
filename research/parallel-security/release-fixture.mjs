@@ -11,10 +11,28 @@ const os=require('node:os');
 const path=require('node:path');
 const cp=require('node:child_process');
 const crypto=require('node:crypto');
+const php=process.env.PHP_BINARY||'php';
+const argv=process.argv.slice(2), flavor=argv.length===0?'native':argv[0];
+if(argv.length>1 || !['native','absent','compat'].includes(flavor)) {
+  console.error('Usage: node release-fixture.mjs native|absent|compat');
+  process.exit(2);
+}
+const preflight=cp.spawnSync(php,[...(flavor==='native'?[]:['-n']),'-r',
+  'echo extension_loaded("sodium") ? "native" : "no-native";'],{encoding:'utf8'});
+if(preflight.error || preflight.status!==0) {
+  console.error('BLOCKED: PHP preflight unavailable '+(preflight.error?.message||preflight.stderr));
+  process.exit(2);
+}
+if((flavor==='native') !== (preflight.stdout==='native')) {
+  console.error('BLOCKED: mode='+flavor+', PHP runtime='+preflight.stdout+'; genuine no-sodium PHP required for absent/compat');
+  process.exit(2);
+}
+if(flavor==='compat' && !process.env.SODIUM_COMPAT_AUTOLOAD) {
+  console.error('BLOCKED: independently pinned sodium_compat 2.5.2 autoload.php required');
+  process.exit(2);
+}
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'ai-site-cms-security-'));
 const release=path.join(tmp,'release'), keyfile=path.join(tmp,'trusted-public.pem');
-const php=process.env.PHP_BINARY||'php', flavor=process.argv[2]||'native';
-if(!['native','absent','compat'].includes(flavor))throw Error('Usage: node release-fixture.mjs native|absent|compat');
 function run(opts) {
   const runner=path.join(__dirname,'release-verify-runner.php');
   // Runner is a checked-in reviewable file. No dynamic PHP eval.
