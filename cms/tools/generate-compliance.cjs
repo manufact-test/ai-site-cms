@@ -108,7 +108,7 @@ function generate(stage){
   fs.writeFileSync(path.join(dir,'THIRD_PARTY_NOTICES.txt'),notices,{flag:'wx',mode:0o600});
   fs.writeFileSync(path.join(dir,'compliance-index.json'),JSON.stringify({format:'ai-site-cms-stage2-compliance-v1',composerRuntime:14,npmLocked:29,browserRuntime:['jedison@1.27.1'],noticeSha256:hash(notices),composerNoticeFiles:composerNoticeFileCount,
     requiredApacheNoticesPreserved:[...seenRequiredNotices].sort(),
-    componentCount:components.length,attestation:'lock-metadata-and-installed-license-text-only; not signed; manual legal review remains required'},null,2)+'\n',{flag:'wx',mode:0o600});
+    componentCount:components.length,attestation:'lock-metadata-and-installed-license-plus-root-notice-text; not signed; nested notices and independent legal review remain required'},null,2)+'\n',{flag:'wx',mode:0o600});
   return {count:components.length,composer:14,npm:29};
 }
 if(require.main===module){const stage=path.join(ROOT,'.build/internal-stage2-package');console.log(generate(stage));}
