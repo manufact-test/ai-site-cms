@@ -55,10 +55,11 @@ for (const tab of tabs) {
 }
 const dialog = document.querySelector('#info-dialog');
 const opener = document.querySelector('#open-dialog');
-opener.addEventListener('click', () => dialog.showModal());
+let returnFocus = opener;
+opener.addEventListener('click', () => {returnFocus = opener; dialog.showModal();});
 document.querySelector('#close-dialog').addEventListener('click', () => dialog.close());
-document.querySelector('#dialog-faq').addEventListener('click', () => {dialog.close(); document.querySelector('#faq').focus();});
-dialog.addEventListener('close', () => opener.focus());
+document.querySelector('#dialog-faq').addEventListener('click', () => {returnFocus = document.querySelector('#faq'); returnFocus.tabIndex = -1; dialog.close();});
+dialog.addEventListener('close', () => {returnFocus.focus(); returnFocus = opener;});
 
 const form = document.querySelector('#contact');
 const status = document.querySelector('#form-status');
@@ -101,7 +102,7 @@ form.addEventListener('submit', async event => {
     if (data.code === 'QUEUED_UNCONFIRMED') form.reset();
     // A real recipient may already have accepted the request, and the CSRF token
     // is consumed for delivery attempts. Require a fresh page before another send.
-    const retryForbidden = ['QUEUED_UNCONFIRMED','DELIVERY_UNCONFIRMED','DELIVERY_FAILED','CSRF_INVALID'].includes(data.code);
+    const retryForbidden = ['QUEUED_UNCONFIRMED','DELIVERY_UNCONFIRMED','DELIVERY_FAILED','DUPLICATE_REQUEST','CSRF_INVALID'].includes(data.code);
     send.disabled = retryForbidden;
     if (retryForbidden) status.textContent += ' Для новой попытки обновите страницу.';
     if (firstInvalid) firstInvalid.focus(); else status.focus();

@@ -32,7 +32,7 @@ final class FormLab
      * Session throttling is a demo layer only; production requires shared-IP/account throttles.
      */
     public static function submit(array $post, array &$session, int $now, ?string $recipient,
-        callable $deliver, ?callable $phoneValidator = null): array
+        callable $deliver, ?callable $phoneValidator = null, ?callable $claim = null): array
     {
         $attempts = array_values(array_filter($session['form_lab_attempts'] ?? [],
             static fn($at): bool => is_int($at) && $at > $now - 60));
@@ -100,6 +100,24 @@ final class FormLab
                 'Отправка не настроена: получатель отсутствует. Заявка не отправлена.');
         }
 
+        // Caller supplies a private, persistent duplicate-claim fence in configured HTTP deployments.
+        // It does not assert external delivery. Plain unit tests may omit the fence explicitly.
+        if ($claim !== null) {
+            try {
+                $decision = $claim($recipient, $fields);
+            } catch (Throwable) {
+                $decision = 'RECEIPT_STORE_UNAVAILABLE';
+            }
+            if ($decision !== 'CLAIMED') {
+                if ($decision === 'DUPLICATE_REQUEST') {
+                    unset($session['form_lab_token_hash'], $session['form_lab_issued_at']);
+                    return self::result(409, 'DUPLICATE_REQUEST',
+                        'Похожая заявка уже обрабатывалась. Новая отправка не выполнена.');
+                }
+                return self::result(503, 'RECEIPT_STORE_UNAVAILABLE',
+                    'Защита от повторной отправки недоступна. Заявка не отправлена.');
+            }
+        }
         // Single-use token before transport call, including transport failure; prevents duplicate sends.
         unset($session['form_lab_token_hash'], $session['form_lab_issued_at']);
         try {

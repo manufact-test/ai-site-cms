@@ -63,3 +63,25 @@ When a recipient is configured but this guard is not properly configured: HTTP *
 `fixtures/media-candidates.research.json` is a strictly bounded visual fixture rendered by `MediaLab.php` into native `<picture>` with three widths each for AVIF and WebP plus WebP `<img>` fallback, intrinsically sized 960×540, meaningful escaped alt and caption, no browser CDN. The only original image is a synthetic factory-themed diagram created for this research lab, not copied from third parties. Source assets total < 50 KB; Pillow **and actual Chromium** decode their bytes offline via data URLs. This proves file-format validity, not HTTP negotiation/cache/LCP metrics. Render-time strict path allowlist intentionally does **not** accept arbitrary uploads, remote URLs, SVG, or URI escapes. It is not a production asset pipeline, image optimizer or gallery.
 
 Responsive visual smoke inspects the generated markup at 320px in Chromium, and prohibits document horizontal overflow. The `role=lcp` fixture uses eager/high priority, while `role=content` uses lazy. Future Stage3 should derive these from actual placement/measurement and keep them non-editable as arbitrary raw URLs.
+
+## Fourth experiment: cross-session duplicate claims + revision-safe property edits (20 Oct 2026)
+
+This is **NOT** a production mail queue or contract for Stage3. It introduces:
+
+- `lab/src/ReceiptLedger.php`: a keyed HMAC of canonical validated form fields + recipient in an operator-owned private directory, with POSIX `flock` and a bounded 600-second duplicate window. Each claim is recorded **before** the outbound transport attempt. Names and file contents never store form PII or secrets. A duplicate returns HTTP `409 DUPLICATE_REQUEST`; a corrupted/unavailable store returns `503 RECEIPT_STORE_UNAVAILABLE` without attempting delivery. A configured recipient additionally requires the ledger, reusing `LAB_ABUSE_DIR` / `LAB_ABUSE_SECRET`. The single-use session CSRF token remains necessary but is **not** a durable dedupe key. A duplicate response also consumes the current token; client refresh is required before any new attempt. All successful transport responses remain `202 QUEUED_UNCONFIRMED`, not inbox-delivered.
+- `lab/src/RevisionGate.php`, `fixtures/visual-revision-candidates.research.json`: optional optimistic expectedRevision check for *already-existing* trusted blocks and typed visual values (integer pixel units, six-digit opaque colors, responsive padding at exactly three fixed breakpoints). It returns only a proposed copy of next block state, with **no authorization, persistence, renderer or connection to Jedison**. A stale revision is `REVISION_CONFLICT`, forbidden property `PATCH_REJECTED`, exact value no-op `UNCHANGED`.
+- UI focus correction: explicit “К разделу FAQ” dialog action now establishes a valid focus target before the close event, while Escape/normal close returns to opener. The browser also disables repeat submission on `DUPLICATE_REQUEST`.
+
+Run independently (developer local only):
+
+```bash
+cd research/parallel-components
+php lab/tests/receipt-tests.php     # includes 12 concurrent PHP subprocesses
+php lab/tests/revision-tests.php
+python -m unittest discover -s lab/tests -p test_http_receipt.py -v  # actual local PHP HTTP
+python -m unittest discover -s lab/tests -p test_browser.py -v       # actual Chromium DOM, stubbed form fetch
+```
+
+**Production exclusions:** a private single-host file gate can prevent repeat *attempts* for one 10-minute fingerprint but cannot deliver exactly once, reconstruct unknown transport outcome, reliably cover horizontally scaled hosts, be used as an inbox/webhook receipt, identify bot swarms, or safely resolve legitimate repeated identical inquiries. Operators must set retention limits, private filesystem permissions, housekeeping, reliable upstream idempotency keys and delivery acknowledgments. The test uses synthetic data and no real SMTP. Never use this prototype on the shared Hostinger sites or in the deployed CMS. Formal WCAG/assistive technology testing, Chrome-to-PHP browser E2E and Node/React/Next hydration remain unverified.
+
+See `../TEST-EVIDENCE-BLOCK4-2026-10-20.md` for actual commands/runner versions and limits.

@@ -4,6 +4,7 @@ require_once __DIR__ . '/../src/FormLab.php';
 require_once __DIR__ . '/../src/OriginPolicy.php';
 require_once __DIR__ . '/../src/PhoneAdapter.php';
 require_once __DIR__ . '/../src/SharedThrottle.php';
+require_once __DIR__ . '/../src/ReceiptLedger.php';
 ini_set('session.use_strict_mode', '1');
 session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax', 'path' => '/']);
 session_start();
@@ -61,6 +62,20 @@ if (is_string($recipient) && $recipient !== '') {
         echo json_encode(['code' => $code, 'message' => 'Защита формы не разрешила отправку. Заявка не отправлена.'], JSON_UNESCAPED_UNICODE); exit;
     }
 }
+$claim = null;
+if (is_string($recipient) && $recipient !== '') {
+    try {
+        // Uses the same trusted PRIVATE folder and operator secret as the rate gate.
+        $ledger = new ReceiptLedger((string)(getenv('LAB_ABUSE_DIR') ?: ''),
+            (string)(getenv('LAB_ABUSE_SECRET') ?: ''), __DIR__);
+        $claim = static fn(string $to, array $fields): string => $ledger->claim($to, $fields, time());
+    } catch (Throwable) {
+        http_response_code(503);
+        echo json_encode(['code' => 'RECEIPT_STORE_CONFIGURATION_REQUIRED',
+            'message' => 'Защита от повторной отправки не настроена. Заявка не отправлена.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
 $region = is_string($_POST['phone_region'] ?? null) ? $_POST['phone_region'] : 'ZZ';
 $phoneValidator = PhoneAdapter::available()
     ? static fn(string $phone): ?string => PhoneAdapter::normalize($phone, $region)
@@ -72,7 +87,7 @@ $result = FormLab::submit($_POST, $_SESSION, time(), $recipient !== false ? $rec
         $body = "Name: {$fields['name']}\nEmail: {$fields['email']}\nPhone: {$fields['phone']}\n\n{$fields['message']}";
         return mail($recipient, 'AI Site CMS component lab request', $body,
             ['From' => $sender, 'Content-Type' => 'text/plain; charset=UTF-8']);
-    }, $phoneValidator
+    }, $phoneValidator, $claim
 );
 http_response_code($result['http']);
 echo json_encode(['code' => $result['code'], 'message' => $result['message'], 'errors' => $result['errors']],

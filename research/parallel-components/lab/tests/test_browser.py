@@ -106,6 +106,30 @@ class BrowserLab(unittest.TestCase):
         self.assertTrue(page.locator('#form-submit').is_disabled())
         page.close()
 
+    def test_dialog_faq_explicit_focus_destination(self):
+        page=self.new_page(viewport={'width':320,'height':568}, reduced_motion='reduce')
+        page.locator('#open-dialog').click()
+        page.locator('#dialog-faq').click()
+        page.wait_for_function("document.activeElement.id === 'faq'")
+        self.assertFalse(page.locator('#info-dialog').evaluate('(el)=>el.open'))
+        self.assertFalse(page.locator('#open-dialog').evaluate('(el)=>document.activeElement === el'))
+        page.locator('#open-dialog').click()
+        page.keyboard.press('Escape')
+        self.assertTrue(page.locator('#open-dialog').evaluate('(el)=>document.activeElement === el'))
+        page.close()
+
+    def test_duplicate_receipt_state_disables_resubmit(self):
+        page=self.new_page(viewport={'width':390,'height':844})
+        page.locator('#name').fill('Maria')
+        page.locator('#email').fill('maria@example.test')
+        page.locator('#message').fill('A meaningful inquiry for research only')
+        page.evaluate("""window.fetch = async () => ({json: async () => ({code:'DUPLICATE_REQUEST',
+          message:'Previously attempted request, no new send.',errors:{}})})""")
+        page.locator('#form-submit').click()
+        page.wait_for_function("document.querySelector('#form-status').textContent.includes('DUPLICATE_REQUEST')")
+        self.assertTrue(page.locator('#form-submit').is_disabled())
+        page.close()
+
     def test_mobile_anchor_focus_and_fullsize_modal_trap(self):
         page=self.new_page(viewport={'width':320,'height':568}, reduced_motion='reduce')
         page.locator('#nav-toggle').click()
