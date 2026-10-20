@@ -59,10 +59,24 @@ export async function snapshot(rows,post=fetch){
     body:JSON.stringify({queries}),signal:AbortSignal.timeout(60000)
   });
   assert(response&&response.ok,'OSV HTTP '+(response?.status??'unreachable'));
-  const raw=await response.arrayBuffer();
-  assert(raw.byteLength>1&&raw.byteLength<=4*1024*1024,'OSV response exceeds safe size / is empty');
+  assert(response.body&&typeof response.body.getReader==='function','OSV response has no readable body');
+  const stream=response.body.getReader(), chunks=[];
+  let total=0;
+  try{
+    while(true){
+      const {done,value}=await stream.read();
+      if(done)break;
+      total+=value.byteLength;
+      if(total>4*1024*1024){
+        await stream.cancel();
+        throw Error('OSV_INCOMPLETE: response exceeds 4 MiB streaming size limit');
+      }
+      chunks.push(Buffer.from(value));
+    }
+  }finally{stream.releaseLock();}
+  assert(total>1,'empty OSV response');
   let data;
-  try{data=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(raw));}
+  try{data=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks,total)));}
   catch(e){throw Error('OSV_INCOMPLETE: invalid OSV JSON/UTF-8: '+e.message);}
   return evaluateBatch(rows,data);
 }
