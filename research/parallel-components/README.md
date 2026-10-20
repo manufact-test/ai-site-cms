@@ -1,22 +1,11 @@
-# AI Site CMS — параллельное исследование Editor & Components
+# AI Site CMS — independent Editor & Components Research
 
-**Статус:** организационная заготовка; НЕ начало Stage3, НЕ готовые компоненты.
-**Ветка:** `research/editor-component-patterns`
-**Создана от:** `main` @ `9af45a70ebbdd307e922e445265fe34ed686887d` (main может двигаться; перед PR актуализировать базу).
+**20.10.2026, research only.** Branch `research/editor-component-patterns`; working tree restricted to `research/parallel-components/`. Owner architecture Slim4 + Opis2.6 + Jedison1.27.1 remains unchanged; Stage2 NOT ACCEPTED, Stage3 NOT STARTED, 0/135 mandatory product requirements accepted.
 
-## Разрешённая зона
-- Только `research/parallel-components/` — независимое изучение и лабораторные прототипы UI-компонентов.
-- Исследования Jedison, типографики, форм, антиспама, FAQ, меню, модальных окон, адаптива, a11y.
-- Предметная оценка upstream-фрагментов, лицензий, обслуживания и сложности адаптации.
-- НЕ внедрять в `cms/editor/`, `cms/src/`, `.github/` до утверждения общей схемы ИИ ↔ сайт ↔ CMS на этапе 3.
+Research deliverables:
 
-## Правила совместной разработки
-- НИКОГДА не писать напрямую в `main`; результаты — Pull Request для главного чата-интегратора. Не делать merge самостоятельно.
-- Не редактировать `PROJECT-STATUS.json`, `docs/NEXT-CHAT.md`, ROADMAP или главные ADR без согласования.
-- Не трогать Hostinger, БД, общий SSH, другие сайты и CELIKOM, не публиковать секреты.
-- Stage2 остаётся НЕ принятым, Stage3 НЕ начат, продуктовые требования не могут считаться выполненными по прототипу.
-- Второй исследовательский чат работает в `research/parallel-security/` своей отдельной ветки.
-- Пока владелец не передаст актуальный SHA и границы задач основного чата, не вносить функциональные изменения.
+- [`COMPONENT-AUDIT.md`](COMPONENT-AUDIT.md) — upstream OSS candidate matrix, license/runtime/size/a11y/security/integration evaluation and recommended shortlist (NOT legal signoff).
+- [`EDITOR-CONTRACT-PROPOSAL.md`](EDITOR-CONTRACT-PROPOSAL.md) + [`fixtures/`](fixtures/) — closed typed candidate property groups, positive/negative fixture and explicit unresolved semantic/safe-link concerns. **Not the definitive AI↔site↔CMS contract.**
+- [`lab/`](lab/) — independently running PHP form and keyboard-first HTML components, session CSRF/token abuse tests and browser/mobile experiments, with honest delivery configuration states.
 
-## Порядок
-После передачи итогов главного чата согласовать контракт и разрабатываемые файлы, затем вести исследования отдельными большими пакетами с тестами и PR; перед PR при необходимости синхронизироваться с актуальным `main`.
+[Run the lab](lab/README.md). No third-party code copied, npm/Composer lock changed, CMS/Hostinger or canonical docs touched. Main developer must independently review and merge the PR, then decide if and when an adapter should be implemented after Stage2 acceptance.

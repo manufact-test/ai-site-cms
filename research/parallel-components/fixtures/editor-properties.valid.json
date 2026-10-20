@@ -1,0 +1,9 @@
+{
+ "blockId":"faq-shipping", "content":{"heading":"Вопросы о доставке","body":"Уточните сроки у менеджера."},
+ "style":{"textPreset":"heading","foregroundToken":"ink","backgroundToken":"surface","borderToken":"subtle"},
+ "layout":{"padding":"md","maxWidth":"content"},
+ "media":{"assetId":null,"alt":"","loading":"lazy"},
+ "action":{"label":"Связаться","kind":"link","href":"/contact"},
+ "responsive":{"mobileColumns":1,"desktopColumns":2},
+ "behavior":{"kind":"accordion","expandedInitially":false,"closeOnEscape":true}
+}

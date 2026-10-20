@@ -1,0 +1,9 @@
+{
+ "blockId":"faq-shipping", "content":{"heading":"Hi","body":"ok","script":"<script>alert(1)</script>"},
+ "style":{"textPreset":"heading","foregroundToken":"ink","backgroundToken":"surface","borderToken":"subtle","customCss":"position:fixed!important"},
+ "layout":{"padding":"999px","maxWidth":"content"},
+ "media":{"assetId":null,"alt":"","loading":"lazy"},
+ "action":{"label":"Unsafe","kind":"link","href":"javascript:alert(1)"},
+ "responsive":{"mobileColumns":10,"desktopColumns":2},
+ "behavior":{"kind":"modal","expandedInitially":false,"closeOnEscape":false}
+}
