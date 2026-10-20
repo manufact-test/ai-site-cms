@@ -27,4 +27,26 @@ assert.ok(workflow.indexOf('gh auth setup-git')<workflow.indexOf('git -C "$dst" 
 const node=fs.readFileSync(path.join(__dirname,'stage2-hostinger-private-stage.cjs'),'utf8');
 assert.ok(node.includes('verify(destination)')&&node.includes('manifest.files.map')&&
   node.includes('fs.copyFileSync')&&node.includes('STAGE2_UNSAFE_PACKAGE_LAYOUT'));
+// A changed test/workflow commit MUST NOT alter Composer-generated root
+// metadata inside the runnable offweb package. This is a byte-level stability
+// prerequisite, not publisher signature evidence.
+const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'../release.json'),'utf8'));
+const releaseMatch=/^0\\.([0-9]+)\\.([0-9]+)-stage2\\.([0-9]+)$/.exec(manifest.version);
+assert.ok(releaseMatch,'Stage2 explicit version required');
+const expectedVersion=manifest.version.split('-stage2.')[0]+'-alpha'+releaseMatch[3];
+const installedFile=path.join(__dirname,'../.build/internal-stage2-package/vendor/composer/installed.php');
+const installed=fs.readFileSync(installedFile,'utf8');
+const rootStart=installed.indexOf("'root' => array(");
+const versionsStart=installed.indexOf("'versions' => array(",rootStart);
+const ownStart=installed.indexOf("'manufact/ai-site-cms' => array(",versionsStart);
+const ownEnd=installed.indexOf("        ),",ownStart);
+assert.ok(rootStart>=0 && versionsStart>rootStart && ownStart>versionsStart && ownEnd>ownStart,
+  'Composer installed metadata root/project records must be present');
+for(const part of [installed.slice(rootStart,versionsStart),installed.slice(ownStart,ownEnd)]){
+ assert.ok(part.includes("'pretty_version' => '"+expectedVersion+"'"),
+  'Composer root version must be release-bound not commit SHA');
+ assert.ok(part.includes("'reference' => null"),
+  'Composer root reference must not follow every source-only git commit');
+}
+console.log('Stage2 Composer root version/reference stable and source-only commit independent.');
 console.log('Stage2 public-repo offweb staging trigger, scope, and no-host/no-secret contract PASS.');
