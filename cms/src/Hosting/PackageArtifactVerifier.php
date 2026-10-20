@@ -123,6 +123,7 @@ final class PackageArtifactVerifier
         foreach (['public/index.php','public/.htaccess','vendor/autoload.php','private/editor/editor.js',
             'bin/install.php','bin/schema-preflight.php','bin/site-runtime-topology.php',
             'bin/hostinger-stage2-once.php','bin/hostinger-stage2-preflight.php',
+            'bin/hostinger-stage2-revoke.php',
             'bin/package-preflight.php','bin/startup-readiness.php',
             'bin/bind-empty-instance.php','bin/lab-empty-installer.php',
             'bin/lab-fleet-operator.php','bin/lab-foundation-transfer.php',
