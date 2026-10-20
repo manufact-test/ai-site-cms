@@ -64,6 +64,24 @@ check(index.componentCount===43 && sbom.components.length===43,'43 lock-tracked 
 check(sbom.components.filter(c=>c.properties.some(p=>p.name==='ai-site-cms:scope'&&p.value==='php-runtime')).length===14,'14 shipped Composer libraries');
 check(sbom.components.filter(c=>c.properties.some(p=>p.name==='ai-site-cms:scope'&&p.value==='browser-runtime')).length===1,'Only Jedison shipped as browser-runtime npm library');
 check(fs.readFileSync(path.join(STAGE,'private/compliance/THIRD_PARTY_NOTICES.txt'),'utf8').includes('Apache License'),'Composer Apache notices retained');
+// Exact pinned Apache package NOTICE files are separate from LICENSE.
+// The original upstream text must be present, byte-for-byte, in our
+// immutable offweb compliance output and have matching CycloneDX provenance.
+const bundledNotices=fs.readFileSync(path.join(STAGE,'private/compliance/THIRD_PARTY_NOTICES.txt'),'utf8');
+for(const [name,version] of [['opis/json-schema','2.6.0'],['opis/string','2.1.0']]){
+  const installed=fs.readFileSync(path.join(STAGE,'vendor',name,'NOTICE'),'utf8');
+  const header='===== composer '+name+' '+version+' (Apache-2.0) / NOTICE (UPSTREAM NOTICE) =====';
+  check(bundledNotices.includes(header+'\n'+installed+'\n'),
+    'Original pinned Apache NOTICE body retained exactly: '+name);
+  const component=sbom.components.find(c=>c.name===name && c.version===version);
+  const sha=require('node:crypto').createHash('sha256').update(installed).digest('hex');
+  check(component?.properties.some(p=>p.name==='ai-site-cms:installed-notice'
+    && p.value==='NOTICE:sha256:'+sha),'NOTICE SHA recorded in SBOM: '+name);
+}
+check(index.composerNoticeFiles>=2
+  && index.requiredApacheNoticesPreserved?.includes('opis/json-schema')
+  && index.requiredApacheNoticesPreserved?.includes('opis/string'),
+  'Stage2 compliance index explicitly gates both pinned Apache NOTICEs');
 const sbomPath=path.join(STAGE,'private/compliance/sbom.cdx.json'),saved=fs.readFileSync(sbomPath);
 fs.writeFileSync(sbomPath,'{"invalid":true}');
 assert.throws(()=>verify(),/mismatch/);checks++;
