@@ -15,6 +15,10 @@ check(!fs.existsSync(path.join(STAGE,'public/editor.js')),'Public editor JS inac
 check(fs.existsSync(path.join(STAGE,'vendor/autoload.php')),'Composer runtime vendor included');
 check(manifest.files.some(x=>x.path==='bin/hostinger-stage2-once.php'),
   'One-shot Hostinger operator is packaged off-web only');
+check(manifest.files.some(x=>x.path==='bin/hostinger-stage2-preflight.php'),
+  'Credential-free Stage2 Hostinger CLI preflight is packaged off-web');
+check(!manifest.files.some(x=>x.path==='public/hostinger-stage2-preflight.php'),
+  'Credential-free CLI is NOT exposed through the webroot');
 check(manifest.files.some(x=>x.path==='src/Hosting/HostingerStage2OneShot.php'),
   'One-shot implementation is inventoried');
 for(const unsafe of ['public/hostinger-stage2-once.php','cms-stage2-local/once.json',
