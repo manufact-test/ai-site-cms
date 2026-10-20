@@ -43,9 +43,10 @@ packageCopy($source,$package);
 $root=new PDO('mysql:host=127.0.0.1;port=3306;charset=utf8mb4','root','ephemeral_root_ci_only');
 $name='ai_site_cms_oneshot_ci';
 $root->exec('CREATE DATABASE '.$name.' CHARACTER SET utf8mb4');
-$root->exec("GRANT ALL PRIVILEGES ON ".$name.".* TO 'cms_ci'@'%'");
+$root->exec("CREATE USER 'cms_stage2_once_ci'@'%' IDENTIFIED BY 'ephemeral_local_ci_only'");
+$root->exec("GRANT ALL PRIVILEGES ON ".$name.".* TO 'cms_stage2_once_ci'@'%'");
 $pdo=new PDO('mysql:host=127.0.0.1;port=3306;dbname='.$name.';charset=utf8mb4',
-    'cms_ci','ephemeral_ci_only');
+    'cms_stage2_once_ci','ephemeral_local_ci_only');
 $task=[
     'format'=>'ai-site-cms-stage2-hostinger-task-v1',
     'target'=>Job::TARGET,
@@ -54,8 +55,8 @@ $task=[
     'confirm'=>'READ_ONLY_OR_FOUNDATION_BACKUP_ONCE',
     'db_host'=>'127.0.0.1',
     'db_name'=>$name,
-    'db_user'=>'cms_ci',
-    'db_password'=>'ephemeral_ci_only'
+    'db_user'=>'cms_stage2_once_ci',
+    'db_password'=>'ephemeral_local_ci_only'
 ];
 $checks=0;
 $check=static function (bool $ok,string $why) use (&$checks):void {
@@ -76,6 +77,7 @@ try {
     $reject(fn()=>Job::run($package,$local)); // World-readable credential refused.
     chmod($local.'/once.json',0600);
     $report=Job::run($package,$local);
+    $check($report['dedicatedDbGrantsVerified']===true,'strict scoped DB grant');
     $check($report['operation']==='probe' && $report['status']==='observed'
         && $report['schemaState']==='uninitialized','read-only empty DB probe');
     $check((int)$pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()")
@@ -98,7 +100,7 @@ try {
     $check(hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
         'public visitor unchanged during install');
     $check(!is_file($tmp.'/public_html/receipt.json'),'no public receipt');
-    $check(strpos(file_get_contents($local.'/receipt.json'),'ephemeral_ci_only')===false,
+    $check(strpos(file_get_contents($local.'/receipt.json'),'ephemeral_local_ci_only')===false,
         'receipt must not disclose credentials');
     unlink($local.'/receipt.json');
 
@@ -140,7 +142,7 @@ try {
         'bad secret excluded from report');
     unlink($local.'/receipt.json');
 
-    $task['db_password']='ephemeral_ci_only';
+    $task['db_password']='ephemeral_local_ci_only';
     $store($task);
     file_put_contents($package.'/unexpected.txt','tamper');
     $reject(fn()=>Job::run($package,$local)); // Verify BEFORE DB.
@@ -156,6 +158,7 @@ try {
     echo "Stage2 hPanel CLI-only local-config MySQL8.4 install/probe/verify/snapshot PASS: {$checks} checks; no real host\n";
 } finally {
     $root->exec('DROP DATABASE IF EXISTS '.$name);
+    $root->exec("DROP USER IF EXISTS 'cms_stage2_once_ci'@'%'");
     $recursive=static function(string $dir)use(&$recursive):void{
         foreach(new DirectoryIterator($dir) as $item){
             if($item->isDot())continue;
