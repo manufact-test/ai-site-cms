@@ -1,3 +1,5 @@
+> **CHECKPOINT v1.47 / 20.10.2026 (owner-requested):** [LATEST NEXT-CHAT §52](NEXT-CHAT.md), [real Hostinger r6 kernel report](STAGE-2-HOSTINGER-LIVE-KERNEL-v1.47.md). [Source](https://github.com/manufact-test/ai-site-cms/commit/da6e646f6d36d91e8a7b33b33e31a0c10605e856), [PHP7/7](https://github.com/manufact-test/ai-site-cms/actions/runs/39462638513), [Editor1/1](https://github.com/manufact-test/ai-site-cms/actions/runs/39462638339), [live GET14/14](https://github.com/manufact-test/ai-site-cms/actions/runs/39462638427). Unsigned offweb CMS 473 files and LiteSpeed real Slim4 read-only health verified; *full CMS MySQL installation/auth/publish NOT done*. Stage2 NOT ACCEPTED, Stage3 NOT STARTED, 0/135. Older v1.43–v1.46 checkpoint banners below are historical.
+
 > **v1.45 / 19.10.2026, ПО ПРЯМОЙ ПРОСЬБЕ ПРИ ПЕРЕДАЧЕ:** проверенный код 493964f32d63dd5552484afbcc972fc614571381; PHP [7/7 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39275005275), редактор/пакет [1/1 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39275005280); внутренний пакет 471 файл; 43 locked deps, 7 owner/legal transfer files, 8 manual exit gates. Stage2 НЕ ПРИНЯТ, Stage3 не начат, 0/135. Hostinger не проверен. Новые будущие ADR0012/ADR0013 ещё не реализованы. Последний §50 NEXT-CHAT — актуальная инструкция, прежние v1.44 — история. Нельзя обновлять документы на обычное 'продолжаем'; текущая запись сделана по явному запросу владельца.
 
 # AI Site CMS — read-only PHP doctor and internal offline package, checkpoint v1.34
@@ -63,3 +65,8 @@ Ed25519 detached lab-only signed ZIP, safe extraction, crash journal and anti-re
 ## Postscript v1.46 — actual authorized Hostinger preflight
 
 Утверждённая архитектура + реальные два разрешённые тестовые домена впервые проверены через read-only TLS GET; Git deploy-only branch r2 реально обновилась. PHP8.3 LiteSpeed, PDO MySQL/OpenSSL positive, PHP sodium **false**. Webroot соответствует опубликованному PHP файлу; физическое разделение, доступ к отдельной БД и private-code deploy не тестировались. Ни одна из лабораторных signed upgrade/native FPM гарантий автоматически не переносится на этот хост. Ссылки, исходные JSON evidence и полный scope — [Stage2 Hostinger report](docs/STAGE-2-HOSTINGER-REAL-PREFLIGHT-v1.46.md). Stage2 NOT ACCEPTED.
+
+
+## v1.47 status correction
+
+**v1.47:** public GitHub builds produce `stage2-hostinger-offweb-runtime` as unsigned 473-file package. Owner placed it in the CMS site's sibling folder `cms-stage2-offweb-runtime`, separate from `public_html`. Hash inventory true and a real LiteSpeed PHP 8.3 Slim4-only /api/health synthetic request HTTP 200 verified. Public `/api/health` still 503 and no DB/production sign. Webroot Git remains only safe 2-file `stage2-hostinger-cms-preflight`. Do not infer signed release/authentication or filesystem host isolation from SHA alone.
