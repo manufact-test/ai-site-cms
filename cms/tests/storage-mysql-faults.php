@@ -112,7 +112,21 @@ $store->assertSite('fault-demo');
 checkFault($store->inspectSite('fault-demo')['state'] === 'ready', 'Valid installation ready');
 // Even an authentic, fully journaled CMS is not allowed to coexist with
 // a newly planted foreign trigger. Reads must refuse, never delete it.
-$db->exec('CREATE TRIGGER visitor_owned_trigger BEFORE UPDATE ON cms_installation
+// Binary-logged MySQL rightly refuses CREATE TRIGGER to the ordinary
+// scoped application user. The root below is ONLY the already disposable CI
+// service owner; never lift grants for the application or any real host.
+if (getenv('CMS_TEST_MYSQL_ROOT_PASSWORD') !== 'ephemeral_root_ci_only') {
+    throw new RuntimeException('Refuse foreign-trigger fixture without disposable CI root');
+}
+$fixtureOwner=new PDO('mysql:host=127.0.0.1;port=3306;dbname=ai_site_cms_ci;charset=utf8mb4',
+    'root',getenv('CMS_TEST_MYSQL_ROOT_PASSWORD'),[
+        PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION
+    ]);
+if ($fixtureOwner->query('SELECT DATABASE()')->fetchColumn()!=='ai_site_cms_ci'
+    || !str_starts_with((string)$fixtureOwner->query('SELECT CURRENT_USER()')->fetchColumn(),'root@')) {
+    throw new RuntimeException('Wrong ephemeral CI trigger fixture owner');
+}
+$fixtureOwner->exec('CREATE TRIGGER visitor_owned_trigger BEFORE UPDATE ON cms_installation
     FOR EACH ROW SET NEW.initialized_at = OLD.initialized_at');
 checkFault($store->inspectSite('fault-demo')['state']==='blocked',
     'Foreign trigger attached to legitimate CMS table blocks reuse');
@@ -121,7 +135,8 @@ refuseFault(fn()=> $store->assertSite('fault-demo'),
 checkFault((int)$db->query("SELECT COUNT(*) FROM information_schema.triggers
     WHERE trigger_schema=DATABASE() AND trigger_name='visitor_owned_trigger'")->fetchColumn()===1,
     'Read-only refusal preserves foreign trigger');
-$db->exec('DROP TRIGGER visitor_owned_trigger');
+$fixtureOwner->exec('DROP TRIGGER visitor_owned_trigger');
+unset($fixtureOwner);
 checkFault($store->inspectSite('fault-demo')['state']==='ready'
     && (string)$db->query('SELECT site_id FROM cms_installation')->fetchColumn()==='fault-demo',
     'Normal valid CMS resumes only after disposable fixture cleanup');
