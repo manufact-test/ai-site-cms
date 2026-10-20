@@ -376,6 +376,39 @@ try {
         'read-only installed schema verification');
     unlink($local.'/receipt.json');
 
+    // The same packaged one-use hPanel operator must refuse a forged but
+    // still-readable physical CMS schema. No migration, repair or visitor
+    // modification is permitted in a read-only verify operation.
+    foreach (['missing_unique','wrong_engine'] as $tamper) {
+        if ($tamper==='missing_unique') {
+            $pdo->exec('ALTER TABLE cms_installation DROP INDEX site_id');
+        } else {
+            $pdo->exec('ALTER TABLE cms_installation ENGINE=MyISAM');
+        }
+        $store($task);
+        $badSchema=Job::run($package,$local);
+        $check($badSchema['status']==='refused'
+            && $badSchema['failureCategory']==='schema_read_refused'
+            && $badSchema['dedicatedDbGrantsVerified']===true,
+            'packaged read-only verify refuses physical schema '.$tamper);
+        $check(!is_file($local.'/once.json')
+            && $pdo->query('SELECT site_id FROM cms_installation')->fetchColumn()===Job::SITE
+            && hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
+            'physical schema refusal preserves CMS identity and visitor site');
+        unlink($local.'/receipt.json');
+        // Restore only the disposable, CI-owned test database.
+        if ($tamper==='missing_unique') {
+            $pdo->exec('ALTER TABLE cms_installation ADD UNIQUE INDEX site_id (site_id)');
+        } else {
+            $pdo->exec('ALTER TABLE cms_installation ENGINE=InnoDB');
+        }
+    }
+    $store($task);
+    $afterRepair=Job::run($package,$local);
+    $check($afterRepair['status']==='verified' && $afterRepair['schemaState']==='ready',
+        'one-shot read-only verify resumes after isolated CI fixture restoration');
+    unlink($local.'/receipt.json');
+
     $task['operation']='snapshot';
     $store($task);
     $report=Job::run($package,$local);
