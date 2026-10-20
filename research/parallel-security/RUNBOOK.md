@@ -78,7 +78,7 @@ The first exits **3** when required checks are blocked (e.g. unavailable true no
 
 ## Follow-up PR #3: independent source testing (20 Oct 2026)
 
-Do **not** use a green badge of the existing main `stage2-independent-research.yml` as proof for new follow-up test code: it explicitly checks out previous `research/stage2-supply-chain` and tests the already accepted `main` snapshot. Run on **PR #3 HEAD**:
+**Historical note (superseded):** This workflow *previously* checked the old merged branch instead of PR #3. The integration owner corrected exact-candidate checkout/overlay. Read **the exact PR HEAD and its matching workflow job logs**, not any unrelated generic green badge. On an isolated exact checkout, run:
 
 ```sh
 php -l research/parallel-security/receipt-chain-regression.php
@@ -91,3 +91,52 @@ node research/parallel-security/run-security-suite.mjs
 ```
 
 See [RECEIPT-CHAIN-REVIEW.md](RECEIPT-CHAIN-REVIEW.md) and [OSV-SNAPSHOT-REVIEW.md](OSV-SNAPSHOT-REVIEW.md). Full online vulnerability audit requires explicit opt-in `node research/parallel-security/osv-strict-snapshot.mjs` in an isolated networked runner and capture of the untruncated stdout JSON.
+
+
+## 6. Current exact-head tests (21 Oct 2026)
+
+Last independently verified code checkpoint before the handoff documentation refresh: `635597bdbf474fc2b09cce37cd371b6667c7930a`. [GitHub Actions run #39509439870](https://github.com/manufact-test/ai-site-cms/actions/runs/39509439870), Security job `118926532347`: **46 suite PASS, 0 FAIL, 2 explicitly BLOCKED** with exact PR #3 head and PHP 8.3 / Node 22. The blockers are the genuine native-free Sodium and compat backends, **NOT** successful executions. Never treat an offline green run as Stage2 approval.
+
+```sh
+# From a COMPLETE, isolated checkout of the current research PR #3 HEAD:
+node research/parallel-security/run-security-suite.mjs
+# --strict returns 3 while any required crypto test remains blocked
+node research/parallel-security/run-security-suite.mjs --strict
+# Only on an APPROVED runner with outbound OSV + npm/Packagist network access:
+node research/parallel-security/run-security-suite.mjs --online
+```
+
+### Complete 43-package OSV report: capture and independent advisory triage
+
+Use an approved trusted isolated networked checkout, with immutable original locks and a safe output location **outside** the working repository. One request must return all 14 Composer + 29 npm exact pins; if any page is incomplete, TLS/network fails, original locks change or an advisory ID is malformed, the script **does not emit a successful JSON report**.
+
+```sh
+# Exact-point-in-time query. Save full untruncated stdout JSON to a safe location.
+node research/parallel-security/osv-strict-snapshot.mjs > /safe/private/osv-exact-43.json
+# Immediately check exact locked versions and full advisory details (NO network):
+node research/parallel-security/osv-advisory-triage.mjs \
+  /safe/private/osv-exact-43.json > /safe/private/osv-triage.json
+# For older preserved transcripts ONLY (not current audit):
+node research/parallel-security/osv-advisory-triage.mjs \
+  /safe/private/osv-exact-43.json --historical > /safe/private/osv-historical-triage.json
+```
+
+Exit codes for the offline saved-report checker: **0** = valid 43-pin snapshot with zero OSV database advisory references at that historical point; **4** = valid and **HAS ADVISORY FINDINGS** (human triage required, preserve output); **3** = invalid/missing/mismatched/stale evidence; **2** = incorrect input. `--historical` explicitly allows old timestamps, **not** changed package locks or future-dated reports; it does not make yesterday's results current. Recheck source archive provenance and legal obligations separately. Treat even zero findings as **not a security certification**.
+
+The live `--fail-on-advisory` standalone script exits **4** for full responses with findings, as an intentional release-blocking decision. The verification helper in the suite requires a genuinely zero-advisory full JSON document for an online PASS; it also independently recalculates registry upgrades instead of trusting the subprocess exit code or fields.
+
+### Genuine PHP 8.3 no-native-Sodium proof (not currently runnable here)
+
+The project PHP/Node runner is **not permitted to simulate** missing ext-sodium merely by `php -n` or `disable_functions`. The real source-tree attest must require an independently obtained exact upstream `paragonie/sodium_compat@v2.5.2` (verified signed Git tag points to `3246b36803c177847e677862fedeb7f937869adb`), independently stored full-tree SHA-256 and a disposable Composer lock matching this source and dist reference. Do **not** silently download or install this dependency in this research PR.
+
+```sh
+export PHP_NO_SODIUM_BIN=/absolute/path/to/physically-sodium-free-php8.3
+export SODIUM_COMPAT_AUTOLOAD=/absolute/vendor/paragonie/sodium_compat/autoload.php
+export SODIUM_COMPAT_LOCK=/absolute/isolated/composer.lock
+export SODIUM_COMPAT_TREE_SHA256=64_lowercase_hex_from_independently_reviewed_source
+node research/parallel-security/runtime-sodium-proof.mjs
+```
+
+The proof gate checks true native extension absence, 64-bit PHP 8.3 CLI, known-answer/forgery results, complete assertion stdout and final JSON, independently attests all source bytes **both before and after** actual PHP checks. Exit 0 cannot grant production acceptance; exit 3 means prerequisites/attestation are blocked, 1 means performed tests failed, 2 means invalid usage/probe. Collect performance data and separately test the explicitly authorized target web SAPI before deployment.
+
+**Permission limits:** No Hostinger, deployments, secrets, databases, shared docs, Composer/npm dependency modifications, workflow edits, merges, or branch moves outside `research/parallel-security/` by the Security research role. Source acceptance requires main integrator and qualified review.
