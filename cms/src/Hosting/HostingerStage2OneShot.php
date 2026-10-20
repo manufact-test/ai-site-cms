@@ -53,12 +53,15 @@ final class HostingerStage2OneShot
             'operation' => $operation,
             'status' => 'refused',
             'schemaState' => 'not_verified',
+            'dedicatedDbGrantsVerified' => false,
             'cmsPublicActivated' => false,
             'stage2Accepted' => false,
             'productionReady' => false
         ];
         try {
             $pdo = self::connection($task);
+            self::assertDedicatedUserGrants($pdo, $task['db_name']);
+            $receipt['dedicatedDbGrantsVerified'] = true;
             $schema = new SchemaManager($pdo);
             $before = $schema->inspectSite(self::SITE);
             if ($operation === 'probe') {
@@ -166,6 +169,36 @@ final class HostingerStage2OneShot
             throw new RuntimeException('DB_IDENTITY_MISMATCH');
         }
         return $pdo;
+    }
+
+    /**
+     * Hostinger account must have permissions scoped to this ONE selected
+     * database. Global USAGE is harmless, global DDL/DML or grants on other
+     * schemas are not. Unknown grant syntax fails closed.
+     */
+    private static function assertDedicatedUserGrants(PDO $pdo, string $database): void
+    {
+        $grants = $pdo->query('SHOW GRANTS')->fetchAll(PDO::FETCH_COLUMN);
+        if (!$grants) throw new RuntimeException('DB_GRANTS_NOT_AVAILABLE');
+        $databaseScoped = false;
+        foreach ($grants as $grant) {
+            if (!is_string($grant) || str_contains(strtoupper($grant), 'WITH GRANT OPTION')) {
+                throw new RuntimeException('DB_GRANTS_TOO_BROAD');
+            }
+            if (preg_match('/\\AGRANT USAGE ON \\*\\.\\* TO /i', $grant)) {
+                continue;
+            }
+            if (!preg_match('/\\AGRANT [A-Z_, ]+ ON \\x60([^\\x60]+)\\x60\\.\\* TO /i', $grant, $m)) {
+                throw new RuntimeException('DB_GRANT_SCOPE_UNKNOWN');
+            }
+            // MySQL SHOW GRANTS escapes wildcard characters in database names.
+            $grantedDb = str_replace(['\\\\_', '\\\\%'], ['_', '%'], $m[1]);
+            if (!hash_equals($database, $grantedDb)) {
+                throw new RuntimeException('DB_GRANTS_FOREIGN_SCHEMA');
+            }
+            $databaseScoped = true;
+        }
+        if (!$databaseScoped) throw new RuntimeException('DB_GRANTS_MISSING');
     }
 
     private static function assertRoots(string $packageRoot, string $localRoot): void
