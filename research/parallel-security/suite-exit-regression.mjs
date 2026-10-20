@@ -38,7 +38,7 @@ try{
     'osv-cli-regression.mjs':'OSV exact CLI offline subprocess regression PASS 23 assertions; no HTTP requests, no live audit',
     'suite-exit-regression.mjs':'Security suite exit-policy offline regression PASS 12 assertions; no OSV network, PHP or installed dependencies',
     'sodium-compat-attest-regression.mjs':'Sodium compat independent source attestation offline regression PASS 20 assertions; synthetic files, NOT actual upstream approval',
-    'online-evidence-regression.mjs':'Online OSV and registry evidence offline regression PASS 41 assertions; synthetic data only, no live OSV lookup or production approval',
+    'online-evidence-regression.mjs':'Online OSV and registry evidence offline regression PASS 54 assertions; synthetic data only, no live OSV lookup or production approval',
     'runtime-sodium-proof-regression.mjs':'Sodium-free wrapper false-pass offline regression PASS 15 assertions; fake binary only, NOT native-free PHP evidence'
   };
   for(const [name,msg] of Object.entries(scripts))
