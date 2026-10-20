@@ -33,7 +33,8 @@ try{
     'provenance-regression.mjs':'provenance synthetic fixture',
     'notice-regression.mjs':'notice synthetic fixture',
     'osv-strict-regression.mjs':'OSV strict-response + transport + lock fixture PASS 29 cases;',
-    'osv-cli-regression.mjs':'OSV exact CLI offline subprocess regression PASS 19 assertions; no HTTP requests, no live audit'
+    'osv-cli-regression.mjs':'OSV exact CLI offline subprocess regression PASS 19 assertions; no HTTP requests, no live audit',
+    'suite-exit-regression.mjs':'Security suite exit-policy offline regression PASS 12 assertions; no OSV network, PHP or installed dependencies'
   };
   for(const [name,msg] of Object.entries(scripts))
     fs.writeFileSync(path.join(dir,name),'console.log('+JSON.stringify(msg)+');\n');
