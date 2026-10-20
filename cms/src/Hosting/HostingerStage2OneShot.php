@@ -29,6 +29,11 @@ final class HostingerStage2OneShot
         self::assertRoots($packageRoot, $localRoot);
         // Complete unsigned inventory check BEFORE any DB connection.
         PackageArtifactVerifier::verify($packageRoot);
+        // Nonsecret exact package fingerprint; NOT a signed-release proof.
+        $manifestDigest = hash_file('sha256', $packageRoot.'/private/package-manifest.json');
+        if (!is_string($manifestDigest)) {
+            throw new RuntimeException('PACKAGE_DIGEST_UNAVAILABLE');
+        }
         $taskFile = $localRoot.'/once.json';
         self::assertPrivateRegular($taskFile, 4096);
         $raw = file_get_contents($taskFile);
@@ -51,6 +56,8 @@ final class HostingerStage2OneShot
         $receipt = [
             'format' => 'ai-site-cms-stage2-hostinger-local-receipt-v1',
             'operation' => $operation,
+            'packageManifestSha256' => $manifestDigest,
+            'startedAtUtc' => gmdate('Y-m-d\\TH:i:s\\Z'),
             'status' => 'refused',
             'failureCategory' => 'not_started',
             'schemaState' => 'not_verified',
@@ -142,6 +149,7 @@ final class HostingerStage2OneShot
             $receipt['status'] = 'refused';
             $receipt['failureCategory'] = $phase.'_refused';
         } finally {
+            $receipt['finishedAtUtc'] = gmdate('Y-m-d\\TH:i:s\\Z');
             $json = json_encode($receipt, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)."\n";
             rewind($receiptFile);
             ftruncate($receiptFile, 0);
