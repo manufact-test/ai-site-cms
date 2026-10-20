@@ -1,0 +1,99 @@
+name: Stage2 Hostinger inactive private package (MANUAL)
+# Output branch is ONLY a staging tree for a separate NON-public_html path.
+# Not an installation, not a signed release, not Stage2 acceptance.
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact full main SHA
+        type: string
+        required: true
+      approval:
+        description: Type STAGE_PRIVATE_PACKAGE_ONLY
+        type: string
+        required: true
+permissions:
+  contents: write
+concurrency:
+  group: stage2-hostinger-inactive-package
+  cancel-in-progress: false
+jobs:
+  isolated-private-stage:
+    if: github.repository == 'manufact-test/ai-site-cms' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Block all staging when repository not private or SHA unapproved
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_SHA: ${{ inputs.source_sha }}
+          INPUT_APPROVAL: ${{ inputs.approval }}
+          EVENT_PRIVATE: ${{ github.event.repository.private }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$INPUT_APPROVAL" == STAGE_PRIVATE_PACKAGE_ONLY ]]
+          [[ "$INPUT_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$INPUT_SHA" == "$GITHUB_SHA" ]]
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          [[ "$EVENT_PRIVATE" == true ]]
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY" --jq '.private')" == true ]]
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sodium,pdo_mysql,pdo_sqlite
+          tools: composer:v2
+          coverage: none
+      - name: Build and verify exact offline CMS package
+        working-directory: cms
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader
+          npm ci --prefix editor --no-audit --no-fund
+          npm run build --prefix editor
+          node tools/build-internal-package.cjs
+          node tools/test-stage2-hostinger-private-stage.cjs
+      - name: Prepare only private inactive Git tree
+        working-directory: cms
+        env:
+          CMS_STAGE2_STAGING_APPROVED: inactive-stage2-package-only
+        run: node tools/stage2-hostinger-private-stage.cjs --prepare "$RUNNER_TEMP/private-runtime"
+      - name: Create or update only dedicated private staging branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          set -euo pipefail
+          [[ "$EVENT_PRIVATE" == true ]]
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY" --jq '.private')" == true ]]
+          branch=stage2-hostinger-private-runtime
+          tmp="$RUNNER_TEMP/stage2-target-git"
+          mkdir -m 700 "$tmp"
+          git init -q "$tmp"
+          git -C "$tmp" remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
+          gh auth setup-git
+          if git -C "$tmp" ls-remote --exit-code origin "refs/heads/$branch" >/dev/null; then
+            git -C "$tmp" fetch -q --depth=1 origin "refs/heads/$branch"
+            git -C "$tmp" checkout -q -b "$branch" FETCH_HEAD
+            find "$tmp" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf -- {} +
+          else
+            git -C "$tmp" checkout -q --orphan "$branch"
+          fi
+          cp -a "$RUNNER_TEMP/private-runtime/." "$tmp/"
+          git -C "$tmp" add --all
+          if git -C "$tmp" diff --cached --quiet; then
+            echo 'Identical inactive package already staged.'
+          else
+            git -C "$tmp" -c user.name='ai-site-cms-stage2' \
+              -c user.email='actions@users.noreply.github.com' \
+              commit -qm "stage2: inactive isolated package from $GITHUB_SHA"
+            [[ "$(gh api "repos/$GITHUB_REPOSITORY" --jq '.private')" == true ]]
+            git -C "$tmp" push -q origin "HEAD:refs/heads/$branch"
+          fi
+          echo 'Inactive package staged only. Do not deploy to public_html or execute.'
