@@ -44,7 +44,7 @@ const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
-  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
+  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
   if(name.endsWith('.mjs'))entry('syntax:'+name,capture('node',['--check',path.join(dirname,name)]));
@@ -65,8 +65,8 @@ for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-r
     /Sodium compat independent source attestation offline regression PASS 20 assertions;/,
     '20 negative source/version/whole-tree attestation assertions (synthetic only)');
   if(name==='online-evidence-regression.mjs')requireProof(result,
-    /Online OSV and registry evidence offline regression PASS 41 assertions;/,
-    '41 adversarial OSV online and registry exit-zero report evidence assertions');
+    /Online OSV and registry evidence offline regression PASS 54 assertions;/,
+    '54 adversarial OSV online and saved advisory transcript assertions');
   if(name==='runtime-sodium-proof-regression.mjs')requireProof(result,
     /Sodium-free wrapper false-pass offline regression PASS 15 assertions;/,
     '15 fake-PHP classification and missing crypto-output proof regressions');
