@@ -1,34 +1,29 @@
 name: Stage2 target Hostinger PHP observation (OWNER-APPROVED GET only)
-# Report only after the latest package publisher succeeded, not while an
-# older release branch may still be racing an in-progress main build.
+# Live Hostinger observation is intentionally PAUSED during GitHub-only
+# development. A final real-host acceptance run requires explicit one-time
+# manual authorization. Normal pushes and offweb package builds are INTERNAL.
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/stage2-hostinger-target-php.yml'
-  workflow_run:
-    workflows: ['Stage2 Hostinger offweb CMS package (public-source, NO HOST DEPLOY)']
-    types: [completed]
   workflow_dispatch:
+    inputs:
+      approval:
+        description: 'For final authorized real-host GET only: STAGE2_FINAL_HOST_READONLY_GET'
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
   owner-consented-target-readonly:
     if: >-
       github.repository == 'manufact-test/ai-site-cms' &&
-      (
-        github.event_name != 'workflow_run' ||
-        (github.event.workflow_run.conclusion == 'success' &&
-         github.event.workflow_run.event == 'workflow_run' &&
-         github.event.workflow_run.head_branch == 'main' &&
-         github.event.workflow_run.head_repository.full_name == github.repository)
-      )
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.approval == 'STAGE2_FINAL_HOST_READONLY_GET'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Reject stale publisher or moving main before any host GET
         shell: bash
