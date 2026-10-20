@@ -21,8 +21,10 @@ $expected='9.0.41';
 if (!class_exists('Composer\InstalledVersions') || !\Composer\InstalledVersions::isInstalled('giggsey/libphonenumber-for-php-lite')
     || \Composer\InstalledVersions::isInstalled('giggsey/libphonenumber-for-php')
     || ltrim((string)\Composer\InstalledVersions::getPrettyVersion('giggsey/libphonenumber-for-php-lite'), 'v') !== $expected
+    || !\Composer\InstalledVersions::isInstalled('symfony/polyfill-mbstring')
+    || ltrim((string)\Composer\InstalledVersions::getPrettyVersion('symfony/polyfill-mbstring'), 'v') !== '1.38.2'
     || !PhoneAdapter::available()) {
-    fwrite(STDERR,"PHONE_REAL_VERSION_OR_PROVIDER_MISMATCH: expected lite $expected only\n");
+    fwrite(STDERR,"PHONE_REAL_VERSION_OR_PROVIDER_MISMATCH: expected lite $expected + Symfony polyfill v1.38.2 only\n");
     exit(2);
 }
 $n=0;

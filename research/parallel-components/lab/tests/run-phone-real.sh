@@ -10,6 +10,10 @@ trap 'rm -rf "$tmp"' EXIT
 (
   cd "$tmp"
   composer require --no-interaction --no-plugins --no-scripts --prefer-dist --no-progress \
-    'giggsey/libphonenumber-for-php-lite:9.0.41'
+    'giggsey/libphonenumber-for-php-lite:9.0.41' \
+    'symfony/polyfill-mbstring:1.38.2'
+  # A clean disposable lock is created on each run, with BOTH package versions fixed.
+  composer validate --no-interaction --strict
+  composer audit --locked --no-interaction
 )
 LAB_PHONE_AUTOLOAD="$tmp/vendor/autoload.php" php "$here/phone-real-integration.php"
