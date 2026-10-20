@@ -105,4 +105,23 @@ class NativeFormHttp(unittest.TestCase):
         self.assertIn('application/json',headers['Content-Type'])
         self.assertEqual(json.loads(body)['code'],'CONFIGURATION_REQUIRED')
 
+
+    def test_native_html_origin_and_payload_security(self):
+        opener,token=self.session()
+        fields={'csrf':token,'company_site':'','name':'Alice','email':'alice@example.test',
+            'phone':'','phone_region':'ZZ','message':'This field has a valid message.'}
+        req=Request(self.origin+'/submit-html.php',data=urlencode(fields).encode(),method='POST',headers={
+            'Content-Type':'application/x-www-form-urlencoded','Accept':'text/html'})
+        with self.assertRaises(HTTPError) as raised:opener.open(req,timeout=4)
+        self.assertEqual(raised.exception.code,403)
+        self.assertIn('ORIGIN_INVALID',raised.exception.read().decode())
+        status,headers,page=self.request(opener,fields,raw=urlencode(fields)+'&name=duplicate')
+        self.assertEqual(status,422)
+        self.assertIn('MALFORMED_FORM',page)
+        self.assertNotIn('<form ',page)
+        status,_,page=self.request(opener,fields,raw=urlencode(fields)+'&message='+'x'*9000)
+        self.assertEqual(status,415)
+        self.assertIn('UNSUPPORTED_REQUEST',page)
+        self.assertNotIn('<form ',page)
+
 if __name__=='__main__':unittest.main()
