@@ -15,7 +15,40 @@ permissions:
   contents: read
 
 jobs:
+  research-pr-scope:
+    name: Verify exact PR head and research-only file scope
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Refuse wrong branch, mixed changes or SHA drift
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          BRANCH: ${{ github.head_ref }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          case "$BRANCH" in
+            research/stage2-supply-chain*) prefix=research/parallel-security/ ;;
+            research/editor-component-patterns) prefix=research/parallel-components/ ;;
+            *) echo 'REFUSED: unsupported research branch' >&2; exit 1 ;;
+          esac
+          git diff --name-only "$BASE...HEAD" > "$RUNNER_TEMP/research-changed.txt"
+          test -s "$RUNNER_TEMP/research-changed.txt"
+          if grep -Ev "^$prefix" "$RUNNER_TEMP/research-changed.txt"; then
+            echo 'REFUSED: candidate changes outside assigned research area' >&2
+            exit 1
+          fi
+          echo 'Exact PR head and research-only scope proven.'
   security:
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'research/stage2-supply-chain')
     name: Security research actual locks, installed sources, crypto
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -23,43 +56,42 @@ jobs:
       - name: Checkout currently approved main as disposable integration base
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
           path: project
           fetch-depth: 0
           persist-credentials: false
-      - name: Checkout original unmerged Security branch (NO write credentials)
+      - name: Checkout exact Security PR commit (NO write credentials)
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v4
         with:
-          ref: research/stage2-supply-chain
+          ref: ${{ github.event.pull_request.head.sha }}
           path: candidate
           fetch-depth: 0
           persist-credentials: false
-      - name: Prove research-only branch scope against current main
+      - name: Prove candidate file scope at exact PR SHA
+        if: github.event_name == 'pull_request'
         shell: bash
         working-directory: candidate
         run: |
           set -euo pipefail
-          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
-          git diff --name-only origin/main...HEAD > "$RUNNER_TEMP/security-changed.txt"
+          git diff --name-only ${{ github.event.pull_request.base.sha }}...HEAD > "$RUNNER_TEMP/security-changed.txt"
           test -s "$RUNNER_TEMP/security-changed.txt"
           if grep -Ev '^research/parallel-security/' "$RUNNER_TEMP/security-changed.txt"; then
             echo 'REFUSED: Security PR edits outside allowed research folder'
             exit 1
           fi
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
           git rev-parse HEAD
-          git rev-parse origin/main
           echo 'Security PR changes restricted to research/parallel-security/'
-      - name: Apply only the reviewed research subtree to a disposable current-main tree
+      - name: Test exact PR candidate overlay against approved base
+        if: github.event_name == 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p project/research
-          if test -d project/research/parallel-security; then
-            echo 'Already integrated research subtree found in current main; test that accepted snapshot, not a pending PR version.'
-          else
-            cp -a candidate/research/parallel-security project/research/parallel-security
-            echo 'Only permitted research files copied into disposable main worktree.'
-          fi
+          rm -rf project/research/parallel-security
+          cp -a candidate/research/parallel-security project/research/parallel-security
+          echo 'EXACT PR candidate copied; no stale accepted-main substitution.'
           echo 'No GitHub writes, Hostinger or production deployment'
       - name: Install pinned Node 22 and PHP 8.3 for disposable CI only
         uses: actions/setup-node@v4
@@ -129,6 +161,7 @@ jobs:
         run: echo 'This isolated job does not connect to Hostinger or approve Stage2.'
 
   components:
+    if: github.event_name != 'pull_request' || github.head_ref == 'research/editor-component-patterns'
     name: Components research actual PHP, HTTP, Chromium and schema
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -136,43 +169,42 @@ jobs:
       - name: Checkout currently approved main as disposable integration base
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
           path: project
           fetch-depth: 0
           persist-credentials: false
-      - name: Checkout original unmerged Components branch (NO write credentials)
+      - name: Checkout exact Components PR commit (NO write credentials)
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v4
         with:
-          ref: research/editor-component-patterns
+          ref: ${{ github.event.pull_request.head.sha }}
           path: candidate
           fetch-depth: 0
           persist-credentials: false
-      - name: Prove research-only branch scope against current main
+      - name: Prove candidate file scope at exact PR SHA
+        if: github.event_name == 'pull_request'
         shell: bash
         working-directory: candidate
         run: |
           set -euo pipefail
-          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
-          git diff --name-only origin/main...HEAD > "$RUNNER_TEMP/components-changed.txt"
+          git diff --name-only ${{ github.event.pull_request.base.sha }}...HEAD > "$RUNNER_TEMP/components-changed.txt"
           test -s "$RUNNER_TEMP/components-changed.txt"
           if grep -Ev '^research/parallel-components/' "$RUNNER_TEMP/components-changed.txt"; then
             echo 'REFUSED: Components PR edits outside allowed research folder'
             exit 1
           fi
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
           git rev-parse HEAD
-          git rev-parse origin/main
           echo 'Components PR changes restricted to research/parallel-components/'
-      - name: Apply only the reviewed research subtree to a disposable current-main tree
+      - name: Test exact PR candidate overlay against approved base
+        if: github.event_name == 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p project/research
-          if test -d project/research/parallel-components; then
-            echo 'Already integrated research subtree found in current main; test that accepted snapshot, not a pending PR version.'
-          else
-            cp -a candidate/research/parallel-components project/research/parallel-components
-            echo 'Only permitted research files copied into disposable main worktree.'
-          fi
+          rm -rf project/research/parallel-components
+          cp -a candidate/research/parallel-components project/research/parallel-components
+          echo 'EXACT PR candidate copied; no stale accepted-main substitution.'
           echo 'No GitHub writes, Hostinger or production deployment'
       - name: PHP 8.3 from target runtime family
         uses: shivammathur/setup-php@v2
