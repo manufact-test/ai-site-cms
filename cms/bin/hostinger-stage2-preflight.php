@@ -227,6 +227,48 @@ try {
             }
         }
     }
+    // A revocation request fences new DB work even before the cleanup CLI
+    // runs. Never inspect request data here; it is operator-only state.
+    $revocationState = 'none';
+    if ($privateState === 'private_directory_ready') {
+        $requested = file_exists($local.'/revoke-request.json')
+            || is_link($local.'/revoke-request.json');
+        $recorded = file_exists($local.'/revocation.json')
+            || is_link($local.'/revocation.json');
+        if ($requested) $revocationState = 'requested_manual_review';
+        if ($recorded) {
+            $revocationState = 'recorded_manual_review';
+            $recordFile = $local.'/revocation.json';
+            $st = @lstat($recordFile);
+            if ($st !== false && is_file($recordFile) && !is_link($recordFile)
+                && realpath($recordFile) === $recordFile
+                && ($st['mode'] & 0077) === 0 && ($st['nlink'] ?? 0) === 1
+                && $st['size'] >= 60 && $st['size'] <= 2048) {
+                try {
+                    $record = json_decode((string)file_get_contents($recordFile),
+                        true, 8, JSON_THROW_ON_ERROR);
+                    $keys = is_array($record) ? array_keys($record) : [];
+                    sort($keys);
+                    if ($keys === ['credentialRead','databaseConnected','databaseResult',
+                        'format','inFlightProcessMayContinue','packageManifestSha256',
+                        'status','taskFilePresent']
+                        && ($record['format'] ?? null) === 'ai-site-cms-stage2-revocation-v1'
+                        && ($record['packageManifestSha256'] ?? null) === $manifestDigest
+                        && ($record['status'] ?? null) === 'private_task_revoked_no_db_claim'
+                        && ($record['taskFilePresent'] ?? null) === false
+                        && ($record['databaseResult'] ?? null) === 'unknown'
+                        && ($record['credentialRead'] ?? null) === false
+                        && ($record['databaseConnected'] ?? null) === false
+                        && ($record['inFlightProcessMayContinue'] ?? null) === true
+                        && $taskState === 'absent') {
+                        $revocationState = 'credential_file_revoked_db_unknown';
+                    }
+                } catch (Throwable $ignored) {
+                    // Untrusted or torn record: require human review.
+                }
+            }
+        }
+    }
     $mysqlDriver = class_exists(PDO::class)
         && in_array('mysql', PDO::getAvailableDrivers(), true);
     $report = [
@@ -238,7 +280,8 @@ try {
         'privateLocalState' => $privateState,
         'taskState' => $taskState,
         'receiptState' => $receiptState,
-        'oneShotAvailable' => $mysqlDriver
+        'revocationState' => $revocationState,
+        'oneShotAvailable' => $revocationState === 'none' && $mysqlDriver
             && $privateState === 'private_directory_ready'
             && $taskState === 'private_task_present'
             && $receiptState === 'absent',
