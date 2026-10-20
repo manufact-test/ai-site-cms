@@ -110,3 +110,18 @@ Results and versions: `../TEST-EVIDENCE-BLOCK5-2026-10-20.md`. The browser harne
 ### Research runner/CI caveat
 
 From this folder: `bash lab/tests/run-block5.sh` executes full PHP syntax, all PHP assertions, per-module Python browser/HTTP/schema suites and JS syntax against **the current checkout** (tools must already be installed). Shared GitHub workflow run `39489484536` was GREEN but explicitly chose old accepted-main subtree after PR #2's merge, so it did **not** independently test PR #4. Details: [block 5 evidence](../TEST-EVIDENCE-BLOCK5-2026-10-20.md). Main integrator must repair shared workflow; this research branch cannot touch Actions.
+
+## Актуальный блок 11 — статический HTML и честная progressive enhancement
+
+**Исторические пункты о том, что no-JS не имеет HTML-ответа и что GitHub проверяет только старую папку, больше не являются текущим состоянием.** Реальный `submit-html.php` с Block 6 возвращает экранированный HTML с восстановлением ошибок, но не подтверждает доставку почты. Новые проверки [Block 11](../TEST-EVIDENCE-BLOCK11-2026-10-21.md) прошли на кодовом SHA `7dc3284c5a6421c4b841a3275ced812e9ce5fae7`: [Actions 39509827314](https://github.com/manufact-test/ai-site-cms/actions/runs/39509827314), **34/34 PHP syntax, 388/388 PHP assertions, 56/56 Python tests (30 Chromium)**.
+
+Когда JS отключён: HTML-ссылки навигации и две панели вкладок видимы; вкладки являются обычными секциями текста с заголовками, а не недоступными ARIA-табами; окно имеет `<noscript>`-описание; кнопки меню/диалога/табов не показываются как неработающие; форма использует нативные ограничения. Когда JS включён: обработчики показывают кнопки и устанавливают ARIA роли/связи, а `form.noValidate=true` передаёт клиентскую проверку Unicode-совместимому мастеру. PHP остаётся окончательной проверкой.
+
+Повторение всех тестов в подготовленном developer checkout (инструменты должны быть установлены заранее):
+
+```bash
+cd research/parallel-components
+bash lab/tests/run-block5.sh
+```
+
+Название runner историческое; текущий тест включает Composer-проверку настоящей библиотеки при доступных Composer и mbstring. Без этих инструментов эта **отдельная** проверка помечается SKIP, не PASS. Chromium проверяет настоящее DOM-поведение, но запрет loopback из браузера требует отдельного Python-моста для реальных PHP POST. Никаких утверждений о SMTP, Hostinger, настоящем React/Next SSR или формальном WCAG аудите.

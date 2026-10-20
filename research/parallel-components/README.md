@@ -1,6 +1,6 @@
 # AI Site CMS — independent Editor & Components Research
 
-**20.10.2026, research only.** Branch `research/editor-component-patterns`; working tree restricted to `research/parallel-components/`. Owner architecture Slim4 + Opis2.6 + Jedison1.27.1 remains unchanged; Stage2 NOT ACCEPTED, Stage3 NOT STARTED, 0/135 mandatory product requirements accepted.
+**21.10.2026, current handoff; all earlier dated sections below are historical. Research only.** Branch `research/editor-component-patterns`; working tree restricted to `research/parallel-components/`. Owner architecture Slim4 + Opis2.6 + Jedison1.27.1 remains unchanged; Stage2 NOT ACCEPTED, Stage3 NOT STARTED, 0/135 mandatory product requirements accepted.
 
 Research deliverables:
 
@@ -22,3 +22,11 @@ PhoneAdapter (refusal unless actual libphonenumber PHP metadata is installed), p
 ## Fifth research package — 20.10.2026 (handoff)
 
 PR #2 was **MERGED by the main integrator**; additional independent research is now proposed as a **new PR from the same research branch**, never written to `main` by this researcher. This package delivers a progressive-enhancement two-step form, a strict duplicate/unknown-parameter POST boundary independent of wizard UI, and a multi-property revision plan correctness repair. Existing CMS/Hostinger/ADR/workflows untouched. See [block 5 evidence](TEST-EVIDENCE-BLOCK5-2026-10-20.md) and [our-only next-chat handoff](NEXT-CHAT.md). This is still not production form delivery, an actual CMS block editor, nor the final Stage3 contract.
+
+## Текущий контрольный пункт — Block 11 (21.10.2026)
+
+Это **исследовательская ветка**, не production CMS. [PR #4](https://github.com/manufact-test/ai-site-cms/pull/4), [актуальная передача](NEXT-CHAT.md) и [протокол Block 11](TEST-EVIDENCE-BLOCK11-2026-10-21.md). Кодовый SHA: `7dc3284c5a6421c4b841a3275ced812e9ce5fae7`. Проверка [GitHub Actions 39509827314](https://github.com/manufact-test/ai-site-cms/actions/runs/39509827314): SUCCESS, 34 PHP syntax, 388 PHP assertions, **56 Python tests including 30 Chromium**, настоящая Composer-библиотека телефона. Ранние результаты Block 5 ниже сохранены только как история.
+
+Block 6–10 добавили типизированный CSP-предпросмотр, защищённые нативные HTML/JSON ответы, реально исполняемые HTTP/Chromium→PHP регрессии, UTF-8 и Content-Type/Accept ограничения, а также проверку настоящей libphonenumber (пин 9.0.41) во временной Composer-среде. Block 11 исправил работу без JavaScript: видимая обычная навигация, обе панели вкладок с заголовками, информация модального окна в `<noscript>`, нативные required/email/minlength; интерактивные кнопки скрыты, пока не подключён JS. После загрузки JS появляются необходимые кнопки, однозначные роли ARIA и управляемая мастером проверка формы. Сервер продолжает контролировать CSRF/Origin/валидность/доставку.
+
+Все модули — только кандидаты; нет готового Stage3 контракта, подтверждения входящей почты, VoiceOver/NVDA/TalkBack аудита или интеграции в реальную CMS. Stage2 не принят, Stage3 не начат.
