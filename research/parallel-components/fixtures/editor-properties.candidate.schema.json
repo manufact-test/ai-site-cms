@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ai-site-cms/research/component-properties-v0.schema.json",
+  "title": "RESEARCH ONLY — per-existing-block editable properties; not Stage3 contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["blockId", "content", "style", "layout", "media", "action", "responsive", "behavior"],
+  "properties": {
+    "blockId": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$"},
+    "content": {"type": "object", "additionalProperties": false, "required": ["heading", "body"], "properties": {
+      "heading": {"type": "string", "minLength": 1, "maxLength": 180},
+      "body": {"type": "string", "maxLength": 4000}
+    }},
+    "style": {"type": "object", "additionalProperties": false, "required": ["textPreset", "foregroundToken", "backgroundToken", "borderToken"], "properties": {
+      "textPreset": {"type": "string", "enum": ["display", "heading", "body", "small"]},
+      "foregroundToken": {"type": "string", "enum": ["ink", "muted", "inverse"]},
+      "backgroundToken": {"type": "string", "enum": ["surface", "surface-alt", "brand"]},
+      "borderToken": {"type": "string", "enum": ["none", "subtle", "strong"]}
+    }},
+    "layout": {"type": "object", "additionalProperties": false, "required": ["padding", "maxWidth"], "properties": {
+      "padding": {"type": "string", "enum": ["none", "xs", "sm", "md", "lg"]},
+      "maxWidth": {"type": "string", "enum": ["content", "wide", "full"]}
+    }},
+    "media": {"type": "object", "additionalProperties": false, "required": ["assetId", "alt", "loading"], "properties": {
+      "assetId": {"type": ["string", "null"], "pattern": "^asset_[a-zA-Z0-9_-]{8,64}$"},
+      "alt": {"type": "string", "maxLength": 250},
+      "loading": {"type": "string", "enum": ["eager", "lazy"]}
+    }},
+    "action": {"type": "object", "additionalProperties": false, "required": ["label", "kind", "href"], "properties": {
+      "label": {"type": "string", "maxLength": 100},
+      "kind": {"type": "string", "enum": ["none", "link", "submit"]},
+      "href": {"type": ["string", "null"], "maxLength": 2048}
+    }},
+    "responsive": {"type": "object", "additionalProperties": false, "required": ["mobileColumns", "desktopColumns"], "properties": {
+      "mobileColumns": {"type": "integer", "minimum": 1, "maximum": 2},
+      "desktopColumns": {"type": "integer", "minimum": 1, "maximum": 4}
+    }},
+    "behavior": {"type": "object", "additionalProperties": false, "required": ["kind", "expandedInitially", "closeOnEscape"], "properties": {
+      "kind": {"type": "string", "enum": ["static", "accordion", "modal"]},
+      "expandedInitially": {"type": "boolean"},
+      "closeOnEscape": {"type": "boolean", "const": true}
+    }}
+  }
+}
