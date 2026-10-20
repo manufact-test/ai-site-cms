@@ -41,7 +41,7 @@ try {
     }
     $task = json_decode((string)file_get_contents($taskFile), true, 8, JSON_THROW_ON_ERROR);
     $pin = is_array($task) ? ($task['package_manifest_sha256'] ?? null) : null;
-    if (!is_string($pin) || !preg_match('/\\A[a-f0-9]{64}\\z/D', $pin)) {
+    if (!is_string($pin) || !preg_match('/\A[a-f0-9]{64}\z/D', $pin)) {
         throw new RuntimeException('EXPLICIT_PACKAGE_PIN_REQUIRED');
     }
     $manifestFile = $root.'/private/package-manifest.json';
@@ -50,9 +50,9 @@ try {
         throw new RuntimeException('PACKAGE_MANIFEST_PIN_MISMATCH');
     }
     require_once $root.'/src/Hosting/PackageArtifactVerifier.php';
-    \\AiSiteCms\\Hosting\\PackageArtifactVerifier::verify($root);
+    \AiSiteCms\Hosting\PackageArtifactVerifier::verify($root);
 } catch (Throwable $ignored) {
-    fwrite(STDERR, "STAGE2_PACKAGE_REFUSED\\n");
+    fwrite(STDERR, "STAGE2_PACKAGE_REFUSED\n");
     exit(3);
 }
 require $root.'/vendor/autoload.php';
