@@ -10,6 +10,9 @@ if ($argc !== 3 || function_exists('sodium_crypto_sign_verify_detached')) {
 require $argv[2] . '/vendor/autoload.php';
 require dirname(__DIR__) . '/src/Release/Ed25519Backend.php';
 use AiSiteCms\Release\Ed25519Backend;
+// Runner PHP may compile ext-sodium as built-in even with php -n.
+ // Force ParagonIE's documented pure-PHP test path; production never sets this.
+\ParagonIE_Sodium_Compat::$disableFallbackForUnitTests = true;
 if (!class_exists('ParagonIE_Sodium_Compat') || !Ed25519Backend::available()) {
     fwrite(STDERR, "PINNED_POLYFILL_NOT_AVAILABLE\n");
     exit(4);
