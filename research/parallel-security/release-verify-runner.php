@@ -6,7 +6,7 @@ if ($auto !== false && $auto !== '') {
     require_once $auto;
 }
 $mode=getenv('ED25519_LAB_MODE');
-$native=function_exists('sodium_crypto_sign_verify_detached');
+$native=extension_loaded('sodium');
 if (($mode==='native' && !$native) || (($mode==='compat' || $mode==='absent') && $native)) {
     fwrite(STDERR,"INVALID LAB RUNTIME: native/compat presence mismatch\n"); exit(2);
 }
