@@ -65,11 +65,24 @@ const form = document.querySelector('#contact');
 const status = document.querySelector('#form-status');
 const send = document.querySelector('#form-submit');
 const keys = ['name', 'email', 'phone', 'message'];
+// Server has final authority; avoid stale announced errors after a user correction.
+function clearFieldError(field) {
+  if (!keys.includes(field.name)) return;
+  field.removeAttribute('aria-invalid');
+  const error = document.getElementById(`${field.name}-error`);
+  if (error) error.textContent = '';
+}
 const identity = document.querySelector('#wizard-identity');
 const details = document.querySelector('#wizard-message');
 const next = document.querySelector('#wizard-next');
 const previous = document.querySelector('#wizard-prev');
 const progress = document.querySelector('#wizard-progress');
+form.addEventListener('input', event => {
+  const field = event.target;
+  if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+    clearFieldError(field);
+  }
+});
 let step = 0;
 function activateStep(index, moveFocus = true) {
   step = index;

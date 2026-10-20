@@ -36,6 +36,10 @@ $badRegion=postHttp($server,http_build_query(array_replace($fields,['phone_regio
 expectHttp($badRegion['code']==='VALIDATION_ERROR' && isset($badRegion['errors']['phone']),'lowercase region rejected even with blank phone');
 $badRegion=postHttp($server,http_build_query(array_replace($fields,['phone_region'=>'DE@'])),$session,$config,$now);
 expectHttp($badRegion['code']==='VALIDATION_ERROR','forged country code rejected');
+$badRegion=postHttp($server,http_build_query(array_replace($fields,['phone_region'=>'AA'])),$session,$config,$now);
+expectHttp($badRegion['code']==='VALIDATION_ERROR','syntactically ISO-shaped but undeclared region rejected');
+$badRegion=postHttp($server,http_build_query(array_replace($fields,['phone_region'=>'XK'])),$session,$config,$now);
+expectHttp($badRegion['code']==='VALIDATION_ERROR','out-of-list locale rejected even with blank phone');
 expectHttp(postHttp($server,http_build_query(array_replace($fields,['phone_region'=>'PL'])),$session,$config,$now)['code']==='CONFIGURATION_REQUIRED','valid other UI region accepted without phone');
 expectHttp(postHttp($server,str_replace('name=Alice','name=%FF',$raw),$session,$config,$now)['code']==='MALFORMED_FORM','invalid encoding');
 $invalid=http_build_query(array_replace($fields,['name'=>'<script>x</script>','message'=>'short']));

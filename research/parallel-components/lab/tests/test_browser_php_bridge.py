@@ -62,6 +62,7 @@ class BrowserPhpBridge(unittest.TestCase):
         self.responses = []
         self.force_duplicate = False
         self.force_region_attack = False
+        self.force_unknown_region = False
 
         def call_php(source, action, payload):
             if not isinstance(action, str) or not action.endswith('/submit-html.php'):
@@ -72,6 +73,8 @@ class BrowserPhpBridge(unittest.TestCase):
                 payload += '&name=duplicate'
             if self.force_region_attack:
                 payload = payload.replace('phone_region=ZZ', 'phone_region=de')
+            if self.force_unknown_region:
+                payload = payload.replace('phone_region=ZZ', 'phone_region=AA')
             req = Request(self.origin + '/submit-html.php', data=payload.encode('utf-8'),
                 method='POST', headers={
                     'Origin': self.origin,
@@ -152,6 +155,15 @@ class BrowserPhpBridge(unittest.TestCase):
     def test_invalid_region_is_server_rejected_even_without_phone(self):
         self.prepare_valid_form()
         self.force_region_attack = True
+        self.page.locator('#form-submit').click()
+        self.page.wait_for_function(
+            "document.querySelector('#form-status').textContent.includes('VALIDATION_ERROR')")
+        self.assertEqual(self.responses, [(422, 'VALIDATION_ERROR')])
+        self.assertEqual(self.page.locator('#phone').get_attribute('aria-invalid'), 'true')
+
+    def test_iso_shaped_but_unknown_country_selector_is_denied(self):
+        self.prepare_valid_form()
+        self.force_unknown_region = True
         self.page.locator('#form-submit').click()
         self.page.wait_for_function(
             "document.querySelector('#form-status').textContent.includes('VALIDATION_ERROR')")

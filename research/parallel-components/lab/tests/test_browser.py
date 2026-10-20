@@ -204,6 +204,23 @@ class BrowserLab(unittest.TestCase):
         self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
         page.close()
 
+    def test_invalid_error_clears_on_user_edit_and_stays_text_only(self):
+        page=self.new_page(viewport={'width':375,'height':720})
+        page.locator('#wizard-next').click()
+        self.assertEqual(page.locator('#name').get_attribute('aria-invalid'),'true')
+        page.locator('#name').fill('Мария')
+        self.assertNotEqual(page.locator('#name').get_attribute('aria-invalid'),'true')
+        self.assertEqual(page.locator('#name-error').inner_text(),'')
+        page.locator('#email').fill('test@example.test')
+        page.locator('#wizard-next').click()
+        page.locator('#message').fill('too')
+        page.locator('#form-submit').click()
+        self.assertEqual(page.locator('#message').get_attribute('aria-invalid'),'true')
+        page.locator('#message').fill('corrected sufficiently long message')
+        self.assertEqual(page.locator('#message-error').inner_text(),'')
+        self.assertNotEqual(page.locator('#message').get_attribute('aria-invalid'),'true')
+        page.close()
+
     def test_wizard_no_script_progressive_enhancement(self):
         html=urlopen(self.backend,timeout=4).read().decode('utf-8')
         self.assertIn('id="wizard-identity"',html)

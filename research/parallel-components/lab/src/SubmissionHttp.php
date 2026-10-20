@@ -57,7 +57,9 @@ final class SubmissionHttp
         $submitted = $boundary['fields'];
         // An optional phone may be blank, but never silently accept a forged country field.
         $region = $submitted['phone_region'];
-        if (!is_string($region) || !PhoneAdapter::regionShape($region)) {
+        // A form country selector is a closed enum. Do not trust only ISO syntax:
+        // UNKNOWN two-letter regions must not become browser-editable state.
+        if (!is_string($region) || !in_array($region, ['ZZ', 'DE', 'PL', 'GB', 'US', 'FR'], true)) {
             return self::result(422, 'VALIDATION_ERROR',
                 'Проверьте поля формы.', ['phone' => 'Укажите корректную страну номера.'], $submitted);
         }
