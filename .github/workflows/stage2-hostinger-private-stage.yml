@@ -102,6 +102,40 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
+      - name: Download the ACTUAL uploaded archive and extract on a new private path
+        uses: actions/download-artifact@v4
+        with:
+          name: stage2-hostinger-offweb-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          path: ${{ runner.temp }}/returned/private-runtime
+      - name: Byte-for-byte compare PUBLISHED archive to inspected staging tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 cms/tools/test-stage2-upload-roundtrip.py \
+            "$RUNNER_TEMP/private-runtime" \
+            "$RUNNER_TEMP/returned/private-runtime" \
+            > "$RUNNER_TEMP/stage2-offweb-roundtrip-evidence.json"
+          python3 cms/tools/test-stage2-upload-roundtrip-fixtures.py \
+            "$RUNNER_TEMP/private-runtime"
+          python3 - "$RUNNER_TEMP/stage2-offweb-roundtrip-evidence.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          e=json.loads(Path(sys.argv[1]).read_text())
+          assert e['result']=='downloaded-artifact-exact-byte-match'
+          assert e['filesComparedExactly']>=470
+          assert e['hostingTouched'] is False and e['databaseTouched'] is False
+          assert e['stage2Accepted'] is False and e['productionReady'] is False
+          assert e['publisherSignatureVerified'] is False
+          print('Stage2 published archive REVERIFIED:', e['filesComparedExactly'], 'files; manifest', e['manifestSha256'])
+          PY
+      - name: Publish nonsecret archive verification evidence (NOT a signature)
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage2-offweb-return-verification-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          path: ${{ runner.temp }}/stage2-offweb-roundtrip-evidence.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Publish only dedicated, never-webroot, source-public branch
         shell: bash
         env:
