@@ -30,7 +30,8 @@ try{
     wrongPublicKey:b64(other.export({format:'der',type:'spki'}).subarray(-32))};
   const vector=path.join(folder,'vector.json');
   fs.writeFileSync(vector,JSON.stringify(payload),{mode:0o600});
-  execFileSync('php',['-n',path.join(source,'tests/stage2-polyfill-ed25519.php'),vector,folder],
+  execFileSync('php',['-n','-d','disable_functions=sodium_crypto_sign_verify_detached',
+    path.join(source,'tests/stage2-polyfill-ed25519.php'),vector,folder],
     {stdio:'inherit',timeout:30000});
   process.stdout.write('Pinned 2.5.2 ISC candidate only; 43-component product legal review not amended.\n');
 }finally{
