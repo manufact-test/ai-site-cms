@@ -5,6 +5,7 @@ declare(strict_types=1);
 final class NoJsResult
 {
     private const FIELDS = ['name', 'email', 'phone', 'message'];
+    private const ERROR_FIELDS = ['name', 'email', 'phone', 'message', 'phone_region'];
     private static function esc(string $value): string
     {
         return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -22,7 +23,7 @@ final class NoJsResult
         $retry = in_array($code, ['VALIDATION_ERROR', 'TOO_FAST'], true);
         $errors = $retry && is_array($out['errors'] ?? null) ? $out['errors'] : [];
         $verifiedErrors = [];
-        foreach (self::FIELDS as $field) {
+        foreach (self::ERROR_FIELDS as $field) {
             if (is_string($errors[$field] ?? null)) $verifiedErrors[$field] = self::esc($errors[$field]);
         }
         $html = '<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ответ формы — исследовательская лаборатория</title></head><body>'
@@ -61,11 +62,16 @@ final class NoJsResult
                 $html .= '</p>';
             }
             $region = $submitted['phone_region'] ?? 'ZZ';
-            $html .= '<p><label for="field-region">Страна номера</label><select id="field-region" name="phone_region">';
+            $regionError = $verifiedErrors['phone_region'] ?? '';
+            $regionAttrs = $regionError !== '' ? ' aria-invalid="true" aria-describedby="error-phone_region"' : '';
+            $regionAttrs .= $firstError === 'phone_region' ? ' autofocus' : '';
+            $html .= '<p><label for="field-phone_region">Страна номера</label><select id="field-phone_region" name="phone_region"' . $regionAttrs . '>';
             foreach (['ZZ'=>'Международный +…','DE'=>'Германия','PL'=>'Польша','GB'=>'Великобритания','US'=>'США','FR'=>'Франция'] as $key=>$label) {
                 $html .= '<option value="' . $key . '"' . ($region === $key ? ' selected' : '') . '>' . $label . '</option>';
             }
-            $html .= '</select></p><button type="submit">Повторить после исправления</button></form>';
+            $html .= '</select>';
+            if ($regionError !== '') $html .= '<small id="error-phone_region">' . $regionError . '</small>';
+            $html .= '</p><button type="submit">Повторить после исправления</button></form>';
         } else {
             $html .= '<p>Автоматическая повторная отправка недоступна. Перед новой попыткой проверьте статус заявки.</p>';
         }

@@ -61,7 +61,7 @@ final class SubmissionHttp
         // UNKNOWN two-letter regions must not become browser-editable state.
         if (!is_string($region) || !in_array($region, ['ZZ', 'DE', 'PL', 'GB', 'US', 'FR'], true)) {
             return self::result(422, 'VALIDATION_ERROR',
-                'Проверьте поля формы.', ['phone' => 'Укажите корректную страну номера.'], $submitted);
+                'Проверьте поля формы.', ['phone_region' => 'Укажите корректную страну номера.'], $submitted);
         }
         // A trusted private autoloader is optional; callers cannot specify it in POST data.
         $autoload = $env('LAB_PHONE_AUTOLOAD');

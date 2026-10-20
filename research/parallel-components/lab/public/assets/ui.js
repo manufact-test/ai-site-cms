@@ -64,7 +64,7 @@ dialog.addEventListener('close', () => {returnFocus.focus(); returnFocus = opene
 const form = document.querySelector('#contact');
 const status = document.querySelector('#form-status');
 const send = document.querySelector('#form-submit');
-const keys = ['name', 'email', 'phone', 'message'];
+const keys = ['name', 'email', 'phone_region', 'phone', 'message'];
 // Outbound delivery may have succeeded even when the reply is unknown.
 // Permit another POST only for explicit authoritative pre-delivery responses.
 const SAFE_RETRY_CODES = new Set([
@@ -86,9 +86,12 @@ const previous = document.querySelector('#wizard-prev');
 const progress = document.querySelector('#wizard-progress');
 form.addEventListener('input', event => {
   const field = event.target;
-  if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+  if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement) {
     clearFieldError(field);
   }
+});
+form.addEventListener('change', event => {
+  if (event.target instanceof HTMLSelectElement) clearFieldError(event.target);
 });
 let step = 0;
 function activateStep(index, moveFocus = true) {

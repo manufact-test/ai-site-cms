@@ -25,4 +25,11 @@ expectFallback(!str_contains(NoJsResult::page($problem,array_replace($submitted,
 expectFallback(str_contains(NoJsResult::page(['code'=>'TOO_FAST','message'=>'wait'],$submitted),'<form'),'too fast retry');
 expectFallback(!str_contains(NoJsResult::page(['code'=>'UNKNOWN','message'=>'<script>alert(1)</script>'],$submitted),'<script>'),'message escaped');
 expectFallback(!str_contains($html,'name="wizard_complete"'),'no forged wizard proof');
+$regionError = ['code'=>'VALIDATION_ERROR','message'=>'country invalid','errors'=>['phone_region'=>'<bad country>']];
+$regionHtml = NoJsResult::page($regionError, array_replace($submitted,['phone_region'=>'AA']));
+expectFallback(str_contains($regionHtml,'href="#field-phone_region"'),'region error summary links exact selector');
+expectFallback(str_contains($regionHtml,'id="field-phone_region" name="phone_region" aria-invalid="true" aria-describedby="error-phone_region" autofocus'),'invalid region receives initial focus');
+expectFallback(str_contains($regionHtml,'id="error-phone_region">&lt;bad country&gt;'),'selector error is escaped');
+expectFallback(!str_contains($regionHtml,'<bad country>'),'injected error not executable markup');
+expectFallback(str_contains($regionHtml,'value="ZZ"'),'invalid country not reflected into option list');
 echo "NoJsResult PASS: $n assertions (escaped form, focus, unknown transport and retry gates)\n";

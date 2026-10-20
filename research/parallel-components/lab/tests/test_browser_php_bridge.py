@@ -159,7 +159,8 @@ class BrowserPhpBridge(unittest.TestCase):
         self.page.wait_for_function(
             "document.querySelector('#form-status').textContent.includes('VALIDATION_ERROR')")
         self.assertEqual(self.responses, [(422, 'VALIDATION_ERROR')])
-        self.assertEqual(self.page.locator('#phone').get_attribute('aria-invalid'), 'true')
+        self.assertEqual(self.page.locator('#phone_region').get_attribute('aria-invalid'), 'true')
+        self.assertTrue(self.page.locator('#phone_region').evaluate('(el)=>document.activeElement===el'))
 
     def test_iso_shaped_but_unknown_country_selector_is_denied(self):
         self.prepare_valid_form()
@@ -168,7 +169,7 @@ class BrowserPhpBridge(unittest.TestCase):
         self.page.wait_for_function(
             "document.querySelector('#form-status').textContent.includes('VALIDATION_ERROR')")
         self.assertEqual(self.responses, [(422, 'VALIDATION_ERROR')])
-        self.assertEqual(self.page.locator('#phone').get_attribute('aria-invalid'), 'true')
+        self.assertEqual(self.page.locator('#phone_region').get_attribute('aria-invalid'), 'true')
 
     def test_real_phone_validator_refusal(self):
         self.prepare_valid_form()

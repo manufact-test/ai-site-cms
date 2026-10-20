@@ -263,6 +263,23 @@ class BrowserLab(unittest.TestCase):
         self.assertNotEqual(page.locator('#message').get_attribute('aria-invalid'),'true')
         page.close()
 
+    def test_phone_region_error_focus_and_change_clear(self):
+        page=self.new_page(viewport={'width':390,'height':760})
+        page.locator('#name').fill('Мария')
+        page.locator('#email').fill('maria@example.test')
+        page.locator('#wizard-next').click()
+        page.locator('#message').fill('Server detects a forged phone-region selector.')
+        page.evaluate("""window.fetch=async()=>({json:async()=>({code:'VALIDATION_ERROR',
+            message:'Проверьте страну',errors:{phone_region:'Страна не разрешена'}})})""")
+        page.locator('#form-submit').click()
+        page.wait_for_function("document.querySelector('#phone_region-error').textContent.includes('Страна')")
+        self.assertEqual(page.locator('#phone_region').get_attribute('aria-invalid'),'true')
+        self.assertTrue(page.locator('#phone_region').evaluate('(el)=>document.activeElement===el'))
+        page.locator('#phone_region').select_option('DE')
+        self.assertEqual(page.locator('#phone_region-error').inner_text(),'')
+        self.assertNotEqual(page.locator('#phone_region').get_attribute('aria-invalid'),'true')
+        page.close()
+
     def test_wizard_no_script_progressive_enhancement(self):
         html=urlopen(self.backend,timeout=4).read().decode('utf-8')
         self.assertIn('id="wizard-identity"',html)

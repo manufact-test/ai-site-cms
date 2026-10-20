@@ -106,6 +106,20 @@ class NativeFormHttp(unittest.TestCase):
         self.assertEqual(json.loads(body)['code'],'CONFIGURATION_REQUIRED')
 
 
+    def test_invalid_phone_region_focuses_native_select(self):
+        opener,token=self.session()
+        fields={'csrf':token,'company_site':'','name':'Alice','email':'alice@example.test',
+            'phone':'','phone_region':'AA','message':'Valid message for invalid-country test.'}
+        time.sleep(2.05)
+        status,_,page=self.request(opener,fields)
+        self.assertEqual(status,422)
+        self.assertIn('VALIDATION_ERROR',page)
+        self.assertIn('href="#field-phone_region"',page)
+        self.assertIn('name="phone_region" aria-invalid="true"',page)
+        self.assertIn('error-phone_region',page)
+        self.assertNotIn('value="AA" selected',page)
+        self.assertIn('autofocus',page)
+
     def test_native_html_origin_and_payload_security(self):
         opener,token=self.session()
         fields={'csrf':token,'company_site':'','name':'Alice','email':'alice@example.test',
