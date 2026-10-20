@@ -39,6 +39,16 @@ final class SchemaManager
         return $this->withMigrationLock(function () use ($target): int {
             // Never run even CREATE TABLE IF NOT EXISTS against a foreign application's DB.
             $this->assertDedicatedSchema();
+            // A pre-existing journal with the correct NAME but wrong primary
+            // key, column types or engine must never be mistaken for our
+            // journal. Validate BEFORE first CREATE/ALTER/INSERT.
+            if ($this->driver === 'mysql' && $this->tableExists('cms_schema_migrations')) {
+                $this->verifyMysqlTable('cms_schema_migrations', [
+                    'version'=>['int unsigned','PRI',null],
+                    'checksum'=>['char(64)','',null],
+                    'applied_at'=>['varchar(35)','',null]
+                ]);
+            }
             $this->pdo->exec($this->driver === 'mysql'
                 ? 'CREATE TABLE IF NOT EXISTS cms_schema_migrations (version INT UNSIGNED NOT NULL PRIMARY KEY, checksum CHAR(64) NOT NULL, applied_at VARCHAR(35) NOT NULL) ENGINE=InnoDB'
                 : 'CREATE TABLE IF NOT EXISTS cms_schema_migrations (version INTEGER PRIMARY KEY, checksum VARCHAR(64) NOT NULL, applied_at VARCHAR(35) NOT NULL)');
@@ -268,6 +278,22 @@ final class SchemaManager
             ? $this->pdo->query('SHOW COLUMNS FROM cms_installation')->fetchAll(PDO::FETCH_ASSOC)
             : $this->pdo->query('PRAGMA table_info(cms_installation)')->fetchAll(PDO::FETCH_ASSOC);
         $columnNames = array_map(static fn (array $field): string => (string) ($field['Field'] ?? $field['name']), $fields);
+        if ($this->driver === 'mysql') {
+            $expected = [
+                'singleton_id'=>['tinyint unsigned','PRI',null],
+                'site_id'=>['varchar(80)','UNI',null],
+                'initialized_at'=>['varchar(35)','',null]
+            ];
+            if ($version >= 2) {
+                $expected['storage_generation']=['bigint','', '0'];
+            }
+            $this->verifyMysqlTable('cms_schema_migrations', [
+                'version'=>['int unsigned','PRI',null],
+                'checksum'=>['char(64)','',null],
+                'applied_at'=>['varchar(35)','',null]
+            ]);
+            $this->verifyMysqlTable('cms_installation', $expected);
+        }
         foreach (['singleton_id', 'site_id', 'initialized_at'] as $field) {
             if (!in_array($field, $columnNames, true)) {
                 throw new RuntimeException('Installation schema drift detected');
@@ -275,6 +301,51 @@ final class SchemaManager
         }
         if (($version >= 2) !== in_array('storage_generation', $columnNames, true)) {
             throw new RuntimeException('Unexpected installation generation column');
+        }
+    }
+
+    /**
+     * Verify *physical* Stage2 tables, not only column names. A foreign
+     * database may contain lookalike CMS tables with nullable IDs, missing
+     * primary/unique keys or non-transactional storage engines.
+     * Only these two literal owned names are accepted; no user SQL.
+     *
+     * @param array<string,array{0:string,1:string,2:string|null}> $expected
+     */
+    private function verifyMysqlTable(string $table, array $expected): void
+    {
+        if ($this->driver !== 'mysql'
+            || !in_array($table, ['cms_schema_migrations','cms_installation'], true)) {
+            throw new RuntimeException('Invalid Stage2 physical table verification');
+        }
+        $meta=$this->pdo->prepare(
+            'SELECT TABLE_TYPE, ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?'
+        );
+        $meta->execute([$table]);
+        $items=$meta->fetchAll(PDO::FETCH_ASSOC);
+        if (count($items)!==1 || $items[0]['TABLE_TYPE']!=='BASE TABLE'
+            || $items[0]['ENGINE']!=='InnoDB') {
+            throw new RuntimeException('Non-InnoDB, missing, or disguised CMS table');
+        }
+        // Static trusted table name, not derived from a task, schema or input.
+        $fields=$this->pdo->query('SHOW COLUMNS FROM `'.$table.'`')
+            ->fetchAll(PDO::FETCH_ASSOC);
+        if (count($fields)!==count($expected)) {
+            throw new RuntimeException('Unexpected CMS columns');
+        }
+        foreach ($fields as $field) {
+            $key=(string)$field['Field'];
+            if (!array_key_exists($key,$expected)) {
+                throw new RuntimeException('Unrecognized CMS column');
+            }
+            [$type,$index,$default]=$expected[$key];
+            if (strtolower((string)$field['Type'])!==$type
+                || $field['Null']!=='NO'
+                || $field['Key']!==$index
+                || ($field['Default']===null?null:(string)$field['Default'])!==$default
+                || $field['Extra']!=='') {
+                throw new RuntimeException('CMS table type/constraint drift');
+            }
         }
     }
 

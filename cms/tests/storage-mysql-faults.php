@@ -85,6 +85,29 @@ checkFault((int)$db->query("SELECT COUNT(*) FROM information_schema.tables
     'Event refusal leaves dedicated test schema empty');
 $db->exec('DROP EVENT visitor_owned_event');
 
+// 1c: A lookalike migration journal must be rejected *before* DDL.
+// Test physical storage engine as well as declared checksum type.
+$db->exec('CREATE TABLE cms_schema_migrations (
+    version INT UNSIGNED NOT NULL PRIMARY KEY,
+    checksum VARCHAR(64) NOT NULL,
+    applied_at VARCHAR(35) NOT NULL) ENGINE=InnoDB');
+refuseFault(fn()=> $store->migrate(2),
+    'Lookalike journal with VARCHAR checksum refused before CMS installation DDL');
+checkFault((int)$db->query("SELECT COUNT(*) FROM information_schema.tables WHERE
+    table_schema=DATABASE() AND table_name='cms_installation'")->fetchColumn()===0,
+    'Malformed journal cannot cause installation table creation');
+$db->exec('DROP TABLE cms_schema_migrations');
+$db->exec('CREATE TABLE cms_schema_migrations (
+    version INT UNSIGNED NOT NULL PRIMARY KEY,
+    checksum CHAR(64) NOT NULL,
+    applied_at VARCHAR(35) NOT NULL) ENGINE=MyISAM');
+refuseFault(fn()=> $store->migrate(2),
+    'Nontransactional MyISAM journal refused before CMS DDL');
+checkFault((int)$db->query("SELECT COUNT(*) FROM information_schema.tables WHERE
+    table_schema=DATABASE() AND table_name='cms_installation'")->fetchColumn()===0,
+    'Nontransactional journal cannot trigger CMS installation writes');
+$db->exec('DROP TABLE cms_schema_migrations');
+
 // 2: MySQL DDL was applied, but migration v1 journal lost before commit.
 $store->migrate(1);
 $db->exec('DROP TABLE cms_schema_migrations');
@@ -110,6 +133,24 @@ checkFault($store->inspectSite('fault-demo')['state'] === 'uninitialized', 'Fres
 $store->installSite('fault-demo');
 $store->assertSite('fault-demo');
 checkFault($store->inspectSite('fault-demo')['state'] === 'ready', 'Valid installation ready');
+// Existing, apparently healthy installations must reject missing UNIQUE
+// constraints and nontransactional engine substitutions without touching data.
+$db->exec('ALTER TABLE cms_installation DROP INDEX site_id');
+checkFault($store->inspectSite('fault-demo')['state']==='blocked',
+    'Missing unique site_id constraint invalidates purported CMS installation');
+refuseFault(fn()=> $store->assertSite('fault-demo'),
+    'Missing unique site key rejects authenticated site use');
+checkFault((string)$db->query('SELECT site_id FROM cms_installation')->fetchColumn()==='fault-demo',
+    'Constraint drift rejection preserves existing site identity');
+$db->exec('ALTER TABLE cms_installation ADD UNIQUE INDEX site_id (site_id)');
+$db->exec('ALTER TABLE cms_installation ENGINE=MyISAM');
+checkFault($store->inspectSite('fault-demo')['state']==='blocked',
+    'MyISAM substitution invalidates Stage2 transactional installation');
+refuseFault(fn()=> $store->assertSite('fault-demo'),
+    'Nontransactional table cannot be reused as a valid CMS');
+$db->exec('ALTER TABLE cms_installation ENGINE=InnoDB');
+checkFault($store->inspectSite('fault-demo')['state']==='ready',
+    'Exactly restored test schema validates after constraint and engine checks');
 // Even an authentic, fully journaled CMS is not allowed to coexist with
 // a newly planted foreign trigger. Reads must refuse, never delete it.
 // Binary-logged MySQL rightly refuses CREATE TRIGGER to the ordinary
