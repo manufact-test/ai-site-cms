@@ -40,3 +40,9 @@ No production file changes and no legal clearance or Hostinger crypto confirmati
 Run from a **complete Git checkout**: `node research/parallel-security/run-security-suite.mjs --strict`. JSON report carries individual commands, actual exit codes, runtime detection, and `passed / failed / blocked` statuses. Exit `0` = executed tests passed (does not imply complete or approved); `1` = an executed test failed; `3` = strict mode and one or more checks **blocked**; `2` = invalid CLI usage. Optional `--online` adds point-in-time OSV and version-registry checks and fails on failed network calls. Neither stage acceptance nor legal compliance can be inferred from exit 0.
 
 Do not call `php -n` a true no-Sodium environment without checking `extension_loaded('sodium')`: this runner checks it before selecting absent/compat mode. `SODIUM_COMPAT_AUTOLOAD` must point to an independently verified exact 2.5.2 local archive and only works when native extension is genuinely absent. The runner does not download or install upstream packages.
+
+### Further research: cryptographic risk decision and embedded npm notices
+
+- [SODIUM-DECISION-REVIEW.md](SODIUM-DECISION-REVIEW.md) — options and strict cross-backend/replay/security preconditions; candidate 2.5.2 remains CONDITIONAL.
+- [NPM-ARCHIVE-REVIEW.md](NPM-ARCHIVE-REVIEW.md), [npm-source-gate.mjs](npm-source-gate.mjs) — build/test-only embedded third-party notices and installed-archive checks.
+- `release-fixture.mjs native` now exercises 20 independent valid/negative signed release cases, confirmed on the actual original PHP verifier. Pure-PHP still blocked absent truly extension-free PHP.

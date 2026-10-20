@@ -65,3 +65,13 @@ node research/parallel-security/notice-gate.mjs
 ```
 
 Notice gate exit 0 = both source NOTICE bodies copied; exit 1 = incomplete/modified NOTICE; exit 2 = required installed/vendor/package evidence missing. The regression scripts create temporary fake packages exclusively; they do **not** mean original tarball contents were validated. Never call a missing vendor tree a successful NOTICE check.
+
+## Expanded current research suite
+
+```sh
+node research/parallel-security/run-security-suite.mjs --strict
+node research/parallel-security/release-fixture.mjs native
+node research/parallel-security/npm-source-gate.mjs
+```
+
+The first exits **3** when required checks are blocked (e.g. unavailable true no-Sodium PHP, absent npm vendor trees). The second runs 20 real signed-release acceptance/rejection assertions on native. The npm archive gate requires a trusted `npm ci` checkout; no manual package downloads or build/production file modification occur. Review [NPM-ARCHIVE-REVIEW.md](NPM-ARCHIVE-REVIEW.md) and [SODIUM-DECISION-REVIEW.md](SODIUM-DECISION-REVIEW.md) before selecting anything for production.
