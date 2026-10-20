@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/stage2-independent-research.yml'
+      - 'research/parallel-security/**'
+      - 'research/parallel-components/**'
   pull_request:
     paths:
       - 'research/parallel-security/**'
