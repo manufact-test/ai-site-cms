@@ -45,12 +45,15 @@ $badRegion=postHttp($server,http_build_query(array_replace($fields,['phone_regio
 expectHttp($badRegion['code']==='VALIDATION_ERROR','out-of-list locale rejected even with blank phone');
 expectHttp(postHttp($server,http_build_query(array_replace($fields,['phone_region'=>'PL'])),$session,$config,$now)['code']==='CONFIGURATION_REQUIRED','valid other UI region accepted without phone');
 expectHttp(postHttp($server,str_replace('name=Alice','name=%FF',$raw),$session,$config,$now)['code']==='MALFORMED_FORM','invalid encoding');
-$invalid=http_build_query(array_replace($fields,['name'=>'<script>x</script>','message'=>'short']));
-$out=postHttp($server,$invalid,$session,$config,$now);
+// Independent validation scenario: previous input-format probes consume session attempts.
+$validationSession=[];
+$validationToken=FormLab::issueToken($validationSession,$now-5);
+$invalid=http_build_query(array_replace($fields,['csrf'=>$validationToken,'name'=>'<script>x</script>','message'=>'short']));
+$out=postHttp($server,$invalid,$validationSession,$config,$now);
 expectHttp($out['http']===422 && $out['code']==='VALIDATION_ERROR','full server validation');
 $html=NoJsResult::page($out,$out['submitted']);
 expectHttp(str_contains($html,'&lt;script&gt;') && !str_contains($html,'<script>'),'escaped HTML retry');
-expectHttp(str_contains($html,'name="csrf" value="'.$token.'"'),'safe retry CSRF');
+expectHttp(str_contains($html,'name="csrf" value="'.$validationToken.'"'),'safe retry CSRF');
 expectHttp(str_contains($html,'id="field-message"') && str_contains($html,'aria-invalid="true"'),'HTML error focus');
 // Isolate the honeypot case: the previous scenarios deliberately spent 5 per-session attempts.
 $spamSession=[];
