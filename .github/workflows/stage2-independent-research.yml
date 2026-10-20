@@ -52,9 +52,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p project/research
-          test ! -e project/research/parallel-security
-          cp -a candidate/research/parallel-security project/research/parallel-security
-          echo 'Only permitted research files copied; no GitHub writes, Hostinger or production deployment'
+          if test -d project/research/parallel-security; then
+            echo 'Already integrated research subtree found in current main; test that accepted snapshot, not a pending PR version.'
+          else
+            cp -a candidate/research/parallel-security project/research/parallel-security
+            echo 'Only permitted research files copied into disposable main worktree.'
+          fi
+          echo 'No GitHub writes, Hostinger or production deployment'
       - name: Install pinned Node 22 and PHP 8.3 for disposable CI only
         uses: actions/setup-node@v4
         with:
@@ -161,9 +165,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p project/research
-          test ! -e project/research/parallel-components
-          cp -a candidate/research/parallel-components project/research/parallel-components
-          echo 'Only permitted research files copied; no GitHub writes, Hostinger or production deployment'
+          if test -d project/research/parallel-components; then
+            echo 'Already integrated research subtree found in current main; test that accepted snapshot, not a pending PR version.'
+          else
+            cp -a candidate/research/parallel-components project/research/parallel-components
+            echo 'Only permitted research files copied into disposable main worktree.'
+          fi
+          echo 'No GitHub writes, Hostinger or production deployment'
       - name: PHP 8.3 from target runtime family
         uses: shivammathur/setup-php@v2
         with:
