@@ -32,8 +32,10 @@ def validate(upload: Path) -> tuple[dict[str, bytes], str]:
     if upload.parent.name == "public_html" or "public_html" in upload.parts[-3:]:
         raise ValueError("WEBROOT_UPLOAD_REFUSED")
     manifest_file = upload / "private" / "package-manifest.json"
-    if manifest_file.is_symlink() or not manifest_file.is_file():
-        raise ValueError("MISSING_MANIFEST")
+    if (manifest_file.is_symlink() or not manifest_file.is_file()
+            or manifest_file.stat().st_nlink != 1
+            or not 100 <= manifest_file.stat().st_size <= 250_000):
+        raise ValueError("MISSING_OR_UNSAFE_MANIFEST")
     raw = manifest_file.read_bytes()
     digest = hashlib.sha256(raw).hexdigest()
     m = json.loads(raw)
@@ -97,6 +99,10 @@ def validate(upload: Path) -> tuple[dict[str, bytes], str]:
             raise ValueError("PACKAGE_FILE_HASH_MISMATCH")
     if actual["private/package-manifest.json"] != raw:
         raise ValueError("MANIFEST_CHANGED_DURING_SCAN")
+    if (len(actual) != len(expected)+1
+            or "cms-stage2-local/once.json" in actual
+            or "public/receipt.json" in actual):
+        raise ValueError("OFFWEB_UPLOAD_CONTAINS_OPERATOR_STATE")
     return actual, digest
 
 
