@@ -120,6 +120,18 @@ class NativeFormHttp(unittest.TestCase):
         self.assertNotIn('value="AA" selected',page)
         self.assertIn('autofocus',page)
 
+    def test_accept_quality_prefers_json_when_html_denied(self):
+        opener,token=self.session()
+        fields={'csrf':token,'company_site':'','name':'Alex','email':'alex@example.test',
+            'phone':'','phone_region':'ZZ','message':'A full message for accept negotiation.'}
+        status,headers,body=self.request(opener,fields,accept='application/json,text/html;q=0')
+        self.assertEqual(status,422)  # too-fast pre-delivery gate
+        self.assertIn('application/json',headers['Content-Type'])
+        self.assertIsInstance(json.loads(body),dict)
+        status,headers,body=self.request(opener,fields,accept='text/html;q=0.9,application/json;q=0.8')
+        self.assertIn('text/html',headers['Content-Type'])
+        self.assertIn('<html',body)
+
     def test_native_html_origin_and_payload_security(self):
         opener,token=self.session()
         fields={'csrf':token,'company_site':'','name':'Alice','email':'alice@example.test',

@@ -28,6 +28,9 @@ expectHttp(postHttp(array_replace($server,['REQUEST_METHOD'=>'GET']),$raw,$sessi
 expectHttp(postHttp(array_replace($server,['HTTP_ORIGIN'=>'https://evil.test']),$raw,$session,$config,$now)['code']==='ORIGIN_INVALID','origin denied');
 expectHttp(postHttp(array_replace($server,['HTTP_HOST'=>'evil.test']),$raw,$session,$config,$now)['code']==='HOST_INVALID','host denied');
 expectHttp(postHttp(array_replace($server,['CONTENT_TYPE'=>'application/json']),$raw,$session,$config,$now)['http']===415,'type denied');
+expectHttp(postHttp(array_replace($server,['CONTENT_TYPE'=>'application/x-www-form-urlencoded; charset=latin1']),$raw,$session,$config,$now)['http']===415,'non-UTF8 input not interpreted as UTF8');
+expectHttp(postHttp(array_replace($server,['CONTENT_TYPE'=>'application/x-www-form-urlencoded; charset=utf-8; charset=utf-8']),$raw,$session,$config,$now)['http']===415,'duplicated charset denied');
+expectHttp(postHttp(array_replace($server,['CONTENT_TYPE'=>'application/x-www-form-urlencoded; charset=UTF-8']),$raw,$session,$config,$now)['code']==='CONFIGURATION_REQUIRED','actual browser URLSearchParams charset accepted');
 expectHttp(postHttp(array_replace($server,['CONTENT_LENGTH'=>'1']),$raw,$session,$config,$now)['http']===415,'partial body denied');
 expectHttp(postHttp(array_replace($server,['CONTENT_LENGTH'=>(string)strlen($raw)]),$raw,$session,$config,$now)['code']==='CONFIGURATION_REQUIRED','matching length');
 expectHttp(postHttp($server,$raw.'&name=Intruder',$session,$config,$now)['code']==='MALFORMED_FORM','duplicate decoded key denied');

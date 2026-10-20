@@ -33,9 +33,13 @@ final class SubmissionHttp
         if (($server['REQUEST_METHOD'] ?? '') !== 'POST') {
             return self::result(405, 'METHOD_NOT_ALLOWED', 'Use POST');
         }
-        $type = strtolower(trim(explode(';', (string)($server['CONTENT_TYPE'] ?? ''))[0]));
+        $header = $server['CONTENT_TYPE'] ?? '';
+        $parts = is_string($header) && strlen($header) <= 128 ? explode(';', $header) : [];
+        $type = strtolower(trim(array_shift($parts) ?? ''));
+        $parametersValid = count($parts) === 0 || (count($parts) === 1
+            && preg_match('/^\\s*charset\\s*=\\s*"?utf-8"?\\s*$/iD', $parts[0]) === 1);
         $declared = $server['CONTENT_LENGTH'] ?? null;
-        if ($type !== 'application/x-www-form-urlencoded' || strlen($raw) > 8192
+        if ($type !== 'application/x-www-form-urlencoded' || !$parametersValid || strlen($raw) > 8192
             || ($declared !== null && (!is_scalar($declared)
                 || !preg_match('/^[0-9]{1,10}$/D', (string)$declared)
                 || (int)$declared !== strlen($raw)))) {
