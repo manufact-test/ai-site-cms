@@ -22,6 +22,18 @@ check('cannot claim acceptance',!evaluate('phpPreflight',r(200,JSON.stringify({.
 check('no DB claim',!evaluate('phpPreflight',r(200,JSON.stringify({...good,databaseConnectionAttempted:true}))).pass);
 check('invalid shape',!evaluate('phpPreflight',r(200,JSON.stringify({...good,requirements:{}}))).pass);
 check('invalid HTML',!evaluate('phpPreflight',r(200,'not json','text/html')).pass);
+const routeGood={format:'ai-site-cms-stage2-routing-observation-v1',
+ probeRevision:REVISION,exactNonFileRoute:true,frontControllerMapped:true,
+ installationReady:false,privateStorageVerified:false,databaseConnected:false,
+ stage2Accepted:false};
+check('real non-file rewrite proof accepted',
+ evaluate('lsapiFrontController',r(200,JSON.stringify(routeGood))).pass);
+check('wrong PHP front controller refused',
+ !evaluate('lsapiFrontController',r(503,JSON.stringify({...routeGood,frontControllerMapped:false}))).pass);
+check('routing proof cannot claim install',
+ !evaluate('lsapiFrontController',r(200,JSON.stringify({...routeGood,installationReady:true}))).pass);
+check('routing proof redirect not accepted',
+ !evaluate('lsapiFrontController',r(302,JSON.stringify(routeGood))).pass);
 check('visitor OK',evaluate('visitorHome',r(200,'<h1>hello</h1>','text/html')).pass);
 check('visitor redirect refused',!evaluate('visitorHome',r(301,'moved','text/html')).pass);
 check('health not installed',evaluate('notInstalled',r(503,'{"status":"not_installed"}')).pass);
@@ -39,4 +51,4 @@ const s2=summary({requests:[{name:'phpPreflight',httpStatus:200,tlsVerified:true
 check('two capability gaps shown',s2.includes('php_sodium_missing')
  &&s2.includes('target_web_sapi_requires_compatibility_review'));
 check('HTTPS pass not deploy acceptance',s2.includes('Target runtime compatibility for the current signed deployment: **STILL OPEN**'));
-console.log('Stage2 live report parser contract: 15 offline checks PASS; no host I/O');
+console.log('Stage2 live report parser contract: 19 offline checks PASS; no host I/O');

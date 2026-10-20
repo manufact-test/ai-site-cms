@@ -4,10 +4,11 @@ declare(strict_types=1);
 $probe=realpath(__DIR__.'/../hosting/hostinger-readonly/index.php');
 if ($probe === false) {fwrite(STDERR, "probe_missing\n");exit(1);}
 $checks=0;
-function runProbe(string $probe,string $method,string $uri):string {
+function runProbe(string $probe,string $method,string $uri, ?string $script = null):string {
     $code='$_SERVER["REQUEST_METHOD"]='.var_export($method,true).';'
         .'$_SERVER["REQUEST_URI"]='.var_export($uri,true).';'
         .'$_SERVER["DOCUMENT_ROOT"]='.var_export(dirname($probe),true).';'
+        .'$_SERVER["SCRIPT_FILENAME"]='.var_export($script ?? $probe,true).';'
         .'include '.var_export($probe,true).';';
     $cmd=escapeshellarg(PHP_BINARY).' -r '.escapeshellarg($code);
     $parts=[];$exit=0;
@@ -23,7 +24,7 @@ function passes(bool $valid,string $name):void {
 $body=runProbe($probe,'GET','/__stage2/host');
 $data=json_decode($body,true,512,JSON_THROW_ON_ERROR);
 passes($data['format']==='ai-site-cms-stage2-target-php-preflight-v1','format');
-passes($data['probeRevision']==='stage2-target-host-check-20261020-r2'&&$data['observationOnly']===true,'revision');
+passes($data['probeRevision']==='stage2-target-host-check-20261020-r3'&&$data['observationOnly']===true,'revision');
 passes($data['phpVersionMajorMinor']===PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION,'phpVersion');
 passes($data['phpSapi']===PHP_SAPI,'actualSapi');
 passes(is_bool($data['requirements']['privateParentExistsAndReadable'])
@@ -38,6 +39,10 @@ passes(is_array($data['requirements'])&&array_key_exists('php81OrLater',$data['r
 passes($data['requirements']['documentRootMatchesPublicEntrypoint']===true,'root_check');
 passes(strpos($body,dirname(__DIR__))===false && strpos($body,'password')===false
     && strpos($body,'u235811320')===false,'no_paths_or_secrets');
+passes(str_contains(runProbe($probe,'GET','/__stage2/rewrite/proof'),'"frontControllerMapped":true'),
+    'router_front_controller_mapping');
+passes(str_contains(runProbe($probe,'GET','/__stage2/rewrite/proof',$probe.'-wrong'),'"frontControllerMapped":false'),
+    'router_wrong_executable_refused');
 passes(str_contains(runProbe($probe,'GET','/api/health'),'not_installed'),'not_installed_health');
 passes(str_contains(runProbe($probe,'GET','/api/publish'),'not_found'),'no_publish');
 passes(str_contains(runProbe($probe,'POST','/__stage2/host'),'method_not_allowed'),'get_only');

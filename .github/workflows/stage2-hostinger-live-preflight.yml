@@ -30,7 +30,7 @@ jobs:
           const {publicIPv4}=require('./cms/tools/stage2-target-https-check.cjs');
           const CMS='lightseagreen-woodpecker-264491.hostingersite.com';
           const VISITOR='mediumpurple-fox-175549.hostingersite.com';
-          const EXPECTED='stage2-target-host-check-20261020-r2';
+          const EXPECTED='stage2-target-host-check-20261020-r3';
           const pause=ms=>new Promise(done=>setTimeout(done,ms));
           function assert(check,reason){if(!check)throw Error(reason);}
           async function safeIp(host){
@@ -116,6 +116,17 @@ jobs:
                 openssl:checks.openssl
               })+'\\n');
             const requests=[
+              ['LiteSpeed nested front-controller route','/__stage2/rewrite/proof',r=>{
+                if(r.status!==200||!r.type.toLowerCase().startsWith('application/json'))return false;
+                try{
+                  const v=JSON.parse(r.body);
+                  return v.format==='ai-site-cms-stage2-routing-observation-v1'&&
+                    v.probeRevision===EXPECTED&&v.exactNonFileRoute===true&&
+                    v.frontControllerMapped===true&&v.installationReady===false&&
+                    v.privateStorageVerified===false&&v.databaseConnected===false&&
+                    v.stage2Accepted===false;
+                }catch{return false;}
+              }],
               ['Private PHP vendor','/vendor/autoload.php',r=>[403,404].includes(r.status)],
               ['Private editor','/private/editor/editor.js',r=>[403,404].includes(r.status)],
               ['Hidden Git configuration','/.git/config',r=>[403,404].includes(r.status)],

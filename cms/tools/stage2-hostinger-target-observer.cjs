@@ -11,9 +11,10 @@ const fs=require('node:fs');
 const {publicIPv4}=require('./stage2-target-https-check.cjs');
 const CMS='lightseagreen-woodpecker-264491.hostingersite.com';
 const VISITOR='mediumpurple-fox-175549.hostingersite.com';
-const REVISION='stage2-target-host-check-20261020-r2';
+const REVISION='stage2-target-host-check-20261020-r3';
 const CMS_ROUTES=[
   ['/__stage2/host','phpPreflight'],
+  ['/__stage2/rewrite/proof','lsapiFrontController'],
   ['/','cmsLanding'],
   ['/api/health','notInstalled'],
   ['/api/publish','writeNotExposed'],
@@ -50,6 +51,16 @@ function evaluate(name,response) {
     // Display booleans, never host filesystem paths or raw response bodies.
     return {pass:true,revisionCurrent:true,phpVersion:d.phpVersionMajorMinor,
       webSapi:d.phpSapi,requirements:Object.fromEntries(wanted.map(k=>[k,d.requirements[k]]))};
+  }
+  if(name==='lsapiFrontController'){
+    let d;try{d=JSON.parse(text)}catch{return {pass:false,reason:'invalid_routing_json'};}
+    const pass=s===200&&/^application\\/json(?:;|$)/i.test(contentType)&&
+      d&&d.format==='ai-site-cms-stage2-routing-observation-v1'&&
+      d.probeRevision===REVISION&&d.exactNonFileRoute===true&&
+      d.frontControllerMapped===true&&d.installationReady===false&&
+      d.privateStorageVerified===false&&d.databaseConnected===false&&
+      d.stage2Accepted===false;
+    return {pass:Boolean(pass),...(pass?{}:{reason:'front_controller_rewrite_not_verified'})};
   }
   if(name==='cmsLanding')return {pass:s===200&&text.includes('NOT an installed CMS')};
   if(name==='visitorHome')return {pass:s===200&&/^text\/html(?:;|$)/i.test(contentType)&&text.length>0};
@@ -115,11 +126,13 @@ async function inspect(){
     seen.push(result);
   }
   const preflight=seen.find(r=>r.name==='phpPreflight');
+  const routing=seen.find(r=>r.name==='lsapiFrontController');
   const requirements=preflight?.requirements;
   // A successful HTTP route check does NOT prove target deployment compatibility.
   // Our current PHP Ed25519 release verifier uses libsodium. Real target LiteSpeed
   // has not undergone the independent FPM/Apache isolation and lifecycle tests.
   const compatibilityGaps=[];
+  if(routing?.passed!==true)compatibilityGaps.push('front_controller_rewrite_not_verified');
   if(preflight?.passed!==true)compatibilityGaps.push('live_php_preflight_not_verified');
   else {
     if(requirements?.sodium!==true)compatibilityGaps.push('php_sodium_missing');
@@ -136,6 +149,7 @@ async function inspect(){
     allChecksPassed:seen.every(r=>r.passed),
     targetRuntimeCompatibilityConfirmed:compatibilityGaps.length===0,
     compatibilityGaps,
+    rewrittenPhpFrontControllerObserved:routing?.passed===true,
     databaseConnected:false,hostFilesystemIndependentlyInspected:false,
     stage2Accepted:false,stage3Authorized:false,productionReady:false,
     visitorDuringCmsOutageVerified:false};
@@ -157,6 +171,7 @@ public-source observations and require corroboration before acceptance.
 Revision: ${REVISION}; HTTP observation expectations met: **${report.allChecksPassed?'YES':'NO'}**.
 Target runtime compatibility for the current signed deployment: **${report.targetRuntimeCompatibilityConfirmed?'NO BLOCKERS DETECTED':'STILL OPEN'}**.
 Observed gaps: ${gaps.join(', ')||'none found by this limited probe'}.
+Actual nested-path PHP front controller rewrite observed: **${report.rewrittenPhpFrontControllerObserved?'YES':'NOT VERIFIED'}**.
 
 | Route | HTTP status | Verified TLS | Expected result |
 |---|---:|---|---|
