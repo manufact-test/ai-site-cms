@@ -36,6 +36,28 @@ if ($path === '/api/health') {
     echo '{"status":"not_installed","stage2Accepted":false}';
     exit;
 }
+// Owner-scoped LiteSpeed/Apache routing proof. This exact non-file URL
+// succeeds only if the web server dispatched it to THIS public front controller.
+// It does not attest filesystem isolation, DB credentials, CMS install or safety.
+if ($path === '/__stage2/rewrite/proof') {
+    $actualScript = realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? ''));
+    $publicRoot = realpath(__DIR__);
+    $documentRoot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+    $mapped = $actualScript !== false && $actualScript === realpath(__FILE__)
+        && $publicRoot !== false && $documentRoot === $publicRoot;
+    http_response_code($mapped ? 200 : 503);
+    echo json_encode([
+        'format' => 'ai-site-cms-stage2-routing-observation-v1',
+        'probeRevision' => 'stage2-target-host-check-20261020-r3',
+        'exactNonFileRoute' => true,
+        'frontControllerMapped' => $mapped,
+        'installationReady' => false,
+        'privateStorageVerified' => false,
+        'databaseConnected' => false,
+        'stage2Accepted' => false
+    ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+    exit;
+}
 if ($path !== '/' && $path !== '/__stage2/host') {
     http_response_code(404);
     echo '{"error":"not_found"}';
@@ -56,7 +78,7 @@ $privateParentUsable = is_string($privateParent) && $privateParent !== $scriptDi
     && is_dir($privateParent) && is_readable($privateParent);
 
 $report = [
-    'probeRevision' => 'stage2-target-host-check-20261020-r2',
+    'probeRevision' => 'stage2-target-host-check-20261020-r3',
     'observationOnly' => true,
     'phpVersionMajorMinor' => PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION,
     'phpSapi' => PHP_SAPI,
