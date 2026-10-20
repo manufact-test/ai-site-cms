@@ -15,6 +15,10 @@ check(!fs.existsSync(path.join(STAGE,'public/editor.js')),'Public editor JS inac
 check(fs.existsSync(path.join(STAGE,'vendor/autoload.php')),'Composer runtime vendor included');
 check(manifest.files.some(x=>x.path==='bin/hostinger-stage2-once.php'),
   'One-shot Hostinger operator is packaged off-web only');
+check(manifest.files.some(x=>x.path==='bin/hostinger-stage2-revoke.php'),
+  'Emergency credential-only revoke is bundled outside the public webroot');
+check(!manifest.files.some(x=>x.path==='public/hostinger-stage2-revoke.php'),
+  'Emergency cleanup is not exposed via HTTP');
 check(manifest.files.some(x=>x.path==='bin/hostinger-stage2-preflight.php'),
   'Credential-free Stage2 Hostinger CLI preflight is packaged off-web');
 check(!manifest.files.some(x=>x.path==='public/hostinger-stage2-preflight.php'),
