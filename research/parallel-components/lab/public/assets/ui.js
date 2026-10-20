@@ -39,7 +39,12 @@ function selectTab(target, focus = false) {
     const active = tab === target;
     tab.setAttribute('aria-selected', String(active));
     tab.tabIndex = active ? 0 : -1;
-    document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
+    const panel = document.getElementById(tab.getAttribute('aria-controls'));
+    // No-script panels are ordinary content, not orphaned ARIA tab panels.
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', tab.id);
+    panel.tabIndex = 0;
+    panel.hidden = !active;
   }
   if (focus) target.focus();
 }

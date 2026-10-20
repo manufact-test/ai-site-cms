@@ -71,6 +71,8 @@ class BrowserLab(unittest.TestCase):
             self.assertFalse(page.locator('[role="tablist"]').is_visible())
             self.assertTrue(page.locator('#panel-php').is_visible())
             self.assertTrue(page.locator('#panel-react').is_visible())
+            self.assertEqual(page.locator('#panel-react h3').inner_text(),'React / Next')
+            self.assertIsNone(page.locator('#panel-react').get_attribute('role'))
             self.assertFalse(page.locator('#open-dialog').is_visible())
             self.assertTrue(page.locator('#dialog-nojs').is_visible())
             self.assertIn('Исследовательский прототип',page.locator('#dialog-nojs').inner_text())
@@ -109,6 +111,9 @@ class BrowserLab(unittest.TestCase):
         self.assertFalse(page.locator('#panel-php').is_hidden())
         self.assertTrue(page.locator('#panel-react').is_hidden())
         self.assertEqual(page.locator('[role="tab"][aria-selected="true"]').count(),1)
+        self.assertEqual(page.locator('#panel-php').get_attribute('role'),'tabpanel')
+        self.assertEqual(page.locator('#panel-php').get_attribute('aria-labelledby'),'tab-php')
+        self.assertFalse(page.locator('#panel-php h3').is_visible())
         self.assertTrue(page.locator('#contact').evaluate('(el)=>el.noValidate'))
         page.close()
 

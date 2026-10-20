@@ -31,3 +31,8 @@ select { padding: .55rem; max-width: 100%; }
 .wizard-controls { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
 .wizard-progress { font-weight: 650; }
 .js .wizard-step[hidden] { display: none; }
+
+/* Tab headings remain native content without JS; only the enhanced tab UI hides them. */
+.lab-tab-panel{padding:1rem;}
+.lab-tab-panel h3{margin-top:0;}
+.js .lab-tab-panel h3{display:none;}
