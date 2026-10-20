@@ -138,15 +138,15 @@ if ($path === '/__stage2/kernel/smoke') {
         try {
             $root=$offweb['root'];
             require_once $root.'/vendor/autoload.php';
-            $app=\\AiSiteCms\\HttpKernel::create();
-            $factory=new \\Slim\\Psr7\\Factory\\ServerRequestFactory();
+            $app=\AiSiteCms\HttpKernel::create();
+            $factory=new \Slim\Psr7\Factory\ServerRequestFactory();
             $request=$factory->createServerRequest('GET','/api/health');
             $response=$app->handle($request);
             $body=(string)$response->getBody();
             $kernelExecuted=$response->getStatusCode()===200
                 && $body==='{"status":"ok"}'
                 && str_contains(strtolower($response->getHeaderLine('content-type')),'application/json');
-        } catch (\\Throwable $ignored) {
+        } catch (\Throwable $ignored) {
             $kernelExecuted=false;
         }
     }
