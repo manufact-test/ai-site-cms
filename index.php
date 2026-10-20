@@ -39,6 +39,35 @@ if ($path === '/api/health') {
 // Owner-scoped LiteSpeed/Apache routing proof. This exact non-file URL
 // succeeds only if the web server dispatched it to THIS public front controller.
 // It does not attest filesystem isolation, DB credentials, CMS install or safety.
+// Owner-approved non-secret marker lookup in the CMS test site's designated
+// sibling folder. No recursive scans, directory listings or cross-site paths.
+// This proves only that PHP can read one known file outside THIS public_html,
+// NOT isolation from other hosting users, actual private CMS install or DB.
+if ($path === '/__stage2/private-boundary') {
+    $siteParent = realpath(dirname(__DIR__));
+    $privatePath = $siteParent === false ? '' : $siteParent . '/cms-stage2-private-boundary';
+    $actualPrivate = $privatePath === '' ? false : realpath($privatePath);
+    $markerFile = $privatePath . '/probe.json';
+    $expected = '{"format":"ai-site-cms-stage2-private-boundary-marker-v1","purpose":"test-only-no-code-no-secrets","deploymentFolder":"cms-stage2-private-boundary"}' . chr(10);
+    $found = $siteParent !== false
+        && $actualPrivate === $privatePath
+        && !is_link($privatePath)
+        && is_file($markerFile) && !is_link($markerFile)
+        && @filesize($markerFile) === strlen($expected)
+        && @file_get_contents($markerFile) === $expected;
+    http_response_code($found ? 200 : 503);
+    echo json_encode([
+        'format' => 'ai-site-cms-stage2-private-boundary-observation-v1',
+        'probeRevision' => 'stage2-target-host-check-20261020-r4',
+        'outsideThisPublicRootMarkerObserved' => $found,
+        'cmsInstalled' => false,
+        'privateCmsCodeInstalled' => false,
+        'peerAccountIsolationVerified' => false,
+        'databaseConnected' => false,
+        'stage2Accepted' => false
+    ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+    exit;
+}
 if ($path === '/__stage2/rewrite/proof') {
     $actualScript = realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? ''));
     $publicRoot = realpath(__DIR__);
@@ -48,7 +77,7 @@ if ($path === '/__stage2/rewrite/proof') {
     http_response_code($mapped ? 200 : 503);
     echo json_encode([
         'format' => 'ai-site-cms-stage2-routing-observation-v1',
-        'probeRevision' => 'stage2-target-host-check-20261020-r3',
+        'probeRevision' => 'stage2-target-host-check-20261020-r4',
         'exactNonFileRoute' => true,
         'frontControllerMapped' => $mapped,
         'installationReady' => false,
@@ -78,7 +107,7 @@ $privateParentUsable = is_string($privateParent) && $privateParent !== $scriptDi
     && is_dir($privateParent) && is_readable($privateParent);
 
 $report = [
-    'probeRevision' => 'stage2-target-host-check-20261020-r3',
+    'probeRevision' => 'stage2-target-host-check-20261020-r4',
     'observationOnly' => true,
     'phpVersionMajorMinor' => PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION,
     'phpSapi' => PHP_SAPI,
