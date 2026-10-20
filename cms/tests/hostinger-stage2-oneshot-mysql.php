@@ -77,6 +77,8 @@ try {
     $reject(fn()=>Job::run($package,$local)); // World-readable credential refused.
     chmod($local.'/once.json',0600);
     $report=Job::run($package,$local);
+    $check(!file_exists($local.'/once.json'),
+        'successful cron attempt destroys secret-bearing task file');
     $check($report['dedicatedDbGrantsVerified']===true,'strict scoped DB grant');
     $check($report['operation']==='probe' && $report['status']==='observed'
         && $report['schemaState']==='uninitialized','read-only empty DB probe');
@@ -87,10 +89,14 @@ try {
 
     // A correct DB password is insufficient if its user also owns other schemas.
     $root->exec("GRANT SELECT ON ai_site_cms_ci.* TO 'cms_stage2_once_ci'@'%'");
+    $store($task);
     $report=Job::run($package,$local);
     $check($report['status']==='refused'
-        && $report['dedicatedDbGrantsVerified']===false,
+        && $report['dedicatedDbGrantsVerified']===false
+        && $report['failureCategory']==='database_scope_refused',
         'cross-database grants refused before DDL');
+    $check(!file_exists($local.'/once.json'),
+        'rejected DB privilege scope also consumes secret-bearing task');
     unlink($local.'/receipt.json');
     $root->exec("REVOKE SELECT ON ai_site_cms_ci.* FROM 'cms_stage2_once_ci'@'%'");
 
@@ -102,6 +108,8 @@ try {
     $report=Job::run($package,$local);
     $check($report['status']==='installed_empty_foundation'
         && $report['schemaState']==='ready','write install after exact approval');
+    $check(!file_exists($local.'/once.json'),
+        'write install consumes its explicit one-shot authorization');
     $check($pdo->query('SELECT site_id FROM cms_installation')->fetchColumn()===Job::SITE,
         'exact site identity');
     $check((int)$pdo->query('SELECT COUNT(*) FROM cms_schema_migrations')->fetchColumn()===2,
@@ -125,12 +133,37 @@ try {
     $store($task);
     $report=Job::run($package,$local);
     $check($report['status']==='foundation_snapshot_saved','foundation snapshot export');
+    $check((lstat($local.'/foundation-snapshot.json')['mode'] & 0077)===0,
+        'snapshot private permissions 0600');
     $snapshot=file_get_contents($local.'/foundation-snapshot.json');
     $check(FoundationSnapshot::verify(trim($snapshot),Job::SITE)['storage_generation']==='0',
         'checksum and site of snapshot');
     $check(!is_file($tmp.'/public_html/foundation-snapshot.json'),
         'foundation snapshot stays offweb');
     unlink($local.'/receipt.json');
+
+    $task['operation']='snapshot-verify';
+    $store($task);
+    $report=Job::run($package,$local);
+    $check($report['status']==='foundation_snapshot_verified'
+        && $report['failureCategory']==='none',
+        'read-only comparison of saved private snapshot to live MySQL');
+    unlink($local.'/receipt.json');
+
+    // Corrupt snapshot must refuse WITHOUT attempting to restore over live data.
+    $originalSnapshot=file_get_contents($local.'/foundation-snapshot.json');
+    file_put_contents($local.'/foundation-snapshot.json', '{"forged":true}');
+    chmod($local.'/foundation-snapshot.json',0600);
+    $store($task);
+    $report=Job::run($package,$local);
+    $check($report['status']==='refused'
+        && $report['failureCategory']==='snapshot_refused',
+        'tampered saved snapshot rejected read-only');
+    $check((int)$pdo->query('SELECT COUNT(*) FROM cms_schema_migrations')->fetchColumn()===2,
+        'snapshot verification failure cannot touch source schema');
+    unlink($local.'/receipt.json');
+    file_put_contents($local.'/foundation-snapshot.json',$originalSnapshot);
+    chmod($local.'/foundation-snapshot.json',0600);
 
     $task['operation']='install';
     $task['confirm']='INSTALL_EMPTY_STAGE2_TEST_DB_ONCE';
@@ -146,7 +179,9 @@ try {
     $task['db_password']='bad-password';
     $store($task);
     $report=Job::run($package,$local);
-    $check($report['status']==='refused','bad credential does not retry');
+    $check($report['status']==='refused'
+        && $report['failureCategory']==='database_connection_refused',
+        'bad credential does not retry');
     $check(!str_contains(file_get_contents($local.'/receipt.json'),'bad-password'),
         'bad secret excluded from report');
     unlink($local.'/receipt.json');
@@ -164,7 +199,7 @@ try {
     $check(hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
         'independent public visitor unaffected by all negative cases');
 
-    echo "Stage2 hPanel CLI-only local-config MySQL8.4 install/probe/verify/snapshot PASS: {$checks} checks; no real host\n";
+    echo "Stage2 hPanel CLI-only MySQL8.4 probe/install/verify/snapshot/compare and secret disposal PASS: {$checks} checks; no real host\n";
 } finally {
     $root->exec('DROP DATABASE IF EXISTS '.$name);
     $root->exec("DROP USER IF EXISTS 'cms_stage2_once_ci'@'%'");
