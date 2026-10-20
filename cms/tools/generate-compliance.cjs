@@ -73,8 +73,8 @@ function generate(stage){
       composerNoticeFileCount++;
       noticeParts.push('\n===== composer '+name+' '+version+' ('+pkg.license[0]+') / '+item.file+' (UPSTREAM NOTICE) =====\n'+item.content+'\n');
       properties.push({
-        name:'ai-site-cms:installed-notice',
-        value:item.file+':sha256:'+hash(item.content)
+        name:'ai-site-cms:installed-notice-sha256:'+item.file,
+        value:hash(item.content)
       });
     }
     components.push({type:'library',name,version,
@@ -108,7 +108,7 @@ function generate(stage){
   fs.writeFileSync(path.join(dir,'THIRD_PARTY_NOTICES.txt'),notices,{flag:'wx',mode:0o600});
   fs.writeFileSync(path.join(dir,'compliance-index.json'),JSON.stringify({format:'ai-site-cms-stage2-compliance-v1',composerRuntime:14,npmLocked:29,browserRuntime:['jedison@1.27.1'],noticeSha256:hash(notices),composerNoticeFiles:composerNoticeFileCount,
     requiredApacheNoticesPreserved:[...seenRequiredNotices].sort(),
-    componentCount:components.length,attestation:'lock-metadata-and-installed-license-plus-root-notice-text; not signed; nested notices and independent legal review remain required'},null,2)+'\n',{flag:'wx',mode:0o600});
+    componentCount:components.length,attestation:'lock-metadata-and-installed-license-plus-root-notice-text; not signed; nested notices unreviewed; manual legal review remains required'},null,2)+'\n',{flag:'wx',mode:0o600});
   return {count:components.length,composer:14,npm:29};
 }
 if(require.main===module){const stage=path.join(ROOT,'.build/internal-stage2-package');console.log(generate(stage));}
