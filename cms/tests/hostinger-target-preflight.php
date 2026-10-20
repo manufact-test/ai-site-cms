@@ -96,6 +96,27 @@ try {
         &&$a['offwebPackageIntegrityVerified']===true
         &&$a['phpFromPackageExecuted']===false&&$a['cmsInstalled']===false,
         'full_unsigned_offweb_package_detected');
+    // Re-publishing a self-consistent UNSIGNED manifest can keep all files
+    // and counts identical. The observed digest must change, so a remote
+    // checker pinned to the prior GitHub release rejects it.
+    $manifestFile=$root.'/private/package-manifest.json';
+    $originalManifest=file_get_contents($manifestFile);
+    $originalDigest=hash('sha256',$originalManifest);
+    file_put_contents($manifestFile,$originalManifest."\n");
+    $reissued=json_decode(runProbe($copy,'GET','/__stage2/offweb-package'),
+        true,16,JSON_THROW_ON_ERROR);
+    passes($reissued['state']==='verified_unsigned_package'
+        && $reissued['verifiedFiles']===20
+        && $reissued['manifestSha256']===hash_file('sha256',$manifestFile)
+        && $reissued['manifestSha256']!==$originalDigest
+        && $reissued['signatureVerified']===false,
+        'self_consistent_unsigned_manifest_must_change_public_fingerprint');
+    file_put_contents($manifestFile,$originalManifest);
+    $restored=json_decode(runProbe($copy,'GET','/__stage2/offweb-package'),
+        true,16,JSON_THROW_ON_ERROR);
+    passes($restored['manifestSha256']===$originalDigest
+        && $restored['offwebPackageIntegrityVerified']===true,
+        'original_exact_manifest_fingerprint_recovers');
     // Extra PHP must block even the health-only vendor boot.
     $extra=$root.'/vendor/undocumented.php';
     file_put_contents($extra,'<?php throw new Exception("should never load");');
