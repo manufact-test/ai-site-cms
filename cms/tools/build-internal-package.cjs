@@ -142,7 +142,9 @@ function build(){
   fs.mkdirSync(path.join(STAGE,'private'),{recursive:true,mode:0o700});
   fs.writeFileSync(path.join(STAGE,'private','package-manifest.json'),JSON.stringify(packageInfo,null,2)+'\n',{mode:0o600,flag:'wx'});
   const tested=verify();
+  const fingerprint=sha(path.join(STAGE,'private','package-manifest.json'));
   process.stdout.write('Stage2 internal package built/verified: '+tested.files.length+' files, document root public/, editor assets private/ only. NO production sign-off.\n');
+  process.stdout.write('Stage2 unsigned package manifest SHA-256: '+fingerprint+' (integrity evidence, NOT signature)\n');
 }
 if(require.main===module)build();
 module.exports={assertAllowed,collect,verify,build,STAGE,ROOT};
