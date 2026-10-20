@@ -34,7 +34,8 @@ try{
     'notice-regression.mjs':'notice synthetic fixture',
     'osv-strict-regression.mjs':'OSV strict-response + transport + lock fixture PASS 29 cases;',
     'osv-cli-regression.mjs':'OSV exact CLI offline subprocess regression PASS 19 assertions; no HTTP requests, no live audit',
-    'suite-exit-regression.mjs':'Security suite exit-policy offline regression PASS 12 assertions; no OSV network, PHP or installed dependencies'
+    'suite-exit-regression.mjs':'Security suite exit-policy offline regression PASS 12 assertions; no OSV network, PHP or installed dependencies',
+    'sodium-compat-attest-regression.mjs':'Sodium compat independent source attestation offline regression PASS 20 assertions; synthetic files, NOT actual upstream approval'
   };
   for(const [name,msg] of Object.entries(scripts))
     fs.writeFileSync(path.join(dir,name),'console.log('+JSON.stringify(msg)+');\n');
