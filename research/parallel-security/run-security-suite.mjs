@@ -30,7 +30,7 @@ const entry=(name, probe, expected=0)=> {
 };
 const block=(name, reason)=>results.push({name,status:'blocked',reason});
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
-  'ed25519-lab.php','receipt-chain-regression.php','release-fixture.mjs','release-verify-runner.php',
+  'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
@@ -81,6 +81,12 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
       capture(runtime,[receiptFixture],{timeout:45000,
         env:{CI:'true',CMS_ALLOW_PHP_INSTALL_LAB:'1'}}));
   } else block('native:operator-receipt-chain','Research receipt verification fixture unavailable');
+  const permitFixture=path.join(dirname,'permit-gate-regression.php');
+  if(fs.existsSync(permitFixture)) {
+    entry('native:operator-preactivation-permit',
+      capture(runtime,[permitFixture],{timeout:45000,
+        env:{CI:'true',CMS_ALLOW_PHP_INSTALL_LAB:'1'}}));
+  } else block('native:operator-preactivation-permit','Signed preactivation permit fixture unavailable');
   const rootTrustFixture=path.join(root,'cms/tests/trust-chain.php');
   if(fs.existsSync(rootTrustFixture)) {
     entry('native:trust-root-rotation',
