@@ -291,6 +291,23 @@ try {
         'out-of-band pin blocks republished unsigned manifest before vendor code');
     file_put_contents($manifestFile,$originalManifest);
 
+    // Never LOAD an unverified PHP verifier: a harmless marker side effect
+    // stands in for malicious code, and must not run in the CLI bootstrap.
+    $verifierFile=$package.'/src/Hosting/PackageArtifactVerifier.php';
+    $originalVerifier=file_get_contents($verifierFile);
+    $marker=$tmp.'/verifier-should-never-run.txt';
+    file_put_contents($verifierFile,$originalVerifier."\nfile_put_contents("
+        .var_export($marker,true).", 'UNTRUSTED_EXECUTION');\n");
+    $store($task);
+    [$verifierExit,$verifierOut,$verifierErr]=$runCron();
+    $check($verifierExit===3 && $verifierOut===''
+        && str_contains($verifierErr,'STAGE2_PACKAGE_REFUSED'),
+        'tampered package verifier itself is rejected before PHP include');
+    $check(!is_file($marker) && is_file($local.'/once.json')
+        && !is_file($local.'/receipt.json'),
+        'corrupted verifier side effect never ran and DB task remains unconsumed');
+    file_put_contents($verifierFile,$originalVerifier);
+
     $task['target']='other.hostinger.site';
     $store($task);
     $reject(fn()=>Job::run($package,$local));
