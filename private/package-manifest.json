@@ -241,8 +241,8 @@
     },
     {
       "path": "src/Hosting/Stage2MySqlReadOnly.php",
-      "bytes": 1540,
-      "sha256": "84745b052c13ca051b019dd1afdf5f988aef3d0d39b8eca9f23fa480ab7d0509"
+      "bytes": 2148,
+      "sha256": "c363ff1279a3eff385daff2f059cc1127fde85da13eb2af091ca8eb00ce4f29f"
     },
     {
       "path": "src/Hosting/Stage2TargetHostHandoff.php",
@@ -362,7 +362,7 @@
     {
       "path": "vendor/composer/installed.php",
       "bytes": 6387,
-      "sha256": "bd15c0c2dc8a69392519fa476ae26031f253f166a1e85a99ecbde656fbdd3403"
+      "sha256": "52bbd6c974d605a6f0cdd06e7d50740d526fff22c9414c5198fd55667bf0e3c4"
     },
     {
       "path": "vendor/composer/InstalledVersions.php",
