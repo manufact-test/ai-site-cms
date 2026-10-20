@@ -303,6 +303,37 @@ try {
     // ONLY the explicitly disposable GitHub Actions test owner may clean up.
     $root->exec('DROP TABLE `'.$name.'`.`visitor_owned_data`');
 
+    // A database with zero TABLES may still contain a foreign stored routine
+    // or event. The real packaged one-shot PROBE must refuse those objects,
+    // preserve them and consume the scoped local authorization.
+    foreach (['procedure','event'] as $kind) {
+        if ($kind === 'procedure') {
+            $root->exec('CREATE PROCEDURE `'.$name.'`.`visitor_owned_proc`() SELECT 17');
+            $metadataSql="SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema = DATABASE() AND routine_name = 'visitor_owned_proc'";
+        } else {
+            $root->exec('CREATE EVENT `'.$name.'`.`visitor_owned_event` ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 YEAR DO SELECT 17');
+            $metadataSql="SELECT COUNT(*) FROM information_schema.events WHERE event_schema = DATABASE() AND event_name = 'visitor_owned_event'";
+        }
+        $store($task);
+        $foreignResult=Job::run($package,$local);
+        $check($foreignResult['status']==='refused'
+            && $foreignResult['failureCategory']==='schema_read_refused'
+            && $foreignResult['dedicatedDbGrantsVerified']===true,
+            'packaged probe refuses foreign MySQL '.$kind.' without DDL');
+        $check((int)$pdo->query($metadataSql)->fetchColumn()===1
+            && !is_file($local.'/once.json')
+            && hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
+            'packaged probe preserves foreign '.$kind.' and visitor files');
+        unlink($local.'/receipt.json');
+        // CI root owns this dedicated one-use database, NOT any real host.
+        $root->exec($kind==='procedure'
+            ? 'DROP PROCEDURE `'.$name.'`.`visitor_owned_proc`'
+            : 'DROP EVENT `'.$name.'`.`visitor_owned_event`');
+    }
+    $check((int)$pdo->query("SELECT COUNT(*) FROM information_schema.tables
+        WHERE table_schema=DATABASE()")->fetchColumn()===0,
+        'refused foreign non-table fixture leaves DB free of CMS tables');
+
     // Exercise the actual packaged PHP cron entrypoint as a separate process.
     // No credentials on argv, in process environment, or printed logs.
     $store($task);
