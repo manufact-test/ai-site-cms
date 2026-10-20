@@ -88,6 +88,19 @@ jobs:
         env:
           CMS_STAGE2_STAGING_APPROVED: inactive-stage2-package-only
         run: node tools/stage2-hostinger-private-stage.cjs --prepare "$RUNNER_TEMP/private-runtime"
+      - name: Rehearse exact ZIP extraction, including Apache .htaccess
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 cms/tools/test-stage2-offweb-upload.py "$RUNNER_TEMP/private-runtime"
+      - name: Publish downloadable credential-free Hostinger offweb archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage2-hostinger-offweb-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          path: ${{ runner.temp }}/private-runtime/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
       - name: Publish only dedicated, never-webroot, source-public branch
         shell: bash
         env:
