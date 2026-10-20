@@ -5,6 +5,7 @@ require_once __DIR__ . '/../src/OriginPolicy.php';
 require_once __DIR__ . '/../src/PhoneAdapter.php';
 require_once __DIR__ . '/../src/SharedThrottle.php';
 require_once __DIR__ . '/../src/ReceiptLedger.php';
+require_once __DIR__ . '/../src/SubmissionBoundary.php';
 ini_set('session.use_strict_mode', '1');
 session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax', 'path' => '/']);
 session_start();
@@ -32,6 +33,13 @@ if ($originGate !== 'ALLOW') {
     echo json_encode(['code' => $originGate, 'message' => 'Проверка источника запроса не пройдена. Заявка не отправлена.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
+$body = file_get_contents('php://input', false, null, 0, 8193);
+$boundary = is_string($body) ? SubmissionBoundary::decode($body) : ['code'=>'MALFORMED_FORM'];
+if ($boundary['code'] !== 'OK') {
+    http_response_code(422);
+    echo json_encode(['code'=>'MALFORMED_FORM', 'message'=>'Некорректные поля запроса. Заявка не отправлена.', 'errors'=>new stdClass()], JSON_UNESCAPED_UNICODE); exit;
+}
+$submitted = $boundary['fields'];
 $recipient = getenv('LAB_FORM_RECIPIENT_EMAIL');
 $sender = getenv('LAB_FORM_SENDER_EMAIL');
 // Only a trusted operator-supplied vendor autoloader; never request-controlled.
@@ -76,11 +84,11 @@ if (is_string($recipient) && $recipient !== '') {
         exit;
     }
 }
-$region = is_string($_POST['phone_region'] ?? null) ? $_POST['phone_region'] : 'ZZ';
+$region = is_string($submitted['phone_region'] ?? null) ? $submitted['phone_region'] : 'ZZ';
 $phoneValidator = PhoneAdapter::available()
     ? static fn(string $phone): ?string => PhoneAdapter::normalize($phone, $region)
     : null;
-$result = FormLab::submit($_POST, $_SESSION, time(), $recipient !== false ? $recipient : null,
+$result = FormLab::submit($submitted, $_SESSION, time(), $recipient !== false ? $recipient : null,
     static function (string $recipient, array $fields) use ($sender): bool {
         if (!is_string($sender) || !filter_var($sender, FILTER_VALIDATE_EMAIL)
             || preg_match('/[\r\n]/', $sender)) return false;

@@ -49,6 +49,7 @@ $pdo=new PDO('mysql:host=127.0.0.1;port=3306;dbname='.$name.';charset=utf8mb4',
     'cms_stage2_once_ci','ephemeral_local_ci_only');
 $task=[
     'format'=>'ai-site-cms-stage2-hostinger-task-v1',
+    'package_manifest_sha256'=>hash_file('sha256',$package.'/private/package-manifest.json'),
     'target'=>Job::TARGET,
     'site'=>Job::SITE,
     'operation'=>'probe',
@@ -70,13 +71,112 @@ $reject=static function (callable $action)use($check):void{
     try{$action();}catch(Throwable $e){$check(true,'expected refusal');return;}
     $check(false,'expected refusal');
 };
+$runCron=static function(string $script='hostinger-stage2-once.php')use($package):array{
+    $pipes=[];
+    $process=proc_open([PHP_BINARY,$package.'/bin/'.$script],
+        [['pipe','r'],['pipe','w'],['pipe','w']],$pipes);
+    if (!is_resource($process))throw new RuntimeException('CLI process failed to start');
+    fclose($pipes[0]);
+    $out=stream_get_contents($pipes[1]);fclose($pipes[1]);
+    $err=stream_get_contents($pipes[2]);fclose($pipes[2]);
+    return [proc_close($process),$out,$err];
+};
 try {
+    [$preflightCode,$preflightOut,$preflightErr]=$runCron('hostinger-stage2-preflight.php');
+    $preflight=json_decode($preflightOut,true,8,JSON_THROW_ON_ERROR);
+    $check($preflightCode===0 && $preflightErr==='' && $preflight['pdoMysqlAvailable']
+        && $preflight['privateLocalState']==='private_directory_ready'
+        && $preflight['unsignedInventoryFilesVerified']>=470,
+        'credential-free packaged CLI preflight and full unsigned inventory');
+    $check($preflight['packageManifestSha256']===$task['package_manifest_sha256']
+        && $preflight['packagePhpLoaded']===false
+        && $preflight['receiptState']==='absent'
+        && $preflight['taskState']==='absent'
+        && $preflight['oneShotAvailable']===false
+        && $preflight['credentialsRead']===false
+        && $preflight['databaseConnectionAttempted']===false
+        && $preflight['stage2Accepted']===false,
+        'CLI preflight reports pin without password or MySQL connection');
+    $check(!is_file($local.'/receipt.json') && !is_file($local.'/once.json'),
+        'credential-free preflight is strictly read-only');
     $reject(fn()=>Job::run($package,$local)); // Missing operator task.
+    chmod($local,0755);
+    [$looseCode,$looseText,$looseErr]=$runCron('hostinger-stage2-preflight.php');
+    $loose=json_decode($looseText,true,8,JSON_THROW_ON_ERROR);
+    $check($looseCode===0 && $looseErr==='' && !$loose['oneShotAvailable']
+        && $loose['privateLocalState']==='private_directory_refused',
+        'preflight refuses unsafe private directory without touching database');
+    chmod($local,0700);
     $store($task);
+    [$readyCode,$readyText,$readyErr]=$runCron('hostinger-stage2-preflight.php');
+    $readyReport=json_decode($readyText,true,8,JSON_THROW_ON_ERROR);
+    $check($readyCode===0 && $readyErr==='' && $readyReport['oneShotAvailable']
+        && $readyReport['taskState']==='private_task_present'
+        && $readyReport['receiptState']==='absent',
+        'preflight sees private one-shot task metadata, does not read its password');
+    $check(!str_contains($readyText,'ephemeral_local_ci_only'),
+        'preflight never exposes password from task file');
     chmod($local.'/once.json',0644);
+    [$looseTaskCode,$looseTaskText,$looseTaskErr]
+        =$runCron('hostinger-stage2-preflight.php');
+    $looseTask=json_decode($looseTaskText,true,8,JSON_THROW_ON_ERROR);
+    $check($looseTaskCode===0 && $looseTaskErr==='' && !$looseTask['oneShotAvailable']
+        && $looseTask['taskState']==='unsafe_task_refused'
+        && !str_contains($looseTaskText,'ephemeral_local_ci_only'),
+        'preflight detects group-readable credential file without reading it');
     $reject(fn()=>Job::run($package,$local)); // World-readable credential refused.
     chmod($local.'/once.json',0600);
+    $wrongPinTask=$task;
+    $wrongPinTask['package_manifest_sha256']=str_repeat('a',64);
+    $store($wrongPinTask);
+    $reject(fn()=>Job::run($package,$local));
+    [$badPinCode,$badPinOut,$badPinErr]=$runCron();
+    $check($badPinCode===3 && $badPinOut==='' &&
+        str_contains($badPinErr,'STAGE2_PACKAGE_REFUSED'),
+        'wrong out-of-band manifest pin blocked before Composer and MySQL');
+    $check(!file_exists($local.'/receipt.json') && is_file($local.'/once.json'),
+        'bad pin cannot consume a database authorization');
+    $store($task);
     $report=Job::run($package,$local);
+    $check(!file_exists($local.'/once.json'),
+        'successful cron attempt destroys secret-bearing task file');
+    [$doneCode,$doneText,$doneErr]=$runCron('hostinger-stage2-preflight.php');
+    $doneReport=json_decode($doneText,true,8,JSON_THROW_ON_ERROR);
+    $check($doneCode===0 && $doneErr==='' && !$doneReport['oneShotAvailable']
+        && $doneReport['taskState']==='absent'
+        && $doneReport['receiptState']==='completed_observed'
+        && $doneReport['packagePhpLoaded']===false,
+        'preflight identifies completed one-shot without re-executing MySQL');
+    $check(!str_contains($doneText,'ephemeral_local_ci_only'),
+        'preflight never prints secret on successful receipt');
+    $receiptBefore=file_get_contents($local.'/receipt.json');
+    file_put_contents($local.'/receipt.json','');
+    [$crashCode,$crashText,$crashErr]=$runCron('hostinger-stage2-preflight.php');
+    $crashReport=json_decode($crashText,true,8,JSON_THROW_ON_ERROR);
+    $check($crashCode===0 && $crashErr===''
+        && $crashReport['receiptState']==='manual_review_required'
+        && !$crashReport['oneShotAvailable'],
+        'empty interrupted receipt is quarantined for operator review');
+    file_put_contents($local.'/receipt.json',$receiptBefore);
+    chmod($local.'/receipt.json',0600);
+    $evilReceipt=json_decode($receiptBefore,true,8,JSON_THROW_ON_ERROR);
+    $evilReceipt['db_password']='MUST_NEVER_BE_PRINTED';
+    file_put_contents($local.'/receipt.json',json_encode($evilReceipt,JSON_THROW_ON_ERROR));
+    [$evilCode,$evilText,$evilErr]=$runCron('hostinger-stage2-preflight.php');
+    $evilReport=json_decode($evilText,true,8,JSON_THROW_ON_ERROR);
+    $check($evilCode===0 && $evilErr===''
+        && $evilReport['receiptState']==='manual_review_required'
+        && !str_contains($evilText,'MUST_NEVER_BE_PRINTED'),
+        'malformed secret-bearing receipt never disclosed or falsely accepted');
+    file_put_contents($local.'/receipt.json',$receiptBefore);
+    chmod($local.'/receipt.json',0600);
+    $check($report['packageManifestSha256']===hash_file('sha256',
+        $package.'/private/package-manifest.json')
+        && preg_match('/\\A\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ\\z/D',
+            $report['startedAtUtc']) === 1
+        && preg_match('/\\A\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ\\z/D',
+            $report['finishedAtUtc']) === 1,
+        'nonsecret package hash and UTC receipt timestamps');
     $check($report['dedicatedDbGrantsVerified']===true,'strict scoped DB grant');
     $check($report['operation']==='probe' && $report['status']==='observed'
         && $report['schemaState']==='uninitialized','read-only empty DB probe');
@@ -85,14 +185,72 @@ try {
     $reject(fn()=>Job::run($package,$local)); // Atomic one-time lock.
     unlink($local.'/receipt.json');
 
+    // Race two genuine packed Cron PHP entrypoints against ONE private task.
+    // Exactly one runner can create receipt.json (O_EXCL), and neither may
+    // mutate a clean probe-only test database or touch the visitor.
+    $store($task);
+    $startParallel=static function()use($package):array{
+        $pipes=[];
+        $process=proc_open([PHP_BINARY,$package.'/bin/hostinger-stage2-once.php'],
+            [['pipe','r'],['pipe','w'],['pipe','w']],$pipes);
+        if (!is_resource($process))throw new RuntimeException('Parallel CI process failed');
+        fclose($pipes[0]);
+        return [$process,$pipes];
+    };
+    [$p1,$io1]=$startParallel();
+    [$p2,$io2]=$startParallel();
+    $finishParallel=static function($proc,array $io):array{
+        $out=stream_get_contents($io[1]);fclose($io[1]);
+        $err=stream_get_contents($io[2]);fclose($io[2]);
+        return [proc_close($proc),$out,$err];
+    };
+    $first=$finishParallel($p1,$io1);
+    $second=$finishParallel($p2,$io2);
+    $successes=count(array_filter([$first,$second],
+        static fn($r)=>$r[0]===0 && str_contains($r[1],'STAGE2_ONCE_RECORDED')));
+    $refusals=count(array_filter([$first,$second],
+        static fn($r)=>$r[0]===3 && str_contains($r[2],'STAGE2_')));
+    $check($successes===1 && $refusals===1,
+        'concurrent actual PHP cron processes consume exactly one authorization');
+    $check(is_file($local.'/receipt.json') && !is_file($local.'/once.json')
+        && (int)$pdo->query('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()')
+            ->fetchColumn()===0,
+        'parallel read-only Cron probe cannot create tables or preserve secrets');
+    $check(hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
+        'parallel Cron cannot mutate independent visitor public root');
+    unlink($local.'/receipt.json');
+
     // A correct DB password is insufficient if its user also owns other schemas.
     $root->exec("GRANT SELECT ON ai_site_cms_ci.* TO 'cms_stage2_once_ci'@'%'");
+    $store($task);
     $report=Job::run($package,$local);
     $check($report['status']==='refused'
-        && $report['dedicatedDbGrantsVerified']===false,
+        && $report['dedicatedDbGrantsVerified']===false
+        && $report['failureCategory']==='database_scope_refused',
         'cross-database grants refused before DDL');
+    [$refusedCode,$refusedText,$refusedErr]=$runCron('hostinger-stage2-preflight.php');
+    $refusedMeta=json_decode($refusedText,true,8,JSON_THROW_ON_ERROR);
+    $check($refusedCode===0 && $refusedErr==='' &&
+        $refusedMeta['receiptState']==='completed_refused'
+        && !$refusedMeta['oneShotAvailable'],
+        'preflight reports failed MySQL attempt without exposing credential details');
+    $check(!file_exists($local.'/once.json'),
+        'rejected DB privilege scope also consumes secret-bearing task');
     unlink($local.'/receipt.json');
     $root->exec("REVOKE SELECT ON ai_site_cms_ci.* FROM 'cms_stage2_once_ci'@'%'");
+
+    // Exercise the actual packaged PHP cron entrypoint as a separate process.
+    // No credentials on argv, in process environment, or printed logs.
+    $store($task);
+    [$cronExit,$cronOut,$cronErr]=$runCron();
+    $check($cronExit===0 && str_contains($cronOut,'STAGE2_ONCE_RECORDED')
+        && $cronErr==='','real packaged Cron entrypoint probes dedicated MySQL');
+    $check(!is_file($local.'/once.json') && is_file($local.'/receipt.json'),
+        'Cron process consumes local task and keeps nonsecret receipt');
+    $check(!str_contains($cronOut,'ephemeral_local_ci_only')
+        && !str_contains($cronErr,'ephemeral_local_ci_only'),
+        'Cron output never prints database secret');
+    unlink($local.'/receipt.json');
 
     $task['operation']='install';
     $store($task);
@@ -102,6 +260,8 @@ try {
     $report=Job::run($package,$local);
     $check($report['status']==='installed_empty_foundation'
         && $report['schemaState']==='ready','write install after exact approval');
+    $check(!file_exists($local.'/once.json'),
+        'write install consumes its explicit one-shot authorization');
     $check($pdo->query('SELECT site_id FROM cms_installation')->fetchColumn()===Job::SITE,
         'exact site identity');
     $check((int)$pdo->query('SELECT COUNT(*) FROM cms_schema_migrations')->fetchColumn()===2,
@@ -125,11 +285,57 @@ try {
     $store($task);
     $report=Job::run($package,$local);
     $check($report['status']==='foundation_snapshot_saved','foundation snapshot export');
+    $check((lstat($local.'/foundation-snapshot.json')['mode'] & 0077)===0,
+        'snapshot private permissions 0600');
     $snapshot=file_get_contents($local.'/foundation-snapshot.json');
     $check(FoundationSnapshot::verify(trim($snapshot),Job::SITE)['storage_generation']==='0',
         'checksum and site of snapshot');
     $check(!is_file($tmp.'/public_html/foundation-snapshot.json'),
         'foundation snapshot stays offweb');
+    unlink($local.'/receipt.json');
+
+    $task['operation']='snapshot-verify';
+    $store($task);
+    $report=Job::run($package,$local);
+    $check($report['status']==='foundation_snapshot_verified'
+        && $report['failureCategory']==='none',
+        'read-only comparison of saved private snapshot to live MySQL');
+    unlink($local.'/receipt.json');
+
+    // Corrupt snapshot must refuse WITHOUT attempting to restore over live data.
+    $originalSnapshot=file_get_contents($local.'/foundation-snapshot.json');
+    file_put_contents($local.'/foundation-snapshot.json', '{"forged":true}');
+    chmod($local.'/foundation-snapshot.json',0600);
+    $store($task);
+    $report=Job::run($package,$local);
+    $check($report['status']==='refused'
+        && $report['failureCategory']==='snapshot_refused',
+        'tampered saved snapshot rejected read-only');
+    $check((int)$pdo->query('SELECT COUNT(*) FROM cms_schema_migrations')->fetchColumn()===2,
+        'snapshot verification failure cannot touch source schema');
+    unlink($local.'/receipt.json');
+    file_put_contents($local.'/foundation-snapshot.json',$originalSnapshot);
+    chmod($local.'/foundation-snapshot.json',0600);
+
+    // Simulate live DB generation drift: verify must never "recover" it by
+    // mutating a real host's schema or counter without operator permission.
+    $pdo->exec('UPDATE cms_installation SET storage_generation=6789');
+    $store($task);
+    $report=Job::run($package,$local);
+    $check($report['status']==='refused'
+        && $report['failureCategory']==='snapshot_refused',
+        'saved snapshot refuses mismatched live MySQL generation');
+    $check((string)$pdo->query('SELECT storage_generation FROM cms_installation')
+        ->fetchColumn()==='6789',
+        'verification does NOT silently restore or rewrite target MySQL');
+    unlink($local.'/receipt.json');
+    // Recovery of disposable TEST metadata is deliberate and independent
+    // of the read-only Stage2 Hostinger operator.
+    $pdo->exec('UPDATE cms_installation SET storage_generation=0');
+    $store($task);
+    $report=Job::run($package,$local);
+    $check($report['status']==='foundation_snapshot_verified',
+        'manual CI fixture recovery verified against original snapshot');
     unlink($local.'/receipt.json');
 
     $task['operation']='install';
@@ -146,7 +352,9 @@ try {
     $task['db_password']='bad-password';
     $store($task);
     $report=Job::run($package,$local);
-    $check($report['status']==='refused','bad credential does not retry');
+    $check($report['status']==='refused'
+        && $report['failureCategory']==='database_connection_refused',
+        'bad credential does not retry');
     $check(!str_contains(file_get_contents($local.'/receipt.json'),'bad-password'),
         'bad secret excluded from report');
     unlink($local.'/receipt.json');
@@ -155,8 +363,53 @@ try {
     $store($task);
     file_put_contents($package.'/unexpected.txt','tamper');
     $reject(fn()=>Job::run($package,$local)); // Verify BEFORE DB.
+    [$tamperedExit,$tamperedOut,$tamperedErr]=$runCron();
+    $check($tamperedExit===3 && $tamperedOut===''
+        && str_contains($tamperedErr,'STAGE2_PACKAGE_REFUSED'),
+        'packaged Cron bootstrap detects tampering BEFORE Composer autoload');
+    $check(is_file($local.'/once.json'),
+        'package tamper cannot consume credential task');
     $check(!is_file($local.'/receipt.json'),'tamper cannot consume DB authorization');
     unlink($package.'/unexpected.txt');
+
+    // A self-consistent but republished/rewritten UNSIGNED manifest still
+    // passes the internal inventory. The independently chosen pin must refuse.
+    $manifestFile=$package.'/private/package-manifest.json';
+    $originalManifest=file_get_contents($manifestFile);
+    file_put_contents($manifestFile,$originalManifest."\n");
+    $check(\AiSiteCms\Hosting\PackageArtifactVerifier::verify($package)
+        ['filesVerified']>=470,
+        'unsigned self-consistent manifest rewrite still hashes all files');
+    $store($task); // Original, independently pinned CI package fingerprint.
+    [$modifiedCode,$modifiedOut,$modifiedErr]=$runCron();
+    $check($modifiedCode===3 && $modifiedOut===''
+        && str_contains($modifiedErr,'STAGE2_PACKAGE_REFUSED')
+        && is_file($local.'/once.json') && !is_file($local.'/receipt.json'),
+        'out-of-band pin blocks republished unsigned manifest before vendor code');
+    file_put_contents($manifestFile,$originalManifest);
+
+    // Never LOAD an unverified PHP verifier: a harmless marker side effect
+    // stands in for malicious code, and must not run in the CLI bootstrap.
+    $verifierFile=$package.'/src/Hosting/PackageArtifactVerifier.php';
+    $originalVerifier=file_get_contents($verifierFile);
+    $marker=$tmp.'/verifier-should-never-run.txt';
+    file_put_contents($verifierFile,$originalVerifier."\nfile_put_contents("
+        .var_export($marker,true).", 'UNTRUSTED_EXECUTION');\n");
+    $store($task);
+    [$verifierExit,$verifierOut,$verifierErr]=$runCron();
+    $check($verifierExit===3 && $verifierOut===''
+        && str_contains($verifierErr,'STAGE2_PACKAGE_REFUSED'),
+        'tampered package verifier itself is rejected before PHP include');
+    [$preflightAttackCode,$preflightAttackOut,$preflightAttackErr]
+        =$runCron('hostinger-stage2-preflight.php');
+    $check($preflightAttackCode===3 && $preflightAttackOut===''
+        && str_contains($preflightAttackErr,'STAGE2_PREFLIGHT_REFUSED'),
+        'credential-free preflight rejects tampered package without including PHP');
+    $check(!is_file($marker) && is_file($local.'/once.json')
+        && !is_file($local.'/receipt.json'),
+        'corrupted verifier side effect never ran and DB task remains unconsumed');
+    file_put_contents($verifierFile,$originalVerifier);
+
     $task['target']='other.hostinger.site';
     $store($task);
     $reject(fn()=>Job::run($package,$local));
@@ -164,7 +417,92 @@ try {
     $check(hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
         'independent public visitor unaffected by all negative cases');
 
-    echo "Stage2 hPanel CLI-only local-config MySQL8.4 install/probe/verify/snapshot PASS: {$checks} checks; no real host\n";
+    // CRASH-RECOVERY LAB: the server killed PHP after receipt lock, but
+    // before unlink(once.json). Secret revocation must require an explicitly
+    // scoped, private operator request, never a DB restore or auto-retry.
+    $task['target']=Job::TARGET;
+    $store($task);
+    file_put_contents($local.'/receipt.json','');
+    chmod($local.'/receipt.json',0600);
+    $revokeRequest=[
+        'format'=>'ai-site-cms-stage2-revoke-v1',
+        'target'=>Job::TARGET,
+        'site'=>Job::SITE,
+        'package_manifest_sha256'=>$task['package_manifest_sha256'],
+        'confirm'=>'REVOKE_PRIVATE_TASK_ONLY_NO_DATABASE_ROLLBACK',
+        'acknowledge_running_process_may_continue'=>true
+    ];
+    $writeRequest=static function(array $value)use($local):void{
+        file_put_contents($local.'/revoke-request.json',
+            json_encode($value,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES));
+        chmod($local.'/revoke-request.json',0600);
+    };
+    $badRequest=$revokeRequest;
+    $badRequest['package_manifest_sha256']=str_repeat('a',64);
+    $writeRequest($badRequest);
+    [$revokeBadCode,$revokeBadOut,$revokeBadErr]=$runCron('hostinger-stage2-revoke.php');
+    $check($revokeBadCode===3 && $revokeBadOut===''
+        && str_contains($revokeBadErr,'STAGE2_REVOKE_REFUSED')
+        && is_file($local.'/once.json') && !file_exists($local.'/revocation.json'),
+        'wrong manifest pin forbids secret-file revocation');
+    $writeRequest($revokeRequest);
+    chmod($local.'/revoke-request.json',0644);
+    [$revokeLooseCode,$revokeLooseOut,$revokeLooseErr]=$runCron('hostinger-stage2-revoke.php');
+    $check($revokeLooseCode===3 && $revokeLooseOut===''
+        && str_contains($revokeLooseErr,'STAGE2_REVOKE_REFUSED')
+        && is_file($local.'/once.json'),
+        'group-readable revoke authorization is refused');
+    chmod($local.'/revoke-request.json',0600);
+    [$fencedCode,$fencedOut,$fencedErr]=$runCron();
+    $check($fencedCode===3 && $fencedOut===''
+        && str_contains($fencedErr,'STAGE2_PACKAGE_REFUSED')
+        && is_file($local.'/once.json'),
+        'pending revocation fences new MySQL Cron BEFORE Composer code');
+    $reject(fn()=>Job::run($package,$local));
+    [$beforeRevokeCode,$beforeRevokeOut,$beforeRevokeErr]
+        =$runCron('hostinger-stage2-preflight.php');
+    $beforeRevoke=json_decode($beforeRevokeOut,true,8,JSON_THROW_ON_ERROR);
+    $check($beforeRevokeCode===0 && $beforeRevokeErr===''
+        && $beforeRevoke['revocationState']==='requested_manual_review'
+        && !$beforeRevoke['oneShotAvailable'],
+        'password-free preflight reports pending revoke without allowing DB work');
+    [$revokeCode,$revokeOut,$revokeErr]=$runCron('hostinger-stage2-revoke.php');
+    $check($revokeCode===0 && $revokeErr===''
+        && str_contains($revokeOut,'STAGE2_PRIVATE_TASK_REVOKED_DB_STATUS_UNKNOWN')
+        && !str_contains($revokeOut,'ephemeral_local_ci_only')
+        && !is_file($local.'/once.json') && is_file($local.'/revocation.json'),
+        'explicit private revocation removes leftover credentials and preserves audit');
+    $revoked=json_decode(file_get_contents($local.'/revocation.json'),true,8,JSON_THROW_ON_ERROR);
+    $check($revoked['status']==='private_task_revoked_no_db_claim'
+        && $revoked['databaseResult']==='unknown'
+        && $revoked['inFlightProcessMayContinue']===true
+        && $revoked['credentialRead']===false
+        && !str_contains(file_get_contents($local.'/revocation.json'),
+            'ephemeral_local_ci_only'),
+        'private revocation receipt never claims rollback, DB result or secret read');
+    [$postCode,$postOut,$postErr]=$runCron('hostinger-stage2-preflight.php');
+    $post=json_decode($postOut,true,8,JSON_THROW_ON_ERROR);
+    $check($postCode===0 && $postErr===''
+        && $post['revocationState']==='credential_file_revoked_db_unknown'
+        && $post['receiptState']==='manual_review_required'
+        && !$post['oneShotAvailable'] && $post['taskState']==='absent',
+        'read-only preflight reports completed credential removal but unknown DB state');
+    [$againCode,$againOut,$againErr]=$runCron('hostinger-stage2-revoke.php');
+    $check($againCode===3 && $againOut===''
+        && str_contains($againErr,'STAGE2_REVOKE_REFUSED'),
+        'credential revocation is permanently one-shot, cannot silently repeat');
+    $store($task); // Even an incorrectly re-created task cannot bypass fence.
+    [$afterFenceCode,$afterFenceOut,$afterFenceErr]=$runCron();
+    $check($afterFenceCode===3 && $afterFenceOut===''
+        && str_contains($afterFenceErr,'STAGE2_PACKAGE_REFUSED'),
+        'revocation marker irreversibly fences a newly created secret task');
+    $reject(fn()=>Job::run($package,$local));
+    unlink($local.'/once.json');
+    $check((int)$pdo->query('SELECT COUNT(*) FROM cms_schema_migrations')->fetchColumn()===2
+        && hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
+        'emergency revocation never modifies source MySQL or independent visitor');
+
+    echo "Stage2 hPanel CLI-only MySQL8.4 probe/install/verify/snapshot/revoke and secret disposal PASS: {$checks} checks; no real host\n";
 } finally {
     $root->exec('DROP DATABASE IF EXISTS '.$name);
     $root->exec("DROP USER IF EXISTS 'cms_stage2_once_ci'@'%'");

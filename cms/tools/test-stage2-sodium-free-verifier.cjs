@@ -30,10 +30,17 @@ try{
     wrongPublicKey:b64(other.export({format:'der',type:'spki'}).subarray(-32))};
   const vector=path.join(folder,'vector.json');
   fs.writeFileSync(vector,JSON.stringify(payload),{mode:0o600});
-  execFileSync('php',['-n','-d','disable_functions=sodium_crypto_sign_verify_detached',
-    path.join(source,'tests/stage2-polyfill-ed25519.php'),vector,folder],
-    {stdio:'inherit',timeout:30000});
-  process.stdout.write('Pinned 2.5.2 ISC candidate only; 43-component product legal review not amended.\n');
+  const forcedUserlandOutput=execFileSync('php',
+    ['-n','-d','disable_functions=sodium_crypto_sign_verify_detached',
+      path.join(source,'tests/stage2-polyfill-ed25519.php'),vector,folder],
+    {encoding:'utf8',stdio:['ignore','pipe','inherit'],timeout:30000});
+  if(!forcedUserlandOutput.includes('FORCED_USERLAND')
+    || !forcedUserlandOutput.includes('extension-free runtime NOT proven')
+    || /native ext absent/i.test(forcedUserlandOutput)) {
+    throw Error('MISLEADING_SODIUM_EXTENSION_ABSENCE_CLAIM');
+  }
+  process.stdout.write(forcedUserlandOutput);
+  process.stdout.write('Pinned 2.5.2 ISC candidate only; real no-native PHP and target Hostinger remain unverified; product lock unchanged.\n');
 }finally{
   fs.rmSync(folder,{recursive:true,force:true});
 }

@@ -59,6 +59,24 @@ class HttpBoundary(unittest.TestCase):
         self.assertEqual((code,data['code']),(503,'CONFIGURATION_REQUIRED'))
         self.assertIn('не отправлена',data['message'])
 
+    def test_raw_parameter_pollution_is_refused(self):
+        opener,token=self.setup_session()
+        import urllib.parse
+        data={'csrf':token,'company_site':'','name':'Alex','email':'alex@example.test',
+              'phone':'','message':'Testing all server-side fields and protections'}
+        raw=urllib.parse.urlencode(data)
+        for attack in [raw+'&name=Administrator',raw+'&unknown=1',raw+'&name%5B0%5D=foo',
+                       raw.replace('email=alex%40example.test','email=%FF')]:
+            req=Request(self.url+'/submit.php', data=attack.encode(), method='POST',headers={
+                'Origin':self.url,'Content-Type':'application/x-www-form-urlencoded'})
+            with self.assertRaises(HTTPError) as raised:opener.open(req)
+            self.assertEqual(raised.exception.code,422)
+            self.assertEqual(json.loads(raised.exception.read())['code'],'MALFORMED_FORM')
+        # Client step flag is not trusted as proof of completing steps.
+        self.assertEqual(self.submit(opener,{**data,'wizard_complete':'true'})[1]['code'],'MALFORMED_FORM')
+        time.sleep(2.05)
+        self.assertEqual(self.submit(opener,{**data,'message':'short'})[1]['code'],'VALIDATION_ERROR')
+
     def test_security_boundary(self):
         opener,token=self.setup_session()
         base={'csrf':'bad','company_site':'','name':'Alex','email':'alex@example.test',

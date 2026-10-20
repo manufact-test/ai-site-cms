@@ -38,6 +38,17 @@ revisionExpect('PATCH_REJECTED',array_replace($base,['changes'=>['media.assetId'
 revisionExpect('PLAN_ONLY',array_replace($base,['changes'=>['action.href'=>'/contacts']]));
 revisionExpect('PATCH_REJECTED',array_replace($base,['changes'=>['action.href'=>'javascript:alert(1)']]));
 revisionExpect('UNCHANGED',array_replace($base,['changes'=>['layout.paddingPx'=>24]]));
+revisionExpect('UNCHANGED',array_replace($base,['changes'=>['layout.paddingPx'=>24,'style.foreground'=>'#15202B']]));
+$multi = revisionExpect('PLAN_ONLY',array_replace($base,['changes'=>['layout.paddingPx'=>24,'style.foreground'=>'#112233']]));
+if ($multi['next']['values']['style.foreground'] !== '#112233' || $multi['next']['values']['layout.paddingPx'] !== 24 || $multi['next']['revision'] !== 8) throw new RuntimeException('mixed changes dropped');
+$count++;
+$multi = revisionExpect('PLAN_ONLY',array_replace($base,['changes'=>['layout.paddingPx'=>48,'style.foreground'=>'#112233']]));
+if ($multi['next']['values']['style.foreground'] !== '#112233' || $multi['next']['values']['layout.paddingPx'] !== 48) throw new RuntimeException('multi-field patch not atomic');
+$count++;
+$overflow = $fixture;
+$overflow['blocks']['hero-primary']['revision'] = 2147483647;
+revisionExpect('PATCH_REJECTED',array_replace($base,['expectedRevision'=>2147483647]),$overflow);
+
 revisionExpect('PATCH_REJECTED',array_replace($base,['changes'=>[]]));
 revisionExpect('PATCH_REJECTED',$base+['admin'=>true]);
 revisionExpect('PATCH_REJECTED',array_replace($base,['changes'=>['layout.unknown'=>9]]));

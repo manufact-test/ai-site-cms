@@ -1,0 +1,211 @@
+name: Stage2 independent parallel research verification (NO HOST)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/stage2-independent-research.yml'
+      - 'research/parallel-security/**'
+      - 'research/parallel-components/**'
+  pull_request:
+    paths:
+      - 'research/parallel-security/**'
+      - 'research/parallel-components/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  security:
+    name: Security research actual locks, installed sources, crypto
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout currently approved main as disposable integration base
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: project
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout original unmerged Security branch (NO write credentials)
+        uses: actions/checkout@v4
+        with:
+          ref: research/stage2-supply-chain
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove research-only branch scope against current main
+        shell: bash
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          git diff --name-only origin/main...HEAD > "$RUNNER_TEMP/security-changed.txt"
+          test -s "$RUNNER_TEMP/security-changed.txt"
+          if grep -Ev '^research/parallel-security/' "$RUNNER_TEMP/security-changed.txt"; then
+            echo 'REFUSED: Security PR edits outside allowed research folder'
+            exit 1
+          fi
+          git rev-parse HEAD
+          git rev-parse origin/main
+          echo 'Security PR changes restricted to research/parallel-security/'
+      - name: Apply only the reviewed research subtree to a disposable current-main tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p project/research
+          if test -d project/research/parallel-security; then
+            echo 'Already integrated research subtree found in current main; test that accepted snapshot, not a pending PR version.'
+          else
+            cp -a candidate/research/parallel-security project/research/parallel-security
+            echo 'Only permitted research files copied into disposable main worktree.'
+          fi
+          echo 'No GitHub writes, Hostinger or production deployment'
+      - name: Install pinned Node 22 and PHP 8.3 for disposable CI only
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - name: Install original pinned build-only dependencies from current main
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          (cd cms && composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader)
+          (cd cms/editor && npm ci --no-audit --no-fund && npm run build)
+          (cd cms && node tools/build-internal-package.cjs)
+      - name: Run independent Security suite with transparent failure classification
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          set +e
+          node research/parallel-security/run-security-suite.mjs > "$RUNNER_TEMP/security-results.json"
+          suite_status=$?
+          set -e
+          node - "$RUNNER_TEMP/security-results.json" <<'DEBUG'
+          const fs=require('node:fs');
+          const report=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          for(const result of report.results){
+            if(result.status==='failed')console.log(JSON.stringify({
+              failed:result.name,exitCode:result.exitCode,
+              message:(result.stderr||result.validationError||result.stdout||'').slice(-1300)
+            }));
+          }
+          console.log('EXECUTED_TESTS',report.counts);
+          DEBUG
+          test "$suite_status" -eq 0
+          node - "$RUNNER_TEMP/security-results.json" <<'JS'
+          const fs=require('node:fs');
+          const report=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const names=new Map(report.results.map(x=>[x.name,x]));
+          const required=[
+            'actual-lock:json','actual-lock:csv','actual-lock:provenance',
+            'npm:installed-source-notices','composer:actual-bundled-NOTICE',
+            'native:RFC8032','native:signed-envelope',
+            'mutation:policy-regression.mjs','mutation:provenance-regression.mjs',
+            'mutation:notice-regression.mjs'
+          ];
+          for(const name of required){
+            const result=names.get(name);
+            if(result?.status!=='passed')throw Error('Independent research gate failed: '+name+' '+(result?.status||'absent'));
+          }
+          if(report.counts.failed!==0||report.allExecutedTestsPassed!==true||
+            report.stage2Accepted!==false||report.productionApproved!==false||
+            report.licenseApproved!==false)
+            throw Error('Unacceptable security suite conclusion');
+          console.log(JSON.stringify({
+            evidence:'Independent actual-head research, original lock/vendor/NOTICE and real native crypto',
+            executedPass:report.counts.passed,failed:report.counts.failed,
+            explicitlyBlocked:report.results.filter(x=>x.status==='blocked').map(x=>x.name),
+            stage2Accepted:false,productionApproved:false
+          },null,2));
+          JS
+      - name: Confirm no actual shared-host or DB work occurred
+        run: echo 'This isolated job does not connect to Hostinger or approve Stage2.'
+
+  components:
+    name: Components research actual PHP, HTTP, Chromium and schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout currently approved main as disposable integration base
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: project
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout original unmerged Components branch (NO write credentials)
+        uses: actions/checkout@v4
+        with:
+          ref: research/editor-component-patterns
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove research-only branch scope against current main
+        shell: bash
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          git diff --name-only origin/main...HEAD > "$RUNNER_TEMP/components-changed.txt"
+          test -s "$RUNNER_TEMP/components-changed.txt"
+          if grep -Ev '^research/parallel-components/' "$RUNNER_TEMP/components-changed.txt"; then
+            echo 'REFUSED: Components PR edits outside allowed research folder'
+            exit 1
+          fi
+          git rev-parse HEAD
+          git rev-parse origin/main
+          echo 'Components PR changes restricted to research/parallel-components/'
+      - name: Apply only the reviewed research subtree to a disposable current-main tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p project/research
+          if test -d project/research/parallel-components; then
+            echo 'Already integrated research subtree found in current main; test that accepted snapshot, not a pending PR version.'
+          else
+            cp -a candidate/research/parallel-components project/research/parallel-components
+            echo 'Only permitted research files copied into disposable main worktree.'
+          fi
+          echo 'No GitHub writes, Hostinger or production deployment'
+      - name: PHP 8.3 from target runtime family
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - name: Exact local research PHP syntax and concurrency tests
+        shell: bash
+        working-directory: project/research/parallel-components
+        run: |
+          set -euo pipefail
+          for file in lab/src/*.php lab/public/*.php lab/tests/*.php; do php -l "$file"; done
+          for file in lab/tests/*-tests.php; do php "$file"; done
+      - name: Python 3.13 disposable test runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Pin developer-only image/schema/browser test packages
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.57.0' 'jsonschema==4.26.0' 'pillow==12.3.0'
+          python -m playwright install --with-deps chromium
+          CHROME="$(find "$HOME/.cache/ms-playwright" -type f -name chrome -path '*/chrome-linux*/chrome' -print -quit)"
+          test -n "$CHROME" && test -x "$CHROME"
+          sudo ln -sfn "$CHROME" /usr/bin/chromium
+          /usr/bin/chromium --version
+      - name: Independent isolated PHP localhost HTTP, schema, real Chromium and media tests
+        shell: bash
+        working-directory: project/research/parallel-components
+        run: |
+          set -euo pipefail
+          for module in test_adapter_capabilities.py test_capabilities.py test_http.py test_http_configured.py test_media_assets.py test_schema.py test_browser.py; do
+            echo "Research validation: $module"
+            python -m unittest discover -s lab/tests -p "$module" -v
+          done
+          echo 'Research fixture validation PASS. No live inbox, external phone metadata, production media pipeline, or Stage3 approval.'

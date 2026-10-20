@@ -20,6 +20,81 @@ if ($root === false || basename($root) !== 'cms-stage2-offweb-runtime') {
     fwrite(STDERR, "STAGE2_OFFWEB_REQUIRED\n");
     exit(3);
 }
+// Before loading any other PHP from the unsigned package, compare the local
+// operator's private, out-of-band manifest pin to the exact on-disk manifest.
+// The entrypoint itself must still be delivered by a trusted operator; a pin
+// is NOT publisher signature authentication or a production activation gate.
+try {
+    $local = dirname($root).'/cms-stage2-local';
+    $dirStat = @lstat($local);
+    if ($dirStat === false || !is_dir($local) || is_link($local)
+        || realpath($local) !== $local || ($dirStat['mode'] & 0077) !== 0) {
+        throw new RuntimeException('PRIVATE_LOCAL_ROOT_REQUIRED');
+    }
+    // A pending manual credential-revocation request fences any NEW Cron
+    // attempt even before executing a Composer/vendor bootstrap.
+    foreach (['revoke-request.json','revocation.json'] as $marker) {
+        if (file_exists($local.'/'.$marker) || is_link($local.'/'.$marker)) {
+            throw new RuntimeException('REVOCATION_FENCE');
+        }
+    }
+    $taskFile = $local.'/once.json';
+    $taskStat = @lstat($taskFile);
+    if ($taskStat === false || !is_file($taskFile) || is_link($taskFile)
+        || realpath($taskFile) !== $taskFile || ($taskStat['mode'] & 0077) !== 0
+        || ($taskStat['nlink'] ?? 0) !== 1
+        || $taskStat['size'] < 50 || $taskStat['size'] > 4096) {
+        throw new RuntimeException('PRIVATE_TASK_REQUIRED');
+    }
+    $task = json_decode((string)file_get_contents($taskFile), true, 8, JSON_THROW_ON_ERROR);
+    $pin = is_array($task) ? ($task['package_manifest_sha256'] ?? null) : null;
+    if (!is_string($pin) || !preg_match('/\A[a-f0-9]{64}\z/D', $pin)) {
+        throw new RuntimeException('EXPLICIT_PACKAGE_PIN_REQUIRED');
+    }
+    $manifestFile = $root.'/private/package-manifest.json';
+    $digest = @hash_file('sha256', $manifestFile);
+    if (!is_string($digest) || !hash_equals($pin, $digest)) {
+        throw new RuntimeException('PACKAGE_MANIFEST_PIN_MISMATCH');
+    }
+    // Bootstrap exactly one trusted verifier file using PHP primitives only.
+    // Never execute package PHP merely to determine whether it was tampered.
+    $manifestStat = @lstat($manifestFile);
+    if ($manifestStat === false || is_link($manifestFile)
+        || ($manifestStat['nlink'] ?? 0) !== 1
+        || $manifestStat['size'] < 100 || $manifestStat['size'] > 250000) {
+        throw new RuntimeException('UNSAFE_MANIFEST');
+    }
+    $manifest = json_decode((string)file_get_contents($manifestFile), true, 16, JSON_THROW_ON_ERROR);
+    if (!is_array($manifest) || !is_array($manifest['files'] ?? null)) {
+        throw new RuntimeException('INVALID_MANIFEST');
+    }
+    $verifierRelative = 'src/Hosting/PackageArtifactVerifier.php';
+    $verifierRecord = null;
+    foreach ($manifest['files'] as $entry) {
+        if (is_array($entry) && ($entry['path'] ?? null) === $verifierRelative) {
+            if ($verifierRecord !== null) throw new RuntimeException('DUPLICATE_VERIFIER');
+            $verifierRecord = $entry;
+        }
+    }
+    $verifierFile = $root.'/'.$verifierRelative;
+    $verifierStat = @lstat($verifierFile);
+    if (!is_array($verifierRecord) || count($verifierRecord) !== 3
+        || !is_int($verifierRecord['bytes'] ?? null)
+        || !is_string($verifierRecord['sha256'] ?? null)
+        || !preg_match('/\A[a-f0-9]{64}\z/D', $verifierRecord['sha256'])
+        || $verifierStat === false || !is_file($verifierFile)
+        || is_link($verifierFile) || ($verifierStat['nlink'] ?? 0) !== 1
+        || realpath($verifierFile) !== $verifierFile
+        || $verifierStat['size'] !== $verifierRecord['bytes']
+        || !hash_equals($verifierRecord['sha256'], (string)@hash_file('sha256', $verifierFile))) {
+        throw new RuntimeException('VERIFIER_BOOTSTRAP_TAMPER');
+    }
+    require_once $verifierFile;
+    \AiSiteCms\Hosting\PackageArtifactVerifier::verify($root);
+} catch (Throwable $ignored) {
+    fwrite(STDERR, "STAGE2_PACKAGE_REFUSED\n");
+    exit(3);
+}
 require $root.'/vendor/autoload.php';
 try {
     $result = \AiSiteCms\Hosting\HostingerStage2OneShot::run(

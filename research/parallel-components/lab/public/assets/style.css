@@ -23,3 +23,10 @@ dialog{border:0;border-radius:14px;padding:2rem;max-width:min(90vw,500px);box-sh
 .media-demo img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 1rem; }
 .media-demo figcaption { margin-top: .5rem; font-size: .9rem; }
 select { padding: .55rem; max-width: 100%; }
+
+/* Progressive enhancement: without JS both fieldsets and the submit remain available. */
+.wizard-step { margin: 1rem 0; padding: .9rem; border: 1px solid #98aeba; border-radius: 10px; min-width: 0; }
+.wizard-step legend { font-weight: 750; padding: 0 .4rem; }
+.wizard-controls { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+.wizard-progress { font-weight: 650; }
+.js .wizard-step[hidden] { display: none; }

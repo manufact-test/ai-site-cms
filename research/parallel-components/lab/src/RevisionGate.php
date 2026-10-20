@@ -26,10 +26,13 @@ final class RevisionGate
             ['blockId' => $id, 'changes' => $request['changes']], $siteHost)) {
             return ['code' => 'PATCH_REJECTED'];
         }
+        $changed = false;
         foreach ($request['changes'] as $path => $value) {
             if (!array_key_exists($path, $block['values'])) return ['code' => 'PATCH_REJECTED'];
-            if ($block['values'][$path] === $value) return ['code' => 'UNCHANGED'];
+            if ($block['values'][$path] !== $value) $changed = true;
         }
+        if (!$changed) return ['code' => 'UNCHANGED'];
+        if ($block['revision'] < 1 || $block['revision'] >= 2147483647) return ['code' => 'PATCH_REJECTED'];
         $next = $block;
         foreach ($request['changes'] as $path => $value) $next['values'][$path] = $value;
         $next['revision']++;

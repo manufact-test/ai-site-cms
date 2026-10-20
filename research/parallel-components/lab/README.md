@@ -23,7 +23,7 @@ For a **throwaway local-only** transport smoke, the environment variables `LAB_F
 
 States: `ORIGIN_CONFIGURATION_REQUIRED`/503, `ORIGIN_INVALID`/403, `HOST_INVALID`/403, `DELIVERY_UNCONFIRMED`/502, `VALIDATION_ERROR`/422, `TOO_FAST`/422, `SPAM_REJECTED`/422, `CSRF_INVALID`/403, `RATE_LIMITED`/429, `PHONE_VALIDATOR_REQUIRED`/503, `CONFIGURATION_REQUIRED`/503, `DELIVERY_FAILED`/502, `QUEUED_UNCONFIRMED`/202. A network loss is `NETWORK_UNCONFIRMED`, never auto-retried (server may already have accepted request). Tokens are one-use after validated configured submission; repeated submit is rejected. A mail transport **exception** returns `DELIVERY_UNCONFIRMED` and **disables repeat submission** until a fresh page; a `false` transport returns `DELIVERY_FAILED`, also requiring a fresh token. The browser treats broken/invalid JSON and fetch failures as `NETWORK_UNCONFIRMED`, does not silently retry and disables duplicate submission. `CONFIGURATION_REQUIRED` and client validation can be retried with the original token; a lost connection cannot safely infer transport acceptance. Without a durable centralized outbox / receipt no exactly-once claim is possible.
 
-**Known production gaps:** session-only rate limit, honeypot and 2-second time trap are not sufficient anti-abuse controls; no confirmed SMTP/webhook delivery, retries/outbox, IP throttle, optional privacy-respecting challenge, CAPTCHA accessibility evaluation, deployment secrecy, or recipient verification. Only dynamic normal form submission is supported, no multi-step, uploads or real telephone service. UI tested with Chromium on 375 and 1280px; formal WCAG audits, assistive-technology cross-browser testing and Next SSR remain open. These are **explicit negative gates**, not implied successes.
+**Known production gaps:** session-only rate limit, honeypot and 2-second time trap are not sufficient anti-abuse controls; no confirmed SMTP/webhook delivery, retries/outbox, IP throttle, optional privacy-respecting challenge, CAPTCHA accessibility evaluation, deployment secrecy, or recipient verification. A progressive-enhancement two-step browser form now exists; its complete payload is independently validated by the PHP backend. There are still no uploads or real telephone service. UI tested with Chromium on 375 and 1280px; formal WCAG audits, assistive-technology cross-browser testing and Next SSR remain open. These are **explicit negative gates**, not implied successes.
 
 ## Follow-up hardening (20 Oct 2026)
 
@@ -85,3 +85,24 @@ python -m unittest discover -s lab/tests -p test_browser.py -v       # actual Ch
 **Production exclusions:** a private single-host file gate can prevent repeat *attempts* for one 10-minute fingerprint but cannot deliver exactly once, reconstruct unknown transport outcome, reliably cover horizontally scaled hosts, be used as an inbox/webhook receipt, identify bot swarms, or safely resolve legitimate repeated identical inquiries. Operators must set retention limits, private filesystem permissions, housekeeping, reliable upstream idempotency keys and delivery acknowledgments. The test uses synthetic data and no real SMTP. Never use this prototype on the shared Hostinger sites or in the deployed CMS. Formal WCAG/assistive technology testing, Chrome-to-PHP browser E2E and Node/React/Next hydration remain unverified.
 
 See `../TEST-EVIDENCE-BLOCK4-2026-10-20.md` for actual commands/runner versions and limits.
+
+
+## Fifth laboratory pass: wizard UI, strict POST boundary, atomic revision plan
+
+No Node.js at PHP website runtime. The contact form has two fieldsets: contact identity then optional phone/message. With JavaScript enabled, only one step is visible, "Далее" validates identity, "Назад" retains values, the live region announces step position, submission reports honest network/transport states, and field validation errors from the backend reveal/focus the appropriate step. Without JavaScript **both fieldsets and a submit button remain available**, although the standalone JSON endpoint returns a machine-readable response rather than a polished HTML confirmation (NOT a production no-JS flow). This research wizard only improves UX: **the server does not trust the client's step state or accept an implied completed-wizard flag**.
+
+`SubmissionBoundary::decode` is called by the actual HTTP endpoint **before** any anti-abuse, phone or transport invocation. It refuses malformed percent encoding, duplicate/unknown parameter names, bracketed array pollution, encoded keys, nulls, invalid UTF-8, truncated/big bodies or missing required keys; it handles an optional `phone_region=ZZ` default for older single-step test fixtures. `FormLab` still validates all final fields independently; `LAB_PUBLIC_ORIGIN` and CSRF remain required. This is a **purposefully narrow** research URL-encoded parser, not a replacement for a production request framework or a general sanitizer. It rejects legitimate repeated-key protocols intentionally.
+
+`RevisionGate::plan` now treats a mixed patch with both unchanged and changed values as **one plan**, not an early `UNCHANGED`. A truly all-unchanged patch returns `UNCHANGED`; revision overflow is refused, and the proposed next state is never persisted. Authentication/ACL, database CAS, schema/contract acceptance and rollback are NOT implemented.
+
+Run each suite separately to avoid the old runner's intermittent monolithic Chromium/PHP subprocess lockup:
+
+```bash
+cd research/parallel-components
+for f in lab/src/*.php lab/public/*.php lab/tests/*.php; do php -l "$f" || exit 1; done
+for f in lab/tests/*-tests.php; do php "$f" || exit 1; done
+node --check lab/public/assets/ui.js
+for f in lab/tests/test_*.py; do python -m unittest discover -s lab/tests -p "$(basename "$f")" -v || exit 1; done
+```
+
+Results and versions: `../TEST-EVIDENCE-BLOCK5-2026-10-20.md`. The browser harness uses real Chromium DOM but mocked fetch; Python HTTP tests exercise a real disposable local PHP server. No actual mail, CRM, Hostinger or Next SSR claims.

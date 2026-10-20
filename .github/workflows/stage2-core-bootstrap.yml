@@ -4,6 +4,10 @@ on:
     branches: [main]
     paths:
       - 'cms/**'
+      - 'research/parallel-security/**'
+      - 'research/parallel-components/**'
+      - '.github/workflows/stage2-hostinger-private-stage.yml'
+      - '.github/workflows/stage2-static-editor.yml'
       - '.github/workflows/stage2-core-bootstrap.yml'
   workflow_dispatch:
 permissions:
@@ -25,6 +29,8 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
       - name: Lock consistency and allowed declared package licenses
         run: php tests/dependency-lock.php && composer validate --strict --no-check-publish
+      - name: Independent pinned Apache root NOTICE provenance and hostile-file regression
+        run: node --check tools/test-compliance-notices.cjs && node tools/test-compliance-notices.cjs
       - name: Composer dependency security audit
         run: composer audit --no-interaction
       - name: Sodium-free Ed25519 candidate on an isolated runner (not included in CMS package)

@@ -86,6 +86,7 @@ class BrowserLab(unittest.TestCase):
         page=self.new_page(viewport={'width':390,'height':844})
         page.locator('#name').fill('Мария')
         page.locator('#email').fill('maria@example.test')
+        page.locator('#wizard-next').click()
         page.locator('#message').fill('Сообщение для тестирования лабораторной формы.')
         page.evaluate("() => {window.fetch = async () => {throw new Error('network after acceptance possible')};}")
         page.locator('#form-submit').click()
@@ -98,6 +99,7 @@ class BrowserLab(unittest.TestCase):
         page=self.new_page(viewport={'width':390,'height':844})
         page.locator('#name').fill('Мария')
         page.locator('#email').fill('maria@example.test')
+        page.locator('#wizard-next').click()
         page.locator('#message').fill('Сообщение для тестирования лабораторной формы.')
         page.evaluate("""window.fetch = async () => ({json: async () => ({code:'DELIVERY_UNCONFIRMED',
           message:'Результат отправки неизвестен.',errors:{}})})""")
@@ -122,6 +124,7 @@ class BrowserLab(unittest.TestCase):
         page=self.new_page(viewport={'width':390,'height':844})
         page.locator('#name').fill('Maria')
         page.locator('#email').fill('maria@example.test')
+        page.locator('#wizard-next').click()
         page.locator('#message').fill('A meaningful inquiry for research only')
         page.evaluate("""window.fetch = async () => ({json: async () => ({code:'DUPLICATE_REQUEST',
           message:'Previously attempted request, no new send.',errors:{}})})""")
@@ -172,12 +175,46 @@ class BrowserLab(unittest.TestCase):
         self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
         page.close()
 
+    def test_wizard_keyboard_back_next_and_server_error_rewinds(self):
+        page=self.new_page(viewport={'width':320,'height':640}, reduced_motion='reduce')
+        self.assertTrue(page.locator('#wizard-message').is_hidden())
+        self.assertTrue(page.locator('#form-submit').is_hidden())
+        page.locator('#wizard-next').click()
+        self.assertEqual(page.locator('#name').get_attribute('aria-invalid'),'true')
+        page.locator('#name').fill('Мария')
+        page.locator('#email').fill('maria@example.test')
+        page.locator('#wizard-next').click()
+        self.assertFalse(page.locator('#wizard-message').is_hidden())
+        self.assertTrue(page.locator('#message').evaluate('(el)=>document.activeElement===el'))
+        page.locator('#wizard-prev').click()
+        self.assertEqual(page.locator('#name').input_value(),'Мария')
+        self.assertTrue(page.locator('#name').evaluate('(el)=>document.activeElement===el'))
+        page.locator('#wizard-next').click()
+        page.locator('#message').fill('An accessible message that is long enough')
+        page.evaluate("""window.fetch=async()=>({json:async()=>({code:'VALIDATION_ERROR',
+          message:'Проверьте поля формы.',errors:{name:'Сервер отклонил имя.'}})})""")
+        page.locator('#form-submit').click()
+        page.wait_for_function("document.querySelector('#name-error').textContent.includes('Сервер')")
+        self.assertFalse(page.locator('#wizard-identity').is_hidden())
+        self.assertTrue(page.locator('#name').evaluate('(el)=>document.activeElement===el'))
+        self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
+        page.close()
+
+    def test_wizard_no_script_progressive_enhancement(self):
+        html=urlopen(self.backend,timeout=4).read().decode('utf-8')
+        self.assertIn('id="wizard-identity"',html)
+        self.assertIn('id="wizard-message"',html)
+        self.assertIn('name="csrf"',html)
+        self.assertIn('type="submit" id="form-submit"',html)
+        self.assertNotIn('fieldset id="wizard-message" hidden',html)
+
     def test_form_client_and_server_no_fake_success(self):
         page=self.new_page(viewport={'width':900,'height':800})
-        page.locator('#form-submit').click()
+        page.locator('#wizard-next').click()
         self.assertIn('Проверьте поля',page.locator('#form-status').inner_text())
         page.locator('#name').fill('Мария')
         page.locator('#email').fill('maria@example.test')
+        page.locator('#wizard-next').click()
         page.locator('#message').fill('Сообщение для тестирования лабораторной формы.')
         # Time-based anti-bot requirement uses server-side issue time.
         page.wait_for_timeout(2300)

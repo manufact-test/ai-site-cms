@@ -1,8 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Only called in GitHub's temporary polyfill sandbox. This intentionally runs
-// with php -n, where the native Sodium extension MUST be unavailable.
+// Only called in a disposable GitHub temporary polyfill sandbox.
+// `php -n` and a disabled Sodium function DO NOT imply ext-sodium is absent:
+// some PHP binaries compile native Sodium directly into the executable.
+// This fixture forces the alternate userland path; it is NOT an extension-free
+// PHP bootstrap, Hostinger compatibility, or a crypto security audit.
 if ($argc !== 3 || function_exists('sodium_crypto_sign_verify_detached')) {
     fwrite(STDERR, "SODIUM_POLYFILL_FIXTURE_INVALID_CONTEXT\n");
     exit(3);
@@ -36,4 +39,5 @@ $checks=[
 if(in_array(false,$checks,true)) {
     fwrite(STDERR, "ED25519_CROSS_RUNTIME_VERIFICATION_FAILED\n");exit(5);
 }
-echo "Stage2 exact Composer-pinned sodium_compat 2.5.2, native ext absent: Ed25519 valid/tamper/key/length checks PASS; not a production acceptance.\n";
+$sodiumExtensionLoaded = extension_loaded('sodium');
+echo "Stage2 sodium_compat 2.5.2 FORCED_USERLAND Ed25519 fixture: valid/tamper/key/length checks PASS; native extension loaded=".($sodiumExtensionLoaded ? 'yes' : 'no')."; extension-free runtime NOT proven; production NOT accepted.\n";

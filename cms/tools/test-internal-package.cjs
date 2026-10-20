@@ -15,6 +15,22 @@ check(!fs.existsSync(path.join(STAGE,'public/editor.js')),'Public editor JS inac
 check(fs.existsSync(path.join(STAGE,'vendor/autoload.php')),'Composer runtime vendor included');
 check(manifest.files.some(x=>x.path==='bin/hostinger-stage2-once.php'),
   'One-shot Hostinger operator is packaged off-web only');
+check(manifest.files.some(x=>x.path==='bin/hostinger-stage2-revoke.php'),
+  'Emergency credential-only revoke is bundled outside the public webroot');
+check(!manifest.files.some(x=>x.path==='public/hostinger-stage2-revoke.php'),
+  'Emergency cleanup is not exposed via HTTP');
+check(manifest.files.some(x=>x.path==='bin/hostinger-stage2-preflight.php'),
+  'Credential-free Stage2 Hostinger CLI preflight is packaged off-web');
+check(!manifest.files.some(x=>x.path==='public/hostinger-stage2-preflight.php'),
+  'Credential-free CLI is NOT exposed through the webroot');
+// Parallel research is integrated as non-runtime evidence only. It must never
+// enter a downloadable CMS package or a shared-host public document root.
+check(!manifest.files.some(x=>x.path.startsWith('research/')
+  || x.path.includes('parallel-security/')
+  || x.path.includes('parallel-components/')
+  || x.path.includes('lab/public/')
+  || x.path.includes('test_browser.py')),
+  'Independent Security/Components research and standalone form lab cannot enter Hostinger distribution');
 check(manifest.files.some(x=>x.path==='src/Hosting/HostingerStage2OneShot.php'),
   'One-shot implementation is inventoried');
 for(const unsafe of ['public/hostinger-stage2-once.php','cms-stage2-local/once.json',
@@ -60,6 +76,24 @@ check(index.componentCount===43 && sbom.components.length===43,'43 lock-tracked 
 check(sbom.components.filter(c=>c.properties.some(p=>p.name==='ai-site-cms:scope'&&p.value==='php-runtime')).length===14,'14 shipped Composer libraries');
 check(sbom.components.filter(c=>c.properties.some(p=>p.name==='ai-site-cms:scope'&&p.value==='browser-runtime')).length===1,'Only Jedison shipped as browser-runtime npm library');
 check(fs.readFileSync(path.join(STAGE,'private/compliance/THIRD_PARTY_NOTICES.txt'),'utf8').includes('Apache License'),'Composer Apache notices retained');
+// Exact pinned Apache package NOTICE files are separate from LICENSE.
+// The original upstream text must be present, byte-for-byte, in our
+// immutable offweb compliance output and have matching CycloneDX provenance.
+const bundledNotices=fs.readFileSync(path.join(STAGE,'private/compliance/THIRD_PARTY_NOTICES.txt'),'utf8');
+for(const [name,version] of [['opis/json-schema','2.6.0'],['opis/string','2.1.0']]){
+  const installed=fs.readFileSync(path.join(STAGE,'vendor',name,'NOTICE'),'utf8');
+  const header='===== composer '+name+' '+version+' (Apache-2.0) / NOTICE (UPSTREAM NOTICE) =====';
+  check(bundledNotices.includes(header+'\n'+installed+'\n'),
+    'Original pinned Apache NOTICE body retained exactly: '+name);
+  const component=sbom.components.find(c=>c.name===name && c.version===version);
+  const sha=require('node:crypto').createHash('sha256').update(installed).digest('hex');
+  check(component?.properties.some(p=>p.name==='ai-site-cms:installed-notice-sha256:NOTICE'
+    && p.value===sha),'NOTICE SHA recorded in SBOM: '+name);
+}
+check(index.composerNoticeFiles>=2
+  && index.requiredApacheNoticesPreserved?.includes('opis/json-schema')
+  && index.requiredApacheNoticesPreserved?.includes('opis/string'),
+  'Stage2 compliance index explicitly gates both pinned Apache NOTICEs');
 const sbomPath=path.join(STAGE,'private/compliance/sbom.cdx.json'),saved=fs.readFileSync(sbomPath);
 fs.writeFileSync(sbomPath,'{"invalid":true}');
 assert.throws(()=>verify(),/mismatch/);checks++;
