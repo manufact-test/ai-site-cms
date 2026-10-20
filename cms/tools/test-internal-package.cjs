@@ -75,8 +75,8 @@ for(const [name,version] of [['opis/json-schema','2.6.0'],['opis/string','2.1.0'
     'Original pinned Apache NOTICE body retained exactly: '+name);
   const component=sbom.components.find(c=>c.name===name && c.version===version);
   const sha=require('node:crypto').createHash('sha256').update(installed).digest('hex');
-  check(component?.properties.some(p=>p.name==='ai-site-cms:installed-notice'
-    && p.value==='NOTICE:sha256:'+sha),'NOTICE SHA recorded in SBOM: '+name);
+  check(component?.properties.some(p=>p.name==='ai-site-cms:installed-notice-sha256:NOTICE'
+    && p.value===sha),'NOTICE SHA recorded in SBOM: '+name);
 }
 check(index.composerNoticeFiles>=2
   && index.requiredApacheNoticesPreserved?.includes('opis/json-schema')
