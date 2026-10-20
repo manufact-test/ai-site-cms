@@ -29,7 +29,6 @@ bad({results:[{vulns:[{id:'<script>'}]},{}]},'invalid advisory ID');
 bad({results:'untrusted'},'unexpected type');
 console.log('OSV strict-response fixture PASS '+count+' cases, no network or false online coverage');
 
-
 // Exercise the actual querybatch transport and stream handling with a fake
 // Response-like object. This never calls fetch() or contacts OSV.
 import {makeRows, snapshot} from './osv-strict-snapshot.mjs';
