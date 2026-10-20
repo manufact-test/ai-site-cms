@@ -53,3 +53,36 @@ foreach ($cases as [$input,$region,$wanted]) {
     }
 }
 echo "PHONE_REAL_INTEGRATION_PASSED: $n genuine metadata assertions; lite $expected (not carrier reachability)\n";
+require_once __DIR__ . '/../src/FormLab.php';
+
+// True integration: the real number-metadata parser participates in the form pipeline,
+// with a fake transport that never dispatches mail. This does not prove inbox delivery.
+$now = 1700000200;
+$session = [];
+$csrf = FormLab::issueToken($session, $now - 5);
+$data = ['csrf' => $csrf, 'company_site' => '', 'name' => 'Maria',
+    'email' => 'maria@example.test', 'phone' => '0151 23456789',
+    'message' => 'A genuine metadata backed lab submission.'];
+$seen = null;
+$deliver = static function (string $recipient, array $fields) use (&$seen): bool {
+    $seen = [$recipient, $fields];
+    return true;
+};
+$check = static fn (string $input): ?string => PhoneAdapter::normalize($input, 'DE');
+$accepted = FormLab::submit($data, $session, $now, 'inbox@example.test', $deliver, $check);
+if ($accepted['code'] !== 'QUEUED_UNCONFIRMED' || $seen === null ||
+    $seen[1]['phone'] !== '+4915123456789' || isset($session['form_lab_token_hash'])) {
+    fwrite(STDERR, "PHONE_REAL_FORM_PIPELINE_MISMATCH: canonical E164, receipt or token\n");
+    exit(1);
+}
+$negativeSession = [];
+$data['csrf'] = FormLab::issueToken($negativeSession, $now - 5);
+$data['phone'] = '+44 20 8366 1177';
+$unrelated = FormLab::submit($data, $negativeSession, $now, 'inbox@example.test',
+    static function (): bool { throw new LogicException('Unrelated-country number sent'); }, $check);
+if ($unrelated['code'] !== 'VALIDATION_ERROR' || !isset($unrelated['errors']['phone'])) {
+    fwrite(STDERR, "PHONE_REAL_FORM_PIPELINE_MISMATCH: foreign region not rejected\n");
+    exit(1);
+}
+echo "PHONE_REAL_FORM_PIPELINE_PASSED: canonical E164, one-use token and wrong-region rejection; fake transport only\n";
+

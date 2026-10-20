@@ -28,6 +28,7 @@ class RealPhoneMetadata(unittest.TestCase):
         self.assertEqual(result.returncode, 0, "Genuine Composer integration failed:\n" + detail)
         self.assertIn("PHONE_REAL_INTEGRATION_PASSED: 13 genuine metadata assertions", detail)
         self.assertIn("lite 9.0.41", detail)
+        self.assertIn("PHONE_REAL_FORM_PIPELINE_PASSED:", detail)
 
 if __name__ == "__main__":
     unittest.main()
