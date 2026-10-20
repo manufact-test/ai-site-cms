@@ -1,46 +1,69 @@
-name: Stage2 Hostinger inactive private package (MANUAL)
-# Output branch is ONLY a staging tree for a separate NON-public_html path.
-# Not an installation, not a signed release, not Stage2 acceptance.
+name: Stage2 Hostinger offweb CMS package (public-source, NO HOST DEPLOY)
+# Automatically publish the built, credential-free CMS package into a separate
+# Git branch ONLY AFTER the full editor/package workflow succeeded on main.
+# This does not deploy to Hostinger. Never connect this branch to public_html.
+# The source repository is intentionally allowed to remain PUBLIC by owner.
 on:
+  workflow_run:
+    workflows: ['Stage 2 static Jedison editor (internal CI only)']
+    types: [completed]
   workflow_dispatch:
     inputs:
       source_sha:
-        description: Exact full main SHA
+        description: Exact full 40-char SHA of current main
         type: string
         required: true
       approval:
-        description: Type STAGE_PRIVATE_PACKAGE_ONLY
+        description: Type STAGE_PUBLIC_SOURCE_OFFWEB_ONLY
         type: string
         required: true
 permissions:
   contents: write
 concurrency:
-  group: stage2-hostinger-inactive-package
+  group: stage2-hostinger-offweb-cms
   cancel-in-progress: false
 jobs:
-  isolated-private-stage:
-    if: github.repository == 'manufact-test/ai-site-cms' && github.ref == 'refs/heads/main'
+  publish-inactive-offweb-package:
+    if: >-
+      github.repository == 'manufact-test/ai-site-cms' &&
+      (
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.conclusion == 'success' &&
+         github.event.workflow_run.event == 'push' &&
+         github.event.workflow_run.head_branch == 'main' &&
+         github.event.workflow_run.head_repository.full_name == github.repository)
+        ||
+        (github.event_name == 'workflow_dispatch' &&
+         github.ref == 'refs/heads/main' &&
+         inputs.approval == 'STAGE_PUBLIC_SOURCE_OFFWEB_ONLY')
+      )
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact successful or manually approved main commit
+        uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
-      - name: Block all staging when repository not private or SHA unapproved
+      - name: Enforce current main SHA, branch, and permission before building
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          INPUT_SHA: ${{ inputs.source_sha }}
-          INPUT_APPROVAL: ${{ inputs.approval }}
-          EVENT_PRIVATE: ${{ github.event.repository.private }}
-        shell: bash
+          EVENT_KIND: ${{ github.event_name }}
+          VALIDATED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          MANUAL_SHA: ${{ inputs.source_sha }}
+          MANUAL_APPROVAL: ${{ inputs.approval }}
         run: |
           set -euo pipefail
-          [[ "$INPUT_APPROVAL" == STAGE_PRIVATE_PACKAGE_ONLY ]]
-          [[ "$INPUT_SHA" =~ ^[a-f0-9]{40}$ ]]
-          [[ "$INPUT_SHA" == "$GITHUB_SHA" ]]
-          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
-          [[ "$EVENT_PRIVATE" == true ]]
-          [[ "$(gh api "repos/$GITHUB_REPOSITORY" --jq '.private')" == true ]]
+          [[ "$GITHUB_REPOSITORY" == manufact-test/ai-site-cms ]]
+          [[ "$VALIDATED_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$VALIDATED_SHA" ]]
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" == "$VALIDATED_SHA" ]]
+          if [[ "$EVENT_KIND" == workflow_dispatch ]]; then
+            [[ "$MANUAL_APPROVAL" == STAGE_PUBLIC_SOURCE_OFFWEB_ONLY ]]
+            [[ "$MANUAL_SHA" == "$VALIDATED_SHA" ]]
+          fi
+          echo 'Authorized current main source; no hosting operations.'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -50,50 +73,47 @@ jobs:
           extensions: sodium,pdo_mysql,pdo_sqlite
           tools: composer:v2
           coverage: none
-      - name: Build and verify exact offline CMS package
+      - name: Build locked vendor and deterministic editor, verify sanitised package
         working-directory: cms
         run: |
+          set -euo pipefail
           composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader
           npm ci --prefix editor --no-audit --no-fund
           npm run build --prefix editor
           node tools/build-internal-package.cjs
           node tools/test-stage2-hostinger-private-stage.cjs
-      - name: Prepare only private inactive Git tree
+          node tools/test-stage2-offweb-publication-contract.cjs
+      - name: Stage exact non-webroot Git tree (no production activation)
         working-directory: cms
         env:
           CMS_STAGE2_STAGING_APPROVED: inactive-stage2-package-only
         run: node tools/stage2-hostinger-private-stage.cjs --prepare "$RUNNER_TEMP/private-runtime"
-      - name: Create or update only dedicated private staging branch
+      - name: Publish only dedicated, never-webroot, source-public branch
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EVENT_PRIVATE: ${{ github.event.repository.private }}
+          VALIDATED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -euo pipefail
-          [[ "$EVENT_PRIVATE" == true ]]
-          [[ "$(gh api "repos/$GITHUB_REPOSITORY" --jq '.private')" == true ]]
-          branch=stage2-hostinger-private-runtime
-          tmp="$RUNNER_TEMP/stage2-target-git"
-          mkdir -m 700 "$tmp"
-          git init -q "$tmp"
-          git -C "$tmp" remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
+          [[ "$VALIDATED_SHA" == "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" ]]
+          branch=stage2-hostinger-offweb-runtime
+          dst="$RUNNER_TEMP/stage2-offweb-git"
+          mkdir -m 700 "$dst"
+          git init -q "$dst"
+          git -C "$dst" remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
           gh auth setup-git
-          if git -C "$tmp" ls-remote --exit-code origin "refs/heads/$branch" >/dev/null; then
-            git -C "$tmp" fetch -q --depth=1 origin "refs/heads/$branch"
-            git -C "$tmp" checkout -q -b "$branch" FETCH_HEAD
-            find "$tmp" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf -- {} +
+          if git -C "$dst" ls-remote --exit-code origin "refs/heads/$branch" >/dev/null; then
+            git -C "$dst" fetch -q --depth=1 origin "refs/heads/$branch"
+            git -C "$dst" checkout -q -b "$branch" FETCH_HEAD
+            find "$dst" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf -- {} +
           else
-            git -C "$tmp" checkout -q --orphan "$branch"
+            git -C "$dst" checkout -q --orphan "$branch"
           fi
-          cp -a "$RUNNER_TEMP/private-runtime/." "$tmp/"
-          git -C "$tmp" add --all
-          if git -C "$tmp" diff --cached --quiet; then
-            echo 'Identical inactive package already staged.'
-          else
-            git -C "$tmp" -c user.name='ai-site-cms-stage2' \
-              -c user.email='actions@users.noreply.github.com' \
-              commit -qm "stage2: inactive isolated package from $GITHUB_SHA"
-            [[ "$(gh api "repos/$GITHUB_REPOSITORY" --jq '.private')" == true ]]
-            git -C "$tmp" push -q origin "HEAD:refs/heads/$branch"
-          fi
-          echo 'Inactive package staged only. Do not deploy to public_html or execute.'
+          cp -a "$RUNNER_TEMP/private-runtime/." "$dst/"
+          git -C "$dst" add --all
+          # Existing stage branch never shares tree or history with main.
+          git -C "$dst" -c user.name=ai-site-cms-stage2             -c user.email=actions@users.noreply.github.com             commit -qm "stage2: offweb inactive CMS package from $VALIDATED_SHA"
+          [[ "$VALIDATED_SHA" == "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" ]]
+          git -C "$dst" push -q origin "HEAD:refs/heads/$branch"
+          echo 'Compiled dependency-complete public-source branch published for separate offweb Git installation ONLY.'
+          echo 'Never choose this branch for public_html. No Hostinger, DB or SSH touched.'

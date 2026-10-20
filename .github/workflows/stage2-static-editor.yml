@@ -49,7 +49,7 @@ jobs:
         run: node tools/build-internal-package.cjs && node tools/test-internal-package.cjs
       - name: Rehearse exact inactive Hostinger private Git tree without network or deployment
         working-directory: cms
-        run: node --check tools/stage2-hostinger-private-stage.cjs && node tools/test-stage2-hostinger-private-stage.cjs
+        run: node --check tools/stage2-hostinger-private-stage.cjs && node tools/test-stage2-hostinger-private-stage.cjs && node tools/test-stage2-offweb-publication-contract.cjs
       - name: Reproduce isolated empty CMS installs from distribution, SQLite, topology, actual HTTP and hostile fixtures
         working-directory: cms
         run: node tools/test-empty-cms-package-install.cjs
