@@ -34,3 +34,9 @@ At exact source roots, 2/14 have NOTICE and 12/14 do not. Other embedded notices
 - Source licenses were read and tested for typical family markers, but **individual embedded and transitively vendored source files not fully classified**.
 - Installed Composer vendor bytes and actual compiled artifact were not downloaded; NOTICE omission is derived from generator source, and should be proven with `notice-gate.mjs` in an isolated complete build.
 - No client hosting, CMS runtime, Composer lock or legal documents changed. Stage2 remains NOT ACCEPTED.
+
+## Main-branch remediation checkpoint — independent follow-up, 20.10.2026
+
+**Correction of historical wording above:** the exact Opis Apache-2.0 root NOTICE omission was observed in the original Stage2 generator, but the **main integrator subsequently fixed that specific implementation**. Latest inspected `cms/tools/generate-compliance.cjs` includes secure root NOTICE traversal, mandatory Opis notices, verbatim aggregation and per-file digest metadata. `cms/src/Hosting/LabComplianceEvidence.php` compares installed vendor NOTICE bytes, copied text and SBOM evidence. Thus the prior P1 action “add root NOTICE support” is **implemented in main source** and should not be presented as still unpatched. This researcher did not independently build the latest main package in a complete vendor environment or approve licenses; release-level acceptance remains open.
+
+Further results: `release-fixture.mjs` 20/20 native signature-envelope tests PASS on actual original PHP Ed25519/OfflineReleaseVerifier source; `npm-source-gate.mjs` and Playwright upstream embedded notices documented in [NPM-ARCHIVE-REVIEW.md](NPM-ARCHIVE-REVIEW.md); updated exact Sodium 2.5.2 risk comparison in [SODIUM-DECISION-REVIEW.md](SODIUM-DECISION-REVIEW.md). Full 43/43 live OSV, exact source archive validation and genuine no-native Sodium 2.5.2 testing remain open.
