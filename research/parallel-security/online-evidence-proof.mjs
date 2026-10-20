@@ -112,7 +112,9 @@ export function verifyRegistryEvidence(stdout,root){
   demand(r.note==='Registry latest only; not a security/compatibility upgrade recommendation',
     'registry freshness report missing safety qualifier');
   const expected=source.rows.map(x=>({...x}));
-  exactRows(r.results,expected,x=>x.locked);
+  demand(Array.isArray(r.results),'registry result rows missing');
+  const ordered=[...r.results].sort((a,b)=>[a.ecosystem,a.name].join('/').localeCompare([b.ecosystem,b.name].join('/')));
+  exactRows(ordered,expected,x=>x.locked);
   let outdated=0;
   for(const x of r.results){
     demand(typeof x.latest==='string'&&/^\d+\.\d+(?:\.\d+)?$/.test(x.latest.replace(/^v/,'')),
