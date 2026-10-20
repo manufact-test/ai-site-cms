@@ -39,7 +39,7 @@ function requireProof(row, expectedPattern, evidenceLabel) {
   return row;
 }
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
-  'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','release-fixture.mjs','release-verify-runner.php',
+  'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
@@ -103,6 +103,14 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
       /Stage2 signed permit adversarial research PASS: 46 assertions;/,
       '46 signed preactivation permit/CAS-boundary assertions');
   } else block('native:operator-preactivation-permit','Signed preactivation permit fixture unavailable');
+  const settlementFixture=path.join(dirname,'settlement-chain-regression.php');
+  if(fs.existsSync(settlementFixture)) {
+    requireProof(entry('native:operator-settlement-chain',
+      capture(runtime,[settlementFixture],{timeout:45000,
+        env:{CI:'true',CMS_ALLOW_PHP_INSTALL_LAB:'1'}})),
+      /Stage2 signed settlement chain research PASS: 38 assertions;/,
+      '38 signed permit/receipt/settlement linkage and anti-replay assertions');
+  } else block('native:operator-settlement-chain','Signed settlement chain fixture unavailable');
   const rootTrustFixture=path.join(root,'cms/tests/trust-chain.php');
   if(fs.existsSync(rootTrustFixture)) {
     requireProof(entry('native:trust-root-rotation',
