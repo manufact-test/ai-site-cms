@@ -337,7 +337,7 @@
     {
       "path": "vendor/composer/installed.php",
       "bytes": 6387,
-      "sha256": "48c65e36d732562f176ad16efa8f3f355e1c2bb8235c06676dc8a843fa9a56db"
+      "sha256": "230796bda817e1d862175b1c335a029eddd601b28601ef23b2f57f6969bccfef"
     },
     {
       "path": "vendor/composer/InstalledVersions.php",
