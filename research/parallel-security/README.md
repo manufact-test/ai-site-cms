@@ -25,3 +25,12 @@ node research/parallel-security/release-fixture.mjs native
 ```
 
 Pure PHP mode requires an independently verified local sodium_compat 2.5.2 autoloader **and a PHP binary that truly lacks native Sodium**. See RUNBOOK. Passing local native tests is not evidence of pure-PHP compatibility or real Hostinger operation. A clean run does not itself authorize customer redistribution or signed production upgrades.
+### Additional confirmed research after initial PR
+
+- [SOURCE-LICENSE-REVIEW.md](SOURCE-LICENSE-REVIEW.md) — 14/14 exact pinned PHP upstream LICENSE texts examined and two Apache NOTICE omissions identified (**P1**).
+- [lock-provenance.mjs](lock-provenance.mjs) — offline strict source revision / SHA512 / registry-origin / optional binary + postinstall consistency.
+- [policy-regression.mjs](policy-regression.mjs) and [provenance-regression.mjs](provenance-regression.mjs) — synthetic lock mutation checks, with clear distinction from checks on real GitHub locks.
+- [notice-gate.mjs](notice-gate.mjs), [notice-regression.mjs](notice-regression.mjs) — full-source NOTICE preservation test and five synthetic positive/negative cases. Current production generator is expected to **fail** if tested with installed vendor contents.
+- [EVIDENCE-2026-10-20.md](EVIDENCE-2026-10-20.md) — exact local runtime, commands, exit codes, hashes, remaining unexecuted checks.
+
+No production file changes and no legal clearance or Hostinger crypto confirmation.

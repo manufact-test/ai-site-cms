@@ -49,3 +49,19 @@ Additional test evidence mandatory for the main developer: \`TrustedChainVerifie
 ## Important safety conditions
 
 No implementation may downgrade to HMAC, SHA-256, OpenSSL RSA, unsigned metadata, environment-embedded signer fingerprint, or trust-on-first-use. No read of browser-provided trust anchors. A low-level crypto test does not establish safe upgrades, rights to redistribute, or target-host suitability. PHP8.3 64-bit is required for sodium_compat v2; compare with native or separate signed-verification worker as a design choice. The production \`cms/composer.lock\` is intentionally unchanged.
+
+## 5. Source-level licenses and reproducible NOTICE detection
+
+Read [SOURCE-LICENSE-REVIEW.md](SOURCE-LICENSE-REVIEW.md) first. On repository root:
+
+```sh
+node research/parallel-security/policy-regression.mjs
+node research/parallel-security/lock-provenance.mjs
+node research/parallel-security/provenance-regression.mjs
+node research/parallel-security/notice-regression.mjs
+# REQUIRES trusted cms/vendor/ and a built .build/internal-stage2-package
+# Currently expected to FAIL because generator omits separate upstream Apache NOTICE:
+node research/parallel-security/notice-gate.mjs
+```
+
+Notice gate exit 0 = both source NOTICE bodies copied; exit 1 = incomplete/modified NOTICE; exit 2 = required installed/vendor/package evidence missing. The regression scripts create temporary fake packages exclusively; they do **not** mean original tarball contents were validated. Never call a missing vendor tree a successful NOTICE check.
