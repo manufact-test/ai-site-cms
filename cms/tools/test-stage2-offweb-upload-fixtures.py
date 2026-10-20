@@ -27,7 +27,7 @@ def refused(root, reason):
         ok(True, reason)
     else:
         ok(False, reason)
-ok(len(original) >= 450 and original["public/.htaccess"].startswith(b""),
+ok(len(original) >= 450 and len(original["public/.htaccess"]) > 20,
    "expected full offweb artifact and hidden Apache configuration")
 with tempfile.TemporaryDirectory(prefix="stage2-offweb-zip-negative-") as temp:
     dest = Path(temp) / "private-runtime"
@@ -56,8 +56,10 @@ with tempfile.TemporaryDirectory(prefix="stage2-offweb-zip-negative-") as temp:
     refused(dest, "hidden secret-bearing file rejected")
     (dest / "private" / ".env").unlink()
     ok(module.validate(dest)[1] == digest, "clean final artifact verified")
-    web = Path(temp) / "public_html" / "private-runtime"
-    shutil.move(dest, web) if False else None
+    web = Path(temp) / "public_html"
+    web.mkdir()
+    (web / "private-runtime").symlink_to(dest, target_is_directory=True)
+    refused(web / "private-runtime", "public webroot symlink upload refused")
     ok(module.validate(dest)[1] == digest, "no host writes or changes from fixture")
     refused(Path(temp), "wrong upload root basename rejected")
 print(f"Stage2 Hostinger upload hostile fixture PASS: {checks} checks; no host, secrets, SSH or DB")
