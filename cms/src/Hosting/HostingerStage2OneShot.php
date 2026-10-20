@@ -52,26 +52,40 @@ final class HostingerStage2OneShot
             'format' => 'ai-site-cms-stage2-hostinger-local-receipt-v1',
             'operation' => $operation,
             'status' => 'refused',
+            'failureCategory' => 'not_started',
             'schemaState' => 'not_verified',
             'dedicatedDbGrantsVerified' => false,
             'cmsPublicActivated' => false,
             'stage2Accepted' => false,
             'productionReady' => false
         ];
+        $phase = 'local_task';
         try {
+            // Even a failed attempt consumes the secret-bearing file. Operators
+            // must explicitly create a NEW task after reading the private
+            // non-secret receipt; cron logs never show DB credentials.
+            if (!@unlink($taskFile)) {
+                throw new RuntimeException('TASK_NOT_CONSUMED');
+            }
+            $phase = 'database_connection';
             $pdo = self::connection($task);
+            $phase = 'database_scope';
             self::assertDedicatedUserGrants($pdo, $task['db_name']);
             $receipt['dedicatedDbGrantsVerified'] = true;
             $schema = new SchemaManager($pdo);
+            $phase = 'schema_read';
             $before = $schema->inspectSite(self::SITE);
             if ($operation === 'probe') {
                 $receipt['schemaState'] = $before['state'];
-                $receipt['status'] = $before['state'] === 'blocked'
-                    ? 'refused' : 'observed';
+                if ($before['state'] === 'blocked') {
+                    throw new RuntimeException('SCHEMA_BLOCKED');
+                }
+                $receipt['status'] = 'observed';
             } elseif ($operation === 'install') {
                 if ($before['state'] !== 'uninitialized') {
                     throw new RuntimeException('TARGET_NOT_EMPTY');
                 }
+                $phase = 'schema_install';
                 $schema->installSite(self::SITE);
                 $after = $schema->inspectSite(self::SITE);
                 if ($after['state'] !== 'ready') {
@@ -79,17 +93,27 @@ final class HostingerStage2OneShot
                 }
                 $receipt['schemaState'] = 'ready';
                 $receipt['status'] = 'installed_empty_foundation';
-            } elseif ($operation === 'verify' || $operation === 'snapshot') {
+            } elseif (in_array($operation, ['verify','snapshot','snapshot-verify'], true)) {
                 if ($before['state'] !== 'ready') {
                     throw new RuntimeException('TARGET_NOT_READY');
                 }
                 $receipt['schemaState'] = 'ready';
-                if ($operation === 'snapshot') {
+                if ($operation === 'snapshot' || $operation === 'snapshot-verify') {
                     // Foundation metadata ONLY; no content/media backup and
                     // no destructive restore on a real host.
+                    $phase = 'snapshot';
                     $data = (new FoundationSnapshot($pdo))->export(self::SITE);
                     FoundationSnapshot::verify($data, self::SITE);
                     $destination = $localRoot.'/foundation-snapshot.json';
+                    if ($operation === 'snapshot-verify') {
+                        self::assertPrivateRegular($destination, 2048);
+                        $saved = file_get_contents($destination);
+                        if (!is_string($saved) || !hash_equals($data, trim($saved))) {
+                            throw new RuntimeException('SNAPSHOT_DIVERGED');
+                        }
+                        FoundationSnapshot::verify(trim($saved), self::SITE);
+                        $receipt['status'] = 'foundation_snapshot_verified';
+                    } else {
                     $oldUmask = umask(0077);
                     try {
                         $handle = @fopen($destination, 'xb');
@@ -106,14 +130,17 @@ final class HostingerStage2OneShot
                         fclose($handle);
                     }
                     $receipt['status'] = 'foundation_snapshot_saved';
+                    }
                 } else {
                     $receipt['status'] = 'verified';
                 }
             }
+            $receipt['failureCategory'] = 'none';
         } catch (Throwable $ignored) {
-            // Fail closed and consume the run even for partial MySQL DDL.
-            // No exception details, SQL, DB identity or passwords in receipts.
+            // Safe phase names only; never exception text, DSN or credentials.
+            // A rejected MySQL DDL is NOT automatically retried or repaired.
             $receipt['status'] = 'refused';
+            $receipt['failureCategory'] = $phase.'_refused';
         } finally {
             $json = json_encode($receipt, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)."\n";
             rewind($receiptFile);
@@ -137,7 +164,7 @@ final class HostingerStage2OneShot
             || ($task['target'] ?? null) !== self::TARGET
             || ($task['site'] ?? null) !== self::SITE
             || !in_array($task['operation'] ?? null,
-                ['probe','install','verify','snapshot'], true)
+                ['probe','install','verify','snapshot','snapshot-verify'], true)
             || !in_array($task['db_host'] ?? null, ['localhost', '127.0.0.1'], true)
             || !is_string($task['db_name'] ?? null)
             || !preg_match('/\A[A-Za-z0-9_]{3,64}\z/D', $task['db_name'])
