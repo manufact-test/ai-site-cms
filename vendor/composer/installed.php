@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'manufact/ai-site-cms',
-        'pretty_version' => 'dev-a8c33f4ef01d890914f25989ca3f2070bc1b4c7e',
-        'version' => 'dev-a8c33f4ef01d890914f25989ca3f2070bc1b4c7e',
-        'reference' => 'a8c33f4ef01d890914f25989ca3f2070bc1b4c7e',
+        'pretty_version' => 'dev-2a5fd01b8179a22ef5afd864b3716101aeaae985',
+        'version' => 'dev-2a5fd01b8179a22ef5afd864b3716101aeaae985',
+        'reference' => '2a5fd01b8179a22ef5afd864b3716101aeaae985',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -20,9 +20,9 @@
             'dev_requirement' => false,
         ),
         'manufact/ai-site-cms' => array(
-            'pretty_version' => 'dev-a8c33f4ef01d890914f25989ca3f2070bc1b4c7e',
-            'version' => 'dev-a8c33f4ef01d890914f25989ca3f2070bc1b4c7e',
-            'reference' => 'a8c33f4ef01d890914f25989ca3f2070bc1b4c7e',
+            'pretty_version' => 'dev-2a5fd01b8179a22ef5afd864b3716101aeaae985',
+            'version' => 'dev-2a5fd01b8179a22ef5afd864b3716101aeaae985',
+            'reference' => '2a5fd01b8179a22ef5afd864b3716101aeaae985',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
