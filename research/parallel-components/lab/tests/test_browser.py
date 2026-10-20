@@ -52,6 +52,18 @@ class BrowserLab(unittest.TestCase):
         page.add_script_tag(content=(PUBLIC/'assets/ui.js').read_text())
         return page
 
+
+    def test_enhanced_page_initializes_controls_after_progressive_html(self):
+        page=self.new_page(viewport={'width':375,'height':740})
+        self.assertTrue(page.locator('#nav-toggle').is_visible())
+        self.assertTrue(page.locator('#open-dialog').is_visible())
+        self.assertTrue(page.locator('[role="tablist"]').is_visible())
+        self.assertFalse(page.locator('#panel-php').is_hidden())
+        self.assertTrue(page.locator('#panel-react').is_hidden())
+        self.assertEqual(page.locator('[role="tab"][aria-selected="true"]').count(),1)
+        self.assertTrue(page.locator('#contact').evaluate('(el)=>el.noValidate'))
+        page.close()
+
     def test_desktop_keyboard_dialog_tabs_faq(self):
         page = self.new_page(viewport={'width':1280, 'height':800})
         errors=[]; external=[]

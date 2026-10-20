@@ -5,6 +5,7 @@ nav{display:flex;gap:1.2rem}nav a{color:inherit;text-decoration:underline;text-u
 section{background:white;border-radius:14px;padding:1.4rem;margin:2rem 0;box-shadow:0 1px 8px #102c3912}
 button{font:inherit;padding:.55rem .95rem;border:2px solid #185a81;border-radius:8px;color:white;background:#175d88;cursor:pointer}
 button:hover{background:#104768}button:disabled{opacity:.6;cursor:not-allowed}
+[hidden]{display:none!important}
 :focus-visible{outline:3px solid #de8200;outline-offset:3px}input,textarea{font:inherit;padding:.55rem;width:100%;border:1px solid #607d8c;border-radius:5px}
 label{display:block;font-weight:600}.field{margin-bottom:1.1rem}small.error{display:block;color:#9c1537;font-weight:600;min-height:1.2rem}
 [aria-invalid="true"]{border:2px solid #b21d3b}#form-status{margin-top:1rem;font-weight:650}p.note{font-size:.9rem;color:#465663}

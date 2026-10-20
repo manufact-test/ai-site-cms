@@ -2,6 +2,8 @@
 document.documentElement.classList.add('js');
 const toggle = document.querySelector('#nav-toggle');
 const nav = document.querySelector('#site-nav');
+// The menu button has no meaningful behaviour without JavaScript.
+toggle.hidden = false;
 const closeNav = (restore = false) => {
   toggle.setAttribute('aria-expanded', 'false');
   if (restore) toggle.focus();
@@ -53,8 +55,13 @@ for (const tab of tabs) {
     selectTab(tabs[next], true);
   });
 }
+// Without scripts both panels are readable and nonfunctional tab controls stay hidden.
+// Once interactive, establish a single ARIA-selected tab before revealing controls.
+selectTab(tabs[0]);
+document.querySelector('[role="tablist"]').hidden = false;
 const dialog = document.querySelector('#info-dialog');
 const opener = document.querySelector('#open-dialog');
+opener.hidden = false;
 let returnFocus = opener;
 opener.addEventListener('click', () => {returnFocus = opener; dialog.showModal();});
 document.querySelector('#close-dialog').addEventListener('click', () => dialog.close());
@@ -62,6 +69,9 @@ document.querySelector('#dialog-faq').addEventListener('click', () => {returnFoc
 dialog.addEventListener('close', () => {returnFocus.focus(); returnFocus = opener;});
 
 const form = document.querySelector('#contact');
+// No-JS submissions use native required/email/minlength constraints before the PHP boundary;
+// the enhanced two-step wizard supplies its own Unicode-consistent validation.
+form.noValidate = true;
 const status = document.querySelector('#form-status');
 const send = document.querySelector('#form-submit');
 const keys = ['name', 'email', 'phone_region', 'phone', 'message'];
