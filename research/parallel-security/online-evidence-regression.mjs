@@ -108,6 +108,7 @@ try{
     ['registry duplicate entry',r=>r.results[1]=copy(r.results[0])],
     ['registry wrong source host',r=>r.results[0].source='https://evil.invalid'],
     ['registry inconsistent outdated count',r=>r.outdated=7],
+    ['registry lies about which upgrade is available',r=>{r.results[0].upgradeCandidate=false;r.outdated=42;}],
     ['registry missing safety wording',r=>r.note='safe to deploy'],
     ['registry missing latest',r=>delete r.results[2].latest],
     ['registry false future timestamp',r=>r.checkedAt='2099-01-01T00:00:00.000Z']
