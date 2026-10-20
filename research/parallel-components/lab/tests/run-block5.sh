@@ -21,6 +21,9 @@ for file in lab/tests/test_*.py; do
 done
 # Run every actual Chromium suite at the end, after isolated HTTP sessions.
 for file in lab/tests/test_*browser*.py; do
-    timeout 45s python -m unittest discover -s lab/tests -p "$(basename "$file")" -q
+    # The bridge suite is deliberately imported by test_browser.py so that the
+    # shared fixed-list GitHub workflow exercises it too. Avoid running twice.
+    if [[ "$file" == *test_browser_php_bridge.py ]]; then continue; fi
+    timeout 60s python -m unittest discover -s lab/tests -p "$(basename "$file")" -q
 done
 printf '%s\n' 'RESEARCH_LAB_TESTS_PASSED (NOT production, no real mail/phone/Next SSR)'

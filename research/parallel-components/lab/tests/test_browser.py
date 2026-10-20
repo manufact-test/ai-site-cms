@@ -10,6 +10,9 @@ from urllib.request import urlopen, Request
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from playwright.sync_api import sync_playwright
+# Also exercise the live PHP/session bridge when the shared CI runs this older entrypoint.
+# unittest's standard class discovery includes this imported TestCase without workflow edits.
+from test_browser_php_bridge import BrowserPhpBridge
 
 PUBLIC = Path(__file__).resolve().parents[1] / 'public'
 
