@@ -134,6 +134,71 @@ try {
     unlink($hostile->root() . '/staging');
     labOk($hostile->recover('abort')['status'] === 'empty', 'manual removal of foreign node permits abort');
 
+    // Operator journals are security-relevant, not merely debug metadata.
+    // Any alternate JSON bytes (even if json_decode returns the SAME values)
+    // must block both startup inspection and automatic-looking recovery.
+    $ambiguous = Lab::create(); $labRoots[] = $ambiguous->root();
+    labReject(static fn () => $ambiguous->stage($source, $hash, 'after-intent'),
+        'construct pending installation for journal forensic mutations');
+    $intentPath = $ambiguous->root() . '/install-intent.json';
+    $intentRaw = (string)file_get_contents($intentPath);
+    $intent = json_decode($intentRaw, true, 16, JSON_THROW_ON_ERROR);
+    $journalVariants = [
+        'appended_space' => $intentRaw . ' ',
+        'removed_final_newline' => rtrim($intentRaw, "\n"),
+        'extra_prefix_space' => ' ' . $intentRaw,
+        'duplicate_format' => str_replace('"format":',
+            '"format":"spoof","format":', $intentRaw),
+        'duplicate_version' => str_replace('"version":',
+            '"version":"0.0.0-stage2.0","version":', $intentRaw),
+        'different_field_order' => json_encode([
+            'version'=>$intent['version'], 'format'=>$intent['format'],
+            'manifestSha256'=>$intent['manifestSha256']
+        ], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n",
+        'wrong_digest' => json_encode(array_replace($intent,
+            ['manifestSha256'=>str_repeat('0',64)]), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n",
+        'wrong_version_type' => json_encode(array_replace($intent,
+            ['version'=>7]), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n",
+        'invalid_version' => json_encode(array_replace($intent,
+            ['version'=>'0.2.0-stage2.invalid']), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n"
+    ];
+    foreach ($journalVariants as $why => $attacked) {
+        labOk($attacked !== $intentRaw, 'Journal attack fixture genuinely changed: '.$why);
+        file_put_contents($intentPath, $attacked);
+        labReject(static fn () => $ambiguous->inspect(),
+            'noncanonical/inconsistent pending intent refused: '.$why);
+        labReject(static fn () => $ambiguous->recover('abort'),
+            'hostile intent cannot authorize removal of interrupted staging: '.$why);
+        labOk((string)file_get_contents($intentPath) === $attacked,
+            'refusal retains hostile intent for forensic review: '.$why);
+    }
+    file_put_contents($intentPath, $intentRaw);
+    labOk($ambiguous->inspect()['status'] === 'pending-before-rename',
+        'authentic pending journal remains recoverable after forensic restoration');
+    labOk($ambiguous->recover('abort')['status'] === 'empty',
+        'explicit abort after restoring unmodified intent');
+
+    $partial = Lab::create(); $labRoots[] = $partial->root();
+    labReject(static fn () => $partial->stage($source, $hash, 'after-receipt'),
+        'construct committed install with unresolved cleanup journal');
+    $receiptPath = $partial->root() . '/install-receipt.json';
+    $validReceipt = (string)file_get_contents($receiptPath);
+    foreach (['trailing-whitespace'=>$validReceipt . ' ',
+              'duplicate-digest'=>str_replace('"manifestSha256":',
+                  '"manifestSha256":"'.str_repeat('0',64).'","manifestSha256":',
+                  $validReceipt)] as $why=>$tampered) {
+        file_put_contents($receiptPath, $tampered);
+        labReject(static fn () => $partial->inspect(),
+            'ambiguous committed receipt is not considered ready: '.$why);
+        labReject(static fn () => $partial->recover('finalize'),
+            'ambiguous receipt cannot finalize interrupted install: '.$why);
+    }
+    file_put_contents($receiptPath, $validReceipt);
+    labOk($partial->recover('finalize')['status'] === 'installed',
+        'restored exact receipt and intent finalize normally');
+    labOk(Lab::reopen($partial->root())->inspect()['ready'] === true,
+        'canonical committed install remains ready after independent reopen');
+
     // Full compiled distribution from the static editor workflow, not a fake fixture.
     // This verifies actual package bytes; the separate Node/PHP signed-archive test
     // authenticates the digest used for the end-to-end distribution workflow.
