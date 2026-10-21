@@ -25,7 +25,7 @@ try {
     checkState($rate->allow('203.0.113.11',$now-3600,5,3600),'create expired rate fixture');
     checkState($rate->allow('203.0.113.12',$now-3599,5,3600),'create active rate fixture');
     checkState($claims->claim('old@example.test',$fields,$now-3600)==='CLAIMED','old claim fixture');
-    checkState($claims->claim('active@example.test',$fields,$now-3599)==='CLAIMED','active claim fixture');
+    checkState($claims->claim('active@example.test',$fields,$now-599)==='CLAIMED','active claim inside default TTL');
     $name = static fn(string $text, string $extension): string =>
         hash_hmac('sha256',$text,$secret).'.'.$extension;
     $expiredRate = $dir.'/'.$name('form-v1|203.0.113.11','rate');
