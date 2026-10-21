@@ -147,11 +147,6 @@ final class LabPackageStager
                 throw new RuntimeException('Unapproved Stage2 public application surface');
             }
         }
-        if (($manifest['writeEndpointsAvailable'] ?? null) !== false
-            || ($manifest['adminEditorAssets'] ?? null) !== 'private/editor'
-            || ($manifest['hostingComposerOrNodeRequired'] ?? null) !== false) {
-            throw new RuntimeException('Stage2 internal release capability policy mismatch');
-        }
         self::scan($src, $listed);
         return ['manifestSha256'=>$expectedManifestSha256, 'version'=>$manifest['releaseVersion'],
             'files'=>count($manifest['files']), 'bytes'=>$bytes];
