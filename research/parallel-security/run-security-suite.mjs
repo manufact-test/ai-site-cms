@@ -40,7 +40,7 @@ function requireProof(row, expectedPattern, evidenceLabel) {
   return row;
 }
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
-  'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','release-fixture.mjs','release-verify-runner.php',
+  'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
@@ -139,6 +139,10 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
       /Stage2 signed settlement chain research PASS: 38 assertions;/,
       '38 signed permit/receipt/settlement linkage and anti-replay assertions');
   } else block('native:operator-settlement-chain','Signed settlement chain fixture unavailable');
+    requireProof(entry('native:node-signed-chain',
+    capture('node',[path.join(dirname,'chain-backend-regression.mjs'),'native'],{timeout:90000})),
+    /Chain Ed25519 backend signed-chain regression PASS 11 assertions; mode=native;/,
+    '11 authentic Node-signed two-generation permit/receipt/settlement assertions');
   const rootTrustFixture=path.join(root,'cms/tests/trust-chain.php');
   if(fs.existsSync(rootTrustFixture)) {
     requireProof(entry('native:trust-root-rotation',
@@ -177,7 +181,7 @@ console.log(JSON.stringify(out,null,2));
 // enough to prove which exact-head fixtures reached their final assertion count.
 const proofNames=[
   'native:operator-receipt-chain','native:operator-preactivation-permit',
-  'native:operator-settlement-chain','native:trust-root-rotation',
+  'native:operator-settlement-chain','native:node-signed-chain','native:trust-root-rotation',
   'mutation:osv-strict-regression.mjs','mutation:osv-cli-regression.mjs',
   'mutation:suite-exit-regression.mjs',
   'mutation:sodium-compat-attest-regression.mjs',
