@@ -294,12 +294,15 @@ try {
     throw new Error('Proof assertion count incomplete: '+assertions);
   if(mode==='matrix'&&(native.head!==compat.head||native.count!==compat.count))
     throw new Error('Native/compat computed different exact signed chain heads');
+  // Emit the machine-readable full transcript first, followed by a compact
+  // final proof marker. The parent suite intentionally retains only the last
+  // 1600 stdout bytes, so a large audit transcript must not erase PASS evidence.
+  console.log(JSON.stringify({mode,assertions,productionApproved:false,
+    nativeFreeProven:mode!=='native',parityCompared:mode==='matrix',transcript}));
   console.log('Chain Ed25519 backend signed-chain regression PASS '+assertions+
     ' assertions; mode='+mode+'; real original PHP verifiers; '+
     (mode==='native'?'NO no-native proof':'physical no-native and source pre/post attested')+
     '; NOT production approval');
-  console.log(JSON.stringify({mode,assertions,productionApproved:false,
-    nativeFreeProven:mode!=='native',parityCompared:mode==='matrix',transcript}));
 }catch(e){
   const m=String(e.message||e);
   console.error(m);process.exitCode=m.startsWith('BLOCKED:')?3:1;
