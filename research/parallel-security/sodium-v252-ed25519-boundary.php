@@ -85,8 +85,8 @@ try {
     verifyCondition(ParagonIE_Sodium_Compat::$fastMult === false,
         'no global arithmetic-mode change after malformed signature');
 
-    if ($assertions !== 13) throw new RuntimeException('incomplete independently checked cases');
-    echo "REAL original sodium_compat 2.5.2 Ed25519 identity, subgroup and state-boundary PASS 13 assertions; physical native-free PHP; NOT formal crypto audit or production approval\n";
+    if ($assertions !== 14) throw new RuntimeException('incomplete independently checked cases');
+    echo "REAL original sodium_compat 2.5.2 Ed25519 identity, subgroup and state-boundary PASS 14 assertions; physical native-free PHP; NOT formal crypto audit or production approval\n";
     echo json_encode(['schema'=>'ai-site-cms-source-ed25519-v252-boundary-v1',
        'assertions'=>$assertions,'physicalNoNative'=>true,'upstreamPatch'=>'paragonie/sodium_compat#208',
        'signedReleaseApproved'=>false,'cryptoExpertSignoff'=>false,'productionApproved'=>false],

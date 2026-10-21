@@ -335,7 +335,7 @@ if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
         ?detail?.physicalPhp83WithoutSodium===true&&detail?.absenceAssertions===2
         :detail?.composerInstalled===true&&detail?.installedOriginalGitBlobs===78&&
           detail?.preAndPostSourceAttested===true&&detail?.physicalCompatRfcAndEnvelopeCases===4&&
-          detail?.upstreamV252Ed25519BoundaryAssertions===13;
+          detail?.upstreamV252Ed25519BoundaryAssertions===14;
       if(state==='passed'&&substantive&&lab.exitCode!==null&&!lab.spawnError){
         // This script has TWO independent gates: its process can exit 3 when
         // physical PHP PASS is followed by an unavailable Composer network.

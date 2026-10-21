@@ -136,12 +136,12 @@ try{
         let boundaryJson=null;
         try{boundaryJson=JSON.parse(boundaryLines.at(-1))}catch{}
         demand(boundary.status===0&&boundaryLines.includes(
-          'REAL original sodium_compat 2.5.2 Ed25519 identity, subgroup and state-boundary PASS 13 assertions; physical native-free PHP; NOT formal crypto audit or production approval')&&
-          boundaryJson?.assertions===13&&boundaryJson?.physicalNoNative===true&&
+          'REAL original sodium_compat 2.5.2 Ed25519 identity, subgroup and state-boundary PASS 14 assertions; physical native-free PHP; NOT formal crypto audit or production approval')&&
+          boundaryJson?.assertions===14&&boundaryJson?.physicalNoNative===true&&
           boundaryJson?.cryptoExpertSignoff===false&&boundaryJson?.productionApproved===false,
           'independently installed 2.5.2 cryptographic boundary checks failed: '+
           (boundary.stderr||boundary.stdout).slice(-380));
-        report.ed25519UpstreamPatchAssertions=13;
+        report.ed25519UpstreamPatchAssertions=14;
         const after=checkInstalledGitSource(source,loadUpstream());
         const second=attest(source,lock,reviewed);
         demand(after.upstreamGitBlobFilesVerified===78&&JSON.stringify(first)===JSON.stringify(second),
@@ -150,7 +150,7 @@ try{
         report.isolatedComposerLockSha256=first.isolatedLockSha256;
         report.compat={status:'passed',composerInstalled:true,installedOriginalGitBlobs:78,
           preAndPostSourceAttested:true,physicalCompatRfcAndEnvelopeCases:4,
-          upstreamV252Ed25519BoundaryAssertions:13};
+          upstreamV252Ed25519BoundaryAssertions:14};
         code=0;
       }
     }
