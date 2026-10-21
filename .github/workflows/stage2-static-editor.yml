@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'cms/editor/**'
+      - 'cms/stage2-preview/**'
       - 'cms/tools/**'
       - 'cms/bin/**'
       - 'cms/tests/**'
@@ -53,6 +54,8 @@ jobs:
       - name: Owner-visible local product preview (one critical end-to-end)
         run: |
           node --check ../stage2-preview/content.js
+          node --check ../stage2-preview/project.js
+          node --check ../stage2-preview/site-export.js
           node --check ../stage2-preview/renderer.js
           node --check ../stage2-preview/app.js
           node tests/stage2-preview-smoke.cjs
