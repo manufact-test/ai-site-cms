@@ -77,14 +77,27 @@ if(fs.existsSync(path.join(dirname,'ed25519-callsite-audit.php'))){
     /Stage2 Ed25519 source callsite offline regression PASS 13 assertions;/,
     '13 PHP-token negative/positive fixture cases, source only');
 }else block('mutation:ed25519-source-audit','Research-only source audit fixture unavailable in partial checkout');
-requireProof(entry('upstream:archived-main-genuine-sodium-free',
-  capture('node',[path.join(dirname,'archived-main-sodium-proof.mjs')],{timeout:10000})),
-  /Archived real main GitHub CI sodium-free evidence PASS 33 chain \+ 55 rotation checks; ARCHIVE ONLY/,
-  'main GitHub Actions 39571456888/119126388264 archived exact output; NOT reexecuted in this Security job');
-requireProof(entry('mutation:archived-main-sodium-provenance',
-  capture('node',[path.join(dirname,'archived-main-sodium-regression.mjs')],{timeout:20000})),
-  /Archived main CI evidence provenance and false-claim offline regression PASS 40 assertions;/,
-  '40 archived real-CI report tampering and conservative interpretation tests');
+// The suite-exit policy fixture intentionally copies only some files into an
+// empty temp checkout. Missing archived upstream evidence is INCOMPLETE, never
+// an executed test failure, nor an implied successful CI provenance check.
+const upstreamEvidenceFiles=[
+  'archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs',
+  'fixtures/archived-main-real-no-sodium-ci.json'
+];
+if(upstreamEvidenceFiles.every(f=>fs.existsSync(path.join(dirname,f)))){
+  requireProof(entry('upstream:archived-main-genuine-sodium-free',
+    capture('node',[path.join(dirname,'archived-main-sodium-proof.mjs')],{timeout:10000})),
+    /Archived real main GitHub CI sodium-free evidence PASS 33 chain \+ 55 rotation checks; ARCHIVE ONLY/,
+    'main GitHub Actions 39571456888/119126388264 archived exact output; NOT reexecuted in this Security job');
+  requireProof(entry('mutation:archived-main-sodium-provenance',
+    capture('node',[path.join(dirname,'archived-main-sodium-regression.mjs')],{timeout:20000})),
+    /Archived main CI evidence provenance and false-claim offline regression PASS 40 assertions;/,
+    '40 archived real-CI report tampering and conservative interpretation tests');
+}else{
+  for(const name of ['upstream:archived-main-genuine-sodium-free',
+    'mutation:archived-main-sodium-provenance'])
+    block(name,'Independent checked-in archival CI evidence and validator missing in this partial checkout');
+}
 const lockPaths=['cms/composer.lock','cms/editor/package-lock.json','cms/editor/package.json'];
 const completeLock=lockPaths.every(f=>fs.existsSync(path.join(root,f)));
 if(completeLock){
