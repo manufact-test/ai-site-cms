@@ -42,7 +42,7 @@ function requireProof(row, expectedPattern, evidenceLabel) {
   return row;
 }
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
-  'ed25519-lab.php','main-web-crypto-surface.php','sodium-v252-ed25519-boundary.php','sodium-ed25519-cli-load-profile.php','main-head-independent-proof.mjs','main-web-crypto-surface-regression.mjs','independent-no-sodium-composer-lab.mjs','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
+  'ed25519-lab.php','main-web-crypto-surface.php','sodium-v252-ed25519-boundary.php','sodium-ed25519-cli-load-profile.php','main-head-independent-proof.mjs','main-web-crypto-surface-regression.mjs','main-webserver-boundary-proof.mjs','independent-no-sodium-composer-lab.mjs','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-live-independent-proof.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','sodium-real-zip-proof.mjs','sodium-real-zip-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
@@ -97,6 +97,12 @@ if(fs.existsSync(path.join(dirname,'main-web-crypto-surface-regression.mjs'))&&
     /Original main static web\/CLI Ed25519 surface regression PASS 24 assertions; synthetic fixtures only, actual original Git files verified in separate live main proof/,
     '24 token-parser HTTP/CLI anti-route-injection regressions');
 }else block('mutation:main-web-crypto-surface-regression.mjs','Missing web source fixture');
+if(fs.existsSync(path.join(dirname,'main-webserver-boundary-proof.mjs'))){
+  requireProof(entry('mutation:main-webserver-boundary-regression.mjs',
+    capture('node',[path.join(dirname,'main-webserver-boundary-proof.mjs'),'--self-test'],{timeout:25000})),
+    /WEBSERVER_POLICY_SYNTHETIC_REGRESSION_PASS [0-9]+ tests; fixtures only, never Hostinger semantics or real deployment/,
+    'static document-root source policy drift synthetic regressions; NOT Apache/LiteSpeed execution');
+}else block('mutation:main-webserver-boundary-regression.mjs','Static document-root research fixture missing');
 // This source-of-truth comes from the actual ParagonIE public signed Git tag,
 // NOT from Composer metadata. Partial checkout lacks bundled external Git
 // transcript: mark incomplete, never invent positive vendor-source evidence.
@@ -296,6 +302,7 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
         (mainProof.stderr||mainProof.spawnError||'incomplete').slice(-350);
       block('native:forced-class-signed-chain',sourceRow.reason);
       block('source:main-web-crypto-entrypoint-census',sourceRow.reason);
+      block('source:main-webserver-documentroot-policy',sourceRow.reason);
     }else{
       // Keep the SOURCE proof as the source row's last evidence line;
       // the separate 60-case chain row retains the chain proof marker.
@@ -309,6 +316,9 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
       requireProof(entry('source:main-web-crypto-entrypoint-census',mainProof),
         /EXACT current main SHA [a-f0-9]{40} original static public\/Hostinger release exposure PASS 1 health, 7 preflight paths, 2 CLI guards; no dynamic reachability or production approval/,
         'exact current main blob-verified web/CLI static route census');
+      requireProof(entry('source:main-webserver-documentroot-policy',mainProof),
+        /EXACT current main SHA [a-f0-9]{40} original static webserver document-root policy PASS 2 files; NOT tested Apache\/LiteSpeed\/Hostinger enforcement/,
+        'two real current-main Git-blob-attested .htaccess sources, static exact directive contract');
       requireProof(entry('native:forced-class-signed-chain',mainProof),
         /EXACT current main SHA [a-f0-9]{40} forced-class native signed-chain PASS 60 assertions;/,
         '60 real current-main signed chain assertions via native class route');
@@ -316,6 +326,8 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
   }else{
     block('source:main-web-crypto-entrypoint-census',
       'Exact current main original source census required; historical PR-base is insufficient');
+    block('source:main-webserver-documentroot-policy',
+      'Current main original .htaccess proof required; historical PR-base is insufficient');
     requireProof(sourceRow,/Stage2 shared Ed25519 backend original source PASS 5 PHP verifiers;/,
       '5 original PHP signed verifiers have shared backend, no global calls');
     requireProof(entry('native:forced-class-signed-chain',
@@ -478,7 +490,8 @@ const proofNames=[
   'native:operator-settlement-chain','native:node-signed-chain',
   'native:forced-class-signed-chain','native:pinned-fixed-main-dispatch-parity',
   'native:class-only-backend-primitive',
-  'source:common-ed25519-backend','source:main-web-crypto-entrypoint-census','mutation:ed25519-source-audit',
+  'source:common-ed25519-backend','source:main-web-crypto-entrypoint-census',
+  'source:main-webserver-documentroot-policy','mutation:main-webserver-boundary-regression.mjs','mutation:ed25519-source-audit',
   'native:trust-root-rotation',
   'mutation:osv-strict-regression.mjs','mutation:osv-cli-regression.mjs',
   'mutation:suite-exit-regression.mjs',
