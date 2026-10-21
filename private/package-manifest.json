@@ -301,8 +301,8 @@
     },
     {
       "path": "src/Release/TrustedChainVerifier.php",
-      "bytes": 11498,
-      "sha256": "87cd403ee8ffbb761cc559fdccf1fc65d2e4bce6bb4c756d959844b58f73b4e3"
+      "bytes": 12130,
+      "sha256": "921e220ce51e49a9bb2eb93377c505c1f764ac8b644b288a808d46ba29655899"
     },
     {
       "path": "src/Storage/FoundationSnapshot.php",

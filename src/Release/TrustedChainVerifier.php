@@ -46,7 +46,14 @@ final class TrustedChainVerifier
         if (!hash_equals(hash('sha256', self::DER_PREFIX . $key), $rootFingerprint)) {
             throw new RuntimeException('Original root pin mismatch');
         }
-        $chain = self::json(self::readRegular($chainPath, 32768));
+        $chainBytes = self::readRegular($chainPath, 32768);
+        $chain = self::json($chainBytes);
+        // The outer chain is a security-critical journal. Disallow JSON key
+        // duplicates, whitespace tricks and alternate serializations before
+        // trusting signed transitions or the external epoch checkpoint.
+        if (!hash_equals(self::canonical($chain), $chainBytes)) {
+            throw new RuntimeException('Noncanonical trust history bytes');
+        }
         self::exact($chain, ['format','root','events']);
         if ($chain['format'] !== self::FORMAT || $chain['root'] !== $rootFingerprint
             || !is_array($chain['events']) || !array_is_list($chain['events'])
@@ -116,7 +123,11 @@ final class TrustedChainVerifier
         $status = 'clean';
         $pendingPath = $root . '/trust-intent.json';
         if (file_exists($pendingPath) || is_link($pendingPath)) {
-            $intent = self::json(self::readRegular($pendingPath, 1024));
+            $intentBytes = self::readRegular($pendingPath, 1024);
+            $intent = self::json($intentBytes);
+            if (!hash_equals(self::canonical($intent), $intentBytes)) {
+                throw new RuntimeException('Noncanonical trust transition journal bytes');
+            }
             self::exact($intent, ['format','fromEpoch','eventSha256']);
             if ($intent['format'] !== self::FORMAT
                 || !is_int($intent['fromEpoch']) || $intent['fromEpoch'] < 0
