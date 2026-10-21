@@ -199,6 +199,98 @@ try {
     labOk(Lab::reopen($partial->root())->inspect()['ready'] === true,
         'canonical committed install remains ready after independent reopen');
 
+    // Guard the actual operating-system permissions of the private operator
+    // workspace even when a CI process inherits umask(0000).
+    $oldMask = umask(0000);
+    try {
+        $private = Lab::create(); $labRoots[] = $private->root();
+        labReject(static fn() => $private->stage($source,$hash,'after-intent'),
+            'construct private journal under wide-open process umask');
+        $intentFile = $private->root().'/install-intent.json';
+        clearstatcache(true,$intentFile);
+        labOk((fileperms($intentFile) & 0777) === 0600,
+            'new intent always mode 0600 independent of caller umask');
+        labOk((fileperms($private->root()) & 0777) === 0700,
+            'new installation root always mode 0700');
+        labOk($private->inspect()['status'] === 'pending-before-rename',
+            'mode 0600 journal remains readable by private operator');
+
+        chmod($intentFile, 0644);
+        clearstatcache(true,$intentFile);
+        labReject(static fn()=> $private->inspect(),
+            'world-readable intent cannot authorize startup or recovery');
+        labReject(static fn()=> $private->recover('abort'),
+            'world-readable intent cannot authorize destructive stage cleanup');
+        labOk(is_file($intentFile), 'unsafe intent retained for manual review');
+        chmod($intentFile, 0600);
+        clearstatcache(true,$intentFile);
+
+        chmod($private->root(), 0777);
+        clearstatcache(true,$private->root());
+        labReject(static fn()=> Lab::reopen($private->root()),
+            'world-writable imitation of private installer root is rejected');
+        labReject(static fn()=> $private->inspect(),
+            'existing lab object cannot use altered world-writable root');
+        chmod($private->root(), 0700);
+        clearstatcache(true,$private->root());
+        labOk($private->recover('abort')['status'] === 'empty',
+            'exact rights restoration permits explicit abort only');
+
+        $receiptLab = Lab::create(); $labRoots[] = $receiptLab->root();
+        labReject(static fn()=> $receiptLab->stage($source,$hash,'after-receipt'),
+            'prepare crashed receipt under hostile caller umask');
+        $receiptFile = $receiptLab->root().'/install-receipt.json';
+        clearstatcache(true,$receiptFile);
+        labOk((fileperms($receiptFile) & 0777) === 0600,
+            'committed receipt always mode 0600 independent of process umask');
+        chmod($receiptFile, 0666);
+        clearstatcache(true,$receiptFile);
+        labReject(static fn()=> $receiptLab->inspect(),
+            'world-writable receipt cannot be considered a ready installation');
+        labReject(static fn()=> $receiptLab->recover('finalize'),
+            'world-writable receipt cannot finalize release');
+        chmod($receiptFile, 0600);
+        clearstatcache(true,$receiptFile);
+        labOk($receiptLab->recover('finalize')['ready'] === true,
+            'real signed-inventory receipt may finalize after permissions repair');
+
+        // Never silently clean up a half-written receipt: it is a forensic
+        // marker of an interrupted commit, even when other bytes are valid.
+        $inflight = Lab::create(); $labRoots[]=$inflight->root();
+        labReject(static fn()=> $inflight->stage($source,$hash,'after-intent'),
+            'construct pending intent and interrupted receipt fixture');
+        $receiptTemp=$inflight->root().'/install-receipt.json.tmp';
+        file_put_contents($receiptTemp,'{"partial":');
+        labReject(static fn()=> $inflight->inspect(),
+            'incomplete receipt temporary file fails closed');
+        labReject(static fn()=> $inflight->recover('abort'),
+            'do not erase evidence of unfinished receipt write');
+        labOk(is_file($receiptTemp), 'incomplete temp journal left for forensic review');
+        unlink($receiptTemp);
+        labOk($inflight->recover('abort')['status'] === 'empty',
+            'explicit abort only after separate operator resolution of temp journal');
+    } finally { umask($oldMask); }
+
+    // Hardlinks to identical bytes in the installed code must not pass its
+    // read-only integrity check; a file shared with a foreign tree is mutable.
+    $linked = Lab::create(); $labRoots[] = $linked->root();
+    labOk($linked->stage($source,$hash)['ready'] === true,
+        'establish valid private package to exercise inode link refusal');
+    $installedEditor=$linked->root().'/code/private/editor/editor.js';
+    $outsideEditor=$fixtureRoot.'/external-editor-identical.js';
+    file_put_contents($outsideEditor,'(() => {})();');
+    unlink($installedEditor);
+    link($outsideEditor,$installedEditor);
+    labReject(static fn()=> $linked->inspect(),
+        'foreign-linked editor cannot masquerade as installed immutable code');
+    labOk((string)file_get_contents($outsideEditor)==='(() => {})();',
+        'hardlink rejection did not change foreign operator data');
+    unlink($installedEditor);
+    file_put_contents($installedEditor,'(() => {})();');
+    labOk($linked->inspect()['ready'] === true,
+        'private inventory recovers once standalone original bytes restored');
+    unlink($outsideEditor);
+
     // Full compiled distribution from the static editor workflow, not a fake fixture.
     // This verifies actual package bytes; the separate Node/PHP signed-archive test
     // authenticates the digest used for the end-to-end distribution workflow.
