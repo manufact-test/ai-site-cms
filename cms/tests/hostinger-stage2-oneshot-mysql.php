@@ -158,6 +158,10 @@ try {
     $check(hash_file('sha256',$tmp.'/public_html/index.html')===$siteHash,
         'read-only transaction exercise cannot alter independent visitor');
 
+    // The credential-free preflight must NEVER treat a local self-declared
+    // owner key fingerprint as independent approval. Report only safe state.
+    $anchorEnv='CMS_STAGE2_OWNER_INSTALL_TRUSTED_SPKI_SHA256';
+    putenv($anchorEnv);
     [$preflightCode,$preflightOut,$preflightErr]=$runCron('hostinger-stage2-preflight.php');
     $preflight=json_decode($preflightOut,true,8,JSON_THROW_ON_ERROR);
     $check($preflightCode===0 && $preflightErr==='' && $preflight['pdoMysqlAvailable']
@@ -175,6 +179,25 @@ try {
         'CLI preflight reports pin without password or MySQL connection');
     $check(!is_file($local.'/receipt.json') && !is_file($local.'/once.json'),
         'credential-free preflight is strictly read-only');
+    $check($preflight['ownerWriteExternalTrustPinState']==='absent'
+        && $preflight['ownerWriteApprovalVerified']===false,
+        'private self-declared trust JSON is never counted as external owner approval');
+    putenv($anchorEnv.'=NOT_HEX_PIN');
+    [$badAnchorCode,$badAnchorText,$badAnchorErr]=$runCron('hostinger-stage2-preflight.php');
+    $badAnchorReport=json_decode($badAnchorText,true,8,JSON_THROW_ON_ERROR);
+    $check($badAnchorCode===0 && $badAnchorErr===''
+        && $badAnchorReport['ownerWriteExternalTrustPinState']==='malformed'
+        && $badAnchorReport['ownerWriteApprovalVerified']===false,
+        'preflight flags malformed owner pin without revealing its contents');
+    putenv($anchorEnv.'='.$trust['trustedOwnerSpkiSha256']);
+    [$pinCode,$pinText,$pinErr]=$runCron('hostinger-stage2-preflight.php');
+    $pinReport=json_decode($pinText,true,8,JSON_THROW_ON_ERROR);
+    $check($pinCode===0 && $pinErr===''
+        && $pinReport['ownerWriteExternalTrustPinState']==='configured_identity_unverified'
+        && $pinReport['ownerWriteApprovalVerified']===false
+        && !str_contains($pinText,$trust['trustedOwnerSpkiSha256']),
+        'preflight reports external pin presence, never owner identity or pin bytes');
+    putenv($anchorEnv);
     $reject(fn()=>Job::run($package,$local)); // Missing operator task.
     chmod($local,0755);
     [$looseCode,$looseText,$looseErr]=$runCron('hostinger-stage2-preflight.php');
@@ -407,9 +430,58 @@ try {
         &&is_file($local.'/once.json')&&!is_file($local.'/receipt.json'),
         'unsigned install task fails before DB/receipt');
     $store($task);
+    // Even a REAL synthetic Ed25519 signed permit must NOT authorize install
+    // if the independent (external to once.json/trust JSON) owner key pin is
+    // absent or different. Neither rejection consumes task nor opens MySQL.
+    $ownerEnv='CMS_STAGE2_OWNER_INSTALL_TRUSTED_SPKI_SHA256';
+    putenv($ownerEnv);
+    [$unPinnedCode,$unPinnedOut,$unPinnedErr]=$runCron();
+    $check($unPinnedCode===3 && $unPinnedOut===''
+        && str_contains($unPinnedErr,'STAGE2_ONCE_REFUSED')
+        && is_file($local.'/once.json') && !is_file($local.'/receipt.json'),
+        'fully signed install refused when independent owner trust anchor absent');
+    $reject(fn()=>\AiSiteCms\Hosting\Stage2OwnerWriteConsent::verify(
+        $local,$task,$task['package_manifest_sha256']));
+    putenv($ownerEnv.'='.str_repeat('0',64));
+    [$unPinnedCode,$unPinnedOut,$unPinnedErr]=$runCron();
+    $check($unPinnedCode===3 && $unPinnedOut===''
+        && is_file($local.'/once.json') && !is_file($local.'/receipt.json'),
+        'wrong external owner pin refuses signed install before receipt/DB');
+    putenv($ownerEnv.'='.$trust['trustedOwnerSpkiSha256']);
     $check(\AiSiteCms\Hosting\Stage2OwnerWriteConsent::verify(
         $local,$task,$task['package_manifest_sha256'])===null,
-        'separate owner signature binds exact install task and package');
+        'separate owner signature and external pinned owner key bind install task and package');
+
+    // Adversary can REPLACE all files in operator-owned local root and can
+    // generate its own Ed25519 signature. The separately administered
+    // Cron environment trust anchor must still reject that valid forgery.
+    $attackerPair=sodium_crypto_sign_keypair();
+    $attackerSecret=sodium_crypto_sign_secretkey($attackerPair);
+    $attackerDer=hex2bin('302a300506032b6570032100').
+        sodium_crypto_sign_publickey($attackerPair);
+    $attackerTrust=$trust;
+    $attackerTrust['trustedOwnerSpkiSha256']=hash('sha256',$attackerDer);
+    $attackerPem="-----BEGIN PUBLIC KEY-----\n".
+        chunk_split(base64_encode($attackerDer),64,"\n").
+        "-----END PUBLIC KEY-----\n";
+    $attackerPermit=json_decode(file_get_contents($local.'/owner-install-consent.json'),
+        true,16,JSON_THROW_ON_ERROR);
+    $attackerPermit['signature']=base64_encode(sodium_crypto_sign_detached(
+        "AI-SITE-CMS-STAGE2-OWNER-WRITE-INSTALL-V1\0".
+        json_encode($attackerPermit['payload'],JSON_THROW_ON_ERROR),$attackerSecret));
+    $writePrivate('owner-install-trust.json',json_encode($attackerTrust,JSON_THROW_ON_ERROR));
+    $writePrivate('owner-install-public.pem',$attackerPem);
+    $writePrivate('owner-install-consent.json',json_encode($attackerPermit,JSON_THROW_ON_ERROR));
+    [$forgedCode,$forgedOut,$forgedErr]=$runCron();
+    $check($forgedCode===3&&$forgedOut===''&&str_contains($forgedErr,'STAGE2_ONCE_REFUSED')
+        &&is_file($local.'/once.json')&&!is_file($local.'/receipt.json'),
+        'complete replacement of local owner key trust and signed consent cannot install');
+    $writePrivate('owner-install-trust.json',json_encode($trust,JSON_THROW_ON_ERROR));
+    $writePrivate('owner-install-public.pem',$pem);
+    $signInstall($task);
+    $check(\AiSiteCms\Hosting\Stage2OwnerWriteConsent::verify(
+        $local,$task,$task['package_manifest_sha256'])===null,
+        'restored real synthetic owner key passes independently pinned verifier');
     $bad=$task;$bad['db_password']='modified-credentials';
     $reject(fn()=>\AiSiteCms\Hosting\Stage2OwnerWriteConsent::verify(
         $local,$bad,$task['package_manifest_sha256']));

@@ -95,9 +95,24 @@ try{
   privateWrite(path.join(phpLocal,'owner-install-trust.json'),JSON.stringify(trust));
   const phpArgs=[path.join(__dirname,'../tests/stage2-owner-write-cross-runtime.php'),
     phpLocal,taskFile,manifestPin];
-  const phpRun=()=>cp.spawnSync('php',phpArgs,{
-    encoding:'utf8',env:{...process.env,CI:'true',GITHUB_ACTIONS:'true'}});
-  let php=phpRun();
+  // The trust digest must come from a *separate* Cron provisioning channel.
+  // Mutable local trust JSON plus a replaced PEM alone may never authorize.
+  const envPin='CMS_STAGE2_OWNER_INSTALL_TRUSTED_SPKI_SHA256';
+  const phpRun=(externalPin=pin)=> {
+    const env={...process.env,CI:'true',GITHUB_ACTIONS:'true'};
+    delete env[envPin];
+    if(externalPin!==null)env[envPin]=externalPin;
+    return cp.spawnSync('php',phpArgs,{encoding:'utf8',env});
+  };
+  let php=phpRun(null);
+  yes(php.status===3
+    &&php.stderr.includes('STAGE2_NODE_TO_PHP_WRITE_SIGNATURE_REFUSED'),
+    'no out-of-band owner public-key pin refuses otherwise valid signed permit');
+  php=phpRun('0'.repeat(64));
+  yes(php.status===3,'wrong but syntactically valid independent pin refused');
+  php=phpRun('NOT_A_TRUST_DIGEST');
+  yes(php.status===3,'malformed independent pin refused');
+  php=phpRun();
   yes(php.status===0&&php.stdout.includes('STAGE2_NODE_TO_PHP_WRITE_SIGNATURE_VERIFIED_NO_DB'),
     'independent native PHP verifier accepts exact Node-signed task/package');
   privateWrite(path.join(phpLocal,'owner-install-trust.json'),JSON.stringify({
@@ -112,6 +127,23 @@ try{
   php=phpRun();
   yes(php.status===3,'independent PHP verifier rejects signed-payload tampering');
   privateWrite(path.join(phpLocal,'owner-install-consent.json'),tool.phpCanonicalJson(persisted));
+  // Simulate entire writable operator-owned trust subtree being compromised:
+  // replace PEM, self-declared pin and validly signed consent in one go.
+  const adversary=crypto.generateKeyPairSync('ed25519');
+  const adversaryPublic=adversary.publicKey.export({format:'pem',type:'spki'});
+  const adversaryPin=keyDigest(adversary.publicKey);
+  const forged=tool.issue(task,adversary.privateKey.export({format:'pem',type:'pkcs8'}),start,end);
+  privateWrite(path.join(phpLocal,'owner-install-public.pem'),adversaryPublic);
+  privateWrite(path.join(phpLocal,'owner-install-trust.json'),
+    JSON.stringify({...trust,trustedOwnerSpkiSha256:adversaryPin}));
+  privateWrite(path.join(phpLocal,'owner-install-consent.json'),tool.phpCanonicalJson(forged));
+  php=phpRun();
+  yes(php.status===3,'full operator local key/pin/consent takeover cannot override external trust anchor');
+  privateWrite(path.join(phpLocal,'owner-install-public.pem'),publicPem);
+  privateWrite(path.join(phpLocal,'owner-install-trust.json'),JSON.stringify(trust));
+  privateWrite(path.join(phpLocal,'owner-install-consent.json'),tool.phpCanonicalJson(persisted));
+  php=phpRun();
+  yes(php.status===0,'restored original source-bound owner permit and external pin pass');
   res=run(args,{CMS_STAGE2_OWNER_WRITE_SIGNING:'EXPLICIT_OWNER_APPROVAL_NOT_READONLY'});
   yes(res.status===3,'cannot silently overwrite existing one-use signed permit');
   res=run(['--verify','--task='+taskFile,'--consent='+consentFile,

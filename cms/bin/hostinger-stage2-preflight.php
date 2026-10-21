@@ -272,6 +272,15 @@ try {
     }
     $mysqlDriver = class_exists(PDO::class)
         && in_array('mysql', PDO::getAvailableDrivers(), true);
+    // Read ONLY the presence/format of the separately provisioned owner pin.
+    // A self-provided public key in cms-stage2-local must never count as
+    // independent trust. This CLI deliberately DOES NOT read owner permits,
+    // expose the pin value, load crypto code or infer authority to install.
+    $ownerPin = getenv('CMS_STAGE2_OWNER_INSTALL_TRUSTED_SPKI_SHA256');
+    $ownerPinState = $ownerPin === false || $ownerPin === ''
+        ? 'absent'
+        : (preg_match('/\\A[a-f0-9]{64}\\z/D', $ownerPin) === 1
+            ? 'configured_identity_unverified' : 'malformed');
     $report = [
         'format' => 'ai-site-cms-stage2-hostinger-cli-preflight-v2',
         'targetSite' => 'hostinger-stage2-test',
@@ -282,6 +291,8 @@ try {
         'taskState' => $taskState,
         'receiptState' => $receiptState,
         'revocationState' => $revocationState,
+        'ownerWriteExternalTrustPinState' => $ownerPinState,
+        'ownerWriteApprovalVerified' => false,
         'oneShotAvailable' => $revocationState === 'none' && $mysqlDriver
             && $privateState === 'private_directory_ready'
             && $taskState === 'private_task_present'
