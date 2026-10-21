@@ -51,13 +51,22 @@ $poison['blocks']['hero-primary']['values']['style.foreground']='#112233;positio
 checkPreview(renderChange(['layout.paddingPx'=>25],$poison)['code']==='PREVIEW_REJECTED','CSS injection in inherited state denied independent of editable rules');
 checkPreview(renderChange(['style.foreground'=>'#112233;position:fixed'], $poison)['code']==='PREVIEW_REJECTED','poisoned foreground update denied');
 $poison=$r;
-$poison['blocks']['hero-primary']['editable']['layout.paddingPx']=['type'=>'integer-px','min'=>-500,'max'=>9999];
+$poison['blocks']['hero-primary']['editable']['layout.paddingPx']=['type'=>'integer-px','min'=>0,'max'=>9999];
 $poison['blocks']['hero-primary']['values']['layout.paddingPx']=900;
 checkPreview(renderChange(['layout.paddingPx'=>901],$poison)['code']==='PREVIEW_REJECTED','expanded numeric bound never reaches CSS');
 $poison=$r;
-$poison['blocks']['hero-primary']['editable']['layout.responsivePadding']=['type'=>'responsive-padding','min'=>-100,'max'=>9999];
-$poison['blocks']['hero-primary']['values']['layout.responsivePadding']['mobile']=-5;
-checkPreview(renderChange(['layout.responsivePadding'=>['mobile'=>-4,'tablet'=>20,'desktop'=>32]],$poison)['code']==='PREVIEW_REJECTED','expanded breakpoint bound denied');
+$poison['blocks']['hero-primary']['editable']['layout.responsivePadding']=['type'=>'responsive-padding','min'=>0,'max'=>9999];
+$poison['blocks']['hero-primary']['values']['layout.responsivePadding']['mobile']=900;
+checkPreview(renderChange(['layout.responsivePadding'=>['mobile'=>901,'tablet'=>20,'desktop'=>32]],$poison)['code']==='PREVIEW_REJECTED','expanded breakpoint bound denied');
+// Invalid numeric constraints must be rejected at schema-rule entry, before plan/render.
+$invalidRule=$r;
+$invalidRule['blocks']['hero-primary']['editable']['layout.paddingPx']=['type'=>'integer-px','min'=>-1,'max'=>9999];
+checkPreview(renderChange(['layout.paddingPx'=>900],$invalidRule)['code']==='PATCH_REJECTED',
+    'negative numeric rule denied at capability boundary');
+$invalidRule=$r;
+$invalidRule['blocks']['hero-primary']['editable']['layout.responsivePadding']=['type'=>'responsive-padding','min'=>-1,'max'=>9999];
+checkPreview(renderChange(['layout.responsivePadding'=>['mobile'=>900,'tablet'=>20,'desktop'=>32]],$invalidRule)['code']==='PATCH_REJECTED',
+    'negative responsive rule denied at capability boundary');
 $poison=$r;
 $poison['blocks']['hero-primary']['editable']['content.heading']=['type'=>'text','min'=>0,'max'=>10000];
 $poison['blocks']['hero-primary']['values']['content.heading']=str_repeat('x',181);
