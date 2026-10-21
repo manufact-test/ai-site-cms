@@ -52,12 +52,47 @@ try {
             || $stat['size']<20 || $stat['size']>4096) {
             throw new RuntimeException('Unsafe external observation file');
         }
-        $bytes=@file_get_contents($file);
-        if (!is_string($bytes) || strlen($bytes)!==$stat['size']) {
+        // A pathname can be replaced with a symlink between lstat() and a
+        // normal file_get_contents(). Hold one descriptor and compare the
+        // opened object BEFORE reading any bytes. Never follow a changed
+        // inode or accept an observation whose size/timestamps move mid-read.
+        $handle=@fopen($file,'rb');
+        if ($handle===false) {
             throw new RuntimeException('Unreadable external observation file');
         }
+        try {
+            $opened=@fstat($handle);
+            if ($opened===false || ($opened['dev']??null)!==($stat['dev']??null)
+                || ($opened['ino']??null)!==($stat['ino']??null)
+                || ($opened['nlink']??0)!==1
+                || ($opened['mode'] & 0077)!==0
+                || ($opened['size']??-1)!==$stat['size']) {
+                throw new RuntimeException('Unsafe changed observation inode');
+            }
+            $bytes=@stream_get_contents($handle,4097);
+            $after=@fstat($handle);
+            if (!is_string($bytes) || strlen($bytes)!==$opened['size']
+                || $after===false
+                || ($after['dev']??null)!==($opened['dev']??null)
+                || ($after['ino']??null)!==($opened['ino']??null)
+                || ($after['size']??null)!==($opened['size']??null)
+                || ($after['mtime']??null)!==($opened['mtime']??null)) {
+                throw new RuntimeException('External observation changed while reading');
+            }
+        } finally {
+            fclose($handle);
+        }
+        if (str_contains($bytes,"\0")) {
+            throw new RuntimeException('Invalid external observation bytes');
+        }
         $http=json_decode($bytes,true,16,JSON_THROW_ON_ERROR);
-        if (!is_array($http)) throw new RuntimeException('Invalid observation shape');
+        // Canonical bytes reject duplicate JSON member aliases and whitespace
+        // tricks. The record remains an UNTRUSTED operator observation.
+        if (!is_array($http) || array_is_list($http)
+            || json_encode($http,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|
+                JSON_THROW_ON_ERROR)!==$bytes) {
+            throw new RuntimeException('Noncanonical external observation');
+        }
     }
     $report=\AiSiteCms\Hosting\Stage2TargetHostHandoff::inspect(
         $root,$public,$site,$family,$http

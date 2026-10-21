@@ -91,8 +91,8 @@
     },
     {
       "path": "bin/stage2-target-host-handoff.php",
-      "bytes": 3290,
-      "sha256": "1f4321106bb8fe27a1d498bccce8db34c66e5d6c4782eccdd1f2716280978543"
+      "bytes": 5089,
+      "sha256": "63d4cba3428aaa88d506f1b44b4c4a74c197902626bdb6c469dc46a8b340466e"
     },
     {
       "path": "bin/startup-readiness.php",
