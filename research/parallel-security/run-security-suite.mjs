@@ -41,7 +41,7 @@ function requireProof(row, expectedPattern, evidenceLabel) {
   return row;
 }
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
-  'ed25519-lab.php','main-head-independent-proof.mjs','independent-no-sodium-composer-lab.mjs','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
+  'ed25519-lab.php','sodium-v252-ed25519-boundary.php','main-head-independent-proof.mjs','independent-no-sodium-composer-lab.mjs','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-live-independent-proof.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','sodium-real-zip-proof.mjs','sodium-real-zip-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
@@ -334,7 +334,8 @@ if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
       const substantive=field==='noSodium'
         ?detail?.physicalPhp83WithoutSodium===true&&detail?.absenceAssertions===2
         :detail?.composerInstalled===true&&detail?.installedOriginalGitBlobs===78&&
-          detail?.preAndPostSourceAttested===true&&detail?.physicalCompatRfcAndEnvelopeCases===4;
+          detail?.preAndPostSourceAttested===true&&detail?.physicalCompatRfcAndEnvelopeCases===4&&
+          detail?.upstreamV252Ed25519BoundaryAssertions===13;
       if(state==='passed'&&substantive&&lab.exitCode!==null&&!lab.spawnError){
         // This script has TWO independent gates: its process can exit 3 when
         // physical PHP PASS is followed by an unavailable Composer network.
@@ -406,6 +407,7 @@ if(physicalRecord)console.error('INDEPENDENT_SECURITY_PHYSICAL_RUNTIME_SOURCE '+
   composerInstalledOriginalGitFiles:physicalRecord.compat?.installedOriginalGitBlobs,
   installedWholeTreeSha256:physicalRecord.installedTreeSha256,
   isolatedComposerLockSha256:physicalRecord.isolatedComposerLockSha256,
+  patchedV252Ed25519ActualAssertions:physicalRecord.compat?.upstreamV252Ed25519BoundaryAssertions,
   signerOwnerVerified:false,hostWebSapiTested:false,productionApproved:false
 }));
 console.error('INDEPENDENT_SECURITY_RELEASE_DECISION '+JSON.stringify({

@@ -126,6 +126,22 @@ try{
           t.tests.every(x=>x.passed&&x.proofCompleted)&&
           t.sourceAttestation?.treeSha256===reviewed&&
           t.productionApproved===false,'physical compat signatures or source pre/post proof failed');
+        // Security-relevant upstream v2.5.2 repair: ensure identity-key
+        // forgery, mixed subgroup, global static state and scalar bounds are
+        // really rejected by the independently verified installed vendor.
+        phase='verified-v252-ed25519-fix';
+        const boundary=run(php,['-n',path.join(here,'sodium-v252-ed25519-boundary.php')],
+          {CI:'true',SODIUM_COMPAT_AUTOLOAD:cryptoEnv.SODIUM_COMPAT_AUTOLOAD},90000);
+        const boundaryLines=boundary.stdout.trimEnd().split('\n');
+        let boundaryJson=null;
+        try{boundaryJson=JSON.parse(boundaryLines.at(-1))}catch{}
+        demand(boundary.status===0&&boundaryLines.includes(
+          'REAL original sodium_compat 2.5.2 Ed25519 identity, subgroup and state-boundary PASS 13 assertions; physical native-free PHP; NOT formal crypto audit or production approval')&&
+          boundaryJson?.assertions===13&&boundaryJson?.physicalNoNative===true&&
+          boundaryJson?.cryptoExpertSignoff===false&&boundaryJson?.productionApproved===false,
+          'independently installed 2.5.2 cryptographic boundary checks failed: '+
+          (boundary.stderr||boundary.stdout).slice(-380));
+        report.ed25519UpstreamPatchAssertions=13;
         const after=checkInstalledGitSource(source,loadUpstream());
         const second=attest(source,lock,reviewed);
         demand(after.upstreamGitBlobFilesVerified===78&&JSON.stringify(first)===JSON.stringify(second),
@@ -133,7 +149,8 @@ try{
         report.installedTreeSha256=reviewed;
         report.isolatedComposerLockSha256=first.isolatedLockSha256;
         report.compat={status:'passed',composerInstalled:true,installedOriginalGitBlobs:78,
-          preAndPostSourceAttested:true,physicalCompatRfcAndEnvelopeCases:4};
+          preAndPostSourceAttested:true,physicalCompatRfcAndEnvelopeCases:4,
+          upstreamV252Ed25519BoundaryAssertions:13};
         code=0;
       }
     }
