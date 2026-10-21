@@ -46,8 +46,10 @@ function makeFixture(string $path): string {
         'releaseVersion'=>'0.2.0-stage2.1',
         'productionReady'=>false,
         'documentRoot'=>'public',
-        'isSigned'=>false,
+        'adminEditorAssets'=>'private/editor',
+        'hostingComposerOrNodeRequired'=>false,
         'writeEndpointsAvailable'=>false,
+        'isSigned'=>false,
         'files'=>$records,
     ];
     $raw = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
@@ -144,7 +146,7 @@ try {
     $validFull=json_encode($normalManifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
     file_put_contents($manifestFile,$validFull);
     labOk(Lab::verifyPackage($source,hash('sha256',$validFull))['files']===5,
-        'real Stage2 full capability schema accepted by PHP');
+        'full canonical Stage2 manifest shape accepted by PHP');
     foreach ([
         'unknown_capability'=>array_replace($normalManifest,['enableForms'=>true]),
         'wrong_editor_path'=>array_replace($normalManifest,['adminEditorAssets'=>'public/editor']),
