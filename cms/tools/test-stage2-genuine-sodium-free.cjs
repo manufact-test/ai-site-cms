@@ -106,12 +106,21 @@ function main(){
       {env,timeout:90000});
     assert.match(envelope,/genuine signed envelope still accepted/);
     assert.match(envelope,/"securityApproved":false/);
+    // Same external Node Ed25519 evidence is verified by both actual PHP
+    // implementations, including permit, receipt and settlement anti-replay.
+    const signedChainOutput=run(process.execPath,[path.join(source,'tools/test-stage2-signed-chain-parity.cjs')],
+      {env:{...env,CMS_PHP83_NO_SODIUM_BINARY:php},timeout:120000});
+    const signedChain=JSON.parse(signedChainOutput);
+    assert.equal(signedChain.checks,33,'Incomplete native / true no-Sodium signed-chain parity');
+    assert.equal(signedChain.sameSignedHead,true);
+    assert.equal(signedChain.stage2Accepted,false);
     process.stdout.write(JSON.stringify({
       evidence:'true-sodium-absent-php83',php:state.php,bits:state.bits,
       extensionLoadedBeforeCandidate:state.sodium,
       candidate:PACKAGE,version:RELEASE,sourceReference:REF,license:'ISC',
       absentVerification:'fail_closed',rfc8032:'passed',
       signedEnvelopeAdversarial:'passed',
+      completeSignedChainParity:signedChain,
       performance:JSON.parse(vectors.trim().split('\n').at(-1)),
       productionLockChanged:false,hostingerTested:false,
       publisherKeyOwnershipVerified:false,licenseApproved:false,
