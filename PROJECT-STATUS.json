@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
-  "date": "2026-10-21",
-  "status": "stage2-in-progress-not-accepted-v1.50-product-first-preview",
+  "date": "2026-10-22",
+  "status": "stage2-in-progress-not-accepted-v1.51-offline-studio-site-settings",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "FIRST read docs/NEXT-CHAT.md last §55 and docs/DEVELOPMENT-WORKFLOW.md TOP v1.50 product-first. Use cms/stage2-preview/index.html for immediately reviewable UI. Work only in substantial user-visible functional slices (>=3 parts), one critical smoke + existing CI, no pointless tests of unbuilt code. Stage2 engineering ~85–90% but formally NOT ACCEPTED: remaining independent legal/keys/Hostinger read-only/empty-test-DB installation+isolation/owner signoff. Stage3 not authorized. Do not touch Hostinger or research PRs without explicit separate permission. Update docs only upon owner request.",
+  "next_step": "READ docs/NEXT-CHAT.md FINAL §56 (not §55), docs/DEVELOPMENT-WORKFLOW.md TOP v1.51 and handoffs/lead-integrator/MAIN-HANDOFF-v1.51-2026-10-22.md. Source 8d978894... verified PHP 8/8, editor/Chromium SUCCESS, offweb 480/480 SUCCESS. Owner wants entire large coherent functional stages, not 7–12 min small tasks and not endless laboratory tests or ugly premature screenshots. Offline Stage2 Studio v3 supports site header/footer/menu, per-page menu visibility, reversible hidden sections, synced HTML+JSON export and v2 migration. Stage2 still NOT ACCEPTED; Stage3 no authorization, 0/135. Real legal/custody/Hostinger scoped empty-test install+outage/owner signoff gates remain. No Hostinger, other projects or client data touched. Next docs ONLY at explicit owner request.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "public",
-  "checkpoint_version": "1.50",
+  "checkpoint_version": "1.51",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -25,7 +25,7 @@
     "started_at": "2026-10-18",
     "owner_delegated_selection": true,
     "foundation": "A - Slim/Opis/Jedison",
-    "product_code": "GitHub-only Stage2 Slim4 + Jedison foundation and offweb 480-file unsigned package; NEW separate local interactive design-review prototype with six built-in sections, live iframe preview, JSON import/export; no production auth/editor API/save/publish or Hostinger install.",
+    "product_code": "Isolated Stage2 local UI lab (NOT production CMS): Jedison 1.27.1, 11 section types, 3 three-page starter sites, page/section navigation, visual selection, overview, versions, notes, responsive sandbox preview, v3 global site header/footer/menu settings, per-page navigation flag and reversible hidden sections, verified HTML+JSON offline export and v2 JSON migration. Separate 480-file offweb Hostinger package remains inactive; no real auth/publish/AI CMS.",
     "bootstrap_commit": "493964f32d63dd5552484afbcc972fc614571381",
     "bootstrap_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39275005275",
     "bootstrap_ci_result": "7/7 SUCCESS on verified code 493964f32d63dd5552484afbcc972fc614571381",
@@ -53,8 +53,8 @@
       "Idempotent same-site initialization",
       "Refuses database reuse by different site identity"
     ],
-    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39653777321",
-    "last_full_ci_result": "8/8 SUCCESS verified source b6de6197d3c5d93731c58934bda7c7107f9cb191; editor https://github.com/manufact-test/ai-site-cms/actions/runs/39653777497 SUCCESS; offweb https://github.com/manufact-test/ai-site-cms/actions/runs/39654243799 SUCCESS",
+    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39679222173",
+    "last_full_ci_result": "8/8 SUCCESS on source 8d978894d01988695b99b6fe1da0ba1a2b1c6950; editor 39679222152 SUCCESS; offweb 39679617446 480/480 SUCCESS",
     "last_full_ci_checks": {
       "kernel_smoke": 10,
       "sqlite_schema_checks": 37,
@@ -97,8 +97,8 @@
       "ci_result": "1/1 SUCCESS on code 493964f32d63dd5552484afbcc972fc614571381",
       "artifact_id": 12137545566
     },
-    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39653777321",
-    "latest_php_ci_result": "8/8 SUCCESS verified source b6de6197d3c5d93731c58934bda7c7107f9cb191",
+    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39679222173",
+    "latest_php_ci_result": "8/8 SUCCESS on source 8d978894d01988695b99b6fe1da0ba1a2b1c6950",
     "package_research": {
       "internal_only": true,
       "production_ready": false,
@@ -149,8 +149,8 @@
       "matrix_and_integration_job_count": 7,
       "passed": 7
     },
-    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39653777497",
-    "latest_editor_ci_result": "SUCCESS on b6de6197d3c5d93731c58934bda7c7107f9cb191, includes one genuine Chromium Stage2 product preview E2E",
+    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39679222152",
+    "latest_editor_ci_result": "SUCCESS including Stage2 offline owner kit and real Chromium v3 site settings/section hiding/v2 migration/ZIP smoke",
     "storage_safety_preflight": {
       "implementation": "cms/src/Storage/SchemaManager.php::inspectSite, cms/bin/schema-preflight.php --inspect",
       "supported_drivers": [
@@ -1186,9 +1186,9 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.49",
-  "last_docs_handoff_note": "Requested docs-only handoff follows SOURCE SHA. Do not treat docs-only main HEAD as re-tested application code.",
-  "latest_tested_code_sha": "b6de6197d3c5d93731c58934bda7c7107f9cb191",
+  "last_docs_handoff_version": "1.51",
+  "last_docs_handoff_note": "Explicitly requested docs-only handoff after fully verified source 8d978894...; a subsequent docs-only SHA is not new CI of application code.",
+  "latest_tested_code_sha": "8d978894d01988695b99b6fe1da0ba1a2b1c6950",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
     "owner_directive": "large_coherent_product_verticals_not_small_8_minute_fixes",
@@ -1198,5 +1198,70 @@
     "early_feedback": "demo_in_browser_and_screenshots_then_improve_from_issues",
     "documentation": "only_owner_requested_chat_handoff",
     "stage_boundary": "Stage3 requires separate owner Stage2 acceptance; never auto-deploy Hostinger"
+  },
+  "last_verified_code_checkpoint_2026_10_22": {
+    "date": "2026-10-22",
+    "source_sha": "8d978894d01988695b99b6fe1da0ba1a2b1c6950",
+    "php_ci": {
+      "run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39679222173",
+      "success": 8,
+      "total": 8
+    },
+    "editor_ci": {
+      "run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39679222152",
+      "success": true,
+      "owner_kit_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/39679222152/artifacts/12383246425",
+      "pictures": "https://github.com/manufact-test/ai-site-cms/actions/runs/39679222152/artifacts/12382709640"
+    },
+    "offweb_ci": {
+      "run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39679617446",
+      "success": true,
+      "files_verified_exact": 480,
+      "artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/39679617446/artifacts/12383621576",
+      "manifest_sha256": "1cf4e6978de209a9563d6be1ce44e7b79db36aab205f8a875c8f9cb3067c4748",
+      "publisher_signature": false,
+      "host_deployed": false
+    },
+    "offline_preview": {
+      "directory": "cms/stage2-preview",
+      "schema": "ai-site-cms-stage2-multipage-preview-v3",
+      "settings": [
+        "headerNote",
+        "footerNote",
+        "showNavigation"
+      ],
+      "page_features": [
+        "inMenu",
+        "hiddenSections",
+        "seoTitle",
+        "seoDescription"
+      ],
+      "legacy_v2_migration": true,
+      "offline_site_export": true,
+      "production_ready": false,
+      "stage3_implementation": false
+    },
+    "stage2_accepted": false,
+    "stage3_started": false,
+    "mandatory_requirements_accepted": 0,
+    "owner_requested_doc_update": true,
+    "next_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.51-2026-10-22.md",
+    "remaining_gate_types": [
+      "human_legal_43_deps",
+      "production_signing_key_custody_and_no_sodium_litespeed",
+      "scoped_final_target_readonly",
+      "separately_owner_approved_empty_mysql_install_and_visitor_isolation_recovery",
+      "explicit_owner_stage2_acceptance"
+    ],
+    "research_prs_merged": [],
+    "real_hostinger_changes_in_this_code_block": false
+  },
+  "development_policy_v1_51": {
+    "owner_directive": "Treat one continue as a complete large functional substage, not a 7-to-12 minute small task",
+    "outcome": "coherent usable product verticals with multiple functional parts before reporting",
+    "feedback": "owner considers current demo visuals rough; no expectation to inspect premature screenshots; admin should become professional but generated sites retain individual design",
+    "validation": "one real Chromium critical smoke and existing PHP/editor/offweb CI; no unnecessary speculative tests; preserve security gates",
+    "stage_boundary": "Stage2 not formally accepted; no Stage3 or real hosting writes without scoped owner consent",
+    "documentation": "only explicit owner-requested next-chat handoff"
   }
 }
