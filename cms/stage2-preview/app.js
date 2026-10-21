@@ -21,6 +21,62 @@
   const activePage=()=>project.pages.find(p=>p.id===pageId);
   const pageDoc=()=>P.pageDoc(project,activePage());
   function bind(){doc=pageDoc();}
+  let overviewMode=false;
+  function renderOverview(){
+    $('overview-name').textContent=project.siteTitle;
+    $('overview-pages').textContent=String(project.pages.length);
+    $('overview-sections').textContent=String(project.pages.reduce((n,p)=>n+p.sections.length,0));
+    const issues=P.audit(project);
+    $('overview-issues').textContent=String(issues.length);
+    const list=$('overview-page-list');list.replaceChildren();
+    project.pages.forEach(pg=>{
+      const b=document.createElement('button');
+      b.type='button';b.className='overview-page';
+      const a=document.createElement('span');
+      const title=document.createElement('strong');title.textContent=pg.title;
+      const path=document.createElement('small');path.textContent=pg.slug?'/'+pg.slug:'Главная';
+      a.append(title,path);
+      const details=document.createElement('span');details.textContent=pg.sections.length+' секций';
+      const arrow=document.createElement('span');arrow.textContent='↗';
+      b.append(a,details,arrow);
+      b.addEventListener('click',()=>{selectPage(pg.id);showOverview(false);});
+      list.append(b);
+    });
+    const audit=$('overview-audit');audit.replaceChildren();
+    if(!issues.length){
+      const ok=document.createElement('p');
+      ok.textContent='Базовые замечания отсутствуют. Это не SEO-аудит опубликованного сайта.';
+      ok.className='overview-audit-ok';audit.append(ok);
+    }else{
+      issues.slice(0,10).forEach(issue=>{
+        const b=document.createElement('button');
+        b.type='button';b.className='overview-audit-item';
+        const title=document.createElement('strong');title.textContent=issue.pageTitle;
+        const detail=document.createElement('span');detail.textContent=issue.message;
+        b.append(title,detail);
+        b.addEventListener('click',()=>{selectPage(issue.pageId);showOverview(false);document.querySelector('.page-settings').open=true;});
+        audit.append(b);
+      });
+      if(issues.length>10){
+        const more=document.createElement('p');
+        more.textContent='Ещё замечаний: '+(issues.length-10);audit.append(more);
+      }
+    }
+  }
+  function showOverview(active){
+    overviewMode=active;
+    document.querySelector('.workspace').classList.toggle('is-overview',active);
+    $('site-overview').hidden=!active;
+    $('overview-open').classList.toggle('is-active',active);
+    $('overview-editor').classList.toggle('is-active',!active);
+    $('overview-open').setAttribute('aria-pressed',String(active));
+    $('overview-editor').setAttribute('aria-pressed',String(!active));
+    document.querySelector('.canvas .preview-stage').hidden=active;
+    document.querySelector('.canvas .canvas-caption').hidden=active;
+    document.querySelector('.canvas .preview-controls').hidden=active;
+    if(active)renderOverview();
+    $('canvas-title').textContent=active?'Структура и состояние сайта':'Предпросмотр изменений';
+  }
   function toast(message,error=false){
     clearTimeout(toastTimer);ui.status.textContent=message;
     ui.status.className='status show'+(error?' error':'');
@@ -224,7 +280,7 @@
       ui.previewUrl.textContent='demo.local/'+(p.slug||'');
     }catch(e){toast(e.message,true);}
   }
-  function changed(){indicators();preview();auditUI();}
+  function changed(){indicators();preview();auditUI();renderOverview();}
   function checkpoint(type,coalesce=false){
     const now=Date.now();
     if(!(coalesce&&lastType===type&&now-lastAt<1200)){
@@ -294,7 +350,7 @@
     if(editor){editor.destroy();editor=null;}
     pageId=id;bind();selection=doc.sections[0].id;lastType='';
     $('section-search').value='';
-    pageUI();listing();mount();preview();showReview();
+    pageUI();listing();mount();preview();showReview();renderOverview();
   }
   function select(id){if(id===selection)return;selection=id;lastType='';listing();mount();preview();showReview();}
   function pageAdd(duplicate=false){
@@ -475,6 +531,8 @@
     $('expand-preview').addEventListener('click',expandPreview);
     readSaved();readReview();if(records.length)project=P.normalize(records[0].doc);
     saved=snapshot();apply(project);versions();
+    $('overview-open').addEventListener('click',()=>showOverview(true));
+    $('overview-editor').addEventListener('click',()=>showOverview(false));
     $('add').addEventListener('click',add);
     $('section-search').addEventListener('input',listing);
     document.addEventListener('click',e=>{
