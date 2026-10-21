@@ -10,6 +10,7 @@ import {fileURLToPath} from 'node:url';
 import {fetchPublicZip,readZipEntries,verifyComposerZip} from './sodium-real-zip-proof.mjs';
 import {loadUpstream,checkInstalledGitSource} from './sodium-upstream-tree-proof.mjs';
 import {attest} from './sodium-compat-attest.mjs';
+import {createRealSignedInput,verifyTimedComparison} from './sodium-cli-load-profile.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const PIN='3246b36803c177847e677862fedeb7f937869adb';
 const ZIP='53944302442e609c0443f680a6195f8d7467e3d0f0c4503e8a690fd9e7ee22f2';
@@ -142,6 +143,36 @@ try{
           'independently installed 2.5.2 cryptographic boundary checks failed: '+
           (boundary.stderr||boundary.stdout).slice(-380));
         report.ed25519UpstreamPatchAssertions=14;
+        // Real in-process Ed25519 service-pressure sample: same ephemeral
+        // Node-signed cases under actual runner ext-sodium and actual physically
+        // Sodium-free PHP8.3 + original source-attested installed Compat.
+        phase='original-native-versus-verified-fallback-load';
+        const signedInput=createRealSignedInput();
+        const measure=(program,mode,env,args)=>{
+          const p=cp.spawnSync(program,[...args,path.join(here,'sodium-ed25519-cli-load-profile.php'),mode],{
+            input:signedInput.raw,encoding:'utf8',timeout:80000,maxBuffer:1024*1024,
+            env:{...process.env,CI:'true',...env}
+          });
+          const line=(p.stdout||'').split('\n').find(x=>x.startsWith('REAL_ED25519_CLI_PROFILE_7_CASES '));
+          let parsed=null;
+          try{parsed=JSON.parse(line.slice('REAL_ED25519_CLI_PROFILE_7_CASES '.length))}catch{}
+          return {status:p.status,error:p.error?.message||null,
+            stderr:(p.stderr||'').slice(-500),parsed,signal:p.signal};
+        };
+        const native=measure(process.env.PHP_BINARY||'php','native',{},[]);
+        const compatProfile=measure(php,'compat',
+          {SODIUM_COMPAT_AUTOLOAD:cryptoEnv.SODIUM_COMPAT_AUTOLOAD},['-n']);
+        const verified=verifyTimedComparison(native.parsed,compatProfile.parsed,signedInput.sha256);
+        demand(native.status===0&&compatProfile.status===0&&
+          !native.error&&!compatProfile.error&&!native.signal&&!compatProfile.signal&&
+          verified.status==='observed'&&verified.signedCaseCount===7&&
+          verified.timedVerificationsPerBackend===51&&
+          verified.physicalNoNativeCompat===true&&
+          verified.originalNativeSodium===true&&
+          verified.targetHostValidated===false&&verified.productionApproved===false,
+          'real timed native vs original vendor comparison failed: '+
+           (native.stderr||compatProfile.stderr||verified.reason||'missing proof'));
+        report.loadProfile=verified;
         const after=checkInstalledGitSource(source,loadUpstream());
         const second=attest(source,lock,reviewed);
         demand(after.upstreamGitBlobFilesVerified===78&&JSON.stringify(first)===JSON.stringify(second),
@@ -174,6 +205,8 @@ try{
   console.log('INDEPENDENT_PHYSICAL_NO_SODIUM_GATES '+JSON.stringify(report));
   if(report.noSodium.status==='passed')
     console.log('PHYSICAL original Ubuntu PHP 8.3 WITHOUT native sodium PASS two absent-mode rejection proofs; not Hostinger');
+  if(report.loadProfile?.status==='observed')
+    console.log('REAL VERIFIED ORIGINAL Ed25519 seven workload classes on both native and physically no-Sodium PHP PASS 102 timed valid/invalid verifications; not Hostinger, not production approval');
   if(report.compat.status==='passed')
     console.log('REAL Composer installed sodium_compat 2.5.2 78 original Git blobs and PHP native-free pre/post crypto PASS four fixtures; not production approval');
   if(report.reason)console.error('PHYSICAL_SECURITY_CI_'+(code===1?'FAIL':'BLOCKED')+' '+report.reason);

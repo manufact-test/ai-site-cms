@@ -42,11 +42,11 @@ function requireProof(row, expectedPattern, evidenceLabel) {
   return row;
 }
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
-  'ed25519-lab.php','sodium-v252-ed25519-boundary.php','main-head-independent-proof.mjs','independent-no-sodium-composer-lab.mjs','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
+  'ed25519-lab.php','sodium-v252-ed25519-boundary.php','sodium-ed25519-cli-load-profile.php','main-head-independent-proof.mjs','independent-no-sodium-composer-lab.mjs','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-live-independent-proof.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','sodium-real-zip-proof.mjs','sodium-real-zip-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
-  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','frozen-lock-baseline.mjs','frozen-lock-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','evidence-readiness-decision.mjs','evidence-readiness-regression.mjs','review-handoff.mjs','review-handoff-regression.mjs','run-security-suite.mjs'];
+  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','sodium-cli-load-profile.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','frozen-lock-baseline.mjs','frozen-lock-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','evidence-readiness-decision.mjs','evidence-readiness-regression.mjs','review-handoff.mjs','review-handoff-regression.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
   if(name.endsWith('.mjs'))entry('syntax:'+name,capture('node',['--check',path.join(dirname,name)]));
@@ -360,9 +360,30 @@ if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
       }else block(name,'Physical / actual Composer evidence unavailable: '+
         (record?.reason||lab.stderr||lab.spawnError||'incomplete').slice(-400));
     }
+    const performance=record?.loadProfile;
+    const performanceMarker=/REAL VERIFIED ORIGINAL Ed25519 seven workload classes on both native and physically no-Sodium PHP PASS 102 timed valid\/invalid verifications; not Hostinger, not production approval/;
+    if(performance?.status==='observed'&&
+       performance?.timedVerificationsPerBackend===51&&
+       performance?.signedCaseCount===7&&
+       performance?.physicalNoNativeCompat===true&&
+       performance?.originalNativeSodium===true&&
+       performance?.targetHostValidated===false&&
+       performance?.productionApproved===false&&
+       record?.compat?.status==='passed'&&
+       !lab.spawnError&&lab.exitCode===0){
+      const row={name:'profile:actual-native-vs-original-compat',...lab,
+        stdout:lab.stdout.slice(-2900),status:'passed',profile:performance};
+      results.push(row);
+      requireProof(row,performanceMarker,'102 real timed valid/invalid signature verifications, not a Hostinger SLA');
+    }else if(performance?.status==='invalid'){
+      const row=entry('profile:actual-native-vs-original-compat',lab);
+      row.status='failed';row.validationError='Actual runtime comparison malformed';
+    }else block('profile:actual-native-vs-original-compat',
+      'Actual native+original-installed-source CLI profiling not established; host capacity unresolved');
   }else{
     block('no-sodium:cryptography','Physical Ubuntu PHP8.3 source build only in disposable Linux CI; php -n is not enough');
     block('compat:cryptography','Actual vetted Composer-installed 2.5.2 and physical native-free PHP required');
+    block('profile:actual-native-vs-original-compat','True no-Sodium PHP and attested installed source required for original code comparison');
   }
 }
 // An explicitly requested online audit is not successful if its actual
@@ -426,6 +447,7 @@ const proofNames=[
   'mutation:online-evidence-regression.mjs',
   'mutation:runtime-sodium-proof-regression.mjs',
   'no-sodium:cryptography','compat:cryptography',
+  'profile:actual-native-vs-original-compat',
   'upstream:archived-main-genuine-sodium-free','mutation:archived-main-sodium-provenance',
   'actual-lock:frozen-source-baseline','mutation:real-43-pin-source-swap',
   'upstream:real-signed-sodium-tag-git-tree','mutation:real-sodium-source-git-tree',
@@ -434,6 +456,7 @@ const proofNames=[
   'mutation:review-handoff-regression.mjs',
   'online:OSV-actual43-observation'
 ];
+if(physicalRecord?.loadProfile?.status==='observed')console.error('INDEPENDENT_SECURITY_NATIVE_VS_COMPAT_LOAD '+JSON.stringify(physicalRecord.loadProfile));
 if(physicalRecord)console.error('INDEPENDENT_SECURITY_PHYSICAL_RUNTIME_SOURCE '+JSON.stringify({
   realNativeFreePhpVersion:physicalRecord.php,
   phpBinarySha256:physicalRecord.physicalBinarySha256,
