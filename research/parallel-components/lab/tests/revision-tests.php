@@ -48,6 +48,16 @@ $count++;
 $overflow = $fixture;
 $overflow['blocks']['hero-primary']['revision'] = 2147483647;
 revisionExpect('PATCH_REJECTED',array_replace($base,['expectedRevision'=>2147483647]),$overflow);
+revisionExpect('PATCH_REJECTED',$base,$overflow);
+$invalidRevision=$fixture;
+$invalidRevision['blocks']['hero-primary']['revision']=0;
+revisionExpect('PATCH_REJECTED',$base,$invalidRevision);
+$invalidRevision['blocks']['hero-primary']['revision']=-10;
+revisionExpect('PATCH_REJECTED',$base,$invalidRevision);
+$invalidRevision['blocks']['hero-primary']['revision']='7';
+revisionExpect('PATCH_REJECTED',$base,$invalidRevision);
+$invalidRevision['blocks']['hero-primary']['revision']=2147483646;
+revisionExpect('REVISION_CONFLICT',$base,$invalidRevision);
 
 revisionExpect('PATCH_REJECTED',array_replace($base,['changes'=>[]]));
 revisionExpect('PATCH_REJECTED',$base+['admin'=>true]);

@@ -31,7 +31,20 @@ $res=PreviewLab::render($r,$p,'example.test');if($res['code']!=='PREVIEW_ONLY')e
         self.assertEqual(page.locator('#research-hero-preview').evaluate('(el)=>getComputedStyle(el).paddingTop'),'28px')
         self.assertFalse(page.evaluate('document.documentElement.scrollWidth > innerWidth'))
         self.assertEqual(page.locator('img').get_attribute('width'),'960')
-        self.assertEqual(page.locator('a').get_attribute('href'),'/contact')
+        self.assertEqual(page.locator('.research-preview-action').get_attribute('data-preview-href'),'/contact')
+        self.assertEqual(page.locator('#research-hero-preview a').count(),0)
+        self.assertEqual(page.locator('#research-hero-preview [href]').count(),0)
+        page.close()
+
+    def test_action_is_text_only_and_cannot_be_triggered_by_keyboard(self):
+        page=self.browser.new_page(viewport={'width':320,'height':720})
+        page.set_content('<!doctype html><html><body>'+self.markup+'</body></html>')
+        self.assertEqual(page.locator('.research-preview-action').get_attribute('role'),None)
+        self.assertEqual(page.locator('.research-preview-action').get_attribute('tabindex'),None)
+        self.assertEqual(page.locator('#research-hero-preview a').count(),0)
+        self.assertEqual(page.locator('code').inner_text(),'/contact')
+        page.locator('.research-preview-action').click()
+        self.assertEqual(page.url,'about:blank')
         page.close()
 
     def test_tablet_and_desktop_padding(self):

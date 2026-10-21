@@ -2,11 +2,21 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../src/PreviewLab.php';
 
-// Read-only fixed research scenario. No request-supplied patch values or persisted editor data.
+// Read-only fixed research scenario. Never parse request parameters as patches.
+header('Cache-Control: no-store');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: no-referrer');
+header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
     http_response_code(405);
     header('Allow: GET');
-    header('Cache-Control: no-store');
+    exit;
+}
+if (($_SERVER['QUERY_STRING'] ?? '') !== '') {
+    http_response_code(400);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'PREVIEW_PARAMETERS_NOT_ACCEPTED';
     exit;
 }
 $fixture = json_decode(file_get_contents(__DIR__ . '/../../fixtures/visual-revision-candidates.research.json'),

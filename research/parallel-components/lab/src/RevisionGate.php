@@ -19,7 +19,8 @@ final class RevisionGate
             return ['code' => 'PATCH_REJECTED'];
         }
         $block = $registry['blocks'][$id];
-        if (!is_int($block['revision'] ?? null) || !is_array($block['values'] ?? null)
+        if (!is_int($block['revision'] ?? null) || $block['revision'] < 1
+            || $block['revision'] >= 2147483647 || !is_array($block['values'] ?? null)
             || !is_array($block['editable'] ?? null)) return ['code' => 'PATCH_REJECTED'];
         if ($block['revision'] !== $request['expectedRevision']) return ['code' => 'REVISION_CONFLICT'];
         if (!CapabilityGate::accepts($registry,
@@ -32,7 +33,6 @@ final class RevisionGate
             if ($block['values'][$path] !== $value) $changed = true;
         }
         if (!$changed) return ['code' => 'UNCHANGED'];
-        if ($block['revision'] < 1 || $block['revision'] >= 2147483647) return ['code' => 'PATCH_REJECTED'];
         $next = $block;
         foreach ($request['changes'] as $path => $value) $next['values'][$path] = $value;
         $next['revision']++;

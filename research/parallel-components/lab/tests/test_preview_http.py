@@ -48,11 +48,26 @@ class PreviewHttp(unittest.TestCase):
         token=base64.b64encode(hashlib.sha256(match.group(1).encode()).digest()).decode()
         self.assertIn("'sha256-"+token+"'",csp)
         self.assertIn('data-revision="8"',content)
+        self.assertNotIn('<a href="/contact"',content)
+        self.assertIn('data-preview-href="/contact"',content)
+        self.assertIn('Адрес ссылки:',content)
         self.assertNotIn('<script',content)
         self.assertIn('width="960" height="540"',content)
         with urlopen(self.url+'/assets/media/workshop-960.webp',timeout=4) as image:
             self.assertEqual(image.status,200)
             self.assertGreater(len(image.read()),1000)
+    def test_untrusted_query_parameters_and_methods_do_not_render(self):
+        for suffix in ('?blockId=hero-primary', '?action.href=javascript%3Aalert(1)',
+                       '?revision=7&changes%5B0%5D=malicious'):
+            with self.subTest(suffix=suffix):
+                with self.assertRaises(HTTPError) as fail:
+                    urlopen(self.url+'/preview.php'+suffix,timeout=4)
+                self.assertEqual(fail.exception.code,400)
+                self.assertEqual(fail.exception.headers['Cache-Control'],'no-store')
+                self.assertEqual(fail.exception.headers['X-Frame-Options'],'DENY')
+                self.assertIn("default-src 'none'",fail.exception.headers['Content-Security-Policy'])
+                self.assertEqual(fail.exception.read(),b'PREVIEW_PARAMETERS_NOT_ACCEPTED')
+
     def test_post_does_not_mutate_or_render(self):
         req=Request(self.url+'/preview.php',data=b'x=1',method='POST')
         with self.assertRaises(HTTPError) as failure:urlopen(req,timeout=4)
