@@ -29,6 +29,12 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
       - name: Lock consistency and allowed declared package licenses
         run: php tests/dependency-lock.php && composer validate --strict --no-check-publish
+      - name: Independently reject altered 43-component dependency locks and unpinned origins
+        working-directory: .
+        run: |
+          node research/parallel-security/inventory-audit.mjs > "$RUNNER_TEMP/stage2-exact-lock-inventory.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/stage2-exact-lock-inventory.json'); if(r.componentCount!==43||r.composerRuntime!==14||r.npmLocked!==29)process.exit(1)"
+          node research/parallel-security/lock-provenance.mjs
       - name: Independent pinned Apache root NOTICE provenance and hostile-file regression
         run: node --check tools/test-compliance-notices.cjs && node tools/test-compliance-notices.cjs
       - name: Composer dependency security audit
@@ -120,6 +126,40 @@ jobs:
           test "$ready" -eq 1
           grep -q '"status":"ok"' /tmp/stage2-health.json
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' -X POST http://127.0.0.1:8086/api/publish)" = 404
+  genuine-sodium-free-php83:
+    name: Real Sodium-free PHP 8.3 Ed25519 candidate (CI-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - name: Exact 2.5.2 source, dist, version and license negative mutations (offline)
+        run: |
+          node --check cms/tools/test-stage2-genuine-sodium-free.cjs
+          node cms/tools/test-stage2-genuine-sodium-free.cjs --self-test
+      - name: Install OS PHP 8.3 CLI with separately loadable extensions in disposable runner
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends php8.3-cli php8.3-common
+          test -x /usr/bin/php8.3
+          /usr/bin/php8.3 -n -r 'if (PHP_VERSION_ID < 80300 || PHP_VERSION_ID >= 80400 || PHP_INT_SIZE !== 8 || extension_loaded("sodium") || function_exists("sodium_crypto_sign_verify_detached")) {fwrite(STDERR, "NOT_A_REAL_SODIUM_FREE_PHP83_BINARY\\n"); exit(3);}'
+      - name: Genuine no-Sodium RFC8032, signed-envelope, adversarial and failure-closed suite
+        env:
+          CMS_PHP83_NO_SODIUM_BINARY: /usr/bin/php8.3
+        run: node cms/tools/test-stage2-genuine-sodium-free.cjs
+      - name: Distribution boundary remains unchanged
+        run: |
+          test -z "$(git status --porcelain -- cms/composer.json cms/composer.lock cms/vendor)"
+          echo 'Disposable candidate only: no publisher identity, Hostinger, redistribution or Stage2 approval'
   storage-sqlite:
     runs-on: ubuntu-latest
     timeout-minutes: 6
