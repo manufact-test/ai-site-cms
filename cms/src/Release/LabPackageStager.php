@@ -57,7 +57,8 @@ final class LabPackageStager
         if ($tmp === false || dirname($this->root) !== $tmp
             || !preg_match('/^' . preg_quote(self::PREFIX, '/') . '[a-f0-9]{32}$/D', basename($this->root))
             || is_link($this->root) || !is_dir($this->root)
-            || realpath($this->root) !== $this->root) {
+            || realpath($this->root) !== $this->root
+            || (fileperms($this->root) & 0777) !== 0700) {
             throw new RuntimeException('Refusing non-disposable target or symlink');
         }
     }
@@ -161,16 +162,41 @@ final class LabPackageStager
 
     private static function strictFile(string $file, int $limit): string
     {
-        $s = @lstat($file);
-        if ($s === false || is_link($file) || !is_file($file) || ($s['nlink'] ?? 0) !== 1
-            || $s['size'] < 1 || $s['size'] > $limit) {
+        // lstat alone does not pin the file: an adversary may replace a path
+        // between the lstat and a later file_get_contents. Compare the actual
+        // descriptor's inode/device with the path on BOTH sides of the read.
+        // PHP has no portable O_NOFOLLOW flag; inode pinning plus post-check
+        // makes path substitution fail closed without trusting symlink targets.
+        $before = @lstat($file);
+        if ($before === false || !is_file($file) || is_link($file)
+            || ($before['nlink'] ?? 0) !== 1 || $before['size'] < 1
+            || $before['size'] > $limit) {
             throw new RuntimeException('Unsafe package/journal file');
         }
-        $bytes = @file_get_contents($file);
-        if ($bytes === false || strlen($bytes) !== $s['size']) {
-            throw new RuntimeException('Changed package during read');
-        }
-        return $bytes;
+        $fh = @fopen($file, 'rb');
+        if ($fh === false) throw new RuntimeException('Package input unavailable');
+        try {
+            $opened = fstat($fh);
+            if ($opened === false || ($opened['mode'] & 0170000) !== 0100000
+                || $opened['nlink'] !== 1 || $opened['size'] !== $before['size']
+                || $opened['dev'] !== $before['dev'] || $opened['ino'] !== $before['ino']) {
+                throw new RuntimeException('Package path changed before open');
+            }
+            $bytes = stream_get_contents($fh, $limit + 1);
+            $afterFd = fstat($fh);
+            $afterPath = @lstat($file);
+            if ($bytes === false || strlen($bytes) !== $opened['size']
+                || $afterFd === false || $afterPath === false
+                || $afterFd['dev'] !== $opened['dev'] || $afterFd['ino'] !== $opened['ino']
+                || $afterPath['dev'] !== $opened['dev'] || $afterPath['ino'] !== $opened['ino']
+                || ($afterPath['mode'] & 0170000) !== 0100000
+                || $afterFd['nlink'] !== 1 || $afterPath['nlink'] !== 1
+                || $afterFd['size'] !== $opened['size'] || $afterPath['size'] !== $opened['size']
+                || $afterFd['mtime'] !== $opened['mtime'] || $afterFd['ctime'] !== $opened['ctime']) {
+                throw new RuntimeException('Package changed during read');
+            }
+            return $bytes;
+        } finally { fclose($fh); }
     }
 
     /** @param array<string,bool> $expected */
@@ -266,6 +292,11 @@ final class LabPackageStager
         $file = $this->file($name);
         if (!file_exists($file) && !is_link($file)) return null;
         $raw = self::strictFile($file, 4096);
+        // Both journals are private operator control state, not public assets.
+        // Group/world-readable or writable records must never authorize restore.
+        if ((fileperms($file) & 0777) !== 0600) {
+            throw new RuntimeException('Unsafe installation journal permissions');
+        }
         try { $obj = json_decode($raw, true, 16, JSON_THROW_ON_ERROR); }
         catch (\JsonException $e) { throw new RuntimeException('Bad operator JSON', 0, $e); }
         if (!is_array($obj)) throw new RuntimeException('Operator state must be an object');
@@ -325,11 +356,15 @@ final class LabPackageStager
         $this->copyTree($source, $this->file('staging'));
         if ($failAt === 'after-copy') throw new RuntimeException('Injected interruption after copy');
         self::verifyPackage($this->file('staging'), $trustedManifestSha256);
-        rename($this->file('staging'), $this->file('code'));
+        if (!@rename($this->file('staging'), $this->file('code'))) {
+            throw new RuntimeException('Stage promotion to code failed');
+        }
         if ($failAt === 'after-rename') throw new RuntimeException('Injected interruption after rename');
         $this->receiptWrite($intent);
         if ($failAt === 'after-receipt') throw new RuntimeException('Injected interruption after receipt');
-        unlink($this->file('install-intent.json'));
+        if (!@unlink($this->file('install-intent.json'))) {
+            throw new RuntimeException('Install intent cleanup incomplete');
+        }
         return $this->inspect();
     }
 
@@ -341,7 +376,9 @@ final class LabPackageStager
             if (is_dir($this->file('staging'))) {
                 $this->removeStage($this->file('staging'), 0);
             }
-            unlink($this->file('install-intent.json'));
+            if (!@unlink($this->file('install-intent.json'))) {
+                throw new RuntimeException('Install intent cleanup incomplete');
+            }
         } elseif (in_array($status, ['pending-after-rename', 'committed-needs-cleanup'], true)
             && $mode === 'finalize') {
             $intent = $this->jsonOrNull('install-intent.json');
@@ -349,25 +386,49 @@ final class LabPackageStager
             $verified = self::verifyPackage($this->file('code'), $intent['manifestSha256']);
             if ($verified['version'] !== $intent['version']) throw new RuntimeException('Wrong committed code');
             if ($status === 'pending-after-rename') $this->receiptWrite($intent);
-            unlink($this->file('install-intent.json'));
+            if (!@unlink($this->file('install-intent.json'))) {
+                throw new RuntimeException('Install intent cleanup incomplete');
+            }
         } else throw new RuntimeException('Wrong recovery mode; no automatic rollback');
         return $this->inspect();
     }
 
     private function writeNew(string $name, array $data): void
     {
-        $fh = @fopen($this->file($name), 'x');
+        $this->assertLab();
+        // Force private mode even with a hostile process umask(0000). The
+        // journal must never be briefly world-writable during its creation.
+        $oldUmask = umask(0077);
+        try { $fh = @fopen($this->file($name), 'x'); }
+        finally { umask($oldUmask); }
         if ($fh === false) throw new RuntimeException('Operator file must not exist already');
         try {
-            fwrite($fh, json_encode($data, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
-            fflush($fh);
+            $payload = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
+            $length = strlen($payload);
+            $written = 0;
+            while ($written < $length) {
+                $n = @fwrite($fh, substr($payload, $written));
+                if ($n === false || $n === 0) {
+                    throw new RuntimeException('Incomplete installation journal write');
+                }
+                $written += $n;
+            }
+            $stat = fstat($fh);
+            if ($stat === false || ($stat['mode'] & 0777) !== 0600
+                || !fflush($fh)) {
+                throw new RuntimeException('Unsafe/unflushed installation journal');
+            }
         } finally { fclose($fh); }
     }
 
     private function receiptWrite(array $receipt): void
     {
         $this->writeNew('install-receipt.json.tmp', $receipt);
-        rename($this->file('install-receipt.json.tmp'), $this->file('install-receipt.json'));
+        if (file_exists($this->file('install-receipt.json'))
+            || is_link($this->file('install-receipt.json'))
+            || !@rename($this->file('install-receipt.json.tmp'), $this->file('install-receipt.json'))) {
+            throw new RuntimeException('Installation receipt commit failed');
+        }
     }
 
     private function copyTree(string $source, string $target): void
