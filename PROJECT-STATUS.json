@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
-  "date": "2026-10-20",
-  "status": "stage2-not-accepted-v1.47-hostinger-real-slim-kernel-readonly",
+  "date": "2026-10-21",
+  "status": "stage2-in-progress-not-accepted-v1.48-github-only-canonical-release-manifest",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Read LAST §52 docs/NEXT-CHAT.md and docs/STAGE-2-HOSTINGER-LIVE-KERNEL-v1.47.md. 473-file unsigned offweb CMS package real LiteSpeed Slim health is verified; target MySQL schema/installer, full lifecycle and owner Stage2 acceptance remain OPEN. Never use shared SSH or other sites, no Private/paywall requirement.",
+  "next_step": "Read LAST §53 docs/NEXT-CHAT.md and handoffs/lead-integrator/MAIN-HANDOFF-v1.48-2026-10-21.md; code 8b59e0718a867920bd5d7890e55c5b002facd354 PHP 8/8, Editor/E2E, offweb 478/478 SUCCESS. No further Hostinger or other sites activity. Stage2 NOT ACCEPTED, Stage3 NOT STARTED. Continue GitHub-only work on signed release custody, human 43-license review and owner final target approval.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "public",
-  "checkpoint_version": "1.47",
+  "checkpoint_version": "1.48",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -25,7 +25,7 @@
     "started_at": "2026-10-18",
     "owner_delegated_selection": true,
     "foundation": "A - Slim/Opis/Jedison",
-    "product_code": "CI-only empty Slim4/Opis2.6/Jedison1.27.1 with isolated package verification, local-only handoff, Apache/Nginx PHP-FPM tests, 5 families, 469-file internal package, signed-upgrade laboratory, and dual independent MySQL8.4 packaged CLI+HTTP 39-check E2E. NO authenticated product admin, license control, AI site generator, form handling, publish or real target host test.",
+    "product_code": "Disposable GitHub-only Stage2 read-only Slim4/Opis2.6/Jedison1.27.1 package: canonical Node/PHP release manifest with no test-only verifier bypass, signed Ed25519 test suite, real disposable MySQL8.4 and Sodium-free PHP8.3, isolated Chromium/E2E, verified 478-file offweb ZIP. NO production admin/auth/forms/AI/publish, and NO newly deployed Hostinger CMS.",
     "bootstrap_commit": "493964f32d63dd5552484afbcc972fc614571381",
     "bootstrap_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39275005275",
     "bootstrap_ci_result": "7/7 SUCCESS on verified code 493964f32d63dd5552484afbcc972fc614571381",
@@ -53,8 +53,8 @@
       "Idempotent same-site initialization",
       "Refuses database reuse by different site identity"
     ],
-    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39462638513",
-    "last_full_ci_result": "7/7 SUCCESS",
+    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39587975849",
+    "last_full_ci_result": "8/8 SUCCESS, verified code SHA 8b59e0718a867920bd5d7890e55c5b002facd354",
     "last_full_ci_checks": {
       "kernel_smoke": 10,
       "sqlite_schema_checks": 37,
@@ -97,14 +97,14 @@
       "ci_result": "1/1 SUCCESS on code 493964f32d63dd5552484afbcc972fc614571381",
       "artifact_id": 12137545566
     },
-    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39338839673",
-    "latest_php_ci_result": "7/7 SUCCESS on e353a2c767a195665d38143a38d340c509790aa9",
+    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39587975849",
+    "latest_php_ci_result": "8/8 SUCCESS, verified code SHA 8b59e0718a867920bd5d7890e55c5b002facd354",
     "package_research": {
       "internal_only": true,
       "production_ready": false,
       "build_cli": "node cms/tools/build-internal-package.cjs",
       "verified_manifest": "private/package-manifest.json (format ai-site-cms-internal-stage2-v2; releaseVersion 0.2.0-stage2.1)",
-      "file_count": 471,
+      "file_count": 478,
       "hashes": "SHA-256 inventory; local integrity only, NOT a trusted software signature",
       "apache_webroot_requires": "cms package/public only; wrong document root is NOT safe",
       "private_browser_editor": "private/editor/editor.js (never directly served in this stage)",
@@ -112,7 +112,7 @@
       "hosting_requires_node_or_composer_at_runtime": false,
       "package_integration_tests": 25,
       "php_http_boundary": "GET /api/health 200; publish/private editor/vendor HTTP 404",
-      "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39275005280",
+      "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39587976040",
       "artifact_id": null,
       "untested": [
         "Actual target webserver rewriting/headers/access rights",
@@ -120,7 +120,8 @@
         "Authentication/ACL and public editor delivery",
         "Independent full legal SBOM/NOTICE/SLSA provenance"
       ],
-      "source_changes_now_trigger_bundle_ci": true
+      "source_changes_now_trigger_bundle_ci": true,
+      "manifest_sha256": "ab5d58a984c27a10d901c0c8ffb5256100c44685ed5509a8a3e07cc4ad8d772b"
     },
     "hosting_doctor": {
       "path": "cms/bin/doctor.php",
@@ -148,8 +149,8 @@
       "matrix_and_integration_job_count": 7,
       "passed": 7
     },
-    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39338839714",
-    "latest_editor_ci_result": "CHECK run status on e353a2c767a195665d38143a38d340c509790aa9 before representing as success",
+    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39587976040",
+    "latest_editor_ci_result": "SUCCESS, verified code SHA 8b59e0718a867920bd5d7890e55c5b002facd354",
     "storage_safety_preflight": {
       "implementation": "cms/src/Storage/SchemaManager.php::inspectSite, cms/bin/schema-preflight.php --inspect",
       "supported_drivers": [
@@ -569,9 +570,9 @@
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
-  "roadmap_version": "1.1",
+  "roadmap_version": "1.48",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "docs/NEXT-CHAT.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.48-2026-10-21.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -592,7 +593,7 @@
       "scope": "Research, license/host analysis, 135-ID reuse matrix and option A preference accepted through owner-delegated technical choice. No product features accepted."
     }
   ],
-  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/main/docs/NEXT-CHAT.md",
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/main/handoffs/lead-integrator/MAIN-HANDOFF-v1.48-2026-10-21.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
@@ -1107,5 +1108,33 @@
     "original_193_answers_135_42_16_unchanged": true,
     "existing_18_stages_unchanged": true,
     "owner_requests_no_automatic_doc_updates": true
+  },
+  "last_verified_code_checkpoint_2026_10_21": {
+    "code_sha": "8b59e0718a867920bd5d7890e55c5b002facd354",
+    "php_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39587975849",
+    "php_ci_success": 8,
+    "php_ci_total": 8,
+    "editor_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39587976040",
+    "editor_e2e_success": true,
+    "offweb_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39588269636",
+    "offweb_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/39588269636/artifacts/12341017684",
+    "offweb_exact_files": 478,
+    "manifest_sha256": "ab5d58a984c27a10d901c0c8ffb5256100c44685ed5509a8a3e07cc4ad8d772b",
+    "pending_legal_review_component_count": 43,
+    "php_node_same_complete_canonical_release_format": true,
+    "simplified_test_only_php_manifest_policy_removed": true,
+    "stage2_owner_accepted": false,
+    "stage3_started": false,
+    "mandatory_product_requirements_accepted": 0,
+    "hostinger_new_deployment": false,
+    "parallel_prs_merged": [],
+    "open_gates": [
+      "independent 43-component license/security signoff",
+      "independently pinned production publisher key and Sodium alternative evaluation",
+      "one explicitly authorized final read-only Hostinger r8 scoped MySQL and hosting check",
+      "separately approved empty schema install, independent visitor outage and recovery test",
+      "owner Stage2 exit acceptance"
+    ],
+    "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.48-2026-10-21.md"
   }
 }
