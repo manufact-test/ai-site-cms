@@ -97,4 +97,44 @@ function verify(file,ownerPublicPem,ownerFingerprint,scope,now=Date.now()){
     networkAttempted:false
   });
 }
-module.exports={FORMAT,DOMAIN,PAYLOAD,verify};
+/**
+ * Permanently burn this exact consent in the operator's private LOCAL scope
+ * directory before the first DNS or HTTP attempt. O_EXCL is the concurrency
+ * barrier; even incomplete/crashed markers fail closed and are never
+ * automatically removed. This limits accidental repeated visits, not an
+ * adversary with filesystem-owner privileges who can erase the journal.
+ */
+function consumeOnce(file,verified){
+  if(!verified||verified.cryptographicScopeSignatureVerified!==true||
+    !/^[a-f0-9]{64}$/.test(verified.ownerConsentSha256||''))
+    throw Error('unverified_consent_cannot_be_consumed');
+  const parent=path.dirname(file);
+  const st=fs.lstatSync(parent);
+  if(!st.isDirectory()||st.isSymbolicLink()||
+    fs.realpathSync(parent)!==parent||(st.mode&0o077)!==0)
+    throw Error('unsafe_consumption_directory');
+  const marker=path.join(parent,
+    'owner-consent-consumed-'+verified.ownerConsentSha256+'.json');
+  const flags=fs.constants.O_WRONLY|fs.constants.O_CREAT|
+    fs.constants.O_EXCL|fs.constants.O_NOFOLLOW;
+  const fd=fs.openSync(marker,flags,0o600);
+  try{
+    const bytes=Buffer.from(JSON.stringify({
+      format:'ai-site-cms-stage2-owner-consent-consumed-v1',
+      consentSha256:verified.ownerConsentSha256,
+      reuseForbidden:true,
+      targetHostVisitRecorded:false,
+      stage2Accepted:false
+    })+'\n');
+    if(fs.writeSync(fd,bytes,0,bytes.length,0)!==bytes.length)
+      throw Error('short_consent_consumption_record');
+    fs.fsyncSync(fd);
+  }finally{fs.closeSync(fd);}
+  // Flush the name as well as the file bytes when supported. A failure still
+  // aborts the host visit, leaving a conservatively spent token.
+  const dir=fs.openSync(parent,fs.constants.O_RDONLY|fs.constants.O_DIRECTORY);
+  try{fs.fsyncSync(dir);}finally{fs.closeSync(dir);}
+  return Object.freeze({consentConsumedLocally:true,
+    consumptionDigest:verified.ownerConsentSha256,networkAttempted:false});
+}
+module.exports={FORMAT,DOMAIN,PAYLOAD,verify,consumeOnce};

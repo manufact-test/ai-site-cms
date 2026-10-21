@@ -109,6 +109,25 @@ try{
   fs.writeFileSync(scopeFile,JSON.stringify(fields));
   ok(verify().cryptographicScopeSignatureVerified,
     'restored owner consent and scope validate');
+  const marker=path.join(op,'owner-consent-consumed-'+evidence.ownerConsentSha256+'.json');
+  const trap=path.join(root,'symlink-target');
+  fs.writeFileSync(trap,'do not overwrite',{mode:0o600});
+  fs.symlinkSync(trap,marker);
+  denied(()=>signed.consumeOnce(file,evidence),
+    'preexisting symlink consumption marker prevents access');
+  ok(fs.readFileSync(trap,'utf8')==='do not overwrite',
+    'symlink target stays unchanged');
+  fs.unlinkSync(marker);
+  denied(()=>signed.consumeOnce(file,{ownerConsentSha256:evidence.ownerConsentSha256}),
+    'unverified grant cannot create a spent record');
+  const spent=signed.consumeOnce(file,evidence);
+  ok(spent.consentConsumedLocally&&spent.consumptionDigest===evidence.ownerConsentSha256
+    &&spent.networkAttempted===false,'signed grant consumed before any network');
+  denied(()=>signed.consumeOnce(file,evidence),
+    'second invocation of same signed scope denied atomically');
+  ok(fs.lstatSync(marker).isFile()&&
+    (fs.lstatSync(marker).mode&0o077)===0,
+    'private persistent consumption marker survives normal exit');
   console.log('Stage2 pinned owner read-only consent '+checks+
     ' offline signed/canonical/filesystem assertions PASS; no Hostinger, no owner identity claim');
 }finally{

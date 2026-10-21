@@ -198,6 +198,9 @@ async function observe(argv) {
     // required before any DNS or HTTPS request to the actual target.
     signedConsent=ownerConsent.verify(args['--owner-consent-file'],
       args['--owner-public-pem'],args['--owner-public-fingerprint'],grant);
+    // Consume BEFORE DNS/HTTPS. A failed or ambiguous observation must never
+    // silently retry the single owner-approved target visit.
+    ownerConsent.consumeOnce(args['--owner-consent-file'],signedConsent);
   }
   const ca=args['--ci-ca-file']?fs.readFileSync(args['--ci-ca-file']):null;
   const scopeSha256=sha(JSON.stringify([cms.origin,visitor.origin]));
