@@ -652,14 +652,18 @@ try {
     $check(!is_file($local.'/receipt.json'),'tamper cannot consume DB authorization');
     unlink($package.'/unexpected.txt');
 
-    // A self-consistent but republished/rewritten UNSIGNED manifest still
-    // passes the internal inventory. The independently chosen pin must refuse.
+    // The host-side verifier now matches Node's exact canonical manifest
+    // bytes, not just a set of self-consistent per-file SHA-256 checks.
+    // Even a newline-only change is refused before any DB connection.
     $manifestFile=$package.'/private/package-manifest.json';
     $originalManifest=file_get_contents($manifestFile);
     file_put_contents($manifestFile,$originalManifest."\n");
-    $check(\AiSiteCms\Hosting\PackageArtifactVerifier::verify($package)
-        ['filesVerified']>=470,
-        'unsigned self-consistent manifest rewrite still hashes all files');
+    $reject(fn()=>\AiSiteCms\Hosting\PackageArtifactVerifier::verify($package));
+    [$noncanonicalExit,$noncanonicalOut,$noncanonicalErr]
+        =$runCron('hostinger-stage2-preflight.php');
+    $check($noncanonicalExit===3 && $noncanonicalOut===''
+        && str_contains($noncanonicalErr,'STAGE2_PREFLIGHT_REFUSED'),
+        'separate credential-free preflight refuses noncanonical manifest bytes');
     $store($task); // Original, independently pinned CI package fingerprint.
     [$modifiedCode,$modifiedOut,$modifiedErr]=$runCron();
     $check($modifiedCode===3 && $modifiedOut===''
