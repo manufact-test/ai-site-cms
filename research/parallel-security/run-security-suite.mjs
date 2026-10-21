@@ -43,7 +43,7 @@ const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
-  'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
+  'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','sodium-real-zip-proof.mjs','sodium-real-zip-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
   'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','frozen-lock-baseline.mjs','frozen-lock-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
@@ -92,6 +92,28 @@ if(upstreamSource.every(f=>fs.existsSync(path.join(dirname,f)))){
     'mutation:real-sodium-source-git-tree'])
     block(name,'Signed upstream Git tree transcript absent in partial checkout');
 }
+if(fs.existsSync(path.join(dirname,'sodium-real-zip-regression.mjs'))){
+  requireProof(entry('mutation:real-sodium-zip-parser',
+    capture('node',[path.join(dirname,'sodium-real-zip-regression.mjs')],{timeout:25000})),
+    /Real ZIP signed-tag source verification parser offline regression PASS 17 assertions;/,
+    '17 ZIP central directory, CRC, path traversal, symlink, size and fetch-redirect negatives (synthetic transport)');
+}else block('mutation:real-sodium-zip-parser','Read-only research ZIP parser fixture missing');
+if(upstreamSource.every(f=>fs.existsSync(path.join(dirname,f)))&&
+  fs.existsSync(path.join(dirname,'sodium-real-zip-proof.mjs'))){
+  // Internet in research CI is not an upstream publisher signature: it is
+  // nevertheless an ACTUAL GitHub ZIP byte comparison if the full proof ran.
+  const probe=capture('node',[path.join(dirname,'sodium-real-zip-proof.mjs'),'--online'],{timeout:105000});
+  if(probe.exitCode===3||probe.spawnError||
+    (probe.exitCode===null&&probe.signal)){
+    block('upstream:actual-github-composer-zip',
+      'External GitHub codeload network evidence unavailable; NO actual ZIP bytes reviewed');
+  }else{
+    requireProof(entry('upstream:actual-github-composer-zip',probe),
+      /REAL Composer ZIP bytes verified against signed-tag Git source PASS 78 files;/,
+      'Actual public GitHub HTTPS archive byte-for-byte crosscheck against 78 immutable Git objects');
+  }
+}else block('upstream:actual-github-composer-zip',
+  'Signed upstream manifest and ZIP verifier missing from checkout');
 if(fs.existsSync(path.join(dirname,'ed25519-callsite-audit.php'))){
   requireProof(entry('mutation:ed25519-source-audit',
     capture(runtime,[path.join(dirname,'ed25519-callsite-audit.php'),'--self-test'],{timeout:30000})),
@@ -286,7 +308,8 @@ const proofNames=[
   'mutation:runtime-sodium-proof-regression.mjs',
   'upstream:archived-main-genuine-sodium-free','mutation:archived-main-sodium-provenance',
   'actual-lock:frozen-source-baseline','mutation:real-43-pin-source-swap',
-  'upstream:real-signed-sodium-tag-git-tree','mutation:real-sodium-source-git-tree'
+  'upstream:real-signed-sodium-tag-git-tree','mutation:real-sodium-source-git-tree',
+  'mutation:real-sodium-zip-parser','upstream:actual-github-composer-zip'
 ];
 console.error('INDEPENDENT_SECURITY_EXACT_HEAD_PROOFS '+JSON.stringify(
   proofNames.map(name=>{
