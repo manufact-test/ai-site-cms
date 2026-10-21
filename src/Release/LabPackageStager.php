@@ -137,6 +137,16 @@ final class LabPackageStager
         foreach (['public/index.php', 'vendor/autoload.php', 'private/editor/editor.js'] as $required) {
             if (!isset($listed[$required])) throw new RuntimeException('Essential internal component missing');
         }
+        // Internal Stage2 releases expose ONLY the empty read-only HTTP kernel
+        // and its Apache configuration. A valid inventory digest alone does not
+        // authorize new PHP form/upload/admin handlers, UI bundles, or public
+        // media paths; all require a separate reviewed stage authorization.
+        foreach (array_keys($listed) as $publicPath) {
+            if (str_starts_with($publicPath, 'public/')
+                && !in_array($publicPath, ['public/index.php', 'public/.htaccess'], true)) {
+                throw new RuntimeException('Unapproved Stage2 public application surface');
+            }
+        }
         self::scan($src, $listed);
         return ['manifestSha256'=>$expectedManifestSha256, 'version'=>$manifest['releaseVersion'],
             'files'=>count($manifest['files']), 'bytes'=>$bytes];

@@ -266,8 +266,8 @@
     },
     {
       "path": "src/Release/LabPackageStager.php",
-      "bytes": 24165,
-      "sha256": "adbd1e6aa81519c33343c6ee7ed307a780eaab3d2a595196ea5d1fc2b097e1c5"
+      "bytes": 24802,
+      "sha256": "b2dbbbbc88c3325d120254e320370840d3fd28af283d0aad3a85ca26e8242966"
     },
     {
       "path": "src/Release/LabPhpGenerationSwitcher.php",
