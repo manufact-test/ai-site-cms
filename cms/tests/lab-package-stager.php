@@ -226,13 +226,13 @@ try {
         clearstatcache(true,$intentFile);
 
         chmod($private->root(), 0777);
-        clearstatcache(true,$private->root());
+        // Deliberately DO NOT clear PHP's stat cache: the verifier itself
+        // must spot out-of-band permission drift within this same process.
         labReject(static fn()=> Lab::reopen($private->root()),
             'world-writable imitation of private installer root is rejected');
         labReject(static fn()=> $private->inspect(),
             'existing lab object cannot use altered world-writable root');
         chmod($private->root(), 0700);
-        clearstatcache(true,$private->root());
         labOk($private->recover('abort')['status'] === 'empty',
             'exact rights restoration permits explicit abort only');
 
