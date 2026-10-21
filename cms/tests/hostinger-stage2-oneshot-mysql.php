@@ -252,6 +252,51 @@ try {
         'wrong out-of-band manifest pin blocked before Composer and MySQL');
     $check(!file_exists($local.'/receipt.json') && is_file($local.'/once.json'),
         'bad pin cannot consume a database authorization');
+    // REAL independent child-process crash experiments at a DURABLE
+    // receipt boundary. The MySQL server is live, but no DDL may run until
+    // a human deliberately investigates this irreversible failed attempt.
+    $crashVar='CMS_STAGE2_CI_CRASH_POINT';
+    $crashTests=[
+        ['after_receipt_before_unlink',true],
+        ['after_unlink_before_db',false]
+    ];
+    foreach($crashTests as [$checkpoint,$taskShouldRemain]){
+        $store($task);
+        putenv($crashVar.'='.$checkpoint);
+        try {
+            [$interruptedCode,$interruptedOut,$interruptedErr]=$runCron();
+        } finally {
+            putenv($crashVar);
+        }
+        $started=json_decode(file_get_contents($local.'/receipt.json'),
+            true,8,JSON_THROW_ON_ERROR);
+        $check($interruptedCode===78 && $interruptedOut==='' && $interruptedErr===''
+            &&$started['status']==='refused'
+            &&$started['failureCategory']==='not_started'
+            &&$started['operation']==='probe'
+            &&$started['packageManifestSha256']===$task['package_manifest_sha256']
+            &&!array_key_exists('finishedAtUtc',$started)
+            &&((bool)file_exists($local.'/once.json'))===$taskShouldRemain,
+            'durable started receipt survives child-process crash '.$checkpoint);
+        [$crashPreCode,$crashPreText,$crashPreErr]
+            =$runCron('hostinger-stage2-preflight.php');
+        $crashPre=json_decode($crashPreText,true,8,JSON_THROW_ON_ERROR);
+        $check($crashPreCode===0 && $crashPreErr===''
+            &&$crashPre['receiptState']==='manual_review_required'
+            &&$crashPre['oneShotAvailable']===false
+            &&!str_contains($crashPreText,'ephemeral_local_ci_only'),
+            'read-only preflight requires operator review after '.$checkpoint);
+        [$retryExit,$retryOut,$retryErr]=$runCron();
+        $check($retryExit===3&&$retryOut===''
+            &&is_file($local.'/receipt.json')
+            &&(int)$pdo->query('SELECT COUNT(*) FROM information_schema.tables
+                WHERE table_schema=DATABASE()')->fetchColumn()===0,
+            'automatic retry fenced with zero MySQL tables after '.$checkpoint);
+        // CI-only manual cleanup of the synthetic fixture AFTER inspection.
+        // Production operators must never silently remove consumed receipts.
+        unlink($local.'/receipt.json');
+        if(file_exists($local.'/once.json'))unlink($local.'/once.json');
+    }
     $store($task);
     $report=Job::run($package,$local);
     $check(!file_exists($local.'/once.json'),
@@ -729,6 +774,24 @@ try {
         && str_contains($revokeBadErr,'STAGE2_REVOKE_REFUSED')
         && is_file($local.'/once.json') && !file_exists($local.'/revocation.json'),
         'wrong manifest pin forbids secret-file revocation');
+    // The emergency revoker runs WITHOUT package autoload and must
+    // independently reject noncanonical, duplicate-key or raced records.
+    $canonicalRevoke=json_encode($revokeRequest,JSON_THROW_ON_ERROR
+        |JSON_UNESCAPED_SLASHES);
+    foreach([
+        $canonicalRevoke."\n",
+        ' '.$canonicalRevoke,
+        str_replace('"format"', '"format":"forged","format"', $canonicalRevoke)
+    ] as $malformedRevocation) {
+        file_put_contents($local.'/revoke-request.json',$malformedRevocation);
+        chmod($local.'/revoke-request.json',0600);
+        [$badRevokeCode,$badRevokeOut,$badRevokeErr]
+            =$runCron('hostinger-stage2-revoke.php');
+        $check($badRevokeCode===3&&$badRevokeOut===''
+            &&str_contains($badRevokeErr,'STAGE2_REVOKE_REFUSED')
+            &&is_file($local.'/once.json')&&!file_exists($local.'/revocation.json'),
+            'emergency revocation refuses noncanonical private request');
+    }
     $writeRequest($revokeRequest);
     chmod($local.'/revoke-request.json',0644);
     [$revokeLooseCode,$revokeLooseOut,$revokeLooseErr]=$runCron('hostinger-stage2-revoke.php');

@@ -80,6 +80,21 @@ final class HostingerStage2OneShot
             'stage2Accepted' => false,
             'productionReady' => false
         ];
+        // Durable nonsecret crash marker BEFORE deleting any private task
+        // or touching MySQL. A crash at any following step is an explicit
+        // MANUAL-REVIEW outcome rather than an unexplained empty receipt.
+        // A failed initial write leaves the exclusive lock intact and must
+        // never proceed to database connection.
+        try {
+            self::persistReceipt($receiptFile, $receipt);
+        } catch (Throwable $error) {
+            fclose($receiptFile);
+            throw new RuntimeException('STAGE2_RECEIPT_INITIAL_DURABILITY_FAILED', 0, $error);
+        }
+        // Disposable CI ONLY: stop an independent PHP child at the exact
+        // post-fsync boundary. It must NEVER run against an actual customer
+        // DB. The marker is recorded before the simulated process exit.
+        self::ciOnlyCrash($task, 'after_receipt_before_unlink');
         $phase = 'local_task';
         $readOnlyTransactionStarted = false;
         $pdo = null;
@@ -92,6 +107,7 @@ final class HostingerStage2OneShot
                 throw new RuntimeException('TASK_NOT_CONSUMED');
             }
             $phase = 'database_connection';
+            self::ciOnlyCrash($task, 'after_unlink_before_db');
             $pdo = self::connection($task);
             if ($operation !== 'install') {
                 // Defense in depth: a PROBE/VERIFY must remain SQL-read-only
@@ -157,7 +173,9 @@ final class HostingerStage2OneShot
                         if (fwrite($handle, $data."\n") !== strlen($data)+1) {
                             throw new RuntimeException('SNAPSHOT_WRITE_FAILED');
                         }
-                        fflush($handle);
+                        if (!fflush($handle) || !fsync($handle)) {
+                            throw new RuntimeException('SNAPSHOT_DURABILITY_FAILED');
+                        }
                     } finally {
                         fclose($handle);
                     }
@@ -185,14 +203,62 @@ final class HostingerStage2OneShot
                 }
             }
             $receipt['finishedAtUtc'] = gmdate('Y-m-d\\TH:i:s\\Z');
-            $json = json_encode($receipt, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)."\n";
-            rewind($receiptFile);
-            ftruncate($receiptFile, 0);
-            fwrite($receiptFile, $json);
-            fflush($receiptFile);
-            fclose($receiptFile);
+            try {
+                self::persistReceipt($receiptFile, $receipt);
+            } finally {
+                fclose($receiptFile);
+            }
         }
         return $receipt;
+    }
+
+    /** Persist an inode-bound, nonsecret private record or fail closed. */
+    private static function persistReceipt(mixed $file, array $data): void
+    {
+        if (!is_resource($file)) {
+            throw new RuntimeException('STAGE2_RECEIPT_FILE_REQUIRED');
+        }
+        $json = json_encode($data, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)."\n";
+        if (strlen($json) > 4096 || !rewind($file) || !ftruncate($file, 0)) {
+            throw new RuntimeException('STAGE2_RECEIPT_TRUNCATION_REFUSED');
+        }
+        $length = strlen($json);
+        $written = 0;
+        while ($written < $length) {
+            $count = @fwrite($file, substr($json, $written));
+            if (!is_int($count) || $count < 1) {
+                throw new RuntimeException('STAGE2_RECEIPT_PARTIAL_WRITE');
+            }
+            $written += $count;
+        }
+        // PHP 8.1+ exposes fsync for regular files. Silent flush-only
+        // success is insufficient for the one-use DB work authorization.
+        if (!fflush($file) || !fsync($file)) {
+            throw new RuntimeException('STAGE2_RECEIPT_SYNC_FAILED');
+        }
+    }
+
+    /**
+     * Real child-process abrupt-stop laboratory, with 4 independent CI
+     * guards AND an exact ephemeral MySQL DB+user. At no point can this
+     * code unlock an operation or send traffic to a target host.
+     */
+    private static function ciOnlyCrash(array $task, string $checkpoint): void
+    {
+        if (getenv('CI') === 'true'
+            && getenv('GITHUB_ACTIONS') === 'true'
+            && getenv('CMS_ALLOW_DESTRUCTIVE_MYSQL_CI') === '1'
+            && getenv('CMS_TEST_MYSQL_DSN') ===
+                'mysql:host=127.0.0.1;port=3306;dbname=ai_site_cms_ci;charset=utf8mb4'
+            && getenv('CMS_TEST_MYSQL_ROOT_PASSWORD') === 'ephemeral_root_ci_only'
+            && $task['db_host'] === '127.0.0.1'
+            && $task['db_name'] === 'ai_site_cms_oneshot_ci'
+            && $task['db_user'] === 'cms_stage2_once_ci'
+            && getenv('CMS_STAGE2_CI_CRASH_POINT') === $checkpoint) {
+            // exit() intentionally bypasses the normal receipt-finalizing
+            // finally: model process disappearance, not a PHP exception.
+            exit(78);
+        }
     }
 
     /** @param mixed $task */
