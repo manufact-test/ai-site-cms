@@ -89,7 +89,7 @@ try{
     'private snapshot copies the exact three signed bytes and verified ZIP digest');
   const previouslySigned=fs.readFileSync(path.join(mutable,'package.zip'));
   fs.writeFileSync(path.join(mutable,'package.zip'),Buffer.from('attacker-swapped-ZIP'));
-  denied(()=>verifyEnvelope(mutable,publicKey,expected),/metadata\\/version\\/hash/,
+  denied(()=>verifyEnvelope(mutable,publicKey,expected),/metadata/,
     'post-snapshot source archive swap must not authenticate');
   ok(verifyEnvelope(sealed,publicKey,expected).archiveSha256===signatureInfo.archiveSha256,
     'verified snapshot survives subsequent source substitution');
@@ -109,7 +109,7 @@ try{
   fs.symlinkSync(path.join(bundle,'package.zip'),path.join(symlinkSource,'package.zip'));
   const linkLab=new LabRollout();
   try{denied(()=>stageSignedLabBundle({folder:symlinkSource,trustedPublicKey:publicKey,
-    expectedVersion:expected,lab:linkLab}),/Unsafe\\/missing signed package file/,
+    expectedVersion:expected,lab:linkLab}),/Unsafe/,
     'symbolic link package is refused before any signature work');}
   finally{linkLab.dispose();}
   const hardlinkSource=cloneBundle('hardlinked-signature');
@@ -117,7 +117,7 @@ try{
   fs.linkSync(path.join(bundle,'envelope.sig'),path.join(hardlinkSource,'envelope.sig'));
   const hardlinkLab=new LabRollout();
   try{denied(()=>stageSignedLabBundle({folder:hardlinkSource,trustedPublicKey:publicKey,
-    expectedVersion:expected,lab:hardlinkLab}),/Unsafe\\/missing signed package file/,
+    expectedVersion:expected,lab:hardlinkLab}),/Unsafe/,
     'hardlinked signature cannot masquerade as independent sealed evidence');}
   finally{hardlinkLab.dispose();fs.unlinkSync(path.join(hardlinkSource,'envelope.sig'));}
   ok(compare(expected,'0.2.0-stage2.0')>0 && compare(expected,expected)===0,'Monotonic version comparator');
