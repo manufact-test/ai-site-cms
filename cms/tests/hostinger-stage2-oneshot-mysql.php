@@ -64,9 +64,41 @@ $checks=0;
 $check=static function (bool $ok,string $why) use (&$checks):void {
     $checks++;if(!$ok)throw new RuntimeException('One-shot CI fail: '.$why);
 };
-$store=static function (array $value)use($local):void{
+// Disposable synthetic owner keys only. Never exported or trusted for real sites.
+if (!extension_loaded('sodium'))throw new RuntimeException('CI requires native Sodium');
+$ownerKeys=sodium_crypto_sign_keypair();
+$ownerSecret=sodium_crypto_sign_secretkey($ownerKeys);
+$der=hex2bin('302a300506032b6570032100').sodium_crypto_sign_publickey($ownerKeys);
+$pem="-----BEGIN PUBLIC KEY-----\n".chunk_split(base64_encode($der),64,"\n").
+    "-----END PUBLIC KEY-----\n";
+$writePrivate=static function(string $n,string $v)use($local):void{
+    file_put_contents($local.'/'.$n,$v);chmod($local.'/'.$n,0600);
+};
+$trust=['format'=>'ai-site-cms-stage2-owner-install-trust-v1',
+    'target'=>Job::TARGET,'site'=>Job::SITE,'trustedOwnerSpkiSha256'=>hash('sha256',$der)];
+$writePrivate('owner-install-trust.json',json_encode($trust,JSON_THROW_ON_ERROR));
+$writePrivate('owner-install-public.pem',$pem);
+$signInstall=static function(array $v,int $before=-60,int $after=600)
+    use($ownerSecret,$writePrivate):void {
+    $p=['format'=>'ai-site-cms-stage2-owner-write-payload-v1',
+        'target'=>Job::TARGET,'site'=>Job::SITE,'operation'=>'install',
+        'packageManifestSha256'=>$v['package_manifest_sha256'],
+        'taskSha256'=>hash('sha256',json_encode($v,JSON_THROW_ON_ERROR)),
+        'notBeforeUtc'=>gmdate('Y-m-d\TH:i:s\Z',time()+$before),
+        'expiresAtUtc'=>gmdate('Y-m-d\TH:i:s\Z',time()+$after),
+        'productionReady'=>false,'stage2Accepted'=>false];
+    $sig=base64_encode(sodium_crypto_sign_detached(
+        "AI-SITE-CMS-STAGE2-OWNER-WRITE-INSTALL-V1\0".
+        json_encode($p,JSON_THROW_ON_ERROR),$ownerSecret));
+    $writePrivate('owner-install-consent.json',json_encode([
+        'format'=>'ai-site-cms-stage2-owner-write-consent-v1',
+        'payload'=>$p,'signature'=>$sig],JSON_THROW_ON_ERROR));
+};
+$store=static function (array $value)use($local,$signInstall):void{
     file_put_contents($local.'/once.json',json_encode($value,JSON_THROW_ON_ERROR));
     chmod($local.'/once.json',0600);
+    if (($value['operation']??null)==='install'
+        &&($value['confirm']??null)==='INSTALL_EMPTY_STAGE2_TEST_DB_ONCE')$signInstall($value);
 };
 $reject=static function (callable $action)use($check):void{
     try{$action();}catch(Throwable $e){$check(true,'expected refusal');return;}
@@ -369,6 +401,37 @@ try {
     $reject(fn()=>Job::run($package,$local)); // Wrong approval string.
     $task['confirm']='INSTALL_EMPTY_STAGE2_TEST_DB_ONCE';
     $store($task);
+    unlink($local.'/owner-install-consent.json');
+    [$code,$out,$err]=$runCron();
+    $check($code===3&&$out===''&&str_contains($err,'STAGE2_ONCE_REFUSED')
+        &&is_file($local.'/once.json')&&!is_file($local.'/receipt.json'),
+        'unsigned install task fails before DB/receipt');
+    $store($task);
+    $check(\AiSiteCms\Hosting\Stage2OwnerWriteConsent::verify(
+        $local,$task,$task['package_manifest_sha256'])===null,
+        'separate owner signature binds exact install task and package');
+    $bad=$task;$bad['db_password']='modified-credentials';
+    $reject(fn()=>\AiSiteCms\Hosting\Stage2OwnerWriteConsent::verify(
+        $local,$bad,$task['package_manifest_sha256']));
+    $wrong=$trust;$wrong['trustedOwnerSpkiSha256']=str_repeat('0',64);
+    $writePrivate('owner-install-trust.json',json_encode($wrong,JSON_THROW_ON_ERROR));
+    $reject(fn()=>\AiSiteCms\Hosting\Stage2OwnerWriteConsent::verify(
+        $local,$task,$task['package_manifest_sha256']));
+    $writePrivate('owner-install-trust.json',json_encode($trust,JSON_THROW_ON_ERROR));
+    $signInstall($task,-7200,-3600);
+    $reject(fn()=>\AiSiteCms\Hosting\Stage2OwnerWriteConsent::verify(
+        $local,$task,$task['package_manifest_sha256']));
+    $signInstall($task,120,600);
+    $reject(fn()=>\AiSiteCms\Hosting\Stage2OwnerWriteConsent::verify(
+        $local,$task,$task['package_manifest_sha256']));
+    $signInstall($task);
+    $tampered=json_decode(file_get_contents($local.'/owner-install-consent.json'),
+        true,8,JSON_THROW_ON_ERROR);
+    $tampered['payload']['target']='attacker.invalid';
+    $writePrivate('owner-install-consent.json',json_encode($tampered,JSON_THROW_ON_ERROR));
+    $reject(fn()=>\AiSiteCms\Hosting\Stage2OwnerWriteConsent::verify(
+        $local,$task,$task['package_manifest_sha256']));
+    $signInstall($task);
     $report=Job::run($package,$local);
     $check($report['status']==='installed_empty_foundation'
         && $report['schemaState']==='ready','write install after exact approval');

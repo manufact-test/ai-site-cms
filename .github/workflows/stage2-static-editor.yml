@@ -111,6 +111,9 @@ jobs:
           node tools/test-stage2-human-license-review.cjs
           node --check tools/test-stage2-owner-legal-custody.cjs
           node tools/test-stage2-owner-legal-custody.cjs
+          node --check tools/stage2-owner-write-consent.cjs
+          node --check tools/test-stage2-owner-write-consent.cjs
+          node tools/test-stage2-owner-write-consent.cjs
       - name: Signed real package operator handoff and owner evidence verification, independent key pin and tamper/replay refusal
         working-directory: cms
         run: |
