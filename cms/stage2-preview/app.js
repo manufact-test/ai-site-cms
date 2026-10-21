@@ -12,9 +12,11 @@
     seoSnippetTitle:$('seo-snippet-title'),seoSnippetDescription:$('seo-snippet-description'),
     seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url'),audit:$('audit-results'),auditCount:$('audit-count')};
   const storageKey='ai-site-cms-stage2-preview-local-v1',LIMIT=8;
+  const reviewKey='ai-site-cms-stage2-preview-feedback-v1',MAX_REVIEW=50;
   let project=P.template(),pageId=project.pages[0].id,doc,selection='',editor=null,
       dirty=false,records=[],storageOK=false;
   let saved='',undo=[],redo=[],lastType='',lastAt=0,focus='page',toastTimer;
+  let review=[];
   const snapshot=()=>JSON.stringify(project);
   const activePage=()=>project.pages.find(p=>p.id===pageId);
   const pageDoc=()=>P.pageDoc(project,activePage());
@@ -23,6 +25,75 @@
     clearTimeout(toastTimer);ui.status.textContent=message;
     ui.status.className='status show'+(error?' error':'');
     toastTimer=setTimeout(()=>ui.status.className='status',4000);
+  }
+  function readReview(){
+    try{
+      const raw=localStorage.getItem(reviewKey);
+      if(!raw)return;
+      const all=JSON.parse(raw);
+      if(!Array.isArray(all))throw Error('Invalid review notes');
+      review=all.slice(0,MAX_REVIEW).filter(n=>n&&typeof n==='object'
+        &&typeof n.text==='string'&&n.text.length<=2000
+        &&typeof n.project==='string'&&typeof n.page==='string'
+        &&typeof n.block==='string'&&typeof n.kind==='string'
+        &&typeof n.at==='number'&&Number.isFinite(n.at));
+    }catch(_){review=[];toast('Не удалось открыть локальные заметки. Для новых замечаний доступен экспорт',true);}
+  }
+  function writeReview(){
+    try{localStorage.setItem(reviewKey,JSON.stringify(review));return true;}
+    catch(_){toast('Не удалось сохранить замечания в браузере. Скачайте файл с замечаниями',true);return false;}
+  }
+  function showReview(){
+    const pg=activePage(),section=current(),name=section?C.definitions[section.type].label:'Страница';
+    $('review-context').textContent='Текущий блок: '+pg.title+' / '+name;
+    $('review-count').textContent=String(review.length);
+    $('review-list').replaceChildren();
+    if(!review.length){
+      const empty=document.createElement('p');empty.className='review-empty';
+      empty.textContent='Замечаний пока нет. Выберите блок на макете и добавьте первое.';
+      $('review-list').append(empty);
+    }
+    review.forEach((n,index)=>{
+      const entry=document.createElement('div');entry.className='review-entry';
+      const head=document.createElement('strong');head.textContent=n.kind+' · '+n.page+' · '+n.block;
+      const message=document.createElement('p');message.textContent=n.text;
+      const del=document.createElement('button');del.type='button';del.className='text-button';
+      del.textContent='Удалить';del.setAttribute('aria-label','Удалить замечание '+(index+1));
+      del.addEventListener('click',()=>{review.splice(index,1);writeReview();showReview();});
+      entry.append(head,message,del);$('review-list').append(entry);
+    });
+    $('review-export').disabled=review.length===0;
+    $('review-clear').disabled=review.length===0;
+  }
+  function addReview(){
+    const text=$('review-text').value.trim();
+    if(!text)return toast('Напишите, что нужно поправить',true);
+    if(review.length>=MAX_REVIEW)return toast('Собрано 50 замечаний. Экспортируйте и очистите список',true);
+    const pg=activePage(),section=current();
+    review.push({at:Date.now(),project:project.siteTitle,page:pg.title,slug:pg.slug,
+      block:section?C.definitions[section.type].label:'Страница',
+      kind:$('review-kind').value,text});
+    writeReview();$('review-text').value='';showReview();
+    toast('Замечание добавлено. Скачайте все замечания одним файлом');
+  }
+  function exportReview(){
+    if(!review.length)return;
+    const lines=['# Замечания по макету AI Site CMS','','Демонстрационный Stage 2 редактор; это НЕ формальная приёмка.','',
+      ...review.flatMap((n,i)=>[
+        '## '+(i+1)+'. '+n.kind+' — '+n.page+' / '+n.block,
+        '',
+        'Проект: '+n.project,
+        'Страница: /'+(n.slug||''),
+        'Добавлено: '+new Date(n.at).toLocaleString('ru-RU'),
+        '',
+        n.text,''
+      ])];
+    const url=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/markdown;charset=utf-8'}));
+    const a=document.createElement('a');
+    a.href=url;a.download='ai-site-cms-preview-feedback.md';
+    document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast('Все замечания скачаны в одном файле Markdown');
   }
   function auditUI(){
     ui.audit.replaceChildren();
@@ -183,15 +254,15 @@
     bind();
     selection=doc.sections.some(s=>s.id===preferredSection)?preferredSection:doc.sections[0].id;
     ui.title.value=project.siteTitle;ui.theme.value=project.theme;lastType='';
-    pageUI();listing();mount();changed();
+    pageUI();listing();mount();changed();showReview();
   }
   function selectPage(id){
     if(!project.pages.some(p=>p.id===id)||id===pageId)return;
     if(editor){editor.destroy();editor=null;}
     pageId=id;bind();selection=doc.sections[0].id;lastType='';
-    pageUI();listing();mount();preview();
+    pageUI();listing();mount();preview();showReview();
   }
-  function select(id){if(id===selection)return;selection=id;lastType='';listing();mount();preview();}
+  function select(id){if(id===selection)return;selection=id;lastType='';listing();mount();preview();showReview();}
   function pageAdd(duplicate=false){
     if(project.pages.length>=P.MAX_PAGES)return toast('Максимум восемь страниц',true);
     checkpoint('pages');
@@ -368,12 +439,18 @@
     }
     ui.frame.addEventListener('load',bindPreviewClicks);
     $('expand-preview').addEventListener('click',expandPreview);
-    readSaved();if(records.length)project=P.normalize(records[0].doc);
+    readSaved();readReview();if(records.length)project=P.normalize(records[0].doc);
     saved=snapshot();apply(project);versions();
     $('add').addEventListener('click',add);
     $('starter-apply').addEventListener('click',starter);
     $('copy-section').addEventListener('click',copySection);
     $('download-site').addEventListener('click',downloadSite);
+    $('review-add').addEventListener('click',addReview);
+    $('review-export').addEventListener('click',exportReview);
+    $('review-clear').addEventListener('click',()=>{
+      if(!review.length||!confirm('Удалить все заметки по макету? Сначала скачайте файл.'))return;
+      review=[];writeReview();showReview();
+    });
     ui.pageList.addEventListener('change',()=>selectPage(ui.pageList.value));
     $('page-add').addEventListener('click',()=>pageAdd());
     $('page-copy').addEventListener('click',()=>pageAdd(true));

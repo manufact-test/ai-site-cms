@@ -193,6 +193,21 @@ const root=path.resolve(__dirname,'../..');
         assert.equal(await kit.locator('body.preview-expanded').count(),1);
         await kit.keyboard.press('Escape');
         assert.equal(await kit.locator('body.preview-expanded').count(),0);
+        // Collect owner feedback on the selected page/section, export one
+        // Markdown file, then reload and confirm notes persist locally.
+        await kit.locator('#review-text').fill('Укажите реальные характеристики продукции');
+        await kit.locator('#review-add').click();
+        assert.equal(await kit.locator('#review-count').innerText(),'1');
+        assert.match(await kit.locator('#review-list').innerText(),/реальные характеристики продукции/);
+        const feedbackDownload=kit.waitForEvent('download');
+        await kit.locator('#review-export').click();
+        const feedback=await feedbackDownload;
+        const noteContent=fs.readFileSync(await feedback.path(),'utf8');
+        assert.match(noteContent,/Продукция/);
+        assert.match(noteContent,/Укажите реальные характеристики продукции/);
+        await kit.locator('#save').click();
+        await kit.reload();
+        assert.equal(await kit.locator('#review-count').innerText(),'1');
         assert.deepEqual(kitErrors,[],'distributable offline kit must have no JS errors');
         assert.deepEqual(kitRemote,[],'owner kit must never request a server');
         if(process.env.GITHUB_ACTIONS==='true'){
@@ -202,6 +217,6 @@ const root=path.resolve(__dirname,'../..');
     }finally{fs.rmSync(kitDir,{recursive:true,force:true});}
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
-    console.log('Stage2 OWNER REVIEW KIT PASS: open standalone offline editor ZIP, canvas block click, menu navigation, fullscreen, 11 sections, three starters, offline site ZIP, save/reload and ZERO network.');
+    console.log('Stage2 OWNER REVIEW KIT PASS: standalone editor ZIP, canvas block click, menu navigation, fullscreen, owner feedback Markdown+persist, starter sites, offline site ZIP and ZERO network.');
   }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});
