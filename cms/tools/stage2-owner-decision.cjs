@@ -9,6 +9,7 @@ const path=require('node:path');
 const {createDossier,OUT,stable,digest}=require('./stage2-license-dossier.cjs');
 const operatorScope=require('./stage2-operator-scope.cjs');
 const evidenceCrypto=require('./stage2-evidence-bundle.cjs');
+const consentCrypto=require('./stage2-owner-consent.cjs');
 const FORMAT='ai-site-cms-stage2-owner-decision-packet-v1';
 const NAMES=['cmsHealth','cmsPrivateVendor','cmsPrivateEditor',
   'cmsPublishGet','visitorHome'];
@@ -51,6 +52,21 @@ function validated(source,type){
       ||source.productionReady!==false
       ||Object.keys(source.results).sort().join('|')!==NAMES.slice().sort().join('|'))
       throw Error('Untrusted HTTPS observation shape');
+    // Treat the HTTPS process' "signature checked" flag as an untrusted claim.
+    // It is only promoted to a cryptographic fact when the owner packet
+    // independently re-reads the signed grant and out-of-band public pin.
+    if(source.cryptographicScopeSignatureVerified!==undefined &&
+      typeof source.cryptographicScopeSignatureVerified!=='boolean')
+      throw Error('Malformed reported owner consent');
+    const claimedConsent=source.cryptographicScopeSignatureVerified===true;
+    const signedFields=['ownerConsentSha256','ownerPublicPinSha256'];
+    if(claimedConsent) {
+      if(source.ciLoopbackOnly || signedFields.some(k=>
+        !/^[a-f0-9]{64}$/.test(source[k]||'')))
+        throw Error('Unsigned or CI consent cannot claim signed owner permission');
+    }else if(signedFields.some(k=>source[k]!=null)){
+      throw Error('Unsigned report must not claim an owner consent fingerprint');
+    }
     const names={};
     for(const name of NAMES){
       const record=source.results[name];
@@ -71,6 +87,10 @@ function validated(source,type){
       disposableCiFixture:source.ciLoopbackOnly,
       originPairSha256:source.requestedOriginsSha256,
       scopeRecordSha256:source.operatorScopeRecordSha256,
+      reportedSignedConsent:claimedConsent,
+      reportedConsentSha256:claimedConsent?source.ownerConsentSha256:null,
+      reportedOwnerPinSha256:claimedConsent?source.ownerPublicPinSha256:null,
+      independentlyReverifiedSignedConsent:false,
       checks:names,externalReceiptOnly:true,
       liveTargetHostIndependentlyVerified:false
     };
@@ -101,7 +121,7 @@ function validated(source,type){
   }
   throw Error('Invalid evidence type');
 }
-function assemble(license,extra={},signedOptions=null){
+function assemble(license,extra={},signedOptions=null,ownerOptions=null){
   if(!isObject(license)||license.format!=='ai-site-cms-stage2-license-review-v1'
     ||license.componentCount!==43||license.phpRuntimeComponentCount!==14
     ||license.browserRuntimeComponentCount!==1
@@ -149,6 +169,43 @@ function assemble(license,extra={},signedOptions=null){
     if(https.disposableCiFixture && https.scopeRecordSha256!==null)
       throw Error('CI HTTPS report cannot claim real operator scope');
   }
+  let ownerConsentProof=null;
+  if(ownerOptions!==null) {
+    if(!isObject(ownerOptions)||typeof ownerOptions.file!=='string'||
+      typeof ownerOptions.publicKey!=='string'||typeof ownerOptions.trustedDigest!=='string'||
+      !evidence.operatorScope||!evidence.externalHttps||
+      evidence.externalHttps.disposableCiFixture||!extra.scope)
+      throw Error('Independent signed owner consent inputs and scope required');
+    const grant=operatorScope.inspectScope(extra.scope,{
+      cmsOrigin:extra.scope.cmsOrigin,siteOrigin:extra.scope.siteOrigin
+    });
+    const proof=consentCrypto.verify(ownerOptions.file,
+      ownerOptions.publicKey,ownerOptions.trustedDigest,grant);
+    const external=evidence.externalHttps;
+    if(!external.reportedSignedConsent||
+      external.reportedConsentSha256!==proof.ownerConsentSha256||
+      external.reportedOwnerPinSha256!==proof.ownerPublicPinSha256||
+      external.scopeRecordSha256!==proof.consentScopeSha256||
+      external.originPairSha256!==proof.consentOriginsSha256)
+      throw Error('Operator HTTPS claims do not match independently verified owner consent');
+    ownerConsentProof={
+      format:'ai-site-cms-stage2-readonly-consent-review-v1',
+      signatureCryptographicallyVerifiedUnderPinnedKey:true,
+      consentSha256:proof.ownerConsentSha256,
+      trustedPublicPinSha256:proof.ownerPublicPinSha256,
+      matchedHttpsScopeAndOrigins:true,
+      ownerIdentityIndependentlyAuthenticated:false,
+      liveHostIndependentlyVerified:false,
+      hostAccessPerformedByThisTool:false,
+      scopeOnlyReadonlyHttps:true,
+      writeInstallAuthorized:false,
+      stage2Accepted:false
+    };
+    external.independentlyReverifiedSignedConsent=true;
+  }
+  if(evidence.externalHttps?.reportedSignedConsent && ownerConsentProof===null)
+    throw Error('A claimed owner consent requires independent signature verification');
+
   const criteria=[
     {id:'architecture_and_isolation',name:'Owner approves CMS/site and 5-family architecture',
       state:'owner_decision_required',supportedBy:['lab CI','architecture proposal']},
@@ -182,6 +239,7 @@ function assemble(license,extra={},signedOptions=null){
     dependencyInventoryComponents:license.componentCount,
     attachedEvidence:evidence,
     cryptographicEvidenceRecord:verifiedSignature,
+    ownerReadOnlyConsentProof:ownerConsentProof,
     remainingCriteria:criteria,
     allCriteriaAutomaticallyApproved:false,
     independentLicenseApproval:false,
@@ -211,6 +269,9 @@ function render(packet){
     (packet.cryptographicEvidenceRecord
       ?'<p><strong>Offline Ed25519 signature verified against the independently supplied fingerprint.</strong> This protects the evidence file from alteration; the signing-key owner, permission and real hosting observations are NOT independently authenticated.</p>'
       :'<p>There is no independently key-pinned signed evidence bundle attached.</p>')+
+    (packet.ownerReadOnlyConsentProof
+      ?'<p><strong>Owner read-only consent signature independently reverified against a supplied Ed25519 public-key fingerprint.</strong> This does not independently establish owner identity, actual host observations, or any permission to install or publish.</p>'
+      :'<p>No independent signed owner read-only consent has been attached.</p>')+
     '<table><thead><tr><th>Criterion</th><th>Current state</th></tr></thead><tbody>'+
     lines+'</tbody></table>'+
     '<p>See <code>stage2-owner-decision.json</code> for machine-readable evidence limits and <code>stage2-license-dossier.html</code> for 43 dependencies.</p>'+
@@ -226,11 +287,11 @@ function readEvidence(file){
   const st=fs.lstatSync(file);
   if(!st.isFile()||st.nlink!==1||st.size<5||st.size>262144|| (st.mode&0o077)!==0)
     throw Error('Unprotected operator supplied evidence');
-  return JSON.parse(fs.readFileSync(file,'utf8'));
+  return JSON.parse(evidenceCrypto.readPrivate(file).toString('utf8'));
 }
-function build(extra={},signed=null){
+function build(extra={},signed=null,ownerConsent=null){
   const license=createDossier();
-  const packet=assemble(license,extra,signed);
+  const packet=assemble(license,extra,signed,ownerConsent);
   fs.mkdirSync(OUT,{recursive:true,mode:0o700});
   fs.writeFileSync(path.join(OUT,'stage2-owner-decision.json'),stable(packet),{mode:0o600});
   fs.writeFileSync(path.join(OUT,'stage2-owner-decision.html'),render(packet),{mode:0o600});
@@ -242,7 +303,7 @@ if(require.main===module){
   try{
     const argv=process.argv.slice(2);
     if(!argv.includes('--build')||argv.filter(x=>x==='--build').length!==1||
-      argv.some(x=>x!=='--build'&&!/^--(?:offline|https|database|scope|signed-bundle|trusted-pubkey|trusted-spki-sha256)=/.test(x)))
+      argv.some(x=>x!=='--build'&&!/^--(?:offline|https|database|scope|signed-bundle|trusted-pubkey|trusted-spki-sha256|owner-consent|owner-trusted-pubkey|owner-trusted-spki-sha256)=/.test(x)))
       throw Error('Explicit offline build required');
     const sources={};
     for(const token of argv.filter(x=>x!=='--build')){
@@ -251,6 +312,17 @@ if(require.main===module){
         throw Error('Duplicate operator evidence');
       sources[kind]=value;
     }
+    const ownerFields=['owner-consent','owner-trusted-pubkey',
+      'owner-trusted-spki-sha256'];
+    const consentPresent=ownerFields.filter(k=>sources[k]).length;
+    if(consentPresent!==0&&consentPresent!==3)
+      throw Error('All three independent owner consent inputs required');
+    const consent=consentPresent===3?{
+      file:sources['owner-consent'],
+      publicKey:sources['owner-trusted-pubkey'],
+      trustedDigest:sources['owner-trusted-spki-sha256']
+    }:null;
+    for(const k of ownerFields)delete sources[k];
     const signed=Object.keys(sources).some(x=>[
       'signed-bundle','trusted-pubkey','trusted-spki-sha256'].includes(x));
     if(signed){
@@ -261,12 +333,12 @@ if(require.main===module){
       const bundle=readEvidence(sources['signed-bundle']);
       const pubkey=evidenceCrypto.readPrivate(sources['trusted-pubkey'],8192);
       build({}, {bundle,publicKey:pubkey,
-        trustedDigest:sources['trusted-spki-sha256']});
+        trustedDigest:sources['trusted-spki-sha256']},consent);
     }else{
       const extra={};
       for(const [kind,file] of Object.entries(sources))
         extra[kind]=readEvidence(file);
-      build(extra);
+      build(extra,null,consent);
     }
   }catch{
     process.stderr.write('STAGE2_OWNER_REVIEW_REFUSED\n');process.exitCode=3;
