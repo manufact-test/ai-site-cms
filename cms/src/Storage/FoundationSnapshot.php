@@ -61,6 +61,14 @@ final class FoundationSnapshot
         if (!is_array($value) || array_is_list($value)) {
             throw new InvalidArgumentException('Snapshot is not an object');
         }
+        // Fail before ANY DDL on ambiguous or differently serialized bytes.
+        // A checksum over decoded values does not detect duplicate JSON keys,
+        // reordered fields or alternate spellings with the same final values.
+        // Export produces one deterministic byte representation; require it.
+        $canonical = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        if (!hash_equals($canonical, $snapshot)) {
+            throw new InvalidArgumentException('Noncanonical foundation snapshot bytes');
+        }
         $required = ['format', 'schema_version', 'sha256', 'site_id', 'storage_generation'];
         $keys = array_keys($value);
         sort($keys);
