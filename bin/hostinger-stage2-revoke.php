@@ -58,10 +58,47 @@ try {
     if (!is_string($digest)) throw new RuntimeException('MANIFEST_HASH_FAILED');
     $requestFile = $local.'/revoke-request.json';
     if (!$safeFile($requestFile, 75, 2048)) throw new RuntimeException('REVOKE_REQUEST_REFUSED');
-    $raw = @file_get_contents($requestFile);
-    if (!is_string($raw)) throw new RuntimeException('REVOKE_REQUEST_UNREADABLE');
+    // The checked filename may be replaced after lstat(). Read the SAME
+    // inode through a held descriptor and re-check after reading. The
+    // emergency path must remain Composer-free and DB-free.
+    $requestBefore=@lstat($requestFile);
+    $fd=@fopen($requestFile,'rb');
+    if ($fd === false) throw new RuntimeException('REVOKE_REQUEST_UNREADABLE');
+    try {
+        $opened=@fstat($fd);
+        if ($opened === false || $requestBefore === false
+            || $opened['dev'] !== $requestBefore['dev']
+            || $opened['ino'] !== $requestBefore['ino']
+            || $opened['size'] !== $requestBefore['size']
+            || ($opened['mode'] & 0077) !== 0 || ($opened['nlink'] ?? 0) !== 1) {
+            throw new RuntimeException('REVOKE_REQUEST_INODE_CHANGED');
+        }
+        $raw=@stream_get_contents($fd,2049);
+        $after=@fstat($fd);
+        $pathAfter=@lstat($requestFile);
+        if (!is_string($raw) || strlen($raw) !== $opened['size']
+            || $after === false || $pathAfter === false
+            || $after['dev'] !== $opened['dev']
+            || $after['ino'] !== $opened['ino']
+            || $after['mtime'] !== $opened['mtime']
+            || $after['ctime'] !== $opened['ctime']
+            || $after['size'] !== $opened['size']
+            || $pathAfter['dev'] !== $opened['dev']
+            || $pathAfter['ino'] !== $opened['ino']
+            || ($pathAfter['mode'] & 0077) !== 0
+            || $pathAfter['nlink'] !== 1) {
+            throw new RuntimeException('REVOKE_REQUEST_CHANGED_DURING_READ');
+        }
+    } finally {
+        fclose($fd);
+    }
+    if (str_contains($raw,"\0")) throw new RuntimeException('REVOKE_REQUEST_NUL');
     $request = json_decode($raw, true, 8, JSON_THROW_ON_ERROR);
-    $keys = is_array($request) ? array_keys($request) : [];
+    if (!is_array($request)
+        || json_encode($request, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES) !== $raw) {
+        throw new RuntimeException('REVOKE_REQUEST_NONCANONICAL');
+    }
+    $keys = array_keys($request);
     sort($keys);
     if (!is_array($request) || array_is_list($request)
         || $keys !== ['acknowledge_running_process_may_continue','confirm',
@@ -107,7 +144,7 @@ try {
         $json = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)."\n";
         if (!rewind($file) || !ftruncate($file, 0)
             || fwrite($file, $json) !== strlen($json)
-            || !fflush($file)) {
+            || !fflush($file) || !fsync($file)) {
             throw new RuntimeException('REVOCATION_RECORD_WRITE_REFUSED');
         }
     };
