@@ -37,6 +37,12 @@ function mysqlEnv(x,overrides={}){
  return {CMS_DB_DSN:'mysql:host=127.0.0.1;port=3306;dbname='+x.db+';charset=utf8mb4',
   CMS_DB_USER:x.user,CMS_DB_PASSWORD:x.password,CMS_SITE_ID:x.siteId,...overrides};
 }
+// Grant is scoped to the installation subprocess ONLY. Neither the runtime
+// HTTP reader nor the read-only schema preflight may inherit the write grant.
+function ciInstallEnv(x,overrides={}) {
+ return mysqlEnv(x,{CMS_ENV:'test',CI:'true',GITHUB_ACTIONS:'true',
+   CMS_STAGE2_MYSQL_CLI_INSTALL:'isolated-ci-only',...overrides});
+}
 function readEnv(x,overrides={}) {
  return {...mysqlEnv(x),CMS_DB_USER:x.readUser,CMS_DB_PASSWORD:x.readPassword,
   CMS_ENV:'test',CMS_STAGE2_RUNTIME_GATE:'mysql-ci-bound',
@@ -381,7 +387,11 @@ async function main(){
       'read-only preflight recognizes independently empty MySQL DB');
     const attempt=invoke(x,'install',[],env);
     ok(attempt.status===2,'explicit manual install is mandatory');
-    const installed=invoke(x,'install',['--apply'],env);
+    const unauthorized=invoke(x,'install',['--apply'],env);
+    ok(unauthorized.status===3 && unauthorized.stdout==='' &&
+      unauthorized.stderr.includes('Generic Stage2 MySQL installation refused'),
+      'MySQL write denied before explicit CI-only grant even on disposable DB');
+    const installed=invoke(x,'install',['--apply'],ciInstallEnv(x));
     ok(installed.status===0 && installed.stderr==='',
       'packaged executable initializes dedicated MySQL metadata and site identity');
     nonsecret(installed,'packaged installer');
@@ -390,12 +400,12 @@ async function main(){
       && JSON.parse(ready.stdout).version===2,
       'fresh process finds site identity + current migration after packaged install');
     nonsecret(ready,'schema preflight');
-    const again=invoke(x,'install',['--apply'],env);
+    const again=invoke(x,'install',['--apply'],ciInstallEnv(x));
     ok(again.status===0,'idempotent installer does not duplicate site metadata');
     const alien=invoke(x,'schema-preflight',['--inspect'],mysqlEnv(x,{CMS_SITE_ID:'foreign-site'}));
     ok(alien.status===4 && JSON.parse(alien.stdout).state==='blocked',
       'unexpected installation identity cannot pass read-only readiness');
-    const reject=invoke(x,'install',['--apply'],mysqlEnv(x,{CMS_SITE_ID:'foreign-site'}));
+    const reject=invoke(x,'install',['--apply'],ciInstallEnv(x,{CMS_SITE_ID:'foreign-site'}));
     ok(reject.status===1,'cross-site reinstall attempt is rejected');
     nonsecret(reject,'denied installer');
   }
