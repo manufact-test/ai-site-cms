@@ -99,6 +99,18 @@ function verify(root=STAGE){
   if(!listed.has('public/.htaccess')||listed.has('public/editor.js')||!listed.has('private/editor/editor.js')||!listed.has('vendor/autoload.php')||!listed.has('public/index.php')){
     throw Error('Editor exposure or missing executable package essentials');
   }
+  // Stage2 is health-only. No research HTML, form handler, uploads, CSS or
+  // editor assets belong in the public document root until a separately
+  // authorized stage and full auth/CSRF/media/tenancy contract exist.
+  // Check the manifest inventory, not just source-file names: a perfectly
+  // checksummed foreign form.php or assets/ui.js must also be rejected.
+  const publicPaths=[...listed].filter(p=>p.startsWith('public/')).sort();
+  if(JSON.stringify(publicPaths)!==JSON.stringify(['public/.htaccess','public/index.php'])
+    || manifest.writeEndpointsAvailable!==false
+    || manifest.adminEditorAssets!=='private/editor'
+    || manifest.hostingComposerOrNodeRequired!==false){
+    throw Error('Stage2 public boundary forbids unapproved routes/assets or writable CMS claims');
+  }
   const compliance=JSON.parse(fs.readFileSync(path.join(root,'private/compliance/compliance-index.json'),'utf8'));
   const sbom=JSON.parse(fs.readFileSync(path.join(root,'private/compliance/sbom.cdx.json'),'utf8'));
   const notices=fs.readFileSync(path.join(root,'private/compliance/THIRD_PARTY_NOTICES.txt'),'utf8');
