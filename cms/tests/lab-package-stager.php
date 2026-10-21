@@ -22,6 +22,11 @@ function labReject(callable $fn, string $label): void {
     try { $fn(); } catch (\Throwable $error) { return; }
     throw new RuntimeException('Unexpectedly allowed unsafe install: ' . $label);
 }
+function labCanonicalManifest(array $data): string {
+    $raw=json_encode($data,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+    return preg_replace_callback('/^( +)/m',
+        static fn(array $m): string => str_repeat(' ',intdiv(strlen($m[1]),2)), $raw) . "\n";
+}
 function makeFixture(string $path): string {
     mkdir($path, 0700);
     foreach (['public','vendor','private','private/editor'] as $dir) {
@@ -52,7 +57,7 @@ function makeFixture(string $path): string {
         'isSigned'=>false,
         'files'=>$records,
     ];
-    $raw = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
+    $raw = labCanonicalManifest($manifest);
     file_put_contents($path . '/private/package-manifest.json', $raw);
     return hash('sha256', $raw);
 }
@@ -112,8 +117,7 @@ try {
         $fixtureManifest=json_decode($originalManifest,true,16,JSON_THROW_ON_ERROR);
         $fixtureManifest['files'][]=['path'=>$extraPath,
             'bytes'=>strlen($extraBytes),'sha256'=>hash('sha256',$extraBytes)];
-        $newManifest=json_encode($fixtureManifest,
-            JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
+        $newManifest=labCanonicalManifest($fixtureManifest);
         file_put_contents($manifestFile,$newManifest);
         $attackerDigest=hash('sha256',$newManifest);
         labReject(static fn()=>Lab::verifyPackage($source,$attackerDigest),
@@ -143,7 +147,7 @@ try {
         'writeEndpointsAvailable'=>false,'isSigned'=>false,
         'files'=>$testManifest['files']
     ];
-    $validFull=json_encode($normalManifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
+    $validFull=labCanonicalManifest($normalManifest);
     file_put_contents($manifestFile,$validFull);
     labOk(Lab::verifyPackage($source,hash('sha256',$validFull))['files']===5,
         'full canonical Stage2 manifest shape accepted by PHP');
@@ -158,7 +162,7 @@ try {
         'private_editor_missing'=>array_diff_key($normalManifest,['adminEditorAssets'=>true]),
         'wrong_http_claim'=>array_replace($normalManifest,['writeEndpointsAvailable'=>true])
     ] as $why=>$badManifest) {
-        $badRaw=json_encode($badManifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
+        $badRaw=labCanonicalManifest($badManifest);
         file_put_contents($manifestFile,$badRaw);
         $badHash=hash('sha256',$badRaw);
         labReject(static fn()=> Lab::verifyPackage($source,$badHash),
@@ -169,9 +173,35 @@ try {
         labOk($badLab->inspect()['status']==='empty',
             'no install writes for forged Stage2 capability: '.$why);
     }
+    // Malformed but recomputed-hash envelopes must fail in PHP exactly as
+    // they already do in the Node package-builder verifier. Every attack is
+    // supplied with its OWN digest, so this does not merely test hash damage.
+    foreach ([
+        'duplicate_top_level_key' => str_replace('"stage": 2,',
+            '"stage": 2,'."\n".'  "stage": 2,', $originalManifest),
+        'duplicate_inventory_key' => str_replace('"bytes":',
+            '"bytes": 1, "bytes":', $originalManifest),
+        'escape_manifest_property' => str_replace('"format":',
+            '"\\u0066ormat":', $originalManifest),
+        'alternate_whitespace' => " ".$originalManifest,
+        'wrong_indentation' => str_replace('  "format":','    "format":',$originalManifest),
+        'trailing_spaces' => $originalManifest." ",
+    ] as $reason=>$hostileRaw) {
+        labOk($hostileRaw!==$originalManifest,
+            'hostile manifest JSON fixture differs: '.$reason);
+        file_put_contents($manifestFile,$hostileRaw);
+        $newHash=hash('sha256',$hostileRaw);
+        labReject(static fn()=>Lab::verifyPackage($source,$newHash),
+            'hashed but noncanonical manifest JSON must fail: '.$reason);
+        $badLab=Lab::create();$labRoots[]=$badLab->root();
+        labReject(static fn()=> $badLab->stage($source,$newHash),
+            'cannot write intent from ambiguous signed-hash manifest: '.$reason);
+        labOk($badLab->inspect()['status']==='empty',
+            'source refusal is non-mutating: '.$reason);
+    }
     file_put_contents($manifestFile,$originalManifest);
     labOk(Lab::verifyPackage($source,$hash)['files']===5,
-        'fixture restored after source capability policy experiments');
+        'fixture restored after source capability and JSON-policy experiments');
 
     foreach (['after-intent','after-copy','after-rename','after-receipt',null] as $fault) {
         $lab = Lab::create();
