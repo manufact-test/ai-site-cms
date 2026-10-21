@@ -62,15 +62,36 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#export').click();
     const download=await downloadPromise;
     const exported=JSON.parse(fs.readFileSync(await download.path(),'utf8'));
-    assert.equal(exported.sections.length,6);
+    assert.equal(exported.pages.length,1);
+    assert.equal(exported.pages[0].sections.length,6);
     assert.equal(exported.theme,'forest');
-    assert.equal(exported.sections[0].props.title,'Рабочий прототип CMS');
+    assert.equal(exported.pages[0].sections[0].props.title,'Рабочий прототип CMS');
     // One expanded real-user smoke: local save -> reload -> edit -> undo/redo -> focused preview.
+    // Site-level vertical: create second page, customize SEO, alter its content,
+    // return home, save and reload all pages from offline browser storage.
+    await page.locator('#page-add').click();
+    assert.equal(await page.locator('#page-list option').count(),2);
+    await page.locator('#page-title').fill('Услуги');
+    await page.locator('#page-title').dispatchEvent('change');
+    await page.locator('#seo-title').fill('Услуги производства и разработки');
+    await page.locator('#seo-title').dispatchEvent('change');
+    await page.locator('#seo-description').fill('Узнайте о наших промышленных услугах.');
+    await page.locator('#seo-description').dispatchEvent('input');
+    await page.locator('#page-slug').fill('services');
+    await page.locator('#page-slug').dispatchEvent('change');
+    await page.waitForFunction(()=>document.querySelector('#preview').srcdoc.includes('name="description" content="Узнайте'));
+    assert.match(await page.locator('#preview-url').innerText(),/services/);
+    await page.locator('#page-list').selectOption({index:0});
+    await frame.locator('h1').filter({hasText:'Рабочий прототип CMS'}).waitFor();
     await page.locator('#save').click();
     assert.equal(await page.locator('#versions li').count(),1);
     await page.reload();
     await frame.locator('h1').filter({hasText:'Рабочий прототип CMS'}).waitFor();
     assert.equal(await page.locator('#sections li').count(),6);
+    assert.equal(await page.locator('#page-list option').count(),2);
+    await page.locator('#page-list').selectOption({index:1});
+    assert.equal(await page.locator('#seo-title').inputValue(),'Услуги производства и разработки');
+    await page.locator('#page-list').selectOption({index:0});
     const savedId=await page.locator('#fields input').evaluateAll(all=>all.find(x=>x.value==='Рабочий прототип CMS')?.id);
     assert.ok(savedId);
     const savedTitle=page.locator('#fields input[id='+JSON.stringify(savedId)+']');
@@ -91,6 +112,6 @@ const root=path.resolve(__dirname,'../..');
     await frame.locator('h1').filter({hasText:'Рабочий прототип CMS'}).waitFor();
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
-    console.log('Stage2 PRODUCT preview real Chromium PASS: rendered editor, safe live content, sections, mobile, theme and exported project; zero network.');
+    console.log('Stage2 PRODUCT multi-page preview PASS: two independently editable pages, SEO metadata, offline version restore, undo/redo, responsive and zero network.');
   }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});
