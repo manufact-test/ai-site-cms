@@ -129,7 +129,7 @@ jobs:
   genuine-sodium-free-php83:
     name: Real Sodium-free PHP 8.3 Ed25519 candidate (CI-only)
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -146,15 +146,35 @@ jobs:
         run: |
           node --check cms/tools/test-stage2-genuine-sodium-free.cjs
           node cms/tools/test-stage2-genuine-sodium-free.cjs --self-test
-      - name: Install OS PHP 8.3 CLI with separately loadable extensions in disposable runner
+      - name: Build true no-Sodium PHP 8.3 CLI from authenticated Ubuntu source (disposable)
+        shell: bash
         run: |
+          set -euo pipefail
+          # Runner PHP 8.3 has Sodium BUILT IN, even under -n: do not mislabel it.
+          # Ubuntu apt source checks signed Ubuntu package indices, not arbitrary tarball URLs.
+          sudo tee /etc/apt/sources.list.d/stage2-php83-src.sources >/dev/null <<'APT'
+          Types: deb-src
+          URIs: http://archive.ubuntu.com/ubuntu/
+          Suites: noble noble-updates noble-security
+          Components: main universe
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          APT
           sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends php8.3-cli php8.3-common
-          test -x /usr/bin/php8.3
-          /usr/bin/php8.3 -n -r 'if (PHP_VERSION_ID < 80300 || PHP_VERSION_ID >= 80400 || PHP_INT_SIZE !== 8 || extension_loaded("sodium") || function_exists("sodium_crypto_sign_verify_detached")) {fwrite(STDERR, "NOT_A_REAL_SODIUM_FREE_PHP83_BINARY\\n"); exit(3);}'
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends build-essential autoconf bison re2c pkg-config
+          mkdir -p "$RUNNER_TEMP/stage2-php83-source"
+          cd "$RUNNER_TEMP/stage2-php83-source"
+          apt-get source php8.3
+          source_dir="$(find . -mindepth 1 -maxdepth 1 -type d -name 'php8.3-*' -print -quit)"
+          test -n "$source_dir"
+          cd "$source_dir"
+          ./configure --disable-all --enable-cli --disable-cgi --disable-phpdbg --without-pear --without-sodium --enable-hash --enable-ctype > "$RUNNER_TEMP/stage2-php83-configure.log"
+          make -s -j2
+          cp sapi/cli/php "$RUNNER_TEMP/stage2-php83-true-no-sodium"
+          chmod 0700 "$RUNNER_TEMP/stage2-php83-true-no-sodium"
+          "$RUNNER_TEMP/stage2-php83-true-no-sodium" -n -r 'if (PHP_VERSION_ID < 80300 || PHP_VERSION_ID >= 80400 || PHP_INT_SIZE !== 8 || extension_loaded("sodium") || function_exists("sodium_crypto_sign_verify_detached") || !function_exists("hash")) {fwrite(STDERR, "NOT_A_REAL_SODIUM_FREE_PHP83_BINARY\\n"); exit(3);}'
       - name: Genuine no-Sodium RFC8032, signed-envelope, adversarial and failure-closed suite
         env:
-          CMS_PHP83_NO_SODIUM_BINARY: /usr/bin/php8.3
+          CMS_PHP83_NO_SODIUM_BINARY: ${{ runner.temp }}/stage2-php83-true-no-sodium
         run: node cms/tools/test-stage2-genuine-sodium-free.cjs
       - name: Distribution boundary remains unchanged
         run: |
