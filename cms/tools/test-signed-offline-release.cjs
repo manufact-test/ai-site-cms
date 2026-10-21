@@ -11,7 +11,7 @@ const {spawnSync}=require('node:child_process');
 const {STAGE,verify}=require('./build-internal-package.cjs');
 const {LabRollout}=require('./lab-versioned-rollout.cjs');
 const {buildSignedLabBundle,verifyEnvelope,stageSignedLabBundle,
-  metadata,writeEnvelope,compare,sha}=require('./lab-signed-offline-release.cjs');
+  metadata,writeEnvelope,compare,sha,snapshotSignedLabBundle}=require('./lab-signed-offline-release.cjs');
 
 const expected='0.2.0-stage2.1';
 let count=0;
@@ -80,6 +80,46 @@ try{
   ok(signatureInfo.version===expected && signatureInfo.productionReady===false,'CI-only detached signature metadata');
   ok(signatureInfo.signatureAlgorithm==='Ed25519' && signatureInfo.trustedKeyFingerprint.length===64,'Ed25519 key identity');
   ok(verifyEnvelope(bundle,publicKey,expected,expected).archiveSha256===signatureInfo.archiveSha256,'Trusted signature and exact ZIP bytes verified');
+  // Freeze exactly the authenticated handoff bytes before allowing a later
+  // mutable source ZIP/signature swap. The signed snapshot stays valid.
+  const mutable=cloneBundle('mutable-handoff');
+  const sealed=path.join(root,'sealed-archive');
+  snapshotSignedLabBundle(mutable,sealed);
+  ok(verifyEnvelope(sealed,publicKey,expected).archiveSha256===signatureInfo.archiveSha256,
+    'private snapshot copies the exact three signed bytes and verified ZIP digest');
+  const previouslySigned=fs.readFileSync(path.join(mutable,'package.zip'));
+  fs.writeFileSync(path.join(mutable,'package.zip'),Buffer.from('attacker-swapped-ZIP'));
+  denied(()=>verifyEnvelope(mutable,publicKey,expected),/metadata\\/version\\/hash/,
+    'post-snapshot source archive swap must not authenticate');
+  ok(verifyEnvelope(sealed,publicKey,expected).archiveSha256===signatureInfo.archiveSha256,
+    'verified snapshot survives subsequent source substitution');
+  const snapshotLab=new LabRollout();
+  try {
+    ok(stageSignedLabBundle({folder:sealed,trustedPublicKey:publicKey,
+      expectedVersion:expected,lab:snapshotLab})===expected,
+      'source ZIP swap cannot alter what snapshot stage verified and extracted');
+    ok(verify(snapshotLab.slot(expected)).files.length===pkg.files.length,
+      'sealed handoff stages the exact signed inventory');
+  }finally{snapshotLab.dispose();}
+  fs.writeFileSync(path.join(mutable,'package.zip'),previouslySigned);
+  denied(()=>snapshotSignedLabBundle(bundle,sealed),/must not exist/,
+    'cannot overwrite an already sealed evidence snapshot');
+  const symlinkSource=cloneBundle('linked-archive');
+  fs.unlinkSync(path.join(symlinkSource,'package.zip'));
+  fs.symlinkSync(path.join(bundle,'package.zip'),path.join(symlinkSource,'package.zip'));
+  const linkLab=new LabRollout();
+  try{denied(()=>stageSignedLabBundle({folder:symlinkSource,trustedPublicKey:publicKey,
+    expectedVersion:expected,lab:linkLab}),/Unsafe\\/missing signed package file/,
+    'symbolic link package is refused before any signature work');}
+  finally{linkLab.dispose();}
+  const hardlinkSource=cloneBundle('hardlinked-signature');
+  fs.unlinkSync(path.join(hardlinkSource,'envelope.sig'));
+  fs.linkSync(path.join(bundle,'envelope.sig'),path.join(hardlinkSource,'envelope.sig'));
+  const hardlinkLab=new LabRollout();
+  try{denied(()=>stageSignedLabBundle({folder:hardlinkSource,trustedPublicKey:publicKey,
+    expectedVersion:expected,lab:hardlinkLab}),/Unsafe\\/missing signed package file/,
+    'hardlinked signature cannot masquerade as independent sealed evidence');}
+  finally{hardlinkLab.dispose();fs.unlinkSync(path.join(hardlinkSource,'envelope.sig'));}
   ok(compare(expected,'0.2.0-stage2.0')>0 && compare(expected,expected)===0,'Monotonic version comparator');
   ok(stageSignedLabBundle({folder:bundle,trustedPublicKey:publicKey,expectedVersion:expected,minimumVersion:expected,lab})===expected,'Authenticated ZIP extracted and staged');
   ok(verify(lab.slot(expected)).files.length===pkg.files.length,'Fully verified 429-file installed lab slot');
