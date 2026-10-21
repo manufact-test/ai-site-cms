@@ -199,6 +199,20 @@ function main(){
     ok(missingOwner.status===3&&missingOwner.stdout===''&&
       missingOwner.stderr.trim()==='STAGE2_OWNER_REVIEW_REFUSED',
       'CLI cannot accept claimed owner signature without pinned consent evidence');
+    // A 64-byte signature has non-significant low bits in its final base64url
+    // character. Reject alternate encodings of the SAME valid signature.
+    const alias=JSON.parse(JSON.stringify(bundle));
+    const abc='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    const last=alias.proof.signatureBase64url.at(-1),index=abc.indexOf(last);
+    alias.proof.signatureBase64url=alias.proof.signatureBase64url.slice(0,-1)+
+      abc[(index&48)|((index+1)&15)];
+    ok(alias.proof.signatureBase64url!==bundle.proof.signatureBase64url,
+      'base64url signature alias altered only ignored pad bits');
+    ok(Buffer.from(alias.proof.signatureBase64url,'base64url').equals(
+      Buffer.from(bundle.proof.signatureBase64url,'base64url')),
+      'adversarial alias decodes to exact same authentic Ed25519 bytes');
+    refuses(()=>signing.verifySigned(alias,publicPem,digest,now),
+      'noncanonical alternate spelling of valid Ed25519 signature refused');
     const evil=JSON.parse(JSON.stringify(bundle));
     evil.payload.records.offline.cmsPackageManifestSha256='0'.repeat(64);
     refuses(()=>signing.verifySigned(evil,publicPem,digest,now),
@@ -242,6 +256,27 @@ function main(){
         CMS_STAGE2_OPERATOR_SIGNING:'explicit-offline-attestation'});
     ok(publicKeyLeak.status===3,'world-readable signing key rejected before output');
     fs.chmodSync(privatePath,0o600);
+    const hardPrivate=path.join(secret,'hardlink-to-private-key.pem');
+    fs.linkSync(privatePath,hardPrivate);
+    refuses(()=>signing.readPrivate(privatePath,8192),
+      'multi-linked operator signing key forbidden by secure descriptor gate');
+    fs.unlinkSync(hardPrivate);
+    const keySymlink=path.join(secret,'operator-key-link.pem');
+    fs.symlinkSync(privatePath,keySymlink);
+    refuses(()=>signing.readPrivate(keySymlink,8192),
+      'symlink to signing key cannot cross secure read boundary');
+    fs.unlinkSync(keySymlink);
+    const duplicated=path.join(secret,'duplicate-signed-evidence.json');
+    fs.writeFileSync(duplicated,fs.readFileSync(output),{mode:0o600});
+    const keyBytes=signing.readPrivate(privatePath,8192);
+    ok(keyBytes.equals(Buffer.from(privatePem)),'original signing key reopens intact');
+    const evidenceBytes=signing.readPrivate(duplicated);
+    ok(evidenceBytes.equals(fs.readFileSync(output)),
+      'bound and verified operator JSON bytes read without source mutation');
+    fs.chmodSync(secret,0o750);
+    refuses(()=>signing.readPrivate(privatePath,8192),
+      'group readable operator parent forbidden');
+    fs.chmodSync(secret,0o700);
 
     // GitHub CI must upload ONLY unsigned empty operator findings, not the
     // deliberately invented disposable signed claims used in this test.

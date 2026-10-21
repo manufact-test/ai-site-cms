@@ -43,7 +43,26 @@ function safePrivateFile(file,max=262144,readExisting=true) {
 }
 function readPrivate(file,max=262144){
   safePrivateFile(file,max,true);
-  return fs.readFileSync(file);
+  const beforePath=fs.lstatSync(file);
+  // The old pathname-only validation was vulnerable to replacing the node
+  // after lstat and before read. Hold an O_NOFOLLOW descriptor and compare
+  // physical inode, size, permissions, timestamps and byte count instead.
+  const fd=fs.openSync(file,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+  try {
+    const before=fs.fstatSync(fd);
+    assert(before.isFile()&&before.nlink===1&&(before.mode&0o077)===0
+      &&before.dev===beforePath.dev&&before.ino===beforePath.ino
+      &&before.size===beforePath.size&&before.size>=4&&before.size<=max,
+      'operator_source_inode_changed');
+    const bytes=fs.readFileSync(fd),after=fs.fstatSync(fd);
+    assert(bytes.length===before.size&&!bytes.includes(0)
+      &&after.dev===before.dev&&after.ino===before.ino
+      &&after.size===before.size&&after.mtimeMs===before.mtimeMs,
+      'operator_source_changed_during_read');
+    const parent=path.dirname(file);
+    assert(fs.realpathSync(parent)===parent,'operator_source_parent_changed');
+    return bytes;
+  }finally{fs.closeSync(fd);}
 }
 function refuseFields(records) {
   assert(exact(records,FIELDS),'unsupported_evidence_members');
@@ -112,6 +131,7 @@ function verifySigned(bundle,publicPem,trustedDigest,now=Date.now()){
     'unrecognized_operator_signing_key');
   const signature=Buffer.from(proof.signatureBase64url,'base64url');
   assert(signature.length===64
+    &&signature.toString('base64url')===proof.signatureBase64url
     &&crypto.verify(null,Buffer.from(encode(p)),crypto.createPublicKey(publicPem),
       signature),'signed_evidence_tampered_or_invalid');
   return {
