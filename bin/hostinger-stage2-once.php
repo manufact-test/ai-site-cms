@@ -9,6 +9,13 @@ declare(strict_types=1);
  * under ../cms-stage2-local/ and its scope inspected by the operator.
  *
  * No HTTP installation, no SSH, no secrets in GitHub or URL query strings.
+ * For INSTALL only, the independently authenticated owner Ed25519 SPKI
+ * SHA-256 MUST additionally be provisioned as the separate process environment
+ * CMS_STAGE2_OWNER_INSTALL_TRUSTED_SPKI_SHA256. Never derive it from
+ * cms-stage2-local/owner-install-trust.json or from the unsigned package.
+ * If hPanel cannot securely provision this independent Cron environment,
+ * INSTALL remains disabled; read-only PROBE is still independently scoped.
+ * Setting an environment variable is not in itself proof of owner identity.
  * A local receipt consumes the authorization, including failed attempts.
  */
 if (PHP_SAPI !== 'cli' || $argc !== 1 || PHP_VERSION_ID < 80100) {

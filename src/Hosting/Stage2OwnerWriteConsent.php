@@ -33,6 +33,19 @@ final class Stage2OwnerWriteConsent
         if (!Ed25519Backend::available()) {
             throw new RuntimeException('ED25519_VERIFIER_UNAVAILABLE_FAIL_CLOSED');
         }
+        // SECURITY BOUNDARY: a pin stored beside operator once.json is not
+        // a trust anchor. An attacker able to replace that directory could
+        // forge both its owner-install-public.pem AND trust JSON. The
+        // independently provisioned, exact Ed25519 SPKI SHA-256 pin must be
+        // injected by the separately administered PHP CLI/Cron environment.
+        // Missing or malformed external pin = NO DB connection or receipt.
+        // This does NOT authenticate the human owner or certify Hostinger
+        // environment administration by itself.
+        $externallyPinned = getenv('CMS_STAGE2_OWNER_INSTALL_TRUSTED_SPKI_SHA256');
+        if (!is_string($externallyPinned)
+            || !preg_match('/\\A[a-f0-9]{64}\\z/D', $externallyPinned)) {
+            throw new RuntimeException('OWNER_INSTALL_EXTERNAL_TRUST_ANCHOR_REQUIRED');
+        }
         $trust = Stage2PrivateOperatorRecord::readJsonObject(
             $localRoot.'/owner-install-trust.json', 1024
         );
@@ -55,7 +68,8 @@ final class Stage2OwnerWriteConsent
         $der = base64_decode($encoded, true);
         if (!is_string($der) || strlen($der) !== 44
             || bin2hex(substr($der, 0, 12)) !== self::SPKI_PREFIX
-            || !hash_equals($trust['trustedOwnerSpkiSha256'], hash('sha256', $der))) {
+            || !hash_equals($externallyPinned, $trust['trustedOwnerSpkiSha256'])
+            || !hash_equals($externallyPinned, hash('sha256', $der))) {
             throw new RuntimeException('OWNER_INSTALL_KEY_PIN_REFUSED');
         }
         $record = Stage2PrivateOperatorRecord::readJsonObject(

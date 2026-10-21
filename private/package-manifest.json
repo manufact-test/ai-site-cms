@@ -21,13 +21,13 @@
     },
     {
       "path": "bin/hostinger-stage2-once.php",
-      "bytes": 5344,
-      "sha256": "fc477b1bb9bf2d9c671367097ce375efb8ab40360194ea17be354f7f4a409a31"
+      "bytes": 5868,
+      "sha256": "41aeb8524a3a95d5b1c61d038f1e2c96422a74d56415e9959b442c40d2a95cb1"
     },
     {
       "path": "bin/hostinger-stage2-preflight.php",
-      "bytes": 15911,
-      "sha256": "c1fc47e99c16591b3fedc9711fd0a611c815ffca5c38f13689ee970a5877b502"
+      "bytes": 16604,
+      "sha256": "1635e4639e9c03c406adb87ca6d7bbc49f2b5636b1eba388e1ea119d2b1f7400"
     },
     {
       "path": "bin/hostinger-stage2-revoke.php",
@@ -246,8 +246,8 @@
     },
     {
       "path": "src/Hosting/Stage2OwnerWriteConsent.php",
-      "bytes": 5814,
-      "sha256": "a5420b08c58f15c47f6d65402f0913a689ccc7542fdad6fa9478a4aaadc6bed6"
+      "bytes": 6755,
+      "sha256": "ba55c0601613e0b4d30ff5b070a1cc77aa066318006e7880b888195c4cfa1c89"
     },
     {
       "path": "src/Hosting/Stage2PrivateOperatorRecord.php",
