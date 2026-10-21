@@ -43,7 +43,7 @@ const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
-  'sodium-compat-attest-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
+  'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
   'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','frozen-lock-baseline.mjs','frozen-lock-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
@@ -70,6 +70,27 @@ for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-r
   if(name==='runtime-sodium-proof-regression.mjs')requireProof(result,
     /Sodium-free wrapper false-pass offline regression PASS 15 assertions;/,
     '15 fake-PHP classification and missing crypto-output proof regressions');
+}
+// This source-of-truth comes from the actual ParagonIE public signed Git tag,
+// NOT from Composer metadata. Partial checkout lacks bundled external Git
+// transcript: mark incomplete, never invent positive vendor-source evidence.
+const upstreamSource=[
+  'sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs',
+  'fixtures/upstream-sodium-compat-v2.5.2-git.json'
+];
+if(upstreamSource.every(f=>fs.existsSync(path.join(dirname,f)))){
+  requireProof(entry('upstream:real-signed-sodium-tag-git-tree',
+    capture('node',[path.join(dirname,'sodium-upstream-tree-proof.mjs')],{timeout:15000})),
+    /REAL upstream signed-tag anchored Git provenance PASS 211 recursive entries and 78 exportable source blobs;/,
+    'real GitHub verified signed v2.5.2 tag, complete Git tree 211 entries reconstructed');
+  requireProof(entry('mutation:real-sodium-source-git-tree',
+    capture('node',[path.join(dirname,'sodium-upstream-tree-regression.mjs')],{timeout:25000})),
+    /REAL signed-tag 211-entry upstream Git source integrity offline regression PASS 28 assertions;/,
+    '28 adversarial tests against real 211-entry Git metadata; actual installed code NOT checked');
+}else{
+  for(const name of ['upstream:real-signed-sodium-tag-git-tree',
+    'mutation:real-sodium-source-git-tree'])
+    block(name,'Signed upstream Git tree transcript absent in partial checkout');
 }
 if(fs.existsSync(path.join(dirname,'ed25519-callsite-audit.php'))){
   requireProof(entry('mutation:ed25519-source-audit',
@@ -264,7 +285,8 @@ const proofNames=[
   'mutation:online-evidence-regression.mjs',
   'mutation:runtime-sodium-proof-regression.mjs',
   'upstream:archived-main-genuine-sodium-free','mutation:archived-main-sodium-provenance',
-  'actual-lock:frozen-source-baseline','mutation:real-43-pin-source-swap'
+  'actual-lock:frozen-source-baseline','mutation:real-43-pin-source-swap',
+  'upstream:real-signed-sodium-tag-git-tree','mutation:real-sodium-source-git-tree'
 ];
 console.error('INDEPENDENT_SECURITY_EXACT_HEAD_PROOFS '+JSON.stringify(
   proofNames.map(name=>{

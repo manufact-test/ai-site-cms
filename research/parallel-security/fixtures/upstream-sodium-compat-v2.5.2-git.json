@@ -1,0 +1,1505 @@
+{
+  "schema": "ai-site-cms-upstream-sodium-compat-git-tag-identity-v1",
+  "sourceRepository": "https://github.com/paragonie/sodium_compat",
+  "observedVia": "GitHub REST GET git/tags, git/commits and git/trees recursive, 2026-10-21",
+  "tag": {
+    "name": "v2.5.2",
+    "objectSha": "5cbae9d0ad987e0104e390d74cca92a128777aa8",
+    "targetCommit": "3246b36803c177847e677862fedeb7f937869adb",
+    "signature": "-----BEGIN PGP SIGNATURE-----\n\niQEzBAABCgAdFiEEf1LVxh0SVccxNi6Ca5ehwoJkBNoFAmqE7wIACgkQa5ehwoJk\nBNq8GwgAuEPP8LacvQWgwpF3akumFLD0YTCsGCzJ17EK8JckWo3wPbY6+5KnpRD1\nbMlJBVsHS39YynC/W8ShSVre4X4+IiYgTH6BhLYwSUDZOo6yWtfMHNthq0MyBxQX\nGkNEn4wIg7lafY4rVslfRveakViwnQUyLEznhvuulasr5BA6OqcAmP4QTi4ETvdi\n6Am59Uz7jNzQmRQRV/zRuwtoghhe6omN7mi+NFwZiLanzkMdlvoukCm9MqhzjB2L\nAzhTPi/gS9FjeV2n8r2mLSJi7rOaM4Ue9XmUxC6/m9ellQfrEjHj18ADgKnrmhiE\nRoX3Qmd5/27a7OtRlpCgK+BwsD9qPg==\n=ahIO\n-----END PGP SIGNATURE-----\n",
+    "payload": "object 3246b36803c177847e677862fedeb7f937869adb\ntype commit\ntag v2.5.2\ntagger Paragon Initiative Enterprises <security@paragonie.com> 1787096834 -0400\n\nVersion 2.5.2\n",
+    "githubVerified": true,
+    "githubReason": "valid",
+    "signerFingerprintNotIndependentlyTrusted": true
+  },
+  "commit": {
+    "sha": "3246b36803c177847e677862fedeb7f937869adb",
+    "treeSha": "d940270053129b9a11fe78388278e45c62b92bb4",
+    "githubVerified": false,
+    "githubReason": "unsigned"
+  },
+  "git": {
+    "count": 211,
+    "truncated": false,
+    "entries": [
+      {
+        "path": ".gitattributes",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "7dd93857a75500563125cce572c2b513698b8628",
+        "size": 428
+      },
+      {
+        "path": ".github",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "07ce3834489e867f786a0e5feb6d48c76357358d"
+      },
+      {
+        "path": ".github/workflows",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "4c697297e30f744a083c49e29babb9ca878acdc1"
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "dc7900d22514f6075e08704eafaf8658828773cb",
+        "size": 778
+      },
+      {
+        "path": ".github/workflows/fuzz.yml",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "d7728c761d666478fd895625bd4d55cb72a592e3",
+        "size": 718
+      },
+      {
+        "path": ".github/workflows/mutation.yml",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "f8da538ff402e0b3c34885b1e823016764aec617",
+        "size": 897
+      },
+      {
+        "path": ".github/workflows/psalm.yml",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "bf8e5a362d68b8614892418ab9397420c76d142d",
+        "size": 850
+      },
+      {
+        "path": ".gitignore",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "36b92242a2ccb0b13dc87aebdfd8778aaf037c83",
+        "size": 145
+      },
+      {
+        "path": "CONTRIBUTING.md",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "a092e7df6d179b808af3f1d795cc09d99850facc",
+        "size": 2358
+      },
+      {
+        "path": "LICENSE",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "5729115bff0e9a5c03750f39f6c50b7a90c508a9",
+        "size": 860
+      },
+      {
+        "path": "README.md",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "99461fb5436794f6d0af55fd007c8c499b58a6a8",
+        "size": 16138
+      },
+      {
+        "path": "autoload-fast.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "fceacbd9d4ab6797d2929f4fd94c438115710950",
+        "size": 100
+      },
+      {
+        "path": "autoload-pedantic.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "45c9032faeac5029bf87dd79ce57e97cba6f2ca0",
+        "size": 135
+      },
+      {
+        "path": "autoload-phpunit.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "a9f2f601b322ca673a0a75fb0cbe88c660b30fc0",
+        "size": 177
+      },
+      {
+        "path": "autoload.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "c1ea727fb27fbf14baf4a9b4490e2f1ea1d6758e",
+        "size": 2068
+      },
+      {
+        "path": "build-phar.sh",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "c1ff20a5685e937992e45012e8d2abc30de233d2",
+        "size": 206
+      },
+      {
+        "path": "composer.json",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "f4b6fab66175b7c259250fdfda8ecde404a99163",
+        "size": 2056
+      },
+      {
+        "path": "dist",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "4df309174ea8ee0358a26a0340da7e47af231e2d"
+      },
+      {
+        "path": "dist/Makefile",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "34c4817c1808e0ce6f7f8566ad1a81f12a6196bc",
+        "size": 1534
+      },
+      {
+        "path": "dist/box.json",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "2d339aeb3f9a47c719b0d695d9099e6bb7da84b8",
+        "size": 535
+      },
+      {
+        "path": "fuzzing",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "a04efd14fa58b6d797b9d526aa8a5eb9f090fc57"
+      },
+      {
+        "path": "fuzzing/FuzzSodiumCompat.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "aa6604ae773627ba8416e2cb7d28eb26a6481f44",
+        "size": 12893
+      },
+      {
+        "path": "infection.json.dist",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "3e62c8021fb8c536be71df3f6ac71308abd8536c",
+        "size": 15855
+      },
+      {
+        "path": "lib",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "2bcd1f69e3a48bcf4f3152591aba691da12b2a4d"
+      },
+      {
+        "path": "lib/php72compat.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "efdcd103983f36284a663fea48bc07f2d3bc40bd",
+        "size": 48298
+      },
+      {
+        "path": "lib/php72compat_const.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "5a876a67fbeb297ecfc9b0aef77dca897b170f59",
+        "size": 4621
+      },
+      {
+        "path": "lib/php84compat.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "a52e67a25e42dbc54fdb7e660bf5f0de8e12da8b",
+        "size": 3845
+      },
+      {
+        "path": "lib/php84compat_const.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "7f508b629e1a7c42f507124b850acfeaf2c701b5",
+        "size": 425
+      },
+      {
+        "path": "lib/ristretto255.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "b71f1dc741df8d0c9474561bf3329e4da1e1f557",
+        "size": 8254
+      },
+      {
+        "path": "lib/stream-xchacha20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "93c0a5700275cad016b657f904cb80276ae460c9",
+        "size": 2196
+      },
+      {
+        "path": "namespaced",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "28df530cf9e7160edf8239cb8265342eb9d96b5d"
+      },
+      {
+        "path": "namespaced/Compat.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "c40f7fb4ff006750aa304cde2cbe992b53b012bc",
+        "size": 86
+      },
+      {
+        "path": "namespaced/Core",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "bab3d540561721d9f62c34393845449db630d828"
+      },
+      {
+        "path": "namespaced/Core/BLAKE2b.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "f152c5ad9da1ad4171d6faa3cbe8197c7191a329",
+        "size": 98
+      },
+      {
+        "path": "namespaced/Core/ChaCha20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "08936b5f2338b1c90f8688eaa2ec2581c3dba7e7",
+        "size": 100
+      },
+      {
+        "path": "namespaced/Core/ChaCha20",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "db25aae9868f8e13ecd6c07c788fe01400593ea1"
+      },
+      {
+        "path": "namespaced/Core/ChaCha20/Ctx.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ea07a26a1fa203b86d7fe9ed46067ab8568184c3",
+        "size": 108
+      },
+      {
+        "path": "namespaced/Core/ChaCha20/IetfCtx.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "c0b2de8d67c78c5c062a77a48f5571221ad79bed",
+        "size": 116
+      },
+      {
+        "path": "namespaced/Core/Curve25519.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "d4a7ce1ee5ad345f5137f45ef03171d8ac6f6783",
+        "size": 104
+      },
+      {
+        "path": "namespaced/Core/Curve25519",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "1cdaf97a750ec6d6fe35268beb71cc8a77d67d71"
+      },
+      {
+        "path": "namespaced/Core/Curve25519/Fe.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "7129065a15f05a9ffc2b98cb498d987d9ffc17b4",
+        "size": 110
+      },
+      {
+        "path": "namespaced/Core/Curve25519/Ge",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "0aa1da0591817651ca85a7cc3f1f6e9e28d8a7b0"
+      },
+      {
+        "path": "namespaced/Core/Curve25519/Ge/Cached.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "269d6a77fbfa6dee0e57acf74893176efdb7546d",
+        "size": 124
+      },
+      {
+        "path": "namespaced/Core/Curve25519/Ge/P1p1.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "0b700461a4f4d67bcc404f0c9fab2566c9517fc0",
+        "size": 120
+      },
+      {
+        "path": "namespaced/Core/Curve25519/Ge/P2.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "e0c76c6d072d69849f8e888e070c554ffb336056",
+        "size": 116
+      },
+      {
+        "path": "namespaced/Core/Curve25519/Ge/P3.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "1a9cad7fb831a65cb1a714a2d5789b3f53efdd47",
+        "size": 116
+      },
+      {
+        "path": "namespaced/Core/Curve25519/Ge/Precomp.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "07e509a81eae34691de41069692929eb17bef7b0",
+        "size": 126
+      },
+      {
+        "path": "namespaced/Core/Curve25519/H.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "5ba7fd84edd396a449850c4202c0a1cc21b65705",
+        "size": 108
+      },
+      {
+        "path": "namespaced/Core/Ed25519.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "13939883e3bf7e37ce4116cc23fe0eacda972d45",
+        "size": 98
+      },
+      {
+        "path": "namespaced/Core/HChaCha20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "d96dc14ec33d09b81ac153a01747cb9df0b85e83",
+        "size": 102
+      },
+      {
+        "path": "namespaced/Core/HSalsa20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "e526b99f31ede8e20a0e21974ce504bbca62c860",
+        "size": 100
+      },
+      {
+        "path": "namespaced/Core/Poly1305.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "acfc6d09e1fb622eebf425487db86def7ddc9526",
+        "size": 100
+      },
+      {
+        "path": "namespaced/Core/Poly1305",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "37d81446e418ebb103f70e5bd0fa01815bf8a704"
+      },
+      {
+        "path": "namespaced/Core/Poly1305/State.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "a0648e76a1b23d1e59a8b36e78ba30eeaf37694a",
+        "size": 112
+      },
+      {
+        "path": "namespaced/Core/Salsa20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "a6112398dec75d472023f7bb646b364e81f1a1db",
+        "size": 98
+      },
+      {
+        "path": "namespaced/Core/SipHash.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "4570904a3d0f321f620f0d716d55231d46a3f1a6",
+        "size": 98
+      },
+      {
+        "path": "namespaced/Core/Util.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "6086a361b4cccf158be0e70580678e6f62b94ff2",
+        "size": 92
+      },
+      {
+        "path": "namespaced/Core/X25519.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "f17a2cf0a0ae4ba3c8c71c38d9909518d6f9a72d",
+        "size": 96
+      },
+      {
+        "path": "namespaced/Core/XChaCha20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "51b5535aac62c45715195d921249ee090d6c8ad2",
+        "size": 102
+      },
+      {
+        "path": "namespaced/Core/Xsalsa20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "5297e4917b789386c94c8854282458b683c50bea",
+        "size": 100
+      },
+      {
+        "path": "namespaced/Crypto.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "78f092d90b2a0ac5a1f31494725e76ece3e6c9bc",
+        "size": 86
+      },
+      {
+        "path": "namespaced/File.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "6b40459d45449659c37bd03d960cf9c36456a3e4",
+        "size": 82
+      },
+      {
+        "path": "phpstan.neon.dist",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "7c17bde3d4a9a6378d54c6b058e5c47b57cfa9ab",
+        "size": 1948
+      },
+      {
+        "path": "phpunit.xml.dist",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "58624981bb1cb163f74f344af1b235a0b92a5ba5",
+        "size": 631
+      },
+      {
+        "path": "psalm-new.xml",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "f3269fad05a90845fa59b51d9911d966d541e15c",
+        "size": 1011
+      },
+      {
+        "path": "psalm.xml",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ae9dc10cb993a8590298697ad43a09da0c09b52c",
+        "size": 412
+      },
+      {
+        "path": "src",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "512c3b0f3feb4daa604e7c87e29d2a044c93fa5d"
+      },
+      {
+        "path": "src/Compat.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "aee5b0e30e3d2b3acbb62cb2dd52f6290bccdd7d",
+        "size": 135487
+      },
+      {
+        "path": "src/Core",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "5e33c1bf0d8a62b4cdaf9c7429d04081650b5bb4"
+      },
+      {
+        "path": "src/Core/AEGIS",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "8f806ef95b21fdbb73ab3ad479c2da145b35a0ea"
+      },
+      {
+        "path": "src/Core/AEGIS/State128L.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "3e33cf74f85c06ed3f675404617279b562d3f229",
+        "size": 8535
+      },
+      {
+        "path": "src/Core/AEGIS/State256.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "30cb5ef85201bbef07d13e7d827af941268ccdbf",
+        "size": 6799
+      },
+      {
+        "path": "src/Core/AEGIS128L.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "bf38c050338e0812253fe32e85a27f95058893b1",
+        "size": 3941
+      },
+      {
+        "path": "src/Core/AEGIS256.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "c2d9bb0045e4fad7eced1c49eaa21c996c3eebae",
+        "size": 3918
+      },
+      {
+        "path": "src/Core/AES.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "6fd334330364e5bd1783bd30e4f9f2a650fd5af5",
+        "size": 16371
+      },
+      {
+        "path": "src/Core/AES",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "bf944de44686ec63b53b392cb08bfb8a4dcd2cf0"
+      },
+      {
+        "path": "src/Core/AES/Block.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ffae4ae4f8a994245c0e61cf2c3a27a0ba406470",
+        "size": 10818
+      },
+      {
+        "path": "src/Core/AES/Expanded.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "053b5601d5fd7f4e1b7c45b7b8e02785e6c4f5c8",
+        "size": 265
+      },
+      {
+        "path": "src/Core/AES/KeySchedule.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ade8556f92966a735660dc9d618ac6670a746685",
+        "size": 2012
+      },
+      {
+        "path": "src/Core/BLAKE2b.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "43ee78a2d42b2f8514a9453e1fcb0c05ebd7f180",
+        "size": 22427
+      },
+      {
+        "path": "src/Core/Base64",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "f3c1322112789d9365fb072eef849a7a58b2c483"
+      },
+      {
+        "path": "src/Core/Base64/Common.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "69318d8cedd10382fff35ac8a08b89ef4e4cc514",
+        "size": 6565
+      },
+      {
+        "path": "src/Core/Base64/Original.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "c05f1f62cd54d84b1491bbef3ebd1a3287c9ea2d",
+        "size": 2175
+      },
+      {
+        "path": "src/Core/Base64/UrlSafe.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "78ec0a924e10dc412223ada109ee5ee6965e6a87",
+        "size": 2173
+      },
+      {
+        "path": "src/Core/ChaCha20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ae0875e55eef232a1f0dd1dc030583274b63be64",
+        "size": 9885
+      },
+      {
+        "path": "src/Core/ChaCha20",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "ea4deeded1bc35927c235f83b89d761966316054"
+      },
+      {
+        "path": "src/Core/ChaCha20/Ctx.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "259f5df415441f5fd5913ad8daa118aeccdaea50",
+        "size": 4263
+      },
+      {
+        "path": "src/Core/ChaCha20/IetfCtx.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "018422904307ed5ea373469347bbab47210d11a9",
+        "size": 1465
+      },
+      {
+        "path": "src/Core/Curve25519.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "52d0b663b7434df25070beb7a253336f027340ec",
+        "size": 117974
+      },
+      {
+        "path": "src/Core/Curve25519",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "18b3fd7a7b098995dfae1985cf8be77537c743b0"
+      },
+      {
+        "path": "src/Core/Curve25519/Fe.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "c6d3e05766cb9c9554f40cf84f1e0ee4589764bf",
+        "size": 4947
+      },
+      {
+        "path": "src/Core/Curve25519/Ge",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "67c0eb0e435fa33613849600674e1db590a92da2"
+      },
+      {
+        "path": "src/Core/Curve25519/Ge/Cached.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "a18884885c1f3252d3bafe238b790716ebc4a08c",
+        "size": 1662
+      },
+      {
+        "path": "src/Core/Curve25519/Ge/P1p1.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "02c25538368ef4b7cc0e625e89116fe473b45538",
+        "size": 1563
+      },
+      {
+        "path": "src/Core/Curve25519/Ge/P2.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "aa2a1c4f8958018f8b110de8db8c1d3f4b692f7d",
+        "size": 1275
+      },
+      {
+        "path": "src/Core/Curve25519/Ge/P3.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "2474bf31ac4e24ef0c2299eb87de23383707892e",
+        "size": 1556
+      },
+      {
+        "path": "src/Core/Curve25519/Ge/Precomp.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "1e9a5eb3de4e6d23104e2e65177356da3eb9162c",
+        "size": 1393
+      },
+      {
+        "path": "src/Core/Curve25519/H.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "19def1dd8b4b6e39038a491adb8b279a5de2be53",
+        "size": 110359
+      },
+      {
+        "path": "src/Core/Curve25519/README.md",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "e8097fa347506b2887a38c48992e64a6334d2c9e",
+        "size": 218
+      },
+      {
+        "path": "src/Core/Ed25519.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "255afd01f74201a13bd960d2dfb0aaa97bb0e798",
+        "size": 18360
+      },
+      {
+        "path": "src/Core/HChaCha20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "4a47a0e3d7255e86c3ba134947471c7f8bec728e",
+        "size": 3760
+      },
+      {
+        "path": "src/Core/HSalsa20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "85e703084481b65dce869c7fe97fa38a405586e4",
+        "size": 3784
+      },
+      {
+        "path": "src/Core/Poly1305.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "678332533a7fd470d08529f2c33f3eb68ca8193d",
+        "size": 1754
+      },
+      {
+        "path": "src/Core/Poly1305",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "b396f29233016df4d906d659909945f8f08c63ee"
+      },
+      {
+        "path": "src/Core/Poly1305/State.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "f6f153a2aa06ff12e0a3a8069382ff4f98b1370f",
+        "size": 12346
+      },
+      {
+        "path": "src/Core/Ristretto255.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "527acce485c7c552807af9c45f7c8b9373896c95",
+        "size": 22709
+      },
+      {
+        "path": "src/Core/Salsa20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "1bd47eca53cbcdfce73b7f4f08bf59057e542ecf",
+        "size": 8638
+      },
+      {
+        "path": "src/Core/SecretStream",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "7e57e8211cd30c3da98b95942c3389411f7a5278"
+      },
+      {
+        "path": "src/Core/SecretStream/State.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "919e2a2a3b4d58e927f315e07bac2c1aae9d4f7f",
+        "size": 3651
+      },
+      {
+        "path": "src/Core/SipHash.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "f52ee5e2929650294137a80f061511156601ed69",
+        "size": 8159
+      },
+      {
+        "path": "src/Core/Util.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "2dc32352d0bdd512d6000589b9937da5900b9d20",
+        "size": 16604
+      },
+      {
+        "path": "src/Core/X25519.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "0d2e15141cc2f7b8ba9ab6744d76349f2026e636",
+        "size": 6975
+      },
+      {
+        "path": "src/Core/XChaCha20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "669615f6890f63dd5282f5a9134a9acbd65b9385",
+        "size": 3739
+      },
+      {
+        "path": "src/Core/XSalsa20.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ac183afb588fc6d92bd0b02219769f1a053260af",
+        "size": 1572
+      },
+      {
+        "path": "src/Crypto.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "27e128b6d023e1d2d459a50751c2233f4d55d875",
+        "size": 56648
+      },
+      {
+        "path": "src/File.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "b556a85035d37ed007a7ec99472e41516f8d2c1b",
+        "size": 35299
+      },
+      {
+        "path": "src/SodiumException.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "b80c1590a38655718c138a8e8f7b82e7f9e9a270",
+        "size": 170
+      },
+      {
+        "path": "tests",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "5c42eeaae74289a38c1fe5e346781848f2fbb537"
+      },
+      {
+        "path": "tests/compat",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "66725137b0362bdb9ed5b52c43c0e24dec3e0ea7"
+      },
+      {
+        "path": "tests/compat/Base64CompatTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "1544cc76359da948e7186ef99a7b4e1e4b17e7b9",
+        "size": 4430
+      },
+      {
+        "path": "tests/compat/CompareTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "470e182168e25f262f1fea0696d6bb102db0c1e3",
+        "size": 1309
+      },
+      {
+        "path": "tests/compat/FileCompatTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "92084628dbcf2975ca134b5c69998431a5968525",
+        "size": 1433
+      },
+      {
+        "path": "tests/compat/NamespacedTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "1d6835998677ec0e199389794dfc6caf17c2664c",
+        "size": 3926
+      },
+      {
+        "path": "tests/compat/PHP72Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "1675ac46fbc8503072e649d30a0a7a2a357d724f",
+        "size": 40008
+      },
+      {
+        "path": "tests/compat/PHP84Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "8c62913329dee618341e9a6461291d3b956e0a0b",
+        "size": 2358
+      },
+      {
+        "path": "tests/compat/PedanticTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "e8b24047702f2c5fd31263e82be73d96c97a5240",
+        "size": 12712
+      },
+      {
+        "path": "tests/compat/Ristretto255CompatTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ba3daadefb63ab9a8fac79637191b517abd48119",
+        "size": 7648
+      },
+      {
+        "path": "tests/polyfill_test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "32e76a82e436779020b3046132d39222a219cfab",
+        "size": 677
+      },
+      {
+        "path": "tests/polyfill_test.sh",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "b645b642540da6902394fbbfc06e280845ace69c",
+        "size": 1265
+      },
+      {
+        "path": "tests/unit",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "3ada3479e241513a1e630aebf1e8f9700ddc6796"
+      },
+      {
+        "path": "tests/unit/AEGISTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ef8823b7bab339c0abbb9e3b2a51084a5bff8252",
+        "size": 25431
+      },
+      {
+        "path": "tests/unit/AESTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "f7aface31e5a8e1357ca33bc2aaa465142f2ed4b",
+        "size": 20068
+      },
+      {
+        "path": "tests/unit/Aes256GcmTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "bd856d61bb474eefeb8e60207803c5cc5e64f2be",
+        "size": 11094
+      },
+      {
+        "path": "tests/unit/Base64Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "768bc6f322394cf6126b329d645d563ce028e4f3",
+        "size": 5334
+      },
+      {
+        "path": "tests/unit/Blake2bTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "6b00098526771911c7550f31099fdbed87c760d0",
+        "size": 22992
+      },
+      {
+        "path": "tests/unit/BoxSealTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "aa4d36cfa9f0cbe98e68cae0ad7b7411c6a850c3",
+        "size": 873
+      },
+      {
+        "path": "tests/unit/ChaCha20Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "e53d4618ae505accaa4a5a7ace4c3818a4f8736c",
+        "size": 9133
+      },
+      {
+        "path": "tests/unit/CompatTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "c06c065c7b5a3876758ae4cb4bff7ee072bd4208",
+        "size": 18986
+      },
+      {
+        "path": "tests/unit/Core",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "5347fd3d341672bec57f9113692f7f8a457ddbca"
+      },
+      {
+        "path": "tests/unit/Core/CoreAEGIS128LTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "b4289d0f15f57d9d9929bcfd0e38cfd1d1f3b244",
+        "size": 2172
+      },
+      {
+        "path": "tests/unit/Core/CoreAEGIS256Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "1baa02301118d15e522863d6a2f1bfa8d23c524f",
+        "size": 2256
+      },
+      {
+        "path": "tests/unit/Core/CoreAEGISState128LTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "80ed8482d7144404b3f1668b48067834f590d596",
+        "size": 2784
+      },
+      {
+        "path": "tests/unit/Core/CoreAEGISState256Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "7dfaaadaa5863c810c7cad7f0ca8421856921c6b",
+        "size": 2822
+      },
+      {
+        "path": "tests/unit/Core/CoreAESBlockTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "8c7dabd57f2c3a35504001f8c5853df78c91fee0",
+        "size": 2886
+      },
+      {
+        "path": "tests/unit/Core/CoreAESKeyScheduleTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "37621c4fc3cc1b16e660a610f311e8a0d197d9ca",
+        "size": 1482
+      },
+      {
+        "path": "tests/unit/Core/CoreAESTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "686d839d0cd0422ceb860a619f0a904e1f708a63",
+        "size": 3248
+      },
+      {
+        "path": "tests/unit/Core/CoreBLAKE2bTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "f65a0b77b5d760671e66db1f7d8a76a3d020a30f",
+        "size": 5020
+      },
+      {
+        "path": "tests/unit/Core/CoreBase64OriginalTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "060ab3a7ebe49d3e9d183b8478c974e63935f527",
+        "size": 2058
+      },
+      {
+        "path": "tests/unit/Core/CoreBase64UrlSafeTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "bb50dd35a2112caad15259bebe274a1673df4a6d",
+        "size": 2003
+      },
+      {
+        "path": "tests/unit/Core/CoreChaCha20CtxTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "c927fa3b1abfecd3775d379312db53d9774919a8",
+        "size": 2780
+      },
+      {
+        "path": "tests/unit/Core/CoreChaCha20IetfCtxTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ec7b6f876b2de939f86efa962cf0ac1a1827a7aa",
+        "size": 2210
+      },
+      {
+        "path": "tests/unit/Core/CoreChaCha20Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "2124f987a31e9a82c581dbcc8b511c500b815839",
+        "size": 3888
+      },
+      {
+        "path": "tests/unit/Core/CoreCurve25519FeTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "8789b7a8c94763d01c2b7bd3208e7c6555caf7bb",
+        "size": 2707
+      },
+      {
+        "path": "tests/unit/Core/CoreEd25519Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ea229875fc7f27f244287a0c800988da4b1e1371",
+        "size": 9366
+      },
+      {
+        "path": "tests/unit/Core/CoreHChaCha20Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "155c955f6b34004e623f4244cc372adfff8f6c56",
+        "size": 2010
+      },
+      {
+        "path": "tests/unit/Core/CoreHSalsa20Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ec362904712e4c121a69e66e606ffa56826d8766",
+        "size": 1360
+      },
+      {
+        "path": "tests/unit/Core/CorePoly1305StateTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "d29aeee0735e5fbd4bd378b632e59ce8af5769c9",
+        "size": 1281
+      },
+      {
+        "path": "tests/unit/Core/CorePoly1305Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "78e6b478d21208696c64290b10664ad7ea17604d",
+        "size": 775
+      },
+      {
+        "path": "tests/unit/Core/CoreSalsa20Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "471bf81f7c847978e2b6c61881f9fa750991d70f",
+        "size": 2209
+      },
+      {
+        "path": "tests/unit/Core/CoreSecretStreamStateTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "3fb66aaeff678e4dd70bc731929e1f2057f8af5a",
+        "size": 3633
+      },
+      {
+        "path": "tests/unit/Core/CoreSipHashTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "a17f672cb50d1c24c213d1944623959bd6aad42d",
+        "size": 2815
+      },
+      {
+        "path": "tests/unit/Core/CoreX25519Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ceeeb925ab5597d790ca7a21042c82f7bedac0e1",
+        "size": 3272
+      },
+      {
+        "path": "tests/unit/Core/CoreXChaCha20Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ab9d379e39fa9b66022f2aa149b4cc73c8d7732b",
+        "size": 4171
+      },
+      {
+        "path": "tests/unit/Core/CoreXSalsa20Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "e51af4523c5202ae8d8fd099a86a47c3d6256b89",
+        "size": 1298
+      },
+      {
+        "path": "tests/unit/CryptoTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "465e9c72fbdaefa25663cf8a671fecb1a2a7c688",
+        "size": 27454
+      },
+      {
+        "path": "tests/unit/Curve25519Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ec856ae3be12f4d14c79ae53098e9af29adf09b6",
+        "size": 33768
+      },
+      {
+        "path": "tests/unit/Ed25519Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "35a60de7295bfecccea161dbf7131d6baf9ce7b9",
+        "size": 9105
+      },
+      {
+        "path": "tests/unit/ExceptionTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "5544a3c9ba628ad5e8b194b343d95fb49603a4b3",
+        "size": 22186
+      },
+      {
+        "path": "tests/unit/FileTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "68829939d7a16e61fad8cf4c1403fc68caaa7d9a",
+        "size": 34829
+      },
+      {
+        "path": "tests/unit/HChaCha20Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "41be80cb01c0c2b0cec7c86e9296297369ad43d7",
+        "size": 1332
+      },
+      {
+        "path": "tests/unit/HSalsa20Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "8ecf2c62320754bd2ab5b5d13a49846a483b8578",
+        "size": 1862
+      },
+      {
+        "path": "tests/unit/HexTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "6efe2efd638e5115c7101a526ba04ef4f3113275",
+        "size": 1244
+      },
+      {
+        "path": "tests/unit/KAT",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "f99d3525fec7474f36d9844c4b2f23faec62c2ed"
+      },
+      {
+        "path": "tests/unit/KAT/KnownAnswerTestCase.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "62b33f140c97eeffddf36bece7316c6907f90d09",
+        "size": 415
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoAeadAes256GcmTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "5b22c2ae36d3548dd0b2d03c8c6896a5cd95478b",
+        "size": 5372
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoAeadChacha20Poly1305Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "8a21d81690bf5e41457bd14cba2555c5a5943cba",
+        "size": 6049
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoAeadXChacha20Poly1305Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "6a7f15530e0fc84628042e3b2620832d4839e530",
+        "size": 6899
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoAuthTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "da0250584201b5c99b62abe704fd73b1b9256b87",
+        "size": 2832
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoBoxTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "6c2fac5829bee635a7301e25a8854b50f36899cb",
+        "size": 2963
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoGenericHashTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "3537578596eefa8c4de5597e568bd6fef348bfcb",
+        "size": 2557
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoKdfTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "8271a1605a90f3e3085cf803e41b40564e0ac6e7",
+        "size": 2970
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoKxTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "3fd49907d4f6321606fbd87ff50fa7074766cbd6",
+        "size": 1813
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoScalarMultTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "354193aa6a7aaa907b73e05551c765988f970f23",
+        "size": 1684
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoSecretStreamTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "a65a045d4da073fd7547512c62f89b97fa8b77f4",
+        "size": 3356
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoSecretboxTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "91b6c3190b152733d28693da200774e32ec0c21f",
+        "size": 4026
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoShortHashTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "e133787d0ac22101557e2ec431bec999356501e2",
+        "size": 1483
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoSignTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "11607e049b13772910497ca9c7a82e18cb9fc30d",
+        "size": 3582
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatCryptoStreamTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "f9876b0267a57c11057d265710137465427ede22",
+        "size": 10034
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatMiscTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "c9168fcf60bb4f9ead71b7787bcfed273826ac95",
+        "size": 16340
+      },
+      {
+        "path": "tests/unit/KAT/SodiumCompatRistretto255Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "5dae3076c5ea7c4e16e000df8a80e953a7f7394c",
+        "size": 3578
+      },
+      {
+        "path": "tests/unit/KdfTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "2dc703a6633db42058b773ac45eeda42763f2834",
+        "size": 4258
+      },
+      {
+        "path": "tests/unit/KeyConversionTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "f676af4d1d592cdcfd1ec400d91a2b1626fa4595",
+        "size": 1909
+      },
+      {
+        "path": "tests/unit/KeygenTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "e9a747e3cd10c82786e3ca1e5c5bbff87011d11a",
+        "size": 2221
+      },
+      {
+        "path": "tests/unit/Poly1305Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "962b268a3a05434cd0c9d22517455c58a6bd459b",
+        "size": 7099
+      },
+      {
+        "path": "tests/unit/Ristretto255Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "efb7e3dbd4e2922030767b1d3a39e99ec91d8bb3",
+        "size": 11995
+      },
+      {
+        "path": "tests/unit/Salsa20Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "ba7ca1a4e4e1e4e0d654c103bcf1e43cca419108",
+        "size": 4776
+      },
+      {
+        "path": "tests/unit/SecretStreamTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "5d2f7d1350018ca274f18e3cc95fd1bb6a34579c",
+        "size": 2312
+      },
+      {
+        "path": "tests/unit/SipHashTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "4d7ff7e8f8659bf1c5a80c14c01279d2924077be",
+        "size": 5342
+      },
+      {
+        "path": "tests/unit/StreamTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "8ffa30fece4be6c826c52582667a2e3e683d4a5d",
+        "size": 2777
+      },
+      {
+        "path": "tests/unit/UtilTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "733721cf3823b04e71c6d6fdc88056c878250cce",
+        "size": 16799
+      },
+      {
+        "path": "tests/unit/WycheproofTest.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "823f279b30ab8a0a36f86a6cf052379128804d5a",
+        "size": 9088
+      },
+      {
+        "path": "tests/unit/X25519Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "cc214286003ce637fee10f4a624fa3c4ac1763cf",
+        "size": 3329
+      },
+      {
+        "path": "tests/unit/XChaCha20Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "51570bbd189e07dab63631a36b481a8f1056b334",
+        "size": 18213
+      },
+      {
+        "path": "tests/unit/XSalsa20Test.php",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "f3c5194228004be1f51221dbdc37bef93640a7e7",
+        "size": 1690
+      },
+      {
+        "path": "tests/unit/wycheproof",
+        "type": "tree",
+        "mode": "040000",
+        "sha": "f10f80bc07ccdfff6d9130185b679181ca2ffbe7"
+      },
+      {
+        "path": "tests/unit/wycheproof/README.md",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "89ccc1b3c7852d2f85ccdc01fdd321acb010baa4",
+        "size": 118
+      },
+      {
+        "path": "tests/unit/wycheproof/chacha20_poly1305_test.json",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "89ea311328394b153f2578b9cf37ac36d55281c7",
+        "size": 244487
+      },
+      {
+        "path": "tests/unit/wycheproof/ed25519_test.json",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "e19e82a45d63812590faf42b6f22ddb897666ecd",
+        "size": 124336
+      },
+      {
+        "path": "tests/unit/wycheproof/siphash_2_4_test.json",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "c6db515a5ad9e22b30ede60440f819787111fb62",
+        "size": 15025
+      },
+      {
+        "path": "tests/unit/wycheproof/x25519_test.json",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "384d0aaef7089b9de64b626b0c41574695addf55",
+        "size": 257515
+      },
+      {
+        "path": "tests/unit/wycheproof/xchacha20_poly1305_test.json",
+        "type": "blob",
+        "mode": "100644",
+        "sha": "14221872af671489d6e29a8d7762c3e26c94051b",
+        "size": 235610
+      }
+    ]
+  },
+  "archiveExportIgnoreRoot": [
+    ".gitattributes",
+    ".gitignore",
+    ".github",
+    "infection.json.dist",
+    "fuzzing",
+    "phpunit.xml.dist",
+    "phpstan.neon.dist",
+    "tests",
+    "build-phar.sh",
+    "appveyor.yml",
+    "dist",
+    "autoload-phpunit.php",
+    "autoload-pedantic.php",
+    "autoload-fast.php"
+  ],
+  "archiveExportIgnorePrefix": "psalm",
+  "classification": {
+    "tagReportedSignatureVerifiedByGitHub": true,
+    "tagPgpSignatureIndependentlyVerifiedAgainstTrustedKey": false,
+    "actualComposerZipContentsReDownloaded": false,
+    "actualVendorTreeVerified": false,
+    "authorOrPublisherIdentityIndependentlyVetted": false,
+    "cryptographyReviewed": false,
+    "licenseDistributionApproved": false,
+    "stage2Accepted": false,
+    "productionApproved": false
+  }
+}
