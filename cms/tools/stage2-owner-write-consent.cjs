@@ -20,6 +20,16 @@ const exact=(o,keys)=>o!==null&&typeof o==='object'&&!Array.isArray(o)
   &&Object.keys(o).join('|')===keys.join('|');
 const hex=x=>typeof x==='string'&&/^[0-9a-f]{64}$/.test(x);
 const hash=x=>crypto.createHash('sha256').update(x).digest('hex');
+/**
+ * PHP json_encode() defaults (not JSON_UNESCAPED_SLASHES or UNICODE).
+ * Required because the private PHP task and consent readers enforce exact
+ * canonical JSON bytes, and the signed task digest binds those bytes.
+ */
+function phpCanonicalJson(value){
+  return JSON.stringify(value).replace(/\//g,'\\/')
+    .replace(/[\u007f-\uffff]/g,ch=>'\\u'+ch.charCodeAt(0).toString(16).padStart(4,'0'));
+}
+
 const utc=x=>typeof x==='string'&&/^20[2-9][0-9]-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z$/.test(x)
   &&!Number.isNaN(Date.parse(x))
   &&new Date(x).toISOString().replace('.000Z','Z')===x;
@@ -29,7 +39,7 @@ function writePrivate(file,record){
   const fd=fs.openSync(file,fs.constants.O_WRONLY|fs.constants.O_CREAT|
     fs.constants.O_EXCL|fs.constants.O_NOFOLLOW,0o600);
   try{
-    const bytes=Buffer.from(JSON.stringify(record));
+    const bytes=Buffer.from(phpCanonicalJson(record));
     expect(fs.writeSync(fd,bytes)===bytes.length,'incomplete_private_consent_write');
     fs.fsyncSync(fd);
   }finally{fs.closeSync(fd);}
@@ -39,7 +49,7 @@ function readObject(file,max=4096){
   expect(bytes.length>2&&!bytes.includes(0),'unsafe_private_json');
   const data=JSON.parse(bytes.toString('utf8'));
   expect(data&&typeof data==='object'&&!Array.isArray(data)
-    &&JSON.stringify(data)===bytes.toString('utf8'),'canonical_private_json_required');
+    &&phpCanonicalJson(data)===bytes.toString('utf8'),'canonical_private_json_required');
   return data;
 }
 function checkedTask(file) {
@@ -71,7 +81,7 @@ function payload(task,start,end){
   return {
     format:PAYLOAD,target:TARGET,site:SITE,operation:'install',
     packageManifestSha256:task.package_manifest_sha256,
-    taskSha256:hash(Buffer.from(JSON.stringify(task))),
+    taskSha256:hash(Buffer.from(phpCanonicalJson(task))),
     notBeforeUtc:start,expiresAtUtc:end,
     productionReady:false,stage2Accepted:false
   };
@@ -98,7 +108,7 @@ function verify(task,consent,publicPem,pin,at=Date.now()){
     &&p.format===PAYLOAD&&p.target===TARGET&&p.site===SITE
     &&p.operation==='install'&&p.productionReady===false
     &&p.stage2Accepted===false&&hex(p.taskSha256)
-    &&p.taskSha256===hash(Buffer.from(JSON.stringify(task)))
+    &&p.taskSha256===hash(Buffer.from(phpCanonicalJson(task)))
     &&p.packageManifestSha256===task.package_manifest_sha256,
     'owner_write_scope_not_exact');
   expect(utc(p.notBeforeUtc)&&utc(p.expiresAtUtc)
@@ -162,4 +172,4 @@ function cli(){
 if(require.main===module)try{cli();}catch{
   process.stderr.write('STAGE2_OWNER_WRITE_CONSENT_REFUSED\n');process.exitCode=3;
 }
-module.exports={TARGET,SITE,DOMAIN,readObject,checkedTask,payload,issue,verify,cli};
+module.exports={TARGET,SITE,DOMAIN,phpCanonicalJson,readObject,checkedTask,payload,issue,verify,cli};

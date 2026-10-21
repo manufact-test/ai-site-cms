@@ -34,10 +34,10 @@ try{
     target:tool.TARGET,site:tool.SITE,operation:'install',
     confirm:'INSTALL_EMPTY_STAGE2_TEST_DB_ONCE',
     db_host:'127.0.0.1',db_name:'cms_ephemeral_ci',db_user:'cms_ci_operator',
-    db_password:'fixture_only_do_not_copy'
+    db_password:'fixture/only_пароль_🔑'
   };
   const privateWrite=(file,content)=>fs.writeFileSync(file,content,{mode:0o600});
-  privateWrite(taskFile,JSON.stringify(task));
+  privateWrite(taskFile,tool.phpCanonicalJson(task));
   privateWrite(keyFile,privatePem);privateWrite(pubFile,publicPem);
   const now=Date.now(),start=new Date(now-60000).toISOString().slice(0,19)+'Z',
     end=new Date(now+600000).toISOString().slice(0,19)+'Z';
@@ -89,7 +89,7 @@ try{
   const phpLocal=path.join(box,'php-local');
   fs.mkdirSync(phpLocal,{mode:0o700});
   privateWrite(path.join(phpLocal,'owner-install-public.pem'),publicPem);
-  privateWrite(path.join(phpLocal,'owner-install-consent.json'),JSON.stringify(persisted));
+  privateWrite(path.join(phpLocal,'owner-install-consent.json'),tool.phpCanonicalJson(persisted));
   const trust={format:'ai-site-cms-stage2-owner-install-trust-v1',
     target:tool.TARGET,site:tool.SITE,trustedOwnerSpkiSha256:pin};
   privateWrite(path.join(phpLocal,'owner-install-trust.json'),JSON.stringify(trust));
@@ -108,10 +108,10 @@ try{
   privateWrite(path.join(phpLocal,'owner-install-trust.json'),JSON.stringify(trust));
   const badPermit=JSON.parse(JSON.stringify(persisted));
   badPermit.payload.taskSha256='0'.repeat(64);
-  privateWrite(path.join(phpLocal,'owner-install-consent.json'),JSON.stringify(badPermit));
+  privateWrite(path.join(phpLocal,'owner-install-consent.json'),tool.phpCanonicalJson(badPermit));
   php=phpRun();
   yes(php.status===3,'independent PHP verifier rejects signed-payload tampering');
-  privateWrite(path.join(phpLocal,'owner-install-consent.json'),JSON.stringify(persisted));
+  privateWrite(path.join(phpLocal,'owner-install-consent.json'),tool.phpCanonicalJson(persisted));
   res=run(args,{CMS_STAGE2_OWNER_WRITE_SIGNING:'EXPLICIT_OWNER_APPROVAL_NOT_READONLY'});
   yes(res.status===3,'cannot silently overwrite existing one-use signed permit');
   res=run(['--verify','--task='+taskFile,'--consent='+consentFile,
