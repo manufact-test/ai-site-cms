@@ -274,7 +274,11 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
         (mainProof.stderr||mainProof.spawnError||'incomplete').slice(-350);
       block('native:forced-class-signed-chain',sourceRow.reason);
     }else{
-      Object.assign(sourceRow,mainProof,{stdout:mainProof.stdout.slice(-1600),
+      // Keep the SOURCE proof as the source row's last evidence line;
+      // the separate 60-case chain row retains the chain proof marker.
+      const sourceLine=(mainProof.stdout||'').split('\n')
+        .find(line=>/^EXACT current main SHA [a-f0-9]{40} original source Ed25519 backend PASS 5 PHP verifiers;/.test(line));
+      Object.assign(sourceRow,mainProof,{stdout:sourceLine||mainProof.stdout.slice(-1600),
         status:mainProof.exitCode===0?'passed':'failed'});
       requireProof(sourceRow,
         /EXACT current main SHA [a-f0-9]{40} original source Ed25519 backend PASS 5 PHP verifiers;/,
