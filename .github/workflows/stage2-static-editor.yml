@@ -38,10 +38,10 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Verify exact npm lock and declared licensing
         run: npm run verify:deps && npm audit --audit-level=high
-      - name: Independent installed npm archive license and embedded notice gate
-        run: node ../../research/parallel-security/npm-source-gate.mjs
       - name: Build real self-contained static bundle
         run: npm run build
+      - name: Independent installed npm archive license and embedded notice gate
+        run: node ../../research/parallel-security/npm-source-gate.mjs
       - name: Verify real Chromium browser editor interactions
         run: npm run test:browser
       - name: Install pinned PHP runtime for internal offline distribution only
