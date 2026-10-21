@@ -116,6 +116,11 @@ jobs:
           node --check tools/test-stage2-review-dossier.cjs
           node --check tools/stage2-handoff-index.cjs
           node --check tools/test-stage2-handoff-index.cjs
+      - name: Offline owner consent issuance, out-of-band signer validation and adversarial CLI
+        run: |
+          node --check tools/stage2-owner-consent-sign.cjs
+          node --check tools/test-stage2-owner-consent-sign.cjs
+          node tools/test-stage2-owner-consent-sign.cjs
       - name: Signed out-of-band owner read-only scope, canonical file and replay refusal
         run: |
           node --check tools/stage2-operator-scope.cjs

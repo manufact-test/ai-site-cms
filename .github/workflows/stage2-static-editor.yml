@@ -115,6 +115,11 @@ jobs:
           php -l src/Hosting/Stage2MysqlBoundReadiness.php
           php -l bin/stage2-mysql-ci-binding.php
           php tests/stage2-mysql-http-gate.php
+      - name: Owner consent issuance and verification from separate offline Ed25519 key custody
+        working-directory: cms
+        run: |
+          node --check tools/stage2-owner-consent-sign.cjs
+          node tools/test-stage2-owner-consent-sign.cjs
       - name: Signed owner scope refusal and immutable grant/file adversarial checks
         working-directory: cms
         run: |
