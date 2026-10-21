@@ -53,6 +53,9 @@ final class LabPackageStager
     private function assertLab(): void
     {
         self::requireLab(true);
+        // Permissions can change while a long-running installer still holds
+        // this object. Do not reuse PHP's cached earlier fileperms() result.
+        clearstatcache(true, $this->root);
         $tmp = realpath(sys_get_temp_dir());
         if ($tmp === false || dirname($this->root) !== $tmp
             || !preg_match('/^' . preg_quote(self::PREFIX, '/') . '[a-f0-9]{32}$/D', basename($this->root))
