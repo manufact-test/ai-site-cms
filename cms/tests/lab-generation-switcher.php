@@ -23,6 +23,14 @@ function swReject(callable $fn, string $message): void {
     try { $fn(); } catch (\Throwable $e) { return; }
     throw new RuntimeException('Stage2 switch unexpectedly allowed: '.$message);
 }
+// Exact Node package-manifest encoding: two-space pretty JSON, one newline.
+function labReleaseJson(array $manifest): string {
+    $encoded=json_encode($manifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|
+        JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+    return preg_replace_callback('/^( +)/m',
+        static fn(array $m):string => str_repeat(' ',intdiv(strlen($m[1]),2)),
+        $encoded)."\n";
+}
 function swFixture(string $path, string $version): string {
     mkdir($path, 0700);
     foreach (['public','vendor','private','private/editor'] as $dir) mkdir($path.'/'.$dir,0700,true);
@@ -39,8 +47,9 @@ function swFixture(string $path, string $version): string {
     }
     $manifest=['format'=>'ai-site-cms-internal-stage2-v2','stage'=>2,
         'releaseVersion'=>$version,'productionReady'=>false,'documentRoot'=>'public',
-        'isSigned'=>false,'writeEndpointsAvailable'=>false,'files'=>$records];
-    $raw=json_encode($manifest,JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR)."\n";
+        'adminEditorAssets'=>'private/editor','hostingComposerOrNodeRequired'=>false,
+        'writeEndpointsAvailable'=>false,'isSigned'=>false,'files'=>$records];
+    $raw=labReleaseJson($manifest);
     file_put_contents($path.'/private/package-manifest.json',$raw);
     return hash('sha256',$raw);
 }
