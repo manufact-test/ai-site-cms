@@ -89,6 +89,11 @@
     let body;
     try{body=ui.frame.contentDocument;}catch(_){return;}
     if(!body)return;
+    body.addEventListener('keydown',e=>{
+      if(e.key==='Escape'&&document.body.classList.contains('preview-expanded')){
+        e.preventDefault();expandPreview();
+      }
+    });
     body.querySelectorAll('[data-preview-page]').forEach(button=>{
       button.addEventListener('click',()=>selectPage(button.dataset.previewPage));
     });
