@@ -40,7 +40,7 @@ function requireProof(row, expectedPattern, evidenceLabel) {
   return row;
 }
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
-  'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
+  'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
@@ -71,6 +71,10 @@ for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-r
     /Sodium-free wrapper false-pass offline regression PASS 15 assertions;/,
     '15 fake-PHP classification and missing crypto-output proof regressions');
 }
+requireProof(entry('mutation:ed25519-source-audit',
+  capture(runtime,[path.join(dirname,'ed25519-callsite-audit.php'),'--self-test'],{timeout:30000})),
+  /Stage2 Ed25519 source callsite offline regression PASS 13 assertions;/,
+  '13 PHP-token negative/positive fixture cases, source only');
 const lockPaths=['cms/composer.lock','cms/editor/package-lock.json','cms/editor/package.json'];
 const completeLock=lockPaths.every(f=>fs.existsSync(path.join(root,f)));
 if(completeLock){
@@ -143,6 +147,14 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
     capture('node',[path.join(dirname,'chain-backend-regression.mjs'),'native'],{timeout:90000})),
     /Chain Ed25519 backend signed-chain regression PASS 60 assertions; mode=native;/,
     '60 actual independently Node-signed native PHP chain assertions, including re-signed hostile records and filesystem tampering');
+  requireProof(entry('native:forced-class-signed-chain',
+    capture('node',[path.join(dirname,'chain-backend-regression.mjs'),'forced-class'],{timeout:90000})),
+    /Chain Ed25519 backend signed-chain regression PASS 60 assertions; mode=forced-class;/,
+    '60 actually signed PHP chain checks using class dispatch backed by native crypto_sign_open, NOT no-native');
+  requireProof(entry('source:common-ed25519-backend',
+    capture(runtime,[path.join(dirname,'ed25519-callsite-audit.php')],{timeout:30000})),
+    /Stage2 shared Ed25519 backend original source PASS 5 PHP verifiers;/,
+    '5 original PHP signed verifier callsites inspected, source guard only');
   const rootTrustFixture=path.join(root,'cms/tests/trust-chain.php');
   if(fs.existsSync(rootTrustFixture)) {
     requireProof(entry('native:trust-root-rotation',
@@ -181,7 +193,9 @@ console.log(JSON.stringify(out,null,2));
 // enough to prove which exact-head fixtures reached their final assertion count.
 const proofNames=[
   'native:operator-receipt-chain','native:operator-preactivation-permit',
-  'native:operator-settlement-chain','native:node-signed-chain','native:trust-root-rotation',
+  'native:operator-settlement-chain','native:node-signed-chain',
+  'native:forced-class-signed-chain','source:common-ed25519-backend','mutation:ed25519-source-audit',
+  'native:trust-root-rotation',
   'mutation:osv-strict-regression.mjs','mutation:osv-cli-regression.mjs',
   'mutation:suite-exit-regression.mjs',
   'mutation:sodium-compat-attest-regression.mjs',

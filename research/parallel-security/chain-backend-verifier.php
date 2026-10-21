@@ -10,7 +10,7 @@ if (PHP_SAPI !== 'cli' || getenv('CI') !== 'true'
 }
 try {
     $o = json_decode($argv[1], true, 20, JSON_THROW_ON_ERROR);
-    if (!is_array($o) || !in_array($o['backend'] ?? null, ['native', 'compat'], true)) {
+    if (!is_array($o) || !in_array($o['backend'] ?? null, ['native', 'compat', 'forced-class'], true)) {
         throw new LogicException('Invalid backend selection');
     }
     if ($o['backend'] === 'native' && !extension_loaded('sodium')) {
@@ -29,6 +29,14 @@ try {
             throw new LogicException('Pinned compat verifier class missing');
         }
     }
+    if ($o['backend'] === 'forced-class') {
+        if (!extension_loaded('sodium') ||
+            function_exists('sodium_crypto_sign_verify_detached') ||
+            !function_exists('sodium_crypto_sign_open')) {
+            throw new LogicException('Forced class requires native Sodium with detached global disabled');
+        }
+        require_once __DIR__ . '/class-only-ed25519-shim.php';
+    }
     require_once $argv[2];
     try {
         $r = \AiSiteCms\Release\LabSettledUpgradeGate::verify(
@@ -42,13 +50,15 @@ try {
             'receiptVersion'=>$r['receipt']['version'],
             'productionReady'=>$r['settlement']['productionReady'],
             'nativeExt'=>extension_loaded('sodium'),
-            'globalVerifier'=>function_exists('sodium_crypto_sign_verify_detached')
+            'globalVerifier'=>function_exists('sodium_crypto_sign_verify_detached'),
+            'forcedClassCalls'=>($o['backend']==='forced-class') ? \ParagonIE_Sodium_Compat::$verifyCalls : null
         ], JSON_THROW_ON_ERROR);
     } catch (\RuntimeException $e) {
         echo json_encode([
             'status'=>'REJECTED',
             'nativeExt'=>extension_loaded('sodium'),
-            'globalVerifier'=>function_exists('sodium_crypto_sign_verify_detached')
+            'globalVerifier'=>function_exists('sodium_crypto_sign_verify_detached'),
+            'forcedClassCalls'=>($o['backend']==='forced-class') ? \ParagonIE_Sodium_Compat::$verifyCalls : null
         ], JSON_THROW_ON_ERROR);
     }
 } catch (\Throwable $e) {

@@ -11,8 +11,8 @@ import {fileURLToPath} from 'node:url';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(here,'../..');
 const mode=process.argv[2]??'native';
-if(!['native','compat','matrix'].includes(mode)||process.argv.length>3){
-  console.error('Usage: node chain-backend-regression.mjs [native|compat|matrix]');
+if(!['native','compat','matrix','forced-class'].includes(mode)||process.argv.length>3){
+  console.error('Usage: node chain-backend-regression.mjs [native|compat|matrix|forced-class]');
   process.exit(2);
 }
 const gate=path.join(root,'cms/src/Release/LabSettledUpgradeGate.php');
@@ -112,13 +112,18 @@ try {
   const transcript=[];
   const check=(backend,label,expected,changes={})=>{
     const binary=backend==='compat'?phpCompat:phpNative;
-    const r=exec(binary,['-n',path.join(here,'chain-backend-verifier.php'),
+    const disable=backend==='forced-class'
+      ?['-d','disable_functions=sodium_crypto_sign_verify_detached']:[];
+    const r=exec(binary,['-n',...disable,path.join(here,'chain-backend-verifier.php'),
       JSON.stringify({...common,...changes,backend}),gate],25000);
     if(r.error||r.signal||r.status!==0)
       throw new Error(backend+' '+label+' PHP infrastructure failure: '+
         (r.stderr||r.error?.message||'').slice(-500));
     let p;try{p=JSON.parse(r.stdout);}catch{throw new Error(backend+' '+label+' invalid PHP proof');}
-    if(p.status!==expected||p.nativeExt!==(backend==='native'))
+    if(p.status!==expected||p.nativeExt!==(backend!=='compat') ||
+      (backend==='forced-class' && (p.globalVerifier!==false ||
+        !Number.isSafeInteger(p.forcedClassCalls) ||
+        (expected==='ACCEPTED'&&p.forcedClassCalls<6))))
       throw new Error(backend+' '+label+' expected '+expected+', received '+JSON.stringify(p));
     if(expected==='ACCEPTED'&&(p.count!==2||p.head!==(changes.settlementHead||s2Head)||
       p.receiptVersion!==v2||p.productionReady!==false))
@@ -284,9 +289,10 @@ try {
     check(backend,'restored good chain still accepted','ACCEPTED');
     return accepted;
   };
-  if(mode!=='native')preflight();
-  const attestationBefore=mode==='native'?null:attest();
+  if(mode==='compat'||mode==='matrix')preflight();
+  const attestationBefore=(mode==='native'||mode==='forced-class')?null:attest();
   const native=mode==='native'||mode==='matrix'?suite('native'):null;
+  if(mode==='forced-class')suite('forced-class');
   const compat=mode==='compat'||mode==='matrix'?suite('compat'):null;
   if(attestationBefore!==null&&attest()!==attestationBefore)
     throw new Error('BLOCKED: sodium_compat source attestation changed after tests');
@@ -298,10 +304,11 @@ try {
   // final proof marker. The parent suite intentionally retains only the last
   // 1600 stdout bytes, so a large audit transcript must not erase PASS evidence.
   console.log(JSON.stringify({mode,assertions,productionApproved:false,
-    nativeFreeProven:mode!=='native',parityCompared:mode==='matrix',transcript}));
+    nativeFreeProven:mode==='compat'||mode==='matrix',parityCompared:mode==='matrix',
+    forcedClassOnNative:mode==='forced-class',transcript}));
   console.log('Chain Ed25519 backend signed-chain regression PASS '+assertions+
     ' assertions; mode='+mode+'; real original PHP verifiers; '+
-    (mode==='native'?'NO no-native proof':'physical no-native and source pre/post attested')+
+    (mode==='native'?'NO no-native proof':mode==='forced-class'?'CLASS ROUTING ON NATIVE SODIUM, NOT TRUE POLYFILL':'physical no-native and source pre/post attested')+
     '; NOT production approval');
 }catch(e){
   const m=String(e.message||e);
