@@ -316,8 +316,8 @@
     },
     {
       "path": "src/Storage/SchemaManager.php",
-      "bytes": 18960,
-      "sha256": "c30586d72b3df9e0a0b8c793fb53c5696a0c107d1007977d86aa087e1c1fcb2d"
+      "bytes": 25484,
+      "sha256": "e4c0c66e7c7ce0201e241e115998039edc4e8a13548b6ac95dfe0cfe038d6184"
     },
     {
       "path": "vendor/autoload.php",
