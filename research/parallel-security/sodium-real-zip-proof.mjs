@@ -190,7 +190,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
       const zip=await fetchPublicZip();
       const report=verifyComposerZip(zip);
       console.log(JSON.stringify(report));
-      console.log('REAL Composer ZIP bytes verified against signed-tag Git source PASS 78 files; no PHP execution, independent PGP owner trust or production approval');
+      console.log('REAL Composer ZIP bytes verified against signed-tag Git source PASS 78 files; archive SHA256 '+report.archiveSha256+'; no PHP execution, independent PGP owner trust or production approval');
     }catch(e){
       // Network errors are BLOCKED, not a pass or fabricated upstream source
       // verification. Any obtained ZIP with an invalid structure is a failure.

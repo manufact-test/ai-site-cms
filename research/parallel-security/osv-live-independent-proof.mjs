@@ -51,7 +51,7 @@ if(process.argv.length!==2){
       console.log(JSON.stringify(result));
       console.log('REAL OSV HTTPS querybatch PASS 43 exact pins; '+
         result.advisoryReferences+' advisory references across '+
-        result.packagesWithAdvisories+' packages; exact source lock SHA256 matched; HUMAN TRIAGE REQUIRED, NOT production approval');
+        result.packagesWithAdvisories+' packages; exact source lock SHA256 matched; reportSHA256='+result.underlyingOsvReportSha256+'; HUMAN TRIAGE REQUIRED, NOT production approval');
     }
   }catch(e){failure(String(e.message||e));}
 }
