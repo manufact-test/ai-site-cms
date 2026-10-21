@@ -114,6 +114,17 @@ function main(){
     assert.equal(signedChain.checks,33,'Incomplete native / true no-Sodium signed-chain parity');
     assert.equal(signedChain.sameSignedHead,true);
     assert.equal(signedChain.stage2Accepted,false);
+    // Independently signed A->B->C publisher-root rotation: the same exact
+    // evidence must pass native and genuine Sodium-free PHP. No source key is
+    // supplied to PHP; old epochs/floors and ambiguous journals fail closed.
+    const rotationOutput=run(process.execPath,
+      [path.join(ROOT,'cms/tools/test-stage2-trust-rotation-parity.cjs')],
+      {env:{...env,CMS_PHP83_NO_SODIUM_BINARY:php},timeout:120000});
+    const rotation=JSON.parse(rotationOutput);
+    assert.equal(rotation.checks,55,'Incomplete dual-signature cross-backend trust rotation');
+    assert.equal(rotation.backendParity,true);
+    assert.equal(rotation.ambiguousJournalRejected,true);
+    assert.equal(rotation.stage2Accepted,false);
     process.stdout.write(JSON.stringify({
       evidence:'true-sodium-absent-php83',php:state.php,bits:state.bits,
       extensionLoadedBeforeCandidate:state.sodium,
@@ -121,6 +132,7 @@ function main(){
       absentVerification:'fail_closed',rfc8032:'passed',
       signedEnvelopeAdversarial:'passed',
       completeSignedChainParity:signedChain,
+      trustKeyRotationParity:rotation,
       performance:JSON.parse(vectors.trim().split('\n').at(-1)),
       productionLockChanged:false,hostingerTested:false,
       publisherKeyOwnershipVerified:false,licenseApproved:false,
