@@ -44,7 +44,7 @@ const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
-  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
+  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','frozen-lock-baseline.mjs','frozen-lock-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
   if(name.endsWith('.mjs'))entry('syntax:'+name,capture('node',['--check',path.join(dirname,name)]));
@@ -111,6 +111,20 @@ if(completeLock){
   const csv=entry('actual-lock:csv',rawCsv);
   if(csv.status==='passed'&&rawCsv.stdout.trimEnd().split('\n').length!==44){csv.status='failed';csv.validationError='not 43 rows + header';}
   entry('actual-lock:provenance',capture('node',[path.join(dirname,'lock-provenance.mjs')]));
+  if(fs.existsSync(path.join(dirname,'frozen-lock-baseline.mjs'))&&
+    fs.existsSync(path.join(dirname,'frozen-lock-regression.mjs'))){
+    requireProof(entry('actual-lock:frozen-source-baseline',
+      capture('node',[path.join(dirname,'frozen-lock-baseline.mjs')],{timeout:25000})),
+      /Frozen exact 43-pin source\+dist lock baseline PASS 3 independent SHA-256 and Git-blob identities;/,
+      '3 real composer/npm+manifest frozen hash origins, do not mistake valid-looking attacker SRI for review');
+    requireProof(entry('mutation:real-43-pin-source-swap',
+      capture('node',[path.join(dirname,'frozen-lock-regression.mjs')],{timeout:30000})),
+      /Frozen exact real 43-pin lock source substitution offline regression PASS 29 assertions;/,
+      '29 independently checked original-lock happy-path and malicious source/archive substitution scenarios');
+  }else{
+    block('actual-lock:frozen-source-baseline','Research exact-source baseline script unavailable in partial checkout');
+    block('mutation:real-43-pin-source-swap','Research original-lock mutation fixture unavailable in partial checkout');
+  }
   if(online){
     const rawOsv=capture('node',[path.join(dirname,'osv-strict-snapshot.mjs'),'--fail-on-advisory'],{timeout:100000});
     const os=entry('online:OSV-strict43',rawOsv);
@@ -126,7 +140,7 @@ if(completeLock){
     }
   }
 } else {
-  for(const name of ['actual-lock:json','actual-lock:csv','actual-lock:provenance'])block(name,'Requires original composer.lock, package-lock.json, package.json in complete checkout');
+  for(const name of ['actual-lock:json','actual-lock:csv','actual-lock:provenance','actual-lock:frozen-source-baseline','mutation:real-43-pin-source-swap'])block(name,'Requires original composer.lock, package-lock.json, package.json in complete checkout');
   if(online)for(const name of ['online:OSV-strict43','online:version-registry'])block(name,'Original complete lock files unavailable');
 }
 const installedNpm=path.join(root,'cms/editor/node_modules');
@@ -249,7 +263,8 @@ const proofNames=[
   'mutation:sodium-compat-attest-regression.mjs',
   'mutation:online-evidence-regression.mjs',
   'mutation:runtime-sodium-proof-regression.mjs',
-  'upstream:archived-main-genuine-sodium-free','mutation:archived-main-sodium-provenance'
+  'upstream:archived-main-genuine-sodium-free','mutation:archived-main-sodium-provenance',
+  'actual-lock:frozen-source-baseline','mutation:real-43-pin-source-swap'
 ];
 console.error('INDEPENDENT_SECURITY_EXACT_HEAD_PROOFS '+JSON.stringify(
   proofNames.map(name=>{
