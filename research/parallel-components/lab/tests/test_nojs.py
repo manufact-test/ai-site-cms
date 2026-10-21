@@ -104,6 +104,8 @@ class NativeFormHttp(unittest.TestCase):
         self.assertEqual(status,503)
         self.assertIn('application/json',headers['Content-Type'])
         self.assertEqual(json.loads(body)['code'],'CONFIGURATION_REQUIRED')
+        self.assertEqual(json.loads(body)['errors'], {})
+        self.assertIn('"errors":{}', body)
 
 
     def test_invalid_phone_region_focuses_native_select(self):

@@ -20,7 +20,7 @@ final class SubmissionHttp
     public static function jsonFields(array $decision): array
     {
         return ['code' => $decision['code'], 'message' => $decision['message'],
-            'errors' => $decision['errors']];
+            'errors' => (object) $decision['errors']];
     }
 
     /**
