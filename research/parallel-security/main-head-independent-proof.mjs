@@ -13,7 +13,7 @@ const sourceDir='cms/src/Release/';
 const names=['OfflineReleaseVerifier.php','TrustedChainVerifier.php',
  'LabPreauthorizedUpgradeGate.php','LabAttestedActivationGate.php',
  'LabSettledUpgradeGate.php','Ed25519Backend.php'];
-const harness=['main-web-crypto-surface.php','main-webserver-boundary-proof.mjs','ed25519-callsite-audit.php','chain-backend-regression.mjs',
+const harness=['main-web-crypto-surface.php','main-webserver-boundary-proof.mjs','apache-original-policy-lab.py','ed25519-callsite-audit.php','chain-backend-regression.mjs',
  'chain-backend-verifier.php','class-only-ed25519-shim.php'];
 const webFiles=['cms/public/index.php','cms/public/.htaccess','cms/src/HttpKernel.php',
  'cms/hosting/hostinger-readonly/index.php','cms/hosting/hostinger-readonly/.htaccess','cms/bin/verify-lab-release.php',
@@ -91,6 +91,27 @@ try{
     originalServerPolicy.hostingerTested!==false||
     originalServerPolicy.productionApproved!==false)
    throw Error('webserver policy overclaims enforcement or lacks two source files');
+
+ // Optional true local Apache HTTP exercise on runners that already have
+ // Apache+Python installed. Missing host prerequisites must not be
+ // misrepresented as a successfully executed HTTP exercise.
+ let localApacheHttpObserved=false;
+ const pythonProbe=cp.spawnSync('python3',['--version'],{encoding:'utf8',timeout:3000});
+ if(fs.existsSync('/usr/sbin/apache2')&&pythonProbe.status===0){
+   const apacheText=run('python3',[path.join(stage,'apache-original-policy-lab.py'),root],root,120000);
+   const apacheLines=apacheText.split('\n');
+   if(apacheLines.at(-1)!=='ORIGINAL APACHE LOCAL HTTP REPRO PASS 4 variants; not Hostinger or production acceptance')
+     throw Error('real Apache local loopback exercise incomplete');
+   const observedApache=JSON.parse(apacheLines[0]);
+   if(observedApache.cases?.length!==4||
+      observedApache.actualApacheHttpObserved!==true||
+      observedApache.hostingerTested!==false||
+      observedApache.productionApproved!==false||
+      observedApache.syntheticVariantApprovedForProduction!==false||
+      observedApache.originalSourceChecksPassed!==true)
+     throw Error('untrustworthy local Apache evidence');
+   localApacheHttpObserved=true;
+ }
  const audit=run(php,[path.join(stage,'ed25519-callsite-audit.php')],root);
  if(!/Stage2 shared Ed25519 backend original source PASS 5 PHP verifiers;/.test(audit))
    throw Error('original five-verifier source invariant failed');
@@ -111,12 +132,13 @@ try{
  if(run('git',['rev-parse','HEAD'],root)!==head||main()!==head)
    throw Error('main moved during crypto proof');
  console.log(JSON.stringify({mainSha:head,gitBlobs:hashes,phpVerifierCount:5,
-  genuineSignedChainAssertions:60,originalWebSurface:webEvidence,originalWebserverPolicy:originalServerPolicy,sourceUnchanged:true,nativeSodium:true,
+  genuineSignedChainAssertions:60,originalWebSurface:webEvidence,originalWebserverPolicy:originalServerPolicy,localApacheLoopbackHttpObserved:localApacheHttpObserved,sourceUnchanged:true,nativeSodium:true,
   noSodium:false,compat:false,productionApproved:false}));
  console.log('EXACT current main SHA '+head+' original source Ed25519 backend PASS 5 PHP verifiers; not production approval');
  console.log('EXACT current main SHA '+head+' forced-class native signed-chain PASS 60 assertions; NOT true Sodium-free PHP or production approval');
  console.log('EXACT current main SHA '+head+' original static public/Hostinger release exposure PASS 1 health, 7 preflight paths, 2 CLI guards; no dynamic reachability or production approval');
  console.log('EXACT current main SHA '+head+' original static webserver document-root policy PASS 2 files; NOT tested Apache/LiteSpeed/Hostinger enforcement');
+ if(localApacheHttpObserved) console.log('EXACT current main SHA '+head+' original Apache local loopback HTTP reproduced 4 variants; NOT Hostinger enforcement or production acceptance');
 }catch(e){
  const msg=String(e.message||e);
  const blocked=/Could not resolve host|Connection timed out|Failed to connect|Network is unreachable|main moved|unable to access|Authentication failed|SSL connection/i.test(msg);
