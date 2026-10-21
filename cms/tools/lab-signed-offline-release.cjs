@@ -17,8 +17,45 @@ const sha=buffer=>crypto.createHash('sha256').update(buffer).digest('hex');
 function assertFile(file,limit){
   if(!fs.existsSync(file))throw Error('Unsafe/missing signed package file');
   const st=fs.lstatSync(file);
-  if(!st.isFile()||st.isSymbolicLink()||st.size<1||st.size>limit)throw Error('Unsafe/missing signed package file');
+  if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1||st.size<1||st.size>limit)
+    throw Error('Unsafe/missing signed package file');
   return st;
+}
+/*
+ * The original signed folder is a mutable operator handoff. NEVER authenticate
+ * its package.zip and then open that same path later for extraction: swapping
+ * the archive between those operations defeats the point-in-time check.
+ * Copy the exact three inputs through O_NOFOLLOW descriptors into one brand-new
+ * private CI snapshot. Later verification AND extraction only see this copy.
+ * This is a byte snapshot, not independent signer/host/owner attestation.
+ */
+function snapshotSignedLabBundle(folder,snapshot){
+  const source=fs.realpathSync(folder);
+  if(source!==path.resolve(folder)||fs.lstatSync(folder).isSymbolicLink()||
+     !fs.statSync(folder).isDirectory())throw Error('Unsafe signed release source directory');
+  if(fs.existsSync(snapshot))throw Error('Signed release snapshot destination must not exist');
+  fs.mkdirSync(snapshot,{mode:0o700});
+  try{
+    for(const [name,limit] of [['envelope.json',MAX_META],['envelope.sig',64],['package.zip',MAX_ZIP]]){
+      const origin=path.join(source,name);
+      const observed=assertFile(origin,limit);
+      const fd=fs.openSync(origin,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+      let bytes;
+      try{
+        const opened=fs.fstatSync(fd);
+        if(!opened.isFile()||opened.nlink!==1||opened.dev!==observed.dev||
+           opened.ino!==observed.ino||opened.size!==observed.size)
+          throw Error('Signed release input replaced while snapshotting');
+        bytes=fs.readFileSync(fd);
+        const after=fs.fstatSync(fd);
+        if(bytes.length!==opened.size||after.size!==opened.size||
+           after.mtimeMs!==opened.mtimeMs||after.ctimeMs!==opened.ctimeMs)
+          throw Error('Signed release input changed while snapshotting');
+      }finally{fs.closeSync(fd);}
+      fs.writeFileSync(path.join(snapshot,name),bytes,{flag:'wx',mode:0o600});
+    }
+    return snapshot;
+  }catch(e){fs.rmSync(snapshot,{recursive:true,force:true});throw e;}
 }
 function normalizeTrustKey(key){
   if(key && key.type==='private')throw Error('Private key is not a public trust anchor');
@@ -104,20 +141,24 @@ function verifyEnvelope(folder,publicKey,expectedVersion,minimumVersion){
 function stageSignedLabBundle({folder,trustedPublicKey,expectedVersion,minimumVersion,lab}){
   if(!lab||!lab.root||!path.basename(lab.root).startsWith('ai-site-cms-rollout-lab-')||
      path.dirname(lab.root)!==fs.realpathSync(os.tmpdir()))throw Error('No disposable lab destination');
-  const info=verifyEnvelope(folder,trustedPublicKey,expectedVersion,minimumVersion);
-  // Verification first, extraction into a brand-new private temporary directory.
+  // Snapshot BEFORE authentication: a concurrent source ZIP replacement
+  // cannot change which exact signed bytes the secure extractor consumes.
   const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'ai-site-cms-signed-extract-'));
   try{
-    runArchive('extract',path.join(folder,'package.zip'),scratch);
-    const verified=verify(scratch);
+    const sealed=snapshotSignedLabBundle(folder,path.join(scratch,'sealed'));
+    const info=verifyEnvelope(sealed,trustedPublicKey,expectedVersion,minimumVersion);
+    const extracted=path.join(scratch,'extracted');
+    fs.mkdirSync(extracted,{mode:0o700});
+    runArchive('extract',path.join(sealed,'package.zip'),extracted);
+    const verified=verify(extracted);
     if(verified.releaseVersion!==expectedVersion||
-       sha(fs.readFileSync(path.join(scratch,'private/package-manifest.json')))!==info.packageManifestSha256)
+       sha(fs.readFileSync(path.join(extracted,'private/package-manifest.json')))!==info.packageManifestSha256)
       throw Error('Signed package manifest mismatch after extraction');
-    return lab.stage(scratch);
+    return lab.stage(extracted);
   }finally{
     // CI ephemeral sandbox only; no caller-controlled deletion outside OS temp.
     if(path.basename(scratch).startsWith('ai-site-cms-signed-extract-') &&
        path.dirname(scratch)===fs.realpathSync(os.tmpdir()))fs.rmSync(scratch,{recursive:true,force:true});
   }
 }
-module.exports={buildSignedLabBundle,verifyEnvelope,stageSignedLabBundle,metadata,canonical,signedPayload,writeEnvelope,runArchive,sha,compare};
+module.exports={buildSignedLabBundle,verifyEnvelope,stageSignedLabBundle,snapshotSignedLabBundle,metadata,canonical,signedPayload,writeEnvelope,runArchive,sha,compare};
