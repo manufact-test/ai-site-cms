@@ -155,8 +155,8 @@ try {
             'version'=>$intent['version'], 'format'=>$intent['format'],
             'manifestSha256'=>$intent['manifestSha256']
         ], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n",
-        'wrong_digest' => json_encode(array_replace($intent,
-            ['manifestSha256'=>str_repeat('0',64)]), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n",
+        'wrong_digest_encoding' => json_encode(array_replace($intent,
+            ['manifestSha256'=>str_repeat('g',64)]), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n",
         'wrong_version_type' => json_encode(array_replace($intent,
             ['version'=>7]), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n",
         'invalid_version' => json_encode(array_replace($intent,
