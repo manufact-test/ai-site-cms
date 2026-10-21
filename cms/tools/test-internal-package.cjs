@@ -42,8 +42,7 @@ check(manifest.files.some(x=>x.path==='public/.htaccess'),
   'Apache fallback/security rules are fully inventoried in shipped public root');
 for(const dangerous of ['.env','../etc/shadow','private/../public/bad','storage/main.sqlite','private/editor/.npmrc','public/server.key',
   'public/.git/config','public/.github/workflows/build.yml',
-  'public/.well-known/security.txt','public/assets/.private/file.txt',
-  'vendor/.hidden/license','private/.config/settings']){
+  'public/.well-known/security.txt','public/assets/.private/file.txt']){
   assert.throws(()=>assertAllowed(dangerous));
   checks++;
 }

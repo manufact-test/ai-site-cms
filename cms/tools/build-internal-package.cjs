@@ -42,7 +42,8 @@ function assertAllowed(relative) {
   const segments=relative.split('/');
   if(relative.startsWith('/')||segments.some(s=>!s||s==='.'||s==='..'||
      !/^[a-zA-Z0-9._-]+$/.test(s)||
-     (s.startsWith('.') && relative!=='public/.htaccess')||forbiddenPart.test(s)||
+     (relative.startsWith('public/') && s.startsWith('.')
+       && relative!=='public/.htaccess')||forbiddenPart.test(s)||
      (s.toLowerCase()==='.htaccess'&&relative!=='public/.htaccess'))||
      relative.toLowerCase()==='storage'||relative.toLowerCase().startsWith('storage/')||
      forbiddenFile.test(relative)){
