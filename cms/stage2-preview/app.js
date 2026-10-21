@@ -1,184 +1,232 @@
 'use strict';
-/**
- * One-tab, local-only demo coordinator. No fetch, credentials, storage,
- * auto-save, server write or publication. The Stage2 distribution never
- * includes this dev-only preview; production requires Stage3+ auth/ACL.
- */
-(() => {
-  const C=window.CmsPreviewContent;
-  const R=window.CmsPreviewRender;
-  const editorApi=window.AiSiteCmsEditorStage2;
+/* Stage2 offline product preview ONLY. No API, server writes, auth or publishing. */
+(()=>{
+  const C=window.CmsPreviewContent,R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2;
   const $=id=>document.getElementById(id);
-  const refs={list:$('sections'),frame:$('preview'),fields:$('fields'),title:$('site-title'),
-    theme:$('theme'),count:$('count'),name:$('selection-info'),
-    status:$('status'),addType:$('new-type'),browser:$('browser')};
-  let documentData=C.template();
-  let selected=documentData.sections[0].id;
-  let activeEditor=null;
-  let dirty=false,toastTimer=null,viewport='desktop';
-  function toast(message,error=false) {
-    clearTimeout(toastTimer);
-    refs.status.textContent=message;
-    refs.status.className='status show'+(error?' error':'');
-    toastTimer=setTimeout(()=>{refs.status.className='status';},3700);
+  const ui={list:$('sections'),frame:$('preview'),fields:$('fields'),title:$('site-title'),theme:$('theme'),
+    count:$('count'),info:$('selection-info'),status:$('status'),addType:$('new-type'),browser:$('browser'),
+    versions:$('versions'),saveState:$('save-state'),save:$('save'),undo:$('undo'),redo:$('redo')};
+  const storageKey='ai-site-cms-stage2-preview-local-v1',LIMIT=8;
+  let doc=C.template(),selection=doc.sections[0].id,editor=null,dirty=false,records=[],storageOK=false;
+  let saved='',undo=[],redo=[],lastType='',lastAt=0,focus='page',toastTimer;
+  const snapshot=()=>JSON.stringify(doc);
+  function toast(message,error=false){
+    clearTimeout(toastTimer);ui.status.textContent=message;
+    ui.status.className='status show'+(error?' error':'');
+    toastTimer=setTimeout(()=>ui.status.className='status',4000);
   }
-  function markChanged() {
-    dirty=true; updatePreview();
+  function indicators(){
+    dirty=snapshot()!==saved;
+    ui.undo.disabled=!undo.length;ui.redo.disabled=!redo.length;ui.save.disabled=!storageOK;
+    ui.saveState.textContent=!storageOK?'Локальное хранилище недоступно — экспортируйте JSON':
+      dirty?'● Изменения не сохранены':'✓ Локальная версия сохранена';
+    ui.saveState.classList.toggle('unsaved',dirty);
   }
-  function updatePreview() {
-    try {
-      refs.frame.srcdoc=R.render(documentData);
-      refs.count.textContent=documentData.sections.length+' блоков';
-    } catch(error){toast(error.message,true);}
+  function preview(){
+    try{ui.frame.srcdoc=R.render(doc,selection,focus==='section');
+      ui.count.textContent=doc.sections.length+' блоков';}
+    catch(e){toast(e.message,true);}
   }
-  function selectedSection(){
-    return documentData.sections.find(item=>item.id===selected);
+  function changed(){indicators();preview();}
+  function checkpoint(type,coalesce=false){
+    const now=Date.now();
+    if(!(coalesce&&lastType===type&&now-lastAt<1200)){
+      undo.push(snapshot());if(undo.length>60)undo.shift();
+    }
+    lastType=type;lastAt=now;redo=[];
   }
-  function makeButton(symbol,description,operation,disabled) {
-    const b=document.createElement('button');
-    b.className='tiny';b.type='button';b.textContent=symbol;b.title=description;
-    b.setAttribute('aria-label',description);
-    b.disabled=Boolean(disabled);
-    b.addEventListener('click',event=>{event.stopPropagation();operation();});
-    return b;
+  const current=()=>doc.sections.find(s=>s.id===selection);
+  function tiny(symbol,label,callback,disabled){
+    const b=document.createElement('button');b.type='button';b.className='tiny';
+    b.textContent=symbol;b.title=label;b.setAttribute('aria-label',label);b.disabled=!!disabled;
+    b.addEventListener('click',e=>{e.stopPropagation();callback();});return b;
   }
-  function renderList() {
-    refs.list.replaceChildren();
-    documentData.sections.forEach((item,index)=>{
-      const li=document.createElement('li'),current=item.id===selected;
-      li.className='section-row'+(current?' selected':'');
+  function listing(){
+    ui.list.replaceChildren();
+    doc.sections.forEach((s,i)=>{
+      const li=document.createElement('li'),active=s.id===selection;
+      li.className='section-row'+(active?' selected':'');
       const pick=document.createElement('button');pick.type='button';pick.className='section-select';
-      pick.setAttribute('aria-pressed',String(current));pick.title='Редактировать блок';
+      pick.title='Редактировать блок';pick.setAttribute('aria-pressed',String(active));
       const icon=document.createElement('span');icon.className='section-icon';
-      icon.textContent=C.definitions[item.type].icon;icon.setAttribute('aria-hidden','true');
+      icon.textContent=C.definitions[s.type].icon;icon.setAttribute('aria-hidden','true');
       const names=document.createElement('span');names.className='section-names';
-      const label=document.createElement('strong');label.textContent=C.definitions[item.type].label;
+      const name=document.createElement('strong');name.textContent=C.definitions[s.type].label;
       const subtitle=document.createElement('small');
-      subtitle.textContent=Object.values(item.props).find(x=>typeof x==='string'&&x.length>0)||'Без текста';
-      names.append(label,subtitle);pick.append(icon,names);
-      pick.addEventListener('click',()=>select(item.id));
-      const actions=document.createElement('div');actions.className='section-actions';
-      actions.append(
-        makeButton('↑','Поднять блок выше',()=>move(index,-1),index===0),
-        makeButton('↓','Опустить блок ниже',()=>move(index,1),index===documentData.sections.length-1),
-        makeButton('⧉','Дублировать блок',()=>duplicate(index),documentData.sections.length>=12),
-        makeButton('×','Удалить блок',()=>remove(index),documentData.sections.length<=1)
-      );
-      li.append(pick,actions);refs.list.append(li);
+      subtitle.textContent=Object.values(s.props).find(x=>typeof x==='string'&&x)||'Без текста';
+      names.append(name,subtitle);pick.append(icon,names);
+      pick.addEventListener('click',()=>select(s.id));
+      const tools=document.createElement('div');tools.className='section-actions';
+      tools.append(tiny('↑','Поднять блок выше',()=>move(i,-1),i===0),
+        tiny('↓','Опустить блок ниже',()=>move(i,1),i===doc.sections.length-1),
+        tiny('⧉','Дублировать блок',()=>duplicate(i),doc.sections.length>=12),
+        tiny('×','Удалить блок',()=>remove(i),doc.sections.length<=1));
+      li.append(pick,tools);ui.list.append(li);
     });
   }
-  function mountEditor() {
-    if(activeEditor){activeEditor.destroy();activeEditor=null;}
-    const item=selectedSection();if(!item)return;
-    refs.name.textContent=C.definitions[item.type].label+
-      ' · редактируйте текст — результат появится слева в предпросмотре';
-    refs.fields.replaceChildren();
-    activeEditor=editorApi.mount({
-      container:refs.fields,schema:C.schema(item.type),data:item.props,
-      onChange(value){
-        const live=selectedSection();
-        if(!live||live.id!==item.id)return;
-        live.props=value;markChanged();renderList();
-      }
-    });
+  function mount(){
+    if(editor){editor.destroy();editor=null;}
+    const s=current();if(!s)return;
+    ui.info.textContent=C.definitions[s.type].label+' · меняйте свойства, чтобы увидеть результат';
+    ui.fields.replaceChildren();
+    editor=E.mount({container:ui.fields,schema:C.schema(s.type),data:s.props,onChange(value){
+      const live=current();
+      if(!live||live.id!==s.id||JSON.stringify(live.props)===JSON.stringify(value))return;
+      checkpoint('field:'+s.id,true);
+      live.props=value;changed();listing();
+    }});
   }
-  function select(id) {
-    selected=id;renderList();mountEditor();
+  function use(next,preferred){
+    const valid=C.validate(next);
+    if(editor){editor.destroy();editor=null;}
+    doc=valid;selection=valid.sections.some(s=>s.id===preferred)?preferred:valid.sections[0].id;
+    ui.title.value=doc.siteTitle;ui.theme.value=doc.theme;lastType='';
+    listing();mount();changed();
   }
-  function move(index,by) {
-    const to=index+by;if(to<0||to>=documentData.sections.length)return;
-    const moved=documentData.sections.splice(index,1)[0];
-    documentData.sections.splice(to,0,moved);
-    renderList();markChanged();
-    toast('Порядок блоков изменён');
+  function select(id){if(id===selection)return;selection=id;lastType='';listing();mount();preview();}
+  function move(i,delta){
+    const to=i+delta;if(to<0||to>=doc.sections.length)return;
+    checkpoint('structure');const s=doc.sections.splice(i,1)[0];
+    doc.sections.splice(to,0,s);listing();changed();toast('Порядок блоков изменён');
   }
-  function remove(index) {
-    if(documentData.sections.length<=1)return;
-    const item=documentData.sections[index];
-    documentData.sections.splice(index,1);
-    if(item.id===selected)selected=documentData.sections[Math.min(index,documentData.sections.length-1)].id;
-    renderList();mountEditor();markChanged();toast('Блок удалён');
+  function remove(i){
+    if(doc.sections.length<=1)return;
+    checkpoint('structure');const s=doc.sections.splice(i,1)[0];
+    if(s.id===selection)selection=doc.sections[Math.min(i,doc.sections.length-1)].id;
+    listing();mount();changed();toast('Блок удалён');
   }
-  function duplicate(index) {
-    if(documentData.sections.length>=12){toast('Максимум 12 блоков',true);return;}
-    const original=documentData.sections[index];
-    const item=C.createSection(original.type);
-    item.props=structuredClone(original.props);
-    documentData.sections.splice(index+1,0,item);
-    selected=item.id;renderList();mountEditor();markChanged();
-    toast('Блок дублирован');
+  function duplicate(i){
+    if(doc.sections.length>=12)return toast('Максимум 12 блоков',true);
+    checkpoint('structure');const source=doc.sections[i],copy=C.createSection(source.type);
+    copy.props=structuredClone(source.props);doc.sections.splice(i+1,0,copy);selection=copy.id;
+    listing();mount();changed();toast('Блок дублирован');
   }
-  function add() {
-    if(documentData.sections.length>=12){toast('Максимум 12 блоков',true);return;}
-    const item=C.createSection(refs.addType.value);
-    documentData.sections.push(item);
-    selected=item.id;renderList();mountEditor();markChanged();toast('Блок добавлен');
+  function add(){
+    if(doc.sections.length>=12)return toast('Максимум 12 блоков',true);
+    checkpoint('structure');const s=C.createSection(ui.addType.value);
+    doc.sections.push(s);selection=s.id;listing();mount();changed();toast('Блок добавлен');
   }
-  function useDocument(next) {
-    if(activeEditor){activeEditor.destroy();activeEditor=null;}
-    documentData=C.validate(next);
-    selected=documentData.sections[0].id;
-    refs.title.value=documentData.siteTitle;
-    refs.theme.value=documentData.theme;
-    renderList();mountEditor();updatePreview();
+  function travel(which){
+    const from=which==='undo'?undo:redo,to=which==='undo'?redo:undo;
+    if(!from.length)return;to.push(snapshot());
+    use(JSON.parse(from.pop()),selection);
+    toast(which==='undo'?'Изменение отменено':'Изменение повторено');
   }
-  function exportDocument(){
+  function exports(){
     let bytes;
-    try{bytes=JSON.stringify(C.validate(documentData),null,2)+'\n';}
-    catch(e){toast('Проверьте содержимое: '+e.message,true);return;}
+    try{bytes=JSON.stringify(C.validate(doc),null,2)+'\n';}
+    catch(e){return toast('Ошибка документа: '+e.message,true);}
     const url=URL.createObjectURL(new Blob([bytes],{type:'application/json'}));
-    const link=document.createElement('a');
-    link.href=url;link.download='ai-site-cms-preview.json';
-    document.body.appendChild(link);link.click();link.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
-    dirty=false;toast('JSON экспортирован. На сервер ничего не отправлено');
+    const a=document.createElement('a');a.href=url;a.download='ai-site-cms-preview.json';
+    document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast('JSON скачан. Данные не отправлялись на сервер');
   }
-  async function importDocument(file) {
-    if(!file)return;
-    if(file.size>100000){toast('JSON слишком большой (максимум 100 КБ)',true);return;}
+  async function imports(file){
+    if(!file)return;if(file.size>100000)return toast('Максимум 100 КБ для JSON',true);
     try{
-      const data=C.validate(JSON.parse(await file.text()));
-      if(dirty&&!window.confirm('Заменить текущие несохранённые изменения импортированным проектом?'))return;
-      useDocument(data);dirty=false;
-      toast('Проект загружен локально из JSON');
-    }catch(error){toast('Не удалось импортировать: '+error.message,true);}
+      const valid=C.validate(JSON.parse(await file.text()));
+      if(dirty&&!confirm('Заменить несохранённые изменения импортированным файлом?'))return;
+      checkpoint('import');use(valid);toast('JSON открыт. Для сохранения нажмите «Сохранить локально»');
+    }catch(e){toast('Ошибка импорта: '+e.message,true);}
+  }
+  function readSaved(){
+    try{
+      const store=localStorage,probe=storageKey+'-probe';
+      store.setItem(probe,'1');store.removeItem(probe);storageOK=true;
+      const raw=store.getItem(storageKey);if(!raw)return;
+      const value=JSON.parse(raw);
+      if(!Array.isArray(value)||value.length>LIMIT)throw Error('Неверный формат');
+      records=value.map(r=>{
+        if(!r||typeof r.at!=='number'||!Number.isFinite(r.at)||r.at<=0||r.at>Date.now()+86400000)
+          throw Error('Неверная дата');
+        return {at:r.at,doc:C.validate(r.doc)};
+      });
+    }catch(e){
+      records=[];
+      toast(storageOK?'Локальные версии повреждены. Используйте резервный JSON':
+        'Хранилище браузера недоступно — пользуйтесь экспортом JSON',true);
+    }
+  }
+  function versions(){
+    ui.versions.replaceChildren();
+    if(!storageOK||!records.length){
+      const li=document.createElement('li');li.textContent=storageOK?
+        'Здесь появятся ваши сохранённые черновики':'Доступен только экспорт JSON';
+      ui.versions.append(li);return;
+    }
+    records.forEach((r,i)=>{
+      const li=document.createElement('li'),caption=document.createElement('span');
+      caption.textContent=new Date(r.at).toLocaleString('ru-RU')+' · '+r.doc.sections.length+' блоков';
+      const b=document.createElement('button');b.type='button';b.className='tiny restore';
+      b.textContent='Открыть';b.setAttribute('aria-label','Открыть локальную версию '+(i+1));
+      b.addEventListener('click',()=>{
+        if(dirty&&!confirm('Заменить текущие несохранённые изменения?'))return;
+        checkpoint('restore');use(r.doc);toast('Версия открыта. Сохраните её для закрепления');
+      });
+      li.append(caption,b);ui.versions.append(li);
+    });
+  }
+  function save(){
+    if(!storageOK)return;
+    try{
+      const valid=C.validate(doc),currentJSON=JSON.stringify(valid);
+      if(currentJSON!==saved||!records.length){
+        const next=[{at:Date.now(),doc:valid},...records].slice(0,LIMIT);
+        localStorage.setItem(storageKey,JSON.stringify(next));records=next;
+      }
+      saved=currentJSON;versions();indicators();toast('Черновик сохранён в этом браузере, не на сервере');
+    }catch(e){toast('Сохранение недоступно. Экспортируйте резервный JSON',true);}
   }
   function init(){
-    if(!C||!R||!editorApi){refs.status.textContent='Сначала соберите Jedison: cd cms/editor && npm ci && npm run build';refs.status.className='status show error';return;}
+    if(!C||!R||!E){ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';ui.status.className='status show error';return;}
     for(const type of C.types){
       const option=document.createElement('option');option.value=type;
-      option.textContent=C.definitions[type].label;refs.addType.append(option);
+      option.textContent=C.definitions[type].label;ui.addType.append(option);
     }
-    useDocument(documentData);
+    readSaved();
+    if(records.length){doc=C.validate(records[0].doc);}
+    saved=records.length?snapshot():'';use(doc);versions();
     $('add').addEventListener('click',add);
     $('reset').addEventListener('click',()=>{
-      if(dirty&&!window.confirm('Сбросить все правки в демонстрации?'))return;
-      useDocument(C.template());dirty=false;toast('Демонстрация сброшена');
+      if(dirty&&!confirm('Создать новый проект и потерять несохранённые изменения?'))return;
+      checkpoint('new');use(C.template());toast('Новый проект. Старые версии сохранены');
     });
-    $('export').addEventListener('click',exportDocument);
+    $('clear-versions').addEventListener('click',()=>{
+      if(!records.length||!storageOK||!confirm('Удалить все локальные версии? При необходимости сначала экспортируйте JSON.'))return;
+      try{localStorage.removeItem(storageKey);records=[];saved='';versions();indicators();toast('Локальные версии удалены');}
+      catch(e){toast('Ошибка удаления локальных версий',true);}
+    });
+    ui.save.addEventListener('click',save);
+    ui.undo.addEventListener('click',()=>travel('undo'));
+    ui.redo.addEventListener('click',()=>travel('redo'));
+    $('export').addEventListener('click',exports);
     $('import').addEventListener('click',()=>$('file').click());
-    $('file').addEventListener('change',async event=>{
-      await importDocument(event.target.files?.[0]);event.target.value='';
+    $('file').addEventListener('change',async e=>{await imports(e.target.files?.[0]);e.target.value='';});
+    ui.title.addEventListener('input',()=>{
+      if(doc.siteTitle===ui.title.value)return;
+      checkpoint('title',true);doc.siteTitle=ui.title.value;changed();
     });
-    refs.title.addEventListener('input',()=>{
-      documentData.siteTitle=refs.title.value;
-      markChanged();
+    ui.theme.addEventListener('change',()=>{
+      if(doc.theme===ui.theme.value)return;
+      checkpoint('theme');doc.theme=ui.theme.value;changed();
     });
-    refs.theme.addEventListener('change',()=>{
-      documentData.theme=refs.theme.value;markChanged();
-    });
-    document.querySelectorAll('[data-width]').forEach(button=>button.addEventListener('click',()=>{
-      viewport=button.dataset.width;
-      refs.browser.classList.toggle('mobile',viewport==='mobile');
-      document.querySelectorAll('[data-width]').forEach(target=>{
-        const on=target.dataset.width===viewport;
-        target.classList.toggle('active',on);target.setAttribute('aria-pressed',String(on));
+    document.querySelectorAll('[data-width]').forEach(b=>b.addEventListener('click',()=>{
+      ui.browser.classList.toggle('mobile',b.dataset.width==='mobile');
+      ui.browser.classList.toggle('tablet',b.dataset.width==='tablet');
+      document.querySelectorAll('[data-width]').forEach(x=>{
+        const active=b===x;x.classList.toggle('active',active);x.setAttribute('aria-pressed',String(active));
       });
     }));
-    window.addEventListener('beforeunload',event=>{
-      if(!dirty)return;
-      event.preventDefault();event.returnValue='';
+    document.querySelectorAll('[data-focus]').forEach(b=>b.addEventListener('click',()=>{
+      focus=b.dataset.focus;document.querySelectorAll('[data-focus]').forEach(x=>{
+        const active=b===x;x.classList.toggle('active',active);x.setAttribute('aria-pressed',String(active));
+      });preview();
+    }));
+    document.addEventListener('keydown',e=>{
+      if(!(e.ctrlKey||e.metaKey)||e.altKey||e.key.toLowerCase()!=='z')return;
+      e.preventDefault();travel(e.shiftKey?'redo':'undo');
     });
+    window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
   }
   init();
 })();
