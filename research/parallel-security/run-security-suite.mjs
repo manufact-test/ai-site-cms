@@ -295,6 +295,29 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
     // temporary public Git clone, never rewrite the source under test.
     const mainProof=capture('node',[path.join(dirname,'main-head-independent-proof.mjs')],
       {timeout:190000});
+    // Emit positive/negative factual status of optional Apache loopback
+    // exercise; a green suite is not proof that Apache was installed.
+    try{
+      const line=(mainProof.stdout||'').split('\n')
+        .find(v=>v.startsWith('{"mainSha":'));
+      if(line){
+        const observed=JSON.parse(line);
+        console.error('INDEPENDENT_SECURITY_APACHE_LOOPBACK_SCOPE '+JSON.stringify({
+          originalMainSha:observed.mainSha,
+          actuallyExecutedLocalApacheHttp:observed.localApacheLoopbackHttpObserved===true,
+          originalServerPoliciesAttested:observed.originalWebserverPolicy?.files?.length===2,
+          hostingerContacted:false,productionApproved:false
+        }));
+      }else{
+        console.error('INDEPENDENT_SECURITY_APACHE_LOOPBACK_SCOPE '+JSON.stringify({
+          evidenceAbsent:true,hostingerContacted:false,productionApproved:false
+        }));
+      }
+    }catch{
+      console.error('INDEPENDENT_SECURITY_APACHE_LOOPBACK_SCOPE '+JSON.stringify({
+        parseFailed:true,hostingerContacted:false,productionApproved:false
+      }));
+    }
     if(mainProof.exitCode===3||mainProof.spawnError||
        (mainProof.exitCode===null&&mainProof.signal)){
       sourceRow.status='blocked';
