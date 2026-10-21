@@ -33,6 +33,8 @@ final class RevisionGate
             if ($block['values'][$path] !== $value) $changed = true;
         }
         if (!$changed) return ['code' => 'UNCHANGED'];
+        // Reserve one valid revision for the next plan; never generate an unaddressable token.
+        if ($block['revision'] >= 2147483646) return ['code' => 'PATCH_REJECTED'];
         $next = $block;
         foreach ($request['changes'] as $path => $value) $next['values'][$path] = $value;
         $next['revision']++;

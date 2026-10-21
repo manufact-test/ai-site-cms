@@ -58,6 +58,9 @@ $invalidRevision['blocks']['hero-primary']['revision']='7';
 revisionExpect('PATCH_REJECTED',$base,$invalidRevision);
 $invalidRevision['blocks']['hero-primary']['revision']=2147483646;
 revisionExpect('REVISION_CONFLICT',$base,$invalidRevision);
+revisionExpect('PATCH_REJECTED',array_replace($base,['expectedRevision'=>2147483646]),$invalidRevision);
+revisionExpect('UNCHANGED',array_replace($base,['expectedRevision'=>2147483646,
+    'changes'=>['layout.paddingPx'=>24]]),$invalidRevision);
 
 revisionExpect('PATCH_REJECTED',array_replace($base,['changes'=>[]]));
 revisionExpect('PATCH_REJECTED',$base+['admin'=>true]);
