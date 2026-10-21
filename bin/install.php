@@ -33,13 +33,28 @@ if ($driver === 'sqlite' && !$allowSqlite) {
 // a separately authorized private one-shot task; CLI flags/env by themselves
 // cannot authorize a target installation.
 if ($driver === 'mysql') {
+    // Exactly three disposable CI DB/account identities are reserved:
+    // the schema smoke DB and TWO separately scoped packaged MySQL fixtures.
+    // No arbitrary dbname, host, credentials or runtime account is accepted.
+    $ciPairs = [
+        'ai_site_cms_ci' => ['cms_ci', 'ephemeral_ci_only'],
+        'ai_stage2_pkg_a_ci' => ['stage2pkg_a_ci', 'disposable_stage2_a_ci'],
+        'ai_stage2_pkg_b_ci' => ['stage2pkg_b_ci', 'disposable_stage2_b_ci'],
+    ];
+    $ciIdentityMatches = false;
+    foreach ($ciPairs as $dbName => [$user, $password]) {
+        if ($dsn === 'mysql:host=127.0.0.1;port=3306;dbname='.$dbName.';charset=utf8mb4'
+            && getenv('CMS_DB_USER') === $user
+            && getenv('CMS_DB_PASSWORD') === $password) {
+            $ciIdentityMatches = true;
+            break;
+        }
+    }
     $allowed = getenv('CMS_ENV') === 'test'
         && getenv('CI') === 'true'
         && getenv('GITHUB_ACTIONS') === 'true'
         && getenv('CMS_STAGE2_MYSQL_CLI_INSTALL') === 'isolated-ci-only'
-        && $dsn === 'mysql:host=127.0.0.1;port=3306;dbname=ai_site_cms_ci;charset=utf8mb4'
-        && getenv('CMS_DB_USER') === 'cms_ci'
-        && getenv('CMS_DB_PASSWORD') === 'ephemeral_ci_only';
+        && $ciIdentityMatches;
     if (!$allowed) {
         fwrite(STDERR, "Generic Stage2 MySQL installation refused; dedicated owner-authorized one-shot required\n");
         exit(3);
