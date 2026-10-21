@@ -1,12 +1,18 @@
 # AI Site CMS Stage2 / Apache 2.4 - distributed PUBLIC root only.
 # DocumentRoot MUST be /path/to/cms/public; NEVER the package root.
 # Shared hosting must permit AllowOverride Options Indexes FileInfo AuthConfig.
-# This is a lab-tested HTTP rule set, not host/deployment certification.
+# Locally validated Apache policy; NOT LiteSpeed/Hostinger certification.
 Options -Indexes -MultiViews -FollowSymLinks -SymLinksIfOwnerMatch
 DirectoryIndex index.php
 FallbackResource /index.php
 
-# No dotfiles, backup/database files or non-front-controller executables.
+# Match ANY hidden PATH SEGMENT, not just the final filename.
+# Only the literal .well-known directory segment is exempt (ACME/security.txt).
+# A nested .well-known/.git/config is still forbidden. Requires mod_alias.
+# No mod_rewrite: rewrite rules are disallowed when BOTH symlink modes are off.
+RedirectMatch 403 "(^|/)\.(?!well-known(/|$))[^/]+(/|$)"
+
+# Defense in depth for individual hidden files, unsafe executables or secrets.
 <FilesMatch "^\.">
     Require all denied
 </FilesMatch>

@@ -146,8 +146,8 @@
     },
     {
       "path": "public/.htaccess",
-      "bytes": 750,
-      "sha256": "b4f0cfa4b5a819378a340598a4331f2295f27855f7f3f382ca2c1df49413cf3e"
+      "bytes": 1111,
+      "sha256": "4a90764b2d9aa79593b1a6ae52188d4442f665a964aeb5f4f6f242dcd3f0f6f6"
     },
     {
       "path": "public/index.php",
