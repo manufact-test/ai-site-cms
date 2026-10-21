@@ -1,3 +1,5 @@
+> **New independently observed conditional risks:** the byte-exact original `cms/public/.htaccess` permitted `GET /.git/config` and `GET /.github/workflows/run.yml` (HTTP 200 on Apache 2.4.68 with synthetic harmless files). The byte-exact original Hostinger-readonly policy caused `AH00670` and blanket HTTP 403 for ordinary paths on this Apache setup because `RewriteRule` coexisted with both symlink-following Options disabled. These are local Apache findings, **NOT** an established deployed Hostinger vulnerability. See [APACHE-LOCAL-POLICY-REPRO-2026-10-21.md](APACHE-LOCAL-POLICY-REPRO-2026-10-21.md). A source-contract PASS does **not** mean effective dot-directory protection or functional rewriting. Both findings require main-integrator review and approved target tests.
+
 # Independent Security Research: actual-main webserver policy source boundary
 
 **21 October 2026.** Research PR #3 only. This is a STATIC exact-source contract, not a live Hostinger webserver test, penetration test, rewrite/denial proof, or production acceptance.
