@@ -34,6 +34,14 @@ function dbCleanup(string $dir):void {
     }
     rmdir($dir);
 }
+// Exact Node package-manifest encoding: two-space pretty JSON, one newline.
+function labReleaseJson(array $manifest): string {
+    $encoded=json_encode($manifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|
+        JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+    return preg_replace_callback('/^( +)/m',
+        static fn(array $m):string => str_repeat(' ',intdiv(strlen($m[1]),2)),
+        $encoded)."\n";
+}
 function dbSyntheticPackage(string $dir,string $version):string {
     mkdir($dir,0700);
     foreach (['public','vendor','private','private/editor'] as $d) mkdir($dir.'/'.$d,0700,true);
@@ -50,8 +58,9 @@ function dbSyntheticPackage(string $dir,string $version):string {
     }
     $manifest=['format'=>'ai-site-cms-internal-stage2-v2','stage'=>2,
         'releaseVersion'=>$version,'productionReady'=>false,'documentRoot'=>'public',
-        'isSigned'=>false,'writeEndpointsAvailable'=>false,'files'=>$list];
-    $payload=json_encode($manifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
+        'adminEditorAssets'=>'private/editor','hostingComposerOrNodeRequired'=>false,
+        'writeEndpointsAvailable'=>false,'isSigned'=>false,'files'=>$list];
+    $payload=labReleaseJson($manifest);
     file_put_contents($dir.'/private/package-manifest.json',$payload);
     return hash('sha256',$payload);
 }
