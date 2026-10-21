@@ -1,0 +1,31 @@
+{
+  "schema": "ai-site-cms-archived-main-sodium-ci-evidence-v1",
+  "origin": {
+    "repo": "manufact-test/ai-site-cms",
+    "runId": 39571456888,
+    "jobId": 119126388264,
+    "jobName": "Real Sodium-free PHP 8.3 Ed25519 candidate (CI-only)",
+    "headSha": "59c5289b74cf85859711d9a248af8efe0762cd10",
+    "workflowPath": ".github/workflows/stage2-core-bootstrap.yml",
+    "conclusion": "success",
+    "workflowBlobSha": "8098aaccd3c9184dfc063c9ca6cb84c8b59fca3d",
+    "runnerBlobSha": "2f06f692b982dca574880283101bf05e491c2e98",
+    "signedChainBlobSha": "9243b7ed1fd7ad3778e4ddbd41e0e3107cb5faee",
+    "rotationBlobSha": "6c6dbe7e0aa39de18d28094f5aabaaf990ecfc03",
+    "url": "https://github.com/manufact-test/ai-site-cms/actions/runs/39571456888/job/119126388264"
+  },
+  "logExcerpt": {
+    "format": "Job-log JSON stdout, original field order and values, GitHub timestamp prefixes removed",
+    "stdout": "{\n  \"evidence\": \"true-sodium-absent-php83\",\n  \"php\": \"8.3.6\",\n  \"bits\": 64,\n  \"extensionLoadedBeforeCandidate\": false,\n  \"candidate\": \"paragonie/sodium_compat\",\n  \"version\": \"v2.5.2\",\n  \"sourceReference\": \"3246b36803c177847e677862fedeb7f937869adb\",\n  \"license\": \"ISC\",\n  \"absentVerification\": \"fail_closed\",\n  \"rfc8032\": \"passed\",\n  \"signedEnvelopeAdversarial\": \"passed\",\n  \"completeSignedChainParity\": {\n    \"evidence\": \"signed-permit-receipt-settlement-parity\",\n    \"checks\": 33,\n    \"nativePHP\": 80335,\n    \"noSodiumPHP\": 80306,\n    \"sameSignedBytes\": true,\n    \"sameSignedHead\": true,\n    \"signatureBackends\": [\n      \"native\",\n      \"pinned userland 2.5.2\"\n    ],\n    \"policy\": \"original CMS PHP\",\n    \"hostingerTested\": false,\n    \"publisherIdentityIndependentlyVerified\": false,\n    \"stage2Accepted\": false\n  },\n  \"trustKeyRotationParity\": {\n    \"evidence\": \"stage2-byte-identical-double-signed-rotation\",\n    \"checks\": 55,\n    \"nativePHP\": 80335,\n    \"noSodiumPHP\": 80306,\n    \"sameNodeSignedEvidence\": true,\n    \"trustRootPinned\": true,\n    \"externalMinimumEpoch\": true,\n    \"retiredKeysRefused\": true,\n    \"ambiguousJournalRejected\": true,\n    \"backendParity\": true,\n    \"hostingerTested\": false,\n    \"realPublisherIdentityProven\": false,\n    \"cryptographicReviewApproved\": false,\n    \"stage2Accepted\": false\n  },\n  \"performance\": {\n    \"backend\": \"compat\",\n    \"testVector\": \"RFC8032/test1\",\n    \"checks\": \"passed\",\n    \"verifications\": 8,\n    \"totalMs\": 335.342,\n    \"meanMs\": 41.918,\n    \"performance\": \"local-not-target-host\",\n    \"productionApproved\": false\n  },\n  \"productionLockChanged\": false,\n  \"hostingerTested\": false,\n  \"publisherKeyOwnershipVerified\": false,\n  \"licenseApproved\": false,\n  \"cryptographicReviewApproved\": false,\n  \"stage2Accepted\": false\n}"
+  },
+  "classification": {
+    "actualMainCiRecordedNoNative": true,
+    "independentlyReexecutedBySecurityPr": false,
+    "wholeTreeIndependentExternalHashAttested": false,
+    "targetHostTested": false,
+    "commercialLicenseApproved": false,
+    "researchSecurityApproved": false,
+    "stage2Accepted": false,
+    "productionApproved": false
+  }
+}
