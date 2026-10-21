@@ -1,5 +1,8 @@
 # Candidate existing-block property model — NOT Stage3 contract
 
+> **Заключительный status 21.10.2026:** этот текст — кандидатная архитектурная гипотеза, НЕ согласованный Stage3 контракт. Пример `CapabilityGate → RevisionGate → PreviewLab` после блока 17 fail-closed на повреждённых редакторских правилах, но не имеет авторизации, DB CAS, publish, реального AI manifest, tenant isolation. [Главному интегратору](MAIN-INTEGRATOR-HANDOFF-2026-10-21.md) / [подтверждённые тесты](TEST-EVIDENCE-FINAL-2026-10-21.md); `5330c148ff4a14ebb74b53457cd2b91cfeff574b`, [CI 39574269556](https://github.com/manufact-test/ai-site-cms/actions/runs/39574269556) SUCCESS.
+
+
 **Purpose:** provide Stage3 coordinators with a typed fixture for Jedison 1.27.1 and JSON Schema/Opis evaluation; **do not canonize** AI↔site↔CMS protocol here. AI still owns site construction; CMS should only expose safe, declared attributes that *already exist in that specific block*.
 
 ## Boundary draft

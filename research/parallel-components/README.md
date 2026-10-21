@@ -1,5 +1,8 @@
 # AI Site CMS — independent Editor & Components Research
 
+> **ФИНАЛЬНАЯ ПЕРЕДАЧА исследования (21.10.2026, блоки 1–17):** проверенный код `5330c148ff4a14ebb74b53457cd2b91cfeff574b`, [GitHub Actions 39574269556](https://github.com/manufact-test/ai-site-cms/actions/runs/39574269556) **SUCCESS** (37 PHP syntax, 598 PHP assertions, 69 Python including 42 Chromium). Главному интегратору: [основной пакет передачи](MAIN-INTEGRATOR-HANDOFF-2026-10-21.md), [финальный протокол тестов](TEST-EVIDENCE-FINAL-2026-10-21.md), [актуальный NEXT-CHAT](NEXT-CHAT.md). **PR #4 открыт, не слит; исследование не равно Stage2 acceptance/Stage3 start.** Старые разделы ниже — история.
+
+
 **21.10.2026, current handoff; all earlier dated sections below are historical. Research only.** Branch `research/editor-component-patterns`; working tree restricted to `research/parallel-components/`. Owner architecture Slim4 + Opis2.6 + Jedison1.27.1 remains unchanged; Stage2 NOT ACCEPTED, Stage3 NOT STARTED, 0/135 mandatory product requirements accepted.
 
 Research deliverables:

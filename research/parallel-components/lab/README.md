@@ -1,5 +1,8 @@
 # Standalone HTML/PHP component laboratory
 
+> **АКТУАЛЬНО 21.10.2026 / исследования блоки 1–17 завершены.** [Пакет для главного интегратора](../MAIN-INTEGRATOR-HANDOFF-2026-10-21.md) / [финальная проверка](../TEST-EVIDENCE-FINAL-2026-10-21.md). КОД `5330c148ff4a14ebb74b53457cd2b91cfeff574b`; [CI 39574269556 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39574269556): 37 PHP lint, 598 PHP assertions, 69 Python /42 Chromium и настоящая временная Composer-проверка. Для воспроизведения всей текущей матрицы в отдельном checkout: `cd research/parallel-components && bash lab/tests/run-block5.sh`. Команды ниже сохранены как исторические/выборочные проверки; там могут встречаться уже устаревшие оценки покрытия. Лаборатория НЕ production anti-spam, editor, deployment или SMTP inbox verification.
+
+
 No code imports the active CMS and no Node.js runtime or third-party JS library is required to serve this demo. Nothing here is production-ready. It runs only on a developer-owned disposable PHP server, never on the permitted Hostinger sites.
 
 ```bash

@@ -1,5 +1,8 @@
 # Editor & Components — independent upstream audit (20 October 2026)
 
+> **Заключительный status 21.10.2026:** исследование 17 блоков завершено; читающий главный интегратор должен начать с [пакета передачи](MAIN-INTEGRATOR-HANDOFF-2026-10-21.md) и [финального evidence](TEST-EVIDENCE-FINAL-2026-10-21.md). OSS shortlist ниже не означает approved dependency, legal/NOTICE compliance или автоматическое изменение CMS. Проверенный код `5330c148ff4a14ebb74b53457cd2b91cfeff574b`; [CI](https://github.com/manufact-test/ai-site-cms/actions/runs/39574269556) SUCCESS. Старые оценки ниже исторические.
+
+
 **Scope:** candidate research only, **not** dependency approval, Stage3, product acceptance, a legal opinion or a production implementation. Public upstream metadata/README/LICENSE reviewed on 20.10.2026. Do not copy upstream code on the basis of an SPDX string alone; review complete transitive dependencies, notices, runtime artifacts, release hashes, disclosures/advisories and compatibility before import. No third-party code is vendored here.
 
 ## Decision criteria
