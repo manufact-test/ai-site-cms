@@ -59,6 +59,49 @@ try{
 }finally{fs.writeFileSync(ht,htBefore);}
 check(verify().files.length===initial.files.length,
  'original Apache routing rules restore entire verified package');
+
+const crypto=require('node:crypto');
+const manifestPath=path.join(STAGE,'private/package-manifest.json');
+const originalManifest=fs.readFileSync(manifestPath);
+function hostileManifestMutation(mutator,label){
+  const fresh=JSON.parse(originalManifest.toString('utf8'));
+  let cleanup=()=>{};
+  try{
+    cleanup=mutator(fresh)||cleanup;
+    fs.writeFileSync(manifestPath,JSON.stringify(fresh,null,2)+'\\n');
+    assert.throws(()=>verify(),/Stage2 public boundary|unapproved routes|writable CMS claims/,
+      label);
+    checks++;
+  }finally{
+    cleanup();
+    fs.writeFileSync(manifestPath,originalManifest);
+  }
+  check(verify().files.length===initial.files.length,
+    'read-only boundary mutation restored original complete signed inventory: '+label);
+}
+for(const [filename,bytes] of [
+  ['public/submit.php','<?php echo "form prototype";'],
+  ['public/assets/ui.js','document.querySelector("form");'],
+  ['public/upload.php','<?php echo "image upload";']
+]){
+  hostileManifestMutation(doc=>{
+    const loc=path.join(STAGE,...filename.split('/'));
+    fs.mkdirSync(path.dirname(loc),{recursive:true});
+    fs.writeFileSync(loc,bytes);
+    doc.files.push({path:filename,bytes:Buffer.byteLength(bytes),
+      sha256:crypto.createHash('sha256').update(bytes).digest('hex')});
+    return ()=>{fs.rmSync(loc,{force:true});if(filename.includes('/assets/'))fs.rmdirSync(path.dirname(loc));};
+  },'perfectly hash-inventoried unapproved public route '+filename);
+}
+for(const [field,value] of [
+  ['writeEndpointsAvailable',true],
+  ['adminEditorAssets','public/editor'],
+  ['hostingComposerOrNodeRequired',true]
+]){
+  hostileManifestMutation(doc=>{doc[field]=value;},
+    'manifest attempting to relax internal-only release claim '+field);
+}
+
 const garbage=path.join(STAGE,'public','extra-secret.txt');
 fs.writeFileSync(garbage,'UNLISTED');
 assert.throws(()=>verify(),/Unlisted/);checks++;
