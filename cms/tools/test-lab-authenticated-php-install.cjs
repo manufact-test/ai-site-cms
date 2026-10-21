@@ -6,7 +6,7 @@ const assert=require('node:assert/strict');
 const {spawnSync}=require('node:child_process');
 const ROOT=path.resolve(__dirname,'..');
 const {STAGE}=require('./build-internal-package.cjs');
-const {buildSignedLabBundle}=require('./lab-signed-offline-release.cjs');
+const {buildSignedLabBundle,snapshotSignedLabBundle}=require('./lab-signed-offline-release.cjs');
 if(process.env.CI!=='true'||process.env.CMS_ALLOW_EPHEMERAL_SIGNING_LAB!=='1'
   ||process.env.CMS_ALLOW_PHP_INSTALL_LAB!=='1')
   throw Error('Explicit disposable CI flags required for authenticated installation rehearsal');
@@ -32,17 +32,32 @@ try {
   const pemFile=path.join(tmp,'external-trusted.pem');
   fs.writeFileSync(pemFile,keys.publicKey.export({type:'spki',format:'pem'}));
   buildSignedLabBundle(STAGE,signed,keys.privateKey,keys.publicKey);
+  // The independent PHP verifier and extractor MUST consume the same frozen
+  // signed snapshot, never re-open the mutable handoff source after verification.
+  const sealed=snapshotSignedLabBundle(signed,path.join(tmp,'sealed'));
   const pinned=crypto.createHash('sha256')
     .update(keys.publicKey.export({type:'spki',format:'der'})).digest('hex');
   const version='0.2.0-stage2.1';
   const signedCheck=cmd('php',[path.join(ROOT,'bin/verify-lab-release.php'),'--verify',
-    '--folder='+signed,'--trusted-public-key='+pemFile,'--expected-version='+version,
+    '--folder='+sealed,'--trusted-public-key='+pemFile,'--expected-version='+version,
     '--expected-fingerprint='+pinned]);
   ok(signedCheck.status===0,'PHP independently validates genuine Node-created Ed25519 ZIP');
+  // The original input is now attacker-mutable; PHP still opens ONLY sealed.
+  const sourceZip=path.join(signed,'package.zip');
+  fs.appendFileSync(sourceZip,'MUTATED_AFTER_SNAPSHOT');
+  const staleInput=cmd('php',[path.join(ROOT,'bin/verify-lab-release.php'),'--verify',
+    '--folder='+signed,'--trusted-public-key='+pemFile,'--expected-version='+version,
+    '--expected-fingerprint='+pinned]);
+  ok(staleInput.status===3,'post-snapshot source ZIP tampering fails independent PHP verification');
+  const validSealed=cmd('php',[path.join(ROOT,'bin/verify-lab-release.php'),'--verify',
+    '--folder='+sealed,'--trusted-public-key='+pemFile,'--expected-version='+version,
+    '--expected-fingerprint='+pinned]);
+  ok(validSealed.status===0&&validSealed.stdout===signedCheck.stdout,
+    'immutable snapshot keeps signature and inventory intact despite source substitution');
   const digest=JSON.parse(signedCheck.stdout).manifest_sha256;
   ok(/^[a-f0-9]{64}$/.test(digest),'manifest binding sourced from PHP verified release envelope');
   const extractedResult=cmd('python3',[path.join(ROOT,'tools/safe-offline-archive.py'),
-    'extract',path.join(signed,'package.zip'),extracted]);
+    'extract',path.join(sealed,'package.zip'),extracted]);
   ok(extractedResult.status===0,'restricted extractor unpacked real signed archive');
   const installed=runPhpStage(extracted,digest);
   ok(installed.run.status===0,'PHP installed cryptographically bound package in own empty OS temp');
