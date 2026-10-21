@@ -102,6 +102,57 @@ for(const [field,value] of [
     'manifest attempting to relax internal-only release claim '+field);
 }
 
+
+// Node and PHP must agree on the identity and limits of an internal release.
+// A fresh manifest hash does not excuse malformed record types/field order,
+// case-fold collisions, duplicate JSON keys, oversized files, or hardlinks.
+function invalidShape(mutator,label,pattern=/Invalid|Duplicate|case-colliding|Unsafe|Refusing|Oversized|noncanonical/){
+  const candidate=JSON.parse(originalManifest.toString('utf8'));
+  mutator(candidate);
+  try{
+    fs.writeFileSync(manifestPath,JSON.stringify(candidate,null,2)+'\n');
+    assert.throws(()=>verify(),pattern,label);checks++;
+  }finally{fs.writeFileSync(manifestPath,originalManifest);}
+  check(verify().files.length===initial.files.length,'restored canonical package after '+label);
+}
+for(const [change,label] of [
+  [d=>{d.files.push({...d.files[0],path:d.files[0].path.toUpperCase()});},'case-fold collision'],
+  [d=>{d.files[0].sha256='f'.repeat(63);},'invalid digest encoding'],
+  [d=>{d.files[0].bytes=1.2;},'fractional inventory file size'],
+  [d=>{d.files[0].bytes=0;},'zero-byte inventory file size'],
+  [d=>{d.files[0].bytes=8*1024*1024+1;},'per-file 8MiB limit'],
+  [d=>{d.files[0]={sha256:d.files[0].sha256,path:d.files[0].path,bytes:d.files[0].bytes};},'reordered inventory fields'],
+  [d=>{d.files[0].extra='trusted';},'unknown inventory field'],
+  [d=>{d.files=[];},'empty inventory'],
+  [d=>{d.files[0].path='private/../public/index.php';},'parent traversal'],
+  [d=>{d.files[0].path='private\\editor\\editor.js';},'nonportable Windows separators'],
+  [d=>{d.files[0].path='private/.user.ini';},'PHP ini override'],
+  [d=>{d.releaseVersion=3;},'wrong release version type'],
+  [d=>{d.extra='approved';},'unknown manifest capability field'],
+  [d=>{d.isSigned=true;},'forged source signature flag'],
+  [d=>{d.files=[{path:'private/package-manifest.json',bytes:100,sha256:'f'.repeat(64)},...d.files];},'manifest self-reference']
+])invalidShape(change,label);
+for(const [raw,label] of [
+  [originalManifest.toString('utf8').replace('"stage": 2,','"stage": 2,\n  "stage": 2,'),'duplicate stage JSON key'],
+  [originalManifest.toString('utf8').replace('"format":','"\\u0066ormat":'),'escaped manifest key'],
+  ['\n'+originalManifest.toString('utf8'),'leading whitespace'],
+  [originalManifest.toString('utf8').replace('  "format":',' "format":'),'different indentation']
+]){
+  try{
+    fs.writeFileSync(manifestPath,raw);
+    assert.throws(()=>verify(),/Invalid|noncanonical/,label);checks++;
+  }finally{fs.writeFileSync(manifestPath,originalManifest);}
+}
+check(verify().files.length===initial.files.length,'all deceptive manifest variants leave original intact');
+const hardlinkedSource=fs.mkdtempSync(path.join(os.tmpdir(),'ai-cms-package-hardlink-'));
+try {
+  const target=path.join(hardlinkedSource,'original.js');
+  const alias=path.join(hardlinkedSource,'alias.js');
+  fs.writeFileSync(target,'console.log(42)');
+  fs.linkSync(target,alias);
+  assert.throws(()=>collect(alias,'private/editor/nonportable.js',[]),/hardlinked/);checks++;
+}finally{fs.rmSync(hardlinkedSource,{recursive:true,force:true});}
+
 const garbage=path.join(STAGE,'public','extra-secret.txt');
 fs.writeFileSync(garbage,'UNLISTED');
 assert.throws(()=>verify(),/Unlisted/);checks++;
