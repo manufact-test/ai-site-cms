@@ -22,7 +22,18 @@ final class SharedThrottle
     {
         if (!filter_var($remoteIp, FILTER_VALIDATE_IP) || $limit < 1 || $limit > 100
             || $window < 1 || $window > 3600 || $now < 0) return false;
-        $key = hash_hmac('sha256', 'form-v1|' . $remoteIp, $this->secret);
+        // One network address must map to one bucket, regardless of the
+        // spelling that the web server supplies for the same IPv6 address.
+        // IPv4-mapped IPv6 addresses are the same identity as ordinary IPv4.
+        $packed = @inet_pton($remoteIp);
+        if ($packed === false) return false;
+        if (strlen($packed) === 16 &&
+            substr($packed, 0, 12) === str_repeat("\0", 10) . "\xff\xff") {
+            $packed = substr($packed, 12);
+        }
+        $canonicalIp = inet_ntop($packed);
+        if ($canonicalIp === false) return false;
+        $key = hash_hmac('sha256', 'form-v1|' . $canonicalIp, $this->secret);
         $lease = PrivateStateMaintenance::openLocked($this->dir, PrivateStateMaintenance::LOCK_NAME, LOCK_SH);
         if ($lease === null) return false;
         [$maintenance] = $lease;
@@ -37,7 +48,10 @@ final class SharedThrottle
                 $raw = stream_get_contents($handle, 8193);
                 if ($raw === false || strlen($raw) !== $size) return false;
                 $times = $created ? [] : json_decode($raw, true);
-                if (!is_array($times) || !array_is_list($times) || count($times) > 100) return false;
+                // A successful grant always writes a nonempty history. An existing
+                // [] file is corrupt/reset state, NOT a new empty IP bucket.
+                if (!is_array($times) || !array_is_list($times) || count($times) > 100 ||
+                    (!$created && $times === [])) return false;
                 $prior = -1;
                 foreach ($times as $at) {
                     // Corruption and a clock moving backward must not erase valid attempts.

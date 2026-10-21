@@ -67,6 +67,15 @@ try {
     checkState((fileperms($dir.'/'.PrivateStateMaintenance::LOCK_NAME)&0077)===0,'maintenance lock mode is private');
     checkState(PrivateStateMaintenance::prune($dir,$root,-1)['code']==='PRUNE_UNAVAILABLE','negative time denied');
     checkState(PrivateStateMaintenance::prune($dir,$root,$now,1025,128)['code']==='PRUNE_UNAVAILABLE','unbounded scan denied');
+    // Count unrelated directory entries against the bounded scan budget too.
+    // A maliciously large directory cannot force unbounded iteration.
+    $junk=$dir.'/unrelated-audit-item';
+    file_put_contents($junk,'ignored without deletion');
+    $limited=PrivateStateMaintenance::prune($dir,$root,$now,1,1);
+    checkState($limited['code']==='PRUNED' && $limited['examined']===1
+        && $limited['deleted']<=1, 'maxScan bounds all directory entries, not just HMAC matches');
+    checkState(file_get_contents($junk)==='ignored without deletion',
+        'bounded cleanup never reads or deletes unrelated payload');
     checkState(PrivateStateMaintenance::prune($dir,$root,$now,128,129)['code']==='PRUNE_UNAVAILABLE','unbounded deletion denied');
     checkState(PrivateStateMaintenance::prune($root,$root,$now)['code']==='PRUNE_UNAVAILABLE','public tree refused');
     // Interprocess maintenance synchronization: a held shared lease blocks exclusive prune.

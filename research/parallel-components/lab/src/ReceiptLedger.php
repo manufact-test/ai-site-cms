@@ -30,11 +30,20 @@ final class ReceiptLedger
             return 'RECEIPT_STORE_UNAVAILABLE';
         }
         foreach ($fields as $value) {
-            if (!is_string($value) || strlen($value) > 8192) return 'RECEIPT_STORE_UNAVAILABLE';
+            if (!is_string($value) || strlen($value) > 8192 || preg_match('//u', $value) !== 1) {
+                return 'RECEIPT_STORE_UNAVAILABLE';
+            }
         }
         // HMAC prevents dictionary recovery of low-entropy email/message values from filenames.
-        $key = hash_hmac('sha256', 'receipt-v1|' . json_encode([$recipient, $fields],
-            JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), $this->secret);
+        try {
+            $fingerprintPayload = json_encode([$recipient, $fields],
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        } catch (Throwable) {
+            // Direct laboratory callers deserve the same fail-closed contract
+            // as FormLab's catch around its configured claim callback.
+            return 'RECEIPT_STORE_UNAVAILABLE';
+        }
+        $key = hash_hmac('sha256', 'receipt-v1|' . $fingerprintPayload, $this->secret);
         $lease = PrivateStateMaintenance::openLocked($this->dir, PrivateStateMaintenance::LOCK_NAME, LOCK_SH);
         if ($lease === null) return 'RECEIPT_STORE_UNAVAILABLE';
         [$maintenance] = $lease;

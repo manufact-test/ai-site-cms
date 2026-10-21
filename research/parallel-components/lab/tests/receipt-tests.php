@@ -27,6 +27,14 @@ try {
     confirm($gate->claim('team@example.test', ['wrong'=>'value'],2000)==='RECEIPT_STORE_UNAVAILABLE','closed fields');
     confirm($gate->claim('team@example.test',$fields,2000,1)==='RECEIPT_STORE_UNAVAILABLE','bad ttl');
     confirm($gate->claim('team@example.test',$fields,-1)==='RECEIPT_STORE_UNAVAILABLE','bad timestamp');
+    $invalidUtf8=$fields;
+    $invalidUtf8['message']="Bad\xff invalid UTF8";
+    confirm($gate->claim('team@example.test',$invalidUtf8,2000)==='RECEIPT_STORE_UNAVAILABLE',
+        'invalid UTF8 data never throws or writes a claim');
+    $oversize=$fields;
+    $oversize['message']=str_repeat('x',8193);
+    confirm($gate->claim('team@example.test',$oversize,2000)==='RECEIPT_STORE_UNAVAILABLE',
+        'oversized direct-call value rejected before HMAC');
     $before=glob($dir.'/*.claim');confirm(count($before)===3,'only keyed hash files');
     foreach ($before as $path) {
         confirm((bool)preg_match('/^[a-f0-9]{64}\.claim$/D',basename($path)), 'filename hmac');

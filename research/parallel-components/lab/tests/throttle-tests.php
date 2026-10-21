@@ -19,6 +19,11 @@ try {
     $other = new SharedThrottle($dir,$secret,__DIR__.'/../public');
     must(!$other->allow('203.0.113.10',1001,3,60),'new instance sees prior attempts');
     must($other->allow('2001:db8::1',1001,3,60),'IPV6 separate bucket');
+    must($other->allow('2001:db8::1',1002,3,60),'second IPv6 entry');
+    must(!$other->allow('2001:0db8:0000:0000:0000:0000:0000:0001',1003,2,60),
+        'equivalent full IPv6 spelling does not create another bucket');
+    must(!$other->allow('::ffff:203.0.113.10',1002,1,60),
+        'IPv4-mapped IPv6 cannot bypass IPv4 identity throttle');
     must(!$other->allow('made-up-address',1001),'reject untrusted IP');
     must($other->allow('203.0.113.10',1061,3,60),'old timestamps expire');
     $files=glob($dir.'/*.rate');
@@ -55,6 +60,9 @@ try {
     must(!$gate->allow('203.0.113.50',1700000200,4,60),'malformed entry does not silently reset bucket');
     file_put_contents($target, '');
     must(!$gate->allow('203.0.113.50',1700000300,4,60),'preexisting empty file after crash stays fail-closed');
+    file_put_contents($target, '[]');
+    must(!$gate->allow('203.0.113.50',1700000300,4,60),
+        'preexisting empty JSON array is not permission to reset bucket');
     file_put_contents($target, '[1700000400]');
     must(!$gate->allow('203.0.113.50',1700000350,4,60),'clock reversal cannot clear history');
     file_put_contents($target, '[1700000000]');

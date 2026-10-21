@@ -114,9 +114,12 @@ final class PrivateStateMaintenance
         try {
             foreach (new DirectoryIterator($resolved) as $item) {
                 $name = $item->getFilename();
-                if (!preg_match('/^[a-f0-9]{64}\.(rate|claim)$/D', $name, $match)) continue;
+                if ($name === '.' || $name === '..' || $name === self::LOCK_NAME) continue;
+                // Bound *directory enumeration*, not only matching filenames. A huge
+                // directory with unrelated entries must not defeat the scan budget.
                 if ($examined >= $maxScan || $deleted >= $maxDelete) break;
                 $examined++;
+                if (!preg_match('/^[a-f0-9]{64}\.(rate|claim)$/D', $name, $match)) continue;
                 // Never resolve symlinks or remove unreadable/corrupt records.
                 $entry = self::openLocked($resolved, $name, LOCK_EX);
                 if ($entry === null) continue;
