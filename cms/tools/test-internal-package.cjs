@@ -68,7 +68,7 @@ function hostileManifestMutation(mutator,label){
   let cleanup=()=>{};
   try{
     cleanup=mutator(fresh)||cleanup;
-    fs.writeFileSync(manifestPath,JSON.stringify(fresh,null,2)+'\\n');
+    fs.writeFileSync(manifestPath,JSON.stringify(fresh,null,2)+'\n');
     assert.throws(()=>verify(),/Stage2 public boundary|unapproved routes|writable CMS claims/,
       label);
     checks++;
