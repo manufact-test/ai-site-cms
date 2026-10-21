@@ -42,7 +42,7 @@ function requireProof(row, expectedPattern, evidenceLabel) {
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
-  'notice-regression.mjs','osv-strict-snapshot.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
+  'notice-regression.mjs','osv-strict-snapshot.mjs','osv-live-independent-proof.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','sodium-real-zip-proof.mjs','sodium-real-zip-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
   'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','frozen-lock-baseline.mjs','frozen-lock-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
 for(const name of scripts){
@@ -168,6 +168,19 @@ if(completeLock){
     block('actual-lock:frozen-source-baseline','Research exact-source baseline script unavailable in partial checkout');
     block('mutation:real-43-pin-source-swap','Research original-lock mutation fixture unavailable in partial checkout');
   }
+  // One genuine point-in-time OSV batch is distinguished from synthetic
+  // offline fixtures. False or partial results are FAILURE; network outage
+  // is BLOCKED and can never be counted as zero advisories.
+  if(fs.existsSync(path.join(dirname,'osv-live-independent-proof.mjs'))){
+    const live=capture('node',[path.join(dirname,'osv-live-independent-proof.mjs')],{timeout:110000});
+    if(live.exitCode===3||live.spawnError||(live.exitCode===null&&live.signal)){
+      block('online:OSV-actual43-observation','Real OSV HTTPS request unavailable; no external 43-package coverage evidenced');
+    }else{
+      requireProof(entry('online:OSV-actual43-observation',live),
+        /REAL OSV HTTPS querybatch PASS 43 exact pins; [0-9]+ advisory references across [0-9]+ packages; exact source lock SHA256 matched;/,
+        'Real OSV exact 43-pin querybatch all results and vulnerabilities retained for qualified triage');
+    }
+  }else block('online:OSV-actual43-observation','Actual OSV evidence script missing from research checkout');
   if(online){
     const rawOsv=capture('node',[path.join(dirname,'osv-strict-snapshot.mjs'),'--fail-on-advisory'],{timeout:100000});
     const os=entry('online:OSV-strict43',rawOsv);
@@ -183,7 +196,7 @@ if(completeLock){
     }
   }
 } else {
-  for(const name of ['actual-lock:json','actual-lock:csv','actual-lock:provenance','actual-lock:frozen-source-baseline','mutation:real-43-pin-source-swap'])block(name,'Requires original composer.lock, package-lock.json, package.json in complete checkout');
+  for(const name of ['actual-lock:json','actual-lock:csv','actual-lock:provenance','actual-lock:frozen-source-baseline','mutation:real-43-pin-source-swap','online:OSV-actual43-observation'])block(name,'Requires original composer.lock, package-lock.json, package.json in complete checkout');
   if(online)for(const name of ['online:OSV-strict43','online:version-registry'])block(name,'Original complete lock files unavailable');
 }
 const installedNpm=path.join(root,'cms/editor/node_modules');
@@ -309,7 +322,8 @@ const proofNames=[
   'upstream:archived-main-genuine-sodium-free','mutation:archived-main-sodium-provenance',
   'actual-lock:frozen-source-baseline','mutation:real-43-pin-source-swap',
   'upstream:real-signed-sodium-tag-git-tree','mutation:real-sodium-source-git-tree',
-  'mutation:real-sodium-zip-parser','upstream:actual-github-composer-zip'
+  'mutation:real-sodium-zip-parser','upstream:actual-github-composer-zip',
+  'online:OSV-actual43-observation'
 ];
 console.error('INDEPENDENT_SECURITY_EXACT_HEAD_PROOFS '+JSON.stringify(
   proofNames.map(name=>{
