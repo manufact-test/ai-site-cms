@@ -41,7 +41,7 @@ function requireProof(row, expectedPattern, evidenceLabel) {
   return row;
 }
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
-  'ed25519-lab.php','main-head-independent-proof.mjs','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
+  'ed25519-lab.php','main-head-independent-proof.mjs','independent-no-sodium-composer-lab.mjs','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-live-independent-proof.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','sodium-real-zip-proof.mjs','sodium-real-zip-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
@@ -311,8 +311,37 @@ if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
     entry('compat:signed-envelope',capture('node',[path.join(dirname,'release-fixture.mjs'),'compat'],{timeout:90000}));
   } else block('compat:cryptography','Need independently verified, exact pinned 2.5.2 SODIUM_COMPAT_AUTOLOAD');
 } else {
-  block('no-sodium:cryptography','Native ext-sodium is compiled into this PHP binary, including PHP -n; refusing simulated pass');
-  block('compat:cryptography','A genuine Sodium-free PHP binary and vetted 2.5.2 autoloader are required');
+  // The runner PHP statically includes Sodium. CI may independently compile an
+  // actual no-native PHP8.3 and Composer-install exact Git-blob-attested v2.5.2
+  // solely in disposable OS temp. Local and incomplete runs remain BLOCKED.
+  if(process.platform==='linux'&&process.env.CI==='true'&&process.env.RUNNER_TEMP){
+    const lab=capture('node',[path.join(dirname,'independent-no-sodium-composer-lab.mjs')],
+      {timeout:560000});
+    let record=null;
+    try{
+      const line=lab.stdout.split('\n').find(s=>s.startsWith('INDEPENDENT_PHYSICAL_NO_SODIUM_GATES '));
+      record=JSON.parse(line.slice('INDEPENDENT_PHYSICAL_NO_SODIUM_GATES '.length));
+    }catch{}
+    for(const [name,field,marker] of [
+      ['no-sodium:cryptography','noSodium',
+        /PHYSICAL original Ubuntu PHP 8\.3 WITHOUT native sodium PASS two absent-mode rejection proofs;/],
+      ['compat:cryptography','compat',
+        /REAL Composer installed sodium_compat 2\.5\.2 78 original Git blobs and PHP native-free pre\/post crypto PASS four fixtures;/]
+    ]){
+      const state=record?.[field]?.status;
+      if(state==='passed'&&lab.exitCode!==null&&!lab.spawnError){
+        requireProof(entry(name,{...lab,stdout:lab.stdout.slice(-2600)}),marker,
+          'real native-free PHP and independently verified actual Composer 2.5.2 source');
+      }else if(state==='failed'||(!record&&lab.exitCode===1)){
+        const row=entry(name,{...lab,stdout:lab.stdout.slice(-2600)});
+        row.status='failed';row.validationError=record?.reason||'Native-free crypto evidence failed';
+      }else block(name,'Physical / actual Composer evidence unavailable: '+
+        (record?.reason||lab.stderr||lab.spawnError||'incomplete').slice(-400));
+    }
+  }else{
+    block('no-sodium:cryptography','Physical Ubuntu PHP8.3 source build only in disposable Linux CI; php -n is not enough');
+    block('compat:cryptography','Actual vetted Composer-installed 2.5.2 and physical native-free PHP required');
+  }
 }
 // An explicitly requested online audit is not successful if its actual
 // vulnerability or registry probe was BLOCKED (e.g. missing original locks).
