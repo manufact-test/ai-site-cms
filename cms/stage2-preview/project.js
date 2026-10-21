@@ -12,7 +12,7 @@
   const allowedKeys=(x,keys)=>Object.keys(x).sort().join('|')===keys.slice().sort().join('|');
   function pageFromLegacy(doc){
     const v=C.validate(doc);
-    return {id:newId(),title:'Главная',slug:'',seoTitle:v.siteTitle,
+    return {id:newId(),title:'Главная',slug:'',seoTitle:v.siteTitle.slice(0,70),
       seoDescription:'Демонстрационный проект сайта и редактора AI Site CMS.',
       sections:v.sections};
   }
@@ -64,8 +64,8 @@
   function createPage(project,source){
     if(project.pages.length>=MAX_PAGES)throw Error('Максимум восемь страниц');
     const from=source||project.pages[0],slug=nextSlug(project,source?'copy':'page');
-    return {id:newId(),title:source?from.title+' (копия)':'Новая страница',
-      slug,seoTitle:source?from.seoTitle:'Новая страница — '+project.siteTitle,
+    return {id:newId(),title:source?from.title.slice(0,80)+' (копия)':'Новая страница',
+      slug,seoTitle:source?from.seoTitle:('Новая страница — '+project.siteTitle).slice(0,70),
       seoDescription:source?from.seoDescription:'',
       sections:source?from.sections.map(s=>({...structuredClone(s),id:C.createSection(s.type).id})):
         [C.createSection('hero'),C.createSection('contact')]};

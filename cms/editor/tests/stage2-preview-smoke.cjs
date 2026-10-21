@@ -71,6 +71,7 @@ const root=path.resolve(__dirname,'../..');
     // return home, save and reload all pages from offline browser storage.
     await page.locator('#page-add').click();
     assert.equal(await page.locator('#page-list option').count(),2);
+    await page.locator('.page-settings summary').click();
     await page.locator('#page-title').fill('Услуги');
     await page.locator('#page-title').dispatchEvent('change');
     await page.locator('#seo-title').fill('Услуги производства и разработки');
@@ -81,6 +82,9 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#page-slug').dispatchEvent('change');
     await page.waitForFunction(()=>document.querySelector('#preview').srcdoc.includes('name="description" content="Узнайте'));
     assert.match(await page.locator('#preview-url').innerText(),/services/);
+    if(process.env.GITHUB_ACTIONS==='true'){
+      await page.screenshot({path:path.join(root,'stage2-preview','screenshots','multi-page-seo.png'),fullPage:true});
+    }
     await page.locator('#page-list').selectOption({index:0});
     await frame.locator('h1').filter({hasText:'Рабочий прототип CMS'}).waitFor();
     await page.locator('#save').click();
