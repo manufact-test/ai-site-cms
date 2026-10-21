@@ -38,10 +38,10 @@ final class HostingerStage2OneShot
         // attempts. It cannot terminate any already-running PHP process.
         self::assertNoRevocation($localRoot);
         $taskFile = $localRoot.'/once.json';
-        self::assertPrivateRegular($taskFile, 4096);
-        $raw = file_get_contents($taskFile);
-        if (!is_string($raw)) throw new RuntimeException('TASK_UNREADABLE');
-        $task = json_decode($raw, true, 8, JSON_THROW_ON_ERROR);
+        // This credential-bearing task is untrusted local input. A checked
+        // filename followed by file_get_contents() can be replaced in the
+        // meantime; use one inode-bound descriptor and canonical JSON instead.
+        $task = Stage2PrivateOperatorRecord::readJsonObject($taskFile, 4096);
         self::validateTask($task);
         if (!hash_equals($manifestDigest, $task['package_manifest_sha256'])) {
             throw new RuntimeException('PACKAGE_MANIFEST_PIN_MISMATCH');
@@ -131,9 +131,8 @@ final class HostingerStage2OneShot
                     FoundationSnapshot::verify($data, self::SITE);
                     $destination = $localRoot.'/foundation-snapshot.json';
                     if ($operation === 'snapshot-verify') {
-                        self::assertPrivateRegular($destination, 2048);
-                        $saved = file_get_contents($destination);
-                        if (!is_string($saved) || !hash_equals($data, trim($saved))) {
+                        $saved = Stage2PrivateOperatorRecord::readBytes($destination, 2048, 50);
+                        if (!hash_equals($data, trim($saved))) {
                             throw new RuntimeException('SNAPSHOT_DIVERGED');
                         }
                         FoundationSnapshot::verify(trim($saved), self::SITE);
@@ -303,15 +302,4 @@ final class HostingerStage2OneShot
         }
     }
 
-    private static function assertPrivateRegular(string $path, int $max): void
-    {
-        $stat = @lstat($path);
-        if ($stat === false || !is_file($path) || is_link($path)
-            || ($stat['mode'] & 0077) !== 0
-            || ($stat['nlink'] ?? 0) !== 1
-            || $stat['size'] < 50 || $stat['size'] > $max
-            || realpath($path) !== $path) {
-            throw new RuntimeException('PRIVATE_TASK_FILE_REQUIRED');
-        }
-    }
 }

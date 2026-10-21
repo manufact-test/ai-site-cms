@@ -113,6 +113,7 @@ class ComposerStaticInitcdd9b523c235fc6ba8c1e2a62ae88fbe
         'AiSiteCms\\Hosting\\SiteRuntimeTopology' => __DIR__ . '/../..' . '/src/Hosting/SiteRuntimeTopology.php',
         'AiSiteCms\\Hosting\\Stage2MySqlReadOnly' => __DIR__ . '/../..' . '/src/Hosting/Stage2MySqlReadOnly.php',
         'AiSiteCms\\Hosting\\Stage2MysqlBoundReadiness' => __DIR__ . '/../..' . '/src/Hosting/Stage2MysqlBoundReadiness.php',
+        'AiSiteCms\\Hosting\\Stage2PrivateOperatorRecord' => __DIR__ . '/../..' . '/src/Hosting/Stage2PrivateOperatorRecord.php',
         'AiSiteCms\\Hosting\\Stage2TargetHostHandoff' => __DIR__ . '/../..' . '/src/Hosting/Stage2TargetHostHandoff.php',
         'AiSiteCms\\HttpKernel' => __DIR__ . '/../..' . '/src/HttpKernel.php',
         'AiSiteCms\\Release\\Ed25519Backend' => __DIR__ . '/../..' . '/src/Release/Ed25519Backend.php',

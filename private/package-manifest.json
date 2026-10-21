@@ -161,8 +161,8 @@
     },
     {
       "path": "src/Hosting/HostingerStage2OneShot.php",
-      "bytes": 14931,
-      "sha256": "2239cf505b09b269ad451e205978bdb74f198396819671a957a7532809b5b8cd"
+      "bytes": 14481,
+      "sha256": "e713b7204edd815b325de633e524c18c46ca610b1dd40385d820aedfc33a78bb"
     },
     {
       "path": "src/Hosting/LabComplianceEvidence.php",
@@ -245,6 +245,11 @@
       "sha256": "c363ff1279a3eff385daff2f059cc1127fde85da13eb2af091ca8eb00ce4f29f"
     },
     {
+      "path": "src/Hosting/Stage2PrivateOperatorRecord.php",
+      "bytes": 4267,
+      "sha256": "b34c3bdf463e634a76e85821847c99330048eb87efabbe6a4d46c880fada15fb"
+    },
+    {
       "path": "src/Hosting/Stage2TargetHostHandoff.php",
       "bytes": 8865,
       "sha256": "ea3c6f325df8e12eae9e28b562524ea87c63417a5fd96b5e009064943a46518c"
@@ -321,8 +326,8 @@
     },
     {
       "path": "vendor/composer/autoload_classmap.php",
-      "bytes": 43856,
-      "sha256": "10b4ea3cdcb02ad1db6ec4c26aadf5a4957df7369f20e7ea977157feeaf40d25"
+      "bytes": 43972,
+      "sha256": "5ef9cc97f34029d9e5160ba25880c60f302324bd55efd4268811c57ab80ef50e"
     },
     {
       "path": "vendor/composer/autoload_files.php",
@@ -346,8 +351,8 @@
     },
     {
       "path": "vendor/composer/autoload_static.php",
-      "bytes": 50372,
-      "sha256": "3edd087ad6ca9a8a90f40b86ef8641fcb25f6ec68683fd1a415100b71196550b"
+      "bytes": 50502,
+      "sha256": "9e95dea547087a61d86fc3a62b9af8ed3fc7390cf4bae5477a22d7e5a38ffb92"
     },
     {
       "path": "vendor/composer/ClassLoader.php",
