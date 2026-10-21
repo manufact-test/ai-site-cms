@@ -65,3 +65,8 @@
 3. **Не просить пользователя обновлять папки Hostinger каждую итерацию.** Работать полностью автономно в GitHub в рамках уже выданного доступа.
 4. Не обновлять lead handoff, общие docs/NEXT-CHAT.md, PROJECT-STATUS.json, docs/ROADMAP.md, ADR или документы параллельных веток после каждой задачи. В конце следующего чата — по просьбе пользователя.
 5. Не выдавать успешный CI за завершение Stage2 и не начинать Stage3 без принятия.
+
+
+## ИЗМЕНЕНО v1.48 / 21.10.2026 — ЭТОТ ФАЙЛ ИСТОРИЧЕСКИЙ
+
+Актуальная полная передача в [`MAIN-HANDOFF-v1.48-2026-10-21.md`](MAIN-HANDOFF-v1.48-2026-10-21.md). Verified code `8b59e0718a867920bd5d7890e55c5b002facd354`; [PHP 8/8](https://github.com/manufact-test/ai-site-cms/actions/runs/39587975849), [Editor/E2E](https://github.com/manufact-test/ai-site-cms/actions/runs/39587976040), [offweb 478/478](https://github.com/manufact-test/ai-site-cms/actions/runs/39588269636). Stage2 не принят, Stage3 не начат, 0/135. Hostinger/PR #3/#4 не изменялись; этот legacy handoff не предписывает новые host действия.
