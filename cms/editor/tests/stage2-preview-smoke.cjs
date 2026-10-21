@@ -169,6 +169,7 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#site-navigation').uncheck();
     assert.equal(await frame.locator('.menu').count(),0,'site-wide menu can be disabled');
     await page.locator('#site-navigation').check();
+    await frame.locator('.menu').waitFor();
     assert.equal(await frame.locator('.menu').count(),1);
     // Design: global tokens and a visible section's theme, history and HTML parity.
     await page.locator('.design-settings > summary').click();
@@ -182,10 +183,13 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(await frame.locator('.site-floating').count(),1);
     await page.locator('#sections .section-select').first().click();
     await page.locator('#section-surface').selectOption('dark');
+    await frame.locator('main > section.surface-dark').waitFor();
     assert.equal(await frame.locator('main > section.surface-dark').count(),1);
     await page.locator('#undo').click();
+    await frame.locator('main > section.surface-dark').waitFor({state:'detached'});
     assert.equal(await frame.locator('main > section.surface-dark').count(),0);
     await page.locator('#redo').click();
+    await frame.locator('main > section.surface-dark').waitFor();
     assert.equal(await frame.locator('main > section.surface-dark').count(),1);
     const rejectUnsafe=await page.evaluate(()=>{
       const P=window.CmsPreviewProject,d=P.template();
