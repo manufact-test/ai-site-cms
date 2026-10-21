@@ -5,7 +5,7 @@ declare(strict_types=1);
 // Node-signed evidence. The PHP subprocess never receives a private key.
 // This tests no native Sodium, optional pinned pure PHP and fail-closed cases.
 if (PHP_SAPI !== 'cli' || getenv('CI') !== 'true'
-    || getenv('CMS_ALLOW_PHP_INSTALL_LAB') !== '1' || $argc !== 4
+    || getenv('CMS_ALLOW_PHP_INSTALL_LAB') !== '1' || $argc !== 3
     || !in_array($argv[1], ['native','compat','absent'], true)) {
     fwrite(STDERR, "STAGE2_ROTATION_INVALID_INVOCATION\n");
     exit(7);
