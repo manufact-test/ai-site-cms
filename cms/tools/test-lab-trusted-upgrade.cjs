@@ -39,7 +39,8 @@ function synthetic(folder,version){
   }
   const manifest={format:'ai-site-cms-internal-stage2-v2',stage:2,
     releaseVersion:version,productionReady:false,documentRoot:'public',
-    isSigned:false,writeEndpointsAvailable:false,
+    adminEditorAssets:'private/editor',hostingComposerOrNodeRequired:false,
+    writeEndpointsAvailable:false,isSigned:false,
     files:Object.entries(assets).map(([p,v])=>({path:p,bytes:Buffer.byteLength(v),sha256:sha(Buffer.from(v))}))};
   fs.writeFileSync(path.join(folder,'private/package-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
 }
