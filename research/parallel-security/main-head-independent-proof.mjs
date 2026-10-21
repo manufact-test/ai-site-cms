@@ -13,10 +13,10 @@ const sourceDir='cms/src/Release/';
 const names=['OfflineReleaseVerifier.php','TrustedChainVerifier.php',
  'LabPreauthorizedUpgradeGate.php','LabAttestedActivationGate.php',
  'LabSettledUpgradeGate.php','Ed25519Backend.php'];
-const harness=['main-web-crypto-surface.php','ed25519-callsite-audit.php','chain-backend-regression.mjs',
+const harness=['main-web-crypto-surface.php','main-webserver-boundary-proof.mjs','ed25519-callsite-audit.php','chain-backend-regression.mjs',
  'chain-backend-verifier.php','class-only-ed25519-shim.php'];
-const webFiles=['cms/public/index.php','cms/src/HttpKernel.php',
- 'cms/hosting/hostinger-readonly/index.php','cms/bin/verify-lab-release.php',
+const webFiles=['cms/public/index.php','cms/public/.htaccess','cms/src/HttpKernel.php',
+ 'cms/hosting/hostinger-readonly/index.php','cms/hosting/hostinger-readonly/.htaccess','cms/bin/verify-lab-release.php',
  'cms/bin/verify-lab-trust.php'];
 const blob=b=>crypto.createHash('sha1').update(Buffer.from('blob '+b.length))
  .update(Buffer.from([0])).update(b).digest('hex');
@@ -78,6 +78,19 @@ try{
     webEvidence.dynamicOrIndirectReachabilityExcludedFromProof!==true||
     webEvidence.productionApproved!==false||webEvidence.hostingerTested!==false)
    throw Error('static web release exposure result incomplete or overclaims safe host');
+ const policyOutput=run(process.execPath,[path.join(stage,'main-webserver-boundary-proof.mjs'),root],root);
+ const policyLines=policyOutput.split('\n');
+ if(policyLines.at(-1)!=='ORIGINAL main static webserver document-root policy PASS 2 original files; NO Apache/LiteSpeed/Hostinger enforcement proof')
+   throw Error('checked-in server-policy source proof missing');
+ const originalServerPolicy=JSON.parse(policyLines[0]);
+ if(originalServerPolicy.files?.length!==2||
+    originalServerPolicy.files.some(x=>x.exactKnownSourcePolicy!==true)||
+    originalServerPolicy.serverModulesOrAllowOverrideVerified!==false||
+    originalServerPolicy.actualDocumentRootsVerified!==false||
+    originalServerPolicy.requestRewriteOrDenyBehaviorObserved!==false||
+    originalServerPolicy.hostingerTested!==false||
+    originalServerPolicy.productionApproved!==false)
+   throw Error('webserver policy overclaims enforcement or lacks two source files');
  const audit=run(php,[path.join(stage,'ed25519-callsite-audit.php')],root);
  if(!/Stage2 shared Ed25519 backend original source PASS 5 PHP verifiers;/.test(audit))
    throw Error('original five-verifier source invariant failed');
@@ -98,11 +111,12 @@ try{
  if(run('git',['rev-parse','HEAD'],root)!==head||main()!==head)
    throw Error('main moved during crypto proof');
  console.log(JSON.stringify({mainSha:head,gitBlobs:hashes,phpVerifierCount:5,
-  genuineSignedChainAssertions:60,originalWebSurface:webEvidence,sourceUnchanged:true,nativeSodium:true,
+  genuineSignedChainAssertions:60,originalWebSurface:webEvidence,originalWebserverPolicy:originalServerPolicy,sourceUnchanged:true,nativeSodium:true,
   noSodium:false,compat:false,productionApproved:false}));
  console.log('EXACT current main SHA '+head+' original source Ed25519 backend PASS 5 PHP verifiers; not production approval');
  console.log('EXACT current main SHA '+head+' forced-class native signed-chain PASS 60 assertions; NOT true Sodium-free PHP or production approval');
  console.log('EXACT current main SHA '+head+' original static public/Hostinger release exposure PASS 1 health, 7 preflight paths, 2 CLI guards; no dynamic reachability or production approval');
+ console.log('EXACT current main SHA '+head+' original static webserver document-root policy PASS 2 files; NOT tested Apache/LiteSpeed/Hostinger enforcement');
 }catch(e){
  const msg=String(e.message||e);
  const blocked=/Could not resolve host|Connection timed out|Failed to connect|Network is unreachable|main moved|unable to access|Authentication failed|SSL connection/i.test(msg);
