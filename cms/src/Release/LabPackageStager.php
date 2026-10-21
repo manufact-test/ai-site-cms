@@ -99,23 +99,29 @@ final class LabPackageStager
             || count($manifest['files']) < 4 || count($manifest['files']) > 1000) {
             throw new RuntimeException('Internal-only release policy invalid');
         }
-        // Stage2 must never infer new release capabilities from arbitrary
-        // signed JSON fields. Accept the one real internal-builder shape, plus
-        // the narrower explicit synthetic fixture shape used only in CI tests.
-        // An otherwise correctly hashed package cannot invent HTTP/installer
-        // capabilities by adding fields the current Stage2 reader ignores.
+        // The exact real builder shape is the ONLY trusted release schema.
+        // CI fixtures must use it too: a simplified test-only shape accepted
+        // by the production verifier is an avoidable policy bypass.
         $normalKeys = ['format','stage','releaseVersion','productionReady',
             'documentRoot','adminEditorAssets','hostingComposerOrNodeRequired',
             'writeEndpointsAvailable','isSigned','files'];
-        $fixtureKeys = ['format','stage','releaseVersion','productionReady',
-            'documentRoot','isSigned','writeEndpointsAvailable','files'];
-        if (array_keys($manifest) !== $normalKeys && array_keys($manifest) !== $fixtureKeys) {
+        if (array_keys($manifest) !== $normalKeys
+            || $manifest['adminEditorAssets'] !== 'private/editor'
+            || $manifest['hostingComposerOrNodeRequired'] !== false) {
             throw new RuntimeException('Noncanonical Stage2 release capability fields');
         }
-        if (array_keys($manifest) === $normalKeys
-            && ($manifest['adminEditorAssets'] !== 'private/editor'
-                || $manifest['hostingComposerOrNodeRequired'] !== false)) {
-            throw new RuntimeException('Invalid Stage2 private editor/runtime policy');
+        // Node emits two-space pretty JSON, with exactly one trailing newline.
+        // Normalize PHP's four-space pretty representation to that same byte
+        // format, then compare. This rules out DUPLICATE JSON object keys,
+        // rewrites, whitespace, or escaped-key aliases even if the supplied
+        // manifest digest itself was freshly recomputed.
+        $canonical = json_encode($manifest,
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $canonical = preg_replace_callback('/^( +)/m',
+            static fn(array $m): string => str_repeat(' ', intdiv(strlen($m[1]), 2)),
+            $canonical) . "\n";
+        if (!hash_equals($canonical, $raw)) {
+            throw new RuntimeException('Ambiguous/noncanonical Stage2 manifest bytes');
         }
         $declared = [self::MANIFEST => true];
         foreach ($manifest['files'] as $record) {
