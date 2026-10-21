@@ -6,6 +6,7 @@ import cp from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {verifyOsvEvidence,verifyRegistryEvidence} from './online-evidence-proof.mjs';
 import {evaluateResearchDecision} from './evidence-readiness-decision.mjs';
+import {buildReviewHandoff} from './review-handoff.mjs';
 const dirname=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(dirname,'../..');
 const args=process.argv.slice(2);
@@ -45,7 +46,7 @@ const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-live-independent-proof.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','sodium-real-zip-proof.mjs','sodium-real-zip-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
-  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','frozen-lock-baseline.mjs','frozen-lock-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','evidence-readiness-decision.mjs','evidence-readiness-regression.mjs','run-security-suite.mjs'];
+  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','frozen-lock-baseline.mjs','frozen-lock-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','evidence-readiness-decision.mjs','evidence-readiness-regression.mjs','review-handoff.mjs','review-handoff-regression.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
   if(name.endsWith('.mjs'))entry('syntax:'+name,capture('node',['--check',path.join(dirname,name)]));
@@ -75,6 +76,13 @@ for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-r
     /Sodium-free wrapper false-pass offline regression PASS 15 assertions;/,
     '15 fake-PHP classification and missing crypto-output proof regressions');
 }
+if(fs.existsSync(path.join(dirname,'review-handoff-regression.mjs'))&&
+ fs.existsSync(path.join(dirname,'review-handoff.mjs'))){
+ requireProof(entry('mutation:review-handoff-regression.mjs',
+  capture('node',[path.join(dirname,'review-handoff-regression.mjs')],{timeout:20000})),
+  /Independent qualified-review handoff adversarial regression PASS [0-9]+ assertions; all six external approvals withheld;/,
+  'anti-GO review packet and source fingerprint adversarial coverage');
+}else block('mutation:review-handoff-regression.mjs','Missing review handoff modules in partial checkout');
 // This source-of-truth comes from the actual ParagonIE public signed Git tag,
 // NOT from Composer metadata. Partial checkout lacks bundled external Git
 // transcript: mark incomplete, never invent positive vendor-source evidence.
@@ -377,6 +385,31 @@ const out={schema:'ai-site-cms-security-evidence-v1',environment:{node:process.v
   complete:counts.failed===0&&counts.blocked===0&&onlineComplete,
   productionApproved:false,licenseApproved:false,stage2Accepted:false,
   evidenceDecision,results};
+let githubHead=null,githubBase=null;
+if(process.env.GITHUB_EVENT_PATH&&fs.existsSync(process.env.GITHUB_EVENT_PATH)){
+ try{
+   const g=JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH,'utf8'));
+   if(g.pull_request?.number===3&&g.repository?.full_name==='manufact-test/ai-site-cms'){
+     githubHead=g.pull_request.head?.sha||null;
+     githubBase=g.pull_request.base?.sha||null;
+   }
+ }catch{} // event metadata optional; no guessing or self-certification
+}
+const reviewPacket=buildReviewHandoff(out,{head:githubHead,base:githubBase});
+console.error('INDEPENDENT_SECURITY_EXTERNAL_REVIEW_HANDOFF '+JSON.stringify({
+ schema:reviewPacket.schema,
+ researchReady:reviewPacket.summary.researchEvidenceReadyForExternalReview,
+ decision:'NO_GO',productionApproved:false,
+ externalDecisionIds:reviewPacket.externalReviewRequired.map(r=>r.id),
+ allIndependentSignoffsCompleted:false,
+ originalCurrentMainSha:reviewPacket.observed.actualMainSha,
+ realPhysicalPHP83WithoutSodium:reviewPacket.observed.physicalPHP83WithoutSodium,
+ actualInstalledComposer78Blobs:reviewPacket.observed.sourceAttestedRealComposer78Blobs,
+ installedWholeTreeSha256:reviewPacket.observed.installedVendorSourceTreeSha256,
+ pinnedGitHubZipSha256:reviewPacket.observed.actualComposerZipSha256,
+ githubEventHead:reviewPacket.context.githubEventHead,
+ unsignedCanonicalJsonSha256:reviewPacket.integrity.unsignedCanonicalJsonSha256
+}));
 console.log(JSON.stringify(out,null,2));
 // Print bounded named evidence to CI stderr: a green aggregate number is not
 // enough to prove which exact-head fixtures reached their final assertion count.
@@ -398,6 +431,7 @@ const proofNames=[
   'upstream:real-signed-sodium-tag-git-tree','mutation:real-sodium-source-git-tree',
   'mutation:real-sodium-zip-parser','upstream:actual-github-composer-zip',
   'mutation:evidence-readiness-regression.mjs',
+  'mutation:review-handoff-regression.mjs',
   'online:OSV-actual43-observation'
 ];
 if(physicalRecord)console.error('INDEPENDENT_SECURITY_PHYSICAL_RUNTIME_SOURCE '+JSON.stringify({
