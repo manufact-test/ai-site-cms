@@ -161,8 +161,47 @@ const root=path.resolve(__dirname,'../..');
     if(process.env.GITHUB_ACTIONS==='true'){
       await page.screenshot({path:path.join(root,'stage2-preview','screenshots','preset-studio.png'),fullPage:true});
     }
+    // Owner-ready offline KIT: unzip GitHub artifact bytes, open actual copied
+    // Jedison bundle without Node/PHP and edit a block by clicking the canvas.
+    const kitZip=path.join(root,'stage2-preview','out','ai-site-cms-stage2-owner-review-kit.zip');
+    assert.ok(fs.existsSync(kitZip),'CI must build the click-to-open owner kit');
+    const kitDir=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'ai-site-cms-kit-smoke-'));
+    try{
+      execFileSync('unzip',['-q',kitZip,'-d',kitDir]);
+      const kit=await browser.newPage({viewport:{width:1440,height:900}});
+      try{
+        const kitErrors=[],kitRemote=[];
+        kit.on('pageerror',e=>kitErrors.push(e.message));
+        kit.on('request',r=>{if(/^https?:/i.test(r.url()))kitRemote.push(r.url());});
+        await kit.goto(pathToFileURL(path.join(kitDir,'stage2-preview','index.html')).href);
+        await kit.locator('#sections li').first().waitFor();
+        assert.equal(await kit.locator('#sections li').count(),5);
+        const actual=kit.frameLocator('#preview');
+        await actual.locator('h1').waitFor();
+        // Select the second block by clicking visible content, not sidebar.
+        await actual.locator('main > section').nth(1).click({position:{x:100,y:80}});
+        await kit.locator('#sections li.selected').waitFor();
+        assert.match(await kit.locator('#selection-info').innerText(),/Преимущества/);
+        // The in-canvas menu swaps the page and inspector in the parent editor.
+        kit.once('dialog',dialog=>dialog.accept());
+        await kit.locator('#starter-type').selectOption('industrial');
+        await kit.locator('#starter-apply').click();
+        await actual.locator('[data-preview-page]').nth(1).click();
+        assert.match(await kit.locator('#preview-url').innerText(),/products/);
+        await actual.locator('.studio-product').first().waitFor();
+        await kit.locator('#expand-preview').click();
+        assert.equal(await kit.locator('body.preview-expanded').count(),1);
+        await kit.keyboard.press('Escape');
+        assert.equal(await kit.locator('body.preview-expanded').count(),0);
+        assert.deepEqual(kitErrors,[],'distributable offline kit must have no JS errors');
+        assert.deepEqual(kitRemote,[],'owner kit must never request a server');
+        if(process.env.GITHUB_ACTIONS==='true'){
+          await kit.screenshot({path:path.join(root,'stage2-preview','screenshots','owner-review-ready.png'),fullPage:true});
+        }
+      }finally{await kit.close();}
+    }finally{fs.rmSync(kitDir,{recursive:true,force:true});}
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
-    console.log('Stage2 PRODUCT studio PASS: 11 sections, three presets, page reorder, cross-page copy, SEO review, ZIP offline static site, revision save/reload and zero network.');
+    console.log('Stage2 OWNER REVIEW KIT PASS: open standalone offline editor ZIP, canvas block click, menu navigation, fullscreen, 11 sections, three starters, offline site ZIP, save/reload and ZERO network.');
   }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

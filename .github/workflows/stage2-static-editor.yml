@@ -51,6 +51,8 @@ jobs:
         run: node ../../research/parallel-security/npm-source-gate.mjs
       - name: Verify real Chromium browser editor interactions
         run: npm run test:browser
+      - name: Build click-to-open owner review ZIP with pinned Jedison and licenses (NO deploy)
+        run: node scripts/build-stage2-review-kit.cjs
       - name: Owner-visible local product preview (one critical end-to-end)
         run: |
           node --check ../stage2-preview/content.js
@@ -58,7 +60,15 @@ jobs:
           node --check ../stage2-preview/site-export.js
           node --check ../stage2-preview/renderer.js
           node --check ../stage2-preview/app.js
+          node --check scripts/build-stage2-review-kit.cjs
           node tests/stage2-preview-smoke.cjs
+      - name: Upload standalone offline owner-review editor ZIP (NO CMS or customer secrets)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-site-cms-stage2-owner-click-to-open-kit
+          path: cms/stage2-preview/out/ai-site-cms-stage2-owner-review-kit.zip
+          retention-days: 7
+          if-no-files-found: error
       - name: Upload mock-only desktop and mobile previews (NO vendor bundle or secrets)
         uses: actions/upload-artifact@v4
         with:

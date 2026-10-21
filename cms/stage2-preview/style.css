@@ -22,3 +22,13 @@
 .audit-item strong{color:#3e536b}.audit-item span{color:#8c6b4d}
 .audit-ok{color:#16846c;font-size:11px;margin:0}
 .audit-explain{font-size:10px;color:#8490a1;margin-bottom:0}
+
+/* Product-review UX: open any block from the live canvas and present it fullscreen. */
+.preview-expand{border:0;cursor:pointer;font-size:11px}
+.preview-expanded .workspace{display:block}
+.preview-expanded .workspace>.sidebar,.preview-expanded .workspace>.inspector{display:none}
+.preview-expanded .workspace>.canvas{width:100%;max-width:none}
+.preview-expanded .canvas-head{padding:16px 24px}
+.preview-expanded .preview-stage{padding:16px}
+.preview-expanded .browser-shell{max-width:100%!important;width:100%!important}
+.preview-expanded .browser-shell iframe{height:calc(100vh - 270px);min-height:420px}

@@ -82,6 +82,31 @@
     ui.seoSnippetDescription.textContent=p.seoDescription||'Добавьте SEO-описание страницы для поисковой выдачи.';
     ui.seoSnippetUrl.textContent='https://demo.local/'+(p.slug||'');
   }
+  function bindPreviewClicks(){
+    // Only static, strictly escaped renderer HTML is ever used as iframe srcdoc.
+    // Same-origin permits attaching listeners from the parent, but the sandbox
+    // deliberately does NOT allow scripts, popups, forms or top navigation.
+    let body;
+    try{body=ui.frame.contentDocument;}catch(_){return;}
+    if(!body)return;
+    body.querySelectorAll('[data-preview-page]').forEach(button=>{
+      button.addEventListener('click',()=>selectPage(button.dataset.previewPage));
+    });
+    body.querySelectorAll('[data-preview-section]').forEach(section=>{
+      section.setAttribute('tabindex','0');
+      section.setAttribute('aria-label','Выбрать блок сайта');
+      function activate(e){
+        if(e.type==='click'&&e.target.closest('a,button,input,select,textarea,summary'))return;
+        if(e.type==='keydown'){
+          if(e.key!=='Enter'&&e.key!==' ')return;
+          e.preventDefault();
+        }
+        select(section.dataset.previewSection);
+      }
+      section.addEventListener('click',activate);
+      section.addEventListener('keydown',activate);
+    });
+  }
   function preview(){
     try{
       const p=activePage();
@@ -320,6 +345,13 @@
       toast('Все страницы сохранены только в этом браузере, не на сервере');
     }catch(e){toast('Сохранение недоступно. Экспортируйте резервный JSON',true);}
   }
+  function expandPreview(){
+    const expanded=document.body.classList.toggle('preview-expanded');
+    const button=$('expand-preview');
+    button.textContent=expanded?'↙ Вернуться в редактор':'⤢ Развернуть';
+    button.setAttribute('aria-pressed',String(expanded));
+    ui.frame.focus();
+  }
   function init(){
     if(!C||!P||!R||!E||!X){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
@@ -329,6 +361,8 @@
       const option=document.createElement('option');option.value=type;
       option.textContent=C.definitions[type].label;ui.addType.append(option);
     }
+    ui.frame.addEventListener('load',bindPreviewClicks);
+    $('expand-preview').addEventListener('click',expandPreview);
     readSaved();if(records.length)project=P.normalize(records[0].doc);
     saved=snapshot();apply(project);versions();
     $('add').addEventListener('click',add);
@@ -382,6 +416,9 @@
       });preview();
     }));
     document.addEventListener('keydown',e=>{
+      if(e.key==='Escape'&&document.body.classList.contains('preview-expanded')){
+        expandPreview();return;
+      }
       if(!(e.ctrlKey||e.metaKey)||e.altKey||e.key.toLowerCase()!=='z')return;
       e.preventDefault();travel(e.shiftKey?'redo':'undo');
     });
