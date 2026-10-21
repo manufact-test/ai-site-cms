@@ -63,8 +63,10 @@ try {
   fs.writeFileSync(keyfile,'-----BEGIN PUBLIC KEY-----\n'+
     der.toString('base64').match(/.{1,64}/g).join('\n')+
     '\n-----END PUBLIC KEY-----\n',{mode:0o600});
-  const signed=(type,file,obj)=>{
-    const bytes=Buffer.from(JSON.stringify(obj)+'\n');
+  const signed=(type,file,obj,rawOverride=null)=>{
+    // Hostile signed bytes may be validly signed yet noncanonical; the PHP
+    // verifier must reject them even when the external head is also re-pinned.
+    const bytes=rawOverride??Buffer.from(JSON.stringify(obj)+'\n');
     const sig=crypto.sign(null,Buffer.concat([domain[type],bytes]),privateKey);
     fs.writeFileSync(file+'.json',bytes,{mode:0o600});
     fs.writeFileSync(file+'.sig',sig,{mode:0o600});
@@ -151,6 +153,134 @@ try {
       check(backend,'correctly re-signed permit nonce replay','REJECTED',
         {settlementHead:newSettlementHead});
     }finally{oldFiles.forEach((x,i)=>fs.writeFileSync(x,oldBytes[i]));}
+    // A valid Ed25519 signature does not imply that the content, sequence,
+    // lineage or database checkpoint is authorized. These attacks re-sign
+    // changed evidence and independently re-pin each latest digest.
+    const withBackups=(files,fn)=>{
+      const originals=files.map(x=>fs.readFileSync(x));
+      try{return fn();}
+      finally{files.forEach((x,i)=>fs.writeFileSync(x,originals[i]));}
+    };
+    const mutateSettlement=(label,alter,noncanonical=false)=>{
+      withBackups([s2file+'.json',s2file+'.sig'],()=>{
+        const bad=structuredClone(s2);
+        alter(bad);
+        const bytes=noncanonical?Buffer.from(JSON.stringify(bad)+' \n'):null;
+        const newHead=signed('settlement',s2file,bad,bytes);
+        check(backend,label,'REJECTED',{settlementHead:newHead});
+      });
+    };
+    const settlementCases=[
+      ['validly signed settlement claims production authorization',x=>{x.productionReady=true;}],
+      ['validly signed skipped settlement sequence',x=>{x.sequence=3;}],
+      ['validly signed settlement changes version',x=>{x.version=v1;}],
+      ['validly signed substitute permit head',x=>{x.permitSha256='e'.repeat(64);}],
+      ['validly signed substitute receipt head',x=>{x.receiptSha256='e'.repeat(64);}],
+      ['validly signed broken settlement history',x=>{x.previousSettlementSha256='e'.repeat(64);}],
+      ['validly signed settlement format downgrade',x=>{x.format='unsupported';}],
+      ['validly signed settlement crosses site boundary',x=>{x.siteId='other-site';}],
+      ['validly signed unapproved settlement field',x=>{x.backdoor=true;}],
+      ['validly signed settlement missing readiness flag',x=>{delete x.productionReady;}]
+    ];
+    for(const [label,alter] of settlementCases)mutateSettlement(label,alter);
+    mutateSettlement('validly signed noncanonical settlement JSON',()=>{},true);
+
+    const mutatePermit=(label,alter,noncanonical=false)=>{
+      withBackups([p2file+'.json',p2file+'.sig',s2file+'.json',s2file+'.sig'],()=>{
+        const bad=structuredClone(p2);
+        alter(bad);
+        const raw=noncanonical?Buffer.from(JSON.stringify(bad)+' \n'):null;
+        const permitHead=signed('permit',p2file,bad,raw);
+        const settlementHead=signed('settlement',s2file,{...s2,permitSha256:permitHead});
+        check(backend,label,'REJECTED',{settlementHead});
+      });
+    };
+    const permitCases=[
+      ['validly signed permit manifest drift',x=>{x.manifestSha256='f'.repeat(64);}],
+      ['validly signed permit archive drift',x=>{x.archiveSha256='f'.repeat(64);}],
+      ['validly signed permit skip sequence',x=>{x.sequence=3;}],
+      ['validly signed permit wrong prior version',x=>{x.fromVersion='0.2.8-stage2.1';}],
+      ['validly signed permit wrong minimum version',x=>{x.minimumVersion='0.1.0-stage2.1';}],
+      ['validly signed permit wrong publisher',x=>{x.publisherFingerprint='f'.repeat(64);}],
+      ['validly signed permit wrong site',x=>{x.siteId='other-site';}],
+      ['validly signed permit wrong DB checkpoint',x=>{x.dbCheckpoint={codeVersion:v1};}],
+      ['validly signed permit false readiness',x=>{x.productionReady=true;}],
+      ['validly signed permit bad receipt ancestry',x=>{x.previousReceiptSha256='f'.repeat(64);}],
+      ['validly signed permit wrong target version',x=>{x.version='0.2.8-stage2.1';}],
+      ['validly signed permit format downgrade',x=>{x.format='unsupported';}]
+    ];
+    for(const [label,alter] of permitCases)mutatePermit(label,alter);
+    mutatePermit('validly signed noncanonical permit JSON',()=>{},true);
+
+    const mutateReceipt=(label,alter,noncanonical=false)=>{
+      withBackups([r2file+'.json',r2file+'.sig',s2file+'.json',s2file+'.sig'],()=>{
+        const bad=structuredClone(r2);
+        alter(bad);
+        const raw=noncanonical?Buffer.from(JSON.stringify(bad)+' \n'):null;
+        const receiptHead=signed('receipt',r2file,bad,raw);
+        const settlementHead=signed('settlement',s2file,{...s2,receiptSha256:receiptHead});
+        check(backend,label,'REJECTED',{receiptHead,settlementHead});
+      });
+    };
+    const receiptCases=[
+      ['validly signed receipt manifest drift',x=>{x.manifestSha256='f'.repeat(64);}],
+      ['validly signed receipt archive drift',x=>{x.archiveSha256='f'.repeat(64);}],
+      ['validly signed receipt wrong version',x=>{x.version='0.2.8-stage2.1';}],
+      ['validly signed receipt wrong DB checkpoint',x=>{x.dbCheckpoint={codeVersion:v1};}],
+      ['validly signed receipt incorrect previous head',x=>{x.previousReceiptSha256='f'.repeat(64);}],
+      ['validly signed receipt incorrect fromVersion',x=>{x.fromVersion='0.2.8-stage2.1';}],
+      ['validly signed receipt skipped sequence',x=>{x.sequence=3;}],
+      ['validly signed receipt changed publisher',x=>{x.publisherFingerprint='f'.repeat(64);}],
+      ['validly signed receipt changed minimum version',x=>{x.minimumVersion='0.1.0-stage2.1';}],
+      ['validly signed receipt false readiness',x=>{x.productionReady=true;}],
+      ['validly signed receipt wrong site',x=>{x.siteId='other-site';}],
+      ['validly signed receipt extraneous field',x=>{x.backdoor=true;}],
+      ['validly signed receipt format downgrade',x=>{x.format='unsupported';}]
+    ];
+    for(const [label,alter] of receiptCases)mutateReceipt(label,alter);
+    mutateReceipt('validly signed noncanonical receipt JSON',()=>{},true);
+
+    // Filesystem and archive integrity on actual PHP verifier: no fixture
+    // fakes, special runtime flags, or accidental symlinks/hardlinks passing.
+    const hide=(file,label)=>{
+      const hidden=path.join(scratch,'hidden-'+crypto.randomBytes(8).toString('hex'));
+      fs.renameSync(file,hidden);
+      try{check(backend,label,'REJECTED');}
+      finally{fs.renameSync(hidden,file);}
+    };
+    hide(s2file+'.sig','missing settlement signature');
+    hide(p2file+'.json','missing independent second permit');
+    hide(r2file+'.sig','missing activation receipt signature');
+    const asSymlink=(file,label)=>{
+      const hidden=path.join(scratch,'hidden-'+crypto.randomBytes(8).toString('hex'));
+      fs.renameSync(file,hidden);
+      try{
+        fs.symlinkSync(hidden,file);
+        try{check(backend,label,'REJECTED');}
+        finally{fs.unlinkSync(file);}
+      }finally{fs.renameSync(hidden,file);}
+    };
+    asSymlink(s2file+'.sig','settlement signature symlink refused');
+    asSymlink(p2file+'.json','permit evidence symlink refused');
+    asSymlink(r2file+'.sig','receipt evidence symlink refused');
+    asSymlink(keyfile,'external operator PEM symlink refused');
+    const hardlink=path.join(scratch,'hardlink-'+crypto.randomBytes(8).toString('hex'));
+    fs.linkSync(s2file+'.sig',hardlink);
+    try{check(backend,'operator settlement hardlink refused','REJECTED');}
+    finally{fs.unlinkSync(hardlink);}
+    const foreign=path.join(settlements,'foreign.json');
+    fs.writeFileSync(foreign,'{}');
+    try{check(backend,'unexpected settlement sidecar refused','REJECTED');}
+    finally{fs.unlinkSync(foreign);}
+    const unmatched=path.join(archive,'permit-000003');
+    fs.mkdirSync(unmatched);
+    try{check(backend,'unmatched approved permit directory refused','REJECTED');}
+    finally{fs.rmdirSync(unmatched);}
+    check(backend,'wrong independently pinned publisher refused','REJECTED',
+      {publisher:'0'.repeat(64)});
+
+    // Force a second real good-chain acceptance AFTER all malicious changes
+    // have been restored, so subsequent assertions cannot hide broken setup.
     check(backend,'restored good chain still accepted','ACCEPTED');
     return accepted;
   };
@@ -160,6 +290,8 @@ try {
   const compat=mode==='compat'||mode==='matrix'?suite('compat'):null;
   if(attestationBefore!==null&&attest()!==attestationBefore)
     throw new Error('BLOCKED: sodium_compat source attestation changed after tests');
+  if(assertions!==(mode==='matrix'?120:60))
+    throw new Error('Proof assertion count incomplete: '+assertions);
   if(mode==='matrix'&&(native.head!==compat.head||native.count!==compat.count))
     throw new Error('Native/compat computed different exact signed chain heads');
   console.log('Chain Ed25519 backend signed-chain regression PASS '+assertions+

@@ -141,8 +141,8 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
   } else block('native:operator-settlement-chain','Signed settlement chain fixture unavailable');
     requireProof(entry('native:node-signed-chain',
     capture('node',[path.join(dirname,'chain-backend-regression.mjs'),'native'],{timeout:90000})),
-    /Chain Ed25519 backend signed-chain regression PASS 11 assertions; mode=native;/,
-    '11 authentic Node-signed two-generation permit/receipt/settlement assertions');
+    /Chain Ed25519 backend signed-chain regression PASS 60 assertions; mode=native;/,
+    '60 actual independently Node-signed native PHP chain assertions, including re-signed hostile records and filesystem tampering');
   const rootTrustFixture=path.join(root,'cms/tests/trust-chain.php');
   if(fs.existsSync(rootTrustFixture)) {
     requireProof(entry('native:trust-root-rotation',
