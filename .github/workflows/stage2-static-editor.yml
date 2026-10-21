@@ -63,6 +63,9 @@ jobs:
       - name: Assemble safe internal package with private editor assets
         working-directory: cms
         run: node tools/build-internal-package.cjs && node tools/test-internal-package.cjs
+      - name: Real packaged Node/PHP/hPanel public-root policy parity with SHA-perfect hostile assets
+        working-directory: cms
+        run: php -l tests/stage2-public-package-parity.php && php tests/stage2-public-package-parity.php
       - name: Independent exact Composer source NOTICE versus delivered package gate
         working-directory: cms
         run: node ../research/parallel-security/notice-gate.mjs

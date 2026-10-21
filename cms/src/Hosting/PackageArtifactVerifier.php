@@ -42,6 +42,25 @@ final class PackageArtifactVerifier
         return $stat;
     }
 
+    /**
+     * The distribution builder emits JSON.stringify(manifest,null,2) + LF.
+     * Reconstruct the same UTF-8 byte sequence, not merely equivalent parsed
+     * values: repeated keys, escaped field aliases and extra whitespace must
+     * not turn an unsigned attacker-authored package into a valid release.
+     * Stage2 manifest fields and inventory paths are ASCII-only by contract.
+     */
+    private static function canonicalManifestBytes(array $manifest): string
+    {
+        $pretty=json_encode($manifest, JSON_THROW_ON_ERROR
+            | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if (!is_string($pretty)) self::refuse('Manifest canonical JSON unavailable');
+        $reindented=preg_replace_callback('/^ +/m',
+            static fn(array $m): string => str_repeat(' ', intdiv(strlen($m[0]), 2)),
+            $pretty);
+        if (!is_string($reindented)) self::refuse('Manifest indent refusal');
+        return $reindented.chr(10);
+    }
+
     private static function relative(string $path): void
     {
         if ($path === '' || str_contains($path, '\\') || str_contains($path, "\0")
@@ -74,7 +93,13 @@ final class PackageArtifactVerifier
         } catch (\JsonException $e) {
             self::refuse('Invalid manifest JSON');
         }
-        if (!is_array($meta)
+        if (!is_array($meta) || array_is_list($meta)
+            || array_keys($meta) !== [
+                'format','stage','releaseVersion','productionReady','documentRoot',
+                'adminEditorAssets','hostingComposerOrNodeRequired',
+                'writeEndpointsAvailable','isSigned','files'
+            ]
+            || !hash_equals($json, self::canonicalManifestBytes($meta))
             || ($meta['format'] ?? null) !== 'ai-site-cms-internal-stage2-v2'
             || ($meta['stage'] ?? null) !== 2
             || ($meta['productionReady'] ?? null) !== false
@@ -90,22 +115,39 @@ final class PackageArtifactVerifier
             || count($meta['files']) < 20 || count($meta['files']) > self::MAX_FILES) {
             self::refuse('Unsupported internal Stage2 package declaration');
         }
+        // Strictly align the PHP host-side verifier with the Node packager.
+        // Stage2 is a health-only public document root. A perfectly rehashed
+        // inventory may never add images, scripts, backups, hidden directories
+        // or an executable route; future Stage3 must version this contract.
+        $publicRows=array_values(array_filter($meta['files'],
+            static fn(mixed $record): bool => is_array($record)
+                && str_starts_with((string)($record['path'] ?? ''), 'public/')));
+        $publicPaths=array_map(static fn(array $record): string => (string)$record['path'],
+            $publicRows);
+        sort($publicPaths, SORT_STRING);
+        if ($publicPaths !== ['public/.htaccess','public/index.php']) {
+            self::refuse('Stage2 public routes must be exactly index.php and .htaccess');
+        }
         $listed = [];
+        $folded = [];
         $size = 0;
         foreach ($meta['files'] as $record) {
-            if (!is_array($record) || count($record) !== 3
+            if (!is_array($record) || array_is_list($record)
+                || array_keys($record) !== ['path','bytes','sha256']
                 || !isset($record['path'], $record['bytes'], $record['sha256'])
                 || !is_string($record['path']) || !is_int($record['bytes'])
-                || $record['bytes'] < 0 || $record['bytes'] > self::MAX_FILE_BYTES
+                || $record['bytes'] < 1 || $record['bytes'] > self::MAX_FILE_BYTES
                 || !is_string($record['sha256'])
                 || !preg_match('/^[a-f0-9]{64}$/D', $record['sha256'])) {
                 self::refuse('Malformed package inventory record');
             }
             self::relative($record['path']);
-            if (isset($listed[$record['path']])) {
-                self::refuse('Duplicate file in package inventory');
+            $fold=strtolower($record['path']);
+            if (isset($listed[$record['path']]) || isset($folded[$fold])) {
+                self::refuse('Duplicate or case-colliding package inventory path');
             }
             $listed[$record['path']] = true;
+            $folded[$fold] = true;
             $absolute = $root.'/'.$record['path'];
             $fileStat = self::file($absolute, self::MAX_FILE_BYTES);
             if ($fileStat['size'] !== $record['bytes']) {
