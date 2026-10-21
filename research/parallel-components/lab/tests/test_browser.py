@@ -579,7 +579,7 @@ class BrowserLab(unittest.TestCase):
               errors:{name:'Серверная ошибка имени',message:'Серверная ошибка сообщения'}}),
               {status:422,headers:{'Content-Type':'application/json'}});}""")
             page.locator('#form-submit').click()
-            page.wait_for_function("document.querySelector('#form-errors a[href='#name']")
+            page.locator('#form-errors a[href="#name"]').wait_for()
             # The summary link must switch back to identity step, not focus a hidden input.
             page.locator('#form-errors a[href="#message"]').click()
             self.assertFalse(page.locator('#wizard-message').is_hidden())
