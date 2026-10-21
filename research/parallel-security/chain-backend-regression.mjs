@@ -25,7 +25,7 @@ const pinnedSources=[
   ['LabAttestedActivationGate.php','fe7f845df11db8db8fa5e7b35b9ddb81244ab0fb',false],
   ['LabPreauthorizedUpgradeGate.php','ed838b6a6379c8ba2cf38a85facb2d66c7611f03',false]
 ];
-const blobSha=bytes=>crypto.createHash('sha1').update('blob '+bytes.length+'\\0').update(bytes).digest('hex');
+const blobSha=bytes=>crypto.createHash('sha1').update(Buffer.from('blob '+bytes.length)).update(Buffer.from([0])).update(bytes).digest('hex');
 let stagedSourceDir=null;
 function preparePinnedSource(){
   stagedSourceDir=fs.mkdtempSync(path.join(os.tmpdir(),'ai-site-cms-pinned-settlement-source-'));
