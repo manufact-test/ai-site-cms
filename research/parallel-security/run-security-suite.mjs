@@ -41,7 +41,7 @@ function requireProof(row, expectedPattern, evidenceLabel) {
   return row;
 }
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
-  'ed25519-lab.php','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
+  'ed25519-lab.php','main-head-independent-proof.mjs','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-live-independent-proof.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','sodium-real-zip-proof.mjs','sodium-real-zip-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
@@ -263,10 +263,26 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
   const sourceProof=capture(runtime,[path.join(dirname,'ed25519-callsite-audit.php')],{timeout:30000});
   const sourceRow=entry('source:common-ed25519-backend',sourceProof);
   if(legacy && sourceRow.status==='failed' && /Direct sodium verify call count: 1/.test(sourceProof.stderr||'')){
-    sourceRow.status='blocked';
-    sourceRow.reason='CI checks old PR base SHA with legacy direct Sodium call; latest main fixed but not present in this exact workflow checkout';
-    block('native:forced-class-signed-chain',
-      'Cannot validate fixed main settlement chain against older CI PR base SHA; main integrator must refresh base');
+    // Historical PR base is stale: independently test real current main in a
+    // temporary public Git clone, never rewrite the source under test.
+    const mainProof=capture('node',[path.join(dirname,'main-head-independent-proof.mjs')],
+      {timeout:190000});
+    if(mainProof.exitCode===3||mainProof.spawnError||
+       (mainProof.exitCode===null&&mainProof.signal)){
+      sourceRow.status='blocked';
+      sourceRow.reason='Independent main head evidence unavailable: '+
+        (mainProof.stderr||mainProof.spawnError||'incomplete').slice(-350);
+      block('native:forced-class-signed-chain',sourceRow.reason);
+    }else{
+      Object.assign(sourceRow,mainProof,{stdout:mainProof.stdout.slice(-1600),
+        status:mainProof.exitCode===0?'passed':'failed'});
+      requireProof(sourceRow,
+        /EXACT current main SHA [a-f0-9]{40} original source Ed25519 backend PASS 5 PHP verifiers;/,
+        'five original PHP verifiers audited at the current GitHub main SHA');
+      requireProof(entry('native:forced-class-signed-chain',mainProof),
+        /EXACT current main SHA [a-f0-9]{40} forced-class native signed-chain PASS 60 assertions;/,
+        '60 real current-main signed chain assertions via native class route');
+    }
   }else{
     requireProof(sourceRow,/Stage2 shared Ed25519 backend original source PASS 5 PHP verifiers;/,
       '5 original PHP signed verifiers have shared backend, no global calls');
