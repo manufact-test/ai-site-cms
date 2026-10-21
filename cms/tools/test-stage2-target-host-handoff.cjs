@@ -88,6 +88,34 @@ function main(){
     expected(run(site,'html',['--http-observations='+note]),3,
       'refuse unknown potentially sensitive evidence fields');
     write(note,JSON.stringify(valid));
+    for(const [body,label] of [
+      [JSON.stringify(valid)+'\n','noncanonical trailing newline'],
+      [JSON.stringify(valid)+' ','noncanonical whitespace suffix'],
+      [JSON.stringify(valid).replace('"cmsHealth"', '"cmsHealth":500,"cmsHealth"'),
+        'duplicate HTTP evidence key'],
+      ['\ufeff'+JSON.stringify(valid),'UTF-8 BOM prefix'],
+      [JSON.stringify(valid)+'\0','NUL record bytes'],
+      ['[]','array cannot be operator evidence'],
+      ['{}','missing required fields'],
+      [JSON.stringify({...valid, cmsHealth:'200'}),'wrong scalar type']
+    ]) {
+      write(note,body);
+      expected(run(site,'html',['--http-observations='+note]),3,
+        'private operator observation rejects '+label);
+    }
+    write(note,JSON.stringify(valid));
+    const hard=home+'/http-hardlink.json';
+    fs.linkSync(note,hard);
+    expected(run(site,'html',['--http-observations='+note]),3,
+      'multi-linked operator evidence denied before reading');
+    fs.unlinkSync(hard);
+    const sym=home+'/http-link.json';
+    fs.symlinkSync(note,sym);
+    expected(run(site,'html',['--http-observations='+sym]),3,
+      'linked operator evidence path cannot be opened');
+    fs.unlinkSync(sym);
+    const original=run(site,'html',['--http-observations='+note]);
+    ok(original.status===0,'restored exact-byte operator observation accepted locally');
     fs.chmodSync(note,0o644);
     expected(run(site,'html',['--http-observations='+note]),3,
       'world-readable external observation file refused');
