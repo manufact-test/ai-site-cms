@@ -38,6 +38,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Verify exact npm lock and declared licensing
         run: npm run verify:deps && npm audit --audit-level=high
+      - name: Independent installed npm archive license and embedded notice gate
+        run: node ../../research/parallel-security/npm-source-gate.mjs
       - name: Build real self-contained static bundle
         run: npm run build
       - name: Verify real Chromium browser editor interactions
@@ -55,6 +57,9 @@ jobs:
       - name: Assemble safe internal package with private editor assets
         working-directory: cms
         run: node tools/build-internal-package.cjs && node tools/test-internal-package.cjs
+      - name: Independent exact Composer source NOTICE versus delivered package gate
+        working-directory: cms
+        run: node ../research/parallel-security/notice-gate.mjs
       - name: Rehearse exact inactive Hostinger private Git tree without network or deployment
         working-directory: cms
         run: node --check tools/stage2-hostinger-private-stage.cjs && node tools/test-stage2-hostinger-private-stage.cjs && node tools/test-stage2-offweb-publication-contract.cjs
