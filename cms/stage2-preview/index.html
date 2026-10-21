@@ -7,13 +7,35 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' file:; style-src 'self' file:; frame-src 'self' blob:; base-uri 'none'; connect-src 'none'; img-src 'none'; font-src 'none'; object-src 'none'; form-action 'none'">
   <title>AI Site CMS — локальная демонстрация редактора</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="studio.css">
 </head>
 <body>
   <header class="app-head">
     <div class="brand"><span class="brand-mark">M</span><div><strong>AI Site CMS</strong><small>Локальная продуктовая демонстрация</small></div></div>
-    <div class="head-actions"><span class="dev-badge">Stage 2 · Preview Lab</span><button id="undo" class="button subtle" type="button" disabled title="Ctrl+Z">↶ Отменить</button><button id="redo" class="button subtle" type="button" disabled title="Ctrl+Shift+Z">↷ Повторить</button><button id="save" class="button dark" type="button">Сохранить локально</button><button id="reset" class="button subtle" type="button">Новый проект</button><button id="import" class="button subtle" type="button">Импорт JSON</button><button id="download-site" class="button primary" type="button">Скачать демо-сайт ZIP</button><button id="export" class="button subtle" type="button">Экспорт JSON <span aria-hidden="true">↗</span></button><input id="file" type="file" accept=".json,application/json" hidden></div>
+    <div class="head-actions">
+      <div class="project-location"><span class="project-location-label">РАБОЧАЯ ОБЛАСТЬ</span><strong id="active-breadcrumb">Новый сайт / Главная</strong></div>
+      <span class="dev-badge">STAGE 2 · UX LAB</span>
+      <div class="edit-history" role="group" aria-label="История изменений">
+        <button id="undo" class="button subtle" type="button" disabled title="Отменить · Ctrl+Z">↶</button>
+        <button id="redo" class="button subtle" type="button" disabled title="Повторить · Ctrl+Shift+Z">↷</button>
+      </div>
+      <span id="head-save-state" class="head-save-state">Локальный черновик</span>
+      <button id="save" class="button dark" type="button">Сохранить</button>
+      <details class="project-actions" id="project-actions">
+        <summary class="button subtle">Проект <span aria-hidden="true">⌄</span></summary>
+        <div class="project-action-menu">
+          <strong class="project-menu-title">Управление проектом</strong>
+          <button id="reset" class="button subtle" type="button">+ Новый проект</button>
+          <button id="import" class="button subtle" type="button">Импортировать JSON</button>
+          <button id="export" class="button subtle" type="button">Экспортировать JSON</button>
+          <button id="download-site" class="button primary" type="button">Скачать демо-сайт ZIP</button>
+          <input id="file" type="file" accept=".json,application/json" hidden>
+          <small>Локальная демонстрация. На сервер данные не отправляются.</small>
+        </div>
+      </details>
+    </div>
   </header>
-  <div class="notice" role="note"><strong>Демонстрация, не полноценная CMS.</strong> Управляйте страницами, их блоками и SEO-метаданными; сохраняйте локальные версии всего проекта в этом браузере (если хранилище доступно). Это офлайн-прототип: нет авторизации, сервера, публикации или сетевых запросов; скачиваемый ZIP только для локального просмотра. Для надёжной резервной копии экспортируйте JSON.</div>
+  <div class="notice" role="note"><span class="notice-dot" aria-hidden="true"></span><strong>Предпросмотр редактора · не опубликовано</strong><span>Изменения остаются на этом устройстве. Это ещё не рабочая CMS и не окончательный дизайн.</span></div>
   <main class="workspace">
     <aside class="panel sidebar" aria-labelledby="structure-title">
       <div class="panel-top"><div><span class="small-title">КОНТЕНТ</span><h1 id="structure-title">Структура сайта</h1></div><span class="pill" id="count">5 блоков</span></div>
@@ -29,6 +51,7 @@
         <div class="list-heading"><strong>Страницы сайта</strong><small>До восьми страниц</small></div>
         <label class="field-label" for="page-list">Открытая страница</label>
         <select id="page-list" aria-label="Открытая страница"></select>
+        <nav id="page-tree" class="page-tree" aria-label="Страницы проекта"></nav>
         <div class="page-actions">
           <button id="page-add" class="button subtle" type="button">+ Страница</button>
           <button id="page-copy" class="button subtle" type="button">⧉ Копия</button>
@@ -51,18 +74,22 @@
           </div>
         </details>
       </div>
-      <div class="list-heading"><strong>Блоки страницы</strong><small>Выберите для редактирования</small></div>
+      <div class="list-heading section-heading"><strong>Секции страницы</strong><small>Кликните на макет</small></div>
+      <input type="search" id="section-search" placeholder="Найти секцию…" aria-label="Поиск по секциям">
       <ol class="sections" id="sections" aria-label="Блоки страницы"></ol>
-      <div class="copy-block"><label class="field-label" for="copy-target">Скопировать выбранный блок на страницу</label><div class="starter-row"><select id="copy-target" aria-label="Целевая страница"></select><button id="copy-section" class="button subtle" type="button">Копировать</button></div></div>
+      <div id="section-empty" class="section-empty" hidden>По этому запросу секций нет</div>
+      <details class="sidebar-tools"><summary>Дополнительные инструменты</summary>
+      <div class="copy-block"><label class="field-label" for="copy-target">Скопировать выбранную секцию</label><div class="starter-row"><select id="copy-target" aria-label="Целевая страница"></select><button id="copy-section" class="button subtle" type="button">Копировать</button></div></div>
       <details class="audit-panel"><summary>Проверка структуры и SEO <span id="audit-count">…</span></summary><div id="audit-results"></div><p class="audit-explain">Подсказки только для черновика. Не гарантируют поисковое продвижение.</p></details>
-      <div class="local-drafts"><div class="draft-heading"><strong>Локальные версии</strong><button id="clear-versions" type="button" class="text-button">Удалить все</button></div><p id="save-state" class="save-state" role="status">Проверка хранилища…</p><ol id="versions" class="version-list"></ol></div><div class="new-section"><label class="field-label" for="new-type">Добавить блок</label><div class="add-row"><select id="new-type" aria-label="Тип нового блока"></select><button id="add" class="button dark" type="button">+ Добавить</button></div></div>
+      <div class="local-drafts"><div class="draft-heading"><strong>Локальные версии</strong><button id="clear-versions" type="button" class="text-button">Удалить все</button></div><p id="save-state" class="save-state" role="status">Проверка хранилища…</p><ol id="versions" class="version-list"></ol></div></details>
+      <div class="new-section"><label class="field-label" for="new-type">Добавить секцию</label><div class="add-row"><select id="new-type" aria-label="Тип нового блока"></select><button id="add" class="button dark" type="button">+ Добавить</button></div></div>
     </aside>
     <section class="canvas" aria-labelledby="canvas-title">
-      <div class="canvas-head"><div><span class="small-title">LIVE PREVIEW</span><h2 id="canvas-title">Сайт изменяется вместе с текстом</h2></div><div class="preview-controls"><div class="view-switch" role="group" aria-label="Режим предпросмотра"><button class="active" type="button" data-focus="page" aria-pressed="true">Вся страница</button><button type="button" data-focus="section" aria-pressed="false">Один блок</button></div><div class="view-switch" role="group" aria-label="Размер предпросмотра"><button class="active" type="button" data-width="desktop" aria-pressed="true">ПК</button><button type="button" data-width="tablet" aria-pressed="false">Планшет</button><button type="button" data-width="mobile" aria-pressed="false">Телефон</button></div></div></div>
+      <div class="canvas-head"><div><span class="small-title">ХОЛСТ САЙТА</span><h2 id="canvas-title">Предпросмотр изменений</h2></div><div class="preview-controls"><div class="view-switch" role="group" aria-label="Режим предпросмотра"><button class="active" type="button" data-focus="page" aria-pressed="true">Вся страница</button><button type="button" data-focus="section" aria-pressed="false">Один блок</button></div><div class="view-switch" role="group" aria-label="Размер предпросмотра"><button class="active" type="button" data-width="desktop" aria-pressed="true">ПК</button><button type="button" data-width="tablet" aria-pressed="false">Планшет</button><button type="button" data-width="mobile" aria-pressed="false">Телефон</button></div></div></div>
       <div class="preview-stage"><div class="browser-shell" id="browser"><div class="browser-bar"><span class="traffic" aria-hidden="true">● ● ●</span><span id="preview-url">demo.local / index</span><button id="expand-preview" class="live-indicator preview-expand" type="button" aria-pressed="false">⤢ Развернуть</button></div><iframe id="preview" title="Предпросмотр сайта с выбором блоков" sandbox="allow-same-origin" referrerpolicy="no-referrer"></iframe></div></div>
       <div class="canvas-caption">Кликните по блоку прямо на макете, чтобы открыть его свойства. Меню страниц в предпросмотре тоже работает. Полноэкранный режим — для просмотра без панелей. Публикации здесь нет.</div>
     </section>
-    <aside class="panel inspector" aria-labelledby="inspector-title"><div class="panel-top"><div><span class="small-title">СВОЙСТВА</span><h2 id="inspector-title">Редактор блока</h2></div></div><p class="inspector-intro" id="selection-info">Выберите блок слева.</p><div id="fields" aria-live="off"></div><details class="review-notes" open><summary>Замечания к макету <span id="review-count">0</span></summary>
+    <aside class="panel inspector" aria-labelledby="inspector-title"><div class="panel-top"><div><span class="small-title">ИНСПЕКТОР</span><h2 id="inspector-title">Свойства секции</h2></div><span class="inspector-symbol" aria-hidden="true">✦</span></div><p class="inspector-intro" id="selection-info">Выберите секцию на макете.</p><div id="fields" aria-live="off"></div><details class="review-notes"><summary>Замечания к макету <span id="review-count">0</span></summary>
   <p class="review-help">Заметки сохраняются в этом браузере отдельно от версий сайта. Это обратная связь по макету, не приёмка Stage 2.</p>
   <p class="review-context" id="review-context">Выберите блок для замечания</p>
   <label class="field-label" for="review-kind">Тип замечания</label>

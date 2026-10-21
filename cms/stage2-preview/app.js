@@ -120,6 +120,31 @@
     ui.saveState.textContent=!storageOK?'Локальное хранилище недоступно — экспортируйте JSON':
       dirty?'● Изменения не сохранены':(records.length?'✓ Локальная версия сохранена':'Новый проект · ещё не сохранён');
     ui.saveState.classList.toggle('unsaved',dirty);
+    $('head-save-state').textContent=dirty?'● Не сохранено':records.length?'✓ Локально сохранено':'● Новый черновик';
+    $('head-save-state').classList.toggle('unsaved',dirty);
+  }
+  function renderPageTree(){
+    const tree=$('page-tree');
+    tree.replaceChildren();
+    for(const pg of project.pages){
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='page-tree-item'+(pg.id===pageId?' is-active':'');
+      btn.dataset.pageId=pg.id;
+      if(pg.id===pageId)btn.setAttribute('aria-current','page');
+      const icon=document.createElement('span');
+      icon.className='page-tree-icon';
+      icon.textContent=pg.slug===''?'⌂':'▤';
+      const name=document.createElement('span');
+      name.className='page-tree-label';
+      name.textContent=pg.title;
+      const hint=document.createElement('small');
+      hint.textContent=pg.slug?'/'+pg.slug:'Главная';
+      name.append(hint);
+      btn.append(icon,name);
+      btn.addEventListener('click',()=>selectPage(pg.id));
+      tree.append(btn);
+    }
   }
   function pageUI(){
     const p=activePage();
@@ -130,6 +155,8 @@
       ui.pageList.append(option);
     });
     ui.pageList.value=pageId;
+    renderPageTree();
+    $('active-breadcrumb').textContent=project.siteTitle+' / '+p.title;
     ui.pageTitle.value=p.title;ui.slug.value=p.slug;ui.seoTitle.value=p.seoTitle;
     ui.seoDescription.value=p.seoDescription;
     ui.slug.disabled=p.slug==='';
@@ -213,7 +240,12 @@
   }
   function listing(){
     ui.list.replaceChildren();
+    const search=$('section-search').value.trim().toLowerCase();
+    let visible=0;
     doc.sections.forEach((s,i)=>{
+      const description=Object.values(s.props).find(x=>typeof x==='string'&&x)||'';
+      if(search&&!((C.definitions[s.type].label+' '+description).toLowerCase().includes(search)))return;
+      visible++;
       const li=document.createElement('li'),active=s.id===selection;
       li.className='section-row'+(active?' selected':'');
       const pick=document.createElement('button');pick.type='button';pick.className='section-select';
@@ -233,6 +265,7 @@
         tiny('×','Удалить блок',()=>remove(i),doc.sections.length<=1));
       li.append(pick,tools);ui.list.append(li);
     });
+    $('section-empty').hidden=visible!==0;
   }
   function mount(){
     if(editor){editor.destroy();editor=null;}
@@ -260,6 +293,7 @@
     if(!project.pages.some(p=>p.id===id)||id===pageId)return;
     if(editor){editor.destroy();editor=null;}
     pageId=id;bind();selection=doc.sections[0].id;lastType='';
+    $('section-search').value='';
     pageUI();listing();mount();preview();showReview();
   }
   function select(id){if(id===selection)return;selection=id;lastType='';listing();mount();preview();showReview();}
@@ -309,7 +343,7 @@
     if(field==='title'&&(!value||value.length>90)){toast('Название страницы: 1–90 символов',true);return;}
     if(field==='seoTitle'&&(!value||value.length>70)){toast('SEO-заголовок: 1–70 символов',true);return;}
     checkpoint('page:'+pageId+':'+field,true);p[field]=value;
-    if(field==='title')pageUI();
+    if(field==='title'||field==='slug')pageUI();
     changed();
   }
   function move(i,delta){
@@ -442,6 +476,11 @@
     readSaved();readReview();if(records.length)project=P.normalize(records[0].doc);
     saved=snapshot();apply(project);versions();
     $('add').addEventListener('click',add);
+    $('section-search').addEventListener('input',listing);
+    document.addEventListener('click',e=>{
+      const menu=$('project-actions');
+      if(menu.open&&!menu.contains(e.target))menu.open=false;
+    });
     $('starter-apply').addEventListener('click',starter);
     $('copy-section').addEventListener('click',copySection);
     $('download-site').addEventListener('click',downloadSite);
@@ -479,7 +518,9 @@
     ui.title.addEventListener('input',()=>{
       if(project.siteTitle===ui.title.value)return;
       if(!ui.title.value){toast('Введите название проекта',true);return;}
-      checkpoint('title',true);project.siteTitle=ui.title.value;bind();changed();
+      checkpoint('title',true);project.siteTitle=ui.title.value;bind();
+      $('active-breadcrumb').textContent=project.siteTitle+' / '+activePage().title;
+      changed();
     });
     ui.theme.addEventListener('change',()=>{
       if(project.theme===ui.theme.value)return;
