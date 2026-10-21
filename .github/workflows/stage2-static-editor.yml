@@ -168,6 +168,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends apache2
           node --check tools/test-stage2-apache-hosting.cjs
           node tools/test-stage2-apache-hosting.cjs
+          python3 tools/test-stage2-apache-security-policies.py
       - name: Native Sodium provider provenance and spoofed userland regression
         working-directory: cms
         run: |

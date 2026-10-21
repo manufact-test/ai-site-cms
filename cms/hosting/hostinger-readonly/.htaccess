@@ -1,18 +1,20 @@
-# Stage2 host capabilities ONLY. Not a CMS / no secrets in this Git branch.
-Options -Indexes -MultiViews -FollowSymLinks
+# Stage2 host capabilities ONLY, separate READ-ONLY preflight webroot.
+# NOT the CMS public root; NOT verified on real Hostinger/LiteSpeed.
+# Do not allow either symlink mode. Apache mod_rewrite rules with both modes
+# disabled cause AH00670 and can break every route.
+Options -Indexes -MultiViews -FollowSymLinks -SymLinksIfOwnerMatch
 DirectoryIndex index.php
+FallbackResource /index.php
+
+# Apache mod_alias pathname rule: all hidden path segments except .well-known.
+# Reject nested hidden segments even inside a permitted .well-known subtree.
+RedirectMatch 403 "(^|/)\.(?!well-known(/|$))[^/]+(/|$)"
 <FilesMatch "^\.">
     Require all denied
 </FilesMatch>
 <FilesMatch "^(?!index\.php$).+\.(?:php|phtml|phar|cgi|pl)$">
     Require all denied
 </FilesMatch>
-<FilesMatch "\.(?:sql|bak|db|sqlite|ini|env|pem|key|log|p12|pfx)$">
+<FilesMatch "\.(?:sql|bak|db|sqlite|sqlite3|ini|env|pem|key|log|p12|pfx)$">
     Require all denied
 </FilesMatch>
-RewriteEngine On
-# Refuse all dot-directories (including a deployed .git/config) and dotfiles.
-RewriteRule (^|/)\. - [F,L]
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [L]

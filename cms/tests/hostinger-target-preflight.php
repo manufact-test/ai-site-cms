@@ -161,6 +161,10 @@ passes(str_contains(runProbe($probe,'GET','/index.php?debug=1'),'not_found'),'no
 passes(str_contains(runProbe($probe,'GET','/.env'),'not_found'),'dotfile_not_routed');
 passes(is_file(__DIR__.'/../hosting/hostinger-readonly/.htaccess'),'webserver_rules_present');
 $rules=file_get_contents(__DIR__.'/../hosting/hostinger-readonly/.htaccess');
-passes(is_string($rules)&&str_contains($rules, 'RewriteRule (^|/)\\. - [F,L]'),
-    'hidden_git_and_dotfiles_explicitly_forbidden');
+passes(is_string($rules)
+    && str_contains($rules, 'RedirectMatch 403')
+    && str_contains($rules, 'FallbackResource /index.php')
+    && str_contains($rules, '-FollowSymLinks -SymLinksIfOwnerMatch')
+    && !str_contains($rules, 'RewriteRule'),
+    'hidden path segment denial and symlink-safe Apache fallback present');
 echo "Stage2 Hostinger read-only PHP preflight: $checks checks PASS (NO HOST ACCESS)\n";
