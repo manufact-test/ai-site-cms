@@ -31,6 +31,8 @@ try{
   // deliberately lacks Git/network/OSV evidence. It must return NO_GO.
   fs.copyFileSync(path.join(path.dirname(source),'evidence-readiness-decision.mjs'),
     path.join(dir,'evidence-readiness-decision.mjs'));
+  fs.copyFileSync(path.join(path.dirname(source),'review-handoff.mjs'),
+    path.join(dir,'review-handoff.mjs'));
   fs.writeFileSync(path.join(tmp,'fake-php.cjs'),
     '#!/usr/bin/env node\nprocess.stdout.write(process.argv.includes("-n")?"native":"absent");\n',
     {mode:0o700});

@@ -61,7 +61,7 @@ check(buildReviewHandoff(suite,{head:M,base:M}).integrity.unsignedCanonicalJsonS
 withCase('real original main differs',x=>x.results[1].stdout=x.results[1].stdout.replace(M,'d'.repeat(40)));
 withCase('real main not proven',x=>x.results[0].stdout='PASS');
 withCase('Composer source not installed',x=>delete x.results[3].attestedResult);
-withCase('mismatching isolated runtime object',x=>x.results[3].attestedResult=structuredClone(upstream));
+withCase('mismatching isolated runtime object',x=>x.results[3].attestedResult={...structuredClone(upstream),physicalBinarySha256:'f'.repeat(64)});
 withCase('fake upstream commit',x=>x.results[3].attestedResult.upstreamCommit=M);
 withCase('bad pinned ZIP digest',x=>x.results[3].attestedResult.sourceZipSha256='f'.repeat(64));
 withCase('unsupported PHP 8.4',x=>x.results[3].attestedResult.php='8.4.0');

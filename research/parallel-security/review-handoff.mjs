@@ -52,7 +52,7 @@ export function buildReviewHandoff(suite,gitContext={}){
  const x=compat?.attestedResult||null;
  const n=physical?.attestedResult||null;
  const nativeOk=!!(physical?.status==='passed'&&physical.exitCode===0&&
-   n&&n===x&&n.noSodium?.status==='passed'&&
+   n&&x&&JSON.stringify(n)===JSON.stringify(x)&&n.noSodium?.status==='passed'&&
    n.noSodium.physicalPhp83WithoutSodium===true&&n.noSodium.absenceAssertions===2&&
    /^8\.3\.\d+$/.test(n.php||'')&&h64.test(n.physicalBinarySha256||''));
  const compOk=!!(nativeOk&&compat.status==='passed'&&compat.exitCode===0&&
