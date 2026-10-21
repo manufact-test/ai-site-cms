@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' file:; style-src 'self' file:; frame-src 'self' blob:; base-uri 'none'; connect-src 'none'; img-src 'none'; font-src 'none'; object-src 'none'; form-action 'none'">
+  <title>AI Site CMS — локальная демонстрация редактора</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-head">
+    <div class="brand"><span class="brand-mark">M</span><div><strong>AI Site CMS</strong><small>Локальная продуктовая демонстрация</small></div></div>
+    <div class="head-actions"><span class="dev-badge">Stage 2 · Preview Lab</span><button id="reset" class="button subtle" type="button">Сбросить демо</button><button id="import" class="button subtle" type="button">Импорт JSON</button><button id="export" class="button primary" type="button">Экспорт JSON <span aria-hidden="true">↗</span></button><input id="file" type="file" accept=".json,application/json" hidden></div>
+  </header>
+  <div class="notice" role="note"><strong>Демонстрация, не полноценная CMS.</strong> Изменения живут только в открытой вкладке; нет авторизации, базы данных, публикации, серверных форм и сетевых запросов. Архив JSON сохраняется только на вашем компьютере.</div>
+  <main class="workspace">
+    <aside class="panel sidebar" aria-labelledby="structure-title">
+      <div class="panel-top"><div><span class="small-title">КОНТЕНТ</span><h1 id="structure-title">Структура сайта</h1></div><span class="pill" id="count">5 блоков</span></div>
+      <label class="field-label" for="site-title">Название проекта</label>
+      <input id="site-title" maxlength="100" autocomplete="off" aria-label="Название проекта">
+      <label class="field-label" for="theme">Цветовая тема</label>
+      <select id="theme" aria-label="Цветовая тема"><option value="ocean">Океан · синий</option><option value="forest">Лес · зелёный</option><option value="coral">Коралл · оранжевый</option></select>
+      <div class="list-heading"><strong>Блоки страницы</strong><small>Выберите для редактирования</small></div>
+      <ol class="sections" id="sections" aria-label="Блоки страницы"></ol>
+      <div class="new-section"><label class="field-label" for="new-type">Добавить блок</label><div class="add-row"><select id="new-type" aria-label="Тип нового блока"></select><button id="add" class="button dark" type="button">+ Добавить</button></div></div>
+    </aside>
+    <section class="canvas" aria-labelledby="canvas-title">
+      <div class="canvas-head"><div><span class="small-title">LIVE PREVIEW</span><h2 id="canvas-title">Сайт изменяется вместе с текстом</h2></div><div class="view-switch" role="group" aria-label="Размер предпросмотра"><button class="active" type="button" data-width="desktop" aria-pressed="true">Десктоп</button><button type="button" data-width="mobile" aria-pressed="false">Мобильный</button></div></div>
+      <div class="preview-stage"><div class="browser-shell" id="browser"><div class="browser-bar"><span class="traffic" aria-hidden="true">● ● ●</span><span id="preview-url">demo.local / index</span><span class="live-indicator">● PREVIEW</span></div><iframe id="preview" title="Безопасный предпросмотр страницы" sandbox="" referrerpolicy="no-referrer"></iframe></div></div>
+      <div class="canvas-caption">Это демонстрация редактирования блоков, а не разрешение для публикации на реальном сайте.</div>
+    </section>
+    <aside class="panel inspector" aria-labelledby="inspector-title"><div class="panel-top"><div><span class="small-title">СВОЙСТВА</span><h2 id="inspector-title">Редактор блока</h2></div></div><p class="inspector-intro" id="selection-info">Выберите блок слева.</p><div id="fields" aria-live="off"></div><div class="inspector-foot">Поля управляются встроенным <strong>Jedison</strong>. Изменения отображаются сразу без сохранения на сервер.</div></aside>
+  </main>
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+  <script src="../editor/dist/editor.js"></script>
+  <script src="content.js"></script>
+  <script src="renderer.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

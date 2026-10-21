@@ -50,6 +50,19 @@ jobs:
         run: node ../../research/parallel-security/npm-source-gate.mjs
       - name: Verify real Chromium browser editor interactions
         run: npm run test:browser
+      - name: Owner-visible local product preview (one critical end-to-end)
+        run: |
+          node --check ../stage2-preview/content.js
+          node --check ../stage2-preview/renderer.js
+          node --check ../stage2-preview/app.js
+          node tests/stage2-preview-smoke.cjs
+      - name: Upload mock-only desktop and mobile previews (NO vendor bundle or secrets)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-site-cms-stage2-product-preview-pictures
+          path: cms/stage2-preview/.generated/*.png
+          retention-days: 7
+          if-no-files-found: error
       - name: Install pinned PHP runtime for internal offline distribution only
         working-directory: cms
         shell: bash
