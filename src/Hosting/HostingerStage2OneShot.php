@@ -46,6 +46,14 @@ final class HostingerStage2OneShot
         if (!hash_equals($manifestDigest, $task['package_manifest_sha256'])) {
             throw new RuntimeException('PACKAGE_MANIFEST_PIN_MISMATCH');
         }
+        // A locally edited "INSTALL" task is NOT proof that the owner approved
+        // DB writes. Require a distinct short-lived Ed25519 owner permit bound
+        // to this exact task (including its private credentials) and package.
+        // Absence of native/audited Sodium means install is refused. The check
+        // happens BEFORE receipt creation, task consumption or DB connection.
+        if ($task['operation'] === 'install') {
+            Stage2OwnerWriteConsent::verify($localRoot, $task, $manifestDigest);
+        }
         $operation = $task['operation'];
         $receiptPath = $localRoot.'/receipt.json';
         if (file_exists($receiptPath) || is_link($receiptPath)) {

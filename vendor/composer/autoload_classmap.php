@@ -24,6 +24,7 @@ return array(
     'AiSiteCms\\Hosting\\SiteRuntimeTopology' => $baseDir . '/src/Hosting/SiteRuntimeTopology.php',
     'AiSiteCms\\Hosting\\Stage2MySqlReadOnly' => $baseDir . '/src/Hosting/Stage2MySqlReadOnly.php',
     'AiSiteCms\\Hosting\\Stage2MysqlBoundReadiness' => $baseDir . '/src/Hosting/Stage2MysqlBoundReadiness.php',
+    'AiSiteCms\\Hosting\\Stage2OwnerWriteConsent' => $baseDir . '/src/Hosting/Stage2OwnerWriteConsent.php',
     'AiSiteCms\\Hosting\\Stage2PrivateOperatorRecord' => $baseDir . '/src/Hosting/Stage2PrivateOperatorRecord.php',
     'AiSiteCms\\Hosting\\Stage2TargetHostHandoff' => $baseDir . '/src/Hosting/Stage2TargetHostHandoff.php',
     'AiSiteCms\\HttpKernel' => $baseDir . '/src/HttpKernel.php',
