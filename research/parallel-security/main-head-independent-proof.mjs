@@ -13,8 +13,11 @@ const sourceDir='cms/src/Release/';
 const names=['OfflineReleaseVerifier.php','TrustedChainVerifier.php',
  'LabPreauthorizedUpgradeGate.php','LabAttestedActivationGate.php',
  'LabSettledUpgradeGate.php','Ed25519Backend.php'];
-const harness=['ed25519-callsite-audit.php','chain-backend-regression.mjs',
+const harness=['main-web-crypto-surface.php','ed25519-callsite-audit.php','chain-backend-regression.mjs',
  'chain-backend-verifier.php','class-only-ed25519-shim.php'];
+const webFiles=['cms/public/index.php','cms/src/HttpKernel.php',
+ 'cms/hosting/hostinger-readonly/index.php','cms/bin/verify-lab-release.php',
+ 'cms/bin/verify-lab-trust.php'];
 const blob=b=>crypto.createHash('sha1').update(Buffer.from('blob '+b.length))
  .update(Buffer.from([0])).update(b).digest('hex');
 const env={...process.env,GIT_TERMINAL_PROMPT:'0',GIT_CONFIG_NOSYSTEM:'1',GIT_CONFIG_GLOBAL:'/dev/null'};
@@ -44,6 +47,14 @@ try{
       blob(fs.readFileSync(f))!==sha)throw Error('original main PHP Git blob mismatch: '+n);
    hashes[n]=sha;
  }
+ for(const n of webFiles){
+   const f=path.join(root,n),stat=fs.lstatSync(f);
+   const sha=run('git',['rev-parse','HEAD:'+n],root);
+   if(!stat.isFile()||stat.isSymbolicLink()||stat.nlink!==1||stat.size<100||
+      stat.size>300000||blob(fs.readFileSync(f))!==sha)
+      throw Error('original main web source Git blob mismatch: '+n);
+   hashes[n]=sha;
+ }
  const stage=path.join(root,'research/parallel-security');
  fs.mkdirSync(stage,{recursive:true});
  for(const n of harness){
@@ -54,6 +65,19 @@ try{
  }
  const php=process.env.PHP_BINARY||'php';
  for(const n of names)run(php,['-l',path.join(root,sourceDir+n)],root);
+ const webAudit=run(php,[path.join(stage,'main-web-crypto-surface.php'),root],root,90000);
+ const webLines=webAudit.split('\n');
+ if(webLines.at(-1)!=='ORIGINAL main static web-to-release route census PASS exact 1 health route, 7 Hostinger paths, 2 CLI guards; NO whole-program or Hostinger proof')
+   throw Error('complete static web/CLI source security census missing');
+ const webEvidence=JSON.parse(webLines[0]);
+ if(webEvidence.slimRouteCount!==1||webEvidence.hostingerPreflightPathCount!==7||
+    webEvidence.cliReleaseVerifiersChecked!==2||webEvidence.webEntrypointsAnalyzed!==2||
+    webEvidence.unexpectedRuntimeRouterSources?.length!==0||
+    webEvidence.directEd25519ReleaseReferencesInEntrypoints!==0||
+    webEvidence.remoteEd25519DoSProven!==false||
+    webEvidence.dynamicOrIndirectReachabilityExcludedFromProof!==true||
+    webEvidence.productionApproved!==false||webEvidence.hostingerTested!==false)
+   throw Error('static web release exposure result incomplete or overclaims safe host');
  const audit=run(php,[path.join(stage,'ed25519-callsite-audit.php')],root);
  if(!/Stage2 shared Ed25519 backend original source PASS 5 PHP verifiers;/.test(audit))
    throw Error('original five-verifier source invariant failed');
@@ -67,17 +91,18 @@ try{
     proof.transcript.some(x=>x.backend!=='forced-class'||x.globalVerifier!==false))
    throw Error('live main cryptographic route evidence incomplete');
  for(const [n,sha] of Object.entries(hashes))
-   if(blob(fs.readFileSync(path.join(root,sourceDir+n)))!==sha)
+   if(blob(fs.readFileSync(path.join(root,n.startsWith('cms/')?n:sourceDir+n)))!==sha)
      throw Error('PHP source mutated during verification '+n);
- if(run('git',['status','--porcelain','--',sourceDir],root)!=='')
+ if(run('git',['status','--porcelain','--',sourceDir,...webFiles],root)!=='')
    throw Error('original main PHP modified');
  if(run('git',['rev-parse','HEAD'],root)!==head||main()!==head)
    throw Error('main moved during crypto proof');
  console.log(JSON.stringify({mainSha:head,gitBlobs:hashes,phpVerifierCount:5,
-  genuineSignedChainAssertions:60,sourceUnchanged:true,nativeSodium:true,
+  genuineSignedChainAssertions:60,originalWebSurface:webEvidence,sourceUnchanged:true,nativeSodium:true,
   noSodium:false,compat:false,productionApproved:false}));
  console.log('EXACT current main SHA '+head+' original source Ed25519 backend PASS 5 PHP verifiers; not production approval');
  console.log('EXACT current main SHA '+head+' forced-class native signed-chain PASS 60 assertions; NOT true Sodium-free PHP or production approval');
+ console.log('EXACT current main SHA '+head+' original static public/Hostinger release exposure PASS 1 health, 7 preflight paths, 2 CLI guards; no dynamic reachability or production approval');
 }catch(e){
  const msg=String(e.message||e);
  const blocked=/Could not resolve host|Connection timed out|Failed to connect|Network is unreachable|main moved|unable to access|Authentication failed|SSL connection/i.test(msg);
