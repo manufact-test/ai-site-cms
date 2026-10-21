@@ -1,3 +1,35 @@
+# ВАЖНО: актуальный статус и процедуры (21.10.2026)
+
+**Приоритет над архивными утверждениями ниже:** [CURRENT-CHECKPOINT-2026-10-21.md](CURRENT-CHECKPOINT-2026-10-21.md). Исторические замечания про отсутствие live OSV, ZIP-проверок и main no-Sodium тестов не относятся к нынешней контрольной точке. Новый кодовый exact-head GitHub Actions [#39588010610](https://github.com/manufact-test/ai-site-cms/actions/runs/39588010610) дал **76 PASS / 0 FAIL / 4 BLOCKED**, вердикт **NO_GO**. Последнюю документационную версию повторно проверить по actual PR HEAD.
+
+**Сейчас реально доступны:**
+
+```sh
+# Все доступные проверки. Обычный exit 0 НЕ означает production approval:
+node research/parallel-security/run-security-suite.mjs
+# Exit 3 пока нет полноты 4 независимых research gates:
+node research/parallel-security/run-security-suite.mjs --strict
+# Fail-closed readiness + 37 негативных испытаний:
+node research/parallel-security/evidence-readiness-regression.mjs
+# Реальный Git tree 211 записей подписанного upstream annotated tag:
+node research/parallel-security/sodium-upstream-tree-proof.mjs
+# Реальный downloaded Composer ZIP, проверка 78 файлов:
+node research/parallel-security/sodium-real-zip-proof.mjs --online
+# Реальная OSV 43/43 pinned packages; полный список findings в JSON:
+node research/parallel-security/osv-live-independent-proof.mjs
+# Полная исходная OSV запись и отдельное независимое архивное рассмотрение:
+node research/parallel-security/osv-strict-snapshot.mjs > /safe/private/osv-43.json
+node research/parallel-security/osv-advisory-triage.mjs /safe/private/osv-43.json > /safe/private/osv-triage.json
+```
+
+При фактической проверке installed `v2.5.2` в отдельной безопасной временной папке выполнить:
+`node research/parallel-security/sodium-upstream-tree-proof.mjs --verify-installed /absolute/independent/source`.
+Это **пока не выполнено нашим независимым CI**. Глобальная PGP signer's identity, licensed redistribution и Hostinger PHP web SAPI также не утверждены. Интегратору рекомендовать отдельный physical no-native PHP8.3 source-pre/post job лишь через PR-комментарии.
+
+**Прозрачность CI:** `INDEPENDENT_SECURITY_EXACT_HEAD_PROOFS` — точные доказательные строки; `INDEPENDENT_SECURITY_RELEASE_DECISION` — связанный вывод `NO_GO` с ZIP SHA, OSV JSON SHA, advisory count, 4 blockers и fingerprint; `INDEPENDENT_SECURITY_SUITE_COUNTS` — число записей suite. Fingerprint НЕ является цифровой подписью. `strongResearchEvidence:true` НЕ делает продукт пригодным к выпуску. За другими датированными исходными командами обращайтесь к архивным разделам ниже.
+
+---
+
 # Reproducible Security Laboratory (research only)
 
 All commands run from the repository root on an isolated local/CI machine. Scripts make no production changes. No Hostinger, database, SSH or customer data is required.

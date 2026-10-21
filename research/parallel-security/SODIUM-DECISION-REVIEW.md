@@ -1,5 +1,14 @@
 # Sodium / Ed25519 backend — Stage2 implementation decision review
 
+## Актуальное доказательство после первичного исследования — 21.10.2026 (имеет приоритет над прошлым состоянием ниже)
+
+Первичный текст 20.10 ниже — **исторический**. Теперь уже имеется: (1) оригинальный upstream GitHub ZIP `paragonie/sodium_compat@v2.5.2` действительно получен и 78/78 его файлов сопоставлены с Git blob коммита `3246b36803c177847e677862fedeb7f937869adb`, на который указывает upstream PGP-подписанный annotated tag; (2) upstream ZIP SHA-256 `53944302442e609c0443f680a6195f8d7467e3d0f0c4503e8a690fd9e7ee22f2`; (3) реальный **main** интегратора CI [#39571456888](https://github.com/manufact-test/ai-site-cms/actions/runs/39571456888) уже исполнил настоящий PHP8.3.6 x64 без ext-sodium и проверил 33 signed-chain + 55 rotation кейсов; (4) наш последний research CI [#39588010610](https://github.com/manufact-test/ai-site-cms/actions/runs/39588010610) — **76 PASS / 0 FAIL / 4 BLOCKED**, решение выпуска `NO_GO`.
+
+**Не закрыто:** доверенная идентификация upstream PGP signer's ownership, независимый cryptographic code audit, ISC/NOTICE legal+redistribution approval, physical genuine no-Sodium + exact installed vendor pre/post source verification **в нашем research CI**, реальная latency/CPU/concurrency на целевом Hostinger/LiteSpeed PHP web SAPI. Без этого production/Stage2 НЕ ОДОБРЕНЫ. Полная сводка: `CURRENT-CHECKPOINT-2026-10-21.md`.
+
+---
+
+
 **Checkpoint:** 2026-10-20. Research-only, no production dependency installed, no Hostinger access, no go-live. Native PHP backend currently works on isolated PHP 8.4.24; target LiteSpeed PHP 8.3 reportedly lacks native Sodium.
 
 ## Candidate: paragonie/sodium_compat **exactly 2.5.2**

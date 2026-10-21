@@ -1,3 +1,9 @@
+## Новый статус 21.10.2026 — документальный приоритет над историческим состоянием ниже
+
+Отдельный настоящий [main CI интегратора #39571456888](https://github.com/manufact-test/ai-site-cms/actions/runs/39571456888) уже исполнил физический PHP 8.3.6 64-bit **без ext-sodium** и pinned pure-PHP `sodium_compat@v2.5.2` (33 signed-chain, 55 trust rotation). В НАШЕМ независимом research CI нет повторного настоящего no-native процесса; его explicit `no-sodium:cryptography` / `compat:cryptography` всё ещё BLOCKED. Исходный ZIP библиотеки отдельно скачан и **78/78 Git blobs** подтверждены против подписанного upstream тега. Эти факты не доказывают целевой Hostinger LiteSpeed PHP web SAPI или независимый аудит криптографии. Полная актуальная сводка: `CURRENT-CHECKPOINT-2026-10-21.md`.
+
+---
+
 # Sodium candidate: classify forced-polyfill vs genuinely missing extension (20 Oct 2026)
 
 ## Confirmed environment issue in main's crypto lab
