@@ -314,7 +314,8 @@ if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
   // The runner PHP statically includes Sodium. CI may independently compile an
   // actual no-native PHP8.3 and Composer-install exact Git-blob-attested v2.5.2
   // solely in disposable OS temp. Local and incomplete runs remain BLOCKED.
-  if(process.platform==='linux'&&process.env.CI==='true'&&process.env.RUNNER_TEMP){
+  if(process.platform==='linux'&&process.env.CI==='true'&&process.env.RUNNER_TEMP&&
+     fs.existsSync(path.join(dirname,'independent-no-sodium-composer-lab.mjs'))){
     const lab=capture('node',[path.join(dirname,'independent-no-sodium-composer-lab.mjs')],
       {timeout:560000});
     let record=null;
@@ -329,9 +330,21 @@ if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
         /REAL Composer installed sodium_compat 2\.5\.2 78 original Git blobs and PHP native-free pre\/post crypto PASS four fixtures;/]
     ]){
       const state=record?.[field]?.status;
-      if(state==='passed'&&lab.exitCode!==null&&!lab.spawnError){
-        requireProof(entry(name,{...lab,stdout:lab.stdout.slice(-2600)}),marker,
-          'real native-free PHP and independently verified actual Composer 2.5.2 source');
+      const detail=record?.[field];
+      const substantive=field==='noSodium'
+        ?detail?.physicalPhp83WithoutSodium===true&&detail?.absenceAssertions===2
+        :detail?.composerInstalled===true&&detail?.installedOriginalGitBlobs===78&&
+          detail?.preAndPostSourceAttested===true&&detail?.physicalCompatRfcAndEnvelopeCases===4;
+      if(state==='passed'&&substantive&&lab.exitCode!==null&&!lab.spawnError){
+        // This script has TWO independent gates: its process can exit 3 when
+        // physical PHP PASS is followed by an unavailable Composer network.
+        // Attribute status to the completed individual gate, keep actual
+        // process exit code unchanged, and independently demand its marker.
+        const row={name,...lab,stdout:lab.stdout.slice(-2600),
+          status:'passed',actualOverallLabExitCode:lab.exitCode,attestedResult:record};
+        results.push(row);
+        requireProof(row,marker,
+          'genuine source-specific physical PHP or actual independently pinned 78-blob Composer proof');
       }else if(state==='failed'||(!record&&lab.exitCode===1)){
         const row=entry(name,{...lab,stdout:lab.stdout.slice(-2600)});
         row.status='failed';row.validationError=record?.reason||'Native-free crypto evidence failed';
@@ -348,6 +361,10 @@ if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
 // Optional offline limitations still use the existing non-strict contract.
 const onlineComplete=!online||['online:OSV-strict43','online:version-registry']
   .every(name=>results.some(r=>r.name===name&&r.status==='passed'));
+// Keep the observed original physical/source digests in structured CI output,
+// not solely in a redirected on-runner JSON file. This is evidence, not approval.
+const physicalCompat=results.find(r=>r.name==='compat:cryptography');
+const physicalRecord=physicalCompat?.attestedResult||null;
 const evidenceDecision=evaluateResearchDecision(results);
 const counts={passed:results.filter(x=>x.status==='passed').length,
   failed:results.filter(x=>x.status==='failed').length,
@@ -374,6 +391,7 @@ const proofNames=[
   'mutation:sodium-compat-attest-regression.mjs',
   'mutation:online-evidence-regression.mjs',
   'mutation:runtime-sodium-proof-regression.mjs',
+  'no-sodium:cryptography','compat:cryptography',
   'upstream:archived-main-genuine-sodium-free','mutation:archived-main-sodium-provenance',
   'actual-lock:frozen-source-baseline','mutation:real-43-pin-source-swap',
   'upstream:real-signed-sodium-tag-git-tree','mutation:real-sodium-source-git-tree',
@@ -381,6 +399,15 @@ const proofNames=[
   'mutation:evidence-readiness-regression.mjs',
   'online:OSV-actual43-observation'
 ];
+if(physicalRecord)console.error('INDEPENDENT_SECURITY_PHYSICAL_RUNTIME_SOURCE '+JSON.stringify({
+  realNativeFreePhpVersion:physicalRecord.php,
+  phpBinarySha256:physicalRecord.physicalBinarySha256,
+  exactRealZipSha256:physicalRecord.sourceZipSha256,
+  composerInstalledOriginalGitFiles:physicalRecord.compat?.installedOriginalGitBlobs,
+  installedWholeTreeSha256:physicalRecord.installedTreeSha256,
+  isolatedComposerLockSha256:physicalRecord.isolatedComposerLockSha256,
+  signerOwnerVerified:false,hostWebSapiTested:false,productionApproved:false
+}));
 console.error('INDEPENDENT_SECURITY_RELEASE_DECISION '+JSON.stringify({
   decision:evidenceDecision.releaseDecision,
   strongResearchEvidence:evidenceDecision.evidence.observedStrongResearchEvidence,
