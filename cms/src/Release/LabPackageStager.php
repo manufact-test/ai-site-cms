@@ -167,6 +167,7 @@ final class LabPackageStager
         // descriptor's inode/device with the path on BOTH sides of the read.
         // PHP has no portable O_NOFOLLOW flag; inode pinning plus post-check
         // makes path substitution fail closed without trusting symlink targets.
+        clearstatcache(true, $file);
         $before = @lstat($file);
         if ($before === false || !is_file($file) || is_link($file)
             || ($before['nlink'] ?? 0) !== 1 || $before['size'] < 1
@@ -184,6 +185,7 @@ final class LabPackageStager
             }
             $bytes = stream_get_contents($fh, $limit + 1);
             $afterFd = fstat($fh);
+            clearstatcache(true, $file);
             $afterPath = @lstat($file);
             if ($bytes === false || strlen($bytes) !== $opened['size']
                 || $afterFd === false || $afterPath === false
@@ -294,6 +296,7 @@ final class LabPackageStager
         $raw = self::strictFile($file, 4096);
         // Both journals are private operator control state, not public assets.
         // Group/world-readable or writable records must never authorize restore.
+        clearstatcache(true, $file);
         if ((fileperms($file) & 0777) !== 0600) {
             throw new RuntimeException('Unsafe installation journal permissions');
         }
