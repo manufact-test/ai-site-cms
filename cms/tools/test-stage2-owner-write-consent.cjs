@@ -84,6 +84,34 @@ try{
   const persisted=tool.readObject(consentFile);
   yes(tool.verify(task,persisted,publicPem,pin).signatureValidUnderPinnedKey,
     'persisted signed consent is exact and verifiable');
+  // Independently cross-check Node's actual signed PEM/payload with the
+  // packaged PHP verifier. Native Sodium required; no DB or remote host.
+  const phpLocal=path.join(box,'php-local');
+  fs.mkdirSync(phpLocal,{mode:0o700});
+  privateWrite(path.join(phpLocal,'owner-install-public.pem'),publicPem);
+  privateWrite(path.join(phpLocal,'owner-install-consent.json'),JSON.stringify(persisted));
+  const trust={format:'ai-site-cms-stage2-owner-install-trust-v1',
+    target:tool.TARGET,site:tool.SITE,trustedOwnerSpkiSha256:pin};
+  privateWrite(path.join(phpLocal,'owner-install-trust.json'),JSON.stringify(trust));
+  const phpArgs=[path.join(__dirname,'../tests/stage2-owner-write-cross-runtime.php'),
+    phpLocal,taskFile,manifestPin];
+  const phpRun=()=>cp.spawnSync('php',phpArgs,{
+    encoding:'utf8',env:{...process.env,CI:'true',GITHUB_ACTIONS:'true'}});
+  let php=phpRun();
+  yes(php.status===0&&php.stdout.includes('STAGE2_NODE_TO_PHP_WRITE_SIGNATURE_VERIFIED_NO_DB'),
+    'independent native PHP verifier accepts exact Node-signed task/package');
+  privateWrite(path.join(phpLocal,'owner-install-trust.json'),JSON.stringify({
+    ...trust,trustedOwnerSpkiSha256:'f'.repeat(64)}));
+  php=phpRun();
+  yes(php.status===3&&php.stderr.includes('STAGE2_NODE_TO_PHP_WRITE_SIGNATURE_REFUSED'),
+    'independent PHP verifier rejects substituted owner pin');
+  privateWrite(path.join(phpLocal,'owner-install-trust.json'),JSON.stringify(trust));
+  const badPermit=JSON.parse(JSON.stringify(persisted));
+  badPermit.payload.taskSha256='0'.repeat(64);
+  privateWrite(path.join(phpLocal,'owner-install-consent.json'),JSON.stringify(badPermit));
+  php=phpRun();
+  yes(php.status===3,'independent PHP verifier rejects signed-payload tampering');
+  privateWrite(path.join(phpLocal,'owner-install-consent.json'),JSON.stringify(persisted));
   res=run(args,{CMS_STAGE2_OWNER_WRITE_SIGNING:'EXPLICIT_OWNER_APPROVAL_NOT_READONLY'});
   yes(res.status===3,'cannot silently overwrite existing one-use signed permit');
   res=run(['--verify','--task='+taskFile,'--consent='+consentFile,
