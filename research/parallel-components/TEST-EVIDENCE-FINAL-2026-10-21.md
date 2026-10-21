@@ -4,21 +4,21 @@
 
 ## Exact verified code checkpoint
 
-- Commit SHA: \`5330c148ff4a14ebb74b53457cd2b91cfeff574b\`.
-- Branch: \`research/editor-component-patterns\`, PR https://github.com/manufact-test/ai-site-cms/pull/4, OPEN/unmerged when last inspected before this documentation handoff.
+- Commit SHA: `5330c148ff4a14ebb74b53457cd2b91cfeff574b`.
+- Branch: `research/editor-component-patterns`, PR https://github.com/manufact-test/ai-site-cms/pull/4, OPEN/unmerged when last inspected before this documentation handoff.
 - Exact-source GitHub Actions: https://github.com/manufact-test/ai-site-cms/actions/runs/39574269556 — **SUCCESS**.
-- Scope/HEAD verification: **SUCCESS**; all changed paths live under \`research/parallel-components/\`.
+- Scope/HEAD verification: **SUCCESS**; all changed paths live under `research/parallel-components/`.
 - Components actual PHP/HTTP/browser/schema job: **SUCCESS**; unrelated Security job deliberately **SKIPPED** by its scope guard, not a security audit.
-- Counted from actual job log: **37** PHP syntax checks, **598** PHP assertions in **17** scripts, **69** Python unittest cases (including **42** real Chromium). The genuine temporary Composer \`libphonenumber-for-php-lite:9.0.41\` and \`symfony/polyfill-mbstring:1.38.2\` integration **PASS**.
+- Counted from actual job log: **37** PHP syntax checks, **598** PHP assertions in **17** scripts, **69** Python unittest cases (including **42** real Chromium). The genuine temporary Composer `libphonenumber-for-php-lite:9.0.41` and `symfony/polyfill-mbstring:1.38.2` integration **PASS**.
 - Historical runs, e.g. Block 11 https://github.com/manufact-test/ai-site-cms/actions/runs/39509827314 (388 assertions /56 Python), Block 15 https://github.com/manufact-test/ai-site-cms/actions/runs/39569441636 (452/69), Block 16 https://github.com/manufact-test/ai-site-cms/actions/runs/39571717995 (563/69) are **older** exact SHAs; never treat them as current HEAD evidence.
 - The document-only handoff commit that contains this evidence is **newer than this tested code commit**. Run the PR workflow on the final documentation HEAD as an additional source/scope check; no production code changes occur in the documentation commit.
 
 ## Block 17 final review
 
-- Hardened \`CapabilityGate\` to reject malformed registry/rules and unsafe numeric/enum metadata without type exceptions.
-- \`RevisionGate\` rejects malformed candidate patches early; \`PreviewLab\` independently refuses valid-but-overly-wide values, including CSS pixels and inherited data unsafe for HTML/CSS.
-- Changed \`CapabilityGate.php\` and 3 PHP regression scripts (capability, revision, preview).
-- Test counts after Block 17: \`CapabilityGate\` **45**, \`RevisionGate\` **51**, \`PreviewLab\` **43** assertions; total **598**.
+- Hardened `CapabilityGate` to reject malformed registry/rules and unsafe numeric/enum metadata without type exceptions.
+- `RevisionGate` rejects malformed candidate patches early; `PreviewLab` independently refuses valid-but-overly-wide values, including CSS pixels and inherited data unsafe for HTML/CSS.
+- Changed `CapabilityGate.php` and 3 PHP regression scripts (capability, revision, preview).
+- Test counts after Block 17: `CapabilityGate` **45**, `RevisionGate` **51**, `PreviewLab` **43** assertions; total **598**.
 - There were intermediate non-green CI attempts while developing new tests; final exact code SHA run above is fully GREEN. No weakening/removal of safety checks to get green.
 
 ## Scope and observation details
