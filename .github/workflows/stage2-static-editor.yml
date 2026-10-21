@@ -34,6 +34,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Fail fast on signed release pipeline JS syntax before expensive browser and PHP jobs
+        working-directory: cms
+        run: |
+          node --check tools/lab-signed-offline-release.cjs
+          node --check tools/test-signed-offline-release.cjs
+          node --check tools/test-lab-authenticated-php-install.cjs
       - name: Install pinned upstream Jedison, esbuild and Chromium driver
         run: npm ci --no-audit --no-fund
       - name: Verify exact npm lock and declared licensing
