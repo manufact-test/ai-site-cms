@@ -115,7 +115,7 @@ function vhost(port,host,root,mode,upstream=0){
 }
 function apacheConfig(home,port,sites,fpmPort,sitePhpPort){
  const mod='/usr/lib/apache2/modules/';
- const modules=['mpm_event','authz_core','dir','mime','proxy','proxy_fcgi'];
+ const modules=['mpm_event','authz_core','dir','mime','alias','proxy','proxy_fcgi'];
  const global=[
  'ServerRoot "/etc/apache2"','ServerName localhost',
  'Listen 127.0.0.1:'+port,
