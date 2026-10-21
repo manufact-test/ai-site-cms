@@ -5,6 +5,7 @@ import path from 'node:path';
 import cp from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {verifyOsvEvidence,verifyRegistryEvidence} from './online-evidence-proof.mjs';
+import {evaluateResearchDecision} from './evidence-readiness-decision.mjs';
 const dirname=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(dirname,'../..');
 const args=process.argv.slice(2);
@@ -44,13 +45,13 @@ const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-live-independent-proof.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','sodium-real-zip-proof.mjs','sodium-real-zip-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
-  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','frozen-lock-baseline.mjs','frozen-lock-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','run-security-suite.mjs'];
+  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','frozen-lock-baseline.mjs','frozen-lock-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','evidence-readiness-decision.mjs','evidence-readiness-regression.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
   if(name.endsWith('.mjs'))entry('syntax:'+name,capture('node',['--check',path.join(dirname,name)]));
   else entry('syntax:'+name,capture(runtime,['-l',path.join(dirname,name)]));
 }
-for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest-regression.mjs','online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs']){
+for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-regression.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest-regression.mjs','online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','evidence-readiness-regression.mjs']){
   const result=entry('mutation:'+name,capture('node',[path.join(dirname,name)],{timeout:30000}));
   if(name==='osv-strict-regression.mjs')requireProof(result,
     /OSV strict-response \+ transport \+ lock fixture PASS 30 cases;/,
@@ -67,6 +68,9 @@ for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-r
   if(name==='online-evidence-regression.mjs')requireProof(result,
     /Online OSV and registry evidence offline regression PASS 54 assertions;/,
     '54 adversarial OSV online and saved advisory transcript assertions');
+  if(name==='evidence-readiness-regression.mjs')requireProof(result,
+    /Security evidence NO-GO release decision regression PASS 37 assertions;/,
+    '37 adversarial, source-identical readiness and false release approval rejections');
   if(name==='runtime-sodium-proof-regression.mjs')requireProof(result,
     /Sodium-free wrapper false-pass offline regression PASS 15 assertions;/,
     '15 fake-PHP classification and missing crypto-output proof regressions');
@@ -295,6 +299,7 @@ if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
 // Optional offline limitations still use the existing non-strict contract.
 const onlineComplete=!online||['online:OSV-strict43','online:version-registry']
   .every(name=>results.some(r=>r.name===name&&r.status==='passed'));
+const evidenceDecision=evaluateResearchDecision(results);
 const counts={passed:results.filter(x=>x.status==='passed').length,
   failed:results.filter(x=>x.status==='failed').length,
   blocked:results.filter(x=>x.status==='blocked').length};
@@ -303,7 +308,8 @@ const out={schema:'ai-site-cms-security-evidence-v1',environment:{node:process.v
   noIniSodiumProbe:isNoNative.stdout},timestamp:new Date().toISOString(),
   strict,online,onlineComplete,counts,allExecutedTestsPassed:counts.failed===0,
   complete:counts.failed===0&&counts.blocked===0&&onlineComplete,
-  productionApproved:false,licenseApproved:false,stage2Accepted:false,results};
+  productionApproved:false,licenseApproved:false,stage2Accepted:false,
+  evidenceDecision,results};
 console.log(JSON.stringify(out,null,2));
 // Print bounded named evidence to CI stderr: a green aggregate number is not
 // enough to prove which exact-head fixtures reached their final assertion count.
@@ -323,8 +329,19 @@ const proofNames=[
   'actual-lock:frozen-source-baseline','mutation:real-43-pin-source-swap',
   'upstream:real-signed-sodium-tag-git-tree','mutation:real-sodium-source-git-tree',
   'mutation:real-sodium-zip-parser','upstream:actual-github-composer-zip',
+  'mutation:evidence-readiness-regression.mjs',
   'online:OSV-actual43-observation'
 ];
+console.error('INDEPENDENT_SECURITY_RELEASE_DECISION '+JSON.stringify({
+  decision:evidenceDecision.releaseDecision,
+  strongResearchEvidence:evidenceDecision.evidence.observedStrongResearchEvidence,
+  sourceZipSha256:evidenceDecision.evidence.exactRealSourceArchiveSha256,
+  osvReportSha256:evidenceDecision.evidence.exactOsvReportSha256,
+  osvAdvisories:evidenceDecision.evidence.exactOsvAdvisoryReferences,
+  incompleteIndependentGates:evidenceDecision.independentBlockers.filter(x=>x.status!=='passed').map(x=>x.name),
+  fingerprint:evidenceDecision.evidence.evidenceFingerprintSha256,
+  qualifiedSignoffs:false,targetHostApproved:false,productionApproved:false
+}));
 console.error('INDEPENDENT_SECURITY_EXACT_HEAD_PROOFS '+JSON.stringify(
   proofNames.map(name=>{
     const r=results.find(x=>x.name===name);
