@@ -53,18 +53,20 @@
   }
   function build(raw){
     const project=P.validate(raw);
-    const menu=project.pages.map(p=>({id:p.id,title:p.title,slug:p.slug}));
+    const menu=project.pages.filter(p=>p.inMenu).map(p=>({id:p.id,title:p.title,slug:p.slug}));
     const files=project.pages.map(p=>({
       name:(p.slug||'index')+'.html',
       content:R.render(P.pageDoc(project,p),null,false,{
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
-        menu,active:p.id,exportLinks:true
+        menu,active:p.id,exportLinks:true,hiddenSections:p.hiddenSections,...project.settings
       })
     }));
     files.push({name:'project-backup.json',content:JSON.stringify(project,null,2)+'\n'});
     files.push({name:'README.txt',content:
       'AI Site CMS — offline demo export (Stage 2)\n\n'+
       'Unpack the archive and open index.html in a browser.\n'+
+      'Only menu-enabled pages are listed in navigation; every page is exported.\n'+
+      'Hidden sections are omitted from rendered HTML but retained in the backup JSON.\n'+
       'All navigation is local; no server, CMS, network access or form submission.\n'+
       'project-backup.json can be imported back into the local preview editor.\n'+
       'This is NOT a production build, deploy package, public site or publication.\n'+

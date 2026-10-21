@@ -1,44 +1,54 @@
 'use strict';
-/**
- * MULTI-PAGE Stage2 offline UX mock only. This is not a production schema,
- * website publishing, or an approved Stage3 content model.
- */
+/* Stage2 offline design-review project v3; neither production schema nor publisher. */
 (()=>{
   const C=window.CmsPreviewContent;
-  const format='ai-site-cms-stage2-multipage-preview-v2';
+  const format='ai-site-cms-stage2-multipage-preview-v3';
+  const previousFormat='ai-site-cms-stage2-multipage-preview-v2';
   const MAX_PAGES=8;
   let counter=1;
   const newId=()=> 'page-'+Date.now().toString(36)+'-'+(counter++).toString(36);
   const allowedKeys=(x,keys)=>Object.keys(x).sort().join('|')===keys.slice().sort().join('|');
+  const settings=()=>({headerNote:'',footerNote:'Создано в демонстрации AI Site CMS',showNavigation:true});
   function pageFromLegacy(doc){
-    const v=C.validate(doc);
-    return {id:newId(),title:'Главная',slug:'',seoTitle:v.siteTitle.slice(0,70),
+    const d=C.validate(doc);
+    return {id:newId(),title:'Главная',slug:'',seoTitle:d.siteTitle.slice(0,70),
       seoDescription:'Демонстрационный проект сайта и редактора AI Site CMS.',
-      sections:v.sections};
+      inMenu:true,hiddenSections:[],sections:d.sections};
   }
   function template(){
     const d=C.template();
-    return {format,siteTitle:d.siteTitle,theme:d.theme,pages:[pageFromLegacy(d)]};
+    return {format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),pages:[pageFromLegacy(d)]};
   }
   function validate(raw){
     if(!raw||typeof raw!=='object'||Array.isArray(raw)
-      ||!allowedKeys(raw,['format','siteTitle','theme','pages'])
+      ||!allowedKeys(raw,['format','siteTitle','theme','settings','pages'])
       ||raw.format!==format
       ||typeof raw.siteTitle!=='string'||raw.siteTitle.length<1||raw.siteTitle.length>100
       ||!Object.hasOwn(C.palette,raw.theme)
+      ||!raw.settings||typeof raw.settings!=='object'||Array.isArray(raw.settings)
+      ||!allowedKeys(raw.settings,['headerNote','footerNote','showNavigation'])
+      ||typeof raw.settings.headerNote!=='string'||raw.settings.headerNote.length>120||raw.settings.headerNote.includes('\0')
+      ||typeof raw.settings.footerNote!=='string'||raw.settings.footerNote.length>180||raw.settings.footerNote.includes('\0')
+      ||typeof raw.settings.showNavigation!=='boolean'
       ||!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>MAX_PAGES)
-      throw Error('Неизвестный формат многостраничного проекта');
+      throw Error('Неизвестный формат или настройки проекта');
     const ids=new Set(),slugs=new Set();
     let homepageCount=0;
     for(const page of raw.pages){
       if(!page||typeof page!=='object'||Array.isArray(page)
-        ||!allowedKeys(page,['id','title','slug','seoTitle','seoDescription','sections'])
+        ||!allowedKeys(page,['id','title','slug','seoTitle','seoDescription','inMenu','hiddenSections','sections'])
         ||typeof page.id!=='string'||!/^page-[a-z0-9-]{5,48}$/.test(page.id)||ids.has(page.id)
         ||typeof page.title!=='string'||page.title.length<1||page.title.length>90
         ||typeof page.slug!=='string'||(page.slug!==''&&!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(page.slug))||page.slug.length>70||slugs.has(page.slug)
         ||typeof page.seoTitle!=='string'||page.seoTitle.length<1||page.seoTitle.length>70
         ||typeof page.seoDescription!=='string'||page.seoDescription.length>180
-        ||page.seoDescription.includes('\0')||page.seoTitle.includes('\0')||page.title.includes('\0'))
+        ||page.seoDescription.includes('\0')||page.seoTitle.includes('\0')||page.title.includes('\0')
+        ||typeof page.inMenu!=='boolean'||(page.slug===''&&!page.inMenu)
+        ||!Array.isArray(page.hiddenSections)||page.hiddenSections.length>11
+        ||new Set(page.hiddenSections).size!==page.hiddenSections.length
+        ||!Array.isArray(page.sections)
+        ||page.hiddenSections.some(id=>typeof id!=='string'||!page.sections.some(s=>s.id===id))
+        ||page.hiddenSections.length>=page.sections.length)
         throw Error('Некорректные настройки или повторяющиеся адреса страниц');
       ids.add(page.id);slugs.add(page.slug);
       if(page.slug==='')homepageCount++;
@@ -49,26 +59,35 @@
   }
   function normalize(raw){
     if(raw&&raw.format===C.format){
-      const doc=C.validate(raw);
-      return validate({format,siteTitle:doc.siteTitle,theme:doc.theme,pages:[pageFromLegacy(doc)]});
+      const d=C.validate(raw);
+      return validate({format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),pages:[pageFromLegacy(d)]});
+    }
+    if(raw&&raw.format===previousFormat){
+      const next=structuredClone(raw);
+      next.format=format;next.settings=settings();
+      next.pages=next.pages.map(p=>({...p,inMenu:true,hiddenSections:[]}));
+      return validate(next);
     }
     return validate(raw);
   }
   function nextSlug(project,base='page'){
     let i=1,slug=base;
-    while(project.pages.some(p=>p.slug===slug)){
-      i++;slug=base+'-'+i;
-    }
+    while(project.pages.some(p=>p.slug===slug)){i++;slug=base+'-'+i;}
     return slug;
   }
   function createPage(project,source){
     if(project.pages.length>=MAX_PAGES)throw Error('Максимум восемь страниц');
     const from=source||project.pages[0],slug=nextSlug(project,source?'copy':'page');
+    const sections=source?from.sections.map(s=>({...structuredClone(s),id:C.createSection(s.type).id})):
+      [C.createSection('hero'),C.createSection('contact')];
+    const hiddenSections=source?from.sections.reduce((hidden,s,i)=>{
+      if(from.hiddenSections.includes(s.id))hidden.push(sections[i].id);
+      return hidden;
+    },[]):[];
     return {id:newId(),title:source?from.title.slice(0,80)+' (копия)':'Новая страница',
       slug,seoTitle:source?from.seoTitle:('Новая страница — '+project.siteTitle).slice(0,70),
-      seoDescription:source?from.seoDescription:'',
-      sections:source?from.sections.map(s=>({...structuredClone(s),id:C.createSection(s.type).id})):
-        [C.createSection('hero'),C.createSection('contact')]};
+      seoDescription:source?from.seoDescription:'',inMenu:source?from.inMenu:true,
+      hiddenSections,sections};
   }
   function starter(kind){
     const configs={
@@ -85,11 +104,10 @@
         ['Каталог','catalog','Ассортимент продукции',['catalog','services','leadform']],
         ['Доставка','delivery','Доставка и оформление заказа',['process','faq','contact']]]}
     };
-    const config=configs[kind];
-    if(!config)throw Error('Неизвестная заготовка');
+    const config=configs[kind];if(!config)throw Error('Неизвестная заготовка');
     const result=template();result.siteTitle=config.name;result.theme=config.theme;
     result.pages=config.pages.map(([title,slug,seoTitle,types],i)=>({
-      id:i===0?result.pages[0].id:newId(),title,slug,seoTitle,
+      id:i===0?result.pages[0].id:newId(),title,slug,seoTitle,inMenu:true,hiddenSections:[],
       seoDescription:'Демонстрационная страница «'+title+'». Замените описание своим текстом перед использованием.',
       sections:types.map(type=>{
         const s=C.createSection(type);
@@ -99,14 +117,15 @@
     }));
     return validate(result);
   }
-  function audit(input){
-    const doc=validate(input),warnings=[],seen=new Map();
+  function audit(raw){
+    const doc=validate(raw),warnings=[],seen=new Map();
     for(const pg of doc.pages){
       const add=(code,message)=>warnings.push({pageId:pg.id,pageTitle:pg.title,code,message});
       if(pg.seoTitle.trim().length<20)add('title','Уточните короткий SEO title');
       if(pg.seoDescription.trim().length<70)add('description','Добавьте информативное SEO description');
-      if(!pg.sections.some(s=>s.type==='hero'))add('heading','Нет главного блока hero: проверьте заголовок H1');
-      if(!pg.sections.some(s=>s.type==='contact'||s.type==='leadform'))add('contact','Нет блока связи или заявки');
+      const visible=pg.sections.filter(s=>!pg.hiddenSections.includes(s.id));
+      if(!visible.some(s=>s.type==='hero'))add('heading','Нет видимого главного блока hero: проверьте заголовок H1');
+      if(!visible.some(s=>s.type==='contact'||s.type==='leadform'))add('contact','Нет видимого блока связи или заявки');
       const canonical=pg.seoTitle.trim().toLowerCase();
       if(seen.has(canonical))add('duplicate','SEO title совпадает со страницей «'+seen.get(canonical)+'»');
       else seen.set(canonical,pg.title);
@@ -117,6 +136,6 @@
     return {format:C.format,siteTitle:project.siteTitle,theme:project.theme,sections:page.sections};
   }
   Object.defineProperty(window,'CmsPreviewProject',{value:Object.freeze({
-    format,MAX_PAGES,template,normalize,validate,createPage,pageDoc,starter,audit
+    format,previousFormat,MAX_PAGES,template,normalize,validate,createPage,pageDoc,starter,audit
   })});
 })();

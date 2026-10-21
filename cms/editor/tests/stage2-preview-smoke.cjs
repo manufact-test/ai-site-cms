@@ -147,6 +147,42 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#page-up').click();
     assert.equal(await page.locator('#page-list option').nth(1).getAttribute('value'),await page.locator('#page-list').inputValue());
 
+    // Unified site presentation: global header/footer; hide one page from
+    // navigation and one section from HTML, preserving editable project data.
+    await page.locator('.site-settings > summary').click();
+    await page.locator('#site-header-note').fill('Производственные решения · демо');
+    await page.locator('#site-footer-note').fill('© Пример компании 2026');
+    await page.locator('#page-list').selectOption({index:2});
+    if(!await page.locator('.page-settings').evaluate(el=>el.open)){
+      await page.locator('.page-settings > summary').click();
+    }
+    await page.locator('#page-in-menu').uncheck();
+    await page.locator('#page-list').selectOption({index:0});
+    await page.locator('#sections .section-select').nth(1).click();
+    assert.equal(await frame.locator('.cards').count(),1);
+    await page.locator('#section-visible').uncheck();
+    assert.equal(await frame.locator('.cards').count(),0,'hidden section vanishes from site HTML');
+    assert.equal(await page.locator('#sections li.is-hidden').count(),1,'hidden section stays editable');
+    assert.match(await frame.locator('.site-brand-note').innerText(),/Производственные решения/);
+    assert.match(await frame.locator('.foot').innerText(),/Пример компании/);
+    assert.equal(await frame.locator('.menu [data-preview-page]').count(),2,'hidden menu page excluded');
+    await page.locator('#site-navigation').uncheck();
+    assert.equal(await frame.locator('.menu').count(),0,'site-wide menu can be disabled');
+    await page.locator('#site-navigation').check();
+    assert.equal(await frame.locator('.menu').count(),1);
+    // Old v2 JSON snapshots migrate without dropping pages or edited blocks.
+    const legacy=await page.evaluate(()=>{
+      const P=window.CmsPreviewProject;
+      const v=P.starter('agency');
+      v.format=P.previousFormat;delete v.settings;
+      v.pages.forEach(pg=>{delete pg.inMenu;delete pg.hiddenSections;});
+      const migrated=P.normalize(v);
+      return {format:migrated.format,pages:migrated.pages.length,settings:migrated.settings,valid:P.validate(migrated).format};
+    });
+    assert.equal(legacy.format,legacy.valid);
+    assert.equal(legacy.pages,3);
+    assert.equal(legacy.settings.showNavigation,true);
+
     // Product flow C: download a real offline ZIP with navigation, per-page SEO and a JSON backup.
     const zipped=page.waitForEvent('download');
     await page.locator('#project-actions summary').click();
@@ -157,8 +193,16 @@ const root=path.resolve(__dirname,'../..');
     assert.ok(zipFiles.includes('index.html')&&zipFiles.includes('services.html'));
     assert.ok(zipFiles.includes('project-backup.json')&&zipFiles.includes('README.txt'));
     const siteHTML=execFileSync('unzip',['-p',zipPath,'index.html'],{encoding:'utf8'});
-    assert.match(siteHTML,/href="services\.html"/);
+    assert.doesNotMatch(siteHTML,/href="services\.html"/,'excluded page is absent from navigation');
+    assert.doesNotMatch(siteHTML,/class="cards"/,'hidden section omitted from exported HTML');
+    assert.match(siteHTML,/Производственные решения/);
+    assert.match(siteHTML,/Пример компании 2026/);
     assert.match(siteHTML,/<meta name="description"/);
+    const backup=JSON.parse(execFileSync('unzip',['-p',zipPath,'project-backup.json'],{encoding:'utf8'}));
+    assert.equal(backup.format,'ai-site-cms-stage2-multipage-preview-v3');
+    assert.equal(backup.pages.find(p=>p.slug==='services').inMenu,false);
+    assert.equal(backup.pages[0].hiddenSections.length,1);
+    assert.ok(backup.pages[0].sections.some(section=>section.id===backup.pages[0].hiddenSections[0]));
     assert.doesNotMatch(siteHTML,/<script[\s>]/i);
 
     // Product flow A: open three complete preset sites with 11 editable section kinds.

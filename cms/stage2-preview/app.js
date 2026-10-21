@@ -10,7 +10,7 @@
     pageList:$('page-list'),pageTitle:$('page-title'),slug:$('page-slug'),
     seoTitle:$('seo-title'),seoDescription:$('seo-description'),
     seoSnippetTitle:$('seo-snippet-title'),seoSnippetDescription:$('seo-snippet-description'),
-    seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url'),audit:$('audit-results'),auditCount:$('audit-count')};
+    seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url'),audit:$('audit-results'),auditCount:$('audit-count'),sectionVisible:$('section-visible')};
   const storageKey='ai-site-cms-stage2-preview-local-v1',LIMIT=8;
   const reviewKey='ai-site-cms-stage2-preview-feedback-v1',MAX_REVIEW=50;
   let project=P.template(),pageId=project.pages[0].id,doc,selection='',editor=null,
@@ -211,6 +211,8 @@
       ui.pageList.append(option);
     });
     ui.pageList.value=pageId;
+    $('page-in-menu').checked=p.inMenu;
+    $('page-in-menu').disabled=p.slug==='';
     renderPageTree();
     $('active-breadcrumb').textContent=project.siteTitle+' / '+p.title;
     ui.pageTitle.value=p.title;ui.slug.value=p.slug;ui.seoTitle.value=p.seoTitle;
@@ -271,7 +273,8 @@
       const p=activePage();
       ui.frame.srcdoc=R.render(doc,selection,focus==='section',{
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
-        menu:project.pages.map(x=>({id:x.id,title:x.title,slug:x.slug})),active:pageId
+        menu:project.pages.filter(x=>x.inMenu).map(x=>({id:x.id,title:x.title,slug:x.slug})),
+        active:pageId,hiddenSections:p.hiddenSections,...project.settings
       });
       ui.count.textContent=doc.sections.length+' блоков';
       ui.seoSnippetTitle.textContent=p.seoTitle;
@@ -303,7 +306,7 @@
       if(search&&!((C.definitions[s.type].label+' '+description).toLowerCase().includes(search)))return;
       visible++;
       const li=document.createElement('li'),active=s.id===selection;
-      li.className='section-row'+(active?' selected':'');
+      li.className='section-row'+(active?' selected':'')+(activePage().hiddenSections.includes(s.id)?' is-hidden':'');
       const pick=document.createElement('button');pick.type='button';pick.className='section-select';
       pick.title='Редактировать блок';pick.setAttribute('aria-pressed',String(active));
       const icon=document.createElement('span');icon.className='section-icon';
@@ -312,13 +315,21 @@
       const name=document.createElement('strong');name.textContent=C.definitions[s.type].label;
       const subtitle=document.createElement('small');
       subtitle.textContent=Object.values(s.props).find(x=>typeof x==='string'&&x)||'Без текста';
-      names.append(name,subtitle);pick.append(icon,names);
+      names.append(name,subtitle);
+      if(activePage().hiddenSections.includes(s.id)){
+        const mark=document.createElement('small');mark.className='visibility-label';mark.textContent='Скрыта на сайте';
+        names.append(mark);
+      }
+      pick.append(icon,names);
       pick.addEventListener('click',()=>select(s.id));
       const tools=document.createElement('div');tools.className='section-actions';
       tools.append(tiny('↑','Поднять блок выше',()=>move(i,-1),i===0),
         tiny('↓','Опустить блок ниже',()=>move(i,1),i===doc.sections.length-1),
         tiny('⧉','Дублировать блок',()=>duplicate(i),doc.sections.length>=12),
-        tiny('×','Удалить блок',()=>remove(i),doc.sections.length<=1));
+        tiny('×','Удалить блок',()=>remove(i),doc.sections.length<=1),
+        tiny(activePage().hiddenSections.includes(s.id)?'◌':'◉',
+          activePage().hiddenSections.includes(s.id)?'Показать секцию':'Скрыть секцию',
+          ()=>toggleSection(s.id,activePage().hiddenSections.includes(s.id)),false));
       li.append(pick,tools);ui.list.append(li);
     });
     $('section-empty').hidden=visible!==0;
@@ -326,6 +337,8 @@
   function mount(){
     if(editor){editor.destroy();editor=null;}
     const s=current();if(!s)return;
+    ui.sectionVisible.checked=!activePage().hiddenSections.includes(s.id);
+    ui.sectionVisible.disabled=false;
     ui.info.textContent=C.definitions[s.type].label+' · меняйте свойства выбранной страницы';
     ui.fields.replaceChildren();
     editor=E.mount({container:ui.fields,schema:C.schema(s.type),data:s.props,onChange(value){
@@ -339,6 +352,9 @@
     const valid=P.normalize(next);
     if(editor){editor.destroy();editor=null;}
     project=valid;
+    $('site-header-note').value=project.settings.headerNote;
+    $('site-footer-note').value=project.settings.footerNote;
+    $('site-navigation').checked=project.settings.showNavigation;
     pageId=project.pages.some(p=>p.id===preferredPage)?preferredPage:project.pages[0].id;
     bind();
     selection=doc.sections.some(s=>s.id===preferredSection)?preferredSection:doc.sections[0].id;
@@ -386,6 +402,28 @@
     checkpoint('pages');project.pages=project.pages.filter(x=>x.id!==pageId);
     selectPage(project.pages[0].id);changed();toast('Страница удалена — можно отменить');
   }
+  function editSettings(field,value){
+    if(project.settings[field]===value)return;
+    if((field==='headerNote'&&value.length>120)||(field==='footerNote'&&value.length>180)||String(value).includes('\0')){
+      toast('Некорректная длина настройки сайта',true);return;
+    }
+    checkpoint('settings:'+field,true);project.settings[field]=value;
+    changed();toast('Настройки сайта изменены в локальном черновике');
+  }
+  function toggleSection(id,show){
+    const p=activePage(),s=p.sections.find(s=>s.id===id);
+    if(!s)return;
+    const hidden=p.hiddenSections.includes(id);
+    if(hidden===!show)return;
+    if(!show&&p.sections.length-p.hiddenSections.length<=1){
+      toast('Нужно оставить минимум одну видимую секцию на странице',true);
+      ui.sectionVisible.checked=true;return;
+    }
+    checkpoint('section-visibility');
+    p.hiddenSections=show?p.hiddenSections.filter(k=>k!==id):[...p.hiddenSections,id];
+    listing();mount();changed();
+    toast(show?'Секция снова видима на сайте':'Секция скрыта на сайте и сохранена для редактирования');
+  }
   function editPage(field,value){
     const p=activePage();
     if(p[field]===value)return;
@@ -399,7 +437,7 @@
     if(field==='title'&&(!value||value.length>90)){toast('Название страницы: 1–90 символов',true);return;}
     if(field==='seoTitle'&&(!value||value.length>70)){toast('SEO-заголовок: 1–70 символов',true);return;}
     checkpoint('page:'+pageId+':'+field,true);p[field]=value;
-    if(field==='title'||field==='slug')pageUI();
+    if(field==='title'||field==='slug'||field==='inMenu')pageUI();
     changed();
   }
   function move(i,delta){
@@ -410,6 +448,7 @@
   function remove(i){
     if(doc.sections.length<=1)return;
     checkpoint('structure');const s=doc.sections.splice(i,1)[0];
+    activePage().hiddenSections=activePage().hiddenSections.filter(id=>id!==s.id);
     if(s.id===selection)selection=doc.sections[Math.min(i,doc.sections.length-1)].id;
     listing();mount();changed();toast('Блок удалён');
   }
@@ -539,6 +578,11 @@
       const menu=$('project-actions');
       if(menu.open&&!menu.contains(e.target))menu.open=false;
     });
+    $('site-header-note').addEventListener('input',()=>editSettings('headerNote',$('site-header-note').value));
+    $('site-footer-note').addEventListener('input',()=>editSettings('footerNote',$('site-footer-note').value));
+    $('site-navigation').addEventListener('change',()=>editSettings('showNavigation',$('site-navigation').checked));
+    ui.sectionVisible.addEventListener('change',()=>{const s=current();if(s)toggleSection(s.id,ui.sectionVisible.checked);});
+    $('page-in-menu').addEventListener('change',()=>editPage('inMenu',$('page-in-menu').checked));
     $('starter-apply').addEventListener('click',starter);
     $('copy-section').addEventListener('click',copySection);
     $('download-site').addEventListener('click',downloadSite);

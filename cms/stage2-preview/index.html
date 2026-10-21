@@ -43,6 +43,15 @@
       <input id="site-title" maxlength="100" autocomplete="off" aria-label="Название проекта">
       <label class="field-label" for="theme">Цветовая тема</label>
       <select id="theme" aria-label="Цветовая тема"><option value="ocean">Океан · синий</option><option value="forest">Лес · зелёный</option><option value="coral">Коралл · оранжевый</option></select>
+      <details class="site-settings">
+        <summary>Общие настройки сайта</summary>
+        <label class="field-label" for="site-header-note">Подпись возле названия</label>
+        <input id="site-header-note" maxlength="120" placeholder="Например, промышленное оборудование">
+        <label class="field-label" for="site-footer-note">Текст в подвале</label>
+        <input id="site-footer-note" maxlength="180" placeholder="Информация о компании">
+        <label class="toggle-line"><input id="site-navigation" type="checkbox" checked><span>Показывать меню на сайте</span></label>
+        <p class="setting-helper">Действуют на всех страницах и включаются в локальный экспорт.</p>
+      </details>
       <div class="starter-bar">
         <label class="field-label" for="starter-type">Готовые заготовки (3 страницы)</label>
         <div class="starter-row"><select id="starter-type"><option value="industrial">Промышленный завод</option><option value="agency">Диджитал-студия</option><option value="products">Каталог товаров</option></select><button id="starter-apply" class="button dark" type="button">Открыть</button></div>
@@ -59,6 +68,8 @@
         </div>
         <details class="page-settings">
           <summary>Настройки страницы и SEO</summary>
+          <label class="toggle-line"><input id="page-in-menu" type="checkbox" checked><span>Показывать страницу в меню</span></label>
+          <p class="setting-helper">Скрытая из меню страница остаётся в проекте и экспортируется.</p>
           <label class="field-label" for="page-title">Название в меню</label>
           <input id="page-title" maxlength="90" aria-label="Название страницы">
           <label class="field-label" for="page-slug">Адрес страницы (латиницей)</label>
@@ -98,7 +109,10 @@
       <div class="preview-stage"><div class="browser-shell" id="browser"><div class="browser-bar"><span class="traffic" aria-hidden="true">● ● ●</span><span id="preview-url">demo.local / index</span><button id="expand-preview" class="live-indicator preview-expand" type="button" aria-pressed="false">⤢ Развернуть</button></div><iframe id="preview" title="Предпросмотр сайта с выбором блоков" sandbox="allow-same-origin" referrerpolicy="no-referrer"></iframe></div></div>
       <div class="canvas-caption">Кликните по блоку прямо на макете, чтобы открыть его свойства. Меню страниц в предпросмотре тоже работает. Полноэкранный режим — для просмотра без панелей. Публикации здесь нет.</div>
     </section>
-    <aside class="panel inspector" aria-labelledby="inspector-title"><div class="panel-top"><div><span class="small-title">ИНСПЕКТОР</span><h2 id="inspector-title">Свойства секции</h2></div><span class="inspector-symbol" aria-hidden="true">✦</span></div><p class="inspector-intro" id="selection-info">Выберите секцию на макете.</p><div id="fields" aria-live="off"></div><details class="review-notes"><summary>Замечания к макету <span id="review-count">0</span></summary>
+    <aside class="panel inspector" aria-labelledby="inspector-title"><div class="panel-top"><div><span class="small-title">ИНСПЕКТОР</span><h2 id="inspector-title">Свойства секции</h2></div><span class="inspector-symbol" aria-hidden="true">✦</span></div><p class="inspector-intro" id="selection-info">Выберите секцию на макете.</p>
+      <label class="section-toggle"><input id="section-visible" type="checkbox" checked><span>Показывать секцию на сайте</span></label>
+      <p class="setting-helper section-helper">Скрытая секция остаётся доступной для редактирования и возвращается одним переключателем.</p>
+      <div id="fields" aria-live="off"></div><details class="review-notes"><summary>Замечания к макету <span id="review-count">0</span></summary>
   <p class="review-help">Заметки сохраняются в этом браузере отдельно от версий сайта. Это обратная связь по макету, не приёмка Stage 2.</p>
   <p class="review-context" id="review-context">Выберите блок для замечания</p>
   <label class="field-label" for="review-kind">Тип замечания</label>
