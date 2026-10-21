@@ -121,7 +121,8 @@ try{
     encoding:'utf8',env:{...process.env,...env}});
   let cli=run(ownerTool,['--build',...reviewArgs]);
   ok(cli.status===0,'full owner CLI verifies independently pinned complete signed reviewer attestation');
-  const report=owner.readEvidence(path.join(legal.OUT,'stage2-owner-decision.json'));
+  const report=JSON.parse(fs.readFileSync(path.join(legal.OUT,
+    'stage2-owner-decision.json'),'utf8'));
   ok(report.signedLegalReviewProof?.signedWorksheetSha256
     ===legal.digest(legal.stable(w))&&report.stage2Accepted===false,
     'CLI packet persisted with complete signed legal custody but no approval');
