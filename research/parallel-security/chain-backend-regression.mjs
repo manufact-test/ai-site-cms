@@ -11,12 +11,53 @@ import {fileURLToPath} from 'node:url';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(here,'../..');
 const mode=process.argv[2]??'native';
-if(!['native','compat','matrix','forced-class'].includes(mode)||process.argv.length>3){
-  console.error('Usage: node chain-backend-regression.mjs [native|compat|matrix|forced-class]');
+if(!['native','compat','matrix','forced-class','pinned-main-dispatch'].includes(mode)||process.argv.length>3){
+  console.error('Usage: node chain-backend-regression.mjs [native|compat|matrix|forced-class|pinned-main-dispatch]');
   process.exit(2);
 }
-const gate=path.join(root,'cms/src/Release/LabSettledUpgradeGate.php');
-if(!fs.existsSync(gate)){console.error('BLOCKED: original settlement verifier missing');process.exit(3);}
+// The PR base SHA is deliberately old. Independently pin ONE integrator-owned
+// fixed settlement source and its three byte-identical PHP dependencies. Test
+// in a temporary private copy, never modify CMS source or CI workflow.
+const pinnedMode=mode==='pinned-main-dispatch';
+const pinnedSources=[
+  ['LabSettledUpgradeGate.php','51181e31b393e9d5cb67da5e23ebcb6f0ef8c5e1',true],
+  ['Ed25519Backend.php','da5b9fbd9ce80ea9ee37ea5131cf6d1b198c6134',false],
+  ['LabAttestedActivationGate.php','fe7f845df11db8db8fa5e7b35b9ddb81244ab0fb',false],
+  ['LabPreauthorizedUpgradeGate.php','ed838b6a6379c8ba2cf38a85facb2d66c7611f03',false]
+];
+const blobSha=bytes=>crypto.createHash('sha1').update('blob '+bytes.length+'\\0').update(bytes).digest('hex');
+let stagedSourceDir=null;
+function preparePinnedSource(){
+  stagedSourceDir=fs.mkdtempSync(path.join(os.tmpdir(),'ai-site-cms-pinned-settlement-source-'));
+  for(const [name,expected,isFixed] of pinnedSources){
+    const original=isFixed
+      ?path.join(here,'fixtures','pinned-main-fixed-settlement.php')
+      :path.join(root,'cms','src','Release',name);
+    const stat=fs.lstatSync(original);
+    if(!stat.isFile()||stat.isSymbolicLink()||stat.nlink!==1||stat.size<100||stat.size>200000)
+      throw new Error('BLOCKED: unsafe original pinned PHP source: '+name);
+    const raw=fs.readFileSync(original);
+    if(raw.length!==stat.size||blobSha(raw)!==expected)
+      throw new Error('BLOCKED: pinned PHP source byte hash mismatch: '+name);
+    fs.writeFileSync(path.join(stagedSourceDir,name),raw,{mode:0o600});
+  }
+  const fixed=fs.readFileSync(path.join(stagedSourceDir,'LabSettledUpgradeGate.php'),'utf8');
+  if(!fixed.includes("require_once __DIR__ . '/Ed25519Backend.php';")||
+      !fixed.includes('Ed25519Backend::verifyDetached($sig, self::DOMAIN . $raw, $public)')||
+      fixed.includes('!sodium_crypto_sign_verify_detached($sig, self::DOMAIN . $raw, $public)'))
+    throw Error('BLOCKED: fixed settlement source not using shared backend');
+}
+let gate=path.join(root,'cms/src/Release/LabSettledUpgradeGate.php');
+try {
+  if(pinnedMode) {
+    preparePinnedSource();
+    gate=path.join(stagedSourceDir,'LabSettledUpgradeGate.php');
+  }
+  if(!fs.existsSync(gate))throw Error('BLOCKED: original settlement verifier missing');
+} catch(e) {
+  if(stagedSourceDir)fs.rmSync(stagedSourceDir,{recursive:true,force:true});
+  console.error(String(e.message||e));process.exit(3);
+}
 const phpNative=process.env.PHP_BINARY||'php', phpCompat=process.env.PHP_NO_SODIUM_BIN;
 const env={...process.env,CI:'true',CMS_ALLOW_PHP_INSTALL_LAB:'1'};
 const exec=(bin,args,timeout=15000)=>cp.spawnSync(bin,args,{encoding:'utf8',timeout,
@@ -290,29 +331,46 @@ try {
     return accepted;
   };
   if(mode==='compat'||mode==='matrix')preflight();
-  const attestationBefore=(mode==='native'||mode==='forced-class')?null:attest();
-  const native=mode==='native'||mode==='matrix'?suite('native'):null;
-  if(mode==='forced-class')suite('forced-class');
+  const attestationBefore=(mode==='native'||mode==='forced-class'||pinnedMode)?null:attest();
+  const native=mode==='native'||mode==='matrix'||pinnedMode?suite('native'):null;
+  const forced=pinnedMode||mode==='forced-class'?suite('forced-class'):null;
   const compat=mode==='compat'||mode==='matrix'?suite('compat'):null;
   if(attestationBefore!==null&&attest()!==attestationBefore)
     throw new Error('BLOCKED: sodium_compat source attestation changed after tests');
-  if(assertions!==(mode==='matrix'?120:60))
+  if(assertions!==((mode==='matrix'||pinnedMode)?120:60))
     throw new Error('Proof assertion count incomplete: '+assertions);
   if(mode==='matrix'&&(native.head!==compat.head||native.count!==compat.count))
     throw new Error('Native/compat computed different exact signed chain heads');
+  if(pinnedMode){
+    if(native.head!==forced.head||native.count!==forced.count ||
+       transcript.length!==120 ||
+       transcript.slice(0,60).some((n,i)=>{
+         const f=transcript[i+60];
+         return n.label!==f.label||n.status!==f.status||
+           n.backend!=='native'||f.backend!=='forced-class'||
+           n.globalVerifier!==true||f.globalVerifier!==false;
+       }))
+      throw Error('Pinned corrected settlement did not preserve 60-case native/class dispatch parity');
+    // Verify copied executable PHP bytes were not changed during tests.
+    for(const [name,digest] of pinnedSources)
+      if(blobSha(fs.readFileSync(path.join(stagedSourceDir,name)))!==digest)
+        throw Error('Pinned PHP source altered during cryptographic checks');
+  }
   // Emit the machine-readable full transcript first, followed by a compact
   // final proof marker. The parent suite intentionally retains only the last
   // 1600 stdout bytes, so a large audit transcript must not erase PASS evidence.
   console.log(JSON.stringify({mode,assertions,productionApproved:false,
     nativeFreeProven:mode==='compat'||mode==='matrix',parityCompared:mode==='matrix',
-    forcedClassOnNative:mode==='forced-class',transcript}));
+    forcedClassOnNative:mode==='forced-class'||pinnedMode,
+    pinnedFixedMainSourceTested:pinnedMode,pinnedGitBlobSha:pinnedMode?pinnedSources[0][1]:null,transcript}));
   console.log('Chain Ed25519 backend signed-chain regression PASS '+assertions+
     ' assertions; mode='+mode+'; real original PHP verifiers; '+
-    (mode==='native'?'NO no-native proof':mode==='forced-class'?'CLASS ROUTING ON NATIVE SODIUM, NOT TRUE POLYFILL':'physical no-native and source pre/post attested')+
+    (pinnedMode?'FROZEN PINNED FIXED-MAIN SOURCE, 2 NATIVE ROUTES, NOT LIVE MAIN OR NATIVE-FREE':mode==='native'?'NO no-native proof':mode==='forced-class'?'CLASS ROUTING ON NATIVE SODIUM, NOT TRUE POLYFILL':'physical no-native and source pre/post attested')+
     '; NOT production approval');
 }catch(e){
   const m=String(e.message||e);
   console.error(m);process.exitCode=m.startsWith('BLOCKED:')?3:1;
 }finally{
   if(fs.existsSync(scratch))fs.rmSync(scratch,{recursive:true,force:true});
+  if(stagedSourceDir)fs.rmSync(stagedSourceDir,{recursive:true,force:true});
 }

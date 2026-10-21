@@ -149,6 +149,10 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
     capture('node',[path.join(dirname,'chain-backend-regression.mjs'),'native'],{timeout:90000})),
     /Chain Ed25519 backend signed-chain regression PASS 60 assertions; mode=native;/,
     '60 actual independently Node-signed native PHP chain assertions, including re-signed hostile records and filesystem tampering');
+  requireProof(entry('native:pinned-fixed-main-dispatch-parity',
+    capture('node',[path.join(dirname,'chain-backend-regression.mjs'),'pinned-main-dispatch'],{timeout:120000})),
+    /Chain Ed25519 backend signed-chain regression PASS 120 assertions; mode=pinned-main-dispatch;.*FROZEN PINNED FIXED-MAIN SOURCE/,
+    '120 independently signed policy assertions against one SHA1 Git-blob pinned fixed-main source plus unchanged original 3 PHP dependencies; NOT CI current main');
   requireProof(entry('native:class-only-backend-primitive',
     capture('node',[path.join(dirname,'class-only-backend-proof.mjs')],{timeout:30000})),
     /Native Ed25519 forced class-only dispatch PASS 8 real signatures\/forgeries;/,
@@ -215,7 +219,8 @@ console.log(JSON.stringify(out,null,2));
 const proofNames=[
   'native:operator-receipt-chain','native:operator-preactivation-permit',
   'native:operator-settlement-chain','native:node-signed-chain',
-  'native:forced-class-signed-chain','native:class-only-backend-primitive',
+  'native:forced-class-signed-chain','native:pinned-fixed-main-dispatch-parity',
+  'native:class-only-backend-primitive',
   'source:common-ed25519-backend','mutation:ed25519-source-audit',
   'native:trust-root-rotation',
   'mutation:osv-strict-regression.mjs','mutation:osv-cli-regression.mjs',
