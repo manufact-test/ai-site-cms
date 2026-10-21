@@ -100,6 +100,13 @@ refuse(()=>owner.assemble(dossier,{},null,null,{...opts,attestation:null}),
 const otherDossier=clone(dossier);otherDossier.noticeSha256='f'.repeat(64);
 refuse(()=>owner.assemble(otherDossier,{},null,null,opts),
    'different source package notice fingerprint cannot reuse signed review');
+// CLI writes the canonical owner-review output. Synthetic CI attestations
+// must NEVER remain in that directory or enter a distributable handoff.
+const ownerOutputNames=['stage2-owner-decision.json','stage2-owner-decision.html'];
+const ownerOutputBefore=new Map(ownerOutputNames.map(name=>{
+  const file=path.join(legal.OUT,name);
+  return [name,fs.existsSync(file)?fs.readFileSync(file):null];
+}));
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'ai-stage2-owner-legal-'));
 try{
   const dirs=['worksheet','reviewer-signature','trusted-public','duplicate'];
@@ -147,6 +154,18 @@ try{
   fs.symlinkSync(signed,worksheet);
   cli=run(ownerTool,['--build',...reviewArgs]);
   ok(cli.status===3,'owner CLI refuses symlink reviewer input');
-}finally{fs.rmSync(root,{recursive:true,force:true});}
+ }finally{
+  for(const [name,bytes] of ownerOutputBefore){
+    const file=path.join(legal.OUT,name);
+    if(bytes===null)fs.rmSync(file,{force:true});
+    else fs.writeFileSync(file,bytes,{mode:0o600});
+  }
+  fs.rmSync(root,{recursive:true,force:true});
+}
+for(const [name,bytes] of ownerOutputBefore){
+  const file=path.join(legal.OUT,name);
+  ok(bytes===null?!fs.existsSync(file):fs.readFileSync(file).equals(bytes),
+    'synthetic reviewer signatures never persist to canonical owner output: '+name);
+}
 process.stdout.write('Stage2 owner + human legal review signed custody: '+passed+
   ' assertions PASS (synthetic ephemeral keys only; no target writes, legal approval or Stage3).\n');
