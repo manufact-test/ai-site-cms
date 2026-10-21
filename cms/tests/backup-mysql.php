@@ -43,6 +43,31 @@ $source->exec('UPDATE cms_installation SET storage_generation=6789');
 $sourceSnapshot=(new FoundationSnapshot($source))->export('backup-demo');
 mysqlCheck(FoundationSnapshot::verify($sourceSnapshot,'backup-demo')['storage_generation']==='6789',
     'Source snapshot verifies metadata before restore');
+$payload=json_decode($sourceSnapshot,true,16,JSON_THROW_ON_ERROR);
+$spoofedSnapshots=[
+    'duplicate_owner' => str_replace('"site_id":',
+        '"site_id":"foreign-site","site_id":', $sourceSnapshot),
+    'duplicate_checksum' => str_replace('"sha256":',
+        '"sha256":"'.str_repeat('0',64).'","sha256":', $sourceSnapshot),
+    'reordered_fields' => json_encode([
+        'sha256'=>$payload['sha256'],'site_id'=>$payload['site_id'],
+        'schema_version'=>$payload['schema_version'],
+        'storage_generation'=>$payload['storage_generation'],
+        'format'=>$payload['format']
+    ],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES),
+    'trailing_space' => $sourceSnapshot.' ',
+    'escaped_field_name' => str_replace('"format":', '"\\u0066ormat":', $sourceSnapshot)
+];
+foreach($spoofedSnapshots as $why=>$attack){
+    mysqlCheck($attack!==$sourceSnapshot,'Hostile signed-state fixture distinct: '.$why);
+    mysqlReject(static fn()=> FoundationSnapshot::verify($attack,'backup-demo'),
+        'Malformed canonical MySQL foundation input refused: '.$why);
+    mysqlReject(static fn()=> (new FoundationSnapshot($target))->restoreToFreshCiDatabase(
+        $attack,'backup-demo'), 'No DDL or mutation for hostile restore input: '.$why);
+    mysqlCheck($targetSchema->inspectSite('backup-demo')['state']==='uninitialized',
+        'MySQL destination stays physically empty: '.$why);
+}
+
 $restore=new FoundationSnapshot($target);
 $restore->restoreToFreshCiDatabase($sourceSnapshot,'backup-demo');
 mysqlCheck($restore->export('backup-demo')===$sourceSnapshot,
