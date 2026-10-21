@@ -64,6 +64,8 @@ class HttpBoundary(unittest.TestCase):
         self.assertIn('aria-controls="site-nav" hidden',html)
         self.assertIn('aria-label="Среда сайта" hidden',html)
         self.assertIn('id="dialog-nojs"',html)
+        self.assertIn('id="form-errors" role="alert" aria-live="assertive" hidden', html)
+        self.assertIn('name="phone_region" aria-describedby="phone_region-error"', html)
         self.assertNotIn('id="panel-react" role="tabpanel" aria-labelledby="tab-react" tabindex="0" hidden',html)
 
     def test_post_and_configuration_gate(self):

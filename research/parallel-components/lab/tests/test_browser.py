@@ -508,4 +508,102 @@ class BrowserLab(unittest.TestCase):
                 finally:
                     page.close()
 
+
+    def test_keyboard_menu_tab_exit_and_desktop_resize_preserve_focus(self):
+        page=self.new_page(viewport={'width':320,'height':650})
+        try:
+            page.locator('#nav-toggle').focus()
+            page.keyboard.press('Enter')
+            self.assertEqual(page.locator('#nav-toggle').get_attribute('aria-expanded'),'true')
+            page.keyboard.press('Tab')
+            self.assertTrue(page.locator('#site-nav').evaluate('(el)=>el.contains(document.activeElement)'))
+            for _ in range(5): page.keyboard.press('Tab')
+            page.wait_for_function("document.querySelector('#nav-toggle').getAttribute('aria-expanded')==='false'")
+            self.assertFalse(page.locator('#site-nav').is_visible())
+            page.locator('#nav-toggle').focus()
+            page.keyboard.press('Enter')
+            page.set_viewport_size({'width':900,'height':650})
+            page.wait_for_function("document.activeElement.matches('#site-nav a')")
+            self.assertEqual(page.locator('#nav-toggle').get_attribute('aria-expanded'),'false')
+            self.assertTrue(page.locator('#site-nav').is_visible())
+            page.set_viewport_size({'width':320,'height':650})
+            self.assertFalse(page.locator('#site-nav').is_visible())
+        finally: page.close()
+
+    def test_rtl_keyboard_tabs_follow_visual_arrow_order(self):
+        page=self.new_page(viewport={'width':375,'height':700})
+        try:
+            page.evaluate("document.documentElement.dir='rtl'")
+            page.locator('#tab-php').focus()
+            page.keyboard.press('ArrowLeft')
+            self.assertEqual(page.locator('#tab-react').get_attribute('aria-selected'),'true')
+            self.assertTrue(page.locator('#panel-php').is_hidden())
+            page.keyboard.press('ArrowRight')
+            self.assertEqual(page.locator('#tab-php').get_attribute('aria-selected'),'true')
+            page.keyboard.press('End')
+            self.assertEqual(page.locator('#tab-react').get_attribute('aria-selected'),'true')
+            page.keyboard.press('Home')
+            self.assertEqual(page.locator('#tab-php').get_attribute('aria-selected'),'true')
+            self.assertEqual(page.locator('[role="tab"][tabindex="0"]').count(),1)
+            self.assertTrue(page.evaluate('document.documentElement.scrollWidth<=innerWidth'))
+        finally: page.close()
+
+    def test_dialog_guard_against_reentry_and_missing_focus_destination(self):
+        page=self.new_page(viewport={'width':320,'height':620},reduced_motion='reduce')
+        try:
+            page.locator('#open-dialog').click()
+            page.evaluate("document.querySelector('#open-dialog').click()")
+            self.assertTrue(page.locator('#info-dialog').evaluate('(el)=>el.open'))
+            self.assertTrue(page.locator('#close-dialog').evaluate('(el)=>el===document.activeElement'))
+            page.keyboard.press('Escape')
+            page.wait_for_function("document.activeElement.id==='open-dialog'")
+            page.locator('#open-dialog').click()
+            page.locator('#dialog-faq').click()
+            page.wait_for_function("document.activeElement.id==='faq'")
+        finally: page.close()
+
+    def test_error_summary_links_hidden_wizard_fields_and_clears_after_edit(self):
+        page=self.new_page(viewport={'width':320,'height':690})
+        try:
+            page.locator('#wizard-next').click()
+            self.assertTrue(page.locator('#form-errors').is_visible())
+            self.assertIn('от 2 до 100', page.locator('#form-errors').inner_text())
+            self.assertEqual(page.locator('#form-errors a[href="#name"]').count(),1)
+            page.locator('#name').fill('Мария')
+            self.assertEqual(page.locator('#form-errors a[href="#name"]').count(),0)
+            page.locator('#email').fill('maria@example.test')
+            page.locator('#wizard-next').click()
+            page.locator('#message').fill('A sufficiently long message to submit.')
+            page.evaluate("""() => {window.fetch=async()=>new Response(JSON.stringify({
+              code:'VALIDATION_ERROR', message:'Проверьте поля.',
+              errors:{name:'Серверная ошибка имени',message:'Серверная ошибка сообщения'}}),
+              {status:422,headers:{'Content-Type':'application/json'}});}""")
+            page.locator('#form-submit').click()
+            page.wait_for_function("document.querySelector('#form-errors a[href='#name']")
+            # The summary link must switch back to identity step, not focus a hidden input.
+            page.locator('#form-errors a[href="#message"]').click()
+            self.assertFalse(page.locator('#wizard-message').is_hidden())
+            self.assertTrue(page.locator('#message').evaluate('(el)=>el===document.activeElement'))
+            page.locator('#form-errors a[href="#name"]').click()
+            self.assertFalse(page.locator('#wizard-identity').is_hidden())
+            self.assertTrue(page.locator('#name').evaluate('(el)=>el===document.activeElement'))
+            page.locator('#name').fill('Мария Исправлено')
+            self.assertEqual(page.locator('#form-errors a[href="#name"]').count(),0)
+            page.locator('#wizard-next').click()
+            page.locator('#message').fill('Fixed validation error and sufficiently long.')
+            self.assertTrue(page.locator('#form-errors').is_hidden())
+        finally: page.close()
+
+    def test_font_enlargement_at_mobile_width_wraps_tabs_without_overflow(self):
+        page=self.new_page(viewport={'width':320,'height':760},reduced_motion='reduce')
+        try:
+            page.evaluate("document.documentElement.style.fontSize='32px'")
+            self.assertTrue(page.locator('#tab-php').is_visible())
+            self.assertTrue(page.locator('#tab-react').is_visible())
+            self.assertTrue(page.evaluate('document.documentElement.scrollWidth<=innerWidth'))
+            page.locator('#tab-react').click()
+            self.assertTrue(page.locator('#panel-php').is_hidden())
+            self.assertTrue(page.locator('#panel-react').is_visible())
+        finally: page.close()
+
 if __name__=='__main__': unittest.main()

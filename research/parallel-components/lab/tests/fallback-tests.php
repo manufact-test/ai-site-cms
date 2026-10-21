@@ -14,6 +14,8 @@ expectFallback(str_contains($html,'bad&quot; onfocus=&quot;x'),'escaped attr');
 expectFallback(str_contains($html,'&lt;img src=x onerror=1&gt;'),'escaped message/error');
 expectFallback(!str_contains($html,'<img src=x'),'no untrusted markup');
 expectFallback(str_contains($html,'aria-invalid="true"'),'field invalid');
+expectFallback(str_contains($html,'href="#field-name">Имя: &lt;img src=x onerror=1&gt;'),'accessible label for escaped summary link');
+expectFallback(str_contains($html,'href="#field-email">Email: Invalid'),'email summary identifies field');
 expectFallback(str_contains($html,'autofocus'),'return focus');
 expectFallback(str_contains($html,'value="DE" selected'),'region kept');
 expectFallback(str_contains($html,'value="'.str_repeat('a',64).'"'),'same token for validation retry');
@@ -27,7 +29,7 @@ expectFallback(!str_contains(NoJsResult::page(['code'=>'UNKNOWN','message'=>'<sc
 expectFallback(!str_contains($html,'name="wizard_complete"'),'no forged wizard proof');
 $regionError = ['code'=>'VALIDATION_ERROR','message'=>'country invalid','errors'=>['phone_region'=>'<bad country>']];
 $regionHtml = NoJsResult::page($regionError, array_replace($submitted,['phone_region'=>'AA']));
-expectFallback(str_contains($regionHtml,'href="#field-phone_region"'),'region error summary links exact selector');
+expectFallback(str_contains($regionHtml,'href="#field-phone_region">Страна номера: &lt;bad country&gt;'),'region summary identifies exact selector with escaped text');
 expectFallback(str_contains($regionHtml,'id="field-phone_region" name="phone_region" aria-invalid="true" aria-describedby="error-phone_region" autofocus'),'invalid region receives initial focus');
 expectFallback(str_contains($regionHtml,'id="error-phone_region">&lt;bad country&gt;'),'selector error is escaped');
 expectFallback(!str_contains($regionHtml,'<bad country>'),'injected error not executable markup');

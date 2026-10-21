@@ -4,9 +4,11 @@ const toggle = document.querySelector('#nav-toggle');
 const nav = document.querySelector('#site-nav');
 // The menu button has no meaningful behaviour without JavaScript.
 toggle.hidden = false;
+const media = matchMedia('(min-width: 701px)');
 const closeNav = (restore = false) => {
   toggle.setAttribute('aria-expanded', 'false');
-  if (restore) toggle.focus();
+  // A hidden desktop menu button cannot be an effective focus destination.
+  if (restore && !media.matches && !toggle.hidden) toggle.focus();
 };
 toggle.addEventListener('click', () => {
   toggle.setAttribute('aria-expanded', String(toggle.getAttribute('aria-expanded') !== 'true'));
@@ -30,8 +32,17 @@ document.addEventListener('keydown', event => {
 document.addEventListener('pointerdown', event => {
   if (!nav.contains(event.target) && !toggle.contains(event.target)) closeNav();
 });
-const media = matchMedia('(min-width: 701px)');
-media.addEventListener('change', () => closeNav());
+// On Tab away, let the browser move focus normally, then collapse the mobile menu.
+nav.addEventListener('focusout', () => queueMicrotask(() => {
+  if (!media.matches && !nav.contains(document.activeElement) &&
+      document.activeElement !== toggle) closeNav();
+}));
+media.addEventListener('change', () => {
+  const wasOnToggle = document.activeElement === toggle;
+  closeNav();
+  // When the button disappears at desktop width, preserve a visible keyboard target.
+  if (media.matches && wasOnToggle) nav.querySelector('a')?.focus();
+});
 
 const tabs = [...document.querySelectorAll('[role="tab"]')];
 function selectTab(target, focus = false) {
@@ -52,8 +63,12 @@ for (const tab of tabs) {
   tab.addEventListener('click', () => selectTab(tab));
   tab.addEventListener('keydown', event => {
     const index = tabs.indexOf(tab);
-    const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length
-      : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length
+    // Arrow keys follow visual order in RTL documents; Home/End remain logical edges.
+    const rtl = getComputedStyle(tab.closest('[role="tablist"]')).direction === 'rtl';
+    const forward = rtl ? 'ArrowLeft' : 'ArrowRight';
+    const backward = rtl ? 'ArrowRight' : 'ArrowLeft';
+    const next = event.key === forward ? (index + 1) % tabs.length
+      : event.key === backward ? (index + tabs.length - 1) % tabs.length
       : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1;
     if (next === -1) return;
     event.preventDefault();
@@ -68,16 +83,30 @@ const dialog = document.querySelector('#info-dialog');
 const opener = document.querySelector('#open-dialog');
 opener.hidden = false;
 let returnFocus = opener;
-opener.addEventListener('click', () => {returnFocus = opener; dialog.showModal();});
+opener.addEventListener('click', () => {
+  // Programmatic re-entry while a modal is open must not throw or reset focus.
+  if (dialog.open) return;
+  returnFocus = opener;
+  dialog.showModal();
+});
 document.querySelector('#close-dialog').addEventListener('click', () => dialog.close());
 document.querySelector('#dialog-faq').addEventListener('click', () => {returnFocus = document.querySelector('#faq'); returnFocus.tabIndex = -1; dialog.close();});
-dialog.addEventListener('close', () => {returnFocus.focus(); returnFocus = opener;});
+dialog.addEventListener('close', () => {
+  const destination = returnFocus;
+  returnFocus = opener;
+  // If an explicit destination was removed/hidden while modal, use the opener.
+  const usable = node => node?.isConnected && node.getClientRects().length > 0 &&
+    !node.closest('[hidden]');
+  if (usable(destination)) destination.focus();
+  else if (usable(opener)) opener.focus();
+});
 
 const form = document.querySelector('#contact');
 // No-JS submissions use native required/email/minlength constraints before the PHP boundary;
 // the enhanced two-step wizard supplies its own Unicode-consistent validation.
 form.noValidate = true;
 const status = document.querySelector('#form-status');
+const errorSummary = document.querySelector('#form-errors');
 const send = document.querySelector('#form-submit');
 const keys = ['name', 'email', 'phone_region', 'phone', 'message'];
 
@@ -166,17 +195,49 @@ const SAFE_RETRY_CODES = new Set([
   'RECEIPT_STORE_CONFIGURATION_REQUIRED', 'RECEIPT_STORE_UNAVAILABLE', 'RATE_LIMITED'
 ]);
 // Server has final authority; avoid stale announced errors after a user correction.
+function renderErrorSummary() {
+  // Every link points to a known local field; untrusted server text is never HTML.
+  errorSummary.replaceChildren();
+  const failed = keys.map(key => ({
+    key, field: form.elements.namedItem(key),
+    message: document.getElementById(`${key}-error`).textContent.trim()
+  })).filter(item => item.message);
+  errorSummary.hidden = failed.length === 0;
+  if (!failed.length) return;
+  const heading = document.createElement('p');
+  heading.textContent = 'Исправьте ошибки в форме:';
+  const list = document.createElement('ul');
+  for (const {key, field, message} of failed) {
+    const item = document.createElement('li');
+    const link = document.createElement('a');
+    link.href = `#${field.id}`;
+    link.dataset.field = key;
+    link.textContent = message;
+    item.append(link);
+    list.append(item);
+  }
+  errorSummary.append(heading, list);
+}
 function clearFieldError(field) {
   if (!keys.includes(field.name)) return;
   field.removeAttribute('aria-invalid');
   const error = document.getElementById(`${field.name}-error`);
   if (error) error.textContent = '';
+  renderErrorSummary();
 }
 const identity = document.querySelector('#wizard-identity');
 const details = document.querySelector('#wizard-message');
 const next = document.querySelector('#wizard-next');
 const previous = document.querySelector('#wizard-prev');
 const progress = document.querySelector('#wizard-progress');
+errorSummary.addEventListener('click', event => {
+  const link = event.target.closest('a[data-field]');
+  if (!link || !errorSummary.contains(link) || !keys.includes(link.dataset.field)) return;
+  event.preventDefault();
+  const key = link.dataset.field;
+  activateStep(['name','email'].includes(key) ? 0 : 1, false);
+  form.elements.namedItem(key).focus();
+});
 form.addEventListener('input', event => {
   const field = event.target;
   if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement) {
@@ -205,6 +266,7 @@ function showErrors(errors) {
     document.getElementById(`${key}-error`).textContent = message;
     if (message && !firstInvalid) firstInvalid = field;
   }
+  renderErrorSummary();
   return firstInvalid;
 }
 // JS .length counts UTF-16 code units; PHP server counts Unicode code points.

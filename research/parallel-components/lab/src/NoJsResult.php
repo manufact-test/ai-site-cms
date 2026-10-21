@@ -31,7 +31,8 @@ final class NoJsResult
         if ($verifiedErrors !== []) {
             $html .= '<div role="alert" aria-labelledby="errors-heading"><h2 id="errors-heading">Исправьте ошибки</h2><ul>';
             foreach ($verifiedErrors as $field => $text) {
-                $html .= '<li><a href="#field-' . $field . '">' . $text . '</a></li>';
+                $label = ['name'=>'Имя','email'=>'Email','phone'=>'Телефон','message'=>'Сообщение','phone_region'=>'Страна номера'][$field];
+                $html .= '<li><a href="#field-' . $field . '">' . self::esc($label) . ': ' . $text . '</a></li>';
             }
             $html .= '</ul></div>';
         }
