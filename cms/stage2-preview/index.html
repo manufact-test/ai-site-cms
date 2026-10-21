@@ -52,6 +52,21 @@
         <label class="toggle-line"><input id="site-navigation" type="checkbox" checked><span>Показывать меню на сайте</span></label>
         <p class="setting-helper">Действуют на всех страницах и включаются в локальный экспорт.</p>
       </details>
+      <details class="design-settings">
+        <summary>Дизайн сайта <small>Все страницы</small></summary>
+        <p class="setting-helper">Настройки изменяют сайт, а не оболочку редактора.</p>
+        <label class="field-label" for="design-accent">Фирменный цвет</label>
+        <div class="design-color-row"><input id="design-accent" type="color" aria-label="Выбрать фирменный цвет"><button id="design-accent-reset" class="button subtle" type="button">Цвет темы</button></div>
+        <label class="field-label" for="design-font">Типографика</label>
+        <select id="design-font"><option value="system">Современная системная</option><option value="geometric">Геометрическая</option><option value="editorial">Редакционная с засечками</option></select>
+        <label class="field-label" for="design-radius">Форма элементов</label>
+        <select id="design-radius"><option value="sharp">Строгие углы</option><option value="soft">Умеренное скругление</option><option value="round">Округлые формы</option></select>
+        <label class="field-label" for="design-spacing">Вертикальный ритм</label>
+        <select id="design-spacing"><option value="compact">Компактный</option><option value="comfortable">Сбалансированный</option><option value="relaxed">Воздушный</option></select>
+        <label class="field-label" for="design-navigation">Оформление шапки</label>
+        <select id="design-navigation"><option value="standard">Классическая</option><option value="bordered">С разделителями</option><option value="floating">Плавающая панель</option></select>
+        <p class="setting-helper">Все стили локальные: без загрузки шрифтов или CSS из сети.</p>
+      </details>
       <div class="starter-bar">
         <label class="field-label" for="starter-type">Готовые заготовки (3 страницы)</label>
         <div class="starter-row"><select id="starter-type"><option value="industrial">Промышленный завод</option><option value="agency">Диджитал-студия</option><option value="products">Каталог товаров</option></select><button id="starter-apply" class="button dark" type="button">Открыть</button></div>
@@ -112,6 +127,9 @@
     <aside class="panel inspector" aria-labelledby="inspector-title"><div class="panel-top"><div><span class="small-title">ИНСПЕКТОР</span><h2 id="inspector-title">Свойства секции</h2></div><span class="inspector-symbol" aria-hidden="true">✦</span></div><p class="inspector-intro" id="selection-info">Выберите секцию на макете.</p>
       <label class="section-toggle"><input id="section-visible" type="checkbox" checked><span>Показывать секцию на сайте</span></label>
       <p class="setting-helper section-helper">Скрытая секция остаётся доступной для редактирования и возвращается одним переключателем.</p>
+      <label class="field-label" for="section-surface">Оформление фона секции</label>
+      <select id="section-surface" aria-label="Стиль фона выбранной секции"><option value="default">Обычный фон</option><option value="soft">Светлый фон</option><option value="dark">Тёмный фон</option><option value="accent">Фирменный акцент</option></select>
+      <p class="setting-helper">Оформление сохраняется при копировании и экспорте блока.</p>
       <div id="fields" aria-live="off"></div><details class="review-notes"><summary>Замечания к макету <span id="review-count">0</span></summary>
   <p class="review-help">Заметки сохраняются в этом браузере отдельно от версий сайта. Это обратная связь по макету, не приёмка Stage 2.</p>
   <p class="review-context" id="review-context">Выберите блок для замечания</p>

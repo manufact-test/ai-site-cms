@@ -170,18 +170,52 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(await frame.locator('.menu').count(),0,'site-wide menu can be disabled');
     await page.locator('#site-navigation').check();
     assert.equal(await frame.locator('.menu').count(),1);
-    // Old v2 JSON snapshots migrate without dropping pages or edited blocks.
+    // Design: global tokens and a visible section's theme, history and HTML parity.
+    await page.locator('.design-settings > summary').click();
+    await page.locator('#design-font').selectOption('editorial');
+    await page.locator('#design-radius').selectOption('sharp');
+    await page.locator('#design-spacing').selectOption('compact');
+    await page.locator('#design-navigation').selectOption('floating');
+    await page.locator('#design-accent').fill('#935120');
+    await page.waitForFunction(()=>document.querySelector('#preview').srcdoc.includes('--accent:#935120'));
+    assert.match(await page.locator('#preview').getAttribute('srcdoc'),/--font-family:Georgia/);
+    assert.equal(await frame.locator('.site-floating').count(),1);
+    await page.locator('#sections .section-select').first().click();
+    await page.locator('#section-surface').selectOption('dark');
+    assert.equal(await frame.locator('main > section.surface-dark').count(),1);
+    await page.locator('#undo').click();
+    assert.equal(await frame.locator('main > section.surface-dark').count(),0);
+    await page.locator('#redo').click();
+    assert.equal(await frame.locator('main > section.surface-dark').count(),1);
+    const rejectUnsafe=await page.evaluate(()=>{
+      const P=window.CmsPreviewProject,d=P.template();
+      d.design.accent='#ffffff;url(http://example.org)';
+      try{P.validate(d);return false;}catch(e){}
+      d.design.accent='';d.pages[0].sectionStyles['unknown-id']='dark';
+      try{P.validate(d);return false;}catch(e){return true;}
+    });
+    assert.equal(rejectUnsafe,true);
+    // Old v2 and v3 JSON snapshots migrate without losing edited content.
     const legacy=await page.evaluate(()=>{
       const P=window.CmsPreviewProject;
       const v=P.starter('agency');
-      v.format=P.previousFormat;delete v.settings;
-      v.pages.forEach(pg=>{delete pg.inMenu;delete pg.hiddenSections;});
+      v.format=P.olderFormat;delete v.settings;delete v.design;
+      v.pages.forEach(pg=>{delete pg.inMenu;delete pg.hiddenSections;delete pg.sectionStyles;});
       const migrated=P.normalize(v);
       return {format:migrated.format,pages:migrated.pages.length,settings:migrated.settings,valid:P.validate(migrated).format};
     });
     assert.equal(legacy.format,legacy.valid);
     assert.equal(legacy.pages,3);
     assert.equal(legacy.settings.showNavigation,true);
+    const oldV3=await page.evaluate(()=>{
+      const P=window.CmsPreviewProject,v=P.starter('products');
+      v.format=P.previousFormat;delete v.design;
+      v.pages.forEach(pg=>{delete pg.sectionStyles;});
+      return P.normalize(v);
+    });
+    assert.equal(oldV3.pages.length,3);
+    assert.equal(oldV3.design.font,'system');
+    assert.equal(Object.keys(oldV3.pages[0].sectionStyles).length,0);
 
     // Product flow C: download a real offline ZIP with navigation, per-page SEO and a JSON backup.
     const zipped=page.waitForEvent('download');
@@ -197,11 +231,17 @@ const root=path.resolve(__dirname,'../..');
     assert.doesNotMatch(siteHTML,/class="cards"/,'hidden section omitted from exported HTML');
     assert.match(siteHTML,/Производственные решения/);
     assert.match(siteHTML,/Пример компании 2026/);
+    assert.match(siteHTML,/--accent:#935120/);
+    assert.match(siteHTML,/class="surface-dark hero"/);
+    assert.match(siteHTML,/site-floating/);
     assert.match(siteHTML,/<meta name="description"/);
     const backup=JSON.parse(execFileSync('unzip',['-p',zipPath,'project-backup.json'],{encoding:'utf8'}));
-    assert.equal(backup.format,'ai-site-cms-stage2-multipage-preview-v3');
+    assert.equal(backup.format,'ai-site-cms-stage2-multipage-preview-v4');
     assert.equal(backup.pages.find(p=>p.slug==='services').inMenu,false);
     assert.equal(backup.pages[0].hiddenSections.length,1);
+    assert.equal(backup.design.accent,'#935120');
+    assert.equal(backup.design.font,'editorial');
+    assert.equal(Object.values(backup.pages[0].sectionStyles).filter(v=>v==='dark').length,1);
     assert.ok(backup.pages[0].sections.some(section=>section.id===backup.pages[0].hiddenSections[0]));
     assert.doesNotMatch(siteHTML,/<script[\s>]/i);
 

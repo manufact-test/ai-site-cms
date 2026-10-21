@@ -365,3 +365,15 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .section-row.is-hidden.selected{opacity:1}
 .visibility-label{color:#e6b6c2!important;font-size:10px!important}
 .section-actions{grid-template-columns:repeat(2,24px)}
+
+/* Stage2 design workspace: scoped to the editor, never exported as site CSS. */
+.design-settings{border:1px solid #375269;border-radius:10px;background:#203346;padding:12px 13px;margin-top:11px;color:#d6e4ee}
+.design-settings>summary{cursor:pointer;font-size:12px;font-weight:700}
+.design-settings>summary small{color:#9baebd;font-size:10px;margin-left:6px}
+.design-settings .field-label{margin-top:13px}
+.design-settings .setting-helper{color:#a7bbca}
+.design-settings select{width:100%}
+.design-color-row{display:flex;align-items:center;gap:9px;margin-top:7px}
+.design-color-row input[type=color]{width:58px;height:38px;min-height:38px;flex:none;padding:3px;cursor:pointer}
+.design-color-row .button{flex:1;text-align:center}
+.inspector #section-surface{width:100%;margin-top:7px;margin-bottom:8px}

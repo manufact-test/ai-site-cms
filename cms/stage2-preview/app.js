@@ -274,7 +274,8 @@
       ui.frame.srcdoc=R.render(doc,selection,focus==='section',{
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
         menu:project.pages.filter(x=>x.inMenu).map(x=>({id:x.id,title:x.title,slug:x.slug})),
-        active:pageId,hiddenSections:p.hiddenSections,...project.settings
+        active:pageId,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
+         design:project.design,...project.settings
       });
       ui.count.textContent=doc.sections.length+' блоков';
       ui.seoSnippetTitle.textContent=p.seoTitle;
@@ -339,6 +340,7 @@
     const s=current();if(!s)return;
     ui.sectionVisible.checked=!activePage().hiddenSections.includes(s.id);
     ui.sectionVisible.disabled=false;
+    $('section-surface').value=activePage().sectionStyles[s.id]||'default';
     ui.info.textContent=C.definitions[s.type].label+' · меняйте свойства выбранной страницы';
     ui.fields.replaceChildren();
     editor=E.mount({container:ui.fields,schema:C.schema(s.type),data:s.props,onChange(value){
@@ -355,6 +357,7 @@
     $('site-header-note').value=project.settings.headerNote;
     $('site-footer-note').value=project.settings.footerNote;
     $('site-navigation').checked=project.settings.showNavigation;
+    syncDesignUI();
     pageId=project.pages.some(p=>p.id===preferredPage)?preferredPage:project.pages[0].id;
     bind();
     selection=doc.sections.some(s=>s.id===preferredSection)?preferredSection:doc.sections[0].id;
@@ -392,6 +395,7 @@
     const copy=C.createSection(source.type);
     copy.props=structuredClone(source.props);
     target.sections.push(copy);
+    if(activePage().sectionStyles[source.id])target.sectionStyles[copy.id]=activePage().sectionStyles[source.id];
     selectPage(target.id);select(copy.id);changed();
     toast('Блок скопирован на выбранную страницу');
   }
@@ -409,6 +413,31 @@
     }
     checkpoint('settings:'+field,true);project.settings[field]=value;
     changed();toast('Настройки сайта изменены в локальном черновике');
+  }
+  function syncDesignUI(){
+    for(const field of ['font','radius','spacing','navigation']){
+      $('design-'+field).value=project.design[field];
+    }
+    $('design-accent').value=project.design.accent||C.palette[project.theme].accent;
+    $('design-accent-reset').disabled=!project.design.accent;
+  }
+  function editDesign(field,value){
+    const next={...project.design,[field]:value};
+    if(project.design[field]===value)return;
+    try{P.validate({...project,design:next});}
+    catch(e){toast('Недопустимое значение дизайна',true);syncDesignUI();return;}
+    checkpoint('design:'+field,true);
+    project.design=next;syncDesignUI();changed();
+  }
+  function editSectionSurface(value){
+    const page=activePage(),s=current();
+    if(!s||!['default','soft','dark','accent'].includes(value))return;
+    const old=page.sectionStyles[s.id]||'default';
+    if(old===value)return;
+    checkpoint('section-style');
+    if(value==='default')delete page.sectionStyles[s.id];
+    else page.sectionStyles[s.id]=value;
+    changed();listing();
   }
   function toggleSection(id,show){
     const p=activePage(),s=p.sections.find(s=>s.id===id);
@@ -449,6 +478,7 @@
     if(doc.sections.length<=1)return;
     checkpoint('structure');const s=doc.sections.splice(i,1)[0];
     activePage().hiddenSections=activePage().hiddenSections.filter(id=>id!==s.id);
+    delete activePage().sectionStyles[s.id];
     if(s.id===selection)selection=doc.sections[Math.min(i,doc.sections.length-1)].id;
     listing();mount();changed();toast('Блок удалён');
   }
@@ -456,6 +486,7 @@
     if(doc.sections.length>=12)return toast('Максимум 12 блоков',true);
     checkpoint('structure');const source=doc.sections[i],copy=C.createSection(source.type);
     copy.props=structuredClone(source.props);doc.sections.splice(i+1,0,copy);selection=copy.id;
+    if(activePage().sectionStyles[source.id])activePage().sectionStyles[copy.id]=activePage().sectionStyles[source.id];
     listing();mount();changed();toast('Блок дублирован');
   }
   function add(){
@@ -581,6 +612,12 @@
     $('site-header-note').addEventListener('input',()=>editSettings('headerNote',$('site-header-note').value));
     $('site-footer-note').addEventListener('input',()=>editSettings('footerNote',$('site-footer-note').value));
     $('site-navigation').addEventListener('change',()=>editSettings('showNavigation',$('site-navigation').checked));
+    for(const field of ['font','radius','spacing','navigation']){
+      $('design-'+field).addEventListener('change',()=>editDesign(field,$('design-'+field).value));
+    }
+    $('design-accent').addEventListener('input',()=>editDesign('accent',$('design-accent').value));
+    $('design-accent-reset').addEventListener('click',()=>editDesign('accent',''));
+    $('section-surface').addEventListener('change',()=>editSectionSurface($('section-surface').value));
     ui.sectionVisible.addEventListener('change',()=>{const s=current();if(s)toggleSection(s.id,ui.sectionVisible.checked);});
     $('page-in-menu').addEventListener('change',()=>editPage('inMenu',$('page-in-menu').checked));
     $('starter-apply').addEventListener('click',starter);
@@ -626,7 +663,7 @@
     });
     ui.theme.addEventListener('change',()=>{
       if(project.theme===ui.theme.value)return;
-      checkpoint('theme');project.theme=ui.theme.value;bind();changed();
+      checkpoint('theme');project.theme=ui.theme.value;bind();syncDesignUI();changed();
     });
     document.querySelectorAll('[data-width]').forEach(b=>b.addEventListener('click',()=>{
       ui.browser.classList.toggle('mobile',b.dataset.width==='mobile');

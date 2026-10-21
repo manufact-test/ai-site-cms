@@ -2,26 +2,34 @@
 /* Stage2 offline design-review project v3; neither production schema nor publisher. */
 (()=>{
   const C=window.CmsPreviewContent;
-  const format='ai-site-cms-stage2-multipage-preview-v3';
-  const previousFormat='ai-site-cms-stage2-multipage-preview-v2';
+  const format='ai-site-cms-stage2-multipage-preview-v4';
+  const previousFormat='ai-site-cms-stage2-multipage-preview-v3';
+  const olderFormat='ai-site-cms-stage2-multipage-preview-v2';
   const MAX_PAGES=8;
   let counter=1;
   const newId=()=> 'page-'+Date.now().toString(36)+'-'+(counter++).toString(36);
   const allowedKeys=(x,keys)=>Object.keys(x).sort().join('|')===keys.slice().sort().join('|');
   const settings=()=>({headerNote:'',footerNote:'Создано в демонстрации AI Site CMS',showNavigation:true});
+  const design=()=>({accent:'',font:'system',radius:'soft',spacing:'comfortable',navigation:'standard'});
+  const allowedDesign={
+    font:['system','geometric','editorial'],
+    radius:['sharp','soft','round'],
+    spacing:['compact','comfortable','relaxed'],
+    navigation:['standard','bordered','floating']
+  };
   function pageFromLegacy(doc){
     const d=C.validate(doc);
     return {id:newId(),title:'Главная',slug:'',seoTitle:d.siteTitle.slice(0,70),
       seoDescription:'Демонстрационный проект сайта и редактора AI Site CMS.',
-      inMenu:true,hiddenSections:[],sections:d.sections};
+      inMenu:true,hiddenSections:[],sectionStyles:{},sections:d.sections};
   }
   function template(){
     const d=C.template();
-    return {format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),pages:[pageFromLegacy(d)]};
+    return {format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),design:design(),pages:[pageFromLegacy(d)]};
   }
   function validate(raw){
     if(!raw||typeof raw!=='object'||Array.isArray(raw)
-      ||!allowedKeys(raw,['format','siteTitle','theme','settings','pages'])
+      ||!allowedKeys(raw,['format','siteTitle','theme','settings','design','pages'])
       ||raw.format!==format
       ||typeof raw.siteTitle!=='string'||raw.siteTitle.length<1||raw.siteTitle.length>100
       ||!Object.hasOwn(C.palette,raw.theme)
@@ -30,13 +38,18 @@
       ||typeof raw.settings.headerNote!=='string'||raw.settings.headerNote.length>120||raw.settings.headerNote.includes('\0')
       ||typeof raw.settings.footerNote!=='string'||raw.settings.footerNote.length>180||raw.settings.footerNote.includes('\0')
       ||typeof raw.settings.showNavigation!=='boolean'
+      ||!raw.design||typeof raw.design!=='object'||Array.isArray(raw.design)
+      ||!allowedKeys(raw.design,['accent','font','radius','spacing','navigation'])
+      ||typeof raw.design.accent!=='string'
+      ||(raw.design.accent!==''&&!/^#[0-9a-f]{6}$/.test(raw.design.accent))
+      ||Object.entries(allowedDesign).some(([key,values])=>!values.includes(raw.design[key]))
       ||!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>MAX_PAGES)
       throw Error('Неизвестный формат или настройки проекта');
     const ids=new Set(),slugs=new Set();
     let homepageCount=0;
     for(const page of raw.pages){
       if(!page||typeof page!=='object'||Array.isArray(page)
-        ||!allowedKeys(page,['id','title','slug','seoTitle','seoDescription','inMenu','hiddenSections','sections'])
+        ||!allowedKeys(page,['id','title','slug','seoTitle','seoDescription','inMenu','hiddenSections','sectionStyles','sections'])
         ||typeof page.id!=='string'||!/^page-[a-z0-9-]{5,48}$/.test(page.id)||ids.has(page.id)
         ||typeof page.title!=='string'||page.title.length<1||page.title.length>90
         ||typeof page.slug!=='string'||(page.slug!==''&&!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(page.slug))||page.slug.length>70||slugs.has(page.slug)
@@ -48,7 +61,11 @@
         ||new Set(page.hiddenSections).size!==page.hiddenSections.length
         ||!Array.isArray(page.sections)
         ||page.hiddenSections.some(id=>typeof id!=='string'||!page.sections.some(s=>s.id===id))
-        ||page.hiddenSections.length>=page.sections.length)
+        ||page.hiddenSections.length>=page.sections.length
+        ||!page.sectionStyles||typeof page.sectionStyles!=='object'||Array.isArray(page.sectionStyles)
+        ||Object.keys(page.sectionStyles).length>12
+        ||Object.entries(page.sectionStyles).some(([id,style])=>
+          !page.sections.some(s=>s.id===id)||!['soft','dark','accent'].includes(style)))
         throw Error('Некорректные настройки или повторяющиеся адреса страниц');
       ids.add(page.id);slugs.add(page.slug);
       if(page.slug==='')homepageCount++;
@@ -62,10 +79,13 @@
       const d=C.validate(raw);
       return validate({format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),pages:[pageFromLegacy(d)]});
     }
-    if(raw&&raw.format===previousFormat){
-      const next=structuredClone(raw);
-      next.format=format;next.settings=settings();
-      next.pages=next.pages.map(p=>({...p,inMenu:true,hiddenSections:[]}));
+    if(raw&&(raw.format===previousFormat||raw.format===olderFormat)){
+      const next=structuredClone(raw),isV2=raw.format===olderFormat;
+      next.format=format;next.design=design();
+      if(isV2)next.settings=settings();
+      next.pages=next.pages.map(p=>({...p,
+        ...(isV2?{inMenu:true,hiddenSections:[]}:{}),sectionStyles:{}
+      }));
       return validate(next);
     }
     return validate(raw);
@@ -84,10 +104,14 @@
       if(from.hiddenSections.includes(s.id))hidden.push(sections[i].id);
       return hidden;
     },[]):[];
+    const sectionStyles={};
+    if(source)from.sections.forEach((s,i)=>{
+      if(from.sectionStyles[s.id])sectionStyles[sections[i].id]=from.sectionStyles[s.id];
+    });
     return {id:newId(),title:source?from.title.slice(0,80)+' (копия)':'Новая страница',
       slug,seoTitle:source?from.seoTitle:('Новая страница — '+project.siteTitle).slice(0,70),
       seoDescription:source?from.seoDescription:'',inMenu:source?from.inMenu:true,
-      hiddenSections,sections};
+      hiddenSections,sectionStyles,sections};
   }
   function starter(kind){
     const configs={
@@ -106,8 +130,11 @@
     };
     const config=configs[kind];if(!config)throw Error('Неизвестная заготовка');
     const result=template();result.siteTitle=config.name;result.theme=config.theme;
+    result.design=kind==='industrial'?{...design(),radius:'sharp',navigation:'bordered'}:
+      kind==='agency'?{...design(),font:'geometric',radius:'round',spacing:'relaxed',navigation:'floating'}:
+      {...design(),font:'editorial',spacing:'compact'};
     result.pages=config.pages.map(([title,slug,seoTitle,types],i)=>({
-      id:i===0?result.pages[0].id:newId(),title,slug,seoTitle,inMenu:true,hiddenSections:[],
+      id:i===0?result.pages[0].id:newId(),title,slug,seoTitle,inMenu:true,hiddenSections:[],sectionStyles:{},
       seoDescription:'Демонстрационная страница «'+title+'». Замените описание своим текстом перед использованием.',
       sections:types.map(type=>{
         const s=C.createSection(type);
@@ -136,6 +163,6 @@
     return {format:C.format,siteTitle:project.siteTitle,theme:project.theme,sections:page.sections};
   }
   Object.defineProperty(window,'CmsPreviewProject',{value:Object.freeze({
-    format,previousFormat,MAX_PAGES,template,normalize,validate,createPage,pageDoc,starter,audit
+    format,previousFormat,olderFormat,MAX_PAGES,template,normalize,validate,createPage,pageDoc,starter,audit
   })});
 })();

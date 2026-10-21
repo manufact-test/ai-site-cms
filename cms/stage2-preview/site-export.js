@@ -58,7 +58,8 @@
       name:(p.slug||'index')+'.html',
       content:R.render(P.pageDoc(project,p),null,false,{
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
-        menu,active:p.id,exportLinks:true,hiddenSections:p.hiddenSections,...project.settings
+        menu,active:p.id,exportLinks:true,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
+        design:project.design,...project.settings
       })
     }));
     files.push({name:'project-backup.json',content:JSON.stringify(project,null,2)+'\n'});
@@ -67,6 +68,7 @@
       'Unpack the archive and open index.html in a browser.\n'+
       'Only menu-enabled pages are listed in navigation; every page is exported.\n'+
       'Hidden sections are omitted from rendered HTML but retained in the backup JSON.\n'+
+      'Sitewide design tokens and individual section surfaces are embedded without external assets.\n'+
       'All navigation is local; no server, CMS, network access or form submission.\n'+
       'project-backup.json can be imported back into the local preview editor.\n'+
       'This is NOT a production build, deploy package, public site or publication.\n'+
