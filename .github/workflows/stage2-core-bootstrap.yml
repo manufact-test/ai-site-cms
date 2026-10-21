@@ -146,6 +146,9 @@ jobs:
         run: |
           node --check cms/tools/test-stage2-genuine-sodium-free.cjs
           node cms/tools/test-stage2-genuine-sodium-free.cjs --self-test
+          node --check cms/tools/test-stage2-signed-chain-parity.cjs
+          node cms/tools/test-stage2-signed-chain-parity.cjs --self-test
+          php -l cms/tests/stage2-cross-backend-settlement.php
       - name: Build true no-Sodium PHP 8.3 CLI from authenticated Ubuntu source (disposable)
         shell: bash
         run: |
