@@ -62,8 +62,8 @@ for(const name of ['policy-regression.mjs','provenance-regression.mjs','notice-r
     /Security suite exit-policy offline regression PASS 12 assertions;/,
     '12 strict/online incomplete runner exit-policy assertions');
   if(name==='sodium-compat-attest-regression.mjs')requireProof(result,
-    /Sodium compat independent source attestation offline regression PASS 20 assertions;/,
-    '20 negative source/version/whole-tree attestation assertions (synthetic only)');
+    /Sodium compat independent source attestation offline regression PASS 37 assertions;/,
+    '37 negative source/version/whole-tree and isolated lock origin/contents assertions (synthetic only)');
   if(name==='online-evidence-regression.mjs')requireProof(result,
     /Online OSV and registry evidence offline regression PASS 54 assertions;/,
     '54 adversarial OSV online and saved advisory transcript assertions');

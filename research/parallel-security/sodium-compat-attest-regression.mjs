@@ -14,6 +14,7 @@ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'sodium-source-attest-'));
 const root=path.join(dir,'package'),lock=path.join(dir,'composer.lock');
 const ref='3246b36803c177847e677862fedeb7f937869adb';
 const source='https://github.com/paragonie/sodium_compat.git';
+const distURL='https://api.github.com/repos/paragonie/sodium_compat/zipball/'+ref;
 const digestFile=s=>crypto.createHash('sha256').update(s).digest('hex');
 let count=0;
 function yes(v,label){assert.ok(v,label);count++;console.log('PASS ATTEST '+label);}
@@ -35,7 +36,7 @@ function treeDigest(){
   return h.digest('hex');
 }
 const meta={name:'paragonie/sodium_compat',license:'ISC',autoload:{files:['autoload.php']},require:{php:'^8.1','php-64bit':'*'}};
-const pkg={name:'paragonie/sodium_compat',version:'v2.5.2',source:{type:'git',url:source,reference:ref},dist:{reference:ref}};
+const pkg={name:'paragonie/sodium_compat',version:'v2.5.2',source:{type:'git',url:source,reference:ref},dist:{type:'zip',url:distURL,reference:ref}};
 function writeLock(p=pkg){fs.writeFileSync(lock,JSON.stringify({packages:[p],'packages-dev':[]}));}
 function mutate(file,change,fn){const prior=fs.readFileSync(file);try{fs.writeFileSync(file,change);fn();}finally{fs.writeFileSync(file,prior);}}
 try{
@@ -47,7 +48,9 @@ try{
   writeLock();
   const digest=treeDigest();
   const output=attest(root,lock,digest);
-  yes(output.sourceVerifiedAgainstExternalHash===true&&output.sourceCommit===ref&&output.fileCount===4&&output.productionApproved===false,
+  yes(output.sourceVerifiedAgainstExternalHash===true&&output.sourceCommit===ref&&
+    output.fileCount===4&&output.isolatedLockSha256===digestFile(fs.readFileSync(lock))&&
+    output.distUrl===distURL&&output.productionApproved===false,
     'matching independently supplied source SHA yields non-production evidence');
   deny('unsupplied external hash',()=>attest(root,lock,undefined));
   deny('malformed external hash',()=>attest(root,lock,'Z'.repeat(64)));
@@ -67,6 +70,48 @@ try{
   writeLock({...pkg});
   fs.writeFileSync(lock,JSON.stringify({packages:[pkg,pkg]}));
   deny('duplicate exact package locks',()=>attest(root,lock,digest));writeLock();
+  // Lock substitution is distinct from source-tree substitution: even a
+  // correct code-tree digest must never bless an attacker-controlled dist URL,
+  // a second vendor package, or writable/linked lock metadata.
+  for(const [label,record] of [
+    ['alternate ZIP download host',{packages:[{...pkg,dist:{...pkg.dist,url:'https://mirror.invalid/package.zip'}}],'packages-dev':[]}],
+    ['unsecured ZIP URL',{packages:[{...pkg,dist:{...pkg.dist,url:distURL.replace('https:','http:')}}],'packages-dev':[]}],
+    ['ZIP URL query tampering',{packages:[{...pkg,dist:{...pkg.dist,url:distURL+'?token=rogue'}}],'packages-dev':[]}],
+    ['wrong ZIP URL commit',{packages:[{...pkg,dist:{...pkg.dist,url:distURL.replace(ref,'b'.repeat(40))}}],'packages-dev':[]}],
+    ['missing ZIP URL',{packages:[{...pkg,dist:{type:'zip',reference:ref}}],'packages-dev':[]}],
+    ['non-ZIP distribution',{packages:[{...pkg,dist:{...pkg.dist,type:'tar'}}],'packages-dev':[]}],
+    ['second unwanted runtime package',{packages:[pkg,{name:'rogue/source',version:'1.0.0'}],'packages-dev':[]}],
+    ['unexpected development dependency',{packages:[pkg],'packages-dev':[{name:'rogue/dev'}]}],
+    ['missing packages-dev list',{packages:[pkg]}],
+    ['empty isolated vendor set',{packages:[],'packages-dev':[]}],
+    ['packages-dev wrong type',{packages:[pkg],'packages-dev':null}],
+    ['production packages wrong type',{packages:{other:pkg},'packages-dev':[]}]
+  ]){
+    fs.writeFileSync(lock,JSON.stringify(record));
+    deny(label,()=>attest(root,lock,digest));
+  }
+  writeLock();
+  const goodLockBytes=fs.readFileSync(lock);
+  try {
+    fs.writeFileSync(lock,'{ broken');
+    deny('malformed Composer lock JSON',()=>attest(root,lock,digest));
+  } finally {fs.writeFileSync(lock,goodLockBytes);}
+  const linkedLock=path.join(dir,'linked-composer.lock');
+  fs.symlinkSync(lock,linkedLock);
+  try{deny('symlink Composer lock file',()=>attest(root,linkedLock,digest));}
+  finally{fs.unlinkSync(linkedLock);}
+  const duplicateLock=path.join(dir,'hardlinked-composer.lock');
+  fs.linkSync(lock,duplicateLock);
+  try{deny('hardlinked Composer lock file',()=>attest(root,lock,digest));}
+  finally{fs.unlinkSync(duplicateLock);}
+  const nestedLock=path.join(root,'nested-composer.lock');
+  fs.copyFileSync(lock,nestedLock);
+  try{deny('non-independent Composer lock inside source tree',()=>attest(root,nestedLock,digest));}
+  finally{fs.unlinkSync(nestedLock);}
+  const oversizeLock=path.join(dir,'oversize-composer.lock');
+  fs.writeFileSync(oversizeLock,' '.repeat(2*1024*1024+1));
+  try{deny('oversized isolated Composer lock',()=>attest(root,oversizeLock,digest));}
+  finally{fs.unlinkSync(oversizeLock);}
   const link=path.join(dir,'outside.php');fs.writeFileSync(link,'<?php');
   const symlink=path.join(root,'src/extra.php');fs.symlinkSync(link,symlink);
   try{deny('linked source file',()=>attest(root,lock,digest));}finally{fs.unlinkSync(symlink);}
@@ -85,5 +130,6 @@ try{
       SODIUM_COMPAT_LOCK:lock,SODIUM_COMPAT_TREE_SHA256:'a'.repeat(64)},encoding:'utf8'});
   yes(bad.status===3&&bad.stderr.includes('SODIUM_COMPAT_ATTESTATION_BLOCKED'),'standalone CLI blocked on wrong evidence');
   yes(attest(root,lock,digest).fileCount===4,'original synthetic package restored after hostile cases');
+  assert.equal(count,37,'Expected all 20 original plus 17 new adversarial lock assertions');
   console.log('Sodium compat independent source attestation offline regression PASS '+count+' assertions; synthetic files, NOT actual upstream approval');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}

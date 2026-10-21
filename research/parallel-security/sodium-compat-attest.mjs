@@ -10,6 +10,8 @@ import {fileURLToPath} from 'node:url';
 const PIN = '3246b36803c177847e677862fedeb7f937869adb';
 const NAME = 'paragonie/sodium_compat';
 const TRUSTED_SOURCE = 'https://github.com/paragonie/sodium_compat.git';
+const TRUSTED_DIST = 'https://api.github.com/repos/paragonie/sodium_compat/zipball/' + PIN;
+const MAX_LOCK_BYTES = 2 * 1024 * 1024;
 const MAX_FILES = 2000;
 const MAX_BYTES = 64 * 1024 * 1024;
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -54,6 +56,45 @@ function listFiles(root) {
   files.sort((a,b)=>Buffer.compare(Buffer.from(a.relative),Buffer.from(b.relative)));
   return {files,totalBytes};
 }
+// Composer metadata is not authority. Refuse a lockfile capable of bringing in
+// unknown vendor packages or fetching the pinned ref from a substituted host.
+// The reviewed 2.5.2 source tree SHA remains a SEPARATE trust prerequisite.
+function strictIsolatedLock(lockPath, packageRoot) {
+  requireEvidence(!lockPath.startsWith(packageRoot+path.sep) && lockPath!==packageRoot,
+    'independent isolated composer.lock must be outside source package root');
+  requireEvidence(fs.realpathSync(lockPath)===lockPath,
+    'composer lock must be canonical with no symlink ancestors');
+  const original=fs.lstatSync(lockPath);
+  requireEvidence(original.isFile()&&!original.isSymbolicLink()&&original.nlink===1&&
+    original.size>3&&original.size<=MAX_LOCK_BYTES,
+    'isolated composer lock must be one bounded regular unlinked file');
+  const fd=fs.openSync(lockPath,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+  let bytes,initial,last;
+  try {
+    initial=fs.fstatSync(fd);
+    requireEvidence(initial.dev===original.dev&&initial.ino===original.ino&&
+      initial.size===original.size&&initial.nlink===1,
+      'composer lock replaced between open and read');
+    bytes=fs.readFileSync(fd);
+    last=fs.fstatSync(fd);
+  } finally {fs.closeSync(fd);}
+  const latest=fs.lstatSync(lockPath);
+  requireEvidence(bytes.length===original.size&&latest.isFile()&&latest.nlink===1&&
+    latest.dev===initial.dev&&latest.ino===initial.ino&&
+    last.dev===initial.dev&&last.ino===initial.ino&&
+    last.size===initial.size&&latest.size===initial.size&&
+    last.mtimeMs===initial.mtimeMs&&latest.mtimeMs===initial.mtimeMs&&
+    last.ctimeMs===initial.ctimeMs&&latest.ctimeMs===initial.ctimeMs,
+    'composer lock changed during independent source attestation');
+  let data;
+  try{data=JSON.parse(bytes.toString('utf8'));}
+  catch{throw Error('SODIUM_COMPAT_UNATTESTED: malformed isolated Composer lock JSON');}
+  requireEvidence(data&&typeof data==='object'&&!Array.isArray(data)&&
+    Array.isArray(data.packages)&&data.packages.length===1&&
+    Array.isArray(data['packages-dev'])&&data['packages-dev'].length===0,
+    'isolated Composer lock must contain precisely sodium_compat and no dev packages');
+  return {data,digest:sha(bytes)};
+}
 export function attest(root, lockPath, expectedDigest) {
   requireEvidence(typeof root==='string'&&path.isAbsolute(root),'package root must be absolute');
   requireEvidence(typeof lockPath==='string'&&path.isAbsolute(lockPath),'isolated composer.lock path must be absolute');
@@ -64,16 +105,14 @@ export function attest(root, lockPath, expectedDigest) {
     'source root is not a regular directory');
   const canonical=fs.realpathSync(root);
   requireEvidence(canonical===root, 'source root must be canonical (no linked ancestors)');
-  const loaded=JSON.parse(fs.readFileSync(lockPath,'utf8'));
-  const prod=loaded?.packages;
-  requireEvidence(Array.isArray(prod),'isolated Composer lock has no production packages');
-  const entries=prod.filter(p=>p?.name===NAME);
-  requireEvidence(entries.length===1,'exactly one production sodium_compat package required');
-  const p=entries[0];
+  const {data:loaded,digest:lockSha256}=strictIsolatedLock(lockPath,root);
+  const p=loaded.packages[0];
+  requireEvidence(p?.name===NAME,'isolated Composer lock contains wrong package');
   requireEvidence(['v2.5.2','2.5.2'].includes(p.version),'incorrect sodium_compat version');
   requireEvidence(p.source?.type==='git'&&p.source?.url===TRUSTED_SOURCE&&
-    p.source.reference===PIN&&p.dist?.reference===PIN,
-    'Composer source and distribution must match signed v2.5.2 Git commit');
+    p.source.reference===PIN&&p.dist?.reference===PIN&&
+    p.dist?.type==='zip'&&p.dist?.url===TRUSTED_DIST,
+    'Composer source/dist type, URL and revision must match reviewed 2.5.2 Git commit');
   const autoload=path.join(root,'autoload.php');
   strictFile(autoload,root);
   const metadata=JSON.parse(fs.readFileSync(path.join(root,'composer.json'),'utf8'));
@@ -96,6 +135,7 @@ export function attest(root, lockPath, expectedDigest) {
     'whole-tree source SHA-256 does not match independently reviewed evidence');
   return {schema:'ai-site-cms-sodium-compat-source-attestation-v1',
     name:NAME,version:'2.5.2',sourceCommit:PIN,treeSha256:observed,
+    isolatedLockSha256:lockSha256,distUrl:TRUSTED_DIST,
     fileCount:files.length,totalBytes,sourceVerifiedAgainstExternalHash:true,
     genuineSodiumFreeRuntimeTested:false,productionApproved:false};
 }
