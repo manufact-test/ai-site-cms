@@ -54,7 +54,8 @@ function writeSynthetic(folder,version){
   }
   const manifest={format:'ai-site-cms-internal-stage2-v2',stage:2,
     releaseVersion:version,productionReady:false,documentRoot:'public',
-    isSigned:false,writeEndpointsAvailable:false,files:items};
+    adminEditorAssets:'private/editor',hostingComposerOrNodeRequired:false,
+    writeEndpointsAvailable:false,isSigned:false,files:items};
   fs.mkdirSync(path.join(folder,'private'),{recursive:true});
   fs.writeFileSync(path.join(folder,'private/package-manifest.json'),
     JSON.stringify(manifest,null,2)+'\n');
