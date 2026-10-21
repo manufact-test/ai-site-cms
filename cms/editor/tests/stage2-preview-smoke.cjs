@@ -47,14 +47,14 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(await page.locator('#sections li').count(),6,'add a real section through UI');
     await frame.locator('.quote').waitFor();
     if(process.env.GITHUB_ACTIONS==='true'){
-      const output=path.join(root,'stage2-preview','.generated');
+      const output=path.join(root,'stage2-preview','screenshots');
       fs.mkdirSync(output,{recursive:true});
       await page.screenshot({path:path.join(output,'desktop.png'),fullPage:true});
     }
     await page.locator('[data-width=mobile]').click();
     assert.equal(await page.locator('#browser.mobile').count(),1,'real mobile preview width');
     if(process.env.GITHUB_ACTIONS==='true'){
-      await page.screenshot({path:path.join(root,'stage2-preview','.generated','mobile.png'),fullPage:true});
+      await page.screenshot({path:path.join(root,'stage2-preview','screenshots','mobile.png'),fullPage:true});
     }
     await page.locator('#theme').selectOption('forest');
     await page.waitForFunction(()=>document.querySelector('#preview').srcdoc.includes('--accent:#19836a'));
