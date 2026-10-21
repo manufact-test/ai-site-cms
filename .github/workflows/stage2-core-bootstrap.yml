@@ -72,6 +72,10 @@ jobs:
           node --check tools/test-stage2-trust-rotation-parity.cjs
           php -l tests/stage2-cross-backend-rotation.php
           node tools/test-stage2-trust-rotation-parity.cjs --native
+      - name: Prove internal native Sodium provider origin and refuse userland/global namespace spoof
+        run: |
+          node --check tools/test-stage2-ed25519-provider-origin.cjs
+          node tools/test-stage2-ed25519-provider-origin.cjs
       - name: PHP-native Ed25519 signed release metadata and hostile inputs
         run: php tests/release-verifier.php
       - name: PHP-only isolated install journal, no overwrite and manual recovery faults

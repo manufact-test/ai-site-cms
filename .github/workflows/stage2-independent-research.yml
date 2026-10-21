@@ -146,6 +146,20 @@ jobs:
             'mutation:policy-regression.mjs','mutation:provenance-regression.mjs',
             'mutation:notice-regression.mjs'
           ];
+          // PR follow-up must run its signed receipt/permit/settlement and
+          // trust-rotation suites against the exact candidate overlay. A green
+          // aggregate with those rows BLOCKED or absent is not verification.
+          if(process.env.GITHUB_EVENT_NAME==='pull_request'){
+            required.push(
+              'native:operator-receipt-chain',
+              'native:operator-preactivation-permit',
+              'native:operator-settlement-chain',
+              'native:trust-root-rotation',
+              'source:common-ed25519-backend',
+              'native:forced-class-signed-chain',
+              'mutation:evidence-readiness-regression.mjs'
+            );
+          }
           for(const name of required){
             const result=names.get(name);
             if(result?.status!=='passed')throw Error('Independent research gate failed: '+name+' '+(result?.status||'absent'));

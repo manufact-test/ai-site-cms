@@ -146,6 +146,11 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends apache2
           node --check tools/test-stage2-apache-hosting.cjs
           node tools/test-stage2-apache-hosting.cjs
+      - name: Native Sodium provider provenance and spoofed userland regression
+        working-directory: cms
+        run: |
+          node --check tools/test-stage2-ed25519-provider-origin.cjs
+          node tools/test-stage2-ed25519-provider-origin.cjs
       - name: Independently verify and install full pinned Stage2 package with PHP-only temp journal
         working-directory: cms
         env:
