@@ -43,8 +43,8 @@ final class CapabilityGate
         };
         if ($allowed === null || array_diff(array_keys($rule), $allowed) !== []) return false;
         if (in_array($type, ['text','integer-px','responsive-padding'], true)) {
-            $min = $rule['min'] ?? 0;
-            $max = $rule['max'] ?? ($type === 'text' ? 200 : 128);
+            $min = array_key_exists('min', $rule) ? $rule['min'] : 0;
+            $max = array_key_exists('max', $rule) ? $rule['max'] : ($type === 'text' ? 200 : 128);
             if (!is_int($min) || !is_int($max) || $min < 0 || $max < $min) return false;
         }
         if ($type === 'enum') {
