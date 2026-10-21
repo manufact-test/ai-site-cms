@@ -41,6 +41,37 @@ try {
     [$exit] = $run(array_merge($baseEnv, ['CMS_ALLOW_SQLITE_TEST_ONLY'=>'0']));
     if ($exit === 0) throw new RuntimeException('Must refuse SQLite outside explicit test grant');
     $checks++;
+    // Generic MySQL CLI must refuse before autoload, DNS and any SQL when
+    // pointed at a customer/Hostinger database. The only allowed generic
+    // mode is the exact disposable 127.0.0.1 CI database.
+    $hostileMysql=[
+        'CMS_DB_DSN'=>'mysql:host=customer-db.invalid;dbname=customer_live;charset=utf8mb4',
+        'CMS_DB_USER'=>'customer',
+        'CMS_DB_PASSWORD'=>'must_never_appear_in_stderr',
+        'CMS_SITE_ID'=>'customer-live',
+        'CMS_ENV'=>'production'
+    ];
+    foreach ([
+        $hostileMysql,
+        array_merge($hostileMysql,['CMS_ENV'=>'test','CI'=>'true',
+            'GITHUB_ACTIONS'=>'true',
+            'CMS_STAGE2_MYSQL_CLI_INSTALL'=>'isolated-ci-only']),
+        array_merge($hostileMysql,[
+            'CMS_DB_DSN'=>'mysql:host=127.0.0.1;port=3306;dbname=ai_site_cms_ci;charset=utf8mb4',
+            'CMS_DB_USER'=>'cms_ci',
+            'CMS_DB_PASSWORD'=>'ephemeral_ci_only',
+            'CMS_ENV'=>'test','CI'=>'true','GITHUB_ACTIONS'=>'true',
+            'CMS_STAGE2_MYSQL_CLI_INSTALL'=>'absent'
+        ])
+    ] as $unsafeEnvironment) {
+        [$exit,$stdout,$stderr]=$run($unsafeEnvironment);
+        if ($exit!==3 || $stdout!=='' ||
+            !str_contains($stderr,'Generic Stage2 MySQL installation refused') ||
+            str_contains($stderr,'must_never_appear_in_stderr')) {
+            throw new RuntimeException('Generic MySQL bootstrap bypassed explicit CI-only fence');
+        }
+        $checks++;
+    }
     $db = new PDO('sqlite:'.$file);
     $rows = $db->query('SELECT site_id, storage_generation FROM cms_installation')->fetchAll(PDO::FETCH_ASSOC);
     if (count($rows) !== 1 || $rows[0]['site_id'] !== 'site-first' || (int) $rows[0]['storage_generation'] !== 0) {
