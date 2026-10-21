@@ -29,7 +29,7 @@ try {
         '{"0":2000}','{"0":10,"1":20}','[2000,]','[2000] ',
         ' [2000]','[ 2000]','[2000 ]',"[2000]\n",
         '[2000,2000,2000,2000,2000,2000]',
-        '[0,0]','{"secret":"pii"}','['.str_repeat('1',8200).']'
+        '{"0":0,"1":0}','{"secret":"pii"}','['.str_repeat('1',8200).']'
     ];
     foreach($invalidRates as $payload) {
         // An otherwise canonical rate array of six events is a valid full
