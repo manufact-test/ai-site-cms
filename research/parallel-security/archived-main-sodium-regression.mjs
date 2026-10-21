@@ -67,5 +67,5 @@ const r=cp.spawnSync(process.execPath,[fileURLToPath(new URL('./archived-main-so
   encoding:'utf8',timeout:10000,maxBuffer:1024*1024});
 pass(r.status===0&&r.stdout.includes('ARCHIVE ONLY, NOT independent source-tree audit'),
   'saved original excerpt CLI ran and retained caveat');
-assert.equal(n,39,'all positive and adversarial archive checks must run');
+assert.equal(n,40,'all positive and adversarial archive checks must run');
 console.log('Archived main CI evidence provenance and false-claim offline regression PASS '+n+' assertions; saved real upstream output, mutated in memory only');

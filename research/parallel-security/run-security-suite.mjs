@@ -83,8 +83,8 @@ requireProof(entry('upstream:archived-main-genuine-sodium-free',
   'main GitHub Actions 39571456888/119126388264 archived exact output; NOT reexecuted in this Security job');
 requireProof(entry('mutation:archived-main-sodium-provenance',
   capture('node',[path.join(dirname,'archived-main-sodium-regression.mjs')],{timeout:20000})),
-  /Archived main CI evidence provenance and false-claim offline regression PASS 39 assertions;/,
-  '39 archived real-CI report tampering and conservative interpretation tests');
+  /Archived main CI evidence provenance and false-claim offline regression PASS 40 assertions;/,
+  '40 archived real-CI report tampering and conservative interpretation tests');
 const lockPaths=['cms/composer.lock','cms/editor/package-lock.json','cms/editor/package.json'];
 const completeLock=lockPaths.every(f=>fs.existsSync(path.join(root,f)));
 if(completeLock){
