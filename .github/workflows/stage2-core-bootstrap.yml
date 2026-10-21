@@ -67,6 +67,11 @@ jobs:
         run: |
           node --check tools/test-stage2-signed-chain-parity.cjs
           node tools/test-stage2-signed-chain-parity.cjs --native
+      - name: Node-signed dual-signature publisher key rotation and anti-rollback on native PHP
+        run: |
+          node --check tools/test-stage2-trust-rotation-parity.cjs
+          php -l tests/stage2-cross-backend-rotation.php
+          node tools/test-stage2-trust-rotation-parity.cjs --native
       - name: PHP-native Ed25519 signed release metadata and hostile inputs
         run: php tests/release-verifier.php
       - name: PHP-only isolated install journal, no overwrite and manual recovery faults
@@ -153,6 +158,9 @@ jobs:
           node --check cms/tools/test-stage2-signed-chain-parity.cjs
           node cms/tools/test-stage2-signed-chain-parity.cjs --self-test
           php -l cms/tests/stage2-cross-backend-settlement.php
+          node --check cms/tools/test-stage2-trust-rotation-parity.cjs
+          node cms/tools/test-stage2-trust-rotation-parity.cjs --self-test
+          php -l cms/tests/stage2-cross-backend-rotation.php
       - name: Build true no-Sodium PHP 8.3 CLI from authenticated Ubuntu source (disposable)
         shell: bash
         run: |
