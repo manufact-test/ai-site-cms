@@ -75,6 +75,22 @@ final class PrivateStateMaintenance
         fclose($stream);
     }
 
+    /**
+     * Existing files were written with PHP's compact JSON serializer. Reject
+     * JSON with duplicate keys, numeric object keys masquerading as arrays,
+     * reordered object keys or noncanonical representations. This protects
+     * both the live read path and pruning from damaged or edited records.
+     */
+    public static function decodeCanonical(string $raw): mixed
+    {
+        try {
+            $data = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
+            return json_encode($data, JSON_THROW_ON_ERROR) === $raw ? $data : null;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
     /** @param resource $stream; fail closed on truncated/short/unsynced writes. */
     public static function write($stream, string $data): bool
     {
@@ -130,7 +146,7 @@ final class PrivateStateMaintenance
                     rewind($stream);
                     $raw = stream_get_contents($stream, $size + 1);
                     if (!is_string($raw) || strlen($raw) !== $size) continue;
-                    $record = json_decode($raw, true);
+                    $record = self::decodeCanonical($raw);
                     $obsolete = $match[1] === 'claim'
                         ? self::oldClaim($record, $now)
                         : self::oldRate($record, $now);

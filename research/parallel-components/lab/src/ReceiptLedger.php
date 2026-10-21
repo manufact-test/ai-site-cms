@@ -58,7 +58,7 @@ final class ReceiptLedger
                 $data = stream_get_contents($handle, 129);
                 if ($data === false || strlen($data) !== $size) return 'RECEIPT_STORE_UNAVAILABLE';
                 if (!$created) {
-                    $previous = json_decode($data, true);
+                    $previous = PrivateStateMaintenance::decodeCanonical($data);
                     if (!is_array($previous) || array_keys($previous) !== ['v', 'at']
                         || $previous['v'] !== 1 || !is_int($previous['at'])
                         || $previous['at'] < 0 || $previous['at'] > $now) {

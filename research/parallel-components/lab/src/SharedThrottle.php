@@ -47,7 +47,7 @@ final class SharedThrottle
                 rewind($handle);
                 $raw = stream_get_contents($handle, 8193);
                 if ($raw === false || strlen($raw) !== $size) return false;
-                $times = $created ? [] : json_decode($raw, true);
+                $times = $created ? [] : PrivateStateMaintenance::decodeCanonical($raw);
                 // A successful grant always writes a nonempty history. An existing
                 // [] file is corrupt/reset state, NOT a new empty IP bucket.
                 if (!is_array($times) || !array_is_list($times) || count($times) > 100 ||
