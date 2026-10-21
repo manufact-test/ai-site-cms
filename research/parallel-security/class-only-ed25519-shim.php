@@ -3,8 +3,7 @@ declare(strict_types=1);
 /** Research-only *native Sodium* dispatch shim; NOT sodium_compat or Sodium-free evidence. */
 if(PHP_SAPI!=='cli'||getenv('CI')!=='true'||getenv('CMS_ALLOW_PHP_INSTALL_LAB')!=='1'
     ||!extension_loaded('sodium')||function_exists('sodium_crypto_sign_verify_detached')
-    ||!function_exists('sodium_crypto_sign_open')
-    ||class_exists('ParagonIE_Sodium_Compat',false)) {
+    ||!function_exists('sodium_crypto_sign_open')) {
     throw new LogicException('FORCED_CLASS_RESEARCH_SHIM_INVALID');
 }
 final class ParagonIE_Sodium_Compat
