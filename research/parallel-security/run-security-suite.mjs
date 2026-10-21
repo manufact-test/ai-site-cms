@@ -42,7 +42,7 @@ function requireProof(row, expectedPattern, evidenceLabel) {
   return row;
 }
 const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
-  'ed25519-lab.php','main-web-crypto-surface.php','sodium-v252-ed25519-boundary.php','sodium-ed25519-cli-load-profile.php','main-head-independent-proof.mjs','independent-no-sodium-composer-lab.mjs','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
+  'ed25519-lab.php','main-web-crypto-surface.php','sodium-v252-ed25519-boundary.php','sodium-ed25519-cli-load-profile.php','main-head-independent-proof.mjs','main-web-crypto-surface-regression.mjs','independent-no-sodium-composer-lab.mjs','receipt-chain-regression.php','permit-gate-regression.php','settlement-chain-regression.php','chain-backend-verifier.php','class-only-ed25519-shim.php','ed25519-callsite-audit.php','class-only-backend-proof.mjs','chain-backend-regression.mjs','release-fixture.mjs','release-verify-runner.php',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-live-independent-proof.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','sodium-real-zip-proof.mjs','sodium-real-zip-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
@@ -90,6 +90,13 @@ if(fs.existsSync(path.join(dirname,'sodium-capacity-whatif-regression.mjs'))&&
    /Real signed Ed25519 mathematical capacity anti-GO regression PASS 39 assertions; synthetic mutation only; NOT Hostinger or production approval/,
    '39 synthetic defensive mutations and capacity math bounds');
 }else block('mutation:sodium-capacity-whatif-regression.mjs','Research capacity model missing in partial checkout');
+if(fs.existsSync(path.join(dirname,'main-web-crypto-surface-regression.mjs'))&&
+  fs.existsSync(path.join(dirname,'main-web-crypto-surface.php'))){
+  requireProof(entry('mutation:main-web-crypto-surface-regression.mjs',
+    capture('node',[path.join(dirname,'main-web-crypto-surface-regression.mjs')],{timeout:25000})),
+    /Original main static web\/CLI Ed25519 surface regression PASS 24 assertions; synthetic fixtures only, actual original Git files verified in separate live main proof/,
+    '24 token-parser HTTP/CLI anti-route-injection regressions');
+}else block('mutation:main-web-crypto-surface-regression.mjs','Missing web source fixture');
 // This source-of-truth comes from the actual ParagonIE public signed Git tag,
 // NOT from Composer metadata. Partial checkout lacks bundled external Git
 // transcript: mark incomplete, never invent positive vendor-source evidence.
@@ -288,6 +295,7 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
       sourceRow.reason='Independent main head evidence unavailable: '+
         (mainProof.stderr||mainProof.spawnError||'incomplete').slice(-350);
       block('native:forced-class-signed-chain',sourceRow.reason);
+      block('source:main-web-crypto-entrypoint-census',sourceRow.reason);
     }else{
       // Keep the SOURCE proof as the source row's last evidence line;
       // the separate 60-case chain row retains the chain proof marker.
@@ -298,11 +306,16 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
       requireProof(sourceRow,
         /EXACT current main SHA [a-f0-9]{40} original source Ed25519 backend PASS 5 PHP verifiers;/,
         'five original PHP verifiers audited at the current GitHub main SHA');
+      requireProof(entry('source:main-web-crypto-entrypoint-census',mainProof),
+        /EXACT current main SHA [a-f0-9]{40} original static public\/Hostinger release exposure PASS 1 health, 7 preflight paths, 2 CLI guards; no dynamic reachability or production approval/,
+        'exact current main blob-verified web/CLI static route census');
       requireProof(entry('native:forced-class-signed-chain',mainProof),
         /EXACT current main SHA [a-f0-9]{40} forced-class native signed-chain PASS 60 assertions;/,
         '60 real current-main signed chain assertions via native class route');
     }
   }else{
+    block('source:main-web-crypto-entrypoint-census',
+      'Exact current main original source census required; historical PR-base is insufficient');
     requireProof(sourceRow,/Stage2 shared Ed25519 backend original source PASS 5 PHP verifiers;/,
       '5 original PHP signed verifiers have shared backend, no global calls');
     requireProof(entry('native:forced-class-signed-chain',
@@ -317,7 +330,10 @@ if(isNative.exitCode===0&&isNative.stdout==='native'){
       /Stage2 PHP-only dual-signature trust history PASS: 18 assertions/,
       '18 signed key-rotation assertions');
   } else block('native:trust-root-rotation','Original PHP trust-chain contract unavailable in partial checkout');
-}else block('native:cryptography','Native ext-sodium not available');
+}else{
+  block('native:cryptography','Native ext-sodium not available');
+  block('source:main-web-crypto-entrypoint-census','Exact main static surface proof requires compatible PHP');
+}
 if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
   entry('no-sodium:RFC8032-rejection',capture(runtime,['-n',path.join(dirname,'ed25519-lab.php'),'absent']));
   entry('no-sodium:signed-envelope-rejection',capture('node',[path.join(dirname,'release-fixture.mjs'),'absent']));
@@ -462,7 +478,7 @@ const proofNames=[
   'native:operator-settlement-chain','native:node-signed-chain',
   'native:forced-class-signed-chain','native:pinned-fixed-main-dispatch-parity',
   'native:class-only-backend-primitive',
-  'source:common-ed25519-backend','mutation:ed25519-source-audit',
+  'source:common-ed25519-backend','source:main-web-crypto-entrypoint-census','mutation:ed25519-source-audit',
   'native:trust-root-rotation',
   'mutation:osv-strict-regression.mjs','mutation:osv-cli-regression.mjs',
   'mutation:suite-exit-regression.mjs',
@@ -478,6 +494,7 @@ const proofNames=[
   'mutation:real-sodium-zip-parser','upstream:actual-github-composer-zip',
   'mutation:evidence-readiness-regression.mjs',
   'mutation:review-handoff-regression.mjs',
+  'mutation:main-web-crypto-surface-regression.mjs',
   'mutation:sodium-capacity-whatif-regression.mjs',
   'online:OSV-actual43-observation'
 ];
