@@ -111,6 +111,7 @@ jobs:
         run: |
           node --check tools/stage2-human-license-review.cjs
           node --check tools/test-stage2-human-license-review.cjs
+          node --check tools/test-stage2-owner-legal-custody.cjs
           node --check tools/stage2-license-dossier.cjs
           node --check tools/stage2-owner-decision.cjs
           node --check tools/stage2-evidence-bundle.cjs

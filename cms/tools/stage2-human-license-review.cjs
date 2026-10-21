@@ -5,6 +5,7 @@
  * worksheet bytes to a pinned key, not the human's identity/qualification.
  */
 const fs=require('node:fs');
+const path=require('node:path');
 const crypto=require('node:crypto');
 const {createDossier,stable,digest}=require('./stage2-license-dossier.cjs');
 const {readPrivate,safePrivateFile,keyDigest}=require('./stage2-evidence-bundle.cjs');
@@ -231,6 +232,15 @@ function cli(argv=process.argv.slice(2)){
     '--verify':['--worksheet','--attestation','--public-key','--fingerprint']};
   assert(action.length===1&&Object.keys(params).length===1+required[action[0]].length
     &&required[action[0]].every(k=>params[k]),'invalid_review_command');
+  // Ensure the review worksheet, signing key, trust-anchor PEM and signed
+  // receipt are not accidentally co-located in one operator-controlled folder.
+  // Directory separation alone is NOT independently verified identity.
+  const fileRoles=action[0]==='--prepare'?[]:
+    action[0]==='--sign'?
+      [params['--worksheet'],params['--private-key'],params['--output']]:
+      [params['--worksheet'],params['--attestation'],params['--public-key']];
+  if(fileRoles.length&&new Set(fileRoles.map(x=>path.dirname(x))).size!==fileRoles.length)
+    throw Error('separate_reviewer_custody_directories_required');
   const dossier=createDossier();
   if(action[0]==='--prepare'){
     writePrivate(params['--output'],buildWorksheet(dossier));

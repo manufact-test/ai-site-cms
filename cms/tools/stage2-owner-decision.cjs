@@ -10,6 +10,7 @@ const {createDossier,OUT,stable,digest}=require('./stage2-license-dossier.cjs');
 const operatorScope=require('./stage2-operator-scope.cjs');
 const evidenceCrypto=require('./stage2-evidence-bundle.cjs');
 const consentCrypto=require('./stage2-owner-consent.cjs');
+const legalCrypto=require('./stage2-human-license-review.cjs');
 const FORMAT='ai-site-cms-stage2-owner-decision-packet-v1';
 const NAMES=['cmsHealth','cmsPrivateVendor','cmsPrivateEditor',
   'cmsPublishGet','visitorHome'];
@@ -121,7 +122,7 @@ function validated(source,type){
   }
   throw Error('Invalid evidence type');
 }
-function assemble(license,extra={},signedOptions=null,ownerOptions=null){
+function assemble(license,extra={},signedOptions=null,ownerOptions=null,legalOptions=null){
   if(!isObject(license)||license.format!=='ai-site-cms-stage2-license-review-v1'
     ||license.componentCount!==43||license.phpRuntimeComponentCount!==14
     ||license.browserRuntimeComponentCount!==1
@@ -212,6 +213,39 @@ function assemble(license,extra={},signedOptions=null,ownerOptions=null){
   if(evidence.externalHttps?.reportedSignedConsent && ownerConsentProof===null)
     throw Error('A claimed owner consent requires independent signature verification');
 
+  // The independent reviewer must have a separately pinned signing key;
+  // the signature authenticates 43 complete review rows for THIS exact built
+  // package. It does not prove reviewer qualifications, independent legal
+  // acceptance, or an owner permission to install or activate the CMS.
+  let legalReviewProof=null;
+  if(legalOptions!==null){
+    if(!isObject(legalOptions)||!isObject(legalOptions.worksheet)||
+      !isObject(legalOptions.attestation)||
+      typeof legalOptions.trustedDigest!=='string'||
+      !(typeof legalOptions.publicKey==='string'||Buffer.isBuffer(legalOptions.publicKey)))
+      throw Error('Independent signed human review, pin and worksheet required');
+    if((signedOptions!==null&&legalOptions.trustedDigest===signedOptions.trustedDigest)||
+      (ownerOptions!==null&&legalOptions.trustedDigest===ownerOptions.trustedDigest)||
+      (signedOptions!==null&&ownerOptions!==null&&
+        signedOptions.trustedDigest===ownerOptions.trustedDigest))
+      throw Error('Each owner, operator and legal reviewer must have a separate signing key');
+    const result=legalCrypto.verifyAttestation(license,legalOptions.worksheet,
+      legalOptions.attestation,legalOptions.publicKey,legalOptions.trustedDigest);
+    legalReviewProof={
+      format:'ai-site-cms-stage2-legal-review-transport-proof-v1',
+      reviewComponentCount:result.total,
+      reviewRowsAcceptedForSeparateHumanDecision:result.approved,
+      rejectedRows:result.rejected,pendingRows:result.pending,
+      signatureCryptographicallyVerifiedUnderPinnedKey:true,
+      signedWorksheetSha256:result.signedWorksheetSha256,
+      reviewerPublicPinSha256:result.signerSpkiSha256,
+      matchesCurrentPackageAndNotice:true,
+      reviewerIdentityAndQualificationsIndependentlyVerified:false,
+      independentLegalApproval:false,
+      writeInstallAuthorized:false,stage2Accepted:false,
+      stage3Authorized:false,productionReady:false
+    };
+  }
   // Machine-readable provenance ledger: always distinguish a verified
   // operator RECORD signature and separately verified owner SCOPE signature
   // from the identity of either signer or the truth of host observations.
@@ -220,6 +254,9 @@ function assemble(license,extra={},signedOptions=null,ownerOptions=null){
     format:'ai-site-cms-stage2-evidence-custody-v1',
     operatorRecordTransport:signedOptions!==null?'ed25519-signed-record':'unsigned-or-absent',
     ownerScopeTransport:ownerConsentProof!==null?'ed25519-signed-scope':'unattached',
+    legalReviewTransport:legalReviewProof!==null?'ed25519-signed-43-row-review':'unattached',
+    signedLegalReviewVerified:legalReviewProof!==null,
+    legalReviewerIdentityIndependentlyVerified:false,
     signedOperatorRecordsVerified:verifiedSignature!==null,
     independentlyPinnedOwnerScopeVerified:ownerConsentProof!==null,
     operatorSigningIdentityIndependentlyVerified:false,
@@ -237,7 +274,10 @@ function assemble(license,extra={},signedOptions=null,ownerOptions=null){
     {id:'architecture_and_isolation',name:'Owner approves CMS/site and 5-family architecture',
       state:'owner_decision_required',supportedBy:['lab CI','architecture proposal']},
     {id:'license_review',name:'Independent legal review of 43 pinned dependencies',
-      state:'independent_human_approval_required',supportedBy:['verified internal package','NOTICE hashes','SBOM']},
+      state:legalReviewProof!==null?'signed_complete_review_manual_legal_signoff_still_required'
+        :'independent_human_approval_required',
+      supportedBy:['verified internal package','NOTICE hashes','SBOM',
+        'separately pinned signed reviewer worksheet when attached']},
     {id:'target_package_structure',name:'Target filesystem and package integrity',
       state:evidence.offlineLocal?.localFilesystemAndPackageCompatible
         ?'operator_record_supplied_not_independently_authenticated':'permissioned_target_check_missing',
@@ -267,6 +307,7 @@ function assemble(license,extra={},signedOptions=null,ownerOptions=null){
     attachedEvidence:evidence,
     cryptographicEvidenceRecord:verifiedSignature,
     ownerReadOnlyConsentProof:ownerConsentProof,
+    signedLegalReviewProof:legalReviewProof,
     evidenceCustody,
     remainingCriteria:criteria,
     allCriteriaAutomaticallyApproved:false,
@@ -296,6 +337,7 @@ function render(packet){
     '<p>Independent legal sign-off, real target hosting and manual owner acceptance are outstanding. An attached operator claim never upgrades itself to trusted evidence.</p>'+
     '<p><strong>Evidence custody:</strong> Operator records: '+html(packet.evidenceCustody.operatorRecordTransport)+
     '; owner scope: '+html(packet.evidenceCustody.ownerScopeTransport)+
+    '; reviewer records: '+html(packet.evidenceCustody.legalReviewTransport)+
     '. Neither signature establishes real-world signer identity, target-host truth, or installation permission.</p>'+
     (packet.cryptographicEvidenceRecord
       ?'<p><strong>Offline Ed25519 signature verified against the independently supplied fingerprint.</strong> This protects the evidence file from alteration; the signing-key owner, permission and real hosting observations are NOT independently authenticated.</p>'
@@ -303,6 +345,9 @@ function render(packet){
     (packet.ownerReadOnlyConsentProof
       ?'<p><strong>Owner read-only consent signature independently reverified against a supplied Ed25519 public-key fingerprint.</strong> This does not independently establish owner identity, actual host observations, or any permission to install or publish.</p>'
       :'<p>No independent signed owner read-only consent has been attached.</p>')+
+    (packet.signedLegalReviewProof
+      ?'<p><strong>All 43 reviewed dependency records are signed for the current exact package and NOTICE under a separately pinned key.</strong> Reviewer identity, professional qualifications and independent legal sign-off are NOT established; Stage 2 is NOT accepted.</p>'
+      :'<p>No complete independently key-pinned human dependency review is attached. All 43 components still require assessment.</p>')+
     '<table><thead><tr><th>Criterion</th><th>Current state</th></tr></thead><tbody>'+
     lines+'</tbody></table>'+
     '<p>See <code>stage2-owner-decision.json</code> for machine-readable evidence limits and <code>stage2-license-dossier.html</code> for 43 dependencies.</p>'+
@@ -320,9 +365,9 @@ function readEvidence(file){
     throw Error('Unprotected operator supplied evidence');
   return JSON.parse(evidenceCrypto.readPrivate(file).toString('utf8'));
 }
-function build(extra={},signed=null,ownerConsent=null){
+function build(extra={},signed=null,ownerConsent=null,legalReview=null){
   const license=createDossier();
-  const packet=assemble(license,extra,signed,ownerConsent);
+  const packet=assemble(license,extra,signed,ownerConsent,legalReview);
   fs.mkdirSync(OUT,{recursive:true,mode:0o700});
   fs.writeFileSync(path.join(OUT,'stage2-owner-decision.json'),stable(packet),{mode:0o600});
   fs.writeFileSync(path.join(OUT,'stage2-owner-decision.html'),render(packet),{mode:0o600});
@@ -334,7 +379,7 @@ if(require.main===module){
   try{
     const argv=process.argv.slice(2);
     if(!argv.includes('--build')||argv.filter(x=>x==='--build').length!==1||
-      argv.some(x=>x!=='--build'&&!/^--(?:offline|https|database|scope|signed-bundle|trusted-pubkey|trusted-spki-sha256|owner-consent|owner-trusted-pubkey|owner-trusted-spki-sha256)=/.test(x)))
+      argv.some(x=>x!=='--build'&&!/^--(?:offline|https|database|scope|signed-bundle|trusted-pubkey|trusted-spki-sha256|owner-consent|owner-trusted-pubkey|owner-trusted-spki-sha256|legal-worksheet|legal-attestation|legal-trusted-pubkey|legal-trusted-spki-sha256)=/.test(x)))
       throw Error('Explicit offline build required');
     const sources={};
     for(const token of argv.filter(x=>x!=='--build')){
@@ -356,6 +401,18 @@ if(require.main===module){
       trustedDigest:sources['owner-trusted-spki-sha256']
     }:null;
     for(const k of ownerFields)delete sources[k];
+    const legalFields=['legal-worksheet','legal-attestation',
+      'legal-trusted-pubkey','legal-trusted-spki-sha256'];
+    const legalPresent=legalFields.filter(k=>sources[k]).length;
+    if(legalPresent!==0&&legalPresent!==4)
+      throw Error('All four separate human dependency review sources required');
+    const legal=legalPresent===4?{
+      worksheet:legalCrypto.readCanonical(sources['legal-worksheet']),
+      attestation:legalCrypto.readCanonical(sources['legal-attestation']),
+      publicKey:evidenceCrypto.readPrivate(sources['legal-trusted-pubkey'],8192),
+      trustedDigest:sources['legal-trusted-spki-sha256']
+    }:null;
+    for(const k of legalFields)delete sources[k];
     const signed=Object.keys(sources).some(x=>[
       'signed-bundle','trusted-pubkey','trusted-spki-sha256'].includes(x));
     if(signed){
@@ -366,12 +423,12 @@ if(require.main===module){
       const bundle=readEvidence(sources['signed-bundle']);
       const pubkey=evidenceCrypto.readPrivate(sources['trusted-pubkey'],8192);
       build({}, {bundle,publicKey:pubkey,
-        trustedDigest:sources['trusted-spki-sha256']},consent);
+        trustedDigest:sources['trusted-spki-sha256']},consent,legal);
     }else{
       const extra={};
       for(const [kind,file] of Object.entries(sources))
         extra[kind]=readEvidence(file);
-      build(extra,null,consent);
+      build(extra,null,consent,legal);
     }
   }catch{
     process.stderr.write('STAGE2_OWNER_REVIEW_REFUSED\n');process.exitCode=3;
