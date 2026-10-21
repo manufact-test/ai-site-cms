@@ -80,6 +80,84 @@ form.noValidate = true;
 const status = document.querySelector('#form-status');
 const send = document.querySelector('#form-submit');
 const keys = ['name', 'email', 'phone_region', 'phone', 'message'];
+
+// Bind the authoritative server protocol to HTTP metadata, never JSON claims alone.
+// Unknown or contradictory replies are uncertain: the server may already have sent mail.
+const STATUS_BY_CODE = new Map([
+  ['QUEUED_UNCONFIRMED',202], ['DUPLICATE_REQUEST',409],
+  ['CSRF_INVALID',403], ['ORIGIN_INVALID',403], ['HOST_INVALID',403],
+  ['METHOD_NOT_ALLOWED',405], ['UNSUPPORTED_REQUEST',415],
+  ['VALIDATION_ERROR',422], ['MALFORMED_FORM',422], ['SPAM_REJECTED',422],
+  ['TOO_FAST',422], ['RATE_LIMITED',429],
+  ['DELIVERY_FAILED',502], ['DELIVERY_UNCONFIRMED',502],
+  ['CONFIGURATION_REQUIRED',503], ['PHONE_VALIDATOR_REQUIRED',503],
+  ['ORIGIN_CONFIGURATION_REQUIRED',503], ['ANTI_SPAM_CONFIGURATION_REQUIRED',503],
+  ['RECEIPT_STORE_CONFIGURATION_REQUIRED',503], ['RECEIPT_STORE_UNAVAILABLE',503]
+]);
+const MAX_REPLY_BYTES = 4096;
+class ResponseProtocolError extends Error {}
+async function verifiedReply(response) {
+  if (!response || !Number.isInteger(response.status) ||
+      !response.headers || typeof response.headers.get !== 'function' ||
+      !response.body || typeof response.body.getReader !== 'function') {
+    throw new ResponseProtocolError('Missing HTTP metadata or byte stream');
+  }
+  const type = response.headers.get('content-type');
+  if (typeof type !== 'string' ||
+      !/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(type.trim())) {
+    throw new ResponseProtocolError('Unexpected response media type');
+  }
+  const declared = response.headers.get('content-length');
+  if (declared !== null && (!/^[0-9]{1,7}$/.test(declared) ||
+      Number(declared) > MAX_REPLY_BYTES)) {
+    throw new ResponseProtocolError('Untrusted response length');
+  }
+  const reader = response.body.getReader();
+  const parts = [];
+  let length = 0;
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    if (!(value instanceof Uint8Array)) throw new ResponseProtocolError('Invalid body chunk');
+    length += value.byteLength;
+    if (length > MAX_REPLY_BYTES) {
+      await reader.cancel();
+      throw new ResponseProtocolError('Oversized response');
+    }
+    parts.push(value);
+  }
+  if (!length) throw new ResponseProtocolError('Empty response');
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const part of parts) { bytes.set(part, offset); offset += part.byteLength; }
+  let data;
+  try {
+    data = JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(bytes));
+  } catch {
+    throw new ResponseProtocolError('Invalid UTF-8 or JSON');
+  }
+  if (!data || Array.isArray(data) || typeof data !== 'object' ||
+      Object.getPrototypeOf(data) !== Object.prototype ||
+      Object.keys(data).length !== 3 ||
+      !['code','message','errors'].every(key => Object.hasOwn(data,key)) ||
+      typeof data.code !== 'string' || !STATUS_BY_CODE.has(data.code) ||
+      STATUS_BY_CODE.get(data.code) !== response.status ||
+      typeof data.message !== 'string' || !data.message.trim() ||
+      data.message.length > 512 ||
+      !data.errors || typeof data.errors !== 'object' || Array.isArray(data.errors) ||
+      Object.getPrototypeOf(data.errors) !== Object.prototype) {
+    throw new ResponseProtocolError('Contradictory status/code or response shape');
+  }
+  const errors = Object.entries(data.errors);
+  if (errors.length > keys.length ||
+      errors.some(([key, message]) => !keys.includes(key) ||
+        typeof message !== 'string' || !message.trim() || message.length > 256) ||
+      (data.code === 'VALIDATION_ERROR' ? errors.length === 0 : errors.length !== 0)) {
+    throw new ResponseProtocolError('Unexpected validation fields');
+  }
+  return data;
+}
+
 // Outbound delivery may have succeeded even when the reply is unknown.
 // Permit another POST only for explicit authoritative pre-delivery responses.
 const SAFE_RETRY_CODES = new Set([
@@ -167,9 +245,8 @@ form.addEventListener('submit', async event => {
   try {
     const response = await fetch(form.action, {method: 'POST', body: new URLSearchParams(new FormData(form)),
       headers: {'Accept': 'application/json'}, credentials: 'same-origin'});
-    const data = await response.json();
-    if (!data || typeof data.code !== 'string' || typeof data.message !== 'string') throw new Error('Untrusted response shape');
-    const firstInvalid = showErrors(data.errors && typeof data.errors === 'object' ? data.errors : {});
+    const data = await verifiedReply(response);
+    const firstInvalid = showErrors(data.errors);
     status.textContent = `${data.code}: ${data.message}`;
     if (data.code === 'QUEUED_UNCONFIRMED') form.reset();
     // Default-deny on novel/mismatched status codes, not only known failures.
@@ -183,8 +260,10 @@ form.addEventListener('submit', async event => {
       activateStep(['name','email'].includes(firstInvalid.name) ? 0 : 1, false);
       firstInvalid.focus();
     } else status.focus();
-  } catch {
-    status.textContent = 'NETWORK_UNCONFIRMED: Соединение прервано. Результат отправки неизвестен. Не повторяйте запрос автоматически. Обновите страницу после проверки статуса.';
+  } catch (error) {
+    status.textContent = error instanceof ResponseProtocolError
+      ? 'RESPONSE_UNCONFIRMED: Ответ сервера не подтверждён или повреждён. Заявка могла быть принята. Не повторяйте запрос автоматически. Обновите страницу после проверки статуса.'
+      : 'NETWORK_UNCONFIRMED: Соединение прервано. Результат отправки неизвестен. Не повторяйте запрос автоматически. Обновите страницу после проверки статуса.';
     send.disabled = true;
     next.disabled = true;
     previous.disabled = true;

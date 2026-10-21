@@ -89,7 +89,7 @@ class BrowserPhpBridge(unittest.TestCase):
                 self.assertIn('application/json', response.headers.get('Content-Type', ''))
                 decoded = json.loads(raw.decode('utf-8'))
                 self.responses.append((response.status, decoded['code']))
-                return decoded
+                return {'status': response.status, 'type': response.headers.get('Content-Type', ''), 'body': decoded}
 
         self.page.expose_binding('phpBridge', call_php)
         html = html.replace('<link rel="stylesheet" href="/assets/style.css">', '')
@@ -99,9 +99,12 @@ class BrowserPhpBridge(unittest.TestCase):
         self.page.set_content(html.replace('<head>', f'<head><base href="{self.origin}/">', 1))
         self.page.add_style_tag(content=(PUBLIC/'assets/style.css').read_text())
         self.page.evaluate("""() => {
-          window.fetch = async (action, options) => ({
-            json: async () => window.phpBridge(String(action), options.body.toString())
-          });
+          window.fetch = async (action, options) => {
+            const reply = await window.phpBridge(String(action), options.body.toString());
+            return new Response(JSON.stringify(reply.body), {
+              status: reply.status, headers: {'Content-Type': reply.type}
+            });
+          };
         }""")
         self.page.add_script_tag(content=(PUBLIC/'assets/ui.js').read_text())
 
@@ -181,6 +184,34 @@ class BrowserPhpBridge(unittest.TestCase):
             "document.querySelector('#form-status').textContent.includes('PHONE_VALIDATOR_REQUIRED')")
         self.assertEqual(self.responses, [(503, 'PHONE_VALIDATOR_REQUIRED')])
         self.assertFalse(self.page.locator('#form-submit').is_disabled())
+
+
+    def test_real_php_status_preserved_by_bridge_for_retry_policy(self):
+        self.prepare_valid_form()
+        self.page.locator('#form-submit').click()
+        self.page.wait_for_function(
+            "document.querySelector('#form-status').textContent.includes('CONFIGURATION_REQUIRED')")
+        self.assertEqual(self.responses, [(503, 'CONFIGURATION_REQUIRED')])
+        self.assertFalse(self.page.locator('#form-submit').is_disabled())
+
+    def test_real_php_json_with_tampered_http_status_is_uncertain(self):
+        self.prepare_valid_form()
+        # The PHP code still returns genuine 503/CONFIGURATION_REQUIRED. Only the
+        # browser bridge's HTTP metadata is intentionally corrupted by the test.
+        self.page.evaluate("""() => {
+          const original=window.fetch;
+          window.fetch=async (...args) => {
+            const real=await original(...args);
+            return new Response(await real.text(), {
+              status:202,headers:{'Content-Type':'application/json'}});
+          };
+        }""")
+        self.page.locator('#form-submit').click()
+        self.page.wait_for_function(
+            "document.querySelector('#form-status').textContent.includes('RESPONSE_UNCONFIRMED')")
+        self.assertEqual(self.responses, [(503, 'CONFIGURATION_REQUIRED')])
+        self.assertTrue(self.page.locator('#form-submit').is_disabled())
+        self.assertEqual(self.page.locator('#name').input_value(), 'Мария')
 
 if __name__ == '__main__':
     unittest.main()

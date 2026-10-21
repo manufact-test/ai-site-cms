@@ -170,8 +170,8 @@ class BrowserLab(unittest.TestCase):
         page.locator('#email').fill('maria@example.test')
         page.locator('#wizard-next').click()
         page.locator('#message').fill('Сообщение для тестирования лабораторной формы.')
-        page.evaluate("""window.fetch = async () => ({json: async () => ({code:'DELIVERY_UNCONFIRMED',
-          message:'Результат отправки неизвестен.',errors:{}})})""")
+        page.evaluate("""window.fetch = async () => new Response(JSON.stringify({code:'DELIVERY_UNCONFIRMED',
+          message:'Результат отправки неизвестен.',errors:{}}), {status:502, headers:{'Content-Type':'application/json; charset=utf-8'}})""")
         page.locator('#form-submit').click()
         page.wait_for_function("document.querySelector('#form-status').textContent.includes('DELIVERY_UNCONFIRMED')")
         self.assertTrue(page.locator('#form-submit').is_disabled())
@@ -195,14 +195,14 @@ class BrowserLab(unittest.TestCase):
         page.locator('#email').fill('maria@example.test')
         page.locator('#wizard-next').click()
         page.locator('#message').fill('A long message to check retry protection.')
-        page.evaluate("""window.fetch=async()=>({json:async()=>({code:'SOMETHING_NEW',
-            message:'Could be accepted by a transport',errors:{}})})""")
+        page.evaluate("""window.fetch=async()=>new Response(JSON.stringify({code:'SOMETHING_NEW',
+            message:'Could be accepted by a transport',errors:{}}), {status:503, headers:{'Content-Type':'application/json; charset=utf-8'}})""")
         page.locator('#form-submit').click()
-        page.wait_for_function("document.querySelector('#form-status').textContent.includes('SOMETHING_NEW')")
+        page.wait_for_function("document.querySelector('#form-status').textContent.includes('RESPONSE_UNCONFIRMED')")
         self.assertTrue(page.locator('#form-submit').is_disabled())
         self.assertTrue(page.locator('#wizard-next').is_disabled())
         self.assertTrue(page.locator('#wizard-prev').is_disabled())
-        self.assertIn('обновите страницу',page.locator('#form-status').inner_text())
+        self.assertIn('Обновите страницу',page.locator('#form-status').inner_text())
         page.close()
 
     def test_malformed_form_reply_disables_resend(self):
@@ -211,8 +211,8 @@ class BrowserLab(unittest.TestCase):
         page.locator('#email').fill('maria@example.test')
         page.locator('#wizard-next').click()
         page.locator('#message').fill('A long message to check malformed request.')
-        page.evaluate("""window.fetch=async()=>({json:async()=>({code:'MALFORMED_FORM',
-            message:'Unexpected submission shape',errors:{}})})""")
+        page.evaluate("""window.fetch=async()=>new Response(JSON.stringify({code:'MALFORMED_FORM',
+            message:'Unexpected submission shape',errors:{}}), {status:422, headers:{'Content-Type':'application/json; charset=utf-8'}})""")
         page.locator('#form-submit').click()
         page.wait_for_function("document.querySelector('#form-status').textContent.includes('MALFORMED_FORM')")
         self.assertTrue(page.locator('#form-submit').is_disabled())
@@ -224,8 +224,8 @@ class BrowserLab(unittest.TestCase):
         page.locator('#email').fill('maria@example.test')
         page.locator('#wizard-next').click()
         page.locator('#message').fill('A message prepared for local configuration failure.')
-        page.evaluate("""window.fetch=async()=>({json:async()=>({code:'CONFIGURATION_REQUIRED',
-            message:'No configured recipient',errors:{}})})""")
+        page.evaluate("""window.fetch=async()=>new Response(JSON.stringify({code:'CONFIGURATION_REQUIRED',
+            message:'No configured recipient',errors:{}}), {status:503, headers:{'Content-Type':'application/json; charset=utf-8'}})""")
         page.locator('#form-submit').click()
         page.wait_for_function("document.querySelector('#form-status').textContent.includes('CONFIGURATION_REQUIRED')")
         self.assertFalse(page.locator('#form-submit').is_disabled())
@@ -237,8 +237,8 @@ class BrowserLab(unittest.TestCase):
         page.locator('#email').fill('maria@example.test')
         page.locator('#wizard-next').click()
         page.locator('#message').fill('A meaningful inquiry for research only')
-        page.evaluate("""window.fetch = async () => ({json: async () => ({code:'DUPLICATE_REQUEST',
-          message:'Previously attempted request, no new send.',errors:{}})})""")
+        page.evaluate("""window.fetch = async () => new Response(JSON.stringify({code:'DUPLICATE_REQUEST',
+          message:'Previously attempted request, no new send.',errors:{}}), {status:409, headers:{'Content-Type':'application/json; charset=utf-8'}})""")
         page.locator('#form-submit').click()
         page.wait_for_function("document.querySelector('#form-status').textContent.includes('DUPLICATE_REQUEST')")
         self.assertTrue(page.locator('#form-submit').is_disabled())
@@ -302,8 +302,8 @@ class BrowserLab(unittest.TestCase):
         self.assertTrue(page.locator('#name').evaluate('(el)=>document.activeElement===el'))
         page.locator('#wizard-next').click()
         page.locator('#message').fill('An accessible message that is long enough')
-        page.evaluate("""window.fetch=async()=>({json:async()=>({code:'VALIDATION_ERROR',
-          message:'Проверьте поля формы.',errors:{name:'Сервер отклонил имя.'}})})""")
+        page.evaluate("""window.fetch=async()=>new Response(JSON.stringify({code:'VALIDATION_ERROR',
+          message:'Проверьте поля формы.',errors:{name:'Сервер отклонил имя.'}}), {status:422, headers:{'Content-Type':'application/json; charset=utf-8'}})""")
         page.locator('#form-submit').click()
         page.wait_for_function("document.querySelector('#name-error').textContent.includes('Сервер')")
         self.assertFalse(page.locator('#wizard-identity').is_hidden())
@@ -334,8 +334,8 @@ class BrowserLab(unittest.TestCase):
         page.locator('#email').fill('maria@example.test')
         page.locator('#wizard-next').click()
         page.locator('#message').fill('Server detects a forged phone-region selector.')
-        page.evaluate("""window.fetch=async()=>({json:async()=>({code:'VALIDATION_ERROR',
-            message:'Проверьте страну',errors:{phone_region:'Страна не разрешена'}})})""")
+        page.evaluate("""window.fetch=async()=>new Response(JSON.stringify({code:'VALIDATION_ERROR',
+            message:'Проверьте страну',errors:{phone_region:'Страна не разрешена'}}), {status:422, headers:{'Content-Type':'application/json; charset=utf-8'}})""")
         page.locator('#form-submit').click()
         page.wait_for_function("document.querySelector('#phone_region-error').textContent.includes('Страна')")
         self.assertEqual(page.locator('#phone_region').get_attribute('aria-invalid'),'true')
@@ -364,8 +364,8 @@ class BrowserLab(unittest.TestCase):
         # Time-based anti-bot requirement uses server-side issue time.
         page.wait_for_timeout(2300)
         page.evaluate('''() => {
-          window.fetch = async () => ({json: async () => ({code:'CONFIGURATION_REQUIRED',
-            message:'Отправка не настроена: получатель отсутствует. Заявка не отправлена.', errors:{}})});
+          window.fetch = async () => new Response(JSON.stringify({code:'CONFIGURATION_REQUIRED',
+            message:'Отправка не настроена: получатель отсутствует. Заявка не отправлена.', errors:{}}), {status:503, headers:{'Content-Type':'application/json; charset=utf-8'}});
         }''')
         page.locator('#form-submit').click()
         page.wait_for_function("document.querySelector('#form-status').textContent.includes('CONFIGURATION_REQUIRED')")
@@ -388,8 +388,8 @@ class BrowserLab(unittest.TestCase):
         self.assertTrue(page.locator('#message').get_attribute('aria-invalid')=='true')
         self.assertIn('от 10',page.locator('#message-error').inner_text())
         page.locator('#message').fill('🌿'*10)
-        page.evaluate("""window.fetch=async()=>({json:async()=>({code:'CONFIGURATION_REQUIRED',
-            message:'Получатель не настроен, отправка не выполнена.',errors:{}})})""")
+        page.evaluate("""window.fetch=async()=>new Response(JSON.stringify({code:'CONFIGURATION_REQUIRED',
+            message:'Получатель не настроен, отправка не выполнена.',errors:{}}), {status:503, headers:{'Content-Type':'application/json; charset=utf-8'}})""")
         page.locator('#form-submit').click()
         page.wait_for_function("document.querySelector('#form-status').textContent.includes('CONFIGURATION_REQUIRED')")
         self.assertFalse(page.locator('#form-submit').is_disabled())
@@ -399,5 +399,113 @@ class BrowserLab(unittest.TestCase):
         self.assertTrue(page.locator('#wizard-message').is_hidden())
         self.assertIn('от 2 до 100',page.locator('#name-error').inner_text())
         page.close()
+
+
+    def protocol_page(self):
+        page = self.new_page(viewport={'width':390,'height':760})
+        page.locator('#name').fill('Мария')
+        page.locator('#email').fill('maria@example.test')
+        page.locator('#wizard-next').click()
+        page.locator('#message').fill('Protocol-bound message for the local research lab.')
+        return page
+
+    def test_http_status_code_conflicts_fail_closed_even_if_body_claims_success(self):
+        cases = [
+            (202, 'CONFIGURATION_REQUIRED'), (503, 'QUEUED_UNCONFIRMED'),
+            (200, 'QUEUED_UNCONFIRMED'), (503, 'VALIDATION_ERROR'),
+            (422, 'CONFIGURATION_REQUIRED'), (201, 'QUEUED_UNCONFIRMED'),
+            (503, 'SOMETHING_NEW')
+        ]
+        for status_code, code in cases:
+            with self.subTest(status=status_code, code=code):
+                page = self.protocol_page()
+                try:
+                    page.evaluate("""([status, code]) => {
+                      let calls=0;
+                      window.fetch=async()=>{
+                        calls++;
+                        return new Response(JSON.stringify({code, message:'Untrusted reply', errors:{}}),
+                          {status, headers:{'Content-Type':'application/json'}});
+                      };
+                      window.__calls=()=>calls;
+                    }""", [status_code, code])
+                    page.locator('#form-submit').click()
+                    page.wait_for_function("document.querySelector('#form-status').textContent.includes('RESPONSE_UNCONFIRMED')")
+                    self.assertTrue(page.locator('#form-submit').is_disabled())
+                    self.assertEqual(page.locator('#name').input_value(), 'Мария')
+                    page.locator('#form-submit').evaluate('(button)=>button.click()')
+                    self.assertEqual(page.evaluate('window.__calls()'), 1)
+                finally:
+                    page.close()
+
+    def test_malformed_and_oversized_http_replies_never_reenable_form(self):
+        cases = [
+            ('text/html', '{"code":"CONFIGURATION_REQUIRED","message":"Hi","errors":{}}'),
+            ('application/json; charset=latin1', '{"code":"CONFIGURATION_REQUIRED","message":"Hi","errors":{}}'),
+            ('application/json', '<html>200 OK</html>'),
+            ('application/json', '{"code":"CONFIGURATION_REQUIRED","message":"Hi"}'),
+            ('application/json', '{"code":"CONFIGURATION_REQUIRED","message":"Hi","errors":[] }'),
+            ('application/json', '{"code":"CONFIGURATION_REQUIRED","message":"Hi","errors":{"name":"bad"}}'),
+            ('application/json', '{"code":"VALIDATION_ERROR","message":"Hi","errors":{"evil":"bad"}}'),
+            ('application/json', '{"code":"QUEUED_UNCONFIRMED","message":"Hi","errors":{},"extra":1}'),
+            ('application/json', '{"code":"CONFIGURATION_REQUIRED","message":"'+('x'*4500)+'","errors":{}}'),
+            ('application/json', '')
+        ]
+        for content_type, payload in cases:
+            with self.subTest(type=content_type, size=len(payload), excerpt=payload[:55]):
+                page=self.protocol_page()
+                try:
+                    page.evaluate("""([type, payload]) => {
+                      window.fetch=async()=>new Response(payload, {status:503,
+                        headers:{'Content-Type':type}});
+                    }""",[content_type, payload])
+                    page.locator('#form-submit').click()
+                    page.wait_for_function("document.querySelector('#form-status').textContent.includes('RESPONSE_UNCONFIRMED')")
+                    self.assertTrue(page.locator('#form-submit').is_disabled())
+                    self.assertFalse(page.locator('#form-status').inner_text().startswith('QUEUED_UNCONFIRMED'))
+                finally:
+                    page.close()
+
+    def test_verified_http_error_allows_exactly_explicit_retry(self):
+        page=self.protocol_page()
+        try:
+            page.evaluate("""() => {
+              window.__calls=0;
+              window.fetch=async()=>{
+                window.__calls++;
+                return new Response(JSON.stringify({code:'CONFIGURATION_REQUIRED',
+                  message:'No recipient; no delivery.',errors:{}}),
+                  {status:503,headers:{'Content-Type':'application/json; charset=UTF-8'}});
+              };
+            }""")
+            page.locator('#form-submit').click()
+            page.wait_for_function("document.querySelector('#form-status').textContent.includes('CONFIGURATION_REQUIRED')")
+            self.assertFalse(page.locator('#form-submit').is_disabled())
+            page.locator('#form-submit').click()
+            page.wait_for_function("window.__calls===2")
+            self.assertFalse(page.locator('#form-submit').is_disabled())
+        finally:
+            page.close()
+
+    def test_oversized_declared_length_and_failed_utf8_decoding(self):
+        for kind in ('length', 'utf8'):
+            with self.subTest(kind=kind):
+                page=self.protocol_page()
+                try:
+                    page.evaluate("""kind => {
+                      window.fetch=async()=>{
+                        if(kind==='length') return new Response(JSON.stringify({
+                          code:'CONFIGURATION_REQUIRED',message:'Safe',errors:{}}),
+                          {status:503,headers:{'Content-Type':'application/json',
+                            'Content-Length':'999999'}});
+                        return new Response(new Uint8Array([0xff,0xfe]),
+                          {status:503,headers:{'Content-Type':'application/json'}});
+                      };
+                    }""",kind)
+                    page.locator('#form-submit').click()
+                    page.wait_for_function("document.querySelector('#form-status').textContent.includes('RESPONSE_UNCONFIRMED')")
+                    self.assertTrue(page.locator('#form-submit').is_disabled())
+                finally:
+                    page.close()
 
 if __name__=='__main__': unittest.main()
