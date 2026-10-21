@@ -27,6 +27,10 @@ try{
   fs.copyFileSync(source,path.join(dir,'run-security-suite.mjs'));
   fs.copyFileSync(path.join(path.dirname(source),'online-evidence-proof.mjs'),
     path.join(dir,'online-evidence-proof.mjs'));
+  // Suite decision is always imported even when the partial checkout
+  // deliberately lacks Git/network/OSV evidence. It must return NO_GO.
+  fs.copyFileSync(path.join(path.dirname(source),'evidence-readiness-decision.mjs'),
+    path.join(dir,'evidence-readiness-decision.mjs'));
   fs.writeFileSync(path.join(tmp,'fake-php.cjs'),
     '#!/usr/bin/env node\nprocess.stdout.write(process.argv.includes("-n")?"native":"absent");\n',
     {mode:0o700});
@@ -39,7 +43,8 @@ try{
     'suite-exit-regression.mjs':'Security suite exit-policy offline regression PASS 12 assertions; no OSV network, PHP or installed dependencies',
     'sodium-compat-attest-regression.mjs':'Sodium compat independent source attestation offline regression PASS 37 assertions; synthetic files, NOT actual upstream approval',
     'online-evidence-regression.mjs':'Online OSV and registry evidence offline regression PASS 54 assertions; synthetic data only, no live OSV lookup or production approval',
-    'runtime-sodium-proof-regression.mjs':'Sodium-free wrapper false-pass offline regression PASS 15 assertions; fake binary only, NOT native-free PHP evidence'
+    'runtime-sodium-proof-regression.mjs':'Sodium-free wrapper false-pass offline regression PASS 15 assertions; fake binary only, NOT native-free PHP evidence',
+    'evidence-readiness-regression.mjs':'Security evidence NO-GO release decision regression PASS 37 assertions; real source/OSV markers required, NO production approval'
   };
   for(const [name,msg] of Object.entries(scripts))
     fs.writeFileSync(path.join(dir,name),'console.log('+JSON.stringify(msg)+');\n');
@@ -48,8 +53,10 @@ try{
   const o=read(offline);
   check(o.counts.failed===0&&o.counts.blocked>0&&o.complete===false,
     'offline incomplete scope is visibly reported');
-  check(o.stage2Accepted===false&&o.productionApproved===false&&o.licenseApproved===false,
-    'offline run never grants production or legal acceptance');
+  check(o.stage2Accepted===false&&o.productionApproved===false&&o.licenseApproved===false&&
+    o.evidenceDecision?.releaseDecision==='NO_GO'&&
+    o.evidenceDecision?.evidence?.observedStrongResearchEvidence===false,
+    'offline run never grants product/legal acceptance or invents source/OSV proof');
   const strict=execute(['--strict']);
   check(strict.status===3&&read(strict).complete===false,'strict offline blocks fail with exit three');
   const online=execute(['--online']);
