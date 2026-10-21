@@ -286,8 +286,8 @@
     },
     {
       "path": "src/Release/LabSettledUpgradeGate.php",
-      "bytes": 13117,
-      "sha256": "47c8d147a995f60283c0fddaf77cfb9460c24ed799b32f6376a2d3e3887de87c"
+      "bytes": 13316,
+      "sha256": "5635a57192418154efd751adaf8c4642b949bf0f23230a0b5e746173632851b4"
     },
     {
       "path": "src/Release/LabTrustedUpgradeCoordinator.php",

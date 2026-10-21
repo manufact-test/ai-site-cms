@@ -6,6 +6,10 @@ namespace AiSiteCms\Release;
 use PDO;
 use RuntimeException;
 
+// All Stage2 Ed25519 verifiers must share one fail-closed backend, including
+// truly Sodium-free PHP: no implicit dependency on polyfill global wrappers.
+require_once __DIR__ . '/Ed25519Backend.php';
+
 /**
  * Stage2 disposable settlement gate. Unlike the older pending-directory-only
  * laboratory read, requires independent evidence for EVERY transition:
@@ -154,7 +158,7 @@ final class LabSettledUpgradeGate
             $raw = self::node($dir . '/settlement-' . $stem . '.json', 8192);
             $sig = self::node($dir . '/settlement-' . $stem . '.sig', 64);
             if (strlen($sig) !== 64
-                || !sodium_crypto_sign_verify_detached($sig, self::DOMAIN . $raw, $public)) {
+                || !Ed25519Backend::verifyDetached($sig, self::DOMAIN . $raw, $public)) {
                 throw new RuntimeException('Invalid operator settlement signature');
             }
             try {
