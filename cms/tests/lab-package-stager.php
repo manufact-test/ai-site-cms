@@ -128,6 +128,49 @@ try {
     labOk(Lab::verifyPackage($source,$hash)['files']===5,
         'after public-surface attack original verified inventory remains recoverable');
 
+    // Only the exact published Stage2 manifest capability schema (or its
+    // explicitly minimal synthetic test shape) can pass PHP verification.
+    // Trusting a new digest must NOT let a signer invent ignored capabilities.
+    $testManifest=json_decode($originalManifest,true,16,JSON_THROW_ON_ERROR);
+    $normalManifest=[
+        'format'=>$testManifest['format'],'stage'=>$testManifest['stage'],
+        'releaseVersion'=>$testManifest['releaseVersion'],
+        'productionReady'=>false,'documentRoot'=>'public',
+        'adminEditorAssets'=>'private/editor',
+        'hostingComposerOrNodeRequired'=>false,
+        'writeEndpointsAvailable'=>false,'isSigned'=>false,
+        'files'=>$testManifest['files']
+    ];
+    $validFull=json_encode($normalManifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
+    file_put_contents($manifestFile,$validFull);
+    labOk(Lab::verifyPackage($source,hash('sha256',$validFull))['files']===5,
+        'real Stage2 full capability schema accepted by PHP');
+    foreach ([
+        'unknown_capability'=>array_replace($normalManifest,['enableForms'=>true]),
+        'wrong_editor_path'=>array_replace($normalManifest,['adminEditorAssets'=>'public/editor']),
+        'runtime_node_required'=>array_replace($normalManifest,['hostingComposerOrNodeRequired'=>true]),
+        'reordered_keys'=>[
+            'stage'=>2,'format'=>$normalManifest['format'],
+            ...array_diff_key($normalManifest,['format'=>true,'stage'=>true])
+        ],
+        'private_editor_missing'=>array_diff_key($normalManifest,['adminEditorAssets'=>true]),
+        'wrong_http_claim'=>array_replace($normalManifest,['writeEndpointsAvailable'=>true])
+    ] as $why=>$badManifest) {
+        $badRaw=json_encode($badManifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
+        file_put_contents($manifestFile,$badRaw);
+        $badHash=hash('sha256',$badRaw);
+        labReject(static fn()=> Lab::verifyPackage($source,$badHash),
+            'PHP denies forged Stage2 capability metadata: '.$why);
+        $badLab=Lab::create();$labRoots[]=$badLab->root();
+        labReject(static fn()=> $badLab->stage($source,$badHash),
+            'forged capability cannot create a pending install: '.$why);
+        labOk($badLab->inspect()['status']==='empty',
+            'no install writes for forged Stage2 capability: '.$why);
+    }
+    file_put_contents($manifestFile,$originalManifest);
+    labOk(Lab::verifyPackage($source,$hash)['files']===5,
+        'fixture restored after source capability policy experiments');
+
     foreach (['after-intent','after-copy','after-rename','after-receipt',null] as $fault) {
         $lab = Lab::create();
         $labRoots[] = $lab->root();
