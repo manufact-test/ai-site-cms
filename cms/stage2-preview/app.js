@@ -19,7 +19,7 @@
     dirty=snapshot()!==saved;
     ui.undo.disabled=!undo.length;ui.redo.disabled=!redo.length;ui.save.disabled=!storageOK;
     ui.saveState.textContent=!storageOK?'Локальное хранилище недоступно — экспортируйте JSON':
-      dirty?'● Изменения не сохранены':'✓ Локальная версия сохранена';
+      dirty?'● Изменения не сохранены':(records.length?'✓ Локальная версия сохранена':'Новый проект · ещё не сохранён');
     ui.saveState.classList.toggle('unsaved',dirty);
   }
   function preview(){
@@ -185,7 +185,7 @@
     }
     readSaved();
     if(records.length){doc=C.validate(records[0].doc);}
-    saved=records.length?snapshot():'';use(doc);versions();
+    saved=snapshot();use(doc);versions();
     $('add').addEventListener('click',add);
     $('reset').addEventListener('click',()=>{
       if(dirty&&!confirm('Создать новый проект и потерять несохранённые изменения?'))return;
