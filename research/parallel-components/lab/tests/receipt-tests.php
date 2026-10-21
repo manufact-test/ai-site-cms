@@ -40,6 +40,10 @@ try {
     $path=$dir.'/'.$key.'.claim';
     file_put_contents($path, '{broken-json');
     confirm($gate->claim('team@example.test',$fields,2600)==='RECEIPT_STORE_UNAVAILABLE','corruption never permits replay');
+    file_put_contents($path,'');
+    confirm($gate->claim('team@example.test',$fields,2600)==='RECEIPT_STORE_UNAVAILABLE','zero-length preexisting interrupted claim cannot resend');
+    file_put_contents($path,'{"v":1,"at":-1}');
+    confirm($gate->claim('team@example.test',$fields,2600)==='RECEIPT_STORE_UNAVAILABLE','negative saved timestamp denied');
     unlink($path);symlink('/tmp/not-a-real-lab-secret',$path);
     confirm($gate->claim('team@example.test',$fields,2600)==='RECEIPT_STORE_UNAVAILABLE','symlink never followed');
     unlink($path);
@@ -76,5 +80,5 @@ try {
         $accepted += $out==='1' ? 1 : 0;
     }
     confirm($accepted===1,'12 process race yields precisely one attempt');
-} finally {foreach(glob($dir.'/*')?:[] as $file)unlink($file);rmdir($dir);}
+} finally {foreach(array_diff(scandir($dir)?:[],['.','..']) as $file)unlink($dir.'/'.$file);rmdir($dir);}
 echo "ReceiptLedger PASS: $n assertions including 12 concurrent workers\n";

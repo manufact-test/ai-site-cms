@@ -49,8 +49,19 @@ try {
     $key=hash_hmac('sha256','form-v1|203.0.113.50',$secret);$target=$dir.'/'.$key.'.rate';
     unlink($target);symlink($dir.'/nonexistent',$target);
     must(!$gate->allow('203.0.113.50',1700000100,4,60),'symlink file refused');
+    unlink($target);
+    file_put_contents($target, '[1700000000,"forged",1700000001]');
+    chmod($target,0600);
+    must(!$gate->allow('203.0.113.50',1700000200,4,60),'malformed entry does not silently reset bucket');
+    file_put_contents($target, '');
+    must(!$gate->allow('203.0.113.50',1700000300,4,60),'preexisting empty file after crash stays fail-closed');
+    file_put_contents($target, '[1700000400]');
+    must(!$gate->allow('203.0.113.50',1700000350,4,60),'clock reversal cannot clear history');
+    file_put_contents($target, '[1700000000]');
+    chmod($target,0644);
+    must(!$gate->allow('203.0.113.50',1700000400,4,60),'unsafe file mode denied');
 } finally {
-    foreach(glob($dir.'/*') ?: [] as $file)unlink($file);
+    foreach(array_diff(scandir($dir) ?: [],['.','..']) as $file)unlink($dir.'/'.$file);
     rmdir($dir);
 }
 echo "Shared throttle PASS: $n assertions including 12 real concurrent processes\n";
