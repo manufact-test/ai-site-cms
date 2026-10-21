@@ -93,6 +93,41 @@ try {
     labReject(static fn () => Lab::verifyPackage($source, $hash), 'tampered source bytes');
     file_put_contents($source . '/private/editor/editor.js', '(() => {})();');
 
+    // These are correctly indexed payloads with self-consistent hashes, not
+    // accidental tampering. Stage2 must reject adding a public form, upload
+    // handler or JS from the independent research, even with a fresh digest.
+    $manifestFile=$source.'/private/package-manifest.json';
+    $originalManifest=(string)file_get_contents($manifestFile);
+    foreach ([
+        'public/assets/ui.js'=>'document.title="unapproved-form";',
+        'public/contact.html'=>'<form method="post"></form>',
+        'public/upload.php'=>'<?php echo "unapproved upload";'
+    ] as $extraPath=>$extraBytes) {
+        $full=$source.'/'.$extraPath;
+        $parent=dirname($full);
+        if (!is_dir($parent)) mkdir($parent,0700,true);
+        file_put_contents($full,$extraBytes);
+        $fixtureManifest=json_decode($originalManifest,true,16,JSON_THROW_ON_ERROR);
+        $fixtureManifest['files'][]=['path'=>$extraPath,
+            'bytes'=>strlen($extraBytes),'sha256'=>hash('sha256',$extraBytes)];
+        $newManifest=json_encode($fixtureManifest,
+            JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
+        file_put_contents($manifestFile,$newManifest);
+        $attackerDigest=hash('sha256',$newManifest);
+        labReject(static fn()=>Lab::verifyPackage($source,$attackerDigest),
+            'fresh digest cannot authorize additional Stage2 public app surface: '.$extraPath);
+        $rejectLab=Lab::create();$labRoots[]=$rejectLab->root();
+        labReject(static fn()=> $rejectLab->stage($source,$attackerDigest),
+            'unapproved public app cannot create even temporary install intent: '.$extraPath);
+        labOk($rejectLab->inspect()['status']==='empty',
+            'refusal made zero installer state changes for '.$extraPath);
+        file_put_contents($manifestFile,$originalManifest);
+        unlink($full);
+        if ($parent===$source.'/public/assets') rmdir($parent);
+    }
+    labOk(Lab::verifyPackage($source,$hash)['files']===5,
+        'after public-surface attack original verified inventory remains recoverable');
+
     foreach (['after-intent','after-copy','after-rename','after-receipt',null] as $fault) {
         $lab = Lab::create();
         $labRoots[] = $lab->root();
