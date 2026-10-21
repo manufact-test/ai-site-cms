@@ -45,10 +45,10 @@ function main(){
   fs.mkdirSync(base,{mode:0o700});
   let checks=0;
   try{
-    const dirs=['receipts','settlements','permits','permits/permit-000001','permits/permit-000002'];
+    const dirs=['receipts','settlements','approved-permit-proofs','approved-permit-proofs/permit-000001','approved-permit-proofs/permit-000002'];
     for(const name of dirs)fs.mkdirSync(path.join(base,name),{mode:0o700});
     const receipts=path.join(base,'receipts'),settlements=path.join(base,'settlements');
-    const permits=path.join(base,'permits');
+    const permits=path.join(base,'approved-permit-proofs');
     const input=path.join(base,'fixture.json');
     const kp=crypto.generateKeyPairSync('ed25519');
     const der=kp.publicKey.export({type:'spki',format:'der'});
