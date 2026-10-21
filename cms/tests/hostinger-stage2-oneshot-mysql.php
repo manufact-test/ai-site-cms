@@ -170,6 +170,23 @@ try {
         'preflight detects group-readable credential file without reading it');
     $reject(fn()=>Job::run($package,$local)); // World-readable credential refused.
     chmod($local.'/once.json',0600);
+    $originalTask=json_encode($task,JSON_THROW_ON_ERROR);
+    foreach ([
+        $originalTask."\n",
+        " ".$originalTask,
+        str_replace('"format"', '"format":"injected","format"', $originalTask),
+        "\xEF\xBB\xBF".$originalTask,
+        $originalTask."\0"
+    ] as $malformedTask) {
+        file_put_contents($local.'/once.json',$malformedTask);
+        chmod($local.'/once.json',0600);
+        $reject(fn()=>Job::run($package,$local));
+        $check(!file_exists($local.'/receipt.json')
+            && (int)$pdo->query('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()')
+                ->fetchColumn()===0,
+            'raced/noncanonical credential record refuses before receipt and real MySQL DDL');
+    }
+    $store($task);
     $wrongPinTask=$task;
     $wrongPinTask['package_manifest_sha256']=str_repeat('a',64);
     $store($wrongPinTask);

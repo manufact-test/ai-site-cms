@@ -93,6 +93,9 @@ jobs:
       - name: Host requirement profiles and explicit owner/target-host Stage2 exit review contract
         working-directory: cms
         run: php tests/lab-stage2-exit-review-contract.php
+      - name: Private operator task/snapshot record reader path, inode and canonical JSON regression
+        working-directory: cms
+        run: php tests/stage2-private-operator-record.php
       - name: Target-host read-only handoff on five independent visitor site families; no real target access
         working-directory: cms
         run: php tests/stage2-target-handoff-contract.php && node tools/test-stage2-target-host-handoff.cjs

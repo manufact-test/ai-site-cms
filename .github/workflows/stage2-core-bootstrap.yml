@@ -224,6 +224,8 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: SQLite schema migrate, isolation, integrity refusal
         run: php tests/storage.php
+      - name: Operator credential descriptor identity, strict JSON, links and mode boundaries
+        run: php -l src/Hosting/Stage2PrivateOperatorRecord.php && php tests/stage2-private-operator-record.php
       - name: Real cross-process explicit CLI install, isolated SQLite file
         run: php tests/installer-cli.php
       - name: Readiness gate with independent SQLite schema and hostile configurations
