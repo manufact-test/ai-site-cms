@@ -36,8 +36,8 @@
     },
     {
       "path": "bin/install.php",
-      "bytes": 1932,
-      "sha256": "56d33652081fd442de38e0398c0da2d3a03ef024a1134b5d8b7b5c962ee672a7"
+      "bytes": 2974,
+      "sha256": "58e9f4549cc2f85f0dea40e9794977cbfa4912f7b5287dbe34ac594213e64b22"
     },
     {
       "path": "bin/lab-deployment-blueprint.php",
