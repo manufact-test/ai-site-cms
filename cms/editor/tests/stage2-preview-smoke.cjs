@@ -85,6 +85,7 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(await frame.locator('main > section').count(),1);
     await page.locator('[data-width=tablet]').click();
     assert.equal(await page.locator('#browser.tablet').count(),1);
+    page.once('dialog',dialog=>dialog.accept());
     await page.locator('#versions .restore').first().click();
     await page.locator('[data-focus=page]').click();
     await frame.locator('h1').filter({hasText:'Рабочий прототип CMS'}).waitFor();
