@@ -402,6 +402,57 @@ final class SchemaManager
                 throw new RuntimeException('CMS table type/constraint drift');
             }
         }
+        // SHOW COLUMNS alone misses extra (possibly unique) indexes,
+        // CHECK constraints, FKs and redefined composite keys. They can
+        // change writes even when every column name/type still matches.
+        // Compare actual MySQL 8.4 index/constraint metadata to the two
+        // literal Stage2 tables; never use caller-controlled SQL identifiers.
+        $indexes=$this->pdo->prepare(
+            'SELECT INDEX_NAME, NON_UNIQUE, SEQ_IN_INDEX, COLUMN_NAME, SUB_PART, INDEX_TYPE
+             FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?
+             ORDER BY INDEX_NAME, SEQ_IN_INDEX'
+        );
+        $indexes->execute([$table]);
+        $actual=$indexes->fetchAll(PDO::FETCH_ASSOC);
+        $expectedKeys=$table==='cms_schema_migrations'
+            ? ['PRIMARY'=>['version']]
+            : ['PRIMARY'=>['singleton_id'], 'site_id'=>['site_id']];
+        $indexCount=0;
+        foreach ($actual as $idx) {
+            $name=(string)$idx['INDEX_NAME'];
+            if (!isset($expectedKeys[$name])||count($expectedKeys[$name])!==1
+                || (int)$idx['NON_UNIQUE']!==0
+                || (int)$idx['SEQ_IN_INDEX']!==1
+                || $idx['COLUMN_NAME']!==$expectedKeys[$name][0]
+                || $idx['SUB_PART']!==null
+                || strtoupper((string)$idx['INDEX_TYPE'])!=='BTREE') {
+                throw new RuntimeException('Unexpected MySQL index/uniqueness drift');
+            }
+            ++$indexCount;
+        }
+        if ($indexCount!==count($expectedKeys)) {
+            throw new RuntimeException('Required MySQL primary/unique index missing');
+        }
+        $constraints=$this->pdo->prepare(
+            'SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE FROM information_schema.TABLE_CONSTRAINTS
+             WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?
+             ORDER BY CONSTRAINT_NAME'
+        );
+        $constraints->execute([$table]);
+        $actualConstraints=$constraints->fetchAll(PDO::FETCH_ASSOC);
+        $want=$table==='cms_schema_migrations'
+            ? ['PRIMARY'=>'PRIMARY KEY']
+            : ['PRIMARY'=>'PRIMARY KEY','site_id'=>'UNIQUE'];
+        if (count($actualConstraints)!==count($want)) {
+            throw new RuntimeException('Extra or missing MySQL table constraints');
+        }
+        foreach ($actualConstraints as $constraint) {
+            $name=(string)$constraint['CONSTRAINT_NAME'];
+            if (!isset($want[$name])||$constraint['CONSTRAINT_TYPE']!==$want[$name]) {
+                throw new RuntimeException('Unexpected MySQL CHECK/FK/constraint');
+            }
+        }
     }
 
     /**

@@ -107,6 +107,19 @@ checkFault((int)$db->query("SELECT COUNT(*) FROM information_schema.tables WHERE
     table_schema=DATABASE() AND table_name='cms_installation'")->fetchColumn()===0,
     'Nontransactional journal cannot trigger CMS installation writes');
 $db->exec('DROP TABLE cms_schema_migrations');
+// A journal may have identical column metadata but a foreign secondary
+// index. Never create the installation table in such a database.
+$db->exec('CREATE TABLE cms_schema_migrations (
+    version INT UNSIGNED NOT NULL PRIMARY KEY,
+    checksum CHAR(64) NOT NULL,
+    applied_at VARCHAR(35) NOT NULL) ENGINE=InnoDB');
+$db->exec('CREATE INDEX visitor_journal_index ON cms_schema_migrations (applied_at)');
+refuseFault(fn()=> $store->migrate(2),
+    'Correctly typed MySQL journal with extra index must refuse BEFORE DDL');
+checkFault((int)$db->query("SELECT COUNT(*) FROM information_schema.tables WHERE
+    table_schema=DATABASE() AND table_name='cms_installation'")->fetchColumn()===0,
+    'Extra-journal-index refusal creates no installation table');
+$db->exec('DROP TABLE cms_schema_migrations');
 
 // 2: MySQL DDL was applied, but migration v1 journal lost before commit.
 $store->migrate(1);
@@ -151,6 +164,26 @@ refuseFault(fn()=> $store->assertSite('fault-demo'),
 $db->exec('ALTER TABLE cms_installation ENGINE=InnoDB');
 checkFault($store->inspectSite('fault-demo')['state']==='ready',
     'Exactly restored test schema validates after constraint and engine checks');
+// Ordinary SHOW COLUMNS sees no difference when an attacker adds an extra
+// index or CHECK constraint. Detect these metadata changes before site use.
+$db->exec('CREATE INDEX visitor_extra_index ON cms_installation (initialized_at)');
+checkFault($store->inspectSite('fault-demo')['state']==='blocked',
+    'MySQL extra secondary index invalidates otherwise correct schema');
+refuseFault(fn()=>$store->assertSite('fault-demo'),
+    'MySQL cannot use installation with foreign extra index');
+$db->exec('DROP INDEX visitor_extra_index ON cms_installation');
+checkFault($store->inspectSite('fault-demo')['state']==='ready',
+    'Removing disposable extra MySQL index restores schema');
+$db->exec('ALTER TABLE cms_installation
+    ADD CONSTRAINT visitor_check CHECK (storage_generation >= 0)');
+checkFault($store->inspectSite('fault-demo')['state']==='blocked',
+    'MySQL foreign CHECK constraint rejected before reuse');
+refuseFault(fn()=>$store->migrate(2),
+    'MySQL cannot migrate with foreign CHECK side effects');
+$db->exec('ALTER TABLE cms_installation DROP CHECK visitor_check');
+checkFault($store->inspectSite('fault-demo')['state']==='ready'
+    && (string)$db->query('SELECT site_id FROM cms_installation')->fetchColumn()==='fault-demo',
+    'Dropping disposable foreign CHECK recovers original site without modifying identity');
 // Even an authentic, fully journaled CMS is not allowed to coexist with
 // a newly planted foreign trigger. Reads must refuse, never delete it.
 // Binary-logged MySQL rightly refuses CREATE TRIGGER to the ordinary
