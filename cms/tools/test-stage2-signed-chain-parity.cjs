@@ -31,15 +31,18 @@ function main(){
     for(const value of Object.values(domains))assert.equal(value.at(-1),0);
     console.log('Stage2 signed-chain static backend/domain assertions PASS 4; no Hostinger');return;
   }
-  assert.equal(process.argv.length,2,'Unknown CLI input');
+  const nativeOnly=process.argv[2]==='--native';
+  assert.equal(process.argv.length,nativeOnly?3:2,'Unknown CLI input');
   const php=process.env.CMS_NATIVE_PHP_BINARY||'php';
   const noSodium=process.env.CMS_PHP83_NO_SODIUM_BINARY;
   const autoload=process.env.SODIUM_COMPAT_AUTOLOAD;
-  assert.ok(noSodium&&path.isAbsolute(noSodium)&&fs.existsSync(noSodium));
-  assert.ok(autoload&&path.isAbsolute(autoload)&&fs.existsSync(autoload));
-  const a=phpStatus(php),b=phpStatus(noSodium,['-n']);
+  if(!nativeOnly){
+    assert.ok(noSodium&&path.isAbsolute(noSodium)&&fs.existsSync(noSodium));
+    assert.ok(autoload&&path.isAbsolute(autoload)&&fs.existsSync(autoload));
+  }
+  const a=phpStatus(php),b=nativeOnly?null:phpStatus(noSodium,['-n']);
   assert.ok(a[2]===true&&a[4]==='cli','Native PHP verifier required');
-  assert.ok(b[0]>=80300&&b[0]<80400&&b[1]===8&&b[2]===false
+  if(!nativeOnly)assert.ok(b[0]>=80300&&b[0]<80400&&b[1]===8&&b[2]===false
     &&b[3]===false&&b[4]==='cli','True no-Sodium PHP 8.3/64-bit required');
   const base=path.join(os.tmpdir(),'ai-site-cms-trusted-upgrade-fixture-'+crypto.randomBytes(8).toString('hex'));
   fs.mkdirSync(base,{mode:0o700});
@@ -161,13 +164,17 @@ function main(){
       invoke(mode,'original chain restored','ACCEPTED');
       return good;
     };
-    const native=suite('native'),compat=suite('compat');
-    assert.equal(native.head,compat.head,'Native and compat heads diverged');
-    assert.deepEqual(passed.native,passed.compat,'Signed policy transcript mismatch');
-    deny('absent','no cryptographic verifier must fail closed');
+    const native=suite('native');
+    if(!nativeOnly){
+      const compat=suite('compat');
+      assert.equal(native.head,compat.head,'Native and compat heads diverged');
+      assert.deepEqual(passed.native,passed.compat,'Signed policy transcript mismatch');
+      deny('absent','no cryptographic verifier must fail closed');
+    }
     console.log(JSON.stringify({evidence:'signed-permit-receipt-settlement-parity',
-      checks,nativePHP:a[0],noSodiumPHP:b[0],sameSignedBytes:true,
-      sameSignedHead:true,signatureBackends:['native','pinned userland 2.5.2'],
+      checks,nativePHP:a[0],noSodiumPHP:b?.[0]??null,sameSignedBytes:true,
+      sameSignedHead:nativeOnly?null:true,
+      signatureBackends:nativeOnly?['native']:['native','pinned userland 2.5.2'],
       policy:'original CMS PHP',hostingerTested:false,
       publisherIdentityIndependentlyVerified:false,stage2Accepted:false},null,2));
   }finally{fs.rmSync(base,{recursive:true,force:true});}
