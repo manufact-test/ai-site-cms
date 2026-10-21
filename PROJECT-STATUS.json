@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-21",
-  "status": "stage2-in-progress-not-accepted-v1.48-github-only-canonical-release-manifest",
+  "status": "stage2-in-progress-not-accepted-v1.49-signed-owner-operator-custody",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Read LAST §53 docs/NEXT-CHAT.md and handoffs/lead-integrator/MAIN-HANDOFF-v1.48-2026-10-21.md; code 8b59e0718a867920bd5d7890e55c5b002facd354 PHP 8/8, Editor/E2E, offweb 478/478 SUCCESS. No further Hostinger or other sites activity. Stage2 NOT ACCEPTED, Stage3 NOT STARTED. Continue GitHub-only work on signed release custody, human 43-license review and owner final target approval.",
+  "next_step": "FIRST read docs/NEXT-CHAT.md last §54, handoffs/lead-integrator/MAIN-HANDOFF-v1.49-2026-10-21.md, docs/STAGE-2-OWNER-EVIDENCE-CUSTODY.md. Source tested b3237fc2426ad246178b3fd4b64501c6b22c86ba: PHP 8/8 https://github.com/manufact-test/ai-site-cms/actions/runs/39623780590, Editor/E2E https://github.com/manufact-test/ai-site-cms/actions/runs/39623780667, offweb 479/479 https://github.com/manufact-test/ai-site-cms/actions/runs/39624303691. Docs-only main commit separate. Next: 43 component human legal/security/NOTICE review, genuine publisher/owner/operator Ed25519 trust and no-Sodium LiteSpeed choice; separate owner-authorized final read-only target r8, then separate empty test CMS DB write/visitor recovery and owner Stage2 acceptance. No auto Hostinger activity, Stage3, or PR3/PR4 merge.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "public",
-  "checkpoint_version": "1.48",
+  "checkpoint_version": "1.49",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -25,7 +25,7 @@
     "started_at": "2026-10-18",
     "owner_delegated_selection": true,
     "foundation": "A - Slim/Opis/Jedison",
-    "product_code": "Disposable GitHub-only Stage2 read-only Slim4/Opis2.6/Jedison1.27.1 package: canonical Node/PHP release manifest with no test-only verifier bypass, signed Ed25519 test suite, real disposable MySQL8.4 and Sodium-free PHP8.3, isolated Chromium/E2E, verified 478-file offweb ZIP. NO production admin/auth/forms/AI/publish, and NO newly deployed Hostinger CMS.",
+    "product_code": "GitHub-only Stage2 internal CI prototype on Slim4/Opis2.6/Jedison1.27.1; private file and owner/operator independent signed evidence custody, exact 3-disposable-DB-only generic MySQL installer, strict SQLite/MySQL physical schema checks, 479-file unsigned offweb package. No new Hostinger deployment, production publisher key, admin/auth/publish or accepted mandatory product features.",
     "bootstrap_commit": "493964f32d63dd5552484afbcc972fc614571381",
     "bootstrap_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39275005275",
     "bootstrap_ci_result": "7/7 SUCCESS on verified code 493964f32d63dd5552484afbcc972fc614571381",
@@ -53,8 +53,8 @@
       "Idempotent same-site initialization",
       "Refuses database reuse by different site identity"
     ],
-    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39587975849",
-    "last_full_ci_result": "8/8 SUCCESS, verified code SHA 8b59e0718a867920bd5d7890e55c5b002facd354",
+    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39623780590",
+    "last_full_ci_result": "8/8 SUCCESS on tested source b3237fc2426ad246178b3fd4b64501c6b22c86ba; editor https://github.com/manufact-test/ai-site-cms/actions/runs/39623780667 SUCCESS, offweb https://github.com/manufact-test/ai-site-cms/actions/runs/39624303691 SUCCESS",
     "last_full_ci_checks": {
       "kernel_smoke": 10,
       "sqlite_schema_checks": 37,
@@ -566,13 +566,22 @@
       "shared_ssh_used": false,
       "next_section": "docs/NEXT-CHAT.md §52",
       "report": "docs/STAGE-2-HOSTINGER-LIVE-KERNEL-v1.47.md"
-    }
+    },
+    "latest_editor_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39623780667",
+    "latest_offweb_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39624303691",
+    "latest_offweb_package_files": 479,
+    "latest_unsigned_manifest_sha256": "112f9fd7adf5ac3f0717047967453b2de14a6b1647c5cc12e2358f7ddf0508bc",
+    "stage3_authorized": false,
+    "stage2_evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba",
+    "human_owner_stage2_acceptance": false,
+    "operator_signer_identity_independently_verified": false,
+    "owner_signer_identity_independently_verified": false
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.48",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.48-2026-10-21.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.49-2026-10-21.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -593,7 +602,7 @@
       "scope": "Research, license/host analysis, 135-ID reuse matrix and option A preference accepted through owner-delegated technical choice. No product features accepted."
     }
   ],
-  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/main/handoffs/lead-integrator/MAIN-HANDOFF-v1.48-2026-10-21.md",
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/main/handoffs/lead-integrator/MAIN-HANDOFF-v1.49-2026-10-21.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
@@ -1110,16 +1119,16 @@
     "owner_requests_no_automatic_doc_updates": true
   },
   "last_verified_code_checkpoint_2026_10_21": {
-    "code_sha": "8b59e0718a867920bd5d7890e55c5b002facd354",
-    "php_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39587975849",
+    "code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba",
+    "php_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39623780590",
     "php_ci_success": 8,
     "php_ci_total": 8,
-    "editor_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39587976040",
+    "editor_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39623780667",
     "editor_e2e_success": true,
-    "offweb_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39588269636",
-    "offweb_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/39588269636/artifacts/12341017684",
-    "offweb_exact_files": 478,
-    "manifest_sha256": "ab5d58a984c27a10d901c0c8ffb5256100c44685ed5509a8a3e07cc4ad8d772b",
+    "offweb_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39624303691",
+    "offweb_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/39624303691/artifacts/12355179613",
+    "offweb_exact_files": 479,
+    "manifest_sha256": "112f9fd7adf5ac3f0717047967453b2de14a6b1647c5cc12e2358f7ddf0508bc",
     "pending_legal_review_component_count": 43,
     "php_node_same_complete_canonical_release_format": true,
     "simplified_test_only_php_manifest_policy_removed": true,
@@ -1135,6 +1144,12 @@
       "separately approved empty schema install, independent visitor outage and recovery test",
       "owner Stage2 exit acceptance"
     ],
-    "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.48-2026-10-21.md"
-  }
+    "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.49-2026-10-21.md",
+    "dual_operator_owner_signed_custody_required": true,
+    "scope_owner_identity_independently_verified": false,
+    "operator_signer_identity_independently_verified": false,
+    "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
+  },
+  "last_docs_handoff_version": "1.49",
+  "last_docs_handoff_note": "Requested docs-only handoff follows SOURCE SHA. Do not treat docs-only main HEAD as re-tested application code."
 }
