@@ -69,7 +69,7 @@ function hostileManifestMutation(mutator,label){
   try{
     cleanup=mutator(fresh)||cleanup;
     fs.writeFileSync(manifestPath,JSON.stringify(fresh,null,2)+'\n');
-    assert.throws(()=>verify(),/Stage2 public boundary|unapproved routes|writable CMS claims/,
+    assert.throws(()=>verify(),/Stage2 public boundary|unapproved routes|writable CMS claims|Invalid\/noncanonical package manifest/,
       label);
     checks++;
   }finally{
