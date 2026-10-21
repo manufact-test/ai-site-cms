@@ -7,16 +7,16 @@ $count=0;
 function checkState(bool $condition,string $why): void {
     global $count; $count++; if (!$condition) throw new RuntimeException("Private state #$count: $why");
 }
-$dir = sys_get_temp_dir().'/cms-lab-state-'.bin2hex(random_bytes(10));
-mkdir($dir,0700);chmod($dir,0700);
-$secret = str_repeat('Z',48);
-$fields=['name'=>'Person','email'=>'person@example.test','phone'=>'','message'=>'Private state test message'];
 if (($argv[1] ?? '') === '--sweep') {
     $childDir = $argv[2];
     file_put_contents($childDir.'/worker-started','1');
     $done=PrivateStateMaintenance::prune($childDir,__DIR__.'/../public',1700000000,128,32);
     echo $done['code']; exit($done['code']==='PRUNED' ? 0 : 4);
 }
+$dir = sys_get_temp_dir().'/cms-lab-state-'.bin2hex(random_bytes(10));
+mkdir($dir,0700);chmod($dir,0700);
+$secret = str_repeat('Z',48);
+$fields=['name'=>'Person','email'=>'person@example.test','phone'=>'','message'=>'Private state test message'];
 try {
     $root=__DIR__.'/../public';
     $rate=new SharedThrottle($dir,$secret,$root);
@@ -54,6 +54,13 @@ try {
     checkState(file_get_contents($unknown)==='personal data should be untouched','unrecognized file not opened/deleted');
     checkState(!$rate->allow('203.0.113.12',$now-3600,5,3600),'clock rollback cannot reset active bucket');
     checkState($claims->claim('active@example.test',$fields,$now)==='DUPLICATE_REQUEST','sweep retains live duplicate protection');
+    // Reject hardlinks and never delete an inode shared with a second filename.
+    $hardLink=$dir.'/'.str_repeat('e',64).'.claim';
+    checkState(link($activeClaim,$hardLink),'hardlink test fixture created');
+    checkState($claims->claim('active@example.test',$fields,$now)==='RECEIPT_STORE_UNAVAILABLE','duplicate fence fails closed on unexpected hardlink');
+    $hardSweep=PrivateStateMaintenance::prune($dir,$root,$now,1024,128);
+    checkState($hardSweep['code']==='PRUNED' && is_file($hardLink) && is_file($activeClaim),'sweep never removes linked record');
+    unlink($hardLink);
     checkState($rate->allow('203.0.113.11',$now,5,3600),'truly expired rate can start a fresh bucket');
     checkState($claims->claim('old@example.test',$fields,$now)==='CLAIMED','truly expired claim allows new attempt');
     checkState((fileperms($activeClaim)&0077)===0 && (fileperms($activeRate)&0077)===0,'state never group/world-readable');
