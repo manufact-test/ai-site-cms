@@ -18,6 +18,8 @@ use Throwable;
 final class SchemaManager
 {
     public const LATEST = 2;
+    private const SQLITE_JOURNAL_DDL =
+        'CREATE TABLE cms_schema_migrations (version INTEGER PRIMARY KEY, checksum VARCHAR(64) NOT NULL, applied_at VARCHAR(35) NOT NULL)';
 
     private string $driver;
 
@@ -42,16 +44,24 @@ final class SchemaManager
             // A pre-existing journal with the correct NAME but wrong primary
             // key, column types or engine must never be mistaken for our
             // journal. Validate BEFORE first CREATE/ALTER/INSERT.
-            if ($this->driver === 'mysql' && $this->tableExists('cms_schema_migrations')) {
-                $this->verifyMysqlTable('cms_schema_migrations', [
-                    'version'=>['int unsigned','PRI',null],
-                    'checksum'=>['char(64)','',null],
-                    'applied_at'=>['varchar(35)','',null]
-                ]);
+            if ($this->tableExists('cms_schema_migrations')) {
+                if ($this->driver === 'mysql') {
+                    $this->verifyMysqlTable('cms_schema_migrations', [
+                        'version'=>['int unsigned','PRI',null],
+                        'checksum'=>['char(64)','',null],
+                        'applied_at'=>['varchar(35)','',null]
+                    ]);
+                } else {
+                    // SQLite's IF NOT EXISTS ignores a foreign journal with
+                    // the same name. Reject its DDL BEFORE creating any CMS
+                    // table or consuming an untrusted migration history.
+                    $this->verifySqliteTable('cms_schema_migrations',
+                        self::SQLITE_JOURNAL_DDL);
+                }
             }
             $this->pdo->exec($this->driver === 'mysql'
                 ? 'CREATE TABLE IF NOT EXISTS cms_schema_migrations (version INT UNSIGNED NOT NULL PRIMARY KEY, checksum CHAR(64) NOT NULL, applied_at VARCHAR(35) NOT NULL) ENGINE=InnoDB'
-                : 'CREATE TABLE IF NOT EXISTS cms_schema_migrations (version INTEGER PRIMARY KEY, checksum VARCHAR(64) NOT NULL, applied_at VARCHAR(35) NOT NULL)');
+                : 'CREATE TABLE IF NOT EXISTS '.substr(self::SQLITE_JOURNAL_DDL, strlen('CREATE TABLE ')));
             $found = $this->pdo->query('SELECT version, checksum FROM cms_schema_migrations ORDER BY version')->fetchAll(PDO::FETCH_ASSOC);
             $installed = [];
             foreach ($found as $row) {
@@ -215,14 +225,32 @@ final class SchemaManager
                 'SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = DATABASE()'
             )->fetchAll(PDO::FETCH_COLUMN);
         } else {
-            $tables = $this->pdo->query(
-                "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')"
-            )->fetchAll(PDO::FETCH_COLUMN);
+            // Tables alone are insufficient: triggers can execute untrusted
+            // SQL on our writes, and foreign indexes alter uniqueness and
+            // recovery behavior. A legitimate v1/v2 schema has EXACTLY
+            // two tables and one SQLite-generated UNIQUE site index.
+            $objects = $this->pdo->query(
+                "SELECT name, type, tbl_name, sql FROM sqlite_master"
+            )->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($objects as $item) {
+                $name = (string) $item['name'];
+                $type = (string) $item['type'];
+                $ownsTable = $type === 'table'
+                    && in_array($name,
+                        ['cms_schema_migrations', 'cms_installation'], true);
+                $siteAutoindex = $type === 'index'
+                    && $name === 'sqlite_autoindex_cms_installation_1'
+                    && $item['tbl_name'] === 'cms_installation'
+                    && $item['sql'] === null;
+                if (!$ownsTable && !$siteAutoindex) {
+                    throw new RuntimeException(
+                        'Foreign SQLite schema object: dedicated CMS database required'
+                    );
+                }
+            }
+            return;
         }
         foreach ($tables as $name) {
-            if ($this->driver === 'sqlite' && $name === 'sqlite_sequence') {
-                continue;
-            }
             if (!in_array($name, ['cms_schema_migrations', 'cms_installation'], true)) {
                 throw new RuntimeException('Foreign/unknown schema objects: dedicated CMS database required');
             }
@@ -293,6 +321,33 @@ final class SchemaManager
                 'applied_at'=>['varchar(35)','',null]
             ]);
             $this->verifyMysqlTable('cms_installation', $expected);
+        } else {
+            $this->verifySqliteTable('cms_schema_migrations',
+                self::SQLITE_JOURNAL_DDL);
+            $sql=$this->statements(1)[0];
+            if ($version >= 2) {
+                // SQLite's own ALTER TABLE extends the literal schema SQL.
+                // It cannot silently substitute a lookalike WITHOUT CHECK,
+                // UNIQUE, PRIMARY KEY, NOT NULL, correct types or defaults.
+                $sql=substr($sql, 0, -1)
+                    .', storage_generation BIGINT NOT NULL DEFAULT 0)';
+            }
+            $this->verifySqliteTable('cms_installation', $sql);
+            $indexes = $this->pdo->query(
+                "PRAGMA index_list('cms_installation')"
+            )->fetchAll(PDO::FETCH_ASSOC);
+            $parts = $this->pdo->query(
+                "PRAGMA index_info('sqlite_autoindex_cms_installation_1')"
+            )->fetchAll(PDO::FETCH_ASSOC);
+            if (count($indexes) !== 1
+                || $indexes[0]['name'] !== 'sqlite_autoindex_cms_installation_1'
+                || (int) $indexes[0]['unique'] !== 1
+                || $indexes[0]['origin'] !== 'u'
+                || (int) $indexes[0]['partial'] !== 0
+                || count($parts) !== 1
+                || $parts[0]['name'] !== 'site_id') {
+                throw new RuntimeException('SQLite site isolation index drift');
+            }
         }
         foreach (['singleton_id', 'site_id', 'initialized_at'] as $field) {
             if (!in_array($field, $columnNames, true)) {
@@ -346,6 +401,29 @@ final class SchemaManager
                 || $field['Extra']!=='') {
                 throw new RuntimeException('CMS table type/constraint drift');
             }
+        }
+    }
+
+    /**
+     * SQLite has no SHOW COLUMNS equivalent with enough details to prove
+     * CHECK (singleton_id=1), UNIQUE, PK, NOT NULL and exact constraints.
+     * Pin the exact SQL authored by this version's migrations instead of
+     * trusting column NAMES or a forged migration journal.
+     */
+    private function verifySqliteTable(string $table, string $expectedSql): void
+    {
+        if ($this->driver !== 'sqlite'
+            || !in_array($table, ['cms_schema_migrations','cms_installation'], true)) {
+            throw new RuntimeException('Invalid SQLite table verification');
+        }
+        $stmt=$this->pdo->prepare(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?"
+        );
+        $stmt->execute([$table]);
+        $rows=$stmt->fetchAll(PDO::FETCH_COLUMN);
+        if (count($rows)!==1 || !is_string($rows[0])
+            || !hash_equals($expectedSql,$rows[0])) {
+            throw new RuntimeException('SQLite physical schema drift');
         }
     }
 

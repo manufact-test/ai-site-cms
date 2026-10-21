@@ -81,6 +81,21 @@ try {
     $count = (int) $db->query('SELECT COUNT(*) FROM cms_schema_migrations')->fetchColumn();
     if ($count !== 2) throw new RuntimeException('Expected two journaled migrations');
     $checks++;
+    // The same cross-process install must refuse a changed physical SQLite
+    // index before performing even an idempotent repeat.
+    $db->exec('CREATE INDEX intruder_extra ON cms_installation (site_id)');
+    [$blockedExit,$blockedStdout,$blockedStderr]=$run($baseEnv);
+    if ($blockedExit===0 || $blockedStdout!==''
+        || !str_contains($blockedStderr,'Install refused')) {
+        throw new RuntimeException('Modified SQLite index silently accepted by CLI');
+    }
+    $checks++;
+    $db->exec('DROP INDEX intruder_extra');
+    [$restoredExit]=$run($baseEnv);
+    if ($restoredExit!==0) {
+        throw new RuntimeException('CLI did not recover after removing foreign index');
+    }
+    $checks++;
     // Run a separate read-only preflight process. This must not alter the DB.
     $preflightScript = dirname(__DIR__).'/bin/schema-preflight.php';
     $command = [PHP_BINARY, $preflightScript, '--inspect'];

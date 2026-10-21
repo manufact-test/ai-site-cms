@@ -83,6 +83,61 @@ $partial->exec("CREATE TABLE cms_installation (site_id TEXT)");
 $partialStore = new SchemaManager($partial, true);
 denied(fn() => $partialStore->migrate(2), 'Interrupted unjournaled schema cannot be overwritten');
 
+// Adversarial SQLite fixtures: real fake databases whose table names and
+// columns look plausible but whose constraints and side-effect objects differ.
+$fakeJournal=conn();
+$fakeJournal->exec('CREATE TABLE cms_schema_migrations
+    (version INTEGER, checksum VARCHAR(64), applied_at VARCHAR(35))');
+$fakeStore=new SchemaManager($fakeJournal,true);
+denied(fn()=>$fakeStore->migrate(2),
+    'SQLite impostor journal without PRIMARY KEY/NOT NULL refused BEFORE writes');
+must((int)$fakeJournal->query("SELECT COUNT(*) FROM sqlite_master
+    WHERE type='table' AND name='cms_installation'")->fetchColumn()===0,
+    'Fake SQLite migration journal cannot trigger a CMS installation table');
+
+$lookalike=conn();
+$lookalikeStore=new SchemaManager($lookalike,true);
+$lookalikeStore->installSite('lookalike-demo');
+// Foreign SQL attached after legitimate bootstrap is not safe to accept.
+$lookalike->exec('CREATE INDEX visitor_extra_idx ON cms_installation (site_id)');
+must($lookalikeStore->inspectSite('lookalike-demo')['state']==='blocked',
+    'External SQLite index invalidates owned database');
+denied(fn()=>$lookalikeStore->assertSite('lookalike-demo'),
+    'Owned SQLite identity cannot hide extra index');
+$lookalike->exec('DROP INDEX visitor_extra_idx');
+must($lookalikeStore->inspectSite('lookalike-demo')['state']==='ready',
+    'Removing disposable foreign index restores genuine schema');
+$lookalike->exec('CREATE TRIGGER visitor_extra_trigger BEFORE UPDATE ON cms_installation
+    BEGIN SELECT RAISE(FAIL,\'visitor_trigger\'); END');
+denied(fn()=>$lookalikeStore->migrate(2),
+    'Foreign SQLite trigger rejected before any migration');
+must($lookalikeStore->inspectSite('lookalike-demo')['state']==='blocked',
+    'SQLite preflight detects foreign side-effect trigger');
+$lookalike->exec('DROP TRIGGER visitor_extra_trigger');
+must($lookalikeStore->inspectSite('lookalike-demo')['state']==='ready',
+    'Genuine SQLite schema recovers after isolated trigger removed');
+// Rebuild with the SAME column names and UNIQUE index, but without the
+// singleton CHECK constraint. Prior name-only verification accepted this.
+$lookalike->exec('CREATE TABLE cms_installation_fake (
+    singleton_id INTEGER PRIMARY KEY,
+    site_id VARCHAR(80) NOT NULL UNIQUE,
+    initialized_at VARCHAR(35) NOT NULL,
+    storage_generation BIGINT NOT NULL DEFAULT 0)');
+$lookalike->exec('INSERT INTO cms_installation_fake
+    SELECT singleton_id, site_id, initialized_at, storage_generation
+    FROM cms_installation');
+$lookalike->exec('DROP TABLE cms_installation');
+$lookalike->exec('ALTER TABLE cms_installation_fake RENAME TO cms_installation');
+must($lookalikeStore->inspectSite('lookalike-demo')['state']==='blocked',
+    'Lookalike SQLite table without CHECK blocked despite identical columns');
+denied(fn()=>$lookalikeStore->assertSite('lookalike-demo'),
+    'SQLite user schema substitution cannot pass site identity');
+denied(fn()=>$lookalikeStore->installSite('lookalike-demo'),
+    'Lookalike SQLite physical table cannot be silently reused');
+must((string)$lookalike->query('SELECT site_id FROM cms_installation')->fetchColumn()
+    ==='lookalike-demo',
+    'Rejected SQLite table substitution does not delete original identity');
+
 $foreignDb = conn();
 $foreignDb->exec('CREATE TABLE wp_posts (id INTEGER PRIMARY KEY, content TEXT)');
 $foreignStore = new SchemaManager($foreignDb, true);
