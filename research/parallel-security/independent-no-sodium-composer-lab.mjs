@@ -11,6 +11,7 @@ import {fetchPublicZip,readZipEntries,verifyComposerZip} from './sodium-real-zip
 import {loadUpstream,checkInstalledGitSource} from './sodium-upstream-tree-proof.mjs';
 import {attest} from './sodium-compat-attest.mjs';
 import {createRealSignedInput,verifyTimedComparison} from './sodium-cli-load-profile.mjs';
+import {capacityWhatIf} from './sodium-capacity-whatif.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const PIN='3246b36803c177847e677862fedeb7f937869adb';
 const ZIP='53944302442e609c0443f680a6195f8d7467e3d0f0c4503e8a690fd9e7ee22f2';
@@ -173,6 +174,14 @@ try{
           'real timed native vs original vendor comparison failed: '+
            (native.stderr||compatProfile.stderr||verified.reason||'missing proof'));
         report.loadProfile=verified;
+        const hypothetical=capacityWhatIf(verified);
+        demand(hypothetical.status==='illustrative-only'&&
+          hypothetical.scenarioCount===7&&
+          hypothetical.at20SequentialFallbackBusySecondsPerSecond>=0&&
+          hypothetical.actualHostWorkerCount===null&&
+          hypothetical.productionApproved===false&&!hypothetical.targetHostValidated,
+          'paired genuine signature performance does not support safe workload math');
+        report.capacityWhatIf=hypothetical;
         const after=checkInstalledGitSource(source,loadUpstream());
         const second=attest(source,lock,reviewed);
         demand(after.upstreamGitBlobFilesVerified===78&&JSON.stringify(first)===JSON.stringify(second),
@@ -205,6 +214,8 @@ try{
   console.log('INDEPENDENT_PHYSICAL_NO_SODIUM_GATES '+JSON.stringify(report));
   if(report.noSodium.status==='passed')
     console.log('PHYSICAL original Ubuntu PHP 8.3 WITHOUT native sodium PASS two absent-mode rejection proofs; not Hostinger');
+  if(report.capacityWhatIf?.status==='illustrative-only')
+    console.log('REAL paired signatures mathematical workload scenarios PASS seven authentic CLI classes; NOT host throughput nor GO');
   if(report.loadProfile?.status==='observed')
     console.log('REAL VERIFIED ORIGINAL Ed25519 seven workload classes on both native and physically no-Sodium PHP PASS 102 timed valid/invalid verifications; not Hostinger, not production approval');
   if(report.compat.status==='passed')

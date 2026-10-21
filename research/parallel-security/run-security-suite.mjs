@@ -46,7 +46,7 @@ const scripts=['inventory-audit.mjs','lock-provenance.mjs','version-check.mjs',
   'policy-regression.mjs','provenance-regression.mjs','notice-gate.mjs',
   'notice-regression.mjs','osv-strict-snapshot.mjs','osv-live-independent-proof.mjs','osv-strict-regression.mjs','osv-cli-regression.mjs','suite-exit-regression.mjs','sodium-compat-attest.mjs',
   'sodium-compat-attest-regression.mjs','sodium-upstream-tree-proof.mjs','sodium-upstream-tree-regression.mjs','sodium-real-zip-proof.mjs','sodium-real-zip-regression.mjs','runtime-sodium-proof.mjs','online-evidence-proof.mjs',
-  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','sodium-cli-load-profile.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','frozen-lock-baseline.mjs','frozen-lock-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','evidence-readiness-decision.mjs','evidence-readiness-regression.mjs','review-handoff.mjs','review-handoff-regression.mjs','run-security-suite.mjs'];
+  'online-evidence-regression.mjs','runtime-sodium-proof-regression.mjs','sodium-cli-load-profile.mjs','sodium-capacity-whatif.mjs','sodium-capacity-whatif-regression.mjs','archived-main-sodium-proof.mjs','archived-main-sodium-regression.mjs','frozen-lock-baseline.mjs','frozen-lock-regression.mjs','osv-advisory-triage.mjs','npm-source-gate.mjs','evidence-readiness-decision.mjs','evidence-readiness-regression.mjs','review-handoff.mjs','review-handoff-regression.mjs','run-security-suite.mjs'];
 for(const name of scripts){
   if(!fs.existsSync(path.join(dirname,name))){block('syntax:'+name,'Script missing from checkout');continue;}
   if(name.endsWith('.mjs'))entry('syntax:'+name,capture('node',['--check',path.join(dirname,name)]));
@@ -83,6 +83,13 @@ if(fs.existsSync(path.join(dirname,'review-handoff-regression.mjs'))&&
   /Independent qualified-review handoff adversarial regression PASS [0-9]+ assertions; all six external approvals withheld;/,
   'anti-GO review packet and source fingerprint adversarial coverage');
 }else block('mutation:review-handoff-regression.mjs','Missing review handoff modules in partial checkout');
+if(fs.existsSync(path.join(dirname,'sodium-capacity-whatif-regression.mjs'))&&
+ fs.existsSync(path.join(dirname,'sodium-capacity-whatif.mjs'))){
+ requireProof(entry('mutation:sodium-capacity-whatif-regression.mjs',
+   capture('node',[path.join(dirname,'sodium-capacity-whatif-regression.mjs')],{timeout:20000})),
+   /Real signed Ed25519 mathematical capacity anti-GO regression PASS 39 assertions; synthetic mutation only; NOT Hostinger or production approval/,
+   '39 synthetic defensive mutations and capacity math bounds');
+}else block('mutation:sodium-capacity-whatif-regression.mjs','Research capacity model missing in partial checkout');
 // This source-of-truth comes from the actual ParagonIE public signed Git tag,
 // NOT from Composer metadata. Partial checkout lacks bundled external Git
 // transcript: mark incomplete, never invent positive vendor-source evidence.
@@ -360,6 +367,21 @@ if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
       }else block(name,'Physical / actual Composer evidence unavailable: '+
         (record?.reason||lab.stderr||lab.spawnError||'incomplete').slice(-400));
     }
+    const potential=record?.capacityWhatIf;
+    if(potential?.status==='illustrative-only'&&
+       potential?.scenarioCount===7&&
+       potential?.actualHostWorkerCount===null&&
+       potential?.targetHostValidated===false&&
+       potential?.productionApproved===false&&
+       record?.loadProfile?.status==='observed'&&lab.exitCode===0&&!lab.spawnError){
+      const row={name:'profile:bounded-ed25519-whatif',...lab,
+        stdout:lab.stdout.slice(-3100),status:'passed',mathOnly:potential};
+      results.push(row);
+      requireProof(row,
+       /REAL paired signatures mathematical workload scenarios PASS seven authentic CLI classes; NOT host throughput nor GO/,
+       'actual signed pairing and mathematically derived scenario, never a host PASS');
+    }else block('profile:bounded-ed25519-whatif',
+      'No verified paired native/physical-no-native signed load profile for mathematical scenario');
     const performance=record?.loadProfile;
     const performanceMarker=/REAL VERIFIED ORIGINAL Ed25519 seven workload classes on both native and physically no-Sodium PHP PASS 102 timed valid\/invalid verifications; not Hostinger, not production approval/;
     if(performance?.status==='observed'&&
@@ -384,6 +406,7 @@ if(isNoNative.exitCode===0&&isNoNative.stdout==='absent'){
     block('no-sodium:cryptography','Physical Ubuntu PHP8.3 source build only in disposable Linux CI; php -n is not enough');
     block('compat:cryptography','Actual vetted Composer-installed 2.5.2 and physical native-free PHP required');
     block('profile:actual-native-vs-original-compat','True no-Sodium PHP and attested installed source required for original code comparison');
+    block('profile:bounded-ed25519-whatif','No original paired signed workload proof');
   }
 }
 // An explicitly requested online audit is not successful if its actual
@@ -448,14 +471,26 @@ const proofNames=[
   'mutation:runtime-sodium-proof-regression.mjs',
   'no-sodium:cryptography','compat:cryptography',
   'profile:actual-native-vs-original-compat',
+  'profile:bounded-ed25519-whatif',
   'upstream:archived-main-genuine-sodium-free','mutation:archived-main-sodium-provenance',
   'actual-lock:frozen-source-baseline','mutation:real-43-pin-source-swap',
   'upstream:real-signed-sodium-tag-git-tree','mutation:real-sodium-source-git-tree',
   'mutation:real-sodium-zip-parser','upstream:actual-github-composer-zip',
   'mutation:evidence-readiness-regression.mjs',
   'mutation:review-handoff-regression.mjs',
+  'mutation:sodium-capacity-whatif-regression.mjs',
   'online:OSV-actual43-observation'
 ];
+if(physicalRecord?.capacityWhatIf?.status==='illustrative-only')
+  console.error('INDEPENDENT_SECURITY_OFFLINE_WORKLOAD_WHATIF '+JSON.stringify({
+    sourceSha256:physicalRecord.capacityWhatIf.exactOriginalSignedInputSha256,
+    validSmallFallbackMedianMs:physicalRecord.capacityWhatIf.validSmallFallbackMedianMs,
+    assumedArrivalRates:physicalRecord.capacityWhatIf.ratesPerSecond,
+    at20SerialEquivalentSeconds:physicalRecord.capacityWhatIf.at20SequentialFallbackBusySecondsPerSecond,
+    theoretical100PercentSerialChecksPerSecond:physicalRecord.capacityWhatIf.reciprocalSerialChecksPerSecondAt100PercentBusy,
+    validatedHostRps:false,publicCmsRouteProven:false,
+    hostWorkerCountAssumed:null,targetHostValidated:false,productionApproved:false
+  }));
 if(physicalRecord?.loadProfile?.status==='observed')console.error('INDEPENDENT_SECURITY_NATIVE_VS_COMPAT_LOAD '+JSON.stringify(physicalRecord.loadProfile));
 if(physicalRecord)console.error('INDEPENDENT_SECURITY_PHYSICAL_RUNTIME_SOURCE '+JSON.stringify({
   realNativeFreePhpVersion:physicalRecord.php,
