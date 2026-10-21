@@ -109,6 +109,8 @@ jobs:
         run: node tools/test-lab-trusted-upgrade.cjs
       - name: Syntax-check deterministic offline dependency/legal and owner-acceptance evidence exports
         run: |
+          node --check tools/stage2-human-license-review.cjs
+          node --check tools/test-stage2-human-license-review.cjs
           node --check tools/stage2-license-dossier.cjs
           node --check tools/stage2-owner-decision.cjs
           node --check tools/stage2-evidence-bundle.cjs
