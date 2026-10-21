@@ -128,6 +128,12 @@ function assemble(license,extra={},signedOptions=null,ownerOptions=null){
     ||license.independentLegalApproval!==false
     ||license.stage2Accepted!==false||!Array.isArray(license.components)
     ||license.components.length!==43)throw Error('Expected verified license inventory');
+  // An independently signed OWNER grant must never be attached to raw
+  // unsigned operator reports. Otherwise the human review UI could make a
+  // fabricated HTTP/DB claim appear signer-backed merely because the owner
+  // separately authorized a read-only visit. The grant never signs results.
+  if(ownerOptions!==null && signedOptions===null)
+    throw Error('Owner grant requires separately signed operator evidence');
   let verifiedSignature=null;
   if(signedOptions!==null){
     if(!isObject(signedOptions)||Object.keys(extra).length>0)
@@ -206,6 +212,27 @@ function assemble(license,extra={},signedOptions=null,ownerOptions=null){
   if(evidence.externalHttps?.reportedSignedConsent && ownerConsentProof===null)
     throw Error('A claimed owner consent requires independent signature verification');
 
+  // Machine-readable provenance ledger: always distinguish a verified
+  // operator RECORD signature and separately verified owner SCOPE signature
+  // from the identity of either signer or the truth of host observations.
+  // Not a human acceptance control; no boolean can authorize Stage3.
+  const evidenceCustody={
+    format:'ai-site-cms-stage2-evidence-custody-v1',
+    operatorRecordTransport:signedOptions!==null?'ed25519-signed-record':'unsigned-or-absent',
+    ownerScopeTransport:ownerConsentProof!==null?'ed25519-signed-scope':'unattached',
+    signedOperatorRecordsVerified:verifiedSignature!==null,
+    independentlyPinnedOwnerScopeVerified:ownerConsentProof!==null,
+    operatorSigningIdentityIndependentlyVerified:false,
+    ownerSigningIdentityIndependentlyVerified:false,
+    operatorHadTargetPermissionIndependentlyVerified:false,
+    targetTlsAndHostObservationsIndependentlyVerified:false,
+    targetDatabaseIndependentlyVerified:false,
+    publisherSigningKeyIndependentlyTrusted:false,
+    independentHumanLicenseApproval:false,
+    stage2HumanAcceptanceRecorded:false,
+    writeInstallPermission:false,
+    stage3Authorized:false
+  };
   const criteria=[
     {id:'architecture_and_isolation',name:'Owner approves CMS/site and 5-family architecture',
       state:'owner_decision_required',supportedBy:['lab CI','architecture proposal']},
@@ -240,6 +267,7 @@ function assemble(license,extra={},signedOptions=null,ownerOptions=null){
     attachedEvidence:evidence,
     cryptographicEvidenceRecord:verifiedSignature,
     ownerReadOnlyConsentProof:ownerConsentProof,
+    evidenceCustody,
     remainingCriteria:criteria,
     allCriteriaAutomaticallyApproved:false,
     independentLicenseApproval:false,
@@ -266,6 +294,9 @@ function render(packet){
     '<p>Internal package version <code>'+html(packet.packageVersion)+'</code>; package SHA-256 inventory <code>'+
     html(packet.packageManifestSha256)+'</code>.</p>'+
     '<p>Independent legal sign-off, real target hosting and manual owner acceptance are outstanding. An attached operator claim never upgrades itself to trusted evidence.</p>'+
+    '<p><strong>Evidence custody:</strong> Operator records: '+html(packet.evidenceCustody.operatorRecordTransport)+
+    '; owner scope: '+html(packet.evidenceCustody.ownerScopeTransport)+
+    '. Neither signature establishes real-world signer identity, target-host truth, or installation permission.</p>'+
     (packet.cryptographicEvidenceRecord
       ?'<p><strong>Offline Ed25519 signature verified against the independently supplied fingerprint.</strong> This protects the evidence file from alteration; the signing-key owner, permission and real hosting observations are NOT independently authenticated.</p>'
       :'<p>There is no independently key-pinned signed evidence bundle attached.</p>')+
@@ -317,6 +348,8 @@ if(require.main===module){
     const consentPresent=ownerFields.filter(k=>sources[k]).length;
     if(consentPresent!==0&&consentPresent!==3)
       throw Error('All three independent owner consent inputs required');
+    if(consentPresent===3&&!sources['signed-bundle'])
+      throw Error('Owner grant cannot be paired with unsigned HTTPS reports');
     const consent=consentPresent===3?{
       file:sources['owner-consent'],
       publicKey:sources['owner-trusted-pubkey'],

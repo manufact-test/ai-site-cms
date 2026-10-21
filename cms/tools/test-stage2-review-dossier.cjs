@@ -57,6 +57,12 @@ function main(){
         .state==='operator_record_supplied_not_independently_authenticated',
       'independently executed handoff remains operator supplied not approved');
     const clean=review.assemble(before);
+    ok(clean.evidenceCustody.operatorRecordTransport==='unsigned-or-absent'
+      &&clean.evidenceCustody.ownerScopeTransport==='unattached'
+      &&!clean.evidenceCustody.signedOperatorRecordsVerified
+      &&!clean.evidenceCustody.independentlyPinnedOwnerScopeVerified
+      &&!clean.evidenceCustody.stage2HumanAcceptanceRecorded,
+      'empty owner review ledger cannot invent trusted identity, permission or acceptance');
     ok(clean.remainingCriteria.length===8 &&
       clean.remainingCriteria.every(x=>!['accepted','verified_on_target'].includes(x.state))
       &&clean.stage2Accepted===false&&clean.stage3Authorized===false,
@@ -95,6 +101,10 @@ function main(){
       &&submitted.remainingCriteria.find(x=>x.id==='target_web_sapi_and_db')
         .state==='permissioned_target_check_missing',
       'even perfect forged operator reports cannot certify FPM/DB/Stage2');
+    ok(submitted.evidenceCustody.operatorRecordTransport==='unsigned-or-absent'
+      &&submitted.evidenceCustody.ownerScopeTransport==='unattached'
+      &&!submitted.evidenceCustody.targetTlsAndHostObservationsIndependentlyVerified,
+      'unsigned operator handoff is recorded as unsigned despite optimistic statuses');
     ok(submitted.attachedEvidence.externalHttps.liveTargetHostIndependentlyVerified===false
       &&submitted.attachedEvidence.databaseSchema.databaseIdentityIndependentlyProven===false,
       'external report provenance always remains untrusted');

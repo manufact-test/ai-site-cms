@@ -141,6 +141,14 @@ function main(){
       &&accepted.ownerReadOnlyConsentProof.writeInstallAuthorized===false
       &&accepted.attachedEvidence.externalHttps.independentlyReverifiedSignedConsent,
       'signed operator evidence plus independent owner pin correlate without accepting Stage2');
+    ok(accepted.evidenceCustody.signedOperatorRecordsVerified===true
+      &&accepted.evidenceCustody.independentlyPinnedOwnerScopeVerified===true
+      &&accepted.evidenceCustody.operatorSigningIdentityIndependentlyVerified===false
+      &&accepted.evidenceCustody.ownerSigningIdentityIndependentlyVerified===false
+      &&accepted.evidenceCustody.targetTlsAndHostObservationsIndependentlyVerified===false
+      &&accepted.evidenceCustody.writeInstallPermission===false
+      &&accepted.evidenceCustody.stage3Authorized===false,
+      'signed-record and signed-scope provenance separately visible; neither proves identity or host');
     const checkArgs=[
       path.join(__dirname,'stage2-owner-decision.cjs'),'--build',
       '--signed-bundle='+output,
@@ -164,6 +172,30 @@ function main(){
       verified.signedPayloadSha256&&outputJson.remainingCriteria.length===8
       &&outputJson.ownerReadOnlyConsentProof.consentSha256===permitDigest,
       'signed report is internally self-consistent and still has 8 open gates');
+    // A valid owner signature is an authorization for one READ-ONLY visit,
+    // NOT a cryptographic attestation to arbitrary JSON operator reports.
+    // Reject unsigned evidence even when it contains a fully valid grant
+    // digest plus a true "signature verified" boolean.
+    refuses(()=>owner.assemble(license,records,null,ownerOptions),
+      'owner Ed25519 grant cannot authenticate bare unsigned operator records');
+    refuses(()=>owner.assemble(license,{scope:grant,https},null,ownerOptions),
+      'partial unsigned HTTPS claim cannot borrow independently signed owner scope');
+    const unsignedFiles=signing.FIELDS.map(name=>'--'+name+'='+files[name]);
+    const oldJson=fs.readFileSync(path.join(legal.OUT,'stage2-owner-decision.json'));
+    const oldHtml=fs.readFileSync(path.join(legal.OUT,'stage2-owner-decision.html'));
+    const mixed=run(process.execPath,[
+      path.join(__dirname,'stage2-owner-decision.cjs'),'--build',
+      ...unsignedFiles,
+      '--owner-consent='+ownerPermit,
+      '--owner-trusted-pubkey='+ownerPub,
+      '--owner-trusted-spki-sha256='+ownerPin
+    ]);
+    ok(mixed.status===3&&mixed.stdout===''&&
+      mixed.stderr.trim()==='STAGE2_OWNER_REVIEW_REFUSED',
+      'CLI refuses unsigned operator data coupled to owner-signed scope');
+    ok(oldJson.equals(fs.readFileSync(path.join(legal.OUT,'stage2-owner-decision.json')))
+      &&oldHtml.equals(fs.readFileSync(path.join(legal.OUT,'stage2-owner-decision.html'))),
+      'refusal cannot overwrite an existing valid owner-review packet');
     const repeated=run(process.execPath,signArgs,{
       CMS_STAGE2_OPERATOR_SIGNING:'explicit-offline-attestation'});
     ok(repeated.status===3,'operator cannot silently overwrite signed session');
