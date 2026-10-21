@@ -8,13 +8,15 @@ const net=require('node:net');
 const fs=require('node:fs');
 const crypto=require('node:crypto');
 const scope=require('./stage2-operator-scope.cjs');
+const ownerConsent=require('./stage2-owner-consent.cjs');
 
 const FORMAT='ai-site-cms-stage2-active-https-observation-v1';
 const CI=process.env.CMS_ENV==='test' &&
   process.env.CMS_STAGE2_RUNTIME_GATE==='ci-bound' &&
   process.env.CMS_ALLOW_STAGE2_NETWORK_FIXTURE==='1';
 const ALLOWED=new Set(['--check','--operator-attests-readonly-grant',
-  '--cms-origin','--site-origin','--ci-local','--ci-ca-file','--scope-file']);
+  '--cms-origin','--site-origin','--ci-local','--ci-ca-file','--scope-file',
+  '--owner-consent-file','--owner-public-pem','--owner-public-fingerprint']);
 const sha=x=>crypto.createHash('sha256').update(x).digest('hex');
 function argsOf(argv) {
   const args={};
@@ -38,7 +40,9 @@ function argsOf(argv) {
     ||!args['--cms-origin']||!args['--site-origin']
     ||(args['--ci-local']&&!CI)
     ||(args['--ci-ca-file']&&(!CI||!args['--ci-local']))
-    ||(args['--scope-file']&&args['--ci-local']))
+    ||(args['--scope-file']&&args['--ci-local'])
+    ||(args['--ci-local']&&['--owner-consent-file','--owner-public-pem',
+      '--owner-public-fingerprint'].some(k=>args[k])))
     throw Error('explicit_scope_and_permission_required');
   return args;
 }
@@ -181,13 +185,19 @@ async function observe(argv) {
   // CI fixtures may use a private test CA. Real-host checks additionally
   // require an explicitly scoped, short-lived 0600 operator record AND
   // separately enabled permission environment, never only a CLI flag.
-  let grant=null;
+  let grant=null,signedConsent=null;
   if(!ci){
-    if(!scope.operatorEnabled()||!args['--scope-file'])
+    if(!scope.operatorEnabled()||!args['--scope-file']||
+      !args['--owner-consent-file']||!args['--owner-public-pem']||
+      !args['--owner-public-fingerprint'])
       throw Error('owner_readonly_host_scope_not_enabled');
     grant=scope.readScope(args['--scope-file'],{
       cmsOrigin:cms.origin,siteOrigin:visitor.origin
     });
+    // Both the unsigned scope and independently pinned Ed25519 consent are
+    // required before any DNS or HTTPS request to the actual target.
+    signedConsent=ownerConsent.verify(args['--owner-consent-file'],
+      args['--owner-public-pem'],args['--owner-public-fingerprint'],grant);
   }
   const ca=args['--ci-ca-file']?fs.readFileSync(args['--ci-ca-file']):null;
   const scopeSha256=sha(JSON.stringify([cms.origin,visitor.origin]));
@@ -197,6 +207,9 @@ async function observe(argv) {
     operatorGrantFlagIsNotOwnerAuthorization:true,
     operatorScopeRecordSha256:grant?.operatorScopeRecordSha256||null,
     operatorScopeExpiresAt:grant?.scopeExpiresAt||null,
+    ownerConsentSha256:signedConsent?.ownerConsentSha256||null,
+    ownerPublicPinSha256:signedConsent?.ownerPublicPinSha256||null,
+    cryptographicScopeSignatureVerified:signedConsent?.cryptographicScopeSignatureVerified||false,
     independentOwnerAuthorizationVerified:false,
     ciLoopbackOnly:ci,
     requestsRestrictedToGet:true,

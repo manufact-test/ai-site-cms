@@ -115,6 +115,12 @@ jobs:
           php -l src/Hosting/Stage2MysqlBoundReadiness.php
           php -l bin/stage2-mysql-ci-binding.php
           php tests/stage2-mysql-http-gate.php
+      - name: Signed owner scope refusal and immutable grant/file adversarial checks
+        working-directory: cms
+        run: |
+          node --check tools/stage2-owner-consent.cjs
+          node --check tools/test-stage2-owner-consent.cjs
+          node tools/test-stage2-owner-consent.cjs
       - name: Read-only HTTPS observation and independent visitor outage against loopback-only TLS fixtures
         working-directory: cms
         run: |

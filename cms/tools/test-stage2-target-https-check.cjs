@@ -170,6 +170,12 @@ async function main(){
       'IP literal cannot evade CI host allowlist');
     await noRequests(goodA,'CI-local flag unusable in production runtime',
       {...CI,CMS_ENV:'production'});
+    await noRequests([...goodA,'--owner-consent-file=/tmp/forged'],
+      'owner-signed consent cannot be injected into CI-only mode');
+    await noRequests(goodA.filter(x=>x!=='--ci-local').concat([
+      '--scope-file=/tmp/unused','--owner-consent-file=/tmp/unused']),
+      'real operator scope missing independent PEM/pin refuses before any GET',
+      {...CI,CMS_ENV:'production',CMS_STAGE2_OWNER_READONLY_PERMISSION:'owner-grant-recorded-read-only'});
     const validA=await run(goodA);
     const validB=await run(goodB);
     for(const [response,label] of [[validA,'A'],[validB,'B']]){

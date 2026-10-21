@@ -52,11 +52,30 @@ function readScope(file,origins,now=Date.now()){
     ||!st.isFile()||st.isSymbolicLink()||st.nlink!==1
     ||(st.mode&0o077)!==0||st.size<100||st.size>4096
     ||fs.realpathSync(file)!==file)throw Error('unsafe_scope_file');
-  const bytes=fs.readFileSync(file);
-  if(bytes.length!==st.size||bytes.includes(0))throw Error('invalid_scope_file');
+  // Open with O_NOFOLLOW, then compare physical identity before/after the
+  // read. An attacker must not replace a verified record with a different
+  // inode between lstat() and read(). The canonical byte check rejects
+  // duplicate JSON keys, whitespace aliases and invalid UTF-8.
+  const fd=fs.openSync(file,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+  let bytes;
+  try {
+    const before=fs.fstatSync(fd);
+    if(!before.isFile()||before.nlink!==1||before.dev!==st.dev||
+      before.ino!==st.ino||before.size!==st.size||
+      (before.mode&0o077)!==0)throw Error('scope_inode_changed');
+    bytes=fs.readFileSync(fd);
+    const after=fs.fstatSync(fd);
+    if(after.dev!==before.dev||after.ino!==before.ino||
+      after.size!==before.size||after.mtimeMs!==before.mtimeMs||
+      bytes.length!==before.size)throw Error('scope_changed_during_read');
+  }finally{fs.closeSync(fd);}
+  if(bytes.includes(0))throw Error('invalid_scope_file');
   const parsed=JSON.parse(bytes.toString('utf8'));
-  const result=inspectScope(parsed,origins,now);
-  return result;
+  if(!exact(parsed,KEYS)||Object.keys(parsed).join('|')!==KEYS.join('|')||
+    !bytes.equals(Buffer.from(JSON.stringify(parsed),'utf8')))
+    throw Error('noncanonical_scope_bytes');
+  if(fs.realpathSync(parent)!==parent)throw Error('scope_parent_changed');
+  return inspectScope(parsed,origins,now);
 }
 function operatorEnabled(env=process.env){
   return env.CMS_ENV!=='test'&&

@@ -116,6 +116,12 @@ jobs:
           node --check tools/test-stage2-review-dossier.cjs
           node --check tools/stage2-handoff-index.cjs
           node --check tools/test-stage2-handoff-index.cjs
+      - name: Signed out-of-band owner read-only scope, canonical file and replay refusal
+        run: |
+          node --check tools/stage2-operator-scope.cjs
+          node --check tools/stage2-owner-consent.cjs
+          node --check tools/test-stage2-owner-consent.cjs
+          node tools/test-stage2-owner-consent.cjs
       - name: Permission-scoped read-only HTTPS probe with two independent disposable TLS site pairs
         run: |
           node --check tools/stage2-operator-scope.cjs
