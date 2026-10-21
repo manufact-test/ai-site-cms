@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-21",
-  "status": "stage2-in-progress-not-accepted-v1.49-signed-owner-operator-custody",
+  "status": "stage2-in-progress-not-accepted-v1.50-product-first-preview",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "FIRST read docs/NEXT-CHAT.md last §54, handoffs/lead-integrator/MAIN-HANDOFF-v1.49-2026-10-21.md, docs/STAGE-2-OWNER-EVIDENCE-CUSTODY.md. Source tested b3237fc2426ad246178b3fd4b64501c6b22c86ba: PHP 8/8 https://github.com/manufact-test/ai-site-cms/actions/runs/39623780590, Editor/E2E https://github.com/manufact-test/ai-site-cms/actions/runs/39623780667, offweb 479/479 https://github.com/manufact-test/ai-site-cms/actions/runs/39624303691. Docs-only main commit separate. Next: 43 component human legal/security/NOTICE review, genuine publisher/owner/operator Ed25519 trust and no-Sodium LiteSpeed choice; separate owner-authorized final read-only target r8, then separate empty test CMS DB write/visitor recovery and owner Stage2 acceptance. No auto Hostinger activity, Stage3, or PR3/PR4 merge.",
+  "next_step": "FIRST read docs/NEXT-CHAT.md last §55 and docs/DEVELOPMENT-WORKFLOW.md TOP v1.50 product-first. Use cms/stage2-preview/index.html for immediately reviewable UI. Work only in substantial user-visible functional slices (>=3 parts), one critical smoke + existing CI, no pointless tests of unbuilt code. Stage2 engineering ~85–90% but formally NOT ACCEPTED: remaining independent legal/keys/Hostinger read-only/empty-test-DB installation+isolation/owner signoff. Stage3 not authorized. Do not touch Hostinger or research PRs without explicit separate permission. Update docs only upon owner request.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "public",
-  "checkpoint_version": "1.49",
+  "checkpoint_version": "1.50",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -25,7 +25,7 @@
     "started_at": "2026-10-18",
     "owner_delegated_selection": true,
     "foundation": "A - Slim/Opis/Jedison",
-    "product_code": "GitHub-only Stage2 internal CI prototype on Slim4/Opis2.6/Jedison1.27.1; private file and owner/operator independent signed evidence custody, exact 3-disposable-DB-only generic MySQL installer, strict SQLite/MySQL physical schema checks, 479-file unsigned offweb package. No new Hostinger deployment, production publisher key, admin/auth/publish or accepted mandatory product features.",
+    "product_code": "GitHub-only Stage2 Slim4 + Jedison foundation and offweb 480-file unsigned package; NEW separate local interactive design-review prototype with six built-in sections, live iframe preview, JSON import/export; no production auth/editor API/save/publish or Hostinger install.",
     "bootstrap_commit": "493964f32d63dd5552484afbcc972fc614571381",
     "bootstrap_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39275005275",
     "bootstrap_ci_result": "7/7 SUCCESS on verified code 493964f32d63dd5552484afbcc972fc614571381",
@@ -53,8 +53,8 @@
       "Idempotent same-site initialization",
       "Refuses database reuse by different site identity"
     ],
-    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39623780590",
-    "last_full_ci_result": "8/8 SUCCESS on tested source b3237fc2426ad246178b3fd4b64501c6b22c86ba; editor https://github.com/manufact-test/ai-site-cms/actions/runs/39623780667 SUCCESS, offweb https://github.com/manufact-test/ai-site-cms/actions/runs/39624303691 SUCCESS",
+    "last_full_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39653777321",
+    "last_full_ci_result": "8/8 SUCCESS verified source b6de6197d3c5d93731c58934bda7c7107f9cb191; editor https://github.com/manufact-test/ai-site-cms/actions/runs/39653777497 SUCCESS; offweb https://github.com/manufact-test/ai-site-cms/actions/runs/39654243799 SUCCESS",
     "last_full_ci_checks": {
       "kernel_smoke": 10,
       "sqlite_schema_checks": 37,
@@ -97,14 +97,14 @@
       "ci_result": "1/1 SUCCESS on code 493964f32d63dd5552484afbcc972fc614571381",
       "artifact_id": 12137545566
     },
-    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39587975849",
-    "latest_php_ci_result": "8/8 SUCCESS, verified code SHA 8b59e0718a867920bd5d7890e55c5b002facd354",
+    "latest_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39653777321",
+    "latest_php_ci_result": "8/8 SUCCESS verified source b6de6197d3c5d93731c58934bda7c7107f9cb191",
     "package_research": {
       "internal_only": true,
       "production_ready": false,
       "build_cli": "node cms/tools/build-internal-package.cjs",
       "verified_manifest": "private/package-manifest.json (format ai-site-cms-internal-stage2-v2; releaseVersion 0.2.0-stage2.1)",
-      "file_count": 478,
+      "file_count": 480,
       "hashes": "SHA-256 inventory; local integrity only, NOT a trusted software signature",
       "apache_webroot_requires": "cms package/public only; wrong document root is NOT safe",
       "private_browser_editor": "private/editor/editor.js (never directly served in this stage)",
@@ -112,8 +112,8 @@
       "hosting_requires_node_or_composer_at_runtime": false,
       "package_integration_tests": 25,
       "php_http_boundary": "GET /api/health 200; publish/private editor/vendor HTTP 404",
-      "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39587976040",
-      "artifact_id": null,
+      "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39653777497",
+      "artifact_id": 12371630071,
       "untested": [
         "Actual target webserver rewriting/headers/access rights",
         "Production safe extraction and deployment/upgrade rollback",
@@ -121,7 +121,7 @@
         "Independent full legal SBOM/NOTICE/SLSA provenance"
       ],
       "source_changes_now_trigger_bundle_ci": true,
-      "manifest_sha256": "ab5d58a984c27a10d901c0c8ffb5256100c44685ed5509a8a3e07cc4ad8d772b"
+      "manifest_sha256": "1cf4e6978de209a9563d6be1ce44e7b79db36aab205f8a875c8f9cb3067c4748"
     },
     "hosting_doctor": {
       "path": "cms/bin/doctor.php",
@@ -149,8 +149,8 @@
       "matrix_and_integration_job_count": 7,
       "passed": 7
     },
-    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39587976040",
-    "latest_editor_ci_result": "SUCCESS, verified code SHA 8b59e0718a867920bd5d7890e55c5b002facd354",
+    "latest_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39653777497",
+    "latest_editor_ci_result": "SUCCESS on b6de6197d3c5d93731c58934bda7c7107f9cb191, includes one genuine Chromium Stage2 product preview E2E",
     "storage_safety_preflight": {
       "implementation": "cms/src/Storage/SchemaManager.php::inspectSite, cms/bin/schema-preflight.php --inspect",
       "supported_drivers": [
@@ -575,7 +575,43 @@
     "stage2_evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba",
     "human_owner_stage2_acceptance": false,
     "operator_signer_identity_independently_verified": false,
-    "owner_signer_identity_independently_verified": false
+    "owner_signer_identity_independently_verified": false,
+    "engineering_progress_estimate_percent_range": [
+      85,
+      90
+    ],
+    "engineering_remaining_estimate_percent_range": [
+      10,
+      15
+    ],
+    "formal_exit_gates_open": 8,
+    "latest_tested_code_sha": "b6de6197d3c5d93731c58934bda7c7107f9cb191",
+    "product_preview": {
+      "path": "cms/stage2-preview/index.html",
+      "documentation": "cms/stage2-preview/README.md",
+      "compiled_editor_runtime": "Jedison 1.27.1 - offline built, local demo only",
+      "visual_sections": 6,
+      "editable_and_reorderable": true,
+      "color_themes": 3,
+      "responsive_viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "local_json_import_export": true,
+      "api_or_database_writes": false,
+      "production_distribution_included": false,
+      "stage3_authorized": false,
+      "demo_screenshots_url": "https://github.com/manufact-test/ai-site-cms/actions/runs/39653777497/artifacts/12369558045"
+    },
+    "stage2_unsigned_offweb_latest": {
+      "source_sha": "b6de6197d3c5d93731c58934bda7c7107f9cb191",
+      "package_files": 480,
+      "manifest_sha256": "1cf4e6978de209a9563d6be1ce44e7b79db36aab205f8a875c8f9cb3067c4748",
+      "workflow_url": "https://github.com/manufact-test/ai-site-cms/actions/runs/39654243799",
+      "artifact_url": "https://github.com/manufact-test/ai-site-cms/actions/runs/39654243799/artifacts/12371630071",
+      "signature_verified": false,
+      "target_installed": false
+    }
   },
   "total_stages": 18,
   "roadmap_path": "docs/ROADMAP.md",
@@ -1151,5 +1187,16 @@
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
   "last_docs_handoff_version": "1.49",
-  "last_docs_handoff_note": "Requested docs-only handoff follows SOURCE SHA. Do not treat docs-only main HEAD as re-tested application code."
+  "last_docs_handoff_note": "Requested docs-only handoff follows SOURCE SHA. Do not treat docs-only main HEAD as re-tested application code.",
+  "latest_tested_code_sha": "b6de6197d3c5d93731c58934bda7c7107f9cb191",
+  "development_policy_v1_50": {
+    "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
+    "owner_directive": "large_coherent_product_verticals_not_small_8_minute_fixes",
+    "typical_block_size": "3_or_more_material_connected_user-facing_deliverables",
+    "validation": "one_critical_end_to_end_smoke_plus_existing_aggregate_CI",
+    "extra_tests": "only_concrete_security_risks_or_observed_bugs;retain_existing_security_gates",
+    "early_feedback": "demo_in_browser_and_screenshots_then_improve_from_issues",
+    "documentation": "only_owner_requested_chat_handoff",
+    "stage_boundary": "Stage3 requires separate owner Stage2 acceptance; never auto-deploy Hostinger"
+  }
 }
