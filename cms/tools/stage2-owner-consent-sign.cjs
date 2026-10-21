@@ -91,7 +91,7 @@ function prepare(args,now=Date.now()) {
     format:consent.FORMAT,payload,signature:signature.toString('base64')
   })+'\n','utf8');
   if(body.length>4096)throw Error('signed_owner_consent_too_large');
-  return {body,scope:checked,publicPem,ownerDigest,output};
+  return {body,scope:checked,publicFile,ownerDigest,output};
 }
 function write(artifact,now=Date.now()) {
   const output=artifact.output,dir=path.dirname(output);
@@ -105,7 +105,7 @@ function write(artifact,now=Date.now()) {
   }finally{fs.closeSync(fd);}
   const d=fs.openSync(dir,fs.constants.O_RDONLY|fs.constants.O_DIRECTORY);
   try{fs.fsyncSync(d);}finally{fs.closeSync(d);}
-  const proof=consent.verify(output,artifact.publicPem,artifact.ownerDigest,
+  const proof=consent.verify(output,artifact.publicFile,artifact.ownerDigest,
     artifact.scope,now);
   if(proof.ownerConsentSha256!==sha(artifact.body)||
     proof.cryptographicScopeSignatureVerified!==true)

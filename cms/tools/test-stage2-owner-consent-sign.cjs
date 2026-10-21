@@ -9,6 +9,7 @@ const crypto=require('node:crypto');
 const scope=require('./stage2-operator-scope.cjs');
 const consent=require('./stage2-owner-consent.cjs');
 const script=path.join(__dirname,'stage2-owner-consent-sign.cjs');
+const direct=require('./stage2-owner-consent-sign.cjs');
 const sha=x=>crypto.createHash('sha256').update(x).digest('hex');
 let n=0;
 const ok=(v,name)=>{assert.ok(v,name);n++;};
@@ -61,6 +62,15 @@ try {
   refused(cli(['--trusted-owner-spki-sha256=0']),
     'cannot inject substitute pin after explicit trusted pin');
   ok(!fs.existsSync(output),'refused CLI leaves no owner permit');
+  const opts=direct.parameters(['--sign','--scope-file='+sc,
+    '--owner-private-key='+priv,'--trusted-owner-pubkey='+pub,
+    '--trusted-owner-spki-sha256='+pin,'--output='+output],{
+    CMS_ENV:'test',CMS_STAGE2_OWNER_SIGNING:'offline-explicit-owner-action'
+  });
+  const ready=direct.prepare(opts,now);
+  ok(ready.publicFile===pub&&ready.body.length>100&&
+    ready.scope.operatorScopeRecordSha256.length===64,
+    'preflight passes the trusted public key FILE path into readback verification');
   const signed=cli();
   ok(signed.status===0&&signed.stderr===''&&
     signed.stdout.startsWith('STAGE2_OFFLINE_OWNER_CONSENT_WRITTEN'),
