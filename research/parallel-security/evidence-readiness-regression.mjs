@@ -52,6 +52,8 @@ mutate('pass without full 43 OSV proof',v=>row(v,osv).stdout='all green',
  r=>!r.evidence.observedStrongResearchEvidence);
 mutate('nonzero OSV exit status',v=>row(v,osv).exitCode=4,
  r=>!r.evidence.observedStrongResearchEvidence);
+mutate('zero-exit missing ZIP process code',v=>row(v,zip).exitCode=null,
+ r=>!r.evidence.observedStrongResearchEvidence);
 mutate('nonzero ZIP process exit',v=>row(v,zip).exitCode=1,
  r=>!r.evidence.observedStrongResearchEvidence);
 mutate('process spawn error despite zero exit',v=>row(v,zip).spawnError='ENOENT',
