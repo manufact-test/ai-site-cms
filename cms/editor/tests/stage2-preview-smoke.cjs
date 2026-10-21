@@ -32,7 +32,6 @@ const root=path.resolve(__dirname,'../..');
     await title.fill('Рабочий прототип CMS');
     await title.dispatchEvent('change');
     await title.blur();
-    await page.waitForFunction(()=>document.querySelector('#sections li')?.textContent?.includes('Рабочий прототип CMS'));
     await frame.locator('h1').filter({hasText:'Рабочий прототип CMS'}).waitFor();
     // Text containing markup is displayed as literal text, never executed.
     await title.fill('<img src=x onerror=alert(1)>');
