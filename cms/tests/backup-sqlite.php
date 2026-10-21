@@ -60,6 +60,42 @@ foreach($variants as [$why,$values]){
     assertBackup((new SchemaManager($blank,true))->inspectSite('isolated-site')['state']==='uninitialized',
         'No DDL performed on rejected snapshot: '.$why);
 }
+// Canonical serialization is a PRE-DDL trust boundary: a valid checksum
+// over decoded JSON cannot authorize duplicate fields, reordered members,
+// escaped field names, or trailing whitespace in a foundation snapshot.
+$serializedAttacks = [
+    'trailing_space' => $encoded . ' ',
+    'trailing_newline' => $encoded . "\n",
+    'leading_space' => ' ' . $encoded,
+    'reordered_fields' => json_encode([
+        'sha256'=>$payload['sha256'],
+        'format'=>$payload['format'],
+        'site_id'=>$payload['site_id'],
+        'schema_version'=>$payload['schema_version'],
+        'storage_generation'=>$payload['storage_generation']
+    ], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+    'duplicate_first_invalid_format' => str_replace(
+        '"format":', '"format":"evil","format":', $encoded),
+    'duplicate_first_wrong_site' => str_replace(
+        '"site_id":', '"site_id":"attacker","site_id":', $encoded),
+    'unicode_escaped_key' => str_replace('"format":', '"\\u0066ormat":', $encoded),
+    'slash_escape_in_site' => str_replace('"site_id":"isolated-site"',
+        '"site_id":"isolated\\u002dsite"', $encoded)
+];
+foreach ($serializedAttacks as $why => $raw) {
+    assertBackup($raw !== $encoded, 'Serialized hostile fixture actually differs: '.$why);
+    refusesBackup(static fn()=> FoundationSnapshot::verify($raw, 'isolated-site'),
+        'Ambiguous same-value snapshot refused: '.$why);
+    $empty = dbBackup();
+    refusesBackup(static fn()=> (new FoundationSnapshot($empty,true))
+        ->restoreToFreshCiDatabase($raw,'isolated-site'),
+        'Ambiguous foundation snapshot refused before restore: '.$why);
+    assertBackup((new SchemaManager($empty,true))
+        ->inspectSite('isolated-site')['state'] === 'uninitialized',
+        'No SQLite DDL on ambiguous snapshot: '.$why);
+    assertBackup((int)$empty->query("SELECT COUNT(*) FROM sqlite_master WHERE name LIKE 'cms_%'")
+        ->fetchColumn() === 0, 'No hidden CMS tables after rejection: '.$why);
+}
 refusesBackup(fn()=> FoundationSnapshot::verify($encoded,'different-site'),'Expected site ID must match');
 refusesBackup(fn()=> FoundationSnapshot::verify('[]','isolated-site'),'Snapshot requires an object');
 refusesBackup(fn()=> FoundationSnapshot::verify(str_repeat('X',2050),'isolated-site'),'Reject oversized snapshot');
