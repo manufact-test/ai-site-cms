@@ -70,4 +70,18 @@ if ($r['next']['revision'] !== 8 || $r['next']['values']['layout.paddingPx'] !==
 $count++;
 if ($fixture['blocks']['hero-primary']['revision'] !== 7 || $fixture['blocks']['hero-primary']['values']['layout.paddingPx'] !== 24) throw new RuntimeException('fixture was mutated');
 $count++;
+
+// Corrupted rule metadata must return a closed patch rejection, never a PHP TypeError.
+foreach ([
+    ['type'=>'enum','values'=>'oops'],
+    ['type'=>'text','max'=>[]],
+    ['type'=>'text','min'=>-5],
+    ['type'=>null],
+    'not-an-array'
+] as $brokenRule) {
+    $broken=$fixture;
+    $broken['blocks']['hero-primary']['editable']['content.heading']=$brokenRule;
+    revisionExpect('PATCH_REJECTED',array_replace($base,
+        ['changes'=>['content.heading'=>'Valid heading']]),$broken);
+}
 echo "RevisionGate PASS: $count assertions (typed closed properties, revision conflict, no persistence)\n";

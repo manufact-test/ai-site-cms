@@ -79,4 +79,12 @@ $poison=$r; $poison['blocks']['hero-primary']['values']['style.foreground']=['un
 checkPreview(renderChange(['layout.paddingPx'=>28],$poison)['code']==='PREVIEW_REJECTED','nonscalar inherited style does not throw');
 $poison=$r; $poison['blocks']['hero-primary']['revision']=0;
 checkPreview(PreviewLab::render($poison,['blockId'=>'hero-primary','expectedRevision'=>7,'changes'=>['layout.paddingPx'=>28]],'example.test')['code']==='PATCH_REJECTED','invalid inherited revision denied');
+
+// Any malformed local capability entry must fail before typed markup rendering.
+foreach ([['type'=>'text','max'=>[]], ['type'=>'enum','values'=>'bad'], 'not-a-rule'] as $badRule) {
+    $broken=$r;
+    $broken['blocks']['hero-primary']['editable']['content.heading']=$badRule;
+    checkPreview(renderChange(['content.heading'=>'New safe heading'],$broken)['code']==='PATCH_REJECTED',
+        'bad editor rule rejected without rendering or PHP type exceptions');
+}
 echo "PreviewLab PASS: $count assertions (typed immutable render, media, contrast, CSS, escaping)\n";
