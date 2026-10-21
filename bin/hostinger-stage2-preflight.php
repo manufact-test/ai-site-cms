@@ -54,6 +54,45 @@ try {
         throw new RuntimeException('MANIFEST_CONTRACT_REFUSED');
     }
 
+    // This credential-free entrypoint runs BEFORE any Composer autoload or
+    // installer code. Its unsigned package policy must exactly match the Node
+    // builder AND PackageArtifactVerifier, never accept a self-consistent
+    // but unauthorized public webroot.
+    if (array_keys($manifest) !== [
+        'format','stage','releaseVersion','productionReady','documentRoot',
+        'adminEditorAssets','hostingComposerOrNodeRequired','writeEndpointsAvailable',
+        'isSigned','files'
+    ]) {
+        throw new RuntimeException('NONCANONICAL_MANIFEST_FIELDS');
+    }
+    $pretty=json_encode($manifest, JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT
+        |JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+    $canonical=preg_replace_callback('/^ +/m',
+        static fn(array $m): string => str_repeat(' ',intdiv(strlen($m[0]),2)),
+        $pretty);
+    if (!is_string($canonical) || !hash_equals($manifestBytes,$canonical.chr(10))) {
+        throw new RuntimeException('NONCANONICAL_MANIFEST_BYTES');
+    }
+    $publicMembers=[];
+    $caseFold=[];
+    foreach ($manifest['files'] as $entry) {
+        if (!is_array($entry) || array_is_list($entry)
+            || array_keys($entry) !== ['path','bytes','sha256']
+            || !is_string($entry['path']) || !is_int($entry['bytes'])
+            || $entry['bytes'] < 1) {
+            throw new RuntimeException('NONCANONICAL_MANIFEST_RECORD');
+        }
+        $fold=strtolower($entry['path']);
+        if (isset($caseFold[$fold])) throw new RuntimeException('CASE_COLLIDING_MANIFEST_PATH');
+        $caseFold[$fold]=true;
+        if (str_starts_with($entry['path'],'public/')) {
+            $publicMembers[]=$entry['path'];
+        }
+    }
+    sort($publicMembers,SORT_STRING);
+    if ($publicMembers !== ['public/.htaccess','public/index.php']) {
+        throw new RuntimeException('FORBIDDEN_PUBLIC_STAGE2_ROUTE');
+    }
     // Inventory the filesystem BEFORE hashing referenced files; symlinked
     // directories must not allow a manifest path to escape the offweb root.
     $found = [];

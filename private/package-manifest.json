@@ -26,8 +26,8 @@
     },
     {
       "path": "bin/hostinger-stage2-preflight.php",
-      "bytes": 16604,
-      "sha256": "1635e4639e9c03c406adb87ca6d7bbc49f2b5636b1eba388e1ea119d2b1f7400"
+      "bytes": 18482,
+      "sha256": "c4525b0d408891af05fa184bf1ee41ee2e4b1209a98bb9994b6904f510a36058"
     },
     {
       "path": "bin/hostinger-stage2-revoke.php",
@@ -216,8 +216,8 @@
     },
     {
       "path": "src/Hosting/PackageArtifactVerifier.php",
-      "bytes": 8239,
-      "sha256": "ccbadd7e16f164539ceb8b29c6f51b4a033a5ecb734df766c9fcc27f0abf7e29"
+      "bytes": 10662,
+      "sha256": "f4133c5e9de34f0eb08a371b86b306e3a7a31ecb6386c2c968f78ce3d3809c08"
     },
     {
       "path": "src/Hosting/RuntimeDoctor.php",
