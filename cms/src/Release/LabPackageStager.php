@@ -99,6 +99,24 @@ final class LabPackageStager
             || count($manifest['files']) < 4 || count($manifest['files']) > 1000) {
             throw new RuntimeException('Internal-only release policy invalid');
         }
+        // Stage2 must never infer new release capabilities from arbitrary
+        // signed JSON fields. Accept the one real internal-builder shape, plus
+        // the narrower explicit synthetic fixture shape used only in CI tests.
+        // An otherwise correctly hashed package cannot invent HTTP/installer
+        // capabilities by adding fields the current Stage2 reader ignores.
+        $normalKeys = ['format','stage','releaseVersion','productionReady',
+            'documentRoot','adminEditorAssets','hostingComposerOrNodeRequired',
+            'writeEndpointsAvailable','isSigned','files'];
+        $fixtureKeys = ['format','stage','releaseVersion','productionReady',
+            'documentRoot','isSigned','writeEndpointsAvailable','files'];
+        if (array_keys($manifest) !== $normalKeys && array_keys($manifest) !== $fixtureKeys) {
+            throw new RuntimeException('Noncanonical Stage2 release capability fields');
+        }
+        if (array_keys($manifest) === $normalKeys
+            && ($manifest['adminEditorAssets'] !== 'private/editor'
+                || $manifest['hostingComposerOrNodeRequired'] !== false)) {
+            throw new RuntimeException('Invalid Stage2 private editor/runtime policy');
+        }
         $declared = [self::MANIFEST => true];
         foreach ($manifest['files'] as $record) {
             if (!is_array($record) || !is_string($record['path'] ?? null)) {
