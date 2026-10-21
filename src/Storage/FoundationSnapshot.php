@@ -84,6 +84,14 @@ final class FoundationSnapshot
         if (!hash_equals($value['sha256'], self::digest($data))) {
             throw new InvalidArgumentException('Foundation snapshot checksum mismatch');
         }
+        // Reconstruct from the FIXED writer field order, not from decoded
+        // input order: json_decode preserves attacker-supplied ordering. Exact
+        // bytes and ordering must match export() before DDL is considered.
+        $canonical = json_encode([...$data, 'sha256'=>$value['sha256']],
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        if (!hash_equals($canonical, $snapshot)) {
+            throw new InvalidArgumentException('Noncanonical foundation snapshot bytes');
+        }
         return $data;
     }
 

@@ -265,9 +265,24 @@ final class LabPackageStager
     {
         $file = $this->file($name);
         if (!file_exists($file) && !is_link($file)) return null;
-        try { $obj = json_decode(self::strictFile($file, 4096), true, 16, JSON_THROW_ON_ERROR); }
+        $raw = self::strictFile($file, 4096);
+        try { $obj = json_decode($raw, true, 16, JSON_THROW_ON_ERROR); }
         catch (\JsonException $e) { throw new RuntimeException('Bad operator JSON', 0, $e); }
         if (!is_array($obj)) throw new RuntimeException('Operator state must be an object');
+        self::exact($obj);
+        if ($obj['format'] !== self::FORMAT || !is_string($obj['manifestSha256'])
+            || !preg_match('/^[a-f0-9]{64}$/D', $obj['manifestSha256'])
+            || !is_string($obj['version'])
+            || !preg_match('/^0\.[0-9]{1,9}\.[0-9]{1,9}-stage2\.[0-9]{1,9}$/D', $obj['version'])) {
+            throw new RuntimeException('Invalid installation journal identity/version');
+        }
+        // Both intent and receipt are recovery-authoritative records. Require
+        // their original exact writer bytes, rejecting duplicate JSON keys,
+        // hidden whitespace and otherwise equivalent but ambiguous histories.
+        $canonical = json_encode($obj, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
+        if (!hash_equals($canonical, $raw)) {
+            throw new RuntimeException('Noncanonical installation journal bytes');
+        }
         return $obj;
     }
 

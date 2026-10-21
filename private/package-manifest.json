@@ -266,8 +266,8 @@
     },
     {
       "path": "src/Release/LabPackageStager.php",
-      "bytes": 19460,
-      "sha256": "3f81b5ecacb26711ed2d82302732beb4b601329cd80a5950940227dea9516abe"
+      "bytes": 20371,
+      "sha256": "0f5f0caefc1ea310e4b2f5a5c3c9abf0b1b2a759331a093d9b673eb7be5e49c6"
     },
     {
       "path": "src/Release/LabPhpGenerationSwitcher.php",
@@ -306,8 +306,8 @@
     },
     {
       "path": "src/Storage/FoundationSnapshot.php",
-      "bytes": 7359,
-      "sha256": "ce6ce2e715dcaabceabcd983826db07b5fe79e8cbae59d5d13fb6b1064696c99"
+      "bytes": 7873,
+      "sha256": "c0f88aeb0f2ed595a3f60497da7cb9862835408b4f6a5c1e820918b01e779730"
     },
     {
       "path": "src/Storage/SchemaManager.php",
