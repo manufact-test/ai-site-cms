@@ -70,10 +70,53 @@
       sections:source?from.sections.map(s=>({...structuredClone(s),id:C.createSection(s.type).id})):
         [C.createSection('hero'),C.createSection('contact')]};
   }
+  function starter(kind){
+    const configs={
+      industrial:{name:'Промышленный завод',theme:'ocean',pages:[
+        ['Главная','','Производство промышленного оборудования',['hero','metrics','services','process','contact']],
+        ['Продукция','products','Каталог оборудования и продукции',['hero','catalog','features','leadform']],
+        ['О заводе','about','О заводе и производственных возможностях',['story','metrics','process','contact']]]},
+      agency:{name:'Диджитал-студия',theme:'coral',pages:[
+        ['Главная','','Разработка сайтов и дизайн проектов',['hero','services','quote','contact']],
+        ['Услуги','services','Услуги разработки и сопровождения',['services','process','features','leadform']],
+        ['Контакты','contacts','Контакты студии и заказ проекта',['story','leadform','faq']]]},
+      products:{name:'Каталог товаров',theme:'forest',pages:[
+        ['Главная','','Товары и решения для бизнеса',['hero','catalog','features','contact']],
+        ['Каталог','catalog','Ассортимент продукции',['catalog','services','leadform']],
+        ['Доставка','delivery','Доставка и оформление заказа',['process','faq','contact']]]}
+    };
+    const config=configs[kind];
+    if(!config)throw Error('Неизвестная заготовка');
+    const result=template();result.siteTitle=config.name;result.theme=config.theme;
+    result.pages=config.pages.map(([title,slug,seoTitle,types],i)=>({
+      id:i===0?result.pages[0].id:newId(),title,slug,seoTitle,
+      seoDescription:'Демонстрационная страница «'+title+'». Замените описание своим текстом перед использованием.',
+      sections:types.map(type=>{
+        const s=C.createSection(type);
+        if(type==='hero'){s.props.title=i===0?config.name:title;s.props.eyebrow='ДЕМО САЙТ · РЕДАКТИРУЕМЫЙ БЛОК';}
+        return s;
+      })
+    }));
+    return validate(result);
+  }
+  function audit(input){
+    const doc=validate(input),warnings=[],seen=new Map();
+    for(const pg of doc.pages){
+      const add=(code,message)=>warnings.push({pageId:pg.id,pageTitle:pg.title,code,message});
+      if(pg.seoTitle.trim().length<20)add('title','Уточните короткий SEO title');
+      if(pg.seoDescription.trim().length<70)add('description','Добавьте информативное SEO description');
+      if(!pg.sections.some(s=>s.type==='hero'))add('heading','Нет главного блока hero: проверьте заголовок H1');
+      if(!pg.sections.some(s=>s.type==='contact'||s.type==='leadform'))add('contact','Нет блока связи или заявки');
+      const canonical=pg.seoTitle.trim().toLowerCase();
+      if(seen.has(canonical))add('duplicate','SEO title совпадает со страницей «'+seen.get(canonical)+'»');
+      else seen.set(canonical,pg.title);
+    }
+    return warnings;
+  }
   function pageDoc(project,page){
     return {format:C.format,siteTitle:project.siteTitle,theme:project.theme,sections:page.sections};
   }
   Object.defineProperty(window,'CmsPreviewProject',{value:Object.freeze({
-    format,MAX_PAGES,template,normalize,validate,createPage,pageDoc
+    format,MAX_PAGES,template,normalize,validate,createPage,pageDoc,starter,audit
   })});
 })();

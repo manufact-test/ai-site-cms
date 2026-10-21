@@ -5,3 +5,20 @@
 
 /* Stage2 offline site project: page navigation, isolated page settings, SEO preview */
 .page-workspace{border-top:1px solid #e3eaf2;margin-top:20px;padding-top:4px}.page-workspace .list-heading{margin:8px 0}.page-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin:8px 0 10px}.page-actions .button{font-size:10px;padding:7px 4px;white-space:normal}.page-actions .danger{color:#b35047}.page-settings{background:#f7f9fd;border:1px solid #e4eaf2;border-radius:10px;padding:10px 12px;margin:14px 0}.page-settings>summary{font-size:12px;font-weight:750;color:#455774;cursor:pointer}.page-settings .field-label{margin-top:12px}.page-settings textarea{width:100%;max-width:100%;border:1px solid #dce3ed;border-radius:9px;padding:10px;font:inherit;color:#243047;resize:vertical}.seo-snippet{background:white;border:1px solid #e2e9f2;border-radius:9px;padding:12px;display:grid;gap:4px;margin-top:12px;overflow-wrap:anywhere}.seo-snippet span{color:#197b4f;font-size:10px}.seo-snippet strong{font-size:13px;color:#275fbd;font-weight:550}.seo-snippet p{color:#758194;font-size:11px;margin:0}
+
+/* Stage2 offline product cycle: presets, real page order, audit, copy and demo ZIP */
+.starter-bar{border-top:1px solid #e7ecf3;margin-top:18px;padding:10px 0}
+.starter-row{display:flex;gap:6px;align-items:stretch}
+.starter-row select{min-width:0;flex:1}
+.starter-row .button{font-size:11px;padding:7px 9px}
+.page-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
+.copy-block{border-top:1px solid #e4eaf1;margin-top:20px;padding-top:4px}
+.audit-panel{border:1px solid #dce4ee;border-radius:10px;background:#f8fafc;padding:12px;margin-top:20px}
+.audit-panel>summary{font-size:12px;font-weight:750;cursor:pointer}
+.audit-panel>summary span{color:#798597;font-weight:500;margin-left:4px}
+#audit-results{display:grid;gap:5px;margin-top:10px}
+.audit-item{display:grid;gap:3px;text-align:left;background:#fff;border:1px solid #e3e9f0;border-radius:8px;padding:9px 10px;font-size:11px}
+.audit-item:hover{border-color:#286cfa}
+.audit-item strong{color:#3e536b}.audit-item span{color:#8c6b4d}
+.audit-ok{color:#16846c;font-size:11px;margin:0}
+.audit-explain{font-size:10px;color:#8490a1;margin-bottom:0}

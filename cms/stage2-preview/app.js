@@ -2,7 +2,7 @@
 /* Stage2 offline MULTIPAGE product preview. No API, auth, server writes or publishing. */
 (()=>{
   const C=window.CmsPreviewContent,P=window.CmsPreviewProject,
-    R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2;
+    R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2,X=window.CmsPreviewExport;
   const $=id=>document.getElementById(id);
   const ui={list:$('sections'),frame:$('preview'),fields:$('fields'),title:$('site-title'),theme:$('theme'),
     count:$('count'),info:$('selection-info'),status:$('status'),addType:$('new-type'),browser:$('browser'),
@@ -10,7 +10,7 @@
     pageList:$('page-list'),pageTitle:$('page-title'),slug:$('page-slug'),
     seoTitle:$('seo-title'),seoDescription:$('seo-description'),
     seoSnippetTitle:$('seo-snippet-title'),seoSnippetDescription:$('seo-snippet-description'),
-    seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url')};
+    seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url'),audit:$('audit-results'),auditCount:$('audit-count')};
   const storageKey='ai-site-cms-stage2-preview-local-v1',LIMIT=8;
   let project=P.template(),pageId=project.pages[0].id,doc,selection='',editor=null,
       dirty=false,records=[],storageOK=false;
@@ -23,6 +23,25 @@
     clearTimeout(toastTimer);ui.status.textContent=message;
     ui.status.className='status show'+(error?' error':'');
     toastTimer=setTimeout(()=>ui.status.className='status',4000);
+  }
+  function auditUI(){
+    ui.audit.replaceChildren();
+    const warnings=P.audit(project);
+    ui.auditCount.textContent=warnings.length?'Замечаний: '+warnings.length:'Замечаний нет';
+    if(!warnings.length){
+      const p=document.createElement('p');p.className='audit-ok';
+      p.textContent='Базовая проверка структуры и SEO не нашла замечаний. Это не SEO-аудит реального сайта.';
+      ui.audit.append(p);return;
+    }
+    for(const notice of warnings){
+      const button=document.createElement('button');button.type='button';
+      button.className='audit-item';
+      const page=document.createElement('strong');page.textContent=notice.pageTitle;
+      const info=document.createElement('span');info.textContent=notice.message;
+      button.append(page,info);
+      button.addEventListener('click',()=>{selectPage(notice.pageId);document.querySelector('.page-settings').open=true;});
+      ui.audit.append(button);
+    }
   }
   function indicators(){
     dirty=snapshot()!==saved;
@@ -46,6 +65,18 @@
     $('page-delete').disabled=project.pages.length<=1||p.slug==='';
     $('page-add').disabled=project.pages.length>=P.MAX_PAGES;
     $('page-copy').disabled=project.pages.length>=P.MAX_PAGES;
+    const order=project.pages.findIndex(pg=>pg.id===pageId);
+    $('page-up').disabled=order<=1;
+    $('page-down').disabled=order===0||order===project.pages.length-1;
+    const target=$('copy-target'),previous=target.value;
+    target.replaceChildren();
+    project.pages.filter(pg=>pg.id!==pageId).forEach(pg=>{
+      const option=document.createElement('option');option.value=pg.id;option.textContent=pg.title;
+      target.append(option);
+    });
+    if([...target.options].some(option=>option.value===previous))target.value=previous;
+    $('copy-section').disabled=!target.options.length;
+    auditUI();
     ui.previewUrl.textContent='demo.local'+(p.slug?'/'+p.slug:'/');
     ui.seoSnippetTitle.textContent=p.seoTitle;
     ui.seoSnippetDescription.textContent=p.seoDescription||'Добавьте SEO-описание страницы для поисковой выдачи.';
@@ -65,7 +96,7 @@
       ui.previewUrl.textContent='demo.local/'+(p.slug||'');
     }catch(e){toast(e.message,true);}
   }
-  function changed(){indicators();preview();}
+  function changed(){indicators();preview();auditUI();}
   function checkpoint(type,coalesce=false){
     const now=Date.now();
     if(!(coalesce&&lastType===type&&now-lastAt<1200)){
@@ -138,6 +169,25 @@
     project.pages.push(page);selectPage(page.id);changed();
     toast(duplicate?'Страница продублирована':'Страница добавлена');
   }
+  function pageMove(direction){
+    const index=project.pages.findIndex(p=>p.id===pageId),next=index+direction;
+    if(index<=0||next<=0||next>=project.pages.length)return;
+    checkpoint('page-order');
+    const item=project.pages.splice(index,1)[0];
+    project.pages.splice(next,0,item);
+    pageUI();changed();toast('Порядок страниц изменён');
+  }
+  function copySection(){
+    const target=project.pages.find(p=>p.id===$('copy-target').value),source=current();
+    if(!target||!source)return;
+    if(target.sections.length>=12)return toast('На целевой странице уже 12 блоков',true);
+    checkpoint('copy-section');
+    const copy=C.createSection(source.type);
+    copy.props=structuredClone(source.props);
+    target.sections.push(copy);
+    selectPage(target.id);select(copy.id);changed();
+    toast('Блок скопирован на выбранную страницу');
+  }
   function pageDelete(){
     const p=activePage();
     if(p.slug===''||project.pages.length<=1)return toast('Главную страницу удалить нельзя',true);
@@ -188,6 +238,22 @@
     if(!from.length)return;to.push(snapshot());
     apply(JSON.parse(from.pop()),pageId,selection);
     toast(which==='undo'?'Изменение отменено':'Изменение повторено');
+  }
+  function starter(){
+    const kind=$('starter-type').value;
+    if(!confirm('Заменить текущий демонстрационный проект готовой заготовкой? При необходимости сначала сохраните JSON.'))return;
+    checkpoint('starter');
+    apply(P.starter(kind));
+    toast('Открыта многостраничная заготовка. Тексты и контакты — демонстрационные');
+  }
+  function downloadSite(){
+    let zip;
+    try{zip=X.build(project);}catch(e){toast('Не удалось собрать сайт: '+e.message,true);return;}
+    const url=URL.createObjectURL(zip),a=document.createElement('a');
+    a.href=url;a.download='ai-site-cms-offline-demo-site.zip';
+    document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+    toast('Демо-сайт скачан: HTML-страницы, навигация и JSON. Это не публикация');
   }
   function exports(){
     let bytes;
@@ -255,7 +321,7 @@
     }catch(e){toast('Сохранение недоступно. Экспортируйте резервный JSON',true);}
   }
   function init(){
-    if(!C||!P||!R||!E){
+    if(!C||!P||!R||!E||!X){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -266,10 +332,15 @@
     readSaved();if(records.length)project=P.normalize(records[0].doc);
     saved=snapshot();apply(project);versions();
     $('add').addEventListener('click',add);
+    $('starter-apply').addEventListener('click',starter);
+    $('copy-section').addEventListener('click',copySection);
+    $('download-site').addEventListener('click',downloadSite);
     ui.pageList.addEventListener('change',()=>selectPage(ui.pageList.value));
     $('page-add').addEventListener('click',()=>pageAdd());
     $('page-copy').addEventListener('click',()=>pageAdd(true));
     $('page-delete').addEventListener('click',pageDelete);
+    $('page-up').addEventListener('click',()=>pageMove(-1));
+    $('page-down').addEventListener('click',()=>pageMove(1));
     ui.pageTitle.addEventListener('change',()=>{editPage('title',ui.pageTitle.value.trim());ui.pageTitle.value=activePage().title;});
     ui.slug.addEventListener('change',()=>{editPage('slug',ui.slug.value.trim().toLowerCase());ui.slug.value=activePage().slug;});
     ui.seoTitle.addEventListener('change',()=>{editPage('seoTitle',ui.seoTitle.value.trim());ui.seoTitle.value=activePage().seoTitle;});

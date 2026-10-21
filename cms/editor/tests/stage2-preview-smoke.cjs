@@ -4,6 +4,7 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const assert=require('node:assert/strict');
+const {execFileSync}=require('node:child_process');
 const {pathToFileURL}=require('node:url');
 const {chromium}=require('playwright-core');
 const binary=['/usr/bin/google-chrome','/usr/bin/google-chrome-stable',
@@ -114,8 +115,54 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#versions .restore').first().click();
     await page.locator('[data-focus=page]').click();
     await frame.locator('h1').filter({hasText:'Рабочий прототип CMS'}).waitFor();
+
+    // Product flow B: copy a real section to another page, reorder pages.
+    await page.locator('#page-list').selectOption({index:1});
+    await page.locator('#copy-target').selectOption({index:0});
+    await page.locator('#copy-section').click();
+    assert.equal(await page.locator('#page-list').inputValue(),await page.locator('#page-list option').first().getAttribute('value'));
+    assert.equal(await page.locator('#sections li').count(),7,'copied block appears on the destination page');
+    await page.locator('#page-add').click();
+    assert.equal(await page.locator('#page-list option').count(),3);
+    await page.locator('#page-up').click();
+    assert.equal(await page.locator('#page-list option').nth(1).getAttribute('value'),await page.locator('#page-list').inputValue());
+
+    // Product flow C: download a real offline ZIP with navigation, per-page SEO and a JSON backup.
+    const zipped=page.waitForEvent('download');
+    await page.locator('#download-site').click();
+    const zip=await zipped;
+    const zipPath=await zip.path();
+    const zipFiles=execFileSync('unzip',['-Z1',zipPath],{encoding:'utf8'}).trim().split('\n');
+    assert.ok(zipFiles.includes('index.html')&&zipFiles.includes('services.html'));
+    assert.ok(zipFiles.includes('project-backup.json')&&zipFiles.includes('README.txt'));
+    const siteHTML=execFileSync('unzip',['-p',zipPath,'index.html'],{encoding:'utf8'});
+    assert.match(siteHTML,/href="services\.html"/);
+    assert.match(siteHTML,/<meta name="description"/);
+    assert.doesNotMatch(siteHTML,/<script[\s>]/i);
+
+    // Product flow A: open three complete preset sites with 11 editable section kinds.
+    page.once('dialog',dialog=>dialog.accept());
+    await page.locator('#starter-type').selectOption('industrial');
+    await page.locator('#starter-apply').click();
+    assert.equal(await page.locator('#page-list option').count(),3);
+    assert.equal(await page.locator('#sections li').count(),5);
+    await frame.locator('.studio-stats').waitFor();
+    await page.locator('#page-list').selectOption({index:1});
+    await frame.locator('.studio-product').first().waitFor();
+    await page.locator('#new-type').selectOption('leadform');
+    await page.locator('#add').click();
+    await frame.locator('.studio-form input[disabled]').first().waitFor();
+    await page.locator('.audit-panel summary').click();
+    assert.ok((await page.locator('#audit-count').innerText()).length>0);
+    await page.locator('#save').click();
+    await page.reload();
+    assert.equal(await page.locator('#page-list option').count(),3);
+    assert.ok(await page.locator('#new-type option').count()>=11);
+    if(process.env.GITHUB_ACTIONS==='true'){
+      await page.screenshot({path:path.join(root,'stage2-preview','screenshots','preset-studio.png'),fullPage:true});
+    }
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
-    console.log('Stage2 PRODUCT multi-page preview PASS: two independently editable pages, SEO metadata, offline version restore, undo/redo, responsive and zero network.');
+    console.log('Stage2 PRODUCT studio PASS: 11 sections, three presets, page reorder, cross-page copy, SEO review, ZIP offline static site, revision save/reload and zero network.');
   }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});
