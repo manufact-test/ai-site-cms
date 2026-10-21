@@ -63,22 +63,22 @@ try {
     $v=$data['cases'][$name]??null;
     requireEvidence(is_array($v)&&is_string($v['signature']??null)&&
       is_string($v['message']??null)&&is_string($v['publicKey']??null),
-      'case '+$name);
+      'case '.$name);
     $signature=base64_decode($v['signature'],true);
     $message=base64_decode($v['message'],true);
     $publicKey=base64_decode($v['publicKey'],true);
     requireEvidence(is_string($signature)&&strlen($signature)===64&&
       is_string($message)&&strlen($message)===$length&&
-      is_string($publicKey)&&strlen($publicKey)===32,'case lengths '+$name);
+      is_string($publicKey)&&strlen($publicKey)===32,'case lengths '.$name);
     $warm=verifier($signature,$message,$publicKey,$mode);
-    requireEvidence($warm===$expected,'warmup result '+$name);
+    requireEvidence($warm===$expected,'warmup result '.$name);
     $durations=[];
     for($i=0;$i<$count;$i++){
       $beg=hrtime(true);
       $got=verifier($signature,$message,$publicKey,$mode);
       $duration=(hrtime(true)-$beg)/1e6;
       requireEvidence($got===$expected&&is_finite($duration)&&$duration>=0,
-        'real timed answer '+$name);
+        'real timed answer '.$name);
       $durations[]=$duration;
     }
     $sorted=$durations;
