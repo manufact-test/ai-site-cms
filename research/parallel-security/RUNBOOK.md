@@ -1,3 +1,15 @@
+# АКТУАЛЬНО 21.10.2026 — приоритет над историческим RUNBOOK ниже
+
+Последняя проверенная кодовая точка ДО handoff документации — research SHA **760310d7bdd34f1b0d90b1066734e3e1dcbeefed**, [GitHub Actions #39624610755](https://github.com/manufact-test/ai-site-cms/actions/runs/39624610755), security job 119306633510 **SUCCESS 97 PASS / 0 FAIL / 0 BLOCKED**. После документального commit SHA меняется: обязательно проверить current exact-head CI. PR #3 OPEN DRAFT, все изменения только research/parallel-security/. Статус выпуска NO_GO, шесть незакрытых external reviewer signoffs.
+
+Приоритетный обзор [CURRENT-CHECKPOINT-2026-10-21.md](CURRENT-CHECKPOINT-2026-10-21.md), [NEXT-CHAT.md](NEXT-CHAT.md), [MAIN-WEB-CRYPTO-SURFACE-REVIEW.md](MAIN-WEB-CRYPTO-SURFACE-REVIEW.md). Дополнительные команды: node research/parallel-security/main-head-independent-proof.mjs; node research/parallel-security/main-web-crypto-surface-regression.mjs; node research/parallel-security/run-security-suite.mjs --strict --online. В CI новые rows source:main-web-crypto-entrypoint-census и mutation:main-web-crypto-surface-regression.mjs подтверждают реальную статическую web/CLI source поверхность и 24 mutations. Эти row-имена НЕ означают exhaustive dynamic HTTP reachability, host-DoS или production approval.
+
+Реальный source+lock ZIP 78/78 Composer provenance, physical no-Sodium PHP 8.3.6, original main 60 signed chain tests, 102 paired signed CLI performance samples, math-only workload scenarios, live 43-pin OSV проверены. Не подменять внешние PGP, crypto audit, ISC NOTICE, Hostinger PHP web-SAPI, интеграторские и owner signoff тестами в этом репо. Полные действительные результаты см. exact-head GitHub Action logs.
+
+---
+
+## Ниже — сохранённые исторические записи RUNBOOK (на момент своих дат)
+
 # ВАЖНО: актуальный статус и процедуры (21.10.2026)
 
 **Приоритет над архивными утверждениями ниже:** [CURRENT-CHECKPOINT-2026-10-21.md](CURRENT-CHECKPOINT-2026-10-21.md). Исторические замечания про отсутствие live OSV, ZIP-проверок и main no-Sodium тестов не относятся к нынешней контрольной точке. Новый кодовый exact-head GitHub Actions [#39588010610](https://github.com/manufact-test/ai-site-cms/actions/runs/39588010610) дал **76 PASS / 0 FAIL / 4 BLOCKED**, вердикт **NO_GO**. Последнюю документационную версию повторно проверить по actual PR HEAD.

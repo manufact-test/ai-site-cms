@@ -1,23 +1,25 @@
-Привет! Продолжаем независимую исследовательскую разработку **AI Site CMS — Security & Dependencies Research**.
+Привет! Продолжаем независимую исследовательскую разработку **AI Site CMS — Security & Dependencies Research** (НЕ главный разработчик CMS).
 
 **GitHub:** https://github.com/manufact-test/ai-site-cms
-**Единственная рабочая ветка:** `research/stage2-supply-chain-followup`
-**PR #3:** https://github.com/manufact-test/ai-site-cms/pull/3 — OPEN DRAFT, не сливать, не менять базу/статус и не делать rebase.
-**Разрешённые изменения:** строго `research/parallel-security/`; изменения `main`, CMS, workflow, чужих направлений, зависимостей, секретов, БД или Hostinger запрещены.
+**Единственная рабочая ветка:** research/stage2-supply-chain-followup
+**PR #3:** https://github.com/manufact-test/ai-site-cms/pull/3 — OPEN DRAFT, НЕ merge/ready/rebase/force/retarget. Original base SHA 6ec6dd170c5250e5caed9f0739e03858a3b96a93.
+**ПРАВА НА ИЗМЕНЕНИЯ:** строго research/parallel-security/ и комментарии PR #3. Запрещено изменять main, cms/, .github/workflows/, зависимости/locks, чужие ветки и разделы, root docs, Hostinger, деплой, MySQL, secrets.
 
-**ОБЯЗАТЕЛЬНО СНАЧАЛА подключись к GitHub и прочитай:**
-1. `research/parallel-security/NEXT-CHAT.md`
-2. `research/parallel-security/CURRENT-CHECKPOINT-2026-10-21.md`
-3. `research/parallel-security/README.md`
-4. `research/parallel-security/RUNBOOK.md`
-5. Последние комментарии PR #3, актуальный `main`, точный HEAD PR #3 и CI именно этого HEAD.
+**ОБЯЗАТЕЛЬНО ПЕРВЫМ ДЕЛОМ подключись к GitHub и прочитай:**
+1. research/parallel-security/NEXT-CHAT.md
+2. research/parallel-security/CURRENT-CHECKPOINT-2026-10-21.md
+3. research/parallel-security/README.md и RUNBOOK.md
+4. research/parallel-security/MAIN-WEB-CRYPTO-SURFACE-REVIEW.md
+5. research/parallel-security/HOSTINGER-ED25519-OFFLINE-CAPACITY-PLAN.md
+6. research/parallel-security/QUALIFIED-EXTERNAL-REVIEW-HANDOFF.md
+7. Последние комментарии PR #3, актуальный PR HEAD, действительную базу/draft/state, exact-head CI job logs, filenames scope и актуальный main SHA.
 
-**Последний доказанный кодовый чекпоинт ДО обновления handoff-документов:** `f55e87abf8a75b9b8d2519577c6ffece29f140fe`. GitHub Actions https://github.com/manufact-test/ai-site-cms/actions/runs/39588010610 — SUCCESS, **76 PASS, 0 FAIL, 4 BLOCKED**, решение выпуска **NO_GO**. Handoff-коммит продвинул HEAD: получить актуальный точный SHA через GitHub и проверить соответствующий CI; не полагаться на старый SHA.
+**Последний доказанный КОДОВЫЙ HEAD ПЕРЕД ОБНОВЛЕНИЕМ HANDOFF:** 760310d7bdd34f1b0d90b1066734e3e1dcbeefed. GitHub Actions https://github.com/manufact-test/ai-site-cms/actions/runs/39624610755 — SUCCESS **97 PASS / 0 FAIL / 0 BLOCKED**, security job 119306633510. Там было 70/70 изменённых файлов строго в исследовательской папке. **Теперь выполнен документальный commit и HEAD мог измениться — обязательно получить новый SHA и проверить именно его CI, нельзя заявлять устаревшие 97/0/0 как доказанный текущий результат.**
 
-**Ключевые факты:** живой OSV уже реально проверил 43/43 pinned Composer/npm версий, сообщил 0 advisory на момент проверки; реальный GitHub ZIP `sodium_compat v2.5.2` уже получен и все **78 файлов** совпали с Git tree источником подписанного upstream тега; отдельный main CI интегратора успешно проверил физический PHP 8.3.6 без Sodium (33 signed-chain, 55 rotation). В нашем CI native signed matrix/второй shim маршрут проверялись отдельно. Новая проверка `evidence-readiness-decision.mjs` запрещает выдавать зелёные исследования за разрешение на выпуск; 37 негативных регрессий прошли.
+**Что сделано:** 43 точных Composer/npm pinned packages и живой OSV 43/43, 0 известных advisory на момент проверки; GitHub upstream PGP signed annotated tag sodium_compat v2.5.2 и настоящий ZIP exact 78 Git blobs; отдельный оригинальный PHP8.3.6 physical no-Sodium с реальной Composer-installed vetted source pre/post crypto; настоящие Ed25519 signature/regression tests и 14 upstream adversarial assertions; оригинальный current-main PHP source + 60 signed native class-chain proofs. Настоящие 102 CLI signed performance samples: чистый PHP Ed25519 fallback обычно ~43–45 мс против ~0,06 мс native, но НЕ Hostinger CPU, HTTP или DoS. Математический bounded workload what-if — только теоретическое serial busy time.
 
-**Открыто в нашем CI:** `source:common-ed25519-backend`, `native:forced-class-signed-chain` (исторический PR base, актуальное `main` не подхвачено), `no-sodium:cryptography`, `compat:cryptography` (наше отдельное genuine no-native runtime + installed-source pre/post attestation). Отдельно нужны PGP signer ownership/crypto и ISC/NOTICE/legal-review, тестирование целевого Hostinger и одобрение интегратора. **Stage2 и production НЕ одобрены**. PR оставлять DRAFT.
+**НОВЫЙ БОЛЬШОЙ БЛОК:** анализ настоящего original main через Git blobs и PHP token_get_all: на main SHA b3237fc2426ad246178b3fd4b64501c6b22c86ba зафиксирован один GET /api/health Slim route, семь Stage2 readonly Hostinger path comparisons, два CLI verifier guards и отсутствие прямых лексических Ed25519 release class references в проверенных web entrypoints. 24 отрицательных synthetic regression PASS. ЭТО НЕ полный dynamic callgraph и НЕ проверка реального сервера.
 
-Работай **автономно большими пакетами**, делай полноценную полезную задачу, самостоятельно сохраняй код в GitHub и сверяй exact-head CI, changed-file scope и фактические proof-маркеры. Не дели работу на микроэтапы, не спрашивай мелкие разрешения. Говори только то, что реально проверено. После большого блока оставляй отчёт для главного интегратора комментарием в PR #3. **NEXT-CHAT обновлять только когда я попрошу о новом переходе.**
+**Состояние:** research-ready-for-external-review, но Stage2/production **NO_GO**. Шесть нерешённых независимых signoffs: владелец upstream PGP ключа/custody, экспертный crypto audit, ISC/NOTICE юридическая оценка, авторизованные тесты Hostinger PHP web-SAPI CPU/latency/concurrency, интеграторское release-signature/rollback подтверждение и финальное решение владельца. Отсутствующие expert/host gates никогда не превращать в PASS потому, что CI зелёный. ~98% — оценка исключительно инженерной части отдельного исследования, НЕ готовность AI Site CMS.
 
-**Следующий приоритет:** независимое тестирование реально установленного `sodium_compat` по Git blob + полному pre/post источнику в физически no-Sodium PHP либо другая существенная реальная security задача в разрешённой папке. Никаких изменений основной CMS и никакого автоматического merge.
+**Работай самостоятельно крупными пакетами**, затем проверяй точный HEAD/CI/scope/proofs и оставляй связный handoff-комментарий главному интегратору в PR #3. Не проси меня переносить файлы и не обновляй каждый раз все документы — обновляй их по моей просьбе о переходе или большой контрольной точке. НЕ сливай PR. Следующий полезный шаг — сверка нового latest main HTTP/crypto scope и подготовка настоящих внешних reviewer/Hostinger acceptance без симуляции их подписей.

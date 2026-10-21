@@ -1,3 +1,9 @@
+## ОБНОВЛЕНИЕ 21.10.2026 — последний статический live-main surface proof
+
+Новый оригинальный PHP/Git blob source audit и 24 negative tests: [MAIN-WEB-CRYPTO-SURFACE-REVIEW.md](MAIN-WEB-CRYPTO-SURFACE-REVIEW.md). На main SHA b3237fc2426ad246178b3fd4b64501c6b22c86ba в HttpKernel наблюдался ровно GET /api/health, в независимом Hostinger preflight — 7 path comparisons, в двух CLI релизных скриптах — CLI guards. Это статические наблюдения, НЕ доказательство отсутствия динамических HTTP маршрутов или производительности LiteSpeed/FPM. Исходная инструкция ниже пока НЕ выполнялась на Hostinger, release NO_GO.
+
+---
+
 # Offline Ed25519 workload pressure: bounded math and Hostinger acceptance
 
 21 October 2026. Independent research only. **This is not measured Hostinger capacity, nor product GO.** GitHub PR #3 stays draft, changes restricted to `research/parallel-security/`.

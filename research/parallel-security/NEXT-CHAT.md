@@ -1,54 +1,41 @@
-# AI Site CMS — Security & Dependencies Research — NEXT CHAT (актуально)
+# AI Site CMS — Security & Dependencies Research: NEXT CHAT
 
-**Обновлено:** 21 октября 2026. **Это единственный приоритетный handoff нашего отдельного Security & Dependencies Research, не главного разработчика CMS.** Дополнительный подробный источник: [CURRENT-CHECKPOINT-2026-10-21.md](CURRENT-CHECKPOINT-2026-10-21.md).
+**21 октября 2026. Главная и единственная передача независимой security-ветки.** Внимательно читать CURRENT-CHECKPOINT-2026-10-21.md. Это НЕ main CMS development.
 
-## 1. Перед первым действием — GitHub
+## Вход и GitHub
 
-1. Репозиторий (подключённый GitHub): https://github.com/manufact-test/ai-site-cms, единственная рабочая ветка `research/stage2-supply-chain-followup`.
-2. [PR #3](https://github.com/manufact-test/ai-site-cms/pull/3) **OPEN DRAFT** против `main`; НЕ merge/ready/rebase/force/retarget. Сначала вызвать GitHub `get_pr_info` и получить его текущий `head_sha`, `base_sha`, `draft`, `state`.
-3. Последний независимо **проверенный кодовый** HEAD перед документами: `f55e87abf8a75b9b8d2519577c6ffece29f140fe`; GitHub Actions [#39588010610](https://github.com/manufact-test/ai-site-cms/actions/runs/39588010610), Security job `119181690800` **SUCCESS**, **76 PASS / 0 FAIL / 4 BLOCKED**. Этот handoff обновляется отдельным коммитом и потому **не является последним head**. Проверь отдельный CI документального HEAD! Количество PASS — записи suite, не число всех assertions.
-4. Разрешены изменения ИСКЛЮЧИТЕЛЬНО `research/parallel-security/` и комментарии в PR #3. Запрещены изменения `main`, `cms/`, `.github/workflows/`, lock files, интеграционных/других исследовательских веток, Hostinger, секретов, MySQL, релизных файлов и root docs. Владелец CMS — главный интегратор.
-5. Перед изменениями изучить именно этот `NEXT-CHAT.md`, `CURRENT-CHECKPOINT-2026-10-21.md`, `README.md`, `RUNBOOK.md`, `FROZEN-LOCK-SOURCE-REVIEW.md`, `UPSTREAM-REAL-ZIP-REVIEW.md`, `OSV-LIVE-EXACT-43-REVIEW.md` и последние комментарии PR. Старые исторические состояния не использовать без сопоставления с новым чекпоинтом.
+Репозиторий: https://github.com/manufact-test/ai-site-cms
+Ветка: **research/stage2-supply-chain-followup**
+PR #3: https://github.com/manufact-test/ai-site-cms/pull/3 — **OPEN DRAFT**, original base **6ec6dd170c5250e5caed9f0739e03858a3b96a93**, не сливать, не Ready, не rebase, не retarget и не force. Ни один другой PR не принадлежит нашему исследовательскому потоку.
 
-## 2. Фактически завершено
+**Допустимые действия:** читать main и research, писать ТОЛЬКО в research/parallel-security/, комментировать PR #3. **Недопустимо:** изменять main, cms/, .github/workflows/, lockfile, root docs, другие research folders, Hostinger, базу, секреты, deploy.
 
-- Настоящие неизменные production locks: **14 Composer + 29 npm**. Три SHA-256 и Git blob исходных lock/manifest заморожены; подмена исходника, подписи SRI или дополнительный пакет приводит к отказу. **29** позитивных/адверсариальных тестов на реальных копиях файлов.
-- OSV: реальный HTTPS запрос `querybatch` завершился **43/43**, в том срезе **0 известных OSV advisory**; строго проверяются исходные lock SHA, число строк, ключи package/version, timestamps и негативные варианты. Новый живой результат не гарантирует отсутствие будущих/неизвестных проблем.
-- Upstream `paragonie/sodium_compat 2.5.2`: GitHub сообщает проверенную **подпись аннотированного v2.5.2 тега**, коммит `3246b36803c177847e677862fedeb7f937869adb`; **211 Git tree entries**, **78 экспортируемых файлов**. **Реальный ZIP по HTTPS уже скачан и сверены все 78 Git blob bytes**. SHA256 ZIP: `53944302442e609c0443f680a6195f8d7467e3d0f0c4503e8a690fd9e7ee22f2`. Не утверждать независимую идентификацию PGP signer или crypto/code audit.
-- Отдельный успешный CI главного интегратора `main` [#39571456888, job #119126388264](https://github.com/manufact-test/ai-site-cms/actions/runs/39571456888/job/119126388264): реальный PHP 8.3.6/64-bit без ext-sodium и точная `sodium_compat`; 33 проверки цепочки permit/receipt/settlement и 55 по trust-root rotation. Наш research CI только проверил сохранённый фактический журнал и 40 negative доказательств, не переисполнял этот PHP.
-- Собственные native проверки: 60 signed-chain на старом PR-base; 120 signed-chain на точном сохранённом фиксированном исходнике integrator main (маршрут через class shim **всё ещё native Sodium**), плюс 36 receipt, 46 permit, 38 settlement, 18 rotation. Нельзя назвать эти 120 проверок реальным polyfill/всем main.
-- Новый `evidence-readiness-decision.mjs`: 6 типизированных независимых proof-маркеров, real ZIP SHA, live OSV SHA/43 rows, полнота проверок и критические блокировки связываются в JSON; **`releaseDecision=NO_GO` без исключений**. 37 adversarial regressions плюс suite-exit 12 PASS. Последний кодовый CI **76/0/4**.
-- Весь PR по согласованным разрешениям — **исключительно research/parallel-security/**. Самостоятельно никакие исходники CMS, workflows или dependencies не меняли.
+**Последняя точная КОДОВАЯ проверка ДО handoff-doc изменений:** HEAD **760310d7bdd34f1b0d90b1066734e3e1dcbeefed**, Actions https://github.com/manufact-test/ai-site-cms/actions/runs/39624610755 — Security job **119306633510**, **SUCCESS 97 PASS / 0 FAIL / 0 BLOCKED**, original PR changed scope тогда 70/70 внутри research/parallel-security/. **НЕ считать SHA и 97/0/0 актуальными для документального HEAD! Первым действием fetch PR head/base/draft/state + latest exact-head CI и по журналу убедиться, что все proof rows проходят.**
 
-## 3. Четыре открытых технических BLOCKED в research CI
+## Читать в следующем чате (по порядку)
 
-- `source:common-ed25519-backend`: общий backend всех callsites актуального `main` против PR historical base не проверен под текущим CI checkout.
-- `native:forced-class-signed-chain`: 60-case forced class complete chain против актуального original `main` (старый base всё ещё вызывает global sodium).
-- `no-sodium:cryptography`: независимый физический research PHP8.3 ext-sodium-free binary.
-- `compat:cryptography`: независимая фактическая source pre/post attestation установленного `v2.5.2` и настоящего Sodium-free PHP; ZIP-провананс уже доказан отдельно, но research runtime не исполнялся.
+1. NEXT-CHAT.md
+2. CURRENT-CHECKPOINT-2026-10-21.md
+3. README.md
+4. RUNBOOK.md
+5. MAIN-WEB-CRYPTO-SURFACE-REVIEW.md
+6. HOSTINGER-ED25519-OFFLINE-CAPACITY-PLAN.md
+7. QUALIFIED-EXTERNAL-REVIEW-HANDOFF.md
+8. Последние PR #3 комментарии, GitHub Actions exact current HEAD, original current main SHA, список changed-file scope.
 
-Внешние обязательные решения остаются за владельцем/экспертами: независимое удостоверение PGP signer identity, криптографический/лицензионный ISC и NOTICE review, Hostinger LiteSpeed PHP8.3 web SAPI и CPU/latency/concurrency, юридическая пригодность перепродажи и безопасность производственного релиза. Stage2/production не утверждены.
+## Достижения: подлинные evidence, а не имитация
 
-## 4. Как продолжать
+- 43 original pinned Composer/npm packages, frozen lock source SHA/Git blob, live OSV 43/43 zero **known advisories AT SCAN TIME**.
+- Upstream exact sodium_compat 2.5.2 PGP-annotated GitHub tag, real ZIP SHA256 **53944302442e609c0443f680a6195f8d7467e3d0f0c4503e8a690fd9e7ee22f2**, exact pinned commit 3246b36803c177847e677862fedeb7f937869adb, 78 Git blob files. Our independent Linux CI physically compiles PHP 8.3.6 WITHOUT Sodium, Composer installs original vetted source isolated, checks 78 files and lock pre/post, executes four signed backend fixture groups and 14 upstream crypto security assertions.
+- Independent true latest-main original PHP verifiers + 60 signed native Ed25519 chain cases. Latest original main SHA seen by verified #39624610755: **b3237fc2426ad246178b3fd4b64501c6b22c86ba** (could change).
+- Real CLI native vs pure-PHP signed 102 timed verifications, seven scenarios. Fallback generally ~43–45ms vs native ~0.06ms for valid/tampered-message/signature; **GitHub runner, NOT target Hostinger web-SAPI**. Math-only hypothetical 1/5/10/20/40 checks/s model, 39 adversarial tests, no real Hostinger RPS/worker measurement.
+- **New real code security task:** PHP tokenized original-main web entrypoint/CLI route census with Git blob verified sources. At current-main tested SHA: one Slim GET /api/health, seven Stage2 Hostinger-readonly compared URL paths, two offline verifier CLI guards, no direct release Ed25519 class tokens in web entrypoints. Synthetic 24 mutation regressions. **DO NOT declare no dynamic reachable cryptography or safe Hostinger just from static tokens**.
+- Consistent machine-reviewed NO_GO research dossier and 29 adversarial reviewer handoff cases; 37 readiness and 12 incomplete source exit regressions. Cryptographic/security expert signatures are NOT simulated.
 
-- Пользователь предпочитает **одну большую автономную задачу за запрос**, проверку реального GitHub CI на точном SHA, затем короткий осмысленный отчёт. **Не** обновлять всю документацию при каждом небольшом пакете; обновлять handoff только при следующем переходе чата или очень большой контрольной точке.
-- Следующий логичный независимый крупный блок: соотнести **actual installed** `sodium_compat` в disposable no-native runner с Git blob источниками `--verify-installed` и pre/post source SHA (интегратор владеет workflow); получить отдельное подтверждение PGP signer fingerprint через доверенный out-of-band канал; предложить интегратору workflow/actual-main checkout изменения только комментариями PR; либо провести глубокий source security review с реальными полезными дефектами. Избегать накрутки синтетических PASS.
-- Запрещено самостоятельно менять CMS/production или имитировать внешние тесты. Любые blockers фиксировать честно.
-- После каждого настоящего блока проверить `get_pr_info`, `list_pr_changed_filenames`, exact commit workflows/job logs; сообщение в PR #3 с проверяемым пруфом. Не менять статус PR и не сливать.
-- Прогресс этого узкого направления около **90–92% инженерно**, не прогресс CMS.
+## Что реально осталось
 
-## 5. Команды
+Собственные technical source/OSV/crypto test gates в exact code CI 97/0/0 не blocked. Но **шесть внешних решений** ещё не выполнены: out-of-band key custody of upstream PGP, qualified cryptography audit, qualified ISC/Apache NOTICE/commercial redistribution review, authorized Hostinger LiteSpeed/FPM actual web SAPI + concurrency/latency/CPU, main integration/release evidence owner, final explicit product owner GO. **Stage2/production NO_GO** до всех независимых решений. Прогресс ~98% — только инженерная часть отдельного research, не готовность CMS.
 
-```sh
-node research/parallel-security/run-security-suite.mjs
-node research/parallel-security/run-security-suite.mjs --strict
-node research/parallel-security/evidence-readiness-regression.mjs
-node research/parallel-security/sodium-real-zip-proof.mjs --online
-node research/parallel-security/osv-live-independent-proof.mjs
-# Требует исходников реальной библиотеки, скачанных в отдельную временную папку:
-node research/parallel-security/sodium-upstream-tree-proof.mjs --verify-installed /absolute/path/to/sodium_compat
-# Только настоящий PHP8.3 x64 БЕЗ Sodium + vetted compat tree:
-PHP_NO_SODIUM_BIN=/absolute/no-native-php SODIUM_COMPAT_AUTOLOAD=/absolute/vendor/paragonie/sodium_compat/autoload.php SODIUM_COMPAT_LOCK=/absolute/isolated/composer.lock SODIUM_COMPAT_TREE_SHA256=externally-reviewed-64hex node research/parallel-security/runtime-sodium-proof.mjs
-```
+## Продолжение работы
 
-`--strict` закономерно завершится статусом 3 при любых `BLOCKED`. Обычный прогон exit 0 + `NO_GO` означает только, что выполненные проверки прошли, но выпуск запрещён. Пользователь не должен вручную передавать файлы — всё в GitHub. Готовое стартовое сообщение: [START-MESSAGE-RU.md](START-MESSAGE-RU.md).
+Пользователь просит крупную автономную задачу за проход, полноценный новый real CI, затем короткий отчёт с точным SHA и PR handoff comment. Не повторять уточняющие вопросы без нужды. Не менять docs на каждой мелочи, только по запросу о переходе (нынешний пользователь такой запрос дал) или большой контрольной точке. Новый чат должен ПЕРВЫМ ШАГОМ подтвердить настоящий doc-HEAD и CI, затем сверить original актуальный main; при новой полезной security задаче не имитировать Hostinger, юридические/PGP и crypto expert approval. NEXT CHAT стартовый текст — START-MESSAGE-RU.md.

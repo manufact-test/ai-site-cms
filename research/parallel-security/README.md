@@ -1,36 +1,33 @@
-# AI Site CMS — Security & Dependencies Research (isolated)
+# AI Site CMS — independent Security & Dependencies Research
 
-**Актуальный статус 21 октября 2026** — [CURRENT-CHECKPOINT-2026-10-21.md](CURRENT-CHECKPOINT-2026-10-21.md) (приоритет над историческими страницами), [NEXT-CHAT.md](NEXT-CHAT.md) (передача), [START-MESSAGE-RU.md](START-MESSAGE-RU.md) (готовое первое сообщение).
+**21.10.2026: current status:** [NEXT-CHAT.md](NEXT-CHAT.md), [CURRENT-CHECKPOINT-2026-10-21.md](CURRENT-CHECKPOINT-2026-10-21.md), [START-MESSAGE-RU.md](START-MESSAGE-RU.md) — приоритетные файлы передачи. Остальные evidence/review старше являются историческими фактами соответствующей даты.
 
-Изолированная ветка `research/stage2-supply-chain-followup`, [PR #3 OPEN DRAFT](https://github.com/manufact-test/ai-site-cms/pull/3), разрешены изменения ТОЛЬКО `research/parallel-security/`. Не влиять на main/CMS/Hostinger/workflows/dependency locks. Production/Stage2 **не одобрены**.
+**Ветка:** research/stage2-supply-chain-followup. [PR #3](https://github.com/manufact-test/ai-site-cms/pull/3) строго **OPEN DRAFT**. Только изменения research/parallel-security/, никаких main/cms/.github/workflows/production pins/Hostinger/DB/secrets/deploy. Не merge/rebase/retarget/Ready.
 
-## Подтверждено реальными источниками и CI
+## Current exact CODE checkpoint prior to handoff-document commit
 
-- Ровно **43 pinned dependencies**: 14 Composer runtime и 29 npm (включая 26 необязательных платформенных esbuild). `frozen-lock-baseline.mjs` подтверждает настоящие исходные SHA256 и Git blob трёх оригинальных lock/manifest-файлов; `frozen-lock-regression.mjs` — 29 испытаний на копиях реальных файлов.
-- **Реальный live OSV** `api.osv.dev/v1/querybatch` проверил 43/43 версии, в успешном срезе 21.10.2026 — 0 advisory references. `osv-live-independent-proof.mjs` привязывает результаты к source lock SHA; `osv-strict-snapshot.mjs` и `osv-advisory-triage.mjs` обеспечивают полный strict JSON и сохранение предупреждений. Отсутствие advisory на один момент не означает отсутствие потенциальных неизвестных CVE.
-- Источник `paragonie/sodium_compat@2.5.2`: GitHub-reported PGP verified annotated v2.5.2 tag, pinned commit `3246b36803c177847e677862fedeb7f937869adb`, исходное Git tree 211 записей, 78 экспортируемых файлов. `sodium-upstream-tree-proof.mjs` перепроверяет Git tree; **`sodium-real-zip-proof.mjs` реально скачал GitHub ZIP и сверил все 78 исходных байтов**, SHA256 ZIP `53944302442e609c0443f680a6195f8d7467e3d0f0c4503e8a690fd9e7ee22f2`. Не означает независимо подтверждённую PGP identity, криптографический аудит или разрешение на распространение.
-- В main CI интегратора реальный физический PHP 8.3.6 x64 без native Sodium выполнил 33 проверки разрешений/квитанций/settlement и 55 rotation. [main CI #39571456888](https://github.com/manufact-test/ai-site-cms/actions/runs/39571456888). `archived-main-sodium-proof.mjs` проверяет сохранённую реальную запись; **наше исследование самостоятельно не запускало тот же полностью vetted PHP без Sodium**.
-- Native crypto: реальные оригинальные PHP 36 receipt/46 permit/38 settlement, 60 original signed chain, 120 signed chain на фиксированной точной копии исправленного main исходника (второй маршрут через native-based shim), 18 trust rotation. Отдельные две full-main CI проверки пока BLOCKED из-за старого base SHA PR.
-- `evidence-readiness-decision.mjs` требует 6 выполненных оригинальных source/OSV/crypto evidence rows, отделяет неполные/подменённые результаты, печатает fingerprint привязки, всегда указывает **`releaseDecision=NO_GO`** до отдельного human и host-signoff. `evidence-readiness-regression.mjs` — 37 adversarial assertions.
+**HEAD 760310d7bdd34f1b0d90b1066734e3e1dcbeefed**; [GitHub Actions #39624610755](https://github.com/manufact-test/ai-site-cms/actions/runs/39624610755) **SUCCESS 97 PASS / 0 FAIL / 0 BLOCKED** (suite entries), original 70 PR changed paths all inside research/parallel-security. После обновления документов надо получить НОВЫЙ PR HEAD и CI именно этого документационного SHA.
 
-**Последний кодовый exact-head CI ДО документационной контрольной точки:** [#39588010610](https://github.com/manufact-test/ai-site-cms/actions/runs/39588010610), **76 PASS / 0 FAIL / 4 BLOCKED**, NO_GO. Документационный commit дополнительно запускает CI — актуальный SHA всегда взять из PR.
+## Что подтверждено
 
-## Что осталось
+- 43 real pinned packages: 14 Composer + 29 npm, original lockfile sha/Git blob evidence and **real live OSV** 43/43, zero known advisory references at observation time (not an all-vulnerabilities guarantee).
+- Real upstream GitHub PGP verified annotated sodium_compat 2.5.2 tag, pinned Git commit 3246b36803c177847e677862fedeb7f937869adb, 78 source Git blobs; REAL zip SHA256 53944302442e609c0443f680a6195f8d7467e3d0f0c4503e8a690fd9e7ee22f2. Independent genuine native-free PHP8.3.6 isolated Composer source-installed/attested (pre/post all 78), four real signed fixtures and 14 actual Ed25519 v2.5.2 adversarial boundary assertions.
+- Original current main source Ed25519 PHP class callsites attested Git source + 60 actually signed-chain tests in native class-dispatch.
+- 102 real signed CLI verification timings across 7 native/fallback scenarios, fallback often ~43–45ms vs native ~0.06ms for expensive cases. [HOSTINGER-ED25519-OFFLINE-CAPACITY-PLAN.md](HOSTINGER-ED25519-OFFLINE-CAPACITY-PLAN.md) computes ILLUSTRATIVE serial busy time, **not real Hostinger throughput, CPU or DoS**.
+- NEW original-main static web / crypto source boundary: [MAIN-WEB-CRYPTO-SURFACE-REVIEW.md](MAIN-WEB-CRYPTO-SURFACE-REVIEW.md). PHP token parser plus Git source SHA reveals 1 Slim GET /api/health, 7 Hostinger preflight URL path strings, 2 CLI guards, no direct lexical Ed25519 class references in web entrypoints; 24 adversarial route/downgrade tests. **This does not prove all dynamic call paths, server rewrite config, or public attack surface.**
+- review-handoff.mjs + evidence-readiness-decision.mjs: strict machine evidence, always NO_GO. Research-ready flag cannot approve release or stand in for expert PGP/crypto/legal signatures.
 
-`source:common-ed25519-backend`, `native:forced-class-signed-chain`, `no-sodium:cryptography`, `compat:cryptography` — четыре независимых blocked research CI. Отдельно квалифицированный crypto review, подтверждение upstream PGP signer trust, лицензия ISC/NOTICE, целевой Hostinger PHP web-SAPI (включая CPU/latency/concurrency) и одобрение release. Никакой искусственный PASS не закрывает эти требования.
+## Key commands
 
-## Входные точки
+- node research/parallel-security/run-security-suite.mjs --strict --online
+- node research/parallel-security/main-head-independent-proof.mjs
+- node research/parallel-security/main-web-crypto-surface-regression.mjs
+- node research/parallel-security/review-handoff-regression.mjs
+- node research/parallel-security/sodium-capacity-whatif-regression.mjs
+- node research/parallel-security/evidence-readiness-regression.mjs
 
-```sh
-node research/parallel-security/run-security-suite.mjs
-node research/parallel-security/run-security-suite.mjs --strict
-node research/parallel-security/evidence-readiness-regression.mjs
-node research/parallel-security/sodium-upstream-tree-proof.mjs
-node research/parallel-security/sodium-real-zip-proof.mjs --online
-node research/parallel-security/osv-live-independent-proof.mjs
-node research/parallel-security/osv-advisory-triage.mjs /absolute/saved-full-osv-json --historical
-```
+Complete physical/online research CI needs real public Git, internet OSV/Composer, OS temporary Linux build of genuine PHP 8.3 without Sodium. Local --strict may correctly BLOCKED when absent prerequisites; a 0 exit is NEVER Stage2 GO. [RUNBOOK.md](RUNBOOK.md) for details.
 
-`--strict` завершится exit 3 пока есть BLOCKED. Обычный CI может быть SUCCESS с блокировками, но **никогда не является разрешением на выпуск**.
+## Remaining independently authorized decisions
 
-Подробный журнал: [RUNBOOK.md](RUNBOOK.md). Исторические документы с более старыми состояниями (`EVIDENCE-2026-10-20.md`, `SOURCE-LICENSE-REVIEW.md`, `OSV-SNAPSHOT-REVIEW.md` и др.) содержат отчёты своей даты, а не текущую готовность.
+PGP signer owner identity/custody out-of-band; qualified exact-source crypto/security review; ISC/Apache NOTICE real package legal review; actual authorized Hostinger PHP LiteSpeed/FPM web-SAPI concurrency/CPU/latency tests; main-integrator signed release permit/receipt/settlement, rollback; final product owner explicit approval. All six **still outstanding**. Stage2/production **NO_GO**.

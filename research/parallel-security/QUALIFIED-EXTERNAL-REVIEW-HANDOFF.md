@@ -1,3 +1,9 @@
+## ОБНОВЛЕНИЕ 21.10.2026: актуальный original main route/CLI static source census
+
+Дополнительные оригинальные web/CLI исходники и 24 отрицательных проверки задокументированы в [MAIN-WEB-CRYPTO-SURFACE-REVIEW.md](MAIN-WEB-CRYPTO-SURFACE-REVIEW.md). Кодовая проверка research SHA 760310d7bdd34f1b0d90b1066734e3e1dcbeefed CI #39624610755 дала 97 PASS / 0 FAIL / 0 BLOCKED. Это НЕ снимает ни одну из шести обязательных внешних подписей, приведённых ниже; устаревшие цифры в историческом тексте ниже не обозначают текущий статус.
+
+---
+
 # Qualified external reviewer handoff — Security research
 
 Research PR #3, 21 October 2026. This is an evidence dossier for external review, never a production approval. No modifications outside research/parallel-security/ are permitted.

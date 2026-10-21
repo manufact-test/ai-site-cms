@@ -1,56 +1,37 @@
-# AI Site CMS — Security & Dependencies Research — актуальная контрольная точка
+# AI Site CMS — Independent Security Research — контрольная точка 21.10.2026
 
-**Дата:** 21.10.2026 (после полноценной независимой разработки). **Приоритет:** этот документ и `NEXT-CHAT.md` имеют приоритет над датированными историческими формулировками из файлов 20–21.10.
+**ЭТО НЕ главная разработка CMS, не приемка Stage2 и не разрешение production.** Приоритетный актуальный источник наравне с NEXT-CHAT.md. Исторические review-файлы содержат факты прежних точек, не новые блокировки.
 
-## 1. Неприкосновенные границы проекта
+## Ветка, PR и доказанный кодовый HEAD
 
-- Репозиторий: https://github.com/manufact-test/ai-site-cms
-- Рабочая ветка ТОЛЬКО: `research/stage2-supply-chain-followup`.
-- [PR #3](https://github.com/manufact-test/ai-site-cms/pull/3) — **OPEN DRAFT**, не сливать, не переводить в Ready, не менять базу, не делать rebase/force push.
-- **Запись разрешена только внутри `research/parallel-security/`**. Комментарии PR #3 — согласованный канал связи с главным интегратором. Никаких изменений `main`, `cms/`, `.github/`, Composer/npm lock-файлов, других исследований, Hostinger, DB, приватных секретов или развёртывания.
-- После добавления этой документации HEAD изменится. **Обязательно брать фактический `head_sha` PR #3 и проверять CI именно для него**.
+- GitHub: https://github.com/manufact-test/ai-site-cms
+- Единственная рабочая ветка: **research/stage2-supply-chain-followup**.
+- **PR #3 OPEN DRAFT**: https://github.com/manufact-test/ai-site-cms/pull/3; исходный base SHA **6ec6dd170c5250e5caed9f0739e03858a3b96a93**. НЕ merge, rebase, force, ready, retarget.
+- Последний ПЕРЕД обновлением документов проверенный HEAD кода: **760310d7bdd34f1b0d90b1066734e3e1dcbeefed**. [GitHub Actions #39624610755](https://github.com/manufact-test/ai-site-cms/actions/runs/39624610755) / Security job **119306633510 SUCCESS, 97 PASS / 0 FAIL / 0 BLOCKED**. Это число строк suite, не 97 криптографических assertions.
+- На кодовом HEAD **70/70 изменённых PR-файлов только в research/parallel-security/**. Этот handoff меняет SHA! В новом чате получить текущий PR HEAD и проверить его exact-head CI заново.
+- Последний main, реально исследованный этим Security CI: **b3237fc2426ad246178b3fd4b64501c6b22c86ba**. Основной интегратор параллельно обновляет main, SHA может измениться.
 
-## 2. Последний ДОКАЗАННЫЙ кодовый чекпоинт перед обновлением документов
+## Действительно выполнено независимым исследованием
 
-- Кодовый HEAD: `f55e87abf8a75b9b8d2519577c6ffece29f140fe`.
-- Реальный GitHub Actions [#39588010610](https://github.com/manufact-test/ai-site-cms/actions/runs/39588010610), Security job `119181690800`: **SUCCESS**, `76 PASS / 0 FAIL / 4 BLOCKED`. Это записи suite, а не 76 отдельных криптографических утверждений.
-- Отчёт решения выпуска: **`INDEPENDENT_SECURITY_RELEASE_DECISION`: `decision:"NO_GO"`, `strongResearchEvidence:true`, `qualifiedSignoffs:false`, `targetHostApproved:false`, `productionApproved:false`.**
-- Весь PR на данном этапе был ограничен `research/parallel-security/`. После документационного коммита повторно проверить полный список changed filenames.
+1. **43 pinned production packages**, 14 Composer + 29 npm. Настоящие frozen lock/manifests + Git blobs/SRI, 29 негативных source-swap checks; живой HTTPS OSV запрос на 43/43 версии с нулём известных advisory references **на момент проверки**, не гарантия отсутствия всех дефектов. OSV отчет SHA256 на #39624610755: **550b9be0178740af61ea74e5cc7043289f4b62f3c9dc87b3af4173de6182936c**.
+2. **Реальный upstream paragonie/sodium_compat@2.5.2**: GitHub-verified annotated PGP tag, исходный commit **3246b36803c177847e677862fedeb7f937869adb**; 211 Git tree entries, 78 исходных файлов сверены по настоящим Git blob bytes, реальный ZIP SHA256 **53944302442e609c0443f680a6195f8d7467e3d0f0c4503e8a690fd9e7ee22f2**.
+3. **Независимый физический PHP 8.3.6 без native Sodium**, собранный в disposable Linux GitHub runner из Ubuntu signed apt source. Настоящий isolated Composer install оригинальной библиотеки, scripts/plugins выключены; 78 Git source blobs и isolated lock сверены до и после. Две negative absent-mode, четыре genuine signed/RFC8032 proofs, 14 upstream v2.5.2 Ed25519 forgery/mixed-subgroup/fastMult/noncanonical boundary assertions. Installed source tree SHA256 **177a8e8fe65faa51e4eab61dd38e4be17c06b813d65850864156e540f54c987f**. НЕ Hostinger.
+4. **Истинный current main original PHP source** проверяется независимым временным клоном и Git blob validation; пять оригинальных source verifier assertions и **60 настоящих native Ed25519 signed-chain tests**. Это не полная динамическая интеграционная проверка CMS.
+5. **Реальное CPU/latency CLI сравнение**: 102 timed signed checks, 7 классов, 51 per backend. При валидной небольшой подписи наблюдали примерно 0,055–0,064 ms native и 42,84–45,29 ms pure PHP fallback, на ДВУХ разных сборках PHP 8.3; p95 при трёх больших samples не статистический p95. Модель 1/5/10/20/40 hypothetic checks/s считает только эквивалент последовательной вычислительной работы (например 0,85681 seconds per hypothetical 20 checks/s); **не измеренный CPU/worker count/HTTP throughput на Hostinger**. 39 anti-forgery model assertions PASS.
+6. **Новый большой блок actual-main web/crypto surface audit**: original Git source checkout, 11 original critical Git blob files, PHP token_get_all без комментариев. На main SHA b3237f… найдена **одна** Slim GET /api/health route в HttpKernel; в отдельном Hostinger-readonly Stage2 preflight **семь** route path literals; в двух CLI release verifier scripts сохранено **два CLI-only ограничения**. Нет прямых текстовых ссылок на известные release Ed25519 классы в этих web entrypoints. Проверен синтаксический инвентарь cms/src на новые AppFactory и видимые $app->routes. **24 synthetic negative mutation scenarios PASS** (added/dynamic GET/POST, direct verifier, removed CLI guard, commented fake route). Важнейшее ограничение: это ТОЛЬКО static-source proof; он не доказывает все dynamic dispatch, Hostinger rewrite rules, подлинную публичную достижимость, отсутствие иных endpoint или реальную DoS уязвимость.
+7. **Связанный машиночитаемый независимый review packet**: evidence-readiness-decision.mjs и review-handoff.mjs с детальными SHA и 6 пустыми external reviewer approvals; 37 readiness regression, 29 handoff adversarial, 12 offline partial-suite exit. Digest не независимая цифровая подпись.
 
-## 3. Действительные внешние доказательства (важно различать!)
+## Шесть внешних согласований: ВСЕ остаются НЕ ПОЛУЧЕНЫ
 
-**Исходный ZIP sodium_compat 2.5.2**: настоящий HTTPS GitHub Composer ZIP на фиксированном коммите `3246b36803c177847e677862fedeb7f937869adb`, проверки точных **78 файлов** против Git blob SHA на исходном Git tree (211 записей), связанном с **аннотированным PGP-подписанным тегом `v2.5.2`**, GitHub сообщает `verification.verified=true`. SHA-256 реального ZIP в успешном CI: `53944302442e609c0443f680a6195f8d7467e3d0f0c4503e8a690fd9e7ee22f2`. Подпись ТЕГА валидна по GitHub, но коммит сам unsigned, личность владельца PGP-ключа самостоятельно не удостоверена; криптографический аудит реализации не выполнен. ZIP не устанавливался и не выполнялся в нашем исследовательском CI.
+- **PUBLISHER_KEY_CUSTODY:** independently authenticated owner of PGP full fingerprint 7F52D5C61D1255C731362E826B97A1C2826404DA, revocation/expiry, actual local GPG verification against independently trusted key. GitHub badge/publisher blog сами по себе не подтверждают custody.
+- **QUALIFIED_CRYPTO_REVIEW:** независимый криптографический и CMS exact-source аудит, fallback attack surface, signature correctness, timing/DoS/fail-closed policy.
+- **REDISTRIBUTION_LEGAL_REVIEW:** заключение по ISC/Apache NOTICE/commercial distribution для реальных locked packages and built artifacts; интегратор ранее исправил исходный Opis NOTICE issue.
+- **TARGET_WEB_SAPI_PERFORMANCE:** разрешённые реальные Hostinger PHP/LiteSpeed/FPM, CPU/RAM/latency/concurrency/timeout и rollback tests; не выполнять из этого PR.
+- **STAGE2_RELEASE_INTEGRITY:** проверка текущих main и готовых signed release permit/receipt/settlement/rotation gates, package bytes, interrupted rollback и deployment.
+- **RELEASE_OWNER_DECISION:** формальное и датированное решение владельца для конкретных site, target, SHA.
 
-**Живой OSV**: настоящий HTTPS `api.osv.dev/v1/querybatch` по **43/43 точным версиям** (Composer 14, npm 29); при фактическом успешном прогоне **0 advisory references в 0 пакетах**. Это только срез известной OSV-базы, НЕ доказательство отсутствия всех уязвимостей. На последнем кодовом CI SHA-256 JSON-отчёта `474995fc38306fe14d946b074071ef79e938e160a33d34a6708e034792c3afd6`. Этот хеш **меняется с каждым новым запуском** (как минимум из-за `checkedAt`); нельзя подменять новый отчёт старым. Сами полные сырые JSON нужно отдельно хранить как read-only evidence при желании оформлять официальную приёмку.
+**Последний research verdict: NO_GO**, strongResearchEvidence=true, incompleteIndependentGates=[], qualifiedSignoffs=false, targetHostApproved=false, productionApproved=false. Готовность технического Security Research примерно **98% инженерных исследований**, а НЕ 98% готовности всей CMS и не релизная готовность.
 
-**Реальный PHP без Sodium**: в собственном **main CI интегратора**, а не в нашем research runner, выполнена сборка PHP 8.3.6 x64 без ext-sodium и проверка `paragonie/sodium_compat 2.5.2`. Настоящий [run #39571456888, job #119126388264](https://github.com/manufact-test/ai-site-cms/actions/runs/39571456888/job/119126388264) SUCCESS: 33 проверки оригинальной цепочки signed permit/receipt/settlement, 55 проверок смены trust-root. Мы сохранили и отрицательно тестируем точную запись из реального CI, **но не воспроизвели этот native-free процесс в Security PR**. Ни Hostinger PHP web-SAPI, ни нагрузка/latency target не подтверждены.
+## Правила самостоятельной работы
 
-**Signed-chain основной CMS**: старый PR-base checkout не содержит последнего исправления `LabSettledUpgradeGate`; отдельно по точной сохранённой копии исправленного владельцем исходника реально прошла матрица 120 независимых подписанных проверок на двух путях native Sodium (второй — shim над `sodium_crypto_sign_open`, не реальный polyfill). Нельзя выдавать её за полную актуальную сборку `main`.
-
-## 4. Новый блок перед миграцией: policy binding настоящих доказательств
-
-- `evidence-readiness-decision.mjs` связывает **6** обязательных записей proof suite: exact 43-pin lock provenance, подписанный реальный Git tree, реальный скачанный ZIP по 78 файлам и SHA-256, **живой** OSV 43/43 c полным hash/количеством advisories, 120 signed-chain и архив настоящего main no-Sodium CI.
-- Учитывает четыре отдельно НЕ закрытые research-gate строки, инциденты `failed`, неверные `exitCode`, отсутствие proof-маркеров или real SHA, реальные advisory findings. Формирует детальный JSON в `evidenceDecision` и строку `INDEPENDENT_SECURITY_RELEASE_DECISION` в CI, с отдельным fingerprint сводки. **Никогда не выдаёт `productionApproved=true` или `releaseDecision=GO`.**
-- `evidence-readiness-regression.mjs`: **37** негативных/положительных сценариев; `suite-exit-regression.mjs` 12 регрессий неполной среды. Все пройдены на кодовом чекпоинте #39588010610.
-
-## 5. Невыполненные требования (НЕ маскировать)
-
-Четыре `BLOCKED` именно независимого research CI:
-1. `source:common-ed25519-backend` — оригинальные пять PHP callsites в актуальном `main` с исправлением владельца не проверены текущим историческим PR-base checkout.
-2. `native:forced-class-signed-chain` — 60-кейсовый полный class-only settlement режим требует актуальный исходник, а не старый `main` base.
-3. `no-sodium:cryptography` — не запущен собственный research-тест на физически ext-sodium-free PHP 8.3.
-4. `compat:cryptography` — тот же настоящий runtime + одновременно vetted exact package/vendor-tree SHA-256 до и после crypto.
-
-Дополнительные **неавтоматизируемые решения**: отдельное подтверждение принадлежности PGP ключа upstream автору, квалифицированный crypto/code review и ISC/NOTICE/commercial licensing signoff, реальный Hostinger/LiteSpeed web-SAPI с memory/latency/CPU/конкурентностью, security/Stage2 release approval владельцем, актуальная интеграционная CI база. Они **не становятся PASS** благодаря ZIP/OSV.
-
-## 6. Где что лежит
-
-- `NEXT-CHAT.md` — полный актуальный маршрут следующего независимого чата; `START-MESSAGE-RU.md` — первое готовое сообщение.
-- `README.md`, `RUNBOOK.md`, `OSV-SNAPSHOT-REVIEW.md` — актуальные команды/оговорки; этот CHECKPOINT — приоритет над историческими заявлениями.
-- `FROZEN-LOCK-SOURCE-REVIEW.md` — точные SHA-256 трёх production lock/manifest файлов (14+29).
-- `UPSTREAM-SIGNED-GIT-SOURCE-REVIEW.md` и `UPSTREAM-REAL-ZIP-REVIEW.md` — подписанный upstream tag/tree и реальный сверенный GitHub ZIP.
-- `MAIN-GENUINE-SODIUM-FREE-EVIDENCE-REVIEW.md`, `PINNED-FIXED-MAIN-DISPATCH-REVIEW.md` — особенности двух разных реальных исследований криптографии.
-- `OSV-LIVE-EXACT-43-REVIEW.md` — live OSV и исходные lock SHA.
-- `AUDIT.md`, `SOURCE-LICENSE-REVIEW.md`, `SODIUM-DECISION-REVIEW.md` — риски/ограничения, требующие независимого специалиста.
-
-**Оценка прогресса ТОЛЬКО этого исследовательского направления:** ~90–92% инженерной разработки, остаток преимущественно актуальная интеграционная проверка, независимые внешние подтверждения и квалифицированная приёмка. Это НЕ прогресс всей AI Site CMS и не готовность к продакшену.
+Только research/parallel-security/ и комментарии PR #3. Никаких main/cms/workflows/dependency locks/other research/root docs/Hostinger/database/secrets/deploy. Большие автономные задачи и честная проверка exact SHA, CI, scope, source attestations. Документы обновлять на крупных checkpoint или **при просьбе пользователя о переходе**. Смотреть README.md, RUNBOOK.md, MAIN-WEB-CRYPTO-SURFACE-REVIEW.md, HOSTINGER-ED25519-OFFLINE-CAPACITY-PLAN.md, QUALIFIED-EXTERNAL-REVIEW-HANDOFF.md. Готовое новое сообщение — START-MESSAGE-RU.md.
