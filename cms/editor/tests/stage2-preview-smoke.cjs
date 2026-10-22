@@ -1004,6 +1004,7 @@ const root=path.resolve(__dirname,'../..');
     assert.match(await originalMedia.locator('.media-usage-count').innerText(),/Используется:/);
     assert.equal(await originalMedia.locator('.media-remove').isDisabled(),true);
     await originalMedia.locator('.media-usage-details > summary').click();
+    await originalMedia.locator('.media-usage-content > .text-button').first().waitFor();
     assert.ok(await originalMedia.locator('.media-usage-content > .text-button').count()>=2,
       'usage includes the live hero and a catalog/services card');
     await originalMedia.locator('.media-usage-content > .text-button').first().click();
