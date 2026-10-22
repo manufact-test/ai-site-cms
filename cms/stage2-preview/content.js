@@ -154,8 +154,11 @@
     }
     return structuredClone(raw);
   }
-  function schema(type) {
-    const properties=definitions[type].fields;
+  function schema(type,headingsOnly=false) {
+    const all=definitions[type].fields;
+    const properties=headingsOnly?Object.fromEntries(
+      Object.entries(all).filter(([name])=>name==='eyebrow'||name==='title')
+    ):all;
     return {type:'object',additionalProperties:false,
       required:Object.keys(properties),properties:structuredClone(properties)};
   }

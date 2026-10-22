@@ -60,7 +60,7 @@
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
         menu,active:p.id,exportLinks:true,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
         design:project.design,contacts:project.contacts,actions:P.resolveActions(project,p),
-        mediaBySection:P.resolveMedia(project,p,true),...project.settings
+        mediaBySection:P.resolveMedia(project,p,true),itemsBySection:P.resolveItems(project,p,true),...project.settings
       })
     }));
     for(const asset of project.media){
@@ -77,6 +77,7 @@
       'Hidden sections are omitted from rendered HTML but retained in the backup JSON.\n'+
       'Sitewide design tokens and individual section surfaces are embedded.\n'+
       'Local optimized WebP photos are stored under media/ with offline relative links.\n'+
+      'Repeatable cards, catalog products, metrics, workflow stages and FAQ entries preserve edits and order.\n'+
       'All navigation is local; no server, CMS, network access or form submission.\n'+
       'project-backup.json can be imported back into the local preview editor.\n'+
       'This is NOT a production build, deploy package, public site or publication.\n'+

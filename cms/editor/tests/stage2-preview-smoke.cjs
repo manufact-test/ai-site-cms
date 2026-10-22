@@ -204,7 +204,7 @@ const root=path.resolve(__dirname,'../..');
       const P=window.CmsPreviewProject;
       const v=P.starter('agency');
       v.format=P.legacyV2;delete v.settings;delete v.design;delete v.contacts;delete v.media;
-      v.pages.forEach(pg=>{delete pg.inMenu;delete pg.hiddenSections;delete pg.sectionStyles;delete pg.mediaSlots;delete pg.sectionActions;});
+      v.pages.forEach(pg=>{delete pg.inMenu;delete pg.hiddenSections;delete pg.sectionStyles;delete pg.mediaSlots;delete pg.sectionActions;delete pg.repeaters;});
       const migrated=P.normalize(v);
       return {format:migrated.format,pages:migrated.pages.length,settings:migrated.settings,valid:P.validate(migrated).format};
     });
@@ -214,7 +214,7 @@ const root=path.resolve(__dirname,'../..');
     const oldV3=await page.evaluate(()=>{
       const P=window.CmsPreviewProject,v=P.starter('products');
       v.format=P.legacyV3;delete v.design;delete v.contacts;delete v.media;
-      v.pages.forEach(pg=>{delete pg.sectionStyles;delete pg.mediaSlots;delete pg.sectionActions;});
+      v.pages.forEach(pg=>{delete pg.sectionStyles;delete pg.mediaSlots;delete pg.sectionActions;delete pg.repeaters;});
       return P.normalize(v);
     });
     assert.equal(oldV3.pages.length,3);
@@ -223,20 +223,27 @@ const root=path.resolve(__dirname,'../..');
     const oldV4=await page.evaluate(()=>{
       const P=window.CmsPreviewProject,v=P.starter('agency');
       v.format=P.olderFormat;delete v.contacts;delete v.media;
-      v.pages.forEach(pg=>{delete pg.mediaSlots;delete pg.sectionActions;});
+      v.pages.forEach(pg=>{delete pg.mediaSlots;delete pg.sectionActions;delete pg.repeaters;});
       return P.normalize(v);
     });
     assert.equal(oldV4.pages.length,3);
     assert.equal(oldV4.design.radius,'round');
     const oldV5=await page.evaluate(()=>{
       const P=window.CmsPreviewProject,v=P.starter('industrial');
-      v.format=P.previousFormat;delete v.contacts;
-      v.pages.forEach(pg=>{delete pg.sectionActions;});
+      v.format=P.legacyV5;delete v.contacts;
+      v.pages.forEach(pg=>{delete pg.sectionActions;delete pg.repeaters;});
       return P.normalize(v);
     });
     assert.equal(oldV5.pages.length,3);
     assert.equal(oldV5.media.length,0);
     assert.equal(oldV5.contacts.email,'');
+    const oldV6=await page.evaluate(()=>{
+      const P=window.CmsPreviewProject,v=P.starter('products');
+      v.format=P.previousFormat;
+      v.pages.forEach(pg=>{delete pg.repeaters;});
+      return P.normalize(v);
+    });
+    assert.equal(oldV6.pages[0].repeaters[oldV6.pages[0].sections.find(s=>s.type==='catalog').id].length,3);
 
     // Full media workflow: import local JPG/PNG, browser-only WebP conversion,
     // assign to a hero, preview safely, export as a relative offline asset.
@@ -281,6 +288,31 @@ const root=path.resolve(__dirname,'../..');
     await page.reload();
     assert.equal(await page.locator('#contact-email').inputValue(),'sales@example.com');
     assert.equal(await page.locator('#section-action').inputValue(),'email');
+    // End-to-end repeatable content: FAQ + catalog can grow, reorder and
+    // link to the existing local media library, survive reload and HTML ZIP.
+    await page.locator('#sections li').filter({hasText:'Вопросы и ответы'}).locator('.section-select').click();
+    await page.locator('#repeater-panel').waitFor();
+    assert.equal(await page.locator('.repeater-item').count(),2);
+    await page.locator('#repeater-add').click();
+    assert.equal(await page.locator('.repeater-item').count(),3);
+    await page.locator('.repeater-item').nth(2).locator('input.repeater-field').fill('Можно ли изменить количество товаров?');
+    await page.locator('.repeater-item').nth(2).locator('textarea.repeater-field').fill('Да, элементы добавляются и меняют порядок.');
+    await frame.locator('.faq details').nth(2).waitFor();
+    await page.locator('.repeater-item').nth(2).getByRole('button',{name:'Поднять элемент'}).click();
+    await frame.locator('.faq details').nth(1).filter({hasText:'Можно ли изменить количество товаров?'}).waitFor();
+    await page.locator('#new-type').selectOption('catalog');
+    await page.locator('#add').click();
+    assert.equal(await page.locator('.repeater-item').count(),3);
+    await page.locator('#repeater-add').click();
+    await page.locator('.repeater-item').nth(3).locator('input.repeater-field').fill('Модель Г — новый товар');
+    await page.locator('.repeater-item').nth(3).locator('textarea.repeater-field').fill('Четвёртая карточка в каталоге.');
+    await page.locator('.repeater-item').nth(3).locator('select.repeater-photo').selectOption({index:1});
+    await frame.locator('.studio-product').nth(3).locator('img').waitFor();
+    await page.locator('#save').click();
+    await page.reload();
+    await page.locator('#sections li').filter({hasText:'Каталог продукции'}).locator('.section-select').click();
+    assert.equal(await page.locator('.repeater-item').count(),4);
+    assert.equal(await page.locator('.repeater-item').nth(3).locator('input.repeater-field').inputValue(),'Модель Г — новый товар');
     // Product flow C: download a real offline ZIP with navigation, per-page SEO and a JSON backup.
     const zipped=page.waitForEvent('download');
     await page.locator('#project-actions summary').click();
@@ -309,8 +341,11 @@ const root=path.resolve(__dirname,'../..');
     assert.match(siteHTML,/href="mailto:sales@example\.com"/);
     assert.match(siteHTML,/href="tel:\+375291234567"/);
     assert.match(siteHTML,/Минск, промышленная улица, 10/);
+    assert.match(siteHTML,/Можно ли изменить количество товаров\?/);
+    assert.match(siteHTML,/Модель Г — новый товар/);
+    assert.equal((siteHTML.match(/class="studio-product"/g)||[]).length,4);
     const backup=JSON.parse(execFileSync('unzip',['-p',zipPath,'project-backup.json'],{encoding:'utf8'}));
-    assert.equal(backup.format,'ai-site-cms-stage2-multipage-preview-v6');
+    assert.equal(backup.format,'ai-site-cms-stage2-multipage-preview-v7');
     assert.equal(backup.pages.find(p=>p.slug==='services').inMenu,false);
     assert.equal(backup.pages[0].hiddenSections.length,1);
     assert.equal(backup.design.accent,'#935120');
@@ -320,6 +355,11 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(backup.contacts.phone,'+375 29 123 45 67');
     assert.equal(Object.values(backup.pages[0].sectionActions)[0],'email');
     assert.equal(Object.keys(backup.pages[0].mediaSlots).length,1);
+    const faqData=backup.pages[0].sections.find(s=>s.type==='faq');
+    const catalogData=backup.pages[0].sections.find(s=>s.type==='catalog');
+    assert.equal(backup.pages[0].repeaters[faqData.id].length,3);
+    assert.equal(backup.pages[0].repeaters[catalogData.id].length,4);
+    assert.equal(backup.pages[0].repeaters[catalogData.id][3].image,backup.media[0].id);
     assert.equal(Object.values(backup.pages[0].sectionStyles).filter(v=>v==='dark').length,1);
     assert.ok(backup.pages[0].sections.some(section=>section.id===backup.pages[0].hiddenSections[0]));
     assert.doesNotMatch(siteHTML,/<script[\s>]/i);

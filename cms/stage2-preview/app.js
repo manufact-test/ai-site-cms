@@ -2,7 +2,8 @@
 /* Stage2 offline MULTIPAGE product preview. No API, auth, server writes or publishing. */
 (()=>{
   const C=window.CmsPreviewContent,P=window.CmsPreviewProject,
-    R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2,X=window.CmsPreviewExport,M=window.CmsPreviewMedia;
+    R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2,X=window.CmsPreviewExport,M=window.CmsPreviewMedia,
+    Q=window.CmsPreviewRepeaters;
   const $=id=>document.getElementById(id);
   const ui={list:$('sections'),frame:$('preview'),fields:$('fields'),title:$('site-title'),theme:$('theme'),
     count:$('count'),info:$('selection-info'),status:$('status'),addType:$('new-type'),browser:$('browser'),
@@ -276,7 +277,8 @@
         menu:project.pages.filter(x=>x.inMenu).map(x=>({id:x.id,title:x.title,slug:x.slug})),
         active:pageId,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
          design:project.design,contacts:project.contacts,
-         actions:P.resolveActions(project,p),mediaBySection:P.resolveMedia(project,p),...project.settings
+         actions:P.resolveActions(project,p),mediaBySection:P.resolveMedia(project,p),
+         itemsBySection:P.resolveItems(project,p),...project.settings
       });
       ui.count.textContent=doc.sections.length+' блоков';
       ui.seoSnippetTitle.textContent=p.seoTitle;
@@ -342,14 +344,19 @@
     ui.sectionVisible.checked=!activePage().hiddenSections.includes(s.id);
     ui.sectionVisible.disabled=false;
     $('section-surface').value=activePage().sectionStyles[s.id]||'default';
-    renderMediaPicker();renderActionPicker();
+    renderMediaPicker();renderActionPicker();renderRepeater();
     ui.info.textContent=C.definitions[s.type].label+' · меняйте свойства выбранной страницы';
     ui.fields.replaceChildren();
-    editor=E.mount({container:ui.fields,schema:C.schema(s.type),data:s.props,onChange(value){
+    const repeatable=Boolean(Q.definitions[s.type]);
+    const data=repeatable?Object.fromEntries(Object.entries(s.props).filter(([key])=>
+      key==='title'||key==='eyebrow')):s.props;
+    editor=E.mount({container:ui.fields,schema:C.schema(s.type,repeatable),data,onChange(value){
       const live=current();
-      if(!live||live.id!==s.id||JSON.stringify(live.props)===JSON.stringify(value))return;
+      if(!live||live.id!==s.id)return;
+      const next=repeatable?{...live.props,...value}:value;
+      if(JSON.stringify(live.props)===JSON.stringify(next))return;
       checkpoint('field:'+pageId+':'+s.id,true);
-      live.props=value;changed();listing();
+      live.props=next;changed();listing();
     }});
   }
   function apply(next,preferredPage,preferredSection){
@@ -400,6 +407,11 @@
     if(activePage().sectionStyles[source.id])target.sectionStyles[copy.id]=activePage().sectionStyles[source.id];
     if(activePage().mediaSlots[source.id])target.mediaSlots[copy.id]=structuredClone(activePage().mediaSlots[source.id]);
     if(activePage().sectionActions[source.id])target.sectionActions[copy.id]=activePage().sectionActions[source.id];
+    if(activePage().repeaters[source.id]){
+      target.repeaters[copy.id]=activePage().repeaters[source.id].map(item=>({
+        ...structuredClone(item),id:Q.blank(source.type).id
+      }));
+    }
     selectPage(target.id);select(copy.id);changed();
     toast('Блок скопирован на выбранную страницу');
   }
@@ -493,12 +505,90 @@
             for(const [slot,id] of Object.entries(slots))if(id===asset.id)delete slots[slot];
             if(!Object.keys(slots).length)delete page.mediaSlots[sectionId];
           }
+          for(const items of Object.values(page.repeaters)){
+            for(const item of items)if(item.image===asset.id)item.image='';
+          }
         }
-        renderMediaLibrary();renderMediaPicker();changed();
+        renderMediaLibrary();renderMediaPicker();renderRepeater();changed();
         toast('Фотография удалена из проекта и всех блоков');
       });
       detail.append(remove);row.append(image,detail);list.append(row);
     }
+  }
+  function renderRepeater(){
+    const section=current(),panel=$('repeater-panel'),list=$('repeater-list');
+    list.replaceChildren();
+    const rule=section&&Q.definitions[section.type];
+    panel.hidden=!rule;if(!rule)return;
+    const items=activePage().repeaters[section.id];
+    $('repeater-count').textContent=items.length+' / 8';
+    $('repeater-add').disabled=items.length>=8;
+    function mutate(kind,callback){
+      checkpoint('repeater:'+kind);
+      callback();
+      renderRepeater();changed();listing();
+    }
+    items.forEach((item,index)=>{
+      const card=document.createElement('article');card.className='repeater-item';
+      card.dataset.itemId=item.id;
+      const header=document.createElement('div');header.className='repeater-item-head';
+      const name=document.createElement('strong');name.textContent=rule.title+' '+(index+1);
+      const actions=document.createElement('div');actions.className='repeater-item-actions';
+      actions.append(
+        tiny('↑','Поднять элемент',()=>mutate('move',()=>{
+          [items[index-1],items[index]]=[items[index],items[index-1]];
+        }),index===0),
+        tiny('↓','Опустить элемент',()=>mutate('move',()=>{
+          [items[index],items[index+1]]=[items[index+1],items[index]];
+        }),index===items.length-1),
+        tiny('⧉','Дублировать элемент',()=>mutate('duplicate',()=>{
+          items.splice(index+1,0,{...structuredClone(item),id:Q.blank(section.type).id});
+        }),items.length>=8),
+        tiny('×','Удалить элемент',()=>mutate('remove',()=>items.splice(index,1)),items.length<=1)
+      );
+      header.append(name,actions);card.append(header);
+      for(const [key,caption,max] of [['title',rule.title,rule.limit],['text',rule.description,rule.detailLimit]]){
+        const label=document.createElement('label');label.className='field-label';
+        label.textContent=caption;
+        const input=key==='title'?document.createElement('input'):document.createElement('textarea');
+        input.className='repeater-field';input.maxLength=max;
+        if(key==='text')input.rows=3;
+        input.value=item[key];input.setAttribute('aria-label',caption+' '+(index+1));
+        input.addEventListener('input',()=>{
+          if(item[key]===input.value||input.value.includes('\0'))return;
+          checkpoint('repeater-field:'+pageId+':'+section.id+':'+item.id+':'+key,true);
+          item[key]=input.value;changed();
+        });
+        label.append(input);card.append(label);
+      }
+      if(rule.photo){
+        const label=document.createElement('label');label.className='field-label';
+        label.textContent='Фотография '+(index+1);
+        const select=document.createElement('select');select.className='repeater-photo';
+        select.setAttribute('aria-label','Фотография элемента '+(index+1));
+        const blank=document.createElement('option');blank.value='';blank.textContent='Без фотографии';select.append(blank);
+        for(const photo of project.media){
+          const option=document.createElement('option');option.value=photo.id;
+          option.textContent=photo.alt||'Фото '+photo.id.slice(-5);select.append(option);
+        }
+        select.value=item.image;
+        select.addEventListener('change',()=>{
+          const id=select.value;
+          if(id!==''&&!project.media.some(a=>a.id===id))return;
+          checkpoint('repeater-photo');item.image=id;changed();
+        });
+        label.append(select);card.append(label);
+      }
+      list.append(card);
+    });
+  }
+  function addRepeaterItem(){
+    const section=current(),rule=section&&Q.definitions[section.type];
+    if(!rule)return;
+    const items=activePage().repeaters[section.id];
+    if(items.length>=8)return toast('Максимум восемь элементов',true);
+    checkpoint('repeater-add');items.push(Q.blank(section.type));
+    renderRepeater();changed();listing();
   }
   function renderMediaPicker(){
     const section=current(),page=activePage(),items=section&&M.slots[section.type];
@@ -542,7 +632,7 @@
         const next={...project,media:[...project.media,asset]};
         P.validate(next);
         checkpoint('media-upload');project.media.push(asset);
-        renderMediaLibrary();renderMediaPicker();changed();
+        renderMediaLibrary();renderMediaPicker();renderRepeater();changed();
       }catch(e){toast('Не удалось добавить «'+file.name+'»: '+e.message,true);return;}
     }
     toast('Фотографии добавлены в локальную медиабиблиотеку');
@@ -614,6 +704,7 @@
     delete activePage().sectionStyles[s.id];
     delete activePage().mediaSlots[s.id];
     delete activePage().sectionActions[s.id];
+    delete activePage().repeaters[s.id];
     if(s.id===selection)selection=doc.sections[Math.min(i,doc.sections.length-1)].id;
     listing();mount();changed();toast('Блок удалён');
   }
@@ -624,12 +715,17 @@
     if(activePage().sectionStyles[source.id])activePage().sectionStyles[copy.id]=activePage().sectionStyles[source.id];
     if(activePage().mediaSlots[source.id])activePage().mediaSlots[copy.id]=structuredClone(activePage().mediaSlots[source.id]);
     if(activePage().sectionActions[source.id])activePage().sectionActions[copy.id]=activePage().sectionActions[source.id];
+    if(activePage().repeaters[source.id])activePage().repeaters[copy.id]=activePage().repeaters[source.id].map(item=>({
+      ...structuredClone(item),id:Q.blank(source.type).id
+    }));
     listing();mount();changed();toast('Блок дублирован');
   }
   function add(){
     if(doc.sections.length>=12)return toast('Максимум 12 блоков',true);
     checkpoint('structure');const s=C.createSection(ui.addType.value);
-    doc.sections.push(s);selection=s.id;listing();mount();changed();toast('Блок добавлен');
+    doc.sections.push(s);
+    if(Q.definitions[s.type])activePage().repeaters[s.id]=Q.seed(s);
+    selection=s.id;listing();mount();changed();toast('Блок добавлен');
   }
   function travel(which){
     const from=which==='undo'?undo:redo,to=which==='undo'?redo:undo;
@@ -663,7 +759,7 @@
     toast('Все страницы экспортированы в один JSON. На сервер ничего не отправлено');
   }
   async function imports(file){
-    if(!file)return;if(file.size>2_200_000)return toast('Максимум 2,2 МБ для резервного JSON',true);
+    if(!file)return;if(file.size>4_200_000)return toast('Максимум 4,2 МБ для резервного JSON',true);
     try{
       const valid=P.normalize(JSON.parse(await file.text()));
       if(dirty&&!confirm('Заменить несохранённые изменения импортированным проектом?'))return;
@@ -727,7 +823,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M){
+    if(!C||!P||!R||!E||!X||!M||!Q){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -737,6 +833,7 @@
     }
     ui.frame.addEventListener('load',bindPreviewClicks);
     $('expand-preview').addEventListener('click',expandPreview);
+    $('repeater-add').addEventListener('click',addRepeaterItem);
     $('media-upload').addEventListener('click',()=>$('media-file').click());
     $('media-file').addEventListener('change',async e=>{
       const files=[...(e.target.files||[])];e.target.value='';await uploadMedia(files);

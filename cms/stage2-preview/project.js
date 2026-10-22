@@ -1,13 +1,14 @@
 'use strict';
-/* Stage2 offline design-review project v6; neither production schema nor publisher. */
+/* Stage2 offline design-review project v7; neither production schema nor publisher. */
 (()=>{
-  const C=window.CmsPreviewContent;
-  const format='ai-site-cms-stage2-multipage-preview-v6';
-  const previousFormat='ai-site-cms-stage2-multipage-preview-v5';
+  const C=window.CmsPreviewContent,Q=window.CmsPreviewRepeaters;
+  const format='ai-site-cms-stage2-multipage-preview-v7';
+  const previousFormat='ai-site-cms-stage2-multipage-preview-v6';
+  const legacyV5='ai-site-cms-stage2-multipage-preview-v5';
   const olderFormat='ai-site-cms-stage2-multipage-preview-v4';
   const legacyV3='ai-site-cms-stage2-multipage-preview-v3';
   const legacyV2='ai-site-cms-stage2-multipage-preview-v2';
-  const MAX_MEDIA=6;
+  const MAX_MEDIA=12;
   const MAX_MEDIA_CHARS=240000;
   const imageSlots={hero:['hero'],story:['photo'],catalog:['image1','image2','image3'],services:['image1','image2','image3']};
   const MAX_PAGES=8;
@@ -33,7 +34,8 @@
   }
   function template(){
     const d=C.template();
-    return {format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),design:design(),contacts:contacts(),media:[],pages:[pageFromLegacy(d)]};
+    const page=Q.populate(pageFromLegacy(d));
+    return {format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),design:design(),contacts:contacts(),media:[],pages:[page]};
   }
   function validate(raw){
     if(!raw||typeof raw!=='object'||Array.isArray(raw)
@@ -80,7 +82,7 @@
     let homepageCount=0;
     for(const page of raw.pages){
       if(!page||typeof page!=='object'||Array.isArray(page)
-        ||!allowedKeys(page,['id','title','slug','seoTitle','seoDescription','inMenu','hiddenSections','sectionStyles','mediaSlots','sectionActions','sections'])
+        ||!allowedKeys(page,['id','title','slug','seoTitle','seoDescription','inMenu','hiddenSections','sectionStyles','mediaSlots','sectionActions','repeaters','sections'])
         ||typeof page.id!=='string'||!/^page-[a-z0-9-]{5,48}$/.test(page.id)||ids.has(page.id)
         ||typeof page.title!=='string'||page.title.length<1||page.title.length>90
         ||typeof page.slug!=='string'||(page.slug!==''&&!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(page.slug))||page.slug.length>70||slugs.has(page.slug)
@@ -117,6 +119,7 @@
       ids.add(page.id);slugs.add(page.slug);
       if(page.slug==='')homepageCount++;
       C.validate({format:C.format,siteTitle:raw.siteTitle,theme:raw.theme,sections:page.sections});
+      Q.validate(page,mediaIds);
     }
     if(homepageCount!==1)throw Error('В проекте должна быть ровно одна главная страница');
     return structuredClone(raw);
@@ -124,21 +127,25 @@
   function normalize(raw){
     if(raw&&raw.format===C.format){
       const d=C.validate(raw);
-      return validate({format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),design:design(),contacts:contacts(),media:[],pages:[pageFromLegacy(d)]});
+      return validate({format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),design:design(),contacts:contacts(),media:[],pages:[Q.populate(pageFromLegacy(d))]});
     }
-    if(raw&&[previousFormat,olderFormat,legacyV3,legacyV2].includes(raw.format)){
+    if(raw&&[previousFormat,legacyV5,olderFormat,legacyV3,legacyV2].includes(raw.format)){
       const next=structuredClone(raw),isV2=raw.format===legacyV2,
-        beforeV5=raw.format!==previousFormat;
-      next.format=format;next.contacts=contacts();
+        beforeV5=[olderFormat,legacyV3,legacyV2].includes(raw.format);
+      next.format=format;
+      if(raw.format!==previousFormat)next.contacts=contacts();
       if(beforeV5)next.media=[];
       if(isV2)next.settings=settings();
       if(isV2||raw.format===legacyV3)next.design=design();
-      next.pages=next.pages.map(p=>({
-        ...p,...(isV2?{inMenu:true,hiddenSections:[]}:{}),
-        ...(isV2||raw.format===legacyV3?{sectionStyles:{}}:{}),
-        ...(beforeV5?{mediaSlots:{}}:{}),
-        sectionActions:{}
-      }));
+      next.pages=next.pages.map(p=>{
+        const upgraded={...p,
+          ...(isV2?{inMenu:true,hiddenSections:[]}:{}),
+          ...(isV2||raw.format===legacyV3?{sectionStyles:{}}:{}),
+          ...(beforeV5?{mediaSlots:{}}:{}),
+          ...(raw.format!==previousFormat?{sectionActions:{}}:{})
+        };
+        return Q.populate(upgraded);
+      });
       return validate(next);
     }
     return validate(raw);
@@ -157,16 +164,20 @@
       if(from.hiddenSections.includes(s.id))hidden.push(sections[i].id);
       return hidden;
     },[]):[];
-    const sectionStyles={},mediaSlots={},sectionActions={};
+    const sectionStyles={},mediaSlots={},sectionActions={},repeaters={};
     if(source)from.sections.forEach((s,i)=>{
       if(from.sectionStyles[s.id])sectionStyles[sections[i].id]=from.sectionStyles[s.id];
       if(from.mediaSlots[s.id])mediaSlots[sections[i].id]=structuredClone(from.mediaSlots[s.id]);
       if(from.sectionActions[s.id])sectionActions[sections[i].id]=from.sectionActions[s.id];
+      if(from.repeaters[s.id])repeaters[sections[i].id]=structuredClone(from.repeaters[s.id]).map(item=>({...item,id:Q.blank(s.type).id}));
     });
+    if(!source)for(const section of sections){
+      if(Q.definitions[section.type])repeaters[section.id]=Q.seed(section);
+    }
     return {id:newId(),title:source?from.title.slice(0,80)+' (копия)':'Новая страница',
       slug,seoTitle:source?from.seoTitle:('Новая страница — '+project.siteTitle).slice(0,70),
       seoDescription:source?from.seoDescription:'',inMenu:source?from.inMenu:true,
-      hiddenSections,sectionStyles,mediaSlots,sectionActions,sections};
+      hiddenSections,sectionStyles,mediaSlots,sectionActions,repeaters,sections};
   }
   function starter(kind){
     const configs={
@@ -189,7 +200,7 @@
       kind==='agency'?{...design(),font:'geometric',radius:'round',spacing:'relaxed',navigation:'floating'}:
       {...design(),font:'editorial',spacing:'compact'};
     result.pages=config.pages.map(([title,slug,seoTitle,types],i)=>({
-      id:i===0?result.pages[0].id:newId(),title,slug,seoTitle,inMenu:true,hiddenSections:[],sectionStyles:{},mediaSlots:{},sectionActions:{},
+      id:i===0?result.pages[0].id:newId(),title,slug,seoTitle,inMenu:true,hiddenSections:[],sectionStyles:{},mediaSlots:{},sectionActions:{},repeaters:{},
       seoDescription:'Демонстрационная страница «'+title+'». Замените описание своим текстом перед использованием.',
       sections:types.map(type=>{
         const s=C.createSection(type);
@@ -197,6 +208,7 @@
         return s;
       })
     }));
+    result.pages.forEach(Q.populate);
     return validate(result);
   }
   function audit(raw){
@@ -244,6 +256,17 @@
     }
     return out;
   }
+  function resolveItems(project,page,exportLinks=false){
+    const assets=new Map(project.media.map(a=>[a.id,a])),out={};
+    for(const [sectionId,items] of Object.entries(page.repeaters)){
+      out[sectionId]=items.map(item=>{
+        const media=assets.get(item.image);
+        return {id:item.id,title:item.title,text:item.text,
+          photo:media?{src:exportLinks?'media/'+media.id+'.webp':media.data,alt:media.alt}:null};
+      });
+    }
+    return out;
+  }
   function resolveActions(project,page){
     const out={},c=project.contacts;
     const tel=c.phone.replace(/[^+0-9]/g,'');
@@ -277,6 +300,6 @@
     return out;
   }
   Object.defineProperty(window,'CmsPreviewProject',{value:Object.freeze({
-    format,previousFormat,olderFormat,legacyV3,legacyV2,MAX_PAGES,MAX_MEDIA,imageSlots,template,normalize,validate,createPage,pageDoc,resolveMedia,resolveActions,starter,audit
+    format,previousFormat,legacyV5,olderFormat,legacyV3,legacyV2,MAX_PAGES,MAX_MEDIA,imageSlots,template,normalize,validate,createPage,pageDoc,resolveMedia,resolveItems,resolveActions,starter,audit
   })});
 })();

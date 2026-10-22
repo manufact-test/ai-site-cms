@@ -34,8 +34,7 @@
   const slots=Object.freeze({
     hero:[['hero','Фото на главном экране']],
     story:[['photo','Фото компании или производства']],
-    catalog:[['image1','Фото товара 1'],['image2','Фото товара 2'],['image3','Фото товара 3']],
-    services:[['image1','Фото услуги 1'],['image2','Фото услуги 2'],['image3','Фото услуги 3']]
+    // Catalog and services now use per-item photos from the repeatable collection.
   });
   Object.defineProperty(window,'CmsPreviewMedia',{value:Object.freeze({decode,slots})});
 })();

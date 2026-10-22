@@ -159,7 +159,14 @@
         <div id="media-binding-fields"></div>
         <p class="setting-helper">Выбранные фото появятся в предпросмотре и HTML-экспорте.</p>
       </section>
-      <div id="fields" aria-live="off"></div><details class="review-notes"><summary>Замечания к макету <span id="review-count">0</span></summary>
+      <div id="fields" aria-live="off"></div>
+      <section id="repeater-panel" class="repeater-panel" aria-label="Элементы секции" hidden>
+        <div class="repeater-head"><strong>Элементы секции</strong><span id="repeater-count">0 / 8</span></div>
+        <p class="setting-helper">Добавляйте и перемещайте карточки, товары, этапы и ответы. Изменения сразу видны в макете.</p>
+        <div id="repeater-list" class="repeater-list"></div>
+        <button id="repeater-add" class="button dark" type="button">+ Добавить элемент</button>
+      </section>
+      <details class="review-notes"><summary>Замечания к макету <span id="review-count">0</span></summary>
   <p class="review-help">Заметки сохраняются в этом браузере отдельно от версий сайта. Это обратная связь по макету, не приёмка Stage 2.</p>
   <p class="review-context" id="review-context">Выберите блок для замечания</p>
   <label class="field-label" for="review-kind">Тип замечания</label>
@@ -174,6 +181,7 @@
   <div id="status" class="status" role="status" aria-live="polite"></div>
   <script src="../editor/dist/editor.js"></script>
   <script src="content.js"></script>
+  <script src="repeaters.js"></script>
   <script src="project.js"></script>
   <script src="media.js"></script>
   <script src="renderer.js"></script>

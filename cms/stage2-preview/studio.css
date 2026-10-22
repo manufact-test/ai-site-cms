@@ -407,3 +407,20 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .action-binding .field-label{display:block;margin-bottom:7px}
 .action-binding select{width:100%;max-width:100%}
 .action-binding .setting-helper{margin-top:8px;color:#647b90}
+
+/* Repeatable content collections stay in the inspector; no CSS is exported from here. */
+.repeater-panel{background:#f5f8fc;border:1px solid #d9e4ed;border-radius:12px;padding:14px;margin:16px 0}
+.repeater-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.repeater-head strong{font-size:13px;color:#17354c}
+.repeater-head span{font-size:11px;color:#63788f;font-weight:700}
+.repeater-panel>.setting-helper{margin:8px 0 12px}
+.repeater-list{display:grid;gap:10px}
+.repeater-item{border:1px solid #cfdae5;border-radius:10px;padding:12px;background:#fff;min-width:0}
+.repeater-item-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px}
+.repeater-item-head>strong{color:#263d53;font-size:12px}
+.repeater-item-actions{display:flex;align-items:center;gap:3px;flex:none}
+.repeater-item-actions .tiny{width:24px;height:25px;min-width:24px;padding:0;font-size:13px}
+.repeater-item .field-label{display:grid;gap:6px;margin:10px 0;font-size:11px;color:#426178}
+.repeater-item .repeater-field,.repeater-item .repeater-photo{width:100%;min-width:0;box-sizing:border-box}
+.repeater-item textarea.repeater-field{min-height:68px;resize:vertical}
+.repeater-panel>#repeater-add{display:block;width:100%;margin-top:12px}
