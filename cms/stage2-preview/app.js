@@ -14,7 +14,7 @@
     seoSnippetTitle:$('seo-snippet-title'),seoSnippetDescription:$('seo-snippet-description'),
     seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url'),audit:$('audit-results'),auditCount:$('audit-count'),sectionVisible:$('section-visible')};
 
-  const D=window.CmsPreviewArtDirection,T=window.CmsPreviewPageRecipes,V=window.CmsPreviewCanvasEdit;
+  const D=window.CmsPreviewArtDirection,T=window.CmsPreviewPageRecipes,V=window.CmsPreviewCanvasEdit,S=window.CmsPreviewCanvasMedia;
 
 
   let canvasEditing=null;
@@ -52,6 +52,87 @@
     }catch(e){$('canvas-edit-error').textContent=e.message;$('canvas-edit-error').hidden=false;}
   }
 
+
+  let canvasMedia=null;
+  let selectedCanvasAsset='';
+  function renderCanvasMediaGallery(){
+    const holder=$('canvas-media-gallery');holder.replaceChildren();
+    const entries=[{id:'',alt:'Без фотографии',data:null},...project.media];
+    for(const asset of entries){
+      const button=document.createElement('button');button.type='button';
+      button.className='canvas-media-choice';
+      button.dataset.assetId=asset.id;
+      button.setAttribute('aria-pressed',String(selectedCanvasAsset===asset.id));
+      if(asset.id){
+        const image=document.createElement('img');image.src=asset.data;
+        image.alt='';image.loading='lazy';button.append(image);
+      }else{
+        const empty=document.createElement('span');empty.className='canvas-media-empty';
+        empty.textContent='∅';button.append(empty);
+      }
+      const name=document.createElement('span');name.textContent=asset.alt||'Без описания';
+      button.append(name);
+      button.addEventListener('click',()=>{
+        selectedCanvasAsset=asset.id;
+        $('canvas-media-alt').value=asset.id?asset.alt:'';
+        $('canvas-media-alt').disabled=!asset.id;
+        $('canvas-media-error').hidden=true;
+        renderCanvasMediaGallery();
+      });
+      holder.append(button);
+    }
+    $('canvas-media-upload').disabled=project.media.length>=P.MAX_MEDIA;
+  }
+  function openCanvasMedia(ref,label){
+    if(directionPreview)return toast('Сначала примените или отмените просмотр дизайн-направления',true);
+    let id;
+    try{id=S.current(project,ref);}catch(e){return toast(e.message,true);}
+    canvasMedia=ref;selectedCanvasAsset=id;
+    $('canvas-media-title').textContent='Фотография · '+label;
+    $('canvas-media-subtitle').textContent='Выберите существующее изображение, загрузите новое или снимите назначение.';
+    $('canvas-media-error').hidden=true;
+    $('canvas-media-alt').value=project.media.find(m=>m.id===id)?.alt||'';
+    $('canvas-media-alt').disabled=!id;
+    renderCanvasMediaGallery();
+    $('canvas-media-dialog').showModal();
+  }
+  function finishCanvasMedia(id,asset=null){
+    if(!canvasMedia)return;
+    try{
+      const ref=canvasMedia;
+      if(pageId!==ref.pageId)throw Error('Страница изменилась');
+      const alt=asset?asset.alt:$('canvas-media-alt').value;
+      const old=S.current(project,ref);
+      const original=project.media.find(m=>m.id===id);
+      if(!asset&&old===id&&(!id||original?.alt===alt)){
+        $('canvas-media-dialog').close();return;
+      }
+      const next=S.change(project,ref,id,alt,asset);
+      checkpoint('canvas-media');
+      $('canvas-media-dialog').close();
+      apply(next,ref.pageId,ref.sectionId);
+      toast('Фотография обновлена в макете и HTML ZIP. Изменение можно отменить.');
+    }catch(e){
+      $('canvas-media-error').textContent=e.message;
+      $('canvas-media-error').hidden=false;
+    }
+  }
+  async function uploadCanvasMedia(file){
+    if(!canvasMedia||!file)return;
+    const button=$('canvas-media-upload');button.disabled=true;
+    try{
+      if(project.media.length>=P.MAX_MEDIA)throw Error('Достигнут лимит 12 фотографий');
+      const decoded=await M.decode(file);
+      if(!canvasMedia||!$('canvas-media-dialog').open)return;
+      const asset={id:nextAssetId(),...decoded};
+      finishCanvasMedia(asset.id,asset);
+    }catch(e){
+      if(canvasMedia){
+        $('canvas-media-error').textContent=e.message;
+        $('canvas-media-error').hidden=false;
+      }
+    }finally{if(canvasMedia)button.disabled=project.media.length>=P.MAX_MEDIA;}
+  }
   const surfaceChoices=[['default','Обычный'],['soft','Светлый'],['dark','Тёмный'],['accent','Акцент'],
     ['linen','Бумажный'],['aurora','Градиент'],['frame','Рамка'],['carbon','Графит']];
   function renderSurfaceGallery(){
@@ -684,6 +765,39 @@
           if(event.key!=='F2')return;
           event.preventDefault();event.stopPropagation();
           openCanvasText(section.id,field);
+        });
+      }
+    }
+
+    // In-page media controls are added by Studio only; exported HTML has no edit UI.
+    // All bindings resolve to stable section/item IDs, never to an array position.
+    const photoStyle=body.createElement('style');
+    photoStyle.textContent='.cms-photo-target{position:relative}.cms-photo-control{position:absolute;z-index:8;top:12px;right:12px;padding:8px 12px;border-radius:9px;border:1px solid #ffffffb8;background:#112536eb;color:white;font:700 12px system-ui;cursor:pointer;box-shadow:0 5px 20px #0005}.cms-photo-control:hover,.cms-photo-control:focus-visible{background:#137e9a;color:#fff;outline:3px solid #fff;outline-offset:2px}';
+    body.head.append(photoStyle);
+    const addPhotoControl=(host,ref,label)=>{
+      if(!host)return;
+      host.classList.add('cms-photo-target');
+      const button=body.createElement('button');
+      button.type='button';button.className='cms-photo-control';button.textContent='✎ Фото';
+      button.setAttribute('aria-label','Сменить фотографию: '+label);
+      button.addEventListener('click',event=>{
+        event.preventDefault();event.stopPropagation();openCanvasMedia(ref,label);
+      });
+      host.append(button);
+    };
+    for(const section of page.sections){
+      const area=body.querySelector('[data-preview-section="'+section.id+'"]');
+      if(!area)continue;
+      if(section.type==='hero')addPhotoControl(area.querySelector('.hero-grid > aside'),
+        {pageId,sectionId:section.id,slot:'hero'},'главный экран');
+      else if(section.type==='story')addPhotoControl(area.querySelector('.story > aside'),
+        {pageId,sectionId:section.id,slot:'photo'},'о компании');
+      else if(['catalog','services'].includes(section.type)){
+        const items=page.repeaters[section.id]||[];
+        area.querySelectorAll('.studio-grid > article').forEach((host,index)=>{
+          const item=items[index];
+          if(item)addPhotoControl(host,{pageId,sectionId:section.id,itemId:item.id},
+            'карточка '+(index+1)+' — '+item.title);
         });
       }
     }
@@ -1562,7 +1676,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D||!T||!V){
+    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D||!T||!V||!S){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -1676,6 +1790,14 @@
     $('page-recipe-back').addEventListener('click',()=>$('page-recipe-dialog').close());
     $('page-recipe-close').addEventListener('click',()=>$('page-recipe-dialog').close());
     $('page-recipe-form').addEventListener('submit',createRecipePage);
+    $('canvas-media-close').addEventListener('click',()=>$('canvas-media-dialog').close());
+    $('canvas-media-cancel').addEventListener('click',()=>$('canvas-media-dialog').close());
+    $('canvas-media-dialog').addEventListener('close',()=>{canvasMedia=null;selectedCanvasAsset='';});
+    $('canvas-media-apply').addEventListener('click',()=>finishCanvasMedia(selectedCanvasAsset));
+    $('canvas-media-upload').addEventListener('click',()=>$('canvas-media-file').click());
+    $('canvas-media-file').addEventListener('change',async e=>{
+      const file=e.target.files?.[0];e.target.value='';await uploadCanvasMedia(file);
+    });
     $('canvas-edit-form').addEventListener('submit',submitCanvasEdit);
     $('canvas-edit-text').addEventListener('input',updateCanvasEditCounter);
     $('canvas-edit-cancel').addEventListener('click',()=>$('canvas-edit-dialog').close());

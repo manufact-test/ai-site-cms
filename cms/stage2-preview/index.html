@@ -227,7 +227,7 @@
         <div class="overview-warning"><span aria-hidden="true">ⓘ</span><div><strong>Это демонстрационная среда Stage 2</strong><p>Авторизация, серверное сохранение, публикация, реальная генерация ИИ и клиентские данные здесь не реализованы. Итоговое оформление CMS и сайтов будет разрабатываться отдельно.</p></div></div>
       </section>
       <div class="preview-stage"><div class="browser-shell" id="browser"><div class="browser-bar"><span class="traffic" aria-hidden="true">● ● ●</span><span id="preview-url">demo.local / index</span><button id="expand-preview" class="live-indicator preview-expand" type="button" aria-pressed="false">⤢ Развернуть</button></div><iframe id="preview" title="Предпросмотр сайта с выбором блоков" sandbox="allow-same-origin" referrerpolicy="no-referrer"></iframe></div></div>
-      <div class="canvas-caption">Кликните по блоку, чтобы открыть свойства; дважды щёлкните по заголовку, тексту или карточке, чтобы изменить прямо на макете (F2 с клавиатуры). Меню страниц в предпросмотре тоже работает. Полноэкранный режим — для просмотра без панелей. Публикации здесь нет.</div>
+      <div class="canvas-caption">Кликните по блоку, чтобы открыть свойства; дважды щёлкните по тексту для его изменения (F2), а кнопку «Фото» на изображении — для замены из медиабиблиотеки. Меню страниц в предпросмотре тоже работает. Полноэкранный режим — для просмотра без панелей. Публикации здесь нет.</div>
     </section>
     <aside class="panel inspector" aria-labelledby="inspector-title"><div class="panel-top"><div><span class="small-title">ИНСПЕКТОР</span><h2 id="inspector-title">Свойства секции</h2></div><span class="inspector-symbol" aria-hidden="true">✦</span></div><p class="inspector-intro" id="selection-info">Выберите секцию на макете.</p>
       <label class="section-toggle"><input id="section-visible" type="checkbox" checked><span>Показывать секцию на сайте</span></label>
@@ -287,6 +287,21 @@
   <div class="review-actions"><button type="button" class="button subtle" id="review-export">Скачать замечания .md</button><button type="button" class="text-button" id="review-clear">Очистить</button></div>
 </details><div class="inspector-foot">Поля управляются встроенным <strong>Jedison</strong>. Изменения отображаются сразу без сохранения на сервер.</div></aside>
   </main>
+  <dialog id="canvas-media-dialog" class="canvas-media-dialog" aria-labelledby="canvas-media-title">
+    <div class="canvas-media-head"><div><span>ФОТО НА МАКЕТЕ · ЛОКАЛЬНО</span><h2 id="canvas-media-title">Изображение блока</h2><p id="canvas-media-subtitle">Выберите фото из проекта или загрузите новое.</p></div>
+      <button id="canvas-media-close" class="brief-close" type="button" aria-label="Закрыть выбор фотографии">×</button></div>
+    <div class="canvas-media-body">
+      <div id="canvas-media-gallery" class="canvas-media-gallery" role="group" aria-label="Изображения текущего сайта"></div>
+      <button id="canvas-media-upload" type="button" class="button subtle">+ Загрузить новое JPG, PNG или WebP</button>
+      <input id="canvas-media-file" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+      <label class="field-label" for="canvas-media-alt">Описание изображения для доступности (alt)</label>
+      <input id="canvas-media-alt" maxlength="160" placeholder="Например, производственный цех">
+      <p class="setting-helper">Изменение описания существующего фото обновит его во всех местах, где оно используется. Новое фото автоматически сжимается в WebP и остаётся в локальном проекте.</p>
+      <p id="canvas-media-error" role="alert" hidden></p>
+      <div class="canvas-media-actions"><button id="canvas-media-cancel" type="button" class="button subtle">Отмена</button>
+        <button id="canvas-media-apply" type="button" class="button dark">Применить изображение</button></div>
+    </div>
+  </dialog>
   <dialog id="canvas-edit-dialog" class="canvas-edit-dialog" aria-labelledby="canvas-edit-title">
     <form id="canvas-edit-form">
       <div class="canvas-edit-head"><div><span>ТЕКСТ НА МАКЕТЕ</span><h2 id="canvas-edit-title">Редактирование текста</h2></div><button id="canvas-edit-close" type="button" aria-label="Закрыть">×</button></div>
@@ -353,6 +368,7 @@
   <script src="art-direction.js"></script>
   <script src="page-recipes.js"></script>
   <script src="canvas-edit.js"></script>
+  <script src="canvas-media.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

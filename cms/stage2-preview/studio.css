@@ -639,3 +639,26 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .overview-link-state{font-size:11px;font-weight:750;white-space:nowrap;color:#33758a}
 .overview-link-row.has-warning .overview-link-state{color:#b56c2c}
 @media(max-width:550px){.overview-link-row{align-items:flex-start;flex-direction:column}.overview-link-state{align-self:flex-end}}
+
+
+/* Photo selection inside script-free iframe: dialog is in parent Studio only. */
+.canvas-media-dialog{width:min(760px,calc(100% - 24px));max-height:min(91vh,880px);padding:0;border:1px solid #bfd4e2;border-radius:18px;background:white;color:#153649;box-shadow:0 24px 90px #08172870;overflow:auto}
+.canvas-media-dialog::backdrop{background:#091b2fc7}
+.canvas-media-head{display:flex;align-items:start;justify-content:space-between;gap:15px;padding:23px 25px 18px;background:#eef6fa;border-bottom:1px solid #d9e8ee}
+.canvas-media-head span{font-size:10px;font-weight:800;letter-spacing:.1em;color:#377890}
+.canvas-media-head h2{font-size:23px;line-height:1.2;margin:7px 0}
+.canvas-media-head p{font-size:12px;color:#587688;margin:6px 0 0}
+.canvas-media-body{padding:21px 25px 24px}
+.canvas-media-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:17px;max-height:420px;overflow:auto}
+.canvas-media-choice{min-width:0;border:1px solid #d5e3e9;border-radius:12px;background:#f8fbfc;text-align:left;color:#28506a;padding:8px;display:grid;gap:6px;cursor:pointer;font-size:11px}
+.canvas-media-choice[aria-pressed=true]{border:2px solid #117c9c;background:#e8f7fb}
+.canvas-media-choice img,.canvas-media-empty{display:block;width:100%;height:110px;border-radius:7px;object-fit:cover;background:#e2edf3}
+.canvas-media-empty{display:grid;place-items:center;font-size:34px;color:#587388}
+.canvas-media-choice span:last-child{overflow-wrap:anywhere}
+.canvas-media-choice:focus-visible{outline:3px solid #107f9e;outline-offset:2px}
+.canvas-media-body>.field-label{display:block;margin:17px 0 7px;font-size:12px;font-weight:700}
+.canvas-media-body>#canvas-media-alt{box-sizing:border-box;width:100%;padding:11px;font:inherit;border:1px solid #c5dbe4;border-radius:8px}
+.canvas-media-body>.setting-helper{font-size:11px;line-height:1.55;color:#618091;margin:10px 0}
+#canvas-media-error{color:#b23b40;font-size:12px}
+.canvas-media-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;flex-wrap:wrap}
+@media(max-width:550px){.canvas-media-head,.canvas-media-body{padding:16px}.canvas-media-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}}
