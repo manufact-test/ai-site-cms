@@ -324,6 +324,21 @@ jobs:
       # internal vendor/editor/package/owner-review bundles as Actions artifacts.
       # Verify current API visibility immediately before upload, not merely the
       # push event's potentially stale repository visibility field.
+      # Compliance data ONLY: explicit allowlist; never publish private vendor,
+      # owner-review CMS bundle, source package or operator evidence.
+      - name: Package approved-for-publication dependency review data with secret denial
+        working-directory: cms
+        run: |
+          node --check tools/stage2-public-compliance-export.cjs
+          node --check tools/test-stage2-public-compliance-export.cjs
+          node tools/test-stage2-public-compliance-export.cjs
+      - name: Upload only vetted 43-dependency public compliance ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-site-cms-stage2-independent-review-public-safe
+          path: cms/.build/stage2-public-compliance-only/stage2-independent-dependency-review.zip
+          if-no-files-found: error
+          retention-days: 30
       - name: Verify live private repository status before internal artifact export
         id: private_export
         shell: bash

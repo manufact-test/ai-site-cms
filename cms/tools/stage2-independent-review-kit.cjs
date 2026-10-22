@@ -33,6 +33,16 @@ function sources(){
     'NOTICE checksum mismatch');
   const guide=[
     'AI Site CMS / STAGE 2: INDEPENDENT DEPENDENCY REVIEW',
+    'ИНСТРУКЦИЯ НА РУССКОМ ЯЗЫКЕ:',
+    'Распакуйте ZIP, откройте REVIEW.html локально в Chrome или Edge.',
+    'Проверьте 43 оригинальные лицензии, NOTICE, уязвимости и право распространения.',
+    'Укажите по каждой зависимости дату, проверяющего, ссылки и обоснование.',
+    'Нажмите «Скачать JSON». Передайте экспертный результат отдельно оператору.',
+    'Никаких запросов в сеть, автосохранения, подписи и юридического одобрения нет.',
+    'Stage 2 НЕ принят. Запуск Stage 3 и деплой этим файлом НЕ разрешается.',
+    '',
+    'ENGLISH INSTRUCTIONS FOLLOW:',
+
     'NOT A LEGAL APPROVAL, SIGNED RELEASE, PRODUCTION INSTALLER OR STAGE 3 AUTHORIZATION.',
     '',
     '1. Extract these files, open REVIEW.html in Chrome/Edge (entirely offline).',
