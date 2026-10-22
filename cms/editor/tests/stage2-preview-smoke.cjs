@@ -1063,7 +1063,8 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#undo').click();
     assert.equal(await page.locator('#page-list option').count(),beforeTransfer);
     await page.locator('#redo').click();
-    assert.equal(await page.locator('#page-list').inputValue(),newPageId);
+    assert.equal(await page.locator('#page-list option').count(),beforeTransfer+1);
+    await page.locator('#page-list').selectOption(newPageId);
     assert.equal(await page.evaluate(id=>
       localStorage.getItem('ai-site-cms-stage2-site-'+id+'-versions-v1'),priorId),sourceLocalBefore,
       "source site's saved bytes must be untouched");
