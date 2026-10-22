@@ -917,11 +917,12 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#canvas-media-dialog').waitFor({state:'hidden'});
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),
       'Реальная фотография производственного помещения');
-    assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>el.style.objectPosition),'50% 0%',
-      'hero image markup end: '+await mediaFrame.locator('.hero-photo').evaluate(el=>el.outerHTML.slice(-360)));
+    assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('style'),'object-position:50% 0%');
+    assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>getComputedStyle(el).objectPosition),'50% 0%',
+      'computed image crop must follow stored focal point');
     await page.locator('#undo').click();
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),'service production');
-    assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>el.style.objectPosition),'50% 50%');
+    assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('style'),'object-position:50% 50%');
     await page.locator('#redo').click();
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),
       'Реальная фотография производственного помещения');
@@ -934,7 +935,7 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#canvas-media-apply').click();
     await page.locator('#canvas-media-dialog').waitFor({state:'hidden'});
     await mediaFrame.locator('.studio-grid > article img').first().waitFor({state:'attached'});
-    assert.equal(await mediaFrame.locator('.studio-grid > article img').first().evaluate(el=>el.style.objectPosition),'50% 0%');
+    assert.equal(await mediaFrame.locator('.studio-grid > article img').first().getAttribute('style'),'object-position:50% 0%');
     assert.equal(await mediaFrame.locator('.studio-grid > article img').first().getAttribute('alt'),
       'Реальная фотография производственного помещения');
     await page.locator('#save').click();
