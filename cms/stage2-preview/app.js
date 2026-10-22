@@ -4,7 +4,7 @@
   const C=window.CmsPreviewContent,P=window.CmsPreviewProject,
     R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2,X=window.CmsPreviewExport,M=window.CmsPreviewMedia,
     Q=window.CmsPreviewRepeaters,L=window.CmsPreviewLibrary,O=window.CmsPreviewContentOps,
-    B=window.CmsPreviewBrief;
+    B=window.CmsPreviewBrief,K=window.CmsPreviewQuality;
   const $=id=>document.getElementById(id);
   const ui={list:$('sections'),frame:$('preview'),fields:$('fields'),title:$('site-title'),theme:$('theme'),
     count:$('count'),info:$('selection-info'),status:$('status'),addType:$('new-type'),browser:$('browser'),
@@ -31,44 +31,67 @@
   function bind(){doc=pageDoc();}
   let overviewMode=false;
   function renderOverview(){
+    const report=K.summarize(project);
     $('overview-name').textContent=project.siteTitle;
     $('overview-pages').textContent=String(project.pages.length);
     $('overview-sections').textContent=String(project.pages.reduce((n,p)=>n+p.sections.length,0));
-    const readiness=O.review(project),issues=readiness.issues;
-    $('overview-issues').textContent=String(readiness.total);
-    const list=$('overview-page-list');list.replaceChildren();
-    project.pages.forEach(pg=>{
-      const b=document.createElement('button');
-      b.type='button';b.className='overview-page';
-      const a=document.createElement('span');
-      const title=document.createElement('strong');title.textContent=pg.title;
+    $('overview-issues').textContent=String(report.total);
+    $('quality-attention').textContent=String(report.attention);
+    $('quality-notes').textContent=String(report.notes);
+    $('quality-summary').textContent=report.attention?
+      'Найдены '+report.attention+' важных замечаний к содержимому. Исправьте их, затем проверьте сайт вручную.':
+      'Автоматические важные замечания не обнаружены. Контент, формы и юридические сведения всё равно требуют проверки.';
+    const pages=$('overview-page-list');pages.replaceChildren();
+    report.pages.forEach(pg=>{
+      const b=document.createElement('button');b.type='button';b.className='overview-page';
+      const a=document.createElement('span'),title=document.createElement('strong');
+      title.textContent=pg.title;
       const path=document.createElement('small');path.textContent=pg.slug?'/'+pg.slug:'Главная';
       a.append(title,path);
-      const details=document.createElement('span');details.textContent=pg.sections.length+' секций';
+      const details=document.createElement('span');
+      details.className='quality-page-details';
+      details.textContent=pg.visible+'/'+pg.sections+' секций · '+pg.attention+' важных · '+pg.notes+' подсказок';
       const arrow=document.createElement('span');arrow.textContent='↗';
       b.append(a,details,arrow);
       b.addEventListener('click',()=>{selectPage(pg.id);showOverview(false);});
-      list.append(b);
+      pages.append(b);
     });
+    const pageFilter=$('quality-page');
+    const old=pageFilter.value||'all';
+    pageFilter.replaceChildren();
+    for(const [id,label] of [['all','Все страницы'],...report.pages.map(p=>[p.id,p.title])]){
+      const option=document.createElement('option');option.value=id;option.textContent=label;
+      pageFilter.append(option);
+    }
+    pageFilter.value=[...pageFilter.options].some(o=>o.value===old)?old:'all';
+    const items=K.select(report,{level:$('quality-level').value,pageId:pageFilter.value});
     const audit=$('overview-audit');audit.replaceChildren();
-    if(!issues.length){
-      const ok=document.createElement('p');
-      ok.textContent='Базовых замечаний по содержимому нет. Это не приёмка или SEO-аудит опубликованного сайта.';
-      ok.className='overview-audit-ok';audit.append(ok);
+    $('quality-visible').textContent='Показано '+items.length+' из '+report.total;
+    if(items.length===0){
+      const ok=document.createElement('p');ok.className='overview-audit-ok';
+      ok.textContent=report.total?'По выбранным фильтрам замечаний нет.':'Автоматические замечания не найдены. Это не оценка безопасности и не разрешение на публикацию.';
+      audit.append(ok);
     }else{
-      issues.slice(0,10).forEach(issue=>{
-        const b=document.createElement('button');
-        b.type='button';b.className='overview-audit-item';
-        const title=document.createElement('strong');title.textContent=issue.pageTitle;
-        const detail=document.createElement('span');detail.textContent=issue.reason;
-        b.append(title,detail);
-        b.addEventListener('click',()=>{focusContentEntry(issue);document.querySelector('.sidebar-tools').open=true;$('site-content-ops').open=true;renderContentOps();});
+      for(const item of items){
+        const b=document.createElement('button');b.type='button';
+        b.className='overview-audit-item'+(item.level==='attention'?' is-attention':'');
+        const head=document.createElement('strong');
+        head.textContent=item.kind+' · '+item.pageTitle+(item.sectionTitle?' / '+item.sectionTitle:'');
+        const description=document.createElement('span');description.textContent=item.reason;
+        b.append(head,description);
+        b.addEventListener('click',()=>{
+          focusContentEntry(item);
+          document.querySelector('.sidebar-tools').open=true;
+          $('site-content-ops').open=true;
+          renderContentOps();
+        });
         audit.append(b);
-      });
-      if(issues.length>10){
-        const more=document.createElement('p');
-        more.textContent='Ещё замечаний: '+(issues.length-10);audit.append(more);
       }
+    }
+    if(report.truncated){
+      const remainder=document.createElement('p');remainder.className='setting-helper';
+      remainder.textContent='Ещё '+report.truncated+' замечаний сверх лимита отображения (90).';
+      audit.append(remainder);
     }
   }
   function showOverview(active){
@@ -1209,7 +1232,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B){
+    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -1228,6 +1251,9 @@
     saved=snapshot();apply(project);versions();
     $('overview-open').addEventListener('click',()=>showOverview(true));
     $('overview-editor').addEventListener('click',()=>showOverview(false));
+    $('quality-level').addEventListener('change',renderOverview);
+    $('quality-page').addEventListener('change',renderOverview);
+    $('quality-export').addEventListener('click',exportContentReport);
     $('add').addEventListener('click',add);
     $('section-search').addEventListener('input',listing);
     document.addEventListener('click',e=>{

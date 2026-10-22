@@ -534,3 +534,19 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .brief-submit{display:flex;justify-content:flex-end;padding-top:6px}
 @media(max-width:560px){.brief-form{grid-template-columns:1fr;padding:17px}
 .brief-form label{grid-column:1/-1}.brief-head{padding:20px 17px}}
+
+/* Stage 2 local editorial overview; advisory review, never publish readiness. */
+.quality-summary{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;background:#f5fafd;border:1px solid #d4e7ef;border-radius:14px;padding:16px 20px}
+.quality-summary-head{display:grid;gap:5px;flex:1;min-width:220px}
+.quality-summary-head strong{font-size:13px;color:#254c61}
+.quality-summary-head span{font-size:11px;line-height:1.55;color:#5a7989}
+.quality-summary-counts{display:flex;gap:9px}
+.quality-summary-counts span{font-size:11px;color:#52748a;border:1px solid #dae7f0;background:#fff;padding:6px 9px;border-radius:8px;white-space:nowrap}
+.quality-summary-counts strong{font-size:17px;color:#28516a;margin-right:3px}
+.quality-summary button{white-space:normal;min-height:34px}
+.quality-filters{padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:9px;border-bottom:1px solid #edf2f6}
+.quality-filters label{font-size:10px;font-weight:700;color:#557386;display:grid;gap:6px;min-width:0}
+.quality-filters select{font-size:11px;border-radius:7px;padding:7px;min-width:0;max-width:100%;background:#fff;color:#18394b;border:1px solid #d4e2ed}
+.quality-page-details{font-size:10px!important;max-width:170px;line-height:1.4;text-align:right}
+.overview-audit-item.is-attention{border-left:3px solid #d39a49;background:#fffaf3}
+@media(max-width:550px){.quality-filters{grid-template-columns:1fr}.quality-page-details{max-width:125px}.quality-summary{padding:13px}}

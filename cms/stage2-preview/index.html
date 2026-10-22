@@ -193,9 +193,10 @@
       <section id="site-overview" class="site-overview" hidden aria-label="Обзор демонстрационного сайта">
         <div class="overview-hero"><div class="overview-kicker">ОБЗОР ПРОЕКТА · ЛОКАЛЬНО</div><h3 id="overview-name">Сайт</h3><p>Структура, страницы и базовая проверка содержимого — без публикации и подключения к серверу.</p></div>
         <div class="overview-stats"><div><strong id="overview-pages">0</strong><span>Страниц</span></div><div><strong id="overview-sections">0</strong><span>Секций</span></div><div><strong id="overview-issues">0</strong><span>Замечаний по содержимому</span></div></div>
+        <div class="quality-summary"><div class="quality-summary-head"><strong>Редакторская проверка черновика</strong><span id="quality-summary">Проверяем структуру и содержание…</span></div><div class="quality-summary-counts"><span><strong id="quality-attention">0</strong> важных</span><span><strong id="quality-notes">0</strong> подсказок</span></div><button id="quality-export" class="button subtle" type="button">Скачать полный чек-лист .md</button></div>
         <div class="overview-grid">
           <section class="overview-panel"><div class="overview-panel-head"><h4>Страницы проекта</h4><small>Выберите для редактирования</small></div><div id="overview-page-list" class="overview-page-list"></div></section>
-          <section class="overview-panel"><div class="overview-panel-head"><h4>Проверка содержимого</h4><small>Подсказки для прототипа</small></div><div id="overview-audit" class="overview-audit"></div></section>
+          <section class="overview-panel"><div class="overview-panel-head"><h4>Что проверить</h4><small id="quality-visible">Показано 0</small></div><div class="quality-filters"><label for="quality-level">Важность<select id="quality-level"><option value="all">Все замечания</option><option value="attention">Только важные</option><option value="note">Только подсказки</option></select></label><label for="quality-page">Страница<select id="quality-page"><option value="all">Все страницы</option></select></label></div><div id="overview-audit" class="overview-audit"></div></section>
         </div>
         <div class="overview-warning"><span aria-hidden="true">ⓘ</span><div><strong>Это демонстрационная среда Stage 2</strong><p>Авторизация, серверное сохранение, публикация, реальная генерация ИИ и клиентские данные здесь не реализованы. Итоговое оформление CMS и сайтов будет разрабатываться отдельно.</p></div></div>
       </section>
@@ -283,6 +284,7 @@
   <script src="library.js"></script>
   <script src="project.js"></script>
   <script src="content-ops.js"></script>
+  <script src="quality.js"></script>
   <script src="media.js"></script>
   <script src="renderer.js"></script>
   <script src="site-export.js"></script>

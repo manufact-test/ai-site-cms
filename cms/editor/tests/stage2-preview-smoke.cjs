@@ -636,6 +636,32 @@ const root=path.resolve(__dirname,'../..');
       }finally{await kit.close();}
     }finally{fs.rmSync(kitDir,{recursive:true,force:true});}
 
+    // Editorial review: summary -> actionable page issue -> severity and page
+    // filters -> downloadable full checklist, all within the offline owner studio.
+    await page.locator('#overview-open').click();
+    const attention=Number(await page.locator('#quality-attention').innerText());
+    assert.ok(attention>=1,'brief pages flag fields that still need factual copy');
+    assert.equal(await page.locator('#overview-page-list .overview-page').count(),3);
+    await page.locator('#quality-level').selectOption('attention');
+    assert.ok(await page.locator('#overview-audit .overview-audit-item').count()>0);
+    await page.locator('#quality-page').selectOption({index:1});
+    const filtered=await page.locator('#overview-audit .overview-audit-item').count();
+    assert.ok(filtered>=1,'filtered page still has an editorial item');
+    await page.locator('#quality-page').selectOption('all');
+    const reportReady=page.waitForEvent('download');
+    await page.locator('#quality-export').click();
+    const checklist=await reportReady;
+    assert.equal(checklist.suggestedFilename(),'ai-site-cms-editorial-checklist.md');
+    const markdown=fs.readFileSync(await checklist.path(),'utf8');
+    assert.match(markdown,/Завод Север-Металл/);
+    assert.match(markdown,/Редакторская проверка сайта/);
+    await page.locator('#overview-audit .overview-audit-item').first().click();
+    assert.equal(await page.locator('#site-overview').isVisible(),false);
+    await page.locator('#overview-open').click();
+    await page.locator('#quality-level').selectOption('note');
+    assert.equal(await page.locator('#quality-attention').innerText(),String(attention));
+    await page.locator('#overview-editor').click();
+
     // Stage2 business workflow: company brief -> three editable pages/SEO/contacts
     // -> local backup/site ZIP -> reject HTML injection; no network or fake testimonials.
     await page.locator('#brief-open').click();

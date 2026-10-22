@@ -56,10 +56,12 @@ if(!binary)throw Error('A real Chromium browser is required');
     const upload=page.locator('#import');
     await upload.setInputFiles({name:'review.json',mimeType:'application/json',
       buffer:Buffer.from(JSON.stringify({...original,stage2Accepted:true}))});
+    await page.waitForFunction(()=>document.querySelector('#feedback')?.textContent.includes('Импорт отклонён'));
     assert.match(await page.locator('#feedback').innerText(),/Импорт отклонён/i,
-      ' forged Stage2 approval refused');
+      'forged Stage2 approval refused');
     await upload.setInputFiles({name:'review.json',mimeType:'application/json',
       buffer:Buffer.from(JSON.stringify(original))});
+    await page.waitForFunction(()=>document.querySelector('#feedback')?.textContent.includes('Импортирован рабочий лист'));
     assert.match(await page.locator('#feedback').innerText(),/Импортирован рабочий лист/i);
     assert.equal(await page.locator('#rejected').innerText(),'1');
     assert.equal(await page.locator('#pending').innerText(),'42');
