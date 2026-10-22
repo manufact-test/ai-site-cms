@@ -169,7 +169,9 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#site-navigation').uncheck();
     assert.equal(await frame.locator('.menu').count(),0,'site-wide menu can be disabled');
     await page.locator('#site-navigation').check();
-    await frame.locator('.menu').waitFor();
+    // With CSP-compliant CSS loaded, the desktop menu may be intentionally hidden
+    // at a narrow iframe width; presence and responsive mobile navigation matter.
+    await frame.locator('.menu').waitFor({state:'attached'});
     assert.equal(await frame.locator('.menu').count(),1);
     // Design: global tokens and a visible section's theme, history and HTML parity.
     await page.locator('.design-settings > summary').click();
