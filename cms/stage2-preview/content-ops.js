@@ -117,7 +117,7 @@
     catch(e){return {valid:false,error:e.message,changes,occurrences,candidate:null};}
     return {valid:true,error:'',changes,occurrences,candidate};
   }
-  const examples=/\b(?:демо(?:нстрац\w*)?|пример(?:а|ный)?|заглушк\w*|замените|добавьте|укажите)\b/iu;
+  const examples=/(?<![\p{L}\p{N}])(?:демо(?:нстрац\p{L}*)?|пример(?:а|ный)?|заглушк\p{L}*|замените|добавьте|укажите|уточните)(?![\p{L}\p{N}])/iu;
   function review(raw){
     const doc=P.validate(raw),issues=[];
     const push=(page,section,level,reason)=>issues.push({
