@@ -768,9 +768,7 @@
 
     // Add editing affordances ONLY to this script-free preview DOM, not exported HTML.
     const page=activePage();
-    const hints=body.createElement('style');
-    hints.textContent='.cms-edit-target:hover,.cms-edit-target:focus-visible{outline:2px dashed var(--accent);outline-offset:4px;cursor:text}.cms-edit-target{transition:outline-color .12s}';
-    body.head.append(hints);
+    // Edit styling comes from the CSP-permitted Blob stylesheet (renderer.styles).
     for(const section of page.sections){
       const area=body.querySelector('[data-preview-section="'+section.id+'"]');
       if(!area)continue;
@@ -795,9 +793,6 @@
 
     // In-page media controls are added by Studio only; exported HTML has no edit UI.
     // All bindings resolve to stable section/item IDs, never to an array position.
-    const photoStyle=body.createElement('style');
-    photoStyle.textContent='.cms-photo-target{position:relative}.cms-photo-control{position:absolute;z-index:8;top:12px;right:12px;padding:8px 12px;border-radius:9px;border:1px solid #ffffffb8;background:#112536eb;color:white;font:700 12px system-ui;cursor:pointer;box-shadow:0 5px 20px #0005}.cms-photo-control:hover,.cms-photo-control:focus-visible{background:#137e9a;color:#fff;outline:3px solid #fff;outline-offset:2px}';
-    body.head.append(photoStyle);
     const addPhotoControl=(host,ref,label)=>{
       if(!host)return;
       host.classList.add('cms-photo-target');
