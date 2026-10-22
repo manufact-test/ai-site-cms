@@ -137,7 +137,7 @@
         <select id="page-list" aria-label="Открытая страница"></select>
         <nav id="page-tree" class="page-tree" aria-label="Страницы проекта"></nav>
         <div class="page-actions">
-          <button id="page-add" class="button subtle" type="button">+ Страница</button><button id="page-recipe-open" class="button dark" type="button">+ По структуре</button>
+          <button id="page-add" class="button subtle" type="button">+ Страница</button><button id="page-recipe-open" class="button dark" type="button">+ По структуре</button><button id="page-transfer-open" class="button subtle" type="button">↗ Из другого сайта</button>
           <button id="page-copy" class="button subtle" type="button">⧉ Копия</button>
           <button id="page-delete" class="button subtle danger" type="button">Удалить</button><button id="page-up" class="button subtle" type="button">↑ Страница</button><button id="page-down" class="button subtle" type="button">↓ Страница</button>
         </div>
@@ -333,6 +333,30 @@
       </div>
     </form>
   </dialog>
+  <dialog id="page-transfer-dialog" class="page-recipe-dialog" aria-labelledby="page-transfer-title">
+    <form id="page-transfer-form">
+      <div class="page-recipe-head">
+        <div><span>ПЕРЕИСПОЛЬЗОВАНИЕ · ЛОКАЛЬНО</span><h2 id="page-transfer-title">Перенести страницу из другого сайта</h2>
+        <p>Сохраним блоки, контент, дизайн и фотографии. Исходный сайт останется без изменений.</p></div>
+        <button id="page-transfer-close" type="button" aria-label="Закрыть">×</button>
+      </div>
+      <div class="page-recipe-body">
+        <div class="page-recipe-fields page-transfer-fields">
+          <label for="page-transfer-site">Из какого сайта</label>
+          <select id="page-transfer-site" required></select>
+          <label for="page-transfer-page">Какую страницу перенести</label>
+          <select id="page-transfer-page" required></select>
+          <div id="page-transfer-summary" class="page-transfer-summary" role="status" aria-live="polite"></div>
+          <p class="setting-helper">При совпадении файлов фотографии используются повторно. Адрес страницы станет уникальным; ссылки на другие страницы исходного сайта и привязки к его библиотеке секций будут сняты. Глобальные настройки целевого сайта не меняются.</p>
+          <p id="page-transfer-error" role="alert" hidden></p>
+        </div>
+        <div class="page-recipe-footer">
+          <button id="page-transfer-cancel" type="button" class="button subtle">Отмена</button>
+          <button id="page-transfer-submit" type="submit" class="button dark">Добавить страницу в текущий сайт</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
   <dialog id="page-recipe-dialog" class="page-recipe-dialog" aria-labelledby="page-recipe-title">
     <form id="page-recipe-form">
       <div class="page-recipe-head"><div><span>КОМПОЗИЦИЯ СТРАНИЦЫ</span><h2 id="page-recipe-title">Новая страница по задаче</h2><p>Редактируемая структура без выдуманных клиентов, достижений и цифр.</p></div><button id="page-recipe-close" type="button" aria-label="Закрыть">×</button></div>
@@ -389,6 +413,7 @@
   <script src="canvas-edit.js"></script>
   <script src="canvas-media.js"></script>
   <script src="media-ops.js"></script>
+  <script src="page-transfer.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
