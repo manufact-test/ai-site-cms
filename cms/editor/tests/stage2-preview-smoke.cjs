@@ -336,7 +336,8 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#contact-phone').press('Tab');
     await page.locator('#contact-address').fill('Минск, промышленная улица, 10');
     await page.locator('#contact-address').press('Tab');
-    await frame.locator('.header-contact').waitFor();
+    // Header contact is intentionally hidden by real responsive CSS below 800px.
+    await frame.locator('.header-contact').waitFor({state:'attached'});
     assert.match(await frame.locator('.foot .contact-points').innerText(),/sales@example.com/);
     await page.locator('#section-action').selectOption('email');
     await page.waitForFunction(()=>document.querySelector('#preview').srcdoc.includes('Контактная ссылка доступна'));
