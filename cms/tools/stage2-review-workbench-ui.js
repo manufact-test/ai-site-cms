@@ -82,20 +82,35 @@
   };
   function gapsFor(row){
     const gaps=[];
-    if(row.disposition==='pending')gaps.push('Незавершённое решение эксперта');
+    if(row.disposition==='pending'){
+      gaps.push('Незавершённое решение эксперта');
+      if(row.reviewedOn!==null)gaps.push('Ожидающее решение не должно содержать дату утверждения');
+    }
     if(row.disposition==='approved')
       for(const key of reviewChecks)if(row[key]!==true)gaps.push(checkLabels[key]);
     if(row.disposition!=='pending'){
       if(!Array.isArray(row.evidenceUrls)||row.evidenceUrls.length<2)
         gaps.push('Нужно минимум две HTTPS-ссылки на доказательства');
-      if(!row.reviewerReference)gaps.push('Укажите код независимого проверяющего');
+      else if(row.evidenceUrls.some(s=>{
+        try{
+          const u=new URL(s);
+          return typeof s!=='string'||s.length>500||s.includes('\\')||
+            u.protocol!=='https:'||!!u.username||!!u.password||!!u.search||!!u.hash||
+            ['localhost','127.0.0.1'].includes(u.hostname)||
+            /\.(local|internal|test|invalid|example)$/.test(u.hostname);
+        }catch{return true;}
+      }))gaps.push('Исправьте недопустимые ссылки на доказательства');
+      if(!row.reviewerReference||
+          !/^[A-Za-z0-9][A-Za-z0-9_.:@/-]{2,119}$/.test(row.reviewerReference))
+        gaps.push('Укажите корректный код независимого проверяющего');
       const value=String(row.reviewedOn||'');
       const time=Date.parse(value+'T00:00:00Z');
       if(!/^\d{4}-\d\d-\d\d$/.test(value)||!Number.isFinite(time)
           ||new Date(time).toISOString().slice(0,10)!==value||time>Date.now())
         gaps.push('Укажите корректную дату решения');
-      if(typeof row.notes!=='string'||row.notes.trim().length<12)
-        gaps.push('Напишите обоснование (от 12 символов)');
+      if(typeof row.notes!=='string'||row.notes.trim().length<12||
+         row.notes.length>2000||row.notes.includes('\0'))
+        gaps.push('Напишите корректное обоснование (12–2000 символов)');
     }
     if(!['pending','approved','rejected'].includes(row.disposition))
       gaps.push('Недопустимый статус');
