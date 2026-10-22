@@ -203,8 +203,8 @@ const root=path.resolve(__dirname,'../..');
     const legacy=await page.evaluate(()=>{
       const P=window.CmsPreviewProject;
       const v=P.starter('agency');
-      v.format=P.olderFormat;delete v.settings;delete v.design;
-      v.pages.forEach(pg=>{delete pg.inMenu;delete pg.hiddenSections;delete pg.sectionStyles;});
+      v.format=P.legacyV2;delete v.settings;delete v.design;delete v.media;
+      v.pages.forEach(pg=>{delete pg.inMenu;delete pg.hiddenSections;delete pg.sectionStyles;delete pg.mediaSlots;});
       const migrated=P.normalize(v);
       return {format:migrated.format,pages:migrated.pages.length,settings:migrated.settings,valid:P.validate(migrated).format};
     });
@@ -213,14 +213,42 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(legacy.settings.showNavigation,true);
     const oldV3=await page.evaluate(()=>{
       const P=window.CmsPreviewProject,v=P.starter('products');
-      v.format=P.previousFormat;delete v.design;
-      v.pages.forEach(pg=>{delete pg.sectionStyles;});
+      v.format=P.olderFormat;delete v.design;delete v.media;
+      v.pages.forEach(pg=>{delete pg.sectionStyles;delete pg.mediaSlots;});
       return P.normalize(v);
     });
     assert.equal(oldV3.pages.length,3);
     assert.equal(oldV3.design.font,'system');
     assert.equal(Object.keys(oldV3.pages[0].sectionStyles).length,0);
+    const oldV4=await page.evaluate(()=>{
+      const P=window.CmsPreviewProject,v=P.starter('agency');
+      v.format=P.previousFormat;delete v.media;
+      v.pages.forEach(pg=>{delete pg.mediaSlots;});
+      return P.normalize(v);
+    });
+    assert.equal(oldV4.pages.length,3);
+    assert.equal(oldV4.design.radius,'round');
 
+    // Full media workflow: import local JPG/PNG, browser-only WebP conversion,
+    // assign to a hero, preview safely, export as a relative offline asset.
+    const png=await page.evaluate(()=>{
+      const canvas=document.createElement('canvas');canvas.width=200;canvas.height=130;
+      const context=canvas.getContext('2d');context.fillStyle='#345678';context.fillRect(0,0,200,130);
+      context.fillStyle='#badcfe';context.fillRect(25,15,150,100);
+      return canvas.toDataURL('image/png').split(',')[1];
+    });
+    await page.locator('#media-file').setInputFiles({
+      name:'factory-photo.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')
+    });
+    await page.locator('#media-list img').first().waitFor();
+    assert.equal(await page.locator('#media-count').innerText(),'1');
+    await page.locator('#media-binding-fields select').first().selectOption({index:1});
+    await frame.locator('.hero-photo').waitFor();
+    assert.equal(await frame.locator('.hero-photo').getAttribute('alt'),'factory photo');
+    await page.locator('#save').click();
+    await page.reload();
+    assert.equal(await page.locator('#media-count').innerText(),'1');
+    assert.equal(await frame.locator('.hero-photo').count(),1);
     // Product flow C: download a real offline ZIP with navigation, per-page SEO and a JSON backup.
     const zipped=page.waitForEvent('download');
     await page.locator('#project-actions summary').click();
@@ -230,6 +258,10 @@ const root=path.resolve(__dirname,'../..');
     const zipFiles=execFileSync('unzip',['-Z1',zipPath],{encoding:'utf8'}).trim().split('\n');
     assert.ok(zipFiles.includes('index.html')&&zipFiles.includes('services.html'));
     assert.ok(zipFiles.includes('project-backup.json')&&zipFiles.includes('README.txt'));
+    const webpName=zipFiles.find(name=>/^media\/asset-[a-z0-9-]+\.webp$/.test(name));
+    assert.ok(webpName,'binary optimized photo must be included in the archive');
+    const webp=execFileSync('unzip',['-p',zipPath,webpName]);
+    assert.equal(webp.toString('ascii',0,4),'RIFF');
     const siteHTML=execFileSync('unzip',['-p',zipPath,'index.html'],{encoding:'utf8'});
     assert.doesNotMatch(siteHTML,/href="services\.html"/,'excluded page is absent from navigation');
     assert.doesNotMatch(siteHTML,/class="cards"/,'hidden section omitted from exported HTML');
@@ -238,13 +270,17 @@ const root=path.resolve(__dirname,'../..');
     assert.match(siteHTML,/--accent:#935120/);
     assert.match(siteHTML,/class="surface-dark hero"/);
     assert.match(siteHTML,/site-floating/);
+    assert.match(siteHTML,/src="media\/asset-[a-z0-9-]+\.webp"/);
+    assert.doesNotMatch(siteHTML,/data:image\/webp;base64/);
     assert.match(siteHTML,/<meta name="description"/);
     const backup=JSON.parse(execFileSync('unzip',['-p',zipPath,'project-backup.json'],{encoding:'utf8'}));
-    assert.equal(backup.format,'ai-site-cms-stage2-multipage-preview-v4');
+    assert.equal(backup.format,'ai-site-cms-stage2-multipage-preview-v5');
     assert.equal(backup.pages.find(p=>p.slug==='services').inMenu,false);
     assert.equal(backup.pages[0].hiddenSections.length,1);
     assert.equal(backup.design.accent,'#935120');
     assert.equal(backup.design.font,'editorial');
+    assert.equal(backup.media.length,1);
+    assert.equal(Object.keys(backup.pages[0].mediaSlots).length,1);
     assert.equal(Object.values(backup.pages[0].sectionStyles).filter(v=>v==='dark').length,1);
     assert.ok(backup.pages[0].sections.some(section=>section.id===backup.pages[0].hiddenSections[0]));
     assert.doesNotMatch(siteHTML,/<script[\s>]/i);

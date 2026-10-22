@@ -1,10 +1,14 @@
 'use strict';
-/* Stage2 offline design-review project v3; neither production schema nor publisher. */
+/* Stage2 offline design-review project v5; neither production schema nor publisher. */
 (()=>{
   const C=window.CmsPreviewContent;
-  const format='ai-site-cms-stage2-multipage-preview-v4';
-  const previousFormat='ai-site-cms-stage2-multipage-preview-v3';
-  const olderFormat='ai-site-cms-stage2-multipage-preview-v2';
+  const format='ai-site-cms-stage2-multipage-preview-v5';
+  const previousFormat='ai-site-cms-stage2-multipage-preview-v4';
+  const olderFormat='ai-site-cms-stage2-multipage-preview-v3';
+  const legacyV2='ai-site-cms-stage2-multipage-preview-v2';
+  const MAX_MEDIA=6;
+  const MAX_MEDIA_CHARS=240000;
+  const imageSlots={hero:['hero'],story:['photo'],catalog:['image1','image2','image3'],services:['image1','image2','image3']};
   const MAX_PAGES=8;
   let counter=1;
   const newId=()=> 'page-'+Date.now().toString(36)+'-'+(counter++).toString(36);
@@ -21,15 +25,15 @@
     const d=C.validate(doc);
     return {id:newId(),title:'Главная',slug:'',seoTitle:d.siteTitle.slice(0,70),
       seoDescription:'Демонстрационный проект сайта и редактора AI Site CMS.',
-      inMenu:true,hiddenSections:[],sectionStyles:{},sections:d.sections};
+      inMenu:true,hiddenSections:[],sectionStyles:{},mediaSlots:{},sections:d.sections};
   }
   function template(){
     const d=C.template();
-    return {format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),design:design(),pages:[pageFromLegacy(d)]};
+    return {format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),design:design(),media:[],pages:[pageFromLegacy(d)]};
   }
   function validate(raw){
     if(!raw||typeof raw!=='object'||Array.isArray(raw)
-      ||!allowedKeys(raw,['format','siteTitle','theme','settings','design','pages'])
+      ||!allowedKeys(raw,['format','siteTitle','theme','settings','design','media','pages'])
       ||raw.format!==format
       ||typeof raw.siteTitle!=='string'||raw.siteTitle.length<1||raw.siteTitle.length>100
       ||!Object.hasOwn(C.palette,raw.theme)
@@ -43,13 +47,27 @@
       ||typeof raw.design.accent!=='string'
       ||(raw.design.accent!==''&&!/^#[0-9a-f]{6}$/.test(raw.design.accent))
       ||Object.entries(allowedDesign).some(([key,values])=>!values.includes(raw.design[key]))
+      ||!Array.isArray(raw.media)||raw.media.length>MAX_MEDIA
       ||!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>MAX_PAGES)
       throw Error('Неизвестный формат или настройки проекта');
+    const mediaIds=new Set();
+    for(const asset of raw.media){
+      if(!asset||typeof asset!=='object'||Array.isArray(asset)
+        ||!allowedKeys(asset,['id','alt','data'])
+        ||typeof asset.id!=='string'||!/^asset-[a-z0-9-]{5,48}$/.test(asset.id)
+        ||mediaIds.has(asset.id)||typeof asset.alt!=='string'||asset.alt.length>160
+        ||asset.alt.includes('\0')||typeof asset.data!=='string'
+        ||asset.data.length>MAX_MEDIA_CHARS
+        ||!/^data:image\/webp;base64,UklGR[A-Za-z0-9+/]*={0,2}$/.test(asset.data)
+        ||(asset.data.length-23)%4!==0)
+        throw Error('Некорректное изображение: разрешены только встроенные WebP-файлы');
+      mediaIds.add(asset.id);
+    }
     const ids=new Set(),slugs=new Set();
     let homepageCount=0;
     for(const page of raw.pages){
       if(!page||typeof page!=='object'||Array.isArray(page)
-        ||!allowedKeys(page,['id','title','slug','seoTitle','seoDescription','inMenu','hiddenSections','sectionStyles','sections'])
+        ||!allowedKeys(page,['id','title','slug','seoTitle','seoDescription','inMenu','hiddenSections','sectionStyles','mediaSlots','sections'])
         ||typeof page.id!=='string'||!/^page-[a-z0-9-]{5,48}$/.test(page.id)||ids.has(page.id)
         ||typeof page.title!=='string'||page.title.length<1||page.title.length>90
         ||typeof page.slug!=='string'||(page.slug!==''&&!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(page.slug))||page.slug.length>70||slugs.has(page.slug)
@@ -65,7 +83,15 @@
         ||!page.sectionStyles||typeof page.sectionStyles!=='object'||Array.isArray(page.sectionStyles)
         ||Object.keys(page.sectionStyles).length>12
         ||Object.entries(page.sectionStyles).some(([id,style])=>
-          !page.sections.some(s=>s.id===id)||!['soft','dark','accent'].includes(style)))
+          !page.sections.some(s=>s.id===id)||!['soft','dark','accent'].includes(style))
+        ||!page.mediaSlots||typeof page.mediaSlots!=='object'||Array.isArray(page.mediaSlots)
+        ||Object.keys(page.mediaSlots).length>12
+        ||Object.entries(page.mediaSlots).some(([sectionId,slots])=>{
+          const section=page.sections.find(s=>s.id===sectionId);
+          return !section||!imageSlots[section.type]||!slots||typeof slots!=='object'
+            ||Array.isArray(slots)||Object.keys(slots).length>3
+            ||Object.entries(slots).some(([slot,id])=>!imageSlots[section.type].includes(slot)||!mediaIds.has(id));
+        }))
         throw Error('Некорректные настройки или повторяющиеся адреса страниц');
       ids.add(page.id);slugs.add(page.slug);
       if(page.slug==='')homepageCount++;
@@ -77,14 +103,17 @@
   function normalize(raw){
     if(raw&&raw.format===C.format){
       const d=C.validate(raw);
-      return validate({format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),pages:[pageFromLegacy(d)]});
+      return validate({format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),design:design(),media:[],pages:[pageFromLegacy(d)]});
     }
-    if(raw&&(raw.format===previousFormat||raw.format===olderFormat)){
-      const next=structuredClone(raw),isV2=raw.format===olderFormat;
-      next.format=format;next.design=design();
+    if(raw&&[previousFormat,olderFormat,legacyV2].includes(raw.format)){
+      const next=structuredClone(raw),isV2=raw.format===legacyV2;
+      next.format=format;next.media=[];
       if(isV2)next.settings=settings();
-      next.pages=next.pages.map(p=>({...p,
-        ...(isV2?{inMenu:true,hiddenSections:[]}:{}),sectionStyles:{}
+      if(isV2||raw.format===olderFormat)next.design=design();
+      next.pages=next.pages.map(p=>({
+        ...p,...(isV2?{inMenu:true,hiddenSections:[]}:{}),
+        ...(isV2||raw.format===olderFormat?{sectionStyles:{}}:{}),
+        mediaSlots:{}
       }));
       return validate(next);
     }
@@ -104,14 +133,15 @@
       if(from.hiddenSections.includes(s.id))hidden.push(sections[i].id);
       return hidden;
     },[]):[];
-    const sectionStyles={};
+    const sectionStyles={},mediaSlots={};
     if(source)from.sections.forEach((s,i)=>{
       if(from.sectionStyles[s.id])sectionStyles[sections[i].id]=from.sectionStyles[s.id];
+      if(from.mediaSlots[s.id])mediaSlots[sections[i].id]=structuredClone(from.mediaSlots[s.id]);
     });
     return {id:newId(),title:source?from.title.slice(0,80)+' (копия)':'Новая страница',
       slug,seoTitle:source?from.seoTitle:('Новая страница — '+project.siteTitle).slice(0,70),
       seoDescription:source?from.seoDescription:'',inMenu:source?from.inMenu:true,
-      hiddenSections,sectionStyles,sections};
+      hiddenSections,sectionStyles,mediaSlots,sections};
   }
   function starter(kind){
     const configs={
@@ -134,7 +164,7 @@
       kind==='agency'?{...design(),font:'geometric',radius:'round',spacing:'relaxed',navigation:'floating'}:
       {...design(),font:'editorial',spacing:'compact'};
     result.pages=config.pages.map(([title,slug,seoTitle,types],i)=>({
-      id:i===0?result.pages[0].id:newId(),title,slug,seoTitle,inMenu:true,hiddenSections:[],sectionStyles:{},
+      id:i===0?result.pages[0].id:newId(),title,slug,seoTitle,inMenu:true,hiddenSections:[],sectionStyles:{},mediaSlots:{},
       seoDescription:'Демонстрационная страница «'+title+'». Замените описание своим текстом перед использованием.',
       sections:types.map(type=>{
         const s=C.createSection(type);
@@ -162,7 +192,21 @@
   function pageDoc(project,page){
     return {format:C.format,siteTitle:project.siteTitle,theme:project.theme,sections:page.sections};
   }
+  function resolveMedia(project,page,exportLinks=false){
+    const assets=new Map(project.media.map(item=>[item.id,item])),out={};
+    for(const [sectionId,slots] of Object.entries(page.mediaSlots)){
+      out[sectionId]={};
+      for(const [slot,id] of Object.entries(slots)){
+        const asset=assets.get(id);
+        if(asset)out[sectionId][slot]={
+          src:exportLinks?'media/'+asset.id+'.webp':asset.data,
+          alt:asset.alt
+        };
+      }
+    }
+    return out;
+  }
   Object.defineProperty(window,'CmsPreviewProject',{value:Object.freeze({
-    format,previousFormat,olderFormat,MAX_PAGES,template,normalize,validate,createPage,pageDoc,starter,audit
+    format,previousFormat,olderFormat,legacyV2,MAX_PAGES,MAX_MEDIA,imageSlots,template,normalize,validate,createPage,pageDoc,resolveMedia,starter,audit
   })});
 })();

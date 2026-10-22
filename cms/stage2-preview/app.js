@@ -2,7 +2,7 @@
 /* Stage2 offline MULTIPAGE product preview. No API, auth, server writes or publishing. */
 (()=>{
   const C=window.CmsPreviewContent,P=window.CmsPreviewProject,
-    R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2,X=window.CmsPreviewExport;
+    R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2,X=window.CmsPreviewExport,M=window.CmsPreviewMedia;
   const $=id=>document.getElementById(id);
   const ui={list:$('sections'),frame:$('preview'),fields:$('fields'),title:$('site-title'),theme:$('theme'),
     count:$('count'),info:$('selection-info'),status:$('status'),addType:$('new-type'),browser:$('browser'),
@@ -275,7 +275,7 @@
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
         menu:project.pages.filter(x=>x.inMenu).map(x=>({id:x.id,title:x.title,slug:x.slug})),
         active:pageId,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
-         design:project.design,...project.settings
+         design:project.design,mediaBySection:P.resolveMedia(project,p),...project.settings
       });
       ui.count.textContent=doc.sections.length+' блоков';
       ui.seoSnippetTitle.textContent=p.seoTitle;
@@ -288,7 +288,7 @@
   function checkpoint(type,coalesce=false){
     const now=Date.now();
     if(!(coalesce&&lastType===type&&now-lastAt<1200)){
-      undo.push(snapshot());if(undo.length>60)undo.shift();
+      undo.push(snapshot());if(undo.length>(project.media.length?16:60))undo.shift();
     }
     lastType=type;lastAt=now;redo=[];
   }
@@ -341,6 +341,7 @@
     ui.sectionVisible.checked=!activePage().hiddenSections.includes(s.id);
     ui.sectionVisible.disabled=false;
     $('section-surface').value=activePage().sectionStyles[s.id]||'default';
+    renderMediaPicker();
     ui.info.textContent=C.definitions[s.type].label+' · меняйте свойства выбранной страницы';
     ui.fields.replaceChildren();
     editor=E.mount({container:ui.fields,schema:C.schema(s.type),data:s.props,onChange(value){
@@ -362,7 +363,7 @@
     bind();
     selection=doc.sections.some(s=>s.id===preferredSection)?preferredSection:doc.sections[0].id;
     ui.title.value=project.siteTitle;ui.theme.value=project.theme;lastType='';
-    pageUI();listing();mount();changed();showReview();
+    pageUI();listing();mount();renderMediaLibrary();changed();showReview();
   }
   function selectPage(id){
     if(!project.pages.some(p=>p.id===id)||id===pageId)return;
@@ -396,6 +397,7 @@
     copy.props=structuredClone(source.props);
     target.sections.push(copy);
     if(activePage().sectionStyles[source.id])target.sectionStyles[copy.id]=activePage().sectionStyles[source.id];
+    if(activePage().mediaSlots[source.id])target.mediaSlots[copy.id]=structuredClone(activePage().mediaSlots[source.id]);
     selectPage(target.id);select(copy.id);changed();
     toast('Блок скопирован на выбранную страницу');
   }
@@ -413,6 +415,94 @@
     }
     checkpoint('settings:'+field,true);project.settings[field]=value;
     changed();toast('Настройки сайта изменены в локальном черновике');
+  }
+  let mediaSerial=0;
+  const nextAssetId=()=> 'asset-'+Date.now().toString(36)+'-'+(++mediaSerial).toString(36).padStart(5,'0');
+  function renderMediaLibrary(){
+    $('media-count').textContent=String(project.media.length);
+    $('media-upload').disabled=project.media.length>=P.MAX_MEDIA;
+    const list=$('media-list');list.replaceChildren();
+    if(!project.media.length){
+      const empty=document.createElement('p');empty.className='setting-helper';
+      empty.textContent='Изображений пока нет. Можно добавить фотографии для главного экрана, компании, услуг и каталога.';
+      list.append(empty);return;
+    }
+    for(const asset of project.media){
+      const row=document.createElement('div');row.className='media-item';
+      const image=document.createElement('img');image.src=asset.data;image.alt=asset.alt;image.loading='lazy';
+      const detail=document.createElement('div');detail.className='media-item-detail';
+      const label=document.createElement('label');label.textContent='Описание изображения';
+      const alt=document.createElement('input');alt.type='text';alt.maxLength=160;
+      alt.setAttribute('aria-label','Описание изображения для '+asset.id);
+      alt.value=asset.alt;
+      alt.addEventListener('change',()=>{
+        if(alt.value===asset.alt)return;
+        checkpoint('media-alt');asset.alt=alt.value;changed();
+      });
+      label.append(alt);detail.append(label);
+      const remove=document.createElement('button');remove.type='button';remove.className='text-button';
+      remove.textContent='Удалить фото';remove.addEventListener('click',()=>{
+        if(!confirm('Удалить изображение со всех страниц и секций этого проекта?'))return;
+        checkpoint('media-delete');
+        project.media=project.media.filter(item=>item.id!==asset.id);
+        for(const page of project.pages){
+          for(const [sectionId,slots] of Object.entries(page.mediaSlots)){
+            for(const [slot,id] of Object.entries(slots))if(id===asset.id)delete slots[slot];
+            if(!Object.keys(slots).length)delete page.mediaSlots[sectionId];
+          }
+        }
+        renderMediaLibrary();renderMediaPicker();changed();
+        toast('Фотография удалена из проекта и всех блоков');
+      });
+      detail.append(remove);row.append(image,detail);list.append(row);
+    }
+  }
+  function renderMediaPicker(){
+    const section=current(),page=activePage(),items=section&&M.slots[section.type];
+    const holder=$('media-binding'),fields=$('media-binding-fields');fields.replaceChildren();
+    holder.hidden=!items;
+    if(!items)return;
+    for(const [slot,title] of items){
+      const label=document.createElement('label');label.className='field-label';label.textContent=title;
+      const select=document.createElement('select');
+      select.setAttribute('aria-label',title);
+      const blank=document.createElement('option');blank.value='';blank.textContent='Без фотографии';select.append(blank);
+      project.media.forEach(asset=>{
+        const opt=document.createElement('option');opt.value=asset.id;
+        opt.textContent=asset.alt||'Фото '+asset.id.slice(-5);select.append(opt);
+      });
+      select.value=page.mediaSlots[section.id]?.[slot]||'';
+      select.addEventListener('change',()=>{
+        const next=select.value;
+        if(next&&!project.media.some(m=>m.id===next))return;
+        const old=page.mediaSlots[section.id]?.[slot]||'';
+        if(old===next)return;
+        checkpoint('media-assign');
+        if(!page.mediaSlots[section.id])page.mediaSlots[section.id]={};
+        if(next)page.mediaSlots[section.id][slot]=next;
+        else delete page.mediaSlots[section.id][slot];
+        if(!Object.keys(page.mediaSlots[section.id]).length)delete page.mediaSlots[section.id];
+        changed();
+      });
+      label.append(select);fields.append(label);
+    }
+  }
+  async function uploadMedia(files){
+    if(!files?.length)return;
+    for(const file of [...files]){
+      if(project.media.length>=P.MAX_MEDIA){
+        toast('Можно хранить не больше '+P.MAX_MEDIA+' фотографий; удалите ненужные',true);break;
+      }
+      try{
+        const image=await M.decode(file);
+        const asset={id:nextAssetId(),...image};
+        const next={...project,media:[...project.media,asset]};
+        P.validate(next);
+        checkpoint('media-upload');project.media.push(asset);
+        renderMediaLibrary();renderMediaPicker();changed();
+      }catch(e){toast('Не удалось добавить «'+file.name+'»: '+e.message,true);return;}
+    }
+    toast('Фотографии добавлены в локальную медиабиблиотеку');
   }
   function syncDesignUI(){
     for(const field of ['font','radius','spacing','navigation']){
@@ -479,6 +569,7 @@
     checkpoint('structure');const s=doc.sections.splice(i,1)[0];
     activePage().hiddenSections=activePage().hiddenSections.filter(id=>id!==s.id);
     delete activePage().sectionStyles[s.id];
+    delete activePage().mediaSlots[s.id];
     if(s.id===selection)selection=doc.sections[Math.min(i,doc.sections.length-1)].id;
     listing();mount();changed();toast('Блок удалён');
   }
@@ -487,6 +578,7 @@
     checkpoint('structure');const source=doc.sections[i],copy=C.createSection(source.type);
     copy.props=structuredClone(source.props);doc.sections.splice(i+1,0,copy);selection=copy.id;
     if(activePage().sectionStyles[source.id])activePage().sectionStyles[copy.id]=activePage().sectionStyles[source.id];
+    if(activePage().mediaSlots[source.id])activePage().mediaSlots[copy.id]=structuredClone(activePage().mediaSlots[source.id]);
     listing();mount();changed();toast('Блок дублирован');
   }
   function add(){
@@ -526,7 +618,7 @@
     toast('Все страницы экспортированы в один JSON. На сервер ничего не отправлено');
   }
   async function imports(file){
-    if(!file)return;if(file.size>500000)return toast('Максимум 500 КБ для JSON',true);
+    if(!file)return;if(file.size>2_200_000)return toast('Максимум 2,2 МБ для резервного JSON',true);
     try{
       const valid=P.normalize(JSON.parse(await file.text()));
       if(dirty&&!confirm('Заменить несохранённые изменения импортированным проектом?'))return;
@@ -574,7 +666,8 @@
     try{
       const valid=P.validate(project),currentJSON=JSON.stringify(valid);
       if(currentJSON!==saved||!records.length){
-        const next=[{at:Date.now(),doc:valid},...records].slice(0,LIMIT);
+        const capacity=Math.max(1,Math.min(LIMIT,Math.floor(3_300_000/Math.max(currentJSON.length,1))));
+        const next=[{at:Date.now(),doc:valid},...records].slice(0,capacity);
         localStorage.setItem(storageKey,JSON.stringify(next));records=next;
       }
       saved=currentJSON;versions();indicators();
@@ -589,7 +682,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X){
+    if(!C||!P||!R||!E||!X||!M){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -599,6 +692,10 @@
     }
     ui.frame.addEventListener('load',bindPreviewClicks);
     $('expand-preview').addEventListener('click',expandPreview);
+    $('media-upload').addEventListener('click',()=>$('media-file').click());
+    $('media-file').addEventListener('change',async e=>{
+      const files=[...(e.target.files||[])];e.target.value='';await uploadMedia(files);
+    });
     readSaved();readReview();if(records.length)project=P.normalize(records[0].doc);
     saved=snapshot();apply(project);versions();
     $('overview-open').addEventListener('click',()=>showOverview(true));

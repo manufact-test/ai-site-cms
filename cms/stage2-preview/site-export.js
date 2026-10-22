@@ -26,7 +26,7 @@
     const local=[],central=[];
     let offset=0,centralSize=0;
     for(const file of files){
-      const name=utf8(file.name),bytes=utf8(file.content),crc=crc32(bytes);
+      const name=utf8(file.name),bytes=file.content instanceof Uint8Array?file.content:utf8(file.content),crc=crc32(bytes);
       if(name.length>65535||bytes.length>2_000_000)throw Error('Файл превышает лимит демо-архива');
       const header=new Uint8Array(30),a=new DataView(header.buffer);
       a.setUint32(0,0x04034b50,true);
@@ -59,16 +59,23 @@
       content:R.render(P.pageDoc(project,p),null,false,{
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
         menu,active:p.id,exportLinks:true,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
-        design:project.design,...project.settings
+        design:project.design,mediaBySection:P.resolveMedia(project,p,true),...project.settings
       })
     }));
+    for(const asset of project.media){
+      const data=asset.data.slice('data:image/webp;base64,'.length);
+      const binary=atob(data),bytes=new Uint8Array(binary.length);
+      for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+      files.push({name:'media/'+asset.id+'.webp',content:bytes});
+    }
     files.push({name:'project-backup.json',content:JSON.stringify(project,null,2)+'\n'});
     files.push({name:'README.txt',content:
       'AI Site CMS — offline demo export (Stage 2)\n\n'+
       'Unpack the archive and open index.html in a browser.\n'+
       'Only menu-enabled pages are listed in navigation; every page is exported.\n'+
       'Hidden sections are omitted from rendered HTML but retained in the backup JSON.\n'+
-      'Sitewide design tokens and individual section surfaces are embedded without external assets.\n'+
+      'Sitewide design tokens and individual section surfaces are embedded.\n'+
+      'Local optimized WebP photos are stored under media/ with offline relative links.\n'+
       'All navigation is local; no server, CMS, network access or form submission.\n'+
       'project-backup.json can be imported back into the local preview editor.\n'+
       'This is NOT a production build, deploy package, public site or publication.\n'+

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' file:; style-src 'self' file:; frame-src 'self' blob:; base-uri 'none'; connect-src 'none'; img-src 'none'; font-src 'none'; object-src 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' file:; style-src 'self' file:; frame-src 'self' blob:; base-uri 'none'; connect-src 'none'; img-src 'self' file: data: blob:; font-src 'none'; object-src 'none'; form-action 'none'">
   <title>AI Site CMS — локальная демонстрация редактора</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="studio.css">
@@ -66,6 +66,14 @@
         <label class="field-label" for="design-navigation">Оформление шапки</label>
         <select id="design-navigation"><option value="standard">Классическая</option><option value="bordered">С разделителями</option><option value="floating">Плавающая панель</option></select>
         <p class="setting-helper">Все стили локальные: без загрузки шрифтов или CSS из сети.</p>
+      </details>
+      <details class="media-library">
+        <summary>Медиафайлы сайта <span id="media-count">0</span></summary>
+        <p class="setting-helper">Фотографии сохраняются в проекте и автономном HTML ZIP. Только локальные JPG, PNG или WebP — без ссылок на внешние серверы.</p>
+        <button id="media-upload" class="button dark" type="button">+ Добавить фотографии</button>
+        <input id="media-file" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+        <div id="media-list" class="media-list"></div>
+        <p class="setting-helper">До 6 оптимизированных WebP-файлов. Резервный JSON содержит изображения.</p>
       </details>
       <div class="starter-bar">
         <label class="field-label" for="starter-type">Готовые заготовки (3 страницы)</label>
@@ -130,6 +138,11 @@
       <label class="field-label" for="section-surface">Оформление фона секции</label>
       <select id="section-surface" aria-label="Стиль фона выбранной секции"><option value="default">Обычный фон</option><option value="soft">Светлый фон</option><option value="dark">Тёмный фон</option><option value="accent">Фирменный акцент</option></select>
       <p class="setting-helper">Оформление сохраняется при копировании и экспорте блока.</p>
+      <section class="media-binding" id="media-binding" aria-label="Фотографии выбранной секции" hidden>
+        <strong>Фотографии секции</strong>
+        <div id="media-binding-fields"></div>
+        <p class="setting-helper">Выбранные фото появятся в предпросмотре и HTML-экспорте.</p>
+      </section>
       <div id="fields" aria-live="off"></div><details class="review-notes"><summary>Замечания к макету <span id="review-count">0</span></summary>
   <p class="review-help">Заметки сохраняются в этом браузере отдельно от версий сайта. Это обратная связь по макету, не приёмка Stage 2.</p>
   <p class="review-context" id="review-context">Выберите блок для замечания</p>
@@ -146,6 +159,7 @@
   <script src="../editor/dist/editor.js"></script>
   <script src="content.js"></script>
   <script src="project.js"></script>
+  <script src="media.js"></script>
   <script src="renderer.js"></script>
   <script src="site-export.js"></script>
   <script src="app.js"></script>
