@@ -297,6 +297,7 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#new-type').selectOption('leadform');
     await page.locator('#add').click();
     await frame.locator('.studio-form input[disabled]').first().waitFor();
+    if(!await page.locator('.sidebar-tools').evaluate(el=>el.open))await page.locator('.sidebar-tools > summary').click();
     await page.locator('.audit-panel summary').click();
     assert.ok((await page.locator('#audit-count').innerText()).length>0);
     await page.locator('#save').click();
