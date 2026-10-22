@@ -388,7 +388,15 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#page-list').selectOption({index:0});
     await page.locator('#sections li').filter({hasText:'Каталог продукции'}).locator('.section-select').click();
     await page.locator('#fields input').nth(1).fill('Каталог завода — обновлён');
+    await page.locator('#fields input').nth(1).press('Tab');
     await page.waitForFunction(()=>document.querySelector('#preview').srcdoc.includes('Каталог завода — обновлён'));
+    await page.locator('#save').click();
+    const beforePublish=await page.evaluate(()=>{
+      const saved=JSON.parse(localStorage.getItem('ai-site-cms-stage2-preview-local-v1'));
+      return saved[0].doc.pages[0].sections.filter(s=>s.type==='catalog').map(s=>s.props.title);
+    });
+    assert.ok(beforePublish.includes('Каталог завода — обновлён'),
+      'edited source must persist before updating linked instances: '+JSON.stringify(beforePublish));
     page.once('dialog',dialog=>dialog.accept());
     await page.locator('#library-publish').click();
     assert.match(await page.locator('#library-link-title').innerText(),/v2/);
