@@ -13,6 +13,7 @@
   <header class="app-head">
     <div class="brand"><span class="brand-mark">M</span><div><strong>AI Site CMS</strong><small>Локальная продуктовая демонстрация</small></div></div>
     <div class="head-actions">
+      <div class="workspace-switch"><label for="workspace-select">САЙТ <small id="workspace-count">1/8</small></label><select id="workspace-select" aria-label="Активный локальный сайт"><option>Новый сайт</option></select></div>
       <div class="project-location"><span class="project-location-label">РАБОЧАЯ ОБЛАСТЬ</span><strong id="active-breadcrumb">Новый сайт / Главная</strong></div>
       <span class="dev-badge">STAGE 2 · UX LAB</span>
       <div class="edit-history" role="group" aria-label="История изменений">
@@ -25,7 +26,9 @@
         <summary class="button subtle">Проект <span aria-hidden="true">⌄</span></summary>
         <div class="project-action-menu">
           <strong class="project-menu-title">Управление проектом</strong>
-          <button id="reset" class="button subtle" type="button">+ Новый проект</button>
+          <button id="reset" class="button subtle" type="button">+ Новый сайт</button>
+          <button id="workspace-copy" class="button subtle" type="button">⧉ Копировать текущий сайт</button>
+          <button id="workspace-delete" class="button subtle danger" type="button">Удалить текущий сайт</button>
           <button id="import" class="button subtle" type="button">Импортировать JSON</button>
           <button id="export" class="button subtle" type="button">Экспортировать JSON</button>
           <button id="download-site" class="button primary" type="button">Скачать демо-сайт ZIP</button>
@@ -185,7 +188,7 @@
         </div>
       </details>
       <details class="audit-panel"><summary>Проверка структуры и SEO <span id="audit-count">…</span></summary><div id="audit-results"></div><p class="audit-explain">Подсказки только для черновика. Не гарантируют поисковое продвижение.</p></details>
-      <div class="local-drafts"><div class="draft-heading"><strong>Локальные версии</strong><button id="clear-versions" type="button" class="text-button">Удалить все</button></div><p id="save-state" class="save-state" role="status">Проверка хранилища…</p><ol id="versions" class="version-list"></ol></div></details>
+      <div class="local-drafts"><div class="draft-heading"><strong>Локальные версии</strong><button id="clear-versions" type="button" class="text-button">Очистить старые</button></div><p id="save-state" class="save-state" role="status">Проверка хранилища…</p><ol id="versions" class="version-list"></ol></div></details>
       <div class="new-section"><label class="field-label" for="new-type">Добавить секцию</label><div class="add-row"><select id="new-type" aria-label="Тип нового блока"></select><button id="add" class="button dark" type="button">+ Добавить</button></div></div>
     </aside>
     <section class="canvas" aria-labelledby="canvas-title">
@@ -289,6 +292,7 @@
   <script src="renderer.js"></script>
   <script src="site-export.js"></script>
   <script src="brief.js"></script>
+  <script src="workspaces.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

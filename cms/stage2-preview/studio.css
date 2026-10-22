@@ -550,3 +550,14 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .quality-page-details{font-size:10px!important;max-width:170px;line-height:1.4;text-align:right}
 .overview-audit-item.is-attention{border-left:3px solid #d39a49;background:#fffaf3}
 @media(max-width:550px){.quality-filters{grid-template-columns:1fr}.quality-page-details{max-width:125px}.quality-summary{padding:13px}}
+
+
+/* Multi-client local workspaces, a distinct site and history per selector entry. */
+.workspace-switch{display:grid;gap:3px;min-width:150px;max-width:220px}
+.workspace-switch label{color:#7dabbc;font-size:10px;letter-spacing:.08em;font-weight:800}
+.workspace-switch label small{font-weight:500;letter-spacing:0;margin-left:5px;opacity:.8}
+.workspace-switch select{width:100%;box-sizing:border-box;color:#e8f7ff;background:#182f40;
+  border:1px solid #3b647a;border-radius:8px;padding:8px 12px;font-size:12px;
+  cursor:pointer;text-overflow:ellipsis;min-height:35px}
+.workspace-switch select:focus-visible{outline:2px solid #78d1eb;outline-offset:2px}
+@media(max-width:780px){.workspace-switch{min-width:118px;max-width:180px}}

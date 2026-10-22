@@ -673,6 +673,32 @@ const root=path.resolve(__dirname,'../..');
     await page.reload();
     assert.equal(await page.locator('#site-title').inputValue(),'Завод Север-Металл');
 
+    // Multiple independent sites: move between a brief-built site and a saved
+    // original, clone, delete clone, reload, and preserve per-site notes/history.
+    assert.ok(await page.locator('#workspace-select option').count()>=2);
+    const briefingId=await page.locator('#workspace-select').inputValue();
+    const ids=await page.locator('#workspace-select option').evaluateAll(xs=>xs.map(x=>x.value));
+    const priorId=ids.find(x=>x!==briefingId);
+    assert.ok(priorId);
+    await page.locator('#workspace-select').selectOption(priorId);
+    assert.notEqual(await page.locator('#site-title').inputValue(),'Завод Север-Металл');
+    await page.locator('#workspace-select').selectOption(briefingId);
+    assert.equal(await page.locator('#site-title').inputValue(),'Завод Север-Металл');
+    await page.locator('#project-actions summary').click();
+    await page.locator('#workspace-copy').click();
+    assert.equal(await page.locator('#workspace-select option').count(),ids.length+1);
+    assert.match(await page.locator('#site-title').inputValue(),/\(копия\)/);
+    await page.locator('#project-actions summary').click();
+    page.once('dialog',dialog=>dialog.accept());
+    await page.locator('#workspace-delete').click();
+    assert.equal(await page.locator('#workspace-select option').count(),ids.length);
+    assert.notEqual(await page.locator('#workspace-select').inputValue(),briefingId);
+    await page.locator('#workspace-select').selectOption(briefingId);
+    assert.equal(await page.locator('#site-title').inputValue(),'Завод Север-Металл');
+    await page.reload();
+    assert.equal(await page.locator('#workspace-select').inputValue(),briefingId);
+    assert.equal(await page.locator('#page-list option').count(),3);
+
     // Editorial review: summary -> actionable page issue -> severity and page
     // filters -> downloadable full checklist, all within the offline owner studio.
     await page.locator('#overview-open').click();

@@ -4,7 +4,7 @@
   const C=window.CmsPreviewContent,P=window.CmsPreviewProject,
     R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2,X=window.CmsPreviewExport,M=window.CmsPreviewMedia,
     Q=window.CmsPreviewRepeaters,L=window.CmsPreviewLibrary,O=window.CmsPreviewContentOps,
-    B=window.CmsPreviewBrief,K=window.CmsPreviewQuality;
+    B=window.CmsPreviewBrief,K=window.CmsPreviewQuality,W=window.CmsPreviewWorkspaces;
   const $=id=>document.getElementById(id);
   const ui={list:$('sections'),frame:$('preview'),fields:$('fields'),title:$('site-title'),theme:$('theme'),
     count:$('count'),info:$('selection-info'),status:$('status'),addType:$('new-type'),browser:$('browser'),
@@ -13,8 +13,10 @@
     seoTitle:$('seo-title'),seoDescription:$('seo-description'),
     seoSnippetTitle:$('seo-snippet-title'),seoSnippetDescription:$('seo-snippet-description'),
     seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url'),audit:$('audit-results'),auditCount:$('audit-count'),sectionVisible:$('section-visible')};
-  const storageKey='ai-site-cms-stage2-preview-local-v1',LIMIT=8;
-  const reviewKey='ai-site-cms-stage2-preview-feedback-v1',MAX_REVIEW=50;
+  const LIMIT=8;
+  let workspaceStore=null,workspaceId='';
+  let reviewKey='ai-site-cms-stage2-preview-feedback-v1';
+  const MAX_REVIEW=50;
   let project=P.template(),pageId=project.pages[0].id,doc,selection='',editor=null,
       dirty=false,records=[],storageOK=false;
   let saved='',undo=[],redo=[],lastType='',lastAt=0,focus='page',toastTimer;
@@ -114,6 +116,7 @@
     toastTimer=setTimeout(()=>ui.status.className='status',4000);
   }
   function readReview(){
+    review=[];
     try{
       const raw=localStorage.getItem(reviewKey);
       if(!raw)return;
@@ -1122,32 +1125,94 @@
     apply(JSON.parse(from.pop()),pageId,selection);
     toast(which==='undo'?'Изменение отменено':'Изменение повторено');
   }
+  function renderWorkspaces(){
+    const select=$('workspace-select'),current=select.value;
+    select.replaceChildren();
+    const entries=workspaceStore?.list()||[];
+    for(const entry of entries){
+      const option=document.createElement('option');option.value=entry.id;
+      option.textContent=entry.id===workspaceId?project.siteTitle:entry.title;
+      select.append(option);
+    }
+    select.value=workspaceId||current;
+    $('workspace-count').textContent=entries.length+'/'+8;
+    $('workspace-copy').disabled=!storageOK||entries.length>=8;
+    $('workspace-delete').disabled=!storageOK||entries.length<2;
+    $('reset').disabled=!storageOK||entries.length>=8;
+  }
+  function persistCurrent(){
+    if(!storageOK||!workspaceStore)return false;
+    try{
+      const json=snapshot();
+      if(json!==saved||!records.length){
+        records=workspaceStore.save(workspaceId,project);
+        saved=json;
+        versions();indicators();renderWorkspaces();
+      }
+      return true;
+    }catch(e){toast('Не удалось сохранить сайт: '+e.message+'. Скачайте резервный JSON.',true);return false;}
+  }
+  function activateWorkspace(entry){
+    workspaceId=entry.id;
+    reviewKey=W.notesKey(workspaceId);
+    records=entry.records;
+    saved=JSON.stringify(entry.doc);
+    undo=[];redo=[];lastType='';lastAt=0;
+    contentPlan=null;contentExcluded.clear();
+    apply(entry.doc);versions();readReview();showReview();renderWorkspaces();
+  }
+  function startWorkspace(next){
+    if(!storageOK)return toast('Локальное хранилище недоступно. Экспортируйте JSON',true),false;
+    if(!persistCurrent())return false;
+    try{
+      const entry=workspaceStore.add(next);
+      activateWorkspace(entry);
+      return true;
+    }catch(e){toast('Не удалось создать отдельный сайт: '+e.message,true);return false;}
+  }
+  function switchWorkspace(id){
+    if(id===workspaceId)return;
+    if(!persistCurrent()){$('workspace-select').value=workspaceId;return;}
+    try{
+      const entry=workspaceStore.select(id);
+      activateWorkspace(entry);
+      toast('Открыт сайт «'+project.siteTitle+'». Его версии и заметки отделены от других.');
+    }catch(e){$('workspace-select').value=workspaceId;toast('Не удалось открыть сайт: '+e.message,true);}
+  }
+  function duplicateWorkspace(){
+    if(!storageOK)return;
+    const copy=P.normalize(project);
+    copy.siteTitle=(copy.siteTitle.slice(0,91)+' (копия)').slice(0,100);
+    if(startWorkspace(copy))toast('Создана независимая копия сайта со всеми его страницами и изображениями');
+  }
+  function deleteWorkspace(){
+    if(!storageOK||!workspaceStore||workspaceStore.list().length<2)return;
+    if(!confirm('Удалить текущий локальный сайт «'+project.siteTitle+'» со всеми его версиями и заметками? Сначала скачайте резервный JSON. Отменить удаление нельзя.'))return;
+    try{
+      const next=workspaceStore.remove(workspaceId);
+      activateWorkspace(next);
+      toast('Сайт удалён локально. Открыт другой проект.');
+    }catch(e){toast('Не удалось удалить сайт: '+e.message,true);}
+  }
   function generateFromBrief(event){
     event.preventDefault();
-    const b={};
-    for(const key of ['kind','company','offering','audience','benefit','proof','email','phone','address']){
-      b[key]=$('brief-'+key).value;
-    }
+    const data={};
+    for(const key of ['kind','company','offering','audience','benefit','proof','email','phone','address'])
+      data[key]=$('brief-'+key).value;
     try{
-      const generated=B.build(b);
-      if(!confirm('Создать новый трёхстраничный черновик на основе брифа? Сначала экспортируйте текущий проект, если он нужен.'))return;
-      checkpoint('site-from-brief');
-      apply(generated);
+      const site=B.build(data);
+      if(!confirm('Создать отдельный локальный сайт из брифа? Текущий сайт останется доступен.'))return;
+      if(!startWorkspace(site))return;
       $('brief-dialog').close();
       $('project-actions').open=false;
       showOverview(false);
-      toast('Созданы три редактируемые страницы, SEO и контакты из брифа. Это локальный шаблон, не ИИ и не публикация.');
-    }catch(e){
-      $('brief-error').textContent='Не удалось создать черновик: '+e.message;
-      $('brief-error').hidden=false;
-    }
+      toast('Новый сайт из брифа сохранён отдельно. Предыдущие проекты доступны в переключателе.');
+    }catch(e){$('brief-error').textContent='Не удалось создать сайт: '+e.message;$('brief-error').hidden=false;}
   }
   function starter(){
     const kind=$('starter-type').value;
-    if(!confirm('Заменить текущий демонстрационный проект готовой заготовкой? При необходимости сначала сохраните JSON.'))return;
-    checkpoint('starter');
-    apply(P.starter(kind));
-    toast('Открыта многостраничная заготовка. Тексты и контакты — демонстрационные');
+    if(!confirm('Создать отдельный сайт из шаблона? Текущий проект сохранится.'))return;
+    if(startWorkspace(P.starter(kind)))toast('Открыта отдельная многостраничная заготовка. Контакты пока демонстрационные.');
   }
   function downloadSite(){
     let zip;
@@ -1168,28 +1233,25 @@
     toast('Все страницы экспортированы в один JSON. На сервер ничего не отправлено');
   }
   async function imports(file){
-    if(!file)return;if(file.size>4_200_000)return toast('Максимум 4,2 МБ для резервного JSON',true);
+    if(!file)return;
+    if(file.size>4_200_000)return toast('Максимум 4,2 МБ для резервного JSON',true);
     try{
       const valid=P.normalize(JSON.parse(await file.text()));
-      if(dirty&&!confirm('Заменить несохранённые изменения импортированным проектом?'))return;
-      checkpoint('import');apply(valid);toast('Проект импортирован. Для сохранения нажмите «Сохранить локально»');
+      if(!startWorkspace(valid))return;
+      toast('Импортированный проект добавлен отдельным сайтом. Исходные сайты не изменены.');
     }catch(e){toast('Ошибка импорта: '+e.message,true);}
   }
   function readSaved(){
     try{
-      const store=localStorage,probe=storageKey+'-probe';
-      store.setItem(probe,'1');store.removeItem(probe);storageOK=true;
-      const raw=store.getItem(storageKey);if(!raw)return;
-      const value=JSON.parse(raw);
-      if(!Array.isArray(value)||value.length>LIMIT)throw Error('Неверный формат');
-      records=value.map(r=>{
-        if(!r||typeof r.at!=='number'||!Number.isFinite(r.at)||r.at<=0||r.at>Date.now()+86400000)
-          throw Error('Неверная дата');
-        return {at:r.at,doc:P.normalize(r.doc)};
-      });
+      const probe='ai-site-cms-stage2-workspaces-probe';
+      localStorage.setItem(probe,'1');localStorage.removeItem(probe);
+      workspaceStore=W.create(localStorage);
+      const entry=workspaceStore.open();
+      storageOK=true;workspaceId=entry.id;records=entry.records;project=entry.doc;
+      reviewKey=W.notesKey(workspaceId);
     }catch(e){
-      records=[];toast(storageOK?'Локальные версии повреждены. Используйте резервный JSON':
-        'Хранилище браузера недоступно — пользуйтесь экспортом JSON',true);
+      storageOK=false;workspaceStore=null;records=[];
+      toast('Локальные сайты не открылись: '+e.message+'. Резервный JSON по-прежнему можно скачать.',true);
     }
   }
   function versions(){
@@ -1213,16 +1275,7 @@
   }
   function save(){
     if(!storageOK)return;
-    try{
-      const valid=P.validate(project),currentJSON=JSON.stringify(valid);
-      if(currentJSON!==saved||!records.length){
-        const capacity=Math.max(1,Math.min(LIMIT,Math.floor(3_300_000/Math.max(currentJSON.length,1))));
-        const next=[{at:Date.now(),doc:valid},...records].slice(0,capacity);
-        localStorage.setItem(storageKey,JSON.stringify(next));records=next;
-      }
-      saved=currentJSON;versions();indicators();
-      toast('Все страницы сохранены только в этом браузере, не на сервере');
-    }catch(e){toast('Сохранение недоступно. Экспортируйте резервный JSON',true);}
+    if(persistCurrent())toast('Текущий сайт и его отдельная история сохранены только в этом браузере');
   }
   function expandPreview(){
     const expanded=document.body.classList.toggle('preview-expanded');
@@ -1232,7 +1285,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K){
+    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -1247,8 +1300,11 @@
     $('media-file').addEventListener('change',async e=>{
       const files=[...(e.target.files||[])];e.target.value='';await uploadMedia(files);
     });
-    readSaved();readReview();if(records.length)project=P.normalize(records[0].doc);
-    saved=snapshot();apply(project);versions();
+    readSaved();readReview();
+    saved=snapshot();apply(project);versions();renderWorkspaces();
+    $('workspace-select').addEventListener('change',()=>switchWorkspace($('workspace-select').value));
+    $('workspace-copy').addEventListener('click',duplicateWorkspace);
+    $('workspace-delete').addEventListener('click',deleteWorkspace);
     $('overview-open').addEventListener('click',()=>showOverview(true));
     $('overview-editor').addEventListener('click',()=>showOverview(false));
     $('quality-level').addEventListener('change',renderOverview);
@@ -1335,13 +1391,13 @@
     ui.seoTitle.addEventListener('change',()=>{editPage('seoTitle',ui.seoTitle.value.trim());ui.seoTitle.value=activePage().seoTitle;});
     ui.seoDescription.addEventListener('input',()=>editPage('seoDescription',ui.seoDescription.value));
     $('reset').addEventListener('click',()=>{
-      if(dirty&&!confirm('Создать новый проект и потерять несохранённые изменения?'))return;
-      checkpoint('new');apply(P.template());toast('Новый проект. Старые версии доступны');
+      if(startWorkspace(P.template()))toast('Создан новый отдельный сайт. Предыдущие проекты сохранены.');
     });
     $('clear-versions').addEventListener('click',()=>{
-      if(!records.length||!storageOK||!confirm('Удалить все локальные версии? Сначала экспортируйте JSON.'))return;
-      try{localStorage.removeItem(storageKey);records=[];saved='';versions();indicators();toast('Локальные версии удалены');}
-      catch(e){toast('Ошибка удаления локальных версий',true);}
+      if(!records.length||!storageOK||!confirm('Удалить старые версии текущего сайта, оставив одну актуальную? Сначала экспортируйте JSON.'))return;
+      try{records=workspaceStore.prune(workspaceId,project);saved=snapshot();versions();indicators();
+        toast('Старая история текущего сайта очищена. Актуальная версия сохранена.');}
+      catch(e){toast('Ошибка очистки истории: '+e.message,true);}
     });
     ui.save.addEventListener('click',save);
     ui.undo.addEventListener('click',()=>travel('undo'));
@@ -1354,7 +1410,7 @@
       if(!ui.title.value){toast('Введите название проекта',true);return;}
       checkpoint('title',true);project.siteTitle=ui.title.value;bind();
       $('active-breadcrumb').textContent=project.siteTitle+' / '+activePage().title;
-      changed();
+      changed();renderWorkspaces();
     });
     ui.theme.addEventListener('change',()=>{
       if(project.theme===ui.theme.value)return;
