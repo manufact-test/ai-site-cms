@@ -992,6 +992,41 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#undo').click();
     assert.equal(await page.frameLocator('#preview').locator('.hero-photo').count(),1);
 
+    // Media operations are a real multi-page workflow: inspect references, jump
+    // to the actual section, replace everywhere (including cards and recipes),
+    // prohibit deleting a referenced file, and undo/redo the transaction.
+    if(!await page.locator('.media-library').evaluate(el=>el.open))
+      await page.locator('.media-library > summary').click();
+    const originalMedia=page.locator('#media-list .media-item').first();
+    assert.match(await originalMedia.locator('.media-usage-count').innerText(),/Используется:/);
+    assert.equal(await originalMedia.locator('.media-remove').isDisabled(),true);
+    await originalMedia.locator('.media-usage-details > summary').click();
+    assert.ok(await originalMedia.locator('.media-usage-content > .text-button').count()>=2,
+      'usage includes the live hero and a catalog/services card');
+    await originalMedia.locator('.media-usage-content > .text-button').first().click();
+    assert.equal(await page.locator('#page-list').inputValue(),recipePageId);
+    await page.locator('#media-file').setInputFiles({
+      name:'replacement-photo.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')
+    });
+    assert.equal(await page.locator('#media-list .media-item').count(),2);
+    const source=page.locator('#media-list .media-item').first();
+    await source.locator('.media-usage-details > summary').click();
+    const refsBefore=await source.locator('.media-usage-count').innerText();
+    page.once('dialog',d=>d.accept());
+    await source.locator('.media-usage-content .button').click();
+    assert.equal(await page.frameLocator('#preview').locator('.hero-photo').getAttribute('alt'),'replacement photo');
+    assert.equal(await page.frameLocator('#preview').locator('.studio-grid > article img').first().getAttribute('alt'),'replacement photo');
+    assert.match(await page.locator('#media-list .media-item').first().locator('.media-usage-count').innerText(),/Не используется/);
+    assert.match(refsBefore,/Используется:/);
+    await page.locator('#undo').click();
+    assert.equal(await page.frameLocator('#preview').locator('.hero-photo').getAttribute('alt'),
+      'Реальная фотография производственного помещения');
+    await page.locator('#redo').click();
+    assert.equal(await page.frameLocator('#preview').locator('.hero-photo').getAttribute('alt'),'replacement photo');
+    await page.locator('#save').click();
+    await page.reload();
+    assert.equal(await page.frameLocator('#preview').locator('.hero-photo').getAttribute('alt'),'replacement photo');
+
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
     console.log('Stage2 OWNER REVIEW KIT PASS: standalone editor ZIP, canvas block click, menu navigation, fullscreen, owner feedback Markdown+persist, starter sites, offline site ZIP and ZERO network.');
