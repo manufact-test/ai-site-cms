@@ -87,6 +87,21 @@
       <details class="design-settings">
         <summary>Дизайн сайта <small>Все страницы</small></summary>
         <p class="setting-helper">Настройки изменяют сайт, а не оболочку редактора.</p>
+        <div class="direction-picker" aria-label="Дизайн-направления сайта">
+          <strong>Дизайн-направление</strong>
+          <p class="setting-helper">Четыре целостные композиции. Предпросмотр не меняет черновик; применение можно отменить.</p>
+          <div id="direction-gallery" class="direction-gallery" role="group" aria-label="Варианты дизайна"></div>
+          <label class="field-label" for="direction-scope">Применить к</label>
+          <select id="direction-scope"><option value="all">Всему сайту: фирменный стиль и все страницы</option><option value="page">Только текущей странице: композиция без смены цветов</option></select>
+          <p class="direction-info" id="direction-preview-status" role="status">Выберите направление, чтобы посмотреть его на макете.</p>
+          <div class="direction-buttons">
+            <button id="direction-try" type="button" class="button subtle">Посмотреть</button>
+            <button id="direction-apply" type="button" class="button dark">Применить</button>
+            <button id="direction-cancel" type="button" class="button subtle" disabled>Сбросить просмотр</button>
+          </div>
+          <p class="setting-helper">При применении изменяются композиции и поверхности секций; текст, фотографии, SEO, контакты и ссылки не удаляются. Настройки ниже позволяют индивидуальную доработку.</p>
+        </div>
+
         <label class="field-label" for="design-accent">Фирменный цвет</label>
         <div class="design-color-row"><input id="design-accent" type="color" aria-label="Выбрать фирменный цвет"><button id="design-accent-reset" class="button subtle" type="button">Цвет темы</button></div>
         <label class="field-label" for="design-font">Типографика</label>
@@ -300,6 +315,7 @@
   <script src="site-export.js"></script>
   <script src="brief.js"></script>
   <script src="workspaces.js"></script>
+  <script src="art-direction.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

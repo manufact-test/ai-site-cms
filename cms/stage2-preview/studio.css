@@ -561,3 +561,22 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
   cursor:pointer;text-overflow:ellipsis;min-height:35px}
 .workspace-switch select:focus-visible{outline:2px solid #78d1eb;outline-offset:2px}
 @media(max-width:780px){.workspace-switch{min-width:118px;max-width:180px}}
+
+
+/* Stage2 curated art directions: review before applying; all data stays local. */
+.direction-picker{padding:12px 0 18px;border-bottom:1px solid #385269;margin-bottom:12px}
+.direction-picker>strong{display:block;font-size:13px;color:#e5f4fa}
+.direction-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.direction-card{min-width:0;display:grid;gap:5px;text-align:left;background:#162838;color:#e0edf6;border:1px solid #476174;border-radius:10px;padding:9px;cursor:pointer}
+.direction-card[aria-pressed="true"]{outline:2px solid #7bd6ec;outline-offset:1px;background:#213f53}
+.direction-card:focus-visible{outline:3px solid #7bd6ec;outline-offset:2px}
+.direction-swatch{display:flex;height:24px;border-radius:5px;overflow:hidden;background:#fff}
+.direction-swatch>span:first-child{width:38%;background:var(--direction-color)}
+.direction-swatch>span:nth-child(2){width:24%;background:#f1ece5}
+.direction-swatch>span:nth-child(3){flex:1;background:#162735}
+.direction-card strong{font-size:11px;line-height:1.4}
+.direction-card small{font-size:10px;color:#bdd0dc;line-height:1.4}
+.direction-info{margin:10px 0;font-size:11px;color:#cbe3ee;line-height:1.5}
+.direction-buttons{display:flex;flex-wrap:wrap;gap:6px}
+.direction-buttons button{font-size:11px;min-height:35px;flex:1 1 92px;white-space:normal}
+.direction-picker #direction-scope{font-size:11px}

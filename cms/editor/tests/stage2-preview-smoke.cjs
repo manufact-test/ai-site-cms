@@ -766,6 +766,31 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(await page.locator('#quality-attention').innerText(),String(attention));
     await page.locator('#overview-editor').click();
 
+    // Art direction: dry-run the real iframe, discard without mutating, apply globally,
+    // verify other pages and undo. All data remains inside the local product preview.
+    await page.locator('.design-settings').evaluate(el=>el.open=true);
+    const oldStyle=await page.locator('#preview').getAttribute('srcdoc');
+    await page.locator('.direction-card[aria-label="Редакционный минимализм"]').click();
+    await page.locator('#direction-try').click();
+    assert.match(await page.locator('#preview').getAttribute('srcdoc'),/--accent:#a65039/);
+    await page.locator('#direction-cancel').click();
+    assert.equal(await page.locator('#preview').getAttribute('srcdoc'),oldStyle);
+    await page.locator('#direction-apply').click();
+    assert.match(await page.locator('#preview').getAttribute('srcdoc'),/--accent:#a65039/);
+    const differentPage=await page.locator('#page-list option').nth(1).getAttribute('value');
+    await page.locator('#page-list').selectOption(differentPage);
+    assert.match(await page.locator('#preview').getAttribute('srcdoc'),/--accent:#a65039/);
+    await page.locator('#undo').click();
+    assert.doesNotMatch(await page.locator('#preview').getAttribute('srcdoc'),/--accent:#a65039/);
+    await page.locator('#direction-scope').selectOption('page');
+    await page.locator('.direction-card[aria-label="Точная инженерия"]').click();
+    const baseline=await page.locator('#preview').getAttribute('srcdoc');
+    await page.locator('#direction-apply').click();
+    const scoped=await page.locator('#preview').getAttribute('srcdoc');
+    assert.ok(scoped!==baseline,'single page composition really changed');
+    assert.equal((scoped.match(/--accent:([^;]+)/)||[])[1],(baseline.match(/--accent:([^;]+)/)||[])[1],
+      'page-only composition retains site-wide brand color');
+
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
     console.log('Stage2 OWNER REVIEW KIT PASS: standalone editor ZIP, canvas block click, menu navigation, fullscreen, owner feedback Markdown+persist, starter sites, offline site ZIP and ZERO network.');

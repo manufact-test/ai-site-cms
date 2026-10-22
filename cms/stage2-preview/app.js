@@ -13,6 +13,59 @@
     seoTitle:$('seo-title'),seoDescription:$('seo-description'),
     seoSnippetTitle:$('seo-snippet-title'),seoSnippetDescription:$('seo-snippet-description'),
     seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url'),audit:$('audit-results'),auditCount:$('audit-count'),sectionVisible:$('section-visible')};
+
+  const D=window.CmsPreviewArtDirection;
+  let directionPreview=null;
+  let directionSelection='precision';
+  function renderDirections(){
+    const gallery=$('direction-gallery');gallery.replaceChildren();
+    for(const [key,entry] of Object.entries(D.profiles)){
+      const button=document.createElement('button');button.type='button';
+      button.className='direction-card';button.setAttribute('aria-pressed',String(key===directionSelection));
+      button.setAttribute('aria-label',entry.name);
+      const swatch=document.createElement('span');swatch.className='direction-swatch';
+      swatch.style.setProperty('--direction-color',entry.color);
+      for(let n=0;n<3;n++)swatch.append(document.createElement('span'));
+      const name=document.createElement('strong');name.textContent=entry.name;
+      const description=document.createElement('small');description.textContent=entry.description;
+      button.append(swatch,name,description);
+      button.addEventListener('click',()=>{
+        directionSelection=key;
+        if(directionPreview)stopDirectionPreview();
+        renderDirections();
+      });
+      gallery.append(button);
+    }
+  }
+  function stopDirectionPreview(redraw=true){
+    directionPreview=null;
+    $('direction-cancel').disabled=true;
+    $('direction-preview-status').textContent='Предпросмотр не применяется к сохранённым данным.';
+    if(redraw)preview();
+  }
+  function tryDirection(){
+    try{
+      const scope=$('direction-scope').value;
+      directionPreview={candidate:D.compose(project,directionSelection,scope,pageId),scope};
+      $('direction-cancel').disabled=false;
+      $('direction-preview-status').textContent=scope==='all'?
+        'ПРОСМОТР: новый стиль всего сайта. Текущий черновик не изменён.':
+        'ПРОСМОТР: новая композиция этой страницы без изменения глобального стиля.';
+      preview();
+    }catch(e){stopDirectionPreview();toast(e.message,true);}
+  }
+  function applyDirection(){
+    try{
+      const scope=$('direction-scope').value;
+      const candidate=D.compose(project,directionSelection,scope,pageId);
+      if(JSON.stringify(project)===JSON.stringify(candidate)){stopDirectionPreview();return;}
+      checkpoint('art-direction');
+      apply(candidate,pageId,selection);
+      toast(scope==='all'?'Дизайн всего сайта обновлён; Ctrl+Z отменит изменение':
+        'Композиция страницы обновлена; Ctrl+Z отменит изменение');
+    }catch(e){stopDirectionPreview();toast(e.message,true);}
+  }
+
   const LIMIT=8;
   let workspaceStore=null,workspaceId='';
   let reviewKey='ai-site-cms-stage2-preview-feedback-v1';
@@ -468,16 +521,18 @@
   }
   function preview(){
     try{
-      const p=activePage();
-      ui.frame.srcdoc=R.render(doc,selection,focus==='section',{
+      const visual=directionPreview?.candidate||project;
+      const p=visual.pages.find(pg=>pg.id===pageId)||visual.pages[0];
+      const visualDoc=P.pageDoc(visual,p);
+      ui.frame.srcdoc=R.render(visualDoc,selection,focus==='section',{
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
-        menu:project.pages.filter(x=>x.inMenu).map(x=>({id:x.id,title:x.title,slug:x.slug})),
+        menu:visual.pages.filter(x=>x.inMenu).map(x=>({id:x.id,title:x.title,slug:x.slug})),
         active:pageId,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
-         design:project.design,contacts:project.contacts,sectionLayouts:p.sectionLayouts,
-         actions:P.resolveActions(project,p),mediaBySection:P.resolveMedia(project,p),
-         itemsBySection:P.resolveItems(project,p),brand:P.resolveBrand(project),
-         homePageId:project.pages.find(x=>x.slug==='').id,
-         footerPages:P.resolveFooterPages(project),canonical:P.publicPageUrl(project,p),...project.settings
+         design:visual.design,contacts:visual.contacts,sectionLayouts:p.sectionLayouts,
+         actions:P.resolveActions(visual,p),mediaBySection:P.resolveMedia(visual,p),
+         itemsBySection:P.resolveItems(visual,p),brand:P.resolveBrand(visual),
+         homePageId:visual.pages.find(x=>x.slug==='').id,
+         footerPages:P.resolveFooterPages(visual),canonical:P.publicPageUrl(visual,p),...visual.settings
       });
       ui.count.textContent=doc.sections.length+' блоков';
       ui.seoSnippetTitle.textContent=p.seoTitle;
@@ -488,6 +543,7 @@
   }
   function changed(){indicators();preview();auditUI();renderOverview();renderLibrary();renderContentOps();}
   function checkpoint(type,coalesce=false){
+    if(directionPreview)stopDirectionPreview(false);
     const now=Date.now();
     if(!(coalesce&&lastType===type&&now-lastAt<1200)){
       undo.push(snapshot());if(undo.length>(project.media.length?16:60))undo.shift();
@@ -575,6 +631,7 @@
   }
   function apply(next,preferredPage,preferredSection){
     const valid=P.normalize(next);
+    if(directionPreview)stopDirectionPreview(false);
     if(editor){editor.destroy();editor=null;}
     project=valid;
     $('site-header-note').value=project.settings.headerNote;
@@ -1313,7 +1370,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W){
+    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -1328,6 +1385,11 @@
     $('media-file').addEventListener('change',async e=>{
       const files=[...(e.target.files||[])];e.target.value='';await uploadMedia(files);
     });
+    renderDirections();
+    $('direction-try').addEventListener('click',tryDirection);
+    $('direction-apply').addEventListener('click',applyDirection);
+    $('direction-cancel').addEventListener('click',()=>stopDirectionPreview());
+    $('direction-scope').addEventListener('change',()=>{if(directionPreview)stopDirectionPreview();});
     readSaved();readReview();
     saved=snapshot();apply(project);versions();renderWorkspaces();
     $('workspace-select').addEventListener('change',()=>switchWorkspace($('workspace-select').value));
