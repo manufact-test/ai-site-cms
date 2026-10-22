@@ -396,7 +396,8 @@ const root=path.resolve(__dirname,'../..');
     await page.waitForFunction(()=>document.querySelector('#preview').srcdoc.includes('Каталог завода — обновлён'));
     await page.locator('#save').click();
     const beforePublish=await page.evaluate(()=>{
-      const saved=JSON.parse(localStorage.getItem('ai-site-cms-stage2-preview-local-v1'));
+      const index=JSON.parse(localStorage.getItem('ai-site-cms-stage2-workspaces-v1'));
+      const saved=JSON.parse(localStorage.getItem('ai-site-cms-stage2-site-'+index.activeId+'-versions-v1'));
       return {active:document.querySelector('#page-list').value,
         sections:saved[0].doc.pages.map(p=>({id:p.id,slug:p.slug,catalogs:p.sections.filter(s=>s.type==='catalog').map(s=>({id:s.id,title:s.props.title,linked:p.libraryLinks[s.id]}))}))};
     });
@@ -538,7 +539,9 @@ const root=path.resolve(__dirname,'../..');
     await frame.locator('main').filter({hasText:'Каталог оборудования — обновлён'}).waitFor();
     await page.locator('#save').click();
     const replaced=JSON.parse(await page.evaluate(()=>
-      localStorage.getItem('ai-site-cms-stage2-preview-local-v1')))[0].doc;
+      localStorage.getItem('ai-site-cms-stage2-site-'+
+        JSON.parse(localStorage.getItem('ai-site-cms-stage2-workspaces-v1')).activeId+
+        '-versions-v1')))[0].doc;
     const linkedTitles=replaced.pages.flatMap(p=>p.sections.filter(section=>section.type==='catalog'
       &&p.libraryLinks[section.id]===replaced.library[0].id).map(section=>section.props.title));
     assert.deepEqual(linkedTitles,['Каталог оборудования — обновлён','Каталог оборудования — обновлён']);
@@ -705,6 +708,37 @@ const root=path.resolve(__dirname,'../..');
     await page.reload();
     assert.equal(await page.locator('#workspace-select').inputValue(),briefingId);
     assert.equal(await page.locator('#page-list option').count(),3);
+
+    // Whole-office backup: export ALL sites/history/feedback, inspect package,
+    // restore additively, reject malformed import without changing existing sites.
+    await page.locator('#project-actions summary').click();
+    const bundleDownload=page.waitForEvent('download');
+    await page.locator('#workspace-backup').click();
+    const bundleFile=await bundleDownload;
+    assert.equal(bundleFile.suggestedFilename(),'ai-site-cms-all-local-sites-backup.json');
+    const bundle=JSON.parse(fs.readFileSync(await bundleFile.path(),'utf8'));
+    assert.equal(bundle.format,'ai-site-cms-offline-workspaces');
+    assert.ok(bundle.sites.length>=2);
+    assert.ok(bundle.sites.some(s=>s.title==='Завод Север-Металл'&&
+      s.notes.some(n=>n.text.includes('Только сайт Север-Металл'))));
+    const countBefore=await page.locator('#workspace-select option').count();
+    await page.locator('#workspace-backup-file').setInputFiles({
+      name:'bad-workspace.json',mimeType:'application/json',
+      buffer:Buffer.from(JSON.stringify({...bundle,version:999}))
+    });
+    assert.equal(await page.locator('#workspace-select option').count(),countBefore);
+    await page.locator('#workspace-backup-file').setInputFiles({
+      name:'all-sites.json',mimeType:'application/json',
+      buffer:Buffer.from(JSON.stringify(bundle))
+    });
+    page.once('dialog',dialog=>dialog.accept());
+    await page.waitForFunction(count=>document.querySelector('#workspace-select').options.length>count,countBefore);
+    assert.equal(await page.locator('#workspace-select option').count(),countBefore+bundle.sites.length);
+    assert.equal(await page.locator('#site-title').inputValue(),'Завод Север-Металл');
+    assert.equal(await page.locator('#review-count').innerText(),'1');
+    await page.reload();
+    assert.equal(await page.locator('#workspace-select option').count(),countBefore+bundle.sites.length);
+    assert.equal(await page.locator('#review-count').innerText(),'1');
 
     // Editorial review: summary -> actionable page issue -> severity and page
     // filters -> downloadable full checklist, all within the offline owner studio.

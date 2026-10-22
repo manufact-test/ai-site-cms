@@ -1233,6 +1233,33 @@
     document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
     toast('Все страницы экспортированы в один JSON. На сервер ничего не отправлено');
   }
+  function downloadWorkspaceBackup(){
+    if(!storageOK||!persistCurrent())return;
+    try{
+      const archive=workspaceStore.backup();
+      const blob=new Blob([JSON.stringify(archive,null,2)+'\n'],{type:'application/json'});
+      const url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download='ai-site-cms-all-local-sites-backup.json';
+      document.body.append(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1800);
+      toast('Скачан полный архив '+archive.sites.length+' сайтов с версиями и заметками. Храните файл безопасно.');
+    }catch(e){toast('Не удалось собрать архив всех сайтов: '+e.message,true);}
+  }
+  async function restoreWorkspaceBackup(file){
+    if(!file)return;
+    if(file.size>24_000_000)return toast('Архив превышает 24 МБ',true);
+    if(!storageOK||!persistCurrent())return;
+    try{
+      const raw=JSON.parse(await file.text());
+      const checked=workspaceStore.inspectBackup(raw);
+      if(workspaceStore.list().length+checked.sites.length>8)
+        throw Error('Недостаточно свободных мест для всех сайтов архива (максимум 8)');
+      if(!confirm('Добавить '+checked.sites.length+' сайтов из архива? Существующие сайты сохранятся без изменений. Архив может содержать контакты клиентов.'))return;
+      const entry=workspaceStore.restoreBackup(raw);
+      activateWorkspace(entry);showOverview(false);
+      toast('Восстановлено '+checked.sites.length+' независимых сайтов с историями и заметками.');
+    }catch(e){toast('Архив не импортирован: '+e.message,true);}
+  }
   async function imports(file){
     if(!file)return;
     if(file.size>4_200_000)return toast('Максимум 4,2 МБ для резервного JSON',true);
@@ -1305,6 +1332,11 @@
     saved=snapshot();apply(project);versions();renderWorkspaces();
     $('workspace-select').addEventListener('change',()=>switchWorkspace($('workspace-select').value));
     $('workspace-copy').addEventListener('click',duplicateWorkspace);
+    $('workspace-backup').addEventListener('click',downloadWorkspaceBackup);
+    $('workspace-restore').addEventListener('click',()=>$('workspace-backup-file').click());
+    $('workspace-backup-file').addEventListener('change',async e=>{
+      const file=e.target.files?.[0];e.target.value='';await restoreWorkspaceBackup(file);
+    });
     $('workspace-delete').addEventListener('click',deleteWorkspace);
     $('overview-open').addEventListener('click',()=>showOverview(true));
     $('overview-editor').addEventListener('click',()=>showOverview(false));

@@ -127,9 +127,89 @@
       setIndex({...index,entries:index.entries.map(e=>e.id===id?{...e,title:name(valid.siteTitle),at:Date.now()}:e)});
       return history;
     }
+    // Full office backup is a human-controlled JSON file, not an upload.
+    // Import is additive and validates every site/history/feedback BEFORE writing.
+    function validateNotes(raw){
+      if(!Array.isArray(raw)||raw.length>50)throw Error('Повреждён список заметок');
+      for(const n of raw){
+        if(!n||typeof n!=='object'||Array.isArray(n)||
+          typeof n.at!=='number'||!Number.isFinite(n.at)||n.at<=0||
+          n.at>Date.now()+86400000||
+          !['project','page','block','kind','text'].every(k=>typeof n[k]==='string')||
+          n.text.length>2000||n.project.length>200||n.page.length>200||
+          n.block.length>200||n.kind.length>100||
+          (n.slug!==undefined&&(typeof n.slug!=='string'||n.slug.length>200)))
+          throw Error('Некорректная заметка в архиве');
+      }
+      return clone(raw);
+    }
+    function notesFor(id){
+      const raw=storage.getItem(notesKey(id));
+      return raw===null?[]:validateNotes(JSON.parse(raw));
+    }
+    function backup(){
+      if(!index)throw Error('Каталог проектов не загружен');
+      const sites=index.entries.map(entry=>{
+        const history=read(entry.id);
+        if(!history.length)throw Error('Сначала сохраните сайт '+entry.title);
+        return {title:entry.title,history,notes:notesFor(entry.id)};
+      });
+      return {format:'ai-site-cms-offline-workspaces',version:1,createdAt:Date.now(),
+        activeIndex:index.entries.findIndex(e=>e.id===index.activeId),sites};
+    }
+    function inspectBackup(raw){
+      if(!raw||typeof raw!=='object'||Array.isArray(raw)||
+        raw.format!=='ai-site-cms-offline-workspaces'||raw.version!==1||
+        !Number.isFinite(raw.createdAt)||raw.createdAt<=0||
+        raw.createdAt>Date.now()+86400000||
+        !Array.isArray(raw.sites)||raw.sites.length<1||raw.sites.length>cap||
+        !Number.isInteger(raw.activeIndex)||raw.activeIndex<0||
+        raw.activeIndex>=raw.sites.length)throw Error('Неверный формат архива всех сайтов');
+      const sites=raw.sites.map(site=>{
+        if(!site||typeof site.title!=='string'||!site.title.trim()||site.title.length>100)
+          throw Error('В архиве есть сайт без названия');
+        const history=recordsFrom(site.history);
+        if(!history.length)throw Error('В архиве есть сайт без сохранённых версий');
+        // Strict source title matching catches accidental/malicious archive drift.
+        if(history[0].doc.siteTitle!==site.title)
+          throw Error('Название сайта не совпадает с сохранённым проектом');
+        return {title:site.title,history,notes:validateNotes(site.notes)};
+      });
+      return {sites,activeIndex:raw.activeIndex};
+    }
+    function restoreBackup(raw){
+      if(!index)throw Error('Каталог проектов не загружен');
+      const {sites,activeIndex}=inspectBackup(raw);
+      if(index.entries.length+sites.length>cap)
+        throw Error('Недостаточно мест. В редакторе максимум восемь сайтов. Скачайте архив и удалите ненужные.');
+      const entries=[],staged=[],occupied=new Set(index.entries.map(e=>e.id));
+      for(const site of sites){
+        let id=allocate();while(occupied.has(id))id=allocate();
+        occupied.add(id);
+        entries.push({id,title:site.title,at:Date.now()});
+      }
+      try{
+        for(let i=0;i<sites.length;i++){
+          const id=entries[i].id,site=sites[i];
+          const path=key(id),notice=notesKey(id);
+          storage.setItem(path,JSON.stringify(site.history));staged.push(path);
+          if(site.notes.length){
+            storage.setItem(notice,JSON.stringify(site.notes));staged.push(notice);
+          }
+        }
+        const newIndex={...index,
+          activeId:entries[activeIndex].id,
+          entries:[...index.entries,...entries]};
+        setIndex(newIndex); // Commit last; existing sites cannot be overwritten.
+      }catch(e){
+        for(const name of staged)try{storage.removeItem(name);}catch(_){}
+        throw e;
+      }
+      return current(entries[activeIndex].id);
+    }
     const list=()=>clone(index?.entries||[]);
     const active=()=>index?.activeId;
-    return Object.freeze({open,current,add,save,select,remove,prune,list,active,notesKey,
+    return Object.freeze({open,current,add,save,select,remove,prune,list,active,notesKey,backup,inspectBackup,restoreBackup,
       get migrated(){return migrated},limit:cap});
   }
   Object.defineProperty(window,'CmsPreviewWorkspaces',{value:Object.freeze({create,indexKey,oldKey,notesKey})});

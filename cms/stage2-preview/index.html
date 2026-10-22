@@ -29,6 +29,13 @@
           <button id="reset" class="button subtle" type="button">+ Новый сайт</button>
           <button id="workspace-copy" class="button subtle" type="button">⧉ Копировать текущий сайт</button>
           <button id="workspace-delete" class="button subtle danger" type="button">Удалить текущий сайт</button>
+          <div class="project-backup-actions">
+            <strong>Все сайты и резервные копии</strong>
+            <button id="workspace-backup" class="button subtle" type="button">↓ Скачать архив всех сайтов</button>
+            <button id="workspace-restore" class="button subtle" type="button">↑ Восстановить сайты из архива</button>
+            <input id="workspace-backup-file" type="file" accept=".json,application/json" hidden>
+            <small>Сохраняются версии и замечания всех локальных сайтов. JSON может содержать клиентские данные. Импорт добавляет новые сайты, не заменяя существующие.</small>
+          </div>
           <button id="import" class="button subtle" type="button">Импортировать JSON</button>
           <button id="export" class="button subtle" type="button">Экспортировать JSON</button>
           <button id="download-site" class="button primary" type="button">Скачать демо-сайт ZIP</button>
