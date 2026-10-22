@@ -11,6 +11,9 @@
     Object.keys(a).sort().join('|') === keys.slice().sort().join('|');
   const clone = value => JSON.parse(JSON.stringify(value));
   let work = clone(base);
+  let activeScope="all";
+  const matchesScope=(component,scope)=>scope==="all"||component.scope===scope||scope==="build"&&
+    ["build-and-test-only","build-optional-platform"].includes(component.scope);
   const state = [];
   const feedback = (message,bad=false) => {
     $('feedback').textContent=message;
@@ -207,17 +210,31 @@
       }
       const statusMatch=view==='all'||view==='incomplete'&&problems.length>0||
         view===entry.row.disposition;
-      entry.card.hidden=!statusMatch || !!search &&
+      entry.card.hidden=!statusMatch || !matchesScope(entry.component,activeScope) || !!search &&
         !([entry.row.component,entry.component.scope,entry.component.declaredLicense]
           .join(' ').toLowerCase().includes(search));
     }
     $('gap-count').textContent=String(remaining);
+    for(const [scope,id] of [['php-runtime','scope-php'],['browser-runtime','scope-browser'],['build','scope-build']]){
+      const entries=state.filter(s=>matchesScope(s.component,scope));
+      $(id).textContent=entries.length+' всего · '+entries.filter(s=>gapsFor(s.row).length>0).length+' открыто';
+    }
+    document.querySelectorAll('.scope-choice').forEach(btn=>{
+      btn.setAttribute('aria-pressed',String(btn.dataset.scope===activeScope));
+    });
   }
   $('filter').addEventListener('input',refresh);
+  document.querySelectorAll('.scope-choice').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      activeScope=activeScope===btn.dataset.scope?'all':btn.dataset.scope;
+      refresh();
+    });
+  });
   $('view').addEventListener('change',refresh);
   $('next-gap').addEventListener('click',()=>{
-    const next=state.find(entry=>gapsFor(entry.row).length>0);
-    if(!next){feedback('Все поля заполнены. Требуется отдельная юридическая приёмка.');return;}
+    const next=state.find(entry=>matchesScope(entry.component,activeScope)&&gapsFor(entry.row).length>0);
+    if(!next){feedback(activeScope==='all'?'Все поля заполнены. Требуется отдельная юридическая приёмка.':
+      'В выбранной группе открытых действий нет; переключитесь на другую группу.',false);return;}
     $('filter').value='';$('view').value='incomplete';refresh();
     next.card.scrollIntoView({block:'start'});
     next.select.focus();
