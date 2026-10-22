@@ -155,6 +155,27 @@
           <button id="library-delete" class="button subtle" type="button">Удалить шаблон</button>
         </div>
       </section>
+      <details class="content-ops-panel" id="site-content-ops">
+        <summary>Контент всего сайта <span id="content-issues">Редакторская проверка</span></summary>
+        <div class="content-ops-inner">
+          <div class="content-ops-heading"><strong>Редакторская готовность</strong><span id="content-audit-total">—</span></div>
+          <p class="setting-helper">Проверяем страницы, тексты, карточки, SEO и фотографии. Это подсказки для черновика, а не разрешение на публикацию.</p>
+          <div id="content-audit-list" class="content-audit-list" aria-live="off"></div>
+          <button id="content-report-export" type="button" class="button subtle">Скачать редакторский чек-лист .md</button>
+          <div class="content-ops-heading"><strong>Поиск и замена по всему сайту</strong></div>
+          <label class="field-label" for="content-search">Найти текст</label>
+          <input type="search" id="content-search" maxlength="90" placeholder="Например: Название компании" autocomplete="off">
+          <label class="toggle-line content-case"><input type="checkbox" id="content-case"><span>Учитывать регистр</span></label>
+          <div id="content-results-summary" class="setting-helper" role="status">Введите текст для поиска по всем страницам.</div>
+          <div id="content-results" class="content-search-results" aria-label="Найденные поля"></div>
+          <label class="field-label" for="content-replacement">Заменить на</label>
+          <input id="content-replacement" type="text" maxlength="180" placeholder="Новое написание" autocomplete="off">
+          <button id="content-plan" class="button subtle" type="button">Предпросмотр изменений</button>
+          <div id="content-plan-details" class="content-plan-details" aria-live="polite" hidden></div>
+          <button id="content-apply" class="button dark" type="button" disabled>Применить изменения к черновику</button>
+          <p class="setting-helper">Перед заменой проверяем ограничения всех полей. Ничего не публикуется. Связанные шаблоны сохраняют исходный текст до отдельного обновления библиотеки.</p>
+        </div>
+      </details>
       <details class="audit-panel"><summary>Проверка структуры и SEO <span id="audit-count">…</span></summary><div id="audit-results"></div><p class="audit-explain">Подсказки только для черновика. Не гарантируют поисковое продвижение.</p></details>
       <div class="local-drafts"><div class="draft-heading"><strong>Локальные версии</strong><button id="clear-versions" type="button" class="text-button">Удалить все</button></div><p id="save-state" class="save-state" role="status">Проверка хранилища…</p><ol id="versions" class="version-list"></ol></div></details>
       <div class="new-section"><label class="field-label" for="new-type">Добавить секцию</label><div class="add-row"><select id="new-type" aria-label="Тип нового блока"></select><button id="add" class="button dark" type="button">+ Добавить</button></div></div>
@@ -163,7 +184,7 @@
       <div class="canvas-head"><div><span class="small-title">РАБОЧАЯ ОБЛАСТЬ</span><h2 id="canvas-title">Предпросмотр изменений</h2><div class="canvas-tabs" role="group" aria-label="Раздел рабочей области"><button id="overview-open" class="canvas-tab" type="button" aria-pressed="false">Обзор сайта</button><button id="overview-editor" class="canvas-tab is-active" type="button" aria-pressed="true">Редактор страницы</button></div></div><div class="preview-controls"><div class="view-switch" role="group" aria-label="Режим предпросмотра"><button class="active" type="button" data-focus="page" aria-pressed="true">Вся страница</button><button type="button" data-focus="section" aria-pressed="false">Один блок</button></div><div class="view-switch" role="group" aria-label="Размер предпросмотра"><button class="active" type="button" data-width="desktop" aria-pressed="true">ПК</button><button type="button" data-width="tablet" aria-pressed="false">Планшет</button><button type="button" data-width="mobile" aria-pressed="false">Телефон</button></div></div></div>
       <section id="site-overview" class="site-overview" hidden aria-label="Обзор демонстрационного сайта">
         <div class="overview-hero"><div class="overview-kicker">ОБЗОР ПРОЕКТА · ЛОКАЛЬНО</div><h3 id="overview-name">Сайт</h3><p>Структура, страницы и базовая проверка содержимого — без публикации и подключения к серверу.</p></div>
-        <div class="overview-stats"><div><strong id="overview-pages">0</strong><span>Страниц</span></div><div><strong id="overview-sections">0</strong><span>Секций</span></div><div><strong id="overview-issues">0</strong><span>Замечаний SEO/структуры</span></div></div>
+        <div class="overview-stats"><div><strong id="overview-pages">0</strong><span>Страниц</span></div><div><strong id="overview-sections">0</strong><span>Секций</span></div><div><strong id="overview-issues">0</strong><span>Замечаний по содержимому</span></div></div>
         <div class="overview-grid">
           <section class="overview-panel"><div class="overview-panel-head"><h4>Страницы проекта</h4><small>Выберите для редактирования</small></div><div id="overview-page-list" class="overview-page-list"></div></section>
           <section class="overview-panel"><div class="overview-panel-head"><h4>Проверка содержимого</h4><small>Подсказки для прототипа</small></div><div id="overview-audit" class="overview-audit"></div></section>
@@ -236,6 +257,7 @@
   <script src="repeaters.js"></script>
   <script src="library.js"></script>
   <script src="project.js"></script>
+  <script src="content-ops.js"></script>
   <script src="media.js"></script>
   <script src="renderer.js"></script>
   <script src="site-export.js"></script>

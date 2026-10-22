@@ -3,7 +3,7 @@
 (()=>{
   const C=window.CmsPreviewContent,P=window.CmsPreviewProject,
     R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2,X=window.CmsPreviewExport,M=window.CmsPreviewMedia,
-    Q=window.CmsPreviewRepeaters,L=window.CmsPreviewLibrary;
+    Q=window.CmsPreviewRepeaters,L=window.CmsPreviewLibrary,O=window.CmsPreviewContentOps;
   const $=id=>document.getElementById(id);
   const ui={list:$('sections'),frame:$('preview'),fields:$('fields'),title:$('site-title'),theme:$('theme'),
     count:$('count'),info:$('selection-info'),status:$('status'),addType:$('new-type'),browser:$('browser'),
@@ -18,6 +18,7 @@
       dirty=false,records=[],storageOK=false;
   let saved='',undo=[],redo=[],lastType='',lastAt=0,focus='page',toastTimer;
   let review=[];
+  let contentPlan=null;
   const snapshot=()=>JSON.stringify(project);
   const activePage=()=>project.pages.find(p=>p.id===pageId);
   const pageDoc=()=>P.pageDoc(project,activePage());
@@ -27,8 +28,8 @@
     $('overview-name').textContent=project.siteTitle;
     $('overview-pages').textContent=String(project.pages.length);
     $('overview-sections').textContent=String(project.pages.reduce((n,p)=>n+p.sections.length,0));
-    const issues=P.audit(project);
-    $('overview-issues').textContent=String(issues.length);
+    const readiness=O.review(project),issues=readiness.issues;
+    $('overview-issues').textContent=String(readiness.total);
     const list=$('overview-page-list');list.replaceChildren();
     project.pages.forEach(pg=>{
       const b=document.createElement('button');
@@ -46,16 +47,16 @@
     const audit=$('overview-audit');audit.replaceChildren();
     if(!issues.length){
       const ok=document.createElement('p');
-      ok.textContent='Базовые замечания отсутствуют. Это не SEO-аудит опубликованного сайта.';
+      ok.textContent='Базовых замечаний по содержимому нет. Это не приёмка или SEO-аудит опубликованного сайта.';
       ok.className='overview-audit-ok';audit.append(ok);
     }else{
       issues.slice(0,10).forEach(issue=>{
         const b=document.createElement('button');
         b.type='button';b.className='overview-audit-item';
         const title=document.createElement('strong');title.textContent=issue.pageTitle;
-        const detail=document.createElement('span');detail.textContent=issue.message;
+        const detail=document.createElement('span');detail.textContent=issue.reason;
         b.append(title,detail);
-        b.addEventListener('click',()=>{selectPage(issue.pageId);showOverview(false);document.querySelector('.page-settings').open=true;});
+        b.addEventListener('click',()=>{focusContentEntry(issue);document.querySelector('.sidebar-tools').open=true;$('site-content-ops').open=true;renderContentOps();});
         audit.append(b);
       });
       if(issues.length>10){
@@ -151,6 +152,153 @@
     document.body.append(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
     toast('Все замечания скачаны в одном файле Markdown');
+  }
+  function focusContentEntry(entry){
+    if(entry.pageId&&project.pages.some(p=>p.id===entry.pageId)){
+      selectPage(entry.pageId);
+      showOverview(false);
+      if(entry.sectionId&&activePage().sections.some(s=>s.id===entry.sectionId)){
+        select(entry.sectionId);
+        document.querySelector('.inspector').scrollIntoView({block:'nearest'});
+      }else{
+        document.querySelector('.page-settings').open=true;
+      }
+    }else if(entry.scope==='global'){
+      document.querySelector('.site-settings').open=true;
+    }
+  }
+  function resetContentPlan(){
+    contentPlan=null;$('content-plan-details').hidden=true;
+    $('content-plan-details').replaceChildren();$('content-apply').disabled=true;
+  }
+  function renderContentOps(){
+    if(!$('site-content-ops').open)return;
+    if(contentPlan&&contentPlan.before!==snapshot())resetContentPlan();
+    let readiness,found;
+    try{
+      readiness=O.review(project);
+      found=O.search(project,$('content-search').value,$('content-case').checked);
+    }catch(e){$('content-results-summary').textContent=e.message;return;}
+    $('content-issues').textContent=readiness.attention+' важных замечаний';
+    $('content-audit-total').textContent=readiness.total+' замечаний';
+    const audit=$('content-audit-list');audit.replaceChildren();
+    for(const issue of readiness.issues.slice(0,14)){
+      const button=document.createElement('button');button.type='button';
+      button.className='content-audit-item'+(issue.level==='attention'?' is-attention':'');
+      const title=document.createElement('strong');
+      title.textContent=issue.pageTitle+(issue.sectionTitle?' · '+issue.sectionTitle:'');
+      const body=document.createElement('span');body.textContent=issue.reason;
+      button.append(title,body);
+      button.addEventListener('click',()=>focusContentEntry(issue));
+      audit.append(button);
+    }
+    if(readiness.total>14){
+      const more=document.createElement('p');more.className='setting-helper';
+      more.textContent='Ещё '+(readiness.total-14)+' замечаний. Это предварительная редакторская проверка.';
+      audit.append(more);
+    }
+    if(!readiness.issues.length){
+      const empty=document.createElement('p');empty.className='setting-helper';
+      empty.textContent='В текущем содержимом базовых замечаний нет. Это не приёмка и не проверка опубликованного сайта.';
+      audit.append(empty);
+    }
+    const results=$('content-results');results.replaceChildren();
+    $('content-results-summary').textContent=$('content-search').value.trim()?
+      found.entries.length+' полей / '+found.occurrences+' вхождений по всему сайту'+
+      (found.entries.some(r=>r.linked)?' · есть связанные с библиотекой секции':''):
+      'Введите текст для поиска по всем страницам, SEO и карточкам.';
+    for(const entry of found.entries.slice(0,25)){
+      const button=document.createElement('button');button.type='button';
+      button.className='content-search-hit';
+      const strong=document.createElement('strong');
+      strong.textContent=(entry.pageTitle?entry.pageTitle+' / ':'')+entry.label+
+        (entry.hidden?' · скрыто':'')+(entry.linked?' · шаблон':'');
+      const excerpt=document.createElement('span');
+      excerpt.textContent=entry.value.length>135?entry.value.slice(0,135)+'…':entry.value;
+      const amount=document.createElement('small');amount.textContent=entry.count+' совп.';
+      button.append(strong,excerpt,amount);
+      button.addEventListener('click',()=>focusContentEntry(entry));
+      results.append(button);
+    }
+    if(found.entries.length>25){
+      const more=document.createElement('p');more.className='setting-helper';
+      more.textContent='Показаны первые 25 полей из '+found.entries.length+'. Уточните поисковую фразу.';
+      results.append(more);
+    }
+    $('content-plan').disabled=!found.occurrences;
+  }
+  function exportContentReport(){
+    let readiness;
+    try{readiness=O.review(project);}catch(e){toast('Чек-лист не готов: '+e.message,true);return;}
+    const lines=[
+      '# Редакторская проверка сайта',
+      '',
+      'Проект: '+project.siteTitle.replace(/[\r\n]/g,' '),
+      'Страниц: '+project.pages.length+' · Текстовых полей: '+readiness.fields,
+      'Замечаний: '+readiness.total+' · Требуют внимания: '+readiness.attention,
+      '',
+      'Это офлайн-подсказки для редактора. Они не подтверждают публикацию, безопасность или SEO-позиции.',
+      ''
+    ];
+    readiness.issues.forEach((issue,i)=>{
+      lines.push('## '+(i+1)+'. '+(issue.level==='attention'?'Проверить':'Информация')+
+        ' — '+issue.pageTitle.replace(/[\r\n]/g,' ')+
+        (issue.sectionTitle?' / '+issue.sectionTitle.replace(/[\r\n]/g,' '):''),
+        '',issue.reason,'');
+    });
+    if(readiness.total>readiness.issues.length)
+      lines.push('Осталось '+(readiness.total-readiness.issues.length)+' замечаний вне лимита отчёта.');
+    if(!readiness.total)lines.push('Замечаний по базовым эвристикам нет. Не является подтверждением готовности к публикации.');
+    const url=URL.createObjectURL(new Blob([lines.join('\n')+'\n'],{type:'text/markdown;charset=utf-8'}));
+    const a=document.createElement('a');a.href=url;
+    a.download='ai-site-cms-editorial-checklist.md';
+    document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast('Редакторский чек-лист сформирован локально');
+  }
+  function planContentReplace(){
+    resetContentPlan();
+    let plan;
+    try{plan=O.plan(project,$('content-search').value,$('content-replacement').value,$('content-case').checked);}
+    catch(e){toast(e.message,true);return;}
+    const details=$('content-plan-details');details.hidden=false;
+    const title=document.createElement('strong'),text=document.createElement('p');
+    const linked=plan.changes.filter(change=>change.linked).length;
+    title.textContent=plan.valid?
+      'Будут изменены '+plan.changes.length+' полей ('+plan.occurrences+' замен)':
+      'Замена не проходит проверку';
+    text.textContent=!plan.valid?
+      'Изменения отклонены: '+plan.error:
+      (linked?'Затронуты '+linked+' полей в связанных секциях. Шаблоны останутся прежними. ':'')+
+      'Ни одна страница не будет опубликована. Вся операция отменяется одной командой.';
+    details.append(title,text);
+    for(const change of plan.changes.slice(0,5)){
+      const preview=document.createElement('div');preview.className='content-plan-row';
+      const heading=document.createElement('strong');
+      heading.textContent=(change.pageTitle?change.pageTitle+' / ':'')+change.label;
+      const before=document.createElement('span');before.textContent='До: '+change.value.slice(0,115);
+      const after=document.createElement('span');after.textContent='После: '+change.after.slice(0,115);
+      preview.append(heading,before,after);details.append(preview);
+    }
+    const before=snapshot();
+    if(plan.valid&&plan.changes.length&&JSON.stringify(plan.candidate)!==before){
+      contentPlan={before,plan};$('content-apply').disabled=false;
+    }
+  }
+  function applyContentReplace(){
+    const pending=contentPlan;
+    if(!pending||pending.before!==snapshot())return resetContentPlan();
+    const changes=pending.plan.changes.length,occurrences=pending.plan.occurrences;
+    if(!confirm('Применить '+occurrences+' замен в '+changes+
+      ' полях локального черновика? Это не обновляет сохранённые шаблоны и не публикует сайт. Изменение можно отменить.'))return;
+    try{
+      const candidate=P.validate(pending.plan.candidate);
+      checkpoint('bulk-content');
+      contentPlan=null;apply(candidate,pageId,selection);
+      resetContentPlan();
+      renderContentOps();
+      toast('Применено '+occurrences+' замен в '+changes+' полях черновика; можно отменить');
+    }catch(e){resetContentPlan();toast('Замена отменена: '+e.message,true);}
   }
   function auditUI(){
     ui.audit.replaceChildren();
@@ -289,7 +437,7 @@
       ui.previewUrl.textContent='demo.local/'+(p.slug||'');
     }catch(e){toast(e.message,true);}
   }
-  function changed(){indicators();preview();auditUI();renderOverview();renderLibrary();}
+  function changed(){indicators();preview();auditUI();renderOverview();renderLibrary();renderContentOps();}
   function checkpoint(type,coalesce=false){
     const now=Date.now();
     if(!(coalesce&&lastType===type&&now-lastAt<1200)){
@@ -1018,7 +1166,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M||!Q||!L){
+    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -1070,6 +1218,13 @@
     $('page-in-menu').addEventListener('change',()=>editPage('inMenu',$('page-in-menu').checked));
     $('starter-apply').addEventListener('click',starter);
     $('copy-section').addEventListener('click',copySection);
+    $('site-content-ops').addEventListener('toggle',renderContentOps);
+    $('content-search').addEventListener('input',()=>{resetContentPlan();renderContentOps();});
+    $('content-case').addEventListener('change',()=>{resetContentPlan();renderContentOps();});
+    $('content-replacement').addEventListener('input',resetContentPlan);
+    $('content-plan').addEventListener('click',planContentReplace);
+    $('content-report-export').addEventListener('click',exportContentReport);
+    $('content-apply').addEventListener('click',applyContentReplace);
     $('library-save').addEventListener('click',saveToLibrary);
     $('library-insert').addEventListener('click',insertFromLibrary);
     $('library-rename').addEventListener('click',renameLibrary);

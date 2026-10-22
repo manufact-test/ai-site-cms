@@ -499,6 +499,49 @@ const root=path.resolve(__dirname,'../..');
     assert.ok(backup.pages[0].sections.some(section=>section.id===backup.pages[0].hiddenSections[0]));
     assert.doesNotMatch(siteHTML,/<script[\s>]/i);
 
+    // Sitewide editorial workflow: search real page content, navigate to a
+    // linked catalog, preview an atomic text replacement across two pages,
+    // verify stored values, undo/redo, reject overlong content and export
+    // a plain offline editorial checklist for a copywriter.
+    if(!await page.locator('.sidebar-tools').evaluate(el=>el.open))
+      await page.locator('.sidebar-tools > summary').click();
+    await page.locator('#site-content-ops > summary').click();
+    await page.locator('#content-audit-total').waitFor();
+    assert.match(await page.locator('#content-audit-total').innerText(),/замечан/);
+    await page.locator('#content-search').fill('Каталог завода — обновлён');
+    await page.waitForFunction(()=>document.querySelector('#content-results-summary').textContent.includes('2 полей'));
+    assert.equal(await page.locator('.content-search-hit').count(),2);
+    await page.locator('.content-search-hit').nth(1).click();
+    assert.equal(await page.locator('#page-list').inputValue(),backup.pages[1].id);
+    await page.locator('#content-replacement').fill('Каталог оборудования — обновлён');
+    await page.locator('#content-plan').click();
+    assert.match(await page.locator('#content-plan-details').innerText(),/2 полей/);
+    assert.match(await page.locator('#content-plan-details').innerText(),/связанных секциях/);
+    page.once('dialog',dialog=>dialog.accept());
+    await page.locator('#content-apply').click();
+    assert.equal(await page.locator('#content-apply').isDisabled(),true);
+    await frame.locator('main').filter({hasText:'Каталог оборудования — обновлён'}).waitFor();
+    await page.locator('#save').click();
+    const replaced=JSON.parse(await page.evaluate(()=>
+      localStorage.getItem('ai-site-cms-stage2-preview-local-v1')))[0].doc;
+    const linkedTitles=replaced.pages.flatMap(p=>p.sections.filter(section=>section.type==='catalog'
+      &&p.libraryLinks[section.id]===replaced.library[0].id).map(section=>section.props.title));
+    assert.deepEqual(linkedTitles,['Каталог оборудования — обновлён','Каталог оборудования — обновлён']);
+    assert.equal(replaced.library[0].props.title,'Каталог завода — обновлён',
+      'bulk content changes must not implicitly publish the named library recipe');
+    await page.locator('#undo').click();
+    assert.match(await frame.locator('main').innerText(),/Каталог завода — обновлён/);
+    await page.locator('#redo').click();
+    assert.match(await frame.locator('main').innerText(),/Каталог оборудования — обновлён/);
+    await page.locator('#content-search').fill('Каталог оборудования');
+    await page.locator('#content-replacement').fill('Х'.repeat(180));
+    await page.locator('#content-plan').click();
+    assert.match(await page.locator('#content-plan-details').innerText(),/Замена не проходит проверку/);
+    assert.equal(await page.locator('#content-apply').isDisabled(),true);
+    const editorialDownload=page.waitForEvent('download');
+    await page.locator('#content-report-export').click();
+    assert.equal((await editorialDownload).suggestedFilename(),'ai-site-cms-editorial-checklist.md');
+
     // Product flow A: open three complete preset sites with 11 editable section kinds.
     page.once('dialog',dialog=>dialog.accept());
     await page.locator('#starter-type').selectOption('industrial');
