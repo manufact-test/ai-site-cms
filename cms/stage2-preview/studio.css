@@ -687,3 +687,9 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .canvas-media-focus-presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
 .canvas-media-focus-presets .button{font-size:11px;padding:7px 9px}
 @media(max-width:520px){.canvas-media-axis{display:grid;gap:3px}.canvas-media-axis label{min-width:0}.canvas-media-focus-preview{height:160px}}
+
+/* Local cross-site page transfer: existing modal language, no new builder UI. */
+.page-transfer-fields{max-width:620px}
+.page-transfer-fields #page-transfer-error{color:#a32337;font-size:12px;font-weight:700}
+.page-transfer-summary{padding:13px 15px;border-radius:10px;background:#edf5f6;border:1px solid #c8e1e5;color:#245364;font-size:13px;line-height:1.6;min-height:48px}
+#page-transfer-submit:disabled{opacity:.55;cursor:not-allowed}
