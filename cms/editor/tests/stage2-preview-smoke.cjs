@@ -652,6 +652,7 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#brief-phone').fill('+49 123 456789');
     await page.locator('#brief-proof').fill('Факты подтверждаются заказчиком');
     page.once('dialog',d=>d.accept());
+    await page.locator('#brief-direction').selectOption('evergreen');
     await page.locator('#brief-create').click();
     await page.locator('#brief-dialog').waitFor({state:'hidden'});
     assert.equal(await page.locator('#page-tree .page-tree-item').count(),3);
@@ -668,6 +669,9 @@ const root=path.resolve(__dirname,'../..');
     const briefFile=await briefDownload;
     const briefBackup=JSON.parse(fs.readFileSync(await briefFile.path(),'utf8'));
     assert.equal(briefBackup.pages.length,3);
+    assert.equal(briefBackup.design.accent,'#257455','brief chosen direction reaches whole site');
+    assert.ok(briefBackup.pages.every(pg=>Object.keys(pg.sectionLayouts).length>0),
+      'brief design automatically composes every generated page');
     assert.equal(briefBackup.contacts.email,'info@sever-metal.example');
     assert.equal(briefBackup.pages.every(pg=>pg.sections.every(s=>s.type!=='metrics'&&s.type!=='quote')),true);
     assert.equal(briefBackup.pages.every(pg=>pg.sections.some(s=>s.type==='hero')),true);

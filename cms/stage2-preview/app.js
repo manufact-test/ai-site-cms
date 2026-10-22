@@ -1258,7 +1258,7 @@
     for(const key of ['kind','company','offering','audience','benefit','proof','email','phone','address'])
       data[key]=$('brief-'+key).value;
     try{
-      const site=B.build(data);
+      const site=D.compose(B.build(data),$('brief-direction').value,'all');
       if(!confirm('Создать отдельный локальный сайт из брифа? Текущий сайт останется доступен.'))return;
       if(!startWorkspace(site))return;
       $('brief-dialog').close();
@@ -1441,6 +1441,9 @@
       $('brief-dialog').showModal();
     });
     $('brief-close').addEventListener('click',()=>$('brief-dialog').close());
+    $('brief-kind').addEventListener('change',()=>{
+      $('brief-direction').value={industrial:'precision',agency:'momentum',products:'evergreen'}[$('brief-kind').value];
+    });
     $('brief-form').addEventListener('submit',generateFromBrief);
     $('starter-apply').addEventListener('click',starter);
     $('copy-section').addEventListener('click',copySection);

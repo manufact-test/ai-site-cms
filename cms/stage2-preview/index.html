@@ -289,6 +289,12 @@
     <div class="brief-head"><div><span>ЗАПУСК ПРОЕКТА · ЛОКАЛЬНО</span><h2 id="brief-title">Создайте сайт из брифа</h2><p>Заполните реальные данные компании. На их основе редактор соберёт три страницы, SEO и контакты. Не ИИ, не публикация — только редактируемый черновик.</p></div><button type="button" id="brief-close" class="brief-close" aria-label="Закрыть окно">×</button></div>
     <form id="brief-form" class="brief-form">
       <label>Направление<select id="brief-kind"><option value="industrial">Промышленная компания</option><option value="agency">Услуги и разработка</option><option value="products">Продукция и каталог</option></select></label>
+            <label>Визуальное направление<select id="brief-direction" aria-label="Стиль нового сайта">
+        <option value="precision">Точная инженерия</option>
+        <option value="atelier">Редакционный минимализм</option>
+        <option value="momentum">Яркая студия</option>
+        <option value="evergreen">Естественная эстетика</option>
+      </select></label>
       <label>Название компании *<input id="brief-company" type="text" maxlength="90" required minlength="3" placeholder="Название вашей компании" autocomplete="organization"></label>
       <label class="wide">Основное предложение *<input id="brief-offering" type="text" maxlength="120" required minlength="3" placeholder="Что производите или какие услуги оказываете?"></label>
       <label class="wide">Для кого работаете *<input id="brief-audience" type="text" maxlength="130" required minlength="3" placeholder="Например, предприятиям пищевой промышленности"></label>
