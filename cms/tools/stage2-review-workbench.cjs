@@ -31,6 +31,11 @@ button.primary{background:#2165d5;border-color:#2165d5;color:white}button:focus-
 input,select,textarea{font:inherit;border:1px solid #c4d0df;background:#fff;border-radius:7px;color:#172338;padding:8px;width:100%;min-width:0}
 textarea{resize:vertical;min-height:65px}label{display:block;font-weight:600;font-size:12px;color:#364862}
 .feedback{font-weight:600;margin:14px 0;white-space:pre-wrap} .feedback.error{color:#a72227}.feedback.good{color:#185d3c}
+.review-gaps{background:#fff6e6;border:1px solid #f1d7ac;padding:10px 12px;border-radius:9px;margin:12px 18px 0;font-size:12px;color:#804819}
+.review-gaps strong{color:#783f12}.review-gaps ul{margin:6px 0 0;padding-left:18px}
+.review-gaps.complete{background:#eaf7ef;border-color:#addac2;color:#195e40}.review-gaps.complete strong{color:#195e40}
+#gap-count{font-weight:800;color:#a75c1e}
+
 .card{background:#fff;border:1px solid #dbe2ed;border-radius:13px;margin:12px 0;overflow:hidden}
 .card-top{display:flex;gap:12px;justify-content:space-between;align-items:start;background:#f9fbff;padding:14px 18px;border-bottom:1px solid #e4e9f1}
 .package-name{font-weight:750;overflow-wrap:anywhere}.meta{font-size:12px;color:#5a6980;overflow-wrap:anywhere}
@@ -58,10 +63,12 @@ function render(dossier,worksheet,uiSource=fs.readFileSync(UI,'utf8')){
     '<code id="manifest">'+escapeHtml(dossier.packageManifestSha256)+'</code></header>'+
     '<div class="warning"><strong>Это рабочий лист, а не одобрение релиза.</strong> Итог проверяется отдельно через штатную CLI-проверку и подпись независимого ревьюера. Ни выбранные флажки, ни экспортированный JSON сами по себе не разрешают Stage 3, деплой или приёмку Stage 2. Браузер не сохраняет данные автоматически — скачивайте JSON.</div>'+
     '<section class="stats"><div class="stat">Всего<strong id="total">43</strong></div><div class="stat">Подтверждено<strong id="approved">0</strong></div><div class="stat">Отклонено<strong id="rejected">0</strong></div><div class="stat">Ожидает<strong id="pending">43</strong></div></section>'+
+    '<p class="muted" role="status">Требуют проверки или исправлений: <strong id="gap-count">43</strong> / 43. Это статус заполнения рабочего листа, не юридическое одобрение.</p>'+
     '<div class="toolbar"><input id="filter" type="search" aria-label="Поиск по зависимостям" placeholder="Название, лицензия, технология…">'+
-    '<select id="view" aria-label="Фильтр статуса"><option value="all">Все решения</option><option value="pending">Ожидают</option><option value="approved">Подтверждены</option><option value="rejected">Отклонены</option></select>'+
+    '<select id="view" aria-label="Фильтр статуса"><option value="all">Все решения</option><option value="incomplete">Требуют действий</option><option value="pending">Ожидают</option><option value="approved">Подтверждены</option><option value="rejected">Отклонены</option></select>'+
+    '<button id="next-gap" type="button">Следующая незавершённая ↗</button>'+
     '<label class="file">Импорт JSON<input id="import" type="file" accept=".json,application/json" aria-label="Импорт рабочего листа JSON"></label>'+
-    '<button id="validate" type="button">Проверить 43 строки</button><button id="export" class="primary" type="button">Скачать JSON</button></div>'+
+    '<button id="validate" type="button">Проверить 43 строки</button><button id="export" class="primary" type="button">Скачать JSON</button><button id="gap-export" type="button">Скачать список действий .md</button></div>'+
     '<div class="feedback" id="feedback" role="status" aria-live="polite">Все решения требуют независимого подтверждения.</div>'+
     '<section id="rows" aria-label="Пакеты для проверки"></section>'+
     '<p class="hint">Исходные версии и контрольные суммы связаны с пакетом. Отдельно проверяйте оригинальные лицензии, NOTICE, уязвимости и совместимость с коммерческим распространением. Автоматических внешних запросов нет.</p></main>'+
