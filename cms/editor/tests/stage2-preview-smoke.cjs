@@ -387,8 +387,12 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#layout-width').selectOption('narrow');
     await page.locator('#page-list').selectOption({index:0});
     await page.locator('#sections li').filter({hasText:'Каталог продукции'}).locator('.section-select').click();
-    await page.locator('#fields input').nth(1).fill('Каталог завода — обновлён');
-    await page.locator('#fields input').nth(1).press('Tab');
+    const titleInputId=await page.locator('#fields input').evaluateAll(all=>
+      all.find(input=>input.value==='Каталог продукции')?.id);
+    assert.ok(titleInputId,'catalog title field should exist in typed editor');
+    const titleInput=page.locator('#fields input[id='+JSON.stringify(titleInputId)+']');
+    await titleInput.fill('Каталог завода — обновлён');
+    await titleInput.press('Tab');
     await page.waitForFunction(()=>document.querySelector('#preview').srcdoc.includes('Каталог завода — обновлён'));
     await page.locator('#save').click();
     const beforePublish=await page.evaluate(()=>{
