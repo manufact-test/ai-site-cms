@@ -14,7 +14,7 @@
     seoSnippetTitle:$('seo-snippet-title'),seoSnippetDescription:$('seo-snippet-description'),
     seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url'),audit:$('audit-results'),auditCount:$('audit-count'),sectionVisible:$('section-visible')};
 
-  const D=window.CmsPreviewArtDirection,T=window.CmsPreviewPageRecipes,V=window.CmsPreviewCanvasEdit,S=window.CmsPreviewCanvasMedia;
+  const D=window.CmsPreviewArtDirection,T=window.CmsPreviewPageRecipes,V=window.CmsPreviewCanvasEdit,S=window.CmsPreviewCanvasMedia,U=window.CmsPreviewPageTransfer;
 
 
   let canvasEditing=null;
@@ -204,6 +204,72 @@
       $('page-recipe-dialog').close();showOverview(false);
       toast('Страница добавлена: секции, SEO, контакты и композиция редактируются');
     }catch(e){$('page-recipe-error').textContent=e.message;$('page-recipe-error').hidden=false;}
+  }
+  // Import a whole page from another *saved local* site, never from network.
+  // The source stays unchanged; the target is one undoable model transaction.
+  function renderTransferPages(){
+    const sourceId=$('page-transfer-site').value,selector=$('page-transfer-page');
+    selector.replaceChildren();
+    try{
+      if(!sourceId||sourceId===workspaceId)throw Error('Выберите другой сайт');
+      const entry=workspaceStore.current(sourceId);
+      for(const page of entry.doc.pages){
+        const option=document.createElement('option');
+        option.value=page.id;option.textContent=page.title+' / '+(page.slug||'главная');
+        selector.append(option);
+      }
+      renderTransferSummary();
+    }catch(e){
+      $('page-transfer-error').hidden=false;$('page-transfer-error').textContent=e.message;
+      $('page-transfer-submit').disabled=true;
+      $('page-transfer-summary').textContent='';
+    }
+  }
+  function renderTransferSummary(){
+    try{
+      const entry=workspaceStore.current($('page-transfer-site').value);
+      const info=U.inspect(project,entry.doc,$('page-transfer-page').value);
+      $('page-transfer-summary').textContent='Страница «'+info.title+'» → /'+info.slug+
+        ' · '+info.sections+' блоков · '+info.photos+' фото ('+
+        info.newPhotos+' новых, '+info.reusedPhotos+' существующих). '+
+        (info.detachedTemplates?'Связи с шаблонами: '+info.detachedTemplates+' будут сняты. ':'')+
+        (info.unlinkedActions?'Ссылки на чужие страницы: '+info.unlinkedActions+' будут сброшены.':'');
+      $('page-transfer-error').hidden=true;
+      $('page-transfer-submit').disabled=false;
+    }catch(e){
+      $('page-transfer-error').textContent=e.message;
+      $('page-transfer-error').hidden=false;
+      $('page-transfer-summary').textContent='';
+      $('page-transfer-submit').disabled=true;
+    }
+  }
+  function openPageTransfer(){
+    if(!storageOK||!workspaceStore||workspaceStore.list().length<2)
+      return toast('Сначала создайте второй локальный сайт',true);
+    if(!persistCurrent())return;
+    const selector=$('page-transfer-site');selector.replaceChildren();
+    for(const entry of workspaceStore.list()){
+      if(entry.id===workspaceId)continue;
+      const option=document.createElement('option');option.value=entry.id;
+      option.textContent=entry.title;selector.append(option);
+    }
+    renderTransferPages();
+    $('page-transfer-dialog').showModal();
+  }
+  function submitPageTransfer(event){
+    event.preventDefault();
+    if(!$('page-transfer-page').value)return;
+    try{
+      const source=workspaceStore.current($('page-transfer-site').value);
+      const result=U.transfer(project,source.doc,$('page-transfer-page').value);
+      checkpoint('page-cross-site-transfer');
+      apply(result.project,result.pageId);
+      $('page-transfer-dialog').close();showOverview(false);
+      toast('Страница перенесена из другого сайта. Фото, SEO и оформление сохранены. Изменение можно отменить.');
+    }catch(e){
+      $('page-transfer-error').textContent=e.message;
+      $('page-transfer-error').hidden=false;
+    }
   }
   let directionPreview=null;
   let directionSelection='precision';
@@ -704,6 +770,7 @@
     $('page-delete').disabled=project.pages.length<=1||p.slug==='';
     $('page-add').disabled=project.pages.length>=P.MAX_PAGES;
     $('page-copy').disabled=project.pages.length>=P.MAX_PAGES;
+    $('page-transfer-open').disabled=!storageOK||!workspaceStore||workspaceStore.list().length<2||project.pages.length>=P.MAX_PAGES;
     $('page-recipe-open').disabled=project.pages.length>=P.MAX_PAGES;
     const order=project.pages.findIndex(pg=>pg.id===pageId);
     $('page-up').disabled=order<=1;
@@ -1598,6 +1665,7 @@
     $('workspace-copy').disabled=!storageOK||entries.length>=8;
     $('workspace-delete').disabled=!storageOK||entries.length<2;
     $('reset').disabled=!storageOK||entries.length>=8;
+    $('page-transfer-open').disabled=!storageOK||entries.length<2||project.pages.length>=P.MAX_PAGES;
   }
   function persistCurrent(){
     if(!storageOK||!workspaceStore)return false;
@@ -1894,6 +1962,12 @@
     $('page-recipe-back').addEventListener('click',()=>$('page-recipe-dialog').close());
     $('page-recipe-close').addEventListener('click',()=>$('page-recipe-dialog').close());
     $('page-recipe-form').addEventListener('submit',createRecipePage);
+    $('page-transfer-open').addEventListener('click',openPageTransfer);
+    $('page-transfer-close').addEventListener('click',()=>$('page-transfer-dialog').close());
+    $('page-transfer-cancel').addEventListener('click',()=>$('page-transfer-dialog').close());
+    $('page-transfer-site').addEventListener('change',renderTransferPages);
+    $('page-transfer-page').addEventListener('change',renderTransferSummary);
+    $('page-transfer-form').addEventListener('submit',submitPageTransfer);
     $('canvas-media-close').addEventListener('click',()=>$('canvas-media-dialog').close());
     $('canvas-media-cancel').addEventListener('click',()=>$('canvas-media-dialog').close());
     $('canvas-media-dialog').addEventListener('close',()=>{canvasMedia=null;selectedCanvasAsset='';});
