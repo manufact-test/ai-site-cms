@@ -727,11 +727,11 @@ const root=path.resolve(__dirname,'../..');
       buffer:Buffer.from(JSON.stringify({...bundle,version:999}))
     });
     assert.equal(await page.locator('#workspace-select option').count(),countBefore);
+    page.once('dialog',dialog=>dialog.accept());
     await page.locator('#workspace-backup-file').setInputFiles({
       name:'all-sites.json',mimeType:'application/json',
       buffer:Buffer.from(JSON.stringify(bundle))
     });
-    page.once('dialog',dialog=>dialog.accept());
     await page.waitForFunction(count=>document.querySelector('#workspace-select').options.length>count,countBefore);
     assert.equal(await page.locator('#workspace-select option').count(),countBefore+bundle.sites.length);
     assert.equal(await page.locator('#site-title').inputValue(),'Завод Север-Металл');
