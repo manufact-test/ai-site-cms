@@ -244,7 +244,7 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .preview-expand:hover{background:#dbf0f5}
 .browser-shell.mobile{max-width:390px}
 .browser-shell.tablet{max-width:768px}
-.canvas-caption{color:#6b8094;padding-bottom:26px}
+.canvas-caption{color:#6b8094;padding-bottom:26px;pointer-events:none}
 .inspector-symbol{background:#eff8fb;border-radius:12px;color:#277d92;padding:10px;font-size:20px;line-height:1}
 .inspector .panel-top{margin-bottom:16px}
 .inspector-intro{
