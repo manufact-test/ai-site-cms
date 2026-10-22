@@ -10,7 +10,7 @@ const os=require('node:os');
 const {spawnSync}=require('node:child_process');
 const cms=path.resolve(__dirname,'../..'),preview=path.join(cms,'stage2-preview');
 const out=path.join(preview,'out','ai-site-cms-stage2-owner-review-kit.zip');
-const files=['index.html','style.css','studio.css','content.js','repeaters.js','library.js','project.js','content-ops.js','quality.js','media.js','renderer.js','site-export.js','brief.js','workspaces.js','art-direction.js','page-recipes.js','canvas-edit.js','canvas-media.js','media-ops.js','app.js'];
+const files=['index.html','style.css','studio.css','content.js','repeaters.js','library.js','project.js','content-ops.js','quality.js','media.js','renderer.js','site-export.js','brief.js','workspaces.js','art-direction.js','page-recipes.js','canvas-edit.js','canvas-media.js','media-ops.js','page-transfer.js','app.js'];
 const dist=path.join(cms,'editor','dist');
 const entry=path.join(dist,'editor.js');
 const attribution=path.join(dist,'THIRD_PARTY_LICENSES.txt');
