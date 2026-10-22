@@ -70,9 +70,12 @@
         entries:[{id,title:name(first.siteTitle),at:Date.now()}]};
       try{
         if(history.length)storage.setItem(key(id),JSON.stringify(history));
+        // Optional feedback copy must never jeopardize migration of project data.
+        try{
+          if(storage.getItem(oldNotes)!==null&&storage.getItem(notesKey(id))===null)
+            storage.setItem(notesKey(id),storage.getItem(oldNotes));
+        }catch(_){/* Original feedback key remains available for manual recovery. */}
         setIndex(next);
-        if(storage.getItem(oldNotes)!==null&&storage.getItem(notesKey(id))===null)
-          storage.setItem(notesKey(id),storage.getItem(oldNotes));
       }catch(e){
         if(history.length)storage.removeItem(key(id));
         throw e;

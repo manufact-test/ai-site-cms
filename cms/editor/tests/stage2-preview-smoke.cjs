@@ -680,10 +680,17 @@ const root=path.resolve(__dirname,'../..');
     const ids=await page.locator('#workspace-select option').evaluateAll(xs=>xs.map(x=>x.value));
     const priorId=ids.find(x=>x!==briefingId);
     assert.ok(priorId);
+    if(!await page.locator('.review-notes').evaluate(el=>el.open))
+      await page.locator('.review-notes > summary').click();
+    await page.locator('#review-text').fill('Только сайт Север-Металл: добавить фото');
+    await page.locator('#review-add').click();
+    assert.equal(await page.locator('#review-count').innerText(),'1');
     await page.locator('#workspace-select').selectOption(priorId);
+    assert.equal(await page.locator('#review-count').innerText(),'0','independent notes per client site');
     assert.notEqual(await page.locator('#site-title').inputValue(),'Завод Север-Металл');
     await page.locator('#workspace-select').selectOption(briefingId);
     assert.equal(await page.locator('#site-title').inputValue(),'Завод Север-Металл');
+    assert.equal(await page.locator('#review-count').innerText(),'1','client feedback restored after switching');
     await page.locator('#project-actions summary').click();
     await page.locator('#workspace-copy').click();
     assert.equal(await page.locator('#workspace-select option').count(),ids.length+1);

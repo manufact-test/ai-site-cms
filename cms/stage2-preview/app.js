@@ -1159,6 +1159,7 @@
     saved=JSON.stringify(entry.doc);
     undo=[];redo=[];lastType='';lastAt=0;
     contentPlan=null;contentExcluded.clear();
+    $('project-actions').open=false;
     apply(entry.doc);versions();readReview();showReview();renderWorkspaces();
   }
   function startWorkspace(next){
