@@ -51,6 +51,24 @@
       toast('Текст обновлён на странице, в редакторе и автономном экспорте. Можно отменить.');
     }catch(e){$('canvas-edit-error').textContent=e.message;$('canvas-edit-error').hidden=false;}
   }
+
+  const surfaceChoices=[['default','Обычный'],['soft','Светлый'],['dark','Тёмный'],['accent','Акцент'],
+    ['linen','Бумажный'],['aurora','Градиент'],['frame','Рамка'],['carbon','Графит']];
+  function renderSurfaceGallery(){
+    const box=$('surface-gallery'),section=current();box.replaceChildren();
+    if(!section)return;
+    const active=activePage().sectionStyles[section.id]||'default';
+    for(const [code,title] of surfaceChoices){
+      const button=document.createElement('button');button.type='button';button.className='surface-swatch';
+      button.setAttribute('aria-pressed',String(code===active));
+      const chip=document.createElement('span');chip.className='surface-swatch-chip surface-chip-'+code;
+      chip.setAttribute('aria-hidden','true');
+      const text=document.createElement('span');text.textContent=title;
+      button.append(chip,text);
+      button.addEventListener('click',()=>editSectionSurface(code));
+      box.append(button);
+    }
+  }
   let recipeSelection='about';
   function renderRecipeChoices(){
     const gallery=$('page-recipe-options');gallery.replaceChildren();
@@ -560,6 +578,7 @@
     ui.seoSnippetDescription.textContent=p.seoDescription||'Добавьте SEO-описание страницы для поисковой выдачи.';
     ui.seoSnippetUrl.textContent='https://demo.local/'+(p.slug||'');
   }
+  let pendingSectionAnchor='';
   function bindPreviewClicks(){
     // Only static, strictly escaped renderer HTML is ever used as iframe srcdoc.
     // Same-origin permits attaching listeners from the parent, but the sandbox
@@ -573,8 +592,18 @@
       }
     });
     body.querySelectorAll('[data-preview-page]').forEach(button=>{
-      button.addEventListener('click',()=>selectPage(button.dataset.previewPage));
+      button.addEventListener('click',()=>{
+        pendingSectionAnchor=button.dataset.previewAnchor||'';
+        selectPage(button.dataset.previewPage);
+        if(button.dataset.previewPage===pageId&&pendingSectionAnchor){
+          body.getElementById(pendingSectionAnchor)?.scrollIntoView();pendingSectionAnchor='';
+        }
+      });
     });
+    if(pendingSectionAnchor){
+      body.getElementById(pendingSectionAnchor)?.scrollIntoView({block:'start'});
+      pendingSectionAnchor='';
+    }
     body.querySelectorAll('[data-preview-section]').forEach(section=>{
       section.setAttribute('tabindex','0');
       section.setAttribute('aria-label','Выбрать блок сайта');
@@ -704,7 +733,7 @@
     const s=current();if(!s)return;
     ui.sectionVisible.checked=!activePage().hiddenSections.includes(s.id);
     ui.sectionVisible.disabled=false;
-    $('section-surface').value=activePage().sectionStyles[s.id]||'default';
+    $('section-surface').value=activePage().sectionStyles[s.id]||'default';renderSurfaceGallery();
     syncSectionLayout();
     renderMediaPicker();renderActionPicker();renderRepeater();renderLibrary();
     ui.info.textContent=C.definitions[s.type].label+' · меняйте свойства выбранной страницы';
@@ -898,7 +927,7 @@
     project.settings.footerPageIds=project.settings.footerPageIds.filter(id=>id!==p.id);
     for(const remaining of project.pages){
       for(const [sectionId,action] of Object.entries(remaining.sectionActions)){
-        if(action==='page:'+p.id)delete remaining.sectionActions[sectionId];
+        if(action==='page:'+p.id||action.startsWith('jump:'+p.id+':'))delete remaining.sectionActions[sectionId];
       }
     }
     selectPage(project.pages[0].id);changed();toast('Страница удалена — можно отменить');
@@ -964,19 +993,37 @@
     const options=[['auto','Автоматически — подходящий способ связи'],
       ['email','Отправить письмо на email'],['phone','Позвонить по телефону'],
       ...project.pages.map(pg=>['page:'+pg.id,'Перейти: '+pg.title])];
+    for(const targetPage of project.pages){
+      targetPage.sections.forEach((section,index)=>{
+        if(targetPage.hiddenSections.includes(section.id))return;
+        const label=section.props.title||section.props.eyebrow||C.definitions[section.type].label;
+        options.push(['jump:'+targetPage.id+':'+section.id,
+          (targetPage.id===pageId?'↳ Текущая':'↗ '+targetPage.title)+' / '+(index+1)+'. '+String(label).slice(0,45)]);
+      });
+    }
     for(const [value,name] of options){
       const option=document.createElement('option');option.value=value;option.textContent=name;list.append(option);
     }
-    list.value=activePage().sectionActions[s.id]||'auto';
+    const selected=activePage().sectionActions[s.id]||'auto';
+    if(!options.some(pair=>pair[0]===selected)){
+      const missing=document.createElement('option');missing.value=selected;
+      missing.textContent='Скрытый целевой блок — ссылка неактивна';list.append(missing);
+    }
+    list.value=selected;
+    const resolved=P.resolveActions(project,activePage())[s.id];
+    $('action-summary').textContent=selected==='auto'?'Автовыбор цели по содержимому страницы':
+      (resolved?'Цель: '+resolved.href:'Цель скрыта — выберите другую видимую секцию');
   }
   function editSectionAction(value){
     const s=current(),p=activePage();
     if(!s||!['hero','contact'].includes(s.type))return;
-    if(value!=='auto'&&!['email','phone'].includes(value)&&!project.pages.some(pg=>value==='page:'+pg.id))return;
+    if(value!=='auto'&&!['email','phone'].includes(value)
+      &&!project.pages.some(pg=>value==='page:'+pg.id)
+      &&!project.pages.some(pg=>pg.sections.some(sec=>value==='jump:'+pg.id+':'+sec.id)))return;
     if((p.sectionActions[s.id]||'auto')===value)return;
     checkpoint('section-action');
     if(value==='auto')delete p.sectionActions[s.id];else p.sectionActions[s.id]=value;
-    changed();
+    changed();renderActionPicker();
   }
   let mediaSerial=0;
   const nextAssetId=()=> 'asset-'+Date.now().toString(36)+'-'+(++mediaSerial).toString(36).padStart(5,'0');
@@ -1197,13 +1244,13 @@
   }
   function editSectionSurface(value){
     const page=activePage(),s=current();
-    if(!s||!['default','soft','dark','accent'].includes(value))return;
+    if(!s||!surfaceChoices.some(choice=>choice[0]===value))return;
     const old=page.sectionStyles[s.id]||'default';
     if(old===value)return;
     checkpoint('section-style');
     if(value==='default')delete page.sectionStyles[s.id];
     else page.sectionStyles[s.id]=value;
-    changed();listing();
+    changed();listing();renderSurfaceGallery();
   }
   function toggleSection(id,show){
     const p=activePage(),s=p.sections.find(s=>s.id===id);
@@ -1243,6 +1290,11 @@
   function remove(i){
     if(doc.sections.length<=1)return;
     checkpoint('structure');const s=doc.sections.splice(i,1)[0];
+    for(const other of project.pages){
+      for(const [sourceId,action] of Object.entries(other.sectionActions)){
+        if(action==='jump:'+pageId+':'+s.id)delete other.sectionActions[sourceId];
+      }
+    }
     activePage().hiddenSections=activePage().hiddenSections.filter(id=>id!==s.id);
     delete activePage().sectionStyles[s.id];
     delete activePage().sectionLayouts[s.id];

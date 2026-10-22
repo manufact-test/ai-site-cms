@@ -232,7 +232,8 @@
       <label class="section-toggle"><input id="section-visible" type="checkbox" checked><span>Показывать секцию на сайте</span></label>
       <p class="setting-helper section-helper">Скрытая секция остаётся доступной для редактирования и возвращается одним переключателем.</p>
       <label class="field-label" for="section-surface">Оформление фона секции</label>
-      <select id="section-surface" aria-label="Стиль фона выбранной секции"><option value="default">Обычный фон</option><option value="soft">Светлый фон</option><option value="dark">Тёмный фон</option><option value="accent">Фирменный акцент</option></select>
+      <select id="section-surface" aria-label="Стиль фона выбранной секции"><option value="default">Обычный фон</option><option value="soft">Светлый фон</option><option value="dark">Тёмный фон</option><option value="accent">Фирменный акцент</option><option value="linen">Тёплый бумажный</option><option value="aurora">Воздушный градиент</option><option value="frame">Строгая рамка</option><option value="carbon">Контрастный графит</option></select>
+      <div id="surface-gallery" class="surface-gallery" role="group" aria-label="Визуальные варианты фона секции"></div>
       <p class="setting-helper">Оформление сохраняется при копировании и экспорте блока.</p>
       <section class="layout-binding" aria-label="Композиция выбранной секции">
         <strong>Композиция секции</strong>
@@ -253,7 +254,7 @@
       <section class="action-binding" id="action-binding" aria-label="Действие кнопки выбранной секции" hidden>
         <label class="field-label" for="section-action">Действие кнопки</label>
         <select id="section-action" aria-label="Куда ведёт кнопка"></select>
-        <p class="setting-helper">Автовыбор ведёт к видимому блоку связи, странице контактов либо к email/телефону. Не создаёт серверных заявок.</p>
+        <p class="setting-helper">Можно связать кнопку с конкретным видимым разделом текущей или другой страницы. В HTML-экспорте работают локальные ссылки, а в Studio — интерактивный переход. Автоматический режим по-прежнему доступен.</p><p id="action-summary" class="setting-helper" role="status"></p>
       </section>
       <section class="media-binding" id="media-binding" aria-label="Фотографии выбранной секции" hidden>
         <strong>Фотографии секции</strong>

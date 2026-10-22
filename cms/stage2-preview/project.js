@@ -120,7 +120,7 @@
         ||!page.sectionStyles||typeof page.sectionStyles!=='object'||Array.isArray(page.sectionStyles)
         ||Object.keys(page.sectionStyles).length>12
         ||Object.entries(page.sectionStyles).some(([id,style])=>
-          !page.sections.some(s=>s.id===id)||!['soft','dark','accent'].includes(style))
+          !page.sections.some(s=>s.id===id)||!['soft','dark','accent','linen','aurora','frame','carbon'].includes(style))
         ||!page.sectionLayouts||typeof page.sectionLayouts!=='object'||Array.isArray(page.sectionLayouts)
         ||Object.keys(page.sectionLayouts).length>12
         ||Object.entries(page.sectionLayouts).some(([id,layout])=>{
@@ -146,7 +146,13 @@
           const section=page.sections.find(s=>s.id===sectionId);
           return !section||!['hero','contact'].includes(section.type)
             ||typeof action!=='string'||!(['email','phone'].includes(action)
-              ||(action.startsWith('page:')&&allPageIds.has(action.slice(5))));
+              ||(action.startsWith('page:')&&allPageIds.has(action.slice(5)))
+              ||(action.startsWith('jump:')&&(()=>{
+                const parts=action.split(':');
+                if(parts.length!==3)return false;
+                const destination=raw.pages.find(p=>p.id===parts[1]);
+                return !!destination?.sections.some(s=>s.id===parts[2]);
+              })()));
         }))
         throw Error('Некорректные настройки или повторяющиеся адреса страниц');
       ids.add(page.id);slugs.add(page.slug);
@@ -326,6 +332,15 @@
     const link=action=>{
       if(action==='email')return c.email?{href:'mailto:'+c.email,type:'email'}:null;
       if(action==='phone')return tel?{href:'tel:'+tel,type:'phone'}:null;
+      if(action.startsWith('jump:')){
+        const parts=action.split(':');
+        const pg=project.pages.find(p=>p.id===parts[1]);
+        const section=pg?.sections.find(s=>s.id===parts[2]);
+        if(!pg||!section||pg.hiddenSections.includes(section.id))return null;
+        const fragment='block-'+section.id;
+        return pg.id===page.id?{href:'#'+fragment,type:'anchor',anchorId:fragment}:
+          {href:(pg.slug||'index')+'.html#'+fragment,type:'page',pageId:pg.id,anchorId:fragment};
+      }
       if(action.startsWith('page:')){
         const pg=project.pages.find(p=>p.id===action.slice(5));
         return pg?{href:(pg.slug||'index')+'.html',pageId:pg.id,type:'page'}:null;
