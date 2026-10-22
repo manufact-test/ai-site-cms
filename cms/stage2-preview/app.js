@@ -365,9 +365,15 @@
       const live=current();
       if(!live||live.id!==s.id)return;
       const next=repeatable?{...live.props,...value}:value;
-      if(JSON.stringify(live.props)===JSON.stringify(next))return;
+      const stored=activePage().sections.find(item=>item.id===s.id);
+      if(!stored)return;
+      if(JSON.stringify(stored.props)===JSON.stringify(next)
+        &&JSON.stringify(live.props)===JSON.stringify(next))return;
       checkpoint('field:'+pageId+':'+s.id,true);
-      live.props=next;changed();listing();
+      // The embedded editor can own a detached preview document. Always write
+      // its change into the persistent page model, not just the iframe view.
+      stored.props=structuredClone(next);live.props=next;
+      changed();listing();
     }});
   }
   function apply(next,preferredPage,preferredSection){
