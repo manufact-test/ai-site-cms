@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-22",
-  "status": "stage2-in-progress-not-accepted-v1.53-multisite-backup",
+  "status": "stage2-in-progress-not-accepted-v1.54-offline-photo-crop",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Read docs/NEXT-CHAT.md §58 and handoffs/lead-integrator/MAIN-HANDOFF-v1.53-2026-10-22.md, verify actual HEAD and latest CI for source 88be84b4df5d0d42a14cf684614e1f935a7478eb. Stage2 NOT ACCEPTED; Stage3 NOT STARTED; 0/135. NO Hostinger or PR3/PR4 without explicit scoped GO.",
+  "next_step": "Read handoffs/lead-integrator/MAIN-HANDOFF-v1.54-2026-10-22.md and docs/NEXT-CHAT.md §59; check source 995ea6f86b22282d8ac16abb19c381a3ef1d5cfe actual Editor CI RED 39851537469 and PHP 39851537475; fix Chrome responsive regressions before any claim of PASS. Stage2 NOT ACCEPTED; Stage3 NOT STARTED; real gates #5-#9 remain.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "public",
-  "checkpoint_version": "1.53",
+  "checkpoint_version": "1.54",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -25,7 +25,7 @@
     "started_at": "2026-10-18",
     "owner_delegated_selection": true,
     "foundation": "A - Slim/Opis/Jedison",
-    "product_code": "Stage2 OFFLINE preview v10: 11 sections, 3-page deterministic site-from-brief, adaptable style/media, SEO, repeaters, linked library, editorial quality, scoped find/replace, 8 separate local sites/history/review notes, full-site portfolio JSON backup and additive rollback-safe restore; NOT production AI/auth/CMS/publisher",
+    "product_code": "Stage2 OFFLINE UX preview v10; 3-page brief, 8 local sites and backup, in-canvas text/photo editing, shared ALT/focal X/Y, responsive local CSS via Blob and standalone HTML ZIP. NOT production AI/auth/CMS/publisher.",
     "bootstrap_commit": "493964f32d63dd5552484afbcc972fc614571381",
     "bootstrap_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39275005275",
     "bootstrap_ci_result": "7/7 SUCCESS on verified code 493964f32d63dd5552484afbcc972fc614571381",
@@ -617,7 +617,7 @@
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.52",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.52-2026-10-22.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.54-2026-10-22.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -638,7 +638,7 @@
       "scope": "Research, license/host analysis, 135-ID reuse matrix and option A preference accepted through owner-delegated technical choice. No product features accepted."
     }
   ],
-  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/main/handoffs/lead-integrator/MAIN-HANDOFF-v1.49-2026-10-21.md",
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/main/handoffs/lead-integrator/MAIN-HANDOFF-v1.54-2026-10-22.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
@@ -1186,8 +1186,8 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.52",
-  "last_docs_handoff_note": "Owner explicitly requested once-only handoff after source 99817915... PHP 8/8 and editor full CI SUCCESS. Docs-only HEAD distinct from source-tested SHA.",
+  "last_docs_handoff_version": "1.54",
+  "last_docs_handoff_note": "Owner-requested handoff after local image focal editing, CSP inheritance fix and Chromium regressions. Actual Editor CI remains RED at time of handoff.",
   "latest_tested_code_sha": "99817915c4bca7f5b9a169b9e9ffedad42d14ec8",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
@@ -1332,5 +1332,24 @@
       "mandatory_accepted": 0,
       "hostinger_changes": false
     }
+  },
+  "latest_source_checkpoint_v1_54": {
+    "source_sha": "995ea6f86b22282d8ac16abb19c381a3ef1d5cfe",
+    "date": "2026-10-22",
+    "editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39851537469",
+    "editor_result": "RED: responsive old E2E needs further correction; do NOT label success",
+    "php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39851537475",
+    "php_result": "CHECK final status",
+    "stage2_accepted": false,
+    "stage3_started": false,
+    "accepted_required": 0,
+    "hostinger_changed": false,
+    "open_gates": [
+      5,
+      6,
+      7,
+      8,
+      9
+    ]
   }
 }
