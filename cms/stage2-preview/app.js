@@ -276,7 +276,7 @@
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
         menu:project.pages.filter(x=>x.inMenu).map(x=>({id:x.id,title:x.title,slug:x.slug})),
         active:pageId,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
-         design:project.design,contacts:project.contacts,
+         design:project.design,contacts:project.contacts,sectionLayouts:p.sectionLayouts,
          actions:P.resolveActions(project,p),mediaBySection:P.resolveMedia(project,p),
          itemsBySection:P.resolveItems(project,p),brand:P.resolveBrand(project),
          homePageId:project.pages.find(x=>x.slug==='').id,
@@ -346,6 +346,7 @@
     ui.sectionVisible.checked=!activePage().hiddenSections.includes(s.id);
     ui.sectionVisible.disabled=false;
     $('section-surface').value=activePage().sectionStyles[s.id]||'default';
+    syncSectionLayout();
     renderMediaPicker();renderActionPicker();renderRepeater();
     ui.info.textContent=C.definitions[s.type].label+' · меняйте свойства выбранной страницы';
     ui.fields.replaceChildren();
@@ -408,6 +409,7 @@
     copy.props=structuredClone(source.props);
     target.sections.push(copy);
     if(activePage().sectionStyles[source.id])target.sectionStyles[copy.id]=activePage().sectionStyles[source.id];
+    if(activePage().sectionLayouts[source.id])target.sectionLayouts[copy.id]=structuredClone(activePage().sectionLayouts[source.id]);
     if(activePage().mediaSlots[source.id])target.mediaSlots[copy.id]=structuredClone(activePage().mediaSlots[source.id]);
     if(activePage().sectionActions[source.id])target.sectionActions[copy.id]=activePage().sectionActions[source.id];
     if(activePage().repeaters[source.id]){
@@ -675,7 +677,7 @@
     toast('Фотографии добавлены в локальную медиабиблиотеку');
   }
   function syncDesignUI(){
-    for(const field of ['font','radius','spacing','navigation']){
+    for(const field of ['font','radius','spacing','navigation','scale','contentWidth']){
       $('design-'+field).value=project.design[field];
     }
     $('design-accent').value=project.design.accent||C.palette[project.theme].accent;
@@ -688,6 +690,34 @@
     catch(e){toast('Недопустимое значение дизайна',true);syncDesignUI();return;}
     checkpoint('design:'+field,true);
     project.design=next;syncDesignUI();changed();
+  }
+  function syncSectionLayout(){
+    const s=current();if(!s)return;
+    const l=activePage().sectionLayouts[s.id]||P.defaultLayout();
+    for(const key of ['width','density','align','columns'])$('layout-'+key).value=l[key];
+    $('layout-reverse').checked=l.reverse;
+    $('layout-columns-holder').hidden=!['features','services','catalog','metrics','process'].includes(s.type);
+    $('layout-reverse-holder').hidden=!['hero','story'].includes(s.type);
+    $('layout-reset').disabled=!activePage().sectionLayouts[s.id];
+  }
+  function editSectionLayout(key,value){
+    const s=current(),p=activePage();
+    if(!s)return;
+    const currentLayout=p.sectionLayouts[s.id]||P.defaultLayout();
+    if(currentLayout[key]===value)return;
+    const next={...currentLayout,[key]:value};
+    const defaults=P.defaultLayout();
+    const proposal={...p.sectionLayouts};
+    if(Object.keys(defaults).every(field=>next[field]===defaults[field]))delete proposal[s.id];
+    else proposal[s.id]=next;
+    try{P.validate({...project,pages:project.pages.map(page=>page.id===p.id?{...page,sectionLayouts:proposal}:page)});}
+    catch(_){syncSectionLayout();toast('Недоступная комбинация настроек секции',true);return;}
+    checkpoint('section-layout');
+    p.sectionLayouts=proposal;syncSectionLayout();changed();
+  }
+  function resetSectionLayout(){
+    const s=current(),p=activePage();if(!s||!p.sectionLayouts[s.id])return;
+    checkpoint('section-layout');delete p.sectionLayouts[s.id];syncSectionLayout();changed();
   }
   function editSectionSurface(value){
     const page=activePage(),s=current();
@@ -739,6 +769,7 @@
     checkpoint('structure');const s=doc.sections.splice(i,1)[0];
     activePage().hiddenSections=activePage().hiddenSections.filter(id=>id!==s.id);
     delete activePage().sectionStyles[s.id];
+    delete activePage().sectionLayouts[s.id];
     delete activePage().mediaSlots[s.id];
     delete activePage().sectionActions[s.id];
     delete activePage().repeaters[s.id];
@@ -750,6 +781,7 @@
     checkpoint('structure');const source=doc.sections[i],copy=C.createSection(source.type);
     copy.props=structuredClone(source.props);doc.sections.splice(i+1,0,copy);selection=copy.id;
     if(activePage().sectionStyles[source.id])activePage().sectionStyles[copy.id]=activePage().sectionStyles[source.id];
+    if(activePage().sectionLayouts[source.id])activePage().sectionLayouts[copy.id]=structuredClone(activePage().sectionLayouts[source.id]);
     if(activePage().mediaSlots[source.id])activePage().mediaSlots[copy.id]=structuredClone(activePage().mediaSlots[source.id]);
     if(activePage().sectionActions[source.id])activePage().sectionActions[copy.id]=activePage().sectionActions[source.id];
     if(activePage().repeaters[source.id])activePage().repeaters[copy.id]=activePage().repeaters[source.id].map(item=>({
@@ -897,12 +929,17 @@
       $('contact-'+field).addEventListener('change',()=>editContact(field,$('contact-'+field).value));
     }
     $('section-action').addEventListener('change',()=>editSectionAction($('section-action').value));
-    for(const field of ['font','radius','spacing','navigation']){
+    for(const field of ['font','radius','spacing','navigation','scale','contentWidth']){
       $('design-'+field).addEventListener('change',()=>editDesign(field,$('design-'+field).value));
     }
     $('design-accent').addEventListener('input',()=>editDesign('accent',$('design-accent').value));
     $('design-accent-reset').addEventListener('click',()=>editDesign('accent',''));
     $('section-surface').addEventListener('change',()=>editSectionSurface($('section-surface').value));
+    for(const key of ['width','density','align','columns']){
+      $('layout-'+key).addEventListener('change',()=>editSectionLayout(key,$('layout-'+key).value));
+    }
+    $('layout-reverse').addEventListener('change',()=>editSectionLayout('reverse',$('layout-reverse').checked));
+    $('layout-reset').addEventListener('click',resetSectionLayout);
     ui.sectionVisible.addEventListener('change',()=>{const s=current();if(s)toggleSection(s.id,ui.sectionVisible.checked);});
     $('page-in-menu').addEventListener('change',()=>editPage('inMenu',$('page-in-menu').checked));
     $('starter-apply').addEventListener('click',starter);

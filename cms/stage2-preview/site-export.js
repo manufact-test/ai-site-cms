@@ -59,6 +59,7 @@
       content:R.render(P.pageDoc(project,p),null,false,{
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
         menu,active:p.id,exportLinks:true,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
+        sectionLayouts:p.sectionLayouts,
         design:project.design,contacts:project.contacts,actions:P.resolveActions(project,p),
         mediaBySection:P.resolveMedia(project,p,true),itemsBySection:P.resolveItems(project,p,true),
         brand:P.resolveBrand(project,true),homePageId:project.pages.find(x=>x.slug==='').id,

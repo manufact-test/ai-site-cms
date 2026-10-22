@@ -439,3 +439,13 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .footer-page-item{display:flex;align-items:center;gap:9px;padding:5px 2px;color:#c5d5e2;font-size:12px;cursor:pointer}
 .footer-page-item input{width:16px!important;height:16px!important;min-height:16px!important;flex:none;accent-color:#66d1e4;padding:0!important}
 .footer-page-item span{overflow-wrap:anywhere}
+
+/* Typed, bounded section composition selectors. */
+.layout-binding{margin:15px 0;padding:14px;border:1px solid #d9e6ee;border-radius:12px;background:#f3f8fc}
+.layout-binding>strong{display:block;font-size:13px;color:#25485e;margin-bottom:8px}
+.layout-binding>.field-label,.layout-binding>div>.field-label{display:block;font-size:11px;font-weight:650;color:#527087;margin:13px 0 7px}
+.layout-binding select{width:100%;max-width:100%;box-sizing:border-box}
+.layout-binding .toggle-line{display:flex;align-items:center;gap:9px;margin:15px 0 10px;font-size:12px;color:#405a71}
+.layout-binding .toggle-line input{flex:none}
+.layout-binding .setting-helper{color:#698397;margin:12px 0 0;font-size:11px}
+.layout-binding #layout-reset{width:100%;justify-content:center;margin-top:12px}

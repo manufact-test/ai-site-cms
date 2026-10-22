@@ -83,6 +83,10 @@
         <select id="design-font"><option value="system">Современная системная</option><option value="geometric">Геометрическая</option><option value="editorial">Редакционная с засечками</option></select>
         <label class="field-label" for="design-radius">Форма элементов</label>
         <select id="design-radius"><option value="sharp">Строгие углы</option><option value="soft">Умеренное скругление</option><option value="round">Округлые формы</option></select>
+        <label class="field-label" for="design-scale">Масштаб заголовков</label>
+        <select id="design-scale"><option value="balanced">Сбалансированный</option><option value="impact">Крупные выразительные</option><option value="restrained">Сдержанные</option></select>
+        <label class="field-label" for="design-contentWidth">Ширина сайта</label>
+        <select id="design-contentWidth"><option value="standard">Стандартная · 1180 px</option><option value="wide">Широкая · 1360 px</option></select>
         <label class="field-label" for="design-spacing">Вертикальный ритм</label>
         <select id="design-spacing"><option value="compact">Компактный</option><option value="comfortable">Сбалансированный</option><option value="relaxed">Воздушный</option></select>
         <label class="field-label" for="design-navigation">Оформление шапки</label>
@@ -160,6 +164,22 @@
       <label class="field-label" for="section-surface">Оформление фона секции</label>
       <select id="section-surface" aria-label="Стиль фона выбранной секции"><option value="default">Обычный фон</option><option value="soft">Светлый фон</option><option value="dark">Тёмный фон</option><option value="accent">Фирменный акцент</option></select>
       <p class="setting-helper">Оформление сохраняется при копировании и экспорте блока.</p>
+      <section class="layout-binding" aria-label="Композиция выбранной секции">
+        <strong>Композиция секции</strong>
+        <label class="field-label" for="layout-width">Ширина содержимого</label>
+        <select id="layout-width"><option value="default">Как на всём сайте</option><option value="narrow">Узкая · 880 px</option><option value="wide">Расширенная · 1440 px</option></select>
+        <label class="field-label" for="layout-density">Воздух вокруг содержимого</label>
+        <select id="layout-density"><option value="default">Стандартные отступы</option><option value="compact">Компактно</option><option value="spacious">Больше воздуха</option></select>
+        <label class="field-label" for="layout-align">Подача содержимого</label>
+        <select id="layout-align"><option value="left">Слева</option><option value="center">По центру</option></select>
+        <div id="layout-columns-holder">
+          <label class="field-label" for="layout-columns">Карточки в ряду</label>
+          <select id="layout-columns"><option value="auto">Автоматически</option><option value="two">Две</option><option value="three">Три</option></select>
+        </div>
+        <label id="layout-reverse-holder" class="toggle-line"><input id="layout-reverse" type="checkbox"><span>Поменять местами текст и изображение</span></label>
+        <button id="layout-reset" type="button" class="button subtle">Вернуть композицию по умолчанию</button>
+        <p class="setting-helper">Настройки изменяют только текущую секцию и работают на ПК, планшете и телефоне.</p>
+      </section>
       <section class="action-binding" id="action-binding" aria-label="Действие кнопки выбранной секции" hidden>
         <label class="field-label" for="section-action">Действие кнопки</label>
         <select id="section-action" aria-label="Куда ведёт кнопка"></select>
