@@ -240,7 +240,7 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#media-file').setInputFiles({
       name:'factory-photo.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')
     });
-    await page.locator('#media-list img').first().waitFor();
+    await page.locator('#media-list img').first().waitFor({state:'attached'});
     assert.equal(await page.locator('#media-count').innerText(),'1');
     await page.locator('#media-binding-fields select').first().selectOption({index:1});
     await frame.locator('.hero-photo').waitFor();
