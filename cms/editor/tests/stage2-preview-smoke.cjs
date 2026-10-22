@@ -506,7 +506,7 @@ const root=path.resolve(__dirname,'../..');
     if(!await page.locator('.sidebar-tools').evaluate(el=>el.open))
       await page.locator('.sidebar-tools > summary').click();
     await page.locator('#site-content-ops > summary').click();
-    await page.locator('#content-audit-total').waitFor();
+    await page.waitForFunction(()=>/замечан/.test(document.querySelector('#content-audit-total')?.textContent||''));
     assert.match(await page.locator('#content-audit-total').innerText(),/замечан/);
     await page.locator('#content-search').fill('Каталог завода — обновлён');
     await page.waitForFunction(()=>document.querySelector('#content-results-summary').textContent.includes('2 полей'));
