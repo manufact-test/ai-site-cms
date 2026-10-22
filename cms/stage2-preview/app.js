@@ -579,7 +579,7 @@
       section.setAttribute('tabindex','0');
       section.setAttribute('aria-label','Выбрать блок сайта');
       function activate(e){
-        if(e.type==='click'&&e.target.closest('a,button,input,select,textarea,summary'))return;
+        if(e.type==='click'&&e.target.closest('a,button,input,select,textarea,summary,.cms-edit-target'))return;
         if(e.type==='keydown'){
           if(e.key!=='Enter'&&e.key!==' ')return;
           e.preventDefault();
