@@ -312,12 +312,15 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#site-public-url').press('Tab');
     assert.equal(await page.locator('#site-public-url').inputValue(),'https://factory.example.org');
     assert.equal(await frame.locator('.footer-pages [data-preview-page]').count(),1);
-    const mobilePageId=await page.locator('#page-list option').nth(1).getAttribute('value');
     await page.locator('[data-width=mobile]').click();
     await frame.locator('.mobile-nav').waitFor();
     assert.equal(await frame.locator('.mobile-nav').evaluate(el=>getComputedStyle(el).display),'block');
+    // Sync with the iframe load listener before invoking the real navigation click.
+    await frame.locator('.hero .cms-photo-control').waitFor({state:'attached'});
     await frame.locator('.mobile-nav > summary').click();
-    await frame.locator('.mobile-nav-menu [data-preview-page]').nth(1).click();
+    const mobileTarget=frame.locator('.mobile-nav-menu [data-preview-page]').nth(1);
+    const mobilePageId=await mobileTarget.getAttribute('data-preview-page');
+    await mobileTarget.click();
     await page.waitForFunction(id=>document.querySelector('#page-list').value===id,mobilePageId);
     await frame.locator('.site-brand').click({force:true});
     await page.waitForFunction(()=>document.querySelector('#page-list').selectedIndex===0);
@@ -919,16 +922,7 @@ const root=path.resolve(__dirname,'../..');
       'Реальная фотография производственного помещения');
     assert.match(await page.locator('#preview').getAttribute('srcdoc'),/\.hero-photo\{object-position:50% 0%!important\}/);
     assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>getComputedStyle(el).objectPosition),'50% 0%',
-      'computed image crop must follow stored focal point; debug='+JSON.stringify(await mediaFrame.locator('.hero-photo').evaluate(el=>{
-        const parent=el.closest('section');
-        const selector='section[data-preview-section="'+parent?.dataset.previewSection+'"] .hero-photo';
-        const sheet=el.ownerDocument.styleSheets[0];
-        const found=sheet?[...sheet.cssRules].filter(r=>r.cssText.includes('object-position')).slice(-5).map(r=>r.cssText.slice(-250)):[];
-        return {section:parent?.dataset.previewSection,selector,matches:el.matches(selector),sheets:el.ownerDocument.styleSheets.length,
-          sheetRules:sheet?.cssRules.length||0,found,head:el.ownerDocument.head?.outerHTML.slice(-250),
-          styles:el.ownerDocument.head?.querySelector('style')?.textContent.slice(-400),bodyFont:getComputedStyle(el.ownerDocument.body).fontFamily,
-          imageFit:getComputedStyle(el).objectFit};
-      })));
+      'The focal point must be applied in the real Chromium iframe');
     await page.locator('#undo').click();
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),'service production');
     assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>getComputedStyle(el).objectPosition),'50% 50%');
