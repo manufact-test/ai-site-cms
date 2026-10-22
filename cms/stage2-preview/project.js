@@ -86,7 +86,8 @@
     const mediaIds=new Set();
     for(const asset of raw.media){
       if(!asset||typeof asset!=='object'||Array.isArray(asset)
-        ||!allowedKeys(asset,['id','alt','data','focusX','focusY'])
+        ||!['id','alt','data'].every(key=>Object.hasOwn(asset,key))
+        ||Object.keys(asset).some(key=>!['id','alt','data','focusX','focusY'].includes(key))
         ||(asset.focusX!==undefined&&(!Number.isInteger(asset.focusX)||asset.focusX<0||asset.focusX>100))
         ||(asset.focusY!==undefined&&(!Number.isInteger(asset.focusY)||asset.focusY<0||asset.focusY>100))
         ||typeof asset.id!=='string'||!/^asset-[a-z0-9-]{5,48}$/.test(asset.id)
