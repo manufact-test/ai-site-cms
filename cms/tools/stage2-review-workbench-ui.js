@@ -40,18 +40,18 @@
           if(typeof s!=='string'||s.length>500||s.includes('\\'))return false;
           try{const u=new URL(s);return u.protocol==='https:'&&!u.username&&!u.password&&!u.hash&&!u.search&&
             u.hostname!==''&&!['localhost','127.0.0.1'].includes(u.hostname)&&
-            !/\\.(local|internal|test|invalid|example)$/.test(u.hostname);
+            !/\.(local|internal|test|invalid|example)$/.test(u.hostname);
           }catch{return false;}
         }) ||
         !(r.reviewerReference===null || typeof r.reviewerReference==='string' &&
           /^[A-Za-z0-9][A-Za-z0-9_.:@/-]{2,119}$/.test(r.reviewerReference)) ||
-        typeof r.notes!=='string'||r.notes.length>2000||r.notes.includes('\\0'))
+        typeof r.notes!=='string'||r.notes.length>2000||r.notes.includes('\0'))
         throw Error('Строка '+(i+1)+': неверные данные или подменённый компонент.');
       if(r.disposition==='pending'){
         if(r.reviewedOn!==null)throw Error('Строка '+(i+1)+': ожидающая проверка не может содержать дату решения.');
         pending++;continue;
       }
-      if(typeof r.reviewedOn!=='string'|| !/^\\d{4}-\\d\\d-\\d\\d$/.test(r.reviewedOn) ||
+      if(typeof r.reviewedOn!=='string'|| !/^\d{4}-\d\d-\d\d$/.test(r.reviewedOn) ||
         !Number.isFinite(Date.parse(r.reviewedOn+'T00:00:00Z')) ||
         new Date(r.reviewedOn+'T00:00:00Z').toISOString().slice(0,10)!==r.reviewedOn ||
         Date.parse(r.reviewedOn+'T00:00:00Z')>Date.now() ||
@@ -120,7 +120,7 @@
         label.prepend(ch);
       }
       field(body,'Ссылки на доказательства (одна HTTPS-ссылка на строку)','textarea',
-        r.evidenceUrls.join('\\n'),v=>{r.evidenceUrls=v.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);refresh();},'span-6');
+        r.evidenceUrls.join('\n'),v=>{r.evidenceUrls=v.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);refresh();},'span-6');
       field(body,'Решение и замечания (минимум 12 символов)','textarea',
         r.notes,v=>{r.notes=v;refresh();},'span-6');
       field(body,'Код независимого проверяющего','text',
@@ -153,7 +153,7 @@
   $('export').addEventListener('click',()=>{
     try{
       const result=validate(work);
-      const blob=new Blob([JSON.stringify(work,null,2)+'\\n'],{type:'application/json'});
+      const blob=new Blob([JSON.stringify(work,null,2)+'\n'],{type:'application/json'});
       const url=URL.createObjectURL(blob);
       const a=document.createElement('a');a.href=url;a.download='stage2-dependency-review-worksheet.json';
       document.body.append(a);a.click();a.remove();
