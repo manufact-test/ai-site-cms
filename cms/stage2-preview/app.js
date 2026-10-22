@@ -19,6 +19,11 @@
   let saved='',undo=[],redo=[],lastType='',lastAt=0,focus='page',toastTimer;
   let review=[];
   let contentPlan=null;
+  let contentExcluded=new Set();
+  const contentScope=()=>$('content-scope').value==='current'?pageId:'*';
+  function contentMatches(){
+    return O.search(project,$('content-search').value,$('content-case').checked,contentScope());
+  }
   const snapshot=()=>JSON.stringify(project);
   const activePage=()=>project.pages.find(p=>p.id===pageId);
   const pageDoc=()=>P.pageDoc(project,activePage());
@@ -177,7 +182,7 @@
     let readiness,found;
     try{
       readiness=O.review(project);
-      found=O.search(project,$('content-search').value,$('content-case').checked);
+      found=contentMatches();
     }catch(e){$('content-results-summary').textContent=e.message;return;}
     $('content-issues').textContent=readiness.attention+' важных замечаний';
     $('content-audit-total').textContent=readiness.total+' замечаний';
@@ -203,13 +208,26 @@
       audit.append(empty);
     }
     const results=$('content-results');results.replaceChildren();
+    const chosen=found.entries.filter(entry=>!contentExcluded.has(O.identity(entry)));
+    $('content-selection-summary').textContent='Выбрано '+chosen.length+' из '+found.entries.length+' полей';
+    $('content-select-all').disabled=!found.entries.length||chosen.length===found.entries.length;
+    $('content-select-none').disabled=!chosen.length;
     $('content-results-summary').textContent=$('content-search').value.trim()?
-      found.entries.length+' полей / '+found.occurrences+' вхождений по всему сайту'+
+      found.entries.length+' полей / '+found.occurrences+' вхождений · '+
+      (contentScope()==='*'?'весь сайт':'текущая страница')+
       (found.entries.some(r=>r.linked)?' · есть связанные с библиотекой секции':''):
       'Введите текст для поиска по всем страницам, SEO и карточкам.';
     for(const entry of found.entries.slice(0,25)){
-      const button=document.createElement('button');button.type='button';
-      button.className='content-search-hit';
+      const wrapper=document.createElement('div');wrapper.className='content-search-hit';
+      const check=document.createElement('input');check.type='checkbox';
+      check.className='content-field-include';
+      const key=O.identity(entry);check.checked=!contentExcluded.has(key);
+      check.setAttribute('aria-label','Заменять в поле: '+(entry.pageTitle||'Сайт')+' / '+entry.label);
+      check.addEventListener('change',()=>{
+        if(check.checked)contentExcluded.delete(key);else contentExcluded.add(key);
+        resetContentPlan();renderContentOps();
+      });
+      const button=document.createElement('button');button.type='button';button.className='content-hit-navigate';
       const strong=document.createElement('strong');
       strong.textContent=(entry.pageTitle?entry.pageTitle+' / ':'')+entry.label+
         (entry.hidden?' · скрыто':'')+(entry.linked?' · шаблон':'');
@@ -218,14 +236,14 @@
       const amount=document.createElement('small');amount.textContent=entry.count+' совп.';
       button.append(strong,excerpt,amount);
       button.addEventListener('click',()=>focusContentEntry(entry));
-      results.append(button);
+      wrapper.append(check,button);results.append(wrapper);
     }
     if(found.entries.length>25){
       const more=document.createElement('p');more.className='setting-helper';
       more.textContent='Показаны первые 25 полей из '+found.entries.length+'. Уточните поисковую фразу.';
       results.append(more);
     }
-    $('content-plan').disabled=!found.occurrences;
+    $('content-plan').disabled=!chosen.length;
   }
   function exportContentReport(){
     let readiness;
@@ -259,7 +277,11 @@
   function planContentReplace(){
     resetContentPlan();
     let plan;
-    try{plan=O.plan(project,$('content-search').value,$('content-replacement').value,$('content-case').checked);}
+    try{
+      const selected=contentMatches().entries.filter(entry=>!contentExcluded.has(O.identity(entry))).map(O.identity);
+      plan=O.plan(project,$('content-search').value,$('content-replacement').value,
+        $('content-case').checked,contentScope(),selected);
+    }
     catch(e){toast(e.message,true);return;}
     const details=$('content-plan-details');details.hidden=false;
     const title=document.createElement('strong'),text=document.createElement('p');
@@ -1219,8 +1241,14 @@
     $('starter-apply').addEventListener('click',starter);
     $('copy-section').addEventListener('click',copySection);
     $('site-content-ops').addEventListener('toggle',renderContentOps);
-    $('content-search').addEventListener('input',()=>{resetContentPlan();renderContentOps();});
-    $('content-case').addEventListener('change',()=>{resetContentPlan();renderContentOps();});
+    $('content-search').addEventListener('input',()=>{contentExcluded.clear();resetContentPlan();renderContentOps();});
+    $('content-case').addEventListener('change',()=>{contentExcluded.clear();resetContentPlan();renderContentOps();});
+    $('content-scope').addEventListener('change',()=>{contentExcluded.clear();resetContentPlan();renderContentOps();});
+    $('content-select-all').addEventListener('click',()=>{contentExcluded.clear();resetContentPlan();renderContentOps();});
+    $('content-select-none').addEventListener('click',()=>{
+      for(const entry of contentMatches().entries)contentExcluded.add(O.identity(entry));
+      resetContentPlan();renderContentOps();
+    });
     $('content-replacement').addEventListener('input',resetContentPlan);
     $('content-plan').addEventListener('click',planContentReplace);
     $('content-report-export').addEventListener('click',exportContentReport);

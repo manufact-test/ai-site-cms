@@ -166,7 +166,14 @@
           <label class="field-label" for="content-search">Найти текст</label>
           <input type="search" id="content-search" maxlength="90" placeholder="Например: Название компании" autocomplete="off">
           <label class="toggle-line content-case"><input type="checkbox" id="content-case"><span>Учитывать регистр</span></label>
+          <label class="field-label" for="content-scope">Где искать и заменять</label>
+          <select id="content-scope"><option value="*">Весь сайт, включая общие поля</option><option value="current">Только текущая страница</option></select>
           <div id="content-results-summary" class="setting-helper" role="status">Введите текст для поиска по всем страницам.</div>
+          <div class="content-selection-tools">
+            <button id="content-select-all" class="text-button" type="button">Выбрать все</button>
+            <button id="content-select-none" class="text-button" type="button">Снять все</button>
+            <span id="content-selection-summary" aria-live="polite">0 полей выбрано</span>
+          </div>
           <div id="content-results" class="content-search-results" aria-label="Найденные поля"></div>
           <label class="field-label" for="content-replacement">Заменить на</label>
           <input id="content-replacement" type="text" maxlength="180" placeholder="Новое написание" autocomplete="off">

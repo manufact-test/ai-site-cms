@@ -491,3 +491,14 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .content-plan-details p{font-size:10px;line-height:1.5;margin:6px 0}
 .content-plan-row{display:grid;gap:3px;border-top:1px solid #c4dfd8;padding:7px 0}
 .content-plan-row span{font-size:10px;line-height:1.35}
+
+/* Editorial replacement scope and per-field selection. */
+.content-ops-inner #content-scope{width:100%;min-width:0;box-sizing:border-box}
+.content-selection-tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:8px 0}
+.content-selection-tools .text-button{font-size:11px}
+.content-selection-tools span{font-size:10px;color:#687f8e}
+.content-search-hit{display:flex;align-items:flex-start;gap:9px;padding:7px 9px}
+.content-search-hit .content-field-include{width:16px;height:16px;flex:none;margin-top:4px;accent-color:#207b9a;cursor:pointer}
+.content-hit-navigate{display:grid;gap:3px;text-align:left;min-width:0;flex:1;padding:0;border:0;background:transparent;color:inherit;cursor:pointer}
+.content-hit-navigate:hover strong{text-decoration:underline}
+.content-hit-navigate:focus-visible{outline:2px solid #207b9a;outline-offset:3px}

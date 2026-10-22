@@ -74,12 +74,16 @@
     }
     return {value:count?result+value.slice(at):value,count};
   }
-  function search(raw,needle,matchCase=false){
+  const identity=entry=>JSON.stringify([entry.scope,entry.pageId||'',entry.sectionId||'',entry.itemId||'',entry.key]);
+  function search(raw,needle,matchCase=false,pageId='*'){
+    if(pageId!=='*'&&(typeof pageId!=='string'||!raw.pages.some(page=>page.id===pageId)))
+      throw Error('Неизвестная страница для поиска');
     if(typeof needle!=='string'||needle.length>90||typeof matchCase!=='boolean')
       throw Error('Поисковая фраза не должна превышать 90 символов');
     if(!needle.trim())return {entries:[],occurrences:0};
     const result=[],entries=fields(raw);let occurrences=0;
     for(const entry of entries){
+      if(pageId!=='*'&&entry.pageId!==pageId)continue;
       const update=replaceLiteral(entry.value,needle,'',matchCase);
       if(!update.count)continue;
       result.push({...entry,count:update.count});
@@ -87,22 +91,31 @@
     }
     return {entries:result,occurrences};
   }
-  function plan(raw,needle,replacement,matchCase=false){
+  function plan(raw,needle,replacement,matchCase=false,pageId='*',selected=null){
     if(typeof replacement!=='string'||replacement.length>180||replacement.includes('\0'))
       throw Error('Текст замены должен быть не длиннее 180 символов');
     if(typeof needle!=='string'||!needle.trim())throw Error('Введите текст для поиска');
-    const found=search(raw,needle,matchCase);
-    const changes=found.entries.map(entry=>{
+    const found=search(raw,needle,matchCase,pageId);
+    const known=new Set(found.entries.map(identity));
+    let selectedIds=null;
+    if(selected!==null){
+      if(!Array.isArray(selected)||selected.length>400||selected.some(v=>typeof v!=='string')
+        ||new Set(selected).size!==selected.length||selected.some(v=>!known.has(v)))
+        throw Error('Выбор полей устарел или некорректен');
+      selectedIds=new Set(selected);
+    }
+    const changes=found.entries.filter(entry=>selectedIds===null||selectedIds.has(identity(entry))).map(entry=>{
       const update=replaceLiteral(entry.value,needle,replacement,matchCase);
       return {...entry,after:update.value};
     });
     const candidate=clone(raw);
+    const occurrences=changes.reduce((sum,entry)=>sum+entry.count,0);
     for(const entry of changes){
       const {obj,key}=field(candidate,entry);obj[key]=entry.after;
     }
     try{P.validate(candidate);}
-    catch(e){return {valid:false,error:e.message,changes,occurrences:found.occurrences,candidate:null};}
-    return {valid:true,error:'',changes,occurrences:found.occurrences,candidate};
+    catch(e){return {valid:false,error:e.message,changes,occurrences,candidate:null};}
+    return {valid:true,error:'',changes,occurrences,candidate};
   }
   const examples=/\b(?:демо(?:нстрац\w*)?|пример(?:а|ный)?|заглушк\w*|замените|добавьте|укажите)\b/iu;
   function review(raw){
@@ -153,6 +166,6 @@
       demoSections:demoCount,fields:fields(doc).length};
   }
   Object.defineProperty(window,'CmsPreviewContentOps',{value:Object.freeze({
-    fields,search,plan,review
+    fields,search,plan,review,identity
   })});
 })();
