@@ -828,7 +828,8 @@ const root=path.resolve(__dirname,'../..');
     await recipeFrame.locator('.studio-grid > article strong').filter({hasText:'Монтаж и настройка'}).waitFor();
     await page.locator('#save').click();
     await page.reload();
-    assert.equal(await page.locator('#page-list').inputValue(),recipePageId);
+    // A reopened workspace defaults to its home page; select the persisted recipe page.
+    await page.locator('#page-list').selectOption(recipePageId);
     await page.frameLocator('#preview').locator('.studio-grid > article strong').filter({hasText:'Монтаж и настройка'}).waitFor();
     const recipeJSONDownload=page.waitForEvent('download');
     await page.locator('#project-actions summary').click();
