@@ -233,7 +233,7 @@
     });
     if([...target.options].some(option=>option.value===previous))target.value=previous;
     $('copy-section').disabled=!target.options.length;
-    auditUI();
+    renderFooterPagePicker();auditUI();
     ui.previewUrl.textContent='demo.local'+(p.slug?'/'+p.slug:'/');
     ui.seoSnippetTitle.textContent=p.seoTitle;
     ui.seoSnippetDescription.textContent=p.seoDescription||'Добавьте SEO-описание страницы для поисковой выдачи.';
@@ -278,7 +278,9 @@
         active:pageId,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
          design:project.design,contacts:project.contacts,
          actions:P.resolveActions(project,p),mediaBySection:P.resolveMedia(project,p),
-         itemsBySection:P.resolveItems(project,p),...project.settings
+         itemsBySection:P.resolveItems(project,p),brand:P.resolveBrand(project),
+         homePageId:project.pages.find(x=>x.slug==='').id,
+         footerPages:P.resolveFooterPages(project),canonical:P.publicPageUrl(project,p),...project.settings
       });
       ui.count.textContent=doc.sections.length+' блоков';
       ui.seoSnippetTitle.textContent=p.seoTitle;
@@ -366,6 +368,7 @@
     $('site-header-note').value=project.settings.headerNote;
     $('site-footer-note').value=project.settings.footerNote;
     $('site-navigation').checked=project.settings.showNavigation;
+    $('site-public-url').value=project.settings.publicUrl;
     syncContactsUI();syncDesignUI();
     pageId=project.pages.some(p=>p.id===preferredPage)?preferredPage:project.pages[0].id;
     bind();
@@ -385,7 +388,7 @@
     if(project.pages.length>=P.MAX_PAGES)return toast('Максимум восемь страниц',true);
     checkpoint('pages');
     const page=P.createPage(project,duplicate?activePage():null);
-    project.pages.push(page);selectPage(page.id);changed();
+    project.pages.push(page);selectPage(page.id);renderFooterPagePicker();changed();
     toast(duplicate?'Страница продублирована':'Страница добавлена');
   }
   function pageMove(direction){
@@ -420,6 +423,7 @@
     if(p.slug===''||project.pages.length<=1)return toast('Главную страницу удалить нельзя',true);
     if(!confirm('Удалить страницу «'+p.title+'»? Изменение можно отменить.'))return;
     checkpoint('pages');project.pages=project.pages.filter(x=>x.id!==pageId);
+    project.settings.footerPageIds=project.settings.footerPageIds.filter(id=>id!==p.id);
     for(const remaining of project.pages){
       for(const [sectionId,action] of Object.entries(remaining.sectionActions)){
         if(action==='page:'+p.id)delete remaining.sectionActions[sectionId];
@@ -428,12 +432,43 @@
     selectPage(project.pages[0].id);changed();toast('Страница удалена — можно отменить');
   }
   function editSettings(field,value){
-    if(project.settings[field]===value)return;
-    if((field==='headerNote'&&value.length>120)||(field==='footerNote'&&value.length>180)||String(value).includes('\0')){
-      toast('Некорректная длина настройки сайта',true);return;
+    if(JSON.stringify(project.settings[field])===JSON.stringify(value))return;
+    const next={...project.settings,[field]:value};
+    try{P.validate({...project,settings:next});}
+    catch(_){
+      $('site-header-note').value=project.settings.headerNote;
+      $('site-footer-note').value=project.settings.footerNote;
+      $('site-navigation').checked=project.settings.showNavigation;
+      $('site-public-url').value=project.settings.publicUrl;
+      renderLogoPicker();renderFooterPagePicker();
+      toast('Некорректная настройка сайта — проверьте адрес HTTPS, логотип или число ссылок',true);return;
     }
-    checkpoint('settings:'+field,true);project.settings[field]=value;
-    changed();toast('Настройки сайта изменены в локальном черновике');
+    checkpoint('settings:'+field,field==='headerNote'||field==='footerNote');
+    project.settings=next;changed();
+  }
+  function renderLogoPicker(){
+    const select=$('site-logo');select.replaceChildren();
+    const empty=document.createElement('option');empty.value='';empty.textContent='Только текстовое название';select.append(empty);
+    for(const photo of project.media){
+      const option=document.createElement('option');option.value=photo.id;
+      option.textContent=photo.alt||'Фото '+photo.id.slice(-5);select.append(option);
+    }
+    select.value=project.settings.logoAssetId;
+  }
+  function renderFooterPagePicker(){
+    const holder=$('site-footer-pages');holder.replaceChildren();
+    for(const page of project.pages){
+      const label=document.createElement('label');label.className='footer-page-item';
+      const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.value=page.id;
+      checkbox.checked=project.settings.footerPageIds.includes(page.id);
+      const text=document.createElement('span');text.textContent=page.title+(page.inMenu?'':' · вне меню');
+      checkbox.addEventListener('change',()=>{
+        const ids=checkbox.checked?[...project.settings.footerPageIds,page.id]:
+          project.settings.footerPageIds.filter(id=>id!==page.id);
+        editSettings('footerPageIds',ids);renderFooterPagePicker();
+      });
+      label.append(checkbox,text);holder.append(label);
+    }
   }
   function syncContactsUI(){
     for(const field of ['email','phone','address'])$('contact-'+field).value=project.contacts[field];
@@ -474,6 +509,7 @@
   let mediaSerial=0;
   const nextAssetId=()=> 'asset-'+Date.now().toString(36)+'-'+(++mediaSerial).toString(36).padStart(5,'0');
   function renderMediaLibrary(){
+    renderLogoPicker();
     $('media-count').textContent=String(project.media.length);
     $('media-upload').disabled=project.media.length>=P.MAX_MEDIA;
     const list=$('media-list');list.replaceChildren();
@@ -500,6 +536,7 @@
         if(!confirm('Удалить изображение со всех страниц и секций этого проекта?'))return;
         checkpoint('media-delete');
         project.media=project.media.filter(item=>item.id!==asset.id);
+        if(project.settings.logoAssetId===asset.id)project.settings.logoAssetId='';
         for(const page of project.pages){
           for(const [sectionId,slots] of Object.entries(page.mediaSlots)){
             for(const [slot,id] of Object.entries(slots))if(id===asset.id)delete slots[slot];
@@ -851,6 +888,11 @@
     $('site-header-note').addEventListener('input',()=>editSettings('headerNote',$('site-header-note').value));
     $('site-footer-note').addEventListener('input',()=>editSettings('footerNote',$('site-footer-note').value));
     $('site-navigation').addEventListener('change',()=>editSettings('showNavigation',$('site-navigation').checked));
+    $('site-logo').addEventListener('change',()=>editSettings('logoAssetId',$('site-logo').value));
+    $('site-public-url').addEventListener('change',()=>{
+      const normalized=$('site-public-url').value.trim().toLowerCase().replace(/\/$/,'');
+      editSettings('publicUrl',normalized);$('site-public-url').value=project.settings.publicUrl;
+    });
     for(const field of ['email','phone','address']){
       $('contact-'+field).addEventListener('change',()=>editContact(field,$('contact-'+field).value));
     }

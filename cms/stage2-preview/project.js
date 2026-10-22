@@ -1,9 +1,10 @@
 'use strict';
-/* Stage2 offline design-review project v7; neither production schema nor publisher. */
+/* Stage2 offline design-review project v8; neither production schema nor publisher. */
 (()=>{
   const C=window.CmsPreviewContent,Q=window.CmsPreviewRepeaters;
-  const format='ai-site-cms-stage2-multipage-preview-v7';
-  const previousFormat='ai-site-cms-stage2-multipage-preview-v6';
+  const format='ai-site-cms-stage2-multipage-preview-v8';
+  const previousFormat='ai-site-cms-stage2-multipage-preview-v7';
+  const legacyV6='ai-site-cms-stage2-multipage-preview-v6';
   const legacyV5='ai-site-cms-stage2-multipage-preview-v5';
   const olderFormat='ai-site-cms-stage2-multipage-preview-v4';
   const legacyV3='ai-site-cms-stage2-multipage-preview-v3';
@@ -15,7 +16,10 @@
   let counter=1;
   const newId=()=> 'page-'+Date.now().toString(36)+'-'+(counter++).toString(36);
   const allowedKeys=(x,keys)=>Object.keys(x).sort().join('|')===keys.slice().sort().join('|');
-  const settings=()=>({headerNote:'',footerNote:'Создано в демонстрации AI Site CMS',showNavigation:true});
+  const settings=()=>({headerNote:'',footerNote:'Создано в демонстрации AI Site CMS',showNavigation:true,
+    publicUrl:'',logoAssetId:'',footerPageIds:[]});
+  // Site export intentionally targets a root HTTPS hostname only, never file:, javascript:, http: or private paths.
+  const publicUrlPattern=/^https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
   const design=()=>({accent:'',font:'system',radius:'soft',spacing:'comfortable',navigation:'standard'});
   const contacts=()=>({email:'',phone:'',address:''});
   const phonePattern=/^\+?[0-9][0-9 ()-]{5,23}$/;
@@ -44,10 +48,15 @@
       ||typeof raw.siteTitle!=='string'||raw.siteTitle.length<1||raw.siteTitle.length>100
       ||!Object.hasOwn(C.palette,raw.theme)
       ||!raw.settings||typeof raw.settings!=='object'||Array.isArray(raw.settings)
-      ||!allowedKeys(raw.settings,['headerNote','footerNote','showNavigation'])
+      ||!allowedKeys(raw.settings,['headerNote','footerNote','showNavigation','publicUrl','logoAssetId','footerPageIds'])
       ||typeof raw.settings.headerNote!=='string'||raw.settings.headerNote.length>120||raw.settings.headerNote.includes('\0')
       ||typeof raw.settings.footerNote!=='string'||raw.settings.footerNote.length>180||raw.settings.footerNote.includes('\0')
       ||typeof raw.settings.showNavigation!=='boolean'
+      ||typeof raw.settings.publicUrl!=='string'||raw.settings.publicUrl.length>180
+      ||(raw.settings.publicUrl!==''&&!publicUrlPattern.test(raw.settings.publicUrl))
+      ||typeof raw.settings.logoAssetId!=='string'
+      ||!Array.isArray(raw.settings.footerPageIds)||raw.settings.footerPageIds.length>4
+      ||new Set(raw.settings.footerPageIds).size!==raw.settings.footerPageIds.length
       ||!raw.design||typeof raw.design!=='object'||Array.isArray(raw.design)
       ||!allowedKeys(raw.design,['accent','font','radius','spacing','navigation'])
       ||typeof raw.design.accent!=='string'
@@ -78,6 +87,9 @@
       mediaIds.add(asset.id);
     }
     const allPageIds=new Set(raw.pages.map(p=>p&&p.id));
+    if((raw.settings.logoAssetId&&!mediaIds.has(raw.settings.logoAssetId))
+      ||raw.settings.footerPageIds.some(id=>typeof id!=='string'||!allPageIds.has(id)))
+      throw Error('Логотип или ссылки подвала ссылаются на отсутствующие объекты');
     const ids=new Set(),slugs=new Set();
     let homepageCount=0;
     for(const page of raw.pages){
@@ -129,22 +141,24 @@
       const d=C.validate(raw);
       return validate({format,siteTitle:d.siteTitle,theme:d.theme,settings:settings(),design:design(),contacts:contacts(),media:[],pages:[Q.populate(pageFromLegacy(d))]});
     }
-    if(raw&&[previousFormat,legacyV5,olderFormat,legacyV3,legacyV2].includes(raw.format)){
+    if(raw&&[previousFormat,legacyV6,legacyV5,olderFormat,legacyV3,legacyV2].includes(raw.format)){
       const next=structuredClone(raw),isV2=raw.format===legacyV2,
-        beforeV5=[olderFormat,legacyV3,legacyV2].includes(raw.format);
+        beforeV5=[olderFormat,legacyV3,legacyV2].includes(raw.format),
+        beforeV6=[legacyV5,olderFormat,legacyV3,legacyV2].includes(raw.format),
+        beforeV7=[legacyV6,legacyV5,olderFormat,legacyV3,legacyV2].includes(raw.format);
       next.format=format;
-      if(raw.format!==previousFormat)next.contacts=contacts();
+      next.settings={...settings(),...(isV2?{}:next.settings)};
+      if(beforeV7)next.contacts=contacts();
       if(beforeV5)next.media=[];
-      if(isV2)next.settings=settings();
       if(isV2||raw.format===legacyV3)next.design=design();
       next.pages=next.pages.map(p=>{
         const upgraded={...p,
           ...(isV2?{inMenu:true,hiddenSections:[]}:{}),
           ...(isV2||raw.format===legacyV3?{sectionStyles:{}}:{}),
           ...(beforeV5?{mediaSlots:{}}:{}),
-          ...(raw.format!==previousFormat?{sectionActions:{}}:{})
+          ...(beforeV6?{sectionActions:{}}:{})
         };
-        return Q.populate(upgraded);
+        return beforeV7?Q.populate(upgraded):upgraded;
       });
       return validate(next);
     }
@@ -267,6 +281,18 @@
     }
     return out;
   }
+  function publicPageUrl(project,page){
+    const base=project.settings.publicUrl;
+    return base?base+'/'+(page.slug?page.slug+'.html':''):'';
+  }
+  function resolveBrand(project,exportLinks=false){
+    const asset=project.media.find(x=>x.id===project.settings.logoAssetId);
+    return asset?{src:exportLinks?'media/'+asset.id+'.webp':asset.data}:null;
+  }
+  function resolveFooterPages(project){
+    return project.settings.footerPageIds.map(id=>project.pages.find(p=>p.id===id))
+      .filter(Boolean).map(p=>({id:p.id,title:p.title,slug:p.slug}));
+  }
   function resolveActions(project,page){
     const out={},c=project.contacts;
     const tel=c.phone.replace(/[^+0-9]/g,'');
@@ -300,6 +326,6 @@
     return out;
   }
   Object.defineProperty(window,'CmsPreviewProject',{value:Object.freeze({
-    format,previousFormat,legacyV5,olderFormat,legacyV3,legacyV2,MAX_PAGES,MAX_MEDIA,imageSlots,template,normalize,validate,createPage,pageDoc,resolveMedia,resolveItems,resolveActions,starter,audit
+    format,previousFormat,legacyV6,legacyV5,olderFormat,legacyV3,legacyV2,MAX_PAGES,MAX_MEDIA,imageSlots,template,normalize,validate,createPage,pageDoc,resolveMedia,resolveItems,resolveActions,publicPageUrl,resolveBrand,resolveFooterPages,starter,audit
   })});
 })();

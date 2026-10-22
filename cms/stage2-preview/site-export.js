@@ -27,7 +27,7 @@
     let offset=0,centralSize=0;
     for(const file of files){
       const name=utf8(file.name),bytes=file.content instanceof Uint8Array?file.content:utf8(file.content),crc=crc32(bytes);
-      if(name.length>65535||bytes.length>2_000_000)throw Error('Файл превышает лимит демо-архива');
+      if(name.length>65535||bytes.length>4_200_000)throw Error('Файл превышает лимит демо-архива');
       const header=new Uint8Array(30),a=new DataView(header.buffer);
       a.setUint32(0,0x04034b50,true);
       a.setUint16(4,20,true);a.setUint16(6,0x0800,true);
@@ -60,9 +60,19 @@
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
         menu,active:p.id,exportLinks:true,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
         design:project.design,contacts:project.contacts,actions:P.resolveActions(project,p),
-        mediaBySection:P.resolveMedia(project,p,true),itemsBySection:P.resolveItems(project,p,true),...project.settings
+        mediaBySection:P.resolveMedia(project,p,true),itemsBySection:P.resolveItems(project,p,true),
+        brand:P.resolveBrand(project,true),homePageId:project.pages.find(x=>x.slug==='').id,
+        footerPages:P.resolveFooterPages(project),canonical:P.publicPageUrl(project,p),...project.settings
       })
     }));
+    if(project.settings.publicUrl){
+      const urls=project.pages.map(p=>'  <url><loc>'+P.publicPageUrl(project,p)+'</loc></url>');
+      files.push({name:'sitemap.xml',content:'<?xml version="1.0" encoding="UTF-8"?>\n'+
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+
+        urls.join('\n')+'\n</urlset>\n'});
+      files.push({name:'robots.txt',content:'User-agent: *\nAllow: /\nSitemap: '+
+        project.settings.publicUrl+'/sitemap.xml\n'});
+    }
     for(const asset of project.media){
       const data=asset.data.slice('data:image/webp;base64,'.length);
       const binary=atob(data),bytes=new Uint8Array(binary.length);
@@ -75,7 +85,10 @@
       'Unpack the archive and open index.html in a browser.\n'+
       'Only menu-enabled pages are listed in navigation; every page is exported.\n'+
       'Hidden sections are omitted from rendered HTML but retained in the backup JSON.\n'+
-      'Sitewide design tokens and individual section surfaces are embedded.\n'+
+      'Sitewide design tokens, logo, additional footer links and section surfaces are embedded.\n'+
+      'Desktop and mobile navigation work without JavaScript, including on local files.\n'+
+      'Only a configured HTTPS public origin produces canonical/OG URL, sitemap.xml and robots.txt.\n'+
+      'No configured origin: exported pages are noindex,nofollow. No automatic deployment occurs.\n'+
       'Local optimized WebP photos are stored under media/ with offline relative links.\n'+
       'Repeatable cards, catalog products, metrics, workflow stages and FAQ entries preserve edits and order.\n'+
       'All navigation is local; no server, CMS, network access or form submission.\n'+

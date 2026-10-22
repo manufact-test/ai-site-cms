@@ -239,11 +239,21 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(oldV5.contacts.email,'');
     const oldV6=await page.evaluate(()=>{
       const P=window.CmsPreviewProject,v=P.starter('products');
-      v.format=P.previousFormat;
+      v.format=P.legacyV6;
       v.pages.forEach(pg=>{delete pg.repeaters;});
       return P.normalize(v);
     });
     assert.equal(oldV6.pages[0].repeaters[oldV6.pages[0].sections.find(s=>s.type==='catalog').id].length,3);
+    const oldV7=await page.evaluate(()=>{
+      const P=window.CmsPreviewProject,v=P.starter('products');
+      v.format=P.previousFormat;
+      v.settings={headerNote:'Сохранённая подпись',footerNote:'Сохранённый подвал',showNavigation:true};
+      return P.normalize(v);
+    });
+    assert.equal(oldV7.pages.length,3);
+    assert.equal(oldV7.settings.headerNote,'Сохранённая подпись');
+    assert.equal(oldV7.settings.publicUrl,'');
+    assert.equal(oldV7.settings.logoAssetId,'');
 
     // Full media workflow: import local JPG/PNG, browser-only WebP conversion,
     // assign to a hero, preview safely, export as a relative offline asset.
@@ -265,6 +275,26 @@ const root=path.resolve(__dirname,'../..');
     await page.reload();
     assert.equal(await page.locator('#media-count').innerText(),'1');
     assert.equal(await frame.locator('.hero-photo').count(),1);
+    // Unified brand + additional footer page links + optional public HTTPS origin.
+    await page.locator('.site-settings > summary').click();
+    await page.locator('#site-logo').selectOption({index:1});
+    await frame.locator('.site-logo').waitFor();
+    await page.locator('#site-footer-pages input').nth(2).check();
+    await page.locator('.seo-settings > summary').click();
+    await page.locator('#site-public-url').fill('https://factory.example.org/');
+    await page.locator('#site-public-url').press('Tab');
+    assert.equal(await page.locator('#site-public-url').inputValue(),'https://factory.example.org');
+    assert.equal(await frame.locator('.footer-pages [data-preview-page]').count(),1);
+    const mobilePageId=await page.locator('#page-list option').nth(1).getAttribute('value');
+    await page.locator('[data-width=mobile]').click();
+    await frame.locator('.mobile-nav').waitFor();
+    assert.equal(await frame.locator('.mobile-nav').evaluate(el=>getComputedStyle(el).display),'block');
+    await frame.locator('.mobile-nav > summary').click();
+    await frame.locator('.mobile-nav-menu [data-preview-page]').nth(1).click();
+    await page.waitForFunction(id=>document.querySelector('#page-list').value===id,mobilePageId);
+    await frame.locator('.site-brand').click();
+    await page.waitForFunction(()=>document.querySelector('#page-list').selectedIndex===0);
+    await page.locator('[data-width=desktop]').click();
     // Global company contacts, dynamic link destinations and reliable site export.
     await page.locator('.contact-settings > summary').click();
     await page.locator('#contact-email').fill('sales@example.com');
@@ -288,6 +318,7 @@ const root=path.resolve(__dirname,'../..');
     await page.reload();
     assert.equal(await page.locator('#contact-email').inputValue(),'sales@example.com');
     assert.equal(await page.locator('#section-action').inputValue(),'email');
+    assert.equal(await page.locator('#site-logo').inputValue(),await page.locator('#media-list .media-item img').first().evaluate(img=>img.closest('.media-item').querySelector('input')?.getAttribute('aria-label')?.replace('Описание изображения для ','')||''));
     // End-to-end repeatable content: FAQ + catalog can grow, reorder and
     // link to the existing local media library, survive reload and HTML ZIP.
     await page.locator('#sections li').filter({hasText:'Вопросы и ответы'}).locator('.section-select').click();
@@ -327,7 +358,7 @@ const root=path.resolve(__dirname,'../..');
     const webp=execFileSync('unzip',['-p',zipPath,webpName]);
     assert.equal(webp.toString('ascii',0,4),'RIFF');
     const siteHTML=execFileSync('unzip',['-p',zipPath,'index.html'],{encoding:'utf8'});
-    assert.doesNotMatch(siteHTML,/href="services\.html"/,'excluded page is absent from navigation');
+    assert.doesNotMatch(siteHTML.match(/<nav class="menu menu-desktop"[^>]*>[\s\S]*?<\/nav>/)?.[0]||'',/href="services\.html"/,'excluded page is absent from primary navigation');
     assert.doesNotMatch(siteHTML,/class="cards"/,'hidden section omitted from exported HTML');
     assert.match(siteHTML,/Производственные решения/);
     assert.match(siteHTML,/Пример компании 2026/);
@@ -335,6 +366,17 @@ const root=path.resolve(__dirname,'../..');
     assert.match(siteHTML,/class="surface-dark hero"/);
     assert.match(siteHTML,/site-floating/);
     assert.match(siteHTML,/src="media\/asset-[a-z0-9-]+\.webp"/);
+    assert.match(siteHTML,/class="site-logo" src="media\/asset-[a-z0-9-]+\.webp"/);
+    assert.match(siteHTML,/<nav class="footer-pages"[^>]*><a href="services\.html"/);
+    assert.match(siteHTML,/<link rel="canonical" href="https:\/\/factory\.example\.org\/"/);
+    assert.match(siteHTML,/<meta property="og:url" content="https:\/\/factory\.example\.org\/"/);
+    assert.match(siteHTML,/class="mobile-nav-menu"/);
+    assert.match(siteHTML,/img-src &#39;self&#39; data: file:/);
+    assert.ok(zipFiles.includes('sitemap.xml')&&zipFiles.includes('robots.txt'));
+    const sitemap=execFileSync('unzip',['-p',zipPath,'sitemap.xml'],{encoding:'utf8'});
+    const robots=execFileSync('unzip',['-p',zipPath,'robots.txt'],{encoding:'utf8'});
+    assert.match(sitemap,/<loc>https:\/\/factory\.example\.org\/services\.html<\/loc>/);
+    assert.match(robots,/Sitemap: https:\/\/factory\.example\.org\/sitemap\.xml/);
     assert.doesNotMatch(siteHTML,/data:image\/webp;base64/);
     assert.match(siteHTML,/<meta name="description"/);
     assert.match(siteHTML,/<meta property="og:title"/);
@@ -345,7 +387,10 @@ const root=path.resolve(__dirname,'../..');
     assert.match(siteHTML,/Модель Г — новый товар/);
     assert.equal((siteHTML.match(/class="studio-product"/g)||[]).length,4);
     const backup=JSON.parse(execFileSync('unzip',['-p',zipPath,'project-backup.json'],{encoding:'utf8'}));
-    assert.equal(backup.format,'ai-site-cms-stage2-multipage-preview-v7');
+    assert.equal(backup.format,'ai-site-cms-stage2-multipage-preview-v8');
+    assert.equal(backup.settings.publicUrl,'https://factory.example.org');
+    assert.equal(backup.settings.logoAssetId,backup.media[0].id);
+    assert.equal(backup.settings.footerPageIds.length,1);
     assert.equal(backup.pages.find(p=>p.slug==='services').inMenu,false);
     assert.equal(backup.pages[0].hiddenSections.length,1);
     assert.equal(backup.design.accent,'#935120');

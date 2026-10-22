@@ -424,3 +424,18 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .repeater-item .repeater-field,.repeater-item .repeater-photo{width:100%;min-width:0;box-sizing:border-box}
 .repeater-item textarea.repeater-field{min-height:68px;resize:vertical}
 .repeater-panel>#repeater-add{display:block;width:100%;margin-top:12px}
+
+/* Site identity, footer navigation and optional HTTPS origin metadata (Stage 2 only). */
+.seo-settings{border:1px solid #38556d;border-radius:10px;background:#203346;padding:12px 13px;margin-top:11px;color:#d6e4ee}
+.seo-settings>summary{font-size:12px;font-weight:700;cursor:pointer}
+.seo-settings>summary small{color:#9fb9c9;font-size:10px;margin-left:6px}
+.seo-settings .field-label{display:block;margin-top:14px;color:#c5daea}
+.seo-settings input{width:100%;min-width:0;box-sizing:border-box}
+.seo-settings .setting-helper{color:#a6b7c5;margin-top:10px}
+.site-settings select{width:100%}
+.site-footer-links-header{font-size:12px;color:#d7e6ef;font-weight:650;margin:17px 0 10px}
+.site-footer-links-header small{display:block;color:#9fb7c5;font-size:10px;margin-top:4px}
+.site-footer-pages{display:grid;gap:4px;margin-bottom:12px}
+.footer-page-item{display:flex;align-items:center;gap:9px;padding:5px 2px;color:#c5d5e2;font-size:12px;cursor:pointer}
+.footer-page-item input{width:16px!important;height:16px!important;min-height:16px!important;flex:none;accent-color:#66d1e4;padding:0!important}
+.footer-page-item span{overflow-wrap:anywhere}

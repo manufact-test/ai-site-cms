@@ -50,7 +50,18 @@
         <label class="field-label" for="site-footer-note">Текст в подвале</label>
         <input id="site-footer-note" maxlength="180" placeholder="Информация о компании">
         <label class="toggle-line"><input id="site-navigation" type="checkbox" checked><span>Показывать меню на сайте</span></label>
-        <p class="setting-helper">Действуют на всех страницах и включаются в локальный экспорт.</p>
+        <label class="field-label" for="site-logo">Логотип компании</label>
+        <select id="site-logo" aria-label="Логотип в общей шапке сайта"><option value="">Текстовый логотип</option></select>
+        <p class="setting-helper">Сначала добавьте изображение в медиабиблиотеку. Логотип и название ведут на главную страницу.</p>
+        <div class="site-footer-links-header">Ссылки в подвале <small>До четырёх страниц, включая скрытые из меню</small></div>
+        <div id="site-footer-pages" class="site-footer-pages"></div>
+        <p class="setting-helper">Настройки применяются ко всем страницам и сохраняются в автономном HTML.</p>
+      </details>
+      <details class="seo-settings">
+        <summary>SEO и адрес сайта <small>Для автономного экспорта</small></summary>
+        <label class="field-label" for="site-public-url">Будущий публичный адрес сайта (HTTPS)</label>
+        <input id="site-public-url" type="url" maxlength="180" placeholder="https://example.com" inputmode="url" spellcheck="false">
+        <p class="setting-helper">Укажите только домен без пути или завершающего слеша. С ним в HTML добавятся canonical и Open Graph URL, а в ZIP — sitemap.xml и robots.txt. Никакой публикации не происходит.</p>
       </details>
       <details class="contact-settings">
         <summary>Контакты компании <small>Для всех страниц</small></summary>
