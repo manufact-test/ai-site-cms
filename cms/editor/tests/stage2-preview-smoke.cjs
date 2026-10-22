@@ -919,7 +919,14 @@ const root=path.resolve(__dirname,'../..');
       'Реальная фотография производственного помещения');
     assert.match(await page.locator('#preview').getAttribute('srcdoc'),/\.hero-photo\{object-position:50% 0%!important\}/);
     assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>getComputedStyle(el).objectPosition),'50% 0%',
-      'computed image crop must follow stored focal point');
+      'computed image crop must follow stored focal point; debug='+JSON.stringify(await mediaFrame.locator('.hero-photo').evaluate(el=>{
+        const parent=el.closest('section');
+        const selector='section[data-preview-section="'+parent?.dataset.previewSection+'"] .hero-photo';
+        const sheet=el.ownerDocument.styleSheets[0];
+        const found=[...sheet.cssRules].filter(r=>r.cssText.includes('object-position')).slice(-5).map(r=>r.cssText.slice(-250));
+        return {section:parent?.dataset.previewSection,selector,matches:el.matches(selector),sheets:el.ownerDocument.styleSheets.length,
+          sheetRules:sheet.cssRules.length,found,styles:el.ownerDocument.head.querySelector('style')?.textContent.slice(-400)};
+      })));
     await page.locator('#undo').click();
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),'service production');
     assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>getComputedStyle(el).objectPosition),'50% 50%');
