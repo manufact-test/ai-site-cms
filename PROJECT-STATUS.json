@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-22",
-  "status": "stage2-in-progress-not-accepted-v1.52-offline-editor-verified",
+  "status": "stage2-in-progress-not-accepted-v1.53-multisite-backup",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -13,11 +13,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Read docs/NEXT-CHAT.md FINAL §57 and handoffs/lead-integrator/MAIN-HANDOFF-v1.52-2026-10-22.md. Stage2 NOT ACCEPTED, Stage3 NOT STARTED, 0/135. Focus on real external Stage2 gates and then full CMS, not endless offline studio. Never deploy Hostinger or touch PR3/PR4 without GO. Docs only by explicit owner request.",
+  "next_step": "Read docs/NEXT-CHAT.md §58 and handoffs/lead-integrator/MAIN-HANDOFF-v1.53-2026-10-22.md, verify actual HEAD and latest CI for source 88be84b4df5d0d42a14cf684614e1f935a7478eb. Stage2 NOT ACCEPTED; Stage3 NOT STARTED; 0/135. NO Hostinger or PR3/PR4 without explicit scoped GO.",
   "project_name": "AI Site CMS",
   "branch": "main",
   "repo_visibility": "public",
-  "checkpoint_version": "1.52",
+  "checkpoint_version": "1.53",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -25,7 +25,7 @@
     "started_at": "2026-10-18",
     "owner_delegated_selection": true,
     "foundation": "A - Slim/Opis/Jedison",
-    "product_code": "Isolated Stage2 OFFLINE prototype v10 (NOT production CMS): 11 typed sections, multi-page starters, shared theme/layout/header/footer/SEO, repeaters, WebP, named block library with explicit propagation, sitewide copywriting audit/find/replace with scoped and selectable fields, reversible edits, offline HTML+JSON; no real auth/API/AI generation/publisher.",
+    "product_code": "Stage2 OFFLINE preview v10: 11 sections, 3-page deterministic site-from-brief, adaptable style/media, SEO, repeaters, linked library, editorial quality, scoped find/replace, 8 separate local sites/history/review notes, full-site portfolio JSON backup and additive rollback-safe restore; NOT production AI/auth/CMS/publisher",
     "bootstrap_commit": "493964f32d63dd5552484afbcc972fc614571381",
     "bootstrap_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39275005275",
     "bootstrap_ci_result": "7/7 SUCCESS on verified code 493964f32d63dd5552484afbcc972fc614571381",
@@ -1311,5 +1311,26 @@
     "visual": "do not send incomplete demo ZIP/screenshots unless requested",
     "stage3": "do not start before formal owner Stage2 acceptance",
     "hostinger": "no unapproved deployment, secrets or unrelated sites"
+  },
+  "latest_source_checkpoint_v1_53": {
+    "date": "2026-10-22",
+    "source_sha": "88be84b4df5d0d42a14cf684614e1f935a7478eb",
+    "editor_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39800557497",
+    "php_ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39800557515",
+    "ci_result_at_handoff": "NOT CONFIRMED; check GitHub status before asserting SUCCESS",
+    "model_evidence": "PASS: two independent local storage archives and notes roundtrip; invalid version rejected; eight-site cap; simulated partial write rollback",
+    "changes": [
+      "three-page brief builder",
+      "page quality check and Unicode placeholder detection",
+      "8-site independent local workspaces and notes",
+      "all-site JSON archival and additive restore",
+      "Chromium test uses active workspace key instead of legacy single-site key"
+    ],
+    "unchanged": {
+      "stage2_accepted": false,
+      "stage3_started": false,
+      "mandatory_accepted": 0,
+      "hostinger_changes": false
+    }
   }
 }
