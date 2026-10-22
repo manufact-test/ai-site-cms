@@ -840,7 +840,8 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(recipePage.title,'Технический сервис');
     assert.equal(recipePage.repeaters[recipePage.sections.find(s=>s.type==='services').id][0].title,'Монтаж и настройка');
     const recipeZipDownload=page.waitForEvent('download');
-    await page.locator('#project-actions summary').click();
+    if(!await page.locator('#project-actions').evaluate(el=>el.open))
+      await page.locator('#project-actions summary').click();
     await page.locator('#download-site').click();
     const recipeZip=await recipeZipDownload;
     const zipHtml=execFileSync('unzip',['-p',await recipeZip.path(),recipePage.slug+'.html'],{encoding:'utf8'});
