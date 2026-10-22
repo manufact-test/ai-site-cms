@@ -393,9 +393,10 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#save').click();
     const beforePublish=await page.evaluate(()=>{
       const saved=JSON.parse(localStorage.getItem('ai-site-cms-stage2-preview-local-v1'));
-      return saved[0].doc.pages[0].sections.filter(s=>s.type==='catalog').map(s=>s.props.title);
+      return {active:document.querySelector('#page-list').value,
+        sections:saved[0].doc.pages.map(p=>({id:p.id,slug:p.slug,catalogs:p.sections.filter(s=>s.type==='catalog').map(s=>({id:s.id,title:s.props.title,linked:p.libraryLinks[s.id]}))}))};
     });
-    assert.ok(beforePublish.includes('Каталог завода — обновлён'),
+    assert.ok(beforePublish.sections.some(p=>p.catalogs.some(s=>s.title==='Каталог завода — обновлён')),
       'edited source must persist before updating linked instances: '+JSON.stringify(beforePublish));
     page.once('dialog',dialog=>dialog.accept());
     await page.locator('#library-publish').click();
