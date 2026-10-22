@@ -502,3 +502,35 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .content-hit-navigate{display:grid;gap:3px;text-align:left;min-width:0;flex:1;padding:0;border:0;background:transparent;color:inherit;cursor:pointer}
 .content-hit-navigate:hover strong{text-decoration:underline}
 .content-hit-navigate:focus-visible{outline:2px solid #207b9a;outline-offset:3px}
+
+
+/* Guided company brief -> complete editable three-page site, offline only. */
+.brief-launch{display:grid;gap:9px;padding:13px;margin:12px 0;border-radius:11px;
+  background:linear-gradient(135deg,#e9f5fc,#f5f9fc);border:1px solid #c8e0ed}
+.brief-launch strong,.brief-launch small{display:block}
+.brief-launch strong{font-size:12px;color:#123d56}
+.brief-launch small{font-size:10px;line-height:1.5;margin-top:4px;color:#426579}
+.brief-launch button{justify-self:start}
+.brief-dialog{width:min(720px,calc(100% - 24px));max-height:min(92vh,890px);
+  border:1px solid #b8d3df;border-radius:20px;padding:0;background:#fff;
+  color:#173746;box-shadow:0 20px 85px #071b2d64;overflow:auto}
+.brief-dialog::backdrop{background:rgba(8,30,47,.75)}
+.brief-head{padding:24px 25px 18px;background:#f2f8fc;border-bottom:1px solid #dce9ee;
+  display:flex;gap:20px;justify-content:space-between;align-items:flex-start}
+.brief-head span{font-size:10px;letter-spacing:.14em;color:#2e7892;font-weight:800}
+.brief-head h2{margin:7px 0 8px;font-size:25px;line-height:1.14;color:#143e54}
+.brief-head p{margin:0;color:#506d7d;font-size:12px;line-height:1.6;max-width:520px}
+.brief-close{font-size:25px;color:#31576b;background:transparent;cursor:pointer;border:0}
+.brief-form{padding:22px 25px 25px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.brief-form label{display:grid;gap:7px;font-size:12px;font-weight:700;color:#214758;min-width:0}
+.brief-form .wide{grid-column:1/-1}
+.brief-form :is(input,textarea,select){width:100%;font:400 13px/1.5 inherit;color:#173846;
+  border:1px solid #c5d8e3;border-radius:9px;box-sizing:border-box;
+  background:#fff;padding:10px;min-width:0}
+.brief-form textarea{resize:vertical}
+.brief-form :is(input,textarea,select):focus-visible{outline:2px solid #2c849e;outline-offset:1px}
+.brief-form .brief-disclaimer{margin:0;font-size:11px;line-height:1.5;color:#56717b;font-weight:400}
+.brief-form .brief-error{color:#a02b37;font-size:12px;margin:0}
+.brief-submit{display:flex;justify-content:flex-end;padding-top:6px}
+@media(max-width:560px){.brief-form{grid-template-columns:1fr;padding:17px}
+.brief-form label{grid-column:1/-1}.brief-head{padding:20px 17px}}

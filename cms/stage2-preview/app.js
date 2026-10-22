@@ -3,7 +3,8 @@
 (()=>{
   const C=window.CmsPreviewContent,P=window.CmsPreviewProject,
     R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2,X=window.CmsPreviewExport,M=window.CmsPreviewMedia,
-    Q=window.CmsPreviewRepeaters,L=window.CmsPreviewLibrary,O=window.CmsPreviewContentOps;
+    Q=window.CmsPreviewRepeaters,L=window.CmsPreviewLibrary,O=window.CmsPreviewContentOps,
+    B=window.CmsPreviewBrief;
   const $=id=>document.getElementById(id);
   const ui={list:$('sections'),frame:$('preview'),fields:$('fields'),title:$('site-title'),theme:$('theme'),
     count:$('count'),info:$('selection-info'),status:$('status'),addType:$('new-type'),browser:$('browser'),
@@ -1098,6 +1099,26 @@
     apply(JSON.parse(from.pop()),pageId,selection);
     toast(which==='undo'?'Изменение отменено':'Изменение повторено');
   }
+  function generateFromBrief(event){
+    event.preventDefault();
+    const b={};
+    for(const key of ['kind','company','offering','audience','benefit','proof','email','phone','address']){
+      b[key]=$('brief-'+key).value;
+    }
+    try{
+      const generated=B.build(b);
+      if(!confirm('Создать новый трёхстраничный черновик на основе брифа? Сначала экспортируйте текущий проект, если он нужен.'))return;
+      checkpoint('site-from-brief');
+      apply(generated);
+      $('brief-dialog').close();
+      $('project-actions').open=false;
+      showOverview(false);
+      toast('Созданы три редактируемые страницы, SEO и контакты из брифа. Это локальный шаблон, не ИИ и не публикация.');
+    }catch(e){
+      $('brief-error').textContent='Не удалось создать черновик: '+e.message;
+      $('brief-error').hidden=false;
+    }
+  }
   function starter(){
     const kind=$('starter-type').value;
     if(!confirm('Заменить текущий демонстрационный проект готовой заготовкой? При необходимости сначала сохраните JSON.'))return;
@@ -1188,7 +1209,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O){
+    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -1238,6 +1259,12 @@
     $('layout-reset').addEventListener('click',resetSectionLayout);
     ui.sectionVisible.addEventListener('change',()=>{const s=current();if(s)toggleSection(s.id,ui.sectionVisible.checked);});
     $('page-in-menu').addEventListener('change',()=>editPage('inMenu',$('page-in-menu').checked));
+    $('brief-open').addEventListener('click',()=>{
+      $('brief-error').hidden=true;
+      $('brief-dialog').showModal();
+    });
+    $('brief-close').addEventListener('click',()=>$('brief-dialog').close());
+    $('brief-form').addEventListener('submit',generateFromBrief);
     $('starter-apply').addEventListener('click',starter);
     $('copy-section').addEventListener('click',copySection);
     $('site-content-ops').addEventListener('toggle',renderContentOps);

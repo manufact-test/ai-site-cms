@@ -635,6 +635,44 @@ const root=path.resolve(__dirname,'../..');
         }
       }finally{await kit.close();}
     }finally{fs.rmSync(kitDir,{recursive:true,force:true});}
+
+    // Stage2 business workflow: company brief -> three editable pages/SEO/contacts
+    // -> local backup/site ZIP -> reject HTML injection; no network or fake testimonials.
+    await page.locator('#brief-open').click();
+    await page.locator('#brief-dialog').waitFor({state:'visible'});
+    await page.locator('#brief-kind').selectOption('industrial');
+    await page.locator('#brief-company').fill('Завод Север-Металл');
+    await page.locator('#brief-offering').fill('производство промышленного оборудования');
+    await page.locator('#brief-audience').fill('машиностроительных предприятий');
+    await page.locator('#brief-benefit').fill('Подбираем изделия под задачи и размеры заказчика');
+    await page.locator('#brief-email').fill('info@sever-metal.example');
+    await page.locator('#brief-phone').fill('+49 123 456789');
+    await page.locator('#brief-proof').fill('Факты подтверждаются заказчиком');
+    page.once('dialog',d=>d.accept());
+    await page.locator('#brief-create').click();
+    await page.locator('#brief-dialog').waitFor({state:'hidden'});
+    assert.equal(await page.locator('#page-tree .page-tree-item').count(),3);
+    assert.equal(await page.locator('#site-title').inputValue(),'Завод Север-Металл');
+    const homeFrame=page.frameLocator('#preview');
+    await homeFrame.locator('h1').filter({hasText:'Завод Север-Металл'}).waitFor();
+    assert.equal(await homeFrame.locator('.quote').count(),0,'no fabricated testimonials');
+    await page.locator('#page-list').selectOption({index:1});
+    assert.match(await page.locator('#seo-title').inputValue(),/Север-Металл/);
+    await page.locator('#page-list').selectOption({index:0});
+    const briefDownload=page.waitForEvent('download');
+    await page.locator('#project-actions summary').click();
+    await page.locator('#export').click();
+    const briefFile=await briefDownload;
+    const briefBackup=JSON.parse(fs.readFileSync(await briefFile.path(),'utf8'));
+    assert.equal(briefBackup.pages.length,3);
+    assert.equal(briefBackup.contacts.email,'info@sever-metal.example');
+    assert.equal(briefBackup.pages.every(pg=>pg.sections.every(s=>s.type!=='metrics'&&s.type!=='quote')),true);
+    assert.equal(briefBackup.pages.every(pg=>pg.sections.some(s=>s.type==='hero')),true);
+    assert.equal(briefBackup.pages.every(pg=>pg.seoTitle.includes('Север-Металл')),true);
+    await page.locator('#save').click();
+    await page.reload();
+    assert.equal(await page.locator('#site-title').inputValue(),'Завод Север-Металл');
+
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
     console.log('Stage2 OWNER REVIEW KIT PASS: standalone editor ZIP, canvas block click, menu navigation, fullscreen, owner feedback Markdown+persist, starter sites, offline site ZIP and ZERO network.');

@@ -101,6 +101,7 @@
         <div id="media-list" class="media-list"></div>
         <p class="setting-helper">До 6 оптимизированных WebP-файлов. Резервный JSON содержит изображения.</p>
       </details>
+      <div class="brief-launch"><div><strong>Новый сайт по брифу</strong><small>Компания → три страницы → правки → локальный ZIP</small></div><button id="brief-open" class="button dark" type="button">Создать по брифу</button></div>
       <div class="starter-bar">
         <label class="field-label" for="starter-type">Готовые заготовки (3 страницы)</label>
         <div class="starter-row"><select id="starter-type"><option value="industrial">Промышленный завод</option><option value="agency">Диджитал-студия</option><option value="products">Каталог товаров</option></select><button id="starter-apply" class="button dark" type="button">Открыть</button></div>
@@ -258,6 +259,23 @@
   <div class="review-actions"><button type="button" class="button subtle" id="review-export">Скачать замечания .md</button><button type="button" class="text-button" id="review-clear">Очистить</button></div>
 </details><div class="inspector-foot">Поля управляются встроенным <strong>Jedison</strong>. Изменения отображаются сразу без сохранения на сервер.</div></aside>
   </main>
+  <dialog id="brief-dialog" class="brief-dialog" aria-labelledby="brief-title">
+    <div class="brief-head"><div><span>ЗАПУСК ПРОЕКТА · ЛОКАЛЬНО</span><h2 id="brief-title">Создайте сайт из брифа</h2><p>Заполните реальные данные компании. На их основе редактор соберёт три страницы, SEO и контакты. Не ИИ, не публикация — только редактируемый черновик.</p></div><button type="button" id="brief-close" class="brief-close" aria-label="Закрыть окно">×</button></div>
+    <form id="brief-form" class="brief-form">
+      <label>Направление<select id="brief-kind"><option value="industrial">Промышленная компания</option><option value="agency">Услуги и разработка</option><option value="products">Продукция и каталог</option></select></label>
+      <label>Название компании *<input id="brief-company" type="text" maxlength="90" required minlength="3" placeholder="Название вашей компании" autocomplete="organization"></label>
+      <label class="wide">Основное предложение *<input id="brief-offering" type="text" maxlength="120" required minlength="3" placeholder="Что производите или какие услуги оказываете?"></label>
+      <label class="wide">Для кого работаете *<input id="brief-audience" type="text" maxlength="130" required minlength="3" placeholder="Например, предприятиям пищевой промышленности"></label>
+      <label class="wide">Ключевая польза для клиента *<textarea id="brief-benefit" rows="2" maxlength="260" required minlength="3" placeholder="Что помогает решить ваше предложение?"></textarea></label>
+      <label class="wide">Подтверждённый факт (необязательно)<input id="brief-proof" type="text" maxlength="130" placeholder="Только реальные факты, без придуманных цифр"></label>
+      <label>Email<input id="brief-email" type="email" maxlength="160" placeholder="office@example.com" autocomplete="email"></label>
+      <label>Телефон<input id="brief-phone" type="tel" maxlength="25" placeholder="+49 123 456 78 90" autocomplete="tel"></label>
+      <label class="wide">Адрес (необязательно)<input id="brief-address" type="text" maxlength="240" placeholder="Город, улица и дом"></label>
+      <p class="brief-disclaimer wide">Обязательны название, предложение, аудитория, польза и хотя бы один контакт. Не подтверждённые цифры и отзывы не генерируются. Формы заявок остаются отключёнными.</p>
+      <p id="brief-error" class="brief-error wide" role="alert" hidden></p>
+      <div class="brief-submit wide"><button id="brief-create" class="button dark" type="submit">Собрать редактируемый сайт</button></div>
+    </form>
+  </dialog>
   <div id="status" class="status" role="status" aria-live="polite"></div>
   <script src="../editor/dist/editor.js"></script>
   <script src="content.js"></script>
@@ -268,6 +286,7 @@
   <script src="media.js"></script>
   <script src="renderer.js"></script>
   <script src="site-export.js"></script>
+  <script src="brief.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
