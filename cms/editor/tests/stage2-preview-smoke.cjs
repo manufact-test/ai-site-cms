@@ -1035,6 +1035,57 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#page-list').selectOption(recipePageId);
     assert.equal(await page.frameLocator('#preview').locator('.hero-photo').getAttribute('alt'),'replacement photo');
 
+    // Whole-page reuse between independent local sites: preview source, import
+    // blocks and photo deps, maintain unique address, undo/redo, save/reload.
+    const sourceSnapshot=JSON.parse(await page.evaluate(id=>
+      localStorage.getItem('ai-site-cms-stage2-site-'+id+'-versions-v1'),priorId))[0].doc;
+    const sourceWithImage=sourceSnapshot.pages.find(p=>
+      Object.values(p.mediaSlots).some(slots=>Object.keys(slots).length>0)||
+      Object.values(p.repeaters).some(items=>items.some(item=>item.image)));
+    assert.ok(sourceWithImage,'earlier edited source site has reusable photographs');
+    const beforeTransfer=await page.locator('#page-list option').count();
+    const sourceLocalBefore=await page.evaluate(id=>
+      localStorage.getItem('ai-site-cms-stage2-site-'+id+'-versions-v1'),priorId);
+    await page.locator('#page-transfer-open').click();
+    await page.locator('#page-transfer-dialog').waitFor({state:'visible'});
+    await page.locator('#page-transfer-site').selectOption(priorId);
+    await page.locator('#page-transfer-page').selectOption(sourceWithImage.id);
+    assert.match(await page.locator('#page-transfer-summary').innerText(),/фото/);
+    assert.equal(await page.locator('#page-transfer-submit').isDisabled(),false);
+    await page.locator('#page-transfer-submit').click();
+    await page.locator('#page-transfer-dialog').waitFor({state:'hidden'});
+    assert.equal(await page.locator('#page-list option').count(),beforeTransfer+1);
+    const newPageId=await page.locator('#page-list').inputValue();
+    assert.notEqual(newPageId,sourceWithImage.id,'copied page receives independent identity');
+    await page.frameLocator('#preview').locator('main section').first().waitFor();
+    const transferredJSON=JSON.parse((await page.evaluate(()=>localStorage.getItem(
+      'ai-site-cms-stage2-site-'+JSON.parse(localStorage.getItem('ai-site-cms-stage2-workspaces-v1')).activeId+'-versions-v1')))||'[]');
+    // The unsaved imported page is intentionally still a draft; use Undo/Redo
+    // before the user's explicit Save action.
+    await page.locator('#undo').click();
+    assert.equal(await page.locator('#page-list option').count(),beforeTransfer);
+    await page.locator('#redo').click();
+    assert.equal(await page.locator('#page-list').inputValue(),newPageId);
+    assert.equal(await page.evaluate(id=>
+      localStorage.getItem('ai-site-cms-stage2-site-'+id+'-versions-v1'),priorId),sourceLocalBefore,
+      'source site's saved bytes must be untouched');
+    const exportedTransfer=page.waitForEvent('download');
+    if(!await page.locator('#project-actions').evaluate(el=>el.open))
+      await page.locator('#project-actions summary').click();
+    await page.locator('#export').click();
+    const newBackup=JSON.parse(fs.readFileSync(await (await exportedTransfer).path(),'utf8'));
+    const imported=newBackup.pages.find(p=>p.id===newPageId);
+    assert.equal(imported.sections.length,sourceWithImage.sections.length);
+    assert.ok(imported.slug,'imported homepage cannot steal the target home route');
+    assert.ok(Object.values(imported.mediaSlots).some(slots=>Object.keys(slots).length)||
+      Object.values(imported.repeaters).some(items=>items.some(item=>item.image)));
+    assert.deepEqual(imported.libraryLinks,{},'template versions never cross site boundaries');
+    await page.locator('#save').click();
+    await page.reload();
+    await page.locator('#page-list').selectOption(newPageId);
+    assert.equal(await page.locator('#page-list option').count(),beforeTransfer+1);
+    assert.equal(await page.locator('#seo-title').inputValue(),sourceWithImage.seoTitle);
+
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
     console.log('Stage2 OWNER REVIEW KIT PASS: standalone editor ZIP, canvas block click, menu navigation, fullscreen, owner feedback Markdown+persist, starter sites, offline site ZIP and ZERO network.');
