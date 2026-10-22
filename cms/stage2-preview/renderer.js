@@ -111,19 +111,26 @@
     }
     return out.join('\n');
   }
-  function render(input, selectedId, focusOnly=false, metadata={}) {
-    const doc=C.validate(input),colors=C.palette[doc.theme];
-    const design=metadata.design||{};
+  function styleTokens(doc,metadata){
+    const colors=C.palette[doc.theme],design=metadata.design||{};
     const accents=typeof design.accent==='string'&&/^#[0-9a-f]{6}$/.test(design.accent)?design.accent:colors.accent;
     const fonts={system:'system-ui,-apple-system,Segoe UI,sans-serif',geometric:'Arial,Helvetica,sans-serif',editorial:'Georgia,Times New Roman,serif'};
     const corners={sharp:'4px',soft:'16px',round:'32px'};
     const spaces={compact:'64px',comfortable:'92px',relaxed:'124px'};
-    const nav=['standard','bordered','floating'].includes(design.navigation)?design.navigation:'standard';
-    const style='--accent:'+accents+';--deep:'+colors.deep+';--pale:'+colors.pale+';'+
+    return '--accent:'+accents+';--deep:'+colors.deep+';--pale:'+colors.pale+';'+
       '--font-family:'+(fonts[design.font]||fonts.system)+';'+
       '--card-radius:'+(corners[design.radius]||corners.soft)+';'+
       '--section-space:'+(spaces[design.spacing]||spaces.comfortable)+';'+
       '--site-width:'+(design.contentWidth==='wide'?'1360px':'1180px')+';';
+  }
+  function styles(input,metadata={}){
+    const doc=C.validate(input);
+    return css+'\nbody{'+styleTokens(doc,metadata)+'}\n'+focalStyles(metadata);
+  }
+  function render(input, selectedId, focusOnly=false, metadata={}) {
+    const doc=C.validate(input),design=metadata.design||{};
+    const style=styleTokens(doc,metadata);
+    const nav=['standard','bordered','floating'].includes(design.navigation)?design.navigation:'standard';
 
     const contacts=metadata.contacts||{email:'',phone:'',address:''};
     const publicUrl=metadata.exportLinks&&metadata.canonical?metadata.canonical:'';
@@ -133,14 +140,14 @@
     const mobileNav=metadata.showNavigation===false?'':'<details class="mobile-nav"><summary aria-label="Открыть меню сайта">☰ Меню</summary>'+
       '<nav class="mobile-nav-menu" aria-label="Мобильное меню">'+navigationItems(metadata.menu,metadata.active,metadata.exportLinks)+'</nav></details>';
     return '<!doctype html><html lang="ru"><head><meta charset="utf-8">'+
-      '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; img-src &#39;self&#39; data: file:; script-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; form-action &#39;none&#39;; base-uri &#39;none&#39;">'+
+      '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; img-src &#39;self&#39; data: file:; script-src &#39;none&#39;; style-src &#39;unsafe-inline&#39; blob:; form-action &#39;none&#39;; base-uri &#39;none&#39;">'+
       '<meta name="viewport" content="width=device-width, initial-scale=1">'+
       '<title>'+e(metadata.seoTitle||doc.siteTitle)+'</title><meta name="description" content="'+e(metadata.seoDescription||'')+'">'+
       '<meta property="og:type" content="website"><meta property="og:title" content="'+e(metadata.seoTitle||doc.siteTitle)+'">'+
       '<meta property="og:description" content="'+e(metadata.seoDescription||'')+'"><meta name="twitter:card" content="summary">'+
       (publicUrl?'<link rel="canonical" href="'+e(publicUrl)+'"><meta property="og:url" content="'+e(publicUrl)+'">':'')+
       '<meta name="robots" content="'+(publicUrl?'index,follow':'noindex,nofollow')+'">'+
-      '<style>'+css+'\n'+focalStyles(metadata)+'</style></head>'+
+      (metadata.previewStyleUrl?'<link rel="stylesheet" href="'+e(metadata.previewStyleUrl)+'">':'<style>'+styles(input,metadata)+'</style>')+'</head>'+
       '<body class="'+(metadata.exportLinks?'':'cms-design-preview')+' site-type-'+
       (['impact','restrained'].includes(design.scale)?design.scale:'balanced')+'" style="'+style+'"><header class="top site-'+nav+'"><div class="wrap nav">'+
       brandHTML(doc,metadata)+desktopNav+mobileNav+
@@ -164,5 +171,5 @@
       (footer.length?'<nav class="footer-pages" aria-label="Дополнительные страницы">'+navigationItems(footer,metadata.active,metadata.exportLinks)+'</nav>':'')+
       contactPoints(contacts,metadata.exportLinks)+'</div></footer></body></html>';
   }
-  Object.defineProperty(window,'CmsPreviewRender',{value:Object.freeze({render})});
+  Object.defineProperty(window,'CmsPreviewRender',{value:Object.freeze({render,styles})});
 })();

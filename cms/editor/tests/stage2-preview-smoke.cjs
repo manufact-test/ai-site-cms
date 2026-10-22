@@ -921,8 +921,12 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),
       'Реальная фотография производственного помещения');
     assert.match(await page.locator('#preview').getAttribute('srcdoc'),/\.hero-photo\{object-position:50% 0%!important\}/);
-    assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>getComputedStyle(el).objectPosition),'50% 0%',
-      'The focal point must be applied in the real Chromium iframe');
+    await page.waitForFunction(()=>{
+      const d=document.querySelector('#preview').contentDocument;
+      const el=d?.querySelector('.hero-photo');
+      return !!el&&d.styleSheets.length>0&&getComputedStyle(el).objectPosition==='50% 0%';
+    });
+    assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>getComputedStyle(el).objectPosition),'50% 0%');
     await page.locator('#undo').click();
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),'service production');
     assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>getComputedStyle(el).objectPosition),'50% 50%');

@@ -826,12 +826,14 @@
       }
     }
   }
+  let previewStyleUrl='';
+  let retiredPreviewStyles=[];
   function preview(){
     try{
       const visual=directionPreview?.candidate||project;
       const p=visual.pages.find(pg=>pg.id===pageId)||visual.pages[0];
       const visualDoc=P.pageDoc(visual,p);
-      ui.frame.srcdoc=R.render(visualDoc,selection,focus==='section',{
+      const metadata={
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
         menu:visual.pages.filter(x=>x.inMenu).map(x=>({id:x.id,title:x.title,slug:x.slug})),
         active:pageId,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
@@ -840,7 +842,14 @@
          itemsBySection:P.resolveItems(visual,p),brand:P.resolveBrand(visual),
          homePageId:visual.pages.find(x=>x.slug==='').id,
          footerPages:P.resolveFooterPages(visual),canonical:P.publicPageUrl(visual,p),...visual.settings
-      });
+      };
+      const url=URL.createObjectURL(new Blob([R.styles(visualDoc,metadata)],{type:'text/css'}));
+      if(previewStyleUrl)retiredPreviewStyles.push(previewStyleUrl);
+      previewStyleUrl=url;
+      // The parent CSP allows only local CSS blobs, not arbitrary inline styles.
+      // The rendered demo stays inert, and ZIP export uses a self-contained <style>.
+      ui.frame.srcdoc=R.render(visualDoc,selection,focus==='section',
+        {...metadata,previewStyleUrl:url});
       ui.count.textContent=doc.sections.length+' блоков';
       ui.seoSnippetTitle.textContent=p.seoTitle;
       ui.seoSnippetDescription.textContent=p.seoDescription||'Добавьте SEO-описание страницы для поисковой выдачи.';
@@ -1709,7 +1718,15 @@
       const option=document.createElement('option');option.value=type;
       option.textContent=C.definitions[type].label;ui.addType.append(option);
     }
-    ui.frame.addEventListener('load',bindPreviewClicks);
+    ui.frame.addEventListener('load',()=>{
+      bindPreviewClicks();
+      for(const url of retiredPreviewStyles)URL.revokeObjectURL(url);
+      retiredPreviewStyles=[];
+    });
+    window.addEventListener('beforeunload',()=>{
+      if(previewStyleUrl)URL.revokeObjectURL(previewStyleUrl);
+      retiredPreviewStyles.forEach(url=>URL.revokeObjectURL(url));
+    });
     $('expand-preview').addEventListener('click',expandPreview);
     $('repeater-add').addEventListener('click',addRepeaterItem);
     $('media-upload').addEventListener('click',()=>$('media-file').click());
