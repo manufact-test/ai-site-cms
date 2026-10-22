@@ -143,7 +143,7 @@ jobs:
           node --check tools/stage2-owner-write-consent.cjs
           node --check tools/test-stage2-owner-write-consent.cjs
           node tools/test-stage2-owner-write-consent.cjs
-      - name: Offline human reviewer workbench: package-bound evidence, validation, download and import in real Chromium
+      - name: Offline human reviewer workbench package-bound evidence validation download import real Chromium
         working-directory: cms
         run: |
           node --check tools/stage2-review-workbench.cjs
