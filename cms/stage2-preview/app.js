@@ -173,9 +173,51 @@
   const pageDoc=()=>P.pageDoc(project,activePage());
   function bind(){doc=pageDoc();}
   let overviewMode=false;
+
+  function renderLinkMap(){
+    const list=$('overview-link-map');list.replaceChildren();
+    let ready=0,total=0,unset=0;
+    for(const pg of project.pages){
+      const resolved=P.resolveActions(project,pg);
+      for(const section of pg.sections){
+        if(!['hero','contact'].includes(section.type))continue;
+        total++;
+        const configured=pg.sectionActions[section.id]||'auto';
+        const link=resolved[section.id],visible=!pg.hiddenSections.includes(section.id);
+        if(link&&visible)ready++;else unset++;
+        const entry=document.createElement('button');entry.type='button';
+        entry.className='overview-link-row'+(!link||!visible?' has-warning':'');
+        const meta=document.createElement('span');meta.className='overview-link-meta';
+        const title=document.createElement('strong');
+        title.textContent=pg.title+' / '+C.definitions[section.type].label;
+        const detail=document.createElement('small');detail.textContent=
+          !visible?'Секция скрыта — кнопка отсутствует на сайте':
+          link?(configured==='auto'?'Автоматическая цель: ':'Настроенный переход: ')+link.href:
+            'Нет доступной цели — укажите email, телефон или видимый блок';
+        meta.append(title,detail);
+        const state=document.createElement('span');state.className='overview-link-state';
+        state.textContent=(!visible?'Скрыто':link?'Работает':'Уточнить')+' ↗';
+        entry.append(meta,state);
+        entry.addEventListener('click',()=>{
+          if(pageId!==pg.id)selectPage(pg.id);
+          select(section.id);
+          showOverview(false);
+          $('section-action').focus();
+        });
+        list.append(entry);
+      }
+    }
+    $('overview-link-status').textContent=ready+' активных · '+unset+' требуют внимания · всего '+total;
+    if(!total){
+      const empty=document.createElement('p');empty.className='overview-audit-ok';
+      empty.textContent='Добавьте главный экран или контактную секцию, чтобы настроить кнопку.';
+      list.append(empty);
+    }
+  }
   function renderOverview(){
     const report=K.summarize(project);
     $('overview-name').textContent=project.siteTitle;
+    renderLinkMap();
     $('overview-pages').textContent=String(project.pages.length);
     $('overview-sections').textContent=String(project.pages.reduce((n,p)=>n+p.sections.length,0));
     $('overview-issues').textContent=String(report.total);

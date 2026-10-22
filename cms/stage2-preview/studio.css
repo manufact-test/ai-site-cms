@@ -626,3 +626,16 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .surface-swatch-chip{display:inline-block;width:29px;height:28px;flex:none;border:1px solid #c2ccd5;border-radius:5px;background:linear-gradient(125deg,#fff,#edf5fa)}
 .surface-chip-soft{background:#e4f4f9}.surface-chip-dark{background:#19344c}.surface-chip-accent{background:linear-gradient(125deg,#21374e,#5273b5);border-top:4px solid #68b5e5}
 .surface-chip-linen{background:#eee1cc}.surface-chip-aurora{background:linear-gradient(130deg,#d5efe6,#e3e3ff)}.surface-chip-frame{background:#fff;outline:2px double #627785;outline-offset:-5px}.surface-chip-carbon{background:#111c27;border-top:4px solid #62dce1}
+
+/* Site-wide CTA flow inspection: point-and-fix navigation instead of silent dead links. */
+.overview-links-panel{grid-column:1 / -1}.overview-link-hint{font-size:12px;color:#6c8395;margin:3px 0 14px}
+.overview-link-map{display:grid;gap:8px;max-height:330px;overflow:auto;padding:2px}
+.overview-link-row{border:1px solid #d7e5ea;border-radius:10px;background:#f9fcfd;padding:13px 14px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;cursor:pointer;color:#264c60}
+.overview-link-row:hover,.overview-link-row:focus-visible{border-color:#4599b7;background:#edf8fc;outline:2px solid #a2dbe9}
+.overview-link-row.has-warning{background:#fff7f1;border-color:#ecd5c0}
+.overview-link-meta{display:grid;gap:4px;min-width:0}
+.overview-link-meta strong{font-size:13px;font-weight:750}
+.overview-link-meta small{font-size:11px;color:#678092;overflow-wrap:anywhere}
+.overview-link-state{font-size:11px;font-weight:750;white-space:nowrap;color:#33758a}
+.overview-link-row.has-warning .overview-link-state{color:#b56c2c}
+@media(max-width:550px){.overview-link-row{align-items:flex-start;flex-direction:column}.overview-link-state{align-self:flex-end}}

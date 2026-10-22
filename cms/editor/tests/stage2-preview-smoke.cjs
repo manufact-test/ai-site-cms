@@ -889,6 +889,13 @@ const root=path.resolve(__dirname,'../..');
     assert.match(linkedHtml,/surface-aurora/);
     assert.match(homeHtml,new RegExp('id="block-'+remoteSection.id+'"'));
     assert.match(linkedHtml,/surface-carbon\{/);
+    await page.locator('#overview-open').click();
+    const mapped=page.locator('#overview-link-map .overview-link-row').filter({hasText:'Технический сервис'});
+    assert.ok(await mapped.count()>0,'all configured site CTAs appear in the overview link map');
+    await mapped.first().click();
+    assert.equal(await page.locator('#page-list').inputValue(),recipePageId);
+    assert.equal(await page.locator('#section-action').inputValue(),remoteJump);
+
 
 
     assert.deepEqual(errors,[],'no browser JS errors');
