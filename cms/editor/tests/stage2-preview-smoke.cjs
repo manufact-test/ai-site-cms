@@ -203,8 +203,8 @@ const root=path.resolve(__dirname,'../..');
     const legacy=await page.evaluate(()=>{
       const P=window.CmsPreviewProject;
       const v=P.starter('agency');
-      v.format=P.legacyV2;delete v.settings;delete v.design;delete v.media;
-      v.pages.forEach(pg=>{delete pg.inMenu;delete pg.hiddenSections;delete pg.sectionStyles;delete pg.mediaSlots;});
+      v.format=P.legacyV2;delete v.settings;delete v.design;delete v.contacts;delete v.media;
+      v.pages.forEach(pg=>{delete pg.inMenu;delete pg.hiddenSections;delete pg.sectionStyles;delete pg.mediaSlots;delete pg.sectionActions;});
       const migrated=P.normalize(v);
       return {format:migrated.format,pages:migrated.pages.length,settings:migrated.settings,valid:P.validate(migrated).format};
     });
@@ -213,8 +213,8 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(legacy.settings.showNavigation,true);
     const oldV3=await page.evaluate(()=>{
       const P=window.CmsPreviewProject,v=P.starter('products');
-      v.format=P.olderFormat;delete v.design;delete v.media;
-      v.pages.forEach(pg=>{delete pg.sectionStyles;delete pg.mediaSlots;});
+      v.format=P.legacyV3;delete v.design;delete v.contacts;delete v.media;
+      v.pages.forEach(pg=>{delete pg.sectionStyles;delete pg.mediaSlots;delete pg.sectionActions;});
       return P.normalize(v);
     });
     assert.equal(oldV3.pages.length,3);
@@ -222,12 +222,21 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(Object.keys(oldV3.pages[0].sectionStyles).length,0);
     const oldV4=await page.evaluate(()=>{
       const P=window.CmsPreviewProject,v=P.starter('agency');
-      v.format=P.previousFormat;delete v.media;
-      v.pages.forEach(pg=>{delete pg.mediaSlots;});
+      v.format=P.olderFormat;delete v.contacts;delete v.media;
+      v.pages.forEach(pg=>{delete pg.mediaSlots;delete pg.sectionActions;});
       return P.normalize(v);
     });
     assert.equal(oldV4.pages.length,3);
     assert.equal(oldV4.design.radius,'round');
+    const oldV5=await page.evaluate(()=>{
+      const P=window.CmsPreviewProject,v=P.starter('industrial');
+      v.format=P.previousFormat;delete v.contacts;
+      v.pages.forEach(pg=>{delete pg.sectionActions;});
+      return P.normalize(v);
+    });
+    assert.equal(oldV5.pages.length,3);
+    assert.equal(oldV5.media.length,0);
+    assert.equal(oldV5.contacts.email,'');
 
     // Full media workflow: import local JPG/PNG, browser-only WebP conversion,
     // assign to a hero, preview safely, export as a relative offline asset.
@@ -249,6 +258,29 @@ const root=path.resolve(__dirname,'../..');
     await page.reload();
     assert.equal(await page.locator('#media-count').innerText(),'1');
     assert.equal(await frame.locator('.hero-photo').count(),1);
+    // Global company contacts, dynamic link destinations and reliable site export.
+    await page.locator('.contact-settings > summary').click();
+    await page.locator('#contact-email').fill('sales@example.com');
+    await page.locator('#contact-email').press('Tab');
+    await page.locator('#contact-phone').fill('+375 29 123 45 67');
+    await page.locator('#contact-phone').press('Tab');
+    await page.locator('#contact-address').fill('Минск, промышленная улица, 10');
+    await page.locator('#contact-address').press('Tab');
+    await frame.locator('.header-contact').waitFor();
+    assert.match(await frame.locator('.foot .contact-points').innerText(),/sales@example.com/);
+    await page.locator('#section-action').selectOption('email');
+    await page.waitForFunction(()=>document.querySelector('#preview').srcdoc.includes('Контактная ссылка доступна'));
+    const otherPageId=await page.locator('#page-list option').nth(1).getAttribute('value');
+    await page.locator('#section-action').selectOption('page:'+otherPageId);
+    await frame.locator('.hero button[data-preview-page]').waitFor();
+    await frame.locator('.hero button[data-preview-page]').click();
+    await page.waitForFunction(id=>document.querySelector('#page-list').value===id,otherPageId);
+    await page.locator('#page-list').selectOption({index:0});
+    await page.locator('#section-action').selectOption('email');
+    await page.locator('#save').click();
+    await page.reload();
+    assert.equal(await page.locator('#contact-email').inputValue(),'sales@example.com');
+    assert.equal(await page.locator('#section-action').inputValue(),'email');
     // Product flow C: download a real offline ZIP with navigation, per-page SEO and a JSON backup.
     const zipped=page.waitForEvent('download');
     await page.locator('#project-actions summary').click();
@@ -273,13 +305,20 @@ const root=path.resolve(__dirname,'../..');
     assert.match(siteHTML,/src="media\/asset-[a-z0-9-]+\.webp"/);
     assert.doesNotMatch(siteHTML,/data:image\/webp;base64/);
     assert.match(siteHTML,/<meta name="description"/);
+    assert.match(siteHTML,/<meta property="og:title"/);
+    assert.match(siteHTML,/href="mailto:sales@example\.com"/);
+    assert.match(siteHTML,/href="tel:\+375291234567"/);
+    assert.match(siteHTML,/Минск, промышленная улица, 10/);
     const backup=JSON.parse(execFileSync('unzip',['-p',zipPath,'project-backup.json'],{encoding:'utf8'}));
-    assert.equal(backup.format,'ai-site-cms-stage2-multipage-preview-v5');
+    assert.equal(backup.format,'ai-site-cms-stage2-multipage-preview-v6');
     assert.equal(backup.pages.find(p=>p.slug==='services').inMenu,false);
     assert.equal(backup.pages[0].hiddenSections.length,1);
     assert.equal(backup.design.accent,'#935120');
     assert.equal(backup.design.font,'editorial');
     assert.equal(backup.media.length,1);
+    assert.equal(backup.contacts.email,'sales@example.com');
+    assert.equal(backup.contacts.phone,'+375 29 123 45 67');
+    assert.equal(Object.values(backup.pages[0].sectionActions)[0],'email');
     assert.equal(Object.keys(backup.pages[0].mediaSlots).length,1);
     assert.equal(Object.values(backup.pages[0].sectionStyles).filter(v=>v==='dark').length,1);
     assert.ok(backup.pages[0].sections.some(section=>section.id===backup.pages[0].hiddenSections[0]));

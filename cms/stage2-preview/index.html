@@ -52,6 +52,17 @@
         <label class="toggle-line"><input id="site-navigation" type="checkbox" checked><span>Показывать меню на сайте</span></label>
         <p class="setting-helper">Действуют на всех страницах и включаются в локальный экспорт.</p>
       </details>
+      <details class="contact-settings">
+        <summary>Контакты компании <small>Для всех страниц</small></summary>
+        <p class="setting-helper">Эти данные автоматически используются в шапке, подвале и кнопках связи. Для показа готового сайта заполняйте реальные контакты, не тестовые.</p>
+        <label class="field-label" for="contact-email">Электронная почта</label>
+        <input id="contact-email" type="email" maxlength="160" autocomplete="off" placeholder="office@example.com">
+        <label class="field-label" for="contact-phone">Телефон</label>
+        <input id="contact-phone" type="tel" maxlength="25" autocomplete="off" placeholder="+375 29 000 00 00">
+        <label class="field-label" for="contact-address">Адрес или регион</label>
+        <textarea id="contact-address" rows="2" maxlength="240" placeholder="Город, улица, дом"></textarea>
+        <p class="setting-helper">Контактные ссылки работают в HTML-экспорте; в редакторе внешние действия отключены.</p>
+      </details>
       <details class="design-settings">
         <summary>Дизайн сайта <small>Все страницы</small></summary>
         <p class="setting-helper">Настройки изменяют сайт, а не оболочку редактора.</p>
@@ -138,6 +149,11 @@
       <label class="field-label" for="section-surface">Оформление фона секции</label>
       <select id="section-surface" aria-label="Стиль фона выбранной секции"><option value="default">Обычный фон</option><option value="soft">Светлый фон</option><option value="dark">Тёмный фон</option><option value="accent">Фирменный акцент</option></select>
       <p class="setting-helper">Оформление сохраняется при копировании и экспорте блока.</p>
+      <section class="action-binding" id="action-binding" aria-label="Действие кнопки выбранной секции" hidden>
+        <label class="field-label" for="section-action">Действие кнопки</label>
+        <select id="section-action" aria-label="Куда ведёт кнопка"></select>
+        <p class="setting-helper">Автовыбор ведёт к видимому блоку связи, странице контактов либо к email/телефону. Не создаёт серверных заявок.</p>
+      </section>
       <section class="media-binding" id="media-binding" aria-label="Фотографии выбранной секции" hidden>
         <strong>Фотографии секции</strong>
         <div id="media-binding-fields"></div>

@@ -59,7 +59,8 @@
       content:R.render(P.pageDoc(project,p),null,false,{
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
         menu,active:p.id,exportLinks:true,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
-        design:project.design,mediaBySection:P.resolveMedia(project,p,true),...project.settings
+        design:project.design,contacts:project.contacts,actions:P.resolveActions(project,p),
+        mediaBySection:P.resolveMedia(project,p,true),...project.settings
       })
     }));
     for(const asset of project.media){
@@ -79,6 +80,8 @@
       'All navigation is local; no server, CMS, network access or form submission.\n'+
       'project-backup.json can be imported back into the local preview editor.\n'+
       'This is NOT a production build, deploy package, public site or publication.\n'+
+      'Contact email and phone links can open the local email or dialer application when clicked.\n'+
+      'Buttons between pages use local relative links; enquiry forms remain disabled.\n'+
       'Any form is intentionally disabled. Demo content requires review.\n'});
     return archive(files);
   }

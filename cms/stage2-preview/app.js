@@ -275,7 +275,8 @@
         seoTitle:p.seoTitle,seoDescription:p.seoDescription,
         menu:project.pages.filter(x=>x.inMenu).map(x=>({id:x.id,title:x.title,slug:x.slug})),
         active:pageId,hiddenSections:p.hiddenSections,sectionStyles:p.sectionStyles,
-         design:project.design,mediaBySection:P.resolveMedia(project,p),...project.settings
+         design:project.design,contacts:project.contacts,
+         actions:P.resolveActions(project,p),mediaBySection:P.resolveMedia(project,p),...project.settings
       });
       ui.count.textContent=doc.sections.length+' блоков';
       ui.seoSnippetTitle.textContent=p.seoTitle;
@@ -341,7 +342,7 @@
     ui.sectionVisible.checked=!activePage().hiddenSections.includes(s.id);
     ui.sectionVisible.disabled=false;
     $('section-surface').value=activePage().sectionStyles[s.id]||'default';
-    renderMediaPicker();
+    renderMediaPicker();renderActionPicker();
     ui.info.textContent=C.definitions[s.type].label+' · меняйте свойства выбранной страницы';
     ui.fields.replaceChildren();
     editor=E.mount({container:ui.fields,schema:C.schema(s.type),data:s.props,onChange(value){
@@ -358,7 +359,7 @@
     $('site-header-note').value=project.settings.headerNote;
     $('site-footer-note').value=project.settings.footerNote;
     $('site-navigation').checked=project.settings.showNavigation;
-    syncDesignUI();
+    syncContactsUI();syncDesignUI();
     pageId=project.pages.some(p=>p.id===preferredPage)?preferredPage:project.pages[0].id;
     bind();
     selection=doc.sections.some(s=>s.id===preferredSection)?preferredSection:doc.sections[0].id;
@@ -398,6 +399,7 @@
     target.sections.push(copy);
     if(activePage().sectionStyles[source.id])target.sectionStyles[copy.id]=activePage().sectionStyles[source.id];
     if(activePage().mediaSlots[source.id])target.mediaSlots[copy.id]=structuredClone(activePage().mediaSlots[source.id]);
+    if(activePage().sectionActions[source.id])target.sectionActions[copy.id]=activePage().sectionActions[source.id];
     selectPage(target.id);select(copy.id);changed();
     toast('Блок скопирован на выбранную страницу');
   }
@@ -406,6 +408,11 @@
     if(p.slug===''||project.pages.length<=1)return toast('Главную страницу удалить нельзя',true);
     if(!confirm('Удалить страницу «'+p.title+'»? Изменение можно отменить.'))return;
     checkpoint('pages');project.pages=project.pages.filter(x=>x.id!==pageId);
+    for(const remaining of project.pages){
+      for(const [sectionId,action] of Object.entries(remaining.sectionActions)){
+        if(action==='page:'+p.id)delete remaining.sectionActions[sectionId];
+      }
+    }
     selectPage(project.pages[0].id);changed();toast('Страница удалена — можно отменить');
   }
   function editSettings(field,value){
@@ -415,6 +422,42 @@
     }
     checkpoint('settings:'+field,true);project.settings[field]=value;
     changed();toast('Настройки сайта изменены в локальном черновике');
+  }
+  function syncContactsUI(){
+    for(const field of ['email','phone','address'])$('contact-'+field).value=project.contacts[field];
+  }
+  function editContact(field,value){
+    if(project.contacts[field]===value)return;
+    const next={...project.contacts,[field]:value.trim()};
+    try{P.validate({...project,contacts:next});}
+    catch(_){
+      $('contact-'+field).value=project.contacts[field];
+      toast('Проверьте '+(field==='email'?'email':field==='phone'?'номер телефона':'длину адреса'),true);return;
+    }
+    checkpoint('contact:'+field);project.contacts=next;
+    changed();toast('Контакты обновлены во всех разделах сайта');
+  }
+  function renderActionPicker(){
+    const s=current(),holder=$('action-binding'),list=$('section-action');
+    list.replaceChildren();
+    holder.hidden=!s||!['hero','contact'].includes(s.type);
+    if(holder.hidden)return;
+    const options=[['auto','Автоматически — подходящий способ связи'],
+      ['email','Отправить письмо на email'],['phone','Позвонить по телефону'],
+      ...project.pages.map(pg=>['page:'+pg.id,'Перейти: '+pg.title])];
+    for(const [value,name] of options){
+      const option=document.createElement('option');option.value=value;option.textContent=name;list.append(option);
+    }
+    list.value=activePage().sectionActions[s.id]||'auto';
+  }
+  function editSectionAction(value){
+    const s=current(),p=activePage();
+    if(!s||!['hero','contact'].includes(s.type))return;
+    if(value!=='auto'&&!['email','phone'].includes(value)&&!project.pages.some(pg=>value==='page:'+pg.id))return;
+    if((p.sectionActions[s.id]||'auto')===value)return;
+    checkpoint('section-action');
+    if(value==='auto')delete p.sectionActions[s.id];else p.sectionActions[s.id]=value;
+    changed();
   }
   let mediaSerial=0;
   const nextAssetId=()=> 'asset-'+Date.now().toString(36)+'-'+(++mediaSerial).toString(36).padStart(5,'0');
@@ -570,6 +613,7 @@
     activePage().hiddenSections=activePage().hiddenSections.filter(id=>id!==s.id);
     delete activePage().sectionStyles[s.id];
     delete activePage().mediaSlots[s.id];
+    delete activePage().sectionActions[s.id];
     if(s.id===selection)selection=doc.sections[Math.min(i,doc.sections.length-1)].id;
     listing();mount();changed();toast('Блок удалён');
   }
@@ -579,6 +623,7 @@
     copy.props=structuredClone(source.props);doc.sections.splice(i+1,0,copy);selection=copy.id;
     if(activePage().sectionStyles[source.id])activePage().sectionStyles[copy.id]=activePage().sectionStyles[source.id];
     if(activePage().mediaSlots[source.id])activePage().mediaSlots[copy.id]=structuredClone(activePage().mediaSlots[source.id]);
+    if(activePage().sectionActions[source.id])activePage().sectionActions[copy.id]=activePage().sectionActions[source.id];
     listing();mount();changed();toast('Блок дублирован');
   }
   function add(){
@@ -709,6 +754,10 @@
     $('site-header-note').addEventListener('input',()=>editSettings('headerNote',$('site-header-note').value));
     $('site-footer-note').addEventListener('input',()=>editSettings('footerNote',$('site-footer-note').value));
     $('site-navigation').addEventListener('change',()=>editSettings('showNavigation',$('site-navigation').checked));
+    for(const field of ['email','phone','address']){
+      $('contact-'+field).addEventListener('change',()=>editContact(field,$('contact-'+field).value));
+    }
+    $('section-action').addEventListener('change',()=>editSectionAction($('section-action').value));
     for(const field of ['font','radius','spacing','navigation']){
       $('design-'+field).addEventListener('change',()=>editDesign(field,$('design-'+field).value));
     }

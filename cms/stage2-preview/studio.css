@@ -395,3 +395,15 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .media-binding strong{font-size:12px;color:#253c50}
 .media-binding .field-label{display:grid;gap:6px;margin-top:10px}
 .media-binding select{width:100%;max-width:100%}
+
+/* Global business contact book and per-section action destinations. */
+.contact-settings{border:1px solid #38556d;border-radius:10px;background:#203346;padding:12px 13px;margin-top:11px;color:#d6e4ee}
+.contact-settings>summary{cursor:pointer;font-size:12px;font-weight:700}
+.contact-settings>summary small{font-size:10px;color:#a2b7c5;margin-left:6px}
+.contact-settings .field-label{display:block;margin-top:13px;color:#c3d7e5}
+.contact-settings input,.contact-settings textarea{width:100%;box-sizing:border-box}
+.contact-settings .setting-helper{margin-top:10px;color:#a5b7c5}
+.action-binding{margin:12px 0 16px;padding:12px;border:1px solid #d9e7ee;border-radius:10px;background:#f6f9fb}
+.action-binding .field-label{display:block;margin-bottom:7px}
+.action-binding select{width:100%;max-width:100%}
+.action-binding .setting-helper{margin-top:8px;color:#647b90}
