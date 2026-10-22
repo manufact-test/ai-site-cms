@@ -896,7 +896,73 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(await page.locator('#page-list').inputValue(),recipePageId);
     assert.equal(await page.locator('#section-action').inputValue(),remoteJump);
 
+    // Direct media from the live preview: local upload -> alt edit -> undo/redo ->
+    // reusable card photo -> JSON persistence and byte-addressed offline HTML ZIP.
+    const mediaFrame=page.frameLocator('#preview');
+    await mediaFrame.locator('.hero .cms-photo-control').click();
+    await page.locator('#canvas-media-dialog').waitFor({state:'visible'});
+    assert.equal(await page.locator('.canvas-media-choice').first().getAttribute('data-asset-id'),'');
+    await page.locator('#canvas-media-file').setInputFiles({
+      name:'service-production.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')
+    });
+    await page.locator('#canvas-media-dialog').waitFor({state:'hidden'});
+    await mediaFrame.locator('.hero-photo').waitFor({state:'attached'});
+    const newlyAssigned=await mediaFrame.locator('.hero-photo').getAttribute('src');
+    assert.match(newlyAssigned,/^data:image\/webp;base64,UklGR/);
+    await mediaFrame.locator('.hero .cms-photo-control').click();
+    await page.locator('#canvas-media-alt').fill('Реальная фотография производственного помещения');
+    await page.locator('#canvas-media-apply').click();
+    await page.locator('#canvas-media-dialog').waitFor({state:'hidden'});
+    assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),
+      'Реальная фотография производственного помещения');
+    await page.locator('#undo').click();
+    assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),'service production');
+    await page.locator('#redo').click();
+    assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),
+      'Реальная фотография производственного помещения');
 
+    await mediaFrame.locator('.studio-grid > article .cms-photo-control').first().click();
+    await page.locator('#canvas-media-dialog').waitFor({state:'visible'});
+    const photoChoice=page.locator('.canvas-media-choice[data-asset-id^="asset-"]').first();
+    assert.equal(await photoChoice.count(),1);
+    await photoChoice.click();
+    await page.locator('#canvas-media-apply').click();
+    await page.locator('#canvas-media-dialog').waitFor({state:'hidden'});
+    await mediaFrame.locator('.studio-grid > article img').first().waitFor({state:'attached'});
+    assert.equal(await mediaFrame.locator('.studio-grid > article img').first().getAttribute('alt'),
+      'Реальная фотография производственного помещения');
+    await page.locator('#save').click();
+    await page.reload();
+    await page.locator('#page-list').selectOption(recipePageId);
+    assert.equal(await page.frameLocator('#preview').locator('.hero-photo').getAttribute('alt'),
+      'Реальная фотография производственного помещения');
+    assert.equal(await page.frameLocator('#preview').locator('.studio-grid > article img').first().getAttribute('alt'),
+      'Реальная фотография производственного помещения');
+    const mediaZipPending=page.waitForEvent('download');
+    if(!await page.locator('#project-actions').evaluate(el=>el.open))
+      await page.locator('#project-actions summary').click();
+    await page.locator('#download-site').click();
+    const mediaArchive=await mediaZipPending;
+    const mediaArchivePath=await mediaArchive.path();
+    const mediaZipHTML=execFileSync('unzip',['-p',mediaArchivePath,recipePage.slug+'.html'],{encoding:'utf8'});
+    const mediaZipNames=execFileSync('unzip',['-Z1',mediaArchivePath],{encoding:'utf8'});
+    assert.match(mediaZipHTML,/alt="Реальная фотография производственного помещения"/);
+    assert.match(mediaZipHTML,/src="media\/asset-[a-z0-9-]+\.webp"/);
+    assert.match(mediaZipNames,/media\/asset-[a-z0-9-]+\.webp/);
+    assert.doesNotMatch(mediaZipHTML,/cms-photo-control|canvas-media-dialog|data:image\/webp;base64/);
+    const mediaZIPBackup=JSON.parse(execFileSync('unzip',['-p',mediaArchivePath,'project-backup.json'],{encoding:'utf8'}));
+    const mediaRecipePage=mediaZIPBackup.pages.find(pg=>pg.id===recipePageId);
+    const mediaRecipeHero=mediaRecipePage.sections.find(s=>s.type==='hero');
+    const mediaRecipeServices=mediaRecipePage.sections.find(s=>s.type==='services');
+    assert.equal(mediaRecipePage.mediaSlots[mediaRecipeHero.id].hero,
+      mediaRecipePage.repeaters[mediaRecipeServices.id][0].image);
+
+    await page.frameLocator('#preview').locator('.hero .cms-photo-control').click();
+    await page.locator('.canvas-media-choice[data-asset-id=""]').click();
+    await page.locator('#canvas-media-apply').click();
+    assert.equal(await page.frameLocator('#preview').locator('.hero-photo').count(),0);
+    await page.locator('#undo').click();
+    assert.equal(await page.frameLocator('#preview').locator('.hero-photo').count(),1);
 
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
