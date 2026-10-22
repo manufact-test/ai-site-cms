@@ -1058,8 +1058,6 @@ const root=path.resolve(__dirname,'../..');
     const newPageId=await page.locator('#page-list').inputValue();
     assert.notEqual(newPageId,sourceWithImage.id,'copied page receives independent identity');
     await page.frameLocator('#preview').locator('main section').first().waitFor();
-    const transferredJSON=JSON.parse((await page.evaluate(()=>localStorage.getItem(
-      'ai-site-cms-stage2-site-'+JSON.parse(localStorage.getItem('ai-site-cms-stage2-workspaces-v1')).activeId+'-versions-v1')))||'[]');
     // The unsaved imported page is intentionally still a draft; use Undo/Redo
     // before the user's explicit Save action.
     await page.locator('#undo').click();
@@ -1068,7 +1066,7 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(await page.locator('#page-list').inputValue(),newPageId);
     assert.equal(await page.evaluate(id=>
       localStorage.getItem('ai-site-cms-stage2-site-'+id+'-versions-v1'),priorId),sourceLocalBefore,
-      'source site's saved bytes must be untouched');
+      "source site's saved bytes must be untouched");
     const exportedTransfer=page.waitForEvent('download');
     if(!await page.locator('#project-actions').evaluate(el=>el.open))
       await page.locator('#project-actions summary').click();
