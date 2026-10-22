@@ -792,7 +792,9 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#direction-try').click();
     assert.match(await page.locator('#preview').getAttribute('srcdoc'),/--accent:#a65039/);
     await page.locator('#direction-cancel').click();
-    assert.equal(await page.locator('#preview').getAttribute('srcdoc'),oldStyle);
+    assert.equal((await page.locator('#preview').getAttribute('srcdoc')).replace(/href="blob:[^"]+"/g,'href="blob:LOCAL-STYLE"'),
+      oldStyle.replace(/href="blob:[^"]+"/g,'href="blob:LOCAL-STYLE"'),
+      'cancelled direction must restore the same markup with a newly minted safe local CSS blob');
     await page.locator('#direction-apply').click();
     assert.match(await page.locator('#preview').getAttribute('srcdoc'),/--accent:#a65039/);
     const differentPage=await page.locator('#page-list option').nth(1).getAttribute('value');
@@ -931,7 +933,8 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#canvas-media-dialog').waitFor({state:'hidden'});
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),
       'Реальная фотография производственного помещения');
-    assert.match(await page.locator('#preview').getAttribute('srcdoc'),/\.hero-photo\{object-position:50% 0%!important\}/);
+    assert.match(await page.locator('#preview').getAttribute('srcdoc'),/rel="stylesheet" href="blob:/,
+      'local stylesheet must stay CSP-safe; focal position is checked by computed style below');
     await page.waitForFunction(()=>{
       const d=document.querySelector('#preview').contentDocument;
       const el=d?.querySelector('.hero-photo');
