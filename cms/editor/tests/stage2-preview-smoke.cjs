@@ -457,7 +457,7 @@ const root=path.resolve(__dirname,'../..');
         kit.once('dialog',dialog=>dialog.accept());
         await kit.locator('#starter-type').selectOption('industrial');
         await kit.locator('#starter-apply').click();
-        await actual.locator('[data-preview-page]').nth(1).click();
+        await actual.locator('.menu-desktop [data-preview-page]').nth(1).click();
         assert.match(await kit.locator('#preview-url').innerText(),/products/);
         await actual.locator('.studio-product').first().waitFor();
         await kit.locator('#expand-preview').click();
