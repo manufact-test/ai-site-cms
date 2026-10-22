@@ -296,7 +296,26 @@
       <input id="canvas-media-file" type="file" accept="image/jpeg,image/png,image/webp" hidden>
       <label class="field-label" for="canvas-media-alt">Описание изображения для доступности (alt)</label>
       <input id="canvas-media-alt" maxlength="160" placeholder="Например, производственный цех">
-      <p class="setting-helper">Изменение описания существующего фото обновит его во всех местах, где оно используется. Новое фото автоматически сжимается в WebP и остаётся в локальном проекте.</p>
+      <div id="canvas-media-focus" class="canvas-media-focus">
+        <strong>Кадрирование фотографии</strong>
+        <p class="setting-helper">Укажите важную точку снимка: она останется на виду при обрезке на компьютере и телефоне. Оригинальный WebP не изменяется. Настройка применяется везде, где используется это фото.</p>
+        <div id="canvas-media-focus-preview" class="canvas-media-focus-preview" role="group" aria-label="Предпросмотр кадра: кликните для выбора точки">
+          <img id="canvas-media-focus-image" alt="" aria-hidden="true">
+          <span id="canvas-media-focus-marker" aria-hidden="true"></span>
+        </div>
+        <div class="canvas-media-axis"><label for="canvas-media-focus-x">Горизонталь <output id="canvas-media-focus-x-value">50%</output></label>
+          <input id="canvas-media-focus-x" type="range" min="0" max="100" step="1" value="50"></div>
+        <div class="canvas-media-axis"><label for="canvas-media-focus-y">Вертикаль <output id="canvas-media-focus-y-value">50%</output></label>
+          <input id="canvas-media-focus-y" type="range" min="0" max="100" step="1" value="50"></div>
+        <div class="canvas-media-focus-presets" role="group" aria-label="Готовые точки кадрирования">
+          <button type="button" data-media-focus="center" class="button subtle">Центр</button>
+          <button type="button" data-media-focus="top" class="button subtle">Верх</button>
+          <button type="button" data-media-focus="bottom" class="button subtle">Низ</button>
+          <button type="button" data-media-focus="left" class="button subtle">Слева</button>
+          <button type="button" data-media-focus="right" class="button subtle">Справа</button>
+        </div>
+      </div>
+      <p class="setting-helper">Описание (alt) и кадрирование существующего фото обновляются во всех местах его использования. Новые снимки автоматически сжимаются в WebP и хранятся локально.</p>
       <p id="canvas-media-error" role="alert" hidden></p>
       <div class="canvas-media-actions"><button id="canvas-media-cancel" type="button" class="button subtle">Отмена</button>
         <button id="canvas-media-apply" type="button" class="button dark">Применить изображение</button></div>

@@ -55,6 +55,23 @@
 
   let canvasMedia=null;
   let selectedCanvasAsset='';
+  function updateCanvasFocusPreview(){
+    const asset=project.media.find(a=>a.id===selectedCanvasAsset);
+    const x=Number($('canvas-media-focus-x').value),y=Number($('canvas-media-focus-y').value);
+    $('canvas-media-focus').hidden=!asset;
+    $('canvas-media-focus-x-value').textContent=x+'%';
+    $('canvas-media-focus-y-value').textContent=y+'%';
+    if(!asset)return;
+    $('canvas-media-focus-image').src=asset.data;
+    $('canvas-media-focus-image').style.objectPosition=x+'% '+y+'%';
+    $('canvas-media-focus-marker').style.left=x+'%';
+    $('canvas-media-focus-marker').style.top=y+'%';
+  }
+  function resetCanvasFocus(asset){
+    $('canvas-media-focus-x').value=String(asset?.focusX??50);
+    $('canvas-media-focus-y').value=String(asset?.focusY??50);
+    updateCanvasFocusPreview();
+  }
   function renderCanvasMediaGallery(){
     const holder=$('canvas-media-gallery');holder.replaceChildren();
     const entries=[{id:'',alt:'Без фотографии',data:null},...project.media];
@@ -76,6 +93,7 @@
         selectedCanvasAsset=asset.id;
         $('canvas-media-alt').value=asset.id?asset.alt:'';
         $('canvas-media-alt').disabled=!asset.id;
+        resetCanvasFocus(asset.id?asset:null);
         $('canvas-media-error').hidden=true;
         renderCanvasMediaGallery();
       });
@@ -93,6 +111,7 @@
     $('canvas-media-error').hidden=true;
     $('canvas-media-alt').value=project.media.find(m=>m.id===id)?.alt||'';
     $('canvas-media-alt').disabled=!id;
+    resetCanvasFocus(project.media.find(m=>m.id===id));
     renderCanvasMediaGallery();
     $('canvas-media-dialog').showModal();
   }
@@ -104,10 +123,12 @@
       const alt=asset?asset.alt:$('canvas-media-alt').value;
       const old=S.current(project,ref);
       const original=project.media.find(m=>m.id===id);
-      if(!asset&&old===id&&(!id||original?.alt===alt)){
+      const focus={x:Number($('canvas-media-focus-x').value),y:Number($('canvas-media-focus-y').value)};
+      if(!asset&&old===id&&(!id||original?.alt===alt&&
+        (original.focusX??50)===focus.x&&(original.focusY??50)===focus.y)){
         $('canvas-media-dialog').close();return;
       }
-      const next=S.change(project,ref,id,alt,asset);
+      const next=S.change(project,ref,id,alt,asset,asset?{x:50,y:50}:focus);
       checkpoint('canvas-media');
       $('canvas-media-dialog').close();
       apply(next,ref.pageId,ref.sectionId);
@@ -1195,7 +1216,8 @@
     }
     for(const asset of project.media){
       const row=document.createElement('div');row.className='media-item';
-      const image=document.createElement('img');image.src=asset.data;image.alt=asset.alt;image.loading='lazy';
+      const image=document.createElement('img');image.src=asset.data;image.alt=asset.alt;
+      image.style.objectPosition=(asset.focusX??50)+'% '+(asset.focusY??50)+'%';image.loading='lazy';
       const detail=document.createElement('div');detail.className='media-item-detail';
       const label=document.createElement('label');label.textContent='Описание изображения';
       const alt=document.createElement('input');alt.type='text';alt.maxLength=160;
@@ -1794,6 +1816,23 @@
     $('canvas-media-cancel').addEventListener('click',()=>$('canvas-media-dialog').close());
     $('canvas-media-dialog').addEventListener('close',()=>{canvasMedia=null;selectedCanvasAsset='';});
     $('canvas-media-apply').addEventListener('click',()=>finishCanvasMedia(selectedCanvasAsset));
+    for(const id of ['canvas-media-focus-x','canvas-media-focus-y'])
+      $(id).addEventListener('input',updateCanvasFocusPreview);
+    $('canvas-media-focus-preview').addEventListener('click',e=>{
+      if(!selectedCanvasAsset)return;
+      const rect=e.currentTarget.getBoundingClientRect();
+      $('canvas-media-focus-x').value=String(Math.round(Math.max(0,Math.min(100,(e.clientX-rect.left)*100/rect.width))));
+      $('canvas-media-focus-y').value=String(Math.round(Math.max(0,Math.min(100,(e.clientY-rect.top)*100/rect.height))));
+      updateCanvasFocusPreview();
+    });
+    const focusPresets={center:[50,50],top:[50,0],bottom:[50,100],left:[0,50],right:[100,50]};
+    document.querySelectorAll('[data-media-focus]').forEach(button=>button.addEventListener('click',()=>{
+      if(!selectedCanvasAsset)return;
+      const [x,y]=focusPresets[button.dataset.mediaFocus];
+      $('canvas-media-focus-x').value=String(x);
+      $('canvas-media-focus-y').value=String(y);
+      updateCanvasFocusPreview();
+    }));
     $('canvas-media-upload').addEventListener('click',()=>$('canvas-media-file').click());
     $('canvas-media-file').addEventListener('change',async e=>{
       const file=e.target.files?.[0];e.target.value='';await uploadCanvasMedia(file);

@@ -53,13 +53,13 @@
   function block(section,media={},extra={}){
     const p=section.props,c=extra.contacts||{email:'',phone:'',address:''};
     const photo=(slot,cssClass='')=>media[slot]?
-      '<img src="'+e(media[slot].src)+'" alt="'+e(media[slot].alt)+'" class="'+e(cssClass)+'" loading="lazy" decoding="async">':'';
+      '<img src="'+e(media[slot].src)+'" alt="'+e(media[slot].alt)+'" class="'+e(cssClass)+'" style="object-position:'+e(media[slot].position||'50% 50%')+'" loading="lazy" decoding="async">':'';
     const legacy=(title,text,count)=>Array.from({length:count},(_,i)=>({
       title:p[title+(i+1)]||'',text:p[text+(i+1)]||'',photo:media['image'+(i+1)]||null
     }));
     const items=(title,text,count)=>Array.isArray(extra.items)?extra.items:legacy(title,text,count);
     const itemImage=item=>item.photo?
-      '<img src="'+e(item.photo.src)+'" alt="'+e(item.photo.alt)+'" loading="lazy" decoding="async">':'';
+      '<img src="'+e(item.photo.src)+'" alt="'+e(item.photo.alt)+'" style="object-position:'+e(item.photo.position||'50% 50%')+'" loading="lazy" decoding="async">':'';
 
     switch(section.type){
       case 'hero':return '<section class="hero" id="start"><div class="wrap hero-grid"><div><span class="tag">'+e(p.eyebrow)+'</span><h1>'+e(p.title)+'</h1><p>'+e(p.description)+'</p>'+actionButton(p.action,extra.action,extra.exportLinks)+'</div><aside class="visual'+(media.hero?' has-photo':'')+'">'+photo('hero','hero-photo')+'<small>01 / ДЕМО ПРОЕКТ</small><strong>'+e(p.highlight)+'</strong></aside></div></section>';

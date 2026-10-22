@@ -23,7 +23,7 @@
   function current(project,ref){
     return target(project,ref).assetId;
   }
-  function change(project,ref,id,alt,newAsset=null){
+  function change(project,ref,id,alt,newAsset=null,focus=null){
     const cloned=P.validate(project);
     const bound=target(cloned,ref);
     if(typeof id!=='string'||typeof alt!=='string'||alt.length>160||alt.includes('\0'))
@@ -36,7 +36,16 @@
     const asset=cloned.media.find(a=>a.id===id);
     if(id&&!asset)throw Error('Фото больше не существует');
     if(!id&&alt)throw Error('Сначала выберите фото');
-    if(asset)asset.alt=alt;
+    if(asset){
+      asset.alt=alt;
+      if(focus){
+        if(!Number.isInteger(focus.x)||focus.x<0||focus.x>100
+          ||!Number.isInteger(focus.y)||focus.y<0||focus.y>100)
+          throw Error('Недопустимая точка кадрирования');
+        asset.focusX=focus.x;
+        asset.focusY=focus.y;
+      }
+    }
     if(bound.item){
       bound.item.image=id;
     }else{

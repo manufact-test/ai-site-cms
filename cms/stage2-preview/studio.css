@@ -662,3 +662,19 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 #canvas-media-error{color:#b23b40;font-size:12px}
 .canvas-media-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;flex-wrap:wrap}
 @media(max-width:550px){.canvas-media-head,.canvas-media-body{padding:16px}.canvas-media-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Photo focal-point chooser: explicit local preview, keyboard sliders, no image re-encoding. */
+.canvas-media-focus{margin:18px 0;padding:14px;background:#f5fafc;border:1px solid #d0e3eb;border-radius:12px}
+.canvas-media-focus[hidden]{display:none}
+.canvas-media-focus>strong{display:block;font-size:13px;color:#21475a}
+.canvas-media-focus>.setting-helper{font-size:11px;color:#537483;line-height:1.5;margin:8px 0 12px}
+.canvas-media-focus-preview{position:relative;width:100%;max-width:540px;height:190px;background:#c4d7e2;cursor:crosshair;overflow:hidden;border:1px solid #acc9d7;border-radius:10px}
+.canvas-media-focus-preview img{width:100%;height:100%;object-fit:cover;display:block}
+#canvas-media-focus-marker{position:absolute;width:20px;height:20px;transform:translate(-50%,-50%);border:2px solid white;background:#13658050;border-radius:50%;pointer-events:none;box-shadow:0 0 0 1px #12465f}
+.canvas-media-axis{display:flex;align-items:center;gap:12px;margin-top:12px}
+.canvas-media-axis label{display:flex;justify-content:space-between;min-width:155px;color:#31566b;font-size:11px;font-weight:700}
+.canvas-media-axis output{margin-left:8px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.canvas-media-axis input{flex:1;min-width:0;accent-color:#126e8f}
+.canvas-media-focus-presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.canvas-media-focus-presets .button{font-size:11px;padding:7px 9px}
+@media(max-width:520px){.canvas-media-axis{display:grid;gap:3px}.canvas-media-axis label{min-width:0}.canvas-media-focus-preview{height:160px}}

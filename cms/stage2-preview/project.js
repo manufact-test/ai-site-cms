@@ -86,7 +86,9 @@
     const mediaIds=new Set();
     for(const asset of raw.media){
       if(!asset||typeof asset!=='object'||Array.isArray(asset)
-        ||!allowedKeys(asset,['id','alt','data'])
+        ||!allowedKeys(asset,['id','alt','data','focusX','focusY'])
+        ||(asset.focusX!==undefined&&(!Number.isInteger(asset.focusX)||asset.focusX<0||asset.focusX>100))
+        ||(asset.focusY!==undefined&&(!Number.isInteger(asset.focusY)||asset.focusY<0||asset.focusY>100))
         ||typeof asset.id!=='string'||!/^asset-[a-z0-9-]{5,48}$/.test(asset.id)
         ||mediaIds.has(asset.id)||typeof asset.alt!=='string'||asset.alt.length>160
         ||asset.alt.includes('\0')||typeof asset.data!=='string'
@@ -297,7 +299,8 @@
         const asset=assets.get(id);
         if(asset)out[sectionId][slot]={
           src:exportLinks?'media/'+asset.id+'.webp':asset.data,
-          alt:asset.alt
+          alt:asset.alt,
+          position:(asset.focusX??50)+'% '+(asset.focusY??50)+'%'
         };
       }
     }
@@ -309,7 +312,8 @@
       out[sectionId]=items.map(item=>{
         const media=assets.get(item.image);
         return {id:item.id,title:item.title,text:item.text,
-          photo:media?{src:exportLinks?'media/'+media.id+'.webp':media.data,alt:media.alt}:null};
+          photo:media?{src:exportLinks?'media/'+media.id+'.webp':media.data,alt:media.alt,
+            position:(media.focusX??50)+'% '+(media.focusY??50)+'%'}:null};
       });
     }
     return out;

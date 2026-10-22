@@ -911,12 +911,16 @@ const root=path.resolve(__dirname,'../..');
     assert.match(newlyAssigned,/^data:image\/webp;base64,UklGR/);
     await mediaFrame.locator('.hero .cms-photo-control').click();
     await page.locator('#canvas-media-alt').fill('Реальная фотография производственного помещения');
+    await page.locator('[data-media-focus="top"]').click();
+    assert.equal(await page.locator('#canvas-media-focus-y-value').textContent(),'0%');
     await page.locator('#canvas-media-apply').click();
     await page.locator('#canvas-media-dialog').waitFor({state:'hidden'});
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),
       'Реальная фотография производственного помещения');
+    assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>el.style.objectPosition),'50% 0%');
     await page.locator('#undo').click();
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),'service production');
+    assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>el.style.objectPosition),'50% 50%');
     await page.locator('#redo').click();
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),
       'Реальная фотография производственного помещения');
@@ -929,6 +933,7 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#canvas-media-apply').click();
     await page.locator('#canvas-media-dialog').waitFor({state:'hidden'});
     await mediaFrame.locator('.studio-grid > article img').first().waitFor({state:'attached'});
+    assert.equal(await mediaFrame.locator('.studio-grid > article img').first().evaluate(el=>el.style.objectPosition),'50% 0%');
     assert.equal(await mediaFrame.locator('.studio-grid > article img').first().getAttribute('alt'),
       'Реальная фотография производственного помещения');
     await page.locator('#save').click();
@@ -947,10 +952,13 @@ const root=path.resolve(__dirname,'../..');
     const mediaZipHTML=execFileSync('unzip',['-p',mediaArchivePath,recipePage.slug+'.html'],{encoding:'utf8'});
     const mediaZipNames=execFileSync('unzip',['-Z1',mediaArchivePath],{encoding:'utf8'});
     assert.match(mediaZipHTML,/alt="Реальная фотография производственного помещения"/);
+    assert.match(mediaZipHTML,/style="object-position:50% 0%"/);
     assert.match(mediaZipHTML,/src="media\/asset-[a-z0-9-]+\.webp"/);
     assert.match(mediaZipNames,/media\/asset-[a-z0-9-]+\.webp/);
     assert.doesNotMatch(mediaZipHTML,/cms-photo-control|canvas-media-dialog|data:image\/webp;base64/);
     const mediaZIPBackup=JSON.parse(execFileSync('unzip',['-p',mediaArchivePath,'project-backup.json'],{encoding:'utf8'}));
+    const croppedAsset=mediaZIPBackup.media.find(m=>m.alt==='Реальная фотография производственного помещения');
+    assert.deepEqual([croppedAsset.focusX,croppedAsset.focusY],[50,0]);
     const mediaRecipePage=mediaZIPBackup.pages.find(pg=>pg.id===recipePageId);
     const mediaRecipeHero=mediaRecipePage.sections.find(s=>s.type==='hero');
     const mediaRecipeServices=mediaRecipePage.sections.find(s=>s.type==='services');
