@@ -226,7 +226,7 @@
         <div class="overview-warning"><span aria-hidden="true">ⓘ</span><div><strong>Это демонстрационная среда Stage 2</strong><p>Авторизация, серверное сохранение, публикация, реальная генерация ИИ и клиентские данные здесь не реализованы. Итоговое оформление CMS и сайтов будет разрабатываться отдельно.</p></div></div>
       </section>
       <div class="preview-stage"><div class="browser-shell" id="browser"><div class="browser-bar"><span class="traffic" aria-hidden="true">● ● ●</span><span id="preview-url">demo.local / index</span><button id="expand-preview" class="live-indicator preview-expand" type="button" aria-pressed="false">⤢ Развернуть</button></div><iframe id="preview" title="Предпросмотр сайта с выбором блоков" sandbox="allow-same-origin" referrerpolicy="no-referrer"></iframe></div></div>
-      <div class="canvas-caption">Кликните по блоку прямо на макете, чтобы открыть его свойства. Меню страниц в предпросмотре тоже работает. Полноэкранный режим — для просмотра без панелей. Публикации здесь нет.</div>
+      <div class="canvas-caption">Кликните по блоку, чтобы открыть свойства; дважды щёлкните по заголовку, тексту или карточке, чтобы изменить прямо на макете (F2 с клавиатуры). Меню страниц в предпросмотре тоже работает. Полноэкранный режим — для просмотра без панелей. Публикации здесь нет.</div>
     </section>
     <aside class="panel inspector" aria-labelledby="inspector-title"><div class="panel-top"><div><span class="small-title">ИНСПЕКТОР</span><h2 id="inspector-title">Свойства секции</h2></div><span class="inspector-symbol" aria-hidden="true">✦</span></div><p class="inspector-intro" id="selection-info">Выберите секцию на макете.</p>
       <label class="section-toggle"><input id="section-visible" type="checkbox" checked><span>Показывать секцию на сайте</span></label>
@@ -285,6 +285,18 @@
   <div class="review-actions"><button type="button" class="button subtle" id="review-export">Скачать замечания .md</button><button type="button" class="text-button" id="review-clear">Очистить</button></div>
 </details><div class="inspector-foot">Поля управляются встроенным <strong>Jedison</strong>. Изменения отображаются сразу без сохранения на сервер.</div></aside>
   </main>
+  <dialog id="canvas-edit-dialog" class="canvas-edit-dialog" aria-labelledby="canvas-edit-title">
+    <form id="canvas-edit-form">
+      <div class="canvas-edit-head"><div><span>ТЕКСТ НА МАКЕТЕ</span><h2 id="canvas-edit-title">Редактирование текста</h2></div><button id="canvas-edit-close" type="button" aria-label="Закрыть">×</button></div>
+      <div class="canvas-edit-content">
+        <label id="canvas-edit-label" for="canvas-edit-text">Поле</label>
+        <textarea id="canvas-edit-text" rows="5" maxlength="700" spellcheck="true"></textarea>
+        <div class="canvas-edit-counter"><span>Обычный текст: без HTML и выполнения кода</span><strong id="canvas-edit-counter">0 / 700</strong></div>
+        <p id="canvas-edit-error" role="alert" hidden></p>
+        <div class="canvas-edit-actions"><button id="canvas-edit-cancel" type="button" class="button subtle">Отмена</button><button type="submit" class="button dark">Применить текст</button></div>
+      </div>
+    </form>
+  </dialog>
   <dialog id="page-recipe-dialog" class="page-recipe-dialog" aria-labelledby="page-recipe-title">
     <form id="page-recipe-form">
       <div class="page-recipe-head"><div><span>КОМПОЗИЦИЯ СТРАНИЦЫ</span><h2 id="page-recipe-title">Новая страница по задаче</h2><p>Редактируемая структура без выдуманных клиентов, достижений и цифр.</p></div><button id="page-recipe-close" type="button" aria-label="Закрыть">×</button></div>
@@ -338,6 +350,7 @@
   <script src="workspaces.js"></script>
   <script src="art-direction.js"></script>
   <script src="page-recipes.js"></script>
+  <script src="canvas-edit.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

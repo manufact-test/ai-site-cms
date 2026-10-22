@@ -600,3 +600,20 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .page-recipe-fields p{margin:5px 0;font-size:12px;color:#527285}#page-recipe-error{color:#a32337;font-weight:650}
 .page-recipe-footer{display:flex;justify-content:flex-end;gap:9px}
 @media(max-width:520px){.page-recipe-options{grid-template-columns:1fr}.page-recipe-head{padding:16px}.page-recipe-body{padding:16px}}
+
+/* In-place canvas typography editing; isolated modal, plain-text input only. */
+.canvas-edit-dialog{width:min(620px,calc(100vw - 26px));border:1px solid #bed8e4;border-radius:18px;padding:0;max-height:90vh;overflow-y:auto;background:#fff;color:#1a3f53;box-shadow:0 20px 76px #0c243c85}
+.canvas-edit-dialog::backdrop{background:#09243e9c}
+.canvas-edit-head{padding:20px 24px;background:#eff7fb;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.canvas-edit-head span{color:#277892;font-size:10px;font-weight:850;letter-spacing:.12em}
+.canvas-edit-head h2{margin:5px 0 0;font-size:22px;line-height:1.2;color:#123747}
+#canvas-edit-close{border:0;background:transparent;font-size:26px;color:#466a7f;cursor:pointer}
+.canvas-edit-content{padding:22px 24px;display:grid;gap:11px}
+.canvas-edit-content label{font-size:13px;font-weight:800}
+.canvas-edit-content textarea{resize:vertical;width:100%;min-height:100px;box-sizing:border-box;border:1px solid #bad1dd;border-radius:10px;padding:12px;font:400 15px/1.5 system-ui,sans-serif;color:#183d53;background:#fff}
+.canvas-edit-content textarea:focus-visible{outline:2px solid #398fab;outline-offset:1px}
+.canvas-edit-counter{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:#59798b}
+.canvas-edit-counter strong{white-space:nowrap}
+#canvas-edit-error{font-size:12px;color:#a12639;font-weight:750;margin:0}
+.canvas-edit-actions{display:flex;justify-content:flex-end;gap:10px}
+@media(max-width:500px){.canvas-edit-head{padding:16px}.canvas-edit-content{padding:16px}.canvas-edit-counter{flex-wrap:wrap}}

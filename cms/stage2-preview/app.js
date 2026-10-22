@@ -14,8 +14,43 @@
     seoSnippetTitle:$('seo-snippet-title'),seoSnippetDescription:$('seo-snippet-description'),
     seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url'),audit:$('audit-results'),auditCount:$('audit-count'),sectionVisible:$('section-visible')};
 
-  const D=window.CmsPreviewArtDirection,T=window.CmsPreviewPageRecipes;
+  const D=window.CmsPreviewArtDirection,T=window.CmsPreviewPageRecipes,V=window.CmsPreviewCanvasEdit;
 
+
+  let canvasEditing=null;
+  function openCanvasText(sectionId,field){
+    if(directionPreview)return toast('Сначала примените или отмените просмотр дизайн-направления',true);
+    const page=activePage(),section=page.sections.find(s=>s.id===sectionId);
+    if(!section)return;
+    canvasEditing={pageId,sectionId,field};
+    $('canvas-edit-label').textContent=field.label+' · '+C.definitions[section.type].label;
+    $('canvas-edit-text').maxLength=field.limit;
+    $('canvas-edit-text').value=field.value;
+    $('canvas-edit-error').hidden=true;
+    updateCanvasEditCounter();
+    $('canvas-edit-dialog').showModal();
+    $('canvas-edit-text').focus();
+    $('canvas-edit-text').select();
+  }
+  function updateCanvasEditCounter(){
+    const field=canvasEditing?.field;
+    $('canvas-edit-counter').textContent=$('canvas-edit-text').value.length+' / '+(field?.limit||0);
+  }
+  function submitCanvasEdit(event){
+    event.preventDefault();
+    if(!canvasEditing)return;
+    try{
+      const value=$('canvas-edit-text').value;
+      if(value===canvasEditing.field.value){$('canvas-edit-dialog').close();canvasEditing=null;return;}
+      const {pageId:pid,sectionId:sid,field}=canvasEditing;
+      if(pageId!==pid)throw Error('Страница изменилась');
+      const next=V.change(project,pid,sid,field,value);
+      checkpoint('canvas-edit');
+      apply(next,pid,sid);
+      $('canvas-edit-dialog').close();canvasEditing=null;
+      toast('Текст обновлён на странице, в редакторе и автономном экспорте. Можно отменить.');
+    }catch(e){$('canvas-edit-error').textContent=e.message;$('canvas-edit-error').hidden=false;}
+  }
   let recipeSelection='about';
   function renderRecipeChoices(){
     const gallery=$('page-recipe-options');gallery.replaceChildren();
@@ -554,6 +589,33 @@
       section.addEventListener('click',activate);
       section.addEventListener('keydown',activate);
     });
+
+    // Add editing affordances ONLY to this script-free preview DOM, not exported HTML.
+    const page=activePage();
+    const hints=body.createElement('style');
+    hints.textContent='.cms-edit-target:hover,.cms-edit-target:focus-visible{outline:2px dashed var(--accent);outline-offset:4px;cursor:text}.cms-edit-target{transition:outline-color .12s}';
+    body.head.append(hints);
+    for(const section of page.sections){
+      const area=body.querySelector('[data-preview-section="'+section.id+'"]');
+      if(!area)continue;
+      for(const field of V.fields(section,page)){
+        const el=area.querySelector(field.selector);
+        if(!el)continue;
+        el.classList.add('cms-edit-target');el.tabIndex=0;
+        el.title='Двойной щелчок для изменения текста: '+field.label;
+        el.setAttribute('aria-label','Изменить: '+field.label+' (F2)');
+        el.addEventListener('dblclick',event=>{
+          event.stopPropagation();
+          event.preventDefault();
+          openCanvasText(section.id,field);
+        });
+        el.addEventListener('keydown',event=>{
+          if(event.key!=='F2')return;
+          event.preventDefault();event.stopPropagation();
+          openCanvasText(section.id,field);
+        });
+      }
+    }
   }
   function preview(){
     try{
@@ -1406,7 +1468,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D||!T){
+    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D||!T||!V){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -1520,6 +1582,11 @@
     $('page-recipe-back').addEventListener('click',()=>$('page-recipe-dialog').close());
     $('page-recipe-close').addEventListener('click',()=>$('page-recipe-dialog').close());
     $('page-recipe-form').addEventListener('submit',createRecipePage);
+    $('canvas-edit-form').addEventListener('submit',submitCanvasEdit);
+    $('canvas-edit-text').addEventListener('input',updateCanvasEditCounter);
+    $('canvas-edit-cancel').addEventListener('click',()=>$('canvas-edit-dialog').close());
+    $('canvas-edit-close').addEventListener('click',()=>$('canvas-edit-dialog').close());
+    $('canvas-edit-dialog').addEventListener('close',()=>{canvasEditing=null;});
     $('page-copy').addEventListener('click',()=>pageAdd(true));
     $('page-delete').addEventListener('click',pageDelete);
     $('page-up').addEventListener('click',()=>pageMove(-1));
