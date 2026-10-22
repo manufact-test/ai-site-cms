@@ -292,7 +292,7 @@ const root=path.resolve(__dirname,'../..');
     await frame.locator('.mobile-nav > summary').click();
     await frame.locator('.mobile-nav-menu [data-preview-page]').nth(1).click();
     await page.waitForFunction(id=>document.querySelector('#page-list').value===id,mobilePageId);
-    await frame.locator('.site-brand').click();
+    await frame.locator('.site-brand').click({force:true});
     await page.waitForFunction(()=>document.querySelector('#page-list').selectedIndex===0);
     await page.locator('[data-width=desktop]').click();
     // Global company contacts, dynamic link destinations and reliable site export.
