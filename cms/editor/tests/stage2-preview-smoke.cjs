@@ -923,9 +923,11 @@ const root=path.resolve(__dirname,'../..');
         const parent=el.closest('section');
         const selector='section[data-preview-section="'+parent?.dataset.previewSection+'"] .hero-photo';
         const sheet=el.ownerDocument.styleSheets[0];
-        const found=[...sheet.cssRules].filter(r=>r.cssText.includes('object-position')).slice(-5).map(r=>r.cssText.slice(-250));
+        const found=sheet?[...sheet.cssRules].filter(r=>r.cssText.includes('object-position')).slice(-5).map(r=>r.cssText.slice(-250)):[];
         return {section:parent?.dataset.previewSection,selector,matches:el.matches(selector),sheets:el.ownerDocument.styleSheets.length,
-          sheetRules:sheet.cssRules.length,found,styles:el.ownerDocument.head.querySelector('style')?.textContent.slice(-400)};
+          sheetRules:sheet?.cssRules.length||0,found,head:el.ownerDocument.head?.outerHTML.slice(-250),
+          styles:el.ownerDocument.head?.querySelector('style')?.textContent.slice(-400),bodyFont:getComputedStyle(el.ownerDocument.body).fontFamily,
+          imageFit:getComputedStyle(el).objectFit};
       })));
     await page.locator('#undo').click();
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),'service production');
