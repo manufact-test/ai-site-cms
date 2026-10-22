@@ -322,7 +322,8 @@ const root=path.resolve(__dirname,'../..');
     await frame.locator('.mobile-nav > summary').click();
     const mobileTarget=frame.locator('.mobile-nav-menu [data-preview-page]').nth(1);
     const mobilePageId=await mobileTarget.getAttribute('data-preview-page');
-    await mobileTarget.click();
+    // Responsive shell width animates; click the displayed menu item without waiting on element stability.
+    await mobileTarget.click({force:true});
     await page.waitForFunction(id=>document.querySelector('#page-list').value===id,mobilePageId);
     await frame.locator('.site-brand').click({force:true});
     await page.waitForFunction(()=>document.querySelector('#page-list').selectedIndex===0);
