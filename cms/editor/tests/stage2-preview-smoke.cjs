@@ -918,7 +918,7 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),
       'Реальная фотография производственного помещения');
     assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>el.style.objectPosition),'50% 0%',
-      'hero image markup: '+await mediaFrame.locator('.hero-photo').evaluate(el=>el.outerHTML.slice(0,400)));
+      'hero image markup end: '+await mediaFrame.locator('.hero-photo').evaluate(el=>el.outerHTML.slice(-360)));
     await page.locator('#undo').click();
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),'service production');
     assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>el.style.objectPosition),'50% 50%');
