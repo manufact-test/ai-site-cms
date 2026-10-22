@@ -615,7 +615,14 @@ const root=path.resolve(__dirname,'../..');
         kit.once('dialog',dialog=>dialog.accept());
         await kit.locator('#starter-type').selectOption('industrial');
         await kit.locator('#starter-apply').click();
-        await actual.locator('.menu-desktop [data-preview-page]').nth(1).click();
+        // The preview iframe may be narrower than the outer 1440px window.
+        // Use the responsive navigation actually visible to a real reviewer.
+        if(await actual.locator('.mobile-nav').isVisible()){
+          await actual.locator('.mobile-nav > summary').click();
+          await actual.locator('.mobile-nav-menu [data-preview-page]').nth(1).click();
+        }else{
+          await actual.locator('.menu-desktop [data-preview-page]').nth(1).click();
+        }
         assert.match(await kit.locator('#preview-url').innerText(),/products/);
         await actual.locator('.studio-product').first().waitFor();
         await kit.locator('#expand-preview').click();
