@@ -68,6 +68,60 @@
     }
     return {approved,rejected,pending};
   }
+
+  const reviewChecks=['upstreamLicenseChecked','noticeObligationsChecked',
+    'advisoriesChecked','distributionScopeChecked'];
+  const checkLabels={
+    upstreamLicenseChecked:'Проверить оригинальную лицензию',
+    noticeObligationsChecked:'Сверить NOTICE и атрибуцию',
+    advisoriesChecked:'Проверить уязвимости и исправления',
+    distributionScopeChecked:'Подтвердить возможность коммерческого распространения'
+  };
+  function gapsFor(row){
+    const gaps=[];
+    if(row.disposition==='pending')gaps.push('Незавершённое решение эксперта');
+    if(row.disposition==='approved')
+      for(const key of reviewChecks)if(row[key]!==true)gaps.push(checkLabels[key]);
+    if(row.disposition!=='pending'){
+      if(!Array.isArray(row.evidenceUrls)||row.evidenceUrls.length<2)
+        gaps.push('Нужно минимум две HTTPS-ссылки на доказательства');
+      if(!row.reviewerReference)gaps.push('Укажите код независимого проверяющего');
+      const value=String(row.reviewedOn||'');
+      const time=Date.parse(value+'T00:00:00Z');
+      if(!/^\d{4}-\d\d-\d\d$/.test(value)||!Number.isFinite(time)
+          ||new Date(time).toISOString().slice(0,10)!==value||time>Date.now())
+        gaps.push('Укажите корректную дату решения');
+      if(typeof row.notes!=='string'||row.notes.trim().length<12)
+        gaps.push('Напишите обоснование (от 12 символов)');
+    }
+    if(!['pending','approved','rejected'].includes(row.disposition))
+      gaps.push('Недопустимый статус');
+    return gaps;
+  }
+  function downloadText(name,value,type){
+    const objectUrl=URL.createObjectURL(new Blob([value],{type}));
+    const link=document.createElement('a');
+    link.href=objectUrl;link.download=name;document.body.append(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(objectUrl),1000);
+  }
+  function actionsMarkdown(){
+    const lines=['# Открытые действия независимой проверки 43 зависимостей','',
+      'ВНУТРЕННИЙ ЧЕК-ЛИСТ — НЕ ЮРИДИЧЕСКОЕ ЗАКЛЮЧЕНИЕ, НЕ ПОДПИСЬ, НЕ ПРИЁМКА STAGE 2.','',
+      'Пакет SHA-256: '+base.packageManifestSha256,
+      'NOTICE SHA-256: '+base.noticeSha256,''];
+    let pending=0;
+    for(const [index,row] of work.rows.entries()){
+      const issues=gapsFor(row);
+      if(!issues.length)continue;
+      pending++;
+      lines.push('## '+(index+1)+'. '+row.component,'');
+      issues.forEach(reason=>lines.push('- [ ] '+reason));
+      lines.push('');
+    }
+    lines.push('Незавершённых компонентов: '+pending+' из 43.',
+      'Независимые проверка личности, юридическая оценка и отдельное решение владельца обязательны.','');
+    return lines.join('\n');
+  }
   const appendText=(parent,tag,txt,css)=>{
     const node=document.createElement(tag);
     if(css)node.className=css;
@@ -128,21 +182,62 @@
       field(body,'Дата решения, YYYY-MM-DD','text',
         r.reviewedOn||'',v=>{r.reviewedOn=v||null;refresh();},'span-6');
       appendText(body,'div','Сверьте версию, лицензию и содержимое NOTICE по закреплённому исходнику. Ссылки вводятся вручную: интерфейс не открывает сайты и не выполняет проверку за эксперта.','span-12 hint');
-      rowsNode.append(card);state.push({card,component,row:r});
+      const problems=appendText(card,'div','','review-gaps');
+      problems.setAttribute('aria-live','off');
+      rowsNode.append(card);state.push({card,component,row:r,problems,select});
     });
     refresh();
   }
   function refresh(){
     for(const key of ['approved','rejected','pending'])$(key).textContent=String(work.rows.filter(r=>r.disposition===key).length);
     const search=$('filter').value.trim().toLowerCase(),view=$('view').value;
+    let remaining=0;
     for(const entry of state){
-      entry.card.hidden=(view!=='all'&&view!==entry.row.disposition) ||
-        !!search&&!([entry.row.component,entry.component.scope,entry.component.declaredLicense]
+      const problems=gapsFor(entry.row);
+      if(problems.length)remaining++;
+      entry.problems.replaceChildren();
+      entry.problems.classList.toggle('complete',problems.length===0);
+      appendText(entry.problems,'strong',problems.length?
+        'Осталось действий: '+problems.length:
+        'Поля заполнены. Требуется независимое юридическое одобрение.');
+      if(problems.length){
+        const ul=document.createElement('ul');
+        for(const reason of problems)appendText(ul,'li',reason);
+        entry.problems.append(ul);
+      }
+      const statusMatch=view==='all'||view==='incomplete'&&problems.length>0||
+        view===entry.row.disposition;
+      entry.card.hidden=!statusMatch || !!search &&
+        !([entry.row.component,entry.component.scope,entry.component.declaredLicense]
           .join(' ').toLowerCase().includes(search));
     }
+    $('gap-count').textContent=String(remaining);
   }
   $('filter').addEventListener('input',refresh);
   $('view').addEventListener('change',refresh);
+  $('next-gap').addEventListener('click',()=>{
+    const next=state.find(entry=>gapsFor(entry.row).length>0);
+    if(!next){feedback('Все поля заполнены. Требуется отдельная юридическая приёмка.');return;}
+    $('filter').value='';$('view').value='incomplete';refresh();
+    next.card.scrollIntoView({block:'start'});
+    next.select.focus();
+    feedback('Открыта строка: '+next.row.component+'. Заполняйте только после настоящей проверки.');
+  });
+  $('gap-export').addEventListener('click',()=>{
+    try{
+      // Report is a private to-do list only. Refuse changed package or component identities.
+      if(!exact(work,Object.keys(base))||work.componentCount!==43||
+         work.packageManifestSha256!==base.packageManifestSha256||
+         work.dossierSha256!==base.dossierSha256||work.noticeSha256!==base.noticeSha256||
+         !Array.isArray(work.rows)||work.rows.length!==43||
+         work.rows.some((r,i)=>r.component!==base.rows[i].component||
+           r.lockedComponentSha256!==base.rows[i].lockedComponentSha256))
+        throw Error('Неизвестный состав зависимостей');
+      downloadText('stage2-review-open-actions.md',actionsMarkdown(),
+        'text/markdown;charset=utf-8');
+      feedback('Список открытых действий скачан. Он не является юридической подписью или приёмкой.');
+    }catch(e){feedback(e.message,true);}
+  });
   $('validate').addEventListener('click',()=>{
     try{const r=validate(work);
       feedback('Проверка формата пройдена. Подтверждено: '+r.approved+
@@ -153,11 +248,8 @@
   $('export').addEventListener('click',()=>{
     try{
       const result=validate(work);
-      const blob=new Blob([JSON.stringify(work,null,2)+'\n'],{type:'application/json'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');a.href=url;a.download='stage2-dependency-review-worksheet.json';
-      document.body.append(a);a.click();a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      downloadText('stage2-dependency-review-worksheet.json',
+        JSON.stringify(work,null,2)+'\n','application/json');
       feedback('JSON скачан. Проверено: '+result.approved+
         '/43, отклонено: '+result.rejected+'. Это НЕ подпись и НЕ юридическое одобрение.');
     }catch(e){feedback('Экспорт отклонён: '+e.message,true);}
