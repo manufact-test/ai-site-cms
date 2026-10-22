@@ -34,6 +34,12 @@ textarea{resize:vertical;min-height:65px}label{display:block;font-weight:600;fon
 .review-gaps{background:#fff6e6;border:1px solid #f1d7ac;padding:10px 12px;border-radius:9px;margin:12px 18px 0;font-size:12px;color:#804819}
 .review-gaps strong{color:#783f12}.review-gaps ul{margin:6px 0 0;padding-left:18px}
 .review-gaps.complete{background:#eaf7ef;border-color:#addac2;color:#195e40}.review-gaps.complete strong{color:#195e40}
+.scope-dashboard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:16px 0}
+.scope-choice{background:white;text-align:left;border:1px solid #d2deea;padding:13px 15px;display:grid;gap:6px;border-radius:11px}
+.scope-choice[aria-pressed=true]{border:2px solid #2a70c4;background:#edf5ff}
+.scope-choice small{color:#61738b;font-size:12px}.scope-choice strong{font-size:15px}
+@media(max-width:720px){.scope-dashboard{grid-template-columns:1fr}}
+
 #gap-count{font-weight:800;color:#a75c1e}
 
 .card{background:#fff;border:1px solid #dbe2ed;border-radius:13px;margin:12px 0;overflow:hidden}
@@ -64,6 +70,10 @@ function render(dossier,worksheet,uiSource=fs.readFileSync(UI,'utf8')){
     '<div class="warning"><strong>Это рабочий лист, а не одобрение релиза.</strong> Итог проверяется отдельно через штатную CLI-проверку и подпись независимого ревьюера. Ни выбранные флажки, ни экспортированный JSON сами по себе не разрешают Stage 3, деплой или приёмку Stage 2. Браузер не сохраняет данные автоматически — скачивайте JSON.</div>'+
     '<section class="stats"><div class="stat">Всего<strong id="total">43</strong></div><div class="stat">Подтверждено<strong id="approved">0</strong></div><div class="stat">Отклонено<strong id="rejected">0</strong></div><div class="stat">Ожидает<strong id="pending">43</strong></div></section>'+
     '<p class="muted" role="status">Требуют проверки или исправлений: <strong id="gap-count">43</strong> / 43. Это статус заполнения рабочего листа, не юридическое одобрение.</p>'+
+    '<div class="scope-dashboard" role="group" aria-label="Приоритет по назначению зависимостей">'+
+    '<button type="button" class="scope-choice" data-scope="php-runtime" aria-pressed="false"><strong>PHP / Runtime</strong><small id="scope-php">14 компонентов</small></button>'+
+    '<button type="button" class="scope-choice" data-scope="browser-runtime" aria-pressed="false"><strong>Браузер / Runtime</strong><small id="scope-browser">1 компонент</small></button>'+
+    '<button type="button" class="scope-choice" data-scope="build" aria-pressed="false"><strong>Сборка и тестирование</strong><small id="scope-build">28 компонентов</small></button></div>'+
     '<div class="toolbar"><input id="filter" type="search" aria-label="Поиск по зависимостям" placeholder="Название, лицензия, технология…">'+
     '<select id="view" aria-label="Фильтр статуса"><option value="all">Все решения</option><option value="incomplete">Требуют действий</option><option value="pending">Ожидают</option><option value="approved">Подтверждены</option><option value="rejected">Отклонены</option></select>'+
     '<button id="next-gap" type="button">Следующая незавершённая ↗</button>'+
