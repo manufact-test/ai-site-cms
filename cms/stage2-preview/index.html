@@ -140,6 +140,21 @@
       <div id="section-empty" class="section-empty" hidden>По этому запросу секций нет</div>
       <details class="sidebar-tools"><summary>Дополнительные инструменты</summary>
       <div class="copy-block"><label class="field-label" for="copy-target">Скопировать выбранную секцию</label><div class="starter-row"><select id="copy-target" aria-label="Целевая страница"></select><button id="copy-section" class="button subtle" type="button">Копировать</button></div></div>
+      <section class="library-tools" aria-label="Библиотека готовых секций">
+        <strong>Библиотека секций <span id="library-total">0 / 12</span></strong>
+        <p class="setting-helper">Сохраните содержимое выбранного блока как шаблон. Вставленные копии связаны с ним, но обновляются только после подтверждения.</p>
+        <label class="field-label" for="library-name">Название шаблона</label>
+        <input id="library-name" type="text" maxlength="70" placeholder="Например: Наши преимущества" autocomplete="off">
+        <button id="library-save" class="button subtle" type="button">+ Сохранить выбранный блок</button>
+        <label class="field-label" for="library-select">Готовые секции</label>
+        <select id="library-select" aria-label="Выбрать сохранённый блок"><option value="">Нет сохранённых секций</option></select>
+        <div id="library-usage" class="setting-helper">Выберите шаблон для работы.</div>
+        <div class="library-buttons">
+          <button id="library-insert" class="button dark" type="button">Вставить на эту страницу</button>
+          <button id="library-rename" class="button subtle" type="button">Переименовать</button>
+          <button id="library-delete" class="button subtle" type="button">Удалить шаблон</button>
+        </div>
+      </section>
       <details class="audit-panel"><summary>Проверка структуры и SEO <span id="audit-count">…</span></summary><div id="audit-results"></div><p class="audit-explain">Подсказки только для черновика. Не гарантируют поисковое продвижение.</p></details>
       <div class="local-drafts"><div class="draft-heading"><strong>Локальные версии</strong><button id="clear-versions" type="button" class="text-button">Удалить все</button></div><p id="save-state" class="save-state" role="status">Проверка хранилища…</p><ol id="versions" class="version-list"></ol></div></details>
       <div class="new-section"><label class="field-label" for="new-type">Добавить секцию</label><div class="add-row"><select id="new-type" aria-label="Тип нового блока"></select><button id="add" class="button dark" type="button">+ Добавить</button></div></div>
@@ -190,6 +205,12 @@
         <div id="media-binding-fields"></div>
         <p class="setting-helper">Выбранные фото появятся в предпросмотре и HTML-экспорте.</p>
       </section>
+      <section class="library-link" id="library-link" hidden aria-label="Связанный шаблон секции">
+        <strong id="library-link-title">Секция из библиотеки</strong>
+        <p id="library-link-note" class="setting-helper">Обновление только по вашему подтверждению.</p>
+        <button id="library-publish" class="button dark" type="button">Обновить шаблон и связанные блоки</button>
+        <button id="library-detach" class="button subtle" type="button">Отвязать эту секцию</button>
+      </section>
       <div id="fields" aria-live="off"></div>
       <section id="repeater-panel" class="repeater-panel" aria-label="Элементы секции" hidden>
         <div class="repeater-head"><strong>Элементы секции</strong><span id="repeater-count">0 / 8</span></div>
@@ -213,6 +234,7 @@
   <script src="../editor/dist/editor.js"></script>
   <script src="content.js"></script>
   <script src="repeaters.js"></script>
+  <script src="library.js"></script>
   <script src="project.js"></script>
   <script src="media.js"></script>
   <script src="renderer.js"></script>

@@ -449,3 +449,18 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .layout-binding .toggle-line input{flex:none}
 .layout-binding .setting-helper{color:#698397;margin:12px 0 0;font-size:11px}
 .layout-binding #layout-reset{width:100%;justify-content:center;margin-top:12px}
+
+/* Named section library — explicit user-controlled synchronization only. */
+.library-tools{padding:14px 10px;border:1px solid #dce6ed;border-radius:11px;margin:14px 0;background:#f4f8fb}
+.library-tools>strong{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#27465b;gap:8px}
+.library-tools>strong>span{font-size:11px;color:#667f91}
+.library-tools .setting-helper{margin:10px 0;font-size:11px;color:#657e90}
+.library-tools>.field-label{display:block;margin:12px 0 5px;color:#506b80}
+.library-tools input,.library-tools select{width:100%;min-width:0;box-sizing:border-box}
+.library-tools #library-save{margin:9px 0 5px;width:100%}
+.library-buttons{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
+.library-buttons>.button{flex:1 1 auto;font-size:11px}
+.library-link{border:1px solid #94c6c9;background:#eef9f8;padding:13px;margin:15px 0;border-radius:11px}
+.library-link>strong{font-size:12px;color:#24636b}
+.library-link>.setting-helper{font-size:11px;color:#4b737a;margin:9px 0}
+.library-link>.button{display:block;width:100%;margin-top:8px;font-size:11px}

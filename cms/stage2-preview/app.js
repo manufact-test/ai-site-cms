@@ -3,7 +3,7 @@
 (()=>{
   const C=window.CmsPreviewContent,P=window.CmsPreviewProject,
     R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2,X=window.CmsPreviewExport,M=window.CmsPreviewMedia,
-    Q=window.CmsPreviewRepeaters;
+    Q=window.CmsPreviewRepeaters,L=window.CmsPreviewLibrary;
   const $=id=>document.getElementById(id);
   const ui={list:$('sections'),frame:$('preview'),fields:$('fields'),title:$('site-title'),theme:$('theme'),
     count:$('count'),info:$('selection-info'),status:$('status'),addType:$('new-type'),browser:$('browser'),
@@ -289,7 +289,7 @@
       ui.previewUrl.textContent='demo.local/'+(p.slug||'');
     }catch(e){toast(e.message,true);}
   }
-  function changed(){indicators();preview();auditUI();renderOverview();}
+  function changed(){indicators();preview();auditUI();renderOverview();renderLibrary();}
   function checkpoint(type,coalesce=false){
     const now=Date.now();
     if(!(coalesce&&lastType===type&&now-lastAt<1200)){
@@ -322,6 +322,14 @@
       const subtitle=document.createElement('small');
       subtitle.textContent=Object.values(s.props).find(x=>typeof x==='string'&&x)||'Без текста';
       names.append(name,subtitle);
+      if(activePage().libraryLinks[s.id]){
+        const recipe=project.library.find(r=>r.id===activePage().libraryLinks[s.id]);
+        if(recipe){
+          const label=document.createElement('small');label.className='library-section-label';
+          label.textContent='↗ Шаблон · '+recipe.name;
+          names.append(label);
+        }
+      }
       if(activePage().hiddenSections.includes(s.id)){
         const mark=document.createElement('small');mark.className='visibility-label';mark.textContent='Скрыта на сайте';
         names.append(mark);
@@ -347,7 +355,7 @@
     ui.sectionVisible.disabled=false;
     $('section-surface').value=activePage().sectionStyles[s.id]||'default';
     syncSectionLayout();
-    renderMediaPicker();renderActionPicker();renderRepeater();
+    renderMediaPicker();renderActionPicker();renderRepeater();renderLibrary();
     ui.info.textContent=C.definitions[s.type].label+' · меняйте свойства выбранной страницы';
     ui.fields.replaceChildren();
     const repeatable=Boolean(Q.definitions[s.type]);
@@ -410,6 +418,7 @@
     target.sections.push(copy);
     if(activePage().sectionStyles[source.id])target.sectionStyles[copy.id]=activePage().sectionStyles[source.id];
     if(activePage().sectionLayouts[source.id])target.sectionLayouts[copy.id]=structuredClone(activePage().sectionLayouts[source.id]);
+    if(activePage().libraryLinks[source.id])target.libraryLinks[copy.id]=activePage().libraryLinks[source.id];
     if(activePage().mediaSlots[source.id])target.mediaSlots[copy.id]=structuredClone(activePage().mediaSlots[source.id]);
     if(activePage().sectionActions[source.id])target.sectionActions[copy.id]=activePage().sectionActions[source.id];
     if(activePage().repeaters[source.id]){
@@ -419,6 +428,109 @@
     }
     selectPage(target.id);select(copy.id);changed();
     toast('Блок скопирован на выбранную страницу');
+  }
+  function renderLibrary(){
+    const select=$('library-select'),previous=select.value;
+    select.replaceChildren();
+    const empty=document.createElement('option');empty.value='';empty.textContent='Выберите шаблон';
+    select.append(empty);
+    for(const recipe of project.library){
+      const option=document.createElement('option');option.value=recipe.id;
+      option.textContent=recipe.name+' · '+C.definitions[recipe.type].label+' · v'+recipe.revision;
+      select.append(option);
+    }
+    if(project.library.some(r=>r.id===previous))select.value=previous;
+    const picked=project.library.find(r=>r.id===select.value);
+    $('library-total').textContent=project.library.length+' / 12';
+    $('library-insert').disabled=!picked||doc.sections.length>=12;
+    $('library-rename').disabled=!picked;
+    $('library-delete').disabled=!picked;
+    $('library-save').disabled=!current()||project.library.length>=12;
+    $('library-usage').textContent=picked?
+      'Связано с '+L.count(project,picked.id)+' секциями на страницах сайта. Изменения применяются только вручную.':
+      (project.library.length?'Выберите шаблон для вставки.':'Библиотека пока пуста.');
+    const s=current(),id=s&&activePage().libraryLinks[s.id];
+    const linked=project.library.find(r=>r.id===id);
+    $('library-link').hidden=!linked;
+    if(linked){
+      const count=L.count(project,linked.id),drift=L.modified(activePage(),s,linked);
+      $('library-link-title').textContent='Шаблон: '+linked.name+' · v'+linked.revision;
+      $('library-link-note').textContent=(drift?'Есть локальные изменения. ':'Содержимое совпадает с шаблоном. ')+
+        'Связанных секций: '+count+'. Ширина, фон, видимость и действия кнопок остаются индивидуальными.';
+      $('library-publish').disabled=linked.revision>=999999;
+    }
+  }
+  function saveToLibrary(){
+    const section=current();if(!section)return;
+    if(project.library.length>=12)return toast('Максимум 12 шаблонов',true);
+    const name=$('library-name').value.trim()||
+      (C.definitions[section.type].label+' — '+(section.props.title||'Секция').slice(0,40)).slice(0,70);
+    try{
+      const recipe=L.make(activePage(),section,name),next=structuredClone(project);
+      next.library.push(recipe);
+      next.pages.find(p=>p.id===pageId).libraryLinks[section.id]=recipe.id;
+      P.validate(next);
+      checkpoint('library-add');project.library.push(recipe);
+      activePage().libraryLinks[section.id]=recipe.id;
+      renderLibrary();$('library-select').value=recipe.id;
+      $('library-name').value=recipe.name;changed();
+      toast('Секция сохранена. Обновление других копий требует подтверждения');
+    }catch(e){toast(e.message,true);}
+  }
+  function insertFromLibrary(){
+    const recipe=project.library.find(r=>r.id===$('library-select').value);
+    if(!recipe)return;
+    if(doc.sections.length>=12)return toast('На странице уже 12 секций',true);
+    try{
+      const next=structuredClone(project);
+      const page=next.pages.find(p=>p.id===pageId);
+      const section=L.insert(page,recipe);
+      P.validate(next);
+      checkpoint('library-insert');apply(next,pageId,section.id);
+      $('library-select').value=recipe.id;changed();
+      toast('Шаблон вставлен в страницу; связь сохранена');
+    }catch(e){toast(e.message,true);}
+  }
+  function renameLibrary(){
+    const recipe=project.library.find(r=>r.id===$('library-select').value);
+    if(!recipe)return;
+    const name=$('library-name').value.trim();
+    if(!name||name.length>70||name.includes('\0'))return toast('Название: от 1 до 70 символов',true);
+    if(name===recipe.name)return;
+    const next=structuredClone(project);
+    next.library.find(r=>r.id===recipe.id).name=name;
+    try{P.validate(next);}catch(e){return toast(e.message,true);}
+    checkpoint('library-rename');recipe.name=name;changed();
+    toast('Шаблон переименован');
+  }
+  function deleteLibrary(){
+    const recipe=project.library.find(r=>r.id===$('library-select').value);
+    if(!recipe||!confirm('Удалить шаблон «'+recipe.name+'» из библиотеки? Все вставленные секции останутся на страницах без связи.'))return;
+    checkpoint('library-delete');L.detach(project,recipe.id);
+    renderLibrary();changed();toast('Шаблон удалён, содержимое страниц сохранено');
+  }
+  function publishLibrary(){
+    const section=current(),page=activePage();
+    const recipe=section&&project.library.find(r=>r.id===page.libraryLinks[section.id]);
+    if(!recipe)return;
+    const linked=L.count(project,recipe.id)-1;
+    if(!confirm('Обновить шаблон «'+recipe.name+'» содержимым этой секции и заменить содержимое ещё '+linked+
+      ' связанных секций? Оформление и действия кнопок других страниц сохранятся. Изменение можно отменить.'))return;
+    try{
+      const next=structuredClone(project);
+      const target=next.pages.find(p=>p.id===pageId);
+      const selected=target.sections.find(s=>s.id===section.id);
+      const count=L.publish(next,target,selected);
+      P.validate(next);
+      checkpoint('library-publish');apply(next,pageId,section.id);
+      toast('Обновлён шаблон и '+count+' связанных секций. Изменения пока локальные');
+    }catch(e){toast('Не удалось обновить: '+e.message,true);}
+  }
+  function unlinkLibrary(){
+    const section=current(),page=activePage();
+    if(!section||!page.libraryLinks[section.id])return;
+    checkpoint('library-detach');delete page.libraryLinks[section.id];
+    renderLibrary();changed();toast('Секция отвязана; её содержимое осталось без изменений');
   }
   function pageDelete(){
     const p=activePage();
@@ -538,6 +650,12 @@
         if(!confirm('Удалить изображение со всех страниц и секций этого проекта?'))return;
         checkpoint('media-delete');
         project.media=project.media.filter(item=>item.id!==asset.id);
+        for(const recipe of project.library){
+          for(const [slot,id] of Object.entries(recipe.mediaSlots)){
+            if(id===asset.id)delete recipe.mediaSlots[slot];
+          }
+          for(const item of recipe.items)if(item.image===asset.id)item.image='';
+        }
         if(project.settings.logoAssetId===asset.id)project.settings.logoAssetId='';
         for(const page of project.pages){
           for(const [sectionId,slots] of Object.entries(page.mediaSlots)){
@@ -773,6 +891,7 @@
     delete activePage().mediaSlots[s.id];
     delete activePage().sectionActions[s.id];
     delete activePage().repeaters[s.id];
+    delete activePage().libraryLinks[s.id];
     if(s.id===selection)selection=doc.sections[Math.min(i,doc.sections.length-1)].id;
     listing();mount();changed();toast('Блок удалён');
   }
@@ -782,6 +901,7 @@
     copy.props=structuredClone(source.props);doc.sections.splice(i+1,0,copy);selection=copy.id;
     if(activePage().sectionStyles[source.id])activePage().sectionStyles[copy.id]=activePage().sectionStyles[source.id];
     if(activePage().sectionLayouts[source.id])activePage().sectionLayouts[copy.id]=structuredClone(activePage().sectionLayouts[source.id]);
+    if(activePage().libraryLinks[source.id])activePage().libraryLinks[copy.id]=activePage().libraryLinks[source.id];
     if(activePage().mediaSlots[source.id])activePage().mediaSlots[copy.id]=structuredClone(activePage().mediaSlots[source.id]);
     if(activePage().sectionActions[source.id])activePage().sectionActions[copy.id]=activePage().sectionActions[source.id];
     if(activePage().repeaters[source.id])activePage().repeaters[copy.id]=activePage().repeaters[source.id].map(item=>({
@@ -892,7 +1012,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M||!Q){
+    if(!C||!P||!R||!E||!X||!M||!Q||!L){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -944,6 +1064,17 @@
     $('page-in-menu').addEventListener('change',()=>editPage('inMenu',$('page-in-menu').checked));
     $('starter-apply').addEventListener('click',starter);
     $('copy-section').addEventListener('click',copySection);
+    $('library-save').addEventListener('click',saveToLibrary);
+    $('library-insert').addEventListener('click',insertFromLibrary);
+    $('library-rename').addEventListener('click',renameLibrary);
+    $('library-delete').addEventListener('click',deleteLibrary);
+    $('library-publish').addEventListener('click',publishLibrary);
+    $('library-detach').addEventListener('click',unlinkLibrary);
+    $('library-select').addEventListener('change',()=>{
+      const recipe=project.library.find(r=>r.id===$('library-select').value);
+      $('library-name').value=recipe?recipe.name:'';
+      renderLibrary();
+    });
     $('download-site').addEventListener('click',downloadSite);
     $('review-add').addEventListener('click',addReview);
     $('review-export').addEventListener('click',exportReview);

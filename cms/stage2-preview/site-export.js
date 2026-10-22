@@ -92,6 +92,7 @@
       'No configured origin: exported pages are noindex,nofollow. No automatic deployment occurs.\n'+
       'Local optimized WebP photos are stored under media/ with offline relative links.\n'+
       'Repeatable cards, catalog products, metrics, workflow stages and FAQ entries preserve edits and order.\n'+
+      'Named section recipes and their explicit link references are in project-backup.json; exported HTML contains their resolved content only.\n'+
       'All navigation is local; no server, CMS, network access or form submission.\n'+
       'project-backup.json can be imported back into the local preview editor.\n'+
       'This is NOT a production build, deploy package, public site or publication.\n'+
