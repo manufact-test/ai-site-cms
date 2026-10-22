@@ -479,7 +479,7 @@ const root=path.resolve(__dirname,'../..');
     const used=backup.pages[1].sections.find(x=>x.type==='catalog'&&
       x.props.title==='Каталог завода — обновлён'&&
       backup.pages[1].libraryLinks[x.id]===backup.library[0].id);
-    assert.ok(used,'the updated linked catalog must survive export');
+    assert.ok(used,'the updated linked catalog must survive export: '+JSON.stringify(backup.pages.map(pg=>({slug:pg.slug,sections:pg.sections.filter(x=>x.type==='catalog').map(x=>({title:x.props.title,linked:pg.libraryLinks[x.id],width:pg.sectionLayouts[x.id]?.width}))}))));
     assert.equal(backup.pages[1].sectionLayouts[used.id].width,'narrow');
     assert.equal(used.props.title,'Каталог завода — обновлён');
     assert.equal(Object.values(backup.pages[0].sectionStyles).filter(v=>v==='dark').length,1);
