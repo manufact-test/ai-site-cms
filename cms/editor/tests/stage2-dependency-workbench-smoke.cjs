@@ -25,6 +25,22 @@ if(!binary)throw Error('A real Chromium browser is required');
     assert.equal(await page.locator('.card').count(),43,'43 real package-bound dependencies');
     assert.equal(await page.locator('#pending').innerText(),'43');
     assert.equal(await page.locator('#approved').innerText(),'0');
+    assert.equal(await page.locator('#gap-count').innerText(),'43');
+    await page.locator('#view').selectOption('incomplete');
+    assert.equal(await page.locator('.card:visible').count(),43);
+    await page.locator('#next-gap').click();
+    assert.equal(await page.locator('.card').first().locator('select.status')
+      .evaluate(el=>el===document.activeElement),true);
+    assert.match(await page.locator('.card').first().locator('.review-gaps').innerText(),
+      /Незавершённое решение/);
+    const missingDownload=page.waitForEvent('download');
+    await page.locator('#gap-export').click();
+    const missingFile=await missingDownload;
+    assert.equal(missingFile.suggestedFilename(),'stage2-review-open-actions.md');
+    const missingContents=fs.readFileSync(await missingFile.path(),'utf8');
+    assert.match(missingContents,/Незавершённых компонентов: 43 из 43/);
+    assert.match(missingContents,/НЕ ЮРИДИЧЕСКОЕ ЗАКЛЮЧЕНИЕ/);
+    await page.locator('#view').selectOption('all');
     assert.match(await page.locator('.warning').innerText(),/не одобрение|не разрешают/i);
     const target=page.locator('.card').first();
     await page.locator('#filter').fill('php-runtime');
@@ -42,6 +58,12 @@ if(!binary)throw Error('A real Chromium browser is required');
     await page.locator('#validate').click();
     assert.match(await page.locator('#feedback').innerText(),/формата пройдена/i);
     assert.equal(await page.locator('#rejected').innerText(),'1');
+    assert.equal(await page.locator('#gap-count').innerText(),'42');
+    assert.match(await target.locator('.review-gaps').innerText(),
+      /Поля заполнены/);
+    await page.locator('#view').selectOption('incomplete');
+    assert.equal(await page.locator('.card:visible').count(),42);
+    await page.locator('#view').selectOption('all');
     const waiting=page.waitForEvent('download');
     await page.locator('#export').click();
     const file=await waiting;
