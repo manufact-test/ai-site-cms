@@ -316,7 +316,7 @@ const root=path.resolve(__dirname,'../..');
     await frame.locator('.mobile-nav').waitFor();
     assert.equal(await frame.locator('.mobile-nav').evaluate(el=>getComputedStyle(el).display),'block');
     // Sync with the iframe load listener before invoking the real navigation click.
-    await frame.locator('.hero .cms-photo-control').waitFor({state:'attached'});
+    await frame.locator('.hero .cms-photo-control').first().waitFor({state:'attached'});
     await frame.locator('.mobile-nav > summary').click();
     const mobileTarget=frame.locator('.mobile-nav-menu [data-preview-page]').nth(1);
     const mobilePageId=await mobileTarget.getAttribute('data-preview-page');

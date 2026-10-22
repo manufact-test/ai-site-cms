@@ -729,7 +729,10 @@
     // deliberately does NOT allow scripts, popups, forms or top navigation.
     let body;
     try{body=ui.frame.contentDocument;}catch(_){return;}
-    if(!body)return;
+    if(!body||!body.documentElement||body.documentElement.dataset.cmsPreviewBound==='1')return;
+    // A source refresh may deliver more than one load callback for the same DOM.
+    // Never stack duplicate buttons or activate navigation more than once.
+    body.documentElement.dataset.cmsPreviewBound='1';
     body.addEventListener('keydown',e=>{
       if(e.key==='Escape'&&document.body.classList.contains('preview-expanded')){
         e.preventDefault();expandPreview();
