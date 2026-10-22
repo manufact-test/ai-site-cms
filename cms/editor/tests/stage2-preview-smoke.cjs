@@ -1012,6 +1012,7 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#media-file').setInputFiles({
       name:'replacement-photo.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')
     });
+    await page.locator('#media-list .media-item').nth(1).waitFor();
     assert.equal(await page.locator('#media-list .media-item').count(),2);
     const source=page.locator('#media-list .media-item').first();
     await source.locator('.media-usage-details > summary').click();
