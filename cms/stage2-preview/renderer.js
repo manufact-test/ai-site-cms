@@ -132,8 +132,8 @@
       '.cms-edit-target:hover,.cms-edit-target:focus-visible{outline:2px dashed var(--accent);outline-offset:4px;cursor:text}.cms-edit-target{transition:outline-color .12s}',
       '.cms-photo-target{position:relative}.cms-photo-control{position:absolute;z-index:8;top:12px;right:12px;padding:8px 12px;border-radius:9px;border:1px solid #ffffffb8;background:#112536eb;color:white;font:700 12px system-ui;cursor:pointer;box-shadow:0 5px 20px #0005}',
       '.cms-photo-control:hover,.cms-photo-control:focus-visible{background:#137e9a;color:#fff;outline:3px solid #fff;outline-offset:2px}'
-    ].join('\\n');
-    return css+'\\nbody{'+styleTokens(doc,metadata)+'}\\n'+focalStyles(metadata)+'\\n'+editorOnly;
+    ].join('\n');
+    return css+'\nbody{'+styleTokens(doc,metadata)+'}\n'+focalStyles(metadata)+'\n'+editorOnly;
   }
   function render(input, selectedId, focusOnly=false, metadata={}) {
     const doc=C.validate(input),design=metadata.design||{};
