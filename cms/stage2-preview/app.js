@@ -4,7 +4,7 @@
   const C=window.CmsPreviewContent,P=window.CmsPreviewProject,
     R=window.CmsPreviewRender,E=window.AiSiteCmsEditorStage2,X=window.CmsPreviewExport,M=window.CmsPreviewMedia,
     Q=window.CmsPreviewRepeaters,L=window.CmsPreviewLibrary,O=window.CmsPreviewContentOps,
-    B=window.CmsPreviewBrief,K=window.CmsPreviewQuality,W=window.CmsPreviewWorkspaces;
+    B=window.CmsPreviewBrief,K=window.CmsPreviewQuality,W=window.CmsPreviewWorkspaces,A=window.CmsPreviewMediaOps;
   const $=id=>document.getElementById(id);
   const ui={list:$('sections'),frame:$('preview'),fields:$('fields'),title:$('site-title'),theme:$('theme'),
     count:$('count'),info:$('selection-info'),status:$('status'),addType:$('new-type'),browser:$('browser'),
@@ -857,7 +857,7 @@
       ui.previewUrl.textContent='demo.local/'+(p.slug||'');
     }catch(e){toast(e.message,true);}
   }
-  function changed(){indicators();preview();auditUI();renderOverview();renderLibrary();renderContentOps();}
+  function changed(){indicators();preview();auditUI();renderOverview();renderLibrary();renderContentOps();refreshMediaUsageCounts();}
   function checkpoint(type,coalesce=false){
     if(directionPreview)stopDirectionPreview(false);
     const now=Date.now();
@@ -1216,6 +1216,23 @@
   }
   let mediaSerial=0;
   const nextAssetId=()=> 'asset-'+Date.now().toString(36)+'-'+(++mediaSerial).toString(36).padStart(5,'0');
+  function refreshMediaUsageCounts(){
+    for(const row of $('media-list').querySelectorAll('.media-item[data-asset-id]')){
+      const used=A.usage(project,row.dataset.assetId).length;
+      row.querySelector('.media-usage-count').textContent=used
+        ?'Используется: '+used+' мест':'Не используется';
+      const remove=row.querySelector('.media-remove');
+      remove.disabled=used>0;
+      remove.title=used?'Сначала замените фото во всех местах':'Можно удалить неиспользуемый файл';
+    }
+  }
+  function visitPhotoUsage(entry){
+    if(!entry.pageId)return;
+    if(entry.pageId!==pageId)selectPage(entry.pageId);
+    showOverview(false);
+    if(entry.sectionId)select(entry.sectionId);
+    $('canvas-title').scrollIntoView({block:'start',behavior:'smooth'});
+  }
   function renderMediaLibrary(){
     renderLogoPicker();
     $('media-count').textContent=String(project.media.length);
@@ -1228,6 +1245,7 @@
     }
     for(const asset of project.media){
       const row=document.createElement('div');row.className='media-item';
+      row.dataset.assetId=asset.id;
       const image=document.createElement('img');image.src=asset.data;image.alt=asset.alt;
       image.style.objectPosition=(asset.focusX??50)+'% '+(asset.focusY??50)+'%';image.loading='lazy';
       const detail=document.createElement('div');detail.className='media-item-detail';
@@ -1237,35 +1255,84 @@
       alt.value=asset.alt;
       alt.addEventListener('change',()=>{
         if(alt.value===asset.alt)return;
-        checkpoint('media-alt');asset.alt=alt.value;changed();
+        try{
+          const next=structuredClone(project);
+          next.media.find(a=>a.id===asset.id).alt=alt.value;
+          P.validate(next);
+          checkpoint('media-alt');asset.alt=alt.value;changed();
+        }catch(e){alt.value=asset.alt;toast(e.message,true);}
       });
       label.append(alt);detail.append(label);
-      const remove=document.createElement('button');remove.type='button';remove.className='text-button';
-      remove.textContent='Удалить фото';remove.addEventListener('click',()=>{
-        if(!confirm('Удалить изображение со всех страниц и секций этого проекта?'))return;
-        checkpoint('media-delete');
-        project.media=project.media.filter(item=>item.id!==asset.id);
-        for(const recipe of project.library){
-          for(const [slot,id] of Object.entries(recipe.mediaSlots)){
-            if(id===asset.id)delete recipe.mediaSlots[slot];
+
+      const count=document.createElement('p');count.className='setting-helper media-usage-count';
+      detail.append(count);
+      const where=document.createElement('details');where.className='media-usage-details';
+      const summary=document.createElement('summary');summary.textContent='Где используется и замена по сайту';
+      where.append(summary);
+      where.addEventListener('toggle',()=>{
+        if(!where.open)return;
+        where.querySelector('.media-usage-content')?.remove();
+        const content=document.createElement('div');content.className='media-usage-content';
+        const refs=A.usage(project,asset.id);
+        if(!refs.length){
+          const text=document.createElement('p');text.className='setting-helper';
+          text.textContent='Не используется в страницах, логотипе или шаблонах.';
+          content.append(text);
+        }else{
+          for(const entry of refs){
+            if(entry.pageId){
+              const navigate=document.createElement('button');navigate.type='button';
+              navigate.className='text-button';navigate.textContent='↗ '+entry.label;
+              navigate.addEventListener('click',()=>visitPhotoUsage(entry));
+              content.append(navigate);
+            }else{
+              const text=document.createElement('p');text.className='setting-helper';
+              text.textContent=entry.label;content.append(text);
+            }
           }
-          for(const item of recipe.items)if(item.image===asset.id)item.image='';
         }
-        if(project.settings.logoAssetId===asset.id)project.settings.logoAssetId='';
-        for(const page of project.pages){
-          for(const [sectionId,slots] of Object.entries(page.mediaSlots)){
-            for(const [slot,id] of Object.entries(slots))if(id===asset.id)delete slots[slot];
-            if(!Object.keys(slots).length)delete page.mediaSlots[sectionId];
+        if(project.media.length>1){
+          const replaceLabel=document.createElement('label');replaceLabel.className='field-label';
+          replaceLabel.textContent='Заменить во всех местах на';
+          const selector=document.createElement('select');selector.setAttribute('aria-label','Новое фото для '+asset.id);
+          for(const candidate of project.media.filter(a=>a.id!==asset.id)){
+            const option=document.createElement('option');option.value=candidate.id;
+            option.textContent=candidate.alt||'Фото '+candidate.id.slice(-5);selector.append(option);
           }
-          for(const items of Object.values(page.repeaters)){
-            for(const item of items)if(item.image===asset.id)item.image='';
-          }
+          replaceLabel.append(selector);content.append(replaceLabel);
+          const button=document.createElement('button');button.type='button';button.className='button subtle';
+          button.textContent='Заменить во всём сайте';button.disabled=!refs.length;
+          button.addEventListener('click',()=>{
+            const fresh=A.usage(project,asset.id);
+            if(!fresh.length)return toast('Фото уже не используется',true);
+            if(!confirm('Заменить фотографию в '+fresh.length+' местах текущего сайта, включая логотип и шаблоны? Старое фото останется в библиотеке. Изменение можно отменить.'))return;
+            try{
+              const result=A.replaceEverywhere(project,asset.id,selector.value);
+              checkpoint('media-replace-all');apply(result.project,pageId,selection);
+              toast('Заменено '+result.affected+' мест; старая фотография сохранена для возврата.');
+            }catch(e){toast(e.message,true);}
+          });
+          content.append(button);
         }
-        renderMediaLibrary();renderMediaPicker();renderRepeater();changed();
-        toast('Фотография удалена из проекта и всех блоков');
+        where.append(content);
+      });
+      detail.append(where);
+
+      const remove=document.createElement('button');remove.type='button';
+      remove.className='text-button media-remove';remove.textContent='Удалить неиспользуемое фото';
+      remove.addEventListener('click',()=>{
+        const count=A.usage(project,asset.id).length;
+        if(count)return toast('Фото используется в '+count+' местах. Сначала замените его.',true);
+        if(!confirm('Удалить неиспользуемую фотографию из этого проекта? Изменение можно отменить.'))return;
+        try{
+          const next=A.removeUnused(project,asset.id);
+          checkpoint('media-delete');apply(next,pageId,selection);
+          toast('Неиспользуемая фотография удалена из проекта');
+        }catch(e){toast(e.message,true);}
       });
       detail.append(remove);row.append(image,detail);list.append(row);
     }
+    refreshMediaUsageCounts();
   }
   function renderRepeater(){
     const section=current(),panel=$('repeater-panel'),list=$('repeater-list');
