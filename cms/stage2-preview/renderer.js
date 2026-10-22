@@ -53,13 +53,13 @@
   function block(section,media={},extra={}){
     const p=section.props,c=extra.contacts||{email:'',phone:'',address:''};
     const photo=(slot,cssClass='')=>media[slot]?
-      '<img src="'+e(media[slot].src)+'" alt="'+e(media[slot].alt)+'" class="'+e(cssClass)+'" style="object-position:'+e(media[slot].position||'50% 50%')+'" loading="lazy" decoding="async">':'';
+      '<img src="'+e(media[slot].src)+'" alt="'+e(media[slot].alt)+'" class="'+e(cssClass)+'" loading="lazy" decoding="async">':'';
     const legacy=(title,text,count)=>Array.from({length:count},(_,i)=>({
       title:p[title+(i+1)]||'',text:p[text+(i+1)]||'',photo:media['image'+(i+1)]||null
     }));
     const items=(title,text,count)=>Array.isArray(extra.items)?extra.items:legacy(title,text,count);
     const itemImage=item=>item.photo?
-      '<img src="'+e(item.photo.src)+'" alt="'+e(item.photo.alt)+'" style="object-position:'+e(item.photo.position||'50% 50%')+'" loading="lazy" decoding="async">':'';
+      '<img src="'+e(item.photo.src)+'" alt="'+e(item.photo.alt)+'" loading="lazy" decoding="async">':'';
 
     switch(section.type){
       case 'hero':return '<section class="hero" id="start"><div class="wrap hero-grid"><div><span class="tag">'+e(p.eyebrow)+'</span><h1>'+e(p.title)+'</h1><p>'+e(p.description)+'</p>'+actionButton(p.action,extra.action,extra.exportLinks)+'</div><aside class="visual'+(media.hero?' has-photo':'')+'">'+photo('hero','hero-photo')+'<small>01 / ДЕМО ПРОЕКТ</small><strong>'+e(p.highlight)+'</strong></aside></div></section>';
@@ -92,6 +92,25 @@
       '<a class="site-brand" href="index.html" aria-label="Главная — '+e(doc.siteTitle)+'">'+img+text+'</a>':
       '<button class="site-brand" type="button" data-preview-page="'+e(metadata.homePageId||metadata.active)+'" aria-label="Главная — '+e(doc.siteTitle)+'">'+img+text+'</button>';
   }
+
+  // CSP deliberately blocks style attributes in the script-free iframe.
+  // Emit strictly bounded focal positions as rules inside the permitted stylesheet.
+  function focalStyles(metadata){
+    const out=[],safeId=id=>/^[a-z0-9-]{5,64}$/.test(id);
+    const safePosition=pos=>/^(?:100|[1-9]?\d)% (?:100|[1-9]?\d)%$/.test(pos||'')?pos:'50% 50%';
+    for(const [id,slots] of Object.entries(metadata.mediaBySection||{})){
+      if(!safeId(id))continue;
+      if(slots?.hero)out.push('section[data-preview-section="'+id+'"] .hero-photo{object-position:'+safePosition(slots.hero.position)+'!important}');
+      if(slots?.photo)out.push('section[data-preview-section="'+id+'"] .story-photo img{object-position:'+safePosition(slots.photo.position)+'!important}');
+    }
+    for(const [id,items] of Object.entries(metadata.itemsBySection||{})){
+      if(!safeId(id)||!Array.isArray(items))continue;
+      items.slice(0,8).forEach((item,index)=>{
+        if(item?.photo)out.push('section[data-preview-section="'+id+'"] .studio-grid > article:nth-child('+(index+1)+') img{object-position:'+safePosition(item.photo.position)+'!important}');
+      });
+    }
+    return out.join('\n');
+  }
   function render(input, selectedId, focusOnly=false, metadata={}) {
     const doc=C.validate(input),colors=C.palette[doc.theme];
     const design=metadata.design||{};
@@ -121,7 +140,7 @@
       '<meta property="og:description" content="'+e(metadata.seoDescription||'')+'"><meta name="twitter:card" content="summary">'+
       (publicUrl?'<link rel="canonical" href="'+e(publicUrl)+'"><meta property="og:url" content="'+e(publicUrl)+'">':'')+
       '<meta name="robots" content="'+(publicUrl?'index,follow':'noindex,nofollow')+'">'+
-      '<style>'+css+'</style></head>'+
+      '<style>'+css+'\n'+focalStyles(metadata)+'</style></head>'+
       '<body class="'+(metadata.exportLinks?'':'cms-design-preview')+' site-type-'+
       (['impact','restrained'].includes(design.scale)?design.scale:'balanced')+'" style="'+style+'"><header class="top site-'+nav+'"><div class="wrap nav">'+
       brandHTML(doc,metadata)+desktopNav+mobileNav+

@@ -917,12 +917,12 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#canvas-media-dialog').waitFor({state:'hidden'});
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),
       'Реальная фотография производственного помещения');
-    assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('style'),'object-position:50% 0%');
+    assert.match(await page.locator('#preview').getAttribute('srcdoc'),/\.hero-photo\{object-position:50% 0%!important\}/);
     assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>getComputedStyle(el).objectPosition),'50% 0%',
       'computed image crop must follow stored focal point');
     await page.locator('#undo').click();
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),'service production');
-    assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('style'),'object-position:50% 50%');
+    assert.equal(await mediaFrame.locator('.hero-photo').evaluate(el=>getComputedStyle(el).objectPosition),'50% 50%');
     await page.locator('#redo').click();
     assert.equal(await mediaFrame.locator('.hero-photo').getAttribute('alt'),
       'Реальная фотография производственного помещения');
@@ -935,7 +935,7 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#canvas-media-apply').click();
     await page.locator('#canvas-media-dialog').waitFor({state:'hidden'});
     await mediaFrame.locator('.studio-grid > article img').first().waitFor({state:'attached'});
-    assert.equal(await mediaFrame.locator('.studio-grid > article img').first().getAttribute('style'),'object-position:50% 0%');
+    assert.equal(await mediaFrame.locator('.studio-grid > article img').first().evaluate(el=>getComputedStyle(el).objectPosition),'50% 0%');
     assert.equal(await mediaFrame.locator('.studio-grid > article img').first().getAttribute('alt'),
       'Реальная фотография производственного помещения');
     await page.locator('#save').click();
@@ -954,7 +954,7 @@ const root=path.resolve(__dirname,'../..');
     const mediaZipHTML=execFileSync('unzip',['-p',mediaArchivePath,recipePage.slug+'.html'],{encoding:'utf8'});
     const mediaZipNames=execFileSync('unzip',['-Z1',mediaArchivePath],{encoding:'utf8'});
     assert.match(mediaZipHTML,/alt="Реальная фотография производственного помещения"/);
-    assert.match(mediaZipHTML,/style="object-position:50% 0%"/);
+    assert.match(mediaZipHTML,/\.hero-photo\{object-position:50% 0%!important\}/);
     assert.match(mediaZipHTML,/src="media\/asset-[a-z0-9-]+\.webp"/);
     assert.match(mediaZipNames,/media\/asset-[a-z0-9-]+\.webp/);
     assert.doesNotMatch(mediaZipHTML,/cms-photo-control|canvas-media-dialog|data:image\/webp;base64/);
