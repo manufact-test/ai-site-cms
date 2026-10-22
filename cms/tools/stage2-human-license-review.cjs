@@ -216,18 +216,18 @@ function writePrivate(file,value){
 }
 function cli(argv=process.argv.slice(2)){
   const params={};
-  const valid=['--prepare','--sign','--verify','--worksheet','--output',
+  const valid=['--prepare','--sign','--verify','--inspect','--worksheet','--output',
     '--private-key','--attestation','--public-key','--fingerprint'];
   for(const token of argv){
     const i=token.indexOf('='),key=i<0?token:token.slice(0,i);
     assert(valid.includes(key)&&!Object.hasOwn(params,key),'invalid_review_argument');
-    if(i<0){assert(['--prepare','--sign','--verify'].includes(key),
+    if(i<0){assert(['--prepare','--sign','--verify','--inspect'].includes(key),
       'invalid_review_argument');params[key]=true;}
     else{assert(!['--prepare','--sign','--verify'].includes(key)&&i<token.length-1,
       'invalid_review_argument');params[key]=token.slice(i+1);}
   }
-  const action=['--prepare','--sign','--verify'].filter(k=>params[k]);
-  const required={'--prepare':['--output'],
+  const action=['--prepare','--sign','--verify','--inspect'].filter(k=>params[k]);
+  const required={'--prepare':['--output'],'--inspect':['--worksheet'],
     '--sign':['--worksheet','--private-key','--output'],
     '--verify':['--worksheet','--attestation','--public-key','--fingerprint']};
   assert(action.length===1&&Object.keys(params).length===1+required[action[0]].length
@@ -235,7 +235,7 @@ function cli(argv=process.argv.slice(2)){
   // Ensure the review worksheet, signing key, trust-anchor PEM and signed
   // receipt are not accidentally co-located in one operator-controlled folder.
   // Directory separation alone is NOT independently verified identity.
-  const fileRoles=action[0]==='--prepare'?[]:
+  const fileRoles=['--prepare','--inspect'].includes(action[0])?[]:
     action[0]==='--sign'?
       [params['--worksheet'],params['--private-key'],params['--output']]:
       [params['--worksheet'],params['--attestation'],params['--public-key']];
@@ -245,6 +245,14 @@ function cli(argv=process.argv.slice(2)){
   if(action[0]==='--prepare'){
     writePrivate(params['--output'],buildWorksheet(dossier));
     process.stdout.write('43 human review rows created; all PENDING; NO legal approval\n');
+  }else if(action[0]==='--inspect'){
+    const worksheet=readCanonical(params['--worksheet']);
+    const summary=inspectWorksheet(dossier,worksheet);
+    process.stdout.write(JSON.stringify({format:'ai-site-cms-stage2-review-intake-v1',
+      packageManifestSha256:dossier.packageManifestSha256,...summary,
+      reviewerIdentityIndependentlyVerified:false,
+      reviewerEvidenceExternallyValidated:false,
+      ownerDecisionRequired:true})+'\n');
   }else if(action[0]==='--sign'){
     assert(process.env.CMS_STAGE2_LEGAL_REVIEW_SIGNING==='explicit-offline-attestation',
       'review_signing_gate_required');
