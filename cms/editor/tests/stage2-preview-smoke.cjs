@@ -795,6 +795,58 @@ const root=path.resolve(__dirname,'../..');
     assert.equal((scoped.match(/--accent:([^;]+)/)||[])[1],(baseline.match(/--accent:([^;]+)/)||[])[1],
       'page-only composition retains site-wide brand color');
 
+    // Two end-to-end product flows: guided page creation and on-canvas text editing.
+    // Uses the same local site, ordinary undo/history, and actual HTML ZIP export.
+    const pagesBeforeRecipe=await page.locator('#page-list option').count();
+    await page.locator('#page-recipe-open').click();
+    await page.locator('.page-recipe-choice').filter({hasText:'Услуги'}).click();
+    await page.locator('#page-recipe-name').fill('Технический сервис');
+    await page.locator('#page-recipe-direction').selectOption('evergreen');
+    await page.locator('#page-recipe-form button[type=submit]').click();
+    await page.locator('#page-recipe-dialog').waitFor({state:'hidden'});
+    assert.equal(await page.locator('#page-list option').count(),pagesBeforeRecipe+1);
+    assert.equal(await page.locator('#page-title').inputValue(),'Технический сервис');
+    assert.match(await page.locator('#seo-title').inputValue(),/Север-Металл/);
+    assert.equal(await page.locator('#sections li').count(),5,'guide generated editable page sections');
+    const recipePageId=await page.locator('#page-list').inputValue();
+    assert.equal(await page.locator('#preview').getAttribute('srcdoc')!==null,true);
+    const recipeFrame=page.frameLocator('#preview');
+    await recipeFrame.locator('.hero h1').dblclick();
+    assert.equal(await page.locator('#canvas-edit-dialog').isVisible(),true);
+    await page.locator('#canvas-edit-text').fill('Сервис промышленного оборудования');
+    await page.locator('#canvas-edit-form button[type=submit]').click();
+    await page.locator('#canvas-edit-dialog').waitFor({state:'hidden'});
+    await recipeFrame.locator('h1').filter({hasText:'Сервис промышленного оборудования'}).waitFor();
+    await recipeFrame.locator('.studio-grid > article strong').first().dblclick();
+    await page.locator('#canvas-edit-dialog').waitFor({state:'visible'});
+    await page.locator('#canvas-edit-text').fill('Монтаж и настройка');
+    await page.locator('#canvas-edit-form button[type=submit]').click();
+    await recipeFrame.locator('.studio-grid > article strong').filter({hasText:'Монтаж и настройка'}).waitFor();
+    await page.locator('#undo').click();
+    assert.equal(await recipeFrame.locator('.studio-grid > article strong').filter({hasText:'Монтаж и настройка'}).count(),0);
+    await page.locator('#redo').click();
+    await recipeFrame.locator('.studio-grid > article strong').filter({hasText:'Монтаж и настройка'}).waitFor();
+    await page.locator('#save').click();
+    await page.reload();
+    assert.equal(await page.locator('#page-list').inputValue(),recipePageId);
+    await page.frameLocator('#preview').locator('.studio-grid > article strong').filter({hasText:'Монтаж и настройка'}).waitFor();
+    const recipeJSONDownload=page.waitForEvent('download');
+    await page.locator('#project-actions summary').click();
+    await page.locator('#export').click();
+    const recipeFile=await recipeJSONDownload;
+    const recipeJSON=JSON.parse(fs.readFileSync(await recipeFile.path(),'utf8'));
+    const recipePage=recipeJSON.pages.find(p=>p.id===recipePageId);
+    assert.equal(recipePage.title,'Технический сервис');
+    assert.equal(recipePage.repeaters[recipePage.sections.find(s=>s.type==='services').id][0].title,'Монтаж и настройка');
+    const recipeZipDownload=page.waitForEvent('download');
+    await page.locator('#project-actions summary').click();
+    await page.locator('#download-site').click();
+    const recipeZip=await recipeZipDownload;
+    const zipHtml=execFileSync('unzip',['-p',await recipeZip.path(),recipePage.slug+'.html'],{encoding:'utf8'});
+    assert.match(zipHtml,/Сервис промышленного оборудования/);
+    assert.match(zipHtml,/Монтаж и настройка/);
+    assert.doesNotMatch(zipHtml,/cms-edit-target|canvas-edit-dialog/);
+
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
     console.log('Stage2 OWNER REVIEW KIT PASS: standalone editor ZIP, canvas block click, menu navigation, fullscreen, owner feedback Markdown+persist, starter sites, offline site ZIP and ZERO network.');
