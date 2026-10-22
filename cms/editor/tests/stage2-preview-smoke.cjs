@@ -1030,6 +1030,9 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(await page.frameLocator('#preview').locator('.hero-photo').getAttribute('alt'),'replacement photo');
     await page.locator('#save').click();
     await page.reload();
+    // Reload opens the site's home page by design; restore the edited page
+    // before checking that its replacement image survived persistent storage.
+    await page.locator('#page-list').selectOption(recipePageId);
     assert.equal(await page.frameLocator('#preview').locator('.hero-photo').getAttribute('alt'),'replacement photo');
 
     assert.deepEqual(errors,[],'no browser JS errors');
