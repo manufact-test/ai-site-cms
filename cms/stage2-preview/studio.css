@@ -580,3 +580,23 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .direction-buttons{display:flex;flex-wrap:wrap;gap:6px}
 .direction-buttons button{font-size:11px;min-height:35px;flex:1 1 92px;white-space:normal}
 .direction-picker #direction-scope{font-size:11px}
+
+/* Stage2 guided page archetypes: standalone editor interface only. */
+.page-recipe-dialog{width:min(770px,calc(100vw - 24px));max-height:90vh;border:1px solid #bfd0dc;border-radius:18px;padding:0;color:#183a4b;background:#fff;box-shadow:0 24px 80px #071d3290;overflow-y:auto}
+.page-recipe-dialog::backdrop{background:#0c2034ac}
+.page-recipe-head{padding:22px 25px 17px;background:#f2f7fa;display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.page-recipe-head h2{font-size:24px;line-height:1.2;margin:5px 0 8px;color:#123548}
+.page-recipe-head span{color:#23758c;font-weight:800;font-size:10px;letter-spacing:.12em}
+.page-recipe-head p{font-size:12px;color:#517387;margin:0}
+#page-recipe-close{border:0;background:transparent;font-size:25px;color:#47657a;cursor:pointer}
+.page-recipe-body{padding:22px 25px;display:grid;gap:17px}
+.page-recipe-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.page-recipe-choice{border:1px solid #d0dfe7;background:#fbfdff;border-radius:11px;padding:11px;text-align:left;color:#1a455b;display:grid;gap:4px;cursor:pointer}
+.page-recipe-choice[aria-pressed="true"]{background:#edf8fc;outline:2px solid #348da8;border-color:#80b8cc}
+.page-recipe-choice strong{font-size:13px}.page-recipe-choice small{font-size:11px;line-height:1.5;color:#537389}
+.page-recipe-choice:focus-visible{outline:3px solid #23758c}
+.page-recipe-fields{display:grid;gap:8px}.page-recipe-fields label{font-size:12px;font-weight:750;color:#32596d}
+.page-recipe-fields input,.page-recipe-fields select{width:100%;border:1px solid #c9dce5;border-radius:8px;padding:10px;font-size:13px;color:#194052;background:#fff;box-sizing:border-box}
+.page-recipe-fields p{margin:5px 0;font-size:12px;color:#527285}#page-recipe-error{color:#a32337;font-weight:650}
+.page-recipe-footer{display:flex;justify-content:flex-end;gap:9px}
+@media(max-width:520px){.page-recipe-options{grid-template-columns:1fr}.page-recipe-head{padding:16px}.page-recipe-body{padding:16px}}

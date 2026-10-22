@@ -137,7 +137,7 @@
         <select id="page-list" aria-label="Открытая страница"></select>
         <nav id="page-tree" class="page-tree" aria-label="Страницы проекта"></nav>
         <div class="page-actions">
-          <button id="page-add" class="button subtle" type="button">+ Страница</button>
+          <button id="page-add" class="button subtle" type="button">+ Страница</button><button id="page-recipe-open" class="button dark" type="button">+ По структуре</button>
           <button id="page-copy" class="button subtle" type="button">⧉ Копия</button>
           <button id="page-delete" class="button subtle danger" type="button">Удалить</button><button id="page-up" class="button subtle" type="button">↑ Страница</button><button id="page-down" class="button subtle" type="button">↓ Страница</button>
         </div>
@@ -285,6 +285,21 @@
   <div class="review-actions"><button type="button" class="button subtle" id="review-export">Скачать замечания .md</button><button type="button" class="text-button" id="review-clear">Очистить</button></div>
 </details><div class="inspector-foot">Поля управляются встроенным <strong>Jedison</strong>. Изменения отображаются сразу без сохранения на сервер.</div></aside>
   </main>
+  <dialog id="page-recipe-dialog" class="page-recipe-dialog" aria-labelledby="page-recipe-title">
+    <form id="page-recipe-form">
+      <div class="page-recipe-head"><div><span>КОМПОЗИЦИЯ СТРАНИЦЫ</span><h2 id="page-recipe-title">Новая страница по задаче</h2><p>Редактируемая структура без выдуманных клиентов, достижений и цифр.</p></div><button id="page-recipe-close" type="button" aria-label="Закрыть">×</button></div>
+      <div class="page-recipe-body">
+        <div id="page-recipe-options" class="page-recipe-options" role="group" aria-label="Тип страницы"></div>
+        <div class="page-recipe-fields">
+          <label for="page-recipe-name">Название страницы</label><input id="page-recipe-name" maxlength="90" minlength="2" required autocomplete="off">
+          <label for="page-recipe-direction">Композиция секций</label>
+          <select id="page-recipe-direction"><option value="">Обычная — настраивается вручную</option><option value="precision">Точная инженерия</option><option value="atelier">Редакционный минимализм</option><option value="momentum">Яркая студия</option><option value="evergreen">Естественная эстетика</option></select>
+          <p id="page-recipe-summary">Выберите назначение страницы</p><p id="page-recipe-error" role="alert" hidden></p>
+        </div>
+        <div class="page-recipe-footer"><button type="button" id="page-recipe-back" class="button subtle">Отмена</button><button type="submit" class="button dark">Создать страницу</button></div>
+      </div>
+    </form>
+  </dialog>
   <dialog id="brief-dialog" class="brief-dialog" aria-labelledby="brief-title">
     <div class="brief-head"><div><span>ЗАПУСК ПРОЕКТА · ЛОКАЛЬНО</span><h2 id="brief-title">Создайте сайт из брифа</h2><p>Заполните реальные данные компании. На их основе редактор соберёт три страницы, SEO и контакты. Не ИИ, не публикация — только редактируемый черновик.</p></div><button type="button" id="brief-close" class="brief-close" aria-label="Закрыть окно">×</button></div>
     <form id="brief-form" class="brief-form">
@@ -322,6 +337,7 @@
   <script src="brief.js"></script>
   <script src="workspaces.js"></script>
   <script src="art-direction.js"></script>
+  <script src="page-recipes.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

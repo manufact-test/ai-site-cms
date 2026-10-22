@@ -14,7 +14,42 @@
     seoSnippetTitle:$('seo-snippet-title'),seoSnippetDescription:$('seo-snippet-description'),
     seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url'),audit:$('audit-results'),auditCount:$('audit-count'),sectionVisible:$('section-visible')};
 
-  const D=window.CmsPreviewArtDirection;
+  const D=window.CmsPreviewArtDirection,T=window.CmsPreviewPageRecipes;
+
+  let recipeSelection='about';
+  function renderRecipeChoices(){
+    const gallery=$('page-recipe-options');gallery.replaceChildren();
+    for(const [key,item] of Object.entries(T.recipes)){
+      const button=document.createElement('button');button.type='button';button.className='page-recipe-choice';
+      button.setAttribute('aria-pressed',String(key===recipeSelection));
+      const label=document.createElement('strong');label.textContent=item.label;
+      const hint=document.createElement('small');hint.textContent=item.description;
+      button.append(label,hint);
+      button.addEventListener('click',()=>{
+        recipeSelection=key;$('page-recipe-name').value=item.label;
+        renderRecipeChoices();
+      });
+      gallery.append(button);
+    }
+    $('page-recipe-summary').textContent='Секции: '+T.recipes[recipeSelection].parts.map(t=>C.definitions[t].label).join(' → ')+'. SEO и адрес сформируются автоматически.';
+  }
+  function openPageRecipe(){
+    if(project.pages.length>=P.MAX_PAGES)return toast('Максимум восемь страниц',true);
+    recipeSelection='about';renderRecipeChoices();
+    $('page-recipe-name').value=T.recipes[recipeSelection].label;
+    $('page-recipe-direction').value='';
+    $('page-recipe-error').hidden=true;
+    $('page-recipe-dialog').showModal();
+  }
+  function createRecipePage(event){
+    event.preventDefault();
+    try{
+      const {project:next,pageId:id}=T.create(project,recipeSelection,$('page-recipe-name').value,$('page-recipe-direction').value);
+      checkpoint('page-recipe');apply(next,id);
+      $('page-recipe-dialog').close();showOverview(false);
+      toast('Страница добавлена: секции, SEO, контакты и композиция редактируются');
+    }catch(e){$('page-recipe-error').textContent=e.message;$('page-recipe-error').hidden=false;}
+  }
   let directionPreview=null;
   let directionSelection='precision';
   function renderDirections(){
@@ -472,6 +507,7 @@
     $('page-delete').disabled=project.pages.length<=1||p.slug==='';
     $('page-add').disabled=project.pages.length>=P.MAX_PAGES;
     $('page-copy').disabled=project.pages.length>=P.MAX_PAGES;
+    $('page-recipe-open').disabled=project.pages.length>=P.MAX_PAGES;
     const order=project.pages.findIndex(pg=>pg.id===pageId);
     $('page-up').disabled=order<=1;
     $('page-down').disabled=order===0||order===project.pages.length-1;
@@ -1370,7 +1406,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D){
+    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D||!T){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -1480,6 +1516,10 @@
     });
     ui.pageList.addEventListener('change',()=>selectPage(ui.pageList.value));
     $('page-add').addEventListener('click',()=>pageAdd());
+    $('page-recipe-open').addEventListener('click',openPageRecipe);
+    $('page-recipe-back').addEventListener('click',()=>$('page-recipe-dialog').close());
+    $('page-recipe-close').addEventListener('click',()=>$('page-recipe-dialog').close());
+    $('page-recipe-form').addEventListener('submit',createRecipePage);
     $('page-copy').addEventListener('click',()=>pageAdd(true));
     $('page-delete').addEventListener('click',pageDelete);
     $('page-up').addEventListener('click',()=>pageMove(-1));
