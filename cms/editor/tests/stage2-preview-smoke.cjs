@@ -849,6 +849,48 @@ const root=path.resolve(__dirname,'../..');
     assert.match(zipHtml,/Монтаж и настройка/);
     assert.doesNotMatch(zipHtml,/cms-edit-target|canvas-edit-dialog/);
 
+    // Visual treatments are genuine section-level HTML/CSS, reversible and portable.
+    await page.locator('#sections .section-select').first().click();
+    await page.locator('#section-surface').selectOption('linen');
+    assert.match(await page.frameLocator('#preview').locator('main > section').first().getAttribute('class'),/surface-linen/);
+    await page.locator('#surface-gallery .surface-swatch').filter({hasText:'Графит'}).click();
+    assert.match(await page.frameLocator('#preview').locator('main > section').first().getAttribute('class'),/surface-carbon/);
+    await page.locator('#undo').click();
+    assert.match(await page.frameLocator('#preview').locator('main > section').first().getAttribute('class'),/surface-linen/);
+    await page.locator('#redo').click();
+    assert.match(await page.frameLocator('#preview').locator('main > section').first().getAttribute('class'),/surface-carbon/);
+    await page.locator('#section-surface').selectOption('aurora');
+    assert.match(await page.frameLocator('#preview').locator('main > section').first().getAttribute('class'),/surface-aurora/);
+
+    // A CTA can jump to any visible section on its own page and across the site.
+    const contactTarget=recipePage.sections.find(s=>s.type==='contact');
+    const localJump='jump:'+recipePageId+':'+contactTarget.id;
+    await page.locator('#section-action').selectOption(localJump);
+    assert.match(await page.locator('#preview').getAttribute('srcdoc'),new RegExp('href="#block-'+contactTarget.id+'"'));
+    assert.equal(await page.frameLocator('#preview').locator('#block-'+contactTarget.id).count(),1);
+    const home=recipeJSON.pages.find(p=>p.slug==='');
+    const remoteSection=home.sections.find(s=>!home.hiddenSections.includes(s.id));
+    const remoteJump='jump:'+home.id+':'+remoteSection.id;
+    await page.locator('#section-action').selectOption(remoteJump);
+    await page.frameLocator('#preview').locator('.hero button[data-preview-page]').click();
+    assert.equal(await page.locator('#page-list').inputValue(),home.id);
+    assert.equal(await page.frameLocator('#preview').locator('#block-'+remoteSection.id).count(),1);
+    await page.locator('#page-list').selectOption(recipePageId);
+    await page.locator('#sections .section-select').first().click();
+    assert.equal(await page.locator('#section-action').inputValue(),remoteJump);
+    const linksDownload=page.waitForEvent('download');
+    if(!await page.locator('#project-actions').evaluate(el=>el.open))
+      await page.locator('#project-actions summary').click();
+    await page.locator('#download-site').click();
+    const linkedArchive=await linksDownload;
+    const linkedHtml=execFileSync('unzip',['-p',await linkedArchive.path(),recipePage.slug+'.html'],{encoding:'utf8'});
+    const homeHtml=execFileSync('unzip',['-p',await linkedArchive.path(),'index.html'],{encoding:'utf8'});
+    assert.match(linkedHtml,new RegExp('href="index.html#block-'+remoteSection.id+'"'));
+    assert.match(linkedHtml,/surface-aurora/);
+    assert.match(homeHtml,new RegExp('id="block-'+remoteSection.id+'"'));
+    assert.match(linkedHtml,/surface-carbon\{/);
+
+
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
     console.log('Stage2 OWNER REVIEW KIT PASS: standalone editor ZIP, canvas block click, menu navigation, fullscreen, owner feedback Markdown+persist, starter sites, offline site ZIP and ZERO network.');
