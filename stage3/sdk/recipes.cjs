@@ -8,9 +8,9 @@ function keys(x,allowed){if(!obj(x)||Object.keys(x).some(k=>!allowed.includes(k)
 function text(x,max,empty=false){if(typeof x!=='string'||x.length>max||(!empty&&!x.trim())||/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(x))throw Error('Invalid recipe text');return x.trim();}
 function id(x){if(typeof x!=='string'||!/^[a-z][a-z0-9-]{2,47}$/.test(x))throw Error('Invalid recipe ID');return x;}
 const PRESETS=Object.freeze({
-  company:{label:'Компания · 4 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights','contact-panel']],['offers','/offers/','Предложения',['company-hero','feature-highlights','contact-panel']],['about','/about/','О компании',['company-hero','feature-highlights']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
-  services:{label:'Услуги · 3 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights','contact-panel']],['offers','/services/','Услуги',['company-hero','feature-highlights','lead-form-flex']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
-  portfolio:{label:'Портфолио · 3 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights']],['offers','/projects/','Проекты',['company-hero','image-showcase','contact-panel']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
+  company:{label:'Компания · 4 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights','contact-panel']],['offers','/offers/','Предложения',['company-hero','service-grid','contact-panel']],['about','/about/','О компании',['company-hero','feature-highlights']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
+  services:{label:'Услуги · 3 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights','contact-panel']],['offers','/services/','Услуги',['company-hero','service-grid','lead-form-flex']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
+  portfolio:{label:'Портфолио · 3 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights']],['offers','/projects/','Проекты',['company-hero','photo-gallery','contact-panel']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
   landing:{label:'Одностраничный сайт',pages:[['home','/','Главная',['company-hero','feature-highlights','contact-panel','lead-form-flex']]]}
 });
 function suggest(task){text(task,3000,true);return /портфолио|portfolio|кейсы|projects/i.test(task)?'portfolio':/лендинг|landing|одностранич/i.test(task)?'landing':/услуг|service/i.test(task)?'services':'company';}
@@ -89,7 +89,8 @@ function compose(raw,manifests,{sourceSite=null,templates=[]}={}){
         const t=templates.find(t=>t.id===spec.templateId);
         if(!t||t.section.component!==spec.component||t.section.manifestVersion!==reg.get(spec.component).version)throw Error('Template missing or component version mismatch');
         bindings.push({sectionId:spec.id,templateId:t.id});
-        return {...cp(t.section),id:spec.id,elements:t.section.elements.map(e=>({...cp(e),id:spec.id+'-'+e.slot}))};
+        return {...cp(t.section),id:spec.id,elements:t.section.elements.map(e=>({...cp(e),id:spec.id+'-'+e.slot})),
+          ...(t.section.items?{items:t.section.items.map((item,i)=>({...cp(item),id:spec.id+'-item-'+(i+1)}))}:{})};
       }
       const section=C.sectionFrom(reg.get(spec.component),spec.id);
       if(spec.component==='company-hero'){
@@ -97,6 +98,19 @@ function compose(raw,manifests,{sourceSite=null,templates=[]}={}){
         put(section,'summary','content.text',p.kind==='home'?f.description||'Добавьте подтверждённое описание компании.':
           p.kind==='about'?f.description||'Добавьте описание компании.':p.kind==='contact'?'Отправьте вопрос через форму ниже.':'Выберите предложение и отправьте запрос.');
         put(section,'action','content.text','Оставить заявку');put(section,'action','behavior.href',destination);
+      }else if(spec.component==='service-grid'){
+        put(section,'heading','content.text',p.title);
+        const entries=f.offerings;
+        const count=Math.max(reg.get('service-grid').repeat.min,entries.length);
+        section.items=Array.from({length:count},(_,i)=>({
+          id:spec.id+'-item-'+(i+1),
+          values:{'content.title':entries[i]||'Добавьте название услуги',
+            'content.text':i<entries.length?'Укажите подтверждённое описание.':'Добавьте описание.',
+            'behavior.href':destination}
+        }));
+      }else if(spec.component==='photo-gallery'){
+        put(section,'heading','content.text','Наши проекты');
+        warnings.push('Загрузите собственные изображения в галерею.');
       }else if(spec.component==='feature-highlights'){
         const entries=p.kind==='about'?f.details:recipe.preset==='landing'?[...f.offerings,...f.details]:f.offerings;
         put(section,'heading','content.text',p.kind==='about'?'О компании':p.kind==='offers'?p.title:'Наши предложения');
@@ -113,9 +127,10 @@ function compose(raw,manifests,{sourceSite=null,templates=[]}={}){
       return section;
     })};
   });
-  const site=C.validateSite({format:'manufact-ai-site-v1',schemaVersion:1,siteId:recipe.siteId,title:recipe.title,assets,pages},reg);
+  const site=C.validateSite({format:'manufact-ai-site-v1',schemaVersion:1,siteId:recipe.siteId,title:recipe.title,assets,pages,
+    ...(sourceSite?.theme?{theme:cp(sourceSite.theme)}:{})},reg);
   // Internal CTAs must resolve to a generated page or an existing section anchor.
-  for(const p of site.pages)for(const s of p.sections)for(const el of s.elements){
+  for(const p of site.pages)for(const s of p.sections)for(const el of [...s.elements,...(s.items||[])]){
     const href=el.values['behavior.href'];
     if(typeof href==='string'&&href.startsWith('/')&&!site.pages.some(q=>q.path===href.split('#')[0]&&(!href.includes('#')||q.sections.some(t=>t.id===href.split('#')[1]))))throw Error('Recipe contains broken internal link: '+href);
   }
