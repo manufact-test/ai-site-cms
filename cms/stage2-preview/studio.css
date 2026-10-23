@@ -708,3 +708,20 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 .page-transfer-fields #page-transfer-error{color:#a32337;font-size:12px;font-weight:700}
 .page-transfer-summary{padding:13px 15px;border-radius:10px;background:#edf5f6;border:1px solid #c8e1e5;color:#245364;font-size:13px;line-height:1.6;min-height:48px}
 #page-transfer-submit:disabled{opacity:.55;cursor:not-allowed}
+
+/* Existing-site factual refresh: one focused modal for agency-wide content. */
+.factual-sync-launch{border-color:#75b6bf;background:#18363d}
+.factual-sync-dialog{width:min(810px,calc(100vw - 24px))}
+.factual-sync-intro{font-size:13px;line-height:1.6;color:#3a6274;background:#eaf4f7;padding:13px 16px;border-radius:10px}
+.factual-sync-fields{display:grid;gap:15px}
+.factual-sync-fields label{display:grid;gap:7px;font-size:13px;font-weight:750;color:#234a60}
+.factual-sync-fields textarea{background:#fff;color:#1a3b4b;font:400 13px/1.5 system-ui,sans-serif;padding:12px;border-radius:9px;border:1px solid #bed4df;box-sizing:border-box;width:100%;resize:vertical}
+.factual-sync-fields textarea:focus-visible{outline:2px solid #2b91ae;outline-offset:1px}
+.factual-sync-preview{background:#f2f8fa;border:1px solid #c5dfe7;border-radius:11px;padding:14px;font-size:12px;line-height:1.55;color:#244c60}
+.factual-sync-preview strong{display:block;font-size:13px;color:#153b4e}
+.factual-sync-preview p{margin:7px 0}
+.factual-sync-preview ul{padding-left:20px;margin:7px 0 0;max-height:190px;overflow-y:auto}
+.factual-sync-preview li+li{margin-top:4px}
+#factual-sync-error{font-size:12px;font-weight:750;color:#a12f44;margin:0}
+#factual-sync-apply:disabled{opacity:.53;cursor:not-allowed}
+@media(max-width:550px){.factual-sync-intro{padding:11px}.factual-sync-dialog .page-recipe-footer{flex-direction:column}.factual-sync-dialog .page-recipe-footer button{width:100%}}
