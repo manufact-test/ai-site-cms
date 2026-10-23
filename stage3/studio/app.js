@@ -260,6 +260,49 @@
     }
     $('cms-component-search').value='';dialog.renderCatalog();dialog.showModal();$('cms-component-search').focus();
   }
+  function initFullPagePreview(){
+    const modal=document.createElement('dialog');modal.id='cms-page-preview';
+    modal.className='cms-page-preview';modal.setAttribute('aria-label','Предпросмотр всей страницы');
+    const header=document.createElement('div');header.className='cms-page-preview-header';
+    const heading=document.createElement('h2');heading.textContent='Предпросмотр всей страницы';
+    const pathSelect=document.createElement('select');pathSelect.className='control';
+    pathSelect.id='cms-page-preview-path';pathSelect.setAttribute('aria-label','Страница сайта');
+    const frameMode=document.createElement('div');frameMode.className='cms-page-preview-modes';
+    const area=document.createElement('div');area.className='cms-page-preview-area';
+    const frame=document.createElement('iframe');frame.id='cms-page-preview-frame';
+    frame.setAttribute('sandbox','');frame.title='Изолированный предпросмотр всей страницы';
+    frame.setAttribute('referrerpolicy','no-referrer');area.append(frame);
+    let mode='desktop';
+    const render=()=>{
+      const path=pathSelect.value;
+      frame.style.width=mode==='mobile'?'390px':mode==='tablet'?'768px':'100%';
+      frame.srcdoc=window.Stage3Editor.previewDocument(session.current,path);
+    };
+    for(const [value,name] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
+      const option=button(name,'btn small',()=>{
+        mode=value;frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el===option));render();
+      });
+      option.dataset.mode=value;frameMode.append(option);
+    }
+    pathSelect.addEventListener('change',render);
+    const close=button('Закрыть','btn',()=>modal.close());
+    header.append(heading,pathSelect,frameMode,close);
+    const note=document.createElement('small');
+    note.textContent='Предпросмотр только черновика · без выполнения скриптов, без отправки заявок и без публикации.';
+    modal.append(header,note,area);document.body.append(modal);
+    const open=button('Вся страница','btn small',()=>{
+      pathSelect.replaceChildren();
+      for(const page of session.current.pages){
+        const option=document.createElement('option');option.value=page.path;
+        option.textContent=page.title+' · '+page.path;pathSelect.append(option);
+      }
+      pathSelect.value=current().page.path;
+      frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el.dataset.mode===mode));
+      render();modal.showModal();
+    });
+    open.id='cms-open-page-preview';
+    document.querySelector('.canvas-toolbar .devices').before(open);
+  }
   function createStructureTools(){
     const make=(parent,items)=>{
       const tools=document.createElement('div');tools.className='structure-tools';
@@ -695,5 +738,5 @@
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  createStructureTools();initSettings();initSiteQuality();load();draw();
+  createStructureTools();initSettings();initSiteQuality();initFullPagePreview();load();draw();
 })();
