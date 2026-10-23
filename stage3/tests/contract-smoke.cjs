@@ -17,6 +17,31 @@ const same=x=>JSON.parse(JSON.stringify(x));
 const reg=sdk.registry(manifests);
 const hero=manifests[0],highlights=manifests[1],contact=manifests[2];
 
+test('individual section appearances are strict, undoable, and inherited by previews',()=>{
+  const D=require('../sdk/draft.cjs');
+  let state=D.begin(initial,manifests);
+  const cmd={action:'updateAppearance',pageId:state.current.pages[0].id,
+    sectionId:state.current.pages[0].sections[0].id,
+    appearance:{surface:'dark',spacing:'airy',align:'center'},expectedRevision:state.revision};
+  state=D.structure(state,manifests,cmd);
+  const picked=state.current.pages[0].sections[0];
+  assert.deepEqual(picked.appearance,cmd.appearance);
+  assert.deepEqual(D.blockPreview(state,manifests,cmd.pageId,cmd.sectionId).appearance,cmd.appearance);
+  assert.ok(D.changes(state,manifests).some(x=>x.kind==='appearance-updated'));
+  assert.equal(D.undo(state,manifests).current.pages[0].sections[0].appearance,undefined);
+  assert.deepEqual(D.redo(D.undo(state,manifests),manifests).current,state.current);
+  for(const malicious of [
+    {surface:'javascript:alert(1)',spacing:'normal',align:'left'},
+    {surface:'dark',spacing:'normal',align:'center',css:'position:fixed'},
+    {surface:'paper',spacing:'500px',align:'left'},
+    {surface:'paper',spacing:'normal',align:'right'}
+  ]){
+    assert.throws(()=>D.structure(state,manifests,{...cmd,appearance:malicious,expectedRevision:state.revision}));
+  }
+  const invalid=structuredClone(state.current);invalid.pages[0].sections[0].appearance.align='<script>';
+  assert.throws(()=>sdk.validateSite(invalid,manifests));
+});
+
 test('theme + page SEO/nav accept only closed values and participate in Undo',()=>{
   const site=same(initial);
   site.theme={background:'#101b2a',surface:'#f8f9fa',text:'#ffffff',primary:'#ff6600',font:'georgia',maxWidth:980};

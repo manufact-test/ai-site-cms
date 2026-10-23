@@ -157,6 +157,17 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#redo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).redirects.length,1);
 
+    // Appearance panel changes only the selected block; preview reacts immediately.
+    await page.locator('#cms-appearance-dialog').count();
+    await page.locator('#section-appearance').click();
+    await page.locator('#cms-appearance-surface').selectOption('dark');
+    await page.locator('#cms-appearance-spacing').selectOption('airy');
+    await page.locator('#cms-appearance-align').selectOption('center');
+    await page.locator('#cms-appearance-apply').click();
+    assert.match((await canvas.locator('.cms-section-skin').getAttribute('class')),/cms-surface-dark cms-spacing-airy cms-align-center/);
+    await page.locator('#undo').click();
+    await canvas.locator('.cms-surface-default').waitFor();
+
     // Inspect a complete draft page at device widths without publishing or
     // enabling scripts/network for the iframe.
     await page.locator('#cms-open-page-preview').click();
