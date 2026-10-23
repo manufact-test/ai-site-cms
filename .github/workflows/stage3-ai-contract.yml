@@ -1,0 +1,35 @@
+name: Stage 3 isolated AI site contract (NO DEPLOY)
+on:
+  push:
+    branches: ['feature/stage3-ai-site-contract']
+    paths:
+      - 'stage3/**'
+      - '.github/workflows/stage3-ai-contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm isolated branch and no host permissions
+        run: |
+          test "$GITHUB_REF" = "refs/heads/feature/stage3-ai-site-contract"
+          test "${{ github.repository }}" = "manufact-test/ai-site-cms"
+      - name: Syntax and single offline contract end-to-end
+        run: |
+          node --check stage3/sdk/contract.cjs
+          node --check stage3/bin/ai-site.cjs
+          node --check stage3/tests/contract-smoke.cjs
+          node stage3/tests/contract-smoke.cjs
+      - name: Offline scenario without any design brief
+        run: |
+          node stage3/bin/ai-site.cjs create --id=site-no-mockup --title="No design brief" > "$RUNNER_TEMP/ai-site.json"
+          node stage3/bin/ai-site.cjs validate "$RUNNER_TEMP/ai-site.json"

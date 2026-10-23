@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.manufact.pro/ai-site-cms/site-v1.schema.json",
+  "title": "AI Site CMS site document v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "siteId",
+    "title",
+    "schemaVersion",
+    "assets",
+    "pages"
+  ],
+  "properties": {
+    "format": {
+      "const": "manufact-ai-site-v1"
+    },
+    "siteId": {
+      "$ref": "#/$defs/id"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 130
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "assets": {
+      "type": "array",
+      "maxItems": 300,
+      "items": {
+        "$ref": "#/$defs/asset"
+      }
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "$ref": "#/$defs/page"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "maxLength": 80,
+      "pattern": "^[a-z][a-z0-9-]{2,79}$"
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "src",
+        "alt",
+        "mime"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "src": {
+          "type": "string",
+          "pattern": "^/assets/[a-zA-Z0-9/_-]+\\.(png|webp|jpg|jpeg|svg)$"
+        },
+        "alt": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "mime": {
+          "enum": [
+            "image/png",
+            "image/webp",
+            "image/jpeg",
+            "image/svg+xml"
+          ]
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "title",
+        "sections"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/(?:[a-z0-9-]+/)*$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/section"
+          }
+        }
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "component",
+        "manifestVersion",
+        "elements"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "component": {
+          "type": "string"
+        },
+        "manifestVersion": {
+          "type": "string"
+        },
+        "elements": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 30,
+          "items": {
+            "$ref": "#/$defs/element"
+          }
+        }
+      }
+    },
+    "element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "slot",
+        "values"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "slot": {
+          "type": "string"
+        },
+        "values": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

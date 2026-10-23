@@ -1,0 +1,57 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "feature-highlights",
+  "version": "1.0.0",
+  "label": "Преимущества",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок преимуществ",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок",
+          "type": "text",
+          "default": "Чем мы занимаемся",
+          "responsive": false,
+          "maxLength": 180
+        }
+      ]
+    },
+    {
+      "slot": "first",
+      "label": "Первая карточка",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Описание преимущества",
+          "type": "text",
+          "default": "Заполните подтверждённые преимущества компании",
+          "responsive": false,
+          "maxLength": 280
+        },
+        {
+          "path": "style.color",
+          "label": "Цвет текста",
+          "type": "color",
+          "default": "#172A43",
+          "responsive": false
+        }
+      ]
+    },
+    {
+      "slot": "second",
+      "label": "Вторая карточка",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Описание второй карточки",
+          "type": "text",
+          "default": "Уточните факты у заказчика",
+          "responsive": false,
+          "maxLength": 280
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "contact-panel",
+  "version": "1.0.0",
+  "label": "Контакты",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок контактов",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок",
+          "type": "text",
+          "default": "Свяжитесь с нами",
+          "responsive": false,
+          "maxLength": 180
+        }
+      ]
+    },
+    {
+      "slot": "action",
+      "label": "Контактная кнопка",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись",
+          "type": "text",
+          "default": "Оставить заявку",
+          "responsive": false,
+          "maxLength": 120
+        },
+        {
+          "path": "behavior.href",
+          "label": "Ссылка",
+          "type": "url",
+          "default": "/contact/",
+          "responsive": false
+        }
+      ]
+    }
+  ]
+}

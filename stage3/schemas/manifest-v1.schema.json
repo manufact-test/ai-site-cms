@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.manufact.pro/ai-site-cms/manifest-v1.schema.json",
+  "title": "AI Site CMS component manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "id",
+    "version",
+    "label",
+    "elements"
+  ],
+  "properties": {
+    "format": {
+      "const": "manufact-ai-component-v1"
+    },
+    "id": {
+      "$ref": "#/$defs/name"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 110
+    },
+    "elements": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 30,
+      "items": {
+        "$ref": "#/$defs/element"
+      }
+    }
+  },
+  "$defs": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slot",
+        "label",
+        "fields"
+      ],
+      "properties": {
+        "slot": {
+          "$ref": "#/$defs/name"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 110
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 60,
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        }
+      }
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "label",
+        "type",
+        "default",
+        "responsive"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(content|style|behavior)\\.[a-z][a-zA-Z0-9]*$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 110
+        },
+        "type": {
+          "enum": [
+            "text",
+            "number",
+            "boolean",
+            "color",
+            "length",
+            "enum",
+            "url",
+            "media"
+          ]
+        },
+        "default": {},
+        "responsive": {
+          "type": "boolean"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "units": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "px",
+              "rem",
+              "%",
+              "vw",
+              "vh"
+            ]
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4000
+        }
+      }
+    }
+  }
+}

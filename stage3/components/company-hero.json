@@ -1,0 +1,81 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "company-hero",
+  "version": "1.0.0",
+  "label": "Первый экран компании",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Главный заголовок",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Текст заголовка",
+          "type": "text",
+          "default": "Оборудование для вашего производства",
+          "responsive": false,
+          "maxLength": 180
+        },
+        {
+          "path": "style.fontSize",
+          "label": "Размер заголовка",
+          "type": "length",
+          "default": {
+            "desktop": "64px",
+            "tablet": "48px",
+            "mobile": "32px"
+          },
+          "responsive": true,
+          "min": 10,
+          "max": 120,
+          "units": [
+            "px",
+            "rem"
+          ]
+        },
+        {
+          "path": "style.color",
+          "label": "Цвет заголовка",
+          "type": "color",
+          "default": "#172A43",
+          "responsive": false
+        }
+      ]
+    },
+    {
+      "slot": "summary",
+      "label": "Описание",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Текст описания",
+          "type": "text",
+          "default": "Расскажите о вашем предложении без вымышленных фактов.",
+          "responsive": false,
+          "maxLength": 420
+        }
+      ]
+    },
+    {
+      "slot": "action",
+      "label": "Основная кнопка",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись кнопки",
+          "type": "text",
+          "default": "Связаться",
+          "responsive": false,
+          "maxLength": 100
+        },
+        {
+          "path": "behavior.href",
+          "label": "Адрес перехода",
+          "type": "url",
+          "default": "/contact/",
+          "responsive": false
+        }
+      ]
+    }
+  ]
+}
