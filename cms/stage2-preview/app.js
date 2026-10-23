@@ -14,7 +14,7 @@
     seoSnippetTitle:$('seo-snippet-title'),seoSnippetDescription:$('seo-snippet-description'),
     seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url'),audit:$('audit-results'),auditCount:$('audit-count'),sectionVisible:$('section-visible')};
 
-  const D=window.CmsPreviewArtDirection,T=window.CmsPreviewPageRecipes,V=window.CmsPreviewCanvasEdit,S=window.CmsPreviewCanvasMedia,U=window.CmsPreviewPageTransfer,F=window.CmsPreviewFactualSync;
+  const D=window.CmsPreviewArtDirection,T=window.CmsPreviewPageRecipes,V=window.CmsPreviewCanvasEdit,S=window.CmsPreviewCanvasMedia,U=window.CmsPreviewPageTransfer,F=window.CmsPreviewFactualSync,Y=window.CmsPreviewTables;
 
 
   let canvasEditing=null;
@@ -1472,6 +1472,75 @@
     }
     refreshMediaUsageCounts();
   }
+  // Local CSV intake/export; only the selected section is changed, never a site.
+  let tabularCandidate=null,tabularUploadSerial=0;
+  async function readTabularFile(file){
+    const before=snapshot(),targetPage=pageId,targetSection=selection,serial=++tabularUploadSerial;
+    if(!file||file.size<8||file.size>24000)
+      return toast('Нужен текстовый CSV-файл до 24 КБ',true);
+    try{
+      const csv=await file.text();
+      if(serial!==tabularUploadSerial||before!==snapshot()
+        ||pageId!==targetPage||selection!==targetSection)
+        throw Error('За время чтения файла изменился выбранный блок');
+      const proposal=Y.plan(project,targetPage,targetSection,csv);
+      tabularCandidate={before,pageId:targetPage,sectionId:targetSection,proposal};
+      const panel=$('tabular-import-preview');panel.replaceChildren();
+      const intro=document.createElement('strong');
+      intro.textContent=C.definitions[proposal.sectionType].label+': '+proposal.originalCount+
+        ' → '+proposal.newCount+' строк';
+      const details=document.createElement('p');
+      details.textContent='Распознано: '+proposal.newCount+
+        '. Совпавших строк: '+proposal.reusedIds+'. Сохранено фото: '+
+        proposal.preservedPhotos+'. Фото снято с удалённых/переименованных товаров: '+
+        proposal.removedPhotos+'.';
+      const list=document.createElement('ul');
+      for(const item of proposal.project.pages.find(p=>p.id===targetPage).repeaters[targetSection]){
+        const li=document.createElement('li');li.textContent=item.title+' — '+item.text;
+        list.append(li);
+      }
+      panel.append(intro,details,list);
+      $('tabular-import-error').hidden=true;
+      $('tabular-import-apply').disabled=!proposal.changed;
+      if(!proposal.changed){
+        const note=document.createElement('p');note.textContent='Совпадает с текущим блоком: изменений нет.';
+        panel.append(note);
+      }
+      $('tabular-import-dialog').showModal();
+    }catch(e){
+      tabularCandidate=null;
+      toast('CSV не применён: '+e.message,true);
+    }
+  }
+  function applyTabularImport(){
+    const candidate=tabularCandidate;if(!candidate)return;
+    try{
+      if(candidate.before!==snapshot()||candidate.pageId!==pageId
+        ||candidate.sectionId!==selection)
+        throw Error('Страница или содержимое изменились после предпросмотра. Импортируйте файл заново.');
+      if(!candidate.proposal.changed)return;
+      checkpoint('tabular-csv-import');
+      apply(candidate.proposal.project,candidate.pageId,candidate.sectionId);
+      tabularCandidate=null;
+      $('tabular-import-dialog').close();
+      toast('Строки CSV применены к одному блоку. Можно отменить или сохранить сайт.');
+    }catch(e){
+      tabularCandidate=null;$('tabular-import-apply').disabled=true;
+      $('tabular-import-error').textContent=e.message;
+      $('tabular-import-error').hidden=false;
+    }
+  }
+  function exportTabularCsv(){
+    try{
+      const csv=Y.exportCsv(project,pageId,selection);
+      const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+      const a=document.createElement('a');a.href=url;
+      a.download='ai-site-cms-'+current().type+'-section.csv';
+      document.body.append(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1600);
+      toast('CSV текущего блока скачан. Начальные формулы обезврежены для электронных таблиц.');
+    }catch(e){toast('Не удалось экспортировать CSV: '+e.message,true);}
+  }
   function renderRepeater(){
     const section=current(),panel=$('repeater-panel'),list=$('repeater-list');
     list.replaceChildren();
@@ -1943,7 +2012,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D||!T||!V||!S||!A||!U||!F){
+    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D||!T||!V||!S||!A||!U||!F||!Y){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -1962,6 +2031,19 @@
     });
     $('expand-preview').addEventListener('click',expandPreview);
     $('repeater-add').addEventListener('click',addRepeaterItem);
+    $('tabular-import-open').addEventListener('click',()=>{
+      if(directionPreview)return toast('Завершите предпросмотр дизайна перед импортом',true);
+      $('tabular-import-file').click();
+    });
+    $('tabular-import-file').addEventListener('change',async e=>{
+      const file=e.target.files?.[0];e.target.value='';
+      await readTabularFile(file);
+    });
+    $('tabular-export').addEventListener('click',exportTabularCsv);
+    $('tabular-import-apply').addEventListener('click',applyTabularImport);
+    $('tabular-import-cancel').addEventListener('click',()=>$('tabular-import-dialog').close());
+    $('tabular-import-close').addEventListener('click',()=>$('tabular-import-dialog').close());
+    $('tabular-import-dialog').addEventListener('close',()=>{tabularCandidate=null;});
     $('media-upload').addEventListener('click',()=>$('media-file').click());
     $('media-file').addEventListener('change',async e=>{
       const files=[...(e.target.files||[])];e.target.value='';await uploadMedia(files);

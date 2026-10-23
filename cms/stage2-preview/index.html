@@ -272,9 +272,15 @@
       <div id="fields" aria-live="off"></div>
       <section id="repeater-panel" class="repeater-panel" aria-label="Элементы секции" hidden>
         <div class="repeater-head"><strong>Элементы секции</strong><span id="repeater-count">0 / 8</span></div>
-        <p class="setting-helper">Добавляйте и перемещайте карточки, товары, этапы и ответы. Изменения сразу видны в макете.</p>
+        <p class="setting-helper">Карточки, товары, этапы, ответы и технические параметры. Изменения сразу видны в макете и автономном HTML.</p>
         <div id="repeater-list" class="repeater-list"></div>
         <button id="repeater-add" class="button dark" type="button">+ Добавить элемент</button>
+        <div class="tabular-actions">
+          <button id="tabular-import-open" class="button subtle" type="button">↑ Импорт CSV</button>
+          <button id="tabular-export" class="button subtle" type="button">↓ Скачать CSV</button>
+          <input id="tabular-import-file" type="file" accept=".csv,text/csv,text/plain" hidden>
+        </div>
+        <p class="setting-helper">CSV: «Название;Описание» или «Параметр;Значение», максимум 8 строк. Сначала показывается план изменений; фото остаются у совпадающих названий.</p>
       </section>
       <details class="review-notes"><summary>Замечания к макету <span id="review-count">0</span></summary>
   <p class="review-help">Заметки сохраняются в этом браузере отдельно от версий сайта. Это обратная связь по макету, не приёмка Stage 2.</p>
@@ -333,6 +339,22 @@
         <div class="canvas-edit-actions"><button id="canvas-edit-cancel" type="button" class="button subtle">Отмена</button><button type="submit" class="button dark">Применить текст</button></div>
       </div>
     </form>
+  </dialog>
+  <dialog id="tabular-import-dialog" class="page-recipe-dialog factual-sync-dialog" aria-labelledby="tabular-import-title">
+    <div class="page-recipe-head">
+      <div><span>ТЕКУЩИЙ БЛОК · ЛОКАЛЬНО</span><h2 id="tabular-import-title">Предпросмотр импорта CSV</h2>
+      <p>Список выбранного блока будет заменён только после подтверждения. Остальные страницы и данные сайта сохранятся.</p></div>
+      <button id="tabular-import-close" type="button" aria-label="Отмена импорта">×</button>
+    </div>
+    <div class="page-recipe-body">
+      <div id="tabular-import-preview" class="factual-sync-preview" role="status"></div>
+      <p class="setting-helper">Фотографии сохраняются только у строк с прежним уникальным названием. Неизвестные товары не получают чужие изображения. Импорт можно отменить через Undo.</p>
+      <p id="tabular-import-error" class="brief-error" role="alert" hidden></p>
+      <div class="page-recipe-footer">
+        <button id="tabular-import-cancel" class="button subtle" type="button">Отмена</button>
+        <button id="tabular-import-apply" class="button dark" type="button">Применить строки</button>
+      </div>
+    </div>
   </dialog>
   <dialog id="factual-sync-dialog" class="page-recipe-dialog factual-sync-dialog" aria-labelledby="factual-sync-title">
     <div class="page-recipe-head">
@@ -459,6 +481,7 @@
   <script src="media-ops.js"></script>
   <script src="page-transfer.js"></script>
   <script src="factual-sync.js"></script>
+  <script src="tabular.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

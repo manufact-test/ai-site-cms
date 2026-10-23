@@ -725,3 +725,9 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 #factual-sync-error{font-size:12px;font-weight:750;color:#a12f44;margin:0}
 #factual-sync-apply:disabled{opacity:.53;cursor:not-allowed}
 @media(max-width:550px){.factual-sync-intro{padding:11px}.factual-sync-dialog .page-recipe-footer{flex-direction:column}.factual-sync-dialog .page-recipe-footer button{width:100%}}
+
+/* Bounded CSV intake: the imported preview remains legible on narrow devices. */
+.tabular-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.tabular-actions .button{flex:1 1 125px;min-width:0}
+#tabular-import-preview li{overflow-wrap:anywhere;white-space:pre-wrap}
+@media(max-width:480px){.tabular-actions{flex-direction:column}}

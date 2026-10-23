@@ -1176,6 +1176,65 @@ const root=path.resolve(__dirname,'../..');
     const persistedBackup=JSON.parse(fs.readFileSync(await (await persistedFactual).path(),'utf8'));
     assert.deepEqual(persistedBackup,factualBackup,'factual update persists after undo/redo and reload');
 
+
+    // One new end-to-end industrial data flow: editable technical parameters
+    // -> CSV import preview -> application -> responsive inert HTML
+    // -> CSV export -> undo/redo -> draft persistence.
+    await page.locator('#page-list').selectOption(catalogPage.id);
+    await page.locator('#new-type').selectOption('specs');
+    await page.locator('#add').click();
+    const specs=page.frameLocator('#preview').locator('.specs-table');
+    await specs.locator('tr').first().waitFor();
+    assert.equal(await specs.locator('tr').count(),3);
+    await page.locator('#tabular-import-file').setInputFiles({
+      name:'broken.csv',mimeType:'text/csv',
+      buffer:Buffer.from('Параметр;Значение\nМатериал;Сталь\nМатериал;Повтор')
+    });
+    assert.equal(await page.locator('#tabular-import-dialog').isVisible(),false,
+      'duplicate technical parameter must be rejected before preview');
+    const sourceCsv='Параметр;Значение\r\nМощность;"5,5 кВт"\r\n'+
+      'Материал;"Сталь; с покрытием"\r\n'+
+      'Назначение;"<script>не выполнять</script>"\r\n';
+    await page.locator('#tabular-import-file').setInputFiles({
+      name:'specs.csv',mimeType:'text/csv',buffer:Buffer.from(sourceCsv,'utf8')
+    });
+    await page.locator('#tabular-import-dialog').waitFor({state:'visible'});
+    assert.match(await page.locator('#tabular-import-preview').innerText(),/3 → 3 строк/);
+    await page.locator('#tabular-import-apply').click();
+    await page.locator('#tabular-import-dialog').waitFor({state:'hidden'});
+    await specs.locator('tr').first().waitFor();
+    assert.equal(await specs.locator('tr').count(),3);
+    assert.equal(await specs.locator('tr').nth(0).locator('th').innerText(),'Мощность');
+    assert.equal(await specs.locator('tr').nth(1).locator('td').innerText(),'Сталь; с покрытием');
+    assert.equal(await specs.locator('tr').nth(2).locator('td').innerText(),
+      '<script>не выполнять</script>','CSV markup rendered as inert text');
+    assert.equal(await page.frameLocator('#preview').locator('script').count(),0,
+      'CSV text must never generate executable HTML');
+    await page.locator('[data-width=mobile]').click();
+    assert.equal(await page.locator('#browser.mobile').count(),1);
+    assert.equal(await specs.locator('tr').count(),3,'mobile responsive technical table stays visible');
+    await page.locator('#undo').click();
+    assert.equal(await specs.locator('tr').first().locator('th').innerText(),'Назначение');
+    await page.locator('#redo').click();
+    assert.equal(await specs.locator('tr').first().locator('th').innerText(),'Мощность');
+    const technicalCsvDownload=page.waitForEvent('download');
+    await page.locator('#tabular-export').click();
+    const savedCsv=fs.readFileSync(await (await technicalCsvDownload).path(),'utf8');
+    assert.equal(savedCsv.charCodeAt(0),0xFEFF,'Excel-friendly UTF-8 BOM');
+    assert.ok(savedCsv.includes('Сталь; с покрытием'));
+    await page.locator('#save').click();
+    await page.reload();
+    await page.locator('#page-list').selectOption(catalogPage.id);
+    assert.equal(await page.frameLocator('#preview').locator('.specs-table tr').count(),3);
+    assert.equal(await page.frameLocator('#preview').locator('.specs-table th').first().innerText(),'Мощность');
+    const technicalSiteDownload=page.waitForEvent('download');
+    if(!await page.locator('#project-actions').evaluate(el=>el.open))
+      await page.locator('#project-actions summary').click();
+    await page.locator('#download-site').click();
+    const zipData=fs.readFileSync(await (await technicalSiteDownload).path());
+    assert.ok(zipData.includes(Buffer.from('specs-table')),
+      'offline inert site ZIP contains technical specs HTML/CSS');
+
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
     console.log('Stage2 OWNER REVIEW KIT PASS: standalone editor ZIP, canvas block click, menu navigation, fullscreen, owner feedback Markdown+persist, starter sites, offline site ZIP and ZERO network.');

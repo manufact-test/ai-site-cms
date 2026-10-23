@@ -5,6 +5,7 @@
     features:{title:'Преимущество',description:'Описание',key:'item',detail:'text',limit:110,detailLimit:280,seed:3},
     services:{title:'Услуга',description:'Описание',key:'item',detail:'text',limit:110,detailLimit:280,seed:3,photo:true},
     catalog:{title:'Продукт',description:'Описание',key:'product',detail:'info',limit:110,detailLimit:260,seed:3,photo:true},
+    specs:{title:'Параметр',description:'Значение',key:'item',detail:'text',limit:110,detailLimit:280,seed:3},
     faq:{title:'Вопрос',description:'Ответ',key:'question',detail:'answer',limit:160,detailLimit:400,seed:2},
     metrics:{title:'Показатель',description:'Подпись',key:'number',detail:'label',limit:40,detailLimit:110,seed:3},
     process:{title:'Этап',description:'Описание',key:'step',detail:'desc',limit:110,detailLimit:240,seed:3}
