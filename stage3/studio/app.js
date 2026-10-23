@@ -87,8 +87,8 @@
       ['page-add','+ Страница',()=>{
         const title=prompt('Название новой страницы','Новая страница');if(title===null)return;
         const path=prompt('Путь страницы (например /catalog/)','/new-page/');if(path===null)return;
-        const id=uniqueId('page'),sectionId=uniqueId('section');
-        structural({action:'addPage',id,path,title,sectionId,component:'company-hero'});
+        const id=uniqueId('page'),firstSectionId=uniqueId('section');
+        structural({action:'addPage',id,path,title,sectionId:firstSectionId,component:'company-hero'});
         if(session.current.pages.some(x=>x.id===id)){
           pageId=id;sectionId=session.current.pages.find(x=>x.id===id).sections[0].id;
           elementId=session.current.pages.find(x=>x.id===id).sections[0].elements[0].id;draw();
