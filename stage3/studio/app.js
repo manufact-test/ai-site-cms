@@ -483,6 +483,23 @@
           '<figcaption>'+e(item.props.content.caption||'')+'</figcaption></figure>';
       });
       content='<section class="features"><h2>'+e(title.title)+'</h2><div class="cms-preview-grid">'+gallery.join('')+'</div></section>';
+    }else if(block.component==='media-story'){
+      const item=session.current.assets.find(x=>x.id===p('photo').content.media);
+      const photo=item&&HOSTED?window.Stage3Host?.previewUrl?.(item.id):null;
+      const visual=photo?'<img class="showcase-preview" src="'+e(photo)+'" alt="'+e(item.alt)+'">':
+        '<div class="media-placeholder">Добавьте фотографию из медиабиблиотеки</div>';
+      content='<section class="features"><div class="cms-preview-grid"><div><h2>'+e(title.title)+'</h2>'+
+        '<p>'+e(p('copy').content.text)+'</p><span class="action">'+e(p('action').content.text)+'</span></div>'+
+        '<div>'+visual+'</div></div></section>';
+    }else if(block.component==='partner-logos'){
+      const entries=block.items.map(item=>{
+        const asset=session.current.assets.find(x=>x.id===item.props.content.media);
+        const photo=asset&&HOSTED?window.Stage3Host?.previewUrl?.(asset.id):null;
+        return '<div class="card">'+(photo?'<img class="showcase-preview" src="'+e(photo)+'" alt="'+e(asset.alt)+'">':
+          '<div class="media-placeholder">Логотип не выбран</div>')+
+          '<strong>'+e(item.props.content.caption)+'</strong></div>';
+      });
+      content='<section class="features"><h2>'+e(title.title)+'</h2><div class="cms-preview-grid">'+entries.join('')+'</div></section>';
     }else if(block.component==='image-showcase'){
       const mediaId=p('photo').content.media||'';
       const asset=session.current.assets.find(x=>x.id===mediaId);
