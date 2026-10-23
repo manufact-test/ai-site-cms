@@ -1,3 +1,5 @@
+> **Историческая передача. Актуальна [v1.58](MAIN-HANDOFF-v1.58-2026-10-23.md): рецепты сайта, архивы/восстановление, пользователи/права/аудит. Читать новую передачу и NEXT-CHAT §63.**
+
 # AI Site CMS — MAIN HANDOFF v1.57 / 23.10.2026
 
 **Единственная актуальная передача для следующего чата.** Репозиторий https://github.com/manufact-test/ai-site-cms. Рабочая ветка **`feature/stage3-ai-site-contract`**. Проверенный CODE SHA **`fe1ee0f041a807137ee4696f431d22fb5919d1a5`** ([commit](https://github.com/manufact-test/ai-site-cms/commit/fe1ee0f041a807137ee4696f431d22fb5919d1a5)); финальный CI [SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837); [click-to-open offline Studio ZIP](https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837/artifacts/12514644562), [screenshots](https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837/artifacts/12515802256). Кодовой SOURCE и URL CI важнее предыдущих v1.56/v1.55. `main` **`12e9c3feb707e5ad46b2caeeed379eb40618466b`**, НЕ менялся.

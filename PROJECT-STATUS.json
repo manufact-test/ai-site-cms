@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-23",
-  "status": "stage2-no-go-stage3-authorized-isolated-code-v1.56-accelerated",
+  "status": "stage2-no-go-stage3-authorized-isolated-code-v1.58-accelerated",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.57-2026-10-23.md",
-  "latest_source_sha": "fe1ee0f041a807137ee4696f431d22fb5919d1a5",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39921738856",
-  "source_offweb_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39922188174",
-  "source_ci_result": "Stage3 isolated contract/server/hosted Chromium E2E + static export SUCCESS at run 39986341837",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.58-2026-10-23.md",
+  "latest_source_sha": "964e6746db7680c064cce502ae034c00683115b5",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40019059962",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40019059962",
+  "source_offweb_ci": null,
+  "source_ci_result": "SUCCESS: isolated SDK/recipes/bundle/offline Chromium/PHP8.3 SQLite/hosted Chromium; not Stage2 production signoff",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly, then fix issues from real use; never get stuck testing existing lab",
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "fe1ee0f041a807137ee4696f431d22fb5919d1a5",
+    "stage3_code_sha": "964e6746db7680c064cce502ae034c00683115b5",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting"
   },
   "celikom_independent": true,
@@ -56,7 +56,7 @@
     "started_at": "2026-10-18",
     "owner_delegated_selection": true,
     "foundation": "A - Slim/Opis/Jedison",
-    "product_code": "Stage2 OFFLINE UX preview v10; 3-page brief, 8 local sites and backup, in-canvas text/photo editing, shared ALT/focal X/Y, responsive local CSS via Blob and standalone HTML ZIP. NOT production AI/auth/CMS/publisher.",
+    "product_code": "Authorized isolated Stage3–12 modules in feature/stage3-ai-site-contract; formal Stage2 NO-GO unchanged. No global product completion percentage asserted.",
     "bootstrap_commit": "493964f32d63dd5552484afbcc972fc614571381",
     "bootstrap_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39275005275",
     "bootstrap_ci_result": "7/7 SUCCESS on verified code 493964f32d63dd5552484afbcc972fc614571381",
@@ -648,7 +648,7 @@
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.52",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.57-2026-10-23.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.58-2026-10-23.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -669,7 +669,7 @@
       "scope": "Research, license/host analysis, 135-ID reuse matrix and option A preference accepted through owner-delegated technical choice. No product features accepted."
     }
   ],
-  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/main/handoffs/lead-integrator/MAIN-HANDOFF-v1.54-2026-10-22.md",
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.58-2026-10-23.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
@@ -1217,9 +1217,9 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.54",
-  "last_docs_handoff_note": "Owner-requested handoff after local image focal editing, CSP inheritance fix and Chromium regressions. Actual Editor CI remains RED at time of handoff.",
-  "latest_tested_code_sha": "99817915c4bca7f5b9a169b9e9ffedad42d14ec8",
+  "last_docs_handoff_version": "1.58",
+  "last_docs_handoff_note": "Owner-requested transition after recipes, full content recovery and scoped users/audit. Source CI is separate from docs-only HEAD.",
+  "latest_tested_code_sha": "964e6746db7680c064cce502ae034c00683115b5",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
     "owner_directive": "large_coherent_product_verticals_not_small_8_minute_fixes",
@@ -1385,15 +1385,15 @@
   },
   "main_branch": "main",
   "main_last_verified_sha": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
-  "stage3_source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837",
-  "stage3_studio_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837/artifacts/12514644562",
-  "stage3_screens_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837/artifacts/12515802256",
+  "stage3_source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40019059962",
+  "stage3_studio_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/40019059962/artifacts/12528954323",
+  "stage3_screens_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/40019059962/artifacts/12529906696",
   "stage3_parallel": {
     "state": "code-in-progress-isolated-not-formally-accepted",
     "started_at": "2026-10-23",
     "branch": "feature/stage3-ai-site-contract",
-    "source_sha": "fe1ee0f041a807137ee4696f431d22fb5919d1a5",
-    "ci_url": "https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837",
+    "source_sha": "964e6746db7680c064cce502ae034c00683115b5",
+    "ci_url": "https://github.com/manufact-test/ai-site-cms/actions/runs/40019059962",
     "ci_result": "SUCCESS",
     "owner_scope": "autonomous isolated branch code only; host/DB/production operations still need separate scoped permission",
     "implementation": [
@@ -1403,18 +1403,22 @@
       "Standalone multi-page static HTML release with binary PNG/JPEG/WebP media",
       "Media library, image preview and reusable first-party component renderer",
       "Functional old and flexible lead forms with anti-spam, separate collector and owner inbox/unread notices",
-      "Duplicate page and section preserving authored values, and site-scoped persisted section template save/list/apply/delete"
+      "Duplicate page and section preserving authored values, and site-scoped persisted section template save/list/apply/delete",
+      "Deterministic full-site recipes with owner facts, multipage review/edit/save and same-site templates",
+      "Full content archives and planned atomic new-site recovery, publication history rollback into draft",
+      "Scoped viewer/editor/publisher accounts, owner account management, password/session revocation and metadata audit"
     ],
     "missing": [
-      "AI provider adapter and validated full-site recipe composer beyond deterministic no-design scaffold",
-      "Owner accepted Stage2 real host/legal/security gates",
-      "Production-compatible MySQL/Hostinger rollout + complete backups/migrations",
-      "Polished product UX, licensing, multi-user roles and 18-stage full functionality",
-      "External email/Telegram delivery; arbitrary unbounded form builder"
+      "External AI provider adapter; current composer is deterministic",
+      "Manual licenses/reminders/pause/resume ADR0012",
+      "Complete rich components/styles/media/interactions/global inheritance/SEO/repeaters from 18-stage roadmap",
+      "Owner accepted Stage2 host/legal/security gates and production MySQL/Hostinger deployment",
+      "Full installation backups/production migrations, cross-family adapters and cohesive product UX",
+      "External email/Telegram delivery, unbounded form builder, account reset/invitations/2FA"
     ],
-    "test_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837",
-    "studio_download": "https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837/artifacts/12514644562",
-    "screens": "https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837/artifacts/12515802256",
+    "test_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/40019059962",
+    "studio_download": "https://github.com/manufact-test/ai-site-cms/actions/runs/40019059962/artifacts/12528954323",
+    "screens": "https://github.com/manufact-test/ai-site-cms/actions/runs/40019059962/artifacts/12529906696",
     "formally_accepted": false
   },
   "stage3_authorized": true,
@@ -1438,5 +1442,39 @@
     "main_sha": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
     "next": "large multi-page AI/site recipe composition vertical; minimum testing and no early UX cosmetics",
     "operational_scope": "No Hostinger/SSH/live DB/production writes or PR merge"
+  },
+  "historical_stage2_ci_before_v1_58": {
+    "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843",
+    "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39921738856",
+    "source_offweb_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39922188174"
+  },
+  "stage3_v1_58_checkpoint": {
+    "date": "2026-10-23",
+    "working_branch": "feature/stage3-ai-site-contract",
+    "verified_code_sha": "964e6746db7680c064cce502ae034c00683115b5",
+    "ci_url": "https://github.com/manufact-test/ai-site-cms/actions/runs/40019059962",
+    "ci_result": "SUCCESS",
+    "formal_stage3_accepted": false,
+    "accepted_135": 0,
+    "stage2_formal": "NO-GO",
+    "main_sha": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
+    "feature_blocks": [
+      "Recipes and full-site composition",
+      "Full content archive/restore and publication rollback",
+      "Scoped users/roles/session revocation/audit UI and additive CLI upgrade"
+    ],
+    "next": "Manual licenses ADR0012; then remaining full-product functionality, large blocks and minimal necessary checks",
+    "mysql_runtime_verified": false,
+    "real_infrastructure_changed": false,
+    "account_migration": "Explicit CLI only; STAGE3_ALLOW_ACCESS_UPGRADE=YES; no automatic web DDL",
+    "content_archive_excludes": [
+      "users",
+      "permissions",
+      "audit",
+      "configuration",
+      "secrets",
+      "visitor hashes"
+    ],
+    "owner_requested_documentation": true
   }
 }
