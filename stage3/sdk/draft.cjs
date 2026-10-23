@@ -150,12 +150,13 @@ function replaceSite(raw,manifests,site,expectedRevision){
 function changes(raw,manifests){
   const s=verifySession(raw,manifests),diff=[];
   const pages=new Map(s.base.pages.map(p=>[p.id,p]));
+  if(JSON.stringify(s.base.theme)!==JSON.stringify(s.current.theme))diff.push({kind:'theme-updated'});
   const record=(kind,ids)=>diff.push({kind,...ids});
   s.base.pages.forEach(p=>{if(!s.current.pages.some(q=>q.id===p.id))record('page-removed',{pageId:p.id});});
   s.current.pages.forEach((page,position)=>{
     const prior=pages.get(page.id);
     if(!prior){record('page-added',{pageId:page.id});return;}
-    if(prior.path!==page.path||prior.title!==page.title)record('page-updated',{pageId:page.id});
+    if(prior.path!==page.path||prior.title!==page.title||JSON.stringify(prior.seo)!==JSON.stringify(page.seo)||JSON.stringify(prior.navigation)!==JSON.stringify(page.navigation))record('page-updated',{pageId:page.id});
     if(s.base.pages.findIndex(q=>q.id===page.id)!==position)record('page-moved',{pageId:page.id});
     const oldSections=new Map(prior.sections.map(t=>[t.id,t]));
     prior.sections.forEach(t=>{if(!page.sections.some(q=>q.id===t.id))record('section-removed',{pageId:page.id,sectionId:t.id});});

@@ -95,9 +95,28 @@ function select(reg,component,versionValue){
   return m;
 }
 function fieldMap(def){return new Map(def.fields.map(f=>[f.path,f]));}
+
+const DEFAULT_THEME=Object.freeze({background:'#f7f9fc',surface:'#ffffff',text:'#172a43',primary:'#0a5bff',font:'system',maxWidth:1140});
+function validTheme(t){
+  objectKeys(t,['background','surface','text','primary','font','maxWidth'],'theme');
+  for(const k of ['background','surface','text','primary'])
+    if(typeof t[k]!=='string'||!/^#[0-9a-fA-F]{6}$/.test(t[k]))fail('Invalid theme color',k);
+  if(!['system','arial','georgia'].includes(t.font)||!Number.isInteger(t.maxWidth)||t.maxWidth<680||t.maxWidth>1600)fail('Invalid theme font or width');
+}
+function validSeo(s){
+  objectKeys(s,['title','description','robots'],'seo');
+  if(typeof s.title!=='string'||s.title.length>160||/[\x00-\x1f]/.test(s.title)||
+    typeof s.description!=='string'||s.description.length>300||/[\x00-\x1f]/.test(s.description)||
+    !['index','noindex'].includes(s.robots))fail('Invalid SEO metadata');
+}
+function validNav(n){
+  objectKeys(n,['label','hidden'],'navigation');
+  if(typeof n.label!=='string'||n.label.length>100||/[\x00-\x1f]/.test(n.label)||typeof n.hidden!=='boolean')fail('Invalid page navigation');
+}
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme'],'site');
+  if(own(raw,'theme'))validTheme(raw.theme);
   if(raw.format!==FORMAT||raw.schemaVersion!==1)fail('Unsupported site format');
   id(raw.siteId,'siteId');text(raw.title,'site title',130);
   if(!Array.isArray(raw.assets)||raw.assets.length>300)fail('Invalid assets');
@@ -112,7 +131,9 @@ function validateSite(raw,regInput){
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
   const ids=new Set([raw.siteId,...assetIds]),paths=new Set();
   for(const page of raw.pages){
-    objectKeys(page,['id','path','title','sections'],'page');
+    objectKeys(page,['id','path','title','sections','seo','navigation'],'page');
+    if(own(page,'seo'))validSeo(page.seo);
+    if(own(page,'navigation'))validNav(page.navigation);
     id(page.id,'page.id');text(page.title,'page.title',160);
     if(typeof page.path!=='string'||!/^\/(?:[a-z0-9-]+\/)*$/.test(page.path)||paths.has(page.path))fail('Invalid page path',page.id);
     paths.add(page.path);
@@ -252,7 +273,7 @@ function upgrade(raw,previous,next,allOtherManifests,decisions={}){
   if(conflicts.length)return {accepted:false,conflicts,diff,candidate:null};
   return {accepted:true,conflicts:[],diff,candidate:validateSite(candidate,afterRegistry)};
 }
-module.exports=Object.freeze({
+module.exports=Object.freeze({DEFAULT_THEME,
   FORMAT,MANIFEST,BREAKPOINTS,validateManifest,registry,validateSite,
   controls,effectiveValue,sectionFrom,siteFromBrief,upgrade
 });

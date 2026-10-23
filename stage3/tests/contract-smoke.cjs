@@ -16,6 +16,22 @@ const initial=read('fixtures/industrial-site.json');
 const same=x=>JSON.parse(JSON.stringify(x));
 const reg=sdk.registry(manifests);
 const hero=manifests[0],highlights=manifests[1],contact=manifests[2];
+
+test('theme + page SEO/nav accept only closed values and participate in Undo',()=>{
+  const site=same(initial);
+  site.theme={background:'#101b2a',surface:'#f8f9fa',text:'#ffffff',primary:'#ff6600',font:'georgia',maxWidth:980};
+  site.pages[0].seo={title:'Каталог',description:'Подтверждённое описание',robots:'noindex'};
+  site.pages[0].navigation={label:'Каталог',hidden:false};
+  assert.equal(sdk.validateSite(site,reg).theme.primary,'#ff6600');
+  const D=require('../sdk/draft.cjs'),updated=D.replaceSite(D.begin(initial,manifests),manifests,site,0);
+  assert.ok(D.changes(updated,manifests).some(c=>c.kind==='theme-updated'));
+  assert.ok(D.changes(updated,manifests).some(c=>c.kind==='page-updated'));
+  assert.equal(D.undo(updated,manifests).current.theme,undefined);
+  const bad=same(site);bad.theme.primary='red; background:url(//evil)';
+  refuses(()=>sdk.validateSite(bad,manifests),'CSS injection rejected');
+  const hidden=same(site);hidden.pages[0].navigation.hidden='yes';
+  refuses(()=>sdk.validateSite(hidden,manifests),'Invalid nav flag rejected');
+});
 test('locked fixture is valid',()=>{
   const actual=sdk.validateSite(initial,reg);
   assert.equal(actual.pages.length,2);

@@ -108,9 +108,33 @@ final class ContractValidator
         }
     }
 
+
+    private static function theme(mixed $t): void
+    {
+        self::keys($t,['background','surface','text','primary','font','maxWidth']);
+        foreach (['background','surface','text','primary'] as $name)
+            self::must(is_string($t[$name]) && preg_match('/^#[0-9a-fA-F]{6}$/D',$t[$name])===1,'Invalid theme color');
+        self::must(in_array($t['font'],['system','arial','georgia'],true)
+            && is_int($t['maxWidth']) && $t['maxWidth']>=680 && $t['maxWidth']<=1600,'Invalid theme font/width');
+    }
+    private static function seo(mixed $s): void
+    {
+        self::keys($s,['title','description','robots']);
+        foreach (['title'=>160,'description'=>300] as $name=>$max)
+            self::must(is_string($s[$name]) && mb_strlen($s[$name],'UTF-8')<=$max
+                && !preg_match('/[\x00-\x1f]/',$s[$name]),'Invalid SEO text');
+        self::must(in_array($s['robots'],['index','noindex'],true),'Invalid robots metadata');
+    }
+    private static function navigation(mixed $n): void
+    {
+        self::keys($n,['label','hidden']);
+        self::must(is_string($n['label']) && mb_strlen($n['label'],'UTF-8')<=100
+            && !preg_match('/[\x00-\x1f]/',$n['label']) && is_bool($n['hidden']),'Invalid navigation');
+    }
     public function validate(mixed $site): array
     {
-        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages']);
+        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme']);
+        if (array_key_exists('theme',$site)) self::theme($site['theme']);
         self::must(($site['format'] ?? null) === 'manufact-ai-site-v1'
             && ($site['schemaVersion'] ?? null) === 1, 'Unsupported site format');
         self::id($site['siteId']);
@@ -133,7 +157,9 @@ final class ContractValidator
             && count($site['pages']) >= 1 && count($site['pages']) <= 100, 'Invalid pages');
         $paths = [];
         foreach ($site['pages'] as $page) {
-            self::keys($page, ['id', 'path', 'title', 'sections']);
+            self::keys($page, ['id', 'path', 'title', 'sections', 'seo', 'navigation']);
+            if (array_key_exists('seo',$page)) self::seo($page['seo']);
+            if (array_key_exists('navigation',$page)) self::navigation($page['navigation']);
             self::uniqueId($page['id'], $ids);
             self::label($page['title'], 160);
             self::must(is_string($page['path']) && preg_match(self::PATH, $page['path']) === 1
