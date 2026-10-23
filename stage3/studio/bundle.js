@@ -124,6 +124,13 @@ function validNav(n){
   objectKeys(n,['label','hidden'],'navigation');
   if(typeof n.label!=='string'||n.label.length>100||/[\x00-\x1f]/.test(n.label)||typeof n.hidden!=='boolean')fail('Invalid page navigation');
 }
+const DEFAULT_APPEARANCE=Object.freeze({surface:'default',spacing:'normal',align:'left'});
+function validAppearance(a){
+  objectKeys(a,['surface','spacing','align'],'appearance');
+  if(!['default','paper','tint','dark'].includes(a.surface)||
+     !['tight','normal','airy'].includes(a.spacing)||
+     !['left','center'].includes(a.align))fail('Invalid section appearance');
+}
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
   objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects'],'site');
@@ -151,7 +158,8 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance'],'section');
+      if(own(section,'appearance'))validAppearance(section.appearance);
       id(section.id,'section.id');if(ids.has(section.id))fail('Duplicate stable ID',section.id);ids.add(section.id);
       const manifest=select(reg,section.component,section.manifestVersion);
       if(!Array.isArray(section.elements)||section.elements.length!==manifest.elements.length)fail('Incomplete element tree',section.id);
@@ -348,7 +356,7 @@ function upgrade(raw,previous,next,allOtherManifests,decisions={}){
   return {accepted:true,conflicts:[],diff,candidate:validateSite(candidate,afterRegistry)};
 }
 module.exports=Object.freeze({DEFAULT_THEME,
-  FORMAT,MANIFEST,BREAKPOINTS,validateManifest,registry,validateSite,inspectSite,
+  FORMAT,MANIFEST,BREAKPOINTS,DEFAULT_APPEARANCE,validateManifest,registry,validateSite,inspectSite,
   controls,effectiveValue,sectionFrom,siteFromBrief,upgrade
 });
 
@@ -446,6 +454,11 @@ function structure(raw,manifests,command){
           if(key==='content.media')cb(item,key,val,p,section);
   };
   switch(action){
+    case 'updateAppearance':{
+      if(!page||sectionIndex<0)throw Error('Unknown section appearance');
+      page.sections[sectionIndex].appearance=copy(command.appearance);
+      break;
+    }
     case 'renameAsset':{
       const asset=c.assets.find(a=>a.id===command.assetId);
       if(!asset)throw Error('Unknown image');
@@ -603,6 +616,8 @@ function changes(raw,manifests){
       if(prior.sections.findIndex(q=>q.id===section.id)!==i)
         record('section-moved',{pageId:page.id,sectionId:section.id});
       if(prev.component!==section.component||prev.manifestVersion!==section.manifestVersion){record('section-replaced',{pageId:page.id,sectionId:section.id});return;}
+      if(JSON.stringify(prev.appearance)!==JSON.stringify(section.appearance))
+        diff.push({kind:'appearance-updated',pageId:page.id,sectionId:section.id});
       if(JSON.stringify(prev.items)!==JSON.stringify(section.items))
         diff.push({kind:'items-updated',pageId:page.id,sectionId:section.id});
       for(const el of section.elements){
@@ -642,6 +657,7 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
   });
   return {format:'manufact-ai-block-preview-data-v1',siteId:s.current.siteId,
     pageId,sectionId,component:section.component,breakpoint,
+    appearance:copy(section.appearance||C.DEFAULT_APPEARANCE),
     elements,items,notPublished:true,hasExecutableHtml:false};
 }
 module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview});
@@ -747,6 +763,10 @@ function compose(raw,manifests,{sourceSite=null,templates=[]}={}){
           ...(t.section.items?{items:t.section.items.map((item,i)=>({...cp(item),id:spec.id+'-item-'+(i+1)}))}:{})};
       }
       const section=C.sectionFrom(reg.get(spec.component),spec.id);
+      // Respect owner section presentation on same-path same-component recomposition.
+      const position=p.sections.findIndex(candidate=>candidate.id===spec.id);
+      const old=original?.sections[position];
+      if(old?.component===spec.component&&old.appearance)section.appearance=cp(old.appearance);
       if(spec.component==='company-hero'){
         put(section,'heading','content.text',p.kind==='home'?(f.headline||recipe.title):p.title);
         put(section,'summary','content.text',p.kind==='home'?f.description||'Добавьте подтверждённое описание компании.':
@@ -1107,7 +1127,44 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     open.id='cms-open-page-preview';
     document.querySelector('.canvas-toolbar .devices').before(open);
   }
+  // Closed enum-only section presentation; same Undo/Redo/save/release as content.
+  function initAppearanceEditor(){
+    const dlg=document.createElement('dialog');dlg.id='cms-appearance-dialog';
+    dlg.className='cms-appearance-dialog';
+    const title=document.createElement('h2');title.textContent='Оформление выбранного блока';
+    const note=document.createElement('p');note.textContent='Фон, отступы и выравнивание блока. Не изменяет другие секции; публикация отдельно.';
+    const fields={};
+    const pick=(id,label,choices)=>{
+      const wrap=document.createElement('label');wrap.textContent=label;
+      const select=document.createElement('select');select.className='control';
+      select.id='cms-appearance-'+id;
+      for(const [value,text] of choices){const option=document.createElement('option');
+        option.value=value;option.textContent=text;select.append(option);}
+      wrap.append(select);fields[id]=select;return wrap;
+    };
+    dlg.append(title,note,
+      pick('surface','Фон', [['default','Как в компоненте'],['paper','Белый / поверхность'],['tint','Мягкий голубой'],['dark','Тёмный']]),
+      pick('spacing','Вертикальные отступы',[['tight','Компактные'],['normal','Стандартные'],['airy','Просторные']]),
+      pick('align','Выравнивание',[['left','Слева'],['center','По центру']]));
+    const actionBar=document.createElement('div');actionBar.className='cms-appearance-actions';
+    const apply=button('Применить','btn primary',()=>{
+      const appearance={surface:fields.surface.value,spacing:fields.spacing.value,align:fields.align.value};
+      const selected=current();
+      structural({action:'updateAppearance',pageId:selected.page.id,sectionId:selected.section.id,appearance});
+      dlg.close();
+    });apply.id='cms-appearance-apply';
+    actionBar.append(apply,button('Закрыть','btn',()=>dlg.close()));dlg.append(actionBar);
+    document.body.append(dlg);
+    const open=()=>{
+      const section=current().section,a={...C.DEFAULT_APPEARANCE,...section.appearance};
+      for(const [key,input] of Object.entries(fields))input.value=a[key];
+      title.textContent='Оформление · '+(manifest(section)?.label||section.component);
+      dlg.showModal();
+    };
+    return open;
+  }
   function createStructureTools(){
+    const openAppearance=initAppearanceEditor();
     const make=(parent,items)=>{
       const tools=document.createElement('div');tools.className='structure-tools';
       for(const [id,label,handler] of items)tools.append(button(label,'btn small',handler));
@@ -1148,6 +1205,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       }]
     ];
     const sectionActions=[
+      ['section-appearance','Оформление блока',openAppearance],
       ['section-catalog','Каталог блоков',openComponentCatalog],
       ['section-add','+ Блок',()=>{
         const component=prompt('Компонент блока:\n'+manifests.map(m=>m.id+' — '+m.label).join('\n'),'service-grid');
@@ -1378,11 +1436,21 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         '<span class="action">'+e(p('action').content.text||'')+' ↗</span>'+
         '<small>Кнопка демонстрационная: данные не отправляются.</small></section>';
     }else content='<section><h2>Незарегистрированный шаблон</h2></section>';
+    const appearance=block.appearance||C.DEFAULT_APPEARANCE;
+    const skin='cms-surface-'+appearance.surface+' cms-spacing-'+appearance.spacing+' cms-align-'+appearance.align;
+    content='<div class="cms-section-skin '+skin+'">'+content+'</div>';
+    const skinCss='<style>.cms-surface-paper>section{background:var(--cms-surface)!important}'+
+      '.cms-surface-tint>section{background:#ecf4fc!important}'+
+      '.cms-surface-dark>section{background:#112536!important;color:#f5f9fe!important}'+
+      '.cms-spacing-tight>section{padding-top:25px!important;padding-bottom:25px!important}'+
+      '.cms-spacing-airy>section{padding-top:110px!important;padding-bottom:110px!important}'+
+      '.cms-align-center>section{text-align:center!important}'+
+      '.cms-align-center>section>p{margin-left:auto;margin-right:auto}</style>';
     return '<!doctype html><html lang="ru"><head><meta charset="utf-8">'+
       '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;none&#39;; img-src &#39;'+(HOSTED?'data:':'none')+'&#39;; style-src &#39;unsafe-inline&#39;; connect-src &#39;none&#39;; form-action &#39;none&#39;; base-uri &#39;none&#39;">'+
       '<meta name="viewport" content="width=device-width,initial-scale=1">'+
       '<style>*{box-sizing:border-box}body{margin:0;background:#fcfdfd;color:#1b3046;font:15px/1.6 Arial,sans-serif}section{padding:70px clamp(18px,7%,80px);min-height:470px}.kicker{display:block;color:#167c6a;font:700 11px Arial;letter-spacing:.15em;margin-bottom:19px}h1{line-height:1.12;letter-spacing:-.045em;max-width:850px;margin:10px 0 25px;overflow-wrap:anywhere}h2{font-size:clamp(29px,4vw,52px);line-height:1.16;letter-spacing:-.03em;margin:12px 0 30px}p{font-size:17px;max-width:630px;line-height:1.65}.hero{background:radial-gradient(circle at 90% 25%,#d9f6e6 0%,transparent 44%),linear-gradient(115deg,#f9fdfb,#e9f1f5)}.decor{color:#80a6b2;font-size:11px;letter-spacing:.15em;text-align:right}.action{display:inline-flex;margin-top:24px;gap:35px;border-radius:9px;background:#142e3c;color:white;padding:14px 20px;font-weight:700;font-size:14px}.features{background:#f2f7f8}.cards{display:grid;grid-template-columns:1fr 1fr;gap:15px}.card{border:1px solid #dce6e9;border-radius:14px;padding:26px;background:white}.card strong{color:#1a8b76}.card p{font-size:17px;overflow-wrap:anywhere}.media-placeholder{padding:80px 20px;background:#e7eff2;border:1px dashed #91a8b1;text-align:center;border-radius:12px}.showcase-preview{display:block;width:100%;height:auto;max-height:520px;object-fit:contain;border-radius:12px}.contact{background:linear-gradient(130deg,#effbf6,#e8f1f7)}.contact small{display:block;color:#5c7180;margin-top:25px}.contact .action{background:#0a766b}@media(max-width:650px){section{padding:46px 25px;min-height:450px}.cards{grid-template-columns:1fr}h1{line-height:1.12}h2{font-size:32px}p{font-size:15px}.card{padding:20px}}</style>'+
-      '<style>.cms-preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:16px}.cms-preview-grid .card{margin:0}.cms-preview-grid h3{margin:5px 0 10px}.cms-preview-faq details{background:var(--cms-surface);border:1px solid #dce6e9;border-radius:10px;padding:15px;margin-block:10px}.cms-preview-faq summary{cursor:pointer;font-weight:700}.cms-preview-grid figcaption{margin-top:10px}</style>'+palette+'</head><body>'+content+'</body></html>';
+      '<style>.cms-preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:16px}.cms-preview-grid .card{margin:0}.cms-preview-grid h3{margin:5px 0 10px}.cms-preview-faq details{background:var(--cms-surface);border:1px solid #dce6e9;border-radius:10px;padding:15px;margin-block:10px}.cms-preview-faq summary{cursor:pointer;font-weight:700}.cms-preview-grid figcaption{margin-top:10px}</style>'+palette+skinCss+'</head><body>'+content+'</body></html>';
   }
   function drawPreview(){
     const {page,section}=current(),m=manifest(section);
