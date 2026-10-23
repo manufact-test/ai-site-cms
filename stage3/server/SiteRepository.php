@@ -299,7 +299,7 @@ final class SiteRepository
         if ($bytes === false || $bytes === '' || strlen($bytes) > 450000) {
             throw new \InvalidArgumentException('Image must not exceed 450 KB');
         }
-        if (strlen($alt) > 200 || str_contains($alt, "\0")) {
+        if (strlen($alt) > 200 || preg_match('/[\x00-\x1f]/', $alt) === 1) {
             throw new \InvalidArgumentException('Invalid image description');
         }
         $info = @getimagesizefromstring($bytes);

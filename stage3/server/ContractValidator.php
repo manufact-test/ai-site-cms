@@ -157,7 +157,7 @@ final class ContractValidator
                 && in_array($a['mime'], ['image/png','image/webp','image/jpeg','image/svg+xml'], true)
                 && is_string($a['src'])
                 && preg_match('~^/assets/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg)$~D', $a['src']) === 1
-                && is_string($a['alt']) && strlen($a['alt']) <= 200, 'Invalid asset');
+                && is_string($a['alt']) && strlen($a['alt']) <= 200 && preg_match('/[\x00-\x1f]/',$a['alt'])!==1, 'Invalid asset');
             $assets[$a['id']] = true;
             $ids[$a['id']] = true;
         }

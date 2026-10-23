@@ -83,7 +83,38 @@ function structure(raw,manifests,command){
       ...copy(el),id:newId+'-'+el.slot
     })),...(source.items?{items:source.items.map((item,i)=>({...copy(item),id:newId+'-item-'+(i+1)}))}:{})};
   };
+  const visitMedia=(cb)=>{
+    for(const p of c.pages)for(const section of p.sections)
+      for(const item of [...section.elements,...(section.items||[])])
+        for(const [key,val] of Object.entries(item.values))
+          if(key==='content.media')cb(item,key,val,p,section);
+  };
   switch(action){
+    case 'renameAsset':{
+      const asset=c.assets.find(a=>a.id===command.assetId);
+      if(!asset)throw Error('Unknown image');
+      if(typeof command.alt!=='string'||command.alt.length>200||/[\x00-\x1f]/.test(command.alt))
+        throw Error('Invalid image alternative description');
+      asset.alt=command.alt;break;
+    }
+    case 'replaceAsset':{
+      if(command.assetId===command.targetId||
+        !c.assets.some(a=>a.id===command.assetId)||!c.assets.some(a=>a.id===command.targetId))
+        throw Error('Replacement must be another image in this site');
+      let count=0;
+      visitMedia((item,key,val)=>{if(val===command.assetId){item.values[key]=command.targetId;count++;}});
+      if(!count)throw Error('Source image is not used in the draft');
+      break;
+    }
+    case 'removeAsset':{
+      if(!c.assets.some(a=>a.id===command.assetId))throw Error('Unknown image');
+      let referenced=false;
+      visitMedia((item,key,val)=>{if(val===command.assetId)referenced=true;});
+      if(referenced)throw Error('Image still used in draft; replace its bindings first');
+      // No DB bytes deletion: previous revisions / published snapshots must survive.
+      c.assets=c.assets.filter(a=>a.id!==command.assetId);
+      break;
+    }
     case 'addPage': {
       if(typeof command.id!=='string'||!reg.has(command.component))throw Error('Unknown new page');
       c.pages.push({id:command.id,path:command.path,title:label(command.title),
@@ -197,6 +228,8 @@ function changes(raw,manifests){
   const s=verifySession(raw,manifests),diff=[];
   const pages=new Map(s.base.pages.map(p=>[p.id,p]));
   if(JSON.stringify(s.base.theme)!==JSON.stringify(s.current.theme))diff.push({kind:'theme-updated'});
+  if(JSON.stringify(s.base.assets)!==JSON.stringify(s.current.assets))
+    diff.push({kind:'media-library-updated'});
   if(JSON.stringify(s.base.redirects||[])!==JSON.stringify(s.current.redirects||[]))
     diff.push({kind:'redirects-updated'});
   const record=(kind,ids)=>diff.push({kind,...ids});

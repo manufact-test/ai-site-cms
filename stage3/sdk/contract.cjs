@@ -133,7 +133,7 @@ function validateSite(raw,regInput){
     objectKeys(asset,['id','src','alt','mime'],'asset');id(asset.id,'asset.id');
     if(assetIds.has(asset.id)||!['image/png','image/webp','image/jpeg','image/svg+xml'].includes(asset.mime)||
       typeof asset.src!=='string'||!/^\/assets\/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg)$/.test(asset.src)||
-      typeof asset.alt!=='string'||asset.alt.length>200)fail('Invalid asset',asset.id);
+      typeof asset.alt!=='string'||asset.alt.length>200||/[\x00-\x1f]/.test(asset.alt))fail('Invalid asset',asset.id);
     assetIds.add(asset.id);
   }
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
