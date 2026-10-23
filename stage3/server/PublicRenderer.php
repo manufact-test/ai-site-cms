@@ -84,6 +84,36 @@ final class PublicRenderer
         return $origin;
     }
 
+    /** Publication barrier: no broken internal links or missing root in a release. */
+    public static function assertPublishable(array $site): void
+    {
+        $pages=[];
+        foreach ($site['pages'] as $page) $pages[$page['path']]=$page;
+        if (!isset($pages['/']))
+            throw new \InvalidArgumentException('Cannot publish without a home page');
+        $redirects=[];
+        foreach ($site['redirects']??[] as $redirect) $redirects[$redirect['from']]=$redirect['to'];
+        foreach ($site['pages'] as $page) foreach ($page['sections'] as $section)
+            foreach (array_merge($section['elements'],$section['items']??[]) as $el) {
+                $href=$el['values']['behavior.href']??null;
+                if (!is_string($href)||!str_starts_with($href,'/')||str_starts_with($href,'//')) continue;
+                $parts=explode('#',$href,2);
+                $route=explode('?',$parts[0],2)[0];
+                if ($route==='') $route=$page['path'];
+                if (!isset($pages[$route])&&!isset($redirects[$route]))
+                    throw new \InvalidArgumentException('Cannot publish broken internal link: '.$href);
+                if (isset($pages[$route])&&isset($parts[1])&&$parts[1]!=='') {
+                    $anchor=explode('?',$parts[1],2)[0];
+                    $found=false;
+                    foreach ($pages[$route]['sections'] as $target) {
+                        if ($target['id']===$anchor) {$found=true;break;}
+                    }
+                    if (!$found)
+                        throw new \InvalidArgumentException('Cannot publish broken section anchor: '.$href);
+                }
+            }
+    }
+
     public static function redirectTarget(array $site, string $path): ?string
     {
         foreach ($site['redirects']??[] as $redirect)
