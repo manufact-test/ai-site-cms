@@ -126,7 +126,7 @@ function validNav(n){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects'],'site');
   if(own(raw,'theme'))validTheme(raw.theme);
   if(raw.format!==FORMAT||raw.schemaVersion!==1)fail('Unsupported site format');
   id(raw.siteId,'siteId');text(raw.title,'site title',130);
@@ -187,7 +187,44 @@ function validateSite(raw,regInput){
       }else if(own(section,'items'))fail('Unregistered repeat items',section.id);
     }
   }
+  if(own(raw,'redirects')){
+    if(!Array.isArray(raw.redirects)||raw.redirects.length>60)fail('Invalid redirect count');
+    const aliases=new Set();
+    for(const r of raw.redirects){
+      objectKeys(r,['from','to'],'redirect');
+      if(typeof r.from!=='string'||typeof r.to!=='string'||
+        !/^\/(?:[a-z0-9-]+\/)*$/.test(r.from)||!/^\/(?:[a-z0-9-]+\/)*$/.test(r.to)||
+        r.from==='/'||r.from===r.to||paths.has(r.from)||aliases.has(r.from)||!paths.has(r.to))
+        fail('Invalid redirect alias or destination');
+      aliases.add(r.from);
+    }
+  }
   return clone(raw);
+}
+function inspectSite(raw,regInput){
+  const site=validateSite(raw,regInput),known=new Set(site.pages.map(p=>p.path));
+  const redirected=new Map((site.redirects||[]).map(r=>[r.from,r.to]));
+  const warnings=[],errors=[],add=(kind,page,path,message)=>({kind,pageId:page?.id||null,path,message});
+  if(!known.has('/'))errors.push(add('missing-home',null,'/','Нет главной страницы'));
+  for(const page of site.pages){
+    const seo=page.seo||{};
+    if(!seo.title)warnings.push(add('seo-title',page,page.path,'SEO title берётся из названия страницы'));
+    if(!seo.description)warnings.push(add('seo-description',page,page.path,'Не заполнено описание для поисковиков'));
+    for(const section of page.sections)for(const el of [...section.elements,...(section.items||[])]){
+      const href=el.values['behavior.href'];
+      if(typeof href!=='string'||!href.startsWith('/')||href.startsWith('//'))continue;
+      const route=href.split(/[?#]/,1)[0]||page.path;
+      const hash=href.includes('#')?href.slice(href.indexOf('#')+1).split('?')[0]:'';
+      if(!known.has(route)&&!redirected.has(route))
+        errors.push(add('broken-link',page,href,'Внутренняя ссылка ведёт на отсутствующую страницу'));
+      else if(redirected.has(route))
+        warnings.push(add('old-link',page,href,'Ссылка ведёт через перенаправление '+redirected.get(route)));
+      else if(hash&&!site.pages.find(p=>p.path===route).sections.some(s=>s.id===hash))
+        errors.push(add('broken-anchor',page,href,'Якорь секции не существует'));
+    }
+  }
+  return {errors,warnings,pages:site.pages.length,redirects:redirected.size,
+    indexable:site.pages.filter(p=>p.seo?.robots!=='noindex').length};
 }
 function controls(doc,regInput,pageId,sectionId,elementId){
   const reg=regInput instanceof Map?regInput:registry(regInput);
@@ -311,7 +348,7 @@ function upgrade(raw,previous,next,allOtherManifests,decisions={}){
   return {accepted:true,conflicts:[],diff,candidate:validateSite(candidate,afterRegistry)};
 }
 module.exports=Object.freeze({DEFAULT_THEME,
-  FORMAT,MANIFEST,BREAKPOINTS,validateManifest,registry,validateSite,
+  FORMAT,MANIFEST,BREAKPOINTS,validateManifest,registry,validateSite,inspectSite,
   controls,effectiveValue,sectionFrom,siteFromBrief,upgrade
 });
 
@@ -413,8 +450,23 @@ function structure(raw,manifests,command){
       if(!page)throw Error('Unknown page');
       page.title=label(command.title);
       if(page.path==='/'&&command.path!=='/')throw Error('Home page must retain root path');
+      if(page.path!==command.path){
+        if(!Array.isArray(c.redirects))c.redirects=[];
+        if(c.redirects.some(r=>r.from===command.path))throw Error('New URL is reserved by a redirect');
+        if(page.path!=='/'){
+          for(const r of c.redirects)if(r.to===page.path)r.to=command.path;
+          c.redirects.push({from:page.path,to:command.path});
+        }
+      }
       page.path=command.path;
       break;
+    case 'addRedirect':
+      if(!Array.isArray(c.redirects))c.redirects=[];
+      c.redirects.push({from:command.from,to:command.to});break;
+    case 'removeRedirect':
+      if(!Array.isArray(c.redirects))throw Error('Unknown redirect');
+      if(!c.redirects.some(r=>r.from===command.from))throw Error('Unknown redirect');
+      c.redirects=c.redirects.filter(r=>r.from!==command.from);break;
     case 'movePage':
       move(c.pages,index,command.delta);break;
     case 'removePage':
@@ -496,6 +548,8 @@ function changes(raw,manifests){
   const s=verifySession(raw,manifests),diff=[];
   const pages=new Map(s.base.pages.map(p=>[p.id,p]));
   if(JSON.stringify(s.base.theme)!==JSON.stringify(s.current.theme))diff.push({kind:'theme-updated'});
+  if(JSON.stringify(s.base.redirects||[])!==JSON.stringify(s.current.redirects||[]))
+    diff.push({kind:'redirects-updated'});
   const record=(kind,ids)=>diff.push({kind,...ids});
   s.base.pages.forEach(p=>{if(!s.current.pages.some(q=>q.id===p.id))record('page-removed',{pageId:p.id});});
   s.current.pages.forEach((page,position)=>{
@@ -855,6 +909,71 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const theme=button('Стили сайта','btn small',()=>open('theme'));theme.id='cms-open-theme';
     const seo=button('SEO и меню','btn small',()=>open('seo'));seo.id='cms-open-seo';
     tools.append(theme,seo);$('pages').before(tools);
+  }
+
+  // One review surface for every authored site; analysis never changes documents.
+  // Alias creation/deletion uses the same revisioned Undo/Redo contract as page edits.
+  function initSiteQuality(){
+    const dialog=document.createElement('dialog');dialog.className='cms-quality-dialog';dialog.id='cms-site-report';
+    const heading=document.createElement('h2');heading.textContent='Проверка перед публикацией';
+    const summary=document.createElement('p');summary.id='cms-quality-summary';
+    const findings=document.createElement('div');findings.id='cms-quality-findings';
+    const subtitle=document.createElement('h3');subtitle.textContent='Старые адреса страниц (301)';
+    const aliases=document.createElement('div');aliases.id='cms-redirect-list';
+    const form=document.createElement('form');form.id='cms-redirect-form';form.className='cms-redirect-form';
+    const from=document.createElement('input');from.className='control';from.id='cms-redirect-from';
+    from.type='text';from.required=true;from.placeholder='/old-page/';from.setAttribute('aria-label','Старый адрес');
+    const target=document.createElement('select');target.className='control';target.id='cms-redirect-target';
+    target.setAttribute('aria-label','Новая страница');
+    const add=button('+ Перенаправление','btn small',()=>{});add.type='submit';add.dataset.editorWrite='true';
+    form.append(from,target,add);
+    const notes=document.createElement('small');
+    notes.textContent='Перенаправления начнут работать только после публикации. Для отдельного HTML-хостинга экспортируются страницы-переходы; настоящий HTTP 301 требует настройки хостинга.';
+    const close=button('Закрыть','btn',()=>dialog.close());
+    dialog.append(heading,summary,findings,subtitle,aliases,form,notes,close);
+    document.body.append(dialog);
+    const print=()=>{
+      const report=C.inspectSite(session.current,manifests);
+      summary.textContent=report.pages+' страниц · '+report.indexable+' индексируемых · '+
+        report.errors.length+' ошибок ссылок · '+report.warnings.length+' рекомендаций · '+
+        report.redirects+' перенаправлений';
+      findings.replaceChildren();
+      for(const [name,records] of [['Ошибки',report.errors],['Рекомендации',report.warnings]]){
+        const section=document.createElement('section');
+        const label=document.createElement('strong');label.textContent=name+' · '+records.length;section.append(label);
+        if(!records.length){const note=document.createElement('p');note.textContent='Нет замечаний';section.append(note);}
+        for(const issue of records.slice(0,80)){
+          const line=document.createElement('p');line.className='cms-quality-finding';
+          line.textContent=(issue.pageId||'Сайт')+' · '+issue.path+' — '+issue.message;section.append(line);
+        }
+        findings.append(section);
+      }
+      target.replaceChildren();
+      for(const page of session.current.pages){
+        const option=document.createElement('option');option.value=page.path;
+        option.textContent=page.title+' — '+page.path;target.append(option);
+      }
+      aliases.replaceChildren();
+      if(!(session.current.redirects||[]).length)aliases.textContent='Пока нет старых адресов.';
+      for(const redirect of session.current.redirects||[]){
+        const line=document.createElement('div');line.className='cms-redirect-entry';
+        const desc=document.createElement('code');desc.textContent=redirect.from+' → '+redirect.to;
+        const del=button('Удалить','btn small',()=>{
+          if(!confirm('Удалить перенаправление '+redirect.from+' из черновика?'))return;
+          structural({action:'removeRedirect',from:redirect.from});print();
+        });
+        del.dataset.editorWrite='true';line.append(desc,del);aliases.append(line);
+      }
+      if(HOSTED)window.Stage3Host?.onDraw?.();
+    };
+    form.addEventListener('submit',event=>{
+      event.preventDefault();
+      structural({action:'addRedirect',from:from.value.trim(),to:target.value});
+      from.value='';print();
+    });
+    const tools=document.createElement('div');tools.className='structure-tools cms-site-quality';
+    const open=button('SEO-аудит и адреса','btn small',()=>{print();dialog.showModal();});
+    open.id='cms-quality-open';tools.append(open);$('pages').before(tools);
   }
 
   // Discoverable browser-side catalog: the same closed registered components,
@@ -1313,7 +1432,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  createStructureTools();initSettings();load();draw();
+  createStructureTools();initSettings();initSiteQuality();load();draw();
 })();
 'use strict';
 // A single owner-reviewed composition path for offline and authenticated Studio.
