@@ -11,7 +11,7 @@ permissions:
 jobs:
   contract:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,6 +39,16 @@ jobs:
         run: npm ci --prefix cms/editor --no-audit --no-fund
       - name: One real offline browser E2E for entire Stage 3 editor workflow
         run: node stage3/tests/studio-browser.cjs
+      - name: PHP 8.3 isolated SQLite runtime
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite
+          coverage: none
+      - name: Server syntax and one full HTTP persistence/publish E2E
+        run: |
+          for file in stage3/server/*.php stage3/server/public/*.php stage3/server/bin/*.php; do php -l "$file"; done
+          node stage3/tests/server-e2e.cjs
       - name: Package click-to-open offline editor (no secrets or server code)
         run: |
           mkdir -p stage3/studio/out
