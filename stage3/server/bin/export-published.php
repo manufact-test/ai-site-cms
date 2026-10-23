@@ -35,7 +35,7 @@ try {
         failExport('Output parent missing or not writable');
     }
     $published = stage3_repository()->published($siteId);
-    $site = (new ContractValidator(dirname(__DIR__) . '/components'))->validate($published['site']);
+    $site = (new ContractValidator(dirname(__DIR__, 2) . '/components'))->validate($published['site']);
     if (!in_array('/', array_column($site['pages'], 'path'), true)) {
         failExport('A published website requires a root page');
     }
