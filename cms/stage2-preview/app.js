@@ -14,7 +14,7 @@
     seoSnippetTitle:$('seo-snippet-title'),seoSnippetDescription:$('seo-snippet-description'),
     seoSnippetUrl:$('seo-snippet-url'),previewUrl:$('preview-url'),audit:$('audit-results'),auditCount:$('audit-count'),sectionVisible:$('section-visible')};
 
-  const D=window.CmsPreviewArtDirection,T=window.CmsPreviewPageRecipes,V=window.CmsPreviewCanvasEdit,S=window.CmsPreviewCanvasMedia,U=window.CmsPreviewPageTransfer;
+  const D=window.CmsPreviewArtDirection,T=window.CmsPreviewPageRecipes,V=window.CmsPreviewCanvasEdit,S=window.CmsPreviewCanvasMedia,U=window.CmsPreviewPageTransfer,F=window.CmsPreviewFactualSync;
 
 
   let canvasEditing=null;
@@ -269,6 +269,82 @@
     }catch(e){
       $('page-transfer-error').textContent=e.message;
       $('page-transfer-error').hidden=false;
+    }
+  }
+  let factualProposal=null;
+  function factualInputs(){
+    return Object.fromEntries(['offerings','steps','questions'].map(key=>
+      [key,$('factual-sync-'+key).value]));
+  }
+  function invalidateFactualPlan(){
+    factualProposal=null;$('factual-sync-apply').disabled=true;
+    $('factual-sync-error').hidden=true;
+    $('factual-sync-preview').textContent='Данные изменились. Проверьте новый план перед применением.';
+  }
+  function openFactualSync(){
+    if(directionPreview)return toast('Сначала завершите предпросмотр дизайна',true);
+    factualProposal=null;
+    for(const key of ['offerings','steps','questions'])$('factual-sync-'+key).value='';
+    $('factual-sync-apply').disabled=true;
+    $('factual-sync-error').hidden=true;
+    $('factual-sync-preview').textContent='Введите факты для существующего сайта. Пустые категории не изменятся.';
+    $('factual-sync-dialog').showModal();
+  }
+  function previewFactualSync(){
+    try{
+      factualProposal=F.plan(project,factualInputs());
+      const plan=factualProposal,box=$('factual-sync-preview');
+      box.replaceChildren();
+      const heading=document.createElement('strong');
+      heading.textContent='План обновления: '+plan.affectedPages+' стр., '+
+        plan.changes.length+' существующих блоков, '+
+        plan.added.length+' новых блоков.';
+      box.append(heading);
+      const sum=document.createElement('p');
+      sum.textContent=plan.selectedGroups.map(x=>x.name+': '+x.count+' поз.').join(' · ')+
+        '. Фотографий сохранено: '+plan.preservedPhotos+
+        '. Снято из переименованных позиций: '+plan.clearedPhotos+'.';
+      box.append(sum);
+      const list=document.createElement('ul');
+      for(const x of [...plan.changes,...plan.added]){
+        const li=document.createElement('li');
+        li.textContent=x.pageTitle+' / '+C.definitions[x.type].label+
+          ': '+(x.oldCount===undefined?'новая секция':x.oldCount+' → ')+
+          x.newCount+' позиций';list.append(li);
+      }
+      box.append(list);
+      if(!plan.changes.length&&!plan.added.length){
+        const note=document.createElement('p');note.textContent='Сайт уже соответствует спискам. Изменений нет.';
+        box.append(note);
+      }
+      $('factual-sync-error').hidden=true;
+      $('factual-sync-apply').disabled=!(plan.changes.length||plan.added.length);
+    }catch(e){
+      factualProposal=null;$('factual-sync-apply').disabled=true;
+      $('factual-sync-preview').textContent='План не сформирован.';
+      $('factual-sync-error').textContent=e.message;
+      $('factual-sync-error').hidden=false;
+    }
+  }
+  function applyFactualSync(){
+    if(!factualProposal)return;
+    try{
+      // Model is revalidated at the moment of application, never applying a
+      // stale preview after edits on another page or a different workspace.
+      const proposal=F.plan(project,factualInputs());
+      if(!proposal.changes.length&&!proposal.added.length)return;
+      checkpoint('factual-site-sync');
+      const first=[...proposal.changes,...proposal.added][0];
+      apply(proposal.project,first.pageId,first.sectionId);
+      $('factual-sync-dialog').close();
+      factualProposal=null;showOverview(false);
+      toast('Материалы обновлены в '+proposal.affectedPages+
+        ' страницах. Оформление и существующие фото сохранены по названию. Доступна отмена.');
+    }catch(e){
+      $('factual-sync-error').textContent=e.message;
+      $('factual-sync-error').hidden=false;
+      $('factual-sync-apply').disabled=true;
+      factualProposal=null;
     }
   }
   let directionPreview=null;
@@ -1867,7 +1943,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D||!T||!V||!S||!A||!U){
+    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D||!T||!V||!S||!A||!U||!F){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -1941,6 +2017,13 @@
     $('layout-reset').addEventListener('click',resetSectionLayout);
     ui.sectionVisible.addEventListener('change',()=>{const s=current();if(s)toggleSection(s.id,ui.sectionVisible.checked);});
     $('page-in-menu').addEventListener('change',()=>editPage('inMenu',$('page-in-menu').checked));
+    $('factual-sync-open').addEventListener('click',openFactualSync);
+    $('factual-sync-close').addEventListener('click',()=>$('factual-sync-dialog').close());
+    $('factual-sync-dialog').addEventListener('close',()=>{factualProposal=null;});
+    for(const key of ['offerings','steps','questions'])
+      $('factual-sync-'+key).addEventListener('input',invalidateFactualPlan);
+    $('factual-sync-preview-button').addEventListener('click',previewFactualSync);
+    $('factual-sync-apply').addEventListener('click',applyFactualSync);
     $('brief-open').addEventListener('click',()=>{
       $('brief-error').hidden=true;
       renderBriefFacts();
