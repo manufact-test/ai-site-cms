@@ -177,6 +177,9 @@ async function execute(){
   assert.match(await page.locator('#server-submissions .hosted-lead').innerText(),/Алексей Тест/);
   await page.locator('#server-submissions .hosted-lead button').click();
   await page.locator('#server-submissions .hosted-lead small').getByText(/reviewed/).waitFor();
+  await page.locator('#server-notifications-count').getByText(/Непросмотренные заявки: 1/).waitFor();
+  await page.locator('#server-notifications-seen').click();
+  await page.locator('#server-notifications-count').getByText(/Непросмотренные заявки: 0/).waitFor();
   const tokenless=await ctx.request.post(origin+'/api/sites/'+siteId+'/save',
     {data:{site:{},expectedRevision:9}});
   assert.equal(tokenless.status(),403,'CSRF still enforced with browser credentials');

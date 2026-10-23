@@ -36,6 +36,35 @@ final class PublicRenderer
         return '<a class="action" href="' . self::h($href) . '">' . self::label($section, $slot) . '</a>';
     }
 
+    private static function extraFields(array $section): string
+    {
+        $html = '';
+        foreach (FlexForm::definitions($section) as $field) {
+            $name = self::h($field['name']);
+            $required = $field['required'] ? ' required' : '';
+            $label = self::h($field['label']);
+            $control = '';
+            if ($field['kind'] === 'textarea') {
+                $control = '<textarea name="' . $name . '" maxlength="1000" rows="3"' . $required . '></textarea>';
+            } elseif ($field['kind'] === 'select') {
+                $control = '<select name="' . $name . '"' . $required . '>'
+                    . '<option value="">Выберите вариант</option>';
+                foreach ($field['options'] as $option) {
+                    $escaped = self::h($option);
+                    $control .= '<option value="' . $escaped . '">' . $escaped . '</option>';
+                }
+                $control .= '</select>';
+            } else {
+                $type = $field['kind'] === 'tel' ? 'tel' : 'text';
+                $max = $type === 'tel' ? 32 : 180;
+                $control = '<input type="' . $type . '" name="' . $name . '" maxlength="' . $max . '"'
+                    . ($type === 'tel' ? ' autocomplete="tel"' : '') . $required . '>';
+            }
+            $html .= '<label>' . $label . $control . '</label>';
+        }
+        return $html;
+    }
+
     public static function html(array $site, string $path, ?string $basePath = null, ?string $collectorBase = null, int $publishedVersion = 0): ?string
     {
         $page = null;
@@ -91,7 +120,7 @@ final class PublicRenderer
                 $body .= '<section id="' . $id . '" class="showcase"><h2>'
                     . self::label($section, 'heading') . '</h2>'
                     . $picture . '<p>' . self::label($section, 'caption') . '</p></section>';
-            } elseif ($section['component'] === 'lead-form') {
+            } elseif (in_array($section['component'], ['lead-form','lead-form-flex'], true)) {
                 if ($publishedVersion < 1) {
                     throw new \RuntimeException('Forms require an explicit immutable published version');
                 }
@@ -106,6 +135,7 @@ final class PublicRenderer
                     . '<label>' . self::label($section, 'name-label') . '<input name="name" type="text" minlength="2" maxlength="120" required autocomplete="name"></label>'
                     . '<label>' . self::label($section, 'email-label') . '<input name="email" type="email" maxlength="254" required autocomplete="email"></label>'
                     . '<label>' . self::label($section, 'message-label') . '<textarea name="message" minlength="10" maxlength="4000" required rows="5"></textarea></label>'
+                    . self::extraFields($section)
                     . '<label class="lead-consent"><input type="checkbox" name="consent" value="yes" required> '
                     . self::label($section, 'consent-label') . '</label>'
                     . '<button class="action" type="submit">' . self::label($section, 'submit-label') . '</button>'
@@ -127,7 +157,7 @@ final class PublicRenderer
             . 'padding:14px 22px;border-radius:9px;text-decoration:none;font-weight:700}.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}'
             . 'article{padding:24px;background:white;border:1px solid #e1e8f1;border-radius:12px}'
             . '.showcase-photo{display:block;width:100%;height:auto;max-height:680px;object-fit:contain;border-radius:16px;background:#e4ebf3}'
-            . '.lead-form{display:grid;gap:16px;max-width:700px}.lead-form label{display:grid;gap:6px;font-weight:600}.lead-form input:not([type=checkbox]),.lead-form textarea{padding:12px;border:1px solid #a5b3c4;border-radius:8px;font:inherit;width:100%}.lead-form button{border:0;cursor:pointer}.lead-consent{display:flex!important;flex-direction:row;align-items:flex-start}.lead-honey{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}'
+            . '.lead-form{display:grid;gap:16px;max-width:700px}.lead-form label{display:grid;gap:6px;font-weight:600}.lead-form input:not([type=checkbox]),.lead-form textarea,.lead-form select{padding:12px;border:1px solid #a5b3c4;border-radius:8px;font:inherit;width:100%}.lead-form button{border:0;cursor:pointer}.lead-consent{display:flex!important;flex-direction:row;align-items:flex-start}.lead-honey{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}'
             . '@media(max-width:900px){h1{font-size:var(--title-tablet)}}'
             . '@media(max-width:600px){section{padding:40px 8px}.hero{padding-block:48px}.feature-grid{grid-template-columns:1fr}h1{font-size:var(--title-mobile)}}'
             . '</style></head><body><header><nav aria-label="Навигация">' . $navigation

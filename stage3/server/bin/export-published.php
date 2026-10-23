@@ -44,7 +44,7 @@ try {
     $forms = false;
     foreach ($site['pages'] as $page) {
         foreach ($page['sections'] as $section) {
-            $forms = $forms || $section['component'] === 'lead-form';
+            $forms = $forms || in_array($section['component'], ['lead-form','lead-form-flex'], true);
         }
     }
     $collectorBase = getenv('STAGE3_FORM_ENDPOINT');

@@ -1,0 +1,221 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "lead-form-flex",
+  "version": "1.0.0",
+  "label": "Форма заявки · конструктор",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок формы",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок",
+          "type": "text",
+          "default": "Оставьте заявку",
+          "responsive": false,
+          "maxLength": 160
+        }
+      ]
+    },
+    {
+      "slot": "name-label",
+      "label": "Имя",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись поля имени",
+          "type": "text",
+          "default": "Ваше имя",
+          "responsive": false,
+          "maxLength": 90
+        }
+      ]
+    },
+    {
+      "slot": "email-label",
+      "label": "Email",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись email",
+          "type": "text",
+          "default": "Электронная почта",
+          "responsive": false,
+          "maxLength": 90
+        }
+      ]
+    },
+    {
+      "slot": "message-label",
+      "label": "Сообщение",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись сообщения",
+          "type": "text",
+          "default": "Ваш вопрос",
+          "responsive": false,
+          "maxLength": 90
+        }
+      ]
+    },
+    {
+      "slot": "consent-label",
+      "label": "Согласие",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Текст согласия",
+          "type": "text",
+          "default": "Согласен на обработку данных для ответа на обращение",
+          "responsive": false,
+          "maxLength": 250
+        }
+      ]
+    },
+    {
+      "slot": "submit-label",
+      "label": "Кнопка отправки",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Текст кнопки",
+          "type": "text",
+          "default": "Отправить заявку",
+          "responsive": false,
+          "maxLength": 90
+        }
+      ]
+    },
+    {
+      "slot": "extra-one",
+      "label": "Дополнительное поле 1",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись поля",
+          "type": "text",
+          "default": "Дополнительный вопрос 1",
+          "responsive": false,
+          "maxLength": 100
+        },
+        {
+          "path": "behavior.kind",
+          "label": "Тип поля",
+          "type": "enum",
+          "default": "off",
+          "responsive": false,
+          "options": [
+            "off",
+            "text",
+            "tel",
+            "select",
+            "textarea"
+          ]
+        },
+        {
+          "path": "behavior.required",
+          "label": "Обязательное",
+          "type": "boolean",
+          "default": false,
+          "responsive": false
+        },
+        {
+          "path": "content.options",
+          "label": "Варианты для списка (один на строку)",
+          "type": "text",
+          "default": "Вариант 1\nВариант 2",
+          "responsive": false,
+          "maxLength": 500
+        }
+      ]
+    },
+    {
+      "slot": "extra-two",
+      "label": "Дополнительное поле 2",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись поля",
+          "type": "text",
+          "default": "Дополнительный вопрос 2",
+          "responsive": false,
+          "maxLength": 100
+        },
+        {
+          "path": "behavior.kind",
+          "label": "Тип поля",
+          "type": "enum",
+          "default": "off",
+          "responsive": false,
+          "options": [
+            "off",
+            "text",
+            "tel",
+            "select",
+            "textarea"
+          ]
+        },
+        {
+          "path": "behavior.required",
+          "label": "Обязательное",
+          "type": "boolean",
+          "default": false,
+          "responsive": false
+        },
+        {
+          "path": "content.options",
+          "label": "Варианты для списка (один на строку)",
+          "type": "text",
+          "default": "Вариант 1\nВариант 2",
+          "responsive": false,
+          "maxLength": 500
+        }
+      ]
+    },
+    {
+      "slot": "extra-three",
+      "label": "Дополнительное поле 3",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись поля",
+          "type": "text",
+          "default": "Дополнительный вопрос 3",
+          "responsive": false,
+          "maxLength": 100
+        },
+        {
+          "path": "behavior.kind",
+          "label": "Тип поля",
+          "type": "enum",
+          "default": "off",
+          "responsive": false,
+          "options": [
+            "off",
+            "text",
+            "tel",
+            "select",
+            "textarea"
+          ]
+        },
+        {
+          "path": "behavior.required",
+          "label": "Обязательное",
+          "type": "boolean",
+          "default": false,
+          "responsive": false
+        },
+        {
+          "path": "content.options",
+          "label": "Варианты для списка (один на строку)",
+          "type": "text",
+          "default": "Вариант 1\nВариант 2",
+          "responsive": false,
+          "maxLength": 500
+        }
+      ]
+    }
+  ]
+}

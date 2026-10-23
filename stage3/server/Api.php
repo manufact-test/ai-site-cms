@@ -229,6 +229,14 @@ final class Api
                     self::response(201, $this->sites->createSite($body['site'] ?? []));
                 }
             }
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/notifications(?:/(seen))?$~D', $path, $alertMatch)) {
+                if ($method === 'GET' && !isset($alertMatch[2])) {
+                    self::response(200, $this->sites->notificationSummary($alertMatch[1]));
+                }
+                if ($method === 'POST' && isset($alertMatch[2])) {
+                    self::response(200, $this->sites->markNotificationsSeen($alertMatch[1]));
+                }
+            }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/submissions(?:/(lead-[0-9a-f]{24})/review)?$~D', $path, $inboxMatch)) {
                 if ($method === 'GET' && !isset($inboxMatch[2])) {
                     self::response(200, ['submissions' => $this->sites->submissions($inboxMatch[1])]);

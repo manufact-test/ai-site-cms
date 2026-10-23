@@ -179,6 +179,87 @@ async function stop(){
   assert.equal((await request('GET',endpoint+'/submissions')).body.submissions[0].status,'reviewed');
   for(let n=0;n<4;n++)assert.equal((await postForm(values)).status,201);
   assert.equal((await postForm(values)).status,429);
+
+  // Second site verifies extended form fields, notices, and isolated receiver.
+  const sdk=require(path.join(root,'stage3/sdk/contract.cjs'));
+  const componentIds=['company-hero','feature-highlights','contact-panel','image-showcase','lead-form','lead-form-flex'];
+  const available=componentIds.map(n=>JSON.parse(fs.readFileSync(path.join(root,'stage3/components',n+'.json'),'utf8')));
+  const flexDef=available.find(x=>x.id==='lead-form-flex');
+  const flexSite=sdk.siteFromBrief({siteId:'site-flex-ci',title:'Конструктор'},available);
+  const extraSection=sdk.sectionFrom(flexDef,'section-flex');
+  const set=(slot,key,value)=>{extraSection.elements.find(x=>x.slot===slot).values[key]=value;};
+  set('extra-one','content.text','Как доставить');
+  set('extra-one','behavior.kind','select');
+  set('extra-one','behavior.required',true);
+  set('extra-one','content.options','Доставка\nСамовывоз');
+  set('extra-two','content.text','Телефон');
+  set('extra-two','behavior.kind','tel');
+  set('extra-two','behavior.required',true);
+  set('extra-three','content.text','Комментарий');
+  set('extra-three','behavior.kind','textarea');
+  flexSite.pages[1].sections.push(extraSection);
+  assert.equal((await request('POST','/api/sites',{site:flexSite})).status,201);
+  assert.equal((await request('GET','/api/sites/site-flex-ci/notifications')).body.unread,0);
+  assert.equal((await request('POST','/api/sites/site-flex-ci/publish',{expectedRevision:1})).body.version,1);
+  const flexHTML=(await request('GET','/published/site-flex-ci/contact/')).body;
+  assert.match(flexHTML,/name="extra1"/);
+  assert.match(flexHTML,/type="tel" name="extra2"/);
+  assert.match(flexHTML,/name="extra3"/);
+  assert.match(flexHTML,/value="Самовывоз"/);
+  const flexToken=/name="_token" value="([a-f0-9]{64})"/.exec(flexHTML)?.[1];
+  assert.ok(flexToken);
+  const flexValues={_release:'1',_token:flexToken,website:'',name:'Новый клиент',
+    email:'flex@example.test',message:'Нужно подобрать оборудование',consent:'yes',
+    extra1:'Самовывоз',extra2:'+49 (211) 1234567',extra3:'Детали запроса'};
+  const submitFlex=async(fields,receiver=origin,from=origin)=>{
+    const response=await fetch(receiver+'/forms/site-flex-ci/section-flex',{method:'POST',
+      headers:{'content-type':'application/x-www-form-urlencoded','origin':from},
+      body:new URLSearchParams(fields)});
+    return {status:response.status,text:await response.text()};
+  };
+  assert.equal((await submitFlex({...flexValues,extra1:'Другой вариант'})).status,422);
+  assert.equal((await submitFlex({...flexValues,extra2:'<script>'})).status,422);
+  assert.equal((await submitFlex({...flexValues,extra2:''})).status,422);
+  assert.equal((await submitFlex({...flexValues,extra4:'injected'})).status,422);
+  assert.equal((await submitFlex(flexValues)).status,201);
+  assert.equal((await request('GET','/api/sites/site-flex-ci/notifications')).body.unread,1);
+  const flexInbox=(await request('GET','/api/sites/site-flex-ci/submissions')).body.submissions;
+  assert.equal(flexInbox.length,1);
+  assert.equal(flexInbox[0].extras.extra1.value,'Самовывоз');
+  assert.equal(flexInbox[0].extras.extra2.label,'Телефон');
+  assert.equal((await request('POST','/api/sites/site-flex-ci/notifications/seen',{})).body.unread,0);
+  assert.equal((await request('GET','/api/sites/site-flex-ci/notifications')).body.unread,0);
+  // Collector-only web root refuses CMS routes even when sharing the isolated DB.
+  const collectorOrigin='http://127.0.0.1:'+(await port());
+  env.STAGE3_FORM_ORIGINS=origin;
+  const collector=spawn('php',['-S',new URL(collectorOrigin).host,'-t',
+    'stage3/server/collector-public','stage3/server/collector-public/index.php'],{
+      cwd:root,env,stdio:['ignore','ignore','pipe']});
+  let collectorErr='';collector.stderr.on('data',x=>{collectorErr+=x.toString();});
+  try{
+    for(let n=0;n<60;n++){
+      try{if((await fetch(collectorOrigin+'/api/session')).status===404)break;}catch(e){}
+      await new Promise(resolve=>setTimeout(resolve,80));
+    }
+    assert.equal((await fetch(collectorOrigin+'/api/sites')).status,404);
+    assert.equal((await fetch(collectorOrigin+'/studio')).status,404);
+    assert.equal((await fetch(collectorOrigin+'/forms/site-flex-ci/section-flex')).status,404);
+    assert.equal((await submitFlex(flexValues,collectorOrigin,origin)).status,201,collectorErr);
+    assert.equal((await request('GET','/api/sites/site-flex-ci/notifications')).body.unread,1);
+    env.STAGE3_FORM_ENDPOINT=collectorOrigin;
+    const flexOut=path.join(dbdir,'flex-static-release');
+    const exportedFlex=spawnSync('php',['stage3/server/bin/export-published.php','site-flex-ci',flexOut],
+      {cwd:root,env,encoding:'utf8'});
+    assert.equal(exportedFlex.status,0,exportedFlex.stderr);
+    const exportedHTML=fs.readFileSync(path.join(flexOut,'contact','index.html'),'utf8');
+    assert.ok(exportedHTML.includes('action="'+collectorOrigin+'/forms/'));
+    assert.match(exportedHTML,/name="extra1"/);
+  }finally{
+    const stopped=new Promise(resolve=>collector.once('exit',resolve));
+    collector.kill('SIGTERM');
+    await Promise.race([stopped,new Promise(resolve=>setTimeout(resolve,2000))]);
+  }
+  delete env.STAGE3_FORM_ENDPOINT;
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET','/published/'+id+'/')).status,200,'visitor needs no CMS login');

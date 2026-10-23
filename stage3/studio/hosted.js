@@ -49,6 +49,23 @@
   const leadsList=element('div','hosted-leads-list');leadsList.id='server-submissions';
   leadsPanel.append(leadsTitle,leadsRefresh,leadsList);
   mediaPanel.after(leadsPanel);
+  const alertsRow=element('div','hosted-alerts');
+  const alertsLabel=element('strong',null,'Непросмотренные заявки: 0');
+  alertsLabel.id='server-notifications-count';
+  const acknowledge=action('Отметить просмотренными','server-notifications-seen',()=>safe(async()=>{
+    await api('/api/sites/'+encodeURIComponent(state.siteId)+'/notifications/seen','POST',{});
+    await refreshAlerts();
+    notice('Новые обращения отмечены просмотренными.');
+  }));
+  alertsRow.append(alertsLabel,acknowledge);
+  leadsPanel.before(alertsRow);
+  async function refreshAlerts(){
+    if(!state.authorized||!state.siteId){alertsLabel.textContent='Непросмотренные заявки: 0';return;}
+    const info=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/notifications');
+    alertsLabel.textContent='Непросмотренные заявки: '+info.unread;
+    acknowledge.disabled=info.unread===0;
+  }
+
   async function loadSubmissions(){
     leadsList.replaceChildren();
     if(!state.authorized||!state.siteId){
@@ -67,6 +84,14 @@
       wrap.append(element('strong',null,lead.name+' · '+lead.email));
       wrap.append(element('small',null,lead.submitted_at+' · '+lead.status));
       wrap.append(element('p',null,lead.message));
+      if(lead.extras){
+        for(const field of Object.values(lead.extras)){
+          if(field&&typeof field.label==='string'&&typeof field.value==='string'){
+            wrap.append(element('p','hosted-extra',field.label+': '+(field.value||'—')));
+          }
+        }
+      }
+
       if(lead.status==='new'){
         wrap.append(action('Обработано','',()=>safe(async()=>{
           await api('/api/sites/'+encodeURIComponent(state.siteId)+'/submissions/'+
@@ -138,6 +163,7 @@
   }
   function drawMedia(){
     mediaList.replaceChildren();
+    alertsLabel.textContent='Непросмотренные заявки: 0';
     leadsList.replaceChildren();leadsTitle.textContent='Заявки сайта';
     previewData.clear();loadingMedia.clear();
     const assets=editor.getSite().assets;
@@ -196,6 +222,7 @@
     $('new-site').disabled=state.busy||!state.authorized;
     $('import').disabled=state.busy||!state.authorized;
     leadsRefresh.disabled=state.busy||!state.authorized||!state.siteId;
+    acknowledge.disabled=state.busy||!state.authorized||!state.siteId||acknowledge.disabled;
     mediaUpload.disabled=!available||isDirty();
     $('reset').disabled=!available;
     const meta=state.sites.find(s=>s.site_id===state.siteId);
@@ -244,7 +271,7 @@
     const data=await api('/api/sites/'+encodeURIComponent(id));
     selectSite(data);
     picker.value=id;
-    await loadHistory();await loadSubmissions();
+    await loadHistory();await loadSubmissions();await refreshAlerts();
     notice('Сайт открыт из серверного хранилища. Публикация не выполнялась.');
   }
   async function save(){

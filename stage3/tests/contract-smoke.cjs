@@ -7,7 +7,7 @@ const {execFileSync}=require('node:child_process');
 const sdk=require('../sdk/contract.cjs');
 const root=path.resolve(__dirname,'..');
 const read=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8'));
-const manifests=['company-hero','feature-highlights','contact-panel','image-showcase','lead-form'].map(
+const manifests=['company-hero','feature-highlights','contact-panel','image-showcase','lead-form','lead-form-flex'].map(
   name=>read('components/'+name+'.json'));
 let checks=0;
 const test=(name,fn)=>{fn();checks++;};
@@ -272,6 +272,17 @@ test('lead form has typed text-only controls and unique stable slot IDs',()=>{
   assert.equal(preview.component,'lead-form');
   assert.equal(preview.elements.length,6);
   assert.equal(preview.notPublished,true);
+});
+test('configurable form adds three typed slots without changing legacy forms',()=>{
+  const m=manifests[5];assert.deepEqual(sdk.validateManifest(m),m);
+  const doc=structuredClone(initial),section=sdk.sectionFrom(m,'section-survey');
+  const field=section.elements.find(e=>e.slot==='extra-one');
+  field.values['behavior.kind']='select';
+  field.values['behavior.required']=true;
+  field.values['content.options']='Доставка\\nСамовывоз';
+  doc.pages[1].sections.push(section);
+  assert.equal(sdk.validateSite(doc,manifests).pages[1].sections.at(-1).component,'lead-form-flex');
+  assert.equal(manifests[4].id,'lead-form');
 });
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+

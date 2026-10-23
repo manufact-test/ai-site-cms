@@ -108,7 +108,7 @@
     ];
     const sectionActions=[
       ['section-add','+ Блок',()=>{
-        const component=prompt('Компонент блока: company-hero, feature-highlights, contact-panel, image-showcase, lead-form','feature-highlights');
+        const component=prompt('Компонент блока: company-hero, feature-highlights, contact-panel, image-showcase, lead-form, lead-form-flex','feature-highlights');
         if(component===null)return;
         const id=uniqueId('section');
         structural({action:'addSection',pageId,sectionId,id,component});
@@ -233,6 +233,17 @@
         '<div class="card"><label>'+e(p('name-label').content.text)+'</label><div class="media-placeholder">Поле имени</div>'+
         '<label>'+e(p('email-label').content.text)+'</label><div class="media-placeholder">Email</div>'+
         '<label>'+e(p('message-label').content.text)+'</label><div class="media-placeholder">Сообщение</div>'+
+        '<p>☐ '+e(p('consent-label').content.text)+'</p><span class="action">'+e(p('submit-label').content.text)+'</span></div></section>';
+    }else if(block.component==='lead-form-flex'){
+      const extra=['extra-one','extra-two','extra-three'].map(slot=>{
+        const v=p(slot),kind=v.behavior.kind;
+        return kind==='off'?'':'<label>'+e(v.content.text)+' '+(v.behavior.required?'*':'')+'</label>'+
+          '<div class="media-placeholder">'+e(kind==='select'?v.content.options.replaceAll('\\n',', '):kind)+'</div>';
+      }).join('');
+      content='<section class="contact"><h2>'+e(p('heading').content.text)+'</h2>'+
+        '<div class="card"><label>'+e(p('name-label').content.text)+'</label><div class="media-placeholder">Имя</div>'+
+        '<label>'+e(p('email-label').content.text)+'</label><div class="media-placeholder">Email</div>'+
+        '<label>'+e(p('message-label').content.text)+'</label><div class="media-placeholder">Сообщение</div>'+extra+
         '<p>☐ '+e(p('consent-label').content.text)+'</p><span class="action">'+e(p('submit-label').content.text)+'</span></div></section>';
     }else if(block.component==='contact-panel'){
       content='<section class="contact"><span class="kicker">НАЧНЁМ СОТРУДНИЧЕСТВО</span>'+

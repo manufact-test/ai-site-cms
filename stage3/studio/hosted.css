@@ -32,3 +32,5 @@
 .hosted-leads strong{font-size:12px}.hosted-leads-list{display:grid;gap:8px;max-height:300px;overflow-y:auto}
 .hosted-lead{display:grid;gap:4px;padding:9px;border:1px solid rgba(128,150,160,.25);border-radius:8px;overflow-wrap:anywhere}
 .hosted-lead small{font-size:10px;opacity:.7}.hosted-lead p{white-space:pre-wrap;font-size:12px;margin:0}
+
+.hosted-alerts{padding:10px 18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid rgba(128,150,160,.3)}.hosted-alerts strong{font-size:12px}.hosted-alerts button{font-size:10px}.hosted-lead .hosted-extra{font-size:11px;color:#9bd7cf}

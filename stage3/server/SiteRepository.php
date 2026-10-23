@@ -52,7 +52,8 @@ final class SiteRepository
             "CREATE TABLE stage3_publications (site_id $id PRIMARY KEY, version $number NOT NULL, source_revision $number NOT NULL, body $big NOT NULL, published_at VARCHAR(35) NOT NULL)$tail",
             "CREATE TABLE stage3_publication_history (site_id $id NOT NULL, version $number NOT NULL, source_revision $number NOT NULL, body $big NOT NULL, published_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, version))$tail",
             "CREATE TABLE stage3_media (site_id $id NOT NULL, asset_id $id NOT NULL, mime VARCHAR(32) NOT NULL, sha256 VARCHAR(64) NOT NULL, bytes " . ($this->driver === 'mysql' ? 'LONGBLOB' : 'BLOB') . ", created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, asset_id))$tail",
-            "CREATE TABLE stage3_submissions (submission_id $id PRIMARY KEY, site_id $id NOT NULL, section_id $id NOT NULL, source_version $number NOT NULL, name VARCHAR(160) NOT NULL, email VARCHAR(254) NOT NULL, message $big NOT NULL, submitted_at VARCHAR(35) NOT NULL, visitor_hash CHAR(64) NOT NULL, status VARCHAR(20) NOT NULL)$tail"
+            "CREATE TABLE stage3_submissions (submission_id $id PRIMARY KEY, site_id $id NOT NULL, section_id $id NOT NULL, source_version $number NOT NULL, name VARCHAR(160) NOT NULL, email VARCHAR(254) NOT NULL, message $big NOT NULL, submitted_at VARCHAR(35) NOT NULL, visitor_hash CHAR(64) NOT NULL, status VARCHAR(20) NOT NULL, extras $big NOT NULL)$tail",
+            "CREATE TABLE stage3_notifications (site_id $id NOT NULL, submission_id $id NOT NULL, created_at VARCHAR(35) NOT NULL, seen_at VARCHAR(35) NULL, PRIMARY KEY(site_id, submission_id))$tail"
         ];
         foreach ($schema as $sql) {
             $this->db->exec($sql);
@@ -220,6 +221,11 @@ final class SiteRepository
             }
             $site = $this->validator->validate($draft['site']);
             $this->assertStoredAssets($id, $site);
+            foreach ($site['pages'] as $page) {
+                foreach ($page['sections'] as $section) {
+                    FlexForm::definitions($section); // invalid select options cannot be published
+                }
+            }
             $body = self::encode($site);
             $stmt = $this->db->prepare('SELECT version FROM stage3_publications WHERE site_id = ?');
             $stmt->execute([$id]);
@@ -383,15 +389,16 @@ final class SiteRepository
             throw new \InvalidArgumentException('Unknown form');
         }
         $published = $this->publishedVersion($siteId, $release);
-        $form = false;
+        $form = null;
         foreach ($published['pages'] as $page) {
             foreach ($page['sections'] as $section) {
-                if ($section['id'] === $sectionId && $section['component'] === 'lead-form') {
-                    $form = true;
+                if ($section['id'] === $sectionId
+                    && in_array($section['component'], ['lead-form','lead-form-flex'], true)) {
+                    $form = $section;
                 }
             }
         }
-        if (!$form) {
+        if ($form === null) {
             throw new NotFound('Form is not in this published release');
         }
         $token = hash_hmac('sha256', $siteId . '|' . $sectionId . '|' . $release, $secret);
@@ -416,15 +423,17 @@ final class SiteRepository
             || !in_array($fields['consent'] ?? null, ['yes'], true)) {
             throw new \InvalidArgumentException('Missing required fields or consent');
         }
-        if (count($fields) !== 7 || array_diff(array_keys($fields),
-            ['name', 'email', 'message', 'consent', '_token', '_release', 'website'])) {
+        $extras = FlexForm::read($form, $fields);
+        $allowed = ['name', 'email', 'message', 'consent', '_token', '_release', 'website',
+            ...FlexForm::allowedNames($form)];
+        if (count($fields) !== count($allowed) || array_diff(array_keys($fields), $allowed)) {
             throw new \InvalidArgumentException('Unknown form fields');
         }
         if (($fields['_release'] ?? null) !== (string)$release) {
             throw new \InvalidArgumentException('Invalid release number');
         }
         $visitor = hash_hmac('sha256', $clientIp, $secret);
-        return $this->atomic(function () use ($siteId, $sectionId, $release, $values, $visitor): string {
+        return $this->atomic(function () use ($siteId, $sectionId, $release, $values, $extras, $visitor): string {
             // Hourly per-site limit. Hash protects raw visitor IP from storage.
             $since = gmdate('Y-m-d\TH:i:s\Z', time() - 3600);
             $check = $this->db->prepare('SELECT COUNT(*) FROM stage3_submissions WHERE site_id = ? AND visitor_hash = ? AND submitted_at >= ?');
@@ -433,9 +442,12 @@ final class SiteRepository
                 throw new Conflict('Submission limit reached');
             }
             $id = 'lead-' . bin2hex(random_bytes(12));
-            $stmt = $this->db->prepare('INSERT INTO stage3_submissions (submission_id, site_id, section_id, source_version, name, email, message, submitted_at, visitor_hash, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            $stmt = $this->db->prepare('INSERT INTO stage3_submissions (submission_id, site_id, section_id, source_version, name, email, message, submitted_at, visitor_hash, status, extras) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             $stmt->execute([$id, $siteId, $sectionId, $release,
-                $values['name'], $values['email'], $values['message'], $this->now(), $visitor, 'new']);
+                $values['name'], $values['email'], $values['message'], $this->now(), $visitor, 'new',
+                self::encode($extras)]);
+            $notify = $this->db->prepare('INSERT INTO stage3_notifications (site_id, submission_id, created_at, seen_at) VALUES (?, ?, ?, NULL)');
+            $notify->execute([$siteId, $id, $this->now()]);
             return $id;
         });
     }
@@ -444,9 +456,30 @@ final class SiteRepository
     public function submissions(string $siteId): array
     {
         $this->getDraft($siteId);
-        $stmt = $this->db->prepare('SELECT submission_id, section_id, source_version, name, email, message, submitted_at, status FROM stage3_submissions WHERE site_id = ? ORDER BY submitted_at DESC, submission_id DESC LIMIT 100');
+        $stmt = $this->db->prepare('SELECT submission_id, section_id, source_version, name, email, message, submitted_at, status, extras FROM stage3_submissions WHERE site_id = ? ORDER BY submitted_at DESC, submission_id DESC LIMIT 100');
         $stmt->execute([$siteId]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as &$row) {
+            $row['extras'] = self::decode($row['extras']);
+        }
+        return $rows;
+    }
+
+    /** Persist inbox notifications separately from review workflow; no external delivery. */
+    public function notificationSummary(string $siteId): array
+    {
+        $this->getDraft($siteId);
+        $stmt = $this->db->prepare('SELECT COUNT(*) FROM stage3_notifications WHERE site_id = ? AND seen_at IS NULL');
+        $stmt->execute([$siteId]);
+        return ['unread' => (int)$stmt->fetchColumn()];
+    }
+
+    public function markNotificationsSeen(string $siteId): array
+    {
+        $this->getDraft($siteId);
+        $stmt = $this->db->prepare('UPDATE stage3_notifications SET seen_at = ? WHERE site_id = ? AND seen_at IS NULL');
+        $stmt->execute([$this->now(), $siteId]);
+        return $this->notificationSummary($siteId);
     }
 
     public function reviewSubmission(string $siteId, string $submissionId): void
