@@ -127,6 +127,19 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.reload();
     await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
     assert.equal(await page.locator('[data-repeat-id]').count(),4);
+
+    // Searchable first-party component catalog, FAQ native semantic preview.
+    await page.locator('#section-catalog').click();
+    await page.locator('#cms-component-search').fill('FAQ');
+    assert.equal(await page.locator('#cms-component-list [data-component]').count(),1);
+    await page.locator('#cms-component-list [data-component="faq-accordion"]').click();
+    await page.locator('#sections .nav-entry').filter({hasText:'FAQ'}).click();
+    assert.equal(await page.locator('#elements [data-repeat-id]').count(),2);
+    await page.locator('#elements [data-repeat-id]').first().click();
+    await page.locator('#fields [data-field="content.question"]').fill('Как оформить заказ?');
+    await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
+    await canvas.locator('details summary').getByText('Как оформить заказ?').waitFor();
+    assert.equal(await page.locator('#cms-component-catalog').isVisible(),false);
     assert.deepEqual(errors,[],'No page JS errors or unsupported dependencies');
     assert.deepEqual(remote,[],'No outgoing network requests, even through iframe');
     console.log('STAGE3 REAL CHROMIUM STUDIO E2E PASS: typed edit, inert preview, responsive, undo/redo, saved versions, reload, export/import, no-design and fail-closed import');
