@@ -82,7 +82,11 @@ function compose(raw,manifests,{sourceSite=null,templates=[]}={}){
   const put=(s,slot,path,value)=>{const e=s.elements.find(x=>x.slot===slot);if(e&&Object.hasOwn(e.values,path))e.values[path]=cp(value);};
   const pages=recipe.pages.map(p=>{
     let pair=0;
-    return {id:p.id,path:p.path,title:p.title,sections:p.sections.map(spec=>{
+    const original=sourceSite?.pages.find(old=>old.path===p.path);
+    return {id:p.id,path:p.path,title:p.title,
+      ...(original?.seo?{seo:cp(original.seo)}:{}),
+      ...(original?.navigation?{navigation:cp(original.navigation)}:{}),
+      sections:p.sections.map(spec=>{
       if(!reg.has(spec.component))throw Error('Unregistered recipe component: '+spec.component);
       if(spec.templateId){
         if(!recipe.sourceSiteId)throw Error('Cross-site templates are not allowed');
