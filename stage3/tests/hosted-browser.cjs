@@ -43,7 +43,7 @@ async function execute(){
   await page.locator('#server-username').fill('testowner');
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
   await page.locator('#server-signin').click();
-  await page.locator('#server-login[hidden]').waitFor();
+  await page.locator('#server-login').waitFor({state:'hidden'});
   page.once('dialog',dialog=>dialog.accept('Промышленный каталог'));
   await page.locator('#new-site').click();
   await page.locator('#server-status').getByText(/Черновик #1/).waitFor();
