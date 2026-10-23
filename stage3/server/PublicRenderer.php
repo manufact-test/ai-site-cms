@@ -176,6 +176,7 @@ final class PublicRenderer
         }
         $body = '';
         foreach ($page['sections'] as $section) {
+            $beforeSkin = strlen($body);
             $id = self::h($section['id']);
             if ($section['component'] === 'company-hero') {
                 $values = self::element($section, 'heading');
@@ -306,6 +307,16 @@ final class PublicRenderer
                     . self::label($section, 'heading') . '</h2>'
                     . self::link($section, 'action', $mount) . '</section>';
             }
+            // Wrap only styled sections; unstyled/older sites keep their exact HTML.
+            // All class names are closed enums checked by the JS and PHP contracts.
+            if (isset($section['appearance'])) {
+                $skin = $section['appearance'];
+                $skinClass = 'cms-surface-' . $skin['surface'] . ' cms-spacing-' . $skin['spacing']
+                    . ' cms-align-' . $skin['align'];
+                $rendered = substr($body, $beforeSkin);
+                $body = substr($body, 0, $beforeSkin) . '<div class="cms-section-skin ' .
+                    $skinClass . '">' . $rendered . '</div>';
+            }
         }
         $publicOrigin = self::origin($publicOrigin);
         $seo = $page['seo'] ?? ['title'=>'','description'=>'','robots'=>'index'];
@@ -351,6 +362,7 @@ final class PublicRenderer
             . '.lead-form{display:grid;gap:16px;max-width:700px}.lead-form label{display:grid;gap:6px;font-weight:600}.lead-form input:not([type=checkbox]),.lead-form textarea,.lead-form select{padding:12px;border:1px solid #a5b3c4;border-radius:8px;font:inherit;width:100%}.lead-form button{border:0;cursor:pointer}.lead-consent{display:flex!important;flex-direction:row;align-items:flex-start}.lead-honey{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}'
             . '.repeat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:20px}.repeat-grid article,.repeat-grid .review,.repeat-grid figure{background:var(--cms-surface);border:1px solid #e1e8f1;padding:24px;margin:0;border-radius:12px}.repeat-grid h3{margin:0 0 12px}.repeat-grid .review blockquote{margin:0 0 16px;font-size:19px}.repeat-grid figcaption{font-size:14px;opacity:.75}.repeat-grid img{max-width:100%;height:auto;max-height:420px;object-fit:contain}.faq{max-width:850px}.faq details{border-bottom:1px solid #d0d8e2;padding:18px}.faq summary{cursor:pointer;font-weight:700}.service-link{display:inline-flex;padding-top:14px}'
             . '.story-layout{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center}.story-copy p{max-width:65ch}.story-photo{display:block;width:100%;max-height:620px;object-fit:contain;border-radius:16px}.partner-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:16px}.partner-logo{border:1px solid #e1e8f1;border-radius:12px;display:grid;justify-items:center;gap:8px;text-align:center;padding:18px;background:var(--cms-surface);text-decoration:none}.partner-logo img{max-width:100%;width:auto;height:80px;object-fit:contain}.partner-logo span{font-weight:700;font-size:14px}'
+            . '.cms-surface-paper>section{background:var(--cms-surface)}.cms-surface-tint>section{background:#ecf4fc}.cms-surface-dark>section{background:#112536;color:#f5f9fe}.cms-surface-dark>section a:not(.action){color:#cdefff}.cms-spacing-tight>section{padding-top:25px;padding-bottom:25px}.cms-spacing-airy>section{padding-top:110px;padding-bottom:110px}.cms-align-center>section{text-align:center}.cms-align-center>section>p{margin-left:auto;margin-right:auto}'
             . '@media(max-width:900px){h1{font-size:var(--title-tablet)}}'
             . '@media(max-width:600px){section{padding:40px 8px}.hero{padding-block:48px}.feature-grid{grid-template-columns:1fr}.story-layout{grid-template-columns:1fr}h1{font-size:var(--title-mobile)}}'
             . '</style></head><body><header><nav aria-label="Навигация">' . $navigation
