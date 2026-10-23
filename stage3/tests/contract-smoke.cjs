@@ -109,6 +109,44 @@ test('URL changes keep permanent aliases, diagnostics find bad links and Undo ke
   escaping.redirects.push({from:'/something/',to:'/support/?malicious'});
   refuses(()=>sdk.validateSite(escaping,manifests),'No query/HTML injection in redirects');
 });
+
+test('media library: alt, global replacement, protected detach, undo and rich media manifests',()=>{
+  const D=require('../sdk/draft.cjs');
+  const site=same(initial);
+  const first={id:'asset-factory-old',src:'/assets/asset-factory-old.png',mime:'image/png',alt:'Старый кадр'};
+  const next={id:'asset-factory-new',src:'/assets/asset-factory-new.png',mime:'image/png',alt:'Новый кадр'};
+  site.assets=[first,next];
+  const m=key=>manifests.find(x=>x.id===key);
+  const story=sdk.sectionFrom(m('media-story'),'section-rich-story');
+  const logos=sdk.sectionFrom(m('partner-logos'),'section-rich-logos');
+  const photos=sdk.sectionFrom(m('photo-gallery'),'section-rich-gallery');
+  story.elements.find(x=>x.slot==='photo').values['content.media']=first.id;
+  logos.items[0].values['content.media']=first.id;
+  photos.items[0].values['content.media']=first.id;
+  site.pages[0].sections.push(story,logos,photos);
+  assert.equal(sdk.validateSite(site,manifests).pages[0].sections.length,5);
+  let d=D.begin(site,manifests);
+  const step=cmd=>d=D.structure(d,manifests,{...cmd,expectedRevision:d.revision});
+  refuses(()=>step({action:'removeAsset',assetId:first.id}),'Cannot detach used image');
+  refuses(()=>step({action:'replaceAsset',assetId:first.id,targetId:'asset-foreign'}),
+    'Only media from this site can be used as a replacement');
+  step({action:'renameAsset',assetId:first.id,alt:'Готовый станок в цеху'});
+  assert.ok(D.changes(d,manifests).some(x=>x.kind==='media-library-updated'));
+  assert.equal(D.undo(d,manifests).current.assets[0].alt,'Старый кадр');
+  step({action:'replaceAsset',assetId:first.id,targetId:next.id});
+  for(const block of d.current.pages[0].sections.slice(-3))
+    for(const item of [...block.elements,...(block.items||[])])
+      assert.notEqual(item.values['content.media'],first.id,'All references re-bound including repeaters');
+  step({action:'removeAsset',assetId:first.id});
+  assert.equal(d.current.assets.length,1);
+  assert.equal(d.current.assets[0].id,next.id);
+  assert.equal(D.undo(d,manifests).current.assets.length,2);
+  refuses(()=>step({action:'renameAsset',assetId:next.id,alt:'A\nB'}),'Unsafe control text rejected');
+  const bad=same(d.current);bad.assets[0].alt='Bad\u0000alt';
+  refuses(()=>sdk.validateSite(bad,manifests),'No control characters in image descriptions');
+  const invalid=same(site);invalid.pages[0].sections.at(-1).items[0].values['content.media']='asset-another-site';
+  refuses(()=>sdk.validateSite(invalid,manifests),'No foreign image references in partner logos');
+});
 test('locked fixture is valid',()=>{
   const actual=sdk.validateSite(initial,reg);
   assert.equal(actual.pages.length,2);
