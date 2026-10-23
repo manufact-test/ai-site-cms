@@ -371,6 +371,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
 // provider credentials, form submission, deployment or auto-publishing.
 (()=>{
   const C=CONTRACT,D=DRAFT,manifests=MANIFESTS,starter=FIXTURE;
+  const HOSTED=document.documentElement.dataset.stage3Mode==='server';
   const $=id=>document.getElementById(id),cp=x=>structuredClone(x);
   const STORAGE='manufact-ai-site-stage3-local-revisions-v1';
   const MAX_VERSIONS=12,MAX_UPLOAD=900000;
@@ -398,10 +399,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   function drawHeader(){
     const dirty=JSON.stringify(session.current)!==savedBytes;
     $('site-name').textContent=session.current.title;
-    $('dirty').textContent=dirty?'Есть несохранённые изменения':'Черновик сохранён локально';
+    $('dirty').textContent=dirty?'Есть несохранённые изменения':(HOSTED?'Черновик сохранён на сервере':'Черновик сохранён локально');
     $('dirty').classList.toggle('dirty',dirty);
     $('undo').disabled=!session.undo.length;$('redo').disabled=!session.redo.length;
     $('changes-count').textContent=changeCounts()+' изменённых полей';
+    if(HOSTED)window.Stage3Host?.onDraw?.();
   }
   function button(text,cls,onClick){
     const n=document.createElement('button');n.type='button';
@@ -527,6 +529,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     $('preview').srcdoc=screen(block);
   }
   function drawVersions(){
+    if(HOSTED)return window.Stage3Host?.drawVersions?.();
     const box=$('versions');box.replaceChildren();
     if(!versions.length){const p=document.createElement('p');p.className='subdued';
       p.textContent='Пока нет сохранений. Начните с кнопки «Сохранить черновик».';box.append(p);return;}
@@ -547,6 +550,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   function draw(){current();drawHeader();drawTree();drawElements();drawFields();drawPreview();drawVersions();
     document.querySelectorAll('.device').forEach(b=>b.classList.toggle('active',b.dataset.bp===breakpoint));}
   function save(){
+    if(HOSTED)return window.Stage3Host?.save?.();
     try{
       C.validateSite(session.current,manifests);
       const site=cp(session.current);
@@ -557,6 +561,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     }catch(e){notice('Не удалось сохранить: '+e.message,true);}
   }
   function load(){
+    if(HOSTED)return;
     try{
       const raw=localStorage.getItem(STORAGE);
       if(!raw)return;
@@ -585,6 +590,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     if(!file||file.size>MAX_UPLOAD)return notice('JSON-файл слишком большой (максимум 900 КБ)',true);
     try{
       const text=await file.text(),site=C.validateSite(JSON.parse(text),manifests);
+      if(HOSTED)return window.Stage3Host?.importSite?.(site);
       if(!confirm('Открыть импортированный сайт? Несохранённые изменения будут потеряны, текущие сохранения останутся до следующего «Сохранить».'))return;
       session=D.begin(site,manifests);versions=[];
       pageId=site.pages[0].id;sectionId=site.pages[0].sections[0].id;
@@ -602,6 +608,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   $('import').addEventListener('click',()=>$('import-file').click());
   $('import-file').addEventListener('change',async e=>{const file=e.target.files?.[0];e.target.value='';await importJson(file);});
   $('new-site').addEventListener('click',()=>{
+    if(HOSTED)return window.Stage3Host?.newSite?.();
     if(!confirm('Открыть новый пример сайта без готового макета? Несохранённые изменения не сохранятся.'))return;
     const site=C.siteFromBrief({siteId:'site-no-mockup',title:'Сайт без макета'},manifests);
     session=D.begin(site,manifests);versions=[];
@@ -609,6 +616,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     savedBytes='';draw();notice('Создан сайт без дизайн-ТЗ: все поля описаны в манифестах.');
   });
   $('reset').addEventListener('click',()=>{
+    if(HOSTED)return window.Stage3Host?.reload?.();
     if(!confirm('Удалить ВСЕ локальные сохранения Stage 3 и восстановить исходный пример?'))return;
     try{localStorage.removeItem(STORAGE);versions=[];session=D.begin(starter,manifests);
       savedBytes=JSON.stringify(session.current);pageId=session.current.pages[0].id;
@@ -621,6 +629,18 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     drawFields();drawPreview();
     document.querySelectorAll('.device').forEach(n=>n.classList.toggle('active',n===b));
   }));
+  if(HOSTED)window.Stage3Editor=Object.freeze({
+    getSite:()=>cp(session.current),
+    isDirty:()=>JSON.stringify(session.current)!==savedBytes,
+    replace:site=>{
+      const checked=C.validateSite(site,manifests);
+      session=D.begin(checked,manifests);versions=[];
+      pageId=checked.pages[0].id;sectionId=checked.pages[0].sections[0].id;
+      elementId=checked.pages[0].sections[0].elements[0].id;
+      savedBytes=JSON.stringify(checked);draw();
+    },
+    fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
+  });
   load();draw();
 })();
 })();

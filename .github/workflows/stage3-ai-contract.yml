@@ -49,6 +49,8 @@ jobs:
         run: |
           for file in stage3/server/*.php stage3/server/public/*.php stage3/server/bin/*.php; do php -l "$file"; done
           node stage3/tests/server-e2e.cjs
+          node --check stage3/studio/hosted.js
+          node stage3/tests/hosted-browser.cjs
       - name: Package click-to-open offline editor (no secrets or server code)
         run: |
           mkdir -p stage3/studio/out

@@ -84,8 +84,21 @@ final class SiteRepository
 
     public function listSites(): array
     {
-        return $this->db->query('SELECT site_id, revision, updated_at FROM stage3_drafts ORDER BY site_id')
-            ->fetchAll(PDO::FETCH_ASSOC);
+        $records = $this->db->query(
+            'SELECT d.site_id, d.revision, d.updated_at, d.body, p.version AS published_version
+             FROM stage3_drafts d LEFT JOIN stage3_publications p ON p.site_id = d.site_id
+             ORDER BY d.site_id'
+        )->fetchAll(PDO::FETCH_ASSOC);
+        return array_map(static function (array $row): array {
+            $doc = json_decode((string)$row['body'], true, 512, JSON_THROW_ON_ERROR);
+            return [
+                'site_id' => $row['site_id'],
+                'title' => $doc['title'],
+                'revision' => (int)$row['revision'],
+                'updated_at' => $row['updated_at'],
+                'published_version' => $row['published_version'] === null ? null : (int)$row['published_version']
+            ];
+        }, $records);
     }
 
     private function now(): string

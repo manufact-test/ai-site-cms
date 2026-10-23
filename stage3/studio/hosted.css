@@ -1,0 +1,19 @@
+/* Isolated server-backed controls; offline ZIP remains unchanged. */
+.hosted-actions{display:grid;gap:10px;padding:18px;border-bottom:1px solid rgba(128,150,160,.2)}
+.hosted-actions .control{width:100%;max-width:100%;min-width:0}
+.hosted-label{font-size:11px;letter-spacing:.08em;font-weight:750}
+.hosted-buttons{display:flex;flex-wrap:wrap;gap:7px}
+.hosted-status{font-size:12px;line-height:1.5;opacity:.8}
+.hosted-public-link{color:#60dcae;font-size:12px;font-weight:700;overflow-wrap:anywhere}
+.top-actions #server-publish{margin-left:8px}
+.server-locked{filter:blur(5px);pointer-events:none;user-select:none}
+.hosted-gate{position:fixed;inset:0;display:grid;place-items:center;background:rgba(9,17,26,.95);z-index:1000;padding:20px}
+.hosted-gate[hidden],.hosted-public-link[hidden]{display:none!important}
+.hosted-login{width:min(100%,410px);padding:30px;border-radius:16px;background:#162833;color:#f4fafc;display:grid;gap:12px;border:1px solid #37505e;box-shadow:0 20px 90px #0007}
+.hosted-login h2{margin:0;font-size:24px}
+.hosted-login p{margin:0;color:#bdcbd3;font-size:13px}
+.hosted-login label{font-size:13px;font-weight:700}
+.hosted-login .control{padding:11px;font-size:16px}
+.hosted-login-message{min-height:18px;color:#ff9999!important}
+.workspace[hidden]{display:none!important}
+@media(max-width:750px){.top-actions{flex-wrap:wrap}.hosted-actions{padding:12px}}

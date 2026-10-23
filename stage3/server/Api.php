@@ -92,6 +92,43 @@ final class Api
         $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
         $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
         $path = is_string($uri) ? $uri : '/';
+
+        // Authorised, isolated server-backed Studio shares the verified offline
+        // first-party editor bundle. Never exposes PHP sources or local DB files.
+        if ($method === 'GET' && $path === '/studio') {
+            $html = file_get_contents(__DIR__ . '/../studio/index.html');
+            if ($html === false) {
+                self::response(503, ['error' => 'Studio unavailable']);
+            }
+            $html = str_replace('<html lang="ru">',
+                '<html lang="ru" data-stage3-mode="server">', $html);
+            // Offline index is connect-src none. Relax only SAME-ORIGIN in hosted mode.
+            $html = str_replace("connect-src 'none'", "connect-src 'self'", $html);
+            $html = str_replace('</head>',
+                '<link rel="stylesheet" href="/hosted.css">' .
+                '<script src="/hosted.js" defer></script></head>', $html);
+            header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+            header('Content-Type: text/html; charset=utf-8');
+            echo $html;
+            exit;
+        }
+        $assets = [
+            '/studio.css' => ['studio.css', 'text/css; charset=utf-8'],
+            '/bundle.js' => ['bundle.js', 'text/javascript; charset=utf-8'],
+            '/hosted.js' => ['hosted.js', 'text/javascript; charset=utf-8'],
+            '/hosted.css' => ['hosted.css', 'text/css; charset=utf-8']
+        ];
+        if ($method === 'GET' && isset($assets[$path])) {
+            [$file, $type] = $assets[$path];
+            $data = file_get_contents(__DIR__ . '/../studio/' . $file);
+            if ($data === false) {
+                self::response(503, ['error' => 'Studio asset unavailable']);
+            }
+            header('Content-Type: ' . $type);
+            header("Content-Security-Policy: default-src 'none'");
+            echo $data;
+            exit;
+        }
         if (preg_match('~^/published/([a-z][a-z0-9-]{2,79})(/.*)$~D', $path, $match) && $method === 'GET') {
             try {
                 $published = $this->sites->published($match[1]);
