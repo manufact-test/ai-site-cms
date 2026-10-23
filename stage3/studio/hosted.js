@@ -224,7 +224,7 @@
   }
   function editLibraryAsset(command){
     if(!canEdit())throw Error('Изменение медиабиблиотеки запрещено этой роли или при паузе');
-    if(!state.siteId||state.busy)throw Error('Сначала откройте сайт');
+    if(!state.siteId)throw Error('Сначала откройте сайт');
     editor.assetAction(command);drawMedia();drawStatus();
     notice('Медиабиблиотека изменена в черновике. Сохраните и опубликуйте отдельно.');
   }
