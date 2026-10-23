@@ -214,23 +214,71 @@
       .finally(()=>loadingMedia.delete(key));
     return null;
   }
+  function mediaUses(site,assetId){
+    const locations=[];
+    for(const page of site.pages)for(const section of page.sections)
+      for(const field of [...section.elements,...(section.items||[])])
+        if(field.values['content.media']===assetId)
+          locations.push(page.title+' · '+section.component);
+    return locations;
+  }
+  function editLibraryAsset(command){
+    if(!canEdit())throw Error('Изменение медиабиблиотеки запрещено этой роли или при паузе');
+    if(!state.siteId||state.busy)throw Error('Сначала откройте сайт');
+    editor.assetAction(command);drawMedia();drawStatus();
+    notice('Медиабиблиотека изменена в черновике. Сохраните и опубликуйте отдельно.');
+  }
   function drawMedia(){
     mediaList.replaceChildren();
-    alertsLabel.textContent='Непросмотренные заявки: 0';
-    leadsList.replaceChildren();leadsTitle.textContent='Заявки сайта';
-    previewData.clear();loadingMedia.clear();
+    // Media controls must not clear leads, alerts, or unrelated workflow state.
     const assets=editor.getSite().assets;
     if(!state.siteId||!assets.length){
       mediaList.append(element('small',null,'Изображений пока нет.'));return;
     }
-    for(const asset of assets){
-      const row=element('div','hosted-media-item');
-      const photo=element('img');photo.src='/api/sites/'+encodeURIComponent(state.siteId)+'/media/'+encodeURIComponent(asset.id);
-      photo.alt=asset.alt;photo.loading='lazy';photo.width=65;photo.height=55;
-      const desc=element('div');desc.append(element('strong',null,asset.alt||'Без описания'));
-      desc.append(element('small',null,asset.id));
-      row.append(photo,desc);mediaList.append(row);
-    }
+    const site=editor.getSite();
+    const search=element('input','control');search.type='search';search.id='server-media-search';
+    search.placeholder='Найти изображение или описание';search.setAttribute('aria-label','Поиск в медиабиблиотеке');
+    const entries=element('div','hosted-media-entries');entries.id='server-media-entries';
+    mediaList.append(search,entries);
+    const render=()=>{
+      entries.replaceChildren();
+      const query=search.value.toLocaleLowerCase().trim();
+      for(const asset of assets.filter(a=>(a.id+' '+a.alt).toLocaleLowerCase().includes(query))){
+        const row=element('div','hosted-media-item');
+        row.dataset.assetId=asset.id;
+        const photo=element('img');photo.src='/api/sites/'+encodeURIComponent(state.siteId)+'/media/'+encodeURIComponent(asset.id);
+        photo.alt=asset.alt;photo.loading='lazy';photo.width=65;photo.height=55;
+        const uses=mediaUses(site,asset.id);
+        const desc=element('div','hosted-media-description');
+        desc.append(element('strong',null,asset.alt||'Декоративное изображение (alt пустой)'));
+        desc.append(element('small',null,uses.length+' привязок · '+asset.mime));
+        const actions=element('div','hosted-media-actions');
+        const rename=action('Изменить alt','',()=>safe(async()=>{
+          const alt=prompt('Описание изображения для доступности и SEO',asset.alt);
+          if(alt===null)return;
+          editLibraryAsset({action:'renameAsset',assetId:asset.id,alt});
+        }));
+        rename.dataset.mediaAction='rename';
+        const replace=action('Заменить в блоках','',()=>safe(async()=>{
+          if(!uses.length)throw Error('Изображение не используется — замена не требуется');
+          const replacement=prompt('Укажите ID другого изображения из этой медиабиблиотеки:\n'+
+            assets.filter(a=>a.id!==asset.id).map(a=>a.id+' · '+a.alt).join('\n'),'');
+          if(replacement===null)return;
+          editLibraryAsset({action:'replaceAsset',assetId:asset.id,targetId:replacement.trim()});
+        }));
+        replace.dataset.mediaAction='replace';
+        const detach=action('Убрать из библиотеки','',()=>safe(async()=>{
+          if(!confirm('Исключить изображение из текущего черновика? Старые опубликованные версии и копии останутся доступными.'))return;
+          editLibraryAsset({action:'removeAsset',assetId:asset.id});
+        }));
+        detach.dataset.mediaAction='detach';
+        rename.disabled=replace.disabled=detach.disabled=!canEdit();
+        actions.append(rename,replace,detach);desc.append(actions);
+        row.append(photo,desc);entries.append(row);
+      }
+      if(!entries.children.length)entries.append(element('small',null,'По запросу изображения не найдены.'));
+    };
+    search.addEventListener('input',render);render();
   }
   // Private full-content recovery. The archive contains contact data; it never
   // contains accounts, credentials or configuration and is never sent off-origin.
@@ -416,6 +464,7 @@
     document.querySelector('.inspector').hidden=!visible;
   }
   function selectSite(result){
+    if(state.siteId!==result.site.siteId){previewData.clear();loadingMedia.clear();}
     state.siteId=result.site.siteId;
     editor.replace(result.site);
     state.revision=Number(result.revision);
