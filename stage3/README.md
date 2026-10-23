@@ -43,3 +43,11 @@ A manifest version must increase numerically. The updater proposes an **immutabl
 ## Next large vertical after this foundation
 
 Build a structured block renderer/editor adapter consuming only `controls()` and site manifests, followed by site content persistence, explicit save / publish separation and revision history on independently approved infrastructure. Keep Stage 2 gates #5–#9 separate.
+
+
+## Local editor draft API (same isolated Stage 3 branch)
+
+`stage3/sdk/draft.cjs` adds a real, provider-neutral **manual editor data path**:
+`begin(site, manifests)` → `edit(session, manifests, {pageId,sectionId,elementId,path,value,breakpoint,expectedRevision})` → `blockPreview(session, manifests, pageId,sectionId,breakpoint)` → `changes()` / `undo()` / `redo()`.
+
+Every field edit is checked against the verified component manifest and the **whole resulting document** before it can change the current local draft. The optimistic `expectedRevision` check refuses stale writes, unlimited undo snapshots are not allowed (max 30), and only the selected section is returned to the neutral preview adapter. Desktop/tablet/mobile values inherit as specified. This returns **data**, never active HTML/JavaScript, and does not save or publish anything. A later CMS host adapter must add authentication, persistence, locks, revision storage, escaping and an independently verified rendering boundary.

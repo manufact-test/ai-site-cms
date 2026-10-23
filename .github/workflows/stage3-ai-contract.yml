@@ -26,6 +26,7 @@ jobs:
       - name: Syntax and single offline contract end-to-end
         run: |
           node --check stage3/sdk/contract.cjs
+          node --check stage3/sdk/draft.cjs
           node --check stage3/bin/ai-site.cjs
           node --check stage3/tests/contract-smoke.cjs
           node stage3/tests/contract-smoke.cjs

@@ -167,6 +167,52 @@ test('schema artifacts parse and match versioned entry formats',()=>{
   assert.equal(schema['$schema'],manifest['$schema']);
   assert.equal(schema.properties.pages.minItems,1);
 });
+
+const draft=require('../sdk/draft.cjs');
+test('typed manual edit -> isolated block preview -> undo -> redo',()=>{
+  const before=JSON.stringify(initial);
+  const started=draft.begin(initial,manifests);
+  const selected={pageId:'page-home',sectionId:'section-hero',elementId:'section-hero-heading',
+    path:'content.text',value:'Владелец изменил текст',expectedRevision:started.revision};
+  const modified=draft.edit(started,manifests,selected);
+  assert.equal(modified.revision,1);
+  assert.equal(modified.undo.length,1);
+  const block=draft.blockPreview(modified,manifests,'page-home','section-hero','mobile');
+  assert.equal(block.elements.length,3,'Only one selected section rendered as inert data');
+  assert.equal(block.notPublished,true);
+  assert.equal(block.hasExecutableHtml,false);
+  assert.equal(block.elements[0].props.content.text,'Владелец изменил текст');
+  assert.equal(block.elements[0].props.style.fontSize,'32px','Mobile inherits its own override');
+  assert.equal(draft.changes(modified,manifests).length,1);
+  refuses(()=>draft.edit(modified,manifests,selected),'Stale revision refused');
+  const reversed=draft.undo(modified,manifests);
+  assert.equal(reversed.current.pages[0].sections[0].elements[0].values['content.text'],
+    'Производим технологическое оборудование');
+  assert.equal(draft.changes(reversed,manifests).length,0);
+  const restored=draft.redo(reversed,manifests);
+  assert.equal(draft.changes(restored,manifests)[0].current,'Владелец изменил текст');
+  assert.equal(JSON.stringify(initial),before,'Draft workflow never mutates input site');
+});
+test('responsive patch and typed control limitations',()=>{
+  const initialDraft=draft.begin(initial,manifests);
+  const shared={pageId:'page-home',sectionId:'section-hero',elementId:'section-hero-heading',
+    expectedRevision:0};
+  const edited=draft.edit(initialDraft,manifests,{...shared,path:'style.fontSize',
+    value:'39px',breakpoint:'mobile'});
+  assert.equal(draft.blockPreview(edited,manifests,'page-home','section-hero','mobile')
+    .elements[0].props.style.fontSize,'39px');
+  assert.equal(draft.blockPreview(edited,manifests,'page-home','section-hero','tablet')
+    .elements[0].props.style.fontSize,'48px');
+  refuses(()=>draft.edit(initialDraft,manifests,{...shared,path:'style.borderColor',value:'#fff'}),
+    'Invisible, non-manifest CSS property unavailable');
+  refuses(()=>draft.edit(initialDraft,manifests,{...shared,path:'content.text',value:'Text',
+    breakpoint:'mobile'}),'Nonresponsive text refuses breakpoint');
+  refuses(()=>draft.edit(initialDraft,manifests,{...shared,path:'style.fontSize',
+    value:'9000px',breakpoint:'desktop'}),'Out-of-bound unit refused');
+  refuses(()=>draft.edit(initialDraft,manifests,{...shared,path:'style.color',
+    value:'url(javascript:alert(1))'}),'Disallowed color refused');
+});
+
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');
