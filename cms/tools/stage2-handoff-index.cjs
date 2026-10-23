@@ -176,8 +176,10 @@ function html(s,index){
   +'<p>See '+WORKSHEET+' for eight specific manual approval/permission items. Real Hostinger checks are prohibited until separately authorized. Public visitor sites remain independent.</p>'
   +'</main></html>\n';
 }
-function dataOf(s,worksheetBytes){
- const shaSource=process.env.GITHUB_SHA||null;
+function dataOf(s,worksheetBytes,sourceOverride){
+ // Re-verifying a downloaded owner bundle outside Actions must reproduce the
+ // ORIGINAL source metadata instead of substituting the verifier's context.
+ const shaSource=sourceOverride===undefined?(process.env.GITHUB_SHA||null):sourceOverride;
  assert(shaSource===null||/^[a-f0-9]{40}$/.test(shaSource),'invalid_ci_sha');
  const files={};
  for(const [name,value] of Object.entries(s.files))
@@ -225,7 +227,7 @@ function verify(){
  privateDir();
  const s=snapshot(),ws=Buffer.from(worksheet(s));
  const index=JSON.parse(read(INDEX,32768));
- const generated=dataOf(s,ws);
+ const generated=dataOf(s,ws,index.sourceCommitSha);
  // Source SHA is provenance metadata; not a signature nor a trusted key.
  const normalized={...index,sourceCommitSha:generated.sourceCommitSha};
  assert(json(normalized)===json(generated),'stale_or_unauthorized_handoff_index');
