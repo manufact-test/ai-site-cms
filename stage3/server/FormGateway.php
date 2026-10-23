@@ -47,7 +47,12 @@ final class FormGateway
             $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $ours = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '');
             $allow = array_filter(array_map('trim', explode(',', (string)(getenv('STAGE3_FORM_ORIGINS') ?: ''))));
-            if (!is_string($origin) || ($origin !== $ours && !in_array($origin, $allow, true))) {
+            // Modern browsers can omit Origin for top-level form navigation.
+            // Fetch Metadata's same-origin signal is browser-controlled and
+            // distinguishes those navigations from foreign-origin posts.
+            $sameOriginNavigation = ($_SERVER['HTTP_SEC_FETCH_SITE'] ?? '') === 'same-origin';
+            if (!$sameOriginNavigation
+                && (!is_string($origin) || ($origin !== $ours && !in_array($origin, $allow, true)))) {
                 throw new InvalidArgumentException('Origin not allowed');
             }
             if (!str_starts_with(strtolower((string)($_SERVER['CONTENT_TYPE'] ?? '')), 'application/x-www-form-urlencoded')) {
