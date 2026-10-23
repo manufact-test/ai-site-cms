@@ -46,3 +46,15 @@
 .cms-component-choice small{opacity:.7;font-size:11px}
 .cms-component-footer{display:flex;justify-content:flex-end}
 @media(max-width:570px){#cms-component-list{grid-template-columns:1fr}}
+
+.cms-quality-dialog{width:min(740px,calc(100% - 24px));max-height:90vh;overflow:auto;border:1px solid #37505e;border-radius:12px;padding:24px;background:#162833;color:#f4fafc}
+.cms-quality-dialog::backdrop{background:#09111ae6}
+.cms-quality-dialog h2{margin:0 0 9px}.cms-quality-dialog h3{font-size:16px;margin:16px 0 8px}
+#cms-quality-findings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#cms-quality-findings>section{padding:12px;background:#1b3848;border:1px solid #37505e;border-radius:8px;max-height:230px;overflow:auto}
+.cms-quality-finding{font-size:12px;overflow-wrap:anywhere;border-top:1px solid #37505e;padding:8px 0;margin:5px 0}
+.cms-redirect-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:center;margin:10px 0}
+.cms-redirect-entry{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #37505e}
+.cms-redirect-entry code{overflow-wrap:anywhere}
+.cms-quality-dialog>small{display:block;opacity:.8;margin:14px 0;line-height:1.5}
+@media(max-width:570px){#cms-quality-findings{grid-template-columns:1fr}.cms-redirect-form{grid-template-columns:1fr}}
