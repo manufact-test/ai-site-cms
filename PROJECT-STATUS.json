@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-23",
-  "status": "stage2-in-progress-not-accepted-v1.55-accelerated-owner-action-center",
+  "status": "stage2-no-go-stage3-authorized-isolated-code-v1.56-accelerated",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,35 +10,45 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.55-2026-10-23.md",
-  "latest_source_sha": "3e4452845e3ca169d0a3593c381c7c1347667d6d",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39921738553",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.56-2026-10-23.md",
+  "latest_source_sha": "4d7dc06ced179bb50f4020e249e8c1303d3a4479",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843",
   "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39921738856",
   "source_offweb_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39922188174",
-  "source_ci_result": "Editor SUCCESS; PHP 8/8 SUCCESS; offweb package SUCCESS",
+  "source_ci_result": "Stage3 isolated contract + genuine Chromium Editor Studio E2E + standalone ZIP SUCCESS",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly, then fix issues from real use; never get stuck testing existing lab",
-    "one_continue": "one large finished end-to-end feature group",
+    "one_continue": "one large finished end-to-end product feature group (3–6 meaningful parts); do not spend loops on micro-fixes",
     "checks": "one critical browser E2E and existing aggregate CI; security gates unchanged",
-    "documentation": "only when owner expressly requests chat handoff",
+    "documentation": "update canonical docs once upon owner asking to move chats; this is that update",
     "current_stage": 2,
     "total_stages": 18,
     "stage2_technical_estimate_percent": "85-90",
     "stage2_technical_remaining_percent": "10-15 plus independent human and host gates",
     "stage2_formally_accepted": false,
-    "stage3_started": false,
+    "stage3_started": true,
     "mandatory_product_requirements_accepted": 0,
-    "manual_gates": [5, 6, 7, 8, 9]
+    "manual_gates": [
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "stage3_formally_accepted": false,
+    "stage3_code_branch": "feature/stage3-ai-site-contract",
+    "stage3_code_sha": "4d7dc06ced179bb50f4020e249e8c1303d3a4479",
+    "stage3_scope": "isolated offline code only; NO main merge, no real Hostinger/SSH/DB/write/outage/deploy"
   },
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Accelerated program: read handoffs/lead-integrator/MAIN-HANDOFF-v1.55-2026-10-23.md, docs/NEXT-CHAT.md section 60 and docs/STAGE-2-ACCELERATED-EXIT-BOARD.md. Real Stage2 external gates issues 5-9 remain OPEN; Stage2 NO-GO, Stage3 NOT STARTED, 0/135. One major completed product flow per continue; one essential E2E and existing CI, no endless Stage2 lab. Exact CODE SOURCE 3e4452845e3ca169d0a3593c381c7c1347667d6d; Editor 39921738553 SUCCESS, PHP 39921738856 SUCCESS, offweb 39922188174 SUCCESS. No Hostinger operations without fresh scoped owner authorization.",
+  "next_step": "ACCELERATED PROGRAM: CODE Stage3 already started with explicit owner authorization on feature/stage3-ai-site-contract at 4d7dc06ced179bb50f4020e249e8c1303d3a4479; CI https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843 SUCCESS and click-to-open local Editor Studio ZIP https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843/artifacts/12498631776. Continue large integrated block toward actual server CMS/storage/auth/editor/publisher in disposable CI only; no extra chat split yet. Stage2 formal NO-GO issues #5–#9, main 12e9c3feb707e5ad46b2caeeed379eb40618466b unchanged; Stage3 not accepted; product requirements 0/135 formally accepted. No real host, production, SSH, DB, trust keys without fresh scoped authorization.",
   "project_name": "AI Site CMS",
-  "branch": "main",
+  "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.55",
+  "checkpoint_version": "1.56",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -1372,5 +1382,40 @@
       8,
       9
     ]
+  },
+  "main_branch": "main",
+  "main_last_verified_sha": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
+  "stage3_source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843",
+  "stage3_studio_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843/artifacts/12498631776",
+  "stage3_screens_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843/artifacts/12498621640",
+  "stage3_parallel": {
+    "state": "code-in-progress-isolated-not-formally-accepted",
+    "started_at": "2026-10-23",
+    "branch": "feature/stage3-ai-site-contract",
+    "source_sha": "4d7dc06ced179bb50f4020e249e8c1303d3a4479",
+    "ci_url": "https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843",
+    "ci_result": "SUCCESS",
+    "owner_scope": "autonomous isolated branch code only; host/DB/production operations still need separate scoped permission",
+    "implementation": [
+      "versioned provider-agnostic manifest and strict site schema",
+      "stable IDs and typed field generation",
+      "responsive settings with fallback and exact editable properties",
+      "schema migration with manual edit conflict preservation",
+      "immutable draft edits with revision checks and undo/redo",
+      "standalone three-pane browser Studio with real iframe preview",
+      "explicit local save and 12 revision snapshots",
+      "JSON import/export and no-design site scaffold",
+      "CSP script/network blocked; Chromium E2E SUCCESS"
+    ],
+    "missing": [
+      "production CMS/auth/API/MySQL",
+      "server persistence and real publish independent of CMS",
+      "actual AI provider adapter and general renderer",
+      "production release acceptance"
+    ],
+    "test_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843",
+    "studio_download": "https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843/artifacts/12498631776",
+    "screens": "https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843/artifacts/12498621640",
+    "formally_accepted": false
   }
 }

@@ -1,3 +1,7 @@
+> **ПЕРЕДАЧА v1.56 — 23.10.2026 / УСКОРЕННАЯ ПРОГРАММА / Stage3-parallel.** Новый проверенный `feature/stage3-ai-site-contract` исходный SHA [`4d7dc06ced179bb50f4020e249e8c1303d3a4479`](https://github.com/manufact-test/ai-site-cms/commit/4d7dc06ced179bb50f4020e249e8c1303d3a4479); [CI SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843), [скачиваемая offline Studio](https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843/artifacts/12498631776). Stage2 NO-GO по #5–#9; Stage3 код началcя в отдельной ветке по новому разрешению владельца, **не** слит с main, **не** принят, 0/135 официальной приёмки. Один «продолжаем» = БОЛЬШОЙ завершённый полезный блок, минимум нужных проверок; главное — работающая CMS, а не бесконечные демо/аудиты. Реальный Hostinger/БД/SSH/деплой запрещены без отдельного scope. [Полная передача v1.56](../handoffs/lead-integrator/MAIN-HANDOFF-v1.56-2026-10-23.md). Старые запреты на *саму изолированную разработку Stage3* устарели; запреты на production остаются.
+
+**ВНЕШНИЕ GATES НЕ ИЗМЕНИЛИСЬ:** #5–#9 по-прежнему требуются для формального завершения Stage2; Stage3 разрешено только кодировать в изолированной ветке, что не заменяет независимые host/legal/owner approvals. Никакой автоматической приёмки.
+
 # AI Site CMS — УСКОРЕННЫЙ выход из Stage 2
 
 Дата: 23.10.2026. CODE SOURCE: [`3e4452845e3ca169d0a3593c381c7c1347667d6d`](https://github.com/manufact-test/ai-site-cms/commit/3e4452845e3ca169d0a3593c381c7c1347667d6d). Основная ветка `main`.
