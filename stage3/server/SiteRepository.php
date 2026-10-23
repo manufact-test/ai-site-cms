@@ -18,6 +18,7 @@ final class SiteRepository
 {
     use SiteArchives;
     use AccessControl;
+    use Licenses;
     private string $driver;
     public function __construct(private PDO $db, private ContractValidator $validator)
     {
@@ -58,7 +59,7 @@ final class SiteRepository
             "CREATE TABLE stage3_notifications (site_id $id NOT NULL, submission_id $id NOT NULL, created_at VARCHAR(35) NOT NULL, seen_at VARCHAR(35) NULL, PRIMARY KEY(site_id, submission_id))$tail",
             "CREATE TABLE stage3_section_templates (site_id $id NOT NULL, template_id $id NOT NULL, title VARCHAR(160) NOT NULL, component VARCHAR(80) NOT NULL, body $big NOT NULL, created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id,template_id))$tail"
         ];
-        foreach (array_merge($schema, $this->accessSchema()) as $sql) {
+        foreach (array_merge($schema, $this->accessSchema(), [$this->licenseSchema()]) as $sql) {
             $this->db->exec($sql);
         }
     }
@@ -97,7 +98,7 @@ final class SiteRepository
              FROM stage3_drafts d LEFT JOIN stage3_publications p ON p.site_id = d.site_id
              ORDER BY d.site_id'
         )->fetchAll(PDO::FETCH_ASSOC);
-        return array_map(static function (array $row): array {
+        $listed = array_map(static function (array $row): array {
             $doc = json_decode((string)$row['body'], true, 512, JSON_THROW_ON_ERROR);
             return [
                 'site_id' => $row['site_id'],
@@ -107,6 +108,9 @@ final class SiteRepository
                 'published_version' => $row['published_version'] === null ? null : (int)$row['published_version']
             ];
         }, $records);
+        foreach ($listed as &$site) $site['license'] = $this->license($site['site_id']);
+        unset($site);
+        return $listed;
     }
 
     private function now(): string

@@ -258,6 +258,9 @@ final class Api
             if ($method === 'POST') {
                 $this->csrf();
                 $body = $this->request(in_array($path, ['/api/backups/plan','/api/backups/restore'], true) ? SiteRepository::ARCHIVE_LIMIT : 750000);
+                if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|templates(?:/.*)?)$~D',$path)) {
+                    $this->sites->assertLicenseWritable($siteScope);
+                }
                 if ($path === '/api/logout') {
                     $_SESSION = [];
                     session_regenerate_id(true);
@@ -275,6 +278,9 @@ final class Api
             }
             if ($path === '/api/users' && $method === 'GET') {
                 $this->response(200, ['users' => $this->sites->accounts()]);
+            }
+            if ($path === '/api/licenses' && $method === 'GET') {
+                $this->response(200, ['licenses'=>$this->sites->allLicenses()]);
             }
             if ($path === '/api/audit' && $method === 'GET') {
                 $filter = $_GET['siteId'] ?? null;
@@ -295,6 +301,19 @@ final class Api
                 if (!is_bool($body['disabled'] ?? null)) throw new InvalidArgumentException('Disabled flag required');
                 $this->sites->updateAccount($username,$body['role'],$body['disabled'],$body['sites'],self::revision($body['expectedVersion'] ?? null));
                 $this->response(200, ['updated' => true]);
+            }
+            if ($method === 'POST' && preg_match('~^/api/licenses/([a-z][a-z0-9-]{2,79})(?:/(pause|resume))?$~D',$path,$lm)) {
+                $reason=$body['reason']??null; $version=$body['expectedVersion']??null;
+                if (!is_string($reason) || !is_int($version)) throw new InvalidArgumentException('Reason and licence version required');
+                $op=$lm[2]??'details';
+                if ($op==='details' && (!is_string($body['type']??null)
+                    || !array_key_exists('reminderDate',$body)
+                    || ($body['reminderDate']!==null && !is_string($body['reminderDate']))
+                    || !is_string($body['domain']??null))) throw new InvalidArgumentException('Licence type, reminder and domain required');
+                $this->auditDetail='Manual licence '.$op.': '.substr(trim($reason),0,240);
+                $updated=$this->sites->changeLicense($lm[1],$principal['username'],$op,$version,$reason,
+                    $body['type']??null,$body['reminderDate']??null,$body['domain']??null);
+                $this->response(200,['license'=>$updated]);
             }
             if ($method === 'POST' && in_array($path, ['/api/backups/plan','/api/backups/restore'], true)) {
                 $archive = $body['archive'] ?? null;

@@ -28,7 +28,7 @@ trait AccessControl
         }
         $expected = ['stage3_users','stage3_drafts','stage3_revisions','stage3_publications','stage3_publication_history',
             'stage3_media','stage3_submissions','stage3_notifications','stage3_section_templates',
-            'stage3_access_users','stage3_site_grants','stage3_audit'];
+            'stage3_access_users','stage3_site_grants','stage3_audit','stage3_site_licenses'];
         $tables = $this->driver === 'sqlite'
             ? $this->db->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")->fetchAll(PDO::FETCH_COLUMN)
             : $this->db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
