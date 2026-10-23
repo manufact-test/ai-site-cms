@@ -649,6 +649,11 @@
       pageId=site.pages[0].id;sectionId=site.pages[0].sections[0].id;elementId=site.pages[0].sections[0].elements[0].id;draw();
     },
     getSite:()=>cp(session.current),
+    assetAction:command=>{
+      session=D.structure(session,manifests,{...command,expectedRevision:session.revision});
+      draw();
+      return cp(session.current.assets);
+    },
     selection:()=>{
       const {page,section}=current();
       return {pageId:page.id,sectionId:section.id,component:section.component};
