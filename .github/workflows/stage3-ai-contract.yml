@@ -30,6 +30,35 @@ jobs:
           node --check stage3/bin/ai-site.cjs
           node --check stage3/tests/contract-smoke.cjs
           node stage3/tests/contract-smoke.cjs
+      - name: Verify standalone browser bundle matches contract SDK exactly
+        run: |
+          node --check stage3/studio/build.cjs
+          node --check stage3/studio/app.js
+          node stage3/studio/build.cjs --check
+      - name: Install pinned existing Chromium test driver
+        run: npm ci --prefix cms/editor --no-audit --no-fund
+      - name: One real offline browser E2E for entire Stage 3 editor workflow
+        run: node stage3/tests/studio-browser.cjs
+      - name: Package click-to-open offline editor (no secrets or server code)
+        run: |
+          mkdir -p stage3/studio/out
+          cd stage3/studio
+          zip -q out/ai-site-stage3-offline-studio.zip index.html studio.css bundle.js
+      - name: Upload standalone Stage3 editable browser Studio ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-site-stage3-offline-studio
+          path: stage3/studio/out/ai-site-stage3-offline-studio.zip
+          retention-days: 7
+          if-no-files-found: error
+      - name: Upload desktop and phone smoke screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-site-stage3-editor-screens
+          path: stage3/studio/out/*.png
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Offline scenario without any design brief
         run: |
           node stage3/bin/ai-site.cjs create --id=site-no-mockup --title="No design brief" > "$RUNNER_TEMP/ai-site.json"
