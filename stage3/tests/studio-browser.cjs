@@ -39,11 +39,14 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('[data-bp="mobile"]').click();
     const size=page.locator('#fields [data-field="style.fontSize"]');
     await size.fill('35px');await size.dispatchEvent('change');
+    await canvas.locator('h1[style*="font-size:35px"]').waitFor();
     assert.equal(await canvas.locator('h1').evaluate(e=>getComputedStyle(e).fontSize),'35px');
     assert.equal(await page.locator('#viewport.mobile').count(),1);
     await page.locator('#undo').click();
+    await canvas.locator('h1[style*="font-size:32px"]').waitFor();
     assert.equal(await canvas.locator('h1').evaluate(e=>getComputedStyle(e).fontSize),'32px');
     await page.locator('#redo').click();
+    await canvas.locator('h1[style*="font-size:35px"]').waitFor();
     assert.equal(await canvas.locator('h1').evaluate(e=>getComputedStyle(e).fontSize),'35px');
     await page.locator('#save').click();
     assert.match(await page.locator('#dirty').innerText(),/сохранён локально/);
@@ -56,6 +59,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#site-name').getByText('Завод оборудования').waitFor();
     assert.equal(await canvas.locator('h1').innerText(),'Новое промышленное оборудование');
     await page.locator('[data-bp="mobile"]').click();
+    await canvas.locator('h1[style*="font-size:35px"]').waitFor();
     assert.equal(await canvas.locator('h1').evaluate(e=>getComputedStyle(e).fontSize),'35px');
     const exportDownload=page.waitForEvent('download');
     await page.locator('#export').click();
