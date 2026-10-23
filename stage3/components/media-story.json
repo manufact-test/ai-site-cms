@@ -1,0 +1,70 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "media-story",
+  "version": "1.0.0",
+  "label": "Фото и текст · две колонки",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок секции",
+          "type": "text",
+          "default": "История нашей компании",
+          "responsive": false,
+          "maxLength": 160
+        }
+      ]
+    },
+    {
+      "slot": "copy",
+      "label": "Описание",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Текст рядом с фотографией",
+          "type": "text",
+          "default": "Расскажите о проекте, команде или продукте.",
+          "responsive": false,
+          "maxLength": 900
+        }
+      ]
+    },
+    {
+      "slot": "photo",
+      "label": "Основная фотография",
+      "fields": [
+        {
+          "path": "content.media",
+          "label": "Фотография из медиабиблиотеки",
+          "type": "media",
+          "default": "",
+          "responsive": false
+        }
+      ]
+    },
+    {
+      "slot": "action",
+      "label": "Кнопка",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись кнопки",
+          "type": "text",
+          "default": "Подробнее",
+          "responsive": false,
+          "maxLength": 110
+        },
+        {
+          "path": "behavior.href",
+          "label": "Адрес перехода",
+          "type": "url",
+          "default": "/contact/",
+          "responsive": false
+        }
+      ]
+    }
+  ]
+}

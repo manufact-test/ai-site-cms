@@ -1,0 +1,51 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "partner-logos",
+  "version": "1.0.0",
+  "label": "Логотипы партнёров · повторяемые",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок логотипов",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Название секции",
+          "type": "text",
+          "default": "Нам доверяют",
+          "responsive": false,
+          "maxLength": 160
+        }
+      ]
+    }
+  ],
+  "repeat": {
+    "label": "Логотип партнёра",
+    "min": 2,
+    "max": 20,
+    "fields": [
+      {
+        "path": "content.media",
+        "label": "Логотип",
+        "type": "media",
+        "default": "",
+        "responsive": false
+      },
+      {
+        "path": "content.caption",
+        "label": "Название партнёра",
+        "type": "text",
+        "default": "Название партнёра",
+        "responsive": false,
+        "maxLength": 130
+      },
+      {
+        "path": "behavior.href",
+        "label": "Ссылка партнёра",
+        "type": "url",
+        "default": "/",
+        "responsive": false
+      }
+    ]
+  }
+}
