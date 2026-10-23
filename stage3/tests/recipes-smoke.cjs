@@ -13,6 +13,15 @@ template.section.elements[0].values['content.text']='Сохранённый за
 const reuse=structuredClone(recipe);reuse.sourceSiteId=source.siteId;reuse.pages[0].sections[0].templateId=template.id;
 const composed=R.compose(reuse,manifests,{sourceSite:source,templates:[template]});
 assert.equal(composed.site.pages[0].sections[0].elements[0].values['content.text'],'Сохранённый заголовок владельца');
+const themed=structuredClone(source);
+themed.theme={background:'#1b2233',surface:'#ffffff',text:'#f0f0f0',primary:'#ee7700',font:'arial',maxWidth:940};
+themed.pages[0].seo={title:'Подтверждённое SEO',description:'Описание страницы',robots:'noindex'};
+themed.pages[0].navigation={label:'Главная компании',hidden:false};
+const preserved=R.compose(reuse,manifests,{sourceSite:themed,templates:[template]}).site;
+assert.deepEqual(preserved.theme,themed.theme,'Owner palette survives same-site regeneration');
+assert.deepEqual(preserved.pages[0].seo,themed.pages[0].seo,'Owner SEO survives same-path regeneration');
+assert.deepEqual(preserved.pages[0].navigation,themed.pages[0].navigation,'Owner menu survives same-path regeneration');
+
 let session=D.begin(source,manifests);session=D.replaceSite(session,manifests,composed.site,0);
 assert.deepEqual(D.undo(session,manifests).current,source);
 assert.throws(()=>R.compose(reuse,manifests,{sourceSite:{...source,siteId:'site-other'},templates:[template]}));
