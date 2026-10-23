@@ -313,7 +313,7 @@
         breakpoint:field.responsive?breakpoint:null,expectedRevision:session.revision
       });
       output.textContent='';
-      drawHeader();drawPreview();
+      drawHeader();drawElements();drawPreview();
     }catch(e){
       output.textContent=e.message;output.style.color='#ff9c9c';
       // Invalid values never touch the current draft.
