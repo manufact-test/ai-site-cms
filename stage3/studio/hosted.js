@@ -322,7 +322,7 @@
     const data=await api('/api/sites/'+encodeURIComponent(id));
     selectSite(data);
     picker.value=id;
-    await loadHistory();await loadSubmissions();await loadTemplates();await refreshAlerts();await loadTemplates();
+    await loadHistory();await loadSubmissions();await loadTemplates();
     notice('Сайт открыт из серверного хранилища. Публикация не выполнялась.');
   }
   async function save(){
@@ -342,7 +342,7 @@
     if(isDirty()&&!confirm('Отменить несохранённые правки и загрузить серверную версию?'))return;
     const id=state.siteId;
     const data=await api('/api/sites/'+encodeURIComponent(id));
-    selectSite(data);await refreshSites();await loadHistory();
+    selectSite(data);await refreshSites();await loadHistory();await loadTemplates();
     notice('Загружена текущая серверная ревизия.');
   }
   async function publishSite(){
@@ -362,7 +362,7 @@
       const id='site-'+crypto.randomUUID().replace(/-/g,'').slice(0,20);
       const site=editor.fromBrief(id,title.trim()||'Новый сайт');
       const created=await api('/api/sites','POST',{site});
-      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();
+      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();
       notice('Создан новый серверный сайт без макета. Ревизия #1; сайт не опубликован.');
     });
   }
@@ -371,7 +371,7 @@
       if(isDirty()&&!confirm('Есть несохранённые правки. Импортировать другой сайт?'))return;
       if(!confirm('Создать серверный сайт из JSON с ID '+site.siteId+'? Публикация не выполняется.'))return;
       const created=await api('/api/sites','POST',{site});
-      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();
+      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();
       notice('JSON импортирован в отдельный серверный сайт. Черновик не опубликован.');
     });
   }
