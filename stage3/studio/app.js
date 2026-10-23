@@ -152,6 +152,71 @@
     tools.append(theme,seo);$('pages').before(tools);
   }
 
+  // One review surface for every authored site; analysis never changes documents.
+  // Alias creation/deletion uses the same revisioned Undo/Redo contract as page edits.
+  function initSiteQuality(){
+    const dialog=document.createElement('dialog');dialog.className='cms-quality-dialog';dialog.id='cms-site-report';
+    const heading=document.createElement('h2');heading.textContent='Проверка перед публикацией';
+    const summary=document.createElement('p');summary.id='cms-quality-summary';
+    const findings=document.createElement('div');findings.id='cms-quality-findings';
+    const subtitle=document.createElement('h3');subtitle.textContent='Старые адреса страниц (301)';
+    const aliases=document.createElement('div');aliases.id='cms-redirect-list';
+    const form=document.createElement('form');form.id='cms-redirect-form';form.className='cms-redirect-form';
+    const from=document.createElement('input');from.className='control';from.id='cms-redirect-from';
+    from.type='text';from.required=true;from.placeholder='/old-page/';from.setAttribute('aria-label','Старый адрес');
+    const target=document.createElement('select');target.className='control';target.id='cms-redirect-target';
+    target.setAttribute('aria-label','Новая страница');
+    const add=button('+ Перенаправление','btn small',()=>{});add.type='submit';add.dataset.editorWrite='true';
+    form.append(from,target,add);
+    const notes=document.createElement('small');
+    notes.textContent='Перенаправления начнут работать только после публикации. Для отдельного HTML-хостинга экспортируются страницы-переходы; настоящий HTTP 301 требует настройки хостинга.';
+    const close=button('Закрыть','btn',()=>dialog.close());
+    dialog.append(heading,summary,findings,subtitle,aliases,form,notes,close);
+    document.body.append(dialog);
+    const print=()=>{
+      const report=C.inspectSite(session.current,manifests);
+      summary.textContent=report.pages+' страниц · '+report.indexable+' индексируемых · '+
+        report.errors.length+' ошибок ссылок · '+report.warnings.length+' рекомендаций · '+
+        report.redirects+' перенаправлений';
+      findings.replaceChildren();
+      for(const [name,records] of [['Ошибки',report.errors],['Рекомендации',report.warnings]]){
+        const section=document.createElement('section');
+        const label=document.createElement('strong');label.textContent=name+' · '+records.length;section.append(label);
+        if(!records.length){const note=document.createElement('p');note.textContent='Нет замечаний';section.append(note);}
+        for(const issue of records.slice(0,80)){
+          const line=document.createElement('p');line.className='cms-quality-finding';
+          line.textContent=(issue.pageId||'Сайт')+' · '+issue.path+' — '+issue.message;section.append(line);
+        }
+        findings.append(section);
+      }
+      target.replaceChildren();
+      for(const page of session.current.pages){
+        const option=document.createElement('option');option.value=page.path;
+        option.textContent=page.title+' — '+page.path;target.append(option);
+      }
+      aliases.replaceChildren();
+      if(!(session.current.redirects||[]).length)aliases.textContent='Пока нет старых адресов.';
+      for(const redirect of session.current.redirects||[]){
+        const line=document.createElement('div');line.className='cms-redirect-entry';
+        const desc=document.createElement('code');desc.textContent=redirect.from+' → '+redirect.to;
+        const del=button('Удалить','btn small',()=>{
+          if(!confirm('Удалить перенаправление '+redirect.from+' из черновика?'))return;
+          structural({action:'removeRedirect',from:redirect.from});print();
+        });
+        del.dataset.editorWrite='true';line.append(desc,del);aliases.append(line);
+      }
+      if(HOSTED)window.Stage3Host?.onDraw?.();
+    };
+    form.addEventListener('submit',event=>{
+      event.preventDefault();
+      structural({action:'addRedirect',from:from.value.trim(),to:target.value});
+      from.value='';print();
+    });
+    const tools=document.createElement('div');tools.className='structure-tools cms-site-quality';
+    const open=button('SEO-аудит и адреса','btn small',()=>{print();dialog.showModal();});
+    open.id='cms-quality-open';tools.append(open);$('pages').before(tools);
+  }
+
   // Discoverable browser-side catalog: the same closed registered components,
   // no arbitrary HTML, code, uploads or external template marketplace.
   function openComponentCatalog(){
@@ -608,5 +673,5 @@
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  createStructureTools();initSettings();load();draw();
+  createStructureTools();initSettings();initSiteQuality();load();draw();
 })();
