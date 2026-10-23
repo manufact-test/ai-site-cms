@@ -1117,6 +1117,65 @@ const root=path.resolve(__dirname,'../..');
     assert.equal(await page.locator('#page-list option').count(),beforeTransfer+1);
     assert.equal(await page.locator('#seo-title').inputValue(),sourceWithImage.seoTitle);
 
+    // Update factual product/service/process/FAQ collections in the existing
+    // four-page site WITHOUT regenerating its design, SEO, images or contacts.
+    await page.locator('#factual-sync-open').click();
+    await page.locator('#factual-sync-dialog').waitFor({state:'visible'});
+    await page.locator('#factual-sync-offerings').fill('Bad row with no delimiter');
+    await page.locator('#factual-sync-preview-button').click();
+    assert.equal(await page.locator('#factual-sync-apply').isDisabled(),true);
+    assert.ok((await page.locator('#factual-sync-error').innerText()).includes('название | описание'));
+    const carriedPhotoItem=Object.values(imported.repeaters).flat().find(item=>item.image);
+    const offerings=[
+      'Пресс-станок П-20 | Новое подтверждённое описание пресса',
+      'Станок К-9 | Поставка по договору',
+      ...(carriedPhotoItem?[carriedPhotoItem.title+' | Проверенная новая карточка']:[])
+    ];
+    await page.locator('#factual-sync-offerings').fill(offerings.join('\n'));
+    await page.locator('#factual-sync-steps').fill('Согласование сроков | Оформляем сроки по договору');
+    await page.locator('#factual-sync-questions').fill('Можно ли узнать стоимость? | Запросите расчёт по email');
+    await page.locator('#factual-sync-preview-button').click();
+    assert.equal(await page.locator('#factual-sync-apply').isDisabled(),false);
+    assert.ok((await page.locator('#factual-sync-preview').innerText()).includes('План обновления'));
+    await page.locator('#factual-sync-apply').click();
+    await page.locator('#factual-sync-dialog').waitFor({state:'hidden'});
+    const savedFactual=page.waitForEvent('download');
+    if(!await page.locator('#project-actions').evaluate(el=>el.open))
+      await page.locator('#project-actions summary').click();
+    await page.locator('#export').click();
+    const factualBackup=JSON.parse(fs.readFileSync(await (await savedFactual).path(),'utf8'));
+    assert.deepEqual(factualBackup.design,newBackup.design,'design retained');
+    assert.deepEqual(factualBackup.contacts,newBackup.contacts,'contacts retained');
+    assert.deepEqual(factualBackup.media,newBackup.media,'WebP and focus retained');
+    assert.equal(factualBackup.pages.length,newBackup.pages.length,'no pages wiped');
+    for(const oldPage of newBackup.pages){
+      const updated=factualBackup.pages.find(page=>page.id===oldPage.id);
+      assert.equal(updated.seoTitle,oldPage.seoTitle,'page SEO retained');
+      assert.deepEqual(updated.sectionLayouts,oldPage.sectionLayouts,'individual layouts retained');
+    }
+    const catalogPage=factualBackup.pages.find(pg=>pg.slug==='products');
+    const catalogSection=catalogPage.sections.find(sec=>sec.type==='catalog');
+    assert.equal(catalogPage.repeaters[catalogSection.id][0].text,'Новое подтверждённое описание пресса');
+    const faqPage=factualBackup.pages.find(pg=>pg.slug==='about');
+    const faqSection=faqPage.sections.find(sec=>sec.type==='faq');
+    assert.equal(faqPage.repeaters[faqSection.id][0].title,'Можно ли узнать стоимость?');
+    if(carriedPhotoItem){
+      const importedAfter=factualBackup.pages.find(pg=>pg.id===newPageId);
+      const movedItem=Object.values(importedAfter.repeaters).flat().find(i=>i.title===carriedPhotoItem.title);
+      assert.equal(movedItem?.image,carriedPhotoItem.image,'photo stays with its exact named item');
+    }
+    await page.locator('#undo').click();
+    await page.locator('#redo').click();
+    await page.locator('#save').click();
+    await page.reload();
+    await page.locator('#page-list').selectOption(catalogPage.id);
+    const persistedFactual=page.waitForEvent('download');
+    if(!await page.locator('#project-actions').evaluate(el=>el.open))
+      await page.locator('#project-actions summary').click();
+    await page.locator('#export').click();
+    const persistedBackup=JSON.parse(fs.readFileSync(await (await persistedFactual).path(),'utf8'));
+    assert.deepEqual(persistedBackup,factualBackup,'factual update persists after undo/redo and reload');
+
     assert.deepEqual(errors,[],'no browser JS errors');
     assert.deepEqual(remote,[],'no HTTP calls from demo/editor/site preview');
     console.log('Stage2 OWNER REVIEW KIT PASS: standalone editor ZIP, canvas block click, menu navigation, fullscreen, owner feedback Markdown+persist, starter sites, offline site ZIP and ZERO network.');
