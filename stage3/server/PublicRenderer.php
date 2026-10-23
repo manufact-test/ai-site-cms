@@ -119,6 +119,47 @@ final class PublicRenderer
                     . '<div class="feature-grid"><article style="color:' . self::h($first['style.color']) . '">'
                     . self::label($section, 'first') . '</article><article>'
                     . self::label($section, 'second') . '</article></div></section>';
+
+            } elseif ($section['component'] === 'service-grid') {
+                $cards='';
+                foreach ($section['items'] as $item) {
+                    $v=$item['values'];$href=$v['behavior.href'];
+                    if (str_starts_with($href,'/') && !str_starts_with($href,'//')) $href=$mount.$href;
+                    $cards.='<article><h3>'.self::h($v['content.title']).'</h3><p>'.self::h($v['content.text']).
+                        '</p><a class="service-link" href="'.self::h($href).'">Подробнее →</a></article>';
+                }
+                $body.='<section id="'.$id.'" class="repeat-section"><h2>'.self::label($section,'heading').
+                    '</h2><div class="repeat-grid">'.$cards.'</div></section>';
+            } elseif ($section['component'] === 'faq-accordion') {
+                $entries='';
+                foreach ($section['items'] as $item) {
+                    $v=$item['values'];
+                    $entries.='<details><summary>'.self::h($v['content.question']).'</summary><p>'.
+                        self::h($v['content.answer']).'</p></details>';
+                }
+                $body.='<section id="'.$id.'" class="repeat-section faq"><h2>'.
+                    self::label($section,'heading').'</h2>'.$entries.'</section>';
+            } elseif ($section['component'] === 'testimonials') {
+                $entries='';
+                foreach ($section['items'] as $item) {
+                    $v=$item['values'];
+                    $entries.='<figure class="review"><blockquote>'.self::h($v['content.quote']).'</blockquote><figcaption>'.
+                        self::h($v['content.author']).($v['content.role']!==''?' · '.self::h($v['content.role']):'').
+                        '</figcaption></figure>';
+                }
+                $body.='<section id="'.$id.'" class="repeat-section"><h2>'.self::label($section,'heading').
+                    '</h2><div class="repeat-grid">'.$entries.'</div></section>';
+            } elseif ($section['component'] === 'photo-gallery') {
+                $images=[];
+                foreach ($section['items'] as $item) {
+                    $v=$item['values'];$asset=null;
+                    foreach ($site['assets'] as $candidate) if ($candidate['id']===$v['content.media']) {$asset=$candidate;break;}
+                    if ($asset===null) continue;
+                    $images[]='<figure><img loading="lazy" decoding="async" src="'.self::h($mount.$asset['src']).
+                        '" alt="'.self::h($asset['alt']).'"><figcaption>'.self::h($v['content.caption']).'</figcaption></figure>';
+                }
+                $body.='<section id="'.$id.'" class="repeat-section"><h2>'.self::label($section,'heading').
+                    '</h2><div class="repeat-grid gallery-grid">'.implode('',$images).'</div></section>';
             } elseif ($section['component'] === 'image-showcase') {
                 $media = (string)(self::element($section, 'photo')['content.media'] ?? '');
                 $picture = '';
@@ -173,6 +214,7 @@ final class PublicRenderer
             . 'article{padding:24px;background:var(--cms-surface);border:1px solid #e1e8f1;border-radius:12px}'
             . '.showcase-photo{display:block;width:100%;height:auto;max-height:680px;object-fit:contain;border-radius:16px;background:#e4ebf3}'
             . '.lead-form{display:grid;gap:16px;max-width:700px}.lead-form label{display:grid;gap:6px;font-weight:600}.lead-form input:not([type=checkbox]),.lead-form textarea,.lead-form select{padding:12px;border:1px solid #a5b3c4;border-radius:8px;font:inherit;width:100%}.lead-form button{border:0;cursor:pointer}.lead-consent{display:flex!important;flex-direction:row;align-items:flex-start}.lead-honey{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}'
+            . '.repeat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:20px}.repeat-grid article,.repeat-grid .review,.repeat-grid figure{background:var(--cms-surface);border:1px solid #e1e8f1;padding:24px;margin:0;border-radius:12px}.repeat-grid h3{margin:0 0 12px}.repeat-grid .review blockquote{margin:0 0 16px;font-size:19px}.repeat-grid figcaption{font-size:14px;opacity:.75}.repeat-grid img{max-width:100%;height:auto;max-height:420px;object-fit:contain}.faq{max-width:850px}.faq details{border-bottom:1px solid #d0d8e2;padding:18px}.faq summary{cursor:pointer;font-weight:700}.service-link{display:inline-flex;padding-top:14px}'
             . '@media(max-width:900px){h1{font-size:var(--title-tablet)}}'
             . '@media(max-width:600px){section{padding:40px 8px}.hero{padding-block:48px}.feature-grid{grid-template-columns:1fr}h1{font-size:var(--title-mobile)}}'
             . '</style></head><body><header><nav aria-label="Навигация">' . $navigation
