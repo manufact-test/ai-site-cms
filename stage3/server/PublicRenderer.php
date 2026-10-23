@@ -74,7 +74,55 @@ final class PublicRenderer
         return ':root{--cms-bg:'.$t['background'].';--cms-surface:'.$t['surface'].';--cms-text:'.$t['text'].
             ';--cms-primary:'.$t['primary'].';--cms-width:'.$t['maxWidth'].'px;--cms-font:'.$fonts[$t['font']].'}';
     }
-    public static function html(array $site, string $path, ?string $basePath = null, ?string $collectorBase = null, int $publishedVersion = 0): ?string
+    /** Explicit configuration avoids Host-header poisoning of search-engine URLs. */
+    public static function origin(?string $origin): ?string
+    {
+        if ($origin === null || $origin === '') return null;
+        if (preg_match('~^https://[a-z0-9][a-z0-9.-]*(?::[0-9]{2,5})?$~iD',$origin)!==1
+            && preg_match('~^http://(?:127\.0\.0\.1|localhost)(?::[0-9]{2,5})?$~iD',$origin)!==1)
+            throw new \InvalidArgumentException('Public origin must be an explicit HTTPS host, or loopback for tests');
+        return $origin;
+    }
+
+    public static function redirectTarget(array $site, string $path): ?string
+    {
+        foreach ($site['redirects']??[] as $redirect)
+            if ($redirect['from']===$path) return $redirect['to'];
+        return null;
+    }
+
+    public static function sitemap(array $site, string $mount, string $origin): string
+    {
+        self::origin($origin);
+        $xml='<?xml version="1.0" encoding="UTF-8"?>'."\n"
+            .'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
+        foreach ($site['pages'] as $page) {
+            if (($page['seo']['robots']??'index')==='noindex') continue;
+            $url=$origin.$mount.$page['path'];
+            $xml.='  <url><loc>'.htmlspecialchars($url,ENT_XML1|ENT_QUOTES,'UTF-8').'</loc></url>'."\n";
+        }
+        return $xml."</urlset>\n";
+    }
+
+    public static function robots(string $mount,string $origin): string
+    {
+        self::origin($origin);
+        // noindex pages must still be crawlable for their robots meta to be seen.
+        return "User-agent: *\nAllow: /\nSitemap: ".$origin.$mount."/sitemap.xml\n";
+    }
+
+    /** Static-host fallback; actual HTTP 301 is provided by the PHP visitor router. */
+    public static function staticRedirect(string $target): string
+    {
+        $value=self::h($target);
+        return '<!doctype html><html lang="ru"><head><meta charset="utf-8">'
+            .'<meta name="robots" content="noindex,follow">'
+            .'<meta http-equiv="refresh" content="0;url='.$value.'">'
+            .'<title>Страница перемещена</title></head><body>'
+            .'<p>Страница перемещена: <a href="'.$value.'">Перейти</a></p></body></html>';
+    }
+
+    public static function html(array $site, string $path, ?string $basePath = null, ?string $collectorBase = null, int $publishedVersion = 0, ?string $publicOrigin = null): ?string
     {
         $page = null;
         foreach ($site['pages'] as $candidate) {
@@ -199,13 +247,21 @@ final class PublicRenderer
                     . self::link($section, 'action', $mount) . '</section>';
             }
         }
+        $publicOrigin = self::origin($publicOrigin);
         $seo = $page['seo'] ?? ['title'=>'','description'=>'','robots'=>'index'];
         $title = self::h($seo['title'] !== '' ? $seo['title'] : $page['title'] . ' | ' . $site['title']);
         $description = $seo['description'] !== '' ? '<meta name="description" content="'.self::h($seo['description']).'">' : '';
         $robots = $seo['robots'] === 'noindex' ? '<meta name="robots" content="noindex,follow">' : '';
+        $absolute=$publicOrigin===null?null:$publicOrigin.$mount.$path;
+        $canonical=$absolute===null?'':'<link rel="canonical" href="'.self::h($absolute).'">';
+        $social='<meta property="og:type" content="website">'
+            .'<meta property="og:title" content="'.$title.'">';
+        if ($description!=='') $social.='<meta property="og:description" content="'.self::h($seo['description']).'">';
+        if ($absolute!==null) $social.='<meta property="og:url" content="'.self::h($absolute).'">';
+
         return '<!doctype html><html lang="ru"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            . '<title>' . $title . '</title>' . $description . $robots . '<style>' . self::themeCss($site)
+            . '<title>' . $title . '</title>' . $description . $robots . $canonical . $social . '<style>' . self::themeCss($site)
             . '*,*:before,*:after{box-sizing:border-box}body{margin:0;background:var(--cms-bg);color:var(--cms-text);font:16px/1.6 var(--cms-font)}'
             . 'header,main,footer{max-width:var(--cms-width);margin:auto;padding:24px}nav{display:flex;flex-wrap:wrap;gap:18px}a{color:inherit}'
             . 'section{padding:64px 24px;border-bottom:1px solid #e2e8f0}h1{font-size:var(--title-desktop);color:var(--title-color);line-height:1.1;max-width:960px}'
