@@ -793,10 +793,11 @@ const root=path.resolve(__dirname,'../..');
     // filters -> downloadable full checklist, all within the offline owner studio.
     await page.locator('#overview-open').click();
     const attention=Number(await page.locator('#quality-attention').innerText());
-    assert.ok(attention>=1,'brief pages flag fields that still need factual copy');
+    assert.equal(attention,0,'a brief with verified factual content has no artificial important warnings');
     assert.equal(await page.locator('#overview-page-list .overview-page').count(),3);
-    await page.locator('#quality-level').selectOption('attention');
-    assert.ok(await page.locator('#overview-audit .overview-audit-item').count()>0);
+    await page.locator('#quality-level').selectOption('note');
+    assert.ok(await page.locator('#overview-audit .overview-audit-item').count()>0,
+      'unpublished draft still offers informative editorial notes');
     await page.locator('#quality-page').selectOption({index:1});
     const filtered=await page.locator('#overview-audit .overview-audit-item').count();
     assert.ok(filtered>=1,'filtered page still has an editorial item');
