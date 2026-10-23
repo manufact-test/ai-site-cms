@@ -24,7 +24,7 @@ async function start(){
   const origin='http://127.0.0.1:'+(await pickPort());
   php=spawn('php',['-S',new URL(origin).host,'-t','stage3/server/public',
     'stage3/server/public/index.php'],{cwd:root,env,stdio:['ignore','ignore','pipe']});
-  let err='';php.stderr.on('data',d=>{err+=d.toString();process.stderr.write(d);});
+  let err='';php.stderr.on('data',d=>{err+=d.toString();});
   for(let i=0;i<60;i++){
     if(php.exitCode!==null)throw Error('PHP exited: '+err.slice(-500));
     try{if((await fetch(origin+'/api/session')).ok)return origin;}catch(e){}
@@ -170,15 +170,13 @@ async function execute(){
   await visitor.locator('form.lead-form input[name="email"]').fill('lead@example.test');
   await visitor.locator('form.lead-form textarea[name="message"]').fill('Нужен расчёт стоимости оборудования');
   await visitor.locator('form.lead-form input[name="consent"]').check();
-  const debugForm=await visitor.locator('form.lead-form').evaluate(form=>[...new FormData(form).entries()]);
-  console.log('BROWSER FORM SUBMISSION SHAPE',JSON.stringify(debugForm.map(([key,value])=>[key,key==='_token'?String(value).length:value])));
   await Promise.all([visitor.waitForNavigation(),visitor.locator('form.lead-form button[type="submit"]').click()]);
   assert.match(await visitor.locator('main').innerText(),/заявка сохранена/);
   await page.locator('#server-submissions-refresh').click();
   await page.locator('#server-submission-heading').getByText(/Заявки сайта · 1/).waitFor();
   assert.match(await page.locator('#server-submissions .hosted-lead').innerText(),/Алексей Тест/);
   await page.locator('#server-submissions .hosted-lead button').click();
-  assert.match(await page.locator('#server-submissions .hosted-lead small').innerText(),/reviewed/);
+  await page.locator('#server-submissions .hosted-lead small').getByText(/reviewed/).waitFor();
   const tokenless=await ctx.request.post(origin+'/api/sites/'+siteId+'/save',
     {data:{site:{},expectedRevision:9}});
   assert.equal(tokenless.status(),403,'CSRF still enforced with browser credentials');
