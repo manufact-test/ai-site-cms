@@ -20,10 +20,10 @@
   // No generative claims: every line is a named fact supplied by the reviewer.
   function parseGroup(value,group){
     const rule=detailRules[group];
-    if(!rule||typeof value!=='string'||value.length>3400||value.includes('\\0'))
+    if(!rule||typeof value!=='string'||value.length>3400||value.includes('\0'))
       throw Error('Некорректный список: '+group);
     if(!value.trim())return [];
-    const lines=value.split(/\\r?\\n/).map(line=>line.trim()).filter(Boolean);
+    const lines=value.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
     if(lines.length>rule.limit)throw Error(rule.name+': максимум '+rule.limit+' строк');
     return lines.map((line,index)=>{
       const parts=line.split('|');
