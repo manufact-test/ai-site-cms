@@ -7,9 +7,11 @@ const {STAGE}=require('./build-internal-package.cjs');
 const {createDossier,renderHtml,stable,OUT}=require('./stage2-license-dossier.cjs');
 const review=require('./stage2-human-license-review.cjs');
 const workbench=require('./stage2-review-workbench.cjs');
+const sodiumReview=require('./stage2-sodium-review.cjs');
 const NAME='stage2-independent-dependency-review.zip';
 const ALLOWED=['OPEN-FIRST.txt','REVIEW.html','INVENTORY.html','DOSSIER.json',
-  'WORKSHEET.json','THIRD_PARTY_NOTICES.txt','EDITOR_THIRD_PARTY_LICENSES.txt'];
+  'WORKSHEET.json','THIRD_PARTY_NOTICES.txt','EDITOR_THIRD_PARTY_LICENSES.txt',
+  'CRYPTO-REVIEW.html','CRYPTO-WORKSHEET.json'];
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 function check(value,reason){if(!value)throw Error(reason);}
 function read(p) {
@@ -27,6 +29,11 @@ function sources(){
   const d=createDossier(); // verifies complete package and exact dependency locks
   const w=review.buildWorksheet(d);
   check(review.inspectWorksheet(d,w).pending===43,'Review must start pending');
+  const sodiumDossier=sodiumReview.dossier(d);
+  const sodiumWorksheet=sodiumReview.worksheet(sodiumDossier);
+  check(sodiumReview.inspect(sodiumDossier,sodiumWorksheet).humanWorksheetDisposition==='pending'
+    &&sodiumDossier.candidate.shippedInCurrentPackage===false,
+    'Unreviewed crypto candidate must remain separate from the 43 locked dependencies');
   const notices=read(path.join(STAGE,'private/compliance/THIRD_PARTY_NOTICES.txt'));
   const editorNotices=read(path.join(STAGE,'private/editor/THIRD_PARTY_LICENSES.txt'));
   check(sha(notices)===d.noticeSha256&&sha(editorNotices)===d.editorUpstreamNoticeSha256,
@@ -38,6 +45,8 @@ function sources(){
     'Проверьте 43 оригинальные лицензии, NOTICE, уязвимости и право распространения.',
     'Укажите по каждой зависимости дату, проверяющего, ссылки и обоснование.',
     'Нажмите «Скачать JSON». Передайте экспертный результат отдельно оператору.',
+    'Отдельно откройте CRYPTO-REVIEW.html: необязательный sodium_compat 2.5.2 НЕ входит в текущие 43 зависимости.',
+    'Проверку кандидата криптографии передайте отдельным CRYPTO-WORKSHEET.json; без одобрения до установки.',
     'Никаких запросов в сеть, автосохранения, подписи и юридического одобрения нет.',
     'Stage 2 НЕ принят. Запуск Stage 3 и деплой этим файлом НЕ разрешается.',
     '',
@@ -50,6 +59,8 @@ function sources(){
     '3. Record individual evidence URLs, rationale, reviewer identity/reference and date.',
     '4. Export JSON from REVIEW.html. Import it to resume. No autosave or network access.',
     '5. Return only the reviewed worksheet through an agreed secure channel.',
+    '6. Separately open CRYPTO-REVIEW.html for the NOT-YET-SHIPPED Sodium-free PHP 8.3 candidate.',
+    '7. Export its independent CRYPTO-WORKSHEET JSON. This does not add a 44th locked dependency or approve crypto.',
     '',
     'OPERATOR: recheck the returned worksheet against the SAME verified release:',
     'node cms/tools/stage2-human-license-review.cjs --inspect --worksheet=/ABS/PRIVATE/worksheet.json',
@@ -57,6 +68,7 @@ function sources(){
     'already exist in stage2-human-license-review.cjs. Trust reviewer identity',
     'and public-key fingerprint only via independent out-of-band confirmation.',
     'No keys or credentials may be placed in this ZIP or hosted package.',
+    'For optional crypto candidate operator validation: node cms/tools/stage2-sodium-review.cjs --inspect=/ABS/PRIVATE/review.json',
     'Signatures attest bytes, NOT qualifications, legal approval, or Stage2 acceptance.',
     'CONTENT-SHA256.json detects accidental corruption only: NOT publisher identity.',
     'Package manifest SHA-256: '+d.packageManifestSha256,
@@ -70,14 +82,17 @@ function sources(){
     'DOSSIER.json':Buffer.from(stable(d)),
     'WORKSHEET.json':Buffer.from(stable(w)),
     'THIRD_PARTY_NOTICES.txt':notices,
-    'EDITOR_THIRD_PARTY_LICENSES.txt':editorNotices
+    'EDITOR_THIRD_PARTY_LICENSES.txt':editorNotices,
+    'CRYPTO-REVIEW.html':Buffer.from(sodiumReview.render(sodiumDossier,sodiumWorksheet),'utf8'),
+    'CRYPTO-WORKSHEET.json':Buffer.from(stable(sodiumWorksheet),'utf8')
   };
   check(Object.keys(files).sort().join(',')===ALLOWED.slice().sort().join(','),
     'Unexpected reviewer handoff contents');
   const metadata={
     format:'ai-site-cms-stage2-legal-transfer-v1',
     packageManifestSha256:d.packageManifestSha256,
-    componentCount:43,legalApproved:false,stage2Accepted:false,
+    componentCount:43,unshippedCryptoCandidateName:'paragonie/sodium_compat',
+    unshippedCryptoCandidateInLock:false,legalApproved:false,stage2Accepted:false,
     stage3Authorized:false,productionReady:false,
     files:ALLOWED.slice().sort().map(n=>({path:n,bytes:files[n].length,sha256:sha(files[n])}))
   };
@@ -100,7 +115,8 @@ function verify(file=path.join(OUT,NAME),expected=sources()){
     check(bytes.equals(expected.files[name]),'Wrong reviewer ZIP bytes for '+name);
   }
   const info=expected.metadata;
-  check(info.componentCount===43&&info.legalApproved===false&&
+  check(info.componentCount===43&&info.unshippedCryptoCandidateName==='paragonie/sodium_compat'
+    &&info.unshippedCryptoCandidateInLock===false&&info.legalApproved===false&&
     info.stage2Accepted===false&&info.stage3Authorized===false,
     'Illegal acceptance claim');
   return {file,archiveSha256:sha(zip),packageManifestSha256:info.packageManifestSha256,
