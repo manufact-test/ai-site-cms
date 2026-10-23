@@ -456,6 +456,31 @@ async function execute(){
   await visitor.goto(origin+'/published/'+siteId+'/');
   assert.equal(await visitor.locator('.gallery-grid img').count(),1);
   assert.equal(await visitor.locator('.gallery-grid img').first().getAttribute('alt'),'Фото цеха');
+
+  // Full URL alias workflow: operator reviews site, saves and explicitly
+  // publishes an alias. Public pages redirect with true 301, not draft.
+  await page.locator('#cms-quality-open').click();
+  await page.locator('#cms-redirect-from').fill('/old-gallery/');
+  await page.locator('#cms-redirect-target').selectOption('/');
+  await page.locator('#cms-redirect-form button[type=submit]').click();
+  await page.locator('#cms-redirect-list code').getByText('/old-gallery/ → /').waitFor();
+  await page.locator('#cms-site-report').getByRole('button',{name:'Закрыть'}).click();
+  const draftRedirect=await page.evaluate(async id=>{
+    const res=await fetch('/published/'+id+'/old-gallery/',{redirect:'manual'});
+    return res.status;
+  },siteId);
+  assert.equal(draftRedirect,404,'Draft alias must remain invisible to visitors');
+  await page.locator('#save').click();
+  await page.locator('#server-status').getByText(/Без изменений/).waitFor();
+  assert.equal(await page.evaluate(async id=>(await fetch('/published/'+id+'/old-gallery/',{redirect:'manual'})).status,siteId),404);
+  const priorVersion=Number((await page.locator('#server-status').innerText()).match(/Опубликовано: v(\d+)/)[1]);
+  await page.locator('#server-publish').click();
+  await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(priorVersion+1)+'\\b')).waitFor();
+  const publishedRedirect=await page.evaluate(async id=>{
+    const res=await fetch('/published/'+id+'/old-gallery/',{redirect:'manual'});
+    return {status:res.status,location:res.headers.get('location')};
+  },siteId);
+  assert.deepEqual(publishedRedirect,{status:301,location:'/published/'+siteId+'/'});
   await staffCtx.close();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
