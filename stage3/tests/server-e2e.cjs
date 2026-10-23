@@ -11,7 +11,7 @@ const file=path.join(dbdir,'isolated.sqlite');
 const fixture=JSON.parse(fs.readFileSync(path.join(root,'stage3/fixtures/industrial-site.json'),'utf8'));
 const password='test-only-lab-password-not-a-real-secret';
 const env={...process.env,STAGE3_DSN:'sqlite:'+file,STAGE3_OWNER_USER:'testowner',
-  STAGE3_OWNER_PASSWORD:password};
+  STAGE3_OWNER_PASSWORD:password,STAGE3_FORM_SECRET:'CI-only-form-hmac-secret-with-at-least-32-chars'};
 let server, origin, cookie='', csrf='';
 async function port(){
   const s=net.createServer();
@@ -142,22 +142,66 @@ async function stop(){
   assert.equal(publicImage.headers.get('content-type'),'image/png');
   assert.deepEqual(Buffer.from(await publicImage.arrayBuffer()),pngBytes);
   assert.match((await request('GET','/published/'+id+'/')).body,new RegExp(asset.id+'[.]png'));
+
+  const formDef=JSON.parse(fs.readFileSync(path.join(root,'stage3/components/lead-form.json'),'utf8'));
+  const formDraft=structuredClone(correct.body.site);
+  formDraft.pages[1].sections.push(require(path.join(root,'stage3/sdk/contract.cjs'))
+    .sectionFrom(formDef,'section-quote-form'));
+  assert.equal((await request('POST',endpoint+'/save',{expectedRevision:6,site:formDraft})).body.revision,7);
+  assert.equal((await request('GET',endpoint+'/submissions')).body.submissions.length,0);
+  assert.equal((await request('POST',endpoint+'/publish',{expectedRevision:7})).body.version,4);
+  const formHtml=(await request('GET','/published/'+id+'/contact/')).body;
+  assert.match(formHtml,/name="message"/);
+  assert.match(formHtml,/action="\/forms\/site-industrial-demo\/section-quote-form"/);
+  const token=/name="_token" value="([a-f0-9]{64})"/.exec(formHtml)?.[1];
+  assert.ok(token);
+  const values={_release:'4',_token:token,website:'',name:'Тест Клиент',
+    email:'client@example.test',message:'Интересует стоимость оборудования',consent:'yes'};
+  const postForm=async(fields,from=origin)=>{
+    const res=await fetch(origin+'/forms/'+id+'/section-quote-form',{method:'POST',
+      headers:{'content-type':'application/x-www-form-urlencoded','origin':from},
+      body:new URLSearchParams(fields)});
+    return {status:res.status,body:await res.text()};
+  };
+  assert.equal((await postForm({...values,email:'not-an-email'})).status,422);
+  assert.equal((await postForm({...values,website:'spam.example'})).status,422);
+  assert.equal((await postForm({...values,_token:'0'.repeat(64)})).status,422);
+  assert.equal((await postForm({...values,consent:''})).status,422);
+  assert.equal((await postForm(values,'https://attacker.example')).status,422);
+  const sent=await postForm(values);
+  assert.equal(sent.status,201,sent.body);
+  assert.match(sent.body,/заявка сохранена/);
+  const leads=(await request('GET',endpoint+'/submissions')).body.submissions;
+  assert.equal(leads.length,1);
+  assert.equal(leads[0].email,'client@example.test');
+  assert.equal(leads[0].status,'new');
+  assert.equal((await request('POST',endpoint+'/submissions/'+leads[0].submission_id+'/review',{})).status,200);
+  assert.equal((await request('GET',endpoint+'/submissions')).body.submissions[0].status,'reviewed');
+  for(let n=0;n<4;n++)assert.equal((await postForm(values)).status,201);
+  assert.equal((await postForm(values)).status,429);
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET','/published/'+id+'/')).status,200,'visitor needs no CMS login');
   // Export only the published snapshot. Build static files without modifying
   // live CMS routes, then serve with Node AFTER stopping the PHP CMS completely.
-  const out=path.join(dbdir,'export-v3');
+  const out=path.join(dbdir,'export-v4');
   const cmd=['stage3/server/bin/export-published.php',id,out];
+  assert.notEqual(spawnSync('php',cmd,{cwd:root,env,encoding:'utf8'}).status,0,
+    'Export refuses form without explicit separate collector');
+  env.STAGE3_FORM_ENDPOINT=origin;
   const exported=spawnSync('php',cmd,{cwd:root,env,encoding:'utf8'});
   assert.equal(exported.status,0,exported.stderr);
   assert.notEqual(spawnSync('php',cmd,{cwd:root,env,encoding:'utf8'}).status,0,
     'Static releases cannot overwrite existing output');
   const manifest=JSON.parse(fs.readFileSync(path.join(out,'release-manifest.json'),'utf8'));
   assert.equal(manifest.format,'manufact-ai-static-site-v1');
-  assert.equal(manifest.publishedVersion,3);
-  assert.equal(manifest.sourceRevision,6);
+  assert.equal(manifest.publishedVersion,4);
+  assert.equal(manifest.sourceRevision,7);
   assert.deepEqual(manifest.pages.map(p=>p.path),['/','/contact/']);
+  assert.equal(manifest.formCollector,origin);
+  const contactPage=fs.readFileSync(path.join(out,'contact','index.html'),'utf8');
+  assert.ok(contactPage.includes('action="'+origin+'/forms/'));
+  assert.match(contactPage,/name="_token" value="[a-f0-9]{64}"/);
   assert.equal(manifest.assets.length,1);
   assert.equal(manifest.assets[0].id,asset.id);
   assert.deepEqual(fs.readFileSync(path.join(out,manifest.assets[0].file)),pngBytes);
@@ -200,7 +244,7 @@ async function stop(){
   await runServer();
   assert.equal((await request('GET','/published/'+id+'/')).status,200,
     'published snapshot remains after restarting admin PHP process');
-  console.log('Stage3 PHP/SQLite HTTP E2E PASS: owner, closed manifest, multi-page site, CAS save, revisions, restore, publish, visitor');
+  console.log('Stage3 PHP/SQLite HTTP E2E PASS: collector, anti-spam, inbox, media, standalone HTML, visitor');
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{
   await stop();fs.rmSync(dbdir,{recursive:true,force:true});
 });

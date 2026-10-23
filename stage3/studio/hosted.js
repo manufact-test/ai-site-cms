@@ -42,6 +42,43 @@
   const mediaList=element('div','hosted-media-list');mediaList.id='server-media-list';
   mediaPanel.append(mediaTitle,mediaHint,mediaUpload,mediaInput,mediaList);
   toolbar.after(mediaPanel);
+  const leadsPanel=element('div','hosted-leads');
+  const leadsTitle=element('strong',null,'Заявки сайта');
+  leadsTitle.id='server-submission-heading';
+  const leadsRefresh=action('Обновить заявки','server-submissions-refresh',()=>safe(loadSubmissions));
+  const leadsList=element('div','hosted-leads-list');leadsList.id='server-submissions';
+  leadsPanel.append(leadsTitle,leadsRefresh,leadsList);
+  mediaPanel.after(leadsPanel);
+  async function loadSubmissions(){
+    leadsList.replaceChildren();
+    if(!state.authorized||!state.siteId){
+      leadsTitle.textContent='Заявки сайта';
+      leadsList.append(element('small',null,'Выберите сайт.'));
+      return;
+    }
+    const response=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/submissions');
+    leadsTitle.textContent='Заявки сайта · '+response.submissions.length;
+    if(!response.submissions.length){
+      leadsList.append(element('small',null,'Обращений пока нет.'));return;
+    }
+    for(const lead of response.submissions){
+      const wrap=element('article','hosted-lead');
+      wrap.dataset.submissionId=lead.submission_id;
+      wrap.append(element('strong',null,lead.name+' · '+lead.email));
+      wrap.append(element('small',null,lead.submitted_at+' · '+lead.status));
+      wrap.append(element('p',null,lead.message));
+      if(lead.status==='new'){
+        wrap.append(action('Обработано','',()=>safe(async()=>{
+          await api('/api/sites/'+encodeURIComponent(state.siteId)+'/submissions/'+
+            encodeURIComponent(lead.submission_id)+'/review','POST',{});
+          await loadSubmissions();
+          notice('Заявка отмечена обработанной.');
+        })));
+      }
+      leadsList.append(wrap);
+    }
+  }
+
   async function uploadMedia(file){
     return safe(async()=>{
       if(!state.siteId)throw Error('Сначала создайте сайт');
@@ -101,6 +138,7 @@
   }
   function drawMedia(){
     mediaList.replaceChildren();
+    leadsList.replaceChildren();leadsTitle.textContent='Заявки сайта';
     previewData.clear();loadingMedia.clear();
     const assets=editor.getSite().assets;
     if(!state.siteId||!assets.length){
@@ -157,6 +195,7 @@
     $('server-logout').disabled=state.busy||!state.authorized;
     $('new-site').disabled=state.busy||!state.authorized;
     $('import').disabled=state.busy||!state.authorized;
+    leadsRefresh.disabled=state.busy||!state.authorized||!state.siteId;
     mediaUpload.disabled=!available||isDirty();
     $('reset').disabled=!available;
     const meta=state.sites.find(s=>s.site_id===state.siteId);
@@ -205,7 +244,7 @@
     const data=await api('/api/sites/'+encodeURIComponent(id));
     selectSite(data);
     picker.value=id;
-    await loadHistory();
+    await loadHistory();await loadSubmissions();
     notice('Сайт открыт из серверного хранилища. Публикация не выполнялась.');
   }
   async function save(){
@@ -245,7 +284,7 @@
       const id='site-'+crypto.randomUUID().replace(/-/g,'').slice(0,20);
       const site=editor.fromBrief(id,title.trim()||'Новый сайт');
       const created=await api('/api/sites','POST',{site});
-      selectSite(created);await refreshSites();await loadHistory();
+      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();
       notice('Создан новый серверный сайт без макета. Ревизия #1; сайт не опубликован.');
     });
   }
@@ -254,7 +293,7 @@
       if(isDirty()&&!confirm('Есть несохранённые правки. Импортировать другой сайт?'))return;
       if(!confirm('Создать серверный сайт из JSON с ID '+site.siteId+'? Публикация не выполняется.'))return;
       const created=await api('/api/sites','POST',{site});
-      selectSite(created);await refreshSites();await loadHistory();
+      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();
       notice('JSON импортирован в отдельный серверный сайт. Черновик не опубликован.');
     });
   }

@@ -1,0 +1,92 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "lead-form",
+  "version": "1.0.0",
+  "label": "Форма заявки",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок формы",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок",
+          "type": "text",
+          "default": "Оставьте заявку",
+          "responsive": false,
+          "maxLength": 160
+        }
+      ]
+    },
+    {
+      "slot": "name-label",
+      "label": "Имя",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись поля имени",
+          "type": "text",
+          "default": "Ваше имя",
+          "responsive": false,
+          "maxLength": 90
+        }
+      ]
+    },
+    {
+      "slot": "email-label",
+      "label": "Email",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись email",
+          "type": "text",
+          "default": "Электронная почта",
+          "responsive": false,
+          "maxLength": 90
+        }
+      ]
+    },
+    {
+      "slot": "message-label",
+      "label": "Сообщение",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись сообщения",
+          "type": "text",
+          "default": "Ваш вопрос",
+          "responsive": false,
+          "maxLength": 90
+        }
+      ]
+    },
+    {
+      "slot": "consent-label",
+      "label": "Согласие",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Текст согласия",
+          "type": "text",
+          "default": "Согласен на обработку данных для ответа на обращение",
+          "responsive": false,
+          "maxLength": 250
+        }
+      ]
+    },
+    {
+      "slot": "submit-label",
+      "label": "Кнопка отправки",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Текст кнопки",
+          "type": "text",
+          "default": "Отправить заявку",
+          "responsive": false,
+          "maxLength": 90
+        }
+      ]
+    }
+  ]
+}

@@ -260,6 +260,19 @@ test('image showcase is a closed media-bound component',()=>{
   doc.assets=[{id:'asset-test-one',src:'/assets/asset-test-one.png',mime:'image/png',alt:'Demo'}];
   assert.equal(sdk.validateSite(doc,manifests).pages[0].sections.at(-1).component,'image-showcase');
 });
+test('lead form has typed text-only controls and unique stable slot IDs',()=>{
+  const form=manifests[4];
+  assert.deepEqual(sdk.validateManifest(form),form);
+  const site=structuredClone(initial);
+  site.pages[1].sections.push(sdk.sectionFrom(form,'section-inquiry'));
+  const validated=sdk.validateSite(site,manifests);
+  const draft=require('../sdk/draft.cjs');
+  const started=draft.begin(validated,manifests);
+  const preview=draft.blockPreview(started,manifests,'page-contact','section-inquiry','mobile');
+  assert.equal(preview.component,'lead-form');
+  assert.equal(preview.elements.length,6);
+  assert.equal(preview.notPublished,true);
+});
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');

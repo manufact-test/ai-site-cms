@@ -108,7 +108,7 @@
     ];
     const sectionActions=[
       ['section-add','+ Блок',()=>{
-        const component=prompt('Компонент блока: company-hero, feature-highlights, contact-panel, image-showcase','feature-highlights');
+        const component=prompt('Компонент блока: company-hero, feature-highlights, contact-panel, image-showcase, lead-form','feature-highlights');
         if(component===null)return;
         const id=uniqueId('section');
         structural({action:'addSection',pageId,sectionId,id,component});
@@ -228,6 +228,12 @@
         '<div class="media-placeholder">'+(asset?'Загружается изображение: '+e(asset.alt||asset.id):'Выберите изображение из медиабиблиотеки')+'</div>';
       content='<section class="features"><span class="kicker">НАШИ ФОТОГРАФИИ</span><h2>'+e(title.title)+'</h2>'+
         '<div class="card">'+picture+'<p>'+e(p('caption').content.text||'')+'</p></div></section>';
+    }else if(block.component==='lead-form'){
+      content='<section class="contact"><h2>'+e(p('heading').content.text)+'</h2>'+
+        '<div class="card"><label>'+e(p('name-label').content.text)+'</label><div class="media-placeholder">Поле имени</div>'+
+        '<label>'+e(p('email-label').content.text)+'</label><div class="media-placeholder">Email</div>'+
+        '<label>'+e(p('message-label').content.text)+'</label><div class="media-placeholder">Сообщение</div>'+
+        '<p>☐ '+e(p('consent-label').content.text)+'</p><span class="action">'+e(p('submit-label').content.text)+'</span></div></section>';
     }else if(block.component==='contact-panel'){
       content='<section class="contact"><span class="kicker">НАЧНЁМ СОТРУДНИЧЕСТВО</span>'+
         '<h2>'+e(title.title)+'</h2><p>Обсудите проект и требования к оборудованию.</p>'+

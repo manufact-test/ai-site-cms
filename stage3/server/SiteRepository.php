@@ -51,7 +51,8 @@ final class SiteRepository
             "CREATE TABLE stage3_revisions (site_id $id NOT NULL, revision $number NOT NULL, body $big NOT NULL, created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, revision))$tail",
             "CREATE TABLE stage3_publications (site_id $id PRIMARY KEY, version $number NOT NULL, source_revision $number NOT NULL, body $big NOT NULL, published_at VARCHAR(35) NOT NULL)$tail",
             "CREATE TABLE stage3_publication_history (site_id $id NOT NULL, version $number NOT NULL, source_revision $number NOT NULL, body $big NOT NULL, published_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, version))$tail",
-            "CREATE TABLE stage3_media (site_id $id NOT NULL, asset_id $id NOT NULL, mime VARCHAR(32) NOT NULL, sha256 VARCHAR(64) NOT NULL, bytes " . ($this->driver === 'mysql' ? 'LONGBLOB' : 'BLOB') . ", created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, asset_id))$tail"
+            "CREATE TABLE stage3_media (site_id $id NOT NULL, asset_id $id NOT NULL, mime VARCHAR(32) NOT NULL, sha256 VARCHAR(64) NOT NULL, bytes " . ($this->driver === 'mysql' ? 'LONGBLOB' : 'BLOB') . ", created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, asset_id))$tail",
+            "CREATE TABLE stage3_submissions (submission_id $id PRIMARY KEY, site_id $id NOT NULL, section_id $id NOT NULL, source_version $number NOT NULL, name VARCHAR(160) NOT NULL, email VARCHAR(254) NOT NULL, message $big NOT NULL, submitted_at VARCHAR(35) NOT NULL, visitor_hash CHAR(64) NOT NULL, status VARCHAR(20) NOT NULL)$tail"
         ];
         foreach ($schema as $sql) {
             $this->db->exec($sql);
@@ -360,6 +361,105 @@ final class SiteRepository
             }
         }
         throw new NotFound('Image is not part of published site');
+    }
+
+
+    public function publishedVersion(string $id, int $version): array
+    {
+        $stmt = $this->db->prepare('SELECT body FROM stage3_publication_history WHERE site_id = ? AND version = ?');
+        $stmt->execute([$id, $version]);
+        $row = $stmt->fetchColumn();
+        if (!is_string($row)) {
+            throw new NotFound('Unknown published release');
+        }
+        return self::decode($row);
+    }
+
+    /** Validate against exact immutable published release; never against drafts. */
+    public function collectSubmission(string $siteId, string $sectionId, int $release, array $fields, string $clientIp, string $secret): string
+    {
+        if ($release < 1 || $release > 1000000000 || !preg_match('/^[a-z][a-z0-9-]{2,79}$/D', $siteId)
+            || !preg_match('/^[a-z][a-z0-9-]{2,79}$/D', $sectionId)) {
+            throw new \InvalidArgumentException('Unknown form');
+        }
+        $published = $this->publishedVersion($siteId, $release);
+        $form = false;
+        foreach ($published['pages'] as $page) {
+            foreach ($page['sections'] as $section) {
+                if ($section['id'] === $sectionId && $section['component'] === 'lead-form') {
+                    $form = true;
+                }
+            }
+        }
+        if (!$form) {
+            throw new NotFound('Form is not in this published release');
+        }
+        $token = hash_hmac('sha256', $siteId . '|' . $sectionId . '|' . $release, $secret);
+        if (!is_string($fields['_token'] ?? null)
+            || !hash_equals($token, $fields['_token'])) {
+            throw new \InvalidArgumentException('Invalid form token');
+        }
+        if (($fields['website'] ?? '') !== '') {
+            throw new \InvalidArgumentException('Automated submission rejected');
+        }
+        $values = [];
+        foreach (['name' => 120, 'email' => 254, 'message' => 4000] as $key => $max) {
+            $value = $fields[$key] ?? null;
+            if (!is_string($value) || !preg_match('//u', $value) || strlen($value) > $max
+                || preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f]/', $value)) {
+                throw new \InvalidArgumentException('Invalid form field: ' . $key);
+            }
+            $values[$key] = trim($value);
+        }
+        if (strlen($values['name']) < 2 || strlen($values['message']) < 10
+            || !filter_var($values['email'], FILTER_VALIDATE_EMAIL)
+            || !in_array($fields['consent'] ?? null, ['yes'], true)) {
+            throw new \InvalidArgumentException('Missing required fields or consent');
+        }
+        if (count($fields) !== 7 || array_diff(array_keys($fields),
+            ['name', 'email', 'message', 'consent', '_token', '_release', 'website'])) {
+            throw new \InvalidArgumentException('Unknown form fields');
+        }
+        if (($fields['_release'] ?? null) !== (string)$release) {
+            throw new \InvalidArgumentException('Invalid release number');
+        }
+        $visitor = hash_hmac('sha256', $clientIp, $secret);
+        return $this->atomic(function () use ($siteId, $sectionId, $release, $values, $visitor): string {
+            // Hourly per-site limit. Hash protects raw visitor IP from storage.
+            $since = gmdate('Y-m-d\TH:i:s\Z', time() - 3600);
+            $check = $this->db->prepare('SELECT COUNT(*) FROM stage3_submissions WHERE site_id = ? AND visitor_hash = ? AND submitted_at >= ?');
+            $check->execute([$siteId, $visitor, $since]);
+            if ((int)$check->fetchColumn() >= 5) {
+                throw new Conflict('Submission limit reached');
+            }
+            $id = 'lead-' . bin2hex(random_bytes(12));
+            $stmt = $this->db->prepare('INSERT INTO stage3_submissions (submission_id, site_id, section_id, source_version, name, email, message, submitted_at, visitor_hash, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            $stmt->execute([$id, $siteId, $sectionId, $release,
+                $values['name'], $values['email'], $values['message'], $this->now(), $visitor, 'new']);
+            return $id;
+        });
+    }
+
+    /** Admin-only inbox; no public read endpoints, no visitor hashes returned. */
+    public function submissions(string $siteId): array
+    {
+        $this->getDraft($siteId);
+        $stmt = $this->db->prepare('SELECT submission_id, section_id, source_version, name, email, message, submitted_at, status FROM stage3_submissions WHERE site_id = ? ORDER BY submitted_at DESC, submission_id DESC LIMIT 100');
+        $stmt->execute([$siteId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function reviewSubmission(string $siteId, string $submissionId): void
+    {
+        $this->getDraft($siteId);
+        if (!preg_match('/^lead-[0-9a-f]{24}$/D', $submissionId)) {
+            throw new \InvalidArgumentException('Invalid submission ID');
+        }
+        $stmt = $this->db->prepare('UPDATE stage3_submissions SET status = ? WHERE site_id = ? AND submission_id = ?');
+        $stmt->execute(['reviewed', $siteId, $submissionId]);
+        if ($stmt->rowCount() !== 1) {
+            throw new NotFound('Unknown or already reviewed submission');
+        }
     }
 
 }

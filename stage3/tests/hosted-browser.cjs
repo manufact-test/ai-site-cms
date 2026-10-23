@@ -10,7 +10,8 @@ const temp=fs.mkdtempSync(path.join(os.tmpdir(),'ai-site-studio-http-'));
 const chrome=['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium','/usr/bin/chromium-browser'].find(fs.existsSync);
 if(!chrome)throw Error('Chromium required for hosted Studio scenario');
 const env={...process.env,STAGE3_DSN:'sqlite:'+path.join(temp,'site.sqlite'),
-  STAGE3_OWNER_USER:'testowner',STAGE3_OWNER_PASSWORD:'CI-only-password-123456'};
+  STAGE3_OWNER_USER:'testowner',STAGE3_OWNER_PASSWORD:'CI-only-password-123456',
+  STAGE3_FORM_SECRET:'CI-only-form-secret-with-minimum-32-characters'};
 let php=null,browser=null;
 async function pickPort(){
   const s=net.createServer();
@@ -156,8 +157,28 @@ async function execute(){
   await visitor.goto(origin+'/published/'+siteId+'/');
   assert.equal(await visitor.locator('img.showcase-photo').count(),1);
   assert.equal(await visitor.locator('img.showcase-photo').getAttribute('alt'),'Фото цеха');
+  // A complete visitor form -> CMS inbox -> review cycle in real Chromium.
+  replies.push('lead-form');
+  await page.locator('#section-add').click();
+  assert.equal(await page.locator('#sections .nav-entry').filter({hasText:'Форма заявки'}).count(),1);
+  await page.locator('#save').click();
+  await page.locator('#server-status').getByText(/Черновик #9/).waitFor();
+  await page.locator('#server-publish').click();
+  await page.locator('#server-status').getByText(/Опубликовано: v5/).waitFor();
+  await visitor.goto(origin+'/published/'+siteId+'/');
+  await visitor.locator('form.lead-form input[name="name"]').fill('Алексей Тест');
+  await visitor.locator('form.lead-form input[name="email"]').fill('lead@example.test');
+  await visitor.locator('form.lead-form textarea[name="message"]').fill('Нужен расчёт стоимости оборудования');
+  await visitor.locator('form.lead-form input[name="consent"]').check();
+  await Promise.all([visitor.waitForNavigation(),visitor.locator('form.lead-form button[type="submit"]').click()]);
+  assert.match(await visitor.locator('main').innerText(),/заявка сохранена/);
+  await page.locator('#server-submissions-refresh').click();
+  await page.locator('#server-submission-heading').getByText(/Заявки сайта · 1/).waitFor();
+  assert.match(await page.locator('#server-submissions .hosted-lead').innerText(),/Алексей Тест/);
+  await page.locator('#server-submissions .hosted-lead button').click();
+  assert.match(await page.locator('#server-submissions .hosted-lead small').innerText(),/reviewed/);
   const tokenless=await ctx.request.post(origin+'/api/sites/'+siteId+'/save',
-    {data:{site:{},expectedRevision:8}});
+    {data:{site:{},expectedRevision:9}});
   assert.equal(tokenless.status(),403,'CSRF still enforced with browser credentials');
   const link=page.locator('#server-public-link');
   assert.equal(await link.getAttribute('href'),'/published/'+siteId+'/');

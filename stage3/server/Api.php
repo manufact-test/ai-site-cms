@@ -146,13 +146,13 @@ final class Api
         if (preg_match('~^/published/([a-z][a-z0-9-]{2,79})(/.*)$~D', $path, $match) && $method === 'GET') {
             try {
                 $published = $this->sites->published($match[1]);
-                $html = PublicRenderer::html($published['site'], $match[2]);
+                $html = PublicRenderer::html($published['site'], $match[2], null, null, $published['version']);
                 if ($html === null) {
                     http_response_code(404);
                     echo 'Not found';
                     exit;
                 }
-                header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+                header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
                 header('Content-Type: text/html; charset=utf-8');
                 echo $html;
                 exit;
@@ -161,6 +161,9 @@ final class Api
                 echo 'Not found';
                 exit;
             }
+        }
+        if ($method === 'POST' && preg_match('~^/forms/([a-z][a-z0-9-]{2,79})/([a-z][a-z0-9-]{2,79})$~D', $path, $formMatch)) {
+            FormGateway::respond($this->sites, $formMatch[1], $formMatch[2]);
         }
         if (!str_starts_with($path, '/api/')) {
             self::response(404, ['error' => 'Unknown endpoint']);
@@ -224,6 +227,15 @@ final class Api
                 }
                 if ($path === '/api/sites') {
                     self::response(201, $this->sites->createSite($body['site'] ?? []));
+                }
+            }
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/submissions(?:/(lead-[0-9a-f]{24})/review)?$~D', $path, $inboxMatch)) {
+                if ($method === 'GET' && !isset($inboxMatch[2])) {
+                    self::response(200, ['submissions' => $this->sites->submissions($inboxMatch[1])]);
+                }
+                if ($method === 'POST' && isset($inboxMatch[2])) {
+                    $this->sites->reviewSubmission($inboxMatch[1], $inboxMatch[2]);
+                    self::response(200, ['status' => 'reviewed']);
                 }
             }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/(revisions|restore|save|publish|media))?$~D', $path, $matches)) {

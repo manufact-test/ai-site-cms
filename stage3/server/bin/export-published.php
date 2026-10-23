@@ -39,6 +39,22 @@ try {
     if (!in_array('/', array_column($site['pages'], 'path'), true)) {
         failExport('A published website requires a root page');
     }
+    // Visitor pages stay static; form submissions require an explicitly
+    // deployed, separate HTTPS collector. Never export a silently broken form.
+    $forms = false;
+    foreach ($site['pages'] as $page) {
+        foreach ($page['sections'] as $section) {
+            $forms = $forms || $section['component'] === 'lead-form';
+        }
+    }
+    $collectorBase = getenv('STAGE3_FORM_ENDPOINT');
+    if ($forms) {
+        if (!is_string($collectorBase) || $collectorBase === '') {
+            failExport('Form collector origin STAGE3_FORM_ENDPOINT required for this release');
+        }
+        \Manufact\Stage3\FormGateway::endpoint($collectorBase, $siteId, 'section-placeholder');
+        \Manufact\Stage3\FormGateway::secret();
+    }
     $temp = $parent . '/.stage3-build-' . bin2hex(random_bytes(10));
     if (!mkdir($temp, 0755)) {
         failExport('Cannot create export staging directory');
@@ -50,6 +66,7 @@ try {
         'sourceRevision' => $published['sourceRevision'],
         'pages' => [],
         'assets' => [],
+        'formCollector' => $forms ? $collectorBase : null,
     ];
     try {
         foreach ($site['assets'] as $asset) {
@@ -87,7 +104,7 @@ try {
             if (!is_dir($folder) && !mkdir($folder, 0755, true)) {
                 failExport('Cannot create page directory');
             }
-            $html = PublicRenderer::html($site, $path, '');
+            $html = PublicRenderer::html($site, $path, '', $forms ? $collectorBase : null, $published['version']);
             if ($html === null || file_put_contents($temp . '/' . $relative, $html, LOCK_EX) === false) {
                 failExport('Cannot write published page');
             }

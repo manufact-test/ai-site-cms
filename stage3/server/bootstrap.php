@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/ContractValidator.php';
 require_once __DIR__ . '/SiteRepository.php';
 require_once __DIR__ . '/PublicRenderer.php';
+require_once __DIR__ . '/FormGateway.php';
 require_once __DIR__ . '/Api.php';
 
 use Manufact\Stage3\ContractValidator;
