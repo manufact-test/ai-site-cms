@@ -15,7 +15,7 @@
   "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40037244195",
   "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40037244195",
   "source_offweb_ci": null,
-  "source_ci_result": "PENDING verification: check Actions run 40037244195; source section appearance CI; previous v1.58 release source c5c8b727fd1d517643d420e48decee66a90bb8dd CI 40035420918 SUCCESS",
+  "source_ci_result": "SUCCESS: source 58b7ebb2e309d1845c8139fbcf58689f5a8ad2a2, GitHub Actions 40037244195 (SDK, browser, PHP, static export); NOT a product acceptance",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly, then fix issues from real use; never get stuck testing existing lab",

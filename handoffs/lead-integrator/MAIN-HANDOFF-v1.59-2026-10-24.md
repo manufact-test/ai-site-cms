@@ -2,7 +2,7 @@
 
 ## Контрольная точка и команда
 
-Репозиторий: https://github.com/manufact-test/ai-site-cms . Основная рабочая ветка **`feature/stage3-ai-site-contract`**; функциональный SHA **`58b7ebb2e309d1845c8139fbcf58689f5a8ad2a2`**; агрегированный CI: https://github.com/manufact-test/ai-site-cms/actions/runs/40037244195 (ПРОВЕРЬ conclusion прежде чем назвать GREEN). `main` в начале передачи = `12e9c3feb707e5ad46b2caeeed379eb40618466b`; PR #3/#4 — сторонние исследования в main, НЕ сливать.
+Репозиторий: https://github.com/manufact-test/ai-site-cms . Основная рабочая ветка **`feature/stage3-ai-site-contract`**; функциональный SHA **`58b7ebb2e309d1845c8139fbcf58689f5a8ad2a2`**; агрегированный CI: https://github.com/manufact-test/ai-site-cms/actions/runs/40037244195 (SUCCESS, проверено 24.10.2026). `main` в начале передачи = `12e9c3feb707e5ad46b2caeeed379eb40618466b`; PR #3/#4 — сторонние исследования в main, НЕ сливать.
 
 **Ты главный разработчик, интегратор и координатор.** Владелец явно согласовал **ДВА независимых чата**; второй — НЕ равноправный редактор текущей ветки. Ты продолжаешь функциональную CMS независимо и НЕ ждёшь второй чат. Не создавай новые ветки/потоки по своей инициативе; задан только один подрядчик по release audit.
 
