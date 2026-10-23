@@ -156,6 +156,18 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).redirects,undefined);
     await page.locator('#redo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).redirects.length,1);
+
+    // Inspect a complete draft page at device widths without publishing or
+    // enabling scripts/network for the iframe.
+    await page.locator('#cms-open-page-preview').click();
+    await page.locator('#cms-page-preview').waitFor({state:'visible'});
+    assert.equal(await page.locator('#cms-page-preview-frame').getAttribute('sandbox'),'');
+    await page.frameLocator('#cms-page-preview-frame').locator('h1').first().waitFor();
+    await page.locator('#cms-page-preview-path').selectOption('/contact/');
+    await page.frameLocator('#cms-page-preview-frame').locator('.contact').first().waitFor();
+    await page.locator('.cms-page-preview-modes [data-mode="mobile"]').click();
+    assert.equal(await page.locator('#cms-page-preview-frame').evaluate(x=>x.style.width),'390px');
+    await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
     assert.deepEqual(errors,[],'No page JS errors or unsupported dependencies');
     assert.deepEqual(remote,[],'No outgoing network requests, even through iframe');
     console.log('STAGE3 REAL CHROMIUM STUDIO E2E PASS: typed edit, inert preview, responsive, undo/redo, saved versions, reload, export/import, no-design and fail-closed import');
