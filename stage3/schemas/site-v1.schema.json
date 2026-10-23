@@ -79,6 +79,13 @@
           "maximum": 1600
         }
       }
+    },
+    "redirects": {
+      "type": "array",
+      "maxItems": 60,
+      "items": {
+        "$ref": "#/$defs/redirect"
+      }
     }
   },
   "$defs": {
@@ -266,6 +273,24 @@
         },
         "values": {
           "type": "object"
+        }
+      }
+    },
+    "redirect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "^/(?:[a-z0-9-]+/)*$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^/(?:[a-z0-9-]+/)*$"
         }
       }
     }

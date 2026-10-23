@@ -94,8 +94,23 @@ function structure(raw,manifests,command){
       if(!page)throw Error('Unknown page');
       page.title=label(command.title);
       if(page.path==='/'&&command.path!=='/')throw Error('Home page must retain root path');
+      if(page.path!==command.path){
+        if(!Array.isArray(c.redirects))c.redirects=[];
+        if(c.redirects.some(r=>r.from===command.path))throw Error('New URL is reserved by a redirect');
+        if(page.path!=='/'){
+          for(const r of c.redirects)if(r.to===page.path)r.to=command.path;
+          c.redirects.push({from:page.path,to:command.path});
+        }
+      }
       page.path=command.path;
       break;
+    case 'addRedirect':
+      if(!Array.isArray(c.redirects))c.redirects=[];
+      c.redirects.push({from:command.from,to:command.to});break;
+    case 'removeRedirect':
+      if(!Array.isArray(c.redirects))throw Error('Unknown redirect');
+      if(!c.redirects.some(r=>r.from===command.from))throw Error('Unknown redirect');
+      c.redirects=c.redirects.filter(r=>r.from!==command.from);break;
     case 'movePage':
       move(c.pages,index,command.delta);break;
     case 'removePage':
@@ -177,6 +192,8 @@ function changes(raw,manifests){
   const s=verifySession(raw,manifests),diff=[];
   const pages=new Map(s.base.pages.map(p=>[p.id,p]));
   if(JSON.stringify(s.base.theme)!==JSON.stringify(s.current.theme))diff.push({kind:'theme-updated'});
+  if(JSON.stringify(s.base.redirects||[])!==JSON.stringify(s.current.redirects||[]))
+    diff.push({kind:'redirects-updated'});
   const record=(kind,ids)=>diff.push({kind,...ids});
   s.base.pages.forEach(p=>{if(!s.current.pages.some(q=>q.id===p.id))record('page-removed',{pageId:p.id});});
   s.current.pages.forEach((page,position)=>{

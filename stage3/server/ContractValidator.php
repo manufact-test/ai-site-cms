@@ -141,7 +141,7 @@ final class ContractValidator
     }
     public function validate(mixed $site): array
     {
-        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme']);
+        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects']);
         if (array_key_exists('theme',$site)) self::theme($site['theme']);
         self::must(($site['format'] ?? null) === 'manufact-ai-site-v1'
             && ($site['schemaVersion'] ?? null) === 1, 'Unsupported site format');
@@ -222,6 +222,20 @@ final class ContractValidator
                         }
                     }
                 } else self::must(!array_key_exists('items',$section),'Undeclared repeater');
+            }
+        }
+        if (array_key_exists('redirects',$site)) {
+            self::must(is_array($site['redirects']) && array_is_list($site['redirects'])
+                && count($site['redirects'])<=60,'Invalid redirect list');
+            $seen=[];
+            foreach ($site['redirects'] as $redirect) {
+                self::keys($redirect,['from','to']);
+                $from=$redirect['from']??null;$to=$redirect['to']??null;
+                self::must(is_string($from)&&is_string($to)
+                    && preg_match(self::PATH,$from)===1&&preg_match(self::PATH,$to)===1
+                    && $from!=='/'&&$from!==$to&&!isset($paths[$from])
+                    && isset($paths[$to])&&!isset($seen[$from]),'Invalid redirect alias or destination');
+                $seen[$from]=true;
             }
         }
         return $site;
