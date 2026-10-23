@@ -26,8 +26,8 @@
     },
     {
       "path": "bin/hostinger-stage2-preflight.php",
-      "bytes": 18482,
-      "sha256": "c4525b0d408891af05fa184bf1ee41ee2e4b1209a98bb9994b6904f510a36058"
+      "bytes": 19600,
+      "sha256": "e31387efeead898ee5c40343009b6e5e8ac1a138ab49287b13a9d774d9dab7a2"
     },
     {
       "path": "bin/hostinger-stage2-revoke.php",
