@@ -117,11 +117,9 @@ async function execute(){
   const newPage=await visitor.goto(origin+'/published/'+siteId+'/equipment/');
   assert.equal(newPage.status(),200);
   assert.equal(await visitor.locator('h1').innerText(),'Оборудование для вашего производства');
-  const renamedRoute=await page.evaluate(async id=>{
-    const res=await fetch('/published/'+id+'/solutions/',{redirect:'manual'});
-    return {status:res.status,location:res.headers.get('location')};
-  },siteId);
-  assert.deepEqual(renamedRoute,{status:301,location:'/published/'+siteId+'/equipment/'},
+  const renamedRoute=await fetch(origin+'/published/'+siteId+'/solutions/',{redirect:'manual'});
+  assert.deepEqual({status:renamedRoute.status,location:renamedRoute.headers.get('location')},
+    {status:301,location:'/published/'+siteId+'/equipment/'},
     'Old page URL now redirects permanently after explicit publication');
   // Site metadata and session persist across page refresh.
   await page.reload();
@@ -481,11 +479,9 @@ async function execute(){
   const priorVersion=Number((await page.locator('#server-status').innerText()).match(/Опубликовано: v(\d+)/)[1]);
   await page.locator('#server-publish').click();
   await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(priorVersion+1)+'\\b')).waitFor();
-  const publishedRedirect=await page.evaluate(async id=>{
-    const res=await fetch('/published/'+id+'/old-gallery/',{redirect:'manual'});
-    return {status:res.status,location:res.headers.get('location')};
-  },siteId);
-  assert.deepEqual(publishedRedirect,{status:301,location:'/published/'+siteId+'/'});
+  const publishedRedirect=await fetch(origin+'/published/'+siteId+'/old-gallery/',{redirect:'manual'});
+  assert.deepEqual({status:publishedRedirect.status,location:publishedRedirect.headers.get('location')},
+    {status:301,location:'/published/'+siteId+'/'});
   await staffCtx.close();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
