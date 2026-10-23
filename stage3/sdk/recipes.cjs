@@ -8,7 +8,7 @@ function keys(x,allowed){if(!obj(x)||Object.keys(x).some(k=>!allowed.includes(k)
 function text(x,max,empty=false){if(typeof x!=='string'||x.length>max||(!empty&&!x.trim())||/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(x))throw Error('Invalid recipe text');return x.trim();}
 function id(x){if(typeof x!=='string'||!/^[a-z][a-z0-9-]{2,47}$/.test(x))throw Error('Invalid recipe ID');return x;}
 const PRESETS=Object.freeze({
-  company:{label:'Компания · 4 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights','contact-panel']],['offers','/offers/','Предложения',['company-hero','service-grid','contact-panel']],['about','/about/','О компании',['company-hero','feature-highlights']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
+  company:{label:'Компания · 4 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights','contact-panel']],['offers','/offers/','Предложения',['company-hero','service-grid','contact-panel']],['about','/about/','О компании',['company-hero','feature-highlights','media-story']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
   services:{label:'Услуги · 3 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights','contact-panel']],['offers','/services/','Услуги',['company-hero','service-grid','lead-form-flex']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
   portfolio:{label:'Портфолио · 3 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights']],['offers','/projects/','Проекты',['company-hero','photo-gallery','contact-panel']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
   landing:{label:'Одностраничный сайт',pages:[['home','/','Главная',['company-hero','feature-highlights','contact-panel','lead-form-flex']]]}
@@ -18,7 +18,7 @@ function plan({siteId,title,task='',preset=suggest(task),facts={}}){
   if(!Object.hasOwn(PRESETS,preset))throw Error('Unknown site recipe');
   const values={headline:'',description:'',offerings:[],details:[],contactLabel:'',contactUrl:'',...facts};
   const definition=cp(PRESETS[preset].pages);
-  if(preset!=='landing'&&values.details.length&&!definition.some(p=>p[0]==='about'))definition.splice(definition.length-1,0,['about','/about/','О компании',['company-hero','feature-highlights']]);
+  if(preset!=='landing'&&values.details.length&&!definition.some(p=>p[0]==='about'))definition.splice(definition.length-1,0,['about','/about/','О компании',['company-hero','feature-highlights','media-story']]);
   const pages=definition.map(([kind,path,name,components],pi)=>({
     id:'page-'+kind,path,title:name,kind,sections:components.flatMap((component,si)=>{
       // Split all supplied entries into pairs, preserving each fact verbatim.
@@ -112,6 +112,13 @@ function compose(raw,manifests,{sourceSite=null,templates=[]}={}){
             'content.text':i<entries.length?'Укажите подтверждённое описание.':'Добавьте описание.',
             'behavior.href':destination}
         }));
+      }else if(spec.component==='media-story'){
+        put(section,'heading','content.text','Познакомьтесь с нами');
+        put(section,'copy','content.text',f.description||f.details.slice(0,2).join(' · ')||
+          'Добавьте подтверждённую информацию о команде или проекте.');
+        put(section,'action','content.text',f.contactLabel||'Связаться');
+        put(section,'action','behavior.href',f.contactUrl||destination);
+        warnings.push('При необходимости добавьте фотографию к истории компании.');
       }else if(spec.component==='photo-gallery'){
         put(section,'heading','content.text','Наши проекты');
         warnings.push('Загрузите собственные изображения в галерею.');
