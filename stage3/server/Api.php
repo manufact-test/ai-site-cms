@@ -171,7 +171,26 @@ final class Api
         if (preg_match('~^/published/([a-z][a-z0-9-]{2,79})(/.*)$~D', $path, $match) && $method === 'GET') {
             try {
                 $published = $this->sites->published($match[1]);
-                $html = PublicRenderer::html($published['site'], $match[2], null, null, $published['version']);
+                $mount='/published/'.$match[1];
+                $origin=PublicRenderer::origin(getenv('STAGE3_PUBLIC_ORIGIN')?:null);
+                if (in_array($match[2],['/sitemap.xml','/robots.txt'],true)) {
+                    if ($origin===null) {
+                        $this->response(503,['error'=>'STAGE3_PUBLIC_ORIGIN required for public sitemap and robots']);
+                    }
+                    header('Content-Type: '.($match[2]==='/sitemap.xml'?'application/xml':'text/plain').'; charset=utf-8');
+                    echo $match[2]==='/sitemap.xml'
+                        ?PublicRenderer::sitemap($published['site'],$mount,$origin)
+                        :PublicRenderer::robots($mount,$origin);
+                    exit;
+                }
+                $redirect=PublicRenderer::redirectTarget($published['site'],$match[2]);
+                if ($redirect!==null) {
+                    header('Location: '.$mount.$redirect,true,301);
+                    header('Content-Type: text/plain; charset=utf-8');
+                    echo 'Page moved permanently';
+                    exit;
+                }
+                $html = PublicRenderer::html($published['site'], $match[2], null, null, $published['version'], $origin);
                 if ($html === null) {
                     http_response_code(404);
                     echo 'Not found';
