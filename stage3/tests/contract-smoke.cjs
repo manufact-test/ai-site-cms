@@ -284,6 +284,36 @@ test('configurable form adds three typed slots without changing legacy forms',()
   assert.equal(sdk.validateSite(doc,manifests).pages[1].sections.at(-1).component,'lead-form-flex');
   assert.equal(manifests[4].id,'lead-form');
 });
+test('reusable section templates, full page duplicates, undo/redo, and no stale changes',()=>{
+  const D=require('../sdk/draft.cjs');
+  const initialBytes=JSON.stringify(initial);
+  let state=D.begin(initial,manifests);
+  const original=initial.pages[0].sections[0];
+  const apply=command=>{state=D.structure(state,manifests,{...command,expectedRevision:state.revision});};
+  apply({action:'duplicateSection',pageId:'page-home',sectionId:original.id,id:'section-cloned'});
+  const copy=state.current.pages[0].sections.find(x=>x.id==='section-cloned');
+  assert.equal(copy.component,original.component);
+  assert.deepEqual(copy.elements.map(x=>x.values),original.elements.map(x=>x.values));
+  assert.notEqual(copy.elements[0].id,original.elements[0].id);
+  apply({action:'duplicatePage',pageId:'page-contact',id:'page-extra-copy',title:'Копия',path:'/extra-copy/'});
+  assert.equal(state.current.pages.length,3);
+  assert.notEqual(state.current.pages[2].sections[0].id,initial.pages[1].sections[0].id);
+  apply({action:'applyTemplate',pageId:'page-extra-copy',sectionId:state.current.pages[2].sections[0].id,
+    id:'section-from-template',template:original});
+  assert.equal(state.current.pages[2].sections.length,2);
+  const old=state.current;
+  state=D.undo(state,manifests);
+  assert.equal(state.current.pages[2].sections.length,1);
+  state=D.redo(state,manifests);
+  assert.deepEqual(state.current,old);
+  refuses(()=>D.structure(state,manifests,{action:'applyTemplate',pageId:'page-home',id:'section-from-template',
+      template:original,expectedRevision:0}),'Stale preset apply refused');
+  refuses(()=>D.structure(state,manifests,{action:'applyTemplate',pageId:'page-home',id:'section-invalid',
+      template:{...original,component:'untrusted-code'},expectedRevision:state.revision}),'Unregistered template refused');
+  refuses(()=>D.structure(state,manifests,{action:'duplicatePage',pageId:'page-home',
+      id:'page-duplicate-2',title:'Copy',path:'/',expectedRevision:state.revision}),'Duplicate path refused');
+  assert.equal(JSON.stringify(initial),initialBytes,'Original source remains immutable');
+});
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');

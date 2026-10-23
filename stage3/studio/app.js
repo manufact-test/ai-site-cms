@@ -100,6 +100,16 @@
         const path=prompt('Путь страницы',page.path);if(path===null)return;
         structural({action:'updatePage',pageId:page.id,title,path});
       }],
+      ['page-duplicate','Копировать страницу',()=>{
+        const page=current().page;
+        const name=prompt('Название копии страницы',page.title+' — копия');if(name===null)return;
+        const path=prompt('Новый URL копии страницы','/copy-'+Date.now().toString(36)+'/');
+        if(path===null)return;
+        const id=uniqueId('page');
+        structural({action:'duplicatePage',pageId:page.id,id,title:name,path});
+        const result=session.current.pages.find(x=>x.id===id);
+        if(result){pageId=id;sectionId=result.sections[0].id;elementId=result.sections[0].elements[0].id;draw();}
+      }],
       ['page-up','↑',()=>structural({action:'movePage',pageId:pageId,delta:-1})],
       ['page-down','↓',()=>structural({action:'movePage',pageId:pageId,delta:1})],
       ['page-remove','Удалить',()=>{
@@ -116,6 +126,12 @@
         if(page.sections.some(x=>x.id===id)){
           sectionId=id;elementId=page.sections.find(x=>x.id===id).elements[0].id;draw();
         }
+      }],
+      ['section-duplicate','Копировать блок',()=>{
+        const id=uniqueId('section');
+        structural({action:'duplicateSection',pageId,sectionId,id});
+        const section=session.current.pages.find(x=>x.id===pageId)?.sections.find(x=>x.id===id);
+        if(section){sectionId=id;elementId=section.elements[0].id;draw();}
       }],
       ['section-up','↑',()=>structural({action:'moveSection',pageId,sectionId,delta:-1})],
       ['section-down','↓',()=>structural({action:'moveSection',pageId,sectionId,delta:1})],
@@ -369,6 +385,19 @@
   }));
   if(HOSTED)window.Stage3Editor=Object.freeze({
     getSite:()=>cp(session.current),
+    selection:()=>{
+      const {page,section}=current();
+      return {pageId:page.id,sectionId:section.id,component:section.component};
+    },
+    applySectionTemplate:section=>{
+      const id=uniqueId('section');
+      const page=current().page;
+      structural({action:'applyTemplate',pageId:page.id,sectionId,id,template:section});
+      const inserted=session.current.pages.find(p=>p.id===page.id)?.sections.find(t=>t.id===id);
+      if(!inserted)throw Error('Шаблон не вставлен; проверьте сообщение редактора');
+      sectionId=id;elementId=inserted.elements[0].id;draw();
+      return id;
+    },
     refreshPreview:()=>drawPreview(),
     isDirty:()=>JSON.stringify(session.current)!==savedBytes,
     replace:site=>{

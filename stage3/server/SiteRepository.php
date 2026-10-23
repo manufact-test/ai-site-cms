@@ -53,7 +53,8 @@ final class SiteRepository
             "CREATE TABLE stage3_publication_history (site_id $id NOT NULL, version $number NOT NULL, source_revision $number NOT NULL, body $big NOT NULL, published_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, version))$tail",
             "CREATE TABLE stage3_media (site_id $id NOT NULL, asset_id $id NOT NULL, mime VARCHAR(32) NOT NULL, sha256 VARCHAR(64) NOT NULL, bytes " . ($this->driver === 'mysql' ? 'LONGBLOB' : 'BLOB') . ", created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, asset_id))$tail",
             "CREATE TABLE stage3_submissions (submission_id $id PRIMARY KEY, site_id $id NOT NULL, section_id $id NOT NULL, source_version $number NOT NULL, name VARCHAR(160) NOT NULL, email VARCHAR(254) NOT NULL, message $big NOT NULL, submitted_at VARCHAR(35) NOT NULL, visitor_hash CHAR(64) NOT NULL, status VARCHAR(20) NOT NULL, extras $big NOT NULL)$tail",
-            "CREATE TABLE stage3_notifications (site_id $id NOT NULL, submission_id $id NOT NULL, created_at VARCHAR(35) NOT NULL, seen_at VARCHAR(35) NULL, PRIMARY KEY(site_id, submission_id))$tail"
+            "CREATE TABLE stage3_notifications (site_id $id NOT NULL, submission_id $id NOT NULL, created_at VARCHAR(35) NOT NULL, seen_at VARCHAR(35) NULL, PRIMARY KEY(site_id, submission_id))$tail",
+            "CREATE TABLE stage3_section_templates (site_id $id NOT NULL, template_id $id NOT NULL, title VARCHAR(160) NOT NULL, component VARCHAR(80) NOT NULL, body $big NOT NULL, created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id,template_id))$tail"
         ];
         foreach ($schema as $sql) {
             $this->db->exec($sql);
@@ -492,6 +493,82 @@ final class SiteRepository
         $stmt->execute(['reviewed', $siteId, $submissionId]);
         if ($stmt->rowCount() !== 1) {
             throw new NotFound('Unknown or already reviewed submission');
+        }
+    }
+
+
+    /**
+     * Site-scoped snapshots reference only that site's already validated draft
+     * components and assets. No executable template uploads, HTML or arbitrary
+     * cross-site copies. Existing templates survive later source-section edits.
+     */
+    public function storeSectionTemplate(
+        string $siteId,
+        string $pageId,
+        string $sectionId,
+        string $name,
+        int $expectedRevision
+    ): array {
+        if (trim($name) === '' || strlen($name) > 140 ||
+            preg_match('/[\x00-\x1f]/', $name)) {
+            throw new \InvalidArgumentException('Invalid template name');
+        }
+        return $this->atomic(function () use ($siteId, $pageId, $sectionId, $name, $expectedRevision): array {
+            $draft = $this->getDraft($siteId);
+            if ($draft['revision'] !== $expectedRevision) {
+                throw new Conflict('Stale draft; save/reload before creating a template');
+            }
+            $section = null;
+            foreach ($draft['site']['pages'] as $page) {
+                if ($page['id'] !== $pageId) continue;
+                foreach ($page['sections'] as $current) {
+                    if ($current['id'] === $sectionId) $section = $current;
+                }
+            }
+            if ($section === null) {
+                throw new NotFound('Unknown section on selected page');
+            }
+            $this->validator->validate($draft['site']);
+            $stmt = $this->db->prepare('SELECT COUNT(*) FROM stage3_section_templates WHERE site_id = ?');
+            $stmt->execute([$siteId]);
+            if ((int)$stmt->fetchColumn() >= 60) {
+                throw new \InvalidArgumentException('Maximum 60 reusable sections per site');
+            }
+            $id = 'template-' . bin2hex(random_bytes(9));
+            $created = $this->now();
+            $stmt = $this->db->prepare('INSERT INTO stage3_section_templates (site_id, template_id, title, component, body, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+            $stmt->execute([$siteId, $id, trim($name), $section['component'],
+                self::encode($section), $created]);
+            return ['id' => $id, 'title' => trim($name),
+                'component' => $section['component'], 'section' => $section,
+                'createdAt' => $created];
+        });
+    }
+
+    public function sectionTemplates(string $siteId): array
+    {
+        $this->getDraft($siteId); // refuse nonexistent site
+        $stmt = $this->db->prepare('SELECT template_id,title,component,body,created_at FROM stage3_section_templates WHERE site_id = ? ORDER BY created_at DESC,template_id DESC');
+        $stmt->execute([$siteId]);
+        return array_map(static fn (array $row): array => [
+            'id' => $row['template_id'],
+            'title' => $row['title'],
+            'component' => $row['component'],
+            'section' => self::decode($row['body']),
+            'createdAt' => $row['created_at']
+        ], $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    public function removeSectionTemplate(string $siteId, string $templateId): void
+    {
+        $this->getDraft($siteId);
+        if (!preg_match('/^template-[a-f0-9]{18}$/D', $templateId)) {
+            throw new \InvalidArgumentException('Invalid section template ID');
+        }
+        $stmt = $this->db->prepare('DELETE FROM stage3_section_templates WHERE site_id = ? AND template_id = ?');
+        $stmt->execute([$siteId, $templateId]);
+        if ($stmt->rowCount() !== 1) {
+            throw new NotFound('Template not found for this site');
         }
     }
 

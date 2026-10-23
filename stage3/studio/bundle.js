@@ -341,6 +341,12 @@ function structure(raw,manifests,command){
     if(position<0||target<0||target>=items.length)throw Error('Cannot move outside collection');
     [items[position],items[target]]=[items[target],items[position]];
   };
+  const rekey=(source,newId)=>{
+    if(typeof newId!=='string')throw Error('Fresh section ID required');
+    return {...copy(source),id:newId,elements:source.elements.map(el=>({
+      ...copy(el),id:newId+'-'+el.slot
+    }))};
+  };
   switch(action){
     case 'addPage': {
       if(typeof command.id!=='string'||!reg.has(command.component))throw Error('Unknown new page');
@@ -364,6 +370,28 @@ function structure(raw,manifests,command){
       page.sections.splice(sectionIndex>=0?sectionIndex+1:page.sections.length,0,
         C.sectionFrom(reg.get(command.component),command.id));
       break;
+    case 'duplicateSection':
+      if(!page||sectionIndex<0)throw Error('Unknown section to duplicate');
+      page.sections.splice(sectionIndex+1,0,rekey(page.sections[sectionIndex],command.id));
+      break;
+    case 'applyTemplate':{
+      if(!page||typeof command.id!=='string'||!isObj(command.template))
+        throw Error('Unknown template');
+      const source=command.template;
+      const m=reg.get(source.component);
+      if(!m||source.manifestVersion!==m.version)
+        throw Error('Template component must match registered version');
+      page.sections.splice(sectionIndex>=0?sectionIndex+1:page.sections.length,0,rekey(source,command.id));
+      break;
+    }
+    case 'duplicatePage':{
+      if(!page||typeof command.id!=='string')throw Error('Unknown source page');
+      const cloned=copy(page);
+      cloned.id=command.id;cloned.title=label(command.title);cloned.path=command.path;
+      cloned.sections=page.sections.map((sec,i)=>rekey(sec,command.id+'-s'+(i+1)));
+      c.pages.splice(index+1,0,cloned);
+      break;
+    }
     case 'moveSection':
       if(!page)throw Error('Unknown page');
       move(page.sections,sectionIndex,command.delta);break;
@@ -532,6 +560,16 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const path=prompt('Путь страницы',page.path);if(path===null)return;
         structural({action:'updatePage',pageId:page.id,title,path});
       }],
+      ['page-duplicate','Копировать страницу',()=>{
+        const page=current().page;
+        const name=prompt('Название копии страницы',page.title+' — копия');if(name===null)return;
+        const path=prompt('Новый URL копии страницы','/copy-'+Date.now().toString(36)+'/');
+        if(path===null)return;
+        const id=uniqueId('page');
+        structural({action:'duplicatePage',pageId:page.id,id,title:name,path});
+        const result=session.current.pages.find(x=>x.id===id);
+        if(result){pageId=id;sectionId=result.sections[0].id;elementId=result.sections[0].elements[0].id;draw();}
+      }],
       ['page-up','↑',()=>structural({action:'movePage',pageId:pageId,delta:-1})],
       ['page-down','↓',()=>structural({action:'movePage',pageId:pageId,delta:1})],
       ['page-remove','Удалить',()=>{
@@ -548,6 +586,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         if(page.sections.some(x=>x.id===id)){
           sectionId=id;elementId=page.sections.find(x=>x.id===id).elements[0].id;draw();
         }
+      }],
+      ['section-duplicate','Копировать блок',()=>{
+        const id=uniqueId('section');
+        structural({action:'duplicateSection',pageId,sectionId,id});
+        const section=session.current.pages.find(x=>x.id===pageId)?.sections.find(x=>x.id===id);
+        if(section){sectionId=id;elementId=section.elements[0].id;draw();}
       }],
       ['section-up','↑',()=>structural({action:'moveSection',pageId,sectionId,delta:-1})],
       ['section-down','↓',()=>structural({action:'moveSection',pageId,sectionId,delta:1})],
@@ -801,6 +845,19 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   }));
   if(HOSTED)window.Stage3Editor=Object.freeze({
     getSite:()=>cp(session.current),
+    selection:()=>{
+      const {page,section}=current();
+      return {pageId:page.id,sectionId:section.id,component:section.component};
+    },
+    applySectionTemplate:section=>{
+      const id=uniqueId('section');
+      const page=current().page;
+      structural({action:'applyTemplate',pageId:page.id,sectionId,id,template:section});
+      const inserted=session.current.pages.find(p=>p.id===page.id)?.sections.find(t=>t.id===id);
+      if(!inserted)throw Error('Шаблон не вставлен; проверьте сообщение редактора');
+      sectionId=id;elementId=inserted.elements[0].id;draw();
+      return id;
+    },
     refreshPreview:()=>drawPreview(),
     isDirty:()=>JSON.stringify(session.current)!==savedBytes,
     replace:site=>{

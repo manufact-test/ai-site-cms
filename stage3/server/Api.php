@@ -229,6 +229,28 @@ final class Api
                     self::response(201, $this->sites->createSite($body['site'] ?? []));
                 }
             }
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/templates(?:/(template-[0-9a-f]{18})/delete)?$~D', $path, $templateMatch)) {
+                $siteId = $templateMatch[1];
+                if ($method === 'GET' && !isset($templateMatch[2])) {
+                    self::response(200, ['templates' => $this->sites->sectionTemplates($siteId)]);
+                }
+                if ($method === 'POST' && isset($templateMatch[2])) {
+                    $this->sites->removeSectionTemplate($siteId, $templateMatch[2]);
+                    self::response(200, ['deleted' => true]);
+                }
+                if ($method === 'POST' && !isset($templateMatch[2])) {
+                    $name = $body['name'] ?? null;
+                    $pageId = $body['pageId'] ?? null;
+                    $sectionId = $body['sectionId'] ?? null;
+                    if (!is_string($name) || !is_string($pageId) || !is_string($sectionId)) {
+                        throw new InvalidArgumentException('Template name, page and section required');
+                    }
+                    self::response(201, ['template' => $this->sites->storeSectionTemplate(
+                        $siteId, $pageId, $sectionId, $name,
+                        self::revision($body['expectedRevision'] ?? null)
+                    )]);
+                }
+            }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/notifications(?:/(seen))?$~D', $path, $alertMatch)) {
                 if ($method === 'GET' && !isset($alertMatch[2])) {
                     self::response(200, $this->sites->notificationSummary($alertMatch[1]));

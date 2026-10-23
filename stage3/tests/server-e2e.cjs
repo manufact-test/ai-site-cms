@@ -260,6 +260,29 @@ async function stop(){
     await Promise.race([stopped,new Promise(resolve=>setTimeout(resolve,2000))]);
   }
   delete env.STAGE3_FORM_ENDPOINT;
+  // Site-scoped saved-section templates are independent of draft/published state.
+  const tplRoot=endpoint+'/templates';
+  assert.equal((await request('GET',tplRoot)).body.templates.length,0);
+  const sourceRevision=(await request('GET',endpoint)).body.revision;
+  const made=await request('POST',tplRoot,{name:'Наша обложка',pageId:'page-home',
+    sectionId:'section-hero',expectedRevision:sourceRevision});
+  assert.equal(made.status,201,JSON.stringify(made.body));
+  const templateId=made.body.template.id;
+  assert.match(templateId,/^template-[0-9a-f]{18}$/);
+  assert.equal(made.body.template.section.component,'company-hero');
+  assert.equal((await request('GET',endpoint)).body.revision,sourceRevision,
+    'Saving a section template is not a new draft or publish');
+  assert.equal((await request('POST',tplRoot,{name:'Stale',pageId:'page-home',
+    sectionId:'section-hero',expectedRevision:1})).status,409);
+  assert.equal((await request('POST',tplRoot,{name:'Wrong',pageId:'page-home',
+    sectionId:'section-not-found',expectedRevision:sourceRevision})).status,404);
+  assert.equal((await request('GET',tplRoot)).body.templates.length,1);
+  assert.equal((await request('GET','/api/sites/site-flex-ci/templates')).body.templates.length,0,
+    'Saved presets cannot leak across sites');
+  assert.equal((await request('POST','/api/sites/site-flex-ci/templates/'+templateId+'/delete',{})).status,404);
+  assert.equal((await request('POST',tplRoot+'/'+templateId+'/delete',{})).status,200);
+  assert.equal((await request('GET',tplRoot)).body.templates.length,0);
+  assert.equal((await request('GET','/published/'+id+'/')).status,200,'No implicit publication');
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET','/published/'+id+'/')).status,200,'visitor needs no CMS login');

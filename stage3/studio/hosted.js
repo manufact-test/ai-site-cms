@@ -42,6 +42,54 @@
   const mediaList=element('div','hosted-media-list');mediaList.id='server-media-list';
   mediaPanel.append(mediaTitle,mediaHint,mediaUpload,mediaInput,mediaList);
   toolbar.after(mediaPanel);
+  // Saved section presets are scoped to the currently selected owner site.
+  // Applying a preset modifies ONLY the local draft, with undo/redo. Owner
+  // must separately save the draft and then explicitly publish it.
+  const templatesPanel=element('div','hosted-templates');
+  const templatesTitle=element('strong',null,'Мои шаблоны блоков');
+  const templatesSave=action('Сохранить выбранный блок','server-template-save',()=>safe(async()=>{
+    if(!state.siteId)throw Error('Сначала откройте сайт');
+    if(editor.isDirty())throw Error('Сначала сохраните исходный черновик');
+    const sel=editor.selection();
+    const name=prompt('Название шаблона','Мой блок');if(name===null)return;
+    await api('/api/sites/'+encodeURIComponent(state.siteId)+'/templates','POST',
+      {name,pageId:sel.pageId,sectionId:sel.sectionId,expectedRevision:state.revision});
+    await loadTemplates();
+    notice('Блок сохранён в библиотеку без изменения сайта.');
+  }));
+  const templatesRefresh=action('Обновить библиотеку','server-template-refresh',()=>safe(loadTemplates));
+  const templatesList=element('div','hosted-templates-list');templatesList.id='server-template-list';
+  templatesPanel.append(templatesTitle,templatesSave,templatesRefresh,templatesList);
+  mediaPanel.after(templatesPanel);
+  async function loadTemplates(){
+    templatesList.replaceChildren();
+    if(!state.authorized||!state.siteId){
+      templatesList.append(element('small',null,'Сначала откройте сайт.'));return;
+    }
+    const response=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/templates');
+    templatesTitle.textContent='Мои шаблоны блоков · '+response.templates.length;
+    if(!response.templates.length){
+      templatesList.append(element('small',null,'Сохраните один из существующих блоков.'));return;
+    }
+    for(const item of response.templates){
+      const wrap=element('div','hosted-template');
+      wrap.append(element('strong',null,item.title),element('small',null,item.component));
+      wrap.append(action('Вставить','',()=>{
+        if(!state.siteId){notice('Откройте сайт',true);return;}
+        try{
+          editor.applySectionTemplate(item.section);
+          notice('Блок вставлен в черновик. Сохраните, чтобы он остался.');
+        }catch(error){notice(error.message,true);}
+      }));
+      wrap.append(action('Удалить шаблон','',()=>safe(async()=>{
+        if(!confirm('Удалить шаблон из библиотеки? Существующие блоки не изменятся.'))return;
+        await api('/api/sites/'+encodeURIComponent(state.siteId)+'/templates/'+item.id+'/delete','POST',{});
+        await loadTemplates();
+        notice('Шаблон удалён из библиотеки.');
+      })));
+      templatesList.append(wrap);
+    }
+  }
   const leadsPanel=element('div','hosted-leads');
   const leadsTitle=element('strong',null,'Заявки сайта');
   leadsTitle.id='server-submission-heading';
@@ -225,6 +273,8 @@
     leadsRefresh.disabled=state.busy||!state.authorized||!state.siteId;
     acknowledge.disabled=state.busy||!state.authorized||!state.siteId||acknowledge.disabled;
     mediaUpload.disabled=!available||isDirty();
+    templatesSave.disabled=!available||isDirty();
+    templatesRefresh.disabled=!available;
     $('reset').disabled=!available;
     const meta=state.sites.find(s=>s.site_id===state.siteId);
     const published=meta?.published_version?('Опубликовано: v'+meta.published_version):'Пока не опубликован';
@@ -272,7 +322,7 @@
     const data=await api('/api/sites/'+encodeURIComponent(id));
     selectSite(data);
     picker.value=id;
-    await loadHistory();await loadSubmissions();await refreshAlerts();
+    await loadHistory();await loadSubmissions();await loadTemplates();await refreshAlerts();await loadTemplates();
     notice('Сайт открыт из серверного хранилища. Публикация не выполнялась.');
   }
   async function save(){
@@ -330,7 +380,7 @@
     await api('/api/logout','POST',{});
     state.authorized=false;state.csrf=null;state.siteId=null;state.revision=null;
     state.revisions=[];state.sites=[];picker.replaceChildren();
-    mediaList.replaceChildren();
+    mediaList.replaceChildren();templatesList.replaceChildren();
     editorVisible(false);setGate(true);
     notice('Вы вышли из серверной CMS.');
   }

@@ -77,6 +77,12 @@ function structure(raw,manifests,command){
     if(position<0||target<0||target>=items.length)throw Error('Cannot move outside collection');
     [items[position],items[target]]=[items[target],items[position]];
   };
+  const rekey=(source,newId)=>{
+    if(typeof newId!=='string')throw Error('Fresh section ID required');
+    return {...copy(source),id:newId,elements:source.elements.map(el=>({
+      ...copy(el),id:newId+'-'+el.slot
+    }))};
+  };
   switch(action){
     case 'addPage': {
       if(typeof command.id!=='string'||!reg.has(command.component))throw Error('Unknown new page');
@@ -100,6 +106,28 @@ function structure(raw,manifests,command){
       page.sections.splice(sectionIndex>=0?sectionIndex+1:page.sections.length,0,
         C.sectionFrom(reg.get(command.component),command.id));
       break;
+    case 'duplicateSection':
+      if(!page||sectionIndex<0)throw Error('Unknown section to duplicate');
+      page.sections.splice(sectionIndex+1,0,rekey(page.sections[sectionIndex],command.id));
+      break;
+    case 'applyTemplate':{
+      if(!page||typeof command.id!=='string'||!isObj(command.template))
+        throw Error('Unknown template');
+      const source=command.template;
+      const m=reg.get(source.component);
+      if(!m||source.manifestVersion!==m.version)
+        throw Error('Template component must match registered version');
+      page.sections.splice(sectionIndex>=0?sectionIndex+1:page.sections.length,0,rekey(source,command.id));
+      break;
+    }
+    case 'duplicatePage':{
+      if(!page||typeof command.id!=='string')throw Error('Unknown source page');
+      const cloned=copy(page);
+      cloned.id=command.id;cloned.title=label(command.title);cloned.path=command.path;
+      cloned.sections=page.sections.map((sec,i)=>rekey(sec,command.id+'-s'+(i+1)));
+      c.pages.splice(index+1,0,cloned);
+      break;
+    }
     case 'moveSection':
       if(!page)throw Error('Unknown page');
       move(page.sections,sectionIndex,command.delta);break;

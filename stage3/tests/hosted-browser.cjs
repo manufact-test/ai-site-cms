@@ -180,6 +180,24 @@ async function execute(){
   await page.locator('#server-notifications-count').getByText(/Непросмотренные заявки: 1/).waitFor();
   await page.locator('#server-notifications-seen').click();
   await page.locator('#server-notifications-count').getByText(/Непросмотренные заявки: 0/).waitFor();
+  // Real Studio reusable section library: save persisted snapshot, apply locally
+  // with fresh stable IDs, Undo, and verify that nothing publishes implicitly.
+  replies.push('Повторяемая форма');
+  await page.locator('#server-template-save').click();
+  await page.locator('#server-template-list .hosted-template').first().waitFor();
+  assert.equal(await page.locator('#server-template-list .hosted-template').count(),1);
+  const beforeSections=await page.locator('#sections .nav-entry').count();
+  await page.locator('#server-template-list .hosted-template button').first().click();
+  assert.equal(await page.locator('#sections .nav-entry').count(),beforeSections+1);
+  assert.match(await page.locator('#dirty').innerText(),/несохранённые/);
+  await page.locator('#undo').click();
+  assert.equal(await page.locator('#sections .nav-entry').count(),beforeSections);
+  assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/);
+  await page.locator('#server-template-refresh').click();
+  assert.equal(await page.locator('#server-template-list .hosted-template').count(),1);
+  await page.locator('#server-template-list .hosted-template button').nth(1).click();
+  assert.equal(await page.locator('#server-template-list .hosted-template').count(),0);
+  assert.equal((await visitor.goto(origin+'/published/'+siteId+'/')).status(),200);
   const tokenless=await ctx.request.post(origin+'/api/sites/'+siteId+'/save',
     {data:{site:{},expectedRevision:9}});
   assert.equal(tokenless.status(),403,'CSRF still enforced with browser credentials');
