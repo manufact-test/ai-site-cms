@@ -502,6 +502,51 @@ async function stop(){
   assert.match(fs.readFileSync(path.join(richExport,'old-services/index.html'),'utf8'),/url=\/contact\//);
 
   assert.doesNotMatch(staticHtml,/\/published\/|\/api\//);
+
+  // Full media lifecycle on the separate rich fixture: actual uploaded bytes,
+  // media story, repeatable linked partner, lazy output and immutable visitor ETag.
+  const attached=await request('POST','/api/sites/site-rich-ci/media',{
+    base64:png64,alt:'Логотип производственного партнёра',expectedRevision:3
+  });
+  assert.equal(attached.status,201,JSON.stringify(attached.body));
+  const picture=attached.body.asset;
+  const richLive=structuredClone(attached.body.site);
+  const story=csdk.sectionFrom(richDefs.find(m=>m.id==='media-story'),'section-media-story');
+  story.elements.find(el=>el.slot==='photo').values['content.media']=picture.id;
+  story.elements.find(el=>el.slot==='heading').values['content.text']='Наша история';
+  const logos=csdk.sectionFrom(richDefs.find(m=>m.id==='partner-logos'),'section-partner-logos');
+  logos.items[0].values['content.media']=picture.id;
+  logos.items[0].values['content.caption']='Партнёр A';
+  logos.items[0].values['behavior.href']='/contact/';
+  const gallerySection=richLive.pages[0].sections.find(x=>x.component==='photo-gallery');
+  gallerySection.items[0].values['content.media']=picture.id;
+  richLive.pages[0].sections.push(story,logos);
+  assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:4,site:richLive})).status,200);
+  assert.equal((await request('POST','/api/sites/site-rich-ci/publish',{expectedRevision:5})).status,200);
+  const richVisitor=(await request('GET','/published/site-rich-ci/')).body;
+  assert.match(richVisitor,/Наша история/);
+  assert.match(richVisitor,/Партнёр A/);
+  assert.match(richVisitor,/class="story-photo"/);
+  assert.match(richVisitor,/class="partner-logo"/);
+  assert.match(richVisitor,/loading="lazy"/);
+  assert.match(richVisitor,new RegExp(picture.id+'.png'));
+  assert.match(richVisitor,/href="\/published\/site-rich-ci\/contact\/"/);
+  const imgRoute='/published/site-rich-ci/assets/'+picture.id+'.png';
+  const imgResponse=await request('GET',imgRoute);
+  assert.equal(imgResponse.status,200);
+  const immutableTag=imgResponse.headers.get('etag');
+  assert.match(immutableTag,/^"[a-f0-9]{64}"$/);
+  assert.match(imgResponse.headers.get('cache-control'),/immutable/);
+  const unchanged=await request('GET',imgRoute,undefined,{'if-none-match':immutableTag});
+  assert.equal(unchanged.status,304);
+  const renamed=structuredClone(richLive);
+  renamed.assets[0].alt='Новый alt без изменения двоичных данных';
+  assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:5,site:renamed})).status,200);
+  assert.match((await request('GET','/published/site-rich-ci/')).body,/Логотип производственного партнёра/,
+    'Unpublished alt edits must not leak into immutable visitor pages');
+  const released=await request('POST','/api/sites/site-rich-ci/publish',{expectedRevision:6});
+  assert.equal(released.status,200);
+  assert.match((await request('GET','/published/site-rich-ci/')).body,/Новый alt без изменения двоичных данных/);
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET',endpoint+'/backup')).status,401,'Archives remain private');
