@@ -665,6 +665,27 @@ const root=path.resolve(__dirname,'../..');
     await page.locator('#brief-email').fill('info@sever-metal.example');
     await page.locator('#brief-phone').fill('+49 123 456789');
     await page.locator('#brief-proof').fill('Факты подтверждаются заказчиком');
+    // One end-to-end factual brief: reject malformed rows, then build real
+    // editable product cards, process steps and an FAQ on the third page.
+    await page.locator('#brief-offerings').fill('Товар без разделителя');
+    assert.equal(await page.locator('#brief-create').isDisabled(),true);
+    assert.match(await page.locator('#brief-facts-error').innerText(),/название \\| описание/);
+    await page.locator('#brief-offerings').fill([
+      'Пресс-станок П-20 | Производство по размерам заказчика',
+      'Сборочная линия | Подбор комплектации для цеха',
+      'Транспортер Т-4 | Металлическая рама для производственного участка',
+      'Комплект креплений | Поставка вместе с линией'
+    ].join('\\n'));
+    await page.locator('#brief-steps').fill([
+      'Техническое задание | Уточняем размеры и нагрузку',
+      'Согласование проекта | Передаём чертежи заказчику'
+    ].join('\\n'));
+    await page.locator('#brief-questions').fill([
+      'Можно ли заказать особый размер? | Согласуем размеры по техническому заданию',
+      'Как уточнить комплектацию? | Напишите нам на указанный email'
+    ].join('\\n'));
+    assert.equal(await page.locator('#brief-create').isDisabled(),false);
+    assert.match(await page.locator('#brief-facts-summary').innerText(),/Услуги \\/ товары · 4\\/8/);
     page.once('dialog',d=>d.accept());
     await page.locator('#brief-direction').selectOption('evergreen');
     await page.locator('#brief-create').click();
@@ -683,6 +704,16 @@ const root=path.resolve(__dirname,'../..');
     const briefFile=await briefDownload;
     const briefBackup=JSON.parse(fs.readFileSync(await briefFile.path(),'utf8'));
     assert.equal(briefBackup.pages.length,3);
+    const bySlug=slug=>briefBackup.pages.find(p=>p.slug===slug);
+    const itemsOf=(page,type)=>{const section=page.sections.find(s=>s.type===type);
+      assert.ok(section,'expected factual '+type+' block');return page.repeaters[section.id];};
+    assert.equal(itemsOf(bySlug(''),'services').length,3,'home shows first three documented offerings');
+    assert.deepEqual(itemsOf(bySlug('products'),'catalog').map(i=>i.title),
+      ['Пресс-станок П-20','Сборочная линия','Транспортер Т-4','Комплект креплений']);
+    assert.equal(itemsOf(bySlug('about'),'process')[1].text,'Передаём чертежи заказчику');
+    assert.equal(itemsOf(bySlug('about'),'faq')[0].title,'Можно ли заказать особый размер?');
+    assert.ok(!briefBackup.pages.some(p=>p.sections.some(s=>s.type==='quote')),
+      'facts create no fabricated testimonials');
     assert.equal(briefBackup.design.accent,'#257455','brief chosen direction reaches whole site');
     assert.ok(briefBackup.pages.every(pg=>Object.keys(pg.sectionLayouts).length>0),
       'brief design automatically composes every generated page');
