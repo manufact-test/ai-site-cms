@@ -315,6 +315,31 @@ async function execute(){
   await page.locator('#server-status').getByText(/Черновик #3/).waitFor();
   await visitor.goto(origin+'/published/'+generatedId+'/');
   assert.match(await visitor.title(),/Рецепт компании/,'Composition save never auto-publishes');
+  // Genuine UI: owner sets renewal date then manually pauses/resumes CMS.
+  await page.locator('#server-licenses-open').click();
+  await page.locator('#server-licenses-dialog').waitFor({state:'visible'});
+  await page.locator('#server-license-site').selectOption(generatedId);
+  await page.locator('#server-license-type').selectOption('subscription');
+  await page.locator('#server-license-date').fill(new Date().toISOString().slice(0,10));
+  await page.locator('#server-license-domain').fill('client.example');
+  await page.locator('#server-license-reason').fill('Ручная проверка подписки');
+  await page.locator('#server-license-save').click();
+  await page.locator('#server-license-status').getByText(/Сегодня/).waitFor();
+  await page.locator('#server-license-reason').fill('Ручная пауза редактирования');
+  await page.locator('#server-license-pause').click();
+  await page.locator('#server-license-status').getByText(/CMS приостановлена/).waitFor();
+  assert.equal(await page.locator('#server-publish').isDisabled(),true);
+  assert.equal(await page.locator('#fields').evaluate(el=>el.inert),true);
+  assert.equal(await page.evaluate(async id=>{
+    try{await window.Stage3Host.api('/api/sites/'+id+'/publish','POST',{expectedRevision:3});return false;}
+    catch(e){return e.status===409;}
+  },generatedId),true,'Direct CMS write bypass must also be blocked');
+  assert.equal((await visitor.goto(origin+'/published/'+generatedId+'/')).status(),200,'Public site survives pause');
+  await page.locator('#server-license-reason').fill('Оператор подтвердил продолжение');
+  await page.locator('#server-license-resume').click();
+  await page.locator('#server-license-status').getByText(/CMS активна/).waitFor();
+  assert.equal(await page.locator('#fields').evaluate(el=>el.inert),false);
+  await page.locator('#server-license-close').click();
   // Owner creates scoped staff in Studio; staff sees only its assigned site,
   // edits without publish, then loses the session after owner revokes access.
   await page.locator('#server-users-open').click();

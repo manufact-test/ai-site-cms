@@ -65,6 +65,18 @@ async function stop(){
     const migrated=spawnSync('php',['stage3/server/bin/upgrade-access.php'],{cwd:root,env:{...env,STAGE3_ALLOW_ACCESS_UPGRADE:'YES'},encoding:'utf8'});
     assert.equal(migrated.status,0,migrated.stderr);
   }
+  // Previously upgraded Stage3 lab may lack the new manual licences table.
+  const legacyLic=spawnSync('php',['-r',
+    '$db=new PDO(getenv("STAGE3_DSN"));$db->exec("DROP TABLE stage3_site_licenses");'],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(legacyLic.status,0,legacyLic.stderr);
+  assert.notEqual(spawnSync('php',['stage3/server/bin/upgrade-licenses.php'],
+    {cwd:root,env,encoding:'utf8'}).status,0);
+  for(let i=0;i<2;i++){
+    const migrated=spawnSync('php',['stage3/server/bin/upgrade-licenses.php'],
+      {cwd:root,env:{...env,STAGE3_ALLOW_LICENSE_UPGRADE:'YES'},encoding:'utf8'});
+    assert.equal(migrated.status,0,migrated.stderr);
+  }
   await runServer();
   assert.equal((await request('GET','/api/sites')).status,401,'private site list requires login');
   assert.equal((await request('POST','/api/login',{username:'testowner',password:'bad'})).status,401);
@@ -339,6 +351,35 @@ async function stop(){
   assert.equal(activated.body.version,5,'Publication versions continue after imported history');
   assert.equal((await request('GET','/published/'+target+'/')).status,200);
   assert.equal((await request('GET',endpoint)).body.revision,sourceRevision,'Original draft intact');
+  // Site-scoped manual licences: due date is a reminder, not an automatic shutdown.
+  const licenceRoute='/api/licenses/'+target,today=new Date().toISOString().slice(0,10);
+  const setLicence=await request('POST',licenceRoute,{type:'subscription',reminderDate:today,
+    domain:'client.example',expectedVersion:0,reason:'Owner set renewal reminder'});
+  assert.equal(setLicence.status,200,JSON.stringify(setLicence.body));
+  assert.equal(setLicence.body.license.reminderStatus,'today');
+  assert.equal(setLicence.body.license.paused,false);
+  assert.equal((await request('POST',licenceRoute,{type:'subscription',reminderDate:today,
+    domain:'',expectedVersion:0,reason:'Stale edit'})).status,409);
+  assert.equal((await request('GET','/api/licenses')).body.licenses.find(x=>x.siteId===target).domain,'client.example');
+  const paused=await request('POST',licenceRoute+'/pause',{expectedVersion:1,reason:'Manual billing verification'});
+  assert.equal(paused.status,200,JSON.stringify(paused.body));
+  assert.equal(paused.body.license.paused,true);
+  const targetDraft=(await request('GET','/api/sites/'+target)).body;
+  for(const [route,data] of [
+    ['/api/sites/'+target+'/save',{site:targetDraft.site,expectedRevision:targetDraft.revision}],
+    ['/api/sites/'+target+'/publish',{expectedRevision:targetDraft.revision}],
+    ['/api/sites/'+target+'/restore-release',{version:1,expectedRevision:targetDraft.revision}],
+    ['/api/sites/'+target+'/templates',{name:'Blocked',pageId:'page-home',sectionId:'section-hero',expectedRevision:targetDraft.revision}]
+  ]) assert.equal((await request('POST',route,data)).status,409,'Paused write blocked: '+route);
+  assert.equal((await request('GET','/published/'+target+'/')).status,200,'Visitors unaffected');
+  assert.equal((await request('GET','/api/sites')).body.sites.find(s=>s.site_id===id).license.paused,false,'Other sites unaffected');
+  assert.equal((await request('POST',licenceRoute+'/resume',{expectedVersion:1,reason:'Stale resume'})).status,409);
+  const resumed=await request('POST',licenceRoute+'/resume',{expectedVersion:2,reason:'Operator verified account'});
+  assert.equal(resumed.status,200,JSON.stringify(resumed.body));
+  assert.equal(resumed.body.license.operator,'testowner');
+  assert.equal(resumed.body.license.paused,false);
+  assert.equal((await request('POST',licenceRoute,{type:'perpetual',reminderDate:null,
+    domain:'',expectedVersion:3,reason:'Granted perpetual licence'})).body.license.reminderStatus,'none');
   // Scoped multi-user path: edit without publish, grant change, password revocation,
   // disabled user, read-only viewer, and private owner audit metadata.
   const staffPassword='test-only-staff-password-123456',newStaffPassword='test-only-updated-password-123456';
@@ -348,7 +389,7 @@ async function stop(){
   async function asUser(username,password){cookie='';csrf='';const auth=await request('POST','/api/login',{username,password});assert.equal(auth.status,200,JSON.stringify(auth.body));csrf=auth.body.csrfToken;return auth;}
   await asUser('labeditor',staffPassword);
   assert.deepEqual((await request('GET','/api/sites')).body.sites.map(x=>x.site_id),[target]);
-  for(const route of [endpoint,endpoint+'/media/'+asset.id,'/api/users','/api/audit','/api/sites/'+target+'/backup']){
+  for(const route of [endpoint,endpoint+'/media/'+asset.id,'/api/users','/api/audit','/api/licenses','/api/sites/'+target+'/backup']){
     assert.equal((await request('GET',route)).status,403,'Scoped editor denial: '+route);
   }
   assert.equal((await request('POST','/api/sites/'+target+'/publish',{expectedRevision:sourceRevision+1})).status,403);
