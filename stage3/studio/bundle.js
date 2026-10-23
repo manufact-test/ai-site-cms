@@ -98,9 +98,28 @@ function select(reg,component,versionValue){
   return m;
 }
 function fieldMap(def){return new Map(def.fields.map(f=>[f.path,f]));}
+
+const DEFAULT_THEME=Object.freeze({background:'#f7f9fc',surface:'#ffffff',text:'#172a43',primary:'#0a5bff',font:'system',maxWidth:1140});
+function validTheme(t){
+  objectKeys(t,['background','surface','text','primary','font','maxWidth'],'theme');
+  for(const k of ['background','surface','text','primary'])
+    if(typeof t[k]!=='string'||!/^#[0-9a-fA-F]{6}$/.test(t[k]))fail('Invalid theme color',k);
+  if(!['system','arial','georgia'].includes(t.font)||!Number.isInteger(t.maxWidth)||t.maxWidth<680||t.maxWidth>1600)fail('Invalid theme font or width');
+}
+function validSeo(s){
+  objectKeys(s,['title','description','robots'],'seo');
+  if(typeof s.title!=='string'||s.title.length>160||/[\x00-\x1f]/.test(s.title)||
+    typeof s.description!=='string'||s.description.length>300||/[\x00-\x1f]/.test(s.description)||
+    !['index','noindex'].includes(s.robots))fail('Invalid SEO metadata');
+}
+function validNav(n){
+  objectKeys(n,['label','hidden'],'navigation');
+  if(typeof n.label!=='string'||n.label.length>100||/[\x00-\x1f]/.test(n.label)||typeof n.hidden!=='boolean')fail('Invalid page navigation');
+}
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme'],'site');
+  if(own(raw,'theme'))validTheme(raw.theme);
   if(raw.format!==FORMAT||raw.schemaVersion!==1)fail('Unsupported site format');
   id(raw.siteId,'siteId');text(raw.title,'site title',130);
   if(!Array.isArray(raw.assets)||raw.assets.length>300)fail('Invalid assets');
@@ -115,7 +134,9 @@ function validateSite(raw,regInput){
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
   const ids=new Set([raw.siteId,...assetIds]),paths=new Set();
   for(const page of raw.pages){
-    objectKeys(page,['id','path','title','sections'],'page');
+    objectKeys(page,['id','path','title','sections','seo','navigation'],'page');
+    if(own(page,'seo'))validSeo(page.seo);
+    if(own(page,'navigation'))validNav(page.navigation);
     id(page.id,'page.id');text(page.title,'page.title',160);
     if(typeof page.path!=='string'||!/^\/(?:[a-z0-9-]+\/)*$/.test(page.path)||paths.has(page.path))fail('Invalid page path',page.id);
     paths.add(page.path);
@@ -255,7 +276,7 @@ function upgrade(raw,previous,next,allOtherManifests,decisions={}){
   if(conflicts.length)return {accepted:false,conflicts,diff,candidate:null};
   return {accepted:true,conflicts:[],diff,candidate:validateSite(candidate,afterRegistry)};
 }
-module.exports=Object.freeze({
+module.exports=Object.freeze({DEFAULT_THEME,
   FORMAT,MANIFEST,BREAKPOINTS,validateManifest,registry,validateSite,
   controls,effectiveValue,sectionFrom,siteFromBrief,upgrade
 });
@@ -414,12 +435,13 @@ function replaceSite(raw,manifests,site,expectedRevision){
 function changes(raw,manifests){
   const s=verifySession(raw,manifests),diff=[];
   const pages=new Map(s.base.pages.map(p=>[p.id,p]));
+  if(JSON.stringify(s.base.theme)!==JSON.stringify(s.current.theme))diff.push({kind:'theme-updated'});
   const record=(kind,ids)=>diff.push({kind,...ids});
   s.base.pages.forEach(p=>{if(!s.current.pages.some(q=>q.id===p.id))record('page-removed',{pageId:p.id});});
   s.current.pages.forEach((page,position)=>{
     const prior=pages.get(page.id);
     if(!prior){record('page-added',{pageId:page.id});return;}
-    if(prior.path!==page.path||prior.title!==page.title)record('page-updated',{pageId:page.id});
+    if(prior.path!==page.path||prior.title!==page.title||JSON.stringify(prior.seo)!==JSON.stringify(page.seo)||JSON.stringify(prior.navigation)!==JSON.stringify(page.navigation))record('page-updated',{pageId:page.id});
     if(s.base.pages.findIndex(q=>q.id===page.id)!==position)record('page-moved',{pageId:page.id});
     const oldSections=new Map(prior.sections.map(t=>[t.id,t]));
     prior.sections.forEach(t=>{if(!page.sections.some(q=>q.id===t.id))record('section-removed',{pageId:page.id,sectionId:t.id});});
@@ -670,6 +692,81 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       if(before!==session.current)notice('Структура изменена в черновике. Для сохранения нажмите «Сохранить».');
     }catch(e){notice('Изменение структуры отклонено: '+e.message,true);}
   }
+
+  // Closed global theme and per-page SEO/menu editing: one undoable site-document change.
+  function initSettings(){
+    const dlg=document.createElement('dialog');dlg.className='cms-settings-dialog';dlg.id='cms-settings-dialog';
+    const header=document.createElement('h2'),tip=document.createElement('small'),grid=document.createElement('div');
+    grid.className='cms-settings-grid';const actions=document.createElement('div');actions.className='cms-settings-actions';
+    const fields={},themeKeys=['background','surface','text','primary','font','maxWidth'];
+    const metaKeys=['seo-title','seo-description','seo-robots','nav-label','nav-hidden'];
+    const add=(name,labelText,type='text',max)=>{
+      const wrap=document.createElement('label');wrap.textContent=labelText;
+      const control=document.createElement(type==='select'?'select':'input');
+      if(type!=='select')control.type=type;
+      control.id='cms-setting-'+name;control.className='control';if(max)control.maxLength=max;
+      wrap.append(control);grid.append(wrap);fields[name]=control;return control;
+    };
+    for(const [name,label] of [['background','Фон страниц'],['surface','Фон карточек'],['text','Цвет текста'],['primary','Цвет кнопок']])add(name,label,'color');
+    const font=add('font','Шрифт сайта','select');
+    for(const [value,text] of [['system','Системный'],['arial','Arial'],['georgia','Georgia']]){
+      const option=document.createElement('option');option.value=value;option.textContent=text;font.append(option);
+    }
+    const width=add('maxWidth','Максимальная ширина (680–1600 px)','number');width.min='680';width.max='1600';
+    add('seo-title','SEO title (пустое — автоматически)','text',160);
+    add('seo-description','Описание для поисковиков (до 300 символов)','text',300);
+    const robots=add('seo-robots','Индексация страницы','select');
+    for(const [value,text] of [['index','Разрешить'],['noindex','Не индексировать']]){
+      const option=document.createElement('option');option.value=value;option.textContent=text;robots.append(option);
+    }
+    add('nav-label','Название в меню (необязательно)','text',100);
+    add('nav-hidden','Скрыть из меню','checkbox');
+    let mode='theme',chosenPage=null;
+    const open=kind=>{
+      mode=kind;chosenPage=current().page.id;
+      header.textContent=kind==='theme'?'Глобальные стили сайта':'SEO и меню · '+current().page.title;
+      tip.textContent=kind==='theme'?'Для всех страниц; явные параметры компонентов сохраняются.':
+        'Только текущая страница; публикация отдельно.';
+      grid.querySelectorAll('label').forEach(n=>n.hidden=true);
+      for(const key of (kind==='theme'?themeKeys:metaKeys))fields[key].parentElement.hidden=false;
+      if(kind==='theme'){
+        const t={...C.DEFAULT_THEME,...session.current.theme};
+        for(const key of themeKeys)fields[key].value=t[key];
+      }else{
+        const p=current().page,seo=p.seo||{},nav=p.navigation||{};
+        fields['seo-title'].value=seo.title||'';
+        fields['seo-description'].value=seo.description||'';
+        fields['seo-robots'].value=seo.robots||'index';
+        fields['nav-label'].value=nav.label||'';
+        fields['nav-hidden'].checked=!!nav.hidden;
+      }
+      dlg.showModal();
+    };
+    const apply=()=>{
+      try{
+        const site=cp(session.current);
+        if(mode==='theme'){
+          site.theme={background:fields.background.value,surface:fields.surface.value,
+            text:fields.text.value,primary:fields.primary.value,font:fields.font.value,
+            maxWidth:Number(fields.maxWidth.value)};
+        }else{
+          const p=site.pages.find(p=>p.id===chosenPage);
+          if(!p)throw Error('Страница уже удалена');
+          p.seo={title:fields['seo-title'].value,description:fields['seo-description'].value,robots:fields['seo-robots'].value};
+          p.navigation={label:fields['nav-label'].value,hidden:fields['nav-hidden'].checked};
+        }
+        session=D.replaceSite(session,manifests,site,session.revision);dlg.close();draw();
+        notice('Настройки изменены в черновике. Сохранение и публикация отдельно.');
+      }catch(e){notice('Настройки отклонены: '+e.message,true);}
+    };
+    const ok=button('Применить к черновику','btn primary',apply);ok.id='cms-settings-apply';
+    const close=button('Закрыть','btn',()=>dlg.close());close.id='cms-settings-close';
+    actions.append(ok,close);dlg.append(header,tip,grid,actions);document.body.append(dlg);
+    const tools=document.createElement('div');tools.className='structure-tools cms-site-settings';
+    const theme=button('Стили сайта','btn small',()=>open('theme'));theme.id='cms-open-theme';
+    const seo=button('SEO и меню','btn small',()=>open('seo'));seo.id='cms-open-seo';
+    tools.append(theme,seo);$('pages').before(tools);
+  }
   function createStructureTools(){
     const make=(parent,items)=>{
       const tools=document.createElement('div');tools.className='structure-tools';
@@ -818,7 +915,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   function screen(block){
     const e=escapeHtml;
     const p=slot=>block.elements.find(x=>x.slot===slot)?.props||{content:{},style:{},behavior:{}};
-    const title=stylesFor(block);
+    const title=stylesFor(block),t={...C.DEFAULT_THEME,...session.current.theme};
+    const palette='<style>:root{--cms-bg:'+e(t.background)+';--cms-surface:'+e(t.surface)+
+      ';--cms-text:'+e(t.text)+';--cms-primary:'+e(t.primary)+';--cms-width:'+t.maxWidth+
+      'px;--cms-font:'+(t.font==='georgia'?'Georgia,serif':'Arial,sans-serif')+'}'+
+      'body{background:var(--cms-bg)!important;color:var(--cms-text)!important;font-family:var(--cms-font)!important}'+
+      '.action{background:var(--cms-primary)!important}.card{background:var(--cms-surface)!important}'+
+      'section{max-width:var(--cms-width);margin-inline:auto}</style>';
     let content='';
     if(block.component==='company-hero'){
       content='<section class="hero"><div class="decor">M / AI SITE CMS</div>'+
@@ -867,7 +970,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;none&#39;; img-src &#39;'+(HOSTED?'data:':'none')+'&#39;; style-src &#39;unsafe-inline&#39;; connect-src &#39;none&#39;; form-action &#39;none&#39;; base-uri &#39;none&#39;">'+
       '<meta name="viewport" content="width=device-width,initial-scale=1">'+
       '<style>*{box-sizing:border-box}body{margin:0;background:#fcfdfd;color:#1b3046;font:15px/1.6 Arial,sans-serif}section{padding:70px clamp(18px,7%,80px);min-height:470px}.kicker{display:block;color:#167c6a;font:700 11px Arial;letter-spacing:.15em;margin-bottom:19px}h1{line-height:1.12;letter-spacing:-.045em;max-width:850px;margin:10px 0 25px;overflow-wrap:anywhere}h2{font-size:clamp(29px,4vw,52px);line-height:1.16;letter-spacing:-.03em;margin:12px 0 30px}p{font-size:17px;max-width:630px;line-height:1.65}.hero{background:radial-gradient(circle at 90% 25%,#d9f6e6 0%,transparent 44%),linear-gradient(115deg,#f9fdfb,#e9f1f5)}.decor{color:#80a6b2;font-size:11px;letter-spacing:.15em;text-align:right}.action{display:inline-flex;margin-top:24px;gap:35px;border-radius:9px;background:#142e3c;color:white;padding:14px 20px;font-weight:700;font-size:14px}.features{background:#f2f7f8}.cards{display:grid;grid-template-columns:1fr 1fr;gap:15px}.card{border:1px solid #dce6e9;border-radius:14px;padding:26px;background:white}.card strong{color:#1a8b76}.card p{font-size:17px;overflow-wrap:anywhere}.media-placeholder{padding:80px 20px;background:#e7eff2;border:1px dashed #91a8b1;text-align:center;border-radius:12px}.showcase-preview{display:block;width:100%;height:auto;max-height:520px;object-fit:contain;border-radius:12px}.contact{background:linear-gradient(130deg,#effbf6,#e8f1f7)}.contact small{display:block;color:#5c7180;margin-top:25px}.contact .action{background:#0a766b}@media(max-width:650px){section{padding:46px 25px;min-height:450px}.cards{grid-template-columns:1fr}h1{line-height:1.12}h2{font-size:32px}p{font-size:15px}.card{padding:20px}}</style>'+
-      '</head><body>'+content+'</body></html>';
+      palette+'</head><body>'+content+'</body></html>';
   }
   function drawPreview(){
     const {page,section}=current(),m=manifest(section);
@@ -986,7 +1089,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const page=checked.pages.find(p=>p.path===path)||checked.pages[0];
         const docs=page.sections.map(s=>screen(D.blockPreview(session,manifests,page.id,s.id,breakpoint)));
         const first=docs[0],start=first.indexOf('<body>')+6,end=first.lastIndexOf('</body>');
-        const navigation='<nav style="padding:15px;display:flex;gap:16px;flex-wrap:wrap">'+checked.pages.map(p=>'<span>'+escapeHtml(p.title)+'</span>').join('')+'</nav>';
+        const navigation='<nav style="padding:15px;display:flex;gap:16px;flex-wrap:wrap">'+checked.pages.filter(p=>!p.navigation?.hidden).map(p=>'<span>'+escapeHtml(p.navigation?.label||p.title)+'</span>').join('')+'</nav>';
         return first.slice(0,start)+navigation+docs.map(doc=>doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))).join('')+first.slice(end);
       }finally{session=prior;}
     },
@@ -1022,7 +1125,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  createStructureTools();load();draw();
+  createStructureTools();initSettings();load();draw();
 })();
 'use strict';
 // A single owner-reviewed composition path for offline and authenticated Studio.
