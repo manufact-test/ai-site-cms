@@ -157,9 +157,16 @@ final class Api
         if ($method === 'GET' && preg_match('~^/published/([a-z][a-z0-9-]{2,79})/assets/([a-z][a-z0-9-]{2,79})\.(png|jpg|webp)$~D', $path, $assetMatch)) {
             try {
                 $image = $this->sites->publishedImage($assetMatch[1], $assetMatch[2], $assetMatch[3]);
+                $etag='"'.$image['sha256'].'"';
                 header('Content-Type: ' . $image['mime']);
-                header('ETag: "' . $image['sha256'] . '"');
+                header('ETag: ' . $etag);
+                // Media IDs point to immutable bytes across draft revisions and releases.
+                header('Cache-Control: public, max-age=31536000, immutable');
+                header('Vary: Accept-Encoding');
                 header("Content-Security-Policy: default-src 'none'; sandbox");
+                if (trim($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) {
+                    http_response_code(304);exit;
+                }
                 echo $image['bytes'];
                 exit;
             } catch (NotFound $e) {
