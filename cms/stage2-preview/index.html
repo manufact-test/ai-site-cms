@@ -127,6 +127,7 @@
         <p class="setting-helper">До 12 локальных WebP-файлов. «Где используется» показывает страницы, блоки и шаблоны; замену можно отменить. Резервный JSON содержит изображения.</p>
       </details>
       <div class="brief-launch"><div><strong>Новый сайт по брифу</strong><small>Компания → три страницы → правки → локальный ZIP</small></div><button id="brief-open" class="button dark" type="button">Создать по брифу</button></div>
+       <div class="brief-launch factual-sync-launch"><div><strong>Обновить материалы сайта</strong><small>Товары, услуги, процесс и FAQ · без потери оформления</small></div><button id="factual-sync-open" class="button subtle" type="button">Обновить данные</button></div>
       <div class="starter-bar">
         <label class="field-label" for="starter-type">Готовые заготовки (3 страницы)</label>
         <div class="starter-row"><select id="starter-type"><option value="industrial">Промышленный завод</option><option value="agency">Диджитал-студия</option><option value="products">Каталог товаров</option></select><button id="starter-apply" class="button dark" type="button">Открыть</button></div>
@@ -333,6 +334,34 @@
       </div>
     </form>
   </dialog>
+  <dialog id="factual-sync-dialog" class="page-recipe-dialog factual-sync-dialog" aria-labelledby="factual-sync-title">
+    <div class="page-recipe-head">
+      <div><span>ТЕКУЩИЙ САЙТ · БЕЗ ПЕРЕСОЗДАНИЯ</span><h2 id="factual-sync-title">Обновление материалов компании</h2>
+      <p>Вставьте реальные сведения, проверьте изменения и примените их ко всем подходящим блокам сайта.</p></div>
+      <button type="button" id="factual-sync-close" aria-label="Закрыть">×</button>
+    </div>
+    <div class="page-recipe-body">
+      <div class="factual-sync-intro">Заполненные списки заменят соответствующие карточки на страницах. <strong>Пустые списки ничего не меняют.</strong> До 8 строк каждого вида, формат: <strong>Название | Описание</strong>.</div>
+      <div class="factual-sync-fields">
+        <label for="factual-sync-offerings">Услуги и товары
+          <textarea id="factual-sync-offerings" rows="4" maxlength="3400" placeholder="Товар 1 | Проверенное описание товара&#10;Товар 2 | Условия по техническому заданию"></textarea>
+        </label>
+        <label for="factual-sync-steps">Этапы работы
+          <textarea id="factual-sync-steps" rows="3" maxlength="3400" placeholder="Заявка | Уточняем задачу&#10;Проект | Согласовываем техническую документацию"></textarea>
+        </label>
+        <label for="factual-sync-questions">Вопросы и ответы
+          <textarea id="factual-sync-questions" rows="3" maxlength="3400" placeholder="Как заказать? | Свяжитесь с нами по телефону"></textarea>
+        </label>
+      </div>
+      <p class="setting-helper">Фотографии остаются у карточек с тем же названием. При переименовании они снимаются, чтобы случайно не показать чужой товар. Дизайн, SEO, страницы, логотип и контакты не меняются. Если подходящего блока нет, он добавится автоматически.</p>
+      <div class="factual-sync-preview" id="factual-sync-preview" role="status" aria-live="polite">Введите данные, затем нажмите «Проверить изменения».</div>
+      <p id="factual-sync-error" class="brief-error" role="alert" hidden></p>
+      <div class="page-recipe-footer">
+        <button type="button" id="factual-sync-preview-button" class="button subtle">Проверить изменения</button>
+        <button type="button" id="factual-sync-apply" class="button dark" disabled>Применить к текущему сайту</button>
+      </div>
+    </div>
+  </dialog>
   <dialog id="page-transfer-dialog" class="page-recipe-dialog" aria-labelledby="page-transfer-title">
     <form id="page-transfer-form">
       <div class="page-recipe-head">
@@ -429,6 +458,7 @@
   <script src="canvas-media.js"></script>
   <script src="media-ops.js"></script>
   <script src="page-transfer.js"></script>
+  <script src="factual-sync.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
