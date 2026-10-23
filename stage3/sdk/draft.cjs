@@ -138,6 +138,7 @@ function structure(raw,manifests,command){
       const found=sec.items.findIndex(x=>x.id===command.itemId);
       if(action==='addItem'||action==='duplicateItem'){
         if(sec.items.length>=repeat.max)throw Error('Repeater is full');
+        if(action==='duplicateItem'&&found<0)throw Error('Unknown repeat item to duplicate');
         if(typeof command.id!=='string')throw Error('New repeat item ID required');
         const item=action==='duplicateItem'&&found>=0?{...copy(sec.items[found]),id:command.id}:{
           id:command.id,values:Object.fromEntries(repeat.fields.map(f=>[f.path,copy(f.default)]))
