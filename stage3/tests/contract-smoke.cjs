@@ -32,6 +32,51 @@ test('theme + page SEO/nav accept only closed values and participate in Undo',()
   const hidden=same(site);hidden.pages[0].navigation.hidden='yes';
   refuses(()=>sdk.validateSite(hidden,manifests),'Invalid nav flag rejected');
 });
+
+test('four safe repeatable manifests, editable items, stable clone identities and Undo',()=>{
+  const D=require('../sdk/draft.cjs'),names=['service-grid','faq-accordion','testimonials','photo-gallery'];
+  let doc=same(initial);
+  for(const [i,name] of names.entries()){
+    const m=manifests.find(x=>x.id===name),sec=sdk.sectionFrom(m,'section-repeat-'+i);
+    assert.equal(sec.items.length,m.repeat.min);
+    doc.pages[0].sections.push(sec);
+  }
+  sdk.validateSite(doc,manifests);
+  const s=doc.pages[0].sections[2],ids=s.items.map(i=>i.id);
+  let d=D.begin(doc,manifests);
+  const go=command=>d=D.structure(d,manifests,{...command,expectedRevision:d.revision});
+  go({action:'addItem',pageId:'page-home',sectionId:s.id,id:'item-manual-new'});
+  assert.equal(d.current.pages[0].sections[2].items.length,3);
+  d=D.edit(d,manifests,{pageId:'page-home',sectionId:s.id,elementId:'item-manual-new',
+    path:'content.title',value:'Новая настоящая услуга',expectedRevision:d.revision});
+  assert.equal(D.blockPreview(d,manifests,'page-home',s.id).items[2].props.content.title,'Новая настоящая услуга');
+  go({action:'duplicateItem',pageId:'page-home',sectionId:s.id,itemId:'item-manual-new',id:'item-manual-copy'});
+  go({action:'moveItem',pageId:'page-home',sectionId:s.id,itemId:'item-manual-copy',delta:-1});
+  assert.equal(d.current.pages[0].sections[2].items[2].id,'item-manual-copy');
+  go({action:'removeItem',pageId:'page-home',sectionId:s.id,itemId:'item-manual-copy'});
+  assert.deepEqual(d.current.pages[0].sections[2].items.slice(0,2).map(x=>x.id),ids);
+  assert.ok(D.changes(d,manifests).some(x=>x.kind==='items-updated'));
+  go({action:'duplicateSection',pageId:'page-home',sectionId:s.id,id:'section-repeat-clone'});
+  const clone=d.current.pages[0].sections[3];
+  assert.equal(clone.items[2].values['content.title'],'Новая настоящая услуга');
+  assert.notEqual(clone.items[2].id,'item-manual-new');
+  assert.equal(D.undo(d,manifests).current.pages[0].sections.length,6);
+  assert.equal(D.redo(D.undo(d,manifests),manifests).current.pages[0].sections.length,7);
+  const malformed=structuredClone(d.current);
+  malformed.pages[0].sections[2].items[0].values.evil='javascript:alert(1)';
+  refuses(()=>sdk.validateSite(malformed,manifests),'Repeater cannot carry undeclared code');
+  const overflow=structuredClone(d.current);
+  overflow.pages[0].sections[2].items=Array.from({length:30},(_,i)=>({
+    id:'item-overflow-'+i,values:structuredClone(s.items[0].values)}));
+  refuses(()=>sdk.validateSite(overflow,manifests),'Repeater enforces max count');
+  const invalidAsset=structuredClone(doc);
+  invalidAsset.pages[0].sections[5].items[0].values['content.media']='asset-not-uploaded';
+  refuses(()=>sdk.validateSite(invalidAsset,manifests),'Repeat gallery binds only owned media');
+  const orphan=structuredClone(doc);orphan.pages[0].sections[2].items[0].id=orphan.pages[0].sections[2].elements[0].id;
+  refuses(()=>sdk.validateSite(orphan,manifests),'Repeated IDs cannot clash with headings');
+  const injection=structuredClone(doc);injection.pages[0].sections[2].items[0].values['behavior.href']='javascript:alert(1)';
+  refuses(()=>sdk.validateSite(injection,manifests),'Repeat links are safe URLs only');
+});
 test('locked fixture is valid',()=>{
   const actual=sdk.validateSite(initial,reg);
   assert.equal(actual.pages.length,2);

@@ -101,6 +101,32 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     });
     assert.match(await page.locator('#toast').innerText(),/Импорт отклонён/);
     assert.equal(await canvas.locator('h1').innerText(),'Новое промышленное оборудование');
+
+    // Real offline repeatable cards: add, edit, clone, reorder and Undo through Studio.
+    page.once('dialog',d=>d.accept('service-grid'));
+    await page.locator('#section-add').click();
+    await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
+    assert.equal(await page.locator('[data-repeat-id]').count(),2);
+    await page.locator('#cms-repeat-add').click();
+    assert.equal(await page.locator('[data-repeat-id]').count(),3);
+    const cardTitle=page.locator('#fields [data-field="content.title"]');
+    await cardTitle.fill('Сборка промышленного шкафа');
+    await cardTitle.dispatchEvent('change');
+    await canvas.locator('.cms-preview-grid h3').getByText('Сборка промышленного шкафа').waitFor();
+    const cardId=await page.locator('[data-repeat-id]').last().getAttribute('data-repeat-id');
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections.at(-1).items[2].id,cardId);
+    await page.locator('[data-repeat-id]').last().click();
+    assert.equal(await page.locator('#fields [data-field="content.title"]').inputValue(),'Сборка промышленного шкафа');
+    await page.getByRole('button',{name:'Копировать карточку 3'}).click();
+    assert.equal(await page.locator('[data-repeat-id]').count(),4);
+    await page.locator('#undo').click();
+    assert.equal(await page.locator('[data-repeat-id]').count(),3);
+    await page.locator('#redo').click();
+    assert.equal(await page.locator('[data-repeat-id]').count(),4);
+    await page.locator('#save').click();
+    await page.reload();
+    await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
+    assert.equal(await page.locator('[data-repeat-id]').count(),4);
     assert.deepEqual(errors,[],'No page JS errors or unsupported dependencies');
     assert.deepEqual(remote,[],'No outgoing network requests, even through iframe');
     console.log('STAGE3 REAL CHROMIUM STUDIO E2E PASS: typed edit, inert preview, responsive, undo/redo, saved versions, reload, export/import, no-design and fail-closed import');

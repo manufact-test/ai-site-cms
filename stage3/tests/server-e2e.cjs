@@ -422,6 +422,50 @@ async function stop(){
   assert.ok(auditLog.body.events.some(e=>e.action==='POST /api/users/labeditor'&&e.outcome==='success'));
   assert.ok(!JSON.stringify(auditLog.body).includes(staffPassword));
   assert.ok(!JSON.stringify(auditLog.body).includes(newStaffPassword));
+
+  // Four rich repeaters on one independent site: PHP contract, save, publish,
+  // static export and client-safe rendering, without a form collector.
+  const csdk=require(path.join(root,'stage3/sdk/contract.cjs'));
+  const richDefs=fs.readdirSync(path.join(root,'stage3/components'))
+    .filter(n=>n.endsWith('.json')).map(n=>JSON.parse(fs.readFileSync(path.join(root,'stage3/components',n),'utf8')));
+  const rich=structuredClone(fixture);rich.siteId='site-rich-ci';
+  rich.theme={background:'#121f2c',surface:'#ffffff',text:'#dce6ef',primary:'#ff8800',font:'system',maxWidth:960};
+  rich.pages[0].seo={title:'Секции услуг',description:'Страница теста услуг',robots:'noindex'};
+  for(const name of ['service-grid','faq-accordion','testimonials','photo-gallery']){
+    const section=csdk.sectionFrom(richDefs.find(m=>m.id===name),'section-rich-'+name);
+    rich.pages[0].sections.push(section);
+  }
+  const svc=rich.pages[0].sections.find(s=>s.component==='service-grid');
+  svc.items[0].values['content.title']='Программирование шкафа управления';
+  svc.items[0].values['behavior.href']='/contact/';
+  const faq=rich.pages[0].sections.find(s=>s.component==='faq-accordion');
+  faq.items[0].values['content.question']='<img src=x onerror=alert(1)>';
+  const quote=rich.pages[0].sections.find(s=>s.component==='testimonials');
+  quote.items[0].values['content.quote']='Подтверждённый отзыв тестового автора';
+  const richCreated=await request('POST','/api/sites',{site:rich});
+  assert.equal(richCreated.status,201,JSON.stringify(richCreated.body));
+  assert.equal((await request('GET','/published/site-rich-ci/')).status,404);
+  assert.equal((await request('POST','/api/sites/site-rich-ci/publish',{expectedRevision:1})).status,200);
+  const richPublished=await request('GET','/published/site-rich-ci/');
+  assert.equal(richPublished.status,200);
+  assert.match(richPublished.body,/Программирование шкафа управления/);
+  assert.match(richPublished.body,/<details><summary>&lt;img src=x onerror=alert\(1\)&gt;<\/summary>/);
+  assert.doesNotMatch(richPublished.body,/<img src=x onerror=/);
+  assert.match(richPublished.body,/Подтверждённый отзыв тестового автора/);
+  assert.match(richPublished.body,/href="\/published\/site-rich-ci\/contact\/"/);
+  assert.match(richPublished.body,/background:var\(--cms-bg\)/);
+  assert.match(richPublished.body,/name="description" content="Страница теста услуг"/);
+  const badRepeat=structuredClone(rich);
+  badRepeat.pages[0].sections.at(-1).items[0].values['content.media']='asset-from-another-site';
+  assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:1,site:badRepeat})).status,422);
+  const richExport=path.join(dbdir,'rich-static');
+  const exp=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',richExport],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(exp.status,0,exp.stderr);
+  const staticHtml=fs.readFileSync(path.join(richExport,'index.html'),'utf8');
+  assert.match(staticHtml,/Программирование шкафа управления/);
+  assert.match(staticHtml,/href="\/contact\/"/);
+  assert.doesNotMatch(staticHtml,/\/published\/|\/api\//);
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET',endpoint+'/backup')).status,401,'Archives remain private');
