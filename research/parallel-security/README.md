@@ -1,52 +1,46 @@
-# AI Site CMS — Security & Dependencies independent research
+## ФИНАЛЬНАЯ ПЕРЕДАЧА SECURITY RESEARCH — 21.10.2026 (приоритет над историческими разделами ниже)
 
-**Branch:** `research/stage2-supply-chain` (PR to `main`, never merge by this researcher).
-**Allowed writes only:** `research/parallel-security/`.
-**As of 2026-10-20:** Stage2 not accepted, Stage3 not started.
+**НЕ основная разработка CMS.** Единственная разрешённая запись — `research/parallel-security/` плюс комментарии PR #3. PR #3 остаётся **OPEN DRAFT** с прежним историческим base `6ec6dd170c5250e5caed9f0739e03858a3b96a93`. Нельзя merge, Ready, rebase, retarget, force. Не изменены main, cms, workflows, production dependencies, Hostinger, DB или secrets.
 
-Deliverables:
-- [AUDIT.md](AUDIT.md) — 43-line exact lock inventory (14 Composer runtime and 29 npm), SPDX metadata, NOTICE/commercial-license restrictions, evidence-limited advisory triage, P0/P1/P2 remediation.
-- [RUNBOOK.md](RUNBOOK.md) — reproducible read-only testing and explicit security/legal gates.
-- [inventory-audit.mjs](inventory-audit.mjs) — lock count, pin/integrity/SPDX checks and optional OSV.dev 43-version batch.
-- [version-check.mjs](version-check.mjs) — optional live version freshness checks for exact locked names via npm/Packagist registries; never auto-upgrades.
-- [ed25519-lab.php](ed25519-lab.php) — RFC 8032 known-answer, malformed and forged signatures, native vs genuinely absent vs genuinely pure-PHP compat, isolated benchmark.
-- [release-fixture.mjs](release-fixture.mjs), [release-verify-runner.php](release-verify-runner.php) — Node ephemeral real Ed25519 signatures checked by project's original OfflineReleaseVerifier in PHP; bad pin, rollback floor, altered signed metadata and corrupted package hash rejected.
+**Последний подтверждённый кодовый контроль ДО этого обновления документации:** исследовательский SHA `49b7ea1820fc198f5d6158b6d71395a4b0fae015`, [GitHub Actions #39631680991](https://github.com/manufact-test/ai-site-cms/actions/runs/39631680991), **100 PASS / 0 FAIL / 0 BLOCKED**; source/scope CI успешно. CI доказал `INDEPENDENT_SECURITY_APACHE_LOOPBACK_SCOPE` с `actuallyExecutedLocalApacheHttp:true`, `originalServerPoliciesAttested:true`, `hostingerContacted:false`, `productionApproved:false`; original-main SHA, проверенный тем CI, `979a3795d6422c7067ba361dbbc4f9562955a9db`. Это выполненный **локальный Apache 2.4 HTTP опыт на runner**, НЕ живая конфигурация Hostinger. После документационных коммитов HEAD поменяется: получить точный финальный SHA из PR и убедиться в CI именно на нём.
 
-**Do not claim:** all source LICENSE/NOTICE independently reviewed, 43/43 current clean vulnerability scan, Hostinger sodium_compat performance verified, full rollback/receipt chain approved, or production readiness. This branch installs no PHP dependency and modifies no application code or CI workflows. Main integrator owns decision and merge.
+**Два открытых для интегратора условных риска:** SEC-WEB-01 — в подставленной временной Apache public директории с настоящим исходным `.htaccess` искусственные `/.git/config` и `/.github/workflows/build.yml` выдавались HTTP 200; наличие подобных файлов на реальном сайте НЕ установлено. SEC-WEB-02 — оригинальный отдельный Hostinger-readonly `.htaccess` на локальном Apache дал `AH00670` и HTTP 403 даже для обычных маршрутов; это НЕ проверка LiteSpeed Hostinger. Два отдельно проверенных синтетических конфигурационных варианта не одобрены для production; первый может сломать `/.well-known`, второй меняет разрешения символьных ссылок.
 
-Quick start from repo root:
+Смотри [MAIN-INTEGRATOR-INTEGRATION-PACKET-2026-10-21.md](MAIN-INTEGRATOR-INTEGRATION-PACKET-2026-10-21.md), [APACHE-LOCAL-POLICY-REPRO-2026-10-21.md](APACHE-LOCAL-POLICY-REPRO-2026-10-21.md), [apache-original-policy-lab.py](apache-original-policy-lab.py). **Для главного чата** готов [MAIN-CHAT-MESSAGE-RU.md](MAIN-CHAT-MESSAGE-RU.md). Существующие 43 lock/OSV, physical PHP без Sodium + 78 исходников, 14 upstream Ed25519 negative checks, 60 реально подписанных chain cases, 102 CLI timings и static route proof сохранены как ограниченные исторические evidence.
 
-```sh
-node research/parallel-security/inventory-audit.mjs --csv
-node research/parallel-security/inventory-audit.mjs --online
-node research/parallel-security/version-check.mjs
-php research/parallel-security/ed25519-lab.php native
-node research/parallel-security/release-fixture.mjs native
-```
+**Stage2/production — NO_GO.** Нужны все 6 внешних подписей/решений: независимый PGP publisher key custody, qualified crypto, redistribution legal, разрешённые настоящие Hostinger web-SAPI/performance tests, main-integrator release integrity, product owner final GO. Зелёный CI ничего из этого не закрывает. Ограниченная самостоятельная инженерная работа готова к приёмке интегратором, не к выпуску.
 
-Pure PHP mode requires an independently verified local sodium_compat 2.5.2 autoloader **and a PHP binary that truly lacks native Sodium**. See RUNBOOK. Passing local native tests is not evidence of pure-PHP compatibility or real Hostinger operation. A clean run does not itself authorize customer redistribution or signed production upgrades.
-### Additional confirmed research after initial PR
+---
+# AI Site CMS — independent Security & Dependencies Research
 
-- [SOURCE-LICENSE-REVIEW.md](SOURCE-LICENSE-REVIEW.md) — 14/14 exact pinned PHP upstream LICENSE texts examined and two Apache NOTICE omissions identified (**P1**).
-- [lock-provenance.mjs](lock-provenance.mjs) — offline strict source revision / SHA512 / registry-origin / optional binary + postinstall consistency.
-- [policy-regression.mjs](policy-regression.mjs) and [provenance-regression.mjs](provenance-regression.mjs) — synthetic lock mutation checks, with clear distinction from checks on real GitHub locks.
-- [notice-gate.mjs](notice-gate.mjs), [notice-regression.mjs](notice-regression.mjs) — full-source NOTICE preservation test and five synthetic positive/negative cases. Current production generator is expected to **fail** if tested with installed vendor contents.
-- [EVIDENCE-2026-10-20.md](EVIDENCE-2026-10-20.md) — exact local runtime, commands, exit codes, hashes, remaining unexecuted checks.
+**21.10.2026: current status:** [NEXT-CHAT.md](NEXT-CHAT.md), [CURRENT-CHECKPOINT-2026-10-21.md](CURRENT-CHECKPOINT-2026-10-21.md), [START-MESSAGE-RU.md](START-MESSAGE-RU.md) — приоритетные файлы передачи. Остальные evidence/review старше являются историческими фактами соответствующей даты.
 
-No production file changes and no legal clearance or Hostinger crypto confirmation.
+**Ветка:** research/stage2-supply-chain-followup. [PR #3](https://github.com/manufact-test/ai-site-cms/pull/3) строго **OPEN DRAFT**. Только изменения research/parallel-security/, никаких main/cms/.github/workflows/production pins/Hostinger/DB/secrets/deploy. Не merge/rebase/retarget/Ready.
 
-### One-command audit and explicit coverage
+## Current exact CODE checkpoint prior to handoff-document commit
 
-Run from a **complete Git checkout**: `node research/parallel-security/run-security-suite.mjs --strict`. JSON report carries individual commands, actual exit codes, runtime detection, and `passed / failed / blocked` statuses. Exit `0` = executed tests passed (does not imply complete or approved); `1` = an executed test failed; `3` = strict mode and one or more checks **blocked**; `2` = invalid CLI usage. Optional `--online` adds point-in-time OSV and version-registry checks and fails on failed network calls. Neither stage acceptance nor legal compliance can be inferred from exit 0.
+**HEAD 760310d7bdd34f1b0d90b1066734e3e1dcbeefed**; [GitHub Actions #39624610755](https://github.com/manufact-test/ai-site-cms/actions/runs/39624610755) **SUCCESS 97 PASS / 0 FAIL / 0 BLOCKED** (suite entries), original 70 PR changed paths all inside research/parallel-security. После обновления документов надо получить НОВЫЙ PR HEAD и CI именно этого документационного SHA.
 
-Do not call `php -n` a true no-Sodium environment without checking `extension_loaded('sodium')`: this runner checks it before selecting absent/compat mode. `SODIUM_COMPAT_AUTOLOAD` must point to an independently verified exact 2.5.2 local archive and only works when native extension is genuinely absent. The runner does not download or install upstream packages.
+## Что подтверждено
 
-### Further research: cryptographic risk decision and embedded npm notices
+- 43 real pinned packages: 14 Composer + 29 npm, original lockfile sha/Git blob evidence and **real live OSV** 43/43, zero known advisory references at observation time (not an all-vulnerabilities guarantee).
+- Real upstream GitHub PGP verified annotated sodium_compat 2.5.2 tag, pinned Git commit 3246b36803c177847e677862fedeb7f937869adb, 78 source Git blobs; REAL zip SHA256 53944302442e609c0443f680a6195f8d7467e3d0f0c4503e8a690fd9e7ee22f2. Independent genuine native-free PHP8.3.6 isolated Composer source-installed/attested (pre/post all 78), four real signed fixtures and 14 actual Ed25519 v2.5.2 adversarial boundary assertions.
+- Original current main source Ed25519 PHP class callsites attested Git source + 60 actually signed-chain tests in native class-dispatch.
+- 102 real signed CLI verification timings across 7 native/fallback scenarios, fallback often ~43–45ms vs native ~0.06ms for expensive cases. [HOSTINGER-ED25519-OFFLINE-CAPACITY-PLAN.md](HOSTINGER-ED25519-OFFLINE-CAPACITY-PLAN.md) computes ILLUSTRATIVE serial busy time, **not real Hostinger throughput, CPU or DoS**.
+- NEW original-main static web / crypto source boundary: [MAIN-WEB-CRYPTO-SURFACE-REVIEW.md](MAIN-WEB-CRYPTO-SURFACE-REVIEW.md). PHP token parser plus Git source SHA reveals 1 Slim GET /api/health, 7 Hostinger preflight URL path strings, 2 CLI guards, no direct lexical Ed25519 class references in web entrypoints; 24 adversarial route/downgrade tests. **This does not prove all dynamic call paths, server rewrite config, or public attack surface.**
+- review-handoff.mjs + evidence-readiness-decision.mjs: strict machine evidence, always NO_GO. Research-ready flag cannot approve release or stand in for expert PGP/crypto/legal signatures.
 
-- [SODIUM-DECISION-REVIEW.md](SODIUM-DECISION-REVIEW.md) — options and strict cross-backend/replay/security preconditions; candidate 2.5.2 remains CONDITIONAL.
-- [NPM-ARCHIVE-REVIEW.md](NPM-ARCHIVE-REVIEW.md), [npm-source-gate.mjs](npm-source-gate.mjs) — build/test-only embedded third-party notices and installed-archive checks.
-- `release-fixture.mjs native` now exercises 20 independent valid/negative signed release cases, confirmed on the actual original PHP verifier. Pure-PHP still blocked absent truly extension-free PHP.
+## Key commands
 
-### Original, not synthetic GitHub Actions evidence
+- node research/parallel-security/run-security-suite.mjs --strict --online
+- node research/parallel-security/main-head-independent-proof.mjs
+- node research/parallel-security/main-web-crypto-surface-regression.mjs
+- node research/parallel-security/review-handoff-regression.mjs
+- node research/parallel-security/sodium-capacity-whatif-regression.mjs
+- node research/parallel-security/evidence-readiness-regression.mjs
 
-[Run 39485991908](https://github.com/manufact-test/ai-site-cms/actions/runs/39485991908): standalone **Security & Dependencies job** executed on Node 22 and PHP 8.3.35 against the real 14 PHP + 29 npm dependency manifests/installed package and completed with **22 PASS / 0 FAIL / 2 BLOCKED**. Missing native-Sodium extension/compat pathways intentionally remain BLOCKED and Stage2 has not been accepted. See EVIDENCE-2026-10-20.md for complete history and scope.
+Complete physical/online research CI needs real public Git, internet OSV/Composer, OS temporary Linux build of genuine PHP 8.3 without Sodium. Local --strict may correctly BLOCKED when absent prerequisites; a 0 exit is NEVER Stage2 GO. [RUNBOOK.md](RUNBOOK.md) for details.
+
+## Remaining independently authorized decisions
+
+PGP signer owner identity/custody out-of-band; qualified exact-source crypto/security review; ISC/Apache NOTICE real package legal review; actual authorized Hostinger PHP LiteSpeed/FPM web-SAPI concurrency/CPU/latency tests; main-integrator signed release permit/receipt/settlement, rollback; final product owner explicit approval. All six **still outstanding**. Stage2/production **NO_GO**.

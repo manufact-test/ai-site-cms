@@ -1,3 +1,9 @@
+## Новый статус 21.10.2026 — документальный приоритет над историческим состоянием ниже
+
+Отдельный настоящий [main CI интегратора #39571456888](https://github.com/manufact-test/ai-site-cms/actions/runs/39571456888) уже исполнил физический PHP 8.3.6 64-bit **без ext-sodium** и pinned pure-PHP `sodium_compat@v2.5.2` (33 signed-chain, 55 trust rotation). В НАШЕМ независимом research CI нет повторного настоящего no-native процесса; его explicit `no-sodium:cryptography` / `compat:cryptography` всё ещё BLOCKED. Исходный ZIP библиотеки отдельно скачан и **78/78 Git blobs** подтверждены против подписанного upstream тега. Эти факты не доказывают целевой Hostinger LiteSpeed PHP web SAPI или независимый аудит криптографии. Полная актуальная сводка: `CURRENT-CHECKPOINT-2026-10-21.md`.
+
+---
+
 # Sodium candidate: classify forced-polyfill vs genuinely missing extension (20 Oct 2026)
 
 ## Confirmed environment issue in main's crypto lab
@@ -30,3 +36,12 @@ On local PHP 8.4.24: `node runtime-sodium-proof.mjs` exits **3** with no PHP bin
 3. Separately test the actual target hosting PHP / web-SAPI environment when explicitly authorized. The research role is not permitted to access Hostinger or change production Composer dependencies.
 
 The version 2.5.2 upstream warns its PHP implementation is not independently cryptographically audited. Its ISC license adds new distribution review needs. No Stage2 acceptance or customer deployment is authorized.
+
+
+## Final research checkpoint — 21 October 2026
+
+The gated wrapper now requires `PHP_NO_SODIUM_BIN` to identify an actual **PHP 8.3 / 64-bit CLI binary physically lacking ext-sodium**. Even if `-n` hides a function, `extension_loaded('sodium') === true` blocks. A separately obtained exact `paragonie/sodium_compat@2.5.2` Composer source reference **and** distribution reference must both equal upstream signed tag commit `3246b36803c177847e677862fedeb7f937869adb`; a separately retained full-tree SHA-256 must match `sodium-compat-attest.mjs`, including all PHP source bytes. This is checked both **before and after** compat cryptographic tests. The verifier subprocess must print specific completed RFC8032 and signed-envelope assertions, not merely return exit 0.
+
+[Exact-head CI #39509439870](https://github.com/manufact-test/ai-site-cms/actions/runs/39509439870) independently exercised the source-attestation synthetic fixture **20/20**, fake-PHP fail-closed proof fixture **15/15**, and real **native Sodium** receipt/permit/settlement/trust fixtures **36/46/38/18**; two **authentic no-native crypto** cases remain **BLOCKED**, not simulated PASS. The stub-backed negative tests prove defensive output policy, **not** that an extension-free PHP runtime was observed. The actual `sodium_compat` source tree is **not present as independently attested tested evidence**, and the target LiteSpeed/web-SAPI test was not executed. Stage2, production and legal approval remain withheld.
+
+Next chat: coordinate with integration owner on a disposable physically Sodium-free PHP 8.3 64-bit target-like runner and approved reference archive; see [RUNBOOK.md](RUNBOOK.md) for exact environment variables and commands. Do not modify CMS sources, production locks, workflows, host or secrets from this branch.
