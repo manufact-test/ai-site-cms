@@ -283,8 +283,57 @@ async function stop(){
   assert.equal((await request('POST',tplRoot+'/'+templateId+'/delete',{})).status,200);
   assert.equal((await request('GET',tplRoot)).body.templates.length,0);
   assert.equal((await request('GET','/published/'+id+'/')).status,200,'No implicit publication');
+  // Backup -> read-only plan -> transactional recovery -> release restoration.
+  await request('POST',tplRoot,{name:'Архивный шаблон',pageId:'page-home',sectionId:'section-hero',expectedRevision:sourceRevision});
+  const archiveResult=await request('GET',endpoint+'/backup');
+  assert.equal(archiveResult.status,200,JSON.stringify(archiveResult.body));
+  const archive=archiveResult.body;
+  assert.equal(archive.format,'manufact-site-backup-v1');
+  assert.equal(archive.payload.media.length,1);
+  assert.equal(archive.payload.templates.length,1);
+  assert.ok(archive.payload.submissions.length>0);
+  assert.equal(archive.payload.revisions.length,sourceRevision);
+  assert.equal(archive.payload.releases.length,4);
+  assert.doesNotMatch(JSON.stringify(archive),/password_hash|visitor_hash|STAGE3_FORM_SECRET/);
+  const target='site-restored-ci',payload={archive,targetSiteId:target};
+  const planned=await request('POST','/api/backups/plan',payload);
+  assert.equal(planned.status,200,JSON.stringify(planned.body));
+  assert.equal(planned.body.plan.willPublish,false);
+  assert.equal((await request('GET','/api/sites/'+target)).status,404,'Preflight must not create data');
+  assert.equal((await request('POST','/api/backups/restore',{...payload,confirmationToken:'wrong'})).status,409);
+  const damaged=structuredClone(archive);damaged.payload.draft.site.title='Tampered';
+  assert.equal((await request('POST','/api/backups/plan',{archive:damaged,targetSiteId:target})).status,422);
+  const missingImage=structuredClone(archive);missingImage.payload.media=[];
+  // Recompute PHP's compact JSON representation: every key is textual, no floats in this fixture.
+  missingImage.sha256=require('node:crypto').createHash('sha256').update(JSON.stringify(missingImage.payload)).digest('hex');
+  assert.equal((await request('POST','/api/backups/plan',{archive:missingImage,targetSiteId:target})).status,422);
+  const recoveredArchive=await request('POST','/api/backups/restore',{...payload,confirmationToken:planned.body.confirmationToken});
+  assert.equal(recoveredArchive.status,201,JSON.stringify(recoveredArchive.body));
+  assert.equal(recoveredArchive.body.site.siteId,target);
+  assert.equal(recoveredArchive.body.revision,sourceRevision);
+  assert.equal((await request('GET','/published/'+target+'/')).status,404,'Restoring never activates a public snapshot');
+  assert.equal((await request('GET','/api/sites/'+target+'/releases')).body.releases.length,4);
+  const copyBackup=await request('GET','/api/sites/'+target+'/backup');
+  assert.equal(copyBackup.status,200,JSON.stringify(copyBackup.body));
+  assert.equal(copyBackup.body.payload.media[0].sha256,archive.payload.media[0].sha256);
+  assert.equal(copyBackup.body.payload.submissions.length,archive.payload.submissions.length);
+  assert.notEqual(copyBackup.body.payload.submissions[0].submission_id,archive.payload.submissions[0].submission_id);
+  assert.equal(copyBackup.body.payload.templates.length,1);
+  assert.equal((await request('POST','/api/backups/plan',payload)).status,409,'No overwrite of existing sites');
+  assert.equal((await request('POST','/api/sites/'+target+'/restore-release',{version:1,expectedRevision:1})).status,409,'CAS on publication recovery');
+  const rollback=await request('POST','/api/sites/'+target+'/restore-release',{version:1,expectedRevision:sourceRevision});
+  assert.equal(rollback.status,200,JSON.stringify(rollback.body));
+  assert.equal(rollback.body.revision,sourceRevision+1);
+  assert.equal((await request('GET','/published/'+target+'/')).status,404);
+  const activated=await request('POST','/api/sites/'+target+'/publish',{expectedRevision:sourceRevision+1});
+  assert.equal(activated.status,200,JSON.stringify(activated.body));
+  assert.equal(activated.body.version,5,'Publication versions continue after imported history');
+  assert.equal((await request('GET','/published/'+target+'/')).status,200);
+  assert.equal((await request('GET',endpoint)).body.revision,sourceRevision,'Original draft intact');
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
+  assert.equal((await request('GET',endpoint+'/backup')).status,401,'Archives remain private');
+  assert.equal((await request('POST','/api/backups/plan',payload)).status,401);
   assert.equal((await request('GET','/published/'+id+'/')).status,200,'visitor needs no CMS login');
   // Export only the published snapshot. Build static files without modifying
   // live CMS routes, then serve with Node AFTER stopping the PHP CMS completely.

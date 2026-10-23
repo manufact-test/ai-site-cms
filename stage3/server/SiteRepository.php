@@ -16,6 +16,7 @@ final class NotFound extends RuntimeException {}
  */
 final class SiteRepository
 {
+    use SiteArchives;
     private string $driver;
     public function __construct(private PDO $db, private ContractValidator $validator)
     {
@@ -231,7 +232,10 @@ final class SiteRepository
             $stmt = $this->db->prepare('SELECT version FROM stage3_publications WHERE site_id = ?');
             $stmt->execute([$id]);
             $old = $stmt->fetchColumn();
-            $version = $old === false ? 1 : ((int)$old + 1);
+            // Imported release history may exist before the first explicit public activation.
+            $history = $this->db->prepare('SELECT MAX(version) FROM stage3_publication_history WHERE site_id = ?');
+            $history->execute([$id]);
+            $version = max((int)$old, (int)$history->fetchColumn()) + 1;
             $now = $this->now();
             if ($old === false) {
                 $stmt = $this->db->prepare('INSERT INTO stage3_publications (site_id, version, source_revision, body, published_at) VALUES (?, ?, ?, ?, ?)');

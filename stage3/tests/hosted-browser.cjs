@@ -205,6 +205,53 @@ async function execute(){
   assert.equal(tokenless.status(),403,'CSRF still enforced with browser credentials');
   const link=page.locator('#server-public-link');
   assert.equal(await link.getAttribute('href'),'/published/'+siteId+'/');
+  // One browser recovery workflow, using a real downloaded private archive.
+  replies.push('Шаблон для восстановления');
+  await page.locator('#server-template-save').click();
+  await page.locator('#server-template-list .hosted-template').first().waitFor();
+  const downloaded=page.waitForEvent('download');
+  await page.locator('#server-backup-download').click();
+  const backup=await downloaded,backupPath=path.join(temp,'site-backup.json');
+  await backup.saveAs(backupPath);
+  const recoveryDoc=JSON.parse(fs.readFileSync(backupPath,'utf8'));
+  assert.equal(recoveryDoc.payload.media.length,1);
+  assert.equal(recoveryDoc.payload.submissions.length,1);
+  assert.equal(recoveryDoc.payload.templates.length,1);
+  await page.locator('#server-backup-open').click();
+  await page.locator('#server-backup-file').setInputFiles(backupPath);
+  const recoveryId='site-recovered-browser';
+  await page.locator('#server-backup-target').fill(recoveryId);
+  await page.locator('#server-backup-plan').click();
+  await page.locator('#server-backup-summary').getByText(/Будет создан новый сайт/).waitFor();
+  assert.equal((await visitor.goto(origin+'/published/'+recoveryId+'/')).status(),404);
+  assert.equal(await page.locator('#server-backup-restore').isDisabled(),false);
+  // Changing the destination invalidates a preview and requires a fresh plan.
+  await page.locator('#server-backup-target').fill(recoveryId+'-changed');
+  assert.equal(await page.locator('#server-backup-restore').isDisabled(),true);
+  await page.locator('#server-backup-target').fill(recoveryId);
+  await page.locator('#server-backup-plan').click();
+  await page.locator('#server-backup-restore').waitFor({state:'visible'});
+  await page.waitForFunction(()=>!document.getElementById('server-backup-restore').disabled);
+  await page.locator('#server-backup-restore').click();
+  await page.locator('#server-backup-dialog').waitFor({state:'hidden'});
+  await page.locator('#server-status').getByText(/Черновик #9/).waitFor();
+  assert.equal(await page.locator('#server-site-select').inputValue(),recoveryId);
+  await page.locator('#server-submission-heading').getByText(/Заявки сайта · 1/).waitFor();
+  assert.equal(await page.locator('#server-media-list img').count(),1);
+  assert.equal(await page.locator('#server-template-list .hosted-template').count(),1);
+  assert.equal(await page.locator('#versions .version').count(),9);
+  assert.equal(await page.locator('#server-releases .hosted-release').count(),5);
+  assert.equal((await visitor.goto(origin+'/published/'+recoveryId+'/')).status(),404);
+  // Restore a publication containing the photo/form as a new draft; activate explicitly.
+  await page.locator('#server-releases .hosted-release button').first().click();
+  await page.locator('#server-status').getByText(/Черновик #10/).waitFor();
+  assert.equal((await visitor.goto(origin+'/published/'+recoveryId+'/')).status(),404);
+  await page.locator('#server-publish').click();
+  await page.locator('#server-status').getByText(/Опубликовано: v6/).waitFor();
+  await visitor.goto(origin+'/published/'+recoveryId+'/');
+  assert.equal(await visitor.locator('img.showcase-photo').getAttribute('alt'),'Фото цеха');
+  assert.equal(await visitor.locator('form.lead-form').count(),1);
+  assert.equal((await visitor.goto(origin+'/published/'+siteId+'/')).status(),200,'Original publication intact');
   // One full recipe path: brief -> editable structure -> inert multipage
   // preview -> persisted draft -> edits/publish -> template reuse + Undo.
   await page.locator('#compose-site').click();

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/ContractValidator.php';
+require_once __DIR__ . '/SiteArchives.php';
 require_once __DIR__ . '/SiteRepository.php';
 require_once __DIR__ . '/PublicRenderer.php';
 require_once __DIR__ . '/FlexForm.php';

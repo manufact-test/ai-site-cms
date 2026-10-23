@@ -228,6 +228,91 @@
       row.append(photo,desc);mediaList.append(row);
     }
   }
+  // Private full-content recovery. The archive contains contact data; it never
+  // contains accounts, credentials or configuration and is never sent off-origin.
+  const backupPanel=element('div','hosted-backups');
+  const backupDownload=action('Скачать резервную копию','server-backup-download',()=>safe(async()=>{
+    if(!state.siteId)throw Error('Откройте сайт');
+    if(isDirty())throw Error('Сначала сохраните правки: архив содержит только серверные данные');
+    const archive=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/backup');
+    const blob=new Blob([JSON.stringify(archive)],{type:'application/json'});
+    const url=URL.createObjectURL(blob),link=element('a');
+    link.href=url;link.download=state.siteId+'-backup.json';document.body.append(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    notice('Скачана копия контента, истории, изображений, шаблонов и заявок. Храните файл приватно.');
+  }));
+  const backupOpen=action('Восстановить из файла','server-backup-open',()=>{
+    clearArchive();backupDialog.showModal();
+  });
+  const releaseRefresh=action('История публикаций','server-releases-refresh',()=>safe(loadReleases));
+  const releaseList=element('div','hosted-releases');releaseList.id='server-releases';
+  backupPanel.append(element('strong',null,'Резервные копии и откат'),
+    element('small',null,'Архив включает заявки с контактами. Храните его приватно. Учётные записи и секреты в архив не входят.'),
+    backupDownload,backupOpen,releaseRefresh,releaseList);
+  templatesPanel.after(backupPanel);
+  const backupDialog=element('dialog','hosted-backup-dialog');backupDialog.id='server-backup-dialog';
+  const backupFile=element('input','control');backupFile.type='file';backupFile.accept='.json,application/json';backupFile.id='server-backup-file';
+  const backupTarget=element('input','control');backupTarget.id='server-backup-target';backupTarget.maxLength=80;
+  const backupFileLabel=element('label',null,'Файл резервной копии (до 64 МБ)');backupFileLabel.htmlFor=backupFile.id;
+  const backupTargetLabel=element('label',null,'ID новой независимой копии сайта');backupTargetLabel.htmlFor=backupTarget.id;
+  const backupSummary=element('div','hosted-backup-summary');backupSummary.id='server-backup-summary';backupSummary.setAttribute('aria-live','polite');
+  const backupPlan=action('Проверить архив','server-backup-plan',()=>safe(async()=>{
+    invalidateArchivePlan();
+    const file=backupFile.files?.[0];
+    if(!file||file.size<1||file.size>64000000)throw Error('Выберите JSON-архив до 64 МБ');
+    const archive=JSON.parse(await file.text()),targetSiteId=backupTarget.value.trim();
+    const result=await api('/api/backups/plan','POST',{archive,targetSiteId});
+    pendingArchive={archive,targetSiteId,token:result.confirmationToken};
+    const p=result.plan;
+    backupSummary.replaceChildren(element('strong',null,p.title+' → '+p.targetSiteId),
+      element('p',null,'Страниц: '+p.pages+' · Ревизий: '+p.revisions+' · Публикаций: '+p.releases+
+        ' · Изображений: '+p.images+' · Шаблонов: '+p.templates+' · Заявок: '+p.submissions),
+      element('p',null,'Создан: '+p.createdAt+'. Сохранённый черновик #'+p.revision+
+        '. Будет создан новый сайт без публикации. Исходный сайт останется доступен.'),
+      element('p',null,'Для публичного восстановления выберите прежнюю публикацию в истории и затем нажмите «Опубликовать».'));
+    backupRestore.disabled=false;
+  }));
+  const backupRestore=action('Создать восстановленную копию','server-backup-restore',()=>safe(async()=>{
+    if(!pendingArchive)throw Error('Сначала проверьте архив');
+    if(isDirty()&&!confirm('Перейти к восстановленной копии, отбросив несохранённые правки?'))return;
+    const p=pendingArchive;
+    const restored=await api('/api/backups/restore','POST',{archive:p.archive,targetSiteId:p.targetSiteId,confirmationToken:p.token});
+    clearArchive();backupDialog.close();
+    selectSite(restored);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();
+    notice('Копия восстановлена со всей историей. Публикация выполняется отдельной кнопкой.');
+  }));
+  const backupClose=action('Закрыть','server-backup-close',()=>{clearArchive();backupDialog.close();});
+  backupDialog.append(element('h2',null,'Восстановление сайта'),
+    element('p',null,'Архив проверяется на сервере до записи. Восстановление создаёт отдельный сайт и сохраняет всю историю, медиа, шаблоны и заявки.'),
+    backupFileLabel,backupFile,backupTargetLabel,backupTarget,backupPlan,backupSummary,backupRestore,backupClose);
+  document.body.append(backupDialog);
+  let pendingArchive=null;
+  function invalidateArchivePlan(){pendingArchive=null;backupRestore.disabled=true;backupSummary.replaceChildren();}
+  function clearArchive(){invalidateArchivePlan();backupFile.value='';backupTarget.value='site-'+crypto.randomUUID().replace(/-/g,'').slice(0,20);}
+  backupFile.addEventListener('change',invalidateArchivePlan);
+  backupTarget.addEventListener('input',invalidateArchivePlan);
+  backupDialog.addEventListener('cancel',event=>{
+    if(state.busy){event.preventDefault();return;}clearArchive();
+  });
+  async function loadReleases(){
+    releaseList.replaceChildren();
+    if(!state.siteId||!state.authorized)return;
+    const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/releases');
+    if(!result.releases.length){releaseList.append(element('small',null,'Публикаций пока нет.'));return;}
+    for(const release of result.releases){
+      const wrap=element('div','hosted-release');
+      wrap.append(element('small',null,'v'+release.version+' · #'+release.sourceRevision+' · '+release.publishedAt));
+      wrap.append(action('Вернуть в черновик','',()=>safe(async()=>{
+        if(isDirty()&&!confirm('Отбросить несохранённые правки?'))return;
+        if(!confirm('Восстановить публикацию v'+release.version+' в новый черновик? Публичный сайт останется прежним до отдельной публикации.'))return;
+        const restored=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/restore-release','POST',
+          {version:release.version,expectedRevision:state.revision});
+        selectSite(restored);await refreshSites();await loadHistory();await loadTemplates();
+        notice('Публикация v'+release.version+' возвращена в черновик #'+state.revision+'.');
+      })));
+      releaseList.append(wrap);
+    }
+  }
   document.querySelector('.sidebar-bottom').textContent='Серверная Studio · черновики отдельно от публикации. Только изолированный Stage3.';
   const gate=element('div','hosted-gate');
   gate.id='server-login';
@@ -276,6 +361,13 @@
     mediaUpload.disabled=!available||isDirty();
     templatesSave.disabled=!available||isDirty();
     templatesRefresh.disabled=!available;
+    backupDownload.disabled=!available||isDirty();
+    backupOpen.disabled=state.busy||!state.authorized;
+    releaseRefresh.disabled=!available;
+    backupPlan.disabled=state.busy||!state.authorized;
+    backupClose.disabled=state.busy;
+    backupFile.disabled=state.busy;backupTarget.disabled=state.busy;
+    backupRestore.disabled=state.busy||!pendingArchive||!state.authorized;
     $('reset').disabled=!available;
     const meta=state.sites.find(s=>s.site_id===state.siteId);
     const published=meta?.published_version?('Опубликовано: v'+meta.published_version):'Пока не опубликован';
@@ -288,7 +380,7 @@
   async function safe(fn){
     if(state.busy)return;
     state.busy=true;drawStatus();
-    try{return await fn();}catch(e){notice(e.message,true);}
+    try{return await fn();}catch(e){notice(e.message,true);if(backupDialog.open)backupSummary.replaceChildren(element('p',null,e.message));}
     finally{state.busy=false;drawStatus();}
   }
   async function refreshSites(){
@@ -304,7 +396,7 @@
   async function loadHistory(){
     if(!state.siteId){state.revisions=[];drawVersions();return;}
     state.revisions=(await api('/api/sites/'+encodeURIComponent(state.siteId)+'/revisions')).revisions;
-    drawVersions();
+    drawVersions();await loadReleases();
   }
   function editorVisible(visible){
     document.querySelector('.center').hidden=!visible;
@@ -352,7 +444,7 @@
     if(!confirm('Опубликовать сохранённую серверную ревизию #'+state.revision+'?'))return;
     const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/publish','POST',
       {expectedRevision:state.revision});
-    await refreshSites();
+    await refreshSites();await loadReleases();
     notice('Опубликована версия #'+result.version+' из ревизии #'+result.sourceRevision+'.');
   }
   async function newSite(){
@@ -379,6 +471,7 @@
   async function logout(){
     if(isDirty()&&!confirm('Выйти без сохранения текущих правок?'))return;
     await api('/api/logout','POST',{});
+    clearArchive();backupDialog.close();releaseList.replaceChildren();
     state.authorized=false;state.csrf=null;state.siteId=null;state.revision=null;
     state.revisions=[];state.sites=[];picker.replaceChildren();
     mediaList.replaceChildren();templatesList.replaceChildren();

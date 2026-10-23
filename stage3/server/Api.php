@@ -19,15 +19,15 @@ final class Api
         exit;
     }
 
-    private static function request(): array
+    private static function request(int $limit = 750000): array
     {
         if (!str_starts_with(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json')) {
             self::response(415, ['error' => 'JSON required']);
         }
         $stream = fopen('php://input', 'rb');
-        $json = stream_get_contents($stream, 750001);
+        $json = stream_get_contents($stream, $limit + 1);
         fclose($stream);
-        if ($json === false || strlen($json) > 750000) {
+        if ($json === false || strlen($json) > $limit) {
             self::response(413, ['error' => 'Request too large']);
         }
         $body = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
@@ -219,7 +219,7 @@ final class Api
             }
             if ($method === 'POST') {
                 self::csrf();
-                $body = self::request();
+                $body = self::request(in_array($path, ['/api/backups/plan','/api/backups/restore'], true) ? SiteRepository::ARCHIVE_LIMIT : 750000);
                 if ($path === '/api/logout') {
                     $_SESSION = [];
                     session_regenerate_id(true);
@@ -227,6 +227,42 @@ final class Api
                 }
                 if ($path === '/api/sites') {
                     self::response(201, $this->sites->createSite($body['site'] ?? []));
+                }
+            }
+            if ($method === 'POST' && in_array($path, ['/api/backups/plan','/api/backups/restore'], true)) {
+                $archive = $body['archive'] ?? null;
+                $target = $body['targetSiteId'] ?? null;
+                if (!is_array($archive) || !is_string($target)) throw new InvalidArgumentException('Archive and target site ID required');
+                $digest = hash('sha256', json_encode([$target, $archive], JSON_THROW_ON_ERROR));
+                if ($path === '/api/backups/plan') {
+                    $plan = $this->sites->planArchive($archive, $target);
+                    $token = bin2hex(random_bytes(32));
+                    $_SESSION['stage3_archive_plan'] = ['digest' => $digest, 'token' => $token, 'expires' => time() + 900];
+                    self::response(200, ['plan' => $plan, 'confirmationToken' => $token]);
+                }
+                $pending = $_SESSION['stage3_archive_plan'] ?? [];
+                if (($pending['expires'] ?? 0) < time() || !is_string($body['confirmationToken'] ?? null)
+                    || !hash_equals($pending['token'] ?? '', $body['confirmationToken'])
+                    || !hash_equals($pending['digest'] ?? '', $digest)) {
+                    throw new Conflict('Check this exact archive and target before restoring; plan expired or changed');
+                }
+                $restored = $this->sites->importArchive($archive, $target);
+                unset($_SESSION['stage3_archive_plan']);
+                self::response(201, $restored);
+            }
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/(backup|releases|restore-release)$~D', $path, $backupMatch)) {
+                $id = $backupMatch[1]; $action = $backupMatch[2];
+                if ($method === 'GET' && $action === 'backup') {
+                    header('Content-Disposition: attachment; filename="' . $id . '-backup.json"');
+                    self::response(200, $this->sites->exportArchive($id));
+                }
+                if ($method === 'GET' && $action === 'releases') {
+                    self::response(200, ['releases' => $this->sites->publicationHistory($id)]);
+                }
+                if ($method === 'POST' && $action === 'restore-release') {
+                    self::response(200, $this->sites->save($id,
+                        $this->sites->publishedVersion($id, self::revision($body['version'] ?? null)),
+                        self::revision($body['expectedRevision'] ?? null)));
                 }
             }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/templates(?:/(template-[0-9a-f]{18})/delete)?$~D', $path, $templateMatch)) {
