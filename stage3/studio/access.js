@@ -10,8 +10,9 @@
   const identity=node('small');identity.id='server-identity';
   const manage=button('Пользователи','server-users-open',()=>run(async()=>{await loadUsers();usersDialog.showModal();}));
   const audit=button('Журнал действий','server-audit-open',()=>run(async()=>{await loadAuditSites();await loadAudit();auditDialog.showModal();}));
+  const licencesOpen=button('Лицензии','server-licenses-open',()=>run(async()=>{await loadLicenses();licencesDialog.showModal();}));
   const change=button('Сменить пароль','server-password-open',()=>{currentPassword.value='';nextPassword.value='';passwordDialog.showModal();});
-  row.append(identity,manage,audit,change);document.getElementById('server-toolbar').append(row);
+  row.append(identity,manage,audit,licencesOpen,change);document.getElementById('server-toolbar').append(row);
   const dialogs=[];
   function dialog(title,id){const d=node('dialog');d.className='hosted-backup-dialog';d.id=id;d.append(node('h2',title));document.body.append(d);dialogs.push(d);return d;}
   const message=node('p');message.id='server-access-message';message.setAttribute('aria-live','polite');
@@ -84,6 +85,87 @@
     if(!response.events.length)events.append(node('p','Событий пока нет.'));
   }
   auditScope.onchange=()=>run(loadAudit);
+
+  // Owner-only, manually controlled licences. Dates never switch off the public site.
+  const licencesDialog=dialog('Лицензии, напоминания и ручная пауза','server-licenses-dialog');
+  licencesDialog.append(node('p','Каждая лицензия относится к одному сайту этой установки. Срок оплаты создаёт только напоминание. Ручная пауза останавливает правки и публикацию, но не опубликованный сайт, формы или заявки.'));
+  const totals=node('p');totals.id='server-license-totals';
+  const listing=node('div');listing.id='server-license-list';listing.className='hosted-audit-events';
+  const choice=node('select');choice.id='server-license-site';choice.className='control';
+  const info=node('div');info.id='server-license-status';info.className='hosted-backup-summary';
+  const type=node('select');type.id='server-license-type';type.className='control';
+  for(const [id,title] of [['perpetual','Бессрочная'],['subscription','Подписка']]){const opt=node('option',title);opt.value=id;type.append(opt);}
+  const date=field('server-license-date','date'),domain=field('server-license-domain'),reason=field('server-license-reason');
+  domain.maxLength=253;domain.placeholder='client.example (необязательно)';
+  reason.maxLength=120;reason.placeholder='Причина решения оператора';
+  const saveLicence=button('Сохранить условия','server-license-save',()=>run(()=>changeLicence('details')));
+  const pauseLicence=button('Приостановить CMS','server-license-pause',()=>run(()=>changeLicence('pause')));
+  const resumeLicence=button('Возобновить CMS','server-license-resume',()=>run(()=>changeLicence('resume')));
+  licencesDialog.append(totals,listing,label('Сайт / instance ID',choice),choice,info,
+    label('Тип лицензии',type),type,label('Дата следующего напоминания (UTC)',date),date,
+    label('Домен для внутреннего учёта (без изменения DNS)',domain),domain,
+    label('Обязательная причина',reason),reason);
+  const buttons=node('div');buttons.className='hosted-buttons';
+  buttons.append(saveLicence,pauseLicence,resumeLicence,
+    button('Обновить','server-license-refresh',()=>run(loadLicenses)),
+    button('Закрыть','server-license-close',()=>licencesDialog.close()));
+  licencesDialog.append(buttons);
+  let licenceRows=[];
+  const labels={none:'Без напоминания',scheduled:'Запланировано',soon:'Скоро',today:'Сегодня',overdue:'Просрочено'};
+  const chosen=()=>licenceRows.find(row=>row.siteId===choice.value);
+  function displayLicence(){
+    const item=chosen();info.replaceChildren();
+    if(!item){saveLicence.disabled=pauseLicence.disabled=resumeLicence.disabled=true;return;}
+    info.append(node('strong',item.title+' · '+item.siteId),
+      node('p',(item.paused?'CMS приостановлена вручную':'CMS активна')+' · '+labels[item.reminderStatus]+(item.reminderDate?' · '+item.reminderDate:'')),
+      node('small','Версия: '+item.version+' · Оператор: '+(item.operator||'—')+
+        ' · Время: '+(item.changedAt||'—')+' · Причина: '+(item.reason||'—')));
+    type.value=item.type;date.value=item.reminderDate||'';date.disabled=item.type==='perpetual';
+    domain.value=item.domain||'';reason.value='';
+    saveLicence.disabled=false;pauseLicence.disabled=item.paused;resumeLicence.disabled=!item.paused;
+  }
+  type.onchange=()=>{
+    date.disabled=type.value==='perpetual';
+    if(date.disabled)date.value='';
+    else if(!date.value)date.value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);
+  };
+  choice.onchange=displayLicence;
+  async function loadLicenses(){
+    const previous=choice.value;
+    licenceRows=(await H.api('/api/licenses')).licenses;
+    choice.replaceChildren();listing.replaceChildren();
+    const counts={overdue:0,today:0,soon:0,paused:0};
+    const priority={overdue:0,today:1,soon:2,scheduled:3,none:4};
+    for(const item of licenceRows){if(item.paused)counts.paused++;if(item.reminderStatus in counts)counts[item.reminderStatus]++;}
+    totals.textContent='Просрочено: '+counts.overdue+' · Сегодня: '+counts.today+' · Скоро: '+counts.soon+
+      ' · Ручная пауза: '+counts.paused+' · Всего сайтов: '+licenceRows.length;
+    for(const item of [...licenceRows].sort((a,b)=>priority[a.reminderStatus]-priority[b.reminderStatus]||a.title.localeCompare(b.title))){
+      const opt=node('option',item.title+' · '+item.siteId);opt.value=item.siteId;choice.append(opt);
+      const row=node('article');row.className='hosted-audit-event';row.dataset.reminder=item.reminderStatus;
+      row.append(node('strong',item.title+' · '+item.siteId),
+        node('small',(item.domain||'Домен не указан')+' · '+(item.type==='subscription'?'Подписка':'Бессрочная')+
+          ' · '+labels[item.reminderStatus]+' · '+(item.paused?'На паузе':'Активна')),
+        button('Открыть','',()=>{choice.value=item.siteId;displayLicence();}));
+      listing.append(row);
+    }
+    if(!licenceRows.length)listing.append(node('p','Пока нет сайтов.'));
+    choice.value=licenceRows.some(r=>r.siteId===previous)?previous:(licenceRows[0]?.siteId||'');
+    displayLicence();
+  }
+  async function changeLicence(operation){
+    const item=chosen();if(!item)throw Error('Выберите сайт');
+    const why=reason.value.trim();if(!why)throw Error('Укажите причину');
+    if(operation==='pause'&&!confirm('Приостановить только CMS сайта '+item.title+'? Публичный сайт останется доступен.'))return;
+    const payload={expectedVersion:item.version,reason:why};
+    if(operation==='details'){
+      payload.type=type.value;payload.reminderDate=type.value==='subscription'?date.value:null;
+      payload.domain=domain.value.trim().toLowerCase();
+    }
+    await H.api('/api/licenses/'+encodeURIComponent(item.siteId)+(operation==='details'?'':'/'+operation),'POST',payload);
+    await H.refreshSites();await loadLicenses();
+    H.notice(operation==='pause'?'CMS на паузе. Опубликованный сайт работает.':
+      operation==='resume'?'CMS снова доступна для правок и публикации.':'Условия лицензии сохранены.');
+  }
   const passwordDialog=dialog('Смена своего пароля','server-password-dialog');
   passwordDialog.append(node('p','После смены пароля все ваши сессии завершатся. Потребуется войти с новым паролем.'));
   const currentPassword=field('server-password-current','password');currentPassword.autocomplete='current-password';
@@ -95,10 +177,10 @@
     })),button('Закрыть','server-password-close',()=>{currentPassword.value='';nextPassword.value='';passwordDialog.close();}));
   function draw(){
     const p=H.principal();identity.textContent=p?p.username+' · '+p.role:'';
-    manage.hidden=audit.hidden=p?.role!=='owner';change.hidden=!p;
-    manage.disabled=audit.disabled=change.disabled=running;
+    manage.hidden=audit.hidden=licencesOpen.hidden=p?.role!=='owner';change.hidden=!p;
+    manage.disabled=audit.disabled=licencesOpen.disabled=change.disabled=running;
     if(!p){password.value='';currentPassword.value='';nextPassword.value='';for(const d of dialogs)d.close();}
-    if(!p||p.role!=='owner'){usersDialog.close();auditDialog.close();}
+    if(!p||p.role!=='owner'){usersDialog.close();auditDialog.close();licencesDialog.close();}
   }
   window.addEventListener('stage3-session',draw);draw();
 })();

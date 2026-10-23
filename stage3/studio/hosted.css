@@ -49,3 +49,10 @@
 .hosted-audit-events{display:grid;gap:10px;max-height:50vh;overflow:auto}.hosted-audit-event{display:grid;gap:5px;border:1px solid #37505e;padding:10px;border-radius:8px;overflow-wrap:anywhere}
 .hosted-audit-event small{font-size:11px;opacity:.8}.hosted-audit-event[data-outcome=denied]{border-color:#bd7b6c}
 #fields[inert]{opacity:.65}#server-identity{width:100%;font-size:12px;color:#a8d9d2}
+
+#server-license-list{max-height:190px}
+#server-license-list .hosted-audit-event button{justify-self:start}
+#server-license-list [data-reminder=overdue]{border-color:#bd7b6c}
+#server-license-list [data-reminder=today]{border-color:#c9ad69}
+#server-license-status strong{font-size:13px}#server-license-status small{font-size:11px;opacity:.8}
+#server-license-totals{font-weight:700}

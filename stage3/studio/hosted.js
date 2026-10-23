@@ -7,8 +7,9 @@
   const $=id=>document.getElementById(id);
   const state={csrf:null,siteId:null,revision:null,sites:[],revisions:[],busy:false,authorized:false,loading:false,principal:null};
   const isOwner=()=>state.principal?.role==='owner';
-  const canEdit=()=>['owner','editor','publisher'].includes(state.principal?.role);
-  const canPublish=()=>['owner','publisher'].includes(state.principal?.role);
+  const currentLicense=()=>state.sites.find(s=>s.site_id===state.siteId)?.license;
+  const canEdit=()=>['owner','editor','publisher'].includes(state.principal?.role)&&!currentLicense()?.paused;
+  const canPublish=()=>['owner','publisher'].includes(state.principal?.role)&&!currentLicense()?.paused;
   const notice=(text,error=false)=>{const t=$('toast');t.hidden=false;t.textContent=text;t.className='toast'+(error?' error':'');};
   const element=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
   const action=(text,id,fn)=>{const b=element('button','btn small',text);b.id=id;b.type='button';b.addEventListener('click',fn);return b;};
@@ -381,7 +382,8 @@
     const meta=state.sites.find(s=>s.site_id===state.siteId);
     const published=meta?.published_version?('Опубликовано: v'+meta.published_version):'Пока не опубликован';
     status.textContent=exists?('Черновик #'+state.revision+' · '+published+
-      (isDirty()?' · Есть правки':' · Без изменений')):'Выберите сайт или создайте новый';
+      (isDirty()?' · Есть правки':' · Без изменений')+
+      (currentLicense()?.paused?' · CMS НА ПАУЗЕ — правки и публикация недоступны':'')):'Выберите сайт или создайте новый';
     publicLink.hidden=!exists||!meta?.published_version;
     if(!publicLink.hidden)publicLink.href='/published/'+encodeURIComponent(state.siteId)+'/';
     $('save').title=isDirty()?'Сохранить новую серверную ревизию':'Все изменения уже сохранены';
@@ -389,7 +391,7 @@
   async function safe(fn){
     if(state.busy)return;
     state.busy=true;drawStatus();
-    try{return await fn();}catch(e){notice(e.message,true);if(backupDialog.open)backupSummary.replaceChildren(element('p',null,e.message));}
+    try{return await fn();}catch(e){notice(e.message,true);if(e.status===409&&state.authorized)await refreshSites().catch(()=>{});if(backupDialog.open)backupSummary.replaceChildren(element('p',null,e.message));}
     finally{state.busy=false;drawStatus();}
   }
   async function refreshSites(){
@@ -539,7 +541,7 @@
     }finally{state.busy=false;drawStatus();}
   }
   window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewUrl,
-    api,safe,notice,principal:()=>state.principal,
+    api,safe,notice,principal:()=>state.principal,refreshSites:()=>refreshSites(),
     lock:()=>{state.authorized=false;state.principal=null;state.csrf=null;editorVisible(false);setGate(true);},
     compositionTemplates,createComposition,canCompose:()=>isOwner()&&!state.busy});
   $('versions').replaceChildren();
