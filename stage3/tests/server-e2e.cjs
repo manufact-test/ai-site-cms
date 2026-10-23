@@ -31,6 +31,7 @@ async function request(method,route,data,headers={}){
 }
 async function runServer(){
   origin='http://127.0.0.1:'+(await port());
+  env.STAGE3_PUBLIC_ORIGIN=origin;
   server=spawn('php',['-S',new URL(origin).host,'-t','stage3/server/public','stage3/server/public/index.php'],{
     cwd:root,env,stdio:['ignore','ignore','pipe']});
   let logs='';
@@ -442,6 +443,7 @@ async function stop(){
   faq.items[0].values['content.question']='<img src=x onerror=alert(1)>';
   const quote=rich.pages[0].sections.find(s=>s.component==='testimonials');
   quote.items[0].values['content.quote']='Подтверждённый отзыв тестового автора';
+  rich.redirects=[{from:'/old-services/',to:'/contact/'}];
   const richCreated=await request('POST','/api/sites',{site:rich});
   assert.equal(richCreated.status,201,JSON.stringify(richCreated.body));
   assert.equal((await request('GET','/published/site-rich-ci/')).status,404);
@@ -455,16 +457,38 @@ async function stop(){
   assert.match(richPublished.body,/href="\/published\/site-rich-ci\/contact\/"/);
   assert.match(richPublished.body,/background:var\(--cms-bg\)/);
   assert.match(richPublished.body,/name="description" content="Страница теста услуг"/);
+  assert.match(richPublished.body,/rel="canonical"/);
+  assert.match(richPublished.body,/property="og:title"/);
+  const redirect=await request('GET','/published/site-rich-ci/old-services/');
+  assert.equal(redirect.status,301);
+  assert.equal(redirect.headers.get('location'),'/published/site-rich-ci/contact/');
+  assert.equal((await request('GET','/published/site-rich-ci/unregistered/')).status,404);
+  const sitemap=await request('GET','/published/site-rich-ci/sitemap.xml');
+  assert.equal(sitemap.status,200);
+  assert.match(sitemap.headers.get('content-type'),/application\/xml/);
+  assert.ok(sitemap.body.includes(origin+'/published/site-rich-ci/contact/'));
+  assert.ok(!sitemap.body.includes(origin+'/published/site-rich-ci/</loc>'),'noindex home absent from XML sitemap');
+  const robots=await request('GET','/published/site-rich-ci/robots.txt');
+  assert.equal(robots.status,200);
+  assert.match(robots.body,/Sitemap: http:\/\/127\.0\.0\.1:/);
+
   const badRepeat=structuredClone(rich);
   badRepeat.pages[0].sections.at(-1).items[0].values['content.media']='asset-from-another-site';
   assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:1,site:badRepeat})).status,422);
   const richExport=path.join(dbdir,'rich-static');
   const exp=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',richExport],
-    {cwd:root,env,encoding:'utf8'});
+    {cwd:root,env:{...env,STAGE3_EXPORT_ORIGIN:'https://example.test'},encoding:'utf8'});
   assert.equal(exp.status,0,exp.stderr);
   const staticHtml=fs.readFileSync(path.join(richExport,'index.html'),'utf8');
   assert.match(staticHtml,/Программирование шкафа управления/);
   assert.match(staticHtml,/href="\/contact\/"/);
+  assert.match(staticHtml,/rel="canonical" href="https:\/\/example.test\//);
+  assert.match(fs.readFileSync(path.join(richExport,'sitemap.xml'),'utf8'),/https:\/\/example.test\/contact\//);
+  assert.doesNotMatch(fs.readFileSync(path.join(richExport,'sitemap.xml'),'utf8'),/https:\/\/example.test\/<\/loc>/);
+  assert.match(fs.readFileSync(path.join(richExport,'robots.txt'),'utf8'),/https:\/\/example.test\/sitemap.xml/);
+  assert.match(fs.readFileSync(path.join(richExport,'old-services/index.html'),'utf8'),/noindex,follow/);
+  assert.match(fs.readFileSync(path.join(richExport,'old-services/index.html'),'utf8'),/url=\/contact\//);
+
   assert.doesNotMatch(staticHtml,/\/published\/|\/api\//);
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
