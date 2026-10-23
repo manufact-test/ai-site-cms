@@ -111,6 +111,7 @@ class ComposerStaticInitcdd9b523c235fc6ba8c1e2a62ae88fbe
         'AiSiteCms\\Hosting\\RuntimeDoctor' => __DIR__ . '/../..' . '/src/Hosting/RuntimeDoctor.php',
         'AiSiteCms\\Hosting\\SharedHostPreflight' => __DIR__ . '/../..' . '/src/Hosting/SharedHostPreflight.php',
         'AiSiteCms\\Hosting\\SiteRuntimeTopology' => __DIR__ . '/../..' . '/src/Hosting/SiteRuntimeTopology.php',
+        'AiSiteCms\\Hosting\\Stage2LiteSpeedBoundary' => __DIR__ . '/../..' . '/src/Hosting/Stage2LiteSpeedBoundary.php',
         'AiSiteCms\\Hosting\\Stage2MySqlReadOnly' => __DIR__ . '/../..' . '/src/Hosting/Stage2MySqlReadOnly.php',
         'AiSiteCms\\Hosting\\Stage2MysqlBoundReadiness' => __DIR__ . '/../..' . '/src/Hosting/Stage2MysqlBoundReadiness.php',
         'AiSiteCms\\Hosting\\Stage2OwnerWriteConsent' => __DIR__ . '/../..' . '/src/Hosting/Stage2OwnerWriteConsent.php',

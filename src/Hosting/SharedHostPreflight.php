@@ -82,7 +82,17 @@ final class SharedHostPreflight
             && realpath($rawRoot) === $public;
         $entryMatches = $public !== false && is_string($rawScript) && !is_link($rawScript)
             && realpath($rawScript) === $public . '/index.php';
-        $sapiKnown = in_array($sapi, ['fpm-fcgi', 'apache2handler', 'cgi-fcgi'], true);
+        // LiteSpeed's real PHP_SAPI is 'litespeed' (LSAPI), not FPM.
+        // Recognition here only records a candidate filesystem mapping,
+        // never PHP-pool isolation or production suitability.
+        $sapiKnown = in_array($sapi, ['fpm-fcgi', 'apache2handler', 'cgi-fcgi', 'litespeed'], true);
+        // Aliased paths can resolve to the same inode while routing the wrong
+        // site. Match the *observed* webserver values to exact canonical bytes.
+        $canonical = $public !== false
+            && $rawRoot === $public
+            && $rawScript === $public . '/index.php';
+        $rootMatches = $rootMatches && $canonical;
+        $entryMatches = $entryMatches && $canonical;
         $tlsObserved = ($server['HTTPS'] ?? null) === 'on' || ($server['HTTPS'] ?? null) === '1';
         return [
             'format' => 'ai-site-cms-stage2-synthetic-web-mapping-v1',
@@ -92,6 +102,10 @@ final class SharedHostPreflight
                 'script_maps_front_controller' => $entryMatches,
                 'recognized_shared_host_sapi' => $sapiKnown,
             ],
+            'sapi_profile' => $sapi === 'litespeed'
+                ? 'lsapi_mapping_candidate_only'
+                : ($sapiKnown ? 'known_non_lsapi_mapping_candidate' : 'unsupported'),
+            'lsapi_isolation_verified' => false,
             'https_server_variable_observed' => $tlsObserved,
             'proxy_headers_trusted' => false,
             'actual_request_executed' => false,

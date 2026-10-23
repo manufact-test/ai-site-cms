@@ -14,6 +14,26 @@ if (!is_file($autoload)) {
 
 require $autoload;
 
+// Optional, explicitly opt-in Stage2 read-only LiteSpeed/LSAPI front
+// controller boundary. Never a production verification, signed-release
+// authorization, or a replacement for owner-scoped host evidence.
+// Unknown values or non-test mode FAIL CLOSED; no diagnostic details to HTTP.
+$lsapiMode = getenv('CMS_STAGE2_REQUIRE_LSAPI_MAPPING');
+if ($lsapiMode !== false && $lsapiMode !== '') {
+    $allowed = $lsapiMode === '1'
+        && getenv('CMS_ENV') === 'test'
+        && \AiSiteCms\Hosting\Stage2LiteSpeedBoundary::fromProcess(dirname(__DIR__))['result']
+            === 'local_lsapi_mapping_candidate';
+    if (!$allowed) {
+        http_response_code(503);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        header('X-Content-Type-Options: nosniff');
+        echo '{"error":"service_unavailable"}';
+        exit;
+    }
+}
+
 // Optional Stage2-only ACTUAL PHP-FPM filesystem mapping gate. It checks
 // the webserver-provided SCRIPT_FILENAME and DOCUMENT_ROOT before health;
 // it is never enabled by arbitrary client headers. An unknown opt-in

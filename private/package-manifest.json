@@ -151,8 +151,8 @@
     },
     {
       "path": "public/index.php",
-      "bytes": 2292,
-      "sha256": "7e24be9446de31682fe6646b575d5d415e1ced05e79b6000cd3a54e1a4962ef2"
+      "bytes": 3188,
+      "sha256": "542d963739f8f8358e0c30f84e394a62b06ebb39b73840fef3de04a0621cdb9d"
     },
     {
       "path": "src/Hosting/EmptyCmsStartupReadiness.php",
@@ -226,13 +226,18 @@
     },
     {
       "path": "src/Hosting/SharedHostPreflight.php",
-      "bytes": 6444,
-      "sha256": "052dba14b88e0687f6bed11f5619a6b6389c2034de60dd51827a9276813aed50"
+      "bytes": 7292,
+      "sha256": "abbdc1ad5e8f47f69d5c89778999aa05275f1c8c22ad94ba92fec2fbb4f2dc5b"
     },
     {
       "path": "src/Hosting/SiteRuntimeTopology.php",
       "bytes": 12338,
       "sha256": "101071486a8c381effa6db30172b26ba2d3f6d59c77626778676b39a4d1f58d3"
+    },
+    {
+      "path": "src/Hosting/Stage2LiteSpeedBoundary.php",
+      "bytes": 3522,
+      "sha256": "5a8aeba95901e9f2f58fb180cc9046b2f346c2af1f985ba1ab930be0e89b6c98"
     },
     {
       "path": "src/Hosting/Stage2MysqlBoundReadiness.php",
@@ -331,8 +336,8 @@
     },
     {
       "path": "vendor/composer/autoload_classmap.php",
-      "bytes": 44080,
-      "sha256": "e0e9185eea85663da8f6dee20242fb07246a3f7285a0c81090f9423d3b94ced3"
+      "bytes": 44188,
+      "sha256": "4fa914accbf4157eda30f9caa15bf05decd70ad301287c93132670c4db154558"
     },
     {
       "path": "vendor/composer/autoload_files.php",
@@ -356,8 +361,8 @@
     },
     {
       "path": "vendor/composer/autoload_static.php",
-      "bytes": 50624,
-      "sha256": "e402c63642b84f3ea76c95dc494b570a60b4d592a245f4a4cd793818eb236a68"
+      "bytes": 50746,
+      "sha256": "3f66c2bd0dc3e83d3558d6915bd086bcc4b06307a63f7a79a66d8f460b6afec0"
     },
     {
       "path": "vendor/composer/ClassLoader.php",
