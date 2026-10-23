@@ -472,9 +472,21 @@ async function stop(){
   assert.equal(robots.status,200);
   assert.match(robots.body,/Sitemap: http:\/\/127\.0\.0\.1:/);
 
+  const brokenLive=structuredClone(rich);
+  brokenLive.pages[0].sections.find(s=>s.component==='service-grid')
+    .items[0].values['behavior.href']='/missing-target/';
+  const brokenSaved=await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:1,site:brokenLive});
+  assert.equal(brokenSaved.status,200,'Editing a broken link is still allowed as a draft');
+  const blocked=await request('POST','/api/sites/site-rich-ci/publish',{expectedRevision:2});
+  assert.equal(blocked.status,422,'Publication must reject broken internal links');
+  assert.match(blocked.body.error,/broken internal link/);
+  assert.equal((await request('GET','/published/site-rich-ci/')).status,200,
+    'Public site survives a rejected publish');
+  const rollback=await request('POST','/api/sites/site-rich-ci/restore',{expectedRevision:2,targetRevision:1});
+  assert.equal(rollback.status,200);
   const badRepeat=structuredClone(rich);
   badRepeat.pages[0].sections.at(-1).items[0].values['content.media']='asset-from-another-site';
-  assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:1,site:badRepeat})).status,422);
+  assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:3,site:badRepeat})).status,422);
   const richExport=path.join(dbdir,'rich-static');
   const exp=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',richExport],
     {cwd:root,env:{...env,STAGE3_EXPORT_ORIGIN:'https://example.test'},encoding:'utf8'});
