@@ -447,11 +447,12 @@ async function execute(){
   await page.locator('#fields [data-field="content.media"]').selectOption(assetId);
   await page.locator('#fields [data-field="content.caption"]').fill('Фото производства');
   await page.locator('#fields [data-field="content.caption"]').dispatchEvent('change');
-  await page.frameLocator('#preview').locator('.cms-preview-grid img.showcase-preview').waitFor();
+  await page.frameLocator('#preview').locator('.cms-preview-grid img.showcase-preview').waitFor({state:'attached'});
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Без изменений/).waitFor();
+  const versionBefore=Number((await page.locator('#server-status').innerText()).match(/Опубликовано: v(\d+)/)[1]);
   await page.locator('#server-publish').click();
-  await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();
+  await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(versionBefore+1)+'\\b')).waitFor();
   await visitor.goto(origin+'/published/'+siteId+'/');
   assert.equal(await visitor.locator('.gallery-grid img').count(),1);
   assert.equal(await visitor.locator('.gallery-grid img').first().getAttribute('alt'),'Фото цеха');
