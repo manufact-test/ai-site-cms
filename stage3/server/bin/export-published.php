@@ -36,6 +36,8 @@ try {
     }
     $published = stage3_repository()->published($siteId);
     $site = (new ContractValidator(dirname(__DIR__, 2) . '/components'))->validate($published['site']);
+    // Optional explicit deployment URL; no fake canonical host on unconfigured ZIPs.
+    $exportOrigin = PublicRenderer::origin(getenv('STAGE3_EXPORT_ORIGIN') ?: null);
     if (!in_array('/', array_column($site['pages'], 'path'), true)) {
         failExport('A published website requires a root page');
     }
@@ -67,6 +69,8 @@ try {
         'pages' => [],
         'assets' => [],
         'formCollector' => $forms ? $collectorBase : null,
+        'publicOrigin' => $exportOrigin,
+        'redirects' => [],
     ];
     try {
         foreach ($site['assets'] as $asset) {
@@ -104,7 +108,7 @@ try {
             if (!is_dir($folder) && !mkdir($folder, 0755, true)) {
                 failExport('Cannot create page directory');
             }
-            $html = PublicRenderer::html($site, $path, '', $forms ? $collectorBase : null, $published['version']);
+            $html = PublicRenderer::html($site, $path, '', $forms ? $collectorBase : null, $published['version'], $exportOrigin);
             if ($html === null || file_put_contents($temp . '/' . $relative, $html, LOCK_EX) === false) {
                 failExport('Cannot write published page');
             }
@@ -113,6 +117,31 @@ try {
                 'file' => $relative,
                 'sha256' => hash('sha256', $html)
             ];
+        }
+        // Static hosting cannot issue HTTP status 301 without provider-specific rewrite
+        // rules. Export a noindex HTML fallback plus explicit redirect manifest data.
+        foreach ($site['redirects']??[] as $redirect) {
+            $relative=ltrim($redirect['from'],'/').'index.html';
+            $folder=dirname($temp.'/'.$relative);
+            if (!is_dir($folder) && !mkdir($folder,0755,true))
+                failExport('Cannot create redirect directory');
+            $body=PublicRenderer::staticRedirect($redirect['to']);
+            if (file_put_contents($temp.'/'.$relative,$body,LOCK_EX)===false)
+                failExport('Cannot create redirect fallback');
+            $manifest['redirects'][]=[
+                'from'=>$redirect['from'],'to'=>$redirect['to'],
+                'file'=>$relative,'sha256'=>hash('sha256',$body)
+            ];
+        }
+        if ($exportOrigin!==null) {
+            foreach ([
+                'sitemap.xml'=>PublicRenderer::sitemap($site,'',$exportOrigin),
+                'robots.txt'=>PublicRenderer::robots('',$exportOrigin)
+            ] as $name=>$body) {
+                if (file_put_contents($temp.'/'.$name,$body,LOCK_EX)===false)
+                    failExport('Cannot write search metadata');
+                $manifest['searchFiles'][$name]=hash('sha256',$body);
+            }
         }
         if (file_put_contents($temp . '/release-manifest.json',
             json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
