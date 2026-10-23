@@ -485,6 +485,7 @@ async function execute(){
 
   // Owner-facing media manager: alt edits stay draft-only until explicit publish.
   const mediaRow=()=>page.locator('#server-media-list [data-asset-id="'+assetId+'"]');
+  replies.length=0; // No stale prompt replies from earlier editor acceptance flows.
   await page.locator('#server-media-search').fill('Фото цеха');
   assert.equal(await page.locator('#server-media-entries [data-asset-id]').count(),1);
   replies.push('Цех MANUFACT — оборудование');
