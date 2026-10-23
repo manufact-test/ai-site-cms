@@ -7,7 +7,7 @@ const kit=require('./stage2-independent-review-kit.cjs');
 const sodium=require('./stage2-sodium-review.cjs');
 const {stable}=require('./stage2-license-dossier.cjs');
 const built=kit.build(),source=kit.sources();
-assert.equal(built.files,10);
+assert.equal(built.files,11);
 assert.equal(kit.verify(built.file).archiveSha256,built.archiveSha256);
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'ai-site-cms-legal-intake-'));
 try{
@@ -15,6 +15,9 @@ try{
   const worksheet=JSON.parse(source.files['WORKSHEET.json'].toString('utf8'));
   const cryptoWorksheet=JSON.parse(source.files['CRYPTO-WORKSHEET.json'].toString('utf8'));
   const candidateDossier=sodium.dossier();
+  const candidateTransferred=JSON.parse(source.files['CRYPTO-DOSSIER.json'].toString('utf8'));
+  assert.deepEqual(candidateTransferred,candidateDossier,'candidate original source/parity dossier transferred intact');
+  assert.equal(cryptoWorksheet.dossierSha256,require('./stage2-license-dossier.cjs').digest(stable(candidateTransferred)));
   const start=sodium.inspect(candidateDossier,cryptoWorksheet);
   assert.equal(start.humanWorksheetDisposition,'pending');
   assert.equal(start.lockedDependenciesRemain43,true);
@@ -85,5 +88,5 @@ try{
   assert.equal(intake().status,3,'Wrong signed package binding must be refused');
   const altered={...source,files:{...source.files,'OPEN-FIRST.txt':Buffer.from('tampered content')}};
   assert.throws(()=>kit.verify(built.file,altered),'Archive tampering must be rejected');
-  console.log('STAGE2_INDEPENDENT_REVIEW PASS: 10 compliance-only files; real ZIP byte verification; 43->42 pending and one rejection; forged approval/package/tamper refused; no host access.');
+  console.log('STAGE2_INDEPENDENT_REVIEW PASS: 11 compliance-only files; real ZIP byte verification; 43->42 pending and one rejection; forged approval/package/tamper refused; no host access.');
 }finally{fs.rmSync(temp,{recursive:true,force:true});}

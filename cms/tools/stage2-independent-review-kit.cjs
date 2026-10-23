@@ -11,7 +11,7 @@ const sodiumReview=require('./stage2-sodium-review.cjs');
 const NAME='stage2-independent-dependency-review.zip';
 const ALLOWED=['OPEN-FIRST.txt','REVIEW.html','INVENTORY.html','DOSSIER.json',
   'WORKSHEET.json','THIRD_PARTY_NOTICES.txt','EDITOR_THIRD_PARTY_LICENSES.txt',
-  'CRYPTO-REVIEW.html','CRYPTO-WORKSHEET.json'];
+  'CRYPTO-DOSSIER.json','CRYPTO-REVIEW.html','CRYPTO-WORKSHEET.json'];
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 function check(value,reason){if(!value)throw Error(reason);}
 function read(p) {
@@ -60,7 +60,8 @@ function sources(){
     '4. Export JSON from REVIEW.html. Import it to resume. No autosave or network access.',
     '5. Return only the reviewed worksheet through an agreed secure channel.',
     '6. Separately open CRYPTO-REVIEW.html for the NOT-YET-SHIPPED Sodium-free PHP 8.3 candidate.',
-    '7. Export its independent CRYPTO-WORKSHEET JSON. This does not add a 44th locked dependency or approve crypto.',
+    '7. Independently compare CRYPTO-DOSSIER.json, candidate source commit and exported CRYPTO-WORKSHEET JSON.',
+    '8. This does not add a 44th locked dependency or approve cryptography.',
     '',
     'OPERATOR: recheck the returned worksheet against the SAME verified release:',
     'node cms/tools/stage2-human-license-review.cjs --inspect --worksheet=/ABS/PRIVATE/worksheet.json',
@@ -83,6 +84,7 @@ function sources(){
     'WORKSHEET.json':Buffer.from(stable(w)),
     'THIRD_PARTY_NOTICES.txt':notices,
     'EDITOR_THIRD_PARTY_LICENSES.txt':editorNotices,
+    'CRYPTO-DOSSIER.json':Buffer.from(stable(sodiumDossier),'utf8'),
     'CRYPTO-REVIEW.html':Buffer.from(sodiumReview.render(sodiumDossier,sodiumWorksheet),'utf8'),
     'CRYPTO-WORKSHEET.json':Buffer.from(stable(sodiumWorksheet),'utf8')
   };
