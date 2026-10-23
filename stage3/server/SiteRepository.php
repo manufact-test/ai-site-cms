@@ -229,6 +229,7 @@ final class SiteRepository
                 throw new Conflict('Stale draft cannot be published');
             }
             $site = $this->validator->validate($draft['site']);
+            PublicRenderer::assertPublishable($site);
             $this->assertStoredAssets($id, $site);
             foreach ($site['pages'] as $page) {
                 foreach ($page['sections'] as $section) {
