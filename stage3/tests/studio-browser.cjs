@@ -140,6 +140,22 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
     await canvas.locator('details summary').getByText('Как оформить заказ?').waitFor();
     assert.equal(await page.locator('#cms-component-catalog').isVisible(),false);
+
+    // Search diagnostics and manage URL aliases from the same undoable document.
+    await page.locator('#cms-quality-open').click();
+    await page.locator('#cms-site-report').waitFor({state:'visible'});
+    assert.match(await page.locator('#cms-quality-summary').innerText(),/страниц/);
+    await page.locator('#cms-redirect-from').fill('/older-page/');
+    await page.locator('#cms-redirect-target').selectOption('/contact/');
+    await page.locator('#cms-redirect-form button[type=submit]').click();
+    await page.locator('#cms-redirect-list code').getByText('/older-page/ → /contact/').waitFor();
+    assert.deepEqual((await page.evaluate(()=>window.Stage3Editor.getSite())).redirects,
+      [{from:'/older-page/',to:'/contact/'}]);
+    await page.locator('#cms-site-report').getByRole('button',{name:'Закрыть'}).click();
+    await page.locator('#undo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).redirects,undefined);
+    await page.locator('#redo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).redirects.length,1);
     assert.deepEqual(errors,[],'No page JS errors or unsupported dependencies');
     assert.deepEqual(remote,[],'No outgoing network requests, even through iframe');
     console.log('STAGE3 REAL CHROMIUM STUDIO E2E PASS: typed edit, inert preview, responsive, undo/redo, saved versions, reload, export/import, no-design and fail-closed import');
