@@ -19,7 +19,7 @@
   function current(){
     const page=session.current.pages.find(p=>p.id===pageId)||session.current.pages[0];
     const section=page.sections.find(s=>s.id===sectionId)||page.sections[0];
-    const element=section.elements.find(e=>e.id===elementId)||section.elements[0];
+    const element=section.elements.find(e=>e.id===elementId)||section.items?.find(e=>e.id===elementId)||section.elements[0];
     pageId=page.id;sectionId=section.id;elementId=element.id;
     return {page,section,element};
   }
@@ -70,7 +70,7 @@
       if(!selected){pageId=session.current.pages[0].id;sectionId='';}
       const page=session.current.pages.find(x=>x.id===pageId);
       if(!page.sections.some(x=>x.id===sectionId))sectionId=page.sections[0].id;
-      if(!page.sections.find(x=>x.id===sectionId).elements.some(x=>x.id===elementId))
+      if(![...page.sections.find(x=>x.id===sectionId).elements,...(page.sections.find(x=>x.id===sectionId).items||[])].some(x=>x.id===elementId))
         elementId=page.sections.find(x=>x.id===sectionId).elements[0].id;
       draw();
       if(before!==session.current)notice('Структура изменена в черновике. Для сохранения нажмите «Сохранить».');
@@ -193,7 +193,7 @@
     ];
     const sectionActions=[
       ['section-add','+ Блок',()=>{
-        const component=prompt('Компонент блока: company-hero, feature-highlights, contact-panel, image-showcase, lead-form, lead-form-flex','feature-highlights');
+        const component=prompt('Компонент блока:\n'+manifests.map(m=>m.id+' — '+m.label).join('\n'),'service-grid');
         if(component===null)return;
         const id=uniqueId('section');
         structural({action:'addSection',pageId,sectionId,id,component});
@@ -227,6 +227,37 @@
       row.append(button(label,'element'+(e.id===elementId?' active':''),
         ()=>{elementId=e.id;drawElements();drawFields();}));
     });
+    if(m.repeat){
+      const label=document.createElement('small');label.className='field-path';
+      label.textContent='ПОВТОРЯЕМЫЕ ЭЛЕМЕНТЫ · '+section.items.length+'/'+m.repeat.max;row.append(label);
+      section.items.forEach((item,i)=>{
+        const headline=item.values['content.title']||item.values['content.question']||
+          item.values['content.author']||item.values['content.caption']||'Карточка '+(i+1);
+        const line=document.createElement('div');line.className='cms-repeat-row';
+        const choice=button((i+1)+'. '+String(headline).slice(0,56),'element'+(item.id===elementId?' active':''),
+          ()=>{elementId=item.id;drawElements();drawFields();});
+        choice.dataset.repeatId=item.id;line.append(choice);
+        const op=(title,label,action,more={})=>{
+          const control=button(title,'btn small',()=>operateRepeat(action,item.id,more));
+          control.title=label;control.setAttribute('aria-label',label+' '+(i+1));line.append(control);
+        };
+        op('↑','Поднять карточку','moveItem',{delta:-1});
+        op('↓','Опустить карточку','moveItem',{delta:1});
+        op('⧉','Копировать карточку','duplicateItem');
+        op('×','Удалить карточку','removeItem');
+        row.append(line);
+      });
+      const add=button('+ Добавить карточку','btn small',()=>operateRepeat('addItem',null));
+      add.id='cms-repeat-add';row.append(add);
+    }
+  }
+  function operateRepeat(action,itemId,extra={}){
+    const id=action==='addItem'||action==='duplicateItem'?uniqueId('item'):undefined;
+    structural({action,pageId,sectionId,itemId,...(id?{id}:{}),...extra});
+    const section=current().section;
+    if(id&&section.items?.some(x=>x.id===id)){
+      elementId=id;drawElements();drawFields();drawPreview();
+    }
   }
   function applyEdit(field,raw,valueOnScreen,output){
     try{
@@ -319,6 +350,29 @@
         '<h2>'+e(title.title)+'</h2>'+
         '<div class="cards"><div class="card"><strong>01</strong><p style="color:'+e(p('first').style.color||'#243c52')+'">'+e(p('first').content.text||'')+'</p></div>'+
         '<div class="card"><strong>02</strong><p>'+e(p('second').content.text||'')+'</p></div></div></section>';
+    }else if(block.component==='service-grid'){
+      content='<section class="features"><h2>'+e(title.title)+'</h2><div class="cms-preview-grid">'+
+        block.items.map(item=>'<article class="card"><h3>'+e(item.props.content.title)+'</h3><p>'+
+          e(item.props.content.text)+'</p><span class="action">Подробнее ↗</span></article>').join('')+
+        '</div></section>';
+    }else if(block.component==='faq-accordion'){
+      content='<section class="features"><h2>'+e(title.title)+'</h2><div class="cms-preview-faq">'+
+        block.items.map(item=>'<details><summary>'+e(item.props.content.question)+'</summary><p>'+
+          e(item.props.content.answer)+'</p></details>').join('')+'</div></section>';
+    }else if(block.component==='testimonials'){
+      content='<section class="features"><h2>'+e(title.title)+'</h2><div class="cms-preview-grid">'+
+        block.items.map(item=>'<blockquote class="card"><p>“'+e(item.props.content.quote)+'”</p><footer>'+
+          e(item.props.content.author)+(item.props.content.role?' · '+e(item.props.content.role):'')+
+          '</footer></blockquote>').join('')+'</div></section>';
+    }else if(block.component==='photo-gallery'){
+      const gallery=block.items.map(item=>{
+        const asset=session.current.assets.find(x=>x.id===item.props.content.media);
+        const src=asset&&HOSTED?window.Stage3Host?.previewUrl?.(asset.id):null;
+        return '<figure class="card">'+(src?'<img class="showcase-preview" src="'+e(src)+'" alt="'+e(asset.alt)+'">':
+          '<div class="media-placeholder">Выберите фотографию</div>')+
+          '<figcaption>'+e(item.props.content.caption||'')+'</figcaption></figure>';
+      });
+      content='<section class="features"><h2>'+e(title.title)+'</h2><div class="cms-preview-grid">'+gallery.join('')+'</div></section>';
     }else if(block.component==='image-showcase'){
       const mediaId=p('photo').content.media||'';
       const asset=session.current.assets.find(x=>x.id===mediaId);
@@ -354,7 +408,7 @@
       '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;none&#39;; img-src &#39;'+(HOSTED?'data:':'none')+'&#39;; style-src &#39;unsafe-inline&#39;; connect-src &#39;none&#39;; form-action &#39;none&#39;; base-uri &#39;none&#39;">'+
       '<meta name="viewport" content="width=device-width,initial-scale=1">'+
       '<style>*{box-sizing:border-box}body{margin:0;background:#fcfdfd;color:#1b3046;font:15px/1.6 Arial,sans-serif}section{padding:70px clamp(18px,7%,80px);min-height:470px}.kicker{display:block;color:#167c6a;font:700 11px Arial;letter-spacing:.15em;margin-bottom:19px}h1{line-height:1.12;letter-spacing:-.045em;max-width:850px;margin:10px 0 25px;overflow-wrap:anywhere}h2{font-size:clamp(29px,4vw,52px);line-height:1.16;letter-spacing:-.03em;margin:12px 0 30px}p{font-size:17px;max-width:630px;line-height:1.65}.hero{background:radial-gradient(circle at 90% 25%,#d9f6e6 0%,transparent 44%),linear-gradient(115deg,#f9fdfb,#e9f1f5)}.decor{color:#80a6b2;font-size:11px;letter-spacing:.15em;text-align:right}.action{display:inline-flex;margin-top:24px;gap:35px;border-radius:9px;background:#142e3c;color:white;padding:14px 20px;font-weight:700;font-size:14px}.features{background:#f2f7f8}.cards{display:grid;grid-template-columns:1fr 1fr;gap:15px}.card{border:1px solid #dce6e9;border-radius:14px;padding:26px;background:white}.card strong{color:#1a8b76}.card p{font-size:17px;overflow-wrap:anywhere}.media-placeholder{padding:80px 20px;background:#e7eff2;border:1px dashed #91a8b1;text-align:center;border-radius:12px}.showcase-preview{display:block;width:100%;height:auto;max-height:520px;object-fit:contain;border-radius:12px}.contact{background:linear-gradient(130deg,#effbf6,#e8f1f7)}.contact small{display:block;color:#5c7180;margin-top:25px}.contact .action{background:#0a766b}@media(max-width:650px){section{padding:46px 25px;min-height:450px}.cards{grid-template-columns:1fr}h1{line-height:1.12}h2{font-size:32px}p{font-size:15px}.card{padding:20px}}</style>'+
-      palette+'</head><body>'+content+'</body></html>';
+      '<style>.cms-preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:16px}.cms-preview-grid .card{margin:0}.cms-preview-grid h3{margin:5px 0 10px}.cms-preview-faq details{background:var(--cms-surface);border:1px solid #dce6e9;border-radius:10px;padding:15px;margin-block:10px}.cms-preview-faq summary{cursor:pointer;font-weight:700}.cms-preview-grid figcaption{margin-top:10px}</style>'+palette+'</head><body>'+content+'</body></html>';
   }
   function drawPreview(){
     const {page,section}=current(),m=manifest(section);
