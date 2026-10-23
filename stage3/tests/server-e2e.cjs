@@ -482,8 +482,8 @@ async function stop(){
   assert.match(blocked.body.error,/broken internal link/);
   assert.equal((await request('GET','/published/site-rich-ci/')).status,200,
     'Public site survives a rejected publish');
-  const rollback=await request('POST','/api/sites/site-rich-ci/restore',{expectedRevision:2,targetRevision:1});
-  assert.equal(rollback.status,200);
+  const richRollback=await request('POST','/api/sites/site-rich-ci/restore',{expectedRevision:2,targetRevision:1});
+  assert.equal(richRollback.status,200);
   const badRepeat=structuredClone(rich);
   badRepeat.pages[0].sections.at(-1).items[0].values['content.media']='asset-from-another-site';
   assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:3,site:badRepeat})).status,422);
