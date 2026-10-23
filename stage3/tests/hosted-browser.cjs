@@ -487,7 +487,7 @@ async function execute(){
   const mediaRow=()=>page.locator('#server-media-list [data-asset-id="'+assetId+'"]');
   await page.locator('#server-media-search').fill('Фото цеха');
   assert.equal(await page.locator('#server-media-entries [data-asset-id]').count(),1);
-  page.once('dialog',d=>d.accept('Цех MANUFACT — оборудование'));
+  replies.push('Цех MANUFACT — оборудование');
   await mediaRow().locator('[data-media-action="rename"]').click();
   assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).assets[0].alt,
     'Цех MANUFACT — оборудование');
@@ -496,7 +496,6 @@ async function execute(){
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Без изменений/).waitFor();
   const altVersionBefore=Number((await page.locator('#server-status').innerText()).match(/Опубликовано: v(\d+)/)[1]);
-  page.once('dialog',d=>d.accept());
   await page.locator('#server-publish').click();
   await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(altVersionBefore+1)+'\\b')).waitFor();
   await visitor.reload();
@@ -504,16 +503,15 @@ async function execute(){
     'Цех MANUFACT — оборудование');
 
   // A second site-local binary can replace every reference in one operation.
-  page.once('dialog',d=>d.accept('Новая версия кадра'));
+  replies.push('Новая версия кадра');
   await page.locator('#server-media-file').setInputFiles({name:'new-picture.png',mimeType:'image/png',buffer:png});
   await page.locator('#server-media-entries [data-asset-id]').nth(1).waitFor();
   const secondId=(await page.evaluate(()=>window.Stage3Editor.getSite())).assets[1].id;
-  page.once('dialog',d=>d.accept(secondId));
+  replies.push(secondId);
   await page.locator('#server-media-entries [data-asset-id="'+assetId+'"] [data-media-action="replace"]').click();
   assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
     .flatMap(p=>p.sections).flatMap(s=>[...s.elements,...(s.items||[])])
     .filter(x=>x.values['content.media']===assetId).length,0);
-  page.once('dialog',d=>d.accept());
   await page.locator('#server-media-entries [data-asset-id="'+assetId+'"] [data-media-action="detach"]').click();
   assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).assets.length,1);
   await page.locator('#save').click();
@@ -521,7 +519,6 @@ async function execute(){
   assert.equal(await visitor.locator('.gallery-grid img').first().getAttribute('alt'),
     'Цех MANUFACT — оборудование','Old published release must remain intact until publish');
   const replacementVersionBefore=Number((await page.locator('#server-status').innerText()).match(/Опубликовано: v(\d+)/)[1]);
-  page.once('dialog',d=>d.accept());
   await page.locator('#server-publish').click();
   await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(replacementVersionBefore+1)+'\\b')).waitFor();
   await visitor.reload();
