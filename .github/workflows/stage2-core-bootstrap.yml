@@ -122,6 +122,11 @@ jobs:
           node --check tools/test-stage2-review-dossier.cjs
           node --check tools/stage2-handoff-index.cjs
           node --check tools/test-stage2-handoff-index.cjs
+      - name: Offline distinct publisher owner operator key-possession ceremony (source and release bound)
+        run: |
+          node --check tools/stage2-trust-ceremony.cjs
+          node --check tools/test-stage2-trust-ceremony.cjs
+          node tools/test-stage2-trust-ceremony.cjs
       - name: Offline owner consent issuance, out-of-band signer validation and adversarial CLI
         run: |
           node --check tools/stage2-owner-consent-sign.cjs
