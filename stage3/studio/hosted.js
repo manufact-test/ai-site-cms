@@ -374,6 +374,7 @@
     backupRestore.disabled=state.busy||!pendingArchive||!state.authorized;
     $('reset').disabled=!available;
     document.getElementById('fields').inert=!canEdit();
+    for(const control of document.querySelectorAll('#elements .cms-repeat-row .btn, #cms-repeat-add'))control.disabled=!canEdit();
     for(const node of document.querySelectorAll('.structure-tools'))node.inert=!canEdit();
     for(const id of ['undo','redo'])if(!canEdit())$(id).disabled=true;
     templatesList.inert=!canEdit();leadsPanel.hidden=!canEdit();alertsRow.hidden=!canEdit();
