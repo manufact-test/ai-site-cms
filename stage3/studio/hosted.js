@@ -252,6 +252,14 @@
         const desc=element('div','hosted-media-description');
         desc.append(element('strong',null,asset.alt||'Декоративное изображение (alt пустой)'));
         desc.append(element('small',null,uses.length+' привязок · '+asset.mime));
+        if(uses.length){
+          const details=element('details','hosted-media-references');
+          const summary=element('summary',null,'Где используется');
+          details.append(summary);
+          for(const place of uses.slice(0,12))details.append(element('small',null,place));
+          if(uses.length>12)details.append(element('small',null,'Ещё привязок: '+(uses.length-12)));
+          desc.append(details);
+        }
         const actions=element('div','hosted-media-actions');
         const rename=action('Изменить alt','',()=>safe(async()=>{
           const alt=prompt('Описание изображения для доступности и SEO',asset.alt);
