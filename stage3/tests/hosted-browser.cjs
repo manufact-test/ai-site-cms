@@ -136,8 +136,12 @@ async function execute(){
   await page.locator('#server-status').getByText(/Черновик #7/).waitFor();
   const assetId=(await page.evaluate(()=>window.Stage3Editor.getSite())).assets[0].id;
   assert.equal(await page.locator('#server-media-list img').count(),1);
-  await page.locator('#sections .nav-entry').last().click();
-  await page.locator('#elements .element').nth(1).click();
+  const componentState=await page.evaluate(()=>({pages:window.Stage3Editor.getSite().pages.map(p=>({id:p.id,sections:p.sections.map(s=>s.component)})),assets:window.Stage3Editor.getSite().assets.length}));
+  console.log('HOSTED MEDIA SELECTION STATE',JSON.stringify(componentState));
+  await page.locator('#sections .nav-entry').filter({hasText:'Изображение и описание'}).click();
+  await page.locator('#elements .element').filter({hasText:'Фотография'}).click();
+  const editablePaths=await page.locator('#fields [data-field]').evaluateAll(nodes=>nodes.map(n=>n.dataset.field));
+  assert.ok(editablePaths.includes('content.media'),'Expected image field, saw: '+JSON.stringify(editablePaths));
   await page.locator('#fields [data-field="content.media"]').selectOption(assetId);
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Черновик #8/).waitFor();
