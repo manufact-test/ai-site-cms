@@ -507,12 +507,14 @@ async function execute(){
   replies.push('Новая версия кадра');
   await page.locator('#server-media-file').setInputFiles({name:'new-picture.png',mimeType:'image/png',buffer:png});
   await page.locator('#server-media-entries [data-asset-id]').nth(1).waitFor();
+  await page.waitForFunction(()=>!document.querySelector('#server-media-upload').disabled);
   const secondId=(await page.evaluate(()=>window.Stage3Editor.getSite())).assets[1].id;
   replies.push(secondId);
   await page.locator('#server-media-entries [data-asset-id="'+assetId+'"] [data-media-action="replace"]').click();
   assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
     .flatMap(p=>p.sections).flatMap(s=>[...s.elements,...(s.items||[])])
     .filter(x=>x.values['content.media']===assetId).length,0);
+  await page.waitForFunction(()=>!document.querySelector('#save').disabled);
   await page.locator('#server-media-entries [data-asset-id="'+assetId+'"] [data-media-action="detach"]').click();
   assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).assets.length,1);
   await page.locator('#save').click();
