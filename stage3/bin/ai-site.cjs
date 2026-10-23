@@ -5,10 +5,16 @@ const fs=require('node:fs'),path=require('node:path');
 const sdk=require('../sdk/contract.cjs');
 const root=path.resolve(__dirname,'..'),components=path.join(root,'components');
 const read=file=>JSON.parse(fs.readFileSync(file,'utf8'));
-const manifests=()=>['company-hero','feature-highlights','contact-panel'].map(
+const manifests=()=>['company-hero','feature-highlights','contact-panel','image-showcase','lead-form','lead-form-flex'].map(
   id=>read(path.join(components,id+'.json')));
 function run(argv){
   const cmd=argv[0],args=argv.slice(1);
+  if(cmd==='compose'&&args.length===1){
+    return require('../sdk/recipes.cjs').compose(read(args[0]),manifests());
+  }
+  if(cmd==='recipe'&&args.length===1){
+    return require('../sdk/recipes.cjs').plan(read(args[0]));
+  }
   if(cmd==='create'){
     if(args.some(a=>!a.startsWith('--')))throw Error('Usage: create [--id=site-name] [--title=Company] [--brief=path.json]');
     const parsed=Object.fromEntries(args.map(a=>{let i=a.indexOf('=');if(i<=2)throw Error('Use --key=value');return [a.slice(2,i),a.slice(i+1)];}));

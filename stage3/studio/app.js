@@ -228,7 +228,7 @@
     let content='';
     if(block.component==='company-hero'){
       content='<section class="hero"><div class="decor">M / AI SITE CMS</div>'+
-        '<div class="kicker">ПРОМЫШЛЕННЫЕ РЕШЕНИЯ</div>'+
+        '<div class="kicker">ВАШ САЙТ</div>'+
         '<h1 style="font-size:'+e(title.fontSize)+';color:'+e(title.color)+'">'+e(title.title)+'</h1>'+
         '<p>'+e(p('summary').content.text||'')+'</p>'+
         '<span class="action">'+e(p('action').content.text||'')+' <span aria-hidden="true">↗</span></span>'+
@@ -265,7 +265,7 @@
         '<p>☐ '+e(p('consent-label').content.text)+'</p><span class="action">'+e(p('submit-label').content.text)+'</span></div></section>';
     }else if(block.component==='contact-panel'){
       content='<section class="contact"><span class="kicker">НАЧНЁМ СОТРУДНИЧЕСТВО</span>'+
-        '<h2>'+e(title.title)+'</h2><p>Обсудите проект и требования к оборудованию.</p>'+
+        '<h2>'+e(title.title)+'</h2><p>Свяжитесь с нами через выбранный канал.</p>'+
         '<span class="action">'+e(p('action').content.text||'')+' ↗</span>'+
         '<small>Кнопка демонстрационная: данные не отправляются.</small></section>';
     }else content='<section><h2>Незарегистрированный шаблон</h2></section>';
@@ -383,7 +383,26 @@
     drawFields();drawPreview();
     document.querySelectorAll('.device').forEach(n=>n.classList.toggle('active',n===b));
   }));
-  if(HOSTED)window.Stage3Editor=Object.freeze({
+  window.Stage3Editor=Object.freeze({
+    manifests:()=>cp(manifests),
+    previewDocument:(site,path)=>{
+      const checked=C.validateSite(site,manifests),prior=session;
+      try{
+        session=D.begin(checked,manifests);
+        const page=checked.pages.find(p=>p.path===path)||checked.pages[0];
+        const docs=page.sections.map(s=>screen(D.blockPreview(session,manifests,page.id,s.id,breakpoint)));
+        const first=docs[0],start=first.indexOf('<body>')+6,end=first.lastIndexOf('</body>');
+        const navigation='<nav style="padding:15px;display:flex;gap:16px;flex-wrap:wrap">'+checked.pages.map(p=>'<span>'+escapeHtml(p.title)+'</span>').join('')+'</nav>';
+        return first.slice(0,start)+navigation+docs.map(doc=>doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))).join('')+first.slice(end);
+      }finally{session=prior;}
+    },
+    applyComposition:site=>{
+      session=D.replaceSite(session,manifests,site,session.revision);draw();
+    },
+    openComposition:site=>{
+      session=D.begin(site,manifests);versions=[];savedBytes='';
+      pageId=site.pages[0].id;sectionId=site.pages[0].sections[0].id;elementId=site.pages[0].sections[0].elements[0].id;draw();
+    },
     getSite:()=>cp(session.current),
     selection:()=>{
       const {page,section}=current();

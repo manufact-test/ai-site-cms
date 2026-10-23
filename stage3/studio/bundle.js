@@ -405,6 +405,12 @@ function structure(raw,manifests,command){
   return {format:SESSION,revision:s.revision+1,base:copy(s.base),
     current:c,undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:[]};
 }
+function replaceSite(raw,manifests,site,expectedRevision){
+  const s=verifySession(raw,manifests),candidate=C.validateSite(site,manifests);
+  if(expectedRevision!==s.revision||candidate.siteId!==s.current.siteId)throw Error('Stale or different site composition');
+  return {format:SESSION,revision:s.revision+1,base:copy(s.base),current:candidate,
+    undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:[]};
+}
 function changes(raw,manifests){
   const s=verifySession(raw,manifests),diff=[];
   const pages=new Map(s.base.pages.map(p=>[p.id,p]));
@@ -422,6 +428,7 @@ function changes(raw,manifests){
       if(!prev){record('section-added',{pageId:page.id,sectionId:section.id});return;}
       if(prior.sections.findIndex(q=>q.id===section.id)!==i)
         record('section-moved',{pageId:page.id,sectionId:section.id});
+      if(prev.component!==section.component||prev.manifestVersion!==section.manifestVersion){record('section-replaced',{pageId:page.id,sectionId:section.id});return;}
       for(const el of section.elements){
         const original=prev.elements.find(q=>q.id===el.id);
         if(!original)throw Error('Stable element ID changed');
@@ -453,7 +460,134 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
     pageId,sectionId,component:section.component,breakpoint,
     elements,notPublished:true,hasExecutableHtml:false};
 }
-module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,blockPreview});
+module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview});
+
+return module.exports;})();
+const RECIPES=(()=>{const module={exports:{}};const require=name=>{if(name==='./contract.cjs')return CONTRACT;throw Error('Unknown recipe import');};
+'use strict';
+// Closed declarative composition. No provider, generated executable code or IO.
+const C=require('./contract.cjs');
+const FORMAT='manufact-site-recipe-v1';
+const cp=x=>structuredClone(x);
+const obj=x=>x&&typeof x==='object'&&!Array.isArray(x);
+function keys(x,allowed){if(!obj(x)||Object.keys(x).some(k=>!allowed.includes(k)))throw Error('Unknown recipe property');}
+function text(x,max,empty=false){if(typeof x!=='string'||x.length>max||(!empty&&!x.trim())||/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(x))throw Error('Invalid recipe text');return x.trim();}
+function id(x){if(typeof x!=='string'||!/^[a-z][a-z0-9-]{2,47}$/.test(x))throw Error('Invalid recipe ID');return x;}
+const PRESETS=Object.freeze({
+  company:{label:'Компания · 4 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights','contact-panel']],['offers','/offers/','Предложения',['company-hero','feature-highlights','contact-panel']],['about','/about/','О компании',['company-hero','feature-highlights']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
+  services:{label:'Услуги · 3 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights','contact-panel']],['offers','/services/','Услуги',['company-hero','feature-highlights','lead-form-flex']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
+  portfolio:{label:'Портфолио · 3 страницы',pages:[['home','/','Главная',['company-hero','feature-highlights']],['offers','/projects/','Проекты',['company-hero','image-showcase','contact-panel']],['contact','/contact/','Контакты',['company-hero','lead-form-flex']]]},
+  landing:{label:'Одностраничный сайт',pages:[['home','/','Главная',['company-hero','feature-highlights','contact-panel','lead-form-flex']]]}
+});
+function suggest(task){text(task,3000,true);return /портфолио|portfolio|кейсы|projects/i.test(task)?'portfolio':/лендинг|landing|одностранич/i.test(task)?'landing':/услуг|service/i.test(task)?'services':'company';}
+function plan({siteId,title,task='',preset=suggest(task),facts={}}){
+  if(!Object.hasOwn(PRESETS,preset))throw Error('Unknown site recipe');
+  const values={headline:'',description:'',offerings:[],details:[],contactLabel:'',contactUrl:'',...facts};
+  const definition=cp(PRESETS[preset].pages);
+  if(preset!=='landing'&&values.details.length&&!definition.some(p=>p[0]==='about'))definition.splice(definition.length-1,0,['about','/about/','О компании',['company-hero','feature-highlights']]);
+  const pages=definition.map(([kind,path,name,components],pi)=>({
+    id:'page-'+kind,path,title:name,kind,sections:components.flatMap((component,si)=>{
+      // Split all supplied entries into pairs, preserving each fact verbatim.
+      const count=component==='feature-highlights'?Math.max(1,Math.ceil((kind==='about'?values.details:preset==='landing'?[...values.offerings,...values.details]:values.offerings).length/2)):1;
+      return Array.from({length:count},(_,j)=>({id:'section-'+pi+'-'+si+'-'+j,component}));
+    })
+  }));
+  return validate({format:FORMAT,version:1,siteId,title,task,preset,facts:values,pages});
+}
+function validate(raw){
+  keys(raw,['format','version','siteId','title','task','preset','facts','pages','sourceSiteId']);
+  if(raw.format!==FORMAT||raw.version!==1||!Object.hasOwn(PRESETS,raw.preset))throw Error('Unknown recipe format/version');
+  id(raw.siteId);text(raw.title,160);text(raw.task,3000,true);
+  if(raw.sourceSiteId!==undefined)id(raw.sourceSiteId);
+  const f=raw.facts;keys(f,['headline','description','offerings','details','contactLabel','contactUrl']);
+  text(f.headline,180,true);text(f.description,420,true);text(f.contactLabel,100,true);text(f.contactUrl,300,true);
+  for(const list of [f.offerings,f.details]){
+    if(!Array.isArray(list)||list.length>12)throw Error('Maximum 12 facts per list');
+    list.forEach(v=>text(v,280));
+  }
+  if(!Array.isArray(raw.pages)||!raw.pages.length||raw.pages.length>12)throw Error('Recipe requires 1–12 pages');
+  const ids=new Set([raw.siteId]),paths=new Set();let total=0;
+  for(const p of raw.pages){
+    keys(p,['id','path','title','kind','sections']);id(p.id);text(p.title,160);
+    if(!['home','offers','about','contact','custom'].includes(p.kind))throw Error('Unknown page purpose');
+    if(!/^\/(?:[a-z0-9-]+\/)*$/.test(p.path)||paths.has(p.path)||ids.has(p.id))throw Error('Duplicate page ID or invalid path');
+    ids.add(p.id);paths.add(p.path);
+    if(!Array.isArray(p.sections)||!p.sections.length||p.sections.length>24)throw Error('Recipe requires 1–24 sections per page');
+    for(const s of p.sections){
+      keys(s,['id','component','templateId']);id(s.id);
+      if(ids.has(s.id)||typeof s.component!=='string')throw Error('Duplicate section ID or missing component');
+      ids.add(s.id);if(s.templateId!==undefined)id(s.templateId);
+      if(++total>80)throw Error('Recipe section limit exceeded');
+    }
+  }
+  if(!paths.has('/'))throw Error('Recipe must include home page');
+  return cp(raw);
+}
+function compose(raw,manifests,{sourceSite=null,templates=[]}={}){
+  const recipe=validate(raw),reg=C.registry(manifests),f=recipe.facts;
+  let assets=[];
+  if(recipe.sourceSiteId!==undefined){
+    if(!sourceSite||sourceSite.siteId!==recipe.sourceSiteId||recipe.siteId!==recipe.sourceSiteId)throw Error('Templates require the same source site');
+    assets=C.validateSite(sourceSite,reg).assets;
+  }
+  if(f.contactUrl){
+    const check=C.sectionFrom(reg.get('contact-panel'),'section-contact-check',{action:{'behavior.href':f.contactUrl}});
+    C.validateSite({format:'manufact-ai-site-v1',schemaVersion:1,siteId:'site-contact-check',title:'Contact check',assets:[],pages:[{id:'page-contact-check',path:'/',title:'Contact',sections:[check]}]},reg);
+  }
+  const warnings=[],bindings=[];
+  const missing=(condition,message)=>{if(condition)warnings.push(message);};
+  missing(!f.headline,'Главный заголовок: используется название сайта.');
+  missing(!f.description,'Добавьте подтверждённое описание компании.');
+  missing(!f.offerings.length,'Добавьте предложения / услуги / проекты.');
+  missing(!f.details.length,'Добавьте подтверждённые сведения о компании.');
+  missing(!f.contactUrl,'Контактная кнопка ведёт к форме сайта. Внешний контакт не указан.');
+  const contactPage=recipe.pages.find(p=>p.kind==='contact');
+  const formPage=contactPage||recipe.pages.find(p=>p.sections.some(s=>/^lead-form/.test(s.component)));
+  const formSection=formPage?.sections.find(s=>/^lead-form/.test(s.component));
+  const destination=formPage?(formPage.path+(formSection?'#'+formSection.id:'')):'/';
+  const put=(s,slot,path,value)=>{const e=s.elements.find(x=>x.slot===slot);if(e&&Object.hasOwn(e.values,path))e.values[path]=cp(value);};
+  const pages=recipe.pages.map(p=>{
+    let pair=0;
+    return {id:p.id,path:p.path,title:p.title,sections:p.sections.map(spec=>{
+      if(!reg.has(spec.component))throw Error('Unregistered recipe component: '+spec.component);
+      if(spec.templateId){
+        if(!recipe.sourceSiteId)throw Error('Cross-site templates are not allowed');
+        const t=templates.find(t=>t.id===spec.templateId);
+        if(!t||t.section.component!==spec.component||t.section.manifestVersion!==reg.get(spec.component).version)throw Error('Template missing or component version mismatch');
+        bindings.push({sectionId:spec.id,templateId:t.id});
+        return {...cp(t.section),id:spec.id,elements:t.section.elements.map(e=>({...cp(e),id:spec.id+'-'+e.slot}))};
+      }
+      const section=C.sectionFrom(reg.get(spec.component),spec.id);
+      if(spec.component==='company-hero'){
+        put(section,'heading','content.text',p.kind==='home'?(f.headline||recipe.title):p.title);
+        put(section,'summary','content.text',p.kind==='home'?f.description||'Добавьте подтверждённое описание компании.':
+          p.kind==='about'?f.description||'Добавьте описание компании.':p.kind==='contact'?'Отправьте вопрос через форму ниже.':'Выберите предложение и отправьте запрос.');
+        put(section,'action','content.text','Оставить заявку');put(section,'action','behavior.href',destination);
+      }else if(spec.component==='feature-highlights'){
+        const entries=p.kind==='about'?f.details:recipe.preset==='landing'?[...f.offerings,...f.details]:f.offerings;
+        put(section,'heading','content.text',p.kind==='about'?'О компании':p.kind==='offers'?p.title:'Наши предложения');
+        put(section,'first','content.text',entries[pair++]||'Добавьте подтверждённую информацию.');
+        put(section,'second','content.text',entries[pair++]||'');
+      }else if(spec.component==='contact-panel'){
+        put(section,'heading','content.text','Свяжитесь с нами');
+        put(section,'action','content.text',f.contactLabel||'Оставить заявку');
+        put(section,'action','behavior.href',f.contactUrl||destination);
+      }else if(spec.component==='image-showcase'){
+        put(section,'heading','content.text','Фотографии');put(section,'caption','content.text','Добавьте собственное изображение и описание.');
+        warnings.push('Загрузите собственные фотографии в медиабиблиотеку.');
+      }
+      return section;
+    })};
+  });
+  const site=C.validateSite({format:'manufact-ai-site-v1',schemaVersion:1,siteId:recipe.siteId,title:recipe.title,assets,pages},reg);
+  // Internal CTAs must resolve to a generated page or an existing section anchor.
+  for(const p of site.pages)for(const s of p.sections)for(const el of s.elements){
+    const href=el.values['behavior.href'];
+    if(typeof href==='string'&&href.startsWith('/')&&!site.pages.some(q=>q.path===href.split('#')[0]&&(!href.includes('#')||q.sections.some(t=>t.id===href.split('#')[1]))))throw Error('Recipe contains broken internal link: '+href);
+  }
+  return {format:'manufact-site-composition-v1',mode:'deterministic',recipe,site,bindings,warnings:[...new Set(warnings)],notPublished:true};
+}
+module.exports=Object.freeze({FORMAT,PRESETS,suggest,plan,validate,compose});
 
 return module.exports;})();
 const MANIFESTS=[{"format":"manufact-ai-component-v1","id":"company-hero","version":"1.0.0","label":"Первый экран компании","elements":[{"slot":"heading","label":"Главный заголовок","fields":[{"path":"content.text","label":"Текст заголовка","type":"text","default":"Оборудование для вашего производства","responsive":false,"maxLength":180},{"path":"style.fontSize","label":"Размер заголовка","type":"length","default":{"desktop":"64px","tablet":"48px","mobile":"32px"},"responsive":true,"min":10,"max":120,"units":["px","rem"]},{"path":"style.color","label":"Цвет заголовка","type":"color","default":"#172A43","responsive":false}]},{"slot":"summary","label":"Описание","fields":[{"path":"content.text","label":"Текст описания","type":"text","default":"Расскажите о вашем предложении без вымышленных фактов.","responsive":false,"maxLength":420}]},{"slot":"action","label":"Основная кнопка","fields":[{"path":"content.text","label":"Подпись кнопки","type":"text","default":"Связаться","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес перехода","type":"url","default":"/contact/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"feature-highlights","version":"1.0.0","label":"Преимущества","elements":[{"slot":"heading","label":"Заголовок преимуществ","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Чем мы занимаемся","responsive":false,"maxLength":180}]},{"slot":"first","label":"Первая карточка","fields":[{"path":"content.text","label":"Описание преимущества","type":"text","default":"Заполните подтверждённые преимущества компании","responsive":false,"maxLength":280},{"path":"style.color","label":"Цвет текста","type":"color","default":"#172A43","responsive":false}]},{"slot":"second","label":"Вторая карточка","fields":[{"path":"content.text","label":"Описание второй карточки","type":"text","default":"Уточните факты у заказчика","responsive":false,"maxLength":280}]}]},{"format":"manufact-ai-component-v1","id":"contact-panel","version":"1.0.0","label":"Контакты","elements":[{"slot":"heading","label":"Заголовок контактов","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Свяжитесь с нами","responsive":false,"maxLength":180}]},{"slot":"action","label":"Контактная кнопка","fields":[{"path":"content.text","label":"Подпись","type":"text","default":"Оставить заявку","responsive":false,"maxLength":120},{"path":"behavior.href","label":"Ссылка","type":"url","default":"/contact/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"image-showcase","version":"1.0.0","label":"Изображение и описание","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок секции","type":"text","default":"Наше производство","responsive":false,"maxLength":160}]},{"slot":"photo","label":"Фотография","fields":[{"path":"content.media","label":"Изображение из медиабиблиотеки","type":"media","default":"","responsive":false}]},{"slot":"caption","label":"Подпись","fields":[{"path":"content.text","label":"Подпись фотографии","type":"text","default":"Добавьте фотографию вашего производства","responsive":false,"maxLength":400}]}]},{"format":"manufact-ai-component-v1","id":"lead-form","version":"1.0.0","label":"Форма заявки","elements":[{"slot":"heading","label":"Заголовок формы","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Оставьте заявку","responsive":false,"maxLength":160}]},{"slot":"name-label","label":"Имя","fields":[{"path":"content.text","label":"Подпись поля имени","type":"text","default":"Ваше имя","responsive":false,"maxLength":90}]},{"slot":"email-label","label":"Email","fields":[{"path":"content.text","label":"Подпись email","type":"text","default":"Электронная почта","responsive":false,"maxLength":90}]},{"slot":"message-label","label":"Сообщение","fields":[{"path":"content.text","label":"Подпись сообщения","type":"text","default":"Ваш вопрос","responsive":false,"maxLength":90}]},{"slot":"consent-label","label":"Согласие","fields":[{"path":"content.text","label":"Текст согласия","type":"text","default":"Согласен на обработку данных для ответа на обращение","responsive":false,"maxLength":250}]},{"slot":"submit-label","label":"Кнопка отправки","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Отправить заявку","responsive":false,"maxLength":90}]}]},{"format":"manufact-ai-component-v1","id":"lead-form-flex","version":"1.0.0","label":"Форма заявки · конструктор","elements":[{"slot":"heading","label":"Заголовок формы","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Оставьте заявку","responsive":false,"maxLength":160}]},{"slot":"name-label","label":"Имя","fields":[{"path":"content.text","label":"Подпись поля имени","type":"text","default":"Ваше имя","responsive":false,"maxLength":90}]},{"slot":"email-label","label":"Email","fields":[{"path":"content.text","label":"Подпись email","type":"text","default":"Электронная почта","responsive":false,"maxLength":90}]},{"slot":"message-label","label":"Сообщение","fields":[{"path":"content.text","label":"Подпись сообщения","type":"text","default":"Ваш вопрос","responsive":false,"maxLength":90}]},{"slot":"consent-label","label":"Согласие","fields":[{"path":"content.text","label":"Текст согласия","type":"text","default":"Согласен на обработку данных для ответа на обращение","responsive":false,"maxLength":250}]},{"slot":"submit-label","label":"Кнопка отправки","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Отправить заявку","responsive":false,"maxLength":90}]},{"slot":"extra-one","label":"Дополнительное поле 1","fields":[{"path":"content.text","label":"Подпись поля","type":"text","default":"Дополнительный вопрос 1","responsive":false,"maxLength":100},{"path":"behavior.kind","label":"Тип поля","type":"enum","default":"off","responsive":false,"options":["off","text","tel","select","textarea"]},{"path":"behavior.required","label":"Обязательное","type":"boolean","default":false,"responsive":false},{"path":"content.options","label":"Варианты для списка (один на строку)","type":"text","default":"Вариант 1\nВариант 2","responsive":false,"maxLength":500}]},{"slot":"extra-two","label":"Дополнительное поле 2","fields":[{"path":"content.text","label":"Подпись поля","type":"text","default":"Дополнительный вопрос 2","responsive":false,"maxLength":100},{"path":"behavior.kind","label":"Тип поля","type":"enum","default":"off","responsive":false,"options":["off","text","tel","select","textarea"]},{"path":"behavior.required","label":"Обязательное","type":"boolean","default":false,"responsive":false},{"path":"content.options","label":"Варианты для списка (один на строку)","type":"text","default":"Вариант 1\nВариант 2","responsive":false,"maxLength":500}]},{"slot":"extra-three","label":"Дополнительное поле 3","fields":[{"path":"content.text","label":"Подпись поля","type":"text","default":"Дополнительный вопрос 3","responsive":false,"maxLength":100},{"path":"behavior.kind","label":"Тип поля","type":"enum","default":"off","responsive":false,"options":["off","text","tel","select","textarea"]},{"path":"behavior.required","label":"Обязательное","type":"boolean","default":false,"responsive":false},{"path":"content.options","label":"Варианты для списка (один на строку)","type":"text","default":"Вариант 1\nВариант 2","responsive":false,"maxLength":500}]}]}];
@@ -688,7 +822,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     let content='';
     if(block.component==='company-hero'){
       content='<section class="hero"><div class="decor">M / AI SITE CMS</div>'+
-        '<div class="kicker">ПРОМЫШЛЕННЫЕ РЕШЕНИЯ</div>'+
+        '<div class="kicker">ВАШ САЙТ</div>'+
         '<h1 style="font-size:'+e(title.fontSize)+';color:'+e(title.color)+'">'+e(title.title)+'</h1>'+
         '<p>'+e(p('summary').content.text||'')+'</p>'+
         '<span class="action">'+e(p('action').content.text||'')+' <span aria-hidden="true">↗</span></span>'+
@@ -725,7 +859,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         '<p>☐ '+e(p('consent-label').content.text)+'</p><span class="action">'+e(p('submit-label').content.text)+'</span></div></section>';
     }else if(block.component==='contact-panel'){
       content='<section class="contact"><span class="kicker">НАЧНЁМ СОТРУДНИЧЕСТВО</span>'+
-        '<h2>'+e(title.title)+'</h2><p>Обсудите проект и требования к оборудованию.</p>'+
+        '<h2>'+e(title.title)+'</h2><p>Свяжитесь с нами через выбранный канал.</p>'+
         '<span class="action">'+e(p('action').content.text||'')+' ↗</span>'+
         '<small>Кнопка демонстрационная: данные не отправляются.</small></section>';
     }else content='<section><h2>Незарегистрированный шаблон</h2></section>';
@@ -843,7 +977,26 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     drawFields();drawPreview();
     document.querySelectorAll('.device').forEach(n=>n.classList.toggle('active',n===b));
   }));
-  if(HOSTED)window.Stage3Editor=Object.freeze({
+  window.Stage3Editor=Object.freeze({
+    manifests:()=>cp(manifests),
+    previewDocument:(site,path)=>{
+      const checked=C.validateSite(site,manifests),prior=session;
+      try{
+        session=D.begin(checked,manifests);
+        const page=checked.pages.find(p=>p.path===path)||checked.pages[0];
+        const docs=page.sections.map(s=>screen(D.blockPreview(session,manifests,page.id,s.id,breakpoint)));
+        const first=docs[0],start=first.indexOf('<body>')+6,end=first.lastIndexOf('</body>');
+        const navigation='<nav style="padding:15px;display:flex;gap:16px;flex-wrap:wrap">'+checked.pages.map(p=>'<span>'+escapeHtml(p.title)+'</span>').join('')+'</nav>';
+        return first.slice(0,start)+navigation+docs.map(doc=>doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))).join('')+first.slice(end);
+      }finally{session=prior;}
+    },
+    applyComposition:site=>{
+      session=D.replaceSite(session,manifests,site,session.revision);draw();
+    },
+    openComposition:site=>{
+      session=D.begin(site,manifests);versions=[];savedBytes='';
+      pageId=site.pages[0].id;sectionId=site.pages[0].sections[0].id;elementId=site.pages[0].sections[0].elements[0].id;draw();
+    },
     getSite:()=>cp(session.current),
     selection:()=>{
       const {page,section}=current();
@@ -871,4 +1024,157 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   });
   createStructureTools();load();draw();
 })();
+'use strict';
+// A single owner-reviewed composition path for offline and authenticated Studio.
+(()=>{
+  const R=RECIPES,E=window.Stage3Editor,$=id=>document.getElementById(id);
+  const hosted=document.documentElement.dataset.stage3Mode==='server';
+  const node=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
+  const button=(text,fn,id)=>{const b=node('button','btn small',text);b.type='button';if(id)b.id=id;b.addEventListener('click',fn);return b;};
+  const start=button('✦ Создать из задания',open,'compose-site');
+  document.querySelector('.site-actions').prepend(start);
+  const dialog=node('dialog','composer');dialog.id='composer';
+  // Static UI only. Owner text is assigned with value/textContent below.
+  dialog.innerHTML=`<div class="composer-head"><div><h2>Создать сайт из задания</h2><p>Детерминированный режим · без внешнего ИИ и API-ключей</p></div><button type="button" class="btn" id="compose-close" aria-label="Закрыть">×</button></div>
+  <div class="composer-body"><section id="compose-brief"><div class="compose-grid">
+  <label>Название сайта / компании<input id="compose-title" class="control" maxlength="160" required></label>
+  <label>Тип сайта<select id="compose-preset" class="control"><option value="auto">Подобрать по заданию</option></select></label>
+  <label class="compose-wide">Задание: какой сайт нужен<textarea id="compose-task" class="control" maxlength="3000" rows="3" placeholder="Например: многостраничный сайт услуг с формой заявки"></textarea></label>
+  <label class="compose-wide">Подтверждённый заголовок<input id="compose-headline" class="control" maxlength="180" placeholder="Без заголовка используем название сайта"></label>
+  <label class="compose-wide">Подтверждённое описание<textarea id="compose-description" class="control" maxlength="420" rows="3"></textarea></label>
+  <label>Предложения / услуги / проекты<textarea id="compose-offerings" class="control" rows="5" placeholder="Каждый пункт с новой строки · до 12"></textarea></label>
+  <label>Факты о компании<textarea id="compose-details" class="control" rows="5" placeholder="Только подтверждённые сведения · до 12"></textarea></label>
+  <label>Подпись внешней контактной кнопки<input id="compose-contact-label" class="control" maxlength="100"></label>
+  <label>Внешняя контактная ссылка (https://)<input id="compose-contact-url" class="control" maxlength="300" placeholder="Без ссылки кнопка ведёт к форме сайта"></label>
+  </div><label class="compose-check"><input type="checkbox" id="compose-current"> Пересобрать открытый сайт: сохранить его медиа и использовать его шаблоны блоков</label>
+  <p class="subdued">Задание определяет структуру. Тексты берём только из заполненных выше полей. Пустые данные остаются подсказками для заполнения. Сохранение и публикация выполняются отдельно.</p>
+  <div class="compose-buttons"><button type="button" id="compose-generate" class="btn primary">Подготовить структуру и предпросмотр</button><button type="button" id="compose-import" class="btn">Загрузить рецепт JSON</button><input type="file" id="compose-file" accept=".json,application/json" hidden></div></section>
+  <section id="compose-review" hidden><div class="compose-buttons"><button type="button" id="compose-back" class="btn">← Изменить задание</button><button type="button" id="compose-export" class="btn">Скачать рецепт</button><button type="button" id="compose-refresh" class="btn">Обновить предпросмотр</button></div><div class="compose-review-grid"><div><h3>Страницы и блоки</h3><p class="subdued">Измените названия, URL и состав блоков. Все элементы будут редактироваться в Studio.</p><div id="compose-plan"></div><button type="button" id="compose-add-page" class="btn small">+ Страница</button><h3>Нужно заполнить</h3><ul id="compose-warnings"></ul></div><div><label>Предпросмотр страницы<select id="compose-page" class="control"></select></label><iframe id="compose-preview" sandbox="" title="Предпросмотр создаваемого сайта"></iframe></div></div><div class="compose-buttons"><button type="button" id="compose-apply" class="btn primary">Открыть в редакторе</button></div></section>
+  <p id="compose-error" role="alert"></p><p id="compose-summary" aria-live="polite"></p></div>`;
+  document.body.append(dialog);
+  for(const [id,preset] of Object.entries(R.PRESETS)){
+    const option=node('option',null,preset.label);option.value=id;$('compose-preset').append(option);
+  }
+  let recipe=null,result=null,context={sourceSite:null,templates:[]},sourceBytes='',version=0;
+  const error=e=>{$('compose-error').textContent=e?.message||'';};
+  const run=fn=>{try{error(null);return fn();}catch(e){error(e);return null;}};
+  const lines=id=>$(id).value.split('\n').map(x=>x.trim()).filter(Boolean);
+  function open(){
+    if(hosted&&!window.Stage3Host?.canCompose?.())return;
+    version++;recipe=null;result=null;context={sourceSite:null,templates:[]};
+    $('compose-review').hidden=true;$('compose-brief').hidden=false;
+    $('compose-current').checked=false;$('compose-title').value='';
+    $('compose-summary').textContent='';error(null);dialog.showModal();$('compose-title').focus();
+  }
+  function invalidate(){result=null;$('compose-apply').disabled=true;$('compose-export').disabled=true;$('compose-summary').textContent='Структура изменена. Обновите предпросмотр перед применением.';}
+  function input(label,value,change,max){
+    const wrap=node('label',null,label),el=node('input','control');el.value=value;if(max)el.maxLength=max;
+    el.addEventListener('input',()=>{change(el.value);invalidate();});wrap.append(el);return wrap;
+  }
+  function drawPlan(){
+    const root=$('compose-plan');root.replaceChildren();
+    recipe.pages.forEach((p,pi)=>{
+      const wrap=node('article','compose-page-plan');
+      wrap.append(input('Название',p.title,v=>p.title=v,160),input('URL',p.path,v=>p.path=v,160));
+      wrap.append(button('Предпросмотр',()=>run(()=>{refresh();$('compose-page').value=p.id;preview();})));
+      if(p.path!=='/')wrap.append(button('Удалить страницу',()=>{recipe.pages.splice(pi,1);invalidate();drawPlan();}));
+      p.sections.forEach((s,si)=>{
+        const row=node('div','compose-section-plan');
+        const picker=node('select','control');picker.setAttribute('aria-label','Компонент блока');
+        for(const m of E.manifests()){
+          const opt=node('option',null,m.label);opt.value=m.id;picker.append(opt);
+        }
+        picker.value=s.component;
+        picker.addEventListener('change',()=>{s.component=picker.value;delete s.templateId;invalidate();drawPlan();});row.append(picker);
+        const choices=context.templates.filter(t=>t.component===s.component);
+        if(choices.length){
+          const select=node('select','control');select.setAttribute('aria-label','Шаблон блока');
+          const def=node('option',null,'Создать из задания');def.value='';select.append(def);
+          for(const t of choices){const opt=node('option',null,t.title);opt.value=t.id;select.append(opt);}
+          select.value=s.templateId||'';
+          select.addEventListener('change',()=>{if(select.value)s.templateId=select.value;else delete s.templateId;invalidate();});row.append(select);
+        }
+        row.append(button('↑',()=>{if(si){[p.sections[si-1],p.sections[si]]=[s,p.sections[si-1]];invalidate();drawPlan();}}));
+        if(p.sections.length>1)row.append(button('×',()=>{p.sections.splice(si,1);invalidate();drawPlan();}));
+        wrap.append(row);
+      });
+      wrap.append(button('+ Блок',()=>{p.sections.push({id:fresh('section'),component:'feature-highlights'});invalidate();drawPlan();}));
+      root.append(wrap);
+    });
+  }
+  function fresh(prefix){return prefix+'-'+crypto.randomUUID().replaceAll('-','').slice(0,18);}
+  function preview(){
+    if(!result)return;
+    const page=result.site.pages.find(p=>p.id===$('compose-page').value)||result.site.pages[0];
+    $('compose-preview').srcdoc=E.previewDocument(result.site,page.path);
+  }
+  function refresh(){
+    const next=R.compose(recipe,E.manifests(),context);
+    const selection=$('compose-page').value;
+    result=next;$('compose-page').replaceChildren();
+    for(const p of result.site.pages){const opt=node('option',null,p.title+' · '+p.path);opt.value=p.id;$('compose-page').append(opt);}
+    if(result.site.pages.some(p=>p.id===selection))$('compose-page').value=selection;
+    $('compose-warnings').replaceChildren(...result.warnings.map(x=>node('li',null,x)));
+    if(!result.warnings.length)$('compose-warnings').append(node('li',null,'Проверьте тексты, фотографии и согласие формы перед публикацией.'));
+    $('compose-summary').textContent=result.site.pages.length+' страниц · '+result.site.pages.reduce((n,p)=>n+p.sections.length,0)+' блоков · '+result.bindings.length+' шаблонов. Ничего не опубликовано.';
+    $('compose-apply').textContent=recipe.sourceSiteId?'Заменить структуру черновика (можно отменить)':hosted?'Создать новый черновик на сервере':'Открыть новый черновик в редакторе';
+    $('compose-apply').disabled=false;$('compose-export').disabled=false;preview();
+  }
+  async function prepare(imported=null){
+    const ticket=++version;
+    error(null);$('compose-generate').disabled=true;
+    try{
+      const current=imported?!!imported.sourceSiteId:$('compose-current').checked;
+      const source=E.getSite();sourceBytes=JSON.stringify(source);
+      const templates=current&&hosted?await window.Stage3Host.compositionTemplates():[];
+      if(ticket!==version||!dialog.open)return;
+      context=current?{sourceSite:source,templates}:{sourceSite:null,templates:[]};
+      if(imported){recipe=R.validate(imported);if(current&&recipe.sourceSiteId!==source.siteId)throw Error('Откройте исходный сайт рецепта перед загрузкой.');}
+      else{
+        const task=$('compose-task').value,preset=$('compose-preset').value;
+        recipe=R.plan({siteId:current?source.siteId:fresh('site'),title:$('compose-title').value.trim(),task,
+          preset:preset==='auto'?R.suggest(task):preset,
+          facts:{headline:$('compose-headline').value,description:$('compose-description').value,offerings:lines('compose-offerings'),details:lines('compose-details'),contactLabel:$('compose-contact-label').value,contactUrl:$('compose-contact-url').value}});
+        if(current)recipe.sourceSiteId=source.siteId;
+      }
+      refresh();drawPlan();$('compose-brief').hidden=true;$('compose-review').hidden=false;
+    }catch(e){error(e);}finally{$('compose-generate').disabled=false;}
+  }
+  $('compose-generate').addEventListener('click',()=>prepare());
+  $('compose-close').addEventListener('click',()=>{version++;dialog.close();});
+  dialog.addEventListener('cancel',()=>version++);
+  $('compose-back').addEventListener('click',()=>{$('compose-review').hidden=true;$('compose-brief').hidden=false;result=null;error(null);});
+  $('compose-refresh').addEventListener('click',()=>run(refresh));
+  $('compose-page').addEventListener('change',()=>run(preview));
+  $('compose-add-page').addEventListener('click',()=>{
+    const id=fresh('page');recipe.pages.push({id,path:'/'+id+'/',title:'Новая страница',kind:'custom',sections:[{id:fresh('section'),component:'company-hero'}]});invalidate();drawPlan();
+  });
+  $('compose-apply').addEventListener('click',async()=>{
+    if(!result)return;error(null);$('compose-apply').disabled=true;
+    try{
+      if(sourceBytes!==JSON.stringify(E.getSite()))throw Error('Исходный сайт изменился. Подготовьте рецепт заново.');
+      // Revalidate the exact reviewed recipe at the commit boundary.
+      const checked=R.compose(recipe,E.manifests(),context).site;
+      if(recipe.sourceSiteId){
+        if(!confirm('Заменить структуру текущего черновика? Опубликованный сайт не изменится. Доступна отмена.'))return;
+        E.applyComposition(checked);
+      }else{
+        if(E.isDirty()&&!confirm('Открыть новый сайт без сохранения текущих правок?'))return;
+        if(hosted)await window.Stage3Host.createComposition(checked);else E.openComposition(checked);
+      }
+      dialog.close();
+      const toast=$('toast');toast.hidden=false;toast.className='toast';toast.textContent=recipe.sourceSiteId?'Новая структура открыта в черновике. Сохраните изменения; публикация отдельно.':'Создан редактируемый сайт. Публикация выполняется отдельно.';
+    }catch(e){error(e);}finally{$('compose-apply').disabled=!result;}
+  });
+  $('compose-export').addEventListener('click',()=>run(()=>{
+    R.validate(recipe);const url=URL.createObjectURL(new Blob([JSON.stringify(recipe,null,2)],{type:'application/json'}));
+    const a=node('a');a.href=url;a.download='site-recipe.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }));
+  $('compose-import').addEventListener('click',()=>$('compose-file').click());
+  $('compose-file').addEventListener('change',async e=>{
+    const f=e.target.files?.[0];e.target.value='';if(!f)return;
+    try{if(f.size>100000)throw Error('Рецепт слишком большой (100 КБ).');await prepare(JSON.parse(await f.text()));}catch(e){error(e);}
+  });
+})();
+
 })();

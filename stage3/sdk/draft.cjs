@@ -141,6 +141,12 @@ function structure(raw,manifests,command){
   return {format:SESSION,revision:s.revision+1,base:copy(s.base),
     current:c,undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:[]};
 }
+function replaceSite(raw,manifests,site,expectedRevision){
+  const s=verifySession(raw,manifests),candidate=C.validateSite(site,manifests);
+  if(expectedRevision!==s.revision||candidate.siteId!==s.current.siteId)throw Error('Stale or different site composition');
+  return {format:SESSION,revision:s.revision+1,base:copy(s.base),current:candidate,
+    undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:[]};
+}
 function changes(raw,manifests){
   const s=verifySession(raw,manifests),diff=[];
   const pages=new Map(s.base.pages.map(p=>[p.id,p]));
@@ -158,6 +164,7 @@ function changes(raw,manifests){
       if(!prev){record('section-added',{pageId:page.id,sectionId:section.id});return;}
       if(prior.sections.findIndex(q=>q.id===section.id)!==i)
         record('section-moved',{pageId:page.id,sectionId:section.id});
+      if(prev.component!==section.component||prev.manifestVersion!==section.manifestVersion){record('section-replaced',{pageId:page.id,sectionId:section.id});return;}
       for(const el of section.elements){
         const original=prev.elements.find(q=>q.id===el.id);
         if(!original)throw Error('Stable element ID changed');
@@ -189,4 +196,4 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
     pageId,sectionId,component:section.component,breakpoint,
     elements,notPublished:true,hasExecutableHtml:false};
 }
-module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,blockPreview});
+module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview});

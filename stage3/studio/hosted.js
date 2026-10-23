@@ -269,6 +269,7 @@
     $('server-site-select').disabled=state.busy||!state.authorized;
     $('server-logout').disabled=state.busy||!state.authorized;
     $('new-site').disabled=state.busy||!state.authorized;
+    $('compose-site').disabled=state.busy||!state.authorized;
     $('import').disabled=state.busy||!state.authorized;
     leadsRefresh.disabled=state.busy||!state.authorized||!state.siteId;
     acknowledge.disabled=state.busy||!state.authorized||!state.siteId||acknowledge.disabled;
@@ -423,7 +424,20 @@
   }
   form.addEventListener('submit',signIn);
   picker.addEventListener('change',()=>safe(()=>openSite(picker.value)));
-  window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewUrl});
+  async function compositionTemplates(){
+    if(!state.authorized||!state.siteId||state.busy)throw Error('Откройте сайт перед использованием шаблонов');
+    return (await api('/api/sites/'+encodeURIComponent(state.siteId)+'/templates')).templates;
+  }
+  async function createComposition(site){
+    if(!state.authorized||state.busy)throw Error('Сервер занят или требуется вход');
+    state.busy=true;drawStatus();
+    try{
+      const created=await api('/api/sites','POST',{site});
+      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();
+    }finally{state.busy=false;drawStatus();}
+  }
+  window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewUrl,
+    compositionTemplates,createComposition,canCompose:()=>state.authorized&&!state.busy});
   $('versions').replaceChildren();
   editorVisible(false);
   state.loading=true;setGate(true);

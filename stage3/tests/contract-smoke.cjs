@@ -317,3 +317,5 @@ test('reusable section templates, full page duplicates, undo/redo, and no stale 
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');
+
+require('./recipes-smoke.cjs');
