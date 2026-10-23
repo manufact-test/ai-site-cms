@@ -309,6 +309,19 @@ try {
             }
         }
     }
+    // 21 October 2026 critical upstream PHP runtime security release:
+    // CVE-2026-109618 / CVE-2026-109619 (unauthenticated RCE).
+    // This evaluates ONLY local CLI PHP_VERSION, not the actual web LSAPI
+    // version or a provider's independently audited backported security fix.
+    // An unsupported/old branch is not silently promoted to a safe host.
+    $phpPatchFloor = [
+        '8.2' => '8.2.35', '8.3' => '8.3.36',
+        '8.4' => '8.4.27', '8.5' => '8.5.12'
+    ];
+    $cliBranch = PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;
+    $cliRequiredPatch = $phpPatchFloor[$cliBranch] ?? null;
+    $cliSecurityPatchPresent = $cliRequiredPatch !== null
+        && version_compare(PHP_VERSION, $cliRequiredPatch, '>=');
     $mysqlDriver = class_exists(PDO::class)
         && in_array('mysql', PDO::getAvailableDrivers(), true);
     // Read ONLY the presence/format of the separately provisioned owner pin.
@@ -326,13 +339,20 @@ try {
         'sapi' => 'cli',
         'phpVersionMajorMinor' => PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION,
         'pdoMysqlAvailable' => $mysqlDriver,
+        'phpCliVersion' => PHP_VERSION,
+        'phpCliOctober2026RequiredPatch' => $cliRequiredPatch,
+        'phpCliOctober2026SecurityPatchPresent' => $cliSecurityPatchPresent,
+        'phpWebOctober2026SecurityPatchVerified' => false,
+        'hostingVendorBackportIndependentlyVerified' => false,
+        'newCmsInstallPhpSafetyAccepted' => false,
         'privateLocalState' => $privateState,
         'taskState' => $taskState,
         'receiptState' => $receiptState,
         'revocationState' => $revocationState,
         'ownerWriteExternalTrustPinState' => $ownerPinState,
         'ownerWriteApprovalVerified' => false,
-        'oneShotAvailable' => $revocationState === 'none' && $mysqlDriver
+        'oneShotAvailable' => $cliSecurityPatchPresent
+            && $revocationState === 'none' && $mysqlDriver
             && $privateState === 'private_directory_ready'
             && $taskState === 'private_task_present'
             && $receiptState === 'absent',

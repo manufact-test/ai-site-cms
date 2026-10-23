@@ -209,7 +209,21 @@ try {
     $store($task);
     [$readyCode,$readyText,$readyErr]=$runCron('hostinger-stage2-preflight.php');
     $readyReport=json_decode($readyText,true,8,JSON_THROW_ON_ERROR);
-    $check($readyCode===0 && $readyErr==='' && $readyReport['oneShotAvailable']
+    // A CI-only 8.3.6 runtime is useful for isolated fixture tests, but
+    // must NEVER be advertised as eligible for a new target-host operation.
+    $floor=['8.2'=>'8.2.35','8.3'=>'8.3.36','8.4'=>'8.4.27','8.5'=>'8.5.12'];
+    $branch=PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;
+    $minimum=$floor[$branch]??null;
+    $expectedPatched=$minimum!==null&&version_compare(PHP_VERSION,$minimum,'>=');
+    $check(($readyReport['oneShotAvailable']??null)===$expectedPatched
+        && ($readyReport['phpCliOctober2026RequiredPatch']??null)===$minimum
+        && ($readyReport['phpCliOctober2026SecurityPatchPresent']??null)===$expectedPatched
+        && $readyReport['phpCliVersion']===PHP_VERSION
+        && $readyReport['phpWebOctober2026SecurityPatchVerified']===false
+        && $readyReport['hostingVendorBackportIndependentlyVerified']===false
+        && $readyReport['newCmsInstallPhpSafetyAccepted']===false,
+        'preflight blocks one-shot readiness for upstream-vulnerable CLI and never verifies web PHP');
+    $check($readyCode===0 && $readyErr===''
         && $readyReport['taskState']==='private_task_present'
         && $readyReport['receiptState']==='absent',
         'preflight sees private one-shot task metadata, does not read its password');
