@@ -387,10 +387,25 @@
       <label class="wide">Для кого работаете *<input id="brief-audience" type="text" maxlength="130" required minlength="3" placeholder="Например, предприятиям пищевой промышленности"></label>
       <label class="wide">Ключевая польза для клиента *<textarea id="brief-benefit" rows="2" maxlength="260" required minlength="3" placeholder="Что помогает решить ваше предложение?"></textarea></label>
       <label class="wide">Подтверждённый факт (необязательно)<input id="brief-proof" type="text" maxlength="130" placeholder="Только реальные факты, без придуманных цифр"></label>
+      <fieldset class="brief-facts wide" aria-labelledby="brief-facts-title">
+        <legend id="brief-facts-title">Реальные материалы для страниц <span>необязательно</span></legend>
+        <p>Каждую позицию вводите с новой строки в формате <strong>Название | Описание</strong>. До восьми строк в каждой категории. Эти сведения заменят демонстрационные карточки и ответы, а не просто сохранятся в брифе.</p>
+        <label for="brief-offerings">Услуги, товары или направления работы
+          <textarea id="brief-offerings" rows="4" maxlength="3400" placeholder="Модульный конвейер | Производим по индивидуальным размерам&#10;Монтаж оборудования | Организуем сборку на площадке заказчика"></textarea>
+        </label>
+        <label for="brief-steps">Реальные этапы работы
+          <textarea id="brief-steps" rows="3" maxlength="3400" placeholder="Обсуждение задачи | Уточняем характеристики и объём работ&#10;Подготовка проекта | Согласовываем технические решения"></textarea>
+        </label>
+        <label for="brief-questions">Вопросы клиентов и проверенные ответы
+          <textarea id="brief-questions" rows="3" maxlength="3400" placeholder="Можно ли изменить размеры? | Да, выполняем индивидуальные размеры под проект&#10;Как обсудить заказ? | Свяжитесь с нами по телефону или электронной почте"></textarea>
+        </label>
+        <div id="brief-facts-summary" class="brief-facts-summary" aria-live="polite">Дополнительные факты можно заполнить позже в редакторе.</div>
+        <p id="brief-facts-error" class="brief-error" role="alert" hidden></p>
+      </fieldset>
       <label>Email<input id="brief-email" type="email" maxlength="160" placeholder="office@example.com" autocomplete="email"></label>
       <label>Телефон<input id="brief-phone" type="tel" maxlength="25" placeholder="+49 123 456 78 90" autocomplete="tel"></label>
       <label class="wide">Адрес (необязательно)<input id="brief-address" type="text" maxlength="240" placeholder="Город, улица и дом"></label>
-      <p class="brief-disclaimer wide">Обязательны название, предложение, аудитория, польза и хотя бы один контакт. Не подтверждённые цифры и отзывы не генерируются. Формы заявок остаются отключёнными.</p>
+      <p class="brief-disclaimer wide">Обязательны название, предложение, аудитория, польза и хотя бы один контакт. Вводите только подтверждённые факты: цифры и отзывы не придумываются. Услуги, этапы и FAQ станут редактируемыми блоками, а формы заявок останутся отключёнными.</p>
       <p id="brief-error" class="brief-error wide" role="alert" hidden></p>
       <div class="brief-submit wide"><button id="brief-create" class="button dark" type="submit">Собрать редактируемый сайт</button></div>
     </form>
