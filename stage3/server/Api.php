@@ -31,7 +31,7 @@ final class Api
             self::response(413, ['error' => 'Request too large']);
         }
         $body = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($body) || array_is_list($body)) {
+        if (!is_array($body) || preg_match('/^\\s*\\{/', $json) !== 1) {
             self::response(400, ['error' => 'Expected JSON object']);
         }
         return $body;
