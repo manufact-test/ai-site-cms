@@ -151,6 +151,7 @@ jobs:
           node --check editor/tests/stage2-dependency-workbench-smoke.cjs
           node editor/tests/stage2-dependency-workbench-smoke.cjs
           node --check tools/stage2-independent-review-kit.cjs
+          node --check tools/stage2-external-review-intake.cjs
           node --check tools/test-stage2-independent-review-kit.cjs
           node tools/test-stage2-independent-review-kit.cjs
       - name: Signed real package operator handoff and owner evidence verification, independent key pin and tamper/replay refusal
