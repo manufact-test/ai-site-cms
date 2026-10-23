@@ -318,6 +318,25 @@ final class PublicRenderer
             .'<meta property="og:title" content="'.$title.'">';
         if ($description!=='') $social.='<meta property="og:description" content="'.self::h($seo['description']).'">';
         if ($absolute!==null) $social.='<meta property="og:url" content="'.self::h($absolute).'">';
+        if ($absolute!==null) {
+            // Use only a page-owned image from the immutable published site,
+            // never caller-controlled arbitrary URLs or private editor assets.
+            foreach ($page['sections'] as $section) {
+                foreach (array_merge($section['elements'],$section['items']??[]) as $element) {
+                    $mediaId=$element['values']['content.media']??null;
+                    if (!is_string($mediaId)||$mediaId==='') continue;
+                    foreach ($site['assets'] as $asset) {
+                        if ($asset['id']!==$mediaId) continue;
+                        $social.='<meta property="og:image" content="'.
+                            self::h($publicOrigin.$mount.$asset['src']).'">';
+                        if ($asset['alt']!=='')
+                            $social.='<meta property="og:image:alt" content="'.self::h($asset['alt']).'">';
+                        break 3;
+                    }
+                }
+            }
+        }
+
 
         return '<!doctype html><html lang="ru"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1">'
