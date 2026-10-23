@@ -271,8 +271,8 @@
     },
     {
       "path": "src/Release/Ed25519Backend.php",
-      "bytes": 2421,
-      "sha256": "e463717bc5633f1cd794360be18f1bbeb21c5891091f9044bcf7f60d302527dd"
+      "bytes": 4554,
+      "sha256": "c202766a59ebf9a660331338bcc7914c75e2f7326cb916ca5eb9a02a5d922ad9"
     },
     {
       "path": "src/Release/LabAttestedActivationGate.php",
