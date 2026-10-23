@@ -194,6 +194,7 @@ async function execute(){
   assert.equal(await page.locator('#sections .nav-entry').count(),beforeSections);
   assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/);
   await page.locator('#server-template-refresh').click();
+  await page.locator('#server-template-list .hosted-template').first().waitFor();
   assert.equal(await page.locator('#server-template-list .hosted-template').count(),1);
   await page.locator('#server-template-list .hosted-template button').nth(1).click();
   assert.equal(await page.locator('#server-template-list .hosted-template').count(),0);
