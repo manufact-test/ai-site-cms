@@ -179,8 +179,10 @@
           const opt=document.createElement('option');opt.value=v;opt.textContent=v;control.append(opt);
         });control.value=initial;
       }else{
-        control=document.createElement('input');
-        control.type=field.type==='boolean'?'checkbox':
+        // Select options are separated by newlines: a single-line input
+        // silently discards line breaks and destroys the published choices.
+        control=document.createElement(field.path==='content.options'?'textarea':'input');
+        if(control.tagName==='INPUT')control.type=field.type==='boolean'?'checkbox':
           field.type==='color'?'color':field.type==='number'?'number':'text';
         if(field.type==='boolean')control.checked=initial;
         else control.value=safeText(initial);
