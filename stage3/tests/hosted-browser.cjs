@@ -117,7 +117,12 @@ async function execute(){
   const newPage=await visitor.goto(origin+'/published/'+siteId+'/equipment/');
   assert.equal(newPage.status(),200);
   assert.equal(await visitor.locator('h1').innerText(),'Оборудование для вашего производства');
-  assert.equal((await visitor.goto(origin+'/published/'+siteId+'/solutions/')).status(),404);
+  const renamedRoute=await page.evaluate(async id=>{
+    const res=await fetch('/published/'+id+'/solutions/',{redirect:'manual'});
+    return {status:res.status,location:res.headers.get('location')};
+  },siteId);
+  assert.deepEqual(renamedRoute,{status:301,location:'/published/'+siteId+'/equipment/'},
+    'Old page URL now redirects permanently after explicit publication');
   // Site metadata and session persist across page refresh.
   await page.reload();
   await page.locator('#server-status').getByText(/Черновик #5/).waitFor();
