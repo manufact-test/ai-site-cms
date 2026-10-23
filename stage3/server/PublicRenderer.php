@@ -238,6 +238,36 @@ final class PublicRenderer
                 }
                 $body.='<section id="'.$id.'" class="repeat-section"><h2>'.self::label($section,'heading').
                     '</h2><div class="repeat-grid gallery-grid">'.implode('',$images).'</div></section>';
+            } elseif ($section['component'] === 'media-story') {
+                $media=(string)(self::element($section,'photo')['content.media']??'');
+                $photo='';
+                foreach ($site['assets'] as $asset) {
+                    if ($asset['id']!==$media) continue;
+                    $photo='<img class="story-photo" loading="lazy" decoding="async" src="'.
+                        self::h($mount.$asset['src']).'" alt="'.self::h($asset['alt']).'">';
+                    break;
+                }
+                $body.='<section id="'.$id.'" class="media-story"><div class="story-layout"><div class="story-copy">'
+                    .'<h2>'.self::label($section,'heading').'</h2><p>'.self::label($section,'copy').'</p>'
+                    .self::link($section,'action',$mount).'</div>'
+                    .($photo!==''?'<div class="story-media">'.$photo.'</div>':'')
+                    .'</div></section>';
+            } elseif ($section['component'] === 'partner-logos') {
+                $cards='';
+                foreach ($section['items'] as $item) {
+                    $v=$item['values'];$asset=null;
+                    foreach ($site['assets'] as $candidate) if ($candidate['id']===$v['content.media']) {
+                        $asset=$candidate;break;
+                    }
+                    if($asset===null)continue;
+                    $href=$v['behavior.href'];
+                    if(str_starts_with($href,'/')&&!str_starts_with($href,'//'))$href=$mount.$href;
+                    $cards.='<a class="partner-logo" href="'.self::h($href).'"><img loading="lazy" decoding="async" src="'.
+                        self::h($mount.$asset['src']).'" alt="'.self::h($asset['alt']?:$v['content.caption']).'">'
+                        .'<span>'.self::h($v['content.caption']).'</span></a>';
+                }
+                $body.='<section id="'.$id.'" class="partner-logos"><h2>'.self::label($section,'heading').
+                    '</h2><div class="partner-grid">'.$cards.'</div></section>';
             } elseif ($section['component'] === 'image-showcase') {
                 $media = (string)(self::element($section, 'photo')['content.media'] ?? '');
                 $picture = '';
@@ -301,8 +331,9 @@ final class PublicRenderer
             . '.showcase-photo{display:block;width:100%;height:auto;max-height:680px;object-fit:contain;border-radius:16px;background:#e4ebf3}'
             . '.lead-form{display:grid;gap:16px;max-width:700px}.lead-form label{display:grid;gap:6px;font-weight:600}.lead-form input:not([type=checkbox]),.lead-form textarea,.lead-form select{padding:12px;border:1px solid #a5b3c4;border-radius:8px;font:inherit;width:100%}.lead-form button{border:0;cursor:pointer}.lead-consent{display:flex!important;flex-direction:row;align-items:flex-start}.lead-honey{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}'
             . '.repeat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:20px}.repeat-grid article,.repeat-grid .review,.repeat-grid figure{background:var(--cms-surface);border:1px solid #e1e8f1;padding:24px;margin:0;border-radius:12px}.repeat-grid h3{margin:0 0 12px}.repeat-grid .review blockquote{margin:0 0 16px;font-size:19px}.repeat-grid figcaption{font-size:14px;opacity:.75}.repeat-grid img{max-width:100%;height:auto;max-height:420px;object-fit:contain}.faq{max-width:850px}.faq details{border-bottom:1px solid #d0d8e2;padding:18px}.faq summary{cursor:pointer;font-weight:700}.service-link{display:inline-flex;padding-top:14px}'
+            . '.story-layout{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center}.story-copy p{max-width:65ch}.story-photo{display:block;width:100%;max-height:620px;object-fit:contain;border-radius:16px}.partner-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:16px}.partner-logo{border:1px solid #e1e8f1;border-radius:12px;display:grid;justify-items:center;gap:8px;text-align:center;padding:18px;background:var(--cms-surface);text-decoration:none}.partner-logo img{max-width:100%;width:auto;height:80px;object-fit:contain}.partner-logo span{font-weight:700;font-size:14px}'
             . '@media(max-width:900px){h1{font-size:var(--title-tablet)}}'
-            . '@media(max-width:600px){section{padding:40px 8px}.hero{padding-block:48px}.feature-grid{grid-template-columns:1fr}h1{font-size:var(--title-mobile)}}'
+            . '@media(max-width:600px){section{padding:40px 8px}.hero{padding-block:48px}.feature-grid{grid-template-columns:1fr}.story-layout{grid-template-columns:1fr}h1{font-size:var(--title-mobile)}}'
             . '</style></head><body><header><nav aria-label="Навигация">' . $navigation
             . '</nav></header><main>' . $body . '</main><footer>'
             . self::h($site['title']) . '</footer></body></html>';
