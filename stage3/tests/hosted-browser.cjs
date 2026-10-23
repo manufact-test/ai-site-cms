@@ -197,6 +197,7 @@ async function execute(){
   await page.locator('#server-template-list .hosted-template').first().waitFor();
   assert.equal(await page.locator('#server-template-list .hosted-template').count(),1);
   await page.locator('#server-template-list .hosted-template button').nth(1).click();
+  await page.locator('#server-template-list .hosted-template').first().waitFor({state:'detached'});
   assert.equal(await page.locator('#server-template-list .hosted-template').count(),0);
   assert.equal((await visitor.goto(origin+'/published/'+siteId+'/')).status(),200);
   const tokenless=await ctx.request.post(origin+'/api/sites/'+siteId+'/save',
