@@ -92,3 +92,12 @@
 - **Реюз:** до собственного кода исследовать и проверить maintainer/security/license/version/compatibility существующих permissive open-source модулей; адаптировать по HTML/PHP/React/Next без обязательного Node на PHP-хостинге. OWASP/GOV.UK/WCAG/libphonenumber/Radix — кандидаты к оценке, не автоматически включённые библиотеки.
 
 Полный стандарт [SITE-QUALITY-BASELINE](SITE-QUALITY-BASELINE.md) и утверждённая политика [ADR0013](ADR/0013-ai-site-safe-defaults-and-reuse.md). Это **дополнение к будущему контракту**, а не работающая сейчас функциональность Stage2.
+
+
+## v1.57 — isolated live CMS adapters, sections and publication
+
+`manufact-ai-site-v1` and `manufact-ai-component-v1` stay unchanged. The registered manifests remain first-party and closed. `stage3/sdk/draft.cjs` extends explicit structure operations with `duplicatePage`, `duplicateSection`, and `applyTemplate`, each needing `expectedRevision`, validated fresh stable IDs, and global uniqueness; unchanged owner-edited field values survive copying. These operations only edit the local draft with Undo/Redo. Neither saving a library preset nor applying one implicitly publishes.
+
+The PHP server stores reusable section templates in `stage3_section_templates`, keyed by `site_id` and generated template ID. The owner can save only a section already present in the validated, current persisted draft; `GET/POST /api/sites/{id}/templates` and `POST /api/sites/{id}/templates/{id}/delete` are authenticated/CSRF-protected for writes. Site isolation is intentional (no sharing presets across sites until a separate safe media policy exists). Insertion via Studio regenerates section and element IDs and revalidates the whole site before any explicit server save. Latest code `fe1ee0f041a807137ee4696f431d22fb5919d1a5`, [CI](https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837).
+
+This remains a CI-only implementation, NOT final approval of 135 mandatory requirements. The Stage2 release/legal/hosting gates remain open and are separate from the isolated Stage3 feature work.

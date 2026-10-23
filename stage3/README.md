@@ -1,62 +1,35 @@
-# Stage 3 — AI site ↔ CMS contract v1 (isolated development branch)
+# AI Site CMS — Stage 3→4 isolated functional implementation (v1.57)
 
-**Scope:** experimental, owner-authorized code work on `feature/stage3-ai-site-contract` only. **NOT merged to `main`; Stage 2 NOT ACCEPTED, no Hostinger/API/DB/deploy, no publisher, no claim that the full 135 mandatory capabilities are accepted.**
+> **Latest verified code:** `fe1ee0f041a807137ee4696f431d22fb5919d1a5`, [CI SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837); [offline Studio ZIP](https://github.com/manufact-test/ai-site-cms/actions/runs/39986341837/artifacts/12514644562). Branch **`feature/stage3-ai-site-contract`**, do not merge with `main` or deploy to Hostinger without separate owner permission. Canonical [handoff](../handoffs/lead-integrator/MAIN-HANDOFF-v1.57-2026-10-23.md). Stage2 technically ~85–90% but **formal NO-GO**; Stage3 not formally accepted, 0/135 mandatory product criteria signed off.
 
-## What works now
+## Product state — not only a static prototype
 
-1. A versioned, provider-agnostic **component manifest** for each section. A component is data (slot tree, field paths, strict types, bounds, explicit defaults), **not uploaded JavaScript**. Three registered starter components: company hero, features and contact.
-2. A strict **site document** with globally unique stable IDs for pages, sections and elements, a single manifest version per component, separate `content.*`, `style.*`, `behavior.*` values, closed field lists and isolated media IDs.
-3. A **control descriptor generator** that only exposes fields the selected element actually declared. Responsive controls declare desktop/tablet/mobile and use a documented fallback; missing properties never receive a generic CSS form.
-4. A model-independent **starter composer** that accepts optionally supplied facts but can generate a fully editable two-page site with no design document or AI provider. It never pretends to know pricing, phone numbers, licenses, addresses or company testimonials.
-5. An **upgrade planner** for changed component manifests. New typed fields get defaults; untouched old defaults adopt the new design; manually changed compatible fields preserve user values and element IDs. Removed/incompatible manually edited properties produce an explicit conflict with an opt-in `discard` resolution; no automatic overwrite.
-6. Executable CLI + local fixture + one grouped contract E2E, tested on the separate branch.
+- **Closed, provider-independent manifests:** `stage3/sdk/contract.cjs`, `components/*.json`. Site JSON `manufact-ai-site-v1`: pages, sections, globally stable unique IDs, elements, typed `content/style/behavior` values, responsive desktop/tablet/mobile. Unknown hooks, JavaScript payloads, invalid assets, and unregistered component versions are refused.
+- **Immutable local editing:** `stage3/sdk/draft.cjs` uses expected revision, strict per-field validation, bounded undo/redo, structure editing, `duplicatePage`, `duplicateSection`, `applyTemplate`; can generate an editable two-page site without a design brief and without fictional company claims.
+- **Standalone offline Studio:** `stage3/studio/index.html`, bundle/CSS; click-to-open ZIP, inert iframe preview, page tree, section navigation, field editor, Undo/Redo, local versions, JSON import/export. No network/runtime keys.
+- **Server Studio:** `/studio` served from isolated PHP `server/public/index.php` plus `studio/hosted.js`. Real PHP-session owner login, CSRF, origin protection, explicit site draft save with CAS conflict, revisions/restore, explicit separate Publish, site list, media, submissions, unread notifications, reusable site-scoped section template library. The old offline ZIP remains network-free.
+- **Durable server repository:** `server/SiteRepository.php` uses disposable SQLite in CI, also supports PDO MySQL schemas in code. Only empty dedicated DB setup via CLI `server/bin/setup.php`; MySQL integration/real Hostinger deployment is **NOT validated** here.
+- **Published pages:** `server/PublicRenderer.php` renders first-party components and escapes content; immutable published snapshots separate from draft. `server/bin/export-published.php` emits standalone static HTML plus images; optional form collector must be explicitly configured. Never confuse export with CMS runtime.
+- **Media:** PNG/JPEG/WebP, max 450 KB each, image showcases, alt text and safe site-scoped immutable asset IDs.
+- **Visitor forms and inbox:** legacy `lead-form` and `lead-form-flex` (three configurable fields: text, tel, select, textarea), server validation, consent, honeypot, throttling, HMAC release token, separate `server/collector-public` entry, private submissions and `notifications`. External email/Telegram delivery is NOT implemented.
+- **Section templates — NEW:** Save the selected already-saved section to a site-scoped template collection (up to 60), list/select/apply/delete. Applying preserves content/settings and remaps section/element IDs, supports undo and requires explicit server save/publish. Cloning a whole page regenerates section IDs and requires an unused URL. Presets do not travel to other sites automatically, especially when they refer to media.
 
-## Run locally (Node.js 22+, no npm installation)
+## CI and local commands
 
 ```sh
 node stage3/tests/contract-smoke.cjs
-node stage3/bin/ai-site.cjs validate stage3/fixtures/industrial-site.json
-node stage3/bin/ai-site.cjs create --id=site-new --title="Без макета" > site.json
-node stage3/bin/ai-site.cjs controls stage3/fixtures/industrial-site.json page-home section-hero section-hero-heading
+node stage3/studio/build.cjs --check
+node stage3/tests/studio-browser.cjs
+node stage3/tests/server-e2e.cjs
+node stage3/tests/hosted-browser.cjs
 ```
 
-## Contract examples
+Browser tests need pinned Playwright from `cms/editor/node_modules` and system Chromium; PHP server E2E needs PHP 8.3 + PDO_SQLite. CI workflow `.github/workflows/stage3-ai-contract.yml` runs existing aggregated jobs and packages an offline ZIP. **Do not add huge extra test matrices to every product feature**; current CI + one critical browser path is enough unless an uncovered security blocker emerges.
 
-- `stage3/schemas/manifest-v1.schema.json` and `stage3/schemas/site-v1.schema.json` — portable JSON Schema 2020-12 for basic document structure. Runtime invariants, global uniqueness, registry references and cross-field restrictions are additionally enforced in `stage3/sdk/contract.cjs`. JSON Schema structural validation **alone is not sufficient**.
-- `stage3/components/*.json` — component registration examples; no framework lock-in.
-- `stage3/fixtures/industrial-site.json` — declared real-content *sample*; fictional names are not claims.
-- `stage3/sdk/contract.cjs` — `validateManifest`, `registry`, `validateSite`, `controls`, `effectiveValue`, `sectionFrom`, `siteFromBrief`, `upgrade`.
+## Next big vertical
 
-### Upgrade policy
+Implement validated full-site *recipes* and real owner-brief-to-editable multi-page composition, using registered components and reusable templates. Keep provider-neutral deterministic fallback, no fabricated data, clear owner preview/edit/save/publish. Then finish remaining high-value roadmap modules (licensing, backup/restore, admin roles, production deployment approval gates and cohesive UI). **Owner wants accelerated BIG product blocks, minimal testing, cosmetics after the functional CMS exists.**
 
-A manifest version must increase numerically. The updater proposes an **immutable candidate**, never applies site writes. Existing compatible owner overrides win; changed defaults propagate only for unedited values. Removing or changing a field with an owner edit returns `accepted:false` with explicit conflict keys such as `page-home/section-hero/action/behavior.href`. The caller must request an explicit `discard` resolution, cannot fabricate new property values through that decision, and must revalidate the candidate. There is no publish/save operation in this SDK.
+## Safety/acceptance
 
-### Important constraints
-
-- This is the **Stage 3 contract foundation**, not a completed UI, server installer, multi-user CMS, form processor or actual AI generation. It is independent of any AI vendor by design.
-- IDs never derive from CSS selectors or DOM position; dynamic schema generation must run only for registered, verified components.
-- A property absent from the manifest is never editable. Unknown executable hooks, `javascript:` links, unsupported units, invalid media refs, duplicate IDs and unmapped/invalid values fail closed.
-- `url` fields are links only, not a network-fetch instruction; no HTTP or JavaScript execution is permitted by the contract.
-- No final acceptance of roadmap requirements #101–119 yet: those require integration with server persistence, editor and publishing in later stages.
-- Revisions, cryptographic signatures, actual render adapters, upload processing, full WCAG checks and AI site generation are **future work**. No approval to merge, deploy or touch the user's Hostinger.
-
-## Next large vertical after this foundation
-
-Build a structured block renderer/editor adapter consuming only `controls()` and site manifests, followed by site content persistence, explicit save / publish separation and revision history on independently approved infrastructure. Keep Stage 2 gates #5–#9 separate.
-
-
-## Local editor draft API (same isolated Stage 3 branch)
-
-`stage3/sdk/draft.cjs` adds a real, provider-neutral **manual editor data path**:
-`begin(site, manifests)` → `edit(session, manifests, {pageId,sectionId,elementId,path,value,breakpoint,expectedRevision})` → `blockPreview(session, manifests, pageId,sectionId,breakpoint)` → `changes()` / `undo()` / `redo()`.
-
-Every field edit is checked against the verified component manifest and the **whole resulting document** before it can change the current local draft. The optimistic `expectedRevision` check refuses stale writes, unlimited undo snapshots are not allowed (max 30), and only the selected section is returned to the neutral preview adapter. Desktop/tablet/mobile values inherit as specified. This returns **data**, never active HTML/JavaScript, and does not save or publish anything. A later CMS host adapter must add authentication, persistence, locks, revision storage, escaping and an independently verified rendering boundary.
-
-
-## v1.56 — работающий автономный браузерный Studio, 23.10.2026
-
-**Код `4d7dc06ced179bb50f4020e249e8c1303d3a4479`; https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843 SUCCESS.** [Скачать click-to-open Studio ZIP](https://github.com/manufact-test/ai-site-cms/actions/runs/39946661843/artifacts/12498631776) — распаковать и открыть `index.html` в Chrome/Edge. В ZIP только `index.html`, `studio.css`, `bundle.js`; Node/Composer/ключи/сервер/сеть не нужны.
-
-Интерфейс `stage3/studio/index.html` создан поверх оригинального контрактного SDK без нового стороннего framework: страницы → выбранный блок → элементы → только реально зарегистрированные `content/style/behavior` поля. Версии desktop/tablet/mobile, редактирование и sandboxed inert `iframe.srcdoc`, Undo/Redo, явное «Сохранить черновик» с локальной историей до 12 версий, восстановление, экспорт/импорт строго валидированного JSON, новый сайт из дефолтного no-design brief. Нет автосохранения, working forms, HTTP API, AI API, аккаунтов, сервера или публикации. Браузерные локальные версии не заменяют надёжный серверный backup — используйте JSON-экспорт.
-
-**Development:** `node stage3/studio/build.cjs` пересобирает офлайн-bundle из единого исходника (`contract.cjs`, `draft.cjs`, трёх manifests, fixture, `app.js`); `node stage3/studio/build.cjs --check` проверяет точное совпадение с Git. `node stage3/tests/contract-smoke.cjs` и `node stage3/tests/studio-browser.cjs` (требует установленный pinned playwright-core из `cms/editor` и настоящий Chromium). Workflow `.github/workflows/stage3-ai-contract.yml` собирает ZIP, запускает browser E2E и выкладывает скриншоты. Для будущего продукта нужно **связанное PHP-хранилище, аутентификация, права, отдельная публикация, renderer adapters и формы**, а не расширение демо ради демо.
+Stage0/1 accepted; Stage2 formally NO-GO (#5–#9); Stage3 code work allowed on isolated branch only and not formally accepted. 18 stages / 193 total requirements / 135 mandatory / **0 formally accepted mandatory**. Real hosting/SSH/MySQL/production/merge requires a separate scoped authorization. `main` remains `12e9c3feb707e5ad46b2caeeed379eb40618466b`.
