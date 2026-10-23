@@ -1722,10 +1722,37 @@
       toast('Сайт удалён локально. Открыт другой проект.');
     }catch(e){toast('Не удалось удалить сайт: '+e.message,true);}
   }
+  function renderBriefFacts(){
+    const holder=$('brief-facts-summary');holder.replaceChildren();
+    try{
+      const parsed=B.details(Object.fromEntries(
+        ['offerings','steps','questions'].map(key=>[key,$('brief-'+key).value])));
+      const labels={offerings:'Услуги / товары',steps:'Этапы работы',questions:'FAQ'};
+      for(const key of ['offerings','steps','questions']){
+        const entry=document.createElement('div');entry.className='brief-fact-line';
+        const name=document.createElement('strong');name.textContent=labels[key]+' · '+parsed[key].length+'/8';
+        const items=document.createElement('span');
+        items.textContent=parsed[key].length?
+          parsed[key].map(item=>item.title).join(' · '):
+          'Пока не заполнено — останутся редактируемые подсказки';
+        entry.append(name,items);holder.append(entry);
+      }
+      $('brief-facts-error').hidden=true;
+      $('brief-create').disabled=false;
+      return true;
+    }catch(e){
+      const error=document.createElement('span');error.textContent='Проверьте строки с реальными данными';
+      holder.append(error);
+      $('brief-facts-error').textContent=e.message;
+      $('brief-facts-error').hidden=false;
+      $('brief-create').disabled=true;
+      return false;
+    }
+  }
   function generateFromBrief(event){
     event.preventDefault();
     const data={};
-    for(const key of ['kind','company','offering','audience','benefit','proof','email','phone','address'])
+    for(const key of ['kind','company','offering','audience','benefit','proof','email','phone','address','offerings','steps','questions'])
       data[key]=$('brief-'+key).value;
     try{
       const site=D.compose(B.build(data),$('brief-direction').value,'all');
@@ -1840,7 +1867,7 @@
     ui.frame.focus();
   }
   function init(){
-    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D||!T||!V||!S){
+    if(!C||!P||!R||!E||!X||!M||!Q||!L||!O||!B||!K||!W||!D||!T||!V||!S||!A||!U){
       ui.status.textContent='Соберите Jedison: cd cms/editor && npm ci && npm run build';
       ui.status.className='status show error';return;
     }
@@ -1916,12 +1943,15 @@
     $('page-in-menu').addEventListener('change',()=>editPage('inMenu',$('page-in-menu').checked));
     $('brief-open').addEventListener('click',()=>{
       $('brief-error').hidden=true;
+      renderBriefFacts();
       $('brief-dialog').showModal();
     });
     $('brief-close').addEventListener('click',()=>$('brief-dialog').close());
     $('brief-kind').addEventListener('change',()=>{
       $('brief-direction').value={industrial:'precision',agency:'momentum',products:'evergreen'}[$('brief-kind').value];
     });
+    for(const key of ['offerings','steps','questions'])
+      $('brief-'+key).addEventListener('input',()=>{renderBriefFacts();$('brief-error').hidden=true;});
     $('brief-form').addEventListener('submit',generateFromBrief);
     $('starter-apply').addEventListener('click',starter);
     $('copy-section').addEventListener('click',copySection);
