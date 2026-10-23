@@ -74,6 +74,7 @@
       return;
     }
     const response=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/submissions');
+    await refreshAlerts(); // Inbox refresh and new-lead indicator are one operation.
     leadsTitle.textContent='Заявки сайта · '+response.submissions.length;
     if(!response.submissions.length){
       leadsList.append(element('small',null,'Обращений пока нет.'));return;
