@@ -56,6 +56,15 @@ async function stop(){
   assert.equal(setup.status,0,setup.stderr);
   const again=spawnSync('php',['stage3/server/bin/setup.php'],{cwd:root,env,encoding:'utf8'});
   assert.notEqual(again.status,0,'must refuse overwriting existing schema');
+  // Exercise the explicit upgrade from the previous single-owner schema, once.
+  const legacy=spawnSync('php',['-r',
+    '$db=new PDO(getenv("STAGE3_DSN")); foreach (["stage3_audit","stage3_site_grants","stage3_access_users"] as $t) $db->exec("DROP TABLE ".$t);'],{cwd:root,env,encoding:'utf8'});
+  assert.equal(legacy.status,0,legacy.stderr);
+  assert.notEqual(spawnSync('php',['stage3/server/bin/upgrade-access.php'],{cwd:root,env,encoding:'utf8'}).status,0);
+  for(let i=0;i<2;i++){
+    const migrated=spawnSync('php',['stage3/server/bin/upgrade-access.php'],{cwd:root,env:{...env,STAGE3_ALLOW_ACCESS_UPGRADE:'YES'},encoding:'utf8'});
+    assert.equal(migrated.status,0,migrated.stderr);
+  }
   await runServer();
   assert.equal((await request('GET','/api/sites')).status,401,'private site list requires login');
   assert.equal((await request('POST','/api/login',{username:'testowner',password:'bad'})).status,401);
@@ -330,6 +339,48 @@ async function stop(){
   assert.equal(activated.body.version,5,'Publication versions continue after imported history');
   assert.equal((await request('GET','/published/'+target+'/')).status,200);
   assert.equal((await request('GET',endpoint)).body.revision,sourceRevision,'Original draft intact');
+  // Scoped multi-user path: edit without publish, grant change, password revocation,
+  // disabled user, read-only viewer, and private owner audit metadata.
+  const staffPassword='test-only-staff-password-123456',newStaffPassword='test-only-updated-password-123456';
+  assert.equal((await request('POST','/api/users',{username:'labeditor',password:staffPassword,role:'editor',sites:[target],reason:'Test editor access'})).status,201);
+  assert.equal((await request('POST','/api/users',{username:'labviewer',password:staffPassword,role:'viewer',sites:[target],reason:'Test viewer access'})).status,201);
+  const ownerCookie=cookie,ownerCsrf=csrf;
+  async function asUser(username,password){cookie='';csrf='';const auth=await request('POST','/api/login',{username,password});assert.equal(auth.status,200,JSON.stringify(auth.body));csrf=auth.body.csrfToken;return auth;}
+  await asUser('labeditor',staffPassword);
+  assert.deepEqual((await request('GET','/api/sites')).body.sites.map(x=>x.site_id),[target]);
+  for(const route of [endpoint,endpoint+'/media/'+asset.id,'/api/users','/api/audit','/api/sites/'+target+'/backup']){
+    assert.equal((await request('GET',route)).status,403,'Scoped editor denial: '+route);
+  }
+  assert.equal((await request('POST','/api/sites/'+target+'/publish',{expectedRevision:sourceRevision+1})).status,403);
+  const editable=(await request('GET','/api/sites/'+target)).body;
+  assert.equal((await request('POST','/api/sites/'+target+'/save',{site:editable.site,expectedRevision:editable.revision})).status,200);
+  cookie=ownerCookie;csrf=ownerCsrf;
+  assert.equal((await request('POST','/api/users/labeditor',{role:'publisher',disabled:false,sites:[target],expectedVersion:1,reason:'Allow explicit publishing'})).status,200);
+  await asUser('labeditor',staffPassword);
+  assert.equal((await request('POST','/api/sites/'+target+'/publish',{expectedRevision:editable.revision+1})).status,200);
+  const revokedCookie=cookie,revokedCsrf=csrf;
+  assert.equal((await request('POST','/api/password',{currentPassword:staffPassword,newPassword:newStaffPassword})).status,200);
+  cookie=revokedCookie;csrf=revokedCsrf;
+  assert.equal((await request('GET','/api/sites/'+target)).status,401,'Password change revokes all older sessions');
+  await asUser('labeditor',newStaffPassword);
+  const disableCookie=cookie,disableCsrf=csrf;
+  cookie=ownerCookie;csrf=ownerCsrf;
+  assert.equal((await request('POST','/api/users/labeditor',{role:'publisher',disabled:true,sites:[target],expectedVersion:3,reason:'Disable staff access'})).status,200);
+  assert.equal((await request('POST','/api/users/testowner',{role:'viewer',disabled:true,sites:[],expectedVersion:1,reason:'Must reject owner lockout'})).status,409);
+  cookie=disableCookie;csrf=disableCsrf;
+  assert.equal((await request('GET','/api/sites/'+target)).status,401,'Disabled account session is invalid');
+  assert.equal((await request('GET','/published/'+target+'/')).status,200,'Public site independent of account state');
+  await asUser('labviewer',staffPassword);
+  assert.equal((await request('GET','/api/sites/'+target)).status,200);
+  assert.equal((await request('GET','/api/sites/'+target+'/submissions')).status,403,'Viewer cannot read contact data');
+  assert.equal((await request('POST','/api/sites/'+target+'/save',{site:editable.site,expectedRevision:editable.revision+1})).status,403);
+  cookie=ownerCookie;csrf=ownerCsrf;
+  const auditLog=await request('GET','/api/audit');
+  assert.equal(auditLog.status,200);
+  assert.ok(auditLog.body.events.some(e=>e.actor==='labeditor'&&e.outcome==='denied'));
+  assert.ok(auditLog.body.events.some(e=>e.action==='POST /api/users/labeditor'&&e.outcome==='success'));
+  assert.ok(!JSON.stringify(auditLog.body).includes(staffPassword));
+  assert.ok(!JSON.stringify(auditLog.body).includes(newStaffPassword));
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET',endpoint+'/backup')).status,401,'Archives remain private');

@@ -895,7 +895,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       subtitle.textContent=new Date(item.at).toLocaleString('ru-RU');b.append(subtitle);box.append(b);
     });
   }
-  function draw(){current();drawHeader();drawTree();drawElements();drawFields();drawPreview();drawVersions();
+  function draw(){current();drawHeader();drawTree();drawElements();drawFields();drawPreview();drawVersions();if(HOSTED)window.Stage3Host?.onDraw?.();
     document.querySelectorAll('.device').forEach(b=>b.classList.toggle('active',b.dataset.bp===breakpoint));}
   function save(){
     if(HOSTED)return window.Stage3Host?.save?.();

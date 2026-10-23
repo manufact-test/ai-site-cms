@@ -9,61 +9,85 @@ use Throwable;
 
 final class Api
 {
+    private ?array $auditContext = null;
+    private string $auditDetail = '';
     public function __construct(private SiteRepository $sites) {}
 
-    private static function response(int $status, array $body): never
+    private function response(int $status, array $body): never
     {
+        if ($this->auditContext !== null) {
+            [$actor,$action,$siteId] = $this->auditContext;
+            $this->auditContext = null; // no recursive logging if storage itself fails
+            if ($siteId === null && isset($body['site']['siteId'])) $siteId = $body['site']['siteId'];
+            if ($status >= 400 || !str_starts_with($action,'GET ') || str_ends_with($action,'/backup')) {
+                $this->sites->audit($actor,$action,$siteId,$status < 400 ? 'success' : 'denied', $this->auditDetail);
+            }
+        }
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($body, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    private static function request(int $limit = 750000): array
+    private function request(int $limit = 750000): array
     {
         if (!str_starts_with(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json')) {
-            self::response(415, ['error' => 'JSON required']);
+            $this->response(415, ['error' => 'JSON required']);
         }
         $stream = fopen('php://input', 'rb');
         $json = stream_get_contents($stream, $limit + 1);
         fclose($stream);
         if ($json === false || strlen($json) > $limit) {
-            self::response(413, ['error' => 'Request too large']);
+            $this->response(413, ['error' => 'Request too large']);
         }
         $body = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($body) || preg_match('/^\\s*\\{/', $json) !== 1) {
-            self::response(400, ['error' => 'Expected JSON object']);
+            $this->response(400, ['error' => 'Expected JSON object']);
         }
         return $body;
     }
 
-    private static function requireOrigin(): void
+    private function requireOrigin(): void
     {
         // JSON requests plus strict same-origin / CSRF validation. No CORS.
         $origin = $_SERVER['HTTP_ORIGIN'] ?? null;
         $host = $_SERVER['HTTP_HOST'] ?? '';
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         if ($origin !== null && $origin !== $scheme . '://' . $host) {
-            self::response(403, ['error' => 'Cross-origin request forbidden']);
+            $this->response(403, ['error' => 'Cross-origin request forbidden']);
         }
         if (($_SERVER['HTTP_SEC_FETCH_SITE'] ?? '') === 'cross-site') {
-            self::response(403, ['error' => 'Cross-site request forbidden']);
+            $this->response(403, ['error' => 'Cross-site request forbidden']);
         }
     }
 
-    private static function authenticated(): void
+    private function authorize(array $principal, string $path, string $method): void
     {
-        if (($_SESSION['stage3_owner'] ?? false) !== true) {
-            self::response(401, ['error' => 'Sign in required']);
+        if ($principal['role'] === 'owner') return;
+        if (in_array($path, ['/api/logout','/api/password'], true) && $method === 'POST') return;
+        if ($path === '/api/sites' && $method === 'GET') return;
+        if (!preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/(.*))?$~D', $path, $m)
+            || !in_array($m[1], $principal['sites'], true)) {
+            $this->response(403, ['error' => 'No permission for this operation or site']);
         }
+        $action = $m[2] ?? '';
+        if ($method === 'GET' && (in_array($action, ['', 'revisions','releases','templates'], true)
+            || preg_match('~^media/[a-z][a-z0-9-]{2,79}$~D', $action))) return;
+        $edit = in_array($principal['role'], ['editor','publisher'], true);
+        if ($edit && $method === 'GET' && in_array($action, ['notifications','submissions'], true)) return;
+        if ($edit && $method === 'POST' && (in_array($action, ['save','restore','restore-release','media','templates','notifications/seen'], true)
+            || preg_match('~^templates/template-[0-9a-f]{18}/delete$~D', $action)
+            || preg_match('~^submissions/lead-[0-9a-f]{24}/review$~D', $action))) return;
+        if ($principal['role'] === 'publisher' && $method === 'POST' && $action === 'publish') return;
+        $this->response(403, ['error' => 'Role does not allow this operation']);
     }
 
-    private static function csrf(): void
+    private function csrf(): void
     {
         $client = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!is_string($client) || !isset($_SESSION['stage3_csrf'])
             || !hash_equals($_SESSION['stage3_csrf'], $client)) {
-            self::response(403, ['error' => 'Invalid CSRF token']);
+            $this->response(403, ['error' => 'Invalid CSRF token']);
         }
     }
 
@@ -98,7 +122,7 @@ final class Api
         if ($method === 'GET' && $path === '/studio') {
             $html = file_get_contents(__DIR__ . '/../studio/index.html');
             if ($html === false) {
-                self::response(503, ['error' => 'Studio unavailable']);
+                $this->response(503, ['error' => 'Studio unavailable']);
             }
             $html = str_replace('<html lang="ru">',
                 '<html lang="ru" data-stage3-mode="server">', $html);
@@ -106,7 +130,7 @@ final class Api
             $html = str_replace("connect-src 'none'", "connect-src 'self'", $html);
             $html = str_replace('</head>',
                 '<link rel="stylesheet" href="/hosted.css">' .
-                '<script src="/hosted.js" defer></script></head>', $html);
+                '<script src="/hosted.js" defer></script><script src="/access.js" defer></script></head>', $html);
             header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
             header('Content-Type: text/html; charset=utf-8');
             echo $html;
@@ -116,13 +140,14 @@ final class Api
             '/studio.css' => ['studio.css', 'text/css; charset=utf-8'],
             '/bundle.js' => ['bundle.js', 'text/javascript; charset=utf-8'],
             '/hosted.js' => ['hosted.js', 'text/javascript; charset=utf-8'],
+            '/access.js' => ['access.js', 'text/javascript; charset=utf-8'],
             '/hosted.css' => ['hosted.css', 'text/css; charset=utf-8']
         ];
         if ($method === 'GET' && isset($assets[$path])) {
             [$file, $type] = $assets[$path];
             $data = file_get_contents(__DIR__ . '/../studio/' . $file);
             if ($data === false) {
-                self::response(503, ['error' => 'Studio asset unavailable']);
+                $this->response(503, ['error' => 'Studio asset unavailable']);
             }
             header('Content-Type: ' . $type);
             header("Content-Security-Policy: default-src 'none'");
@@ -166,7 +191,7 @@ final class Api
             FormGateway::respond($this->sites, $formMatch[1], $formMatch[2]);
         }
         if (!str_starts_with($path, '/api/')) {
-            self::response(404, ['error' => 'Unknown endpoint']);
+            $this->response(404, ['error' => 'Unknown endpoint']);
         }
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
@@ -177,32 +202,43 @@ final class Api
         }
         session_start();
         try {
+            $principal = $this->sites->sessionPrincipal(
+                is_string($_SESSION['stage3_username'] ?? null) ? $_SESSION['stage3_username'] : '',
+                (int)($_SESSION['stage3_auth_version'] ?? 0));
             if ($path === '/api/session' && $method === 'GET') {
-                self::response(200, ['authenticated' => ($_SESSION['stage3_owner'] ?? false) === true,
-                    'csrfToken' => ($_SESSION['stage3_owner'] ?? false) === true ? $_SESSION['stage3_csrf'] : null]);
+                $this->response(200, ['authenticated' => $principal !== null,
+                    'csrfToken' => $principal !== null ? ($_SESSION['stage3_csrf'] ?? null) : null,
+                    'principal' => $principal]);
             }
             if ($method !== 'GET') {
-                self::requireOrigin();
+                $this->requireOrigin();
             }
             if ($path === '/api/login' && $method === 'POST') {
-                $body = self::request();
+                $body = $this->request();
                 $user = $body['username'] ?? null;
                 $pass = $body['password'] ?? null;
+                $this->auditContext = [is_string($user) ? substr($user,0,40) : 'unknown', 'login', null];
                 $fails = (int)($_SESSION['stage3_login_fails'] ?? 0);
                 if ($fails >= 5) {
-                    self::response(429, ['error' => 'Too many attempts this session']);
+                    $this->response(429, ['error' => 'Too many attempts this session']);
                 }
                 if (!is_string($user) || !is_string($pass) || !$this->sites->authenticate($user, $pass)) {
                     $_SESSION['stage3_login_fails'] = $fails + 1;
-                    self::response(401, ['error' => 'Invalid credentials']);
+                    $this->response(401, ['error' => 'Invalid credentials']);
                 }
                 session_regenerate_id(true);
-                $_SESSION['stage3_owner'] = true;
+                $principal = $this->sites->principal($user);
+                $_SESSION['stage3_username'] = $principal['username'];
+                $_SESSION['stage3_auth_version'] = $principal['authVersion'];
                 $_SESSION['stage3_csrf'] = bin2hex(random_bytes(32));
                 unset($_SESSION['stage3_login_fails']);
-                self::response(200, ['authenticated' => true, 'csrfToken' => $_SESSION['stage3_csrf']]);
+                $this->response(200, ['authenticated' => true, 'csrfToken' => $_SESSION['stage3_csrf'], 'principal' => $principal]);
             }
-            self::authenticated();
+            if ($principal === null) $this->response(401, ['error' => 'Sign in required; account/session may have changed']);
+            $siteScope = null;
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/|$)~', $path, $scope)) $siteScope = $scope[1];
+            $this->auditContext = [$principal['username'], $method . ' ' . $path, $siteScope];
+            $this->authorize($principal, $path, $method);
             if ($method === 'GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/media/([a-z][a-z0-9-]{2,79})$~D', $path, $mediaMatch)) {
                 $draft = $this->sites->getDraft($mediaMatch[1]);
                 if (!in_array($mediaMatch[2], array_column($draft['site']['assets'], 'id'), true)) {
@@ -215,19 +251,50 @@ final class Api
                 exit;
             }
             if ($path === '/api/sites' && $method === 'GET') {
-                self::response(200, ['sites' => $this->sites->listSites()]);
+                $listed = $this->sites->listSites();
+                if ($principal['role'] !== 'owner') $listed = array_values(array_filter($listed, static fn (array $r): bool => in_array($r['site_id'], $principal['sites'], true)));
+                $this->response(200, ['sites' => $listed]);
             }
             if ($method === 'POST') {
-                self::csrf();
-                $body = self::request(in_array($path, ['/api/backups/plan','/api/backups/restore'], true) ? SiteRepository::ARCHIVE_LIMIT : 750000);
+                $this->csrf();
+                $body = $this->request(in_array($path, ['/api/backups/plan','/api/backups/restore'], true) ? SiteRepository::ARCHIVE_LIMIT : 750000);
                 if ($path === '/api/logout') {
                     $_SESSION = [];
                     session_regenerate_id(true);
-                    self::response(200, ['authenticated' => false]);
+                    $this->response(200, ['authenticated' => false]);
                 }
                 if ($path === '/api/sites') {
-                    self::response(201, $this->sites->createSite($body['site'] ?? []));
+                    $this->response(201, $this->sites->createSite($body['site'] ?? []));
                 }
+            }
+            if ($path === '/api/password' && $method === 'POST') {
+                if (!is_string($body['currentPassword'] ?? null) || !is_string($body['newPassword'] ?? null)) throw new InvalidArgumentException('Current and new passwords required');
+                $this->sites->changePassword($principal['username'], $body['currentPassword'], $body['newPassword']);
+                $_SESSION = []; session_regenerate_id(true);
+                $this->response(200, ['authenticated' => false]);
+            }
+            if ($path === '/api/users' && $method === 'GET') {
+                $this->response(200, ['users' => $this->sites->accounts()]);
+            }
+            if ($path === '/api/audit' && $method === 'GET') {
+                $filter = $_GET['siteId'] ?? null;
+                if ($filter !== null && !is_string($filter)) throw new InvalidArgumentException('Invalid site filter');
+                $this->response(200, ['events' => $this->sites->auditLog($filter)]);
+            }
+            if ($method === 'POST' && ($path === '/api/users' || preg_match('~^/api/users/([a-z][a-z0-9_-]{2,39})$~D', $path, $userMatch))) {
+                $username = $path === '/api/users' ? ($body['username'] ?? null) : $userMatch[1];
+                if (!is_string($username) || !is_string($body['role'] ?? null) || !is_array($body['sites'] ?? null)
+                    || !is_string($body['reason'] ?? null) || trim($body['reason']) === '' || strlen($body['reason']) > 240
+                    || preg_match('/[\x00-\x1f]/', $body['reason'])) throw new InvalidArgumentException('Username, role, sites and reason required');
+                $this->auditDetail = 'Account ' . substr($username,0,40) . ': ' . $body['reason'];
+                if ($path === '/api/users') {
+                    if (!is_string($body['password'] ?? null)) throw new InvalidArgumentException('Password required');
+                    $this->sites->createAccount($username,$body['password'],$body['role'],$body['sites']);
+                    $this->response(201, ['created' => true]);
+                }
+                if (!is_bool($body['disabled'] ?? null)) throw new InvalidArgumentException('Disabled flag required');
+                $this->sites->updateAccount($username,$body['role'],$body['disabled'],$body['sites'],self::revision($body['expectedVersion'] ?? null));
+                $this->response(200, ['updated' => true]);
             }
             if ($method === 'POST' && in_array($path, ['/api/backups/plan','/api/backups/restore'], true)) {
                 $archive = $body['archive'] ?? null;
@@ -238,7 +305,7 @@ final class Api
                     $plan = $this->sites->planArchive($archive, $target);
                     $token = bin2hex(random_bytes(32));
                     $_SESSION['stage3_archive_plan'] = ['digest' => $digest, 'token' => $token, 'expires' => time() + 900];
-                    self::response(200, ['plan' => $plan, 'confirmationToken' => $token]);
+                    $this->response(200, ['plan' => $plan, 'confirmationToken' => $token]);
                 }
                 $pending = $_SESSION['stage3_archive_plan'] ?? [];
                 if (($pending['expires'] ?? 0) < time() || !is_string($body['confirmationToken'] ?? null)
@@ -248,19 +315,19 @@ final class Api
                 }
                 $restored = $this->sites->importArchive($archive, $target);
                 unset($_SESSION['stage3_archive_plan']);
-                self::response(201, $restored);
+                $this->response(201, $restored);
             }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/(backup|releases|restore-release)$~D', $path, $backupMatch)) {
                 $id = $backupMatch[1]; $action = $backupMatch[2];
                 if ($method === 'GET' && $action === 'backup') {
                     header('Content-Disposition: attachment; filename="' . $id . '-backup.json"');
-                    self::response(200, $this->sites->exportArchive($id));
+                    $this->response(200, $this->sites->exportArchive($id));
                 }
                 if ($method === 'GET' && $action === 'releases') {
-                    self::response(200, ['releases' => $this->sites->publicationHistory($id)]);
+                    $this->response(200, ['releases' => $this->sites->publicationHistory($id)]);
                 }
                 if ($method === 'POST' && $action === 'restore-release') {
-                    self::response(200, $this->sites->save($id,
+                    $this->response(200, $this->sites->save($id,
                         $this->sites->publishedVersion($id, self::revision($body['version'] ?? null)),
                         self::revision($body['expectedRevision'] ?? null)));
                 }
@@ -268,11 +335,11 @@ final class Api
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/templates(?:/(template-[0-9a-f]{18})/delete)?$~D', $path, $templateMatch)) {
                 $siteId = $templateMatch[1];
                 if ($method === 'GET' && !isset($templateMatch[2])) {
-                    self::response(200, ['templates' => $this->sites->sectionTemplates($siteId)]);
+                    $this->response(200, ['templates' => $this->sites->sectionTemplates($siteId)]);
                 }
                 if ($method === 'POST' && isset($templateMatch[2])) {
                     $this->sites->removeSectionTemplate($siteId, $templateMatch[2]);
-                    self::response(200, ['deleted' => true]);
+                    $this->response(200, ['deleted' => true]);
                 }
                 if ($method === 'POST' && !isset($templateMatch[2])) {
                     $name = $body['name'] ?? null;
@@ -281,7 +348,7 @@ final class Api
                     if (!is_string($name) || !is_string($pageId) || !is_string($sectionId)) {
                         throw new InvalidArgumentException('Template name, page and section required');
                     }
-                    self::response(201, ['template' => $this->sites->storeSectionTemplate(
+                    $this->response(201, ['template' => $this->sites->storeSectionTemplate(
                         $siteId, $pageId, $sectionId, $name,
                         self::revision($body['expectedRevision'] ?? null)
                     )]);
@@ -289,29 +356,29 @@ final class Api
             }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/notifications(?:/(seen))?$~D', $path, $alertMatch)) {
                 if ($method === 'GET' && !isset($alertMatch[2])) {
-                    self::response(200, $this->sites->notificationSummary($alertMatch[1]));
+                    $this->response(200, $this->sites->notificationSummary($alertMatch[1]));
                 }
                 if ($method === 'POST' && isset($alertMatch[2])) {
-                    self::response(200, $this->sites->markNotificationsSeen($alertMatch[1]));
+                    $this->response(200, $this->sites->markNotificationsSeen($alertMatch[1]));
                 }
             }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/submissions(?:/(lead-[0-9a-f]{24})/review)?$~D', $path, $inboxMatch)) {
                 if ($method === 'GET' && !isset($inboxMatch[2])) {
-                    self::response(200, ['submissions' => $this->sites->submissions($inboxMatch[1])]);
+                    $this->response(200, ['submissions' => $this->sites->submissions($inboxMatch[1])]);
                 }
                 if ($method === 'POST' && isset($inboxMatch[2])) {
                     $this->sites->reviewSubmission($inboxMatch[1], $inboxMatch[2]);
-                    self::response(200, ['status' => 'reviewed']);
+                    $this->response(200, ['status' => 'reviewed']);
                 }
             }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/(revisions|restore|save|publish|media))?$~D', $path, $matches)) {
                 $id = $matches[1];
                 $action = $matches[2] ?? '';
                 if ($method === 'GET' && $action === '') {
-                    self::response(200, $this->sites->getDraft($id));
+                    $this->response(200, $this->sites->getDraft($id));
                 }
                 if ($method === 'GET' && $action === 'revisions') {
-                    self::response(200, ['revisions' => $this->sites->history($id)]);
+                    $this->response(200, ['revisions' => $this->sites->history($id)]);
                 }
                 if ($method === 'POST') {
                     if ($action === 'media') {
@@ -320,36 +387,36 @@ final class Api
                         if (!is_string($base64) || !is_string($alt)) {
                             throw new InvalidArgumentException('Image content and description required');
                         }
-                        self::response(201, $this->sites->uploadImage($id, $base64, $alt,
+                        $this->response(201, $this->sites->uploadImage($id, $base64, $alt,
                             self::revision($body['expectedRevision'] ?? null)));
                     }
                     if ($action === 'save') {
-                        self::response(200, $this->sites->save($id, $body['site'] ?? [],
+                        $this->response(200, $this->sites->save($id, $body['site'] ?? [],
                             self::revision($body['expectedRevision'] ?? null)));
                     }
                     if ($action === 'restore') {
-                        self::response(200, $this->sites->restore($id,
+                        $this->response(200, $this->sites->restore($id,
                             self::revision($body['targetRevision'] ?? null),
                             self::revision($body['expectedRevision'] ?? null)));
                     }
                     if ($action === 'publish') {
-                        self::response(200, $this->sites->publish($id,
+                        $this->response(200, $this->sites->publish($id,
                             self::revision($body['expectedRevision'] ?? null)));
                     }
                 }
             }
-            self::response(404, ['error' => 'Unknown endpoint']);
+            $this->response(404, ['error' => 'Unknown endpoint']);
         } catch (Conflict $e) {
-            self::response(409, ['error' => $e->getMessage()]);
+            $this->response(409, ['error' => $e->getMessage()]);
         } catch (NotFound $e) {
-            self::response(404, ['error' => $e->getMessage()]);
+            $this->response(404, ['error' => $e->getMessage()]);
         } catch (InvalidArgumentException $e) {
-            self::response(422, ['error' => $e->getMessage()]);
+            $this->response(422, ['error' => $e->getMessage()]);
         } catch (JsonException $e) {
-            self::response(400, ['error' => 'Invalid JSON']);
+            $this->response(400, ['error' => 'Invalid JSON']);
         } catch (Throwable $e) {
             error_log('Stage3 API internal error: ' . get_class($e));
-            self::response(500, ['error' => 'Internal error']);
+            $this->response(500, ['error' => 'Internal error']);
         }
     }
 }

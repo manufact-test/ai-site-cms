@@ -17,6 +17,7 @@ final class NotFound extends RuntimeException {}
 final class SiteRepository
 {
     use SiteArchives;
+    use AccessControl;
     private string $driver;
     public function __construct(private PDO $db, private ContractValidator $validator)
     {
@@ -57,7 +58,7 @@ final class SiteRepository
             "CREATE TABLE stage3_notifications (site_id $id NOT NULL, submission_id $id NOT NULL, created_at VARCHAR(35) NOT NULL, seen_at VARCHAR(35) NULL, PRIMARY KEY(site_id, submission_id))$tail",
             "CREATE TABLE stage3_section_templates (site_id $id NOT NULL, template_id $id NOT NULL, title VARCHAR(160) NOT NULL, component VARCHAR(80) NOT NULL, body $big NOT NULL, created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id,template_id))$tail"
         ];
-        foreach ($schema as $sql) {
+        foreach (array_merge($schema, $this->accessSchema()) as $sql) {
             $this->db->exec($sql);
         }
     }
@@ -74,6 +75,8 @@ final class SiteRepository
         }
         $stmt = $this->db->prepare('INSERT INTO stage3_users (username, password_hash) VALUES (?, ?)');
         $stmt->execute([$username, password_hash($password, PASSWORD_DEFAULT)]);
+        $stmt = $this->db->prepare("INSERT INTO stage3_access_users (username,role,disabled,auth_version) VALUES (?,'owner',0,1)");
+        $stmt->execute([$username]);
     }
 
     public function authenticate(string $username, string $password): bool
@@ -84,7 +87,7 @@ final class SiteRepository
         $stmt = $this->db->prepare('SELECT password_hash FROM stage3_users WHERE username = ?');
         $stmt->execute([$username]);
         $hash = $stmt->fetchColumn();
-        return is_string($hash) && password_verify($password, $hash);
+        return is_string($hash) && password_verify($password, $hash) && $this->principal($username) !== null;
     }
 
     public function listSites(): array

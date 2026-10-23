@@ -5,7 +5,10 @@
   const editor=window.Stage3Editor;
   if(!editor||document.documentElement.dataset.stage3Mode!=='server')throw Error('Hosted Studio bootstrap mismatch');
   const $=id=>document.getElementById(id);
-  const state={csrf:null,siteId:null,revision:null,sites:[],revisions:[],busy:false,authorized:false,loading:false};
+  const state={csrf:null,siteId:null,revision:null,sites:[],revisions:[],busy:false,authorized:false,loading:false,principal:null};
+  const isOwner=()=>state.principal?.role==='owner';
+  const canEdit=()=>['owner','editor','publisher'].includes(state.principal?.role);
+  const canPublish=()=>['owner','publisher'].includes(state.principal?.role);
   const notice=(text,error=false)=>{const t=$('toast');t.hidden=false;t.textContent=text;t.className='toast'+(error?' error':'');};
   const element=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
   const action=(text,id,fn)=>{const b=element('button','btn small',text);b.id=id;b.type='button';b.addEventListener('click',fn);return b;};
@@ -108,7 +111,7 @@
   alertsRow.append(alertsLabel,acknowledge);
   leadsPanel.before(alertsRow);
   async function refreshAlerts(){
-    if(!state.authorized||!state.siteId){alertsLabel.textContent='Непросмотренные заявки: 0';return;}
+    if(!state.authorized||!state.siteId||!canEdit()){alertsLabel.textContent='Непросмотренные заявки: 0';return;}
     const info=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/notifications');
     alertsLabel.textContent='Непросмотренные заявки: '+info.unread;
     acknowledge.disabled=info.unread===0;
@@ -116,7 +119,7 @@
 
   async function loadSubmissions(){
     leadsList.replaceChildren();
-    if(!state.authorized||!state.siteId){
+    if(!state.authorized||!state.siteId||!canEdit()){
       leadsTitle.textContent='Заявки сайта';
       leadsList.append(element('small',null,'Выберите сайт.'));
       return;
@@ -310,7 +313,7 @@
         selectSite(restored);await refreshSites();await loadHistory();await loadTemplates();
         notice('Публикация v'+release.version+' возвращена в черновик #'+state.revision+'.');
       })));
-      releaseList.append(wrap);
+      wrap.querySelector('button').disabled=!canEdit();releaseList.append(wrap);
     }
   }
   document.querySelector('.sidebar-bottom').textContent='Серверная Studio · черновики отдельно от публикации. Только изолированный Stage3.';
@@ -332,7 +335,7 @@
       ...(method==='POST'?{body:JSON.stringify(payload||{})}:{})});
     const body=await response.json();
     if(!response.ok){
-      if(response.status===401&&route!=='/api/login'){state.authorized=false;setGate(true);}
+      if(response.status===401&&route!=='/api/login'){state.authorized=false;state.principal=null;setGate(true);}
       const err=Error(body.error||('HTTP '+response.status));err.status=response.status;throw err;
     }
     return body;
@@ -347,28 +350,34 @@
   function drawStatus(){
     const exists=state.authorized&&state.siteId!==null&&state.revision!==null;
     const available=exists&&!state.busy;
-    $('save').disabled=!available||!isDirty();
-    $('server-publish').disabled=!available||isDirty();
+    $('save').disabled=!available||!isDirty()||!canEdit();
+    $('server-publish').disabled=!available||isDirty()||!canPublish();
     $('server-reload').disabled=!available;
     $('server-open').disabled=state.busy||!state.authorized||!picker.value;
     $('server-site-select').disabled=state.busy||!state.authorized;
     $('server-logout').disabled=state.busy||!state.authorized;
-    $('new-site').disabled=state.busy||!state.authorized;
-    $('compose-site').disabled=state.busy||!state.authorized;
-    $('import').disabled=state.busy||!state.authorized;
+    $('new-site').disabled=state.busy||!isOwner();
+    $('compose-site').disabled=state.busy||!isOwner();
+    $('import').disabled=state.busy||!isOwner();
     leadsRefresh.disabled=state.busy||!state.authorized||!state.siteId;
     acknowledge.disabled=state.busy||!state.authorized||!state.siteId||acknowledge.disabled;
-    mediaUpload.disabled=!available||isDirty();
-    templatesSave.disabled=!available||isDirty();
+    mediaUpload.disabled=!available||isDirty()||!canEdit();
+    templatesSave.disabled=!available||isDirty()||!canEdit();
     templatesRefresh.disabled=!available;
-    backupDownload.disabled=!available||isDirty();
-    backupOpen.disabled=state.busy||!state.authorized;
+    backupDownload.disabled=!available||isDirty()||!isOwner();
+    backupOpen.disabled=state.busy||!isOwner();
     releaseRefresh.disabled=!available;
     backupPlan.disabled=state.busy||!state.authorized;
     backupClose.disabled=state.busy;
     backupFile.disabled=state.busy;backupTarget.disabled=state.busy;
     backupRestore.disabled=state.busy||!pendingArchive||!state.authorized;
     $('reset').disabled=!available;
+    document.getElementById('fields').inert=!canEdit();
+    for(const node of document.querySelectorAll('.structure-tools'))node.inert=!canEdit();
+    for(const id of ['undo','redo'])if(!canEdit())$(id).disabled=true;
+    templatesList.inert=!canEdit();leadsPanel.hidden=!canEdit();alertsRow.hidden=!canEdit();
+    backupDownload.hidden=!isOwner();backupOpen.hidden=!isOwner();
+    window.dispatchEvent(new Event('stage3-session'));
     const meta=state.sites.find(s=>s.site_id===state.siteId);
     const published=meta?.published_version?('Опубликовано: v'+meta.published_version):'Пока не опубликован';
     status.textContent=exists?('Черновик #'+state.revision+' · '+published+
@@ -472,7 +481,7 @@
     if(isDirty()&&!confirm('Выйти без сохранения текущих правок?'))return;
     await api('/api/logout','POST',{});
     clearArchive();backupDialog.close();releaseList.replaceChildren();
-    state.authorized=false;state.csrf=null;state.siteId=null;state.revision=null;
+    state.authorized=false;state.principal=null;state.csrf=null;state.siteId=null;state.revision=null;
     state.revisions=[];state.sites=[];picker.replaceChildren();
     mediaList.replaceChildren();templatesList.replaceChildren();
     editorVisible(false);setGate(true);
@@ -496,7 +505,7 @@
         selectSite(result);await refreshSites();await loadHistory();
         notice('Ревизия #'+item.revision+' восстановлена как новый черновик #'+state.revision+'.');
       }));
-      b.className='version';
+      b.className='version';b.disabled=!canEdit();
       const small=element('small',null,new Date(item.created_at).toLocaleString('ru-RU'));
       b.append(small);box.append(b);
     }
@@ -507,12 +516,12 @@
     state.busy=true;submit.disabled=true;info.textContent='';
     try{
       const data=await api('/api/login','POST',{username:user.value,password:pass.value});
-      state.csrf=data.csrfToken;state.authorized=true;pass.value='';
+      state.csrf=data.csrfToken;state.principal=data.principal;state.authorized=true;pass.value='';
       setGate(false);
       await refreshSites();
       if(state.sites.length)await openSite(state.sites[0].site_id);
       else{editorVisible(false);notice('Вход выполнен. Создайте первый сайт.');}
-    }catch(err){info.textContent=err.message;state.authorized=false;setGate(true);}
+    }catch(err){info.textContent=err.message;state.authorized=false;state.principal=null;setGate(true);}
     finally{state.busy=false;submit.disabled=false;drawStatus();}
   }
   form.addEventListener('submit',signIn);
@@ -530,7 +539,9 @@
     }finally{state.busy=false;drawStatus();}
   }
   window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewUrl,
-    compositionTemplates,createComposition,canCompose:()=>state.authorized&&!state.busy});
+    api,safe,notice,principal:()=>state.principal,
+    lock:()=>{state.authorized=false;state.principal=null;state.csrf=null;editorVisible(false);setGate(true);},
+    compositionTemplates,createComposition,canCompose:()=>isOwner()&&!state.busy});
   $('versions').replaceChildren();
   editorVisible(false);
   state.loading=true;setGate(true);
@@ -538,7 +549,7 @@
     try{
       const stateResponse=await api('/api/session');
       if(stateResponse.authenticated){
-        state.csrf=stateResponse.csrfToken;state.authorized=true;setGate(false);
+        state.csrf=stateResponse.csrfToken;state.principal=stateResponse.principal;state.authorized=true;setGate(false);
         await refreshSites();
         if(state.sites.length)await safe(()=>openSite(state.sites[0].site_id));
         else notice('Вход действителен. Создайте первый сайт.');
