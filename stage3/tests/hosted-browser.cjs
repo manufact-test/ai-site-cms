@@ -39,7 +39,7 @@ async function execute(){
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin+'/studio');
   await page.locator('#server-login:not([hidden])').waitFor();
-  assert.equal(await page.locator('.workspace:visible').count(),0,'No unauthenticated site preview');
+  assert.equal(await page.locator('.center:visible').count(),0,'No unauthenticated site preview');
   await page.locator('#server-username').fill('testowner');
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
   await page.locator('#server-signin').click();

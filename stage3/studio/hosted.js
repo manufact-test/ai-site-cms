@@ -104,11 +104,15 @@
     state.revisions=(await api('/api/sites/'+encodeURIComponent(state.siteId)+'/revisions')).revisions;
     drawVersions();
   }
+  function editorVisible(visible){
+    document.querySelector('.center').hidden=!visible;
+    document.querySelector('.inspector').hidden=!visible;
+  }
   function selectSite(result){
     editor.replace(result.site);
     state.siteId=result.site.siteId;
     state.revision=Number(result.revision);
-    document.querySelector('.workspace').hidden=false;
+    editorVisible(true);
     drawStatus();
   }
   async function openSite(id){
@@ -175,7 +179,7 @@
     await api('/api/logout','POST',{});
     state.authorized=false;state.csrf=null;state.siteId=null;state.revision=null;
     state.revisions=[];state.sites=[];picker.replaceChildren();
-    document.querySelector('.workspace').hidden=true;setGate(true);
+    editorVisible(false);setGate(true);
     notice('Вы вышли из серверной CMS.');
   }
   function drawVersions(){
@@ -211,7 +215,7 @@
       setGate(false);
       await refreshSites();
       if(state.sites.length)await openSite(state.sites[0].site_id);
-      else{document.querySelector('.workspace').hidden=true;notice('Вход выполнен. Создайте первый сайт.');}
+      else{editorVisible(false);notice('Вход выполнен. Создайте первый сайт.');}
     }catch(err){info.textContent=err.message;state.authorized=false;setGate(true);}
     finally{state.busy=false;submit.disabled=false;drawStatus();}
   }
@@ -219,7 +223,7 @@
   picker.addEventListener('change',()=>safe(()=>openSite(picker.value)));
   window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus});
   $('versions').replaceChildren();
-  document.querySelector('.workspace').hidden=true;
+  editorVisible(false);
   state.loading=true;setGate(true);
   (async()=>{
     try{

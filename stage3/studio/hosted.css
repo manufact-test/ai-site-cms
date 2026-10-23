@@ -17,3 +17,5 @@
 .hosted-login-message{min-height:18px;color:#ff9999!important}
 .workspace[hidden]{display:none!important}
 @media(max-width:750px){.top-actions{flex-wrap:wrap}.hosted-actions{padding:12px}}
+
+.center[hidden],.inspector[hidden]{display:none!important}
