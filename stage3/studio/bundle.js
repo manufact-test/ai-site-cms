@@ -319,28 +319,92 @@ function redo(raw,manifests){
   return {format:SESSION,revision:s.revision+1,base:copy(s.base),
     current:next,undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:future};
 }
-function changes(raw,manifests){
+
+// Explicit structure operations use the same validated document as field edits.
+// Undo/redo and optimistic local revision checks therefore work for both.
+function structure(raw,manifests,command){
   const s=verifySession(raw,manifests);
-  const result=[];
-  for(const [pageIndex,page] of s.current.pages.entries()){
-    const initial=s.base.pages[pageIndex];
-    if(initial.id!==page.id||initial.sections.length!==page.sections.length)
-      throw Error('Structural edits require another explicit operation');
-    for(const [sectionIndex,sec] of page.sections.entries()){
-      const original=initial.sections[sectionIndex];
-      if(original.id!==sec.id||sec.elements.length!==original.elements.length)
-        throw Error('Structural edits require another explicit operation');
-      for(const el of sec.elements){
-        const before=original.elements.find(x=>x.id===el.id);
-        if(!before)throw Error('Stable element ID changed');
-        for(const [path,value] of Object.entries(el.values))
-          if(JSON.stringify(before.values[path])!==JSON.stringify(value))
-            result.push({pageId:page.id,sectionId:sec.id,elementId:el.id,path,
-              original:copy(before.values[path]),current:copy(value)});
-      }
+  if(!isObj(command)||s.revision!==command.expectedRevision)
+    throw Error('Stale structure revision');
+  const c=copy(s.current),reg=C.registry(manifests);
+  const {action,pageId,sectionId}=command;
+  const page=c.pages.find(p=>p.id===pageId);
+  const index=c.pages.findIndex(p=>p.id===pageId);
+  const sectionIndex=page?.sections.findIndex(t=>t.id===sectionId)??-1;
+  const label=value=>{
+    if(typeof value!=='string'||!value.trim()||value.length>160)throw Error('Invalid title');
+    return value.trim();
+  };
+  const move=(items,position,delta)=>{
+    if(!Number.isInteger(delta)||Math.abs(delta)!==1)throw Error('Move requires one position');
+    const target=position+delta;
+    if(position<0||target<0||target>=items.length)throw Error('Cannot move outside collection');
+    [items[position],items[target]]=[items[target],items[position]];
+  };
+  switch(action){
+    case 'addPage': {
+      if(typeof command.id!=='string'||!reg.has(command.component))throw Error('Unknown new page');
+      c.pages.push({id:command.id,path:command.path,title:label(command.title),
+        sections:[C.sectionFrom(reg.get(command.component),command.sectionId)]});
+      break;
     }
+    case 'updatePage':
+      if(!page)throw Error('Unknown page');
+      page.title=label(command.title);
+      if(page.path==='/'&&command.path!=='/')throw Error('Home page must retain root path');
+      page.path=command.path;
+      break;
+    case 'movePage':
+      move(c.pages,index,command.delta);break;
+    case 'removePage':
+      if(!page||page.path==='/'||c.pages.length===1)throw Error('Cannot remove root/last page');
+      c.pages.splice(index,1);break;
+    case 'addSection':
+      if(!page||typeof command.id!=='string'||!reg.has(command.component))throw Error('Unknown new section');
+      page.sections.splice(sectionIndex>=0?sectionIndex+1:page.sections.length,0,
+        C.sectionFrom(reg.get(command.component),command.id));
+      break;
+    case 'moveSection':
+      if(!page)throw Error('Unknown page');
+      move(page.sections,sectionIndex,command.delta);break;
+    case 'removeSection':
+      if(!page||sectionIndex<0||page.sections.length===1)throw Error('Cannot remove last section');
+      page.sections.splice(sectionIndex,1);break;
+    default:throw Error('Unknown structure action');
   }
-  return result;
+  C.validateSite(c,manifests); // complete schema + globally stable IDs + safe paths
+  if(JSON.stringify(c)===JSON.stringify(s.current))return copy(s);
+  return {format:SESSION,revision:s.revision+1,base:copy(s.base),
+    current:c,undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:[]};
+}
+function changes(raw,manifests){
+  const s=verifySession(raw,manifests),diff=[];
+  const pages=new Map(s.base.pages.map(p=>[p.id,p]));
+  const record=(kind,ids)=>diff.push({kind,...ids});
+  s.base.pages.forEach(p=>{if(!s.current.pages.some(q=>q.id===p.id))record('page-removed',{pageId:p.id});});
+  s.current.pages.forEach((page,position)=>{
+    const prior=pages.get(page.id);
+    if(!prior){record('page-added',{pageId:page.id});return;}
+    if(prior.path!==page.path||prior.title!==page.title)record('page-updated',{pageId:page.id});
+    if(s.base.pages.findIndex(q=>q.id===page.id)!==position)record('page-moved',{pageId:page.id});
+    const oldSections=new Map(prior.sections.map(t=>[t.id,t]));
+    prior.sections.forEach(t=>{if(!page.sections.some(q=>q.id===t.id))record('section-removed',{pageId:page.id,sectionId:t.id});});
+    page.sections.forEach((section,i)=>{
+      const prev=oldSections.get(section.id);
+      if(!prev){record('section-added',{pageId:page.id,sectionId:section.id});return;}
+      if(prior.sections.findIndex(q=>q.id===section.id)!==i)
+        record('section-moved',{pageId:page.id,sectionId:section.id});
+      for(const el of section.elements){
+        const original=prev.elements.find(q=>q.id===el.id);
+        if(!original)throw Error('Stable element ID changed');
+        for(const [path,value] of Object.entries(el.values))
+          if(JSON.stringify(original.values[path])!==JSON.stringify(value))
+            diff.push({pageId:page.id,sectionId:section.id,elementId:el.id,path,
+              original:copy(original.values[path]),current:copy(value)});
+      }
+    });
+  });
+  return diff;
 }
 function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
   if(!C.BREAKPOINTS.includes(breakpoint))throw Error('Invalid viewport');
@@ -361,7 +425,7 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
     pageId,sectionId,component:section.component,breakpoint,
     elements,notPublished:true,hasExecutableHtml:false};
 }
-module.exports=Object.freeze({begin,edit,undo,redo,changes,blockPreview});
+module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,blockPreview});
 
 return module.exports;})();
 const MANIFESTS=[{"format":"manufact-ai-component-v1","id":"company-hero","version":"1.0.0","label":"Первый экран компании","elements":[{"slot":"heading","label":"Главный заголовок","fields":[{"path":"content.text","label":"Текст заголовка","type":"text","default":"Оборудование для вашего производства","responsive":false,"maxLength":180},{"path":"style.fontSize","label":"Размер заголовка","type":"length","default":{"desktop":"64px","tablet":"48px","mobile":"32px"},"responsive":true,"min":10,"max":120,"units":["px","rem"]},{"path":"style.color","label":"Цвет заголовка","type":"color","default":"#172A43","responsive":false}]},{"slot":"summary","label":"Описание","fields":[{"path":"content.text","label":"Текст описания","type":"text","default":"Расскажите о вашем предложении без вымышленных фактов.","responsive":false,"maxLength":420}]},{"slot":"action","label":"Основная кнопка","fields":[{"path":"content.text","label":"Подпись кнопки","type":"text","default":"Связаться","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес перехода","type":"url","default":"/contact/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"feature-highlights","version":"1.0.0","label":"Преимущества","elements":[{"slot":"heading","label":"Заголовок преимуществ","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Чем мы занимаемся","responsive":false,"maxLength":180}]},{"slot":"first","label":"Первая карточка","fields":[{"path":"content.text","label":"Описание преимущества","type":"text","default":"Заполните подтверждённые преимущества компании","responsive":false,"maxLength":280},{"path":"style.color","label":"Цвет текста","type":"color","default":"#172A43","responsive":false}]},{"slot":"second","label":"Вторая карточка","fields":[{"path":"content.text","label":"Описание второй карточки","type":"text","default":"Уточните факты у заказчика","responsive":false,"maxLength":280}]}]},{"format":"manufact-ai-component-v1","id":"contact-panel","version":"1.0.0","label":"Контакты","elements":[{"slot":"heading","label":"Заголовок контактов","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Свяжитесь с нами","responsive":false,"maxLength":180}]},{"slot":"action","label":"Контактная кнопка","fields":[{"path":"content.text","label":"Подпись","type":"text","default":"Оставить заявку","responsive":false,"maxLength":120},{"path":"behavior.href","label":"Ссылка","type":"url","default":"/contact/","responsive":false}]}]}];
@@ -422,6 +486,77 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         'nav-entry'+(section.id===sectionId?' active':''),
         ()=>{sectionId=section.id;elementId=section.elements[0].id;draw();}));
     });
+  }
+
+  // Same explicit structural operations in both offline and server Studio.
+  // Server mode still requires a separate Save and a separate Publish.
+  const uniqueId=prefix=>{
+    const bytes=new Uint8Array(10);crypto.getRandomValues(bytes);
+    return prefix+'-'+Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('');
+  };
+  function structural(command){
+    try{
+      const before=session.current;
+      session=D.structure(session,manifests,{...command,expectedRevision:session.revision});
+      const selected=session.current.pages.find(x=>x.id===pageId);
+      if(!selected){pageId=session.current.pages[0].id;sectionId='';}
+      const page=session.current.pages.find(x=>x.id===pageId);
+      if(!page.sections.some(x=>x.id===sectionId))sectionId=page.sections[0].id;
+      if(!page.sections.find(x=>x.id===sectionId).elements.some(x=>x.id===elementId))
+        elementId=page.sections.find(x=>x.id===sectionId).elements[0].id;
+      draw();
+      if(before!==session.current)notice('Структура изменена в черновике. Для сохранения нажмите «Сохранить».');
+    }catch(e){notice('Изменение структуры отклонено: '+e.message,true);}
+  }
+  function createStructureTools(){
+    const make=(parent,items)=>{
+      const tools=document.createElement('div');tools.className='structure-tools';
+      for(const [id,label,handler] of items)tools.append(button(label,'btn small',handler));
+      for(const [i,node] of [...tools.children].entries())node.id=items[i][0];
+      parent.before(tools);
+    };
+    const pageActions=[
+      ['page-add','+ Страница',()=>{
+        const title=prompt('Название новой страницы','Новая страница');if(title===null)return;
+        const path=prompt('Путь страницы (например /catalog/)','/new-page/');if(path===null)return;
+        const id=uniqueId('page'),sectionId=uniqueId('section');
+        structural({action:'addPage',id,path,title,sectionId,component:'company-hero'});
+        if(session.current.pages.some(x=>x.id===id)){
+          pageId=id;sectionId=session.current.pages.find(x=>x.id===id).sections[0].id;
+          elementId=session.current.pages.find(x=>x.id===id).sections[0].elements[0].id;draw();
+        }
+      }],
+      ['page-rename','Изменить',()=>{
+        const page=current().page;
+        const title=prompt('Название страницы',page.title);if(title===null)return;
+        const path=prompt('Путь страницы',page.path);if(path===null)return;
+        structural({action:'updatePage',pageId:page.id,title,path});
+      }],
+      ['page-up','↑',()=>structural({action:'movePage',pageId:pageId,delta:-1})],
+      ['page-down','↓',()=>structural({action:'movePage',pageId:pageId,delta:1})],
+      ['page-remove','Удалить',()=>{
+        if(confirm('Удалить выбранную страницу и все её блоки из черновика?'))structural({action:'removePage',pageId});
+      }]
+    ];
+    const sectionActions=[
+      ['section-add','+ Блок',()=>{
+        const component=prompt('Компонент блока: company-hero, feature-highlights, contact-panel','feature-highlights');
+        if(component===null)return;
+        const id=uniqueId('section');
+        structural({action:'addSection',pageId,sectionId,id,component});
+        const page=session.current.pages.find(x=>x.id===pageId);
+        if(page.sections.some(x=>x.id===id)){
+          sectionId=id;elementId=page.sections.find(x=>x.id===id).elements[0].id;draw();
+        }
+      }],
+      ['section-up','↑',()=>structural({action:'moveSection',pageId,sectionId,delta:-1})],
+      ['section-down','↓',()=>structural({action:'moveSection',pageId,sectionId,delta:1})],
+      ['section-remove','Удалить',()=>{
+        if(confirm('Удалить блок из черновика?'))structural({action:'removeSection',pageId,sectionId});
+      }]
+    ];
+    make($('pages'),pageActions);
+    make($('sections'),sectionActions);
   }
   function drawElements(){
     const {section}=current(),m=manifest(section);
@@ -641,6 +776,6 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  load();draw();
+  createStructureTools();load();draw();
 })();
 })();

@@ -55,6 +55,77 @@
         ()=>{sectionId=section.id;elementId=section.elements[0].id;draw();}));
     });
   }
+
+  // Same explicit structural operations in both offline and server Studio.
+  // Server mode still requires a separate Save and a separate Publish.
+  const uniqueId=prefix=>{
+    const bytes=new Uint8Array(10);crypto.getRandomValues(bytes);
+    return prefix+'-'+Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('');
+  };
+  function structural(command){
+    try{
+      const before=session.current;
+      session=D.structure(session,manifests,{...command,expectedRevision:session.revision});
+      const selected=session.current.pages.find(x=>x.id===pageId);
+      if(!selected){pageId=session.current.pages[0].id;sectionId='';}
+      const page=session.current.pages.find(x=>x.id===pageId);
+      if(!page.sections.some(x=>x.id===sectionId))sectionId=page.sections[0].id;
+      if(!page.sections.find(x=>x.id===sectionId).elements.some(x=>x.id===elementId))
+        elementId=page.sections.find(x=>x.id===sectionId).elements[0].id;
+      draw();
+      if(before!==session.current)notice('Структура изменена в черновике. Для сохранения нажмите «Сохранить».');
+    }catch(e){notice('Изменение структуры отклонено: '+e.message,true);}
+  }
+  function createStructureTools(){
+    const make=(parent,items)=>{
+      const tools=document.createElement('div');tools.className='structure-tools';
+      for(const [id,label,handler] of items)tools.append(button(label,'btn small',handler));
+      for(const [i,node] of [...tools.children].entries())node.id=items[i][0];
+      parent.before(tools);
+    };
+    const pageActions=[
+      ['page-add','+ Страница',()=>{
+        const title=prompt('Название новой страницы','Новая страница');if(title===null)return;
+        const path=prompt('Путь страницы (например /catalog/)','/new-page/');if(path===null)return;
+        const id=uniqueId('page'),sectionId=uniqueId('section');
+        structural({action:'addPage',id,path,title,sectionId,component:'company-hero'});
+        if(session.current.pages.some(x=>x.id===id)){
+          pageId=id;sectionId=session.current.pages.find(x=>x.id===id).sections[0].id;
+          elementId=session.current.pages.find(x=>x.id===id).sections[0].elements[0].id;draw();
+        }
+      }],
+      ['page-rename','Изменить',()=>{
+        const page=current().page;
+        const title=prompt('Название страницы',page.title);if(title===null)return;
+        const path=prompt('Путь страницы',page.path);if(path===null)return;
+        structural({action:'updatePage',pageId:page.id,title,path});
+      }],
+      ['page-up','↑',()=>structural({action:'movePage',pageId:pageId,delta:-1})],
+      ['page-down','↓',()=>structural({action:'movePage',pageId:pageId,delta:1})],
+      ['page-remove','Удалить',()=>{
+        if(confirm('Удалить выбранную страницу и все её блоки из черновика?'))structural({action:'removePage',pageId});
+      }]
+    ];
+    const sectionActions=[
+      ['section-add','+ Блок',()=>{
+        const component=prompt('Компонент блока: company-hero, feature-highlights, contact-panel','feature-highlights');
+        if(component===null)return;
+        const id=uniqueId('section');
+        structural({action:'addSection',pageId,sectionId,id,component});
+        const page=session.current.pages.find(x=>x.id===pageId);
+        if(page.sections.some(x=>x.id===id)){
+          sectionId=id;elementId=page.sections.find(x=>x.id===id).elements[0].id;draw();
+        }
+      }],
+      ['section-up','↑',()=>structural({action:'moveSection',pageId,sectionId,delta:-1})],
+      ['section-down','↓',()=>structural({action:'moveSection',pageId,sectionId,delta:1})],
+      ['section-remove','Удалить',()=>{
+        if(confirm('Удалить блок из черновика?'))structural({action:'removeSection',pageId,sectionId});
+      }]
+    ];
+    make($('pages'),pageActions);
+    make($('sections'),sectionActions);
+  }
   function drawElements(){
     const {section}=current(),m=manifest(section);
     $('inspector-title').textContent=m?.label||section.component;
@@ -273,5 +344,5 @@
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  load();draw();
+  createStructureTools();load();draw();
 })();

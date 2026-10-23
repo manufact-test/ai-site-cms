@@ -103,7 +103,45 @@ async function stop(){
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET','/published/'+id+'/')).status,200,'visitor needs no CMS login');
+  // Export only the published snapshot. Build static files without modifying
+  // live CMS routes, then serve with Node AFTER stopping the PHP CMS completely.
+  const out=path.join(dbdir,'export-v2');
+  const cmd=['stage3/server/bin/export-published.php',id,out];
+  const exported=spawnSync('php',cmd,{cwd:root,env,encoding:'utf8'});
+  assert.equal(exported.status,0,exported.stderr);
+  assert.notEqual(spawnSync('php',cmd,{cwd:root,env,encoding:'utf8'}).status,0,
+    'Static releases cannot overwrite existing output');
+  const manifest=JSON.parse(fs.readFileSync(path.join(out,'release-manifest.json'),'utf8'));
+  assert.equal(manifest.format,'manufact-ai-static-site-v1');
+  assert.equal(manifest.publishedVersion,2);
+  assert.equal(manifest.sourceRevision,4);
+  assert.deepEqual(manifest.pages.map(p=>p.path),['/','/contact/']);
+  for(const p of manifest.pages){
+    const body=fs.readFileSync(path.join(out,p.file),'utf8');
+    assert.equal(require('node:crypto').createHash('sha256').update(body).digest('hex'),p.sha256);
+    assert.doesNotMatch(body,/\/api\/|\/published\//,'Standalone output has no CMS links');
+    assert.doesNotMatch(body,/<script|<\?php/i,'No scripts or dynamic PHP output');
+  }
+  assert.match(fs.readFileSync(path.join(out,'index.html'),'utf8'),/href="\/contact\/"/);
   await stop();
+  const http=require('node:http');
+  const staticServer=http.createServer((req,res)=>{
+    const page=req.url==='/'?'index.html':req.url==='/contact/'?'contact/index.html':null;
+    if(!page){res.writeHead(404);res.end();return;}
+    res.setHeader('Content-Type','text/html; charset=utf-8');
+    res.end(fs.readFileSync(path.join(out,page)));
+  });
+  await new Promise(resolve=>staticServer.listen(0,'127.0.0.1',resolve));
+  try{
+    const remote='http://127.0.0.1:'+staticServer.address().port;
+    const home=await fetch(remote+'/'),contact=await fetch(remote+'/contact/');
+    assert.equal(home.status,200);assert.equal(contact.status,200);
+    assert.match(await home.text(),/Производим технологическое оборудование/);
+    assert.match(await contact.text(),/Свяжитесь с нами/);
+  }finally{
+    await new Promise(resolve=>staticServer.close(resolve));
+  }
+  // Return to the CMS process only to verify the original DB was untouched.
   cookie='';csrf='';
   await runServer();
   assert.equal((await request('GET','/published/'+id+'/')).status,200,

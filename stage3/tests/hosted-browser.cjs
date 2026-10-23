@@ -77,7 +77,7 @@ async function execute(){
     'Draft writes must never publish automatically');
   // Restore an earlier revision into a NEW draft, leaving visitor unchanged.
   assert.equal(await page.locator('#versions .version').count(),3);
-  page.on('dialog',dialog=>dialog.accept());
+  const acceptDialogs=dialog=>dialog.accept();page.on('dialog',acceptDialogs);
   await page.locator('#versions .version').last().click();
   await page.locator('#server-status').getByText(/Черновик #4/).waitFor();
   await visitor.reload();
@@ -86,12 +86,43 @@ async function execute(){
   await page.locator('#server-status').getByText(/Опубликовано: v2/).waitFor();
   await visitor.reload();
   assert.equal(await visitor.locator('h1').innerText(),'Оборудование для вашего производства');
+  // Edit the real page tree from Studio and publish a second page.
+  page.off('dialog',acceptDialogs);
+  const replies=['Каталог решений','/solutions/','Оборудование','/equipment/','feature-highlights'];
+  page.on('dialog',dialog=>dialog.accept(dialog.type()==='prompt'?replies.shift():''));
+  await page.locator('#page-add').click();
+  assert.equal(await page.locator('#pages .nav-entry').count(),3);
+  await page.locator('#page-rename').click();
+  assert.equal(await page.locator('#pages .nav-entry').nth(2).innerText(),'Оборудование');
+  await page.locator('#section-add').click();
+  assert.equal(await page.locator('#sections .nav-entry').count(),2);
+  await page.locator('#section-up').click();
+  assert.match(await page.locator('#sections .nav-entry').first().innerText(),/Преимущества/);
+  // Deleted section can be recovered with the same undo stack as field edits.
+  await page.locator('#section-remove').click();
+  assert.equal(await page.locator('#sections .nav-entry').count(),1);
+  await page.locator('#undo').click();
+  assert.equal(await page.locator('#sections .nav-entry').count(),2);
+  await page.locator('#page-up').click();
+  assert.equal(await page.locator('#pages .nav-entry').nth(1).innerText(),'Оборудование');
+  assert.match(await page.locator('#dirty').innerText(),/несохранённые/);
+  assert.equal((await visitor.goto(origin+'/published/'+siteId+'/equipment/')).status(),404);
+  await page.locator('#save').click();
+  await page.locator('#server-status').getByText(/Черновик #5/).waitFor();
+  assert.equal((await visitor.goto(origin+'/published/'+siteId+'/equipment/')).status(),404,
+    'Structure save is not a publish');
+  await page.locator('#server-publish').click();
+  await page.locator('#server-status').getByText(/Опубликовано: v3/).waitFor();
+  const newPage=await visitor.goto(origin+'/published/'+siteId+'/equipment/');
+  assert.equal(newPage.status(),200);
+  assert.equal(await visitor.locator('h1').innerText(),'Оборудование для вашего производства');
+  assert.equal((await visitor.goto(origin+'/published/'+siteId+'/solutions/')).status(),404);
   // Site metadata and session persist across page refresh.
   await page.reload();
-  await page.locator('#server-status').getByText(/Черновик #4/).waitFor();
+  await page.locator('#server-status').getByText(/Черновик #5/).waitFor();
   assert.equal(await page.locator('#server-site-select').inputValue(),siteId);
   const tokenless=await ctx.request.post(origin+'/api/sites/'+siteId+'/save',
-    {data:{site:{},expectedRevision:4}});
+    {data:{site:{},expectedRevision:5}});
   assert.equal(tokenless.status(),403,'CSRF still enforced with browser credentials');
   const link=page.locator('#server-public-link');
   assert.equal(await link.getAttribute('href'),'/published/'+siteId+'/');

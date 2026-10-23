@@ -25,18 +25,18 @@ final class PublicRenderer
         return self::h((string)(self::element($section, $slot)['content.text'] ?? ''));
     }
 
-    private static function link(array $section, string $slot, string $siteId): string
+    private static function link(array $section, string $slot, string $mount): string
     {
         $values = self::element($section, $slot);
         $href = (string)($values['behavior.href'] ?? '/');
         // Internal links remain inside the standalone visitor mount, never CMS routes.
         if (str_starts_with($href, '/') && !str_starts_with($href, '//')) {
-            $href = '/published/' . rawurlencode($siteId) . $href;
+            $href = $mount . $href;
         }
         return '<a class="action" href="' . self::h($href) . '">' . self::label($section, $slot) . '</a>';
     }
 
-    public static function html(array $site, string $path): ?string
+    public static function html(array $site, string $path, ?string $basePath = null): ?string
     {
         $page = null;
         foreach ($site['pages'] as $candidate) {
@@ -49,9 +49,10 @@ final class PublicRenderer
             return null;
         }
         $siteId = $site['siteId'];
+        $mount = $basePath ?? '/published/' . rawurlencode($siteId);
         $navigation = '';
         foreach ($site['pages'] as $candidate) {
-            $navigation .= '<a href="/published/' . self::h($siteId) . self::h($candidate['path'])
+            $navigation .= '<a href="' . self::h($mount) . self::h($candidate['path'])
                 . '">' . self::h($candidate['title']) . '</a>';
         }
         $body = '';
@@ -69,7 +70,7 @@ final class PublicRenderer
                     . ';--title-mobile:' . self::h($sizes['mobile'] ?? $sizes['tablet'] ?? $sizes['desktop'])
                     . '">' . self::label($section, 'heading') . '</h1>'
                     . '<p>' . self::label($section, 'summary') . '</p>'
-                    . self::link($section, 'action', $siteId) . '</section>';
+                    . self::link($section, 'action', $mount) . '</section>';
             } elseif ($section['component'] === 'feature-highlights') {
                 $first = self::element($section, 'first');
                 $body .= '<section id="' . $id . '" class="features">'
@@ -80,7 +81,7 @@ final class PublicRenderer
             } elseif ($section['component'] === 'contact-panel') {
                 $body .= '<section id="' . $id . '" class="contact"><h2>'
                     . self::label($section, 'heading') . '</h2>'
-                    . self::link($section, 'action', $siteId) . '</section>';
+                    . self::link($section, 'action', $mount) . '</section>';
             }
         }
         $title = self::h($page['title'] . ' | ' . $site['title']);

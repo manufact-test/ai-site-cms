@@ -213,6 +213,41 @@ test('responsive patch and typed control limitations',()=>{
     value:'url(javascript:alert(1))'}),'Disallowed color refused');
 });
 
+
+test('structure: pages, sections, stable IDs, undo, redo and closed rules',()=>{
+  const initialBytes=JSON.stringify(initial);
+  const step=(session,command)=>draft.structure(session,manifests,{...command,expectedRevision:session.revision});
+  let s=draft.begin(initial,manifests);
+  s=step(s,{action:'addPage',id:'page-catalog',title:'Каталог',path:'/catalog/',
+    sectionId:'section-catalog',component:'company-hero'});
+  assert.equal(s.current.pages.length,3);
+  assert.equal(s.current.pages[2].sections[0].elements[0].id,'section-catalog-heading');
+  assert.equal(draft.changes(s,manifests).filter(d=>d.kind==='page-added').length,1);
+  s=step(s,{action:'addSection',pageId:'page-catalog',sectionId:'section-catalog',
+    id:'section-extra',component:'feature-highlights'});
+  assert.equal(s.current.pages[2].sections.length,2);
+  s=step(s,{action:'updatePage',pageId:'page-catalog',title:'Оборудование',path:'/equipment/'});
+  s=step(s,{action:'movePage',pageId:'page-catalog',delta:-1});
+  s=step(s,{action:'moveSection',pageId:'page-catalog',sectionId:'section-extra',delta:-1});
+  assert.deepEqual(s.current.pages.map(p=>p.id),['page-home','page-catalog','page-contact']);
+  assert.equal(s.current.pages[1].sections[0].id,'section-extra');
+  assert.equal(s.current.pages[1].path,'/equipment/');
+  const back=draft.undo(s,manifests),forward=draft.redo(back,manifests);
+  assert.deepEqual(forward.current,s.current);
+  refuses(()=>step(s,{action:'removePage',pageId:'page-home'}),'Root page cannot be deleted');
+  refuses(()=>step(s,{action:'updatePage',pageId:'page-home',title:'Home',path:'/oops/'}),
+    'Root path cannot change');
+  refuses(()=>step(s,{action:'updatePage',pageId:'page-catalog',title:'Catalog',path:'/contact/'}),
+    'Duplicate paths rejected');
+  refuses(()=>step(s,{action:'addSection',pageId:'page-catalog',id:'section-extra',
+    component:'company-hero'}),'Duplicate stable IDs rejected');
+  refuses(()=>draft.structure(s,manifests,{action:'removePage',pageId:'page-catalog',
+    expectedRevision:0}),'Stale structure update refused');
+  s=step(s,{action:'removeSection',pageId:'page-catalog',sectionId:'section-extra'});
+  s=step(s,{action:'removePage',pageId:'page-catalog'});
+  assert.deepEqual(s.current,initial,'Original site content and IDs preserved by round trip');
+  assert.equal(JSON.stringify(initial),initialBytes,'Input immutable');
+});
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');
