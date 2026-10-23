@@ -669,23 +669,23 @@ const root=path.resolve(__dirname,'../..');
     // editable product cards, process steps and an FAQ on the third page.
     await page.locator('#brief-offerings').fill('Товар без разделителя');
     assert.equal(await page.locator('#brief-create').isDisabled(),true);
-    assert.match(await page.locator('#brief-facts-error').innerText(),/название \\| описание/);
+    assert.ok((await page.locator('#brief-facts-error').innerText()).includes('название | описание'));
     await page.locator('#brief-offerings').fill([
       'Пресс-станок П-20 | Производство по размерам заказчика',
       'Сборочная линия | Подбор комплектации для цеха',
       'Транспортер Т-4 | Металлическая рама для производственного участка',
       'Комплект креплений | Поставка вместе с линией'
-    ].join('\\n'));
+    ].join('\n'));
     await page.locator('#brief-steps').fill([
       'Техническое задание | Уточняем размеры и нагрузку',
       'Согласование проекта | Передаём чертежи заказчику'
-    ].join('\\n'));
+    ].join('\n'));
     await page.locator('#brief-questions').fill([
       'Можно ли заказать особый размер? | Согласуем размеры по техническому заданию',
       'Как уточнить комплектацию? | Напишите нам на указанный email'
-    ].join('\\n'));
+    ].join('\n'));
     assert.equal(await page.locator('#brief-create').isDisabled(),false);
-    assert.match(await page.locator('#brief-facts-summary').innerText(),/Услуги \\/ товары · 4\\/8/);
+    assert.ok((await page.locator('#brief-facts-summary').innerText()).includes('Услуги / товары · 4/8'));
     page.once('dialog',d=>d.accept());
     await page.locator('#brief-direction').selectOption('evergreen');
     await page.locator('#brief-create').click();
