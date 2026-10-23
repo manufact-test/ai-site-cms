@@ -433,6 +433,28 @@ async function execute(){
   await visitor.reload();
   assert.equal(await visitor.locator('nav a').filter({hasText:'Наш каталог'}).count(),0);
   assert.equal((await visitor.goto(origin+'/published/'+generatedId+'/')).status(),200);
+
+  // Reuse a real uploaded photo in a repeatable gallery via searchable catalog,
+  // then publish it separately; the visitor page must contain the real image.
+  await page.locator('#server-site-select').selectOption(siteId);
+  await page.locator('#server-open').click();
+  await page.locator('#server-status').getByText(/Черновик #/).waitFor();
+  await page.locator('#pages .nav-entry').first().click();
+  await page.locator('#section-catalog').click();
+  await page.locator('#cms-component-search').fill('галерея');
+  await page.locator('#cms-component-list [data-component="photo-gallery"]').click();
+  await page.locator('#elements [data-repeat-id]').first().click();
+  await page.locator('#fields [data-field="content.media"]').selectOption(assetId);
+  await page.locator('#fields [data-field="content.caption"]').fill('Фото производства');
+  await page.locator('#fields [data-field="content.caption"]').dispatchEvent('change');
+  await page.frameLocator('#preview').locator('.cms-preview-grid img.showcase-preview').waitFor();
+  await page.locator('#save').click();
+  await page.locator('#server-status').getByText(/Без изменений/).waitFor();
+  await page.locator('#server-publish').click();
+  await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();
+  await visitor.goto(origin+'/published/'+siteId+'/');
+  assert.equal(await visitor.locator('.gallery-grid img').count(),1);
+  assert.equal(await visitor.locator('.gallery-grid img').first().getAttribute('alt'),'Фото цеха');
   await staffCtx.close();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
