@@ -151,6 +151,50 @@
     const seo=button('SEO и меню','btn small',()=>open('seo'));seo.id='cms-open-seo';
     tools.append(theme,seo);$('pages').before(tools);
   }
+
+  // Discoverable browser-side catalog: the same closed registered components,
+  // no arbitrary HTML, code, uploads or external template marketplace.
+  function openComponentCatalog(){
+    let dialog=$('cms-component-catalog');
+    if(!dialog){
+      dialog=document.createElement('dialog');
+      dialog.id='cms-component-catalog';dialog.className='cms-component-catalog';
+      const title=document.createElement('h2');title.textContent='Добавить секцию';
+      const subtitle=document.createElement('p');subtitle.textContent='Выберите готовый компонент. Каждый пункт полностью редактируется после добавления.';
+      const search=document.createElement('input');search.id='cms-component-search';
+      search.className='control';search.type='search';search.placeholder='Найти: услуги, FAQ, форма, фото…';
+      search.setAttribute('aria-label','Поиск компонента');
+      const list=document.createElement('div');list.id='cms-component-list';
+      const footer=document.createElement('div');footer.className='cms-component-footer';
+      footer.append(button('Закрыть','btn',()=>dialog.close()));
+      const category=m=>m.repeat?'Повторяемые элементы':
+        m.id.includes('form')?'Форма заявки':m.id.includes('image')?'Медиа':'Основные секции';
+      const render=()=>{
+        list.replaceChildren();
+        const query=search.value.trim().toLocaleLowerCase();
+        for(const m of manifests.filter(m=>(m.id+' '+m.label+' '+category(m)).toLocaleLowerCase().includes(query))){
+          const entry=button(m.label,'cms-component-choice',()=>{
+            const id=uniqueId('section'),targetPage=pageId;
+            structural({action:'addSection',pageId:targetPage,sectionId,id,component:m.id});
+            const inserted=session.current.pages.find(p=>p.id===targetPage)?.sections.find(s=>s.id===id);
+            if(inserted){
+              sectionId=id;elementId=inserted.elements[0].id;dialog.close();draw();
+            }
+          });
+          entry.dataset.component=m.id;
+          const description=document.createElement('small');
+          description.textContent=category(m)+' · '+(m.repeat?'от '+m.repeat.min+' до '+m.repeat.max+' элементов':'редактируемые поля');
+          entry.append(description);list.append(entry);
+        }
+        if(!list.children.length){const p=document.createElement('p');p.textContent='По запросу ничего не найдено';list.append(p);}
+      };
+      search.addEventListener('input',render);
+      dialog.append(title,subtitle,search,list,footer);
+      document.body.append(dialog);
+      dialog.renderCatalog=render;
+    }
+    $('cms-component-search').value='';dialog.renderCatalog();dialog.showModal();$('cms-component-search').focus();
+  }
   function createStructureTools(){
     const make=(parent,items)=>{
       const tools=document.createElement('div');tools.className='structure-tools';
@@ -192,6 +236,7 @@
       }]
     ];
     const sectionActions=[
+      ['section-catalog','Каталог блоков',openComponentCatalog],
       ['section-add','+ Блок',()=>{
         const component=prompt('Компонент блока:\n'+manifests.map(m=>m.id+' — '+m.label).join('\n'),'service-grid');
         if(component===null)return;
