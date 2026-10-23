@@ -74,7 +74,7 @@ test('custom component registers as inert manifest, not executable JavaScript',(
   const custom={format:'manufact-ai-component-v1',id:'independent-gallery',version:'1.0.0',
     label:'Фотогалерея',elements:[{slot:'photo',label:'Изображение',fields:[
       {path:'content.image',label:'Фото',type:'media',default:'',responsive:false},
-      {path:'style.isVisible',label:'Видимость',type:'boolean',default:true,responsive:true}
+      {path:'style.isVisible',label:'Видимость',type:'boolean',default:{desktop:true},responsive:true}
     ]}]};
   const withAsset=same(initial);
   withAsset.assets=[{id:'asset-sample',src:'/assets/demo.webp',alt:'Образец',mime:'image/webp'}];
