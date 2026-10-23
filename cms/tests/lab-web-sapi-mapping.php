@@ -3,6 +3,7 @@ declare(strict_types=1);
 require dirname(__DIR__).'/vendor/autoload.php';
 use AiSiteCms\Hosting\LabWebSapiGate as Gate;
 use AiSiteCms\Hosting\SharedHostPreflight;
+use AiSiteCms\Hosting\Stage2LiteSpeedBoundary as LsapiBoundary;
 
 $count=0;
 $check=static function(bool $truth,string $why) use(&$count):void{
@@ -12,6 +13,8 @@ $check=static function(bool $truth,string $why) use(&$count):void{
 $home=sys_get_temp_dir().'/cms-stage2-fpm-map-'.bin2hex(random_bytes(5));
 mkdir($home,0700);
 mkdir($home.'/public',0700);
+mkdir($home.'/src',0700);
+mkdir($home.'/vendor',0700);
 file_put_contents($home.'/public/index.php',"<?php // synthetic only\n");
 $env=['CMS_STAGE2_REQUIRE_FPM_MAPPING'=>'1',
     'CMS_ENV'=>'test','CMS_STAGE2_RUNTIME_GATE'=>'ci-bound',
@@ -97,10 +100,41 @@ try {
         && !$report['actual_request_executed']
         && !$report['real_host_compatibility_verified'],
         'synthetic inspector refuses to claim a true target web request');
+    // Separate LiteSpeed assessment recognizes the real LSAPI name
+    // and checks canonical root and public file tree, but does NOT authorize
+    // release signatures, HTTP privileges or host acceptance.
+    $lsapi=LsapiBoundary::inspect($home,$server,'litespeed');
+    $check($lsapi['result']==='local_lsapi_mapping_candidate'
+        &&$lsapi['checks']['public_only_document_root']
+        &&$lsapi['checks']['front_controller_exact']
+        &&$lsapi['checks']['private_code_outside_public']
+        &&!$lsapi['workerIsolationVerified']&&!$lsapi['productionReady']
+        &&!$lsapi['stage2Accepted'],
+        'LSAPI physical layout is eligible only for future target observation');
+    $check(LsapiBoundary::inspect($home,$server,'fpm-fcgi')['result']==='blocked',
+        'PHP-FPM cannot masquerade as LiteSpeed LSAPI');
+    $bad=$server;$bad['DOCUMENT_ROOT']=$home.'/public/../public';
+    $check(LsapiBoundary::inspect($home,$bad,'litespeed')['result']==='blocked',
+        'LSAPI alias document root rejected, even when realpath is identical');
+    $bad=$server;$bad['DOCUMENT_ROOT']='/wrong';
+    $bad['HTTP_DOCUMENT_ROOT']=$home.'/public';
+    $check(LsapiBoundary::inspect($home,$bad,'litespeed')['result']==='blocked',
+        'client-supplied HTTP document root cannot establish webroot trust');
+    file_put_contents($home.'/public/extra.php','<?php // extra entrypoint');
+    $check(LsapiBoundary::inspect($home,$server,'litespeed')['result']==='blocked',
+        'unexpected public executable invalidates LSAPI boundary');
+    unlink($home.'/public/extra.php');
+    $check(LsapiBoundary::inspect($home,$server,'litespeed')['result']
+        ==='local_lsapi_mapping_candidate',
+        'LSAPI boundary recovers after stray executable is absent');
+    $check(!Gate::allows($home,$server,'litespeed',$env),
+        'dedicated FPM gate cannot be bypassed by recognized LSAPI profile');
     echo "Stage2 opt-in actual FPM mapping gate PHP contract PASS: {$count} checks; CI-only\n";
 } finally {
     @unlink($home.'/public-symlink');
     @unlink($home.'/public/index.php');
     @rmdir($home.'/public');
+    @rmdir($home.'/src');
+    @rmdir($home.'/vendor');
     @rmdir($home);
 }
