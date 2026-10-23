@@ -121,6 +121,13 @@ function validNav(n){
   objectKeys(n,['label','hidden'],'navigation');
   if(typeof n.label!=='string'||n.label.length>100||/[\x00-\x1f]/.test(n.label)||typeof n.hidden!=='boolean')fail('Invalid page navigation');
 }
+const DEFAULT_APPEARANCE=Object.freeze({surface:'default',spacing:'normal',align:'left'});
+function validAppearance(a){
+  objectKeys(a,['surface','spacing','align'],'appearance');
+  if(!['default','paper','tint','dark'].includes(a.surface)||
+     !['tight','normal','airy'].includes(a.spacing)||
+     !['left','center'].includes(a.align))fail('Invalid section appearance');
+}
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
   objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects'],'site');
@@ -148,7 +155,8 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance'],'section');
+      if(own(section,'appearance'))validAppearance(section.appearance);
       id(section.id,'section.id');if(ids.has(section.id))fail('Duplicate stable ID',section.id);ids.add(section.id);
       const manifest=select(reg,section.component,section.manifestVersion);
       if(!Array.isArray(section.elements)||section.elements.length!==manifest.elements.length)fail('Incomplete element tree',section.id);
@@ -345,6 +353,6 @@ function upgrade(raw,previous,next,allOtherManifests,decisions={}){
   return {accepted:true,conflicts:[],diff,candidate:validateSite(candidate,afterRegistry)};
 }
 module.exports=Object.freeze({DEFAULT_THEME,
-  FORMAT,MANIFEST,BREAKPOINTS,validateManifest,registry,validateSite,inspectSite,
+  FORMAT,MANIFEST,BREAKPOINTS,DEFAULT_APPEARANCE,validateManifest,registry,validateSite,inspectSite,
   controls,effectiveValue,sectionFrom,siteFromBrief,upgrade
 });

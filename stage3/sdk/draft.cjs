@@ -90,6 +90,11 @@ function structure(raw,manifests,command){
           if(key==='content.media')cb(item,key,val,p,section);
   };
   switch(action){
+    case 'updateAppearance':{
+      if(!page||sectionIndex<0)throw Error('Unknown section appearance');
+      page.sections[sectionIndex].appearance=copy(command.appearance);
+      break;
+    }
     case 'renameAsset':{
       const asset=c.assets.find(a=>a.id===command.assetId);
       if(!asset)throw Error('Unknown image');
@@ -247,6 +252,8 @@ function changes(raw,manifests){
       if(prior.sections.findIndex(q=>q.id===section.id)!==i)
         record('section-moved',{pageId:page.id,sectionId:section.id});
       if(prev.component!==section.component||prev.manifestVersion!==section.manifestVersion){record('section-replaced',{pageId:page.id,sectionId:section.id});return;}
+      if(JSON.stringify(prev.appearance)!==JSON.stringify(section.appearance))
+        diff.push({kind:'appearance-updated',pageId:page.id,sectionId:section.id});
       if(JSON.stringify(prev.items)!==JSON.stringify(section.items))
         diff.push({kind:'items-updated',pageId:page.id,sectionId:section.id});
       for(const el of section.elements){
@@ -286,6 +293,7 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
   });
   return {format:'manufact-ai-block-preview-data-v1',siteId:s.current.siteId,
     pageId,sectionId,component:section.component,breakpoint,
+    appearance:copy(section.appearance||C.DEFAULT_APPEARANCE),
     elements,items,notPublished:true,hasExecutableHtml:false};
 }
 module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview});

@@ -176,7 +176,14 @@ final class ContractValidator
             self::must(is_array($page['sections']) && array_is_list($page['sections'])
                 && count($page['sections']) >= 1 && count($page['sections']) <= 100, 'Invalid sections');
             foreach ($page['sections'] as $section) {
-                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items']);
+                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance']);
+                if (array_key_exists('appearance',$section)) {
+                    self::keys($section['appearance'],['surface','spacing','align']);
+                    self::must(in_array($section['appearance']['surface']??null,['default','paper','tint','dark'],true)
+                        && in_array($section['appearance']['spacing']??null,['tight','normal','airy'],true)
+                        && in_array($section['appearance']['align']??null,['left','center'],true),
+                        'Invalid section appearance');
+                }
                 self::uniqueId($section['id'], $ids);
                 $manifest = $this->registry[$section['component']] ?? null;
                 self::must($manifest !== null && $manifest['version'] === $section['manifestVersion'],

@@ -97,6 +97,10 @@ function compose(raw,manifests,{sourceSite=null,templates=[]}={}){
           ...(t.section.items?{items:t.section.items.map((item,i)=>({...cp(item),id:spec.id+'-item-'+(i+1)}))}:{})};
       }
       const section=C.sectionFrom(reg.get(spec.component),spec.id);
+      // Respect owner section presentation on same-path same-component recomposition.
+      const position=p.sections.findIndex(candidate=>candidate.id===spec.id);
+      const old=original?.sections[position];
+      if(old?.component===spec.component&&old.appearance)section.appearance=cp(old.appearance);
       if(spec.component==='company-hero'){
         put(section,'heading','content.text',p.kind==='home'?(f.headline||recipe.title):p.title);
         put(section,'summary','content.text',p.kind==='home'?f.description||'Добавьте подтверждённое описание компании.':

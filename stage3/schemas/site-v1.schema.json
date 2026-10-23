@@ -233,6 +233,9 @@
           "items": {
             "$ref": "#/$defs/repeatItem"
           }
+        },
+        "appearance": {
+          "$ref": "#/$defs/appearance"
         }
       }
     },
@@ -291,6 +294,38 @@
         "to": {
           "type": "string",
           "pattern": "^/(?:[a-z0-9-]+/)*$"
+        }
+      }
+    },
+    "appearance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "spacing",
+        "align"
+      ],
+      "properties": {
+        "surface": {
+          "enum": [
+            "default",
+            "paper",
+            "tint",
+            "dark"
+          ]
+        },
+        "spacing": {
+          "enum": [
+            "tight",
+            "normal",
+            "airy"
+          ]
+        },
+        "align": {
+          "enum": [
+            "left",
+            "center"
+          ]
         }
       }
     }
