@@ -95,16 +95,16 @@
   const info=node('div');info.id='server-license-status';info.className='hosted-backup-summary';
   const type=node('select');type.id='server-license-type';type.className='control';
   for(const [id,title] of [['perpetual','Бессрочная'],['subscription','Подписка']]){const opt=node('option',title);opt.value=id;type.append(opt);}
-  const date=field('server-license-date','date'),domain=field('server-license-domain'),reason=field('server-license-reason');
+  const date=field('server-license-date','date'),domain=field('server-license-domain'),licenceReason=field('server-license-reason');
   domain.maxLength=253;domain.placeholder='client.example (необязательно)';
-  reason.maxLength=120;reason.placeholder='Причина решения оператора';
+  licenceReason.maxLength=120;licenceReason.placeholder='Причина решения оператора';
   const saveLicence=button('Сохранить условия','server-license-save',()=>run(()=>changeLicence('details')));
   const pauseLicence=button('Приостановить CMS','server-license-pause',()=>run(()=>changeLicence('pause')));
   const resumeLicence=button('Возобновить CMS','server-license-resume',()=>run(()=>changeLicence('resume')));
   licencesDialog.append(totals,listing,label('Сайт / instance ID',choice),choice,info,
     label('Тип лицензии',type),type,label('Дата следующего напоминания (UTC)',date),date,
     label('Домен для внутреннего учёта (без изменения DNS)',domain),domain,
-    label('Обязательная причина',reason),reason);
+    label('Обязательная причина',licenceReason),licenceReason);
   const buttons=node('div');buttons.className='hosted-buttons';
   buttons.append(saveLicence,pauseLicence,resumeLicence,
     button('Обновить','server-license-refresh',()=>run(loadLicenses)),
@@ -121,7 +121,7 @@
       node('small','Версия: '+item.version+' · Оператор: '+(item.operator||'—')+
         ' · Время: '+(item.changedAt||'—')+' · Причина: '+(item.reason||'—')));
     type.value=item.type;date.value=item.reminderDate||'';date.disabled=item.type==='perpetual';
-    domain.value=item.domain||'';reason.value='';
+    domain.value=item.domain||'';licenceReason.value='';
     saveLicence.disabled=false;pauseLicence.disabled=item.paused;resumeLicence.disabled=!item.paused;
   }
   type.onchange=()=>{
@@ -154,7 +154,7 @@
   }
   async function changeLicence(operation){
     const item=chosen();if(!item)throw Error('Выберите сайт');
-    const why=reason.value.trim();if(!why)throw Error('Укажите причину');
+    const why=licenceReason.value.trim();if(!why)throw Error('Укажите причину');
     if(operation==='pause'&&!confirm('Приостановить только CMS сайта '+item.title+'? Публичный сайт останется доступен.'))return;
     const payload={expectedVersion:item.version,reason:why};
     if(operation==='details'){
