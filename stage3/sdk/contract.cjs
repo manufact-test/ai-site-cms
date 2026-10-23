@@ -123,7 +123,7 @@ function validNav(n){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects'],'site');
   if(own(raw,'theme'))validTheme(raw.theme);
   if(raw.format!==FORMAT||raw.schemaVersion!==1)fail('Unsupported site format');
   id(raw.siteId,'siteId');text(raw.title,'site title',130);
@@ -184,7 +184,44 @@ function validateSite(raw,regInput){
       }else if(own(section,'items'))fail('Unregistered repeat items',section.id);
     }
   }
+  if(own(raw,'redirects')){
+    if(!Array.isArray(raw.redirects)||raw.redirects.length>60)fail('Invalid redirect count');
+    const aliases=new Set();
+    for(const r of raw.redirects){
+      objectKeys(r,['from','to'],'redirect');
+      if(typeof r.from!=='string'||typeof r.to!=='string'||
+        !/^\/(?:[a-z0-9-]+\/)*$/.test(r.from)||!/^\/(?:[a-z0-9-]+\/)*$/.test(r.to)||
+        r.from==='/'||r.from===r.to||paths.has(r.from)||aliases.has(r.from)||!paths.has(r.to))
+        fail('Invalid redirect alias or destination');
+      aliases.add(r.from);
+    }
+  }
   return clone(raw);
+}
+function inspectSite(raw,regInput){
+  const site=validateSite(raw,regInput),known=new Set(site.pages.map(p=>p.path));
+  const redirected=new Map((site.redirects||[]).map(r=>[r.from,r.to]));
+  const warnings=[],errors=[],add=(kind,page,path,message)=>({kind,pageId:page?.id||null,path,message});
+  if(!known.has('/'))errors.push(add('missing-home',null,'/','Нет главной страницы'));
+  for(const page of site.pages){
+    const seo=page.seo||{};
+    if(!seo.title)warnings.push(add('seo-title',page,page.path,'SEO title берётся из названия страницы'));
+    if(!seo.description)warnings.push(add('seo-description',page,page.path,'Не заполнено описание для поисковиков'));
+    for(const section of page.sections)for(const el of [...section.elements,...(section.items||[])]){
+      const href=el.values['behavior.href'];
+      if(typeof href!=='string'||!href.startsWith('/')||href.startsWith('//'))continue;
+      const route=href.split(/[?#]/,1)[0]||page.path;
+      const hash=href.includes('#')?href.slice(href.indexOf('#')+1).split('?')[0]:'';
+      if(!known.has(route)&&!redirected.has(route))
+        errors.push(add('broken-link',page,href,'Внутренняя ссылка ведёт на отсутствующую страницу'));
+      else if(redirected.has(route))
+        warnings.push(add('old-link',page,href,'Ссылка ведёт через перенаправление '+redirected.get(route)));
+      else if(hash&&!site.pages.find(p=>p.path===route).sections.some(s=>s.id===hash))
+        errors.push(add('broken-anchor',page,href,'Якорь секции не существует'));
+    }
+  }
+  return {errors,warnings,pages:site.pages.length,redirects:redirected.size,
+    indexable:site.pages.filter(p=>p.seo?.robots!=='noindex').length};
 }
 function controls(doc,regInput,pageId,sectionId,elementId){
   const reg=regInput instanceof Map?regInput:registry(regInput);
@@ -308,6 +345,6 @@ function upgrade(raw,previous,next,allOtherManifests,decisions={}){
   return {accepted:true,conflicts:[],diff,candidate:validateSite(candidate,afterRegistry)};
 }
 module.exports=Object.freeze({DEFAULT_THEME,
-  FORMAT,MANIFEST,BREAKPOINTS,validateManifest,registry,validateSite,
+  FORMAT,MANIFEST,BREAKPOINTS,validateManifest,registry,validateSite,inspectSite,
   controls,effectiveValue,sectionFrom,siteFromBrief,upgrade
 });
