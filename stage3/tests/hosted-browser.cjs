@@ -143,6 +143,10 @@ async function execute(){
   const editablePaths=await page.locator('#fields [data-field]').evaluateAll(nodes=>nodes.map(n=>n.dataset.field));
   assert.ok(editablePaths.includes('content.media'),'Expected image field, saw: '+JSON.stringify(editablePaths));
   await page.locator('#fields [data-field="content.media"]').selectOption(assetId);
+  const imagePreview=page.frameLocator('#preview').locator('img.showcase-preview');
+  await imagePreview.waitFor();
+  assert.match(await imagePreview.getAttribute('src'),/^data:image\/png;base64,/);
+
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Черновик #8/).waitFor();
   assert.equal((await visitor.goto(origin+'/published/'+siteId+'/assets/'+assetId+'.png')).status(),404);

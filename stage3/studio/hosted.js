@@ -66,8 +66,42 @@
     const file=mediaInput.files?.[0];mediaInput.value='';
     if(file)uploadMedia(file);
   });
+  const previewData=new Map(),loadingMedia=new Set();
+  function previewUrl(assetId){
+    if(!state.authorized||!state.siteId)return null;
+    const key=state.siteId+':'+assetId;
+    if(previewData.has(key))return previewData.get(key);
+    if(loadingMedia.has(key))return null;
+    loadingMedia.add(key);
+    fetch('/api/sites/'+encodeURIComponent(state.siteId)+'/media/'+encodeURIComponent(assetId),
+      {credentials:'same-origin',cache:'no-store'})
+      .then(async result=>{
+        if(!result.ok)throw Error('Предпросмотр изображения недоступен');
+        const mime=result.headers.get('content-type');
+        if(!['image/png','image/jpeg','image/webp'].includes(mime))
+          throw Error('Неподдерживаемый тип изображения');
+        const bytes=await result.blob();
+        if(bytes.size>450000)throw Error('Изображение слишком большое для предпросмотра');
+        return new Promise((resolve,reject)=>{
+          const reader=new FileReader();
+          reader.onload=()=>resolve(String(reader.result));
+          reader.onerror=()=>reject(Error('Не удалось прочитать изображение'));
+          reader.readAsDataURL(bytes);
+        });
+      })
+      .then(uri=>{
+        if(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(uri))
+          throw Error('Недопустимый формат предпросмотра');
+        previewData.set(key,uri);
+        if(state.siteId+':'+assetId===key)editor.refreshPreview();
+      })
+      .catch(error=>{previewData.set(key,'');notice(error.message,true);})
+      .finally(()=>loadingMedia.delete(key));
+    return null;
+  }
   function drawMedia(){
     mediaList.replaceChildren();
+    previewData.clear();loadingMedia.clear();
     const assets=editor.getSite().assets;
     if(!state.siteId||!assets.length){
       mediaList.append(element('small',null,'Изображений пока нет.'));return;
@@ -159,8 +193,8 @@
     document.querySelector('.inspector').hidden=!visible;
   }
   function selectSite(result){
-    editor.replace(result.site);
     state.siteId=result.site.siteId;
+    editor.replace(result.site);
     state.revision=Number(result.revision);
     editorVisible(true);
     drawMedia();drawStatus();
@@ -272,7 +306,7 @@
   }
   form.addEventListener('submit',signIn);
   picker.addEventListener('change',()=>safe(()=>openSite(picker.value)));
-  window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus});
+  window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewUrl});
   $('versions').replaceChildren();
   editorVisible(false);
   state.loading=true;setGate(true);
