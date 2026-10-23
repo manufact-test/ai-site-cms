@@ -50,7 +50,8 @@ final class SiteRepository
             "CREATE TABLE stage3_drafts (site_id $id PRIMARY KEY, revision $number NOT NULL, body $big NOT NULL, updated_at VARCHAR(35) NOT NULL)$tail",
             "CREATE TABLE stage3_revisions (site_id $id NOT NULL, revision $number NOT NULL, body $big NOT NULL, created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, revision))$tail",
             "CREATE TABLE stage3_publications (site_id $id PRIMARY KEY, version $number NOT NULL, source_revision $number NOT NULL, body $big NOT NULL, published_at VARCHAR(35) NOT NULL)$tail",
-            "CREATE TABLE stage3_publication_history (site_id $id NOT NULL, version $number NOT NULL, source_revision $number NOT NULL, body $big NOT NULL, published_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, version))$tail"
+            "CREATE TABLE stage3_publication_history (site_id $id NOT NULL, version $number NOT NULL, source_revision $number NOT NULL, body $big NOT NULL, published_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, version))$tail",
+            "CREATE TABLE stage3_media (site_id $id NOT NULL, asset_id $id NOT NULL, mime VARCHAR(32) NOT NULL, sha256 VARCHAR(64) NOT NULL, bytes " . ($this->driver === 'mysql' ? 'LONGBLOB' : 'BLOB') . ", created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, asset_id))$tail"
         ];
         foreach ($schema as $sql) {
             $this->db->exec($sql);
@@ -134,6 +135,9 @@ final class SiteRepository
     public function createSite(array $candidate): array
     {
         $site = $this->validator->validate($candidate);
+        if (count($site['assets']) !== 0) {
+            throw new \InvalidArgumentException('Create site first, then upload media via authenticated API');
+        }
         $id = $site['siteId'];
         $body = self::encode($site);
         $now = $this->now();
@@ -175,6 +179,7 @@ final class SiteRepository
         }
         $body = self::encode($site);
         return $this->atomic(function () use ($id, $site, $expectedRevision, $body): array {
+            $this->assertStoredAssets($id, $site);
             $stmt = $this->db->prepare('UPDATE stage3_drafts SET revision = ?, body = ?, updated_at = ? WHERE site_id = ? AND revision = ?');
             $now = $this->now();
             $stmt->execute([$expectedRevision + 1, $body, $now, $id, $expectedRevision]);
@@ -213,6 +218,7 @@ final class SiteRepository
                 throw new Conflict('Stale draft cannot be published');
             }
             $site = $this->validator->validate($draft['site']);
+            $this->assertStoredAssets($id, $site);
             $body = self::encode($site);
             $stmt = $this->db->prepare('SELECT version FROM stage3_publications WHERE site_id = ?');
             $stmt->execute([$id]);
@@ -246,4 +252,114 @@ final class SiteRepository
         return ['site' => self::decode((string)$p['body']), 'version' => (int)$p['version'],
             'sourceRevision' => (int)$p['source_revision']];
     }
+
+    /** All media bytes are immutable. Publications and old revisions remain usable. */
+    private function assertStoredAssets(string $siteId, array $site): void
+    {
+        $stmt = $this->db->prepare('SELECT mime FROM stage3_media WHERE site_id = ? AND asset_id = ?');
+        foreach ($site['assets'] as $asset) {
+            $stmt->execute([$siteId, $asset['id']]);
+            $stored = $stmt->fetchColumn();
+            if ($stored !== $asset['mime']) {
+                throw new \InvalidArgumentException('Media must be uploaded to this site before referencing it');
+            }
+            $ext = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'][$stored] ?? null;
+            if ($ext === null || $asset['src'] !== '/assets/' . $asset['id'] . '.' . $ext) {
+                throw new \InvalidArgumentException('Media path does not match stored image');
+            }
+        }
+    }
+
+    public function uploadImage(string $siteId, string $base64, string $alt, int $expectedRevision): array
+    {
+        if (strlen($base64) > 700000 || $base64 === '' || !preg_match('~^[A-Za-z0-9+/]+={0,2}$~D', $base64)) {
+            throw new \InvalidArgumentException('Invalid or oversized image');
+        }
+        $bytes = base64_decode($base64, true);
+        if ($bytes === false || $bytes === '' || strlen($bytes) > 450000) {
+            throw new \InvalidArgumentException('Image must not exceed 450 KB');
+        }
+        if (strlen($alt) > 200 || str_contains($alt, "\0")) {
+            throw new \InvalidArgumentException('Invalid image description');
+        }
+        $info = @getimagesizefromstring($bytes);
+        $type = is_array($info) ? ($info[2] ?? null) : null;
+        $types = [
+            IMAGETYPE_PNG => ['image/png', 'png'],
+            IMAGETYPE_JPEG => ['image/jpeg', 'jpg'],
+            IMAGETYPE_WEBP => ['image/webp', 'webp']
+        ];
+        if (!isset($types[$type]) || $info[0] < 1 || $info[1] < 1
+            || $info[0] > 4096 || $info[1] > 4096) {
+            throw new \InvalidArgumentException('Only valid PNG, JPEG or WebP images up to 4096px');
+        }
+        [$mime, $extension] = $types[$type];
+        return $this->atomic(function () use ($siteId, $expectedRevision, $bytes, $alt, $mime, $extension): array {
+            $draft = $this->getDraft($siteId);
+            if ($draft['revision'] !== $expectedRevision) {
+                throw new Conflict('Stale draft; reload before uploading media');
+            }
+            $site = $draft['site'];
+            if (count($site['assets']) >= 300) {
+                throw new \InvalidArgumentException('Media collection full');
+            }
+            $assetId = 'asset-' . bin2hex(random_bytes(10));
+            $asset = [
+                'id' => $assetId,
+                'src' => '/assets/' . $assetId . '.' . $extension,
+                'alt' => $alt,
+                'mime' => $mime
+            ];
+            $site['assets'][] = $asset;
+            $this->validator->validate($site);
+            $insert = $this->db->prepare('INSERT INTO stage3_media (site_id, asset_id, mime, sha256, bytes, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+            $now = $this->now();
+            $insert->bindValue(1, $siteId);
+            $insert->bindValue(2, $assetId);
+            $insert->bindValue(3, $mime);
+            $insert->bindValue(4, hash('sha256', $bytes));
+            $insert->bindValue(5, $bytes, PDO::PARAM_LOB);
+            $insert->bindValue(6, $now);
+            $insert->execute();
+            $update = $this->db->prepare('UPDATE stage3_drafts SET revision = ?, body = ?, updated_at = ? WHERE site_id = ? AND revision = ?');
+            $update->execute([$expectedRevision + 1, self::encode($site), $now, $siteId, $expectedRevision]);
+            if ($update->rowCount() !== 1) {
+                throw new Conflict('Concurrent media update');
+            }
+            $this->saveRevision($siteId, $expectedRevision + 1, self::encode($site), $now);
+            return ['site' => $site, 'revision' => $expectedRevision + 1, 'asset' => $asset];
+        });
+    }
+
+    /** Return only exact immutable bytes, never arbitrary filesystem paths. */
+    public function image(string $siteId, string $assetId): array
+    {
+        $stmt = $this->db->prepare('SELECT mime, sha256, bytes FROM stage3_media WHERE site_id = ? AND asset_id = ?');
+        $stmt->execute([$siteId, $assetId]);
+        $media = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$media) {
+            throw new NotFound('Unknown media');
+        }
+        $bytes = $media['bytes'];
+        if (is_resource($bytes)) {
+            $bytes = stream_get_contents($bytes);
+        }
+        if (!is_string($bytes) || !hash_equals((string)$media['sha256'], hash('sha256', $bytes))) {
+            throw new \RuntimeException('Media checksum mismatch');
+        }
+        return ['mime' => $media['mime'], 'bytes' => $bytes, 'sha256' => $media['sha256']];
+    }
+
+    public function publishedImage(string $siteId, string $assetId, string $extension): array
+    {
+        $site = $this->published($siteId)['site'];
+        foreach ($site['assets'] as $asset) {
+            if ($asset['id'] === $assetId
+                && $asset['src'] === '/assets/' . $assetId . '.' . $extension) {
+                return $this->image($siteId, $assetId);
+            }
+        }
+        throw new NotFound('Image is not part of published site');
+    }
+
 }

@@ -100,12 +100,54 @@ async function stop(){
   assert.equal((await request('POST',endpoint+'/publish',{expectedRevision:3})).status,409);
   assert.equal((await request('POST',endpoint+'/publish',{expectedRevision:4})).body.version,2);
   assert.doesNotMatch((await request('GET','/published/'+id+'/')).body,/Updated/);
+  // Media pipeline: authenticated upload, immutable bytes, valid component
+  // binding, unpublished media isolation and static release without CMS.
+  const png64='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y6Pe3UAAAAASUVORK5CYII=';
+  const pngBytes=Buffer.from(png64,'base64');
+  assert.equal((await request('POST',endpoint+'/media',{
+    base64:png64,alt:'Тестовый станок',expectedRevision:4
+  },{'x-csrf-token':'wrong'})).status,403,'media upload requires CSRF');
+  assert.equal((await request('POST',endpoint+'/media',{
+    base64:Buffer.from('<svg onload=alert(1)>').toString('base64'),alt:'Bad',expectedRevision:4
+  })).status,422,'SVG and non-raster uploads refused');
+  const media=await request('POST',endpoint+'/media',{
+    base64:png64,alt:'Тестовый станок',expectedRevision:4
+  });
+  assert.equal(media.status,201,JSON.stringify(media.body));
+  assert.equal(media.body.revision,5);
+  assert.equal(media.body.asset.mime,'image/png');
+  const asset=media.body.asset;
+  assert.equal((await request('GET','/published/'+id+'/assets/'+asset.id+'.png')).status,404,
+    'Unpublished assets are never public');
+  const image=await request('GET',endpoint+'/media/'+asset.id);
+  assert.equal(image.status,200);
+  assert.equal(image.headers.get('content-type'),'image/png');
+  assert.equal((await request('POST',endpoint+'/media',{
+    base64:png64,alt:'Stale',expectedRevision:4
+  })).status,409,'Cannot upload against old revision');
+  const imageDef=JSON.parse(fs.readFileSync(path.join(root,'stage3/components/image-showcase.json'),'utf8'));
+  const doc=structuredClone(media.body.site);
+  const showcase=require(path.join(root,'stage3/sdk/contract.cjs')).sectionFrom(imageDef,'section-photo');
+  showcase.elements.find(el=>el.slot==='photo').values['content.media']=asset.id;
+  doc.pages[0].sections.push(showcase);
+  const fake=structuredClone(doc);
+  fake.assets[0].src='/assets/not-real.png';
+  assert.equal((await request('POST',endpoint+'/save',{expectedRevision:5,site:fake})).status,422);
+  const correct=await request('POST',endpoint+'/save',{expectedRevision:5,site:doc});
+  assert.equal(correct.status,200);assert.equal(correct.body.revision,6);
+  assert.equal((await request('GET','/published/'+id+'/assets/'+asset.id+'.png')).status,404);
+  assert.equal((await request('POST',endpoint+'/publish',{expectedRevision:6})).body.version,3);
+  const publicImage=await fetch(origin+'/published/'+id+'/assets/'+asset.id+'.png');
+  assert.equal(publicImage.status,200);
+  assert.equal(publicImage.headers.get('content-type'),'image/png');
+  assert.deepEqual(Buffer.from(await publicImage.arrayBuffer()),pngBytes);
+  assert.match((await request('GET','/published/'+id+'/')).body,new RegExp(asset.id+'[.]png'));
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET','/published/'+id+'/')).status,200,'visitor needs no CMS login');
   // Export only the published snapshot. Build static files without modifying
   // live CMS routes, then serve with Node AFTER stopping the PHP CMS completely.
-  const out=path.join(dbdir,'export-v2');
+  const out=path.join(dbdir,'export-v3');
   const cmd=['stage3/server/bin/export-published.php',id,out];
   const exported=spawnSync('php',cmd,{cwd:root,env,encoding:'utf8'});
   assert.equal(exported.status,0,exported.stderr);
@@ -113,9 +155,14 @@ async function stop(){
     'Static releases cannot overwrite existing output');
   const manifest=JSON.parse(fs.readFileSync(path.join(out,'release-manifest.json'),'utf8'));
   assert.equal(manifest.format,'manufact-ai-static-site-v1');
-  assert.equal(manifest.publishedVersion,2);
-  assert.equal(manifest.sourceRevision,4);
+  assert.equal(manifest.publishedVersion,3);
+  assert.equal(manifest.sourceRevision,6);
   assert.deepEqual(manifest.pages.map(p=>p.path),['/','/contact/']);
+  assert.equal(manifest.assets.length,1);
+  assert.equal(manifest.assets[0].id,asset.id);
+  assert.deepEqual(fs.readFileSync(path.join(out,manifest.assets[0].file)),pngBytes);
+  assert.equal(manifest.assets[0].sha256,require('node:crypto').createHash('sha256').update(pngBytes).digest('hex'));
+
   for(const p of manifest.pages){
     const body=fs.readFileSync(path.join(out,p.file),'utf8');
     assert.equal(require('node:crypto').createHash('sha256').update(body).digest('hex'),p.sha256);
@@ -126,6 +173,9 @@ async function stop(){
   await stop();
   const http=require('node:http');
   const staticServer=http.createServer((req,res)=>{
+    if(req.url==='/assets/'+asset.id+'.png'){
+      res.setHeader('Content-Type','image/png');res.end(fs.readFileSync(path.join(out,'assets',asset.id+'.png')));return;
+    }
     const page=req.url==='/'?'index.html':req.url==='/contact/'?'contact/index.html':null;
     if(!page){res.writeHead(404);res.end();return;}
     res.setHeader('Content-Type','text/html; charset=utf-8');
@@ -138,6 +188,10 @@ async function stop(){
     assert.equal(home.status,200);assert.equal(contact.status,200);
     assert.match(await home.text(),/Производим технологическое оборудование/);
     assert.match(await contact.text(),/Свяжитесь с нами/);
+    const staticImage=await fetch(remote+'/assets/'+asset.id+'.png');
+    assert.equal(staticImage.status,200);
+    assert.deepEqual(Buffer.from(await staticImage.arrayBuffer()),pngBytes);
+
   }finally{
     await new Promise(resolve=>staticServer.close(resolve));
   }

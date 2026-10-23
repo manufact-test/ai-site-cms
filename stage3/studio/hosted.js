@@ -32,6 +32,55 @@
   publicLink.id='server-public-link';publicLink.target='_blank';publicLink.rel='noopener noreferrer';
   publicLink.hidden=true;
   toolbar.append(publicLink);
+  // Server-only media library: binary bytes never enter document JSON.
+  const mediaPanel=element('div','hosted-media');
+  const mediaTitle=element('strong',null,'Медиабиблиотека');
+  const mediaHint=element('small',null,'PNG / JPEG / WebP · до 450 КБ · только этот сайт');
+  const mediaInput=element('input');mediaInput.type='file';mediaInput.id='server-media-file';
+  mediaInput.accept='image/png,image/jpeg,image/webp';mediaInput.hidden=true;
+  const mediaUpload=action('+ Загрузить изображение','server-media-upload',()=>mediaInput.click());
+  const mediaList=element('div','hosted-media-list');mediaList.id='server-media-list';
+  mediaPanel.append(mediaTitle,mediaHint,mediaUpload,mediaInput,mediaList);
+  toolbar.after(mediaPanel);
+  async function uploadMedia(file){
+    return safe(async()=>{
+      if(!state.siteId)throw Error('Сначала создайте сайт');
+      if(editor.isDirty())throw Error('Сначала сохраните изменения черновика');
+      if(!file||file.size<1||file.size>450000)throw Error('Изображение должно быть не больше 450 КБ');
+      const description=prompt('Описание изображения (alt)',file.name.replace(/\.[^.]+$/,''));
+      if(description===null)return;
+      if(description.length>200)throw Error('Описание не более 200 символов');
+      const base64=await new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');
+        reader.onerror=()=>reject(Error('Не удалось прочитать изображение'));
+        reader.readAsDataURL(file);
+      });
+      const response=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/media','POST',
+        {base64,alt:description,expectedRevision:state.revision});
+      selectSite(response);await refreshSites();await loadHistory();
+      notice('Изображение добавлено. Выберите его в поле блока «Изображение и описание».');
+    });
+  }
+  mediaInput.addEventListener('change',()=>{
+    const file=mediaInput.files?.[0];mediaInput.value='';
+    if(file)uploadMedia(file);
+  });
+  function drawMedia(){
+    mediaList.replaceChildren();
+    const assets=editor.getSite().assets;
+    if(!state.siteId||!assets.length){
+      mediaList.append(element('small',null,'Изображений пока нет.'));return;
+    }
+    for(const asset of assets){
+      const row=element('div','hosted-media-item');
+      const photo=element('img');photo.src='/api/sites/'+encodeURIComponent(state.siteId)+'/media/'+encodeURIComponent(asset.id);
+      photo.alt=asset.alt;photo.loading='lazy';photo.width=65;photo.height=55;
+      const desc=element('div');desc.append(element('strong',null,asset.alt||'Без описания'));
+      desc.append(element('small',null,asset.id));
+      row.append(photo,desc);mediaList.append(row);
+    }
+  }
   document.querySelector('.sidebar-bottom').textContent='Серверная Studio · черновики отдельно от публикации. Только изолированный Stage3.';
   const gate=element('div','hosted-gate');
   gate.id='server-login';
@@ -74,6 +123,7 @@
     $('server-logout').disabled=state.busy||!state.authorized;
     $('new-site').disabled=state.busy||!state.authorized;
     $('import').disabled=state.busy||!state.authorized;
+    mediaUpload.disabled=!available||isDirty();
     $('reset').disabled=!available;
     const meta=state.sites.find(s=>s.site_id===state.siteId);
     const published=meta?.published_version?('Опубликовано: v'+meta.published_version):'Пока не опубликован';
@@ -113,7 +163,7 @@
     state.siteId=result.site.siteId;
     state.revision=Number(result.revision);
     editorVisible(true);
-    drawStatus();
+    drawMedia();drawStatus();
   }
   async function openSite(id){
     if(!id)return;
@@ -179,6 +229,7 @@
     await api('/api/logout','POST',{});
     state.authorized=false;state.csrf=null;state.siteId=null;state.revision=null;
     state.revisions=[];state.sites=[];picker.replaceChildren();
+    mediaList.replaceChildren();
     editorVisible(false);setGate(true);
     notice('Вы вышли из серверной CMS.');
   }

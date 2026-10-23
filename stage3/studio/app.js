@@ -165,7 +165,15 @@
       const error=document.createElement('p');error.className='field-path';error.setAttribute('role','alert');
       let control;
       const initial=field.responsive?C.effectiveValue(field.value,breakpoint):field.value;
-      if(field.type==='enum'){
+      if(field.type==='media'){
+        control=document.createElement('select');
+        const blank=document.createElement('option');blank.value='';blank.textContent='Без изображения';control.append(blank);
+        session.current.assets.forEach(asset=>{
+          const opt=document.createElement('option');opt.value=asset.id;
+          opt.textContent=(asset.alt||asset.id)+' · '+asset.mime;
+          control.append(opt);
+        });control.value=initial;
+      }else if(field.type==='enum'){
         control=document.createElement('select');
         field.options.forEach(v=>{
           const opt=document.createElement('option');opt.value=v;opt.textContent=v;control.append(opt);

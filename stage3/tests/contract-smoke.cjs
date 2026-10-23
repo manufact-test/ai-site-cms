@@ -7,7 +7,7 @@ const {execFileSync}=require('node:child_process');
 const sdk=require('../sdk/contract.cjs');
 const root=path.resolve(__dirname,'..');
 const read=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8'));
-const manifests=['company-hero','feature-highlights','contact-panel'].map(
+const manifests=['company-hero','feature-highlights','contact-panel','image-showcase'].map(
   name=>read('components/'+name+'.json'));
 let checks=0;
 const test=(name,fn)=>{fn();checks++;};
@@ -247,6 +247,18 @@ test('structure: pages, sections, stable IDs, undo, redo and closed rules',()=>{
   s=step(s,{action:'removePage',pageId:'page-catalog'});
   assert.deepEqual(s.current,initial,'Original site content and IDs preserved by round trip');
   assert.equal(JSON.stringify(initial),initialBytes,'Input immutable');
+});
+test('image showcase is a closed media-bound component',()=>{
+  const image=manifests[3];
+  assert.deepEqual(sdk.validateManifest(image),image);
+  const doc=same(initial);
+  doc.pages[0].sections.push(sdk.sectionFrom(image,'section-photo'));
+  const slot=doc.pages[0].sections.at(-1).elements.find(x=>x.slot==='photo');
+  assert.equal(slot.values['content.media'],'');
+  slot.values['content.media']='asset-test-one';
+  refuses(()=>sdk.validateSite(doc,manifests),'Cannot bind image not in site assets');
+  doc.assets=[{id:'asset-test-one',src:'/assets/asset-test-one.png',mime:'image/png',alt:'Demo'}];
+  assert.equal(sdk.validateSite(doc,manifests).pages[0].sections.at(-1).component,'image-showcase');
 });
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+

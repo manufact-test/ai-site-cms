@@ -121,8 +121,35 @@ async function execute(){
   await page.reload();
   await page.locator('#server-status').getByText(/Черновик #5/).waitFor();
   assert.equal(await page.locator('#server-site-select').inputValue(),siteId);
+  // Server media upload -> reusable asset -> image component -> explicit publish.
+  await page.locator('#pages .nav-entry').first().click();
+  replies.push('image-showcase');
+  await page.locator('#section-add').click();
+  assert.equal(await page.locator('#sections .nav-entry').count(),3);
+  await page.locator('#save').click();
+  await page.locator('#server-status').getByText(/Черновик #6/).waitFor();
+  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y6Pe3UAAAAASUVORK5CYII=','base64');
+  replies.push('Фото цеха');
+  await page.locator('#server-media-file').setInputFiles({
+    name:'factory.png',mimeType:'image/png',buffer:png
+  });
+  await page.locator('#server-status').getByText(/Черновик #7/).waitFor();
+  const assetId=(await page.evaluate(()=>window.Stage3Editor.getSite())).assets[0].id;
+  assert.equal(await page.locator('#server-media-list img').count(),1);
+  await page.locator('#sections .nav-entry').last().click();
+  await page.locator('#elements .element').nth(1).click();
+  await page.locator('#fields [data-field="content.media"]').selectOption(assetId);
+  await page.locator('#save').click();
+  await page.locator('#server-status').getByText(/Черновик #8/).waitFor();
+  assert.equal((await visitor.goto(origin+'/published/'+siteId+'/assets/'+assetId+'.png')).status(),404);
+  await page.locator('#server-publish').click();
+  await page.locator('#server-status').getByText(/Опубликовано: v4/).waitFor();
+  assert.equal((await visitor.goto(origin+'/published/'+siteId+'/assets/'+assetId+'.png')).status(),200);
+  await visitor.goto(origin+'/published/'+siteId+'/');
+  assert.equal(await visitor.locator('img.showcase-photo').count(),1);
+  assert.equal(await visitor.locator('img.showcase-photo').getAttribute('alt'),'Фото цеха');
   const tokenless=await ctx.request.post(origin+'/api/sites/'+siteId+'/save',
-    {data:{site:{},expectedRevision:5}});
+    {data:{site:{},expectedRevision:8}});
   assert.equal(tokenless.status(),403,'CSRF still enforced with browser credentials');
   const link=page.locator('#server-public-link');
   assert.equal(await link.getAttribute('href'),'/published/'+siteId+'/');

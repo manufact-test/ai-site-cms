@@ -39,11 +39,6 @@ try {
     if (!in_array('/', array_column($site['pages'], 'path'), true)) {
         failExport('A published website requires a root page');
     }
-    // In this baseline renderer we only use manifest-bound text/colors/links.
-    // Unhandled binary assets must not become broken references in an export.
-    if ($site['assets'] !== []) {
-        failExport('Static export cannot yet package media assets');
-    }
     $temp = $parent . '/.stage3-build-' . bin2hex(random_bytes(10));
     if (!mkdir($temp, 0755)) {
         failExport('Cannot create export staging directory');
@@ -54,8 +49,33 @@ try {
         'publishedVersion' => $published['version'],
         'sourceRevision' => $published['sourceRevision'],
         'pages' => [],
+        'assets' => [],
     ];
     try {
+        foreach ($site['assets'] as $asset) {
+            $image = stage3_repository()->image($siteId, $asset['id']);
+            if ($image['mime'] !== $asset['mime']) {
+                failExport('Published asset type mismatch');
+            }
+            $relative = ltrim($asset['src'], '/');
+            $expectedPrefix = 'assets/' . $asset['id'] . '.';
+            if (!str_starts_with($relative, $expectedPrefix)
+                || !preg_match('~^assets/[a-z][a-z0-9-]{2,79}\.(png|jpg|webp)$~D', $relative)) {
+                failExport('Unsafe media export path');
+            }
+            if (!is_dir($temp . '/assets') && !mkdir($temp . '/assets', 0755)) {
+                failExport('Cannot create media directory');
+            }
+            if (file_put_contents($temp . '/' . $relative, $image['bytes'], LOCK_EX) === false) {
+                failExport('Cannot export image bytes');
+            }
+            $manifest['assets'][] = [
+                'id' => $asset['id'],
+                'file' => $relative,
+                'mime' => $asset['mime'],
+                'sha256' => $image['sha256']
+            ];
+        }
         foreach ($site['pages'] as $page) {
             $path = $page['path'];
             $relative = ltrim($path, '/') . 'index.html';

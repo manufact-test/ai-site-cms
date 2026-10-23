@@ -78,6 +78,19 @@ final class PublicRenderer
                     . '<div class="feature-grid"><article style="color:' . self::h($first['style.color']) . '">'
                     . self::label($section, 'first') . '</article><article>'
                     . self::label($section, 'second') . '</article></div></section>';
+            } elseif ($section['component'] === 'image-showcase') {
+                $media = (string)(self::element($section, 'photo')['content.media'] ?? '');
+                $picture = '';
+                foreach ($site['assets'] as $asset) {
+                    if ($asset['id'] === $media) {
+                        $picture = '<img class="showcase-photo" loading="lazy" decoding="async" src="'
+                            . self::h($mount . $asset['src']) . '" alt="' . self::h($asset['alt']) . '">';
+                        break;
+                    }
+                }
+                $body .= '<section id="' . $id . '" class="showcase"><h2>'
+                    . self::label($section, 'heading') . '</h2>'
+                    . $picture . '<p>' . self::label($section, 'caption') . '</p></section>';
             } elseif ($section['component'] === 'contact-panel') {
                 $body .= '<section id="' . $id . '" class="contact"><h2>'
                     . self::label($section, 'heading') . '</h2>'
@@ -94,6 +107,7 @@ final class PublicRenderer
             . 'h2{font-size:clamp(28px,3vw,42px);line-height:1.2}.hero{padding-block:90px}.action{display:inline-block;background:#0a5bff;color:white;'
             . 'padding:14px 22px;border-radius:9px;text-decoration:none;font-weight:700}.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}'
             . 'article{padding:24px;background:white;border:1px solid #e1e8f1;border-radius:12px}'
+            . '.showcase-photo{display:block;width:100%;height:auto;max-height:680px;object-fit:contain;border-radius:16px;background:#e4ebf3}'
             . '@media(max-width:900px){h1{font-size:var(--title-tablet)}}'
             . '@media(max-width:600px){section{padding:40px 8px}.hero{padding-block:48px}.feature-grid{grid-template-columns:1fr}h1{font-size:var(--title-mobile)}}'
             . '</style></head><body><header><nav aria-label="Навигация">' . $navigation

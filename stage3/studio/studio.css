@@ -14,3 +14,5 @@
 /* Site/page/section structure actions, separate from selectable tree entries */
 .structure-tools{display:flex;flex-wrap:wrap;gap:5px;padding:8px 12px}
 .structure-tools>.btn{font-size:11px;padding:6px 9px;min-width:0}
+
+.media-placeholder{min-height:150px;display:grid;place-items:center;background:#e3eef0;border:1px dashed #94afbf;border-radius:12px;color:#34546b;text-align:center;padding:24px}

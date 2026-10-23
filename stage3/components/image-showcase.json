@@ -1,0 +1,49 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "image-showcase",
+  "version": "1.0.0",
+  "label": "Изображение и описание",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок секции",
+          "type": "text",
+          "default": "Наше производство",
+          "responsive": false,
+          "maxLength": 160
+        }
+      ]
+    },
+    {
+      "slot": "photo",
+      "label": "Фотография",
+      "fields": [
+        {
+          "path": "content.media",
+          "label": "Изображение из медиабиблиотеки",
+          "type": "media",
+          "default": "",
+          "responsive": false
+        }
+      ]
+    },
+    {
+      "slot": "caption",
+      "label": "Подпись",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Подпись фотографии",
+          "type": "text",
+          "default": "Добавьте фотографию вашего производства",
+          "responsive": false,
+          "maxLength": 400
+        }
+      ]
+    }
+  ]
+}

@@ -25,9 +25,9 @@ final class Api
             self::response(415, ['error' => 'JSON required']);
         }
         $stream = fopen('php://input', 'rb');
-        $json = stream_get_contents($stream, 524289);
+        $json = stream_get_contents($stream, 750001);
         fclose($stream);
-        if ($json === false || strlen($json) > 524288) {
+        if ($json === false || strlen($json) > 750000) {
             self::response(413, ['error' => 'Request too large']);
         }
         $body = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
@@ -129,6 +129,20 @@ final class Api
             echo $data;
             exit;
         }
+        if ($method === 'GET' && preg_match('~^/published/([a-z][a-z0-9-]{2,79})/assets/([a-z][a-z0-9-]{2,79})\.(png|jpg|webp)$~D', $path, $assetMatch)) {
+            try {
+                $image = $this->sites->publishedImage($assetMatch[1], $assetMatch[2], $assetMatch[3]);
+                header('Content-Type: ' . $image['mime']);
+                header('ETag: "' . $image['sha256'] . '"');
+                header("Content-Security-Policy: default-src 'none'; sandbox");
+                echo $image['bytes'];
+                exit;
+            } catch (NotFound $e) {
+                http_response_code(404);
+                echo 'Not found';
+                exit;
+            }
+        }
         if (preg_match('~^/published/([a-z][a-z0-9-]{2,79})(/.*)$~D', $path, $match) && $method === 'GET') {
             try {
                 $published = $this->sites->published($match[1]);
@@ -186,6 +200,17 @@ final class Api
                 self::response(200, ['authenticated' => true, 'csrfToken' => $_SESSION['stage3_csrf']]);
             }
             self::authenticated();
+            if ($method === 'GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/media/([a-z][a-z0-9-]{2,79})$~D', $path, $mediaMatch)) {
+                $draft = $this->sites->getDraft($mediaMatch[1]);
+                if (!in_array($mediaMatch[2], array_column($draft['site']['assets'], 'id'), true)) {
+                    throw new NotFound('Image is not in current draft');
+                }
+                $image = $this->sites->image($mediaMatch[1], $mediaMatch[2]);
+                header('Content-Type: ' . $image['mime']);
+                header("Content-Security-Policy: default-src 'none'; sandbox");
+                echo $image['bytes'];
+                exit;
+            }
             if ($path === '/api/sites' && $method === 'GET') {
                 self::response(200, ['sites' => $this->sites->listSites()]);
             }
@@ -201,7 +226,7 @@ final class Api
                     self::response(201, $this->sites->createSite($body['site'] ?? []));
                 }
             }
-            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/(revisions|restore|save|publish))?$~D', $path, $matches)) {
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/(revisions|restore|save|publish|media))?$~D', $path, $matches)) {
                 $id = $matches[1];
                 $action = $matches[2] ?? '';
                 if ($method === 'GET' && $action === '') {
@@ -211,6 +236,15 @@ final class Api
                     self::response(200, ['revisions' => $this->sites->history($id)]);
                 }
                 if ($method === 'POST') {
+                    if ($action === 'media') {
+                        $base64 = $body['base64'] ?? null;
+                        $alt = $body['alt'] ?? null;
+                        if (!is_string($base64) || !is_string($alt)) {
+                            throw new InvalidArgumentException('Image content and description required');
+                        }
+                        self::response(201, $this->sites->uploadImage($id, $base64, $alt,
+                            self::revision($body['expectedRevision'] ?? null)));
+                    }
                     if ($action === 'save') {
                         self::response(200, $this->sites->save($id, $body['site'] ?? [],
                             self::revision($body['expectedRevision'] ?? null)));
