@@ -1,0 +1,45 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "faq-accordion",
+  "version": "1.0.0",
+  "label": "FAQ · раскрывающиеся вопросы",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок секции",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок",
+          "type": "text",
+          "default": "FAQ · раскрывающиеся вопросы",
+          "responsive": false,
+          "maxLength": 180
+        }
+      ]
+    }
+  ],
+  "repeat": {
+    "label": "Повторяемый элемент",
+    "min": 2,
+    "max": 24,
+    "fields": [
+      {
+        "path": "content.question",
+        "label": "Вопрос",
+        "type": "text",
+        "default": "Укажите вопрос",
+        "responsive": false,
+        "maxLength": 220
+      },
+      {
+        "path": "content.answer",
+        "label": "Ответ",
+        "type": "text",
+        "default": "Добавьте проверенный ответ.",
+        "responsive": false,
+        "maxLength": 1200
+      }
+    ]
+  }
+}

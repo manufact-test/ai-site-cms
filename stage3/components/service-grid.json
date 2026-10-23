@@ -1,0 +1,52 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "service-grid",
+  "version": "1.0.0",
+  "label": "Услуги · повторяемые карточки",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок секции",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок",
+          "type": "text",
+          "default": "Услуги · повторяемые карточки",
+          "responsive": false,
+          "maxLength": 180
+        }
+      ]
+    }
+  ],
+  "repeat": {
+    "label": "Повторяемый элемент",
+    "min": 2,
+    "max": 16,
+    "fields": [
+      {
+        "path": "content.title",
+        "label": "Название услуги",
+        "type": "text",
+        "default": "Название услуги",
+        "responsive": false,
+        "maxLength": 150
+      },
+      {
+        "path": "content.text",
+        "label": "Описание услуги",
+        "type": "text",
+        "default": "Добавьте подтверждённое описание услуги.",
+        "responsive": false,
+        "maxLength": 600
+      },
+      {
+        "path": "behavior.href",
+        "label": "Ссылка",
+        "type": "url",
+        "default": "/contact/",
+        "responsive": false
+      }
+    ]
+  }
+}

@@ -7,7 +7,7 @@ const copy=x=>structuredClone(x),isObj=x=>!!x&&typeof x==='object'&&!Array.isArr
 function select(doc,pageId,sectionId,elementId){
   const page=doc.pages.find(p=>p.id===pageId);
   const section=page?.sections.find(s=>s.id===sectionId);
-  const element=section?.elements.find(e=>e.id===elementId);
+  const element=section?.elements.find(e=>e.id===elementId)||section?.items?.find(e=>e.id===elementId);
   if(!element)throw Error('Unrecognized editor selection');
   return {page,section,element};
 }
@@ -81,7 +81,7 @@ function structure(raw,manifests,command){
     if(typeof newId!=='string')throw Error('Fresh section ID required');
     return {...copy(source),id:newId,elements:source.elements.map(el=>({
       ...copy(el),id:newId+'-'+el.slot
-    }))};
+    })),...(source.items?{items:source.items.map((item,i)=>({...copy(item),id:newId+'-item-'+(i+1)}))}:{})};
   };
   switch(action){
     case 'addPage': {
@@ -128,6 +128,31 @@ function structure(raw,manifests,command){
       c.pages.splice(index+1,0,cloned);
       break;
     }
+    case 'addItem':
+    case 'duplicateItem':
+    case 'moveItem':
+    case 'removeItem': {
+      if(!page||sectionIndex<0)throw Error('Unknown repeat section');
+      const sec=page.sections[sectionIndex],repeat=reg.get(sec.component)?.repeat;
+      if(!repeat||!Array.isArray(sec.items))throw Error('Component has no declared repeater');
+      const found=sec.items.findIndex(x=>x.id===command.itemId);
+      if(action==='addItem'||action==='duplicateItem'){
+        if(sec.items.length>=repeat.max)throw Error('Repeater is full');
+        if(typeof command.id!=='string')throw Error('New repeat item ID required');
+        const item=action==='duplicateItem'&&found>=0?{...copy(sec.items[found]),id:command.id}:{
+          id:command.id,values:Object.fromEntries(repeat.fields.map(f=>[f.path,copy(f.default)]))
+        };
+        sec.items.splice(found>=0?found+1:sec.items.length,0,item);
+      }else{
+        if(found<0)throw Error('Unknown repeat item');
+        if(action==='moveItem')move(sec.items,found,command.delta);
+        else{
+          if(sec.items.length<=repeat.min)throw Error('Cannot remove required repeat item');
+          sec.items.splice(found,1);
+        }
+      }
+      break;
+    }
     case 'moveSection':
       if(!page)throw Error('Unknown page');
       move(page.sections,sectionIndex,command.delta);break;
@@ -166,6 +191,8 @@ function changes(raw,manifests){
       if(prior.sections.findIndex(q=>q.id===section.id)!==i)
         record('section-moved',{pageId:page.id,sectionId:section.id});
       if(prev.component!==section.component||prev.manifestVersion!==section.manifestVersion){record('section-replaced',{pageId:page.id,sectionId:section.id});return;}
+      if(JSON.stringify(prev.items)!==JSON.stringify(section.items))
+        diff.push({kind:'items-updated',pageId:page.id,sectionId:section.id});
       for(const el of section.elements){
         const original=prev.elements.find(q=>q.id===el.id);
         if(!original)throw Error('Stable element ID changed');
@@ -193,8 +220,16 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
     }
     return {id:el.id,slot:el.slot,props};
   });
+  const items=(section.items||[]).map(item=>{
+    const props={content:{},style:{},behavior:{}};
+    for(const field of C.controls(s.current,manifests,pageId,sectionId,item.id)){
+      const [group,name]=field.path.split('.');
+      props[group][name]=C.effectiveValue(field.value,breakpoint);
+    }
+    return {id:item.id,props};
+  });
   return {format:'manufact-ai-block-preview-data-v1',siteId:s.current.siteId,
     pageId,sectionId,component:section.component,breakpoint,
-    elements,notPublished:true,hasExecutableHtml:false};
+    elements,items,notPublished:true,hasExecutableHtml:false};
 }
 module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview});

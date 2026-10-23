@@ -50,12 +50,20 @@ function validateAtom(field,val,where,assetIds){
   }else fail('Unknown type',where);
 }
 function validateManifest(m){
-  objectKeys(m,['format','id','version','label','elements'],'manifest');
+  objectKeys(m,['format','id','version','label','elements','repeat'],'manifest');
   if(m.format!==MANIFEST||typeof m.id!=='string'||!key.test(m.id))fail('Invalid component manifest ID');
   version(m.version,'manifest.version');text(m.label,'manifest.label',110);
   if(!Array.isArray(m.elements)||m.elements.length<1||m.elements.length>30)fail('Invalid element declarations');
+  if(own(m,'repeat')){
+    objectKeys(m.repeat,['label','min','max','fields'],'manifest.repeat');
+    text(m.repeat.label,'repeat.label',110);
+    if(!Number.isInteger(m.repeat.min)||!Number.isInteger(m.repeat.max)||
+      m.repeat.min<1||m.repeat.max>24||m.repeat.min>m.repeat.max||
+      !Array.isArray(m.repeat.fields)||!m.repeat.fields.length||m.repeat.fields.length>12)
+      fail('Invalid repeater bounds or fields');
+  }
   const slots=new Set();
-  for(const el of m.elements){
+  for(const el of [...m.elements,...(m.repeat?[{slot:'repeat-item',label:m.repeat.label,fields:m.repeat.fields}]:[])]){
     objectKeys(el,['slot','label','fields'],'element');
     if(typeof el.slot!=='string'||!key.test(el.slot)||slots.has(el.slot))fail('Duplicate or unsafe slot',el.slot);
     slots.add(el.slot);text(el.label,'slot.label',110);
@@ -140,7 +148,7 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items'],'section');
       id(section.id,'section.id');if(ids.has(section.id))fail('Duplicate stable ID',section.id);ids.add(section.id);
       const manifest=select(reg,section.component,section.manifestVersion);
       if(!Array.isArray(section.elements)||section.elements.length!==manifest.elements.length)fail('Incomplete element tree',section.id);
@@ -159,6 +167,21 @@ function validateSite(raw,regInput){
           fail('Unbound, hidden or missing edit property',section.id+'/'+slot.slot);
         for(const [p,f] of definitions)validateValue(f,el.values[p],section.id+'/'+slot.slot+'/'+p,assetIds);
       }
+      if(manifest.repeat){
+        if(!Array.isArray(section.items)||section.items.length<manifest.repeat.min||
+          section.items.length>manifest.repeat.max)fail('Invalid repeat count',section.id);
+        const definitions=fieldMap(manifest.repeat);
+        for(const item of section.items){
+          objectKeys(item,['id','values'],'repeat item');
+          id(item.id,'repeat item ID');
+          if(ids.has(item.id))fail('Duplicate stable ID',item.id);
+          ids.add(item.id);
+          if(!isObject(item.values)||Object.keys(item.values).length!==definitions.size||
+            Object.keys(item.values).some(p=>!definitions.has(p)))fail('Unknown repeat property',item.id);
+          for(const [path,field] of definitions)
+            validateValue(field,item.values[path],item.id+'/'+path,assetIds);
+        }
+      }else if(own(section,'items'))fail('Unregistered repeat items',section.id);
     }
   }
   return clone(raw);
@@ -167,8 +190,11 @@ function controls(doc,regInput,pageId,sectionId,elementId){
   const reg=regInput instanceof Map?regInput:registry(regInput);
   const site=validateSite(doc,reg),page=site.pages.find(p=>p.id===pageId),sec=page?.sections.find(s=>s.id===sectionId);
   if(!sec)fail('Unknown editor selection');
-  const element=sec.elements.find(e=>e.id===elementId);if(!element)fail('Unknown element');
-  const def=select(reg,sec.component,sec.manifestVersion).elements.find(x=>x.slot===element.slot);
+  const element=sec.elements.find(e=>e.id===elementId)||sec.items?.find(e=>e.id===elementId);
+  if(!element)fail('Unknown element');
+  const manifest=select(reg,sec.component,sec.manifestVersion);
+  const def=element.slot?manifest.elements.find(x=>x.slot===element.slot):manifest.repeat;
+  if(!def)fail('Undeclared repeat field');
   return def.fields.map(f=>({id:element.id+'/'+f.path,elementId:element.id,path:f.path,
     group:f.path.split('.')[0],label:f.label,type:f.type,
     responsive:f.responsive,breakpoints:f.responsive?BREAKPOINTS.slice():[],
@@ -193,7 +219,12 @@ function sectionFrom(manifest,idValue,overrides={}){
     }
     return {id:elementID,slot:def.slot,values:value};
   });
-  return {id:idValue,component:manifest.id,manifestVersion:manifest.version,elements};
+  const result={id:idValue,component:manifest.id,manifestVersion:manifest.version,elements};
+  if(manifest.repeat)result.items=Array.from({length:manifest.repeat.min},(_,i)=>({
+    id:idValue+'-item-'+(i+1),
+    values:Object.fromEntries(manifest.repeat.fields.map(f=>[f.path,clone(f.default)]))
+  }));
+  return result;
 }
 function siteFromBrief({siteId='site-generated',title='Новый сайт',brief={}},regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
@@ -220,6 +251,9 @@ function upgrade(raw,previous,next,allOtherManifests,decisions={}){
   const old=validateManifest(previous),fresh=validateManifest(next);
   if(old.id!==fresh.id||cmpVersion(fresh.version,old.version)<=0)fail('Component upgrade must increase version');
   if(!isObject(decisions))fail('Invalid decisions');
+  // Repeat schemas require a dedicated data migration: never silently drop owner's items.
+  if(JSON.stringify(old.repeat)!==JSON.stringify(fresh.repeat))
+    fail('Repeater schema changes need explicit item migration');
   const beforeRegistry=registry([...allOtherManifests,old]),afterRegistry=registry([...allOtherManifests,fresh]);
   const doc=validateSite(raw,beforeRegistry),candidate=clone(doc),conflicts=[],diff=[];
   const oldSlots=new Map(old.elements.map(s=>[s.slot,s]));

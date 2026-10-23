@@ -20,7 +20,15 @@ final class ContractValidator
     {
         foreach (glob(rtrim($manifestDirectory, '/'). '/*.json') ?: [] as $file) {
             $m = json_decode((string) file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
-            self::keys($m, ['format', 'id', 'version', 'label', 'elements']);
+            self::keys($m, ['format', 'id', 'version', 'label', 'elements','repeat']);
+            if (isset($m['repeat'])) {
+                self::keys($m['repeat'], ['label','min','max','fields']);
+                self::must(is_string($m['repeat']['label']) && is_int($m['repeat']['min'])
+                    && is_int($m['repeat']['max']) && $m['repeat']['min']>=1
+                    && $m['repeat']['max']<25 && $m['repeat']['min']<=$m['repeat']['max']
+                    && is_array($m['repeat']['fields']) && array_is_list($m['repeat']['fields'])
+                    && count($m['repeat']['fields'])>0 && count($m['repeat']['fields'])<=12,'Invalid repeater manifest');
+            }
             self::must($m['format'] === 'manufact-ai-component-v1'
                 && preg_match(self::ID, $m['id']) === 1
                 && preg_match('/^\d+\.\d+\.\d+$/D', $m['version']) === 1, 'Invalid bundled manifest');
@@ -168,7 +176,7 @@ final class ContractValidator
             self::must(is_array($page['sections']) && array_is_list($page['sections'])
                 && count($page['sections']) >= 1 && count($page['sections']) <= 100, 'Invalid sections');
             foreach ($page['sections'] as $section) {
-                self::keys($section, ['id', 'component', 'manifestVersion', 'elements']);
+                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items']);
                 self::uniqueId($section['id'], $ids);
                 $manifest = $this->registry[$section['component']] ?? null;
                 self::must($manifest !== null && $manifest['version'] === $section['manifestVersion'],
@@ -197,6 +205,23 @@ final class ContractValidator
                         self::value($field, $element['values'][$path], $assets);
                     }
                 }
+                if (isset($manifest['repeat'])) {
+                    $repeat=$manifest['repeat'];
+                    self::must(isset($section['items']) && is_array($section['items']) && array_is_list($section['items'])
+                        && count($section['items'])>=$repeat['min'] && count($section['items'])<=$repeat['max'],'Invalid repeat count');
+                    $declared=[];
+                    foreach ($repeat['fields'] as $field) $declared[$field['path']]=$field;
+                    foreach ($section['items'] as $item) {
+                        self::keys($item,['id','values']);
+                        self::uniqueId($item['id'],$ids);
+                        self::must(is_array($item['values']) && count($item['values'])===count($declared)
+                            && !array_diff(array_keys($item['values']),array_keys($declared)),'Invalid repeat values');
+                        foreach ($declared as $path=>$field) {
+                            self::must(array_key_exists($path,$item['values']),'Missing repeat field');
+                            self::value($field,$item['values'][$path],$assets);
+                        }
+                    }
+                } else self::must(!array_key_exists('items',$section),'Undeclared repeater');
             }
         }
         return $site;

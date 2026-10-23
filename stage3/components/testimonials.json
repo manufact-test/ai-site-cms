@@ -1,0 +1,53 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "testimonials",
+  "version": "1.0.0",
+  "label": "Отзывы · повторяемые карточки",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок секции",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок",
+          "type": "text",
+          "default": "Отзывы · повторяемые карточки",
+          "responsive": false,
+          "maxLength": 180
+        }
+      ]
+    }
+  ],
+  "repeat": {
+    "label": "Повторяемый элемент",
+    "min": 2,
+    "max": 16,
+    "fields": [
+      {
+        "path": "content.quote",
+        "label": "Текст отзыва",
+        "type": "text",
+        "default": "Добавьте реальный отзыв с согласия автора.",
+        "responsive": false,
+        "maxLength": 900
+      },
+      {
+        "path": "content.author",
+        "label": "Автор",
+        "type": "text",
+        "default": "Имя автора",
+        "responsive": false,
+        "maxLength": 130
+      },
+      {
+        "path": "content.role",
+        "label": "Описание автора",
+        "type": "text",
+        "default": "",
+        "responsive": false,
+        "maxLength": 180
+      }
+    ]
+  }
+}

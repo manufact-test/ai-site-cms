@@ -1,0 +1,44 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "photo-gallery",
+  "version": "1.0.0",
+  "label": "Галерея · повторяемые фотографии",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок секции",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок",
+          "type": "text",
+          "default": "Галерея · повторяемые фотографии",
+          "responsive": false,
+          "maxLength": 180
+        }
+      ]
+    }
+  ],
+  "repeat": {
+    "label": "Повторяемый элемент",
+    "min": 2,
+    "max": 20,
+    "fields": [
+      {
+        "path": "content.media",
+        "label": "Фотография",
+        "type": "media",
+        "default": "",
+        "responsive": false
+      },
+      {
+        "path": "content.caption",
+        "label": "Подпись",
+        "type": "text",
+        "default": "",
+        "responsive": false,
+        "maxLength": 240
+      }
+    ]
+  }
+}
