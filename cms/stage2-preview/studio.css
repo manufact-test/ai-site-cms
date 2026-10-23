@@ -544,6 +544,21 @@ textarea:focus-visible, summary:focus-visible{outline:2px solid #27bde2;outline-
 @media(max-width:560px){.brief-form{grid-template-columns:1fr;padding:17px}
 .brief-form label{grid-column:1/-1}.brief-head{padding:20px 17px}}
 
+/* Factual website brief: content list inputs with readable validity summary. */
+.brief-facts{min-width:0;display:grid;gap:12px;margin:2px 0;padding:16px;border:1px solid #c7dce5;background:#f5f9fb;border-radius:12px}
+.brief-facts legend{font-size:13px;font-weight:800;color:#173d50;padding:0 6px}
+.brief-facts legend span{font-size:11px;font-weight:500;color:#557888;margin-left:7px}
+.brief-facts>p{font-size:12px;line-height:1.55;color:#536e7d;margin:0}
+.brief-facts>label{font-weight:700}
+.brief-facts textarea{background:#fff;max-width:100%;min-height:80px}
+.brief-facts-summary{display:grid;gap:8px;padding:12px;background:#e8f3f5;border:1px solid #cee2e8;border-radius:10px;font-size:12px;line-height:1.55;color:#2d596c}
+.brief-fact-line{display:grid;grid-template-columns:minmax(110px,165px) 1fr;gap:12px;align-items:start}
+.brief-fact-line strong{color:#195165}
+.brief-fact-line span{overflow-wrap:anywhere}
+.brief-facts .brief-error{font-weight:700;color:#a02b37}
+.brief-submit button:disabled{opacity:.48;cursor:not-allowed}
+@media(max-width:560px){.brief-facts{padding:12px}.brief-fact-line{grid-template-columns:1fr;gap:1px}}
+
 /* Stage 2 local editorial overview; advisory review, never publish readiness. */
 .quality-summary{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;background:#f5fafd;border:1px solid #d4e7ef;border-radius:14px;padding:16px 20px}
 .quality-summary-head{display:grid;gap:5px;flex:1;min-width:220px}
