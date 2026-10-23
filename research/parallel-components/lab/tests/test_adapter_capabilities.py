@@ -22,3 +22,6 @@ class AdapterProperties(unittest.TestCase):
             for value in block['editable'].values():
                 self.assertIn(value['type'],('string','boolean'))
                 if 'enum' in value:self.assertTrue(value['enum'])
+
+# Imported into the workflow's existing fixed-list entrypoint without changing shared Actions.
+from test_phone_real import RealPhoneMetadata

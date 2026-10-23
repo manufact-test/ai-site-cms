@@ -34,8 +34,24 @@ final class FormLab
     public static function submit(array $post, array &$session, int $now, ?string $recipient,
         callable $deliver, ?callable $phoneValidator = null, ?callable $claim = null): array
     {
-        $attempts = array_values(array_filter($session['form_lab_attempts'] ?? [],
-            static fn($at): bool => is_int($at) && $at > $now - 60));
+        $history = $session['form_lab_attempts'] ?? [];
+        $invalidHistory = !is_array($history) || !array_is_list($history) || count($history) > 5;
+        $previous = -1;
+        if (!$invalidHistory) {
+            foreach ($history as $at) {
+                if (!is_int($at) || $at < 0 || $at > $now || $at < $previous) {
+                    $invalidHistory = true;
+                    break;
+                }
+                $previous = $at;
+            }
+        }
+        // Never silently discard malformed or future session attempts as a reset.
+        if ($invalidHistory) {
+            return self::result(429, 'RATE_LIMITED', 'Слишком много попыток. Повторите позже.');
+        }
+        $attempts = array_values(array_filter($history,
+            static fn(int $at): bool => $at > $now - 60));
         if (count($attempts) >= 5) {
             return self::result(429, 'RATE_LIMITED', 'Слишком много попыток. Повторите позже.');
         }

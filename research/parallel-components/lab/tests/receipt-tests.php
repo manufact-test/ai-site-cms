@@ -27,6 +27,14 @@ try {
     confirm($gate->claim('team@example.test', ['wrong'=>'value'],2000)==='RECEIPT_STORE_UNAVAILABLE','closed fields');
     confirm($gate->claim('team@example.test',$fields,2000,1)==='RECEIPT_STORE_UNAVAILABLE','bad ttl');
     confirm($gate->claim('team@example.test',$fields,-1)==='RECEIPT_STORE_UNAVAILABLE','bad timestamp');
+    $invalidUtf8=$fields;
+    $invalidUtf8['message']="Bad\xff invalid UTF8";
+    confirm($gate->claim('team@example.test',$invalidUtf8,2000)==='RECEIPT_STORE_UNAVAILABLE',
+        'invalid UTF8 data never throws or writes a claim');
+    $oversize=$fields;
+    $oversize['message']=str_repeat('x',8193);
+    confirm($gate->claim('team@example.test',$oversize,2000)==='RECEIPT_STORE_UNAVAILABLE',
+        'oversized direct-call value rejected before HMAC');
     $before=glob($dir.'/*.claim');confirm(count($before)===3,'only keyed hash files');
     foreach ($before as $path) {
         confirm((bool)preg_match('/^[a-f0-9]{64}\.claim$/D',basename($path)), 'filename hmac');
@@ -40,6 +48,10 @@ try {
     $path=$dir.'/'.$key.'.claim';
     file_put_contents($path, '{broken-json');
     confirm($gate->claim('team@example.test',$fields,2600)==='RECEIPT_STORE_UNAVAILABLE','corruption never permits replay');
+    file_put_contents($path,'');
+    confirm($gate->claim('team@example.test',$fields,2600)==='RECEIPT_STORE_UNAVAILABLE','zero-length preexisting interrupted claim cannot resend');
+    file_put_contents($path,'{"v":1,"at":-1}');
+    confirm($gate->claim('team@example.test',$fields,2600)==='RECEIPT_STORE_UNAVAILABLE','negative saved timestamp denied');
     unlink($path);symlink('/tmp/not-a-real-lab-secret',$path);
     confirm($gate->claim('team@example.test',$fields,2600)==='RECEIPT_STORE_UNAVAILABLE','symlink never followed');
     unlink($path);
@@ -76,5 +88,5 @@ try {
         $accepted += $out==='1' ? 1 : 0;
     }
     confirm($accepted===1,'12 process race yields precisely one attempt');
-} finally {foreach(glob($dir.'/*')?:[] as $file)unlink($file);rmdir($dir);}
+} finally {foreach(array_diff(scandir($dir)?:[],['.','..']) as $file)unlink($dir.'/'.$file);rmdir($dir);}
 echo "ReceiptLedger PASS: $n assertions including 12 concurrent workers\n";

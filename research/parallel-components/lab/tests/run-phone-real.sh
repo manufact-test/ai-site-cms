@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Developer opt-in only. Disposable dependency install OUTSIDE the repository.
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+command -v php >/dev/null || { echo PHP_REQUIRED >&2; exit 2; }
+command -v composer >/dev/null || { echo COMPOSER_REQUIRED >&2; exit 2; }
+php -r 'exit(extension_loaded("mbstring") ? 0 : 2);' || { echo MBSTRING_REQUIRED >&2; exit 2; }
+tmp="$(mktemp -d -t cms-phone-real-XXXXXXXX)"
+trap 'rm -rf "$tmp"' EXIT
+(
+  cd "$tmp"
+  # A private throwaway project, not publishable package metadata.
+  printf '%s\n' '{"name":"manufact-test/components-phone-lab","type":"project","license":"proprietary"}' > composer.json
+  composer require --no-interaction --no-plugins --no-scripts --prefer-dist --no-progress \
+    'giggsey/libphonenumber-for-php-lite:9.0.41' \
+    'symfony/polyfill-mbstring:1.38.2'
+  # A clean disposable lock is created on each run, with BOTH package versions fixed.
+  # This is a throwaway PROJECT, not a Packagist publication; exact pins are deliberate.
+  composer validate --no-interaction --no-check-publish --no-check-all --strict
+  composer audit --locked --no-interaction
+)
+LAB_PHONE_AUTOLOAD="$tmp/vendor/autoload.php" php "$here/phone-real-integration.php"

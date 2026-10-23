@@ -67,4 +67,18 @@ check(FormLab::submit($data,$session,$now,'team@example.test',static fn()=>true)
 check($r['code'] === 'VALIDATION_ERROR', 'array injection refused');
 [$r] = scenario(array_replace($input,['phone'=>str_repeat('a',41)]));
 check($r['code'] === 'VALIDATION_ERROR', 'phone length');
+// Corrupt session records must not silently reset a per-session throttle.
+foreach (['broken', [1,'bad'], [$now + 1], [$now - 1, $now - 5],
+             [0, 0, 0, 0, 0, 0], ['0'=>0, 'two'=>5]] as $corrupt) {
+    $session=[]; $csrf=FormLab::issueToken($session,$now-10);
+    $session['form_lab_attempts']=$corrupt;
+    $out=FormLab::submit($input+['csrf'=>$csrf],$session,$now,'team@example.test',
+        static fn()=>true);
+    check($out['code']==='RATE_LIMITED' && $out['http']===429,
+        'invalid session attempt history refused');
+}
+$session=[]; $csrf=FormLab::issueToken($session,$now-10);
+$session['form_lab_attempts']=[$now-61];
+$out=FormLab::submit($input+['csrf'=>$csrf],$session,$now,'team@example.test',static fn()=>true);
+check($out['code']==='QUEUED_UNCONFIRMED', 'normal expired session history still clears');
 echo "FormLab PASS: $assertions standalone assertions (delivery, replay, validation, abuse, configuration)\n";

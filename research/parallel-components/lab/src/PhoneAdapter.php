@@ -4,6 +4,12 @@ declare(strict_types=1);
 /** Candidate adapter: only trusted upstream libphonenumber metadata decides validity. */
 final class PhoneAdapter
 {
+    /** UI country choice is typed even when the optional phone is empty. */
+    public static function regionShape(string $region): bool
+    {
+        return $region === 'ZZ' || preg_match('/^[A-Z]{2}$/D', $region) === 1;
+    }
+
     public static function available(): bool
     {
         return class_exists('libphonenumber\\PhoneNumberUtil')
@@ -18,6 +24,10 @@ final class PhoneAdapter
     {
         if ($raw === '' || strlen($raw) > 40 || preg_match('//u', $raw) !== 1
             || preg_match('/[\x00-\x1f\x7f]/', $raw)) return null;
+        // A lexical boundary only, NEVER a substitute for numbering-plan metadata.
+        // libphonenumber intentionally understands vanity/embedded text; a contact form should not.
+        if (preg_match('/^[0-9+ ().-]+$/D', $raw) !== 1 || substr_count($raw, '+') > 1
+            || (str_contains($raw, '+') && !str_starts_with($raw, '+'))) return null;
         if ($region !== 'ZZ' && preg_match('/^[A-Z]{2}$/D', $region) !== 1) return null;
         if ($region === 'ZZ' && !str_starts_with($raw, '+')) return null;
         if ($util === null) {

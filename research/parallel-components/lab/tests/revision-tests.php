@@ -38,6 +38,30 @@ revisionExpect('PATCH_REJECTED',array_replace($base,['changes'=>['media.assetId'
 revisionExpect('PLAN_ONLY',array_replace($base,['changes'=>['action.href'=>'/contacts']]));
 revisionExpect('PATCH_REJECTED',array_replace($base,['changes'=>['action.href'=>'javascript:alert(1)']]));
 revisionExpect('UNCHANGED',array_replace($base,['changes'=>['layout.paddingPx'=>24]]));
+revisionExpect('UNCHANGED',array_replace($base,['changes'=>['layout.paddingPx'=>24,'style.foreground'=>'#15202B']]));
+$multi = revisionExpect('PLAN_ONLY',array_replace($base,['changes'=>['layout.paddingPx'=>24,'style.foreground'=>'#112233']]));
+if ($multi['next']['values']['style.foreground'] !== '#112233' || $multi['next']['values']['layout.paddingPx'] !== 24 || $multi['next']['revision'] !== 8) throw new RuntimeException('mixed changes dropped');
+$count++;
+$multi = revisionExpect('PLAN_ONLY',array_replace($base,['changes'=>['layout.paddingPx'=>48,'style.foreground'=>'#112233']]));
+if ($multi['next']['values']['style.foreground'] !== '#112233' || $multi['next']['values']['layout.paddingPx'] !== 48) throw new RuntimeException('multi-field patch not atomic');
+$count++;
+$overflow = $fixture;
+$overflow['blocks']['hero-primary']['revision'] = 2147483647;
+revisionExpect('PATCH_REJECTED',array_replace($base,['expectedRevision'=>2147483647]),$overflow);
+revisionExpect('PATCH_REJECTED',$base,$overflow);
+$invalidRevision=$fixture;
+$invalidRevision['blocks']['hero-primary']['revision']=0;
+revisionExpect('PATCH_REJECTED',$base,$invalidRevision);
+$invalidRevision['blocks']['hero-primary']['revision']=-10;
+revisionExpect('PATCH_REJECTED',$base,$invalidRevision);
+$invalidRevision['blocks']['hero-primary']['revision']='7';
+revisionExpect('PATCH_REJECTED',$base,$invalidRevision);
+$invalidRevision['blocks']['hero-primary']['revision']=2147483646;
+revisionExpect('REVISION_CONFLICT',$base,$invalidRevision);
+revisionExpect('PATCH_REJECTED',array_replace($base,['expectedRevision'=>2147483646]),$invalidRevision);
+revisionExpect('UNCHANGED',array_replace($base,['expectedRevision'=>2147483646,
+    'changes'=>['layout.paddingPx'=>24]]),$invalidRevision);
+
 revisionExpect('PATCH_REJECTED',array_replace($base,['changes'=>[]]));
 revisionExpect('PATCH_REJECTED',$base+['admin'=>true]);
 revisionExpect('PATCH_REJECTED',array_replace($base,['changes'=>['layout.unknown'=>9]]));
@@ -46,4 +70,18 @@ if ($r['next']['revision'] !== 8 || $r['next']['values']['layout.paddingPx'] !==
 $count++;
 if ($fixture['blocks']['hero-primary']['revision'] !== 7 || $fixture['blocks']['hero-primary']['values']['layout.paddingPx'] !== 24) throw new RuntimeException('fixture was mutated');
 $count++;
+
+// Corrupted rule metadata must return a closed patch rejection, never a PHP TypeError.
+foreach ([
+    ['type'=>'enum','values'=>'oops'],
+    ['type'=>'text','max'=>[]],
+    ['type'=>'text','min'=>-5],
+    ['type'=>null],
+    'not-an-array'
+] as $brokenRule) {
+    $broken=$fixture;
+    $broken['blocks']['hero-primary']['editable']['content.heading']=$brokenRule;
+    revisionExpect('PATCH_REJECTED',array_replace($base,
+        ['changes'=>['content.heading'=>'Valid heading']]),$broken);
+}
 echo "RevisionGate PASS: $count assertions (typed closed properties, revision conflict, no persistence)\n";

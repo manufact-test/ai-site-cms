@@ -1,5 +1,8 @@
 # Standalone HTML/PHP component laboratory
 
+> **АКТУАЛЬНО 21.10.2026 / исследования блоки 1–17 завершены.** [Пакет для главного интегратора](../MAIN-INTEGRATOR-HANDOFF-2026-10-21.md) / [финальная проверка](../TEST-EVIDENCE-FINAL-2026-10-21.md). КОД `5330c148ff4a14ebb74b53457cd2b91cfeff574b`; [CI 39574269556 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/39574269556): 37 PHP lint, 598 PHP assertions, 69 Python /42 Chromium и настоящая временная Composer-проверка. Для воспроизведения всей текущей матрицы в отдельном checkout: `cd research/parallel-components && bash lab/tests/run-block5.sh`. Команды ниже сохранены как исторические/выборочные проверки; там могут встречаться уже устаревшие оценки покрытия. Лаборатория НЕ production anti-spam, editor, deployment или SMTP inbox verification.
+
+
 No code imports the active CMS and no Node.js runtime or third-party JS library is required to serve this demo. Nothing here is production-ready. It runs only on a developer-owned disposable PHP server, never on the permitted Hostinger sites.
 
 ```bash
@@ -23,7 +26,7 @@ For a **throwaway local-only** transport smoke, the environment variables `LAB_F
 
 States: `ORIGIN_CONFIGURATION_REQUIRED`/503, `ORIGIN_INVALID`/403, `HOST_INVALID`/403, `DELIVERY_UNCONFIRMED`/502, `VALIDATION_ERROR`/422, `TOO_FAST`/422, `SPAM_REJECTED`/422, `CSRF_INVALID`/403, `RATE_LIMITED`/429, `PHONE_VALIDATOR_REQUIRED`/503, `CONFIGURATION_REQUIRED`/503, `DELIVERY_FAILED`/502, `QUEUED_UNCONFIRMED`/202. A network loss is `NETWORK_UNCONFIRMED`, never auto-retried (server may already have accepted request). Tokens are one-use after validated configured submission; repeated submit is rejected. A mail transport **exception** returns `DELIVERY_UNCONFIRMED` and **disables repeat submission** until a fresh page; a `false` transport returns `DELIVERY_FAILED`, also requiring a fresh token. The browser treats broken/invalid JSON and fetch failures as `NETWORK_UNCONFIRMED`, does not silently retry and disables duplicate submission. `CONFIGURATION_REQUIRED` and client validation can be retried with the original token; a lost connection cannot safely infer transport acceptance. Without a durable centralized outbox / receipt no exactly-once claim is possible.
 
-**Known production gaps:** session-only rate limit, honeypot and 2-second time trap are not sufficient anti-abuse controls; no confirmed SMTP/webhook delivery, retries/outbox, IP throttle, optional privacy-respecting challenge, CAPTCHA accessibility evaluation, deployment secrecy, or recipient verification. Only dynamic normal form submission is supported, no multi-step, uploads or real telephone service. UI tested with Chromium on 375 and 1280px; formal WCAG audits, assistive-technology cross-browser testing and Next SSR remain open. These are **explicit negative gates**, not implied successes.
+**Known production gaps:** session-only rate limit, honeypot and 2-second time trap are not sufficient anti-abuse controls; no confirmed SMTP/webhook delivery, retries/outbox, IP throttle, optional privacy-respecting challenge, CAPTCHA accessibility evaluation, deployment secrecy, or recipient verification. A progressive-enhancement two-step browser form now exists; its complete payload is independently validated by the PHP backend. There are still no uploads or real telephone service. UI tested with Chromium on 375 and 1280px; formal WCAG audits, assistive-technology cross-browser testing and Next SSR remain open. These are **explicit negative gates**, not implied successes.
 
 ## Follow-up hardening (20 Oct 2026)
 
@@ -85,3 +88,43 @@ python -m unittest discover -s lab/tests -p test_browser.py -v       # actual Ch
 **Production exclusions:** a private single-host file gate can prevent repeat *attempts* for one 10-minute fingerprint but cannot deliver exactly once, reconstruct unknown transport outcome, reliably cover horizontally scaled hosts, be used as an inbox/webhook receipt, identify bot swarms, or safely resolve legitimate repeated identical inquiries. Operators must set retention limits, private filesystem permissions, housekeeping, reliable upstream idempotency keys and delivery acknowledgments. The test uses synthetic data and no real SMTP. Never use this prototype on the shared Hostinger sites or in the deployed CMS. Formal WCAG/assistive technology testing, Chrome-to-PHP browser E2E and Node/React/Next hydration remain unverified.
 
 See `../TEST-EVIDENCE-BLOCK4-2026-10-20.md` for actual commands/runner versions and limits.
+
+
+## Fifth laboratory pass: wizard UI, strict POST boundary, atomic revision plan
+
+No Node.js at PHP website runtime. The contact form has two fieldsets: contact identity then optional phone/message. With JavaScript enabled, only one step is visible, "Далее" validates identity, "Назад" retains values, the live region announces step position, submission reports honest network/transport states, and field validation errors from the backend reveal/focus the appropriate step. Without JavaScript **both fieldsets and a submit button remain available**, although the standalone JSON endpoint returns a machine-readable response rather than a polished HTML confirmation (NOT a production no-JS flow). This research wizard only improves UX: **the server does not trust the client's step state or accept an implied completed-wizard flag**.
+
+`SubmissionBoundary::decode` is called by the actual HTTP endpoint **before** any anti-abuse, phone or transport invocation. It refuses malformed percent encoding, duplicate/unknown parameter names, bracketed array pollution, encoded keys, nulls, invalid UTF-8, truncated/big bodies or missing required keys; it handles an optional `phone_region=ZZ` default for older single-step test fixtures. `FormLab` still validates all final fields independently; `LAB_PUBLIC_ORIGIN` and CSRF remain required. This is a **purposefully narrow** research URL-encoded parser, not a replacement for a production request framework or a general sanitizer. It rejects legitimate repeated-key protocols intentionally.
+
+`RevisionGate::plan` now treats a mixed patch with both unchanged and changed values as **one plan**, not an early `UNCHANGED`. A truly all-unchanged patch returns `UNCHANGED`; revision overflow is refused, and the proposed next state is never persisted. Authentication/ACL, database CAS, schema/contract acceptance and rollback are NOT implemented.
+
+Run each suite separately to avoid the old runner's intermittent monolithic Chromium/PHP subprocess lockup:
+
+```bash
+cd research/parallel-components
+for f in lab/src/*.php lab/public/*.php lab/tests/*.php; do php -l "$f" || exit 1; done
+for f in lab/tests/*-tests.php; do php "$f" || exit 1; done
+node --check lab/public/assets/ui.js
+for f in lab/tests/test_*.py; do python -m unittest discover -s lab/tests -p "$(basename "$f")" -v || exit 1; done
+```
+
+Results and versions: `../TEST-EVIDENCE-BLOCK5-2026-10-20.md`. The browser harness uses real Chromium DOM but mocked fetch; Python HTTP tests exercise a real disposable local PHP server. No actual mail, CRM, Hostinger or Next SSR claims.
+
+### Research runner/CI caveat
+
+From this folder: `bash lab/tests/run-block5.sh` executes full PHP syntax, all PHP assertions, per-module Python browser/HTTP/schema suites and JS syntax against **the current checkout** (tools must already be installed). Shared GitHub workflow run `39489484536` was GREEN but explicitly chose old accepted-main subtree after PR #2's merge, so it did **not** independently test PR #4. Details: [block 5 evidence](../TEST-EVIDENCE-BLOCK5-2026-10-20.md). Main integrator must repair shared workflow; this research branch cannot touch Actions.
+
+## Актуальный блок 11 — статический HTML и честная progressive enhancement
+
+**Исторические пункты о том, что no-JS не имеет HTML-ответа и что GitHub проверяет только старую папку, больше не являются текущим состоянием.** Реальный `submit-html.php` с Block 6 возвращает экранированный HTML с восстановлением ошибок, но не подтверждает доставку почты. Новые проверки [Block 11](../TEST-EVIDENCE-BLOCK11-2026-10-21.md) прошли на кодовом SHA `7dc3284c5a6421c4b841a3275ced812e9ce5fae7`: [Actions 39509827314](https://github.com/manufact-test/ai-site-cms/actions/runs/39509827314), **34/34 PHP syntax, 388/388 PHP assertions, 56/56 Python tests (30 Chromium)**.
+
+Когда JS отключён: HTML-ссылки навигации и две панели вкладок видимы; вкладки являются обычными секциями текста с заголовками, а не недоступными ARIA-табами; окно имеет `<noscript>`-описание; кнопки меню/диалога/табов не показываются как неработающие; форма использует нативные ограничения. Когда JS включён: обработчики показывают кнопки и устанавливают ARIA роли/связи, а `form.noValidate=true` передаёт клиентскую проверку Unicode-совместимому мастеру. PHP остаётся окончательной проверкой.
+
+Повторение всех тестов в подготовленном developer checkout (инструменты должны быть установлены заранее):
+
+```bash
+cd research/parallel-components
+bash lab/tests/run-block5.sh
+```
+
+Название runner историческое; текущий тест включает Composer-проверку настоящей библиотеки при доступных Composer и mbstring. Без этих инструментов эта **отдельная** проверка помечается SKIP, не PASS. Chromium проверяет настоящее DOM-поведение, но запрет loopback из браузера требует отдельного Python-моста для реальных PHP POST. Никаких утверждений о SMTP, Hostinger, настоящем React/Next SSR или формальном WCAG аудите.
