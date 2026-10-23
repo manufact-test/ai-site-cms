@@ -31,7 +31,19 @@ const cases=[
     "namespace AiSiteCms\\Release {function sodium_crypto_sign_verify_detached($s,$m,$k): bool {return true;}}"+
     " namespace {"+include+
     "if(!"+cls+"::available()||"+cls+"::verifyDetached("+forged+
-    "))throw new \\RuntimeException('namespaced spoof accepted');}"]
+    "))throw new \\RuntimeException('namespaced spoof accepted');}"],
+  ['spoofed-polyfill-class',['-d','disable_functions=sodium_crypto_sign_verify_detached'],
+    "class ParagonIE_Sodium_Compat {public static function crypto_sign_verify_detached($s,$m,$k): bool{return true;}}"+
+    deny],
+  ['spoofed-composer-metadata',['-d','disable_functions=sodium_crypto_sign_verify_detached'],
+    "namespace Composer {class InstalledVersions {"+
+    "public static function isInstalled($p){return true;}"+
+    "public static function getPrettyVersion($p){return 'v2.5.2';}"+
+    "public static function getReference($p){return '3246b36803c177847e677862fedeb7f937869adb';}"+
+    "public static function getInstallPath($p){return sys_get_temp_dir();}}}"+
+    "namespace {class ParagonIE_Sodium_Compat {"+
+    "public static function crypto_sign_verify_detached($s,$m,$k): bool{return true;}}"+
+    deny+"}"]
 ];
 for(const [name,flags,source] of cases){
   const p=cp.spawnSync(php,[...flags,'-r',source],{
@@ -40,5 +52,5 @@ for(const [name,flags,source] of cases){
   assert.equal(p.status,0,name+': '+(p.stderr||p.error?.message||p.stdout));
   assert.equal(p.stdout,'',name+': no hidden output expected');
 }
-console.log('Stage2 Ed25519 native provider provenance PASS 4 subprocess assertions; no real target approval');
+console.log('Stage2 Ed25519 provider provenance PASS 6 subprocess assertions; pinned Composer source required; no real target approval');
 
