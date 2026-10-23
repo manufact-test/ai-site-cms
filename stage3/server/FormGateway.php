@@ -76,7 +76,7 @@ final class FormGateway
             $status = 429;
         } catch (\Throwable $e) {
             // Unknown forms, disallowed origin and bad tokens never reveal internals.
-            error_log('Stage3 form declined: ' . get_class($e));
+            error_log('Stage3 form declined: ' . get_class($e) . ': ' . $e->getMessage());
         }
         http_response_code($status);
         echo '<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Обращение</title><style>body{font:18px/1.5 system-ui,sans-serif;max-width:660px;margin:12vh auto;padding:24px;color:#17324d}main{border:1px solid #dde5ef;padding:30px;border-radius:12px}</style></head><body><main><h1>Обращение</h1><p>'

@@ -24,7 +24,7 @@ async function start(){
   const origin='http://127.0.0.1:'+(await pickPort());
   php=spawn('php',['-S',new URL(origin).host,'-t','stage3/server/public',
     'stage3/server/public/index.php'],{cwd:root,env,stdio:['ignore','ignore','pipe']});
-  let err='';php.stderr.on('data',d=>{err+=d.toString();});
+  let err='';php.stderr.on('data',d=>{err+=d.toString();process.stderr.write(d);});
   for(let i=0;i<60;i++){
     if(php.exitCode!==null)throw Error('PHP exited: '+err.slice(-500));
     try{if((await fetch(origin+'/api/session')).ok)return origin;}catch(e){}
@@ -170,6 +170,8 @@ async function execute(){
   await visitor.locator('form.lead-form input[name="email"]').fill('lead@example.test');
   await visitor.locator('form.lead-form textarea[name="message"]').fill('Нужен расчёт стоимости оборудования');
   await visitor.locator('form.lead-form input[name="consent"]').check();
+  const debugForm=await visitor.locator('form.lead-form').evaluate(form=>[...new FormData(form).entries()]);
+  console.log('BROWSER FORM SUBMISSION SHAPE',JSON.stringify(debugForm.map(([key,value])=>[key,key==='_token'?String(value).length:value])));
   await Promise.all([visitor.waitForNavigation(),visitor.locator('form.lead-form button[type="submit"]').click()]);
   assert.match(await visitor.locator('main').innerText(),/заявка сохранена/);
   await page.locator('#server-submissions-refresh').click();
