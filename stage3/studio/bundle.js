@@ -471,7 +471,12 @@ function structure(raw,manifests,command){
       move(c.pages,index,command.delta);break;
     case 'removePage':
       if(!page||page.path==='/'||c.pages.length===1)throw Error('Cannot remove root/last page');
-      c.pages.splice(index,1);break;
+      c.pages.splice(index,1);
+      if(c.redirects){
+        c.redirects=c.redirects.filter(r=>r.to!==page.path);
+        if(!c.redirects.length)delete c.redirects;
+      }
+      break;
     case 'addSection':
       if(!page||typeof command.id!=='string'||!reg.has(command.component))throw Error('Unknown new section');
       page.sections.splice(sectionIndex>=0?sectionIndex+1:page.sections.length,0,
