@@ -16,8 +16,17 @@ const deny=[
   /\bBEGIN CERTIFICATE\b/i
 ];
 const requireSafe=(ok,m)=>{if(!ok)throw Error('Public Stage2 export refused: '+m);};
+// Deliberate publication policy: never infer publicly distributable files
+// from an internal kit's ALLOWED property alone.
+const PUBLIC_ALLOWED=[
+  'OPEN-FIRST.txt','REVIEW.html','INVENTORY.html','DOSSIER.json',
+  'WORKSHEET.json','THIRD_PARTY_NOTICES.txt','EDITOR_THIRD_PARTY_LICENSES.txt',
+  'CRYPTO-DOSSIER.json','CRYPTO-REVIEW.html','CRYPTO-WORKSHEET.json'];
+
 function contentPolicy(files){
-  const allow=[...kit.ALLOWED,'CONTENT-SHA256.json'].sort();
+  const allow=[...PUBLIC_ALLOWED,'CONTENT-SHA256.json'].sort();
+  requireSafe(kit.ALLOWED.slice().sort().join('|')===PUBLIC_ALLOWED.slice().sort().join('|'),
+    'unreviewed_internal_kit_publication_change');
   requireSafe(Object.keys(files).sort().join('|')===allow.join('|'),'file allowlist');
   for(const [name,bytes] of Object.entries(files)){
     requireSafe(Buffer.isBuffer(bytes)&&bytes.length>10&&bytes.length<1048576,'invalid bytes');
@@ -34,10 +43,26 @@ function contentPolicy(files){
   requireSafe(w.componentCount===43&&w.stage2Accepted===false&&w.independentLegalApproval===false
     &&w.stage3Authorized===false&&w.rows.length===43&&w.rows.every(r=>r.disposition==='pending'),
     'worksheet must have 43 pending independent decisions');
-  requireSafe(proof.files.length===7&&proof.packageManifestSha256===d.packageManifestSha256&&
+  // Candidate is still unshipped, separately unreviewed and must remain bound
+  // to this exact reviewed source/manifest. A completed worksheet MUST NOT be
+  // published through this initial unreviewed transfer endpoint.
+  const candidate=JSON.parse(files['CRYPTO-DOSSIER.json']);
+  const candidateWorksheet=JSON.parse(files['CRYPTO-WORKSHEET.json']);
+  const sodium=require('./stage2-sodium-review.cjs');
+  requireSafe(JSON.stringify(candidate)===JSON.stringify(sodium.dossier(d))
+    &&JSON.stringify(candidateWorksheet)===JSON.stringify(sodium.worksheet(candidate))
+    &&candidate.lockedComponentCount===43
+    &&candidate.candidate.shippedInCurrentPackage===false
+    &&candidate.legalApproved===false&&candidate.cryptoApproved===false
+    &&candidate.stage2Accepted===false&&candidate.stage3Authorized===false,
+    'unapproved_or_mismatched_candidate_review');
+  requireSafe(proof.files.length===PUBLIC_ALLOWED.length
+    &&proof.unshippedCryptoCandidateInLock===false
+    &&proof.unshippedCryptoCandidateName==='paragonie/sodium_compat'
+    &&proof.packageManifestSha256===d.packageManifestSha256&&
     proof.files.every(x=>files[x.path]?.length===x.bytes&&sha(files[x.path])===x.sha256),
     'content integrity');
-  return {components:43,files:allow.length,manifest:d.packageManifestSha256,
+  return {components:43,unshippedCryptoCandidate:'paragonie/sodium_compat@v2.5.2',files:allow.length,manifest:d.packageManifestSha256,
     stage2Accepted:false,legalApproved:false};
 }
 function build(){
@@ -66,7 +91,7 @@ function build(){
       'Распакуйте архив GitHub Actions, затем вложенный stage2-independent-dependency-review.zip.',
       'Откройте REVIEW.html локально в Chrome/Edge. Импортируйте/экспортируйте JSON для работы.',
       '',
-      '43 зависимости; восемь разрешённых файлов; никаких ключей, исполняемой CMS или Hostinger.',
+      '43 закреплённые зависимости + отдельно непоставляемый криптокандидат; 11 разрешённых файлов; никаких ключей, исполняемой CMS или Hostinger.',
       'Manifest SHA-256: '+proof.manifest,
       'ZIP SHA-256: '+result.sha256,
       'Юридическое заключение требуется от независимого эксперта; Stage 2 НЕ принят.',
@@ -82,4 +107,4 @@ if(require.main===module){
     process.stderr.write('STAGE2_PUBLIC_EXPORT_REFUSED\n');process.exitCode=3;
   }else try{build();}catch(e){process.stderr.write(e.message+'\n');process.exitCode=4;}
 }
-module.exports={contentPolicy,build,DIR,TARGET};
+module.exports={contentPolicy,build,DIR,TARGET,PUBLIC_ALLOWED};
