@@ -145,7 +145,7 @@ async function execute(){
   assert.ok(editablePaths.includes('content.media'),'Expected image field, saw: '+JSON.stringify(editablePaths));
   await page.locator('#fields [data-field="content.media"]').selectOption(assetId);
   const imagePreview=page.frameLocator('#preview').locator('img.showcase-preview');
-  await imagePreview.waitFor();
+  await imagePreview.waitFor({state:'attached'});
   assert.match(await imagePreview.getAttribute('src'),/^data:image\/png;base64,/);
 
   await page.locator('#save').click();
