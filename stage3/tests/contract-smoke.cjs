@@ -77,6 +77,38 @@ test('four safe repeatable manifests, editable items, stable clone identities an
   const injection=structuredClone(doc);injection.pages[0].sections[2].items[0].values['behavior.href']='javascript:alert(1)';
   refuses(()=>sdk.validateSite(injection,manifests),'Repeat links are safe URLs only');
 });
+
+test('URL changes keep permanent aliases, diagnostics find bad links and Undo keeps history',()=>{
+  const D=require('../sdk/draft.cjs');
+  let d=D.begin(initial,manifests);
+  const move=(command)=>d=D.structure(d,manifests,{...command,expectedRevision:d.revision});
+  move({action:'updatePage',pageId:'page-contact',title:'Контакты',path:'/help/'});
+  assert.deepEqual(d.current.redirects,[{from:'/contact/',to:'/help/'}]);
+  let report=sdk.inspectSite(d.current,manifests);
+  assert.equal(report.redirects,1);
+  assert.ok(report.warnings.some(x=>x.kind==='old-link'),'Existing menu links warn about redirect');
+  move({action:'updatePage',pageId:'page-contact',title:'Контакты',path:'/support/'});
+  assert.deepEqual(d.current.redirects,[{from:'/contact/',to:'/support/'},{from:'/help/',to:'/support/'}],
+    'Aliases resolve directly, no redirect chains');
+  refuses(()=>D.structure(d,manifests,{action:'addRedirect',from:'/support/',to:'/',expectedRevision:d.revision}),
+    'Cannot hide an existing live page under a redirect');
+  refuses(()=>D.structure(d,manifests,{action:'addRedirect',from:'/bad/',to:'/missing/',expectedRevision:d.revision}),
+    'Redirects only to live page paths');
+  const before=JSON.stringify(d.current);
+  move({action:'removeRedirect',from:'/contact/'});
+  assert.equal(d.current.redirects.length,1);
+  assert.deepEqual(D.undo(d,manifests).current,JSON.parse(before));
+  const updated=structuredClone(d.current);
+  updated.pages[0].sections[0].elements[2].values['behavior.href']='/nonexistent/';
+  report=sdk.inspectSite(updated,manifests);
+  assert.ok(report.errors.some(x=>x.kind==='broken-link'));
+  updated.pages[0].sections[0].elements[2].values['behavior.href']='/support/#ghost-section';
+  report=sdk.inspectSite(updated,manifests);
+  assert.ok(report.errors.some(x=>x.kind==='broken-anchor'));
+  const escaping=structuredClone(d.current);
+  escaping.redirects.push({from:'/something/',to:'/support/?malicious'});
+  refuses(()=>sdk.validateSite(escaping,manifests),'No query/HTML injection in redirects');
+});
 test('locked fixture is valid',()=>{
   const actual=sdk.validateSite(initial,reg);
   assert.equal(actual.pages.length,2);
