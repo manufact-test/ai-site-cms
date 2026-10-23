@@ -18,7 +18,7 @@ function main(){
  const index=handoff.build();
  const required=['stage2-license-dossier.json','stage2-license-dossier.html',
   'stage2-owner-decision.json','stage2-owner-decision.html',
-  handoff.WORKSHEET];
+  handoff.WORKSHEET,handoff.ACTIONS,handoff.ACTIONS_PAGE];
  ok(Object.keys(index.files).sort().join('|')===required.sort().join('|'),
   'offline owner receipt covers every needed clean legal and decision file');
  ok(index.stage2Accepted===false&&index.stage3Authorized===false&&
@@ -41,7 +41,9 @@ function main(){
    'source commit, 43 dependencies and eight manual gates indexed');
  ok(original[handoff.PAGE].toString('utf8').includes('Stage 3 NOT AUTHORIZED')
    &&original[handoff.WORKSHEET].toString('utf8').includes('NOT ACCEPTED')
-   &&!original[handoff.PAGE].toString('utf8').includes('<script'),
+   &&!original[handoff.PAGE].toString('utf8').includes('<script')
+   &&original[handoff.ACTIONS].toString('utf8').includes('УСКОРЕННЫЙ РЕЖИМ')
+   &&original[handoff.ACTIONS_PAGE].toString('utf8').includes('issues/9'),
    'offline no-script owner explanation preserves negative approval semantics');
  const noArg=cli([]);
  ok(noArg.status===3&&noArg.stdout===''&&noArg.stderr.trim()==='STAGE2_HANDOFF_REFUSED',
@@ -85,6 +87,10 @@ function main(){
   changed.files['stage2-owner-decision.json'].sha256='0'.repeat(64);
   fs.writeFileSync(f,JSON.stringify(changed));
  },'hash list cannot be changed without detection');
+ corrupt(handoff.ACTIONS,f=>fs.appendFileSync(f,'Hostinger granted\n'),
+  'unsafe changes to human gate plan rejected');
+ corrupt(handoff.ACTIONS_PAGE,f=>fs.appendFileSync(f,'<script>alert(1)</script>'),
+  'standalone owner actions page is immutable');
  corrupt(handoff.WORKSHEET,f=>fs.appendFileSync(f,'Approval: granted\n'),
   'human review worksheet cannot be silently marked approved');
  corrupt(handoff.PAGE,f=>fs.appendFileSync(f,'<script>alert(1)</script>'),
@@ -106,6 +112,6 @@ function main(){
  ok(srcFiles.every(f=>digest(fs.readFileSync(path.join(OUT,f)))===digest(original[f])),
    'CI artifact restored exactly; no synthetic or malicious content persists');
  console.log('Stage2 package/legal/owner final offline transfer: '+checks+
-   ' assertions PASS; 7 review artifacts verified; unsigned, no host or Stage3 permission');
+   ' assertions PASS; 9 review attachments verified; unsigned, no host or Stage3 permission');
 }
 main();
