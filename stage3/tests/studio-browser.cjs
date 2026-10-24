@@ -330,6 +330,41 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await canvas.locator('.cmsdg').count(),0,'Undo returns legacy component unchanged');
     await page.locator('#redo').click();
     await canvas.locator('.cmsdg').waitFor();
+    // User can extend a generated composition with a safe native icon and
+    // customize its animation without calling the AI or writing raw HTML/CSS.
+    await page.locator('#section-design-graph').click();
+    await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
+    await page.locator('#cms-design-gradient summary').click();
+    await page.locator('#cms-design-gradient label').filter({hasText:/^Угол/}).locator('input').fill('120');
+    await page.locator('#cms-design-gradient label').filter({hasText:/^Цвет от/}).locator('input').fill('@accent');
+    await page.locator('#cms-design-gradient label').filter({hasText:/^Цвет до/}).locator('input').fill('#ffffff');
+    page.once('dialog',d=>d.accept('icon'));
+    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Тип +'}).click();
+    await page.locator('#cms-design-graph-dialog label').filter({hasText:/^Векторная иконка$/})
+      .locator('select').selectOption('shield');
+    await page.locator('#cms-design-graph-dialog label').filter({hasText:/^Описание для скринридера/})
+      .locator('input').fill('Защитный значок');
+    await page.locator('#cms-design-motion summary').click();
+    await page.locator('#cms-design-motion label').filter({hasText:/^Эффект$/})
+      .locator('select').selectOption('fade-up');
+    await page.locator('#cms-design-motion label').filter({hasText:/^Длительность/})
+      .locator('input').fill('700');
+    await page.locator('#cms-design-apply').click();
+    await page.locator('#cms-design-graph-dialog').waitFor({state:'hidden'});
+    const richSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+    const richGraph=richSite.pages.flatMap(p=>p.sections).find(x=>x.id===selectedSection).designGraph;
+    assert.deepEqual(richGraph.nodes[0].styles.gradient,{angle:120,from:'@accent',to:'#ffffff'});
+    assert.equal(richGraph.nodes[1].type,'icon');
+    assert.equal(richGraph.nodes[1].motion.effect,'fade-up');
+    assert.equal(richGraph.nodes[1].motion.duration,700);
+    await canvas.locator('svg[role="img"][aria-label="Защитный значок"]').waitFor();
+    const richPreview=await page.locator('#preview').getAttribute('srcdoc');
+    assert.match(richPreview,/linear-gradient\(120deg/);
+    assert.match(richPreview,/prefers-reduced-motion:reduce/);
+    await page.locator('#undo').click();
+    assert.equal(await canvas.locator('svg[role="img"]').count(),0);
+    await page.locator('#redo').click();
+    await canvas.locator('svg[role="img"]').waitFor();
     assert.deepEqual(errors,[],'No page JS errors or unsupported dependencies');
     assert.deepEqual(remote,[],'No outgoing network requests, even through iframe');
     console.log('STAGE3 REAL CHROMIUM STUDIO E2E PASS: typed edit, inert preview, responsive, undo/redo, saved versions, reload, export/import, no-design and fail-closed import');
