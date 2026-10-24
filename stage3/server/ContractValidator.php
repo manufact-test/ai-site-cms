@@ -174,16 +174,17 @@ final class ContractValidator
             self::keys($a, ['id', 'src', 'alt', 'mime', 'variants']);
             self::id($a['id']);
             self::must(!isset($assets[$a['id']])
-                && in_array($a['mime'], ['image/png','image/webp','image/jpeg','image/svg+xml'], true)
+                && in_array($a['mime'], ['image/png','image/webp','image/jpeg','image/svg+xml','video/mp4'], true)
                 && is_string($a['src'])
-                && preg_match('~^/assets/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg)$~D', $a['src']) === 1
+                && preg_match('~^/assets/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg|mp4)$~D', $a['src']) === 1
                 && is_string($a['alt']) && strlen($a['alt']) <= 200 && preg_match('/[\x00-\x1f]/',$a['alt'])!==1, 'Invalid asset');
             self::must(!isset($ids[$a['id']]), 'Duplicate asset ID');
-            $assets[$a['id']] = true;
+            $assets[$a['id']] = $a['mime'];
+            if($a['mime']==='video/mp4')self::must($a['src']==='/assets/'.$a['id'].'.mp4','Invalid video URL');
             $ids[$a['id']] = true;
             if (array_key_exists('variants', $a)) {
                 self::must(is_array($a['variants']) && array_is_list($a['variants'])
-                    && count($a['variants']) <= 3 && $a['mime'] !== 'image/svg+xml',
+                    && count($a['variants']) <= 3 && !in_array($a['mime'],['image/svg+xml','video/mp4'],true),
                     'Invalid responsive variants');
                 $widths = [];
                 $ext = ['image/png'=>'png','image/jpeg'=>'jpg','image/webp'=>'webp'][$a['mime']];

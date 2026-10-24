@@ -203,17 +203,19 @@ function validateSite(raw,regInput){
   if(raw.format!==FORMAT||raw.schemaVersion!==1)fail('Unsupported site format');
   id(raw.siteId,'siteId');text(raw.title,'site title',130);
   if(!Array.isArray(raw.assets)||raw.assets.length>300)fail('Invalid assets');
-  const assetIds=new Set();
+  const assetIds=new Set(),assetMimes=new Map(),imageIds=new Set();
   for(const asset of raw.assets){
     objectKeys(asset,['id','src','alt','mime','variants'],'asset');id(asset.id,'asset.id');
-    if(assetIds.has(asset.id)||!['image/png','image/webp','image/jpeg','image/svg+xml'].includes(asset.mime)||
-      typeof asset.src!=='string'||!/^\/assets\/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg)$/.test(asset.src)||
+    if(assetIds.has(asset.id)||!['image/png','image/webp','image/jpeg','image/svg+xml','video/mp4'].includes(asset.mime)||
+      typeof asset.src!=='string'||!/^\/assets\/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg|mp4)$/.test(asset.src)||
       typeof asset.alt!=='string'||asset.alt.length>200||/[\x00-\x1f]/.test(asset.alt))fail('Invalid asset',asset.id);
-    assetIds.add(asset.id);
+    assetIds.add(asset.id);assetMimes.set(asset.id,asset.mime);
+    if(asset.mime!=='video/mp4')imageIds.add(asset.id);
+    if(asset.mime==='video/mp4'&&asset.src!=='/assets/'+asset.id+'.mp4')fail('Invalid video path',asset.id);
     if(asset.variants!==undefined){
       if(!Array.isArray(asset.variants)||asset.variants.length>3)fail('Invalid responsive variants',asset.id);
       const widths=new Set(),ext={'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[asset.mime];
-      if(!ext)fail('Responsive SVG unsupported',asset.id);
+      if(!ext)fail('Responsive variants require raster images',asset.id);
       for(const v of asset.variants){
         objectKeys(v,['id','src','sha256','width','height'],'variant');id(v.id,'variant id');
         if(assetIds.has(v.id)||!([360,720,1200].includes(v.width))||widths.has(v.width)||
@@ -272,7 +274,7 @@ function validateSite(raw,regInput){
         }
       }else if(own(section,'items'))fail('Unregistered repeat items',section.id);
       validateFormFields(section);
-      if(own(section,'designGraph'))GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens);
+      if(own(section,'designGraph'))GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens,assetMimes);
     }
   }
   validMenuRelations(raw);

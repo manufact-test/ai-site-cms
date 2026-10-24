@@ -1029,7 +1029,8 @@
             "button",
             "image",
             "divider",
-            "icon"
+            "icon",
+            "video"
           ]
         },
         "text": {
@@ -1128,6 +1129,12 @@
               "maximum": 1000
             }
           }
+        },
+        "posterAssetId": {
+          "$ref": "#/$defs/id"
+        },
+        "loop": {
+          "type": "boolean"
         }
       }
     },
