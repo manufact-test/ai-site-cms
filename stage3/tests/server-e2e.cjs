@@ -707,7 +707,7 @@ async function stop(){
   assert.equal((await request('POST',responsiveEndpoint+'/publish',{expectedRevision:8})).status,200);
   const responsiveHTML=(await request('GET','/published/site-rich-ci/')).body;
   assert.match(responsiveHTML,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
-  assert.match(responsiveHTML,/sizes="\\(max-width: 600px\\) 100vw/);
+  assert.match(responsiveHTML,/sizes="\(max-width: 600px\) 100vw/);
   for(let n=0;n<3;n++){
     const variant=responsiveAsset.variants[n];
     const url='/published/site-rich-ci'+variant.src;
@@ -735,7 +735,7 @@ async function stop(){
   const releaseJSON=JSON.parse(fs.readFileSync(path.join(staticResponsive,'release-manifest.json'),'utf8'));
   assert.equal(releaseJSON.assets.length,5);
   const staticPage=fs.readFileSync(path.join(staticResponsive,'index.html'),'utf8');
-  assert.match(staticPage,/srcset="assets\\/[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
+  assert.match(staticPage,/srcset="assets\/[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
   for(let n=0;n<3;n++){
     const rendition=releaseJSON.assets.find(a=>a.id===responsiveAsset.variants[n].id);
     assert.equal(rendition.parentId,responsiveAsset.id);
