@@ -116,6 +116,33 @@ const syncedSection=synced.site.pages[0].sections.find(s=>s.id==='df-selected-co
 const syncedTitle=findNode(syncedSection.designGraph.nodes,'-card-12-title');
 assert.equal(syncedTitle.text,'Revised owner service 12');
 assert.equal(syncedTitle.styles.fontWeight,800,'Preserve manual graph styling on content sync');
+// Independent Graph text must not be overwritten when its CMS source was
+// unchanged; both-side changes must stop and require a user decision.
+const graphOnly=clone(services.site);
+const graphOnlySection=graphOnly.pages[0].sections.find(s=>s.id==='df-selected-composition');
+findNode(graphOnlySection.designGraph.nodes,'-card-12-title').text=
+ 'Design-graph-only wording';
+const graphOnlyPreview=adapter.inspectSemanticSync(services,graphOnly,hostSdk,registry);
+assert.equal(graphOnlyPreview.canApply,true);
+assert.equal(graphOnlyPreview.changes.length,0);
+assert.ok(graphOnlyPreview.preservedGraphEdits.length>=1);
+assert.equal(adapter.reconcileSemantic(services,graphOnly,hostSdk,registry)
+ .site.pages[0].sections.find(s=>s.id==='df-selected-composition')
+ .designGraph.nodes[0].children[1].children[0].children[11].children[0].text,
+ 'Design-graph-only wording');
+const conflict=clone(edited);
+findNode(conflict.pages[0].sections.find(s=>s.id==='df-selected-composition')
+ .designGraph.nodes,'-card-12-title').text='Independent conflicting design edit';
+const conflictBefore=JSON.stringify(conflict);
+const syncPreview=adapter.inspectSemanticSync(services,conflict,hostSdk,registry);
+assert.equal(syncPreview.canApply,false);
+assert.ok(syncPreview.conflicts.some(x=>x.nodeId.endsWith('-card-12-title')));
+assert.equal(JSON.stringify(conflict),conflictBefore,'Inspection must be non-mutating');
+assert.throws(()=>adapter.reconcileSemantic(services,conflict,hostSdk,registry),
+ /Conflicting semantic and graph content edits/);
+const wrongSite=clone(edited);wrongSite.siteId='other-valid-site';
+assert.throws(()=>adapter.reconcileSemantic(services,wrongSite,hostSdk,registry),
+ /different CMS site or page/);
 assert.equal(JSON.stringify(services.site),JSON.stringify(
  adapter.buildHostCandidate(serviceBundle,hostSdk,registry).site),'Candidate must not mutate');
 const forged=clone(services);
