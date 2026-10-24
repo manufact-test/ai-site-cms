@@ -636,6 +636,7 @@ test('reusable section templates, full page duplicates, undo/redo, and no stale 
   assert.equal(JSON.stringify(initial),initialBytes,'Original source remains immutable');
 });
 test('optional professional Design Graph: tokens, grid, breakpoints, hover and safe reversible edits',()=>{
+  const D=require('../sdk/draft.cjs'),initialBytes=JSON.stringify(initial);
   const graph=require('../sdk/design-graph.cjs');
   const doc=structuredClone(initial),sec=doc.pages[0].sections[0];
   const candidate=graph.baseGraph(sec.id);
