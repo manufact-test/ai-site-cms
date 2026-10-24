@@ -226,7 +226,7 @@ function declarations(style,t){
   }
   return css.join(';');
 }
-function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id){
+function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPreview=null){
   validateGraph(graph,new Set(site.assets.map(x=>x.id)),new Set(),
     site.designTokens,new Map(site.assets.map(x=>[x.id,x.mime])));
   const tokens=validateTokens(site.designTokens);
@@ -255,7 +255,7 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id){
     if(n.type==='button')return '<a class="'+cls+'" href="'+attr(n.href.startsWith('/')?mount+n.href:n.href)+'">'+attr(n.text)+'</a>';
     if(n.type==='video'){
       const videoAsset=assets.get(n.assetId);
-      const videoSrc=mount+videoAsset.src;
+      const videoSrc=(videoPreview?videoPreview(n.assetId):null)||mount+videoAsset.src;
       const poster=n.posterAssetId?assets.get(n.posterAssetId):null;
       const posterHtml=poster?' poster="'+attr(mount+poster.src)+'"':'';
       // No autoplay, external providers, unknown formats, script or iframe.

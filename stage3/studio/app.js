@@ -522,7 +522,7 @@
         selected.items.splice(selected.items.indexOf(n)+1,0,node);selection=node.id;render();
       });
       action('Тип +',()=>{
-        const type=prompt('Элемент: container / heading / text / button / image / divider / icon','heading');
+        const type=prompt('Элемент: container / heading / text / button / image / divider / icon / video','heading');
         if(type===null)return;
         if(!DESIGN_GRAPH.TYPES.includes(type))return notice('Неизвестный тип',true);
         const node={id:uniqueId('dg-node'),type,styles:{}};
@@ -531,8 +531,13 @@
         if(type==='heading')node.level=2;
         if(type==='icon'){node.icon='check';node.alt='';}
         if(type==='button')node.href='/';
+        if(type==='video'){
+          const first=session.current.assets.find(a=>a.mime==='video/mp4');
+          if(!first)return notice('Сначала загрузите MP4 в медиабиблиотеку',true);
+          node.assetId=first.id;node.alt=first.alt;node.loop=false;
+        }
         if(type==='image'){
-          const first=session.current.assets[0];
+          const first=session.current.assets.find(a=>a.mime!=='video/mp4');
           if(!first)return notice('Сперва загрузите изображение',true);
           node.assetId=first.id;node.alt=first.alt;
         }
@@ -561,9 +566,22 @@
       if(n.type==='heading')fields.append(ctl('Уровень заголовка',String(n.level||2),value=>{n.level=Number(value);},'number'));
       if(n.type==='button')fields.append(ctl('Ссылка',n.href,value=>{n.href=value;}));
       if(n.type==='image'){
-        const options=session.current.assets.map(a=>[a.id,a.alt||a.id]);
+        const options=session.current.assets.filter(a=>a.mime!=='video/mp4').map(a=>[a.id,a.alt||a.id]);
         fields.append(ctl('Изображение',{initial:n.assetId,choices:options},v=>{n.assetId=v;},'select'),
           ctl('Описание изображения',n.alt,v=>{n.alt=v;}));
+      }
+      if(n.type==='video'){
+        const videos=session.current.assets.filter(a=>a.mime==='video/mp4').map(a=>[a.id,a.alt||a.id]);
+        const images=session.current.assets.filter(a=>a.mime!=='video/mp4').map(a=>[a.id,a.alt||a.id]);
+        fields.append(ctl('MP4-файл',{initial:n.assetId,choices:videos},
+          v=>{n.assetId=v;},'select'));
+        fields.append(ctl('Описание видео',n.alt,v=>{n.alt=v;}));
+        fields.append(ctl('Постер',{initial:n.posterAssetId||'',
+          choices:[['','Без обложки'],...images]},
+          v=>{if(v)n.posterAssetId=v;else delete n.posterAssetId;},'select'));
+        fields.append(ctl('Зациклить воспроизведение',{initial:String(!!n.loop),
+          choices:[['false','Нет'],['true','Да']]},
+          v=>{n.loop=v==='true';},'select'));
       }
       if(n.type==='icon'){
         fields.append(ctl('Векторная иконка',
@@ -1144,7 +1162,8 @@
     }else content='<section><h2>Незарегистрированный шаблон</h2></section>';
     // Typed composition overrides only rendering: original component fields survive.
     if(block.designGraph)content=DESIGN_GRAPH.render(session.current,block.designGraph,'',
-      assetId=>HOSTED?window.Stage3Host?.previewUrl?.(assetId):null,block.sectionId);
+      assetId=>HOSTED?window.Stage3Host?.previewUrl?.(assetId):null,block.sectionId,
+      assetId=>HOSTED?window.Stage3Host?.videoUrl?.(assetId):null);
     const appearance=block.appearance||C.DEFAULT_APPEARANCE;
     const skin='cms-surface-'+appearance.surface+' cms-spacing-'+appearance.spacing+' cms-align-'+appearance.align+
       (appearance.width?' cms-width-'+appearance.width:'')+

@@ -44,7 +44,10 @@
   mediaInput.accept='image/png,image/jpeg,image/webp';mediaInput.hidden=true;
   const mediaUpload=action('+ Загрузить изображение','server-media-upload',()=>mediaInput.click());
   const mediaList=element('div','hosted-media-list');mediaList.id='server-media-list';
-  mediaPanel.append(mediaTitle,mediaHint,mediaUpload,mediaInput,mediaList);
+  const videoInput=element('input');videoInput.type='file';videoInput.id='server-video-file';
+  videoInput.accept='video/mp4,.mp4';videoInput.hidden=true;
+  const videoUpload=action('+ Загрузить MP4 (1,5 МБ)','server-video-upload',()=>videoInput.click());
+  mediaPanel.append(mediaTitle,mediaHint,mediaUpload,mediaInput,videoUpload,videoInput,mediaList);
   toolbar.after(mediaPanel);
   // Saved section presets are scoped to the currently selected owner site.
   // Applying a preset modifies ONLY the local draft, with undo/redo. Owner
@@ -181,7 +184,37 @@
     const file=mediaInput.files?.[0];mediaInput.value='';
     if(file)uploadMedia(file);
   });
+  videoInput.addEventListener('change',()=>{
+    const file=videoInput.files?.[0];videoInput.value='';
+    if(!file)return;
+    safe(async()=>{
+      if(!state.siteId||!canEdit())throw Error('Недостаточно прав на загрузку видео');
+      if(editor.isDirty())throw Error('Сначала сохраните черновик');
+      if(file.type!=='video/mp4'||file.size<100||file.size>1500000)
+        throw Error('Нужен короткий MP4 (до 1,5 МБ)');
+      const alt=prompt('Название и доступное описание видео',file.name.replace(/\.mp4$/i,''));
+      if(alt===null)return;
+      if(!alt.trim()||alt.length>200)throw Error('Описание видео обязательно (до 200 символов)');
+      const bytes=await file.arrayBuffer();
+      const sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
+        .map(b=>b.toString(16).padStart(2,'0')).join('');
+      const binary=new Uint8Array(bytes);let string='';
+      for(let i=0;i<binary.length;i+=0x8000)
+        string+=String.fromCharCode(...binary.subarray(i,i+0x8000));
+      const response=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/video','POST',
+        {base64:btoa(string),alt,sha256,expectedRevision:state.revision});
+      if(response.sha256!==sha256)throw Error('Серверная SHA256 видео не совпадает');
+      selectSite(response);await refreshSites();await loadHistory();
+      notice('MP4 добавлен в библиотеку. Привяжите его к видеоэлементу композиции; публикация отдельно.');
+    });
+  });
   const previewData=new Map(),loadingMedia=new Set();
+  function videoUrl(assetId){
+    if(!state.authorized||!state.siteId)return null;
+    const asset=editor.getSite().assets.find(a=>a.id===assetId&&a.mime==='video/mp4');
+    if(!asset)return null;
+    return '/api/sites/'+encodeURIComponent(state.siteId)+'/media/'+encodeURIComponent(assetId);
+  }
   function previewUrl(assetId){
     if(!state.authorized||!state.siteId)return null;
     // Studio tablet/phone preview retrieves actual stored source bytes for
@@ -230,8 +263,10 @@
         if(field.values['content.media']===assetId)
           locations.push(page.title+' · '+section.component);
       const walk=node=>{
-        if(node.type==='image'&&node.assetId===assetId)
+        if((node.type==='image'||node.type==='video')&&node.assetId===assetId)
           locations.push(page.title+' · дизайн-композиция · '+node.id);
+        if(node.type==='video'&&node.posterAssetId===assetId)
+          locations.push(page.title+' · обложка видео · '+node.id);
         for(const child of node.children||[])walk(child);
       };
       for(const node of section.designGraph?.nodes||[])walk(node);
@@ -249,11 +284,11 @@
     // Media controls must not clear leads, alerts, or unrelated workflow state.
     const assets=editor.getSite().assets;
     if(!state.siteId||!assets.length){
-      mediaList.append(element('small',null,'Изображений пока нет.'));return;
+      mediaList.append(element('small',null,'Медиафайлов пока нет.'));return;
     }
     const site=editor.getSite();
     const search=element('input','control');search.type='search';search.id='server-media-search';
-    search.placeholder='Найти изображение или описание';search.setAttribute('aria-label','Поиск в медиабиблиотеке');
+    search.placeholder='Найти медиафайл или описание';search.setAttribute('aria-label','Поиск в медиабиблиотеке');
     const entries=element('div','hosted-media-entries');entries.id='server-media-entries';
     mediaList.append(search,entries);
     const render=()=>{
@@ -262,8 +297,11 @@
       for(const asset of assets.filter(a=>(a.id+' '+a.alt).toLocaleLowerCase().includes(query))){
         const row=element('div','hosted-media-item');
         row.dataset.assetId=asset.id;
-        const photo=element('img');photo.src='/api/sites/'+encodeURIComponent(state.siteId)+'/media/'+encodeURIComponent(asset.id);
-        photo.alt=asset.alt;photo.loading='lazy';photo.width=65;photo.height=55;
+        const photo=asset.mime==='video/mp4'?element('span','hosted-video-symbol','▶ MP4'):element('img');
+        if(asset.mime!=='video/mp4'){
+          photo.src='/api/sites/'+encodeURIComponent(state.siteId)+'/media/'+encodeURIComponent(asset.id);
+          photo.alt=asset.alt;photo.loading='lazy';photo.width=65;photo.height=55;
+        }
         const uses=mediaUses(site,asset.id);
         const desc=element('div','hosted-media-description');
         desc.append(element('strong',null,asset.alt||'Декоративное изображение (alt пустой)'));
@@ -286,7 +324,7 @@
         const replace=action('Заменить в блоках','',()=>safe(async()=>{
           if(!uses.length)throw Error('Изображение не используется — замена не требуется');
           const replacement=prompt('Укажите ID другого изображения из этой медиабиблиотеки:\n'+
-            assets.filter(a=>a.id!==asset.id).map(a=>a.id+' · '+a.alt).join('\n'),'');
+            assets.filter(a=>a.id!==asset.id&&a.mime===asset.mime).map(a=>a.id+' · '+a.alt).join('\n'),'');
           if(replacement===null)return;
           editLibraryAsset({action:'replaceAsset',assetId:asset.id,targetId:replacement.trim()});
         }));
@@ -493,6 +531,7 @@
     mediaUpload.disabled=!available||isDirty()||!canEdit();
     templatesSave.disabled=!available||isDirty()||!canEdit();
     templatesRefresh.disabled=!available;
+    videoUpload.disabled=!available||!canEdit()||isDirty();
     backupDownload.disabled=!available||isDirty()||!isOwner();
     backupOpen.disabled=state.busy||!isOwner();
     releaseRefresh.disabled=!available;
