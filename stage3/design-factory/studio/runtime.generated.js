@@ -585,7 +585,7 @@ function makeSection(component,id,page,project,reg){
     ]);
     // The registered service-grid repeater requires at least 2 items.
     // Do not invent a second service: clearly label its owner-review placeholder.
-    if(rows.length===1)rows.push({title:sector.serviceTwo||c.serviceTwo,description:c.serviceDescription});
+    if(rows.length===1)rows.push({title:samplePrefix+(sector.serviceTwo||c.serviceTwo),description:c.serviceDescription});
     setItems(section,rows.map(x=>({'content.title':x.title,'content.text':x.description,'behavior.href':'/contact/'})));
   } else if(component==='media-story'){
     apply(section,'heading',{'content.text':sector.hero||c.story});
@@ -613,7 +613,7 @@ function checklist(project){
   if(!f.title)missing.push('facts.title');
   if(!f.headline)missing.push('facts.headline');
   if(!f.description)missing.push('facts.description');
-  if(!f.services||!f.services.length)missing.push('facts.services');
+  if(!f.services||f.services.length<2)missing.push('facts.services');
   if(!f.contactText)missing.push('facts.contactText');
   return {label:c.missing,missing,readyForPublish:missing.length===0,requiresOwnerReview:true};
 }
