@@ -240,6 +240,7 @@ async function execute(){
   await page.locator('#server-status').getByText(/Черновик #9/).waitFor();
   assert.equal(await page.locator('#server-site-select').inputValue(),recoveryId);
   await page.locator('#server-submission-heading').getByText(/Заявки сайта · 1/).waitFor();
+  await page.locator('#server-media-list img').first().waitFor({state:'visible'});
   assert.equal(await page.locator('#server-media-list img').count(),1);
   assert.equal(await page.locator('#server-template-list .hosted-template').count(),1);
   assert.equal(await page.locator('#versions .version').count(),9);

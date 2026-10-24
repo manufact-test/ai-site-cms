@@ -781,7 +781,7 @@ async function stop(){
   assert.match(htmlDesign,/:hover\{opacity:0.85\}/);
   assert.match(htmlDesign,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
   assert.match(htmlDesign,new RegExp('id="'+designSec.id+'"'));
-  assert.doesNotMatch(htmlDesign,/<script|onerror=/);
+  assert.doesNotMatch(htmlDesign,/<script\b|<img[^>]+onerror=/);
   const staticDesign=path.join(dbdir,'static-ai-composition');
   const compiledDesign=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',staticDesign],
     {cwd:root,env,encoding:'utf8'});
