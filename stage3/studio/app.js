@@ -464,6 +464,18 @@
     dlg.append(title,info,toolbar,root,footer);
     document.body.append(dlg);
     let graph,tokens,selection,mode='desktop',sourcePage,sourceSection;
+    const changeTree=(operation,selectId)=>{
+      try{
+        graph=DESIGN_GRAPH.editTree(graph,operation);
+        if(selectId)selection=selectId;
+        render();
+      }catch(error){notice('Структура не изменена: '+error.message,true);}
+    };
+    const subtreeIds=(node)=>{
+      const ids=[];
+      const walk=n=>{ids.push(n.id);for(const child of n.children||[])walk(child);};
+      walk(node);return ids;
+    };
     const make=(tag,text,cls)=>{
       const n=document.createElement(tag);
       if(text!==undefined)n.textContent=text;
@@ -514,12 +526,12 @@
       action('+ Вложенный',()=>{
         if(n.type!=='container')return notice('Для вложенности выберите контейнер',true);
         const node={id:uniqueId('dg-node'),type:'text',text:'Новый текст',styles:{}};
-        n.children.push(node);selection=node.id;render();
+        changeTree({action:'insert',targetId:n.id,placement:'inside',node},node.id);
       });
       action('+ Рядом',()=>{
         const node={id:uniqueId('dg-node'),type:'container',styles:{display:'grid',columns:2,gap:'@medium'},
           responsive:{mobile:{columns:1}},children:[]};
-        selected.items.splice(selected.items.indexOf(n)+1,0,node);selection=node.id;render();
+        changeTree({action:'insert',targetId:n.id,placement:'after',node},node.id);
       });
       action('Тип +',()=>{
         const type=prompt('Элемент: container / heading / text / button / image / divider / icon / video','heading');
@@ -541,8 +553,7 @@
           if(!first)return notice('Сперва загрузите изображение',true);
           node.assetId=first.id;node.alt=first.alt;
         }
-        selected.items.splice(selected.items.indexOf(n)+1,0,node);
-        selection=node.id;render();
+        changeTree({action:'insert',targetId:n.id,placement:'after',node},node.id);
       });
       action('↑',()=>{
         const index=selected.items.indexOf(n);
@@ -552,11 +563,43 @@
         const index=selected.items.indexOf(n);
         if(index<selected.items.length-1){[selected.items[index+1],selected.items[index]]=[n,selected.items[index+1]];render();}
       });
+      action('Копировать группу',()=>{
+        const ids=subtreeIds(n).map(()=>uniqueId('dg-node'));
+        changeTree({action:'duplicate',nodeId:n.id,ids},ids[0]);
+      });
+      action('Объединить в контейнер',()=>{
+        const wrapperId=uniqueId('dg-node');
+        changeTree({action:'wrap',nodeId:n.id,wrapperId},wrapperId);
+      });
+      if(n.type==='container'&&n.children.length)action('Разобрать контейнер',()=>{
+        if(!confirm('Удалить оболочку контейнера? Её стили будут потеряны, вложенные элементы сохранятся.'))return;
+        changeTree({action:'unwrap',nodeId:n.id},n.children[0].id);
+      });
+      const skip=new Set(subtreeIds(n));
+      const destinations=rows.filter(row=>!skip.has(row.node.id));
+      if(destinations.length){
+        const moveDestination=make('select',undefined,'control');
+        moveDestination.id='cms-design-move-target';
+        for(const {node,depth} of destinations){
+          const opt=make('option','  '.repeat(depth)+node.type+' · '+(node.text||node.alt||node.id).slice(0,45));
+          opt.value=node.id;moveDestination.append(opt);
+        }
+        const firstContainer=destinations.find(row=>row.node.type==='container');
+        if(firstContainer)moveDestination.value=firstContainer.node.id;
+        const placement=make('select',undefined,'control');
+        placement.id='cms-design-move-placement';
+        for(const [value,label] of [['inside','Внутрь'],['before','Перед'],['after','После']]){
+          const opt=make('option',label);opt.value=value;placement.append(opt);
+        }
+        placement.value=firstContainer?'inside':'after';
+        toolbar.append(moveDestination,placement);
+        action('Переместить',()=>changeTree({action:'move',nodeId:n.id,
+          targetId:moveDestination.value,placement:placement.value},n.id));
+      }
       action('Удалить элемент',()=>{
-        if(rows.length===1)return notice('Нельзя удалить единственный узел',true);
         if(!confirm('Удалить выбранный узел и все вложенные элементы?'))return;
-        selected.items.splice(selected.items.indexOf(n),1);
-        selection=all()[0].node.id;render();
+        changeTree({action:'remove',nodeId:n.id},rows[0].node.id===n.id?
+          rows.find(row=>!skip.has(row.node.id))?.node.id:rows[0].node.id);
       });
       const headline=make('h3','Редактирование · '+n.type);root.append(headline);
       const fields=make('div','', 'cms-design-fields');root.append(fields);

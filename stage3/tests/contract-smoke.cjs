@@ -793,6 +793,10 @@ test('AI-free atomic composition tree: reparent, deep clone, wrap, unwrap, media
   assert.equal(clone.nodes[1].children[1].assetId,'asset-picture');
   assert.equal(clone.nodes[1].children[1].responsive.mobile.objectPositionX,72);
   assert.equal(clone.nodes[1].children[2].children[0].id,'node-copied-title');
+  const inserted=graph.editTree(clone,{action:'insert',targetId:'node-copied-column',
+    placement:'inside',node:{id:'node-new-paragraph',type:'text',text:'Inserted content',styles:{}}});
+  assert.equal(inserted.nodes[1].children[2].children.at(-1).text,'Inserted content');
+  assert.equal(clone.nodes[1].children[2].children.length,1);
   const wrapped=graph.editTree(clone,{action:'wrap',nodeId:'node-copied-photo',
     wrapperId:'node-photo-frame'});
   assert.equal(wrapped.nodes[1].children[1].children[0].id,'node-copied-photo');
@@ -810,7 +814,11 @@ test('AI-free atomic composition tree: reparent, deep clone, wrap, unwrap, media
     {action:'duplicate',nodeId:'node-column',ids:['illegal space']},
     {action:'wrap',nodeId:'node-column',wrapperId:sec.id+'-title'},
     {action:'unwrap',nodeId:'node-photograph'},
-    {action:'remove',nodeId:sec.id+'-layout'}
+    {action:'remove',nodeId:sec.id+'-layout'},
+    {action:'insert',targetId:'node-photograph',placement:'inside',
+      node:{id:'node-not-allowed',type:'text',text:'bad'}},
+    {action:'insert',targetId:'node-column',placement:'inside',
+      node:{id:sec.id+'-title',type:'text',text:'duplicate'}}
   ])refuses(()=>graph.editTree(moved,operation),'Invalid graph restructure must be atomic');
   assert.equal(JSON.stringify(moved.nodes[0].children.at(-1).children[0].text),'"Ваш уникальный заголовок"');
   site.assets=[{id:'asset-picture',src:'/assets/picture.png',mime:'image/png',alt:'Picture'}];

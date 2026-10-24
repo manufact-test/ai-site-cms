@@ -187,7 +187,7 @@ function baseGraph(sectionId){
  * The final edit is still validated by the normal site/asset contract on Apply.
  */
 function editTree(graph,operation){
-  if(!object(operation)||!['duplicate','move','wrap','unwrap','remove'].includes(operation.action))
+  if(!object(operation)||!['duplicate','move','insert','wrap','unwrap','remove'].includes(operation.action))
     fail('edit','unknown operation');
   const next=JSON.parse(JSON.stringify(graph));
   const scan=()=>{
@@ -221,6 +221,17 @@ function editTree(graph,operation){
     const rewrite=(node)=>{node.id=operation.ids[idx++];if(node.type==='container')node.children.forEach(rewrite);};
     rewrite(copy);
     source.items.splice(source.items.indexOf(source.node)+1,0,copy);
+  }else if(operation.action==='insert'){
+    const target=before.get(operation.targetId);
+    if(!target||!['before','after','inside'].includes(operation.placement)||
+       !object(operation.node))fail('edit','invalid insertion');
+    if(operation.placement==='inside'){
+      if(target.node.type!=='container')fail('edit','destination not a container');
+      target.node.children.push(JSON.parse(JSON.stringify(operation.node)));
+    }else{
+      target.items.splice(target.items.indexOf(target.node)+(operation.placement==='after'?1:0),
+        0,JSON.parse(JSON.stringify(operation.node)));
+    }
   }else if(operation.action==='move'){
     const target=before.get(operation.targetId);
     if(!target||!['before','after','inside'].includes(operation.placement)||
