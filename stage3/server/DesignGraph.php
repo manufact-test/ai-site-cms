@@ -204,7 +204,7 @@ final class DesignGraph
         return implode(';',$out);
     }
     /** Builds a portable, fully escaped, no-JavaScript composition for both PHP and static output. */
-    public static function render(array $site,array $graph,string $mount): string
+    public static function render(array $site,array $graph,string $mount,?string $sectionId=null): string
     {
         $t=self::tokens($site['designTokens']??null);
         $assetMap=[];foreach ($site['assets'] as $asset)$assetMap[$asset['id']]=$asset;
@@ -248,8 +248,8 @@ final class DesignGraph
             return '';
         };
         $html='';foreach ($graph['nodes'] as $n)$html.=$visit($n);
-        return '<section class="cmsdg cmsdg-'.$graph['id'].'" id="'.$graph['id'].'"><style>'
-            .$scope.'{min-width:0;max-width:100%}'.$scope.' *{box-sizing:border-box;min-width:0}'
+        return '<section class="cmsdg cmsdg-'.$graph['id'].'" id="'.($sectionId??$graph['id']).'"><style>'
+            .$scope.'{min-width:0;max-width:none;padding:0;min-height:0}'.$scope.' *{box-sizing:border-box;min-width:0}'
             .$scope.' img{max-width:100%;height:auto}'.implode('',$rules)
             .'</style>'.$html.'</section>';
     }
