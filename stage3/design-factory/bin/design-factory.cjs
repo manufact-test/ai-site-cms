@@ -7,7 +7,7 @@ const sdk=require('../../sdk/contract.cjs');
 function help(){
   process.stdout.write([
     'Design Factory D1 (offline, Node.js >= 20, no dependencies)',
-    '  create [--brief PROJECT.json] [--kit agency|industrial|consulting] [--theme editorial|technical|minimal] [--lang ru|en] [--out SITE.json] [--project-out PROJECT.json]',
+    '  create [--brief PROJECT.json] [--kit agency|industrial|consulting] [--theme THEME_ID] [--lang ru|en] [--out SITE.json] [--project-out PROJECT.json]',
     '  validate SITE.json',
     '  inspect SITE.json',
     '  export PROJECT.json NEW-output-directory',
