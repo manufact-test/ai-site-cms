@@ -198,3 +198,9 @@ In isolated V8 against the actual lead SDK/Design Graph source, **504/504** cand
 ## Host-editable D3 variation update
 
 The optional newer-lead-SDK bridge now creates 504 distinct typed Design Graph documents, with editable fonts, grids, responsive spans, gradients, card treatments, native icons, motion and 48px CTA targets. Direct owner-like edits to generated JSON re-render correctly in isolated live-source V8, without re-generating via AI. Full checkout Node, PHP validation, Chromium screenshots, ZIP and formal release remain unverified. See proposals/LEAD-DESIGN-GRAPH.md and QUALITY-GATES.md.
+
+## Semantic CMS content in optional lead graph candidates
+
+The newer-host graph adapter now exports all selected service/FAQ/benefit items as distinct editable nodes and preserves user-supplied hero and service information (the verified original D6 bundle is not modified). A provenance map connects graph text/links with source CMS slots and repeater items; the lead may invoke `reconcileSemantic` explicitly after a normal CMS content edit to update node text without losing its designer-controlled styles. No automatic two-way binding or publish rights are implied. Unfilled gallery output remains an honest upload prompt. See `INTEGRATION.md` and `proposals/LEAD-DESIGN-GRAPH.md` for precise API and limitations.
+
+Expanded source-level isolated V8 lead smoke PASS: 504 graph candidates/renders, 12-owner-service scenario, FAQ, safe empty gallery, escaping, provenance reconciliation. Full checked-out Node/PHP/Chromium and final ZIP gates remain open, Stage2 NO-GO / Stage3 not accepted / 0/135.
