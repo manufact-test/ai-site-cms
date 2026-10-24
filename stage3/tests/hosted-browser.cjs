@@ -528,6 +528,78 @@ async function execute(){
   await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(replacementVersionBefore+1)+'\\b')).waitFor();
   await visitor.reload();
   assert.equal(await visitor.locator('.gallery-grid img').first().getAttribute('alt'),'Новая версия кадра');
+  // Integrated Workbench-to-CMS user journey. Original image bytes remain
+  // client-only, the server receives a newly encoded WebP under its strict cap,
+  // link is an Undo-able draft edit, and public bytes change only after publish.
+  await page.locator('#pages .nav-entry').first().click();
+  await page.locator('#sections .nav-entry').filter({hasText:'Изображение и описание'}).click();
+  await page.locator('#elements .element').filter({hasText:'Фотография'}).click();
+  const originalPublishedMedia=await visitor.locator('.gallery-grid img').first().getAttribute('src');
+  const generated=await page.evaluate(()=>{
+    const canvas=document.createElement('canvas');canvas.width=96;canvas.height=64;
+    const g=canvas.getContext('2d');
+    g.fillStyle='#1351aa';g.fillRect(0,0,96,64);
+    g.fillStyle='#eac028';g.fillRect(15,10,42,30);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const localOriginal=Buffer.from(generated,'base64');
+  await page.locator('#server-media-process-open').click();
+  await page.locator('#cms-media-processor').waitFor({state:'visible'});
+  await page.locator('#cms-media-source').setInputFiles({
+    name:'private-source.png',mimeType:'image/png',buffer:localOriginal
+  });
+  await page.locator('#cms-media-report').getByText(/Исходник: 96×64/).waitFor();
+  await page.locator('#cms-media-ratio').selectOption('1:1');
+  await page.locator('#cms-media-rotation').selectOption('90');
+  await page.locator('#cms-media-format').selectOption('image/webp');
+  await page.locator('#cms-media-alt').fill('Оптимизированный снимок оборудования');
+  await page.locator('#cms-media-process').click();
+  await page.locator('#cms-media-report').getByText(/Готово: 64×64 · image\/webp/).waitFor();
+  assert.equal(await page.locator('#cms-media-result-image').isVisible(),true);
+  await page.locator('#cms-media-commit').click();
+  await page.locator('#cms-media-processor').waitFor({state:'hidden'});
+  const optimizedSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+  const optimized=optimizedSite.assets.at(-1);
+  assert.equal(optimized.mime,'image/webp');
+  assert.equal(optimized.alt,'Оптимизированный снимок оборудования');
+  assert.notEqual(optimized.id,secondId);
+  assert.equal(optimizedSite.pages.flatMap(p=>p.sections).find(s=>s.component==='image-showcase')
+    .elements.find(e=>e.slot==='photo').values['content.media'],optimized.id);
+  assert.match(await page.locator('#dirty').innerText(),/несохранённые/);
+  await page.locator('#save').click();
+  await page.locator('#server-status').getByText(/Без изменений/).waitFor();
+  await visitor.reload();
+  assert.equal(await visitor.locator('.gallery-grid img').first().getAttribute('src'),originalPublishedMedia);
+  const currentPublish=Number((await page.locator('#server-status').innerText())
+    .match(/Опубликовано: v(\d+)/)[1]);
+  await page.locator('#server-publish').click();
+  await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(currentPublish+1)+'\\b')).waitFor();
+  await visitor.reload();
+  const processedSrc=await visitor.locator('img.showcase-photo').getAttribute('src');
+  assert.match(processedSrc,new RegExp(optimized.id+'\\.webp
+  await page.locator('#server-login:not([hidden])').waitFor();
+  assert.equal((await visitor.goto(publicUrl)).status(),200,'Visitor never requires CMS login');
+  assert.deepEqual(errors,[],'No unhandled browser script exceptions');
+  console.log('STAGE3 HOSTED CHROMIUM E2E PASS: login, new site, editor, save, revisions, restore, publish isolation, viewer, logout');
+}
+execute().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{
+  if(browser)await browser.close();
+  if(php&&php.exitCode===null){
+    const stopped=new Promise(resolve=>php.once('exit',resolve));
+    php.kill('SIGTERM');
+    await Promise.race([stopped,new Promise(resolve=>setTimeout(resolve,1500))]);
+  }
+  fs.rmSync(temp,{recursive:true,force:true});
+});
+));
+  const processedResponse=await ctx.request.get(origin+processedSrc);
+  assert.equal(processedResponse.status(),200);
+  const publicBytes=await processedResponse.body();
+  assert.ok(publicBytes.length<450000);
+  assert.equal(publicBytes.subarray(0,4).toString(),'RIFF');
+  assert.equal(publicBytes.subarray(8,12).toString(),'WEBP');
+  assert.equal(processedResponse.headers()['etag'],
+    '"'+require('node:crypto').createHash('sha256').update(publicBytes).digest('hex')+'"');
   await staffCtx.close();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();

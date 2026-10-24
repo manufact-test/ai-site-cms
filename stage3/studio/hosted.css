@@ -67,3 +67,24 @@
 .hosted-media-references summary{cursor:pointer;font-size:11px}
 .hosted-media-references small{display:block;overflow-wrap:anywhere}
 .hosted-media-item [data-media-action]:disabled{opacity:.5;cursor:not-allowed}
+
+/* Workbench crop/rotate/encoding is integrated only with the authenticated Studio. */
+.cms-media-processor{width:min(970px,calc(100vw - 28px));max-height:calc(100vh - 35px);overflow:auto;
+ color:#eaf4fa;background:#14232d;border:1px solid #496171;border-radius:16px;
+ padding:23px;box-shadow:0 28px 110px #0009}
+.cms-media-processor::backdrop{background:#061016dc}
+.cms-media-processor[open]{display:grid;gap:14px}
+.cms-media-processor h2{margin:0;font-size:22px}.cms-media-processor p{margin:0;font-size:12px;line-height:1.6}
+.cms-media-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px}
+.cms-process-field{display:grid;gap:6px;font-size:12px;font-weight:650;min-width:0}
+.cms-process-field .control,.cms-process-field input[type=file]{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+.cms-process-field input[type=checkbox]{width:20px;height:20px}
+#cms-media-result-image{object-fit:contain;max-width:100%;width:auto;height:auto;max-height:320px;
+ border:1px solid #385264;border-radius:10px;background:#d9e3e6;justify-self:center}
+#cms-media-result-image[hidden]{display:none}
+#cms-media-report{overflow-wrap:anywhere;color:#9ee2c6}
+#cms-media-report[data-error=true]{color:#ffb1a1}
+.cms-media-actions{display:flex;flex-wrap:wrap;gap:9px}
+.cms-media-actions .btn{font-size:12px}
+.cms-media-actions .btn:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:550px){.cms-media-processor{padding:14px}.cms-media-grid{grid-template-columns:1fr}}

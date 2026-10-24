@@ -130,7 +130,11 @@ final class Api
             $html = str_replace("connect-src 'none'", "connect-src 'self'", $html);
             $html = str_replace('</head>',
                 '<link rel="stylesheet" href="/hosted.css">' .
-                '<script src="/hosted.js" defer></script><script src="/access.js" defer></script></head>', $html);
+                '<script src="/media-motion-contract.js" defer></script>' .
+                '<script src="/media-motion-sha256.js" defer></script>' .
+                '<script src="/media-motion-engine.js" defer></script>' .
+                '<script src="/hosted.js" defer></script><script src="/access.js" defer></script>' .
+                '<script src="/media-processing.js" defer></script></head>', $html);
             header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
             header('Content-Type: text/html; charset=utf-8');
             echo $html;
@@ -141,8 +145,23 @@ final class Api
             '/bundle.js' => ['bundle.js', 'text/javascript; charset=utf-8'],
             '/hosted.js' => ['hosted.js', 'text/javascript; charset=utf-8'],
             '/access.js' => ['access.js', 'text/javascript; charset=utf-8'],
-            '/hosted.css' => ['hosted.css', 'text/css; charset=utf-8']
+            '/hosted.css' => ['hosted.css', 'text/css; charset=utf-8'],
+            '/media-processing.js' => ['media-processing.js', 'text/javascript; charset=utf-8']
         ];
+        // Exact first-party Workbench files are exposed ONLY to the hosted
+        // editor page as JavaScript resources, never as arbitrary file paths.
+        $mediaScripts=[
+            '/media-motion-contract.js'=>'lib/contract.cjs',
+            '/media-motion-sha256.js'=>'lib/sha256.cjs',
+            '/media-motion-engine.js'=>'workbench/engine.js'
+        ];
+        if ($method==='GET' && isset($mediaScripts[$path])) {
+            $bytes=file_get_contents(__DIR__.'/../media-motion/'.$mediaScripts[$path]);
+            if($bytes===false)$this->response(503,['error'=>'Media engine unavailable']);
+            header('Content-Type: text/javascript; charset=utf-8');
+            header("Content-Security-Policy: default-src 'none'");
+            echo $bytes;exit;
+        }
         if ($method === 'GET' && isset($assets[$path])) {
             [$file, $type] = $assets[$path];
             $data = file_get_contents(__DIR__ . '/../studio/' . $file);

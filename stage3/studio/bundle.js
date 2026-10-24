@@ -1963,6 +1963,24 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       pageId=site.pages[0].id;sectionId=site.pages[0].sections[0].id;elementId=site.pages[0].sections[0].elements[0].id;draw();
     },
     getSite:()=>cp(session.current),
+    // Bind a server-issued immutable media ID using the same declared SDK field
+    // and Undo/Redo transaction as editing an image in the Inspector.
+    bindMedia:(assetId,selection=null)=>{
+      if(!session.current.assets.some(a=>a.id===assetId))throw Error('Unknown site asset');
+      const focus=selection||{pageId,sectionId,elementId};
+      const page=session.current.pages.find(p=>p.id===focus.pageId);
+      const section=page?.sections.find(s=>s.id===focus.sectionId);
+      if(!section)throw Error('Selected section no longer exists');
+      const element=[...section.elements,...(section.items||[])].find(e=>e.id===focus.elementId);
+      const candidates=[...(element?[element]:[]),...section.elements,...(section.items||[])];
+      const target=candidates.find(el=>C.controls(session.current,manifests,page.id,section.id,el.id)
+        .some(f=>f.path==='content.media'&&f.type==='media'));
+      if(!target)return false;
+      session=D.edit(session,manifests,{pageId:page.id,sectionId:section.id,elementId:target.id,
+        path:'content.media',value:assetId,expectedRevision:session.revision});
+      pageId=page.id;sectionId=section.id;elementId=target.id;draw();
+      return true;
+    },
     assetAction:command=>{
       session=D.structure(session,manifests,{...command,expectedRevision:session.revision});
       draw();
@@ -1970,7 +1988,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },
     selection:()=>{
       const {page,section}=current();
-      return {pageId:page.id,sectionId:section.id,component:section.component};
+      return {pageId:page.id,sectionId:section.id,elementId,component:section.component};
     },
     applySectionTemplate:section=>{
       const id=uniqueId('section');

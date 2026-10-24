@@ -288,6 +288,50 @@
     };
     search.addEventListener('input',render);render();
   }
+  // Same immutable, versioned media pipeline as ordinary uploads. The vetted
+  // Workbench engine supplies locally encoded bytes; PHP independently decodes
+  // and validates MIME, dimensions and digest before committing the new asset.
+  async function uploadProcessed(blob,alt,bind,expectedHash){
+    if(state.busy||!state.authorized||!state.siteId||!canEdit())
+      throw Error('Загрузка недоступна без входа и прав редактирования');
+    if(editor.isDirty())throw Error('Сначала сохраните несохранённый черновик');
+    if(!(blob instanceof Blob)||blob.size<20||blob.size>450000||
+      !['image/png','image/jpeg','image/webp'].includes(blob.type))
+      throw Error('Обработанное изображение должно быть PNG/JPEG/WebP до 450 КБ');
+    if(typeof alt!=='string'||alt.length>200||/[\x00-\x1f]/.test(alt))
+      throw Error('Описание изображения должно быть до 200 символов без управляющих символов');
+    if(typeof expectedHash!=='string'||!/^[a-f0-9]{64}$/.test(expectedHash))
+      throw Error('Отсутствует проверенный SHA256');
+    const actual=await window.MediaMotionEngine.hash(blob);
+    if(actual!==expectedHash)throw Error('Изображение изменилось после обработки');
+    const selection=editor.selection();
+    const base64=await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');
+      reader.onerror=()=>reject(Error('Не удалось прочитать обработанное изображение'));
+      reader.readAsDataURL(blob);
+    });
+    state.busy=true;drawStatus();
+    try{
+      const response=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/media','POST',
+        {base64,alt,expectedRevision:state.revision});
+      if(response.sha256!==actual){
+        // The upload is an immutable server-side revision. Never falsely claim
+        // successful linkage if returned bytes do not match the local digest.
+        selectSite(response);await refreshSites();await loadHistory();
+        throw Error('Сервер вернул несовпадающий SHA256. Новый файл не привязан к блоку.');
+      }
+      selectSite(response);await refreshSites();await loadHistory();
+      let attached=false;
+      if(bind)attached=editor.bindMedia(response.asset.id,selection);
+      drawMedia();drawStatus();
+      notice(attached?
+        'Обработанное изображение привязано к блоку в черновике. Нажмите «Сохранить» и отдельно «Опубликовать».':
+        'Обработанное изображение загружено. Выберите его в нужном медиаполе. Публикация отдельно.');
+      return {asset:response.asset,attached,sha256:response.sha256};
+    }catch(err){notice(err.message,true);throw err;}
+    finally{state.busy=false;drawStatus();}
+  }
   // Private full-content recovery. The archive contains contact data; it never
   // contains accounts, credentials or configuration and is never sent off-origin.
   const backupPanel=element('div','hosted-backups');
@@ -602,7 +646,9 @@
   window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewUrl,
     api,safe,notice,principal:()=>state.principal,refreshSites:()=>refreshSites(),
     lock:()=>{state.authorized=false;state.principal=null;state.csrf=null;editorVisible(false);setGate(true);},
-    compositionTemplates,createComposition,canCompose:()=>isOwner()&&!state.busy});
+    compositionTemplates,createComposition,canCompose:()=>isOwner()&&!state.busy,
+    canEditMedia:()=>state.authorized&&!state.busy&&Boolean(state.siteId)&&canEdit()&&!editor.isDirty(),
+    uploadProcessed});
   $('versions').replaceChildren();
   editorVisible(false);
   state.loading=true;setGate(true);

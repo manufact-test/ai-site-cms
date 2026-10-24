@@ -347,7 +347,8 @@ final class SiteRepository
                 throw new Conflict('Concurrent media update');
             }
             $this->saveRevision($siteId, $expectedRevision + 1, self::encode($site), $now);
-            return ['site' => $site, 'revision' => $expectedRevision + 1, 'asset' => $asset];
+            return ['site' => $site, 'revision' => $expectedRevision + 1, 'asset' => $asset,
+                'sha256' => hash('sha256', $bytes)];
         });
     }
 
