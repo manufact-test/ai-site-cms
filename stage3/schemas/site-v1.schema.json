@@ -123,6 +123,9 @@
           "maxLength": 64
         }
       }
+    },
+    "designTokens": {
+      "$ref": "#/$defs/designTokens"
     }
   },
   "$defs": {
@@ -323,6 +326,9 @@
           "items": {
             "$ref": "#/$defs/formField"
           }
+        },
+        "designGraph": {
+          "$ref": "#/$defs/designGraph"
         }
       }
     },
@@ -521,6 +527,429 @@
               "minimum": 1,
               "maximum": 12
             }
+          }
+        }
+      }
+    },
+    "designTokens": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "colors",
+        "spacing",
+        "radii",
+        "typography"
+      ],
+      "properties": {
+        "colors": {
+          "type": "object",
+          "maxProperties": 30,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9-]{1,39}$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/color"
+          }
+        },
+        "spacing": {
+          "type": "object",
+          "maxProperties": 30,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9-]{1,39}$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 240
+          }
+        },
+        "radii": {
+          "type": "object",
+          "maxProperties": 30,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9-]{1,39}$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 240
+          }
+        },
+        "typography": {
+          "type": "object",
+          "maxProperties": 30,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9-]{1,39}$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 8,
+            "maximum": 120
+          }
+        }
+      }
+    },
+    "designStyles": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "display": {
+          "enum": [
+            "block",
+            "grid",
+            "flex",
+            "none"
+          ]
+        },
+        "columns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "direction": {
+          "enum": [
+            "row",
+            "column"
+          ]
+        },
+        "align": {
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "stretch",
+            "between"
+          ]
+        },
+        "justify": {
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "stretch",
+            "between"
+          ]
+        },
+        "gap": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "padding": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "radius": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "color": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/color"
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "background": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/color"
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "fontSize": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 120
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "fontWeight": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 900
+        },
+        "lineHeight": {
+          "type": "integer",
+          "minimum": 80,
+          "maximum": 250
+        },
+        "maxWidth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1920
+        },
+        "position": {
+          "enum": [
+            "static",
+            "relative",
+            "absolute"
+          ]
+        },
+        "top": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "left": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "opacity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "borderColor": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/color"
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "borderWidth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 12
+        },
+        "textAlign": {
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "order": {
+          "type": "integer",
+          "minimum": -30,
+          "maximum": 30
+        },
+        "hidden": {
+          "type": "boolean"
+        }
+      }
+    },
+    "designState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/color"
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "background": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/color"
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "borderColor": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/color"
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "borderWidth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 12
+        },
+        "radius": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "opacity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "designNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "enum": [
+            "container",
+            "heading",
+            "text",
+            "button",
+            "image",
+            "divider"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 3000
+        },
+        "href": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "assetId": {
+          "$ref": "#/$defs/id"
+        },
+        "alt": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "styles": {
+          "$ref": "#/$defs/designStyles"
+        },
+        "responsive": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tablet": {
+              "$ref": "#/$defs/designStyles"
+            },
+            "mobile": {
+              "$ref": "#/$defs/designStyles"
+            }
+          }
+        },
+        "states": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "hover": {
+              "$ref": "#/$defs/designState"
+            },
+            "focus": {
+              "$ref": "#/$defs/designState"
+            }
+          }
+        },
+        "children": {
+          "type": "array",
+          "maxItems": 30,
+          "items": {
+            "$ref": "#/$defs/designNode"
+          }
+        }
+      }
+    },
+    "designGraph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "id",
+        "nodes"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 30,
+          "items": {
+            "$ref": "#/$defs/designNode"
           }
         }
       }
