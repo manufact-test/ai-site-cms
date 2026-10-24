@@ -943,8 +943,150 @@
         },
         "gradient": {
           "$ref": "#/$defs/designGradient"
+        },
+        "right": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "bottom": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "zIndex": {
+          "type": "integer",
+          "minimum": -10,
+          "maximum": 30
+        },
+        "widthPx": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1920
+        },
+        "heightPx": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1400
+        },
+        "minWidth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1920
+        },
+        "maxHeight": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1600
+        },
+        "gridRowSpan": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "flexBasisPercent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "flexShrink": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "justifySelf": {
+          "enum": [
+            "auto",
+            "start",
+            "center",
+            "end",
+            "stretch"
+          ]
+        },
+        "alignContent": {
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "stretch",
+            "between"
+          ]
+        },
+        "gridAutoFlow": {
+          "enum": [
+            "row",
+            "column",
+            "row-dense",
+            "column-dense"
+          ]
+        },
+        "objectPositionX": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "objectPositionY": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "outlineColor": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/color"
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "outlineWidth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "textDecoration": {
+          "enum": [
+            "none",
+            "underline",
+            "line-through"
+          ]
+        },
+        "whiteSpace": {
+          "enum": [
+            "normal",
+            "nowrap",
+            "pre-line"
+          ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "widthPx",
+              "widthPercent"
+            ]
+          }
+        }
+      ]
     },
     "designState": {
       "type": "object",
@@ -1008,6 +1150,22 @@
         },
         "gradient": {
           "$ref": "#/$defs/designGradient"
+        },
+        "outlineColor": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/color"
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "outlineWidth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8
         }
       }
     },
@@ -1199,8 +1357,50 @@
               "pattern": "^@[a-z][a-z0-9-]{1,39}$"
             }
           ]
+        },
+        "via": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/color"
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "viaAt": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "via"
+            ]
+          },
+          "then": {
+            "required": [
+              "viaAt"
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "viaAt"
+            ]
+          },
+          "then": {
+            "required": [
+              "via"
+            ]
+          }
+        }
+      ]
     }
   }
 }
