@@ -65,3 +65,7 @@ Never state **all seven accepted** merely because new tools are committed, or be
 **This checkpoint's observed limits:** GitHub branch code was readable and writable through the connector, but the normal local checkout could not reach `github.com` (DNS error). Headless Chromium failed a minimal `--dump-dom` data-page probe (15-second timeout, exit 124). Hence none of the actual checked-out Node, Chromium, viewport review or ZIP results was performed/approved here. A network-accessible checkout with a functioning Chromium runtime is required to finish D7.
 
 **Recommended final run order:** checkout at exact branch HEAD → rebuild/check browser bundle if applicable → run integrated release audit using Chromium → run visual capture → inspect real screenshots and Studio interactions → build and CRC/SHA-verify ZIP → update evidence and obtain lead integrator review. If any gate is missing, keep D7 and `releaseReady` open.
+
+### Additional source-level evidence, not checkout acceptance
+
+At the current branch code, an isolated V8 execution of the actual GitHub SDK/manifests and Design Factory modules checked 288/288 site-v1 projects, 42/42 registered composition fallback exports, 12/12 representative bridge imports, and rejection of a modified bridge package. The isolated harness provides meaningful contract evidence but bypasses the real Node filesystem/CLI process, headless Chrome, screenshot review and ZIP bytes, so it **does not satisfy** the corresponding checkout or browser criteria above.
