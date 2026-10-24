@@ -27,6 +27,22 @@ try{
   matrix++;
  }
  assert.equal(matrix,288);
+ // JSON parsers/formatters legitimately reorder object keys. Such imports
+ // must remain valid while any actual nested data mutation is still refused.
+ const shuffled=(value)=>{
+  if(Array.isArray(value))return value.map(shuffled);
+  if(value&&typeof value==='object')
+   return Object.fromEntries(Object.keys(value).reverse().map(k=>[k,shuffled(value[k])]));
+  return value;
+ };
+ const orderingExample=bridge.build({format:FORMAT,version:1,
+  kit:'saas',theme:'technical',language:'en',facts:{}});
+ const reordered=shuffled(JSON.parse(JSON.stringify(orderingExample)));
+ assert.equal(JSON.stringify(bridge.importForCMS(reordered)),JSON.stringify(orderingExample.site));
+ const changedOrderExample=shuffled(reordered);
+ changedOrderExample.site.pages[0].seo.title='Mutated SEO';
+ assert.throws(()=>bridge.validateBundle(changedOrderExample),/D6: changed/);
+ assert.throws(()=>bridge.validateBundle({...reordered,inspection:undefined}),/D6: non-JSON value/);
  for(const type of ['hero-center','gallery-mosaic','pricing-table','testimonials-quote']){
   const state={format:bridge.WORKSPACE,version:1,project:{format:FORMAT,version:1,kit:'agency',theme:'minimal',language:'en',facts:{}},
    composition:type};
