@@ -7,6 +7,19 @@ const root=path.resolve(__dirname,'..');
 const build=path.join(root,'bin/package-release.cjs');
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'df-package-smoke-'));
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+const PREFIX='stage3/design-factory/';
+function sourcePaths(base=root,relative=''){
+ const paths=[];
+ for(const entry of fs.readdirSync(base,{withFileTypes:true})){
+  const rel=relative?relative+'/'+entry.name:entry.name;
+  const absolute=path.join(base,entry.name);
+  if(fs.lstatSync(absolute).isSymbolicLink())throw Error('Unsafe source symlink '+rel);
+  if(entry.isDirectory())paths.push(...sourcePaths(absolute,rel));
+  else if(entry.isFile())paths.push(PREFIX+rel);
+  else throw Error('Unsupported source '+rel);
+ }
+ return paths;
+}
 try{
  const outputs=[path.join(dir,'a.zip'),path.join(dir,'b.zip')];
  for(const out of outputs){
@@ -41,6 +54,10 @@ try{
   const payload=a.subarray(cursor+30+n+extra,cursor+30+n+extra+compressed);
   const unpacked=zlib.inflateRawSync(payload);
   assert.equal(unpacked.length,original);
+  const originalPath=path.join(root,name.slice(PREFIX.length));
+  assert.ok(fs.statSync(originalPath).isFile(),'Archive entry must match a real first-party file');
+  assert.equal(sha(unpacked),sha(fs.readFileSync(originalPath)),
+    'ZIP content must exactly match current source bytes: '+name);
   const table=new Uint32Array(256);
   for(let i=0;i<256;i++){let v=i;for(let j=0;j<8;j++)v=v&1?0xEDB88320^(v>>>1):v>>>1;table[i]=v>>>0;}
   let sum=0xFFFFFFFF;for(const val of unpacked)sum=table[(sum^val)&255]^(sum>>>8);
@@ -69,9 +86,11 @@ try{
  }
  assert.equal(centralCursor,ending);
  assert.equal(centralCount,count,'All central directory entries accounted for');
+ assert.deepEqual([...all].sort(),sourcePaths().sort(),
+   'ZIP must contain every and only Design Factory source file');
  for(const f of ['studio/index.html','studio/runtime.generated.js','studio/studio.css','studio/studio.js','README.md','PROGRESS.md','INTEGRATION.md'])
   assert.ok(all.has('stage3/design-factory/'+f),f);
  const denied=cp.spawnSync(process.execPath,[build,outputs[0]],{encoding:'utf8'});
  assert.notEqual(denied.status,0,'No overwrite allowed');
- console.log('DESIGN_FACTORY_D7_PACKAGE_SMOKE PASS: '+files+' ZIP members, CRC32, central directory offsets and sizes, zero path escapes, byte-for-byte reproducible, no overwrite');
+ console.log('DESIGN_FACTORY_D7_PACKAGE_SMOKE PASS: '+files+' ZIP members, CRC32, central directory parity, all source bytes and file inventory, no path escapes, reproducible, no overwrite');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}
