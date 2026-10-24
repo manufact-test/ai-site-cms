@@ -19,8 +19,8 @@ const registry=loadRegistry();
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'df-d1-smoke-'));
 try{
   for(const kit of Object.keys(KITS)){
-    for(const language of ['ru','en']){
-      const input=project(kit,KITS[kit].archetype,language);
+    for(const theme of Object.keys(THEMES))for(const language of ['ru','en']){
+      const input=project(kit,theme,language);
       const result=compile(input,registry);
       assert.equal(result.site.format,sdk.FORMAT);
       assert.equal(result.site.pages.length,4);
@@ -68,6 +68,9 @@ try{
   assert.ok(html.includes('Настоящий заголовок'));
   assert.ok(html.includes('href="services/index.html"'));
   assert.ok(!html.includes('<script'));
+  assert.equal(Object.keys(THEMES).length,12);
+  assert.equal(new Set(Object.keys(THEMES).map(t=>require('../lib/preview.cjs').css(t))).size,12);
+  for(const theme of Object.values(THEMES))assert.ok(theme.contrast.body>=4.5&&theme.contrast.card>=4.5);
   assert.ok(fs.readFileSync(path.join(exported.directory,'assets/preview.css'),'utf8').includes('prefers-reduced-motion'));
   expectError(()=>writePreview(compiled,path.join(root,'output')),'refuse overwrite');
   const cliRun=(args)=>cp.spawnSync(process.execPath,[cli,...args],{encoding:'utf8'});
@@ -87,7 +90,7 @@ try{
   const escapedHtml=fs.readFileSync(path.join(escaped.directory,'index.html'),'utf8');
   assert.ok(escapedHtml.includes('&lt;img'));
   assert.ok(!escapedHtml.includes('<img src=x'));
-  console.log('DESIGN_FACTORY_D1_SMOKE PASS: '+count+' combinations, real Stage3 validator, CLI create/validate/inspect/export, 4-page HTML, XSS escaping, safe overwrite policy');
+  console.log('DESIGN_FACTORY_D1_D2_SMOKE PASS: '+count+' combinations, real Stage3 validator, CLI create/validate/inspect/export, 4-page HTML, XSS escaping, safe overwrite policy');
 } finally {
   fs.rmSync(root,{recursive:true,force:true});
 }
