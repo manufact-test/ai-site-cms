@@ -128,7 +128,8 @@ function contentFor(section,comp,language,prefix,cardStyles,font,assets=[]){
     const parts=[];
     if(assetId){
      const asset=media.get(assetId);
-     if(!asset||asset.mime==='video/mp4')fail('No verified image asset for '+item.id);
+     if(!asset||asset.mime==='video/mp4'||typeof asset.alt!=='string'||
+        !asset.alt.trim())fail('Image requires verified asset and nonempty alt: '+item.id);
      parts.push({id:id+'-image',type:'image',assetId,alt:asset.alt,
       styles:{aspectRatio:'landscape',objectFit:'cover',widthPercent:100}});
     }else parts.push(make(id+'-pending','text',
@@ -377,6 +378,81 @@ function buildHostCandidate(exportBundle,hostSdk,hostRegistry){
   expectedSdk:'Lead Design Graph v1; not supported by the older feature branch SDK'
  };
 }
+// Structural rebuild is an explicit *host-side* operation after the owner
+// changes repeater shape, uploads media or changes CTA source selection.
+// This does NOT authorize an edit, save revisions, publish, invoke AI or
+// merge changed data into another page. Host must authorize/lock revisions.
+function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry){
+ if(!candidate||candidate.format!==FORMAT||candidate.version!==1||
+    !candidate.mapping||candidate.mapping.semanticContentMode!=='snapshot-requires-host-reconciliation')
+  fail('Expected existing host candidate');
+ if(!hostSdk||typeof hostSdk.validateSite!=='function'||
+    typeof hostSdk.inspectSite!=='function'||!hostRegistry)
+  fail('Explicit host SDK and registered CMS components required');
+ const composition=catalog.get(candidate.mapping.composition);
+ const theme=themes[candidate.mapping.theme];
+ const language=candidate.mapping.language;
+ if(!theme||!['ru','en'].includes(language))
+  fail('Rebuild requires original validated theme and language');
+ const original=hostSdk.validateSite(JSON.parse(JSON.stringify(candidate.site)),hostRegistry);
+ const site=hostSdk.validateSite(JSON.parse(JSON.stringify(editedSite)),hostRegistry);
+ if(site.siteId!==original.siteId||
+    site.pages[0]?.id!==original.pages[0]?.id)
+  fail('Cannot rebuild a different CMS site or page');
+ const before=original.pages[0].sections.find(s=>s.id==='df-selected-composition');
+ const current=site.pages[0].sections.find(s=>s.id==='df-selected-composition');
+ if(!before||!current||!before.designGraph||!current.designGraph||
+    before.component!==composition.cmsComponent||
+    current.component!==before.component||
+    before.manifestVersion!==current.manifestVersion||
+    current.designGraph.id!==before.designGraph.id)
+  fail('Rebuild requested for a different semantic section');
+ const expected=bindingSignatures(bindingsFor(before,composition,original.assets));
+ const actual=bindingSignatures(candidate.mapping.contentBindings||[]);
+ if(expected.length!==actual.length||
+    actual.some((v,i)=>!v||v!==expected[i]))
+  fail('Provenance binding mismatch; explicit original candidate required');
+ const fresh=graphFor(current,composition,theme,language,site.assets);
+ // Preserve editable visual properties by stable node/type identity, except
+ // cards whose item identity at that ordinal changed (remove/reorder).
+ // Structural edits and source content use CMS authority, never stale graph
+ // text or href. Rebuild report makes visual resets reviewable by the host.
+ const previousNodes=new Map(),currentIds=new Set();
+ const walk=(items,cb)=>{for(const node of items){cb(node);walk(node.children||[],cb);}};
+ walk(current.designGraph.nodes,node=>previousNodes.set(node.id,node));
+ const oldItems=before.items||[],newItems=current.items||[];
+ let preserved=0,created=0,reset=0;
+ walk(fresh.nodes,node=>{
+  const old=previousNodes.get(node.id);
+  if(!old||old.type!==node.type){created++;return;}
+  const marker=node.id.match(/-dg-card-(\\d+)(?:-|$)/);
+  if(marker){
+   const i=Number(marker[1])-1;
+   if(oldItems[i]?.id!==newItems[i]?.id){reset++;return;}
+  }
+  for(const field of ['styles','responsive','states','motion']){
+   if(own(old,field))node[field]=JSON.parse(JSON.stringify(old[field]));
+   else delete node[field];
+  }
+  if(node.type==='heading'&&own(old,'level'))node.level=old.level;
+  if(node.type==='icon'&&own(old,'icon'))node.icon=old.icon;
+  preserved++;
+ });
+ current.designGraph=fresh;
+ // Validate the ENTIRE edited site and all new image/alt/token references.
+ const checked=hostSdk.validateSite(site,hostRegistry);
+ if(hostSdk.inspectSite(checked,hostRegistry).errors.length)
+  fail('Host found broken links after rebuild');
+ return {
+  ...candidate,site:checked,
+  mapping:{...candidate.mapping,contentBindings:bindingsFor(current,composition,site.assets),
+   approvedForPublish:false,semanticContentMode:'snapshot-requires-host-reconciliation'},
+  rebuild:{format:'manufact-design-factory-rebuild-review-v1',version:1,
+   preservedVisualNodes:preserved,createdVisualNodes:created,
+   resetVisualNodes:reset,requiresHostAuthorization:true,
+   requiresOwnerVisualReview:true,noAiInvoked:true,notPublished:true}
+ };
+}
 // Two-sided change detection for an explicit CMS content synchronization.
 // This is deliberately NOT an automatic two-way binding. A host may preview
 // changes/conflicts before applying, without touching any source document.
@@ -523,4 +599,4 @@ function reconcileSemantic(candidate,editedSite,hostSdk,hostRegistry){
   fail('Synced graph has invalid internal links');
  return {...candidate,site:checked};
 }
-module.exports=Object.freeze({FORMAT,tokens,graphFor,buildHostCandidate,inspectSemanticSync,reconcileSemantic});
+module.exports=Object.freeze({FORMAT,tokens,graphFor,buildHostCandidate,rebuildHostCandidate,inspectSemanticSync,reconcileSemantic});
