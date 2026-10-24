@@ -126,9 +126,9 @@ const graphOnlyPreview=adapter.inspectSemanticSync(services,graphOnly,hostSdk,re
 assert.equal(graphOnlyPreview.canApply,true);
 assert.equal(graphOnlyPreview.changes.length,0);
 assert.ok(graphOnlyPreview.preservedGraphEdits.length>=1);
-assert.equal(adapter.reconcileSemantic(services,graphOnly,hostSdk,registry)
- .site.pages[0].sections.find(s=>s.id==='df-selected-composition')
- .designGraph.nodes[0].children[1].children[0].children[11].children[0].text,
+const graphOnlyResult=adapter.reconcileSemantic(services,graphOnly,hostSdk,registry);
+const graphOnlySaved=graphOnlyResult.site.pages[0].sections.find(s=>s.id==='df-selected-composition');
+assert.equal(findNode(graphOnlySaved.designGraph.nodes,'-card-12-title').text,
  'Design-graph-only wording');
 const conflict=clone(edited);
 findNode(conflict.pages[0].sections.find(s=>s.id==='df-selected-composition')
