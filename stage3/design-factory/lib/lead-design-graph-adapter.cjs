@@ -46,26 +46,61 @@ function graphFor(section,composition,theme,language){
  const detail=(firstItem&&typeof firstItem.values['content.text']==='string'&&
    firstItem.values['content.text'].trim())?firstItem.values['content.text'].trim():safe;
  const cardTitle=firstItem?.values?.['content.title']||
-  (en?'Owner-verified content':'Подтверждённые данные');
+  (en?'Details to verify':'Данные для проверки');
  const action=section.elements.find(e=>e.values&&
   typeof e.values['behavior.href']==='string'&&e.values['behavior.href'].startsWith('/'));
  const href=action?.values['behavior.href']||'/contact/';
  const actionText=action?.values['content.text']||(en?'Contact':'Связаться');
  const mainCols=columnsFor(composition.layout);
  const align=composition.align==='center'?'center':'start';
+ const centered=composition.align==='center',layout=composition.layout,art=composition.art;
+ const density=composition.density;
+ const wide=['bento','mosaic'].includes(layout),reverse=layout==='offset';
+ const font=theme.cms.font==='georgia'?'georgia':theme.cms.font==='arial'?'arial':'system';
+ // All variations use whitelisted Design Graph properties, so they remain
+ // editable through the host CMS rather than requiring injected CSS.
+ const rootStyles={
+  display:'grid',columns:mainCols,gap:density==='tight'?'@small':'@large',
+  padding:density==='airy'?'@large':'@medium',
+  background:'@background',maxWidth:theme.cms.maxWidth,align,justify:'start',
+  ...(layout==='band'?{gradient:{angle:120,from:'@background',to:'@surface'}}:{})
+ };
+ const detailStyles={
+  display:'flex',direction:'column',gap:'@small',
+  background:'@surface',padding:'@medium',radius:'@round',
+  ...(theme.design.card==='bordered'?{borderWidth:2,borderColor:'@foreground'}:{}),
+  ...(theme.design.card==='floating'?{shadow:'medium'}:{}),
+  ...(art==='rule'||art==='line'?{borderWidth:1,borderColor:'@accent'}:{}),
+  ...(art==='orb'||art==='arch'?{radius:'@round',gradient:{
+   angle:art==='orb'?135:45,from:'@surface',to:'@background'}}:{}),
+  ...(art==='tiles'?{shadow:'soft'}:{}),
+  ...(reverse?{order:-1}:{}),
+  ...(wide&&layout==='mosaic'?{gridColumnSpan:2}:{})
+ };
+ const copyStyles={
+  display:'flex',direction:'column',gap:density==='tight'?'@small':'@medium',align,
+  ...(centered?{textAlign:'center'}:{}),
+  ...(wide&&layout==='bento'?{gridColumnSpan:2}:{})
+ };
+ const iconMap={frame:'arrow',orb:'sparkles',arch:'arrow',tiles:'check',
+  rule:'menu',dots:'sparkles',line:'arrow',portrait:'sparkles',quotes:'menu'};
  const graph={
   version:1,id:prefix,nodes:[{
    id:prefix+'-root',type:'container',
-   styles:{display:'grid',columns:mainCols,gap:'@large',padding:'@large',
-    background:'@background',maxWidth:theme.cms.maxWidth,align,justify:'start'},
+   styles:rootStyles,
    responsive:{tablet:{columns:mainCols===3?2:1,gap:'@medium'},
     mobile:{columns:1,gap:'@small',padding:'@small'}},
    children:[{
     id:prefix+'-copy',type:'container',
-    styles:{display:'flex',direction:'column',gap:'@medium',align},
+    styles:copyStyles,
+    responsive:wide?{tablet:{gridColumnSpan:mainCols===3?2:1},
+     mobile:{gridColumnSpan:1}}:undefined,
     children:[
      {id:prefix+'-heading',type:'heading',level:2,text:heading,
-      styles:{fontSize:'@heading',fontWeight:700,color:'@foreground',lineHeight:110},
+      styles:{fontSize:'@heading',fontWeight:700,color:'@foreground',lineHeight:110,
+       fontFamily:font,letterSpacing:theme.design.tracking==='wide'?-3:
+        theme.design.tracking==='tight'?-1:-2,textAlign:centered?'center':'left'},
+      motion:{effect:'fade-up',duration:450,delay:0},
       responsive:{tablet:{fontSize:Math.min(48,Number.parseInt(theme.headline.tablet,10))},
        mobile:{fontSize:Number.parseInt(theme.headline.mobile,10)}}},
      {id:prefix+'-text',type:'text',text:description,
@@ -77,11 +112,13 @@ function graphFor(section,composition,theme,language){
     ]
    },{
     id:prefix+'-detail',type:'container',
-    styles:{display:'flex',direction:'column',gap:'@small',
-     background:'@surface',padding:'@medium',radius:'@round'},
+    styles:detailStyles,
+    responsive:{mobile:{gridColumnSpan:1,order:0}},
     children:[
+     {id:prefix+'-decoration',type:'icon',icon:iconMap[art]||'arrow',
+      styles:{fontSize:32,color:'@accent'}},
      {id:prefix+'-detail-heading',type:'heading',level:3,text:cardTitle,
-      styles:{fontSize:24,fontWeight:600,color:'@foreground',lineHeight:115}},
+      styles:{fontSize:24,fontWeight:600,color:'@foreground',lineHeight:115,fontFamily:font}},
      {id:prefix+'-detail-copy',type:'text',text:detail,
       styles:{fontSize:'@body',color:'@foreground'}}
     ]
@@ -115,6 +152,8 @@ function buildHostCandidate(exportBundle,hostSdk,hostRegistry){
   site:checked,ownerChecklist:original.ownerChecklist,
   mapping:{composition:c.id,theme:workspace.project.theme,
    editable:['graph nodes','headings','text','button','design tokens',
+    'grid/flex compositions','pattern-specific spacing and card treatments',
+    'font family and tracking','gradients','decorative icons','motion with reduced-motion',
     'desktop layout','tablet/mobile overrides','hover/focus states'],
    fidelity:'partial',approvedForPublish:false,
    integration_required:['complex D3 art','rich galleries and native scroll snap',
