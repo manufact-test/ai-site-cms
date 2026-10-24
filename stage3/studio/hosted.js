@@ -46,7 +46,7 @@
   const mediaList=element('div','hosted-media-list');mediaList.id='server-media-list';
   const videoInput=element('input');videoInput.type='file';videoInput.id='server-video-file';
   videoInput.accept='video/mp4,.mp4';videoInput.hidden=true;
-  const videoUpload=action('+ Загрузить MP4 (1,5 МБ)','server-video-upload',()=>videoInput.click());
+  const videoUpload=action('+ Загрузить MP4 (до 16 МБ)','server-video-upload',()=>videoInput.click());
   mediaPanel.append(mediaTitle,mediaHint,mediaUpload,mediaInput,videoUpload,videoInput,mediaList);
   toolbar.after(mediaPanel);
   // Saved section presets are scoped to the currently selected owner site.
@@ -190,19 +190,46 @@
     safe(async()=>{
       if(!state.siteId||!canEdit())throw Error('Недостаточно прав на загрузку видео');
       if(editor.isDirty())throw Error('Сначала сохраните черновик');
-      if(file.type!=='video/mp4'||file.size<100||file.size>1500000)
-        throw Error('Нужен короткий MP4 (до 1,5 МБ)');
+      if(file.type!=='video/mp4'||file.size<100||file.size>16777216)
+        throw Error('Требуется MP4 до 16 МБ');
       const alt=prompt('Название и доступное описание видео',file.name.replace(/\.mp4$/i,''));
       if(alt===null)return;
       if(!alt.trim()||alt.length>200)throw Error('Описание видео обязательно (до 200 символов)');
       const bytes=await file.arrayBuffer();
       const sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
         .map(b=>b.toString(16).padStart(2,'0')).join('');
-      const binary=new Uint8Array(bytes);let string='';
-      for(let i=0;i<binary.length;i+=0x8000)
-        string+=String.fromCharCode(...binary.subarray(i,i+0x8000));
-      const response=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/video','POST',
-        {base64:btoa(string),alt,sha256,expectedRevision:state.revision});
+      const binary=new Uint8Array(bytes);
+      const encoded=chunk=>{
+        let text='';
+        for(let i=0;i<chunk.length;i+=0x8000)
+          text+=String.fromCharCode(...chunk.subarray(i,i+0x8000));
+        return btoa(text);
+      };
+      const prefix='/api/sites/'+encodeURIComponent(state.siteId);
+      let response;
+      if(file.size<=1500000){
+        response=await api(prefix+'/video','POST',
+          {base64:encoded(binary),alt,sha256,expectedRevision:state.revision});
+      }else{
+        const size=524288,total=Math.ceil(binary.length/size);
+        const begun=await api(prefix+'/video-uploads/start','POST',
+          {alt,bytes:binary.length,sha256,chunks:total,expectedRevision:state.revision});
+        const endpoint=prefix+'/video-uploads/'+encodeURIComponent(begun.uploadId);
+        try{
+          for(let i=0;i<total;i++){
+            const part=binary.subarray(i*size,Math.min((i+1)*size,binary.length));
+            const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',part)))
+              .map(b=>b.toString(16).padStart(2,'0')).join('');
+            await api(endpoint+'/chunk','POST',{index:i,base64:encoded(part),sha256:digest});
+            if(i%4===0||i===total-1)
+              notice('Загрузка MP4: '+(i+1)+'/'+total+' частей');
+          }
+          response=await api(endpoint+'/finish','POST',{});
+        }catch(error){
+          await api(endpoint+'/cancel','POST',{}).catch(()=>{});
+          throw error;
+        }
+      }
       if(response.sha256!==sha256)throw Error('Серверная SHA256 видео не совпадает');
       selectSite(response);await refreshSites();await loadHistory();
       notice('MP4 добавлен в библиотеку. Привяжите его к видеоэлементу композиции; публикация отдельно.');
@@ -223,7 +250,7 @@
         if(!result.ok||result.headers.get('content-type')!=='video/mp4')
           throw Error('Приватное видео недоступно');
         const blob=await result.blob();
-        if(blob.size>1500000||blob.size<100)throw Error('Превышен размер видеопревью');
+        if(blob.size>16777216||blob.size<100)throw Error('Превышен размер видеопревью');
         return new Promise((resolve,reject)=>{
           const reader=new FileReader();
           reader.onload=()=>resolve(String(reader.result));
