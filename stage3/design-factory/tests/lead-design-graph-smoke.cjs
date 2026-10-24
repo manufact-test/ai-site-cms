@@ -145,9 +145,33 @@ assert.throws(()=>adapter.reconcileSemantic(services,wrongSite,hostSdk,registry)
  /different CMS site or page/);
 assert.equal(JSON.stringify(services.site),JSON.stringify(
  adapter.buildHostCandidate(serviceBundle,hostSdk,registry).site),'Candidate must not mutate');
+// Provenance is a CLOSED exact mapping, not a list of plausible IDs.
+const reorderedBindings=clone(services);
+reorderedBindings.mapping.contentBindings.reverse();
+assert.equal(adapter.inspectSemanticSync(reorderedBindings,edited,hostSdk,registry)
+ .changes.length,1,'Metadata array order is not semantic identity');
 const forged=clone(services);
 forged.mapping.contentBindings[0].nodeId='hostile-other-node';
-assert.throws(()=>adapter.reconcileSemantic(forged,edited,hostSdk,registry),/Invalid source binding/);
+assert.throws(()=>adapter.reconcileSemantic(forged,edited,hostSdk,registry),
+ /Invalid source binding|Provenance binding mismatch/);
+const redirected=clone(services);
+redirected.mapping.contentBindings[0].source.itemId=serviceSection.items[1].id;
+assert.throws(()=>adapter.inspectSemanticSync(redirected,edited,hostSdk,registry),
+ /Provenance binding mismatch/,'Existing but wrong CMS item must be rejected');
+const swapped=clone(services);
+const firstSource=swapped.mapping.contentBindings[0].source;
+swapped.mapping.contentBindings[0].source=swapped.mapping.contentBindings[2].source;
+swapped.mapping.contentBindings[2].source=firstSource;
+assert.throws(()=>adapter.reconcileSemantic(swapped,edited,hostSdk,registry),
+ /Provenance binding mismatch/,'Swapping two valid sources must be rejected');
+const omitted=clone(services);
+omitted.mapping.contentBindings.pop();
+assert.throws(()=>adapter.inspectSemanticSync(omitted,edited,hostSdk,registry),
+ /Provenance binding mismatch/,'Dropped source cannot silently cease syncing');
+const excessive=clone(services);
+excessive.mapping.contentBindings.push(clone(excessive.mapping.contentBindings[0]));
+assert.throws(()=>adapter.reconcileSemantic(excessive,edited,hostSdk,registry),
+ /Provenance binding mismatch|Invalid provenance bindings/);
 const deleted=clone(edited);
 deleted.pages[0].sections.find(s=>s.id==='df-selected-composition').items.pop();
 assert.throws(()=>adapter.reconcileSemantic(services,deleted,hostSdk,registry),
