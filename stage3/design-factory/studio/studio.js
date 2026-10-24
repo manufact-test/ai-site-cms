@@ -335,6 +335,12 @@ function init(){
  $('save-site').addEventListener('click',saveSite);
  $('save-workspace').addEventListener('click',saveWorkspace);
  $('save-bridge').addEventListener('click',saveBridge);
+ $('save-bundle').addEventListener('click',()=>{
+  try{const bundle=engine.bridge.build(workspace());engine.bridge.validateBundle(bundle);
+   download(safeName()+'-integration-v1.json',serialize(bundle));
+   say('Пакет интеграции D6 прошёл независимую проверку и скачан.');
+  }catch(error){say('Экспорт D6 заблокирован: '+error.message,true);}
+ });
  $('undo').addEventListener('click',()=>setHistory('undo'));
  $('redo').addEventListener('click',()=>setHistory('redo'));
  document.addEventListener('keydown',event=>{
