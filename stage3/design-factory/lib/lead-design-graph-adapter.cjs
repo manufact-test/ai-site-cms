@@ -47,7 +47,13 @@ function hostHref(href){
   /^https:\/\/[a-z0-9.-]+(?:\/[^\s"'<>\\]*)?$/i.test(href));
 }
 function actionSource(section){
- return section.elements.find(e=>e.values&&hostHref(e.values['behavior.href']));
+ // Never silently select a secondary action when the primary is a valid
+ // CMS URL unsupported by the (stricter) lead Graph URL contract.
+ const candidates=section.elements.filter(e=>e.values&&own(e.values,'behavior.href'));
+ const first=candidates[0];
+ if(first&&!hostHref(first.values['behavior.href']))
+  fail('Owner CTA URL cannot be represented by the lead Design Graph');
+ return first||null;
 }
 function columnsFor(layout){
  if(['bento','mosaic','cards','rail'].includes(layout))return 3;
@@ -95,6 +101,8 @@ function contentFor(section,comp,language,prefix,cardStyles,font,assets=[]){
    ];
    if(service){
     const href=item.values['behavior.href'];
+    if(typeof href==='string'&&!hostHref(href))
+     fail('Service CTA URL cannot be represented by the lead Design Graph');
     if(hostHref(href)){
      const action=make(id+'-action','button',t('Подробнее','Learn more'),
        null,{fontSize:'@body',fontWeight:600,color:'@accent',minHeight:48});
