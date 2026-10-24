@@ -194,3 +194,7 @@ The ZIP smoke suite now compares extracted archive members **byte-for-byte to ev
 The lead developer's branch now exposes a newer typed CMS `designGraph` contract. A standalone candidate adapter at `lib/lead-design-graph-adapter.cjs` converts a selected D3 composition into actual host-editable graph nodes without modifying or replacing Design Factory's **existing** D6 exports. See [`proposals/LEAD-DESIGN-GRAPH.md`](proposals/LEAD-DESIGN-GRAPH.md) for precise editability, missing pixel-parity features and lead setup.
 
 In isolated V8 against the actual lead SDK/Design Graph source, **504/504** candidate graphs validated and rendered across 42 patterns × 12 themes, and **288/288** original sites remained compatible. Neither the optional Node checkout smoke nor PHP/Chromium/manual QA has passed in this environment. The formal Stage2/Stage3 gates and D7 release status remain unchanged.
+
+## Host-editable D3 variation update
+
+The optional newer-lead-SDK bridge now creates 504 distinct typed Design Graph documents, with editable fonts, grids, responsive spans, gradients, card treatments, native icons, motion and 48px CTA targets. Direct owner-like edits to generated JSON re-render correctly in isolated live-source V8, without re-generating via AI. Full checkout Node, PHP validation, Chromium screenshots, ZIP and formal release remain unverified. See proposals/LEAD-DESIGN-GRAPH.md and QUALITY-GATES.md.
