@@ -184,6 +184,30 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       'Название вкладки');
     await page.locator('#redo').click();
 
+    // Visual 3-mode gallery is a first-party CMS component, not a standalone
+    // Workbench demo: change layout in Inspector, then verify draft+preview.
+    await page.locator('#section-catalog').click();
+    await page.locator('#cms-component-search').fill('adaptive-gallery');
+    await page.locator('#cms-component-list [data-component="adaptive-gallery"]').click();
+    await page.locator('#sections .nav-entry').filter({hasText:'Адаптивная галерея'}).click();
+    assert.equal(await page.locator('#elements [data-repeat-id]').count(),2);
+    await page.locator('#elements .element').filter({hasText:'Варианты отображения'}).click();
+    await page.locator('#fields [data-field="behavior.layout"]').selectOption('masonry');
+    await canvas.locator('.cms-gallery-masonry').waitFor();
+    await page.locator('#fields [data-field="behavior.columns"]').fill('4');
+    await page.locator('#fields [data-field="behavior.columns"]').dispatchEvent('change');
+    await page.locator('#fields [data-field="behavior.layout"]').selectOption('carousel');
+    await canvas.locator('.cms-gallery-carousel[tabindex="0"]').waitFor();
+    const galleryState=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='adaptive-gallery');
+    assert.equal(galleryState.elements[1].values['behavior.layout'],'carousel');
+    assert.equal(galleryState.elements[1].values['behavior.columns'],4);
+    await page.locator('#undo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages.flatMap(p=>p.sections)
+      .find(s=>s.component==='adaptive-gallery').elements[1].values['behavior.layout'],'masonry');
+    await page.locator('#redo').click();
+    await canvas.locator('.cms-gallery-carousel').waitFor();
+
     // Opt-in field builder is usable in Chromium, Undo and real draft preview.
     await page.locator('#section-catalog').click();
     await page.locator('#cms-component-search').fill('конструктор');

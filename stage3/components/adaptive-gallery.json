@@ -1,0 +1,96 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "adaptive-gallery",
+  "version": "1.0.0",
+  "label": "Адаптивная галерея · Grid / Masonry / Carousel",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок галереи",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок",
+          "type": "text",
+          "default": "Наши фотографии",
+          "responsive": false,
+          "maxLength": 180
+        }
+      ]
+    },
+    {
+      "slot": "settings",
+      "label": "Варианты отображения",
+      "fields": [
+        {
+          "path": "behavior.layout",
+          "label": "Вид галереи",
+          "type": "enum",
+          "default": "grid",
+          "responsive": false,
+          "options": [
+            "grid",
+            "masonry",
+            "carousel"
+          ]
+        },
+        {
+          "path": "behavior.columns",
+          "label": "Количество колонок на ПК",
+          "type": "number",
+          "default": 3,
+          "responsive": false,
+          "min": 2,
+          "max": 5
+        },
+        {
+          "path": "behavior.fit",
+          "label": "Заполнение изображения",
+          "type": "enum",
+          "default": "cover",
+          "responsive": false,
+          "options": [
+            "cover",
+            "contain"
+          ]
+        },
+        {
+          "path": "behavior.caption",
+          "label": "Показывать подписи",
+          "type": "boolean",
+          "default": true,
+          "responsive": false
+        }
+      ]
+    }
+  ],
+  "repeat": {
+    "label": "Фотография",
+    "min": 2,
+    "max": 24,
+    "fields": [
+      {
+        "path": "content.media",
+        "label": "Изображение из медиабиблиотеки",
+        "type": "media",
+        "default": "",
+        "responsive": false
+      },
+      {
+        "path": "content.caption",
+        "label": "Подпись к фотографии",
+        "type": "text",
+        "default": "",
+        "responsive": false,
+        "maxLength": 240
+      },
+      {
+        "path": "behavior.featured",
+        "label": "Выделенный кадр (Grid)",
+        "type": "boolean",
+        "default": false,
+        "responsive": false
+      }
+    ]
+  }
+}

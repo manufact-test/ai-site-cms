@@ -463,7 +463,7 @@ async function stop(){
   rich.theme={background:'#121f2c',surface:'#ffffff',text:'#dce6ef',primary:'#ff8800',font:'system',maxWidth:960};
   rich.pages[0].seo={title:'Секции услуг',description:'Страница теста услуг',robots:'noindex'};
   for(const name of ['service-grid','faq-accordion','testimonials','photo-gallery',
-    'pricing-plans','process-timeline','comparison-matrix','content-switcher']){
+    'pricing-plans','process-timeline','comparison-matrix','content-switcher','adaptive-gallery']){
     const section=csdk.sectionFrom(richDefs.find(m=>m.id===name),'section-rich-'+name);
     rich.pages[0].sections.push(section);
   }
@@ -607,6 +607,25 @@ async function stop(){
   logos.items[0].values['behavior.href']='/contact/';
   const gallerySection=richLive.pages[0].sections.find(x=>x.component==='photo-gallery');
   gallerySection.items[0].values['content.media']=picture.id;
+  // One real uploaded bitmap reused in three layout modes; no derivative
+  // phantom files and no public JS requirement for any gallery.
+  const adaptive=richLive.pages[0].sections.find(x=>x.component==='adaptive-gallery');
+  adaptive.items[0].values['content.media']=picture.id;
+  adaptive.items[0].values['content.caption']='<img src=x onerror=alert(1)>';
+  adaptive.elements.find(x=>x.slot==='settings').values['behavior.layout']='grid';
+  adaptive.items[0].values['behavior.featured']=true;
+  const maker=richDefs.find(x=>x.id==='adaptive-gallery');
+  const masonry=csdk.sectionFrom(maker,'section-adaptive-masonry');
+  masonry.elements.find(x=>x.slot==='settings').values['behavior.layout']='masonry';
+  masonry.items[0].values['content.media']=picture.id;
+  masonry.items[0].values['content.caption']='Мозаика';
+  const carousel=csdk.sectionFrom(maker,'section-adaptive-carousel');
+  carousel.elements.find(x=>x.slot==='settings').values['behavior.layout']='carousel';
+  carousel.items[0].values['content.media']=picture.id;
+  carousel.items[1].values['content.media']=picture.id;
+  carousel.items[0].values['content.caption']='Первый слайд';
+  carousel.items[1].values['content.caption']='Второй слайд';
+  richLive.pages[0].sections.push(masonry,carousel);
   richLive.pages[0].sections.push(story,logos);
   assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:4,site:richLive})).status,200);
   assert.equal((await request('POST','/api/sites/site-rich-ci/publish',{expectedRevision:5})).status,200);
@@ -615,6 +634,15 @@ async function stop(){
   assert.match(richVisitor,/Партнёр A/);
   assert.match(richVisitor,/class="story-photo"/);
   assert.match(richVisitor,/class="partner-logo"/);
+  assert.match(richVisitor,/cms-gallery-grid cms-gallery-fit-cover/);
+  assert.match(richVisitor,/cms-gallery-masonry cms-gallery-fit-cover/);
+  assert.match(richVisitor,/cms-gallery-carousel cms-gallery-fit-cover/);
+  assert.match(richVisitor,/aria-roledescription="carousel"/);
+  assert.match(richVisitor,/scroll-snap-type:x mandatory/);
+  assert.match(richVisitor,/cms-gallery-featured/);
+  assert.match(richVisitor,/&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.doesNotMatch(richVisitor,/<img src=x onerror=/);
+  assert.match(richVisitor,/Второй слайд/);
   assert.match(richVisitor,/loading="lazy"/);
   assert.match(richVisitor,new RegExp(picture.id+'.png'));
   assert.match(richVisitor,/href="\/published\/site-rich-ci\/contact\/"/);

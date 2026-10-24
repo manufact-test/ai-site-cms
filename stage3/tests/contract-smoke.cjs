@@ -7,7 +7,7 @@ const {execFileSync}=require('node:child_process');
 const sdk=require('../sdk/contract.cjs');
 const root=path.resolve(__dirname,'..');
 const read=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8'));
-const manifests=['company-hero','feature-highlights','contact-panel','image-showcase','lead-form','lead-form-flex','service-grid','faq-accordion','testimonials','photo-gallery','media-story','partner-logos','cta-banner','pricing-plans','process-timeline','comparison-matrix','content-switcher'].map(
+const manifests=['company-hero','feature-highlights','contact-panel','image-showcase','lead-form','lead-form-flex','service-grid','faq-accordion','testimonials','photo-gallery','media-story','partner-logos','cta-banner','pricing-plans','process-timeline','comparison-matrix','content-switcher','adaptive-gallery'].map(
   name=>read('components/'+name+'.json'));
 let checks=0;
 const test=(name,fn)=>{fn();checks++;};
@@ -49,6 +49,38 @@ test('four production components: typed repeater contracts, structural editing a
   const priced=overflow.pages[0].sections.at(-4);
   priced.items=Array.from({length:7},(_,i)=>({...structuredClone(priced.items[0]),id:'item-over-'+i}));
   refuses(()=>sdk.validateSite(overflow,manifests),'Pricing limits max six packages');
+});
+
+test('adaptive gallery has real typed layout controls, immutable history and safe bindings',()=>{
+  const D=require('../sdk/draft.cjs'),site=same(initial),m=manifests.find(x=>x.id==='adaptive-gallery');
+  assert.ok(m);
+  const gallery=sdk.sectionFrom(m,'section-adaptive-gallery');
+  site.pages[0].sections.push(gallery);
+  let s=D.begin(site,manifests);
+  const settings=gallery.elements.find(x=>x.slot==='settings');
+  assert.equal(settings.values['behavior.layout'],'grid');
+  s=D.edit(s,manifests,{pageId:'page-home',sectionId:gallery.id,elementId:settings.id,
+    path:'behavior.layout',value:'carousel',expectedRevision:s.revision});
+  s=D.edit(s,manifests,{pageId:'page-home',sectionId:gallery.id,elementId:settings.id,
+    path:'behavior.columns',value:4,expectedRevision:s.revision});
+  assert.equal(s.current.pages[0].sections.at(-1).elements[1].values['behavior.layout'],'carousel');
+  assert.equal(D.undo(s,manifests).current.pages[0].sections.at(-1).elements[1].values['behavior.columns'],3);
+  assert.equal(D.redo(D.undo(s,manifests),manifests).current.pages[0].sections.at(-1)
+    .elements[1].values['behavior.columns'],4);
+  for(const bad of ['javascript:alert(1)','<script>','unknown']){
+    const invalid=same(site);
+    invalid.pages[0].sections.at(-1).elements[1].values['behavior.layout']=bad;
+    refuses(()=>sdk.validateSite(invalid,manifests),'Gallery layout closed enum');
+  }
+  const invalid=same(site);
+  invalid.pages[0].sections.at(-1).elements[1].values['behavior.columns']=999;
+  refuses(()=>sdk.validateSite(invalid,manifests),'Gallery columns bounded');
+  invalid.pages[0].sections.at(-1).elements[1].values['behavior.columns']=3;
+  invalid.pages[0].sections.at(-1).items[0].values['content.media']='asset-nope';
+  refuses(()=>sdk.validateSite(invalid,manifests),'Gallery media references must exist');
+  const hostile=same(site);
+  hostile.pages[0].sections.at(-1).items[0].values['content.caption']='<img src=x onerror=alert(1)>';
+  assert.ok(sdk.validateSite(hostile,manifests),'Caption is plain text, PHP must escape');
 });
 
 test('individual section appearances are strict, undoable, and inherited by previews',()=>{
