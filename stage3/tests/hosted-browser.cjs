@@ -585,6 +585,11 @@ async function execute(){
   assert.equal(publicBytes.subarray(8,12).toString(),'WEBP');
   assert.equal(processedResponse.headers()['etag'],
     '"'+require('node:crypto').createHash('sha256').update(publicBytes).digest('hex')+'"');
+  // Publication may reset inspector focus. Choose an actual media field
+  // before uploading so the Media & Motion attachment is a dirty draft edit.
+  await page.locator('#pages .nav-entry').first().click();
+  await page.locator('#sections .nav-entry').filter({hasText:'Изображение и описание'}).click();
+  await page.locator('#elements .element').filter({hasText:'Фотография'}).click();
   // A genuine full-sized photo is processed by the hosted Studio, not only
   // inserted through a raw HTTP test. Confirm three physical rendition files
   // are selected by desktop/tablet/mobile and published to real visitor HTML.
