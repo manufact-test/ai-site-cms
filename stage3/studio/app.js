@@ -431,7 +431,7 @@
       const wrap=document.createElement('label');wrap.textContent=label;
       const node=document.createElement(type==='textarea'?'textarea':type==='select'?'select':'input');
       node.className='control';
-      if(type==='checkbox')node.type='checkbox';
+      if(node.tagName==='INPUT')node.type=type==='checkbox'?'checkbox':'text';
       if(type==='checkbox')node.checked=value;
       else if(type!=='select')node.value=value;
       node.addEventListener('change',()=>changed(type==='checkbox'?node.checked:node.value));
