@@ -270,7 +270,7 @@ final class PublicRenderer
             $beforeSkin = strlen($body);
             $id = self::h($section['id']);
             if (isset($section['designGraph'])) {
-                $body .= DesignGraph::render($site,$section['designGraph'],$mount);
+                $body .= DesignGraph::render($site,$section['designGraph'],$mount,$section['id']);
             } elseif ($section['component'] === 'company-hero') {
                 $values = self::element($section, 'heading');
                 $color = (string)$values['style.color'];
