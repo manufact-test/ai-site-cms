@@ -184,6 +184,15 @@
   const previewData=new Map(),loadingMedia=new Set();
   function previewUrl(assetId){
     if(!state.authorized||!state.siteId)return null;
+    // Studio tablet/phone preview retrieves actual stored source bytes for
+    // that breakpoint. PHP and static visitors use normal browser srcset.
+    const asset=editor.getSite().assets.find(a=>a.id===assetId);
+    if(asset?.variants?.length){
+      const bp=document.querySelector('.device.active')?.dataset.bp||'desktop';
+      const target=({mobile:360,tablet:720,desktop:1200})[bp]||1200;
+      const sorted=[...asset.variants].sort((a,b)=>a.width-b.width);
+      assetId=(sorted.filter(v=>v.width<=target).at(-1)||sorted[0]).id;
+    }
     const key=state.siteId+':'+assetId;
     if(previewData.has(key))return previewData.get(key);
     if(loadingMedia.has(key))return null;
