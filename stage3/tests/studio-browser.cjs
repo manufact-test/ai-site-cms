@@ -163,7 +163,16 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const switchPreview=canvas.locator('.cms-switcher-panel');
     assert.equal(await switchPreview.first().isVisible(),true);
     assert.equal(await switchPreview.nth(1).isVisible(),false);
+    await canvas.locator('body').evaluate(n=>n.dataset.switcherMarker='persist');
+    const labelLinks=await canvas.locator('.cms-switcher-tab').evaluateAll(nodes=>nodes.map(n=>({
+      label:n.textContent,htmlFor:n.htmlFor,control:n.control?.id||null
+    })));
     await canvas.locator('.cms-switcher-tab').nth(1).click();
+    const radioAfterLabel=await canvas.locator('.cms-switcher-radio').evaluateAll(nodes=>nodes.map(n=>n.checked));
+    const frameMarker=await canvas.locator('body').getAttribute('data-switcher-marker');
+    await canvas.locator('.cms-switcher-radio').nth(1).evaluate(n=>n.click());
+    const radioAfterDirect=await canvas.locator('.cms-switcher-radio').evaluateAll(nodes=>nodes.map(n=>n.checked));
+    console.log('SWITCHER DIAGNOSTIC',JSON.stringify({labelLinks,frameMarker,radioAfterLabel,radioAfterDirect}));
     assert.equal(await canvas.locator('.cms-switcher-radio').nth(1).isChecked(),true,
       'Native radio switches in restricted iframe');
     assert.equal(await switchPreview.first().isVisible(),false);
