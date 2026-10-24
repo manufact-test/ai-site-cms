@@ -24,12 +24,18 @@ function textValue(section,slot,key){
  return item&&typeof item.values[key]==='string'?item.values[key].trim():'';
 }
 function textSource(section,slots,key){
+ // Prefer the rendered nonempty field, but keep an initially blank declared
+ // field bound so owner-filled values can replace preview placeholders later.
  for(const slot of slots)if(textValue(section,slot,key))return {slot,field:key};
+ for(const slot of slots){
+  const el=section.elements.find(e=>e.slot===slot);
+  if(el&&own(el.values,key)&&typeof el.values[key]==='string')return {slot,field:key};
+ }
  return null;
 }
 function bestText(section,slots,key,otherwise){
  const source=textSource(section,slots,key);
- return source?textValue(section,source.slot,source.field):otherwise;
+ return source?(textValue(section,source.slot,source.field)||otherwise):otherwise;
 }
 function actionSource(section){
  return section.elements.find(e=>e.values&&
@@ -357,6 +363,18 @@ function prepareReconciliation(candidate,editedSite,hostSdk,hostRegistry){
     section.manifestVersion!==original.manifestVersion||
     section.designGraph.id!==original.designGraph.id)
   fail('Selected editable graph section mismatch');
+ // The graph uses a precedence rule among optional heading/summary/CTA
+ // slots. A newly populated higher-priority slot can change what the graph
+ // would render. Refuse a stale snapshot instead of silently updating a
+ // different lower-priority field; host must review/rebuild the candidate.
+ const visibleSource=s=>({
+  heading:textSource(s,['heading','title','first'],'content.text'),
+  description:textSource(s,['summary','copy','second'],'content.text'),
+  action:actionSource(s)?.slot||null
+ });
+ const beforeSources=visibleSource(original),afterSources=visibleSource(section);
+ if(JSON.stringify(beforeSources)!==JSON.stringify(afterSources))
+  fail('Visible semantic source selection changed; review and rebuild candidate');
  const index=graph=>{
   const nodes=new Map();
   const walk=n=>{
