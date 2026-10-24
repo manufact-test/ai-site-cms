@@ -99,3 +99,7 @@ Read-only comparison against the **current lead** SDK discovered the optional fi
 Added `tests/lead-design-graph-smoke.cjs` as **optional**, using read-only `DF_LEAD_SDK_DIR`. It is not added to the six-suite D7 audit: it requires the lead branch's newer SDK. Its code was authored and syntax-checked; no checked-out Node pass is claimed. A candidate's `approvedForPublish` is always false, and full visual parity is not asserted. See `proposals/LEAD-DESIGN-GRAPH.md` for supported properties and gaps.
 
 **D7 still open:** local GitHub DNS and Chromium remain blocked, including Chromium under Xvfb (12-second timeout, 0-byte DOM output). Full checked-out Node/Chrome/54-image QA, human visual review, and a real ZIP hash are still missing. Do not mistake 504 isolated SDK cases for release acceptance.
+
+## 24 October: editable graph diversity gate
+
+Isolated V8 on actual lead source verified 288/288 old CMS sites and 504/504 distinct host-editable graphs and JS renders. Node, host PHP, Chromium and ZIP gates remain OPEN. Optional tests/lead-design-graph-smoke.cjs now checks editable JSON changes and distinct layouts; when DF_LEAD_PHP_FILE points to actual lead DesignGraph.php it invokes PHP validate/render on four representative candidates and compares DOM markup with the JS host (CSS pixel QA still separate). No PHP PASS was claimed. Minimum 48px CTA and prefers-reduced-motion CSS observed on host JS output. Stage2 NO-GO / Stage3 not accepted / 0/135.
