@@ -134,3 +134,35 @@ A D6 package is `manufact-design-factory-export-v1`: source workspace, valid `ma
 **Verification boundary (24 October 2026):** the generated browser runtime has been executed in an isolated JavaScript environment and validated 288/288 D6 export/import combinations, including a photo-gallery fallback and tamper rejection. The full Node filesystem and interactive Chromium scripts are committed but not yet reported as executed PASS on a checked-out repository. The old Chromium launch blocker remains pending. D2/D3/D4/D5 final visual QA and D7 package/acceptance are separate outstanding work.
 
 No merges to main or lead branch; no CMS SDK, PHP, Studio or production edits. Stage2 remains NO-GO, Stage3+ not accepted, 0/135 official criteria.
+
+## D7 release verification, screenshots and portable ZIP
+
+**New:** `QUALITY-GATES.md` is the operational release checklist and `handoffs/NEXT-CHAT.md` is the first document for the next independent developer chat. D7 tooling is implemented; checked-out Node, Chrome visual and manual acceptance gates remain open.
+
+On an actual repository checkout:
+
+```bash
+# Source drift (must match the actual Stage3 SDK + manifests):
+node stage3/design-factory/bin/build-browser-bundle.cjs --check
+
+# Six integrated Node contract, CLI, export and deterministic ZIP suites:
+node stage3/design-factory/bin/release-audit.cjs --out /tmp/df-release-new.json
+
+# Real interactive browser acceptance with a locally installed Chromium:
+DF_CHROMIUM_BIN=/usr/bin/chromium node stage3/design-factory/tests/studio-smoke.cjs
+
+# Screenshots for 12 themes on desktop/tablet/mobile + showroom and sector examples:
+DF_CHROMIUM_BIN=/usr/bin/chromium node stage3/design-factory/bin/visual-qa.cjs --out /tmp/df-visual-new
+
+# Portable ZIP including offline browser Studio, all source and documentation:
+node stage3/design-factory/bin/package-release.cjs /tmp/ai-site-cms-design-factory-new.zip
+node stage3/design-factory/tests/package-smoke.cjs
+```
+
+Output paths must not exist in advance: no accidental replacement of owner data. The ZIP includes only this independent subtree. **Opening its `studio/index.html` works independently offline; running the CLI or test suites from the ZIP still requires the original repository's unchanged Stage3 SDK and component manifests.** A ZIP-builder script in the repository is not the same thing as an already published downloadable ZIP.
+
+### Latest quality correction
+
+The Stage3 service-grid manifest requires two cards. When an owner supplies exactly one real service, the second card is visibly marked as an unverified example, and `ownerChecklist.readyForPublish` stays **false**; the generated content must not silently be considered publish-ready. Tests now assert this owner-safety behavior rather than one arbitrary industry-specific placeholder phrase.
+
+**Do not mark all 7/7 accepted or Stage3 GO** until real Node/Chromium evidence, representative visual inspection, owner content review and the lead integrator's approval are complete. Current Stage2 NO-GO, Stage3 unaccepted, 0/135 formal mandatory criteria remain unchanged.
