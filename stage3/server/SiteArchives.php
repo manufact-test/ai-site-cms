@@ -196,6 +196,14 @@ trait SiteArchives
                     if (is_string($v) && isset($assetList[$v])) $presetAssets[$v] = $assetList[$v];
                 }
             }
+            $walkDesign=function(array $nodes) use (&$walkDesign, &$presetAssets, $assetList): void {
+                foreach ($nodes as $node) {
+                    if (($node['type']??null)==='image' && isset($assetList[$node['assetId']??'']))
+                        $presetAssets[$node['assetId']]=$assetList[$node['assetId']];
+                    if (isset($node['children'])&&is_array($node['children']))$walkDesign($node['children']);
+                }
+            };
+            $walkDesign($t['section']['designGraph']['nodes']??[]);
             $dummyId = 'backup-' . bin2hex(random_bytes(10));
             $this->validator->validate(['format' => 'manufact-ai-site-v1', 'schemaVersion' => 1,
                 'siteId' => $dummyId, 'title' => 'Template', 'assets' => array_values($presetAssets),

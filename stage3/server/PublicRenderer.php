@@ -191,6 +191,28 @@ final class PublicRenderer
             throw new \InvalidArgumentException('Cannot publish without a home page');
         $redirects=[];
         foreach ($site['redirects']??[] as $redirect) $redirects[$redirect['from']]=$redirect['to'];
+        // AI graph links obey the same publication barrier as manifest buttons.
+        foreach ($site['pages'] as $page) foreach ($page['sections'] as $section) {
+            $walk=function(array $nodes) use (&$walk,$pages,$redirects): void {
+                foreach ($nodes as $node) {
+                    $href=$node['type']==='button'?($node['href']??''):null;
+                    if (is_string($href)&&str_starts_with($href,'/')&&!str_starts_with($href,'//')) {
+                        $parts=explode('#',$href,2);
+                        $route=explode('?',$parts[0],2)[0];
+                        if(!isset($pages[$route])&&!isset($redirects[$route]))
+                            throw new \InvalidArgumentException('Cannot publish broken design link: '.$href);
+                        if(isset($parts[1]) && $parts[1]!=='' && isset($pages[$route])) {
+                            $anchor=explode('?',$parts[1],2)[0];$found=false;
+                            foreach($pages[$route]['sections'] as $sectionTarget)
+                                if($sectionTarget['id']===$anchor){$found=true;break;}
+                            if(!$found)throw new \InvalidArgumentException('Broken design anchor: '.$href);
+                        }
+                    }
+                    $walk($node['children']??[]);
+                }
+            };
+            $walk($section['designGraph']['nodes']??[]);
+        }
         foreach ($site['pages'] as $page) foreach ($page['sections'] as $section)
             foreach (array_merge($section['elements'],$section['items']??[]) as $el) {
                 $href=$el['values']['behavior.href']??null;

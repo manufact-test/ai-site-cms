@@ -742,6 +742,65 @@ async function stop(){
     assert.equal(rendition.sha256,variants[n].sha256);
     assert.deepEqual(fs.readFileSync(path.join(staticResponsive,rendition.file)),variants[n].bytes);
   }
+  // A native CMS design graph: AI composition stays editable and has byte-for-byte
+  // equivalent safe HTML/CSS on PHP visitor and statically exported release.
+  const designSdk=require(path.join(root,'stage3/sdk/design-graph.cjs'));
+  const designEndpoint='/api/sites/site-rich-ci';
+  const graphDraft=await request('GET',designEndpoint);
+  const designDoc=structuredClone(graphDraft.body.site);
+  const designSec=designDoc.pages[0].sections.find(x=>x.component==='adaptive-gallery');
+  designDoc.designTokens=structuredClone(designSdk.DEFAULT_TOKENS);
+  designDoc.designTokens.colors.accent='#bb6633';
+  const designGraph=designSdk.baseGraph(designSec.id);
+  designGraph.nodes[0].styles.background='@background';
+  designGraph.nodes[0].children[0].text='Архитектурная композиция & сетка';
+  designGraph.nodes[0].children[0].states={hover:{color:'@accent'},focus:{opacity:80}};
+  designGraph.nodes[0].children.push({
+    id:designSec.id+'-photo',type:'image',assetId:responsiveAsset.id,
+    alt:'Промышленный цех',styles:{maxWidth:720}});
+  designGraph.nodes[0].children.push({
+    id:designSec.id+'-action',type:'button',text:'Подробнее',href:'/contact/',
+    styles:{background:'@accent',color:'@background',padding:'@small',radius:'@soft'},
+    states:{hover:{opacity:85}}});
+  designSec.designGraph=designGraph;
+  const injectedDesign=structuredClone(designDoc);
+  injectedDesign.pages[0].sections.find(s=>s.id===designSec.id).designGraph.nodes[0].styles.background='url(javascript:alert(1))';
+  assert.equal((await request('POST',designEndpoint+'/save',{expectedRevision:graphDraft.body.revision,
+    site:injectedDesign})).status,422,'Unsafe CSS cannot be saved');
+  const staged=await request('POST',designEndpoint+'/save',{expectedRevision:graphDraft.body.revision,site:designDoc});
+  assert.equal(staged.status,200,JSON.stringify(staged.body));
+  assert.doesNotMatch((await request('GET','/published/site-rich-ci/')).body,/Архитектурная композиция/,
+    'No implicit publishing of graph edits');
+  const live=await request('POST',designEndpoint+'/publish',{expectedRevision:staged.body.revision});
+  assert.equal(live.status,200,JSON.stringify(live.body));
+  const htmlDesign=(await request('GET','/published/site-rich-ci/')).body;
+  assert.match(htmlDesign,/Архитектурная композиция &amp; сетка/);
+  assert.match(htmlDesign,/cmsdg-/);
+  assert.match(htmlDesign,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(htmlDesign,/@media\(max-width:600px\)/);
+  assert.match(htmlDesign,/:hover\{opacity:0.85\}/);
+  assert.match(htmlDesign,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
+  assert.match(htmlDesign,new RegExp('id="'+designSec.id+'"'));
+  assert.doesNotMatch(htmlDesign,/<script|onerror=/);
+  const staticDesign=path.join(dbdir,'static-ai-composition');
+  const compiledDesign=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',staticDesign],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(compiledDesign.status,0,compiledDesign.stderr);
+  const htmlStatic=fs.readFileSync(path.join(staticDesign,'index.html'),'utf8');
+  assert.match(htmlStatic,/Архитектурная композиция &amp; сетка/);
+  assert.match(htmlStatic,/cmsdg-/);
+  assert.match(htmlStatic,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
+  assert.doesNotMatch(htmlStatic,/\/published\/|\/api\/|<script/i);
+  const designArchive=(await request('GET',designEndpoint+'/backup')).body;
+  const designCopy='site-design-archive';
+  const designPlan=await request('POST','/api/backups/plan',{archive:designArchive,targetSiteId:designCopy});
+  assert.equal(designPlan.status,200,JSON.stringify(designPlan.body));
+  const designRecovered=await request('POST','/api/backups/restore',{archive:designArchive,
+    targetSiteId:designCopy,confirmationToken:designPlan.body.confirmationToken});
+  assert.equal(designRecovered.status,201,JSON.stringify(designRecovered.body));
+  assert.deepEqual(designRecovered.body.site.pages[0].sections.find(s=>s.id===designSec.id).designGraph,
+    designGraph,'Design Graph survives private backup restore unchanged');
+  assert.equal((await request('GET','/published/'+designCopy+'/')).status,404,'Imported design not auto-published');
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET',endpoint+'/backup')).status,401,'Archives remain private');
