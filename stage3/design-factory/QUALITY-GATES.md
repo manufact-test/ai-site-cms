@@ -103,3 +103,11 @@ Added `tests/lead-design-graph-smoke.cjs` as **optional**, using read-only `DF_L
 ## 24 October: editable graph diversity gate
 
 Isolated V8 on actual lead source verified 288/288 old CMS sites and 504/504 distinct host-editable graphs and JS renders. Node, host PHP, Chromium and ZIP gates remain OPEN. Optional tests/lead-design-graph-smoke.cjs now checks editable JSON changes and distinct layouts; when DF_LEAD_PHP_FILE points to actual lead DesignGraph.php it invokes PHP validate/render on four representative candidates and compares DOM markup with the JS host (CSS pixel QA still separate). No PHP PASS was claimed. Minimum 48px CTA and prefers-reduced-motion CSS observed on host JS output. Stage2 NO-GO / Stage3 not accepted / 0/135.
+
+## 24 October — owner facts and semantic source mapping
+
+New opt-in lead graph QA proves that an owner-filled D6 project with 12 service entries yields a valid host candidate with **12 actual editable service cards**, not 2 generic fallback rows. Content metadata identifies the registered repeater item and field supplying every graph title, paragraph and declared action. The D6 original is never mutated. The host graph also renders both first-party FAQ entries, benefits and honest unfilled gallery placeholders. User strings such as `<script>` are escaped by the first-party host renderer.
+
+A separate explicit `reconcileSemantic` function can update graph text/links after normal CMS section edits, without overwriting graph layout or typography; forged or missing provenance is rejected. No automatic overwrite of graph-authored changes.
+
+Executed current-source optional lead smoke in isolated V8: **504** distinct typed graphs, **504** scoped JS host renders, 12/12 owner repeater export, FAQ/gallery/hero/sync/HTML escaping regressions PASS; PHP gate SKIP (not executed), Node checkout NOT RUN, Chromium NOT RUN, screenshots NOT CAPTURED, ZIP NOT BUILT. The PHP source parity probe, when supplied `DF_LEAD_SDK_DIR` and `DF_LEAD_PHP_FILE`, now covers six representative compositions. It must be executed for a true PHP PASS. Stage2 NO-GO, Stage3 unaccepted, 0/135 remain unchanged.
