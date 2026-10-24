@@ -6,7 +6,7 @@ Independent implementation for Stage3. This is a functional **D1 delivery**, not
 
 The compiler reads real first-party Stage3 manifests, calls the existing Stage3 SDK (contract.cjs), and generates **four-page manufact-ai-site-v1 documents**, with routes, SEO, navigation, typed elements, stable IDs, safe links, appearance, and validated CMS theme. It supports three distinct composition archetypes (agency, industrial, consulting), RU and EN, optional real owner facts, and an empty brief with truthful placeholders. Unknown keys and invalid values are refused.
 
-D1 includes three foundation themes: editorial, technical, minimal. The separate D2 requirement is **12 professionally finished visual systems**, not claimed completed here.
+D1 started with three foundation themes. Work on D2 now includes twelve closed-catalog visual directions, with distinct layout, type, card and geometric tokens. The D2 catalog has passed a 72-combination contract matrix; final three-viewport Chromium visual review remains outstanding.
 
 The CLI can create, validate and inspect CMS site JSON. It can export a standalone, truly browsable **multi-page visual preview** as HTML/CSS, with responsive grids and reduced-motion support, using no network, CDN or other runtime. It clearly labels the preview, adds noindex, and does **not** claim the existing PHP renderer can reproduce its custom layout.
 
@@ -37,7 +37,7 @@ Open the new preview directory's index.html in a browser. Its Services, Approach
 
 ## Strict project contract
 
-Format: **manufact-design-factory-v1**, version: **1**. Exact top-level keys: format, version, kit, theme, language, facts. Kits are agency/industrial/consulting; themes are editorial/technical/minimal; languages are ru/en.
+Format: **manufact-design-factory-v1**, version: **1**. Exact top-level keys: format, version, kit, theme, language, facts. Kits are agency/industrial/consulting; themes are editorial, technical, minimal, noir, brutalist, atelier, verdant, oceanic, copper, plum, cobalt and mono; languages are ru/en.
 
 The facts object accepts ONLY these optional fields:
 - siteId: 3–80 lowercase letters/digits/hyphens (starts with letter)
@@ -48,7 +48,7 @@ The facts object accepts ONLY these optional fields:
 - contactText: explanatory text, max 400, not an invented contact address
 - services: up to 12 objects with exact keys title (max 120) and description (max 320)
 
-Example source projects: examples/agency-ru.json, examples/industry-en.json, examples/consulting-ru.json. They are **illustrative**. Owner facts must be verified, not treated as real company claims.
+Example source projects: examples/agency-ru.json, examples/industry-en.json, examples/consulting-ru.json. Three independently precompiled four-page CMS documents are also provided as examples/generated-agency-site-v1.json, examples/generated-industrial-site-v1.json and examples/generated-consulting-site-v1.json. They are **illustrative**. Owner facts must be verified, not treated as real company claims.
 
 An entirely missing project compiles to agency/editorial/RU with placeholders. Closed version 0 input (same fields) migrates to version 1; unknown/future versions are refused. Round-trip JSON does not introduce unknown CMS keys.
 
@@ -71,6 +71,6 @@ CMS service-grid requires at least 2 cards. If the owner lists exactly one servi
 
 The preview escapes all owner text, uses no inserted user HTML/JavaScript, and never runs code supplied by project facts. Its noindex pages are for offline checking only. It is not a release export, is not proof of working forms, and must not be deployed as a production CMS site without separate integration.
 
-D1 smoke: one Node contract/CLI/static preview test at tests/smoke.cjs. D5 will add actual Chromium E2E for browse/edit/export. Do not confuse offline construction with stage acceptance.
+D1/D2 smoke: one Node contract/CLI/static preview test at tests/smoke.cjs, including a 72-combination CMS validator matrix and 12 distinct CSS outputs. D5 will add actual Chromium E2E for browse/edit/export. Do not confuse offline construction with stage acceptance.
 
 Formal status remains Stage2 NO-GO #5–#9; Stage3+ unaccepted; **0/135** officially accepted criteria.
