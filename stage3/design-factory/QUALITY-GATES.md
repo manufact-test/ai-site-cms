@@ -69,3 +69,13 @@ Never state **all seven accepted** merely because new tools are committed, or be
 ### Additional source-level evidence, not checkout acceptance
 
 At the current branch code, an isolated V8 execution of the actual GitHub SDK/manifests and Design Factory modules checked 288/288 site-v1 projects, 42/42 registered composition fallback exports, 12/12 representative bridge imports, and rejection of a modified bridge package. The isolated harness provides meaningful contract evidence but bypasses the real Node filesystem/CLI process, headless Chrome, screenshot review and ZIP bytes, so it **does not satisfy** the corresponding checkout or browser criteria above.
+
+## Next D7 hardening checkpoint — 24 October 2026
+
+- Added `tests/smoke.cjs` negative samples for two Studio service placeholders, labelled demo/example slots and empty descriptions. Checklist must retain `facts.services` missing. A legitimate two-service example can satisfy data completeness but `requiresOwnerReview` **must always be true**.
+- Added `tests/studio-smoke.cjs` assertions for minimum 44px controls and template-service gating. Optional Chromium E2E now checks not just kit→theme→device→edit→gallery→undo/redo but that **all four actual browser JSON downloads** parse, are CMS SDK-compliant and the D6 bundle matches the exported site. This is authored executable QA, **not a run PASS**.
+- Added central-directory parity checks to `tests/package-smoke.cjs`: entry count, CRC, compressed/original sizes and local-file-header offsets. A package is not verified without executing the Node suite against real ZIP bytes.
+- Regenerated `studio/runtime.generated.js` from the exact local first-party SDK and manifests (using the unchanged builder), and verified deterministic parity in an isolated in-memory V8 harness. Contract checks run on the same fetched sources: 288/288 site-v1 and 288/288 bridge round trips, 42/42 section fallbacks, service placeholders rejected, D6 tamper detection PASS.
+- Local developer environment continues to lack resolvable git checkout access and functional headless Chromium. Two minimal Chrome page probes timed out with zero stdout. No screenshot files, no full Node checkout test report or executable ZIP hash exists. No GitHub Actions runs on this feature branch were found at the checkpoint.
+
+**Release gate remains unapproved.** A future runtime with checkout and Chromium must perform six Node suites, the four-download browser E2E, actual 1280/768/390 screenshots and human inspection, build/verify ZIP, inspect diff scope and obtain lead approval. Automated green is not manual release approval. Stage2 NO-GO / Stage3 not accepted / 0/135 unchanged.
