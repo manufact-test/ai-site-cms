@@ -23,7 +23,7 @@ const STYLE_KEYS=['display','columns','direction','align','justify','gap','paddi
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
   'paddingX','paddingY','marginTop','marginBottom','widthPercent','minHeight','gridColumnSpan',
   'flexWrap','flexGrow','alignSelf','letterSpacing','fontFamily','objectFit','aspectRatio',
-  'overflow','shadow','gradient'];
+  'overflow','shadow','gradient','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace'];
 const DEFAULT_TOKENS=Object.freeze({
   colors:{foreground:'#182b3d',background:'#ffffff',accent:'#0a5bff',muted:'#667788'},
   spacing:{small:12,medium:24,large:48},
@@ -72,21 +72,23 @@ function validateStyle(style,tokens,at,mode='base'){
     textAlign:['left','center','right'],flexWrap:['nowrap','wrap'],
     fontFamily:['inherit','system','arial','georgia','serif','mono'],
     objectFit:['cover','contain','fill','none'],aspectRatio:['auto','square','portrait','landscape','wide'],
-    overflow:['visible','hidden','auto'],shadow:['none','soft','medium','strong']
+    overflow:['visible','hidden','auto'],shadow:['none','soft','medium','strong'],justifySelf:['auto','start','center','end','stretch'],alignContent:['start','center','end','stretch','between'],gridAutoFlow:['row','column','row-dense','column-dense'],textDecoration:['none','underline','line-through'],whiteSpace:['normal','nowrap','pre-line']
   };
   const ranges={columns:[1,12],gridColumnSpan:[1,12],flexGrow:[0,6],fontWeight:[100,900],
     lineHeight:[80,250],letterSpacing:[-50,200],maxWidth:[0,1920],widthPercent:[1,100],
-    borderWidth:[0,12],order:[-30,30],opacity:[0,100],marginTop:[-160,160],marginBottom:[-160,160]};
+    borderWidth:[0,12],order:[-30,30],opacity:[0,100],outlineWidth:[0,8],zIndex:[-10,30],widthPx:[1,1920],heightPx:[1,1400],minWidth:[0,1920],maxHeight:[0,1600],gridRowSpan:[1,12],flexBasisPercent:[0,100],flexShrink:[0,1],objectPositionX:[0,100],objectPositionY:[0,100],marginTop:[-160,160],marginBottom:[-160,160]};
   for(const [key,value] of Object.entries(style)){
-    if(mode==='state'&&!['color','background','borderColor','borderWidth','radius','opacity','gradient'].includes(key))
+    if(mode==='state'&&!['color','background','borderColor','borderWidth','radius','opacity','gradient','outlineColor','outlineWidth'].includes(key))
       fail(at,'unsupported interaction state property');
-    if(['color','background','borderColor'].includes(key)){resolve(value,'colors',tokens,at+'/'+key);continue;}
+    if(['color','background','borderColor','outlineColor'].includes(key)){resolve(value,'colors',tokens,at+'/'+key);continue;}
     if(key==='gradient'){
-      keys(value,['angle','from','to'],at+'/gradient');
-      if(!number(value.angle,0,360)||!own(value,'from')||!own(value,'to'))fail(at,'invalid gradient');
-      resolve(value.from,'colors',tokens,at+'/from');resolve(value.to,'colors',tokens,at+'/to');continue;
+      keys(value,['angle','from','to','via','viaAt'],at+'/gradient');
+      if(!number(value.angle,0,360)||!own(value,'from')||!own(value,'to')||own(value,'via')!==own(value,'viaAt')||
+        (own(value,'viaAt')&&!number(value.viaAt,1,99)))fail(at,'invalid gradient');
+      resolve(value.from,'colors',tokens,at+'/from');resolve(value.to,'colors',tokens,at+'/to');
+      if(own(value,'via'))resolve(value.via,'colors',tokens,at+'/via');continue;
     }
-    if(['gap','rowGap','columnGap','padding','paddingX','paddingY','top','left','minHeight'].includes(key)){
+    if(['gap','rowGap','columnGap','padding','paddingX','paddingY','top','left','right','bottom','minHeight'].includes(key)){
       resolve(value,'spacing',tokens,at+'/'+key);continue;
     }
     if(key==='radius'||key==='fontSize'){
@@ -97,6 +99,7 @@ function validateStyle(style,tokens,at,mode='base'){
     if(key==='hidden'){if(typeof value!=='boolean')fail(at,key);continue;}
     fail(at,'invalid style '+key);
   }
+  if(own(style,'widthPx')&&own(style,'widthPercent'))fail(at,'competing width units');
 }
 function validateMotion(motion,at){
   keys(motion,['effect','duration','delay'],at);
@@ -185,24 +188,29 @@ function declarations(style,t){
   const css=[],put=(k,v)=>css.push(k+':'+v);
   const aliases={display:'display',direction:'flex-direction',color:'color',fontWeight:'font-weight',
     maxWidth:'max-width',position:'position',textAlign:'text-align',order:'order',
-    flexWrap:'flex-wrap',flexGrow:'flex-grow',overflow:'overflow',objectFit:'object-fit'};
+    flexWrap:'flex-wrap',flexGrow:'flex-grow',flexShrink:'flex-shrink',overflow:'overflow',objectFit:'object-fit',zIndex:'z-index',justifySelf:'justify-self',textDecoration:'text-decoration',whiteSpace:'white-space'};
   const pixel={gap:'gap',rowGap:'row-gap',columnGap:'column-gap',padding:'padding',
     paddingX:'padding-inline',paddingY:'padding-block',marginTop:'margin-top',
     marginBottom:'margin-bottom',radius:'border-radius',fontSize:'font-size',
-    minHeight:'min-height',top:'top',left:'left'};
+    minHeight:'min-height',top:'top',left:'left',right:'right',bottom:'bottom',widthPx:'width',heightPx:'height',minWidth:'min-width',maxHeight:'max-height'};
   for(const [k,v] of Object.entries(style)){
     if(k==='gradient'){
-      put('background-image','linear-gradient('+v.angle+'deg,'+resolve(v.from,'colors',t,k)+','+
+      put('background-image','linear-gradient('+v.angle+'deg,'+resolve(v.from,'colors',t,k)+','+(own(v,'via')?resolve(v.via,'colors',t,k)+' '+v.viaAt+'%,':'')+
         resolve(v.to,'colors',t,k)+')');continue;
     }
-    const color=['color','background','borderColor'].includes(k);
-    const spacing=['gap','rowGap','columnGap','padding','paddingX','paddingY','top','left','minHeight'].includes(k);
+    const color=['color','background','borderColor','outlineColor'].includes(k);
+    const spacing=['gap','rowGap','columnGap','padding','paddingX','paddingY','top','left','right','bottom','minHeight'].includes(k);
     const group=spacing?'spacing':k==='radius'?'radii':k==='fontSize'?'typography':null;
     const value=color?resolve(v,'colors',t,k):group?resolve(v,group,t,k):v;
     if(own(aliases,k)){put(aliases[k],k==='maxWidth'?value+'px':value);continue;}
     if(k==='hidden'){if(value)put('display','none');continue;}
     if(k==='columns'){put('grid-template-columns','repeat('+value+',minmax(0,1fr))');continue;}
     if(k==='gridColumnSpan'){put('grid-column','span '+value);continue;}
+    if(k==='gridRowSpan'){put('grid-row','span '+value);continue;}
+    if(k==='gridAutoFlow'){put('grid-auto-flow',value.replace('-', ' '));continue;}
+    if(k==='flexBasisPercent'){put('flex-basis',value+'%');continue;}
+    if(k==='objectPositionX'||k==='objectPositionY'){put(k==='objectPositionX'?'--cmsdg-object-x':'--cmsdg-object-y',value+'%');continue;}
+    if(k==='alignContent'){put('align-content',value==='between'?'space-between':value==='start'?'flex-start':value==='end'?'flex-end':value);continue;}
     if(['align','justify','alignSelf'].includes(k)){
       put({align:'align-items',justify:'justify-content',alignSelf:'align-self'}[k],
         value==='between'?'space-between':value==='start'?'flex-start':value==='end'?'flex-end':value);continue;
@@ -223,6 +231,8 @@ function declarations(style,t){
     if(k==='letterSpacing'){put('letter-spacing',(value/10).toFixed(1)+'px');continue;}
     if(k==='background')put('background-color',value);
     if(k==='borderColor')put('border-color',value);
+    if(k==='outlineColor')put('outline-color',value);
+    if(k==='outlineWidth'){put('outline-style','solid');put('outline-width',value+'px');put('outline-offset','2px');}
     if(k==='lineHeight')put('line-height',(value/100).toFixed(2));
     if(k==='opacity')put('opacity',(value/100).toFixed(2));
     if(k==='borderWidth'){put('border-style','solid');put('border-width',value+'px');}
@@ -279,7 +289,7 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
   const html=graph.nodes.map(visit).join('');
   return '<section class="cmsdg '+('cmsdg-'+graph.id)+'" id="'+attr(sectionId)+'"><style>'+
     scope+'{min-width:0;max-width:none;padding:0;min-height:0}'+scope+' *{box-sizing:border-box;min-width:0}'+
-    scope+' img,'+scope+' video{max-width:100%;height:auto}'+scope+' svg{display:inline-block;vertical-align:middle;flex:none}'+
+    scope+' img,'+scope+' video{max-width:100%;height:auto;object-position:var(--cmsdg-object-x,50%) var(--cmsdg-object-y,50%)}'+scope+' svg{display:inline-block;vertical-align:middle;flex:none}'+
     '@keyframes cmsdg-fade-in{from{opacity:0}to{opacity:1}}'+
     '@keyframes cmsdg-fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}'+
     '@keyframes cmsdg-slide-left{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}'+
@@ -1842,7 +1852,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const styleFields=make('div',undefined,'cms-design-fields');root.append(styleFields);
       const style=editStyle(n),limited=['hover','focus'].includes(mode);
       for(const key of DESIGN_GRAPH.STYLE_KEYS){
-        if(limited&&!['color','background','borderColor','borderWidth','radius','opacity','gradient'].includes(key))continue;
+        if(limited&&!['color','background','borderColor','borderWidth','radius','opacity','gradient','outlineColor','outlineWidth'].includes(key))continue;
         if(key==='gradient')continue;
         const values={
           display:['block','grid','flex','none'],
@@ -1854,6 +1864,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           objectFit:['cover','contain','fill','none'],
           aspectRatio:['auto','square','portrait','landscape','wide'],
           overflow:['visible','hidden','auto'],shadow:['none','soft','medium','strong'],
+          justifySelf:['auto','start','center','end','stretch'],alignContent:['start','center','end','stretch','between'],
+          gridAutoFlow:['row','column','row-dense','column-dense'],
+          textDecoration:['none','underline','line-through'],whiteSpace:['normal','nowrap','pre-line'],
           hidden:['true','false']
         };
         const value=style[key]===undefined?'':String(style[key]);
@@ -1864,7 +1877,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           },'select'));
         }else styleFields.append(ctl(key,value,v=>{
           if(!v.trim()){delete style[key];return;}
-          if(['color','background','borderColor'].includes(key)){style[key]=v.trim();return;}
+          if(['color','background','borderColor','outlineColor'].includes(key)){style[key]=v.trim();return;}
           style[key]=v.startsWith('@')?v.trim():Number(v);
         }));
       }
@@ -1876,7 +1889,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       gradientFields.append(
         ctl('Угол (0–360)',String(currentGradient?.angle??135),v=>{ensureGradient().angle=Number(v);},'number'),
         ctl('Цвет от (HEX или @token)',currentGradient?.from||'@accent',v=>{ensureGradient().from=v.trim();}),
-        ctl('Цвет до (HEX или @token)',currentGradient?.to||'@background',v=>{ensureGradient().to=v.trim();})
+        ctl('Цвет до (HEX или @token)',currentGradient?.to||'@background',v=>{ensureGradient().to=v.trim();}),
+         ctl('Промежуточный цвет (необязательно)',currentGradient?.via||'',v=>{
+           if(v.trim()){ensureGradient().via=v.trim();ensureGradient().viaAt??=50;}
+           else if(style.gradient){delete style.gradient.via;delete style.gradient.viaAt;}
+         }),
+         ctl('Позиция промежуточного цвета, %',String(currentGradient?.viaAt??50),v=>{
+           if(style.gradient?.via)style.gradient.viaAt=Number(v);
+         },'number')
       );
       const dropGradient=button('Удалить градиент','btn small',()=>{delete style.gradient;render();});
       gradient.append(gradientFields,dropGradient);root.append(gradient);
