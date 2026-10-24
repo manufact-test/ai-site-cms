@@ -14,7 +14,7 @@ const ICON_PATHS=Object.freeze({
  play:'<path d="m8 5 12 7-12 7z"/>',menu:'<path d="M4 7h16M4 12h16M4 17h16"/>'
 });
 const MOTIONS=['none','fade-in','fade-up','slide-left','zoom-in'];
-const TYPES=['container','heading','text','button','image','divider','icon'];
+const TYPES=['container','heading','text','button','image','divider','icon','video'];
 const STYLE_KEYS=['display','columns','direction','align','justify','gap','padding','radius',
   'color','background','fontSize','fontWeight','lineHeight','maxWidth','position','top','left',
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
@@ -100,7 +100,7 @@ function validateMotion(motion,at){
   if(!MOTIONS.includes(motion.effect)||!number(motion.duration,150,2000)||!number(motion.delay,0,1000))
     fail(at,'invalid motion');
 }
-function validateGraph(graph,assetIds,existingIds,tokensInput){
+function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map()){
   keys(graph,['version','id','nodes'],'graph');
   if(graph.version!==1||!IDENT.test(graph.id))fail('graph','unsupported version/id');
   const tokens=validateTokens(tokensInput),seen=existingIds||new Set();
@@ -111,24 +111,35 @@ function validateGraph(graph,assetIds,existingIds,tokensInput){
   let count=0;
   function visit(node,depth){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(node.type==='container'||node.type==='divider'){
-      if(own(node,'text')||own(node,'href')||own(node,'assetId')||own(node,'alt')||own(node,'level'))
+      if(own(node,'text')||own(node,'href')||own(node,'assetId')||own(node,'alt')||own(node,'level')||own(node,'posterAssetId')||own(node,'loop'))
         fail(node.id,'invalid container content');
     }else if(node.type==='icon'){
       if(!own(ICON_PATHS,node.icon)||own(node,'text')||own(node,'href')||own(node,'assetId')||
-        own(node,'level')||own(node,'children')||
+        own(node,'level')||own(node,'children')||own(node,'posterAssetId')||own(node,'loop')||
         (own(node,'alt')&&(typeof node.alt!=='string'||node.alt.length>200||/[\x00-\x1f]/.test(node.alt))))
         fail(node.id,'invalid icon');
+    }else if(node.type==='video'){
+      if(typeof node.assetId!=='string'||!assetIds.has(node.assetId)||
+        mediaKinds.get(node.assetId)!=='video/mp4'||
+        typeof node.alt!=='string'||node.alt.length<1||node.alt.length>200||
+        /[\x00-\x1f]/.test(node.alt)||own(node,'text')||own(node,'href')||
+        own(node,'level')||own(node,'icon')||
+        (own(node,'loop')&&typeof node.loop!=='boolean')||
+        (own(node,'posterAssetId')&&(!assetIds.has(node.posterAssetId)||
+          !/^image\/(?:png|jpeg|webp)$/.test(mediaKinds.get(node.posterAssetId)||''))))
+        fail(node.id,'invalid video binding');
     }else if(node.type==='image'){
       if(typeof node.assetId!=='string'||!assetIds.has(node.assetId)||
+        mediaKinds.get(node.assetId)==='video/mp4'||own(node,'posterAssetId')||own(node,'loop')||
         typeof node.alt!=='string'||node.alt.length>200||/[\x00-\x1f]/.test(node.alt)||
         own(node,'text')||own(node,'href')||own(node,'level')||own(node,'icon'))fail(node.id,'invalid image binding');
     }else{
       if(typeof node.text!=='string'||node.text.length>3000||/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(node.text)||
-        own(node,'assetId')||own(node,'alt')||own(node,'icon'))fail(node.id,'invalid text');
+        own(node,'assetId')||own(node,'alt')||own(node,'icon')||own(node,'posterAssetId')||own(node,'loop'))fail(node.id,'invalid text');
       if(node.type==='button'&&
         (typeof node.href!=='string'||node.href.length>300||
          !SAFE_URL.test(node.href)&&!/^https:\/\/[a-z0-9.-]+(?:\/[^\s"'<>\\]*)?$/i.test(node.href)))
@@ -217,7 +228,7 @@ function declarations(style,t){
 }
 function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id){
   validateGraph(graph,new Set(site.assets.map(x=>x.id)),new Set(),
-    site.designTokens);
+    site.designTokens,new Map(site.assets.map(x=>[x.id,x.mime])));
   const tokens=validateTokens(site.designTokens);
   const assets=new Map(site.assets.map(a=>[a.id,a])),rules=[];
   const scope='.cmsdg-'+graph.id;
@@ -242,6 +253,17 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id){
     if(n.type==='heading')return '<h'+(n.level||2)+' class="'+cls+'">'+attr(n.text)+'</h'+(n.level||2)+'>';
     if(n.type==='text')return '<p class="'+cls+'">'+attr(n.text)+'</p>';
     if(n.type==='button')return '<a class="'+cls+'" href="'+attr(n.href.startsWith('/')?mount+n.href:n.href)+'">'+attr(n.text)+'</a>';
+    if(n.type==='video'){
+      const videoAsset=assets.get(n.assetId);
+      const videoSrc=mount+videoAsset.src;
+      const poster=n.posterAssetId?assets.get(n.posterAssetId):null;
+      const posterHtml=poster?' poster="'+attr(mount+poster.src)+'"':'';
+      // No autoplay, external providers, unknown formats, script or iframe.
+      return '<video class="'+cls+'" controls playsinline preload="metadata"'+
+        (n.loop?' loop':'')+posterHtml+' aria-label="'+attr(n.alt)+'">'+
+        '<source src="'+attr(videoSrc)+'" type="video/mp4">'+
+        'Ваш браузер не поддерживает видео.</video>';
+    }
     const asset=assets.get(n.assetId),src=mediaPreview?mediaPreview(n.assetId):null;
     if(!asset)return '';
     const base=src||mount+asset.src;
@@ -252,7 +274,7 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id){
   const html=graph.nodes.map(visit).join('');
   return '<section class="cmsdg '+('cmsdg-'+graph.id)+'" id="'+attr(sectionId)+'"><style>'+
     scope+'{min-width:0;max-width:none;padding:0;min-height:0}'+scope+' *{box-sizing:border-box;min-width:0}'+
-    scope+' img{max-width:100%;height:auto}'+scope+' svg{display:inline-block;vertical-align:middle;flex:none}'+
+    scope+' img,'+scope+' video{max-width:100%;height:auto}'+scope+' svg{display:inline-block;vertical-align:middle;flex:none}'+
     '@keyframes cmsdg-fade-in{from{opacity:0}to{opacity:1}}'+
     '@keyframes cmsdg-fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}'+
     '@keyframes cmsdg-slide-left{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}'+
