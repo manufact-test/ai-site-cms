@@ -781,6 +781,8 @@ async function stop(){
   assert.match(htmlDesign,/:hover\{opacity:0.85\}/);
   assert.match(htmlDesign,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
   assert.match(htmlDesign,new RegExp('id="'+designSec.id+'"'));
+  assert.ok(htmlDesign.includes('class="cmsdg-n-'+designSec.id+'-action" href="/published/site-rich-ci/contact/"'),
+    'Graph internal links follow PHP site's publication prefix');
   assert.doesNotMatch(htmlDesign,/<script\b|<img[^>]+onerror=/);
   const staticDesign=path.join(dbdir,'static-ai-composition');
   const compiledDesign=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',staticDesign],
@@ -789,6 +791,8 @@ async function stop(){
   const htmlStatic=fs.readFileSync(path.join(staticDesign,'index.html'),'utf8');
   assert.match(htmlStatic,/Архитектурная композиция &amp; сетка/);
   assert.match(htmlStatic,/cmsdg-/);
+  assert.ok(htmlStatic.includes('class="cmsdg-n-'+designSec.id+'-action" href="/contact/"'),
+    'Graph links are root-relative only in standalone static export');
   assert.match(htmlStatic,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
   assert.doesNotMatch(htmlStatic,/\/published\/|\/api\/|<script/i);
   const designArchive=(await request('GET',designEndpoint+'/backup')).body;

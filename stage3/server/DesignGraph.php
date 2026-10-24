@@ -231,7 +231,9 @@ final class DesignGraph
                     $tag='h'.($n['level']??2);
                     return '<'.$tag.' class="'.$cls.'">'.self::h($n['text']).'</'.$tag.'>';
                 case 'text':return '<p class="'.$cls.'">'.self::h($n['text']).'</p>';
-                case 'button':return '<a class="'.$cls.'" href="'.self::h($n['href']).'">'.self::h($n['text']).'</a>';
+                case 'button':
+                    $href=str_starts_with($n['href'],'/')?$mount.$n['href']:$n['href'];
+                    return '<a class="'.$cls.'" href="'.self::h($href).'">'.self::h($n['text']).'</a>';
                 case 'image':
                     $asset=$assetMap[$n['assetId']];
                     $src=self::h($mount.$asset['src']);
