@@ -166,7 +166,7 @@ function declarations(style,t){
   }
   return css.join(';');
 }
-function render(site,graph,mount='',mediaPreview=null){
+function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id){
   validateGraph(graph,new Set(site.assets.map(x=>x.id)),new Set(),
     site.designTokens);
   const tokens=validateTokens(site.designTokens);
@@ -199,8 +199,8 @@ function render(site,graph,mount='',mediaPreview=null){
     return '<img loading="lazy" class="'+cls+'" src="'+attr(base)+'"'+responsive+' alt="'+attr(n.alt)+'">';
   }
   const html=graph.nodes.map(visit).join('');
-  return '<section class="cmsdg '+('cmsdg-'+graph.id)+'" id="'+attr(graph.id)+'"><style>'+
-    scope+'{min-width:0;max-width:100%;}'+scope+' *{box-sizing:border-box;min-width:0}'+
+  return '<section class="cmsdg '+('cmsdg-'+graph.id)+'" id="'+attr(sectionId)+'"><style>'+
+    scope+'{min-width:0;max-width:none;padding:0;min-height:0}'+scope+' *{box-sizing:border-box;min-width:0}'+
     scope+' img{max-width:100%;height:auto}'+rules.join('')+'</style>'+html+'</section>';
 }
 module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,render,DEFAULT_TOKENS,TYPES,STYLE_KEYS});

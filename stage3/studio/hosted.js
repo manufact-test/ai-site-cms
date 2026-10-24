@@ -225,10 +225,17 @@
   }
   function mediaUses(site,assetId){
     const locations=[];
-    for(const page of site.pages)for(const section of page.sections)
+    for(const page of site.pages)for(const section of page.sections){
       for(const field of [...section.elements,...(section.items||[])])
         if(field.values['content.media']===assetId)
           locations.push(page.title+' · '+section.component);
+      const walk=node=>{
+        if(node.type==='image'&&node.assetId===assetId)
+          locations.push(page.title+' · дизайн-композиция · '+node.id);
+        for(const child of node.children||[])walk(child);
+      };
+      for(const node of section.designGraph?.nodes||[])walk(node);
+    }
     return locations;
   }
   function editLibraryAsset(command){

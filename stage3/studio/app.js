@@ -1103,7 +1103,7 @@
     }else content='<section><h2>Незарегистрированный шаблон</h2></section>';
     // Typed composition overrides only rendering: original component fields survive.
     if(block.designGraph)content=DESIGN_GRAPH.render(session.current,block.designGraph,'',
-      assetId=>HOSTED?window.Stage3Host?.previewUrl?.(assetId):null);
+      assetId=>HOSTED?window.Stage3Host?.previewUrl?.(assetId):null,block.sectionId);
     const appearance=block.appearance||C.DEFAULT_APPEARANCE;
     const skin='cms-surface-'+appearance.surface+' cms-spacing-'+appearance.spacing+' cms-align-'+appearance.align+
       (appearance.width?' cms-width-'+appearance.width:'')+
