@@ -347,6 +347,16 @@ const ownerCaptionSaved=adapter.reconcileSemantic(galleryRebuilt,ownerCaptionEdi
 assert.equal(findNode(ownerCaptionSaved.site.pages[0].sections.find(s=>
  s.id==='df-selected-composition').designGraph.nodes,'-card-1-caption').text,
  'Revised owner caption');
+// Image alt is owner-editable too: do not silently keep stale alt in
+// a graph node when CMS asset metadata changes with the same asset ID.
+const galleryRealt=clone(galleryRebuilt.site);
+galleryRealt.assets.find(a=>a.id==='owner-gallery-one').alt='Revised owner image alt';
+assert.throws(()=>adapter.inspectSemanticSync(galleryRebuilt,galleryRealt,hostSdk,registry),
+ /Media asset metadata changed/);
+const renewedAlt=adapter.rebuildHostCandidate(galleryRebuilt,galleryRealt,hostSdk,registry);
+assert.equal(findNode(renewedAlt.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition').designGraph.nodes,'-card-1-image').alt,
+ 'Revised owner image alt');
 const galleryMissingAlt=clone(galleryUpload);
 galleryMissingAlt.assets[0].alt='';
 assert.throws(()=>adapter.rebuildHostCandidate(gallery,galleryMissingAlt,hostSdk,registry),
