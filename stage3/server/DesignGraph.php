@@ -18,7 +18,7 @@ final class DesignGraph
         'top','left','opacity','borderColor','borderWidth','textAlign','order','hidden',
         'rowGap','columnGap','paddingX','paddingY','marginTop','marginBottom','widthPercent',
         'minHeight','gridColumnSpan','flexWrap','flexGrow','alignSelf','letterSpacing',
-        'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace'];
+        'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'];
     private const ICON_PATHS=[
         'check'=>'<path d="M5 12l4 4L19 6"/>',
         'arrow'=>'<path d="M5 12h14m-6-6 6 6-6 6"/>',
@@ -93,12 +93,13 @@ final class DesignGraph
             'fontFamily'=>['inherit','system','arial','georgia','serif','mono'],
             'objectFit'=>['cover','contain','fill','none'],
             'aspectRatio'=>['auto','square','portrait','landscape','wide'],
-            'overflow'=>['visible','hidden','auto'],'shadow'=>['none','soft','medium','strong'],'justifySelf'=>['auto','start','center','end','stretch'],'alignContent'=>['start','center','end','stretch','between'],'gridAutoFlow'=>['row','column','row-dense','column-dense'],'textDecoration'=>['none','underline','line-through'],'whiteSpace'=>['normal','nowrap','pre-line']];
+            'overflow'=>['visible','hidden','auto'],'shadow'=>['none','soft','medium','strong'],'justifySelf'=>['auto','start','center','end','stretch'],'alignContent'=>['start','center','end','stretch','between'],'gridAutoFlow'=>['row','column','row-dense','column-dense'],'textDecoration'=>['none','underline','line-through'],'whiteSpace'=>['normal','nowrap','pre-line'],
+            'fontStyle'=>['normal','italic'],'textTransform'=>['none','uppercase','lowercase','capitalize'],'textWrap'=>['wrap','balance','pretty','nowrap'],'wordBreak'=>['normal','break-all','break-word'],'textOverflow'=>['clip','ellipsis'],'textShadow'=>['none','soft','strong'],'gridColumnsPreset'=>['sidebar-left','sidebar-right','wide-center','editorial'],'transformOrigin'=>['center','top-left','top-right','bottom-left','bottom-right'],'isolation'=>['auto','isolate'],'mixBlendMode'=>['normal','multiply','screen','overlay','darken','lighten'],'clipShape'=>['none','circle','ellipse','diagonal','hexagon']];
         $ranges=['columns'=>[1,12],'gridColumnSpan'=>[1,12],'flexGrow'=>[0,6],
             'fontWeight'=>[100,900],'lineHeight'=>[80,250],'letterSpacing'=>[-50,200],
             'maxWidth'=>[0,1920],'widthPercent'=>[1,100],
             'borderWidth'=>[0,12],'order'=>[-30,30],'opacity'=>[0,100],
-            'outlineWidth'=>[0,8],'zIndex'=>[-10,30],'widthPx'=>[1,1920],'heightPx'=>[1,1400],'minWidth'=>[0,1920],'maxHeight'=>[0,1600],'gridRowSpan'=>[1,12],'flexBasisPercent'=>[0,100],'flexShrink'=>[0,1],'objectPositionX'=>[0,100],'objectPositionY'=>[0,100],'marginTop'=>[-160,160],'marginBottom'=>[-160,160]];
+            'outlineWidth'=>[0,8],'zIndex'=>[-10,30],'widthPx'=>[1,1920],'heightPx'=>[1,1400],'minWidth'=>[0,1920],'maxHeight'=>[0,1600],'gridRowSpan'=>[1,12],'flexBasisPercent'=>[0,100],'flexShrink'=>[0,1],'objectPositionX'=>[0,100],'objectPositionY'=>[0,100],'marginTop'=>[-160,160],'marginBottom'=>[-160,160],'wordSpacing'=>[-40,100],'textIndent'=>[-100,200],'gridColumnStart'=>[1,13],'gridRowStart'=>[1,13],'translateX'=>[-600,600],'translateY'=>[-600,600],'rotateDeg'=>[-180,180],'scalePercent'=>[50,200],'backdropBlur'=>[0,32]];
         foreach ($style as $key=>$value) {
             if ($state)self::check(in_array($key,
                 ['color','background','borderColor','borderWidth','radius','opacity','gradient','outlineColor','outlineWidth'],true),
@@ -120,8 +121,8 @@ final class DesignGraph
                 'top','left','right','bottom','minHeight'],true)){
                 self::resolve($value,'spacing',$tokens,$at.'/'.$key);continue;
             }
-            if(in_array($key,['radius','fontSize'],true)){
-                self::resolve($value,$key==='radius'?'radii':'typography',$tokens,$at.'/'.$key);
+            if(in_array($key,['radius','fontSize','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'],true)){
+                self::resolve($value,$key==='fontSize'?'typography':'radii',$tokens,$at.'/'.$key);
                 continue;
             }
             if(isset($enums[$key])){self::check(in_array($value,$enums[$key],true),$at.' invalid '.$key);continue;}
@@ -130,6 +131,7 @@ final class DesignGraph
             self::check(false,$at.' invalid '.$key);
         }
         self::check(!(isset($style['widthPx'])&&isset($style['widthPercent'])),$at.' competing width units');
+        self::check(!(isset($style['columns'])&&isset($style['gridColumnsPreset'])),$at.' competing grid template');
     }
     private static function motion(mixed $motion,string $at): void
     {
@@ -235,8 +237,8 @@ final class DesignGraph
         $aliases=['display'=>'display','direction'=>'flex-direction','color'=>'color',
             'fontWeight'=>'font-weight','maxWidth'=>'max-width','position'=>'position',
             'textAlign'=>'text-align','order'=>'order','flexWrap'=>'flex-wrap',
-            'flexGrow'=>'flex-grow','flexShrink'=>'flex-shrink','overflow'=>'overflow','objectFit'=>'object-fit','zIndex'=>'z-index','justifySelf'=>'justify-self','textDecoration'=>'text-decoration','whiteSpace'=>'white-space'];
-        $pixels=['gap'=>'gap','rowGap'=>'row-gap','columnGap'=>'column-gap',
+            'flexGrow'=>'flex-grow','flexShrink'=>'flex-shrink','overflow'=>'overflow','objectFit'=>'object-fit','zIndex'=>'z-index','justifySelf'=>'justify-self','textDecoration'=>'text-decoration','whiteSpace'=>'white-space','fontStyle'=>'font-style','textTransform'=>'text-transform','textWrap'=>'text-wrap','wordBreak'=>'word-break','textOverflow'=>'text-overflow','transformOrigin'=>'transform-origin','isolation'=>'isolation','mixBlendMode'=>'mix-blend-mode'];
+        $pixels=['textIndent'=>'text-indent','borderTopLeftRadius'=>'border-top-left-radius','borderTopRightRadius'=>'border-top-right-radius','borderBottomRightRadius'=>'border-bottom-right-radius','borderBottomLeftRadius'=>'border-bottom-left-radius','gap'=>'gap','rowGap'=>'row-gap','columnGap'=>'column-gap',
             'padding'=>'padding','paddingX'=>'padding-inline','paddingY'=>'padding-block',
             'marginTop'=>'margin-top','marginBottom'=>'margin-bottom',
             'radius'=>'border-radius','fontSize'=>'font-size','minHeight'=>'min-height',
@@ -251,8 +253,8 @@ final class DesignGraph
             if(in_array($key,['color','background','borderColor','outlineColor'],true))
                 $value=self::resolve($value,'colors',$t,$key);
             if(in_array($key,['gap','rowGap','columnGap','padding','paddingX','paddingY',
-                'top','left','right','bottom','minHeight','radius','fontSize'],true)){
-                $group=$key==='radius'?'radii':($key==='fontSize'?'typography':'spacing');
+                'top','left','right','bottom','minHeight','radius','fontSize','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'],true)){
+                $group=$key==='fontSize'?'typography':(in_array($key,['radius','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'],true)?'radii':'spacing');
                 $value=self::resolve($value,$group,$t,$key);
             }
             if(isset($aliases[$key])){
@@ -260,6 +262,15 @@ final class DesignGraph
             }
             if($key==='hidden'){if($value)$put('display','none');continue;}
             if($key==='columns'){$put('grid-template-columns','repeat('.$value.',minmax(0,1fr))');continue;}
+            if($key==='gridColumnsPreset'){$put('grid-template-columns',['sidebar-left'=>'minmax(0,1fr) minmax(0,2fr)','sidebar-right'=>'minmax(0,2fr) minmax(0,1fr)','wide-center'=>'minmax(0,1fr) minmax(0,3fr) minmax(0,1fr)','editorial'=>'minmax(0,2fr) minmax(0,3fr) minmax(0,2fr)'][$value]);continue;}
+            if($key==='gridColumnStart'||$key==='gridRowStart'){$put($key==='gridColumnStart'?'grid-column-start':'grid-row-start',$value);continue;}
+            if($key==='translateX'||$key==='translateY'){$put($key==='translateX'?'--cmsdg-tx':'--cmsdg-ty',$value.'px');continue;}
+            if($key==='rotateDeg'){$put('rotate',$value.'deg');continue;}
+            if($key==='scalePercent'){$put('scale',number_format($value/100,2,'.',''));continue;}
+            if($key==='wordSpacing'){$put('word-spacing',number_format($value/10,1,'.','').'px');continue;}
+            if($key==='textShadow'){$put('text-shadow',['none'=>'none','soft'=>'0 2px 8px #10182040','strong'=>'0 4px 18px #10182080'][$value]);continue;}
+            if($key==='clipShape'){$put('clip-path',['none'=>'none','circle'=>'circle(50% at 50% 50%)','ellipse'=>'ellipse(50% 40% at 50% 50%)','diagonal'=>'polygon(0 0,100% 0,100% 90%,0 100%)','hexagon'=>'polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)'][$value]);continue;}
+            if($key==='backdropBlur'){$put('backdrop-filter','blur('.$value.'px)');$put('-webkit-backdrop-filter','blur('.$value.'px)');continue;}
             if($key==='gridColumnSpan'){$put('grid-column','span '.$value);continue;}
             if($key==='gridRowSpan'){$put('grid-row','span '.$value);continue;}
             if($key==='gridAutoFlow'){$put('grid-auto-flow',str_replace('-',' ',$value));continue;}
@@ -308,6 +319,11 @@ final class DesignGraph
         $scope='.cmsdg-'.$graph['id'];$rules=[];
         $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount): string {
             $selector=$scope.' .cmsdg-n-'.$n['id'];
+            $usesTranslate=false;
+            foreach ([$n['styles']??[],$n['responsive']['tablet']??[],$n['responsive']['mobile']??[]] as $layer) {
+                if (array_key_exists('translateX',$layer)||array_key_exists('translateY',$layer)){$usesTranslate=true;break;}
+            }
+            if ($usesTranslate)$rules[]=$selector.'{--cmsdg-tx:0px;--cmsdg-ty:0px;translate:var(--cmsdg-tx) var(--cmsdg-ty)}';
             $base=self::declarations($n['styles']??[],$t);
             if($base!=='')$rules[]=$selector.'{'.$base.'}';
             foreach (['tablet'=>900,'mobile'=>600] as $bp=>$width) {

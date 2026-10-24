@@ -1075,6 +1075,187 @@
             "nowrap",
             "pre-line"
           ]
+        },
+        "fontStyle": {
+          "enum": [
+            "normal",
+            "italic"
+          ]
+        },
+        "textTransform": {
+          "enum": [
+            "none",
+            "uppercase",
+            "lowercase",
+            "capitalize"
+          ]
+        },
+        "textWrap": {
+          "enum": [
+            "wrap",
+            "balance",
+            "pretty",
+            "nowrap"
+          ]
+        },
+        "wordBreak": {
+          "enum": [
+            "normal",
+            "break-all",
+            "break-word"
+          ]
+        },
+        "textOverflow": {
+          "enum": [
+            "clip",
+            "ellipsis"
+          ]
+        },
+        "textShadow": {
+          "enum": [
+            "none",
+            "soft",
+            "strong"
+          ]
+        },
+        "gridColumnsPreset": {
+          "enum": [
+            "sidebar-left",
+            "sidebar-right",
+            "wide-center",
+            "editorial"
+          ]
+        },
+        "transformOrigin": {
+          "enum": [
+            "center",
+            "top-left",
+            "top-right",
+            "bottom-left",
+            "bottom-right"
+          ]
+        },
+        "isolation": {
+          "enum": [
+            "auto",
+            "isolate"
+          ]
+        },
+        "mixBlendMode": {
+          "enum": [
+            "normal",
+            "multiply",
+            "screen",
+            "overlay",
+            "darken",
+            "lighten"
+          ]
+        },
+        "clipShape": {
+          "enum": [
+            "none",
+            "circle",
+            "ellipse",
+            "diagonal",
+            "hexagon"
+          ]
+        },
+        "wordSpacing": {
+          "type": "integer",
+          "minimum": -40,
+          "maximum": 100
+        },
+        "textIndent": {
+          "type": "integer",
+          "minimum": -100,
+          "maximum": 200
+        },
+        "gridColumnStart": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 13
+        },
+        "gridRowStart": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 13
+        },
+        "translateX": {
+          "type": "integer",
+          "minimum": -600,
+          "maximum": 600
+        },
+        "translateY": {
+          "type": "integer",
+          "minimum": -600,
+          "maximum": 600
+        },
+        "rotateDeg": {
+          "type": "integer",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "scalePercent": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 200
+        },
+        "backdropBlur": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "borderTopLeftRadius": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "borderTopRightRadius": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "borderBottomRightRadius": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "borderBottomLeftRadius": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
         }
       },
       "allOf": [
@@ -1083,6 +1264,14 @@
             "required": [
               "widthPx",
               "widthPercent"
+            ]
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "columns",
+              "gridColumnsPreset"
             ]
           }
         }
