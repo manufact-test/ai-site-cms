@@ -15,7 +15,22 @@ final class DesignGraph
     private const HEX='/^#[0-9a-fA-F]{6}$/D';
     private const STYLES=['display','columns','direction','align','justify','gap','padding','radius',
         'color','background','fontSize','fontWeight','lineHeight','maxWidth','position',
-        'top','left','opacity','borderColor','borderWidth','textAlign','order','hidden'];
+        'top','left','opacity','borderColor','borderWidth','textAlign','order','hidden',
+        'rowGap','columnGap','paddingX','paddingY','marginTop','marginBottom','widthPercent',
+        'minHeight','gridColumnSpan','flexWrap','flexGrow','alignSelf','letterSpacing',
+        'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient'];
+    private const ICON_PATHS=[
+        'check'=>'<path d="M5 12l4 4L19 6"/>',
+        'arrow'=>'<path d="M5 12h14m-6-6 6 6-6 6"/>',
+        'star'=>'<path d="m12 2 3 6 7 1-5 5 1 8-6-4-6 4 1-8-5-5 7-1z"/>',
+        'sparkles'=>'<path d="m12 3 2 7 7 2-7 2-2 7-7-2 7-2z"/>',
+        'shield'=>'<path d="M12 2 20 6v6c0 5-3 8-8 10-5-2-8-5-8-10V6z"/>',
+        'clock'=>'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
+        'mail'=>'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+        'play'=>'<path d="m8 5 12 7-12 7z"/>',
+        'menu'=>'<path d="M4 7h16M4 12h16M4 17h16"/>'
+    ];
+    private const MOTIONS=['none','fade-in','fade-up','slide-left','zoom-in'];
     private const DEFAULT_TOKENS=[
         'colors'=>['foreground'=>'#182b3d','background'=>'#ffffff','accent'=>'#0a5bff','muted'=>'#667788'],
         'spacing'=>['small'=>12,'medium'=>24,'large'=>48],
@@ -68,35 +83,56 @@ final class DesignGraph
     private static function style(mixed $style,array $tokens,string $at,bool $state=false): void
     {
         self::keys($style,self::STYLES,$at);
-        if ($state) foreach (array_keys($style) as $key) self::check(
-            in_array($key,['color','background','borderColor','borderWidth','radius','opacity'],true),
-            $at.' unsafe interaction style');
+        $enums=[
+            'display'=>['block','grid','flex','none'],'direction'=>['row','column'],
+            'align'=>['start','center','end','stretch','between'],
+            'justify'=>['start','center','end','stretch','between'],
+            'alignSelf'=>['auto','start','center','end','stretch'],
+            'position'=>['static','relative','absolute'],'textAlign'=>['left','center','right'],
+            'flexWrap'=>['nowrap','wrap'],
+            'fontFamily'=>['inherit','system','arial','georgia','serif','mono'],
+            'objectFit'=>['cover','contain','fill','none'],
+            'aspectRatio'=>['auto','square','portrait','landscape','wide'],
+            'overflow'=>['visible','hidden','auto'],'shadow'=>['none','soft','medium','strong']];
+        $ranges=['columns'=>[1,12],'gridColumnSpan'=>[1,12],'flexGrow'=>[0,6],
+            'fontWeight'=>[100,900],'lineHeight'=>[80,250],'letterSpacing'=>[-50,200],
+            'maxWidth'=>[0,1920],'widthPercent'=>[1,100],
+            'borderWidth'=>[0,12],'order'=>[-30,30],'opacity'=>[0,100],
+            'marginTop'=>[-160,160],'marginBottom'=>[-160,160]];
         foreach ($style as $key=>$value) {
-            if (in_array($key,['color','background','borderColor'],true)) {
+            if ($state)self::check(in_array($key,
+                ['color','background','borderColor','borderWidth','radius','opacity','gradient'],true),
+                $at.' unsafe state property');
+            if (in_array($key,['color','background','borderColor'],true)){
                 self::resolve($value,'colors',$tokens,$at.'/'.$key);continue;
             }
-            if (in_array($key,['gap','padding','top','left','radius','fontSize'],true)) {
-                $group=$key==='radius'?'radii':($key==='fontSize'?'typography':'spacing');
-                self::resolve($value,$group,$tokens,$at.'/'.$key);continue;
+            if ($key==='gradient'){
+                self::keys($value,['angle','from','to'],$at.'/gradient');
+                self::check(self::integer($value['angle']??null,0,360)
+                    &&isset($value['from'],$value['to']),'invalid gradient');
+                self::resolve($value['from'],'colors',$tokens,$at.'/gradient.from');
+                self::resolve($value['to'],'colors',$tokens,$at.'/gradient.to');continue;
             }
-            $ok=match ($key) {
-                'display'=>in_array($value,['block','grid','flex','none'],true),
-                'direction'=>in_array($value,['row','column'],true),
-                'align','justify'=>in_array($value,['start','center','end','stretch','between'],true),
-                'position'=>in_array($value,['static','relative','absolute'],true),
-                'textAlign'=>in_array($value,['left','center','right'],true),
-                'hidden'=>is_bool($value),
-                'columns'=>self::integer($value,1,12),
-                'fontWeight'=>self::integer($value,100,900),
-                'lineHeight'=>self::integer($value,80,250),
-                'maxWidth'=>self::integer($value,0,1920),
-                'borderWidth'=>self::integer($value,0,12),
-                'order'=>self::integer($value,-30,30),
-                'opacity'=>self::integer($value,0,100),
-                default=>false
-            };
-            self::check($ok,$at.' invalid '.$key);
+            if (in_array($key,['gap','rowGap','columnGap','padding','paddingX','paddingY',
+                'top','left','minHeight'],true)){
+                self::resolve($value,'spacing',$tokens,$at.'/'.$key);continue;
+            }
+            if(in_array($key,['radius','fontSize'],true)){
+                self::resolve($value,$key==='radius'?'radii':'typography',$tokens,$at.'/'.$key);
+                continue;
+            }
+            if(isset($enums[$key])){self::check(in_array($value,$enums[$key],true),$at.' invalid '.$key);continue;}
+            if(isset($ranges[$key])){self::check(self::integer($value,...$ranges[$key]),$at.' invalid '.$key);continue;}
+            if($key==='hidden'){self::check(is_bool($value),$at.' invalid hidden');continue;}
+            self::check(false,$at.' invalid '.$key);
         }
+    }
+    private static function motion(mixed $motion,string $at): void
+    {
+        self::keys($motion,['effect','duration','delay'],$at);
+        self::check(in_array($motion['effect']??null,self::MOTIONS,true)
+            &&self::integer($motion['duration']??null,150,2000)
+            &&self::integer($motion['delay']??null,0,1000),$at.' invalid motion');
     }
     public static function validate(mixed $graph,array $assets,array &$ids,mixed $tokensInput=null): void
     {
@@ -111,25 +147,34 @@ final class DesignGraph
         $count=0;
         $visit=function (mixed $node,int $depth) use (&$visit,&$count,&$ids,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
-                &&in_array($type,['container','heading','text','button','image','divider'],true),
+                &&in_array($type,['container','heading','text','button','image','divider','icon'],true),
                 'invalid or duplicate node');
             $ids[$id]=true;
             if (in_array($type,['container','divider'],true)) {
                 foreach (['text','href','assetId','alt','level'] as $field)
                     self::check(!array_key_exists($field,$node),'invalid container/divider content');
+            } elseif ($type==='icon') {
+                self::check(is_string($node['icon']??null)
+                    &&array_key_exists($node['icon'],self::ICON_PATHS)
+                    &&!isset($node['text'])&&!isset($node['href'])&&!isset($node['assetId'])
+                    &&!isset($node['level'])&&!isset($node['children'])
+                    &&(!array_key_exists('alt',$node)||
+                        (is_string($node['alt'])&&strlen($node['alt'])<=200
+                         &&preg_match('/[\x00-\x1f]/',$node['alt'])!==1)),
+                    'invalid icon node');
             } elseif ($type==='image') {
                 self::check(is_string($node['assetId']??null)&&isset($assets[$node['assetId']])
                     &&is_string($node['alt']??null)&&strlen($node['alt'])<=200
                     &&preg_match('/[\x00-\x1f]/',$node['alt'])!==1
-                    &&!isset($node['text'])&&!isset($node['href'])&&!isset($node['level']),
+                    &&!isset($node['text'])&&!isset($node['href'])&&!isset($node['level'])&&!isset($node['icon']),
                     'invalid image binding');
             } else {
                 self::check(is_string($node['text']??null)&&strlen($node['text'])<=3000
                     &&preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f]/',$node['text'])!==1
-                    &&!isset($node['assetId'])&&!isset($node['alt']),'invalid text node');
+                    &&!isset($node['assetId'])&&!isset($node['alt'])&&!isset($node['icon']),'invalid text node');
                 if ($type==='button') {
                     $href=$node['href']??null;
                     self::check(is_string($href)&&strlen($href)<=300
@@ -141,6 +186,7 @@ final class DesignGraph
                 else self::check(!isset($node['level']),'unexpected level');
             }
             self::style($node['styles']??[],$tokens,$id.'/style');
+            if(array_key_exists('motion',$node))self::motion($node['motion'],$id.'/motion');
             if (isset($node['responsive'])) {
                 self::keys($node['responsive'],['tablet','mobile'],$id.'/responsive');
                 foreach ($node['responsive'] as $bp=>$style)
