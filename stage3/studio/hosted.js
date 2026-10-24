@@ -710,7 +710,7 @@
       selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();
     }finally{state.busy=false;drawStatus();}
   }
-  window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewUrl,
+  window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewUrl,videoUrl,
     api,safe,notice,principal:()=>state.principal,refreshSites:()=>refreshSites(),
     lock:()=>{state.authorized=false;state.principal=null;state.csrf=null;editorVisible(false);setGate(true);},
     compositionTemplates,createComposition,canCompose:()=>isOwner()&&!state.busy,
