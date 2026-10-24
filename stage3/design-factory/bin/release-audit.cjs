@@ -64,7 +64,9 @@ function release(args){
   sourceManifest:manifest,sourceManifestSha256:digest(JSON.stringify(manifest)),
   checks:results,
   nodePassed,browserRequested:f.chromium,browserPassed,
-  releaseReady:nodePassed&&browserPassed,
+  automatedChecksPassed:nodePassed&&browserPassed,
+  humanVisualAcceptance:'pending',
+  releaseReady:false,
   acceptance:'developer checks only; Stage2 NO-GO, Stage3 unaccepted; owner review and integrator approval required',
   notes:[
    'This report does NOT check PHP pixel parity or replace owner visual acceptance.',
@@ -79,9 +81,11 @@ function release(args){
  }else process.stdout.write(JSON.stringify({
    format:report.format,fileCount:report.fileCount,
    suites:results.map(({suite,passed,exitCode,error})=>({suite,passed,exitCode,error})),
-   nodePassed,browserPassed,releaseReady
+   nodePassed,browserPassed,automatedChecksPassed:report.automatedChecksPassed,
+   humanVisualAcceptance:report.humanVisualAcceptance,releaseReady
  },null,2)+'\n');
- process.exitCode=report.releaseReady?0:nodePassed&&!f.chromium?3:2;
+ // Automated checks never substitute for human visual approval of three viewport sizes.
+ process.exitCode=report.automatedChecksPassed?0:nodePassed&&!f.chromium?3:2;
 }
 try{release(process.argv.slice(2));}catch(error){
  process.stderr.write('D7 RELEASE GATE REFUSED: '+error.message+'\n');
