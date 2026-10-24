@@ -69,3 +69,13 @@ Export destinations **must not already exist**. For the browser counterpart, ope
 - The lead still must implement/verify PHP visual parity separately, enforce owner permission and explicit publish gates and run full checkout acceptance before integration. None of those capabilities is claimed as completed by this D6 update.
 
 **Formal status unchanged:** Stage2 NO-GO; Stage3+ not accepted; 0/135.
+
+## Optional current Lead Design Graph v1 compatibility (24 October 2026)
+
+The primary developer has introduced actual closed, editable `site.designTokens` and `section.designGraph` to the separate `feature/stage3-ai-site-contract` SDK. This is a **newer host contract** than the SDK pinned by our branch; our stable D6 `manufact-ai-site-v1` export remains unchanged and fully valid for the legacy SDK.
+
+New standalone opt-in adapter: [`lib/lead-design-graph-adapter.cjs`](lib/lead-design-graph-adapter.cjs). It first validates the unmodified D6 package, then adds a typed, responsive graph for the explicitly selected D3 section and validates the result with the **host-injected lead SDK**. It returns `manufact-design-factory-lead-graph-candidate-v1`, not a publishable D6 bundle. New details and mapping/limitations: [`proposals/LEAD-DESIGN-GRAPH.md`](proposals/LEAD-DESIGN-GRAPH.md). Optional actual-checkout test: `DF_LEAD_SDK_DIR=/path/to/lead/stage3/sdk node stage3/design-factory/tests/lead-design-graph-smoke.cjs`; no env → explicit SKIP, and the six normal D7 suites remain independent.
+
+**Observed source-level evidence:** 288/288 original sites accepted by the lead SDK; 504/504 (42 compositions × 12 themes) candidates accepted and rendered using the lead's actual Design Graph module in isolated V8. Rechecked against lead HEAD `a4d6aedff277752e015f52b383f080d0c3178f5a` and Graph blob `976d4bba21f8c6e51a826e3b8f38be1584268373`. This does **not** prove Node checkout, PHP renderer pixel parity, browser Studio editability, visual QA or official Stage3 acceptance.
+
+The candidate supports palette, spacing, radii, typography, typed headings/text/button, grids, mobile/tablet rules and focus/hover state. Advanced D3 art, galleries/scroll snapping, data-bound repeaters and other unique visual effects remain `integration_required`, even though newer host commits also add icon/gradient/motion capabilities. The lead must explicitly adopt and test those features rather than assuming full HTML/CSS parity.
