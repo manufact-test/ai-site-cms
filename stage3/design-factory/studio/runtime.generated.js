@@ -693,6 +693,11 @@ function renderSection(s,depth,i,language){
     return '<section id="'+id+'" class="section cta"><div><p class="eyebrow">'+(ru?'ДАЛЬНЕЙШИЙ ШАГ':'NEXT STEP')+'</p><h2>'+esc(heading)+'</h2><p>'+esc(slot(s,'summary'))+'</p></div><div class="cta-actions">'+a('/contact/',slot(s,'primary'),depth)+a('/services/',slot(s,'secondary')+' →',depth,'text-link')+'</div></section>';
   if(name==='contact-panel')
     return '<section id="'+id+'" class="section contact">'+head+'<p>'+(ru?'Укажите подтверждённые контакты перед публикацией.':'Add verified contact information before publication.')+'</p>'+a('/contact/',slot(s,'action'),depth)+'</section>';
+  if(name==='photo-gallery')
+    return '<section id="'+id+'" class="section photo-gallery-preview"><div class="section-heading">'+head+'</div><div class="preview-photos">'+
+      (s.items||[]).map((item,j)=>'<figure class="preview-photo"><div role="img" aria-label="'+esc(ru?'Фотография не предоставлена':'Photo not provided')+'">'+
+        esc(ru?'ФОТОГРАФИЯ '+(j+1)+' / ТРЕБУЕТСЯ ФАЙЛ':'PHOTO '+(j+1)+' / OWNER FILE REQUIRED')+'</div><figcaption>'+esc(item.values['content.caption']||'')+'</figcaption></figure>').join('')+
+      '</div></section>';
   throw Error('Unsupported preview component '+name);
 }
 function css(theme){
@@ -718,6 +723,8 @@ function css(theme){
     '.service-card{padding:32px}.card-top{display:flex;justify-content:space-between;font-size:12px;color:var(--accent);font-weight:900}.service-card h3{font:500 clamp(1.4rem,2.3vw,2.4rem)/1.13 var(--display);letter-spacing:-.035em;margin:34px 0 13px}.service-card p{opacity:.8}.story{display:grid;grid-template-columns:1fr 1fr;gap:7%;align-items:center}.story-art{height:390px;position:relative;overflow:hidden;background:var(--accent);color:white;padding:24px;border-radius:var(--radius)}.story-art span{position:relative;z-index:2;font-size:11px}.story-shape{position:absolute;right:-11%;bottom:-10%;width:75%;height:75%;border:55px solid var(--bg);transform:rotate(23deg);border-radius:35%}.story-text p{opacity:.8}',
     '.faq{display:grid;grid-template-columns:.8fr 1.2fr;gap:55px}.faqs details{padding:22px 0;border-bottom:1px solid var(--line)}.faqs summary{cursor:pointer;font-weight:800}.faqs p{opacity:.8}',
     '.cta{background:var(--text);color:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:30px;padding:clamp(50px,7vw,85px);margin-top:55px;margin-bottom:55px;border-radius:var(--radius)}.cta .eyebrow{color:var(--bg);opacity:.7}.cta h2{max-width:600px}.cta-actions{display:flex;flex-direction:column;gap:20px;align-items:flex-start}.contact{text-align:center}.contact p{opacity:.75}.footer{padding:60px 22px;background:var(--text);color:var(--bg)}.footer-inner{max-width:var(--wide);margin:auto;display:flex;flex-wrap:wrap;gap:25px;justify-content:space-between;font-size:13px}',
+    '.preview-photos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.preview-photo{margin:0}.preview-photo>div{background:var(--surface);border:1px dashed var(--line);min-height:250px;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-weight:750;font-size:11px;color:var(--accent)}.preview-photo figcaption{margin-top:7px;font-size:12px}',
+    '@media(max-width:620px){.preview-photos{grid-template-columns:1fr}.preview-photo>div{min-height:190px}}',
     '@media(max-width:860px){.hero,.story,.faq{grid-template-columns:1fr}.hero{min-height:0}.art{height:280px}.story-art{height:300px}.cta{flex-direction:column;align-items:flex-start}}',
     '@media(max-width:600px){.navwrap{display:block}.navwrap nav{padding-top:17px;gap:14px}.section{padding:52px 19px}.hero h1{font-size:clamp(2.7rem,12vw,4.1rem)}.features-grid,.service-grid{grid-template-columns:1fr}.features-grid article{min-height:0}.art{height:230px}.cta{padding:40px 26px;margin:24px 8px}.story-art{height:240px}}',
     '@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}',
@@ -1260,9 +1267,9 @@ const names={
 '../catalog/compositions.cjs':'compositions','./compiler.cjs':'compiler',
 './preview.cjs':'preview','./composition-adapter.cjs':'adapter'
 };
-const safeFS=Object.freeze({readFileSync:function(p){const file=String(p).split('/').pop();if(!/^[a-z][a-z0-9-]*\.json$/.test(file))throw Error('Unsupported bundled manifest path');const id=file.slice(0,-5);if(!Object.prototype.hasOwnProperty.call(manifestBytes,id))throw Error('Missing manifest '+id);return manifestBytes[id];}});
-const safePath=Object.freeze({join:(...p)=>p.join('/'),resolve:(...p)=>p.join('/')});
-function load(id){if(modules[id])return modules[id].exports;const factory=moduleFactories[id];if(!factory)throw Error('Unknown factory '+id);const module={exports:{}};modules[id]=module;function request(p){if(p==='node:fs')return safeFS;if(p==='node:path')return safePath;const target=names[p];if(!target)throw Error('Blocked dependency '+p);return load(target)}factory(module,module.exports,request,'/stage3/design-factory/lib');return module.exports;}
-const api=Object.freeze({sdk:load('sdk'),compiler:load('compiler'),preview:load('preview'),themes:load('themes'),kits:load('kits'),compositions:load('compositions'),adapter:load('adapter')});
-Object.defineProperty(root,'DesignFactory',{value:api,writable:false,configurable:false});
+const safeFS=Object.freeze({readFileSync:function(p){const file=String(p).split("/").pop();if(!/^[a-z][a-z0-9-]*\.json$/.test(file))throw Error("Unsupported bundled manifest path");const id=file.slice(0,-5);if(!Object.prototype.hasOwnProperty.call(manifestBytes,id))throw Error("Missing manifest "+id);return manifestBytes[id];}});
+const safePath=Object.freeze({join:(...p)=>p.join("/"),resolve:(...p)=>p.join("/")});
+function load(id){if(modules[id])return modules[id].exports;const factory=moduleFactories[id];if(!factory)throw Error("Unknown factory "+id);const module={exports:{}};modules[id]=module;function request(p){if(p==="node:fs")return safeFS;if(p==="node:path")return safePath;const target=names[p];if(!target)throw Error("Blocked dependency "+p);return load(target)}factory(module,module.exports,request,"/stage3/design-factory/lib");return module.exports;}
+const api=Object.freeze({sdk:load("sdk"),compiler:load("compiler"),preview:load("preview"),themes:load("themes"),kits:load("kits"),compositions:load("compositions"),adapter:load("adapter")});
+Object.defineProperty(root,"DesignFactory",{value:api,writable:false,configurable:false});
 })(globalThis);
