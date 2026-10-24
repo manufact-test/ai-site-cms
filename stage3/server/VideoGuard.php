@@ -5,12 +5,12 @@ use InvalidArgumentException;
 /** Validates a small local ISO-BMFF MP4 upload; no remote resources or user markup. */
 final class VideoGuard
 {
-    public const MAX_BYTES=1500000;
+    public const MAX_BYTES=16777216;
     public static function validate(string $bytes,?string $expectedSha=null): string
     {
         $length=strlen($bytes);
         if($length<100||$length>self::MAX_BYTES)
-            throw new InvalidArgumentException('Video must be MP4, 100 bytes to 1.5 MB');
+            throw new InvalidArgumentException('Video must be MP4, 100 bytes to 16 MB');
         if($expectedSha!==null&&(!preg_match('/^[a-f0-9]{64}$/D',$expectedSha)
             ||!hash_equals(hash('sha256',$bytes),$expectedSha)))
             throw new InvalidArgumentException('Video SHA256 mismatch');

@@ -123,7 +123,7 @@ trait SiteArchives
         foreach ($p['media'] as $m) {
             self::archiveKeys($m, ['id','mime','sha256','base64','createdAt']);
             self::archiveCheck(is_string($m['id']) && preg_match('/^[a-z][a-z0-9-]{2,79}$/D', $m['id']) === 1
-                && !isset($media[$m['id']]) && is_string($m['base64']) && strlen($m['base64']) <= ($m['mime']==='video/mp4'?2050000:600000), 'invalid/duplicate media');
+                && !isset($media[$m['id']]) && is_string($m['base64']) && strlen($m['base64']) <= ($m['mime']==='video/mp4'?22369624:600000), 'invalid/duplicate media');
             $bytes = base64_decode($m['base64'], true);
             self::archiveCheck(is_string($bytes) && $bytes !== '' && strlen($bytes) <= ($m['mime']==='video/mp4'?VideoGuard::MAX_BYTES:450000)
                 && is_string($m['sha256']) && hash_equals(hash('sha256', $bytes), $m['sha256']), 'image checksum mismatch');
