@@ -511,6 +511,18 @@ function prepareReconciliation(candidate,editedSite,hostSdk,hostRegistry){
   });
   if(media(section)!==media(original))
    fail('Unsupported media content changed; review visual parity and rebuild candidate');
+  // Owner alt/crop/source metadata can change without touching the section's
+  // media ID. Its graph snapshot must not keep the old alt/source invisibly.
+  const mediaIds=new Set([
+   ...original.elements.map(el=>el.values?.['content.media']).filter(Boolean),
+   ...(original.items||[]).map(it=>it.values?.['content.media']).filter(Boolean)
+  ]);
+  for(const id of mediaIds){
+   const oldAsset=baseline.assets.find(asset=>asset.id===id);
+   const currentAsset=site.assets.find(asset=>asset.id===id);
+   if(JSON.stringify(oldAsset)!==JSON.stringify(currentAsset))
+    fail('Media asset metadata changed; review and rebuild candidate');
+  }
   // Gallery captions become normal bound text AFTER an owner-authorized
   // structural rebuild created real photo/caption nodes. Initial empty-media
   // placeholder graphs have no such binding and cannot imply displayed text.
