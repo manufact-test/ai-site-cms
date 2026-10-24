@@ -61,3 +61,9 @@ The newer lead SDK also supports additional optional site menus, responsive medi
 6. Ask owner to approve final content/media/legal copy. No fabricated reviews, prices, brands, customer statistics or licenses.
 
 **Global gates unchanged:** Stage2 NO-GO, Stage3 not accepted, 0/135. No automatic merge or deployment.
+
+## 24 October: expanded host-editable styles
+
+The optional adapter now encodes D3 layout differences as real typed CMS fields: bento/mosaic spans with mobile resets, editorial order, grid density, card shadow/border/radius, host font family and tracking, gradients, decorative SVG icons and reduced-motion-aware fade-up. A CTA has a 48px minimum tap height. Content/media still require explicit owner verification. All 504 composition/theme combinations were distinct and accepted by the current lead SDK and first-party JS renderer in isolated V8 (not Node/Chromium/PHP acceptance). Direct changes to heading, accent token, mobile grid and hover opacity validated and changed HTML/CSS without AI regeneration.
+
+The optional test now supports a real PHP host parity gate in addition to DF_LEAD_SDK_DIR: set DF_LEAD_PHP_FILE to lead stage3/server/DesignGraph.php and optionally DF_LEAD_PHP_BIN to PHP CLI. It validates four patterns with PHP and checks escaped markup against the JS renderer. That test has NOT run on the full checkout here. CSS screenshot/pixel parity and Stage3 approval remain separate.
