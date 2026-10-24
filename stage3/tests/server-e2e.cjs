@@ -844,6 +844,7 @@ async function stop(){
   // native browser source, byte ranges, static export, archive and restoration.
   const videoBytes=Buffer.from(fs.readFileSync(path.join(root,'stage3/tests/fixtures/tiny-h264.mp4.b64'),'utf8').trim(),'base64');
   const videoHash=require('node:crypto').createHash('sha256').update(videoBytes).digest('hex');
+  assert.equal(videoHash,'3febfe3799904e7bc177abc47f95b5abad5e54bf5d039603b9fcbfd9538bbfcf','Real encoded MP4 fixture must be unchanged');
   const draftBeforeVideo=await request('GET',designEndpoint);
   assert.equal((await request('POST',designEndpoint+'/video',{base64:'bm90IGEgdmlkZW8=',alt:'Ошибка',
     sha256:videoHash,expectedRevision:draftBeforeVideo.body.revision})).status,422,
