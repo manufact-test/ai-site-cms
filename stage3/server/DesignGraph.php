@@ -223,7 +223,7 @@ final class DesignGraph
             'padding'=>'padding','paddingX'=>'padding-inline','paddingY'=>'padding-block',
             'marginTop'=>'margin-top','marginBottom'=>'margin-bottom',
             'radius'=>'border-radius','fontSize'=>'font-size','minHeight'=>'min-height',
-            'top'=>'top','left'=>'left','borderColor'=>'border-color'];
+            'top'=>'top','left'=>'left'];
         foreach($styles as $key=>$value){
             if($key==='gradient'){
                 $put('background-image','linear-gradient('.$value['angle'].'deg,'.
@@ -268,6 +268,7 @@ final class DesignGraph
             if($key==='widthPercent'){$put('width',$value.'%');continue;}
             if($key==='letterSpacing'){$put('letter-spacing',number_format($value/10,1,'.','').'px');continue;}
             if($key==='background')$put('background-color',$value);
+            if($key==='borderColor')$put('border-color',$value);
             if($key==='lineHeight')$put('line-height',number_format($value/100,2,'.',''));
             if($key==='opacity')$put('opacity',number_format($value/100,2,'.',''));
             if($key==='borderWidth'){$put('border-style','solid');$put('border-width',$value.'px');}

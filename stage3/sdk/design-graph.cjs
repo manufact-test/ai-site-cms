@@ -175,7 +175,7 @@ function declarations(style,t){
   const pixel={gap:'gap',rowGap:'row-gap',columnGap:'column-gap',padding:'padding',
     paddingX:'padding-inline',paddingY:'padding-block',marginTop:'margin-top',
     marginBottom:'margin-bottom',radius:'border-radius',fontSize:'font-size',
-    minHeight:'min-height',top:'top',left:'left',borderColor:'border-color'};
+    minHeight:'min-height',top:'top',left:'left'};
   for(const [k,v] of Object.entries(style)){
     if(k==='gradient'){
       put('background-image','linear-gradient('+v.angle+'deg,'+resolve(v.from,'colors',t,k)+','+
@@ -208,6 +208,7 @@ function declarations(style,t){
     if(k==='widthPercent'){put('width',value+'%');continue;}
     if(k==='letterSpacing'){put('letter-spacing',(value/10).toFixed(1)+'px');continue;}
     if(k==='background')put('background-color',value);
+    if(k==='borderColor')put('border-color',value);
     if(k==='lineHeight')put('line-height',(value/100).toFixed(2));
     if(k==='opacity')put('opacity',(value/100).toFixed(2));
     if(k==='borderWidth'){put('border-style','solid');put('border-width',value+'px');}
