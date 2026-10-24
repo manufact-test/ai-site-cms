@@ -75,7 +75,7 @@ final class Api
             || preg_match('~^media/[a-z][a-z0-9-]{2,79}$~D', $action))) return;
         $edit = in_array($principal['role'], ['editor','publisher'], true);
         if ($edit && $method === 'GET' && in_array($action, ['notifications','submissions'], true)) return;
-        if ($edit && $method === 'POST' && (in_array($action, ['save','restore','restore-release','media','templates','notifications/seen'], true)
+        if ($edit && $method === 'POST' && (in_array($action, ['save','restore','restore-release','media','video','templates','notifications/seen'], true)
             || preg_match('~^templates/template-[0-9a-f]{18}/delete$~D', $action)
             || preg_match('~^submissions/lead-[0-9a-f]{24}/review$~D', $action))) return;
         if ($principal['role'] === 'publisher' && $method === 'POST' && $action === 'publish') return;
@@ -173,11 +173,12 @@ final class Api
             echo $data;
             exit;
         }
-        if ($method === 'GET' && preg_match('~^/published/([a-z][a-z0-9-]{2,79})/assets/([a-z][a-z0-9-]{2,79})\.(png|jpg|webp)$~D', $path, $assetMatch)) {
+        if ($method === 'GET' && preg_match('~^/published/([a-z][a-z0-9-]{2,79})/assets/([a-z][a-z0-9-]{2,79})\.(png|jpg|webp|mp4)$~D', $path, $assetMatch)) {
             try {
                 $image = $this->sites->publishedImage($assetMatch[1], $assetMatch[2], $assetMatch[3]);
                 $etag='"'.$image['sha256'].'"';
                 header('Content-Type: ' . $image['mime']);
+                header('X-Content-Type-Options: nosniff');
                 header('ETag: ' . $etag);
                 // Media IDs point to immutable bytes across draft revisions and releases.
                 header('Cache-Control: public, max-age=31536000, immutable');
@@ -185,6 +186,30 @@ final class Api
                 header("Content-Security-Policy: default-src 'none'; sandbox");
                 if (trim($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) {
                     http_response_code(304);exit;
+                }
+                if($image['mime']==='video/mp4'){
+                    $size=strlen($image['bytes']);
+                    header('Accept-Ranges: bytes');
+                    $range=trim($_SERVER['HTTP_RANGE']??'');
+                    if($range!==''){
+                        if(!preg_match('/^bytes=(\d*)-(\d*)$/D',$range,$m)
+                            ||($m[1]===''&&$m[2]==='')){
+                            header('Content-Range: bytes */'.$size);http_response_code(416);exit;
+                        }
+                        if($m[1]===''){
+                            $count=(int)$m[2];$start=max(0,$size-$count);$end=$size-1;
+                        }else{
+                            $start=(int)$m[1];$end=$m[2]===''?$size-1:min((int)$m[2],$size-1);
+                        }
+                        if($start>=$size||$end<$start){
+                            header('Content-Range: bytes */'.$size);http_response_code(416);exit;
+                        }
+                        $piece=substr($image['bytes'],$start,$end-$start+1);
+                        http_response_code(206);
+                        header('Content-Range: bytes '.$start.'-'.$end.'/'.$size);
+                        header('Content-Length: '.strlen($piece));echo $piece;exit;
+                    }
+                    header('Content-Length: '.$size);
                 }
                 echo $image['bytes'];
                 exit;
@@ -309,8 +334,8 @@ final class Api
                 $this->csrf();
                 $body = $this->request(in_array($path, ['/api/backups/plan','/api/backups/restore'], true)
                     ? SiteRepository::ARCHIVE_LIMIT
-                    : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/media$~D', $path) ? 2600000 : 750000));
-                if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|templates(?:/.*)?)$~D',$path)) {
+                    : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/media$~D', $path) ? 2600000 : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/video$~D',$path)?2100000:750000)));
+                if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|video|templates(?:/.*)?)$~D',$path)) {
                     $this->sites->assertLicenseWritable($siteScope);
                 }
                 if ($path === '/api/logout') {
@@ -442,7 +467,7 @@ final class Api
                     $this->response(200, ['status' => 'reviewed']);
                 }
             }
-            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/(revisions|restore|save|publish|media))?$~D', $path, $matches)) {
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/(revisions|restore|save|publish|media|video))?$~D', $path, $matches)) {
                 $id = $matches[1];
                 $action = $matches[2] ?? '';
                 if ($method === 'GET' && $action === '') {
@@ -452,6 +477,14 @@ final class Api
                     $this->response(200, ['revisions' => $this->sites->history($id)]);
                 }
                 if ($method === 'POST') {
+                    if($action==='video'){
+                        $base64=$body['base64']??null;$label=$body['alt']??null;$sha=$body['sha256']??null;
+                        if(!is_string($base64)||!is_string($label)||
+                            ($sha!==null&&!is_string($sha)))
+                            throw new InvalidArgumentException('MP4 bytes, description and SHA256 required');
+                        $this->response(201,$this->sites->uploadVideo($id,$base64,$label,
+                            self::revision($body['expectedRevision']??null),$sha));
+                    }
                     if ($action === 'media') {
                         $base64 = $body['base64'] ?? null;
                         $alt = $body['alt'] ?? null;

@@ -283,7 +283,7 @@ final class SiteRepository
             if ($stored !== $asset['mime']) {
                 throw new \InvalidArgumentException('Media must be uploaded to this site before referencing it');
             }
-            $ext = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'][$stored] ?? null;
+            $ext = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp','video/mp4'=>'mp4'][$stored] ?? null;
             if ($ext === null || $asset['src'] !== '/assets/' . $asset['id'] . '.' . $ext) {
                 throw new \InvalidArgumentException('Media path does not match stored image');
             }
@@ -297,6 +297,41 @@ final class SiteRepository
                 }
             }
         }
+    }
+
+    /** Stores bounded, validated MP4 bytes inside the existing site media store. */
+    public function uploadVideo(string $siteId,string $base64,string $label,int $expectedRevision,?string $sha=null): array
+    {
+        if($base64===''||strlen($base64)>2050000||
+            preg_match('~^[A-Za-z0-9+/]+={0,2}$~D',$base64)!==1)
+            throw new \InvalidArgumentException('Invalid or oversized video encoding');
+        $bytes=base64_decode($base64,true);
+        if(!is_string($bytes))throw new \InvalidArgumentException('Video decoding failed');
+        $digest=VideoGuard::validate($bytes,$sha);
+        if(strlen($label)<1||strlen($label)>200||preg_match('/[\x00-\x1f]/',$label)===1)
+            throw new \InvalidArgumentException('Video requires a safe accessible description');
+        return $this->atomic(function ()use($siteId,$bytes,$label,$expectedRevision,$digest):array {
+            $draft=$this->getDraft($siteId);
+            if($draft['revision']!==$expectedRevision)throw new Conflict('Stale video upload revision');
+            $site=$draft['site'];
+            if(count($site['assets'])>=300)throw new \InvalidArgumentException('Media collection full');
+            $assetId='asset-'.bin2hex(random_bytes(10));
+            $asset=['id'=>$assetId,'src'=>'/assets/'.$assetId.'.mp4',
+                'mime'=>'video/mp4','alt'=>$label];
+            $site['assets'][]=$asset;
+            $this->validator->validate($site);
+            $now=$this->now();
+            $sql=$this->db->prepare('INSERT INTO stage3_media (site_id,asset_id,mime,sha256,bytes,created_at) VALUES (?,?,?,?,?,?)');
+            foreach([$siteId,$assetId,'video/mp4',$digest] as $i=>$v)$sql->bindValue($i+1,$v);
+            $sql->bindValue(5,$bytes,PDO::PARAM_LOB);$sql->bindValue(6,$now);$sql->execute();
+            $revision=$expectedRevision+1;
+            $body=self::encode($site);
+            $update=$this->db->prepare('UPDATE stage3_drafts SET revision=?,body=?,updated_at=? WHERE site_id=? AND revision=?');
+            $update->execute([$revision,$body,$now,$siteId,$expectedRevision]);
+            if($update->rowCount()!==1)throw new Conflict('Concurrent video upload');
+            $this->saveRevision($siteId,$revision,$body,$now);
+            return ['site'=>$site,'revision'=>$revision,'asset'=>$asset,'sha256'=>$digest];
+        });
     }
 
     public function uploadImage(string $siteId, string $base64, string $alt, int $expectedRevision, array $variants = [], ?string $expectedSha = null): array
