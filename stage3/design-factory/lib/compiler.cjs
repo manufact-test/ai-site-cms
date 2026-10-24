@@ -13,38 +13,7 @@ const COMPONENTS = Object.freeze([
   'cta-banner','contact-panel','photo-gallery'
 ]);
 const THEMES = require('../catalog/themes.cjs');
-const KITS = Object.freeze({
-  agency: {
-    label: {ru:'Креативная студия',en:'Creative studio'},
-    archetype: 'editorial',
-    sequences: {
-      home:['company-hero','feature-highlights','service-grid','cta-banner'],
-      services:['company-hero','service-grid','media-story','cta-banner'],
-      approach:['company-hero','feature-highlights','faq-accordion','cta-banner'],
-      contact:['company-hero','contact-panel','faq-accordion']
-    }
-  },
-  industrial: {
-    label: {ru:'Производство / B2B',en:'Manufacturing / B2B'},
-    archetype: 'technical',
-    sequences: {
-      home:['company-hero','media-story','feature-highlights','cta-banner'],
-      services:['company-hero','service-grid','feature-highlights','cta-banner'],
-      approach:['company-hero','media-story','faq-accordion'],
-      contact:['company-hero','contact-panel','faq-accordion']
-    }
-  },
-  consulting: {
-    label: {ru:'Профессиональные услуги',en:'Professional services'},
-    archetype: 'minimal',
-    sequences: {
-      home:['company-hero','feature-highlights','cta-banner'],
-      services:['company-hero','service-grid','faq-accordion','cta-banner'],
-      approach:['company-hero','media-story','feature-highlights','cta-banner'],
-      contact:['company-hero','contact-panel','faq-accordion']
-    }
-  }
-});
+const KITS = require('../catalog/kits.cjs');
 const COPY = Object.freeze({
   ru: {
     pages: {home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'},
@@ -178,33 +147,34 @@ function setItems(section, items){
 }
 function makeSection(component,id,page,project,reg){
   const theme=THEMES[project.theme], c=COPY[project.language], f=project.facts;
+  const sector=KITS[project.kit].copy[project.language]||{};
   const def=reg.get(component);
   if(!def)fail('Missing component '+component);
   const section=sdk.sectionFrom(def,id);
   section.appearance={...theme.appearance};
   if(component==='company-hero'){
-    const title=page==='home'?(f.headline||f.title||c.hero):c.pages[page];
-    const summary=page==='home'?(f.description||c.summary):(page==='contact'?(f.contactText||c.summary):c.seo);
+    const title=page==='home'?(f.headline||f.title||sector.hero||c.hero):c.pages[page];
+    const summary=page==='home'?(f.description||sector.description||c.summary):(page==='contact'?(f.contactText||c.summary):(page==='services'?(sector.description||c.seo):(sector.storyCopy||c.seo)));
     apply(section,'heading',{'content.text':title,'style.fontSize':theme.headline,'style.color':theme.cms.text});
     apply(section,'summary',{'content.text':summary});
     apply(section,'action',{'content.text':f.ctaLabel||c.action,'behavior.href':'/contact/'});
   } else if(component==='feature-highlights'){
-    apply(section,'heading',{'content.text':c.features});
-    apply(section,'first',{'content.text':c.featureOne,'style.color':theme.cms.text});
-    apply(section,'second',{'content.text':c.featureTwo});
+    apply(section,'heading',{'content.text':sector.hero||c.features});
+    apply(section,'first',{'content.text':sector.featureOne||c.featureOne,'style.color':theme.cms.text});
+    apply(section,'second',{'content.text':sector.storyCopy||c.featureTwo});
   } else if(component==='service-grid'){
     apply(section,'heading',{'content.text':c.services});
     const rows=(f.services&&f.services.length?f.services.slice(0,12):[
-      {title:c.serviceOne,description:c.serviceDescription},
-      {title:c.serviceTwo,description:c.serviceDescription}
+      {title:sector.serviceOne||c.serviceOne,description:c.serviceDescription},
+      {title:sector.serviceTwo||c.serviceTwo,description:c.serviceDescription}
     ]);
     // The registered service-grid repeater requires at least 2 items.
     // Do not invent a second service: clearly label its owner-review placeholder.
-    if(rows.length===1)rows.push({title:c.serviceTwo,description:c.serviceDescription});
+    if(rows.length===1)rows.push({title:sector.serviceTwo||c.serviceTwo,description:c.serviceDescription});
     setItems(section,rows.map(x=>({'content.title':x.title,'content.text':x.description,'behavior.href':'/contact/'})));
   } else if(component==='media-story'){
-    apply(section,'heading',{'content.text':c.story});
-    apply(section,'copy',{'content.text':c.storyCopy});
+    apply(section,'heading',{'content.text':sector.hero||c.story});
+    apply(section,'copy',{'content.text':sector.storyCopy||c.storyCopy});
     apply(section,'action',{'content.text':c.action,'behavior.href':'/contact/'});
   } else if(component==='faq-accordion'){
     apply(section,'heading',{'content.text':c.faq});
