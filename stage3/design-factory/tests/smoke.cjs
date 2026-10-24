@@ -46,6 +46,29 @@ try{
   assert.match(serviceSection.items[1].values['content.title'],/Пример \(подтвердить\):/);
   assert.ok(compiled.checklist.missing.includes('facts.services'));
   assert.equal(compiled.checklist.readyForPublish,false);
+  // Studio's default service rows are draft prompts, never verified owner facts.
+  const completeBase={
+    title:'Demo owner',headline:'Real owner headline',description:'Verified owner description',
+    contactText:'Contact the owner for confirmed contact details'
+  };
+  for(const services of [
+    [{title:'Уточните название',description:'Добавьте подтверждённое описание.'},
+     {title:'Уточните название',description:'Добавьте подтверждённое описание.'}],
+    [{title:'Actual service',description:'Confirmed service description'},
+     {title:'Example (verify): draft',description:'Confirmed service description'}],
+    [{title:'Actual service',description:'Confirmed service description'},
+     {title:'Second service',description:''}]
+  ]){
+    const draft=compile(project('agency','editorial','en',{...completeBase,services}),registry);
+    assert.ok(draft.checklist.missing.includes('facts.services'));
+    assert.equal(draft.checklist.readyForPublish,false);
+  }
+  const realTwo=compile(project('agency','editorial','en',{...completeBase,services:[
+    {title:'Service one',description:'Owner confirmed service one'},
+    {title:'Service two',description:'Owner confirmed service two'}
+  ]}),registry);
+  assert.ok(!realTwo.checklist.missing.includes('facts.services'));
+  assert.equal(realTwo.checklist.requiresOwnerReview,true);
   assert.deepEqual(migrate(project('agency','editorial','en')),project('agency','editorial','en'));
   assert.deepEqual(migrate({...project('agency','editorial','en'),version:0}).version,1);
   assert.notDeepEqual(
