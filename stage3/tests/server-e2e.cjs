@@ -788,7 +788,7 @@ async function stop(){
     transformOrigin:'top-left'});
   Object.assign(designGraph.nodes[0].styles,{
     isolation:'isolate',clipShape:'diagonal',backdropBlur:4,
-    borderTopLeftRadius:'@soft'};
+    borderTopLeftRadius:'@soft'});
   designGraph.nodes[0].children[0].motion={effect:'fade-up',duration:600,delay:150};
   designGraph.nodes[0].children[0].text='Архитектурная композиция & сетка';
   designGraph.nodes[0].children[0].states={hover:{color:'@accent'},focus:{opacity:80,outlineColor:'@accent',outlineWidth:2}};
