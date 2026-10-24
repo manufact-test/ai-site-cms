@@ -236,11 +236,52 @@ function buildHostCandidate(exportBundle,hostSdk,hostRegistry){
  const site=JSON.parse(JSON.stringify(original.site));
  const section=site.pages[0].sections.find(s=>s.id==='df-selected-composition');
  if(!section)fail('No selected registered semantic section');
+ // D3's stable semantic fallback intentionally has generic sample copy.
+ // On this optional lead branch ONLY, preserve validated owner-entered facts
+ // when they exist; never regenerate the original immutable D6 package.
+ const facts=workspace.project.facts;
+ if(c.category==='services'&&section.component==='service-grid'&&
+    Array.isArray(facts.services)&&facts.services.length){
+  const prototype=section.items[0]?.values;
+  if(!prototype)fail('Missing declared service-grid repeater');
+  const rows=facts.services.slice(0,12).map((service,i)=>({
+   id:section.id+'-item-'+(i+1),
+   values:{...prototype,'content.title':service.title,
+    'content.text':service.description,'behavior.href':'/contact/'}
+  }));
+  // CMS min repeater length is 2; retain a plainly marked draft row if
+  // only one real owner item was provided, not a fabricated service claim.
+  if(rows.length<2)rows.push({...section.items[1],
+   id:section.id+'-item-2'});
+  section.items=rows;
+ }
+ if(c.category==='hero'&&section.component==='company-hero'){
+  const set=(slot,key,value)=>{
+   if(!value?.trim())return;
+   const field=section.elements.find(el=>el.slot===slot);
+   if(field&&own(field.values,key))field.values[key]=value;
+  };
+  set('heading','content.text',facts.headline||facts.title);
+  set('summary','content.text',facts.description);
+  set('action','content.text',facts.ctaLabel);
+ }
  site.designTokens=tokens(theme,c);
  section.designGraph=graphFor(section,c,theme,workspace.project.language);
  const contentBindings=contentFor(section,c,workspace.project.language,
   section.id+'-dg',{},theme.cms.font==='georgia'?'georgia':
     theme.cms.font==='arial'?'arial':'system').bindings;
+ const p=section.id+'-dg',bound=(slot,field,nodeId,property='text')=>{
+  const el=section.elements.find(x=>x.slot===slot);
+  if(el&&own(el.values,field))contentBindings.push({
+   nodeId:p+nodeId,source:{slot,field},property});
+ };
+ bound('heading','content.text','-heading');
+ if(section.elements.some(e=>e.slot==='summary'))bound('summary','content.text','-text');
+ else if(section.elements.some(e=>e.slot==='copy'))bound('copy','content.text','-text');
+ for(const slot of ['action','primary'])if(section.elements.some(e=>e.slot===slot)){
+  bound(slot,'content.text','-action');
+  bound(slot,'behavior.href','-action','href');break;
+ }
  // Fail closed against older SDKs. No extra keys may enter the original D6 export.
  const checked=hostSdk.validateSite(site,hostRegistry);
  const inspection=hostSdk.inspectSite(checked,hostRegistry);
