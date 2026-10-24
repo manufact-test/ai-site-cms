@@ -92,7 +92,7 @@ for(const spec of textThemes){
     ||![background,surface,text,primary].every(hex)||!['georgia','arial','system'].includes(font)
     ||!Number.isInteger(maxWidth)||maxWidth<680||maxWidth>1600)
     throw Error('Unsafe or duplicate Design Factory theme');
-  if(contrast(background,text)<4.5||contrast(surface,text)<4.5)
+  if(contrast(background,text)<4.5||contrast(surface,text)<4.5||contrast('#FFFFFF',primary)<4.5)
     throw Error('Theme contrast below 4.5:1: '+spec.id);
   const [surf,spacing,align]=spec.appearance;
   if(!['default','paper','tint','dark'].includes(surf)||!['tight','normal','airy'].includes(spacing)||!['left','center'].includes(align))
