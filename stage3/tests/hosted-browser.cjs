@@ -585,6 +585,70 @@ async function execute(){
   assert.equal(publicBytes.subarray(8,12).toString(),'WEBP');
   assert.equal(processedResponse.headers()['etag'],
     '"'+require('node:crypto').createHash('sha256').update(publicBytes).digest('hex')+'"');
+  // A genuine full-sized photo is processed by the hosted Studio, not only
+  // inserted through a raw HTTP test. Confirm three physical rendition files
+  // are selected by desktop/tablet/mobile and published to real visitor HTML.
+  const desktopSource64=await page.evaluate(()=>{
+    const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=800;
+    const g=canvas.getContext('2d');
+    g.fillStyle='#0c3157';g.fillRect(0,0,1200,800);
+    g.fillStyle='#e7b631';g.fillRect(120,140,600,320);
+    g.fillStyle='#1a6bc1';g.fillRect(800,200,260,450);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.locator('#server-media-process-open').click();
+  await page.locator('#cms-media-processor').waitFor({state:'visible'});
+  await page.locator('#cms-media-source').setInputFiles({
+    name:'factory-wide.png',mimeType:'image/png',buffer:Buffer.from(desktopSource64,'base64')
+  });
+  await page.locator('#cms-media-report').getByText(/Исходник: 1200×800/).waitFor();
+  await page.locator('#cms-media-ratio').selectOption('free');
+  await page.locator('#cms-media-rotation').selectOption('0');
+  await page.locator('#cms-media-format').selectOption('image/webp');
+  await page.locator('#cms-media-width').fill('1200');
+  await page.locator('#cms-media-alt').fill('Три настоящих размера цеха');
+  await page.locator('#cms-media-process').click();
+  await page.locator('#cms-media-report').getByText(/Готово: 1200×800.*360px, 720px, 1200px/).waitFor();
+  await page.locator('#cms-media-commit').click();
+  await page.locator('#cms-media-processor').waitFor({state:'hidden'});
+  const wide=await page.evaluate(()=>window.Stage3Editor.getSite().assets.at(-1));
+  assert.deepEqual(wide.variants.map(v=>v.width),[360,720,1200]);
+  const savedPaths=wide.variants.map(v=>v.src);
+  assert.equal(new Set(savedPaths).size,3,'All three physical renditions have unique immutable URLs');
+  // Responsive preview must consume actual authorized blobs, not just CSS resize.
+  const chooseDevice=async bp=>{
+    await page.locator('.device[data-bp="'+bp+'"]').click();
+    const selected=wide.variants.find(v=>v.width===({mobile:360,tablet:720,desktop:1200})[bp]);
+    await page.waitForFunction(assetId=>{
+      const value=window.Stage3Host.previewUrl(assetId);
+      return typeof value==='string'&&value.startsWith('data:image/webp;base64,');
+    },selected.id);
+    return page.evaluate(id=>window.Stage3Host.previewUrl(id),selected.id);
+  };
+  const smallPreview=await chooseDevice('mobile');
+  const mediumPreview=await chooseDevice('tablet');
+  const bigPreview=await chooseDevice('desktop');
+  assert.notEqual(smallPreview,mediumPreview);
+  assert.notEqual(mediumPreview,bigPreview);
+  await page.locator('#save').click();
+  await page.locator('#server-status').getByText(/Без изменений/).waitFor();
+  const beforeResponsivePublish=Number((await page.locator('#server-status').innerText())
+    .match(/Опубликовано: v(\d+)/)[1]);
+  await page.locator('#server-publish').click();
+  await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(beforeResponsivePublish+1)+'\\b')).waitFor();
+  await visitor.reload();
+  const showcase=visitor.locator('img.showcase-photo');
+  const srcset=await showcase.getAttribute('srcset');
+  const sizes=await showcase.getAttribute('sizes');
+  assert.match(srcset,/ 360w,.* 720w,.* 1200w/);
+  assert.match(sizes,/max-width: 900px/);
+  for(const part of wide.variants){
+    const response=await ctx.request.get(origin+'/published/'+siteId+part.src);
+    assert.equal(response.status(),200);
+    const bytes=await response.body();
+    assert.equal(response.headers()['etag'],'"'+part.sha256+'"');
+    assert.equal(require('node:crypto').createHash('sha256').update(bytes).digest('hex'),part.sha256);
+  }
   await staffCtx.close();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
