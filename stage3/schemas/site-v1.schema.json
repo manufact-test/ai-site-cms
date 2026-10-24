@@ -787,6 +787,161 @@
         },
         "hidden": {
           "type": "boolean"
+        },
+        "rowGap": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "columnGap": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "paddingX": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "paddingY": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "minHeight": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 240
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "marginTop": {
+          "type": "integer",
+          "minimum": -160,
+          "maximum": 160
+        },
+        "marginBottom": {
+          "type": "integer",
+          "minimum": -160,
+          "maximum": 160
+        },
+        "widthPercent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "gridColumnSpan": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "flexWrap": {
+          "enum": [
+            "nowrap",
+            "wrap"
+          ]
+        },
+        "flexGrow": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6
+        },
+        "alignSelf": {
+          "enum": [
+            "auto",
+            "start",
+            "center",
+            "end",
+            "stretch"
+          ]
+        },
+        "letterSpacing": {
+          "type": "integer",
+          "minimum": -50,
+          "maximum": 200
+        },
+        "fontFamily": {
+          "enum": [
+            "inherit",
+            "system",
+            "arial",
+            "georgia",
+            "serif",
+            "mono"
+          ]
+        },
+        "objectFit": {
+          "enum": [
+            "cover",
+            "contain",
+            "fill",
+            "none"
+          ]
+        },
+        "aspectRatio": {
+          "enum": [
+            "auto",
+            "square",
+            "portrait",
+            "landscape",
+            "wide"
+          ]
+        },
+        "overflow": {
+          "enum": [
+            "visible",
+            "hidden",
+            "auto"
+          ]
+        },
+        "shadow": {
+          "enum": [
+            "none",
+            "soft",
+            "medium",
+            "strong"
+          ]
+        },
+        "gradient": {
+          "$ref": "#/$defs/designGradient"
         }
       }
     },
@@ -849,6 +1004,9 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 100
+        },
+        "gradient": {
+          "$ref": "#/$defs/designGradient"
         }
       }
     },
@@ -870,7 +1028,8 @@
             "text",
             "button",
             "image",
-            "divider"
+            "divider",
+            "icon"
           ]
         },
         "text": {
@@ -926,6 +1085,49 @@
           "items": {
             "$ref": "#/$defs/designNode"
           }
+        },
+        "icon": {
+          "enum": [
+            "check",
+            "arrow",
+            "star",
+            "sparkles",
+            "shield",
+            "clock",
+            "mail",
+            "play",
+            "menu"
+          ]
+        },
+        "motion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "effect",
+            "duration",
+            "delay"
+          ],
+          "properties": {
+            "effect": {
+              "enum": [
+                "none",
+                "fade-in",
+                "fade-up",
+                "slide-left",
+                "zoom-in"
+              ]
+            },
+            "duration": {
+              "type": "integer",
+              "minimum": 150,
+              "maximum": 2000
+            },
+            "delay": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            }
+          }
         }
       }
     },
@@ -951,6 +1153,44 @@
           "items": {
             "$ref": "#/$defs/designNode"
           }
+        }
+      }
+    },
+    "designGradient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "angle",
+        "from",
+        "to"
+      ],
+      "properties": {
+        "angle": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "from": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/color"
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
+        },
+        "to": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/color"
+            },
+            {
+              "type": "string",
+              "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+            }
+          ]
         }
       }
     }
