@@ -147,14 +147,14 @@ final class DesignGraph
         $count=0;
         $visit=function (mixed $node,int $depth) use (&$visit,&$count,&$ids,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
-                &&in_array($type,['container','heading','text','button','image','divider','icon'],true),
+                &&in_array($type,['container','heading','text','button','image','divider','icon','video'],true),
                 'invalid or duplicate node');
             $ids[$id]=true;
             if (in_array($type,['container','divider'],true)) {
-                foreach (['text','href','assetId','alt','level'] as $field)
+                foreach (['text','href','assetId','alt','level','posterAssetId','loop'] as $field)
                     self::check(!array_key_exists($field,$node),'invalid container/divider content');
             } elseif ($type==='icon') {
                 self::check(is_string($node['icon']??null)
@@ -165,8 +165,21 @@ final class DesignGraph
                         (is_string($node['alt'])&&strlen($node['alt'])<=200
                          &&preg_match('/[\x00-\x1f]/',$node['alt'])!==1)),
                     'invalid icon node');
+            } elseif ($type==='video') {
+                $videoId=$node['assetId']??null;
+                $poster=$node['posterAssetId']??null;
+                self::check(is_string($videoId)&&($assets[$videoId]??null)==='video/mp4'
+                    &&is_string($node['alt']??null)&&strlen($node['alt'])>=1
+                    &&strlen($node['alt'])<=200&&preg_match('/[\x00-\x1f]/',$node['alt'])!==1
+                    &&!isset($node['text'])&&!isset($node['href'])&&!isset($node['level'])&&!isset($node['icon'])
+                    &&(!array_key_exists('loop',$node)||is_bool($node['loop']))
+                    &&(!array_key_exists('posterAssetId',$node)
+                        ||(is_string($poster)
+                           &&in_array($assets[$poster]??null,['image/png','image/jpeg','image/webp'],true))),
+                    'invalid video binding');
             } elseif ($type==='image') {
-                self::check(is_string($node['assetId']??null)&&isset($assets[$node['assetId']])
+                self::check(is_string($node['assetId']??null)&&isset($assets[$node['assetId']])&&$assets[$node['assetId']]!=='video/mp4'
+                    &&!isset($node['posterAssetId'])&&!isset($node['loop'])
                     &&is_string($node['alt']??null)&&strlen($node['alt'])<=200
                     &&preg_match('/[\x00-\x1f]/',$node['alt'])!==1
                     &&!isset($node['text'])&&!isset($node['href'])&&!isset($node['level'])&&!isset($node['icon']),
@@ -313,6 +326,18 @@ final class DesignGraph
                 case 'button':
                     $href=str_starts_with($n['href'],'/')?$mount.$n['href']:$n['href'];
                     return '<a class="'.$cls.'" href="'.self::h($href).'">'.self::h($n['text']).'</a>';
+                case 'video':
+                    $video=$assetMap[$n['assetId']];
+                    $src=self::h($mount.$video['src']);
+                    $posterHtml='';
+                    if(isset($n['posterAssetId'])){
+                        $poster=$assetMap[$n['posterAssetId']];
+                        $posterHtml=' poster="'.self::h($mount.$poster['src']).'"';
+                    }
+                    return '<video class="'.$cls.'" controls playsinline preload="metadata"'.
+                        (!empty($n['loop'])?' loop':'').$posterHtml.' aria-label="'.self::h($n['alt']).'">'.
+                        '<source src="'.$src.'" type="video/mp4">'.
+                        'Ваш браузер не поддерживает видео.</video>';
                 case 'image':
                     $asset=$assetMap[$n['assetId']];
                     $src=self::h($mount.$asset['src']);
@@ -331,7 +356,7 @@ final class DesignGraph
         $html='';foreach ($graph['nodes'] as $n)$html.=$visit($n);
         return '<section class="cmsdg cmsdg-'.$graph['id'].'" id="'.($sectionId??$graph['id']).'"><style>'
             .$scope.'{min-width:0;max-width:none;padding:0;min-height:0}'.$scope.' *{box-sizing:border-box;min-width:0}'
-            .$scope.' img{max-width:100%;height:auto}'
+            .$scope.' img,'.$scope.' video{max-width:100%;height:auto}'
             .$scope.' svg{display:inline-block;vertical-align:middle;flex:none}'
             .'@keyframes cmsdg-fade-in{from{opacity:0}to{opacity:1}}'
             .'@keyframes cmsdg-fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}'

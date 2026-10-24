@@ -149,7 +149,7 @@
         },
         "src": {
           "type": "string",
-          "pattern": "^/assets/[a-zA-Z0-9/_-]+\\.(png|webp|jpg|jpeg|svg)$"
+          "pattern": "^/assets/[a-zA-Z0-9/_-]+\\.(png|webp|jpg|jpeg|svg|mp4)$"
         },
         "alt": {
           "type": "string",
@@ -160,7 +160,8 @@
             "image/png",
             "image/webp",
             "image/jpeg",
-            "image/svg+xml"
+            "image/svg+xml",
+            "video/mp4"
           ]
         },
         "variants": {
