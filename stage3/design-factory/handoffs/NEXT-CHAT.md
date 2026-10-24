@@ -55,3 +55,18 @@ Use the owner’s accelerated development mode: take a **large coherent slice**,
 After each meaningful large pass, include **actual functional progress**, explicit verified PASS/SKIP/FAIL, accurate git SHA, remaining defects/gates, and note that 0/135 formal CMS acceptance is unchanged. The 6/7 D1–D6 implementation count is **not** an 86% accepted product readiness measure. No new scope outside Design Factory without the owner's permission.
 
 If real Chromium cannot be run, still complete the viable Node/package/doc tasks, report the blocking evidence, and leave D7 visually pending. Do not spin endlessly on Chromium environment setup.
+
+## Follow-on D7 audit checkpoint (24 October 2026)
+
+Starting HEAD was `0c55674c9024beb29ff919bf9404be997361a1e3`; code checkpoint **before docs** was `96f55a997e69a5fe1058c825d81526089845eb95`. Always fetch actual HEAD, especially after this documentation update.
+
+Source improvements now on the same isolated branch:
+
+1. Release audit does not confuse green automation with owner visual acceptance: `automatedChecksPassed` is distinct from permanently pending `releaseReady:false` until human review.
+2. Visual screenshots include PNG intrinsic viewport dimension checks, EN SaaS, and three internal-page mobile screenshots (54 full / 30 quick).
+3. Browser Studio removes stale valid iframe when a compile fails; remove-service button hit target is 44px.
+4. GitHub compare shows four source paths all under `stage3/design-factory/`.
+
+**Neither checked-out Node execution nor Chromium acceptance is confirmed**. Local Node v22 exists but the runtime cannot resolve `github.com` to download this checkout; installed Chromium also hangs on a minimal data URL and exits on a 15-second timeout. V8 static syntax inspection and GitHub diff validation only. No new ZIP file, screenshot evidence directory, source audit JSON, or verified archive hashes exist. No claims of successful runs. Formal status unchanged: Stage2 NO-GO, Stage3 not accepted, 0/135.
+
+**Resume with an accessible checkout and working browser:** run D7 commands listed above; verify all actual PNG dimensions and inspect all layouts and the English inner pages, repair only substantive failures, create a real ZIP and record sha256, then issue a final handoff to the lead developer. Remain in this feature branch, and do not merge.
