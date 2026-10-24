@@ -119,7 +119,7 @@ function cleanFacts(input){
   keys(input,['siteId','title','headline','description','services','ctaLabel','contactText'],'facts');
   const f={};
   for(const k of ['siteId','title','headline','description','ctaLabel','contactText']){
-    if(has(input,k)){value(input[k],k==='description'||k==='contactText'?400:k==='siteId'?80:120,k);f[k]=input[k];}
+    if(has(input,k)){value(input[k],k==='description'||k==='contactText'?400:k==='siteId'?80:k==='ctaLabel'?100:120,k);f[k]=input[k];}
   }
   if(has(f,'siteId')&&!safeId(f.siteId)) fail('Invalid facts.siteId');
   if(has(input,'services')){
