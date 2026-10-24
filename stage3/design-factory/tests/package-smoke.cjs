@@ -23,12 +23,17 @@ try{
  assert.equal(a.readUInt32LE(ending),0x06054B50);
  const count=a.readUInt16LE(ending+10);
  assert.ok(count>=20);
+ assert.equal(a.readUInt16LE(ending+8),count,'Central file count must match');
+ assert.equal(a.readUInt16LE(ending+20),0,'No trailing ZIP comment');
+ const centralLength=a.readUInt32LE(ending+12),centralStart=a.readUInt32LE(ending+16);
+ assert.equal(centralStart+centralLength,ending,'Central directory must end at EOCD');
  let cursor=0,files=0;
- const all=new Set();
+ const all=new Set(),entries=new Map();
  while(cursor<ending&&a.readUInt32LE(cursor)===0x04034B50){
   const compression=a.readUInt16LE(cursor+8),crc=a.readUInt32LE(cursor+14),compressed=a.readUInt32LE(cursor+18);
   const original=a.readUInt32LE(cursor+22),n=a.readUInt16LE(cursor+26),extra=a.readUInt16LE(cursor+28);
   const name=a.subarray(cursor+30,cursor+30+n).toString('utf8');
+  entries.set(name,{offset:cursor,crc,compressed,original});
   assert.match(name,/^stage3\/design-factory\/[a-zA-Z0-9/_ .-]+\.(md|cjs|js|json|html|css)$/);
   assert.ok(!name.includes('..')&&!name.includes('//')&&!all.has(name),name);
   all.add(name);
@@ -43,9 +48,30 @@ try{
   cursor+=30+n+extra+compressed;files++;
  }
  assert.equal(files,count);
+ assert.equal(cursor,centralStart,'ZIP local entries must end exactly at central directory');
+ let centralCursor=centralStart,centralCount=0;
+ const seenCentral=new Set();
+ while(centralCursor<ending){
+  assert.equal(a.readUInt32LE(centralCursor),0x02014B50,'Valid central header');
+  const nameLength=a.readUInt16LE(centralCursor+28);
+  const extraLength=a.readUInt16LE(centralCursor+30);
+  const commentLength=a.readUInt16LE(centralCursor+32);
+  const name=a.subarray(centralCursor+46,centralCursor+46+nameLength).toString('utf8');
+  assert.ok(entries.has(name)&&!seenCentral.has(name),'Central entry must be unique and backed by local data: '+name);
+  seenCentral.add(name);
+  const entry=entries.get(name);
+  assert.equal(a.readUInt16LE(centralCursor+10),8,'Central compression');
+  assert.equal(a.readUInt32LE(centralCursor+16),entry.crc,'Central CRC');
+  assert.equal(a.readUInt32LE(centralCursor+20),entry.compressed,'Central compressed size');
+  assert.equal(a.readUInt32LE(centralCursor+24),entry.original,'Central uncompressed size');
+  assert.equal(a.readUInt32LE(centralCursor+42),entry.offset,'Central local header offset');
+  centralCursor+=46+nameLength+extraLength+commentLength;centralCount++;
+ }
+ assert.equal(centralCursor,ending);
+ assert.equal(centralCount,count,'All central directory entries accounted for');
  for(const f of ['studio/index.html','studio/runtime.generated.js','studio/studio.css','studio/studio.js','README.md','PROGRESS.md','INTEGRATION.md'])
   assert.ok(all.has('stage3/design-factory/'+f),f);
  const denied=cp.spawnSync(process.execPath,[build,outputs[0]],{encoding:'utf8'});
  assert.notEqual(denied.status,0,'No overwrite allowed');
- console.log('DESIGN_FACTORY_D7_PACKAGE_SMOKE PASS: '+files+' ZIP members, CRC32, zero path escapes, byte-for-byte reproducible, no overwrite');
+ console.log('DESIGN_FACTORY_D7_PACKAGE_SMOKE PASS: '+files+' ZIP members, CRC32, central directory offsets and sizes, zero path escapes, byte-for-byte reproducible, no overwrite');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}
