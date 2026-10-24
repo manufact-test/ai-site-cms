@@ -340,12 +340,12 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-design-gradient label').filter({hasText:/^Цвет до/}).locator('input').fill('#ffffff');
     page.once('dialog',d=>d.accept('icon'));
     await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Тип +'}).click();
-    await page.locator('#cms-design-graph-dialog label').filter({hasText:/^Векторная иконка$/})
+    await page.locator('#cms-design-graph-dialog label').filter({hasText:/^Векторная иконка/})
       .locator('select').selectOption('shield');
     await page.locator('#cms-design-graph-dialog label').filter({hasText:/^Описание для скринридера/})
       .locator('input').fill('Защитный значок');
     await page.locator('#cms-design-motion summary').click();
-    await page.locator('#cms-design-motion label').filter({hasText:/^Эффект$/})
+    await page.locator('#cms-design-motion label').filter({hasText:/^Эффект/})
       .locator('select').selectOption('fade-up');
     await page.locator('#cms-design-motion label').filter({hasText:/^Длительность/})
       .locator('input').fill('700');
