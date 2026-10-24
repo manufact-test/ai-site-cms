@@ -7,6 +7,7 @@ const sdk=require('../../sdk/contract.cjs');
 const catalog=require('../catalog/compositions.cjs');
 const adapter=require('../lib/composition-adapter.cjs');
 const showcase=require('../lib/showcase.cjs');
+const kitGallery=require('../lib/kit-gallery.cjs');
 function help(){
   process.stdout.write([
     'Design Factory D1 (offline, Node.js >= 20, no dependencies)',
@@ -17,6 +18,7 @@ function help(){
     '  kits',
     '  compositions [CATEGORY]',
     '  showcase NEW-output-directory',
+    '  kit-gallery NEW-output-directory',
     '  compose COMPOSITION_ID --out SITE.json [--brief PROJECT.json] [--report BRIDGE.json]',
     '  help',
     'Input design project format: manufact-design-factory-v1, version 1. Output site: manufact-ai-site-v1.',
@@ -55,6 +57,11 @@ function run(argv){
     if(rest.length>1)throw Error('compositions takes optional category');
     const items=catalog.list(rest[0]);
     process.stdout.write(serialize({format:catalog.FORMAT,count:items.length,items}));
+    return;
+  }
+  if(command==='kit-gallery'){
+    if(rest.length!==1)throw Error('kit-gallery requires one NEW directory');
+    process.stdout.write(serialize(kitGallery.generate(rest[0])));
     return;
   }
   if(command==='showcase'){
