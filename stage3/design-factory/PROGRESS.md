@@ -56,3 +56,24 @@ See `QUALITY-GATES.md` for detailed expectations. All output paths must be NEW (
 5. When D1–D7 acceptance evidence actually passes, prepare the FINAL message to the lead chat. Until then, remain in the independent branch and never merge.
 
 **Work cadence:** large useful blocks, precise factual reporting, no unnecessary laboratory loops, no new code outside `stage3/design-factory/`.
+
+## D7 source audit checkpoint — 24 October 2026 (successor chat)
+
+**Verified branch at start:** `0c55674c9024beb29ff919bf9404be997361a1e3`.
+**Code checkpoint before this documentation:** `96f55a997e69a5fe1058c825d81526089845eb95`.
+Read the current branch HEAD after documentation commits; these values are not promises about a later HEAD.
+
+**Completed source-level fixes, solely in `stage3/design-factory/`:**
+
+- `bin/release-audit.cjs`: distinguishes successful automated Node+Chromium checks (`automatedChecksPassed`) from **unapproved** human visual release acceptance (`humanVisualAcceptance:'pending'`, `releaseReady:false`). An exit code 0 with `--chromium` means automation passed, **not** that the product is ready for production.
+- `bin/visual-qa.cjs`: reads actual PNG IHDR sizes rather than claiming that requested Chrome window sizes were achieved; records and fails viewport mismatches. Captures one English sector site and three additional internal mobile pages alongside the original theme, showroom and sector matrix.
+- `studio/studio.js`: replaces an obsolete previously valid iframe preview with a static error state when current project compilation fails.
+- `studio/studio.css`: improves the service delete button to a 44×44px touch target and keeps the service heading clear.
+
+**Checks actually performed:** source files inspected through the linked GitHub connector; branch HEAD and compare verified; JavaScript syntax checked in an isolated V8 parser for modified `.cjs` and `.js` files. This is **NOT** equivalent to a checked-out Node runtime smoke test. GitHub compare confirmed all four code modifications are within the sole writable subtree.
+
+**Environment blockers established:** Node v22.16.0 and `/usr/bin/chromium` are installed locally, but a `git ls-remote` for this public repository fails with `Could not resolve host: github.com`. A direct minimal Chromium headless `--dump-dom` probe was terminated after a 15-second timeout (exit 124, zero stdout), with DBus connection errors in stderr. No real repository checkout, Node test execution, browser interaction result, screenshot visual review, final ZIP artifact or ZIP SHA256 can be claimed from this session.
+
+**Next D7 gate:** in a network-enabled checkout, run `build-browser-bundle --check`, `release-audit --out ... --chromium` with `DF_CHROMIUM_BIN`, `studio-smoke`, `visual-qa`, inspect screenshot dimensions/content and manually approve, then `package-release` + `package-smoke`. If Chromium cannot produce the requested 390px screenshots, correct the capture mechanism rather than mislabeling larger screenshots. Generate final ZIP SHA256 only after the actual package exists. Final handoff requires human visual and lead integration review.
+
+**Progress:** D1–D6 engineered (6/7 independent deliverables); D7 remains **open**, not accepted. Full CMS acceptance remains **0/135, Stage2 NO-GO, Stage3 unaccepted**. No merge, deployment, or production mutation occurred.
