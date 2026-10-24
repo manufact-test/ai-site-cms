@@ -155,3 +155,17 @@ The expanded optional test checks 504 graph candidates, all 12 owner service car
 ## Final chat checkpoint — 24 October 2026
 
 Last functional block closed a **content-loss risk** in optional host CMS reconciliation. New `inspectSemanticSync()` previews proposed updates, independent graph-only edits, and collisions without mutating source. Updated `reconcileSemantic()` preserves graph-only edits when the CMS value did not change, copies CMS field changes when the graph has not independently diverged, and **rejects simultaneous conflicting edits** instead of silently overwriting the user's custom graph content. Same-site/page, source bindings, node types and SDK validation remain enforced. D6 original remains unchanged. New expanded regression cases passed in isolated V8 with live GitHub lead SDK: 504/504 graphs and 504/504 first-party JS renders plus conflict/preview/no-mutation tests. Actual filesystem Node checkout, PHP parity, Chromium 54 screenshots, human review and ZIP SHA remain **NOT RUN**. D7 OPEN; formal Stage2 NO-GO / Stage3 not accepted / 0/135. The authoritative closeout is `handoffs/SESSION-CLOSEOUT-2026-10-24.md`; copyable new-chat introduction: `handoffs/START-NEXT-CHAT.md`.
+
+## Independent continuation · 24 October 2026 — semantic provenance guard
+
+**Starting HEAD:** `cbba270004524bd1ec31234429dc9c0d362e7dc5`.
+**Implementation commit:** `dd8fa4057b5e83a6a1f6da0bf3ad1409a060b2e0`.
+**Regression commit:** `6e96883d10c6bb2f30450a5e988332a3dd0b19db`.
+**Final HEAD:** read live GitHub (later documentation commits advance it).
+**Writable scope:** only `stage3/design-factory/`, independent branch; no merges.
+
+Closed a real optional-host integrity problem: an apparently valid `contentBindings` entry could point a graph node at a different **existing** semantic item, even though previously missing and duplicate bindings were detected. Now reconciliation uses a deterministic binding inventory derived from the baseline's selected typed section and composition, then rejects redirected, swapped, removed or excess mappings. Preserves graph-only edits, source conflict refusal and owner styles. The stable D6 package did not change.
+
+**Actually executed:** syntax-parsed modified adapter and regression test source via V8; ran four mocked-host reconciliation checks (valid sync, valid reordered mapping, redirected source refusal, missing source refusal), all PASS. Added five negative/positive cases to optional real `lead-design-graph-smoke.cjs` but **not** executed in Node/lead SDK on a complete checkout. Read-only lead HEAD observed at this checkpoint: `d215fac8b91dac1fc300312e4829872242763606` (no compatibility acceptance implied). Local `git ls-remote` failed DNS, Chromium minimal probe timed out. No Node suite PASS, PHP PASS, 54 screenshots, human visual approval, real ZIP or verified package SHA is claimed.
+
+**Progress:** D1–D6 engineered, D7 still OPEN (6/7 directions ≈86% engineering implementation, **not** product acceptance). **Stage2 NO-GO, Stage3 not accepted, 0/135**. Finish the same D7 Node/Chromium/54-screenshot/ZIP gates on a usable checkout; do not divert into architecture/cosmetic loops.
