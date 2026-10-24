@@ -1,12 +1,12 @@
-# Design Factory — D1 compiler and design tokens
+# Design Factory — D1–D7 independent engineering program
 
-Independent implementation for Stage3. This is a functional **D1 delivery**, not the completion of D2–D7 or Stage3 acceptance. Branch: feature/stage3-design-factory. Writable folder only: stage3/design-factory/.
+Independent Stage3 Design Factory. **D1–D6 are implemented; D7 final quality gates are still open**. This does not constitute Stage3 acceptance or production release. Branch: `feature/stage3-design-factory`. Only writable subtree: `stage3/design-factory/`.
 
 ## Working features
 
 The compiler reads real first-party Stage3 manifests, calls the existing Stage3 SDK (contract.cjs), and generates **four-page manufact-ai-site-v1 documents**, with routes, SEO, navigation, typed elements, stable IDs, safe links, appearance, and validated CMS theme. It supports three distinct composition archetypes (agency, industrial, consulting), RU and EN, optional real owner facts, and an empty brief with truthful placeholders. Unknown keys and invalid values are refused.
 
-D1 started with three foundation themes. Work on D2 now includes twelve closed-catalog visual directions, with distinct layout, type, card and geometric tokens. The D2 catalog has passed a 72-combination contract matrix; final three-viewport Chromium visual review remains outstanding.
+D2 contains 12 closed-catalog visual directions with distinct layout, type, card and geometric tokens. The current-source 288-combination CMS validator matrix passed in isolated V8; actual Node checkout and three-viewport Chromium visual acceptance remain open.
 
 The CLI can create, validate and inspect CMS site JSON. It can export a standalone, truly browsable **multi-page visual preview** as HTML/CSS, with responsive grids and reduced-motion support, using no network, CDN or other runtime. It clearly labels the preview, adds noindex, and does **not** claim the existing PHP renderer can reproduce its custom layout.
 
@@ -37,7 +37,7 @@ Open the new preview directory's index.html in a browser. Its Services, Approach
 
 ## Strict project contract
 
-Format: **manufact-design-factory-v1**, version: **1**. Exact top-level keys: format, version, kit, theme, language, facts. Kits are agency/industrial/consulting; themes are editorial, technical, minimal, noir, brutalist, atelier, verdant, oceanic, copper, plum, cobalt and mono; languages are ru/en.
+Format: **manufact-design-factory-v1**, version: **1**. Exact top-level keys: format, version, kit, theme, language, facts. Kits are agency, industrial, consulting, local-services, saas, logistics, architecture, education, portfolio, restaurant, repair and nonprofit; themes are editorial, technical, minimal, noir, brutalist, atelier, verdant, oceanic, copper, plum, cobalt and mono; languages are ru/en.
 
 The facts object accepts ONLY these optional fields:
 - siteId: 3–80 lowercase letters/digits/hyphens (starts with letter)
@@ -71,7 +71,7 @@ CMS service-grid requires at least 2 cards. If the owner lists exactly one servi
 
 The preview escapes all owner text, uses no inserted user HTML/JavaScript, and never runs code supplied by project facts. Its noindex pages are for offline checking only. It is not a release export, is not proof of working forms, and must not be deployed as a production CMS site without separate integration.
 
-D1/D2 smoke: one Node contract/CLI/static preview test at tests/smoke.cjs, including a 72-combination CMS validator matrix and 12 distinct CSS outputs. D5 will add actual Chromium E2E for browse/edit/export. Do not confuse offline construction with stage acceptance.
+D1/D2 smoke: `tests/smoke.cjs` implements Node contract/CLI/static preview coverage for 288 kit × theme × language combinations, with 12 distinct CSS outputs. D5 Chromium E2E now covers browse/edit/undo/redo and browser-download JSON validation; it still must be executed on a functioning browser. Do not confuse authored tests or isolated V8 checks with actual Node/Chromium acceptance.
 
 Formal status remains Stage2 NO-GO #5–#9; Stage3+ unaccepted; **0/135** officially accepted criteria.
 
@@ -106,7 +106,7 @@ D4 source and 12 registered sector kits: catalog/kits.cjs and catalog/KITS.md. S
 - D2: 12 genuinely different theme treatments and contrast guards, actual Chromium visual QA pending.
 - D3: 42-pattern implementation, semantic CMS mapping and offline showcase built; 3-viewport browser QA pending.
 - D4: 12 kits / 64 exportable pages and SHA256 gallery built; 3-viewport browser QA pending.
-- D5–D7: not yet completed — browser Studio/editor, complete integration bridge, final acceptance/packaging.
+- D5/D6: offline Browser Studio and versioned integration bridge implemented, awaiting actual Chromium and lead import review. D7: test tooling and ZIP builder implemented; final checked-out Node execution, visual acceptance and ZIP artifact still pending.
 
 **Honest verification:** evaluated the actual Stage3 SDK/manifests in the isolated JS runtime: 288/288 industry-theme-language site documents are valid and 42/42 D3 compositions map to valid registered CMS fallbacks. Full Node filesystem smoke scripts were authored but have not been executed on a checked-out repository in this environment. Local Chromium launch was attempted and did not complete; no browser PASS is claimed. Do not equate completed modules with production acceptance.
 
@@ -166,3 +166,17 @@ Output paths must not exist in advance: no accidental replacement of owner data.
 The Stage3 service-grid manifest requires two cards. When an owner supplies exactly one real service, the second card is visibly marked as an unverified example, and `ownerChecklist.readyForPublish` stays **false**; the generated content must not silently be considered publish-ready. Tests now assert this owner-safety behavior rather than one arbitrary industry-specific placeholder phrase.
 
 **Do not mark all 7/7 accepted or Stage3 GO** until real Node/Chromium evidence, representative visual inspection, owner content review and the lead integrator's approval are complete. Current Stage2 NO-GO, Stage3 unaccepted, 0/135 formal mandatory criteria remain unchanged.
+
+## Latest D7 engineering checkpoint — 24 October 2026
+
+After checkpoint `4015fd1fbbb31cbc3b74e0141e2c9edb68183807`, the isolated developer branch received:
+
+- Owner-readiness safeguard: Studio's initial service names/descriptions and obvious "Example (verify)" placeholders no longer count toward two completed services. Manually confirmed real services still allow the data-completeness checklist to become ready, while `requiresOwnerReview` remains `true`. A Node regression case and browser-bundle mirror were added.
+- Consistent 44px touch hit targets in Studio navigation/controls/service deletion and exported site navigation, detail accordion headings and inline CTA text links.
+- Expanded browser E2E: four real downloads (CMS site-v1, versioned D6 bundle, editable project and workspace) must parse and agree with the first-party SDK. Existing interactions remain covered.
+- Stronger portable ZIP test: confirms central directory counts, names, CRC, compressed/uncompressed lengths and local offsets in addition to existing deterministic hash/no-overwrite/deflate checks.
+- The offline `studio/runtime.generated.js` was rebuilt from exact first-party source and read-only registered manifests. Source-vs-bundle equality confirmed by rerunning the unchanged deterministic builder in its `--check` mode via an in-memory V8 filesystem harness.
+
+**Actually observed in current-source in-memory V8:** 288/288 site-v1 contract validations and internal link inspections; 288/288 D6 complete round trips; 42/42 registered composition fallbacks; placeholder check refusing misleading completeness; modified D6 package rejected; browser bundle parity PASS. This is not a real filesystem-based Node checkout or a Chromium interaction test.
+
+**Still blocked:** local `git ls-remote` fails to resolve GitHub, Chromium hangs even for a minimal data URL (also when rerun with restricted-process flags), and the branch has no GitHub Actions workflow runs. Consequently checked-out Node suites, responsive screenshots/manual review, final ZIP bytes and verified ZIP SHA256 are **not** claimed. See `PROGRESS.md`, `QUALITY-GATES.md` and `handoffs/NEXT-CHAT.md` for the executable gate plan. Do not deploy, merge or call Stage3 accepted on this evidence.
