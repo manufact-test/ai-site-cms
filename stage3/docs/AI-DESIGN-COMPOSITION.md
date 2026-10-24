@@ -31,9 +31,21 @@ Source files: `stage3/sdk/design-graph.cjs`, `stage3/server/DesignGraph.php`, `s
 4. Test bidirectional edit persistence (save/reopen/Undo/Redo), PHP/Studio/static visual equivalence, published snapshot immutability, media checksums, backups/recovery, user-edit override preservation on regenerated outputs, responsive/hover/focus and accessibility.
 5. No `main` merge, Hostinger/production writes or formal Stage2/Stage3 acceptance without separately authorized gates.
 
+## Expanded Design Graph styling and Media & Motion (2026-10-24)
+
+The original optional `designGraph.version=1` schema is additive: previously saved graph documents remain valid. Supported additional node styles include:
+
+- Layout: separate row/column gap, inline/block padding, percentage width, vertical margins, bounded minimum height, column span, flex wrap/grow/self-alignment, object fit, aspect ratio and overflow.
+- Typography/decoration: bounded letter spacing, safe system font families, shadows, and gradient backgrounds using `{angle, from, to}` with CSS hex or validated `@color-token` references (no arbitrary CSS).
+- Accessible inline vector icon node with a **closed nine-icon library** (`check`, `arrow`, `star`, `sparkles`, `shield`, `clock`, `mail`, `play`, `menu`). Icons can be decorative (`aria-hidden`) or labeled (`role=img`, `aria-label`). Source SVG markup is compiled from reviewed constants, never accepted from external input; icon sizes follow node typography.
+- Bounded `node.motion={effect,duration,delay}` with `none`, `fade-in`, `fade-up`, `slide-left` and `zoom-in`. The output is deterministic CSS keyframes, no external scripts. CSS media query `prefers-reduced-motion: reduce` disables these effects and transitions.
+- Studio inspector allows manual editing of all new primitives, responsive overrides, gradient fields, icon labels, token references and motion presets. PHP and the static exporter share the PHP renderer. Existing sections and published releases remain opt-in/non-destructive.
+
+Security: the JS and PHP validation contracts refuse arbitrary icon IDs, CSS payloads, property names, gradient values, links and animation definitions. Test coverage covers offline schema safety, Chromium inspector Undo/Redo and PHP/SQLite published HTML/static-export/backup preservation. **CI success and exact SHA must be reported separately, not presumed from this document.**
+
 ## Important limitations still open (do not overclaim)
 
-- This is a **first universal foundation**, not a pixel-perfect import path for arbitrary HTML/CSS or all Design Factory compositions. Rich typography, custom fonts, complex intrinsic measurements, advanced positioning/overlays, gradients, transforms, animation timelines, vector icons, video, interactive state machines, accessibility attributes and arbitrary breakpoint systems need versioned, separately validated schema extensions.
+- This is a **first universal foundation**, not a pixel-perfect import path for arbitrary HTML/CSS or all Design Factory compositions. Advanced font loading, intrinsic measurement, complex overlays, multi-stop gradients, arbitrary transforms and animation timelines, user-supplied vector icon systems, video, interactive state machines, richer accessibility properties and arbitrary breakpoint systems still require versioned safe schema extensions.
 - Current node inspector covers the implemented primitive types and properties; more ergonomic WYSIWYG canvas manipulation, breakpoint-specific content, token reference management and component nesting behavior remain to be developed.
 - The shared legacy global page layout and preset styling have constraints; no promise of full viewport-bleed layouts or design fidelity is made before matching Factory output screenshots and element metrics.
 - PHP and JS rendering have a shared contract but pixel equivalence on real Factory output is not yet established. Do not conflate CI-only proof with owner product acceptance.
