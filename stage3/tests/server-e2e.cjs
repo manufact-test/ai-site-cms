@@ -839,6 +839,75 @@ async function stop(){
   assert.deepEqual(designRecovered.body.site.pages[0].sections.find(s=>s.id===designSec.id).designGraph,
     designGraph,'Design Graph survives private backup restore unchanged');
   assert.equal((await request('GET','/published/'+designCopy+'/')).status,404,'Imported design not auto-published');
+
+  // Complete local MP4 workflow: persisted bytes, SHA256, explicit publish,
+  // native browser source, byte ranges, static export, archive and restoration.
+  const videoBytes=Buffer.from(fs.readFileSync(path.join(root,'stage3/tests/fixtures/tiny-h264.mp4.b64'),'utf8').trim(),'base64');
+  const videoHash=require('node:crypto').createHash('sha256').update(videoBytes).digest('hex');
+  const draftBeforeVideo=await request('GET',designEndpoint);
+  assert.equal((await request('POST',designEndpoint+'/video',{base64:'bm90IGEgdmlkZW8=',alt:'Ошибка',
+    sha256:videoHash,expectedRevision:draftBeforeVideo.body.revision})).status,422,
+    'Non-MP4 payload must not enter storage');
+  const uploadedVideo=await request('POST',designEndpoint+'/video',{base64:videoBytes.toString('base64'),
+    alt:'Короткое видео испытания',sha256:videoHash,expectedRevision:draftBeforeVideo.body.revision});
+  assert.equal(uploadedVideo.status,201,JSON.stringify(uploadedVideo.body));
+  assert.equal(uploadedVideo.body.sha256,videoHash);
+  const videoAsset=uploadedVideo.body.asset;
+  assert.equal(videoAsset.mime,'video/mp4');
+  assert.equal(videoAsset.src,'/assets/'+videoAsset.id+'.mp4');
+  const vidPrivate=await request('GET',designEndpoint+'/media/'+videoAsset.id);
+  assert.equal(vidPrivate.status,200);
+  assert.equal(vidPrivate.headers.get('content-type'),'video/mp4');
+  assert.equal(Buffer.from(await (await fetch(origin+designEndpoint+'/media/'+videoAsset.id,{
+    headers:{cookie}})).arrayBuffer()).toString('hex'),videoBytes.toString('hex'));
+  assert.equal((await request('GET','/published/site-rich-ci/assets/'+videoAsset.id+'.mp4')).status,404,
+    'Unpublished video must not be accessible to visitors');
+  const videoDocument=structuredClone(uploadedVideo.body.site);
+  const videoSection=videoDocument.pages[0].sections.find(x=>x.id===designSec.id);
+  videoSection.designGraph.nodes[0].children.push({
+    id:designSec.id+'-film',type:'video',assetId:videoAsset.id,
+    posterAssetId:responsiveAsset.id,alt:'Видеопрезентация производства',
+    loop:false,styles:{widthPercent:100,aspectRatio:'wide'}});
+  const stagedVideo=await request('POST',designEndpoint+'/save',{
+    expectedRevision:uploadedVideo.body.revision,site:videoDocument});
+  assert.equal(stagedVideo.status,200,JSON.stringify(stagedVideo.body));
+  assert.doesNotMatch((await request('GET','/published/site-rich-ci/')).body,/<video class="cmsdg-/);
+  assert.equal((await request('POST',designEndpoint+'/publish',{expectedRevision:stagedVideo.body.revision})).status,200);
+  const publishedVideo=(await request('GET','/published/site-rich-ci/')).body;
+  assert.match(publishedVideo,/<video[^>]* controls playsinline preload="metadata"[^>]*aria-label="Видеопрезентация производства"/);
+  assert.match(publishedVideo,new RegExp('src="/published/site-rich-ci/assets/'+videoAsset.id+'[.]mp4" type="video/mp4"'));
+  const baseVideo='/published/site-rich-ci/assets/'+videoAsset.id+'.mp4';
+  const allVideo=await fetch(origin+baseVideo);
+  assert.equal(allVideo.status,200);
+  assert.equal(allVideo.headers.get('content-type'),'video/mp4');
+  assert.equal(allVideo.headers.get('x-content-type-options'),'nosniff');
+  assert.equal(allVideo.headers.get('etag'),'"'+videoHash+'"');
+  assert.equal(Buffer.from(await allVideo.arrayBuffer()).toString('hex'),videoBytes.toString('hex'));
+  const rangedVideo=await fetch(origin+baseVideo,{headers:{Range:'bytes=0-15'}});
+  assert.equal(rangedVideo.status,206);
+  assert.equal(rangedVideo.headers.get('content-range'),'bytes 0-15/'+videoBytes.length);
+  assert.equal(Buffer.from(await rangedVideo.arrayBuffer()).toString('hex'),videoBytes.subarray(0,16).toString('hex'));
+  const invalidRange=await fetch(origin+baseVideo,{headers:{Range:'bytes=999999-'}});
+  assert.equal(invalidRange.status,416);
+  const videoOut=path.join(dbdir,'static-video-ci');
+  const videoExport=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',videoOut],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(videoExport.status,0,videoExport.stderr);
+  assert.equal(fs.readFileSync(path.join(videoOut,'assets',videoAsset.id+'.mp4')).toString('hex'),
+    videoBytes.toString('hex'));
+  const staticVideoHtml=fs.readFileSync(path.join(videoOut,'index.html'),'utf8');
+  assert.match(staticVideoHtml,new RegExp('src="/assets/'+videoAsset.id+'[.]mp4" type="video/mp4"'));
+  const videoBackup=(await request('GET',designEndpoint+'/backup')).body;
+  const archiveWithVideo=await request('POST','/api/backups/plan',{
+    archive:videoBackup,targetSiteId:'site-video-archive'});
+  assert.equal(archiveWithVideo.status,200,JSON.stringify(archiveWithVideo.body));
+  const restoredVideo=await request('POST','/api/backups/restore',{
+    archive:videoBackup,targetSiteId:'site-video-archive',
+    confirmationToken:archiveWithVideo.body.confirmationToken});
+  assert.equal(restoredVideo.status,201,JSON.stringify(restoredVideo.body));
+  assert.equal(restoredVideo.body.site.assets.find(a=>a.id===videoAsset.id).mime,'video/mp4');
+  assert.equal((await request('GET','/published/site-video-archive/assets/'+videoAsset.id+'.mp4')).status,404);
+
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET',endpoint+'/backup')).status,401,'Archives remain private');
