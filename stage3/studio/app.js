@@ -450,8 +450,209 @@
     };
     return open;
   }
+  // A node-level, no-AI composition inspector. Graph edits join normal CMS
+  // Undo/Redo, private drafts and explicit publish. No arbitrary HTML or CSS.
+  function initDesignGraphEditor(){
+    const dlg=document.createElement('dialog');dlg.id='cms-design-graph-dialog';
+    dlg.className='cms-appearance-dialog cms-design-graph-dialog';
+    const title=document.createElement('h2');title.textContent='Дизайн-композиция';
+    const info=document.createElement('p');
+    info.textContent='Контейнеры, Flex/Grid, текст, кнопки, изображения, токены, адаптивные настройки и состояния. Сохранение и публикация отдельно.';
+    const toolbar=document.createElement('div');toolbar.className='cms-appearance-actions';
+    const root=document.createElement('div');root.className='cms-design-graph-editor';
+    const footer=document.createElement('div');footer.className='cms-appearance-actions';
+    dlg.append(title,info,toolbar,root,footer);
+    document.body.append(dlg);
+    let graph,tokens,selection,mode='desktop',sourcePage,sourceSection;
+    const make=(tag,text,cls)=>{
+      const n=document.createElement(tag);
+      if(text!==undefined)n.textContent=text;
+      if(cls)n.className=cls;
+      return n;
+    };
+    const ctl=(label,value,change,type='text')=>{
+      const wrap=make('label',label),input=make(type==='select'?'select':type==='multiline'?'textarea':'input',undefined,'control');
+      if(type==='select')for(const [v,t] of value.choices){
+        const option=make('option',t);option.value=v;input.append(option);
+      }else if(type!=='multiline')input.type=type==='number'?'number':'text';
+      input.value=type==='select'?value.initial:String(value??'');
+      input.addEventListener('input',()=>change(input.value));
+      wrap.append(input);return wrap;
+    };
+    const all=()=>{
+      const list=[];
+      const walk=(node,items,depth)=>{
+        list.push({node,items,depth});
+        for(const c of node.children||[])walk(c,node.children,depth+1);
+      };
+      graph.nodes.forEach(n=>walk(n,graph.nodes,0));
+      return list;
+    };
+    function editStyle(n){
+      return mode==='desktop'?(n.styles||(n.styles={})):
+        mode==='tablet'||mode==='mobile'?
+          ((n.responsive||(n.responsive={}))[mode]||((n.responsive)[mode]={})):
+          ((n.states||(n.states={}))[mode]||((n.states)[mode]={}));
+    }
+    function render(){
+      root.replaceChildren();toolbar.replaceChildren();
+      const rows=all();
+      if(!rows.length)return;
+      if(!rows.some(r=>r.node.id===selection))selection=rows[0].node.id;
+      const selected=rows.find(r=>r.node.id===selection),n=selected.node;
+      const chooser=make('select',undefined,'control');chooser.id='cms-design-node-select';
+      for(const {node,depth} of rows){
+        const opt=make('option','  '.repeat(depth)+node.type+' · '+(node.text||node.alt||node.id).slice(0,55));
+        opt.value=node.id;chooser.append(opt);
+      }
+      chooser.value=selection;
+      chooser.addEventListener('change',()=>{selection=chooser.value;render();});
+      toolbar.append(chooser);
+      const action=(name,fn)=>{
+        const b=button(name,'btn small',fn);toolbar.append(b);return b;
+      };
+      action('+ Вложенный',()=>{
+        if(n.type!=='container')return notice('Для вложенности выберите контейнер',true);
+        const node={id:uniqueId('dg-node'),type:'text',text:'Новый текст',styles:{}};
+        n.children.push(node);selection=node.id;render();
+      });
+      action('+ Рядом',()=>{
+        const node={id:uniqueId('dg-node'),type:'container',styles:{display:'grid',columns:2,gap:'@medium'},
+          responsive:{mobile:{columns:1}},children:[]};
+        selected.items.splice(selected.items.indexOf(n)+1,0,node);selection=node.id;render();
+      });
+      action('Тип +',()=>{
+        const type=prompt('Элемент: container / heading / text / button / image / divider','heading');
+        if(type===null)return;
+        if(!DESIGN_GRAPH.TYPES.includes(type))return notice('Неизвестный тип',true);
+        const node={id:uniqueId('dg-node'),type,styles:{}};
+        if(type==='container')node.children=[];
+        if(['heading','text','button'].includes(type))node.text='Новый элемент';
+        if(type==='heading')node.level=2;
+        if(type==='button')node.href='/';
+        if(type==='image'){
+          const first=session.current.assets[0];
+          if(!first)return notice('Сперва загрузите изображение',true);
+          node.assetId=first.id;node.alt=first.alt;
+        }
+        selected.items.splice(selected.items.indexOf(n)+1,0,node);
+        selection=node.id;render();
+      });
+      action('↑',()=>{
+        const index=selected.items.indexOf(n);
+        if(index>0){[selected.items[index-1],selected.items[index]]=[n,selected.items[index-1]];render();}
+      });
+      action('↓',()=>{
+        const index=selected.items.indexOf(n);
+        if(index<selected.items.length-1){[selected.items[index+1],selected.items[index]]=[n,selected.items[index+1]];render();}
+      });
+      action('Удалить элемент',()=>{
+        if(rows.length===1)return notice('Нельзя удалить единственный узел',true);
+        if(!confirm('Удалить выбранный узел и все вложенные элементы?'))return;
+        selected.items.splice(selected.items.indexOf(n),1);
+        selection=all()[0].node.id;render();
+      });
+      const headline=make('h3','Редактирование · '+n.type);root.append(headline);
+      const fields=make('div','', 'cms-design-fields');root.append(fields);
+      if(['heading','text','button'].includes(n.type)){
+        fields.append(ctl('Текст',n.text,value=>{n.text=value;},'multiline'));
+      }
+      if(n.type==='heading')fields.append(ctl('Уровень заголовка',String(n.level||2),value=>{n.level=Number(value);},'number'));
+      if(n.type==='button')fields.append(ctl('Ссылка',n.href,value=>{n.href=value;}));
+      if(n.type==='image'){
+        const options=session.current.assets.map(a=>[a.id,a.alt||a.id]);
+        fields.append(ctl('Изображение',{initial:n.assetId,choices:options},v=>{n.assetId=v;},'select'),
+          ctl('Описание изображения',n.alt,v=>{n.alt=v;}));
+      }
+      const modeSelect=make('select',undefined,'control');modeSelect.id='cms-design-breakpoint';
+      for(const [v,t] of [['desktop','Компьютер'],['tablet','Планшет'],['mobile','Телефон'],
+        ['hover','Наведение'],['focus','Фокус с клавиатуры']]){
+        const opt=make('option',t);opt.value=v;modeSelect.append(opt);
+      }
+      modeSelect.value=mode;modeSelect.addEventListener('change',()=>{mode=modeSelect.value;render();});
+      root.append(make('h3','Свойства · '+mode),modeSelect);
+      const styleFields=make('div',undefined,'cms-design-fields');root.append(styleFields);
+      const style=editStyle(n),limited=['hover','focus'].includes(mode);
+      for(const key of DESIGN_GRAPH.STYLE_KEYS){
+        if(limited&&!['color','background','borderColor','borderWidth','radius','opacity'].includes(key))continue;
+        const values={
+          display:['block','grid','flex','none'],
+          direction:['row','column'],align:['start','center','end','stretch','between'],
+          justify:['start','center','end','stretch','between'],
+          position:['static','relative','absolute'],textAlign:['left','center','right'],
+          hidden:['true','false']
+        };
+        const value=style[key]===undefined?'':String(style[key]);
+        if(values[key]){
+          const options=[['','По умолчанию'],...values[key].map(x=>[x,x])];
+          styleFields.append(ctl(key,{initial:value,choices:options},v=>{
+            if(!v)delete style[key];else style[key]=key==='hidden'?v==='true':v;
+          },'select'));
+        }else styleFields.append(ctl(key,value,v=>{
+          if(!v.trim()){delete style[key];return;}
+          if(['color','background','borderColor'].includes(key)){style[key]=v.trim();return;}
+          style[key]=v.startsWith('@')?v.trim():Number(v);
+        }));
+      }
+      const tokenDetails=make('details');const tokenSummary=make('summary','Общие дизайн-токены сайта');
+      tokenDetails.append(tokenSummary);
+      const tokenFields=make('div',undefined,'cms-design-fields');
+      for(const [group,entries] of Object.entries(tokens)){
+        tokenFields.append(make('h4',group));
+        for(const [key,val] of Object.entries(entries)){
+          tokenFields.append(ctl(key,String(val),v=>{
+            entries[key]=group==='colors'?v:/^@/.test(v)?v:Number(v);
+          }));
+        }
+      }
+      tokenDetails.append(tokenFields);
+      const addToken=button('+ Токен','btn small',()=>{
+        const group=prompt('Группа: colors / spacing / radii / typography','colors');
+        if(group===null)return;
+        if(!Object.hasOwn(tokens,group))return notice('Неизвестная группа',true);
+        const name=prompt('Название токена, латиница и дефисы','custom');
+        if(name===null)return;
+        if(!/^[a-z][a-z0-9-]{1,39}$/.test(name))return notice('Некорректное имя',true);
+        tokens[group][name]=group==='colors'?'#334455':16;render();
+      });
+      tokenDetails.append(addToken);root.append(tokenDetails);
+    }
+    const apply=button('Применить в черновик','btn primary',()=>{
+      try{
+        const draft=cp(session.current);
+        const section=draft.pages.find(p=>p.id===sourcePage)?.sections.find(s=>s.id===sourceSection);
+        if(!section)throw Error('Блок уже отсутствует');
+        section.designGraph=cp(graph);draft.designTokens=cp(tokens);
+        const checked=C.validateSite(draft,manifests);
+        session=D.replaceSite(session,manifests,checked,session.revision);
+        dlg.close();draw();
+        notice('Композиция сохранена в локальном черновике. Для сервера нужны «Сохранить» и «Опубликовать».');
+      }catch(error){notice('Композиция не принята: '+error.message,true);}
+    });
+    apply.id='cms-design-apply';
+    const remove=button('Отключить композицию','btn',()=>{
+      if(!current().section.designGraph)return dlg.close();
+      if(!confirm('Отключить композицию? Старые компоненты и их поля останутся как были.'))return;
+      const selected=current();
+      structural({action:'updateDesignGraph',pageId:selected.page.id,sectionId:selected.section.id,designGraph:null});
+      dlg.close();
+    });
+    const close=button('Закрыть','btn',()=>dlg.close());
+    footer.append(apply,remove,close);
+    return ()=>{
+      const {page,section}=current();sourcePage=page.id;sourceSection=section.id;
+      if(!section.designGraph&&!confirm('Создать новую свободную композицию? Она заменит отображение этого блока, но его прежние данные сохранятся.'))return;
+      graph=cp(section.designGraph||DESIGN_GRAPH.baseGraph(section.id));
+      tokens=cp(session.current.designTokens||DESIGN_GRAPH.DEFAULT_TOKENS);
+      mode='desktop';selection=graph.nodes[0].id;
+      title.textContent='Дизайн-композиция · '+(manifest(section)?.label||section.id);
+      render();dlg.showModal();
+    };
+  }
+
   function createStructureTools(){
     const openAppearance=initAppearanceEditor();
+    const openDesignGraph=initDesignGraphEditor();
     const make=(parent,items)=>{
       const tools=document.createElement('div');tools.className='structure-tools';
       for(const [id,label,handler] of items)tools.append(button(label,'btn small',handler));
@@ -493,6 +694,7 @@
     ];
     const sectionActions=[
       ['section-appearance','Оформление блока',openAppearance],
+      ['section-design-graph','Дизайн-композиция',openDesignGraph],
       ['section-catalog','Каталог блоков',openComponentCatalog],
       ['section-add','+ Блок',()=>{
         const component=prompt('Компонент блока:\n'+manifests.map(m=>m.id+' — '+m.label).join('\n'),'service-grid');
