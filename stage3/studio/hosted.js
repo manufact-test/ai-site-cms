@@ -213,7 +213,32 @@
     if(!state.authorized||!state.siteId)return null;
     const asset=editor.getSite().assets.find(a=>a.id===assetId&&a.mime==='video/mp4');
     if(!asset)return null;
-    return '/api/sites/'+encodeURIComponent(state.siteId)+'/media/'+encodeURIComponent(assetId);
+    const key=state.siteId+':'+assetId;
+    if(previewData.has(key))return previewData.get(key);
+    if(loadingMedia.has(key))return null;
+    loadingMedia.add(key);
+    fetch('/api/sites/'+encodeURIComponent(state.siteId)+'/media/'+encodeURIComponent(assetId),
+      {credentials:'same-origin',cache:'no-store'})
+      .then(async result=>{
+        if(!result.ok||result.headers.get('content-type')!=='video/mp4')
+          throw Error('Приватное видео недоступно');
+        const blob=await result.blob();
+        if(blob.size>1500000||blob.size<100)throw Error('Превышен размер видеопревью');
+        return new Promise((resolve,reject)=>{
+          const reader=new FileReader();
+          reader.onload=()=>resolve(String(reader.result));
+          reader.onerror=()=>reject(Error('Невозможно прочитать MP4'));reader.readAsDataURL(blob);
+        });
+      })
+      .then(uri=>{
+        if(!/^data:video\/mp4;base64,[A-Za-z0-9+/=]+$/.test(uri))
+          throw Error('Непроверенный формат видеопревью');
+        previewData.set(key,uri);
+        if(state.siteId+':'+assetId===key)editor.refreshPreview();
+      })
+      .catch(error=>{previewData.set(key,'');notice(error.message,true);})
+      .finally(()=>loadingMedia.delete(key));
+    return null;
   }
   function previewUrl(assetId){
     if(!state.authorized||!state.siteId)return null;

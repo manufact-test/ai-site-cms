@@ -255,9 +255,11 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     if(n.type==='button')return '<a class="'+cls+'" href="'+attr(n.href.startsWith('/')?mount+n.href:n.href)+'">'+attr(n.text)+'</a>';
     if(n.type==='video'){
       const videoAsset=assets.get(n.assetId);
-      const videoSrc=(videoPreview?videoPreview(n.assetId):null)||mount+videoAsset.src;
+      const videoSrc=videoPreview?videoPreview(n.assetId):mount+videoAsset.src;
+      if(!videoSrc)return '<div class="'+cls+'" role="status">Загружается защищённое видео</div>';
       const poster=n.posterAssetId?assets.get(n.posterAssetId):null;
-      const posterHtml=poster?' poster="'+attr(mount+poster.src)+'"':'';
+      const posterSource=poster?(mediaPreview?mediaPreview(n.posterAssetId):mount+poster.src):null;
+      const posterHtml=posterSource?' poster="'+attr(posterSource)+'"':'';
       // No autoplay, external providers, unknown formats, script or iframe.
       return '<video class="'+cls+'" controls playsinline preload="metadata"'+
         (n.loop?' loop':'')+posterHtml+' aria-label="'+attr(n.alt)+'">'+
