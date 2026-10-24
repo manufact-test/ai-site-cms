@@ -1,47 +1,55 @@
-# Design Factory — live implementation progress
+# Design Factory — progress / 24.10.2026
 
-Updated: 2026-10-24. Independent development on branch feature/stage3-design-factory. Writable perimeter: only stage3/design-factory/.
+**Branch:** `feature/stage3-design-factory`  
+**Writable scope:** ONLY `stage3/design-factory/`  
+**Session started at:** `4f66d2914cc753769644903623c3298588ae66b9`  
+**No merge into main, no main CMS/SDK/Studio/PHP modification, no production operations.**
 
-Initial SHA for this work session: **34d25db5a292bc2016d88f3da2c04fa81d1a22d6**. The baseline had only MISSION.md, ROADMAP.md and PROGRESS.md. The lead developer's CMS branch and main were not edited.
+## Seven-result program
 
-| Result | State | Actual delivery / remaining gate |
+| Phase | Functional status | Remaining to close |
 |---|---|---|
-| **D1 compiler and design contract** | **IMPLEMENTED** | Closed manufact-design-factory-v1 project, v0→v1 migration, real CMS SDK/manifests, 3 sector archetypes, 4 linked pages each, RU/EN, verified owner facts, stable IDs, SEO/nav/theme/appearance, CLI create/validate/inspect/export, sample projects, 3 generated real site-v1 JSON files, offline 4-page HTML/CSS preview; repeat min=2 fixed |
-| **D2 12 visual directions** | **IN PROGRESS — major block implemented** | 12 named first-party themes with distinct layouts/art/cards/type/rhythm/navigation, closed enums, contrast >=4.5:1, valid real CMS tokens, responsive static CSS, separate unsupported design tokens; real 3-viewport Chromium visual QA outstanding |
-| D3 30+ section compositions | TODO | Next after D2 visual QA; preserve supported CMS vs proposal split |
-| D4 12+ multi-page sector kits | TODO | At least 4 pages per kit, 3 archetypes and 4 bilingual kits |
-| D5 browser Design Factory | TODO | Visual catalogue, editor, previews at three viewport sizes, Undo/Redo, project import/export, E2E |
-| D6 integration bridge | TODO | supported/integration_required/blocked matrix and adapter contract |
-| D7 final verification/package | TODO | Final manual visual QA and integrator handoff |
+| **D1** compiler and versioned design contract | **Implemented** | Real checked-out Node smoke to independently verify full CLI/fs path |
+| **D2** 12 visual systems | **Implemented in code** | Actual Chromium responsive/keyboard/color visual review; fix identified defects |
+| **D3** 30+ section compositions | **Implemented in code: 42 patterns, 14 categories** | Actual Chromium QA for showroom and composition previews |
+| **D4** 12 multi-page sector kits | **Implemented in code: 12 kits / 16 sites / 64 HTML pages** | Actual browser QA and human evaluation of industry-level content/design |
+| **D5** browser editor and catalogue | TODO | Theme switching, industry filtering, desktop/tablet/mobile editor, content editing, Undo/Redo, downloads, browser E2E |
+| **D6** integration bridge | PARTIAL | D3 fallbacks/proposal matrices exist; full adapters, import validation and final compatibility matrix remain |
+| **D7** final portfolio-quality QA and handoff | TODO | D1–D6 recheck, package, owner review, full documentation and lead handoff |
 
-**Program progress:** **1/7 implemented results**, D2 partially advanced. This is not product acceptance or a CMS completion percentage. D1 core is usable now, but independent Node/Chromium execution by an integrator remains a verification gate; it must not be presented as formally accepted.
+**Progress framing:** D1 plus major working code for D2–D4; do **not** claim 4/7 fully accepted. Full program not complete. The next highest-value task is D5 alongside Chromium visual verification of D2–D4.
 
-## Proof and tests, accurately scoped
+## Delivered in this development pass
 
-- Evaluated current actual Stage3 sdk/contract.cjs and seven real component manifests together with the new compiler in an isolated JavaScript runtime.
-- **72/72** combinations (agency, industrial, consulting × 12 themes × RU/EN) passed SDK validateSite + inspectSite; each generated 4 pages, zero internal-link errors.
-- Evaluated standalone page generation and local CSS generation; each direction generated a different CSS output; all 12 text/background, text/surface and white CTA/button contrast ratios >=4.5.
-- Confirmed a single owner-provided service originally failed the real CMS repeat lower bound, then implemented a truthful second-card placeholder and fixed the compiler.
-- CLI, exporter and test script are authored; tests/smoke.cjs covers Node filesystem + CLI roundtrip, new directory export, nooverwrite, escaping, invalid objects and the 72-combination matrix. **This exact Node script has not yet been executed in a checked-out Node repository environment; no false claim of a Node or Chromium PASS.**
-- Standalone HTML preview is labelled as noindex design-only and **not** claimed to match current PHP visitor renderer. No real server tests, production operations, repo workflow changes, network access or npm installs.
+- `catalog/compositions.cjs`: 42 closed, distinct section patterns in 14 semantic categories (hero, benefits, services, process, team, portfolio, pricing, testimonials, FAQ, contact, CTA, gallery, trust, editorial). Each stores layout, density, decorative motif, mobile behavior, data requirements, truth/consent limits, and CMS parity.
+- `lib/composition-adapter.cjs`: registered-component semantic fallback using the real SDK. `photo-gallery` is included in the compiler's actual registry. Unsupported visual layouts are marked `integration_required` rather than added to `site-v1`.
+- `lib/showcase.cjs`: export real standalone HTML/CSS showroom of all 42 patterns, local links, keyboard-focus, native FAQ, scroll-snap, noindex, reduced-motion, documented CMS bridge and owner-data notes.
+- `bin/design-factory.cjs`: new commands `compositions`, `compose`, `showcase`, `kit-gallery`. Existing create/validate/inspect/export remain. Export requires a fresh path and never mutates a client site.
+- `proposals/ADAPTERS.md`: 8 detailed proposals for PHP/Studio/manifests to be developed by the lead when permitted.
+- `catalog/kits.cjs`: 12 sector definitions, six multi-page archetypes, 4 bilingual RU/EN sector copy sets, explicit example-only owner-review placeholders.
+- `lib/compiler.cjs`: compiles all 12 kits through existing first-party Stage3 manifests; no fabricated customer proofs. Default service titles are explicitly unverified examples. Registration expanded to the existing `photo-gallery`.
+- `lib/preview.cjs`: localized RU/EN standalone visual preview; distinct theme composition and no external media.
+- `lib/kit-gallery.cjs`: batch static gallery with 12 RU and 4 EN websites, 64 real HTML pages, each with correct links, theme CSS, valid site-v1 and SHA256-based deterministic manifest.
+- `examples/projects/`: 12 reusable sector JSON sources for reproduction/customization.
+- `tests/compositions-smoke.cjs`, `tests/kits-smoke.cjs`: one focused Node CLI/filesystem smoke per new full product vertical; `tests/smoke.cjs` remains the D1/D2 smoke, now exercised across the larger kit library by design.
+- `catalog/COMPOSITIONS.md`, `catalog/KITS.md`, README and this PROGRESS updated.
 
-## Files created/edited this session (all inside one subtree)
+## Actual verification — precise, not overstated
 
-- lib/compiler.cjs — canonical project contract, manifest compiler, inspection and checklist
-- lib/preview.cjs — offline static HTML and CSS renderer/export, 12 design treatments
-- catalog/themes.cjs and catalog/THEMES.md — 12 themes and compatibility taxonomy
-- bin/design-factory.cjs — local command-line create/validate/inspect/export
-- tests/smoke.cjs — integrated Node smoke for reviewer
-- README.md — instructions, paths, format and preview parity
-- examples/agency-ru.json, examples/industry-en.json, examples/consulting-ru.json
-- examples/generated-agency-site-v1.json, generated-industrial-site-v1.json, generated-consulting-site-v1.json
-- PROGRESS.md (this file)
+- Used real `stage3/sdk/contract.cjs` and first-party manifests directly (READ ONLY) through an isolated JavaScript execution harness.
+- **288/288** (12 sectors × 12 themes × RU/EN) full 4-page websites passed `sdk.validateSite` and `sdk.inspectSite`, with zero internal link errors.
+- **42/42** D3 composition fallbacks produce registered sections and passed real SDK site validation and link inspection.
+- Offline D3 showroom generator outputs 42 real section previews plus 42 expandable parity/requirements summaries, responsive CSS, focus rules and reduced-motion, no injected JS/network assets.
+- D2 color/contrast thresholds previously verified for all 12 themes; no new colors introduced outside the fixed catalog.
+- **Important:** the new Node filesystem smoke scripts are committed but have NOT been independently executed against a checked-out repository; do not report them PASS. Chromium in this environment could not finish even a basic local screenshot; real visual QA is pending. The 64-page file-output and SHA256 verification is implemented and covered by the test script but not claimed tested in a real repo checkout.
+- No real CMS publishing, form submissions, Hostinger, live servers or production secrets.
 
-## On the next “продолжаем”
+## Next “продолжаем” — independent D5, no new leader assignment
 
-1. Verify current branch HEAD and this PROGRESS.md (no surprise changes).
-2. Finish D2 with actual visual/browser smoke in 3 viewports for the 12 directions; correct any layout, accessibility or keyboard issues. Re-run exact Node smoke when checked-out runtime is available.
-3. Then move directly to **D3: 30+ genuinely different section compositions**, keeping new component proposals separate from supported Stage3 components. Keep working in large functional slices without new leader assignment.
-4. Continue D4–D7 independently; do **not** prepare the final lead handoff until all seven results are genuinely finished.
+1. Verify branch HEAD and this PROGRESS first; never touch another subtree.
+2. Build the **working browser editor/catalogue** for all 12 sector kits, 12 themes and D3 patterns. Include responsive preview, owner-facts editing, project JSON import/export, CMS-compatible site-v1 download, Undo/Redo, keyboard access and human-visible errors. Do not settle for a mocked design-only UI.
+3. Reuse these existing compiler, showcase and kit-gallery exports; do not create an incompatible second CMS model.
+4. Re-run one contract smoke and one browser scenario when the browser becomes available; actually inspect desktop/tablet/mobile output before marking the remaining D2–D4 visual gates closed.
+5. Move on to D6 and D7, then prepare the final lead handoff **only when all seven results genuinely satisfy DoD**.
 
-**Formal project constraints unchanged:** Stage2 NO-GO #5–#9, Stage3+ not accepted, **0/135** formally accepted mandatory criteria. No changes in main, SDK, PHP, Studio, Hostinger, production, passwords or other projects.
+**Formal product status:** Stage2 NO-GO #5–#9; Stage3+ unaccepted; **0/135 officially accepted mandatory criteria**. This engineering progress is not production acceptance.
