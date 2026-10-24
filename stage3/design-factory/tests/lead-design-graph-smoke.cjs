@@ -89,6 +89,29 @@ const faq=adapter.buildHostCandidate(faqBundle,hostSdk,registry);
 const faqBindings=faq.mapping.contentBindings;
 assert.ok(faqBindings.filter(b=>b.source.field==='content.question').length>=2);
 assert.ok(faqBindings.filter(b=>b.source.field==='content.answer').length>=2);
+// The actual registered FAQ repeater supports up to 24 items. Graph max 90
+// nodes means 24 Q&A cards (80 nodes total) fit without silently dropping 13–24.
+const fullFaq=clone(faq.site);
+const fullFaqSection=fullFaq.pages[0].sections.find(s=>s.id==='df-selected-composition');
+const faqSeed=clone(fullFaqSection.items[0]);
+fullFaqSection.items=Array.from({length:24},(_,i)=>({
+ id:fullFaqSection.id+'-item-'+(i+1),
+ values:{...faqSeed.values,'content.question':'Question '+(i+1),
+  'content.answer':'Answer '+(i+1)}
+}));
+fullFaqSection.designGraph=adapter.graphFor(fullFaqSection,catalog.get('faq-compact'),THEMES.editorial,'en');
+const fullFaqValidated=hostSdk.validateSite(fullFaq,registry);
+const fullFaqNodes=fullFaqSection.designGraph.nodes;
+const nodeCount=list=>list.reduce((n,x)=>n+1+nodeCount(x.children||[]),0);
+assert.equal(nodeCount(fullFaqNodes),80,'24 FAQs must remain within the 90-node host limit');
+const fullFaqHtml=hostGraph.render(fullFaqValidated,fullFaqNodes.length?
+ fullFaqSection.designGraph:null,'',null,fullFaqSection.id);
+assert.ok(fullFaqHtml.includes('Question 24')&&fullFaqHtml.includes('Answer 24'));
+assert.equal((fullFaqHtml.match(/Question [0-9]+/g)||[]).length,24);
+const overFaq=clone(fullFaqSection);
+overFaq.items.push({id:overFaq.id+'-item-25',values:clone(faqSeed.values)});
+assert.throws(()=>adapter.graphFor(overFaq,catalog.get('faq-compact'),THEMES.editorial,'en'),
+ /Too many FAQ entries/);
 const gallery=adapter.buildHostCandidate(bridge.build({format:bridge.WORKSPACE,version:1,
  project:ownerProject,composition:'gallery-mosaic'}),hostSdk,registry);
 const gallerySection=gallery.site.pages[0].sections.find(s=>s.id==='df-selected-composition');
@@ -175,7 +198,24 @@ assert.throws(()=>adapter.reconcileSemantic(excessive,edited,hostSdk,registry),
 const deleted=clone(edited);
 deleted.pages[0].sections.find(s=>s.id==='df-selected-composition').items.pop();
 assert.throws(()=>adapter.reconcileSemantic(services,deleted,hostSdk,registry),
- /Source was removed|Invalid repeat items|Invalid/);
+ /Repeater structure changed|Source was removed|Invalid repeat items|Invalid/);
+// Snapshot bindings cannot safely add, reorder or remove graph cards.
+// Edits require an explicit host rebuild, not silent content truncation.
+const added=clone(services.site);
+const addedSection=added.pages[0].sections.find(s=>s.id==='df-selected-composition');
+addedSection.items.push({id:addedSection.id+'-item-13',
+ values:clone(addedSection.items[0].values)});
+assert.throws(()=>adapter.inspectSemanticSync(services,added,hostSdk,registry),
+ /Repeater structure changed/);
+const reorderedItems=clone(services.site);
+reorderedItems.pages[0].sections.find(s=>s.id==='df-selected-composition').items.reverse();
+assert.throws(()=>adapter.reconcileSemantic(services,reorderedItems,hostSdk,registry),
+ /Repeater structure changed/);
+const changedMedia=clone(gallery.site);
+const galleryItem=changedMedia.pages[0].sections.find(s=>s.id==='df-selected-composition').items[0];
+galleryItem.values['content.caption']='Owner supplied caption';
+assert.throws(()=>adapter.inspectSemanticSync(gallery,changedMedia,hostSdk,registry),
+ /Unsupported media content changed/);
 // Data is escaped in the first-party lead renderer; no user text becomes HTML.
 const unsafeProject=clone(ownerProject);
 unsafeProject.facts.services[0].title='<script>alert(1)</script>';
