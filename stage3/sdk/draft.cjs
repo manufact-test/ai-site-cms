@@ -79,17 +79,44 @@ function structure(raw,manifests,command){
   };
   const rekey=(source,newId)=>{
     if(typeof newId!=='string')throw Error('Fresh section ID required');
-    return {...copy(source),id:newId,elements:source.elements.map(el=>({
+    const cloned=copy(source);
+    if(cloned.designGraph){
+      cloned.designGraph.id=newId+'-design';
+      let counter=0;
+      const rename=node=>{
+        node.id=newId+'-node-'+(++counter);
+        for(const child of node.children||[])rename(child);
+      };
+      cloned.designGraph.nodes.forEach(rename);
+    }
+    return {...cloned,id:newId,elements:source.elements.map(el=>({
       ...copy(el),id:newId+'-'+el.slot
     })),...(source.items?{items:source.items.map((item,i)=>({...copy(item),id:newId+'-item-'+(i+1)}))}:{})};
   };
   const visitMedia=(cb)=>{
-    for(const p of c.pages)for(const section of p.sections)
+    for(const p of c.pages)for(const section of p.sections){
       for(const item of [...section.elements,...(section.items||[])])
         for(const [key,val] of Object.entries(item.values))
           if(key==='content.media')cb(item,key,val,p,section);
+      const walk=node=>{
+        if(node.type==='image')cb({values:node},'assetId',node.assetId,p,section);
+        for(const child of node.children||[])walk(child);
+      };
+      for(const root of section.designGraph?.nodes||[])walk(root);
+    }
   };
   switch(action){
+    case 'updateDesignGraph':{
+      if(!page||sectionIndex<0)throw Error('Unknown section for design composition');
+      if(command.designGraph===null)delete page.sections[sectionIndex].designGraph;
+      else page.sections[sectionIndex].designGraph=copy(command.designGraph);
+      break;
+    }
+    case 'updateDesignTokens':{
+      if(command.designTokens===null)delete c.designTokens;
+      else c.designTokens=copy(command.designTokens);
+      break;
+    }
     case 'updateAppearance':{
       if(!page||sectionIndex<0)throw Error('Unknown section appearance');
       page.sections[sectionIndex].appearance=copy(command.appearance);
@@ -237,6 +264,7 @@ function changes(raw,manifests){
   const s=verifySession(raw,manifests),diff=[];
   const pages=new Map(s.base.pages.map(p=>[p.id,p]));
   if(JSON.stringify(s.base.theme)!==JSON.stringify(s.current.theme))diff.push({kind:'theme-updated'});
+  if(JSON.stringify(s.base.designTokens)!==JSON.stringify(s.current.designTokens))diff.push({kind:'design-tokens-updated'});
   if(JSON.stringify(s.base.menu)!==JSON.stringify(s.current.menu))diff.push({kind:'menu-updated'});
   if(JSON.stringify(s.base.assets)!==JSON.stringify(s.current.assets))
     diff.push({kind:'media-library-updated'});
@@ -257,6 +285,7 @@ function changes(raw,manifests){
       if(prior.sections.findIndex(q=>q.id===section.id)!==i)
         record('section-moved',{pageId:page.id,sectionId:section.id});
       if(prev.component!==section.component||prev.manifestVersion!==section.manifestVersion){record('section-replaced',{pageId:page.id,sectionId:section.id});return;}
+      if(JSON.stringify(prev.designGraph)!==JSON.stringify(section.designGraph))diff.push({kind:'design-graph-updated',pageId:page.id,sectionId:section.id});
       if(JSON.stringify(prev.appearance)!==JSON.stringify(section.appearance))
         diff.push({kind:'appearance-updated',pageId:page.id,sectionId:section.id});
       if(JSON.stringify(prev.formFields)!==JSON.stringify(section.formFields))
@@ -301,6 +330,7 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
   return {format:'manufact-ai-block-preview-data-v1',siteId:s.current.siteId,
     pageId,sectionId,component:section.component,breakpoint,
     appearance:copy(section.appearance||C.DEFAULT_APPEARANCE),
+    designGraph:copy(section.designGraph||null),
     formFields:copy(section.formFields||[]),
     elements,items,notPublished:true,hasExecutableHtml:false};
 }
