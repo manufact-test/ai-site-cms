@@ -102,3 +102,20 @@ Independently re-fetched the **current feature branch** sources for the official
 **Blocked evidence:** `git ls-remote` cannot resolve github.com in the local checkout environment; Chromium `--dump-dom` on a minimal data URL timed out at 8 and 9 seconds in separate runs (also with `--no-zygote --single-process`). The GitHub Actions workflow-run list on this feature branch was empty. No Chromium E2E/screenshot approval, no six Node-suite checkout execution, and no actual ZIP or verified ZIP SHA256. D7 remains **OPEN / NOT ACCEPTED**. The documented commands in `QUALITY-GATES.md` are required on a checkout with working Chromium.
 
 **Status:** D1–D6 implementation complete (6 of 7 independent engineering results); D7 verification and packaging partially hardened but not accepted. **CMS: Stage2 NO-GO, Stage3 unaccepted, 0/135 formal acceptance criteria**. No main/lead branch, workflow, SDK, PHP, production, or hosting edits.
+
+## D7 continued independent pass — 24 October 2026
+
+**Starting HEAD:** `b7df7ddc0378814d14c984626af6b7cc42efb9ee`. **Code checkpoint before this documentation batch:** `2913e98cba216af4a5e0b08ef93f09d1af6dd348`. Review current HEAD after doc commits before any further work.
+
+**Completed this pass, all inside allowed subtree:**
+
+- **D6 semantic package equality** (`lib/bridge.cjs`): correctly ignores differences in JSON object member ordering after PHP/JS serialization; still rejects changes to values/types, array ordering, unexpected members and untrusted/non-JSON types. Recompiles the bundle through current SDK. Added negative+positive coverage to `tests/bridge-smoke.cjs` and rebuilt offline Browser Studio runtime.
+- **ZIP source coverage** (`tests/package-smoke.cjs`): extracted ZIP members must match every first-party source file byte-for-byte, with matching inventory, not only ZIP CRC, central-directory structure and deterministic output. This improves the final package confidence once run on a checkout.
+- **Human-friendly visual QA** (`bin/visual-qa.cjs`): also creates offline `visual-review.html` grouping screenshot variants across themes, D3 and D4 sectors. Includes real dimensions, visible errors, pending acceptance status and links to PNG originals. Synthetic HTML output/escaping was checked; real screenshot generation is still unavailable in the environment.
+- **D6 integration contract documentation** (`INTEGRATION.md`) records exactly what remains supported vs `integration_required`, including PHP serializer interoperability.
+
+**Verified with the current generated offline runtime in isolated V8:** 288/288 real SDK site-v1 checks, 288/288 D6 import/export round trips, 42/42 valid composition mappings, 0 broken internal links, semantic key-reordered bundle accepted, three changed/invalid bundles rejected. The generated visual review HTML was validated using **synthetic metadata only** (not genuine screenshots).
+
+**Not verified:** checked-out Node CI, Chromium UI and 1280/768/390 visual acceptance, screenshot contents, actual ZIP/archive SHA256, PHP pixel parity, server import/publish gate. Local GitHub resolution fails, and headless Chrome does not complete a minimal DOM probe. No deployment, merge, workflow edit, main/lead branch change or external API usage.
+
+**Status:** D1–D6 implemented (6/7 engineering areas), D7 **OPEN** due missing execution and human review. Formal CMS acceptance remains **Stage2 NO-GO / Stage3 unaccepted / 0 of 135**.
