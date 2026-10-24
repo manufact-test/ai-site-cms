@@ -243,7 +243,7 @@ const changedMedia=clone(gallery.site);
 const galleryItem=changedMedia.pages[0].sections.find(s=>s.id==='df-selected-composition').items[0];
 galleryItem.values['content.caption']='Owner supplied caption';
 assert.throws(()=>adapter.inspectSemanticSync(gallery,changedMedia,hostSdk,registry),
- /Unsupported media content changed/);
+ /Gallery caption has no displayed graph node/);
 // Data is escaped in the first-party lead renderer; no user text becomes HTML.
 const unsafeProject=clone(ownerProject);
 unsafeProject.facts.services[0].title='<script>alert(1)</script>';
@@ -312,6 +312,105 @@ const switchValidated=hostSdk.validateSite(clone(hrefSwitch),registry);
 assert.throws(()=>adapter.inspectSemanticSync(cta,switchValidated,hostSdk,registry),
  /Visible semantic source selection changed/);
 assert.equal(cta.mapping.approvedForPublish,false);
+
+// Owner-controlled REBUILD: no AI, no publication, source site and
+// immutable D6 remain untouched. Genuine typed media must render after the
+// CMS asset has been uploaded, not remain stuck as a placeholder.
+const galleryUpload=clone(gallery.site);
+const galleryUploadSection=galleryUpload.pages[0].sections.find(s=>
+ s.id==='df-selected-composition');
+galleryUpload.assets.push({id:'owner-gallery-one',mime:'image/jpeg',
+ src:'/assets/owner-gallery-one.jpg',alt:'Owner-approved workshop photograph'});
+galleryUploadSection.items[0].values['content.media']='owner-gallery-one';
+galleryUploadSection.items[0].values['content.caption']='Approved photo';
+findNode(galleryUploadSection.designGraph.nodes,'-dg-heading').styles.fontWeight=800;
+const galleryRebuilt=adapter.rebuildHostCandidate(gallery,galleryUpload,hostSdk,registry);
+assert.equal(galleryRebuilt.mapping.approvedForPublish,false);
+assert.equal(galleryRebuilt.rebuild.noAiInvoked,true);
+assert.equal(galleryRebuilt.rebuild.requiresOwnerVisualReview,true);
+const galleryRebuiltSection=galleryRebuilt.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition');
+assert.equal(findNode(galleryRebuiltSection.designGraph.nodes,'-card-1-image').assetId,
+ 'owner-gallery-one');
+assert.equal(findNode(galleryRebuiltSection.designGraph.nodes,'-dg-heading').styles.fontWeight,
+ 800,'Preserve owner typography on an explicit structural rebuild');
+const ownerMediaHtml=hostGraph.render(galleryRebuilt.site,
+ galleryRebuiltSection.designGraph,'',null,galleryRebuiltSection.id);
+assert.ok(ownerMediaHtml.includes('/assets/owner-gallery-one.jpg'));
+assert.ok(ownerMediaHtml.includes('Owner-approved workshop photograph'));
+const ownerCaptionEdit=clone(galleryRebuilt.site);
+ownerCaptionEdit.pages[0].sections.find(s=>s.id==='df-selected-composition')
+ .items[0].values['content.caption']='Revised owner caption';
+const ownerCaptionPlan=adapter.inspectSemanticSync(galleryRebuilt,ownerCaptionEdit,hostSdk,registry);
+assert.equal(ownerCaptionPlan.changes.length,1);
+const ownerCaptionSaved=adapter.reconcileSemantic(galleryRebuilt,ownerCaptionEdit,hostSdk,registry);
+assert.equal(findNode(ownerCaptionSaved.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition').designGraph.nodes,'-card-1-caption').text,
+ 'Revised owner caption');
+const galleryMissingAlt=clone(galleryUpload);
+galleryMissingAlt.assets[0].alt='';
+assert.throws(()=>adapter.rebuildHostCandidate(gallery,galleryMissingAlt,hostSdk,registry),
+ /nonempty alt/);
+// The official gallery manifest permits up to 20 photographs, safely under
+// the lead's 90-node limit. Verify last owner item/asset survives.
+const bigGallery=clone(gallery.site);
+const bigSection=bigGallery.pages[0].sections.find(s=>s.id==='df-selected-composition');
+const galleryProto=clone(bigSection.items[0].values);
+bigSection.items=Array.from({length:20},(_,i)=>{
+ const id='gallery-photo-'+(i+1);
+ bigGallery.assets.push({id,src:'/assets/'+id+'.webp',mime:'image/webp',
+  alt:'Owner photograph '+(i+1)});
+ return {id:bigSection.id+'-item-'+(i+1),
+  values:{...galleryProto,'content.media':id,'content.caption':'Caption '+(i+1)}};
+});
+const fullGallery=adapter.rebuildHostCandidate(gallery,bigGallery,hostSdk,registry);
+const gallery20Graph=fullGallery.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition').designGraph.nodes;
+assert.equal(nodeCount(gallery20Graph),68,'20 images plus captions fit under 90 nodes');
+assert.equal(findNode(gallery20Graph,'-card-20-image').assetId,'gallery-photo-20');
+// Media-story asset upload uses the same licensed CMS asset registry.
+const storyOriginal=adapter.buildHostCandidate(bridge.build({
+ format:bridge.WORKSPACE,version:1,project:ownerProject,composition:'team-editorial'
+}),hostSdk,registry);
+const storyUpload=clone(storyOriginal.site);
+storyUpload.assets.push({id:'owner-story-photo',src:'/assets/owner-story-photo.webp',
+ mime:'image/webp',alt:'Owner team at work'});
+storyUpload.pages[0].sections.find(s=>s.id==='df-selected-composition')
+ .elements.find(e=>e.slot==='photo').values['content.media']='owner-story-photo';
+const storyRebuilt=adapter.rebuildHostCandidate(storyOriginal,storyUpload,hostSdk,registry);
+assert.equal(findNode(storyRebuilt.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition').designGraph.nodes,'-card-1-image').assetId,
+ 'owner-story-photo');
+// Host API approves legitimate external HTTPS URLs. Never route them back to
+// the default /contact/ or secretly select an unrelated secondary button.
+const remoteCta=clone(cta.site);
+remoteCta.pages[0].sections.find(s=>s.id==='df-selected-composition')
+ .elements.find(e=>e.slot==='primary').values['behavior.href']='https://example.com/quote';
+const remoteSaved=adapter.reconcileSemantic(cta,remoteCta,hostSdk,registry);
+assert.equal(findNode(remoteSaved.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition').designGraph.nodes,'-dg-action').href,
+ 'https://example.com/quote');
+const unsupportedCta=clone(cta.site);
+unsupportedCta.pages[0].sections.find(s=>s.id==='df-selected-composition')
+ .elements.find(e=>e.slot==='primary').values['behavior.href']='https://example.com:443/quote';
+assert.throws(()=>adapter.rebuildHostCandidate(cta,unsupportedCta,hostSdk,registry),
+ /cannot be represented/);
+// Structural Q&A change must use explicit rebuild. Keep existing graph CSS,
+// attach a new third Q&A as typed nodes and never mutate the original input.
+const extraFaq=clone(faq.site);
+const faqExtraSec=extraFaq.pages[0].sections.find(s=>s.id==='df-selected-composition');
+faqExtraSec.items.push({...clone(faqExtraSec.items[0]),id:faqExtraSec.id+'-item-3'});
+const thirdFaq=adapter.rebuildHostCandidate(faq,extraFaq,hostSdk,registry);
+assert.ok(findNode(thirdFaq.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition').designGraph.nodes,'-card-3-text'));
+const fakeMapping=clone(gallery);
+fakeMapping.mapping.contentBindings[0].nodeId='forged-untrusted-node';
+assert.throws(()=>adapter.rebuildHostCandidate(fakeMapping,galleryUpload,hostSdk,registry),
+ /Provenance binding mismatch/);
+assert.equal(JSON.stringify(gallery.site),JSON.stringify(
+ adapter.buildHostCandidate(bridge.build({format:bridge.WORKSPACE,version:1,
+ project:ownerProject,composition:'gallery-mosaic'}),hostSdk,registry).site),
+ 'Original candidate remains immutable across explicit host rebuilds');
 
 // Optional PHP parity gate on a separate read-only lead checkout. It checks
 // PHP's independent validator and the actual escaped markup (CSS can be ordered differently).
