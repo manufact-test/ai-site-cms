@@ -83,7 +83,10 @@ function run(argv){
     const f=flags(rest,['--brief','--kit','--theme','--lang','--out','--project-out']);
     const original=f['--brief']?readJSON(f['--brief']):null;
     const input=migrate(original);
-    if(f['--kit'])input.kit=f['--kit'];
+    if(f['--kit']){
+      input.kit=f['--kit'];
+      if(!f['--theme']&&!f['--brief']&&Object.hasOwn(KITS,input.kit))input.theme=KITS[input.kit].theme;
+    }
     if(f['--theme'])input.theme=f['--theme'];
     if(f['--lang'])input.language=f['--lang'];
     const result=compile(input);
