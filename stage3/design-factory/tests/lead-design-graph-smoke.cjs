@@ -187,6 +187,41 @@ const safeHtml=hostGraph.render(safeCandidate.site,safeSection.designGraph,'',nu
 assert.ok(safeHtml.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
 assert.ok(!safeHtml.includes('<script>'));
 
+// Every rendered semantic headline/description/button must follow the
+// exact chosen CMS source. Feature sections reuse "second" both as the
+// visible lead summary and as the second card; both edits must propagate.
+const benefits=adapter.buildHostCandidate(bridge.build({format:bridge.WORKSPACE,version:1,
+ project:ownerProject,composition:'benefits-bento'}),hostSdk,registry);
+const benefitBindings=benefits.mapping.contentBindings;
+assert.ok(benefitBindings.some(x=>x.nodeId.endsWith('-dg-text')&&x.source.slot==='second'));
+const benefitEdit=clone(benefits.site);
+const bSec=benefitEdit.pages[0].sections.find(s=>s.id==='df-selected-composition');
+bSec.elements.find(e=>e.slot==='second').values['content.text']='Owner updated second benefit';
+const bPreview=adapter.inspectSemanticSync(benefits,benefitEdit,hostSdk,registry);
+assert.equal(bPreview.changes.filter(x=>x.source.slot==='second').length,2,
+ 'Both summary and benefit card must update from the same edited CMS field');
+const bSynced=adapter.reconcileSemantic(benefits,benefitEdit,hostSdk,registry);
+const bNodes=bSynced.site.pages[0].sections.find(s=>s.id==='df-selected-composition').designGraph.nodes;
+assert.equal(findNode(bNodes,'-dg-text').text,'Owner updated second benefit');
+assert.equal(findNode(bNodes,'-card-2-text').text,'Owner updated second benefit');
+// CTA source selection chooses the actual "primary" element, not a
+// guess based on an unrelated "action" slot or synthetic contact URL.
+const cta=adapter.buildHostCandidate(bridge.build({format:bridge.WORKSPACE,version:1,
+ project:ownerProject,composition:'cta-card'}),hostSdk,registry);
+assert.ok(cta.mapping.contentBindings.some(x=>x.nodeId.endsWith('-dg-action')&&
+ x.source.slot==='primary'&&x.property==='href'));
+const ctaEdit=clone(cta.site);
+const cSec=ctaEdit.pages[0].sections.find(s=>s.id==='df-selected-composition');
+const primary=cSec.elements.find(e=>e.slot==='primary');
+primary.values['content.text']='Get in touch';
+primary.values['behavior.href']='/services/';
+const ctaSynced=adapter.reconcileSemantic(cta,ctaEdit,hostSdk,registry);
+const ctaNodes=ctaSynced.site.pages[0].sections.find(s=>s.id==='df-selected-composition').designGraph.nodes;
+assert.equal(findNode(ctaNodes,'-dg-action').text,'Get in touch');
+assert.equal(findNode(ctaNodes,'-dg-action').href,'/services/');
+// On a section with text fallbacks no source can be silently invented.
+assert.equal(cta.mapping.approvedForPublish,false);
+
 // Optional PHP parity gate on a separate read-only lead checkout. It checks
 // PHP's independent validator and the actual escaped markup (CSS can be ordered differently).
 let phpChecked=0;
