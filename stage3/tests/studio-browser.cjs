@@ -156,12 +156,18 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       await page.locator('#elements [data-repeat-id]').first().click();
       const changed=page.locator('#fields [data-field="'+field+'"]');
       await changed.fill(value);
-      // srcdoc changes asynchronously; register before dispatching the edit.
-      // Otherwise a later iframe load can erase a genuine radio selection.
-      const previewLoaded=page.locator('#preview').evaluate(frame=>new Promise(resolve=>
-        frame.addEventListener('load',resolve,{once:true})));
+      // Register and await the iframe load synchronously before firing change.
+      // A pending evaluate Promise can otherwise register *after* load and hang.
+      await page.locator('#preview').evaluate(frame=>{
+        const sequence=String(Number(frame.dataset.loadSequence||0)+1);
+        frame.dataset.loadSequence=sequence;
+        frame.addEventListener('load',()=>{frame.dataset.loadedSequence=sequence;},{once:true});
+      });
       await changed.dispatchEvent('change');
-      await previewLoaded;
+      await page.waitForFunction(()=>{
+        const frame=document.getElementById('preview');
+        return frame.dataset.loadedSequence===frame.dataset.loadSequence;
+      },null,{timeout:10000});
       await canvas.locator('.cms-section-skin').getByText(value,{exact:false}).first().waitFor();
       const exported=await page.evaluate(()=>window.Stage3Editor.getSite());
       assert.equal(exported.pages.flatMap(p=>p.sections).find(s=>s.component===type).items[0].values[field],value);
