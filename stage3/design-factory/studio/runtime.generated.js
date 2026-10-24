@@ -608,13 +608,27 @@ function makeSection(component,id,page,project,reg){
   }
   return section;
 }
+// A card added by Studio is a draft placeholder, not evidence of a confirmed
+// owner service. The checklist never substitutes for factual owner approval.
+function reviewedServiceDraft(item,language){
+  const title=item.title.trim(),description=item.description.trim();
+  if(!title||!description)return false;
+  if(title==='Уточните название'||title==='Confirm service name')return false;
+  if(title.startsWith('Пример (подтвердить):')||title.startsWith('Example (verify):'))return false;
+  if(description==='Добавьте подтверждённое описание.'||
+     description==='Add verified description.'||
+     description===COPY[language].serviceDescription)return false;
+  return true;
+}
 function checklist(project){
   const f=project.facts,c=COPY[project.language],missing=[];
-  if(!f.title)missing.push('facts.title');
-  if(!f.headline)missing.push('facts.headline');
-  if(!f.description)missing.push('facts.description');
-  if(!f.services||f.services.length<2)missing.push('facts.services');
-  if(!f.contactText)missing.push('facts.contactText');
+  if(!f.title?.trim())missing.push('facts.title');
+  if(!f.headline?.trim())missing.push('facts.headline');
+  if(!f.description?.trim())missing.push('facts.description');
+  if(!f.services||f.services.length<2||
+     !f.services.every(s=>reviewedServiceDraft(s,project.language)))
+    missing.push('facts.services');
+  if(!f.contactText?.trim())missing.push('facts.contactText');
   return {label:c.missing,missing,readyForPublish:missing.length===0,requiresOwnerReview:true};
 }
 function compile(input,providedRegistry){
