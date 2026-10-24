@@ -305,7 +305,7 @@ final class DesignGraph
                 case 'icon':
                     $a=($n['alt']??'')!==''?
                         'role="img" aria-label="'.self::h($n['alt']).'"':'aria-hidden="true"';
-                    return '<svg class="'.$cls.'" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '.$a.'>'.self::ICON_PATHS[$n['icon']].'</svg>';
+                    return '<svg class="'.$cls.'" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '.$a.'>'.self::ICON_PATHS[$n['icon']].'</svg>';
                 case 'heading':
                     $tag='h'.($n['level']??2);
                     return '<'.$tag.' class="'.$cls.'">'.self::h($n['text']).'</'.$tag.'>';
