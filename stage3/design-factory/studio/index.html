@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="robots" content="noindex">
+  <title>Design Factory Studio · AI Site CMS</title>
+  <link rel="stylesheet" href="studio.css">
+  <script src="runtime.generated.js" defer></script>
+  <script src="studio.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#studio-main">Перейти к предпросмотру</a>
+<div class="app-shell">
+  <header class="topbar">
+    <a href="#studio-main" class="brand" aria-label="Design Factory — главная"><span class="brand-mark">◆</span><span>MANUFACT<span class="brand-muted"> / Design Factory</span></span></a>
+    <div class="top-right">
+      <span class="environment"><span class="environment-dot"></span> OFFLINE / STAGE 3</span>
+      <button id="undo" class="icon-button" type="button" title="Отменить (Ctrl+Z)" aria-label="Отменить изменение" disabled>↶</button>
+      <button id="redo" class="icon-button" type="button" title="Повторить (Ctrl+Shift+Z)" aria-label="Повторить изменение" disabled>↷</button>
+      <button id="save-project" type="button" class="ghost-btn">Проект JSON <span aria-hidden="true">↓</span></button>
+      <button id="save-site" type="button" class="primary-btn">Экспорт CMS <span aria-hidden="true">↗</span></button>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar" aria-labelledby="catalog-label">
+      <div class="sidebar-intro">
+        <div class="overline">01 / ВЫБОР ОСНОВЫ</div>
+        <h1 id="catalog-label">Каталог сайтов<span class="accent-dot">.</span></h1>
+        <p>12 отраслей · 12 дизайнерских концепций · реальные страницы</p>
+      </div>
+      <label class="field-label" for="search-kit">Найти направление</label>
+      <div class="search-control"><span aria-hidden="true">⌕</span><input id="search-kit" type="search" placeholder="Например, SaaS или архитектура" autocomplete="off"></div>
+      <div class="catalog-head"><span>ОТРАСЛИ</span><span id="catalog-count">12</span></div>
+      <div id="kit-list" class="kit-list" role="group" aria-label="Выбор отрасли"></div>
+      <div class="sidebar-footer">
+        <span>ПАРАМЕТРЫ ПРОЕКТА</span>
+        <div class="grid-two">
+          <label class="field"><span>Язык</span><select id="language"><option value="ru">Русский</option><option value="en">English</option></select></label>
+          <label class="field"><span>Site ID</span><input id="siteId" type="text" maxlength="80" spellcheck="false"></label>
+        </div>
+        <div class="sidebar-footnote">Никаких сторонних данных, API и публикации. Все правки выполняются в браузере.</div>
+      </div>
+    </aside>
+    <main id="studio-main" class="stage-area">
+      <div class="workbench-header">
+        <div class="workbench-titles">
+          <div class="overline">02 / КОМПОЗИЦИЯ И ПРОСМОТР</div>
+          <h2 id="workbench-title">Дизайн сайта</h2>
+          <p id="workbench-subtitle">Выберите концепцию и посмотрите страницы.</p>
+        </div>
+        <div class="device-toolbar" role="group" aria-label="Размер предпросмотра">
+          <button type="button" class="device-button active" data-device="desktop" aria-pressed="true" title="Десктоп (1280px)"><span aria-hidden="true">▣</span> ПК</button>
+          <button type="button" class="device-button" data-device="tablet" aria-pressed="false" title="Планшет (768px)"><span aria-hidden="true">▤</span> Планшет</button>
+          <button type="button" class="device-button" data-device="mobile" aria-pressed="false" title="Телефон (390px)"><span aria-hidden="true">▯</span> Телефон</button>
+        </div>
+      </div>
+      <div class="theme-header"><span>ВИЗУАЛЬНОЕ НАПРАВЛЕНИЕ</span><span id="theme-current"></span></div>
+      <div id="theme-list" class="theme-list" role="group" aria-label="Выбор дизайн-системы"></div>
+      <div class="preview-top">
+        <nav id="page-list" class="page-list" aria-label="Страницы сайта"></nav>
+        <span class="preview-label">ЛОКАЛЬНЫЙ ПРЕДПРОСМОТР · НЕ РЕНДЕРЕР CMS</span>
+      </div>
+      <div id="preview-shell" class="preview-shell">
+        <div class="browser-chrome"><span class="chrome-lights" aria-hidden="true"><i></i><i></i><i></i></span><span id="browser-url">design-preview.local /</span><span>100%</span></div>
+        <div class="preview-scroller"><iframe id="site-preview" sandbox="allow-scripts" title="Безопасный предпросмотр сайта без доступа к родительскому окну" referrerpolicy="no-referrer"></iframe></div>
+      </div>
+      <div class="preview-disclaimer"><span aria-hidden="true">ⓘ</span> Визуальный HTML/CSS — расширенный предпросмотр фабрики. В CMS экспортируются только поддерживаемые поля реального <code>manufact-ai-site-v1</code>.</div>
+      <div id="message" class="message" role="status" aria-live="polite"></div>
+    </main>
+    <aside class="inspector" aria-labelledby="inspector-title">
+      <div class="inspector-header"><div class="overline">03 / РЕДАКТИРОВАНИЕ</div><h2 id="inspector-title">Содержание</h2><p>Вводите только настоящие данные владельца сайта.</p></div>
+      <form id="brief-form" novalidate>
+        <div class="inspector-content">
+          <div class="form-section">
+            <div class="form-section-title"><span>01</span><strong>Бренд и коммуникация</strong></div>
+            <label class="field"><span>Название компании</span><input id="title" data-fact="title" maxlength="120" placeholder="Название, подтверждённое владельцем"></label>
+            <label class="field"><span>Главный заголовок</span><textarea id="headline" data-fact="headline" rows="2" maxlength="120" placeholder="Опишите настоящее предложение"></textarea></label>
+            <label class="field"><span>Описание</span><textarea id="description" data-fact="description" rows="4" maxlength="400" placeholder="Реальные услуги, без выдуманных цифр и обещаний"></textarea></label>
+            <label class="field"><span>Текст кнопки</span><input id="ctaLabel" data-fact="ctaLabel" maxlength="100" placeholder="Связаться"></label>
+            <label class="field"><span>Информация о связи</span><textarea id="contactText" data-fact="contactText" rows="2" maxlength="400" placeholder="Только проверенные данные"></textarea></label>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title"><span>02</span><strong>Реальные услуги</strong></div>
+            <div id="services-list" class="services-editor"></div>
+            <button class="minor-btn" id="add-service" type="button">+ Добавить услугу</button>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title"><span>03</span><strong>Композиция главной</strong></div>
+            <label class="field"><span>Вариант секции</span><select id="composition"><option value="">Без замены · стандартный kit</option></select></label>
+            <div id="composition-info" class="composition-info">Можно выбрать любой из 42 вариантов. Для неподдерживаемого оформления используется честный CMS fallback.</div>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title"><span>04</span><strong>Перед экспортом</strong></div>
+            <div id="checklist" class="checklist"></div>
+            <div class="import-area">
+              <label class="field-label" for="project-file">Импорт проекта JSON</label>
+              <input id="project-file" type="file" accept=".json,application/json">
+              <p>Поддерживается фабричный проект или рабочее пространство v1 (до 1 МБ).</p>
+            </div>
+            <button id="save-workspace" type="button" class="minor-btn full">Скачать рабочее пространство JSON</button>
+            <button id="save-bridge" type="button" class="minor-btn full">Скачать карту совместимости</button>
+          </div>
+        </div>
+      </form>
+    </aside>
+  </div>
+</div>
+</body>
+</html>
