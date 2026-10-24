@@ -89,3 +89,9 @@ Integration caveat: `candidate.site` is a **baseline supplied by the host**, not
 ## Visible-field provenance and empty-to-owner edits
 
 Composition graphs bind actual selected semantic sources (including `feature-highlights.second` when rendered as summary and card, and `cta-banner.primary` for visible action/href), rather than guessing slots by names. Bindings support duplicate *source* values rendered in multiple independently editable nodes. A declared but initially empty field remains bound so the owner can fill it in CMS later. A changed source precedence or newly selected CTA rejects the snapshot reconciliation for explicit host review. Graph design styles still survive content edits. The old D6 package is untouched; all owner authorization/revisions and PHP/browser visual compatibility remain lead-owned integration steps.
+
+## FAQ parity and structural edits · 25 October 2026
+
+First-party `faq-accordion` supports up to **24** typed question/answer items, not 12. The adapter creates up to 24 unique heading/body graph pairs (80 nodes total including the shared shell) and rejects any excess rather than concealing owner content. FAQ nodes remain static Q&A: **no native accordion behavior** has been added. Text/answer changes in the same repeat structure use conflict-safe semantic reconciliation without altering visual styles.
+
+Addition, deletion or reordering of repeater items, and a media/caption change unrepresented in partial gallery/media-story graph, now refuse opt-in sync and require a host-authorized design-graph rebuild and visual review. Do not interpret refusal as content deletion, and do not auto-merge graph snapshots; preserve the current CMS site and owner revisions for manual resolution. Current SDK JSON/HTML validation in isolated V8 is not PHP/browser acceptance.
