@@ -75,6 +75,8 @@ final class Api
             || preg_match('~^media/[a-z][a-z0-9-]{2,79}$~D', $action))) return;
         $edit = in_array($principal['role'], ['editor','publisher'], true);
         if ($edit && $method === 'GET' && in_array($action, ['notifications','submissions'], true)) return;
+        if ($edit && $method === 'POST' &&
+            preg_match('~^video-uploads/(?:start|video-[a-f0-9]{20}/(?:chunk|finish|cancel))$~D',$action)) return;
         if ($edit && $method === 'POST' && (in_array($action, ['save','restore','restore-release','media','video','templates','notifications/seen'], true)
             || preg_match('~^templates/template-[0-9a-f]{18}/delete$~D', $action)
             || preg_match('~^submissions/lead-[0-9a-f]{24}/review$~D', $action))) return;
@@ -335,7 +337,7 @@ final class Api
                 $body = $this->request(in_array($path, ['/api/backups/plan','/api/backups/restore'], true)
                     ? SiteRepository::ARCHIVE_LIMIT
                     : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/media$~D', $path) ? 2600000 : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/video$~D',$path)?2100000:750000)));
-                if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|video|templates(?:/.*)?)$~D',$path)) {
+                if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|video|video-uploads(?:/.*)?|templates(?:/.*)?)$~D',$path)) {
                     $this->sites->assertLicenseWritable($siteScope);
                 }
                 if ($path === '/api/logout') {
@@ -466,6 +468,33 @@ final class Api
                     $this->sites->reviewSubmission($inboxMatch[1], $inboxMatch[2]);
                     $this->response(200, ['status' => 'reviewed']);
                 }
+            }
+            if($method==='POST' &&
+                preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/video-uploads/(start|video-[a-f0-9]{20}/(?:chunk|finish|cancel))$~D',$path,$vid)) {
+                $siteId=$vid[1];$action=$vid[2];$actor=$principal['username'];
+                if($action==='start'){
+                    foreach(['alt','sha256'] as $key)
+                        if(!is_string($body[$key]??null))
+                            throw new InvalidArgumentException('Missing video upload label or digest');
+                    foreach(['bytes','chunks'] as $key)
+                        if(!is_int($body[$key]??null))
+                            throw new InvalidArgumentException('Missing video upload byte/chunk count');
+                    $this->response(201,$this->sites->beginVideoUpload($siteId,$actor,
+                        self::revision($body['expectedRevision']??null),$body['alt'],
+                        $body['bytes'],$body['sha256'],$body['chunks']));
+                }
+                [$uploadId,$operation]=explode('/',$action,2);
+                if($operation==='chunk'){
+                    if(!is_int($body['index']??null)||!is_string($body['base64']??null)
+                        ||!is_string($body['sha256']??null))
+                        throw new InvalidArgumentException('Invalid video chunk body');
+                    $this->response(200,$this->sites->appendVideoChunk($siteId,$actor,$uploadId,
+                        $body['index'],$body['base64'],$body['sha256']));
+                }
+                if($operation==='finish')
+                    $this->response(201,$this->sites->finishVideoUpload($siteId,$actor,$uploadId));
+                if($operation==='cancel')
+                    $this->response(200,$this->sites->cancelVideoUpload($siteId,$actor,$uploadId));
             }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/(revisions|restore|save|publish|media|video))?$~D', $path, $matches)) {
                 $id = $matches[1];
