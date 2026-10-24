@@ -212,40 +212,65 @@ final class DesignGraph
     }
     private static function declarations(array $styles,array $t): string
     {
-        $out=[];
-        foreach ($styles as $key=>$value) {
+        $out=[];$put=static function(string $prop,string|int $value)use(&$out):void{
+            $out[]=$prop.':'.$value;
+        };
+        $aliases=['display'=>'display','direction'=>'flex-direction','color'=>'color',
+            'fontWeight'=>'font-weight','maxWidth'=>'max-width','position'=>'position',
+            'textAlign'=>'text-align','order'=>'order','flexWrap'=>'flex-wrap',
+            'flexGrow'=>'flex-grow','overflow'=>'overflow','objectFit'=>'object-fit'];
+        $pixels=['gap'=>'gap','rowGap'=>'row-gap','columnGap'=>'column-gap',
+            'padding'=>'padding','paddingX'=>'padding-inline','paddingY'=>'padding-block',
+            'marginTop'=>'margin-top','marginBottom'=>'margin-bottom',
+            'radius'=>'border-radius','fontSize'=>'font-size','minHeight'=>'min-height',
+            'top'=>'top','left'=>'left','borderColor'=>'border-color'];
+        foreach($styles as $key=>$value){
+            if($key==='gradient'){
+                $put('background-image','linear-gradient('.$value['angle'].'deg,'.
+                    self::resolve($value['from'],'colors',$t,$key).','.
+                    self::resolve($value['to'],'colors',$t,$key).')');continue;
+            }
             if(in_array($key,['color','background','borderColor'],true))
                 $value=self::resolve($value,'colors',$t,$key);
-            if(in_array($key,['gap','padding','top','left','radius','fontSize'],true)){
+            if(in_array($key,['gap','rowGap','columnGap','padding','paddingX','paddingY',
+                'top','left','minHeight','radius','fontSize'],true)){
                 $group=$key==='radius'?'radii':($key==='fontSize'?'typography':'spacing');
                 $value=self::resolve($value,$group,$t,$key);
             }
-            $put=static function(string $property,string|int $v) use (&$out): void {$out[]=$property.':'.$v;};
-            switch($key){
-                case 'display':$put('display',$value);break;
-                case 'hidden':if($value)$put('display','none');break;
-                case 'columns':$put('grid-template-columns','repeat('.$value.',minmax(0,1fr))');break;
-                case 'direction':$put('flex-direction',$value);break;
-                case 'align':$put('align-items',match($value){'start'=>'flex-start','end'=>'flex-end','between'=>'space-between',default=>$value});break;
-                case 'justify':$put('justify-content',match($value){'start'=>'flex-start','end'=>'flex-end','between'=>'space-between',default=>$value});break;
-                case 'gap':$put('gap',$value.'px');break;
-                case 'padding':$put('padding',$value.'px');break;
-                case 'radius':$put('border-radius',$value.'px');break;
-                case 'color':$put('color',$value);break;
-                case 'background':$put('background-color',$value);break;
-                case 'fontSize':$put('font-size',$value.'px');break;
-                case 'fontWeight':$put('font-weight',$value);break;
-                case 'lineHeight':$put('line-height',number_format($value/100,2,'.',''));break;
-                case 'maxWidth':$put('max-width',$value.'px');break;
-                case 'position':$put('position',$value);break;
-                case 'top':$put('top',$value.'px');break;
-                case 'left':$put('left',$value.'px');break;
-                case 'opacity':$put('opacity',number_format($value/100,2,'.',''));break;
-                case 'borderColor':$put('border-color',$value);break;
-                case 'borderWidth':$put('border-style','solid');$put('border-width',$value.'px');break;
-                case 'textAlign':$put('text-align',$value);break;
-                case 'order':$put('order',$value);break;
+            if(isset($aliases[$key])){
+                $put($aliases[$key],$key==='maxWidth'?$value.'px':$value);continue;
             }
+            if($key==='hidden'){if($value)$put('display','none');continue;}
+            if($key==='columns'){$put('grid-template-columns','repeat('.$value.',minmax(0,1fr))');continue;}
+            if($key==='gridColumnSpan'){$put('grid-column','span '.$value);continue;}
+            if(in_array($key,['align','justify','alignSelf'],true)){
+                $property=['align'=>'align-items','justify'=>'justify-content','alignSelf'=>'align-self'][$key];
+                $put($property,match($value){'between'=>'space-between','start'=>'flex-start','end'=>'flex-end',default=>$value});
+                continue;
+            }
+            if($key==='fontFamily'){
+                $put('font-family',[
+                    'inherit'=>'inherit','system'=>'system-ui,Arial,sans-serif',
+                    'arial'=>'Arial,sans-serif','georgia'=>'Georgia,serif',
+                    'serif'=>'ui-serif,Georgia,serif','mono'=>'ui-monospace,monospace'][$value]);
+                continue;
+            }
+            if($key==='aspectRatio'){
+                $put('aspect-ratio',['auto'=>'auto','square'=>'1/1','portrait'=>'3/4',
+                    'landscape'=>'4/3','wide'=>'16/9'][$value]);continue;
+            }
+            if($key==='shadow'){
+                $put('box-shadow',['none'=>'none','soft'=>'0 5px 16px #10182020',
+                    'medium'=>'0 12px 32px #10182033','strong'=>'0 20px 56px #1018204d'][$value]);
+                continue;
+            }
+            if(isset($pixels[$key])){$put($pixels[$key],$value.'px');continue;}
+            if($key==='widthPercent'){$put('width',$value.'%');continue;}
+            if($key==='letterSpacing'){$put('letter-spacing',number_format($value/10,1,'.','').'px');continue;}
+            if($key==='background')$put('background-color',$value);
+            if($key==='lineHeight')$put('line-height',number_format($value/100,2,'.',''));
+            if($key==='opacity')$put('opacity',number_format($value/100,2,'.',''));
+            if($key==='borderWidth'){$put('border-style','solid');$put('border-width',$value.'px');}
         }
         return implode(';',$out);
     }
@@ -267,12 +292,19 @@ final class DesignGraph
                 $css=self::declarations($n['states'][$name]??[],$t);
                 if($css!=='')$rules[]=$selector.$state.'{'.$css.'}';
             }
+            if(isset($n['motion'])&&$n['motion']['effect']!=='none')
+                $rules[]=$selector.'{animation:cmsdg-'.$n['motion']['effect'].' '.
+                    $n['motion']['duration'].'ms ease-out '.$n['motion']['delay'].'ms both}';
             $cls='cmsdg-n-'.$n['id'];
             switch($n['type']){
                 case 'container':
                     $body='';foreach ($n['children'] as $child)$body.=$visit($child);
                     return '<div class="'.$cls.'">'.$body.'</div>';
                 case 'divider':return '<hr class="'.$cls.'">';
+                case 'icon':
+                    $a=($n['alt']??'')!==''?
+                        'role="img" aria-label="'.self::h($n['alt']).'"':'aria-hidden="true"';
+                    return '<svg class="'.$cls.'" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '.$a.'>'.self::ICON_PATHS[$n['icon']].'</svg>';
                 case 'heading':
                     $tag='h'.($n['level']??2);
                     return '<'.$tag.' class="'.$cls.'">'.self::h($n['text']).'</'.$tag.'>';
@@ -298,7 +330,14 @@ final class DesignGraph
         $html='';foreach ($graph['nodes'] as $n)$html.=$visit($n);
         return '<section class="cmsdg cmsdg-'.$graph['id'].'" id="'.($sectionId??$graph['id']).'"><style>'
             .$scope.'{min-width:0;max-width:none;padding:0;min-height:0}'.$scope.' *{box-sizing:border-box;min-width:0}'
-            .$scope.' img{max-width:100%;height:auto}'.implode('',$rules)
+            .$scope.' img{max-width:100%;height:auto}'
+            .$scope.' svg{display:inline-block;vertical-align:middle;flex:none}'
+            .'@keyframes cmsdg-fade-in{from{opacity:0}to{opacity:1}}'
+            .'@keyframes cmsdg-fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}'
+            .'@keyframes cmsdg-slide-left{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}'
+            .'@keyframes cmsdg-zoom-in{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}'
+            .'@media(prefers-reduced-motion:reduce){'.$scope.' [class*="cmsdg-n-"]{animation:none!important;transition:none!important}}'
+            .implode('',$rules)
             .'</style>'.$html.'</section>';
     }
 }
