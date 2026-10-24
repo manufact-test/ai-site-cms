@@ -29,7 +29,7 @@ final class DesignGraph
     }
     private static function keys(mixed $o,array $keys,string $at): void
     {
-        self::check(is_array($o) && !array_is_list($o)
+        self::check(is_array($o) && (count($o)===0 || !array_is_list($o))
             && !array_diff(array_keys($o),$keys),$at.' unexpected keys');
     }
     private static function integer(mixed $n,int $min,int $max): bool
