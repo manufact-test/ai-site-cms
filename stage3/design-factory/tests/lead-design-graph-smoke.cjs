@@ -96,6 +96,45 @@ const galleryHtml=hostGraph.render(gallery.site,gallerySection.designGraph,'',nu
 assert.ok(galleryHtml.includes('Images not uploaded'));
 assert.ok(!galleryHtml.includes('<img '),'No licensed source media means no fake photos');
 assert.equal(gallery.mapping.approvedForPublish,false);
+// Explicit host-side reconciliation after editing a normal CMS repeater field.
+// CSS graph properties must not be overwritten and no AI must be invoked.
+const edited=clone(services.site);
+const editedSection=edited.pages[0].sections.find(s=>s.id==='df-selected-composition');
+editedSection.items[11].values['content.title']='Revised owner service 12';
+const findNode=(list,suffix)=>{
+ for(const n of list){
+  if(n.id.endsWith(suffix))return n;
+  const nested=findNode(n.children||[],suffix);
+  if(nested)return nested;
+ }
+ return null;
+};
+const graphTitle=findNode(editedSection.designGraph.nodes,'-card-12-title');
+graphTitle.styles.fontWeight=800;
+const synced=adapter.reconcileSemantic(services,edited,hostSdk,registry);
+const syncedSection=synced.site.pages[0].sections.find(s=>s.id==='df-selected-composition');
+const syncedTitle=findNode(syncedSection.designGraph.nodes,'-card-12-title');
+assert.equal(syncedTitle.text,'Revised owner service 12');
+assert.equal(syncedTitle.styles.fontWeight,800,'Preserve manual graph styling on content sync');
+assert.equal(JSON.stringify(services.site),JSON.stringify(
+ adapter.buildHostCandidate(serviceBundle,hostSdk,registry).site),'Candidate must not mutate');
+const forged=clone(services);
+forged.mapping.contentBindings[0].nodeId='hostile-other-node';
+assert.throws(()=>adapter.reconcileSemantic(forged,edited,hostSdk,registry),/Invalid source binding/);
+const deleted=clone(edited);
+deleted.pages[0].sections.find(s=>s.id==='df-selected-composition').items.pop();
+assert.throws(()=>adapter.reconcileSemantic(services,deleted,hostSdk,registry),
+ /Source was removed|Invalid repeat items|Invalid/);
+// Data is escaped in the first-party lead renderer; no user text becomes HTML.
+const unsafeProject=clone(ownerProject);
+unsafeProject.facts.services[0].title='<script>alert(1)</script>';
+const unsafeBundle=bridge.build({format:bridge.WORKSPACE,version:1,
+ project:unsafeProject,composition:'services-cards'});
+const safeCandidate=adapter.buildHostCandidate(unsafeBundle,hostSdk,registry);
+const safeSection=safeCandidate.site.pages[0].sections.find(s=>s.id==='df-selected-composition');
+const safeHtml=hostGraph.render(safeCandidate.site,safeSection.designGraph,'',null,safeSection.id);
+assert.ok(safeHtml.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
+assert.ok(!safeHtml.includes('<script>'));
 
 // Optional PHP parity gate on a separate read-only lead checkout. It checks
 // PHP's independent validator and the actual escaped markup (CSS can be ordered differently).
