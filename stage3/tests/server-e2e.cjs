@@ -777,9 +777,18 @@ async function stop(){
   designGraph.nodes[0].styles.right='@small';
   designGraph.nodes[0].styles.gradient.via='#abcdef';
   designGraph.nodes[0].styles.gradient.viaAt=55;
-  designGraph.nodes[0].responsive.mobile={columns:1,paddingX:'@small',flexWrap:'wrap'};
+  designGraph.nodes[0].responsive.tablet={gridColumnsPreset:'sidebar-right',translateY:-24};
+  designGraph.nodes[0].responsive.mobile={columns:1,paddingX:'@small',flexWrap:'wrap',translateY:0};
   designGraph.nodes[0].children[0].styles.fontFamily='georgia';
   designGraph.nodes[0].children[0].styles.letterSpacing=-12;
+  Object.assign(designGraph.nodes[0].children[0].styles,{
+    fontStyle:'italic',textTransform:'uppercase',textWrap:'balance',
+    textShadow:'strong',wordSpacing:-6,gridColumnStart:2,
+    translateX:12,translateY:-8,rotateDeg:-4,scalePercent:104,
+    transformOrigin:'top-left'});
+  Object.assign(designGraph.nodes[0].styles,{
+    isolation:'isolate',clipShape:'diagonal',backdropBlur:4,
+    borderTopLeftRadius:'@soft'};
   designGraph.nodes[0].children[0].motion={effect:'fade-up',duration:600,delay:150};
   designGraph.nodes[0].children[0].text='Архитектурная композиция & сетка';
   designGraph.nodes[0].children[0].states={hover:{color:'@accent'},focus:{opacity:80,outlineColor:'@accent',outlineWidth:2}};
@@ -850,6 +859,13 @@ async function stop(){
     'object-position:var(--cmsdg-object-x,50%) var(--cmsdg-object-y,50%)'])
     assert.ok(htmlDesign.includes(property),property+' should publish with PHP');
   assert.match(htmlDesign,/padding-inline:48px/);
+  for(const css of ['font-style:italic','text-transform:uppercase','text-wrap:balance',
+    'text-shadow:0 4px 18px #10182080','word-spacing:-0.6px','grid-column-start:2',
+    'rotate:-4deg','scale:1.04','transform-origin:top-left',
+    'grid-template-columns:minmax(0,2fr) minmax(0,1fr)',
+    '--cmsdg-tx:12px','--cmsdg-ty:-8px','clip-path:polygon(0 0,100% 0,100% 90%,0 100%)',
+    'backdrop-filter:blur(4px)','border-top-left-radius:12px'])
+    assert.ok(htmlDesign.includes(css),'Server renderer editorial CSS: '+css);
   assert.match(htmlDesign,/animation:cmsdg-fade-up 600ms ease-out 150ms both/);
   assert.match(htmlDesign,/prefers-reduced-motion:reduce/);
   assert.match(htmlDesign,/role="img" aria-label="Защищённый дизайн"/);
@@ -878,6 +894,10 @@ async function stop(){
   for(const property of ['align-content:space-between','grid-auto-flow:row dense','width:900px',
     'z-index:3','right:12px','outline-width:2px','--cmsdg-object-x:20%'])
     assert.ok(htmlStatic.includes(property),property+' should survive static export');
+  for(const css of ['font-style:italic','text-transform:uppercase','text-wrap:balance',
+    'rotate:-4deg','scale:1.04','--cmsdg-tx:12px','--cmsdg-ty:-8px',
+    'grid-template-columns:minmax(0,2fr) minmax(0,1fr)','backdrop-filter:blur(4px)'])
+    assert.ok(htmlStatic.includes(css),'Static exporter editorial CSS: '+css);
   assert.match(htmlStatic,/animation:cmsdg-fade-up 600ms ease-out 150ms both/);
   assert.match(htmlStatic,/role="img" aria-label="Защищённый дизайн"/);
   assert.match(htmlStatic,/prefers-reduced-motion:reduce/);

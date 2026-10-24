@@ -657,6 +657,17 @@
           justifySelf:['auto','start','center','end','stretch'],alignContent:['start','center','end','stretch','between'],
           gridAutoFlow:['row','column','row-dense','column-dense'],
           textDecoration:['none','underline','line-through'],whiteSpace:['normal','nowrap','pre-line'],
+          fontStyle:['normal','italic'],
+          textTransform:['none','uppercase','lowercase','capitalize'],
+          textWrap:['wrap','balance','pretty','nowrap'],
+          wordBreak:['normal','break-all','break-word'],
+          textOverflow:['clip','ellipsis'],
+          textShadow:['none','soft','strong'],
+          gridColumnsPreset:['sidebar-left','sidebar-right','wide-center','editorial'],
+          transformOrigin:['center','top-left','top-right','bottom-left','bottom-right'],
+          isolation:['auto','isolate'],
+          mixBlendMode:['normal','multiply','screen','overlay','darken','lighten'],
+          clipShape:['none','circle','ellipse','diagonal','hexagon'],
           hidden:['true','false']
         };
         const value=style[key]===undefined?'':String(style[key]);

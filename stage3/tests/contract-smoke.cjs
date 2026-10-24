@@ -837,6 +837,63 @@ test('AI-free atomic composition tree: reparent, deep clone, wrap, unwrap, media
   assert.ok(original.includes(sec.id+'-title'));
 });
 
+
+test('editorial type, asymmetric grid and layered transforms stay typed across responsive design',()=>{
+  const DG=require('../sdk/design-graph.cjs'),site=structuredClone(initial);
+  const sec=site.pages[0].sections[0],g=DG.baseGraph(sec.id),hero=g.nodes[0],heading=hero.children[0];
+  site.designTokens=structuredClone(DG.DEFAULT_TOKENS);
+  delete hero.styles.columns;
+  Object.assign(hero.styles,{gridColumnsPreset:'sidebar-left',isolation:'isolate',
+    mixBlendMode:'multiply',clipShape:'diagonal',backdropBlur:12,overflow:'hidden',
+    borderTopLeftRadius:'@round',borderBottomRightRadius:22});
+  hero.responsive.tablet={gridColumnsPreset:'wide-center',translateX:24,translateY:-12};
+  hero.responsive.mobile={columns:1,gridColumnsPreset:undefined,translateX:0,translateY:0};
+  delete hero.responsive.mobile.gridColumnsPreset;
+  Object.assign(heading.styles,{fontStyle:'italic',fontWeight:700,
+    textTransform:'uppercase',textWrap:'balance',wordBreak:'break-word',
+    textOverflow:'ellipsis',textShadow:'soft',wordSpacing:12,textIndent:-18,
+    gridColumnStart:2,gridRowStart:1,translateX:32,translateY:-48,
+    rotateDeg:-8,scalePercent:115,transformOrigin:'top-left'});
+  heading.responsive={tablet:{rotateDeg:0,scalePercent:100},
+    mobile:{translateX:-10,translateY:0,textTransform:'none',fontStyle:'normal',textWrap:'pretty'}};
+  sec.designGraph=g;
+  assert.deepEqual(sdk.validateSite(site,manifests),site);
+  const html=DG.render(site,g);
+  for(const css of ['grid-template-columns:minmax(0,1fr) minmax(0,2fr)',
+    'grid-template-columns:minmax(0,1fr) minmax(0,3fr) minmax(0,1fr)',
+    'clip-path:polygon(0 0,100% 0,100% 90%,0 100%)','backdrop-filter:blur(12px)',
+    '-webkit-backdrop-filter:blur(12px)','mix-blend-mode:multiply','isolation:isolate',
+    'border-top-left-radius:24px','border-bottom-right-radius:22px',
+    'font-style:italic','text-transform:uppercase','text-wrap:balance',
+    'word-break:break-word','text-overflow:ellipsis','text-shadow:0 2px 8px #10182040',
+    'word-spacing:1.2px','text-indent:-18px','grid-column-start:2','grid-row-start:1',
+    'rotate:-8deg','scale:1.15','transform-origin:top-left',
+    '--cmsdg-tx:0px;--cmsdg-ty:0px;translate:var(--cmsdg-tx) var(--cmsdg-ty)',
+    '--cmsdg-tx:32px','--cmsdg-ty:-48px','@media(max-width:900px)','@media(max-width:600px)']){
+    assert.ok(html.includes(css),'Editorial CSS should render: '+css);
+  }
+  const invalid=[
+    s=>s.nodes[0].styles.gridColumnsPreset='repeat(1000,1fr)',
+    s=>s.nodes[0].styles.columns=2,
+    s=>s.nodes[0].styles.clipShape='url(http://unsafe)',
+    s=>s.nodes[0].styles.backdropBlur=300,
+    s=>s.nodes[0].styles.mixBlendMode='destination-out',
+    s=>s.nodes[0].children[0].styles.scalePercent=400,
+    s=>s.nodes[0].children[0].styles.translateX='calc(9px)',
+    s=>s.nodes[0].children[0].styles.rotateDeg=360,
+    s=>s.nodes[0].children[0].styles.textShadow='url(/evil)',
+    s=>s.nodes[0].children[0].styles.borderTopLeftRadius='@unknown',
+    s=>s.nodes[0].children[0].styles.textTransform='<script>',
+    s=>s.nodes[0].children[0].states={focus:{rotateDeg:90}}
+  ];
+  for(const mutate of invalid){
+    const candidate=structuredClone(g);mutate(candidate);
+    const broken=structuredClone(site);broken.pages[0].sections[0].designGraph=candidate;
+    refuses(()=>sdk.validateSite(broken,manifests),'Untrusted editorial CSS must fail closed');
+  }
+  assert.doesNotMatch(html,/<script|onerror=/);
+});
+
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');
