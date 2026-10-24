@@ -132,6 +132,34 @@ const findNode=(list,suffix)=>{
  }
  return null;
 };
+// When the host has explicitly rebuilt its baseline after a structural FAQ
+// edit, all 24 distinct answer bindings remain individually synchronizable.
+const fullFaqCandidate=clone(faq);
+fullFaqCandidate.site=clone(fullFaqValidated);
+fullFaqCandidate.mapping.contentBindings=[
+ ...faqBindings.filter(b=>!b.source.itemId),
+ ...fullFaqSection.items.flatMap((item,i)=>[
+  {nodeId:fullFaqSection.id+'-dg-card-'+(i+1)+'-title',
+   source:{itemId:item.id,field:'content.question'}},
+  {nodeId:fullFaqSection.id+'-dg-card-'+(i+1)+'-text',
+   source:{itemId:item.id,field:'content.answer'}}
+ ])
+];
+const answer24Edit=clone(fullFaqCandidate.site);
+const answer24Section=answer24Edit.pages[0].sections.find(s=>s.id==='df-selected-composition');
+answer24Section.items[23].values['content.answer']='Verified revised 24th answer';
+const answer24Node=answer24Section.designGraph.nodes[0].children
+ .find(n=>n.id.endsWith('-detail')).children.find(n=>n.id.endsWith('-cards'))
+ .children[23].children.find(n=>n.id.endsWith('-text'));
+answer24Node.styles.fontWeight=700;
+const answer24Preview=adapter.inspectSemanticSync(fullFaqCandidate,answer24Edit,hostSdk,registry);
+assert.equal(answer24Preview.changes.length,1,'One owner answer edits one bound graph node');
+const answer24Synced=adapter.reconcileSemantic(fullFaqCandidate,answer24Edit,hostSdk,registry);
+const answer24Graph=answer24Synced.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition').designGraph.nodes;
+const updatedAnswer24=findNode(answer24Graph,'-card-24-text');
+assert.equal(updatedAnswer24.text,'Verified revised 24th answer');
+assert.equal(updatedAnswer24.styles.fontWeight,700,'Owner graph typography must survive');
 const graphTitle=findNode(editedSection.designGraph.nodes,'-card-12-title');
 graphTitle.styles.fontWeight=800;
 const synced=adapter.reconcileSemantic(services,edited,hostSdk,registry);
