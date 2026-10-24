@@ -8,6 +8,7 @@ const catalog=require('../catalog/compositions.cjs');
 const adapter=require('../lib/composition-adapter.cjs');
 const showcase=require('../lib/showcase.cjs');
 const kitGallery=require('../lib/kit-gallery.cjs');
+const bridge=require('../lib/bridge.cjs');
 function help(){
   process.stdout.write([
     'Design Factory D1 (offline, Node.js >= 20, no dependencies)',
@@ -19,6 +20,8 @@ function help(){
     '  compositions [CATEGORY]',
     '  showcase NEW-output-directory',
     '  kit-gallery NEW-output-directory',
+    '  bridge-export PROJECT.json NEW-package.json',
+    '  bridge-validate PACKAGE.json [--out NEW-site-v1.json]',
     '  compose COMPOSITION_ID --out SITE.json [--brief PROJECT.json] [--report BRIDGE.json]',
     '  help',
     'Input design project format: manufact-design-factory-v1, version 1. Output site: manufact-ai-site-v1.',
@@ -57,6 +60,25 @@ function run(argv){
     if(rest.length>1)throw Error('compositions takes optional category');
     const items=catalog.list(rest[0]);
     process.stdout.write(serialize({format:catalog.FORMAT,count:items.length,items}));
+    return;
+  }
+  if(command==='bridge-export'){
+    if(rest.length!==2)throw Error('bridge-export needs a project and NEW package path');
+    const output=bridge.build(readJSON(rest[0]));
+    bridge.validateBundle(output);
+    newFile(rest[1],serialize(output));
+    process.stdout.write(serialize({valid:true,format:output.format,pages:output.site.pages.length,
+      publishGate:output.compatibility.publishGate}));
+    return;
+  }
+  if(command==='bridge-validate'){
+    if(!rest.length||rest.length>3)throw Error('bridge-validate takes package and optional --out');
+    const file=rest[0], f=flags(rest.slice(1),['--out']);
+    const parsed=bridge.validateBundle(readJSON(file));
+    const site=bridge.importForCMS(parsed);
+    if(f['--out'])newFile(f['--out'],serialize(site));
+    process.stdout.write(serialize({valid:true,siteFormat:site.format,pages:site.pages.length,
+      requiresOwnerReview:true}));
     return;
   }
   if(command==='kit-gallery'){
