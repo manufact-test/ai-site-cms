@@ -8,10 +8,10 @@ The first-party bridge lives in [lib/bridge.cjs](lib/bridge.cjs) and exposes:
 
 - `workspace(input)`: validates a raw `manufact-design-factory-v1` project or a strict `manufact-design-factory-workspace-v1` envelope with an optional known D3 composition.
 - `build(input)`: compiles through **the current Stage3 SDK/manifests**, inserts a registered semantic composition fallback if selected, checks broken links, and returns a `manufact-design-factory-export-v1` package.
-- `validateBundle(package)`: closes unknown keys and **recompiles** the complete package to detect any changed CMS JSON, layout spec, owner facts, warnings or compatibility claims. Never treats a supplied JSON string as executable markup.
+- `validateBundle(package)`: closes unknown keys and **recompiles** the complete package to detect changed CMS JSON, layout spec, owner facts, warnings or compatibility claims. JSON object key order is ignored (it has no semantic meaning), while array order, primitive types, unknown members and nested values remain strictly checked. Never treats a supplied JSON string as executable markup.
 - `importForCMS(package)`: returns only the SDK-validated `manufact-ai-site-v1` document, not preview HTML or new unregistered properties.
 
-Package top-level keys are strictly: `format`, `version`, `workspace`, `site`, `designSpec`, `ownerChecklist`, `inspection`, `compatibility`. Version is 1. All generated site IDs, routes, navigation, SEO and repeaters are validated by `stage3/sdk/contract.cjs`. This deterministic integrity check is **not a digital signature**: it only prevents silent divergence from the current compiler, not malicious edits to both source code and artifacts.
+Package top-level keys are strictly: `format`, `version`, `workspace`, `site`, `designSpec`, `ownerChecklist`, `inspection`, `compatibility`. Version is 1. The bridge accepts key-reordered JSON produced by standard serializers; it rejects non-JSON values and changed nested content. The same deterministic package can therefore be processed by a PHP/CMS serializer without requiring its original object member insertion order. All generated site IDs, routes, navigation, SEO and repeaters are validated by `stage3/sdk/contract.cjs`. This deterministic integrity check is **not a digital signature**: it only prevents silent divergence from the current compiler, not malicious edits to both source code and artifacts.
 
 ## CLI sample (Node, no dependencies)
 
@@ -60,5 +60,12 @@ Export destinations **must not already exist**. For the browser counterpart, ope
 - Main CMS ingest/publish permissions, PHP parity for enhanced themes and D3 patterns, real media upload mapping, formCollector verification and full Chromium responsive/keyboard/owner-content inspection are external integration steps.
 - Bundle validation detects changes by deterministic regeneration, not encryption/authentication. Validate all bytes again on the server, rather than trusting an untrusted browser.
 - D6 is implemented as an independent bridge API and CLI; product acceptance is not complete until the lead imports it into the CMS and completes D7 visual acceptance.
+
+## 24 October D7 bridge compatibility checkpoint
+
+- A concrete serializer interoperability problem was resolved: comparing `JSON.stringify(raw)` byte order rejected a valid bundle whose object properties were reordered during reserialization. The D6 validator now canonicalizes strictly JSON-compatible values (sorted object keys, preserved array order), rejects unsupported types and recompiles the full package against real Stage3 SDK manifests.
+- A dedicated `tests/bridge-smoke.cjs` regression covers a fully reordered exported bundle, a changed nested page SEO title and an invalid non-JSON value. The deterministic offline `studio/runtime.generated.js` was regenerated to carry identical behavior.
+- **Evidence:** in an isolated V8 runtime with the current generated bundle, 288/288 CMS documents and D6 round-trips passed, all 42 semantic composition fallbacks validated, reordered JSON accepted, and three different altered/invalid bundles rejected. This is **not** checked-out Node execution, Chromium acceptance, server-side owner authorization or a digital signature.
+- The lead still must implement/verify PHP visual parity separately, enforce owner permission and explicit publish gates and run full checkout acceptance before integration. None of those capabilities is claimed as completed by this D6 update.
 
 **Formal status unchanged:** Stage2 NO-GO; Stage3+ not accepted; 0/135.
