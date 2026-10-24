@@ -79,7 +79,7 @@ try{
  "window.addEventListener('load',function(){",
  "const ready=()=>{const frame=document.getElementById('site-preview');return Boolean(frame.getAttribute('srcdoc'))};",
  "const mark=(result)=>{const el=document.createElement('div');el.id='d5-browser-result';el.textContent=result;document.body.appendChild(el);};",
- "setTimeout(function(){",
+ "setTimeout(async function(){",
  "try{",
  "if(!ready())throw Error('initial preview missing');",
  "const items=document.querySelectorAll('.kit-item');if(items.length!==12)throw Error('kit selector');",
@@ -97,6 +97,20 @@ try{
  "if(document.getElementById('composition').value==='gallery-mosaic')throw Error('undo failure');",
  "document.getElementById('redo').click();",
  "if(document.getElementById('composition').value!=='gallery-mosaic')throw Error('redo failure');",
+ "const blobs=[],downloadNames=[];",
+ "const originalURL=URL.createObjectURL,originalClick=HTMLAnchorElement.prototype.click;",
+ "URL.createObjectURL=function(blob){blobs.push(blob);return originalURL.call(URL,blob)};",
+ "HTMLAnchorElement.prototype.click=function(){downloadNames.push(this.download)};",
+ "for(const id of ['save-site','save-bundle','save-project','save-workspace'])document.getElementById(id).click();",
+ "if(blobs.length!==4||downloadNames.length!==4)throw Error('four exports missing');",
+ "const site=JSON.parse(await blobs[0].text());",
+ "if(site.format!=='manufact-ai-site-v1'||site.pages.length!==4)throw Error('CMS export contract');",
+ "window.DesignFactory.sdk.validateSite(site,window.DesignFactory.compiler.loadRegistry());",
+ "const bundle=JSON.parse(await blobs[1].text());window.DesignFactory.bridge.validateBundle(bundle);",
+ "if(JSON.stringify(bundle.site)!==JSON.stringify(site))throw Error('CMS and D6 exports diverge');",
+ "const project=JSON.parse(await blobs[2].text()),workspace=JSON.parse(await blobs[3].text());",
+ "if(project.facts.title!=='Verified Demo Company'||workspace.composition!=='gallery-mosaic')throw Error('exported edits missing');",
+ "URL.createObjectURL=originalURL;HTMLAnchorElement.prototype.click=originalClick;",
  "mark('D5_BROWSER_E2E_PASS');",
  "}catch(e){mark('D5_BROWSER_E2E_FAIL: '+e.message)}",
  "},600);",
@@ -110,5 +124,5 @@ try{
   'file://'+path.join(fixture,'index.html')],{encoding:'utf8',timeout:30000,maxBuffer:15*1024*1024});
  assert.equal(run.status,0,'Chromium exit: '+run.stderr.slice(-1000));
  assert.ok(run.stdout.includes('D5_BROWSER_E2E_PASS'),'Chromium UI E2E: '+run.stdout.slice(-900));
- console.log('DESIGN_FACTORY_D5_CHROMIUM PASS: kit→theme→mobile→edit→gallery→undo→redo');
+ console.log('DESIGN_FACTORY_D5_CHROMIUM PASS: kit→theme→mobile→edit→gallery→undo→redo, CMS/bridge/project/workspace browser exports');
 }finally{fs.rmSync(temp,{recursive:true,force:true});}
