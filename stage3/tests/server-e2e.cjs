@@ -662,6 +662,86 @@ async function stop(){
   const released=await request('POST','/api/sites/site-rich-ci/publish',{expectedRevision:6});
   assert.equal(released.status,200);
   assert.match((await request('GET','/published/site-rich-ci/')).body,/Новый alt без изменения двоичных данных/);
+  // Real pixel dimensions and SHA256: publish binary 360/720/1200 variants,
+  // export them, keep them through archive restore and reject forged checksums.
+  const {deflateSync}=require('node:zlib');
+  const crypto=require('node:crypto');
+  function solidPng(width,height){
+    const stride=width*3+1,raw=Buffer.alloc(stride*height);
+    for(let y=0;y<height;y++){
+      const off=y*stride;raw[off]=0;
+      for(let x=0;x<width;x++){raw[off+1+x*3]=45;raw[off+2+x*3]=108;raw[off+3+x*3]=185;}
+    }
+    function crc(buf){let c=0xffffffff;for(const b of buf){c^=b;for(let n=0;n<8;n++)c=c&1?(c>>>1)^0xedb88320:c>>>1;}return (c^0xffffffff)>>>0;}
+    function chunk(type,data){const t=Buffer.from(type),length=Buffer.alloc(4),hash=Buffer.alloc(4);
+      length.writeUInt32BE(data.length);hash.writeUInt32BE(crc(Buffer.concat([t,data])));
+      return Buffer.concat([length,t,data,hash]);}
+    const head=Buffer.alloc(13);head.writeUInt32BE(width,0);head.writeUInt32BE(height,4);
+    head[8]=8;head[9]=2;
+    return Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),
+      chunk('IHDR',head),chunk('IDAT',deflateSync(raw,{level:6})),chunk('IEND',Buffer.alloc(0))]);
+  }
+  const hash=buf=>crypto.createHash('sha256').update(buf).digest('hex');
+  const original=solidPng(1200,800);
+  const variants=[360,720,1200].map(width=>{
+    const bytes=solidPng(width,width*2/3);
+    return {width,bytes,base64:bytes.toString('base64'),sha256:hash(bytes)};
+  });
+  const responsiveEndpoint='/api/sites/site-rich-ci';
+  const input={base64:original.toString('base64'),alt:'Физические версии изображения',
+    sha256:hash(original),expectedRevision:6,
+    variants:variants.map(({width,base64,sha256})=>({width,base64,sha256}))};
+  const corrupted=structuredClone(input);corrupted.variants[1].sha256='0'.repeat(64);
+  assert.equal((await request('POST',responsiveEndpoint+'/media',corrupted)).status,422);
+  const responsiveUpload=await request('POST',responsiveEndpoint+'/media',input);
+  assert.equal(responsiveUpload.status,201,JSON.stringify(responsiveUpload.body));
+  assert.equal(responsiveUpload.body.revision,7);
+  const responsiveAsset=responsiveUpload.body.asset;
+  assert.deepEqual(responsiveAsset.variants.map(v=>v.width),[360,720,1200]);
+  assert.deepEqual(responsiveAsset.variants.map(v=>v.sha256),variants.map(v=>v.sha256));
+  assert.equal((await request('POST',responsiveEndpoint+'/media',input)).status,409,'stale batch cannot write');
+  const newDoc=structuredClone(responsiveUpload.body.site);
+  newDoc.pages[0].sections.find(sec=>sec.component==='adaptive-gallery').items[0].values['content.media']=responsiveAsset.id;
+  assert.equal((await request('POST',responsiveEndpoint+'/save',{site:newDoc,expectedRevision:7})).status,200);
+  assert.equal((await request('GET','/published/site-rich-ci/')).body.includes(responsiveAsset.id),false);
+  assert.equal((await request('POST',responsiveEndpoint+'/publish',{expectedRevision:8})).status,200);
+  const responsiveHTML=(await request('GET','/published/site-rich-ci/')).body;
+  assert.match(responsiveHTML,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
+  assert.match(responsiveHTML,/sizes="\\(max-width: 600px\\) 100vw/);
+  for(let n=0;n<3;n++){
+    const variant=responsiveAsset.variants[n];
+    const url='/published/site-rich-ci'+variant.src;
+    const resource=await fetch(origin+url);
+    assert.equal(resource.status,200);
+    assert.equal(resource.headers.get('etag'),'"'+variant.sha256+'"');
+    assert.deepEqual(Buffer.from(await resource.arrayBuffer()),variants[n].bytes);
+    const privateVariant=await fetch(origin+responsiveEndpoint+'/media/'+variant.id,{headers:{cookie}});
+    assert.equal(privateVariant.status,200);
+  }
+  const responsiveArchive=(await request('GET',responsiveEndpoint+'/backup')).body;
+  assert.equal(responsiveArchive.payload.media.length,5);
+  const copyId='site-responsive-copy';
+  const plan=await request('POST','/api/backups/plan',{archive:responsiveArchive,targetSiteId:copyId});
+  assert.equal(plan.status,200,JSON.stringify(plan.body));
+  const restored=await request('POST','/api/backups/restore',
+    {archive:responsiveArchive,targetSiteId:copyId,confirmationToken:plan.body.confirmationToken});
+  assert.equal(restored.status,201,JSON.stringify(restored.body));
+  assert.equal(restored.body.site.assets.find(a=>a.id===responsiveAsset.id).variants.length,3);
+  assert.equal((await request('GET','/published/'+copyId+'/')).status,404,'restore does not publish');
+  const staticResponsive=path.join(dbdir,'responsive-export');
+  const outcome=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',staticResponsive],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(outcome.status,0,outcome.stderr);
+  const releaseJSON=JSON.parse(fs.readFileSync(path.join(staticResponsive,'release-manifest.json'),'utf8'));
+  assert.equal(releaseJSON.assets.length,5);
+  const staticPage=fs.readFileSync(path.join(staticResponsive,'index.html'),'utf8');
+  assert.match(staticPage,/srcset="assets\\/[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
+  for(let n=0;n<3;n++){
+    const rendition=releaseJSON.assets.find(a=>a.id===responsiveAsset.variants[n].id);
+    assert.equal(rendition.parentId,responsiveAsset.id);
+    assert.equal(rendition.sha256,variants[n].sha256);
+    assert.deepEqual(fs.readFileSync(path.join(staticResponsive,rendition.file)),variants[n].bytes);
+  }
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET',endpoint+'/backup')).status,401,'Archives remain private');
