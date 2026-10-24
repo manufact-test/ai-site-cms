@@ -133,3 +133,11 @@ New main-branch Design Graph v1 properties were discovered **read-only**: the le
 **Observed in V8 with live GitHub sources:** 288/288 old site-v1 exports accepted by lead SDK; 504/504 new graph candidates and 504/504 scoped host JS graph renders passed, including the latest concurrently updated lead Graph module. Old SDK fails closed on new keys. These are isolated source-level compatibility results, NOT checked-out Node, PHP parity, browser or production acceptance. Xvfb+Chromium probe also timed out; GitHub cannot be resolved from the local checkout container. No real ZIP artifact/hashes or release readiness can be claimed.
 
 **Engineering direction:** D1–D6 implemented and D7 compatibility/packaging checks hardened, but D7 **NOT ACCEPTED** pending real runtime + owner visual review. Official Stage2 NO-GO, Stage3 not accepted, **0/135**. No merge, no main/lead edits.
+
+## 24 October 2026 — Host graph diversity, runtime acceptance pending
+
+Since commit 4fad42505bf551da1d1a42018da73f45d709b977, the optional lead adapter has gained theme-specific editable typography, layout-specific grid/span/order, card treatments, decorative native icons, safe gradients, reduced-motion-aware motion and 48px button targets. The legacy D6 output and Browser Studio were left intact. The optional lead smoke test now checks 504 distinct graphs, manual JSON changes to headline/color/mobile layout/hover, and an optional PHP validator/markup-parity check when DF_LEAD_PHP_FILE and DF_LEAD_SDK_DIR are provided.
+
+Verified in isolated V8 against current GitHub lead source: 288/288 original CMS sites and 504/504 new editable graph candidates and JS renders; all 504 graph variants distinct. Editing site JSON after generation visibly changed the rendered result. These are source-level checks, not full checkout, PHP or browser acceptance.
+
+GitHub checkout remains blocked by local DNS, and headless Chromium still times out even on a minimal data URL. No real ZIP, SHA256, Node-suite PASS, PHP parity PASS or human visual approval. D7 OPEN. Formal Stage2 NO-GO, Stage3 unaccepted, 0/135.
