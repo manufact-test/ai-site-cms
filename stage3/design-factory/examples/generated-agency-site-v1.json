@@ -1,0 +1,647 @@
+{
+  "format": "manufact-ai-site-v1",
+  "siteId": "factory-agency",
+  "title": "Новый сайт — требуется название",
+  "schemaVersion": 1,
+  "assets": [],
+  "pages": [
+    {
+      "id": "df-page-home",
+      "path": "/",
+      "title": "Главная",
+      "navigation": {
+        "label": "Главная",
+        "hidden": false
+      },
+      "seo": {
+        "title": "Новый сайт — требуется название",
+        "description": "Информация о направлениях, подходе и способах связи. Данные требуют проверки владельцем.",
+        "robots": "index"
+      },
+      "sections": [
+        {
+          "id": "df-home-01",
+          "component": "company-hero",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-home-01-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Опишите ваше предложение",
+                "style.fontSize": {
+                  "desktop": "64px",
+                  "tablet": "48px",
+                  "mobile": "35px"
+                },
+                "style.color": "#202B34"
+              }
+            },
+            {
+              "id": "df-home-01-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Добавьте проверенные сведения о компании и задаче, которую она решает."
+              }
+            },
+            {
+              "id": "df-home-01-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Обсудить задачу",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-home-02",
+          "component": "feature-highlights",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-home-02-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Что важно знать"
+              }
+            },
+            {
+              "id": "df-home-02-first",
+              "slot": "first",
+              "values": {
+                "content.text": "Добавьте проверенную информацию о подходе к работе.",
+                "style.color": "#202B34"
+              }
+            },
+            {
+              "id": "df-home-02-second",
+              "slot": "second",
+              "values": {
+                "content.text": "Уточните сроки, состав услуг и условия у владельца."
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-home-03",
+          "component": "service-grid",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-home-03-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Направления работы"
+              }
+            }
+          ],
+          "items": [
+            {
+              "id": "df-home-03-item-1",
+              "values": {
+                "content.title": "Направление 1 — уточните у владельца",
+                "content.text": "Опишите услугу на основе подтверждённых данных.",
+                "behavior.href": "/contact/"
+              }
+            },
+            {
+              "id": "df-home-03-item-2",
+              "values": {
+                "content.title": "Направление 2 — уточните у владельца",
+                "content.text": "Опишите услугу на основе подтверждённых данных.",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-home-04",
+          "component": "cta-banner",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-home-04-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Начнём с задачи"
+              }
+            },
+            {
+              "id": "df-home-04-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Опишите цель и ожидаемый результат, чтобы обсудить дальнейшие действия."
+              }
+            },
+            {
+              "id": "df-home-04-primary",
+              "slot": "primary",
+              "values": {
+                "content.text": "Обсудить задачу",
+                "behavior.href": "/contact/"
+              }
+            },
+            {
+              "id": "df-home-04-secondary",
+              "slot": "secondary",
+              "values": {
+                "content.text": "Посмотреть услуги",
+                "behavior.href": "/services/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        }
+      ]
+    },
+    {
+      "id": "df-page-services",
+      "path": "/services/",
+      "title": "Услуги",
+      "navigation": {
+        "label": "Услуги",
+        "hidden": false
+      },
+      "seo": {
+        "title": "Услуги | Новый сайт — требуется название",
+        "description": "Информация о направлениях, подходе и способах связи. Данные требуют проверки владельцем.",
+        "robots": "index"
+      },
+      "sections": [
+        {
+          "id": "df-services-01",
+          "component": "company-hero",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-services-01-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Услуги",
+                "style.fontSize": {
+                  "desktop": "64px",
+                  "tablet": "48px",
+                  "mobile": "35px"
+                },
+                "style.color": "#202B34"
+              }
+            },
+            {
+              "id": "df-services-01-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Информация о направлениях, подходе и способах связи. Данные требуют проверки владельцем."
+              }
+            },
+            {
+              "id": "df-services-01-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Обсудить задачу",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-services-02",
+          "component": "service-grid",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-services-02-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Направления работы"
+              }
+            }
+          ],
+          "items": [
+            {
+              "id": "df-services-02-item-1",
+              "values": {
+                "content.title": "Направление 1 — уточните у владельца",
+                "content.text": "Опишите услугу на основе подтверждённых данных.",
+                "behavior.href": "/contact/"
+              }
+            },
+            {
+              "id": "df-services-02-item-2",
+              "values": {
+                "content.title": "Направление 2 — уточните у владельца",
+                "content.text": "Опишите услугу на основе подтверждённых данных.",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-services-03",
+          "component": "media-story",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-services-03-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "О процессе работы"
+              }
+            },
+            {
+              "id": "df-services-03-copy",
+              "slot": "copy",
+              "values": {
+                "content.text": "Добавьте реальные материалы, этапы или примеры вашей работы."
+              }
+            },
+            {
+              "id": "df-services-03-photo",
+              "slot": "photo",
+              "values": {
+                "content.media": ""
+              }
+            },
+            {
+              "id": "df-services-03-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Обсудить задачу",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-services-04",
+          "component": "cta-banner",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-services-04-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Начнём с задачи"
+              }
+            },
+            {
+              "id": "df-services-04-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Опишите цель и ожидаемый результат, чтобы обсудить дальнейшие действия."
+              }
+            },
+            {
+              "id": "df-services-04-primary",
+              "slot": "primary",
+              "values": {
+                "content.text": "Обсудить задачу",
+                "behavior.href": "/contact/"
+              }
+            },
+            {
+              "id": "df-services-04-secondary",
+              "slot": "secondary",
+              "values": {
+                "content.text": "Посмотреть услуги",
+                "behavior.href": "/services/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        }
+      ]
+    },
+    {
+      "id": "df-page-approach",
+      "path": "/approach/",
+      "title": "Подход",
+      "navigation": {
+        "label": "Подход",
+        "hidden": false
+      },
+      "seo": {
+        "title": "Подход | Новый сайт — требуется название",
+        "description": "Информация о направлениях, подходе и способах связи. Данные требуют проверки владельцем.",
+        "robots": "index"
+      },
+      "sections": [
+        {
+          "id": "df-approach-01",
+          "component": "company-hero",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-approach-01-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Подход",
+                "style.fontSize": {
+                  "desktop": "64px",
+                  "tablet": "48px",
+                  "mobile": "35px"
+                },
+                "style.color": "#202B34"
+              }
+            },
+            {
+              "id": "df-approach-01-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Информация о направлениях, подходе и способах связи. Данные требуют проверки владельцем."
+              }
+            },
+            {
+              "id": "df-approach-01-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Обсудить задачу",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-approach-02",
+          "component": "feature-highlights",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-approach-02-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Что важно знать"
+              }
+            },
+            {
+              "id": "df-approach-02-first",
+              "slot": "first",
+              "values": {
+                "content.text": "Добавьте проверенную информацию о подходе к работе.",
+                "style.color": "#202B34"
+              }
+            },
+            {
+              "id": "df-approach-02-second",
+              "slot": "second",
+              "values": {
+                "content.text": "Уточните сроки, состав услуг и условия у владельца."
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-approach-03",
+          "component": "faq-accordion",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-approach-03-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Частые вопросы"
+              }
+            }
+          ],
+          "items": [
+            {
+              "id": "df-approach-03-item-1",
+              "values": {
+                "content.question": "Как уточнить объём проекта?",
+                "content.answer": "Оставьте описание задачи, чтобы согласовать детали."
+              }
+            },
+            {
+              "id": "df-approach-03-item-2",
+              "values": {
+                "content.question": "Где узнать условия сотрудничества?",
+                "content.answer": "Уточните актуальные условия у представителя организации."
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-approach-04",
+          "component": "cta-banner",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-approach-04-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Начнём с задачи"
+              }
+            },
+            {
+              "id": "df-approach-04-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Опишите цель и ожидаемый результат, чтобы обсудить дальнейшие действия."
+              }
+            },
+            {
+              "id": "df-approach-04-primary",
+              "slot": "primary",
+              "values": {
+                "content.text": "Обсудить задачу",
+                "behavior.href": "/contact/"
+              }
+            },
+            {
+              "id": "df-approach-04-secondary",
+              "slot": "secondary",
+              "values": {
+                "content.text": "Посмотреть услуги",
+                "behavior.href": "/services/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        }
+      ]
+    },
+    {
+      "id": "df-page-contact",
+      "path": "/contact/",
+      "title": "Контакты",
+      "navigation": {
+        "label": "Контакты",
+        "hidden": false
+      },
+      "seo": {
+        "title": "Контакты | Новый сайт — требуется название",
+        "description": "Информация о направлениях, подходе и способах связи. Данные требуют проверки владельцем.",
+        "robots": "index"
+      },
+      "sections": [
+        {
+          "id": "df-contact-01",
+          "component": "company-hero",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-contact-01-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Контакты",
+                "style.fontSize": {
+                  "desktop": "64px",
+                  "tablet": "48px",
+                  "mobile": "35px"
+                },
+                "style.color": "#202B34"
+              }
+            },
+            {
+              "id": "df-contact-01-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Добавьте проверенные сведения о компании и задаче, которую она решает."
+              }
+            },
+            {
+              "id": "df-contact-01-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Обсудить задачу",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-contact-02",
+          "component": "contact-panel",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-contact-02-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Контактная информация"
+              }
+            },
+            {
+              "id": "df-contact-02-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Перейти к контактам",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-contact-03",
+          "component": "faq-accordion",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-contact-03-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Частые вопросы"
+              }
+            }
+          ],
+          "items": [
+            {
+              "id": "df-contact-03-item-1",
+              "values": {
+                "content.question": "Как уточнить объём проекта?",
+                "content.answer": "Оставьте описание задачи, чтобы согласовать детали."
+              }
+            },
+            {
+              "id": "df-contact-03-item-2",
+              "values": {
+                "content.question": "Где узнать условия сотрудничества?",
+                "content.answer": "Уточните актуальные условия у представителя организации."
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "paper",
+            "spacing": "airy",
+            "align": "left"
+          }
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "background": "#F6F2EA",
+    "surface": "#FFFFFF",
+    "text": "#202B34",
+    "primary": "#A0442A",
+    "font": "georgia",
+    "maxWidth": 1120
+  }
+}
