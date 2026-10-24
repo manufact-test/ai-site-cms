@@ -522,13 +522,14 @@
         selected.items.splice(selected.items.indexOf(n)+1,0,node);selection=node.id;render();
       });
       action('Тип +',()=>{
-        const type=prompt('Элемент: container / heading / text / button / image / divider','heading');
+        const type=prompt('Элемент: container / heading / text / button / image / divider / icon','heading');
         if(type===null)return;
         if(!DESIGN_GRAPH.TYPES.includes(type))return notice('Неизвестный тип',true);
         const node={id:uniqueId('dg-node'),type,styles:{}};
         if(type==='container')node.children=[];
         if(['heading','text','button'].includes(type))node.text='Новый элемент';
         if(type==='heading')node.level=2;
+        if(type==='icon'){node.icon='check';node.alt='';}
         if(type==='button')node.href='/';
         if(type==='image'){
           const first=session.current.assets[0];
@@ -564,6 +565,12 @@
         fields.append(ctl('Изображение',{initial:n.assetId,choices:options},v=>{n.assetId=v;},'select'),
           ctl('Описание изображения',n.alt,v=>{n.alt=v;}));
       }
+      if(n.type==='icon'){
+        fields.append(ctl('Векторная иконка',
+          {initial:n.icon,choices:Object.keys(DESIGN_GRAPH.ICON_PATHS).map(v=>[v,v])},
+          value=>{n.icon=value;},'select'));
+        fields.append(ctl('Описание для скринридера (пусто = декоративная)',n.alt||'',value=>{n.alt=value;}));
+      }
       const modeSelect=make('select',undefined,'control');modeSelect.id='cms-design-breakpoint';
       for(const [v,t] of [['desktop','Компьютер'],['tablet','Планшет'],['mobile','Телефон'],
         ['hover','Наведение'],['focus','Фокус с клавиатуры']]){
@@ -574,12 +581,18 @@
       const styleFields=make('div',undefined,'cms-design-fields');root.append(styleFields);
       const style=editStyle(n),limited=['hover','focus'].includes(mode);
       for(const key of DESIGN_GRAPH.STYLE_KEYS){
-        if(limited&&!['color','background','borderColor','borderWidth','radius','opacity'].includes(key))continue;
+        if(limited&&!['color','background','borderColor','borderWidth','radius','opacity','gradient'].includes(key))continue;
+        if(key==='gradient')continue;
         const values={
           display:['block','grid','flex','none'],
           direction:['row','column'],align:['start','center','end','stretch','between'],
           justify:['start','center','end','stretch','between'],
           position:['static','relative','absolute'],textAlign:['left','center','right'],
+          flexWrap:['nowrap','wrap'],alignSelf:['auto','start','center','end','stretch'],
+          fontFamily:['inherit','system','arial','georgia','serif','mono'],
+          objectFit:['cover','contain','fill','none'],
+          aspectRatio:['auto','square','portrait','landscape','wide'],
+          overflow:['visible','hidden','auto'],shadow:['none','soft','medium','strong'],
           hidden:['true','false']
         };
         const value=style[key]===undefined?'':String(style[key]);
@@ -594,6 +607,34 @@
           style[key]=v.startsWith('@')?v.trim():Number(v);
         }));
       }
+      const gradient=make('details');gradient.id='cms-design-gradient';
+      gradient.append(make('summary','Градиент фона · '+mode));
+      const gradientFields=make('div',undefined,'cms-design-fields');
+      const currentGradient=style.gradient;
+      const ensureGradient=()=>style.gradient||(style.gradient={angle:135,from:'@accent',to:'@background'});
+      gradientFields.append(
+        ctl('Угол (0–360)',String(currentGradient?.angle??135),v=>{ensureGradient().angle=Number(v);},'number'),
+        ctl('Цвет от (HEX или @token)',currentGradient?.from||'@accent',v=>{ensureGradient().from=v.trim();}),
+        ctl('Цвет до (HEX или @token)',currentGradient?.to||'@background',v=>{ensureGradient().to=v.trim();})
+      );
+      const dropGradient=button('Удалить градиент','btn small',()=>{delete style.gradient;render();});
+      gradient.append(gradientFields,dropGradient);root.append(gradient);
+      const motionBox=make('details');motionBox.id='cms-design-motion';
+      motionBox.append(make('summary','Анимация элемента · учитывает reduced motion'));
+      const motionFields=make('div',undefined,'cms-design-fields');
+      const motion=n.motion||{effect:'none',duration:500,delay:0};
+      const changeMotion=(key,v)=>{
+        n.motion={...(n.motion||{effect:'none',duration:500,delay:0}),[key]:v};
+      };
+      motionFields.append(
+        ctl('Эффект',{initial:motion.effect,choices:DESIGN_GRAPH.MOTIONS.map(v=>[v,v])},
+          v=>changeMotion('effect',v),'select'),
+        ctl('Длительность, мс',String(motion.duration),v=>changeMotion('duration',Number(v)),'number'),
+        ctl('Задержка, мс',String(motion.delay),v=>changeMotion('delay',Number(v)),'number')
+      );
+      motionBox.append(motionFields,
+        button('Без анимации','btn small',()=>{delete n.motion;render();}));
+      root.append(motionBox);
       const tokenDetails=make('details');const tokenSummary=make('summary','Общие дизайн-токены сайта');
       tokenDetails.append(tokenSummary);
       const tokenFields=make('div',undefined,'cms-design-fields');
