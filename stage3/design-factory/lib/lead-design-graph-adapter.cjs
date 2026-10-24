@@ -37,9 +37,17 @@ function bestText(section,slots,key,otherwise){
  const source=textSource(section,slots,key);
  return source?(textValue(section,source.slot,source.field)||otherwise):otherwise;
 }
+// A CMS URL field permits both local paths and owner-approved HTTPS URLs.
+// Align with the *intersection* of the current typed SDK and Graph renderer:
+// never downgrade an external CTA to an invented /contact/ destination.
+function hostHref(href){
+ return typeof href==='string'&&href.length<=300&&(
+  (href.startsWith('/')&&!href.startsWith('//')&&!href.includes('\\')&&
+   !/[\s"'<>]/.test(href))||
+  /^https:\/\/[a-z0-9.-]+(?:\/[^\s"'<>\\]*)?$/i.test(href));
+}
 function actionSource(section){
- return section.elements.find(e=>e.values&&
-  typeof e.values['behavior.href']==='string'&&e.values['behavior.href'].startsWith('/'));
+ return section.elements.find(e=>e.values&&hostHref(e.values['behavior.href']));
 }
 function columnsFor(layout){
  if(['bento','mosaic','cards','rail'].includes(layout))return 3;
@@ -87,7 +95,7 @@ function contentFor(section,comp,language,prefix,cardStyles,font){
    ];
    if(service){
     const href=item.values['behavior.href'];
-    if(typeof href==='string'&&href.startsWith('/')){
+    if(hostHref(href)){
      const action=make(id+'-action','button',t('Подробнее','Learn more'),
        null,{fontSize:'@body',fontWeight:600,color:'@accent',minHeight:48});
      action.href=href;
