@@ -219,6 +219,16 @@ async function stop(){
   set('extra-two','behavior.required',true);
   set('extra-three','content.text','Комментарий');
   set('extra-three','behavior.kind','textarea');
+  extraSection.formFields=[
+    {id:'field-delivery-note',label:'Время доставки',kind:'text',required:true,
+      options:[],placeholder:'Удобное время',when:{field:'extra1',option:1}},
+    {id:'field-reply-email',label:'Email для ответа',kind:'email',required:false,
+      options:[],placeholder:'name@example.test'},
+    {id:'field-product-select',label:'Группа товаров',kind:'select',required:false,
+      options:['Оборудование','Запчасти'],placeholder:''},
+    {id:'field-product-detail',label:'Подробности по запчастям',kind:'textarea',required:true,
+      options:[],placeholder:'Укажите наименование',when:{field:'field-product-select',option:2}}
+  ];
   flexSite.pages[1].sections.push(extraSection);
   assert.equal((await request('POST','/api/sites',{site:flexSite})).status,201);
   assert.equal((await request('GET','/api/sites/site-flex-ci/notifications')).body.unread,0);
@@ -228,11 +238,17 @@ async function stop(){
   assert.match(flexHTML,/type="tel" name="extra2"/);
   assert.match(flexHTML,/name="extra3"/);
   assert.match(flexHTML,/value="Самовывоз"/);
+  assert.match(flexHTML,/name="field-delivery-note"/);
+  assert.match(flexHTML,/type="email" name="field-reply-email"/);
+  assert.match(flexHTML,/name="field-product-select"/);
+  assert.match(flexHTML,/@supports selector\(form:has\(option:checked\)\)/);
   const flexToken=/name="_token" value="([a-f0-9]{64})"/.exec(flexHTML)?.[1];
   assert.ok(flexToken);
   const flexValues={_release:'1',_token:flexToken,website:'',name:'Новый клиент',
     email:'flex@example.test',message:'Нужно подобрать оборудование',consent:'yes',
-    extra1:'Самовывоз',extra2:'+49 (211) 1234567',extra3:'Детали запроса'};
+    extra1:'Доставка',extra2:'+49 (211) 1234567',extra3:'Детали запроса',
+    'field-delivery-note':'После 18:00','field-reply-email':'reply@example.test',
+    'field-product-select':'Оборудование','field-product-detail':''};
   const submitFlex=async(fields,receiver=origin,from=origin)=>{
     const response=await fetch(receiver+'/forms/site-flex-ci/section-flex',{method:'POST',
       headers:{'content-type':'application/x-www-form-urlencoded','origin':from},
@@ -243,11 +259,22 @@ async function stop(){
   assert.equal((await submitFlex({...flexValues,extra2:'<script>'})).status,422);
   assert.equal((await submitFlex({...flexValues,extra2:''})).status,422);
   assert.equal((await submitFlex({...flexValues,extra4:'injected'})).status,422);
+  assert.equal((await submitFlex({...flexValues,'field-delivery-note':''})).status,422);
+  assert.equal((await submitFlex({...flexValues,extra1:'Самовывоз'})).status,422,
+    'Inactive condition cannot be spoofed with a nonempty value');
+  assert.equal((await submitFlex({...flexValues,'field-reply-email':'not-an-email'})).status,422);
+  assert.equal((await submitFlex({...flexValues,'field-product-select':'Unknown'})).status,422);
+  assert.equal((await submitFlex({...flexValues,'field-product-select':'Запчасти'})).status,422,
+    'Chained conditional required field must be present');
+
   assert.equal((await submitFlex(flexValues)).status,201);
   assert.equal((await request('GET','/api/sites/site-flex-ci/notifications')).body.unread,1);
   const flexInbox=(await request('GET','/api/sites/site-flex-ci/submissions')).body.submissions;
   assert.equal(flexInbox.length,1);
-  assert.equal(flexInbox[0].extras.extra1.value,'Самовывоз');
+  assert.equal(flexInbox[0].extras.extra1.value,'Доставка');
+  assert.equal(flexInbox[0].extras['field-delivery-note'].value,'После 18:00');
+  assert.equal(flexInbox[0].extras['field-reply-email'].value,'reply@example.test');
+  assert.equal(flexInbox[0].extras['field-product-detail'],undefined);
   assert.equal(flexInbox[0].extras.extra2.label,'Телефон');
   assert.equal((await request('POST','/api/sites/site-flex-ci/notifications/seen',{})).body.unread,0);
   assert.equal((await request('GET','/api/sites/site-flex-ci/notifications')).body.unread,0);
@@ -276,6 +303,9 @@ async function stop(){
     const exportedHTML=fs.readFileSync(path.join(flexOut,'contact','index.html'),'utf8');
     assert.ok(exportedHTML.includes('action="'+collectorOrigin+'/forms/'));
     assert.match(exportedHTML,/name="extra1"/);
+    assert.match(exportedHTML,/name="field-delivery-note"/);
+    assert.match(exportedHTML,/lead-conditional-field-delivery-note/);
+    assert.doesNotMatch(exportedHTML,/<script/i);
   }finally{
     const stopped=new Promise(resolve=>collector.once('exit',resolve));
     collector.kill('SIGTERM');

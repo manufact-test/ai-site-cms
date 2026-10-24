@@ -39,13 +39,20 @@ final class PublicRenderer
     private static function extraFields(array $section): string
     {
         $html = '';
+        $css = '';
         foreach (FlexForm::definitions($section) as $field) {
             $name = self::h($field['name']);
-            $required = $field['required'] ? ' required' : '';
+            $conditional = $field['when'] !== null;
+            // Required conditional fields are enforced by the collector (not
+            // native required, which would trap users when CSS hides a control).
+            $required = $field['required'] && !$conditional ? ' required' : '';
             $label = self::h($field['label']);
+            $placeholder = $field['placeholder'] !== ''
+                ? ' placeholder="' . self::h($field['placeholder']) . '"' : '';
             $control = '';
             if ($field['kind'] === 'textarea') {
-                $control = '<textarea name="' . $name . '" maxlength="1000" rows="3"' . $required . '></textarea>';
+                $control = '<textarea name="' . $name . '" maxlength="1000" rows="3"'
+                    . $placeholder . $required . '></textarea>';
             } elseif ($field['kind'] === 'select') {
                 $control = '<select name="' . $name . '"' . $required . '>'
                     . '<option value="">Выберите вариант</option>';
@@ -55,16 +62,32 @@ final class PublicRenderer
                 }
                 $control .= '</select>';
             } else {
-                $type = $field['kind'] === 'tel' ? 'tel' : 'text';
-                $max = $type === 'tel' ? 32 : 180;
+                $type = in_array($field['kind'], ['tel','email'], true) ? $field['kind'] : 'text';
+                $max = $type === 'tel' ? 32 : ($type === 'email' ? 254 : 180);
                 $control = '<input type="' . $type . '" name="' . $name . '" maxlength="' . $max . '"'
-                    . ($type === 'tel' ? ' autocomplete="tel"' : '') . $required . '>';
+                    . ($type === 'tel' ? ' autocomplete="tel"' : '')
+                    . $placeholder . $required . '>';
             }
-            $html .= '<label>' . $label . $control . '</label>';
+            $class = '';
+            if ($conditional) {
+                $slug = $field['name'];
+                $class = ' class="lead-conditional-' . $slug . '"';
+                $selector = 'label.lead-conditional-' . $slug;
+                $ref = $field['when']['field'];
+                $nth = $field['when']['option'] + 1; // first select option is the empty placeholder
+                // CSS-only progressive enhancement. No inline scripts or CMS
+                // runtime in the static release; older browsers show all fields.
+                $css .= '@supports selector(form:has(option:checked)){'
+                    . '.lead-form ' . $selector . '{display:none}'
+                    . '.lead-form:has(select[name="' . $ref . '"] option:nth-child(' . $nth
+                    . '):checked) ' . $selector . '{display:block}}';
+            }
+            $hint = $conditional && $field['required']
+                ? '<small>Обязательно при выбранном варианте</small>' : '';
+            $html .= '<label' . $class . '>' . $label . $control . $hint . '</label>';
         }
-        return $html;
+        return ($css !== '' ? '<style>' . $css . '</style>' : '') . $html;
     }
-
 
     private static function themeCss(array $site): string
     {

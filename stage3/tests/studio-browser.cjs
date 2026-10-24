@@ -141,6 +141,29 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await canvas.locator('details summary').getByText('Как оформить заказ?').waitFor();
     assert.equal(await page.locator('#cms-component-catalog').isVisible(),false);
 
+    // Opt-in field builder is usable in Chromium, Undo and real draft preview.
+    await page.locator('#section-catalog').click();
+    await page.locator('#cms-component-search').fill('конструктор');
+    await page.locator('#cms-component-list [data-component="lead-form-flex"]').click();
+    await page.locator('#cms-form-builder-open').click();
+    await page.locator('#cms-form-add').click();
+    const question=page.locator('#cms-form-rows [data-form-field]').first();
+    await question.locator('input[type=text]').first().fill('Номер заказа');
+    await question.locator('input[type=text]').first().dispatchEvent('change');
+    await question.locator('input[type=checkbox]').check();
+    await page.locator('#cms-form-apply').click();
+    const built=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex');
+    assert.equal(built.formFields[0].label,'Номер заказа');
+    assert.equal(built.formFields[0].required,true);
+    await canvas.locator('.contact').getByText('Номер заказа').waitFor();
+    await page.locator('#undo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex').formFields,undefined);
+    await page.locator('#redo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex').formFields.length,1);
+
     // Search diagnostics and manage URL aliases from the same undoable document.
     await page.locator('#cms-quality-open').click();
     await page.locator('#cms-site-report').waitFor({state:'visible'});

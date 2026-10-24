@@ -176,7 +176,7 @@ final class ContractValidator
             self::must(is_array($page['sections']) && array_is_list($page['sections'])
                 && count($page['sections']) >= 1 && count($page['sections']) <= 100, 'Invalid sections');
             foreach ($page['sections'] as $section) {
-                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance']);
+                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance', 'formFields']);
                 if (array_key_exists('appearance',$section)) {
                     self::keys($section['appearance'],['surface','spacing','align','width','heading','corners','mobileAlign','mobileSpacing','button']);
                     self::must(in_array($section['appearance']['surface']??null,['default','paper','tint','dark'],true)
@@ -239,6 +239,7 @@ final class ContractValidator
                         }
                     }
                 } else self::must(!array_key_exists('items',$section),'Undeclared repeater');
+                FlexForm::definitions($section); // optional new fields, select dependencies and cross-field constraints
             }
         }
         if (array_key_exists('redirects',$site)) {

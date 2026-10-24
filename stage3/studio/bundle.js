@@ -134,6 +134,46 @@ function validAppearance(a){
   for(const [name,allowed] of Object.entries(EXTRA_APPEARANCE))
     if(own(a,name)&&!allowed.includes(a[name]))fail('Invalid section appearance',name);
 }
+// Additive v1 field-builder contract: older forms keep their original 3 slots.
+const FORM_KINDS=['text','tel','email','select','textarea'];
+function validateFormFields(section){
+  if(!own(section,'formFields'))return;
+  if(section.component!=='lead-form-flex'||!Array.isArray(section.formFields)||section.formFields.length>6)
+    fail('Form field builder is only supported on flexible forms',section.id);
+  const available=new Map();
+  for(let i=0;i<3;i++){
+    const slot=['extra-one','extra-two','extra-three'][i];
+    const values=section.elements.find(e=>e.slot===slot)?.values;
+    if(values?.['behavior.kind']==='select'&&typeof values['content.options']==='string'){
+      const options=values['content.options'].split(/\r?\n/).map(s=>s.trim());
+      if(options.length>=2&&options.length<=12&&options.every(Boolean)&&new Set(options).size===options.length)
+        available.set('extra'+(i+1),options);
+    }
+  }
+  const seen=new Set();
+  for(const f of section.formFields){
+    objectKeys(f,['id','label','kind','required','options','placeholder','when'],'formField');
+    if(typeof f.id!=='string'||!/^field-[a-z][a-z0-9-]{2,49}$/.test(f.id)||seen.has(f.id))
+      fail('Invalid or duplicate form field ID',section.id);
+    seen.add(f.id);
+    if(typeof f.label!=='string'||!f.label.trim()||f.label.length>100||/[\x00-\x1f]/.test(f.label)||
+      !FORM_KINDS.includes(f.kind)||typeof f.required!=='boolean'||
+      typeof f.placeholder!=='string'||f.placeholder.length>120||/[\x00-\x1f]/.test(f.placeholder)||
+      !Array.isArray(f.options))fail('Invalid additional form field',f.id);
+    if(f.kind==='select'){
+      if(f.options.length<2||f.options.length>12||new Set(f.options).size!==f.options.length||
+        f.options.some(v=>typeof v!=='string'||!v.trim()||v.length>80||/[\x00-\x1f]/.test(v)))
+        fail('Invalid select options',f.id);
+    }else if(f.options.length)fail('Options only permitted on select fields',f.id);
+    if(own(f,'when')){
+      objectKeys(f.when,['field','option'],'form condition');
+      const prior=available.get(f.when.field);
+      if(!prior||!Number.isInteger(f.when.option)||f.when.option<1||f.when.option>prior.length)
+        fail('Conditional field must follow an existing select option',f.id);
+    }
+    if(f.kind==='select')available.set(f.id,f.options);
+  }
+}
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
   objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects'],'site');
@@ -161,7 +201,7 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields'],'section');
       if(own(section,'appearance'))validAppearance(section.appearance);
       id(section.id,'section.id');if(ids.has(section.id))fail('Duplicate stable ID',section.id);ids.add(section.id);
       const manifest=select(reg,section.component,section.manifestVersion);
@@ -196,6 +236,7 @@ function validateSite(raw,regInput){
             validateValue(field,item.values[path],item.id+'/'+path,assetIds);
         }
       }else if(own(section,'items'))fail('Unregistered repeat items',section.id);
+      validateFormFields(section);
     }
   }
   if(own(raw,'redirects')){
@@ -621,6 +662,8 @@ function changes(raw,manifests){
       if(prev.component!==section.component||prev.manifestVersion!==section.manifestVersion){record('section-replaced',{pageId:page.id,sectionId:section.id});return;}
       if(JSON.stringify(prev.appearance)!==JSON.stringify(section.appearance))
         diff.push({kind:'appearance-updated',pageId:page.id,sectionId:section.id});
+      if(JSON.stringify(prev.formFields)!==JSON.stringify(section.formFields))
+        diff.push({kind:'form-fields-updated',pageId:page.id,sectionId:section.id});
       if(JSON.stringify(prev.items)!==JSON.stringify(section.items))
         diff.push({kind:'items-updated',pageId:page.id,sectionId:section.id});
       for(const el of section.elements){
@@ -661,6 +704,7 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
   return {format:'manufact-ai-block-preview-data-v1',siteId:s.current.siteId,
     pageId,sectionId,component:section.component,breakpoint,
     appearance:copy(section.appearance||C.DEFAULT_APPEARANCE),
+    formFields:copy(section.formFields||[]),
     elements,items,notPublished:true,hasExecutableHtml:false};
 }
 module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview});
@@ -1241,11 +1285,114 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     make($('pages'),pageActions);
     make($('sections'),sectionActions);
   }
+
+  // Additive validated form builder; edits keep existing manifests and Undo.
+  const openFormBuilder=(()=>{
+    const dlg=document.createElement('dialog');dlg.id='cms-form-builder';dlg.className='cms-settings-dialog';
+    Object.assign(dlg.style,{width:'min(960px,95vw)',maxHeight:'88vh',overflow:'auto'});
+    const title=document.createElement('h2');title.textContent='Дополнительные поля формы';
+    const description=document.createElement('p');description.textContent='До 6 полей сверх трёх встроенных. Условия зависят от выбранного значения предыдущего списка; проверяются сервером.';
+    const list=document.createElement('div');list.id='cms-form-rows';
+    const add=button('+ Добавить поле','btn small',()=>{});add.id='cms-form-add';
+    const apply=button('Применить к черновику','btn primary',()=>{});apply.id='cms-form-apply';
+    const cancel=button('Закрыть','btn',()=>dlg.close());
+    dlg.append(title,description,list,add,apply,cancel);document.body.append(dlg);
+    let source,fields;
+    function input(label,type,value,changed){
+      const wrap=document.createElement('label');wrap.textContent=label;
+      const node=document.createElement(type==='textarea'?'textarea':type==='select'?'select':'input');
+      node.className='control';
+      if(type==='checkbox')node.type='checkbox';
+      if(type==='checkbox')node.checked=value;
+      else if(type!=='select')node.value=value;
+      node.addEventListener('change',()=>changed(type==='checkbox'?node.checked:node.value));
+      wrap.append(node);return [wrap,node];
+    }
+    function options(node,values){
+      for(const [value,label] of values){
+        const option=document.createElement('option');option.value=value;option.textContent=label;
+        node.append(option);
+      }
+    }
+    function render(){
+      list.replaceChildren();add.disabled=fields.length>=6;
+      const selectable=new Map();
+      ['extra-one','extra-two','extra-three'].forEach((slot,i)=>{
+        const values=source.elements.find(e=>e.slot===slot)?.values;
+        if(values?.['behavior.kind']==='select')
+          selectable.set('extra'+(i+1),values['content.options'].split(/\r?\n/).map(s=>s.trim()).filter(Boolean));
+      });
+      fields.forEach((field,i)=>{
+        const row=document.createElement('fieldset');row.dataset.formField=field.id;
+        Object.assign(row.style,{border:'1px solid #586c87',borderRadius:'12px',padding:'12px',margin:'10px 0'});
+        const legend=document.createElement('legend');legend.textContent=(i+1)+'. '+field.id;
+        const grid=document.createElement('div');
+        Object.assign(grid.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:'10px'});
+        const [label,ln]=input('Подпись','text',field.label,v=>{field.label=v;});ln.maxLength=100;
+        const [kind,kn]=input('Тип','select',null,v=>{
+          field.kind=v;field.options=v==='select'?['Вариант 1','Вариант 2']:[];render();
+        });
+        options(kn,[['text','Текст'],['tel','Телефон'],['email','Email'],['select','Список'],['textarea','Длинный текст']]);
+        kn.value=field.kind;
+        const [required]=input('Обязательно','checkbox',field.required,v=>{field.required=v;});
+        const [placeholder,pn]=input('Подсказка','text',field.placeholder,v=>{field.placeholder=v;});
+        pn.maxLength=120;
+        grid.append(label,kind,required,placeholder);
+        if(field.kind==='select'){
+          const [choices,cn]=input('Варианты (один на строку)','textarea',field.options.join('\n'),v=>{
+            field.options=v.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);render();
+          });
+          cn.rows=3;grid.append(choices);
+        }
+        const [when,wn]=input('Условие видимости','select',null,v=>{
+          if(v){const [name,n]=v.split('|');field.when={field:name,option:Number(n)};}
+          else delete field.when;
+        });
+        const choices=[['','Всегда показывать']];
+        for(const [name,values] of selectable)
+          values.forEach((v,j)=>choices.push([name+'|'+(j+1),name+' → '+v]));
+        options(wn,choices);wn.value=field.when?field.when.field+'|'+field.when.option:'';
+        grid.append(when);
+        const ops=document.createElement('div');ops.className='structure-tools';
+        ops.append(button('↑','btn small',()=>{if(i>0){[fields[i-1],fields[i]]=[fields[i],fields[i-1]];render();}}));
+        ops.append(button('↓','btn small',()=>{if(i+1<fields.length){[fields[i+1],fields[i]]=[fields[i],fields[i+1]];render();}}));
+        ops.append(button('Удалить','btn small',()=>{fields.splice(i,1);render();}));
+        row.append(legend,grid,ops);list.append(row);
+        if(field.kind==='select')selectable.set(field.id,field.options);
+      });
+    }
+    add.addEventListener('click',()=>{
+      if(fields.length>=6)return;
+      fields.push({id:uniqueId('field-f'),label:'Новый вопрос',kind:'text',
+        required:false,options:[],placeholder:''});render();
+    });
+    apply.addEventListener('click',()=>{
+      try{
+        const site=cp(session.current);
+        const section=site.pages.flatMap(p=>p.sections).find(s=>s.id===source.id);
+        if(!section||section.component!=='lead-form-flex')throw Error('Форма отсутствует');
+        section.formFields=cp(fields);
+        session=D.replaceSite(session,manifests,site,session.revision);
+        dlg.close();draw();notice('Конструктор обновлён в черновике. Сохранение и публикация отдельно.');
+      }catch(e){notice('Изменение полей отклонено: '+e.message,true);}
+    });
+    return ()=>{
+      const section=current().section;
+      if(section.component!=='lead-form-flex')return;
+      source=cp(section);fields=cp(section.formFields||[]);render();dlg.showModal();
+    };
+  })();
+
   function drawElements(){
     const {section}=current(),m=manifest(section);
     $('inspector-title').textContent=m?.label||section.component;
     $('inspector-caption').textContent='ID '+section.id+' · схема '+section.manifestVersion;
     const row=$('elements');row.replaceChildren();
+    if(section.component==='lead-form-flex'){
+      const builder=button('Конструктор дополнительных полей · '+(section.formFields||[]).length+'/6',
+        'btn small',openFormBuilder);
+      builder.id='cms-form-builder-open';builder.dataset.editorWrite='true';row.append(builder);
+    }
     section.elements.forEach(e=>{
       const label=m.elements.find(s=>s.slot===e.slot)?.label||e.slot;
       row.append(button(label,'element'+(e.id===elementId?' active':''),
@@ -1429,6 +1576,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         '<label>'+e(p('message-label').content.text)+'</label><div class="media-placeholder">Сообщение</div>'+
         '<p>☐ '+e(p('consent-label').content.text)+'</p><span class="action">'+e(p('submit-label').content.text)+'</span></div></section>';
     }else if(block.component==='lead-form-flex'){
+      const configured=(block.formFields||[]).map(field=>
+        '<label>'+e(field.label)+(field.required?' *':'')+'</label>'+
+        '<div class="media-placeholder">'+e(field.kind)+
+        (field.when?' · '+e(field.when.field)+' / вариант '+field.when.option:'')+'</div>').join('');
       const extra=['extra-one','extra-two','extra-three'].map(slot=>{
         const v=p(slot),kind=v.behavior.kind;
         return kind==='off'?'':'<label>'+e(v.content.text)+' '+(v.behavior.required?'*':'')+'</label>'+
@@ -1437,7 +1588,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       content='<section class="contact"><h2>'+e(p('heading').content.text)+'</h2>'+
         '<div class="card"><label>'+e(p('name-label').content.text)+'</label><div class="media-placeholder">Имя</div>'+
         '<label>'+e(p('email-label').content.text)+'</label><div class="media-placeholder">Email</div>'+
-        '<label>'+e(p('message-label').content.text)+'</label><div class="media-placeholder">Сообщение</div>'+extra+
+        '<label>'+e(p('message-label').content.text)+'</label><div class="media-placeholder">Сообщение</div>'+extra+configured+
         '<p>☐ '+e(p('consent-label').content.text)+'</p><span class="action">'+e(p('submit-label').content.text)+'</span></div></section>';
     }else if(block.component==='cta-banner'){
       content='<section class="cta-banner"><h2>'+e(p('heading').content.text||'')+'</h2>'+

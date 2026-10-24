@@ -236,6 +236,13 @@
         },
         "appearance": {
           "$ref": "#/$defs/appearance"
+        },
+        "formFields": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "$ref": "#/$defs/formField"
+          }
         }
       }
     },
@@ -369,6 +376,72 @@
             "outline",
             "pill"
           ]
+        }
+      }
+    },
+    "formField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "kind",
+        "required",
+        "options",
+        "placeholder"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^field-[a-z][a-z0-9-]{2,49}$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "kind": {
+          "enum": [
+            "text",
+            "tel",
+            "email",
+            "select",
+            "textarea"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "options": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        },
+        "placeholder": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "when": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "field",
+            "option"
+          ],
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "option": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            }
+          }
         }
       }
     }

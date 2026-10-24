@@ -131,6 +131,46 @@ function validAppearance(a){
   for(const [name,allowed] of Object.entries(EXTRA_APPEARANCE))
     if(own(a,name)&&!allowed.includes(a[name]))fail('Invalid section appearance',name);
 }
+// Additive v1 field-builder contract: older forms keep their original 3 slots.
+const FORM_KINDS=['text','tel','email','select','textarea'];
+function validateFormFields(section){
+  if(!own(section,'formFields'))return;
+  if(section.component!=='lead-form-flex'||!Array.isArray(section.formFields)||section.formFields.length>6)
+    fail('Form field builder is only supported on flexible forms',section.id);
+  const available=new Map();
+  for(let i=0;i<3;i++){
+    const slot=['extra-one','extra-two','extra-three'][i];
+    const values=section.elements.find(e=>e.slot===slot)?.values;
+    if(values?.['behavior.kind']==='select'&&typeof values['content.options']==='string'){
+      const options=values['content.options'].split(/\r?\n/).map(s=>s.trim());
+      if(options.length>=2&&options.length<=12&&options.every(Boolean)&&new Set(options).size===options.length)
+        available.set('extra'+(i+1),options);
+    }
+  }
+  const seen=new Set();
+  for(const f of section.formFields){
+    objectKeys(f,['id','label','kind','required','options','placeholder','when'],'formField');
+    if(typeof f.id!=='string'||!/^field-[a-z][a-z0-9-]{2,49}$/.test(f.id)||seen.has(f.id))
+      fail('Invalid or duplicate form field ID',section.id);
+    seen.add(f.id);
+    if(typeof f.label!=='string'||!f.label.trim()||f.label.length>100||/[\x00-\x1f]/.test(f.label)||
+      !FORM_KINDS.includes(f.kind)||typeof f.required!=='boolean'||
+      typeof f.placeholder!=='string'||f.placeholder.length>120||/[\x00-\x1f]/.test(f.placeholder)||
+      !Array.isArray(f.options))fail('Invalid additional form field',f.id);
+    if(f.kind==='select'){
+      if(f.options.length<2||f.options.length>12||new Set(f.options).size!==f.options.length||
+        f.options.some(v=>typeof v!=='string'||!v.trim()||v.length>80||/[\x00-\x1f]/.test(v)))
+        fail('Invalid select options',f.id);
+    }else if(f.options.length)fail('Options only permitted on select fields',f.id);
+    if(own(f,'when')){
+      objectKeys(f.when,['field','option'],'form condition');
+      const prior=available.get(f.when.field);
+      if(!prior||!Number.isInteger(f.when.option)||f.when.option<1||f.when.option>prior.length)
+        fail('Conditional field must follow an existing select option',f.id);
+    }
+    if(f.kind==='select')available.set(f.id,f.options);
+  }
+}
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
   objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects'],'site');
@@ -158,7 +198,7 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields'],'section');
       if(own(section,'appearance'))validAppearance(section.appearance);
       id(section.id,'section.id');if(ids.has(section.id))fail('Duplicate stable ID',section.id);ids.add(section.id);
       const manifest=select(reg,section.component,section.manifestVersion);
@@ -193,6 +233,7 @@ function validateSite(raw,regInput){
             validateValue(field,item.values[path],item.id+'/'+path,assetIds);
         }
       }else if(own(section,'items'))fail('Unregistered repeat items',section.id);
+      validateFormFields(section);
     }
   }
   if(own(raw,'redirects')){

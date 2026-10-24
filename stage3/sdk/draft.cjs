@@ -254,6 +254,8 @@ function changes(raw,manifests){
       if(prev.component!==section.component||prev.manifestVersion!==section.manifestVersion){record('section-replaced',{pageId:page.id,sectionId:section.id});return;}
       if(JSON.stringify(prev.appearance)!==JSON.stringify(section.appearance))
         diff.push({kind:'appearance-updated',pageId:page.id,sectionId:section.id});
+      if(JSON.stringify(prev.formFields)!==JSON.stringify(section.formFields))
+        diff.push({kind:'form-fields-updated',pageId:page.id,sectionId:section.id});
       if(JSON.stringify(prev.items)!==JSON.stringify(section.items))
         diff.push({kind:'items-updated',pageId:page.id,sectionId:section.id});
       for(const el of section.elements){
@@ -294,6 +296,7 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
   return {format:'manufact-ai-block-preview-data-v1',siteId:s.current.siteId,
     pageId,sectionId,component:section.component,breakpoint,
     appearance:copy(section.appearance||C.DEFAULT_APPEARANCE),
+    formFields:copy(section.formFields||[]),
     elements,items,notPublished:true,hasExecutableHtml:false};
 }
 module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview});

@@ -462,6 +462,45 @@ test('configurable form adds three typed slots without changing legacy forms',()
   assert.equal(sdk.validateSite(doc,manifests).pages[1].sections.at(-1).component,'lead-form-flex');
   assert.equal(manifests[4].id,'lead-form');
 });
+test('opt-in flexible forms support independent typed fields and safe select dependencies',()=>{
+  const m=manifests.find(m=>m.id==='lead-form-flex'),site=structuredClone(initial);
+  const section=sdk.sectionFrom(m,'section-dynamic-form');
+  section.elements.find(e=>e.slot==='extra-one').values['behavior.kind']='select';
+  section.elements.find(e=>e.slot==='extra-one').values['content.options']='Быстро\nОбычно';
+  section.formFields=[
+    {id:'field-recipient',label:'Адресат',kind:'text',required:true,
+      options:[],placeholder:'Получатель',when:{field:'extra1',option:1}},
+    {id:'field-channel',label:'Канал связи',kind:'select',required:false,
+      options:['Электронная почта','Телефон'],placeholder:''},
+    {id:'field-email-address',label:'Email получателя',kind:'email',required:true,
+      options:[],placeholder:'name@example.com',when:{field:'field-channel',option:1}}
+  ];
+  site.pages[1].sections.push(section);
+  assert.equal(sdk.validateSite(site,manifests).pages[1].sections.at(-1).formFields.length,3);
+  const D=require('../sdk/draft.cjs');
+  let d=D.begin(site,manifests);
+  const changed=structuredClone(d.current);changed.pages[1].sections.at(-1).formFields[0].label='Кому';
+  d=D.replaceSite(d,manifests,changed,d.revision);
+  assert.ok(D.changes(d,manifests).some(x=>x.kind==='form-fields-updated'));
+  assert.equal(D.undo(d,manifests).current.pages[1].sections.at(-1).formFields[0].label,'Адресат');
+  assert.equal(D.blockPreview(d,manifests,'page-contact','section-dynamic-form').formFields.length,3);
+  const wrong=structuredClone(site);
+  wrong.pages[1].sections.at(-1).formFields[0].when={field:'field-email-address',option:1};
+  refuses(()=>sdk.validateSite(wrong,manifests),'Forward and cyclic dependencies rejected');
+  const injected=structuredClone(site);
+  injected.pages[1].sections.at(-1).formFields[1].options[0]='<script>';
+  // Data is safely text-only; never executable HTML.
+  assert.equal(sdk.validateSite(injected,manifests).pages[1].sections.at(-1).formFields[1].options[0],'<script>');
+  injected.pages[1].sections.at(-1).formFields[1].options[0]='\u0000';
+  refuses(()=>sdk.validateSite(injected,manifests),'Control bytes rejected');
+  const overflow=structuredClone(site);
+  overflow.pages[1].sections.at(-1).formFields=Array.from({length:7},(_,i)=>({
+    id:'field-too-many-'+i,label:'Вопрос',kind:'text',required:false,options:[],placeholder:''}));
+  refuses(()=>sdk.validateSite(overflow,manifests),'Form capacity restricted');
+  const other=structuredClone(initial);other.pages[0].sections[0].formFields=[];
+  refuses(()=>sdk.validateSite(other,manifests),'Only form-flex can carry formFields');
+});
+
 test('reusable section templates, full page duplicates, undo/redo, and no stale changes',()=>{
   const D=require('../sdk/draft.cjs');
   const initialBytes=JSON.stringify(initial);

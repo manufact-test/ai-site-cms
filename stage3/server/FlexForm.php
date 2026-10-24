@@ -4,11 +4,14 @@ namespace Manufact\Stage3;
 
 use InvalidArgumentException;
 
-/** One closed, versioned form-builder vocabulary. Legacy lead-form unchanged. */
+/**
+ * Closed, versioned builder vocabulary. Legacy lead-form and its three original
+ * slots remain byte-compatible. New fields are opt-in and release-immutable.
+ */
 final class FlexForm
 {
     private const SLOTS = ['extra-one', 'extra-two', 'extra-three'];
-    private const TYPES = ['off','text','tel','select','textarea'];
+    private const TYPES = ['text','tel','email','select','textarea'];
 
     private static function element(array $section, string $slot): array
     {
@@ -18,57 +21,128 @@ final class FlexForm
         throw new InvalidArgumentException('Missing form slot');
     }
 
-    /** Deterministic by immutable published section: no visitor-supplied schema. */
+    private static function options(array $raw): array
+    {
+        if (count($raw) < 2 || count($raw) > 12 || count(array_unique($raw)) !== count($raw)) {
+            throw new InvalidArgumentException('Select requires 2–12 unique options');
+        }
+        foreach ($raw as $option) {
+            if (!is_string($option) || trim($option) === '' || strlen($option) > 80
+                || preg_match('//u', $option) !== 1 || preg_match('/[\x00-\x1f]/', $option)) {
+                throw new InvalidArgumentException('Invalid select option');
+            }
+        }
+        return $raw;
+    }
+
+    /** Deterministic from an immutable published section, never from POST fields. */
     public static function definitions(array $section): array
     {
-        if ($section['component'] !== 'lead-form-flex') return [];
+        if ($section['component'] !== 'lead-form-flex') {
+            if (array_key_exists('formFields', $section)) {
+                throw new InvalidArgumentException('Only flexible forms can declare formFields');
+            }
+            return [];
+        }
         $result = [];
+        $selects = [];
         foreach (self::SLOTS as $i => $slot) {
             $values = self::element($section, $slot);
             $kind = $values['behavior.kind'] ?? null;
             $required = $values['behavior.required'] ?? null;
             $title = $values['content.text'] ?? null;
             $optionsText = $values['content.options'] ?? null;
-            if (!in_array($kind, self::TYPES, true) || !is_bool($required)
-                || !is_string($title) || trim($title) === ''
-                || !is_string($optionsText)) {
+            if (!in_array($kind, ['off','text','tel','select','textarea'], true) || !is_bool($required)
+                || !is_string($title) || trim($title) === '' || !is_string($optionsText)) {
                 throw new InvalidArgumentException('Invalid form configuration');
             }
             if ($kind === 'off') continue;
-            $options = [];
-            if ($kind === 'select') {
-                $options = array_map('trim', preg_split('/\r?\n/', $optionsText));
-                if (count($options) < 2 || count($options) > 12
-                    || count(array_unique($options)) !== count($options)) {
-                    throw new InvalidArgumentException('Select requires 2 to 12 unique options');
-                }
-                foreach ($options as $option) {
-                    if ($option === '' || strlen($option) > 80 || str_contains($option, "\0")) {
-                        throw new InvalidArgumentException('Invalid select option');
-                    }
+            $options = $kind === 'select'
+                ? self::options(array_map('trim', preg_split('/\r?\n/', $optionsText))) : [];
+            $name = 'extra' . ($i + 1);
+            $result[] = ['name'=>$name,'label'=>$title,'kind'=>$kind,
+                'required'=>$required,'options'=>$options,'placeholder'=>'','when'=>null];
+            if ($kind === 'select') $selects[$name] = $options;
+        }
+        $fields = $section['formFields'] ?? [];
+        if (!is_array($fields) || !array_is_list($fields) || count($fields) > 6) {
+            throw new InvalidArgumentException('Invalid form builder field list');
+        }
+        $seen = [];
+        foreach ($fields as $field) {
+            if (!is_array($field) || count(array_diff(array_keys($field),
+                ['id','label','kind','required','options','placeholder','when'])) ||
+                count(array_diff(['id','label','kind','required','options','placeholder'], array_keys($field)))) {
+                throw new InvalidArgumentException('Invalid form field keys');
+            }
+            $name = $field['id'];
+            if (!is_string($name) || preg_match('/^field-[a-z][a-z0-9-]{2,49}$/D', $name) !== 1
+                || isset($seen[$name])) {
+                throw new InvalidArgumentException('Duplicate or invalid field identity');
+            }
+            $seen[$name] = true;
+            $label = $field['label'];
+            $kind = $field['kind'];
+            $placeholder = $field['placeholder'];
+            if (!is_string($label) || trim($label) === '' || strlen($label) > 100
+                || preg_match('//u', $label) !== 1 || preg_match('/[\x00-\x1f]/', $label)
+                || !in_array($kind, self::TYPES, true)
+                || !is_bool($field['required']) || !is_string($placeholder)
+                || strlen($placeholder) > 120 || preg_match('//u', $placeholder) !== 1
+                || preg_match('/[\x00-\x1f]/', $placeholder)
+                || !is_array($field['options']) || !array_is_list($field['options'])) {
+                throw new InvalidArgumentException('Invalid form field definition');
+            }
+            if ($kind === 'select') $options = self::options($field['options']);
+            else {
+                if ($field['options'] !== []) throw new InvalidArgumentException('Options require a select');
+                $options = [];
+            }
+            $when = $field['when'] ?? null;
+            if (array_key_exists('when',$field)) {
+                if (!is_array($when) || count($when) !== 2 || !array_key_exists('field',$when)
+                    || !array_key_exists('option',$when)
+                    || !is_string($when['field']) || !isset($selects[$when['field']])
+                    || !is_int($when['option']) || $when['option'] < 1
+                    || $when['option'] > count($selects[$when['field']])) {
+                    throw new InvalidArgumentException('Condition must target a preceding select');
                 }
             }
-            $result[] = ['name'=>'extra'.($i+1),'label'=>$title,'kind'=>$kind,
-                'required'=>$required,'options'=>$options];
+            $result[] = ['name'=>$name,'label'=>$label,'kind'=>$kind,
+                'required'=>$field['required'],'options'=>$options,
+                'placeholder'=>$placeholder,'when'=>$when];
+            if ($kind === 'select') $selects[$name] = $options;
         }
         return $result;
     }
 
-    /** Server-side extra input validation; rejects unexpected inputs, arrays and spoofed options. */
+    /** Visitor values are validated against the exact published schema. */
     public static function read(array $section, array $payload): array
     {
         $result = [];
+        $valuesByName = [];
         foreach (self::definitions($section) as $field) {
             $name = $field['name'];
             $raw = $payload[$name] ?? '';
-            if (!is_string($raw) || !preg_match('//u', $raw)) {
+            if (!is_string($raw) || preg_match('//u', $raw) !== 1) {
                 throw new InvalidArgumentException('Invalid additional form field');
             }
             $value = trim($raw);
-            $max = $field['kind'] === 'textarea' ? 1000 : 180;
-            if (strlen($value) > $max
-                || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', $value)) {
+            $max = $field['kind'] === 'textarea' ? 1000 :
+                ($field['kind'] === 'email' ? 254 : ($field['kind'] === 'tel' ? 32 : 180));
+            if (strlen($value) > $max || preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f]/', $value)) {
                 throw new InvalidArgumentException('Additional field too long');
+            }
+            $active = true;
+            if ($field['when'] !== null) {
+                $source = $field['when']['field'];
+                $expected = self::selectedOption(self::definitions($section), $source, $field['when']['option']);
+                $active = ($valuesByName[$source] ?? '') === $expected;
+            }
+            if (!$active) {
+                if ($value !== '') throw new InvalidArgumentException('Inactive conditional field supplied');
+                $valuesByName[$name] = '';
+                continue;
             }
             if ($field['required'] && $value === '') {
                 throw new InvalidArgumentException('Required additional field missing');
@@ -77,13 +151,25 @@ final class FlexForm
                 && !preg_match('/^[+0-9()\-\s]{7,32}$/D', $value)) {
                 throw new InvalidArgumentException('Invalid phone field');
             }
+            if ($value !== '' && $field['kind'] === 'email' && !filter_var($value,FILTER_VALIDATE_EMAIL)) {
+                throw new InvalidArgumentException('Invalid email field');
+            }
             if ($value !== '' && $field['kind'] === 'select'
                 && !in_array($value, $field['options'], true)) {
                 throw new InvalidArgumentException('Unexpected select option');
             }
+            $valuesByName[$name] = $value;
             $result[$name] = ['label'=>$field['label'],'value'=>$value];
         }
         return $result;
+    }
+
+    private static function selectedOption(array $definitions, string $name, int $ordinal): string
+    {
+        foreach ($definitions as $definition) {
+            if ($definition['name'] === $name) return $definition['options'][$ordinal - 1];
+        }
+        throw new InvalidArgumentException('Missing conditional select');
     }
 
     public static function allowedNames(array $section): array
