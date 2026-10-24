@@ -54,6 +54,49 @@ for(const c of catalog.compositions)for(const theme of Object.keys(THEMES)){
 }
 assert.equal(checks,42*12);
 assert.equal(graphVariants.size,checks,'Each composition/theme must keep a distinct editable graph');
+// Test full owner-provided repeater content and its CMS provenance metadata.
+// The original verified D6 package keeps generic placeholders, while this
+// optional newer-host candidate is allowed to preserve explicit owner facts.
+const ownerProject={format:FORMAT,version:1,kit:'agency',theme:'editorial',language:'en',
+ facts:{title:'Verified owner company',headline:'Owner-approved headline',
+  description:'Owner-authored description',ctaLabel:'Request a quote',
+  contactText:'Owner contact form',
+  services:Array.from({length:12},(_,i)=>({
+   title:'Service supplied '+(i+1),description:'Owner description '+(i+1)}))}};
+const serviceBundle=bridge.build({format:bridge.WORKSPACE,version:1,
+ project:ownerProject,composition:'services-cards'});
+const originalSnapshot=JSON.stringify(serviceBundle);
+const services=adapter.buildHostCandidate(serviceBundle,hostSdk,registry);
+assert.equal(JSON.stringify(serviceBundle),originalSnapshot,'D6 must stay immutable');
+const serviceSection=services.site.pages[0].sections.find(s=>s.id==='df-selected-composition');
+assert.equal(serviceSection.items.length,12,'Preserve all 12 owner services');
+const serviceHtml=hostGraph.render(services.site,serviceSection.designGraph,'',null,serviceSection.id);
+assert.ok(serviceHtml.includes('Service supplied 12'));
+assert.ok(serviceHtml.includes('Owner description 12'));
+assert.equal(services.mapping.semanticContentMode,'snapshot-requires-host-reconciliation');
+assert.ok(services.mapping.contentBindings.some(b=>
+ b.source.itemId===serviceSection.items[11].id&&b.source.field==='content.title'));
+const heroBundle=bridge.build({format:bridge.WORKSPACE,version:1,
+ project:ownerProject,composition:'hero-split'});
+const hero=adapter.buildHostCandidate(heroBundle,hostSdk,registry);
+const heroSection=hero.site.pages[0].sections.find(s=>s.id==='df-selected-composition');
+const heroHtml=hostGraph.render(hero.site,heroSection.designGraph,'',null,heroSection.id);
+for(const copy of ['Owner-approved headline','Owner-authored description','Request a quote'])
+ assert.ok(heroHtml.includes(copy),'Missing owner text: '+copy);
+const faqBundle=bridge.build({format:bridge.WORKSPACE,version:1,
+ project:ownerProject,composition:'faq-compact'});
+const faq=adapter.buildHostCandidate(faqBundle,hostSdk,registry);
+const faqBindings=faq.mapping.contentBindings;
+assert.ok(faqBindings.filter(b=>b.source.field==='content.question').length>=2);
+assert.ok(faqBindings.filter(b=>b.source.field==='content.answer').length>=2);
+const gallery=adapter.buildHostCandidate(bridge.build({format:bridge.WORKSPACE,version:1,
+ project:ownerProject,composition:'gallery-mosaic'}),hostSdk,registry);
+const gallerySection=gallery.site.pages[0].sections.find(s=>s.id==='df-selected-composition');
+const galleryHtml=hostGraph.render(gallery.site,gallerySection.designGraph,'',null,gallerySection.id);
+assert.ok(galleryHtml.includes('Images not uploaded'));
+assert.ok(!galleryHtml.includes('<img '),'No licensed source media means no fake photos');
+assert.equal(gallery.mapping.approvedForPublish,false);
+
 // Optional PHP parity gate on a separate read-only lead checkout. It checks
 // PHP's independent validator and the actual escaped markup (CSS can be ordered differently).
 let phpChecked=0;
