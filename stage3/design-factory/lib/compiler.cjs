@@ -10,7 +10,7 @@ const VERSION = 1;
 const ROOT = path.resolve(__dirname, '../../components');
 const COMPONENTS = Object.freeze([
   'company-hero','feature-highlights','service-grid','media-story','faq-accordion',
-  'cta-banner','contact-panel'
+  'cta-banner','contact-panel','photo-gallery'
 ]);
 const THEMES = require('../catalog/themes.cjs');
 const KITS = Object.freeze({
