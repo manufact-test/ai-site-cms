@@ -4,6 +4,8 @@
 // Do not add this test to the stable D7 release-audit until the lead SDK is integrated.
 const assert=require('node:assert/strict');
 const path=require('node:path');
+const fs=require('node:fs');
+const cp=require('node:child_process');
 const oldSdk=require('../../sdk/contract.cjs');
 const {FORMAT,KITS,THEMES,loadRegistry}=require('../lib/compiler.cjs');
 const catalog=require('../catalog/compositions.cjs');
@@ -52,6 +54,44 @@ for(const c of catalog.compositions)for(const theme of Object.keys(THEMES)){
 }
 assert.equal(checks,42*12);
 assert.equal(graphVariants.size,checks,'Each composition/theme must keep a distinct editable graph');
+// Optional PHP parity gate on a separate read-only lead checkout. It checks
+// PHP's independent validator and the actual escaped markup (CSS can be ordered differently).
+let phpChecked=0;
+if(process.env.DF_LEAD_PHP_FILE){
+ const phpFile=path.resolve(process.env.DF_LEAD_PHP_FILE);
+ assert.ok(fs.statSync(phpFile).isFile(),'Lead PHP DesignGraph.php must exist');
+ const phpScript=[
+  'require $argv[1];',
+  '$site=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR);',
+  '$sec=null;foreach($site["pages"][0]["sections"] as $s){',
+  'if($s["id"]==="df-selected-composition"){$sec=$s;break;}}',
+  'if(!$sec)throw new Exception("Missing candidate section");',
+  '$assets=[];foreach($site["assets"] as $a)$assets[$a["id"]]=$a["mime"];',
+  '$ids=[];$cls="Manufact".chr(92)."Stage3".chr(92)."DesignGraph";',
+  '$cls::validate($sec["designGraph"],$assets,$ids,$site["designTokens"]);',
+  'echo $cls::render($site,$sec["designGraph"],"",$sec["id"]);'
+ ].join('');
+ for(const [name,theme] of [
+  ['hero-split','editorial'],['gallery-mosaic','noir'],
+  ['faq-compact','technical'],['contact-center','minimal']
+ ]){
+  const project={format:FORMAT,version:1,kit:'agency',theme,language:'en',facts:{}};
+  const bundle=bridge.build({format:bridge.WORKSPACE,version:1,project,composition:name});
+  const document=adapter.buildHostCandidate(bundle,hostSdk,registry).site;
+  const sec=document.pages[0].sections.find(s=>s.id==='df-selected-composition');
+  const jsHtml=hostGraph.render(document,sec.designGraph,'',null,sec.id);
+  const run=cp.spawnSync(process.env.DF_LEAD_PHP_BIN||'php',['-r',phpScript,phpFile],{
+   input:JSON.stringify(document),encoding:'utf8',timeout:15000,maxBuffer:1000000});
+  assert.equal(run.status,0,run.stderr||String(run.error));
+  const withoutStyle=html=>{const a=html.indexOf('<style>'),b=html.indexOf('</style>');
+   assert.ok(a>=0&&b>a,'Missing style tag');return html.slice(0,a)+'<style></style>'+html.slice(b+8);};
+  assert.equal(withoutStyle(run.stdout),withoutStyle(jsHtml),'Host PHP vs JS markup parity: '+name);
+  assert.ok(run.stdout.includes('prefers-reduced-motion'),'PHP reduced-motion CSS: '+name);
+  phpChecked++;
+ }
+} else {
+ console.log('LEAD_GRAPH_PHP SKIP: set DF_LEAD_PHP_FILE to lead stage3/server/DesignGraph.php');
+}
 const project={format:FORMAT,version:1,kit:'agency',theme:'noir',language:'en',facts:{}};
 const noSelection=bridge.build(project);
 assert.throws(()=>adapter.buildHostCandidate(noSelection,hostSdk,registry),
@@ -79,4 +119,4 @@ const corrupted=clone(marked);corrupted.site.title='unauthorized change';
 assert.throws(()=>adapter.buildHostCandidate(corrupted,hostSdk,registry),/D6: changed/);
 console.log('DESIGN_FACTORY_LEAD_GRAPH PASS: '+checks+
  ' lead-SDK validated and distinct editor graphs; '+renderChecks+
- ' scoped host renders; old SDK rejects graph; D6 immutable and tamper-protected. No PHP/visual acceptance.');
+ ' scoped host JS renders; '+phpChecked+' real PHP parity probes; old SDK rejects graph; D6 immutable and tamper-protected. No browser acceptance.');
