@@ -3,10 +3,24 @@
 // Independent from Design Factory's branch: integration requires a later explicit adapter.
 const IDENT=/^[a-z][a-z0-9-]{2,79}$/,TOKEN=/^[a-z][a-z0-9-]{1,39}$/;
 const SAFE_URL=/^\/(?!\/)[a-zA-Z0-9/_#?=&.%-]*$/;
-const TYPES=['container','heading','text','button','image','divider'];
+const ICON_PATHS=Object.freeze({
+ check:'<path d="M5 12l4 4L19 6"/>',
+ arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',
+ star:'<path d="m12 2 3 6 7 1-5 5 1 8-6-4-6 4 1-8-5-5 7-1z"/>',
+ sparkles:'<path d="m12 3 2 7 7 2-7 2-2 7-7-2 7-2z"/>',
+ shield:'<path d="M12 2 20 6v6c0 5-3 8-8 10-5-2-8-5-8-10V6z"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
+ mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+ play:'<path d="m8 5 12 7-12 7z"/>',menu:'<path d="M4 7h16M4 12h16M4 17h16"/>'
+});
+const MOTIONS=['none','fade-in','fade-up','slide-left','zoom-in'];
+const TYPES=['container','heading','text','button','image','divider','icon'];
 const STYLE_KEYS=['display','columns','direction','align','justify','gap','padding','radius',
   'color','background','fontSize','fontWeight','lineHeight','maxWidth','position','top','left',
-  'opacity','borderColor','borderWidth','textAlign','order','hidden'];
+  'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
+  'paddingX','paddingY','marginTop','marginBottom','widthPercent','minHeight','gridColumnSpan',
+  'flexWrap','flexGrow','alignSelf','letterSpacing','fontFamily','objectFit','aspectRatio',
+  'overflow','shadow','gradient'];
 const DEFAULT_TOKENS=Object.freeze({
   colors:{foreground:'#182b3d',background:'#ffffff',accent:'#0a5bff',muted:'#667788'},
   spacing:{small:12,medium:24,large:48},
@@ -48,28 +62,43 @@ function resolve(value,kind,tokens,at){
 }
 function validateStyle(style,tokens,at,mode='base'){
   keys(style,STYLE_KEYS,at);
+  const enums={
+    display:['block','grid','flex','none'],direction:['row','column'],
+    align:['start','center','end','stretch','between'],justify:['start','center','end','stretch','between'],
+    alignSelf:['auto','start','center','end','stretch'],position:['static','relative','absolute'],
+    textAlign:['left','center','right'],flexWrap:['nowrap','wrap'],
+    fontFamily:['inherit','system','arial','georgia','serif','mono'],
+    objectFit:['cover','contain','fill','none'],aspectRatio:['auto','square','portrait','landscape','wide'],
+    overflow:['visible','hidden','auto'],shadow:['none','soft','medium','strong']
+  };
+  const ranges={columns:[1,12],gridColumnSpan:[1,12],flexGrow:[0,6],fontWeight:[100,900],
+    lineHeight:[80,250],letterSpacing:[-50,200],maxWidth:[0,1920],widthPercent:[1,100],
+    borderWidth:[0,12],order:[-30,30],opacity:[0,100],marginTop:[-160,160],marginBottom:[-160,160]};
   for(const [key,value] of Object.entries(style)){
-    const color=['color','background','borderColor'].includes(key);
-    const scale=['gap','padding','top','left'].includes(key)?'spacing':
-      key==='radius'?'radii':key==='fontSize'?'typography':null;
-    if(color){resolve(value,'colors',tokens,at+'/'+key);continue;}
-    if(scale){resolve(value,scale,tokens,at+'/'+key);continue;}
-    if(key==='display'&&!['block','grid','flex','none'].includes(value))fail(at,key);
-    else if(key==='direction'&&!['row','column'].includes(value))fail(at,key);
-    else if(['align','justify'].includes(key)&&!['start','center','end','stretch','between'].includes(value))fail(at,key);
-    else if(key==='position'&&!['static','relative','absolute'].includes(value))fail(at,key);
-    else if(key==='textAlign'&&!['left','center','right'].includes(value))fail(at,key);
-    else if(key==='hidden'&&typeof value!=='boolean')fail(at,key);
-    else if(key==='columns'&&!number(value,1,12))fail(at,key);
-    else if(key==='fontWeight'&&!number(value,100,900))fail(at,key);
-    else if(key==='lineHeight'&&(!number(value,80,250)))fail(at,key);
-    else if(key==='maxWidth'&&!number(value,0,1920))fail(at,key);
-    else if(key==='borderWidth'&&!number(value,0,12))fail(at,key);
-    else if(key==='order'&&!number(value,-30,30))fail(at,key);
-    else if(key==='opacity'&&(!number(value,0,100)))fail(at,key);
+    if(mode==='state'&&!['color','background','borderColor','borderWidth','radius','opacity','gradient'].includes(key))
+      fail(at,'unsupported interaction state property');
+    if(['color','background','borderColor'].includes(key)){resolve(value,'colors',tokens,at+'/'+key);continue;}
+    if(key==='gradient'){
+      keys(value,['angle','from','to'],at+'/gradient');
+      if(!number(value.angle,0,360)||!own(value,'from')||!own(value,'to'))fail(at,'invalid gradient');
+      resolve(value.from,'colors',tokens,at+'/from');resolve(value.to,'colors',tokens,at+'/to');continue;
+    }
+    if(['gap','rowGap','columnGap','padding','paddingX','paddingY','top','left','minHeight'].includes(key)){
+      resolve(value,'spacing',tokens,at+'/'+key);continue;
+    }
+    if(key==='radius'||key==='fontSize'){
+      resolve(value,key==='radius'?'radii':'typography',tokens,at+'/'+key);continue;
+    }
+    if(own(enums,key)){if(!enums[key].includes(value))fail(at,key);continue;}
+    if(own(ranges,key)){if(!number(value,...ranges[key]))fail(at,key);continue;}
+    if(key==='hidden'){if(typeof value!=='boolean')fail(at,key);continue;}
+    fail(at,'invalid style '+key);
   }
-  if(mode==='state'&&Object.keys(style).some(k=>!['color','background','borderColor','borderWidth','radius','opacity'].includes(k)))
-    fail(at,'unsupported interaction state property');
+}
+function validateMotion(motion,at){
+  keys(motion,['effect','duration','delay'],at);
+  if(!MOTIONS.includes(motion.effect)||!number(motion.duration,150,2000)||!number(motion.delay,0,1000))
+    fail(at,'invalid motion');
 }
 function validateGraph(graph,assetIds,existingIds,tokensInput){
   keys(graph,['version','id','nodes'],'graph');
@@ -82,19 +111,24 @@ function validateGraph(graph,assetIds,existingIds,tokensInput){
   let count=0;
   function visit(node,depth){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(node.type==='container'||node.type==='divider'){
       if(own(node,'text')||own(node,'href')||own(node,'assetId')||own(node,'alt')||own(node,'level'))
         fail(node.id,'invalid container content');
+    }else if(node.type==='icon'){
+      if(!own(ICON_PATHS,node.icon)||own(node,'text')||own(node,'href')||own(node,'assetId')||
+        own(node,'level')||own(node,'children')||
+        (own(node,'alt')&&(typeof node.alt!=='string'||node.alt.length>200||/[\x00-\x1f]/.test(node.alt))))
+        fail(node.id,'invalid icon');
     }else if(node.type==='image'){
       if(typeof node.assetId!=='string'||!assetIds.has(node.assetId)||
         typeof node.alt!=='string'||node.alt.length>200||/[\x00-\x1f]/.test(node.alt)||
-        own(node,'text')||own(node,'href')||own(node,'level'))fail(node.id,'invalid image binding');
+        own(node,'text')||own(node,'href')||own(node,'level')||own(node,'icon'))fail(node.id,'invalid image binding');
     }else{
       if(typeof node.text!=='string'||node.text.length>3000||/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(node.text)||
-        own(node,'assetId')||own(node,'alt'))fail(node.id,'invalid text');
+        own(node,'assetId')||own(node,'alt')||own(node,'icon'))fail(node.id,'invalid text');
       if(node.type==='button'&&
         (typeof node.href!=='string'||node.href.length>300||
          !SAFE_URL.test(node.href)&&!/^https:\/\/[a-z0-9.-]+(?:\/[^\s"'<>\\]*)?$/i.test(node.href)))
@@ -104,6 +138,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput){
       if(node.type!=='heading'&&own(node,'level'))fail(node.id,'unexpected level');
     }
     validateStyle(node.styles||{},tokens,node.id+'/styles');
+    if(own(node,'motion'))validateMotion(node.motion,node.id+'/motion');
     if(own(node,'responsive')){
       keys(node.responsive,['tablet','mobile'],node.id+'/responsive');
       for(const [bp,st] of Object.entries(node.responsive))validateStyle(st,tokens,node.id+'/'+bp);
