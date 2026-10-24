@@ -38,10 +38,10 @@ function css(theme){
   const t=THEMES[theme];
   if(!t)throw Error('Invalid theme');
   const v=t.cms;
-  const display=theme==='editorial'?'Georgia,serif':'system-ui,Segoe UI,sans-serif';
-  const radius=theme==='technical'?'10px':theme==='editorial'?'3px':'26px';
-  const displaySize=theme==='editorial'?'clamp(3.7rem,7.5vw,7.4rem)':'clamp(3rem,6.4vw,6.5rem)';
-  return [
+  const display=v.font==='georgia'?'Georgia,serif':'system-ui,Segoe UI,sans-serif';
+  const radius={bordered:'9px',paper:'3px',floating:'27px'}[t.design.card];
+  const displaySize=t.design.tracking==='wide'?'clamp(3.7rem,7.5vw,7.4rem)':t.design.tracking==='tight'?'clamp(3rem,6.4vw,6.5rem)':'clamp(3.25rem,6.8vw,6.8rem)';
+  const base=[
     '/* Standalone CSS preview only: CMS parity integration_required */',
     ':root{--bg:'+v.background+';--surface:'+v.surface+';--text:'+v.text+';--accent:'+v.primary+';--radius:'+radius+';--wide:'+v.maxWidth+'px;--display:'+display+';--line:color-mix(in srgb,var(--text),transparent 82%)}',
     '*,*:before,*:after{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--text);background:var(--bg);font:16px/1.6 system-ui,Segoe UI,sans-serif}a{color:inherit}a:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:4px}',
@@ -61,6 +61,33 @@ function css(theme){
     '@media(max-width:600px){.navwrap{display:block}.navwrap nav{padding-top:17px;gap:14px}.section{padding:52px 19px}.hero h1{font-size:clamp(2.7rem,12vw,4.1rem)}.features-grid,.service-grid{grid-template-columns:1fr}.features-grid article{min-height:0}.art{height:230px}.cta{padding:40px 26px;margin:24px 8px}.story-art{height:240px}}',
     '@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}',
   ].join('\n')+'\n';
+  // All the tokens below come only from the closed, first-party theme catalog.
+  const d=t.design;
+  const grid={split:'1.1fr .9fr',centered:'1fr',stacked:'1fr',offset:'.82fr 1.18fr'}[d.layout];
+  const art={frame:'rotate(-19deg)',grid:'rotate(0deg)',circle:'rotate(34deg)',stair:'skew(-12deg)',block:'rotate(0deg)',arch:'rotate(55deg)',wave:'skew(15deg)'}[d.art];
+  const cards={
+    paper:'background:var(--surface);border:1px solid var(--line);box-shadow:none',
+    bordered:'background:transparent;border:2px solid var(--text);box-shadow:none',
+    floating:'background:var(--surface);border:0;box-shadow:0 14px 45px color-mix(in srgb,var(--text),transparent 92%)'
+  }[d.card];
+  const extra=[
+    '.hero{grid-template-columns:'+grid+'}',
+    '.hero h1{letter-spacing:'+(d.tracking==='wide'?'-.085em':d.tracking==='tight'?'-.045em':'-.065em')+'}',
+    '.art-shape{transform:'+art+'}',
+    '.service-card,.features-grid article{'+cards+'}',
+    '.section{padding-top:'+(d.density==='dense'?'63px':'110px')+';padding-bottom:'+(d.density==='dense'?'63px':'110px')+'}',
+    d.layout==='centered'?'.hero{text-align:center;justify-items:center}.hero-copy{max-width:780px}.hero .actions{justify-content:center}.art{width:min(100%,740px)}':'',
+    d.layout==='stacked'?'.hero{justify-items:stretch}.hero-copy{max-width:950px}.art{height:270px}':'',
+    d.layout==='offset'?'.hero .hero-copy{order:2}.hero .art{order:1}':'',
+    d.nav==='solid'?'nav a[aria-current]{background:var(--accent);color:white;padding:5px 9px;border:0;border-radius:var(--radius)}':'',
+    d.art==='circle'?'.art-shape{border-radius:50%}.art-circle{border-width:55px}':'',
+    d.art==='arch'?'.art-shape{border-radius:48% 48% 0 0}':'',
+    d.art==='grid'?'.art{background:repeating-linear-gradient(0deg,var(--text) 0 35px,color-mix(in srgb,var(--text),white 15%) 36px 37px)}':'',
+    d.art==='wave'?'.art-shape{border-radius:50% 15% 50% 18%}':'',
+    '@media(max-width:860px){.hero{grid-template-columns:1fr}.hero .hero-copy,.hero .art{order:initial}.section{padding-top:65px;padding-bottom:65px}}',
+    '@media(max-width:600px){.section{padding-top:52px;padding-bottom:52px}}'
+  ].filter(Boolean).join('\n');
+  return base+extra+'\n';
 }
 function pageHtml(site,page,theme,language){
   const depth=page.path==='/'?0:1;
