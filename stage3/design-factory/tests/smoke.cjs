@@ -40,7 +40,12 @@ try{
   const compiled=compile(rich,registry);
   assert.equal(compiled.site.siteId,'owner-demo');
   assert.ok(JSON.stringify(compiled.site).includes('Одна реальная услуга'));
-  assert.ok(JSON.stringify(compiled.site).includes('Направление 2'));
+  const serviceSection=compiled.site.pages.flatMap(p=>p.sections).find(s=>s.component==='service-grid');
+  assert.equal(serviceSection.items.length,2);
+  assert.equal(serviceSection.items[0].values['content.title'],'Одна реальная услуга');
+  assert.match(serviceSection.items[1].values['content.title'],/Пример \(подтвердить\):/);
+  assert.ok(compiled.checklist.missing.includes('facts.services'));
+  assert.equal(compiled.checklist.readyForPublish,false);
   assert.deepEqual(migrate(project('agency','editorial','en')),project('agency','editorial','en'));
   assert.deepEqual(migrate({...project('agency','editorial','en'),version:0}).version,1);
   assert.notDeepEqual(
