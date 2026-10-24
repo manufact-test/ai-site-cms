@@ -684,6 +684,52 @@ test('optional professional Design Graph: tokens, grid, breakpoints, hover and s
   assert.equal(JSON.stringify(initial),initialBytes,'Older site fixture never rewritten');
 });
 
+test('rich Design Graph primitives, accessible icons, gradients and motion remain typed and inert',()=>{
+  const graph=require('../sdk/design-graph.cjs'),site=structuredClone(initial);
+  const section=site.pages[0].sections[0];
+  const g=graph.baseGraph(section.id),root=g.nodes[0],title=root.children[0];
+  site.designTokens=structuredClone(graph.DEFAULT_TOKENS);
+  root.styles={display:'grid',columns:3,columnGap:'@small',paddingX:'@large',paddingY:'@medium',
+    gradient:{angle:125,from:'@accent',to:'#fafafa'},shadow:'medium',widthPercent:100,
+    minHeight:200,marginBottom:-16,flexWrap:'wrap',gridColumnSpan:2};
+  root.responsive={tablet:{columns:2,paddingX:'@small'},
+    mobile:{columns:1,gap:8,gridColumnSpan:1,shadow:'soft'}};
+  title.styles={fontFamily:'georgia',fontSize:'@heading',letterSpacing:-8,
+    lineHeight:125,color:'@foreground',marginTop:12};
+  title.motion={effect:'fade-up',duration:650,delay:200};
+  root.children.push({id:section.id+'-graphic',type:'icon',icon:'shield',
+    alt:'Защищённая обработка',styles:{fontSize:32,color:'@accent',opacity:90}});
+  section.designGraph=g;
+  assert.deepEqual(sdk.validateSite(site,manifests),site);
+  const html=graph.render(site,g,'','',section.id);
+  assert.match(html,/linear-gradient\(125deg,#0a5bff,#fafafa\)/);
+  assert.match(html,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(html,/grid-column:span 2/);
+  assert.match(html,/font-family:Georgia,serif/);
+  assert.match(html,/animation:cmsdg-fade-up 650ms ease-out 200ms both/);
+  assert.match(html,/prefers-reduced-motion:reduce/);
+  assert.match(html,/<svg[^>]+role="img" aria-label="Защищённая обработка"/);
+  assert.match(html,/@media\(max-width:600px\)/);
+  assert.doesNotMatch(html,/<script\b|onload=/);
+  const invalid=[
+    d=>d.nodes[0].styles.gradient.from='url(javascript:alert(1))',
+    d=>d.nodes[0].styles.gradient.angle='125deg',
+    d=>d.nodes[0].styles.fontFamily='Comic Sans;display:none',
+    d=>d.nodes[0].children[0].motion.duration=12000,
+    d=>d.nodes[0].children[0].motion.effect='custom-keyframes',
+    d=>d.nodes[0].children.at(-1).icon='<img onerror=alert(1)>',
+    d=>d.nodes[0].children.at(-1).children=[],
+    d=>d.nodes[0].responsive.mobile.shadow='url(https://external)',
+    d=>d.nodes[0].styles.gridColumnSpan=42,
+    d=>d.nodes[0].children.at(-1).alt='\u0000'
+  ];
+  for(const change of invalid){
+    const corrupted=structuredClone(site);
+    change(corrupted.pages[0].sections[0].designGraph);
+    refuses(()=>sdk.validateSite(corrupted,manifests),'Unsafe motion/icons/gradient/style rejected');
+  }
+});
+
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');
