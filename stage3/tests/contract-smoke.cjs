@@ -768,6 +768,67 @@ test('precision graph layout, responsive focal images, focus and three-stop grad
   }
 });
 
+
+test('AI-free atomic composition tree: reparent, deep clone, wrap, unwrap, media and Undo',()=>{
+  const graph=require('../sdk/design-graph.cjs'),D=require('../sdk/draft.cjs');
+  const site=structuredClone(initial),sec=site.pages[0].sections[0];
+  site.designTokens=structuredClone(graph.DEFAULT_TOKENS);
+  const base=graph.baseGraph(sec.id),original=JSON.stringify(base);
+  const layout=base.nodes[0];
+  layout.children.push({id:'node-photograph',type:'image',assetId:'asset-picture',
+    alt:'Composition image',styles:{objectFit:'cover',objectPositionX:32},
+    responsive:{mobile:{objectPositionX:72}}});
+  layout.children.push({id:'node-column',type:'container',
+    styles:{display:'grid',columns:1},children:[]});
+  const withNodes=JSON.stringify(base);
+  const moved=graph.editTree(base,{action:'move',nodeId:sec.id+'-title',
+    targetId:'node-column',placement:'inside'});
+  assert.equal(base.nodes[0].children[0].type,'heading','Move must not mutate input');
+  assert.equal(JSON.stringify(base),withNodes);
+  assert.equal(moved.nodes[0].children.at(-1).children[0].id,sec.id+'-title');
+  const clone=graph.editTree(moved,{action:'duplicate',nodeId:sec.id+'-layout',
+    ids:['node-copied-layout','node-copied-text','node-copied-photo','node-copied-column',
+      'node-copied-title']});
+  assert.equal(clone.nodes.length,2);
+  assert.equal(clone.nodes[1].children[1].assetId,'asset-picture');
+  assert.equal(clone.nodes[1].children[1].responsive.mobile.objectPositionX,72);
+  assert.equal(clone.nodes[1].children[2].children[0].id,'node-copied-title');
+  const wrapped=graph.editTree(clone,{action:'wrap',nodeId:'node-copied-photo',
+    wrapperId:'node-photo-frame'});
+  assert.equal(wrapped.nodes[1].children[1].children[0].id,'node-copied-photo');
+  const unwrapped=graph.editTree(wrapped,{action:'unwrap',nodeId:'node-photo-frame'});
+  assert.deepEqual(unwrapped,clone);
+  const beforeTop=graph.editTree(clone,{action:'move',nodeId:'node-copied-layout',
+    targetId:sec.id+'-layout',placement:'before'});
+  assert.equal(beforeTop.nodes[0].id,'node-copied-layout');
+  const removed=graph.editTree(beforeTop,{action:'remove',nodeId:'node-copied-layout'});
+  assert.deepEqual(removed,moved);
+  for(const operation of [
+    {action:'move',nodeId:sec.id+'-layout',targetId:'node-column',placement:'inside'},
+    {action:'move',nodeId:'node-column',targetId:'node-photograph',placement:'inside'},
+    {action:'duplicate',nodeId:'node-column',ids:['node-column']},
+    {action:'duplicate',nodeId:'node-column',ids:['illegal space']},
+    {action:'wrap',nodeId:'node-column',wrapperId:sec.id+'-title'},
+    {action:'unwrap',nodeId:'node-photograph'},
+    {action:'remove',nodeId:sec.id+'-layout'}
+  ])refuses(()=>graph.editTree(moved,operation),'Invalid graph restructure must be atomic');
+  assert.equal(JSON.stringify(moved.nodes[0].children.at(-1).children[0].text),'"Ваш уникальный заголовок"');
+  site.assets=[{id:'asset-picture',src:'/assets/picture.png',mime:'image/png',alt:'Picture'}];
+  sec.designGraph=clone;
+  assert.deepEqual(sdk.validateSite(site,manifests),site);
+  const html=graph.render(site,clone);
+  assert.match(html,/cmsdg-n-node-copied-layout/);
+  assert.match(html,/cmsdg-n-node-copied-photo/);
+  assert.match(html,/--cmsdg-object-x:72%/);
+  let draft=D.begin(site,manifests);
+  const later=structuredClone(site);
+  later.pages[0].sections[0].designGraph=wrapped;
+  draft=D.replaceSite(draft,manifests,later,draft.revision);
+  assert.deepEqual(D.undo(draft,manifests).current,site);
+  assert.deepEqual(D.redo(D.undo(draft,manifests),manifests).current,later);
+  assert.ok(original.includes(sec.id+'-title'));
+});
+
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');

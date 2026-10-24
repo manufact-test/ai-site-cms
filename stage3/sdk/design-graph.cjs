@@ -180,6 +180,76 @@ function baseGraph(sectionId){
     ]}
   ]};
 }
+
+/**
+ * Atomic, AI-free structural editing of an existing typed composition.
+ * Never mutates source, preserves every descendant property and media asset reference.
+ * The final edit is still validated by the normal site/asset contract on Apply.
+ */
+function editTree(graph,operation){
+  if(!object(operation)||!['duplicate','move','wrap','unwrap','remove'].includes(operation.action))
+    fail('edit','unknown operation');
+  const next=JSON.parse(JSON.stringify(graph));
+  const scan=()=>{
+    if(next.version!==1||!Array.isArray(next.nodes)||next.nodes.length<1||next.nodes.length>30)
+      fail('edit','invalid roots');
+    const found=new Map();
+    const visit=(node,items,depth)=>{
+      if(!object(node)||typeof node.id!=='string'||!IDENT.test(node.id)||
+        found.has(node.id)||!TYPES.includes(node.type)||depth>8||found.size>=90)
+        fail('edit','invalid node, duplicated id or graph limit');
+      found.set(node.id,{node,items,depth});
+      if(node.type==='container'){
+        if(!Array.isArray(node.children)||node.children.length>30)fail('edit','container limit');
+        node.children.forEach(child=>visit(child,node.children,depth+1));
+      }else if(own(node,'children'))fail('edit','invalid child owner');
+    };
+    next.nodes.forEach(node=>visit(node,next.nodes,0));
+    return found;
+  };
+  const before=scan(),source=before.get(operation.nodeId);
+  if(!source)fail('edit','missing selected node');
+  const descendants=[];
+  const walk=(node)=>{descendants.push(node);if(node.type==='container')node.children.forEach(walk);};
+  walk(source.node);
+  if(operation.action==='duplicate'){
+    if(!Array.isArray(operation.ids)||operation.ids.length!==descendants.length||
+       operation.ids.some(id=>typeof id!=='string'||!IDENT.test(id)||before.has(id))||
+       new Set(operation.ids).size!==operation.ids.length)fail('edit','invalid replacement ids');
+    const copy=JSON.parse(JSON.stringify(source.node));
+    let idx=0;
+    const rewrite=(node)=>{node.id=operation.ids[idx++];if(node.type==='container')node.children.forEach(rewrite);};
+    rewrite(copy);
+    source.items.splice(source.items.indexOf(source.node)+1,0,copy);
+  }else if(operation.action==='move'){
+    const target=before.get(operation.targetId);
+    if(!target||!['before','after','inside'].includes(operation.placement)||
+       descendants.some(n=>n.id===operation.targetId))
+      fail('edit','invalid destination or cycle');
+    if(operation.placement==='inside'&&target.node.type!=='container')
+      fail('edit','destination not a container');
+    source.items.splice(source.items.indexOf(source.node),1);
+    if(operation.placement==='inside')target.node.children.push(source.node);
+    else target.items.splice(target.items.indexOf(target.node)+(operation.placement==='after'?1:0),0,source.node);
+  }else if(operation.action==='wrap'){
+    if(typeof operation.wrapperId!=='string'||!IDENT.test(operation.wrapperId)||
+      before.has(operation.wrapperId))fail('edit','invalid wrapper id');
+    source.items.splice(source.items.indexOf(source.node),1,{
+      id:operation.wrapperId,type:'container',
+      styles:{display:'flex',direction:'column',gap:16},children:[source.node]
+    });
+  }else if(operation.action==='unwrap'){
+    if(source.node.type!=='container'||!source.node.children.length)
+      fail('edit','only a nonempty container can be unwrapped');
+    source.items.splice(source.items.indexOf(source.node),1,...source.node.children);
+  }else{
+    if(before.size===descendants.length)fail('edit','cannot remove all graph nodes');
+    source.items.splice(source.items.indexOf(source.node),1);
+  }
+  scan();
+  return next;
+}
+
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function declarations(style,t){
   const css=[],put=(k,v)=>css.push(k+':'+v);
@@ -294,4 +364,4 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     '@media(prefers-reduced-motion:reduce){'+scope+' [class*="cmsdg-n-"]{animation:none!important;transition:none!important}}'+
     rules.join('')+'</style>'+html+'</section>';
 }
-module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,render,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,ICON_PATHS});
+module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,ICON_PATHS});
