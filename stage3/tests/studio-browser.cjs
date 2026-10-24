@@ -164,11 +164,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await switchPreview.first().isVisible(),true);
     assert.equal(await switchPreview.nth(1).isVisible(),false);
     await canvas.locator('.cms-switcher-tab').nth(1).click();
-    const radioState=await canvas.locator('.cms-switcher-radio').evaluateAll(nodes=>
-      nodes.map(n=>({id:n.id,name:n.name,checked:n.checked})));
-    const panelState=await switchPreview.evaluateAll(nodes=>
-      nodes.map(n=>({id:n.id,display:getComputedStyle(n).display})));
-    console.log('SWITCHER DEBUG',JSON.stringify({radioState,panelState}));
+    assert.equal(await canvas.locator('.cms-switcher-radio').nth(1).isChecked(),true,
+      'Native radio switches in restricted iframe');
     assert.equal(await switchPreview.first().isVisible(),false);
     assert.equal(await switchPreview.nth(1).isVisible(),true,'Native radio changes panels in script-disabled iframe');
     await page.locator('#undo').click();
