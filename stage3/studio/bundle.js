@@ -183,6 +183,87 @@ function baseGraph(sectionId){
     ]}
   ]};
 }
+
+/**
+ * Atomic, AI-free structural editing of an existing typed composition.
+ * Never mutates source, preserves every descendant property and media asset reference.
+ * The final edit is still validated by the normal site/asset contract on Apply.
+ */
+function editTree(graph,operation){
+  if(!object(operation)||!['duplicate','move','insert','wrap','unwrap','remove'].includes(operation.action))
+    fail('edit','unknown operation');
+  const next=JSON.parse(JSON.stringify(graph));
+  const scan=()=>{
+    if(next.version!==1||!Array.isArray(next.nodes)||next.nodes.length<1||next.nodes.length>30)
+      fail('edit','invalid roots');
+    const found=new Map();
+    const visit=(node,items,depth)=>{
+      if(!object(node)||typeof node.id!=='string'||!IDENT.test(node.id)||
+        found.has(node.id)||!TYPES.includes(node.type)||depth>8||found.size>=90)
+        fail('edit','invalid node, duplicated id or graph limit');
+      found.set(node.id,{node,items,depth});
+      if(node.type==='container'){
+        if(!Array.isArray(node.children)||node.children.length>30)fail('edit','container limit');
+        node.children.forEach(child=>visit(child,node.children,depth+1));
+      }else if(own(node,'children'))fail('edit','invalid child owner');
+    };
+    next.nodes.forEach(node=>visit(node,next.nodes,0));
+    return found;
+  };
+  const before=scan(),source=before.get(operation.nodeId);
+  if(!source)fail('edit','missing selected node');
+  const descendants=[];
+  const walk=(node)=>{descendants.push(node);if(node.type==='container')node.children.forEach(walk);};
+  walk(source.node);
+  if(operation.action==='duplicate'){
+    if(!Array.isArray(operation.ids)||operation.ids.length!==descendants.length||
+       operation.ids.some(id=>typeof id!=='string'||!IDENT.test(id)||before.has(id))||
+       new Set(operation.ids).size!==operation.ids.length)fail('edit','invalid replacement ids');
+    const copy=JSON.parse(JSON.stringify(source.node));
+    let idx=0;
+    const rewrite=(node)=>{node.id=operation.ids[idx++];if(node.type==='container')node.children.forEach(rewrite);};
+    rewrite(copy);
+    source.items.splice(source.items.indexOf(source.node)+1,0,copy);
+  }else if(operation.action==='insert'){
+    const target=before.get(operation.targetId);
+    if(!target||!['before','after','inside'].includes(operation.placement)||
+       !object(operation.node))fail('edit','invalid insertion');
+    if(operation.placement==='inside'){
+      if(target.node.type!=='container')fail('edit','destination not a container');
+      target.node.children.push(JSON.parse(JSON.stringify(operation.node)));
+    }else{
+      target.items.splice(target.items.indexOf(target.node)+(operation.placement==='after'?1:0),
+        0,JSON.parse(JSON.stringify(operation.node)));
+    }
+  }else if(operation.action==='move'){
+    const target=before.get(operation.targetId);
+    if(!target||!['before','after','inside'].includes(operation.placement)||
+       descendants.some(n=>n.id===operation.targetId))
+      fail('edit','invalid destination or cycle');
+    if(operation.placement==='inside'&&target.node.type!=='container')
+      fail('edit','destination not a container');
+    source.items.splice(source.items.indexOf(source.node),1);
+    if(operation.placement==='inside')target.node.children.push(source.node);
+    else target.items.splice(target.items.indexOf(target.node)+(operation.placement==='after'?1:0),0,source.node);
+  }else if(operation.action==='wrap'){
+    if(typeof operation.wrapperId!=='string'||!IDENT.test(operation.wrapperId)||
+      before.has(operation.wrapperId))fail('edit','invalid wrapper id');
+    source.items.splice(source.items.indexOf(source.node),1,{
+      id:operation.wrapperId,type:'container',
+      styles:{display:'flex',direction:'column',gap:16},children:[source.node]
+    });
+  }else if(operation.action==='unwrap'){
+    if(source.node.type!=='container'||!source.node.children.length)
+      fail('edit','only a nonempty container can be unwrapped');
+    source.items.splice(source.items.indexOf(source.node),1,...source.node.children);
+  }else{
+    if(before.size===descendants.length)fail('edit','cannot remove all graph nodes');
+    source.items.splice(source.items.indexOf(source.node),1);
+  }
+  scan();
+  return next;
+}
+
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function declarations(style,t){
   const css=[],put=(k,v)=>css.push(k+':'+v);
@@ -297,7 +378,7 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     '@media(prefers-reduced-motion:reduce){'+scope+' [class*="cmsdg-n-"]{animation:none!important;transition:none!important}}'+
     rules.join('')+'</style>'+html+'</section>';
 }
-module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,render,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,ICON_PATHS});
+module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,ICON_PATHS});
 
 return module.exports;})();
 const CONTRACT=(()=>{const module={exports:{}};const require=name=>{if(name==='./design-graph.cjs')return DESIGN_GRAPH;throw Error('Unknown contract import');};
@@ -1717,6 +1798,18 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     dlg.append(title,info,toolbar,root,footer);
     document.body.append(dlg);
     let graph,tokens,selection,mode='desktop',sourcePage,sourceSection;
+    const changeTree=(operation,selectId)=>{
+      try{
+        graph=DESIGN_GRAPH.editTree(graph,operation);
+        if(selectId)selection=selectId;
+        render();
+      }catch(error){notice('Структура не изменена: '+error.message,true);}
+    };
+    const subtreeIds=(node)=>{
+      const ids=[];
+      const walk=n=>{ids.push(n.id);for(const child of n.children||[])walk(child);};
+      walk(node);return ids;
+    };
     const make=(tag,text,cls)=>{
       const n=document.createElement(tag);
       if(text!==undefined)n.textContent=text;
@@ -1767,12 +1860,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       action('+ Вложенный',()=>{
         if(n.type!=='container')return notice('Для вложенности выберите контейнер',true);
         const node={id:uniqueId('dg-node'),type:'text',text:'Новый текст',styles:{}};
-        n.children.push(node);selection=node.id;render();
+        changeTree({action:'insert',targetId:n.id,placement:'inside',node},node.id);
       });
       action('+ Рядом',()=>{
         const node={id:uniqueId('dg-node'),type:'container',styles:{display:'grid',columns:2,gap:'@medium'},
           responsive:{mobile:{columns:1}},children:[]};
-        selected.items.splice(selected.items.indexOf(n)+1,0,node);selection=node.id;render();
+        changeTree({action:'insert',targetId:n.id,placement:'after',node},node.id);
       });
       action('Тип +',()=>{
         const type=prompt('Элемент: container / heading / text / button / image / divider / icon / video','heading');
@@ -1794,8 +1887,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           if(!first)return notice('Сперва загрузите изображение',true);
           node.assetId=first.id;node.alt=first.alt;
         }
-        selected.items.splice(selected.items.indexOf(n)+1,0,node);
-        selection=node.id;render();
+        changeTree({action:'insert',targetId:n.id,placement:'after',node},node.id);
       });
       action('↑',()=>{
         const index=selected.items.indexOf(n);
@@ -1805,11 +1897,43 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const index=selected.items.indexOf(n);
         if(index<selected.items.length-1){[selected.items[index+1],selected.items[index]]=[n,selected.items[index+1]];render();}
       });
+      action('Копировать группу',()=>{
+        const ids=subtreeIds(n).map(()=>uniqueId('dg-node'));
+        changeTree({action:'duplicate',nodeId:n.id,ids},ids[0]);
+      });
+      action('Объединить в контейнер',()=>{
+        const wrapperId=uniqueId('dg-node');
+        changeTree({action:'wrap',nodeId:n.id,wrapperId},wrapperId);
+      });
+      if(n.type==='container'&&n.children.length)action('Разобрать контейнер',()=>{
+        if(!confirm('Удалить оболочку контейнера? Её стили будут потеряны, вложенные элементы сохранятся.'))return;
+        changeTree({action:'unwrap',nodeId:n.id},n.children[0].id);
+      });
+      const skip=new Set(subtreeIds(n));
+      const destinations=rows.filter(row=>!skip.has(row.node.id));
+      if(destinations.length){
+        const moveDestination=make('select',undefined,'control');
+        moveDestination.id='cms-design-move-target';
+        for(const {node,depth} of destinations){
+          const opt=make('option','  '.repeat(depth)+node.type+' · '+(node.text||node.alt||node.id).slice(0,45));
+          opt.value=node.id;moveDestination.append(opt);
+        }
+        const firstContainer=destinations.find(row=>row.node.type==='container');
+        if(firstContainer)moveDestination.value=firstContainer.node.id;
+        const placement=make('select',undefined,'control');
+        placement.id='cms-design-move-placement';
+        for(const [value,label] of [['inside','Внутрь'],['before','Перед'],['after','После']]){
+          const opt=make('option',label);opt.value=value;placement.append(opt);
+        }
+        placement.value=firstContainer?'inside':'after';
+        toolbar.append(moveDestination,placement);
+        action('Переместить',()=>changeTree({action:'move',nodeId:n.id,
+          targetId:moveDestination.value,placement:placement.value},n.id));
+      }
       action('Удалить элемент',()=>{
-        if(rows.length===1)return notice('Нельзя удалить единственный узел',true);
         if(!confirm('Удалить выбранный узел и все вложенные элементы?'))return;
-        selected.items.splice(selected.items.indexOf(n),1);
-        selection=all()[0].node.id;render();
+        changeTree({action:'remove',nodeId:n.id},rows[0].node.id===n.id?
+          rows.find(row=>!skip.has(row.node.id))?.node.id:rows[0].node.id);
       });
       const headline=make('h3','Редактирование · '+n.type);root.append(headline);
       const fields=make('div','', 'cms-design-fields');root.append(fields);

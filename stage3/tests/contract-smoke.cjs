@@ -752,7 +752,7 @@ test('precision graph layout, responsive focal images, focus and three-stop grad
   focal.nodes[0].children.push({id:'photo-focal-local',type:'image',assetId:'photo-owned',
     alt:'Safe photograph',styles:{objectFit:'cover',objectPositionX:20,objectPositionY:80,heightPx:320},
     responsive:{mobile:{objectPositionX:60,objectPositionY:40}}});
-  const preview=graph.render({...site,assets:[{id:'photo-owned',mime:'image/png',src:'/media/photo.png'}]},focal);
+  const preview=graph.render({...site,assets:[...site.assets,{id:'photo-owned',mime:'image/png',src:'/assets/photo.png',alt:'Safe photograph'}]},focal);
   for(const rule of ['--cmsdg-object-x:20%','--cmsdg-object-y:80%',
     'object-position:var(--cmsdg-object-x,50%)','--cmsdg-object-x:60%'])
     assert.ok(preview.includes(rule),rule);

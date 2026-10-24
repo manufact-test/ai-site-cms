@@ -794,7 +794,26 @@ async function stop(){
     id:designSec.id+'-action',type:'button',text:'Подробнее',href:'/contact/',
     styles:{background:'@accent',color:'@background',padding:'@small',radius:'@soft'},
     states:{hover:{opacity:85}}});
-  designSec.designGraph=designGraph;
+  designGraph.nodes[0].children.push({
+    id:designSec.id+'-group',type:'container',
+    styles:{display:'grid',columns:1,gap:12},
+    responsive:{mobile:{padding:12}},
+    children:[
+      {id:designSec.id+'-group-text',type:'text',
+        text:'Редактируемая группа & вложенность',styles:{color:'@foreground'}},
+      {id:designSec.id+'-group-link',type:'button',
+        text:'Связаться',href:'/contact/',styles:{radius:'@soft'}}
+    ]
+  });
+  const copiedGraph=designSdk.editTree(designGraph,{
+    action:'duplicate',nodeId:designSec.id+'-group',
+    ids:[designSec.id+'-group-copy',designSec.id+'-group-text-copy',designSec.id+'-group-link-copy']
+  });
+  const nestedGraph=designSdk.editTree(copiedGraph,{
+    action:'move',nodeId:designSec.id+'-action',
+    targetId:designSec.id+'-group-copy',placement:'inside'
+  });
+  designSec.designGraph=nestedGraph;
   const injectedDesign=structuredClone(designDoc);
   injectedDesign.pages[0].sections.find(s=>s.id===designSec.id).designGraph.nodes[0].styles.background='url(javascript:alert(1))';
   assert.equal((await request('POST',designEndpoint+'/save',{expectedRevision:graphDraft.body.revision,
@@ -818,6 +837,11 @@ async function stop(){
   const htmlDesign=(await request('GET','/published/site-rich-ci/')).body;
   assert.match(htmlDesign,/Архитектурная композиция &amp; сетка/);
   assert.match(htmlDesign,/cmsdg-/);
+  assert.match(htmlDesign,/Редактируемая группа &amp; вложенность/);
+  assert.match(htmlDesign,new RegExp('cmsdg-n-'+designSec.id+'-group-copy'));
+  assert.match(htmlDesign,new RegExp('cmsdg-n-'+designSec.id+'-group-link-copy'));
+  assert.match(htmlDesign,new RegExp('cmsdg-n-'+designSec.id+'-action'));
+
   assert.match(htmlDesign,/linear-gradient\(135deg,#bb6633,#abcdef 55%,#ffffff\)/);
   assert.match(htmlDesign,/font-family:Georgia,serif/);
   assert.match(htmlDesign,/row-gap:12px/);
@@ -845,6 +869,10 @@ async function stop(){
   const htmlStatic=fs.readFileSync(path.join(staticDesign,'index.html'),'utf8');
   assert.match(htmlStatic,/Архитектурная композиция &amp; сетка/);
   assert.match(htmlStatic,/cmsdg-/);
+  assert.match(htmlStatic,/Редактируемая группа &amp; вложенность/);
+  assert.match(htmlStatic,new RegExp('cmsdg-n-'+designSec.id+'-group-copy'));
+  assert.match(htmlStatic,new RegExp('cmsdg-n-'+designSec.id+'-group-link-copy'));
+
   assert.match(htmlStatic,/linear-gradient\(135deg,#bb6633,#abcdef 55%,#ffffff\)/);
   assert.match(htmlStatic,/font-family:Georgia,serif/);
   for(const property of ['align-content:space-between','grid-auto-flow:row dense','width:900px',
