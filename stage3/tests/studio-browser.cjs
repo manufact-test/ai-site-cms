@@ -306,6 +306,30 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('.cms-page-preview-modes [data-mode="mobile"]').click();
     assert.equal(await page.locator('#cms-page-preview-frame').evaluate(x=>x.style.width),'390px');
     await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+    // No-AI Design Graph editing in the actual offline CMS inspector.
+    // A template is never flattened or erased: it remains as rollback fallback.
+    const selectedSection=await page.evaluate(()=>window.Stage3Editor.selection().sectionId);
+    page.once('dialog',dialog=>dialog.accept());
+    await page.locator('#section-design-graph').click();
+    await page.locator('#cms-design-graph-dialog').waitFor({state:'visible'});
+    await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
+    const copy=page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'Текст'}).locator('textarea');
+    await copy.fill('Новый профессиональный дизайн без ИИ');
+    await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
+    await page.locator('#cms-design-breakpoint').selectOption('mobile');
+    await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'gap'}).locator('input').fill('@small');
+    await page.locator('#cms-design-apply').click();
+    await page.locator('#cms-design-graph-dialog').waitFor({state:'hidden'});
+    const graphSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+    const graphSection=graphSite.pages.flatMap(p=>p.sections).find(s=>s.id===selectedSection);
+    assert.equal(graphSection.designGraph.version,1);
+    assert.equal(graphSection.designGraph.nodes[0].responsive.mobile.gap,'@small');
+    await canvas.locator('.cmsdg').waitFor();
+    assert.match(await canvas.locator('.cmsdg h2').innerText(),/Новый профессиональный дизайн без ИИ/);
+    await page.locator('#undo').click();
+    assert.equal(await canvas.locator('.cmsdg').count(),0,'Undo returns legacy component unchanged');
+    await page.locator('#redo').click();
+    await canvas.locator('.cmsdg').waitFor();
     assert.deepEqual(errors,[],'No page JS errors or unsupported dependencies');
     assert.deepEqual(remote,[],'No outgoing network requests, even through iframe');
     console.log('STAGE3 REAL CHROMIUM STUDIO E2E PASS: typed edit, inert preview, responsive, undo/redo, saved versions, reload, export/import, no-design and fail-closed import');
