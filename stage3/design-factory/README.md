@@ -109,3 +109,28 @@ D4 source and 12 registered sector kits: catalog/kits.cjs and catalog/KITS.md. S
 - D5–D7: not yet completed — browser Studio/editor, complete integration bridge, final acceptance/packaging.
 
 **Honest verification:** evaluated the actual Stage3 SDK/manifests in the isolated JS runtime: 288/288 industry-theme-language site documents are valid and 42/42 D3 compositions map to valid registered CMS fallbacks. Full Node filesystem smoke scripts were authored but have not been executed on a checked-out repository in this environment. Local Chromium launch was attempted and did not complete; no browser PASS is claimed. Do not equate completed modules with production acceptance.
+
+## D5 and D6 — full browser editor and versioned CMS integration
+
+**D5 Browser Studio is implemented** at [studio/index.html](studio/index.html). Open that page directly in Chrome/Edge. No server, npm, CDN or network is required.
+
+The interface provides: 12-kit catalog search, 12 working theme switches, four real pages, desktop/tablet/mobile preview, owner title/headline/description/CTA/contact/services editing, the full 42-pattern selection, Undo/Redo, validated project/workspace imports and downloads, CMS-compatible site-v1 JSON and a complete D6 integration package.
+
+The browser runs the actual existing Stage3 SDK and real component manifests inside a deterministic first-party `studio/runtime.generated.js` bundle. To check source parity:
+
+    node stage3/design-factory/bin/build-browser-bundle.cjs --check
+    node stage3/design-factory/tests/studio-smoke.cjs
+
+To regenerate the bundle after *reviewed* first-party source changes, call the same builder without `--check`. It writes only inside the Design Factory subtree. Refer to [studio/README.md](studio/README.md) for the owner-facing walkthrough, security model and optional Chromium E2E command.
+
+**D6 Integration Bridge is implemented as a standalone versioned exporter/importer**, not a production publish path:
+
+    node stage3/design-factory/bin/design-factory.cjs bridge-export stage3/design-factory/examples/projects/saas.json /tmp/new-d6-bundle.json
+    node stage3/design-factory/bin/design-factory.cjs bridge-validate /tmp/new-d6-bundle.json --out /tmp/new-cms-site.json
+    node stage3/design-factory/tests/bridge-smoke.cjs
+
+A D6 package is `manufact-design-factory-export-v1`: source workspace, valid `manufact-ai-site-v1` site, design-spec, owner checklist, link inspection and explicit compatibility matrix. On import it **recompiles and compares** the package to detect silent tampering with either site data or unsupported property claims. This is not a cryptographic signature or owner permission check. See [INTEGRATION.md](INTEGRATION.md) for the complete supported / integration_required / blocked matrix.
+
+**Verification boundary (24 October 2026):** the generated browser runtime has been executed in an isolated JavaScript environment and validated 288/288 D6 export/import combinations, including a photo-gallery fallback and tamper rejection. The full Node filesystem and interactive Chromium scripts are committed but not yet reported as executed PASS on a checked-out repository. The old Chromium launch blocker remains pending. D2/D3/D4/D5 final visual QA and D7 package/acceptance are separate outstanding work.
+
+No merges to main or lead branch; no CMS SDK, PHP, Studio or production edits. Stage2 remains NO-GO, Stage3+ not accepted, 0/135 official criteria.
