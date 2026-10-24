@@ -622,7 +622,7 @@ async function execute(){
     await page.waitForFunction(assetId=>{
       const value=window.Stage3Host.previewUrl(assetId);
       return typeof value==='string'&&value.startsWith('data:image/webp;base64,');
-    },selected.id);
+    },selected.id,{timeout:10000});
     return page.evaluate(id=>window.Stage3Host.previewUrl(id),selected.id);
   };
   const smallPreview=await chooseDevice('mobile');
