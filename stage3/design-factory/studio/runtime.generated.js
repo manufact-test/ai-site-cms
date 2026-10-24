@@ -1327,6 +1327,29 @@ function build(input){
   inspection,compatibility
  };
 }
+// JSON object member order is not meaningful. CMS importers may reserialize
+// an unchanged bundle with sorted keys; arrays and primitive types are meaningful.
+// Reject non-JSON values rather than coercing undefined/NaN to null.
+function canonical(value){
+ if(value===null)return 'null';
+ if(typeof value==='string'||typeof value==='boolean')return JSON.stringify(value);
+ if(typeof value==='number'){
+  if(!Number.isFinite(value))throw Error('D6: invalid JSON number');
+  return JSON.stringify(value);
+ }
+ if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';
+ if(value&&typeof value==='object'){
+  // Accept plain JSON objects from another JS realm (Node vm/iframe), too.
+  if(Object.prototype.toString.call(value)!=='[object Object]')
+   throw Error('D6: invalid JSON object');
+  return '{'+Object.keys(value).sort().map(key=>{
+   if(key==='__proto__'||key==='constructor'||key==='prototype')
+    throw Error('D6: forbidden JSON member');
+   return JSON.stringify(key)+':'+canonical(value[key]);
+  }).join(',')+'}';
+ }
+ throw Error('D6: non-JSON value');
+}
 function validateBundle(raw){
  exact(raw,['format','version','workspace','site','designSpec','ownerChecklist','inspection','compatibility'],'export');
  if(raw.format!==EXPORT||raw.version!==1)throw Error('D6: unsupported export version');
@@ -1334,7 +1357,7 @@ function validateBundle(raw){
  // Exact reproducibility is an integrity gate: no injecting unknown CMS fields,
  // undetected changes or replacing owner data after validation.
  for(const key of ['workspace','site','designSpec','ownerChecklist','inspection','compatibility'])
-  if(JSON.stringify(raw[key])!==JSON.stringify(normalized[key]))throw Error('D6: changed '+key+' since generation');
+  if(canonical(raw[key])!==canonical(normalized[key]))throw Error('D6: changed '+key+' since generation');
  return normalized;
 }
 function importForCMS(raw){
