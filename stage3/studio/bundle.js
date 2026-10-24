@@ -23,7 +23,7 @@ const STYLE_KEYS=['display','columns','direction','align','justify','gap','paddi
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
   'paddingX','paddingY','marginTop','marginBottom','widthPercent','minHeight','gridColumnSpan',
   'flexWrap','flexGrow','alignSelf','letterSpacing','fontFamily','objectFit','aspectRatio',
-  'overflow','shadow','gradient','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace'];
+  'overflow','shadow','gradient','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'];
 const DEFAULT_TOKENS=Object.freeze({
   colors:{foreground:'#182b3d',background:'#ffffff',accent:'#0a5bff',muted:'#667788'},
   spacing:{small:12,medium:24,large:48},
@@ -72,11 +72,12 @@ function validateStyle(style,tokens,at,mode='base'){
     textAlign:['left','center','right'],flexWrap:['nowrap','wrap'],
     fontFamily:['inherit','system','arial','georgia','serif','mono'],
     objectFit:['cover','contain','fill','none'],aspectRatio:['auto','square','portrait','landscape','wide'],
-    overflow:['visible','hidden','auto'],shadow:['none','soft','medium','strong'],justifySelf:['auto','start','center','end','stretch'],alignContent:['start','center','end','stretch','between'],gridAutoFlow:['row','column','row-dense','column-dense'],textDecoration:['none','underline','line-through'],whiteSpace:['normal','nowrap','pre-line']
+    overflow:['visible','hidden','auto'],shadow:['none','soft','medium','strong'],justifySelf:['auto','start','center','end','stretch'],alignContent:['start','center','end','stretch','between'],gridAutoFlow:['row','column','row-dense','column-dense'],textDecoration:['none','underline','line-through'],whiteSpace:['normal','nowrap','pre-line'],
+    fontStyle:['normal','italic'],textTransform:['none','uppercase','lowercase','capitalize'],textWrap:['wrap','balance','pretty','nowrap'],wordBreak:['normal','break-all','break-word'],textOverflow:['clip','ellipsis'],textShadow:['none','soft','strong'],gridColumnsPreset:['sidebar-left','sidebar-right','wide-center','editorial'],transformOrigin:['center','top-left','top-right','bottom-left','bottom-right'],isolation:['auto','isolate'],mixBlendMode:['normal','multiply','screen','overlay','darken','lighten'],clipShape:['none','circle','ellipse','diagonal','hexagon']
   };
   const ranges={columns:[1,12],gridColumnSpan:[1,12],flexGrow:[0,6],fontWeight:[100,900],
     lineHeight:[80,250],letterSpacing:[-50,200],maxWidth:[0,1920],widthPercent:[1,100],
-    borderWidth:[0,12],order:[-30,30],opacity:[0,100],outlineWidth:[0,8],zIndex:[-10,30],widthPx:[1,1920],heightPx:[1,1400],minWidth:[0,1920],maxHeight:[0,1600],gridRowSpan:[1,12],flexBasisPercent:[0,100],flexShrink:[0,1],objectPositionX:[0,100],objectPositionY:[0,100],marginTop:[-160,160],marginBottom:[-160,160]};
+    borderWidth:[0,12],order:[-30,30],opacity:[0,100],outlineWidth:[0,8],zIndex:[-10,30],widthPx:[1,1920],heightPx:[1,1400],minWidth:[0,1920],maxHeight:[0,1600],gridRowSpan:[1,12],flexBasisPercent:[0,100],flexShrink:[0,1],objectPositionX:[0,100],objectPositionY:[0,100],marginTop:[-160,160],marginBottom:[-160,160],wordSpacing:[-40,100],textIndent:[-100,200],gridColumnStart:[1,13],gridRowStart:[1,13],translateX:[-600,600],translateY:[-600,600],rotateDeg:[-180,180],scalePercent:[50,200],backdropBlur:[0,32]};
   for(const [key,value] of Object.entries(style)){
     if(mode==='state'&&!['color','background','borderColor','borderWidth','radius','opacity','gradient','outlineColor','outlineWidth'].includes(key))
       fail(at,'unsupported interaction state property');
@@ -91,8 +92,8 @@ function validateStyle(style,tokens,at,mode='base'){
     if(['gap','rowGap','columnGap','padding','paddingX','paddingY','top','left','right','bottom','minHeight'].includes(key)){
       resolve(value,'spacing',tokens,at+'/'+key);continue;
     }
-    if(key==='radius'||key==='fontSize'){
-      resolve(value,key==='radius'?'radii':'typography',tokens,at+'/'+key);continue;
+    if(key==='radius'||key==='fontSize'||["borderTopLeftRadius","borderTopRightRadius","borderBottomRightRadius","borderBottomLeftRadius"].includes(key)){
+      resolve(value,key==='fontSize'?'typography':'radii',tokens,at+'/'+key);continue;
     }
     if(own(enums,key)){if(!enums[key].includes(value))fail(at,key);continue;}
     if(own(ranges,key)){if(!number(value,...ranges[key]))fail(at,key);continue;}
@@ -100,6 +101,7 @@ function validateStyle(style,tokens,at,mode='base'){
     fail(at,'invalid style '+key);
   }
   if(own(style,'widthPx')&&own(style,'widthPercent'))fail(at,'competing width units');
+  if(own(style,'columns')&&own(style,'gridColumnsPreset'))fail(at,'competing grid template');
 }
 function validateMotion(motion,at){
   keys(motion,['effect','duration','delay'],at);
@@ -269,8 +271,8 @@ function declarations(style,t){
   const css=[],put=(k,v)=>css.push(k+':'+v);
   const aliases={display:'display',direction:'flex-direction',color:'color',fontWeight:'font-weight',
     maxWidth:'max-width',position:'position',textAlign:'text-align',order:'order',
-    flexWrap:'flex-wrap',flexGrow:'flex-grow',flexShrink:'flex-shrink',overflow:'overflow',objectFit:'object-fit',zIndex:'z-index',justifySelf:'justify-self',textDecoration:'text-decoration',whiteSpace:'white-space'};
-  const pixel={gap:'gap',rowGap:'row-gap',columnGap:'column-gap',padding:'padding',
+    flexWrap:'flex-wrap',flexGrow:'flex-grow',flexShrink:'flex-shrink',overflow:'overflow',objectFit:'object-fit',zIndex:'z-index',justifySelf:'justify-self',textDecoration:'text-decoration',whiteSpace:'white-space',fontStyle:'font-style',textTransform:'text-transform',textWrap:'text-wrap',wordBreak:'word-break',textOverflow:'text-overflow',transformOrigin:'transform-origin',isolation:'isolation',mixBlendMode:'mix-blend-mode'};
+  const pixel={textIndent:'text-indent',borderTopLeftRadius:'border-top-left-radius',borderTopRightRadius:'border-top-right-radius',borderBottomRightRadius:'border-bottom-right-radius',borderBottomLeftRadius:'border-bottom-left-radius',gap:'gap',rowGap:'row-gap',columnGap:'column-gap',padding:'padding',
     paddingX:'padding-inline',paddingY:'padding-block',marginTop:'margin-top',
     marginBottom:'margin-bottom',radius:'border-radius',fontSize:'font-size',
     minHeight:'min-height',top:'top',left:'left',right:'right',bottom:'bottom',widthPx:'width',heightPx:'height',minWidth:'min-width',maxHeight:'max-height'};
@@ -281,11 +283,20 @@ function declarations(style,t){
     }
     const color=['color','background','borderColor','outlineColor'].includes(k);
     const spacing=['gap','rowGap','columnGap','padding','paddingX','paddingY','top','left','right','bottom','minHeight'].includes(k);
-    const group=spacing?'spacing':k==='radius'?'radii':k==='fontSize'?'typography':null;
+    const group=spacing?'spacing':['radius','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'].includes(k)?'radii':k==='fontSize'?'typography':null;
     const value=color?resolve(v,'colors',t,k):group?resolve(v,group,t,k):v;
     if(own(aliases,k)){put(aliases[k],k==='maxWidth'?value+'px':value);continue;}
     if(k==='hidden'){if(value)put('display','none');continue;}
     if(k==='columns'){put('grid-template-columns','repeat('+value+',minmax(0,1fr))');continue;}
+    if(k==='gridColumnsPreset'){put('grid-template-columns',{'sidebar-left':'minmax(0,1fr) minmax(0,2fr)','sidebar-right':'minmax(0,2fr) minmax(0,1fr)','wide-center':'minmax(0,1fr) minmax(0,3fr) minmax(0,1fr)','editorial':'minmax(0,2fr) minmax(0,3fr) minmax(0,2fr)'}[value]);continue;}
+    if(k==='gridColumnStart'||k==='gridRowStart'){put(k==='gridColumnStart'?'grid-column-start':'grid-row-start',value);continue;}
+    if(k==='translateX'||k==='translateY'){put(k==='translateX'?'--cmsdg-tx':'--cmsdg-ty',value+'px');continue;}
+    if(k==='rotateDeg'){put('rotate',value+'deg');continue;}
+    if(k==='scalePercent'){put('scale',(value/100).toFixed(2));continue;}
+    if(k==='wordSpacing'){put('word-spacing',(value/10).toFixed(1)+'px');continue;}
+    if(k==='textShadow'){put('text-shadow',{'none':'none','soft':'0 2px 8px #10182040','strong':'0 4px 18px #10182080'}[value]);continue;}
+    if(k==='clipShape'){put('clip-path',{'none':'none','circle':'circle(50% at 50% 50%)','ellipse':'ellipse(50% 40% at 50% 50%)','diagonal':'polygon(0 0,100% 0,100% 90%,0 100%)','hexagon':'polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)'}[value]);continue;}
+    if(k==='backdropBlur'){put('backdrop-filter','blur('+value+'px)');put('-webkit-backdrop-filter','blur('+value+'px)');continue;}
     if(k==='gridColumnSpan'){put('grid-column','span '+value);continue;}
     if(k==='gridRowSpan'){put('grid-row','span '+value);continue;}
     if(k==='gridAutoFlow'){put('grid-auto-flow',value.replace('-', ' '));continue;}
@@ -329,6 +340,8 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
   const attr=s=>escapeHtml(s);
   function visit(n){
     const selector=scope+' .cmsdg-n-'+n.id;
+    const usesTranslate=[n.styles||{},n.responsive?.tablet||{},n.responsive?.mobile||{}].some(s=>own(s,'translateX')||own(s,'translateY'));
+    if(usesTranslate)rules.push(selector+'{--cmsdg-tx:0px;--cmsdg-ty:0px;translate:var(--cmsdg-tx) var(--cmsdg-ty)}');
     const baseline=declarations(n.styles||{},tokens);
     if(baseline)rules.push(selector+'{'+baseline+'}');
     for(const bp of ['tablet','mobile']){
@@ -1991,6 +2004,17 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           justifySelf:['auto','start','center','end','stretch'],alignContent:['start','center','end','stretch','between'],
           gridAutoFlow:['row','column','row-dense','column-dense'],
           textDecoration:['none','underline','line-through'],whiteSpace:['normal','nowrap','pre-line'],
+          fontStyle:['normal','italic'],
+          textTransform:['none','uppercase','lowercase','capitalize'],
+          textWrap:['wrap','balance','pretty','nowrap'],
+          wordBreak:['normal','break-all','break-word'],
+          textOverflow:['clip','ellipsis'],
+          textShadow:['none','soft','strong'],
+          gridColumnsPreset:['sidebar-left','sidebar-right','wide-center','editorial'],
+          transformOrigin:['center','top-left','top-right','bottom-left','bottom-right'],
+          isolation:['auto','isolate'],
+          mixBlendMode:['normal','multiply','screen','overlay','darken','lighten'],
+          clipShape:['none','circle','ellipse','diagonal','hexagon'],
           hidden:['true','false']
         };
         const value=style[key]===undefined?'':String(style[key]);
