@@ -219,7 +219,30 @@ const ctaSynced=adapter.reconcileSemantic(cta,ctaEdit,hostSdk,registry);
 const ctaNodes=ctaSynced.site.pages[0].sections.find(s=>s.id==='df-selected-composition').designGraph.nodes;
 assert.equal(findNode(ctaNodes,'-dg-action').text,'Get in touch');
 assert.equal(findNode(ctaNodes,'-dg-action').href,'/services/');
-// On a section with text fallbacks no source can be silently invented.
+// Initially empty declared CMS text remains bound: filling an editorial
+// placeholder later must update the graph without rerunning the AI.
+const blankCta=clone(cta);
+const blankSection=blankCta.site.pages[0].sections.find(s=>s.id==='df-selected-composition');
+blankSection.elements.find(e=>e.slot==='summary').values['content.text']='';
+blankSection.designGraph=adapter.graphFor(blankSection,catalog.get('cta-card'),THEMES.editorial,'en');
+hostSdk.validateSite(clone(blankCta.site),registry);
+const filled=clone(blankCta.site);
+filled.pages[0].sections.find(s=>s.id==='df-selected-composition')
+ .elements.find(e=>e.slot==='summary').values['content.text']='Fresh owner-supplied value';
+const filledPreview=adapter.inspectSemanticSync(blankCta,filled,hostSdk,registry);
+assert.ok(filledPreview.changes.some(x=>x.nodeId.endsWith('-dg-text')));
+const filledResult=adapter.reconcileSemantic(blankCta,filled,hostSdk,registry);
+assert.equal(findNode(filledResult.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition').designGraph.nodes,'-dg-text').text,
+ 'Fresh owner-supplied value');
+// Source selection is part of the graph snapshot. If a different CTA begins
+// supplying the displayed href, refuse silent rebinding.
+const hrefSwitch=clone(cta.site);
+const switchSection=hrefSwitch.pages[0].sections.find(s=>s.id==='df-selected-composition');
+switchSection.elements.find(e=>e.slot==='primary').values['behavior.href']='https://example.com';
+const switchValidated=hostSdk.validateSite(clone(hrefSwitch),registry);
+assert.throws(()=>adapter.inspectSemanticSync(cta,switchValidated,hostSdk,registry),
+ /Visible semantic source selection changed/);
 assert.equal(cta.mapping.approvedForPublish,false);
 
 // Optional PHP parity gate on a separate read-only lead checkout. It checks
