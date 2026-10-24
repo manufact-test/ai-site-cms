@@ -224,6 +224,39 @@ function graphFor(section,composition,theme,language){
  };
  return graph;
 }
+// Reconstruct canonical provenance from the original typed section. Caller
+// mapping metadata is descriptive, never authority to redirect CMS content.
+function bindingsFor(section,comp){
+ const prefix=section.id+'-dg';
+ const bindings=contentFor(section,comp,'en',prefix,{},'system').bindings;
+ const bound=(slot,field,nodeId,property='text')=>{
+  const el=section.elements.find(x=>x.slot===slot);
+  if(el&&own(el.values,field))bindings.push({
+   nodeId:prefix+nodeId,source:{slot,field},property});
+ };
+ bound('heading','content.text','-heading');
+ if(section.elements.some(e=>e.slot==='summary'))bound('summary','content.text','-text');
+ else if(section.elements.some(e=>e.slot==='copy'))bound('copy','content.text','-text');
+ for(const slot of ['action','primary'])if(section.elements.some(e=>e.slot===slot)){
+  bound(slot,'content.text','-action');
+  bound(slot,'behavior.href','-action','href');break;
+ }
+ return bindings;
+}
+function bindingSignatures(bindings){
+ return bindings.map(binding=>{
+  if(!binding||!binding.source||typeof binding.nodeId!=='string')return null;
+  const keys=Object.keys(binding).sort().join(',');
+  if(keys!==(binding.property===undefined?'nodeId,source':'nodeId,property,source'))return null;
+  const src=binding.source,srcKeys=Object.keys(src).sort().join(',');
+  if(srcKeys!==(own(src,'slot')?'field,slot':'field,itemId')||
+     typeof src.field!=='string'||
+     typeof (own(src,'slot')?src.slot:src.itemId)!=='string')return null;
+  if(binding.property!==undefined&&!['text','href'].includes(binding.property))return null;
+  return JSON.stringify([binding.nodeId,binding.property||'text',
+   own(src,'slot')?'slot':'itemId',own(src,'slot')?src.slot:src.itemId,src.field]);
+ }).sort();
+}
 function buildHostCandidate(exportBundle,hostSdk,hostRegistry){
  if(!hostSdk||typeof hostSdk.validateSite!=='function'||
     typeof hostSdk.inspectSite!=='function'||!hostRegistry)
@@ -267,21 +300,7 @@ function buildHostCandidate(exportBundle,hostSdk,hostRegistry){
  }
  site.designTokens=tokens(theme,c);
  section.designGraph=graphFor(section,c,theme,workspace.project.language);
- const contentBindings=contentFor(section,c,workspace.project.language,
-  section.id+'-dg',{},theme.cms.font==='georgia'?'georgia':
-    theme.cms.font==='arial'?'arial':'system').bindings;
- const p=section.id+'-dg',bound=(slot,field,nodeId,property='text')=>{
-  const el=section.elements.find(x=>x.slot===slot);
-  if(el&&own(el.values,field))contentBindings.push({
-   nodeId:p+nodeId,source:{slot,field},property});
- };
- bound('heading','content.text','-heading');
- if(section.elements.some(e=>e.slot==='summary'))bound('summary','content.text','-text');
- else if(section.elements.some(e=>e.slot==='copy'))bound('copy','content.text','-text');
- for(const slot of ['action','primary'])if(section.elements.some(e=>e.slot===slot)){
-  bound(slot,'content.text','-action');
-  bound(slot,'behavior.href','-action','href');break;
- }
+ const contentBindings=bindingsFor(section,c);
  // Fail closed against older SDKs. No extra keys may enter the original D6 export.
  const checked=hostSdk.validateSite(site,hostRegistry);
  const inspection=hostSdk.inspectSite(checked,hostRegistry);
@@ -337,6 +356,19 @@ function prepareReconciliation(candidate,editedSite,hostSdk,hostRegistry){
   for(const root of graph.nodes)walk(root);
   return nodes;
  };
+ // Verify the exact set of expected bindings before comparing any content.
+ // This prevents valid-looking retargets to another service or graph node and
+ // refuses silently removed bindings. JSON key/array ordering is not identity.
+ let composition;
+ try{composition=catalog.get(candidate.mapping.composition);}
+ catch(error){fail('Unknown composition in provenance');}
+ if(!composition||composition.id!==candidate.mapping.composition)
+  fail('Unknown composition in provenance');
+ const expected=bindingSignatures(bindingsFor(original,composition));
+ const received=bindingSignatures(bindings);
+ if(expected.length!==received.length||
+    received.some((value,i)=>!value||value!==expected[i]))
+  fail('Provenance binding mismatch: reselect the original candidate');
  const nodes=index(section.designGraph),oldNodes=index(original.designGraph);
  const changes=[],conflicts=[],preservedGraphEdits=[],seen=new Set();
  const sourceValues=(s,source)=>{
