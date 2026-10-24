@@ -164,9 +164,10 @@ function makeSection(component,id,page,project,reg){
     apply(section,'second',{'content.text':sector.storyCopy||c.featureTwo});
   } else if(component==='service-grid'){
     apply(section,'heading',{'content.text':c.services});
+    const samplePrefix=project.language==='ru'?'Пример (подтвердить): ':'Example (verify): ';
     const rows=(f.services&&f.services.length?f.services.slice(0,12):[
-      {title:sector.serviceOne||c.serviceOne,description:c.serviceDescription},
-      {title:sector.serviceTwo||c.serviceTwo,description:c.serviceDescription}
+      {title:samplePrefix+(sector.serviceOne||c.serviceOne),description:c.serviceDescription},
+      {title:samplePrefix+(sector.serviceTwo||c.serviceTwo),description:c.serviceDescription}
     ]);
     // The registered service-grid repeater requires at least 2 items.
     // Do not invent a second service: clearly label its owner-review placeholder.
