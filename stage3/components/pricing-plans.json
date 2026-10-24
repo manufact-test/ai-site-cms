@@ -1,0 +1,119 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "pricing-plans",
+  "version": "1.0.0",
+  "label": "Тарифы · планы с услугами",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок секции",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок",
+          "type": "text",
+          "default": "Варианты сотрудничества",
+          "responsive": false,
+          "maxLength": 180
+        }
+      ]
+    },
+    {
+      "slot": "intro",
+      "label": "Описание",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Пояснение к тарифам",
+          "type": "text",
+          "default": "Укажите подтверждённые условия каждой услуги.",
+          "responsive": false,
+          "maxLength": 500
+        }
+      ]
+    },
+    {
+      "slot": "footnote",
+      "label": "Примечание",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Условия и оговорки",
+          "type": "text",
+          "default": "Цены и состав услуг укажите самостоятельно.",
+          "responsive": false,
+          "maxLength": 500
+        }
+      ]
+    }
+  ],
+  "repeat": {
+    "label": "Тариф или пакет",
+    "min": 2,
+    "max": 6,
+    "fields": [
+      {
+        "path": "content.title",
+        "label": "Название пакета",
+        "type": "text",
+        "default": "Название пакета",
+        "responsive": false,
+        "maxLength": 100
+      },
+      {
+        "path": "content.price",
+        "label": "Подтверждённая цена или «по запросу»",
+        "type": "text",
+        "default": "По запросу",
+        "responsive": false,
+        "maxLength": 90
+      },
+      {
+        "path": "content.period",
+        "label": "Период оплаты",
+        "type": "text",
+        "default": "Условия уточняются",
+        "responsive": false,
+        "maxLength": 100
+      },
+      {
+        "path": "content.description",
+        "label": "Описание",
+        "type": "text",
+        "default": "Опишите, кому подходит этот пакет.",
+        "responsive": false,
+        "maxLength": 360
+      },
+      {
+        "path": "content.features",
+        "label": "Что входит (каждый пункт с новой строки)",
+        "type": "text",
+        "default": "Укажите реальную услугу\nУточните объём работ",
+        "responsive": false,
+        "maxLength": 1200
+      },
+      {
+        "path": "content.button",
+        "label": "Текст кнопки",
+        "type": "text",
+        "default": "Обсудить условия",
+        "responsive": false,
+        "maxLength": 100
+      },
+      {
+        "path": "behavior.href",
+        "label": "Адрес кнопки",
+        "type": "url",
+        "default": "/contact/",
+        "responsive": false
+      },
+      {
+        "path": "behavior.featured",
+        "label": "Выделить пакет",
+        "type": "boolean",
+        "default": false,
+        "responsive": false
+      }
+    ]
+  }
+}

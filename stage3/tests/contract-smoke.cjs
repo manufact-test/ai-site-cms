@@ -7,7 +7,7 @@ const {execFileSync}=require('node:child_process');
 const sdk=require('../sdk/contract.cjs');
 const root=path.resolve(__dirname,'..');
 const read=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8'));
-const manifests=['company-hero','feature-highlights','contact-panel','image-showcase','lead-form','lead-form-flex','service-grid','faq-accordion','testimonials','photo-gallery','media-story','partner-logos','cta-banner'].map(
+const manifests=['company-hero','feature-highlights','contact-panel','image-showcase','lead-form','lead-form-flex','service-grid','faq-accordion','testimonials','photo-gallery','media-story','partner-logos','cta-banner','pricing-plans','process-timeline','comparison-matrix','content-switcher'].map(
   name=>read('components/'+name+'.json'));
 let checks=0;
 const test=(name,fn)=>{fn();checks++;};
@@ -16,6 +16,40 @@ const initial=read('fixtures/industrial-site.json');
 const same=x=>JSON.parse(JSON.stringify(x));
 const reg=sdk.registry(manifests);
 const hero=manifests[0],highlights=manifests[1],contact=manifests[2];
+
+test('four production components: typed repeater contracts, structural editing and safety',()=>{
+  const D=require('../sdk/draft.cjs'),newTypes=['pricing-plans','process-timeline',
+    'comparison-matrix','content-switcher'];
+  const site=same(initial),sections=newTypes.map((name,i)=>{
+    const sec=sdk.sectionFrom(manifests.find(m=>m.id===name),'section-factory-'+(i+1));
+    site.pages[0].sections.push(sec);
+    return sec;
+  });
+  assert.deepEqual(sdk.validateSite(site,manifests).pages[0].sections.slice(-4).map(s=>s.component),newTypes);
+  let draft=D.begin(site,manifests);
+  for(const sec of sections){
+    const id='item-added-'+sec.component;
+    draft=D.structure(draft,manifests,{action:'addItem',pageId:'page-home',sectionId:sec.id,
+      id,expectedRevision:draft.revision});
+    assert.equal(draft.current.pages[0].sections.find(s=>s.id===sec.id).items.at(-1).id,id);
+  }
+  assert.equal(D.undo(draft,manifests).current.pages[0].sections.at(-1).items.length,2);
+  assert.equal(D.redo(D.undo(draft,manifests),manifests).current.pages[0].sections.at(-1).items.length,3);
+  const broken=structuredClone(site);
+  broken.pages[0].sections.at(-4).items[0].values['behavior.href']='javascript:alert(1)';
+  refuses(()=>sdk.validateSite(broken,manifests),'All pricing links use the closed URL contract');
+  broken.pages[0].sections.at(-4).items[0].values['behavior.href']='/contact/';
+  broken.pages[0].sections.at(-4).items[0].values['behavior.featured']='false';
+  refuses(()=>sdk.validateSite(broken,manifests),'Featured flag must be a real boolean');
+  const hostile=structuredClone(site);
+  hostile.pages[0].sections.at(-2).items[0].values['content.metric']='<img src=x onerror=alert(1)>';
+  assert.equal(sdk.validateSite(hostile,manifests).pages[0].sections.at(-2).items[0].values['content.metric'],
+    '<img src=x onerror=alert(1)>','User content remains text; PHP must escape on render');
+  const overflow=structuredClone(site);
+  const priced=overflow.pages[0].sections.at(-4);
+  priced.items=Array.from({length:7},(_,i)=>({...structuredClone(priced.items[0]),id:'item-over-'+i}));
+  refuses(()=>sdk.validateSite(overflow,manifests),'Pricing limits max six packages');
+});
 
 test('individual section appearances are strict, undoable, and inherited by previews',()=>{
   const D=require('../sdk/draft.cjs');

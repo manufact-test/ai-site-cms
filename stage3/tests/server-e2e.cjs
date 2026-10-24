@@ -462,7 +462,8 @@ async function stop(){
   const rich=structuredClone(fixture);rich.siteId='site-rich-ci';
   rich.theme={background:'#121f2c',surface:'#ffffff',text:'#dce6ef',primary:'#ff8800',font:'system',maxWidth:960};
   rich.pages[0].seo={title:'Секции услуг',description:'Страница теста услуг',robots:'noindex'};
-  for(const name of ['service-grid','faq-accordion','testimonials','photo-gallery']){
+  for(const name of ['service-grid','faq-accordion','testimonials','photo-gallery',
+    'pricing-plans','process-timeline','comparison-matrix','content-switcher']){
     const section=csdk.sectionFrom(richDefs.find(m=>m.id===name),'section-rich-'+name);
     rich.pages[0].sections.push(section);
   }
@@ -473,6 +474,22 @@ async function stop(){
   faq.items[0].values['content.question']='<img src=x onerror=alert(1)>';
   const quote=rich.pages[0].sections.find(s=>s.component==='testimonials');
   quote.items[0].values['content.quote']='Подтверждённый отзыв тестового автора';
+  const price=rich.pages[0].sections.find(s=>s.component==='pricing-plans');
+  price.items[0].values['content.title']='Комплексный пакет';
+  price.items[0].values['content.price']='По запросу';
+  price.items[0].values['content.features']='Базовая поддержка\nВёрстка страниц';
+  price.items[0].values['behavior.featured']=true;
+  price.items[0].values['behavior.href']='/contact/';
+  const steps=rich.pages[0].sections.find(s=>s.component==='process-timeline');
+  steps.items[0].values['content.title']='Согласование брифа';
+  const matrix=rich.pages[0].sections.find(s=>s.component==='comparison-matrix');
+  matrix.items[0].values['content.metric']='<img src=x onerror=alert(1)>';
+  matrix.items[0].values['content.first']='Да';
+  matrix.items[0].values['content.second']='По запросу';
+  const switcher=rich.pages[0].sections.find(s=>s.component==='content-switcher');
+  switcher.items[0].values['content.title']='Для бизнеса';
+  switcher.items[1].values['content.title']='Для частных клиентов';
+  switcher.items[1].values['content.heading']='Второй раздел';
   const cta=csdk.sectionFrom(richDefs.find(m=>m.id==='cta-banner'),'section-rich-cta');
   cta.elements.find(e=>e.slot==='primary').values['behavior.href']='/contact/';
   cta.elements.find(e=>e.slot==='secondary').values['behavior.href']='/';
@@ -494,6 +511,17 @@ async function stop(){
   assert.match(richPublished.body,/<details><summary>&lt;img src=x onerror=alert\(1\)&gt;<\/summary>/);
   assert.doesNotMatch(richPublished.body,/<img src=x onerror=/);
   assert.match(richPublished.body,/Подтверждённый отзыв тестового автора/);
+  assert.match(richPublished.body,/class="cms-pricing"/);
+  assert.match(richPublished.body,/Комплексный пакет/);
+  assert.match(richPublished.body,/class="cms-pricing-card is-featured"/);
+  assert.match(richPublished.body,/Вёрстка страниц/);
+  assert.match(richPublished.body,/class="cms-process-list"/);
+  assert.match(richPublished.body,/Согласование брифа/);
+  assert.match(richPublished.body,/<table><caption>Сравнение вариантов<\/caption>/);
+  assert.match(richPublished.body,/<th scope="row">&lt;img src=x onerror=alert\(1\)&gt;<\/th>/);
+  assert.match(richPublished.body,/class="cms-switcher-radio"/);
+  assert.match(richPublished.body,/type="radio"/);
+  assert.match(richPublished.body,/Второй раздел/);
   assert.match(richPublished.body,/cms-width-narrow cms-heading-expressive cms-corners-round cms-mobile-align-center cms-mobile-spacing-tight cms-button-pill/);
   assert.match(richPublished.body,/class="cta-banner"/);
   assert.match(richPublished.body,/Готовы обсудить проект/);
@@ -544,6 +572,13 @@ async function stop(){
   assert.equal(exp.status,0,exp.stderr);
   const staticHtml=fs.readFileSync(path.join(richExport,'index.html'),'utf8');
   assert.match(staticHtml,/Программирование шкафа управления/);
+  assert.match(staticHtml,/cms-pricing-grid/);
+  assert.match(staticHtml,/cms-process-list/);
+  assert.match(staticHtml,/cms-compare-scroll/);
+  assert.match(staticHtml,/class="cms-switcher-radio"/);
+  assert.match(staticHtml,/cms-switcher-panels/);
+  assert.doesNotMatch(staticHtml,/<img src=x onerror=/);
+  assert.doesNotMatch(staticHtml,/<script/i,'All four components work without JavaScript');
   assert.match(staticHtml,/cms-surface-dark cms-spacing-airy cms-align-center/);
   assert.match(staticHtml,/href="\/contact\/"/);
   assert.match(staticHtml,/rel="canonical" href="https:\/\/example.test\//);

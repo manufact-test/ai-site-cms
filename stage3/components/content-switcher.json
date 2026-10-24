@@ -1,0 +1,67 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "content-switcher",
+  "version": "1.0.0",
+  "label": "Переключатель · интерактивные вкладки",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок блока",
+          "type": "text",
+          "default": "Выберите интересующий раздел",
+          "responsive": false,
+          "maxLength": 180
+        }
+      ]
+    },
+    {
+      "slot": "summary",
+      "label": "Введение",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Описание блока",
+          "type": "text",
+          "default": "Переключайте вкладки, чтобы посмотреть информацию.",
+          "responsive": false,
+          "maxLength": 400
+        }
+      ]
+    }
+  ],
+  "repeat": {
+    "label": "Вкладка",
+    "min": 2,
+    "max": 8,
+    "fields": [
+      {
+        "path": "content.title",
+        "label": "Текст вкладки",
+        "type": "text",
+        "default": "Название вкладки",
+        "responsive": false,
+        "maxLength": 120
+      },
+      {
+        "path": "content.heading",
+        "label": "Заголовок содержимого",
+        "type": "text",
+        "default": "Заголовок раздела",
+        "responsive": false,
+        "maxLength": 150
+      },
+      {
+        "path": "content.body",
+        "label": "Текст вкладки",
+        "type": "text",
+        "default": "Укажите достоверную информацию для посетителей.",
+        "responsive": false,
+        "maxLength": 1100
+      }
+    ]
+  }
+}

@@ -141,6 +141,37 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await canvas.locator('details summary').getByText('Как оформить заказ?').waitFor();
     assert.equal(await page.locator('#cms-component-catalog').isVisible(),false);
 
+    // Product-level component catalog: create and edit four first-party layouts.
+    for(const [type,label,field,value] of [
+      ['pricing-plans','Тарифы · планы с услугами','content.price','450 BYN'],
+      ['process-timeline','Этапы работы · дорожная карта','content.title','Согласование'],
+      ['comparison-matrix','Сравнение · два варианта','content.metric','Поддержка'],
+      ['content-switcher','Переключатель · интерактивные вкладки','content.title','Первый вариант']
+    ]){
+      await page.locator('#section-catalog').click();
+      await page.locator('#cms-component-search').fill(type);
+      await page.locator('#cms-component-list [data-component="'+type+'"]').click();
+      await page.locator('#sections .nav-entry').filter({hasText:label}).click();
+      assert.equal(await page.locator('#elements [data-repeat-id]').count(),2);
+      await page.locator('#elements [data-repeat-id]').first().click();
+      const changed=page.locator('#fields [data-field="'+field+'"]');
+      await changed.fill(value);await changed.dispatchEvent('change');
+      await canvas.locator('.cms-section-skin').getByText(value,{exact:false}).first().waitFor();
+      const exported=await page.evaluate(()=>window.Stage3Editor.getSite());
+      assert.equal(exported.pages.flatMap(p=>p.sections).find(s=>s.component===type).items[0].values[field],value);
+    }
+    const switchPreview=canvas.locator('.cms-switcher-panel');
+    assert.equal(await switchPreview.first().isVisible(),true);
+    assert.equal(await switchPreview.nth(1).isVisible(),false);
+    await canvas.locator('.cms-switcher-tab').nth(1).click();
+    assert.equal(await switchPreview.first().isVisible(),false);
+    assert.equal(await switchPreview.nth(1).isVisible(),true,'Native radio changes panels in script-disabled iframe');
+    await page.locator('#undo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='content-switcher').items[0].values['content.title'],
+      'Название вкладки');
+    await page.locator('#redo').click();
+
     // Opt-in field builder is usable in Chromium, Undo and real draft preview.
     await page.locator('#section-catalog').click();
     await page.locator('#cms-component-search').fill('конструктор');

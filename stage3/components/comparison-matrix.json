@@ -1,0 +1,95 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "comparison-matrix",
+  "version": "1.0.0",
+  "label": "Сравнение · два варианта",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Название таблицы",
+          "type": "text",
+          "default": "Сравнение вариантов",
+          "responsive": false,
+          "maxLength": 180
+        }
+      ]
+    },
+    {
+      "slot": "first",
+      "label": "Первый вариант",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Название колонки",
+          "type": "text",
+          "default": "Вариант A",
+          "responsive": false,
+          "maxLength": 100
+        }
+      ]
+    },
+    {
+      "slot": "second",
+      "label": "Второй вариант",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Название колонки",
+          "type": "text",
+          "default": "Вариант B",
+          "responsive": false,
+          "maxLength": 100
+        }
+      ]
+    },
+    {
+      "slot": "caption",
+      "label": "Пояснение",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Примечание под таблицей",
+          "type": "text",
+          "default": "Характеристики предоставлены владельцем сайта.",
+          "responsive": false,
+          "maxLength": 400
+        }
+      ]
+    }
+  ],
+  "repeat": {
+    "label": "Строка сравнения",
+    "min": 2,
+    "max": 20,
+    "fields": [
+      {
+        "path": "content.metric",
+        "label": "Название критерия",
+        "type": "text",
+        "default": "Критерий",
+        "responsive": false,
+        "maxLength": 130
+      },
+      {
+        "path": "content.first",
+        "label": "Значение первого варианта",
+        "type": "text",
+        "default": "Уточнить",
+        "responsive": false,
+        "maxLength": 220
+      },
+      {
+        "path": "content.second",
+        "label": "Значение второго варианта",
+        "type": "text",
+        "default": "Уточнить",
+        "responsive": false,
+        "maxLength": 220
+      }
+    ]
+  }
+}

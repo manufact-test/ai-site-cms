@@ -289,6 +289,78 @@ final class PublicRenderer
                 }
                 $body.='<section id="'.$id.'" class="repeat-section"><h2>'.self::label($section,'heading').
                     '</h2><div class="repeat-grid">'.$cards.'</div></section>';
+            } elseif ($section['component'] === 'pricing-plans') {
+                $cards='';
+                foreach ($section['items'] as $item) {
+                    $v=$item['values'];
+                    $href=$v['behavior.href'];
+                    if(str_starts_with($href,'/')&&!str_starts_with($href,'//'))$href=$mount.$href;
+                    $features='';
+                    foreach(preg_split('/\r?\n/',$v['content.features']) as $feature) {
+                        $feature=trim($feature);
+                        if($feature!=='')$features.='<li>'.self::h($feature).'</li>';
+                    }
+                    $cards.='<article class="cms-pricing-card'.($v['behavior.featured']?' is-featured':'').'">'
+                        .'<h3>'.self::h($v['content.title']).'</h3>'
+                        .'<p class="cms-pricing-price">'.self::h($v['content.price']).'</p>'
+                        .'<p class="cms-pricing-period">'.self::h($v['content.period']).'</p>'
+                        .'<p>'.self::h($v['content.description']).'</p>'
+                        .'<ul>'.$features.'</ul>'
+                        .'<a class="action" href="'.self::h($href).'">'.self::h($v['content.button']).'</a>'
+                        .'</article>';
+                }
+                $body.='<section id="'.$id.'" class="cms-pricing"><h2>'.self::label($section,'heading').'</h2>'
+                    .'<p>'.self::label($section,'intro').'</p><div class="cms-pricing-grid">'.$cards.'</div>'
+                    .'<p class="cms-pricing-footnote">'.self::label($section,'footnote').'</p></section>';
+            } elseif ($section['component'] === 'process-timeline') {
+                $steps='';$number=0;
+                foreach ($section['items'] as $item) {
+                    $v=$item['values'];$number++;
+                    $steps.='<li class="cms-process-step"><span class="cms-process-number" aria-hidden="true">'
+                        .sprintf('%02d',$number).'</span><div><h3>'.self::h($v['content.title']).'</h3>'
+                        .'<p>'.self::h($v['content.description']).'</p>'
+                        .($v['content.detail']!==''?'<small>'.self::h($v['content.detail']).'</small>':'')
+                        .'</div></li>';
+                }
+                $body.='<section id="'.$id.'" class="cms-process"><h2>'.self::label($section,'heading')
+                    .'</h2><p>'.self::label($section,'description').'</p><ol class="cms-process-list">'
+                    .$steps.'</ol></section>';
+            } elseif ($section['component'] === 'comparison-matrix') {
+                $rows='';
+                foreach($section['items'] as $item) {
+                    $v=$item['values'];
+                    $rows.='<tr><th scope="row">'.self::h($v['content.metric']).'</th>'
+                        .'<td>'.self::h($v['content.first']).'</td>'
+                        .'<td>'.self::h($v['content.second']).'</td></tr>';
+                }
+                $body.='<section id="'.$id.'" class="cms-comparison">'
+                    .'<div class="cms-compare-scroll" role="region" tabindex="0" aria-label="Таблица сравнения">'
+                    .'<table><caption>'.self::label($section,'heading').'</caption>'
+                    .'<thead><tr><th scope="col">Критерий</th><th scope="col">'.self::label($section,'first')
+                    .'</th><th scope="col">'.self::label($section,'second').'</th></tr></thead>'
+                    .'<tbody>'.$rows.'</tbody></table></div><p class="cms-compare-note">'
+                    .self::label($section,'caption').'</p></section>';
+            } elseif ($section['component'] === 'content-switcher') {
+                // True click/keyboard interactive state without executable JS.
+                // Radio+label semantics remain functional in static HTML exports.
+                $inputs='';$panels='';$css='';$i=0;
+                foreach($section['items'] as $item) {
+                    $v=$item['values'];
+                    $radio='cms-switch-'.$item['id'];
+                    $panel='cms-pane-'.$item['id'];
+                    $inputs.='<input class="cms-switcher-radio" type="radio" id="'.self::h($radio).'" name="switch-'.$id.'"'
+                        .($i===0?' checked':'').'>'
+                        .'<label class="cms-switcher-tab" for="'.self::h($radio).'">'.self::h($v['content.title']).'</label>';
+                    $panels.='<section class="cms-switcher-panel" id="'.self::h($panel).'"><h3>'
+                        .self::h($v['content.heading']).'</h3><p>'.self::h($v['content.body']).'</p></section>';
+                    $css.='#'.self::h($radio).':checked~.cms-switcher-panels>#'.self::h($panel).'{display:block}';
+                    $i++;
+                }
+                $body.='<section id="'.$id.'" class="cms-switcher-section"><h2>'
+                    .self::label($section,'heading').'</h2><p>'.self::label($section,'summary').'</p>'
+                    .'<fieldset class="cms-switcher"><legend class="cms-sr-only">Выберите раздел</legend>'
+                    .$inputs.'<div class="cms-switcher-panels">'.$panels.'</div></fieldset>'
+                    .'<style>'.$css.'</style></section>';
             } elseif ($section['component'] === 'faq-accordion') {
                 $entries='';
                 foreach ($section['items'] as $item) {
@@ -455,6 +527,7 @@ final class PublicRenderer
             . '.repeat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:20px}.repeat-grid article,.repeat-grid .review,.repeat-grid figure{background:var(--cms-surface);border:1px solid #e1e8f1;padding:24px;margin:0;border-radius:12px}.repeat-grid h3{margin:0 0 12px}.repeat-grid .review blockquote{margin:0 0 16px;font-size:19px}.repeat-grid figcaption{font-size:14px;opacity:.75}.repeat-grid img{max-width:100%;height:auto;max-height:420px;object-fit:contain}.faq{max-width:850px}.faq details{border-bottom:1px solid #d0d8e2;padding:18px}.faq summary{cursor:pointer;font-weight:700}.service-link{display:inline-flex;padding-top:14px}'
             . '.story-layout{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center}.story-copy p{max-width:65ch}.story-photo{display:block;width:100%;max-height:620px;object-fit:contain;border-radius:16px}.partner-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:16px}.partner-logo{border:1px solid #e1e8f1;border-radius:12px;display:grid;justify-items:center;gap:8px;text-align:center;padding:18px;background:var(--cms-surface);text-decoration:none}.partner-logo img{max-width:100%;width:auto;height:80px;object-fit:contain}.partner-logo span{font-weight:700;font-size:14px}'
             . '.cta-banner{background:var(--cms-surface)}.cta-banner p{max-width:650px}.cta-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.cta-actions .action{margin:0}.cta-actions .action:last-child{background:transparent;color:var(--cms-primary);box-shadow:inset 0 0 0 2px currentColor}'
+            . '.cms-pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(265px,100%),1fr));gap:20px;margin-block:28px}.cms-pricing-card{display:flex;flex-direction:column;gap:8px}.cms-pricing-card.is-featured{border:2px solid var(--cms-primary);box-shadow:0 12px 32px #172e421b}.cms-pricing-card h3,.cms-pricing-card p{margin:0}.cms-pricing-card .cms-pricing-price{font-size:clamp(24px,3vw,38px);font-weight:800;color:var(--cms-primary);overflow-wrap:anywhere}.cms-pricing-card .cms-pricing-period,.cms-pricing-footnote{font-size:14px;opacity:.8}.cms-pricing-card ul{padding-left:20px;margin:12px 0 22px;line-height:1.5;white-space:normal}.cms-pricing-card li{padding-block:3px}.cms-pricing-card .action{margin-top:auto;text-align:center}.cms-process-list{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(270px,100%),1fr));padding:0;gap:20px;counter-reset:step}.cms-process-step{display:flex;align-items:flex-start;gap:17px;background:var(--cms-surface);border-radius:14px;border:1px solid #dce6ef;padding:22px}.cms-process-number{font-size:21px;color:var(--cms-primary);font-weight:900;line-height:1.4}.cms-process-step h3{margin:0 0 8px}.cms-process-step p{margin:0}.cms-process-step small{display:block;opacity:.75;margin-top:9px}.cms-compare-scroll{max-width:100%;overflow-x:auto;border:1px solid #dae4ed;border-radius:14px}.cms-compare-scroll table{width:100%;min-width:540px;border-collapse:collapse;background:var(--cms-surface)}.cms-compare-scroll caption{font-size:clamp(25px,3vw,38px);font-weight:750;text-align:left;padding:18px 20px}.cms-compare-scroll :is(th,td){padding:16px 20px;border-bottom:1px solid #dce5ef;text-align:left;vertical-align:top}.cms-compare-scroll thead th{background:#e9f1f9}.cms-compare-scroll tbody th{font-weight:650}.cms-compare-note{font-size:14px;opacity:.8}.cms-switcher{border:0;padding:0;min-width:0;display:flex;flex-wrap:wrap;gap:9px;align-items:center}.cms-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.cms-switcher-radio{position:absolute;opacity:0;width:1px;height:1px}.cms-switcher-tab{display:inline-flex;align-items:center;justify-content:center;padding:11px 17px;min-height:44px;border:1px solid #bdcada;background:var(--cms-surface);border-radius:10px;cursor:pointer;max-width:100%;overflow-wrap:anywhere}.cms-switcher-radio:checked+.cms-switcher-tab{color:white;background:var(--cms-primary);border-color:var(--cms-primary)}.cms-switcher-radio:focus-visible+.cms-switcher-tab{outline:3px solid var(--cms-primary);outline-offset:3px}.cms-switcher-panels{flex-basis:100%;min-width:0;margin-top:12px}.cms-switcher-panel{display:none;padding:28px;background:var(--cms-surface);border:1px solid #e0e8f2;border-radius:14px}.cms-switcher-panel h3{margin-top:0}.cms-switcher-panel p{white-space:pre-line}.cms-switcher-panel :is(h3,p){max-width:75ch}.cms-switcher-panel{border-bottom:0}'
             . '.cms-width-narrow>section{max-width:780px;margin-inline:auto}.cms-width-wide>section{max-width:none}.cms-heading-compact>section h2{font-size:clamp(24px,2.5vw,34px)}.cms-heading-expressive>section h2{font-size:clamp(36px,4.5vw,56px)}'
             . '.cms-corners-soft>section :is(article,.review,figure,img,.action,details){border-radius:12px}.cms-corners-round>section :is(article,.review,figure,img,.action,details){border-radius:28px}'
             . '.cms-button-outline>section .action{background:transparent;color:var(--cms-primary);box-shadow:inset 0 0 0 2px currentColor}.cms-button-pill>section .action{border-radius:999px}'
