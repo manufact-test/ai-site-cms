@@ -256,7 +256,7 @@ function validateSite(raw,regInput){
         const definitions=fieldMap(slot);
         if(Object.keys(el.values).length!==definitions.size||Object.keys(el.values).some(p=>!definitions.has(p)))
           fail('Unbound, hidden or missing edit property',section.id+'/'+slot.slot);
-        for(const [p,f] of definitions)validateValue(f,el.values[p],section.id+'/'+slot.slot+'/'+p,assetIds);
+        for(const [p,f] of definitions)validateValue(f,el.values[p],section.id+'/'+slot.slot+'/'+p,imageIds);
       }
       if(manifest.repeat){
         if(!Array.isArray(section.items)||section.items.length<manifest.repeat.min||
@@ -270,7 +270,7 @@ function validateSite(raw,regInput){
           if(!isObject(item.values)||Object.keys(item.values).length!==definitions.size||
             Object.keys(item.values).some(p=>!definitions.has(p)))fail('Unknown repeat property',item.id);
           for(const [path,field] of definitions)
-            validateValue(field,item.values[path],item.id+'/'+path,assetIds);
+            validateValue(field,item.values[path],item.id+'/'+path,imageIds);
         }
       }else if(own(section,'items'))fail('Unregistered repeat items',section.id);
       validateFormFields(section);

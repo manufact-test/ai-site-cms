@@ -123,17 +123,21 @@ trait SiteArchives
         foreach ($p['media'] as $m) {
             self::archiveKeys($m, ['id','mime','sha256','base64','createdAt']);
             self::archiveCheck(is_string($m['id']) && preg_match('/^[a-z][a-z0-9-]{2,79}$/D', $m['id']) === 1
-                && !isset($media[$m['id']]) && is_string($m['base64']) && strlen($m['base64']) <= 600000, 'invalid/duplicate image');
+                && !isset($media[$m['id']]) && is_string($m['base64']) && strlen($m['base64']) <= ($m['mime']==='video/mp4'?2050000:600000), 'invalid/duplicate media');
             $bytes = base64_decode($m['base64'], true);
-            self::archiveCheck(is_string($bytes) && $bytes !== '' && strlen($bytes) <= 450000
+            self::archiveCheck(is_string($bytes) && $bytes !== '' && strlen($bytes) <= ($m['mime']==='video/mp4'?VideoGuard::MAX_BYTES:450000)
                 && is_string($m['sha256']) && hash_equals(hash('sha256', $bytes), $m['sha256']), 'image checksum mismatch');
-            $info = @getimagesizefromstring($bytes);
-            $types = [IMAGETYPE_PNG => 'image/png', IMAGETYPE_JPEG => 'image/jpeg', IMAGETYPE_WEBP => 'image/webp'];
-            self::archiveCheck(is_array($info) && ($types[$info[2]] ?? null) === $m['mime']
-                && $info[0] >= 1 && $info[1] >= 1 && $info[0] <= 4096 && $info[1] <= 4096, 'invalid image data');
+            if($m['mime']==='video/mp4')VideoGuard::validate($bytes,$m['sha256']);
+            else{
+                $info = @getimagesizefromstring($bytes);
+                $types = [IMAGETYPE_PNG => 'image/png', IMAGETYPE_JPEG => 'image/jpeg', IMAGETYPE_WEBP => 'image/webp'];
+                self::archiveCheck(is_array($info) && ($types[$info[2]] ?? null) === $m['mime']
+                    && $info[0] >= 1 && $info[1] >= 1 && $info[0] <= 4096 && $info[1] <= 4096,
+                    'invalid image data');
+            }
             self::archiveDate($m['createdAt']);
             $media[$m['id']] = $m;
-            $ext = ['image/png' => 'png','image/jpeg' => 'jpg','image/webp' => 'webp'][$m['mime']];
+            $ext = ['image/png' => 'png','image/jpeg' => 'jpg','image/webp' => 'webp','video/mp4'=>'mp4'][$m['mime']];
             $assetList[$m['id']] = ['id' => $m['id'], 'mime' => $m['mime'], 'src' => '/assets/' . $m['id'] . '.' . $ext, 'alt' => ''];
         }
         $validateSite = function (mixed $site) use ($p, $target, $assetList, $media): array {
@@ -198,8 +202,10 @@ trait SiteArchives
             }
             $walkDesign=function(array $nodes) use (&$walkDesign, &$presetAssets, $assetList): void {
                 foreach ($nodes as $node) {
-                    if (($node['type']??null)==='image' && isset($assetList[$node['assetId']??'']))
+                    if (in_array($node['type']??null,['image','video'],true) && isset($assetList[$node['assetId']??'']))
                         $presetAssets[$node['assetId']]=$assetList[$node['assetId']];
+                    if(isset($node['posterAssetId']) && isset($assetList[$node['posterAssetId']]))
+                        $presetAssets[$node['posterAssetId']]=$assetList[$node['posterAssetId']];
                     if (isset($node['children'])&&is_array($node['children']))$walkDesign($node['children']);
                 }
             };

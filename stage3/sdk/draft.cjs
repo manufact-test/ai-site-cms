@@ -99,7 +99,10 @@ function structure(raw,manifests,command){
         for(const [key,val] of Object.entries(item.values))
           if(key==='content.media')cb(item,key,val,p,section);
       const walk=node=>{
-        if(node.type==='image')cb({values:node},'assetId',node.assetId,p,section);
+        if(node.type==='image'||node.type==='video')
+            cb({values:node},'assetId',node.assetId,p,section);
+          if(node.type==='video'&&node.posterAssetId)
+            cb({values:node},'posterAssetId',node.posterAssetId,p,section);
         for(const child of node.children||[])walk(child);
       };
       for(const root of section.designGraph?.nodes||[])walk(root);
@@ -130,6 +133,8 @@ function structure(raw,manifests,command){
       asset.alt=command.alt;break;
     }
     case 'replaceAsset':{
+      const source=c.assets.find(a=>a.id===command.assetId),target=c.assets.find(a=>a.id===command.targetId);
+      if(source?.mime!==target?.mime)throw Error('Replacement media must have matching MIME');
       if(command.assetId===command.targetId||
         !c.assets.some(a=>a.id===command.assetId)||!c.assets.some(a=>a.id===command.targetId))
         throw Error('Replacement must be another image in this site');

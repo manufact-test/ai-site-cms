@@ -82,14 +82,14 @@ try {
             $relative = ltrim($part['src'], '/');
             $expectedPrefix = 'assets/' . $part['id'] . '.';
             if (!str_starts_with($relative, $expectedPrefix)
-                || !preg_match('~^assets/[a-z][a-z0-9-]{2,79}\.(png|jpg|webp)$~D', $relative)) {
+                || !preg_match('~^assets/[a-z][a-z0-9-]{2,79}\.(png|jpg|webp|mp4)$~D', $relative)) {
                 failExport('Unsafe media export path');
             }
             if (!is_dir($temp . '/assets') && !mkdir($temp . '/assets', 0755)) {
                 failExport('Cannot create media directory');
             }
             if (file_put_contents($temp . '/' . $relative, $image['bytes'], LOCK_EX) === false) {
-                failExport('Cannot export image bytes');
+                failExport('Cannot export media bytes');
             }
             $manifest['assets'][] = [
                 'id' => $part['id'],

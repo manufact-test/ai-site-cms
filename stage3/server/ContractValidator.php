@@ -96,7 +96,7 @@ final class ContractValidator
                 ), 'Unsafe URL');
                 return;
             case 'media':
-                self::must(is_string($v) && ($v === '' || isset($assets[$v])), 'Unregistered asset');
+                self::must(is_string($v) && ($v === '' || (isset($assets[$v]) && $assets[$v]!=='video/mp4')), 'Missing image media');
                 return;
             default:
                 throw new InvalidArgumentException('Unknown property type');
