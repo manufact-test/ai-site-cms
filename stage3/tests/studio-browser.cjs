@@ -198,6 +198,34 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#undo').click();
     await canvas.locator('.cms-surface-default').waitFor();
 
+    // Full menu composer creates nested navigation, CTA and mobile layout
+    // through one immutable Undo/Redo-compatible site document transaction.
+    await page.locator('#cms-menu-open').click();
+    await page.locator('#cms-menu-editor').waitFor({state:'visible'});
+    await page.locator('#cms-menu-editor select').first().selectOption('bold');
+    await page.locator('#cms-menu-editor input[type="checkbox"]').first().check();
+    await page.locator('#cms-menu-editor select').nth(1).selectOption('expanded');
+    await page.locator('#cms-menu-editor select').nth(2).selectOption('page-contact');
+    await page.locator('#cms-menu-cta-label').fill('Написать нам');
+    await page.locator('#cms-menu-cta-label').dispatchEvent('change');
+    const contactMenu=page.locator('[data-menu-page="page-contact"]');
+    await contactMenu.locator('input[type=text]').fill('Контакты и поддержка');
+    await contactMenu.locator('input[type=text]').dispatchEvent('change');
+    await contactMenu.locator('select').selectOption('page-home');
+    await page.locator('#cms-menu-apply').click();
+    let menuSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+    assert.equal(menuSite.menu.style,'bold');
+    assert.equal(menuSite.menu.mobile,'expanded');
+    assert.equal(menuSite.menu.ctaPageId,'page-contact');
+    assert.equal(menuSite.pages[1].navigation.parentId,'page-home');
+    assert.equal(menuSite.pages[1].navigation.label,'Контакты и поддержка');
+    await page.locator('#undo').click();
+    menuSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+    assert.equal(menuSite.menu,undefined);
+    await page.locator('#redo').click();
+    menuSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+    assert.equal(menuSite.menu.ctaLabel,'Написать нам');
+
     // Inspect a complete draft page at device widths without publishing or
     // enabling scripts/network for the iframe.
     await page.locator('#cms-open-page-preview').click();
@@ -206,6 +234,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.frameLocator('#cms-page-preview-frame').locator('h1').first().waitFor();
     await page.locator('#cms-page-preview-path').selectOption('/contact/');
     await page.frameLocator('#cms-page-preview-frame').locator('.contact').first().waitFor();
+    await page.frameLocator('#cms-page-preview-frame').locator('.cms-menu-preview .cms-menu-cta').getByText('Написать нам').waitFor();
+    assert.equal(await page.frameLocator('#cms-page-preview-frame').locator('.cms-menu-mobile a').count(),2);
     await page.locator('.cms-page-preview-modes [data-mode="mobile"]').click();
     assert.equal(await page.locator('#cms-page-preview-frame').evaluate(x=>x.style.width),'390px');
     await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();

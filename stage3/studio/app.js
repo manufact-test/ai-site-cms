@@ -152,6 +152,111 @@
     tools.append(theme,seo);$('pages').before(tools);
   }
 
+
+  // A single Undo-able menu editor, independent of the selected component.
+  // All relationships reference immutable page IDs, not URLs.
+  function initMenuEditor(){
+    const dlg=document.createElement('dialog');dlg.id='cms-menu-editor';
+    dlg.className='cms-settings-dialog';
+    Object.assign(dlg.style,{width:'min(1000px,95vw)',maxHeight:'89vh',overflow:'auto'});
+    const head=document.createElement('h2');head.textContent='Меню и навигация сайта';
+    const help=document.createElement('p');
+    help.textContent='Порядок страниц, вложенность в один уровень, видимость, адаптивное меню и кнопка действия. Изменения сохраняются в черновике; публикация отдельно.';
+    const global=document.createElement('div');global.className='cms-settings-grid';
+    const list=document.createElement('div');list.id='cms-menu-pages';
+    const actions=document.createElement('div');actions.className='cms-settings-actions';
+    let draft=null;
+    const select=(entries,value,onChange)=>{
+      const el=document.createElement('select');el.className='control';
+      for(const [id,label] of entries){
+        const option=document.createElement('option');option.value=id;option.textContent=label;el.append(option);
+      }
+      el.value=value;el.addEventListener('change',()=>onChange(el.value));return el;
+    };
+    const field=(title,node)=>{
+      const label=document.createElement('label');label.textContent=title;label.append(node);return label;
+    };
+    const textField=(value,max,onChange)=>{
+      const el=document.createElement('input');el.type='text';el.className='control';
+      el.maxLength=max;el.value=value;el.addEventListener('change',()=>onChange(el.value));return el;
+    };
+    const check=(initial,changed)=>{
+      const input=document.createElement('input');input.type='checkbox';input.checked=initial;
+      input.addEventListener('change',()=>changed(input.checked));return input;
+    };
+    function pageOptions(excluding){
+      return [['','Верхний уровень'],...draft.pages.filter(p=>
+        p.id!==excluding&&!p.navigation?.hidden&&!p.navigation?.parentId
+      ).map(p=>[p.id,p.navigation?.label||p.title])];
+    }
+    function drawMenu(){
+      global.replaceChildren();list.replaceChildren();
+      const menu=draft.menu||{...C.DEFAULT_MENU};draft.menu=menu;
+      const style=select([['default','Обычный'],['quiet','Спокойный'],['bold','Выразительный']],
+        menu.style,v=>{menu.style=v;});
+      const sticky=check(menu.sticky,v=>{menu.sticky=v;});
+      const mobile=select([['collapsible','Кнопка «Меню»'],['expanded','Список ссылок']],
+        menu.mobile,v=>{menu.mobile=v;});
+      const dest=select([['','Без кнопки'],...draft.pages.map(p=>[p.id,p.title])],menu.ctaPageId,v=>{
+        menu.ctaPageId=v;if(!v)menu.ctaLabel='';
+        else if(!menu.ctaLabel)menu.ctaLabel='Связаться';drawMenu();
+      });
+      const cta=textField(menu.ctaLabel,64,v=>{menu.ctaLabel=v;});
+      cta.id='cms-menu-cta-label';
+      global.append(field('Вид меню',style),field('Закрепить вверху при прокрутке',sticky),
+        field('На мобильных',mobile),field('Куда ведёт кнопка',dest),
+        field('Текст кнопки',cta));
+      draft.pages.forEach((page,i)=>{
+        const nav=page.navigation||{label:'',hidden:false};page.navigation=nav;
+        const row=document.createElement('fieldset');row.dataset.menuPage=page.id;
+        Object.assign(row.style,{border:'1px solid #60748a',borderRadius:'12px',padding:'12px',margin:'10px 0'});
+        const title=document.createElement('legend');title.textContent=(i+1)+'. '+page.title+' · '+page.path;
+        const cols=document.createElement('div');
+        Object.assign(cols.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(165px,1fr))',gap:'12px'});
+        const label=textField(nav.label,100,v=>{nav.label=v;});
+        const hidden=check(nav.hidden,v=>{
+          nav.hidden=v;
+          if(v)for(const child of draft.pages)if(child.navigation?.parentId===page.id)
+            delete child.navigation.parentId;
+          drawMenu();
+        });
+        const parents=select(page.path==='/'?[['','Главная — только верхний уровень']]:
+          pageOptions(page.id),nav.parentId||'',v=>{
+          if(v)nav.parentId=v;else delete nav.parentId;
+          drawMenu();
+        });
+        parents.disabled=page.path==='/';
+        cols.append(field('Название в меню',label),field('Скрыть из меню',hidden),
+          field('Расположение (родитель)',parents));
+        const ops=document.createElement('div');ops.className='structure-tools';
+        const move=(delta)=>{
+          const dest=i+delta;
+          if(dest<0||dest>=draft.pages.length)return;
+          [draft.pages[i],draft.pages[dest]]=[draft.pages[dest],draft.pages[i]];
+          drawMenu();
+        };
+        const up=button('↑','btn small',()=>move(-1));up.setAttribute('aria-label','Поднять '+page.title);
+        const down=button('↓','btn small',()=>move(1));down.setAttribute('aria-label','Опустить '+page.title);
+        ops.append(up,down);row.append(title,cols,ops);list.append(row);
+      });
+    }
+    const apply=button('Применить к черновику','btn primary',()=>{
+      try{
+        session=D.replaceSite(session,manifests,draft,session.revision);
+        dlg.close();draw();
+        notice('Навигация обновлена в черновике. Сохранение и публикация отдельно.');
+      }catch(e){notice('Настройки меню отклонены: '+e.message,true);}
+    });apply.id='cms-menu-apply';
+    actions.append(apply,button('Закрыть','btn',()=>dlg.close()));
+    dlg.append(head,help,global,list,actions);document.body.append(dlg);
+    const launch=button('Конструктор меню','btn small',()=>{
+      draft=cp(session.current);drawMenu();dlg.showModal();
+    });
+    launch.id='cms-menu-open';
+    const box=document.createElement('div');box.className='structure-tools';
+    box.append(launch);$('pages').before(box);
+  }
+
   // One review surface for every authored site; analysis never changes documents.
   // Alias creation/deletion uses the same revisioned Undo/Redo contract as page edits.
   function initSiteQuality(){
@@ -882,7 +987,22 @@
         const page=checked.pages.find(p=>p.path===path)||checked.pages[0];
         const docs=page.sections.map(s=>screen(D.blockPreview(session,manifests,page.id,s.id,breakpoint)));
         const first=docs[0],start=first.indexOf('<body>')+6,end=first.lastIndexOf('</body>');
-        const navigation='<nav style="padding:15px;display:flex;gap:16px;flex-wrap:wrap">'+checked.pages.filter(p=>!p.navigation?.hidden).map(p=>'<span>'+escapeHtml(p.navigation?.label||p.title)+'</span>').join('')+'</nav>';
+        const navPages=checked.pages.filter(p=>!p.navigation?.hidden);
+        const links=parent=>navPages.filter(p=>(p.navigation?.parentId||'')===parent)
+          .map(p=>'<li><a href="'+escapeHtml(p.path)+'"'+(p.path===page.path?' aria-current="page"':'')+'>'+
+            escapeHtml(p.navigation?.label||p.title)+'</a>'+
+            (parent===''?'<ul>'+links(p.id)+'</ul>':'')+'</li>').join('');
+        const menu=checked.menu||C.DEFAULT_MENU;
+        const buttonPage=checked.pages.find(p=>p.id===menu.ctaPageId);
+        const cta=buttonPage?'<a class="cms-menu-cta" href="'+escapeHtml(buttonPage.path)+'">'+
+          escapeHtml(menu.ctaLabel)+'</a>':'';
+        const common='<ul class="cms-menu-links">'+links('')+'</ul>';
+        const navigation='<style>.cms-menu-preview{padding:16px;background:white;border-bottom:1px solid #dde6ed;display:flex;align-items:center;gap:20px;flex-wrap:wrap}.cms-menu-preview a{text-decoration:none;color:#1d3448}.cms-menu-preview a[aria-current=page]{color:#0a5bff;font-weight:800}.cms-menu-links{display:flex;flex-wrap:wrap;list-style:none;gap:12px;padding:0;margin:0}.cms-menu-links ul{list-style:none;margin:0;padding:0 0 0 15px}.cms-menu-cta{margin-left:auto;padding:9px 14px;border-radius:9px;background:#0a5bff;color:white!important}.cms-menu-mobile{display:none}@media(max-width:640px){.cms-menu-preview .cms-menu-desktop{display:none}.cms-menu-mobile{display:block;width:100%}.cms-menu-mobile .cms-menu-links{display:block}.cms-menu-mobile summary{cursor:pointer}}</style>'+
+          '<header class="cms-menu-preview"><strong>'+escapeHtml(checked.title)+'</strong>'+
+          '<nav class="cms-menu-desktop" aria-label="Навигация">'+common+'</nav>'+cta+
+          (menu.mobile==='expanded'?'<nav class="cms-menu-mobile">'+common+'</nav>':
+            '<details class="cms-menu-mobile"><summary>Меню</summary><nav>'+common+'</nav></details>')+
+          '</header>';
         return first.slice(0,start)+navigation+docs.map(doc=>doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))).join('')+first.slice(end);
       }finally{session=prior;}
     },
@@ -923,5 +1043,5 @@
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  createStructureTools();initSettings();initSiteQuality();initFullPagePreview();load();draw();
+  createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();draw();
 })();

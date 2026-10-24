@@ -125,6 +125,44 @@ test('four safe repeatable manifests, editable items, stable clone identities an
   refuses(()=>sdk.validateSite(injection,manifests),'Repeat links are safe URLs only');
 });
 
+test('complete menu hierarchy, CTA and responsive settings validate and Undo safely',()=>{
+  const D=require('../sdk/draft.cjs');
+  const site=structuredClone(initial);
+  const existing=site.pages[1];
+  site.pages.push({id:'page-pricing',path:'/pricing/',title:'Цены',
+    sections:[sdk.sectionFrom(manifests[0],'section-pricing')]});
+  existing.navigation={label:'Напишите нам',hidden:false,parentId:site.pages[0].id};
+  site.menu={style:'bold',sticky:true,mobile:'expanded',
+    ctaPageId:existing.id,ctaLabel:'Написать'};
+  assert.equal(sdk.validateSite(site,manifests).pages[1].navigation.parentId,site.pages[0].id);
+  let d=D.begin(site,manifests),next=structuredClone(site);
+  next.menu.style='quiet';d=D.replaceSite(d,manifests,next,d.revision);
+  assert.ok(D.changes(d,manifests).some(x=>x.kind==='menu-updated'));
+  assert.equal(D.undo(d,manifests).current.menu.style,'bold');
+  for(const [label,change] of [
+    ['Unknown parent',x=>x.pages[1].navigation.parentId='page-unknown'],
+    ['Nested parent',x=>x.pages[2].navigation={label:'Тарифы',hidden:false,parentId:'page-contact'}],
+    ['Hidden parent',x=>x.pages[0].navigation={label:'Главная',hidden:true}],
+    ['Root cannot nest',x=>x.pages[0].navigation={label:'Главная',hidden:false,parentId:'page-pricing'}],
+    ['Missing CTA',x=>x.menu.ctaPageId='page-unknown'],
+    ['Unbounded variant',x=>x.menu.style='javascript:evil'],
+    ['Unexpected CSS',x=>x.menu.css='position:fixed'],
+    ['Unsupported parent HTML',x=>x.pages[1].navigation.parentId='<script>']
+  ]){const invalid=structuredClone(site);change(invalid);
+    refuses(()=>sdk.validateSite(invalid,manifests),label);
+  }
+  // Removing a parent page clears dependent navigation and its CTA destination.
+  const withChild=structuredClone(site);
+  withChild.pages[2].navigation={label:'Цены',hidden:false,parentId:'page-contact'};
+  delete withChild.pages[1].navigation.parentId;
+  const starting=D.begin(withChild,manifests);
+  const removed=D.structure(starting,manifests,{action:'removePage',pageId:'page-contact',
+    expectedRevision:starting.revision});
+  assert.equal(removed.current.pages.find(p=>p.id==='page-pricing').navigation.parentId,undefined);
+  assert.equal(removed.current.menu.ctaPageId,'');
+  assert.equal(D.undo(removed,manifests).current.pages.length,3);
+});
+
 test('URL changes keep permanent aliases, diagnostics find bad links and Undo keeps history',()=>{
   const D=require('../sdk/draft.cjs');
   let d=D.begin(initial,manifests);

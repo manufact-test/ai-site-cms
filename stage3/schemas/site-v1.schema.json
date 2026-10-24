@@ -86,6 +86,43 @@
       "items": {
         "$ref": "#/$defs/redirect"
       }
+    },
+    "menu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "style",
+        "sticky",
+        "mobile",
+        "ctaPageId",
+        "ctaLabel"
+      ],
+      "properties": {
+        "style": {
+          "enum": [
+            "default",
+            "quiet",
+            "bold"
+          ]
+        },
+        "sticky": {
+          "type": "boolean"
+        },
+        "mobile": {
+          "enum": [
+            "collapsible",
+            "expanded"
+          ]
+        },
+        "ctaPageId": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "ctaLabel": {
+          "type": "string",
+          "maxLength": 64
+        }
+      }
     }
   },
   "$defs": {
@@ -194,6 +231,9 @@
             },
             "hidden": {
               "type": "boolean"
+            },
+            "parentId": {
+              "$ref": "#/$defs/id"
             }
           }
         }

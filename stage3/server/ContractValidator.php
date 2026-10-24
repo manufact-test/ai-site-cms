@@ -135,13 +135,32 @@ final class ContractValidator
     }
     private static function navigation(mixed $n): void
     {
-        self::keys($n,['label','hidden']);
+        self::keys($n,['label','hidden','parentId']);
         self::must(is_string($n['label']) && mb_strlen($n['label'],'UTF-8')<=100
-            && !preg_match('/[\x00-\x1f]/',$n['label']) && is_bool($n['hidden']),'Invalid navigation');
+            && !preg_match('/[\x00-\x1f]/',$n['label']) && is_bool($n['hidden'])
+            && (!array_key_exists('parentId',$n)||(is_string($n['parentId'])
+                && preg_match('/^[a-z][a-z0-9-]{2,79}$/D',$n['parentId'])===1)),'Invalid navigation');
     }
+    private static function menu(mixed $menu): void
+    {
+        self::keys($menu,['style','sticky','mobile','ctaPageId','ctaLabel']);
+        self::must(in_array($menu['style']??null,['default','quiet','bold'],true)
+            && is_bool($menu['sticky']??null)
+            && in_array($menu['mobile']??null,['collapsible','expanded'],true)
+            && is_string($menu['ctaPageId']??null)
+            && ($menu['ctaPageId']==='' || preg_match('/^[a-z][a-z0-9-]{2,79}$/D',$menu['ctaPageId'])===1)
+            && is_string($menu['ctaLabel']??null)
+            && mb_strlen($menu['ctaLabel'],'UTF-8')<=64
+            && !preg_match('/[\\x00-\\x1f]/',$menu['ctaLabel'])
+            && (($menu['ctaPageId']==='' && $menu['ctaLabel']==='')
+                || ($menu['ctaPageId']!=='' && trim($menu['ctaLabel'])!=='')),
+            'Invalid global menu settings');
+    }
+
     public function validate(mixed $site): array
     {
-        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects']);
+        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu']);
+        if (array_key_exists('menu',$site)) self::menu($site['menu']);
         if (array_key_exists('theme',$site)) self::theme($site['theme']);
         self::must(($site['format'] ?? null) === 'manufact-ai-site-v1'
             && ($site['schemaVersion'] ?? null) === 1, 'Unsupported site format');
@@ -241,6 +260,20 @@ final class ContractValidator
                 } else self::must(!array_key_exists('items',$section),'Undeclared repeater');
                 FlexForm::definitions($section); // optional new fields, select dependencies and cross-field constraints
             }
+        }
+        $pageIds=[];
+        foreach ($site['pages'] as $page) $pageIds[$page['id']]=$page;
+        foreach ($site['pages'] as $page) {
+            $parentId=$page['navigation']['parentId']??null;
+            if ($parentId===null) continue;
+            $parent=$pageIds[$parentId]??null;
+            self::must($parent!==null && $parentId!==$page['id'] && $page['path']!=='/'
+                && !($parent['navigation']['hidden']??false)
+                && !isset($parent['navigation']['parentId']),
+                'Invalid menu hierarchy');
+        }
+        if (($site['menu']['ctaPageId']??'')!=='') {
+            self::must(isset($pageIds[$site['menu']['ctaPageId']]),'Menu CTA destination missing');
         }
         if (array_key_exists('redirects',$site)) {
             self::must(is_array($site['redirects']) && array_is_list($site['redirects'])

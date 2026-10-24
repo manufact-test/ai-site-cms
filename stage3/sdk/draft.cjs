@@ -152,6 +152,10 @@ function structure(raw,manifests,command){
     case 'removePage':
       if(!page||page.path==='/'||c.pages.length===1)throw Error('Cannot remove root/last page');
       c.pages.splice(index,1);
+      // Keep surviving pages navigable when their menu parent disappears.
+      for(const child of c.pages)if(child.navigation?.parentId===page.id)
+        delete child.navigation.parentId;
+      if(c.menu?.ctaPageId===page.id){c.menu.ctaPageId='';c.menu.ctaLabel='';}
       if(c.redirects){
         c.redirects=c.redirects.filter(r=>r.to!==page.path);
         if(!c.redirects.length)delete c.redirects;
@@ -233,6 +237,7 @@ function changes(raw,manifests){
   const s=verifySession(raw,manifests),diff=[];
   const pages=new Map(s.base.pages.map(p=>[p.id,p]));
   if(JSON.stringify(s.base.theme)!==JSON.stringify(s.current.theme))diff.push({kind:'theme-updated'});
+  if(JSON.stringify(s.base.menu)!==JSON.stringify(s.current.menu))diff.push({kind:'menu-updated'});
   if(JSON.stringify(s.base.assets)!==JSON.stringify(s.current.assets))
     diff.push({kind:'media-library-updated'});
   if(JSON.stringify(s.base.redirects||[])!==JSON.stringify(s.current.redirects||[]))

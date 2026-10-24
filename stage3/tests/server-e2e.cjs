@@ -480,6 +480,9 @@ async function stop(){
     heading:'expressive',corners:'round',mobileAlign:'center',mobileSpacing:'tight',button:'pill'};
   rich.pages[0].sections.push(cta);
   rich.redirects=[{from:'/old-services/',to:'/contact/'}];
+  rich.pages[1].navigation={label:'Свяжитесь с нами',hidden:false,parentId:'page-home'};
+  rich.menu={style:'bold',sticky:true,mobile:'collapsible',
+    ctaPageId:'page-contact',ctaLabel:'Получить консультацию'};
   rich.pages[0].sections[0].appearance={surface:'dark',spacing:'airy',align:'center'};
   const richCreated=await request('POST','/api/sites',{site:rich});
   assert.equal(richCreated.status,201,JSON.stringify(richCreated.body));
@@ -494,6 +497,13 @@ async function stop(){
   assert.match(richPublished.body,/cms-width-narrow cms-heading-expressive cms-corners-round cms-mobile-align-center cms-mobile-spacing-tight cms-button-pill/);
   assert.match(richPublished.body,/class="cta-banner"/);
   assert.match(richPublished.body,/Готовы обсудить проект/);
+  assert.match(richPublished.body,/class="cms-site-header cms-menu-bold cms-menu-sticky"/);
+  assert.match(richPublished.body,/class="cms-nav-submenu"/);
+  assert.match(richPublished.body,/Свяжитесь с нами/);
+  assert.match(richPublished.body,/aria-label="Мобильная навигация"/);
+  assert.match(richPublished.body,/Получить консультацию/);
+  assert.match(richPublished.body,/href="\/published\/site-rich-ci\/contact\/"/);
+  assert.doesNotMatch(richPublished.body,/<script/i,'No runtime JS required by menu');
   assert.match(richPublished.body,/href="\/published\/site-rich-ci\/contact\/"/);
   assert.match(richPublished.body,/background:var\(--cms-bg\)/);
   assert.match(richPublished.body,/class="cms-section-skin cms-surface-dark cms-spacing-airy cms-align-center"/);

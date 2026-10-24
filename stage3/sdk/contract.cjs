@@ -118,8 +118,30 @@ function validSeo(s){
     !['index','noindex'].includes(s.robots))fail('Invalid SEO metadata');
 }
 function validNav(n){
-  objectKeys(n,['label','hidden'],'navigation');
-  if(typeof n.label!=='string'||n.label.length>100||/[\x00-\x1f]/.test(n.label)||typeof n.hidden!=='boolean')fail('Invalid page navigation');
+  objectKeys(n,['label','hidden','parentId'],'navigation');
+  if(typeof n.label!=='string'||n.label.length>100||/[\x00-\x1f]/.test(n.label)||typeof n.hidden!=='boolean'||
+    (own(n,'parentId')&&(typeof n.parentId!=='string'||!elementId.test(n.parentId))))fail('Invalid page navigation');
+}
+const DEFAULT_MENU=Object.freeze({style:'default',sticky:false,mobile:'collapsible',ctaPageId:'',ctaLabel:''});
+function validMenu(m){
+  objectKeys(m,['style','sticky','mobile','ctaPageId','ctaLabel'],'site.menu');
+  if(!['default','quiet','bold'].includes(m.style)||typeof m.sticky!=='boolean'||
+    !['collapsible','expanded'].includes(m.mobile)||typeof m.ctaPageId!=='string'||
+    (m.ctaPageId!==''&&!elementId.test(m.ctaPageId))||typeof m.ctaLabel!=='string'||
+    m.ctaLabel.length>64||/[\x00-\x1f]/.test(m.ctaLabel)||
+    (m.ctaPageId!==''&&!m.ctaLabel.trim())||(m.ctaPageId===''&&m.ctaLabel!==''))
+    fail('Invalid site menu settings');
+}
+function validMenuRelations(raw){
+  const pages=new Map(raw.pages.map(page=>[page.id,page]));
+  for(const page of raw.pages){
+    const parentId=page.navigation?.parentId;
+    if(!parentId)continue;
+    const parent=pages.get(parentId);
+    if(!parent||parent===page||page.path==='/'||parent.navigation?.hidden||
+      parent.navigation?.parentId)fail('Menu parent missing, hidden or nested',page.id);
+  }
+  if(raw.menu?.ctaPageId&&!pages.has(raw.menu.ctaPageId))fail('Menu CTA destination missing');
 }
 const DEFAULT_APPEARANCE=Object.freeze({surface:'default',spacing:'normal',align:'left',width:'default',heading:'default',corners:'default',mobileAlign:'inherit',mobileSpacing:'inherit',button:'default'});
 const EXTRA_APPEARANCE=Object.freeze({"width":["default","narrow","wide"],"heading":["default","compact","expressive"],"corners":["default","soft","round"],"mobileAlign":["inherit","left","center"],"mobileSpacing":["inherit","tight","normal","airy"],"button":["default","outline","pill"]});
@@ -173,7 +195,8 @@ function validateFormFields(section){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu'],'site');
+  if(own(raw,'menu'))validMenu(raw.menu);
   if(own(raw,'theme'))validTheme(raw.theme);
   if(raw.format!==FORMAT||raw.schemaVersion!==1)fail('Unsupported site format');
   id(raw.siteId,'siteId');text(raw.title,'site title',130);
@@ -236,6 +259,7 @@ function validateSite(raw,regInput){
       validateFormFields(section);
     }
   }
+  validMenuRelations(raw);
   if(own(raw,'redirects')){
     if(!Array.isArray(raw.redirects)||raw.redirects.length>60)fail('Invalid redirect count');
     const aliases=new Set();
@@ -396,7 +420,7 @@ function upgrade(raw,previous,next,allOtherManifests,decisions={}){
   if(conflicts.length)return {accepted:false,conflicts,diff,candidate:null};
   return {accepted:true,conflicts:[],diff,candidate:validateSite(candidate,afterRegistry)};
 }
-module.exports=Object.freeze({DEFAULT_THEME,
+module.exports=Object.freeze({DEFAULT_MENU,DEFAULT_THEME,
   FORMAT,MANIFEST,BREAKPOINTS,DEFAULT_APPEARANCE,validateManifest,registry,validateSite,inspectSite,
   controls,effectiveValue,sectionFrom,siteFromBrief,upgrade
 });

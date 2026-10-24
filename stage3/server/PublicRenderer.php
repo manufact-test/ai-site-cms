@@ -89,6 +89,70 @@ final class PublicRenderer
         return ($css !== '' ? '<style>' . $css . '</style>' : '') . $html;
     }
 
+    /**
+     * Closed two-level site navigation. Child pages link to stable parent IDs,
+     * so renaming page URLs cannot invalidate menu hierarchy.
+     */
+    private static function menuTree(array $site, string $path, string $mount): string
+    {
+        $top=[];$children=[];
+        foreach ($site['pages'] as $page) {
+            if (($page['navigation']['hidden']??false)===true) continue;
+            $parent=$page['navigation']['parentId']??null;
+            if ($parent!==null) $children[$parent][]=$page;
+            else $top[]=$page;
+        }
+        $links='<ul class="cms-menu-list">';
+        foreach ($top as $page) {
+            $id=$page['id'];
+            $href=self::h($mount.$page['path']);
+            $label=$page['navigation']['label']??'';
+            $text=self::h($label===''?$page['title']:$label);
+            $active=$page['path']===$path?' aria-current="page"':'';
+            $sub=$children[$id]??[];
+            $links.='<li class="cms-nav-item'.($sub?' cms-has-children':'').'"><a href="'.$href.'"'.$active.'>'.$text.'</a>';
+            if ($sub) {
+                $links.='<ul class="cms-nav-submenu">';
+                foreach ($sub as $child) {
+                    $label=$child['navigation']['label']??'';
+                    $title=self::h($label===''?$child['title']:$label);
+                    $current=$child['path']===$path?' aria-current="page"':'';
+                    $links.='<li><a href="'.self::h($mount.$child['path']).'"'.$current.'>'.$title.'</a></li>';
+                }
+                $links.='</ul>';
+            }
+            $links.='</li>';
+        }
+        return $links.'</ul>';
+    }
+
+    private static function siteHeader(array $site,string $path,string $mount): string
+    {
+        $menu=$site['menu']??['style'=>'default','sticky'=>false,'mobile'=>'collapsible',
+            'ctaPageId'=>'','ctaLabel'=>''];
+        $classes='cms-site-header cms-menu-'.$menu['style'].($menu['sticky']?' cms-menu-sticky':'');
+        $brand=self::h($site['title']);
+        $tree=self::menuTree($site,$path,$mount);
+        $cta='';
+        if ($menu['ctaPageId']!=='') {
+            foreach ($site['pages'] as $page) {
+                if ($page['id']===$menu['ctaPageId']) {
+                    $cta='<a class="cms-menu-cta" href="'.self::h($mount.$page['path']).'">'
+                        .self::h($menu['ctaLabel']).'</a>';
+                    break;
+                }
+            }
+        }
+        $mobile=$menu['mobile']==='expanded'
+            ? '<nav class="cms-mobile-inline" aria-label="Мобильная навигация">'.$tree.'</nav>'
+            : '<details class="cms-mobile-menu"><summary>Меню</summary>'
+                .'<nav aria-label="Мобильная навигация">'.$tree.'</nav></details>';
+        return '<header class="'.$classes.'"><div class="cms-header-inner">'
+            .'<a class="cms-brand" href="'.self::h($mount.'/').'">'.$brand.'</a>'
+            .'<nav class="cms-nav-desktop" aria-label="Основная навигация">'.$tree.'</nav>'
+            .$cta.$mobile.'</div></header>';
+    }
+
     private static function themeCss(array $site): string
     {
         $t = $site['theme'] ?? ['background'=>'#f7f9fc','surface'=>'#ffffff','text'=>'#172a43',
@@ -189,14 +253,7 @@ final class PublicRenderer
         }
         $siteId = $site['siteId'];
         $mount = $basePath ?? '/published/' . rawurlencode($siteId);
-        $navigation = '';
-        foreach ($site['pages'] as $candidate) {
-            if (($candidate['navigation']['hidden'] ?? false) === true) continue;
-            $label = $candidate['navigation']['label'] ?? '';
-            $navigation .= '<a href="' . self::h($mount) . self::h($candidate['path']) . '"'
-                . ($candidate['path'] === $path ? ' aria-current="page"' : '')
-                . '>' . self::h($label === '' ? $candidate['title'] : $label) . '</a>';
-        }
+        $header=self::siteHeader($site,$path,$mount);
         $body = '';
         foreach ($page['sections'] as $section) {
             $beforeSkin = strlen($body);
@@ -402,10 +459,12 @@ final class PublicRenderer
             . '.cms-corners-soft>section :is(article,.review,figure,img,.action,details){border-radius:12px}.cms-corners-round>section :is(article,.review,figure,img,.action,details){border-radius:28px}'
             . '.cms-button-outline>section .action{background:transparent;color:var(--cms-primary);box-shadow:inset 0 0 0 2px currentColor}.cms-button-pill>section .action{border-radius:999px}'
             . '.cms-surface-paper>section{background:var(--cms-surface)}.cms-surface-tint>section{background:#ecf4fc}.cms-surface-dark>section{background:#112536;color:#f5f9fe}.cms-surface-dark>section a:not(.action){color:#cdefff}.cms-spacing-tight>section{padding-top:25px;padding-bottom:25px}.cms-spacing-airy>section{padding-top:110px;padding-bottom:110px}.cms-align-center>section{text-align:center}.cms-align-center>section>p{margin-left:auto;margin-right:auto}'
+            . '.cms-site-header{position:relative;z-index:20;max-width:none;background:var(--cms-surface);border-bottom:1px solid #dae4ef;padding:0}.cms-menu-sticky{position:sticky;top:0}.cms-header-inner{max-width:var(--cms-width);margin:0 auto;min-height:74px;padding:14px 24px;display:flex;gap:22px;align-items:center}.cms-brand{text-decoration:none;font-weight:800;font-size:19px;white-space:nowrap}.cms-nav-desktop{flex:1;min-width:0}.cms-menu-list{list-style:none;margin:0;padding:0;display:flex;align-items:center;gap:4px}.cms-menu-list a{display:block;padding:10px 12px;text-decoration:none;border-radius:9px;font-weight:600;font-size:14px}.cms-menu-list a:hover,.cms-menu-list a:focus-visible{background:#e9eff8;outline-offset:2px}.cms-menu-list a[aria-current=page]{color:var(--cms-primary);box-shadow:inset 0 -2px 0 var(--cms-primary)}.cms-nav-item{position:relative}.cms-nav-desktop .cms-nav-submenu{display:none;position:absolute;left:0;top:100%;min-width:190px;max-width:320px;background:var(--cms-surface);box-shadow:0 12px 28px #09233e23;border:1px solid #dae4ef;border-radius:12px;padding:7px;list-style:none}.cms-nav-desktop .cms-nav-item:hover>.cms-nav-submenu,.cms-nav-desktop .cms-nav-item:focus-within>.cms-nav-submenu{display:block}.cms-menu-cta{background:var(--cms-primary);color:#fff;text-decoration:none;border-radius:9px;padding:11px 16px;font-weight:700;white-space:nowrap}.cms-menu-quiet{background:var(--cms-bg)}.cms-menu-bold{border-bottom:3px solid var(--cms-primary)}.cms-menu-bold .cms-brand{color:var(--cms-primary)}.cms-mobile-menu,.cms-mobile-inline{display:none}'
+            . '@media(max-width:900px){.cms-header-inner{flex-wrap:wrap;gap:10px;min-height:64px}.cms-nav-desktop{display:none}.cms-mobile-menu,.cms-mobile-inline{display:block;order:3;width:100%}.cms-mobile-menu>summary{cursor:pointer;list-style:revert;padding:9px 0;font-weight:700}.cms-mobile-menu .cms-menu-list,.cms-mobile-inline .cms-menu-list{display:block}.cms-mobile-menu .cms-menu-list a,.cms-mobile-inline .cms-menu-list a{padding:10px 6px}.cms-mobile-menu .cms-nav-submenu,.cms-mobile-inline .cms-nav-submenu{list-style:none;margin:0 0 5px 14px;padding:0 0 0 12px;border-left:2px solid #d0dce9}.cms-menu-cta{margin-left:auto;font-size:13px;padding:10px 12px}}'
             . '@media(max-width:900px){h1{font-size:var(--title-tablet)}}'
             . '@media(max-width:600px){.cms-mobile-align-left>section{text-align:left}.cms-mobile-align-center>section{text-align:center}.cms-mobile-spacing-tight>section{padding-top:24px;padding-bottom:24px}.cms-mobile-spacing-normal>section{padding-top:40px;padding-bottom:40px}.cms-mobile-spacing-airy>section{padding-top:72px;padding-bottom:72px}section{padding:40px 8px}.hero{padding-block:48px}.feature-grid{grid-template-columns:1fr}.story-layout{grid-template-columns:1fr}h1{font-size:var(--title-mobile)}}'
-            . '</style></head><body><header><nav aria-label="Навигация">' . $navigation
-            . '</nav></header><main>' . $body . '</main><footer>'
+            . '</style></head><body>' . $header
+            . '<main>' . $body . '</main><footer>'
             . self::h($site['title']) . '</footer></body></html>';
     }
 }

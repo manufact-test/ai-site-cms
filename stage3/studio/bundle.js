@@ -121,8 +121,30 @@ function validSeo(s){
     !['index','noindex'].includes(s.robots))fail('Invalid SEO metadata');
 }
 function validNav(n){
-  objectKeys(n,['label','hidden'],'navigation');
-  if(typeof n.label!=='string'||n.label.length>100||/[\x00-\x1f]/.test(n.label)||typeof n.hidden!=='boolean')fail('Invalid page navigation');
+  objectKeys(n,['label','hidden','parentId'],'navigation');
+  if(typeof n.label!=='string'||n.label.length>100||/[\x00-\x1f]/.test(n.label)||typeof n.hidden!=='boolean'||
+    (own(n,'parentId')&&(typeof n.parentId!=='string'||!elementId.test(n.parentId))))fail('Invalid page navigation');
+}
+const DEFAULT_MENU=Object.freeze({style:'default',sticky:false,mobile:'collapsible',ctaPageId:'',ctaLabel:''});
+function validMenu(m){
+  objectKeys(m,['style','sticky','mobile','ctaPageId','ctaLabel'],'site.menu');
+  if(!['default','quiet','bold'].includes(m.style)||typeof m.sticky!=='boolean'||
+    !['collapsible','expanded'].includes(m.mobile)||typeof m.ctaPageId!=='string'||
+    (m.ctaPageId!==''&&!elementId.test(m.ctaPageId))||typeof m.ctaLabel!=='string'||
+    m.ctaLabel.length>64||/[\x00-\x1f]/.test(m.ctaLabel)||
+    (m.ctaPageId!==''&&!m.ctaLabel.trim())||(m.ctaPageId===''&&m.ctaLabel!==''))
+    fail('Invalid site menu settings');
+}
+function validMenuRelations(raw){
+  const pages=new Map(raw.pages.map(page=>[page.id,page]));
+  for(const page of raw.pages){
+    const parentId=page.navigation?.parentId;
+    if(!parentId)continue;
+    const parent=pages.get(parentId);
+    if(!parent||parent===page||page.path==='/'||parent.navigation?.hidden||
+      parent.navigation?.parentId)fail('Menu parent missing, hidden or nested',page.id);
+  }
+  if(raw.menu?.ctaPageId&&!pages.has(raw.menu.ctaPageId))fail('Menu CTA destination missing');
 }
 const DEFAULT_APPEARANCE=Object.freeze({surface:'default',spacing:'normal',align:'left',width:'default',heading:'default',corners:'default',mobileAlign:'inherit',mobileSpacing:'inherit',button:'default'});
 const EXTRA_APPEARANCE=Object.freeze({"width":["default","narrow","wide"],"heading":["default","compact","expressive"],"corners":["default","soft","round"],"mobileAlign":["inherit","left","center"],"mobileSpacing":["inherit","tight","normal","airy"],"button":["default","outline","pill"]});
@@ -176,7 +198,8 @@ function validateFormFields(section){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu'],'site');
+  if(own(raw,'menu'))validMenu(raw.menu);
   if(own(raw,'theme'))validTheme(raw.theme);
   if(raw.format!==FORMAT||raw.schemaVersion!==1)fail('Unsupported site format');
   id(raw.siteId,'siteId');text(raw.title,'site title',130);
@@ -239,6 +262,7 @@ function validateSite(raw,regInput){
       validateFormFields(section);
     }
   }
+  validMenuRelations(raw);
   if(own(raw,'redirects')){
     if(!Array.isArray(raw.redirects)||raw.redirects.length>60)fail('Invalid redirect count');
     const aliases=new Set();
@@ -399,7 +423,7 @@ function upgrade(raw,previous,next,allOtherManifests,decisions={}){
   if(conflicts.length)return {accepted:false,conflicts,diff,candidate:null};
   return {accepted:true,conflicts:[],diff,candidate:validateSite(candidate,afterRegistry)};
 }
-module.exports=Object.freeze({DEFAULT_THEME,
+module.exports=Object.freeze({DEFAULT_MENU,DEFAULT_THEME,
   FORMAT,MANIFEST,BREAKPOINTS,DEFAULT_APPEARANCE,validateManifest,registry,validateSite,inspectSite,
   controls,effectiveValue,sectionFrom,siteFromBrief,upgrade
 });
@@ -560,6 +584,10 @@ function structure(raw,manifests,command){
     case 'removePage':
       if(!page||page.path==='/'||c.pages.length===1)throw Error('Cannot remove root/last page');
       c.pages.splice(index,1);
+      // Keep surviving pages navigable when their menu parent disappears.
+      for(const child of c.pages)if(child.navigation?.parentId===page.id)
+        delete child.navigation.parentId;
+      if(c.menu?.ctaPageId===page.id){c.menu.ctaPageId='';c.menu.ctaLabel='';}
       if(c.redirects){
         c.redirects=c.redirects.filter(r=>r.to!==page.path);
         if(!c.redirects.length)delete c.redirects;
@@ -641,6 +669,7 @@ function changes(raw,manifests){
   const s=verifySession(raw,manifests),diff=[];
   const pages=new Map(s.base.pages.map(p=>[p.id,p]));
   if(JSON.stringify(s.base.theme)!==JSON.stringify(s.current.theme))diff.push({kind:'theme-updated'});
+  if(JSON.stringify(s.base.menu)!==JSON.stringify(s.current.menu))diff.push({kind:'menu-updated'});
   if(JSON.stringify(s.base.assets)!==JSON.stringify(s.current.assets))
     diff.push({kind:'media-library-updated'});
   if(JSON.stringify(s.base.redirects||[])!==JSON.stringify(s.current.redirects||[]))
@@ -1021,6 +1050,111 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const theme=button('Стили сайта','btn small',()=>open('theme'));theme.id='cms-open-theme';
     const seo=button('SEO и меню','btn small',()=>open('seo'));seo.id='cms-open-seo';
     tools.append(theme,seo);$('pages').before(tools);
+  }
+
+
+  // A single Undo-able menu editor, independent of the selected component.
+  // All relationships reference immutable page IDs, not URLs.
+  function initMenuEditor(){
+    const dlg=document.createElement('dialog');dlg.id='cms-menu-editor';
+    dlg.className='cms-settings-dialog';
+    Object.assign(dlg.style,{width:'min(1000px,95vw)',maxHeight:'89vh',overflow:'auto'});
+    const head=document.createElement('h2');head.textContent='Меню и навигация сайта';
+    const help=document.createElement('p');
+    help.textContent='Порядок страниц, вложенность в один уровень, видимость, адаптивное меню и кнопка действия. Изменения сохраняются в черновике; публикация отдельно.';
+    const global=document.createElement('div');global.className='cms-settings-grid';
+    const list=document.createElement('div');list.id='cms-menu-pages';
+    const actions=document.createElement('div');actions.className='cms-settings-actions';
+    let draft=null;
+    const select=(entries,value,onChange)=>{
+      const el=document.createElement('select');el.className='control';
+      for(const [id,label] of entries){
+        const option=document.createElement('option');option.value=id;option.textContent=label;el.append(option);
+      }
+      el.value=value;el.addEventListener('change',()=>onChange(el.value));return el;
+    };
+    const field=(title,node)=>{
+      const label=document.createElement('label');label.textContent=title;label.append(node);return label;
+    };
+    const textField=(value,max,onChange)=>{
+      const el=document.createElement('input');el.type='text';el.className='control';
+      el.maxLength=max;el.value=value;el.addEventListener('change',()=>onChange(el.value));return el;
+    };
+    const check=(initial,changed)=>{
+      const input=document.createElement('input');input.type='checkbox';input.checked=initial;
+      input.addEventListener('change',()=>changed(input.checked));return input;
+    };
+    function pageOptions(excluding){
+      return [['','Верхний уровень'],...draft.pages.filter(p=>
+        p.id!==excluding&&!p.navigation?.hidden&&!p.navigation?.parentId
+      ).map(p=>[p.id,p.navigation?.label||p.title])];
+    }
+    function drawMenu(){
+      global.replaceChildren();list.replaceChildren();
+      const menu=draft.menu||{...C.DEFAULT_MENU};draft.menu=menu;
+      const style=select([['default','Обычный'],['quiet','Спокойный'],['bold','Выразительный']],
+        menu.style,v=>{menu.style=v;});
+      const sticky=check(menu.sticky,v=>{menu.sticky=v;});
+      const mobile=select([['collapsible','Кнопка «Меню»'],['expanded','Список ссылок']],
+        menu.mobile,v=>{menu.mobile=v;});
+      const dest=select([['','Без кнопки'],...draft.pages.map(p=>[p.id,p.title])],menu.ctaPageId,v=>{
+        menu.ctaPageId=v;if(!v)menu.ctaLabel='';
+        else if(!menu.ctaLabel)menu.ctaLabel='Связаться';drawMenu();
+      });
+      const cta=textField(menu.ctaLabel,64,v=>{menu.ctaLabel=v;});
+      cta.id='cms-menu-cta-label';
+      global.append(field('Вид меню',style),field('Закрепить вверху при прокрутке',sticky),
+        field('На мобильных',mobile),field('Куда ведёт кнопка',dest),
+        field('Текст кнопки',cta));
+      draft.pages.forEach((page,i)=>{
+        const nav=page.navigation||{label:'',hidden:false};page.navigation=nav;
+        const row=document.createElement('fieldset');row.dataset.menuPage=page.id;
+        Object.assign(row.style,{border:'1px solid #60748a',borderRadius:'12px',padding:'12px',margin:'10px 0'});
+        const title=document.createElement('legend');title.textContent=(i+1)+'. '+page.title+' · '+page.path;
+        const cols=document.createElement('div');
+        Object.assign(cols.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(165px,1fr))',gap:'12px'});
+        const label=textField(nav.label,100,v=>{nav.label=v;});
+        const hidden=check(nav.hidden,v=>{
+          nav.hidden=v;
+          if(v)for(const child of draft.pages)if(child.navigation?.parentId===page.id)
+            delete child.navigation.parentId;
+          drawMenu();
+        });
+        const parents=select(page.path==='/'?[['','Главная — только верхний уровень']]:
+          pageOptions(page.id),nav.parentId||'',v=>{
+          if(v)nav.parentId=v;else delete nav.parentId;
+          drawMenu();
+        });
+        parents.disabled=page.path==='/';
+        cols.append(field('Название в меню',label),field('Скрыть из меню',hidden),
+          field('Расположение (родитель)',parents));
+        const ops=document.createElement('div');ops.className='structure-tools';
+        const move=(delta)=>{
+          const dest=i+delta;
+          if(dest<0||dest>=draft.pages.length)return;
+          [draft.pages[i],draft.pages[dest]]=[draft.pages[dest],draft.pages[i]];
+          drawMenu();
+        };
+        const up=button('↑','btn small',()=>move(-1));up.setAttribute('aria-label','Поднять '+page.title);
+        const down=button('↓','btn small',()=>move(1));down.setAttribute('aria-label','Опустить '+page.title);
+        ops.append(up,down);row.append(title,cols,ops);list.append(row);
+      });
+    }
+    const apply=button('Применить к черновику','btn primary',()=>{
+      try{
+        session=D.replaceSite(session,manifests,draft,session.revision);
+        dlg.close();draw();
+        notice('Навигация обновлена в черновике. Сохранение и публикация отдельно.');
+      }catch(e){notice('Настройки меню отклонены: '+e.message,true);}
+    });apply.id='cms-menu-apply';
+    actions.append(apply,button('Закрыть','btn',()=>dlg.close()));
+    dlg.append(head,help,global,list,actions);document.body.append(dlg);
+    const launch=button('Конструктор меню','btn small',()=>{
+      draft=cp(session.current);drawMenu();dlg.showModal();
+    });
+    launch.id='cms-menu-open';
+    const box=document.createElement('div');box.className='structure-tools';
+    box.append(launch);$('pages').before(box);
   }
 
   // One review surface for every authored site; analysis never changes documents.
@@ -1753,7 +1887,22 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const page=checked.pages.find(p=>p.path===path)||checked.pages[0];
         const docs=page.sections.map(s=>screen(D.blockPreview(session,manifests,page.id,s.id,breakpoint)));
         const first=docs[0],start=first.indexOf('<body>')+6,end=first.lastIndexOf('</body>');
-        const navigation='<nav style="padding:15px;display:flex;gap:16px;flex-wrap:wrap">'+checked.pages.filter(p=>!p.navigation?.hidden).map(p=>'<span>'+escapeHtml(p.navigation?.label||p.title)+'</span>').join('')+'</nav>';
+        const navPages=checked.pages.filter(p=>!p.navigation?.hidden);
+        const links=parent=>navPages.filter(p=>(p.navigation?.parentId||'')===parent)
+          .map(p=>'<li><a href="'+escapeHtml(p.path)+'"'+(p.path===page.path?' aria-current="page"':'')+'>'+
+            escapeHtml(p.navigation?.label||p.title)+'</a>'+
+            (parent===''?'<ul>'+links(p.id)+'</ul>':'')+'</li>').join('');
+        const menu=checked.menu||C.DEFAULT_MENU;
+        const buttonPage=checked.pages.find(p=>p.id===menu.ctaPageId);
+        const cta=buttonPage?'<a class="cms-menu-cta" href="'+escapeHtml(buttonPage.path)+'">'+
+          escapeHtml(menu.ctaLabel)+'</a>':'';
+        const common='<ul class="cms-menu-links">'+links('')+'</ul>';
+        const navigation='<style>.cms-menu-preview{padding:16px;background:white;border-bottom:1px solid #dde6ed;display:flex;align-items:center;gap:20px;flex-wrap:wrap}.cms-menu-preview a{text-decoration:none;color:#1d3448}.cms-menu-preview a[aria-current=page]{color:#0a5bff;font-weight:800}.cms-menu-links{display:flex;flex-wrap:wrap;list-style:none;gap:12px;padding:0;margin:0}.cms-menu-links ul{list-style:none;margin:0;padding:0 0 0 15px}.cms-menu-cta{margin-left:auto;padding:9px 14px;border-radius:9px;background:#0a5bff;color:white!important}.cms-menu-mobile{display:none}@media(max-width:640px){.cms-menu-preview .cms-menu-desktop{display:none}.cms-menu-mobile{display:block;width:100%}.cms-menu-mobile .cms-menu-links{display:block}.cms-menu-mobile summary{cursor:pointer}}</style>'+
+          '<header class="cms-menu-preview"><strong>'+escapeHtml(checked.title)+'</strong>'+
+          '<nav class="cms-menu-desktop" aria-label="Навигация">'+common+'</nav>'+cta+
+          (menu.mobile==='expanded'?'<nav class="cms-menu-mobile">'+common+'</nav>':
+            '<details class="cms-menu-mobile"><summary>Меню</summary><nav>'+common+'</nav></details>')+
+          '</header>';
         return first.slice(0,start)+navigation+docs.map(doc=>doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))).join('')+first.slice(end);
       }finally{session=prior;}
     },
@@ -1794,7 +1943,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  createStructureTools();initSettings();initSiteQuality();initFullPagePreview();load();draw();
+  createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();draw();
 })();
 'use strict';
 // A single owner-reviewed composition path for offline and authenticated Studio.
