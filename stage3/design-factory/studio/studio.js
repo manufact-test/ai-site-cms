@@ -231,6 +231,10 @@ function renderPreview(){
  }catch(error){
   state.lastError=error;
   state.lastSite=null;state.lastCompiled=null;
+  // Do not display the last successful website when current inputs are invalid.
+  frame.srcdoc='<!doctype html><html lang="ru"><meta charset="utf-8"><body style="font:16px system-ui;padding:2rem;background:#fff;color:#222">Предпросмотр недоступен: исправьте данные проекта.</body></html>';
+  $('browser-url').textContent='design-preview.local / invalid';
+  renderChecklist(null);
   $('save-site').disabled=true;
   say('Ошибка данных: '+error.message,true);
  }
