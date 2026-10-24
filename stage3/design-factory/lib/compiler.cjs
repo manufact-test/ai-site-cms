@@ -12,26 +12,7 @@ const COMPONENTS = Object.freeze([
   'company-hero','feature-highlights','service-grid','media-story','faq-accordion',
   'cta-banner','contact-panel'
 ]);
-const THEMES = Object.freeze({
-  editorial: {
-    label: 'Editorial / спокойная типографика',
-    cms: {background:'#F6F2EA',surface:'#FFFFFF',text:'#202B34',primary:'#A0442A',font:'georgia',maxWidth:1120},
-    appearance: {surface:'paper',spacing:'airy',align:'left'},
-    headline: {desktop:'64px',tablet:'48px',mobile:'35px'}
-  },
-  technical: {
-    label: 'Technical / контраст и ясность',
-    cms: {background:'#EDF3F8',surface:'#FFFFFF',text:'#172A43',primary:'#164F9D',font:'arial',maxWidth:1260},
-    appearance: {surface:'tint',spacing:'normal',align:'left'},
-    headline: {desktop:'60px',tablet:'43px',mobile:'30px'}
-  },
-  minimal: {
-    label: 'Minimal / лёгкий ритм',
-    cms: {background:'#FAFAF8',surface:'#FFFFFF',text:'#222927',primary:'#245C49',font:'system',maxWidth:1020},
-    appearance: {surface:'default',spacing:'airy',align:'center'},
-    headline: {desktop:'52px',tablet:'40px',mobile:'30px'}
-  }
-});
+const THEMES = require('../catalog/themes.cjs');
 const KITS = Object.freeze({
   agency: {
     label: {ru:'Креативная студия',en:'Creative studio'},
@@ -275,6 +256,8 @@ function compile(input,providedRegistry){
     format:FORMAT,version:VERSION,kit:project.kit,theme:project.theme,
     archetype:kit.archetype,previewParity:'integration_required',
     cmsTheme:structuredClone(theme.cms),cmsAppearance:structuredClone(theme.appearance),
+    previewDesign:structuredClone(theme.design),
+    contrast:structuredClone(theme.contrast),
     integration_required:['custom-layout-css','custom-type-scale','media-workbench-assets']
   }};
 }
