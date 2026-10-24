@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-24",
-  "status": "stage2-no-go-stage3-isolated-v1.60-design-factory-parallel",
+  "status": "stage2-no-go-stage3-isolated-v1.61-parallel-design-factory",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/PARALLEL-CHECKPOINT-v1.60-2026-10-24.md",
-  "latest_source_sha": "c309434379511afe6067c37d3b2c6ef6006aaa2c",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40082020809",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40082020809",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.61-2026-10-24.md",
+  "latest_source_sha": "61fb93da2c55a6165a36282ba4086649c5f318a8",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40089689080",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40089689080",
   "source_offweb_ci": null,
-  "source_ci_result": "SUCCESS: source c309434379511afe6067c37d3b2c6ef6006aaa2c, GitHub Actions 40082020809 (SDK, Chromium, PHP, static export); standalone MediaMotion separately smoke-tested; NOT a product acceptance",
+  "source_ci_result": "SUCCESS: 61fb93da2c55a6165a36282ba4086649c5f318a8, Actions #40089689080; separate technical verification, not acceptance",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly, then fix issues from real use; never get stuck testing existing lab",
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "c309434379511afe6067c37d3b2c6ef6006aaa2c",
+    "stage3_code_sha": "61fb93da2c55a6165a36282ba4086649c5f318a8",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -52,11 +52,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Lead builds core CMS in feature/stage3-ai-site-contract; second independent chat executes complete seven-deliverable Design Factory in feature/stage3-design-factory, stage3/design-factory/** only; Media Motion integrated as standalone; Stage2 NO-GO #5-9",
+  "next_step": "Lead: finish true immutable responsive raster variants and srcset/picture in CMS PHP/static publish; parallel worker independently progresses seven-result Design Factory in stage3/design-factory/**; Stage2 NO-GO #5-9, 0/135 officially accepted",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.59",
+  "checkpoint_version": "1.61",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -1484,5 +1484,32 @@
       "visitor hashes"
     ],
     "owner_requested_documentation": true
+  },
+  "stage3_v1_61_checkpoint": {
+    "date": "2026-10-24",
+    "branch": "feature/stage3-ai-site-contract",
+    "verified_code_sha": "61fb93da2c55a6165a36282ba4086649c5f318a8",
+    "ci_url": "https://github.com/manufact-test/ai-site-cms/actions/runs/40089689080",
+    "ci_result": "SUCCESS",
+    "formal_stage3_accepted": false,
+    "mandatory_requirements_accepted": 0,
+    "stage2_formal": "NO-GO",
+    "technical_blocks": [
+      "Navigation menu and accessible mobile variants",
+      "Pricing, process, comparison and CSS-only switcher components",
+      "Authenticated Media Motion raster editor/upload linkage",
+      "Adaptive first-party Grid/Masonry/Carousel media component + renderer + static export"
+    ],
+    "technical_media_motion_completion_estimate_percent": 50,
+    "remaining": [
+      "real immutable responsive derivative versioned storage",
+      "PHP and static-release srcset/picture with hash-verified bytes",
+      "focal metadata, motion CSS, safe icon/video adapters",
+      "manual Stage2 gates #5-#9 and formal 135 criteria"
+    ],
+    "main_sha_untouched": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
+    "parallel_worker_branch": "feature/stage3-design-factory",
+    "parallel_worker_scope": "stage3/design-factory/**",
+    "hosting_modified": false
   }
 }
