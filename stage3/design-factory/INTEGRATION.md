@@ -28,7 +28,7 @@ Export destinations **must not already exist**. For the browser counterpart, ope
 
 | Feature | Output | Status | Primary source / lead action |
 |---|---|---|---|
-| Site format/schemaVersion | manufacture-ai-site-v1 / 1 | supported | `stage3/sdk/contract.cjs` validateSite |
+| Site format/schemaVersion | manufact-ai-site-v1 / 1 | supported | `stage3/sdk/contract.cjs` validateSite |
 | Stable IDs, safe paths | Closed ids and routes /, /services/, /approach/, /contact/ | supported | `stage3/sdk/contract.cjs` validateSite/inspectSite |
 | Page SEO/title/description/robots | Real current page.seo fields | supported | `stage3/sdk/contract.cjs` / `stage3/server/PublicRenderer.php` |
 | Navigation and local links | Existing page.navigation and behavior.href values | supported | `stage3/sdk/contract.cjs` |
