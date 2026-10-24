@@ -119,3 +119,17 @@ Independently re-fetched the **current feature branch** sources for the official
 **Not verified:** checked-out Node CI, Chromium UI and 1280/768/390 visual acceptance, screenshot contents, actual ZIP/archive SHA256, PHP pixel parity, server import/publish gate. Local GitHub resolution fails, and headless Chrome does not complete a minimal DOM probe. No deployment, merge, workflow edit, main/lead branch change or external API usage.
 
 **Status:** D1–D6 implemented (6/7 engineering areas), D7 **OPEN** due missing execution and human review. Formal CMS acceptance remains **Stage2 NO-GO / Stage3 unaccepted / 0 of 135**.
+
+## 24 October — lead SDK compatibility milestone and D7 status
+
+**Start SHA:** `555ede1caf8a367e0fd19dfd2bea222d9380e7bf`. Lead HEAD observed later: `a4d6aedff277752e015f52b383f080d0c3178f5a`. Always retrieve current feature HEAD before continuation.
+
+New main-branch Design Graph v1 properties were discovered **read-only**: the lead SDK now allows optional `site.designTokens` and `section.designGraph`, PHP renders them through its separate DesignGraph renderer, and the lead Studio contains a typed design-node editor. Existing 288 original Design Factory site documents passed the lead validator. All code changes here remain strictly within `stage3/design-factory/`.
+
+- `lib/lead-design-graph-adapter.cjs` built: standalone, explicitly selected D3 composition → typed host editor graph with responsive grid, editable headings/body/CTA, first-party theme tokens, hover/focus and truthful owner-review restrictions. It uses an externally injected **new** SDK, leaves the old D6 package alone and refuses unsupported SDKs.
+- `tests/lead-design-graph-smoke.cjs`: optional checkout matrix for 42×12 editable graphs and lead host render, behind `DF_LEAD_SDK_DIR`; its real filesystem run remains unexecuted.
+- `proposals/LEAD-DESIGN-GRAPH.md`: exact support/partial-fidelity table and safe handoff recipe for lead. Advanced preview art/scroll galleries/repeater cards/pixel parity stay `integration_required`.
+
+**Observed in V8 with live GitHub sources:** 288/288 old site-v1 exports accepted by lead SDK; 504/504 new graph candidates and 504/504 scoped host JS graph renders passed, including the latest concurrently updated lead Graph module. Old SDK fails closed on new keys. These are isolated source-level compatibility results, NOT checked-out Node, PHP parity, browser or production acceptance. Xvfb+Chromium probe also timed out; GitHub cannot be resolved from the local checkout container. No real ZIP artifact/hashes or release readiness can be claimed.
+
+**Engineering direction:** D1–D6 implemented and D7 compatibility/packaging checks hardened, but D7 **NOT ACCEPTED** pending real runtime + owner visual review. Official Stage2 NO-GO, Stage3 not accepted, **0/135**. No merge, no main/lead edits.
