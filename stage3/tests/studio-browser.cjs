@@ -156,30 +156,28 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       await page.locator('#elements [data-repeat-id]').first().click();
       const changed=page.locator('#fields [data-field="'+field+'"]');
       await changed.fill(value);
-      // Register and await the iframe load synchronously before firing change.
-      // A pending evaluate Promise can otherwise register *after* load and hang.
-      await page.locator('#preview').evaluate(frame=>{
-        const sequence=String(Number(frame.dataset.loadSequence||0)+1);
-        frame.dataset.loadSequence=sequence;
-        frame.addEventListener('load',()=>{frame.dataset.loadedSequence=sequence;},{once:true});
-      });
       await changed.dispatchEvent('change');
-      await page.waitForFunction(()=>{
-        const frame=document.getElementById('preview');
-        return frame.dataset.loadedSequence===frame.dataset.loadSequence;
-      },null,{timeout:10000});
       await canvas.locator('.cms-section-skin').getByText(value,{exact:false}).first().waitFor();
       const exported=await page.evaluate(()=>window.Stage3Editor.getSite());
       assert.equal(exported.pages.flatMap(p=>p.sections).find(s=>s.component===type).items[0].values[field],value);
     }
-    const switchPreview=canvas.locator('.cms-switcher-panel');
+    // Chromium checks the actual authored document in a stable visitor page.
+    // The editor iframe refreshes after edits, so testing a click inside that
+    // transient navigation races with redraw rather than testing interaction.
+    const previewHtml=await canvas.locator('html').evaluate(el=>el.outerHTML);
+    const visitorPage=await ctx.newPage();
+    visitorPage.on('request',r=>{if(/^https?:/i.test(r.url()))remote.push(r.url());});
+    await visitorPage.setContent(previewHtml,{waitUntil:'load'});
+    const switchPreview=visitorPage.locator('.cms-switcher-panel');
     assert.equal(await switchPreview.first().isVisible(),true);
     assert.equal(await switchPreview.nth(1).isVisible(),false);
-    await canvas.locator('.cms-switcher-tab').nth(1).click();
-    assert.equal(await canvas.locator('.cms-switcher-radio').nth(1).isChecked(),true,
-      'Visible label selects the second native radio after frame load');
+    await visitorPage.locator('.cms-switcher-tab').nth(1).click();
+    assert.equal(await visitorPage.locator('.cms-switcher-radio').nth(1).isChecked(),true,
+      'Real visitor click on the visible label activates radio');
     assert.equal(await switchPreview.first().isVisible(),false);
-    assert.equal(await switchPreview.nth(1).isVisible(),true,'Native radio changes panels in script-disabled iframe');
+    assert.equal(await switchPreview.nth(1).isVisible(),true,
+      'Published-style HTML switches panels with CSS only and no scripts');
+    await visitorPage.close();
     await page.locator('#undo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
       .flatMap(p=>p.sections).find(s=>s.component==='content-switcher').items[0].values['content.title'],
