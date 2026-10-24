@@ -207,11 +207,11 @@ function editTree(graph,operation){
     next.nodes.forEach(node=>visit(node,next.nodes,0));
     return found;
   };
-  const before=scan(),source=before.get(operation.nodeId);
-  if(!source)fail('edit','missing selected node');
+  const before=scan(),source=operation.action==='insert'?null:before.get(operation.nodeId);
+  if(operation.action!=='insert'&&!source)fail('edit','missing selected node');
   const descendants=[];
   const walk=(node)=>{descendants.push(node);if(node.type==='container')node.children.forEach(walk);};
-  walk(source.node);
+  if(source)walk(source.node);
   if(operation.action==='duplicate'){
     if(!Array.isArray(operation.ids)||operation.ids.length!==descendants.length||
        operation.ids.some(id=>typeof id!=='string'||!IDENT.test(id)||before.has(id))||
