@@ -141,3 +141,13 @@ Since commit 4fad42505bf551da1d1a42018da73f45d709b977, the optional lead adapter
 Verified in isolated V8 against current GitHub lead source: 288/288 original CMS sites and 504/504 new editable graph candidates and JS renders; all 504 graph variants distinct. Editing site JSON after generation visibly changed the rendered result. These are source-level checks, not full checkout, PHP or browser acceptance.
 
 GitHub checkout remains blocked by local DNS, and headless Chromium still times out even on a minimal data URL. No real ZIP, SHA256, Node-suite PASS, PHP parity PASS or human visual approval. D7 OPEN. Formal Stage2 NO-GO, Stage3 unaccepted, 0/135.
+
+## 24 October — semantic repeater completeness and explicit host reconciliation
+
+**Start HEAD:** `4eb6f682be5507774aa740ee4b5d107a4ddb9983`. All writes are under `stage3/design-factory/` on independent feature branch, no main/lead/SDK/PHP/workflows/deploy changes.
+
+Major code changes in `lib/lead-design-graph-adapter.cjs`: carry ALL first-party semantic repeater items into typed CMS graph for services (up to 12), FAQ and benefits rather than truncating to one card; empty galleries display explicit rights/upload prompt, never mock images. On optional host candidate only, replace placeholder services and hero copy with actual sanitized owner-provided facts. Return provenance `contentBindings` for each relevant graph heading, body, link or repeater item; original D6 validation/export remains immutable.
+
+New opt-in `reconcileSemantic(candidate, editedSite, hostSdk, registry)`: on host-authorized explicit action only, copy latest registered fields to mapped graph text/links, preserving all independent graph styles; reject forged/missing mappings, graph type mismatches or link errors. No hidden auto-sync and no false claims that Graph and semantic fields are live-bound.
+
+The expanded optional test checks 504 graph candidates, all 12 owner service cards and their bindings, verified hero content, FAQ item completeness, no fake gallery media, HTML escaping, post-generation field editing without losing graph styles and rejection of forged binding metadata. The isolated V8 run using actual GitHub source **PASS**: 504 current lead SDK validators/renders and expanded regressions, with PHP clearly SKIP. Actual checked-out Node, PHP, Chromium, human visual QA, final ZIP SHA256 remain unexecuted/blocked by environment. D7 OPEN; Stage2 NO-GO / Stage3 unaccepted / 0/135.
