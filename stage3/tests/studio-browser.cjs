@@ -12,7 +12,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
   try{
     const ctx=await browser.newContext({acceptDownloads:true,viewport:{width:1450,height:1000}});
     const page=await ctx.newPage(),errors=[],remote=[];
-    page.on('pageerror',e=>errors.push(e.message));
+    page.on('pageerror',e=>{errors.push(e.message);console.error('STAGE3 STARTUP ERROR:',e.stack||e.message);});
     page.on('request',r=>{if(/^https?:/i.test(r.url()))remote.push(r.url());});
     await page.goto(pathToFileURL(html).href);
     await page.locator('#site-name').getByText('Завод оборудования').waitFor();
