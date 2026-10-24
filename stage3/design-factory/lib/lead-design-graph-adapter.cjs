@@ -93,8 +93,8 @@ function graphFor(section,composition,theme,language){
    children:[{
     id:prefix+'-copy',type:'container',
     styles:copyStyles,
-    responsive:wide?{tablet:{gridColumnSpan:mainCols===3?2:1},
-     mobile:{gridColumnSpan:1}}:undefined,
+    ...(wide?{responsive:{tablet:{gridColumnSpan:mainCols===3?2:1},
+     mobile:{gridColumnSpan:1}}}:{}),
     children:[
      {id:prefix+'-heading',type:'heading',level:2,text:heading,
       styles:{fontSize:'@heading',fontWeight:700,color:'@foreground',lineHeight:110,
