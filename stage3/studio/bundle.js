@@ -206,11 +206,24 @@ function validateSite(raw,regInput){
   if(!Array.isArray(raw.assets)||raw.assets.length>300)fail('Invalid assets');
   const assetIds=new Set();
   for(const asset of raw.assets){
-    objectKeys(asset,['id','src','alt','mime'],'asset');id(asset.id,'asset.id');
+    objectKeys(asset,['id','src','alt','mime','variants'],'asset');id(asset.id,'asset.id');
     if(assetIds.has(asset.id)||!['image/png','image/webp','image/jpeg','image/svg+xml'].includes(asset.mime)||
       typeof asset.src!=='string'||!/^\/assets\/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg)$/.test(asset.src)||
       typeof asset.alt!=='string'||asset.alt.length>200||/[\x00-\x1f]/.test(asset.alt))fail('Invalid asset',asset.id);
     assetIds.add(asset.id);
+    if(asset.variants!==undefined){
+      if(!Array.isArray(asset.variants)||asset.variants.length>3)fail('Invalid responsive variants',asset.id);
+      const widths=new Set(),ext={'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[asset.mime];
+      if(!ext)fail('Responsive SVG unsupported',asset.id);
+      for(const v of asset.variants){
+        objectKeys(v,['id','src','sha256','width','height'],'variant');id(v.id,'variant id');
+        if(assetIds.has(v.id)||!([360,720,1200].includes(v.width))||widths.has(v.width)||
+          !Number.isInteger(v.height)||v.height<1||v.height>4096||
+          typeof v.sha256!=='string'||!(/^[a-f0-9]{64}$/.test(v.sha256))||
+          v.src!=='/assets/'+v.id+'.'+ext)fail('Invalid responsive variant',asset.id);
+        widths.add(v.width);assetIds.add(v.id);
+      }
+    }
   }
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
   const ids=new Set([raw.siteId,...assetIds]),paths=new Set();
