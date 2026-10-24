@@ -32,6 +32,103 @@ function columnsFor(layout){
  if(['parallel','offset','columns','sidebar','split','table'].includes(layout))return 2;
  return 1;
 }
+// Extract first-party semantic content. Never create fake clients, reviews,
+// prices or media to fill a visual pattern. Bindings are adapter metadata for
+// the lead integrator; Design Graph itself is an editable content snapshot.
+function contentFor(section,comp,language,prefix,cardStyles,font){
+ const en=language==='en',nodes=[],bindings=[];
+ const t=(ru,english)=>en?english:ru;
+ const make=(id,type,value,origin,style={})=>{
+  const node={id,type,...(type==='heading'?{level:3}:{}),text:value,styles:style};
+  if(origin)bindings.push({nodeId:id,source:origin});
+  return node;
+ };
+ const card=(i,parts)=>{
+  const id=prefix+'-card-'+(i+1);
+  return {id,type:'container',styles:{...cardStyles,gridColumnSpan:1},
+   responsive:{mobile:{gridColumnSpan:1}},
+   children:parts};
+ };
+ const cards=[];
+ if(section.component==='service-grid' || section.component==='faq-accordion'){
+  const service=section.component==='service-grid';
+  for(const [i,item] of (section.items||[]).slice(0,12).entries()){
+   const titleField=service?'content.title':'content.question';
+   const bodyField=service?'content.text':'content.answer';
+   const heading=(item.values[titleField]||'').trim()||
+    t('Уточните название','Confirm the title');
+   const body=(item.values[bodyField]||'').trim()||
+    t('Нужны подтверждённые сведения владельца.','Owner verification required.');
+   const id=prefix+'-card-'+(i+1);
+   const parts=[
+    make(id+'-title','heading',heading,{itemId:item.id,field:titleField},
+      {fontSize:24,fontWeight:600,fontFamily:font,color:'@foreground',lineHeight:125}),
+    make(id+'-text','text',body,{itemId:item.id,field:bodyField},
+      {fontSize:'@body',lineHeight:150,color:'@foreground'})
+   ];
+   if(service){
+    const href=item.values['behavior.href'];
+    if(typeof href==='string'&&href.startsWith('/')){
+     const action=make(id+'-action','button',t('Подробнее','Learn more'),
+       null,{fontSize:'@body',fontWeight:600,color:'@accent',minHeight:48});
+     action.href=href;
+     bindings.push({nodeId:action.id,source:{itemId:item.id,field:'behavior.href'},property:'href'});
+     parts.push(action);
+    }
+   }
+   cards.push(card(i,parts));
+  }
+ }else if(section.component==='feature-highlights'){
+  for(const [i,slot] of ['first','second'].entries()){
+   const element=section.elements.find(x=>x.slot===slot);
+   const body=(element?.values?.['content.text']||'').trim()||
+     t('Подтвердите данные','Verify content');
+   const id=prefix+'-card-'+(i+1);
+   cards.push(card(i,[
+    make(id+'-title','heading',t('Пункт для проверки','Item to verify'),null,
+      {fontSize:22,fontWeight:600,color:'@foreground'}),
+    make(id+'-text','text',body,{slot,field:'content.text'},
+      {fontSize:'@body',color:'@foreground',lineHeight:145})
+   ]));
+  }
+ }else if(section.component==='photo-gallery'){
+  // No photo assets exist in the generated D3 semantic fallback. Do not
+  // silently pretend empty media slots are real photography.
+  const id=prefix+'-card-1';
+  cards.push(card(0,[
+   make(id+'-title','heading',t('Фотографии ещё не загружены','Images not uploaded'),null,
+    {fontSize:24,fontWeight:600,color:'@foreground'}),
+   make(id+'-text','text',
+    t('Добавьте изображения с правами использования, подписи и alt.',
+      'Upload licensed images with captions and alt text.'),null,
+    {fontSize:'@body',color:'@foreground'})
+  ]));
+ }else{
+  const item=section.items?.[0];
+  const val=(item?.values?.['content.text']||'').trim();
+  const summary=section.elements.find(e=>['summary','copy'].includes(e.slot));
+  const text=(summary?.values?.['content.text']||val||'').trim()||
+   t('Добавьте подтверждённое описание.','Add verified details.');
+  const source=summary?{slot:summary.slot,field:'content.text'}:
+   item?{itemId:item.id,field:'content.text'}:null;
+  const id=prefix+'-card-1';
+  cards.push(card(0,[
+   make(id+'-title','heading',t('Информация для проверки','Details to verify'),null,
+    {fontSize:24,fontWeight:600,color:'@foreground',fontFamily:font}),
+   make(id+'-text','text',text,source,
+    {fontSize:'@body',color:'@foreground',lineHeight:150})
+  ]));
+ }
+ // Bound the returned content region: max 12 cards x 3 children stays below
+ // the lead host's 90-node / 8-depth typed graph limits.
+ nodes.push({id:prefix+'-cards',type:'container',
+  styles:{display:'grid',columns:Math.min(2,Math.max(1,cards.length)),
+   gap:'@medium',gridColumnSpan:comp.layout==='mosaic'?2:1},
+  responsive:{tablet:{columns:1,gridColumnSpan:1},
+   mobile:{columns:1,gridColumnSpan:1}},
+  children:cards});
+ return {nodes,bindings};
+}
 function graphFor(section,composition,theme,language){
  if(!section||typeof section.id!=='string'||section.id.length>48)
   fail('Missing or oversized selected semantic section');
@@ -82,6 +179,7 @@ function graphFor(section,composition,theme,language){
   ...(centered?{textAlign:'center'}:{}),
   ...(wide&&layout==='bento'?{gridColumnSpan:2}:{})
  };
+ const semantic=contentFor(section,composition,language,prefix,detailStyles,font);
  const iconMap={frame:'arrow',orb:'sparkles',arch:'arrow',tiles:'check',
   rule:'menu',dots:'sparkles',line:'arrow',portrait:'sparkles',quotes:'menu'};
  const graph={
@@ -112,15 +210,14 @@ function graphFor(section,composition,theme,language){
     ]
    },{
     id:prefix+'-detail',type:'container',
-    styles:detailStyles,
+    styles:{display:'flex',direction:'column',gap:'@small',
+     ...(reverse?{order:-1}:{}),
+     ...(wide&&layout==='mosaic'?{gridColumnSpan:2}:{})},
     responsive:{mobile:{gridColumnSpan:1,order:0}},
     children:[
      {id:prefix+'-decoration',type:'icon',icon:iconMap[art]||'arrow',
       styles:{fontSize:32,color:'@accent'}},
-     {id:prefix+'-detail-heading',type:'heading',level:3,text:cardTitle,
-      styles:{fontSize:24,fontWeight:600,color:'@foreground',lineHeight:115,fontFamily:font}},
-     {id:prefix+'-detail-copy',type:'text',text:detail,
-      styles:{fontSize:'@body',color:'@foreground'}}
+     ...semantic.nodes
     ]
    }]
   }]
@@ -141,6 +238,9 @@ function buildHostCandidate(exportBundle,hostSdk,hostRegistry){
  if(!section)fail('No selected registered semantic section');
  site.designTokens=tokens(theme,c);
  section.designGraph=graphFor(section,c,theme,workspace.project.language);
+ const contentBindings=contentFor(section,c,workspace.project.language,
+  section.id+'-dg',{},theme.cms.font==='georgia'?'georgia':
+    theme.cms.font==='arial'?'arial':'system').bindings;
  // Fail closed against older SDKs. No extra keys may enter the original D6 export.
  const checked=hostSdk.validateSite(site,hostRegistry);
  const inspection=hostSdk.inspectSite(checked,hostRegistry);
@@ -151,13 +251,14 @@ function buildHostCandidate(exportBundle,hostSdk,hostRegistry){
   format:FORMAT,version:1,
   site:checked,ownerChecklist:original.ownerChecklist,
   mapping:{composition:c.id,theme:workspace.project.theme,
+   contentBindings,semanticContentMode:'snapshot-requires-host-reconciliation',
    editable:['graph nodes','headings','text','button','design tokens',
     'grid/flex compositions','pattern-specific spacing and card treatments',
     'font family and tracking','gradients','decorative icons','motion with reduced-motion',
     'desktop layout','tablet/mobile overrides','hover/focus states'],
    fidelity:'partial',approvedForPublish:false,
    integration_required:['complex D3 art','rich galleries and native scroll snap',
-    'data-driven repeater mapping','owner factual verification',
+    'automatic graph/repeater synchronization','owner factual verification',
     'main CMS authorization and save/revision workflow']},
   expectedSdk:'Lead Design Graph v1; not supported by the older feature branch SDK'
  };
