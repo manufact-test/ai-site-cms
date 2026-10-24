@@ -62,8 +62,9 @@ function canonical(value){
  }
  if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';
  if(value&&typeof value==='object'){
-  const proto=Object.getPrototypeOf(value);
-  if(proto!==Object.prototype&&proto!==null)throw Error('D6: invalid JSON object');
+  // Accept plain JSON objects from another JS realm (Node vm/iframe), too.
+  if(Object.prototype.toString.call(value)!=='[object Object]')
+   throw Error('D6: invalid JSON object');
   return '{'+Object.keys(value).sort().map(key=>{
    if(key==='__proto__'||key==='constructor'||key==='prototype')
     throw Error('D6: forbidden JSON member');
