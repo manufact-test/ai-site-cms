@@ -4,6 +4,9 @@ const fs=require('node:fs'), path=require('node:path');
 const {compile,migrate,KITS,THEMES,serialize,jsonParse,loadRegistry}=require('../lib/compiler.cjs');
 const {writePreview}=require('../lib/preview.cjs');
 const sdk=require('../../sdk/contract.cjs');
+const catalog=require('../catalog/compositions.cjs');
+const adapter=require('../lib/composition-adapter.cjs');
+const showcase=require('../lib/showcase.cjs');
 function help(){
   process.stdout.write([
     'Design Factory D1 (offline, Node.js >= 20, no dependencies)',
@@ -12,6 +15,9 @@ function help(){
     '  inspect SITE.json',
     '  export PROJECT.json NEW-output-directory',
     '  kits',
+    '  compositions [CATEGORY]',
+    '  showcase NEW-output-directory',
+    '  compose COMPOSITION_ID --out SITE.json [--brief PROJECT.json] [--report BRIDGE.json]',
     '  help',
     'Input design project format: manufact-design-factory-v1, version 1. Output site: manufact-ai-site-v1.',
     'Static export contains DESIGN PREVIEW HTML, not published CMS runtime.',
@@ -44,6 +50,34 @@ function run(argv){
     if(rest.length)throw Error('kits takes no arguments');
     process.stdout.write(serialize({kits:Object.keys(KITS).map(id=>({id,label:KITS[id].label,archetype:KITS[id].archetype})),
       themes:Object.keys(THEMES).map(id=>({id,label:THEMES[id].label}))}));return;
+  }
+  if(command==='compositions'){
+    if(rest.length>1)throw Error('compositions takes optional category');
+    const items=catalog.list(rest[0]);
+    process.stdout.write(serialize({format:catalog.FORMAT,count:items.length,items}));
+    return;
+  }
+  if(command==='showcase'){
+    if(rest.length!==1)throw Error('showcase requires NEW output directory');
+    process.stdout.write(serialize(showcase.writeShowcase(rest[0])));
+    return;
+  }
+  if(command==='compose'){
+    if(rest.length<3)throw Error('compose requires composition ID and --out file');
+    const [id,...argumentsAfter]=rest;
+    const flagsMap=flags(argumentsAfter,['--brief','--out','--report']);
+    if(!flagsMap['--out'])throw Error('compose requires --out file');
+    const base=compile(flagsMap['--brief']?readJSON(flagsMap['--brief']):null);
+    const reg=loadRegistry();
+    base.site.pages[0].sections[base.site.pages[0].sections.length-1]=
+      adapter.sectionFor(id,'df-'+id,base.project.language,reg);
+    sdk.validateSite(base.site,reg);
+    const info=sdk.inspectSite(base.site,reg);
+    if(info.errors.length)throw Error('Invalid composition: '+JSON.stringify(info.errors));
+    newFile(flagsMap['--out'],serialize(base.site));
+    if(flagsMap['--report'])newFile(flagsMap['--report'],serialize(adapter.compare(id)));
+    process.stderr.write('Composition '+id+' exported as CMS supported fallback; enhanced layout may require integration.\n');
+    return;
   }
   if(command==='create'){
     const f=flags(rest,['--brief','--kit','--theme','--lang','--out','--project-out']);
