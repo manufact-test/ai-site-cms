@@ -82,7 +82,7 @@ function release(args){
    format:report.format,fileCount:report.fileCount,
    suites:results.map(({suite,passed,exitCode,error})=>({suite,passed,exitCode,error})),
    nodePassed,browserPassed,automatedChecksPassed:report.automatedChecksPassed,
-   humanVisualAcceptance:report.humanVisualAcceptance,releaseReady
+   humanVisualAcceptance:report.humanVisualAcceptance,releaseReady:report.releaseReady
  },null,2)+'\n');
  // Automated checks never substitute for human visual approval of three viewport sizes.
  process.exitCode=report.automatedChecksPassed?0:nodePassed&&!f.chromium?3:2;
