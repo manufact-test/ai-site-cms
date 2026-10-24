@@ -269,7 +269,9 @@ final class PublicRenderer
         foreach ($page['sections'] as $section) {
             $beforeSkin = strlen($body);
             $id = self::h($section['id']);
-            if ($section['component'] === 'company-hero') {
+            if (isset($section['designGraph'])) {
+                $body .= DesignGraph::render($site,$section['designGraph'],$mount);
+            } elseif ($section['component'] === 'company-hero') {
                 $values = self::element($section, 'heading');
                 $color = (string)$values['style.color'];
                 $sizes = $values['style.fontSize'];

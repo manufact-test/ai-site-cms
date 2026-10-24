@@ -159,7 +159,8 @@ final class ContractValidator
 
     public function validate(mixed $site): array
     {
-        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu']);
+        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu', 'designTokens']);
+        DesignGraph::tokens($site['designTokens']??null);
         if (array_key_exists('menu',$site)) self::menu($site['menu']);
         if (array_key_exists('theme',$site)) self::theme($site['theme']);
         self::must(($site['format'] ?? null) === 'manufact-ai-site-v1'
@@ -213,7 +214,7 @@ final class ContractValidator
             self::must(is_array($page['sections']) && array_is_list($page['sections'])
                 && count($page['sections']) >= 1 && count($page['sections']) <= 100, 'Invalid sections');
             foreach ($page['sections'] as $section) {
-                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance', 'formFields']);
+                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance', 'formFields', 'designGraph']);
                 if (array_key_exists('appearance',$section)) {
                     self::keys($section['appearance'],['surface','spacing','align','width','heading','corners','mobileAlign','mobileSpacing','button']);
                     self::must(in_array($section['appearance']['surface']??null,['default','paper','tint','dark'],true)
@@ -277,6 +278,8 @@ final class ContractValidator
                     }
                 } else self::must(!array_key_exists('items',$section),'Undeclared repeater');
                 FlexForm::definitions($section); // optional new fields, select dependencies and cross-field constraints
+                if (array_key_exists('designGraph',$section))
+                    DesignGraph::validate($section['designGraph'],$assets,$ids,$site['designTokens']??null);
             }
         }
         $pageIds=[];

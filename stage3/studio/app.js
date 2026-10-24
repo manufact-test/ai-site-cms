@@ -899,6 +899,9 @@
         '<span class="action">'+e(p('action').content.text||'')+' ↗</span>'+
         '<small>Кнопка демонстрационная: данные не отправляются.</small></section>';
     }else content='<section><h2>Незарегистрированный шаблон</h2></section>';
+    // Typed composition overrides only rendering: original component fields survive.
+    if(block.designGraph)content=DESIGN_GRAPH.render(session.current,block.designGraph,'',
+      assetId=>HOSTED?window.Stage3Host?.previewUrl?.(assetId):null);
     const appearance=block.appearance||C.DEFAULT_APPEARANCE;
     const skin='cms-surface-'+appearance.surface+' cms-spacing-'+appearance.spacing+' cms-align-'+appearance.align+
       (appearance.width?' cms-width-'+appearance.width:'')+

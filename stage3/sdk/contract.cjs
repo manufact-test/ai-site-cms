@@ -1,6 +1,7 @@
 'use strict';
 // Stage 3 isolated, offline contract SDK. No provider, network, host, CMS write,
 // unsafe HTML execution, or hidden publication. Reference implementation v1.
+const DESIGN_GRAPH=require('./design-graph.cjs');
 const FORMAT='manufact-ai-site-v1',MANIFEST='manufact-ai-component-v1';
 const BREAKPOINTS=['desktop','tablet','mobile'];
 const TYPES=new Set(['text','number','boolean','color','length','enum','url','media']);
@@ -195,7 +196,8 @@ function validateFormFields(section){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens'],'site');
+  DESIGN_GRAPH.validateTokens(raw.designTokens);
   if(own(raw,'menu'))validMenu(raw.menu);
   if(own(raw,'theme'))validTheme(raw.theme);
   if(raw.format!==FORMAT||raw.schemaVersion!==1)fail('Unsupported site format');
@@ -234,7 +236,7 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','designGraph'],'section');
       if(own(section,'appearance'))validAppearance(section.appearance);
       id(section.id,'section.id');if(ids.has(section.id))fail('Duplicate stable ID',section.id);ids.add(section.id);
       const manifest=select(reg,section.component,section.manifestVersion);
@@ -270,6 +272,7 @@ function validateSite(raw,regInput){
         }
       }else if(own(section,'items'))fail('Unregistered repeat items',section.id);
       validateFormFields(section);
+      if(own(section,'designGraph'))DESIGN_GRAPH.validateGraph(section.designGraph,assetIds,ids,raw.designTokens);
     }
   }
   validMenuRelations(raw);
