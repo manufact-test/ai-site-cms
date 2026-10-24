@@ -304,4 +304,58 @@ function buildHostCandidate(exportBundle,hostSdk,hostRegistry){
   expectedSdk:'Lead Design Graph v1; not supported by the older feature branch SDK'
  };
 }
-module.exports=Object.freeze({FORMAT,tokens,graphFor,buildHostCandidate});
+// Explicit one-way synchronization after the owner edits registered semantic
+// component values in the host CMS. Never called by D6 or automatic preview,
+// and NEVER overwrites CMS-authored graph styles or unrelated graph nodes.
+// Graph-only edits remain separate until an authorized owner requests sync.
+function reconcileSemantic(candidate,editedSite,hostSdk,hostRegistry){
+ if(!candidate||candidate.format!==FORMAT||candidate.version!==1||
+    !candidate.mapping||candidate.mapping.semanticContentMode!=='snapshot-requires-host-reconciliation')
+  fail('Expected versioned host graph candidate');
+ if(!hostSdk||typeof hostSdk.validateSite!=='function'||
+    typeof hostSdk.inspectSite!=='function'||!hostRegistry)
+  fail('Explicit current host SDK and registry required');
+ const bindings=candidate.mapping.contentBindings;
+ if(!Array.isArray(bindings)||bindings.length>80)fail('Invalid provenance bindings');
+ const site=JSON.parse(JSON.stringify(hostSdk.validateSite(editedSite,hostRegistry)));
+ const section=site.pages[0].sections.find(s=>s.id==='df-selected-composition');
+ if(!section||!section.designGraph||!section.designGraph.nodes.length)
+  fail('Selected editable graph section missing');
+ const nodes=new Map();
+ const walk=n=>{
+  if(nodes.has(n.id))fail('Duplicate graph node');
+  nodes.set(n.id,n);
+  for(const child of n.children||[])walk(child);
+ };
+ for(const root of section.designGraph.nodes)walk(root);
+ const updated=new Set();
+ for(const binding of bindings){
+  if(!binding||typeof binding.nodeId!=='string'||
+    !binding.nodeId.startsWith(section.id+'-dg-')||
+    !binding.source||typeof binding.source!=='object'||
+    !['text','href'].includes(binding.property||'text'))
+   fail('Invalid source binding');
+  const source=binding.source;
+  if(Object.keys(source).some(k=>!['slot','itemId','field'].includes(k))||
+    typeof source.field!=='string'||source.field.length>100||
+    (Object.hasOwn(source,'slot')===Object.hasOwn(source,'itemId')))
+   fail('Invalid binding source');
+  const values=Object.hasOwn(source,'slot')?
+   section.elements.find(e=>e.slot===source.slot)?.values:
+   section.items?.find(i=>i.id===source.itemId)?.values;
+  if(!values||!Object.hasOwn(values,source.field)||
+    typeof values[source.field]!=='string')fail('Source was removed: '+binding.nodeId);
+  const node=nodes.get(binding.nodeId),property=binding.property||'text';
+  if(!node|| (property==='href'&&node.type!=='button')||
+    (property==='text'&&!['heading','text','button'].includes(node.type)))
+   fail('Bound target was removed or changed: '+binding.nodeId);
+  if(updated.has(node.id+':'+property))fail('Duplicate source binding');
+  node[property]=values[source.field];updated.add(node.id+':'+property);
+ }
+ const checked=hostSdk.validateSite(site,hostRegistry);
+ if(hostSdk.inspectSite(checked,hostRegistry).errors.length)
+  fail('Synced graph has invalid internal links');
+ return {...candidate,site:checked,mapping:{
+  ...candidate.mapping,semanticContentMode:'snapshot-requires-host-reconciliation'}};
+}
+module.exports=Object.freeze({FORMAT,tokens,graphFor,buildHostCandidate,reconcileSemantic});
