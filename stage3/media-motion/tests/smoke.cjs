@@ -1,0 +1,33 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {createHash}=require('node:crypto');
+const {readFileSync}=require('node:fs');
+const {join}=require('node:path');
+const C=require('../lib/contract.cjs');
+const FallbackSHA=require('../lib/sha256.cjs');
+const copy=x=>structuredClone(x);
+function rejects(make,label){assert.throws(()=>C.validateBundle(make()),undefined,label);}
+let b=C.makeBundle();
+assert.equal(C.validateBundle(b),b);assert.equal(C.srcset({variants:[{file:'media/a-720.webp',width:720},{file:'media/a-360.webp',width:360}]}),'media/a-360.webp 360w, media/a-720.webp 720w');
+assert.match(b.css,/prefers-reduced-motion: reduce/);
+const asset={id:'asset-0001',name:'Synthetic image',alt:'Abstract',caption:'Sample',focal:{x:50,y:20},original:{mime:'image/png',width:1000,height:600,bytes:5200,sha256:'a'.repeat(64)},variants:[{file:'media/asset-0001-720.webp',mime:'image/webp',width:720,height:432,bytes:3100,sha256:'b'.repeat(64)}]};
+b.assets.push(asset);b.galleries[0].assetIds.push(asset.id);b.video.posterAssetId=asset.id;
+C.validateBundle(b);
+rejects(()=>({...b,extra:'evil'}),'closed schema');
+rejects(()=>({...b,assets:[{...asset,id:'../etc'}]}),'unsafe IDs');
+rejects(()=>({...b,assets:[{...asset,variants:[{...asset.variants[0],file:'../escape.webp'}]}]}),'traversal');
+rejects(()=>({...b,assets:[{...asset,variants:[{...asset.variants[0],bytes:C.MAX_OUTPUT+1}]}]}),'oversized image');
+rejects(()=>({...b,assets:[{...asset,original:{...asset.original,mime:'image/svg+xml'}}]}),'SVG denied');
+rejects(()=>({...b,assets:[{...asset,variants:[{...asset.variants[0],sha256:'x'.repeat(64)}]}]}),'bad hash');
+rejects(()=>({...b,galleries:[{...b.galleries[0],assetIds:['missing'] }]}),'unknown reference');
+rejects(()=>({...b,motions:[{...b.motions[0],distance:200}]}),'motion bounds');
+rejects(()=>({...b,motions:[{...b.motions[0],preset:'infinite-spin'}]}),'disallowed effects');
+rejects(()=>({...b,css:'@import url(https://evil.invalid)'}),'CSS injection');
+rejects(()=>({...b,icons:['<svg onload=evil()>']}),'untrusted icon');
+rejects(()=>({...b,video:{...b.video,provider:'youtube',url:'https://youtu.be/ABCDEFGHIJK'}}),'non-allowlisted video');
+assert.equal(C.normalizeVideo('youtube','https://www.youtube-nocookie.com/embed/ABCDEFGHIJK'),'https://www.youtube-nocookie.com/embed/ABCDEFGHIJK');
+assert.equal(C.normalizeVideo('vimeo','https://player.vimeo.com/video/12345'),'https://player.vimeo.com/video/12345');
+for(const len of [0,1,64,513,65536]){const bytes=Buffer.alloc(len);for(let i=0;i<len;i++)bytes[i]=(i*31+7)&255;assert.equal(FallbackSHA.digest(bytes),createHash('sha256').update(bytes).digest('hex'));}
+const actual=createHash('sha256').update(Buffer.from('contract-smoke')).digest('hex');assert.match(actual,/^[a-f0-9]{64}$/);
+for(const file of ['../workbench/index.html','../workbench/app.js','../workbench/engine.js','../workbench/styles.css'])assert.ok(readFileSync(join(__dirname,file)).byteLength>300);
+console.log('media-motion contract smoke: PASS (closed schema, integrity metadata, links, bounds, CSS, file presence)');
