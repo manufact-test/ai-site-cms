@@ -13,7 +13,7 @@ function tokens(theme,composition){
  const radius=theme.design.card==='floating'?[20,32]:theme.design.card==='bordered'?[6,12]:[4,16];
  return {
   colors:{foreground:theme.cms.text,background:theme.cms.background,
-   surface:theme.cms.surface,accent:theme.cms.primary,ctaText:'#FFFFFF'},
+   surface:theme.cms.surface,accent:theme.cms.primary,'cta-text':'#FFFFFF'},
   spacing:{small:spacing[0],medium:spacing[1],large:spacing[2]},
   radii:{soft:radius[0],round:radius[1]},
   typography:{body:16,heading:Number.parseInt(theme.headline.desktop,10)}
@@ -71,7 +71,7 @@ function graphFor(section,composition,theme,language){
      {id:prefix+'-text',type:'text',text:description,
       styles:{fontSize:'@body',color:'@foreground',lineHeight:150}},
      {id:prefix+'-action',type:'button',text:actionText,href,
-      styles:{display:'block',background:'@accent',color:'@ctaText',padding:'@small',
+      styles:{display:'block',background:'@accent',color:'@cta-text',padding:'@small',
        radius:'@soft',fontWeight:700, maxWidth:240},
       states:{hover:{opacity:85},focus:{borderWidth:2,borderColor:'@foreground'}}}
     ]
