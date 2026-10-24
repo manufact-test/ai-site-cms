@@ -317,7 +317,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await copy.fill('Новый профессиональный дизайн без ИИ');
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
     await page.locator('#cms-design-breakpoint').selectOption('mobile');
-    await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'gap'}).locator('input').fill('@small');
+    await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:/^gap$/}).locator('input').fill('@small');
     await page.locator('#cms-design-apply').click();
     await page.locator('#cms-design-graph-dialog').waitFor({state:'hidden'});
     const graphSite=await page.evaluate(()=>window.Stage3Editor.getSite());
