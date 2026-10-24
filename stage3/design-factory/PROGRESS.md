@@ -83,3 +83,22 @@ Read the current branch HEAD after documentation commits; these values are not p
 Independently re-fetched the **current feature branch** sources for the official read-only `stage3/sdk/contract.cjs`, eight registered CMS component manifests, Design Factory compiler, themes, kits, compositions, adapter and D6 bridge. Executed them in a sandboxed, in-memory V8 module harness, with a read-only manifest filesystem substitute (not a Node checkout). Results: **288/288** industry × theme × RU/EN documents accepted by the real Stage3 `validateSite()`, four pages each, no `inspectSite()` link errors or incorrect `readyForPublish=true` with empty owner facts; **42/42** composition fallback mappings accepted by the real SDK; **12/12** representative EN kit+D3 D6 export/import cases passed; a mutated bundle was rejected. No production access.
 
 **Scope of evidence:** verified source-level contract behavior; **NOT** `node tests/*.cjs` on actual filesystem, Chromium E2E, screenshot review, CI, or ZIP. These outstanding D7 gates remain mandatory.
+
+## D7 next large engineering block — 24 October 2026
+
+**Starting HEAD for this block:** `4015fd1fbbb31cbc3b74e0141e2c9edb68183807`. **Code checkpoint before this progress/handoff documentation:** `8525cc9fc56f759b8a983ec5ae7efc68ca2d0245`. Retrieve actual HEAD after this commit.
+
+**Built and committed in `stage3/design-factory/` only:**
+
+1. `lib/compiler.cjs`: eliminate false data-completeness from two Studio-created or example service placeholder rows. Reject blank/obvious generic service descriptions; `readyForPublish` still requires human owner review even when all fields are present. Added regression cases to `tests/smoke.cjs` and browser-runtime assertions to `tests/studio-smoke.cjs`.
+2. `studio/studio.css`, `lib/preview.cjs`: 44px targets on actual Studio buttons/device selectors/page tabs and on site preview navigation, inline links and FAQ summary. Preserves original theme CSS and reduced-motion.
+3. `studio/runtime.generated.js`: deterministically regenerated using the **unchanged exact first-party bundler** and current allowed SDK/manifests. Builder `--check` executed in a read-only mocked-filesystem V8 runner and matched exact current runtime bytes.
+4. `tests/studio-smoke.cjs`: expanded real-Chromium test specification to click and inspect four browser downloads, checking real `site-v1` structure/SDK validation, versioned D6 bridge validation, source project title and workspace composition. Browser script syntax checked; the test was NOT executed in Chrome here.
+5. `tests/package-smoke.cjs`: validate all ZIP central-directory file counts, names, offsets and CRC/size mirror of local headers, in addition to existing deterministic package and no-overwrite protections.
+6. `README.md`: removed stale early-D1/D5 descriptions and included current, factual release constraints.
+
+**Verified in isolated in-memory V8 using the latest GitHub branch sources:** 288/288 real SDK `validateSite` + internal route inspections, 288/288 first-party D6 export/validate/import round-trips, 42/42 registered composition fallbacks, unverified service examples remain missing, confirmed two-service draft can satisfy completeness but `requiresOwnerReview=true`, edited D6 export rejected, browser runtime rebuild parity PASS. Static parsing of the enhanced Chromium inline probe passed. This is not Node checkout execution.
+
+**Blocked evidence:** `git ls-remote` cannot resolve github.com in the local checkout environment; Chromium `--dump-dom` on a minimal data URL timed out at 8 and 9 seconds in separate runs (also with `--no-zygote --single-process`). The GitHub Actions workflow-run list on this feature branch was empty. No Chromium E2E/screenshot approval, no six Node-suite checkout execution, and no actual ZIP or verified ZIP SHA256. D7 remains **OPEN / NOT ACCEPTED**. The documented commands in `QUALITY-GATES.md` are required on a checkout with working Chromium.
+
+**Status:** D1–D6 implementation complete (6 of 7 independent engineering results); D7 verification and packaging partially hardened but not accepted. **CMS: Stage2 NO-GO, Stage3 unaccepted, 0/135 formal acceptance criteria**. No main/lead branch, workflow, SDK, PHP, production, or hosting edits.
