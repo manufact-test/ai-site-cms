@@ -66,7 +66,12 @@ function contentFor(section,comp,language,prefix,cardStyles,font){
  const cards=[];
  if(section.component==='service-grid' || section.component==='faq-accordion'){
   const service=section.component==='service-grid';
-  for(const [i,item] of (section.items||[]).slice(0,12).entries()){
+  // CMS permits up to 24 FAQs. Render all 24 within host's 90-node
+  // limit, not merely the first 12; services remain capped at 12.
+  const limit=service?12:24;
+  if((section.items||[]).length>limit)
+   fail('Too many '+(service?'services':'FAQ entries')+' for editable graph');
+  for(const [i,item] of (section.items||[]).entries()){
    const titleField=service?'content.title':'content.question';
    const bodyField=service?'content.text':'content.answer';
    const heading=(item.values[titleField]||'').trim()||
@@ -133,8 +138,8 @@ function contentFor(section,comp,language,prefix,cardStyles,font){
     {fontSize:'@body',color:'@foreground',lineHeight:150})
   ]));
  }
- // Bound the returned content region: max 12 cards x 3 children stays below
- // the lead host's 90-node / 8-depth typed graph limits.
+ // 24 FAQs use 80 nodes including the shell (below host limit 90).
+ // Service cards have extra buttons but are capped at 12.
  nodes.push({id:prefix+'-cards',type:'container',
   styles:{display:'grid',columns:Math.min(2,Math.max(1,cards.length)),
    gap:'@medium',gridColumnSpan:comp.layout==='mosaic'?2:1},
@@ -363,6 +368,23 @@ function prepareReconciliation(candidate,editedSite,hostSdk,hostRegistry){
     section.manifestVersion!==original.manifestVersion||
     section.designGraph.id!==original.designGraph.id)
   fail('Selected editable graph section mismatch');
+ // Repeater additions, removals and reorderings change the graph structure,
+ // not just text; do not allow stale or silently missing editable cards.
+ const ids=s=>(s.items||[]).map(item=>item.id);
+ if(JSON.stringify(ids(section))!==JSON.stringify(ids(original)))
+  fail('Repeater structure changed; review and rebuild candidate');
+ // Image/media changes are not represented by this optional partial graph.
+ // A previously honest empty-media prompt must not become false content.
+ if(['photo-gallery','media-story'].includes(section.component)){
+  const media=s=>JSON.stringify({
+   elements:s.elements.filter(el=>own(el.values,'content.media'))
+    .map(el=>[el.slot,el.values['content.media']]),
+   items:(s.items||[]).map(item=>[item.id,item.values['content.media']||'',
+    item.values['content.caption']||''])
+  });
+  if(media(section)!==media(original))
+   fail('Unsupported media content changed; review visual parity and rebuild candidate');
+ }
  // The graph uses a precedence rule among optional heading/summary/CTA
  // slots. A newly populated higher-priority slot can change what the graph
  // would render. Refuse a stale snapshot instead of silently updating a
