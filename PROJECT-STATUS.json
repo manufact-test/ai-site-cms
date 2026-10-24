@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-24",
-  "status": "stage2-no-go-stage3-isolated-v1.61-parallel-design-factory",
+  "status": "stage2-no-go-stage3-isolated-v1.62-parallel-design-factory",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,8 +10,8 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.61-2026-10-24.md",
-  "latest_source_sha": "61fb93da2c55a6165a36282ba4086649c5f318a8",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.62-2026-10-24.md",
+  "latest_source_sha": "38a7994d4aba09a89e2eedd82be987cba71671e9",
   "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40089689080",
   "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40089689080",
   "source_offweb_ci": null,
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "61fb93da2c55a6165a36282ba4086649c5f318a8",
+    "stage3_code_sha": "38a7994d4aba09a89e2eedd82be987cba71671e9",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -56,7 +56,7 @@
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.61",
+  "checkpoint_version": "1.62",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -656,7 +656,7 @@
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.52",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.58-2026-10-23.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.62-2026-10-24.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -677,7 +677,7 @@
       "scope": "Research, license/host analysis, 135-ID reuse matrix and option A preference accepted through owner-delegated technical choice. No product features accepted."
     }
   ],
-  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.58-2026-10-23.md",
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.62-2026-10-24.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
@@ -1225,8 +1225,8 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.58",
-  "last_docs_handoff_note": "Owner-requested transition after recipes, full content recovery and scoped users/audit. Source CI is separate from docs-only HEAD.",
+  "last_docs_handoff_version": "1.62",
+  "last_docs_handoff_note": "Owner-requested transfer after robust 16 MiB chunked MP4 media, typed editing and publishing; functional SHA/CI verified separately from docs HEAD.",
   "latest_tested_code_sha": "964e6746db7680c064cce502ae034c00683115b5",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
@@ -1510,6 +1510,35 @@
     "main_sha_untouched": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
     "parallel_worker_branch": "feature/stage3-design-factory",
     "parallel_worker_scope": "stage3/design-factory/**",
+    "hosting_modified": false
+  },
+  "stage3_v1_62_checkpoint": {
+    "date": "2026-10-24",
+    "branch": "feature/stage3-ai-site-contract",
+    "verified_functional_sha": "38a7994d4aba09a89e2eedd82be987cba71671e9",
+    "verified_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40104129649",
+    "verified_ci_result": "SUCCESS",
+    "stage": "3 (isolated)",
+    "engineering_direction": "Design Graph + Media/Motion approx 68% (not formal acceptance)",
+    "stage2": "NO-GO; gates 5-9",
+    "stage3_accepted": false,
+    "mandatory_accepted": "0/135",
+    "completed": [
+      "Physical protected image variants 360/720/1200, srcset/sizes, history + restore",
+      "Professional Design Graph primitives, responsive Grid/Flex, gradient and accessible SVG + motion",
+      "Native HTML5 site-owned MP4 with safe controls, poster, no auto-play, HTTP Range and static export",
+      "16 MiB MP4 actor-scoped chunked upload, 512 KiB parts, per-part+whole SHA256, atomic immutable finalize",
+      "Explicit old Stage3 DB CLI video staging migration, no automatic DDL",
+      "Full HTTP/SQLite E2E covering tampering, publication isolation, Range, export and backup"
+    ],
+    "remaining": [
+      "No verified pixel-lossless Design Factory D7 integration",
+      "Complete universal composition editing + canvas fidelity",
+      "Video transcoding/posters/large-scale storage and archive constraints",
+      "Human Stage2 gates 5-9 and owner manual acceptance"
+    ],
+    "main_untouched": true,
+    "worker_untouched": true,
     "hosting_modified": false
   }
 }

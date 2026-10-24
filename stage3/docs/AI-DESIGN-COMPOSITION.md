@@ -51,3 +51,10 @@ Security: the JS and PHP validation contracts refuse arbitrary icon IDs, CSS pay
 - PHP and JS rendering have a shared contract but pixel equivalence on real Factory output is not yet established. Do not conflate CI-only proof with owner product acceptance.
 
 Priority after D7 handoff: lossless coverage matrix and adapter first, then fill missing style/node vocabulary, media/motion integration and robust visual comparison; keep the independent worker branch isolated throughout.
+
+
+## v1.62 — authenticated multipart MP4 from Studio to immutable public release
+
+The media subsystem now also accepts 16-MiB MP4 files through 512-KiB private actor/site-scoped SQL staging. Each part and the entire file are SHA256-checked; only complete verified MP4 bytes become a new immutable CMS asset and explicit draft revision in one DB transaction. Supports safe retry of identical parts, maximum 3 active sessions per site, 24-hour expiration checked during new uploads, and cancellation; no intermediate URL or auto-publication. The editor automatically picks the small legacy upload route (≤1.5 MB) or multipart flow with progress. The first-party native HTML5 video node supports optional poster/loop, controls and no autoplay; HTTP Range supports seeking. Static publisher/backup preserve bytes. Dedicated older isolated Stage3 DB migration: `STAGE3_ALLOW_VIDEO_UPGRADE=YES php stage3/server/bin/upgrade-video.php` **ONLY after owner approval**, never in HTTP handlers. Source verified: `38a7994d4aba09a89e2eedd82be987cba71671e9`, [Actions #40104129649](https://github.com/manufact-test/ai-site-cms/actions/runs/40104129649) SUCCESS.
+
+Remaining: browser-side visual fidelity to independent D7, big-video streaming/CDN/transcoding, safe poster derivation and archive scalability; published acceptance still 0/135 and Stage2 NO-GO.
