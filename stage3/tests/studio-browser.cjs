@@ -318,12 +318,14 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
     await page.locator('#cms-design-breakpoint').selectOption('mobile');
     await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:/^gap$/}).locator('input').fill('@small');
+    await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:/^widthPx$/}).locator('input').fill('390');
     await page.locator('#cms-design-apply').click();
     await page.locator('#cms-design-graph-dialog').waitFor({state:'hidden'});
     const graphSite=await page.evaluate(()=>window.Stage3Editor.getSite());
     const graphSection=graphSite.pages.flatMap(p=>p.sections).find(s=>s.id===selectedSection);
     assert.equal(graphSection.designGraph.version,1);
     assert.equal(graphSection.designGraph.nodes[0].responsive.mobile.gap,'@small');
+    assert.equal(graphSection.designGraph.nodes[0].responsive.mobile.widthPx,390);
     await canvas.locator('.cmsdg').waitFor();
     assert.match(await canvas.locator('.cmsdg h2').innerText(),/Новый профессиональный дизайн без ИИ/);
     await page.locator('#undo').click();

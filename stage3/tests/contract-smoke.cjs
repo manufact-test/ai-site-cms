@@ -730,6 +730,44 @@ test('rich Design Graph primitives, accessible icons, gradients and motion remai
   }
 });
 
+test('precision graph layout, responsive focal images, focus and three-stop gradients',()=>{
+  const graph=require('../sdk/design-graph.cjs'),site=structuredClone(initial);
+  const sec=site.pages[0].sections[0],g=graph.baseGraph(sec.id),root=g.nodes[0];
+  site.designTokens=structuredClone(graph.DEFAULT_TOKENS);
+  Object.assign(root.styles,{gridAutoFlow:'row-dense',alignContent:'between',
+    widthPx:900,minWidth:300,maxHeight:1300,zIndex:2,position:'relative',
+    right:'@small',bottom:12,gradient:{angle:90,from:'@accent',via:'#aabbcc',viaAt:45,to:'@background'}});
+  Object.assign(root.responsive.mobile,{widthPx:320,gridRowSpan:2,alignContent:'center'});
+  Object.assign(root.children[0].styles,{flexBasisPercent:75,flexShrink:0,justifySelf:'end',
+    textDecoration:'underline',whiteSpace:'pre-line'});
+  root.children[0].states={focus:{outlineColor:'@accent',outlineWidth:3}};
+  sec.designGraph=g;
+  assert.deepEqual(sdk.validateSite(site,manifests),site);
+  const html=graph.render(site,g);
+  for(const rule of ['grid-auto-flow:row dense','align-content:space-between','width:900px',
+    'z-index:2','right:12px','bottom:12px','linear-gradient(90deg,#0a5bff,#aabbcc 45%,#ffffff)',
+    'outline-width:3px','outline-offset:2px','flex-basis:75%','white-space:pre-line',
+    '@media(max-width:600px)'])assert.ok(html.includes(rule),rule);
+  const focal=structuredClone(g);
+  focal.nodes[0].children.push({id:'photo-focal-local',type:'image',assetId:'photo-owned',
+    alt:'Safe photograph',styles:{objectFit:'cover',objectPositionX:20,objectPositionY:80,heightPx:320},
+    responsive:{mobile:{objectPositionX:60,objectPositionY:40}}});
+  const preview=graph.render({...site,assets:[{id:'photo-owned',mime:'image/png',src:'/media/photo.png'}]},focal);
+  for(const rule of ['--cmsdg-object-x:20%','--cmsdg-object-y:80%',
+    'object-position:var(--cmsdg-object-x,50%)','--cmsdg-object-x:60%'])
+    assert.ok(preview.includes(rule),rule);
+  for(const change of [
+    d=>{d.nodes[0].styles.widthPercent=90;},
+    d=>{d.nodes[0].styles.zIndex=1000;},
+    d=>{d.nodes[0].styles.gridAutoFlow='dense;display:none';},
+    d=>{d.nodes[0].styles.gradient.viaAt=0;},
+    d=>{delete d.nodes[0].styles.gradient.via;},
+    d=>{d.nodes[0].children[0].states.focus.outlineColor='url(https://a.example)';}
+  ]){const broken=structuredClone(site);change(broken.pages[0].sections[0].designGraph);
+    refuses(()=>sdk.validateSite(broken,manifests),'Unsafe precision style rejected');
+  }
+});
+
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');

@@ -599,7 +599,7 @@
       const styleFields=make('div',undefined,'cms-design-fields');root.append(styleFields);
       const style=editStyle(n),limited=['hover','focus'].includes(mode);
       for(const key of DESIGN_GRAPH.STYLE_KEYS){
-        if(limited&&!['color','background','borderColor','borderWidth','radius','opacity','gradient'].includes(key))continue;
+        if(limited&&!['color','background','borderColor','borderWidth','radius','opacity','gradient','outlineColor','outlineWidth'].includes(key))continue;
         if(key==='gradient')continue;
         const values={
           display:['block','grid','flex','none'],
@@ -611,6 +611,9 @@
           objectFit:['cover','contain','fill','none'],
           aspectRatio:['auto','square','portrait','landscape','wide'],
           overflow:['visible','hidden','auto'],shadow:['none','soft','medium','strong'],
+          justifySelf:['auto','start','center','end','stretch'],alignContent:['start','center','end','stretch','between'],
+          gridAutoFlow:['row','column','row-dense','column-dense'],
+          textDecoration:['none','underline','line-through'],whiteSpace:['normal','nowrap','pre-line'],
           hidden:['true','false']
         };
         const value=style[key]===undefined?'':String(style[key]);
@@ -621,7 +624,7 @@
           },'select'));
         }else styleFields.append(ctl(key,value,v=>{
           if(!v.trim()){delete style[key];return;}
-          if(['color','background','borderColor'].includes(key)){style[key]=v.trim();return;}
+          if(['color','background','borderColor','outlineColor'].includes(key)){style[key]=v.trim();return;}
           style[key]=v.startsWith('@')?v.trim():Number(v);
         }));
       }
@@ -633,7 +636,14 @@
       gradientFields.append(
         ctl('Угол (0–360)',String(currentGradient?.angle??135),v=>{ensureGradient().angle=Number(v);},'number'),
         ctl('Цвет от (HEX или @token)',currentGradient?.from||'@accent',v=>{ensureGradient().from=v.trim();}),
-        ctl('Цвет до (HEX или @token)',currentGradient?.to||'@background',v=>{ensureGradient().to=v.trim();})
+        ctl('Цвет до (HEX или @token)',currentGradient?.to||'@background',v=>{ensureGradient().to=v.trim();}),
+         ctl('Промежуточный цвет (необязательно)',currentGradient?.via||'',v=>{
+           if(v.trim()){ensureGradient().via=v.trim();ensureGradient().viaAt??=50;}
+           else if(style.gradient){delete style.gradient.via;delete style.gradient.viaAt;}
+         }),
+         ctl('Позиция промежуточного цвета, %',String(currentGradient?.viaAt??50),v=>{
+           if(style.gradient?.via)style.gradient.viaAt=Number(v);
+         },'number')
       );
       const dropGradient=button('Удалить градиент','btn small',()=>{delete style.gradient;render();});
       gradient.append(gradientFields,dropGradient);root.append(gradient);

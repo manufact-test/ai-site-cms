@@ -769,15 +769,24 @@ async function stop(){
   designGraph.nodes[0].styles.paddingX='@large';
   designGraph.nodes[0].styles.rowGap='@small';
   designGraph.nodes[0].styles.shadow='medium';
+  designGraph.nodes[0].styles.alignContent='between';
+  designGraph.nodes[0].styles.gridAutoFlow='row-dense';
+  designGraph.nodes[0].styles.widthPx=900;
+  designGraph.nodes[0].styles.position='relative';
+  designGraph.nodes[0].styles.zIndex=3;
+  designGraph.nodes[0].styles.right='@small';
+  designGraph.nodes[0].styles.gradient.via='#abcdef';
+  designGraph.nodes[0].styles.gradient.viaAt=55;
   designGraph.nodes[0].responsive.mobile={columns:1,paddingX:'@small',flexWrap:'wrap'};
   designGraph.nodes[0].children[0].styles.fontFamily='georgia';
   designGraph.nodes[0].children[0].styles.letterSpacing=-12;
   designGraph.nodes[0].children[0].motion={effect:'fade-up',duration:600,delay:150};
   designGraph.nodes[0].children[0].text='Архитектурная композиция & сетка';
-  designGraph.nodes[0].children[0].states={hover:{color:'@accent'},focus:{opacity:80}};
+  designGraph.nodes[0].children[0].states={hover:{color:'@accent'},focus:{opacity:80,outlineColor:'@accent',outlineWidth:2}};
   designGraph.nodes[0].children.push({
     id:designSec.id+'-photo',type:'image',assetId:responsiveAsset.id,
-    alt:'Промышленный цех',styles:{maxWidth:720}});
+    alt:'Промышленный цех',styles:{maxWidth:720,objectFit:'cover',objectPositionX:20,objectPositionY:65},
+    responsive:{mobile:{objectPositionX:75}}});
   designGraph.nodes[0].children.push({
     id:designSec.id+'-shield',type:'icon',icon:'shield',
     alt:'Защищённый дизайн',styles:{fontSize:32,color:'@accent'}});
@@ -809,9 +818,13 @@ async function stop(){
   const htmlDesign=(await request('GET','/published/site-rich-ci/')).body;
   assert.match(htmlDesign,/Архитектурная композиция &amp; сетка/);
   assert.match(htmlDesign,/cmsdg-/);
-  assert.match(htmlDesign,/linear-gradient\(135deg,#bb6633,#ffffff\)/);
+  assert.match(htmlDesign,/linear-gradient\(135deg,#bb6633,#abcdef 55%,#ffffff\)/);
   assert.match(htmlDesign,/font-family:Georgia,serif/);
   assert.match(htmlDesign,/row-gap:12px/);
+  for(const property of ['align-content:space-between','grid-auto-flow:row dense','width:900px',
+    'z-index:3','right:12px','outline-width:2px','--cmsdg-object-x:20%',
+    'object-position:var(--cmsdg-object-x,50%) var(--cmsdg-object-y,50%)'])
+    assert.ok(htmlDesign.includes(property),property+' should publish with PHP');
   assert.match(htmlDesign,/padding-inline:48px/);
   assert.match(htmlDesign,/animation:cmsdg-fade-up 600ms ease-out 150ms both/);
   assert.match(htmlDesign,/prefers-reduced-motion:reduce/);
@@ -832,8 +845,11 @@ async function stop(){
   const htmlStatic=fs.readFileSync(path.join(staticDesign,'index.html'),'utf8');
   assert.match(htmlStatic,/Архитектурная композиция &amp; сетка/);
   assert.match(htmlStatic,/cmsdg-/);
-  assert.match(htmlStatic,/linear-gradient\(135deg,#bb6633,#ffffff\)/);
+  assert.match(htmlStatic,/linear-gradient\(135deg,#bb6633,#abcdef 55%,#ffffff\)/);
   assert.match(htmlStatic,/font-family:Georgia,serif/);
+  for(const property of ['align-content:space-between','grid-auto-flow:row dense','width:900px',
+    'z-index:3','right:12px','outline-width:2px','--cmsdg-object-x:20%'])
+    assert.ok(htmlStatic.includes(property),property+' should survive static export');
   assert.match(htmlStatic,/animation:cmsdg-fade-up 600ms ease-out 150ms both/);
   assert.match(htmlStatic,/role="img" aria-label="Защищённый дизайн"/);
   assert.match(htmlStatic,/prefers-reduced-motion:reduce/);
