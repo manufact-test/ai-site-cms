@@ -17,7 +17,7 @@ const ICON_PATHS=Object.freeze({
  play:'<path d="m8 5 12 7-12 7z"/>',menu:'<path d="M4 7h16M4 12h16M4 17h16"/>'
 });
 const MOTIONS=['none','fade-in','fade-up','slide-left','zoom-in'];
-const TYPES=['container','heading','text','button','image','divider','icon'];
+const TYPES=['container','heading','text','button','image','divider','icon','video'];
 const STYLE_KEYS=['display','columns','direction','align','justify','gap','padding','radius',
   'color','background','fontSize','fontWeight','lineHeight','maxWidth','position','top','left',
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
@@ -103,7 +103,7 @@ function validateMotion(motion,at){
   if(!MOTIONS.includes(motion.effect)||!number(motion.duration,150,2000)||!number(motion.delay,0,1000))
     fail(at,'invalid motion');
 }
-function validateGraph(graph,assetIds,existingIds,tokensInput){
+function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map()){
   keys(graph,['version','id','nodes'],'graph');
   if(graph.version!==1||!IDENT.test(graph.id))fail('graph','unsupported version/id');
   const tokens=validateTokens(tokensInput),seen=existingIds||new Set();
@@ -114,24 +114,35 @@ function validateGraph(graph,assetIds,existingIds,tokensInput){
   let count=0;
   function visit(node,depth){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(node.type==='container'||node.type==='divider'){
-      if(own(node,'text')||own(node,'href')||own(node,'assetId')||own(node,'alt')||own(node,'level'))
+      if(own(node,'text')||own(node,'href')||own(node,'assetId')||own(node,'alt')||own(node,'level')||own(node,'posterAssetId')||own(node,'loop'))
         fail(node.id,'invalid container content');
     }else if(node.type==='icon'){
       if(!own(ICON_PATHS,node.icon)||own(node,'text')||own(node,'href')||own(node,'assetId')||
-        own(node,'level')||own(node,'children')||
+        own(node,'level')||own(node,'children')||own(node,'posterAssetId')||own(node,'loop')||
         (own(node,'alt')&&(typeof node.alt!=='string'||node.alt.length>200||/[\x00-\x1f]/.test(node.alt))))
         fail(node.id,'invalid icon');
+    }else if(node.type==='video'){
+      if(typeof node.assetId!=='string'||!assetIds.has(node.assetId)||
+        mediaKinds.get(node.assetId)!=='video/mp4'||
+        typeof node.alt!=='string'||node.alt.length<1||node.alt.length>200||
+        /[\x00-\x1f]/.test(node.alt)||own(node,'text')||own(node,'href')||
+        own(node,'level')||own(node,'icon')||
+        (own(node,'loop')&&typeof node.loop!=='boolean')||
+        (own(node,'posterAssetId')&&(!assetIds.has(node.posterAssetId)||
+          !/^image\/(?:png|jpeg|webp)$/.test(mediaKinds.get(node.posterAssetId)||''))))
+        fail(node.id,'invalid video binding');
     }else if(node.type==='image'){
       if(typeof node.assetId!=='string'||!assetIds.has(node.assetId)||
+        mediaKinds.get(node.assetId)==='video/mp4'||own(node,'posterAssetId')||own(node,'loop')||
         typeof node.alt!=='string'||node.alt.length>200||/[\x00-\x1f]/.test(node.alt)||
         own(node,'text')||own(node,'href')||own(node,'level')||own(node,'icon'))fail(node.id,'invalid image binding');
     }else{
       if(typeof node.text!=='string'||node.text.length>3000||/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(node.text)||
-        own(node,'assetId')||own(node,'alt')||own(node,'icon'))fail(node.id,'invalid text');
+        own(node,'assetId')||own(node,'alt')||own(node,'icon')||own(node,'posterAssetId')||own(node,'loop'))fail(node.id,'invalid text');
       if(node.type==='button'&&
         (typeof node.href!=='string'||node.href.length>300||
          !SAFE_URL.test(node.href)&&!/^https:\/\/[a-z0-9.-]+(?:\/[^\s"'<>\\]*)?$/i.test(node.href)))
@@ -218,9 +229,9 @@ function declarations(style,t){
   }
   return css.join(';');
 }
-function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id){
+function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPreview=null){
   validateGraph(graph,new Set(site.assets.map(x=>x.id)),new Set(),
-    site.designTokens);
+    site.designTokens,new Map(site.assets.map(x=>[x.id,x.mime])));
   const tokens=validateTokens(site.designTokens);
   const assets=new Map(site.assets.map(a=>[a.id,a])),rules=[];
   const scope='.cmsdg-'+graph.id;
@@ -245,6 +256,17 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id){
     if(n.type==='heading')return '<h'+(n.level||2)+' class="'+cls+'">'+attr(n.text)+'</h'+(n.level||2)+'>';
     if(n.type==='text')return '<p class="'+cls+'">'+attr(n.text)+'</p>';
     if(n.type==='button')return '<a class="'+cls+'" href="'+attr(n.href.startsWith('/')?mount+n.href:n.href)+'">'+attr(n.text)+'</a>';
+    if(n.type==='video'){
+      const videoAsset=assets.get(n.assetId);
+      const videoSrc=(videoPreview?videoPreview(n.assetId):null)||mount+videoAsset.src;
+      const poster=n.posterAssetId?assets.get(n.posterAssetId):null;
+      const posterHtml=poster?' poster="'+attr(mount+poster.src)+'"':'';
+      // No autoplay, external providers, unknown formats, script or iframe.
+      return '<video class="'+cls+'" controls playsinline preload="metadata"'+
+        (n.loop?' loop':'')+posterHtml+' aria-label="'+attr(n.alt)+'">'+
+        '<source src="'+attr(videoSrc)+'" type="video/mp4">'+
+        'Ваш браузер не поддерживает видео.</video>';
+    }
     const asset=assets.get(n.assetId),src=mediaPreview?mediaPreview(n.assetId):null;
     if(!asset)return '';
     const base=src||mount+asset.src;
@@ -255,7 +277,7 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id){
   const html=graph.nodes.map(visit).join('');
   return '<section class="cmsdg '+('cmsdg-'+graph.id)+'" id="'+attr(sectionId)+'"><style>'+
     scope+'{min-width:0;max-width:none;padding:0;min-height:0}'+scope+' *{box-sizing:border-box;min-width:0}'+
-    scope+' img{max-width:100%;height:auto}'+scope+' svg{display:inline-block;vertical-align:middle;flex:none}'+
+    scope+' img,'+scope+' video{max-width:100%;height:auto}'+scope+' svg{display:inline-block;vertical-align:middle;flex:none}'+
     '@keyframes cmsdg-fade-in{from{opacity:0}to{opacity:1}}'+
     '@keyframes cmsdg-fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}'+
     '@keyframes cmsdg-slide-left{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}'+
@@ -472,17 +494,19 @@ function validateSite(raw,regInput){
   if(raw.format!==FORMAT||raw.schemaVersion!==1)fail('Unsupported site format');
   id(raw.siteId,'siteId');text(raw.title,'site title',130);
   if(!Array.isArray(raw.assets)||raw.assets.length>300)fail('Invalid assets');
-  const assetIds=new Set();
+  const assetIds=new Set(),assetMimes=new Map(),imageIds=new Set();
   for(const asset of raw.assets){
     objectKeys(asset,['id','src','alt','mime','variants'],'asset');id(asset.id,'asset.id');
-    if(assetIds.has(asset.id)||!['image/png','image/webp','image/jpeg','image/svg+xml'].includes(asset.mime)||
-      typeof asset.src!=='string'||!/^\/assets\/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg)$/.test(asset.src)||
+    if(assetIds.has(asset.id)||!['image/png','image/webp','image/jpeg','image/svg+xml','video/mp4'].includes(asset.mime)||
+      typeof asset.src!=='string'||!/^\/assets\/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg|mp4)$/.test(asset.src)||
       typeof asset.alt!=='string'||asset.alt.length>200||/[\x00-\x1f]/.test(asset.alt))fail('Invalid asset',asset.id);
-    assetIds.add(asset.id);
+    assetIds.add(asset.id);assetMimes.set(asset.id,asset.mime);
+    if(asset.mime!=='video/mp4')imageIds.add(asset.id);
+    if(asset.mime==='video/mp4'&&asset.src!=='/assets/'+asset.id+'.mp4')fail('Invalid video path',asset.id);
     if(asset.variants!==undefined){
       if(!Array.isArray(asset.variants)||asset.variants.length>3)fail('Invalid responsive variants',asset.id);
       const widths=new Set(),ext={'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[asset.mime];
-      if(!ext)fail('Responsive SVG unsupported',asset.id);
+      if(!ext)fail('Responsive variants require raster images',asset.id);
       for(const v of asset.variants){
         objectKeys(v,['id','src','sha256','width','height'],'variant');id(v.id,'variant id');
         if(assetIds.has(v.id)||!([360,720,1200].includes(v.width))||widths.has(v.width)||
@@ -523,7 +547,7 @@ function validateSite(raw,regInput){
         const definitions=fieldMap(slot);
         if(Object.keys(el.values).length!==definitions.size||Object.keys(el.values).some(p=>!definitions.has(p)))
           fail('Unbound, hidden or missing edit property',section.id+'/'+slot.slot);
-        for(const [p,f] of definitions)validateValue(f,el.values[p],section.id+'/'+slot.slot+'/'+p,assetIds);
+        for(const [p,f] of definitions)validateValue(f,el.values[p],section.id+'/'+slot.slot+'/'+p,imageIds);
       }
       if(manifest.repeat){
         if(!Array.isArray(section.items)||section.items.length<manifest.repeat.min||
@@ -537,11 +561,11 @@ function validateSite(raw,regInput){
           if(!isObject(item.values)||Object.keys(item.values).length!==definitions.size||
             Object.keys(item.values).some(p=>!definitions.has(p)))fail('Unknown repeat property',item.id);
           for(const [path,field] of definitions)
-            validateValue(field,item.values[path],item.id+'/'+path,assetIds);
+            validateValue(field,item.values[path],item.id+'/'+path,imageIds);
         }
       }else if(own(section,'items'))fail('Unregistered repeat items',section.id);
       validateFormFields(section);
-      if(own(section,'designGraph'))GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens);
+      if(own(section,'designGraph'))GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens,assetMimes);
     }
   }
   validMenuRelations(raw);
@@ -813,7 +837,10 @@ function structure(raw,manifests,command){
         for(const [key,val] of Object.entries(item.values))
           if(key==='content.media')cb(item,key,val,p,section);
       const walk=node=>{
-        if(node.type==='image')cb({values:node},'assetId',node.assetId,p,section);
+        if(node.type==='image'||node.type==='video')
+            cb({values:node},'assetId',node.assetId,p,section);
+          if(node.type==='video'&&node.posterAssetId)
+            cb({values:node},'posterAssetId',node.posterAssetId,p,section);
         for(const child of node.children||[])walk(child);
       };
       for(const root of section.designGraph?.nodes||[])walk(root);
@@ -844,6 +871,8 @@ function structure(raw,manifests,command){
       asset.alt=command.alt;break;
     }
     case 'replaceAsset':{
+      const source=c.assets.find(a=>a.id===command.assetId),target=c.assets.find(a=>a.id===command.targetId);
+      if(source?.mime!==target?.mime)throw Error('Replacement media must have matching MIME');
       if(command.assetId===command.targetId||
         !c.assets.some(a=>a.id===command.assetId)||!c.assets.some(a=>a.id===command.targetId))
         throw Error('Replacement must be another image in this site');
@@ -1734,7 +1763,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         selected.items.splice(selected.items.indexOf(n)+1,0,node);selection=node.id;render();
       });
       action('Тип +',()=>{
-        const type=prompt('Элемент: container / heading / text / button / image / divider / icon','heading');
+        const type=prompt('Элемент: container / heading / text / button / image / divider / icon / video','heading');
         if(type===null)return;
         if(!DESIGN_GRAPH.TYPES.includes(type))return notice('Неизвестный тип',true);
         const node={id:uniqueId('dg-node'),type,styles:{}};
@@ -1743,8 +1772,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         if(type==='heading')node.level=2;
         if(type==='icon'){node.icon='check';node.alt='';}
         if(type==='button')node.href='/';
+        if(type==='video'){
+          const first=session.current.assets.find(a=>a.mime==='video/mp4');
+          if(!first)return notice('Сначала загрузите MP4 в медиабиблиотеку',true);
+          node.assetId=first.id;node.alt=first.alt;node.loop=false;
+        }
         if(type==='image'){
-          const first=session.current.assets[0];
+          const first=session.current.assets.find(a=>a.mime!=='video/mp4');
           if(!first)return notice('Сперва загрузите изображение',true);
           node.assetId=first.id;node.alt=first.alt;
         }
@@ -1773,9 +1807,22 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       if(n.type==='heading')fields.append(ctl('Уровень заголовка',String(n.level||2),value=>{n.level=Number(value);},'number'));
       if(n.type==='button')fields.append(ctl('Ссылка',n.href,value=>{n.href=value;}));
       if(n.type==='image'){
-        const options=session.current.assets.map(a=>[a.id,a.alt||a.id]);
+        const options=session.current.assets.filter(a=>a.mime!=='video/mp4').map(a=>[a.id,a.alt||a.id]);
         fields.append(ctl('Изображение',{initial:n.assetId,choices:options},v=>{n.assetId=v;},'select'),
           ctl('Описание изображения',n.alt,v=>{n.alt=v;}));
+      }
+      if(n.type==='video'){
+        const videos=session.current.assets.filter(a=>a.mime==='video/mp4').map(a=>[a.id,a.alt||a.id]);
+        const images=session.current.assets.filter(a=>a.mime!=='video/mp4').map(a=>[a.id,a.alt||a.id]);
+        fields.append(ctl('MP4-файл',{initial:n.assetId,choices:videos},
+          v=>{n.assetId=v;},'select'));
+        fields.append(ctl('Описание видео',n.alt,v=>{n.alt=v;}));
+        fields.append(ctl('Постер',{initial:n.posterAssetId||'',
+          choices:[['','Без обложки'],...images]},
+          v=>{if(v)n.posterAssetId=v;else delete n.posterAssetId;},'select'));
+        fields.append(ctl('Зациклить воспроизведение',{initial:String(!!n.loop),
+          choices:[['false','Нет'],['true','Да']]},
+          v=>{n.loop=v==='true';},'select'));
       }
       if(n.type==='icon'){
         fields.append(ctl('Векторная иконка',
@@ -2356,7 +2403,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     }else content='<section><h2>Незарегистрированный шаблон</h2></section>';
     // Typed composition overrides only rendering: original component fields survive.
     if(block.designGraph)content=DESIGN_GRAPH.render(session.current,block.designGraph,'',
-      assetId=>HOSTED?window.Stage3Host?.previewUrl?.(assetId):null,block.sectionId);
+      assetId=>HOSTED?window.Stage3Host?.previewUrl?.(assetId):null,block.sectionId,
+      assetId=>HOSTED?window.Stage3Host?.videoUrl?.(assetId):null);
     const appearance=block.appearance||C.DEFAULT_APPEARANCE;
     const skin='cms-surface-'+appearance.surface+' cms-spacing-'+appearance.spacing+' cms-align-'+appearance.align+
       (appearance.width?' cms-width-'+appearance.width:'')+
