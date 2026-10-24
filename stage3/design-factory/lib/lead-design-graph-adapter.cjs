@@ -107,7 +107,7 @@ function graphFor(section,composition,theme,language){
       styles:{fontSize:'@body',color:'@foreground',lineHeight:150}},
      {id:prefix+'-action',type:'button',text:actionText,href,
       styles:{display:'block',background:'@accent',color:'@cta-text',padding:'@small',
-       radius:'@soft',fontWeight:700, maxWidth:240},
+       radius:'@soft',fontWeight:700,maxWidth:240,minHeight:48},
       states:{hover:{opacity:85},focus:{borderWidth:2,borderColor:'@foreground'}}}
     ]
    },{
