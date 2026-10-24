@@ -893,7 +893,7 @@ async function stop(){
     targetSiteId:designCopy,confirmationToken:designPlan.body.confirmationToken});
   assert.equal(designRecovered.status,201,JSON.stringify(designRecovered.body));
   assert.deepEqual(designRecovered.body.site.pages[0].sections.find(s=>s.id===designSec.id).designGraph,
-    designGraph,'Design Graph survives private backup restore unchanged');
+    designSec.designGraph,'Design Graph survives private backup restore unchanged');
   assert.equal((await request('GET','/published/'+designCopy+'/')).status,404,'Imported design not auto-published');
 
   // Complete local MP4 workflow: persisted bytes, SHA256, explicit publish,
