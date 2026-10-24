@@ -72,3 +72,17 @@ Source improvements now on the same isolated branch:
 **Resume with an accessible checkout and working browser:** run D7 commands listed above; verify all actual PNG dimensions and inspect all layouts and the English inner pages, repair only substantive failures, create a real ZIP and record sha256, then issue a final handoff to the lead developer. Remain in this feature branch, and do not merge.
 
 **Read-only source verification added in this chat:** 288/288 current-SDK site-v1 validations and internal-link checks, 42/42 valid registered D3 fallback sections, 12/12 representative D6 bridge round trips and rejection of a modified package. These were run in a V8 in-memory harness using GitHub-fetched source and manifests, *not* on a checkout; keep Node, Chromium, visual and ZIP gates open. See `PROGRESS.md` for the precise boundary.
+
+## Latest independent D7 checkpoint — 24 October 2026
+
+**Start SHA:** `4015fd1fbbb31cbc3b74e0141e2c9edb68183807`; **pre-handoff-doc source SHA:** `8525cc9fc56f759b8a983ec5ae7efc68ca2d0245`. Always query the live HEAD first. This remains the ONLY working branch, and `stage3/design-factory/` the ONLY mutable path.
+
+Changes in the latest block:
+- Compiler/service checklist fixed: two default Studio service placeholders, `Example (verify)` copy and empty service descriptions cannot mark verified owner services. Real two-service fields are still subject to owner review.
+- 44px minimum touch targets for Studio navigation/buttons/service removal, site preview navigation, CTA text links and FAQ summary. Rebuilt offline browser runtime from unchanged Stage3 SDK/manifests and verified exact source parity in V8.
+- New regression cases in D1 smoke and enhanced D5 browser smoke to validate **four actual browser exports** (site, D6 bundle, project, workspace), not merely buttons. ZIP smoke now fully audits its central directory for local header consistency.
+- Read current `PROGRESS.md`, `QUALITY-GATES.md`, `README.md` for exact details and commands.
+
+**Executed versus pending:** verified in isolated V8 on current GitHub source: 288/288 real SDK site documents + local links, 288/288 D6 exports/imports, 42/42 D3 fallbacks, service placeholder gate, tamper rejection, generated browser bundle parity, inline Chromium probe JavaScript syntax. Did **not** run Node against an actual checkout, launch successful Chromium, inspect three-viewport screenshots, or produce an actual ZIP. Local git DNS for GitHub fails and headless Chrome hangs even on a minimal data URL; no branch GitHub Actions runs found.
+
+**Next action without a new product brief:** obtain accessible complete checkout, execute `node stage3/design-factory/bin/build-browser-bundle.cjs --check` and `node stage3/design-factory/bin/release-audit.cjs --out /tmp/df-audit-NEW.json --chromium` with `DF_CHROMIUM_BIN`. Then capture and **manually review** 54 full screenshots, investigate viewport mismatch if Chrome forces minimum window dimensions, run package builder and complete ZIP smoke, record **actual** SHA256 of ZIP and source Git HEAD, and prepare the final integrator handoff only after real evidence. Never touch main, workflow, SDK, PHP, hosting, production or merge the branch. Formal CMS status Stage2 NO-GO, Stage3 not accepted, 0/135.
