@@ -57,7 +57,7 @@ function columnsFor(layout){
 // Extract first-party semantic content. Never create fake clients, reviews,
 // prices or media to fill a visual pattern. Bindings are adapter metadata for
 // the lead integrator; Design Graph itself is an editable content snapshot.
-function contentFor(section,comp,language,prefix,cardStyles,font){
+function contentFor(section,comp,language,prefix,cardStyles,font,assets=[]){
  const en=language==='en',nodes=[],bindings=[];
  const t=(ru,english)=>en?english:ru;
  const make=(id,type,value,origin,style={})=>{
@@ -119,17 +119,42 @@ function contentFor(section,comp,language,prefix,cardStyles,font){
    ]));
   }
  }else if(section.component==='photo-gallery'){
-  // No photo assets exist in the generated D3 semantic fallback. Do not
-  // silently pretend empty media slots are real photography.
-  const id=prefix+'-card-1';
-  cards.push(card(0,[
-   make(id+'-title','heading',t('Фотографии ещё не загружены','Images not uploaded'),null,
-    {fontSize:24,fontWeight:600,color:'@foreground'}),
-   make(id+'-text','text',
-    t('Добавьте изображения с правами использования, подписи и alt.',
-      'Upload licensed images with captions and alt text.'),null,
-    {fontSize:'@body',color:'@foreground'})
-  ]));
+  const entries=section.items||[],visible=entries.some(it=>it.values['content.media']);
+  if(visible){
+   if(entries.length>20)fail('Too many photos for registered CMS gallery');
+   const media=new Map(assets.map(asset=>[asset.id,asset]));
+   for(const [i,item] of entries.entries()){
+    const id=prefix+'-card-'+(i+1),assetId=item.values['content.media'];
+    const parts=[];
+    if(assetId){
+     const asset=media.get(assetId);
+     if(!asset||asset.mime==='video/mp4')fail('No verified image asset for '+item.id);
+     parts.push({id:id+'-image',type:'image',assetId,alt:asset.alt,
+      styles:{aspectRatio:'landscape',objectFit:'cover',widthPercent:100}});
+    }else parts.push(make(id+'-pending','text',
+     t('Фотография не загружена','Image not uploaded'),null,
+     {fontSize:'@body',color:'@foreground'}));
+    const caption=item.values['content.caption'];
+    if(typeof caption!=='string')fail('Invalid typed photo caption');
+    // Caption remains editable in the host CMS even when initially empty.
+    parts.push(make(id+'-caption','text',caption,
+     {itemId:item.id,field:'content.caption'},
+     {fontSize:'@body',color:'@foreground',lineHeight:145}));
+    cards.push(card(i,parts));
+   }
+  }else{
+   // A missing image is NOT a synthetic portfolio photo. The original
+   // zero-asset D6 package remains a truthful, unbound placeholder.
+   const id=prefix+'-card-1';
+   cards.push(card(0,[
+    make(id+'-title','heading',t('Фотографии ещё не загружены','Images not uploaded'),null,
+     {fontSize:24,fontWeight:600,color:'@foreground'}),
+    make(id+'-text','text',
+     t('Добавьте изображения с правами использования, подписи и alt.',
+       'Upload licensed images with captions and alt text.'),null,
+     {fontSize:'@body',color:'@foreground'})
+   ]));
+  }
  }else{
   const item=section.items?.[0];
   const val=(item?.values?.['content.text']||'').trim();
@@ -156,7 +181,7 @@ function contentFor(section,comp,language,prefix,cardStyles,font){
   children:cards});
  return {nodes,bindings};
 }
-function graphFor(section,composition,theme,language){
+function graphFor(section,composition,theme,language,assets=[]){
  if(!section||typeof section.id!=='string'||section.id.length>48)
   fail('Missing or oversized selected semantic section');
  if(!['ru','en'].includes(language))fail('Unknown language');
@@ -205,7 +230,7 @@ function graphFor(section,composition,theme,language){
   ...(centered?{textAlign:'center'}:{}),
   ...(wide&&layout==='bento'?{gridColumnSpan:2}:{})
  };
- const semantic=contentFor(section,composition,language,prefix,detailStyles,font);
+ const semantic=contentFor(section,composition,language,prefix,detailStyles,font,assets);
  const iconMap={frame:'arrow',orb:'sparkles',arch:'arrow',tiles:'check',
   rule:'menu',dots:'sparkles',line:'arrow',portrait:'sparkles',quotes:'menu'};
  const graph={
@@ -252,9 +277,9 @@ function graphFor(section,composition,theme,language){
 }
 // Reconstruct canonical provenance from the original typed section. Caller
 // mapping metadata is descriptive, never authority to redirect CMS content.
-function bindingsFor(section,comp){
+function bindingsFor(section,comp,assets=[]){
  const prefix=section.id+'-dg';
- const bindings=contentFor(section,comp,'en',prefix,{},'system').bindings;
+ const bindings=contentFor(section,comp,'en',prefix,{},'system',assets).bindings;
  // Bind only the SEMANTIC VALUES actually selected for rendering.
  // Otherwise editing "second" or a selected CTA "primary" can leave stale
  // graph text while a different field receives updates.
@@ -328,8 +353,8 @@ function buildHostCandidate(exportBundle,hostSdk,hostRegistry){
   set('action','content.text',facts.ctaLabel);
  }
  site.designTokens=tokens(theme,c);
- section.designGraph=graphFor(section,c,theme,workspace.project.language);
- const contentBindings=bindingsFor(section,c);
+ section.designGraph=graphFor(section,c,theme,workspace.project.language,site.assets);
+ const contentBindings=bindingsFor(section,c,site.assets);
  // Fail closed against older SDKs. No extra keys may enter the original D6 export.
  const checked=hostSdk.validateSite(site,hostRegistry);
  const inspection=hostSdk.inspectSite(checked,hostRegistry);
@@ -339,7 +364,7 @@ function buildHostCandidate(exportBundle,hostSdk,hostRegistry){
  return {
   format:FORMAT,version:1,
   site:checked,ownerChecklist:original.ownerChecklist,
-  mapping:{composition:c.id,theme:workspace.project.theme,
+  mapping:{composition:c.id,theme:workspace.project.theme,language:workspace.project.language,
    contentBindings,semanticContentMode:'snapshot-requires-host-reconciliation',
    editable:['graph nodes','headings','text','button','design tokens',
     'grid/flex compositions','pattern-specific spacing and card treatments',
@@ -422,7 +447,7 @@ function prepareReconciliation(candidate,editedSite,hostSdk,hostRegistry){
  catch(error){fail('Unknown composition in provenance');}
  if(!composition||composition.id!==candidate.mapping.composition)
   fail('Unknown composition in provenance');
- const expected=bindingSignatures(bindingsFor(original,composition));
+ const expected=bindingSignatures(bindingsFor(original,composition,baseline.assets));
  const received=bindingSignatures(bindings);
  if(expected.length!==received.length||
     received.some((value,i)=>!value||value!==expected[i]))
