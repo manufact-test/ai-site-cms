@@ -155,7 +155,13 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       assert.equal(await page.locator('#elements [data-repeat-id]').count(),2);
       await page.locator('#elements [data-repeat-id]').first().click();
       const changed=page.locator('#fields [data-field="'+field+'"]');
-      await changed.fill(value);await changed.dispatchEvent('change');
+      await changed.fill(value);
+      // srcdoc changes asynchronously; register before dispatching the edit.
+      // Otherwise a later iframe load can erase a genuine radio selection.
+      const previewLoaded=page.locator('#preview').evaluate(frame=>new Promise(resolve=>
+        frame.addEventListener('load',resolve,{once:true})));
+      await changed.dispatchEvent('change');
+      await previewLoaded;
       await canvas.locator('.cms-section-skin').getByText(value,{exact:false}).first().waitFor();
       const exported=await page.evaluate(()=>window.Stage3Editor.getSite());
       assert.equal(exported.pages.flatMap(p=>p.sections).find(s=>s.component===type).items[0].values[field],value);
@@ -163,18 +169,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const switchPreview=canvas.locator('.cms-switcher-panel');
     assert.equal(await switchPreview.first().isVisible(),true);
     assert.equal(await switchPreview.nth(1).isVisible(),false);
-    await canvas.locator('body').evaluate(n=>n.dataset.switcherMarker='persist');
-    const labelLinks=await canvas.locator('.cms-switcher-tab').evaluateAll(nodes=>nodes.map(n=>({
-      label:n.textContent,htmlFor:n.htmlFor,control:n.control?.id||null
-    })));
     await canvas.locator('.cms-switcher-tab').nth(1).click();
-    const radioAfterLabel=await canvas.locator('.cms-switcher-radio').evaluateAll(nodes=>nodes.map(n=>n.checked));
-    const frameMarker=await canvas.locator('body').getAttribute('data-switcher-marker');
-    await canvas.locator('.cms-switcher-radio').nth(1).evaluate(n=>n.click());
-    const radioAfterDirect=await canvas.locator('.cms-switcher-radio').evaluateAll(nodes=>nodes.map(n=>n.checked));
-    console.log('SWITCHER DIAGNOSTIC',JSON.stringify({labelLinks,frameMarker,radioAfterLabel,radioAfterDirect}));
     assert.equal(await canvas.locator('.cms-switcher-radio').nth(1).isChecked(),true,
-      'Native radio switches in restricted iframe');
+      'Visible label selects the second native radio after frame load');
     assert.equal(await switchPreview.first().isVisible(),false);
     assert.equal(await switchPreview.nth(1).isVisible(),true,'Native radio changes panels in script-disabled iframe');
     await page.locator('#undo').click();
