@@ -380,7 +380,20 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
     for(const [label,value] of [['fontStyle','italic'],['textTransform','uppercase'],
       ['textWrap','balance'],['textShadow','soft']]){
-      await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:new RegExp('^'+label+'
+      await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:label}).locator('select').selectOption(value);
+    }
+    for(const [label,value] of [['wordSpacing','12'],['translateX','24'],
+      ['rotateDeg','-6'],['scalePercent','108']]){
+      await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:label}).locator('input').fill(value);
+    }
+    await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
+    await page.locator('#cms-design-breakpoint').selectOption('tablet');
+    await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'gridColumnsPreset'}).locator('select').selectOption('sidebar-left');
+    await page.locator('#cms-design-breakpoint').selectOption('desktop');
+    await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'clipShape'}).locator('select').selectOption('diagonal');
+    await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'backdropBlur'}).locator('input').fill('6');
+    await page.locator('#cms-design-node-select').selectOption(newContainer);
+    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Копировать группу'}).click();
     const duplicated=await page.locator('#cms-design-node-select').inputValue();
     assert.notEqual(duplicated,newContainer,'Deep duplicate receives a new stable id');
     await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Объединить в контейнер'}).click();
