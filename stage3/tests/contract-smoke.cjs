@@ -635,6 +635,54 @@ test('reusable section templates, full page duplicates, undo/redo, and no stale 
       id:'page-duplicate-2',title:'Copy',path:'/',expectedRevision:state.revision}),'Duplicate path refused');
   assert.equal(JSON.stringify(initial),initialBytes,'Original source remains immutable');
 });
+test('optional professional Design Graph: tokens, grid, breakpoints, hover and safe reversible edits',()=>{
+  const graph=require('../sdk/design-graph.cjs');
+  const doc=structuredClone(initial),sec=doc.pages[0].sections[0];
+  const candidate=graph.baseGraph(sec.id);
+  doc.designTokens=structuredClone(graph.DEFAULT_TOKENS);
+  sec.designGraph=candidate;
+  assert.deepEqual(sdk.validateSite(doc,manifests),doc,'registered block remains valid');
+  let d=D.begin(doc,manifests);
+  const replacement=structuredClone(candidate);
+  replacement.nodes[0].styles.display='flex';
+  replacement.nodes[0].styles.direction='column';
+  replacement.nodes[0].responsive.tablet={gap:'@small'};
+  replacement.nodes[0].children[0].text='Произвольный AI-дизайн & качество';
+  replacement.nodes[0].children[0].states={hover:{color:'@accent'},focus:{opacity:80}};
+  d=D.structure(d,manifests,{action:'updateDesignGraph',pageId:'page-home',sectionId:sec.id,
+    designGraph:replacement,expectedRevision:d.revision});
+  assert.equal(d.current.pages[0].sections[0].designGraph.nodes[0].children[0].text,'Произвольный AI-дизайн & качество');
+  assert.equal(D.blockPreview(d,manifests,'page-home',sec.id).designGraph.version,1);
+  assert.equal(D.undo(d,manifests).current.pages[0].sections[0].designGraph.nodes[0].styles.display,'grid');
+  assert.deepEqual(D.redo(D.undo(d,manifests),manifests).current,d.current);
+  const html=graph.render(d.current,replacement,'');
+  assert.match(html,/display:flex/);assert.match(html,/@media\(max-width:900px\)/);
+  assert.match(html,/focus-visible/);assert.match(html,/&amp; качество/);
+  assert.doesNotMatch(html,/<script|onerror=/);
+  const cloned=D.structure(d,manifests,{action:'duplicateSection',pageId:'page-home',
+    sectionId:sec.id,id:'section-unique-design-copy',expectedRevision:d.revision});
+  assert.notEqual(cloned.current.pages[0].sections[1].designGraph.id,replacement.id);
+  const malicious=structuredClone(d.current);
+  malicious.pages[0].sections[0].designGraph.nodes[0].styles.color='red; background:url(javascript:alert(1))';
+  refuses(()=>sdk.validateSite(malicious,manifests),'CSS escape rejected');
+  const injected=structuredClone(d.current);
+  injected.pages[0].sections[0].designGraph.nodes[0].children[0].states.hover={onclick:'alert(1)'};
+  refuses(()=>sdk.validateSite(injected,manifests),'Only whitelisted CSS interaction properties');
+  const broken=structuredClone(d.current);
+  broken.pages[0].sections[0].designGraph.nodes[0].children.push({
+    id:'node-evil-link',type:'button',text:'Do not click',href:'javascript:alert(1)',styles:{}});
+  refuses(()=>sdk.validateSite(broken,manifests),'Unsafe URL rejected');
+  const unknown=structuredClone(d.current);
+  unknown.pages[0].sections[0].designGraph.nodes[0].children[0].styles.gap='@missing';
+  refuses(()=>sdk.validateSite(unknown,manifests),'Unknown token rejected');
+  const target=structuredClone(d.current);
+  target.pages[0].sections[0].designGraph.nodes[0].children[0].text='После ручной правки CMS';
+  const swapped=D.replaceSite(d,manifests,target,d.revision);
+  assert.ok(D.changes(swapped,manifests).some(x=>x.kind==='design-graph-updated'));
+  assert.equal(sdk.validateSite(swapped.current,manifests).pages[0].sections[0].designGraph.version,1);
+  assert.equal(JSON.stringify(initial),initialBytes,'Older site fixture never rewritten');
+});
+
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');
