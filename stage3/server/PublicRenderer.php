@@ -10,6 +10,17 @@ final class PublicRenderer
         return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
     }
 
+    /** All URLs and widths come from validated, immutable site assets. */
+    private static function responsiveAttrs(array $asset, string $mount, string $sizes): string
+    {
+        if (empty($asset['variants'])) return '';
+        $variants = $asset['variants'];
+        usort($variants, static fn(array $a,array $b): int => $a['width'] <=> $b['width']);
+        $sources = [];
+        foreach ($variants as $v) $sources[] = self::h($mount.$v['src']).' '.$v['width'].'w';
+        return ' srcset="'.implode(', ', $sources).'" sizes="'.self::h($sizes).'"';
+    }
+
     private static function element(array $section, string $slot): array
     {
         foreach ($section['elements'] as $element) {
@@ -387,7 +398,7 @@ final class PublicRenderer
                     foreach ($site['assets'] as $candidate) if ($candidate['id']===$v['content.media']) {$asset=$candidate;break;}
                     if ($asset===null) continue;
                     $images[]='<figure><img loading="lazy" decoding="async" src="'.self::h($mount.$asset['src']).
-                        '" alt="'.self::h($asset['alt']).'"><figcaption>'.self::h($v['content.caption']).'</figcaption></figure>';
+                        '"'.self::responsiveAttrs($asset,$mount,'(max-width: 600px) 100vw, (max-width: 900px) 50vw, 33vw').' alt="'.self::h($asset['alt']).'"><figcaption>'.self::h($v['content.caption']).'</figcaption></figure>';
                 }
                 $body.='<section id="'.$id.'" class="repeat-section"><h2>'.self::label($section,'heading').
                     '</h2><div class="repeat-grid gallery-grid">'.implode('',$images).'</div></section>';
@@ -410,7 +421,10 @@ final class PublicRenderer
                     if($layout==='grid'&&$v['behavior.featured'])$classes.=' cms-gallery-featured';
                     $figures[]='<figure class="'.$classes.'"><img loading="'.($index===0?'eager':'lazy')
                         .'" decoding="async" src="'.self::h($mount.$asset['src'])
-                        .'" alt="'.self::h($asset['alt']).'">'
+                        .'"'.self::responsiveAttrs($asset,$mount,
+                            $layout==='carousel'?'(max-width: 600px) 90vw, (max-width: 900px) 60vw, 40vw':
+                            '(max-width: 600px) 100vw, (max-width: 900px) 50vw, 33vw')
+                        .' alt="'.self::h($asset['alt']).'">'
                         .($caption?'<figcaption>'.self::h($v['content.caption']).'</figcaption>':'')
                         .'</figure>';
                     $index++;
@@ -428,7 +442,7 @@ final class PublicRenderer
                 foreach ($site['assets'] as $asset) {
                     if ($asset['id']!==$media) continue;
                     $photo='<img class="story-photo" loading="lazy" decoding="async" src="'.
-                        self::h($mount.$asset['src']).'" alt="'.self::h($asset['alt']).'">';
+                        self::h($mount.$asset['src']).'"'.self::responsiveAttrs($asset,$mount,'(max-width: 900px) 100vw, 50vw').' alt="'.self::h($asset['alt']).'">';
                     break;
                 }
                 $body.='<section id="'.$id.'" class="media-story"><div class="story-layout"><div class="story-copy">'
@@ -447,7 +461,7 @@ final class PublicRenderer
                     $href=$v['behavior.href'];
                     if(str_starts_with($href,'/')&&!str_starts_with($href,'//'))$href=$mount.$href;
                     $cards.='<a class="partner-logo" href="'.self::h($href).'"><img loading="lazy" decoding="async" src="'.
-                        self::h($mount.$asset['src']).'" alt="'.self::h($asset['alt']?:$v['content.caption']).'">'
+                        self::h($mount.$asset['src']).'"'.self::responsiveAttrs($asset,$mount,'(max-width: 600px) 50vw, 25vw').' alt="'.self::h($asset['alt']?:$v['content.caption']).'">'
                         .'<span>'.self::h($v['content.caption']).'</span></a>';
                 }
                 $body.='<section id="'.$id.'" class="partner-logos"><h2>'.self::label($section,'heading').
@@ -458,7 +472,7 @@ final class PublicRenderer
                 foreach ($site['assets'] as $asset) {
                     if ($asset['id'] === $media) {
                         $picture = '<img class="showcase-photo" loading="lazy" decoding="async" src="'
-                            . self::h($mount . $asset['src']) . '" alt="' . self::h($asset['alt']) . '">';
+                            . self::h($mount . $asset['src']) . '"' . self::responsiveAttrs($asset,$mount,'(max-width: 900px) 100vw, 70vw') . ' alt="' . self::h($asset['alt']) . '">';
                         break;
                     }
                 }

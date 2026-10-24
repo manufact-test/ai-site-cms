@@ -93,11 +93,22 @@
       if(processed.sha256!==await E.hash(processed.blob))
         throw Error('Проверка SHA256 результата не пройдена');
       if(requestKey!==sourceKey)throw Error('Исходный файл изменился во время обработки');
-      result={...processed,name:cleanName(mime),key:requestKey};
+      const derivatives=[],variantSource=await E.load(processed.blob);
+      const noop={crop:{x:0,y:0,w:1,h:1},ratio:'free',rotate:0};
+      for(const size of [360,720,1200]){
+        if(size>variantSource.width)continue;
+        const variant=size===processed.width?processed:
+          await E.optimize(variantSource,noop,size,mime,editData.quality,{cancelled:false});
+        if(variant.width!==size)throw Error('Не удалось получить физический '+size+'px вариант — уменьшите качество');
+        if(variant.sha256!==await E.hash(variant.blob))throw Error('Responsive SHA256 не совпадает');
+        derivatives.push(variant);
+      }
+      result={...processed,variants:derivatives,name:cleanName(mime),key:requestKey};
       objectUrl=URL.createObjectURL(processed.blob);
       preview.src=objectUrl;preview.hidden=false;
       status('Готово: '+processed.width+'×'+processed.height+' · '+
-        processed.mime+' · '+processed.bytes+' байт · SHA256 '+processed.sha256);
+        processed.mime+' · '+processed.bytes+' байт · SHA256 '+processed.sha256+
+        ' · варианты: '+(derivatives.map(v=>v.width+'px').join(', ')||'изображение меньше 360px'));
       submit.disabled=false;download.disabled=false;
     }catch(err){status(err.message,true);}
     finally{busy=false;process.disabled=false;}
@@ -108,7 +119,7 @@
     try{
       if(result.key!==sourceKey)throw Error('Файл изменился — обработайте заново');
       const processed=result;
-      await H.uploadProcessed(processed.blob,alt.value,attach.checked,processed.sha256);
+      await H.uploadProcessed(processed.blob,alt.value,attach.checked,processed.sha256,processed.variants);
       status('Изображение сохранено в медиабиблиотеке. Публикация не выполнялась.');
       dialog.close();
     }catch(err){status(err.message,true);}

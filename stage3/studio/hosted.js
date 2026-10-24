@@ -251,7 +251,7 @@
         const uses=mediaUses(site,asset.id);
         const desc=element('div','hosted-media-description');
         desc.append(element('strong',null,asset.alt||'Декоративное изображение (alt пустой)'));
-        desc.append(element('small',null,uses.length+' привязок · '+asset.mime));
+        desc.append(element('small',null,uses.length+' привязок · '+asset.mime+' · '+(asset.variants?.length||0)+' responsive-размеров'));
         if(uses.length){
           const details=element('details','hosted-media-references');
           const summary=element('summary',null,'Где используется');
@@ -291,7 +291,7 @@
   // Same immutable, versioned media pipeline as ordinary uploads. The vetted
   // Workbench engine supplies locally encoded bytes; PHP independently decodes
   // and validates MIME, dimensions and digest before committing the new asset.
-  async function uploadProcessed(blob,alt,bind,expectedHash){
+  async function uploadProcessed(blob,alt,bind,expectedHash,variants=[]){
     if(state.busy||!state.authorized||!state.siteId||!canEdit())
       throw Error('Загрузка недоступна без входа и прав редактирования');
     if(editor.isDirty())throw Error('Сначала сохраните несохранённый черновик');
@@ -304,6 +304,18 @@
       throw Error('Отсутствует проверенный SHA256');
     const actual=await window.MediaMotionEngine.hash(blob);
     if(actual!==expectedHash)throw Error('Изображение изменилось после обработки');
+    if(!Array.isArray(variants)||variants.length>3)throw Error('Неверный набор responsive-изображений');
+    const packed=[];
+    for(const v of variants){
+      if(![360,720,1200].includes(v.width)||!(v.blob instanceof Blob)||v.blob.type!==blob.type||
+        v.blob.size>450000||v.blob.size<20||await window.MediaMotionEngine.hash(v.blob)!==v.sha256)
+        throw Error('Непроверенный responsive-вариант');
+      const data=await new Promise((resolve,reject)=>{
+        const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));
+        reader.onerror=()=>reject(Error('Невозможно прочитать responsive-вариант'));reader.readAsDataURL(v.blob);
+      });
+      packed.push({width:v.width,base64:data.split(',')[1]||'',sha256:v.sha256});
+    }
     const selection=editor.selection();
     const base64=await new Promise((resolve,reject)=>{
       const reader=new FileReader();
@@ -314,7 +326,7 @@
     state.busy=true;drawStatus();
     try{
       const response=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/media','POST',
-        {base64,alt,expectedRevision:state.revision});
+        {base64,alt,sha256:actual,variants:packed,expectedRevision:state.revision});
       if(response.sha256!==actual){
         // The upload is an immutable server-side revision. Never falsely claim
         // successful linkage if returned bytes do not match the local digest.

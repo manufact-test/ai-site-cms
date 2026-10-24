@@ -74,12 +74,13 @@ try {
     ];
     try {
         foreach ($site['assets'] as $asset) {
-            $image = stage3_repository()->image($siteId, $asset['id']);
+          foreach (array_merge([['id'=>$asset['id'],'src'=>$asset['src']]], $asset['variants'] ?? []) as $part) {
+            $image = stage3_repository()->image($siteId, $part['id']);
             if ($image['mime'] !== $asset['mime']) {
                 failExport('Published asset type mismatch');
             }
-            $relative = ltrim($asset['src'], '/');
-            $expectedPrefix = 'assets/' . $asset['id'] . '.';
+            $relative = ltrim($part['src'], '/');
+            $expectedPrefix = 'assets/' . $part['id'] . '.';
             if (!str_starts_with($relative, $expectedPrefix)
                 || !preg_match('~^assets/[a-z][a-z0-9-]{2,79}\.(png|jpg|webp)$~D', $relative)) {
                 failExport('Unsafe media export path');
@@ -91,11 +92,16 @@ try {
                 failExport('Cannot export image bytes');
             }
             $manifest['assets'][] = [
-                'id' => $asset['id'],
+                'id' => $part['id'],
+                'parentId' => $asset['id'],
+                'width' => $part['width'] ?? null,
                 'file' => $relative,
                 'mime' => $asset['mime'],
                 'sha256' => $image['sha256']
             ];
+            if (isset($part['sha256']) && $part['sha256'] !== $image['sha256'])
+                failExport('Responsive variant SHA256 mismatch');
+          }
         }
         foreach ($site['pages'] as $page) {
             $path = $page['path'];
