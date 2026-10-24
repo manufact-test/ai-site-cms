@@ -188,3 +188,9 @@ The D6 integration package now survives reserialization with a different order o
 For final visual acceptance, `bin/visual-qa.cjs` generates `visual-review.html` alongside `visual-evidence.json`, original PNGs and offline sites. Open the local review HTML to inspect the desktop/tablet/mobile themes, D3 showroom and RU/EN sector sites. This is an **unapproved human-review worksheet**, never a screenshot PASS. It displays each screenshot's actual measured dimensions and flags capture errors. Inspect the entire D3 showroom and actual browser interactions separately, because one viewport image does not inspect every composition on a long page.
 
 The ZIP smoke suite now compares extracted archive members **byte-for-byte to every source file** and validates the complete source inventory. These improvements were checked for syntax and isolated in-memory contract behavior; the full Node checkout, Chromium and actual final ZIP artifact have not been produced in the current environment. See `QUALITY-GATES.md` for exact commands and honest gate status.
+
+## Optional Design Graph integration candidate — 24 October 2026
+
+The lead developer's branch now exposes a newer typed CMS `designGraph` contract. A standalone candidate adapter at `lib/lead-design-graph-adapter.cjs` converts a selected D3 composition into actual host-editable graph nodes without modifying or replacing Design Factory's **existing** D6 exports. See [`proposals/LEAD-DESIGN-GRAPH.md`](proposals/LEAD-DESIGN-GRAPH.md) for precise editability, missing pixel-parity features and lead setup.
+
+In isolated V8 against the actual lead SDK/Design Graph source, **504/504** candidate graphs validated and rendered across 42 patterns × 12 themes, and **288/288** original sites remained compatible. Neither the optional Node checkout smoke nor PHP/Chromium/manual QA has passed in this environment. The formal Stage2/Stage3 gates and D7 release status remain unchanged.
