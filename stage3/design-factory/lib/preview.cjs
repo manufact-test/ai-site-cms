@@ -15,23 +15,24 @@ function href(route,depth){
 function a(route,label,depth,klass='button'){
   return '<a class="'+klass+'" href="'+esc(href(route,depth))+'">'+esc(label)+'</a>';
 }
-function renderSection(s,depth,i){
+function renderSection(s,depth,i,language){
+  const ru=language==='ru';
   const name=s.component, id=esc(s.id),heading=slot(s,'heading');
   const head='<p class="eyebrow">SECTION '+String(i+1).padStart(2,'0')+'</p><h2>'+esc(heading)+'</h2>';
   if(name==='company-hero')
-    return '<section id="'+id+'" class="section hero"><div class="hero-copy"><p class="eyebrow">DESIGN FACTORY / ORIGINAL LAYOUT</p><h1>'+esc(heading)+'</h1><p class="lede">'+esc(slot(s,'summary'))+'</p><div class="actions">'+a('/contact/',slot(s,'action'),depth)+a('/services/','Explore services →',depth,'text-link')+'</div></div><div class="art" aria-hidden="true"><div class="art-caption">DF · '+String(i+1).padStart(2,'0')+'</div><div class="art-shape"></div><div class="art-circle"></div></div></section>';
+    return '<section id="'+id+'" class="section hero"><div class="hero-copy"><p class="eyebrow">DESIGN FACTORY / ORIGINAL LAYOUT</p><h1>'+esc(heading)+'</h1><p class="lede">'+esc(slot(s,'summary'))+'</p><div class="actions">'+a('/contact/',slot(s,'action'),depth)+a('/services/',ru?'Услуги →':'Explore services →',depth,'text-link')+'</div></div><div class="art" aria-hidden="true"><div class="art-caption">DF · '+String(i+1).padStart(2,'0')+'</div><div class="art-shape"></div><div class="art-circle"></div></div></section>';
   if(name==='feature-highlights')
     return '<section id="'+id+'" class="section features"><div class="section-heading">'+head+'</div><div class="features-grid"><article><span class="index">01 /</span><h3>'+esc(slot(s,'first'))+'</h3></article><article><span class="index">02 /</span><h3>'+esc(slot(s,'second'))+'</h3></article></div></section>';
   if(name==='service-grid')
-    return '<section id="'+id+'" class="section services"><div class="section-heading">'+head+'</div><div class="service-grid">'+s.items.map((it,j)=>'<article class="service-card"><div class="card-top"><span>0'+(j+1)+'</span><span aria-hidden="true">↗</span></div><h3>'+esc(it.values['content.title'])+'</h3><p>'+esc(it.values['content.text'])+'</p>'+a('/contact/','Discuss →',depth,'text-link')+'</article>').join('')+'</div></section>';
+    return '<section id="'+id+'" class="section services"><div class="section-heading">'+head+'</div><div class="service-grid">'+s.items.map((it,j)=>'<article class="service-card"><div class="card-top"><span>0'+(j+1)+'</span><span aria-hidden="true">↗</span></div><h3>'+esc(it.values['content.title'])+'</h3><p>'+esc(it.values['content.text'])+'</p>'+a('/contact/',ru?'Обсудить →':'Discuss →',depth,'text-link')+'</article>').join('')+'</div></section>';
   if(name==='media-story')
-    return '<section id="'+id+'" class="section story"><div class="story-art" aria-label="Illustrative placeholder; no owner photo supplied"><span>IMAGE / PLACEHOLDER</span><div class="story-shape"></div></div><div class="story-text">'+head+'<p>'+esc(slot(s,'copy'))+'</p>'+a('/contact/',slot(s,'action'),depth,'text-link')+'</div></section>';
+    return '<section id="'+id+'" class="section story"><div class="story-art" aria-label="Illustrative placeholder; no owner photo supplied"><span>'+(ru?'ИЗОБРАЖЕНИЕ / ПРИМЕР':'IMAGE / PLACEHOLDER')+'</span><div class="story-shape"></div></div><div class="story-text">'+head+'<p>'+esc(slot(s,'copy'))+'</p>'+a('/contact/',slot(s,'action'),depth,'text-link')+'</div></section>';
   if(name==='faq-accordion')
     return '<section id="'+id+'" class="section faq"><div>'+head+'</div><div class="faqs">'+s.items.map(it=>'<details><summary>'+esc(it.values['content.question'])+'</summary><p>'+esc(it.values['content.answer'])+'</p></details>').join('')+'</div></section>';
   if(name==='cta-banner')
-    return '<section id="'+id+'" class="section cta"><div><p class="eyebrow">NEXT STEP</p><h2>'+esc(heading)+'</h2><p>'+esc(slot(s,'summary'))+'</p></div><div class="cta-actions">'+a('/contact/',slot(s,'primary'),depth)+a('/services/',slot(s,'secondary')+' →',depth,'text-link')+'</div></section>';
+    return '<section id="'+id+'" class="section cta"><div><p class="eyebrow">'+(ru?'ДАЛЬНЕЙШИЙ ШАГ':'NEXT STEP')+'</p><h2>'+esc(heading)+'</h2><p>'+esc(slot(s,'summary'))+'</p></div><div class="cta-actions">'+a('/contact/',slot(s,'primary'),depth)+a('/services/',slot(s,'secondary')+' →',depth,'text-link')+'</div></section>';
   if(name==='contact-panel')
-    return '<section id="'+id+'" class="section contact">'+head+'<p>Add verified contact information before publication.</p>'+a('/contact/',slot(s,'action'),depth)+'</section>';
+    return '<section id="'+id+'" class="section contact">'+head+'<p>'+(ru?'Укажите подтверждённые контакты перед публикацией.':'Add verified contact information before publication.')+'</p>'+a('/contact/',slot(s,'action'),depth)+'</section>';
   throw Error('Unsupported preview component '+name);
 }
 function css(theme){
@@ -91,12 +92,13 @@ function css(theme){
 }
 function pageHtml(site,page,theme,language){
   const depth=page.path==='/'?0:1;
+  const ru=language==='ru';
   const nav=site.pages.map(p=>'<a href="'+esc(href(p.path,depth))+'"'+(p.path===page.path?' aria-current="page"':'')+'>'+esc(p.navigation.label)+'</a>').join('');
   return '<!doctype html><html lang="'+esc(language)+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">'+
     '<title>'+esc(page.seo.title)+'</title><meta name="description" content="'+esc(page.seo.description)+'"><link rel="stylesheet" href="'+(depth?'../':'')+'assets/preview.css"></head><body>'+
-    '<a class="skip" href="#content">Skip to content</a><div class="notice">Design Factory standalone preview · not published CMS HTML</div>'+
-    '<header><div class="navwrap"><a class="brand" href="'+esc(href('/',depth))+'"><span>◆ </span>'+esc(site.title)+'</a><nav aria-label="Site navigation">'+nav+'</nav></div></header>'+
-    '<main id="content">'+page.sections.map((s,i)=>renderSection(s,depth,i)).join('\n')+'</main><footer class="footer"><div class="footer-inner"><b>'+esc(site.title)+'</b><span>Design preview — verify details before publishing</span></div></footer></body></html>\n';
+    '<a class="skip" href="#content">'+(ru?'Перейти к содержимому':'Skip to content')+'</a><div class="notice">'+(ru?'Design Factory · предпросмотр, не опубликованный сайт CMS':'Design Factory standalone preview · not published CMS HTML')+'</div>'+
+    '<header><div class="navwrap"><a class="brand" href="'+esc(href('/',depth))+'"><span>◆ </span>'+esc(site.title)+'</a><nav aria-label="'+(ru?'Навигация':'Site navigation')+'">'+nav+'</nav></div></header>'+
+    '<main id="content">'+page.sections.map((s,i)=>renderSection(s,depth,i,language)).join('\n')+'</main><footer class="footer"><div class="footer-inner"><b>'+esc(site.title)+'</b><span>'+(ru?'Дизайн-предпросмотр · проверьте сведения перед публикацией':'Design preview — verify details before publishing')+'</span></div></footer></body></html>\n';
 }
 function writePreview(compiled,directory){
   const out=path.resolve(directory),parent=path.dirname(out);
