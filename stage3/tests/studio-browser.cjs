@@ -163,8 +163,15 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-appearance-surface').selectOption('dark');
     await page.locator('#cms-appearance-spacing').selectOption('airy');
     await page.locator('#cms-appearance-align').selectOption('center');
+    await page.locator('#cms-appearance-width').selectOption('narrow');
+    await page.locator('#cms-appearance-heading').selectOption('expressive');
+    await page.locator('#cms-appearance-corners').selectOption('round');
+    await page.locator('#cms-appearance-button').selectOption('pill');
+    await page.locator('#cms-appearance-mobileAlign').selectOption('left');
+    await page.locator('#cms-appearance-mobileSpacing').selectOption('tight');
     await page.locator('#cms-appearance-apply').click();
     assert.match((await canvas.locator('.cms-section-skin').getAttribute('class')),/cms-surface-dark cms-spacing-airy cms-align-center/);
+    assert.match((await canvas.locator('.cms-section-skin').getAttribute('class')),/cms-width-narrow cms-heading-expressive cms-corners-round cms-mobile-align-left cms-mobile-spacing-tight cms-button-pill/);
     await page.locator('#undo').click();
     await canvas.locator('.cms-surface-default').waitFor();
 

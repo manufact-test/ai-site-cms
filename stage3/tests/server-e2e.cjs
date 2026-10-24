@@ -443,6 +443,12 @@ async function stop(){
   faq.items[0].values['content.question']='<img src=x onerror=alert(1)>';
   const quote=rich.pages[0].sections.find(s=>s.component==='testimonials');
   quote.items[0].values['content.quote']='Подтверждённый отзыв тестового автора';
+  const cta=csdk.sectionFrom(richDefs.find(m=>m.id==='cta-banner'),'section-rich-cta');
+  cta.elements.find(e=>e.slot==='primary').values['behavior.href']='/contact/';
+  cta.elements.find(e=>e.slot==='secondary').values['behavior.href']='/';
+  cta.appearance={surface:'paper',spacing:'normal',align:'left',width:'narrow',
+    heading:'expressive',corners:'round',mobileAlign:'center',mobileSpacing:'tight',button:'pill'};
+  rich.pages[0].sections.push(cta);
   rich.redirects=[{from:'/old-services/',to:'/contact/'}];
   rich.pages[0].sections[0].appearance={surface:'dark',spacing:'airy',align:'center'};
   const richCreated=await request('POST','/api/sites',{site:rich});
@@ -455,6 +461,9 @@ async function stop(){
   assert.match(richPublished.body,/<details><summary>&lt;img src=x onerror=alert\(1\)&gt;<\/summary>/);
   assert.doesNotMatch(richPublished.body,/<img src=x onerror=/);
   assert.match(richPublished.body,/Подтверждённый отзыв тестового автора/);
+  assert.match(richPublished.body,/cms-width-narrow cms-heading-expressive cms-corners-round cms-mobile-align-center cms-mobile-spacing-tight cms-button-pill/);
+  assert.match(richPublished.body,/class="cta-banner"/);
+  assert.match(richPublished.body,/Готовы обсудить проект/);
   assert.match(richPublished.body,/href="\/published\/site-rich-ci\/contact\/"/);
   assert.match(richPublished.body,/background:var\(--cms-bg\)/);
   assert.match(richPublished.body,/class="cms-section-skin cms-surface-dark cms-spacing-airy cms-align-center"/);
@@ -487,7 +496,7 @@ async function stop(){
   const richRollback=await request('POST','/api/sites/site-rich-ci/restore',{expectedRevision:2,targetRevision:1});
   assert.equal(richRollback.status,200);
   const badRepeat=structuredClone(rich);
-  badRepeat.pages[0].sections.at(-1).items[0].values['content.media']='asset-from-another-site';
+  badRepeat.pages[0].sections.find(s=>s.component==='photo-gallery').items[0].values['content.media']='asset-from-another-site';
   assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:3,site:badRepeat})).status,422);
   const richExport=path.join(dbdir,'rich-static');
   const exp=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',richExport],

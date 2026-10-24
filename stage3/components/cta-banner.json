@@ -1,0 +1,78 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "cta-banner",
+  "version": "1.0.0",
+  "label": "CTA · призыв к действию",
+  "elements": [
+    {
+      "slot": "heading",
+      "label": "Заголовок",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Заголовок CTA",
+          "type": "text",
+          "default": "Готовы обсудить проект?",
+          "responsive": false,
+          "maxLength": 180
+        }
+      ]
+    },
+    {
+      "slot": "summary",
+      "label": "Описание",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Пояснение",
+          "type": "text",
+          "default": "Расскажите о задаче — подберём решение и ответим на вопросы.",
+          "responsive": false,
+          "maxLength": 500
+        }
+      ]
+    },
+    {
+      "slot": "primary",
+      "label": "Основная кнопка",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Текст кнопки",
+          "type": "text",
+          "default": "Связаться с нами",
+          "responsive": false,
+          "maxLength": 100
+        },
+        {
+          "path": "behavior.href",
+          "label": "Адрес кнопки",
+          "type": "url",
+          "default": "/",
+          "responsive": false
+        }
+      ]
+    },
+    {
+      "slot": "secondary",
+      "label": "Дополнительная кнопка",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Текст кнопки",
+          "type": "text",
+          "default": "Наши услуги",
+          "responsive": false,
+          "maxLength": 100
+        },
+        {
+          "path": "behavior.href",
+          "label": "Адрес кнопки",
+          "type": "url",
+          "default": "/",
+          "responsive": false
+        }
+      ]
+    }
+  ]
+}

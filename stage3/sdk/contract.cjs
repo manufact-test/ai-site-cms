@@ -121,12 +121,15 @@ function validNav(n){
   objectKeys(n,['label','hidden'],'navigation');
   if(typeof n.label!=='string'||n.label.length>100||/[\x00-\x1f]/.test(n.label)||typeof n.hidden!=='boolean')fail('Invalid page navigation');
 }
-const DEFAULT_APPEARANCE=Object.freeze({surface:'default',spacing:'normal',align:'left'});
+const DEFAULT_APPEARANCE=Object.freeze({surface:'default',spacing:'normal',align:'left',width:'default',heading:'default',corners:'default',mobileAlign:'inherit',mobileSpacing:'inherit',button:'default'});
+const EXTRA_APPEARANCE=Object.freeze({"width":["default","narrow","wide"],"heading":["default","compact","expressive"],"corners":["default","soft","round"],"mobileAlign":["inherit","left","center"],"mobileSpacing":["inherit","tight","normal","airy"],"button":["default","outline","pill"]});
 function validAppearance(a){
-  objectKeys(a,['surface','spacing','align'],'appearance');
+  objectKeys(a,['surface','spacing','align',...Object.keys(EXTRA_APPEARANCE)],'appearance');
   if(!['default','paper','tint','dark'].includes(a.surface)||
      !['tight','normal','airy'].includes(a.spacing)||
      !['left','center'].includes(a.align))fail('Invalid section appearance');
+  for(const [name,allowed] of Object.entries(EXTRA_APPEARANCE))
+    if(own(a,name)&&!allowed.includes(a[name]))fail('Invalid section appearance',name);
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);

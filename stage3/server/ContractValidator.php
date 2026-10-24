@@ -178,11 +178,21 @@ final class ContractValidator
             foreach ($page['sections'] as $section) {
                 self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance']);
                 if (array_key_exists('appearance',$section)) {
-                    self::keys($section['appearance'],['surface','spacing','align']);
+                    self::keys($section['appearance'],['surface','spacing','align','width','heading','corners','mobileAlign','mobileSpacing','button']);
                     self::must(in_array($section['appearance']['surface']??null,['default','paper','tint','dark'],true)
                         && in_array($section['appearance']['spacing']??null,['tight','normal','airy'],true)
                         && in_array($section['appearance']['align']??null,['left','center'],true),
                         'Invalid section appearance');
+                    foreach (['width'=>['default','narrow','wide'],
+                        'heading'=>['default','compact','expressive'],
+                        'corners'=>['default','soft','round'],
+                        'mobileAlign'=>['inherit','left','center'],
+                        'mobileSpacing'=>['inherit','tight','normal','airy'],
+                        'button'=>['default','outline','pill']] as $field=>$allowed) {
+                        if (array_key_exists($field,$section['appearance']))
+                            self::must(in_array($section['appearance'][$field],$allowed,true),
+                                'Invalid section appearance '.$field);
+                    }
                 }
                 self::uniqueId($section['id'], $ids);
                 $manifest = $this->registry[$section['component']] ?? null;

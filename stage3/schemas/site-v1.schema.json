@@ -326,6 +326,49 @@
             "left",
             "center"
           ]
+        },
+        "width": {
+          "enum": [
+            "default",
+            "narrow",
+            "wide"
+          ]
+        },
+        "heading": {
+          "enum": [
+            "default",
+            "compact",
+            "expressive"
+          ]
+        },
+        "corners": {
+          "enum": [
+            "default",
+            "soft",
+            "round"
+          ]
+        },
+        "mobileAlign": {
+          "enum": [
+            "inherit",
+            "left",
+            "center"
+          ]
+        },
+        "mobileSpacing": {
+          "enum": [
+            "inherit",
+            "tight",
+            "normal",
+            "airy"
+          ]
+        },
+        "button": {
+          "enum": [
+            "default",
+            "outline",
+            "pill"
+          ]
         }
       }
     }

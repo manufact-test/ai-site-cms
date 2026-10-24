@@ -7,7 +7,7 @@ const {execFileSync}=require('node:child_process');
 const sdk=require('../sdk/contract.cjs');
 const root=path.resolve(__dirname,'..');
 const read=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8'));
-const manifests=['company-hero','feature-highlights','contact-panel','image-showcase','lead-form','lead-form-flex','service-grid','faq-accordion','testimonials','photo-gallery','media-story','partner-logos'].map(
+const manifests=['company-hero','feature-highlights','contact-panel','image-showcase','lead-form','lead-form-flex','service-grid','faq-accordion','testimonials','photo-gallery','media-story','partner-logos','cta-banner'].map(
   name=>read('components/'+name+'.json'));
 let checks=0;
 const test=(name,fn)=>{fn();checks++;};
@@ -40,6 +40,28 @@ test('individual section appearances are strict, undoable, and inherited by prev
   }
   const invalid=structuredClone(state.current);invalid.pages[0].sections[0].appearance.align='<script>';
   assert.throws(()=>sdk.validateSite(invalid,manifests));
+});
+
+test('responsive presets and CTA are fully typed, undoable and backward compatible',()=>{
+  const D=require('../sdk/draft.cjs');
+  const site=same(initial),cta=sdk.sectionFrom(manifests.find(m=>m.id==='cta-banner'),'section-cta-new');
+  site.pages[0].sections.push(cta);
+  const start=D.begin(site,manifests),full={surface:'paper',spacing:'airy',align:'center',
+    width:'narrow',heading:'expressive',corners:'round',mobileAlign:'left',mobileSpacing:'tight',button:'outline'};
+  const next=D.structure(start,manifests,{action:'updateAppearance',pageId:'page-home',
+    sectionId:cta.id,appearance:full,expectedRevision:start.revision});
+  assert.deepEqual(D.blockPreview(next,manifests,'page-home',cta.id,'mobile').appearance,full);
+  assert.equal(D.undo(next,manifests).current.pages[0].sections.at(-1).appearance,undefined);
+  assert.deepEqual(D.redo(D.undo(next,manifests),manifests).current,next.current);
+  assert.equal(sdk.validateSite(next.current,manifests).pages[0].sections.at(-1).component,'cta-banner');
+  for(const [property,invalid] of Object.entries({width:'calc(100%)',heading:'gigantic',corners:'100vh',
+    mobileAlign:'justify',mobileSpacing:'-1px',button:'url(//bad)'})){
+    const bad=same(next.current);bad.pages[0].sections.at(-1).appearance[property]=invalid;
+    refuses(()=>sdk.validateSite(bad,manifests),'Closed appearance preset '+property);
+  }
+  const legacy=same(initial);legacy.pages[0].sections[0].appearance={surface:'dark',spacing:'normal',align:'left'};
+  assert.equal(sdk.validateSite(legacy,manifests).pages[0].sections[0].appearance.width,undefined);
+  assert.ok(read('schemas/site-v1.schema.json').$defs.appearance.properties.mobileSpacing.enum.includes('tight'));
 });
 
 test('theme + page SEO/nav accept only closed values and participate in Undo',()=>{

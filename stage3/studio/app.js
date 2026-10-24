@@ -308,7 +308,7 @@
     const dlg=document.createElement('dialog');dlg.id='cms-appearance-dialog';
     dlg.className='cms-appearance-dialog';
     const title=document.createElement('h2');title.textContent='Оформление выбранного блока';
-    const note=document.createElement('p');note.textContent='Фон, отступы и выравнивание блока. Не изменяет другие секции; публикация отдельно.';
+    const note=document.createElement('p');note.textContent='Фон, типографика, ширина, скругление, кнопки и адаптивные настройки выбранного блока. Публикация отдельно.';
     const fields={};
     const pick=(id,label,choices)=>{
       const wrap=document.createElement('label');wrap.textContent=label;
@@ -321,10 +321,16 @@
     dlg.append(title,note,
       pick('surface','Фон', [['default','Как в компоненте'],['paper','Белый / поверхность'],['tint','Мягкий голубой'],['dark','Тёмный']]),
       pick('spacing','Вертикальные отступы',[['tight','Компактные'],['normal','Стандартные'],['airy','Просторные']]),
-      pick('align','Выравнивание',[['left','Слева'],['center','По центру']]));
+      pick('align','Выравнивание',[['left','Слева'],['center','По центру']]),
+      pick('width','Ширина секции',[['default','Стандартная'],['narrow','Узкая'],['wide','Во всю ширину содержимого']]),
+      pick('heading','Типографика H2',[['default','Стандартная'],['compact','Компактная'],['expressive','Выразительная']]),
+      pick('corners','Скругления элементов',[['default','Как в компоненте'],['soft','12 пикселей'],['round','28 пикселей']]),
+      pick('button','Оформление кнопок',[['default','Стандартные'],['outline','Контурные'],['pill','Округлые']]),
+      pick('mobileAlign','Выравнивание на телефоне',[['inherit','Как на ПК'],['left','Слева'],['center','По центру']]),
+      pick('mobileSpacing','Отступы на телефоне',[['inherit','Как на ПК'],['tight','Компактные'],['normal','Стандартные'],['airy','Просторные']]));
     const actionBar=document.createElement('div');actionBar.className='cms-appearance-actions';
     const apply=button('Применить','btn primary',()=>{
-      const appearance={surface:fields.surface.value,spacing:fields.spacing.value,align:fields.align.value};
+      const appearance=Object.fromEntries(Object.entries(fields).map(([name,input])=>[name,input.value]));
       const selected=current();
       structural({action:'updateAppearance',pageId:selected.page.id,sectionId:selected.section.id,appearance});
       dlg.close();
@@ -606,6 +612,11 @@
         '<label>'+e(p('email-label').content.text)+'</label><div class="media-placeholder">Email</div>'+
         '<label>'+e(p('message-label').content.text)+'</label><div class="media-placeholder">Сообщение</div>'+extra+
         '<p>☐ '+e(p('consent-label').content.text)+'</p><span class="action">'+e(p('submit-label').content.text)+'</span></div></section>';
+    }else if(block.component==='cta-banner'){
+      content='<section class="cta-banner"><h2>'+e(p('heading').content.text||'')+'</h2>'+
+        '<p>'+e(p('summary').content.text||'')+'</p><div class="cta-actions">'+
+        '<span class="action">'+e(p('primary').content.text||'')+'</span>'+
+        '<span class="action secondary">'+e(p('secondary').content.text||'')+'</span></div></section>';
     }else if(block.component==='contact-panel'){
       content='<section class="contact"><span class="kicker">НАЧНЁМ СОТРУДНИЧЕСТВО</span>'+
         '<h2>'+e(title.title)+'</h2><p>Свяжитесь с нами через выбранный канал.</p>'+
@@ -613,7 +624,13 @@
         '<small>Кнопка демонстрационная: данные не отправляются.</small></section>';
     }else content='<section><h2>Незарегистрированный шаблон</h2></section>';
     const appearance=block.appearance||C.DEFAULT_APPEARANCE;
-    const skin='cms-surface-'+appearance.surface+' cms-spacing-'+appearance.spacing+' cms-align-'+appearance.align;
+    const skin='cms-surface-'+appearance.surface+' cms-spacing-'+appearance.spacing+' cms-align-'+appearance.align+
+      (appearance.width?' cms-width-'+appearance.width:'')+
+      (appearance.heading?' cms-heading-'+appearance.heading:'')+
+      (appearance.corners?' cms-corners-'+appearance.corners:'')+
+      (appearance.mobileAlign?' cms-mobile-align-'+appearance.mobileAlign:'')+
+      (appearance.mobileSpacing?' cms-mobile-spacing-'+appearance.mobileSpacing:'')+
+      (appearance.button?' cms-button-'+appearance.button:'');
     content='<div class="cms-section-skin '+skin+'">'+content+'</div>';
     const skinCss='<style>.cms-surface-paper>section{background:var(--cms-surface)!important}'+
       '.cms-surface-tint>section{background:#ecf4fc!important}'+
@@ -621,7 +638,20 @@
       '.cms-spacing-tight>section{padding-top:25px!important;padding-bottom:25px!important}'+
       '.cms-spacing-airy>section{padding-top:110px!important;padding-bottom:110px!important}'+
       '.cms-align-center>section{text-align:center!important}'+
-      '.cms-align-center>section>p{margin-left:auto;margin-right:auto}</style>';
+      '.cms-align-center>section>p{margin-left:auto;margin-right:auto}'+
+      '.cms-width-narrow>section{max-width:780px!important;margin-inline:auto!important}'+
+      '.cms-width-wide>section{max-width:none!important}'+
+      '.cms-heading-compact>section h2{font-size:clamp(24px,2.5vw,34px)!important}'+
+      '.cms-heading-expressive>section h2{font-size:clamp(36px,4.5vw,56px)!important}'+
+      '.cms-corners-soft>section :is(article,.card,details,img,.action){border-radius:12px!important}'+
+      '.cms-corners-round>section :is(article,.card,details,img,.action){border-radius:28px!important}'+
+      '.cms-button-outline>section .action{background:transparent!important;color:var(--cms-primary)!important;box-shadow:inset 0 0 0 2px currentColor}'+
+      '.cms-button-pill>section .action{border-radius:999px!important}'+
+      '.cta-banner{background:var(--cms-surface);min-height:0;text-align:inherit}.cta-banner p{max-width:650px}.cta-actions{display:flex;flex-wrap:wrap;gap:12px}.cta-actions .secondary{background:transparent!important;color:var(--cms-primary);box-shadow:inset 0 0 0 2px currentColor}'+
+      '@media(max-width:600px){.cms-mobile-align-left>section{text-align:left!important}.cms-mobile-align-center>section{text-align:center!important}'+
+      '.cms-mobile-spacing-tight>section{padding-top:24px!important;padding-bottom:24px!important}'+
+      '.cms-mobile-spacing-normal>section{padding-top:40px!important;padding-bottom:40px!important}'+
+      '.cms-mobile-spacing-airy>section{padding-top:72px!important;padding-bottom:72px!important}}</style>';
     return '<!doctype html><html lang="ru"><head><meta charset="utf-8">'+
       '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;none&#39;; img-src &#39;'+(HOSTED?'data:':'none')+'&#39;; style-src &#39;unsafe-inline&#39;; connect-src &#39;none&#39;; form-action &#39;none&#39;; base-uri &#39;none&#39;">'+
       '<meta name="viewport" content="width=device-width,initial-scale=1">'+
