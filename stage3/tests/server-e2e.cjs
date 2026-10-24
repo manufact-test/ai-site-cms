@@ -78,6 +78,18 @@ async function stop(){
       {cwd:root,env:{...env,STAGE3_ALLOW_LICENSE_UPGRADE:'YES'},encoding:'utf8'});
     assert.equal(migrated.status,0,migrated.stderr);
   }
+  // Old isolated Stage3 labs need an explicit upgrade; web requests must never migrate.
+  const oldVideo=spawnSync('php',['-r',
+    '$db=new PDO(getenv("STAGE3_DSN"));$db->exec("DROP TABLE stage3_video_chunks");$db->exec("DROP TABLE stage3_video_uploads");'],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(oldVideo.status,0,oldVideo.stderr);
+  assert.notEqual(spawnSync('php',['stage3/server/bin/upgrade-video.php'],
+    {cwd:root,env,encoding:'utf8'}).status,0);
+  for(let i=0;i<2;i++){
+    const upgraded=spawnSync('php',['stage3/server/bin/upgrade-video.php'],
+      {cwd:root,env:{...env,STAGE3_ALLOW_VIDEO_UPGRADE:'YES'},encoding:'utf8'});
+    assert.equal(upgraded.status,0,upgraded.stderr);
+  }
   await runServer();
   assert.equal((await request('GET','/api/sites')).status,401,'private site list requires login');
   assert.equal((await request('POST','/api/login',{username:'testowner',password:'bad'})).status,401);
@@ -908,6 +920,59 @@ async function stop(){
   assert.equal(restoredVideo.status,201,JSON.stringify(restoredVideo.body));
   assert.equal(restoredVideo.body.site.assets.find(a=>a.id===videoAsset.id).mime,'video/mp4');
   assert.equal((await request('GET','/published/site-video-archive/assets/'+videoAsset.id+'.mp4')).status,404);
+
+  // Medium-sized playable MP4 with a legal top-level free atom forces multiple
+  // bounded, independently SHA256-checked requests (no enormous JSON body).
+  const free=Buffer.alloc(2097152);
+  free.writeUInt32BE(free.length,0);free.write('free',4,'ascii');
+  const bigger=Buffer.concat([videoBytes,free]);
+  const digest=v=>require('node:crypto').createHash('sha256').update(v).digest('hex');
+  const base='/api/sites/site-rich-ci/video-uploads/';
+  const current=await request('GET',designEndpoint);
+  const count=Math.ceil(bigger.length/524288);
+  const start={expectedRevision:current.body.revision,alt:'Крупный MP4 для сайта',
+    bytes:bigger.length,chunks:count,sha256:digest(bigger)};
+  assert.equal((await request('POST',base+'start',start,{'x-csrf-token':'wrong'})).status,403);
+  const started=await request('POST',base+'start',start);
+  assert.equal(started.status,201,JSON.stringify(started.body));
+  assert.equal(started.body.chunkBytes,524288);
+  const upload=base+started.body.uploadId;
+  assert.equal((await request('POST',upload+'/finish',{})).status,409,'Incomplete MP4 must not commit');
+  assert.equal((await request('POST','/api/sites/site-unrelated/video-uploads/'+started.body.uploadId+'/finish',{})).status,404);
+  const parts=Array.from({length:count},(_,i)=>bigger.subarray(i*524288,Math.min((i+1)*524288,bigger.length)));
+  const firstPart={index:0,base64:parts[0].toString('base64'),sha256:digest(parts[0])};
+  assert.equal((await request('POST',upload+'/chunk',{...firstPart,sha256:'0'.repeat(64)})).status,422,
+    'Chunk SHA256 tampering denied');
+  assert.equal((await request('POST',upload+'/chunk',firstPart)).status,200);
+  const repeated=await request('POST',upload+'/chunk',firstPart);
+  assert.equal(repeated.status,200);assert.equal(repeated.body.duplicate,true,'Safe retry is idempotent');
+  for(let i=1;i<count;i++){
+    const chunk=await request('POST',upload+'/chunk',{index:i,base64:parts[i].toString('base64'),sha256:digest(parts[i])});
+    assert.equal(chunk.status,200,JSON.stringify(chunk.body));
+  }
+  assert.equal((await request('GET',designEndpoint)).body.revision,current.body.revision,
+    'Staged video chunks must not modify draft revision');
+  const finished=await request('POST',upload+'/finish',{});
+  assert.equal(finished.status,201,JSON.stringify(finished.body));
+  assert.equal(finished.body.sha256,digest(bigger));
+  assert.equal(finished.body.revision,current.body.revision+1);
+  assert.equal((await request('POST',upload+'/finish',{})).status,404,
+    'Completed upload session cannot be reused');
+  assert.equal((await request('GET','/published/site-rich-ci/assets/'+finished.body.asset.id+'.mp4')).status,404,
+    'Large unpublished media is private');
+  assert.equal((await request('POST',designEndpoint+'/publish',{expectedRevision:finished.body.revision})).status,200);
+  const largePublic=await fetch(origin+'/published/site-rich-ci/assets/'+finished.body.asset.id+'.mp4',
+    {headers:{Range:'bytes=524288-524303'}});
+  assert.equal(largePublic.status,206);
+  assert.equal(Buffer.from(await largePublic.arrayBuffer()).toString('hex'),
+    bigger.subarray(524288,524304).toString('hex'));
+  const badHeader=await fetch(origin+'/published/site-rich-ci/assets/'+finished.body.asset.id+'.mp4',
+    {headers:{Range:'bytes=1-2,4-5'}});
+  assert.equal(badHeader.status,416,'Multiple ranges are denied rather than misparsed');
+  const sizeOverflow=await request('POST',base+'start',
+    {...start,bytes:16777217,chunks:Math.ceil(16777217/524288)});
+  assert.equal(sizeOverflow.status,422,'Oversized video refused before staging');
+
 
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
