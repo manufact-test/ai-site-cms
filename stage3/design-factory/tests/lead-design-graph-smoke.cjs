@@ -155,7 +155,8 @@ if(process.env.DF_LEAD_PHP_FILE){
  ].join('');
  for(const [name,theme] of [
   ['hero-split','editorial'],['gallery-mosaic','noir'],
-  ['faq-compact','technical'],['contact-center','minimal']
+  ['faq-compact','technical'],['contact-center','minimal'],
+  ['services-cards','atelier'],['benefits-rail','verdant']
  ]){
   const project={format:FORMAT,version:1,kit:'agency',theme,language:'en',facts:{}};
   const bundle=bridge.build({format:bridge.WORKSPACE,version:1,project,composition:name});
