@@ -723,10 +723,10 @@ async function stop(){
   const copyId='site-responsive-copy';
   const plan=await request('POST','/api/backups/plan',{archive:responsiveArchive,targetSiteId:copyId});
   assert.equal(plan.status,200,JSON.stringify(plan.body));
-  const restored=await request('POST','/api/backups/restore',
+  const responsiveRestored=await request('POST','/api/backups/restore',
     {archive:responsiveArchive,targetSiteId:copyId,confirmationToken:plan.body.confirmationToken});
-  assert.equal(restored.status,201,JSON.stringify(restored.body));
-  assert.equal(restored.body.site.assets.find(a=>a.id===responsiveAsset.id).variants.length,3);
+  assert.equal(responsiveRestored.status,201,JSON.stringify(responsiveRestored.body));
+  assert.equal(responsiveRestored.body.site.assets.find(a=>a.id===responsiveAsset.id).variants.length,3);
   assert.equal((await request('GET','/published/'+copyId+'/')).status,404,'restore does not publish');
   const staticResponsive=path.join(dbdir,'responsive-export');
   const outcome=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',staticResponsive],
