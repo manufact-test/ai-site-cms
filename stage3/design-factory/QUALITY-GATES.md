@@ -115,3 +115,9 @@ Executed current-source optional lead smoke in isolated V8: **504** distinct typ
 ## Final chat checkpoint — conflict-safe synchronization
 
 Source-level V8 with latest fetched real lead SDK: optional lead Design Graph smoke **PASS** for 504 valid distinct graph candidates, 504 JS renders, owner copy, repeater records, safe galleries, HTML escaping and the new collision checks. `inspectSemanticSync()` does not mutate input and reports conflicts; `reconcileSemantic()` rejects concurrent edits to the same bound graph property and preserves unrelated graph content and style changes. Cross-site/page synchronization is rejected. These are **not** real Node checkout/PHP/Chromium acceptance. D7 formal releaseReady remains false. Read `handoffs/SESSION-CLOSEOUT-2026-10-24.md` before attempting final ZIP and manual QA.
+
+## Provenance-integrity addition — 24 October 2026
+
+Optional cross-branch Node suite `tests/lead-design-graph-smoke.cjs` now contains cases for reordered equivalent bindings (allowed) and incorrect existing item IDs, swapped sources, omitted entries, duplicate entries and unknown nodes (rejected). The implementation rebuilds expected source mappings from the original CMS section, not supplied mapping metadata. This suite is **separate** from the six stable D7 release suites and must be executed against the live lead checkout using `DF_LEAD_SDK_DIR`. The isolated mock checks run while editing this branch are not accepted Node or SDK runtime evidence.
+
+Local checkout is still unavailable because `github.com` cannot resolve here. A standalone minimal Chromium probe with `--no-zygote --single-process` also timed out (exit 124), so no 54 PNG files, visual approval, actual package or ZIP hash were created in this checkpoint. D7 **OPEN**, Stage2 NO-GO, Stage3 unaccepted, 0/135.
