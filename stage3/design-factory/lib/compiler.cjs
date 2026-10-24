@@ -217,6 +217,9 @@ function makeSection(component,id,page,project,reg){
       {title:c.serviceOne,description:c.serviceDescription},
       {title:c.serviceTwo,description:c.serviceDescription}
     ]);
+    // The registered service-grid repeater requires at least 2 items.
+    // Do not invent a second service: clearly label its owner-review placeholder.
+    if(rows.length===1)rows.push({title:c.serviceTwo,description:c.serviceDescription});
     setItems(section,rows.map(x=>({'content.title':x.title,'content.text':x.description,'behavior.href':'/contact/'})));
   } else if(component==='media-story'){
     apply(section,'heading',{'content.text':c.story});
