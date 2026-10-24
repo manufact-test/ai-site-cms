@@ -304,11 +304,10 @@ function buildHostCandidate(exportBundle,hostSdk,hostRegistry){
   expectedSdk:'Lead Design Graph v1; not supported by the older feature branch SDK'
  };
 }
-// Explicit one-way synchronization after the owner edits registered semantic
-// component values in the host CMS. Never called by D6 or automatic preview,
-// and NEVER overwrites CMS-authored graph styles or unrelated graph nodes.
-// Graph-only edits remain separate until an authorized owner requests sync.
-function reconcileSemantic(candidate,editedSite,hostSdk,hostRegistry){
+// Two-sided change detection for an explicit CMS content synchronization.
+// This is deliberately NOT an automatic two-way binding. A host may preview
+// changes/conflicts before applying, without touching any source document.
+function prepareReconciliation(candidate,editedSite,hostSdk,hostRegistry){
  if(!candidate||candidate.format!==FORMAT||candidate.version!==1||
     !candidate.mapping||candidate.mapping.semanticContentMode!=='snapshot-requires-host-reconciliation')
   fail('Expected versioned host graph candidate');
@@ -317,18 +316,37 @@ function reconcileSemantic(candidate,editedSite,hostSdk,hostRegistry){
   fail('Explicit current host SDK and registry required');
  const bindings=candidate.mapping.contentBindings;
  if(!Array.isArray(bindings)||bindings.length>80)fail('Invalid provenance bindings');
+ const baseline=hostSdk.validateSite(JSON.parse(JSON.stringify(candidate.site)),hostRegistry);
  const site=JSON.parse(JSON.stringify(hostSdk.validateSite(editedSite,hostRegistry)));
+ if(site.siteId!==baseline.siteId||site.pages[0]?.id!==baseline.pages[0]?.id)
+  fail('Candidate belongs to a different CMS site or page');
  const section=site.pages[0].sections.find(s=>s.id==='df-selected-composition');
- if(!section||!section.designGraph||!section.designGraph.nodes.length)
-  fail('Selected editable graph section missing');
- const nodes=new Map();
- const walk=n=>{
-  if(nodes.has(n.id))fail('Duplicate graph node');
-  nodes.set(n.id,n);
-  for(const child of n.children||[])walk(child);
+ const original=baseline.pages[0].sections.find(s=>s.id==='df-selected-composition');
+ if(!section||!original||!section.designGraph||!original.designGraph||
+    !section.designGraph.nodes.length||
+    section.component!==original.component||
+    section.manifestVersion!==original.manifestVersion||
+    section.designGraph.id!==original.designGraph.id)
+  fail('Selected editable graph section mismatch');
+ const index=graph=>{
+  const nodes=new Map();
+  const walk=n=>{
+   if(nodes.has(n.id))fail('Duplicate graph node');
+   nodes.set(n.id,n);for(const child of n.children||[])walk(child);
+  };
+  for(const root of graph.nodes)walk(root);
+  return nodes;
  };
- for(const root of section.designGraph.nodes)walk(root);
- const updated=new Set();
+ const nodes=index(section.designGraph),oldNodes=index(original.designGraph);
+ const changes=[],conflicts=[],preservedGraphEdits=[],seen=new Set();
+ const sourceValues=(s,source)=>{
+  const values=own(source,'slot')?
+   s.elements.find(e=>e.slot===source.slot)?.values:
+   s.items?.find(i=>i.id===source.itemId)?.values;
+  if(!values||!own(values,source.field)||typeof values[source.field]!=='string')
+   fail('Source was removed: '+source.field);
+  return values[source.field];
+ };
  for(const binding of bindings){
   if(!binding||typeof binding.nodeId!=='string'||
     !binding.nodeId.startsWith(section.id+'-dg-')||
@@ -338,24 +356,56 @@ function reconcileSemantic(candidate,editedSite,hostSdk,hostRegistry){
   const source=binding.source;
   if(Object.keys(source).some(k=>!['slot','itemId','field'].includes(k))||
     typeof source.field!=='string'||source.field.length>100||
-    (Object.hasOwn(source,'slot')===Object.hasOwn(source,'itemId')))
+    (own(source,'slot')===own(source,'itemId'))||
+    (own(source,'slot')&&typeof source.slot!=='string')||
+    (own(source,'itemId')&&typeof source.itemId!=='string'))
    fail('Invalid binding source');
-  const values=Object.hasOwn(source,'slot')?
-   section.elements.find(e=>e.slot===source.slot)?.values:
-   section.items?.find(i=>i.id===source.itemId)?.values;
-  if(!values||!Object.hasOwn(values,source.field)||
-    typeof values[source.field]!=='string')fail('Source was removed: '+binding.nodeId);
-  const node=nodes.get(binding.nodeId),property=binding.property||'text';
-  if(!node|| (property==='href'&&node.type!=='button')||
-    (property==='text'&&!['heading','text','button'].includes(node.type)))
+  const property=binding.property||'text',target=nodes.get(binding.nodeId),
+    initial=oldNodes.get(binding.nodeId);
+  if(!target||!initial||target.type!==initial.type||
+    (property==='href'&&target.type!=='button')||
+    (property==='text'&&!['heading','text','button'].includes(target.type))||
+    typeof target[property]!=='string'||typeof initial[property]!=='string')
    fail('Bound target was removed or changed: '+binding.nodeId);
-  if(updated.has(node.id+':'+property))fail('Duplicate source binding');
-  node[property]=values[source.field];updated.add(node.id+':'+property);
+  const marker=binding.nodeId+':'+property;
+  if(seen.has(marker))fail('Duplicate source binding');
+  seen.add(marker);
+  const from=sourceValues(original,source),to=sourceValues(section,source);
+  const before=initial[property],current=target[property];
+  const sourceChanged=to!==from,graphChanged=current!==before;
+  const descriptor={nodeId:binding.nodeId,property,source:{...source}};
+  if(sourceChanged&&graphChanged&&current!==to)
+   conflicts.push(descriptor);
+  else if(sourceChanged&&current!==to)
+   changes.push({...descriptor,value:to});
+  else if(graphChanged&&!sourceChanged)
+   preservedGraphEdits.push(descriptor);
  }
- const checked=hostSdk.validateSite(site,hostRegistry);
+ return {site,section,nodes,changes,conflicts,preservedGraphEdits};
+}
+function inspectSemanticSync(candidate,editedSite,hostSdk,hostRegistry){
+ const plan=prepareReconciliation(candidate,editedSite,hostSdk,hostRegistry);
+ return {
+  format:'manufact-design-factory-reconciliation-preview-v1',version:1,
+  canApply:plan.conflicts.length===0,
+  changes:plan.changes.map(({nodeId,property,source})=>({nodeId,property,source})),
+  conflicts:plan.conflicts,
+  preservedGraphEdits:plan.preservedGraphEdits,
+  noMutation:true
+ };
+}
+// Apply only on an explicit action authorized by the host CMS.
+// If graph text and its corresponding semantic field both changed, refuse
+// to pick a winner silently. Graph-authored text edits with unchanged source
+// survive, as do typography, layout, responsive styles and interactions.
+function reconcileSemantic(candidate,editedSite,hostSdk,hostRegistry){
+ const plan=prepareReconciliation(candidate,editedSite,hostSdk,hostRegistry);
+ if(plan.conflicts.length)
+  fail('Conflicting semantic and graph content edits: '+plan.conflicts.map(x=>x.nodeId).join(', '));
+ for(const edit of plan.changes)plan.nodes.get(edit.nodeId)[edit.property]=edit.value;
+ const checked=hostSdk.validateSite(plan.site,hostRegistry);
  if(hostSdk.inspectSite(checked,hostRegistry).errors.length)
   fail('Synced graph has invalid internal links');
- return {...candidate,site:checked,mapping:{
-  ...candidate.mapping,semanticContentMode:'snapshot-requires-host-reconciliation'}};
+ return {...candidate,site:checked};
 }
-module.exports=Object.freeze({FORMAT,tokens,graphFor,buildHostCandidate,reconcileSemantic});
+module.exports=Object.freeze({FORMAT,tokens,graphFor,buildHostCandidate,inspectSemanticSync,reconcileSemantic});
