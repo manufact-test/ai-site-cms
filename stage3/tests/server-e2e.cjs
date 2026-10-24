@@ -753,11 +753,22 @@ async function stop(){
   designDoc.designTokens.colors.accent='#bb6633';
   const designGraph=designSdk.baseGraph(designSec.id);
   designGraph.nodes[0].styles.background='@background';
+  designGraph.nodes[0].styles.gradient={angle:135,from:'@accent',to:'#ffffff'};
+  designGraph.nodes[0].styles.paddingX='@large';
+  designGraph.nodes[0].styles.rowGap='@small';
+  designGraph.nodes[0].styles.shadow='medium';
+  designGraph.nodes[0].responsive.mobile={columns:1,paddingX:'@small',flexWrap:'wrap'};
+  designGraph.nodes[0].children[0].styles.fontFamily='georgia';
+  designGraph.nodes[0].children[0].styles.letterSpacing=-12;
+  designGraph.nodes[0].children[0].motion={effect:'fade-up',duration:600,delay:150};
   designGraph.nodes[0].children[0].text='Архитектурная композиция & сетка';
   designGraph.nodes[0].children[0].states={hover:{color:'@accent'},focus:{opacity:80}};
   designGraph.nodes[0].children.push({
     id:designSec.id+'-photo',type:'image',assetId:responsiveAsset.id,
     alt:'Промышленный цех',styles:{maxWidth:720}});
+  designGraph.nodes[0].children.push({
+    id:designSec.id+'-shield',type:'icon',icon:'shield',
+    alt:'Защищённый дизайн',styles:{fontSize:32,color:'@accent'}});
   designGraph.nodes[0].children.push({
     id:designSec.id+'-action',type:'button',text:'Подробнее',href:'/contact/',
     styles:{background:'@accent',color:'@background',padding:'@small',radius:'@soft'},
@@ -767,6 +778,16 @@ async function stop(){
   injectedDesign.pages[0].sections.find(s=>s.id===designSec.id).designGraph.nodes[0].styles.background='url(javascript:alert(1))';
   assert.equal((await request('POST',designEndpoint+'/save',{expectedRevision:graphDraft.body.revision,
     site:injectedDesign})).status,422,'Unsafe CSS cannot be saved');
+  const badIcon=structuredClone(designDoc);
+  badIcon.pages[0].sections.find(s=>s.id===designSec.id).designGraph.nodes[0]
+    .children.find(n=>n.type==='icon').icon='foreign-inline-svg';
+  assert.equal((await request('POST',designEndpoint+'/save',{expectedRevision:graphDraft.body.revision,
+    site:badIcon})).status,422,'Foreign inline SVG cannot be saved');
+  const badMotion=structuredClone(designDoc);
+  badMotion.pages[0].sections.find(s=>s.id===designSec.id).designGraph.nodes[0]
+    .children[0].motion.effect='custom-js-effect';
+  assert.equal((await request('POST',designEndpoint+'/save',{expectedRevision:graphDraft.body.revision,
+    site:badMotion})).status,422,'Unknown motion is rejected by PHP');
   const staged=await request('POST',designEndpoint+'/save',{expectedRevision:graphDraft.body.revision,site:designDoc});
   assert.equal(staged.status,200,JSON.stringify(staged.body));
   assert.doesNotMatch((await request('GET','/published/site-rich-ci/')).body,/Архитектурная композиция/,
@@ -776,6 +797,14 @@ async function stop(){
   const htmlDesign=(await request('GET','/published/site-rich-ci/')).body;
   assert.match(htmlDesign,/Архитектурная композиция &amp; сетка/);
   assert.match(htmlDesign,/cmsdg-/);
+  assert.match(htmlDesign,/linear-gradient\(135deg,#bb6633,#ffffff\)/);
+  assert.match(htmlDesign,/font-family:Georgia,serif/);
+  assert.match(htmlDesign,/row-gap:12px/);
+  assert.match(htmlDesign,/padding-inline:48px/);
+  assert.match(htmlDesign,/animation:cmsdg-fade-up 600ms ease-out 150ms both/);
+  assert.match(htmlDesign,/prefers-reduced-motion:reduce/);
+  assert.match(htmlDesign,/role="img" aria-label="Защищённый дизайн"/);
+  assert.match(htmlDesign,/<svg[^>]+viewBox="0 0 24 24"/);
   assert.match(htmlDesign,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(htmlDesign,/@media\(max-width:600px\)/);
   assert.match(htmlDesign,/:hover\{opacity:0.85\}/);
@@ -791,6 +820,11 @@ async function stop(){
   const htmlStatic=fs.readFileSync(path.join(staticDesign,'index.html'),'utf8');
   assert.match(htmlStatic,/Архитектурная композиция &amp; сетка/);
   assert.match(htmlStatic,/cmsdg-/);
+  assert.match(htmlStatic,/linear-gradient\(135deg,#bb6633,#ffffff\)/);
+  assert.match(htmlStatic,/font-family:Georgia,serif/);
+  assert.match(htmlStatic,/animation:cmsdg-fade-up 600ms ease-out 150ms both/);
+  assert.match(htmlStatic,/role="img" aria-label="Защищённый дизайн"/);
+  assert.match(htmlStatic,/prefers-reduced-motion:reduce/);
   assert.ok(htmlStatic.includes('class="cmsdg-n-'+designSec.id+'-action" href="/contact/"'),
     'Graph links are root-relative only in standalone static export');
   assert.match(htmlStatic,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
