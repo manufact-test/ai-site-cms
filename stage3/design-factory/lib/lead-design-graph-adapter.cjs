@@ -165,12 +165,23 @@ function contentFor(section,comp,language,prefix,cardStyles,font,assets=[]){
   const source=summary?{slot:summary.slot,field:'content.text'}:
    item?{itemId:item.id,field:'content.text'}:null;
   const id=prefix+'-card-1';
-  cards.push(card(0,[
+  const parts=[
    make(id+'-title','heading',t('Информация для проверки','Details to verify'),null,
     {fontSize:24,fontWeight:600,color:'@foreground',fontFamily:font}),
    make(id+'-text','text',text,source,
     {fontSize:'@body',color:'@foreground',lineHeight:150})
-  ]));
+  ];
+  if(section.component==='media-story'){
+   const media=section.elements.find(e=>e.slot==='photo')?.values?.['content.media'];
+   if(media){
+    const asset=assets.find(a=>a.id===media);
+    if(!asset||asset.mime==='video/mp4'||typeof asset.alt!=='string'||
+       !asset.alt.trim())fail('Media-story image requires verified asset and nonempty alt');
+    parts.push({id:id+'-image',type:'image',assetId:asset.id,alt:asset.alt,
+     styles:{aspectRatio:'landscape',objectFit:'cover',widthPercent:100}});
+   }
+  }
+  cards.push(card(0,parts));
  }
  // 24 FAQs use 80 nodes including the shell (below host limit 90).
  // Service cards have extra buttons but are capped at 12.
@@ -488,11 +499,23 @@ function prepareReconciliation(candidate,editedSite,hostSdk,hostRegistry){
   const media=s=>JSON.stringify({
    elements:s.elements.filter(el=>own(el.values,'content.media'))
     .map(el=>[el.slot,el.values['content.media']]),
-   items:(s.items||[]).map(item=>[item.id,item.values['content.media']||'',
-    item.values['content.caption']||''])
+   items:(s.items||[]).map(item=>[item.id,item.values['content.media']||''])
   });
   if(media(section)!==media(original))
    fail('Unsupported media content changed; review visual parity and rebuild candidate');
+  // Gallery captions become normal bound text AFTER an owner-authorized
+  // structural rebuild created real photo/caption nodes. Initial empty-media
+  // placeholder graphs have no such binding and cannot imply displayed text.
+  if(section.component==='photo-gallery'){
+   const captionBound=new Set(bindings.filter(b=>
+    b.source?.field==='content.caption').map(b=>b.source.itemId));
+   for(const item of section.items||[]){
+    const old=original.items.find(x=>x.id===item.id);
+    if(item.values['content.caption']!==old?.values['content.caption']&&
+       !captionBound.has(item.id))
+     fail('Gallery caption has no displayed graph node; review and rebuild candidate');
+   }
+  }
  }
  // The graph uses a precedence rule among optional heading/summary/CTA
  // slots. A newly populated higher-priority slot can change what the graph
