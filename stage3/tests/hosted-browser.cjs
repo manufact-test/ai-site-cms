@@ -425,7 +425,9 @@ async function execute(){
   assert.equal(await visitor.title(),'Тест SEO каталога | MANUFACT');
   assert.equal(await visitor.locator('meta[name=description]').getAttribute('content'),'Подтверждённое описание для поисковиков.');
   assert.equal(await visitor.locator('meta[name=robots]').getAttribute('content'),'noindex,follow');
-  assert.equal(await visitor.locator('nav a[aria-current=page]').innerText(),'Наш каталог');
+  assert.equal(await visitor.locator('.cms-nav-desktop a[aria-current=page]').innerText(),'Наш каталог');
+  assert.equal(await visitor.locator('.cms-mobile-menu a[aria-current=page]').count(),1,
+    'Mobile navigation contains the same published active page');
   assert.equal(await visitor.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(16, 27, 42)');
   assert.equal(await visitor.locator('.action').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 102, 0)');
   await page.locator('#cms-open-seo').click();
