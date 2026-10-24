@@ -1,0 +1,10 @@
+{
+  "format": "manufact-design-factory-v1",
+  "version": 1,
+  "kit": "nonprofit",
+  "theme": "verdant",
+  "language": "ru",
+  "facts": {
+    "siteId": "factory-nonprofit"
+  }
+}
