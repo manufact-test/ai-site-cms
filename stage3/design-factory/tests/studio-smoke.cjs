@@ -18,6 +18,8 @@ new Function(app);
 assert.ok(markup.includes('runtime.generated.js')&&markup.includes('studio.js'));
 assert.ok(!/@import|url\(\s*["']?https?:\/\//i.test(css));
 assert.ok(css.includes('prefers-reduced-motion')&&css.includes('max-width:730px'));
+for(const minTarget of ['.device-button{min-height:44px','.page-list button{min-height:44px',
+ '.icon-button{height:44px','.remove-service{'])assert.ok(css.includes(minTarget),minTarget);
 for(const id of ['kit-list','theme-list','site-preview','page-list','title','headline','description',
  'services-list','composition','undo','redo','save-project','save-site','save-workspace','project-file','checklist'])
  assert.ok(markup.includes('id="'+id+'"'),'UI control '+id);
@@ -31,6 +33,19 @@ assert.ok(api&&api.compiler&&api.sdk&&api.preview&&api.compositions);
 assert.equal(Object.keys(api.kits).length,12);
 assert.equal(Object.keys(api.themes).length,12);
 assert.equal(api.compositions.compositions.length,42);
+const templateFacts={title:'Verified title',headline:'Owner headline',description:'Owner description',
+ contactText:'Verified contact information'};
+const sampleServices=[
+ {title:'Уточните название',description:'Добавьте подтверждённое описание.'},
+ {title:'Example (verify): service',description:'Add verified description.'}
+];
+const draftReadiness=api.compiler.compile({format:api.compiler.FORMAT,version:1,
+ kit:'agency',theme:'editorial',language:'en',facts:{...templateFacts,services:sampleServices}});
+assert.ok(draftReadiness.checklist.missing.includes('facts.services'));
+assert.equal(draftReadiness.checklist.readyForPublish,false);
+assert.equal(draftReadiness.checklist.requiresOwnerReview,true);
+assert.ok(api.preview.css('editorial').includes('nav a{display:inline-flex;align-items:center;min-height:44px'));
+assert.ok(api.preview.css('editorial').includes('.faqs summary{display:flex;align-items:center;min-height:44px'));
 const reg=require('../lib/compiler.cjs').loadRegistry();
 let count=0;
 for(const kit of Object.keys(api.kits))for(const theme of Object.keys(api.themes))for(const language of ['ru','en']){
