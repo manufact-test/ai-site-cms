@@ -62,7 +62,7 @@ a{color:inherit}a:focus-visible,button:focus-visible,input:focus-visible,textare
 .field input::placeholder,.field textarea::placeholder{color:#76918F}
 .services-editor{display:grid;gap:10px}.service-editor{position:relative;border-radius:10px;border:1px solid var(--line);padding:12px;background:#1B2A2E}
 .service-editor .service-index{font-size:10px;letter-spacing:.1em;font-weight:850;color:var(--teal);margin:0 0 10px}
-.service-editor .field{margin-bottom:9px}.service-editor .field textarea{min-height:65px}.remove-service{position:absolute;right:8px;top:8px;background:transparent;border:0;color:#BDBBB6;font-size:17px;min-height:28px;min-width:28px;border-radius:6px}
+.service-editor .field{margin-bottom:9px}.service-editor .field textarea{min-height:65px}.remove-service{position:absolute;right:8px;top:8px;background:transparent;border:0;color:#BDBBB6;font-size:19px;min-height:44px;min-width:44px;border-radius:6px}.service-index{padding-right:46px}
 .remove-service:hover{background:#58393D;color:white}.minor-btn{padding:11px 14px;min-height:37px;border:1px solid #455C57;background:#273A37;color:#D7ECE5;margin-top:12px;text-align:center}
 .minor-btn:hover{background:#35514A}.minor-btn.full{width:100%}
 .composition-info{color:#8FAAA5;line-height:1.65;font-size:11px;border-left:2px solid #456F65;padding-left:10px}
