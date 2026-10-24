@@ -23,9 +23,17 @@ function textValue(section,slot,key){
  const item=section.elements.find(e=>e.slot===slot);
  return item&&typeof item.values[key]==='string'?item.values[key].trim():'';
 }
+function textSource(section,slots,key){
+ for(const slot of slots)if(textValue(section,slot,key))return {slot,field:key};
+ return null;
+}
 function bestText(section,slots,key,otherwise){
- for(const slot of slots){const text=textValue(section,slot,key);if(text)return text;}
- return otherwise;
+ const source=textSource(section,slots,key);
+ return source?textValue(section,source.slot,source.field):otherwise;
+}
+function actionSource(section){
+ return section.elements.find(e=>e.values&&
+  typeof e.values['behavior.href']==='string'&&e.values['behavior.href'].startsWith('/'));
 }
 function columnsFor(layout){
  if(['bento','mosaic','cards','rail'].includes(layout))return 3;
@@ -144,8 +152,7 @@ function graphFor(section,composition,theme,language){
    firstItem.values['content.text'].trim())?firstItem.values['content.text'].trim():safe;
  const cardTitle=firstItem?.values?.['content.title']||
   (en?'Details to verify':'Данные для проверки');
- const action=section.elements.find(e=>e.values&&
-  typeof e.values['behavior.href']==='string'&&e.values['behavior.href'].startsWith('/'));
+ const action=actionSource(section);
  const href=action?.values['behavior.href']||'/contact/';
  const actionText=action?.values['content.text']||(en?'Contact':'Связаться');
  const mainCols=columnsFor(composition.layout);
@@ -229,17 +236,20 @@ function graphFor(section,composition,theme,language){
 function bindingsFor(section,comp){
  const prefix=section.id+'-dg';
  const bindings=contentFor(section,comp,'en',prefix,{},'system').bindings;
- const bound=(slot,field,nodeId,property='text')=>{
-  const el=section.elements.find(x=>x.slot===slot);
-  if(el&&own(el.values,field))bindings.push({
-   nodeId:prefix+nodeId,source:{slot,field},property});
- };
- bound('heading','content.text','-heading');
- if(section.elements.some(e=>e.slot==='summary'))bound('summary','content.text','-text');
- else if(section.elements.some(e=>e.slot==='copy'))bound('copy','content.text','-text');
- for(const slot of ['action','primary'])if(section.elements.some(e=>e.slot===slot)){
-  bound(slot,'content.text','-action');
-  bound(slot,'behavior.href','-action','href');break;
+ // Bind only the SEMANTIC VALUES actually selected for rendering.
+ // Otherwise editing "second" or a selected CTA "primary" can leave stale
+ // graph text while a different field receives updates.
+ const heading=textSource(section,['heading','title','first'],'content.text');
+ const description=textSource(section,['summary','copy','second'],'content.text');
+ if(heading)bindings.push({nodeId:prefix+'-heading',source:heading});
+ if(description)bindings.push({nodeId:prefix+'-text',source:description});
+ const action=actionSource(section);
+ if(action){
+  if(typeof action.values['content.text']==='string')
+   bindings.push({nodeId:prefix+'-action',
+    source:{slot:action.slot,field:'content.text'}});
+  bindings.push({nodeId:prefix+'-action',
+   source:{slot:action.slot,field:'behavior.href'},property:'href'});
  }
  return bindings;
 }
