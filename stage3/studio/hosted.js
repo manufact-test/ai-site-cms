@@ -39,7 +39,7 @@
   // Server-only media library: binary bytes never enter document JSON.
   const mediaPanel=element('div','hosted-media');
   const mediaTitle=element('strong',null,'Медиабиблиотека');
-  const mediaHint=element('small',null,'PNG / JPEG / WebP · до 450 КБ · только этот сайт');
+  const mediaHint=element('small',null,'PNG/JPEG/WebP до 450 КБ · MP4 до 16 МБ · приватно до публикации');
   const mediaInput=element('input');mediaInput.type='file';mediaInput.id='server-media-file';
   mediaInput.accept='image/png,image/jpeg,image/webp';mediaInput.hidden=true;
   const mediaUpload=action('+ Загрузить изображение','server-media-upload',()=>mediaInput.click());
