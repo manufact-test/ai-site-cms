@@ -576,22 +576,7 @@ async function execute(){
   await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(currentPublish+1)+'\\b')).waitFor();
   await visitor.reload();
   const processedSrc=await visitor.locator('img.showcase-photo').getAttribute('src');
-  assert.match(processedSrc,new RegExp(optimized.id+'\\.webp
-  await page.locator('#server-login:not([hidden])').waitFor();
-  assert.equal((await visitor.goto(publicUrl)).status(),200,'Visitor never requires CMS login');
-  assert.deepEqual(errors,[],'No unhandled browser script exceptions');
-  console.log('STAGE3 HOSTED CHROMIUM E2E PASS: login, new site, editor, save, revisions, restore, publish isolation, viewer, logout');
-}
-execute().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{
-  if(browser)await browser.close();
-  if(php&&php.exitCode===null){
-    const stopped=new Promise(resolve=>php.once('exit',resolve));
-    php.kill('SIGTERM');
-    await Promise.race([stopped,new Promise(resolve=>setTimeout(resolve,1500))]);
-  }
-  fs.rmSync(temp,{recursive:true,force:true});
-});
-));
+  assert.ok(processedSrc.endsWith(optimized.id+'.webp'),'Processed image is bound to public WebP');
   const processedResponse=await ctx.request.get(origin+processedSrc);
   assert.equal(processedResponse.status(),200);
   const publicBytes=await processedResponse.body();
