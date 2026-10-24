@@ -286,7 +286,12 @@ final class Api
             $this->authorize($principal, $path, $method);
             if ($method === 'GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/media/([a-z][a-z0-9-]{2,79})$~D', $path, $mediaMatch)) {
                 $draft = $this->sites->getDraft($mediaMatch[1]);
-                if (!in_array($mediaMatch[2], array_column($draft['site']['assets'], 'id'), true)) {
+                $ids = [];
+                foreach ($draft['site']['assets'] as $asset) {
+                    $ids[] = $asset['id'];
+                    foreach ($asset['variants'] ?? [] as $v) $ids[] = $v['id'];
+                }
+                if (!in_array($mediaMatch[2], $ids, true)) {
                     throw new NotFound('Image is not in current draft');
                 }
                 $image = $this->sites->image($mediaMatch[1], $mediaMatch[2]);
@@ -302,7 +307,9 @@ final class Api
             }
             if ($method === 'POST') {
                 $this->csrf();
-                $body = $this->request(in_array($path, ['/api/backups/plan','/api/backups/restore'], true) ? SiteRepository::ARCHIVE_LIMIT : 750000);
+                $body = $this->request(in_array($path, ['/api/backups/plan','/api/backups/restore'], true)
+                    ? SiteRepository::ARCHIVE_LIMIT
+                    : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/media$~D', $path) ? 2600000 : 750000));
                 if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|templates(?:/.*)?)$~D',$path)) {
                     $this->sites->assertLicenseWritable($siteScope);
                 }
@@ -451,8 +458,12 @@ final class Api
                         if (!is_string($base64) || !is_string($alt)) {
                             throw new InvalidArgumentException('Image content and description required');
                         }
+                        if (isset($body['variants']) && !is_array($body['variants']))
+                            throw new InvalidArgumentException('Invalid responsive variants');
+                        $sha = $body['sha256'] ?? null;
+                        if ($sha !== null && !is_string($sha)) throw new InvalidArgumentException('Invalid SHA256');
                         $this->response(201, $this->sites->uploadImage($id, $base64, $alt,
-                            self::revision($body['expectedRevision'] ?? null)));
+                            self::revision($body['expectedRevision'] ?? null), $body['variants'] ?? [], $sha));
                     }
                     if ($action === 'save') {
                         $this->response(200, $this->sites->save($id, $body['site'] ?? [],

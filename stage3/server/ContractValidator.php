@@ -170,15 +170,33 @@ final class ContractValidator
         $assets = [];
         $ids = [$site['siteId'] => true];
         foreach ($site['assets'] as $a) {
-            self::keys($a, ['id', 'src', 'alt', 'mime']);
+            self::keys($a, ['id', 'src', 'alt', 'mime', 'variants']);
             self::id($a['id']);
             self::must(!isset($assets[$a['id']])
                 && in_array($a['mime'], ['image/png','image/webp','image/jpeg','image/svg+xml'], true)
                 && is_string($a['src'])
                 && preg_match('~^/assets/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg)$~D', $a['src']) === 1
                 && is_string($a['alt']) && strlen($a['alt']) <= 200 && preg_match('/[\x00-\x1f]/',$a['alt'])!==1, 'Invalid asset');
+            self::must(!isset($ids[$a['id']]), 'Duplicate asset ID');
             $assets[$a['id']] = true;
             $ids[$a['id']] = true;
+            if (array_key_exists('variants', $a)) {
+                self::must(is_array($a['variants']) && array_is_list($a['variants'])
+                    && count($a['variants']) <= 3 && $a['mime'] !== 'image/svg+xml',
+                    'Invalid responsive variants');
+                $widths = [];
+                $ext = ['image/png'=>'png','image/jpeg'=>'jpg','image/webp'=>'webp'][$a['mime']];
+                foreach ($a['variants'] as $variant) {
+                    self::keys($variant, ['id','src','sha256','width','height']);
+                    self::id($variant['id']);
+                    self::must(!isset($ids[$variant['id']]) && in_array($variant['width'], [360,720,1200], true)
+                        && !isset($widths[$variant['width']])
+                        && is_int($variant['height']) && $variant['height'] >= 1 && $variant['height'] <= 4096
+                        && is_string($variant['sha256']) && preg_match('/^[a-f0-9]{64}$/D', $variant['sha256']) === 1
+                        && $variant['src'] === '/assets/'.$variant['id'].'.'.$ext, 'Invalid responsive variant');
+                    $ids[$variant['id']] = true; $widths[$variant['width']] = true;
+                }
+            }
         }
         self::must(is_array($site['pages']) && array_is_list($site['pages'])
             && count($site['pages']) >= 1 && count($site['pages']) <= 100, 'Invalid pages');

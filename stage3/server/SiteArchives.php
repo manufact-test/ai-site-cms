@@ -136,7 +136,7 @@ trait SiteArchives
             $ext = ['image/png' => 'png','image/jpeg' => 'jpg','image/webp' => 'webp'][$m['mime']];
             $assetList[$m['id']] = ['id' => $m['id'], 'mime' => $m['mime'], 'src' => '/assets/' . $m['id'] . '.' . $ext, 'alt' => ''];
         }
-        $validateSite = function (mixed $site) use ($p, $target, $assetList): array {
+        $validateSite = function (mixed $site) use ($p, $target, $assetList, $media): array {
             $site = $this->validator->validate($site);
             self::archiveCheck($site['siteId'] === $p['siteId'], 'foreign site document');
             $site['siteId'] = $target;
@@ -145,6 +145,16 @@ trait SiteArchives
                 self::archiveCheck(isset($assetList[$asset['id']])
                     && $asset['mime'] === $assetList[$asset['id']]['mime']
                     && $asset['src'] === $assetList[$asset['id']]['src'], 'missing or inconsistent image');
+                foreach ($asset['variants'] ?? [] as $variant) {
+                    $v = $assetList[$variant['id']] ?? null;
+                    self::archiveCheck(is_array($v) && $v['mime'] === $asset['mime']
+                        && $v['src'] === $variant['src']
+                        && $media[$variant['id']]['sha256'] === $variant['sha256'],
+                        'missing or modified responsive image');
+                    $pixels = @getimagesizefromstring(base64_decode($media[$variant['id']]['base64'], true));
+                    self::archiveCheck(is_array($pixels) && $pixels[0] === $variant['width']
+                        && $pixels[1] === $variant['height'], 'responsive archive dimensions mismatch');
+                }
             }
             return $site;
         };

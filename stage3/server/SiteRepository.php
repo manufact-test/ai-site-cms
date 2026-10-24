@@ -287,10 +287,19 @@ final class SiteRepository
             if ($ext === null || $asset['src'] !== '/assets/' . $asset['id'] . '.' . $ext) {
                 throw new \InvalidArgumentException('Media path does not match stored image');
             }
+            foreach ($asset['variants'] ?? [] as $variant) {
+                $part = $this->image($siteId, $variant['id']);
+                $info = @getimagesizefromstring($part['bytes']);
+                if ($part['mime'] !== $stored || $part['sha256'] !== $variant['sha256']
+                    || $variant['src'] !== '/assets/'.$variant['id'].'.'.$ext
+                    || !is_array($info) || $info[0] !== $variant['width'] || $info[1] !== $variant['height']) {
+                    throw new \InvalidArgumentException('Responsive media integrity or dimensions mismatch');
+                }
+            }
         }
     }
 
-    public function uploadImage(string $siteId, string $base64, string $alt, int $expectedRevision): array
+    public function uploadImage(string $siteId, string $base64, string $alt, int $expectedRevision, array $variants = [], ?string $expectedSha = null): array
     {
         if (strlen($base64) > 700000 || $base64 === '' || !preg_match('~^[A-Za-z0-9+/]+={0,2}$~D', $base64)) {
             throw new \InvalidArgumentException('Invalid or oversized image');
@@ -314,7 +323,36 @@ final class SiteRepository
             throw new \InvalidArgumentException('Only valid PNG, JPEG or WebP images up to 4096px');
         }
         [$mime, $extension] = $types[$type];
-        return $this->atomic(function () use ($siteId, $expectedRevision, $bytes, $alt, $mime, $extension): array {
+        if ($expectedSha !== null && (!preg_match('/^[a-f0-9]{64}$/D', $expectedSha)
+            || !hash_equals($expectedSha, hash('sha256', $bytes)))) {
+            throw new \InvalidArgumentException('Original SHA256 mismatch');
+        }
+        if (!array_is_list($variants) || count($variants) > 3)
+            throw new \InvalidArgumentException('Too many responsive variants');
+        $prepared = []; $widths = [];
+        foreach ($variants as $variant) {
+            if (!is_array($variant) || array_diff(array_keys($variant), ['width','base64','sha256'])
+                || count($variant) !== 3 || !in_array($variant['width'] ?? null, [360,720,1200], true)
+                || isset($widths[$variant['width']]) || !is_string($variant['base64'])
+                || strlen($variant['base64']) > 600000
+                || !preg_match('~^[A-Za-z0-9+/]+={0,2}$~D', $variant['base64'])
+                || !is_string($variant['sha256'])
+                || preg_match('/^[a-f0-9]{64}$/D', $variant['sha256']) !== 1)
+                throw new \InvalidArgumentException('Invalid responsive payload');
+            $binary = base64_decode($variant['base64'], true);
+            $size = is_string($binary) ? @getimagesizefromstring($binary) : false;
+            if (!is_string($binary) || strlen($binary) < 20 || strlen($binary) > 450000
+                || !hash_equals($variant['sha256'], hash('sha256', $binary))
+                || !is_array($size) || ($types[$size[2]][0] ?? null) !== $mime
+                || $size[0] !== $variant['width'] || $size[0] > $info[0]
+                || $size[1] < 1 || $size[1] > 4096
+                || abs($size[1] - round($size[0] * $info[1] / $info[0])) > 2)
+                throw new \InvalidArgumentException('Responsive data/MIME/SHA256 mismatch');
+            $widths[$variant['width']] = true;
+            $prepared[] = ['width'=>$size[0], 'height'=>$size[1],
+                'bytes'=>$binary, 'sha256'=>$variant['sha256']];
+        }
+        return $this->atomic(function () use ($siteId, $expectedRevision, $bytes, $alt, $mime, $extension, $prepared): array {
             $draft = $this->getDraft($siteId);
             if ($draft['revision'] !== $expectedRevision) {
                 throw new Conflict('Stale draft; reload before uploading media');
@@ -330,6 +368,11 @@ final class SiteRepository
                 'alt' => $alt,
                 'mime' => $mime
             ];
+            foreach ($prepared as $part) {
+                $vid = 'asset-' . bin2hex(random_bytes(10));
+                $asset['variants'][] = ['id'=>$vid,'src'=>'/assets/'.$vid.'.'.$extension,
+                    'sha256'=>$part['sha256'],'width'=>$part['width'],'height'=>$part['height']];
+            }
             $site['assets'][] = $asset;
             $this->validator->validate($site);
             $insert = $this->db->prepare('INSERT INTO stage3_media (site_id, asset_id, mime, sha256, bytes, created_at) VALUES (?, ?, ?, ?, ?, ?)');
@@ -341,6 +384,12 @@ final class SiteRepository
             $insert->bindValue(5, $bytes, PDO::PARAM_LOB);
             $insert->bindValue(6, $now);
             $insert->execute();
+            foreach ($prepared as $n => $part) {
+                $insert->bindValue(2, $asset['variants'][$n]['id']);
+                $insert->bindValue(4, $part['sha256']);
+                $insert->bindValue(5, $part['bytes'], PDO::PARAM_LOB);
+                $insert->execute();
+            }
             $update = $this->db->prepare('UPDATE stage3_drafts SET revision = ?, body = ?, updated_at = ? WHERE site_id = ? AND revision = ?');
             $update->execute([$expectedRevision + 1, self::encode($site), $now, $siteId, $expectedRevision]);
             if ($update->rowCount() !== 1) {
@@ -376,8 +425,15 @@ final class SiteRepository
         $site = $this->published($siteId)['site'];
         foreach ($site['assets'] as $asset) {
             if ($asset['id'] === $assetId
-                && $asset['src'] === '/assets/' . $assetId . '.' . $extension) {
-                return $this->image($siteId, $assetId);
+                && $asset['src'] === '/assets/' . $assetId . '.' . $extension) return $this->image($siteId, $assetId);
+            foreach ($asset['variants'] ?? [] as $variant) {
+                if ($variant['id'] === $assetId
+                    && $variant['src'] === '/assets/'.$assetId.'.'.$extension) {
+                    $image = $this->image($siteId, $assetId);
+                    if ($image['sha256'] !== $variant['sha256'] || $image['mime'] !== $asset['mime'])
+                        throw new \RuntimeException('Published responsive SHA256 mismatch');
+                    return $image;
+                }
             }
         }
         throw new NotFound('Image is not part of published site');
