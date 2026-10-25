@@ -258,6 +258,24 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-quality-open').click();
     await page.locator('#cms-site-report').waitFor({state:'visible'});
     assert.match(await page.locator('#cms-quality-summary').innerText(),/страниц/);
+    assert.match(await page.locator('#cms-quality-summary').innerText(),/рекомендаций/);
+    assert.match(await page.locator('#cms-quality-findings').innerText(),/H1|SEO title|Описание/);
+    const beforeSeoFix=await page.evaluate(()=>window.Stage3Editor.getSite());
+    assert.equal(beforeSeoFix.pages.find(p=>p.id==='page-contact').seo,undefined);
+    await page.locator('#cms-seo-safe-fix').click();
+    let afterSeoFix=await page.evaluate(()=>window.Stage3Editor.getSite());
+    assert.equal(afterSeoFix.pages.find(p=>p.id==='page-contact').seo.title,'Контакты');
+    assert.equal(afterSeoFix.pages.find(p=>p.id==='page-home').seo.title,'SEO title для теста');
+    assert.equal(afterSeoFix.pages.find(p=>p.id==='page-contact').seo.description,'',
+      'Safe SEO fixes must not invent descriptions');
+    assert.match(await page.locator('#toast').innerText(),/Заполнено SEO title/);
+    await page.locator('#cms-site-report').getByRole('button',{name:'Закрыть'}).click();
+    await page.locator('#undo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages.find(p=>p.id==='page-contact').seo,undefined,
+      'Safe SEO title fixes are one Undo-able document change');
+    await page.locator('#redo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages.find(p=>p.id==='page-contact').seo.title,'Контакты');
+    await page.locator('#cms-quality-open').click();
     await page.locator('#cms-redirect-from').fill('/older-page/');
     await page.locator('#cms-redirect-target').selectOption('/contact/');
     await page.locator('#cms-redirect-form button[type=submit]').click();

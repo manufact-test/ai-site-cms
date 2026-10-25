@@ -313,29 +313,140 @@ function validateSite(raw,regInput){
   return clone(raw);
 }
 function inspectSite(raw,regInput){
-  const site=validateSite(raw,regInput),known=new Set(site.pages.map(p=>p.path));
+  const reg=regInput instanceof Map?regInput:registry(regInput);
+  const site=validateSite(raw,reg),known=new Set(site.pages.map(p=>p.path));
+  const pageByPath=new Map(site.pages.map(page=>[page.path,page]));
   const redirected=new Map((site.redirects||[]).map(r=>[r.from,r.to]));
-  const warnings=[],errors=[],add=(kind,page,path,message)=>({kind,pageId:page?.id||null,path,message});
+  const warnings=[],errors=[];
+  const add=(kind,page,path,message,extra={})=>({kind,pageId:page?.id||null,path,message,...extra});
+  const normalize=value=>String(value||'').normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
+  const charCount=value=>Array.from(String(value||'')).length;
+  const genericAlt=/^(?:image|photo|picture|graphic|video|фото|изображение|картинка|рисунок|видео)(?:\s+\d+)?$/i;
+  const titleGroups=new Map(),descriptionGroups=new Map();
+  const imageUses=new Set();
+  let indexable=0;
+  const pushHeading=(page,section,headings,level,label,nodeId=null)=>{
+    const value=typeof label==='string'?label.trim():'';
+    headings.push({level,label:value,sectionId:section.id,nodeId});
+    if(!value)warnings.push(add('empty-heading',page,'#'+section.id+(nodeId?'/'+nodeId:''),'Заголовок пустой — добавьте понятный текст.',{sectionId:section.id,nodeId}));
+  };
+  const checkLink=(href,page,sectionId,elementId,nodeId=null)=>{
+    if(typeof href!=='string'||!href.startsWith('/')||href.startsWith('//'))return;
+    const hashAt=href.indexOf('#');
+    const routePart=hashAt>=0?href.slice(0,hashAt):href;
+    const route=routePart.split('?',1)[0]||page.path;
+    const hash=hashAt>=0?href.slice(hashAt+1).split('?',1)[0]:'';
+    const extra={sectionId,elementId,nodeId};
+    if(!known.has(route)&&!redirected.has(route))
+      errors.push(add('broken-link',page,href,'Внутренняя ссылка ведёт на отсутствующую страницу.',extra));
+    else if(redirected.has(route))
+      warnings.push(add('old-link',page,href,'Ссылка ведёт через перенаправление '+redirected.get(route)+'.',extra));
+    else if(hash&&!pageByPath.get(route).sections.some(section=>section.id===hash))
+      errors.push(add('broken-anchor',page,href,'Якорь секции не существует.',extra));
+  };
+  const checkMedia=(assetId,page,section,elementId)=>{
+    if(typeof assetId!=='string'||!assetId)return;
+    const asset=site.assets.find(item=>item.id===assetId);
+    if(!asset||asset.mime==='video/mp4')return;
+    const key=page.id+'|'+section.id+'|'+assetId;
+    if(imageUses.has(key))return;
+    imageUses.add(key);
+    const alt=asset.alt.trim();
+    // Partner logos already use the visible partner caption as an ALT fallback.
+    if(!alt&&section.component==='partner-logos')return;
+    const extra={sectionId:section.id,elementId,assetId};
+    if(!alt)warnings.push(add('missing-alt',page,'/assets/'+assetId,
+      'У изображения пустой alt. Если оно несёт смысл, добавьте описание; если декоративное — проверьте намеренно пустой alt.',extra));
+    else if(genericAlt.test(alt))warnings.push(add('generic-alt',page,'/assets/'+assetId,
+      'Описание изображения слишком общее. Укажите, что именно показано.',extra));
+  };
   if(!known.has('/'))errors.push(add('missing-home',null,'/','Нет главной страницы'));
   for(const page of site.pages){
     const seo=page.seo||{};
-    if(!seo.title)warnings.push(add('seo-title',page,page.path,'SEO title берётся из названия страницы'));
-    if(!seo.description)warnings.push(add('seo-description',page,page.path,'Не заполнено описание для поисковиков'));
-    for(const section of page.sections)for(const el of [...section.elements,...(section.items||[])]){
-      const href=el.values['behavior.href'];
-      if(typeof href!=='string'||!href.startsWith('/')||href.startsWith('//'))continue;
-      const route=href.split(/[?#]/,1)[0]||page.path;
-      const hash=href.includes('#')?href.slice(href.indexOf('#')+1).split('?')[0]:'';
-      if(!known.has(route)&&!redirected.has(route))
-        errors.push(add('broken-link',page,href,'Внутренняя ссылка ведёт на отсутствующую страницу'));
-      else if(redirected.has(route))
-        warnings.push(add('old-link',page,href,'Ссылка ведёт через перенаправление '+redirected.get(route)));
-      else if(hash&&!site.pages.find(p=>p.path===route).sections.some(s=>s.id===hash))
-        errors.push(add('broken-anchor',page,href,'Якорь секции не существует'));
+    const explicitTitle=typeof seo.title==='string'?seo.title.trim():'';
+    const effectiveTitle=explicitTitle||page.title+' | '+site.title;
+    const normalizedTitle=normalize(effectiveTitle);
+    if(!explicitTitle)warnings.push(add('seo-title',page,page.path,'SEO title не задан явно — используется название страницы и сайта.'));
+    const titleLength=charCount(effectiveTitle);
+    if(titleLength<30)warnings.push(add('seo-title-short',page,page.path,'SEO title короткий ('+titleLength+' символов); ориентир — 30–60.'));
+    if(titleLength>60)warnings.push(add('seo-title-long',page,page.path,'SEO title длинный ('+titleLength+' символов); ориентир — 30–60.'));
+    if(normalizedTitle){if(!titleGroups.has(normalizedTitle))titleGroups.set(normalizedTitle,[]);titleGroups.get(normalizedTitle).push({page,value:effectiveTitle});}
+    const description=typeof seo.description==='string'?seo.description.trim():'';
+    if(!description)warnings.push(add('seo-description',page,page.path,'Не заполнено описание для поисковиков.'));
+    else{
+      const length=charCount(description);
+      if(length<70)warnings.push(add('seo-description-short',page,page.path,'Описание короткое ('+length+' символов); ориентир — 70–160.'));
+      if(length>160)warnings.push(add('seo-description-long',page,page.path,'Описание длинное ('+length+' символов); ориентир — 70–160.'));
+      const normalizedDescription=normalize(description);
+      if(!descriptionGroups.has(normalizedDescription))descriptionGroups.set(normalizedDescription,[]);
+      descriptionGroups.get(normalizedDescription).push({page,value:description});
+    }
+    if(seo.robots!=='noindex')indexable++;
+    const headings=[];
+    for(const section of page.sections){
+      if(section.designGraph){
+        for(const finding of GRAPH_HOST.auditAccessibility(section.designGraph,site.designTokens||GRAPH_HOST.DEFAULT_TOKENS)){
+          // Heading structure is checked once across the complete rendered page below.
+          if(finding.code==='heading-order'||finding.code==='multiple-h1')continue;
+          const extra={sectionId:section.id,nodeId:finding.nodeId};
+          const issue=add(finding.code,page,'#'+section.id+(finding.nodeId?'/'+finding.nodeId:''),finding.message,extra);
+          (finding.severity==='error'?errors:warnings).push(issue);
+        }
+        const walk=nodes=>{
+          for(const node of nodes||[]){
+            if(node.type==='heading')pushHeading(page,section,headings,Number(node.level)||2,node.text,node.id);
+            if(node.type==='button')checkLink(node.href,page,section.id,null,node.id);
+            if(node.children)walk(node.children);
+          }
+        };
+        walk(section.designGraph.nodes);
+        continue;
+      }
+      const manifest=select(reg,section.component,section.manifestVersion);
+      if(section.component!=='comparison-matrix'){
+        const level=section.component==='company-hero'?1:2;
+        const heading=section.elements.find(el=>el.slot==='heading');
+        pushHeading(page,section,headings,level,heading?.values?.['content.text']||'',heading?.id||null);
+      }
+      const repeatHeadingPath={
+        'service-grid':'content.title','pricing-plans':'content.title',
+        'process-timeline':'content.title','content-switcher':'content.heading'
+      }[section.component];
+      for(const el of section.elements){
+        checkLink(el.values['behavior.href'],page,section.id,el.id);
+        const slot=manifest.elements.find(item=>item.slot===el.slot);
+        if(slot)for(const field of slot.fields)if(field.type==='media')checkMedia(el.values[field.path],page,section,el.id);
+      }
+      for(const item of section.items||[]){
+        checkLink(item.values['behavior.href'],page,section.id,item.id);
+        if(repeatHeadingPath)pushHeading(page,section,headings,3,item.values[repeatHeadingPath],item.id);
+        if(manifest.repeat)for(const field of manifest.repeat.fields)if(field.type==='media')checkMedia(item.values[field.path],page,section,item.id);
+      }
+    }
+    const h1s=headings.filter(item=>item.level===1);
+    if(!h1s.length)warnings.push(add('missing-h1',page,page.path,'На странице нет заголовка H1.'));
+    if(h1s.length>1)warnings.push(add('multiple-h1',page,page.path,'На странице '+h1s.length+' заголовка H1; оставьте один основной.'));
+    if(headings.length&&headings[0].level!==1&&h1s.length)
+      warnings.push(add('h1-position',page,page.path,'H1 расположен не первым в иерархии заголовков.'));
+    for(let i=1;i<headings.length;i++){
+      const previous=headings[i-1],current=headings[i];
+      if(current.level>previous.level+1)
+        warnings.push(add('heading-order',page,'#'+current.sectionId+(current.nodeId?'/'+current.nodeId:''),'Уровень заголовка перескакивает с H'+previous.level+' на H'+current.level+'.',{sectionId:current.sectionId,nodeId:current.nodeId}));
     }
   }
-  return {errors,warnings,pages:site.pages.length,redirects:redirected.size,
-    indexable:site.pages.filter(p=>p.seo?.robots!=='noindex').length};
+  const duplicates=(groups,kind,label)=>{
+    for(const group of groups.values())if(group.length>1){
+      for(const item of group){
+        const others=group.filter(other=>other.page.id!==item.page.id).map(other=>other.page.path);
+        warnings.push(add(kind,item.page,item.page.path,label+' совпадает с: '+others.join(', ')+'.'));
+      }
+    }
+  };
+  duplicates(titleGroups,'duplicate-seo-title','SEO title');
+  duplicates(descriptionGroups,'duplicate-seo-description','SEO description');
+  if(site.pages.length&&indexable===0)
+    warnings.push(add('site-noindex',null,'/','Все страницы закрыты от индексации. Проверьте, что это сделано намеренно.'));
+  return {errors,warnings,pages:site.pages.length,redirects:redirected.size,indexable,noindex:site.pages.length-indexable};
 }
 function controls(doc,regInput,pageId,sectionId,elementId){
   const reg=regInput instanceof Map?regInput:registry(regInput);

@@ -313,6 +313,40 @@ test('URL changes rewrite internal links and preserve aliases, fragments, repeat
   escaping.redirects.push({from:'/something/',to:'/support/?malicious'});
   refuses(()=>sdk.validateSite(escaping,manifests),'No query/HTML injection in redirects');
 });
+test('site-wide SEO, rendered headings, image ALT and graph-link audit are actionable',()=>{
+  const DG=require('../sdk/design-graph.cjs'),site=same(initial);
+  const title='Industrial solutions for manufacturing';
+  const description='We design practical industrial equipment for manufacturing teams, factories and production facilities.';
+  for(const page of site.pages)page.seo={title,description,robots:'index',ogTitle:'',ogDescription:'',ogImage:''};
+  site.assets.push(
+    {id:'asset-audit-legacy',src:'/assets/asset-audit-legacy.png',mime:'image/png',alt:''},
+    {id:'asset-audit-graph',src:'/assets/asset-audit-graph.png',mime:'image/png',alt:'Graph illustration'}
+  );
+  const imageSection=sdk.sectionFrom(manifests.find(m=>m.id==='image-showcase'),'section-audit-image');
+  imageSection.elements.find(el=>el.slot==='photo').values['content.media']='asset-audit-legacy';
+  site.pages[0].sections.push(imageSection);
+  const hero=site.pages[0].sections[0];
+  hero.designGraph=DG.baseGraph(hero.id);
+  hero.designGraph.nodes[0].children.push(
+    {id:'graph-audit-heading-four',type:'heading',level:4,text:'Technical details',styles:{}},
+    {id:'graph-audit-image-empty',type:'image',assetId:'asset-audit-graph',alt:'',styles:{}},
+    {id:'graph-audit-image-generic',type:'image',assetId:'asset-audit-graph',alt:'Photo',styles:{}},
+    {id:'graph-audit-broken-link',type:'button',text:'Click here',href:'/missing-page/',styles:{}}
+  );
+  const report=sdk.inspectSite(site,manifests);
+  assert.ok(report.warnings.some(x=>x.kind==='duplicate-seo-title'),'Duplicate rendered titles are reported');
+  assert.ok(report.warnings.some(x=>x.kind==='duplicate-seo-description'),'Duplicate meta descriptions are reported');
+  assert.ok(report.warnings.some(x=>x.kind==='missing-h1'&&x.pageId==='page-home'),'Graph pages without H1 are reported');
+  assert.ok(report.warnings.some(x=>x.kind==='heading-order'&&x.nodeId==='graph-audit-heading-four'),'Heading jumps across the rendered page are reported');
+  assert.ok(report.warnings.some(x=>x.kind==='missing-alt'&&x.assetId==='asset-audit-legacy'),'Legacy component images without ALT are reported');
+  assert.ok(report.warnings.some(x=>x.kind==='missing-alt'&&x.nodeId==='graph-audit-image-empty'),'Graph images without ALT are reported');
+  assert.ok(report.warnings.some(x=>x.kind==='generic-alt'&&x.nodeId==='graph-audit-image-generic'),'Generic graph ALT is reported');
+  assert.ok(report.errors.some(x=>x.kind==='broken-link'&&x.nodeId==='graph-audit-broken-link'),'Graph internal links are audited before publication');
+  assert.ok(report.warnings.some(x=>x.kind==='generic-link-name'&&x.nodeId==='graph-audit-broken-link'),'Generic graph link names are reported');
+  assert.equal(report.indexable,2);
+  const hidden=same(site);hidden.pages.forEach(page=>{page.seo.robots='noindex';});
+  assert.ok(sdk.inspectSite(hidden,manifests).warnings.some(x=>x.kind==='site-noindex'),'Accidental site-wide noindex is visible');
+});
 test('media library: alt, global replacement, protected detach, undo and rich media manifests',()=>{
   const D=require('../sdk/draft.cjs');
   const site=same(initial);

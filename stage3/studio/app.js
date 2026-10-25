@@ -397,23 +397,63 @@
     const add=button('+ Перенаправление','btn small',()=>{});add.type='submit';add.dataset.editorWrite='true';
     form.append(from,target,add);
     const notes=document.createElement('small');
-    notes.textContent='Перенаправления начнут работать только после публикации. Для отдельного HTML-хостинга экспортируются страницы-переходы; настоящий HTTP 301 требует настройки хостинга.';
+    notes.textContent='Перенаправления начнут работать только после публикации. Для отдельного HTML-хостинга экспортируются страницы-переходы; настоящий HTTP 301 требует настройки хостинга. SEO-подсказки не выдумывают факты: безопасная правка заполняет только пустые title названием страницы.';
+    const safeTitles=button('Заполнить пустые SEO title','btn small',()=>{
+      try{
+        const next=cp(session.current);let changed=0;
+        for(const page of next.pages){
+          const old=page.seo||{};
+          if(typeof old.title==='string'&&old.title.trim())continue;
+          page.seo={title:page.title,description:'',robots:'index',ogTitle:'',ogDescription:'',ogImage:'',...old,title:page.title};
+          changed++;
+        }
+        if(!changed){notice('Пустых SEO title нет.');return;}
+        session=D.replaceSite(session,manifests,next,session.revision);
+        draw();print();
+        notice('Заполнено SEO title для '+changed+' страниц. Описание и индексация не менялись; действие можно отменить.');
+      }catch(error){notice('SEO-правка отклонена: '+error.message,true);}
+    });
+    safeTitles.id='cms-seo-safe-fix';
     const close=button('Закрыть','btn',()=>dialog.close());
-    dialog.append(heading,summary,findings,subtitle,aliases,form,notes,close);
+    dialog.append(heading,summary,findings,subtitle,aliases,form,notes,safeTitles,close);
     document.body.append(dialog);
     const print=()=>{
       const report=C.inspectSite(session.current,manifests);
       summary.textContent=report.pages+' страниц · '+report.indexable+' индексируемых · '+
-        report.errors.length+' ошибок ссылок · '+report.warnings.length+' рекомендаций · '+
+        report.errors.length+' ошибок · '+report.warnings.length+' рекомендаций · '+
         report.redirects+' перенаправлений';
+      const missingTitles=session.current.pages.filter(page=>!String(page.seo?.title||'').trim()).length;
+      safeTitles.disabled=missingTitles===0;
+      safeTitles.textContent=missingTitles?'Заполнить пустые SEO title ('+missingTitles+')':'Пустых SEO title нет';
       findings.replaceChildren();
       for(const [name,records] of [['Ошибки',report.errors],['Рекомендации',report.warnings]]){
         const section=document.createElement('section');
         const label=document.createElement('strong');label.textContent=name+' · '+records.length;section.append(label);
         if(!records.length){const note=document.createElement('p');note.textContent='Нет замечаний';section.append(note);}
-        for(const issue of records.slice(0,80)){
-          const line=document.createElement('p');line.className='cms-quality-finding';
-          line.textContent=(issue.pageId||'Сайт')+' · '+issue.path+' — '+issue.message;section.append(line);
+        for(const issue of records.slice(0,120)){
+          const line=document.createElement('div');line.className='cms-quality-finding';
+          const message=document.createElement('span');
+          message.textContent=(issue.pageId||'Сайт')+' · '+issue.path+' — '+issue.message;
+          line.append(message);
+          if(issue.pageId){
+            const isSeo=issue.kind.startsWith('seo-')||issue.kind.startsWith('duplicate-seo-');
+            const jump=button(isSeo?'Открыть SEO':issue.nodeId?'Открыть композицию':issue.assetId?'Перейти к изображению':'Открыть страницу',
+              'btn small',()=>{
+                const page=session.current.pages.find(item=>item.id===issue.pageId);
+                if(!page)return;
+                pageId=page.id;
+                const selected=issue.sectionId?page.sections.find(item=>item.id===issue.sectionId):page.sections[0];
+                sectionId=selected?.id||page.sections[0].id;
+                elementId=issue.elementId&&selected?.elements.concat(selected.items||[]).some(item=>item.id===issue.elementId)
+                  ?issue.elementId:(selected?.elements[0]?.id||'');
+                draw();dialog.close();
+                if(isSeo)$('cms-open-seo')?.click();
+                else if(issue.nodeId&&selected?.designGraph)$('section-design-graph')?.click();
+              });
+            jump.setAttribute('aria-label','Перейти к замечанию: '+issue.message);
+            line.append(jump);
+          }
+          section.append(line);
         }
         findings.append(section);
       }
