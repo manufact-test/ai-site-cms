@@ -61,11 +61,29 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('[data-bp="mobile"]').click();
     await canvas.locator('h1[style*="font-size:35px"]').waitFor();
     assert.equal(await canvas.locator('h1').evaluate(e=>getComputedStyle(e).fontSize),'35px');
+    await page.locator('#cms-open-theme').click();
+    await page.locator('#cms-setting-language').selectOption('pl');
+    await page.locator('#cms-settings-apply').click();
+    await page.frameLocator('#preview').locator('html[lang="pl"]').waitFor();
+    assert.equal(await page.frameLocator('#preview').locator('html').getAttribute('lang'),'pl',
+      'Editor preview language follows the site setting');
+    await page.locator('#cms-open-seo').click();
+    await page.locator('#cms-setting-seo-title').fill('SEO title для теста');
+    await page.locator('#cms-setting-seo-description').fill('Описание для поисковых систем');
+    await page.locator('#cms-setting-seo-og-title').fill('Заголовок для публикации');
+    await page.locator('#cms-setting-seo-og-description').fill('Описание для публикации');
+    await page.locator('#cms-setting-seo-og-image').selectOption('');
+    await page.locator('#cms-settings-apply').click();
+    await page.locator('#save').click();
     const exportDownload=page.waitForEvent('download');
     await page.locator('#export').click();
     const download=await exportDownload;
     const saved=JSON.parse(fs.readFileSync(await download.path(),'utf8'));
     assert.equal(saved.pages[0].sections[0].elements[0].values['content.text'],'Новое промышленное оборудование');
+    assert.equal(saved.language,'pl');
+    assert.equal(saved.pages[0].seo.ogTitle,'Заголовок для публикации');
+    assert.equal(saved.pages[0].seo.ogDescription,'Описание для публикации');
+    assert.equal(saved.pages[0].seo.ogImage,'');
     await page.locator('#pages .nav-entry').nth(1).click();
     assert.equal(await page.locator('#sections .nav-entry').count(),1);
     assert.equal(await page.locator('#canvas-title').innerText(),'Контакты');
@@ -75,7 +93,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const title=page.locator('#fields [data-field="content.text"]');
     await title.fill('Черновик версии 2');await title.dispatchEvent('change');
     await page.locator('#save').click();
-    assert.equal(await page.locator('#versions .version').count(),2);
+    assert.equal(await page.locator('#versions .version').count(),3);
     await page.locator('#versions .version').nth(1).click();
     assert.equal(await canvas.locator('h1').innerText(),'Новое промышленное оборудование');
     // Round-trip JSON can be recovered in a completely different local draft.

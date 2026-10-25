@@ -24,6 +24,16 @@
       "minLength": 1,
       "maxLength": 130
     },
+    "language": {
+      "enum": [
+        "ru",
+        "en",
+        "pl",
+        "de",
+        "be",
+        "uk"
+      ]
+    },
     "schemaVersion": {
       "const": 1
     },
@@ -257,6 +267,24 @@
               "enum": [
                 "index",
                 "noindex"
+              ]
+            },
+            "ogTitle": {
+              "type": "string",
+              "maxLength": 160
+            },
+            "ogDescription": {
+              "type": "string",
+              "maxLength": 300
+            },
+            "ogImage": {
+              "oneOf": [
+                {
+                  "const": ""
+                },
+                {
+                  "$ref": "#/$defs/id"
+                }
               ]
             }
           }

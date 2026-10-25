@@ -161,8 +161,8 @@
     const dlg=document.createElement('dialog');dlg.className='cms-settings-dialog';dlg.id='cms-settings-dialog';
     const header=document.createElement('h2'),tip=document.createElement('small'),grid=document.createElement('div');
     grid.className='cms-settings-grid';const actions=document.createElement('div');actions.className='cms-settings-actions';
-    const fields={},themeKeys=['background','surface','text','primary','font','maxWidth'];
-    const metaKeys=['seo-title','seo-description','seo-robots','nav-label','nav-hidden'];
+    const fields={},themeKeys=['background','surface','text','primary','font','maxWidth'],globalKeys=[...themeKeys,'language'];
+    const metaKeys=['seo-title','seo-description','seo-robots','seo-og-title','seo-og-description','seo-og-image','nav-label','nav-hidden'];
     const add=(name,labelText,type='text',max)=>{
       const wrap=document.createElement('label');wrap.textContent=labelText;
       const control=document.createElement(type==='select'?'select':'input');
@@ -176,8 +176,30 @@
       const option=document.createElement('option');option.value=value;option.textContent=text;font.append(option);
     }
     const width=add('maxWidth','Максимальная ширина (680–1600 px)','number');width.min='680';width.max='1600';
+    const language=add('language','Язык сайта','select');
+    for(const [value,text] of [['ru','Русский'],['en','English'],['pl','Polski'],['de','Deutsch'],['be','Беларуская'],['uk','Українська']]){
+      const option=document.createElement('option');option.value=value;option.textContent=text;language.append(option);
+    }
     add('seo-title','SEO title (пустое — автоматически)','text',160);
     add('seo-description','Описание для поисковиков (до 300 символов)','text',300);
+    add('seo-og-title','Заголовок для соцсетей (пустое — SEO title)','text',160);
+    add('seo-og-description','Описание для соцсетей (пустое — SEO description)','text',300);
+    add('seo-og-image','Изображение для соцсетей (Open Graph)','select');
+    const refreshSocialImages=selected=>{
+      const select=fields['seo-og-image'];select.replaceChildren();
+      const automatic=document.createElement('option');automatic.value='';
+      automatic.textContent='Автоматически — первое изображение страницы';select.append(automatic);
+      for(const asset of session.current.assets||[]){
+        if(!['image/png','image/jpeg','image/webp'].includes(asset.mime))continue;
+        const option=document.createElement('option');option.value=asset.id;
+        option.textContent=(asset.alt||asset.id).slice(0,120);select.append(option);
+      }
+      if(selected&&!Array.from(select.options).some(option=>option.value===selected)){
+        const missing=document.createElement('option');missing.value=selected;
+        missing.textContent='Изображение недоступно — выберите другое';select.append(missing);
+      }
+      select.value=selected||'';
+    };
     const robots=add('seo-robots','Индексация страницы','select');
     for(const [value,text] of [['index','Разрешить'],['noindex','Не индексировать']]){
       const option=document.createElement('option');option.value=value;option.textContent=text;robots.append(option);
@@ -187,19 +209,23 @@
     let mode='theme',chosenPage=null;
     const open=kind=>{
       mode=kind;chosenPage=current().page.id;
-      header.textContent=kind==='theme'?'Глобальные стили сайта':'SEO и меню · '+current().page.title;
+      header.textContent=kind==='theme'?'Стили и язык сайта':'SEO и меню · '+current().page.title;
       tip.textContent=kind==='theme'?'Для всех страниц; явные параметры компонентов сохраняются.':
         'Только текущая страница; публикация отдельно.';
       grid.querySelectorAll('label').forEach(n=>n.hidden=true);
-      for(const key of (kind==='theme'?themeKeys:metaKeys))fields[key].parentElement.hidden=false;
+      for(const key of (kind==='theme'?globalKeys:metaKeys))fields[key].parentElement.hidden=false;
       if(kind==='theme'){
         const t={...C.DEFAULT_THEME,...session.current.theme};
         for(const key of themeKeys)fields[key].value=t[key];
+        fields.language.value=session.current.language||'ru';
       }else{
         const p=current().page,seo=p.seo||{},nav=p.navigation||{};
         fields['seo-title'].value=seo.title||'';
         fields['seo-description'].value=seo.description||'';
         fields['seo-robots'].value=seo.robots||'index';
+        fields['seo-og-title'].value=seo.ogTitle||'';
+        fields['seo-og-description'].value=seo.ogDescription||'';
+        refreshSocialImages(seo.ogImage||'');
         fields['nav-label'].value=nav.label||'';
         fields['nav-hidden'].checked=!!nav.hidden;
       }
@@ -212,10 +238,12 @@
           site.theme={background:fields.background.value,surface:fields.surface.value,
             text:fields.text.value,primary:fields.primary.value,font:fields.font.value,
             maxWidth:Number(fields.maxWidth.value)};
+          site.language=fields.language.value;
         }else{
           const p=site.pages.find(p=>p.id===chosenPage);
           if(!p)throw Error('Страница уже удалена');
-          p.seo={title:fields['seo-title'].value,description:fields['seo-description'].value,robots:fields['seo-robots'].value};
+          p.seo={title:fields['seo-title'].value,description:fields['seo-description'].value,robots:fields['seo-robots'].value,
+            ogTitle:fields['seo-og-title'].value,ogDescription:fields['seo-og-description'].value,ogImage:fields['seo-og-image'].value};
           p.navigation={label:fields['nav-label'].value,hidden:fields['nav-hidden'].checked};
         }
         session=D.replaceSite(session,manifests,site,session.revision);dlg.close();draw();
@@ -226,7 +254,7 @@
     const close=button('Закрыть','btn',()=>dlg.close());close.id='cms-settings-close';
     actions.append(ok,close);dlg.append(header,tip,grid,actions);document.body.append(dlg);
     const tools=document.createElement('div');tools.className='structure-tools cms-site-settings';
-    const theme=button('Стили сайта','btn small',()=>open('theme'));theme.id='cms-open-theme';
+    const theme=button('Стили и язык сайта','btn small',()=>open('theme'));theme.id='cms-open-theme';
     const seo=button('SEO и меню','btn small',()=>open('seo'));seo.id='cms-open-seo';
     tools.append(theme,seo);$('pages').before(tools);
   }
@@ -1836,7 +1864,8 @@
           (menu.mobile==='expanded'?'<nav class="cms-menu-mobile">'+common+'</nav>':
             '<details class="cms-menu-mobile"><summary>Меню</summary><nav>'+common+'</nav></details>')+
           '</header>';
-        return first.slice(0,start)+navigation+docs.map(doc=>doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))).join('')+first.slice(end);
+        const root=first.slice(0,start).replace('<html lang="ru">','<html lang="'+escapeHtml(checked.language||'ru')+'">');
+        return root+navigation+docs.map(doc=>doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))).join('')+first.slice(end);
       }finally{session=prior;}
     },
     applyComposition:site=>{

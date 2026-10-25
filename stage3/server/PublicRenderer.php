@@ -10,6 +10,17 @@ final class PublicRenderer
         return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
     }
 
+    private static function language(array $site): string
+    {
+        $language=$site['language']??'ru';
+        return in_array($language,['ru','en','pl','de','be','uk'],true)?$language:'ru';
+    }
+
+    private static function socialLocale(string $language): string
+    {
+        return ['ru'=>'ru_RU','en'=>'en_US','pl'=>'pl_PL','de'=>'de_DE','be'=>'be_BY','uk'=>'uk_UA'][$language]??'ru_RU';
+    }
+
     /** All URLs and widths come from validated, immutable site assets. */
     private static function responsiveAttrs(array $asset, string $mount, string $sizes): string
     {
@@ -262,10 +273,11 @@ final class PublicRenderer
     }
 
     /** Static-host fallback; actual HTTP 301 is provided by the PHP visitor router. */
-    public static function staticRedirect(string $target): string
+    public static function staticRedirect(string $target, string $language='ru'): string
     {
         $value=self::h($target);
-        return '<!doctype html><html lang="ru"><head><meta charset="utf-8">'
+        $language=self::language(['language'=>$language]);
+        return '<!doctype html><html lang="'.$language.'"><head><meta charset="utf-8">'
             .'<meta name="robots" content="noindex,follow">'
             .'<meta http-equiv="refresh" content="0;url='.$value.'">'
             .'<title>Страница перемещена</title></head><body>'
@@ -552,37 +564,60 @@ final class PublicRenderer
             }
         }
         $publicOrigin = self::origin($publicOrigin);
+        $language=self::language($site);
+        $socialLocale=self::socialLocale($language);
         $seo = $page['seo'] ?? ['title'=>'','description'=>'','robots'=>'index'];
-        $title = self::h($seo['title'] !== '' ? $seo['title'] : $page['title'] . ' | ' . $site['title']);
-        $description = $seo['description'] !== '' ? '<meta name="description" content="'.self::h($seo['description']).'">' : '';
-        $robots = $seo['robots'] === 'noindex' ? '<meta name="robots" content="noindex,follow">' : '';
+        $titleValue=trim((string)($seo['title']??''))!==''?trim((string)$seo['title']):$page['title'].' | '.$site['title'];
+        $title=self::h($titleValue);
+        $descriptionValue=(string)($seo['description']??'');
+        $description = $descriptionValue !== '' ? '<meta name="description" content="'.self::h($descriptionValue).'">' : '';
+        $robots = ($seo['robots']??'index') === 'noindex' ? '<meta name="robots" content="noindex,follow">' : '';
+        $ogTitleValue=trim((string)($seo['ogTitle']??''))!==''?trim((string)$seo['ogTitle']):$titleValue;
+        $ogTitle=self::h($ogTitleValue);
+        $ogDescriptionValue=trim((string)($seo['ogDescription']??''))!==''?trim((string)$seo['ogDescription']):trim($descriptionValue);
         $absolute=$publicOrigin===null?null:$publicOrigin.$mount.$path;
         $canonical=$absolute===null?'':'<link rel="canonical" href="'.self::h($absolute).'">';
         $social='<meta property="og:type" content="website">'
-            .'<meta property="og:title" content="'.$title.'">';
-        if ($description!=='') $social.='<meta property="og:description" content="'.self::h($seo['description']).'">';
+            .'<meta property="og:locale" content="'.self::h($socialLocale).'">'
+            .'<meta property="og:title" content="'.$ogTitle.'">';
+        if ($ogDescriptionValue!=='') $social.='<meta property="og:description" content="'.self::h($ogDescriptionValue).'">';
         if ($absolute!==null) $social.='<meta property="og:url" content="'.self::h($absolute).'">';
-        if ($absolute!==null) {
-            // Use only a page-owned image from the immutable published site,
-            // never caller-controlled arbitrary URLs or private editor assets.
+        $ogImage=null;
+        $selectedImage=(string)($seo['ogImage']??'');
+        if ($selectedImage!=='') {
+            foreach ($site['assets'] as $asset) {
+                if ($asset['id']===$selectedImage) {$ogImage=$asset;break;}
+            }
+        }
+        if ($ogImage===null) {
             foreach ($page['sections'] as $section) {
                 foreach (array_merge($section['elements'],$section['items']??[]) as $element) {
                     $mediaId=$element['values']['content.media']??null;
                     if (!is_string($mediaId)||$mediaId==='') continue;
                     foreach ($site['assets'] as $asset) {
-                        if ($asset['id']!==$mediaId) continue;
-                        $social.='<meta property="og:image" content="'.
-                            self::h($publicOrigin.$mount.$asset['src']).'">';
-                        if ($asset['alt']!=='')
-                            $social.='<meta property="og:image:alt" content="'.self::h($asset['alt']).'">';
+                        if ($asset['id']!==$mediaId || ($asset['mime']??'')==='video/mp4') continue;
+                        $ogImage=$asset;
                         break 3;
                     }
                 }
             }
         }
+        $hasSocialImage=$absolute!==null && $ogImage!==null;
+        $social.='<meta name="twitter:card" content="'.($hasSocialImage?'summary_large_image':'summary').'">'
+            .'<meta name="twitter:title" content="'.$ogTitle.'">';
+        if ($ogDescriptionValue!=='') $social.='<meta name="twitter:description" content="'.self::h($ogDescriptionValue).'">';
+        if ($hasSocialImage) {
+            $imageUrl=$publicOrigin.$mount.$ogImage['src'];
+            $social.='<meta property="og:image" content="'.self::h($imageUrl).'">'
+                .'<meta name="twitter:image" content="'.self::h($imageUrl).'">';
+            if (($ogImage['alt']??'')!=='') {
+                $imageAlt=self::h($ogImage['alt']);
+                $social.='<meta property="og:image:alt" content="'.$imageAlt.'">'
+                    .'<meta name="twitter:image:alt" content="'.$imageAlt.'">';
+            }
+        }
 
-
-        return '<!doctype html><html lang="ru"><head><meta charset="utf-8">'
+        return '<!doctype html><html lang="'.$language.'"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1">'
             . '<title>' . $title . '</title>' . $description . $robots . $canonical . $social . '<style>' . self::themeCss($site)
             . '*,*:before,*:after{box-sizing:border-box}body{margin:0;background:var(--cms-bg);color:var(--cms-text);font:16px/1.6 var(--cms-font)}'

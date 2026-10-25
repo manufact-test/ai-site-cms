@@ -269,6 +269,7 @@ function changes(raw,manifests){
   const s=verifySession(raw,manifests),diff=[];
   const pages=new Map(s.base.pages.map(p=>[p.id,p]));
   if(JSON.stringify(s.base.theme)!==JSON.stringify(s.current.theme))diff.push({kind:'theme-updated'});
+  if(s.base.language!==s.current.language)diff.push({kind:'site-language-updated'});
   if(JSON.stringify(s.base.designTokens)!==JSON.stringify(s.current.designTokens))diff.push({kind:'design-tokens-updated'});
   if(JSON.stringify(s.base.menu)!==JSON.stringify(s.current.menu))diff.push({kind:'menu-updated'});
   if(JSON.stringify(s.base.assets)!==JSON.stringify(s.current.assets))

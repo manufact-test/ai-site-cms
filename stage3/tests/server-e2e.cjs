@@ -471,9 +471,10 @@ async function stop(){
   const csdk=require(path.join(root,'stage3/sdk/contract.cjs'));
   const richDefs=fs.readdirSync(path.join(root,'stage3/components'))
     .filter(n=>n.endsWith('.json')).map(n=>JSON.parse(fs.readFileSync(path.join(root,'stage3/components',n),'utf8')));
-  const rich=structuredClone(fixture);rich.siteId='site-rich-ci';
+  const rich=structuredClone(fixture);rich.siteId='site-rich-ci';rich.language='pl';
   rich.theme={background:'#121f2c',surface:'#ffffff',text:'#dce6ef',primary:'#ff8800',font:'system',maxWidth:960};
-  rich.pages[0].seo={title:'Секции услуг',description:'Страница теста услуг',robots:'noindex'};
+  rich.pages[0].seo={title:'Секции услуг',description:'Страница теста услуг',robots:'noindex',
+    ogTitle:'Каталог для соцсетей',ogDescription:'Отдельное описание для публикаций',ogImage:''};
   for(const name of ['service-grid','faq-accordion','testimonials','photo-gallery',
     'pricing-plans','process-timeline','comparison-matrix','content-switcher','adaptive-gallery']){
     const section=csdk.sectionFrom(richDefs.find(m=>m.id===name),'section-rich-'+name);
@@ -549,7 +550,12 @@ async function stop(){
   assert.match(richPublished.body,/class="cms-section-skin cms-surface-dark cms-spacing-airy cms-align-center"/);
   assert.match(richPublished.body,/name="description" content="Страница теста услуг"/);
   assert.match(richPublished.body,/rel="canonical"/);
-  assert.match(richPublished.body,/property="og:title"/);
+  assert.match(richPublished.body,/<html lang="pl">/);
+  assert.match(richPublished.body,/property="og:locale" content="pl_PL"/);
+  assert.match(richPublished.body,/property="og:title" content="Каталог для соцсетей"/);
+  assert.match(richPublished.body,/property="og:description" content="Отдельное описание для публикаций"/);
+  assert.match(richPublished.body,/name="twitter:title" content="Каталог для соцсетей"/);
+  assert.match(richPublished.body,/name="twitter:card" content="summary"/);
   const redirect=await request('GET','/published/site-rich-ci/old-services/');
   assert.equal(redirect.status,301);
   assert.equal(redirect.headers.get('location'),'/published/site-rich-ci/contact/');
@@ -610,6 +616,7 @@ async function stop(){
   assert.equal(attached.status,201,JSON.stringify(attached.body));
   const picture=attached.body.asset;
   const richLive=structuredClone(attached.body.site);
+  richLive.pages[0].seo.ogImage=picture.id;
   const story=csdk.sectionFrom(richDefs.find(m=>m.id==='media-story'),'section-media-story');
   story.elements.find(el=>el.slot==='photo').values['content.media']=picture.id;
   story.elements.find(el=>el.slot==='heading').values['content.text']='Наша история';
@@ -639,6 +646,9 @@ async function stop(){
   carousel.items[1].values['content.caption']='Второй слайд';
   richLive.pages[0].sections.push(masonry,carousel);
   richLive.pages[0].sections.push(story,logos);
+  const invalidSocial=structuredClone(richLive);invalidSocial.pages[0].seo.ogImage='missing-social-image';
+  assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:4,site:invalidSocial})).status,422,
+    'Server contract rejects an unowned social preview image');
   assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:4,site:richLive})).status,200);
   assert.equal((await request('POST','/api/sites/site-rich-ci/publish',{expectedRevision:5})).status,200);
   const richVisitor=(await request('GET','/published/site-rich-ci/')).body;
@@ -657,6 +667,10 @@ async function stop(){
   assert.match(richVisitor,/Второй слайд/);
   assert.match(richVisitor,/loading="lazy"/);
   assert.match(richVisitor,new RegExp(picture.id+'.png'));
+  assert.ok(richVisitor.includes('<meta property="og:image" content="'+origin+'/published/site-rich-ci/assets/'+picture.id+'.png">'));
+  assert.ok(richVisitor.includes('<meta name="twitter:image" content="'+origin+'/published/site-rich-ci/assets/'+picture.id+'.png">'));
+  assert.match(richVisitor,/property="og:image:alt" content="Логотип производственного партнёра"/);
+  assert.match(richVisitor,/name="twitter:image:alt" content="Логотип производственного партнёра"/);
   assert.match(richVisitor,/href="\/published\/site-rich-ci\/contact\/"/);
   const imgRoute='/published/site-rich-ci/assets/'+picture.id+'.png';
   const imgResponse=await request('GET',imgRoute);
@@ -720,6 +734,15 @@ async function stop(){
   const responsiveHTML=(await request('GET','/published/site-rich-ci/')).body;
   assert.match(responsiveHTML,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
   assert.match(responsiveHTML,/sizes="\(max-width: 600px\) 100vw/);
+  const socialExport=path.join(dbdir,'rich-static-social');
+  const socialExportResult=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',socialExport],
+    {cwd:root,env:{...env,STAGE3_EXPORT_ORIGIN:'https://example.test'},encoding:'utf8'});
+  assert.equal(socialExportResult.status,0,socialExportResult.stderr);
+  const socialStatic=fs.readFileSync(path.join(socialExport,'index.html'),'utf8');
+  assert.match(socialStatic,/<html lang="pl">/);
+  assert.ok(socialStatic.includes('<meta property="og:image" content="https://example.test/assets/'+picture.id+'.png">'));
+  assert.ok(socialStatic.includes('<meta name="twitter:image" content="https://example.test/assets/'+picture.id+'.png">'));
+  assert.match(fs.readFileSync(path.join(socialExport,'old-services/index.html'),'utf8'),/<html lang="pl">/);
   for(let n=0;n<3;n++){
     const variant=responsiveAsset.variants[n];
     const url='/published/site-rich-ci'+variant.src;

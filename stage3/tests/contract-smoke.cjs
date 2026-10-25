@@ -132,16 +132,26 @@ test('responsive presets and CTA are fully typed, undoable and backward compatib
 
 test('theme + page SEO/nav accept only closed values and participate in Undo',()=>{
   const site=same(initial);
+  site.language='pl';
+  site.assets.push({id:'social-preview',src:'/assets/social-preview.webp',alt:'Social preview image',mime:'image/webp'});
   site.theme={background:'#101b2a',surface:'#f8f9fa',text:'#ffffff',primary:'#ff6600',font:'georgia',maxWidth:980};
-  site.pages[0].seo={title:'Каталог',description:'Подтверждённое описание',robots:'noindex'};
+  site.pages[0].seo={title:'Каталог',description:'Подтверждённое описание',robots:'noindex',
+    ogTitle:'Заголовок публикации',ogDescription:'Описание публикации',ogImage:'social-preview'};
   site.pages[0].navigation={label:'Каталог',hidden:false};
   assert.equal(sdk.validateSite(site,reg).theme.primary,'#ff6600');
+  assert.equal(sdk.validateSite(site,reg).language,'pl');
+  assert.equal(sdk.validateSite(site,reg).pages[0].seo.ogImage,'social-preview');
   const D=require('../sdk/draft.cjs'),updated=D.replaceSite(D.begin(initial,manifests),manifests,site,0);
   assert.ok(D.changes(updated,manifests).some(c=>c.kind==='theme-updated'));
   assert.ok(D.changes(updated,manifests).some(c=>c.kind==='page-updated'));
+  assert.ok(D.changes(updated,manifests).some(c=>c.kind==='site-language-updated'));
   assert.equal(D.undo(updated,manifests).current.theme,undefined);
   const bad=same(site);bad.theme.primary='red; background:url(//evil)';
   refuses(()=>sdk.validateSite(bad,manifests),'CSS injection rejected');
+  const badLanguage=same(site);badLanguage.language='xx';
+  refuses(()=>sdk.validateSite(badLanguage,manifests),'Unknown site language rejected');
+  const badSocialImage=same(site);badSocialImage.pages[0].seo.ogImage='missing-image';
+  refuses(()=>sdk.validateSite(badSocialImage,manifests),'Social image must reference a site-owned raster image');
   const hidden=same(site);hidden.pages[0].navigation.hidden='yes';
   refuses(()=>sdk.validateSite(hidden,manifests),'Invalid nav flag rejected');
 });

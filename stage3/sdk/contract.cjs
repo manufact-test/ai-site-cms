@@ -112,11 +112,19 @@ function validTheme(t){
     if(typeof t[k]!=='string'||!/^#[0-9a-fA-F]{6}$/.test(t[k]))fail('Invalid theme color',k);
   if(!['system','arial','georgia'].includes(t.font)||!Number.isInteger(t.maxWidth)||t.maxWidth<680||t.maxWidth>1600)fail('Invalid theme font or width');
 }
-function validSeo(s){
-  objectKeys(s,['title','description','robots'],'seo');
+function validSeo(s,assetMimes){
+  objectKeys(s,['title','description','robots','ogTitle','ogDescription','ogImage'],'seo');
   if(typeof s.title!=='string'||s.title.length>160||/[\x00-\x1f]/.test(s.title)||
     typeof s.description!=='string'||s.description.length>300||/[\x00-\x1f]/.test(s.description)||
     !['index','noindex'].includes(s.robots))fail('Invalid SEO metadata');
+  for(const [key,max] of [['ogTitle',160],['ogDescription',300]]){
+    if(own(s,key)&&(typeof s[key]!=='string'||s[key].length>max||/[\x00-\x1f]/.test(s[key])))
+      fail('Invalid social metadata',key);
+  }
+  if(own(s,'ogImage')&&(typeof s.ogImage!=='string'||
+    (s.ogImage!==''&&(!elementId.test(s.ogImage)||
+      !['image/png','image/jpeg','image/webp'].includes(assetMimes.get(s.ogImage))))))
+    fail('Invalid SEO social image');
 }
 function validNav(n){
   objectKeys(n,['label','hidden','parentId'],'navigation');
@@ -196,10 +204,11 @@ function validateFormFields(section){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language'],'site');
   GRAPH_HOST.validateTokens(raw.designTokens);
   if(own(raw,'menu'))validMenu(raw.menu);
   if(own(raw,'theme'))validTheme(raw.theme);
+  if(own(raw,'language')&&!['ru','en','pl','de','be','uk'].includes(raw.language))fail('Invalid site language');
   if(raw.format!==FORMAT||raw.schemaVersion!==1)fail('Unsupported site format');
   id(raw.siteId,'siteId');text(raw.title,'site title',130);
   if(!Array.isArray(raw.assets)||raw.assets.length>300)fail('Invalid assets');
@@ -230,7 +239,7 @@ function validateSite(raw,regInput){
   const ids=new Set([raw.siteId,...assetIds]),paths=new Set();
   for(const page of raw.pages){
     objectKeys(page,['id','path','title','sections','seo','navigation'],'page');
-    if(own(page,'seo'))validSeo(page.seo);
+    if(own(page,'seo'))validSeo(page.seo,assetMimes);
     if(own(page,'navigation'))validNav(page.navigation);
     id(page.id,'page.id');text(page.title,'page.title',160);
     if(typeof page.path!=='string'||!/^\/(?:[a-z0-9-]+\/)*$/.test(page.path)||paths.has(page.path))fail('Invalid page path',page.id);

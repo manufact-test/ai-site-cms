@@ -125,13 +125,25 @@ final class ContractValidator
         self::must(in_array($t['font'],['system','arial','georgia'],true)
             && is_int($t['maxWidth']) && $t['maxWidth']>=680 && $t['maxWidth']<=1600,'Invalid theme font/width');
     }
-    private static function seo(mixed $s): void
+    private static function seo(mixed $s, array $assets): void
     {
-        self::keys($s,['title','description','robots']);
+        self::keys($s,['title','description','robots','ogTitle','ogDescription','ogImage']);
         foreach (['title'=>160,'description'=>300] as $name=>$max)
             self::must(is_string($s[$name]) && mb_strlen($s[$name],'UTF-8')<=$max
                 && !preg_match('/[\x00-\x1f]/',$s[$name]),'Invalid SEO text');
         self::must(in_array($s['robots'],['index','noindex'],true),'Invalid robots metadata');
+        foreach (['ogTitle'=>160,'ogDescription'=>300] as $name=>$max) {
+            if (!array_key_exists($name,$s)) continue;
+            self::must(is_string($s[$name]) && mb_strlen($s[$name],'UTF-8')<=$max
+                && !preg_match('/[\x00-\x1f]/',$s[$name]),'Invalid social metadata');
+        }
+        if (array_key_exists('ogImage',$s)) {
+            $image=$s['ogImage'];
+            self::must(is_string($image) && ($image==='' ||
+                (preg_match('/^[a-z][a-z0-9-]{2,79}$/D',$image)===1
+                    && in_array($assets[$image]??null,['image/png','image/jpeg','image/webp'],true))),
+                'Invalid SEO social image');
+        }
     }
     private static function navigation(mixed $n): void
     {
@@ -159,10 +171,11 @@ final class ContractValidator
 
     public function validate(mixed $site): array
     {
-        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu', 'designTokens']);
+        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu', 'designTokens', 'language']);
         DesignGraph::tokens($site['designTokens']??null);
         if (array_key_exists('menu',$site)) self::menu($site['menu']);
         if (array_key_exists('theme',$site)) self::theme($site['theme']);
+        self::must(!array_key_exists('language',$site) || in_array($site['language'],['ru','en','pl','de','be','uk'],true), 'Invalid site language');
         self::must(($site['format'] ?? null) === 'manufact-ai-site-v1'
             && ($site['schemaVersion'] ?? null) === 1, 'Unsupported site format');
         self::id($site['siteId']);
@@ -205,7 +218,7 @@ final class ContractValidator
         $paths = [];
         foreach ($site['pages'] as $page) {
             self::keys($page, ['id', 'path', 'title', 'sections', 'seo', 'navigation']);
-            if (array_key_exists('seo',$page)) self::seo($page['seo']);
+            if (array_key_exists('seo',$page)) self::seo($page['seo'],$assets);
             if (array_key_exists('navigation',$page)) self::navigation($page['navigation']);
             self::uniqueId($page['id'], $ids);
             self::label($page['title'], 160);

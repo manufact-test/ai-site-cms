@@ -131,7 +131,7 @@ try {
             $folder=dirname($temp.'/'.$relative);
             if (!is_dir($folder) && !mkdir($folder,0755,true))
                 failExport('Cannot create redirect directory');
-            $body=PublicRenderer::staticRedirect($redirect['to']);
+            $body=PublicRenderer::staticRedirect($redirect['to'],$site['language']??'ru');
             if (file_put_contents($temp.'/'.$relative,$body,LOCK_EX)===false)
                 failExport('Cannot create redirect fallback');
             $manifest['redirects'][]=[
