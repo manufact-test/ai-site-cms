@@ -169,10 +169,10 @@ function validAppearance(a){
     if(own(a,name)&&!allowed.includes(a[name]))fail('Invalid section appearance',name);
 }
 // Additive v1 field-builder contract: older forms keep their original 3 slots.
-const FORM_KINDS=['text','tel','email','select','textarea'];
+const FORM_KINDS=['text','tel','email','select','textarea','radio','checkbox','number','date','url'];
 function validateFormFields(section){
   if(!own(section,'formFields'))return;
-  if(section.component!=='lead-form-flex'||!Array.isArray(section.formFields)||section.formFields.length>6)
+  if(section.component!=='lead-form-flex'||!Array.isArray(section.formFields)||section.formFields.length>9)
     fail('Form field builder is only supported on flexible forms',section.id);
   const available=new Map();
   for(let i=0;i<3;i++){
@@ -194,11 +194,11 @@ function validateFormFields(section){
       !FORM_KINDS.includes(f.kind)||typeof f.required!=='boolean'||
       typeof f.placeholder!=='string'||f.placeholder.length>120||/[\x00-\x1f]/.test(f.placeholder)||
       !Array.isArray(f.options))fail('Invalid additional form field',f.id);
-    if(f.kind==='select'){
+    if(['select','radio'].includes(f.kind)){
       if(f.options.length<2||f.options.length>12||new Set(f.options).size!==f.options.length||
         f.options.some(v=>typeof v!=='string'||!v.trim()||v.length>80||/[\x00-\x1f]/.test(v)))
-        fail('Invalid select options',f.id);
-    }else if(f.options.length)fail('Options only permitted on select fields',f.id);
+        fail('Invalid choice options',f.id);
+    }else if(f.options.length)fail('Options only permitted on choice fields',f.id);
     if(own(f,'when')){
       objectKeys(f.when,['field','option'],'form condition');
       const prior=available.get(f.when.field);

@@ -235,11 +235,16 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const question=page.locator('#cms-form-rows [data-form-field]').first();
     await question.locator('input[type=text]').first().fill('Номер заказа');
     await question.locator('input[type=text]').first().dispatchEvent('change');
+    await question.locator('select').first().selectOption('radio');
+    await question.locator('textarea').fill('Email\nТелефон');
+    await question.locator('textarea').dispatchEvent('change');
     await question.locator('input[type=checkbox]').check();
     await page.locator('#cms-form-apply').click();
     const built=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
       .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex');
     assert.equal(built.formFields[0].label,'Номер заказа');
+    assert.equal(built.formFields[0].kind,'radio');
+    assert.deepEqual(built.formFields[0].options,['Email','Телефон']);
     assert.equal(built.formFields[0].required,true);
     await canvas.locator('.contact').getByText('Номер заказа').waitFor();
     await page.locator('#undo').click();

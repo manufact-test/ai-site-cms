@@ -11,7 +11,7 @@ use InvalidArgumentException;
 final class FlexForm
 {
     private const SLOTS = ['extra-one', 'extra-two', 'extra-three'];
-    private const TYPES = ['text','tel','email','select','textarea'];
+    private const TYPES = ['text','tel','email','select','textarea','radio','checkbox','number','date','url'];
 
     private static function element(array $section, string $slot): array
     {
@@ -24,7 +24,7 @@ final class FlexForm
     private static function options(array $raw): array
     {
         if (count($raw) < 2 || count($raw) > 12 || count(array_unique($raw)) !== count($raw)) {
-            throw new InvalidArgumentException('Select requires 2–12 unique options');
+            throw new InvalidArgumentException('Choice field requires 2–12 unique options');
         }
         foreach ($raw as $option) {
             if (!is_string($option) || trim($option) === '' || strlen($option) > 80
@@ -65,7 +65,7 @@ final class FlexForm
             if ($kind === 'select') $selects[$name] = $options;
         }
         $fields = $section['formFields'] ?? [];
-        if (!is_array($fields) || !array_is_list($fields) || count($fields) > 6) {
+        if (!is_array($fields) || !array_is_list($fields) || count($fields) > 9) {
             throw new InvalidArgumentException('Invalid form builder field list');
         }
         $seen = [];
@@ -93,7 +93,7 @@ final class FlexForm
                 || !is_array($field['options']) || !array_is_list($field['options'])) {
                 throw new InvalidArgumentException('Invalid form field definition');
             }
-            if ($kind === 'select') $options = self::options($field['options']);
+            if (in_array($kind, ['select','radio'], true)) $options = self::options($field['options']);
             else {
                 if ($field['options'] !== []) throw new InvalidArgumentException('Options require a select');
                 $options = [];
@@ -128,8 +128,11 @@ final class FlexForm
                 throw new InvalidArgumentException('Invalid additional form field');
             }
             $value = trim($raw);
-            $max = $field['kind'] === 'textarea' ? 1000 :
-                ($field['kind'] === 'email' ? 254 : ($field['kind'] === 'tel' ? 32 : 180));
+            $max = match ($field['kind']) {
+                'textarea' => 1000, 'email' => 254, 'tel' => 32,
+                'date' => 10, 'number' => 64, 'url' => 2048, 'checkbox' => 3,
+                default => 180,
+            };
             if (strlen($value) > $max || preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f]/', $value)) {
                 throw new InvalidArgumentException('Additional field too long');
             }
@@ -154,9 +157,28 @@ final class FlexForm
             if ($value !== '' && $field['kind'] === 'email' && !filter_var($value,FILTER_VALIDATE_EMAIL)) {
                 throw new InvalidArgumentException('Invalid email field');
             }
-            if ($value !== '' && $field['kind'] === 'select'
+            if ($value !== '' && in_array($field['kind'], ['select','radio'], true)
                 && !in_array($value, $field['options'], true)) {
-                throw new InvalidArgumentException('Unexpected select option');
+                throw new InvalidArgumentException('Unexpected choice option');
+            }
+            if ($value !== '' && $field['kind'] === 'checkbox' && $value !== 'yes') {
+                throw new InvalidArgumentException('Invalid checkbox value');
+            }
+            if ($value !== '' && $field['kind'] === 'number'
+                && preg_match('/^-?(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,4})?$/D', $value) !== 1) {
+                throw new InvalidArgumentException('Invalid number field');
+            }
+            if ($value !== '' && $field['kind'] === 'date') {
+                if (preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/D', $value, $date) !== 1
+                    || !checkdate((int)$date[2], (int)$date[3], (int)$date[1])) {
+                    throw new InvalidArgumentException('Invalid date field');
+                }
+            }
+            if ($value !== '' && $field['kind'] === 'url') {
+                $scheme = strtolower((string)parse_url($value, PHP_URL_SCHEME));
+                if (!in_array($scheme, ['http','https'], true) || filter_var($value, FILTER_VALIDATE_URL) === false) {
+                    throw new InvalidArgumentException('Invalid URL field');
+                }
             }
             $valuesByName[$name] = $value;
             $result[$name] = ['label'=>$field['label'],'value'=>$value];

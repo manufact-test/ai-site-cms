@@ -344,7 +344,17 @@ async function stop(){
     {id:'field-product-select',label:'Группа товаров',kind:'select',required:false,
       options:['Оборудование','Запчасти'],placeholder:''},
     {id:'field-product-detail',label:'Подробности по запчастям',kind:'textarea',required:true,
-      options:[],placeholder:'Укажите наименование',when:{field:'field-product-select',option:2}}
+      options:[],placeholder:'Укажите наименование',when:{field:'field-product-select',option:2}},
+    {id:'field-contact-method',label:'Предпочтительный способ связи',kind:'radio',required:true,
+      options:['Email','Телефон','Telegram'],placeholder:''},
+    {id:'field-newsletter',label:'Получать новости',kind:'checkbox',required:false,
+      options:[],placeholder:''},
+    {id:'field-order-quantity',label:'Количество',kind:'number',required:true,
+      options:[],placeholder:'Например, 2.5'},
+    {id:'field-delivery-date',label:'Дата доставки',kind:'date',required:false,
+      options:[],placeholder:''},
+    {id:'field-reference-url',label:'Ссылка на товар',kind:'url',required:false,
+      options:[],placeholder:'https://example.test/item'}
   ];
   flexSite.pages[1].sections.push(extraSection);
   assert.equal((await request('POST','/api/sites',{site:flexSite})).status,201);
@@ -358,6 +368,11 @@ async function stop(){
   assert.match(flexHTML,/name="field-delivery-note"/);
   assert.match(flexHTML,/type="email" name="field-reply-email"/);
   assert.match(flexHTML,/name="field-product-select"/);
+  assert.match(flexHTML,/type="radio" name="field-contact-method"/);
+  assert.match(flexHTML,/type="checkbox" name="field-newsletter"/);
+  assert.match(flexHTML,/type="number" name="field-order-quantity"/);
+  assert.match(flexHTML,/type="date" name="field-delivery-date"/);
+  assert.match(flexHTML,/type="url" name="field-reference-url"/);
   assert.match(flexHTML,/@supports selector\(form:has\(option:checked\)\)/);
   const flexToken=/name="_token" value="([a-f0-9]{64})"/.exec(flexHTML)?.[1];
   assert.ok(flexToken);
@@ -365,7 +380,9 @@ async function stop(){
     email:'flex@example.test',message:'Нужно подобрать оборудование',consent:'yes',
     extra1:'Доставка',extra2:'+49 (211) 1234567',extra3:'Детали запроса',
     'field-delivery-note':'После 18:00','field-reply-email':'reply@example.test',
-    'field-product-select':'Оборудование','field-product-detail':''};
+    'field-product-select':'Оборудование','field-product-detail':'',
+    'field-contact-method':'Email','field-newsletter':'yes','field-order-quantity':'2.5',
+    'field-delivery-date':'2026-11-12','field-reference-url':'https://example.test/item/42'};
   const submitFlex=async(fields,receiver=origin,from=origin)=>{
     const response=await fetch(receiver+'/forms/site-flex-ci/section-flex',{method:'POST',
       headers:{'content-type':'application/x-www-form-urlencoded','origin':from},
@@ -383,6 +400,16 @@ async function stop(){
   assert.equal((await submitFlex({...flexValues,'field-product-select':'Unknown'})).status,422);
   assert.equal((await submitFlex({...flexValues,'field-product-select':'Запчасти'})).status,422,
     'Chained conditional required field must be present');
+  assert.equal((await submitFlex({...flexValues,'field-contact-method':'Fax'})).status,422,
+    'Radio values must match the published choices');
+  assert.equal((await submitFlex({...flexValues,'field-newsletter':'true'})).status,422,
+    'Checkbox accepts only its explicit checked value');
+  assert.equal((await submitFlex({...flexValues,'field-order-quantity':'1e3'})).status,422,
+    'Numbers reject exponent and non-canonical input');
+  assert.equal((await submitFlex({...flexValues,'field-delivery-date':'2026-02-30'})).status,422,
+    'Dates reject impossible calendar days');
+  assert.equal((await submitFlex({...flexValues,'field-reference-url':'javascript:alert(1)'})).status,422,
+    'URLs allow only validated HTTP(S) destinations');
 
   assert.equal((await submitFlex(flexValues)).status,201);
   assert.equal((await request('GET','/api/sites/site-flex-ci/notifications')).body.unread,1);
@@ -391,6 +418,11 @@ async function stop(){
   assert.equal(flexInbox[0].extras.extra1.value,'Доставка');
   assert.equal(flexInbox[0].extras['field-delivery-note'].value,'После 18:00');
   assert.equal(flexInbox[0].extras['field-reply-email'].value,'reply@example.test');
+  assert.equal(flexInbox[0].extras['field-contact-method'].value,'Email');
+  assert.equal(flexInbox[0].extras['field-newsletter'].value,'yes');
+  assert.equal(flexInbox[0].extras['field-order-quantity'].value,'2.5');
+  assert.equal(flexInbox[0].extras['field-delivery-date'].value,'2026-11-12');
+  assert.equal(flexInbox[0].extras['field-reference-url'].value,'https://example.test/item/42');
   assert.equal(flexInbox[0].extras['field-product-detail'],undefined);
   assert.equal(flexInbox[0].extras.extra2.label,'Телефон');
   assert.equal((await request('POST','/api/sites/site-flex-ci/notifications/seen',{})).body.unread,0);

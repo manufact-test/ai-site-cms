@@ -436,7 +436,7 @@
         },
         "formFields": {
           "type": "array",
-          "maxItems": 6,
+          "maxItems": 9,
           "items": {
             "$ref": "#/$defs/formField"
           }
@@ -607,7 +607,12 @@
             "tel",
             "email",
             "select",
-            "textarea"
+            "textarea",
+            "radio",
+            "checkbox",
+            "number",
+            "date",
+            "url"
           ]
         },
         "required": {

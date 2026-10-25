@@ -623,17 +623,27 @@ test('opt-in flexible forms support independent typed fields and safe select dep
     {id:'field-channel',label:'Канал связи',kind:'select',required:false,
       options:['Электронная почта','Телефон'],placeholder:''},
     {id:'field-email-address',label:'Email получателя',kind:'email',required:true,
-      options:[],placeholder:'name@example.com',when:{field:'field-channel',option:1}}
+      options:[],placeholder:'name@example.com',when:{field:'field-channel',option:1}},
+    {id:'field-contact-method',label:'Способ связи',kind:'radio',required:true,
+      options:['Email','Телефон'],placeholder:''},
+    {id:'field-newsletter',label:'Получать новости',kind:'checkbox',required:false,
+      options:[],placeholder:''},
+    {id:'field-budget',label:'Бюджет',kind:'number',required:false,
+      options:[],placeholder:'Например, 250.50'},
+    {id:'field-date',label:'Желаемая дата',kind:'date',required:false,
+      options:[],placeholder:''},
+    {id:'field-url',label:'Ссылка на проект',kind:'url',required:false,
+      options:[],placeholder:'https://example.com'}
   ];
   site.pages[1].sections.push(section);
-  assert.equal(sdk.validateSite(site,manifests).pages[1].sections.at(-1).formFields.length,3);
+  assert.equal(sdk.validateSite(site,manifests).pages[1].sections.at(-1).formFields.length,8);
   const D=require('../sdk/draft.cjs');
   let d=D.begin(site,manifests);
   const changed=structuredClone(d.current);changed.pages[1].sections.at(-1).formFields[0].label='Кому';
   d=D.replaceSite(d,manifests,changed,d.revision);
   assert.ok(D.changes(d,manifests).some(x=>x.kind==='form-fields-updated'));
   assert.equal(D.undo(d,manifests).current.pages[1].sections.at(-1).formFields[0].label,'Адресат');
-  assert.equal(D.blockPreview(d,manifests,'page-contact','section-dynamic-form').formFields.length,3);
+  assert.equal(D.blockPreview(d,manifests,'page-contact','section-dynamic-form').formFields.length,8);
   const wrong=structuredClone(site);
   wrong.pages[1].sections.at(-1).formFields[0].when={field:'field-email-address',option:1};
   refuses(()=>sdk.validateSite(wrong,manifests),'Forward and cyclic dependencies rejected');
@@ -644,7 +654,7 @@ test('opt-in flexible forms support independent typed fields and safe select dep
   injected.pages[1].sections.at(-1).formFields[1].options[0]='\u0000';
   refuses(()=>sdk.validateSite(injected,manifests),'Control bytes rejected');
   const overflow=structuredClone(site);
-  overflow.pages[1].sections.at(-1).formFields=Array.from({length:7},(_,i)=>({
+  overflow.pages[1].sections.at(-1).formFields=Array.from({length:10},(_,i)=>({
     id:'field-too-many-'+i,label:'Вопрос',kind:'text',required:false,options:[],placeholder:''}));
   refuses(()=>sdk.validateSite(overflow,manifests),'Form capacity restricted');
   const other=structuredClone(initial);other.pages[0].sections[0].formFields=[];

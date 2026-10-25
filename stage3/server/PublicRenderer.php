@@ -85,12 +85,45 @@ final class PublicRenderer
             $label = self::h($field['label']);
             $placeholder = $field['placeholder'] !== ''
                 ? ' placeholder="' . self::h($field['placeholder']) . '"' : '';
-            $control = '';
+            $classes = 'lead-field';
+            if ($conditional) {
+                $slug = $field['name'];
+                $classes .= ' lead-conditional-' . $slug;
+                $ref = $field['when']['field'];
+                $nth = $field['when']['option'] + 1; // first select option is the empty placeholder
+                // CSS-only progressive enhancement. No inline scripts or CMS
+                // runtime in the static release; older browsers show all fields.
+                $css .= '@supports selector(form:has(option:checked)){'
+                    . '.lead-form .lead-conditional-' . $slug . '{display:none}'
+                    . '.lead-form:has(select[name="' . $ref . '"] option:nth-child(' . $nth
+                    . '):checked) .lead-conditional-' . $slug . '{display:grid}}';
+            }
+            $hint = $conditional && $field['required']
+                ? '<small>Обязательно при выбранном варианте</small>' : '';
+
+            if ($field['kind'] === 'radio') {
+                $control = '<fieldset class="lead-radio-group"><legend>' . $label . '</legend>';
+                foreach ($field['options'] as $option) {
+                    $escaped = self::h($option);
+                    $control .= '<label class="lead-radio-option"><input type="radio" name="' . $name
+                        . '" value="' . $escaped . '"' . $required . '> <span>' . $escaped . '</span></label>';
+                }
+                $control .= '</fieldset>';
+                $html .= '<div class="' . $classes . '">' . $control . $hint . '</div>';
+                continue;
+            }
+            if ($field['kind'] === 'checkbox') {
+                $control = '<label class="lead-checkbox"><input type="checkbox" name="' . $name
+                    . '" value="yes"' . $required . '> <span>' . $label . '</span></label>';
+                $html .= '<div class="' . $classes . '">' . $control . $hint . '</div>';
+                continue;
+            }
+
             if ($field['kind'] === 'textarea') {
-                $control = '<textarea name="' . $name . '" maxlength="1000" rows="3"'
+                $control = '<textarea id="' . $name . '" name="' . $name . '" maxlength="1000" rows="3"'
                     . $placeholder . $required . '></textarea>';
             } elseif ($field['kind'] === 'select') {
-                $control = '<select name="' . $name . '"' . $required . '>'
+                $control = '<select id="' . $name . '" name="' . $name . '"' . $required . '>'
                     . '<option value="">Выберите вариант</option>';
                 foreach ($field['options'] as $option) {
                     $escaped = self::h($option);
@@ -98,29 +131,19 @@ final class PublicRenderer
                 }
                 $control .= '</select>';
             } else {
-                $type = in_array($field['kind'], ['tel','email'], true) ? $field['kind'] : 'text';
-                $max = $type === 'tel' ? 32 : ($type === 'email' ? 254 : 180);
-                $control = '<input type="' . $type . '" name="' . $name . '" maxlength="' . $max . '"'
-                    . ($type === 'tel' ? ' autocomplete="tel"' : '')
-                    . $placeholder . $required . '>';
+                $type = in_array($field['kind'], ['tel','email','number','date','url'], true)
+                    ? $field['kind'] : 'text';
+                $max = ['tel'=>32,'email'=>254,'number'=>64,'date'=>10,'url'=>2048,'text'=>180][$type];
+                $maxAttr = in_array($type, ['number','date'], true) ? '' : ' maxlength="' . $max . '"';
+                $extra = $type === 'number' ? ' step="any" inputmode="decimal"'
+                    : ($type === 'tel' ? ' autocomplete="tel"'
+                    : ($type === 'email' ? ' autocomplete="email"'
+                    : ($type === 'url' ? ' autocomplete="url"' : '')));
+                $control = '<input type="' . $type . '" name="' . $name . '" id="' . $name . '"'
+                    . $maxAttr . $extra . $placeholder . $required . '>';
             }
-            $class = '';
-            if ($conditional) {
-                $slug = $field['name'];
-                $class = ' class="lead-conditional-' . $slug . '"';
-                $selector = 'label.lead-conditional-' . $slug;
-                $ref = $field['when']['field'];
-                $nth = $field['when']['option'] + 1; // first select option is the empty placeholder
-                // CSS-only progressive enhancement. No inline scripts or CMS
-                // runtime in the static release; older browsers show all fields.
-                $css .= '@supports selector(form:has(option:checked)){'
-                    . '.lead-form ' . $selector . '{display:none}'
-                    . '.lead-form:has(select[name="' . $ref . '"] option:nth-child(' . $nth
-                    . '):checked) ' . $selector . '{display:block}}';
-            }
-            $hint = $conditional && $field['required']
-                ? '<small>Обязательно при выбранном варианте</small>' : '';
-            $html .= '<label' . $class . '>' . $label . $control . $hint . '</label>';
+            $html .= '<div class="' . $classes . '"><label for="' . $name . '">' . $label
+                . '</label>' . $control . $hint . '</div>';
         }
         return ($css !== '' ? '<style>' . $css . '</style>' : '') . $html;
     }
@@ -658,7 +681,7 @@ final class PublicRenderer
             . 'padding:14px 22px;border-radius:var(--cms-button-radius);box-shadow:var(--cms-button-shadow);text-decoration:none;font-weight:700}.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}'
             . 'article{padding:24px;background:var(--cms-surface);border:1px solid #e1e8f1;border-radius:12px}'
             . '.showcase-photo{display:block;width:100%;height:auto;max-height:680px;object-fit:contain;border-radius:16px;background:#e4ebf3}'
-            . '.lead-form{display:grid;gap:16px;max-width:700px}.lead-form label{display:grid;gap:6px;font-weight:600}.lead-form input:not([type=checkbox]),.lead-form textarea,.lead-form select{padding:12px;border:1px solid #a5b3c4;border-radius:8px;font:inherit;width:100%}.lead-form button{border:0;cursor:pointer}.lead-consent{display:flex!important;flex-direction:row;align-items:flex-start}.lead-honey{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}'
+            . '.lead-form{display:grid;gap:16px;max-width:700px}.lead-form>label{display:grid;gap:6px;font-weight:600}.lead-field{display:grid;gap:6px;font-weight:600}.lead-field>label{display:block}.lead-form input:not([type=checkbox]):not([type=radio]),.lead-form textarea,.lead-form select{padding:12px;border:1px solid #a5b3c4;border-radius:8px;font:inherit;width:100%}.lead-radio-group{display:grid;gap:8px;border:0;margin:0;padding:0}.lead-radio-group legend{font-weight:700;padding:0 0 6px}.lead-radio-option,.lead-checkbox{display:flex!important;grid-template-columns:none;align-items:center;gap:8px;font-weight:400!important}.lead-radio-option input,.lead-checkbox input{width:auto!important;margin:0}.lead-checkbox{align-items:flex-start}.lead-form button{border:0;cursor:pointer}.lead-consent{display:flex!important;flex-direction:row;align-items:flex-start}.lead-honey{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}'
             . '.repeat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:20px}.repeat-grid article,.repeat-grid .review,.repeat-grid figure{background:var(--cms-surface);border:1px solid #e1e8f1;padding:24px;margin:0;border-radius:12px}.repeat-grid h3{margin:0 0 12px}.repeat-grid .review blockquote{margin:0 0 16px;font-size:19px}.repeat-grid figcaption{font-size:14px;opacity:.75}.repeat-grid img{max-width:100%;height:auto;max-height:420px;object-fit:contain}.faq{max-width:850px}.faq details{border-bottom:1px solid #d0d8e2;padding:18px}.faq summary{cursor:pointer;font-weight:700}.service-link{display:inline-flex;padding-top:14px}'
             . '.story-layout{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center}.story-copy p{max-width:65ch}.story-photo{display:block;width:100%;max-height:620px;object-fit:contain;border-radius:16px}.partner-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:16px}.partner-logo{border:1px solid #e1e8f1;border-radius:12px;display:grid;justify-items:center;gap:8px;text-align:center;padding:18px;background:var(--cms-surface);text-decoration:none}.partner-logo img{max-width:100%;width:auto;height:80px;object-fit:contain}.partner-logo span{font-weight:700;font-size:14px}'
             . '.cta-banner{background:var(--cms-surface)}.cta-banner p{max-width:650px}.cta-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.cta-actions .action{margin:0}.cta-actions .action:last-child{background:transparent;color:var(--cms-primary);box-shadow:inset 0 0 0 2px currentColor}'
