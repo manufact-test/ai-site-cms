@@ -898,7 +898,7 @@ async function stop(){
   const responsiveHTML=(await request('GET','/published/site-rich-ci/')).body;
   assert.match(responsiveHTML,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w,[^"]+ 1440w"/);
   assert.match(responsiveHTML,/sizes="\(max-width: 600px\) 100vw/);
-  assert.match(responsiveHTML,/<img[^>]*width="1200" height="800"/,
+  assert.match(responsiveHTML,/<img[^>]*width="1440" height="960"/,
     'Published responsive images reserve intrinsic layout space');
   const socialExport=path.join(dbdir,'rich-static-social');
   const socialExportResult=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',socialExport],
@@ -937,7 +937,7 @@ async function stop(){
   assert.equal(releaseJSON.assets.length,5);
   const staticPage=fs.readFileSync(path.join(staticResponsive,'index.html'),'utf8');
   assert.match(staticPage,/srcset="\/assets\/[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w,[^"]+ 1440w"/);
-  assert.match(staticPage,/<img[^>]*width="1200" height="800"/,
+  assert.match(staticPage,/<img[^>]*width="1440" height="960"/,
     'Static release retains intrinsic image dimensions');
   for(let n=0;n<3;n++){
     const rendition=releaseJSON.assets.find(a=>a.id===responsiveAsset.variants[n].id);
