@@ -64,7 +64,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-open-theme').click();
     await page.locator('#cms-setting-language').selectOption('pl');
     await page.locator('#cms-settings-apply').click();
-    await page.frameLocator('#preview').locator('html[lang="pl"]').waitFor();
+    await page.frameLocator('#preview').locator('html[lang="pl"]').waitFor({state:'attached'});
     assert.equal(await page.frameLocator('#preview').locator('html').getAttribute('lang'),'pl',
       'Editor preview language follows the site setting');
     await page.locator('#cms-open-seo').click();
