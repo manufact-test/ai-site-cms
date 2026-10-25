@@ -22,7 +22,7 @@ This is the **second independent developer's permanent Design Factory program**,
 
 **Release decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135 mandatory criteria. No merge or out-of-scope changes.
 
-## Fresh environment audit — 25 October 2026
+## Previous fresh environment audit — 25 October 2026
 
 At audit start, live HEAD was `bb219d64a58d590fbf2f806835e996a4277aee7d`, directly above functional/source checkpoint `75884b7f794fa1dabc775d802613c38979eff4b8`. Compare confirms one documentation-only commit affecting six paths, all under `stage3/design-factory/`.
 

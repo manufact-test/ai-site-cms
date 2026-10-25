@@ -16,7 +16,7 @@
 
 **Release decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135 mandatory criteria. No merge or out-of-scope changes.
 
-## Latest environment and D7 release audit — 25 October 2026
+## Previous environment and D7 release audit — 25 October 2026
 
 **Audit-start branch HEAD:** `bb219d64a58d590fbf2f806835e996a4277aee7d`. This was a documentation-only commit whose parent and latest functional/source checkpoint is `75884b7f794fa1dabc775d802613c38979eff4b8`. GitHub compare confirms that the single commit between those SHAs changed exactly six documentation files, all under `stage3/design-factory/`. No functional source was changed in this audit.
 

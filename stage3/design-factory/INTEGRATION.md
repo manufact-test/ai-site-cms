@@ -14,7 +14,7 @@
 
 **Release decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135 mandatory criteria. No merge or out-of-scope changes.
 
-## Latest environment re-check — 25 October 2026
+## Previous environment re-check — 25 October 2026
 
 At the start of this audit the branch HEAD was `bb219d64a58d590fbf2f806835e996a4277aee7d`; it is a documentation-only child of functional/source checkpoint `75884b7f794fa1dabc775d802613c38979eff4b8`. The compare contains six changed paths and all six are documentation within the allowed Design Factory subtree.
 

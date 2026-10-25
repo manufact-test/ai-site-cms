@@ -14,7 +14,7 @@ Independent Stage3 Design Factory. **D1–D6 are implemented; D7 final quality g
 
 **Release decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135 mandatory criteria. No merge or out-of-scope changes.
 
-## Latest D7 environment audit — 25 October 2026
+## Previous D7 environment audit — 25 October 2026
 
 Audit-start HEAD was `bb219d64a58d590fbf2f806835e996a4277aee7d`, a documentation-only commit whose parent and functional/source checkpoint is `75884b7f794fa1dabc775d802613c38979eff4b8`. The six paths changed since that checkpoint are all documentation inside this subtree.
 
