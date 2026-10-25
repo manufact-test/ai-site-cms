@@ -158,6 +158,59 @@ const findNode=(list,suffix)=>{
  }
  return null;
 };
+const findExactNode=(list,id)=>{
+ for(const n of list){
+  if(n.id===id)return n;
+  const nested=findExactNode(n.children||[],id);
+  if(nested)return nested;
+ }
+ return null;
+};
+// Source-refresh rebuild contract across every registered CMS component
+// family represented by the composition catalog: CMS copy updates, owner
+// graph styling, no-AI transformation and immutable original candidate.
+let componentRebuildChecks=0;
+for(const composition of [
+ 'hero-split','benefits-bento','services-cards','team-editorial',
+ 'faq-compact','cta-band','contact-split','gallery-mosaic'
+]){
+ const bundle=bridge.build({format:bridge.WORKSPACE,version:1,
+  project:ownerProject,composition});
+ const baseline=adapter.buildHostCandidate(bundle,hostSdk,registry);
+ const before=JSON.stringify(baseline);
+ const textBinding=baseline.mapping.contentBindings.find(b=>
+  (b.property||'text')==='text');
+ assert.ok(textBinding,'Every registered component family exposes at least one visible text binding: '+composition);
+ const editedSite=clone(baseline.site);
+ const editedSection=editedSite.pages[0].sections.find(s=>
+  s.id==='df-selected-composition');
+ const source=textBinding.source;
+ const sourceValues=source.slot?
+  editedSection.elements.find(e=>e.slot===source.slot)?.values:
+  editedSection.items.find(item=>item.id===source.itemId)?.values;
+ assert.ok(sourceValues&&typeof sourceValues[source.field]==='string',
+  'The binding must resolve to a real owner-editable CMS field: '+composition);
+ const nextCopy='Owner source refresh: '+composition;
+ sourceValues[source.field]=nextCopy;
+ const editedNode=findExactNode(editedSection.designGraph.nodes,textBinding.nodeId);
+ assert.ok(editedNode,'The source binding must target an existing graph node');
+ editedNode.styles.fontWeight=900;
+ const rebuilt=adapter.rebuildHostCandidate(baseline,editedSite,hostSdk,registry);
+ const rebuiltSection=rebuilt.site.pages[0].sections.find(s=>
+  s.id==='df-selected-composition');
+ const rebuiltNode=findExactNode(rebuiltSection.designGraph.nodes,textBinding.nodeId);
+ assert.equal(rebuiltNode.text,nextCopy,
+  'Rebuild must use the new CMS value, not stale graph snapshot: '+composition);
+ assert.equal(rebuiltNode.styles.fontWeight,900,
+  'Rebuild must retain the owner visual style: '+composition);
+ assert.equal(rebuilt.rebuild.noAiInvoked,true);
+ assert.equal(rebuilt.mapping.approvedForPublish,false);
+ assert.equal(JSON.stringify(baseline),before,
+  'Source refresh must not mutate original candidate: '+composition);
+ componentRebuildChecks++;
+}
+assert.equal(componentRebuildChecks,8,'All registered CMS component families need source-refresh coverage');
+
 // When the host has explicitly rebuilt its baseline after a structural FAQ
 // edit, all 24 distinct answer bindings remain individually synchronizable.
 const fullFaqCandidate=clone(faq);
@@ -591,5 +644,6 @@ assert.throws(()=>adapter.buildHostCandidate(corrupted,hostSdk,registry),/D6: ch
 console.log('DESIGN_FACTORY_LEAD_GRAPH PASS: '+checks+
  ' lead-SDK validated and distinct editor graphs; '+renderChecks+
  ' scoped host JS renders; '+rebuildChecks+' AI-free rebuilds; '+
+ componentRebuildChecks+' CMS component source-refresh rebuilds; '+
  rebuildPreviewChecks+' read-only rebuild preflights; '+phpChecked+
  ' real PHP parity probes; old SDK rejects graph; D6 immutable and tamper-protected. No browser acceptance.');
