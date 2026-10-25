@@ -4,11 +4,23 @@
 **Repository:** https://github.com/manufact-test/ai-site-cms
 **Your working branch:** `feature/stage3-design-factory`
 **Sole writable subtree:** `stage3/design-factory/`
-**Latest functional/source checkpoint:** `75884b7f794fa1dabc775d802613c38979eff4b8`. **Audit-start branch HEAD:** `bb219d64a58d590fbf2f806835e996a4277aee7d` (documentation-only child; always read live HEAD on arrival).
+**Latest functional/source checkpoint:** `39624c82fc7953c9afaa07452053f3acec6cd86a`. **Last documentation-audit HEAD:** `7b7654d6e42ae64c0ae234b19854e49d8cb388c7`. The source commit above is newer; always read live HEAD on arrival.
 **IMPORTANT:** Read the CURRENT HEAD from GitHub on arrival. Do not use the older SHA as the current branch head, and do not create any competing branch.
 
 This is the **second independent developer's permanent Design Factory program**, not the primary AI Site CMS chat. The main developer integrates into `feature/stage3-ai-site-contract` / main when ready. Do NOT edit the leader's branch or `main`, `stage3/sdk`, `stage3/components`, PHP, Studio-main, workflows, deployment, secrets, hosting or other projects. Do NOT merge this branch yourself.
 
+
+## Latest source hardening — 25 October 2026
+
+**Functional/source checkpoint:** `39624c82fc7953c9afaa07452053f3acec6cd86a`. This commit changes only `stage3/design-factory/bin/build-browser-bundle.cjs` and `stage3/design-factory/tests/studio-smoke.cjs`.
+
+- Fixed an output-boundary defect in the browser bundle builder: it previously wrote directly to `studio/runtime.generated.js`, which could follow an accidental final symlink or truncate a hard-linked external file.
+- The builder now canonicalizes the repository root, rejects symlinked `stage3/`, `stage3/design-factory/` and `studio/` directories, rejects a symlink/non-regular final target, and writes to a same-directory temporary file before renaming it into place. The rename also replaces a hard-linked directory entry without modifying the other hard link.
+- Added an isolated regression fixture to `tests/studio-smoke.cjs`: symlink rejection in build and check modes, creating a missing target, and safe replacement of a hard-linked target.
+- A focused Node filesystem primitive probe **PASSed**: atomic rename left an external hard-link inode unchanged and `lstat` identified a symlink. This validates the underlying filesystem behavior only; the changed Design Factory test suite has **NOT** run in a genuine checkout.
+- A fresh `git ls-remote` attempt still fails with `Could not resolve host: github.com`. Branch Actions runs remain 0. Do not claim Node/Studio/ZIP/PHP release acceptance from this source-level change.
+
+**Release decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135 mandatory criteria. No merge or out-of-scope changes.
 
 ## Fresh environment audit — 25 October 2026
 
@@ -228,7 +240,7 @@ The suite used actual GitHub JavaScript sources in isolated V8 with emulated Nod
 Stay on `feature/stage3-design-factory`, write only under `stage3/design-factory/`. Do not merge, edit main/Lead SDK/PHP/Studio-main/workflows/hosting/production, or fold the optional suite into stable D7 audit before Lead SDK integration.
 
 
-## Current continuation checkpoint — 25 October 2026 · visual evidence matrix
+## Previous continuation checkpoint — 25 October 2026 · visual evidence matrix
 
 Latest functional/source commit is `75884b7f794fa1dabc775d802613c38979eff4b8`. The release path now has canonical output containment and deterministic source digest protections; the Studio preserves focus and debounces preview recompilation; visual QA checks all 54 expected full-matrix screenshots (or 30 quick-mode screenshots) and rejects missing, unexpected, duplicate or wrong-dimension captures.
 

@@ -2,6 +2,18 @@
 
 **Document date:** 25 October 2026. **Status:** Release tooling implemented, **visual/manual and checked-out Node execution pending**. Formal Stage2 NO-GO, Stage3+ unaccepted, 0/135 mandatory criteria.
 
+## Latest source hardening — 25 October 2026
+
+**Functional/source checkpoint:** `39624c82fc7953c9afaa07452053f3acec6cd86a`. This commit changes only `stage3/design-factory/bin/build-browser-bundle.cjs` and `stage3/design-factory/tests/studio-smoke.cjs`.
+
+- Fixed an output-boundary defect in the browser bundle builder: it previously wrote directly to `studio/runtime.generated.js`, which could follow an accidental final symlink or truncate a hard-linked external file.
+- The builder now canonicalizes the repository root, rejects symlinked `stage3/`, `stage3/design-factory/` and `studio/` directories, rejects a symlink/non-regular final target, and writes to a same-directory temporary file before renaming it into place. The rename also replaces a hard-linked directory entry without modifying the other hard link.
+- Added an isolated regression fixture to `tests/studio-smoke.cjs`: symlink rejection in build and check modes, creating a missing target, and safe replacement of a hard-linked target.
+- A focused Node filesystem primitive probe **PASSed**: atomic rename left an external hard-link inode unchanged and `lstat` identified a symlink. This validates the underlying filesystem behavior only; the changed Design Factory test suite has **NOT** run in a genuine checkout.
+- A fresh `git ls-remote` attempt still fails with `Could not resolve host: github.com`. Branch Actions runs remain 0. Do not claim Node/Studio/ZIP/PHP release acceptance from this source-level change.
+
+**Release decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135 mandatory criteria. No merge or out-of-scope changes.
+
 ## Latest environment and D7 release audit — 25 October 2026
 
 **Audit-start branch HEAD:** `bb219d64a58d590fbf2f806835e996a4277aee7d`. This was a documentation-only commit whose parent and latest functional/source checkpoint is `75884b7f794fa1dabc775d802613c38979eff4b8`. GitHub compare confirms that the single commit between those SHAs changed exactly six documentation files, all under `stage3/design-factory/`. No functional source was changed in this audit.
@@ -24,7 +36,7 @@
 
 **Decision:** all three D7 closure blocks remain blocked by the current environment. D7 **OPEN**; Stage2 **NO-GO**; Stage3 unaccepted; **0/135** mandatory CMS criteria accepted. The next developer should make at most one fresh environment/checkout attempt if connectivity or the execution environment has materially changed; otherwise retain these blockers and do not loop on retries. No workflow, PHP, SDK, Studio-main, hosting, secrets, production, or out-of-scope files were changed.
 
-## Current evidence checkpoint — 25 October 2026
+## Prior evidence checkpoint — 25 October 2026
 
 **Audit-start branch HEAD:** `bb219d64a58d590fbf2f806835e996a4277aee7d` (documentation-only commit; parent/source checkpoint: `75884b7f794fa1dabc775d802613c38979eff4b8`). The latest functional work hardens output-path containment, deterministic package/source digests and completeness checks for the visual evidence matrix. The expected matrix is now explicitly defined as 54 full captures and 30 quick captures; the latest commit adds smoke assertions for completeness, uniqueness and dimensions. These assertions are present in source but have not been run in a real Node checkout.
 

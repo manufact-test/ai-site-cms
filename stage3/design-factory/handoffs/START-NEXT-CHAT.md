@@ -8,7 +8,7 @@
 
 ## Сначала проверь состояние
 
-1. Получи live HEAD ветки из GitHub. Последний функциональный/source checkpoint: `75884b7f794fa1dabc775d802613c38979eff4b8`. В начале последнего аудита live HEAD был `bb219d64a58d590fbf2f806835e996a4277aee7d`; после этого аудита документационное обновление уже продвинуло HEAD. При старте всё равно заново получи актуальный HEAD из GitHub.
+1. Получи live HEAD ветки из GitHub. Последний функциональный/source checkpoint: `39624c82fc7953c9afaa07452053f3acec6cd86a`. После обновления документации live HEAD снова продвинется — всегда заново получай его из GitHub.
 2. Проверь diff от текущего HEAD и убедись, что любые изменения касаются только `stage3/design-factory/`.
 3. Прочитай:
    - `stage3/design-factory/handoffs/NEXT-CHAT.md`
@@ -18,6 +18,13 @@
    - `stage3/design-factory/README.md`
    - `stage3/design-factory/handoffs/LEAD-REBUILD-CONTRACT-2026-10-25.md`
    - `stage3/design-factory/handoffs/SESSION-CLOSEOUT-2026-10-24.md` (историческая передача)
+
+## Последний функциональный checkpoint — 25 октября 2026
+
+- `bin/build-browser-bundle.cjs` больше не пишет напрямую поверх целевого файла: canonical repo root, отказ от symlink-компонентов пути и symlink/non-regular target, запись во временный файл и rename.
+- `tests/studio-smoke.cjs` получил изолированный регрессионный fixture для symlink в build/check mode, создания отсутствующего bundle и безопасной замены hardlink.
+- Подтверждён только отдельный Node filesystem primitive probe. Полный `studio-smoke.cjs`, шесть стабильных D7 suites, optional Lead suite и ZIP smoke **не запускались**: checkout по-прежнему блокирует DNS `Could not resolve host: github.com`.
+- Для ветки по-прежнему 0 Actions runs. PHP parity, Chromium/54 скриншота, человеческая визуальная приёмка, настоящий ZIP и SHA256 не подтверждены. D7 OPEN; Stage2 NO-GO; Stage3 не принят; 0/135.
 
 ## Жёсткие границы
 
@@ -53,9 +60,9 @@
 
 ## Следующие три больших блока
 
-1. Один раз попытаться получить настоящий checkout/Node runtime или проверяемый результат уже существующего GitHub Actions. Если среда доступна — выполнить шесть стабильных D7 suites и отдельно optional Lead suite. Если нет — зафиксировать точную ошибку и не зацикливаться на повторах.
-2. Выполнить реальную PHP parity; если Chromium запускается — сделать полную матрицу из 54 скриншотов при 1280×800, 768×1000 и 390×844, проверить доступность/адаптивность и передать результат на человеческий visual review.
-3. Собрать реальный source-byte-identical ZIP, проверить центральный каталог, CRC, точные исходные байты, детерминированность и вычислить настоящую SHA256 архива. Если инфраструктура недоступна, не выдумывать результаты.
+1. Не повторяй checkout-попытку, пока сеть/окружение не изменились. При появлении доступного checkout — один прогон шести стабильных D7 suites, отдельно optional Lead suite; не меняй workflows ради CI.
+2. Выполни PHP parity и, если Chromium реально стартует, создай 54 скриншота при 1280×800, 768×1000 и 390×844 для проверки человеком. Если Chromium снова зависает, зафиксируй ошибку и двигайся дальше без повторов.
+3. Собери source-byte-identical ZIP, проверь central directory, CRC, все исходные байты, детерминированность и реальную SHA256. Если checkout недоступен, не подменяй это синтетическим архивом и продолжай независимую source-level работу внутри разрешённой папки.
 
 В конце большого прохода обнови `PROGRESS.md`, `QUALITY-GATES.md`, `INTEGRATION.md`, `README.md`, `NEXT-CHAT.md` и этот стартовый текст. Дай пользователю короткую сводку, фактический SHA и diff. **Никакого merge и никаких изменений вне `stage3/design-factory/`.**
 

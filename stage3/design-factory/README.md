@@ -2,6 +2,18 @@
 
 Independent Stage3 Design Factory. **D1–D6 are implemented; D7 final quality gates are still open**. This does not constitute Stage3 acceptance or production release. Branch: `feature/stage3-design-factory`. Only writable subtree: `stage3/design-factory/`.
 
+## Latest source hardening — 25 October 2026
+
+**Functional/source checkpoint:** `39624c82fc7953c9afaa07452053f3acec6cd86a`. This commit changes only `stage3/design-factory/bin/build-browser-bundle.cjs` and `stage3/design-factory/tests/studio-smoke.cjs`.
+
+- Fixed an output-boundary defect in the browser bundle builder: it previously wrote directly to `studio/runtime.generated.js`, which could follow an accidental final symlink or truncate a hard-linked external file.
+- The builder now canonicalizes the repository root, rejects symlinked `stage3/`, `stage3/design-factory/` and `studio/` directories, rejects a symlink/non-regular final target, and writes to a same-directory temporary file before renaming it into place. The rename also replaces a hard-linked directory entry without modifying the other hard link.
+- Added an isolated regression fixture to `tests/studio-smoke.cjs`: symlink rejection in build and check modes, creating a missing target, and safe replacement of a hard-linked target.
+- A focused Node filesystem primitive probe **PASSed**: atomic rename left an external hard-link inode unchanged and `lstat` identified a symlink. This validates the underlying filesystem behavior only; the changed Design Factory test suite has **NOT** run in a genuine checkout.
+- A fresh `git ls-remote` attempt still fails with `Could not resolve host: github.com`. Branch Actions runs remain 0. Do not claim Node/Studio/ZIP/PHP release acceptance from this source-level change.
+
+**Release decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135 mandatory criteria. No merge or out-of-scope changes.
+
 ## Latest D7 environment audit — 25 October 2026
 
 Audit-start HEAD was `bb219d64a58d590fbf2f806835e996a4277aee7d`, a documentation-only commit whose parent and functional/source checkpoint is `75884b7f794fa1dabc775d802613c38979eff4b8`. The six paths changed since that checkpoint are all documentation inside this subtree.
@@ -10,7 +22,7 @@ A genuine GitHub checkout attempt failed with `Could not resolve host: github.co
 
 **D7 is still OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135.** These are explicit environment blockers, not passes. Do not repeat attempts unless the environment/connectivity has changed.
 
-## Current engineering checkpoint — 25 October 2026
+## Previous engineering checkpoint — 25 October 2026
 
 **Latest functional/source commit:** `75884b7f794fa1dabc775d802613c38979eff4b8`. The recent work hardened Studio editing and release tooling:
 

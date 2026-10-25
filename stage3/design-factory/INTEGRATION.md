@@ -2,6 +2,18 @@
 
 **Scope:** standalone, offline adapter. All code is constrained to `stage3/design-factory/`; the existing CMS importer, Studio, SDK, server and PHP renderer remain unchanged. This document is for the main integration developer. It is **not** a production deployment guide.
 
+## Latest source hardening — 25 October 2026
+
+**Functional/source checkpoint:** `39624c82fc7953c9afaa07452053f3acec6cd86a`. This commit changes only `stage3/design-factory/bin/build-browser-bundle.cjs` and `stage3/design-factory/tests/studio-smoke.cjs`.
+
+- Fixed an output-boundary defect in the browser bundle builder: it previously wrote directly to `studio/runtime.generated.js`, which could follow an accidental final symlink or truncate a hard-linked external file.
+- The builder now canonicalizes the repository root, rejects symlinked `stage3/`, `stage3/design-factory/` and `studio/` directories, rejects a symlink/non-regular final target, and writes to a same-directory temporary file before renaming it into place. The rename also replaces a hard-linked directory entry without modifying the other hard link.
+- Added an isolated regression fixture to `tests/studio-smoke.cjs`: symlink rejection in build and check modes, creating a missing target, and safe replacement of a hard-linked target.
+- A focused Node filesystem primitive probe **PASSed**: atomic rename left an external hard-link inode unchanged and `lstat` identified a symlink. This validates the underlying filesystem behavior only; the changed Design Factory test suite has **NOT** run in a genuine checkout.
+- A fresh `git ls-remote` attempt still fails with `Could not resolve host: github.com`. Branch Actions runs remain 0. Do not claim Node/Studio/ZIP/PHP release acceptance from this source-level change.
+
+**Release decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135 mandatory criteria. No merge or out-of-scope changes.
+
 ## Latest environment re-check — 25 October 2026
 
 At the start of this audit the branch HEAD was `bb219d64a58d590fbf2f806835e996a4277aee7d`; it is a documentation-only child of functional/source checkpoint `75884b7f794fa1dabc775d802613c38979eff4b8`. The compare contains six changed paths and all six are documentation within the allowed Design Factory subtree.
@@ -10,7 +22,7 @@ The execution container has Node.js 22.16.0 and PHP 8.4.24, but `git ls-remote` 
 
 This is an environment blocker, not a product acceptance result. The optional Lead Design Graph adapter remains proposed/opt-in and must not be merged by this developer. D7 remains OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135.
 
-## Current integration checkpoint — 25 October 2026
+## Previous integration checkpoint — 25 October 2026
 
 Live functional/source checkpoint: `75884b7f794fa1dabc775d802613c38979eff4b8`. All commits since the earlier checkpoint remain confined to `stage3/design-factory/`; no Lead SDK, PHP renderer, primary Studio, workflows, hosting or production files were changed.
 
