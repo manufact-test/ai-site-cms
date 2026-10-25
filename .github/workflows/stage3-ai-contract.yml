@@ -27,8 +27,10 @@ jobs:
         run: |
           node --check stage3/sdk/contract.cjs
           node --check stage3/sdk/draft.cjs
+          node --check stage3/sdk/design-graph-interop.cjs
           node --check stage3/bin/ai-site.cjs
           node --check stage3/tests/contract-smoke.cjs
+          node --check stage3/tests/design-graph-interop-smoke.cjs
           node stage3/tests/contract-smoke.cjs
       - name: Verify standalone browser bundle matches contract SDK exactly
         run: |

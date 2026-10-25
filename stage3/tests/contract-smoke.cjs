@@ -899,3 +899,4 @@ console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');
 
 require('./recipes-smoke.cjs');
+require('./design-graph-interop-smoke.cjs');
