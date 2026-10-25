@@ -515,6 +515,9 @@ const rrSec=reorderedRebuilt.site.pages[0].sections.find(s=>s.id==='df-selected-
 assert.notEqual(findNode(rrSec.designGraph.nodes,'-card-1-title').styles.fontWeight,900,
  'No owner typography may bleed into a different FAQ item');
 assert.ok(reorderedRebuilt.rebuild.resetVisualNodes>=6);
+assert.ok(reorderedRebuilt.rebuild.resetVisualNodeIds.includes(
+ frSec.id+'-dg-card-1-title'));
+assert.ok(reorderedRebuilt.rebuild.preservedVisualNodeIds.length>0);
 // An independent graph text edit on a still-identical CMS field survives an
 // explicit rebuild, including the exactly-owned card typography.
 const manualGraph=clone(thirdFaq.site);
@@ -546,6 +549,9 @@ const destructivePreview=adapter.inspectRebuild(thirdFaq,removing,hostSdk,regist
 assert.equal(destructivePreview.canApply,false);
 assert.equal(destructivePreview.requiresOwnerConfirmation,true);
 assert.equal(destructivePreview.noMutation,true);
+assert.ok(destructivePreview.rebuild.removedVisualNodeIds.includes(
+ removingSec.id+'-dg-card-3-text'));
+assert.ok(destructivePreview.rebuild.explicitlyDiscardedGraphEdits.includes(discardId));
 assert.deepEqual(destructivePreview.discardedGraphEdits,[{
  nodeId:removingSec.id+'-dg-card-3-text',property:'text',
  previousValue:findNode(thirdFaq.site.pages[0].sections.find(s=>
