@@ -312,10 +312,30 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     page.once('dialog',dialog=>dialog.accept());
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-graph-dialog').waitFor({state:'visible'});
+    const designFrame=page.frameLocator('#cms-design-preview-frame');
+    assert.equal(await page.locator('#cms-design-preview-frame').getAttribute('sandbox'),'allow-same-origin',
+      'Visual picker never grants iframe script or navigation privileges');
+    await designFrame.locator('.cmsdg h2').first().waitFor();
+    assert.equal(await page.locator('#cms-design-preview-frame').evaluate(x=>x.style.width),'1200px');
+    // Clicking a visual element selects the exact existing typed node.
+    await designFrame.locator('.cmsdg h2').first().click();
+    assert.equal(await page.locator('#cms-design-node-select').inputValue(),selectedSection+'-title');
+    assert.equal(await designFrame.locator('.cmsdg h2').getAttribute('data-cms-design-selected'),'true');
+    await page.locator('.cms-design-device-tools [data-design-device="tablet"]').click();
+    assert.equal(await page.locator('#cms-design-preview-frame').evaluate(x=>x.style.width),'780px');
+    assert.equal(await page.locator('#cms-design-breakpoint').inputValue(),'tablet');
+    await page.locator('.cms-design-device-tools [data-design-device="mobile"]').click();
+    assert.equal(await page.locator('#cms-design-preview-frame').evaluate(x=>x.style.width),'390px');
+    assert.equal(await page.locator('#cms-design-breakpoint').inputValue(),'mobile');
+    await page.locator('.cms-design-device-tools [data-design-device="desktop"]').click();
+    assert.equal(await page.locator('#cms-design-breakpoint').inputValue(),'desktop');
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
     const copy=page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'Текст'}).locator('textarea');
     await copy.fill('Новый профессиональный дизайн без ИИ');
+    await designFrame.locator('.cmsdg h2').getByText('Новый профессиональный дизайн без ИИ').waitFor();
+    // Preview navigation is inert even when a generated button has an href.
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
+
     await page.locator('#cms-design-breakpoint').selectOption('mobile');
     await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:/^gap$/}).locator('input').fill('@small');
     await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:/^widthPx$/}).locator('input').fill('390');
@@ -335,6 +355,11 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     // User can extend a generated composition with a safe native icon and
     // customize its animation without calling the AI or writing raw HTML/CSS.
     await page.locator('#section-design-graph').click();
+    await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
+    await designFrame.locator('.cmsdg h2').waitFor();
+    // Visual inspection also works for a graph that was committed then reopened.
+    await designFrame.locator('.cmsdg h2').first().click();
+    assert.equal(await page.locator('#cms-design-node-select').inputValue(),selectedSection+'-title');
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
     await page.locator('#cms-design-gradient summary').click();
     await page.locator('#cms-design-gradient label').filter({hasText:/^Угол/}).locator('input').fill('120');
