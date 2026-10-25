@@ -452,7 +452,8 @@ async function stop(){
     assert.equal((await fetch(collectorOrigin+'/studio')).status,404);
     assert.equal((await fetch(collectorOrigin+'/forms/site-flex-ci/section-flex')).status,404);
     assert.equal((await submitFlex(flexValues,collectorOrigin,origin)).status,201,collectorErr);
-    assert.equal((await request('GET','/api/sites/site-flex-ci/notifications')).body.unread,1);
+    assert.equal((await request('GET','/api/sites/site-flex-ci/notifications')).body.unread,2,
+      'Unchecked optional checkbox and collector submissions both create unread leads');
     env.STAGE3_FORM_ENDPOINT=collectorOrigin;
     const flexOut=path.join(dbdir,'flex-static-release');
     const exportedFlex=spawnSync('php',['stage3/server/bin/export-published.php','site-flex-ci',flexOut],
