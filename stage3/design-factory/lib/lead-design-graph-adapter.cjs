@@ -426,8 +426,11 @@ function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry,options=
     before.manifestVersion!==current.manifestVersion||
     current.designGraph.id!==before.designGraph.id)
   fail('Rebuild requested for a different semantic section');
+ const suppliedBindings=candidate.mapping.contentBindings;
+ if(!Array.isArray(suppliedBindings)||suppliedBindings.length>80)
+  fail('Invalid provenance bindings');
  const expected=bindingSignatures(bindingsFor(before,composition,original.assets));
- const actual=bindingSignatures(candidate.mapping.contentBindings||[]);
+ const actual=bindingSignatures(suppliedBindings);
  if(expected.length!==actual.length||
     actual.some((v,i)=>!v||v!==expected[i]))
   fail('Provenance binding mismatch; explicit original candidate required');
@@ -440,7 +443,9 @@ function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry,options=
     Object.keys(options).some(k=>k!=='acceptedDiscardedNodes')||
     (own(options,'acceptedDiscardedNodes')&&(
      !Array.isArray(options.acceptedDiscardedNodes)||
-     options.acceptedDiscardedNodes.some(id=>typeof id!=='string'))))
+     options.acceptedDiscardedNodes.length>180||
+     options.acceptedDiscardedNodes.some(id=>
+      typeof id!=='string'||!id.length||id.length>200))))
   fail('Invalid explicit rebuild review options');
  const previousNodes=new Map(),baselineNodes=new Map(),newNodeIds=new Set();
  const walk=(items,cb)=>{for(const node of items){cb(node);walk(node.children||[],cb);}};
@@ -710,4 +715,66 @@ function reconcileSemantic(candidate,editedSite,hostSdk,hostRegistry){
   fail('Synced graph has invalid internal links');
  return {...candidate,site:checked};
 }
-module.exports=Object.freeze({FORMAT,tokens,graphFor,buildHostCandidate,rebuildHostCandidate,inspectSemanticSync,reconcileSemantic});
+// Read-only structural rebuild preflight. This intentionally returns a
+// structured owner-review payload rather than requiring a host UI to parse
+// an exception string. It never persists or publishes the candidate.
+function inspectRebuild(candidate,editedSite,hostSdk,hostRegistry){
+ const snapshot=JSON.stringify({candidate,editedSite});
+ try{
+  const result=rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry);
+  if(JSON.stringify({candidate,editedSite})!==snapshot)
+   fail('Read-only rebuild inspection mutated its input');
+  return {
+   format:'manufact-design-factory-rebuild-preview-v1',version:1,
+   canApply:true,requiresOwnerConfirmation:false,
+   rebuild:result.rebuild,discardedGraphEdits:[],noMutation:true
+  };
+ }catch(error){
+  if(JSON.stringify({candidate,editedSite})!==snapshot)
+   fail('Read-only rebuild inspection mutated its input');
+  const message=String(error);
+  const marker='Rebuild would discard owner Graph edits; explicit review required: ';
+  if(message.includes(marker)){
+   const idsText=message.slice(message.indexOf(marker)+marker.length);
+   const ids=idsText?idsText.split(', ').filter(Boolean):[];
+   const section=editedSite?.pages?.[0]?.sections?.find(
+    item=>item.id==='df-selected-composition');
+   const baseline=candidate?.site?.pages?.[0]?.sections?.find(
+    item=>item.id==='df-selected-composition');
+   const index=graph=>{
+    const result=new Map();
+    const walk=nodes=>{for(const node of nodes||[]){
+     result.set(node.id,node);walk(node.children);
+    }};
+    walk(graph?.nodes);return result;
+   };
+   const currentNodes=index(section?.designGraph);
+   const baselineNodes=index(baseline?.designGraph);
+   const discardedGraphEdits=ids.map(key=>{
+    const separator=key.lastIndexOf(':');
+    const nodeId=key.slice(0,separator),property=key.slice(separator+1);
+    return {
+     nodeId,property,
+     previousValue:baselineNodes.get(nodeId)?.[property],
+     currentValue:currentNodes.get(nodeId)?.[property],
+     nodeStillPresent:currentNodes.has(nodeId),
+     requiresExplicitOwnerConfirmation:true
+    };
+   });
+   return {
+    format:'manufact-design-factory-rebuild-preview-v1',version:1,
+    canApply:false,requiresOwnerConfirmation:true,
+    error:'Owner-authored Graph content would be discarded',
+    discardedGraphEdits,noMutation:true
+   };
+  }
+  return {
+   format:'manufact-design-factory-rebuild-preview-v1',version:1,
+   canApply:false,requiresOwnerConfirmation:false,
+   error:message.replace(/^Error: /,''),
+   discardedGraphEdits:[],noMutation:true
+  };
+ }
+}
+module.exports=Object.freeze({FORMAT,tokens,graphFor,buildHostCandidate,
+ rebuildHostCandidate,inspectRebuild,inspectSemanticSync,reconcileSemantic});
