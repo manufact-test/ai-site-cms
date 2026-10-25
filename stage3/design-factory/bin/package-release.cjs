@@ -9,6 +9,8 @@ const path=require('node:path');
 const zlib=require('node:zlib');
 const crypto=require('node:crypto');
 const ROOT=path.resolve(__dirname,'..');
+const REPO=path.resolve(ROOT,'../..');
+const {resolveOutsideRepository}=require('../lib/output-path.cjs');
 const PREFIX='stage3/design-factory/';
 const SUPPORTED=/\.(md|cjs|js|html|css|json)$/i;
 const compareName=(a,b)=>a.name<b.name?-1:a.name>b.name?1:0;
@@ -72,13 +74,7 @@ function zip(entries){
 }
 function main(args){
  if(args.length!==1||!args[0].endsWith('.zip'))throw Error('Usage: node bin/package-release.cjs NEW-output.zip');
- const requestedDest=path.resolve(args[0]);
- if(!fs.existsSync(path.dirname(requestedDest)))throw Error('Destination parent missing');
- // Resolve symlinked parent directories before enforcing the source-tree boundary.
- const canonicalRoot=fs.realpathSync(ROOT);
- const dest=path.join(fs.realpathSync(path.dirname(requestedDest)),path.basename(requestedDest));
- if(dest===canonicalRoot||dest.startsWith(canonicalRoot+path.sep))
-  throw Error('Package output cannot be inside source subtree, including through symlinked parents');
+ const dest=resolveOutsideRepository(args[0],REPO,'Package output');
  const files=collect().sort(compareName);
  if(files.length<20)throw Error('Incomplete source; refusing a partial package');
  const result=zip(files);

@@ -9,6 +9,9 @@ const cp=require('node:child_process');
 const sdk=require('../../sdk/contract.cjs');
 const {compile,migrate,validateProject,serialize,KITS,THEMES,loadRegistry}=require('../lib/compiler.cjs');
 const {writePreview}=require('../lib/preview.cjs');
+const {resolveOutsideRepository}=require('../lib/output-path.cjs');
+const visualQA=require('../bin/visual-qa.cjs');
+const {fileURLToPath}=require('node:url');
 const cli=path.join(__dirname,'../bin/design-factory.cjs');
 const project=(kit,theme,language,facts={})=>({
   format:'manufact-design-factory-v1',version:1,kit,theme,language,facts
@@ -18,6 +21,46 @@ let count=0;
 const registry=loadRegistry();
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'df-d1-smoke-'));
 try{
+  const repository=path.resolve(__dirname,'../../..');
+  const safeOutput=path.join(root,'report.json');
+  assert.equal(resolveOutsideRepository(safeOutput,repository),safeOutput);
+  assert.throws(()=>resolveOutsideRepository(path.join(repository,'df-output-guard-'+process.pid),repository),/outside repository/);
+  const alias=path.join(root,'repository-alias');
+  let symlinkSupported=true;
+  try{fs.symlinkSync(repository,alias,'dir');}catch(error){
+    if(['EPERM','EACCES','ENOTSUP','EINVAL'].includes(error.code))symlinkSupported=false;
+    else throw error;
+  }
+  if(symlinkSupported)assert.throws(()=>resolveOutsideRepository(path.join(alias,'df-output-guard.json'),repository),/outside repository/);
+  const previousChromium=process.env.DF_CHROMIUM_BIN;
+  try{
+    process.env.DF_CHROMIUM_BIN='/bin/true';
+    const parsed=visualQA.args(['--out',path.join(root,'qa # 1'),'--chromium','/bin/false','--quick']);
+    assert.equal(parsed.bin,'/bin/false','Explicit Chromium path must override environment default');
+    assert.equal(parsed.output,path.join(root,'qa # 1'));
+    assert.equal(parsed.quick,true);
+    assert.throws(()=>visualQA.args(['--out',path.join(root,'qa'),'--chromium']),/--chromium/);
+  }finally{
+    if(previousChromium===undefined)delete process.env.DF_CHROMIUM_BIN;
+    else process.env.DF_CHROMIUM_BIN=previousChromium;
+  }
+  const specialPath=path.join(root,'preview # 1.html');
+  const specialUrl=visualQA.localFileUrl(specialPath);
+  assert.equal(fileURLToPath(specialUrl),specialPath);
+  assert.ok(specialUrl.includes('%20')&&specialUrl.includes('%23'),'Local QA file URLs must encode spaces and #');
+  const guardedOutput=path.join(repository,'df-visual-qa-guard-'+process.pid);
+  try{
+    assert.throws(()=>visualQA.run({output:guardedOutput,bin:'/bin/false',quick:true}),/outside repository/);
+    assert.equal(fs.existsSync(guardedOutput),false,'Visual QA must refuse to create output in the repository');
+  }finally{fs.rmSync(guardedOutput,{recursive:true,force:true});}
+  const auditCli=path.join(__dirname,'../bin/release-audit.cjs');
+  const auditOutput=path.join(repository,'df-audit-guard-'+process.pid+'.json');
+  try{
+    const audit=cp.spawnSync(process.execPath,[auditCli,'--out',auditOutput],{encoding:'utf8',timeout:10000});
+    assert.notEqual(audit.status,0,'Release audit must refuse report paths inside the repository');
+    assert.match(audit.stderr,/outside repository/);
+    assert.equal(fs.existsSync(auditOutput),false);
+  }finally{fs.rmSync(auditOutput,{force:true});}
   for(const kit of Object.keys(KITS)){
     for(const theme of Object.keys(THEMES))for(const language of ['ru','en']){
       const input=project(kit,theme,language);

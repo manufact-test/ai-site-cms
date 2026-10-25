@@ -49,13 +49,20 @@ function historyRecord(before){
  state.past.push(before);if(state.past.length>MAX_HISTORY)state.past.shift();state.future=[];
  refreshHistory();
 }
-function apply(mutator){
+function apply(mutator,options={}){
  const prev=snapshot();
  try{mutator();engine.compiler.validateProject(state.project);
    if(state.composition!==null)engine.compositions.get(state.composition);
-   historyRecord(prev);
    renderAll();
- }catch(error){state.project=prev.project;state.composition=prev.composition;say(error.message,true);renderAll();}
+   historyRecord(prev);
+   return true;
+ }catch(error){
+  state.project=prev.project;state.composition=prev.composition;
+  renderAll();
+  if(options.throwOnError)throw error;
+  say(error.message,true);
+  return false;
+ }
 }
 function setHistory(direction){
  const from=direction==='undo'?state.past:state.future;
@@ -210,6 +217,7 @@ const navigationCode=[
  '</script>'
 ].join('');
 function renderPreview(){
+ if(refreshTimer!==null){clearTimeout(refreshTimer);refreshTimer=null;}
  const frame=$('site-preview');
  $('preview-shell').dataset.device=state.device;
  document.querySelectorAll('[data-device]').forEach(btn=>{
@@ -245,11 +253,11 @@ function renderPreview(){
   say('Ошибка данных: '+error.message,true);
  }
 }
-let refreshScheduled=false;
+const PREVIEW_DEBOUNCE_MS=120;
+let refreshTimer=null;
 function schedulePreview(){
- if(refreshScheduled)return;
- refreshScheduled=true;
- requestAnimationFrame(()=>{refreshScheduled=false;renderPreview();});
+ if(refreshTimer!==null)clearTimeout(refreshTimer);
+ refreshTimer=setTimeout(()=>{refreshTimer=null;renderPreview();},PREVIEW_DEBOUNCE_MS);
 }
 function connectEditor(input,get,set){
  let before=null;
@@ -318,7 +326,7 @@ async function importFile(file){
    if(raw.composition!==null){engine.compositions.get(raw.composition);composition=raw.composition;}
   }else project=engine.compiler.migrate(raw);
   engine.compiler.compile(project);
-  apply(()=>{state.project=project;state.composition=composition;state.page='home';});
+  apply(()=>{state.project=project;state.composition=composition;state.page='home';},{throwOnError:true});
   say('Проект импортирован и проверен по действующему CMS-контракту.');
  }catch(e){say('Импорт отклонён: '+e.message,true);}
  $('project-file').value='';

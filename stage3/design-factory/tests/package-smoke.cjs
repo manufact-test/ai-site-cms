@@ -104,21 +104,22 @@ try{
   assert.ok(all.has('stage3/design-factory/'+f),f);
  const denied=cp.spawnSync(process.execPath,[build,outputs[0]],{encoding:'utf8'});
  assert.notEqual(denied.status,0,'No overwrite allowed');
- const alias=path.join(dir,'source-alias');
+ const repoRoot=path.resolve(root,'../..');
+ const alias=path.join(dir,'repository-alias');
  const escapedName='df-package-symlink-escape-'+process.pid+'.zip';
- const escaped=path.join(root,escapedName);
+ const escaped=path.join(repoRoot,escapedName);
  if(fs.existsSync(escaped))throw Error('Unexpected collision for symlink safety fixture');
  let symlinkSupported=true;
- try{fs.symlinkSync(root,alias,'dir');}catch(error){
+ try{fs.symlinkSync(repoRoot,alias,'dir');}catch(error){
   if(['EPERM','EACCES','ENOTSUP','EINVAL'].includes(error.code))symlinkSupported=false;
   else throw error;
  }
  if(symlinkSupported){
   try{
    const escapeRun=cp.spawnSync(process.execPath,[build,path.join(alias,escapedName)],{encoding:'utf8'});
-   assert.notEqual(escapeRun.status,0,'Must refuse package output through a symlink pointing into the source tree');
+   assert.notEqual(escapeRun.status,0,'Must refuse package output through a symlink pointing anywhere inside the repository');
    assert.equal(fs.existsSync(escaped),false,'A rejected symlink destination must not create an archive in the source tree');
   }finally{fs.rmSync(escaped,{force:true});}
  }
- console.log('DESIGN_FACTORY_D7_PACKAGE_SMOKE PASS: '+files+' ZIP members, CRC32, central directory parity, exact source bytes, framed source digest, symlink-safe output boundary, deterministic archive and no overwrite');
+ console.log('DESIGN_FACTORY_D7_PACKAGE_SMOKE PASS: '+files+' ZIP members, CRC32, central directory parity, exact source bytes, framed source digest, repository-safe output boundary, deterministic archive and no overwrite');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}

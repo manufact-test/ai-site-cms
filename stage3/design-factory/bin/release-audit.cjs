@@ -7,6 +7,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const cp=require('node:child_process');
 const ROOT=path.resolve(__dirname,'..');
 const REPO=path.resolve(ROOT,'../..');
+const {resolveOutsideRepository}=require('../lib/output-path.cjs');
 const SUITES=['smoke.cjs','compositions-smoke.cjs','kits-smoke.cjs','studio-smoke.cjs','bridge-smoke.cjs','package-smoke.cjs'];
 function digest(b){return crypto.createHash('sha256').update(b).digest('hex');}
 function walk(base,prefix=''){
@@ -36,6 +37,7 @@ function flags(args){
 }
 function release(args){
  const f=flags(args);
+ const reportTarget=f.out?resolveOutsideRepository(f.out,REPO,'Report output'):null;
  const entries=walk(ROOT);
  const manifest=entries.filter(x=>!x.path.startsWith('handoffs/'));
  const listed=manifest.map(x=>x.path);
@@ -75,9 +77,7 @@ function release(args){
   ]
  };
  if(f.out){
-  const target=path.resolve(f.out);
-  if(!fs.existsSync(path.dirname(target)))throw Error('Report parent must exist');
-  fs.writeFileSync(target,JSON.stringify(report,null,2)+'\n',{flag:'wx',mode:0o600});
+  fs.writeFileSync(reportTarget,JSON.stringify(report,null,2)+'\n',{flag:'wx',mode:0o600});
  }else process.stdout.write(JSON.stringify({
    format:report.format,fileCount:report.fileCount,
    suites:results.map(({suite,passed,exitCode,error})=>({suite,passed,exitCode,error})),

@@ -4,9 +4,14 @@
 // Screenshots are evidence for HUMAN review, not automatic visual acceptance.
 // Local file:// only, no npm, API or web server. Caller supplies Chromium path.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),cp=require('node:child_process');
+const {pathToFileURL}=require('node:url');
+const {resolveOutsideRepository}=require('../lib/output-path.cjs');
 const {FORMAT,THEMES,KITS,compile}=require('../lib/compiler.cjs');
 const {writePreview}=require('../lib/preview.cjs');
 const {writeShowcase}=require('../lib/showcase.cjs');
+const ROOT=path.resolve(__dirname,'..');
+const REPO=path.resolve(ROOT,'../..');
+const localFileUrl=file=>pathToFileURL(path.resolve(file)).href;
 const VIEWPORTS=[{id:'desktop',width:1280,height:800},
  {id:'tablet',width:768,height:1000},{id:'mobile',width:390,height:844}];
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
@@ -57,19 +62,25 @@ function reviewHtml(report){
 }
 function args(list){
  const result={output:null,bin:process.env.DF_CHROMIUM_BIN||null,quick:false};
+ let sawOut=false,sawChromium=false;
  for(let i=0;i<list.length;i++){
-  if(list[i]==='--out'&&!result.output)result.output=list[++i];
-  else if(list[i]==='--chromium'&&!result.bin)result.bin=list[++i];
-  else if(list[i]==='--quick')result.quick=true;
+  if(list[i]==='--out'){
+   const value=list[i+1];
+   if(sawOut||!value||value.startsWith('--'))throw Error('Usage --out NEW-directory --chromium /path/to/chromium [--quick]');
+   result.output=value;sawOut=true;i++;
+  }else if(list[i]==='--chromium'){
+   const value=list[i+1];
+   if(sawChromium||!value||value.startsWith('--'))throw Error('--chromium requires one executable path');
+   result.bin=value;sawChromium=true;i++;
+  }else if(list[i]==='--quick')result.quick=true;
   else throw Error('Usage --out NEW-directory --chromium /path/to/chromium [--quick]');
  }
  if(!result.output||!result.bin)throw Error('Provide --out and --chromium or DF_CHROMIUM_BIN');
  return result;
 }
 function run(options){
- const root=path.resolve(options.output);
+ const root=resolveOutsideRepository(options.output,REPO,'Visual QA output');
  if(fs.existsSync(root))throw Error('Output path exists; never overwrite existing QA results');
- if(!fs.existsSync(path.dirname(root)))throw Error('Output parent missing');
  fs.mkdirSync(root);
  const report={format:'manufact-design-factory-visual-evidence-v1',version:1,
   viewports:VIEWPORTS,quick:options.quick,images:[],errors:[],humanVisualAcceptance:'pending'};
@@ -101,12 +112,12 @@ function run(options){
    const project={format:FORMAT,version:1,kit:'agency',theme,language:'ru',facts:{}};
    const dir=path.join(root,'sites','theme-'+theme);
    writePreview(compile(project),dir);
-   const url='file://'+path.join(dir,'index.html');
+   const url=localFileUrl(path.join(dir,'index.html'));
    for(const view of VIEWPORTS)screenshot(url,'theme-'+theme+'-'+view.id,view);
   }
   const showcase=writeShowcase(path.join(root,'showcase'));
   for(const view of VIEWPORTS)
-   screenshot('file://'+path.join(showcase.directory,'index.html'),'42-compositions-'+view.id,view);
+   screenshot(localFileUrl(path.join(showcase.directory,'index.html')),'42-compositions-'+view.id,view);
   // Include an English site and all internal routes, not only four RU home pages.
   const sampleKits=[['industrial','ru'],['saas','en'],['architecture','ru'],['restaurant','ru']];
   for(const [kit,language] of sampleKits){
@@ -116,7 +127,7 @@ function run(options){
    for(const view of VIEWPORTS)screenshot('file://'+path.join(dir,'index.html'),
      'sector-'+kit+'-'+language+'-home-'+view.id,view);
    if(kit==='saas')for(const page of ['services','approach','contact'])
-    screenshot('file://'+path.join(dir,page,'index.html'),
+    screenshot(localFileUrl(path.join(dir,page,'index.html')),
       'sector-'+kit+'-'+language+'-'+page+'-mobile',VIEWPORTS[2]);
   }
   report.imagesProduced=report.images.length;
@@ -136,6 +147,9 @@ function run(options){
   },null,2));
  }
 }
-try{run(args(process.argv.slice(2)));}catch(e){
- console.error('D7 visual QA refused: '+e.message);process.exitCode=2;
+module.exports=Object.freeze({args,localFileUrl,pngSize,reviewHtml,run});
+if(require.main===module){
+ try{run(args(process.argv.slice(2)));}catch(e){
+  console.error('D7 visual QA refused: '+e.message);process.exitCode=2;
+ }
 }

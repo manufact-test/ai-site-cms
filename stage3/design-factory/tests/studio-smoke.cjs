@@ -27,6 +27,10 @@ assert.ok(markup.includes('sandbox="allow-scripts"'));
 assert.ok(app.includes('function updateWorkbenchSubtitle()'));
 assert.ok(app.includes('target.focus({preventScroll:true})'));
 assert.ok(app.includes('if(!before)before=snapshot()'),'Editor history must capture a pre-edit snapshot before mutation');
+assert.ok(app.includes('function apply(mutator,options={})'));
+assert.ok(app.includes("{throwOnError:true}"),'Import must not report success after a failed state application');
+assert.ok(app.includes('clearTimeout(refreshTimer)')&&app.includes('PREVIEW_DEBOUNCE_MS=120'),
+ 'Live preview should debounce full iframe recompilation while text is being edited');
 assert.ok(!markup.includes('allow-same-origin'));
 const ctx={structuredClone:global.structuredClone,console};
 ctx.globalThis=ctx;
@@ -96,6 +100,8 @@ try{
  "const t=document.getElementById('title');t.focus();t.value='Verified Demo Company';",
  "t.dispatchEvent(new Event('input',{bubbles:true}));t.dispatchEvent(new Event('change',{bubbles:true}));",
  "if(document.activeElement!==t)throw Error('text editor lost focus after commit');",
+ "await new Promise(resolve=>setTimeout(resolve,160));",
+ "if(!document.getElementById('site-preview').srcdoc.includes('Verified Demo Company'))throw Error('debounced preview failed to refresh');",
  "document.getElementById('add-service').click();",
  "const service=document.querySelector('.service-editor input');if(!service)throw Error('service editor missing');",
  "service.focus();service.value='Verified service';",
