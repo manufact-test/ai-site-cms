@@ -2,18 +2,22 @@
 
 **Document date:** 25 October 2026. **Status:** Release tooling implemented, **visual/manual and checked-out Node execution pending**. Formal Stage2 NO-GO, Stage3+ unaccepted, 0/135 mandatory criteria.
 
-## Latest environment re-check — 25 October 2026
+## Current evidence checkpoint — 25 October 2026
 
-At the start of this pass, the live branch HEAD was `cea03104e00ff8ae9e8e2f2607d2f69438a3c5fa`. Comparing it with functional checkpoint `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369` showed seven commits ahead and exactly seven changed paths, all documentation/handoff files under `stage3/design-factory/`; no functional source paths changed.
+**Live branch HEAD:** `75884b7f794fa1dabc775d802613c38979eff4b8`. The latest functional work hardens output-path containment, deterministic package/source digests and completeness checks for the visual evidence matrix. The expected matrix is now explicitly defined as 54 full captures and 30 quick captures; the latest commit adds smoke assertions for completeness, uniqueness and dimensions. These assertions are present in source but have not been run in a real Node checkout.
 
-- **Real Node checkout / D7 audit: BLOCKED.** Node.js `v22.16.0` is installed, but `git clone --depth 1 --single-branch --branch feature/stage3-design-factory https://github.com/manufact-test/ai-site-cms.git` exited `128`: `Could not resolve host: github.com`. Therefore the real-checkout bundle check, six-suite release audit and optional Lead suite were not run in Node.
-- **Existing CI: NO EVIDENCE.** GitHub Actions API reported `total_count: 0` runs for this branch; commit-associated PR workflow runs and combined commit statuses were empty. No workflow was edited or dispatched.
-- **PHP parity: SKIPPED.** PHP CLI `8.4.24` is installed, but no checkout/current lead `stage3/server/DesignGraph.php` file was available to execute the parity harness; zero probes ran.
-- **Chromium / visual QA: BLOCKED.** `/usr/bin/chromium` timed out (exit `124`, no DOM output) on a minimal `data:` page after 15 seconds; a constrained 12-second retry and a 16-second `xvfb-run` retry also timed out. No Studio E2E or 54-screenshot matrix was captured or visually reviewed.
-- **Release ZIP / SHA256: NOT PRODUCED.** Without a checkout, the packaging and source-byte-parity checks could not run. There is no verified ZIP, CRC/source parity result, or actual archive SHA256; do not substitute a source-tree hash.
+| Gate | Current status | Evidence boundary |
+|---|---|---|
+| Real Node checkout + six-suite D7 release audit | **BLOCKED / NOT VERIFIED** | Last known clone failed with DNS resolution error; no branch Actions run, check run or commit status is available for current HEAD. |
+| Optional Lead Design Graph suite | **NOT RUN** | Requires genuine Node execution and the current lead source; keep it separate from stable D7 suites. |
+| PHP parity | **SKIPPED — 0 probes** | No actual parity execution. |
+| Chromium Studio E2E and visual captures | **BLOCKED — 0 captures** | Chromium previously timed out on a minimal page. The code now checks a 54-image matrix, but no matrix has been captured or human-reviewed. |
+| Deterministic ZIP, CRC/central directory, source-byte parity, SHA256 | **NOT RUN** | Packaging protections and checks exist; no actual archive or verified hash exists. |
+| D7 / Stage2 / Stage3 release decision | **OPEN / NO-GO** | Stage2 NO-GO; Stage3 unaccepted; 0/135 mandatory criteria accepted. |
 
-**Gate decision:** D7 remains OPEN; Stage2 NO-GO; Stage3 not accepted; 0/135 mandatory criteria. Keep all work on this branch and inside the permitted subtree. No merge.
+Output containment is now shared through `lib/output-path.cjs`: reports, visual evidence and ZIP destinations must resolve outside the repository, including symlinked parent paths, and an existing final symlink is rejected. Package entries use deterministic name ordering and a length-framed source digest to bind exact paths and file bytes. This is implementation-level hardening, not release acceptance.
 
+Do not close any gate based on added test code alone. Run the real checks once a usable checkout/runtime is available; if it remains unavailable, record the exact blocker and leave the gate open.
 ## One-command checks (on an actual repo checkout)
 
 Requires Node.js 20 or newer. No packages to install, no server, no network. Run from repository root:

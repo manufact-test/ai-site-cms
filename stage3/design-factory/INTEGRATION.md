@@ -2,18 +2,20 @@
 
 **Scope:** standalone, offline adapter. All code is constrained to `stage3/design-factory/`; the existing CMS importer, Studio, SDK, server and PHP renderer remain unchanged. This document is for the main integration developer. It is **not** a production deployment guide.
 
-## Latest environment re-check — 25 October 2026
+## Current integration checkpoint — 25 October 2026
 
-At the start of this pass, the live branch HEAD was `cea03104e00ff8ae9e8e2f2607d2f69438a3c5fa`. Comparing it with functional checkpoint `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369` showed seven commits ahead and exactly seven changed paths, all documentation/handoff files under `stage3/design-factory/`; no functional source paths changed.
+Live functional/source checkpoint: `75884b7f794fa1dabc775d802613c38979eff4b8`. All commits since the earlier checkpoint remain confined to `stage3/design-factory/`; no Lead SDK, PHP renderer, primary Studio, workflows, hosting or production files were changed.
 
-- **Real Node checkout / D7 audit: BLOCKED.** Node.js `v22.16.0` is installed, but `git clone --depth 1 --single-branch --branch feature/stage3-design-factory https://github.com/manufact-test/ai-site-cms.git` exited `128`: `Could not resolve host: github.com`. Therefore the real-checkout bundle check, six-suite release audit and optional Lead suite were not run in Node.
-- **Existing CI: NO EVIDENCE.** GitHub Actions API reported `total_count: 0` runs for this branch; commit-associated PR workflow runs and combined commit statuses were empty. No workflow was edited or dispatched.
-- **PHP parity: SKIPPED.** PHP CLI `8.4.24` is installed, but no checkout/current lead `stage3/server/DesignGraph.php` file was available to execute the parity harness; zero probes ran.
-- **Chromium / visual QA: BLOCKED.** `/usr/bin/chromium` timed out (exit `124`, no DOM output) on a minimal `data:` page after 15 seconds; a constrained 12-second retry and a 16-second `xvfb-run` retry also timed out. No Studio E2E or 54-screenshot matrix was captured or visually reviewed.
-- **Release ZIP / SHA256: NOT PRODUCED.** Without a checkout, the packaging and source-byte-parity checks could not run. There is no verified ZIP, CRC/source parity result, or actual archive SHA256; do not substitute a source-tree hash.
+Recent independent improvements:
 
-**Gate decision:** D7 remains OPEN; Stage2 NO-GO; Stage3 not accepted; 0/135 mandatory criteria. Keep all work on this branch and inside the permitted subtree. No merge.
+- Studio keyboard focus is preserved across kit/theme/page rerenders; failed state application rolls back instead of falsely reporting success; live preview recompilation is debounced.
+- `lib/output-path.cjs` centralizes safe output destination resolution for package ZIPs, audit reports and visual QA. It canonicalizes the repository and output parent, rejects destinations inside the repository (including symlinked parents) and rejects a final symlink.
+- ZIP inventory ordering is locale-independent; the source digest length-prefixes each path and payload before hashing, avoiding ambiguous path/payload boundaries.
+- Visual QA builds local URLs with `pathToFileURL` and now checks exact full/quick screenshot inventories (54/30), missing or unexpected files, duplicates and requested viewport dimensions.
 
+**Integration status is unchanged:** the Lead Design Graph adapter remains optional and must not be merged by this developer. The host must still authenticate the owner, lock the reviewed revision, obtain exact destructive-change acknowledgement, preserve undo/revision history, and validate permissions/licensing before save or publish.
+
+Evidence boundary: the earlier isolated V8 adapter suite reported 504/504 validations/renders/no-op rebuilds/preflights, 8 component-family refreshes and 8 loss-aware regression groups. It was not a real Node checkout and does not verify the latest packaging/visual-QA changes. The current branch has no Actions runs/checks; PHP parity remains 0, Chromium captures remain 0, and no ZIP/SHA256 artifact exists. D7 is OPEN; Stage2 NO-GO, Stage3 unaccepted, 0/135.
 ## Versioned package and round-trip
 
 The first-party bridge lives in [lib/bridge.cjs](lib/bridge.cjs) and exposes:

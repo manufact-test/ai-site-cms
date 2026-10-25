@@ -4,16 +4,26 @@
 **Repository:** https://github.com/manufact-test/ai-site-cms
 **Your working branch:** `feature/stage3-design-factory`
 **Sole writable subtree:** `stage3/design-factory/`
-**Functional code checkpoint:** `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369` (read live HEAD on arrival; documentation commits may advance it).
+**Latest functional/source checkpoint:** `75884b7f794fa1dabc775d802613c38979eff4b8` (read live HEAD on arrival; documentation commits may advance it).
 **IMPORTANT:** Read the CURRENT HEAD from GitHub on arrival. Do not use the older SHA as the current branch head, and do not create any competing branch.
 
 This is the **second independent developer's permanent Design Factory program**, not the primary AI Site CMS chat. The main developer integrates into `feature/stage3-ai-site-contract` / main when ready. Do NOT edit the leader's branch or `main`, `stage3/sdk`, `stage3/components`, PHP, Studio-main, workflows, deployment, secrets, hosting or other projects. Do NOT merge this branch yourself.
 
 
-## Latest verified environment re-check — 25 October 2026
+## Latest verified environment and source re-check — 25 October 2026
 
-Live HEAD at re-check: `cea03104e00ff8ae9e8e2f2607d2f69438a3c5fa`; functional checkpoint remains `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369`. Compare showed only documentation paths since that checkpoint, all under the permitted subtree. Node v22.16.0 exists, but clone fails with DNS `Could not resolve host: github.com`; GitHub Actions returned zero branch runs and no commit statuses. PHP 8.4.24 exists but the lead PHP source/checkout is unavailable, so parity ran 0 probes. Chromium timed out on a minimal data page with exit 124, including a constrained retry and `xvfb-run`; no Studio E2E or 54 screenshots. No ZIP or real archive SHA256 exists. D7 remains OPEN; Stage2 NO-GO / Stage3 unaccepted / 0/135. Do not repeat environment setup loops: resume only if checkout/CI evidence becomes available; otherwise keep the blockers explicit and do not claim acceptance.
+**Live functional/source checkpoint:** `75884b7f794fa1dabc775d802613c38979eff4b8`. The current branch is 12 commits ahead of `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369`; all changed paths remain inside the independent writable subtree.
 
+Recent code changes after the previous graph-rebuild checkpoint:
+
+- Safe, canonical output path guard shared by ZIP packaging, audit report and visual QA; rejects repository destinations, symlinked parents and final symlinks.
+- Deterministic package ordering and a length-framed source digest.
+- Studio focus retention, 120 ms preview debounce, and rollback on failed state/import application.
+- Visual evidence audit now checks exact 54-image full and 30-image quick matrices, including missing/unexpected paths, duplicates and viewport dimensions.
+
+**Do not confuse code added with tests executed.** GitHub Actions shows no run for this branch; the current HEAD has zero check runs/statuses. The last known clone failed because DNS could not resolve github.com. PHP parity has 0 probes; Chromium timed out; no actual screenshots, human review, release ZIP or archive SHA256 exists. Earlier 504/504 isolated-V8 evidence belongs to the optional graph adapter and is not proof of the latest D7 tooling. D7 remains OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135.
+
+Next: (1) genuine Node checkout or verifiable existing CI result, then six-suite D7 audit and separate optional Lead suite if available; (2) real PHP parity plus 54 real screenshots and human review if Chromium works; (3) build and verify a real source-byte-identical ZIP and actual SHA256. Do not modify workflows to manufacture a run.
 ## What has genuinely been built (D1–D6)
 
 - **D1**: deterministic `manufact-design-factory-v1` → real `manufact-ai-site-v1` compiler, first-party manifests/SDK, four-page websites, safe editorial placeholders, versioned project migration and offline CLI/preview.
@@ -191,7 +201,7 @@ Test output came from isolated V8 using real GitHub JS source and emulated Node 
 
 Next priority: obtain a real checkout and run the existing Node release-audit plus this optional Lead suite; if available, run real PHP DesignGraph parity. Then capture 54 real 1280/768/390 screenshots, review them visually with the owner, and produce a source-byte-identical ZIP with archive integrity and a genuine SHA256. Continue only in `stage3/design-factory/` on `feature/stage3-design-factory`. No merge, no main/lead SDK/PHP/workflow/production changes.
 
-## Latest substantial checkpoint — 25 October 2026
+## Previous substantial checkpoint — 25 October 2026
 
 This was a full loss-aware rebuild block, not a cosmetic follow-up.
 
@@ -204,3 +214,10 @@ The suite used actual GitHub JavaScript sources in isolated V8 with emulated Nod
 **Next three substantial blocks:** (1) establish genuine Node execution or a trustworthy existing GitHub Actions run and execute the D7 release audit plus the optional Lead suite without modifying workflows; (2) run real PHP parity and capture/review 54 real 1280/768/390 Chromium screenshots if the environment supports it; (3) package a source-byte-identical release ZIP, verify archive integrity and calculate its real SHA256. Do not fake results if the environment cannot provide the required runtime.
 
 Stay on `feature/stage3-design-factory`, write only under `stage3/design-factory/`. Do not merge, edit main/Lead SDK/PHP/Studio-main/workflows/hosting/production, or fold the optional suite into stable D7 audit before Lead SDK integration.
+
+
+## Current continuation checkpoint — 25 October 2026 · visual evidence matrix
+
+Latest functional/source commit is `75884b7f794fa1dabc775d802613c38979eff4b8`. The release path now has canonical output containment and deterministic source digest protections; the Studio preserves focus and debounces preview recompilation; visual QA checks all 54 expected full-matrix screenshots (or 30 quick-mode screenshots) and rejects missing, unexpected, duplicate or wrong-dimension captures.
+
+These are code changes plus added assertions, not an acceptance result. No current-branch Actions runs/checks/statuses are available. Real Node checkout/audit is blocked by the last known GitHub DNS failure, PHP parity is 0, Chromium has timed out, and no screenshots, human review, ZIP or SHA256 have been produced. Keep D7 OPEN. The next chat should attempt each viable environment route once, then move on or document the exact blocker rather than repeating retries.
