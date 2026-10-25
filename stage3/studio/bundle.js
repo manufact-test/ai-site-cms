@@ -3878,5 +3878,4 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   });
 })();
 
-
 })();
