@@ -1087,7 +1087,8 @@
         status.id='cms-design-a11y-summary';status.setAttribute('aria-live','polite');auditPanel.append(status);return;
       }
       if(activeAuditFocus){
-        const relevant=findings.some(item=>item.nodeId===activeAuditFocus.nodeId&&item.code===activeAuditFocus.kind);
+        const auditKind=activeAuditFocus.kind==='empty-heading'?'empty-text':activeAuditFocus.kind;
+        const relevant=findings.some(item=>item.nodeId===activeAuditFocus.nodeId&&item.code===auditKind);
         auditFocus.hidden=false;auditFocus.dataset.resolved=String(!relevant);
         auditFocus.textContent=relevant
           ?'Из SEO-аудита · '+activeAuditFocus.message+' · Узел '+activeAuditFocus.nodeId+

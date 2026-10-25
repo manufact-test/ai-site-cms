@@ -693,7 +693,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-quality-open').click();
     const auditHeadingRow=page.locator('#cms-quality-findings .cms-quality-finding')
       .filter({hasText:fixNodeId}).filter({hasText:'Заголовок пустой'});
-    await auditHeadingRow.getByRole('button',{name:/Открыть композицию/}).click();
+    await auditHeadingRow.getByRole('button',{name:/Открыть композицию/}).first().click();
     await page.locator('#cms-design-graph-dialog').waitFor({state:'visible'});
     assert.equal(await page.locator('#cms-design-node-select').inputValue(),fixNodeId,
       'SEO quality report opens the exact nested graph node');
