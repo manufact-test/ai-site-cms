@@ -81,3 +81,17 @@ The complete optional `tests/lead-design-graph-smoke.cjs` suite was executed in 
 2. Run standard Design Factory Node release-audit and Chromium Studio QA, including the 54 PNG visual matrix at 1280/768/390.
 3. Verify owner edit/rebuild UI using real site revisions, conflict dialog, loss-preview, media asset rights, keyboard/a11y and explicit publish gate.
 4. Produce final reproducible ZIP and its **real SHA256** only after the above; record reviewer signoff.
+
+## 25 October — read-only rebuild preview API
+
+Before applying the explicit rebuild, the host can call:
+
+```js
+const preview = adapter.inspectRebuild(candidate, editedSite, currentHostSdk, registry);
+```
+
+The return shape is `manufact-design-factory-rebuild-preview-v1` with `canApply`, `requiresOwnerConfirmation`, `noMutation`, optional `error`, structured `discardedGraphEdits` and the hypothetical `rebuild` report. Each discarded edit includes `nodeId`, `property`, `previousValue`, `currentValue`, `nodeStillPresent`, and `requiresExplicitOwnerConfirmation`. A destructive preview remains non-applicable and requires a separate explicit owner decision; the hypothetical report does not constitute consent.
+
+The rebuild report now exposes `preservedVisualNodeIds`, `createdVisualNodeIds`, `resetVisualNodeIds`, `removedVisualNodeIds` in addition to the existing counts. This lets the host render a concrete visual review and undo plan instead of inferring affected cards from counts. Input bounds are 80 provenance bindings and 180 exact discard acknowledgements. Host authentication, revision locking, permissions, owner confirmation, persistence, undo, visual signoff and publication remain lead-owned.
+
+Latest source-level smoke passed 504/504 validations, renders, no-op rebuilds and preflights, plus 8 CMS component-family content-refresh rebuilds in isolated V8. This is not actual checkout/Node/PHP/Chromium acceptance.
