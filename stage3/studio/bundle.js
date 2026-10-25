@@ -3724,6 +3724,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   });
   createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
 })();
+
 'use strict';
 // A single owner-reviewed composition path for offline and authenticated Studio.
 (()=>{
