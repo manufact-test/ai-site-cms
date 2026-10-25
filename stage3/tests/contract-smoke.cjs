@@ -308,6 +308,28 @@ test('media library: alt, global replacement, protected detach, undo and rich me
   const invalid=same(site);invalid.pages[0].sections.at(-1).items[0].values['content.media']='asset-another-site';
   refuses(()=>sdk.validateSite(invalid,manifests),'No foreign image references in partner logos');
 });
+test('intrinsic image dimensions are optional for legacy assets and strict for new raster assets',()=>{
+  const legacy=same(initial);
+  legacy.assets.push({id:'asset-legacy-image',src:'/assets/asset-legacy-image.png',alt:'Legacy image',mime:'image/png'});
+  assert.doesNotThrow(()=>sdk.validateSite(legacy,manifests),'Existing v1 assets remain backward compatible');
+
+  const measured=same(initial);
+  measured.assets.push({id:'asset-measured-image',src:'/assets/asset-measured-image.webp',alt:'Measured image',
+    mime:'image/webp',width:1200,height:800});
+  assert.equal(sdk.validateSite(measured,manifests).assets[0].width,1200);
+  const schema=read('schemas/site-v1.schema.json');
+  assert.deepEqual(schema.$defs.asset.dependentRequired,{width:['height'],height:['width']});
+  assert.equal(schema.$defs.asset.properties.width.maximum,4096);
+
+  const unpaired=same(measured);delete unpaired.assets[0].height;
+  refuses(()=>sdk.validateSite(unpaired,manifests),'Width and height must be supplied together');
+  const oversized=same(measured);oversized.assets[0].width=5000;
+  refuses(()=>sdk.validateSite(oversized,manifests),'Intrinsic width stays within decoded media limits');
+  const vector=same(measured);vector.assets[0].mime='image/svg+xml';
+  vector.assets[0].src='/assets/asset-measured-image.svg';
+  refuses(()=>sdk.validateSite(vector,manifests),'Vector and video media do not accept raster dimensions');
+});
+
 test('locked fixture is valid',()=>{
   const actual=sdk.validateSite(initial,reg);
   assert.equal(actual.pages.length,2);

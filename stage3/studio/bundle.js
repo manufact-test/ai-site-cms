@@ -611,10 +611,15 @@ function validateSite(raw,regInput){
   if(!Array.isArray(raw.assets)||raw.assets.length>300)fail('Invalid assets');
   const assetIds=new Set(),assetMimes=new Map(),imageIds=new Set();
   for(const asset of raw.assets){
-    objectKeys(asset,['id','src','alt','mime','variants'],'asset');id(asset.id,'asset.id');
+    objectKeys(asset,['id','src','alt','mime','variants','width','height'],'asset');id(asset.id,'asset.id');
     if(assetIds.has(asset.id)||!['image/png','image/webp','image/jpeg','image/svg+xml','video/mp4'].includes(asset.mime)||
       typeof asset.src!=='string'||!/^\/assets\/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg|mp4)$/.test(asset.src)||
       typeof asset.alt!=='string'||asset.alt.length>200||/[\x00-\x1f]/.test(asset.alt))fail('Invalid asset',asset.id);
+    const hasWidth=own(asset,'width'),hasHeight=own(asset,'height');
+    if(hasWidth!==hasHeight||(hasWidth&&(!['image/png','image/jpeg','image/webp'].includes(asset.mime)||
+      !Number.isInteger(asset.width)||asset.width<1||asset.width>4096||
+      !Number.isInteger(asset.height)||asset.height<1||asset.height>4096)))
+      fail('Invalid intrinsic image dimensions',asset.id);
     assetIds.add(asset.id);assetMimes.set(asset.id,asset.mime);
     if(asset.mime!=='video/mp4')imageIds.add(asset.id);
     if(asset.mime==='video/mp4'&&asset.src!=='/assets/'+asset.id+'.mp4')fail('Invalid video path',asset.id);
