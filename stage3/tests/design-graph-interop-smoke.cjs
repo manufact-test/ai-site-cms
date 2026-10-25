@@ -106,7 +106,7 @@ assert.throws(()=>interop.createSession(publishClaim,sdk,registry),/publish clai
 const wrongVersion=clone(candidate);wrongVersion.version=2;
 assert.throws(()=>interop.createSession(wrongVersion,sdk,registry),/format\/version/i);
 const wrongSite=clone(edited);wrongSite.siteId='site-other';
-assert.throws(()=>interop.exportHandoff(updatedSession,wrongSite,sdk,registry),/same site/i);
+assert.throws(()=>interop.exportHandoff(updatedSession,wrongSite,sdk,registry),/source site/i);
 const changedGraphId=clone(edited);changedGraphId.pages[0].sections[0].designGraph.id='other-design-graph';
 assert.throws(()=>interop.exportHandoff(updatedSession,changedGraphId,sdk,registry),/stable ID changed/i);
 const removedGraph=clone(edited);delete removedGraph.pages[0].sections[0].designGraph;
