@@ -11,7 +11,8 @@ const chrome=['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin
 if(!chrome)throw Error('Chromium required for hosted Studio scenario');
 const env={...process.env,STAGE3_DSN:'sqlite:'+path.join(temp,'site.sqlite'),
   STAGE3_OWNER_USER:'testowner',STAGE3_OWNER_PASSWORD:'CI-only-password-123456',
-  STAGE3_FORM_SECRET:'CI-only-form-secret-with-minimum-32-characters'};
+  STAGE3_FORM_SECRET:'CI-only-form-secret-with-minimum-32-characters',
+  STAGE3_MAIL_FROM:'',STAGE3_TELEGRAM_BOT_TOKEN:''};
 let php=null,browser=null;
 async function pickPort(){
   const s=net.createServer();
@@ -354,6 +355,19 @@ async function execute(){
   await page.locator('#server-license-status').getByText(/CMS активна/).waitFor();
   assert.equal(await page.locator('#fields').evaluate(el=>el.inert),false);
   await page.locator('#server-license-close').click();
+  // Owner configures per-site lead delivery without exposing provider secrets.
+  await page.locator('#server-delivery-email-enabled').check();
+  await page.locator('#server-delivery-email-recipient').fill('leads@example.test');
+  await page.locator('#server-delivery-telegram-enabled').check();
+  await page.locator('#server-delivery-telegram-chat').fill('-1001234567890');
+  await page.locator('#server-delivery-reason').fill('Настройка каналов уведомлений');
+  await page.locator('#server-delivery-save').click();
+  await page.locator('#server-delivery-status').getByText(/Требуется настройка/).waitFor();
+  assert.match(await page.locator('#server-delivery-status').innerText(),/STAGE3_MAIL_FROM/);
+  assert.match(await page.locator('#server-delivery-status').innerText(),/STAGE3_TELEGRAM_BOT_TOKEN/);
+  assert.doesNotMatch(await page.locator('#server-delivery-status').innerText(),/bot\d+:/i,
+    'Bot token is never exposed in Studio');
+  await page.locator('#server-delivery-refresh').click();
   // Owner creates scoped staff in Studio; staff sees only its assigned site,
   // edits without publish, then loses the session after owner revokes access.
   await page.locator('#server-users-open').click();

@@ -11,7 +11,8 @@ const file=path.join(dbdir,'isolated.sqlite');
 const fixture=JSON.parse(fs.readFileSync(path.join(root,'stage3/fixtures/industrial-site.json'),'utf8'));
 const password='test-only-lab-password-not-a-real-secret';
 const env={...process.env,STAGE3_DSN:'sqlite:'+file,STAGE3_OWNER_USER:'testowner',
-  STAGE3_OWNER_PASSWORD:password,STAGE3_FORM_SECRET:'CI-only-form-hmac-secret-with-at-least-32-chars'};
+  STAGE3_OWNER_PASSWORD:password,STAGE3_FORM_SECRET:'CI-only-form-hmac-secret-with-at-least-32-chars',
+  STAGE3_MAIL_FROM:'',STAGE3_TELEGRAM_BOT_TOKEN:''};
 let server, origin, cookie='', csrf='';
 async function port(){
   const s=net.createServer();
@@ -76,6 +77,16 @@ async function stop(){
   for(let i=0;i<2;i++){
     const migrated=spawnSync('php',['stage3/server/bin/upgrade-licenses.php'],
       {cwd:root,env:{...env,STAGE3_ALLOW_LICENSE_UPGRADE:'YES'},encoding:'utf8'});
+    assert.equal(migrated.status,0,migrated.stderr);
+  }
+  const legacyDelivery=spawnSync('php',['-r',
+    '$db=new PDO(getenv("STAGE3_DSN"));$db->exec("DROP TABLE stage3_delivery_outbox");$db->exec("DROP TABLE stage3_delivery_settings");'],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(legacyDelivery.status,0,legacyDelivery.stderr);
+  assert.notEqual(spawnSync('php',['stage3/server/bin/upgrade-delivery.php'],{cwd:root,env,encoding:'utf8'}).status,0);
+  for(let i=0;i<2;i++){
+    const migrated=spawnSync('php',['stage3/server/bin/upgrade-delivery.php'],
+      {cwd:root,env:{...env,STAGE3_ALLOW_DELIVERY_UPGRADE:'YES'},encoding:'utf8'});
     assert.equal(migrated.status,0,migrated.stderr);
   }
   // Old isolated Stage3 labs need an explicit upgrade; web requests must never migrate.
@@ -221,6 +232,17 @@ async function stop(){
   assert.match(formHtml,/action="\/forms\/site-industrial-demo\/section-quote-form"/);
   const token=/name="_token" value="([a-f0-9]{64})"/.exec(formHtml)?.[1];
   assert.ok(token);
+  const deliveryRoute=endpoint+'/delivery';
+  const deliverySetup=await request('POST',deliveryRoute,{emailEnabled:true,emailRecipient:'leads@example.test',
+    telegramEnabled:false,telegramChatId:'',expectedVersion:0,reason:'CI delivery setup'});
+  assert.equal(deliverySetup.status,200,JSON.stringify(deliverySetup.body));
+  assert.equal(deliverySetup.body.settings.version,1);
+  assert.equal(deliverySetup.body.channels.email.configurationStatus,'configuration_required');
+  assert.equal(deliverySetup.body.transport.email.ready,false,'CI must never invoke a real mail transport');
+  assert.equal((await request('POST',deliveryRoute,{emailEnabled:true,emailRecipient:'invalid',telegramEnabled:false,
+    telegramChatId:'',expectedVersion:1,reason:'Reject invalid email'})).status,422);
+  assert.equal((await request('POST',deliveryRoute,{emailEnabled:true,emailRecipient:'other@example.test',telegramEnabled:false,
+    telegramChatId:'',expectedVersion:0,reason:'Reject stale version'})).status,409);
   const values={_release:'4',_token:token,website:'',name:'Тест Клиент',
     email:'client@example.test',message:'Интересует стоимость оборудования',consent:'yes'};
   const postForm=async(fields,from=origin)=>{
@@ -237,6 +259,12 @@ async function stop(){
   const sent=await postForm(values);
   assert.equal(sent.status,201,sent.body);
   assert.match(sent.body,/заявка сохранена/);
+  let delivery=(await request('GET',deliveryRoute)).body;
+  assert.equal(delivery.totals.configuration_required,1,'Lead is saved but email delivery remains explicitly unconfigured');
+  assert.equal(delivery.recent[0].state,'configuration_required');
+  const retry=await request('POST',deliveryRoute+'/retry',{reason:'CI retry without transport',includeUncertain:false});
+  assert.equal(retry.status,200);assert.equal(retry.body.totals.configuration_required,1);
+  assert.equal(retry.body.totals.accepted,0,'Missing transport must never be reported as sent');
   const leads=(await request('GET',endpoint+'/submissions')).body.submissions;
   assert.equal(leads.length,1);
   assert.equal(leads[0].email,'client@example.test');
@@ -245,6 +273,8 @@ async function stop(){
   assert.equal((await request('GET',endpoint+'/submissions')).body.submissions[0].status,'reviewed');
   for(let n=0;n<4;n++)assert.equal((await postForm(values)).status,201);
   assert.equal((await postForm(values)).status,429);
+  delivery=(await request('GET',deliveryRoute)).body;
+  assert.equal(delivery.totals.configuration_required,5,'Every accepted lead keeps a durable delivery state');
 
   // Second site verifies extended form fields, notices, and isolated receiver.
   const sdk=require(path.join(root,'stage3/sdk/contract.cjs'));
@@ -464,7 +494,7 @@ async function stop(){
   async function asUser(username,password){cookie='';csrf='';const auth=await request('POST','/api/login',{username,password});assert.equal(auth.status,200,JSON.stringify(auth.body));csrf=auth.body.csrfToken;return auth;}
   await asUser('labeditor',staffPassword);
   assert.deepEqual((await request('GET','/api/sites')).body.sites.map(x=>x.site_id),[target]);
-  for(const route of [endpoint,endpoint+'/media/'+asset.id,'/api/users','/api/audit','/api/licenses','/api/sites/'+target+'/backup']){
+  for(const route of [endpoint,endpoint+'/media/'+asset.id,'/api/users','/api/audit','/api/licenses','/api/sites/'+target+'/backup','/api/sites/'+target+'/delivery']){
     assert.equal((await request('GET',route)).status,403,'Scoped editor denial: '+route);
   }
   assert.equal((await request('POST','/api/sites/'+target+'/publish',{expectedRevision:sourceRevision+1})).status,403);

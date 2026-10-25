@@ -72,8 +72,9 @@ final class FormGateway
             if ($release === false || $release < 1) {
                 throw new InvalidArgumentException('Invalid form release');
             }
-            $sites->collectSubmission($siteId, $sectionId, $release, $fields,
+            $submissionId=$sites->collectSubmission($siteId, $sectionId, $release, $fields,
                 (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), self::secret());
+            $sites->dispatchSubmissionDeliveries($siteId,$submissionId);
             $message = 'Спасибо! Ваша заявка сохранена.';
             $status = 201;
         } catch (Conflict $e) {

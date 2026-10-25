@@ -474,6 +474,27 @@ final class Api
                     )]);
                 }
             }
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/delivery(?:/(retry))?$~D',$path,$deliveryMatch)) {
+                $siteId=$deliveryMatch[1];$operation=$deliveryMatch[2]??null;
+                if($method==='GET'&&$operation===null)
+                    $this->response(200,$this->sites->deliveryStatus($siteId));
+                if($method==='POST'&&$operation===null){
+                    if(!is_bool($body['emailEnabled']??null)||!is_string($body['emailRecipient']??null)
+                        ||!is_bool($body['telegramEnabled']??null)||!is_string($body['telegramChatId']??null)
+                        ||!is_int($body['expectedVersion']??null)||!is_string($body['reason']??null))
+                        throw new InvalidArgumentException('Delivery channels, recipients, version and reason required');
+                    $this->auditDetail='Notification delivery settings updated: '.substr(trim($body['reason']),0,180);
+                    $result=$this->sites->saveDeliverySettings($siteId,$principal['username'],$body['expectedVersion'],
+                        $body['emailEnabled'],$body['emailRecipient'],$body['telegramEnabled'],$body['telegramChatId'],$body['reason']);
+                    $this->response(200,$result);
+                }
+                if($method==='POST'&&$operation==='retry'){
+                    if(!is_string($body['reason']??null)||!is_bool($body['includeUncertain']??null))
+                        throw new InvalidArgumentException('Retry reason and explicit uncertain-send choice required');
+                    $this->auditDetail='Notification delivery retry: '.substr(trim($body['reason']),0,180);
+                    $this->response(200,$this->sites->retryLeadDeliveries($siteId,$body['includeUncertain'],$body['reason']));
+                }
+            }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/notifications(?:/(seen))?$~D', $path, $alertMatch)) {
                 if ($method === 'GET' && !isset($alertMatch[2])) {
                     $this->response(200, $this->sites->notificationSummary($alertMatch[1]));

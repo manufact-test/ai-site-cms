@@ -104,6 +104,104 @@
   const leadsList=element('div','hosted-leads-list');leadsList.id='server-submissions';
   leadsPanel.append(leadsTitle,leadsRefresh,leadsList);
   mediaPanel.after(leadsPanel);
+  // Optional owner-configured external delivery. Provider secrets remain in server env.
+  let currentDelivery=null;
+  const deliveryPanel=element('section','hosted-delivery');deliveryPanel.id='server-delivery-panel';
+  const deliveryTitle=element('strong',null,'Внешние уведомления о заявках');
+  const deliveryHelp=element('small',null,'Email и Telegram настраиваются отдельно для каждого сайта. STAGE3_MAIL_FROM и STAGE3_TELEGRAM_BOT_TOKEN задаются только в окружении сервера, не в Studio и не в резервной копии.');
+  const deliveryReport=element('div','hosted-delivery-status');deliveryReport.id='server-delivery-status';
+  const deliveryRecent=element('div','hosted-delivery-recent');deliveryRecent.id='server-delivery-recent';
+  const deliveryFields=element('div','hosted-delivery-fields');
+  const deliveryEmailEnabled=element('input');deliveryEmailEnabled.type='checkbox';deliveryEmailEnabled.id='server-delivery-email-enabled';
+  const deliveryEmailRecipient=element('input','control');deliveryEmailRecipient.type='email';deliveryEmailRecipient.id='server-delivery-email-recipient';deliveryEmailRecipient.maxLength=254;deliveryEmailRecipient.placeholder='leads@example.com';
+  const deliveryTelegramEnabled=element('input');deliveryTelegramEnabled.type='checkbox';deliveryTelegramEnabled.id='server-delivery-telegram-enabled';
+  const deliveryTelegramChat=element('input','control');deliveryTelegramChat.type='text';deliveryTelegramChat.id='server-delivery-telegram-chat';deliveryTelegramChat.inputMode='numeric';deliveryTelegramChat.maxLength=32;deliveryTelegramChat.placeholder='Например, -1001234567890';
+  const deliveryReason=element('input','control');deliveryReason.type='text';deliveryReason.id='server-delivery-reason';deliveryReason.maxLength=240;deliveryReason.placeholder='Причина изменения настроек';
+  const deliveryField=(labelText,control)=>{
+    const label=element('label','hosted-delivery-field',labelText);label.append(control);return label;
+  };
+  deliveryFields.append(
+    deliveryField('Включить email',deliveryEmailEnabled),
+    deliveryField('Email получателя',deliveryEmailRecipient),
+    deliveryField('Включить Telegram',deliveryTelegramEnabled),
+    deliveryField('Числовой ID чата Telegram',deliveryTelegramChat)
+  );
+  const deliverySave=action('Сохранить настройки','server-delivery-save',()=>safe(async()=>{
+    if(!state.siteId)throw Error('Сначала откройте сайт');
+    if(!deliveryReason.value.trim())throw Error('Укажите причину изменения настроек');
+    const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/delivery','POST',{
+      emailEnabled:deliveryEmailEnabled.checked,emailRecipient:deliveryEmailRecipient.value.trim(),
+      telegramEnabled:deliveryTelegramEnabled.checked,telegramChatId:deliveryTelegramChat.value.trim(),
+      expectedVersion:currentDelivery?.settings?.version??0,reason:deliveryReason.value.trim()
+    });
+    renderDelivery(result);await refreshSites();
+    notice('Настройки доставки сохранены. Состояние транспорта показано отдельно; сохранение заявки не зависит от внешнего канала.');
+  }));
+  const deliveryRefresh=action('Обновить статус','server-delivery-refresh',()=>safe(loadDeliverySettings));
+  const deliveryRetry=action('Повторить сбои без подтверждённой отправки','server-delivery-retry',()=>safe(async()=>{
+    if(!state.siteId||!deliveryReason.value.trim())throw Error('Откройте сайт и укажите причину повтора');
+    const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/delivery/retry','POST',
+      {reason:deliveryReason.value.trim(),includeUncertain:false});
+    renderDelivery(result);notice('Повтор завершён. Проверьте фактические статусы каналов.');
+  }));
+  const deliveryRetryUncertain=action('Повторить неопределённые (риск дубля)','server-delivery-retry-uncertain',()=>safe(async()=>{
+    if(!state.siteId||!deliveryReason.value.trim())throw Error('Откройте сайт и укажите причину повтора');
+    if(!confirm('Некоторые отправки могли дойти до получателя, но ответ не сохранился. Повтор может создать дубликат. Продолжить?'))return;
+    const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/delivery/retry','POST',
+      {reason:deliveryReason.value.trim(),includeUncertain:true});
+    renderDelivery(result);notice('Повтор неопределённых отправок завершён. Проверьте канал вручную.');
+  }));
+  const deliveryActions=element('div','hosted-delivery-actions');
+  deliveryActions.append(deliverySave,deliveryRefresh,deliveryRetry,deliveryRetryUncertain);
+  deliveryPanel.append(deliveryTitle,deliveryHelp,deliveryReport,deliveryFields,
+    deliveryField('Причина / операторская заметка',deliveryReason),deliveryActions,deliveryRecent);
+  leadsPanel.after(deliveryPanel);
+  function renderDelivery(data){
+    currentDelivery=data;
+    const s=data.settings||{};
+    deliveryEmailEnabled.checked=!!s.emailEnabled;deliveryEmailRecipient.value=s.emailRecipient||'';
+    deliveryTelegramEnabled.checked=!!s.telegramEnabled;deliveryTelegramChat.value=s.telegramChatId||'';
+    deliveryReport.replaceChildren();
+    const reasonLabels={
+      sender_missing:'На сервере не задан STAGE3_MAIL_FROM',sender_invalid:'STAGE3_MAIL_FROM некорректен',
+      mail_unavailable:'PHP mail() недоступен',bot_token_missing:'На сервере не задан STAGE3_TELEGRAM_BOT_TOKEN',
+      bot_token_invalid:'STAGE3_TELEGRAM_BOT_TOKEN некорректен',
+      https_transport_unavailable:'На сервере недоступен HTTPS-транспорт',
+      recipient_missing:'Не указан получатель',ready:'Транспорт настроен',disabled:'Канал выключен'
+    };
+    for(const [key,labelText] of [['email','Email'],['telegram','Telegram']]){
+      const ch=data.channels?.[key]||{},counts=ch.counts||{};
+      const row=element('div','hosted-delivery-channel');
+      const label=ch.configurationStatus==='disabled'?'Выключен':
+        ch.configurationStatus==='configuration_required'?'Требуется настройка: '+(reasonLabels[ch.configurationReason]||ch.configurationReason):
+        'Настроен; транспорт доступен';
+      row.append(element('strong',null,labelText+' · '+label));
+      row.append(element('small',null,'Ожидают: '+(counts.pending||0)+' · Принято транспортом: '+(counts.accepted||0)+
+        ' · Ошибка: '+(counts.failed||0)+' · Требуется настройка: '+(counts.configuration_required||0)+
+        ' · Неопределённо: '+(counts.uncertain||0)));
+      deliveryReport.append(row);
+    }
+    deliveryReport.append(element('small',null,'«Принято транспортом» не гарантирует доставку в почтовый ящик. Неопределённые попытки не повторяются автоматически, чтобы не создавать дубликаты.'));
+    deliveryRecent.replaceChildren();
+    if(!data.recent?.length){deliveryRecent.append(element('small',null,'Попыток доставки пока нет.'));return;}
+    const labels={pending:'Ожидает',sending:'Отправляется',accepted:'Принято транспортом',failed:'Ошибка',
+      configuration_required:'Нужна настройка',uncertain:'Результат неизвестен',disabled:'Канал выключен'};
+    for(const item of data.recent.slice(0,10)){
+      const row=element('div','hosted-delivery-attempt');
+      row.append(element('strong',null,(item.channel==='email'?'Email':'Telegram')+' · '+(labels[item.state]||item.state)));
+      row.append(element('small',null,item.submissionId+' · попыток: '+item.attempts+' · '+item.updatedAt+
+        (item.lastError?' · '+item.lastError:'')));
+      deliveryRecent.append(row);
+    }
+  }
+  async function loadDeliverySettings(){
+    if(!isOwner()){deliveryPanel.hidden=true;return;}
+    if(!state.authorized||!state.siteId){
+      currentDelivery=null;deliveryReport.replaceChildren(element('small',null,'Сначала откройте сайт.'));
+      deliveryRecent.replaceChildren();return;
+    }
+    renderDelivery(await api('/api/sites/'+encodeURIComponent(state.siteId)+'/delivery'));
+  }
   const alertsRow=element('div','hosted-alerts');
   const alertsLabel=element('strong',null,'Непросмотренные заявки: 0');
   alertsLabel.id='server-notifications-count';
@@ -579,6 +677,10 @@
     $('compose-site').disabled=state.busy||!isOwner();
     $('import').disabled=state.busy||!isOwner();
     leadsRefresh.disabled=state.busy||!state.authorized||!state.siteId;
+    deliveryPanel.hidden=!isOwner();
+    deliverySave.disabled=!available||!isOwner();deliveryRefresh.disabled=!available||!isOwner();
+    deliveryRetry.disabled=!available||!isOwner()||!currentDelivery?.retryable;
+    deliveryRetryUncertain.disabled=!available||!isOwner()||!currentDelivery?.uncertain;
     acknowledge.disabled=state.busy||!state.authorized||!state.siteId||acknowledge.disabled;
     mediaUpload.disabled=!available||isDirty()||!canEdit();
     templatesSave.disabled=!available||isDirty()||!canEdit();
@@ -648,7 +750,7 @@
     const data=await api('/api/sites/'+encodeURIComponent(id));
     selectSite(data);
     picker.value=id;
-    await loadHistory();await loadSubmissions();await loadTemplates();
+    await loadHistory();await loadSubmissions();await loadTemplates();await loadDeliverySettings();
     notice('Сайт открыт из серверного хранилища. Публикация не выполнялась.');
   }
   async function previewPage(site,path){
@@ -698,7 +800,7 @@
       const id='site-'+crypto.randomUUID().replace(/-/g,'').slice(0,20);
       const site=editor.fromBrief(id,title.trim()||'Новый сайт');
       const created=await api('/api/sites','POST',{site});
-      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();
+      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();await loadDeliverySettings();
       notice('Создан новый серверный сайт без макета. Ревизия #1; сайт не опубликован.');
     });
   }
@@ -707,7 +809,7 @@
       if(isDirty()&&!confirm('Есть несохранённые правки. Импортировать другой сайт?'))return false;
       if(!confirm('Создать серверный сайт из JSON с ID '+site.siteId+'? Публикация не выполняется.'))return false;
       const created=await api('/api/sites','POST',{site});
-      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();
+      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();await loadDeliverySettings();
       notice('JSON импортирован в отдельный серверный сайт. Черновик не опубликован.');
       return true;
     });
@@ -718,7 +820,7 @@
     clearArchive();backupDialog.close();releaseList.replaceChildren();
     state.authorized=false;state.principal=null;state.csrf=null;state.siteId=null;state.revision=null;
     state.revisions=[];state.sites=[];picker.replaceChildren();
-    mediaList.replaceChildren();templatesList.replaceChildren();
+    mediaList.replaceChildren();templatesList.replaceChildren();deliveryReport.replaceChildren();deliveryRecent.replaceChildren();currentDelivery=null;
     editorVisible(false);setGate(true);
     notice('Вы вышли из серверной CMS.');
   }
@@ -770,7 +872,7 @@
     state.busy=true;drawStatus();
     try{
       const created=await api('/api/sites','POST',{site});
-      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();
+      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();await loadDeliverySettings();
     }finally{state.busy=false;drawStatus();}
   }
   window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewPage,previewUrl,videoUrl,
