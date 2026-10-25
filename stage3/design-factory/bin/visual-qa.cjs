@@ -14,7 +14,27 @@ const REPO=path.resolve(ROOT,'../..');
 const localFileUrl=file=>pathToFileURL(path.resolve(file)).href;
 const VIEWPORTS=[{id:'desktop',width:1280,height:800},
  {id:'tablet',width:768,height:1000},{id:'mobile',width:390,height:844}];
+const QUICK_THEMES=['editorial','technical','noir','verdant'];
+const SAMPLE_KITS=[['industrial','ru'],['saas','en'],['architecture','ru'],['restaurant','ru']];
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
+function expectedFiles(quick){
+ const themes=quick?QUICK_THEMES:Object.keys(THEMES);
+ return [
+  ...themes.flatMap(theme=>VIEWPORTS.map(view=>'screenshots/theme-'+theme+'-'+view.id+'.png')),
+  ...VIEWPORTS.map(view=>'screenshots/42-compositions-'+view.id+'.png'),
+  ...SAMPLE_KITS.flatMap(([kit,language])=>VIEWPORTS.map(view=>'screenshots/sector-'+kit+'-'+language+'-home-'+view.id+'.png')),
+  ...['services','approach','contact'].map(page=>'screenshots/sector-saas-en-'+page+'-mobile.png')
+ ];
+}
+function assessMatrix(expected,images){
+ const actual=images.map(item=>item.file),expectedSet=new Set(expected),actualSet=new Set(actual);
+ const missing=expected.filter(file=>!actualSet.has(file));
+ const unexpected=actual.filter(file=>!expectedSet.has(file));
+ const duplicates=actual.length-actualSet.size;
+ const dimensionMismatches=images.filter(item=>!item.viewportMatch).length;
+ return {complete:missing.length===0&&unexpected.length===0&&duplicates===0&&actual.length===expected.length&&dimensionMismatches===0,
+  expectedCount:expected.length,actualCount:actual.length,missing,unexpected,duplicates,dimensionMismatches};
+}
 function pngSize(bytes){
  if(bytes.length<24||bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a'||
     bytes.toString('ascii',12,16)!=='IHDR')throw Error('Invalid PNG screenshot');
@@ -55,7 +75,8 @@ function reviewHtml(report){
   '@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}</style></head><body><main>'+
   '<h1>Design Factory · visual review</h1>'+
   '<p class="status">Manual visual acceptance: <strong>PENDING</strong> · captured '+
-    report.images.length+' screenshots · requested 1280 / 768 / 390 px</p>'+
+    report.images.length+' / '+report.expectedImages+' screenshots · matrix '+
+  (report.matrixComplete?'complete':'incomplete')+' · requested 1280 / 768 / 390 px</p>'+
   alerts+'<p class="muted">Review overflow, typography, navigation, links, keyboard focus, touch targets, RU/EN placeholders, CTA, gallery and motion behavior on the actual sites. Screenshots alone cannot approve these interaction checks. The enhanced CSS preview is NOT PHP renderer pixel parity.</p>'+
   sections+'<footer>First-party local evidence · no online resources or automatic approval · see visual-evidence.json</footer>'+
   '</main></body></html>\n';
@@ -82,8 +103,10 @@ function run(options){
  const root=resolveOutsideRepository(options.output,REPO,'Visual QA output');
  if(fs.existsSync(root))throw Error('Output path exists; never overwrite existing QA results');
  fs.mkdirSync(root);
+ const expected=expectedFiles(options.quick);
  const report={format:'manufact-design-factory-visual-evidence-v1',version:1,
-  viewports:VIEWPORTS,quick:options.quick,images:[],errors:[],humanVisualAcceptance:'pending'};
+  viewports:VIEWPORTS,quick:options.quick,expectedImages:expected.length,matrixComplete:false,
+  images:[],errors:[],humanVisualAcceptance:'pending'};
  function screenshot(url,filename,view){
   const dest=path.join(root,'screenshots',filename+'.png');
   const p=cp.spawnSync(options.bin,[
@@ -107,7 +130,7 @@ function run(options){
  try{
   fs.mkdirSync(path.join(root,'screenshots'));
   fs.mkdirSync(path.join(root,'sites'));
-  const themes=options.quick?['editorial','technical','noir','verdant']:Object.keys(THEMES);
+  const themes=options.quick?QUICK_THEMES:Object.keys(THEMES);
   for(const theme of themes){
    const project={format:FORMAT,version:1,kit:'agency',theme,language:'ru',facts:{}};
    const dir=path.join(root,'sites','theme-'+theme);
@@ -119,8 +142,7 @@ function run(options){
   for(const view of VIEWPORTS)
    screenshot(localFileUrl(path.join(showcase.directory,'index.html')),'42-compositions-'+view.id,view);
   // Include an English site and all internal routes, not only four RU home pages.
-  const sampleKits=[['industrial','ru'],['saas','en'],['architecture','ru'],['restaurant','ru']];
-  for(const [kit,language] of sampleKits){
+  for(const [kit,language] of SAMPLE_KITS){
    const project={format:FORMAT,version:1,kit,theme:KITS[kit].theme,language,facts:{}};
    const dir=path.join(root,'sites','sector-'+kit+'-'+language);
    writePreview(compile(project),dir);
@@ -131,13 +153,23 @@ function run(options){
       'sector-'+kit+'-'+language+'-'+page+'-mobile',VIEWPORTS[2]);
   }
   report.imagesProduced=report.images.length;
-  report.captureCompleted=report.errors.length===0;
-  if(!report.captureCompleted)process.exitCode=2;
  }catch(error){
   report.captureCompleted=false;
   report.errors.push(String(error.message));
   process.exitCode=2;
  }finally{
+  const matrix=assessMatrix(expected,report.images);
+  report.imagesProduced=report.images.length;
+  report.expectedImages=matrix.expectedCount;
+  report.matrixComplete=matrix.complete;
+  report.matrixIssues={missing:matrix.missing,unexpected:matrix.unexpected,
+   duplicates:matrix.duplicates,dimensionMismatches:matrix.dimensionMismatches};
+  if(!matrix.complete)report.errors.push('Screenshot matrix incomplete: expected '+matrix.expectedCount+
+   ' unique viewport-matched images; got '+matrix.actualCount+' ('+matrix.missing.length+
+   ' missing, '+matrix.unexpected.length+' unexpected, '+matrix.duplicates+' duplicate, '+
+   matrix.dimensionMismatches+' dimension mismatches).');
+  report.captureCompleted=matrix.complete&&report.errors.length===0;
+  if(!report.captureCompleted)process.exitCode=2;
   fs.writeFileSync(path.join(root,'visual-evidence.json'),JSON.stringify(report,null,2)+'\n',{flag:'wx'});
   fs.writeFileSync(path.join(root,'visual-review.html'),reviewHtml(report),{flag:'wx'});
   console.log(JSON.stringify({
@@ -147,7 +179,7 @@ function run(options){
   },null,2));
  }
 }
-module.exports=Object.freeze({args,localFileUrl,pngSize,reviewHtml,run});
+module.exports=Object.freeze({args,localFileUrl,pngSize,reviewHtml,expectedFiles,assessMatrix,run});
 if(require.main===module){
  try{run(args(process.argv.slice(2)));}catch(e){
   console.error('D7 visual QA refused: '+e.message);process.exitCode=2;

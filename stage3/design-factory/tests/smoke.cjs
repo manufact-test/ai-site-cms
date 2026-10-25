@@ -53,6 +53,21 @@ try{
   const visualSource=fs.readFileSync(path.join(__dirname,'../bin/visual-qa.cjs'),'utf8');
   assert.ok(!/screenshot\(\s*['"]file:\/\//.test(visualSource),
     'Every Visual QA screenshot URL must be built with pathToFileURL');
+  const quickMatrix=visualQA.expectedFiles(true),fullMatrix=visualQA.expectedFiles(false);
+  assert.equal(quickMatrix.length,30,'Quick visual evidence must cover 30 screenshots');
+  assert.equal(new Set(quickMatrix).size,30,'Quick matrix paths must be unique');
+  assert.equal(fullMatrix.length,54,'Full visual evidence must cover 54 screenshots');
+  assert.equal(new Set(fullMatrix).size,54,'Full matrix paths must be unique');
+  assert.ok(fullMatrix.includes('screenshots/sector-saas-en-services-mobile.png'),
+    'Full matrix must include English internal-page mobile captures');
+  assert.equal(visualQA.assessMatrix(fullMatrix,fullMatrix.map(file=>({file,viewportMatch:true}))).complete,true);
+  const missingMatrix=visualQA.assessMatrix(fullMatrix,fullMatrix.slice(1).map(file=>({file,viewportMatch:true})));
+  assert.equal(missingMatrix.complete,false);assert.equal(missingMatrix.missing.length,1);
+  const duplicateMatrix=visualQA.assessMatrix(fullMatrix,[...fullMatrix.map(file=>({file,viewportMatch:true})),
+    {file:fullMatrix[0],viewportMatch:true}]);
+  assert.equal(duplicateMatrix.complete,false);assert.equal(duplicateMatrix.duplicates,1);
+  const wrongDimensions=visualQA.assessMatrix(fullMatrix,fullMatrix.map((file,i)=>({file,viewportMatch:i!==0})));
+  assert.equal(wrongDimensions.complete,false);assert.equal(wrongDimensions.dimensionMismatches,1);
   const guardedOutput=path.join(repository,'df-visual-qa-guard-'+process.pid);
   try{
     assert.throws(()=>visualQA.run({output:guardedOutput,bin:'/bin/false',quick:true}),/outside repository/);
