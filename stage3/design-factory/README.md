@@ -208,3 +208,11 @@ Expanded source-level isolated V8 lead smoke PASS: 504 graph candidates/renders,
 ## Final independent-developer checkpoint
 
 Conflict-safe semantic reconciliation now has a read-only `inspectSemanticSync()` plan (changes, preserved graph edits, conflicting two-sided edits) and an explicit `reconcileSemantic()` that refuses destructive content overwrite. A successor handoff and first-chat message are in `handoffs/SESSION-CLOSEOUT-2026-10-24.md` and `handoffs/START-NEXT-CHAT.md`. The source-level 504/504 lead SDK+graph smoke passed with conflict regressions; real checkout Node/PHP/Chromium/ZIP and owner visual approval remain unverified. Do not treat source-level checks as D7 acceptance.
+
+## 25 October — rebuild preview, structured visual diff and component-family coverage
+
+The optional lead adapter now exposes `inspectRebuild()`, a read-only preflight for the explicit AI-free `rebuildHostCandidate()` path. It gives Studio a structured list of graph-only copy at risk (node/property and old/new values), and predicts preserved/created/reset/removed node IDs. A destructive preflight remains `canApply:false` until the authenticated host separately obtains owner confirmation. The simulated report is not an authorization token and never saves or publishes.
+
+Regression suite expansion: 504 distinct composition/theme candidates were validated and rendered; all 504 also passed a no-op structural rebuild and read-only rebuild preflight without changing markup or the source candidate. Additional tests cover source refresh in all 8 registered component families, manual copy preservation, CMS/Graph conflicts, exact deletion confirmation, style bleed on reorder, preview immutability and bounded input sizes.
+
+These results ran in isolated V8 using real GitHub JS sources with emulated Node core modules; they are **not** a real checkout/Node, PHP or Chromium run. D7 remains OPEN pending the actual Node release audit, PHP parity, 54 screenshot captures with human review, and a real source-matching ZIP with SHA256.
