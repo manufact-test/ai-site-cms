@@ -270,6 +270,42 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#redo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).redirects.length,1);
 
+    // Renaming a page updates CMS-owned internal links and retargets existing aliases.
+    await page.locator('#pages .nav-entry').nth(1).click();
+    page.once('dialog',dialog=>{
+      page.once('dialog',next=>next.accept('/get-in-touch/'));
+      dialog.accept('Контакты');
+    });
+    await page.locator('#page-rename').click();
+    let renamed=(await page.evaluate(()=>window.Stage3Editor.getSite()));
+    assert.equal(renamed.pages.find(p=>p.id==='page-contact').path,'/get-in-touch/');
+    assert.equal(renamed.pages.find(p=>p.id==='page-home').sections[0].elements
+      .find(e=>e.values['behavior.href']).values['behavior.href'],'/get-in-touch/');
+    assert.equal(renamed.pages.find(p=>p.id==='page-contact').sections[0].elements
+      .find(e=>e.values['behavior.href']).values['behavior.href'],'/get-in-touch/');
+    assert.deepEqual(renamed.redirects,[{from:'/older-page/',to:'/get-in-touch/'},
+      {from:'/contact/',to:'/get-in-touch/'}]);
+    assert.match(await page.locator('#toast').innerText(),/внутренние ссылки обновлены/);
+    await page.locator('#cms-open-page-preview').click();
+    await page.locator('#cms-page-preview').waitFor({state:'visible'});
+    await page.locator('#cms-page-preview-path').selectOption('/');
+    await page.frameLocator('#cms-page-preview-frame').locator('a[href="/get-in-touch/"]').first().waitFor();
+    await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+    await page.locator('#undo').click();
+    renamed=(await page.evaluate(()=>window.Stage3Editor.getSite()));
+    assert.equal(renamed.pages.find(p=>p.id==='page-contact').path,'/contact/');
+    assert.equal(renamed.pages.find(p=>p.id==='page-home').sections[0].elements
+      .find(e=>e.values['behavior.href']).values['behavior.href'],'/contact/');
+    assert.deepEqual(renamed.redirects,[{from:'/older-page/',to:'/contact/'}]);
+    await page.locator('#cms-open-page-preview').click();
+    await page.locator('#cms-page-preview-path').selectOption('/');
+    await page.frameLocator('#cms-page-preview-frame').locator('a[href="/contact/"]').first().waitFor();
+    await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+    await page.locator('#redo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages.find(p=>p.id==='page-contact').path,'/get-in-touch/');
+    await page.locator('#pages .nav-entry').first().click();
+
     // Appearance panel changes only the selected block; preview reacts immediately.
     await page.locator('#cms-appearance-dialog').count();
     await page.locator('#section-appearance').click();

@@ -1229,6 +1229,57 @@ async function stop(){
   assert.equal(sizeOverflow.status,422,'Oversized video refused before staging');
 
 
+  // Full URL rename flow through the same validated SDK used by Studio.
+  const urlSite=structuredClone(fixture);urlSite.siteId='site-url-ci';
+  const urlCreated=await request('POST','/api/sites',{site:urlSite});
+  assert.equal(urlCreated.status,201,JSON.stringify(urlCreated.body));
+  assert.equal((await request('POST','/api/sites/site-url-ci/publish',{expectedRevision:1})).status,200);
+  assert.equal((await request('GET','/published/site-url-ci/contact/')).status,200);
+  const Draft=require(path.join(root,'stage3/sdk/draft.cjs'));
+  let urlDraft=Draft.begin(urlSite,richDefs);
+  urlDraft=Draft.structure(urlDraft,richDefs,{action:'updatePage',pageId:'page-contact',
+    title:'Свяжитесь с нами',path:'/get-in-touch/',expectedRevision:urlDraft.revision});
+  const renamedSite=urlDraft.current;
+  assert.deepEqual(renamedSite.redirects,[{from:'/contact/',to:'/get-in-touch/'}]);
+  assert.equal(renamedSite.pages[0].sections[0].elements.find(e=>e.values['behavior.href'])
+    .values['behavior.href'],'/get-in-touch/');
+  const savedUrl=await request('POST','/api/sites/site-url-ci/save',{expectedRevision:1,site:renamedSite});
+  assert.equal(savedUrl.status,200);assert.equal(savedUrl.body.revision,2);
+  assert.equal((await request('GET','/published/site-url-ci/contact/')).status,200,
+    'Saved URL changes do not mutate the previous published snapshot');
+  assert.equal((await request('GET','/published/site-url-ci/get-in-touch/')).status,404,
+    'New URL remains private until explicit publish');
+  assert.equal((await request('POST','/api/sites/site-url-ci/publish',{expectedRevision:2})).body.version,2);
+  const renamedPublic=await request('GET','/published/site-url-ci/get-in-touch/');
+  assert.equal(renamedPublic.status,200);
+  assert.match(renamedPublic.body,/rel="canonical" href="http:\/\/127\.0\.0\.1:[0-9]+\/published\/site-url-ci\/get-in-touch\/"/);
+  assert.match((await request('GET','/published/site-url-ci/')).body,/href="\/published\/site-url-ci\/get-in-touch\/"/);
+  const oldUrl=await request('GET','/published/site-url-ci/contact/');
+  assert.equal(oldUrl.status,301);assert.equal(oldUrl.headers.get('location'),'/published/site-url-ci/get-in-touch/');
+  const renamedSitemap=await request('GET','/published/site-url-ci/sitemap.xml');
+  assert.equal(renamedSitemap.status,200);
+  assert.ok(renamedSitemap.body.includes(origin+'/published/site-url-ci/get-in-touch/'));
+  assert.ok(!renamedSitemap.body.includes(origin+'/published/site-url-ci/contact/'));
+  assert.ok((await request('GET','/published/site-url-ci/robots.txt')).body.includes(
+    'Sitemap: '+origin+'/published/site-url-ci/sitemap.xml'));
+  const urlOut=path.join(dbdir,'url-static');
+  const urlExport=spawnSync('php',['stage3/server/bin/export-published.php','site-url-ci',urlOut],
+    {cwd:root,env:{...env,STAGE3_EXPORT_ORIGIN:'https://example.test'},encoding:'utf8'});
+  assert.equal(urlExport.status,0,urlExport.stderr);
+  const urlManifest=JSON.parse(fs.readFileSync(path.join(urlOut,'release-manifest.json'),'utf8'));
+  assert.deepEqual(urlManifest.pages.map(p=>p.path),['/','/get-in-touch/']);
+  assert.equal(urlManifest.redirects.length,1);
+  assert.equal(urlManifest.redirects[0].from,'/contact/');
+  assert.equal(urlManifest.redirects[0].to,'/get-in-touch/');
+  assert.equal(urlManifest.redirects[0].file,'contact/index.html');
+  assert.match(fs.readFileSync(path.join(urlOut,'index.html'),'utf8'),/href="\/get-in-touch\/"/);
+  assert.match(fs.readFileSync(path.join(urlOut,'get-in-touch','index.html'),'utf8'),
+    /rel="canonical" href="https:\/\/example[.]test\/get-in-touch\/"/);
+  const urlStaticSitemap=fs.readFileSync(path.join(urlOut,'sitemap.xml'),'utf8');
+  assert.match(urlStaticSitemap,/https:\/\/example[.]test\/get-in-touch\//);
+  assert.doesNotMatch(urlStaticSitemap,/https:\/\/example[.]test\/contact\//);
+  assert.match(fs.readFileSync(path.join(urlOut,'contact','index.html'),'utf8'),/url=\/get-in-touch\//);
+
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET',endpoint+'/backup')).status,401,'Archives remain private');

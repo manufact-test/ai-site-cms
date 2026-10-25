@@ -4,6 +4,30 @@
 const C=require('./contract.cjs');
 const SESSION='manufact-ai-editor-session-v1',MAX_UNDO=30;
 const copy=x=>structuredClone(x),isObj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+function rewriteInternalHref(href,from,to){
+  if(typeof href!=='string'||!href.startsWith(from))return href;
+  const suffix=href.slice(from.length);
+  if(suffix!==''&&!suffix.startsWith('?')&&!suffix.startsWith('#'))return href;
+  return to+suffix;
+}
+function rewritePageLinks(site,from,to){
+  let changed=0;
+  const rewrite=(holder,key)=>{
+    const before=holder[key],after=rewriteInternalHref(before,from,to);
+    if(after!==before){holder[key]=after;changed++;}
+  };
+  for(const page of site.pages)for(const section of page.sections){
+    for(const item of [...(section.elements||[]),...(section.items||[])]){
+      if(isObj(item.values))rewrite(item.values,'behavior.href');
+    }
+    const walk=node=>{
+      if(typeof node.href==='string')rewrite(node,'href');
+      for(const child of node.children||[])walk(child);
+    };
+    for(const root of section.designGraph?.nodes||[])walk(root);
+  }
+  return changed;
+}
 function select(doc,pageId,sectionId,elementId){
   const page=doc.pages.find(p=>p.id===pageId);
   const section=page?.sections.find(s=>s.id===sectionId);
@@ -168,6 +192,7 @@ function structure(raw,manifests,command){
         if(page.path!=='/'){
           for(const r of c.redirects)if(r.to===page.path)r.to=command.path;
           c.redirects.push({from:page.path,to:command.path});
+          rewritePageLinks(c,page.path,command.path);
         }
       }
       page.path=command.path;

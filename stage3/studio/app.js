@@ -144,6 +144,8 @@
   function structural(command){
     try{
       const before=session.current;
+      const priorPage=command.action==='updatePage'?before.pages.find(x=>x.id===command.pageId):null;
+      const urlChanged=!!priorPage&&priorPage.path!==command.path;
       session=D.structure(session,manifests,{...command,expectedRevision:session.revision});
       const selected=session.current.pages.find(x=>x.id===pageId);
       if(!selected){pageId=session.current.pages[0].id;sectionId='';}
@@ -152,7 +154,9 @@
       if(![...page.sections.find(x=>x.id===sectionId).elements,...(page.sections.find(x=>x.id===sectionId).items||[])].some(x=>x.id===elementId))
         elementId=page.sections.find(x=>x.id===sectionId).elements[0].id;
       draw();
-      if(before!==session.current)notice('Структура изменена в черновике. Для сохранения нажмите «Сохранить».');
+      if(before!==session.current)notice(urlChanged
+        ?'URL изменён: внутренние ссылки обновлены, старый адрес перенаправляется на новый. Для сохранения нажмите «Сохранить». '
+        :'Структура изменена в черновике. Для сохранения нажмите «Сохранить».');
     }catch(e){notice('Изменение структуры отклонено: '+e.message,true);}
   }
 

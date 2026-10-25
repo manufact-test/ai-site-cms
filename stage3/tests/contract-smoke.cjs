@@ -253,18 +253,47 @@ test('complete menu hierarchy, CTA and responsive settings validate and Undo saf
   assert.equal(D.undo(removed,manifests).current.pages.length,3);
 });
 
-test('URL changes keep permanent aliases, diagnostics find bad links and Undo keeps history',()=>{
-  const D=require('../sdk/draft.cjs');
-  let d=D.begin(initial,manifests);
-  const move=(command)=>d=D.structure(d,manifests,{...command,expectedRevision:d.revision});
+test('URL changes rewrite internal links and preserve aliases, fragments, repeaters and graph links',()=>{
+  const D=require('../sdk/draft.cjs'),DG=require('../sdk/design-graph.cjs');
+  const site=same(initial);
+  const hero=site.pages[0].sections[0];
+  hero.designGraph=DG.baseGraph(hero.id);
+  hero.designGraph.nodes[0].children.push({id:'graph-contact-button',type:'button',text:'Contact',
+    href:'/contact/?source=graph#section-contact',styles:{}});
+  const repeated=sdk.sectionFrom(manifests.find(m=>m.id==='service-grid'),'section-url-links');
+  repeated.items[0].values['behavior.href']='/contact/?source=repeater#section-contact';
+  site.pages[0].sections.push(repeated);
+  let d=D.begin(site,manifests);
+  const move=command=>d=D.structure(d,manifests,{...command,expectedRevision:d.revision});
+  const componentHref=(doc,pageId,sectionId)=>doc.pages.find(p=>p.id===pageId).sections
+    .find(s=>s.id===sectionId).elements.find(e=>typeof e.values['behavior.href']==='string').values['behavior.href'];
+  const graphHref=doc=>doc.pages.find(p=>p.id==='page-home').sections[0].designGraph.nodes[0]
+    .children.find(n=>n.id==='graph-contact-button').href;
   move({action:'updatePage',pageId:'page-contact',title:'Контакты',path:'/help/'});
   assert.deepEqual(d.current.redirects,[{from:'/contact/',to:'/help/'}]);
+  assert.equal(componentHref(d.current,'page-home','section-hero'),'/help/');
+  assert.equal(componentHref(d.current,'page-contact','section-contact'),'/help/');
+  assert.equal(d.current.pages[0].sections.find(s=>s.id==='section-url-links').items[0].values['behavior.href'],
+    '/help/?source=repeater#section-contact');
+  assert.equal(graphHref(d.current),'/help/?source=graph#section-contact');
   let report=sdk.inspectSite(d.current,manifests);
   assert.equal(report.redirects,1);
-  assert.ok(report.warnings.some(x=>x.kind==='old-link'),'Existing menu links warn about redirect');
+  assert.ok(!report.warnings.some(x=>x.kind==='old-link'),'Renamed page references no longer detour through a redirect');
+  assert.ok(!report.errors.some(x=>x.kind==='broken-link'||x.kind==='broken-anchor'));
   move({action:'updatePage',pageId:'page-contact',title:'Контакты',path:'/support/'});
   assert.deepEqual(d.current.redirects,[{from:'/contact/',to:'/support/'},{from:'/help/',to:'/support/'}],
-    'Aliases resolve directly, no redirect chains');
+    'Aliases resolve directly, without redirect chains');
+  assert.equal(componentHref(d.current,'page-home','section-hero'),'/support/');
+  assert.equal(d.current.pages[0].sections.find(s=>s.id==='section-url-links').items[0].values['behavior.href'],
+    '/support/?source=repeater#section-contact');
+  assert.equal(graphHref(d.current),'/support/?source=graph#section-contact');
+  const renamed=JSON.stringify(d.current);
+  const undone=D.undo(d,manifests);
+  assert.equal(undone.current.pages.find(p=>p.id==='page-contact').path,'/help/');
+  assert.equal(componentHref(undone.current,'page-home','section-hero'),'/help/');
+  assert.equal(graphHref(undone.current),'/help/?source=graph#section-contact');
+  d=D.redo(undone,manifests);
+  assert.deepEqual(d.current,JSON.parse(renamed));
   refuses(()=>D.structure(d,manifests,{action:'addRedirect',from:'/support/',to:'/',expectedRevision:d.revision}),
     'Cannot hide an existing live page under a redirect');
   refuses(()=>D.structure(d,manifests,{action:'addRedirect',from:'/bad/',to:'/missing/',expectedRevision:d.revision}),
@@ -284,7 +313,6 @@ test('URL changes keep permanent aliases, diagnostics find bad links and Undo ke
   escaping.redirects.push({from:'/something/',to:'/support/?malicious'});
   refuses(()=>sdk.validateSite(escaping,manifests),'No query/HTML injection in redirects');
 });
-
 test('media library: alt, global replacement, protected detach, undo and rich media manifests',()=>{
   const D=require('../sdk/draft.cjs');
   const site=same(initial);
