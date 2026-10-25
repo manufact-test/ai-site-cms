@@ -80,3 +80,17 @@
 .cms-appearance-dialog label{display:grid;gap:7px;font-size:12px;font-weight:650}
 .cms-appearance-dialog .control{width:100%}
 .cms-appearance-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+
+/* Opt-in, script-free visual Design Graph inspector. It does not replace the
+   normal protected published preview or permit arbitrary markup authoring. */
+.cms-design-graph-dialog{width:min(1160px,calc(100% - 24px));max-width:none}
+.cms-design-workspace{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(310px,.8fr);gap:18px;min-height:0}
+.cms-design-visual{min-width:0;display:flex;flex-direction:column;gap:10px}
+.cms-design-device-tools{display:flex;gap:8px;flex-wrap:wrap}
+.cms-design-device-tools .btn.active{border-color:#e88622;background:#28475b}
+#cms-design-visual-stage{position:relative;overflow:auto;max-height:520px;min-height:180px;background:#e8edf2;border:1px solid #607584;border-radius:10px;padding:0}
+#cms-design-preview-frame{display:block;border:0;background:white;transform-origin:top left;max-width:none}
+#cms-design-visual-hint{font-size:12px;line-height:1.5;min-height:35px;overflow-wrap:anywhere}
+.cms-design-graph-editor{min-width:0;max-height:60vh;overflow:auto;scrollbar-gutter:stable;padding-right:5px}
+.cms-design-graph-dialog .cms-appearance-actions{margin-top:0}
+@media(max-width:780px){.cms-design-workspace{grid-template-columns:minmax(0,1fr)}.cms-design-graph-editor{max-height:50vh}#cms-design-visual-stage{max-height:350px}}

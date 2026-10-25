@@ -461,9 +461,57 @@
     const toolbar=document.createElement('div');toolbar.className='cms-appearance-actions';
     const root=document.createElement('div');root.className='cms-design-graph-editor';
     const footer=document.createElement('div');footer.className='cms-appearance-actions';
-    dlg.append(title,info,toolbar,root,footer);
+    const workspace=document.createElement('div');workspace.className='cms-design-workspace';
+    const visual=document.createElement('div');visual.className='cms-design-visual';
+    const deviceTools=document.createElement('div');deviceTools.className='cms-design-device-tools';
+    const canvasStage=document.createElement('div');canvasStage.id='cms-design-visual-stage';
+    const previewFrame=document.createElement('iframe');previewFrame.id='cms-design-preview-frame';
+    // The HTML is rendered exclusively by our validated, escaped design-graph
+    // renderer. No scripts, forms, top navigation or foreign content execution.
+    previewFrame.setAttribute('sandbox','allow-same-origin');
+    previewFrame.title='Визуальный выбор элементов композиции';
+    const visualHint=document.createElement('p');visualHint.id='cms-design-visual-hint';
+    visualHint.textContent='Выберите элемент прямо на макете. Изменения остаются в черновике.';
+    canvasStage.append(previewFrame);visual.append(deviceTools,canvasStage,visualHint);
+    workspace.append(visual,root);
+    dlg.append(title,info,toolbar,workspace,footer);
     document.body.append(dlg);
-    let graph,tokens,selection,mode='desktop',sourcePage,sourceSection;
+    let graph,tokens,selection,mode='desktop',sourcePage,sourceSection,previewDevice='desktop';
+    const PREVIEW_WIDTHS={desktop:1200,tablet:780,mobile:390};
+    const syncVisualSelection=()=>{
+      const doc=previewFrame.contentDocument;
+      if(!doc)return;
+      for(const old of doc.querySelectorAll('.cms-design-picked'))old.classList.remove('cms-design-picked');
+      const node=doc.querySelector('.cmsdg-n-'+selection);
+      if(node){node.classList.add('cms-design-picked');node.setAttribute('data-cms-design-selected','true');}
+      for(const old of doc.querySelectorAll('[data-cms-design-selected]')){
+        if(old!==node)old.removeAttribute('data-cms-design-selected');
+      }
+    };
+    previewFrame.addEventListener('load',()=>{
+      const doc=previewFrame.contentDocument;
+      if(!doc)return;
+      const selectFromPreview=event=>{
+        // Links and videos cannot navigate or start playback while selecting.
+        event.preventDefault();
+        const target=event.target?.closest?.('[class*="cmsdg-n-"]');
+        const id=target&&Array.from(target.classList).find(x=>x.startsWith('cmsdg-n-'))?.slice(8);
+        if(id&&all().some(row=>row.node.id===id)){
+          selection=id;
+          render();
+        }
+      };
+      doc.addEventListener('click',selectFromPreview,true);
+      doc.addEventListener('submit',e=>e.preventDefault(),true);
+      doc.addEventListener('keydown',e=>{
+        if(e.key==='Enter'||e.key===' '){
+          const focused=doc.activeElement;
+          if(focused?.matches?.('a,button,video'))e.preventDefault();
+          if(focused?.closest?.('[class*="cmsdg-n-"]'))selectFromPreview(e);
+        }
+      },true);
+      syncVisualSelection();
+    });
     const changeTree=(operation,selectId)=>{
       try{
         graph=DESIGN_GRAPH.editTree(graph,operation);
@@ -488,7 +536,7 @@
         const option=make('option',t);option.value=v;input.append(option);
       }else if(type!=='multiline')input.type=type==='number'?'number':'text';
       input.value=type==='select'?value.initial:String(value??'');
-      input.addEventListener('input',()=>change(input.value));
+      input.addEventListener('input',()=>{change(input.value);paintVisual();});
       wrap.append(input);return wrap;
     };
     const all=()=>{
@@ -505,6 +553,36 @@
         mode==='tablet'||mode==='mobile'?
           ((n.responsive||(n.responsive={}))[mode]||((n.responsive)[mode]={})):
           ((n.states||(n.states={}))[mode]||((n.states)[mode]={}));
+    }
+    for(const [id,label] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
+      const b=button(label,'btn small',()=>{
+        previewDevice=id;mode=id;render();
+      });
+      b.dataset.designDevice=id;deviceTools.append(b);
+    }
+    function paintVisual(){
+      for(const b of deviceTools.children)b.classList.toggle('active',b.dataset.designDevice===previewDevice);
+      const width=PREVIEW_WIDTHS[previewDevice];
+      const available=canvasStage.clientWidth||640;
+      const scale=Math.min(1,(available-12)/width);
+      previewFrame.style.width=width+'px';
+      previewFrame.style.height='900px';
+      previewFrame.style.transform='scale('+scale+')';
+      canvasStage.style.height=Math.min(520,Math.ceil(900*scale))+'px';
+      try{
+        const site={...session.current,designTokens:tokens};
+        const html=DESIGN_GRAPH.render(site,graph,'',
+          assetId=>HOSTED?window.Stage3Host?.previewUrl?.(assetId):null,sourceSection,
+          assetId=>HOSTED?window.Stage3Host?.videoUrl?.(assetId):null);
+        previewFrame.srcdoc='<!doctype html><html lang="ru"><head><meta charset="utf-8">'+
+          '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; img-src &#39;self&#39; data: blob:; media-src &#39;self&#39; blob:; connect-src &#39;none&#39;; form-action &#39;none&#39;; object-src &#39;none&#39;; frame-src &#39;none&#39;">'+
+          '<style>html,body{margin:0;background:#fff;color:#182b3d;font:16px system-ui,Arial,sans-serif}body{padding:12px;min-width:0}.cmsdg{position:relative}.cmsdg [class*="cmsdg-n-"]{cursor:crosshair}.cmsdg [class*="cmsdg-n-"]:hover{outline:2px dashed #1868d3!important;outline-offset:2px}.cmsdg .cms-design-picked{outline:3px solid #e88622!important;outline-offset:3px}</style>'+
+          '</head><body>'+html+'</body></html>';
+        visualHint.textContent='Щёлкните по элементу макета · Изменения видны без сохранения и публикации';
+      }catch(error){
+        previewFrame.srcdoc='<!doctype html><html><head><meta charset="utf-8"></head><body><p>Предпросмотр временно недоступен</p></body></html>';
+        visualHint.textContent='Исправьте параметры композиции: '+error.message;
+      }
     }
     function render(){
       root.replaceChildren();toolbar.replaceChildren();
@@ -557,11 +635,11 @@
       });
       action('↑',()=>{
         const index=selected.items.indexOf(n);
-        if(index>0){[selected.items[index-1],selected.items[index]]=[n,selected.items[index-1]];render();}
+        if(index>0)changeTree({action:'move',nodeId:n.id,targetId:selected.items[index-1].id,placement:'before'},n.id);
       });
       action('↓',()=>{
         const index=selected.items.indexOf(n);
-        if(index<selected.items.length-1){[selected.items[index+1],selected.items[index]]=[n,selected.items[index+1]];render();}
+        if(index<selected.items.length-1)changeTree({action:'move',nodeId:n.id,targetId:selected.items[index+1].id,placement:'after'},n.id);
       });
       action('Копировать группу',()=>{
         const ids=subtreeIds(n).map(()=>uniqueId('dg-node'));
@@ -637,7 +715,11 @@
         ['hover','Наведение'],['focus','Фокус с клавиатуры']]){
         const opt=make('option',t);opt.value=v;modeSelect.append(opt);
       }
-      modeSelect.value=mode;modeSelect.addEventListener('change',()=>{mode=modeSelect.value;render();});
+      modeSelect.value=mode;modeSelect.addEventListener('change',()=>{
+        mode=modeSelect.value;
+        if(Object.hasOwn(PREVIEW_WIDTHS,mode))previewDevice=mode;
+        render();
+      });
       root.append(make('h3','Свойства · '+mode),modeSelect);
       const styleFields=make('div',undefined,'cms-design-fields');root.append(styleFields);
       const style=editStyle(n),limited=['hover','focus'].includes(mode);
@@ -739,6 +821,7 @@
         tokens[group][name]=group==='colors'?'#334455':16;render();
       });
       tokenDetails.append(addToken);root.append(tokenDetails);
+      paintVisual();
     }
     const apply=button('Применить в черновик','btn primary',()=>{
       try{
@@ -767,9 +850,9 @@
       if(!section.designGraph&&!confirm('Создать новую свободную композицию? Она заменит отображение этого блока, но его прежние данные сохранятся.'))return;
       graph=cp(section.designGraph||DESIGN_GRAPH.baseGraph(section.id));
       tokens=cp(session.current.designTokens||DESIGN_GRAPH.DEFAULT_TOKENS);
-      mode='desktop';selection=graph.nodes[0].id;
+      mode='desktop';previewDevice='desktop';selection=graph.nodes[0].id;
       title.textContent='Дизайн-композиция · '+(manifest(section)?.label||section.id);
-      render();dlg.showModal();
+      dlg.showModal();render();
     };
   }
 
