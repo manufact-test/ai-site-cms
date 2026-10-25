@@ -1,6 +1,6 @@
 # Design Factory — NEXT CHAT / independent developer handoff
 
-**Date:** 2026-10-24
+**Date:** 2026-10-25 (latest checkpoint appended below)
 **Repository:** https://github.com/manufact-test/ai-site-cms
 **Your working branch:** `feature/stage3-design-factory`
 **Sole writable subtree:** `stage3/design-factory/`
@@ -172,3 +172,16 @@ Latest source-level check used actual read-only lead contract blob `e3e0797632bd
 Test changes `41808b95d75ccadd2086aa89724b1122b35d2396`, `16cab27fee7d8e727e6775406f889de8332e696d`. For the first time in this project chat, **the complete optional `lead-design-graph-smoke.cjs` source test suite ran and PASSed** under an *isolated V8 emulation* of `node:assert/strict`, `node:path` and `node:fs` with real read-only GitHub SDK and independent branch source. Output confirmed 504 distinct validated lead candidates, 504 real lead JS renders, D6 immutability and legacy SDK rejection; PHP SKIP. Additional 4 focused synthetic valid-host cases for manual Graph copy, conflict, card reorder and exact discarded node confirmation passed. This is **NOT an actual local Node checkout execution** and not PHP/Chromium/visual acceptance. Latest read-only lead HEAD `aff9af003c4201c3393033703a3edd6f01fd425c`; latest changes touched Studio/docs not SDK. Node/Chrome remain environment-blocked (GitHub DNS inaccessible; minimal Chromium timed out).
 
 Next fastest steps: real checkout Node full release-audit + optional lead/PHP integration, visual QA Studio 54 captures at 1280/768/390, human/owner UI visual review and file-integrity ZIP+actual SHA256. Keep D7 OPEN, Stage2 NO-GO / Stage3 unaccepted / 0/135, do not merge or modify main, lead, SDK, PHP, Actions or production. Work only `stage3/design-factory/` on `feature/stage3-design-factory`.
+
+## Next-session checkpoint — 25 October 2026, three-block rebuild review
+
+Latest functional code checkpoint: `0b11c94fa536887c18a4b008d8f57c846fd14219`; re-read live HEAD before writing. Latest code adds `inspectRebuild(candidate, editedSite, hostSdk, registry)` and a structured visual diff. Read `handoffs/LEAD-REBUILD-CONTRACT-2026-10-25.md` first.
+
+**Three substantial blocks completed:**
+1. Read-only rebuild preview with exact discarded graph copy details, no-mutation guarantee and bounded input sizes.
+2. Full `42 compositions × 12 themes = 504` source matrix: 504/504 lead SDK validations, renders, no-op rebuilds and read-only preflights.
+3. Source-refresh rebuild tests for all 8 CMS component families, plus actionable preserved/created/reset/removed graph-node IDs for host UI review.
+
+Test output came from isolated V8 using real GitHub JS source and emulated Node core modules; it is **not** an actual checked-out Node process. PHP is SKIP; Chromium/54 PNG visual review and real ZIP SHA256 remain open. D7 OPEN; Stage2 NO-GO / Stage3 unaccepted / 0/135.
+
+Next priority: obtain a real checkout and run the existing Node release-audit plus this optional Lead suite; if available, run real PHP DesignGraph parity. Then capture 54 real 1280/768/390 screenshots, review them visually with the owner, and produce a source-byte-identical ZIP with archive integrity and a genuine SHA256. Continue only in `stage3/design-factory/` on `feature/stage3-design-factory`. No merge, no main/lead SDK/PHP/workflow/production changes.
