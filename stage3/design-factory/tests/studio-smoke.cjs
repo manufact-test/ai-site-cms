@@ -14,6 +14,72 @@ const read=name=>fs.readFileSync(path.join(studio,name),'utf8');
 const bundle=read('runtime.generated.js'),app=read('studio.js'),markup=read('index.html'),css=read('studio.css');
 const build=cp.spawnSync(process.execPath,[path.join(root,'bin/build-browser-bundle.cjs'),'--check'],{encoding:'utf8'});
 assert.equal(build.status,0,'Browser bundle must match actual local CMS source: '+build.stderr);
+// Regression: the bundle writer must not follow a generated-file symlink out of
+// its owned subtree, and must not mutate an external file through a hard link.
+{
+ const temp=fs.mkdtempSync(path.join(os.tmpdir(),'df-bundle-output-guard-'));
+ const fixtureRoot=path.join(temp,'repo');
+ const fixtureDf=path.join(fixtureRoot,'stage3/design-factory');
+ const fixtureFiles=[
+  'bin/build-browser-bundle.cjs','lib/compiler.cjs','lib/preview.cjs',
+  'catalog/themes.cjs','catalog/kits.cjs','catalog/compositions.cjs',
+  'lib/composition-adapter.cjs','lib/bridge.cjs'
+ ];
+ const manifestIds=['company-hero','contact-panel','cta-banner','faq-accordion',
+  'feature-highlights','service-grid','media-story','photo-gallery'];
+ const sentinel=path.join(temp,'outside-sentinel.js');
+ const target=path.join(fixtureDf,'studio/runtime.generated.js');
+ const sentinelText='EXTERNAL_SENTINEL_MUST_REMAIN_UNCHANGED';
+ try{
+  for(const relative of fixtureFiles){
+   const from=path.join(root,relative),to=path.join(fixtureDf,relative);
+   fs.mkdirSync(path.dirname(to),{recursive:true});fs.copyFileSync(from,to);
+  }
+  const sdkTo=path.join(fixtureRoot,'stage3/sdk/contract.cjs');
+  fs.mkdirSync(path.dirname(sdkTo),{recursive:true});
+  fs.copyFileSync(path.resolve(root,'../sdk/contract.cjs'),sdkTo);
+  const manifestsTo=path.join(fixtureRoot,'stage3/components');
+  fs.mkdirSync(manifestsTo,{recursive:true});
+  for(const id of manifestIds)
+   fs.copyFileSync(path.resolve(root,'../components/'+id+'.json'),path.join(manifestsTo,id+'.json'));
+  fs.mkdirSync(path.dirname(target),{recursive:true});
+  fs.writeFileSync(sentinel,sentinelText);
+  let symlinkSupported=true;
+  try{fs.symlinkSync(sentinel,target,'file');}
+  catch(error){
+   if(['EPERM','EACCES','ENOTSUP','EINVAL'].includes(error.code))symlinkSupported=false;
+   else throw error;
+  }
+  const builderPath=path.join(fixtureDf,'bin/build-browser-bundle.cjs');
+  if(symlinkSupported){
+   for(const args of [[],['--check']]){
+    const result=cp.spawnSync(process.execPath,[builderPath,...args],{encoding:'utf8',timeout:10000});
+    assert.notEqual(result.status,0,'Bundle builder must refuse a symlinked output target: '+args.join(' '));
+    assert.equal(fs.readFileSync(sentinel,'utf8'),sentinelText);
+   }
+   fs.unlinkSync(target);
+  }
+  // A missing generated file is a valid build target and must be created.
+  const missingTargetBuild=cp.spawnSync(process.execPath,[builderPath],{encoding:'utf8',timeout:10000});
+  assert.equal(missingTargetBuild.status,0,'Bundle builder must create a missing regular target: '+missingTargetBuild.stderr);
+  assert.ok(fs.readFileSync(target,'utf8').startsWith('/* Design Factory D5 first-party browser bundle.'));
+  assert.equal(fs.readFileSync(sentinel,'utf8'),sentinelText);
+  fs.unlinkSync(target);
+  let hardlinkSupported=true;
+  try{fs.linkSync(sentinel,target);}
+  catch(error){
+   if(['EPERM','EACCES','ENOTSUP','EINVAL','EMLINK'].includes(error.code))hardlinkSupported=false;
+   else throw error;
+  }
+  if(hardlinkSupported){
+   const result=cp.spawnSync(process.execPath,[builderPath],{encoding:'utf8',timeout:10000});
+   assert.equal(result.status,0,'Bundle builder must safely replace a hard-linked target: '+result.stderr);
+   assert.equal(fs.readFileSync(sentinel,'utf8'),sentinelText,
+    'Atomic replacement must not mutate an external hard-link target');
+   assert.ok(fs.readFileSync(target,'utf8').startsWith('/* Design Factory D5 first-party browser bundle.'));
+  }
+ }finally{fs.rmSync(temp,{recursive:true,force:true});}
+}
 new Function(app);
 assert.ok(markup.includes('runtime.generated.js')&&markup.includes('studio.js'));
 assert.ok(!/@import|url\(\s*["']?https?:\/\//i.test(css));

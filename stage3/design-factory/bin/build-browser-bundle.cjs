@@ -2,7 +2,16 @@
 'use strict';
 // Deterministic browser bundle generation; use only explicitly allowlisted first-party files.
 const fs=require('node:fs'),path=require('node:path');
-const base=path.resolve(__dirname,'../../..');
+const requestedBase=path.resolve(__dirname,'../../..');
+const base=fs.realpathSync(requestedBase);
+// The generated bundle is the only output this script writes. Refuse symlinked
+// directory components before reading or replacing it; a symlink here could
+// redirect a build outside the independently owned Design Factory subtree.
+for(const relative of ['stage3','stage3/design-factory','stage3/design-factory/studio']){
+ const directory=path.join(base,relative),stat=fs.lstatSync(directory);
+ if(stat.isSymbolicLink()||!stat.isDirectory())
+  throw Error('Unsafe browser bundle output directory: '+relative);
+}
 const sources={
  sdk:'stage3/sdk/contract.cjs',
  compiler:'stage3/design-factory/lib/compiler.cjs',
@@ -45,10 +54,30 @@ const header=[
  ''
 ].join('\n');
 const target=path.join(base,'stage3/design-factory/studio/runtime.generated.js');
+function assertTarget(allowMissing){
+ try{
+  const stat=fs.lstatSync(target);
+  if(stat.isSymbolicLink()||!stat.isFile())
+   throw Error('Browser bundle target must be a regular non-symlink file');
+ }catch(error){
+  if(error.code==='ENOENT'&&allowMissing)return;
+  throw error;
+ }
+}
 if(process.argv.includes('--check')){
+ assertTarget(false);
  if(fs.readFileSync(target,'utf8')!==header){console.error('Browser bundle does not match current source');process.exitCode=1;}
  else console.log('Design Factory browser bundle verified');
 }else{
- fs.writeFileSync(target,header);
- console.log('Built '+target+' ('+header.length+' characters)');
+ assertTarget(true);
+ // Rename a same-directory temporary file instead of truncating the target:
+ // even a hard-linked target cannot cause writes to an external inode.
+ const temporary=path.join(path.dirname(target),'.runtime.generated.'+process.pid+'.tmp');
+ try{
+  fs.writeFileSync(temporary,header,{flag:'wx',mode:0o600});
+  fs.renameSync(temporary,target);
+  console.log('Built '+target+' ('+header.length+' characters)');
+ }finally{
+  if(fs.existsSync(temporary))fs.unlinkSync(temporary);
+ }
 }
