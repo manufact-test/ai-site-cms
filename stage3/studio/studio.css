@@ -93,4 +93,7 @@
 #cms-design-visual-hint{font-size:12px;line-height:1.5;min-height:35px;overflow-wrap:anywhere}
 .cms-design-graph-editor{min-width:0;max-height:60vh;overflow:auto;scrollbar-gutter:stable;padding-right:5px}
 .cms-design-graph-dialog .cms-appearance-actions{margin-top:0}
+#cms-design-undo,#cms-design-redo{white-space:nowrap}
+#cms-design-undo:disabled,#cms-design-redo:disabled{opacity:.42;cursor:not-allowed}
+#cms-design-visual-stage{touch-action:pan-x pan-y}
 @media(max-width:780px){.cms-design-workspace{grid-template-columns:minmax(0,1fr)}.cms-design-graph-editor{max-height:50vh}#cms-design-visual-stage{max-height:350px}}

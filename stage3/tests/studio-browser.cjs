@@ -329,9 +329,73 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#cms-design-breakpoint').inputValue(),'mobile');
     await page.locator('.cms-design-device-tools [data-design-device="desktop"]').click();
     assert.equal(await page.locator('#cms-design-breakpoint').inputValue(),'desktop');
+    assert.equal(await page.locator('#cms-design-undo').isDisabled(),true);
+    assert.equal(await page.locator('#cms-design-redo').isDisabled(),true);
+    // Drag a node to a sibling's far edge: this is a real canvas reorder.
+    const titleNode=designFrame.locator('.cmsdg-n-'+selectedSection+'-title');
+    const copyNode=designFrame.locator('.cmsdg-n-'+selectedSection+'-copy');
+    const titleBox=await titleNode.boundingBox(),copyBox=await copyNode.boundingBox();
+    await page.mouse.move(titleBox.x+titleBox.width/2,titleBox.y+titleBox.height/2);
+    await page.mouse.down();
+    await page.mouse.move(copyBox.x+copyBox.width-3,copyBox.y+copyBox.height/2,{steps:8});
+    await page.mouse.up();
+    await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').waitFor();
+    let order=await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').evaluate(e=>
+      Array.from(e.parentElement.children).map(x=>x.className.match(/cmsdg-n-([^ ]+)/)?.[1]));
+    assert.ok(order.indexOf(selectedSection+'-copy')<order.indexOf(selectedSection+'-title'),
+      'Dragging a node reorders siblings in the graph');
+    await page.locator('#cms-design-undo').click();
+    await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').waitFor();
+    order=await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').evaluate(e=>
+      Array.from(e.parentElement.children).map(x=>x.className.match(/cmsdg-n-([^ ]+)/)?.[1]));
+    assert.ok(order.indexOf(selectedSection+'-title')<order.indexOf(selectedSection+'-copy'),
+      'Undo restores the previous tree order');
+    await page.locator('#cms-design-redo').click();
+    await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').waitFor();
+    order=await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').evaluate(e=>
+      Array.from(e.parentElement.children).map(x=>x.className.match(/cmsdg-n-([^ ]+)/)?.[1]));
+    assert.ok(order.indexOf(selectedSection+'-copy')<order.indexOf(selectedSection+'-title'),
+      'Redo reapplies the tree order');
+    // Alt-drag applies a snapped, breakpoint-aware translation without changing structure.
+    await page.keyboard.down('Alt');
+    const movedBox=await titleNode.boundingBox();
+    await page.mouse.move(movedBox.x+movedBox.width/2,movedBox.y+movedBox.height/2);
+    await page.mouse.down();
+    await page.mouse.move(movedBox.x+movedBox.width/2+24,movedBox.y+movedBox.height/2+16,{steps:6});
+    await page.mouse.up();
+    await page.keyboard.up('Alt');
+    await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').waitFor();
+    assert.notEqual(await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').evaluate(e=>getComputedStyle(e).translate),'none',
+      'Alt-drag creates a free-positioning transform');
+    // Resize handles commit width/height into the active breakpoint's typed style.
+    const resizeHandle=designFrame.locator('.cms-design-resize-handle[data-resize-dir="se"]');
+    await resizeHandle.waitFor();
+    const handleBox=await resizeHandle.boundingBox();
+    await page.mouse.move(handleBox.x+handleBox.width/2,handleBox.y+handleBox.height/2);
+    await page.mouse.down();
+    await page.mouse.move(handleBox.x+handleBox.width/2+40,handleBox.y+handleBox.height/2+24,{steps:6});
+    await page.mouse.up();
+    await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').waitFor();
+    assert.ok(await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').evaluate(e=>e.getBoundingClientRect().width)>0,
+      'Canvas resize is reflected in the rendered element');
+    await page.locator('.cms-design-device-tools [data-design-device="mobile"]').click();
+    await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
+    const mobileResize=designFrame.locator('.cms-design-resize-handle[data-resize-dir="e"]');
+    await mobileResize.waitFor();
+    const mobileHandleBox=await mobileResize.boundingBox();
+    await page.mouse.move(mobileHandleBox.x+mobileHandleBox.width/2,mobileHandleBox.y+mobileHandleBox.height/2);
+    await page.mouse.down();
+    await page.mouse.move(mobileHandleBox.x+mobileHandleBox.width/2-16,mobileHandleBox.y+mobileHandleBox.height/2,{steps:4});
+    await page.mouse.up();
+    await page.locator('.cms-design-device-tools [data-design-device="desktop"]').click();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
     const copy=page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'Текст'}).locator('textarea');
     await copy.fill('Новый профессиональный дизайн без ИИ');
+    await designFrame.locator('.cmsdg h2').getByText('Новый профессиональный дизайн без ИИ').waitFor();
+    assert.equal(await page.locator('#cms-design-undo').isDisabled(),false);
+    await page.locator('#cms-design-undo').click();
+    await designFrame.locator('.cmsdg h2').getByText('Ваш уникальный заголовок').waitFor();
+    await page.locator('#cms-design-redo').click();
     await designFrame.locator('.cmsdg h2').getByText('Новый профессиональный дизайн без ИИ').waitFor();
     // Preview navigation is inert even when a generated button has an href.
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');

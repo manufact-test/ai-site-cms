@@ -49,3 +49,8 @@ Existing `.github/workflows/stage3-ai-contract.yml` verifies SDK/recipes/bundle,
 Next: manual licensing/reminders/pause/resume ADR0012 using owner roles and audit; then remaining rich components/forms/media, global styles, SEO/navigation/repeaters, production adapters/migrations and cohesive UX. No requirement acceptance inferred from CI.
 
 **Accelerated workflow:** one continue = a large complete useful feature group, minimum necessary checks, no repeated polishing/testing of unfinished demos. Documentation only on explicit owner handoff request.
+
+
+### Visual Design Graph editor
+
+The isolated Design Graph editor supports canvas selection, desktop/tablet/mobile previews, drag-to-reorder/reparent, Alt-drag free positioning, 8 px snapped resize handles, breakpoint-specific size overrides, and graph-local undo/redo. See [AI-DESIGN-COMPOSITION.md](docs/AI-DESIGN-COMPOSITION.md) for the safety boundaries and E2E coverage. This does not imply Stage 2 acceptance or Design Factory D7 lossless compatibility.

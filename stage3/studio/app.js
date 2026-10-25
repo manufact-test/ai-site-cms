@@ -477,7 +477,63 @@
     dlg.append(title,info,toolbar,workspace,footer);
     document.body.append(dlg);
     let graph,tokens,selection,mode='desktop',sourcePage,sourceSection,previewDevice='desktop';
+    let undoStack=[],redoStack=[],activeGesture=null,suppressPreviewClick=false;
     const PREVIEW_WIDTHS={desktop:1200,tablet:780,mobile:390};
+    const snapshot=()=>JSON.stringify({graph,tokens,selection,mode,previewDevice});
+    const updateHistoryButtons=()=>{
+      const undo=toolbar.querySelector('#cms-design-undo'),redo=toolbar.querySelector('#cms-design-redo');
+      if(undo)undo.disabled=!undoStack.length;
+      if(redo)redo.disabled=!redoStack.length;
+    };
+    const recordHistory=(entry=snapshot())=>{
+      undoStack.push(entry);
+      if(undoStack.length>80)undoStack.shift();
+      redoStack=[];updateHistoryButtons();
+    };
+    const restoreHistory=(from,to)=>{
+      if(!from.length)return;
+      to.push(snapshot());
+      const state=JSON.parse(from.pop());
+      graph=state.graph;tokens=state.tokens;selection=state.selection;
+      mode=state.mode;previewDevice=state.previewDevice||'desktop';
+      render();
+    };
+    const undoGraph=()=>restoreHistory(undoStack,redoStack);
+    const redoGraph=()=>restoreHistory(redoStack,undoStack);
+    const nodeIdFromElement=element=>
+      element&&Array.from(element.classList||[]).find(name=>name.startsWith('cmsdg-n-'))?.slice(8);
+    const drawResizeHandles=()=>{
+      const doc=previewFrame.contentDocument;
+      if(!doc)return;
+      doc.querySelector('.cms-design-resize-overlay')?.remove();
+      if(!['desktop','tablet','mobile'].includes(mode))return;
+      const row=all().find(item=>item.node.id===selection);
+      const node=doc.querySelector('.cmsdg-n-'+selection);
+      if(!row||!node)return;
+      const rect=node.getBoundingClientRect();
+      if(rect.width<8||rect.height<8)return;
+      const overlay=doc.createElement('div');
+      overlay.className='cms-design-resize-overlay';
+      Object.assign(overlay.style,{position:'fixed',zIndex:'2147483647',left:rect.left+'px',
+        top:rect.top+'px',width:rect.width+'px',height:rect.height+'px',
+        boxSizing:'border-box',border:'1px dashed #e88622',pointerEvents:'none'});
+      const handles=[
+        ['e','calc(100% - 8px)','calc(50% - 8px)','ew-resize'],
+        ['s','calc(50% - 8px)','calc(100% - 8px)','ns-resize'],
+        ['se','calc(100% - 8px)','calc(100% - 8px)','nwse-resize']
+      ];
+      for(const [dir,left,top,cursor] of handles){
+        const handle=doc.createElement('div');
+        handle.className='cms-design-resize-handle';handle.dataset.resizeDir=dir;
+        handle.setAttribute('role','presentation');handle.title='Изменить размер · сетка 8 px';
+        Object.assign(handle.style,{position:'absolute',left,top,width:'16px',height:'16px',
+          boxSizing:'border-box',border:'2px solid #fff',borderRadius:'50%',
+          background:'#e88622',boxShadow:'0 1px 5px #10203080',cursor,
+          pointerEvents:'auto',touchAction:'none'});
+        overlay.append(handle);
+      }
+      doc.body.append(overlay);
+    };
     const syncVisualSelection=()=>{
       const doc=previewFrame.contentDocument;
       if(!doc)return;
@@ -487,20 +543,164 @@
       for(const old of doc.querySelectorAll('[data-cms-design-selected]')){
         if(old!==node)old.removeAttribute('data-cms-design-selected');
       }
+      drawResizeHandles();
+    };
+    const suppressGestureClick=()=>{
+      suppressPreviewClick=true;
+      window.requestAnimationFrame(()=>{suppressPreviewClick=false;});
+    };
+    const clearDropIndicators=doc=>{
+      for(const node of doc.querySelectorAll('.cms-design-drop-before,.cms-design-drop-after,.cms-design-drop-inside,.cms-design-dragging'))
+        node.classList.remove('cms-design-drop-before','cms-design-drop-after','cms-design-drop-inside','cms-design-dragging');
+    };
+    const updateOverlayRect=(doc,node)=>{
+      const overlay=doc.querySelector('.cms-design-resize-overlay');
+      if(!overlay||!node)return;
+      const rect=node.getBoundingClientRect();
+      Object.assign(overlay.style,{left:rect.left+'px',top:rect.top+'px',
+        width:rect.width+'px',height:rect.height+'px'});
     };
     previewFrame.addEventListener('load',()=>{
       const doc=previewFrame.contentDocument;
       if(!doc)return;
       const selectFromPreview=event=>{
-        // Links and videos cannot navigate or start playback while selecting.
+        if(suppressPreviewClick){
+          event.preventDefault();event.stopImmediatePropagation();suppressPreviewClick=false;return;
+        }
+        // Links, form submits and videos stay inert in the selection-only canvas.
         event.preventDefault();
+        if(event.target?.closest?.('.cms-design-resize-handle'))return;
         const target=event.target?.closest?.('[class*="cmsdg-n-"]');
-        const id=target&&Array.from(target.classList).find(x=>x.startsWith('cmsdg-n-'))?.slice(8);
+        const id=nodeIdFromElement(target);
         if(id&&all().some(row=>row.node.id===id)){
           selection=id;
           render();
         }
       };
+      doc.addEventListener('pointerdown',event=>{
+        if(activeGesture)return;
+        const handle=event.target?.closest?.('.cms-design-resize-handle');
+        if(handle){
+          if(!['desktop','tablet','mobile'].includes(mode))return;
+          const row=all().find(item=>item.node.id===selection);
+          const target=doc.querySelector('.cmsdg-n-'+selection);
+          if(!row||!target)return;
+          event.preventDefault();event.stopPropagation();
+          const rect=target.getBoundingClientRect();
+          activeGesture={kind:'resize',pointerId:event.pointerId,nodeId:selection,target,
+            dir:handle.dataset.resizeDir,startX:event.clientX,startY:event.clientY,
+            startWidth:rect.width,startHeight:rect.height,width:rect.width,height:rect.height,changed:false};
+          try{handle.setPointerCapture(event.pointerId);}catch(_){}
+          return;
+        }
+        const target=event.target?.closest?.('[class*="cmsdg-n-"]');
+        const id=nodeIdFromElement(target),row=all().find(item=>item.node.id===id);
+        if(!row)return;
+        event.preventDefault();
+        selection=id;
+        const base=row.node.styles||{},bp=(mode==='tablet'||mode==='mobile')?(row.node.responsive?.[mode]||{}):{};
+        activeGesture={kind:event.altKey&&!['hover','focus'].includes(mode)?'translate':'move',
+          pointerId:event.pointerId,nodeId:id,target,startX:event.clientX,startY:event.clientY,
+          startTranslateX:Number(bp.translateX??base.translateX??0),
+          startTranslateY:Number(bp.translateY??base.translateY??0),
+          dragging:false,candidateId:null,placement:null,changed:false};
+        try{target.setPointerCapture(event.pointerId);}catch(_){}
+        syncVisualSelection();
+      },true);
+      doc.addEventListener('pointermove',event=>{
+        const g=activeGesture;
+        if(!g||g.pointerId!==event.pointerId)return;
+        const dx=event.clientX-g.startX,dy=event.clientY-g.startY;
+        if(g.kind==='resize'){
+          event.preventDefault();
+          const width=Math.max(8,Math.min(1920,g.startWidth+(g.dir.includes('e')?Math.round(dx/8)*8:0)));
+          const height=Math.max(8,Math.min(1400,g.startHeight+(g.dir.includes('s')?Math.round(dy/8)*8:0)));
+          g.width=Math.round(width);g.height=Math.round(height);
+          g.changed=(g.dir.includes('e')&&Math.abs(g.width-g.startWidth)>=1)||
+            (g.dir.includes('s')&&Math.abs(g.height-g.startHeight)>=1);
+          if(g.dir.includes('e'))g.target.style.width=g.width+'px';
+          if(g.dir.includes('s'))g.target.style.height=g.height+'px';
+          updateOverlayRect(doc,g.target);
+          visualHint.textContent='Размер: '+g.width+' × '+g.height+' px · изменение привязано к режиму '+mode+' · сетка 8 px';
+          return;
+        }
+        if(Math.hypot(dx,dy)<6&&!g.dragging)return;
+        g.dragging=true;event.preventDefault();
+        if(g.kind==='translate'){
+          doc.body.style.userSelect='none';
+          const tx=Math.max(-600,Math.min(600,g.startTranslateX+Math.round(dx/8)*8));
+          const ty=Math.max(-600,Math.min(600,g.startTranslateY+Math.round(dy/8)*8));
+          g.translateX=tx;g.translateY=ty;g.changed=tx!==g.startTranslateX||ty!==g.startTranslateY;
+          g.target.style.translate=tx+'px '+ty+'px';
+          updateOverlayRect(doc,g.target);
+          visualHint.textContent='Свободное смещение: X '+tx+' px · Y '+ty+' px · сетка 8 px';
+          return;
+        }
+        clearDropIndicators(doc);doc.body.style.userSelect='none';
+        g.target.classList.add('cms-design-dragging');
+        const hovered=doc.elementFromPoint(event.clientX,event.clientY)?.closest?.('[class*="cmsdg-n-"]');
+        const targetId=nodeIdFromElement(hovered);
+        const source=all().find(item=>item.node.id===g.nodeId);
+        const blocked=source?new Set(subtreeIds(source.node)) : new Set();
+        const targetRow=all().find(item=>item.node.id===targetId);
+        if(!hovered||!targetRow||blocked.has(targetId)){
+          g.candidateId=null;g.placement=null;
+          visualHint.textContent='Перетащите на другой элемент; внутрь контейнера — для вложенности';
+          return;
+        }
+        const rect=hovered.getBoundingClientRect();
+        const x=rect.width?(event.clientX-rect.left)/rect.width:.5;
+        const y=rect.height?(event.clientY-rect.top)/rect.height:.5;
+        const parentStyle=doc.defaultView.getComputedStyle(hovered.parentElement);
+        const gridColumns=(parentStyle.gridTemplateColumns||'').trim().split(/\s+/).filter(Boolean);
+        const horizontal=(parentStyle.display==='flex'&&parentStyle.flexDirection.startsWith('row'))||
+          (parentStyle.display==='grid'&&gridColumns.length>1);
+        let placement;
+        if(targetRow.node.type==='container'&&x>.22&&x<.78&&y>.22&&y<.78)placement='inside';
+        else placement=(horizontal?x:y)<.5?'before':'after';
+        g.candidateId=targetId;g.placement=placement;
+        hovered.classList.add('cms-design-drop-'+placement);
+        visualHint.textContent='Отпустите, чтобы переместить '+(placement==='inside'?'внутрь':placement==='before'?'перед':'после')+' выбранного узла';
+      },true);
+      doc.addEventListener('pointerup',event=>{
+        const g=activeGesture;
+        if(!g||g.pointerId!==event.pointerId)return;
+        activeGesture=null;
+        if(g.kind==='resize'){
+          event.preventDefault();suppressGestureClick();
+          if(g.changed){
+            const row=all().find(item=>item.node.id===g.nodeId);
+            if(row){
+              recordHistory();
+              const style=editStyle(row.node);
+              if(g.dir.includes('e')){delete style.widthPercent;style.widthPx=g.width;}
+              if(g.dir.includes('s'))style.heightPx=g.height;
+            }
+          }
+          render();return;
+        }
+        if(g.kind==='translate'){
+          if(!g.dragging)return;
+          doc.body.style.userSelect='';suppressGestureClick();
+          const row=all().find(item=>item.node.id===g.nodeId);
+          if(g.changed&&row){
+            recordHistory();
+            const style=editStyle(row.node);
+            style.translateX=g.translateX;style.translateY=g.translateY;
+          }
+          render();return;
+        }
+        if(!g.dragging)return;
+        event.preventDefault();doc.body.style.userSelect='';suppressGestureClick();clearDropIndicators(doc);
+        if(g.candidateId&&g.placement){
+          changeTree({action:'move',nodeId:g.nodeId,targetId:g.candidateId,placement:g.placement},g.nodeId);
+          visualHint.textContent='Элемент перемещён. Отменить можно кнопкой «Отменить».';
+        }else render();
+      },true);
+      doc.addEventListener('pointercancel',()=>{
+        if(!activeGesture)return;
+        activeGesture=null;doc.body.style.userSelect='';clearDropIndicators(doc);render();
+      },true);
       doc.addEventListener('click',selectFromPreview,true);
       doc.addEventListener('submit',e=>e.preventDefault(),true);
       doc.addEventListener('keydown',e=>{
@@ -514,7 +714,8 @@
     });
     const changeTree=(operation,selectId)=>{
       try{
-        graph=DESIGN_GRAPH.editTree(graph,operation);
+        const next=DESIGN_GRAPH.editTree(graph,operation);
+        recordHistory();graph=next;
         if(selectId)selection=selectId;
         render();
       }catch(error){notice('Структура не изменена: '+error.message,true);}
@@ -536,7 +737,12 @@
         const option=make('option',t);option.value=v;input.append(option);
       }else if(type!=='multiline')input.type=type==='number'?'number':'text';
       input.value=type==='select'?value.initial:String(value??'');
-      input.addEventListener('input',()=>{change(input.value);paintVisual();});
+      let editBefore=null,editValue=input.value,editRecorded=false;
+      input.addEventListener('focus',()=>{editBefore=snapshot();editValue=input.value;editRecorded=false;});
+      input.addEventListener('input',()=>{
+        if(!editRecorded&&input.value!==editValue){recordHistory(editBefore||snapshot());editRecorded=true;}
+        change(input.value);paintVisual();
+      });
       wrap.append(input);return wrap;
     };
     const all=()=>{
@@ -576,7 +782,7 @@
           assetId=>HOSTED?window.Stage3Host?.videoUrl?.(assetId):null);
         previewFrame.srcdoc='<!doctype html><html lang="ru"><head><meta charset="utf-8">'+
           '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; img-src &#39;self&#39; data: blob:; media-src &#39;self&#39; blob:; connect-src &#39;none&#39;; form-action &#39;none&#39;; object-src &#39;none&#39;; frame-src &#39;none&#39;">'+
-          '<style>html,body{margin:0;background:#fff;color:#182b3d;font:16px system-ui,Arial,sans-serif}body{padding:12px;min-width:0}.cmsdg{position:relative}.cmsdg [class*="cmsdg-n-"]{cursor:crosshair}.cmsdg [class*="cmsdg-n-"]:hover{outline:2px dashed #1868d3!important;outline-offset:2px}.cmsdg .cms-design-picked{outline:3px solid #e88622!important;outline-offset:3px}</style>'+
+          '<style>html,body{margin:0;background:#fff;color:#182b3d;font:16px system-ui,Arial,sans-serif}body{padding:12px;min-width:0}.cmsdg{position:relative}.cmsdg [class*="cmsdg-n-"]{cursor:grab;touch-action:none}.cmsdg [class*="cmsdg-n-"]:hover{outline:2px dashed #1868d3!important;outline-offset:2px}.cmsdg .cms-design-picked{outline:3px solid #e88622!important;outline-offset:3px}.cmsdg .cms-design-dragging{opacity:.42!important;cursor:grabbing}.cmsdg .cms-design-drop-before{box-shadow:inset 0 4px #e88622!important}.cmsdg .cms-design-drop-after{box-shadow:inset 0 -4px #e88622!important}.cmsdg .cms-design-drop-inside{outline:3px solid #16865b!important;outline-offset:3px}.cms-design-resize-overlay{pointer-events:none}</style>'+
           '</head><body>'+html+'</body></html>';
         visualHint.textContent='Щёлкните по элементу макета · Изменения видны без сохранения и публикации';
       }catch(error){
@@ -601,6 +807,9 @@
       const action=(name,fn)=>{
         const b=button(name,'btn small',fn);toolbar.append(b);return b;
       };
+      const undoButton=action('↶ Отменить',undoGraph);undoButton.id='cms-design-undo';
+      const redoButton=action('↷ Повторить',redoGraph);redoButton.id='cms-design-redo';
+      updateHistoryButtons();
       action('+ Вложенный',()=>{
         if(n.type!=='container')return notice('Для вложенности выберите контейнер',true);
         const node={id:uniqueId('dg-node'),type:'text',text:'Новый текст',styles:{}};
@@ -781,7 +990,10 @@
            if(style.gradient?.via)style.gradient.viaAt=Number(v);
          },'number')
       );
-      const dropGradient=button('Удалить градиент','btn small',()=>{delete style.gradient;render();});
+      const dropGradient=button('Удалить градиент','btn small',()=>{
+        if(!style.gradient)return;
+        recordHistory();delete style.gradient;render();
+      });
       gradient.append(gradientFields,dropGradient);root.append(gradient);
       const motionBox=make('details');motionBox.id='cms-design-motion';
       motionBox.append(make('summary','Анимация элемента · учитывает reduced motion'));
@@ -797,7 +1009,10 @@
         ctl('Задержка, мс',String(motion.delay),v=>changeMotion('delay',Number(v)),'number')
       );
       motionBox.append(motionFields,
-        button('Без анимации','btn small',()=>{delete n.motion;render();}));
+        button('Без анимации','btn small',()=>{
+          if(!n.motion)return;
+          recordHistory();delete n.motion;render();
+        }));
       root.append(motionBox);
       const tokenDetails=make('details');const tokenSummary=make('summary','Общие дизайн-токены сайта');
       tokenDetails.append(tokenSummary);
@@ -818,7 +1033,7 @@
         const name=prompt('Название токена, латиница и дефисы','custom');
         if(name===null)return;
         if(!/^[a-z][a-z0-9-]{1,39}$/.test(name))return notice('Некорректное имя',true);
-        tokens[group][name]=group==='colors'?'#334455':16;render();
+        recordHistory();tokens[group][name]=group==='colors'?'#334455':16;render();
       });
       tokenDetails.append(addToken);root.append(tokenDetails);
       paintVisual();
@@ -843,7 +1058,7 @@
       structural({action:'updateDesignGraph',pageId:selected.page.id,sectionId:selected.section.id,designGraph:null});
       dlg.close();
     });
-    const close=button('Закрыть','btn',()=>dlg.close());
+    const close=button('Закрыть','btn',()=>{activeGesture=null;dlg.close();});
     footer.append(apply,remove,close);
     return ()=>{
       const {page,section}=current();sourcePage=page.id;sourceSection=section.id;
@@ -851,6 +1066,7 @@
       graph=cp(section.designGraph||DESIGN_GRAPH.baseGraph(section.id));
       tokens=cp(session.current.designTokens||DESIGN_GRAPH.DEFAULT_TOKENS);
       mode='desktop';previewDevice='desktop';selection=graph.nodes[0].id;
+      undoStack=[];redoStack=[];activeGesture=null;suppressPreviewClick=false;
       title.textContent='Дизайн-композиция · '+(manifest(section)?.label||section.id);
       dlg.showModal();render();
     };

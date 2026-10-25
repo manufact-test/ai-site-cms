@@ -80,3 +80,17 @@ The embedded iframe is distinct from the published/full-page preview. It is `san
 The preview iframe uses real viewport widths **1200, 780, and 390 px** so the existing `max-width:900px` and `max-width:600px` style layers are visually observable. Its viewport is scaled for the available dialog width, not simulated by changing outer page CSS. Invalid intermediate inspector values show a preview validation message without replacing the saved session or allowing unvalidated publish. Moving up/down is now handled through the same atomic `editTree` move operations used by other structural commands.
 
 Browser E2E covers direct heading selection, DOM selection marker, responsive viewport/mode sync, immediate preview updates, edit persistence, undo/redo, and no unexpected network requests. This is not yet freeform drag/drop resizing or Factory D7 lossless WYSIWYG parity.
+
+
+## Direct canvas manipulation and graph-local history (2026-10-25)
+
+The Design Graph inspector now supports a complete direct-manipulation pass without enabling executable page code:
+
+- **Drag and drop:** drag a node to another node's leading/trailing edge to reorder it, or into the central area of a container to reparent it. Invalid drops into the node's own subtree are ignored; the same validated atomic `editTree` operation performs the move.
+- **Free positioning:** hold **Alt** while dragging a node to adjust `translateX`/`translateY`. Deltas snap to an 8 px grid and remain bounded by the closed style schema. Normal drag continues to mean tree reorder/reparent.
+- **Resize handles:** the right, bottom and bottom-right handles set validated `widthPx`/`heightPx` values, with an 8 px snap increment and schema-range clamping. When tablet/mobile mode is active, the dimensions are stored in that breakpoint's override rather than overwriting desktop values. A width resize removes a competing `widthPercent` in the same style layer.
+- **Undo / redo:** each structural drag, resize, free-position gesture, and first edit in a focused inspector control creates one graph-local history entry. Undo/redo restores the complete graph, token set, selected node, breakpoint and preview device. The history is bounded to 80 entries per editor session and resets on open. This complements, rather than replaces, the outer CMS draft/save/publish history.
+- **Safety:** the preview iframe remains `sandbox="allow-same-origin"` without `allow-scripts`; the CSP still blocks scripts, network connections, forms, objects and nested frames. The parent attaches pointer handlers to the trusted rendered DOM; no script is injected into the iframe. Links and media remain selection-only.
+- **Verification:** the Chromium suite now exercises sibling reordering, graph undo/redo, Alt-drag translation, desktop and mobile resize handles, existing breakpoint editing, text editing and apply-to-draft persistence.
+
+Snapping applies to direct drag deltas; the underlying stored values remain numeric CSS pixels. This remains a typed composition editor, not arbitrary HTML/CSS authoring. The editor does not yet promise lossless import/export with Design Factory D7, and direct free-positioning is intentionally a translation rather than absolute-layout conversion.
