@@ -401,7 +401,7 @@ function buildHostCandidate(exportBundle,hostSdk,hostRegistry){
 // changes repeater shape, uploads media or changes CTA source selection.
 // This does NOT authorize an edit, save revisions, publish, invoke AI or
 // merge changed data into another page. Host must authorize/lock revisions.
-function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry){
+function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry,options={}){
  if(!candidate||candidate.format!==FORMAT||candidate.version!==1||
     !candidate.mapping||candidate.mapping.semanticContentMode!=='snapshot-requires-host-reconciliation')
   fail('Expected existing host candidate');
@@ -436,18 +436,55 @@ function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry){
  // cards whose item identity at that ordinal changed (remove/reorder).
  // Structural edits and source content use CMS authority, never stale graph
  // text or href. Rebuild report makes visual resets reviewable by the host.
- const previousNodes=new Map(),currentIds=new Set();
+ if(!options||typeof options!=='object'||Array.isArray(options)||
+    Object.keys(options).some(k=>k!=='acceptedDiscardedNodes')||
+    (own(options,'acceptedDiscardedNodes')&&(
+     !Array.isArray(options.acceptedDiscardedNodes)||
+     options.acceptedDiscardedNodes.some(id=>typeof id!=='string'))))
+  fail('Invalid explicit rebuild review options');
+ const previousNodes=new Map(),baselineNodes=new Map(),newNodeIds=new Set();
  const walk=(items,cb)=>{for(const node of items){cb(node);walk(node.children||[],cb);}};
  walk(current.designGraph.nodes,node=>previousNodes.set(node.id,node));
+ walk(before.designGraph.nodes,node=>baselineNodes.set(node.id,node));
  const oldItems=before.items||[],newItems=current.items||[];
- let preserved=0,created=0,reset=0;
+ const freshBindings=bindingsFor(current,composition,site.assets);
+ const indexBindings=(bindings)=>{
+  const result=new Map();
+  for(const b of bindings)result.set(b.nodeId+':'+(b.property||'text'),b.source);
+  return result;
+ };
+ const oldBindings=indexBindings(candidate.mapping.contentBindings);
+ const nextBindings=indexBindings(freshBindings);
+ const sourceValue=(section,source)=>{
+  if(!source)return undefined;
+  const item=own(source,'slot')?
+   section.elements.find(e=>e.slot===source.slot):
+   section.items.find(e=>e.id===source.itemId);
+  return item?.values?.[source.field];
+ };
+ const sameSource=(a,b)=>!!a&&!!b&&
+   a.field===b.field&&(own(a,'slot')?a.slot===b.slot&&own(b,'slot'):
+    a.itemId===b.itemId&&own(b,'itemId'));
+ const discarded=new Set();
+ let preserved=0,created=0,reset=0,retainedGraphCopy=0;
+ const captureDiscarded=(old,base)=>{
+  if(!base||!old||old.type!==base.type)return;
+  for(const property of ['text','href'])
+   if(typeof old[property]==='string'&&typeof base[property]==='string'&&
+      old[property]!==base[property])discarded.add(old.id+':'+property);
+ };
  walk(fresh.nodes,node=>{
-  const old=previousNodes.get(node.id);
-  if(!old||old.type!==node.type){created++;return;}
-  const marker=node.id.match(/-dg-card-(\\d+)(?:-|$)/);
+  newNodeIds.add(node.id);
+  const old=previousNodes.get(node.id),base=baselineNodes.get(node.id);
+  if(!old||old.type!==node.type){created++;captureDiscarded(old,base);return;}
+  // Node IDs contain ordinal card numbers. The identity guard MUST match
+  // numeric indices, not literal "\d" (which mistakenly transplanted styles).
+  const marker=node.id.match(/-dg-card-(\d+)(?:-|$)/);
   if(marker){
    const i=Number(marker[1])-1;
-   if(oldItems[i]?.id!==newItems[i]?.id){reset++;return;}
+   if(oldItems[i]?.id!==newItems[i]?.id){
+    reset++;captureDiscarded(old,base);return;
+   }
   }
   for(const field of ['styles','responsive','states','motion']){
    if(own(old,field))node[field]=JSON.parse(JSON.stringify(old[field]));
@@ -455,8 +492,37 @@ function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry){
   }
   if(node.type==='heading'&&own(old,'level'))node.level=old.level;
   if(node.type==='icon'&&own(old,'icon'))node.icon=old.icon;
+  // Protect independently owner-edited graph wording/links during a rebuild.
+  // The baseline candidate is authority for whether the Graph was edited.
+  for(const property of ['text','href']){
+   if(!base||typeof old[property]!=='string'||
+      typeof base[property]!=='string'||old[property]===base[property])continue;
+   const key=node.id+':'+property,previousSource=oldBindings.get(key),
+    nextSource=nextBindings.get(key);
+   if(!previousSource&&!nextSource){
+    if(typeof node[property]==='string'){node[property]=old[property];retainedGraphCopy++;}
+    else discarded.add(key);
+   }else if(sameSource(previousSource,nextSource)){
+    if(sourceValue(before,previousSource)===sourceValue(current,nextSource)){
+     node[property]=old[property];retainedGraphCopy++;
+    }else if(old[property]!==sourceValue(current,nextSource))
+     fail('Conflicting CMS and manually edited Design Graph content: '+key);
+   }else discarded.add(key);
+  }
   preserved++;
  });
+ // A removed card can contain manually authored copy that cannot be mapped
+ // to the new graph; require an explicit exact-ID owner decision to discard it.
+ for(const [id,node] of previousNodes)
+  if(!newNodeIds.has(id))captureDiscarded(node,baselineNodes.get(id));
+ const discardedNodes=[...discarded].sort();
+ const accepted=options.acceptedDiscardedNodes||[];
+ if(accepted.length!==new Set(accepted).size||
+    discardedNodes.length!==accepted.length||
+    discardedNodes.some((id,i)=>id!==[...accepted].sort()[i]))
+  fail('Rebuild would discard owner Graph edits; explicit review required: '+
+   discardedNodes.join(', '));
+
  current.designGraph=fresh;
  // Validate the ENTIRE edited site and all new image/alt/token references.
  const checked=hostSdk.validateSite(site,hostRegistry);
@@ -464,11 +530,13 @@ function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry){
   fail('Host found broken links after rebuild');
  return {
   ...candidate,site:checked,
-  mapping:{...candidate.mapping,contentBindings:bindingsFor(current,composition,site.assets),
+  mapping:{...candidate.mapping,contentBindings:freshBindings,
    approvedForPublish:false,semanticContentMode:'snapshot-requires-host-reconciliation'},
   rebuild:{format:'manufact-design-factory-rebuild-review-v1',version:1,
    preservedVisualNodes:preserved,createdVisualNodes:created,
-   resetVisualNodes:reset,requiresHostAuthorization:true,
+   resetVisualNodes:reset,retainedGraphCopyNodes:retainedGraphCopy,
+   explicitlyDiscardedGraphEdits:discardedNodes,
+   requiresHostAuthorization:true,
    requiresOwnerVisualReview:true,noAiInvoked:true,notPublished:true}
  };
 }
