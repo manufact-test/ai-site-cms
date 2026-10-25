@@ -216,3 +216,11 @@ The optional lead adapter now exposes `inspectRebuild()`, a read-only preflight 
 Regression suite expansion: 504 distinct composition/theme candidates were validated and rendered; all 504 also passed a no-op structural rebuild and read-only rebuild preflight without changing markup or the source candidate. Additional tests cover source refresh in all 8 registered component families, manual copy preservation, CMS/Graph conflicts, exact deletion confirmation, style bleed on reorder, preview immutability and bounded input sizes.
 
 These results ran in isolated V8 using real GitHub JS sources with emulated Node core modules; they are **not** a real checkout/Node, PHP or Chromium run. D7 remains OPEN pending the actual Node release audit, PHP parity, 54 screenshot captures with human review, and a real source-matching ZIP with SHA256.
+
+## 25 October — structural rebuild cannot silently erase owner work
+
+The optional Lead adapter now detects owner-deleted canonical nodes, custom nodes dropped by rebuild, custom node IDs colliding with newly created CMS nodes, and owner-authored styles/media properties that would be lost with a removed/reset node. The typed `DF_REBUILD_OWNER_REVIEW_REQUIRED` error carries exact acknowledgement IDs. Read-only `inspectRebuild()` distinguishes the edited graph from the predicted rebuilt graph and returns before/current/rebuilt values.
+
+Media `assetId` and alt edits survive if their CMS source is unchanged; divergent two-sided edits fail closed. The host remains responsible for owner authentication, revision locking, explicit confirmation, undo, visual review, persistence and publishing.
+
+Latest isolated-source evidence: 504/504 graph validations, renders, no-op rebuilds and preflights; 8 CMS component-family refreshes; 8 loss-aware structural/style/media groups. This is not actual Node/PHP/Chromium or release-ZIP acceptance. D7 remains OPEN.
