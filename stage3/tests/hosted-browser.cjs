@@ -452,7 +452,7 @@ async function execute(){
     const site=window.Stage3Editor.getSite();
     const home=site.pages.find(p=>p.path==='/');
     const hero=home.sections.find(section=>section.component==='company-hero');
-    hero.appearance={...(hero.appearance||{}),button:'solid'};
+    hero.appearance={surface:'default',spacing:'normal',align:'left',...(hero.appearance||{}),button:'solid'};
     window.Stage3Editor.applyComposition(site);
   });
   await page.locator('#cms-open-seo').click();
