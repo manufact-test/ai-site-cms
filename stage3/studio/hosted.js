@@ -249,6 +249,7 @@
     }
     renderDelivery(await api('/api/sites/'+encodeURIComponent(state.siteId)+'/delivery'));
   }
+  let unreadCount=0;
   const alertsRow=element('div','hosted-alerts');
   const alertsLabel=element('strong',null,'Непросмотренные заявки: 0');
   alertsLabel.id='server-notifications-count';
@@ -260,10 +261,13 @@
   alertsRow.append(alertsLabel,acknowledge);
   leadsPanel.before(alertsRow);
   async function refreshAlerts(){
-    if(!state.authorized||!state.siteId||!canEdit()){alertsLabel.textContent='Непросмотренные заявки: 0';return;}
+    if(!state.authorized||!state.siteId||!canEdit()){
+      unreadCount=0;alertsLabel.textContent='Непросмотренные заявки: 0';acknowledge.disabled=true;return;
+    }
     const info=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/notifications');
-    alertsLabel.textContent='Непросмотренные заявки: '+info.unread;
-    acknowledge.disabled=info.unread===0;
+    unreadCount=info.unread;
+    alertsLabel.textContent='Непросмотренные заявки: '+unreadCount;
+    acknowledge.disabled=state.busy||unreadCount===0;
   }
 
   async function loadSubmissions(){
@@ -774,7 +778,7 @@
     deliverySave.disabled=!available||!isOwner();deliveryRefresh.disabled=!available||!isOwner();
     deliveryRetry.disabled=!available||!isOwner()||!currentDelivery?.retryable;
     deliveryRetryUncertain.disabled=!available||!isOwner()||!currentDelivery?.uncertain;
-    acknowledge.disabled=state.busy||!state.authorized||!state.siteId||acknowledge.disabled;
+    acknowledge.disabled=state.busy||!state.authorized||!state.siteId||!canEdit()||unreadCount===0;
     mediaUpload.disabled=!available||isDirty()||!canEdit();
     templatesSave.disabled=!available||isDirty()||!canEdit();
     templatesRefresh.disabled=!available;
