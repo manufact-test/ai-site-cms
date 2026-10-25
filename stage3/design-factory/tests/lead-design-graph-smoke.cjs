@@ -20,7 +20,7 @@ const hostSdk=require(path.resolve(sdkRoot,'contract.cjs'));
 const hostGraph=require(path.resolve(sdkRoot,'design-graph.cjs'));
 const clone=x=>JSON.parse(JSON.stringify(x));
 const registry=loadRegistry();
-let checks=0,renderChecks=0,rebuildChecks=0,rebuildPreviewChecks=0;
+let checks=0,renderChecks=0,rebuildChecks=0,rebuildPreviewChecks=0,lossAwareChecks=0;
 const graphVariants=new Set();
 for(const c of catalog.compositions)for(const theme of Object.keys(THEMES)){
  const lang=checks%2?'ru':'en',project={format:FORMAT,version:1,
@@ -527,6 +527,7 @@ assert.ok(reorderPreview.discardedGraphEdits.some(edit=>
 const reorderedRebuilt=adapter.rebuildHostCandidate(thirdFaq,faqReordered,hostSdk,registry,
  {acceptedDiscardedNodes:[reorderDiscardId]});
 assert.deepEqual(reorderedRebuilt.rebuild.explicitlyDiscardedGraphEdits,[reorderDiscardId]);
+lossAwareChecks++;
 const rrSec=reorderedRebuilt.site.pages[0].sections.find(s=>s.id==='df-selected-composition');
 assert.notEqual(findNode(rrSec.designGraph.nodes,'-card-1-title').styles.fontWeight,900,
  'No owner typography may bleed into a different FAQ item');
@@ -603,6 +604,7 @@ assert.ok(findExactNode(ownerDeletedApproved.site.pages[0].sections.find(s=>
  s.id==='df-selected-composition').designGraph.nodes,deletedNodeId));
 assert.deepEqual(ownerDeletedApproved.rebuild.explicitlyDiscardedGraphEdits,
  [deletedNodeId+':__node__']);
+lossAwareChecks++;
 
 // A custom owner-created node must also be reviewed before the rebuild drops it.
 const ownerAdded=clone(thirdFaq.site);
@@ -625,6 +627,40 @@ const ownerAddedApproved=adapter.rebuildHostCandidate(thirdFaq,ownerAdded,
  hostSdk,registry,{acceptedDiscardedNodes:['owner-custom-note:__node__']});
 assert.ok(!findExactNode(ownerAddedApproved.site.pages[0].sections.find(s=>
  s.id==='df-selected-composition').designGraph.nodes,'owner-custom-note'));
+lossAwareChecks++;
+
+// A custom node that collides with a newly generated CMS node ID must not
+// donate its style or copy to the newly created semantic item.
+const collidingCms=clone(faq.site);
+const collidingSection=collidingCms.pages[0].sections.find(s=>
+ s.id==='df-selected-composition');
+const thirdItem=clone(collidingSection.items[1]);
+thirdItem.id=collidingSection.id+'-item-3';
+thirdItem.values['content.question']='New CMS question';
+thirdItem.values['content.answer']='New CMS answer';
+collidingSection.items.push(thirdItem);
+const collisionNode=clone(findNode(collidingSection.designGraph.nodes,'-card-2-text'));
+collisionNode.id=collidingSection.id+'-dg-card-3-text';
+collisionNode.text='Custom colliding node copy';
+collisionNode.styles.fontWeight=900;
+collidingSection.designGraph.nodes.push(collisionNode);
+const collisionPreview=adapter.inspectRebuild(faq,collidingCms,hostSdk,registry);
+assert.equal(collisionPreview.canApply,false);
+const collisionReview=collisionPreview.discardedGraphEdits.find(edit=>
+ edit.nodeId===collisionNode.id&&edit.property==='__node__');
+assert.ok(collisionReview);
+assert.equal(collisionReview.currentValue.text,'Custom colliding node copy');
+assert.equal(collisionReview.rebuiltValue.text,'New CMS answer');
+assert.equal(collisionReview.nodeInEditedGraph,true);
+assert.equal(collisionReview.nodeInRebuiltGraph,true);
+const collisionApproved=adapter.rebuildHostCandidate(faq,collidingCms,hostSdk,registry,
+ {acceptedDiscardedNodes:[collisionNode.id+':__node__']});
+const generatedCollision=findExactNode(collisionApproved.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition').designGraph.nodes,collisionNode.id);
+assert.equal(generatedCollision.text,'New CMS answer');
+assert.notEqual(generatedCollision.styles.fontWeight,900,
+ 'A custom node must not leak style into a new CMS-owned identity');
+lossAwareChecks++;
 
 // Styling on a CMS-removed card is also owner work, even if its copy is unchanged.
 const styledRemoved=clone(thirdFaq.site);
@@ -638,6 +674,7 @@ const styleReview=styledPreview.discardedGraphEdits.find(edit=>
 assert.ok(styleReview,'Removed-node style changes must be reviewed');
 assert.equal(styleReview.currentValue.fontWeight,900);
 assert.equal(styleReview.nodeInRebuiltGraph,false);
+lossAwareChecks++;
 
 // Media alt is graph-editable when its CMS-derived source stays unchanged;
 // divergent edits on both sides must fail closed.
@@ -653,6 +690,31 @@ const divergentAlt=clone(graphAltEdit);
 divergentAlt.assets.find(a=>a.id==='owner-gallery-one').alt='CMS-authored accessible alt';
 assert.throws(()=>adapter.rebuildHostCandidate(galleryRebuilt,divergentAlt,hostSdk,registry),
  /Conflicting CMS and manually edited Design Graph content/);
+lossAwareChecks++;
+
+const graphAssetEdit=clone(galleryRebuilt.site);
+graphAssetEdit.assets.push({id:'owner-gallery-two',src:'/assets/owner-gallery-two.jpg',
+ mime:'image/jpeg',alt:'Second licensed workshop photograph'});
+findNode(graphAssetEdit.pages[0].sections.find(s=>s.id==='df-selected-composition')
+ .designGraph.nodes,'-card-1-image').assetId='owner-gallery-two';
+const graphAssetRebuilt=adapter.rebuildHostCandidate(galleryRebuilt,graphAssetEdit,hostSdk,registry);
+assert.equal(findNode(graphAssetRebuilt.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition').designGraph.nodes,'-card-1-image').assetId,
+ 'owner-gallery-two');
+lossAwareChecks++;
+const divergentAsset=clone(galleryRebuilt.site);
+divergentAsset.assets.push(
+ {id:'owner-gallery-two',src:'/assets/owner-gallery-two.jpg',mime:'image/jpeg',
+  alt:'Second licensed workshop photograph'},
+ {id:'owner-gallery-three',src:'/assets/owner-gallery-three.jpg',mime:'image/jpeg',
+  alt:'Third licensed workshop photograph'});
+const divergentAssetSection=divergentAsset.pages[0].sections.find(s=>
+ s.id==='df-selected-composition');
+divergentAssetSection.items[0].values['content.media']='owner-gallery-two';
+findNode(divergentAssetSection.designGraph.nodes,'-card-1-image').assetId='owner-gallery-three';
+assert.throws(()=>adapter.rebuildHostCandidate(galleryRebuilt,divergentAsset,hostSdk,registry),
+ /Conflicting CMS and manually edited Design Graph content/);
+lossAwareChecks++;
 
 const conflictPreview=adapter.inspectRebuild(thirdFaq,graphAndCms,hostSdk,registry);
 assert.equal(conflictPreview.canApply,false);
@@ -748,7 +810,7 @@ assert.throws(()=>adapter.buildHostCandidate(corrupted,hostSdk,registry),/D6: ch
 console.log('DESIGN_FACTORY_LEAD_GRAPH PASS: '+checks+
  ' lead-SDK validated and distinct editor graphs; '+renderChecks+
  ' scoped host JS renders; '+rebuildChecks+' AI-free rebuilds; '+
- 'loss-aware node deletion/custom-node/style/media regressions; '+
+ lossAwareChecks+' loss-aware structural/style/media regression groups; '+
  componentRebuildChecks+' CMS component source-refresh rebuilds; '+
  rebuildPreviewChecks+' read-only rebuild preflights; '+phpChecked+
  ' real PHP parity probes; old SDK rejects graph; D6 immutable and tamper-protected. No browser acceptance.');
