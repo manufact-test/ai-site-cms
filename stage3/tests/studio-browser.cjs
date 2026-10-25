@@ -380,13 +380,17 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       'Canvas resize is reflected in the rendered element');
     await page.locator('.cms-design-device-tools [data-design-device="mobile"]').click();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
-    const mobileResize=designFrame.locator('.cms-design-resize-handle[data-resize-dir="e"]');
+    const mobileResize=designFrame.locator('.cms-design-resize-handle[data-resize-dir="w"]');
     await mobileResize.waitFor();
     const mobileHandleBox=await mobileResize.boundingBox();
     await page.mouse.move(mobileHandleBox.x+mobileHandleBox.width/2,mobileHandleBox.y+mobileHandleBox.height/2);
     await page.mouse.down();
-    await page.mouse.move(mobileHandleBox.x+mobileHandleBox.width/2-16,mobileHandleBox.y+mobileHandleBox.height/2,{steps:4});
+    await page.mouse.move(mobileHandleBox.x+mobileHandleBox.width/2+16,mobileHandleBox.y+mobileHandleBox.height/2,{steps:4});
     await page.mouse.up();
+    await page.locator('#cms-design-fit-width').click();
+    await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').waitFor();
+    assert.ok(await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').evaluate(e=>e.getBoundingClientRect().width<=390),
+      'Fit-to-screen control brings a clipped fixed-width node into the mobile viewport');
     await page.locator('.cms-design-device-tools [data-design-device="desktop"]').click();
     // Create a second container and a child, then reparent the heading by dropping
     // onto that child's center. The container ancestor should win over the child hit.
