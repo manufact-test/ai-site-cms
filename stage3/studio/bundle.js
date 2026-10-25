@@ -3327,7 +3327,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     $('canvas-title').textContent=m?.label||section.component;
     $('canvas-caption').textContent=page.title+' / '+section.id+' · '+breakpoint;
     const block=D.blockPreview(session,manifests,pageId,sectionId,breakpoint);
-    $('preview').srcdoc=screen(block);
+    const preview=screen(block);
+    $('preview').srcdoc=preview.replace('<html lang="ru">','<html lang="'+escapeHtml(session.current.language||'ru')+'">');
   }
   function drawVersions(){
     if(HOSTED)return window.Stage3Host?.drawVersions?.();
