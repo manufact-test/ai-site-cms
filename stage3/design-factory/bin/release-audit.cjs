@@ -44,7 +44,8 @@ function release(args){
  for(const must of ['studio/index.html','studio/studio.js','studio/runtime.generated.js','lib/compiler.cjs','lib/bridge.cjs','catalog/themes.cjs','catalog/compositions.cjs','catalog/kits.cjs'])
   if(!listed.includes(must))throw Error('Missing necessary source: '+must);
  const results=[];
- for(const suite of SUITES){
+ const suiteNames=f.chromium?[...SUITES,'visual-pipe-smoke.cjs']:SUITES;
+ for(const suite of suiteNames){
   const env={...process.env};
   if(!f.chromium)delete env.DF_CHROMIUM_BIN;
   else if(!env.DF_CHROMIUM_BIN)throw Error('--chromium requires DF_CHROMIUM_BIN');
@@ -59,7 +60,9 @@ function release(args){
   });
  }
  const nodePassed=results.every(x=>x.passed);
- const browserPassed=f.chromium&&results.some(x=>x.suite==='studio-smoke.cjs'&&x.stdout.includes('DESIGN_FACTORY_D5_CHROMIUM PASS'));
+ const browserPassed=f.chromium&&
+  results.some(x=>x.suite==='studio-smoke.cjs'&&x.passed&&x.stdout.includes('DESIGN_FACTORY_D5_CHROMIUM PASS'))&&
+  results.some(x=>x.suite==='visual-pipe-smoke.cjs'&&x.passed&&x.stdout.includes('DESIGN_FACTORY_D7_VISUAL_PIPE PASS'));
  const report={
   format:'manufact-design-factory-release-check-v1',
   version:1,sourceDirectory:'stage3/design-factory/',fileCount:entries.length,
