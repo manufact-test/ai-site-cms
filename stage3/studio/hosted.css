@@ -40,7 +40,7 @@
 .hosted-delivery-channel small,.hosted-delivery-attempt small{font-size:10px;line-height:1.5;opacity:.75}
 .hosted-delivery-actions{display:flex;flex-wrap:wrap;gap:6px}
 .hosted-delivery-actions .btn{font-size:10px;white-space:normal}
-.hosted-leads{display:grid;gap:8px;padding:12px 18px;border-top:1px solid rgba(128,150,160,.25)
+.hosted-leads{display:grid;gap:8px;padding:12px 18px;border-top:1px solid rgba(128,150,160,.25)}
 .hosted-leads strong{font-size:12px}.hosted-leads-list{display:grid;gap:8px;max-height:300px;overflow-y:auto}
 .hosted-lead{display:grid;gap:4px;padding:9px;border:1px solid rgba(128,150,160,.25);border-radius:8px;overflow-wrap:anywhere}
 .hosted-lead small{font-size:10px;opacity:.7}.hosted-lead p{white-space:pre-wrap;font-size:12px;margin:0}
