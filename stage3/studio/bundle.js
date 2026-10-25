@@ -1865,6 +1865,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         top:rect.top+'px',width:rect.width+'px',height:rect.height+'px',
         boxSizing:'border-box',border:'1px dashed #e88622',pointerEvents:'none'});
       const handles=[
+        ['w','-8px','calc(50% - 8px)','ew-resize'],
         ['e','calc(100% - 8px)','calc(50% - 8px)','ew-resize'],
         ['s','calc(50% - 8px)','calc(100% - 8px)','ns-resize'],
         ['se','calc(100% - 8px)','calc(100% - 8px)','nwse-resize']
@@ -1934,9 +1935,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           if(!row||!target)return;
           event.preventDefault();event.stopPropagation();
           const rect=target.getBoundingClientRect();
+          const base=row.node.styles||{},bp=(mode==='tablet'||mode==='mobile')?(row.node.responsive?.[mode]||{}):{};
           activeGesture={kind:'resize',pointerId:event.pointerId,nodeId:selection,target,
             dir:handle.dataset.resizeDir,startX:event.clientX,startY:event.clientY,
-            startWidth:rect.width,startHeight:rect.height,width:rect.width,height:rect.height,changed:false};
+            startWidth:rect.width,startHeight:rect.height,width:rect.width,height:rect.height,
+            startTranslateX:Number(bp.translateX??base.translateX??0),
+            startTranslateY:Number(bp.translateY??base.translateY??0),changed:false};
           try{handle.setPointerCapture(event.pointerId);}catch(_){}
           return;
         }
@@ -1960,12 +1964,16 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const dx=event.clientX-g.startX,dy=event.clientY-g.startY;
         if(g.kind==='resize'){
           event.preventDefault();
-          const width=Math.max(8,Math.min(1920,g.startWidth+(g.dir.includes('e')?Math.round(dx/8)*8:0)));
-          const height=Math.max(8,Math.min(1400,g.startHeight+(g.dir.includes('s')?Math.round(dy/8)*8:0)));
+          const deltaX=Math.round(dx/8)*8,deltaY=Math.round(dy/8)*8;
+          const widthDelta=g.dir.includes('e')?deltaX:g.dir.includes('w')?-deltaX:0;
+          const width=Math.max(8,Math.min(1920,g.startWidth+widthDelta));
+          const height=Math.max(8,Math.min(1400,g.startHeight+(g.dir.includes('s')?deltaY:0)));
           g.width=Math.round(width);g.height=Math.round(height);
-          g.changed=(g.dir.includes('e')&&Math.abs(g.width-g.startWidth)>=1)||
+          g.translateX=g.startTranslateX+(g.dir.includes('w')?deltaX:0);
+          g.changed=((g.dir.includes('e')||g.dir.includes('w'))&&Math.abs(g.width-g.startWidth)>=1)||
             (g.dir.includes('s')&&Math.abs(g.height-g.startHeight)>=1);
-          if(g.dir.includes('e'))g.target.style.width=g.width+'px';
+          if(g.dir.includes('e')||g.dir.includes('w'))g.target.style.width=g.width+'px';
+          if(g.dir.includes('w'))g.target.style.translate=g.translateX+'px '+g.startTranslateY+'px';
           if(g.dir.includes('s'))g.target.style.height=g.height+'px';
           updateOverlayRect(doc,g.target);
           visualHint.textContent='Размер: '+g.width+' × '+g.height+' px · изменение привязано к режиму '+mode+' · сетка 8 px';
@@ -2032,7 +2040,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             if(row){
               recordHistory();
               const style=editStyle(row.node);
-              if(g.dir.includes('e')){delete style.widthPercent;style.widthPx=g.width;}
+              if(g.dir.includes('e')||g.dir.includes('w')){delete style.widthPercent;style.widthPx=g.width;}
+              if(g.dir.includes('w'))style.translateX=g.translateX;
               if(g.dir.includes('s'))style.heightPx=g.height;
             }
           }
