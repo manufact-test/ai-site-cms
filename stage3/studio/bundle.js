@@ -666,10 +666,10 @@ function validAppearance(a){
     if(own(a,name)&&!allowed.includes(a[name]))fail('Invalid section appearance',name);
 }
 // Additive v1 field-builder contract: older forms keep their original 3 slots.
-const FORM_KINDS=['text','tel','email','select','textarea'];
+const FORM_KINDS=['text','tel','email','select','textarea','radio','checkbox','number','date','url'];
 function validateFormFields(section){
   if(!own(section,'formFields'))return;
-  if(section.component!=='lead-form-flex'||!Array.isArray(section.formFields)||section.formFields.length>6)
+  if(section.component!=='lead-form-flex'||!Array.isArray(section.formFields)||section.formFields.length>9)
     fail('Form field builder is only supported on flexible forms',section.id);
   const available=new Map();
   for(let i=0;i<3;i++){
@@ -691,11 +691,11 @@ function validateFormFields(section){
       !FORM_KINDS.includes(f.kind)||typeof f.required!=='boolean'||
       typeof f.placeholder!=='string'||f.placeholder.length>120||/[\x00-\x1f]/.test(f.placeholder)||
       !Array.isArray(f.options))fail('Invalid additional form field',f.id);
-    if(f.kind==='select'){
+    if(['select','radio'].includes(f.kind)){
       if(f.options.length<2||f.options.length>12||new Set(f.options).size!==f.options.length||
         f.options.some(v=>typeof v!=='string'||!v.trim()||v.length>80||/[\x00-\x1f]/.test(v)))
-        fail('Invalid select options',f.id);
-    }else if(f.options.length)fail('Options only permitted on select fields',f.id);
+        fail('Invalid choice options',f.id);
+    }else if(f.options.length)fail('Options only permitted on choice fields',f.id);
     if(own(f,'when')){
       objectKeys(f.when,['field','option'],'form condition');
       const prior=available.get(f.when.field);
@@ -3074,7 +3074,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const dlg=document.createElement('dialog');dlg.id='cms-form-builder';dlg.className='cms-settings-dialog';
     Object.assign(dlg.style,{width:'min(960px,95vw)',maxHeight:'88vh',overflow:'auto'});
     const title=document.createElement('h2');title.textContent='Дополнительные поля формы';
-    const description=document.createElement('p');description.textContent='До 6 полей сверх трёх встроенных. Условия зависят от выбранного значения предыдущего списка; проверяются сервером.';
+    const description=document.createElement('p');description.textContent='До 9 дополнительных полей сверх трёх встроенных. Доступны текст, телефон, email, список, радио, флажок, число, дата, ссылка и длинный текст. Условия зависят от выбранного значения предыдущего списка; проверяются сервером.';
     const list=document.createElement('div');list.id='cms-form-rows';
     const add=button('+ Добавить поле','btn small',()=>{});add.id='cms-form-add';
     const apply=button('Применить к черновику','btn primary',()=>{});apply.id='cms-form-apply';
@@ -3098,7 +3098,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       }
     }
     function render(){
-      list.replaceChildren();add.disabled=fields.length>=6;
+      list.replaceChildren();add.disabled=fields.length>=9;
       const selectable=new Map();
       ['extra-one','extra-two','extra-three'].forEach((slot,i)=>{
         const values=source.elements.find(e=>e.slot===slot)?.values;
@@ -3113,15 +3113,15 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         Object.assign(grid.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:'10px'});
         const [label,ln]=input('Подпись','text',field.label,v=>{field.label=v;});ln.maxLength=100;
         const [kind,kn]=input('Тип','select',null,v=>{
-          field.kind=v;field.options=v==='select'?['Вариант 1','Вариант 2']:[];render();
+          field.kind=v;field.options=['select','radio'].includes(v)?['Вариант 1','Вариант 2']:[];render();
         });
-        options(kn,[['text','Текст'],['tel','Телефон'],['email','Email'],['select','Список'],['textarea','Длинный текст']]);
+        options(kn,[['text','Текст'],['tel','Телефон'],['email','Email'],['select','Список'],['radio','Радиокнопки'],['checkbox','Флажок'],['number','Число'],['date','Дата'],['url','Ссылка'],['textarea','Длинный текст']]);
         kn.value=field.kind;
         const [required]=input('Обязательно','checkbox',field.required,v=>{field.required=v;});
         const [placeholder,pn]=input('Подсказка','text',field.placeholder,v=>{field.placeholder=v;});
         pn.maxLength=120;
         grid.append(label,kind,required,placeholder);
-        if(field.kind==='select'){
+        if(['select','radio'].includes(field.kind)){
           const [choices,cn]=input('Варианты (один на строку)','textarea',field.options.join('\n'),v=>{
             field.options=v.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);render();
           });
@@ -3145,7 +3145,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       });
     }
     add.addEventListener('click',()=>{
-      if(fields.length>=6)return;
+      if(fields.length>=9)return;
       fields.push({id:uniqueId('field-f'),label:'Новый вопрос',kind:'text',
         required:false,options:[],placeholder:''});render();
     });
@@ -3172,7 +3172,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     $('inspector-caption').textContent='ID '+section.id+' · схема '+section.manifestVersion;
     const row=$('elements');row.replaceChildren();
     if(section.component==='lead-form-flex'){
-      const builder=button('Конструктор дополнительных полей · '+(section.formFields||[]).length+'/6',
+      const builder=button('Конструктор дополнительных полей · '+(section.formFields||[]).length+'/9',
         'btn small',openFormBuilder);
       builder.id='cms-form-builder-open';builder.dataset.editorWrite='true';row.append(builder);
     }
@@ -3434,10 +3434,18 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         '<label>'+e(p('message-label').content.text)+'</label><div class="media-placeholder">Сообщение</div>'+
         '<p>☐ '+e(p('consent-label').content.text)+'</p><span class="action">'+e(p('submit-label').content.text)+'</span></div></section>';
     }else if(block.component==='lead-form-flex'){
-      const configured=(block.formFields||[]).map(field=>
-        '<label>'+e(field.label)+(field.required?' *':'')+'</label>'+
-        '<div class="media-placeholder">'+e(field.kind)+
-        (field.when?' · '+e(field.when.field)+' / вариант '+field.when.option:'')+'</div>').join('');
+      const configured=(block.formFields||[]).map(field=>{
+        const label=e(field.label)+(field.required?' *':'');
+        const placeholder=field.placeholder?' placeholder="'+e(field.placeholder)+'"':'';
+        if(field.kind==='select')return '<label>'+label+'<select disabled><option>Выберите вариант</option>'+
+          field.options.map(option=>'<option>'+e(option)+'</option>').join('')+'</select></label>';
+        if(field.kind==='radio')return '<fieldset><legend>'+label+'</legend>'+field.options.map(option=>
+          '<label><input type="radio" disabled> '+e(option)+'</label>').join('')+'</fieldset>';
+        if(field.kind==='checkbox')return '<label><input type="checkbox" disabled> '+label+'</label>';
+        if(field.kind==='textarea')return '<label>'+label+'<textarea disabled'+placeholder+'></textarea></label>';
+        const inputType=['tel','email','number','date','url'].includes(field.kind)?field.kind:'text';
+        return '<label>'+label+'<input type="'+inputType+'" disabled'+placeholder+'></label>';
+      }).join('');
       const extra=['extra-one','extra-two','extra-three'].map(slot=>{
         const v=p(slot),kind=v.behavior.kind;
         return kind==='off'?'':'<label>'+e(v.content.text)+' '+(v.behavior.required?'*':'')+'</label>'+
