@@ -126,6 +126,6 @@ const jsIcons=jsGraph.match(/const ICON_PATHS=Object\.freeze\(\{([\s\S]*?)\}\);/
 const phpIcons=phpGraph.match(/private const ICON_PATHS=\[([\s\S]*?)\];/);
 assert.ok(jsIcons&&phpIcons,'Both validators expose a closed icon library');
 const iconKeys=(body,regex)=>Array.from(body.matchAll(regex),item=>item[1]).sort();
-assert.deepEqual(iconKeys(jsIcons[1],/(?:^|\n)\s*([a-z][a-z0-9-]*):/g),
+assert.deepEqual(iconKeys(jsIcons[1],/(?:^|[\n,])\s*([a-z][a-z0-9-]*):/g),
   iconKeys(phpIcons[1],/'([a-z][a-z0-9-]*)'\s*=>/g),'JS/PHP icon libraries must stay identical');
 console.log('DESIGN GRAPH INTEROP PASS: typed candidate, responsive/media/state/motion audit, baseline-preserving handoff, fail-closed imports, JS/PHP vocabulary parity.');
