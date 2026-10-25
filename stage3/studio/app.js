@@ -517,11 +517,16 @@
       Object.assign(overlay.style,{position:'fixed',zIndex:'2147483647',left:rect.left+'px',
         top:rect.top+'px',width:rect.width+'px',height:rect.height+'px',
         boxSizing:'border-box',border:'1px dashed #e88622',pointerEvents:'none'});
+      const viewportWidth=doc.documentElement.clientWidth||PREVIEW_WIDTHS[previewDevice];
+      // When a fixed desktop width overflows the mobile canvas, pin the east
+      // handle to the visible clip edge so users can drag the width back in.
+      const eastLeft=rect.right>viewportWidth-8?
+        Math.max(0,viewportWidth-rect.left-8)+'px':'calc(100% - 8px)';
       const handles=[
         ['w','-8px','calc(50% - 8px)','ew-resize'],
-        ['e','calc(100% - 8px)','calc(50% - 8px)','ew-resize'],
+        ['e',eastLeft,'calc(50% - 8px)','ew-resize'],
         ['s','calc(50% - 8px)','calc(100% - 8px)','ns-resize'],
-        ['se','calc(100% - 8px)','calc(100% - 8px)','nwse-resize']
+        ['se',eastLeft,'calc(100% - 8px)','nwse-resize']
       ];
       for(const [dir,left,top,cursor] of handles){
         const handle=doc.createElement('div');
