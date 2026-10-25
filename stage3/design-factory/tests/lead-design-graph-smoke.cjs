@@ -66,6 +66,11 @@ for(const c of catalog.compositions)for(const theme of Object.keys(THEMES)){
  assert.equal(rebuilt.rebuild.notPublished,true);
  assert.equal(rebuilt.mapping.approvedForPublish,false);
  assert.equal(rebuilt.rebuild.resetVisualNodes,0);
+ assert.equal(rebuilt.rebuild.createdVisualNodeIds.length,0);
+ assert.equal(rebuilt.rebuild.resetVisualNodeIds.length,0);
+ assert.equal(rebuilt.rebuild.removedVisualNodeIds.length,0);
+ assert.equal(rebuilt.rebuild.preservedVisualNodeIds.length,
+  rebuilt.rebuild.preservedVisualNodes);
  assert.deepEqual(rebuilt.site,candidate.site,
   'No-op rebuild must preserve the entire validated site snapshot');
  const rebuiltSection=rebuilt.site.pages[0].sections.find(s=>
