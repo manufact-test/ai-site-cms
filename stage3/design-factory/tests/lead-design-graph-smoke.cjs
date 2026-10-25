@@ -303,14 +303,19 @@ const filledResult=adapter.reconcileSemantic(blankCta,filled,hostSdk,registry);
 assert.equal(findNode(filledResult.site.pages[0].sections.find(s=>
  s.id==='df-selected-composition').designGraph.nodes,'-dg-text').text,
  'Fresh owner-supplied value');
-// Source selection is part of the graph snapshot. If a different CTA begins
-// supplying the displayed href, refuse silent rebinding.
+// A safe external HTTPS URL remains the SAME declared CTA field, not a new
+// source selection. Reconciliation should update the real owner destination.
 const hrefSwitch=clone(cta.site);
 const switchSection=hrefSwitch.pages[0].sections.find(s=>s.id==='df-selected-composition');
 switchSection.elements.find(e=>e.slot==='primary').values['behavior.href']='https://example.com';
 const switchValidated=hostSdk.validateSite(clone(hrefSwitch),registry);
-assert.throws(()=>adapter.inspectSemanticSync(cta,switchValidated,hostSdk,registry),
- /Visible semantic source selection changed/);
+const hrefPreview=adapter.inspectSemanticSync(cta,switchValidated,hostSdk,registry);
+assert.equal(hrefPreview.canApply,true);
+assert.ok(hrefPreview.changes.some(x=>x.property==='href'));
+const hrefSaved=adapter.reconcileSemantic(cta,switchValidated,hostSdk,registry);
+assert.equal(findNode(hrefSaved.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition').designGraph.nodes,'-dg-action').href,
+ 'https://example.com');
 assert.equal(cta.mapping.approvedForPublish,false);
 
 // Owner-controlled REBUILD: no AI, no publication, source site and
