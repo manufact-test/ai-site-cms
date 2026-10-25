@@ -20,7 +20,7 @@ const hostSdk=require(path.resolve(sdkRoot,'contract.cjs'));
 const hostGraph=require(path.resolve(sdkRoot,'design-graph.cjs'));
 const clone=x=>JSON.parse(JSON.stringify(x));
 const registry=loadRegistry();
-let checks=0,renderChecks=0;
+let checks=0,renderChecks=0,rebuildChecks=0,rebuildPreviewChecks=0;
 const graphVariants=new Set();
 for(const c of catalog.compositions)for(const theme of Object.keys(THEMES)){
  const lang=checks%2?'ru':'en',project={format:FORMAT,version:1,
@@ -49,11 +49,37 @@ for(const c of catalog.compositions)for(const theme of Object.keys(THEMES)){
  const html=hostGraph.render(candidate.site,inserted.designGraph,'',null,inserted.id);
  assert.ok(html.includes('cmsdg-')&&html.includes('@media(max-width:600px)'));
  assert.ok(!html.includes('<script')&&!html.includes('http://'));
+ // Exercise the complete no-op rebuild path for every composition × theme.
+ // A structural rebuild is still a new preview, never a save/publish action.
+ const candidateSnapshot=JSON.stringify(candidate);
+ const noOpSite=clone(candidate.site);
+ const noOpSnapshot=JSON.stringify(noOpSite);
+ const rebuildPreview=adapter.inspectRebuild(candidate,noOpSite,hostSdk,registry);
+ assert.equal(rebuildPreview.canApply,true);
+ assert.equal(rebuildPreview.requiresOwnerConfirmation,false);
+ assert.equal(rebuildPreview.noMutation,true);
+ assert.equal(JSON.stringify(candidate),candidateSnapshot);
+ assert.equal(JSON.stringify(noOpSite),noOpSnapshot);
+ rebuildPreviewChecks++;
+ const rebuilt=adapter.rebuildHostCandidate(candidate,noOpSite,hostSdk,registry);
+ assert.equal(rebuilt.rebuild.noAiInvoked,true);
+ assert.equal(rebuilt.rebuild.notPublished,true);
+ assert.equal(rebuilt.mapping.approvedForPublish,false);
+ assert.equal(rebuilt.rebuild.resetVisualNodes,0);
+ assert.deepEqual(rebuilt.site,candidate.site,
+  'No-op rebuild must preserve the entire validated site snapshot');
+ const rebuiltSection=rebuilt.site.pages[0].sections.find(s=>
+  s.id==='df-selected-composition');
+ const rebuiltHtml=hostGraph.render(rebuilt.site,rebuiltSection.designGraph,'',null,rebuiltSection.id);
+ assert.equal(rebuiltHtml,html,'No-op rebuild must not alter rendered graph markup');
+ rebuildChecks++;
  renderChecks++;
  checks++;
 }
 assert.equal(checks,42*12);
 assert.equal(graphVariants.size,checks,'Each composition/theme must keep a distinct editable graph');
+assert.equal(rebuildChecks,42*12,'Every composition/theme must survive a no-op rebuild');
+assert.equal(rebuildPreviewChecks,42*12,'Every composition/theme must have a read-only rebuild preflight');
 // Test full owner-provided repeater content and its CMS provenance metadata.
 // The original verified D6 package keeps generic placeholders, while this
 // optional newer-host candidate is allowed to preserve explicit owner facts.
@@ -456,6 +482,32 @@ removingSec.items.pop();
 assert.throws(()=>adapter.rebuildHostCandidate(thirdFaq,removing,hostSdk,registry),
  /Rebuild would discard owner Graph edits/);
 const discardId=removingSec.id+'-dg-card-3-text:text';
+const candidateBeforePreview=JSON.stringify(thirdFaq);
+const editedBeforePreview=JSON.stringify(removing);
+const destructivePreview=adapter.inspectRebuild(thirdFaq,removing,hostSdk,registry);
+assert.equal(destructivePreview.canApply,false);
+assert.equal(destructivePreview.requiresOwnerConfirmation,true);
+assert.equal(destructivePreview.noMutation,true);
+assert.deepEqual(destructivePreview.discardedGraphEdits,[{
+ nodeId:removingSec.id+'-dg-card-3-text',property:'text',
+ previousValue:findNode(thirdFaq.site.pages[0].sections.find(s=>
+  s.id==='df-selected-composition').designGraph.nodes,'-card-3-text').text,
+ currentValue:'Owner-only third answer',nodeStillPresent:true,
+ requiresExplicitOwnerConfirmation:true
+}]);
+assert.equal(JSON.stringify(thirdFaq),candidateBeforePreview);
+assert.equal(JSON.stringify(removing),editedBeforePreview);
+const conflictPreview=adapter.inspectRebuild(thirdFaq,graphAndCms,hostSdk,registry);
+assert.equal(conflictPreview.canApply,false);
+assert.equal(conflictPreview.requiresOwnerConfirmation,false);
+assert.ok(conflictPreview.error.includes('Conflicting CMS and manually edited'));
+const oversizedBindings=clone(thirdFaq);
+oversizedBindings.mapping.contentBindings=Array.from({length:81},()=>({}));
+assert.throws(()=>adapter.rebuildHostCandidate(oversizedBindings,removing,hostSdk,registry),
+ /Invalid provenance bindings/);
+assert.throws(()=>adapter.rebuildHostCandidate(thirdFaq,removing,hostSdk,registry,
+ {acceptedDiscardedNodes:Array.from({length:181},(_,i)=>'node-'+i)}),
+ /Invalid explicit rebuild review options/);
 assert.throws(()=>adapter.rebuildHostCandidate(thirdFaq,removing,hostSdk,registry,
  {acceptedDiscardedNodes:['wrong-node']}),/explicit review required/);
 const approvedRemoval=adapter.rebuildHostCandidate(thirdFaq,removing,hostSdk,registry,
@@ -538,4 +590,6 @@ const corrupted=clone(marked);corrupted.site.title='unauthorized change';
 assert.throws(()=>adapter.buildHostCandidate(corrupted,hostSdk,registry),/D6: changed/);
 console.log('DESIGN_FACTORY_LEAD_GRAPH PASS: '+checks+
  ' lead-SDK validated and distinct editor graphs; '+renderChecks+
- ' scoped host JS renders; '+phpChecked+' real PHP parity probes; old SDK rejects graph; D6 immutable and tamper-protected. No browser acceptance.');
+ ' scoped host JS renders; '+rebuildChecks+' AI-free rebuilds; '+
+ rebuildPreviewChecks+' read-only rebuild preflights; '+phpChecked+
+ ' real PHP parity probes; old SDK rejects graph; D6 immutable and tamper-protected. No browser acceptance.');
