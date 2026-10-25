@@ -23,7 +23,7 @@
 
 - `bin/build-browser-bundle.cjs` больше не пишет напрямую поверх целевого файла: canonical repo root, отказ от symlink-компонентов пути и symlink/non-regular target, запись во временный файл и rename.
 - `tests/studio-smoke.cjs` получил изолированный регрессионный fixture для symlink в build/check mode, создания отсутствующего bundle и безопасной замены hardlink.
-- Подтверждён только отдельный Node filesystem primitive probe. Полный `studio-smoke.cjs`, шесть стабильных D7 suites, optional Lead suite и ZIP smoke **не запускались**: checkout по-прежнему блокирует DNS `Could not resolve host: github.com`.
+- Изолированный V8 syntax parse обоих изменённых JavaScript-файлов PASS; отдельный Node filesystem primitive probe PASS. Это не выполнение модулей Design Factory или smoke suite. Полный `studio-smoke.cjs`, шесть стабильных D7 suites, optional Lead suite и ZIP smoke **не запускались**: checkout по-прежнему блокирует DNS `Could not resolve host: github.com`.
 - Для ветки по-прежнему 0 Actions runs. PHP parity, Chromium/54 скриншота, человеческая визуальная приёмка, настоящий ZIP и SHA256 не подтверждены. D7 OPEN; Stage2 NO-GO; Stage3 не принят; 0/135.
 
 ## Жёсткие границы
