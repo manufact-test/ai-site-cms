@@ -413,6 +413,51 @@ faqExtraSec.items.push({...clone(faqExtraSec.items[0]),id:faqExtraSec.id+'-item-
 const thirdFaq=adapter.rebuildHostCandidate(faq,extraFaq,hostSdk,registry);
 assert.ok(findNode(thirdFaq.site.pages[0].sections.find(s=>
  s.id==='df-selected-composition').designGraph.nodes,'-card-3-text'));
+
+// A structural rebuild must never transfer visual styles from one FAQ item
+// to another when the item order changed. It previously did so because the
+// regex matched a literal backslash+d instead of an ordinal card number.
+const faqReordered=clone(thirdFaq.site);
+const frSec=faqReordered.pages[0].sections.find(s=>s.id==='df-selected-composition');
+findNode(frSec.designGraph.nodes,'-card-1-title').styles.fontWeight=900;
+frSec.items.reverse();
+const reorderedRebuilt=adapter.rebuildHostCandidate(thirdFaq,faqReordered,hostSdk,registry);
+const rrSec=reorderedRebuilt.site.pages[0].sections.find(s=>s.id==='df-selected-composition');
+assert.notEqual(findNode(rrSec.designGraph.nodes,'-card-1-title').styles.fontWeight,900,
+ 'No owner typography may bleed into a different FAQ item');
+assert.ok(reorderedRebuilt.rebuild.resetVisualNodes>=6);
+// An independent graph text edit on a still-identical CMS field survives an
+// explicit rebuild, including the exactly-owned card typography.
+const manualGraph=clone(thirdFaq.site);
+const manualSec=manualGraph.pages[0].sections.find(s=>s.id==='df-selected-composition');
+findNode(manualSec.designGraph.nodes,'-card-1-text').text='Owner-edited graph copy';
+const manualRebuilt=adapter.rebuildHostCandidate(thirdFaq,manualGraph,hostSdk,registry);
+assert.equal(findNode(manualRebuilt.site.pages[0].sections.find(s=>
+ s.id==='df-selected-composition').designGraph.nodes,'-card-1-text').text,
+ 'Owner-edited graph copy');
+assert.equal(manualRebuilt.rebuild.retainedGraphCopyNodes,1);
+const graphAndCms=clone(manualGraph);
+graphAndCms.pages[0].sections.find(s=>s.id==='df-selected-composition')
+ .items[0].values['content.answer']='A conflicting CMS answer';
+assert.throws(()=>adapter.rebuildHostCandidate(thirdFaq,graphAndCms,hostSdk,registry),
+ /Conflicting CMS and manually edited Design Graph content/);
+// Deleting an item must not silently destroy independently written Graph
+// copy. An explicitly authorized host may acknowledge exactly which edited
+// node content its owner agrees to discard.
+const removing=clone(thirdFaq.site);
+const removingSec=removing.pages[0].sections.find(s=>s.id==='df-selected-composition');
+findNode(removingSec.designGraph.nodes,'-card-3-text').text='Owner-only third answer';
+removingSec.items.pop();
+assert.throws(()=>adapter.rebuildHostCandidate(thirdFaq,removing,hostSdk,registry),
+ /Rebuild would discard owner Graph edits/);
+const discardId=removingSec.id+'-dg-card-3-text:text';
+assert.throws(()=>adapter.rebuildHostCandidate(thirdFaq,removing,hostSdk,registry,
+ {acceptedDiscardedNodes:['wrong-node']}),/explicit review required/);
+const approvedRemoval=adapter.rebuildHostCandidate(thirdFaq,removing,hostSdk,registry,
+ {acceptedDiscardedNodes:[discardId]});
+assert.deepEqual(approvedRemoval.rebuild.explicitlyDiscardedGraphEdits,[discardId]);
+assert.equal(approvedRemoval.rebuild.requiresOwnerVisualReview,true);
+
 const fakeMapping=clone(gallery);
 fakeMapping.mapping.contentBindings[0].nodeId='forged-untrusted-node';
 assert.throws(()=>adapter.rebuildHostCandidate(fakeMapping,galleryUpload,hostSdk,registry),
