@@ -119,3 +119,10 @@ At functional SHA `86f9f8b6db1e69add234b3adc0478025626aa711`, [full Stage3 CI #4
 **Not yet verified:** the independent Design Factory's actual D7 output schema, exact visual fidelity, lossless Factory↔CMS conversion, or reconstruction of the Factory workspace. The fixture is synthetic and already has a valid CMS site-v1/typed graph. Its `fidelity: partial` and `integration_required` are explicit. The audit JSON is not signed provenance or permission. No official Stage3 acceptance follows from CI.
 
 When the owner provides the final D7 artifact, first inspect that artifact, write a supported/converted/missing-property matrix, and compare representative desktop/tablet/mobile output. Only then change the envelope or implement a version-pinned actual D7 adapter. Do not touch the independent Factory branch/files or merge branches without owner authorization.
+
+
+### Global theme styles and section button overrides (v1.64)
+
+The site-level theme contract additionally supports optional `bodySize` (14–22), `lineHeight` (compact/normal/relaxed), `headingScale` (compact/normal/large), `buttonStyle` (solid/outline/pill), `buttonRadius` (0–32) and hex `buttonText`. These are validated by the JS SDK, JSON schema and PHP contract validator. A section's optional button appearance can inherit the global style or explicitly select solid/outline/pill. Published PHP output and Studio preview use matching CSS tokens; navigation CTA follows the same global button treatment. Existing site-v1 themes without these optional keys receive safe defaults and remain valid.
+
+The exact tested code `28e204bea1e64f79babbab85a05588199d2bd17d` passed [full CI #40204138704](https://github.com/manufact-test/ai-site-cms/actions/runs/40204138704), including hosted draft/save/publish, computed visitor-style assertions and generated bundle parity. This does not change the prior non-goals: no real Design Factory D7 package was validated, no lossless/pixel-perfect conversion is claimed, and Stage3 remains formally unaccepted.

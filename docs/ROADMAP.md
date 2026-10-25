@@ -365,3 +365,11 @@ Stage2 owner-architecture gate согласован; только два раз�
 Functional source `86f9f8b6db1e69add234b3adc0478025626aa711`, [Actions #40188715664 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/40188715664). Studio can import a versioned candidate wrapper or handoff, preserve the original candidate separately from current CMS edits, report graph and content-binding differences, and export/re-import the edited site with an audit. Contract validation is fail-closed for unknown schema fields/versions, unresolved bindings, cross-site identity changes, and handoff after selected graph identity is lost. Existing site-v1 import remains supported.
 
 This is a **bridge scaffold, not verified Design Factory D7 compatibility**: the fixture is synthetic and already contains a valid CMS site-v1 document with typed Design Graph. It neither reconstructs the original Factory project nor imports arbitrary HTML/CSS/JS. When the owner provides the final D7 package, audit its actual schema and produce an explicit supported/converted/missing-property matrix before implementing an adapter. No branch merge or edits to the independent Factory files without owner authorization. Stage2 NO-GO, Stage3 isolated/not accepted, 0/135 unchanged.
+
+
+
+## v1.64 — global typography and button inheritance (25.10.2026)
+
+Functional source `28e204bea1e64f79babbab85a05588199d2bd17d`, [full CI #40204138704 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/40204138704). Studio now exposes global body size, line-height, H2 scale, button style, radius and button text color. Section-level button appearance can inherit or explicitly choose solid/outline/pill. JS SDK, site-v1 schema, PHP validator, published renderer, Studio preview and generated offline bundle share the same closed, bounded style contract; legacy documents without optional fields remain valid. Hosted draft save, explicit publish and computed visitor styles are covered by the existing full CI.
+
+This is a technical feature checkpoint, not product acceptance. Stage2 remains NO-GO (#5–#9); Stage3 remains isolated/not accepted, 0/135. Next: manual owner review, then remaining full CMS workflows and preview/published fidelity. The prior Design Graph handoff remains a provisional scaffold, not verified D7 compatibility.
