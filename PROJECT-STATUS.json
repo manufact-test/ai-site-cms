@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-25",
-  "status": "stage2-no-go-stage3-isolated-v1.65-lead-delivery-queue",
+  "status": "stage2-no-go-stage3-isolated-v1.66-handoff-refresh",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,7 +10,7 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.65-2026-10-25.md",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.66-2026-10-25.md",
   "latest_source_sha": "97811cecc2946ed1daf52d0e4ed9fcf3b360c221",
   "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40205358049",
   "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40205358049",
@@ -56,7 +56,7 @@
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.65",
+  "checkpoint_version": "1.66",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -656,7 +656,7 @@
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.52",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.65-2026-10-25.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.66-2026-10-25.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -677,7 +677,7 @@
       "scope": "Research, license/host analysis, 135-ID reuse matrix and option A preference accepted through owner-delegated technical choice. No product features accepted."
     }
   ],
-  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.65-2026-10-25.md",
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.66-2026-10-25.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
@@ -1225,8 +1225,8 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.65",
-  "last_docs_handoff_note": "Continuation after recoverable lead-delivery queue worker; functional SHA and full CI verified separately from docs-only handoff commit. No live provider sends or production scheduler. Design Factory D7 compatibility remains unverified.",
+  "last_docs_handoff_version": "1.66",
+  "last_docs_handoff_note": "Owner-requested documentation refresh after confirming prior docs-only HEAD 90333fc0aca9c3cfa66daa18067812cf141d2ba8 passed Actions #40212155888. Functional code SHA 97811cecc2946ed1daf52d0e4ed9fcf3b360c221 remains unchanged and passed Actions #40205358049. v1.66 is docs-only; verify its own CI on actual branch HEAD. No live provider sends or production worker.",
   "latest_tested_code_sha": "97811cecc2946ed1daf52d0e4ed9fcf3b360c221",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
@@ -1629,6 +1629,39 @@
       "Actual independent Design Factory D7 compatibility remains unverified"
     ],
     "next": "Continue large CMS end-to-end workflow and preview/published fidelity blocks; avoid micro-fixes and redundant testing.",
+    "main_untouched": true,
+    "independent_factory_branch_untouched": true,
+    "hosting_modified": false,
+    "live_messages_sent": false,
+    "production_worker_enabled": false
+  },
+  "stage3_v1_66_checkpoint": {
+    "date": "2026-10-25",
+    "branch": "feature/stage3-ai-site-contract",
+    "verified_functional_sha": "97811cecc2946ed1daf52d0e4ed9fcf3b360c221",
+    "verified_functional_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40205358049",
+    "verified_functional_ci_result": "SUCCESS",
+    "previous_docs_head": "90333fc0aca9c3cfa66daa18067812cf141d2ba8",
+    "previous_docs_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40212155888",
+    "previous_docs_ci_result": "SUCCESS",
+    "handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.66-2026-10-25.md",
+    "first_message": "handoffs/lead-integrator/FIRST-MESSAGE-v1.66-2026-10-25.md",
+    "documentation_only": true,
+    "no_functional_code_changes": true,
+    "completed": [
+      "Re-verified that the recoverable Email/Telegram delivery queue worker is green on the exact functional SHA",
+      "Re-verified that the prior documentation-only HEAD and its full Stage3 workflow passed",
+      "Refreshed PROJECT-STATUS, root README, NEXT-CHAT, ROADMAP, Stage3 README and lead handoff",
+      "Prepared a ready-to-paste first message for the next lead chat"
+    ],
+    "limits": [
+      "No real Email or Telegram messages were sent",
+      "No production scheduler/cron or provider credentials were configured",
+      "Stage2 remains NO-GO and Stage3 is not formally accepted; 0/135 mandatory criteria accepted",
+      "Actual independent Design Factory D7 compatibility remains unverified",
+      "The v1.66 documentation-only commit's own CI must be checked against actual HEAD"
+    ],
+    "next": "Continue one large end-to-end CMS workflow/fidelity block; use existing full CI and only necessary critical checks.",
     "main_untouched": true,
     "independent_factory_branch_untouched": true,
     "hosting_modified": false,
