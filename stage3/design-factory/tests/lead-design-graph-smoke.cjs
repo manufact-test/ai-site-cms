@@ -517,7 +517,16 @@ const faqReordered=clone(thirdFaq.site);
 const frSec=faqReordered.pages[0].sections.find(s=>s.id==='df-selected-composition');
 findNode(frSec.designGraph.nodes,'-card-1-title').styles.fontWeight=900;
 frSec.items.reverse();
-const reorderedRebuilt=adapter.rebuildHostCandidate(thirdFaq,faqReordered,hostSdk,registry);
+const reorderPreview=adapter.inspectRebuild(thirdFaq,faqReordered,hostSdk,registry);
+assert.equal(reorderPreview.canApply,false);
+assert.equal(reorderPreview.requiresOwnerConfirmation,true,
+ 'Reordering must request confirmation before dropping item-specific owner styling');
+const reorderDiscardId=frSec.id+'-dg-card-1-title:styles';
+assert.ok(reorderPreview.discardedGraphEdits.some(edit=>
+ edit.nodeId===frSec.id+'-dg-card-1-title'&&edit.property==='styles'));
+const reorderedRebuilt=adapter.rebuildHostCandidate(thirdFaq,faqReordered,hostSdk,registry,
+ {acceptedDiscardedNodes:[reorderDiscardId]});
+assert.deepEqual(reorderedRebuilt.rebuild.explicitlyDiscardedGraphEdits,[reorderDiscardId]);
 const rrSec=reorderedRebuilt.site.pages[0].sections.find(s=>s.id==='df-selected-composition');
 assert.notEqual(findNode(rrSec.designGraph.nodes,'-card-1-title').styles.fontWeight,900,
  'No owner typography may bleed into a different FAQ item');
