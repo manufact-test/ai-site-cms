@@ -619,7 +619,7 @@ async function stop(){
   assert.doesNotMatch(richPublished.body,/<script/i,'No runtime JS required by menu');
   assert.match(richPublished.body,/href="\/published\/site-rich-ci\/contact\/"/);
   assert.match(richPublished.body,/background:var\(--cms-bg\)/);
-  assert.match(richPublished.body,/class="cms-section-skin cms-surface-dark cms-spacing-airy cms-align-center"/);
+  assert.match(richPublished.body,/class="cms-section-skin cms-surface-dark cms-spacing-airy cms-align-center cms-button-solid"/);
   assert.match(richPublished.body,/name="description" content="Страница теста услуг"/);
   assert.match(richPublished.body,/rel="canonical"/);
   assert.match(richPublished.body,/<html lang="pl">/);
