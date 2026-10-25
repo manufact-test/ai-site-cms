@@ -35,6 +35,18 @@
 
 **Ограничения доказательств:** это изолированный V8 с эмуляцией Node core-модулей, а не настоящий checkout/Node process. Попытка `git clone` не прошла из-за DNS (`Could not resolve host: github.com`). PHP parity пропущен, реальных Chromium-скриншотов и реального ZIP/SHA256 ещё нет. Не называй D7 принятым: он открыт; Stage2 NO-GO, Stage3 не принят, 0/135 обязательных критериев.
 
+## Актуальная повторная проверка среды — 25 октября 2026
+
+В начале этого прохода live HEAD ветки был `cea03104e00ff8ae9e8e2f2607d2f69438a3c5fa`. Сравнение с функциональным checkpoint `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369` показало 7 коммитов сверху и ровно 7 изменённых путей — только документация/handoff внутри `stage3/design-factory/`; функциональные исходники не менялись.
+
+- **Настоящий Node checkout / D7 audit: БЛОКИРОВКА.** Node.js `v22.16.0` установлен, но `git clone --depth 1 --single-branch --branch feature/stage3-design-factory https://github.com/manufact-test/ai-site-cms.git` завершился кодом `128`: `Could not resolve host: github.com`. Поэтому реальный bundle check, шестисоставный release audit и optional Lead suite в Node не запускались.
+- **Существующий CI: ДОКАЗАТЕЛЬСТВ НЕТ.** GitHub Actions API вернул `total_count: 0` запусков для ветки; связанные с коммитом PR workflow runs и combined statuses пусты. Workflow не менялись и не запускались принудительно.
+- **PHP parity: ПРОПУЩЕНА.** PHP CLI `8.4.24` установлен, но без checkout/актуального lead-файла `stage3/server/DesignGraph.php` parity harness выполнить нельзя; 0 проб.
+- **Chromium / visual QA: БЛОКИРОВКА.** `/usr/bin/chromium` завис на минимальной странице `data:` и завершился по таймауту (код `124`, DOM не получен) после 15 секунд; повтор с ограниченными флагами на 12 секунд и через `xvfb-run` на 16 секунд также завис. Studio E2E и матрица из 54 скриншотов не запускались/не проверялись визуально.
+- **Release ZIP / SHA256: НЕ СОЗДАНЫ.** Без checkout невозможно запустить упаковщик и проверку идентичности исходных байтов. Проверенного ZIP, CRC/source parity и реальной SHA256 архива нет; не подменять её хешем исходников.
+
+**Решение по gate:** D7 остаётся OPEN; Stage2 NO-GO; Stage3 не принят; 0/135 обязательных критериев. Работа только в этой ветке и разрешённой папке. Без merge.
+
 ## Следующие три больших блока
 
 1. Добиться честного запуска в настоящем Node окружении или получить проверяемый результат существующего GitHub Actions без изменения workflow; выполнить D7 release audit и optional Lead suite.

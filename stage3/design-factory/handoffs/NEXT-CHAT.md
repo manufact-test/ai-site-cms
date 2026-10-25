@@ -9,6 +9,11 @@
 
 This is the **second independent developer's permanent Design Factory program**, not the primary AI Site CMS chat. The main developer integrates into `feature/stage3-ai-site-contract` / main when ready. Do NOT edit the leader's branch or `main`, `stage3/sdk`, `stage3/components`, PHP, Studio-main, workflows, deployment, secrets, hosting or other projects. Do NOT merge this branch yourself.
 
+
+## Latest verified environment re-check — 25 October 2026
+
+Live HEAD at re-check: `cea03104e00ff8ae9e8e2f2607d2f69438a3c5fa`; functional checkpoint remains `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369`. Compare showed only documentation paths since that checkpoint, all under the permitted subtree. Node v22.16.0 exists, but clone fails with DNS `Could not resolve host: github.com`; GitHub Actions returned zero branch runs and no commit statuses. PHP 8.4.24 exists but the lead PHP source/checkout is unavailable, so parity ran 0 probes. Chromium timed out on a minimal data page with exit 124, including a constrained retry and `xvfb-run`; no Studio E2E or 54 screenshots. No ZIP or real archive SHA256 exists. D7 remains OPEN; Stage2 NO-GO / Stage3 unaccepted / 0/135. Do not repeat environment setup loops: resume only if checkout/CI evidence becomes available; otherwise keep the blockers explicit and do not claim acceptance.
+
 ## What has genuinely been built (D1–D6)
 
 - **D1**: deterministic `manufact-design-factory-v1` → real `manufact-ai-site-v1` compiler, first-party manifests/SDK, four-page websites, safe editorial placeholders, versioned project migration and offline CLI/preview.

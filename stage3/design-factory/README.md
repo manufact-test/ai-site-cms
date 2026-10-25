@@ -2,6 +2,18 @@
 
 Independent Stage3 Design Factory. **D1–D6 are implemented; D7 final quality gates are still open**. This does not constitute Stage3 acceptance or production release. Branch: `feature/stage3-design-factory`. Only writable subtree: `stage3/design-factory/`.
 
+## Latest environment re-check — 25 October 2026
+
+At the start of this pass, the live branch HEAD was `cea03104e00ff8ae9e8e2f2607d2f69438a3c5fa`. Comparing it with functional checkpoint `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369` showed seven commits ahead and exactly seven changed paths, all documentation/handoff files under `stage3/design-factory/`; no functional source paths changed.
+
+- **Real Node checkout / D7 audit: BLOCKED.** Node.js `v22.16.0` is installed, but `git clone --depth 1 --single-branch --branch feature/stage3-design-factory https://github.com/manufact-test/ai-site-cms.git` exited `128`: `Could not resolve host: github.com`. Therefore the real-checkout bundle check, six-suite release audit and optional Lead suite were not run in Node.
+- **Existing CI: NO EVIDENCE.** GitHub Actions API reported `total_count: 0` runs for this branch; commit-associated PR workflow runs and combined commit statuses were empty. No workflow was edited or dispatched.
+- **PHP parity: SKIPPED.** PHP CLI `8.4.24` is installed, but no checkout/current lead `stage3/server/DesignGraph.php` file was available to execute the parity harness; zero probes ran.
+- **Chromium / visual QA: BLOCKED.** `/usr/bin/chromium` timed out (exit `124`, no DOM output) on a minimal `data:` page after 15 seconds; a constrained 12-second retry and a 16-second `xvfb-run` retry also timed out. No Studio E2E or 54-screenshot matrix was captured or visually reviewed.
+- **Release ZIP / SHA256: NOT PRODUCED.** Without a checkout, the packaging and source-byte-parity checks could not run. There is no verified ZIP, CRC/source parity result, or actual archive SHA256; do not substitute a source-tree hash.
+
+**Gate decision:** D7 remains OPEN; Stage2 NO-GO; Stage3 not accepted; 0/135 mandatory criteria. Keep all work on this branch and inside the permitted subtree. No merge.
+
 ## Working features
 
 The compiler reads real first-party Stage3 manifests, calls the existing Stage3 SDK (contract.cjs), and generates **four-page manufact-ai-site-v1 documents**, with routes, SEO, navigation, typed elements, stable IDs, safe links, appearance, and validated CMS theme. It supports three distinct composition archetypes (agency, industrial, consulting), RU and EN, optional real owner facts, and an empty brief with truthful placeholders. Unknown keys and invalid values are refused.
