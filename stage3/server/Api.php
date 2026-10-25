@@ -76,12 +76,13 @@ final class Api
             || preg_match('~^media/[a-z][a-z0-9-]{2,79}$~D', $action))) return;
         if ($method === 'POST' && $action === 'preview') return;
         $edit = in_array($principal['role'], ['editor','publisher'], true);
-        if ($edit && $method === 'GET' && in_array($action, ['notifications','submissions'], true)) return;
+        if ($edit && $method === 'GET' && in_array($action, ['notifications','submissions','submissions/export'], true)) return;
         if ($edit && $method === 'POST' &&
             preg_match('~^video-uploads/(?:start|video-[a-f0-9]{20}/(?:chunk|finish|cancel))$~D',$action)) return;
         if ($edit && $method === 'POST' && (in_array($action, ['save','restore','restore-release','media','video','templates','notifications/seen'], true)
             || preg_match('~^templates/template-[0-9a-f]{18}/delete$~D', $action)
-            || preg_match('~^submissions/lead-[0-9a-f]{24}/review$~D', $action))) return;
+            || preg_match('~^submissions/lead-[0-9a-f]{24}/review$~D', $action)
+            || $action==='submissions/bulk-review')) return;
         if ($principal['role'] === 'publisher' && $method === 'POST' && $action === 'publish') return;
         $this->response(403, ['error' => 'Role does not allow this operation']);
     }
@@ -503,13 +504,38 @@ final class Api
                     $this->response(200, $this->sites->markNotificationsSeen($alertMatch[1]));
                 }
             }
-            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/submissions(?:/(lead-[0-9a-f]{24})/review)?$~D', $path, $inboxMatch)) {
-                if ($method === 'GET' && !isset($inboxMatch[2])) {
-                    $this->response(200, ['submissions' => $this->sites->submissions($inboxMatch[1])]);
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/submissions(?:/(export|bulk-review|lead-[0-9a-f]{24}/review))?$~D', $path, $inboxMatch)) {
+                $siteId=$inboxMatch[1];$operation=$inboxMatch[2]??'';
+                if($method==='GET'&&in_array($operation,['','export'],true)){
+                    $status=$_GET['status']??'all';$query=$_GET['q']??'';
+                    if(!is_string($status)||!is_string($query))
+                        throw new InvalidArgumentException('Invalid inbox filters');
+                    if($operation==='export'){
+                        $csv=$this->sites->inboxCsv($siteId,$status,$query);
+                        $this->sites->audit($principal['username'],'GET submissions/export',$siteId,'success','Private filtered CSV export');
+                        $this->auditContext=null;
+                        header('Content-Type: text/csv; charset=utf-8');
+                        header('Content-Disposition: attachment; filename="'.$siteId.'-submissions.csv"');
+                        header('Cache-Control: private, no-store, max-age=0');
+                        header('X-Content-Type-Options: nosniff');
+                        header("Content-Security-Policy: default-src 'none'; sandbox");
+                        echo $csv;exit;
+                    }
+                    $rawPage=$_GET['page']??'1';
+                    if(!is_string($rawPage)||preg_match('/^[1-9][0-9]{0,3}$/D',$rawPage)!==1)
+                        throw new InvalidArgumentException('Invalid inbox page');
+                    $this->response(200,$this->sites->inboxPage($siteId,$status,$query,(int)$rawPage));
                 }
-                if ($method === 'POST' && isset($inboxMatch[2])) {
-                    $this->sites->reviewSubmission($inboxMatch[1], $inboxMatch[2]);
-                    $this->response(200, ['status' => 'reviewed']);
+                if($method==='POST'&&$operation==='bulk-review'){
+                    $ids=$body['ids']??null;
+                    if(!is_array($ids))throw new InvalidArgumentException('Lead IDs array required');
+                    $result=$this->sites->bulkReviewSubmissions($siteId,$ids);
+                    $this->auditDetail='Bulk reviewed '.$result['reviewed'].' leads';
+                    $this->response(200,$result);
+                }
+                if($method==='POST'&&preg_match('/^lead-[0-9a-f]{24}\/review$/D',$operation)){
+                    $this->sites->reviewSubmission($siteId,substr($operation,0,29));
+                    $this->response(200,['status'=>'reviewed']);
                 }
             }
             if($method==='POST' &&

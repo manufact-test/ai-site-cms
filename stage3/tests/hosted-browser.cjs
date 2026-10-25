@@ -199,6 +199,24 @@ async function execute(){
   assert.match(await page.locator('#server-submissions .hosted-lead').innerText(),/Алексей Тест/);
   await page.locator('#server-submissions .hosted-lead button').click();
   await page.locator('#server-submissions .hosted-lead small').getByText(/reviewed/).waitFor();
+  // Operators can filter/search and download private CSV without publication.
+  await page.locator('#server-inbox-status').selectOption('new');
+  await page.locator('#server-submissions').getByText('По фильтру заявок нет.').waitFor();
+  await page.locator('#server-inbox-status').selectOption('reviewed');
+  await page.locator('#server-submissions .hosted-lead').getByText(/Алексей Тест/).waitFor();
+  await page.locator('#server-inbox-search').fill('not-a-customer');
+  await page.locator('#server-inbox-find').click();
+  await page.locator('#server-submissions').getByText('По фильтру заявок нет.').waitFor();
+  await page.locator('#server-inbox-search').fill('lead@example.test');
+  await page.locator('#server-inbox-find').click();
+  await page.locator('#server-submissions .hosted-lead').getByText(/Алексей Тест/).waitFor();
+  const csvDownloadPromise=page.waitForEvent('download');
+  await page.locator('#server-inbox-export').click();
+  const csvDownload=await csvDownloadPromise;
+  assert.match(csvDownload.suggestedFilename(),/-submissions\.csv$/);
+  const csvBytes=fs.readFileSync(await csvDownload.path(),'utf8');
+  assert.match(csvBytes,/lead@example.test/);
+
   await page.locator('#server-notifications-count').getByText(/Непросмотренные заявки: 1/).waitFor();
   await page.locator('#server-notifications-seen').click();
   await page.locator('#server-notifications-count').getByText(/Непросмотренные заявки: 0/).waitFor();

@@ -102,7 +102,54 @@
   leadsTitle.id='server-submission-heading';
   const leadsRefresh=action('Обновить заявки','server-submissions-refresh',()=>safe(loadSubmissions));
   const leadsList=element('div','hosted-leads-list');leadsList.id='server-submissions';
-  leadsPanel.append(leadsTitle,leadsRefresh,leadsList);
+  const leadsTools=element('div','hosted-inbox-tools');
+  const leadsStatus=element('select','control');leadsStatus.id='server-inbox-status';
+  for(const [value,name] of [['all','Все'],['new','Новые'],['reviewed','Обработанные']]){
+    const opt=element('option',null,name);opt.value=value;leadsStatus.append(opt);
+  }
+  leadsStatus.setAttribute('aria-label','Фильтр статуса заявок');
+  const leadsSearch=element('input','control');leadsSearch.type='search';leadsSearch.id='server-inbox-search';
+  leadsSearch.placeholder='Имя, email или сообщение';leadsSearch.maxLength=120;
+  leadsSearch.setAttribute('aria-label','Поиск по заявкам');
+  let inboxPage=1,inboxSite=null,inboxSelected=new Set(),inboxVisible=[];
+  const leadsFind=action('Найти','server-inbox-find',()=>safe(async()=>{inboxPage=1;await loadSubmissions();}));
+  const leadsExport=action('Скачать CSV','server-inbox-export',()=>safe(async()=>{
+    if(!state.siteId||!canEdit())throw Error('Нет доступа к заявкам');
+    const url='/api/sites/'+encodeURIComponent(state.siteId)+'/submissions/export?'+
+      new URLSearchParams({status:leadsStatus.value,q:leadsSearch.value});
+    const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+    if(!response.ok){
+      const error=await response.json().catch(()=>({error:'Ошибка CSV экспорта'}));
+      throw Error(error.error||'Ошибка CSV экспорта');
+    }
+    const blob=await response.blob();
+    if(blob.size>10000000)throw Error('CSV слишком большой');
+    const href=URL.createObjectURL(blob),a=element('a');
+    a.href=href;a.download=state.siteId+'-submissions.csv';document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(href),2000);
+    notice('Скачаны приватные заявки по выбранному фильтру. Храните CSV безопасно.');
+  }));
+  const leadsBulk=action('Обработать выбранные','server-inbox-bulk',()=>safe(async()=>{
+    if(!inboxSelected.size||inboxSelected.size>50)throw Error('Выберите до 50 новых заявок');
+    if(!confirm('Отметить выбранные заявки обработанными ('+inboxSelected.size+')?'))return;
+    const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/submissions/bulk-review',
+      'POST',{ids:[...inboxSelected]});
+    inboxSelected.clear();await loadSubmissions();
+    notice('Отмечено обработанными заявок: '+result.reviewed+'.');
+  }));
+  leadsBulk.disabled=true;
+  const leadsPageLabel=element('small',null,'Страница 1 из 1');leadsPageLabel.id='server-inbox-page-label';
+  const leadsPrev=action('← Назад','server-inbox-prev',()=>safe(async()=>{inboxPage=Math.max(1,inboxPage-1);await loadSubmissions();}));
+  const leadsNext=action('Дальше →','server-inbox-next',()=>safe(async()=>{inboxPage++;await loadSubmissions();}));
+  const leadsTotals=element('small',null,'');leadsTotals.id='server-inbox-totals';
+  const leadsPager=element('div','hosted-inbox-pager');
+  leadsPager.append(leadsPrev,leadsPageLabel,leadsNext);
+  leadsTools.append(leadsStatus,leadsSearch,leadsFind,leadsExport,leadsBulk);
+  leadsPanel.append(leadsTitle,leadsRefresh,leadsTools,leadsTotals,leadsList,leadsPager);
+  leadsStatus.addEventListener('change',()=>safe(async()=>{inboxPage=1;await loadSubmissions();}));
+  leadsSearch.addEventListener('keydown',event=>{
+    if(event.key==='Enter'){event.preventDefault();leadsFind.click();}
+  });
   mediaPanel.after(leadsPanel);
   // Optional owner-configured external delivery. Provider secrets remain in server env.
   let currentDelivery=null;
@@ -220,21 +267,58 @@
   }
 
   async function loadSubmissions(){
-    leadsList.replaceChildren();
+    leadsList.replaceChildren();inboxSelected.clear();inboxVisible=[];
+    leadsBulk.disabled=true;
     if(!state.authorized||!state.siteId||!canEdit()){
-      leadsTitle.textContent='Заявки сайта';
-      leadsList.append(element('small',null,'Выберите сайт.'));
-      return;
+      leadsTitle.textContent='Заявки сайта';leadsTotals.textContent='';
+      leadsPrev.disabled=true;leadsNext.disabled=true;leadsExport.disabled=true;
+      leadsList.append(element('small',null,'Выберите сайт.'));return;
     }
-    const response=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/submissions');
+    if(inboxSite!==state.siteId){inboxSite=state.siteId;inboxPage=1;leadsSearch.value='';leadsStatus.value='all';}
+    const url='/api/sites/'+encodeURIComponent(state.siteId)+'/submissions?'+
+      new URLSearchParams({status:leadsStatus.value,q:leadsSearch.value,page:String(inboxPage)});
+    const response=await api(url);
     await refreshAlerts(); // Inbox refresh and new-lead indicator are one operation.
-    leadsTitle.textContent='Заявки сайта · '+response.submissions.length;
+    inboxPage=response.page;inboxVisible=response.submissions;
+    leadsTitle.textContent='Заявки сайта · '+response.counts.all;
+    leadsTotals.textContent='Новые: '+response.counts.new+' · Обработанные: '+response.counts.reviewed+
+      ' · Найдено: '+response.total;
+    leadsPageLabel.textContent='Страница '+response.page+' из '+response.pages;
+    leadsPrev.disabled=response.page<=1;leadsNext.disabled=response.page>=response.pages;
+    leadsExport.disabled=false;
     if(!response.submissions.length){
-      leadsList.append(element('small',null,'Обращений пока нет.'));return;
+      leadsList.append(element('small',null,'По фильтру заявок нет.'));return;
+    }
+    const selectable=response.submissions.filter(lead=>lead.status==='new');
+    if(selectable.length){
+      const selectAll=element('label','hosted-inbox-select-all');
+      const checkbox=element('input');checkbox.type='checkbox';checkbox.id='server-inbox-select-all';
+      selectAll.append(checkbox,element('span',null,'Выбрать новые на этой странице'));
+      checkbox.addEventListener('change',()=>{
+        for(const lead of selectable){
+          if(checkbox.checked)inboxSelected.add(lead.submission_id);
+          else inboxSelected.delete(lead.submission_id);
+        }
+        for(const input of leadsList.querySelectorAll('input[data-inbox-id]'))input.checked=checkbox.checked;
+        leadsBulk.disabled=!inboxSelected.size;
+      });
+      leadsList.append(selectAll);
     }
     for(const lead of response.submissions){
       const wrap=element('article','hosted-lead');
       wrap.dataset.submissionId=lead.submission_id;
+      if(lead.status==='new'){
+        const tick=element('input');tick.type='checkbox';tick.dataset.inboxId=lead.submission_id;
+        tick.setAttribute('aria-label','Выбрать заявку '+lead.name);
+        tick.addEventListener('change',()=>{
+          if(tick.checked)inboxSelected.add(lead.submission_id);
+          else inboxSelected.delete(lead.submission_id);
+          const all=leadsList.querySelector('#server-inbox-select-all');
+          if(all)all.checked=selectable.every(x=>inboxSelected.has(x.submission_id));
+          leadsBulk.disabled=!inboxSelected.size;
+        });
+        wrap.append(tick);
+      }
       wrap.append(element('strong',null,lead.name+' · '+lead.email));
       wrap.append(element('small',null,lead.submitted_at+' · '+lead.status));
       wrap.append(element('p',null,lead.message));
@@ -245,13 +329,11 @@
           }
         }
       }
-
       if(lead.status==='new'){
         wrap.append(action('Обработано','',()=>safe(async()=>{
           await api('/api/sites/'+encodeURIComponent(state.siteId)+'/submissions/'+
             encodeURIComponent(lead.submission_id)+'/review','POST',{});
-          await loadSubmissions();
-          notice('Заявка отмечена обработанной.');
+          await loadSubmissions();notice('Заявка отмечена обработанной.');
         })));
       }
       leadsList.append(wrap);
@@ -684,7 +766,10 @@
     $('new-site').disabled=state.busy||!isOwner();
     $('compose-site').disabled=state.busy||!isOwner();
     $('import').disabled=state.busy||!isOwner();
-    leadsRefresh.disabled=state.busy||!state.authorized||!state.siteId;
+    leadsRefresh.disabled=state.busy||!state.authorized||!state.siteId||!canEdit();
+    leadsFind.disabled=leadsExport.disabled=state.busy||!state.siteId||!canEdit();
+    leadsStatus.disabled=leadsSearch.disabled=state.busy||!state.siteId||!canEdit();
+    leadsBulk.disabled=state.busy||!state.siteId||!canEdit()||!inboxSelected.size;
     deliveryPanel.hidden=!isOwner();
     deliverySave.disabled=!available||!isOwner();deliveryRefresh.disabled=!available||!isOwner();
     deliveryRetry.disabled=!available||!isOwner()||!currentDelivery?.retryable;

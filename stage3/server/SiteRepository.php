@@ -612,6 +612,115 @@ final class SiteRepository
         return $rows;
     }
 
+
+    /** Scoped, bounded and parameterized inbox filtering for real CMS operators. */
+    private function inboxWhere(string $siteId, string $status, string $query): array
+    {
+        if (!in_array($status, ['all','new','reviewed'], true)) {
+            throw new \InvalidArgumentException('Unknown inbox status filter');
+        }
+        if (strlen($query)>120 || preg_match('//u',$query)!==1
+            || preg_match('/[\x00-\x1f\x7f]/',$query)===1) {
+            throw new \InvalidArgumentException('Invalid inbox search');
+        }
+        $where='site_id = ?';$params=[$siteId];
+        if ($status!=='all') {$where.=' AND status = ?';$params[]=$status;}
+        $query=trim($query);
+        if ($query!=='') {
+            // Explicit LIKE wildcard escaping is portable across SQLite/MySQL.
+            $escaped=str_replace(['!','%','_'],['!!','!%','!_'],$query);
+            $like='%'.$escaped.'%';
+            $where.=" AND (name LIKE ? ESCAPE '!' OR email LIKE ? ESCAPE '!' OR message LIKE ? ESCAPE '!')";
+            array_push($params,$like,$like,$like);
+        }
+        return [$where,$params];
+    }
+
+    public function inboxPage(string $siteId, string $status='all', string $query='', int $page=1, int $limit=25): array
+    {
+        $this->getDraft($siteId);
+        if ($page<1 || $page>10000 || $limit<1 || $limit>1000)
+            throw new \InvalidArgumentException('Invalid inbox page or limit');
+        [$where,$params]=$this->inboxWhere($siteId,$status,$query);
+        $count=$this->db->prepare('SELECT COUNT(*) FROM stage3_submissions WHERE '.$where);
+        $count->execute($params);$total=(int)$count->fetchColumn();
+        $stats=['all'=>0,'new'=>0,'reviewed'=>0];
+        $totals=$this->db->prepare('SELECT status, COUNT(*) AS tally FROM stage3_submissions WHERE site_id = ? GROUP BY status');
+        $totals->execute([$siteId]);
+        foreach ($totals->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if (array_key_exists($row['status'],$stats))$stats[$row['status']]=(int)$row['tally'];
+        }
+        $stats['all']=$stats['new']+$stats['reviewed'];
+        $pages=max(1,(int)ceil($total/$limit));
+        $page=min($page,$pages);
+        $stmt=$this->db->prepare('SELECT submission_id,section_id,source_version,name,email,message,submitted_at,status,extras'
+            .' FROM stage3_submissions WHERE '.$where
+            .' ORDER BY submitted_at DESC,submission_id DESC LIMIT ? OFFSET ?');
+        foreach($params as $i=>$value)$stmt->bindValue($i+1,$value,PDO::PARAM_STR);
+        $stmt->bindValue(count($params)+1,$limit,PDO::PARAM_INT);
+        $stmt->bindValue(count($params)+2,($page-1)*$limit,PDO::PARAM_INT);
+        $stmt->execute();
+        $rows=$stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as &$row)$row['extras']=self::decode($row['extras']);
+        unset($row);
+        return ['submissions'=>$rows,'page'=>$page,'pages'=>$pages,'limit'=>$limit,
+            'total'=>$total,'counts'=>$stats];
+    }
+
+    /** Entire filtered CSV or explicit refusal: never silently truncate private exports. */
+    public function inboxCsv(string $siteId, string $status='all', string $query=''): string
+    {
+        $data=$this->inboxPage($siteId,$status,$query,1,1000);
+        if ($data['total']>1000)
+            throw new \InvalidArgumentException('CSV export exceeds 1000 leads; narrow the filter');
+        $stream=fopen('php://temp','w+');
+        if ($stream===false)throw new \RuntimeException('Cannot prepare CSV');
+        fwrite($stream,"\xEF\xBB\xBF");
+        fputcsv($stream,['ID','Date UTC','Status','Name','Email','Message','Form section','Published version','Extra fields'],',','"','');
+        foreach ($data['submissions'] as $row) {
+            $extras=[];
+            foreach ($row['extras'] as $extra) {
+                if (is_array($extra))$extras[]=($extra['label']??'').': '.($extra['value']??'');
+            }
+            $cells=[$row['submission_id'],$row['submitted_at'],$row['status'],$row['name'],$row['email'],
+                $row['message'],$row['section_id'],(string)$row['source_version'],implode(' | ',$extras)];
+            // Neutralize spreadsheet formulas, including values preceded by whitespace.
+            $cells=array_map(static function(string $value): string {
+                return preg_match('/^[\x00-\x20]*[=+\-@]/',$value)===1?"'".$value:$value;
+            },$cells);
+            fputcsv($stream,$cells,',','"','');
+        }
+        rewind($stream);$csv=stream_get_contents($stream);fclose($stream);
+        if (!is_string($csv))throw new \RuntimeException('CSV serialization failed');
+        return $csv;
+    }
+
+    /** All-or-nothing review for explicitly selected new leads. No deletes or auto-ack. */
+    public function bulkReviewSubmissions(string $siteId, array $ids): array
+    {
+        if (!array_is_list($ids)||count($ids)<1||count($ids)>50)
+            throw new \InvalidArgumentException('Select 1–50 lead IDs');
+        $seen=[];
+        foreach($ids as $id){
+            if(!is_string($id)||preg_match('/^lead-[a-f0-9]{24}$/D',$id)!==1||isset($seen[$id]))
+                throw new \InvalidArgumentException('Invalid or duplicate lead ID');
+            $seen[$id]=true;
+        }
+        return $this->atomic(function() use($siteId,$ids): array {
+            $this->getDraft($siteId);
+            $placeholders=implode(',',array_fill(0,count($ids),'?'));
+            $check=$this->db->prepare('SELECT submission_id,status FROM stage3_submissions WHERE site_id = ? AND submission_id IN ('.$placeholders.')');
+            $check->execute([$siteId,...$ids]);$matches=$check->fetchAll(PDO::FETCH_ASSOC);
+            if(count($matches)!==count($ids))throw new Conflict('Unknown lead; selection was not changed');
+            foreach($matches as $match)if($match['status']!=='new')
+                throw new Conflict('Already reviewed lead; selection was not changed');
+            $update=$this->db->prepare("UPDATE stage3_submissions SET status = 'reviewed' WHERE site_id = ? AND status = 'new' AND submission_id IN (".$placeholders.")");
+            $update->execute([$siteId,...$ids]);
+            if($update->rowCount()!==count($ids))throw new Conflict('Concurrent review; transaction rolled back');
+            return ['reviewed'=>count($ids)];
+        });
+    }
+
     /** Persist inbox notifications separately from review workflow; no external delivery. */
     public function notificationSummary(string $siteId): array
     {

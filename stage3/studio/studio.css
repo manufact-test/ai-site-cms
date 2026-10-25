@@ -137,3 +137,14 @@
 .cms-design-audit-focus{padding:12px 14px;border:1px solid #ab8655;border-radius:10px;background:#302718;color:#ffe0b0;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
 .cms-design-audit-focus[hidden]{display:none}
 .cms-design-audit-focus[data-resolved="true"]{border-color:#427962;background:#17382b;color:#c2f2d8}
+
+
+/* Private, site-scoped lead inbox. Search and bulk controls wrap on phones. */
+.hosted-inbox-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}
+.hosted-inbox-tools .control{width:auto;min-width:0;flex:0 1 150px;padding:9px}
+#server-inbox-search{flex:1 1 220px}
+.hosted-inbox-pager{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.hosted-inbox-select-all{display:flex;gap:9px;align-items:center;padding:10px 5px;font-size:12px}
+.hosted-lead input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent);margin:0 6px 0 0}
+#server-inbox-totals{display:block;margin:4px 0 10px;color:#a6c7d7}
+@media(max-width:570px){.hosted-inbox-tools .control{flex-basis:100%}#server-inbox-search{flex-basis:100%}}

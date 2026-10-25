@@ -282,6 +282,41 @@ async function stop(){
   assert.notEqual(workerDenied.status,0,'Worker requires explicit CLI authorization');
   const allLeads=(await request('GET',endpoint+'/submissions')).body.submissions;
   assert.equal(allLeads.length,5);
+  // Private operator inbox: bounded search, status, paging, CSV and transactional bulk review.
+  const summary=await request('GET',endpoint+'/submissions?status=new&page=1');
+  assert.equal(summary.status,200);
+  assert.deepEqual(summary.body.counts,{all:5,new:4,reviewed:1});
+  assert.equal(summary.body.total,4);
+  assert.equal(summary.body.submissions.length,4);
+  assert.equal((await request('GET',endpoint+'/submissions?status=bogus')).status,422);
+  assert.equal((await request('GET',endpoint+'/submissions?page=0')).status,422);
+  assert.equal((await request('GET',endpoint+'/submissions?q=%25')).body.total,0,
+    'LIKE search treats literal % as data rather than a wildcard');
+  const searched=await request('GET',endpoint+'/submissions?q='+encodeURIComponent('client@example.test'));
+  assert.equal(searched.body.total,5);
+  const csv=await request('GET',endpoint+'/submissions/export?status=new');
+  assert.equal(csv.status,200);
+  assert.match(csv.headers.get('content-type'),/^text\/csv/);
+  assert.match(csv.headers.get('cache-control'),/no-store/);
+  assert.match(csv.body,/client@example.test/);
+  assert.equal(csv.body.split('client@example.test').length-1,4);
+  assert.equal((await request('POST',endpoint+'/submissions/bulk-review',
+    {ids:[allLeads[1].submission_id,allLeads[1].submission_id]})).status,422);
+  assert.equal((await request('POST',endpoint+'/submissions/bulk-review',
+    {ids:[allLeads[0].submission_id,allLeads[1].submission_id]})).status,409,
+    'Already reviewed lead must roll back the entire selection');
+  assert.equal((await request('GET',endpoint+'/submissions?status=new')).body.total,4);
+  assert.equal((await request('POST',endpoint+'/submissions/bulk-review',
+    {ids:[allLeads[1].submission_id,allLeads[2].submission_id]},
+    {'x-csrf-token':'wrong'})).status,403);
+  const bulk=await request('POST',endpoint+'/submissions/bulk-review',
+    {ids:[allLeads[1].submission_id,allLeads[2].submission_id]});
+  assert.equal(bulk.status,200,JSON.stringify(bulk.body));
+  assert.equal(bulk.body.reviewed,2);
+  assert.deepEqual((await request('GET',endpoint+'/submissions?status=reviewed')).body.counts,
+    {all:5,new:2,reviewed:3});
+  assert.equal((await request('GET',endpoint+'/submissions?status=new')).body.total,2);
+
   const pendingSetup=spawnSync('php',['-r',
     '$db=new PDO(getenv("STAGE3_DSN"));$q=$db->prepare("UPDATE stage3_delivery_outbox SET state=?,last_error=NULL WHERE site_id=? AND submission_id=? AND channel=?");$q->execute(["pending","site-industrial-demo",$argv[1],"email"]);if($q->rowCount()!==1)exit(3);',
     allLeads[0].submission_id],{cwd:root,env,encoding:'utf8'});
