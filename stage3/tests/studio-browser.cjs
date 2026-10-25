@@ -437,6 +437,18 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await designFrame.locator('.cmsdg h2').getByText('Ваш уникальный заголовок').waitFor();
     await page.locator('#cms-design-redo').click();
     await designFrame.locator('.cmsdg h2').getByText('Новый профессиональный дизайн без ИИ').waitFor();
+    // Accessibility findings update while editing and jump back to the exact typed node.
+    await page.locator('#cms-design-a11y-summary').waitFor();
+    await page.locator('#cms-design-node-select').selectOption(selectedSection+'-copy');
+    const copyText=page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'Текст'}).locator('textarea');
+    await copyText.fill('');
+    const emptyTextFinding=page.locator('#cms-design-a11y [data-a11y-code="empty-text"][data-a11y-node="'+selectedSection+'-copy"]');
+    await emptyTextFinding.waitFor();
+    await emptyTextFinding.click();
+    assert.equal(await page.locator('#cms-design-node-select').inputValue(),selectedSection+'-copy',
+      'Selecting an accessibility finding focuses its node in the inspector');
+    await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'Текст'}).locator('textarea')
+      .fill('Все элементы, сетки, отступы и стили редактируются в CMS.');
     // Preview navigation is inert even when a generated button has an href.
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
 

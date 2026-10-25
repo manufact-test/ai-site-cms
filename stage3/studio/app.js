@@ -577,6 +577,9 @@
     const toolbar=document.createElement('div');toolbar.className='cms-appearance-actions';
     const root=document.createElement('div');root.className='cms-design-graph-editor';
     const footer=document.createElement('div');footer.className='cms-appearance-actions';
+    const auditPanel=document.createElement('section');auditPanel.id='cms-design-a11y';
+    auditPanel.className='cms-design-a11y';auditPanel.setAttribute('role','region');
+    auditPanel.setAttribute('aria-label','Проверка доступности дизайн-композиции');
     const workspace=document.createElement('div');workspace.className='cms-design-workspace';
     const visual=document.createElement('div');visual.className='cms-design-visual';
     const deviceTools=document.createElement('div');deviceTools.className='cms-design-device-tools';
@@ -590,7 +593,7 @@
     visualHint.textContent='Клик — выбрать · Перетащить на узел — порядок/вложенность · Alt+перетаскивание — смещение · маркеры — размер (шаг 8 px)';
     canvasStage.append(previewFrame);visual.append(deviceTools,canvasStage,visualHint);
     workspace.append(visual,root);
-    dlg.append(title,info,toolbar,workspace,footer);
+    dlg.append(title,info,toolbar,workspace,auditPanel,footer);
     document.body.append(dlg);
     let graph,tokens,selection,mode='desktop',sourcePage,sourceSection,previewDevice='desktop';
     let undoStack=[],redoStack=[],activeGesture=null,suppressPreviewClick=false;
@@ -903,6 +906,37 @@
       });
       b.dataset.designDevice=id;deviceTools.append(b);
     }
+    function renderAudit(){
+      auditPanel.replaceChildren();
+      auditPanel.append(make('h3','Проверка доступности'));
+      let findings;
+      try{findings=DESIGN_GRAPH.auditAccessibility(graph,tokens);}
+      catch(error){
+        const status=make('p','Проверка обновится после завершения ввода параметров.','cms-design-a11y-summary');
+        status.id='cms-design-a11y-summary';status.setAttribute('aria-live','polite');auditPanel.append(status);return;
+      }
+      const errors=findings.filter(item=>item.severity==='error').length;
+      const summaryText=findings.length?
+        findings.length+' замечаний: '+errors+' критических, '+(findings.length-errors)+' предупреждений. Проверка справочная и не блокирует сохранение.':
+        'Явных проблем в проверяемых свойствах не найдено. Это не заменяет аудит всей страницы.';
+      const summary=make('p',summaryText,'cms-design-a11y-summary');
+      summary.id='cms-design-a11y-summary';summary.setAttribute('aria-live','polite');auditPanel.append(summary);
+      if(!findings.length)return;
+      const list=make('ul',undefined,'cms-design-a11y-list');
+      for(const finding of findings.slice(0,12)){
+        const item=make('li',undefined,'cms-design-a11y-item '+finding.severity);
+        const issue=make('button',finding.message+(finding.nodeId?' · '+finding.nodeId:''),'cms-design-a11y-issue');
+        issue.type='button';issue.dataset.a11yCode=finding.code;
+        if(finding.nodeId)issue.dataset.a11yNode=finding.nodeId;
+        issue.setAttribute('aria-label',finding.message+(finding.nodeId?' — перейти к '+finding.nodeId:''));
+        issue.addEventListener('click',()=>{
+          if(finding.nodeId&&all().some(row=>row.node.id===finding.nodeId)){selection=finding.nodeId;render();}
+        });
+        item.append(issue);list.append(item);
+      }
+      auditPanel.append(list);
+      if(findings.length>12)auditPanel.append(make('p','Показаны первые 12 из '+findings.length+' замечаний.','cms-design-a11y-more'));
+    }
     function paintVisual(){
       for(const b of deviceTools.children)b.classList.toggle('active',b.dataset.designDevice===previewDevice);
       const width=PREVIEW_WIDTHS[previewDevice];
@@ -926,6 +960,7 @@
         previewFrame.srcdoc='<!doctype html><html><head><meta charset="utf-8"></head><body><p>Предпросмотр временно недоступен</p></body></html>';
         visualHint.textContent='Исправьте параметры композиции: '+error.message;
       }
+      renderAudit();
     }
     function render(){
       root.replaceChildren();toolbar.replaceChildren();

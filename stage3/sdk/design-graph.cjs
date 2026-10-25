@@ -391,4 +391,101 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     '@media(prefers-reduced-motion:reduce){'+scope+' [class*="cmsdg-n-"]{animation:none!important;transition:none!important}}'+
     rules.join('')+'</style>'+html+'</section>';
 }
-module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,ICON_PATHS});
+
+function auditAccessibility(graph,tokensInput){
+  const tokens=validateTokens(tokensInput),findings=[],headings=[];
+  const add=(code,severity,node,message)=>findings.push({
+    code,severity,nodeId:node&&typeof node.id==='string'?node.id:null,message
+  });
+  const colorOf=value=>{
+    if(typeof value!=='string')return null;
+    if(value.startsWith('@'))return tokens.colors[value.slice(1)]||null;
+    return /^#[a-f0-9]{6}$/i.test(value)?value.toLowerCase():null;
+  };
+  const sizeOf=value=>{
+    if(typeof value==='string'&&value.startsWith('@'))return tokens.typography[value.slice(1)]||null;
+    return typeof value==='number'&&Number.isFinite(value)?value:null;
+  };
+  const luminance=hex=>{
+    const rgb=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(v=>
+      v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));
+    return rgb[0]*0.2126+rgb[1]*0.7152+rgb[2]*0.0722;
+  };
+  const contrast=(a,b)=>{
+    const x=luminance(a),y=luminance(b);
+    return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);
+  };
+  const genericLabel=/^(?:click here|here|read more|more|learn more|open|link|button|нажмите здесь|здесь|сюда|подробнее|читать далее|узнать больше|открыть)$/i;
+  const genericAlt=/^(?:image|photo|picture|graphic|video|фото|изображение|картинка|рисунок|видео)(?:\s+\d+)?$/i;
+  const walk=(nodes,parent)=>{
+    for(const node of nodes||[]){
+      const style=node.styles&&typeof node.styles==='object'?node.styles:{};
+      const color=Object.prototype.hasOwnProperty.call(style,'color')?colorOf(style.color):parent.color;
+      let backgrounds=parent.backgrounds||[];
+      if(style.gradient&&typeof style.gradient==='object'){
+        backgrounds=[style.gradient.from,style.gradient.via,style.gradient.to].map(colorOf).filter(Boolean);
+      }else if(Object.prototype.hasOwnProperty.call(style,'background')){
+        const background=colorOf(style.background);
+        backgrounds=background?[background]:[];
+      }
+      const level=Number(node.level)||2;
+      let fontSize=Object.prototype.hasOwnProperty.call(style,'fontSize')?sizeOf(style.fontSize):parent.fontSize;
+      if(node.type==='heading'&&!Object.prototype.hasOwnProperty.call(style,'fontSize')){
+        const baseSize=parent.fontSize||16;
+        fontSize=baseSize*({1:2,2:1.5,3:1.17,4:1,5:0.83,6:0.67}[level]||1);
+      }
+      const fontWeight=Object.prototype.hasOwnProperty.call(style,'fontWeight')?Number(style.fontWeight):
+        node.type==='heading'?700:(parent.fontWeight||400);
+      const label=typeof node.text==='string'?node.text.trim():'';
+      if(node.type==='heading'){
+        headings.push({node,level});
+        if(!label)add('empty-text','warning',node,'Заголовок пустой — добавьте понятный текст.');
+      }else if(node.type==='text'&&!label){
+        add('empty-text','warning',node,'Текстовый элемент пустой — добавьте содержание или удалите его.');
+      }
+      if(node.type==='image'){
+        const alt=typeof node.alt==='string'?node.alt.trim():'';
+        if(!alt)add('missing-alt','warning',node,'У изображения пустой alt. Если оно несёт смысл, добавьте описание; если декоративное — проверьте намеренно пустой alt.');
+        else if(genericAlt.test(alt))add('generic-alt','warning',node,'Описание изображения слишком общее. Укажите, что именно показано.');
+      }
+      if(node.type==='video'){
+        const alt=typeof node.alt==='string'?node.alt.trim():'';
+        if(!alt)add('missing-video-name','error',node,'Видео не имеет доступного названия.');
+        else if(genericAlt.test(alt))add('generic-video-name','warning',node,'Название видео слишком общее. Опишите его содержание.');
+      }
+      if(node.type==='button'){
+        if(!label)add('empty-link-name','error',node,'Ссылка-кнопка не имеет доступного названия.');
+        else if(genericLabel.test(label))add('generic-link-name','warning',node,'Название ссылки слишком общее. Уточните, куда ведёт ссылка.');
+        const focus=node.states&&node.states.focus&&typeof node.states.focus==='object'?node.states.focus:{};
+        const explicitFocus=Number(focus.outlineWidth)>0||Number(focus.borderWidth)>0||
+          (typeof focus.borderColor==='string'&&Number(style.borderWidth)>0);
+        if((style.outlineWidth===0||focus.outlineWidth===0)&&!explicitFocus)
+          add('focus-indicator-removed','warning',node,'У ссылки отключён контур фокуса без явной замены. Сохраните заметный индикатор клавиатурного фокуса.');
+      }
+      if((node.type==='heading'||node.type==='text'||node.type==='button'||(node.type==='icon'&&node.alt))&&color&&backgrounds.length){
+        const ratios=backgrounds.map(bg=>contrast(color,bg));
+        const ratio=Math.min(...ratios);
+        const large=fontSize!==null&&(fontSize>=24||(fontSize>=18.66&&fontWeight>=700));
+        const minimum=large?3:4.5;
+        if(ratio<minimum)add('low-contrast','warning',node,
+          'Контраст текста '+ratio.toFixed(2)+':1; ориентир WCAG AA — не менее '+minimum.toFixed(1)+':1.');
+      }
+      if(node.type==='container'&&Array.isArray(node.children))walk(node.children,{color,backgrounds,fontSize,fontWeight});
+    }
+  };
+  if(!graph||!Array.isArray(graph.nodes)){
+    add('invalid-graph','error',null,'Не удалось проверить структуру композиции.');
+    return findings;
+  }
+  walk(graph.nodes,{color:null,backgrounds:[],fontSize:16,fontWeight:400});
+  let previous=null,h1Count=0;
+  for(const item of headings){
+    if(item.level===1&&++h1Count>1)add('multiple-h1','warning',item.node,'В этой композиции несколько заголовков первого уровня. Проверьте иерархию всей страницы.');
+    if(previous&&item.level>previous.level+1)add('heading-order','warning',item.node,
+      'Уровень заголовка перескакивает с H'+previous.level+' на H'+item.level+'. Проверьте последовательность заголовков.');
+    previous=item;
+  }
+  return findings;
+}
+
+module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,auditAccessibility,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,ICON_PATHS});

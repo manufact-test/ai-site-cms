@@ -100,3 +100,17 @@
 #cms-design-undo:disabled,#cms-design-redo:disabled{opacity:.42;cursor:not-allowed}
 #cms-design-visual-stage{touch-action:pan-x pan-y}
 @media(max-width:780px){.cms-design-workspace{grid-template-columns:minmax(0,1fr)}.cms-design-graph-editor{max-height:50vh}#cms-design-visual-stage{max-height:350px}}
+
+
+/* Design Graph accessibility review: advisory findings with direct node selection. */
+.cms-design-a11y{margin-top:14px;padding:14px 16px;border:1px solid #2b3c4e;border-radius:14px;background:#111b27;max-height:220px;overflow:auto}
+.cms-design-a11y h3{margin:0 0 8px;font-size:14px;letter-spacing:-.01em}
+.cms-design-a11y-summary{margin:0 0 10px;color:#aebdca;font-size:12px;line-height:1.5}
+.cms-design-a11y-list{display:grid;gap:6px;list-style:none;margin:0;padding:0}
+.cms-design-a11y-item{margin:0}
+.cms-design-a11y-issue{width:100%;text-align:left;border:1px solid #324457;background:#182433;color:#eaf4fc;padding:8px 10px;border-radius:9px;font-size:12px;line-height:1.45;cursor:pointer}
+.cms-design-a11y-issue:hover{background:#223447;border-color:#63809c}
+.cms-design-a11y-item.error .cms-design-a11y-issue{border-color:#a95757}
+.cms-design-a11y-item.warning .cms-design-a11y-issue{border-color:#826a3e}
+.cms-design-a11y-issue:focus-visible{outline:2px solid #89e9c2;outline-offset:2px}
+.cms-design-a11y-more{margin:8px 0 0;color:#91a1b1;font-size:11px}

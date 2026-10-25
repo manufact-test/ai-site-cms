@@ -716,6 +716,34 @@ test('optional professional Design Graph: tokens, grid, breakpoints, hover and s
   assert.equal(JSON.stringify(initial),initialBytes,'Older site fixture never rewritten');
 });
 
+test('Design Graph accessibility audit flags contrast, heading order, missing descriptions and unclear links',()=>{
+  const graph=require('../sdk/design-graph.cjs');
+  const candidate={version:1,id:'a11y-graph',nodes:[{
+    id:'a11y-root',type:'container',styles:{background:'#ffffff'},children:[
+      {id:'a11y-title',type:'heading',level:2,text:'Readable title',styles:{color:'#777777',fontSize:16}},
+      {id:'a11y-jump',type:'heading',level:4,text:'Skipped heading level',styles:{}},
+      {id:'a11y-image',type:'image',assetId:'a11y-asset',alt:'',styles:{}},
+      {id:'a11y-link',type:'button',text:'Click here',href:'/',styles:{color:'#777777',background:'#ffffff',outlineWidth:0}},
+      {id:'a11y-empty-link',type:'button',text:'',href:'/',styles:{}}
+    ]
+  }]};
+  const findings=graph.auditAccessibility(candidate,graph.DEFAULT_TOKENS);
+  const codes=new Set(findings.map(item=>item.code));
+  for(const code of ['low-contrast','heading-order','missing-alt','generic-link-name','empty-link-name','focus-indicator-removed'])
+    assert.ok(codes.has(code),'Accessibility audit should report '+code);
+  assert.equal(findings.find(item=>item.code==='heading-order').nodeId,'a11y-jump');
+  assert.equal(findings.find(item=>item.code==='missing-alt').nodeId,'a11y-image');
+  assert.equal(findings.find(item=>item.code==='empty-link-name').severity,'error');
+
+  const accessible={version:1,id:'a11y-clean-graph',nodes:[{
+    id:'a11y-clean-root',type:'container',styles:{background:'#ffffff'},children:[
+      {id:'a11y-clean-copy',type:'text',text:'Readable body copy',styles:{color:'#182b3d',fontSize:16}}
+    ]
+  }]};
+  assert.equal(graph.auditAccessibility(accessible,graph.DEFAULT_TOKENS).some(item=>item.code==='low-contrast'),false,
+    'Known readable foreground/background pairs do not create a contrast warning');
+});
+
 test('rich Design Graph primitives, accessible icons, gradients and motion remain typed and inert',()=>{
   const graph=require('../sdk/design-graph.cjs'),site=structuredClone(initial);
   const section=site.pages[0].sections[0];
