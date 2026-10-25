@@ -667,7 +667,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-quality-open').click();
     const missingAlt=page.locator('#cms-quality-findings .cms-quality-finding').filter({hasText:'asset-audit-alt'});
     page.once('dialog',dialog=>dialog.accept('Фрезерный станок в производственном цехе'));
-    await missingAlt.getByRole('button',{name:'Исправить ALT'}).click();
+    await missingAlt.getByRole('button',{name:/Исправить ALT/}).click();
     const altFixed=await page.evaluate(()=>window.Stage3Editor.getSite());
     assert.equal(altFixed.assets.find(asset=>asset.id==='asset-audit-alt').alt,'Фрезерный станок в производственном цехе');
     assert.equal(await page.locator('#cms-quality-findings .cms-quality-finding').filter({hasText:'asset-audit-alt'}).count(),0,

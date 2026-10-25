@@ -459,7 +459,7 @@
                 if(isSeo)$('cms-open-seo')?.click();
                 else if(issue.nodeId&&selected?.designGraph)$('section-design-graph')?.click();
               });
-            jump.setAttribute('aria-label','Перейти к замечанию: '+issue.message);
+            jump.setAttribute('aria-label',jump.textContent+' — '+issue.message);
             line.append(jump);
           }
           section.append(line);
