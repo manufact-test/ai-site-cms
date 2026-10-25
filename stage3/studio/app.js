@@ -437,8 +437,17 @@
           line.append(message);
           if(issue.pageId){
             const isSeo=issue.kind.startsWith('seo-')||issue.kind.startsWith('duplicate-seo-');
-            const jump=button(isSeo?'Открыть SEO':issue.nodeId?'Открыть композицию':issue.assetId?'Перейти к изображению':'Открыть страницу',
+            const isAltFix=['missing-alt','generic-alt'].includes(issue.kind)&&!!issue.assetId;
+            const jump=button(isSeo?'Открыть SEO':isAltFix?'Исправить ALT':issue.nodeId?'Открыть композицию':issue.assetId?'Перейти к изображению':'Открыть страницу',
               'btn small',()=>{
+                if(isAltFix){
+                  const asset=session.current.assets.find(item=>item.id===issue.assetId);
+                  if(!asset)return;
+                  const alt=prompt('Опишите, что изображено на картинке',asset.alt||'');
+                  if(alt===null)return;
+                  if(!alt.trim()){notice('ALT оставлен пустым. Укажите реальное содержание изображения или отмените правку.',true);return;}
+                  structural({action:'renameAsset',assetId:asset.id,alt:alt.trim()});print();return;
+                }
                 const page=session.current.pages.find(item=>item.id===issue.pageId);
                 if(!page)return;
                 pageId=page.id;

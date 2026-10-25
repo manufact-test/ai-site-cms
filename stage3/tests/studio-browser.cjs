@@ -657,6 +657,28 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       richGraph.nodes.length,'Undo restores the exact prior root count before the next rearrangement');
     await page.locator('#redo').click();
     assert.equal(await canvas.locator('.cmsdg h2').count(),2,'Redo restores nested composition');
+    // A legacy image ALT can be fixed from the audit and remains undoable.
+    const altSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+    altSite.assets.push({id:'asset-audit-alt',src:'/assets/asset-audit-alt.png',mime:'image/png',alt:''});
+    const altGallery=altSite.pages[0].sections.find(section=>section.component==='adaptive-gallery');
+    assert.ok(altGallery&&altGallery.items.length,'The audit fixture includes the editable gallery');
+    altGallery.items[0].values['content.media']='asset-audit-alt';
+    await page.evaluate(site=>window.Stage3Editor.replace(site),altSite);
+    await page.locator('#cms-quality-open').click();
+    const missingAlt=page.locator('#cms-quality-findings .cms-quality-finding').filter({hasText:'asset-audit-alt'});
+    page.once('dialog',dialog=>dialog.accept('Фрезерный станок в производственном цехе'));
+    await missingAlt.getByRole('button',{name:'Исправить ALT'}).click();
+    const altFixed=await page.evaluate(()=>window.Stage3Editor.getSite());
+    assert.equal(altFixed.assets.find(asset=>asset.id==='asset-audit-alt').alt,'Фрезерный станок в производственном цехе');
+    assert.equal(await page.locator('#cms-quality-findings .cms-quality-finding').filter({hasText:'asset-audit-alt'}).count(),0,
+      'The resolved ALT finding disappears immediately');
+    await page.locator('#cms-site-report').getByRole('button',{name:'Закрыть'}).click();
+    await page.locator('#undo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).assets.find(asset=>asset.id==='asset-audit-alt').alt,'',
+      'ALT correction is one undoable draft change');
+    await page.locator('#redo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).assets.find(asset=>asset.id==='asset-audit-alt').alt,
+      'Фрезерный станок в производственном цехе','Redo restores the correction');
     assert.deepEqual(errors,[],'No page JS errors or unsupported dependencies');
     assert.deepEqual(remote,[],'No outgoing network requests, even through iframe');
     console.log('STAGE3 REAL CHROMIUM STUDIO E2E PASS: typed edit, inert preview, responsive, undo/redo, saved versions, reload, export/import, no-design and fail-closed import');
