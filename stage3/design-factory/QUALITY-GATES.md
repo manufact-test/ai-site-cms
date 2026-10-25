@@ -1,6 +1,6 @@
 # D7 · Final quality gates and evidence
 
-**Document date:** 24 October 2026. **Status:** Release tooling implemented, **visual/manual and checked-out Node execution pending**. Formal Stage2 NO-GO, Stage3+ unaccepted, 0/135 mandatory criteria.
+**Document date:** 25 October 2026. **Status:** Release tooling implemented, **visual/manual and checked-out Node execution pending**. Formal Stage2 NO-GO, Stage3+ unaccepted, 0/135 mandatory criteria.
 
 ## One-command checks (on an actual repo checkout)
 
@@ -159,3 +159,16 @@ New gate: `adapter.inspectRebuild(candidate, editedSite, hostSdk, registry)` mus
 Rebuild metadata now contains counts and explicit node-ID arrays for preserved, created, reset and removed nodes, plus retained graph-copy count and exact owner-approved discarded graph-edit IDs. Input limits: 80 provenance bindings and 180 discard acknowledgements.
 
 **Current isolated-source results:** 504/504 graph validations; 504/504 host JS renders; 504/504 no-op rebuilds; 504/504 read-only rebuild preflights; 8/8 CMS component-family source-refresh rebuilds; all optional smoke assertions PASS. These used actual GitHub JS sources with isolated V8 and mocked Node core modules, **not a real checkout/Node process**. PHP parity SKIP. No Chromium Studio E2E, 54 human-reviewed PNGs, real ZIP/source-byte parity or verified SHA256. Therefore this strengthens engineering evidence but does not close D7. Follow `handoffs/LEAD-REBUILD-CONTRACT-2026-10-25.md`.
+
+## 25 October — structural loss-aware rebuild gate
+
+A rebuild must never silently discard graph structure or owner-authored node properties. The explicit preflight/rebuild contract now covers:
+- a canonical graph node deleted by the owner but about to be regenerated;
+- custom graph nodes that will be removed;
+- custom node IDs colliding with newly generated CMS node IDs;
+- style/responsive/state/motion/type/asset/alt/icon/level edits on nodes that are reset or removed by a CMS structural change;
+- graph media edits versus simultaneous CMS asset/alt changes.
+
+The adapter raises a typed `DF_REBUILD_OWNER_REVIEW_REQUIRED` error with exact `discardedGraphEditIds`; `inspectRebuild()` returns structured entries including `kind`, `previousValue`, `currentValue`, `rebuiltValue`, `nodeInEditedGraph` and `nodeInRebuiltGraph`. The host must present these entries, authenticate the owner, lock the reviewed revision and pass the exact approved ID set. A preview is not consent, save, publish or authorization.
+
+**Isolated-source evidence:** 504/504 validations, renders, no-op rebuilds and read-only preflights; 8 component-family source-refresh rebuilds; 8 loss-aware regression groups PASS. Actual Node checkout unavailable because `git clone` failed at DNS resolution; PHP parity SKIP (0 probes); Chromium/54 visual captures and real ZIP/SHA256 remain unrun. GitHub commit status contains no checks for this head. This is strong source-level evidence, not D7 acceptance. Do not add the optional Lead suite to stable D7 release-audit before Lead SDK integration.
