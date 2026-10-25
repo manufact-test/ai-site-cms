@@ -133,3 +133,29 @@ The optional `rebuildHostCandidate(candidate, editedSite, currentLeadSdk, regist
 If a deleted/replaced Graph node contains independent user-edited content, rebuild fails with the exact `nodeId:property` IDs. The host must show the lost text, obtain owner authorization/revision lock, and retry with `{acceptedDiscardedNodes:[...exact ids...]}`; extra/missing/duplicate IDs are rejected. This **is not a permission capability**: the host still must enforce all authorization/revisions and owner review. `rebuild.explicitlyDiscardedGraphEdits` and `retainedGraphCopyNodes` expose the decision/audit. A rebuild can still reset custom structural tree edits; show visual diff and support undo. New detailed integration examples in `handoffs/LEAD-REBUILD-CONTRACT-2026-10-25.md`.
 
 Current source-level optional lead smoke passed 504/504 Graph validation+JS render and owner-edit regressions using isolated V8 against actual GitHub source; do not claim real Node/PHP/browser acceptance.
+
+## 25 October — structured owner-review preview for rebuild
+
+Before changing the candidate, a host may call the new read-only `inspectRebuild(candidate, editedSite, hostSdk, registry)`:
+
+```js
+const preview = adapter.inspectRebuild(candidate, editedSite, hostSdk, registry);
+if (!preview.canApply) {
+  if (preview.requiresOwnerConfirmation) {
+    // Show preview.discardedGraphEdits: nodeId, property, previousValue,
+    // currentValue and nodeStillPresent. Ask the owner about these exact edits.
+    // preview.rebuild is a simulated diff, NOT permission to persist or publish.
+  } else {
+    // Show preview.error; resolve conflict/validation error before retry.
+  }
+} else {
+  // Show preview.rebuild's preserved/created/reset/removed node-ID arrays.
+  // Structural rebuild still requires host authorization and owner visual review.
+}
+```
+
+A successful preview has `canApply:true`, `noMutation:true`; a destructive preview has `canApply:false`, `requiresOwnerConfirmation:true`, a structured list of the exact copy/link values at risk and the predicted rebuild report. The API does not persist, publish, authorize a revision or invoke AI. Its internal retry with exact IDs exists only to calculate the hypothetical diff; it does not mean the owner approved deletion.
+
+`rebuildHostCandidate()` returns counts plus `preservedVisualNodeIds`, `createdVisualNodeIds`, `resetVisualNodeIds` and `removedVisualNodeIds`. The host should use these to display a meaningful diff, provide undo and request visual approval before save. Exact destructive acknowledgements remain bounded; the host must also lock the reviewed site revision and authenticate the owner.
+
+Current source-level smoke: 504/504 candidate validations, renders, no-op rebuilds and read-only previews; 8 component-family content refreshes passed in isolated V8. This is not real Node/PHP/Chromium acceptance.
