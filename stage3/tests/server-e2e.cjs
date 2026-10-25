@@ -303,7 +303,7 @@ async function stop(){
   assert.equal((await request('POST',endpoint+'/submissions/bulk-review',
     {ids:[allLeads[1].submission_id,allLeads[1].submission_id]})).status,422);
   assert.equal((await request('POST',endpoint+'/submissions/bulk-review',
-    {ids:[allLeads[0].submission_id,allLeads[1].submission_id]})).status,409,
+    {ids:[allLeads.find(lead=>lead.status==='reviewed').submission_id,allLeads[1].submission_id]})).status,409,
     'Already reviewed lead must roll back the entire selection');
   assert.equal((await request('GET',endpoint+'/submissions?status=new')).body.total,4);
   assert.equal((await request('POST',endpoint+'/submissions/bulk-review',
