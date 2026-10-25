@@ -384,6 +384,10 @@ final class DesignGraph
                         foreach ($parts as $v)$entries[]=self::h(self::assetUrl($v,$mount,$assetBasePath)).' '.$v['width'].'w';
                         $srcset=' srcset="'.implode(', ',$entries).'" sizes="(max-width:600px) 100vw, (max-width:900px) 50vw, 100vw"';
                     }
+                    if (isset($asset['width'],$asset['height']) && is_int($asset['width']) && is_int($asset['height'])
+                        && $asset['width'] >= 1 && $asset['width'] <= 4096 && $asset['height'] >= 1 && $asset['height'] <= 4096) {
+                        $srcset .= ' width="'.$asset['width'].'" height="'.$asset['height'].'"';
+                    }
                     return '<img loading="lazy" class="'.$cls.'" src="'.$src.'"'.$srcset.' alt="'.self::h($n['alt']).'">';
             }
             return '';

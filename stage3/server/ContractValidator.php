@@ -184,13 +184,20 @@ final class ContractValidator
         $assets = [];
         $ids = [$site['siteId'] => true];
         foreach ($site['assets'] as $a) {
-            self::keys($a, ['id', 'src', 'alt', 'mime', 'variants']);
+            self::keys($a, ['id', 'src', 'alt', 'mime', 'variants', 'width', 'height']);
             self::id($a['id']);
             self::must(!isset($assets[$a['id']])
                 && in_array($a['mime'], ['image/png','image/webp','image/jpeg','image/svg+xml','video/mp4'], true)
                 && is_string($a['src'])
                 && preg_match('~^/assets/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg|mp4)$~D', $a['src']) === 1
                 && is_string($a['alt']) && strlen($a['alt']) <= 200 && preg_match('/[\x00-\x1f]/',$a['alt'])!==1, 'Invalid asset');
+            $hasWidth = array_key_exists('width', $a);
+            $hasHeight = array_key_exists('height', $a);
+            self::must($hasWidth === $hasHeight && (!$hasWidth
+                || (in_array($a['mime'], ['image/png','image/jpeg','image/webp'], true)
+                    && is_int($a['width']) && $a['width'] >= 1 && $a['width'] <= 4096
+                    && is_int($a['height']) && $a['height'] >= 1 && $a['height'] <= 4096)),
+                'Invalid intrinsic image dimensions');
             self::must(!isset($ids[$a['id']]), 'Duplicate asset ID');
             $assets[$a['id']] = $a['mime'];
             if($a['mime']==='video/mp4')self::must($a['src']==='/assets/'.$a['id'].'.mp4','Invalid video URL');

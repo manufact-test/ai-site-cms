@@ -188,6 +188,8 @@ async function stop(){
   assert.equal(correct.status,200);assert.equal(correct.body.revision,6);
   const mediaPreview=await request('POST',endpoint+'/preview',{expectedRevision:6,site:doc,path:'/'});
   assert.equal(mediaPreview.status,200);
+  assert.match(mediaPreview.body.html,/<img[^>]*width="\d+" height="\d+"/,
+    'Hosted preview reserves the decoded image dimensions');
   assert.ok(mediaPreview.body.html.includes(endpoint+'/media/'+asset.id),
     'Preview media resolves through authenticated draft assets');
   assert.equal((await request('GET',endpoint+'/media/'+asset.id)).status,200);
@@ -753,9 +755,16 @@ async function stop(){
   assert.equal(responsiveUpload.status,201,JSON.stringify(responsiveUpload.body));
   assert.equal(responsiveUpload.body.revision,7);
   const responsiveAsset=responsiveUpload.body.asset;
+  assert.equal(responsiveAsset.width,1200);
+  assert.equal(responsiveAsset.height,800);
   assert.deepEqual(responsiveAsset.variants.map(v=>v.width),[360,720,1200]);
   assert.deepEqual(responsiveAsset.variants.map(v=>v.sha256),variants.map(v=>v.sha256));
   assert.equal((await request('POST',responsiveEndpoint+'/media',input)).status,409,'stale batch cannot write');
+  const forgedDimensions=structuredClone(responsiveUpload.body.site);
+  forgedDimensions.assets.find(a=>a.id===responsiveAsset.id).width=1199;
+  assert.equal((await request('POST',responsiveEndpoint+'/save',
+    {site:forgedDimensions,expectedRevision:7})).status,422,
+    'Stored image bytes, not editable metadata, own the intrinsic dimensions');
   const newDoc=structuredClone(responsiveUpload.body.site);
   newDoc.pages[0].sections.find(sec=>sec.component==='adaptive-gallery').items[0].values['content.media']=responsiveAsset.id;
   assert.equal((await request('POST',responsiveEndpoint+'/save',{site:newDoc,expectedRevision:7})).status,200);
@@ -764,6 +773,8 @@ async function stop(){
   const responsiveHTML=(await request('GET','/published/site-rich-ci/')).body;
   assert.match(responsiveHTML,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
   assert.match(responsiveHTML,/sizes="\(max-width: 600px\) 100vw/);
+  assert.match(responsiveHTML,/<img[^>]*width="1200" height="800"/,
+    'Published responsive images reserve intrinsic layout space');
   const socialExport=path.join(dbdir,'rich-static-social');
   const socialExportResult=spawnSync('php',['stage3/server/bin/export-published.php','site-rich-ci',socialExport],
     {cwd:root,env:{...env,STAGE3_EXPORT_ORIGIN:'https://example.test'},encoding:'utf8'});
@@ -801,6 +812,8 @@ async function stop(){
   assert.equal(releaseJSON.assets.length,5);
   const staticPage=fs.readFileSync(path.join(staticResponsive,'index.html'),'utf8');
   assert.match(staticPage,/srcset="\/assets\/[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
+  assert.match(staticPage,/<img[^>]*width="1200" height="800"/,
+    'Static release retains intrinsic image dimensions');
   for(let n=0;n<3;n++){
     const rendition=releaseJSON.assets.find(a=>a.id===responsiveAsset.variants[n].id);
     assert.equal(rendition.parentId,responsiveAsset.id);

@@ -28,15 +28,22 @@ final class PublicRenderer
         return ['ru'=>'ru_RU','en'=>'en_US','pl'=>'pl_PL','de'=>'de_DE','be'=>'be_BY','uk'=>'uk_UA'][$language]??'ru_RU';
     }
 
-    /** All URLs and widths come from validated, immutable site assets. */
+    /** Responsive candidates and intrinsic dimensions come from validated immutable media. */
     private static function responsiveAttrs(array $asset, string $mount, string $sizes, ?string $assetBasePath = null): string
     {
-        if (empty($asset['variants'])) return '';
-        $variants = $asset['variants'];
-        usort($variants, static fn(array $a,array $b): int => $a['width'] <=> $b['width']);
-        $sources = [];
-        foreach ($variants as $v) $sources[] = self::h(self::assetUrl($v,$mount,$assetBasePath)).' '.$v['width'].'w';
-        return ' srcset="'.implode(', ', $sources).'" sizes="'.self::h($sizes).'"';
+        $attrs = '';
+        if (!empty($asset['variants'])) {
+            $variants = $asset['variants'];
+            usort($variants, static fn(array $a,array $b): int => $a['width'] <=> $b['width']);
+            $sources = [];
+            foreach ($variants as $v) $sources[] = self::h(self::assetUrl($v,$mount,$assetBasePath)).' '.$v['width'].'w';
+            $attrs = ' srcset="'.implode(', ', $sources).'" sizes="'.self::h($sizes).'"';
+        }
+        if (isset($asset['width'],$asset['height']) && is_int($asset['width']) && is_int($asset['height'])
+            && $asset['width'] >= 1 && $asset['width'] <= 4096 && $asset['height'] >= 1 && $asset['height'] <= 4096) {
+            $attrs .= ' width="'.$asset['width'].'" height="'.$asset['height'].'"';
+        }
+        return $attrs;
     }
 
     private static function element(array $section, string $slot): array

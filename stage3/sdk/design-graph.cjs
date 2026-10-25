@@ -375,7 +375,10 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     const base=src||mount+asset.src;
     const variants=asset.variants||[];
     const responsive=src?'':(variants.length?' srcset="'+variants.map(v=>attr(mount+v.src)+' '+v.width+'w').join(', ')+'" sizes="(max-width:600px) 100vw, (max-width:900px) 50vw, 100vw"':'');
-    return '<img loading="lazy" class="'+cls+'" src="'+attr(base)+'"'+responsive+' alt="'+attr(n.alt)+'">';
+    const dimensions=Number.isInteger(asset.width)&&Number.isInteger(asset.height)&&
+      asset.width>=1&&asset.width<=4096&&asset.height>=1&&asset.height<=4096?
+      ' width="'+asset.width+'" height="'+asset.height+'"':'';
+    return '<img loading="lazy" class="'+cls+'" src="'+attr(base)+'"'+responsive+dimensions+' alt="'+attr(n.alt)+'">';
   }
   const html=graph.nodes.map(visit).join('');
   return '<section class="cmsdg '+('cmsdg-'+graph.id)+'" id="'+attr(sectionId)+'"><style>'+

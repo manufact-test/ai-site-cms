@@ -306,6 +306,14 @@ final class SiteRepository
             if ($ext === null || $asset['src'] !== '/assets/' . $asset['id'] . '.' . $ext) {
                 throw new \InvalidArgumentException('Media path does not match stored image');
             }
+            if (array_key_exists('width', $asset)) {
+                $original = $this->image($siteId, $asset['id']);
+                $dimensions = @getimagesizefromstring($original['bytes']);
+                if (!is_array($dimensions) || $dimensions[0] !== $asset['width']
+                    || $dimensions[1] !== $asset['height']) {
+                    throw new \InvalidArgumentException('Original media dimensions mismatch');
+                }
+            }
             foreach ($asset['variants'] ?? [] as $variant) {
                 $part = $this->image($siteId, $variant['id']);
                 $info = @getimagesizefromstring($part['bytes']);
@@ -406,7 +414,7 @@ final class SiteRepository
             $prepared[] = ['width'=>$size[0], 'height'=>$size[1],
                 'bytes'=>$binary, 'sha256'=>$variant['sha256']];
         }
-        return $this->atomic(function () use ($siteId, $expectedRevision, $bytes, $alt, $mime, $extension, $prepared): array {
+        return $this->atomic(function () use ($siteId, $expectedRevision, $bytes, $alt, $mime, $extension, $prepared, $info): array {
             $draft = $this->getDraft($siteId);
             if ($draft['revision'] !== $expectedRevision) {
                 throw new Conflict('Stale draft; reload before uploading media');
@@ -420,7 +428,9 @@ final class SiteRepository
                 'id' => $assetId,
                 'src' => '/assets/' . $assetId . '.' . $extension,
                 'alt' => $alt,
-                'mime' => $mime
+                'mime' => $mime,
+                'width' => $info[0],
+                'height' => $info[1]
             ];
             foreach ($prepared as $part) {
                 $vid = 'asset-' . bin2hex(random_bytes(10));
