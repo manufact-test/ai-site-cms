@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-25",
-  "status": "stage2-no-go-stage3-isolated-v1.67-graph-audit-handoff",
+  "status": "stage2-no-go-stage3-isolated-v1.68-inbox-handoff",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.67-2026-10-25.md",
-  "latest_source_sha": "0eeff2e9cd77b29e3426c52393b03e583a5e672a",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40233695097",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40233695097",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.68-2026-10-25.md",
+  "latest_source_sha": "70a6a4776b0389fd5a35830226952a0372cccd65",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40234189046",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40234189046",
   "source_offweb_ci": null,
-  "source_ci_result": "SUCCESS: exact functional 0eeff2e9cd77b29e3426c52393b03e583a5e672a, Actions #40233695097; complete graph audit selection/edit/recheck, Chromium, PHP/SQLite server and hosted E2E. Later inbox commit 8db3d32e1ed7f087445c507c76c13e8165ebe8c3 has a separate FAILED CI #40233889710: NOT VERIFIED. Technical-only, not formal product acceptance.",
+  "source_ci_result": "SUCCESS on 70a6a4776b0389fd5a35830226952a0372cccd65, Actions #40234189046; private lead inbox/CSV/bulk review + unread acknowledgement fix; isolated CI, NOT product acceptance",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly, then fix issues from real use; never get stuck testing existing lab",
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "0eeff2e9cd77b29e3426c52393b03e583a5e672a",
+    "stage3_code_sha": "70a6a4776b0389fd5a35830226952a0372cccd65",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -52,11 +52,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "First verify latest feature/stage3-ai-site-contract HEAD and CI. Last proven functional SHA 0eeff2e9cd77b29e3426c52393b03e583a5e672a succeeded in Actions #40233695097. A newer concurrent lead-inbox commit 8db3d32e1ed7f087445c507c76c13e8165ebe8c3 failed Actions #40233889710 in hosted notifications. Reconcile/fix this one blocking integration failure, then continue one LARGE real CMS product block, prioritizing preview/published fidelity, editor workflow and remaining requirements. Never touch Stage2 host/prod, independent Design Factory, or main; Stage2 NO-GO #5-9, 0/135.",
+  "next_step": "Verify current HEAD and run status before a new commit. Deliver one large end-to-end CMS workflow improving content/editor/forms/preview/published UX. Final Design Factory D7 needs actual artifact and loss matrix. Stage2 NO-GO #5–#9, Stage3 not formally accepted, 0/135; no main or production.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.67",
+  "checkpoint_version": "1.68",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -656,7 +656,7 @@
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.52",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.67-2026-10-25.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.68-2026-10-25.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -677,7 +677,7 @@
       "scope": "Research, license/host analysis, 135-ID reuse matrix and option A preference accepted through owner-delegated technical choice. No product features accepted."
     }
   ],
-  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.66-2026-10-25.md",
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.68-2026-10-25.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
@@ -1225,9 +1225,9 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.66",
-  "last_docs_handoff_note": "Owner-requested documentation refresh after confirming prior docs-only HEAD 90333fc0aca9c3cfa66daa18067812cf141d2ba8 passed Actions #40212155888. Functional code SHA 97811cecc2946ed1daf52d0e4ed9fcf3b360c221 remains unchanged and passed Actions #40205358049. v1.66 is docs-only; verify its own CI on actual branch HEAD. No live provider sends or production worker.",
-  "latest_tested_code_sha": "0eeff2e9cd77b29e3426c52393b03e583a5e672a",
+  "last_docs_handoff_version": "1.68",
+  "last_docs_handoff_note": "Owner-requested v1.68 transfer after SUCCESS CI #40234189046 on 70a6a4776b0389fd5a35830226952a0372cccd65. Previous v1.67 docs were written during a newer failing inbox test; this source SHA fixes the notification disabled regression and is fully verified. Documentation HEAD and its CI are separate from functional SHA.",
+  "latest_tested_code_sha": "70a6a4776b0389fd5a35830226952a0372cccd65",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
     "owner_directive": "large_coherent_product_verticals_not_small_8_minute_fixes",
@@ -1393,7 +1393,7 @@
   },
   "main_branch": "main",
   "main_last_verified_sha": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
-  "stage3_source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40233695097",
+  "stage3_source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40234189046",
   "stage3_studio_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/40204138704/artifacts/12603301098",
   "stage3_screens_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/40204138704/artifacts/12603415800",
   "stage3_parallel": {
@@ -1697,5 +1697,37 @@
     ],
     "documentation_only": false,
     "documentation_handoff_is_separate_from_functional_sha": true
+  },
+  "stage3_v1_68_checkpoint": {
+    "date": "2026-10-25",
+    "branch": "feature/stage3-ai-site-contract",
+    "verified_functional_sha": "70a6a4776b0389fd5a35830226952a0372cccd65",
+    "verified_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40234189046",
+    "verified_ci_result": "SUCCESS",
+    "handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.68-2026-10-25.md",
+    "first_message": "handoffs/lead-integrator/FIRST-MESSAGE-v1.68-2026-10-25.md",
+    "documentation_only_handoff": true,
+    "integrated_v1_67_quality_sha": "0eeff2e9cd77b29e3426c52393b03e583a5e672a",
+    "integrated_v1_67_quality_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40233695097",
+    "delivered": [
+      "Authenticated site-scoped inbox search (name/email/message), status filter, bounded literal SQL LIKE and 25/page navigation",
+      "Inbox totals, new/reviewed counts, current-page selection, atomic bulk review of 1–50 new leads",
+      "Private UTF-8 CSV export of up to 1000 matching rows, 422 on overflow, formula-injection protection and no-store",
+      "Hosted Studio responsive inbox interface, new/reviewed filter, search, export, bulk review and per-lead review",
+      "Fixed disabled unread-notifications acknowledgement button after async inbox operations",
+      "PHP 8.3/SQLite HTTP and real Hosted Chromium E2E, offline SDK/editor/bundle and packaging full CI PASS"
+    ],
+    "limits": [
+      "Not a production deployment, CRM, unlimited export or customer data integration; downloaded CSV contains sensitive customer information",
+      "Existing database schema unchanged, no live provider sends, no production worker",
+      "Earlier parallel v1.67 SEO/a11y graph repair and SEO/social previews remain integrated",
+      "Independent Design Factory final D7 payload not provided or losslessly audited",
+      "Stage2 NO-GO #5–#9; Stage3 not accepted; 0/135 formal requirements",
+      "Docs-only HEAD requires own exact CI verification after this source SHA"
+    ],
+    "next": "One large user-facing workflow in editable pages/forms/component fidelity or publishing/preview, existing full CI and minimum critical checks.",
+    "main_untouched": true,
+    "hosting_modified": false,
+    "independent_factory_branch_untouched": true
   }
 }
