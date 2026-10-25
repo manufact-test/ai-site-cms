@@ -289,7 +289,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-open-page-preview').click();
     await page.locator('#cms-page-preview').waitFor({state:'visible'});
     await page.locator('#cms-page-preview-path').selectOption('/');
-    await page.frameLocator('#cms-page-preview-frame').locator('a[href="/get-in-touch/"]').first().waitFor();
+    await page.frameLocator('#cms-page-preview-frame').locator('a[href="/get-in-touch/"]').first().waitFor({state:'attached'});
     await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
     await page.locator('#undo').click();
     renamed=(await page.evaluate(()=>window.Stage3Editor.getSite()));
@@ -299,7 +299,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.deepEqual(renamed.redirects,[{from:'/older-page/',to:'/contact/'}]);
     await page.locator('#cms-open-page-preview').click();
     await page.locator('#cms-page-preview-path').selectOption('/');
-    await page.frameLocator('#cms-page-preview-frame').locator('a[href="/contact/"]').first().waitFor();
+    await page.frameLocator('#cms-page-preview-frame').locator('a[href="/contact/"]').first().waitFor({state:'attached'});
     await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
     await page.locator('#redo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
