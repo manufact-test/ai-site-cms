@@ -362,7 +362,9 @@ async function execute(){
   await page.locator('#server-delivery-telegram-chat').fill('-1001234567890');
   await page.locator('#server-delivery-reason').fill('Настройка каналов уведомлений');
   await page.locator('#server-delivery-save').click();
-  await page.locator('#server-delivery-status').getByText(/Требуется настройка/).waitFor();
+  const deliveryRows=page.locator('#server-delivery-status .hosted-delivery-channel');
+  await deliveryRows.filter({hasText:/Email · Требуется настройка/}).waitFor();
+  await deliveryRows.filter({hasText:/Telegram · Требуется настройка/}).waitFor();
   assert.match(await page.locator('#server-delivery-status').innerText(),/STAGE3_MAIL_FROM/);
   assert.match(await page.locator('#server-delivery-status').innerText(),/STAGE3_TELEGRAM_BOT_TOKEN/);
   assert.doesNotMatch(await page.locator('#server-delivery-status').innerText(),/bot\d+:/i,
