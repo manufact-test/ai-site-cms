@@ -473,16 +473,32 @@ function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry,options=
     a.itemId===b.itemId&&own(b,'itemId'));
  const discarded=new Set();
  let preserved=0,created=0,reset=0,retainedGraphCopy=0;
+ const comparable=value=>Array.isArray(value)?'['+value.map(comparable).join(',')+']':
+  value&&typeof value==='object'?'{'+Object.keys(value).sort().map(key=>
+   JSON.stringify(key)+':'+comparable(value[key])).join(',')+'}':JSON.stringify(value);
+ const sameValue=(a,b)=>comparable(a)===comparable(b);
+ const editableFields=['type','text','href','assetId','alt','level','icon',
+  'posterAssetId','loop','styles','responsive','states','motion'];
+ const freshNodeIds=new Set();
+ walk(fresh.nodes,node=>freshNodeIds.add(node.id));
+ // A manually removed canonical node will be recreated from the CMS graph.
+ // That is still an owner-authored structural edit and must be acknowledged.
+ for(const [id] of baselineNodes)
+  if(!previousNodes.has(id)&&freshNodeIds.has(id))discarded.add(id+':__node__');
  const captureDiscarded=(old,base)=>{
-  if(!base||!old||old.type!==base.type)return;
-  for(const property of ['text','href'])
-   if(typeof old[property]==='string'&&typeof base[property]==='string'&&
-      old[property]!==base[property])discarded.add(old.id+':'+property);
+  if(!old)return;
+  // A custom node has no baseline identity: replacing/dropping it is a full-node loss.
+  if(!base){discarded.add(old.id+':__node__');return;}
+  for(const property of editableFields){
+   const oldOwn=own(old,property),baseOwn=own(base,property);
+   if(oldOwn!==baseOwn||!sameValue(old[property],base[property]))
+    discarded.add(old.id+':'+property);
+  }
  };
  walk(fresh.nodes,node=>{
   newNodeIds.add(node.id);
   const old=previousNodes.get(node.id),base=baselineNodes.get(node.id);
-  if(!old||old.type!==node.type){
+  if(!old||!base||old.type!==node.type){
    created++;createdNodeIds.push(node.id);captureDiscarded(old,base);return;
   }
   // Node IDs contain ordinal card numbers. The identity guard MUST match
@@ -500,6 +516,16 @@ function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry,options=
   }
   if(node.type==='heading'&&own(old,'level'))node.level=old.level;
   if(node.type==='icon'&&own(old,'icon'))node.icon=old.icon;
+  // Media identity and alt text are owner-editable too. Preserve a graph-only
+  // edit when the CMS-derived value is unchanged; refuse divergent two-sided edits.
+  for(const property of ['assetId','alt','posterAssetId','loop']){
+   if(!own(old,property)||!own(base,property)||
+      sameValue(old[property],base[property]))continue;
+   const key=node.id+':'+property;
+   if(sameValue(node[property],base[property]))node[property]=JSON.parse(JSON.stringify(old[property]));
+   else if(!sameValue(old[property],node[property]))
+    fail('Conflicting CMS and manually edited Design Graph content: '+key);
+  }
   // Protect independently owner-edited graph wording/links during a rebuild.
   // The baseline candidate is authority for whether the Graph was edited.
   for(const property of ['text','href']){
@@ -530,9 +556,13 @@ function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry,options=
  const accepted=options.acceptedDiscardedNodes||[];
  if(accepted.length!==new Set(accepted).size||
     discardedNodes.length!==accepted.length||
-    discardedNodes.some((id,i)=>id!==[...accepted].sort()[i]))
-  fail('Rebuild would discard owner Graph edits; explicit review required: '+
+    discardedNodes.some((id,i)=>id!==[...accepted].sort()[i])){
+  const reviewError=new Error('Rebuild would discard owner Graph edits; explicit review required: '+
    discardedNodes.join(', '));
+  reviewError.code='DF_REBUILD_OWNER_REVIEW_REQUIRED';
+  reviewError.discardedGraphEditIds=discardedNodes.slice();
+  throw reviewError;
+ }
 
  current.designGraph=fresh;
  // Validate the ENTIRE edited site and all new image/alt/token references.
@@ -744,10 +774,9 @@ function inspectRebuild(candidate,editedSite,hostSdk,hostRegistry){
   if(JSON.stringify({candidate,editedSite})!==snapshot)
    fail('Read-only rebuild inspection mutated its input');
   const message=String(error);
-  const marker='Rebuild would discard owner Graph edits; explicit review required: ';
-  if(message.includes(marker)){
-   const idsText=message.slice(message.indexOf(marker)+marker.length);
-   const ids=idsText?idsText.split(', ').filter(Boolean):[];
+  if(error?.code==='DF_REBUILD_OWNER_REVIEW_REQUIRED'&&
+     Array.isArray(error.discardedGraphEditIds)){
+   const ids=error.discardedGraphEditIds.slice();
    const section=editedSite?.pages?.[0]?.sections?.find(
     item=>item.id==='df-selected-composition');
    const baseline=candidate?.site?.pages?.[0]?.sections?.find(
@@ -761,19 +790,29 @@ function inspectRebuild(candidate,editedSite,hostSdk,hostRegistry){
    };
    const currentNodes=index(section?.designGraph);
    const baselineNodes=index(baseline?.designGraph);
+   const rebuildPreview=rebuildHostCandidate(candidate,editedSite,
+    hostSdk,hostRegistry,{acceptedDiscardedNodes:ids});
+   const rebuiltSection=rebuildPreview.site?.pages?.[0]?.sections?.find(
+    item=>item.id==='df-selected-composition');
+   const rebuiltNodes=index(rebuiltSection?.designGraph);
    const discardedGraphEdits=ids.map(key=>{
     const separator=key.lastIndexOf(':');
     const nodeId=key.slice(0,separator),property=key.slice(separator+1);
+    const beforeNode=baselineNodes.get(nodeId);
+    const editedNode=currentNodes.get(nodeId);
+    const rebuiltNode=rebuiltNodes.get(nodeId);
+    const wholeNode=property==='__node__';
     return {
-     nodeId,property,
-     previousValue:baselineNodes.get(nodeId)?.[property],
-     currentValue:currentNodes.get(nodeId)?.[property],
+     nodeId,property,kind:wholeNode?'node-structure':'property',
+     previousValue:wholeNode?(beforeNode||null):beforeNode?.[property],
+     currentValue:wholeNode?(editedNode||null):editedNode?.[property],
+     rebuiltValue:wholeNode?(rebuiltNode||null):rebuiltNode?.[property],
      nodeStillPresent:currentNodes.has(nodeId),
+     nodeInEditedGraph:currentNodes.has(nodeId),
+     nodeInRebuiltGraph:rebuiltNodes.has(nodeId),
      requiresExplicitOwnerConfirmation:true
     };
    });
-   const rebuildPreview=rebuildHostCandidate(candidate,editedSite,
-    hostSdk,hostRegistry,{acceptedDiscardedNodes:ids});
    return {
     format:'manufact-design-factory-rebuild-preview-v1',version:1,
     canApply:false,requiresOwnerConfirmation:true,
