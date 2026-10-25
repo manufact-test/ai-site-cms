@@ -448,6 +448,7 @@ function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry,options=
       typeof id!=='string'||!id.length||id.length>200))))
   fail('Invalid explicit rebuild review options');
  const previousNodes=new Map(),baselineNodes=new Map(),newNodeIds=new Set();
+ const preservedNodeIds=[],createdNodeIds=[],resetNodeIds=[],removedNodeIds=[];
  const walk=(items,cb)=>{for(const node of items){cb(node);walk(node.children||[],cb);}};
  walk(current.designGraph.nodes,node=>previousNodes.set(node.id,node));
  walk(before.designGraph.nodes,node=>baselineNodes.set(node.id,node));
@@ -481,14 +482,16 @@ function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry,options=
  walk(fresh.nodes,node=>{
   newNodeIds.add(node.id);
   const old=previousNodes.get(node.id),base=baselineNodes.get(node.id);
-  if(!old||old.type!==node.type){created++;captureDiscarded(old,base);return;}
+  if(!old||old.type!==node.type){
+   created++;createdNodeIds.push(node.id);captureDiscarded(old,base);return;
+  }
   // Node IDs contain ordinal card numbers. The identity guard MUST match
   // numeric indices, not literal "\d" (which mistakenly transplanted styles).
   const marker=node.id.match(/-dg-card-(\d+)(?:-|$)/);
   if(marker){
    const i=Number(marker[1])-1;
    if(oldItems[i]?.id!==newItems[i]?.id){
-    reset++;captureDiscarded(old,base);return;
+    reset++;resetNodeIds.push(node.id);captureDiscarded(old,base);return;
    }
   }
   for(const field of ['styles','responsive','states','motion']){
@@ -514,12 +517,15 @@ function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry,options=
      fail('Conflicting CMS and manually edited Design Graph content: '+key);
    }else discarded.add(key);
   }
-  preserved++;
+  preserved++;preservedNodeIds.push(node.id);
  });
- // A removed card can contain manually authored copy that cannot be mapped
- // to the new graph; require an explicit exact-ID owner decision to discard it.
- for(const [id,node] of previousNodes)
-  if(!newNodeIds.has(id))captureDiscarded(node,baselineNodes.get(id));
+ // Removed nodes are reported separately so the host can render an honest diff.
+ for(const [id,node] of previousNodes){
+  if(!newNodeIds.has(id)){
+   removedNodeIds.push(id);
+   captureDiscarded(node,baselineNodes.get(id));
+  }
+ }
  const discardedNodes=[...discarded].sort();
  const accepted=options.acceptedDiscardedNodes||[];
  if(accepted.length!==new Set(accepted).size||
@@ -539,7 +545,12 @@ function rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry,options=
    approvedForPublish:false,semanticContentMode:'snapshot-requires-host-reconciliation'},
   rebuild:{format:'manufact-design-factory-rebuild-review-v1',version:1,
    preservedVisualNodes:preserved,createdVisualNodes:created,
-   resetVisualNodes:reset,retainedGraphCopyNodes:retainedGraphCopy,
+   resetVisualNodes:reset,
+   preservedVisualNodeIds:preservedNodeIds,
+   createdVisualNodeIds:createdNodeIds,
+   resetVisualNodeIds:resetNodeIds,
+   removedVisualNodeIds:removedNodeIds,
+   retainedGraphCopyNodes:retainedGraphCopy,
    explicitlyDiscardedGraphEdits:discardedNodes,
    requiresHostAuthorization:true,
    requiresOwnerVisualReview:true,noAiInvoked:true,notPublished:true}
@@ -761,11 +772,13 @@ function inspectRebuild(candidate,editedSite,hostSdk,hostRegistry){
      requiresExplicitOwnerConfirmation:true
     };
    });
+   const rebuildPreview=rebuildHostCandidate(candidate,editedSite,
+    hostSdk,hostRegistry,{acceptedDiscardedNodes:ids});
    return {
     format:'manufact-design-factory-rebuild-preview-v1',version:1,
     canApply:false,requiresOwnerConfirmation:true,
     error:'Owner-authored Graph content would be discarded',
-    discardedGraphEdits,noMutation:true
+    rebuild:rebuildPreview.rebuild,discardedGraphEdits,noMutation:true
    };
   }
   return {
