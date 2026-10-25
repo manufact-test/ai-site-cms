@@ -2086,6 +2086,97 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     add('nav-label','Название в меню (необязательно)','text',100);
     add('nav-hidden','Скрыть из меню','checkbox');
     let mode='theme',chosenPage=null;
+    const seoPreview=document.createElement('section');
+    seoPreview.className='cms-seo-preview';seoPreview.id='cms-seo-preview';seoPreview.hidden=true;
+    const seoPreviewHeading=document.createElement('h3');seoPreviewHeading.textContent='Предпросмотр поисковой выдачи и соцсетей';
+    const seoPreviewGrid=document.createElement('div');seoPreviewGrid.className='cms-seo-preview-grid';
+    const searchCard=document.createElement('article');searchCard.className='cms-seo-preview-card cms-seo-serp';
+    const searchLabel=document.createElement('strong');searchLabel.textContent='Поисковый сниппет';
+    const searchPath=document.createElement('div');searchPath.id='cms-seo-search-path';searchPath.className='cms-seo-search-path';
+    const searchTitle=document.createElement('div');searchTitle.id='cms-seo-search-title';searchTitle.className='cms-seo-search-title';
+    const searchDescription=document.createElement('p');searchDescription.id='cms-seo-search-description';searchDescription.className='cms-seo-search-description';
+    const titleCount=document.createElement('small');titleCount.id='cms-seo-title-count';titleCount.className='cms-seo-count';
+    const descriptionCount=document.createElement('small');descriptionCount.id='cms-seo-description-count';descriptionCount.className='cms-seo-count';
+    const robotsStatus=document.createElement('p');robotsStatus.id='cms-seo-robots-status';robotsStatus.className='cms-seo-robots-status';
+    searchCard.append(searchLabel,searchPath,searchTitle,searchDescription,titleCount,descriptionCount,robotsStatus);
+    const socialCard=document.createElement('article');socialCard.className='cms-seo-preview-card cms-seo-social';
+    const socialLabel=document.createElement('strong');socialLabel.textContent='Карточка публикации';
+    const socialImageFrame=document.createElement('div');socialImageFrame.className='cms-seo-social-image-frame';
+    const socialImage=document.createElement('img');socialImage.id='cms-seo-social-image';socialImage.className='cms-seo-social-image';socialImage.hidden=true;
+    const socialImagePlaceholder=document.createElement('div');socialImagePlaceholder.id='cms-seo-social-image-placeholder';socialImagePlaceholder.className='cms-seo-social-image-placeholder';
+    socialImagePlaceholder.textContent='Выберите изображение для карточки или используйте автоматический выбор.';
+    socialImage.onerror=()=>{socialImage.hidden=true;socialImagePlaceholder.hidden=false;socialImagePlaceholder.textContent='Не удалось загрузить файл предпросмотра.';};
+    socialImageFrame.append(socialImage,socialImagePlaceholder);
+    const socialTitle=document.createElement('div');socialTitle.id='cms-seo-social-title';socialTitle.className='cms-seo-social-title';
+    const socialDescription=document.createElement('p');socialDescription.id='cms-seo-social-description';socialDescription.className='cms-seo-social-description';
+    socialCard.append(socialLabel,socialImageFrame,socialTitle,socialDescription);
+    seoPreviewGrid.append(searchCard,socialCard);seoPreview.append(seoPreviewHeading,seoPreviewGrid);
+    const resolveSocialImage=page=>{
+      const assets=session.current.assets||[];
+      const image=id=>assets.find(asset=>asset.id===id&&['image/png','image/jpeg','image/webp'].includes(asset.mime))||null;
+      const chosen=fields['seo-og-image'].value;
+      if(chosen){const selected=image(chosen);if(selected)return selected;}
+      for(const section of page.sections){
+        for(const element of [...section.elements,...(section.items||[])]){
+          const id=element.values?.['content.media'];
+          if(id){const asset=image(id);if(asset)return asset;}
+        }
+      }
+      let found=null;
+      const walk=nodes=>{
+        for(const node of nodes||[]){
+          if(node.type==='image'&&node.assetId){found=image(node.assetId);if(found)return;}
+          walk(node.children);
+          if(found)return;
+        }
+      };
+      for(const section of page.sections){
+        walk(section.designGraph?.nodes);
+        if(found)return found;
+      }
+      return null;
+    };
+    const refreshSeoPreview=()=>{
+      if(!chosenPage)return;
+      const site=session.current,page=site.pages.find(item=>item.id===chosenPage);
+      if(!page)return;
+      const title=fields['seo-title'].value.trim()||page.title+' | '+site.title;
+      const description=fields['seo-description'].value.trim();
+      const socialTitleValue=fields['seo-og-title'].value.trim()||title;
+      const socialDescriptionValue=fields['seo-og-description'].value.trim()||description;
+      searchPath.textContent=(site.title||'Ваш сайт')+' · '+page.path;
+      searchTitle.textContent=title;
+      searchDescription.textContent=description||'Мета description не задано — поисковик может самостоятельно выбрать фрагмент текста страницы.';
+      searchDescription.classList.toggle('is-empty',!description);
+      titleCount.textContent=Array.from(title).length+' символов · ориентир 30–60';
+      descriptionCount.textContent=Array.from(description).length+' символов · ориентир 70–160';
+      robotsStatus.textContent=fields['seo-robots'].value==='noindex'
+        ?'Индексация запрещена: noindex':'Индексация разрешена';
+      robotsStatus.classList.toggle('is-blocked',fields['seo-robots'].value==='noindex');
+      socialTitle.textContent=socialTitleValue;
+      socialDescription.textContent=socialDescriptionValue||'Описание для соцсетей не задано.';
+      const asset=resolveSocialImage(page);
+      if(!asset){
+        socialImage.removeAttribute('src');socialImage.hidden=true;socialImagePlaceholder.hidden=false;
+        socialImagePlaceholder.textContent='Для карточки не найдено изображение. Выберите файл в поле Open Graph.';
+        return;
+      }
+      const localSource=typeof asset.src==='string'&&/^data:image\/(?:png|jpeg|webp);base64,/.test(asset.src)?asset.src:null;
+      const hostedSource=HOSTED?window.Stage3Host?.previewUrl?.(asset.id):null;
+      const source=localSource||hostedSource;
+      if(source){
+        socialImage.alt=asset.alt||'Изображение для публикации';
+        socialImage.src=source;socialImage.hidden=false;socialImagePlaceholder.hidden=true;
+      }else{
+        socialImage.removeAttribute('src');socialImage.hidden=true;socialImagePlaceholder.hidden=false;
+        socialImagePlaceholder.textContent=(asset.alt||asset.id)+' · файл доступен в медиабиблиотеке; серверный предпросмотр покажет его полностью.';
+      }
+    };
+    for(const key of ['seo-title','seo-description','seo-og-title','seo-og-description'])
+      fields[key].addEventListener('input',refreshSeoPreview);
+    for(const key of ['seo-robots','seo-og-image'])
+      fields[key].addEventListener('change',refreshSeoPreview);
+    window.addEventListener('stage3-media-ready',refreshSeoPreview);
     const open=kind=>{
       mode=kind;chosenPage=current().page.id;
       header.textContent=kind==='theme'?'Стили и язык сайта':'SEO и меню · '+current().page.title;
@@ -2093,6 +2184,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         'Только текущая страница; публикация отдельно.';
       grid.querySelectorAll('label').forEach(n=>n.hidden=true);
       for(const key of (kind==='theme'?globalKeys:metaKeys))fields[key].parentElement.hidden=false;
+      seoPreview.hidden=kind!=='seo';
       if(kind==='theme'){
         const t={...C.DEFAULT_THEME,...session.current.theme};
         for(const key of themeKeys)fields[key].value=t[key];
@@ -2107,6 +2199,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         refreshSocialImages(seo.ogImage||'');
         fields['nav-label'].value=nav.label||'';
         fields['nav-hidden'].checked=!!nav.hidden;
+        refreshSeoPreview();
       }
       dlg.showModal();
     };
@@ -2134,7 +2227,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     };
     const ok=button('Применить к черновику','btn primary',apply);ok.id='cms-settings-apply';
     const close=button('Закрыть','btn',()=>dlg.close());close.id='cms-settings-close';
-    actions.append(ok,close);dlg.append(header,tip,grid,actions);document.body.append(dlg);
+    actions.append(ok,close);dlg.append(header,tip,grid,seoPreview,actions);document.body.append(dlg);
     const tools=document.createElement('div');tools.className='structure-tools cms-site-settings';
     const theme=button('Стили и язык сайта','btn small',()=>open('theme'));theme.id='cms-open-theme';
     const seo=button('SEO и меню','btn small',()=>open('seo'));seo.id='cms-open-seo';

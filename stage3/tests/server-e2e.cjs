@@ -803,12 +803,32 @@ async function stop(){
   carousel.items[1].values['content.caption']='Второй слайд';
   richLive.pages[0].sections.push(masonry,carousel);
   richLive.pages[0].sections.push(story,logos);
+  const graphSdk=require(path.join(root,'stage3/sdk/design-graph.cjs'));
+  const graphSocial=structuredClone(richLive.pages[0]);
+  graphSocial.id='page-graph-social';graphSocial.path='/graph-social/';graphSocial.title='Graph social preview';
+  graphSocial.navigation={label:'Graph social preview',hidden:true};
+  graphSocial.seo={title:'Graph image SEO',description:'Graph image social preview description',robots:'index',
+    ogTitle:'',ogDescription:'',ogImage:''};
+  const graphSection=csdk.sectionFrom(richDefs.find(m=>m.id==='company-hero'),'section-graph-social');
+  for(const field of [...graphSection.elements,...(graphSection.items||[])])
+    if(field.values&&Object.hasOwn(field.values,'content.media'))field.values['content.media']='';
+  graphSection.designGraph=graphSdk.baseGraph(graphSection.id);
+  graphSection.designGraph.nodes[0].children.push({
+    id:'graph-social-image',type:'image',assetId:picture.id,alt:picture.alt,styles:{}
+  });
+  graphSocial.sections=[graphSection];richLive.pages.push(graphSocial);
   const invalidSocial=structuredClone(richLive);invalidSocial.pages[0].seo.ogImage='missing-social-image';
   assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:4,site:invalidSocial})).status,422,
     'Server contract rejects an unowned social preview image');
   assert.equal((await request('POST','/api/sites/site-rich-ci/save',{expectedRevision:4,site:richLive})).status,200);
   assert.equal((await request('POST','/api/sites/site-rich-ci/publish',{expectedRevision:5})).status,200);
   const richVisitor=(await request('GET','/published/site-rich-ci/')).body;
+  const graphSocialVisitor=await request('GET','/published/site-rich-ci/graph-social/');
+  assert.equal(graphSocialVisitor.status,200,'Graph-only image page publishes normally');
+  assert.ok(graphSocialVisitor.body.includes('<meta property="og:image" content="'+origin+'/published/site-rich-ci/assets/'+picture.id+'.png">'),
+    'Automatic Open Graph fallback must find nested Design Graph images');
+  assert.ok(graphSocialVisitor.body.includes('<meta name="twitter:image" content="'+origin+'/published/site-rich-ci/assets/'+picture.id+'.png">'),
+    'Twitter card must use the same Design Graph image as Open Graph');
   assert.match(richVisitor,/Наша история/);
   assert.match(richVisitor,/Партнёр A/);
   assert.match(richVisitor,/class="story-photo"/);

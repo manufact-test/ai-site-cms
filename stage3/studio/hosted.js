@@ -367,6 +367,7 @@
   }
   function previewUrl(assetId){
     if(!state.authorized||!state.siteId)return null;
+    const requestedAssetId=assetId;
     // Studio tablet/phone preview retrieves actual stored source bytes for
     // that breakpoint. PHP and static visitors use normal browser srcset.
     const asset=editor.getSite().assets.find(a=>a.id===assetId);
@@ -404,7 +405,10 @@
         if(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(uri))
           throw Error('Недопустимый формат предпросмотра');
         previewData.set(key,uri);
-        if(state.siteId+':'+assetId===key)editor.refreshPreview();
+        if(state.siteId+':'+assetId===key){
+          editor.refreshPreview();
+          window.dispatchEvent(new CustomEvent('stage3-media-ready',{detail:{assetId:requestedAssetId}}));
+        }
       })
       .catch(error=>{previewData.set(key,'');notice(error.message,true);})
       .finally(()=>loadingMedia.delete(key));

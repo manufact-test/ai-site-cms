@@ -68,11 +68,30 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.frameLocator('#preview').locator('html').getAttribute('lang'),'pl',
       'Editor preview language follows the site setting');
     await page.locator('#cms-open-seo').click();
+    assert.equal(await page.locator('#cms-seo-preview').isVisible(),true);
+    await page.locator('#cms-setting-seo-title').fill('');
+    const expectedFallbackTitle=await page.evaluate(()=>{
+      const site=window.Stage3Editor.getSite();return site.pages[0].title+' | '+site.title;
+    });
+    assert.equal(await page.locator('#cms-seo-search-title').innerText(),expectedFallbackTitle,
+      'Snippet uses the published title fallback');
     await page.locator('#cms-setting-seo-title').fill('SEO title для теста');
+    await page.locator('#cms-setting-seo-description').fill('');
+    assert.match(await page.locator('#cms-seo-search-description').innerText(),/Мета description не задано/);
     await page.locator('#cms-setting-seo-description').fill('Описание для поисковых систем');
+    assert.equal(await page.locator('#cms-seo-search-title').innerText(),'SEO title для теста');
+    assert.match(await page.locator('#cms-seo-title-count').innerText(),/символов/);
+    assert.match(await page.locator('#cms-seo-description-count').innerText(),/70–160/);
+    await page.locator('#cms-setting-seo-og-title').fill('');
+    assert.equal(await page.locator('#cms-seo-social-title').innerText(),'SEO title для теста');
     await page.locator('#cms-setting-seo-og-title').fill('Заголовок для публикации');
+    await page.locator('#cms-setting-seo-og-description').fill('');
+    assert.equal(await page.locator('#cms-seo-social-description').innerText(),'Описание для поисковых систем');
     await page.locator('#cms-setting-seo-og-description').fill('Описание для публикации');
     await page.locator('#cms-setting-seo-og-image').selectOption('');
+    await page.locator('#cms-setting-seo-robots').selectOption('noindex');
+    assert.match(await page.locator('#cms-seo-robots-status').innerText(),/noindex/);
+    await page.locator('#cms-setting-seo-robots').selectOption('index');
     await page.locator('#cms-settings-apply').click();
     await page.locator('#save').click();
     const exportDownload=page.waitForEvent('download');

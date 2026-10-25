@@ -151,6 +151,14 @@ async function execute(){
   await page.locator('#server-status').getByText(/Черновик #7/).waitFor();
   const assetId=(await page.evaluate(()=>window.Stage3Editor.getSite())).assets[0].id;
   assert.equal(await page.locator('#server-media-list img').count(),1);
+  await page.locator('#cms-open-seo').click();
+  await page.locator('#cms-setting-seo-og-image').selectOption(assetId);
+  await page.waitForFunction(()=>{
+    const image=document.querySelector('#cms-seo-social-image');
+    return image&&!image.hidden&&image.src.startsWith('data:image/png;base64,');
+  });
+  assert.equal(await page.locator('#cms-seo-social-image').getAttribute('alt'),'Фото цеха');
+  await page.locator('#cms-settings-close').click();
   const componentState=await page.evaluate(()=>({pages:window.Stage3Editor.getSite().pages.map(p=>({id:p.id,sections:p.sections.map(s=>s.component)})),assets:window.Stage3Editor.getSite().assets.length}));
   console.log('HOSTED MEDIA SELECTION STATE',JSON.stringify(componentState));
   await page.locator('#sections .nav-entry').filter({hasText:'Изображение и описание'}).click();

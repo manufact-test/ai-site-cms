@@ -667,6 +667,35 @@ final class PublicRenderer
                 }
             }
         }
+        // Design Graph image nodes are also real page media. Keep the same
+        // deterministic fallback order as Studio: legacy slots first, then
+        // nested graph nodes in section order.
+        if ($ogImage===null) {
+            $findGraphImage=function(array $nodes) use (&$findGraphImage,&$ogImage,$site): void {
+                foreach ($nodes as $node) {
+                    if (($node['type']??'')==='image') {
+                        $mediaId=$node['assetId']??null;
+                        if (is_string($mediaId)&&$mediaId!=='') {
+                            foreach ($site['assets'] as $asset) {
+                                if (($asset['id']??null)===$mediaId && ($asset['mime']??'')!=='video/mp4') {
+                                    $ogImage=$asset;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if ($ogImage!==null) return;
+                    if (isset($node['children'])&&is_array($node['children'])) $findGraphImage($node['children']);
+                    if ($ogImage!==null) return;
+                }
+            };
+            foreach ($page['sections'] as $section) {
+                if (isset($section['designGraph']['nodes'])&&is_array($section['designGraph']['nodes'])) {
+                    $findGraphImage($section['designGraph']['nodes']);
+                    if ($ogImage!==null) break;
+                }
+            }
+        }
         $hasSocialImage=$absolute!==null && $ogImage!==null;
         $social.='<meta name="twitter:card" content="'.($hasSocialImage?'summary_large_image':'summary').'">'
             .'<meta name="twitter:title" content="'.$ogTitle.'">';
