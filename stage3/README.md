@@ -8,11 +8,21 @@ Branch **`feature/stage3-ai-site-contract`**. Tested source **`964e6746db7680c06
 
 - Versioned typed site/component contract, registered first-party components, immutable draft, stable IDs, responsive inheritance, owner override preservation, Undo/Redo.
 - Offline click-to-open Studio and hosted PHP Studio: page/section/field edits, clones, same-site section-template library, explicit CAS save, revision restore and separate Publish.
-- Media PNG/JPEG/WebP up to 450 KB; real visitor forms and flexible 3-slot form fields, consent/spam/rate-limit/release-HMAC checks, private inbox/unread notices and separate form collector. No external email/Telegram delivery.
+- Media PNG/JPEG/WebP up to 450 KB; real visitor forms and flexible 3-slot form fields, consent/spam/rate-limit/release-HMAC checks, private inbox/unread notices and separate form collector. Optional per-site Email/Telegram delivery uses a durable outbox, owner-configured recipients, process-environment secrets, bounded retries and explicit confirmation for uncertain sends.
 - Standalone multipage HTML/image export; forms require an explicitly configured separate collector. Static export is not the CMS runtime or full installation backup.
 - `sdk/recipes.cjs` + Studio composer: deterministic company/services/portfolio/landing recipes, owner facts only, structure review/edit, full-page preview, same-site templates, recipe import/export, server draft creation or replace-with-Undo. No external AI provider or key.
 - `server/SiteArchives.php`: private `manufact-site-backup-v1` JSON up to 64 MB, entire draft/revision/publication history, media bytes/checksums, templates and inbox/notification state. Full preflight and 15-minute session-bound plan token; atomic restore only to an unused site ID; new lead IDs; never auto-publish. Publication history can be restored into a new draft. Accounts/grants/audit/configuration/secrets and visitor hashes excluded. Not a full installation disaster-recovery solution.
 - `server/AccessControl.php`, `studio/access.js`: owner manages accounts, assigned sites, role/status/reason, CAS account versions. Viewer: content only; editor: drafts/media/templates/inbox; publisher: same plus Publish; owner: all plus sites/archives/users/audit. Server deny-by-default enforcement on direct URLs; site picker scoped. Password change and access changes invalidate existing sessions on their next request. Initial owner protected from disable/demotion. Local audit of writes/login/archive downloads/denied operations, latest 200 with site filter; never passwords/tokens/lead bodies. Not an externally tamper-proof log.
+
+### Optional Email/Telegram lead delivery
+
+Per-site delivery settings and the outbox are stored in the dedicated Stage 3 database; mail sender configuration and the Telegram bot token remain in the process environment. The public form collector attempts immediate delivery after the lead and outbox entries have committed. If a process stops before dispatch, a bounded CLI worker can recover pending jobs:
+
+```sh
+STAGE3_ALLOW_DELIVERY_WORKER=YES php stage3/server/bin/process-delivery-queue.php 50
+```
+
+Run it only with the same private `STAGE3_DSN` / database credentials as the isolated collector and with the intended provider environment configured. The worker accepts a batch size from 1 to 250, processes pending rows only, and marks `sending` rows older than 15 minutes as `uncertain`. It does not automatically resend uncertain jobs because the provider may already have accepted the first request. Failed or configuration-required jobs can be retried by an authorized owner; uncertain jobs require an explicit owner choice. CI uses empty provider configuration and never sends real messages. This command does not authorize production setup or deployment.
 
 ## Storage and upgrades
 

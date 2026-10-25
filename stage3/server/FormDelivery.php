@@ -163,15 +163,53 @@ trait FormDelivery
         }catch(Throwable $e){error_log('Stage3 delivery queue unavailable: '.get_class($e));}
     }
 
+    /** Mark abandoned sends uncertain; never assume an interrupted request failed. */
+    private function markStaleDeliveryAttemptsUncertain(?string $siteId=null): int
+    {
+        $cutoff=gmdate('Y-m-d\TH:i:s\Z',time()-900);
+        if($siteId===null){
+            $q=$this->db->prepare("UPDATE stage3_delivery_outbox SET state='uncertain',last_error='interrupted_send',updated_at=? WHERE state='sending' AND updated_at<?");
+            $q->execute([$this->now(),$cutoff]);
+        }else{
+            $q=$this->db->prepare("UPDATE stage3_delivery_outbox SET state='uncertain',last_error='interrupted_send',updated_at=? WHERE site_id=? AND state='sending' AND updated_at<?");
+            $q->execute([$this->now(),$siteId,$cutoff]);
+        }
+        return $q->rowCount();
+    }
+
+    /**
+     * Bounded CLI-worker entry point. Only pending jobs are processed; uncertain
+     * sends require an explicit owner decision to avoid duplicate notifications.
+     */
+    public function processDeliveryQueue(int $limit=50): array
+    {
+        if($limit<1||$limit>250)throw new InvalidArgumentException('Delivery batch limit must be between 1 and 250');
+        $staleMarked=$this->markStaleDeliveryAttemptsUncertain();
+        $q=$this->db->prepare("SELECT delivery_id FROM stage3_delivery_outbox WHERE state='pending' ORDER BY created_at,delivery_id LIMIT ?");
+        $q->bindValue(1,$limit,PDO::PARAM_INT);
+        $q->execute();
+        $ids=$q->fetchAll(PDO::FETCH_COLUMN);
+        $outcomes=array_fill_keys(['accepted','failed','configuration_required','uncertain','disabled','pending','sending','other'],0);
+        foreach($ids as $id){
+            $id=(string)$id;
+            try{$this->dispatchDelivery($id);}
+            catch(Throwable $e){error_log('Stage3 delivery worker failed: '.get_class($e));}
+            $stateQuery=$this->db->prepare('SELECT state FROM stage3_delivery_outbox WHERE delivery_id=?');
+            $stateQuery->execute([$id]);
+            $state=$stateQuery->fetchColumn();
+            $key=is_string($state)&&array_key_exists($state,$outcomes)?$state:'other';
+            $outcomes[$key]++;
+        }
+        return ['selected'=>count($ids),'staleMarkedUncertain'=>$staleMarked,'outcomes'=>$outcomes];
+    }
+
     public function retryLeadDeliveries(string $siteId,bool $includeUncertain,string $reason): array
     {
         $reason=trim($reason);
         if($reason===''||strlen($reason)>240||preg_match('/[\x00-\x1f\x7f]/',$reason))
             throw new InvalidArgumentException('Retry reason required');
         $this->getDraft($siteId);
-        $cutoff=gmdate('Y-m-d\TH:i:s\Z',time()-900);
-        $stale=$this->db->prepare("UPDATE stage3_delivery_outbox SET state='uncertain',last_error='interrupted_send',updated_at=? WHERE site_id=? AND state='sending' AND updated_at<?");
-        $stale->execute([$this->now(),$siteId,$cutoff]);
+        $this->markStaleDeliveryAttemptsUncertain($siteId);
         $states=$includeUncertain?['pending','failed','configuration_required','uncertain']:['pending','failed','configuration_required'];
         $marks=implode(',',array_fill(0,count($states),'?'));
         $q=$this->db->prepare("SELECT delivery_id,state FROM stage3_delivery_outbox WHERE site_id=? AND state IN ($marks) ORDER BY created_at,delivery_id LIMIT 100");

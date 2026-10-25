@@ -276,6 +276,49 @@ async function stop(){
   delivery=(await request('GET',deliveryRoute)).body;
   assert.equal(delivery.totals.configuration_required,5,'Every accepted lead keeps a durable delivery state');
 
+  // A bounded CLI worker recovers pending jobs after an interrupted public request.
+  const workerDenied=spawnSync('php',['stage3/server/bin/process-delivery-queue.php'],
+    {cwd:root,env,encoding:'utf8'});
+  assert.notEqual(workerDenied.status,0,'Worker requires explicit CLI authorization');
+  const allLeads=(await request('GET',endpoint+'/submissions')).body.submissions;
+  assert.equal(allLeads.length,5);
+  const pendingSetup=spawnSync('php',['-r',
+    '$db=new PDO(getenv("STAGE3_DSN"));$q=$db->prepare("UPDATE stage3_delivery_outbox SET state=?,last_error=NULL WHERE site_id=? AND submission_id=? AND channel=?");$q->execute(["pending","site-industrial-demo",$argv[1],"email"]);if($q->rowCount()!==1)exit(3);',
+    allLeads[0].submission_id],{cwd:root,env,encoding:'utf8'});
+  assert.equal(pendingSetup.status,0,pendingSetup.stderr);
+  const workerEnv={...env,STAGE3_ALLOW_DELIVERY_WORKER:'YES'};
+  const processed=spawnSync('php',['stage3/server/bin/process-delivery-queue.php','1'],
+    {cwd:root,env:workerEnv,encoding:'utf8'});
+  assert.equal(processed.status,0,processed.stderr);
+  const workerResult=JSON.parse(processed.stdout.trim());
+  assert.equal(workerResult.selected,1);
+  assert.equal(workerResult.outcomes.configuration_required,1,
+    'Worker records missing transport without pretending a notification was sent');
+
+  // An abandoned send is uncertain, not automatically resent.
+  const staleSetup=spawnSync('php',['-r',
+    '$db=new PDO(getenv("STAGE3_DSN"));$q=$db->prepare("UPDATE stage3_delivery_outbox SET state=?,updated_at=? WHERE site_id=? AND submission_id=? AND channel=?");$q->execute(["sending","2000-01-01T00:00:00Z","site-industrial-demo",$argv[1],"email"]);if($q->rowCount()!==1)exit(3);',
+    allLeads[1].submission_id],{cwd:root,env,encoding:'utf8'});
+  assert.equal(staleSetup.status,0,staleSetup.stderr);
+  const recovered=spawnSync('php',['stage3/server/bin/process-delivery-queue.php','1'],
+    {cwd:root,env:workerEnv,encoding:'utf8'});
+  assert.equal(recovered.status,0,recovered.stderr);
+  const recoveredResult=JSON.parse(recovered.stdout.trim());
+  assert.equal(recoveredResult.selected,0);
+  assert.equal(recoveredResult.staleMarkedUncertain,1);
+  delivery=(await request('GET',deliveryRoute)).body;
+  assert.equal(delivery.totals.uncertain,1);
+  const noUncertainRetry=await request('POST',deliveryRoute+'/retry',
+    {reason:'Do not resend uncertain delivery automatically',includeUncertain:false});
+  assert.equal(noUncertainRetry.status,200);
+  assert.equal(noUncertainRetry.body.totals.uncertain,1,
+    'Ordinary retry must leave uncertain external sends untouched');
+  const explicitUncertainRetry=await request('POST',deliveryRoute+'/retry',
+    {reason:'Owner explicitly confirms uncertain resend',includeUncertain:true});
+  assert.equal(explicitUncertainRetry.status,200);
+  assert.equal(explicitUncertainRetry.body.totals.uncertain,0);
+  assert.equal(explicitUncertainRetry.body.totals.configuration_required,5);
+
   // Second site verifies extended form fields, notices, and isolated receiver.
   const sdk=require(path.join(root,'stage3/sdk/contract.cjs'));
   const componentIds=['company-hero','feature-highlights','contact-panel','image-showcase','lead-form','lead-form-flex'];
