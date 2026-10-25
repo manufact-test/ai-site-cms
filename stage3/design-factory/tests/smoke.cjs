@@ -158,6 +158,13 @@ try{
   const migrated=migrate(project('agency','editorial','en'));
   assert.deepEqual(migrated,{...project('agency','editorial','en'),version:2,ownerReviewConfirmed:false});
   assert.deepEqual(migrate(migrated),migrated);
+  const legacyFormat=migrate({...project('agency','editorial','en'),format:'manufact-design-factory-v1',version:1});
+  assert.equal(legacyFormat.format,FORMAT);
+  assert.equal(legacyFormat.version,2);
+  assert.equal(legacyFormat.ownerReviewConfirmed,false);
+  const legacyZero=migrate({...project('agency','editorial','en'),format:'manufact-design-factory-v1',version:0});
+  assert.equal(legacyZero.format,FORMAT);
+  assert.equal(legacyZero.version,2);
   assert.equal(migrate({...project('agency','editorial','en'),version:0}).version,2);
   assert.equal(migrate({...project('agency','editorial','en'),version:0}).ownerReviewConfirmed,false);
   assert.notDeepEqual(

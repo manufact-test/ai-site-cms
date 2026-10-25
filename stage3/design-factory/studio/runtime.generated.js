@@ -419,7 +419,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const sdk = require('../../sdk/contract.cjs');
 
-const FORMAT = 'manufact-design-factory-v1';
+const LEGACY_FORMAT = 'manufact-design-factory-v1';
+const FORMAT = 'manufact-design-factory-v2';
 const VERSION = 2;
 const ROOT = path.resolve(__dirname, '../../components');
 const COMPONENTS = Object.freeze([
@@ -518,20 +519,22 @@ function cleanFacts(input){
 }
 function migrate(input){
   if(input==null)return {format:FORMAT,version:VERSION,kit:'agency',theme:'editorial',language:'ru',facts:{},ownerReviewConfirmed:false};
-  if(!object(input)||input.format!==FORMAT)fail('Unsupported design-factory format');
+  if(!object(input)||![FORMAT,LEGACY_FORMAT].includes(input.format))fail('Unsupported design-factory format');
   if(input.version===0){
     keys(input,['format','version','kit','theme','language','facts'],'legacy project');
-    return validateProject({...input,version:1});
+    return validateProject({...input,format:FORMAT,version:1});
   }
   return validateProject(input);
 }
 function validateProject(input){
-  if(!object(input)||input.format!==FORMAT)fail('Unsupported design-factory format');
+  if(!object(input))fail('Unsupported design-factory format');
   const legacy=input.version===1;
+  if(input.format!==FORMAT&&!(legacy&&input.format===LEGACY_FORMAT))
+    fail('Unsupported design-factory format');
   keys(input,legacy
     ?['format','version','kit','theme','language','facts']
     :['format','version','kit','theme','language','facts','ownerReviewConfirmed'],'project');
-  if(!legacy&&input.version!==VERSION)fail('Unsupported project version');
+  if(!legacy&&(input.version!==VERSION||input.format!==FORMAT))fail('Unsupported project version');
   if(!has(KITS,input.kit)||!has(THEMES,input.theme)||!['ru','en'].includes(input.language))
     fail('Unknown kit, theme or language');
   const project={
@@ -686,7 +689,7 @@ function jsonParse(text){
   try{return JSON.parse(text);}catch{fail('Invalid JSON');}
 }
 module.exports=Object.freeze({
-  FORMAT,VERSION,KITS,THEMES,COPY,migrate,validateProject,loadRegistry,compile,
+  FORMAT,LEGACY_FORMAT,VERSION,KITS,THEMES,COPY,migrate,validateProject,loadRegistry,compile,
   checklist,serialize,jsonParse
 });
 
