@@ -303,10 +303,13 @@ test('URL changes rewrite internal links and preserve aliases, fragments, repeat
   assert.equal(d.current.redirects.length,1);
   assert.deepEqual(D.undo(d,manifests).current,JSON.parse(before));
   const updated=structuredClone(d.current);
-  updated.pages[0].sections[0].elements[2].values['behavior.href']='/nonexistent/';
+  const visibleGraphButton=updated.pages[0].sections[0].designGraph.nodes[0].children
+    .find(node=>node.id==='graph-contact-button');
+  visibleGraphButton.href='/nonexistent/';
   report=sdk.inspectSite(updated,manifests);
-  assert.ok(report.errors.some(x=>x.kind==='broken-link'));
-  updated.pages[0].sections[0].elements[2].values['behavior.href']='/support/#ghost-section';
+  assert.ok(report.errors.some(x=>x.kind==='broken-link'),
+    'Audit checks rendered Design Graph links, not hidden legacy component fields');
+  visibleGraphButton.href='/support/#ghost-section';
   report=sdk.inspectSite(updated,manifests);
   assert.ok(report.errors.some(x=>x.kind==='broken-anchor'));
   const escaping=structuredClone(d.current);
