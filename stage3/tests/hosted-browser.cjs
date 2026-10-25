@@ -56,6 +56,17 @@ async function execute(){
   await field.fill('Проверка серверного сайта');
   await field.dispatchEvent('change');
   assert.match(await page.locator('#dirty').innerText(),/несохранённые/);
+
+  // Hosted Studio: unsaved workspace content is preview-only and undoable.
+  await page.locator('#cms-content-open').click();
+  await page.locator('#cms-content-search').fill('Проверка серверного');
+  await page.locator('#cms-content-replace').fill('Контент редактора');
+  assert.equal(await page.locator('#cms-content-results .cms-content-row').count(),1);
+  await page.locator('#cms-content-apply').click();
+  assert.equal(await page.frameLocator('#preview').locator('h1').innerText(),'Контент редактора сайта');
+  await page.locator('#undo').click();
+  assert.equal(await page.frameLocator('#preview').locator('h1').innerText(),'Проверка серверного сайта');
+
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Черновик #2/).waitFor();
   assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/);

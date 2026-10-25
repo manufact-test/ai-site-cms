@@ -37,6 +37,17 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await headline.fill('Новое промышленное оборудование');
     await headline.dispatchEvent('change');
     await page.locator('[data-bp="mobile"]').click();
+
+    // Site-wide copy replacement, preview and atomic undo in offline Studio.
+    await page.locator('#cms-content-open').click();
+    await page.locator('#cms-content-search').fill('Новое промышленное');
+    await page.locator('#cms-content-replace').fill('Современное промышленное');
+    assert.equal(await page.locator('#cms-content-row-not-used').count(),0);
+    assert.equal(await page.locator('#cms-content-results .cms-content-row').count(),1);
+    await page.locator('#cms-content-apply').click();
+    assert.equal(await canvas.locator('h1').innerText(),'Современное промышленное оборудование');
+    await page.locator('#undo').click();
+    assert.equal(await canvas.locator('h1').innerText(),'Новое промышленное оборудование');
     const size=page.locator('#fields [data-field="style.fontSize"]');
     await size.fill('35px');await size.dispatchEvent('change');
     await canvas.locator('h1[style*="font-size:35px"]').waitFor();

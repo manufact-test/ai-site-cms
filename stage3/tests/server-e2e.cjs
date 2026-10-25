@@ -309,8 +309,10 @@ async function stop(){
   assert.equal((await request('POST',endpoint+'/submissions/bulk-review',
     {ids:[allLeads[1].submission_id,allLeads[2].submission_id]},
     {'x-csrf-token':'wrong'})).status,403);
+  const newLeadIds=allLeads.filter(x=>x.status==='new').slice(0,2).map(x=>x.submission_id);
+  assert.equal(newLeadIds.length,2);
   const bulk=await request('POST',endpoint+'/submissions/bulk-review',
-    {ids:[allLeads[1].submission_id,allLeads[2].submission_id]});
+    {ids:newLeadIds});
   assert.equal(bulk.status,200,JSON.stringify(bulk.body));
   assert.equal(bulk.body.reviewed,2);
   assert.deepEqual((await request('GET',endpoint+'/submissions?status=reviewed')).body.counts,

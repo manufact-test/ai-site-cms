@@ -1453,6 +1453,132 @@
     };
   }
 
+
+  // Typed cross-page content workbench: preview, select, atomic replace + Undo.
+  function initContentWorkbench(){
+    const dlg=document.createElement('dialog');dlg.id='cms-content-workbench';
+    dlg.className='cms-settings-dialog cms-content-workbench';
+    const h=document.createElement('h2');h.textContent='Тексты всех страниц';
+    const info=document.createElement('p');info.textContent='Поиск по заголовкам, текстам блоков, карточкам, SEO и подписям форм. Ссылки, варианты списков, служебные ID и скрытые значения Design Graph не изменяются. Сначала просмотрите замены, затем примените к черновику. Сохранение и публикация отдельно.';
+    const filters=document.createElement('div');filters.className='cms-content-filters';
+    const q=document.createElement('input');q.id='cms-content-search';q.className='control';q.type='search';q.maxLength=120;q.placeholder='Найти текст';
+    const value=document.createElement('input');value.id='cms-content-replace';value.className='control';value.maxLength=4000;value.placeholder='Заменить на…';
+    const pagePicker=document.createElement('select');pagePicker.id='cms-content-page';pagePicker.className='control';
+    const label=(name,ctrl)=>{ctrl.setAttribute('aria-label',name);const el=document.createElement('label');el.textContent=name;el.append(ctrl);return el;};
+    filters.append(label('Поиск',q),label('Замена',value),label('Страница',pagePicker));
+    const status=document.createElement('p');status.id='cms-content-status';status.setAttribute('role','status');
+    const results=document.createElement('div');results.id='cms-content-results';
+    const actions=document.createElement('div');actions.className='cms-settings-actions';
+    const apply=button('Применить выбранное','btn primary',commit);
+    apply.id='cms-content-apply';apply.dataset.editorWrite='true';
+    actions.append(apply,button('Закрыть','btn',()=>dlg.close()));
+    dlg.append(h,info,filters,status,results,actions);document.body.append(dlg);
+    let entries=[];
+    function fields(){
+      const out=[],add=(page,kind,field,key,text,name,section=null,element=null)=>{
+        if(typeof text==='string')out.push({pageId:page.id,pageTitle:page.title,
+          sectionId:section?.id,elementId:element?.id,kind,key,text,name,formId:field?.id});
+      };
+      for(const page of session.current.pages){
+        if(pagePicker.value&&pagePicker.value!==page.id)continue;
+        add(page,'page',null,'title',page.title,'Заголовок страницы');
+        for(const key of ['title','description','ogTitle','ogDescription'])
+          add(page,'seo',null,key,page.seo?.[key],'SEO · '+key);
+        add(page,'navigation',null,'label',page.navigation?.label,'Меню · название');
+        for(const section of page.sections){
+          if(section.designGraph)continue; // Rendered content is owned by the graph.
+          const m=manifest(section);if(!m)continue;
+          for(const element of [...section.elements,...(section.items||[])]){
+            const spec=element.slot?m.elements.find(x=>x.slot===element.slot):m.repeat;
+            for(const def of spec?.fields||[])if(def.type==='text'&&
+              def.path.startsWith('content.')&&def.path!=='content.options'&&!def.responsive)
+              add(page,'field',null,def.path,element.values[def.path],
+                m.label+' · '+def.label,section,element);
+          }
+          for(const f of section.formFields||[])for(const key of ['label','placeholder'])
+            add(page,'form',f,key,f[key],'Форма · '+f.id+' · '+key,section);
+        }
+      }
+      return out;
+    }
+    function focus(entry,preview=false){
+      const page=session.current.pages.find(x=>x.id===entry.pageId);
+      pageId=page.id;
+      const sec=page.sections.find(x=>x.id===entry.sectionId)||page.sections[0];
+      sectionId=sec.id;elementId=entry.kind==='field'?entry.elementId:sec.elements[0].id;
+      dlg.close();draw();
+      if(preview){$('cms-open-page-preview').click();return;}
+      if(entry.kind==='form'){$('cms-form-builder-open')?.click();return;}
+      const field=[...$('fields').querySelectorAll('[data-field]')].find(x=>x.dataset.field===entry.key);
+      if(entry.kind==='field'&&field){field.focus();field.scrollIntoView({block:'nearest'});}
+    }
+    const selected=()=>entries.filter(x=>x.checked&&x.after!==x.text);
+    function updateCount(){
+      status.textContent=entries.length+' совпадений · '+selected().length+
+        ' выбранных замен · одна операция Undo · без публикации';
+      apply.disabled=!selected().length;
+    }
+    function search(){
+      results.replaceChildren();entries=[];
+      const needle=q.value.trim();
+      if(needle.length<2){status.textContent='Введите минимум 2 символа для поиска';apply.disabled=true;return;}
+      const special='\\.^$|?*+()[]{}';
+      const regexp=new RegExp([...needle].map(c=>special.includes(c)?'\\'+c:c).join(''),'gi');
+      const matched=fields().filter(f=>f.text.toLocaleLowerCase().includes(needle.toLocaleLowerCase()));
+      entries=matched.slice(0,120).map(f=>({...f,checked:true,after:f.text.replace(regexp,()=>value.value)}));
+      if(matched.length>120){const note=document.createElement('p');note.textContent='Показаны первые 120 из '+matched.length+' полей. Уточните поиск для остальных.';results.append(note);}
+      for(const [i,entry] of entries.entries()){
+        const row=document.createElement('div');row.className='cms-content-row';
+        const check=document.createElement('input');check.type='checkbox';check.checked=true;
+        check.setAttribute('aria-label','Выбрать замену '+(i+1));
+        check.addEventListener('change',()=>{entry.checked=check.checked;updateCount();});
+        const words=document.createElement('div');
+        const head=document.createElement('strong');head.textContent=entry.pageTitle+' · '+entry.name;
+        const before=document.createElement('p');before.textContent='Было: '+entry.text;
+        const after=document.createElement('p');after.textContent='Будет: '+entry.after;
+        words.append(head,before,after);
+        const nav=document.createElement('div');nav.className='cms-content-row-nav';
+        nav.append(button('К полю','btn small',()=>focus(entry)),
+          button('Вся страница','btn small',()=>focus(entry,true)));
+        row.append(check,words,nav);results.append(row);
+      }
+      updateCount();
+    }
+    function commit(){
+      const changes=selected();if(!changes.length)return;
+      try{
+        const next=cp(session.current);
+        for(const e of changes){
+          const page=next.pages.find(x=>x.id===e.pageId);
+          if(!page)throw Error('Страница изменилась');
+          let target=e.kind==='page'?page:e.kind==='seo'?page.seo:
+            e.kind==='navigation'?page.navigation:null;
+          if(!target){
+            const sec=page.sections.find(x=>x.id===e.sectionId);
+            if(!sec||sec.designGraph)throw Error('Блок изменился');
+            target=e.kind==='form'?sec.formFields?.find(x=>x.id===e.formId):
+              [...sec.elements,...(sec.items||[])].find(x=>x.id===e.elementId)?.values;
+          }
+          if(!target||target[e.key]!==e.text)throw Error('Поле изменилось; повторите поиск');
+          target[e.key]=e.after;
+        }
+        // Full schema validation before the session mutation. Either all pass or none.
+        session=D.replaceSite(session,manifests,next,session.revision);
+        dlg.close();draw();notice('Обновлено '+changes.length+' текстовых полей одной операцией. Сохранение и публикация отдельно.');
+      }catch(error){notice('Ни одна замена не применена: '+error.message,true);}
+    }
+    q.addEventListener('input',search);value.addEventListener('input',search);
+    pagePicker.addEventListener('change',search);
+    const open=button('Тексты всего сайта','btn small',()=>{
+      pagePicker.replaceChildren();
+      const all=document.createElement('option');all.value='';all.textContent='Все страницы';pagePicker.append(all);
+      for(const page of session.current.pages){const o=document.createElement('option');o.value=page.id;o.textContent=page.title+' · '+page.path;pagePicker.append(o);}
+      pagePicker.value='';q.value='';value.value='';search();dlg.showModal();q.focus();
+    });open.id='cms-content-open';
+    const tools=document.createElement('div');tools.className='structure-tools';
+    tools.append(open);$('pages').before(tools);
+  }
+
   function createStructureTools(){
     const openAppearance=initAppearanceEditor();
     const openDesignGraph=initDesignGraphEditor();
@@ -2186,5 +2312,5 @@
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
+  initContentWorkbench();createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
 })();
