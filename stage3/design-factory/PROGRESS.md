@@ -1,6 +1,6 @@
 # Design Factory — operational progress and D7 continuation
 
-**Updated:** 24 October 2026  
+**Updated:** 25 October 2026  
 **Branch:** `feature/stage3-design-factory`  
 **Writable scope:** ONLY `stage3/design-factory/`. No main/lead edits, hosting, production, workflows, SDK, PHP or Studio-main changes.
 
@@ -229,3 +229,15 @@ Start HEAD for this block: `c8acaa211188ac55947f80e7b97a6cc8e9db5ae9`. Code comm
 **Block 3 — source refresh + actionable diff:** CMS source edits were rebuilt across all 8 represented registered component families: company hero, feature highlights, services, media story, FAQ, CTA, contact and photo gallery. The updated report exposes `preservedVisualNodeIds`, `createdVisualNodeIds`, `resetVisualNodeIds`, `removedVisualNodeIds`, `retainedGraphCopyNodes` and `explicitlyDiscardedGraphEdits`. The destructive preflight also returns the predicted rebuild report without saving or treating the owner as having approved it.
 
 **Evidence boundary:** the harness is an isolated V8 run over real GitHub source, with mocked `node:assert/strict`, `node:fs` and `node:path`; it is **not** an actual checkout / Node process. PHP parity, Studio Chromium interaction, 54 screenshot captures with human review, real release ZIP/CRC/source parity and actual ZIP SHA256 are still not run. D7 OPEN; formal Stage2 NO-GO / Stage3 unaccepted / 0/135. Next work should prioritize obtaining a real checkout/runtime and final visual/release gates rather than expanding another isolated matrix.
+
+## 25 October 2026 — loss-aware structural rebuild and owner-edit preservation
+
+**Functional code checkpoint:** `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369` (live branch HEAD also includes this block; re-read HEAD before the next write). Scope remains only `stage3/design-factory/`.
+
+**Block 1 — no silent graph-node loss:** `rebuildHostCandidate()` now requires explicit owner acknowledgement when a manually deleted canonical node would be recreated, a custom node would be dropped, a custom node collides with a newly generated CMS node ID, or owner-edited node properties are lost as a structural card is removed/reset. It tracks `type`, text/href, styles, responsive rules, states, motion, asset identity, alt, icon/level, poster and loop values. Rebuild loss is reported with exact IDs and fields. A typed `DF_REBUILD_OWNER_REVIEW_REQUIRED` error carries the exact required acknowledgement IDs; the preview no longer has to parse IDs out of free-form exception text.
+
+**Block 2 — three-way media reconciliation:** owner-authored `assetId` and image/video alt/media properties survive a rebuild when the CMS-derived source is unchanged. If both CMS and graph change the same media property to different values, rebuild fails closed with a conflict instead of choosing silently.
+
+**Block 3 — regression suite and full matrix:** the current optional cross-branch smoke passed in isolated V8 using actual GitHub JavaScript source and emulated Node built-ins: 504/504 SDK graph validations, 504/504 scoped JS renders, 504/504 AI-free no-op rebuilds, 504/504 read-only preflights, 8/8 component-family source refreshes and 8 loss-aware structural/style/media regression groups. Cases include owner-deleted nodes, custom nodes, newly generated ID collisions, removed-card styles, media alt and asset-ID conflicts, and explicit acknowledgements on reordered cards. PHP parity: 0; skipped. No real Node checkout or Chromium run.
+
+**Environment limitation:** an actual `git clone` was attempted but the environment could not resolve `github.com`; therefore this result must not be described as a real Node process run. GitHub combined commit status currently has no statuses and there are no PR-triggered workflow runs for this head. D7 remains OPEN; formal Stage2 NO-GO / Stage3 unaccepted / 0/135. Next priority is genuine Node/release audit, PHP parity, 54 real Chromium screenshots with owner review, and a source-byte-identical ZIP with archive integrity and SHA256.
