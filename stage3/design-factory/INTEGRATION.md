@@ -185,3 +185,15 @@ A successful preview has `canApply:true`, `noMutation:true`; a destructive previ
 `rebuildHostCandidate()` returns counts plus `preservedVisualNodeIds`, `createdVisualNodeIds`, `resetVisualNodeIds` and `removedVisualNodeIds`. The host should use these to display a meaningful diff, provide undo and request visual approval before save. Exact destructive acknowledgements remain bounded; the host must also lock the reviewed site revision and authenticate the owner.
 
 Current source-level smoke: 504/504 candidate validations, renders, no-op rebuilds and read-only previews; 8 component-family content refreshes passed in isolated V8. This is not real Node/PHP/Chromium acceptance.
+
+## 25 October — loss-aware graph structure and media conflict contract
+
+The rebuild review must cover more than text/href. A manually deleted node that would be recreated, a custom node that would be dropped, a custom ID that collides with a newly generated semantic node, or edited properties on a removed/reset node all require explicit owner acknowledgement.
+
+`rebuildHostCandidate()` tracks the editable fields `type`, `text`, `href`, `styles`, `responsive`, `states`, `motion`, `assetId`, `alt`, `level`, `icon`, `posterAssetId` and `loop`. It throws an Error with code `DF_REBUILD_OWNER_REVIEW_REQUIRED` and `discardedGraphEditIds` containing the exact IDs the host must review. For node-level loss the property suffix is `__node__`.
+
+`inspectRebuild()` returns each affected node/property with `kind`, `previousValue`, `currentValue`, `rebuiltValue`, `nodeInEditedGraph`, and `nodeInRebuiltGraph`. Use both presence flags: a custom ID can exist before and after rebuild while the rebuilt node is a different CMS-generated identity. Acknowledge the exact set only after the owner reviews the diff and the host locks/authenticates the intended revision.
+
+Graph-owned image/video `assetId` and alt/media properties are preserved when their CMS-derived source is unchanged. If the CMS and graph both change a media property differently, the adapter rejects the rebuild as a conflict. Do not silently choose either side.
+
+Regression evidence: 504/504 source-level validation/render/no-op rebuild/preflight cases; 8/8 component-family refreshes; 8 loss-aware structural/style/media groups. This was isolated V8 over current GitHub JS sources with emulated Node core modules, not an actual checkout/Node process. Real Node, PHP, Chromium and ZIP/SHA256 acceptance remain open.
