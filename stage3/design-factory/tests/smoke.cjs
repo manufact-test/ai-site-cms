@@ -32,6 +32,8 @@ try{
     else throw error;
   }
   if(symlinkSupported)assert.throws(()=>resolveOutsideRepository(path.join(alias,'df-output-guard.json'),repository),/outside repository/);
+  if(symlinkSupported)assert.throws(()=>resolveOutsideRepository(alias,repository),/symlink/,
+    'A final output-path symlink must be rejected, not just symlinked parents');
   const previousChromium=process.env.DF_CHROMIUM_BIN;
   try{
     process.env.DF_CHROMIUM_BIN='/bin/true';
@@ -48,6 +50,9 @@ try{
   const specialUrl=visualQA.localFileUrl(specialPath);
   assert.equal(fileURLToPath(specialUrl),specialPath);
   assert.ok(specialUrl.includes('%20')&&specialUrl.includes('%23'),'Local QA file URLs must encode spaces and #');
+  const visualSource=fs.readFileSync(path.join(__dirname,'../bin/visual-qa.cjs'),'utf8');
+  assert.ok(!/screenshot\(\s*['"]file:\/\//.test(visualSource),
+    'Every Visual QA screenshot URL must be built with pathToFileURL');
   const guardedOutput=path.join(repository,'df-visual-qa-guard-'+process.pid);
   try{
     assert.throws(()=>visualQA.run({output:guardedOutput,bin:'/bin/false',quick:true}),/outside repository/);

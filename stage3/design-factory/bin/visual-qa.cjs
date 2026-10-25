@@ -124,7 +124,7 @@ function run(options){
    const project={format:FORMAT,version:1,kit,theme:KITS[kit].theme,language,facts:{}};
    const dir=path.join(root,'sites','sector-'+kit+'-'+language);
    writePreview(compile(project),dir);
-   for(const view of VIEWPORTS)screenshot('file://'+path.join(dir,'index.html'),
+   for(const view of VIEWPORTS)screenshot(localFileUrl(path.join(dir,'index.html')),
      'sector-'+kit+'-'+language+'-home-'+view.id,view);
    if(kit==='saas')for(const page of ['services','approach','contact'])
     screenshot(localFileUrl(path.join(dir,page,'index.html')),

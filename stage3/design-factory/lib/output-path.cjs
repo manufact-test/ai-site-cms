@@ -16,6 +16,11 @@ function resolveOutsideRepository(requested,repositoryRoot,label='Output'){
  const target=path.join(canonicalParent,path.basename(absolute));
  if(isWithin(canonicalRepository,target))
   throw Error(label+' must be outside repository, including through symlinked parents');
+ try{
+  if(fs.lstatSync(target).isSymbolicLink())throw Error(label+' must not be a symlink');
+ }catch(error){
+  if(error.code!=='ENOENT')throw error;
+ }
  return target;
 }
 module.exports=Object.freeze({resolveOutsideRepository});
