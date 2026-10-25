@@ -304,6 +304,10 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#redo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
       .pages.find(p=>p.id==='page-contact').path,'/get-in-touch/');
+    // Restore the original fixture for the remaining independent browser scenarios.
+    await page.locator('#undo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages.find(p=>p.id==='page-contact').path,'/contact/');
     await page.locator('#pages .nav-entry').first().click();
 
     // Appearance panel changes only the selected block; preview reacts immediately.
