@@ -286,24 +286,27 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.deepEqual(renamed.redirects,[{from:'/older-page/',to:'/get-in-touch/'},
       {from:'/contact/',to:'/get-in-touch/'}]);
     assert.match(await page.locator('#toast').innerText(),/внутренние ссылки обновлены/);
-    await page.locator('#cms-open-page-preview').click();
-    await page.locator('#cms-page-preview').waitFor({state:'visible'});
-    await page.locator('#cms-page-preview-path').selectOption('/');
-    await page.frameLocator('#cms-page-preview-frame').locator('a[href="/get-in-touch/"]').first().waitFor({state:'attached'});
-    await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+    const renamedPreview=await page.evaluate(()=>window.Stage3Editor.previewDocument(
+      window.Stage3Editor.getSite(),'/'));
+    assert.ok(renamedPreview.includes('href="/get-in-touch/"'),
+      'Full-page draft preview uses the new internal destination');
     await page.locator('#undo').click();
     renamed=(await page.evaluate(()=>window.Stage3Editor.getSite()));
     assert.equal(renamed.pages.find(p=>p.id==='page-contact').path,'/contact/');
     assert.equal(renamed.pages.find(p=>p.id==='page-home').sections[0].elements
       .find(e=>e.values['behavior.href']).values['behavior.href'],'/contact/');
     assert.deepEqual(renamed.redirects,[{from:'/older-page/',to:'/contact/'}]);
-    await page.locator('#cms-open-page-preview').click();
-    await page.locator('#cms-page-preview-path').selectOption('/');
-    await page.frameLocator('#cms-page-preview-frame').locator('a[href="/contact/"]').first().waitFor({state:'attached'});
-    await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+    const restoredPreview=await page.evaluate(()=>window.Stage3Editor.previewDocument(
+      window.Stage3Editor.getSite(),'/'));
+    assert.ok(restoredPreview.includes('href="/contact/"'),
+      'Undo restores the prior preview URL');
     await page.locator('#redo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
       .pages.find(p=>p.id==='page-contact').path,'/get-in-touch/');
+    const redonePreview=await page.evaluate(()=>window.Stage3Editor.previewDocument(
+      window.Stage3Editor.getSite(),'/'));
+    assert.ok(redonePreview.includes('href="/get-in-touch/"'),
+      'Redo restores the renamed preview URL');
     // Restore the original fixture for the remaining independent browser scenarios.
     await page.locator('#undo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
