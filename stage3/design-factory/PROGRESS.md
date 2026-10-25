@@ -4,9 +4,31 @@
 **Branch:** `feature/stage3-design-factory`  
 **Writable scope:** ONLY `stage3/design-factory/`. No main/lead edits, hosting, production, workflows, SDK, PHP or Studio-main changes.
 
+## Latest environment and D7 release audit — 25 October 2026
+
+**Audit-start branch HEAD:** `bb219d64a58d590fbf2f806835e996a4277aee7d`. This was a documentation-only commit whose parent and latest functional/source checkpoint is `75884b7f794fa1dabc775d802613c38979eff4b8`. GitHub compare confirms that the single commit between those SHAs changed exactly six documentation files, all under `stage3/design-factory/`. No functional source was changed in this audit.
+
+### Block 1 — genuine checkout, Node audit and existing CI
+
+- Attempted `git ls-remote https://github.com/manufact-test/ai-site-cms.git refs/heads/feature/stage3-design-factory` in the execution container. Exact failure: `fatal: unable to access 'https://github.com/manufact-test/ai-site-cms.git/': Could not resolve host: github.com`.
+- Node.js `v22.16.0` is installed, but no checkout is available in the workspace. The six stable D7 suites and the optional Lead suite were **not run** against a real checkout.
+- GitHub API re-check: branch workflow-runs `total_count=0`; HEAD check-runs `total_count=0`; commit statuses array empty. Do not change workflows to manufacture CI evidence.
+
+### Block 2 — PHP parity and browser acceptance
+
+- PHP CLI `8.4.24` is installed, but PHP parity remains **NOT RUN (0 probes)** because the real repository/Lead SDK and server source are not present in the execution environment. Runtime availability alone is not parity evidence.
+- `/usr/bin/chromium` exists, but a one-shot minimal headless data-URL probe timed out: `timeout 15s` ended with exit code `124` after DBus connection warnings. Therefore Studio E2E was not run and **zero** real screenshots were captured. No human visual review exists.
+
+### Block 3 — release archive
+
+- No source-byte-identical release ZIP was built. Without a real checkout, the package builder and extraction/source-byte comparison cannot be executed honestly.
+- CRC/central-directory validation, complete source-byte parity, and the real archive SHA256 are **NOT RUN / NOT AVAILABLE**. Do not invent an artifact or checksum.
+
+**Decision:** all three D7 closure blocks remain blocked by the current environment. D7 **OPEN**; Stage2 **NO-GO**; Stage3 unaccepted; **0/135** mandatory CMS criteria accepted. The next developer should make at most one fresh environment/checkout attempt if connectivity or the execution environment has materially changed; otherwise retain these blockers and do not loop on retries. No workflow, PHP, SDK, Studio-main, hosting, secrets, production, or out-of-scope files were changed.
+
 ## Current checkpoint — 25 October 2026 · output safety and visual evidence matrix
 
-Live HEAD at review: `75884b7f794fa1dabc775d802613c38979eff4b8`, the latest functional/source commit. Comparison with the previous functional checkpoint `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369` shows 12 commits ahead; all changed paths remain inside `stage3/design-factory/`.
+Audit-start live HEAD: `bb219d64a58d590fbf2f806835e996a4277aee7d` (documentation-only commit); its parent `75884b7f794fa1dabc775d802613c38979eff4b8` remains the latest functional/source checkpoint. The functional checkpoint is 12 commits ahead of `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369`; the following docs-only commit changed six files, all inside `stage3/design-factory/`.
 
 ### Substantial code work since the previous functional checkpoint
 

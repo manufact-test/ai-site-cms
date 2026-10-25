@@ -2,6 +2,14 @@
 
 Independent Stage3 Design Factory. **D1–D6 are implemented; D7 final quality gates are still open**. This does not constitute Stage3 acceptance or production release. Branch: `feature/stage3-design-factory`. Only writable subtree: `stage3/design-factory/`.
 
+## Latest D7 environment audit — 25 October 2026
+
+Audit-start HEAD was `bb219d64a58d590fbf2f806835e996a4277aee7d`, a documentation-only commit whose parent and functional/source checkpoint is `75884b7f794fa1dabc775d802613c38979eff4b8`. The six paths changed since that checkpoint are all documentation inside this subtree.
+
+A genuine GitHub checkout attempt failed with `Could not resolve host: github.com`. Node 22.16.0 and PHP 8.4.24 are installed, but there is no checkout in the execution workspace; stable Node D7 suites and PHP parity were not run. GitHub reports zero workflow runs for this branch and zero check runs for the audit-start HEAD. Chromium's one-shot minimal headless probe timed out after 15 seconds (exit 124), so Studio E2E, the 54-image matrix and human review remain outstanding. No release ZIP, CRC/source-byte parity evidence or real ZIP SHA256 exists.
+
+**D7 is still OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135.** These are explicit environment blockers, not passes. Do not repeat attempts unless the environment/connectivity has changed.
+
 ## Current engineering checkpoint — 25 October 2026
 
 **Latest functional/source commit:** `75884b7f794fa1dabc775d802613c38979eff4b8`. The recent work hardened Studio editing and release tooling:

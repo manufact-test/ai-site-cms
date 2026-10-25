@@ -2,6 +2,14 @@
 
 **Scope:** standalone, offline adapter. All code is constrained to `stage3/design-factory/`; the existing CMS importer, Studio, SDK, server and PHP renderer remain unchanged. This document is for the main integration developer. It is **not** a production deployment guide.
 
+## Latest environment re-check — 25 October 2026
+
+At the start of this audit the branch HEAD was `bb219d64a58d590fbf2f806835e996a4277aee7d`; it is a documentation-only child of functional/source checkpoint `75884b7f794fa1dabc775d802613c38979eff4b8`. The compare contains six changed paths and all six are documentation within the allowed Design Factory subtree.
+
+The execution container has Node.js 22.16.0 and PHP 8.4.24, but `git ls-remote` fails with `Could not resolve host: github.com`; no checkout is available. GitHub reports zero Actions runs for this branch and zero check runs for the audit-start HEAD. A minimal `/usr/bin/chromium --headless` data-URL probe timed out after 15 seconds (exit 124), so no Studio E2E or screenshot capture occurred. PHP parity remains 0 probes; no source-byte-identical ZIP, CRC/source-parity result or actual archive SHA256 exists.
+
+This is an environment blocker, not a product acceptance result. The optional Lead Design Graph adapter remains proposed/opt-in and must not be merged by this developer. D7 remains OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135.
+
 ## Current integration checkpoint — 25 October 2026
 
 Live functional/source checkpoint: `75884b7f794fa1dabc775d802613c38979eff4b8`. All commits since the earlier checkpoint remain confined to `stage3/design-factory/`; no Lead SDK, PHP renderer, primary Studio, workflows, hosting or production files were changed.

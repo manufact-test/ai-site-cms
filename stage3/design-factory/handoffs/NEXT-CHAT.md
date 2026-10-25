@@ -4,15 +4,27 @@
 **Repository:** https://github.com/manufact-test/ai-site-cms
 **Your working branch:** `feature/stage3-design-factory`
 **Sole writable subtree:** `stage3/design-factory/`
-**Latest functional/source checkpoint:** `75884b7f794fa1dabc775d802613c38979eff4b8` (read live HEAD on arrival; documentation commits may advance it).
+**Latest functional/source checkpoint:** `75884b7f794fa1dabc775d802613c38979eff4b8`. **Audit-start branch HEAD:** `bb219d64a58d590fbf2f806835e996a4277aee7d` (documentation-only child; always read live HEAD on arrival).
 **IMPORTANT:** Read the CURRENT HEAD from GitHub on arrival. Do not use the older SHA as the current branch head, and do not create any competing branch.
 
 This is the **second independent developer's permanent Design Factory program**, not the primary AI Site CMS chat. The main developer integrates into `feature/stage3-ai-site-contract` / main when ready. Do NOT edit the leader's branch or `main`, `stage3/sdk`, `stage3/components`, PHP, Studio-main, workflows, deployment, secrets, hosting or other projects. Do NOT merge this branch yourself.
 
 
+## Fresh environment audit — 25 October 2026
+
+At audit start, live HEAD was `bb219d64a58d590fbf2f806835e996a4277aee7d`, directly above functional/source checkpoint `75884b7f794fa1dabc775d802613c38979eff4b8`. Compare confirms one documentation-only commit affecting six paths, all under `stage3/design-factory/`.
+
+- `git ls-remote https://github.com/manufact-test/ai-site-cms.git refs/heads/feature/stage3-design-factory` failed exactly with `Could not resolve host: github.com`. Node.js 22.16.0 is installed, but no real checkout is available; stable six-suite D7 audit and optional Lead suite were not run.
+- Branch Actions API: zero workflow runs. Audit-start HEAD: zero check runs and no commit statuses.
+- PHP CLI 8.4.24 is present, but PHP parity was not run (0 probes) because no real checkout/Lead SDK source is available.
+- `/usr/bin/chromium` timed out on a minimal headless data URL after 15 seconds (exit 124); no Studio E2E or screenshots were captured.
+- No release ZIP was produced; CRC, exact source-byte parity and real ZIP SHA256 remain unverified.
+
+The three planned blocks were attempted once and are blocked by environment availability. Do not loop on retries unless connectivity/runtime has changed. Keep D7 OPEN, Stage2 NO-GO, Stage3 unaccepted, 0/135. Do not modify workflows to manufacture CI evidence.
+
 ## Latest verified environment and source re-check — 25 October 2026
 
-**Live functional/source checkpoint:** `75884b7f794fa1dabc775d802613c38979eff4b8`. The current branch is 12 commits ahead of `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369`; all changed paths remain inside the independent writable subtree.
+**Functional/source checkpoint:** `75884b7f794fa1dabc775d802613c38979eff4b8` is 12 commits ahead of `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369`; audit-start HEAD adds one documentation-only commit. All changed paths remain inside the independent writable subtree.
 
 Recent code changes after the previous graph-rebuild checkpoint:
 
