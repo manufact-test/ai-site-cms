@@ -4,7 +4,7 @@
 **Repository:** https://github.com/manufact-test/ai-site-cms
 **Your working branch:** `feature/stage3-design-factory`
 **Sole writable subtree:** `stage3/design-factory/`
-**Previous verified head (before completing handoff documentation):** `3704010f467b76b96560a7d376c65499e61d4fcf`
+**Functional code checkpoint:** `82b9f7aab5adbb0c0950e7be951aa9ff9beb9369` (read live HEAD on arrival; documentation commits may advance it).
 **IMPORTANT:** Read the CURRENT HEAD from GitHub on arrival. Do not use the older SHA as the current branch head, and do not create any competing branch.
 
 This is the **second independent developer's permanent Design Factory program**, not the primary AI Site CMS chat. The main developer integrates into `feature/stage3-ai-site-contract` / main when ready. Do NOT edit the leader's branch or `main`, `stage3/sdk`, `stage3/components`, PHP, Studio-main, workflows, deployment, secrets, hosting or other projects. Do NOT merge this branch yourself.
@@ -185,3 +185,17 @@ Latest functional code checkpoint: `0b11c94fa536887c18a4b008d8f57c846fd14219`; r
 Test output came from isolated V8 using real GitHub JS source and emulated Node core modules; it is **not** an actual checked-out Node process. PHP is SKIP; Chromium/54 PNG visual review and real ZIP SHA256 remain open. D7 OPEN; Stage2 NO-GO / Stage3 unaccepted / 0/135.
 
 Next priority: obtain a real checkout and run the existing Node release-audit plus this optional Lead suite; if available, run real PHP DesignGraph parity. Then capture 54 real 1280/768/390 screenshots, review them visually with the owner, and produce a source-byte-identical ZIP with archive integrity and a genuine SHA256. Continue only in `stage3/design-factory/` on `feature/stage3-design-factory`. No merge, no main/lead SDK/PHP/workflow/production changes.
+
+## Latest substantial checkpoint — 25 October 2026
+
+This was a full loss-aware rebuild block, not a cosmetic follow-up.
+
+1. **Node structure safety:** canonical node deletions, custom node drops, new-ID collisions and edited properties on nodes reset/removed by CMS structure changes now require explicit exact-ID owner review. Rebuild throws typed `DF_REBUILD_OWNER_REVIEW_REQUIRED` with `discardedGraphEditIds`.
+2. **Media three-way conflict handling:** graph-owned image/video `assetId` and alt/media edits persist when the CMS-derived value is unchanged; divergent edits on both sides fail closed.
+3. **Broad regression and evidence:** 504/504 SDK validations, scoped renders, no-op rebuilds and read-only previews; 8/8 component-family source refreshes; 8 loss-aware regression groups. The suite explicitly covers owner-deleted nodes, custom nodes, collisions with new CMS IDs, style loss on removed cards, reordered card styles, media alt/asset edits and conflicts.
+
+The suite used actual GitHub JavaScript sources in isolated V8 with emulated Node core modules. A real checkout attempt failed because the environment could not resolve `github.com`. Therefore no actual Node checkout, PHP parity, Chromium screenshots, owner visual review or real ZIP/SHA256 acceptance is claimed. GitHub combined status had no checks and the commit had no PR-triggered workflow runs.
+
+**Next three substantial blocks:** (1) establish genuine Node execution or a trustworthy existing GitHub Actions run and execute the D7 release audit plus the optional Lead suite without modifying workflows; (2) run real PHP parity and capture/review 54 real 1280/768/390 Chromium screenshots if the environment supports it; (3) package a source-byte-identical release ZIP, verify archive integrity and calculate its real SHA256. Do not fake results if the environment cannot provide the required runtime.
+
+Stay on `feature/stage3-design-factory`, write only under `stage3/design-factory/`. Do not merge, edit main/Lead SDK/PHP/Studio-main/workflows/hosting/production, or fold the optional suite into stable D7 audit before Lead SDK integration.
