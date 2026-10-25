@@ -106,6 +106,17 @@ async function stop(){
   assert.equal((await request('GET','/published/'+id+'/')).status,404,'unpublished site invisible');
   const changed=structuredClone(fixture);
   changed.pages[0].sections[0].elements[0].values['content.text']='<img src=x onerror=alert(1)> Updated';
+  const draftPreview=await request('POST',endpoint+'/preview',{expectedRevision:1,site:changed,path:'/'});
+  assert.equal(draftPreview.status,200,JSON.stringify(draftPreview.body));
+  assert.equal(draftPreview.body.published,false);
+  assert.match(draftPreview.body.html,/http-equiv="Content-Security-Policy"/);
+  assert.match(draftPreview.body.html,/name="robots" content="noindex,nofollow"/);
+  assert.match(draftPreview.body.html,/&lt;img src=x onerror=alert\(1\)&gt; Updated/);
+  assert.doesNotMatch(draftPreview.body.html,/<script\b/i,'Draft preview is script-free');
+  assert.equal((await request('GET',endpoint+'/revisions')).body.revisions.length,1,
+    'Preview does not create revisions');
+  assert.equal((await request('GET','/published/'+id+'/')).status,404,
+    'Preview never publishes a draft');
   const saved=await request('POST',endpoint+'/save',{expectedRevision:1,site:changed});
   assert.equal(saved.status,200);assert.equal(saved.body.revision,2);
   assert.equal((await request('POST',endpoint+'/save',{expectedRevision:1,site:fixture})).status,409);
@@ -126,6 +137,12 @@ async function stop(){
   next.pages[0].sections[0].elements[0].values['content.text']='Unpublished revision three';
   assert.equal((await request('POST',endpoint+'/save',{expectedRevision:2,site:next})).body.revision,3);
   assert.match((await request('GET','/published/'+id+'/')).body,/Updated/);
+  assert.doesNotMatch((await request('GET','/published/'+id+'/')).body,/Unpublished revision three/);
+  const stalePreview=await request('POST',endpoint+'/preview',{expectedRevision:2,site:next,path:'/'});
+  assert.equal(stalePreview.status,409,'Preview refuses a stale server revision');
+  const currentPreview=await request('POST',endpoint+'/preview',{expectedRevision:3,site:next,path:'/'});
+  assert.equal(currentPreview.status,200);
+  assert.match(currentPreview.body.html,/Unpublished revision three/);
   assert.doesNotMatch((await request('GET','/published/'+id+'/')).body,/Unpublished revision three/);
   const restored=await request('POST',endpoint+'/restore',{targetRevision:1,expectedRevision:3});
   assert.equal(restored.status,200);assert.equal(restored.body.revision,4);
@@ -169,6 +186,13 @@ async function stop(){
   assert.equal((await request('POST',endpoint+'/save',{expectedRevision:5,site:fake})).status,422);
   const correct=await request('POST',endpoint+'/save',{expectedRevision:5,site:doc});
   assert.equal(correct.status,200);assert.equal(correct.body.revision,6);
+  const mediaPreview=await request('POST',endpoint+'/preview',{expectedRevision:6,site:doc,path:'/'});
+  assert.equal(mediaPreview.status,200);
+  assert.ok(mediaPreview.body.html.includes(endpoint+'/media/'+asset.id),
+    'Preview media resolves through authenticated draft assets');
+  assert.equal((await request('GET',endpoint+'/media/'+asset.id)).status,200);
+  assert.equal((await request('GET','/published/'+id+'/assets/'+asset.id+'.png')).status,404,
+    'Preview does not expose an unpublished asset publicly');
   assert.equal((await request('GET','/published/'+id+'/assets/'+asset.id+'.png')).status,404);
   assert.equal((await request('POST',endpoint+'/publish',{expectedRevision:6})).body.version,3);
   const publicImage=await fetch(origin+'/published/'+id+'/assets/'+asset.id+'.png');
@@ -181,7 +205,13 @@ async function stop(){
   const formDraft=structuredClone(correct.body.site);
   formDraft.pages[1].sections.push(require(path.join(root,'stage3/sdk/contract.cjs'))
     .sectionFrom(formDef,'section-quote-form'));
-  assert.equal((await request('POST',endpoint+'/save',{expectedRevision:6,site:formDraft})).body.revision,7);
+  const formSaved=await request('POST',endpoint+'/save',{expectedRevision:6,site:formDraft});
+  assert.equal(formSaved.body.revision,7);
+  const formPreview=await request('POST',endpoint+'/preview',{expectedRevision:7,site:formDraft,path:'/contact/'});
+  assert.equal(formPreview.status,200);
+  assert.match(formPreview.body.html,/action="#preview-only"/);
+  assert.doesNotMatch(formPreview.body.html,/name="_token"/);
+  assert.doesNotMatch(formPreview.body.html,/name="_release"/);
   assert.equal((await request('GET',endpoint+'/submissions')).body.submissions.length,0);
   assert.equal((await request('POST',endpoint+'/publish',{expectedRevision:7})).body.version,4);
   const formHtml=(await request('GET','/published/'+id+'/contact/')).body;

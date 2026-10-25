@@ -311,13 +311,20 @@ final class DesignGraph
         }
         return implode(';',$out);
     }
+    private static function assetUrl(array $asset,string $mount,?string $assetBasePath): string
+    {
+        return $assetBasePath===null
+            ? $mount.$asset['src']
+            : rtrim($assetBasePath,'/').'/'.rawurlencode($asset['id']);
+    }
+
     /** Builds a portable, fully escaped, no-JavaScript composition for both PHP and static output. */
-    public static function render(array $site,array $graph,string $mount,?string $sectionId=null): string
+    public static function render(array $site,array $graph,string $mount,?string $sectionId=null,?string $assetBasePath=null): string
     {
         $t=self::tokens($site['designTokens']??null);
         $assetMap=[];foreach ($site['assets'] as $asset)$assetMap[$asset['id']]=$asset;
         $scope='.cmsdg-'.$graph['id'];$rules=[];
-        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount): string {
+        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath): string {
             $selector=$scope.' .cmsdg-n-'.$n['id'];
             $usesTranslate=false;
             foreach ([$n['styles']??[],$n['responsive']['tablet']??[],$n['responsive']['mobile']??[]] as $layer) {
@@ -356,11 +363,11 @@ final class DesignGraph
                     return '<a class="'.$cls.'" href="'.self::h($href).'">'.self::h($n['text']).'</a>';
                 case 'video':
                     $video=$assetMap[$n['assetId']];
-                    $src=self::h($mount.$video['src']);
+                    $src=self::h(self::assetUrl($video,$mount,$assetBasePath));
                     $posterHtml='';
                     if(isset($n['posterAssetId'])){
                         $poster=$assetMap[$n['posterAssetId']];
-                        $posterHtml=' poster="'.self::h($mount.$poster['src']).'"';
+                        $posterHtml=' poster="'.self::h(self::assetUrl($poster,$mount,$assetBasePath)).'"';
                     }
                     return '<video class="'.$cls.'" controls playsinline preload="metadata"'.
                         (!empty($n['loop'])?' loop':'').$posterHtml.' aria-label="'.self::h($n['alt']).'">'.
@@ -368,13 +375,13 @@ final class DesignGraph
                         'Ваш браузер не поддерживает видео.</video>';
                 case 'image':
                     $asset=$assetMap[$n['assetId']];
-                    $src=self::h($mount.$asset['src']);
+                    $src=self::h(self::assetUrl($asset,$mount,$assetBasePath));
                     $srcset='';
                     if(!empty($asset['variants'])){
                         $parts=$asset['variants'];
                         usort($parts,static fn(array $a,array $b)=>$a['width']<=>$b['width']);
                         $entries=[];
-                        foreach ($parts as $v)$entries[]=self::h($mount.$v['src']).' '.$v['width'].'w';
+                        foreach ($parts as $v)$entries[]=self::h(self::assetUrl($v,$mount,$assetBasePath)).' '.$v['width'].'w';
                         $srcset=' srcset="'.implode(', ',$entries).'" sizes="(max-width:600px) 100vw, (max-width:900px) 50vw, 100vw"';
                     }
                     return '<img loading="lazy" class="'.$cls.'" src="'.$src.'"'.$srcset.' alt="'.self::h($n['alt']).'">';

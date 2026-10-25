@@ -62,6 +62,16 @@ async function execute(){
   const publicUrl=origin+'/published/'+siteId+'/';
   let pub=await visitor.goto(publicUrl);
   assert.equal(pub.status(),404,'New unpublished draft not visible to visitors');
+  await page.locator('#cms-open-page-preview').click();
+  await page.locator('#cms-page-preview[open]').waitFor();
+  const draftFrame=page.frameLocator('#cms-page-preview-frame');
+  await draftFrame.locator('h1').waitFor();
+  assert.equal(await draftFrame.locator('h1').innerText(),'Проверка серверного сайта',
+    'Hosted Studio previews the draft through the publication renderer');
+  assert.equal(await draftFrame.locator('meta[name="robots"]').getAttribute('content'),'noindex,nofollow');
+  await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+  await page.locator('#cms-page-preview[open]').waitFor({state:'hidden'});
+  assert.equal((await visitor.goto(publicUrl)).status(),404,'Preview remains non-public');
   page.once('dialog',dialog=>dialog.accept());
   await page.locator('#server-publish').click();
   await page.locator('#server-status').getByText(/Опубликовано: v1/).waitFor();

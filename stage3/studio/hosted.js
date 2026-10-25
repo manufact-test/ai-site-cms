@@ -651,6 +651,16 @@
     await loadHistory();await loadSubmissions();await loadTemplates();
     notice('Сайт открыт из серверного хранилища. Публикация не выполнялась.');
   }
+  async function previewPage(site,path){
+    if(!state.authorized||!state.siteId||!Number.isInteger(state.revision))
+      throw Error('Войдите и откройте сайт для предпросмотра');
+    if(!site||site.siteId!==state.siteId)throw Error('Сайт предпросмотра не совпадает с открытым сайтом');
+    const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/preview','POST',
+      {site,expectedRevision:state.revision,path});
+    if(typeof result.html!=='string'||!result.html.startsWith('<!doctype html>'))
+      throw Error('Сервер вернул некорректный предпросмотр');
+    return result.html;
+  }
   async function save(){
     return safe(async()=>{
       if(!state.siteId)throw Error('Сначала откройте сайт');
@@ -763,7 +773,7 @@
       selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();
     }finally{state.busy=false;drawStatus();}
   }
-  window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewUrl,videoUrl,
+  window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewPage,previewUrl,videoUrl,
     api,safe,notice,principal:()=>state.principal,refreshSites:()=>refreshSites(),
     lock:()=>{state.authorized=false;state.principal=null;state.csrf=null;editorVisible(false);setGate(true);},
     compositionTemplates,createComposition,canCompose:()=>isOwner()&&!state.busy,

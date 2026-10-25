@@ -19,7 +19,8 @@ final class Api
             [$actor,$action,$siteId] = $this->auditContext;
             $this->auditContext = null; // no recursive logging if storage itself fails
             if ($siteId === null && isset($body['site']['siteId'])) $siteId = $body['site']['siteId'];
-            if ($status >= 400 || !str_starts_with($action,'GET ') || str_ends_with($action,'/backup')) {
+            $readOnlyPreview=$status<400 && str_ends_with($action,'/preview');
+            if (!$readOnlyPreview && ($status >= 400 || !str_starts_with($action,'GET ') || str_ends_with($action,'/backup'))) {
                 $this->sites->audit($actor,$action,$siteId,$status < 400 ? 'success' : 'denied', $this->auditDetail);
             }
         }
@@ -73,6 +74,7 @@ final class Api
         $action = $m[2] ?? '';
         if ($method === 'GET' && (in_array($action, ['', 'revisions','releases','templates'], true)
             || preg_match('~^media/[a-z][a-z0-9-]{2,79}$~D', $action))) return;
+        if ($method === 'POST' && $action === 'preview') return;
         $edit = in_array($principal['role'], ['editor','publisher'], true);
         if ($edit && $method === 'GET' && in_array($action, ['notifications','submissions'], true)) return;
         if ($edit && $method === 'POST' &&
@@ -336,7 +338,7 @@ final class Api
                 $this->csrf();
                 $body = $this->request(in_array($path, ['/api/backups/plan','/api/backups/restore'], true)
                     ? SiteRepository::ARCHIVE_LIMIT
-                    : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/media$~D', $path) ? 2600000 : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/video$~D',$path)?2100000:750000)));
+                    : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/preview$~D',$path) ? 900000 : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/media$~D', $path) ? 2600000 : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/video$~D',$path)?2100000:750000))));
                 if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|video|video-uploads(?:/.*)?|templates(?:/.*)?)$~D',$path)) {
                     $this->sites->assertLicenseWritable($siteScope);
                 }
@@ -347,6 +349,26 @@ final class Api
                 }
                 if ($path === '/api/sites') {
                     $this->response(201, $this->sites->createSite($body['site'] ?? []));
+                }
+                if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/preview$~D',$path,$previewMatch)) {
+                    $siteId=$previewMatch[1];
+                    $candidate=$body['site']??null;
+                    $pagePath=$body['path']??null;
+                    if (!is_array($candidate)) throw new InvalidArgumentException('Preview site object required');
+                    if (!is_string($pagePath)||$pagePath===''||strlen($pagePath)>240
+                        ||$pagePath[0]!=='/'||str_starts_with($pagePath,'//')
+                        ||str_contains($pagePath,'?')||str_contains($pagePath,'#')
+                        ||str_contains($pagePath,'\\')||preg_match('/[\x00-\x20]/',$pagePath)) {
+                        throw new InvalidArgumentException('Invalid preview page path');
+                    }
+                    $expectedRevision=self::revision($body['expectedRevision']??null);
+                    $site=$this->sites->previewDraft($siteId,$candidate,$expectedRevision);
+                    $mount='/published/'.rawurlencode($siteId);
+                    $assetBase='/api/sites/'.rawurlencode($siteId).'/media';
+                    $html=PublicRenderer::html($site,$pagePath,$mount,null,0,null,$assetBase,true);
+                    if ($html===null) $this->response(404,['error'=>'Unknown preview page']);
+                    $this->response(200,['html'=>$html,'path'=>$pagePath,
+                        'revision'=>$expectedRevision,'published'=>false]);
                 }
             }
             if ($path === '/api/password' && $method === 'POST') {

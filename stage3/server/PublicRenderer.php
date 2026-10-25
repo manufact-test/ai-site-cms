@@ -10,6 +10,13 @@ final class PublicRenderer
         return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
     }
 
+    private static function assetUrl(array $asset,string $mount,?string $assetBasePath): string
+    {
+        return $assetBasePath===null
+            ? $mount.$asset['src']
+            : rtrim($assetBasePath,'/').'/'.rawurlencode($asset['id']);
+    }
+
     private static function language(array $site): string
     {
         $language=$site['language']??'ru';
@@ -22,13 +29,13 @@ final class PublicRenderer
     }
 
     /** All URLs and widths come from validated, immutable site assets. */
-    private static function responsiveAttrs(array $asset, string $mount, string $sizes): string
+    private static function responsiveAttrs(array $asset, string $mount, string $sizes, ?string $assetBasePath = null): string
     {
         if (empty($asset['variants'])) return '';
         $variants = $asset['variants'];
         usort($variants, static fn(array $a,array $b): int => $a['width'] <=> $b['width']);
         $sources = [];
-        foreach ($variants as $v) $sources[] = self::h($mount.$v['src']).' '.$v['width'].'w';
+        foreach ($variants as $v) $sources[] = self::h(self::assetUrl($v,$mount,$assetBasePath)).' '.$v['width'].'w';
         return ' srcset="'.implode(', ', $sources).'" sizes="'.self::h($sizes).'"';
     }
 
@@ -284,7 +291,7 @@ final class PublicRenderer
             .'<p>Страница перемещена: <a href="'.$value.'">Перейти</a></p></body></html>';
     }
 
-    public static function html(array $site, string $path, ?string $basePath = null, ?string $collectorBase = null, int $publishedVersion = 0, ?string $publicOrigin = null): ?string
+    public static function html(array $site, string $path, ?string $basePath = null, ?string $collectorBase = null, int $publishedVersion = 0, ?string $publicOrigin = null, ?string $assetBasePath = null, bool $preview = false): ?string
     {
         $page = null;
         foreach ($site['pages'] as $candidate) {
@@ -304,7 +311,7 @@ final class PublicRenderer
             $beforeSkin = strlen($body);
             $id = self::h($section['id']);
             if (isset($section['designGraph'])) {
-                $body .= DesignGraph::render($site,$section['designGraph'],$mount,$section['id']);
+                $body .= DesignGraph::render($site,$section['designGraph'],$mount,$section['id'],$assetBasePath);
             } elseif ($section['component'] === 'company-hero') {
                 $values = self::element($section, 'heading');
                 $color = (string)$values['style.color'];
@@ -433,8 +440,8 @@ final class PublicRenderer
                     $v=$item['values'];$asset=null;
                     foreach ($site['assets'] as $candidate) if ($candidate['id']===$v['content.media']) {$asset=$candidate;break;}
                     if ($asset===null) continue;
-                    $images[]='<figure><img loading="lazy" decoding="async" src="'.self::h($mount.$asset['src']).
-                        '"'.self::responsiveAttrs($asset,$mount,'(max-width: 600px) 100vw, (max-width: 900px) 50vw, 33vw').' alt="'.self::h($asset['alt']).'"><figcaption>'.self::h($v['content.caption']).'</figcaption></figure>';
+                    $images[]='<figure><img loading="lazy" decoding="async" src="'.self::h(self::assetUrl($asset,$mount,$assetBasePath)).
+                        '"'.self::responsiveAttrs($asset,$mount,'(max-width: 600px) 100vw, (max-width: 900px) 50vw, 33vw', $assetBasePath).' alt="'.self::h($asset['alt']).'"><figcaption>'.self::h($v['content.caption']).'</figcaption></figure>';
                 }
                 $body.='<section id="'.$id.'" class="repeat-section"><h2>'.self::label($section,'heading').
                     '</h2><div class="repeat-grid gallery-grid">'.implode('',$images).'</div></section>';
@@ -456,10 +463,10 @@ final class PublicRenderer
                     $classes='cms-adaptive-card';
                     if($layout==='grid'&&$v['behavior.featured'])$classes.=' cms-gallery-featured';
                     $figures[]='<figure class="'.$classes.'"><img loading="'.($index===0?'eager':'lazy')
-                        .'" decoding="async" src="'.self::h($mount.$asset['src'])
+                        .'" decoding="async" src="'.self::h(self::assetUrl($asset,$mount,$assetBasePath))
                         .'"'.self::responsiveAttrs($asset,$mount,
                             $layout==='carousel'?'(max-width: 600px) 90vw, (max-width: 900px) 60vw, 40vw':
-                            '(max-width: 600px) 100vw, (max-width: 900px) 50vw, 33vw')
+                            '(max-width: 600px) 100vw, (max-width: 900px) 50vw, 33vw', $assetBasePath)
                         .' alt="'.self::h($asset['alt']).'">'
                         .($caption?'<figcaption>'.self::h($v['content.caption']).'</figcaption>':'')
                         .'</figure>';
@@ -478,7 +485,7 @@ final class PublicRenderer
                 foreach ($site['assets'] as $asset) {
                     if ($asset['id']!==$media) continue;
                     $photo='<img class="story-photo" loading="lazy" decoding="async" src="'.
-                        self::h($mount.$asset['src']).'"'.self::responsiveAttrs($asset,$mount,'(max-width: 900px) 100vw, 50vw').' alt="'.self::h($asset['alt']).'">';
+                        self::h(self::assetUrl($asset,$mount,$assetBasePath)).'"'.self::responsiveAttrs($asset,$mount,'(max-width: 900px) 100vw, 50vw', $assetBasePath).' alt="'.self::h($asset['alt']).'">';
                     break;
                 }
                 $body.='<section id="'.$id.'" class="media-story"><div class="story-layout"><div class="story-copy">'
@@ -497,7 +504,7 @@ final class PublicRenderer
                     $href=$v['behavior.href'];
                     if(str_starts_with($href,'/')&&!str_starts_with($href,'//'))$href=$mount.$href;
                     $cards.='<a class="partner-logo" href="'.self::h($href).'"><img loading="lazy" decoding="async" src="'.
-                        self::h($mount.$asset['src']).'"'.self::responsiveAttrs($asset,$mount,'(max-width: 600px) 50vw, 25vw').' alt="'.self::h($asset['alt']?:$v['content.caption']).'">'
+                        self::h(self::assetUrl($asset,$mount,$assetBasePath)).'"'.self::responsiveAttrs($asset,$mount,'(max-width: 600px) 50vw, 25vw', $assetBasePath).' alt="'.self::h($asset['alt']?:$v['content.caption']).'">'
                         .'<span>'.self::h($v['content.caption']).'</span></a>';
                 }
                 $body.='<section id="'.$id.'" class="partner-logos"><h2>'.self::label($section,'heading').
@@ -508,7 +515,7 @@ final class PublicRenderer
                 foreach ($site['assets'] as $asset) {
                     if ($asset['id'] === $media) {
                         $picture = '<img class="showcase-photo" loading="lazy" decoding="async" src="'
-                            . self::h($mount . $asset['src']) . '"' . self::responsiveAttrs($asset,$mount,'(max-width: 900px) 100vw, 70vw') . ' alt="' . self::h($asset['alt']) . '">';
+                            . self::h(self::assetUrl($asset,$mount,$assetBasePath)) . '"' . self::responsiveAttrs($asset,$mount,'(max-width: 900px) 100vw, 70vw', $assetBasePath) . ' alt="' . self::h($asset['alt']) . '">';
                         break;
                     }
                 }
@@ -516,16 +523,16 @@ final class PublicRenderer
                     . self::label($section, 'heading') . '</h2>'
                     . $picture . '<p>' . self::label($section, 'caption') . '</p></section>';
             } elseif (in_array($section['component'], ['lead-form','lead-form-flex'], true)) {
-                if ($publishedVersion < 1) {
+                if ($publishedVersion < 1 && !$preview) {
                     throw new \RuntimeException('Forms require an explicit immutable published version');
                 }
-                $action = FormGateway::endpoint($collectorBase ?? '', $siteId, $section['id']);
-                $token = FormGateway::token($siteId, $section['id'], $publishedVersion);
+                $action = $preview ? '#preview-only' : FormGateway::endpoint($collectorBase ?? '', $siteId, $section['id']);
+                $token = $preview ? '' : FormGateway::token($siteId, $section['id'], $publishedVersion);
                 $body .= '<section id="' . $id . '" class="lead-section">'
                     . '<h2>' . self::label($section, 'heading') . '</h2>'
                     . '<form class="lead-form" method="post" accept-charset="utf-8" action="' . self::h($action) . '">'
-                    . '<input type="hidden" name="_release" value="' . $publishedVersion . '">'
-                    . '<input type="hidden" name="_token" value="' . self::h($token) . '">'
+                    . ($preview ? '' : '<input type="hidden" name="_release" value="' . $publishedVersion . '">'
+                        . '<input type="hidden" name="_token" value="' . self::h($token) . '">')
                     . '<div class="lead-honey" aria-hidden="true"><label>Website <input tabindex="-1" autocomplete="off" type="text" name="website" value=""></label></div>'
                     . '<label>' . self::label($section, 'name-label') . '<input name="name" type="text" minlength="2" maxlength="120" required autocomplete="name"></label>'
                     . '<label>' . self::label($section, 'email-label') . '<input name="email" type="email" maxlength="254" required autocomplete="email"></label>'
@@ -617,8 +624,11 @@ final class PublicRenderer
             }
         }
 
+        $previewHead=$preview
+            ? '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'none\'; style-src \'unsafe-inline\'; img-src \'self\' data:; media-src \'self\'; connect-src \'none\'; form-action \'none\'; object-src \'none\'; frame-src \'none\'; base-uri \'none\'"><meta name="robots" content="noindex,nofollow"><style>a{pointer-events:none!important;cursor:default!important}</style>'
+            : '';
         return '<!doctype html><html lang="'.$language.'"><head><meta charset="utf-8">'
-            . '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            . '<meta name="viewport" content="width=device-width,initial-scale=1">' . $previewHead
             . '<title>' . $title . '</title>' . $description . $robots . $canonical . $social . '<style>' . self::themeCss($site)
             . '*,*:before,*:after{box-sizing:border-box}body{margin:0;background:var(--cms-bg);color:var(--cms-text);font:16px/1.6 var(--cms-font)}'
             . 'header,main,footer{max-width:var(--cms-width);margin:auto;padding:24px}nav{display:flex;flex-wrap:wrap;gap:18px}a{color:inherit}'

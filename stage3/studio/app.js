@@ -476,20 +476,29 @@
     const modal=document.createElement('dialog');modal.id='cms-page-preview';
     modal.className='cms-page-preview';modal.setAttribute('aria-label','Предпросмотр всей страницы');
     const header=document.createElement('div');header.className='cms-page-preview-header';
-    const heading=document.createElement('h2');heading.textContent='Предпросмотр всей страницы';
+    const heading=document.createElement('h2');heading.textContent=HOSTED?'Предпросмотр страницы · рендер CMS':'Предпросмотр всей страницы';
     const pathSelect=document.createElement('select');pathSelect.className='control';
     pathSelect.id='cms-page-preview-path';pathSelect.setAttribute('aria-label','Страница сайта');
     const frameMode=document.createElement('div');frameMode.className='cms-page-preview-modes';
     const area=document.createElement('div');area.className='cms-page-preview-area';
     const frame=document.createElement('iframe');frame.id='cms-page-preview-frame';
-    frame.setAttribute('sandbox','');frame.title='Изолированный предпросмотр всей страницы';
+    frame.setAttribute('sandbox',HOSTED?'allow-same-origin':'');frame.title='Изолированный предпросмотр всей страницы';
     frame.setAttribute('referrerpolicy','no-referrer');area.append(frame);
-    let mode='desktop';
-    const render=()=>{
-      const path=pathSelect.value;
+    let mode='desktop',previewRequest=0;
+    const render=async()=>{
+      const requestId=++previewRequest,path=pathSelect.value;
       frame.style.width=mode==='mobile'?'390px':mode==='tablet'?'768px':'100%';
-      frame.srcdoc=window.Stage3Editor.previewDocument(session.current,path);
+      if(!HOSTED){frame.srcdoc=window.Stage3Editor.previewDocument(session.current,path);return;}
+      frame.srcdoc='<!doctype html><html><body style="font:15px system-ui;padding:24px">Строим предпросмотр черновика…</body></html>';
+      try{
+        const html=await window.Stage3Host.previewPage(session.current,path);
+        if(requestId===previewRequest)frame.srcdoc=html;
+      }catch(error){
+        if(requestId!==previewRequest)return;
+        frame.srcdoc='<!doctype html><html><body style="font:15px system-ui;padding:24px"><p>Не удалось построить серверный предпросмотр: '+escapeHtml(error.message)+'</p></body></html>';
+      }
     };
+    modal.addEventListener('close',()=>{previewRequest++;});
     for(const [value,name] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
       const option=button(name,'btn small',()=>{
         mode=value;frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el===option));render();
@@ -500,7 +509,7 @@
     const close=button('Закрыть','btn',()=>modal.close());
     header.append(heading,pathSelect,frameMode,close);
     const note=document.createElement('small');
-    note.textContent='Предпросмотр только черновика · без выполнения скриптов, без отправки заявок и без публикации.';
+    note.textContent=HOSTED?'Черновик отрисован тем же PHP-рендерером, что и публикация. Скрипты, ссылки и отправка форм отключены; ничего не публикуется.':'Предпросмотр только черновика · без выполнения скриптов, без отправки заявок и без публикации.';
     modal.append(header,note,area);document.body.append(modal);
     const open=button('Вся страница','btn small',()=>{
       pathSelect.replaceChildren();

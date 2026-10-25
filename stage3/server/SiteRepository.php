@@ -177,6 +177,24 @@ final class SiteRepository
         return ['site' => self::decode((string)$r['body']), 'revision' => (int)$r['revision']];
     }
 
+    /**
+     * Validates an ephemeral editor snapshot against the current server revision and
+     * site-owned immutable media. It never writes a draft, revision or publication.
+     */
+    public function previewDraft(string $id,array $candidate,int $expectedRevision): array
+    {
+        $site=$this->validator->validate($candidate);
+        if ($site['siteId']!==$id || $expectedRevision<1) {
+            throw new Conflict('Site identity/revision mismatch');
+        }
+        $current=$this->getDraft($id);
+        if ($current['revision']!==$expectedRevision) {
+            throw new Conflict('Stale editor revision; reload before previewing');
+        }
+        $this->assertStoredAssets($id,$site);
+        return $site;
+    }
+
     private function saveRevision(string $id, int $revision, string $body, string $now): void
     {
         $stmt = $this->db->prepare('INSERT INTO stage3_revisions (site_id, revision, body, created_at) VALUES (?, ?, ?, ?)');
