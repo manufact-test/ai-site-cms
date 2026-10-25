@@ -431,11 +431,30 @@ async function execute(){
   await page.locator('#cms-setting-primary').fill('#ff6600');
   await page.locator('#cms-setting-font').selectOption('georgia');
   await page.locator('#cms-setting-maxWidth').fill('980');
+  await page.locator('#cms-setting-bodySize').fill('18');
+  await page.locator('#cms-setting-lineHeight').selectOption('relaxed');
+  await page.locator('#cms-setting-headingScale').selectOption('large');
+  await page.locator('#cms-setting-buttonStyle').selectOption('outline');
+  await page.locator('#cms-setting-buttonRadius').fill('12');
+  await page.locator('#cms-setting-buttonText').fill('#ffffff');
   await page.locator('#cms-settings-apply').click();
-  assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).theme.primary,'#ff6600');
+  const globalTheme=await page.evaluate(()=>window.Stage3Editor.getSite().theme);
+  assert.equal(globalTheme.primary,'#ff6600');
+  assert.equal(globalTheme.bodySize,18);
+  assert.equal(globalTheme.lineHeight,'relaxed');
+  assert.equal(globalTheme.headingScale,'large');
+  assert.equal(globalTheme.buttonStyle,'outline');
+  assert.equal(globalTheme.buttonRadius,12);
   await page.locator('#undo').click();
   assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).theme,undefined);
   await page.locator('#redo').click();
+  await page.evaluate(()=>{
+    const site=window.Stage3Editor.getSite();
+    const home=site.pages.find(p=>p.path==='/');
+    const hero=home.sections.find(section=>section.component==='company-hero');
+    hero.appearance={...(hero.appearance||{}),button:'solid'};
+    window.Stage3Editor.applyComposition(site);
+  });
   await page.locator('#cms-open-seo').click();
   await page.locator('#cms-setting-seo-title').fill('Тест SEO каталога | MANUFACT');
   await page.locator('#cms-setting-seo-description').fill('Подтверждённое описание для поисковиков.');
@@ -456,7 +475,11 @@ async function execute(){
   assert.equal(await visitor.locator('.cms-mobile-menu a[aria-current=page]').count(),1,
     'Mobile navigation contains the same published active page');
   assert.equal(await visitor.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(16, 27, 42)');
-  assert.equal(await visitor.locator('.action').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 102, 0)');
+  const bodyMetrics=await visitor.locator('body').evaluate(e=>({fontSize:getComputedStyle(e).fontSize,lineHeight:parseFloat(getComputedStyle(e).lineHeight)}));
+  assert.equal(bodyMetrics.fontSize,'18px');assert.ok(Math.abs(bodyMetrics.lineHeight-32.4)<0.1,JSON.stringify(bodyMetrics));
+  const actionStyles=await visitor.locator('.action').evaluateAll(els=>els.map(e=>({background:getComputedStyle(e).backgroundColor,color:getComputedStyle(e).color,radius:getComputedStyle(e).borderRadius,section:e.closest('.cms-section-skin')?.className||''})));
+  assert.ok(actionStyles.some(x=>x.background==='rgb(255, 102, 0)'&&x.color==='rgb(255, 255, 255)'&&x.section.includes('cms-button-solid')),JSON.stringify(actionStyles));
+  assert.ok(actionStyles.some(x=>x.background==='rgba(0, 0, 0, 0)'&&x.color==='rgb(255, 102, 0)'),JSON.stringify(actionStyles));
   await page.locator('#cms-open-seo').click();
   await page.locator('#cms-setting-nav-hidden').check();
   await page.locator('#cms-settings-apply').click();

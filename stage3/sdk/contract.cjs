@@ -105,12 +105,18 @@ function select(reg,component,versionValue){
 }
 function fieldMap(def){return new Map(def.fields.map(f=>[f.path,f]));}
 
-const DEFAULT_THEME=Object.freeze({background:'#f7f9fc',surface:'#ffffff',text:'#172a43',primary:'#0a5bff',font:'system',maxWidth:1140});
+const DEFAULT_THEME=Object.freeze({background:'#f7f9fc',surface:'#ffffff',text:'#172a43',primary:'#0a5bff',font:'system',maxWidth:1140,bodySize:16,lineHeight:'normal',headingScale:'normal',buttonStyle:'solid',buttonRadius:9,buttonText:'#ffffff'});
 function validTheme(t){
-  objectKeys(t,['background','surface','text','primary','font','maxWidth'],'theme');
+  objectKeys(t,['background','surface','text','primary','font','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText'],'theme');
   for(const k of ['background','surface','text','primary'])
     if(typeof t[k]!=='string'||!/^#[0-9a-fA-F]{6}$/.test(t[k]))fail('Invalid theme color',k);
   if(!['system','arial','georgia'].includes(t.font)||!Number.isInteger(t.maxWidth)||t.maxWidth<680||t.maxWidth>1600)fail('Invalid theme font or width');
+  if(own(t,'bodySize')&&(!Number.isInteger(t.bodySize)||t.bodySize<14||t.bodySize>22))fail('Invalid global body size');
+  if(own(t,'lineHeight')&&!['compact','normal','relaxed'].includes(t.lineHeight))fail('Invalid global line height');
+  if(own(t,'headingScale')&&!['compact','normal','large'].includes(t.headingScale))fail('Invalid global heading scale');
+  if(own(t,'buttonStyle')&&!['solid','outline','pill'].includes(t.buttonStyle))fail('Invalid global button style');
+  if(own(t,'buttonRadius')&&(!Number.isInteger(t.buttonRadius)||t.buttonRadius<0||t.buttonRadius>32))fail('Invalid global button radius');
+  if(own(t,'buttonText')&&(typeof t.buttonText!=='string'||!/^#[0-9a-fA-F]{6}$/.test(t.buttonText)))fail('Invalid global button text color');
 }
 function validSeo(s,assetMimes){
   objectKeys(s,['title','description','robots','ogTitle','ogDescription','ogImage'],'seo');
@@ -153,7 +159,7 @@ function validMenuRelations(raw){
   if(raw.menu?.ctaPageId&&!pages.has(raw.menu.ctaPageId))fail('Menu CTA destination missing');
 }
 const DEFAULT_APPEARANCE=Object.freeze({surface:'default',spacing:'normal',align:'left',width:'default',heading:'default',corners:'default',mobileAlign:'inherit',mobileSpacing:'inherit',button:'default'});
-const EXTRA_APPEARANCE=Object.freeze({"width":["default","narrow","wide"],"heading":["default","compact","expressive"],"corners":["default","soft","round"],"mobileAlign":["inherit","left","center"],"mobileSpacing":["inherit","tight","normal","airy"],"button":["default","outline","pill"]});
+const EXTRA_APPEARANCE=Object.freeze({"width":["default","narrow","wide"],"heading":["default","compact","expressive"],"corners":["default","soft","round"],"mobileAlign":["inherit","left","center"],"mobileSpacing":["inherit","tight","normal","airy"],"button":["default","solid","outline","pill"]});
 function validAppearance(a){
   objectKeys(a,['surface','spacing','align',...Object.keys(EXTRA_APPEARANCE)],'appearance');
   if(!['default','paper','tint','dark'].includes(a.surface)||

@@ -119,11 +119,17 @@ final class ContractValidator
 
     private static function theme(mixed $t): void
     {
-        self::keys($t,['background','surface','text','primary','font','maxWidth']);
+        self::keys($t,['background','surface','text','primary','font','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText']);
         foreach (['background','surface','text','primary'] as $name)
             self::must(is_string($t[$name]) && preg_match('/^#[0-9a-fA-F]{6}$/D',$t[$name])===1,'Invalid theme color');
         self::must(in_array($t['font'],['system','arial','georgia'],true)
             && is_int($t['maxWidth']) && $t['maxWidth']>=680 && $t['maxWidth']<=1600,'Invalid theme font/width');
+        if (array_key_exists('bodySize',$t)) self::must(is_int($t['bodySize']) && $t['bodySize']>=14 && $t['bodySize']<=22,'Invalid global body size');
+        if (array_key_exists('lineHeight',$t)) self::must(in_array($t['lineHeight'],['compact','normal','relaxed'],true),'Invalid global line height');
+        if (array_key_exists('headingScale',$t)) self::must(in_array($t['headingScale'],['compact','normal','large'],true),'Invalid global heading scale');
+        if (array_key_exists('buttonStyle',$t)) self::must(in_array($t['buttonStyle'],['solid','outline','pill'],true),'Invalid global button style');
+        if (array_key_exists('buttonRadius',$t)) self::must(is_int($t['buttonRadius']) && $t['buttonRadius']>=0 && $t['buttonRadius']<=32,'Invalid global button radius');
+        if (array_key_exists('buttonText',$t)) self::must(is_string($t['buttonText']) && preg_match('/^#[0-9a-fA-F]{6}$/D',$t['buttonText'])===1,'Invalid global button text color');
     }
     private static function seo(mixed $s, array $assets): void
     {
@@ -247,7 +253,7 @@ final class ContractValidator
                         'corners'=>['default','soft','round'],
                         'mobileAlign'=>['inherit','left','center'],
                         'mobileSpacing'=>['inherit','tight','normal','airy'],
-                        'button'=>['default','outline','pill']] as $field=>$allowed) {
+                        'button'=>['default','solid','outline','pill']] as $field=>$allowed) {
                         if (array_key_exists($field,$section['appearance']))
                             self::must(in_array($section['appearance'][$field],$allowed,true),
                                 'Invalid section appearance '.$field);

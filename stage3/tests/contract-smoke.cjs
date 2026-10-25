@@ -134,12 +134,18 @@ test('theme + page SEO/nav accept only closed values and participate in Undo',()
   const site=same(initial);
   site.language='pl';
   site.assets.push({id:'social-preview',src:'/assets/social-preview.webp',alt:'Social preview image',mime:'image/webp'});
-  site.theme={background:'#101b2a',surface:'#f8f9fa',text:'#ffffff',primary:'#ff6600',font:'georgia',maxWidth:980};
+  site.theme={background:'#101b2a',surface:'#f8f9fa',text:'#ffffff',primary:'#ff6600',font:'georgia',maxWidth:980,
+    bodySize:18,lineHeight:'relaxed',headingScale:'large',buttonStyle:'outline',buttonRadius:12,buttonText:'#fdfdfd'};
   site.pages[0].seo={title:'Каталог',description:'Подтверждённое описание',robots:'noindex',
     ogTitle:'Заголовок публикации',ogDescription:'Описание публикации',ogImage:'social-preview'};
   site.pages[0].navigation={label:'Каталог',hidden:false};
   assert.equal(sdk.validateSite(site,reg).theme.primary,'#ff6600');
+  assert.equal(sdk.validateSite(site,reg).theme.bodySize,18);
+  assert.equal(sdk.validateSite(site,reg).theme.buttonStyle,'outline');
+  assert.equal(sdk.validateSite(site,reg).theme.buttonRadius,12);
   assert.equal(sdk.validateSite(site,reg).language,'pl');
+  const legacyTheme=same(initial);legacyTheme.theme={background:'#ffffff',surface:'#ffffff',text:'#172a43',primary:'#0a5bff',font:'system',maxWidth:1140};
+  assert.equal(sdk.validateSite(legacyTheme,reg).theme.maxWidth,1140,'Old site-v1 themes remain valid without optional global styles');
   assert.equal(sdk.validateSite(site,reg).pages[0].seo.ogImage,'social-preview');
   const D=require('../sdk/draft.cjs'),updated=D.replaceSite(D.begin(initial,manifests),manifests,site,0);
   assert.ok(D.changes(updated,manifests).some(c=>c.kind==='theme-updated'));
@@ -148,10 +154,18 @@ test('theme + page SEO/nav accept only closed values and participate in Undo',()
   assert.equal(D.undo(updated,manifests).current.theme,undefined);
   const bad=same(site);bad.theme.primary='red; background:url(//evil)';
   refuses(()=>sdk.validateSite(bad,manifests),'CSS injection rejected');
+  const badBodySize=same(site);badBodySize.theme.bodySize=99;
+  refuses(()=>sdk.validateSite(badBodySize,manifests),'Global body size is bounded');
+  const badButton=same(site);badButton.theme.buttonStyle='url(javascript:alert(1))';
+  refuses(()=>sdk.validateSite(badButton,manifests),'Global button style is a closed enum');
+  const badButtonColor=same(site);badButtonColor.theme.buttonText='white';
+  refuses(()=>sdk.validateSite(badButtonColor,manifests),'Global button text color is a closed hex color');
   const badLanguage=same(site);badLanguage.language='xx';
   refuses(()=>sdk.validateSite(badLanguage,manifests),'Unknown site language rejected');
   const badSocialImage=same(site);badSocialImage.pages[0].seo.ogImage='missing-image';
   refuses(()=>sdk.validateSite(badSocialImage,manifests),'Social image must reference a site-owned raster image');
+  const badLocalButton=same(site);badLocalButton.pages[0].sections[0].appearance={surface:'default',spacing:'normal',align:'left',button:'url(javascript:alert(1))'};
+  refuses(()=>sdk.validateSite(badLocalButton,manifests),'Local button override is a closed enum');
   const hidden=same(site);hidden.pages[0].navigation.hidden='yes';
   refuses(()=>sdk.validateSite(hidden,manifests),'Invalid nav flag rejected');
 });

@@ -534,7 +534,8 @@ async function stop(){
   const richDefs=fs.readdirSync(path.join(root,'stage3/components'))
     .filter(n=>n.endsWith('.json')).map(n=>JSON.parse(fs.readFileSync(path.join(root,'stage3/components',n),'utf8')));
   const rich=structuredClone(fixture);rich.siteId='site-rich-ci';rich.language='pl';
-  rich.theme={background:'#121f2c',surface:'#ffffff',text:'#dce6ef',primary:'#ff8800',font:'system',maxWidth:960};
+  rich.theme={background:'#121f2c',surface:'#ffffff',text:'#dce6ef',primary:'#ff8800',font:'system',maxWidth:960,
+    bodySize:18,lineHeight:'relaxed',headingScale:'large',buttonStyle:'outline',buttonRadius:12,buttonText:'#fdfdfd'};
   rich.pages[0].seo={title:'Секции услуг',description:'Страница теста услуг',robots:'noindex',
     ogTitle:'Каталог для соцсетей',ogDescription:'Отдельное описание для публикаций',ogImage:''};
   for(const name of ['service-grid','faq-accordion','testimonials','photo-gallery',
@@ -575,13 +576,22 @@ async function stop(){
   rich.pages[1].navigation={label:'Свяжитесь с нами',hidden:false,parentId:'page-home'};
   rich.menu={style:'bold',sticky:true,mobile:'collapsible',
     ctaPageId:'page-contact',ctaLabel:'Получить консультацию'};
-  rich.pages[0].sections[0].appearance={surface:'dark',spacing:'airy',align:'center'};
+  rich.pages[0].sections[0].appearance={surface:'dark',spacing:'airy',align:'center',button:'solid'};
   const richCreated=await request('POST','/api/sites',{site:rich});
   assert.equal(richCreated.status,201,JSON.stringify(richCreated.body));
   assert.equal((await request('GET','/published/site-rich-ci/')).status,404);
   assert.equal((await request('POST','/api/sites/site-rich-ci/publish',{expectedRevision:1})).status,200);
   const richPublished=await request('GET','/published/site-rich-ci/');
   assert.equal(richPublished.status,200);
+  assert.match(richPublished.body,/--cms-body-size:18px/);
+  assert.match(richPublished.body,/--cms-line-height:1\.8/);
+  assert.match(richPublished.body,/--cms-h2-size:clamp\(36px,4\.5vw,56px\)/);
+  assert.match(richPublished.body,/--cms-button-bg:transparent/);
+  assert.match(richPublished.body,/--cms-button-color:var\(--cms-primary\)/);
+  assert.match(richPublished.body,/--cms-button-radius:12px/);
+  assert.match(richPublished.body,/--cms-button-text:#fdfdfd/);
+  assert.match(richPublished.body,/cms-button-solid/);
+  assert.match(richPublished.body,/\.cms-button-solid>section \.action\{background:var\(--cms-primary\);color:var\(--cms-button-text\);box-shadow:none\}/);
   assert.match(richPublished.body,/Программирование шкафа управления/);
   assert.match(richPublished.body,/<details><summary>&lt;img src=x onerror=alert\(1\)&gt;<\/summary>/);
   assert.doesNotMatch(richPublished.body,/<img src=x onerror=/);

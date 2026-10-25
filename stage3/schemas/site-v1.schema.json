@@ -87,6 +87,40 @@
           "type": "integer",
           "minimum": 680,
           "maximum": 1600
+        },
+        "bodySize": {
+          "type": "integer",
+          "minimum": 14,
+          "maximum": 22
+        },
+        "lineHeight": {
+          "enum": [
+            "compact",
+            "normal",
+            "relaxed"
+          ]
+        },
+        "headingScale": {
+          "enum": [
+            "compact",
+            "normal",
+            "large"
+          ]
+        },
+        "buttonStyle": {
+          "enum": [
+            "solid",
+            "outline",
+            "pill"
+          ]
+        },
+        "buttonRadius": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "buttonText": {
+          "$ref": "#/$defs/color"
         }
       }
     },
@@ -539,6 +573,7 @@
         "button": {
           "enum": [
             "default",
+            "solid",
             "outline",
             "pill"
           ]
