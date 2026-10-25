@@ -7,6 +7,7 @@ require_once __DIR__ . '/ContractValidator.php';
 require_once __DIR__ . '/SiteArchives.php';
 require_once __DIR__ . '/AccessControl.php';
 require_once __DIR__ . '/Licenses.php';
+require_once __DIR__ . '/FormDelivery.php';
 require_once __DIR__ . '/VideoUploads.php';
 require_once __DIR__ . '/SiteRepository.php';
 require_once __DIR__ . '/PublicRenderer.php';

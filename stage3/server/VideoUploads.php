@@ -41,7 +41,7 @@ trait VideoUploads
         $tables=$this->driver==='sqlite'
             ?$this->db->query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")->fetchAll(PDO::FETCH_COLUMN)
             :$this->db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
-        if(array_diff($expected,$tables)||array_diff($tables,[...$expected,...$new]))
+        if(array_diff($expected,$tables)||array_diff($tables,[...$expected,...$new,'stage3_delivery_settings','stage3_delivery_outbox']))
             throw new RuntimeException('Video upgrade requires a dedicated, fully upgraded Stage 3 database');
         if(in_array($new[0],$tables,true)!==in_array($new[1],$tables,true))
             throw new RuntimeException('Partial video staging schema requires manual investigation');
