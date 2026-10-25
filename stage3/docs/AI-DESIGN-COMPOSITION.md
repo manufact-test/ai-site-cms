@@ -94,3 +94,6 @@ The Design Graph inspector now supports a complete direct-manipulation pass with
 - **Verification:** the Chromium suite now exercises sibling reordering, graph undo/redo, Alt-drag translation, desktop and mobile resize handles, existing breakpoint editing, text editing and apply-to-draft persistence.
 
 Snapping applies to direct drag deltas; the underlying stored values remain numeric CSS pixels. This remains a typed composition editor, not arbitrary HTML/CSS authoring. The editor does not yet promise lossless import/export with Design Factory D7, and direct free-positioning is intentionally a translation rather than absolute-layout conversion.
+
+
+The final Chromium scenario also drops a heading onto a nested child's center and verifies that hit-testing resolves the containing container, then checks the persisted graph for desktop dimensions, mobile width override, translation, and reparented ownership. The visual hint in the dialog advertises the gestures so they are discoverable without reading this document.

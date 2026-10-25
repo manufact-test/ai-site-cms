@@ -388,6 +388,24 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.mouse.move(mobileHandleBox.x+mobileHandleBox.width/2-16,mobileHandleBox.y+mobileHandleBox.height/2,{steps:4});
     await page.mouse.up();
     await page.locator('.cms-design-device-tools [data-design-device="desktop"]').click();
+    // Create a second container and a child, then reparent the heading by dropping
+    // onto that child's center. The container ancestor should win over the child hit.
+    await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
+    await page.getByRole('button',{name:'+ Рядом'}).click();
+    const extraContainerId=await page.locator('#cms-design-node-select').inputValue();
+    await page.getByRole('button',{name:'+ Вложенный'}).click();
+    const extraChildId=await page.locator('#cms-design-node-select').inputValue();
+    await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
+    const dropBox=await designFrame.locator('.cmsdg-n-'+extraChildId).boundingBox();
+    const sourceBox=await titleNode.boundingBox();
+    await page.mouse.move(sourceBox.x+sourceBox.width/2,sourceBox.y+sourceBox.height/2);
+    await page.mouse.down();
+    await page.mouse.move(dropBox.x+dropBox.width/2,dropBox.y+dropBox.height/2,{steps:8});
+    await page.mouse.up();
+    await titleNode.waitFor();
+    const newParentId=await titleNode.evaluate(e=>
+      Array.from(e.parentElement.classList).find(x=>x.startsWith('cmsdg-n-'))?.slice(8));
+    assert.equal(newParentId,extraContainerId,'Dropping over a child center reparents into its container');
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
     const copy=page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'Текст'}).locator('textarea');
     await copy.fill('Новый профессиональный дизайн без ИИ');
@@ -410,6 +428,18 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(graphSection.designGraph.version,1);
     assert.equal(graphSection.designGraph.nodes[0].responsive.mobile.gap,'@small');
     assert.equal(graphSection.designGraph.nodes[0].responsive.mobile.widthPx,390);
+    const findGraphNode=(nodes,id)=>{
+      for(const node of nodes){if(node.id===id)return node;
+        const found=node.children&&findGraphNode(node.children,id);if(found)return found;}
+      return null;
+    };
+    const savedTitle=findGraphNode(graphSection.designGraph.nodes,selectedSection+'-title');
+    assert.ok(savedTitle,'Reparented heading remains in the typed graph');
+    assert.ok(savedTitle.styles.widthPx>0&&savedTitle.styles.heightPx>0,'Desktop resize persists');
+    assert.equal(typeof savedTitle.styles.translateX,'number','Alt-drag persists free positioning');
+    assert.ok(savedTitle.responsive.mobile.widthPx>0,'Mobile resize is stored as a responsive override');
+    assert.ok(graphSection.designGraph.nodes.find(n=>n.id===extraContainerId).children.some(n=>n.id===selectedSection+'-title'),
+      'Reparenting persists under the intended container');
     await canvas.locator('.cmsdg').waitFor();
     assert.match(await canvas.locator('.cmsdg h2').innerText(),/Новый профессиональный дизайн без ИИ/);
     await page.locator('#undo').click();

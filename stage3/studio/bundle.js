@@ -1818,7 +1818,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     previewFrame.setAttribute('sandbox','allow-same-origin');
     previewFrame.title='Визуальный выбор элементов композиции';
     const visualHint=document.createElement('p');visualHint.id='cms-design-visual-hint';
-    visualHint.textContent='Выберите элемент прямо на макете. Изменения остаются в черновике.';
+    visualHint.textContent='Клик — выбрать · Перетащить на узел — порядок/вложенность · Alt+перетаскивание — смещение · маркеры — размер (шаг 8 px)';
     canvasStage.append(previewFrame);visual.append(deviceTools,canvasStage,visualHint);
     workspace.append(visual,root);
     dlg.append(title,info,toolbar,workspace,footer);
@@ -1985,26 +1985,38 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         }
         clearDropIndicators(doc);doc.body.style.userSelect='none';
         g.target.classList.add('cms-design-dragging');
-        const hovered=doc.elementFromPoint(event.clientX,event.clientY)?.closest?.('[class*="cmsdg-n-"]');
-        const targetId=nodeIdFromElement(hovered);
+        let hovered=doc.elementFromPoint(event.clientX,event.clientY)?.closest?.('[class*="cmsdg-n-"]');
+        let targetId=nodeIdFromElement(hovered);
         const source=all().find(item=>item.node.id===g.nodeId);
         const blocked=source?new Set(subtreeIds(source.node)) : new Set();
-        const targetRow=all().find(item=>item.node.id===targetId);
-        if(!hovered||!targetRow||blocked.has(targetId)){
-          g.candidateId=null;g.placement=null;
-          visualHint.textContent='Перетащите на другой элемент; внутрь контейнера — для вложенности';
-          return;
+        let targetRow=all().find(item=>item.node.id===targetId),placement=null;
+        // Prefer a container under the pointer, even when one of its children
+        // covers the hit point. This makes "drop inside" practical on real layouts.
+        for(let candidate=hovered;candidate;candidate=candidate.parentElement?.closest?.('[class*="cmsdg-n-"]')){
+          const id=nodeIdFromElement(candidate),row=all().find(item=>item.node.id===id);
+          if(!row||blocked.has(id)||row.node.type!=='container')continue;
+          const box=candidate.getBoundingClientRect();
+          const cx=box.width?(event.clientX-box.left)/box.width:.5;
+          const cy=box.height?(event.clientY-box.top)/box.height:.5;
+          if(cx>.22&&cx<.78&&cy>.22&&cy<.78){
+            hovered=candidate;targetId=id;targetRow=row;placement='inside';break;
+          }
         }
-        const rect=hovered.getBoundingClientRect();
-        const x=rect.width?(event.clientX-rect.left)/rect.width:.5;
-        const y=rect.height?(event.clientY-rect.top)/rect.height:.5;
-        const parentStyle=doc.defaultView.getComputedStyle(hovered.parentElement);
-        const gridColumns=(parentStyle.gridTemplateColumns||'').trim().split(/\s+/).filter(Boolean);
-        const horizontal=(parentStyle.display==='flex'&&parentStyle.flexDirection.startsWith('row'))||
-          (parentStyle.display==='grid'&&gridColumns.length>1);
-        let placement;
-        if(targetRow.node.type==='container'&&x>.22&&x<.78&&y>.22&&y<.78)placement='inside';
-        else placement=(horizontal?x:y)<.5?'before':'after';
+        if(!placement){
+          if(!hovered||!targetRow||blocked.has(targetId)){
+            g.candidateId=null;g.placement=null;
+            visualHint.textContent='Перетащите на другой элемент; внутрь контейнера — для вложенности';
+            return;
+          }
+          const rect=hovered.getBoundingClientRect();
+          const x=rect.width?(event.clientX-rect.left)/rect.width:.5;
+          const y=rect.height?(event.clientY-rect.top)/rect.height:.5;
+          const parentStyle=doc.defaultView.getComputedStyle(hovered.parentElement);
+          const gridColumns=(parentStyle.gridTemplateColumns||'').trim().split(/\s+/).filter(Boolean);
+          const horizontal=(parentStyle.display==='flex'&&parentStyle.flexDirection.startsWith('row'))||
+            (parentStyle.display==='grid'&&gridColumns.length>1);
+          placement=(horizontal?x:y)<.5?'before':'after';
+        }
         g.candidateId=targetId;g.placement=placement;
         hovered.classList.add('cms-design-drop-'+placement);
         visualHint.textContent='Отпустите, чтобы переместить '+(placement==='inside'?'внутрь':placement==='before'?'перед':'после')+' выбранного узла';
@@ -2131,7 +2143,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; img-src &#39;self&#39; data: blob:; media-src &#39;self&#39; blob:; connect-src &#39;none&#39;; form-action &#39;none&#39;; object-src &#39;none&#39;; frame-src &#39;none&#39;">'+
           '<style>html,body{margin:0;background:#fff;color:#182b3d;font:16px system-ui,Arial,sans-serif}body{padding:12px;min-width:0}.cmsdg{position:relative}.cmsdg [class*="cmsdg-n-"]{cursor:grab;touch-action:none}.cmsdg [class*="cmsdg-n-"]:hover{outline:2px dashed #1868d3!important;outline-offset:2px}.cmsdg .cms-design-picked{outline:3px solid #e88622!important;outline-offset:3px}.cmsdg .cms-design-dragging{opacity:.42!important;cursor:grabbing}.cmsdg .cms-design-drop-before{box-shadow:inset 0 4px #e88622!important}.cmsdg .cms-design-drop-after{box-shadow:inset 0 -4px #e88622!important}.cmsdg .cms-design-drop-inside{outline:3px solid #16865b!important;outline-offset:3px}.cms-design-resize-overlay{pointer-events:none}</style>'+
           '</head><body>'+html+'</body></html>';
-        visualHint.textContent='Щёлкните по элементу макета · Изменения видны без сохранения и публикации';
+        visualHint.textContent='Клик — выбрать · Перетащить на узел — порядок/вложенность · Alt+перетаскивание — смещение · маркеры — размер (шаг 8 px)';
       }catch(error){
         previewFrame.srcdoc='<!doctype html><html><head><meta charset="utf-8"></head><body><p>Предпросмотр временно недоступен</p></body></html>';
         visualHint.textContent='Исправьте параметры композиции: '+error.message;
