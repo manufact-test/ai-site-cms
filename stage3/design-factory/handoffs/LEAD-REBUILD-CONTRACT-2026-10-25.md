@@ -95,3 +95,16 @@ The return shape is `manufact-design-factory-rebuild-preview-v1` with `canApply`
 The rebuild report now exposes `preservedVisualNodeIds`, `createdVisualNodeIds`, `resetVisualNodeIds`, `removedVisualNodeIds` in addition to the existing counts. This lets the host render a concrete visual review and undo plan instead of inferring affected cards from counts. Input bounds are 80 provenance bindings and 180 exact discard acknowledgements. Host authentication, revision locking, permissions, owner confirmation, persistence, undo, visual signoff and publication remain lead-owned.
 
 Latest source-level smoke passed 504/504 validations, renders, no-op rebuilds and preflights, plus 8 CMS component-family content-refresh rebuilds in isolated V8. This is not actual checkout/Node/PHP/Chromium acceptance.
+
+## Additional 25 October finding — structural node loss and media conflict protection
+
+The first rebuild preview covered graph-only copy loss but did not fully cover owner-created/deleted nodes or owner styling on a node that disappears during structural changes. That gap is now fixed.
+
+- If an owner deletes a canonical node but CMS structure would recreate it, the preview emits a `__node__` entry and `nodeInEditedGraph:false`, `nodeInRebuiltGraph:true`.
+- If an owner adds a custom node that the canonical graph would drop, the preview emits the whole node in `currentValue`, with `nodeInEditedGraph:true`, `nodeInRebuiltGraph:false`.
+- If a custom ID collides with a new CMS-generated node, the preview includes both the custom edited node and the canonical `rebuiltValue`; its style/content is never transplanted into the CMS-owned node.
+- If a removed/reset node has edited style, responsive, states, motion, type, asset, alt or related editable properties, each changed field is listed for exact review.
+- The rebuild error uses `code='DF_REBUILD_OWNER_REVIEW_REQUIRED'` and `discardedGraphEditIds`, not a parsed free-form message.
+- Media `assetId` and alt/media properties are three-way reconciled: graph-only edits survive when CMS source is unchanged; divergent simultaneous CMS/graph edits fail closed.
+
+The optional smoke now passes 8 loss-aware structural/style/media regression groups in addition to 504 validations, renders, no-op rebuilds and read-only previews, and 8 component-family source refreshes. This remains isolated V8 source-level evidence, not actual Node/PHP/Chromium/release acceptance.
