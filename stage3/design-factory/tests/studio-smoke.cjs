@@ -24,6 +24,9 @@ for(const id of ['kit-list','theme-list','site-preview','page-list','title','hea
  'services-list','composition','undo','redo','save-project','save-site','save-workspace','project-file','checklist'])
  assert.ok(markup.includes('id="'+id+'"'),'UI control '+id);
 assert.ok(markup.includes('sandbox="allow-scripts"'));
+assert.ok(app.includes('function updateWorkbenchSubtitle()'));
+assert.ok(app.includes('target.focus({preventScroll:true})'));
+assert.ok(app.includes('if(!before)before=snapshot()'),'Editor history must capture a pre-edit snapshot before mutation');
 assert.ok(!markup.includes('allow-same-origin'));
 const ctx={structuredClone:global.structuredClone,console};
 ctx.globalThis=ctx;
@@ -83,13 +86,21 @@ try{
  "try{",
  "if(!ready())throw Error('initial preview missing');",
  "const items=document.querySelectorAll('.kit-item');if(items.length!==12)throw Error('kit selector');",
- "items[3].click();if(document.querySelectorAll('.kit-item')[3].getAttribute('aria-pressed')!=='true')throw Error('industry selection');",
+ "items[3].focus();items[3].click();if(document.querySelectorAll('.kit-item')[3].getAttribute('aria-pressed')!=='true')throw Error('industry selection');",
+ "if(document.activeElement.id!==items[3].id)throw Error('kit focus lost after selection');",
  "const themes=document.querySelectorAll('.theme-card');if(themes.length!==12)throw Error('theme selector');",
- "themes[7].click();if(document.querySelectorAll('.theme-card')[7].getAttribute('aria-pressed')!=='true')throw Error('theme selection');",
+ "themes[7].focus();themes[7].click();if(document.querySelectorAll('.theme-card')[7].getAttribute('aria-pressed')!=='true')throw Error('theme selection');",
+ "if(document.activeElement.id!==themes[7].id)throw Error('theme focus lost after selection');",
  "document.querySelector('[data-device=mobile]').click();",
  "if(document.getElementById('preview-shell').dataset.device!=='mobile')throw Error('mobile view');",
  "const t=document.getElementById('title');t.focus();t.value='Verified Demo Company';",
  "t.dispatchEvent(new Event('input',{bubbles:true}));t.dispatchEvent(new Event('change',{bubbles:true}));",
+ "if(document.activeElement!==t)throw Error('text editor lost focus after commit');",
+ "document.getElementById('add-service').click();",
+ "const service=document.querySelector('.service-editor input');if(!service)throw Error('service editor missing');",
+ "service.focus();service.value='Verified service';",
+ "service.dispatchEvent(new Event('input',{bubbles:true}));service.dispatchEvent(new Event('change',{bubbles:true}));",
+ "if(document.activeElement!==service)throw Error('service editor lost focus after commit');",
  "const c=document.getElementById('composition');c.value='gallery-mosaic';c.dispatchEvent(new Event('change',{bubbles:true}));",
  "if(document.getElementById('composition').value!=='gallery-mosaic')throw Error('composition selection');",
  "if(!document.getElementById('site-preview').srcdoc.includes('photo-gallery-preview'))throw Error('gallery preview');",

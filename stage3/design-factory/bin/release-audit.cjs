@@ -11,7 +11,7 @@ const SUITES=['smoke.cjs','compositions-smoke.cjs','kits-smoke.cjs','studio-smok
 function digest(b){return crypto.createHash('sha256').update(b).digest('hex');}
 function walk(base,prefix=''){
  const out=[];
- for(const e of fs.readdirSync(base,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name,'en'))){
+ for(const e of fs.readdirSync(base,{withFileTypes:true}).sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0)){
   if(e.name==='node_modules'||e.name==='.git'||e.name==='.DS_Store')throw Error('Unapproved file/directory: '+e.name);
   const rel=prefix?prefix+'/'+e.name:e.name,file=path.join(base,e.name);
   const stat=fs.lstatSync(file);

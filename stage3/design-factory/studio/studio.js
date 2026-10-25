@@ -93,7 +93,7 @@ function renderKits(){
   const search=(label+' '+kitId+' '+item.label.ru+' '+item.label.en).toLowerCase();
   if(!search.includes(state.query))continue;
   visible++;
-  const button=el('button',{type:'button',class:'kit-item','aria-pressed':kitId===state.project.kit});
+  const button=el('button',{id:'kit-'+kitId,type:'button',class:'kit-item','aria-pressed':kitId===state.project.kit});
   button.append(el('span',{class:'kit-glyph',text:icons[kitId]||'◆'}));
   const info=el('span');
   info.append(el('b',{text:label}),el('small',{text:item.archetype+' / 4 '+(state.project.language==='ru'?'страницы':'pages')}));
@@ -111,7 +111,7 @@ function renderKits(){
 function renderThemes(){
  const holder=$('theme-list');holder.replaceChildren();
  for(const [id,theme] of Object.entries(engine.compiler.THEMES)){
-  const card=el('button',{type:'button',class:'theme-card','aria-pressed':id===state.project.theme,title:theme.label});
+  const card=el('button',{id:'theme-'+id,type:'button',class:'theme-card','aria-pressed':id===state.project.theme,title:theme.label});
   const swatch=el('div',{class:'theme-swatch'});
   swatch.style.background=theme.cms.background;
   swatch.style.setProperty('--ink',theme.cms.text);
@@ -124,13 +124,19 @@ function renderThemes(){
  $('theme-current').textContent=engine.compiler.THEMES[state.project.theme].label;
 }
 function renderPages(){
+ const activeId=document.activeElement?.id||'';
  const container=$('page-list');container.replaceChildren();
  pages.forEach(page=>{
-  const button=el('button',{type:'button',text:LANG[state.project.language][page]});
+  const button=el('button',{id:'page-'+page,type:'button',text:LANG[state.project.language][page]});
   if(state.page===page)button.setAttribute('aria-current','page');
   button.addEventListener('click',()=>{state.page=page;renderPages();renderPreview();});
   container.append(button);
  });
+ if(activeId){const target=$(activeId);if(target)target.focus({preventScroll:true});}
+}
+function updateWorkbenchSubtitle(){
+ const facts=state.project.facts;
+ $('workbench-subtitle').textContent=state.project.kit+' · '+(facts.title||'Добавьте название')+' · 4 страницы';
 }
 function renderFields(){
  const facts=state.project.facts;
@@ -138,7 +144,7 @@ function renderFields(){
  $('siteId').value=facts.siteId||'';
  for(const input of document.querySelectorAll('[data-fact]'))input.value=facts[input.dataset.fact]||'';
  $('workbench-title').textContent=engine.compiler.KITS[state.project.kit].label[state.project.language]||engine.compiler.KITS[state.project.kit].label.ru;
- $('workbench-subtitle').textContent=state.project.kit+' · '+(facts.title||'Добавьте название')+' · 4 страницы';
+ updateWorkbenchSubtitle();
  renderServices();
 }
 function renderServices(){
@@ -147,7 +153,7 @@ function renderServices(){
  services.forEach((row,i)=>{
   const box=el('div',{class:'service-editor'});
   box.append(el('p',{class:'service-index',text:'УСЛУГА '+String(i+1).padStart(2,'0')}));
-  const del=el('button',{type:'button',class:'remove-service',title:'Удалить услугу','aria-label':'Удалить услугу '+(i+1),text:'×'});
+  const del=el('button',{id:'remove-service-'+i,type:'button',class:'remove-service',title:'Удалить услугу','aria-label':'Удалить услугу '+(i+1),text:'×'});
   del.addEventListener('click',()=>apply(()=>{state.project.facts.services.splice(i,1);}));
   box.append(del);
   for(const [field,label,max,rows] of [['title','Название',120,1],['description','Описание',320,3]]){
@@ -248,14 +254,21 @@ function schedulePreview(){
 function connectEditor(input,get,set){
  let before=null;
  input.addEventListener('focus',()=>{before=snapshot();});
- input.addEventListener('input',()=>{set(input.value);schedulePreview();});
+ input.addEventListener('input',()=>{if(!before)before=snapshot();set(input.value);schedulePreview();});
  input.addEventListener('change',()=>{
   if(before){historyRecord(before);before=null;}
-  renderAll();
+  updateWorkbenchSubtitle();
+  refreshHistory();
+  schedulePreview();
  });
 }
 function renderAll(){
+ const activeId=document.activeElement?.id||'';
  renderKits();renderThemes();renderPages();renderFields();renderComposition();renderPreview();refreshHistory();
+ if(activeId){
+  const target=$(activeId)||(activeId.startsWith('remove-service-')?$('add-service'):null);
+  if(target)target.focus({preventScroll:true});
+ }
 }
 function download(name,text,type='application/json'){
  const bytes=new Blob([text],{type:type+';charset=utf-8'});

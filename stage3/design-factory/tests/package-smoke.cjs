@@ -8,6 +8,17 @@ const build=path.join(root,'bin/package-release.cjs');
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'df-package-smoke-'));
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const PREFIX='stage3/design-factory/';
+const compareName=(a,b)=>a<b?-1:a>b?1:0;
+function expectedSourceSha256(){
+ const hash=crypto.createHash('sha256');
+ for(const name of sourcePaths().sort(compareName)){
+  const content=fs.readFileSync(path.join(root,name.slice(PREFIX.length)));
+  const nameBytes=Buffer.from(name,'utf8'),lengths=Buffer.alloc(8);
+  lengths.writeUInt32BE(nameBytes.length,0);lengths.writeUInt32BE(content.length,4);
+  hash.update(lengths);hash.update(nameBytes);hash.update(content);
+ }
+ return hash.digest('hex');
+}
 function sourcePaths(base=root,relative=''){
  const paths=[];
  for(const entry of fs.readdirSync(base,{withFileTypes:true})){
@@ -28,6 +39,7 @@ try{
   const meta=JSON.parse(p.stdout);
   assert.ok(meta.files>=20);
   assert.equal(meta.zipSha256,sha(fs.readFileSync(out)));
+  assert.equal(meta.sourceSha256,expectedSourceSha256(),'Source digest must bind each exact path and file byte sequence');
  }
  const a=fs.readFileSync(outputs[0]),b=fs.readFileSync(outputs[1]);
  assert.equal(sha(a),sha(b),'Reproducible archives must have identical bytes');
@@ -92,5 +104,21 @@ try{
   assert.ok(all.has('stage3/design-factory/'+f),f);
  const denied=cp.spawnSync(process.execPath,[build,outputs[0]],{encoding:'utf8'});
  assert.notEqual(denied.status,0,'No overwrite allowed');
- console.log('DESIGN_FACTORY_D7_PACKAGE_SMOKE PASS: '+files+' ZIP members, CRC32, central directory parity, all source bytes and file inventory, no path escapes, reproducible, no overwrite');
+ const alias=path.join(dir,'source-alias');
+ const escapedName='df-package-symlink-escape-'+process.pid+'.zip';
+ const escaped=path.join(root,escapedName);
+ if(fs.existsSync(escaped))throw Error('Unexpected collision for symlink safety fixture');
+ let symlinkSupported=true;
+ try{fs.symlinkSync(root,alias,'dir');}catch(error){
+  if(['EPERM','EACCES','ENOTSUP','EINVAL'].includes(error.code))symlinkSupported=false;
+  else throw error;
+ }
+ if(symlinkSupported){
+  try{
+   const escapeRun=cp.spawnSync(process.execPath,[build,path.join(alias,escapedName)],{encoding:'utf8'});
+   assert.notEqual(escapeRun.status,0,'Must refuse package output through a symlink pointing into the source tree');
+   assert.equal(fs.existsSync(escaped),false,'A rejected symlink destination must not create an archive in the source tree');
+  }finally{fs.rmSync(escaped,{force:true});}
+ }
+ console.log('DESIGN_FACTORY_D7_PACKAGE_SMOKE PASS: '+files+' ZIP members, CRC32, central directory parity, exact source bytes, framed source digest, symlink-safe output boundary, deterministic archive and no overwrite');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}

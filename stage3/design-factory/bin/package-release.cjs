@@ -11,6 +11,7 @@ const crypto=require('node:crypto');
 const ROOT=path.resolve(__dirname,'..');
 const PREFIX='stage3/design-factory/';
 const SUPPORTED=/\.(md|cjs|js|html|css|json)$/i;
+const compareName=(a,b)=>a.name<b.name?-1:a.name>b.name?1:0;
 const TABLE=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){
  let v=i;for(let n=0;n<8;n++)v=(v&1)?0xEDB88320^(v>>>1):v>>>1;t[i]=v>>>0;
 }return t;})();
@@ -21,7 +22,7 @@ function crc32(buffer){
 }
 function collect(dir=ROOT,prefix=''){
  const output=[];
- for(const e of fs.readdirSync(dir,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name,'en'))){
+ for(const e of fs.readdirSync(dir,{withFileTypes:true}).sort(compareName)){
   const r=prefix?prefix+'/'+e.name:e.name;
   const absolute=path.join(dir,e.name),stat=fs.lstatSync(absolute);
   if(e.name.startsWith('.')||e.name==='node_modules'||stat.isSymbolicLink())
@@ -57,7 +58,10 @@ function zip(entries){
   c.writeUInt32LE(offset,42);
   local.push(h,name,compressed);central.push(c,name);
   offset+=h.length+name.length+compressed.length;
-  sha.update(name);sha.update(original);
+  // Length-prefix each path and payload so the digest has an unambiguous file boundary.
+  const lengths=Buffer.alloc(8);
+  lengths.writeUInt32BE(name.length,0);lengths.writeUInt32BE(original.length,4);
+  sha.update(lengths);sha.update(name);sha.update(original);
  }
  if(entries.length>65535)throw Error('Too many files for ZIP32');
  const centralBytes=Buffer.concat(central);const foot=Buffer.alloc(22);
@@ -68,10 +72,14 @@ function zip(entries){
 }
 function main(args){
  if(args.length!==1||!args[0].endsWith('.zip'))throw Error('Usage: node bin/package-release.cjs NEW-output.zip');
- const dest=path.resolve(args[0]);
- if(!fs.existsSync(path.dirname(dest)))throw Error('Destination parent missing');
- if(dest.startsWith(ROOT+path.sep))throw Error('Package output cannot be inside source subtree');
- const files=collect();
+ const requestedDest=path.resolve(args[0]);
+ if(!fs.existsSync(path.dirname(requestedDest)))throw Error('Destination parent missing');
+ // Resolve symlinked parent directories before enforcing the source-tree boundary.
+ const canonicalRoot=fs.realpathSync(ROOT);
+ const dest=path.join(fs.realpathSync(path.dirname(requestedDest)),path.basename(requestedDest));
+ if(dest===canonicalRoot||dest.startsWith(canonicalRoot+path.sep))
+  throw Error('Package output cannot be inside source subtree, including through symlinked parents');
+ const files=collect().sort(compareName);
  if(files.length<20)throw Error('Incomplete source; refusing a partial package');
  const result=zip(files);
  fs.writeFileSync(dest,result.archive,{flag:'wx',mode:0o600});
