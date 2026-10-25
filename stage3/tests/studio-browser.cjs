@@ -708,7 +708,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       .filter({hasText:fixNodeId}).filter({hasText:'Заголовок пустой'}).count(),0,
       'The site-wide report is recomputed after graph fix is applied');
     await page.locator('#cms-site-report').getByRole('button',{name:'Закрыть'}).click();
-    assert.match(await canvas.locator('.cmsdg h2').first().innerText(),/Доступное название/);
+    assert.match(await canvas.locator('.cmsdg h2').first().innerText(),/Доступное название/i);
     await page.locator('#undo').click();
     const revertedIssueSection=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
       .flatMap(p=>p.sections).find(s=>s.id===selectedSection);
