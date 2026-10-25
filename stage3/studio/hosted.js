@@ -694,11 +694,12 @@
   }
   async function importSite(site){
     return safe(async()=>{
-      if(isDirty()&&!confirm('Есть несохранённые правки. Импортировать другой сайт?'))return;
-      if(!confirm('Создать серверный сайт из JSON с ID '+site.siteId+'? Публикация не выполняется.'))return;
+      if(isDirty()&&!confirm('Есть несохранённые правки. Импортировать другой сайт?'))return false;
+      if(!confirm('Создать серверный сайт из JSON с ID '+site.siteId+'? Публикация не выполняется.'))return false;
       const created=await api('/api/sites','POST',{site});
       selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();
       notice('JSON импортирован в отдельный серверный сайт. Черновик не опубликован.');
+      return true;
     });
   }
   async function logout(){

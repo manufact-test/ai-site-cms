@@ -6,7 +6,9 @@
   const HOSTED=document.documentElement.dataset.stage3Mode==='server';
   const $=id=>document.getElementById(id),cp=x=>structuredClone(x);
   const STORAGE='manufact-ai-site-stage3-local-revisions-v1';
-  const MAX_VERSIONS=12,MAX_UPLOAD=900000;
+  const MAX_VERSIONS=12,MAX_UPLOAD=900000,MAX_INTEROP_UPLOAD=2500000;
+  const INTEROP_STORAGE='manufact-ai-design-graph-local-session-v1';
+  let interopSession=null,interopStorageFailed=false;
   const escapeHtml=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const safeText=v=>v===undefined||v===null?'':String(v);
   let session=D.begin(starter,manifests),pageId=session.current.pages[0].id,
@@ -15,6 +17,83 @@
     breakpoint='desktop',savedBytes=JSON.stringify(session.current),versions=[];
   function notice(message,error=false){
     const node=$('toast');node.textContent=message;node.hidden=false;node.className='toast'+(error?' error':'');
+  }
+  function clearInteropSession(){
+    interopSession=null;interopStorageFailed=false;
+    if(!HOSTED)try{sessionStorage.removeItem(INTEROP_STORAGE);}catch(_){}
+    updateInteropUI();
+  }
+  function updateInteropUI(){
+    const button=$('export-factory-handoff'),status=$('interop-status');
+    if(!button||!status)return;
+    if(!interopSession){button.hidden=true;status.hidden=true;status.textContent='';return;}
+    button.hidden=false;
+    try{
+      const report=GRAPH_INTEROP.inspectSession(interopSession,session.current,C,manifests);
+      const changed=report.graphDiff.addedNodeIds.length+report.graphDiff.removedNodeIds.length+
+        report.graphDiff.typeChangedNodeIds.length+report.graphDiff.reparentedNodeIds.length+
+        report.graphDiff.reorderedNodeIds.length+report.graphDiff.changedProperties.length;
+      status.hidden=false;
+      status.textContent='Design Factory · граф '+report.baselineGraph.nodeCount+' узлов · fidelity: '+
+        report.compatibility.visualFidelity+' · изменений графа: '+changed+
+        ' · полей CMS: '+report.bindingChanges.length+
+        ' · открытых ограничений: '+report.integrationRequired.length+
+        (report.compatibility.canExportHandoff?' · handoff доступен':' · восстановите исходный ID графа для handoff')+
+        (HOSTED?' · источник хранится только в этой вкладке; экспортируйте handoff перед выходом.':'')+
+        (interopStorageFailed?' · не удалось сохранить служебную сессию вкладки — скачайте handoff сейчас.':'');
+      button.title='Скачать исходный Factory candidate отдельно от текущего CMS draft';
+    }catch(error){
+      status.hidden=false;status.textContent='Interop активен, но handoff требует исправления: '+error.message;
+    }
+  }
+  function persistInteropSession(){
+    if(!interopSession)return;
+    try{
+      if(session.current.siteId!==interopSession.sourceCandidate.site.siteId){
+        clearInteropSession();return;
+      }
+      interopSession=GRAPH_INTEROP.refreshSession(interopSession,session.current,C,manifests);
+      if(!HOSTED){
+        sessionStorage.setItem(INTEROP_STORAGE,JSON.stringify({
+          format:'manufact-ai-design-graph-local-session-v1',version:1,
+          interopSession,wasSaved:JSON.stringify(session.current)===savedBytes
+        }));
+        interopStorageFailed=false;
+      }
+    }catch(error){interopStorageFailed=true;}
+    updateInteropUI();
+  }
+  function restoreInteropSession(){
+    if(HOSTED)return;
+    try{
+      const raw=sessionStorage.getItem(INTEROP_STORAGE);if(!raw)return;
+      const payload=JSON.parse(raw);
+      if(payload?.format!=='manufact-ai-design-graph-local-session-v1'||payload.version!==1)
+        throw Error('Неверный формат временной сессии');
+      const restored=GRAPH_INTEROP.resumeSession(payload.interopSession,C,manifests);
+      const site=restored.workingSite;
+      if(!versions.length||versions[0].site.siteId!==site.siteId)versions=[];
+      session=D.begin(site,manifests);interopSession=restored;
+      const page=site.pages[0],section=page.sections.find(s=>s.id==='df-selected-composition')||page.sections[0];
+      pageId=page.id;sectionId=section.id;elementId=section.elements[0].id;
+      const savedVersion=versions.find(v=>JSON.stringify(v.site)===JSON.stringify(site));
+      savedBytes=payload.wasSaved&&savedVersion?JSON.stringify(site):'';
+    }catch(error){
+      try{sessionStorage.removeItem(INTEROP_STORAGE);}catch(_){}
+      interopSession=null;interopStorageFailed=false;
+      notice('Временная D7-сессия не восстановлена: '+error.message,true);
+    }
+  }
+  function exportFactoryHandoff(){
+    if(!interopSession)return;
+    try{
+      const handoff=GRAPH_INTEROP.exportHandoff(interopSession,session.current,C,manifests);
+      const data=JSON.stringify(handoff,null,2)+'\n';
+      const url=URL.createObjectURL(new Blob([data],{type:'application/json;charset=utf-8'}));
+      const a=document.createElement('a');a.href=url;a.download='ai-site-design-factory-handoff.json';
+      document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);
+      notice('D7 handoff экспортирован: исходный candidate сохранён отдельно от текущего черновика. Публикации не было.');
+    }catch(error){notice('Экспорт D7 handoff отклонён: '+error.message,true);}
   }
   function current(){
     const page=session.current.pages.find(p=>p.id===pageId)||session.current.pages[0];
@@ -1623,7 +1702,8 @@
     });
   }
   function draw(){current();drawHeader();drawTree();drawElements();drawFields();drawPreview();drawVersions();if(HOSTED)window.Stage3Host?.onDraw?.();
-    document.querySelectorAll('.device').forEach(b=>b.classList.toggle('active',b.dataset.bp===breakpoint));}
+    document.querySelectorAll('.device').forEach(b=>b.classList.toggle('active',b.dataset.bp===breakpoint));
+    persistInteropSession();}
   function save(){
     if(HOSTED)return window.Stage3Host?.save?.();
     try{
@@ -1662,16 +1742,42 @@
     notice('Текущий черновик экспортирован. Это не опубликованный сайт.');
   }
   async function importJson(file){
-    if(!file||file.size>MAX_UPLOAD)return notice('JSON-файл слишком большой (максимум 900 КБ)',true);
+    if(!file||file.size>MAX_INTEROP_UPLOAD)
+      return notice('JSON-файл слишком большой (максимум 2,5 МБ для D7 handoff)',true);
+    const previousInterop=interopSession;
     try{
-      const text=await file.text(),site=C.validateSite(JSON.parse(text),manifests);
-      if(HOSTED)return window.Stage3Host?.importSite?.(site);
-      if(!confirm('Открыть импортированный сайт? Несохранённые изменения будут потеряны, текущие сохранения останутся до следующего «Сохранить».'))return;
+      const parsed=JSON.parse(await file.text());
+      const isCandidate=GRAPH_INTEROP.isCandidate(parsed),isHandoff=GRAPH_INTEROP.isHandoff(parsed);
+      if(!isCandidate&&!isHandoff&&file.size>MAX_UPLOAD)
+        throw Error('Обычный site-v1 JSON ограничен 900 КБ');
+      let nextInterop=null,site;
+      if(isCandidate){
+        nextInterop=GRAPH_INTEROP.createSession(parsed,C,manifests);
+        site=nextInterop.workingSite;
+      }else if(isHandoff){
+        nextInterop=GRAPH_INTEROP.resumeSession(parsed,C,manifests);
+        site=nextInterop.workingSite;
+      }else site=C.validateSite(parsed,manifests);
+      if(HOSTED){
+        interopSession=nextInterop;interopStorageFailed=false;
+        const imported=await window.Stage3Host?.importSite?.(site);
+        if(!imported){interopSession=previousInterop;updateInteropUI();return;}
+        if(!nextInterop)clearInteropSession();
+        else persistInteropSession();
+        return;
+      }
+      if(!confirm('Открыть импортированный сайт? Несохранённые изменения будут потеряны, текущие локальные версии сохранятся до следующего «Сохранить».'))return;
       session=D.begin(site,manifests);versions=[];
-      pageId=site.pages[0].id;sectionId=site.pages[0].sections[0].id;
-      elementId=site.pages[0].sections[0].elements[0].id;
-      savedBytes='';draw();notice('Сайт импортирован как несохранённый черновик.');
-    }catch(e){notice('Импорт отклонён: '+e.message,true);}
+      pageId=site.pages[0].id;
+      const chosen=site.pages[0].sections.find(s=>s.id==='df-selected-composition')||site.pages[0].sections[0];
+      sectionId=chosen.id;elementId=chosen.elements[0].id;
+      interopSession=nextInterop;interopStorageFailed=false;
+      if(!interopSession)clearInteropSession();
+      savedBytes='';draw();
+      notice(nextInterop?
+        'Design Factory candidate открыт как черновик. Исходник и CMS-правки разделены; для передачи используйте «Экспорт D7 handoff».':
+        'Сайт импортирован как несохранённый черновик.');
+    }catch(e){interopSession=previousInterop;notice('Импорт отклонён: '+e.message,true);updateInteropUI();}
   }
   window.addEventListener('beforeunload',e=>{
     if(JSON.stringify(session.current)!==savedBytes){e.preventDefault();e.returnValue='';}
@@ -1680,20 +1786,21 @@
   $('redo').addEventListener('click',()=>{session=D.redo(session,manifests);draw();});
   $('save').addEventListener('click',save);
   $('export').addEventListener('click',exportJson);
+  $('export-factory-handoff').addEventListener('click',exportFactoryHandoff);
   $('import').addEventListener('click',()=>$('import-file').click());
   $('import-file').addEventListener('change',async e=>{const file=e.target.files?.[0];e.target.value='';await importJson(file);});
   $('new-site').addEventListener('click',()=>{
     if(HOSTED)return window.Stage3Host?.newSite?.();
     if(!confirm('Открыть новый пример сайта без готового макета? Несохранённые изменения не сохранятся.'))return;
     const site=C.siteFromBrief({siteId:'site-no-mockup',title:'Сайт без макета'},manifests);
-    session=D.begin(site,manifests);versions=[];
+    session=D.begin(site,manifests);versions=[];clearInteropSession();
     pageId=site.pages[0].id;sectionId=site.pages[0].sections[0].id;elementId=site.pages[0].sections[0].elements[0].id;
     savedBytes='';draw();notice('Создан сайт без дизайн-ТЗ: все поля описаны в манифестах.');
   });
   $('reset').addEventListener('click',()=>{
     if(HOSTED)return window.Stage3Host?.reload?.();
     if(!confirm('Удалить ВСЕ локальные сохранения Stage 3 и восстановить исходный пример?'))return;
-    try{localStorage.removeItem(STORAGE);versions=[];session=D.begin(starter,manifests);
+    try{localStorage.removeItem(STORAGE);versions=[];session=D.begin(starter,manifests);clearInteropSession();
       savedBytes=JSON.stringify(session.current);pageId=session.current.pages[0].id;
       sectionId=session.current.pages[0].sections[0].id;elementId=session.current.pages[0].sections[0].elements[0].id;
       draw();notice('Исходный пример восстановлен. Все его локальные версии очищены.');
@@ -1787,5 +1894,5 @@
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();draw();
+  createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
 })();
