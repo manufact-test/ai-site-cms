@@ -96,7 +96,7 @@
       const derivatives=[],variantSource=await E.load(processed.blob);
       const noop={crop:{x:0,y:0,w:1,h:1},ratio:'free',rotate:0};
       for(const size of [360,720,1200]){
-        if(size>variantSource.width)continue;
+        if(size>=variantSource.width)continue;
         const variant=size===processed.width?processed:
           await E.optimize(variantSource,noop,size,mime,editData.quality,{cancelled:false});
         if(variant.width!==size)throw Error('Не удалось получить физический '+size+'px вариант — уменьшите качество');

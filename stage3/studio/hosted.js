@@ -373,7 +373,11 @@
     if(asset?.variants?.length){
       const bp=document.querySelector('.device.active')?.dataset.bp||'desktop';
       const target=({mobile:360,tablet:720,desktop:1200})[bp]||1200;
-      const sorted=[...asset.variants].sort((a,b)=>a.width-b.width);
+      const candidates=[...asset.variants];
+      // Keep the processed original in the preview candidate set: the nearest
+      // available derivative can be narrower than the actual source (e.g. 900px).
+      if(Number.isInteger(asset.width)&&asset.width>0)candidates.push({id:asset.id,width:asset.width});
+      const sorted=candidates.sort((a,b)=>a.width-b.width);
       assetId=(sorted.filter(v=>v.width<=target).at(-1)||sorted[0]).id;
     }
     const key=state.siteId+':'+assetId;

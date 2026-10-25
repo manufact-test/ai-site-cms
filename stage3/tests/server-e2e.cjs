@@ -865,7 +865,7 @@ async function stop(){
       chunk('IHDR',head),chunk('IDAT',deflateSync(raw,{level:6})),chunk('IEND',Buffer.alloc(0))]);
   }
   const hash=buf=>crypto.createHash('sha256').update(buf).digest('hex');
-  const original=solidPng(1200,800);
+  const original=solidPng(1440,960);
   const variants=[360,720,1200].map(width=>{
     const bytes=solidPng(width,width*2/3);
     return {width,bytes,base64:bytes.toString('base64'),sha256:hash(bytes)};
@@ -880,8 +880,8 @@ async function stop(){
   assert.equal(responsiveUpload.status,201,JSON.stringify(responsiveUpload.body));
   assert.equal(responsiveUpload.body.revision,7);
   const responsiveAsset=responsiveUpload.body.asset;
-  assert.equal(responsiveAsset.width,1200);
-  assert.equal(responsiveAsset.height,800);
+  assert.equal(responsiveAsset.width,1440);
+  assert.equal(responsiveAsset.height,960);
   assert.deepEqual(responsiveAsset.variants.map(v=>v.width),[360,720,1200]);
   assert.deepEqual(responsiveAsset.variants.map(v=>v.sha256),variants.map(v=>v.sha256));
   assert.equal((await request('POST',responsiveEndpoint+'/media',input)).status,409,'stale batch cannot write');
@@ -896,7 +896,7 @@ async function stop(){
   assert.equal((await request('GET','/published/site-rich-ci/')).body.includes(responsiveAsset.id),false);
   assert.equal((await request('POST',responsiveEndpoint+'/publish',{expectedRevision:8})).status,200);
   const responsiveHTML=(await request('GET','/published/site-rich-ci/')).body;
-  assert.match(responsiveHTML,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
+  assert.match(responsiveHTML,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w,[^"]+ 1440w"/);
   assert.match(responsiveHTML,/sizes="\(max-width: 600px\) 100vw/);
   assert.match(responsiveHTML,/<img[^>]*width="1200" height="800"/,
     'Published responsive images reserve intrinsic layout space');
@@ -936,7 +936,7 @@ async function stop(){
   const releaseJSON=JSON.parse(fs.readFileSync(path.join(staticResponsive,'release-manifest.json'),'utf8'));
   assert.equal(releaseJSON.assets.length,5);
   const staticPage=fs.readFileSync(path.join(staticResponsive,'index.html'),'utf8');
-  assert.match(staticPage,/srcset="\/assets\/[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
+  assert.match(staticPage,/srcset="\/assets\/[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w,[^"]+ 1440w"/);
   assert.match(staticPage,/<img[^>]*width="1200" height="800"/,
     'Static release retains intrinsic image dimensions');
   for(let n=0;n<3;n++){
@@ -1064,7 +1064,7 @@ async function stop(){
   assert.match(htmlDesign,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(htmlDesign,/@media\(max-width:600px\)/);
   assert.match(htmlDesign,/:hover\{opacity:0.85\}/);
-  assert.match(htmlDesign,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
+  assert.match(htmlDesign,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w,[^"]+ 1440w"/);
   assert.match(htmlDesign,new RegExp('id="'+designSec.id+'"'));
   assert.ok(htmlDesign.includes('class="cmsdg-n-'+designSec.id+'-action" href="/published/site-rich-ci/contact/"'),
     'Graph internal links follow the PHP publication prefix');
@@ -1094,7 +1094,7 @@ async function stop(){
   assert.match(htmlStatic,/prefers-reduced-motion:reduce/);
   assert.ok(htmlStatic.includes('class="cmsdg-n-'+designSec.id+'-action" href="/contact/"'),
     'Graph links are root-relative only in standalone static export');
-  assert.match(htmlStatic,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w"/);
+  assert.match(htmlStatic,/srcset="[^"]+ 360w,[^"]+ 720w,[^"]+ 1200w,[^"]+ 1440w"/);
   assert.doesNotMatch(htmlStatic,/\/published\/|\/api\/|<script/i);
   const designArchive=(await request('GET',designEndpoint+'/backup')).body;
   const designCopy='site-design-archive';

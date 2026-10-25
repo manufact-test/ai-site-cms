@@ -376,19 +376,9 @@ final class DesignGraph
                 case 'image':
                     $asset=$assetMap[$n['assetId']];
                     $src=self::h(self::assetUrl($asset,$mount,$assetBasePath));
-                    $srcset='';
-                    if(!empty($asset['variants'])){
-                        $parts=$asset['variants'];
-                        usort($parts,static fn(array $a,array $b)=>$a['width']<=>$b['width']);
-                        $entries=[];
-                        foreach ($parts as $v)$entries[]=self::h(self::assetUrl($v,$mount,$assetBasePath)).' '.$v['width'].'w';
-                        $srcset=' srcset="'.implode(', ',$entries).'" sizes="(max-width:600px) 100vw, (max-width:900px) 50vw, 100vw"';
-                    }
-                    if (isset($asset['width'],$asset['height']) && is_int($asset['width']) && is_int($asset['height'])
-                        && $asset['width'] >= 1 && $asset['width'] <= 4096 && $asset['height'] >= 1 && $asset['height'] <= 4096) {
-                        $srcset .= ' width="'.$asset['width'].'" height="'.$asset['height'].'"';
-                    }
-                    return '<img loading="lazy" class="'.$cls.'" src="'.$src.'"'.$srcset.' alt="'.self::h($n['alt']).'">';
+                    $attrs=PublicRenderer::responsiveAttrs($asset,$mount,
+                        '(max-width:600px) 100vw, (max-width:900px) 50vw, 100vw',$assetBasePath);
+                    return '<img loading="lazy" class="'.$cls.'" src="'.$src.'"'.$attrs.' alt="'.self::h($n['alt']).'">';
             }
             return '';
         };

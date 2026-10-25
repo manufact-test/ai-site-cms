@@ -641,8 +641,8 @@ async function execute(){
   await page.locator('#sections .nav-entry').filter({hasText:'Изображение и описание'}).click();
   await page.locator('#elements .element').filter({hasText:'Фотография'}).click();
   // A genuine full-sized photo is processed by the hosted Studio, not only
-  // inserted through a raw HTTP test. Confirm three physical rendition files
-  // are selected by desktop/tablet/mobile and published to real visitor HTML.
+  // inserted through a raw HTTP test. Two smaller physical renditions plus
+  // the original source are selected by desktop/tablet/mobile and published.
   const desktopSource64=await page.evaluate(()=>{
     const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=800;
     const g=canvas.getContext('2d');
@@ -663,22 +663,21 @@ async function execute(){
   await page.locator('#cms-media-width').fill('1200');
   await page.locator('#cms-media-alt').fill('Три настоящих размера цеха');
   await page.locator('#cms-media-process').click();
-  await page.locator('#cms-media-report').getByText(/Готово: 1200×800.*360px, 720px, 1200px/).waitFor();
+  await page.locator('#cms-media-report').getByText(/Готово: 1200×800.*360px, 720px/).waitFor();
   await page.locator('#cms-media-commit').click();
   await page.locator('#cms-media-processor').waitFor({state:'hidden'});
   const wide=await page.evaluate(()=>window.Stage3Editor.getSite().assets.at(-1));
-  assert.deepEqual(wide.variants.map(v=>v.width),[360,720,1200]);
+  assert.deepEqual(wide.variants.map(v=>v.width),[360,720]);
   const savedPaths=wide.variants.map(v=>v.src);
-  assert.equal(new Set(savedPaths).size,3,'All three physical renditions have unique immutable URLs');
+  assert.equal(new Set(savedPaths).size,2,'Both smaller physical renditions have unique immutable URLs');
   // Responsive preview must consume actual authorized blobs, not just CSS resize.
   const chooseDevice=async bp=>{
     await page.locator('.device[data-bp="'+bp+'"]').click();
-    const selected=wide.variants.find(v=>v.width===({mobile:360,tablet:720,desktop:1200})[bp]);
     await page.waitForFunction(assetId=>{
       const value=window.Stage3Host.previewUrl(assetId);
       return typeof value==='string'&&value.startsWith('data:image/webp;base64,');
-    },selected.id,{timeout:10000});
-    return page.evaluate(id=>window.Stage3Host.previewUrl(id),selected.id);
+    },wide.id,{timeout:10000});
+    return page.evaluate(id=>window.Stage3Host.previewUrl(id),wide.id);
   };
   const smallPreview=await chooseDevice('mobile');
   const mediumPreview=await chooseDevice('tablet');
@@ -696,6 +695,7 @@ async function execute(){
   const srcset=await showcase.getAttribute('srcset');
   const sizes=await showcase.getAttribute('sizes');
   assert.match(srcset,/ 360w,.* 720w,.* 1200w/);
+  assert.ok(srcset.includes(wide.id+'.webp 1200w'),'Original source is the highest-resolution srcset candidate');
   assert.match(sizes,/max-width: 900px/);
   for(const part of wide.variants){
     const response=await ctx.request.get(origin+'/published/'+siteId+part.src);

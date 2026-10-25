@@ -29,14 +29,28 @@ final class PublicRenderer
     }
 
     /** Responsive candidates and intrinsic dimensions come from validated immutable media. */
-    private static function responsiveAttrs(array $asset, string $mount, string $sizes, ?string $assetBasePath = null): string
+    public static function responsiveAttrs(array $asset, string $mount, string $sizes, ?string $assetBasePath = null): string
     {
         $attrs = '';
         if (!empty($asset['variants'])) {
-            $variants = $asset['variants'];
-            usort($variants, static fn(array $a,array $b): int => $a['width'] <=> $b['width']);
+            // Include the original as a candidate too. A 900px source with
+            // 360/720px derivatives must not silently cap visitors at 720px.
+            // A derivative at the same width wins, avoiding duplicate descriptors.
+            $candidates = [];
+            foreach ($asset['variants'] as $variant) {
+                $candidateWidth = $variant['width'];
+                if (!isset($candidates[$candidateWidth])) {
+                    $candidates[$candidateWidth] = self::assetUrl($variant,$mount,$assetBasePath);
+                }
+            }
+            if (isset($asset['width']) && is_int($asset['width'])
+                && $asset['width'] >= 1 && $asset['width'] <= 4096
+                && !isset($candidates[$asset['width']])) {
+                $candidates[$asset['width']] = self::assetUrl($asset,$mount,$assetBasePath);
+            }
+            ksort($candidates, SORT_NUMERIC);
             $sources = [];
-            foreach ($variants as $v) $sources[] = self::h(self::assetUrl($v,$mount,$assetBasePath)).' '.$v['width'].'w';
+            foreach ($candidates as $width => $url) $sources[] = self::h($url).' '.$width.'w';
             $attrs = ' srcset="'.implode(', ', $sources).'" sizes="'.self::h($sizes).'"';
         }
         if (isset($asset['width'],$asset['height']) && is_int($asset['width']) && is_int($asset['height'])
