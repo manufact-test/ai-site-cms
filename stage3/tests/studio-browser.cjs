@@ -553,7 +553,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await canvas.locator('.cmsdg h2').count(),2,'Copied nested layout renders twice');
     await page.locator('#undo').click();
     const prior=await page.evaluate(()=>window.Stage3Editor.getSite());
-    assert.equal(prior.pages.flatMap(p=>p.sections).find(s=>s.id===selectedSection).designGraph.nodes.length,2);
+    assert.equal(prior.pages.flatMap(p=>p.sections).find(s=>s.id===selectedSection).designGraph.nodes.length,
+      richGraph.nodes.length,'Undo restores the exact prior root count before the next rearrangement');
     await page.locator('#redo').click();
     assert.equal(await canvas.locator('.cmsdg h2').count(),2,'Redo restores nested composition');
     assert.deepEqual(errors,[],'No page JS errors or unsupported dependencies');
