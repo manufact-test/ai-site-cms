@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
-  "date": "2026-10-24",
-  "status": "stage2-no-go-stage3-isolated-v1.62-parallel-design-factory",
+  "date": "2026-10-25",
+  "status": "stage2-no-go-stage3-isolated-v1.63-provisional-design-factory-interop",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.62-2026-10-24.md",
-  "latest_source_sha": "38a7994d4aba09a89e2eedd82be987cba71671e9",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40089689080",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40089689080",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.63-2026-10-25.md",
+  "latest_source_sha": "86f9f8b6db1e69add234b3adc0478025626aa711",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40188715664",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40188715664",
   "source_offweb_ci": null,
-  "source_ci_result": "SUCCESS: 61fb93da2c55a6165a36282ba4086649c5f318a8, Actions #40089689080; separate technical verification, not acceptance",
+  "source_ci_result": "SUCCESS: 86f9f8b6db1e69add234b3adc0478025626aa711, Actions #40188715664; isolated Stage3 technical verification, not product acceptance",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly, then fix issues from real use; never get stuck testing existing lab",
@@ -52,11 +52,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Lead: finish true immutable responsive raster variants and srcset/picture in CMS PHP/static publish; parallel worker independently progresses seven-result Design Factory in stage3/design-factory/**; Stage2 NO-GO #5-9, 0/135 officially accepted",
+  "next_step": "Continue large isolated CMS feature blocks. If owner provides final Design Factory D7 artifact, audit its real schema and publish a supported/converted/missing-property loss matrix before implementing the actual adapter; current candidate/handoff envelope is provisional and not D7 compatibility. Stage2 NO-GO #5-9, Stage3 not accepted, 0/135.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.62",
+  "checkpoint_version": "1.63",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -677,7 +677,7 @@
       "scope": "Research, license/host analysis, 135-ID reuse matrix and option A preference accepted through owner-delegated technical choice. No product features accepted."
     }
   ],
-  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.62-2026-10-24.md",
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.63-2026-10-25.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
@@ -1225,9 +1225,9 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.62",
-  "last_docs_handoff_note": "Owner-requested transfer after robust 16 MiB chunked MP4 media, typed editing and publishing; functional SHA/CI verified separately from docs HEAD.",
-  "latest_tested_code_sha": "964e6746db7680c064cce502ae034c00683115b5",
+  "last_docs_handoff_version": "1.63",
+  "last_docs_handoff_note": "Owner-requested transition after provisional Design Graph import/handoff scaffold; exact functional SHA and full CI verified separately from docs HEAD; actual D7 format and visual fidelity remain unverified.",
+  "latest_tested_code_sha": "86f9f8b6db1e69add234b3adc0478025626aa711",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
     "owner_directive": "large_coherent_product_verticals_not_small_8_minute_fixes",
@@ -1539,6 +1539,37 @@
     ],
     "main_untouched": true,
     "worker_untouched": true,
+    "hosting_modified": false
+  },
+  "stage3_v1_63_checkpoint": {
+    "date": "2026-10-25",
+    "branch": "feature/stage3-ai-site-contract",
+    "verified_functional_sha": "86f9f8b6db1e69add234b3adc0478025626aa711",
+    "verified_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40188715664",
+    "verified_ci_result": "SUCCESS",
+    "stage": "3 (isolated)",
+    "engineering_direction": "Design Graph + Media/Motion approximately 68%; provisional interop scaffold is not D7 compatibility or product completion",
+    "stage2": "NO-GO; gates 5-9",
+    "stage3_formally_accepted": false,
+    "mandatory_accepted": "0/135",
+    "completed": [
+      "Versioned CMS-side Design Factory candidate envelope and separate source baseline",
+      "Studio import detection for candidate, handoff and regular site-v1 JSON",
+      "Graph diff and CMS content-binding audit, token/media change indicators and explicit integration gaps",
+      "Fail-closed handoff export/re-import with stable site/page/section/graph identity checks",
+      "Offline current-tab sessionStorage recovery; hosted mode prompts handoff export before leaving tab",
+      "Synthetic nested responsive/media/state/motion graph, malformed import checks, JS/PHP vocabulary parity and full CI"
+    ],
+    "limits": [
+      "No real final Design Factory D7 artifact has been ingested or visually compared",
+      "Candidate wrapper already contains a valid CMS site-v1 document with a typed Design Graph",
+      "No arbitrary HTML/CSS/JS import, Factory workspace reconstruction, or verified lossless/pixel-perfect round trip",
+      "Audit is descriptive and unsigned; import never publishes",
+      "Hosted interop baseline is not persisted server-side across reload"
+    ],
+    "next": "If owner supplies final D7 artifact, audit actual schema and write supported/converted/missing-property matrix before adapter changes; otherwise continue large CMS product gaps",
+    "main_untouched": true,
+    "independent_factory_branch_untouched": true,
     "hosting_modified": false
   }
 }

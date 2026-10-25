@@ -97,3 +97,25 @@ Snapping applies to direct drag deltas; the underlying stored values remain nume
 
 
 The final Chromium scenario also drops a heading onto a nested child's center and verifies that hit-testing resolves the containing container, then checks the persisted graph for desktop dimensions, mobile width override, translation, and reparented ownership. The resize E2E verifies breakpoint-specific resizing and the fit-to-screen recovery path for a fixed desktop width that overflows a mobile viewport. The visual hint in the dialog advertises the gestures so they are discoverable without reading this document.
+
+
+## Provisional Factory candidate envelope and handoff audit (2026-10-25)
+
+The new \`stage3/sdk/design-graph-interop.cjs\` module adds a **versioned CMS-side interop envelope** around a candidate that already contains a valid site-v1 document and typed \`section.designGraph\`. It does not parse arbitrary Factory HTML/CSS/JS and does not reconstruct the original Factory authoring project.
+
+### Current behavior
+
+- Candidate format: \`manufact-design-factory-lead-graph-candidate-v1\`, version 1; handoff format: \`manufact-ai-design-graph-handoff-v1\`, version 1.
+- Studio detects candidate/handoff JSON during ordinary import, creates or resumes an isolated draft session, and displays graph node counts, visual-fidelity label, changed graph properties, changed bound CMS fields and declared integration gaps.
+- Handoff export contains the original candidate unchanged, the edited CMS site-v1 as a separate document and a descriptive audit. It does not publish.
+- Bound graph text/href properties must resolve to an existing typed node and a declared string value in a registered CMS section element/repeater. Unknown envelope keys/versions, unsupported mappings, missing bindings, cross-site identity changes and a changed/removed selected graph ID fail closed.
+- The audit identifies node additions/removals/reparenting/reordering/property changes, graph type/style vocabulary, responsive/state/motion/media use, content bindings, tokens and assets. Diffs are bounded to 200 leaf changes.
+- Offline mode stores the temporary baseline in \`sessionStorage\` for the current browser tab. Hosted mode intentionally does not persist this extra baseline across a reload; export the handoff before leaving the tab. Candidate/handoff imports allow 2.5 MB; ordinary site-v1 JSON remains limited to 900 KB.
+
+### Verification and non-goals
+
+At functional SHA \`86f9f8b6db1e69add234b3adc0478025626aa711\`, [full Stage3 CI #40188715664](\`https://github.com/manufact-test/ai-site-cms/actions/runs/40188715664\`) passed, including the synthetic 10-node graph smoke, fail-closed checks, JS/PHP vocabulary parity, bundle parity, Chromium Studio E2E and PHP/SQLite HTTP persistence/publish E2E.
+
+**Not yet verified:** the independent Design Factory's actual D7 output schema, exact visual fidelity, lossless Factory↔CMS conversion, or reconstruction of the Factory workspace. The fixture is synthetic and already has a valid CMS site-v1/typed graph. Its \`fidelity: partial\` and \`integration_required\` are explicit. The audit JSON is not signed provenance or permission. No official Stage3 acceptance follows from CI.
+
+When the owner provides the final D7 artifact, first inspect that artifact, write a supported/converted/missing-property matrix, and compare representative desktop/tablet/mobile output. Only then change the envelope or implement a version-pinned actual D7 adapter. Do not touch the independent Factory branch/files or merge branches without owner authorization.
