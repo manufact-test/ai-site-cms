@@ -16,7 +16,7 @@
       "seo": {
         "title": "New website — add your name",
         "description": "Overview of services, approach and ways to get in touch. Verify details with the owner.",
-        "robots": "index"
+        "robots": "noindex"
       },
       "sections": [
         {
@@ -189,7 +189,7 @@
       "seo": {
         "title": "Services | New website — add your name",
         "description": "Overview of services, approach and ways to get in touch. Verify details with the owner.",
-        "robots": "index"
+        "robots": "noindex"
       },
       "sections": [
         {
@@ -358,7 +358,7 @@
       "seo": {
         "title": "Approach | New website — add your name",
         "description": "Overview of services, approach and ways to get in touch. Verify details with the owner.",
-        "robots": "index"
+        "robots": "noindex"
       },
       "sections": [
         {
@@ -490,7 +490,7 @@
       "seo": {
         "title": "Contact | New website — add your name",
         "description": "Overview of services, approach and ways to get in touch. Verify details with the owner.",
-        "robots": "index"
+        "robots": "noindex"
       },
       "sections": [
         {

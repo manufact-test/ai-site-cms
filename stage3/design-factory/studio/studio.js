@@ -51,7 +51,8 @@ function historyRecord(before){
 }
 function apply(mutator,options={}){
  const prev=snapshot();
- try{mutator();engine.compiler.validateProject(state.project);
+ try{mutator();if(!options.preserveReview)state.project.ownerReviewConfirmed=false;
+   engine.compiler.validateProject(state.project);
    if(state.composition!==null)engine.compositions.get(state.composition);
    renderAll();
    historyRecord(prev);
@@ -145,6 +146,14 @@ function updateWorkbenchSubtitle(){
  const facts=state.project.facts;
  $('workbench-subtitle').textContent=state.project.kit+' · '+(facts.title||'Добавьте название')+' · 4 страницы';
 }
+function syncReviewControl(){
+ const input=$('owner-review-confirmed');
+ if(!input)return;
+ const gate=engine.compiler.checklist(state.project);
+ input.checked=state.project.ownerReviewConfirmed===true;
+ input.disabled=!gate.factsComplete;
+ input.setAttribute('aria-describedby','owner-review-help');
+}
 function renderFields(){
  const facts=state.project.facts;
  $('language').value=state.project.language;
@@ -153,6 +162,7 @@ function renderFields(){
  $('workbench-title').textContent=engine.compiler.KITS[state.project.kit].label[state.project.language]||engine.compiler.KITS[state.project.kit].label.ru;
  updateWorkbenchSubtitle();
  renderServices();
+ syncReviewControl();
 }
 function renderServices(){
  const target=$('services-list');target.replaceChildren();
@@ -193,7 +203,16 @@ function renderComposition(){
 function renderChecklist(info){
  const node=$('checklist');node.replaceChildren();
  if(!info)return;
- const present=new Set(info.checklist.missing);
+ const gate=info.checklist;
+ const statusText=gate.readyForPublish
+  ?'Проверка владельцем подтверждена. Экспорт получит robots=index; публикация не выполняется автоматически.'
+  :gate.factsComplete
+   ?'Обязательные поля заполнены, но проверка владельцем не подтверждена. Экспорт получит robots=noindex.'
+   :'Черновик защищён: заполните обязательные поля и подтвердите проверку владельцем. Экспорт получит robots=noindex.';
+ const status=el('div',{class:'check-item'+(gate.readyForPublish?' good':'')});
+ status.append(el('span',{text:gate.readyForPublish?'✓':'!'}),el('span',{text:statusText}));
+ node.append(status);
+ const present=new Set(gate.missing);
  for(const [key,label] of Object.entries(factLabels)){
   const missing=present.has('facts.'+key);
   const row=el('div',{class:'check-item'+(missing?'':' good')});
@@ -238,9 +257,11 @@ function renderPreview(){
   html=html.replace('</body>',navigationCode+'</body>');
   frame.srcdoc=html;
   $('browser-url').textContent='design-preview.local'+page.path;
-  say(result.checklist.missing.length
-    ?'Предпросмотр готов. Поля владельца для заполнения: '+result.checklist.missing.length+'.'
-    :'CMS JSON проходит валидацию. Требуется ручная проверка владельцем.');
+  say(!result.checklist.factsComplete
+    ?'Черновик готов. Обязательных полей для заполнения: '+result.checklist.missing.length+'. Экспорт защищён robots=noindex.'
+    :!result.checklist.readyForPublish
+      ?'Все обязательные поля заполнены. Подтвердите проверку владельцем; экспорт пока robots=noindex.'
+      :'Проверка подтверждена. Экспортируемые страницы получат robots=index; публикация остаётся отдельным действием.');
   $('save-site').disabled=false;
  }catch(error){
   state.lastError=error;
@@ -262,7 +283,13 @@ function schedulePreview(){
 function connectEditor(input,get,set){
  let before=null;
  input.addEventListener('focus',()=>{before=snapshot();});
- input.addEventListener('input',()=>{if(!before)before=snapshot();set(input.value);schedulePreview();});
+ input.addEventListener('input',()=>{
+  if(!before)before=snapshot();
+  state.project.ownerReviewConfirmed=false;
+  set(input.value);
+  syncReviewControl();
+  schedulePreview();
+ });
  input.addEventListener('change',()=>{
   if(before){historyRecord(before);before=null;}
   updateWorkbenchSubtitle();
@@ -290,7 +317,8 @@ function saveSite(){
  try{
   const result=compileCurrent();
   download(safeName()+'-site-v1.json',serialize(result.site));
-  say('Скачан сайт CMS. '+result.site.pages.length+' страницы, текущий контракт подтверждён.');
+  say('Скачан CMS JSON: '+result.site.pages.length+' страниц; индексация — '+result.checklist.indexing+
+   (result.checklist.readyForPublish?' (проверка владельцем подтверждена).':' (до подтверждения владельцем).'));
  }catch(err){say('Экспорт заблокирован: '+err.message,true);}
 }
 function saveProject(){
@@ -304,13 +332,14 @@ function saveWorkspace(){try{download(safeName()+'-workspace.json',serialize(wor
 function saveBridge(){
  try{
   const compiled=compileCurrent();
-  const report={format:'manufact-design-factory-bridge-v1',version:1,siteFormat:engine.sdk.FORMAT,
+  const report={format:'manufact-design-factory-bridge-v2',version:2,siteFormat:engine.sdk.FORMAT,
    pageCount:compiled.site.pages.length,kit:state.project.kit,theme:state.project.theme,
    supported:['site-v1','registered manifests','seo','internal links','cms theme','section appearance'],
    integration_required:['standalone preview CSS','enhanced layout and responsive visual parity'],
    composition:compiled.bridge,ownerChecklist:compiled.checklist,
-   publishGate:'blocked_without_owner_review'};
-  download(safeName()+'-bridge.json',serialize(report));
+   publishGate:compiled.checklist.readyForPublish?'owner_review_confirmed_by_exporter_no_publish':'blocked_without_owner_review',
+   indexing:compiled.checklist.indexing};
+  download(safeName()+'-bridge-v2.json',serialize(report));
   say('Карта совместимости выгружена.');
  }catch(e){say(e.message,true);}
 }
@@ -326,8 +355,9 @@ async function importFile(file){
    if(raw.composition!==null){engine.compositions.get(raw.composition);composition=raw.composition;}
   }else project=engine.compiler.migrate(raw);
   engine.compiler.compile(project);
-  apply(()=>{state.project=project;state.composition=composition;state.page='home';},{throwOnError:true});
-  say('Проект импортирован и проверен по действующему CMS-контракту.');
+  apply(()=>{state.project=project;state.composition=composition;state.page='home';},{throwOnError:true,preserveReview:true});
+  const gate=engine.compiler.checklist(project);
+  say('Проект импортирован и проверен по действующему CMS-контракту. Индексация экспорта: '+gate.indexing+'.');
  }catch(e){say('Импорт отклонён: '+e.message,true);}
  $('project-file').value='';
 }
@@ -356,14 +386,19 @@ function init(){
   if(state.project.facts.services.length>=12)throw Error('Максимум 12 услуг');
   state.project.facts.services.push({title:'Уточните название',description:'Добавьте подтверждённое описание.'});
  }));
+ $('owner-review-confirmed').addEventListener('change',event=>{
+  const checked=event.target.checked;
+  apply(()=>{state.project.ownerReviewConfirmed=checked;},{preserveReview:true});
+ });
  $('save-project').addEventListener('click',saveProject);
  $('save-site').addEventListener('click',saveSite);
  $('save-workspace').addEventListener('click',saveWorkspace);
  $('save-bridge').addEventListener('click',saveBridge);
  $('save-bundle').addEventListener('click',()=>{
   try{const bundle=engine.bridge.build(workspace());engine.bridge.validateBundle(bundle);
-   download(safeName()+'-integration-v1.json',serialize(bundle));
-   say('Пакет интеграции D6 прошёл независимую проверку и скачан.');
+   download(safeName()+'-integration-v2.json',serialize(bundle));
+   say('Пакет интеграции D6 проверен и скачан. Индексация: '+bundle.compatibility.indexing+
+    '. Публикация по-прежнему не выполняется автоматически.');
   }catch(error){say('Экспорт D6 заблокирован: '+error.message,true);}
  });
  $('undo').addEventListener('click',()=>setHistory('undo'));

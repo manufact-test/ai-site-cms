@@ -94,6 +94,13 @@
           <div class="form-section">
             <div class="form-section-title"><span>04</span><strong>Перед экспортом</strong></div>
             <div id="checklist" class="checklist"></div>
+            <div class="review-gate">
+              <label for="owner-review-confirmed">
+                <input id="owner-review-confirmed" type="checkbox" disabled>
+                <span>Я подтвердил с владельцем тексты, услуги, контакты и права на материалы. Разрешить индексацию экспортируемого сайта.</span>
+              </label>
+              <p id="owner-review-help">Подтверждение доступно после заполнения обязательных полей. Любое дальнейшее изменение сбрасывает его. Это не публикует сайт автоматически.</p>
+            </div>
             <div class="import-area">
               <label class="field-label" for="project-file">Импорт проекта JSON</label>
               <input id="project-file" type="file" accept=".json,application/json">

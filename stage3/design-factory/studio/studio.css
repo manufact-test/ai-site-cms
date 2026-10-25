@@ -66,8 +66,13 @@ a{color:inherit}a:focus-visible,button:focus-visible,input:focus-visible,textare
 .remove-service:hover{background:#58393D;color:white}.minor-btn{padding:11px 14px;min-height:44px;border:1px solid #455C57;background:#273A37;color:#D7ECE5;margin-top:12px;text-align:center}
 .minor-btn:hover{background:#35514A}.minor-btn.full{width:100%}
 .composition-info{color:#8FAAA5;line-height:1.65;font-size:11px;border-left:2px solid #456F65;padding-left:10px}
-.checklist{display:grid;gap:7px}.check-item{display:flex;gap:9px;align-items:center;border:1px solid var(--line);background:#1C2C30;border-radius:8px;padding:8px 10px;font-size:11px;color:#BCD0C8}
-.check-item span{color:#EFC479}.check-item.good span{color:var(--acid)}.import-area{padding-top:17px}.import-area .field-label{margin:0 0 7px}
+.checklist{display:grid;gap:7px}.check-item{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line);background:#1C2C30;border-radius:8px;padding:8px 10px;font-size:11px;color:#BCD0C8}
+.check-item span{color:#EFC479}.check-item.good span{color:var(--acid)}
+.review-gate{display:grid;gap:8px;margin-top:13px;padding:12px;border:1px solid #405650;border-radius:10px;background:#192629}
+.review-gate label{display:flex;align-items:flex-start;gap:10px;color:#D4E2DE;font-size:11px;line-height:1.6}
+.review-gate input{flex:0 0 auto;width:17px;height:17px;margin:2px 0 0;accent-color:var(--acid)}
+.review-gate input:disabled{opacity:.45}.review-gate p{margin:0;color:#9DB7B0;font-size:10px;line-height:1.6}
+.import-area{padding-top:17px}.import-area .field-label{margin:0 0 7px}
 .import-area input{max-width:100%;font-size:11px;color:#A2BCB7}.import-area p{color:#829C99;font-size:10px;line-height:1.6}
 @media(max-width:1350px){.layout{grid-template-columns:239px minmax(0,1fr) 290px}.stage-area{padding:25px 18px 50px}.topbar{padding:0 18px}.preview-label{display:none}}
 @media(max-width:1090px){.layout{grid-template-columns:240px minmax(0,1fr)}.inspector{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}.inspector-content{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px;padding:0 22px 35px}.inspector-content .form-section{padding:20px 0}.inspector-header{padding:22px}.kit-list{max-height:650px}}

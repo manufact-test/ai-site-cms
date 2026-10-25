@@ -91,6 +91,10 @@ try{
       assert.deepEqual(sdk.validateSite(JSON.parse(serialize(result.site)),registry),result.site);
       assert.equal(sdk.inspectSite(result.site,registry).errors.length,0);
       assert.equal(result.checklist.readyForPublish,false);
+      assert.equal(result.checklist.factsComplete,false);
+      assert.equal(result.checklist.ownerReviewConfirmed,false);
+      assert.equal(result.checklist.indexing,'noindex');
+      assert.ok(result.site.pages.every(page=>page.seo.robots==='noindex'));
       count++;
     }
   }
@@ -131,9 +135,31 @@ try{
     {title:'Service two',description:'Owner confirmed service two'}
   ]}),registry);
   assert.ok(!realTwo.checklist.missing.includes('facts.services'));
+  assert.equal(realTwo.checklist.factsComplete,true);
+  assert.equal(realTwo.checklist.ownerReviewConfirmed,false);
+  assert.equal(realTwo.checklist.readyForPublish,false);
   assert.equal(realTwo.checklist.requiresOwnerReview,true);
-  assert.deepEqual(migrate(project('agency','editorial','en')),project('agency','editorial','en'));
-  assert.deepEqual(migrate({...project('agency','editorial','en'),version:0}).version,1);
+  assert.equal(realTwo.checklist.indexing,'noindex');
+  assert.ok(realTwo.site.pages.every(page=>page.seo.robots==='noindex'));
+  const approvedProject={...project('agency','editorial','en',{...completeBase,services:[
+    {title:'Service one',description:'Owner confirmed service one'},
+    {title:'Service two',description:'Owner confirmed service two'}
+  ]}),version:2,ownerReviewConfirmed:true};
+  const approved=compile(approvedProject,registry);
+  assert.equal(approved.checklist.factsComplete,true);
+  assert.equal(approved.checklist.readyForPublish,true);
+  assert.equal(approved.checklist.requiresOwnerReview,false);
+  assert.equal(approved.checklist.indexing,'index');
+  assert.ok(approved.site.pages.every(page=>page.seo.robots==='index'));
+  assert.equal(approved.inspection.indexable,4);
+  assert.throws(()=>compile({...approvedProject,facts:{title:'Incomplete'}},registry),/Owner review requires all required facts/);
+  assert.throws(()=>compile({...approvedProject,ownerReviewConfirmed:'yes'},registry),/Invalid owner review confirmation/);
+  assert.equal(migrate(approvedProject).ownerReviewConfirmed,true);
+  const migrated=migrate(project('agency','editorial','en'));
+  assert.deepEqual(migrated,{...project('agency','editorial','en'),version:2,ownerReviewConfirmed:false});
+  assert.deepEqual(migrate(migrated),migrated);
+  assert.equal(migrate({...project('agency','editorial','en'),version:0}).version,2);
+  assert.equal(migrate({...project('agency','editorial','en'),version:0}).ownerReviewConfirmed,false);
   assert.notDeepEqual(
     compile(project('agency','editorial','ru'),registry).site.pages[0].sections.map(s=>s.component),
     compile(project('industrial','technical','ru'),registry).site.pages[0].sections.map(s=>s.component)
@@ -160,6 +186,10 @@ try{
   assert.ok(html.includes('href="services/index.html"'));
   assert.ok(!html.includes('<script'));
   assert.equal(Object.keys(THEMES).length,12);
+  for(const name of ['generated-agency-site-v1.json','generated-consulting-site-v1.json','generated-industrial-site-v1.json']){
+    const example=JSON.parse(fs.readFileSync(path.join(__dirname,'../examples',name),'utf8'));
+    assert.ok(example.pages.every(page=>page.seo.robots==='noindex'),name+' must remain non-indexable until explicit owner review');
+  }
   assert.equal(new Set(Object.keys(THEMES).map(t=>require('../lib/preview.cjs').css(t))).size,12);
   for(const theme of Object.values(THEMES))assert.ok(theme.contrast.body>=4.5&&theme.contrast.card>=4.5);
   assert.ok(fs.readFileSync(path.join(exported.directory,'assets/preview.css'),'utf8').includes('prefers-reduced-motion'));

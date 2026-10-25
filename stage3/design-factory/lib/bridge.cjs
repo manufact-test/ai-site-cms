@@ -5,7 +5,7 @@ const compiler=require('./compiler.cjs');
 const adapter=require('./composition-adapter.cjs');
 const catalog=require('../catalog/compositions.cjs');
 const WORKSPACE='manufact-design-factory-workspace-v1';
-const EXPORT='manufact-design-factory-export-v1';
+const EXPORT='manufact-design-factory-export-v2';
 const own=(obj,key)=>Object.prototype.hasOwnProperty.call(obj,key);
 function exact(value,allowed,label){
  if(!value||typeof value!=='object'||Array.isArray(value)||
@@ -37,15 +37,20 @@ function build(input){
  const inspection=sdk.inspectSite(site,reg);
  if(inspection.errors.length)throw Error('D6: invalid local routes');
  const compatibility={
-  format:'manufact-design-factory-compatibility-v1',
+  format:'manufact-design-factory-compatibility-v2',
   supported:['registered components','typed values','repeater bounds','stable IDs','CMS theme','page SEO','navigation','local links'],
   integration_required:['pixel parity for CSS compositions','responsive custom design tokens','future image adapters and galleries','motion, if approved'],
-  blocked:['unverified owner facts','unchecked contact channels','fabricated reviews or awards','unlicensed media','public release without manual acceptance'],
+  blocked:[
+   ...(compiled.checklist.readyForPublish?[]:['unverified owner facts','unchecked contact channels','owner review not confirmed']),
+   'fabricated reviews or awards','unlicensed media','production publication without CMS/integrator approval'
+  ],
   composition:comp,source:['stage3/sdk/contract.cjs','stage3/components/*.json','stage3/server/PublicRenderer.php'],
-  previewOnly:true,publishGate:'owner_review_required'
+  previewOnly:true,
+  publishGate:compiled.checklist.readyForPublish?'owner_review_confirmed_by_exporter':'owner_review_required',
+  indexing:compiled.checklist.indexing
  };
  return {
-  format:EXPORT,version:1,workspace:w,site,
+  format:EXPORT,version:2,workspace:w,site,
   designSpec:compiled.designSpec,ownerChecklist:compiled.checklist,
   inspection,compatibility
  };
@@ -75,7 +80,7 @@ function canonical(value){
 }
 function validateBundle(raw){
  exact(raw,['format','version','workspace','site','designSpec','ownerChecklist','inspection','compatibility'],'export');
- if(raw.format!==EXPORT||raw.version!==1)throw Error('D6: unsupported export version');
+ if(raw.format!==EXPORT||raw.version!==2)throw Error('D6: unsupported export version');
  const normalized=build(raw.workspace);
  // Exact reproducibility is an integrity gate: no injecting unknown CMS fields,
  // undetected changes or replacing owner data after validation.

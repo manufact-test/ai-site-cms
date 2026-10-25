@@ -420,7 +420,7 @@ const path = require('node:path');
 const sdk = require('../../sdk/contract.cjs');
 
 const FORMAT = 'manufact-design-factory-v1';
-const VERSION = 1;
+const VERSION = 2;
 const ROOT = path.resolve(__dirname, '../../components');
 const COMPONENTS = Object.freeze([
   'company-hero','feature-highlights','service-grid','media-story','faq-accordion',
@@ -517,21 +517,32 @@ function cleanFacts(input){
   return f;
 }
 function migrate(input){
-  if(input==null)return {format:FORMAT,version:VERSION,kit:'agency',theme:'editorial',language:'ru',facts:{}};
+  if(input==null)return {format:FORMAT,version:VERSION,kit:'agency',theme:'editorial',language:'ru',facts:{},ownerReviewConfirmed:false};
   if(!object(input)||input.format!==FORMAT)fail('Unsupported design-factory format');
   if(input.version===0){
     keys(input,['format','version','kit','theme','language','facts'],'legacy project');
-    const old={...input,version:1};
-    return validateProject(old);
+    return validateProject({...input,version:1});
   }
   return validateProject(input);
 }
 function validateProject(input){
-  keys(input,['format','version','kit','theme','language','facts'],'project');
-  if(input.format!==FORMAT||input.version!==VERSION)fail('Unsupported project version');
+  if(!object(input)||input.format!==FORMAT)fail('Unsupported design-factory format');
+  const legacy=input.version===1;
+  keys(input,legacy
+    ?['format','version','kit','theme','language','facts']
+    :['format','version','kit','theme','language','facts','ownerReviewConfirmed'],'project');
+  if(!legacy&&input.version!==VERSION)fail('Unsupported project version');
   if(!has(KITS,input.kit)||!has(THEMES,input.theme)||!['ru','en'].includes(input.language))
     fail('Unknown kit, theme or language');
-  return {format:FORMAT,version:VERSION,kit:input.kit,theme:input.theme,language:input.language,facts:cleanFacts(input.facts)};
+  const project={
+    format:FORMAT,version:VERSION,kit:input.kit,theme:input.theme,language:input.language,
+    facts:cleanFacts(input.facts),
+    ownerReviewConfirmed:legacy?false:input.ownerReviewConfirmed
+  };
+  if(typeof project.ownerReviewConfirmed!=='boolean')fail('Invalid owner review confirmation');
+  if(project.ownerReviewConfirmed&&!checklist(project).factsComplete)
+    fail('Owner review requires all required facts to be complete');
+  return project;
 }
 function loadRegistry(){
   const entries=COMPONENTS.map(n=>{
@@ -629,13 +640,22 @@ function checklist(project){
      !f.services.every(s=>reviewedServiceDraft(s,project.language)))
     missing.push('facts.services');
   if(!f.contactText?.trim())missing.push('facts.contactText');
-  return {label:c.missing,missing,readyForPublish:missing.length===0,requiresOwnerReview:true};
+  const factsComplete=missing.length===0;
+  const ownerReviewConfirmed=project.ownerReviewConfirmed===true;
+  const readyForPublish=factsComplete&&ownerReviewConfirmed;
+  return {
+    label:c.missing,missing,factsComplete,ownerReviewConfirmed,readyForPublish,
+    requiresOwnerReview:!readyForPublish,
+    indexing:readyForPublish?'index':'noindex',
+    publicationStatus:readyForPublish?'owner_review_confirmed_by_exporter':'owner_review_required'
+  };
 }
 function compile(input,providedRegistry){
   const project=migrate(input),reg=providedRegistry||loadRegistry(),theme=THEMES[project.theme],
     kit=KITS[project.kit], c=COPY[project.language], facts=project.facts;
   const siteId=facts.siteId||('df-'+project.kit);
   const title=facts.title||c.emptyTitle;
+  const ownerChecklist=checklist(project);
   const pages=Object.keys(kit.sequences).map(key=>{
     const pathValue=pagePath(key);
     const sections=kit.sequences[key].map((comp,i)=>makeSection(comp,sectionId(key,i),key,project,reg));
@@ -643,7 +663,7 @@ function compile(input,providedRegistry){
       id:pageId(key),path:pathValue,title:c.pages[key],
       navigation:{label:c.pages[key],hidden:false},
       seo:{title:(key==='home'?title:c.pages[key]+' | '+title).slice(0,160),
-        description:(facts.description||c.seo).slice(0,300),robots:'index'},
+        description:(facts.description||c.seo).slice(0,300),robots:ownerChecklist.indexing},
       sections
     };
   });
@@ -651,7 +671,7 @@ function compile(input,providedRegistry){
   const validated=sdk.validateSite(site,reg);
   const findings=sdk.inspectSite(validated,reg);
   if(findings.errors.length)fail('Invalid local links/anchors: '+JSON.stringify(findings.errors));
-  return {project,site:validated,checklist:checklist(project),inspection:findings,designSpec:{
+  return {project,site:validated,checklist:ownerChecklist,inspection:findings,designSpec:{
     format:FORMAT,version:VERSION,kit:project.kit,theme:project.theme,
     archetype:kit.archetype,previewParity:'integration_required',
     cmsTheme:structuredClone(theme.cms),cmsAppearance:structuredClone(theme.appearance),
@@ -1282,7 +1302,7 @@ const compiler=require('./compiler.cjs');
 const adapter=require('./composition-adapter.cjs');
 const catalog=require('../catalog/compositions.cjs');
 const WORKSPACE='manufact-design-factory-workspace-v1';
-const EXPORT='manufact-design-factory-export-v1';
+const EXPORT='manufact-design-factory-export-v2';
 const own=(obj,key)=>Object.prototype.hasOwnProperty.call(obj,key);
 function exact(value,allowed,label){
  if(!value||typeof value!=='object'||Array.isArray(value)||
@@ -1314,15 +1334,20 @@ function build(input){
  const inspection=sdk.inspectSite(site,reg);
  if(inspection.errors.length)throw Error('D6: invalid local routes');
  const compatibility={
-  format:'manufact-design-factory-compatibility-v1',
+  format:'manufact-design-factory-compatibility-v2',
   supported:['registered components','typed values','repeater bounds','stable IDs','CMS theme','page SEO','navigation','local links'],
   integration_required:['pixel parity for CSS compositions','responsive custom design tokens','future image adapters and galleries','motion, if approved'],
-  blocked:['unverified owner facts','unchecked contact channels','fabricated reviews or awards','unlicensed media','public release without manual acceptance'],
+  blocked:[
+   ...(compiled.checklist.readyForPublish?[]:['unverified owner facts','unchecked contact channels','owner review not confirmed']),
+   'fabricated reviews or awards','unlicensed media','production publication without CMS/integrator approval'
+  ],
   composition:comp,source:['stage3/sdk/contract.cjs','stage3/components/*.json','stage3/server/PublicRenderer.php'],
-  previewOnly:true,publishGate:'owner_review_required'
+  previewOnly:true,
+  publishGate:compiled.checklist.readyForPublish?'owner_review_confirmed_by_exporter':'owner_review_required',
+  indexing:compiled.checklist.indexing
  };
  return {
-  format:EXPORT,version:1,workspace:w,site,
+  format:EXPORT,version:2,workspace:w,site,
   designSpec:compiled.designSpec,ownerChecklist:compiled.checklist,
   inspection,compatibility
  };
@@ -1352,7 +1377,7 @@ function canonical(value){
 }
 function validateBundle(raw){
  exact(raw,['format','version','workspace','site','designSpec','ownerChecklist','inspection','compatibility'],'export');
- if(raw.format!==EXPORT||raw.version!==1)throw Error('D6: unsupported export version');
+ if(raw.format!==EXPORT||raw.version!==2)throw Error('D6: unsupported export version');
  const normalized=build(raw.workspace);
  // Exact reproducibility is an integrity gate: no injecting unknown CMS fields,
  // undetected changes or replacing owner data after validation.

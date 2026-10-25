@@ -63,6 +63,7 @@ assert.equal(build.status,0,'Browser bundle must match actual local CMS source: 
   const missingTargetBuild=cp.spawnSync(process.execPath,[builderPath],{encoding:'utf8',timeout:10000});
   assert.equal(missingTargetBuild.status,0,'Bundle builder must create a missing regular target: '+missingTargetBuild.stderr);
   assert.ok(fs.readFileSync(target,'utf8').startsWith('/* Design Factory D5 first-party browser bundle.'));
+  assert.equal(fs.statSync(target).mode&0o777,0o644,'Generated browser bundle must remain readable by a static file server');
   assert.equal(fs.readFileSync(sentinel,'utf8'),sentinelText);
   fs.unlinkSync(target);
   let hardlinkSupported=true;
@@ -87,9 +88,14 @@ assert.ok(css.includes('prefers-reduced-motion')&&css.includes('max-width:730px'
 for(const minTarget of ['.device-button{min-height:44px','.page-list button{min-height:44px',
  '.icon-button{height:44px','.remove-service{'])assert.ok(css.includes(minTarget),minTarget);
 for(const id of ['kit-list','theme-list','site-preview','page-list','title','headline','description',
- 'services-list','composition','undo','redo','save-project','save-site','save-workspace','project-file','checklist'])
+ 'services-list','composition','undo','redo','save-project','save-site','save-workspace','project-file','checklist','owner-review-confirmed'])
  assert.ok(markup.includes('id="'+id+'"'),'UI control '+id);
 assert.ok(markup.includes('sandbox="allow-scripts"'));
+assert.ok(markup.includes('id="owner-review-help"')&&app.includes('robots=noindex'));
+assert.ok(css.includes('.review-gate')&&css.includes('.review-gate input:disabled'));
+assert.ok(app.includes('state.project.ownerReviewConfirmed=false'),'Any content edit must revoke owner review');
+assert.ok(app.includes('preserveReview:true'),'Review attestation must be explicit and preserved only by the control or a validated import');
+assert.ok(app.includes('throwOnError:true,preserveReview:true'),'Validated project imports must preserve their stored review attestation');
 assert.ok(app.includes('function updateWorkbenchSubtitle()'));
 assert.ok(app.includes('target.focus({preventScroll:true})'));
 assert.ok(app.includes('if(!before)before=snapshot()'),'Editor history must capture a pre-edit snapshot before mutation');
@@ -106,6 +112,15 @@ assert.ok(api&&api.compiler&&api.sdk&&api.preview&&api.compositions);
 assert.equal(Object.keys(api.kits).length,12);
 assert.equal(Object.keys(api.themes).length,12);
 assert.equal(api.compositions.compositions.length,42);
+const approvedDraft=api.compiler.compile({format:api.compiler.FORMAT,version:2,
+ kit:'agency',theme:'editorial',language:'en',facts:{
+  title:'Verified owner',headline:'Verified headline',description:'Verified description',
+  contactText:'Verified contact details',services:[
+   {title:'Service one',description:'Owner confirmed service one'},
+   {title:'Service two',description:'Owner confirmed service two'}
+  ]},ownerReviewConfirmed:true});
+assert.equal(approvedDraft.checklist.readyForPublish,true);
+assert.ok(approvedDraft.site.pages.every(page=>page.seo.robots==='index'));
 const templateFacts={title:'Verified title',headline:'Owner headline',description:'Owner description',
  contactText:'Verified contact information'};
 const sampleServices=[
@@ -124,6 +139,8 @@ let count=0;
 for(const kit of Object.keys(api.kits))for(const theme of Object.keys(api.themes))for(const language of ['ru','en']){
  const result=api.compiler.compile({format:api.compiler.FORMAT,version:1,kit,theme,language,facts:{}});
  const normal=JSON.parse(JSON.stringify(result.site));
+ assert.ok(normal.pages.every(page=>page.seo.robots==='noindex'));
+ assert.equal(result.checklist.readyForPublish,false);
  sdk.validateSite(normal,reg);
  assert.equal(normal.pages.length,4);
  assert.equal(sdk.inspectSite(normal,reg).errors.length,0);
@@ -188,12 +205,24 @@ try{
  "if(blobs.length!==4||downloadNames.length!==4)throw Error('four exports missing');",
  "const site=JSON.parse(await blobs[0].text());",
  "if(site.format!=='manufact-ai-site-v1'||site.pages.length!==4)throw Error('CMS export contract');",
+ "if(!site.pages.every(page=>page.seo.robots==='noindex'))throw Error('default CMS export must be protected by noindex');",
  "window.DesignFactory.sdk.validateSite(site,window.DesignFactory.compiler.loadRegistry());",
  "const bundle=JSON.parse(await blobs[1].text());window.DesignFactory.bridge.validateBundle(bundle);",
  "if(JSON.stringify(bundle.site)!==JSON.stringify(site))throw Error('CMS and D6 exports diverge');",
  "const project=JSON.parse(await blobs[2].text()),workspace=JSON.parse(await blobs[3].text());",
  "if(project.facts.title!=='Verified Demo Company'||workspace.composition!=='gallery-mosaic')throw Error('exported edits missing');",
+ "const setField=(id,value)=>{const field=document.getElementById(id);field.focus();field.value=value;field.dispatchEvent(new Event('input',{bubbles:true}));field.dispatchEvent(new Event('change',{bubbles:true}));};",
+ "setField('headline','Verified owner headline');setField('description','Verified owner description');setField('contactText','Verified owner contact');",
+ "setField('service-0-title','Verified service one');setField('service-0-description','Owner confirmed service one');",
+ "document.getElementById('add-service').click();setField('service-1-title','Verified service two');setField('service-1-description','Owner confirmed service two');",
+ "await new Promise(resolve=>setTimeout(resolve,180));",
+ "const gate=document.getElementById('owner-review-confirmed');if(gate.disabled)throw Error('review confirmation should unlock only after required facts are complete');",
+ "gate.checked=true;gate.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,180));",
+ "document.getElementById('save-site').click();const approvedSite=JSON.parse(await blobs[4].text());if(!approvedSite.pages.every(page=>page.seo.robots==='index'))throw Error('explicit owner review must allow indexing');",
+ "setField('headline','Edited after review');if(gate.checked)throw Error('editing content must revoke owner review');await new Promise(resolve=>setTimeout(resolve,180));",
+ "document.getElementById('save-site').click();const revokedSite=JSON.parse(await blobs[5].text());if(!revokedSite.pages.every(page=>page.seo.robots==='noindex'))throw Error('editing after review must restore noindex');",
  "URL.createObjectURL=originalURL;HTMLAnchorElement.prototype.click=originalClick;",
+ "if(blobs.length!==6||downloadNames.length!==6)throw Error('expected six exports across review workflow');",
  "mark('D5_BROWSER_E2E_PASS');",
  "}catch(e){mark('D5_BROWSER_E2E_FAIL: '+e.message)}",
  "},600);",

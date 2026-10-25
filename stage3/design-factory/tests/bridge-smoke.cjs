@@ -19,14 +19,34 @@ try{
   const project={format:FORMAT,version:1,kit,theme,language,facts:{}};
   const packageFile=bridge.build(project);
   assert.equal(packageFile.format,bridge.EXPORT);
+  assert.equal(packageFile.version,2,'D6 export schema version must match the review-gate contract');
   assert.equal(bridge.validateBundle(packageFile).site.pages.length,4);
   assert.equal(sdk.inspectSite(packageFile.site,reg).errors.length,0);
   assert.equal(JSON.stringify(bridge.importForCMS(packageFile)),JSON.stringify(packageFile.site));
   assert.equal(packageFile.compatibility.publishGate,'owner_review_required');
+  assert.equal(packageFile.compatibility.indexing,'noindex');
+  assert.equal(packageFile.ownerChecklist.readyForPublish,false);
+  assert.ok(packageFile.site.pages.every(page=>page.seo.robots==='noindex'));
   assert.ok(packageFile.compatibility.integration_required.includes('pixel parity for CSS compositions'));
   matrix++;
  }
  assert.equal(matrix,288);
+  const approved=bridge.build({format:bridge.WORKSPACE,version:1,composition:null,project:{
+   format:FORMAT,version:2,kit:'agency',theme:'editorial',language:'en',
+   facts:{title:'Verified owner',headline:'Verified headline',description:'Verified description',
+    contactText:'Verified contact details',services:[
+     {title:'Service one',description:'Owner confirmed service one'},
+     {title:'Service two',description:'Owner confirmed service two'}
+    ]},
+   ownerReviewConfirmed:true
+  }});
+  assert.equal(approved.ownerChecklist.readyForPublish,true);
+  assert.equal(approved.compatibility.publishGate,'owner_review_confirmed_by_exporter');
+  assert.equal(approved.compatibility.indexing,'index');
+  assert.ok(approved.site.pages.every(page=>page.seo.robots==='index'));
+  assert.equal(approved.compatibility.previewOnly,true,'Review attestation never publishes the site');
+  assert.ok(approved.compatibility.blocked.includes('production publication without CMS/integrator approval'));
+  assert.equal(bridge.importForCMS(approved).pages.every(page=>page.seo.robots==='index'),true);
  // JSON parsers/formatters legitimately reorder object keys. Such imports
  // must remain valid while any actual nested data mutation is still refused.
  const shuffled=(value)=>{

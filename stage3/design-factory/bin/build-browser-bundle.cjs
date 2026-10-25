@@ -74,7 +74,7 @@ if(process.argv.includes('--check')){
  // even a hard-linked target cannot cause writes to an external inode.
  const temporary=path.join(path.dirname(target),'.runtime.generated.'+process.pid+'.tmp');
  try{
-  fs.writeFileSync(temporary,header,{flag:'wx',mode:0o600});
+  fs.writeFileSync(temporary,header,{flag:'wx',mode:0o644});
   fs.renameSync(temporary,target);
   console.log('Built '+target+' ('+header.length+' characters)');
  }finally{
