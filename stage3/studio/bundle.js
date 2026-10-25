@@ -1343,6 +1343,268 @@ function compose(raw,manifests,{sourceSite=null,templates=[]}={}){
 module.exports=Object.freeze({FORMAT,PRESETS,suggest,plan,validate,compose});
 
 return module.exports;})();
+const GRAPH_INTEROP=(()=>{const module={exports:{}};
+'use strict';
+// Version-pinned, loss-aware bridge between a Design Factory lead-graph candidate
+// and the CMS site-v1 contract. It preserves the source candidate as a baseline;
+// it never converts arbitrary HTML/CSS/JS, authorizes publication, or signs data.
+const FACTORY_FORMAT='manufact-design-factory-lead-graph-candidate-v1';
+const SESSION_FORMAT='manufact-ai-design-graph-session-v1';
+const HANDOFF_FORMAT='manufact-ai-design-graph-handoff-v1';
+const AUDIT_FORMAT='manufact-ai-design-graph-interop-audit-v1';
+const IDENT=/^[a-z][a-z0-9-]{2,79}$/;
+const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+const object=o=>o!==null&&typeof o==='object'&&!Array.isArray(o);
+const clone=o=>JSON.parse(JSON.stringify(o));
+function fail(message){throw Error('Design Graph interop: '+message);}
+function exactKeys(value,allowed,where){
+  if(!object(value)||Object.keys(value).some(key=>!allowed.includes(key))||
+    allowed.some(key=>!own(value,key)))fail('Invalid '+where+' keys');
+}
+function stableValue(value){
+  if(Array.isArray(value))return value.map(stableValue);
+  if(object(value)){const out={};for(const key of Object.keys(value).sort())out[key]=stableValue(value[key]);return out;}
+  return value;
+}
+function stable(value){return JSON.stringify(stableValue(value));}
+function same(a,b){return stable(a)===stable(b);}
+function stringList(value,maxItems,maxLength,where){
+  if(!Array.isArray(value)||value.length>maxItems||
+    value.some(item=>typeof item!=='string'||item.length<1||item.length>maxLength))
+    fail('Invalid '+where);
+}
+function selectedSection(site){
+  const page=site.pages&&site.pages[0];
+  return page&&Array.isArray(page.sections)?
+    page.sections.find(section=>section.id==='df-selected-composition')||null:null;
+}
+function flattenGraph(graph){
+  const entries=new Map(),childrenByParent=new Map();
+  if(!graph||!Array.isArray(graph.nodes))return {entries,childrenByParent};
+  const visit=(nodes,parentId)=>{
+    childrenByParent.set(parentId,nodes.map(node=>node.id));
+    nodes.forEach((node,index)=>{
+      entries.set(node.id,{node,parentId,index});
+      if(node.type==='container'&&Array.isArray(node.children))visit(node.children,node.id);
+    });
+  };
+  visit(graph.nodes,'$root');return {entries,childrenByParent};
+}
+function validateBindings(bindings,section){
+  if(!Array.isArray(bindings)||bindings.length>80)fail('Invalid content bindings');
+  const index=flattenGraph(section.designGraph).entries,seen=new Set();
+  for(const binding of bindings){
+    if(!object(binding)||Object.keys(binding).some(k=>!['nodeId','property','source'].includes(k))||
+      !own(binding,'nodeId')||!own(binding,'source')||
+      (own(binding,'property')&&!['text','href'].includes(binding.property)))
+      fail('Invalid binding shape');
+    if(typeof binding.nodeId!=='string'||!IDENT.test(binding.nodeId)||!index.has(binding.nodeId))
+      fail('Binding points to a missing graph node');
+    const property=binding.property||'text',signature=binding.nodeId+':'+property;
+    if(seen.has(signature))fail('Duplicate binding for '+signature);
+    seen.add(signature);
+    const node=index.get(binding.nodeId).node;
+    if(property==='href'?(node.type!=='button'||!own(node,'href')):
+      (!['heading','text','button'].includes(node.type)||typeof node.text!=='string'))
+      fail('Binding property is incompatible with its graph node');
+    const source=binding.source;
+    if(!object(source)||Object.keys(source).some(k=>!['slot','itemId','field'].includes(k))||
+      !own(source,'field')||typeof source.field!=='string'||
+      !/^[a-z][a-z0-9.-]{1,79}$/.test(source.field)||
+      (own(source,'slot')===own(source,'itemId')))fail('Invalid binding source');
+    let record;
+    if(own(source,'slot')){
+      if(typeof source.slot!=='string'||!/^[a-z][a-z0-9-]{0,79}$/.test(source.slot))fail('Invalid binding slot');
+      record=(section.elements||[]).find(item=>item.slot===source.slot);
+    }else{
+      if(typeof source.itemId!=='string'||!IDENT.test(source.itemId))fail('Invalid binding item ID');
+      record=(section.items||[]).find(item=>item.id===source.itemId);
+    }
+    if(!record||!object(record.values)||!own(record.values,source.field)||typeof record.values[source.field]!=='string')
+      fail('Binding source does not resolve to a declared string field');
+    if(property==='href'&&source.field!=='behavior.href')fail('Link binding must point to behavior.href');
+    if(property==='text'&&source.field==='behavior.href')fail('URL field cannot be bound to visible text');
+  }
+}
+function validateCandidate(candidate,hostSdk,registry){
+  exactKeys(candidate,['format','version','site','ownerChecklist','mapping','expectedSdk'],'candidate');
+  if(candidate.format!==FACTORY_FORMAT||candidate.version!==1)
+    fail('Unsupported Design Factory candidate format/version');
+  if(!hostSdk||typeof hostSdk.validateSite!=='function'||typeof hostSdk.inspectSite!=='function'||!registry)
+    fail('Current CMS SDK and registered component manifests are required');
+  if(!(object(candidate.ownerChecklist)||Array.isArray(candidate.ownerChecklist))||
+    typeof candidate.expectedSdk!=='string'||candidate.expectedSdk.length<1||candidate.expectedSdk.length>240)
+    fail('Invalid source checklist or SDK descriptor');
+  const mapping=candidate.mapping;
+  exactKeys(mapping,['composition','theme','language','contentBindings','semanticContentMode',
+    'editable','fidelity','approvedForPublish','integration_required'],'candidate mapping');
+  if(typeof mapping.composition!=='string'||!/^[a-z][a-z0-9-]{1,79}$/.test(mapping.composition)||
+    typeof mapping.theme!=='string'||!/^[a-z][a-z0-9-]{1,39}$/.test(mapping.theme)||
+    !['ru','en'].includes(mapping.language)||
+    mapping.semanticContentMode!=='snapshot-requires-host-reconciliation'||
+    !['partial','full'].includes(mapping.fidelity)||mapping.approvedForPublish!==false)
+    fail('Unsupported mapping contract or publish claim');
+  stringList(mapping.editable,80,160,'editable capability list');
+  stringList(mapping.integration_required,80,240,'integration gap list');
+  const site=hostSdk.validateSite(clone(candidate.site),registry);
+  if(!site.designTokens)fail('Candidate has no explicit design token set');
+  const inspection=hostSdk.inspectSite(site,registry);
+  if(inspection.errors.length)fail('Candidate site has invalid internal routes');
+  const graphSections=site.pages.flatMap(page=>page.sections).filter(section=>own(section,'designGraph'));
+  const section=selectedSection(site);
+  if(graphSections.length!==1||!section||!own(section,'designGraph'))
+    fail('Candidate must contain exactly one selected graph on the first page');
+  validateBindings(mapping.contentBindings,section);
+  return {candidate:clone(candidate),site,section,inspection};
+}
+function validateWorkingSite(candidate,rawSite,hostSdk,registry,requireSameGraph){
+  const baseline=validateCandidate(candidate,hostSdk,registry);
+  const site=hostSdk.validateSite(clone(rawSite),registry);
+  if(site.siteId!==baseline.site.siteId||!site.pages[0]||site.pages[0].id!==baseline.site.pages[0].id)
+    fail('Working site must retain the source site and first-page identity');
+  const oldSection=selectedSection(baseline.site),newSection=selectedSection(site);
+  if(!newSection||newSection.component!==oldSection.component)
+    fail('Working site must retain the selected registered section identity');
+  const oldGraph=oldSection.designGraph,newGraph=newSection.designGraph;
+  if(requireSameGraph&&(!newGraph||newGraph.id!==oldGraph.id))
+    fail('The selected Design Graph was removed or its stable ID changed');
+  const inspection=hostSdk.inspectSite(site,registry);
+  if(inspection.errors.length)fail('Working site has invalid internal routes');
+  return {site,section:newSection,inspection,graphCompatible:!!newGraph&&newGraph.id===oldGraph.id};
+}
+function createSession(candidate,hostSdk,registry){
+  const checked=validateCandidate(candidate,hostSdk,registry);
+  return {format:SESSION_FORMAT,version:1,sourceCandidate:clone(candidate),workingSite:clone(checked.site)};
+}
+function resumeSession(input,hostSdk,registry){
+  if(!object(input))fail('Expected an interop session or handoff package');
+  if(input.format===SESSION_FORMAT){
+    exactKeys(input,['format','version','sourceCandidate','workingSite'],'session');
+    if(input.version!==1)fail('Unsupported session version');
+    validateCandidate(input.sourceCandidate,hostSdk,registry);
+    const checked=validateWorkingSite(input.sourceCandidate,input.workingSite,hostSdk,registry,false);
+    return {format:SESSION_FORMAT,version:1,sourceCandidate:clone(input.sourceCandidate),workingSite:clone(checked.site)};
+  }
+  if(input.format===HANDOFF_FORMAT){
+    exactKeys(input,['format','version','sourceCandidate','editedSite','audit'],'handoff');
+    if(input.version!==1||!object(input.audit)||input.audit.format!==AUDIT_FORMAT||input.audit.version!==1)
+      fail('Unsupported handoff package version');
+    validateCandidate(input.sourceCandidate,hostSdk,registry);
+    const checked=validateWorkingSite(input.sourceCandidate,input.editedSite,hostSdk,registry,true);
+    return {format:SESSION_FORMAT,version:1,sourceCandidate:clone(input.sourceCandidate),workingSite:clone(checked.site)};
+  }
+  fail('Unsupported interop package format');
+}
+function refreshSession(session,workingSite,hostSdk,registry){
+  const checked=resumeSession(session,hostSdk,registry);
+  const current=validateWorkingSite(checked.sourceCandidate,workingSite,hostSdk,registry,false);
+  return {format:SESSION_FORMAT,version:1,sourceCandidate:clone(checked.sourceCandidate),workingSite:clone(current.site)};
+}
+function graphStats(graph){
+  const out={id:graph?.id||null,nodeCount:0,types:{},styleKeys:[],responsiveNodes:0,stateNodes:0,motionNodes:0,mediaNodes:0};
+  if(!graph)return out;
+  const keys=new Set();
+  const visit=nodes=>(nodes||[]).forEach(node=>{
+    out.nodeCount++;out.types[node.type]=(out.types[node.type]||0)+1;
+    if(node.responsive&&Object.keys(node.responsive).length)out.responsiveNodes++;
+    if(node.states&&Object.keys(node.states).length)out.stateNodes++;
+    if(node.motion)out.motionNodes++;
+    if(node.type==='image'||node.type==='video')out.mediaNodes++;
+    for(const layer of [node.styles||{},...Object.values(node.responsive||{}),...Object.values(node.states||{})])
+      Object.keys(layer).forEach(key=>keys.add(key));
+    if(node.type==='container')visit(node.children);
+  });
+  visit(graph.nodes);out.styleKeys=Array.from(keys).sort();return out;
+}
+function describe(value){return value===undefined?{missing:true}:clone(value);}
+function collectValueDiff(nodeId,path,before,after,changes,state){
+  if(same(before,after))return;
+  if(object(before)&&object(after)){
+    const keys=Array.from(new Set([...Object.keys(before),...Object.keys(after)])).sort();
+    for(const key of keys){if(state.truncated)return;collectValueDiff(nodeId,path?path+'.'+key:key,before[key],after[key],changes,state);}
+    return;
+  }
+  changes.push({nodeId,path,before:describe(before),after:describe(after)});
+  if(changes.length>=200)state.truncated=true;
+}
+function graphDiff(beforeGraph,afterGraph){
+  const before=flattenGraph(beforeGraph),after=flattenGraph(afterGraph);
+  const beforeIds=Array.from(before.entries.keys()),afterIds=Array.from(after.entries.keys());
+  const addedNodeIds=afterIds.filter(id=>!before.entries.has(id)).sort();
+  const removedNodeIds=beforeIds.filter(id=>!after.entries.has(id)).sort();
+  const typeChangedNodeIds=[],reparentedNodeIds=[],changedProperties=[],state={truncated:false};
+  for(const id of beforeIds){
+    if(!after.entries.has(id))continue;
+    const a=before.entries.get(id),b=after.entries.get(id);
+    if(a.node.type!==b.node.type){typeChangedNodeIds.push(id);continue;}
+    if(a.parentId!==b.parentId)reparentedNodeIds.push(id);
+    const keys=Array.from(new Set([...Object.keys(a.node),...Object.keys(b.node)]))
+      .filter(key=>!['id','type','children'].includes(key)).sort();
+    for(const key of keys){collectValueDiff(id,key,a.node[key],b.node[key],changedProperties,state);if(state.truncated)break;}
+    if(state.truncated)break;
+  }
+  const reorderedNodeIds=new Set(),parents=new Set([...before.childrenByParent.keys(),...after.childrenByParent.keys()]);
+  for(const parent of parents){
+    const oldList=(before.childrenByParent.get(parent)||[]).filter(id=>after.entries.has(id)&&after.entries.get(id).parentId===parent);
+    const newList=(after.childrenByParent.get(parent)||[]).filter(id=>before.entries.has(id)&&before.entries.get(id).parentId===parent);
+    if(oldList.join('|')===newList.join('|'))continue;
+    oldList.forEach((id,index)=>{if(newList[index]!==id)reorderedNodeIds.add(id);});
+    newList.forEach((id,index)=>{if(oldList[index]!==id)reorderedNodeIds.add(id);});
+  }
+  return {addedNodeIds,removedNodeIds,typeChangedNodeIds,reparentedNodeIds:reparentedNodeIds.sort(),
+    reorderedNodeIds:Array.from(reorderedNodeIds).sort(),changedProperties,truncated:state.truncated};
+}
+function sourceValue(section,source){
+  const record=own(source,'slot')?(section.elements||[]).find(item=>item.slot===source.slot):
+    (section.items||[]).find(item=>item.id===source.itemId);
+  if(!record||!object(record.values)||!own(record.values,source.field))return {exists:false};
+  return {exists:true,value:clone(record.values[source.field])};
+}
+function inspectSession(session,workingSite,hostSdk,registry){
+  const checked=resumeSession(session,hostSdk,registry);
+  const current=validateWorkingSite(checked.sourceCandidate,workingSite===undefined?checked.workingSite:workingSite,
+    hostSdk,registry,false);
+  const baselineSection=selectedSection(checked.sourceCandidate.site),currentSection=current.section;
+  const baselineGraph=baselineSection.designGraph,currentGraph=currentSection.designGraph||null;
+  const bindings=checked.sourceCandidate.mapping.contentBindings.map(binding=>{
+    const before=sourceValue(baselineSection,binding.source),after=sourceValue(currentSection,binding.source);
+    if(same(before,after))return null;
+    return {nodeId:binding.nodeId,property:binding.property||'text',source:clone(binding.source),before,after};
+  }).filter(Boolean);
+  return {
+    format:AUDIT_FORMAT,version:1,
+    compatibility:{canImport:true,canExportHandoff:current.graphCompatible,sourceCandidatePreserved:true,
+      originalFactoryProjectPreserved:false,visualFidelity:checked.sourceCandidate.mapping.fidelity,
+      requiresOwnerVisualReview:true,publishAuthorized:false,mode:'preserve-source-candidate-and-working-site-separately'},
+    source:{format:checked.sourceCandidate.format,version:checked.sourceCandidate.version,
+      expectedSdk:checked.sourceCandidate.expectedSdk},
+    selectedSectionId:'df-selected-composition',baselineGraph:graphStats(baselineGraph),
+    workingGraph:graphStats(currentGraph),graphDiff:graphDiff(baselineGraph,currentGraph),
+    tokensChanged:!same(checked.sourceCandidate.site.designTokens,current.site.designTokens),
+    assetsChanged:!same(checked.sourceCandidate.site.assets,current.site.assets),
+    baselineAssetCount:checked.sourceCandidate.site.assets.length,workingAssetCount:current.site.assets.length,
+    bindingChanges:bindings,integrationRequired:clone(checked.sourceCandidate.mapping.integration_required),
+    notes:[
+      'The source candidate is preserved as an unchanged baseline; editedSite is a separate document.',
+      'This package does not reconstruct the original manufact-design-factory-v1 project/workspace.',
+      'Visual fidelity remains limited by the source candidate fidelity and integration_required list.',
+      'The audit is descriptive data, not a signature, permission, or publication approval.'
+    ]
+  };
+}
+function exportHandoff(session,workingSite,hostSdk,registry){
+  const checked=resumeSession(session,hostSdk,registry);
+  const current=validateWorkingSite(checked.sourceCandidate,workingSite,hostSdk,registry,true);
+  const audit=inspectSession(checked,current.site,hostSdk,registry);
+  if(!audit.compatibility.canExportHandoff)fail('The selected graph cannot be handed back without restoring its stable identity');
+  return {format:HANDOFF_FORMAT,version:1,sourceCandidate:clone(checked.sourceCandidate),editedSite:clone(current.site),audit};
+}
+module.exports=Object.freeze({FACTORY_FORMAT,SESSION_FORMAT,HANDOFF_FORMAT,AUDIT_FORMAT,
+  isCandidate:value=>object(value)&&value.format===FACTORY_FORMAT&&value.version===1,
+  isHandoff:value=>object(value)&&value.format===HANDOFF_FORMAT&&value.version===1,
+  createSession,resumeSession,refreshSession,inspectSession,exportHandoff});
+
+return module.exports;})();
 const MANIFESTS=[{"format":"manufact-ai-component-v1","id":"company-hero","version":"1.0.0","label":"Первый экран компании","elements":[{"slot":"heading","label":"Главный заголовок","fields":[{"path":"content.text","label":"Текст заголовка","type":"text","default":"Оборудование для вашего производства","responsive":false,"maxLength":180},{"path":"style.fontSize","label":"Размер заголовка","type":"length","default":{"desktop":"64px","tablet":"48px","mobile":"32px"},"responsive":true,"min":10,"max":120,"units":["px","rem"]},{"path":"style.color","label":"Цвет заголовка","type":"color","default":"#172A43","responsive":false}]},{"slot":"summary","label":"Описание","fields":[{"path":"content.text","label":"Текст описания","type":"text","default":"Расскажите о вашем предложении без вымышленных фактов.","responsive":false,"maxLength":420}]},{"slot":"action","label":"Основная кнопка","fields":[{"path":"content.text","label":"Подпись кнопки","type":"text","default":"Связаться","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес перехода","type":"url","default":"/contact/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"feature-highlights","version":"1.0.0","label":"Преимущества","elements":[{"slot":"heading","label":"Заголовок преимуществ","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Чем мы занимаемся","responsive":false,"maxLength":180}]},{"slot":"first","label":"Первая карточка","fields":[{"path":"content.text","label":"Описание преимущества","type":"text","default":"Заполните подтверждённые преимущества компании","responsive":false,"maxLength":280},{"path":"style.color","label":"Цвет текста","type":"color","default":"#172A43","responsive":false}]},{"slot":"second","label":"Вторая карточка","fields":[{"path":"content.text","label":"Описание второй карточки","type":"text","default":"Уточните факты у заказчика","responsive":false,"maxLength":280}]}]},{"format":"manufact-ai-component-v1","id":"contact-panel","version":"1.0.0","label":"Контакты","elements":[{"slot":"heading","label":"Заголовок контактов","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Свяжитесь с нами","responsive":false,"maxLength":180}]},{"slot":"action","label":"Контактная кнопка","fields":[{"path":"content.text","label":"Подпись","type":"text","default":"Оставить заявку","responsive":false,"maxLength":120},{"path":"behavior.href","label":"Ссылка","type":"url","default":"/contact/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"image-showcase","version":"1.0.0","label":"Изображение и описание","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок секции","type":"text","default":"Наше производство","responsive":false,"maxLength":160}]},{"slot":"photo","label":"Фотография","fields":[{"path":"content.media","label":"Изображение из медиабиблиотеки","type":"media","default":"","responsive":false}]},{"slot":"caption","label":"Подпись","fields":[{"path":"content.text","label":"Подпись фотографии","type":"text","default":"Добавьте фотографию вашего производства","responsive":false,"maxLength":400}]}]},{"format":"manufact-ai-component-v1","id":"lead-form","version":"1.0.0","label":"Форма заявки","elements":[{"slot":"heading","label":"Заголовок формы","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Оставьте заявку","responsive":false,"maxLength":160}]},{"slot":"name-label","label":"Имя","fields":[{"path":"content.text","label":"Подпись поля имени","type":"text","default":"Ваше имя","responsive":false,"maxLength":90}]},{"slot":"email-label","label":"Email","fields":[{"path":"content.text","label":"Подпись email","type":"text","default":"Электронная почта","responsive":false,"maxLength":90}]},{"slot":"message-label","label":"Сообщение","fields":[{"path":"content.text","label":"Подпись сообщения","type":"text","default":"Ваш вопрос","responsive":false,"maxLength":90}]},{"slot":"consent-label","label":"Согласие","fields":[{"path":"content.text","label":"Текст согласия","type":"text","default":"Согласен на обработку данных для ответа на обращение","responsive":false,"maxLength":250}]},{"slot":"submit-label","label":"Кнопка отправки","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Отправить заявку","responsive":false,"maxLength":90}]}]},{"format":"manufact-ai-component-v1","id":"lead-form-flex","version":"1.0.0","label":"Форма заявки · конструктор","elements":[{"slot":"heading","label":"Заголовок формы","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Оставьте заявку","responsive":false,"maxLength":160}]},{"slot":"name-label","label":"Имя","fields":[{"path":"content.text","label":"Подпись поля имени","type":"text","default":"Ваше имя","responsive":false,"maxLength":90}]},{"slot":"email-label","label":"Email","fields":[{"path":"content.text","label":"Подпись email","type":"text","default":"Электронная почта","responsive":false,"maxLength":90}]},{"slot":"message-label","label":"Сообщение","fields":[{"path":"content.text","label":"Подпись сообщения","type":"text","default":"Ваш вопрос","responsive":false,"maxLength":90}]},{"slot":"consent-label","label":"Согласие","fields":[{"path":"content.text","label":"Текст согласия","type":"text","default":"Согласен на обработку данных для ответа на обращение","responsive":false,"maxLength":250}]},{"slot":"submit-label","label":"Кнопка отправки","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Отправить заявку","responsive":false,"maxLength":90}]},{"slot":"extra-one","label":"Дополнительное поле 1","fields":[{"path":"content.text","label":"Подпись поля","type":"text","default":"Дополнительный вопрос 1","responsive":false,"maxLength":100},{"path":"behavior.kind","label":"Тип поля","type":"enum","default":"off","responsive":false,"options":["off","text","tel","select","textarea"]},{"path":"behavior.required","label":"Обязательное","type":"boolean","default":false,"responsive":false},{"path":"content.options","label":"Варианты для списка (один на строку)","type":"text","default":"Вариант 1\nВариант 2","responsive":false,"maxLength":500}]},{"slot":"extra-two","label":"Дополнительное поле 2","fields":[{"path":"content.text","label":"Подпись поля","type":"text","default":"Дополнительный вопрос 2","responsive":false,"maxLength":100},{"path":"behavior.kind","label":"Тип поля","type":"enum","default":"off","responsive":false,"options":["off","text","tel","select","textarea"]},{"path":"behavior.required","label":"Обязательное","type":"boolean","default":false,"responsive":false},{"path":"content.options","label":"Варианты для списка (один на строку)","type":"text","default":"Вариант 1\nВариант 2","responsive":false,"maxLength":500}]},{"slot":"extra-three","label":"Дополнительное поле 3","fields":[{"path":"content.text","label":"Подпись поля","type":"text","default":"Дополнительный вопрос 3","responsive":false,"maxLength":100},{"path":"behavior.kind","label":"Тип поля","type":"enum","default":"off","responsive":false,"options":["off","text","tel","select","textarea"]},{"path":"behavior.required","label":"Обязательное","type":"boolean","default":false,"responsive":false},{"path":"content.options","label":"Варианты для списка (один на строку)","type":"text","default":"Вариант 1\nВариант 2","responsive":false,"maxLength":500}]}]},{"format":"manufact-ai-component-v1","id":"service-grid","version":"1.0.0","label":"Услуги · повторяемые карточки","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Услуги · повторяемые карточки","responsive":false,"maxLength":180}]}],"repeat":{"label":"Повторяемый элемент","min":2,"max":16,"fields":[{"path":"content.title","label":"Название услуги","type":"text","default":"Название услуги","responsive":false,"maxLength":150},{"path":"content.text","label":"Описание услуги","type":"text","default":"Добавьте подтверждённое описание услуги.","responsive":false,"maxLength":600},{"path":"behavior.href","label":"Ссылка","type":"url","default":"/contact/","responsive":false}]}},{"format":"manufact-ai-component-v1","id":"faq-accordion","version":"1.0.0","label":"FAQ · раскрывающиеся вопросы","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"FAQ · раскрывающиеся вопросы","responsive":false,"maxLength":180}]}],"repeat":{"label":"Повторяемый элемент","min":2,"max":24,"fields":[{"path":"content.question","label":"Вопрос","type":"text","default":"Укажите вопрос","responsive":false,"maxLength":220},{"path":"content.answer","label":"Ответ","type":"text","default":"Добавьте проверенный ответ.","responsive":false,"maxLength":1200}]}},{"format":"manufact-ai-component-v1","id":"testimonials","version":"1.0.0","label":"Отзывы · повторяемые карточки","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Отзывы · повторяемые карточки","responsive":false,"maxLength":180}]}],"repeat":{"label":"Повторяемый элемент","min":2,"max":16,"fields":[{"path":"content.quote","label":"Текст отзыва","type":"text","default":"Добавьте реальный отзыв с согласия автора.","responsive":false,"maxLength":900},{"path":"content.author","label":"Автор","type":"text","default":"Имя автора","responsive":false,"maxLength":130},{"path":"content.role","label":"Описание автора","type":"text","default":"","responsive":false,"maxLength":180}]}},{"format":"manufact-ai-component-v1","id":"photo-gallery","version":"1.0.0","label":"Галерея · повторяемые фотографии","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Галерея · повторяемые фотографии","responsive":false,"maxLength":180}]}],"repeat":{"label":"Повторяемый элемент","min":2,"max":20,"fields":[{"path":"content.media","label":"Фотография","type":"media","default":"","responsive":false},{"path":"content.caption","label":"Подпись","type":"text","default":"","responsive":false,"maxLength":240}]}},{"format":"manufact-ai-component-v1","id":"media-story","version":"1.0.0","label":"Фото и текст · две колонки","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок секции","type":"text","default":"История нашей компании","responsive":false,"maxLength":160}]},{"slot":"copy","label":"Описание","fields":[{"path":"content.text","label":"Текст рядом с фотографией","type":"text","default":"Расскажите о проекте, команде или продукте.","responsive":false,"maxLength":900}]},{"slot":"photo","label":"Основная фотография","fields":[{"path":"content.media","label":"Фотография из медиабиблиотеки","type":"media","default":"","responsive":false}]},{"slot":"action","label":"Кнопка","fields":[{"path":"content.text","label":"Подпись кнопки","type":"text","default":"Подробнее","responsive":false,"maxLength":110},{"path":"behavior.href","label":"Адрес перехода","type":"url","default":"/contact/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"partner-logos","version":"1.0.0","label":"Логотипы партнёров · повторяемые","elements":[{"slot":"heading","label":"Заголовок логотипов","fields":[{"path":"content.text","label":"Название секции","type":"text","default":"Нам доверяют","responsive":false,"maxLength":160}]}],"repeat":{"label":"Логотип партнёра","min":2,"max":20,"fields":[{"path":"content.media","label":"Логотип","type":"media","default":"","responsive":false},{"path":"content.caption","label":"Название партнёра","type":"text","default":"Название партнёра","responsive":false,"maxLength":130},{"path":"behavior.href","label":"Ссылка партнёра","type":"url","default":"/","responsive":false}]}},{"format":"manufact-ai-component-v1","id":"cta-banner","version":"1.0.0","label":"CTA · призыв к действию","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок CTA","type":"text","default":"Готовы обсудить проект?","responsive":false,"maxLength":180}]},{"slot":"summary","label":"Описание","fields":[{"path":"content.text","label":"Пояснение","type":"text","default":"Расскажите о задаче — подберём решение и ответим на вопросы.","responsive":false,"maxLength":500}]},{"slot":"primary","label":"Основная кнопка","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Связаться с нами","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес кнопки","type":"url","default":"/","responsive":false}]},{"slot":"secondary","label":"Дополнительная кнопка","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Наши услуги","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес кнопки","type":"url","default":"/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"pricing-plans","version":"1.0.0","label":"Тарифы · планы с услугами","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Варианты сотрудничества","responsive":false,"maxLength":180}]},{"slot":"intro","label":"Описание","fields":[{"path":"content.text","label":"Пояснение к тарифам","type":"text","default":"Укажите подтверждённые условия каждой услуги.","responsive":false,"maxLength":500}]},{"slot":"footnote","label":"Примечание","fields":[{"path":"content.text","label":"Условия и оговорки","type":"text","default":"Цены и состав услуг укажите самостоятельно.","responsive":false,"maxLength":500}]}],"repeat":{"label":"Тариф или пакет","min":2,"max":6,"fields":[{"path":"content.title","label":"Название пакета","type":"text","default":"Название пакета","responsive":false,"maxLength":100},{"path":"content.price","label":"Подтверждённая цена или «по запросу»","type":"text","default":"По запросу","responsive":false,"maxLength":90},{"path":"content.period","label":"Период оплаты","type":"text","default":"Условия уточняются","responsive":false,"maxLength":100},{"path":"content.description","label":"Описание","type":"text","default":"Опишите, кому подходит этот пакет.","responsive":false,"maxLength":360},{"path":"content.features","label":"Что входит (каждый пункт с новой строки)","type":"text","default":"Укажите реальную услугу\nУточните объём работ","responsive":false,"maxLength":1200},{"path":"content.button","label":"Текст кнопки","type":"text","default":"Обсудить условия","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес кнопки","type":"url","default":"/contact/","responsive":false},{"path":"behavior.featured","label":"Выделить пакет","type":"boolean","default":false,"responsive":false}]}},{"format":"manufact-ai-component-v1","id":"process-timeline","version":"1.0.0","label":"Этапы работы · дорожная карта","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Как проходит работа","responsive":false,"maxLength":180}]},{"slot":"description","label":"Введение","fields":[{"path":"content.text","label":"Пояснение","type":"text","default":"Ниже приведён описанный вами порядок работы.","responsive":false,"maxLength":400}]}],"repeat":{"label":"Этап процесса","min":2,"max":12,"fields":[{"path":"content.title","label":"Название этапа","type":"text","default":"Название этапа","responsive":false,"maxLength":130},{"path":"content.description","label":"Действие и результат","type":"text","default":"Опишите реальное содержание этапа.","responsive":false,"maxLength":500},{"path":"content.detail","label":"Дополнительная подсказка","type":"text","default":"","responsive":false,"maxLength":200}]}},{"format":"manufact-ai-component-v1","id":"comparison-matrix","version":"1.0.0","label":"Сравнение · два варианта","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Название таблицы","type":"text","default":"Сравнение вариантов","responsive":false,"maxLength":180}]},{"slot":"first","label":"Первый вариант","fields":[{"path":"content.text","label":"Название колонки","type":"text","default":"Вариант A","responsive":false,"maxLength":100}]},{"slot":"second","label":"Второй вариант","fields":[{"path":"content.text","label":"Название колонки","type":"text","default":"Вариант B","responsive":false,"maxLength":100}]},{"slot":"caption","label":"Пояснение","fields":[{"path":"content.text","label":"Примечание под таблицей","type":"text","default":"Характеристики предоставлены владельцем сайта.","responsive":false,"maxLength":400}]}],"repeat":{"label":"Строка сравнения","min":2,"max":20,"fields":[{"path":"content.metric","label":"Название критерия","type":"text","default":"Критерий","responsive":false,"maxLength":130},{"path":"content.first","label":"Значение первого варианта","type":"text","default":"Уточнить","responsive":false,"maxLength":220},{"path":"content.second","label":"Значение второго варианта","type":"text","default":"Уточнить","responsive":false,"maxLength":220}]}},{"format":"manufact-ai-component-v1","id":"content-switcher","version":"1.0.0","label":"Переключатель · интерактивные вкладки","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок блока","type":"text","default":"Выберите интересующий раздел","responsive":false,"maxLength":180}]},{"slot":"summary","label":"Введение","fields":[{"path":"content.text","label":"Описание блока","type":"text","default":"Переключайте вкладки, чтобы посмотреть информацию.","responsive":false,"maxLength":400}]}],"repeat":{"label":"Вкладка","min":2,"max":8,"fields":[{"path":"content.title","label":"Текст вкладки","type":"text","default":"Название вкладки","responsive":false,"maxLength":120},{"path":"content.heading","label":"Заголовок содержимого","type":"text","default":"Заголовок раздела","responsive":false,"maxLength":150},{"path":"content.body","label":"Текст вкладки","type":"text","default":"Укажите достоверную информацию для посетителей.","responsive":false,"maxLength":1100}]}},{"format":"manufact-ai-component-v1","id":"adaptive-gallery","version":"1.0.0","label":"Адаптивная галерея · Grid / Masonry / Carousel","elements":[{"slot":"heading","label":"Заголовок галереи","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Наши фотографии","responsive":false,"maxLength":180}]},{"slot":"settings","label":"Варианты отображения","fields":[{"path":"behavior.layout","label":"Вид галереи","type":"enum","default":"grid","responsive":false,"options":["grid","masonry","carousel"]},{"path":"behavior.columns","label":"Количество колонок на ПК","type":"number","default":3,"responsive":false,"min":2,"max":5},{"path":"behavior.fit","label":"Заполнение изображения","type":"enum","default":"cover","responsive":false,"options":["cover","contain"]},{"path":"behavior.caption","label":"Показывать подписи","type":"boolean","default":true,"responsive":false}]}],"repeat":{"label":"Фотография","min":2,"max":24,"fields":[{"path":"content.media","label":"Изображение из медиабиблиотеки","type":"media","default":"","responsive":false},{"path":"content.caption","label":"Подпись к фотографии","type":"text","default":"","responsive":false,"maxLength":240},{"path":"behavior.featured","label":"Выделенный кадр (Grid)","type":"boolean","default":false,"responsive":false}]}}];
 const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","title":"Завод оборудования","schemaVersion":1,"assets":[],"pages":[{"id":"page-home","path":"/","title":"Главная","sections":[{"id":"section-hero","component":"company-hero","manifestVersion":"1.0.0","elements":[{"id":"section-hero-heading","slot":"heading","values":{"content.text":"Производим технологическое оборудование","style.fontSize":{"desktop":"64px","tablet":"48px","mobile":"32px"},"style.color":"#172A43"}},{"id":"section-hero-summary","slot":"summary","values":{"content.text":"Промышленные решения для заказчиков"}},{"id":"section-hero-action","slot":"action","values":{"content.text":"Связаться","behavior.href":"/contact/"}}]},{"id":"section-highlights","component":"feature-highlights","manifestVersion":"1.0.0","elements":[{"id":"section-highlights-heading","slot":"heading","values":{"content.text":"Чем мы занимаемся"}},{"id":"section-highlights-first","slot":"first","values":{"content.text":"Разработка производственных решений","style.color":"#172A43"}},{"id":"section-highlights-second","slot":"second","values":{"content.text":"Помощь в выборе оборудования"}}]}]},{"id":"page-contact","path":"/contact/","title":"Контакты","sections":[{"id":"section-contact","component":"contact-panel","manifestVersion":"1.0.0","elements":[{"id":"section-contact-heading","slot":"heading","values":{"content.text":"Свяжитесь с нами"}},{"id":"section-contact-action","slot":"action","values":{"content.text":"Оставить заявку","behavior.href":"/contact/"}}]}]}]};
 'use strict';
@@ -1353,7 +1615,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   const HOSTED=document.documentElement.dataset.stage3Mode==='server';
   const $=id=>document.getElementById(id),cp=x=>structuredClone(x);
   const STORAGE='manufact-ai-site-stage3-local-revisions-v1';
-  const MAX_VERSIONS=12,MAX_UPLOAD=900000;
+  const MAX_VERSIONS=12,MAX_UPLOAD=900000,MAX_INTEROP_UPLOAD=2500000;
+  const INTEROP_STORAGE='manufact-ai-design-graph-local-session-v1';
+  let interopSession=null,interopStorageFailed=false;
   const escapeHtml=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const safeText=v=>v===undefined||v===null?'':String(v);
   let session=D.begin(starter,manifests),pageId=session.current.pages[0].id,
@@ -1362,6 +1626,83 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     breakpoint='desktop',savedBytes=JSON.stringify(session.current),versions=[];
   function notice(message,error=false){
     const node=$('toast');node.textContent=message;node.hidden=false;node.className='toast'+(error?' error':'');
+  }
+  function clearInteropSession(){
+    interopSession=null;interopStorageFailed=false;
+    if(!HOSTED)try{sessionStorage.removeItem(INTEROP_STORAGE);}catch(_){}
+    updateInteropUI();
+  }
+  function updateInteropUI(){
+    const button=$('export-factory-handoff'),status=$('interop-status');
+    if(!button||!status)return;
+    if(!interopSession){button.hidden=true;status.hidden=true;status.textContent='';return;}
+    button.hidden=false;
+    try{
+      const report=GRAPH_INTEROP.inspectSession(interopSession,session.current,C,manifests);
+      const changed=report.graphDiff.addedNodeIds.length+report.graphDiff.removedNodeIds.length+
+        report.graphDiff.typeChangedNodeIds.length+report.graphDiff.reparentedNodeIds.length+
+        report.graphDiff.reorderedNodeIds.length+report.graphDiff.changedProperties.length;
+      status.hidden=false;
+      status.textContent='Design Factory · граф '+report.baselineGraph.nodeCount+' узлов · fidelity: '+
+        report.compatibility.visualFidelity+' · изменений графа: '+changed+
+        ' · полей CMS: '+report.bindingChanges.length+
+        ' · открытых ограничений: '+report.integrationRequired.length+
+        (report.compatibility.canExportHandoff?' · handoff доступен':' · восстановите исходный ID графа для handoff')+
+        (HOSTED?' · источник хранится только в этой вкладке; экспортируйте handoff перед выходом.':'')+
+        (interopStorageFailed?' · не удалось сохранить служебную сессию вкладки — скачайте handoff сейчас.':'');
+      button.title='Скачать исходный Factory candidate отдельно от текущего CMS draft';
+    }catch(error){
+      status.hidden=false;status.textContent='Interop активен, но handoff требует исправления: '+error.message;
+    }
+  }
+  function persistInteropSession(){
+    if(!interopSession)return;
+    try{
+      if(session.current.siteId!==interopSession.sourceCandidate.site.siteId){
+        clearInteropSession();return;
+      }
+      interopSession=GRAPH_INTEROP.refreshSession(interopSession,session.current,C,manifests);
+      if(!HOSTED){
+        sessionStorage.setItem(INTEROP_STORAGE,JSON.stringify({
+          format:'manufact-ai-design-graph-local-session-v1',version:1,
+          interopSession,wasSaved:JSON.stringify(session.current)===savedBytes
+        }));
+        interopStorageFailed=false;
+      }
+    }catch(error){interopStorageFailed=true;}
+    updateInteropUI();
+  }
+  function restoreInteropSession(){
+    if(HOSTED)return;
+    try{
+      const raw=sessionStorage.getItem(INTEROP_STORAGE);if(!raw)return;
+      const payload=JSON.parse(raw);
+      if(payload?.format!=='manufact-ai-design-graph-local-session-v1'||payload.version!==1)
+        throw Error('Неверный формат временной сессии');
+      const restored=GRAPH_INTEROP.resumeSession(payload.interopSession,C,manifests);
+      const site=restored.workingSite;
+      if(!versions.length||versions[0].site.siteId!==site.siteId)versions=[];
+      session=D.begin(site,manifests);interopSession=restored;
+      const page=site.pages[0],section=page.sections.find(s=>s.id==='df-selected-composition')||page.sections[0];
+      pageId=page.id;sectionId=section.id;elementId=section.elements[0].id;
+      const savedVersion=versions.find(v=>JSON.stringify(v.site)===JSON.stringify(site));
+      savedBytes=payload.wasSaved&&savedVersion?JSON.stringify(site):'';
+    }catch(error){
+      try{sessionStorage.removeItem(INTEROP_STORAGE);}catch(_){}
+      interopSession=null;interopStorageFailed=false;
+      notice('Временная D7-сессия не восстановлена: '+error.message,true);
+    }
+  }
+  function exportFactoryHandoff(){
+    if(!interopSession)return;
+    try{
+      const handoff=GRAPH_INTEROP.exportHandoff(interopSession,session.current,C,manifests);
+      const data=JSON.stringify(handoff,null,2)+'\n';
+      const url=URL.createObjectURL(new Blob([data],{type:'application/json;charset=utf-8'}));
+      const a=document.createElement('a');a.href=url;a.download='ai-site-design-factory-handoff.json';
+      document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);
+      notice('D7 handoff экспортирован: исходный candidate сохранён отдельно от текущего черновика. Публикации не было.');
+    }catch(error){notice('Экспорт D7 handoff отклонён: '+error.message,true);}
   }
   function current(){
     const page=session.current.pages.find(p=>p.id===pageId)||session.current.pages[0];
@@ -2970,7 +3311,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     });
   }
   function draw(){current();drawHeader();drawTree();drawElements();drawFields();drawPreview();drawVersions();if(HOSTED)window.Stage3Host?.onDraw?.();
-    document.querySelectorAll('.device').forEach(b=>b.classList.toggle('active',b.dataset.bp===breakpoint));}
+    document.querySelectorAll('.device').forEach(b=>b.classList.toggle('active',b.dataset.bp===breakpoint));
+    persistInteropSession();}
   function save(){
     if(HOSTED)return window.Stage3Host?.save?.();
     try{
@@ -3009,16 +3351,42 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     notice('Текущий черновик экспортирован. Это не опубликованный сайт.');
   }
   async function importJson(file){
-    if(!file||file.size>MAX_UPLOAD)return notice('JSON-файл слишком большой (максимум 900 КБ)',true);
+    if(!file||file.size>MAX_INTEROP_UPLOAD)
+      return notice('JSON-файл слишком большой (максимум 2,5 МБ для D7 handoff)',true);
+    const previousInterop=interopSession;
     try{
-      const text=await file.text(),site=C.validateSite(JSON.parse(text),manifests);
-      if(HOSTED)return window.Stage3Host?.importSite?.(site);
-      if(!confirm('Открыть импортированный сайт? Несохранённые изменения будут потеряны, текущие сохранения останутся до следующего «Сохранить».'))return;
+      const parsed=JSON.parse(await file.text());
+      const isCandidate=GRAPH_INTEROP.isCandidate(parsed),isHandoff=GRAPH_INTEROP.isHandoff(parsed);
+      if(!isCandidate&&!isHandoff&&file.size>MAX_UPLOAD)
+        throw Error('Обычный site-v1 JSON ограничен 900 КБ');
+      let nextInterop=null,site;
+      if(isCandidate){
+        nextInterop=GRAPH_INTEROP.createSession(parsed,C,manifests);
+        site=nextInterop.workingSite;
+      }else if(isHandoff){
+        nextInterop=GRAPH_INTEROP.resumeSession(parsed,C,manifests);
+        site=nextInterop.workingSite;
+      }else site=C.validateSite(parsed,manifests);
+      if(HOSTED){
+        interopSession=nextInterop;interopStorageFailed=false;
+        const imported=await window.Stage3Host?.importSite?.(site);
+        if(!imported){interopSession=previousInterop;updateInteropUI();return;}
+        if(!nextInterop)clearInteropSession();
+        else persistInteropSession();
+        return;
+      }
+      if(!confirm('Открыть импортированный сайт? Несохранённые изменения будут потеряны, текущие локальные версии сохранятся до следующего «Сохранить».'))return;
       session=D.begin(site,manifests);versions=[];
-      pageId=site.pages[0].id;sectionId=site.pages[0].sections[0].id;
-      elementId=site.pages[0].sections[0].elements[0].id;
-      savedBytes='';draw();notice('Сайт импортирован как несохранённый черновик.');
-    }catch(e){notice('Импорт отклонён: '+e.message,true);}
+      pageId=site.pages[0].id;
+      const chosen=site.pages[0].sections.find(s=>s.id==='df-selected-composition')||site.pages[0].sections[0];
+      sectionId=chosen.id;elementId=chosen.elements[0].id;
+      interopSession=nextInterop;interopStorageFailed=false;
+      if(!interopSession)clearInteropSession();
+      savedBytes='';draw();
+      notice(nextInterop?
+        'Design Factory candidate открыт как черновик. Исходник и CMS-правки разделены; для передачи используйте «Экспорт D7 handoff».':
+        'Сайт импортирован как несохранённый черновик.');
+    }catch(e){interopSession=previousInterop;notice('Импорт отклонён: '+e.message,true);updateInteropUI();}
   }
   window.addEventListener('beforeunload',e=>{
     if(JSON.stringify(session.current)!==savedBytes){e.preventDefault();e.returnValue='';}
@@ -3027,20 +3395,21 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   $('redo').addEventListener('click',()=>{session=D.redo(session,manifests);draw();});
   $('save').addEventListener('click',save);
   $('export').addEventListener('click',exportJson);
+  $('export-factory-handoff').addEventListener('click',exportFactoryHandoff);
   $('import').addEventListener('click',()=>$('import-file').click());
   $('import-file').addEventListener('change',async e=>{const file=e.target.files?.[0];e.target.value='';await importJson(file);});
   $('new-site').addEventListener('click',()=>{
     if(HOSTED)return window.Stage3Host?.newSite?.();
     if(!confirm('Открыть новый пример сайта без готового макета? Несохранённые изменения не сохранятся.'))return;
     const site=C.siteFromBrief({siteId:'site-no-mockup',title:'Сайт без макета'},manifests);
-    session=D.begin(site,manifests);versions=[];
+    session=D.begin(site,manifests);versions=[];clearInteropSession();
     pageId=site.pages[0].id;sectionId=site.pages[0].sections[0].id;elementId=site.pages[0].sections[0].elements[0].id;
     savedBytes='';draw();notice('Создан сайт без дизайн-ТЗ: все поля описаны в манифестах.');
   });
   $('reset').addEventListener('click',()=>{
     if(HOSTED)return window.Stage3Host?.reload?.();
     if(!confirm('Удалить ВСЕ локальные сохранения Stage 3 и восстановить исходный пример?'))return;
-    try{localStorage.removeItem(STORAGE);versions=[];session=D.begin(starter,manifests);
+    try{localStorage.removeItem(STORAGE);versions=[];session=D.begin(starter,manifests);clearInteropSession();
       savedBytes=JSON.stringify(session.current);pageId=session.current.pages[0].id;
       sectionId=session.current.pages[0].sections[0].id;elementId=session.current.pages[0].sections[0].elements[0].id;
       draw();notice('Исходный пример восстановлен. Все его локальные версии очищены.');
@@ -3134,7 +3503,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();draw();
+  createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
 })();
 'use strict';
 // A single owner-reviewed composition path for offline and authenticated Studio.
