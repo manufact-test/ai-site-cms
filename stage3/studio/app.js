@@ -473,6 +473,9 @@
     box.append(launch);$('pages').before(box);
   }
 
+  // Only an explicit quality-report action can focus a specific graph node.
+  // No pending focus is persisted to site JSON, exports or published HTML.
+  let pendingGraphAuditFocus=null;
   // One review surface for every authored site; analysis never changes documents.
   // Alias creation/deletion uses the same revisioned Undo/Redo contract as page edits.
   function initSiteQuality(){
@@ -548,9 +551,12 @@
                 sectionId=selected?.id||page.sections[0].id;
                 elementId=issue.elementId&&selected?.elements.concat(selected.items||[]).some(item=>item.id===issue.elementId)
                   ?issue.elementId:(selected?.elements[0]?.id||'');
+                pendingGraphAuditFocus=issue.nodeId&&selected?.designGraph
+                  ?{pageId:page.id,sectionId:selected.id,nodeId:issue.nodeId,kind:issue.kind,message:issue.message}
+                  :null;
                 draw();dialog.close();
                 if(isSeo)$('cms-open-seo')?.click();
-                else if(issue.nodeId&&selected?.designGraph)$('section-design-graph')?.click();
+                else if(pendingGraphAuditFocus)$('section-design-graph')?.click();
               });
             jump.setAttribute('aria-label',jump.textContent+' — '+issue.message);
             line.append(jump);
@@ -733,6 +739,8 @@
     const info=document.createElement('p');
     info.textContent='Контейнеры, Flex/Grid, текст, кнопки, изображения, токены, адаптивные настройки и состояния. Сохранение и публикация отдельно.';
     const toolbar=document.createElement('div');toolbar.className='cms-appearance-actions';
+    const auditFocus=document.createElement('div');auditFocus.id='cms-design-audit-focus';
+    auditFocus.className='cms-design-audit-focus';auditFocus.setAttribute('role','status');auditFocus.hidden=true;
     const root=document.createElement('div');root.className='cms-design-graph-editor';
     const footer=document.createElement('div');footer.className='cms-appearance-actions';
     const auditPanel=document.createElement('section');auditPanel.id='cms-design-a11y';
@@ -751,9 +759,10 @@
     visualHint.textContent='Клик — выбрать · Перетащить на узел — порядок/вложенность · Alt+перетаскивание — смещение · маркеры — размер (шаг 8 px)';
     canvasStage.append(previewFrame);visual.append(deviceTools,canvasStage,visualHint);
     workspace.append(visual,root);
-    dlg.append(title,info,toolbar,workspace,auditPanel,footer);
+    dlg.append(title,info,auditFocus,toolbar,workspace,auditPanel,footer);
     document.body.append(dlg);
     let graph,tokens,selection,mode='desktop',sourcePage,sourceSection,previewDevice='desktop';
+    let activeAuditFocus=null,auditNodeFocusPending=false;
     let undoStack=[],redoStack=[],activeGesture=null,suppressPreviewClick=false;
     const PREVIEW_WIDTHS={desktop:1200,tablet:780,mobile:390};
     const snapshot=()=>JSON.stringify({graph,tokens,selection,mode,previewDevice});
@@ -1070,9 +1079,22 @@
       let findings;
       try{findings=DESIGN_GRAPH.auditAccessibility(graph,tokens);}
       catch(error){
+        if(activeAuditFocus){
+          auditFocus.hidden=false;auditFocus.dataset.resolved='false';
+          auditFocus.textContent='Проверка приостановлена: завершите ввод параметров элемента.';
+        }
         const status=make('p','Проверка обновится после завершения ввода параметров.','cms-design-a11y-summary');
         status.id='cms-design-a11y-summary';status.setAttribute('aria-live','polite');auditPanel.append(status);return;
       }
+      if(activeAuditFocus){
+        const relevant=findings.some(item=>item.nodeId===activeAuditFocus.nodeId&&item.code===activeAuditFocus.kind);
+        auditFocus.hidden=false;auditFocus.dataset.resolved=String(!relevant);
+        auditFocus.textContent=relevant
+          ?'Из SEO-аудита · '+activeAuditFocus.message+' · Узел '+activeAuditFocus.nodeId+
+            '. Исправьте параметры, нажмите «Применить в черновик», затем повторно проверьте страницу.'
+          :'Замечание для узла '+activeAuditFocus.nodeId+
+            ' устранено в рабочей композиции. Примените правку в черновик для повторной проверки страницы.';
+      }else{auditFocus.hidden=true;auditFocus.removeAttribute('data-resolved');}
       const errors=findings.filter(item=>item.severity==='error').length;
       const summaryText=findings.length?
         findings.length+' замечаний: '+errors+' критических, '+(findings.length-errors)+' предупреждений. Проверка справочная и не блокирует сохранение.':
@@ -1134,6 +1156,10 @@
       chooser.value=selection;
       chooser.addEventListener('change',()=>{selection=chooser.value;render();});
       toolbar.append(chooser);
+      if(auditNodeFocusPending){
+        auditNodeFocusPending=false;
+        requestAnimationFrame(()=>chooser.focus({preventScroll:true}));
+      }
       const action=(name,fn)=>{
         const b=button(name,'btn small',fn);toolbar.append(b);return b;
       };
@@ -1387,8 +1413,13 @@
         section.designGraph=cp(graph);draft.designTokens=cp(tokens);
         const checked=C.validateSite(draft,manifests);
         session=D.replaceSite(session,manifests,checked,session.revision);
+        const recheck=!!activeAuditFocus;
+        activeAuditFocus=null;
         dlg.close();draw();
-        notice('Композиция сохранена в локальном черновике. Для сервера нужны «Сохранить» и «Опубликовать».');
+        if(recheck)$('cms-quality-open')?.click();
+        notice(recheck
+          ?'Композиция применена в черновик; аудит обновлён. Для сервера нужны «Сохранить» и «Опубликовать».'
+          :'Композиция сохранена в локальном черновике. Для сервера нужны «Сохранить» и «Опубликовать».');
       }catch(error){notice('Композиция не принята: '+error.message,true);}
     });
     apply.id='cms-design-apply';
@@ -1399,7 +1430,7 @@
       structural({action:'updateDesignGraph',pageId:selected.page.id,sectionId:selected.section.id,designGraph:null});
       dlg.close();
     });
-    const close=button('Закрыть','btn',()=>{activeGesture=null;dlg.close();});
+    const close=button('Закрыть','btn',()=>{activeGesture=null;activeAuditFocus=null;dlg.close();});
     footer.append(apply,remove,close);
     return ()=>{
       const {page,section}=current();sourcePage=page.id;sourceSection=section.id;
@@ -1407,6 +1438,14 @@
       graph=cp(section.designGraph||DESIGN_GRAPH.baseGraph(section.id));
       tokens=cp(session.current.designTokens||DESIGN_GRAPH.DEFAULT_TOKENS);
       mode='desktop';previewDevice='desktop';selection=graph.nodes[0].id;
+      activeAuditFocus=pendingGraphAuditFocus&&pendingGraphAuditFocus.pageId===page.id&&
+        pendingGraphAuditFocus.sectionId===section.id?pendingGraphAuditFocus:null;
+      pendingGraphAuditFocus=null;
+      const matches=id=>{const walk=nodes=>nodes.some(node=>node.id===id||(node.children&&walk(node.children)));return walk(graph.nodes);};
+      if(activeAuditFocus){
+        if(matches(activeAuditFocus.nodeId)){selection=activeAuditFocus.nodeId;auditNodeFocusPending=true;}
+        else{activeAuditFocus=null;auditNodeFocusPending=false;}
+      }else auditNodeFocusPending=false;
       undoStack=[];redoStack=[];activeGesture=null;suppressPreviewClick=false;
       title.textContent='Дизайн-композиция · '+(manifest(section)?.label||section.id);
       dlg.showModal();render();

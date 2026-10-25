@@ -676,6 +676,50 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       richGraph.nodes.length,'Undo restores the exact prior root count before the next rearrangement');
     await page.locator('#redo').click();
     assert.equal(await canvas.locator('.cmsdg h2').count(),2,'Redo restores nested composition');
+    // Site-wide SEO/a11y report must deep-link into the exact graph node,
+    // track an actual repair, then re-run the report on the new Undo-able draft.
+    const issueSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+    const issueSection=issueSite.pages.flatMap(p=>p.sections).find(s=>s.id===selectedSection);
+    const fixNodeId=selectedSection+'-title';
+    const eraseHeading=nodes=>{
+      for(const node of nodes){
+        if(node.id===fixNodeId){node.text='';return true;}
+        if(node.children&&eraseHeading(node.children))return true;
+      }
+      return false;
+    };
+    assert.ok(eraseHeading(issueSection.designGraph.nodes),'Graph heading fixture exists');
+    await page.evaluate(site=>window.Stage3Editor.replace(site),issueSite);
+    await page.locator('#cms-quality-open').click();
+    const auditHeadingRow=page.locator('#cms-quality-findings .cms-quality-finding')
+      .filter({hasText:fixNodeId}).filter({hasText:'Заголовок пустой'});
+    await auditHeadingRow.getByRole('button',{name:/Открыть композицию/}).click();
+    await page.locator('#cms-design-graph-dialog').waitFor({state:'visible'});
+    assert.equal(await page.locator('#cms-design-node-select').inputValue(),fixNodeId,
+      'SEO quality report opens the exact nested graph node');
+    assert.match(await page.locator('#cms-design-audit-focus').innerText(),/Заголовок пустой/);
+    const graphHeading=page.locator('#cms-design-graph-dialog .cms-design-fields label')
+      .filter({hasText:'Текст'}).locator('textarea');
+    await graphHeading.fill('Доступное название промышленного решения');
+    assert.equal(await page.locator('#cms-design-audit-focus').getAttribute('data-resolved'),'true');
+    await page.locator('#cms-design-apply').click();
+    await page.locator('#cms-site-report').waitFor({state:'visible'});
+    assert.equal(await page.locator('#cms-quality-findings .cms-quality-finding')
+      .filter({hasText:fixNodeId}).filter({hasText:'Заголовок пустой'}).count(),0,
+      'The site-wide report is recomputed after graph fix is applied');
+    await page.locator('#cms-site-report').getByRole('button',{name:'Закрыть'}).click();
+    assert.match(await canvas.locator('.cmsdg h2').first().innerText(),/Доступное название/);
+    await page.locator('#undo').click();
+    const revertedIssueSection=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.id===selectedSection);
+    const getNode=(nodes,id)=>{
+      for(const node of nodes){if(node.id===id)return node;const found=getNode(node.children||[],id);if(found)return found;}
+      return null;
+    };
+    assert.equal(getNode(revertedIssueSection.designGraph.nodes,fixNodeId).text,'',
+      'Outer Undo restores the broken graph heading');
+    await page.locator('#redo').click();
+    await canvas.locator('.cmsdg h2').getByText('Доступное название промышленного решения').waitFor();
     // A legacy image ALT can be fixed from the audit and remains undoable.
     const altSite=await page.evaluate(()=>window.Stage3Editor.getSite());
     altSite.assets.push({id:'asset-audit-alt',src:'/assets/asset-audit-alt.png',mime:'image/png',alt:''});

@@ -132,3 +132,8 @@
 .cms-design-a11y-item.warning .cms-design-a11y-issue{border-color:#826a3e}
 .cms-design-a11y-issue:focus-visible{outline:2px solid #89e9c2;outline-offset:2px}
 .cms-design-a11y-more{margin:8px 0 0;color:#91a1b1;font-size:11px}
+
+/* Quality-report -> exact Design Graph node -> live remediation -> draft recheck. */
+.cms-design-audit-focus{padding:12px 14px;border:1px solid #ab8655;border-radius:10px;background:#302718;color:#ffe0b0;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.cms-design-audit-focus[hidden]{display:none}
+.cms-design-audit-focus[data-resolved="true"]{border-color:#427962;background:#17382b;color:#c2f2d8}
