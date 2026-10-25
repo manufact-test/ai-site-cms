@@ -561,8 +561,19 @@ final class SiteRepository
         $extras = FlexForm::read($form, $fields);
         $allowed = ['name', 'email', 'message', 'consent', '_token', '_release', 'website',
             ...FlexForm::allowedNames($form)];
-        if (count($fields) !== count($allowed) || array_diff(array_keys($fields), $allowed)) {
-            throw new \InvalidArgumentException('Unknown form fields');
+        // Unchecked native checkboxes and unselected optional radio groups are
+        // omitted by browsers. FlexForm::read has already enforced required and
+        // conditional fields, so only those native control types may be absent.
+        $omittable = [];
+        foreach (FlexForm::definitions($form) as $definition) {
+            if (in_array($definition['kind'], ['radio','checkbox'], true)
+                && (!$definition['required'] || $definition['when'] !== null)) {
+                $omittable[] = $definition['name'];
+            }
+        }
+        $missing = array_diff($allowed, array_keys($fields));
+        if (array_diff(array_keys($fields), $allowed) || array_diff($missing, $omittable)) {
+            throw new \InvalidArgumentException('Unknown or missing form fields');
         }
         if (($fields['_release'] ?? null) !== (string)$release) {
             throw new \InvalidArgumentException('Invalid release number');

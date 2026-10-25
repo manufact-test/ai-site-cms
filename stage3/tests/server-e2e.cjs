@@ -427,6 +427,15 @@ async function stop(){
   assert.equal(flexInbox[0].extras.extra2.label,'Телефон');
   assert.equal((await request('POST','/api/sites/site-flex-ci/notifications/seen',{})).body.unread,0);
   assert.equal((await request('GET','/api/sites/site-flex-ci/notifications')).body.unread,0);
+  // Native unchecked checkbox controls are omitted from the browser POST body.
+  const withoutNewsletter={...flexValues,email:'unchecked@example.test'};
+  delete withoutNewsletter['field-newsletter'];
+  const unchecked=await submitFlex(withoutNewsletter);
+  assert.equal(unchecked.status,201,unchecked.text);
+  const uncheckedLead=(await request('GET','/api/sites/site-flex-ci/submissions')).body.submissions
+    .find(item=>item.email==='unchecked@example.test');
+  assert.ok(uncheckedLead,'Optional unchecked checkbox submission is saved');
+  assert.equal(uncheckedLead.extras['field-newsletter'].value,'');
   // Collector-only web root refuses CMS routes even when sharing the isolated DB.
   const collectorOrigin='http://127.0.0.1:'+(await port());
   env.STAGE3_FORM_ORIGINS=origin;
