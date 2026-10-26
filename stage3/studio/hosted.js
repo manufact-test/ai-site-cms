@@ -952,32 +952,9 @@
       if(JSON.stringify(site.assets)!==JSON.stringify(published.site.assets))
         globalChanges.push('Медиабиблиотека');
     }
-    // This hosted module does not own the SDK globals (they are private to the
-    // editor bundle). Offer a small fail-safe page checklist here and direct
-    // users to the existing full SDK SEO/a11y report for complete findings.
-    const inspected={errors:[],warnings:[]};
-    const addFinding=(page,message,error=false)=>{
-      inspected[error?'errors':'warnings'].push({pageId:page.id,message});
-    };
-    for(const page of site.pages){
-      if(!page.seo?.title?.trim())addFinding(page,'Не задан индивидуальный SEO title.');
-      if(!page.seo?.description?.trim())addFinding(page,'Не заполнено SEO-описание.');
-      let h1=0;
-      const examine=nodes=>{
-        for(const node of nodes||[]){
-          if(node.type==='heading'&&Number(node.level)===1)h1++;
-          if(node.type==='image'&&!String(node.alt||'').trim())
-            addFinding(page,'Изображение композиции без описания alt.');
-          if(node.children)examine(node.children);
-        }
-      };
-      for(const section of page.sections){
-        if(section.designGraph)examine(section.designGraph.nodes);
-        else if(section.component==='company-hero')h1++;
-      }
-      if(!h1)addFinding(page,'Отсутствует H1 в визуальной структуре.');
-      if(h1>1)addFinding(page,'Найдено '+h1+' заголовков H1; проверьте иерархию.');
-    }
+    // Same full SDK audit and completeness inventory as the editor.
+    // Never replace the authoritative audit with a second simplified scanner.
+    const readiness=editor.launchReadiness(),inspected=readiness.audit;
     const allSections=site.pages.flatMap(page=>page.sections);
     const formSections=allSections.filter(section=>section.component==='lead-form-flex');
     const conditionalFields=formSections.flatMap(section=>section.formFields||[])
@@ -995,7 +972,8 @@
       site.pages.length+' стр. · '+allSections.length+' блоков · '+totalGraphNodes+
       ' узлов композиции · '+site.assets.length+' медиа · '+formSections.length+
       ' форм ('+conditionalFields+' условных полей) · '+inspected.errors.length+
-      ' базовых ошибок · '+inspected.warnings.length+' базовых рекомендаций');
+      ' ошибок SEO/a11y · '+inspected.warnings.length+' рекомендаций · '+
+      readiness.attention+' незаполненных/шаблонных полей');
     const revision=element('p','hosted-launch-revision',
       'Черновик #'+state.revision+' · '+(editor.isDirty()?'есть несохранённые изменения':'сохранён')+
       ' · публикация '+(state.sites.find(s=>s.site_id===state.siteId)?.published_version||'отсутствует'));
@@ -1008,7 +986,17 @@
       ' без изменений'+(globalChanges.length?' · настройки сайта: '+globalChanges.join(', '):''):
       (publishedError?'Сравнение с публикацией недоступно: '+publishedError:
         'Это первая публикация. Все страницы пока доступны только в черновике.');
-    header.append(heading,explanation,summary,revision,publicationCompare);
+    const launchProgress=element('p','hosted-launch-progress','Проверено страниц: 0/'+site.pages.length);
+    const fillActions=element('div','hosted-launch-quick-actions');
+    const complete=action('Наполнить весь сайт','server-launch-fill',()=>{
+      dialog.close();$('cms-fill-open')?.click();
+    });
+    const assemble=action('Собрать страницу','server-launch-blueprint',()=>{
+      dialog.close();$('cms-blueprint-open')?.click();
+    });
+    complete.disabled=assemble.disabled=!canEdit();
+    fillActions.append(complete,assemble);
+    header.append(heading,explanation,summary,revision,publicationCompare,launchProgress,fillActions);
     const body=element('div','hosted-launch-layout');
     const pages=element('div','hosted-launch-pages');pages.id='server-launch-pages';
     const detail=element('div','hosted-launch-detail');
@@ -1037,33 +1025,77 @@
     const previewStatus=element('p','hosted-launch-preview-status','');
     previewStatus.id='server-launch-preview-status';
     const issues=element('div','hosted-launch-issues');
+    const backlog=element('section','hosted-launch-backlog');
+    backlog.id='server-launch-readiness';
+    backlog.append(element('h3',null,'Что осталось заполнить'));
+    const backlogList=element('div','hosted-launch-backlog-list');
+    if(!readiness.issues.length)
+      backlogList.append(element('p',null,'Пустых и шаблонных полей не обнаружено. Проверьте содержание и достоверность вручную.'));
+    for(const finding of readiness.issues.slice(0,100)){
+      const page=site.pages.find(item=>item.id===finding.pageId);
+      const row=element('div','hosted-launch-gap');
+      row.append(element('span',null,(page?.title||finding.pageId)+' · '+finding.message));
+      const fix=action('Исправить','',()=>{
+        dialog.close();editor.focusLaunchIssue(finding);
+      });
+      fix.disabled=!canEdit();
+      row.append(fix);backlogList.append(row);
+    }
+    if(readiness.issues.length>100)
+      backlogList.append(element('p',null,'Ещё '+(readiness.issues.length-100)+' замечаний. Закройте часть полей и откройте проверку снова.'));
+    backlog.append(backlogList);
     const footer=element('div','hosted-launch-footer');
     const editPage=action('Редактировать страницу','server-launch-edit',()=>{});
     const quality=action('Все замечания SEO и доступности','server-launch-quality',()=>{
       dialog.close();$('cms-quality-open')?.click();
     });
     const saveDraft=action('Сохранить черновик','server-launch-save',()=>{
-      if($('save').disabled)return;dialog.close();save();
+      if($('save').disabled)return;
+      dialog.close();
+      void save().then(()=>{
+        // Re-run readiness and reset page sign-offs against the actual saved revision.
+        if(!editor.isDirty()&&state.siteId===site.siteId)launchReviewButton.click();
+      });
     });
     const publishSaved=action('Опубликовать сохранённый','server-launch-publish',()=>{
       if($('server-publish').disabled)return;
       dialog.close();$('server-publish').click();
     });
+    const markReviewed=action('Подтвердить просмотр страницы','server-launch-mark',()=>{});
     const close=action('Закрыть','server-launch-close',()=>dialog.close());
     footer.append(editPage,quality,saveDraft,publishSaved,close);
-    detail.append(pageHeading,devices,compareModes,previewPanels,previewStatus,issues);
+    detail.append(pageHeading,devices,compareModes,previewPanels,previewStatus,issues,markReviewed);
     body.append(pages,detail);
-    dialog.append(header,body,footer);
+    dialog.append(header,backlog,body,footer);
     document.body.append(dialog);
     let selectedRow=comparisonRows[0],device='desktop',viewMode='draft',request=0;
+    const reviewed=new Set();
+    const updateReviewed=()=>{
+      launchProgress.textContent='Проверено страниц: '+reviewed.size+'/'+site.pages.length+
+        (readiness.errors?' · исправьте '+readiness.errors+' ошибок SDK-аудита перед выпуском':'')+
+        (readiness.attention?' · '+readiness.attention+' полей требуют проверки':'');
+      for(const control of pages.querySelectorAll('button[data-page-id]')){
+        control.classList.toggle('is-reviewed',reviewed.has(control.dataset.pageId));
+        control.setAttribute('aria-label',(reviewed.has(control.dataset.pageId)?'Просмотрено · ':'Не просмотрено · ')+control.textContent);
+      }
+      markReviewed.textContent=reviewed.has(selectedRow?.current?.id)?'✓ Просмотрена':'✓ Страница просмотрена';
+      markReviewed.disabled=!selectedRow?.current||reviewed.has(selectedRow.current.id);
+    };
+    markReviewed.addEventListener('click',()=>{
+      if(!selectedRow?.current)return;
+      reviewed.add(selectedRow.current.id);updateReviewed();syncActions();
+    });
     const widths={desktop:1200,tablet:780,mobile:390};
     const syncActions=()=>{
       // The launch action itself runs inside safe(), which temporarily marks
       // the global toolbar busy. Use the identical rights/dirty conditions;
       // the actual buttons are checked again when clicked.
       saveDraft.disabled=!state.authorized||!state.siteId||!canEdit()||!editor.isDirty();
-      publishSaved.disabled=!state.authorized||!state.siteId||!canPublish()||editor.isDirty();
-      publishSaved.title=publishSaved.disabled?'Сначала сохраните черновик и проверьте права публикации':'Потребуется отдельное подтверждение';
+      publishSaved.disabled=!state.authorized||!state.siteId||!canPublish()||
+        editor.isDirty()||readiness.errors>0||reviewed.size!==site.pages.length;
+      publishSaved.title=publishSaved.disabled?
+        'Сохраните черновик, исправьте ошибки SDK-аудита и подтвердите просмотр каждой страницы. Публикация всегда отдельно.':
+        'Потребуется отдельное подтверждение';
     };
     const renderViewport=()=>{
       previewPanels.classList.toggle('is-comparing',viewMode==='compare');
@@ -1154,6 +1186,12 @@
         ' · '+relevant.filter(entry=>entry.error).length+
         ' ошибок · '+relevant.filter(entry=>!entry.error).length+' рекомендаций');
       issues.append(summaryLine);
+      for(const gap of readiness.issues.filter(item=>item.pageId===page.id).slice(0,10)){
+        const line=element('div','hosted-launch-gap');
+        line.append(element('span',null,gap.message));
+        const go=action('Исправить','',()=>{dialog.close();editor.focusLaunchIssue(gap);});
+        go.disabled=!canEdit();line.append(go);issues.append(line);
+      }
       for(const entry of relevant.slice(0,12))
         issues.append(element('p',entry.error?'hosted-launch-error':'hosted-launch-warning',
           (entry.error?'Ошибка: ':'Рекомендация: ')+entry.item.message));
@@ -1161,7 +1199,7 @@
       for(const button of pages.querySelectorAll('button'))
         button.classList.toggle('primary',button.dataset.pageId===page.id);
       editPage.disabled=!row.current;
-      syncActions();renderViewport();void showPreview();
+      updateReviewed();syncActions();renderViewport();void showPreview();
     };
     for(const [value,label] of [
       ['draft','Черновик'],['compare','Рядом с публикацией'],['published','Опубликовано']
@@ -1200,7 +1238,7 @@
       document.querySelectorAll('#pages .nav-entry')[pageIndex]?.click();
     });
     dialog.addEventListener('close',()=>{++request;dialog.remove();},{once:true});
-    dialog.showModal();choosePage(selectedRow);
+    dialog.showModal();choosePage(selectedRow);updateReviewed();
   }
 
   async function save(){

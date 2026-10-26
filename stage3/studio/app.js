@@ -481,6 +481,66 @@
   let pendingGraphCanvasFocus=null;
   // One review surface for every authored site; analysis never changes documents.
   // Alias creation/deletion uses the same revisioned Undo/Redo contract as page edits.
+
+  // One shared read-only launch inventory for offline Quality and hosted
+  // Launch Review. It never inserts invented text or modifies site revisions.
+  // Advisory gaps are distinct from contract/SEO/a11y errors.
+  function launchReadiness(){
+    const site=session.current,audit=C.inspectSite(site,manifests);
+    const issues=[],seen=new Set(),placeholder=/^(?:расскажите|укажите|добавьте|заполните|опишите|замените|выберите|ваш текст|название услуги|пример текста|lorem ipsum)(?:\b|\s|[.:])/i;
+    const add=(page,section,element,kind,message,path='',level='attention')=>{
+      const item={pageId:page.id,sectionId:section?.id||null,elementId:element?.id||null,
+        kind,message,path,level};
+      const key=[item.pageId,item.sectionId,item.elementId,kind,path].join('|');
+      if(!seen.has(key)){seen.add(key);issues.push(item);}
+    };
+    for(const page of site.pages){
+      if(!String(page.seo?.title||'').trim())
+        add(page,null,null,'seo','Заполните SEO title этой страницы.','seo.title');
+      if(!String(page.seo?.description||'').trim())
+        add(page,null,null,'seo','Добавьте собственное SEO-описание страницы.','seo.description');
+      for(const section of page.sections){
+        for(const element of [...section.elements,...(section.items||[])]){
+          const controls=C.controls(site,manifests,page.id,section.id,element.id);
+          for(const field of controls){
+            if(field.type==='media'&&!String(field.value||'').trim())
+              add(page,section,element,'media','Не выбрано изображение: '+field.label,field.path);
+            if(field.type==='text'&&field.path.startsWith('content.')){
+              const value=String(field.value||'').trim();
+              if(!value)
+                add(page,section,element,'text','Пустое поле: '+field.label,field.path);
+              else if(placeholder.test(value))
+                add(page,section,element,'placeholder','Проверьте шаблонный текст: '+field.label,field.path);
+            }
+          }
+        }
+        if(section.component==='lead-form-flex'){
+          for(const field of section.formFields||[]){
+            if(!String(field.label||'').trim())
+              add(page,section,section.elements[0],'form','У вопроса формы отсутствует подпись.');
+            if(['select','radio'].includes(field.kind)&&!(field.options||[]).length)
+              add(page,section,section.elements[0],'form','В форме не указаны варианты ответа.');
+          }
+        }
+      }
+    }
+    return {pages:site.pages.map(p=>({id:p.id,title:p.title,path:p.path})),
+      issues,audit,attention:issues.length,errors:audit.errors.length,warnings:audit.warnings.length};
+  }
+  function focusLaunchIssue(issue){
+    const page=session.current.pages.find(p=>p.id===issue?.pageId);
+    if(!page)return false;
+    const section=page.sections.find(s=>s.id===issue.sectionId)||page.sections[0];
+    const element=[...section.elements,...(section.items||[])].find(e=>e.id===issue.elementId)||section.elements[0];
+    pageId=page.id;sectionId=section.id;elementId=element.id;draw();
+    if(issue.kind==='seo'){$('cms-open-seo')?.click();return true;}
+    if(issue.kind==='form'){$('cms-form-builder-open')?.click();return true;}
+    const field=[...$('fields').querySelectorAll('[data-field]')]
+      .find(n=>n.dataset.field===issue.path);
+    if(field){field.focus();field.scrollIntoView({block:'center',behavior:'instant'});}
+    return true;
+  }
+
   function initSiteQuality(){
     const dialog=document.createElement('dialog');dialog.className='cms-quality-dialog';dialog.id='cms-site-report';
     const heading=document.createElement('h2');heading.textContent='Проверка перед публикацией';
@@ -3983,6 +4043,8 @@
       pageId=site.pages[0].id;sectionId=site.pages[0].sections[0].id;elementId=site.pages[0].sections[0].elements[0].id;draw();
     },
     getSite:()=>cp(session.current),
+    launchReadiness,
+    focusLaunchIssue,
     // Bind a server-issued immutable media ID using the same declared SDK field
     // and Undo/Redo transaction as editing an image in the Inspector.
     bindMedia:(assetId,selection=null)=>{
