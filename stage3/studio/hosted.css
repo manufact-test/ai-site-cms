@@ -100,3 +100,38 @@
 .cms-media-actions .btn{font-size:12px}
 .cms-media-actions .btn:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:550px){.cms-media-processor{padding:14px}.cms-media-grid{grid-template-columns:1fr}}
+
+
+/* Stage3 multipage pre-publication review; shares the real draft/render pipeline. */
+.hosted-launch-dialog{width:min(1180px,calc(100vw - 24px));max-width:none;max-height:calc(100vh - 24px);overflow:auto;
+ box-sizing:border-box;color:#eaf4fa;background:#14232d;border:1px solid #496171;border-radius:16px;
+ padding:22px;box-shadow:0 28px 110px #0009}
+.hosted-launch-dialog::backdrop{background:#061016dc}
+.hosted-launch-dialog[open]{display:grid;gap:16px}
+.hosted-launch-header{display:grid;gap:7px}
+.hosted-launch-header h2{margin:0;font-size:22px}
+.hosted-launch-header p{margin:0;font-size:12px;line-height:1.6}
+.hosted-launch-summary{font-weight:700;overflow-wrap:anywhere;color:#d7f1e6}
+.hosted-launch-revision{opacity:.75}
+.hosted-launch-layout{display:grid;grid-template-columns:minmax(185px,245px) minmax(0,1fr);gap:16px;min-height:0}
+.hosted-launch-pages{display:grid;align-content:start;gap:7px;max-height:68vh;overflow:auto}
+.hosted-launch-pages .btn{white-space:normal;text-align:left;justify-content:flex-start;font-size:11px;line-height:1.55;overflow-wrap:anywhere}
+.hosted-launch-detail{display:grid;align-content:start;gap:8px;min-width:0}
+.hosted-launch-detail h3{font-size:16px;margin:0}
+.hosted-launch-devices,.hosted-launch-footer{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
+.hosted-launch-devices .btn,.hosted-launch-footer .btn{font-size:11px}
+.hosted-launch-viewport{position:relative;overflow:auto;width:100%;height:600px;background:#f6f8fa;border-radius:10px;border:1px solid #506577}
+#server-launch-preview{position:absolute;top:0;left:0;border:0;background:#fff;display:block;max-width:none}
+.hosted-launch-preview-status{min-height:18px;overflow-wrap:anywhere;font-size:11px;color:#a5d6c7;margin:0}
+.hosted-launch-issues{display:grid;align-content:start;gap:6px;max-height:145px;overflow:auto}
+.hosted-launch-issues p{font-size:11px;line-height:1.5;margin:0;padding:6px 9px;border:1px solid #3a4f59;border-radius:7px}
+.hosted-launch-issues .hosted-launch-error{border-color:#b66e69;color:#ffb9ad}
+.hosted-launch-issues .hosted-launch-warning{border-color:#9a875e;color:#f2dbac}
+.hosted-launch-footer{border-top:1px solid #3a4f59;padding-top:13px}
+@media(max-width:740px){
+ .hosted-launch-dialog{padding:13px;max-height:calc(100vh - 12px)}
+ .hosted-launch-layout{grid-template-columns:1fr;gap:12px}
+ .hosted-launch-pages{display:flex;max-height:110px;overflow:auto}
+ .hosted-launch-pages .btn{min-width:175px}
+ .hosted-launch-viewport{max-height:45vh}
+}
