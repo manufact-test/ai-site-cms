@@ -1,10 +1,10 @@
 ## Последнее обновление — 26 октября 2026
 
-- Ветка: \`feature/stage3-design-factory\`; текущий source checkpoint: \`a66e323ce8ddda97b10d64f18fc0ebac601b3ebf\`. Перед началом всегда проверь live HEAD.
-- Сохранена приёмка visual-review **v2**: отдельная проверка \`showcaseCoverage\`, просмотр всех 42 D3-композиций; старые v1 receipts отклоняются.
-- Создан единый D7 Release Candidate Pipeline. \`release-audit.cjs\` выполняет browser-bundle parity + **8 Node suites**; с \`--chromium\` добавляет visual-pipeline smoke.
-- \`release-candidate.cjs\` запускает audit, собирает ZIP, независимо сверяет central/local headers, CRC32, полный source inventory/bytes и SHA256; опционально выполняет Chromium capture, review v2, Lead JS smoke и шесть PHP markup-parity probes.
-- Fingerprint связывает все code files в \`bin/catalog/lib/studio\`, все component JSON manifests и SDK contract. Старая визуальная приёмка отклоняется при изменении исходников; symlink-каталоги скриншотов запрещены.
+- Ветка: `feature/stage3-design-factory`; текущий source checkpoint: `a66e323ce8ddda97b10d64f18fc0ebac601b3ebf`. Перед началом всегда проверь live HEAD.
+- Сохранена приёмка visual-review **v2**: отдельная проверка `showcaseCoverage`, просмотр всех 42 D3-композиций; старые v1 receipts отклоняются.
+- Создан единый D7 Release Candidate Pipeline. `release-audit.cjs` выполняет browser-bundle parity + **8 Node suites**; с `--chromium` добавляет visual-pipeline smoke.
+- `release-candidate.cjs` запускает audit, собирает ZIP, независимо сверяет central/local headers, CRC32, полный source inventory/bytes и SHA256; опционально выполняет Chromium capture, review v2, Lead JS smoke и шесть PHP markup-parity probes.
+- Fingerprint связывает все code files в `bin/catalog/lib/studio`, все component JSON manifests и SDK contract. Старая визуальная приёмка отклоняется при изменении исходников; symlink-каталоги скриншотов запрещены.
 - Статически разобраны синтаксисом V8 девять изменённых JS-файлов — **PASS**. Реальный Node audit, pipeline smoke, Chromium Studio E2E, 54 PNG с человеческой проверкой, PHP parity и настоящий ZIP/SHA256 **НЕ ЗАПУЩЕНЫ**.
 - GitHub API на текущем source checkpoint: 0 Actions runs, 0 check runs, 0 commit statuses. Последняя известная локальная попытка checkout упёрлась в GitHub DNS; минимальный Chromium probe завершился timeout. Не повторяй без изменения среды.
 - Статус: **D7 OPEN; Stage2 NO-GO; Stage3 не принят; 0/135**. Никаких изменений workflows, merge, main, SDK, PHP, hosting или production.

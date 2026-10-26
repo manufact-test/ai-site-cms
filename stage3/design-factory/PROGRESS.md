@@ -6,28 +6,28 @@
 
 ## Latest D7 release-candidate hardening — 26 October 2026
 
-**Current source checkpoint:** \`a66e323ce8ddda97b10d64f18fc0ebac601b3ebf\`. Always read live HEAD before continuing. This is an engineering checkpoint, not a release certificate.
+**Current source checkpoint:** `a66e323ce8ddda97b10d64f18fc0ebac601b3ebf`. Always read live HEAD before continuing. This is an engineering checkpoint, not a release certificate.
 
-- Preserved visual-review receipt **v2**: the reviewer must inspect all 42 D3 compositions and confirm the fifth \`showcaseCoverage\` check. Old v1 receipts are rejected.
-- Added \`lib/source-manifest.cjs\` so the release audit and candidate runner use the same deterministic source-inventory rules. The runner validates the exact expected audit schema and check list, recomputes the source-manifest digest, and rejects added, removed or modified source files between audit and packaging.
-- \`bin/release-audit.cjs\` now performs **browser-bundle parity plus eight Node smoke suites**. With \`--chromium\`, it also runs the dedicated visual-pipeline smoke. The bundle check is read-only.
-- \`bin/release-candidate.cjs\` orchestrates the audit, ZIP build, independent ZIP verification, optional Chromium screenshots, v2 human-review receipt, optional Lead JS smoke and six real PHP parity probes. It records before/after Git state and rejects a changed source fingerprint.
-- \`bin/verify-release-zip.cjs\` independently checks ZIP32 local/central records, CRC32, canonical sorted inventory, exact source bytes, source digest and archive SHA256. A ZIP can be built for engineering review while release gates remain open.
-- The visual-source fingerprint covers the Design Factory \`bin/\`, \`catalog/\`, \`lib/\`, \`studio/\`, every first-party component JSON manifest and the SDK contract. Review verification rejects symlinked evidence roots and screenshot directories.
-- Added \`tests/release-candidate-contract-smoke.cjs\` to the standard audit. The separate \`tests/release-candidate-smoke.cjs\` exercises the whole runner on a real checkout and is intentionally not nested inside its own audit.
+- Preserved visual-review receipt **v2**: the reviewer must inspect all 42 D3 compositions and confirm the fifth `showcaseCoverage` check. Old v1 receipts are rejected.
+- Added `lib/source-manifest.cjs` so the release audit and candidate runner use the same deterministic source-inventory rules. The runner validates the exact expected audit schema and check list, recomputes the source-manifest digest, and rejects added, removed or modified source files between audit and packaging.
+- `bin/release-audit.cjs` now performs **browser-bundle parity plus eight Node smoke suites**. With `--chromium`, it also runs the dedicated visual-pipeline smoke. The bundle check is read-only.
+- `bin/release-candidate.cjs` orchestrates the audit, ZIP build, independent ZIP verification, optional Chromium screenshots, v2 human-review receipt, optional Lead JS smoke and six real PHP parity probes. It records before/after Git state and rejects a changed source fingerprint.
+- `bin/verify-release-zip.cjs` independently checks ZIP32 local/central records, CRC32, canonical sorted inventory, exact source bytes, source digest and archive SHA256. A ZIP can be built for engineering review while release gates remain open.
+- The visual-source fingerprint covers the Design Factory `bin/`, `catalog/`, `lib/`, `studio/`, every first-party component JSON manifest and the SDK contract. Review verification rejects symlinked evidence roots and screenshot directories.
+- Added `tests/release-candidate-contract-smoke.cjs` to the standard audit. The separate `tests/release-candidate-smoke.cjs` exercises the whole runner on a real checkout and is intentionally not nested inside its own audit.
 
 ### Commands on a complete checkout
 
-\`\`\`bash
+```bash
 node stage3/design-factory/bin/release-audit.cjs --out /tmp/df-D7-report.json
 node stage3/design-factory/bin/release-candidate.cjs --out /tmp/df-release-candidate
-\`\`\`
+```
 
-The output directory must not already exist. Add \`--chromium /usr/bin/chromium\` to the candidate command for Studio/browser QA and the full 54-image capture. Supply \`--lead-sdk /path/to/lead/stage3/sdk --lead-php /path/to/lead/stage3/server/DesignGraph.php\` to run the optional Lead suite and six PHP markup-parity probes. After a human completes \`visual-review.html\`, provide the captured evidence directory and the downloaded v2 \`visual-review-decision.json\` using \`--evidence\` and \`--review\`.
+The output directory must not already exist. Add `--chromium /usr/bin/chromium` to the candidate command for Studio/browser QA and the full 54-image capture. Supply `--lead-sdk /path/to/lead/stage3/sdk --lead-php /path/to/lead/stage3/server/DesignGraph.php` to run the optional Lead suite and six PHP markup-parity probes. After a human completes `visual-review.html`, provide the captured evidence directory and the downloaded v2 `visual-review-decision.json` using `--evidence` and `--review`.
 
 Exit code **3** means the core audit and exact-source ZIP are ready for engineering review but at least one release gate remains open. Exit code **0** requires every configured gate; it still does not authorize production or merge. Exit code **2** indicates a failed/incomplete core gate or an invalid candidate.
 
-**Verification boundary for this checkpoint:** static V8 syntax parsing **PASS** for nine changed JavaScript files. The full Node audit, candidate smoke, Chromium Studio E2E, real 54-image capture/review, Lead PHP parity and actual ZIP/hash have **NOT RUN**: no genuine local checkout is available. The last recorded checkout attempt failed at GitHub DNS resolution and the minimal Chromium probe timed out. GitHub API for source HEAD \`a66e323ce8ddda97b10d64f18fc0ebac601b3ebf\`: **0 Actions runs, 0 check runs, 0 commit statuses**.
+**Verification boundary for this checkpoint:** static V8 syntax parsing **PASS** for nine changed JavaScript files. The full Node audit, candidate smoke, Chromium Studio E2E, real 54-image capture/review, Lead PHP parity and actual ZIP/hash have **NOT RUN**: no genuine local checkout is available. The last recorded checkout attempt failed at GitHub DNS resolution and the minimal Chromium probe timed out. GitHub API for source HEAD `a66e323ce8ddda97b10d64f18fc0ebac601b3ebf`: **0 Actions runs, 0 check runs, 0 commit statuses**.
 
 **Decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; **0/135** mandatory criteria. Do not modify workflows, merge, or infer acceptance from authored tests.
 
