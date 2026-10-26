@@ -812,9 +812,9 @@ async function execute(){
   await page.locator('#section-design-graph').click();
   await page.locator('#cms-design-graph-dialog[open]').waitFor();
   await page.locator('#cms-design-apply').click();
-  const graphRevisionBefore=Number((await page.locator('#server-status').innerText()).match(/Черновик #(\\d+)/)[1]);
+  const graphRevisionBefore=Number((await page.locator('#server-status').innerText()).match(/Черновик #(\d+)/)[1]);
   await page.locator('#save').click();
-  await page.locator('#server-status').getByText(new RegExp('Черновик #'+(graphRevisionBefore+1)+'\\\\b')).waitFor();
+  await page.locator('#server-status').getByText(new RegExp('Черновик #'+(graphRevisionBefore+1)+'\\b')).waitFor();
   await visitor.goto(publicUrl);
   assert.equal(await visitor.locator('.cmsdg').count(),0,'Saved Design Graph remains private until explicit publish');
 
@@ -857,9 +857,9 @@ async function execute(){
   assert.equal(await page.locator('#cms-design-breakpoint').inputValue(),'mobile');
   await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Закрыть'}).click();
   await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
-  const graphRevisionBeforeSave=Number((await page.locator('#server-status').innerText()).match(/Черновик #(\\d+)/)[1]);
+  const graphRevisionBeforeSave=Number((await page.locator('#server-status').innerText()).match(/Черновик #(\d+)/)[1]);
   await page.locator('#save').click();
-  await page.locator('#server-status').getByText(new RegExp('Черновик #'+(graphRevisionBeforeSave+1)+'\\\\b')).waitFor();
+  await page.locator('#server-status').getByText(new RegExp('Черновик #'+(graphRevisionBeforeSave+1)+'\\b')).waitFor();
   await page.locator('#server-reload').click();
   await page.waitForFunction(({sectionId,nodeId})=>{
     const section=window.Stage3Editor.getSite().pages.flatMap(p=>p.sections).find(s=>s.id===sectionId);
@@ -873,9 +873,9 @@ async function execute(){
   assert.equal(hostedNode.responsive.mobile.fontSize,36,'Responsive graph style survives server reload');
   await visitor.goto(publicUrl);
   assert.equal(await visitor.locator('.cmsdg').count(),0,'Reloaded draft still does not leak to visitors');
-  const graphVersionBefore=Number((await page.locator('#server-status').innerText()).match(/Опубликовано: v(\\d+)/)[1]);
+  const graphVersionBefore=Number((await page.locator('#server-status').innerText()).match(/Опубликовано: v(\d+)/)[1]);
   await page.locator('#server-publish').click();
-  await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(graphVersionBefore+1)+'\\\\b')).waitFor();
+  await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(graphVersionBefore+1)+'\\b')).waitFor();
   await visitor.setViewportSize({width:390,height:844});
   await visitor.goto(publicUrl);
   const publicGraphNode=visitor.locator('.cmsdg-n-'+inlineNodeId);
