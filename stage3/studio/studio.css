@@ -376,3 +376,16 @@
 .cms-design-recipe label{display:flex;gap:6px;align-items:center;font-size:12px}
 .cms-design-recipe .control{min-width:160px;flex:1}
 .cms-design-inheritance p{margin:0;color:#bad5db;font-size:12px}
+
+/* Site-wide Design System: typed values, usage counts and one-Undo commit. */
+.cms-site-tokens-dialog{width:min(1040px,96vw);max-height:91vh;overflow:auto}
+.cms-site-tokens-dialog>p{font-size:13px;line-height:1.6;color:#c3d8e3}
+#cms-design-tokens-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;max-height:55vh;overflow:auto;margin:14px 0}
+.cms-site-token-group{background:#132736;border:1px solid #3d5668;border-radius:11px;padding:14px;min-width:0}
+.cms-site-token-group h3{margin:0 0 12px}
+.cms-site-token-row{display:grid;grid-template-columns:minmax(120px,1fr) auto;gap:8px;align-items:center;border-top:1px solid #334b5c;padding:8px 0}
+.cms-site-token-row label{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}
+.cms-site-token-row label .control{max-width:120px;min-width:70px}
+.cms-site-token-row small{font-size:11px;color:#b3d2dc}
+.cms-site-token-row .btn{grid-column:2;justify-self:end}
+#cms-design-tokens-report{color:#b5e5d1}

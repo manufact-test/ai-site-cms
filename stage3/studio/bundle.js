@@ -3863,6 +3863,133 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   }
   // A node-level, no-AI composition inspector. Graph edits join normal CMS
   // Undo/Redo, private drafts and explicit publish. No arbitrary HTML or CSS.
+
+  // Site-wide design-system controller, shared by all graph-based pages.
+  // Changes are validated as a whole site, committed once and undoable.
+  function initSiteTokensManager(){
+    const dlg=document.createElement('dialog');dlg.id='cms-design-tokens-dialog';
+    dlg.className='cms-settings-dialog cms-site-tokens-dialog';
+    const heading=document.createElement('h2');heading.textContent='Общая дизайн-система';
+    const description=document.createElement('p');
+    description.textContent='Цвета, расстояния, скругления и типографика для всех страниц с дизайн-композициями. Правка токена обновляет все связанные узлы; локальные значения остаются неизменными. Проверка → одно Undo → Save отдельно.';
+    const summary=document.createElement('p');summary.id='cms-design-tokens-summary';
+    const list=document.createElement('div');list.id='cms-design-tokens-fields';
+    const report=document.createElement('p');report.id='cms-design-tokens-report';
+    report.setAttribute('role','status');
+    const actions=document.createElement('div');actions.className='cms-settings-actions';
+    const add=button('+ Новый токен','btn small',()=>{});add.id='cms-design-tokens-add';
+    const preflight=button('Проверить изменения','btn small',()=>prepare());preflight.id='cms-design-tokens-check';
+    const applyButton=button('Применить ко всем страницам','btn primary',()=>commit());
+    applyButton.id='cms-design-tokens-apply';applyButton.dataset.editorWrite='true';
+    actions.append(add,preflight,applyButton,button('Закрыть','btn',()=>dlg.close()));
+    dlg.append(heading,description,summary,list,report,actions);
+    document.body.append(dlg);
+    let draft=null,approved=null;
+    const canEdit=()=>!HOSTED||!!window.Stage3Host?.canEditStudio?.();
+    const usages=name=>{
+      let count=0;const needle='@'+name;
+      const visit=nodes=>{
+        for(const node of nodes){
+          for(const styles of [node.styles,node.responsive?.tablet,node.responsive?.mobile,
+            node.states?.hover,node.states?.focus]){
+            for(const v of Object.values(styles||{})){
+              if(v===needle)count++;
+              else if(v&&typeof v==='object')for(const nested of Object.values(v))
+                if(nested===needle)count++;
+            }
+          }
+          if(node.children)visit(node.children);
+        }
+      };
+      for(const page of session.current.pages)for(const section of page.sections)
+        if(section.designGraph)visit(section.designGraph.nodes);
+      return count;
+    };
+    const invalidate=()=>{
+      approved=null;applyButton.disabled=true;
+      report.textContent='Изменения ещё не проверены. Ничего не применено.';
+    };
+    const redraw=()=>{
+      list.replaceChildren();
+      let count=0,links=0;
+      for(const [group,values] of Object.entries(draft)){
+        const section=document.createElement('section');section.className='cms-site-token-group';
+        const title=document.createElement('h3');title.textContent=group;section.append(title);
+        for(const [key,value] of Object.entries(values)){
+          count++;const references=usages(key);links+=references;
+          const row=document.createElement('div');row.className='cms-site-token-row';
+          const label=document.createElement('label');label.textContent='@'+key;
+          const input=document.createElement('input');input.className='control';
+          input.type=group==='colors'?'color':'number';input.value=String(value);
+          if(input.type==='number'){
+            input.min=group==='typography'?'8':'0';
+            input.max=group==='typography'?'120':'240';input.step='1';
+          }
+          input.disabled=!canEdit();
+          input.setAttribute('aria-label',group+' · '+key);
+          input.addEventListener('input',()=>{
+            draft[group][key]=group==='colors'?input.value:Number(input.value);
+            invalidate();
+          });
+          label.append(input);
+          const impact=document.createElement('small');impact.textContent=references+' использований';
+          const remove=button('Удалить','btn small',()=>{
+            if(references)return notice('Токен используется: сначала переназначьте связанные узлы.',true);
+            delete draft[group][key];invalidate();redraw();
+          });
+          remove.disabled=!canEdit()||Boolean(references);
+          row.append(label,impact,remove);section.append(row);
+        }
+        list.append(section);
+      }
+      summary.textContent=count+' токенов · '+links+
+        ' обращений к ним во всех композициях · локальные стили не перезаписываются';
+      add.disabled=preflight.disabled=!canEdit();
+    };
+    add.addEventListener('click',()=>{
+      if(!canEdit())return;
+      const group=prompt('Группа: colors / spacing / radii / typography','colors');
+      if(group===null)return;
+      if(!Object.hasOwn(draft,group))return notice('Неизвестная группа',true);
+      const key=prompt('Имя нового токена латиницей','custom');
+      if(key===null)return;
+      if(!/^[a-z][a-z0-9-]{1,39}$/.test(key)||Object.hasOwn(draft[group],key))
+        return notice('Некорректное или уже занятое имя',true);
+      draft[group][key]=group==='colors'?'#334455':16;
+      invalidate();redraw();
+    });
+    function prepare(){
+      try{
+        if(!canEdit())throw Error('Недостаточно прав');
+        DESIGN_GRAPH.validateTokens(draft);
+        const candidate=cp(session.current);candidate.designTokens=cp(draft);
+        C.validateSite(candidate,manifests);
+        approved={before:JSON.stringify(session.current),tokens:JSON.stringify(draft),candidate};
+        applyButton.disabled=false;
+        report.textContent='Все страницы и композиции прошли проверку контракта. '+usages('accent')+
+          ' использований @accent; изменения будут внесены одной операцией Undo.';
+      }catch(error){invalidate();notice('Проверка не пройдена: '+error.message,true);}
+    }
+    function commit(){
+      try{
+        if(!approved||!canEdit()||JSON.stringify(session.current)!==approved.before||
+          JSON.stringify(draft)!==approved.tokens)
+          throw Error('Проверка устарела — проверьте текущие значения повторно');
+        session=D.replaceSite(session,manifests,approved.candidate,session.revision);
+        approved=null;dlg.close();draw();
+        notice('Дизайн-система обновлена в черновике. Undo доступен. Save/Publish отдельно.');
+      }catch(error){invalidate();notice('Не удалось применить дизайн-систему: '+error.message,true);}
+    }
+    const open=()=>{
+      draft=cp(session.current.designTokens||DESIGN_GRAPH.DEFAULT_TOKENS);
+      invalidate();redraw();dlg.showModal();
+    };
+    const buttonOpen=button('Дизайн-система','btn small',open);
+    buttonOpen.id='cms-design-tokens-open';
+    const bar=document.createElement('div');bar.className='structure-tools cms-design-system-tools';
+    bar.append(buttonOpen);$('pages').before(bar);
+  }
+
   function initDesignGraphEditor(){
     const dlg=document.createElement('dialog');dlg.id='cms-design-graph-dialog';
     dlg.className='cms-appearance-dialog cms-design-graph-dialog';
@@ -5458,6 +5585,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
 
   function createStructureTools(){
     const openAppearance=initAppearanceEditor();
+    initSiteTokensManager();
     const openDesignGraph=initDesignGraphEditor();
     const make=(parent,items)=>{
       const tools=document.createElement('div');tools.className='structure-tools';
