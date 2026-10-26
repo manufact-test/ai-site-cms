@@ -860,6 +860,18 @@ async function execute(){
   const graphRevisionBeforeSave=Number((await page.locator('#server-status').innerText()).match(/Черновик #(\d+)/)[1]);
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(new RegExp('Черновик #'+(graphRevisionBeforeSave+1)+'\\b')).waitFor();
+  await page.locator('#server-status').getByText(/Без изменений/).waitFor();
+  // Verify visitor isolation before publishing, and only publish a clean,
+  // persisted revision. Reload afterwards to inspect the same public content.
+  await visitor.goto(publicUrl);
+  assert.equal(await visitor.locator('.cmsdg').count(),0,'Draft Graph must stay private until explicit publish');
+  const graphVersionBefore=Number((await page.locator('#server-status').innerText()).match(/Опубликовано: v(\d+)/)[1]);
+  await page.waitForFunction(()=>{
+    const publish=document.querySelector('#server-publish');
+    return !!publish&&!publish.disabled;
+  },null,{timeout:12000});
+  await page.locator('#server-publish').click();
+  await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(graphVersionBefore+1)+'\\b')).waitFor();
   await page.locator('#server-reload').click();
   await page.waitForFunction(({sectionId,nodeId})=>{
     const section=window.Stage3Editor.getSite().pages.flatMap(p=>p.sections).find(s=>s.id===sectionId);
@@ -871,11 +883,8 @@ async function execute(){
   },{sectionId:graphSectionId,nodeId:inlineNodeId},{timeout:10000});
   hostedNode=await readHostedNode();
   assert.equal(hostedNode.responsive.mobile.fontSize,36,'Responsive graph style survives server reload');
-  await visitor.goto(publicUrl);
-  assert.equal(await visitor.locator('.cmsdg').count(),0,'Reloaded draft still does not leak to visitors');
-  const graphVersionBefore=Number((await page.locator('#server-status').innerText()).match(/Опубликовано: v(\d+)/)[1]);
-  await page.locator('#server-publish').click();
-  await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(graphVersionBefore+1)+'\\b')).waitFor();
+  // The authenticated Studio reload retains the published revision exactly.
+  await page.locator('#server-status').getByText(/Без изменений/).waitFor();
   await visitor.setViewportSize({width:390,height:844});
   await visitor.goto(publicUrl);
   const publicGraphNode=visitor.locator('.cmsdg-n-'+inlineNodeId);
