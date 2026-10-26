@@ -290,3 +290,13 @@
 .cms-work-graph-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .cms-work-graph-actions .btn{white-space:normal;min-width:0;min-height:34px;line-height:1.25}
 @media(max-width:680px){.cms-work-graph-actions{grid-template-columns:1fr 1fr}}
+
+
+/* Full-page typed element insertion shares the existing Inspector layout. */
+.cms-work-graph-insert{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;align-items:center}
+.cms-work-graph-insert .btn{grid-column:1/-1}
+.cms-work-graph-insert .control{width:100%;min-width:0;font-size:12px}
+.cms-work-graph-panel #cms-work-graph-media{margin-top:4px;min-width:0}
+.cms-work-graph-panel #cms-work-graph-media summary{font-size:12px}
+.cms-work-graph-panel #cms-work-graph-media .btn{min-width:0;overflow-wrap:anywhere}
+@media(max-width:500px){.cms-work-graph-insert{grid-template-columns:1fr}.cms-work-graph-insert .btn{grid-column:auto}}
