@@ -1,5 +1,12 @@
 # D7 · Final quality gates and evidence
 
+## 26 October — async import stale-state regression evidence
+
+**Source commit `4bf19ac4a3a62e9136e2b55fc9a815321a1eebcc`.** Studio's project JSON and client-feedback JSON imports now check project/feedback revision freshness *after* asynchronous `File.text()` completes. Live input edits invalidate pending imports immediately, even before the 120ms preview update or blur/history; Undo/Redo, other imports, and feedback resolutions also invalidate older reads. The imported JSON is not allowed to silently replace more recent work.
+
+**Actually passed:** real committed Studio and smoke source V8 parse, assembled Chromium probe syntax parse, and **5/5 isolated V8 import behavior cases** using actual committed function bodies with controlled async file reads and mocked browser/compiler. The real Chromium tests are only authored, NOT executed. D7 release acceptance stays OPEN until the full checkout/Node/browser/PHP/54-image/human-review/source ZIP gates are genuinely performed.
+
+
 ## 26 October — current execution attempt and audit semantics
 
 The live branch HEAD is `62c4ab22ff65c79d7e4194ca73680de3b2fa61d0`. One checkout attempt failed before repository files could be placed on disk: `git ls-remote https://github.com/manufact-test/ai-site-cms.git refs/heads/feature/stage3-design-factory` returned `Could not resolve host: github.com`. The GitHub API shows no Actions runs, check runs or commit statuses for this HEAD. No further identical network retries should be made until the environment changes.

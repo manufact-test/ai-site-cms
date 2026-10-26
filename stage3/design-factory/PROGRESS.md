@@ -1,5 +1,16 @@
 # Design Factory — operational progress and D7 continuation
 
+## 26 October 2026 — substantive D7 safety fix: no stale async JSON imports
+
+**Source commit:** `4bf19ac4a3a62e9136e2b55fc9a815321a1eebcc` on `feature/stage3-design-factory`. Two real product/test files changed exclusively under this subtree: `studio/studio.js` and `tests/studio-smoke.cjs`.
+
+**Problem fixed:** `importFile()` and `importFeedback()` awaited `File.text()` before applying a JSON document, while the owner could edit the project, undo/redo, finish another import or resolve feedback. A delayed earlier read could overwrite newer changes or feedback decisions. Studio now maintains monotonic project and feedback revisions (including immediate input edits before blur, history and Undo/Redo), rechecks the active compiled feedback context after each asynchronous read, and refuses stale imports with a visible retry message. Normal unchanged-context imports remain available.
+
+**Checks genuinely executed:** V8 syntax parsing PASS for both real committed JS files and for the fully assembled Chromium probe script. An isolated V8 harness executing the **actual committed import function bodies** with mocked browser/compiler state passed **5/5** cases: stale project import refused, normal project import accepted, stale feedback after owner edit refused, stale feedback after resolution refused, normal feedback accepted. Two corresponding real-browser regression paths are authored in the existing `tests/studio-smoke.cjs`, but **not run under Chromium**. This is source-level evidence, not an actual checkout Node audit or genuine browser acceptance.
+
+**Gate unchanged:** D1–D6 implemented (6/7 ≈ 86%); D7 OPEN. Checkout Node audit NOT RUN, actual Chromium E2E NOT RUN, 54 responsive PNGs / human 42-composition review NOT RUN, PHP parity 0/6, release ZIP/CRC/source parity/SHA256 NOT RUN. Stage2 NO-GO, Stage3 UNACCEPTED, 0/135. No merge, hosting, production, SDK, PHP or workflow edits.
+
+
 ## 26 October 2026 — current executor result: D7 still blocked by checkout DNS
 
 **Branch HEAD:** `62c4ab22ff65c79d7e4194ca73680de3b2fa61d0` (confirmed live). One real `git ls-remote` attempt failed with `Could not resolve host: github.com`; this executor cannot obtain the checkout required by the release scripts. GitHub API reports **0 Actions runs, 0 check runs and 0 commit statuses** at this SHA.

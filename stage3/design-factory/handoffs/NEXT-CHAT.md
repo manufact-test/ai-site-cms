@@ -1,5 +1,12 @@
 # Design Factory — NEXT CHAT / independent developer handoff
 
+## Latest work — 26 October · Studio asynchronous import data-loss guard
+
+**Live functional commit `4bf19ac4a3a62e9136e2b55fc9a815321a1eebcc`** (the follow-up documentation commit changes HEAD; read it live). Fixed a real owner-work-loss race inside `studio/studio.js`: an older slow JSON file read can no longer overwrite a newer project edit or feedback resolution. A project revision advances on live keystrokes, committed changes and Undo/Redo; feedback revision advances on resolution and import. Both asynchronous imports re-check freshness after `File.text()` before applying data. Added two genuine Chromium regression scenarios to the existing Studio E2E source.
+
+**Executed:** V8 parsing PASS for both modified source files and the assembled browser probe; actual committed import-function bodies passed **5/5** isolated V8 behavior cases including stale-project/stale-feedback refusal and legitimate import success. **Not executed:** full checked-out Node release audit, real Chromium E2E, 54 PNGs with all 42 compositions reviewed, six PHP parity probes, actual release ZIP/CRC/source-match/SHA256. Checkout DNS and headless Chromium blockers remain, as documented below. Do not claim D7 acceptance or pass these missing checks without evidence. Continue on this independent branch, only `stage3/design-factory/`, no merge or lead/hosting/workflow edits.
+
+
 ## Latest continuation — 26 October 2026 · current executor result (D7 remains open)
 
 **Live HEAD verified:** `62c4ab22ff65c79d7e4194ca73680de3b2fa61d0`, matching the requested branch checkpoint. This session made one checkout/network attempt:
