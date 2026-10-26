@@ -1,18 +1,19 @@
 ## Последнее обновление — 26 октября 2026
 
-- Ветка: `feature/stage3-design-factory`; текущий source checkpoint: `8417f387e3e72bcd18987968e186ec36ebc525c5`. Перед началом всегда проверь live HEAD.
+- Ветка: `feature/stage3-design-factory`; текущий source checkpoint: `46b28c5d53d5d0e25fc5ad848683886ca9613e8b`. Перед началом всегда проверь live HEAD.
 - Сохранена приёмка visual-review **v2**: отдельная проверка `showcaseCoverage`, просмотр всех 42 D3-композиций; старые v1 receipts отклоняются.
 - **Исправлена полнота D7-инвентаризации** (`c61eaa270902cd019b10417f25fe55c3a60d0981`): папка `handoffs/` входит в ZIP и теперь также входит в source manifest; проверка сравнивает весь список файлов, а контрактный тест проверяет отклонение изменённого документа передачи.
 - **Lead input provenance** (`c3696b3a9e9cb20b4da03a3bde09b708becaa6e5`): before/during/after хешируются все внешние файлы Lead SDK и optional PHP renderer; изменение входов блокирует соответствующий gate.
 - **Bounded Lead SDK traversal** (`8417f387e3e72bcd18987968e186ec36ebc525c5`): максимум 1,024 filesystem entries и 32 уровня каталогов; пустые директории тоже считаются. Каталоги сверяются до/после обхода; contract smoke проверяет чрезмерную глубину и flood пустых директорий.
+- **Sealed Lead-input snapshot** (`46b28c5d53d5d0e25fc5ad848683886ca9613e8b`): тест получает read-only копию SDK и PHP-адаптера, собранную по исходному SHA256-манифесту. Оригинал проверяется после копирования, после smoke и в конце candidate; копия — после smoke и в конце. Любой drift или ошибка cleanup блокирует ворота.
 - **Canonical ZIP32 headers** (`9aa4016f347cfbee98205458013ffae5302a156b`): verifier проверяет version, flags, compression, timestamps, single-disk metadata и локальные/центральные заголовки; package smoke содержит повреждённые ZIP-header cases.
 - **Candidate summary** (`8e0c233a592145cc5c8ad12434c92db9ff935d9b`): итоговый CLI JSON показывает статус `leadInputs`, это закреплено smoke-проверкой.
 - `release-candidate.cjs` отделяет некорректный audit report от корректного отчёта с проваленными проверками; сводные флаги сверяются с результатами отдельных проверок, а дрейф исходников оценивается независимо.
 - Создан единый D7 Release Candidate Pipeline. `release-audit.cjs` выполняет browser-bundle parity + **8 Node suites**; с `--chromium` добавляет visual-pipeline smoke.
 - `release-candidate.cjs` запускает audit, собирает ZIP, независимо сверяет central/local headers, CRC32, полный source inventory/bytes и SHA256; опционально выполняет Chromium capture, review v2, Lead JS smoke и шесть PHP markup-parity probes.
 - Fingerprint связывает все code files в `bin/catalog/lib/studio`, все component JSON manifests и SDK contract. Старая визуальная приёмка отклоняется при изменении исходников; symlink-каталоги скриншотов запрещены.
-- Изолированный V8 syntax parse и source-level assertions для двух изменённых JS-файлов — **PASS**. Новая версия `external-input-manifest.cjs` не запускалась в реальном Node процессе. Полный Node audit, candidate smoke, Chromium Studio E2E, 54 PNG с человеческой проверкой, Lead JS/PHP parity и реальный ZIP/SHA256 **НЕ ЗАПУЩЕНЫ**.
-- GitHub API для source checkpoint `8417f387e3e72bcd18987968e186ec36ebc525c5`: 0 Actions runs, 0 check runs, 0 commit statuses. Последняя известная попытка настоящего checkout упёрлась в DNS `github.com`; минимальный Chromium probe завершился timeout. Не повторяй без изменения среды.
+- Статический V8 syntax parse трёх изменённых JS-файлов — **PASS**. Snapshot/drift regressions добавлены, но ещё не запускались в полном Node checkout. Полный Node audit, candidate smoke, Chromium Studio E2E, 54 PNG с человеческой проверкой, Lead JS/PHP parity и реальный ZIP/SHA256 **НЕ ЗАПУЩЕНЫ**.
+- GitHub API для source checkpoint `46b28c5d53d5d0e25fc5ad848683886ca9613e8b`: 0 Actions runs, 0 check runs, 0 commit statuses. Последняя известная попытка настоящего checkout упёрлась в DNS `github.com`; минимальный Chromium probe завершился timeout. Не повторяй без изменения среды.
 - Статус: **D7 OPEN; Stage2 NO-GO; Stage3 не принят; 0/135**. Никаких изменений workflows, merge, main, SDK, PHP, hosting или production.
 
 ## Жёсткие границы
