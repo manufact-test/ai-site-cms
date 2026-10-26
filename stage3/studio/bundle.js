@@ -2631,7 +2631,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     // The preview itself remains script-free; parent only reads first-party IDs.
     // Select sections only in the validated, scriptless page preview.
     // Every edit uses the same SDK draft history as the right-side inspector.
-    let workSection='',workElement='',workFocusPath='';
+    let workSection='',workElement='',workFocusPath='',workFormField='';
     const canWrite=()=>!HOSTED||!!window.Stage3Host?.canEditStudio?.();
     const pageForWork=()=>session.current.pages.find(p=>p.path===pathSelect.value);
     const sectionForWork=()=>pageForWork()?.sections.find(s=>s.id===workSection);
@@ -2646,6 +2646,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         el.classList.toggle('cms-work-element-current',element&&
           (el.dataset.cmsWorkPath||'')===workFocusPath);
       }
+      for(const el of doc.querySelectorAll('[data-cms-work-form-field]'))
+        el.classList.toggle('cms-work-form-current',!!workFormField&&
+          el.dataset.cmsWorkFormField===workFormField);
     }
     const quick=document.createElement('div');quick.className='cms-work-quick';quick.hidden=true;
     quick.id='cms-work-quick';quick.setAttribute('role','group');
@@ -2736,6 +2739,18 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           target.classList.add('cms-work-linked');
         }
       };
+
+      const bindMedia=(container,entity,section)=>{
+        const field=C.controls(session.current,manifests,page.id,section.id,entity.id)
+          .find(f=>f.path==='content.media'&&f.type==='media');
+        if(!field)return;
+        const target=container.matches('img,.media-placeholder')?container:
+          container.querySelector('img,.media-placeholder');
+        if(!target)return;
+        target.dataset.cmsWorkElement=entity.id;
+        target.dataset.cmsWorkPath='content.media';
+        target.classList.add('cms-work-linked','cms-work-linked-media');
+      };
       for(const section of page.sections){
         const host=sections.find(el=>idOf(el)===section.id);
         if(!host||section.designGraph)continue; // Nested graph nodes have their own inspector.
@@ -2754,8 +2769,43 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           if(!item)continue;
           card.dataset.cmsWorkElement=item.id;
           bindText(card,item,section,used);
+          bindMedia(card,item,section);
         }
-        for(const entity of section.elements)bindText(host,entity,section,used);
+        for(const entity of section.elements){
+          bindText(host,entity,section,used);
+          bindMedia(host,entity,section);
+        }
+        // An extra question uses its published input name as a stable
+        // association; its configuration remains edited by the form builder.
+        if(section.component==='lead-form-flex'){
+          for(const row of host.querySelectorAll('.lead-field')){
+            const input=row.querySelector('input[name],select[name],textarea[name]');
+            const name=input?.getAttribute('name');
+            if(!name)continue;
+            const custom=(section.formFields||[]).find(x=>x.id===name);
+            if(custom){
+              row.dataset.cmsWorkFormField=custom.id;
+              row.classList.add('cms-work-linked-form');
+            }else{
+              const match=/^extra([123])$/.exec(name);
+              if(!match)continue;
+              const slot=['extra-one','extra-two','extra-three'][Number(match[1])-1];
+              const entity=section.elements.find(x=>x.slot===slot);
+              if(!entity)continue;
+              row.dataset.cmsWorkElement=entity.id;
+              row.dataset.cmsWorkPath='content.text';
+              row.classList.add('cms-work-linked-form');
+            }
+          }
+          // Offline preview intentionally displays inert extra-field examples
+          // rather than a functional visitor form. Match validated labels only.
+          for(const field of section.formFields||[]){
+            if(host.querySelector('[data-cms-work-form-field="'+field.id+'"]'))continue;
+            const label=[...host.querySelectorAll('label')].find(el=>norm(el.textContent)===
+              norm(field.label)+(field.required?' *':''));
+            if(label){label.dataset.cmsWorkFormField=field.id;label.classList.add('cms-work-linked-form');}
+          }
+        }
       }
       const clickedField=e=>{
         const target=e.target;
@@ -2765,7 +2815,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const selectVisual=e=>{
         const el=getTarget(e);if(!el)return false;
         const field=clickedField(e),section=page.sections.find(s=>s.id===idOf(el));
+        const custom=e.target instanceof doc.defaultView.Element?
+          e.target.closest('[data-cms-work-form-field]'):null;
         workSection=section.id;
+        workFormField=section.component==='lead-form-flex'&&
+          section.formFields?.some(x=>x.id===custom?.dataset.cmsWorkFormField)?
+          custom.dataset.cmsWorkFormField:'';
         const known=[...section.elements,...(section.items||[])];
         workElement=known.some(x=>x.id===field?.dataset.cmsWorkElement)?
           field.dataset.cmsWorkElement:'';
@@ -2779,7 +2834,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         return true;
       };
       doc.addEventListener('click',e=>{
-        e.preventDefault();e.stopPropagation();selectVisual(e);
+        // CSS-only form choices remain interactive in sandboxed preview.
+        // Navigation and submissions are still denied by sandbox + CSP.
+        const target=e.target;
+        const formChoice=target instanceof doc.defaultView.Element&&
+          !!target.closest('form.lead-form input,form.lead-form select,form.lead-form textarea,form.lead-form label');
+        if(!formChoice)e.preventDefault();
+        e.stopPropagation();selectVisual(e);
       },true);
       doc.addEventListener('dblclick',e=>{
         e.preventDefault();e.stopPropagation();
@@ -2833,7 +2894,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         if(broken.length)throw Error('Новая битая ссылка: '+broken[0].path);
         session=next;
         if(!sectionForWork())workSection=pageForWork()?.sections[0]?.id||'';
-        workElement='';workFocusPath='';dismissQuick();draw();showWork();render();
+        workElement='';workFocusPath='';workFormField='';dismissQuick();draw();showWork();render();
         feedback('Структура изменена в черновике. Сохранить и опубликовать — отдельно.');
       }catch(e){feedback(e.message,true);}
     }
@@ -2884,6 +2945,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       workElementPicker.value=workElement;
       const controls=C.controls(session.current,manifests,page.id,section.id,workElement);
       if(!controls.some(f=>f.path===workFocusPath))workFocusPath='';
+      if(!section.formFields?.some(f=>f.id===workFormField))workFormField='';
       for(const f of controls){
         const line=document.createElement('label');line.className='cms-work-field';
         const caption=document.createElement('span');caption.textContent=f.label+(f.responsive?' · '+mode:'');
@@ -2909,6 +2971,46 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         control.addEventListener('change',()=>editWork(f,control));
         line.classList.toggle('cms-work-field-current',f.path===workFocusPath);
         line.append(caption,control);workFields.append(line);
+
+        if(f.type==='media'){
+          const picker=document.createElement('details');picker.className='cms-work-media';picker.id='cms-work-media';
+          const summary=document.createElement('summary');summary.textContent='Выбрать изображение · '+session.current.assets.filter(a=>a.mime.startsWith('image/')).length;
+          picker.append(summary);
+          const grid=document.createElement('div');grid.className='cms-work-media-grid';
+          const allowed=session.current.assets.filter(asset=>asset.mime.startsWith('image/'));
+          const mediaChoice=(id,name,src,selected)=>{
+            const btn=workButton(name,()=>{if(canWrite())editWork(f,{value:id});});
+            btn.classList.add('cms-work-media-choice');btn.dataset.mediaId=id;
+            btn.setAttribute('aria-pressed',selected?'true':'false');
+            if(src&&/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(src)){
+              const img=document.createElement('img');img.alt='';img.src=src;img.loading='lazy';btn.prepend(img);
+            }
+            btn.disabled=!canWrite();grid.append(btn);
+          };
+          mediaChoice('','Без изображения',null,initial==='');
+          for(const asset of allowed){
+            const url=HOSTED?window.Stage3Host?.previewUrl?.(asset.id):null;
+            mediaChoice(asset.id,asset.alt||asset.id,url,initial===asset.id);
+          }
+          if(!allowed.length){
+            const none=document.createElement('small');
+            none.textContent=HOSTED?'Медиабиблиотека пуста. Загрузите изображение через панель Studio.':
+              'В этом автономном сайте пока нет изображений. Для загрузки используйте серверную Studio.';
+            grid.append(none);
+          }
+          picker.append(grid);
+          if(HOSTED){
+            const upload=workButton('+ Загрузить в медиабиблиотеку',()=>{
+              modal.close();document.getElementById('server-media-upload')?.click();
+            });
+            upload.id='cms-work-media-upload';upload.disabled=!canWrite();
+            const caution=document.createElement('small');
+            caution.textContent='Перед загрузкой сохраните текущий черновик. После загрузки изображение нужно выбрать отдельно.';
+            picker.append(upload,caution);
+          }
+          line.append(picker);
+        }
+
       }
       const repeat=manifest(section)?.repeat;
       if(repeat){
@@ -2947,6 +3049,26 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           actions.append(upItem,downItem,copyItem,removeItem);
         }
         repeatBar.append(actions);workFields.append(repeatBar);
+      }
+      if(section.component==='lead-form-flex'){
+        const formInfo=document.createElement('div');formInfo.className='cms-work-form-focus';
+        formInfo.id='cms-work-form-focus';
+        const selected=section.formFields?.find(f=>f.id===workFormField);
+        const caption=document.createElement('small');
+        caption.textContent=selected?'Вопрос: '+selected.label+' · '+selected.kind+
+          (selected.required?' · обязательный':'')+
+          (selected.when?' · условное отображение':''):
+          'Дополнительные вопросы: '+(section.formFields||[]).length+'/9. Нажмите на вопрос в макете.';
+        const openForm=workButton(selected?'Настроить этот вопрос':'Настроить вопросы и условия',()=>{
+          pageId=page.id;sectionId=section.id;elementId=workElement;breakpoint=mode;
+          draw();modal.close();
+          const dlg=document.getElementById('cms-form-builder');
+          if(dlg&&selected)dlg.dataset.focusField=selected.id;
+          document.getElementById('cms-form-builder-open')?.click();
+        });
+        openForm.id='cms-work-form-edit';
+        formInfo.append(caption,openForm);
+        workFields.append(formInfo);
       }
       if(section.designGraph){
         const help=document.createElement('small');
@@ -3009,7 +3131,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       };
       advanced.append(workButton('Дизайн-композиция',()=>openExisting('section-design-graph')),
         workButton('Расширенное оформление',()=>openExisting('section-appearance')));
-      if(['lead-form','lead-form-flex'].includes(section.component))
+      if(section.component==='lead-form-flex')
         advanced.append(workButton('Конструктор формы',()=>openExisting('cms-form-builder-open')));
       workFields.append(advanced);
 
@@ -3061,9 +3183,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       workAdd.append(cross);
       for(const b of workPanel.querySelectorAll('[data-editor-write]'))b.disabled ||= !canWrite();
     }
-    workSectionPicker.addEventListener('change',()=>{workSection=workSectionPicker.value;workElement='';workFocusPath='';dismissQuick();showWork();highlightWork();});
-    workElementPicker.addEventListener('change',()=>{workElement=workElementPicker.value;workFocusPath='';dismissQuick();showWork();highlightWork();});
-    pathSelect.addEventListener('change',()=>{previewScroll=0;workSection=pageForWork()?.sections[0]?.id||'';workElement='';workFocusPath='';dismissQuick();showWork();});
+    workSectionPicker.addEventListener('change',()=>{workSection=workSectionPicker.value;workElement='';workFocusPath='';workFormField='';dismissQuick();showWork();highlightWork();});
+    workElementPicker.addEventListener('change',()=>{workElement=workElementPicker.value;workFocusPath='';workFormField='';dismissQuick();showWork();highlightWork();});
+    pathSelect.addEventListener('change',()=>{previewScroll=0;workSection=pageForWork()?.sections[0]?.id||'';workElement='';workFocusPath='';workFormField='';dismissQuick();showWork();});
     const history=document.createElement('div');history.id='cms-work-history';history.className='cms-work-history';
     history.append(workButton('↶ Отмена',()=>{
       if(!canWrite())return;session=D.undo(session,manifests);draw();showWork();render();
@@ -3079,7 +3201,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         option.textContent=page.title+' · '+page.path;pathSelect.append(option);
       }
       pathSelect.value=current().page.path;
-      workSection=current().section.id;workElement=elementId;workFocusPath='';dismissQuick();showWork();
+      workSection=current().section.id;workElement=elementId;workFocusPath='';workFormField='';dismissQuick();showWork();
       frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el.dataset.mode===mode));
       render();modal.showModal();
     });
@@ -4447,8 +4569,20 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     return ()=>{
       const section=current().section;
       if(section.component!=='lead-form-flex')return;
+      const focus=dlg.dataset.focusField||'';
+      delete dlg.dataset.focusField;
       source=cp(section);fields=cp(section.formFields||[]);answers={};preset.value='';
       render();dlg.showModal();
+      if(focus){
+        const target=[...list.querySelectorAll('[data-form-field]')]
+          .find(row=>row.dataset.formField===focus);
+        if(target){
+          target.classList.add('cms-form-row-selected');
+          target.scrollIntoView({block:'center'});
+          const first=target.querySelector('input');
+          first?.focus({preventScroll:true});
+        }
+      }
     };
   })();
 
