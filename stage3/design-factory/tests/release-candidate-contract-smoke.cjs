@@ -3,14 +3,80 @@
 // Focused contract tests for the D7 orchestration gate. This is safe inside
 // release-audit because it never launches release-candidate.cjs recursively.
 const assert=require('node:assert/strict');
-const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),crypto=require('node:crypto');
 const {walk,manifestForDesignFactory,manifestDigest}=require('../lib/source-manifest.cjs');
 const {sourceFingerprint,inputPaths}=require('../lib/render-source-fingerprint.cjs');
+const {captureExternalInputs,sameExternalInputs}=require('../lib/external-input-manifest.cjs');
 const {options,expectedAuditChecks,auditReportIsValid,localAuditStillMatches}=
  require('../bin/release-candidate.cjs');
 const ROOT=path.resolve(__dirname,'..'),REPO=path.resolve(ROOT,'../..');
 const hash=x=>crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const entries=walk(ROOT),manifest=manifestForDesignFactory(ROOT);
+function exerciseExternalInputManifest(){
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'df-external-inputs-'));
+ try{
+  const sdk=path.join(dir,'sdk'),php=path.join(dir,'DesignGraph.php');
+  fs.mkdirSync(sdk);
+  const contract=path.join(sdk,'contract.cjs'),graph=path.join(sdk,'design-graph.cjs');
+  const contractBytes=Buffer.from("'use strict'; module.exports={version:1};\n");
+  const graphBytes=Buffer.from("'use strict'; module.exports={render(){return '';}};\n");
+  fs.writeFileSync(contract,contractBytes);fs.writeFileSync(graph,graphBytes);
+  fs.writeFileSync(path.join(sdk,'README.md'),'fixture SDK docs\n');
+  fs.writeFileSync(php,'<?php // fixture\n');
+  const base=captureExternalInputs(sdk,php);
+  assert.equal(base.sdkFiles.length,3,'Fingerprint every regular SDK file, not just the entry points');
+  assert.equal(base.phpFile.path,php);
+  assert.match(base.sha256,/^[a-f0-9]{64}$/);
+  assert.equal(sameExternalInputs(base,captureExternalInputs(sdk,php)),true,
+   'Same SDK/PHP bytes and canonical paths must have a stable fingerprint');
+  fs.writeFileSync(contract,Buffer.concat([contractBytes,Buffer.from('// changed\n')]));
+  assert.equal(sameExternalInputs(base,captureExternalInputs(sdk,php)),false,
+   'An SDK source edit must invalidate the original input fingerprint');
+  fs.writeFileSync(contract,contractBytes);
+  fs.writeFileSync(php,'<?php // changed fixture\n');
+  assert.equal(sameExternalInputs(base,captureExternalInputs(sdk,php)),false,
+   'A PHP renderer edit must invalidate the original input fingerprint');
+  fs.writeFileSync(php,'<?php // fixture\n');
+  const extra=path.join(sdk,'extra.json');fs.writeFileSync(extra,'{}\n');
+  assert.equal(sameExternalInputs(base,captureExternalInputs(sdk,php)),false,
+   'Added SDK files must invalidate the input fingerprint');
+  fs.unlinkSync(extra);
+  assert.equal(sameExternalInputs(base,captureExternalInputs(sdk,php)),true,
+   'Restoring the exact SDK/PHP bytes must restore the original fingerprint');
+  const outside=path.join(dir,'outside.cjs');fs.writeFileSync(outside,'module.exports={};\n');
+  let canSymlink=true;
+  try{fs.symlinkSync(outside,path.join(sdk,'linked.cjs'),'file');}
+  catch(error){if(['EPERM','EACCES','ENOTSUP','EINVAL'].includes(error.code))canSymlink=false;else throw error;}
+  if(canSymlink){
+   assert.throws(()=>captureExternalInputs(sdk,php),/symlink is not allowed/,
+    'SDK symlinks must be rejected');
+   fs.unlinkSync(path.join(sdk,'linked.cjs'));
+   const sdkAlias=path.join(dir,'sdk-alias');
+   let directoryLink=true;
+   try{fs.symlinkSync(sdk,sdkAlias,'dir');}
+   catch(error){if(['EPERM','EACCES','ENOTSUP','EINVAL'].includes(error.code))directoryLink=false;else throw error;}
+   if(directoryLink){
+    assert.throws(()=>captureExternalInputs(sdkAlias,php),/canonical regular directory/,
+     'A symlinked SDK root must be rejected');
+    fs.unlinkSync(sdkAlias);
+   }
+   const phpAlias=path.join(dir,'DesignGraph-link.php');
+   let phpLink=true;
+   try{fs.symlinkSync(php,phpAlias,'file');}
+   catch(error){if(['EPERM','EACCES','ENOTSUP','EINVAL'].includes(error.code))phpLink=false;else throw error;}
+   if(phpLink){
+    assert.throws(()=>captureExternalInputs(sdk,phpAlias),/canonical regular \.php file/,
+     'A symlinked PHP renderer must be rejected');
+    fs.unlinkSync(phpAlias);
+   }
+  }
+  const invalidSdk=path.join(dir,'incomplete-sdk');fs.mkdirSync(invalidSdk);
+  assert.throws(()=>captureExternalInputs(invalidSdk),/missing required runtime input/,
+   'A purported SDK must contain both runtime entry points');
+  assert.throws(()=>captureExternalInputs(sdk,path.join(dir,'not-php.txt')),/ENOENT|regular \.php file/,
+   'A PHP parity input must be an existing regular PHP file');
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+}
 const auditSource=fs.readFileSync(path.join(ROOT,'bin/release-audit.cjs'),'utf8');
 function fixture(chromium=false){
  const checks=expectedAuditChecks(chromium).map(suite=>({suite,passed:true,exitCode:0,error:null,
@@ -90,6 +156,7 @@ try{
   'stage3/design-factory/studio/runtime.generated.js'
  ])assert.ok(inputs.includes(required),'Fingerprint must bind '+required);
  assert.equal(sourceFingerprint(REPO),sourceFingerprint(REPO),'Fingerprint must be deterministic');
+ exerciseExternalInputManifest();
  console.log('DESIGN_FACTORY_D7_RELEASE_CONTRACT PASS: exact audit schema, bundle + 8-suite inventory + final source stability, optional Chromium inventory, source additions/removals/tampering, option validation and complete visual-tooling fingerprint');
 }catch(error){
  console.error('DESIGN_FACTORY_D7_RELEASE_CONTRACT FAIL: '+error.message);

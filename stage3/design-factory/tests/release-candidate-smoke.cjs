@@ -17,11 +17,12 @@ try{
  assert.equal(cmd.status,3,'Without Chromium/Lead PHP/review, candidate must be a verified engineering package but NOT an accepted D7 release: '+cmd.stderr+' '+cmd.stdout);
  const report=JSON.parse(fs.readFileSync(path.join(target,'release-candidate.json'),'utf8'));
  const audit=JSON.parse(fs.readFileSync(path.join(target,'node-audit.json'),'utf8'));
- assert.equal(audit.nodePassed,true,'Real seven-suite checkout audit must pass');
+ assert.equal(audit.nodePassed,true,'Bundle parity, eight Node suites and source stability must pass on a real checkout');
  assert.equal(report.format,'manufact-design-factory-release-candidate-v2');
  assert.equal(report.version,2);
  assert.equal(report.renderSourceSha256,sourceFingerprint(path.resolve(__dirname,'../../..')));
  assert.equal(report.node.status,'pass');
+ assert.equal(report.leadInputs.status,'not-configured');
  assert.equal(report.node.suites,8,'Exactly eight stable Node suites must run');
  assert.equal(report.node.checks,10,'Bundle parity + eight suites + final source stability');
  assert.equal(report.bundleParity.status,'pass');

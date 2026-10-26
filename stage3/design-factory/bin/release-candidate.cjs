@@ -9,6 +9,7 @@ const {walk,manifestForDesignFactory,manifestDigest,sameManifest}=require('../li
 const {verify:verifyZip}=require('./verify-release-zip.cjs');
 const {verify:verifyVisual,checkEvidence}=require('../lib/visual-review.cjs');
 const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
+const {captureExternalInputs,sameExternalInputs}=require('../lib/external-input-manifest.cjs');
 const ROOT=path.resolve(__dirname,'..'),REPO=path.resolve(ROOT,'../..');
 const EXPECTED_SUITES=Object.freeze([
  'smoke.cjs','compositions-smoke.cjs','kits-smoke.cjs','studio-smoke.cjs',
@@ -113,8 +114,8 @@ function execute(opts){
   renderSourceSha256:null,git:{head:null,branch:null,clean:false,ownerBranch:false},
   node:{status:'not-run'},bundleParity:{status:'not-run'},
   chromium:{status:'not-run'},visualCapture:{status:'not-run'},
-  visualReview:{status:'not-run'},leadGraph:{status:'not-configured'},
-  leadPhpParity:{status:'not-configured'},zip:{status:'not-run'},
+  visualReview:{status:'not-run'},leadInputs:{status:'not-configured'},
+  leadGraph:{status:'not-configured'},leadPhpParity:{status:'not-configured'},zip:{status:'not-run'},
   gate:{node:false,bundleParity:false,chromium:false,fullVisualMatrix:false,
    leadGraph:false,phpParity:false,sourceExact:false,gitVerified:false,
    readyForLeadReview:false,stage2:'NO-GO',stage3:'UNACCEPTED',
@@ -125,6 +126,7 @@ function execute(opts){
    'A package checksum proves archive identity, not release authorization.']
  };
  const reportPath=path.join(output,'release-candidate.json');
+ let leadInputBaseline=null;
  try{
   result.git=gitState();
   result.renderSourceSha256=sourceFingerprint(REPO);
@@ -189,24 +191,53 @@ function execute(opts){
   }else result.visualReview={status:'pending-human-review'};
 
   if(opts.leadSdk){
-   const env={DF_LEAD_SDK_DIR:path.resolve(opts.leadSdk)};
-   if(opts.leadPhp)env.DF_LEAD_PHP_FILE=path.resolve(opts.leadPhp);
-   else env.DF_LEAD_PHP_FILE='';
-   const lead=shell(process.execPath,[path.join(ROOT,'tests/lead-design-graph-smoke.cjs')],env,300000);
-   const graphPass=lead.passed&&/DESIGN_FACTORY_LEAD_GRAPH PASS:/.test(lead.stdout)&&
-    !/DESIGN_FACTORY_LEAD_GRAPH SKIP/.test(lead.stdout);
-   result.leadGraph={status:graphPass?'pass':'fail',exitCode:lead.exitCode,
-    summary:lead.stdout.slice(-1100),error:lead.error||lead.stderr.slice(-700)};
-   result.gate.leadGraph=graphPass;
-   if(opts.leadPhp){
-    const phpPass=graphPass&&/\b6 real PHP parity probes\b/.test(lead.stdout)&&
-     !/LEAD_GRAPH_PHP SKIP/.test(lead.stdout);
-    result.leadPhpParity={status:phpPass?'pass':'fail',exitCode:lead.exitCode,
-     probes:phpPass?6:0,summary:lead.stdout.slice(-800),
-     error:phpPass?null:(lead.error||lead.stderr.slice(-700)||'Six real PHP parity probes were not confirmed'),
-     note:'Six typed Graph markup cases; NOT responsive pixel parity'};
-    result.gate.phpParity=phpPass;
-   }else result.leadPhpParity={status:'not-configured',note:'Lead JS smoke can run without PHP; six PHP parity probes remain required'};
+   let baseline=null,preflightError=null;
+   try{
+    baseline=captureExternalInputs(opts.leadSdk,opts.leadPhp);
+    leadInputBaseline=baseline;
+   }catch(error){preflightError=String(error.message);}
+   if(!baseline){
+    const message='Lead input provenance check failed: '+preflightError;
+    result.leadInputs={status:'invalid',error:preflightError};
+    result.leadGraph={status:'fail',exitCode:null,summary:'',error:message};
+    result.gate.leadGraph=false;
+    if(opts.leadPhp){
+     result.leadPhpParity={status:'fail',exitCode:null,probes:0,probesAttempted:0,
+      summary:'',error:message,note:'Six typed Graph markup cases; NOT responsive pixel parity'};
+     result.gate.phpParity=false;
+    }
+   }else{
+    const env={DF_LEAD_SDK_DIR:baseline.sdkPath};
+    if(baseline.phpFile)env.DF_LEAD_PHP_FILE=baseline.phpFile.path;
+    else env.DF_LEAD_PHP_FILE='';
+    const lead=shell(process.execPath,[path.join(ROOT,'tests/lead-design-graph-smoke.cjs')],env,300000);
+    let after=null,snapshotError=null;
+    try{after=captureExternalInputs(opts.leadSdk,opts.leadPhp);}
+    catch(error){snapshotError=String(error.message);}
+    const inputsStable=Boolean(after&&sameExternalInputs(baseline,after));
+    const unstableMessage=snapshotError||'Lead SDK/PHP inputs changed while compatibility checks were running';
+    result.leadInputs={status:inputsStable?'stable':'changed-during-check',
+     before:baseline,after,stable:inputsStable,error:inputsStable?null:unstableMessage};
+    const graphPass=lead.passed&&/DESIGN_FACTORY_LEAD_GRAPH PASS:/.test(lead.stdout)&&
+     !/DESIGN_FACTORY_LEAD_GRAPH SKIP/.test(lead.stdout)&&inputsStable;
+    result.leadGraph={status:graphPass?'pass':'fail',exitCode:lead.exitCode,
+     summary:lead.stdout.slice(-1100),
+     error:graphPass?null:(snapshotError||(!inputsStable?unstableMessage:
+      (lead.error||lead.stderr.slice(-700)||'Lead Design Graph smoke did not pass')))};
+    result.gate.leadGraph=graphPass;
+    if(opts.leadPhp){
+     const probesObserved=/\b6 real PHP parity probes\b/.test(lead.stdout)&&
+      !/LEAD_GRAPH_PHP SKIP/.test(lead.stdout)?6:0;
+     const phpPass=graphPass&&probesObserved===6;
+     result.leadPhpParity={status:phpPass?'pass':'fail',exitCode:lead.exitCode,
+      probes:phpPass?6:0,probesAttempted:probesObserved,summary:lead.stdout.slice(-800),
+      error:phpPass?null:(snapshotError||(!inputsStable?unstableMessage:
+       (lead.error||lead.stderr.slice(-700)||'Six real PHP parity probes were not confirmed'))),
+      note:'Six typed Graph markup cases; NOT responsive pixel parity'};
+     result.gate.phpParity=phpPass;
+    }else result.leadPhpParity={status:'not-configured',
+     note:'Lead JS smoke can run without PHP; six PHP parity probes remain required'};
+   }
   }
 
   // Build an engineering package even when other release gates remain open.
@@ -234,6 +265,29 @@ function execute(opts){
    result.gate.node=false;result.gate.bundleParity=false;result.gate.chromium=false;
    result.gate.fullVisualMatrix=false;result.gate.leadGraph=false;
    result.gate.phpParity=false;result.gate.sourceExact=false;
+  }
+  if(leadInputBaseline){
+   let finalLeadInputs=null,finalLeadError=null;
+   try{finalLeadInputs=captureExternalInputs(opts.leadSdk,opts.leadPhp);}
+   catch(error){finalLeadError=String(error.message);}
+   const finalLeadStable=Boolean(finalLeadInputs&&sameExternalInputs(leadInputBaseline,finalLeadInputs));
+   result.leadInputs.final=finalLeadInputs;
+   result.leadInputs.finalSha256=finalLeadInputs?.sha256||null;
+   result.leadInputs.stable=Boolean(result.leadInputs.stable===true&&finalLeadStable);
+   if(!finalLeadStable||!result.leadInputs.stable){
+    const message=finalLeadError||'Lead SDK/PHP inputs changed between provenance snapshots';
+    result.leadInputs.status='changed-during-candidate';
+    result.leadInputs.error=message;
+    result.leadGraph.status='fail';
+    result.leadGraph.error=message;
+    result.gate.leadGraph=false;
+    if(opts.leadPhp){
+     result.leadPhpParity.status='fail';
+     result.leadPhpParity.probes=0;
+     result.leadPhpParity.error=message;
+     result.gate.phpParity=false;
+    }
+   }
   }
   const gitAfter=gitState();
   result.git.after=gitAfter;
