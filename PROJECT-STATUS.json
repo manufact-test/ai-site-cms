@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-26",
-  "status": "stage2-no-go-stage3-isolated-v1.70-main-graph-canvas-handoff",
+  "status": "stage2-no-go-stage3-isolated-v1.71-main-graph-canvas-known-ci-failure-handoff",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.70-2026-10-26.md",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.71-2026-10-26.md",
   "latest_source_sha": "f366592db0267faaabfd5b01e7aa6f4f87e02ef4",
   "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144",
   "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144",
   "source_offweb_ci": null,
-  "source_ci_result": "CHECK CI STATUS: https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144. Functional HEAD f366592db0267faaabfd5b01e7aa6f4f87e02ef4. This field is NOT proof of success; last known full green source ac483807cc2f2ac302f6fed3470cac4cfb795896 at Actions 40346327511.",
+  "source_ci_result": "FAILED: functional f366592db0267faaabfd5b01e7aa6f4f87e02ef4, Actions #40374870144; docs-only HEAD 59a8f038615e26afcd36951bda6392352e92e80a, Actions #40375523554 also FAILED at hosted-browser.cjs:863 waiting for clean draft ('Без изменений') after Save; first published guard was disabled. Previous last full SUCCESS functional ac483807cc2f2ac302f6fed3470cac4cfb795896, Actions #40346327511. NOT Stage3 acceptance.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly, then fix issues from real use; never get stuck testing existing lab",
@@ -52,11 +52,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "MAIN: verify f366592db0267faaabfd5b01e7aa6f4f87e02ef4 full CI at https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144 and resolve any remaining hosted Chromium publication guard or test ordering; then continue large CMS full-page/form workflow and later audit Design Factory handoff without touching its branch. Stage2 gates #5-#9 remain open; no deployment.",
+  "next_step": "MAIN: check latest HEAD/CI, diagnose Stage3 hosted save dirty baseline vs server normalized revision (#40375523554 failure at hosted-browser.cjs:863) in one target fix, keep publish guard intact, rerun one full CI, then major site composition workflow. Do not touch independent Design Factory/main/production; Stage2 NO-GO #5-#9.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.70",
+  "checkpoint_version": "1.71",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -1225,9 +1225,9 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.70",
-  "last_docs_handoff_note": "Owner-requested main CMS v1.70 handoff. Functional HEAD f366592db0267faaabfd5b01e7aa6f4f87e02ef4 includes nested Graph canvas structure editing; CI https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144 not yet confirmed green at writing. Last fully green functional source ac483807cc2f2ac302f6fed3470cac4cfb795896, run 40346327511. Stage2 NO-GO gates 5-9; Stage3 0/135 accepted.",
-  "latest_tested_code_sha": "70a6a4776b0389fd5a35830226952a0372cccd65",
+  "last_docs_handoff_version": "1.71",
+  "last_docs_handoff_note": "Owner-requested final checkpoint with exact RED final CI, next-chat message and stage estimates. New nested graph canvas feature committed but hosted save/publish E2E remains failing; no green claim. Stage2 technical 85-90%, gates 5-9; Stage3 unofficial core estimate 65-75%, formally 0/135.",
+  "latest_tested_code_sha": "ac483807cc2f2ac302f6fed3470cac4cfb795896",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
     "owner_directive": "large_coherent_product_verticals_not_small_8_minute_fixes",
@@ -1754,5 +1754,9 @@
       "Design Factory integration/fidelity audit",
       "Real host deployment, production, providers"
     ]
-  }
+  },
+  "latest_known_failed_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40375523554",
+  "latest_confirmed_successful_functional_sha": "ac483807cc2f2ac302f6fed3470cac4cfb795896",
+  "latest_confirmed_successful_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40346327511",
+  "stage3_engineering_estimate": "Approximate subjective core-editor estimate 65-75% done, 25-35% engineering left; NOT mapped to 135 required or formal stage acceptance. Full formal accepted mandatory count remains 0/135."
 }
