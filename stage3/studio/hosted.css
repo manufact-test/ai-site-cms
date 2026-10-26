@@ -166,3 +166,8 @@
 .hosted-launch-pages .is-reviewed{border-color:#4d9d7b;color:#bbefd2}
 #server-launch-mark{justify-self:start}
 @media(max-width:550px){.hosted-launch-gap{align-items:flex-start}.hosted-launch-gap .btn{padding:5px 7px}}
+
+/* Publish review records a saved site revision and three separate viewport sign-offs. */
+.hosted-launch-progress{border:1px solid #3b695d;border-radius:8px;padding:10px 12px;background:#163b32}
+#server-launch-mark{border-color:#618e9e}
+#server-launch-mark:disabled{opacity:.55}

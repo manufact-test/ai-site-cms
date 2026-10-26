@@ -107,11 +107,19 @@ async function execute(){
   assert.match(await page.locator('#server-launch-readiness').innerText(),/Что осталось заполнить/);
   assert.match(await page.locator('.hosted-launch-progress').innerText(),/0\/2/);
   assert.equal(await page.locator('#server-launch-publish').isDisabled(),true);
-  await page.locator('#server-launch-mark').click();
-  await page.locator('#server-launch-pages button').nth(1).click();
-  await page.locator('#server-launch-mark').click();
+  // Sign-off is per-page AND per-breakpoint, only after PHP draft rendering.
+  for(let index=0;index<2;index++){
+    await page.locator('#server-launch-pages button').nth(index).click();
+    for(const width of ['desktop','tablet','mobile']){
+      await page.locator('#server-launch-modes [data-device="'+width+'"]').click();
+      await page.locator('#server-launch-preview-status').getByText(/Черновик ·/).waitFor();
+      await page.locator('#server-launch-mark:not([disabled])').click();
+    }
+  }
   assert.match(await page.locator('.hosted-launch-progress').innerText(),/2\/2/);
+  assert.match(await page.locator('.hosted-launch-progress').innerText(),/6\/6/);
   assert.equal(await page.locator('#server-launch-pages .is-reviewed').count(),2);
+  assert.equal(await page.locator('#server-launch-report').count(),1);
   await page.locator('#server-launch-modes [data-device="mobile"]').click();
   assert.equal(await page.locator('#server-launch-preview').evaluate(frame=>frame.style.width),'390px');
   await page.locator('#server-launch-preview-status').getByText(/Черновик ·/).waitFor();

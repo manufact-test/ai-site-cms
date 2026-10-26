@@ -986,6 +986,8 @@
       ' без изменений'+(globalChanges.length?' · настройки сайта: '+globalChanges.join(', '):''):
       (publishedError?'Сравнение с публикацией недоступно: '+publishedError:
         'Это первая публикация. Все страницы пока доступны только в черновике.');
+    const openedRevision=state.revision;
+    const reviewedDraft=JSON.stringify(site);
     const launchProgress=element('p','hosted-launch-progress','Проверено страниц: 0/'+site.pages.length);
     const fillActions=element('div','hosted-launch-quick-actions');
     const complete=action('Наполнить весь сайт','server-launch-fill',()=>{
@@ -1044,6 +1046,7 @@
     if(readiness.issues.length>100)
       backlogList.append(element('p',null,'Ещё '+(readiness.issues.length-100)+' замечаний. Закройте часть полей и откройте проверку снова.'));
     backlog.append(backlogList);
+    const exportReport=action('Скачать отчёт JSON','server-launch-report',()=>{});
     const footer=element('div','hosted-launch-footer');
     const editPage=action('Редактировать страницу','server-launch-edit',()=>{});
     const quality=action('Все замечания SEO и доступности','server-launch-quality',()=>{
@@ -1054,48 +1057,89 @@
       dialog.close();
       void save().then(()=>{
         // Re-run readiness and reset page sign-offs against the actual saved revision.
-        if(!editor.isDirty()&&state.siteId===site.siteId)launchReviewButton.click();
+        if(saved&&state.siteId===site.siteId&&state.revision!==openedRevision&&
+            !editor.isDirty())launchReviewButton.click();
       });
     });
     const publishSaved=action('Опубликовать сохранённый','server-launch-publish',()=>{
-      if($('server-publish').disabled)return;
+      syncActions();
+      if(publishSaved.disabled||$('server-publish').disabled)return;
+      // Last synchronous check makes page sign-offs unusable for a different
+      // site, local edit, replaced server revision or changed publication.
+      if(state.siteId!==site.siteId||state.revision!==openedRevision||
+          editor.isDirty()||JSON.stringify(editor.getSite())!==reviewedDraft){
+        notice('Содержимое или ревизия изменились. Откройте проверку заново.',true);return;
+      }
       dialog.close();$('server-publish').click();
     });
     const markReviewed=action('Подтвердить просмотр страницы','server-launch-mark',()=>{});
     const close=action('Закрыть','server-launch-close',()=>dialog.close());
-    footer.append(editPage,quality,saveDraft,publishSaved,close);
+    footer.append(editPage,quality,saveDraft,exportReport,publishSaved,close);
     detail.append(pageHeading,devices,compareModes,previewPanels,previewStatus,issues,markReviewed);
     body.append(pages,detail);
     dialog.append(header,backlog,body,footer);
     document.body.append(dialog);
     let selectedRow=comparisonRows[0],device='desktop',viewMode='draft',request=0;
-    const reviewed=new Set();
+    const widths={desktop:1200,tablet:780,mobile:390};
+    const devicesNeeded=Object.keys(widths),reviewed=new Map(),previewReady=new Set();
+    const signature=(row,mode)=>row?.current?.id+'|'+mode;
+    const pageComplete=pageId=>devicesNeeded.every(mode=>reviewed.get(pageId)?.has(mode));
+    const completedCount=()=>site.pages.filter(page=>pageComplete(page.id)).length;
+    const signedCount=()=>Array.from(reviewed.values()).reduce((total,set)=>total+set.size,0);
+    const freshDraft=()=>state.siteId===site.siteId&&state.revision===openedRevision&&
+      !editor.isDirty()&&JSON.stringify(editor.getSite())===reviewedDraft;
     const updateReviewed=()=>{
-      launchProgress.textContent='Проверено страниц: '+reviewed.size+'/'+site.pages.length+
-        (readiness.errors?' · исправьте '+readiness.errors+' ошибок SDK-аудита перед выпуском':'')+
-        (readiness.attention?' · '+readiness.attention+' полей требуют проверки':'');
+      launchProgress.textContent='Проверено страниц: '+completedCount()+'/'+site.pages.length+
+        ' · экранов: '+signedCount()+'/'+(site.pages.length*devicesNeeded.length)+
+        (readiness.errors?' · '+readiness.errors+' ошибок SDK-аудита':'')+
+        (readiness.attention?' · '+readiness.attention+' незаполненных полей':'');
       for(const control of pages.querySelectorAll('button[data-page-id]')){
-        control.classList.toggle('is-reviewed',reviewed.has(control.dataset.pageId));
-        control.setAttribute('aria-label',(reviewed.has(control.dataset.pageId)?'Просмотрено · ':'Не просмотрено · ')+control.textContent);
+        const complete=pageComplete(control.dataset.pageId);
+        control.classList.toggle('is-reviewed',complete);
+        control.setAttribute('aria-label',(complete?'Просмотрено · ':'Не полностью проверено · ')+control.textContent);
       }
-      markReviewed.textContent=reviewed.has(selectedRow?.current?.id)?'✓ Просмотрена':'✓ Страница просмотрена';
-      markReviewed.disabled=!selectedRow?.current||reviewed.has(selectedRow.current.id);
+      const marked=reviewed.get(selectedRow?.current?.id)?.has(device);
+      markReviewed.textContent=marked?'✓ '+widths[device]+' px проверено':
+        'Подтвердить экран '+widths[device]+' px';
+      markReviewed.disabled=!selectedRow?.current||marked||
+        !previewReady.has(signature(selectedRow,device))||!freshDraft();
+      markReviewed.title=markReviewed.disabled&&!marked?
+        'Сначала успешно загрузите текущий предпросмотр на выбранной ширине, без правок после Save.':'';
     };
     markReviewed.addEventListener('click',()=>{
-      if(!selectedRow?.current)return;
-      reviewed.add(selectedRow.current.id);updateReviewed();syncActions();
+      if(markReviewed.disabled||!selectedRow?.current||!freshDraft())return;
+      const id=selectedRow.current.id;
+      if(!reviewed.has(id))reviewed.set(id,new Set());
+      reviewed.get(id).add(device);updateReviewed();syncActions();
     });
-    const widths={desktop:1200,tablet:780,mobile:390};
+    exportReport.addEventListener('click',()=>{
+      const report={format:'manufact-launch-review-v1',siteId:site.siteId,
+        revision:openedRevision,createdAt:new Date().toISOString(),draftSaved:freshDraft(),
+        publicationCompared:published?.version||null,publishedError,
+        sdk:{errors:inspected.errors,warnings:inspected.warnings},
+        contentGaps:readiness.issues,
+        pages:site.pages.map(page=>({id:page.id,path:page.path,title:page.title,
+          reviewedDevices:devicesNeeded.filter(mode=>reviewed.get(page.id)?.has(mode)),
+          ready:pageComplete(page.id)})),
+        eligibleForReviewPublish:!publishSaved.disabled};
+      const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)+'\\n'],
+        {type:'application/json'}));
+      const anchor=document.createElement('a');
+      anchor.href=url;anchor.download='ai-site-launch-review-'+openedRevision+'.json';
+      document.body.append(anchor);anchor.click();anchor.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1500);
+    });
     const syncActions=()=>{
       // The launch action itself runs inside safe(), which temporarily marks
       // the global toolbar busy. Use the identical rights/dirty conditions;
       // the actual buttons are checked again when clicked.
       saveDraft.disabled=!state.authorized||!state.siteId||!canEdit()||!editor.isDirty();
       publishSaved.disabled=!state.authorized||!state.siteId||!canPublish()||
-        editor.isDirty()||readiness.errors>0||reviewed.size!==site.pages.length;
+        !freshDraft()||readiness.errors>0||completedCount()!==site.pages.length||
+        (Boolean(meta?.published_version)&&(!published||!!publishedError));
       publishSaved.title=publishSaved.disabled?
-        'Сохраните черновик, исправьте ошибки SDK-аудита и подтвердите просмотр каждой страницы. Публикация всегда отдельно.':
-        'Потребуется отдельное подтверждение';
+        'Сохраните текущую ревизию, исправьте ошибки, проверьте 3 ширины каждой страницы; публикация всё равно требует подтверждения.':
+        'Все страницы просмотрены на ПК, планшете и телефоне. Потребуется отдельное подтверждение';
     };
     const renderViewport=()=>{
       previewPanels.classList.toggle('is-comparing',viewMode==='compare');
@@ -1118,6 +1162,8 @@
     };
     const showPreview=async()=>{
       const ticket=++request,row=selectedRow;
+      previewReady.delete(signature(row,device));
+      updateReviewed();
       const draft=row.current,live=row.prior;
       const path=draft?.path||live?.path;
       previewStatus.textContent='Строим предпросмотр черновика '+path+'…';
@@ -1157,10 +1203,14 @@
         const html=await previewPage(site,draft.path);
         if(ticket!==request||!dialog.open)return;
         frame.srcdoc=html;
+        previewReady.add(signature(row,device));
+        updateReviewed();syncActions();
         previewStatus.textContent='Черновик · '+draft.path+' · '+widths[device]+
           ' px · '+(published?'сравнение с v'+published.version:'ещё не опубликован');
       }catch(error){
         if(ticket!==request||!dialog.open)return;
+        previewReady.delete(signature(row,device));
+        updateReviewed();syncActions();
         frame.removeAttribute('srcdoc');
         previewStatus.textContent='Черновик недоступен: '+error.message;
       }
@@ -1213,11 +1263,8 @@
     }
     for(const [mode,name] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
       const control=action(name,'',()=>{
-        device=mode;renderViewport();
-        if(previewStatus.textContent.startsWith('Черновик ·')){
-          const path=selectedRow.current?.path||selectedRow.prior?.path;
-          previewStatus.textContent='Черновик · '+path+' · '+widths[device]+' px · без публикации';
-        }
+        if(device===mode)return;
+        device=mode;renderViewport();updateReviewed();syncActions();void showPreview();
       });
       control.dataset.device=mode;devices.append(control);
     }
@@ -1251,6 +1298,7 @@
       editor.replace(restoreServerGraphMaps(result.site));
       await refreshSites();await loadHistory();
       notice('Черновик сохранён на сервере как ревизия #'+state.revision+'. Публикация отдельно.');
+      return true;
     });
   }
   async function reload(){
