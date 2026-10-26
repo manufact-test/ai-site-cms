@@ -20,6 +20,45 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#sections .nav-entry').count(),2);
     assert.equal(await page.locator('#fields [data-field]').count(),3,
       'Only declared heading fields appear; no generic CSS catalogue');
+    // In-site page factory: build a whole page (not a new site), preserve
+    // source until commit, validate real content/links and Undo atomically.
+    await page.locator('#cms-blueprint-open').click();
+    await page.locator('#cms-blueprint-dialog[open]').waitFor();
+    await page.locator('#cms-blueprint-dialog select').first().selectOption('services');
+    await page.locator('#cms-blueprint-dialog label').filter({hasText:'Куда собрать'})
+      .locator('select').selectOption('new');
+    await page.locator('#cms-blueprint-dialog label').filter({hasText:'Название страницы'})
+      .locator('input').fill('Обработка металла');
+    await page.locator('#cms-blueprint-dialog label').filter({hasText:'URL новой страницы'})
+      .locator('input').fill('/metal/');
+    await page.locator('#cms-blueprint-dialog label').filter({hasText:'Главный заголовок'})
+      .locator('input').fill('Обработка металла под заказ');
+    await page.locator('#cms-blueprint-dialog label').filter({hasText:'Краткое описание'})
+      .locator('textarea').fill('Опишите точные условия сотрудничества.');
+    await page.locator('#cms-blueprint-dialog label').filter({hasText:'Услуги или предложения'})
+      .locator('textarea').fill('Резка металла\nГибка металла\nСварка');
+    assert.equal(await page.locator('#cms-blueprint-blocks .cms-blueprint-block').count(),5);
+    await page.frameLocator('#cms-blueprint-frame').locator('h1')
+      .getByText('Обработка металла под заказ').waitFor();
+    assert.equal(await page.locator('#pages .nav-entry').count(),2,'Preview never creates pages');
+    await page.locator('#cms-blueprint-apply').click();
+    assert.equal(await page.locator('#pages .nav-entry').count(),3);
+    const assembled=await page.evaluate(()=>window.Stage3Editor.getSite());
+    const built=assembled.pages.find(p=>p.path==='/metal/');
+    assert.ok(built&&built.sections.length===5);
+    assert.equal(built.sections[0].elements.find(e=>e.slot==='heading').values['content.text'],
+      'Обработка металла под заказ');
+    assert.deepEqual(built.sections.find(s=>s.component==='service-grid').items.map(x=>
+      x.values['content.title']),['Резка металла','Гибка металла','Сварка']);
+    const form=built.sections.find(s=>s.component==='lead-form-flex');
+    assert.equal(built.sections[0].elements.find(e=>e.slot==='action').values['behavior.href'],
+      '/metal/#'+form.id);
+    await page.locator('#undo').click();
+    assert.equal(await page.locator('#pages .nav-entry').count(),2,'Whole page is one Undo');
+    await page.locator('#redo').click();
+    assert.equal(await page.locator('#pages .nav-entry').count(),3);
+    await page.locator('#undo').click();
+    assert.equal(await page.locator('#pages .nav-entry').count(),2);
     const canvas=page.frameLocator('#preview');
     await canvas.locator('h1').waitFor();
     assert.equal(await canvas.locator('h1').innerText(),'Производим технологическое оборудование');
