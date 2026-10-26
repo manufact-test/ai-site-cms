@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-26",
-  "status": "stage2-no-go-stage3-isolated-v1.69-lead-site-map-handoff",
+  "status": "stage2-no-go-stage3-isolated-v1.70-main-graph-canvas-handoff",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.69-2026-10-26.md",
-  "latest_source_sha": "17e9061ee6ca40f12eb6f07f4e31f2ae6b3393c0",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40285158586",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40285158586",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.70-2026-10-26.md",
+  "latest_source_sha": "f366592db0267faaabfd5b01e7aa6f4f87e02ef4",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144",
   "source_offweb_ci": null,
-  "source_ci_result": "SUCCESS on exact functional SHA 17e9061ee6ca40f12eb6f07f4e31f2ae6b3393c0, Actions #40285158586; site-wide atomic text workbench, conditional forms, cross-page relocation and atomic site-map planner with hosted/offline Chromium, PHP HTTP and SDK CI. This is not product acceptance.",
+  "source_ci_result": "CHECK CI STATUS: https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144. Functional HEAD f366592db0267faaabfd5b01e7aa6f4f87e02ef4. This field is NOT proof of success; last known full green source ac483807cc2f2ac302f6fed3470cac4cfb795896 at Actions 40346327511.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly, then fix issues from real use; never get stuck testing existing lab",
@@ -25,7 +25,7 @@
     "current_stage": 2,
     "total_stages": 18,
     "stage2_technical_estimate_percent": "85-90",
-    "stage2_technical_remaining_percent": "10-15 plus independent human and host gates",
+    "stage2_technical_remaining_percent": "10-15 plus gates #5-#9",
     "stage2_formally_accepted": false,
     "stage3_started": true,
     "mandatory_product_requirements_accepted": 0,
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "17e9061ee6ca40f12eb6f07f4e31f2ae6b3393c0",
+    "stage3_code_sha": "f366592db0267faaabfd5b01e7aa6f4f87e02ef4",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -52,11 +52,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "MAIN DEVELOPER ONLY. Verify latest HEAD/CI and continue main CMS site creation/visual composition, conditional lead forms, preview/save/published fidelity in one large end-to-end block. The independent Design Factory belongs to a different chat and must not be edited or merged. Stage2 NO-GO #5–#9, Stage3 unaccepted, 0/135. Do not touch main or production.",
+  "next_step": "MAIN: verify f366592db0267faaabfd5b01e7aa6f4f87e02ef4 full CI at https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144 and resolve any remaining hosted Chromium publication guard or test ordering; then continue large CMS full-page/form workflow and later audit Design Factory handoff without touching its branch. Stage2 gates #5-#9 remain open; no deployment.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.69",
+  "checkpoint_version": "1.70",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -402,7 +402,7 @@
       "adr": "docs/ADR/0009-stage2-site-runtime-topology.md"
     },
     "docs_policy": "NO docs updates until explicit owner handoff request; docs/NEXT-CHAT.md §46 canonical (overrides historic large-milestone exceptions).",
-    "next_step": "Stage2 still IN PROGRESS, NOT ACCEPTED: next substantial combined block is reproducible isolated empty-CMS architecture/site adapter runtime topology, read-only HTTP boundaries and shared-host policy; no production host access without permission. No Stage3 before Stage2 owner acceptance.",
+    "next_step": "Stage2 engineering ~85-90%; manual acceptance gates #5-#9 still block closure. Isolated Stage3 code explicitly authorized in lead branch even before Stage2 acceptance; no hosting or production work.",
     "stage2_operator_install_lifecycle": {
       "checkpoint": "v1.42 2026-10-18",
       "source_sha": "a4a211e6cb896e1145aa9dbe92423093c14fea48",
@@ -656,11 +656,11 @@
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.52",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.69-2026-10-26.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.70-2026-10-26.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
-    "state": "not_started"
+    "state": "isolated_engineering_in_progress_not_accepted"
   },
   "release_policy": "No MVP. First complete release after 135/135 mandatory requirements accepted and full system verification.",
   "completed_stages": [
@@ -677,7 +677,7 @@
       "scope": "Research, license/host analysis, 135-ID reuse matrix and option A preference accepted through owner-delegated technical choice. No product features accepted."
     }
   ],
-  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.68-2026-10-25.md",
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.70-2026-10-26.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
@@ -1225,8 +1225,8 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.69",
-  "last_docs_handoff_note": "Owner-requested corrected v1.69 handoff for MAIN developer/integrator after mistaken transfer to independent Design Factory context. Functional checkpoint 17e9061ee6ca40f12eb6f07f4e31f2ae6b3393c0 has full CI SUCCESS #40285158586. Documentation HEAD is a later, separate commit; independently verify CI.",
+  "last_docs_handoff_version": "1.70",
+  "last_docs_handoff_note": "Owner-requested main CMS v1.70 handoff. Functional HEAD f366592db0267faaabfd5b01e7aa6f4f87e02ef4 includes nested Graph canvas structure editing; CI https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144 not yet confirmed green at writing. Last fully green functional source ac483807cc2f2ac302f6fed3470cac4cfb795896, run 40346327511. Stage2 NO-GO gates 5-9; Stage3 0/135 accepted.",
   "latest_tested_code_sha": "70a6a4776b0389fd5a35830226952a0372cccd65",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
@@ -1729,5 +1729,30 @@
     "main_untouched": true,
     "hosting_modified": false,
     "independent_factory_branch_untouched": true
+  },
+  "stage3_v1_70_checkpoint": {
+    "date": "2026-10-26",
+    "branch": "feature/stage3-ai-site-contract",
+    "code_sha": "f366592db0267faaabfd5b01e7aa6f4f87e02ef4",
+    "actions_url": "https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144",
+    "ci_result": "PENDING VERIFICATION at handoff authoring",
+    "last_green_functional_sha": "ac483807cc2f2ac302f6fed3470cac4cfb795896",
+    "last_green_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40346327511",
+    "completed": [
+      "Full-page visual editing of server-rendered page",
+      "Selected typed Design Graph node editing",
+      "Insert sibling/child text nodes in full-page graph",
+      "Duplicate and remove graph subtree with single Undo/Redo",
+      "Breakpoint override editing",
+      "Focused inspector handoff",
+      "Offline Chromium and PHP contract E2E pass observed; full hosted CI unconfirmed"
+    ],
+    "known_ci_history": "Multiple CI runs after 49da879 failed on newly introduced hosted-browser assertions, dialog handling, and disabled publish button; do not claim functionality fully verified until latest run passes.",
+    "explicit_not_done": [
+      "Formal owner Stage2 gates #5–#9",
+      "Formal Stage3 product acceptance: 0/135",
+      "Design Factory integration/fidelity audit",
+      "Real host deployment, production, providers"
+    ]
   }
 }
