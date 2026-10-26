@@ -53,8 +53,10 @@ function gitState(){
 }
 function auditReportIsValid(audit,chromiumRequested=false){
  if(!audit||audit.format!=='manufact-design-factory-release-check-v2'||audit.version!==2||
+  audit.sourceDirectory!=='stage3/design-factory/'||
   !Array.isArray(audit.checks)||!Array.isArray(audit.sourceManifest)||
   !Number.isInteger(audit.fileCount)||audit.fileCount<20||
+  audit.sourceManifest.length!==audit.fileCount||
   audit.browserRequested!==chromiumRequested||audit.nodePassed!==true||
   audit.browserPassed!==chromiumRequested||
   audit.automatedChecksPassed!==(audit.nodePassed&&audit.browserPassed)||

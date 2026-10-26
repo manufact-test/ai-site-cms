@@ -25,7 +25,8 @@ function walk(base,prefix=''){
  return output;
 }
 function manifestForDesignFactory(root){
- return walk(root).filter(entry=>!entry.path.startsWith('handoffs/'));
+ // Include every packaged file, including handoffs: ZIP output contains these bytes too.
+ return walk(root);
 }
 function manifestDigest(manifest){
  return crypto.createHash('sha256').update(JSON.stringify(manifest)).digest('hex');

@@ -3,7 +3,7 @@
 // Focused contract tests for the D7 orchestration gate. This is safe inside
 // release-audit because it never launches release-candidate.cjs recursively.
 const assert=require('node:assert/strict');
-const path=require('node:path'),crypto=require('node:crypto');
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {walk,manifestForDesignFactory,manifestDigest}=require('../lib/source-manifest.cjs');
 const {sourceFingerprint,inputPaths}=require('../lib/render-source-fingerprint.cjs');
 const {options,expectedAuditChecks,auditReportIsValid,localAuditStillMatches}=
@@ -11,6 +11,7 @@ const {options,expectedAuditChecks,auditReportIsValid,localAuditStillMatches}=
 const ROOT=path.resolve(__dirname,'..'),REPO=path.resolve(ROOT,'../..');
 const hash=x=>crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const entries=walk(ROOT),manifest=manifestForDesignFactory(ROOT);
+const auditSource=fs.readFileSync(path.join(ROOT,'bin/release-audit.cjs'),'utf8');
 function fixture(chromium=false){
  const checks=expectedAuditChecks(chromium).map(suite=>({suite,passed:true,exitCode:0}));
  return {format:'manufact-design-factory-release-check-v2',version:2,
@@ -23,6 +24,9 @@ try{
  assert.equal(expectedAuditChecks(false).length,10,'bundle parity, eight Node suites and final inventory stability');
  assert.ok(expectedAuditChecks(false).includes('source-inventory-stability'));
  assert.equal(expectedAuditChecks(true).length,11,'Chromium adds exactly the visual pipe suite');
+ assert.equal(manifest.length,entries.length,'Release manifest must cover every packaged file');
+ assert.ok(manifest.some(item=>item.path.startsWith('handoffs/')),'Handoff documentation is part of the packaged source inventory');
+ assert.ok(auditSource.includes('inventoryStable=sameManifest(entries,finalEntries)'), 'Final stability gate must compare every file, including handoffs');
  const base=fixture(false);
  assert.equal(auditReportIsValid(base,false),true);
  assert.equal(localAuditStillMatches(base),true);
@@ -43,8 +47,8 @@ try{
   assert.equal(auditReportIsValid(candidate,false),false,label);
  }
  for(const [label,mutate] of [
-  ['removed source entry',x=>{x.sourceManifest.pop();x.sourceManifestSha256=manifestDigest(x.sourceManifest);}],
-  ['unreviewed extra source entry',x=>{x.sourceManifest.push({path:'extra.cjs',bytes:1,sha256:'0'.repeat(64)});x.sourceManifestSha256=manifestDigest(x.sourceManifest);}],
+  ['removed source entry',x=>{x.sourceManifest.pop();x.fileCount--;x.sourceManifestSha256=manifestDigest(x.sourceManifest);}],
+  ['unreviewed extra source entry',x=>{x.sourceManifest.push({path:'extra.cjs',bytes:1,sha256:'0'.repeat(64)});x.fileCount++;x.sourceManifestSha256=manifestDigest(x.sourceManifest);}],
   ['changed source digest',x=>{x.sourceManifest[0].sha256='0'.repeat(64);x.sourceManifestSha256=manifestDigest(x.sourceManifest);}]
  ]){
   const candidate=structuredClone(base);mutate(candidate);
@@ -57,6 +61,13 @@ try{
  assert.throws(()=>options(['--out','/tmp/df','--out','/tmp/other']),/Usage/);
  assert.throws(()=>options(['--out','/tmp/df','--lead-php','/tmp/Graph.php']),/requires --lead-sdk/);
  assert.throws(()=>options(['--out','/tmp/df','--review','/tmp/review.json']),/requires --evidence/);
+ const handoffIndex=base.sourceManifest.findIndex(item=>item.path.startsWith('handoffs/'));
+ assert.notEqual(handoffIndex,-1,'Audit manifest must include handoff documentation');
+ const handoffTampered=structuredClone(base);
+ handoffTampered.sourceManifest[handoffIndex].sha256='0'.repeat(64);
+ handoffTampered.sourceManifestSha256=manifestDigest(handoffTampered.sourceManifest);
+ assert.equal(auditReportIsValid(handoffTampered,false),true,'Changed handoff manifest remains structurally well formed');
+ assert.equal(localAuditStillMatches(handoffTampered),false,'Handoff byte changes between audit and packaging must invalidate the candidate');
  const inputs=inputPaths(REPO);
  for(const required of [
   'stage3/sdk/contract.cjs','stage3/components/image-showcase.json',

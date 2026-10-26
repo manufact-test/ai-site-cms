@@ -24,7 +24,7 @@ function release(args){
  const f=flags(args);
  const reportTarget=f.out?resolveOutsideRepository(f.out,REPO,'Report output'):null;
  const entries=walk(ROOT);
- const manifest=entries.filter(x=>!x.path.startsWith('handoffs/'));
+ const manifest=entries;
  const listed=manifest.map(x=>x.path);
  for(const must of ['studio/index.html','studio/studio.js','studio/runtime.generated.js','lib/compiler.cjs','lib/bridge.cjs','catalog/themes.cjs','catalog/compositions.cjs','catalog/kits.cjs'])
   if(!listed.includes(must))throw Error('Missing necessary source: '+must);
@@ -53,8 +53,7 @@ function release(args){
  let inventoryStable=false;
  try{
   const finalEntries=walk(ROOT);
-  const finalManifest=finalEntries.filter(x=>!x.path.startsWith('handoffs/'));
-  inventoryStable=entries.length===finalEntries.length&&sameManifest(manifest,finalManifest);
+  inventoryStable=sameManifest(entries,finalEntries);
   results.push({suite:'source-inventory-stability',passed:inventoryStable,
    fileCountAtStart:entries.length,fileCountAtEnd:finalEntries.length,
    error:inventoryStable?null:'Source inventory or file bytes changed during release audit'});
