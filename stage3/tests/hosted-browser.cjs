@@ -924,7 +924,7 @@ async function execute(){
     return walk(graph.nodes);
   },{sectionId:graphSectionId,nodeId:headingId})),false);
   await page.locator('#cms-work-history').getByRole('button',{name:'↷ Повтор'}).click();
-  await page.locator('#cms-work-graph-node').selectOption(headingId);
+  await page.locator('#cms-work-graph-node').selectOption(inlineNodeId);
   await page.locator('#cms-work-graph-open').click();
   await page.locator('#cms-design-graph-dialog[open]').waitFor();
   assert.equal(await page.locator('#cms-design-node-select').inputValue(),inlineNodeId);
