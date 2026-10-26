@@ -441,8 +441,11 @@ function savePreviewZip(){
 }
 
 function feedbackContext(){
- if(!feedbackTool||!state.lastCompiled)return null;
- try{return feedbackTool.context(state.lastCompiled,state.project,state.composition);}
+ if(!feedbackTool)return null;
+ // Never bind approval/export to the debounced preview's previous compile. A user
+ // can edit a fact and click export before renderPreview() runs; compile the live
+ // project for every feedback action so stale reports fail closed immediately.
+ try{return feedbackTool.context(compileCurrent(),state.project,state.composition);}
  catch{return null;}
 }
 function renderFeedback(){

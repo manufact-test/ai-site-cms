@@ -93,6 +93,8 @@ assert.ok(markup.includes('id="save-preview-zip"'));
 for(const name of ['feedback-file','feedback-list','feedback-export','feedback-summary'])
  assert.ok(markup.includes('id="'+name+'"'),'Missing feedback UI '+name);
 assert.ok(app.includes('feedbackTool.validate(incoming,expected)'));
+assert.ok(app.includes('feedbackTool.context(compileCurrent(),state.project,state.composition)'),
+ 'Feedback actions must compile the live project, not trust the debounced preview snapshot');
 assert.ok(app.includes('feedbackTool.reviewHtml(reviewContext)'));
 assert.ok(app.includes('function savePreviewZip()'));
 assert.ok(app.includes('packer.build(files),verification=packer.inspect(bytes)'));
@@ -354,7 +356,7 @@ try{
  "const gate=document.getElementById('owner-review-confirmed');if(gate.disabled)throw Error('review confirmation should unlock only after required facts are complete');",
  "gate.checked=true;gate.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,180));",
  "document.getElementById('save-site').click();const approvedSite=JSON.parse(await blobs[6].text());if(!approvedSite.pages.every(page=>page.seo.robots==='index'))throw Error('explicit owner review must allow indexing');",
- "setField('headline','Edited after review');if(gate.checked)throw Error('editing content must revoke owner review');await new Promise(resolve=>setTimeout(resolve,180));if(!document.getElementById('feedback-export').disabled||!document.getElementById('feedback-summary').textContent.includes('устарели'))throw Error('content edits must stale prior client feedback');",
+ "setField('headline','Edited after review');if(gate.checked)throw Error('editing content must revoke owner review');const staleBlobCount=blobs.length,staleDownloadCount=downloadNames.length;document.getElementById('feedback-export').click();if(blobs.length!==staleBlobCount||downloadNames.length!==staleDownloadCount)throw Error('stale feedback must not export during preview debounce');await new Promise(resolve=>setTimeout(resolve,180));if(!document.getElementById('feedback-export').disabled||!document.getElementById('feedback-summary').textContent.includes('устарели'))throw Error('content edits must stale prior client feedback');",
  "document.getElementById('save-site').click();const revokedSite=JSON.parse(await blobs[7].text());if(!revokedSite.pages.every(page=>page.seo.robots==='noindex'))throw Error('editing after review must restore noindex');",
  "URL.createObjectURL=originalURL;HTMLAnchorElement.prototype.click=originalClick;",
  "if(blobs.length!==8||downloadNames.length!==8)throw Error('expected eight exports across review workflow');",
