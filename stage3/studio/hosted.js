@@ -982,8 +982,11 @@
     let selectedPage=site.pages[0],device='desktop',request=0;
     const widths={desktop:1200,tablet:780,mobile:390};
     const syncActions=()=>{
-      saveDraft.disabled=$('save').disabled;
-      publishSaved.disabled=$('server-publish').disabled;
+      // The launch action itself runs inside safe(), which temporarily marks
+      // the global toolbar busy. Use the identical rights/dirty conditions;
+      // the actual buttons are checked again when clicked.
+      saveDraft.disabled=!state.authorized||!state.siteId||!canEdit()||!editor.isDirty();
+      publishSaved.disabled=!state.authorized||!state.siteId||!canPublish()||editor.isDirty();
       publishSaved.title=publishSaved.disabled?'Сначала сохраните черновик и проверьте права публикации':'Потребуется отдельное подтверждение';
     };
     const renderViewport=()=>{
