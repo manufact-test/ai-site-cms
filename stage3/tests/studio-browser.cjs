@@ -741,6 +741,29 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const restoredGraph=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
       .flatMap(p=>p.sections).find(s=>s.id===selectedSection);
     assert.equal(restoredGraph.designGraph.nodes[0].children.find(n=>n.id===selectedSection+'-copy').responsive?.mobile?.fontSize,undefined);
+
+    // The full-page workbench now performs atomic structural edits too:
+    // add, duplicate, remove, then unwind each change with one Undo.
+    const inlineGraphCount=()=>page.evaluate(id=>{
+      const section=window.Stage3Editor.getSite().pages.flatMap(p=>p.sections).find(s=>s.id===id);
+      const count=nodes=>nodes.reduce((total,node)=>total+1+(node.children?count(node.children):0),0);
+      return count(section.designGraph.nodes);
+    },selectedSection);
+    const graphCountBefore=await inlineGraphCount();
+    await page.locator('#cms-work-graph-add-text').click();
+    assert.equal(await inlineGraphCount(),graphCountBefore+1,'Canvas adds a typed sibling node');
+    await page.locator('#cms-work-graph-duplicate').click();
+    assert.equal(await inlineGraphCount(),graphCountBefore+2,'Canvas duplicates selected node with fresh IDs');
+    page.once('dialog',dialog=>dialog.accept());
+    await page.locator('#cms-work-graph-remove').click();
+    assert.equal(await inlineGraphCount(),graphCountBefore+1,'Canvas removes only selected subtree');
+    await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+    assert.equal(await inlineGraphCount(),graphCountBefore+2,'Undo restores removed subtree');
+    await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+    assert.equal(await inlineGraphCount(),graphCountBefore+1,'Undo reverses duplication');
+    await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+    assert.equal(await inlineGraphCount(),graphCountBefore,'Undo reverses insertion');
+
     await page.locator('#cms-work-graph-open').click();
     await page.locator('#cms-design-graph-dialog[open]').waitFor();
     assert.equal(await page.locator('#cms-design-node-select').inputValue(),selectedSection+'-copy',

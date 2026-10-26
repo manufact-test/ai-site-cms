@@ -1029,7 +1029,7 @@
     // Graph mutations are applied only against a cloned, validated site. An
     // invalid style, unsafe href or missing media ID does not touch the draft.
     // Each successful change is one atomic Undo/Redo entry.
-    function editGraphWork(mutate){
+    function mutateGraphWork(mutate){
       if(!canWrite())return feedback('Нет права на редактирование.',true),false;
       const page=pageForWork(),section=sectionForWork();
       if(!page||!section?.designGraph||!selectedGraphNode())return false;
@@ -1045,7 +1045,7 @@
         };
         const node=find(edited.designGraph.nodes);
         if(!node)throw Error('Узел композиции больше не существует');
-        mutate(node,site);
+        mutate({node,site,section:edited});
         const checked=C.validateSite(site,manifests);
         // Native input change + blur can fire twice. Do not record duplicate
         // revisions: a single visible edit must always need only one Undo.
@@ -1059,6 +1059,15 @@
         showWork();
         return false;
       }
+    }
+    function editGraphWork(mutate){
+      return mutateGraphWork(({node,site})=>mutate(node,site));
+    }
+    function editGraphTreeWork(operation,nextNodeId=''){
+      return mutateGraphWork(({section})=>{
+        section.designGraph=DESIGN_GRAPH.editTree(section.designGraph,operation);
+        workGraphNode=nextNodeId;
+      });
     }
     function showWork(){
       const page=pageForWork(),section=sectionForWork();
@@ -1229,7 +1238,7 @@
         panel.className='cms-work-graph-panel';panel.id='cms-work-graph-panel';
         const title=document.createElement('strong');title.textContent='Вложенные элементы · '+rows.length;
         const hint=document.createElement('small');
-        hint.textContent='Нажмите на элемент в макете. Двойной клик по тексту — быстрая правка. Для размеров и перетаскивания используйте полный граф.';
+        hint.textContent='Выберите элемент в макете или списке. Здесь доступны быстрые правки текста, адаптивных стилей, добавление, копирование и удаление узлов; для сложной компоновки откройте полный граф.';
         const nodes=document.createElement('select');nodes.id='cms-work-graph-node';nodes.className='control';
         for(const row of rows){
           const option=document.createElement('option');option.value=row.node.id;
@@ -1238,7 +1247,40 @@
         }
         nodes.value=workGraphNode;
         nodes.addEventListener('change',()=>{workGraphNode=nodes.value;showWork();highlightWork();});
-        panel.append(title,hint,nodes);
+        const graphActions=document.createElement('div');
+        graphActions.className='cms-work-graph-actions';
+        const addText=workButton('+ Текст рядом',()=>{
+          const node={id:uniqueId('dg-node'),type:'text',text:'Новый текстовый элемент',styles:{}};
+          editGraphTreeWork({action:'insert',targetId:current.id,placement:'after',node},node.id);
+        });
+        addText.id='cms-work-graph-add-text';addText.disabled=!canWrite();
+        const addChild=workButton('+ Вложенный текст',()=>{
+          if(current.type!=='container')return feedback('Сначала выберите контейнер.',true);
+          const node={id:uniqueId('dg-node'),type:'text',text:'Новый вложенный текст',styles:{}};
+          editGraphTreeWork({action:'insert',targetId:current.id,placement:'inside',node},node.id);
+        });
+        addChild.id='cms-work-graph-add-child';
+        addChild.disabled=!canWrite()||current.type!=='container';
+        const duplicateGraphNode=workButton('Копия узла',()=>{
+          const ids=[];
+          const collect=node=>{ids.push(uniqueId('dg-node'));for(const child of node.children||[])collect(child);};
+          collect(current);
+          editGraphTreeWork({action:'duplicate',nodeId:current.id,ids},ids[0]);
+        });
+        duplicateGraphNode.id='cms-work-graph-duplicate';duplicateGraphNode.disabled=!canWrite();
+        const removeGraphNode=workButton('Удалить узел',()=>{
+          if(!confirm('Удалить выбранный узел и все его вложенные элементы?'))return;
+          const removed=new Set();
+          const collect=node=>{removed.add(node.id);for(const child of node.children||[])collect(child);};
+          collect(current);
+          const fallback=rows.find(row=>!removed.has(row.node.id))?.node.id||'';
+          editGraphTreeWork({action:'remove',nodeId:current.id},fallback);
+        });
+        removeGraphNode.id='cms-work-graph-remove';
+        const subtreeSize=node=>1+(node.children||[]).reduce((sum,child)=>sum+subtreeSize(child),0);
+        removeGraphNode.disabled=!canWrite()||subtreeSize(current)>=rows.length;
+        graphActions.append(addText,addChild,duplicateGraphNode,removeGraphNode);
+        panel.append(title,hint,nodes,graphActions);
         const property=(label,key,value,options=null)=>{
           const wrap=document.createElement('label');wrap.className='cms-work-field';
           const caption=document.createElement('span');caption.textContent=label;

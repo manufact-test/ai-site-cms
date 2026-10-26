@@ -801,6 +801,90 @@ async function execute(){
     assert.equal(response.headers()['etag'],'"'+part.sha256+'"');
     assert.equal(require('node:crypto').createHash('sha256').update(bytes).digest('hex'),part.sha256);
   }
+  // Full-page Design Graph editing now includes structural edits and survives
+  // server save/reload/publish with responsive fidelity in the public renderer.
+  page.once('dialog',dialog=>dialog.accept('feature-highlights'));
+  await page.locator('#section-add').click();
+  const graphSectionId=await page.evaluate(()=>window.Stage3Editor.selection().sectionId);
+  assert.equal((await page.evaluate(id=>window.Stage3Editor.getSite().pages.flatMap(p=>p.sections)
+    .find(s=>s.id===id).component,graphSectionId)),'feature-highlights');
+  page.once('dialog',dialog=>dialog.accept());
+  await page.locator('#section-design-graph').click();
+  await page.locator('#cms-design-graph-dialog[open]').waitFor();
+  await page.locator('#cms-design-apply').click();
+  const graphRevisionBefore=Number((await page.locator('#server-status').innerText()).match(/Черновик #(\\d+)/)[1]);
+  await page.locator('#save').click();
+  await page.locator('#server-status').getByText(new RegExp('Черновик #'+(graphRevisionBefore+1)+'\\\\b')).waitFor();
+  await visitor.goto(publicUrl);
+  assert.equal(await visitor.locator('.cmsdg').count(),0,'Saved Design Graph remains private until explicit publish');
+
+  await page.locator('#cms-open-page-preview').click();
+  await page.locator('#cms-page-preview[open]').waitFor();
+  const fullGraphPreview=page.frameLocator('#cms-page-preview-frame');
+  const fullGraphTitle=fullGraphPreview.locator('.cmsdg-n-'+graphSectionId+'-title');
+  await fullGraphTitle.waitFor();
+  await fullGraphTitle.click();
+  assert.equal(await page.locator('#cms-work-graph-node').inputValue(),graphSectionId+'-title',
+    'Hosted full-page canvas selects the exact graph node');
+  await page.locator('#cms-work-graph-add-text').click();
+  const inlineNodeId=await page.locator('#cms-work-graph-node').inputValue();
+  assert.notEqual(inlineNodeId,graphSectionId+'-title');
+  const inlineNode=fullGraphPreview.locator('.cmsdg-n-'+inlineNodeId);
+  await inlineNode.waitFor();
+  await inlineNode.dblclick();
+  await page.locator('#cms-work-quick-input').fill('Композиция сохранена через весь путь');
+  await page.locator('#cms-work-quick-save').click();
+  await inlineNode.getByText('Композиция сохранена через весь путь').waitFor();
+  await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+  await inlineNode.getByText('Новый текстовый элемент').waitFor();
+  await page.locator('#cms-work-history').getByRole('button',{name:'↷ Повтор'}).click();
+  await inlineNode.getByText('Композиция сохранена через весь путь').waitFor();
+  await page.locator('.cms-page-preview-modes [data-mode="mobile"]').click();
+  await page.locator('#cms-work-graph-panel [data-work-graph-field="fontSize"]').fill('36');
+  await page.locator('#cms-work-graph-panel [data-work-graph-field="fontSize"]').dispatchEvent('change');
+  const readHostedNode=()=>page.evaluate(({sectionId,nodeId})=>{
+    const section=window.Stage3Editor.getSite().pages.flatMap(p=>p.sections).find(s=>s.id===sectionId);
+    const walk=nodes=>{for(const node of nodes){if(node.id===nodeId)return node;
+      if(node.children){const found=walk(node.children);if(found)return found;}}return null;};
+    return walk(section.designGraph.nodes);
+  },{sectionId:graphSectionId,nodeId:inlineNodeId});
+  let hostedNode=await readHostedNode();
+  assert.equal(hostedNode.text,'Композиция сохранена через весь путь');
+  assert.equal(hostedNode.responsive.mobile.fontSize,36);
+  await page.locator('#cms-work-graph-open').click();
+  await page.locator('#cms-design-graph-dialog[open]').waitFor();
+  assert.equal(await page.locator('#cms-design-node-select').inputValue(),inlineNodeId);
+  assert.equal(await page.locator('#cms-design-breakpoint').inputValue(),'mobile');
+  await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Закрыть'}).click();
+  await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+  const graphRevisionBeforeSave=Number((await page.locator('#server-status').innerText()).match(/Черновик #(\\d+)/)[1]);
+  await page.locator('#save').click();
+  await page.locator('#server-status').getByText(new RegExp('Черновик #'+(graphRevisionBeforeSave+1)+'\\\\b')).waitFor();
+  await page.locator('#server-reload').click();
+  await page.waitForFunction(({sectionId,nodeId})=>{
+    const section=window.Stage3Editor.getSite().pages.flatMap(p=>p.sections).find(s=>s.id===sectionId);
+    if(!section?.designGraph)return false;
+    const walk=nodes=>{for(const node of nodes){if(node.id===nodeId)return node;
+      if(node.children){const found=walk(node.children);if(found)return found;}}return null;};
+    const node=walk(section.designGraph.nodes);
+    return node?.text==='Композиция сохранена через весь путь'&&node.responsive?.mobile?.fontSize===36;
+  },{sectionId:graphSectionId,nodeId:inlineNodeId});
+  hostedNode=await readHostedNode();
+  assert.equal(hostedNode.responsive.mobile.fontSize,36,'Responsive graph style survives server reload');
+  await visitor.goto(publicUrl);
+  assert.equal(await visitor.locator('.cmsdg').count(),0,'Reloaded draft still does not leak to visitors');
+  const graphVersionBefore=Number((await page.locator('#server-status').innerText()).match(/Опубликовано: v(\\d+)/)[1]);
+  page.once('dialog',dialog=>dialog.accept());
+  await page.locator('#server-publish').click();
+  await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(graphVersionBefore+1)+'\\\\b')).waitFor();
+  await visitor.setViewportSize({width:390,height:844});
+  await visitor.goto(publicUrl);
+  const publicGraphNode=visitor.locator('.cmsdg-n-'+inlineNodeId);
+  await publicGraphNode.getByText('Композиция сохранена через весь путь').waitFor();
+  assert.equal(await publicGraphNode.evaluate(el=>getComputedStyle(el).fontSize),'36px',
+    'Published PHP renderer honors the mobile graph override');
+  await visitor.setViewportSize({width:1400,height:1000});
+
   await staffCtx.close();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
