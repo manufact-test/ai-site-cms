@@ -18,9 +18,9 @@
   "source_ci_result": "SUCCESS — full Stage3 functional CI #40395814925 on exact source 95a9f36759e7feabe435c4733181a73ff70866d9 (offline Chromium + PHP SQLite + hosted Chromium). No release acceptance, deploy or main merge.",
   "accelerated_program": {
     "enabled": true,
-    "principle": "Complete full CMS rapidly, then fix issues from real use; never get stuck testing existing lab",
-    "one_continue": "ONE BIG end-to-end product block (3-6 related functions), not micro-fixes; implement full CMS before cosmetics",
-    "checks": "Existing CI + one real critical Chromium flow; no redundant lab/test cycling",
+    "principle": "Complete full CMS rapidly with cross-subsystem workflows (no duration padding), then correct issues from real use; avoid tiny features and endless tests",
+    "one_continue": "ONE MACROBLOCK of 2-4 substantial vertical deliveries across Studio + contract + renderer/API/storage, at least 3 meaningful independent user outcomes; not a small set of dialog tweaks; don't stop after first commit/CI",
+    "checks": "Keep existing full CI + only critical added Chromium end-to-end for newly introduced workflow; no redundant test cycling; verify exact final HEAD",
     "documentation": "Update only on explicit owner request to change chats",
     "current_stage": 2,
     "total_stages": 18,
@@ -47,12 +47,24 @@
       "worker_write_scope": "stage3/design-factory/**",
       "leader_integrates_only_after_review": true,
       "worker_assignment": "stage3/design-factory/MISSION.md; stage3/design-factory/ROADMAP.md; worker branch only"
-    }
+    },
+    "execution_waves": [
+      "A: Visual authoring (3/5/6/7/9/10)",
+      "B: Complete site + leads (8/10/3/11)",
+      "C: Data, permissions, revision, backup/restore (4/11/12)",
+      "D: Technology adapters + deploy foundations (2/13/12; isolated only)",
+      "E: System checks + 135 owner approvals + release (14/15/16/17; owner GO required)"
+    ],
+    "next_macroblock": "A1: universal multi-page Design Graph layout/typography/geometry plus responsive media/motion plus global override/save/renderer parity; if already built, pick nearest missing vertical, no duplicate modules",
+    "execution_policy_document": "docs/ACCELERATED-MACROBLOCK-PROGRAM.md",
+    "policy_owner_request_date": "2026-10-27",
+    "current_code_checkpoint_at_policy_change": "cf369988ec16904d945413f36ad292fb94d17da2",
+    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/40406416703"
   },
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Lead: read v1.72 handoff, verify actual branch HEAD + Actions for both source and docs, then take ONE large end-to-end user-facing block for launch completeness: identify unfinished copy/media/forms -> direct correction -> multipage review -> Save -> explicit Publish, no duplicate builder, no factory branch changes; Stage2 stays NO-GO #5-#9.",
+  "next_step": "Lead developer: follow docs/ACCELERATED-MACROBLOCK-PROGRAM.md. First verify exact branch HEAD and CI, then deliver A1 as 2-4 substantial cross-subsystem vertical packages (visual graph+responsive/media+global overrides+real renderer), no cosmetic-only work; Stage2 NO-GO and 0/135 owner acceptance unchanged.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
