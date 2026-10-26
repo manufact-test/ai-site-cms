@@ -515,7 +515,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#cms-work-element').inputValue(),'section-hero-summary',
       'Hero description selects summary field, not the headline');
     await page.locator('#cms-work-component').selectOption('service-grid');
-    await page.locator('#cms-work-add').getByRole('button',{name:'+ Блок после'}).click();
+    await page.locator('.cms-work-add').getByRole('button',{name:'+ Блок после'}).click();
     const repeatSite=await page.evaluate(()=>window.Stage3Editor.getSite());
     const repeated=repeatSite.pages[0].sections.find(section=>section.component==='service-grid');
     assert.ok(repeated,'Visual composer adds typed repeated section to home page');
