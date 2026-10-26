@@ -17,7 +17,7 @@ const EXPECTED_SUITES=Object.freeze([
 ]);
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 function expectedAuditChecks(chromium=false){
- return ['build-browser-bundle --check',...EXPECTED_SUITES,...(chromium?['visual-pipe-smoke.cjs']:[])];
+ return ['build-browser-bundle --check',...EXPECTED_SUITES,...(chromium?['visual-pipe-smoke.cjs']:[]),'source-inventory-stability'];
 }
 function options(args){
  const x={out:null,chromium:null,leadSdk:null,leadPhp:null,evidence:null,review:null};
@@ -52,7 +52,7 @@ function gitState(){
   ownerBranch:branch.passed&&branch.stdout.trim()==='feature/stage3-design-factory'};
 }
 function auditReportIsValid(audit,chromiumRequested=false){
- if(!audit||audit.format!=='manufact-design-factory-release-check-v1'||audit.version!==1||
+ if(!audit||audit.format!=='manufact-design-factory-release-check-v2'||audit.version!==2||
   !Array.isArray(audit.checks)||!Array.isArray(audit.sourceManifest)||
   !Number.isInteger(audit.fileCount)||audit.fileCount<20||
   audit.browserRequested!==chromiumRequested||audit.nodePassed!==true||
@@ -94,7 +94,7 @@ function execute(opts){
  if(fs.existsSync(output))throw Error('Candidate output exists; do not overwrite');
  fs.mkdirSync(output,{recursive:false,mode:0o700});
  const result={
-  format:'manufact-design-factory-release-candidate-v1',version:1,
+  format:'manufact-design-factory-release-candidate-v2',version:2,
   generatedAt:new Date().toISOString(),repository:'manufact-test/ai-site-cms',
   independentBranch:'feature/stage3-design-factory',sourceDirectory:'stage3/design-factory/',
   renderSourceSha256:null,git:{head:null,branch:null,clean:false,ownerBranch:false},
@@ -126,8 +126,9 @@ function execute(opts){
   }
   const auditValid=auditReportIsValid(audit,Boolean(opts.chromium));
   const failedChecks=Array.isArray(audit?.checks)?audit.checks.filter(x=>x?.passed!==true).map(x=>x?.suite||'unknown').join(', '):'missing/invalid audit report';
-  result.node={status:auditValid?'pass':'fail',suites:audit?.checks?.length||0,
-   sha256:fs.existsSync(auditFile)?sha(fs.readFileSync(auditFile)):null,
+  result.node={status:auditValid?'pass':'fail',
+   suites:audit?.checks?.filter(x=>x?.suite!=='build-browser-bundle --check'&&x?.suite!=='source-inventory-stability').length||0,
+   checks:audit?.checks?.length||0,sha256:fs.existsSync(auditFile)?sha(fs.readFileSync(auditFile)):null,
    commandExit:auditCommand.exitCode,
    error:auditValid?null:(auditCommand.error||failedChecks||auditCommand.stderr.slice(-700)||
     'Audit report schema, suite inventory, or source manifest did not validate')};
@@ -212,11 +213,14 @@ function execute(opts){
    }catch(e){result.zip={status:'fail',error:String(e.message)};}
   }else result.zip={status:'fail',error:build.error||build.stderr.slice(-1000)};
 
-  const finalFingerprint=sourceFingerprint(REPO);
-  if(result.renderSourceSha256!==finalFingerprint){
-   result.error='Renderer, CMS manifests, Studio, or verification tooling changed during the candidate run';
-   result.gate.node=false;result.gate.bundleParity=false;
-   result.gate.fullVisualMatrix=false;result.gate.phpParity=false;result.gate.sourceExact=false;
+  let finalFingerprint=null;
+  try{finalFingerprint=sourceFingerprint(REPO);}
+  catch(error){result.error='Final source fingerprint failed: '+error.message;}
+  if(!finalFingerprint||result.renderSourceSha256!==finalFingerprint){
+   result.error=result.error||'Renderer, CMS manifests, Studio, or verification tooling changed during the candidate run';
+   result.gate.node=false;result.gate.bundleParity=false;result.gate.chromium=false;
+   result.gate.fullVisualMatrix=false;result.gate.leadGraph=false;
+   result.gate.phpParity=false;result.gate.sourceExact=false;
   }
   const gitAfter=gitState();
   result.git.after=gitAfter;

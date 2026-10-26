@@ -8,7 +8,7 @@ const cp=require('node:child_process');
 const ROOT=path.resolve(__dirname,'..');
 const REPO=path.resolve(ROOT,'../..');
 const {resolveOutsideRepository}=require('../lib/output-path.cjs');
-const {walk,manifestForDesignFactory,manifestDigest}=require('../lib/source-manifest.cjs');
+const {walk,manifestDigest,sameManifest}=require('../lib/source-manifest.cjs');
 const SUITES=['smoke.cjs','compositions-smoke.cjs','kits-smoke.cjs','studio-smoke.cjs','bridge-smoke.cjs','package-smoke.cjs','visual-review-smoke.cjs','release-candidate-contract-smoke.cjs'];
 
 function flags(args){
@@ -24,7 +24,7 @@ function release(args){
  const f=flags(args);
  const reportTarget=f.out?resolveOutsideRepository(f.out,REPO,'Report output'):null;
  const entries=walk(ROOT);
- const manifest=manifestForDesignFactory(ROOT);
+ const manifest=entries.filter(x=>!x.path.startsWith('handoffs/'));
  const listed=manifest.map(x=>x.path);
  for(const must of ['studio/index.html','studio/studio.js','studio/runtime.generated.js','lib/compiler.cjs','lib/bridge.cjs','catalog/themes.cjs','catalog/compositions.cjs','catalog/kits.cjs'])
   if(!listed.includes(must))throw Error('Missing necessary source: '+must);
@@ -50,13 +50,24 @@ function release(args){
    error:p.error?String(p.error):null
   });
  }
+ let inventoryStable=false;
+ try{
+  const finalEntries=walk(ROOT);
+  const finalManifest=finalEntries.filter(x=>!x.path.startsWith('handoffs/'));
+  inventoryStable=entries.length===finalEntries.length&&sameManifest(manifest,finalManifest);
+  results.push({suite:'source-inventory-stability',passed:inventoryStable,
+   fileCountAtStart:entries.length,fileCountAtEnd:finalEntries.length,
+   error:inventoryStable?null:'Source inventory or file bytes changed during release audit'});
+ }catch(error){
+  results.push({suite:'source-inventory-stability',passed:false,error:String(error.message)});
+ }
  const nodePassed=results.every(x=>x.passed);
  const browserPassed=f.chromium&&
   results.some(x=>x.suite==='studio-smoke.cjs'&&x.passed&&x.stdout.includes('DESIGN_FACTORY_D5_CHROMIUM PASS'))&&
   results.some(x=>x.suite==='visual-pipe-smoke.cjs'&&x.passed&&x.stdout.includes('DESIGN_FACTORY_D7_VISUAL_PIPE PASS'));
  const report={
-  format:'manufact-design-factory-release-check-v1',
-  version:1,sourceDirectory:'stage3/design-factory/',fileCount:entries.length,
+  format:'manufact-design-factory-release-check-v2',
+  version:2,sourceDirectory:'stage3/design-factory/',fileCount:entries.length,
   sourceManifest:manifest,sourceManifestSha256:manifestDigest(manifest),
   checks:results,
   nodePassed,browserRequested:f.chromium,browserPassed,

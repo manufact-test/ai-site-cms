@@ -13,15 +13,16 @@ const hash=x=>crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex'
 const entries=walk(ROOT),manifest=manifestForDesignFactory(ROOT);
 function fixture(chromium=false){
  const checks=expectedAuditChecks(chromium).map(suite=>({suite,passed:true,exitCode:0}));
- return {format:'manufact-design-factory-release-check-v1',version:1,
+ return {format:'manufact-design-factory-release-check-v2',version:2,
   fileCount:entries.length,sourceManifest:structuredClone(manifest),
   sourceManifestSha256:manifestDigest(manifest),checks,nodePassed:true,
   browserRequested:chromium,browserPassed:chromium,
   automatedChecksPassed:chromium,humanVisualAcceptance:'pending',releaseReady:false};
 }
 try{
- assert.equal(expectedAuditChecks(false).length,9,'bundle parity plus eight Node suites');
- assert.equal(expectedAuditChecks(true).length,10,'Chromium adds exactly the visual pipe suite');
+ assert.equal(expectedAuditChecks(false).length,10,'bundle parity, eight Node suites and final inventory stability');
+ assert.ok(expectedAuditChecks(false).includes('source-inventory-stability'));
+ assert.equal(expectedAuditChecks(true).length,11,'Chromium adds exactly the visual pipe suite');
  const base=fixture(false);
  assert.equal(auditReportIsValid(base,false),true);
  assert.equal(localAuditStillMatches(base),true);
@@ -64,7 +65,7 @@ try{
   'stage3/design-factory/studio/runtime.generated.js'
  ])assert.ok(inputs.includes(required),'Fingerprint must bind '+required);
  assert.equal(sourceFingerprint(REPO),sourceFingerprint(REPO),'Fingerprint must be deterministic');
- console.log('DESIGN_FACTORY_D7_RELEASE_CONTRACT PASS: exact audit schema, bundle + 8-suite inventory, optional Chromium inventory, source additions/removals/tampering, option validation and complete visual-tooling fingerprint');
+ console.log('DESIGN_FACTORY_D7_RELEASE_CONTRACT PASS: exact audit schema, bundle + 8-suite inventory + final source stability, optional Chromium inventory, source additions/removals/tampering, option validation and complete visual-tooling fingerprint');
 }catch(error){
  console.error('DESIGN_FACTORY_D7_RELEASE_CONTRACT FAIL: '+error.message);
  throw error;
