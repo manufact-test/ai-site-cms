@@ -1,5 +1,14 @@
 # Design Factory — NEXT CHAT / independent developer handoff
 
+## Latest substantial work — 26 October: D7 async review race and audit assertion closeout
+
+Functional code commit `3ead7d1d2d75b58f6146aedb3bbaac93af82e035`; read live branch SHA after this documentation commit. **Five owned files changed in one major pass**: `studio/studio.js`, `studio/client-feedback.js`, `lib/visual-review-ui.cjs`, `tests/studio-smoke.cjs`, `tests/visual-review-smoke.cjs`. Studio's last-selected file now wins for concurrent project and feedback JSON imports. The offline client feedback portal prevents delayed restores from clobbering new notes. The 54-image visual-review UI prevents delayed drafts overwriting newly entered human verdicts/notes and clears attestations on valid restoration. Two Node smoke assertions that had become certain failures after previous source fixes were corrected.
+
+**Executed accurately:** V8 source syntax 6/6 PASS; focused behavioral V8 with actual committed code and controlled async reads 9/9 PASS (Studio 4, client review portal 3, visual QA review UI 2); 29/29 source-expectation spot-checks PASS. **No genuine Node release audit, Chromium browser E2E, 54 screenshots, human 42-composition inspection, PHP parity or ZIP/CRC/source-byte/SHA256 has been executed.** Do not claim them.
+
+**Remaining D7:** use a real checked-out repository and working headless Chromium, run existing `bin/release-candidate.cjs` / `bin/release-audit.cjs` and diagnose actual failures, collect and manually review all 54 PNGs and all 42 compositions, run six real PHP probes with real Lead SDK/PHP, build and independently verify final deterministic release ZIP. No additional cosmetic features; no main/SDK/PHP/workflows/hosting/production edits and **no merge**. D7 OPEN / Stage2 NO-GO / Stage3 UNACCEPTED / 0/135; engineering implementation 6/7 ≈ 86%.
+
+
 ## Latest work — 26 October · Studio asynchronous import data-loss guard
 
 **Live functional commit `4bf19ac4a3a62e9136e2b55fc9a815321a1eebcc`** (the follow-up documentation commit changes HEAD; read it live). Fixed a real owner-work-loss race inside `studio/studio.js`: an older slow JSON file read can no longer overwrite a newer project edit or feedback resolution. A project revision advances on live keystrokes, committed changes and Undo/Redo; feedback revision advances on resolution and import. Both asynchronous imports re-check freshness after `File.text()` before applying data. Added two genuine Chromium regression scenarios to the existing Studio E2E source.

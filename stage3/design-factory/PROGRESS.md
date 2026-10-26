@@ -1,5 +1,16 @@
 # Design Factory — operational progress and D7 continuation
 
+## 26 October 2026 — D7 large closeout block: review/import consistency + Node audit blockers
+
+**Functional commit:** `3ead7d1d2d75b58f6146aedb3bbaac93af82e035` (documentation commit follows). Completed one linked hardening block across five owned files: Studio file imports, static client feedback portal, manual visual-review draft restoration, and both existing smoke suites. No CMS/Lead/PHP/workflow/hosting/production changes or merge.
+
+**Actual defects fixed:** two `tests/studio-smoke.cjs` assertions still searched for pre-fix source strings and would fail the real Node release audit regardless of actual behavior. Both now assert the actual fresh-context/validated-import guard. In Studio, separate monotonic request serials now ensure that the **last selected** project and feedback JSON wins even if earlier reads finish later or no intermediate state change occurs. The client `review.html` portal rejects delayed draft restoration after client notes/reviewer changes and rejects superseded parallel drafts. The `visual-review.html` UI rejects delayed drafts after a reviewer edits a verdict, note or attestation, and rejects superseded parallel drafts. Valid drafts still restore, with all manual attestations reset. All outputs remain offline and untrusted suggestions, not owner approval or publication.
+
+**Checks actually executed:** 6/6 V8 source/embedded-script syntax checks; 4/4 Studio asynchronous-import V8 behavior scenarios using committed function bodies; 3/3 client portal behavioral scenarios using the real generated inline script and simulated DOM; 2/2 visual-review behavioral scenarios using the committed inline script and simulated DOM. Total **9/9 focused behavior scenarios PASS**, plus 29 current Studio source-string expectations checked against actual committed source with **0 mismatches**. These are isolated V8 tests with simulated DOM, **not** a complete on-disk Node audit or real Chromium run. Existing on-checkout Node tests have been updated, but not executed.
+
+**Formal D7 evidence still absent:** Node release-audit NOT RUN due to GitHub DNS checkout blocker; genuine Chromium Studio/client flow NOT RUN (previous headless probe timed out); 54 real desktop/tablet/mobile screenshots NOT CAPTURED; 42 compositions have no human acceptance; six real PHP probes NOT RUN; final ZIP/CRC/exact source inventory/SHA256 NOT RUN. **D7 OPEN, Stage2 NO-GO, Stage3 UNACCEPTED, 0/135**. D1–D6 implementation roadmap remains 6/7 ≈ 86%; no invented progress increase. Next remaining work is *execution and human review* in a working checkout, not further micro-hardening.
+
+
 ## 26 October 2026 — substantive D7 safety fix: no stale async JSON imports
 
 **Source commit:** `4bf19ac4a3a62e9136e2b55fc9a815321a1eebcc` on `feature/stage3-design-factory`. Two real product/test files changed exclusively under this subtree: `studio/studio.js` and `tests/studio-smoke.cjs`.

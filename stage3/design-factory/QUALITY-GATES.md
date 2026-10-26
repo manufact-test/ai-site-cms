@@ -1,5 +1,14 @@
 # D7 · Final quality gates and evidence
 
+## 26 October — connected D7 regression closeout, committed implementation
+
+**Product/source checkpoint:** `3ead7d1d2d75b58f6146aedb3bbaac93af82e035`. Removed two obsolete static assertions that guaranteed `studio-smoke.cjs` failure after the fresh-feedback-state fix. The current Node smoke expects `feedbackTool.validate(incoming,fresh)` and the exact `{throwOnError:true,preserveReview:true}` import contract. Verified all **29** current source-string assertions of the same type against the committed Studio source: **zero stale expectations**. This checks source contract alignment; it is **not** execution of the Node smoke.
+
+End-to-end review/import workflow protections now share a clear rule: asynchronous `File.text()` must never apply old JSON after newer user edits or a newer chosen import. Studio tracks both owner edits and per-import serials; the exported HTML-demo portal tracks notes/reviewer mutations and draft serials; the standalone 54-image visual-review UI tracks human radio/note/checkbox mutations and draft serials. Rejected stale draft attempts do not modify decisions. Normal imports still work; human review attestations are never restored from JSON.
+
+**Executed isolated evidence:** 6/6 JS syntax passes, 9/9 behavior cases using current GitHub source (Studio 4, client portal 3, visual review 2) and 29/29 Studio static expectation matches. Real Node checkout/audit, real Chromium, 54 image inspection, all 42 compositions reviewed by a human, real PHP six probes, and source-exact ZIP/CRC/SHA256 remain **NOT RUN**. Formal status **D7 OPEN**; none of these focused passes upgrades Stage2 NO-GO / Stage3 UNACCEPTED / 0/135.
+
+
 ## 26 October — async import stale-state regression evidence
 
 **Source commit `4bf19ac4a3a62e9136e2b55fc9a815321a1eebcc`.** Studio's project JSON and client-feedback JSON imports now check project/feedback revision freshness *after* asynchronous `File.text()` completes. Live input edits invalidate pending imports immediately, even before the 120ms preview update or blur/history; Undo/Redo, other imports, and feedback resolutions also invalidate older reads. The imported JSON is not allowed to silently replace more recent work.
