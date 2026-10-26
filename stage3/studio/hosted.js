@@ -1093,7 +1093,26 @@
       liveFrame.removeAttribute('src');
       liveFrame.removeAttribute('srcdoc');
       if(published&&live){
-        liveFrame.src='/published/'+encodeURIComponent(state.siteId)+live.path;
+        // Visitor responses deliberately set frame-ancestors 'none'. NEVER
+        // relax that header. Read the current public HTML over same-origin
+        // and display it as scriptless srcdoc, just like draft PHP preview.
+        void (async()=>{
+          try{
+            const url='/published/'+encodeURIComponent(state.siteId)+live.path;
+            const response=await fetch(url,{credentials:'same-origin',
+              cache:'no-store',redirect:'error'});
+            if(!response.ok||!(response.headers.get('content-type')||'').includes('text/html'))
+              throw Error('Опубликованная страница недоступна (HTTP '+response.status+')');
+            const html=await response.text();
+            if(html.length>4*1024*1024)throw Error('Страница слишком большая для визуального сравнения');
+            if(ticket!==request||!dialog.open)return;
+            liveFrame.srcdoc=html;
+          }catch(error){
+            if(ticket!==request||!dialog.open)return;
+            liveFrame.srcdoc='<!doctype html><html lang="ru"><meta charset="utf-8"><body style="font:15px system-ui;padding:25px"><p>Не удалось открыть опубликованный HTML для сравнения.</p></body></html>';
+            previewStatus.textContent='Опубликованная версия недоступна: '+error.message;
+          }
+        })();
       }else{
         liveFrame.srcdoc='<!doctype html><html lang="ru"><meta charset="utf-8"><body style="font:15px system-ui;padding:25px"><p>Эта страница ещё не опубликована.</p></body></html>';
       }
