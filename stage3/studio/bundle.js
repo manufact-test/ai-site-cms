@@ -4677,6 +4677,245 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     controls.append(openButton);$('pages').before(controls);
   }
 
+
+  // A single verified-content pass across the site, without silently replacing
+  // manually edited copy. Uses contract validation + one SDK Undo transaction.
+  function initContentFill(){
+    const dlg=document.createElement('dialog');dlg.id='cms-fill-dialog';
+    dlg.className='cms-settings-dialog cms-fill-dialog';
+    const heading=document.createElement('h2');heading.textContent='Наполнить весь сайт';
+    const intro=document.createElement('p');intro.className='subdued';
+    intro.textContent='Введите подтверждённые сведения один раз. Мастер подготовит изменения главной, услуг, преимуществ, описаний, кнопок и SEO. Изменённые вручную поля защищены.';
+    const layout=document.createElement('div');layout.className='cms-fill-layout';
+    const left=document.createElement('div');left.className='cms-fill-fields';
+    const right=document.createElement('div');right.className='cms-fill-preview';
+    const input=(name,tag='input',limit=0)=>{
+      const label=document.createElement('label');label.textContent=name;
+      const el=document.createElement(tag);el.className='control';
+      if(tag==='input')el.type='text';
+      if(tag==='textarea')el.rows=3;
+      if(limit)el.maxLength=limit;
+      label.append(el);left.append(label);return el;
+    };
+    const siteName=input('Название компании / сайта','input',130);
+    const headline=input('Главный заголовок на главной','input',180);
+    const description=input('Подтверждённое описание','textarea',420);
+    const offerings=input('Услуги или предложения — по одной строке','textarea',2400);
+    const advantages=input('Подтверждённые преимущества — по одной строке','textarea',1800);
+    const contactLabel=input('Текст кнопки связи','input',100);
+    const contactTarget=input('Куда ведёт кнопка связи','select');
+    const settings=document.createElement('label');settings.className='cms-fill-overwrite';
+    const overwrite=document.createElement('input');overwrite.type='checkbox';overwrite.id='cms-fill-overwrite';
+    settings.append(overwrite,document.createTextNode(' Перезаписывать вручную изменённые поля (не рекомендуется)'));
+    left.append(settings);
+    const summary=document.createElement('p');summary.id='cms-fill-summary';
+    const problem=document.createElement('p');problem.id='cms-fill-error';problem.setAttribute('role','alert');
+    const previewPage=document.createElement('select');previewPage.id='cms-fill-page';previewPage.className='control';
+    const devices=document.createElement('div');devices.className='cms-fill-devices';
+    const desktop=button('ПК','btn small',()=>{device='desktop';preview();});
+    const mobile=button('Телефон','btn small',()=>{device='mobile';preview();});
+    devices.append(desktop,mobile);
+    const frame=document.createElement('iframe');frame.id='cms-fill-frame';
+    frame.title='Изолированный предпросмотр массового наполнения сайта';
+    frame.setAttribute('sandbox','');frame.setAttribute('referrerpolicy','no-referrer');
+    const review=document.createElement('div');review.id='cms-fill-changes';
+    right.append(summary,problem,previewPage,devices,frame,review);layout.append(left,right);
+    const actions=document.createElement('div');actions.className='cms-settings-actions';
+    const apply=button('Применить все изменения','btn primary',commit);apply.id='cms-fill-apply';apply.dataset.editorWrite='true';
+    actions.append(apply,button('Закрыть','btn',()=>dlg.close()));
+    dlg.append(heading,intro,layout,actions);document.body.append(dlg);
+    let openedRevision=0,candidate=null,selectedPage='',device='desktop',changes=[],skipped=0;
+    const split=(raw,max,count,label)=>{
+      const entries=raw.split(/\r?\n/).map(v=>v.trim()).filter(Boolean);
+      if(entries.length>count||entries.some(v=>v.length>max))
+        throw Error(label+': не более '+count+' строк по '+max+' символов');
+      return entries;
+    };
+    const keyFor=v=>[v.kind,v.pageId,v.sectionId||'',v.path].join('|');
+    const broken=site=>C.inspectSite(site,manifests).errors.filter(v=>
+      v.kind==='broken-link'||v.kind==='broken-anchor');
+    const textSlot=(site,page,section,slot,path,value,caption)=>{
+      if(!value)return;
+      const manifest=manifests.find(m=>m.id===section.component&&m.version===section.manifestVersion);
+      const def=manifest?.elements.find(e=>e.slot===slot)?.fields.find(f=>f.path===path);
+      const el=section.elements.find(e=>e.slot===slot);
+      if(!def||!el||def.type!=='text'||value.length>def.maxLength)
+        throw Error(caption+': текст превышает ограничение компонента');
+      const original=el.values[path];
+      if(original===value)return;
+      if(!overwrite.checked&&original!==def.default&&original!==''){skipped++;return;}
+      el.values[path]=value;
+      changes.push({pageId:page.id,label:page.title+' · '+caption,before:original,after:value});
+    };
+    const safeHref=(site,page,section,slot,value)=>{
+      if(!value)return;
+      const manifest=manifests.find(m=>m.id===section.component&&m.version===section.manifestVersion);
+      const def=manifest?.elements.find(e=>e.slot===slot)?.fields.find(f=>f.path==='behavior.href');
+      const el=section.elements.find(e=>e.slot===slot);
+      if(!def||!el)return;
+      const prior=el.values['behavior.href'];
+      if(prior===value)return;
+      if(!overwrite.checked&&prior!==def.default){skipped++;return;}
+      el.values['behavior.href']=value;
+      changes.push({pageId:page.id,label:page.title+' · ссылка кнопки',before:prior,after:value});
+    };
+    function build(){
+      changes=[];skipped=0;
+      const site=cp(session.current);
+      const name=siteName.value.trim(),hero=headline.value.trim(),desc=description.value.trim();
+      const offers=split(offerings.value,150,16,'Услуги');
+      const facts=split(advantages.value,280,12,'Преимущества');
+      const buttonText=contactLabel.value.trim();
+      const href=contactTarget.value;
+      if(name&&name!==site.title){
+        changes.push({pageId:null,label:'Название сайта',before:site.title,after:name});site.title=name;
+      }
+      const home=site.pages.find(p=>p.path==='/');
+      for(const page of site.pages){
+        for(const section of page.sections){
+          switch(section.component){
+            case 'company-hero':
+              if(page===home){
+                textSlot(site,page,section,'heading','content.text',hero,'Главный заголовок');
+                textSlot(site,page,section,'summary','content.text',desc,'Описание первого экрана');
+              }
+              textSlot(site,page,section,'action','content.text',buttonText,'Основная кнопка');
+              safeHref(site,page,section,'action',href);
+              break;
+            case 'service-grid':
+              if(offers.length){
+                const defs=manifests.find(m=>m.id===section.component).repeat;
+                // Keep existing custom records; expand only when space is
+                // needed and never discard existing item data.
+                const grow=Math.min(defs.max,Math.max(section.items.length,offers.length));
+                for(let i=section.items.length;i<grow;i++){
+                  const item=cp(section.items[0]);
+                  item.id=section.id+'-item-'+(i+1);
+                  item.values=Object.fromEntries(defs.fields.map(f=>[f.path,cp(f.default)]));
+                  section.items.push(item);
+                  changes.push({pageId:page.id,label:page.title+' · новая карточка услуги',before:'',after:''});
+                }
+                offers.forEach((value,i)=>{
+                  const item=section.items[i],def=defs.fields.find(f=>f.path==='content.title');
+                  if(!item||!def)return;
+                  const old=item.values['content.title'];
+                  if(old===value)return;
+                  if(!overwrite.checked&&old!==def.default&&old!==''){skipped++;return;}
+                  item.values['content.title']=value;
+                  changes.push({pageId:page.id,label:page.title+' · услуга '+(i+1),before:old,after:value});
+                });
+              }
+              break;
+            case 'feature-highlights':
+              textSlot(site,page,section,'first','content.text',facts[0]||'','Преимущество 1');
+              textSlot(site,page,section,'second','content.text',facts[1]||'','Преимущество 2');
+              break;
+            case 'media-story':
+              if(facts.length)textSlot(site,page,section,'copy','content.text',facts.join(' · ').slice(0,900),'История/факты');
+              safeHref(site,page,section,'action',href);
+              break;
+            case 'cta-banner':
+              textSlot(site,page,section,'summary','content.text',desc,'Описание CTA');
+              textSlot(site,page,section,'primary','content.text',buttonText,'Текст CTA');
+              safeHref(site,page,section,'primary',href);
+              break;
+            case 'contact-panel':
+              textSlot(site,page,section,'action','content.text',buttonText,'Контактная кнопка');
+              safeHref(site,page,section,'action',href);
+              break;
+          }
+        }
+        if(desc){
+          const seo=page.seo;
+          const next=page===home?desc:
+            (page.title+'. '+desc).slice(0,300);
+          if(!seo){
+            page.seo={title:'',description:next,robots:'index',ogTitle:'',ogDescription:'',ogImage:''};
+            changes.push({pageId:page.id,label:page.title+' · SEO',before:'',after:next});
+          }else if(seo.description!==next&&
+            (overwrite.checked||!seo.description.trim())){
+            const old=seo.description;seo.description=next;
+            changes.push({pageId:page.id,label:page.title+' · SEO',before:old,after:next});
+          }else if(seo.description!==next)skipped++;
+        }
+      }
+      C.validateSite(site,manifests);
+      const oldErrors=new Set(broken(session.current).map(keyFor));
+      const extra=broken(site).filter(x=>!oldErrors.has(keyFor(x)));
+      if(extra.length)throw Error('Новые битые ссылки или якоря: '+extra.slice(0,3).map(x=>x.path).join(', '));
+      return site;
+    }
+    function preview(){
+      if(!candidate)return;
+      const page=candidate.pages.find(p=>p.id===selectedPage)||candidate.pages[0];
+      selectedPage=page.id;previewPage.value=page.id;
+      frame.classList.toggle('mobile',device==='mobile');
+      desktop.classList.toggle('primary',device==='desktop');
+      mobile.classList.toggle('primary',device==='mobile');
+      frame.srcdoc=window.Stage3Editor.previewDocument(candidate,page.path,device);
+    }
+    function refresh(){
+      candidate=null;apply.disabled=true;review.replaceChildren();
+      problem.textContent='';summary.textContent='';
+      try{
+        if(openedRevision!==session.revision)throw Error('Черновик изменился; откройте мастер заново');
+        candidate=build();
+        const first=selectedPage||pageId;
+        previewPage.replaceChildren();
+        for(const page of candidate.pages){
+          const o=document.createElement('option');o.value=page.id;
+          o.textContent=page.title+' · '+page.path+' · '+changes.filter(c=>c.pageId===page.id).length+' изменений';
+          previewPage.append(o);
+        }
+        selectedPage=candidate.pages.find(p=>p.id===first)?.id||candidate.pages[0].id;
+        summary.textContent=changes.length+' изменений на '+new Set(changes.filter(c=>c.pageId).map(c=>c.pageId)).size+
+          ' страницах · '+skipped+' защищённых полей · одна операция Undo · публикации нет';
+        for(const change of changes.slice(0,40)){
+          const row=document.createElement('p');row.textContent=change.label+
+            (change.after?' → '+change.after.slice(0,110):'');review.append(row);
+        }
+        if(changes.length>40){
+          const note=document.createElement('small');note.textContent='И ещё '+(changes.length-40)+' изменений';
+          review.append(note);
+        }
+        apply.disabled=!changes.length;preview();
+      }catch(ex){problem.textContent=ex.message;frame.removeAttribute('srcdoc');}
+    }
+    function commit(){
+      if(!candidate||apply.disabled||openedRevision!==session.revision)return;
+      try{
+        if(overwrite.checked&&!confirm('Перезаписать ранее введённые вручную данные? Все изменения можно отменить через Undo до сохранения.'))return;
+        const site=build();
+        if(!changes.length)return;
+        session=D.replaceSite(session,manifests,site,openedRevision);
+        dlg.close();draw();
+        notice('Сведения распределены по страницам одной операцией Undo. Сохранение и публикация отдельно.');
+      }catch(ex){problem.textContent=ex.message;apply.disabled=true;}
+    }
+    function open(){
+      openedRevision=session.revision;selectedPage=pageId;device='desktop';
+      siteName.value=session.current.title;
+      headline.value='';description.value='';offerings.value='';advantages.value='';
+      contactLabel.value='';overwrite.checked=false;
+      contactTarget.replaceChildren();
+      const available=[['','Не изменять ссылку']];
+      for(const page of session.current.pages)for(const section of page.sections)
+        if(['lead-form-flex','lead-form'].includes(section.component))
+          available.push([page.path+'#'+section.id,'Форма: '+page.title]);
+      for(const [value,label] of available){
+        const opt=document.createElement('option');opt.value=value;opt.textContent=label;contactTarget.append(opt);
+      }
+      contactTarget.value='';refresh();dlg.showModal();
+    }
+    previewPage.addEventListener('change',()=>{selectedPage=previewPage.value;preview();});
+    for(const control of [siteName,headline,description,offerings,advantages,contactLabel,contactTarget,overwrite])
+      control.addEventListener('input',refresh);
+    const launch=button('Наполнить сайт','btn small',open);launch.id='cms-fill-open';
+    launch.dataset.editorWrite='true';
+    const tools=document.createElement('div');tools.className='structure-tools';
+    tools.append(launch);$('pages').before(tools);
+  }
+
   // Plan the entire site without editing the live local draft until Apply.
   // Every intermediate operation uses the validated immutable SDK and the
   // final candidate commits through a SINGLE revision/Undo.
@@ -5728,7 +5967,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  initContentWorkbench();initSiteMap();initPageBlueprint();createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
+  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
 })();
 'use strict';
 // A single owner-reviewed composition path for offline and authenticated Studio.
