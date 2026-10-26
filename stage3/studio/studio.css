@@ -300,3 +300,32 @@
 .cms-work-graph-panel #cms-work-graph-media summary{font-size:12px}
 .cms-work-graph-panel #cms-work-graph-media .btn{min-width:0;overflow-wrap:anywhere}
 @media(max-width:500px){.cms-work-graph-insert{grid-template-columns:1fr}.cms-work-graph-insert .btn{grid-column:auto}}
+
+
+/* Guided whole-page assembly; editable plan and inert full-page preview. */
+.cms-blueprint-dialog{width:min(1160px,calc(100vw - 24px));max-width:none;max-height:calc(100vh - 22px);
+ overflow:auto;gap:11px}
+.cms-blueprint-dialog>h2{margin:0;font-size:22px}
+.cms-blueprint-dialog>.subdued{margin:0}
+.cms-blueprint-layout{display:grid;grid-template-columns:minmax(300px,.88fr) minmax(360px,1.12fr);gap:18px;min-height:0}
+.cms-blueprint-fields{display:grid;gap:10px;align-content:start;max-height:65vh;overflow:auto;padding-right:8px}
+.cms-blueprint-fields>label{min-width:0}
+.cms-blueprint-fields .control{box-sizing:border-box;width:100%;min-width:0}
+.cms-blueprint-fields textarea{min-height:55px;resize:vertical}
+.cms-blueprint-fields h3{font-size:15px;margin:9px 0 0}
+.cms-blueprint-blocks{display:grid;gap:5px}
+.cms-blueprint-block{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid #395265;border-radius:8px}
+.cms-blueprint-block>span{font-size:12px;flex:1;min-width:0;overflow-wrap:anywhere}
+.cms-blueprint-block .btn{padding:5px 9px;font-size:12px}
+.cms-blueprint-add{display:flex;align-items:center;gap:7px}
+.cms-blueprint-add>.control{flex:1;min-width:0}
+.cms-blueprint-preview{display:grid;align-content:start;gap:9px;min-width:0}
+#cms-blueprint-summary{font-size:12px;font-weight:700;color:#b2e9d2;margin:0;line-height:1.5}
+#cms-blueprint-error{color:#ffb5ab;font-size:12px;overflow-wrap:anywhere;margin:0;min-height:18px}
+.cms-blueprint-devices{display:flex;gap:7px}
+#cms-blueprint-frame{display:block;width:100%;height:min(620px,58vh);border:1px solid #4f6475;border-radius:9px;background:#fff}
+#cms-blueprint-frame.mobile{width:min(390px,100%);margin-inline:auto}
+.cms-blueprint-dialog>.cms-settings-actions{padding-top:10px;border-top:1px solid #38515f}
+@media(max-width:800px){.cms-blueprint-layout{grid-template-columns:1fr}
+ .cms-blueprint-fields{max-height:none;overflow:visible}.cms-blueprint-preview{min-height:300px}
+ #cms-blueprint-frame{height:430px}.cms-blueprint-dialog{padding:14px}}
