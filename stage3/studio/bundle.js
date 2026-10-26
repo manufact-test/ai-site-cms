@@ -4430,6 +4430,251 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   }
 
 
+
+  // In-site page assembly, not a separate site generator. The operator can
+  // revise the entire page plan before one validated, Undoable draft commit.
+  function initPageBlueprint(){
+    const BLUEPRINTS={
+      home:{label:'Главная · полный сайт',components:['company-hero','feature-highlights','service-grid','media-story','cta-banner','lead-form-flex']},
+      services:{label:'Услуги · витрина и заявки',components:['company-hero','service-grid','process-timeline','faq-accordion','lead-form-flex']},
+      about:{label:'О компании · история',components:['company-hero','media-story','feature-highlights','partner-logos','contact-panel']},
+      portfolio:{label:'Проекты · галерея',components:['company-hero','photo-gallery','media-story','testimonials','contact-panel']},
+      contact:{label:'Контакты · форма',components:['company-hero','contact-panel','lead-form-flex']},
+      landing:{label:'Лендинг · предложение',components:['company-hero','feature-highlights','service-grid','comparison-matrix','cta-banner','lead-form-flex']}
+    };
+    const dialog=document.createElement('dialog');
+    dialog.id='cms-blueprint-dialog';dialog.className='cms-settings-dialog cms-blueprint-dialog';
+    const title=document.createElement('h2');title.textContent='Собрать страницу из готовых секций';
+    const subtitle=document.createElement('p');subtitle.className='subdued';
+    subtitle.textContent='Конструктор работает внутри текущего сайта. Введите только проверенные сведения. Просмотр не меняет черновик; применение — одна операция Undo. Сохранение и публикация отдельно.';
+    const layout=document.createElement('div');layout.className='cms-blueprint-layout';
+    const fields=document.createElement('div');fields.className='cms-blueprint-fields';
+    const right=document.createElement('div');right.className='cms-blueprint-preview';
+    const field=(caption,kind='input',max=0)=>{
+      const wrap=document.createElement('label');wrap.textContent=caption;
+      const ctl=document.createElement(kind);ctl.className='control';
+      if(kind==='input')ctl.type='text';
+      if(max)ctl.maxLength=max;
+      wrap.append(ctl);fields.append(wrap);return ctl;
+    };
+    const preset=field('Сценарий страницы','select'),target=field('Куда собрать','select');
+    const operation=field('Что сделать с существующими секциями','select');
+    const addOptions=(select,pairs)=>{select.replaceChildren();for(const [value,label] of pairs){
+      const o=document.createElement('option');o.value=value;o.textContent=label;select.append(o);
+    }};
+    addOptions(preset,Object.entries(BLUEPRINTS).map(([key,v])=>[key,v.label]));
+    addOptions(operation,[['replace','Заменить все секции страницы'],['append','Добавить секции в конец']]);
+    const pageTitle=field('Название страницы', 'input',160);
+    const path=field('URL новой страницы (латиница, /.../)','input',180);
+    const headline=field('Главный заголовок H1','input',180);
+    const description=field('Краткое описание предложения','textarea',420);
+    description.rows=3;
+    const action=field('Текст основной кнопки','input',90);
+    const services=field('Услуги или предложения — по одной строке (необязательно)','textarea');
+    services.rows=3;services.maxLength=2500;
+    const seo=field('SEO-описание (без выдуманных обещаний)','textarea',300);seo.rows=2;
+    const blocksTitle=document.createElement('h3');blocksTitle.textContent='Секции страницы';
+    const blocks=document.createElement('div');blocks.id='cms-blueprint-blocks';blocks.className='cms-blueprint-blocks';
+    const addBar=document.createElement('div');addBar.className='cms-blueprint-add';
+    const component=document.createElement('select');component.className='control';component.id='cms-blueprint-component';
+    addOptions(component,manifests.map(m=>[m.id,m.label]));
+    const addBlock=button('+ Секция','btn small',()=>{plan.push(component.value);renderBlocks();refresh();});
+    addBar.append(component,addBlock);
+    fields.append(blocksTitle,blocks,addBar);
+    const count=document.createElement('p');count.id='cms-blueprint-summary';
+    const error=document.createElement('p');error.id='cms-blueprint-error';error.setAttribute('role','alert');
+    const deviceBar=document.createElement('div');deviceBar.className='cms-blueprint-devices';
+    const desktop=button('Компьютер','btn small',()=>{device='desktop';renderDevice();});
+    const mobile=button('Телефон','btn small',()=>{device='mobile';renderDevice();});
+    deviceBar.append(desktop,mobile);
+    const frame=document.createElement('iframe');frame.id='cms-blueprint-frame';
+    frame.title='Предпросмотр структуры страницы без сценариев и форм';
+    frame.setAttribute('sandbox','');frame.setAttribute('referrerpolicy','no-referrer');
+    right.append(count,error,deviceBar,frame);
+    layout.append(fields,right);
+    const buttons=document.createElement('div');buttons.className='cms-settings-actions';
+    const apply=button('Применить страницу целиком','btn primary',commit);apply.id='cms-blueprint-apply';
+    apply.dataset.editorWrite='true';
+    const close=button('Закрыть','btn',()=>dialog.close());
+    buttons.append(apply,close);
+    dialog.append(title,subtitle,layout,buttons);document.body.append(dialog);
+    let plan=[],openedRevision=0,device='desktop',candidate=null,focusPageId='',failure='';
+    const slug=name=>String(name||'').normalize('NFKD').toLowerCase()
+      .replace(/[^a-z0-9 -]/g,'').trim().replace(/\s+/g,'-').replace(/-+/g,'-');
+    const setSlot=(section,slot,key,value)=>{
+      const el=section.elements.find(x=>x.slot===slot);
+      const definitions=manifests.find(x=>x.id===section.component)?.elements
+        .find(x=>x.slot===slot)?.fields||[];
+      const def=definitions.find(f=>f.path===key);
+      if(el&&def&&typeof value==='string'&&value.length<=def.maxLength&&def.type==='text')
+        el.values[key]=value;
+      else if(el&&def&&def.type==='url')el.values[key]=value;
+    };
+    const warningKey=x=>[x.kind,x.pageId,x.sectionId||'',x.path].join('|');
+    const linkProblems=site=>C.inspectSite(site,manifests).errors.filter(x=>
+      x.kind==='broken-link'||x.kind==='broken-anchor');
+    function build(){
+      const source=session.current,existing=source.pages.find(p=>p.id===target.value);
+      if(!plan.length)throw Error('Добавьте хотя бы одну секцию');
+      if(plan.length>40)throw Error('Не более 40 секций за одну сборку');
+      const name=pageTitle.value.trim(),heading=headline.value.trim(),route=path.value.trim();
+      if(!name)throw Error('Введите название страницы');
+      if(!heading)throw Error('Введите главный заголовок H1');
+      if(!existing&&!/^\/(?:[a-z0-9-]+\/)*$/.test(route))
+        throw Error('URL должен быть вида /services/ (латиница, строчные буквы и дефисы)');
+      if(seo.value.length>300)throw Error('SEO описание — максимум 300 символов');
+      const site=cp(source),page=existing?
+        site.pages.find(p=>p.id===existing.id):{id:uniqueId('page'),path:route,title:name,sections:[]};
+      if(!existing)site.pages.push(page);
+      if(existing)page.title=name;
+      if(!existing||operation.value==='replace')page.sections=[];
+      const ids=plan.map(()=>uniqueId('section'));
+      const destination=()=>{
+        const newForm=plan.findIndex(x=>x==='lead-form-flex'||x==='lead-form');
+        if(newForm>=0)return page.path+'#'+ids[newForm];
+        const own=page.sections.find(s=>s.component==='lead-form-flex'||s.component==='lead-form');
+        if(own)return page.path+'#'+own.id;
+        for(const p of site.pages)for(const sec of p.sections)
+          if(sec.component==='lead-form-flex'||sec.component==='lead-form')
+            return p.path+'#'+sec.id;
+        return '/';
+      };
+      const contact=destination();
+      const lines=services.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+      if(lines.length>16)throw Error('Не более 16 названий услуг');
+      if(lines.some(x=>x.length>150))throw Error('Название услуги — максимум 150 символов');
+      for(const [i,type] of plan.entries()){
+        const manifest=manifests.find(m=>m.id===type);
+        if(!manifest)throw Error('Неизвестный компонент: '+type);
+        const section=C.sectionFrom(manifest,ids[i]);
+        // Only the operator's supplied text is promoted to content. Everything
+        // else remains a visibly editable manifest placeholder, not invented fact.
+        if(type==='company-hero'){
+          setSlot(section,'heading','content.text',heading);
+          if(description.value.trim())setSlot(section,'summary','content.text',description.value.trim());
+          if(action.value.trim())setSlot(section,'action','content.text',action.value.trim());
+        }
+        if(type==='service-grid'&&lines.length){
+          const repeat=manifest.repeat;
+          const size=Math.max(repeat.min,Math.min(repeat.max,lines.length));
+          const template=section.items[0];
+          section.items=Array.from({length:size},(_,index)=>{
+            const item=index<section.items.length?cp(section.items[index]):cp(template);
+            item.id=section.id+'-item-'+(index+1);
+            if(lines[index])item.values['content.title']=lines[index];
+            return item;
+          });
+        }
+        if(type==='cta-banner'&&action.value.trim())
+          setSlot(section,'primary','content.text',action.value.trim());
+        if(type==='lead-form-flex'&&action.value.trim())
+          setSlot(section,'submit-label','content.text',action.value.trim());
+        // Default example links are not allowed to point to non-existent pages.
+        for(const el of [...section.elements,...(section.items||[])]){
+          if(Object.hasOwn(el.values,'behavior.href')){
+            const href=el.values['behavior.href'];
+            if(href==='/contact/'||href==='/'||!site.pages.some(p=>p.path===href))
+              el.values['behavior.href']=contact;
+          }
+        }
+        page.sections.push(section);
+      }
+      // Existing page metadata not mentioned here remains intact.
+      if(!existing)page.seo={title:name,description:seo.value.trim(),robots:'index',
+        ogTitle:'',ogDescription:'',ogImage:''};
+      else if(seo.value.trim())page.seo={title:'',description:'',robots:'index',
+        ogTitle:'',ogDescription:'',ogImage:'',...(page.seo||{}),description:seo.value.trim()};
+      C.validateSite(site,manifests);
+      const oldProblems=new Set(linkProblems(source).map(warningKey));
+      const newProblems=linkProblems(site).filter(v=>!oldProblems.has(warningKey(v)));
+      if(newProblems.length)throw Error('Новые битые ссылки или якоря: '+
+        newProblems.slice(0,3).map(x=>x.path).join(', ')+'. Проверьте разделы и ссылки.');
+      return {site,page};
+    }
+    function renderBlocks(){
+      blocks.replaceChildren();
+      plan.forEach((id,i)=>{
+        const row=document.createElement('div');row.className='cms-blueprint-block';
+        const name=document.createElement('span');name.textContent=(i+1)+'. '+(manifests.find(m=>m.id===id)?.label||id);
+        const up=button('↑','btn small',()=>{[plan[i-1],plan[i]]=[plan[i],plan[i-1]];renderBlocks();refresh();});
+        const down=button('↓','btn small',()=>{[plan[i+1],plan[i]]=[plan[i],plan[i+1]];renderBlocks();refresh();});
+        const remove=button('×','btn small',()=>{plan.splice(i,1);renderBlocks();refresh();});
+        up.disabled=i===0;down.disabled=i===plan.length-1;
+        up.setAttribute('aria-label','Переместить секцию вверх');
+        down.setAttribute('aria-label','Переместить секцию вниз');
+        remove.setAttribute('aria-label','Удалить секцию из плана');
+        row.append(name,up,down,remove);blocks.append(row);
+      });
+    }
+    function renderDevice(){
+      desktop.classList.toggle('primary',device==='desktop');
+      mobile.classList.toggle('primary',device==='mobile');
+      frame.classList.toggle('mobile',device==='mobile');
+    }
+    function refresh(){
+      failure='';candidate=null;apply.disabled=true;
+      if(openedRevision!==session.revision)failure='Черновик изменён. Закройте и заново откройте конструктор.';
+      else try{
+        candidate=build();
+        count.textContent=(target.value==='new'?'Новая страница':'В существующую страницу')+
+          ' · '+plan.length+' новых секций · один Undo · без публикации';
+        frame.srcdoc=window.Stage3Editor.previewDocument(candidate.site,candidate.page.path,device);
+        apply.disabled=false;
+      }catch(ex){failure=ex.message;}
+      if(failure){count.textContent='Сборка ещё не готова';frame.removeAttribute('srcdoc');}
+      error.textContent=failure;
+    }
+    function commit(){
+      if(!candidate||apply.disabled||openedRevision!==session.revision)return;
+      try{
+        // Recompute from current controls at the commit boundary, rather than
+        // trusting a stale preview captured before the last keystroke.
+        const ready=build();
+        session=D.replaceSite(session,manifests,ready.site,openedRevision);
+        pageId=ready.page.id;sectionId=ready.page.sections[0].id;
+        elementId=ready.page.sections[0].elements[0].id;
+        dialog.close();draw();
+        notice('Страница собрана целиком за одну операцию Undo. Проверьте тексты, медиа и SEO; сохранение и публикация отдельно.');
+      }catch(ex){failure=ex.message;error.textContent=failure;apply.disabled=true;}
+    }
+    function open(){
+      openedRevision=session.revision;device='desktop';
+      const selected=current().page;
+      addOptions(target,[['new','+ Создать новую страницу'],...session.current.pages.map(p=>[p.id,p.title+' · '+p.path])]);
+      target.value=selected.id;
+      preset.value='home';
+      plan=[...BLUEPRINTS.home.components];
+      operation.value='append';
+      pageTitle.value=selected.title;path.value=selected.path;
+      headline.value=selected.title;description.value='';action.value='Оставить заявку';
+      services.value='';seo.value=selected.seo?.description||'';
+      renderBlocks();renderDevice();refresh();dialog.showModal();
+    }
+    preset.addEventListener('change',()=>{plan=[...BLUEPRINTS[preset.value].components];renderBlocks();refresh();});
+    target.addEventListener('change',()=>{
+      const selected=session.current.pages.find(p=>p.id===target.value);
+      if(selected){
+        pageTitle.value=selected.title;path.value=selected.path;
+        seo.value=selected.seo?.description||'';
+      }else{
+        pageTitle.value='Новая страница';path.value='/new-page/';seo.value='';
+      }
+      path.disabled=!!selected;operation.disabled=!selected;refresh();
+    });
+    pageTitle.addEventListener('input',()=>{
+      if(target.value==='new'&&path.value==='/new-page/'){
+        const segment=slug(pageTitle.value);if(segment)path.value='/'+segment+'/';
+      }
+      refresh();
+    });
+    for(const input of [operation,path,headline,description,action,services,seo])
+      input.addEventListener('input',refresh);
+    const openButton=button('Собрать страницу','btn small',open);
+    openButton.id='cms-blueprint-open';openButton.dataset.editorWrite='true';
+    const controls=document.createElement('div');controls.className='structure-tools cms-blueprint-launcher';
+    controls.append(openButton);$('pages').before(controls);
+  }
+
   // Plan the entire site without editing the live local draft until Apply.
   // Every intermediate operation uses the validated immutable SDK and the
   // final candidate commits through a SINGLE revision/Undo.
@@ -5481,7 +5726,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  initContentWorkbench();initSiteMap();createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
+  initContentWorkbench();initSiteMap();initPageBlueprint();createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
 })();
 'use strict';
 // A single owner-reviewed composition path for offline and authenticated Studio.
