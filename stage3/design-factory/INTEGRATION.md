@@ -1,5 +1,10 @@
 # Design Factory — D6 Integration Bridge
 
+## 26.10.2026 — граница передачи D7 главному интегратору
+
+Design Factory остаётся самостоятельным offline-пакетом. Последний технический узел: `tests/preview-matrix-smoke.cjs` (functional SHA `3650771898ad2ab81accaaaf803e90e169c7979a`) проверяет 288 одобренных и 288 неодобренных вариантов, четыре страницы, статический `noindex`, обратную связь, ZIP32/CRC и CMS-адаптеры. Сценарий выполнен в изолированном V8 на точном исходнике GitHub, **не в реальном checked-out Node или Chromium**. Ни client feedback JSON, ни HTML demo ZIP, ни self-declared human receipt не являются разрешением на публикацию. D6 `manufact-ai-site-v1` остаётся единственным поддерживаемым интеграционным документом; неподдерживаемые дизайнерские возможности — отдельные предложения. До настоящей D7 приёмки никакой merge, правки PHP/SDK/Hostinger/production/CI за пределами своего каталога и никакой обещанной pixel parity. См. свежий чекпоинт в `handoffs/NEXT-CHAT.md`.
+
+
 ## 26 October — client feedback freshness guarantee
 
 Functional checkpoint `0c00c5deb97d28827af571eb92ef7d1efd481523`. The offline client-feedback attachment remains a separate, untrusted design-review file and is not a CMS content contract, owner approval or publish permission. Studio now recomputes the current site snapshot from `compileCurrent()` at each feedback action. It no longer relies on `state.lastCompiled`, which can lag behind live form edits during the 120ms preview debounce. A report for the previous compiled content is rejected even if the preview iframe has not refreshed yet.

@@ -1,5 +1,30 @@
 # Design Factory — operational progress and D7 continuation
 
+## 26.10.2026 — ФИНАЛЬНЫЙ ЧЕКПОИНТ ПЕРЕД ПЕРЕХОДОМ В НОВЫЙ ЧАТ
+
+**Функциональный коммит:** `3650771898ad2ab81accaaaf803e90e169c7979a` — последний заход по D7. **Прочитать актуальный HEAD ветки через GitHub перед следующей записью**: отдельный коммит с этой документацией продвинет SHA. Ветка только `feature/stage3-design-factory`, менять можно **только** `stage3/design-factory/`. Главный чат/другие разработчики работают отдельно; никаких правок `main`, SDK, PHP, общих workflow, Hostinger/production и никакого merge.
+
+**Что изменено последним функциональным заходом.** Дополнен обязательный крупный `tests/preview-matrix-smoke.cjs` (девятый Node suite, 11 audit checks без Chromium / 12 с Chromium). Он теперь проверяет не только **288/288** комбинаций 12 kits × 12 themes × RU/EN с одобрением владельца, их **1152** четырехстраничных offline HTML-страниц, **288** валидных client feedback и **288** реальных восьмифайловых ZIP32 с CRC, но также **288/288 неподтверждённых версий**, где `readyForPublish=false` и у всех CMS-страниц `robots=noindex`; **288/288 отказов повреждённых ZIP**; отклонение устаревших client-feedback документов при изменении контента; экранирование пользовательского `<script>`, амперсанда, кавычек и Unicode в 4 страницах; **84/84** сопоставления 42 композиций в двух языках и строгую валидацию Stage3 CMS. Точный обновлённый тест успешно прогнан в изолированном V8 с настоящими исходниками GitHub и эмулированными Node builtin; JS syntax PASS. Это **не** настоящий процесс Node из git checkout. Из предыдущих заходов: Studio/client/review восстановление из JSON защищено от конкурирующих асинхронных импортов; 9/9 соответствующих V8 поведенческих кейсов прошли; browser runtime `runtime.generated.js` побайтово совпал с выходом настоящего скрипта сборки, которому подставлены исходники GitHub.
+
+**Текущий честный статус:** D1–D6 реализованы, 6 из 7 направлений (условная готовность ≈**86%**); **D7 OPEN**. Stage2 **NO-GO**, Stage3 **UNACCEPTED**, формальное принятие **0/135**. Полный Node release audit **NOT RUN** (в текущем терминале нет checkout, DNS для github.com не работает). Реальный Chromium E2E **NOT RUN** (простая локальная headless-проба ранее зависала); 54 PNG на 1280/768/390 **NOT CAPTURED**, все 42 композиции человеком **NOT REVIEWED**; Lead SDK + PHP **0/6** parity проб; настоящий source-exact release ZIP + independent CRC/byte-for-byte/SHA256 **NOT RUN**. Ни одна из этих ступеней не должна быть объявлена PASS по результатам V8.
+
+**Следующий разработчик должен работать БОЛЬШИМИ законченными задачами, не дробить работу на мелочи и не повторять один и тот же тест бесконечно.** Первый большой блок: получить реальный Git checkout этой ветки в рабочем окружении; запустить существующий Node аудит и реальный Chromium, исправив выявленные реальные проблемы целиком. После этого получить 54 PNG и человеческую приёмку/замечания 42 композиций; закрыть реальные шесть PHP проверок с предоставленным Lead SDK/DesignGraph.php и собрать/проверить source-exact ZIP. Если локальный checkout невозможен, **продолжать самостоятельно кодовую работу через GitHub connector**, а не прекращать разработку и не требовать от владельца вручную передавать весь ZIP. Не подменять отсутствующую проверку фальшивым PASS.
+
+**Рабочий порядок (пути вывода вне репозитория; имена должны быть новыми):**
+```bash
+git switch feature/stage3-design-factory
+node stage3/design-factory/bin/release-audit.cjs --out /tmp/df-d7-node-audit.json
+DF_CHROMIUM_BIN=/usr/bin/chromium node stage3/design-factory/bin/release-audit.cjs --chromium --out /tmp/df-d7-browser-audit.json
+DF_CHROMIUM_BIN=/usr/bin/chromium node stage3/design-factory/bin/visual-qa.cjs --out /tmp/df-d7-visual
+# Открыть /tmp/df-d7-visual/visual-review.html, реально оценить все 54 скриншота и D3 showcase,
+# сохранить подтверждённый файл review receipt; без реального просмотра не создавать фиктивный.
+node stage3/design-factory/bin/release-candidate.cjs --out /tmp/df-d7-candidate --chromium /usr/bin/chromium --lead-sdk /REAL/LEAD/sdk --lead-php /REAL/LEAD/DesignGraph.php --evidence /tmp/df-d7-visual --review /REAL/visual-review-decision.json
+```
+Важно: Node-only audit **специально может возвращать exit 3**, даже когда Node checks прошли, поскольку Chromium не запускался. Смотреть содержимое JSON. Если других рабочих Node/PHP/Chromium инструментов нет, проверять их наличие прежде, чем снова пытаться тот же сломанный DNS. `release-candidate` не выдаёт production approval: даже `readyForLeadReview` означает только техническую передачу главному интегратору после доказательств, не merge и не публикацию.
+
+**ПЕРЕДАЧА:** главный разработчик — отдельный чат и единственный интегратор. Мы лишь передаём готовую ветку, evidence и D6 `manufact-ai-site-v1`/bridge, а не меняем его файлы. Подробные технические условия: `MISSION.md`, `ROADMAP.md`, `QUALITY-GATES.md`, `INTEGRATION.md`, `handoffs/NEXT-CHAT.md`. Этот раздел стоит сверху как актуальный чекпоинт, более старые датированные записи ниже — история, а не текущее состояние.
+
+
 ## 26 October 2026 — comprehensive D7 runtime / static preview QA gate
 
 **Full original GitHub source executed in isolated V8:** 12 industry kits × 12 themes × two languages = **288/288 valid CMS variants**; their **1,152/1,152 linked four-page static HTML previews** have correct relative styles/navigation and remain noindex even with owner-approved facts; **288/288 client-feedback snapshot round trips** and **288/288 real eight-member ZIP32 archives** built, CRC inspected, with no external URLs; **84/84** 42-composition × RU/EN CMS adapter insertions validated and inspected against registered component manifests. Separately the **exact existing** `bin/build-browser-bundle.cjs` read first-party GitHub sources+eight component manifests in a V8-mocked Node filesystem and confirmed exact bytes of `studio/runtime.generated.js`, no source drift.
