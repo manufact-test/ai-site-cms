@@ -135,3 +135,20 @@
  .hosted-launch-pages .btn{min-width:175px}
  .hosted-launch-viewport{max-height:45vh}
 }
+
+
+/* Publishing review: compare two immutable PHP-rendered snapshots side by side. */
+.hosted-launch-diff-summary{color:#b4e4fa;font-weight:600;overflow-wrap:anywhere}
+.hosted-launch-compare-modes{display:flex;flex-wrap:wrap;gap:7px}
+.hosted-launch-compare-modes .btn{font-size:11px}
+.hosted-launch-preview-panels{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;min-width:0}
+.hosted-launch-preview-panels.is-comparing{grid-template-columns:repeat(2,minmax(0,1fr))}
+.hosted-launch-viewport[hidden]{display:none!important}
+.hosted-launch-live-viewport{min-width:0}
+#server-launch-live-preview{position:absolute;top:0;left:0;border:0;background:white;display:block;max-width:none}
+.hosted-launch-live-label{position:absolute;z-index:2;right:8px;top:6px;padding:4px 7px;margin:0;
+ color:#153047;background:#e7f1f7ed;border:1px solid #cadbe5;border-radius:6px;
+ pointer-events:none;font-size:11px;font-weight:700}
+.hosted-launch-issues>.hosted-launch-delta{border-color:#5a93a7;color:#c9f0ff}
+.hosted-launch-issues>strong{font-size:11px;color:#bee8f5}
+@media(max-width:720px){.hosted-launch-preview-panels.is-comparing{grid-template-columns:1fr}}
