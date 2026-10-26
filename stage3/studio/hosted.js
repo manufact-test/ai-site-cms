@@ -833,10 +833,37 @@
     document.querySelector('.center').hidden=!visible;
     document.querySelector('.inspector').hidden=!visible;
   }
+  // PHP decodes JSON objects to associative arrays. An empty typed map, such
+  // as a newly inserted graph node's styles:{}, round-trips as [] in a PHP
+  // response. Restore ONLY known empty Design Graph maps at the trusted API
+  // boundary, before strict JS contract validation. Unknown keys and nonempty
+  // arrays remain invalid; this never changes the server revision or publish
+  // authorization checks.
+  function restoreServerGraphMaps(source){
+    const site=structuredClone(source);
+    const emptyMap=(holder,key)=>{
+      if(holder&&Array.isArray(holder[key])&&holder[key].length===0)holder[key]={};
+    };
+    emptyMap(site,'designTokens');
+    if(site.designTokens)for(const key of ['colors','spacing','radii','typography'])
+      emptyMap(site.designTokens,key);
+    for(const page of site.pages||[])for(const section of page.sections||[]){
+      const graph=section.designGraph;
+      if(!graph)continue;
+      const walk=node=>{
+        emptyMap(node,'styles');emptyMap(node,'responsive');emptyMap(node,'states');
+        if(node.responsive)for(const mode of ['tablet','mobile'])emptyMap(node.responsive,mode);
+        if(node.states)for(const mode of ['hover','focus'])emptyMap(node.states,mode);
+        for(const child of node.children||[])walk(child);
+      };
+      for(const node of graph.nodes||[])walk(node);
+    }
+    return site;
+  }
   function selectSite(result){
     if(state.siteId!==result.site.siteId){previewData.clear();loadingMedia.clear();}
     state.siteId=result.site.siteId;
-    editor.replace(result.site);
+    editor.replace(restoreServerGraphMaps(result.site));
     state.revision=Number(result.revision);
     editorVisible(true);
     drawMedia();drawStatus();
@@ -867,7 +894,7 @@
       const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/save','POST',
         {site:candidate,expectedRevision:state.revision});
       state.revision=result.revision;
-      editor.replace(result.site);
+      editor.replace(restoreServerGraphMaps(result.site));
       await refreshSites();await loadHistory();
       notice('Черновик сохранён на сервере как ревизия #'+state.revision+'. Публикация отдельно.');
     });
