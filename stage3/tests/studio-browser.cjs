@@ -658,6 +658,19 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#cms-design-breakpoint').inputValue(),'desktop');
     assert.equal(await page.locator('#cms-design-undo').isDisabled(),true);
     assert.equal(await page.locator('#cms-design-redo').isDisabled(),true);
+    // Closed first-party recipe changes live CSS, but never modifies the
+    // underlying document before Apply; its working change is undoable.
+    const beforeRecipe=await page.evaluate(()=>window.Stage3Editor.getSite());
+    await page.locator('#cms-design-recipe-choice').selectOption('hero');
+    await page.locator('#cms-design-recipe-overwrite').check();
+    await page.locator('#cms-design-recipe-apply').click();
+    assert.match(await page.locator('#cms-design-preview-frame').getAttribute('srcdoc'),/clamp\(30px/);
+    assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeRecipe);
+    await page.locator('#cms-design-undo').click();
+    assert.equal(await page.locator('#cms-design-undo').isDisabled(),true);
+    await page.locator('#cms-design-breakpoint').selectOption('mobile');
+    assert.match(await page.locator('#cms-design-inheritance').innerText(),/Каскад/);
+    await page.locator('#cms-design-breakpoint').selectOption('desktop');
     // Drag a node to a sibling's far edge: this is a real canvas reorder.
     const titleNode=designFrame.locator('.cmsdg-n-'+selectedSection+'-title');
     const copyNode=designFrame.locator('.cmsdg-n-'+selectedSection+'-copy');
@@ -1034,6 +1047,20 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#redo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).assets.find(asset=>asset.id==='asset-audit-alt').alt,
       'Фрезерный станок в производственном цехе','Redo restores the correction');
+    // Cross-page design tokens: validate whole document, commit and undo.
+    await page.locator('#cms-design-tokens-open').click();
+    await page.locator('#cms-design-tokens-dialog').waitFor({state:'visible'});
+    const beforeTokens=await page.evaluate(()=>window.Stage3Editor.getSite());
+    await page.locator('#cms-design-tokens-fields input[aria-label="colors · accent"]').fill('#ba4818');
+    assert.equal(await page.locator('#cms-design-tokens-apply').isDisabled(),true);
+    await page.locator('#cms-design-tokens-check').click();
+    assert.equal(await page.locator('#cms-design-tokens-apply').isDisabled(),false);
+    await page.locator('#cms-design-tokens-apply').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).designTokens.colors.accent,'#ba4818');
+    await page.locator('#undo').click();
+    assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeTokens);
+    await page.locator('#redo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).designTokens.colors.accent,'#ba4818');
     assert.deepEqual(errors,[],'No page JS errors or unsupported dependencies');
     assert.deepEqual(remote,[],'No outgoing network requests, even through iframe');
     console.log('STAGE3 REAL CHROMIUM STUDIO E2E PASS: typed edit, inert preview, responsive, undo/redo, saved versions, reload, export/import, no-design and fail-closed import');

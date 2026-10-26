@@ -1110,6 +1110,23 @@ test('editorial type, asymmetric grid and layered transforms stay typed across r
   assert.doesNotMatch(html,/<script|onerror=/);
 });
 
+test('fluid responsive typography stays typed and matches browser CSS',()=>{
+  const DG=require('../sdk/design-graph.cjs'),site=same(initial);
+  const section=site.pages[0].sections[0],graph=DG.baseGraph(section.id);
+  graph.nodes[0].children[0].styles={fluidFont:{min:30,max:72},lineHeight:110};
+  section.designGraph=graph;
+  sdk.validateSite(site,manifests);
+  assert.match(DG.render(site,graph),/font-size:clamp\(30px,calc\(4\.7727vw \+ 14\.7273px\),72px\)/);
+  const exclusive=same(site);
+  exclusive.pages[0].sections[0].designGraph.nodes[0].children[0].styles.fontSize=40;
+  refuses(()=>sdk.validateSite(exclusive,manifests),'Manual fixed/font fluid conflict');
+  for(const badValue of [{min:120,max:10},{min:9,max:60},{min:30,max:121},{min:'30',max:70}]){
+    const invalid=same(site);
+    invalid.pages[0].sections[0].designGraph.nodes[0].children[0].styles.fluidFont=badValue;
+    refuses(()=>sdk.validateSite(invalid,manifests),'Type/range checks must hold');
+  }
+});
+
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');
