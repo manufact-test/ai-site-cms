@@ -1,5 +1,16 @@
 # D7 · Final quality gates and evidence
 
+## 26 October — current execution attempt and audit semantics
+
+The live branch HEAD is `62c4ab22ff65c79d7e4194ca73680de3b2fa61d0`. One checkout attempt failed before repository files could be placed on disk: `git ls-remote https://github.com/manufact-test/ai-site-cms.git refs/heads/feature/stage3-design-factory` returned `Could not resolve host: github.com`. The GitHub API shows no Actions runs, check runs or commit statuses for this HEAD. No further identical network retries should be made until the environment changes.
+
+**Actual results in this pass:** no full checkout, so `release-audit.cjs` was **NOT RUN**. Chromium E2E, 54-image capture and human review, PHP parity (0 probes), final ZIP CRC/source-byte parity and actual SHA256 are **NOT RUN**. Source files were reviewed read-only; no product source was changed.
+
+**Important audit interpretation:** `release-audit.cjs` requires Node >=20 and a full repository checkout. It runs 10 checks without Chromium (browser-bundle parity, eight Node smoke suites, source inventory stability), or 11 with `--chromium`; the latter requires `DF_CHROMIUM_BIN`. Without the Chromium option, `browserPassed` and `automatedChecksPassed` remain false by design. Exit code **3** means Node checks passed but the Chromium gate was not requested/open; it does not mean full D7 acceptance. The audit itself does not run PHP parity, human review of 54 screenshots/42 compositions, or the final release ZIP verification.
+
+**D7 remains OPEN.** On a working checkout, run the audit with a new output path, inspect the complete report and each check, then run real Chromium E2E/capture, perform the required human review, run all six PHP probes with real Lead inputs, and build/independently verify the deterministic source-exact ZIP and SHA256. Stage2 remains NO-GO; Stage3 remains unaccepted; 0/135.
+
+
 ## 26 October — feedback debounce regression and final gate status
 
 Functional source checkpoint `0c00c5deb97d28827af571eb92ef7d1efd481523`. `studio.js` now binds every feedback action to a fresh compilation of the live project, preventing a stale report from being exported in the short window before the debounced preview refreshes. `tests/studio-smoke.cjs` now specifies a genuine Chromium end-to-end test for the generated `review.html` portal and its complete JSON round-trip through Studio, including immediate stale-export refusal.

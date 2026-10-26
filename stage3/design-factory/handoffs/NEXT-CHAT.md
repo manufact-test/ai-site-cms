@@ -1,5 +1,18 @@
 # Design Factory — NEXT CHAT / independent developer handoff
 
+## Latest continuation — 26 October 2026 · current executor result (D7 remains open)
+
+**Live HEAD verified:** `62c4ab22ff65c79d7e4194ca73680de3b2fa61d0`, matching the requested branch checkpoint. This session made one checkout/network attempt:
+`git ls-remote https://github.com/manufact-test/ai-site-cms.git refs/heads/feature/stage3-design-factory`
+It failed with `Could not resolve host: github.com`. Do not repeat the same attempt until the execution environment changes. GitHub API independently reports **0 workflow runs, 0 check runs and 0 commit statuses** for this exact HEAD, so there is no CI result to substitute.
+
+**Read-only source review:** `bin/release-audit.cjs` requires a complete checkout and Node >=20. It runs browser-bundle parity, eight Node smoke suites and a source-inventory stability check (10 checks total without Chromium; 11 when `--chromium` is requested). The Chromium path requires `DF_CHROMIUM_BIN`. A Node-only run deliberately cannot make `browserPassed` or `automatedChecksPassed` true; exit code 3 means Node checks passed but the Chromium gate remains open, not full acceptance. This audit does not perform PHP parity, capture/review all 54 images, approve the 42 compositions, or create the final release ZIP. Those are separate candidate/visual/package gates.
+
+**What actually ran this session:** repository metadata and D7 scripts were inspected through the GitHub API; no local checkout was available. The real Node audit was **NOT RUN**. Chromium E2E: **NOT RUN**. 54 real screenshots and human visual review: **NOT RUN**. PHP parity: **0 probes / NOT RUN**. Source-exact release ZIP and actual SHA256: **NOT RUN**. No product source changed in this pass; the documentation update records the concrete blocker and the exact gate semantics.
+
+**Next viable pass, only in a working checkout:** (1) run `node stage3/design-factory/bin/release-audit.cjs --out /tmp/df-release-audit-<unique>.json` and inspect each check, not just its exit code; (2) run the real Chromium Studio + client-review E2E and capture the 54-image matrix at 1280/768/390; (3) visually inspect every screenshot and all 42 D3 compositions; (4) run the six PHP parity probes with the real Lead SDK and `DesignGraph.php`; (5) create the release candidate/ZIP, independently verify ZIP structure/CRC and every packaged source byte, and record the actual SHA256. Keep D7 OPEN until the evidence exists. Stay on this branch and only under `stage3/design-factory/`; no merge or out-of-scope edits.
+
+
 ## Latest handoff — 26 October 2026 · final feedback race fix before D7 acceptance
 
 **Functional checkpoint:** `0c00c5deb97d28827af571eb92ef7d1efd481523`; read the live branch HEAD before work.

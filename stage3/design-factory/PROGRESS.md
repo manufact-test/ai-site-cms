@@ -1,5 +1,16 @@
 # Design Factory — operational progress and D7 continuation
 
+## 26 October 2026 — current executor result: D7 still blocked by checkout DNS
+
+**Branch HEAD:** `62c4ab22ff65c79d7e4194ca73680de3b2fa61d0` (confirmed live). One real `git ls-remote` attempt failed with `Could not resolve host: github.com`; this executor cannot obtain the checkout required by the release scripts. GitHub API reports **0 Actions runs, 0 check runs and 0 commit statuses** at this SHA.
+
+A read-only review of `bin/release-audit.cjs` confirmed the intended gate: 10 checks without Chromium (bundle parity + eight Node suites + source-inventory stability), 11 with Chromium. The Chromium path requires `DF_CHROMIUM_BIN`. Node-only exit code 3 can mean the Node suites passed while Chromium remains unrequested; it is not full acceptance. PHP parity, real screenshot capture/review and release ZIP verification are outside the Node-only audit and must be evidenced separately.
+
+**No false PASS recorded:** real checked-out Node release audit **NOT RUN**; actual Chromium Studio/client portal E2E **NOT RUN**; 54 real PNGs and human review of all 42 compositions **NOT RUN**; PHP parity **0 probes / NOT RUN**; source-exact release ZIP, CRC verification and actual SHA256 **NOT RUN**. No product source was changed in this pass; only D7 documentation records the blocker and the next valid execution sequence.
+
+**Status unchanged:** D1–D6 implemented; engineering roadmap 6/7 (about 86%); D7 OPEN; Stage2 NO-GO; Stage3 UNACCEPTED; 0/135 formal criteria. Do not retry the same DNS failure until the execution environment changes.
+
+
 ## 26 October 2026 — final engineering pass before D7 acceptance
 
 **Functional checkpoint:** `0c00c5deb97d28827af571eb92ef7d1efd481523`. The client-feedback loop now has a critical stale-state race fix: `studio/studio.js` computes the feedback snapshot from a fresh `compileCurrent()` for every import/export/resolve action, not from the debounced `state.lastCompiled`. If the owner edits a fact and immediately clicks export before the 120ms preview debounce finishes, the old client report is rejected instead of being exported against an outdated render.
