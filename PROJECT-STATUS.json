@@ -15,7 +15,7 @@
   "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925",
   "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925",
   "source_offweb_ci": null,
-  "source_ci_result": "Final functional source SHA 95a9f36759e7feabe435c4733181a73ff70866d9; Actions #40395814925 was still running while documentation was prepared: verify final conclusion/head_sha. Previous exact source 26849690f6090769d9c133e0350a2cf384983cd9 CI #40394085865 SUCCESS. No acceptance or deployment implied.",
+  "source_ci_result": "SUCCESS — full Stage3 functional CI #40395814925 on exact source 95a9f36759e7feabe435c4733181a73ff70866d9 (offline Chromium + PHP SQLite + hosted Chromium). No release acceptance, deploy or main merge.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly, then fix issues from real use; never get stuck testing existing lab",
@@ -1226,7 +1226,7 @@
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
   "last_docs_handoff_version": "1.72",
-  "last_docs_handoff_note": "Owner-requested main-lead handoff after major three green/under-verification product blocks: nested typed Graph studio, multipage review with live snapshot comparison, whole-page assembly, and site-wide verified copy intake. CI for 95a9f367 #40395814925 must be checked before declaring final SUCCESS. Neither Stage2 gates nor formal Stage3 criteria accepted.",
+  "last_docs_handoff_note": "Owner requested transition to incoming lead after verified full CI #40395814925 SUCCESS on source SHA 95a9f36759e7feabe435c4733181a73ff70866d9; docs-only commits need separate HEAD/CI check. New intake, page builder, launch compare and Graph studio documented. Stage2 NO-GO #5-9, Stage3 0/135 formal.",
   "latest_tested_code_sha": "ac483807cc2f2ac302f6fed3470cac4cfb795896",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
@@ -1756,15 +1756,15 @@
     ]
   },
   "latest_known_failed_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40375523554",
-  "latest_confirmed_successful_functional_sha": "ac483807cc2f2ac302f6fed3470cac4cfb795896",
-  "latest_confirmed_successful_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40346327511",
+  "latest_confirmed_successful_functional_sha": "95a9f36759e7feabe435c4733181a73ff70866d9",
+  "latest_confirmed_successful_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925",
   "stage3_engineering_estimate": "Approximate subjective core-editor progress 70-80%, not a verified acceptance fraction; all 135 required Stage3 items still require formal owner acceptance (0/135).",
   "stage3_v1_72_checkpoint": {
     "date": "2026-10-26",
     "branch": "feature/stage3-ai-site-contract",
     "source_sha": "95a9f36759e7feabe435c4733181a73ff70866d9",
     "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925",
-    "ci_status_when_handoff_prepared": "IN_PROGRESS — check final SHA/conclusion on GitHub, not assumed SUCCESS",
+    "ci_status_when_handoff_prepared": "IN_PROGRESS when initial docs were written; final verified SUCCESS on exact source SHA",
     "verified_previous_success_sha": "26849690f6090769d9c133e0350a2cf384983cd9",
     "verified_previous_success_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40394085865",
     "delivered": [
@@ -1778,6 +1778,7 @@
     "stage3_formal_accepted_required": 0,
     "stage3_total_required": 135,
     "engineering_core_editor_estimate": "Approx 70-80% SUBJECTIVE; not mapped to acceptance requirements",
-    "next": "Large unified publish-readiness experience, existing full CI plus one critical real-browser scenario"
+    "next": "Large unified publish-readiness experience, existing full CI plus one critical real-browser scenario",
+    "ci_final_status": "SUCCESS"
   }
 }
