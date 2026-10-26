@@ -1,5 +1,17 @@
 # D7 · Final quality gates and evidence
 
+## 26.10.2026 — D7 acceptance blocker removal, latest live status
+
+**Functional commits on this independent branch:** [`84638e0`](https://github.com/manufact-test/ai-site-cms/commit/84638e074290c847be6ad2cca2a3612b4bc84d8f) (release gate correctness) and [`180be8d`](https://github.com/manufact-test/ai-site-cms/commit/180be8d47b7e0ba134dc72bac131c9b01d6378a3) (Studio Chromium E2E migrated to shared CDP pipe). Read live branch HEAD before writing; this docs commit changes HEAD again.
+
+**Concrete code changes:** `bin/release-candidate.cjs` now evaluates `readyForLeadReview` after Lead SDK snapshot cleanup and requires valid visual capture **and** review against current render source, stable original+snapshot Lead inputs, working PHP probe, Git and independent source-exact ZIP. Previously a rejected/stale visual evidence set could still have a separately valid receipt, and a late snapshot cleanup error could leave an earlier true readiness flag. Existing `tests/release-candidate-contract-smoke.cjs` now includes a positive gate case and ten explicit refusal variants. `lib/chromium-pipe.cjs` gained a read-only asynchronous local DOM probe; `tests/studio-smoke.cjs` uses one persistent Chromium CDP pipe instead of the `--dump-dom` subprocess (which timed out in this environment); `tests/visual-pipe-smoke.cjs` exercises the new method.
+
+**Executed, strictly delimited:** GitHub exact modified source parsed as JavaScript (five files) in V8; isolated readiness conditions checked with passing case and stale-evidence/cleanup-failed negative cases. The execution container has Node 22.16.0, PHP and Chromium 144. A **real Chromium CDP Browser.getVersion handshake PASS**; a real Chromium `Page.setDocumentContent` asynchronous-DOM probe on `about:blank` **PASS**. However **file:// and data: navigation are blocked by this container's browser policy** with `net::ERR_BLOCKED_BY_ADMINISTRATOR`. GitHub DNS is unavailable from the terminal, so **no genuine git checkout was obtained**. The new actual Studio E2E, actual 54 responsive PNG screenshots, Node release audit, real six Lead PHP parity probes and source-exact release ZIP/independent CRC/SHA256 **remain NOT RUN**; do not imply they passed.
+
+**Decision unchanged:** D1–D6 implemented (engineering estimate 6/7 ≈86%). **D7 OPEN; Stage2 NO-GO; Stage3 UNACCEPTED; formal acceptance 0/135.** No merge, workflow/main/SDK/PHP/hosting/production modification. All edits are inside `stage3/design-factory/`. Run full existing audit/candidate tools on a real checkout with permitted local-file Chromium navigation, then collect and review 54 images and all 42 compositions, real PHP parity and ZIP. Until then no technical or owner signoff.
+
+
+
 ## 26.10.2026 — ФИНАЛЬНЫЙ ЧЕКПОИНТ ПЕРЕД ПЕРЕХОДОМ В НОВЫЙ ЧАТ
 
 **Функциональный коммит:** `3650771898ad2ab81accaaaf803e90e169c7979a` — последний заход по D7. **Прочитать актуальный HEAD ветки через GitHub перед следующей записью**: отдельный коммит с этой документацией продвинет SHA. Ветка только `feature/stage3-design-factory`, менять можно **только** `stage3/design-factory/`. Главный чат/другие разработчики работают отдельно; никаких правок `main`, SDK, PHP, общих workflow, Hostinger/production и никакого merge.
