@@ -65,6 +65,7 @@
   'use strict';
   const LIMIT=30;
   const $=id=>document.getElementById(id),notes=[];
+  let notesRevision=0,importSerial=0;
   const PAGES={home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'};
   function message(text,error=false){
    $('feedback-status').textContent=text;
@@ -79,7 +80,7 @@
     const copy=document.createElement('blockquote');copy.textContent=n.message;
     const remove=document.createElement('button');
     remove.type='button';remove.textContent='Удалить замечание';
-    remove.addEventListener('click',()=>{notes.splice(i,1);render();});
+    remove.addEventListener('click',()=>{notes.splice(i,1);notesRevision++;render();});
     item.append(description,copy,remove);holder.append(item);
    });
    $('feedback-download').disabled=notes.length===0;
@@ -125,19 +126,25 @@
    }
    notes.push({page:$('feedback-page').value,type:$('feedback-type').value,
     message:entry,resolved:false});
+   notesRevision++;
    $('feedback-note').value='';render();message('Замечание добавлено.');
   });
   $('feedback-download').addEventListener('click',download);
+  $('feedback-reviewer').addEventListener('input',()=>{notesRevision++;});
   $('feedback-import').addEventListener('change',async event=>{
+   const request=++importSerial,revision=notesRevision;
    try{
     const file=event.target.files[0];
     if(!file||file.size>128*1024)throw Error('JSON больше 128 КБ');
     const result=sanitize(JSON.parse(await file.text()));
+    if(request!==importSerial||revision!==notesRevision)
+     throw Error('Замечания изменились во время чтения файла. Повторите импорт.');
     notes.splice(0,notes.length,...result.notes);
+    notesRevision++;
     $('feedback-reviewer').value=result.reviewer;render();
     message('Черновик восстановлен. Замечания можно редактировать или отправить.');
    }catch(error){message('Импорт отклонён: '+error.message,true);}
-   event.target.value='';
+   if(request===importSerial)event.target.value='';
   });
   render();
  }

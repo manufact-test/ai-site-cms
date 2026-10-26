@@ -20,7 +20,7 @@ const state={
  composition:null,
  page:'home',device:'desktop',query:'',viewMode:'single',compareTheme:'noir',overviewFrames:[],
  past:[],future:[],renderToken:0,lastSite:null,lastCompiled:null,lastError:null,feedback:null,
- editRevision:0,feedbackRevision:0
+ editRevision:0,feedbackRevision:0,projectImportSerial:0,feedbackImportSerial:0
 };
 const keys=Object.keys(engine.compiler.KITS);
 const devices=['desktop','tablet','mobile'];
@@ -487,6 +487,7 @@ function renderFeedback(){
  }
 }
 async function importFeedback(file){
+ const request=++state.feedbackImportSerial;
  try{
   if(!file||file.size>128*1024)throw Error('Файл замечаний больше 128 КБ или не выбран.');
   if(!feedbackTool)throw Error('Модуль обратной связи недоступен.');
@@ -496,8 +497,8 @@ async function importFeedback(file){
   const incoming=JSON.parse(await file.text());
   // Reading a file yields: refuse older owner edits, imports and resolutions.
   const fresh=feedbackContext();
-  if(sourceRevision!==state.editRevision||feedbackRevision!==state.feedbackRevision||
-   !fresh||fresh!==expected)throw Error('Проект или замечания изменились во время чтения. Повторите импорт.');
+  if(request!==state.feedbackImportSerial||sourceRevision!==state.editRevision||
+   feedbackRevision!==state.feedbackRevision||!fresh||fresh!==expected)throw Error('Проект или замечания изменились во время чтения. Повторите импорт.');
   feedbackTool.validate(incoming,fresh);
   state.feedbackRevision++;
   state.feedback={
@@ -506,7 +507,7 @@ async function importFeedback(file){
   renderFeedback();
   say('Получено '+incoming.notes.length+' замечаний. Их можно открыть, отметить исправленными и скачать новый JSON.');
  }catch(error){say('Импорт замечаний отклонён: '+error.message,true);}
- $('feedback-file').value='';
+ if(request===state.feedbackImportSerial)$('feedback-file').value='';
 }
 function saveFeedback(){
  try{
@@ -552,13 +553,14 @@ function saveBridge(){
  }catch(e){say(e.message,true);}
 }
 async function importFile(file){
+ const request=++state.projectImportSerial;
  try{
   if(!file||file.size>1024*1024)throw Error('Максимальный размер проекта — 1 МБ.');
   const sourceRevision=state.editRevision;
   const contents=await file.text();
   // A delayed JSON read cannot replace newer owner edits, Undo/Redo or imports.
-  if(sourceRevision!==state.editRevision)
-   throw Error('Проект изменён во время чтения файла. Повторите импорт.');
+  if(request!==state.projectImportSerial||sourceRevision!==state.editRevision)
+   throw Error('Проект или выбранный файл изменились во время чтения. Повторите импорт.');
   const raw=engine.compiler.jsonParse(contents);
   let project,composition=null;
   if(raw.format===WORKSPACE){
@@ -572,7 +574,7 @@ async function importFile(file){
   const gate=engine.compiler.checklist(project);
   say('Проект импортирован и проверен по действующему CMS-контракту. Индексация экспорта: '+gate.indexing+'.');
  }catch(e){say('Импорт отклонён: '+e.message,true);}
- $('project-file').value='';
+ if(request===state.projectImportSerial)$('project-file').value='';
 }
 function init(){
  if(!engine)throw Error('Не загружен автономный компилятор Stage3.');

@@ -92,7 +92,9 @@ assert.ok(markup.indexOf('preview-zip.js')<markup.indexOf('studio.js'),
 assert.ok(markup.includes('id="save-preview-zip"'));
 for(const name of ['feedback-file','feedback-list','feedback-export','feedback-summary'])
  assert.ok(markup.includes('id="'+name+'"'),'Missing feedback UI '+name);
-assert.ok(app.includes('feedbackTool.validate(incoming,expected)'));
+assert.ok(app.includes('feedbackTool.validate(incoming,fresh)')&&
+ app.includes('request!==state.feedbackImportSerial'),
+ 'Feedback validation must use fresh compiled context and newest selection');
 assert.ok(app.includes('feedbackTool.context(compileCurrent(),state.project,state.composition)'),
  'Feedback actions must compile the live project, not trust the debounced preview snapshot');
 assert.ok(app.includes('feedbackTool.reviewHtml(reviewContext)'));
@@ -119,7 +121,9 @@ assert.ok(app.includes('function updateWorkbenchSubtitle()'));
 assert.ok(app.includes('target.focus({preventScroll:true})'));
 assert.ok(app.includes('if(!before)before=snapshot()'),'Editor history must capture a pre-edit snapshot before mutation');
 assert.ok(app.includes('function apply(mutator,options={})'));
-assert.ok(app.includes("{throwOnError:true}"),'Import must not report success after a failed state application');
+assert.ok(app.includes('{throwOnError:true,preserveReview:true}')&&
+ app.includes('request!==state.projectImportSerial'),
+ 'Validated project imports must reject stale selections and failed state application');
 assert.ok(app.includes('clearTimeout(refreshTimer)')&&app.includes('PREVIEW_DEBOUNCE_MS=120'),
  'Live preview should debounce full iframe recompilation while text is being edited');
 assert.ok(!markup.includes('allow-same-origin'));
@@ -186,7 +190,9 @@ assert.ok(reviewPage.includes('id="feedback-add"')&&reviewPage.includes('id="fee
 assert.ok(reviewPage.includes('href="contact/index.html"'));
 assert.ok(reviewPage.includes('script-src &apos;unsafe-inline&apos;'));
 const portalScript=reviewPage.match(/<script>([\s\S]+?)<\/script>/)?.[1];
-assert.ok(portalScript&&portalScript.includes('feedback-add'));
+assert.ok(portalScript&&portalScript.includes('feedback-add')&&
+ portalScript.includes('request!==importSerial||revision!==notesRevision'),
+ 'Client portal must refuse async stale draft restores');
 new Function(portalScript); // Client script is parseable as standalone browser source.
 const customerNote=feedback.create(feedbackToken,'Reviewer',[
  {page:'services',type:'issue',message:'Navigation label overlaps the mobile header',resolved:false}

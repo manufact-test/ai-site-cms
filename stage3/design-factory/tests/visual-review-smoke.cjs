@@ -75,6 +75,8 @@ try{
  assert.ok(output.includes('data-review-group'));
  assert.ok(output.includes('manufact-design-factory-visual-draft-v1'));
  assert.ok(output.includes('Draft is incompatible with this visual evidence set'));
+  assert.ok(output.includes('request!==draftReadSerial||revision!==reviewRevision'),
+   'Offline visual-review draft import must not overwrite newer manual decisions');
  assert.ok(output.includes('Reconfirm all five manual review checks'));
  assert.ok(output.includes('item.sha256!==allowed.get(item.file)'));
  assert.ok(output.includes('radio.checked=radio.value===item.verdict'));
