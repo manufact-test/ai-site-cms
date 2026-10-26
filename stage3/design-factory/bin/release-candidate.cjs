@@ -14,7 +14,7 @@ const {captureExternalInputs,sameExternalInputs,sameExternalInputContent,
 const ROOT=path.resolve(__dirname,'..'),REPO=path.resolve(ROOT,'../..');
 const EXPECTED_SUITES=Object.freeze([
  'smoke.cjs','compositions-smoke.cjs','kits-smoke.cjs','studio-smoke.cjs',
- 'bridge-smoke.cjs','package-smoke.cjs','visual-review-smoke.cjs',
+ 'preview-matrix-smoke.cjs','bridge-smoke.cjs','package-smoke.cjs','visual-review-smoke.cjs',
  'release-candidate-contract-smoke.cjs'
 ]);
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');

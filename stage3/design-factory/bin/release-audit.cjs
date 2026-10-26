@@ -9,7 +9,7 @@ const ROOT=path.resolve(__dirname,'..');
 const REPO=path.resolve(ROOT,'../..');
 const {resolveOutsideRepository}=require('../lib/output-path.cjs');
 const {walk,manifestDigest,sameManifest}=require('../lib/source-manifest.cjs');
-const SUITES=['smoke.cjs','compositions-smoke.cjs','kits-smoke.cjs','studio-smoke.cjs','bridge-smoke.cjs','package-smoke.cjs','visual-review-smoke.cjs','release-candidate-contract-smoke.cjs'];
+const SUITES=['smoke.cjs','compositions-smoke.cjs','kits-smoke.cjs','studio-smoke.cjs','preview-matrix-smoke.cjs','bridge-smoke.cjs','package-smoke.cjs','visual-review-smoke.cjs','release-candidate-contract-smoke.cjs'];
 
 function flags(args){
  const x={out:null,chromium:false};

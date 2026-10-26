@@ -118,9 +118,9 @@ function fixture(chromium=false){
   automatedChecksPassed:chromium,humanVisualAcceptance:'pending',releaseReady:false};
 }
 try{
- assert.equal(expectedAuditChecks(false).length,10,'bundle parity, eight Node suites and final inventory stability');
+ assert.equal(expectedAuditChecks(false).length,11,'bundle parity, nine Node suites and final inventory stability');
  assert.ok(expectedAuditChecks(false).includes('source-inventory-stability'));
- assert.equal(expectedAuditChecks(true).length,11,'Chromium adds exactly the visual pipe suite');
+ assert.equal(expectedAuditChecks(true).length,12,'Chromium adds exactly the visual pipe suite');
  assert.equal(manifest.length,entries.length,'Release manifest must cover every packaged file');
  assert.ok(manifest.some(item=>item.path.startsWith('handoffs/')),'Handoff documentation is part of the packaged source inventory');
  assert.ok(auditSource.includes('inventoryStable=sameManifest(entries,finalEntries)'), 'Final stability gate must compare every file, including handoffs');
@@ -197,7 +197,7 @@ try{
  ])assert.ok(inputs.includes(required),'Fingerprint must bind '+required);
  assert.equal(sourceFingerprint(REPO),sourceFingerprint(REPO),'Fingerprint must be deterministic');
  exerciseExternalInputManifest();
- console.log('DESIGN_FACTORY_D7_RELEASE_CONTRACT PASS: exact audit schema, bundle + 8-suite inventory, bounded traversal, source stability, isolated Lead snapshot/immutability/drift checks and visual-tooling fingerprint');
+ console.log('DESIGN_FACTORY_D7_RELEASE_CONTRACT PASS: exact audit schema, bundle + 9-suite inventory, bounded traversal, source stability, isolated Lead snapshot/immutability/drift checks and visual-tooling fingerprint');
 }catch(error){
  console.error('DESIGN_FACTORY_D7_RELEASE_CONTRACT FAIL: '+error.message);
  throw error;

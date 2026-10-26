@@ -1,5 +1,14 @@
 # D7 · Final quality gates and evidence
 
+## 26 October 2026 — comprehensive D7 runtime / static preview QA gate
+
+**Full original GitHub source executed in isolated V8:** 12 industry kits × 12 themes × two languages = **288/288 valid CMS variants**; their **1,152/1,152 linked four-page static HTML previews** have correct relative styles/navigation and remain noindex even with owner-approved facts; **288/288 client-feedback snapshot round trips** and **288/288 real eight-member ZIP32 archives** built, CRC inspected, with no external URLs; **84/84** 42-composition × RU/EN CMS adapter insertions validated and inspected against registered component manifests. Separately the **exact existing** `bin/build-browser-bundle.cjs` read first-party GitHub sources+eight component manifests in a V8-mocked Node filesystem and confirmed exact bytes of `studio/runtime.generated.js`, no source drift.
+
+**Committed D7 integration:** added `tests/preview-matrix-smoke.cjs` with the complete interconnected project → four pages → client feedback → deterministic ZIP → 42-composition adapter workflow. The release audit and candidate now require this as the ninth Node suite; exact audit schema checks updated to 11 total checks without Chromium, 12 with. This new on-disk Node CLI has been syntax-parsed, but **not yet run in a real git checkout**. Separate isolated V8 source-equivalent matrix is factual evidence, not a real Node run.
+
+**Unchanged formal blockers:** real Node audit NOT RUN (checkout GitHub DNS failure); real Chromium E2E and 54 screenshot matrix NOT RUN (headless startup timed out); 42 compositions not human-reviewed; six real PHP parity probes NOT RUN; actual final source ZIP/CRC/byte-by-byte SHA256 NOT RUN. D7 OPEN, Stage2 NO-GO, Stage3 UNACCEPTED, 0/135. No release authorization, deployment, hosting action or merge. Implementation coverage stays D1–D6 = 6/7 ≈86%.
+
+
 ## 26 October — connected D7 regression closeout, committed implementation
 
 **Product/source checkpoint:** `3ead7d1d2d75b58f6146aedb3bbaac93af82e035`. Removed two obsolete static assertions that guaranteed `studio-smoke.cjs` failure after the fresh-feedback-state fix. The current Node smoke expects `feedbackTool.validate(incoming,fresh)` and the exact `{throwOnError:true,preserveReview:true}` import contract. Verified all **29** current source-string assertions of the same type against the committed Studio source: **zero stale expectations**. This checks source contract alignment; it is **not** execution of the Node smoke.

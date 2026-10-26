@@ -1,5 +1,14 @@
 # Design Factory — D1–D7 independent engineering program
 
+## 26 October 2026 — comprehensive D7 runtime / static preview QA gate
+
+**Full original GitHub source executed in isolated V8:** 12 industry kits × 12 themes × two languages = **288/288 valid CMS variants**; their **1,152/1,152 linked four-page static HTML previews** have correct relative styles/navigation and remain noindex even with owner-approved facts; **288/288 client-feedback snapshot round trips** and **288/288 real eight-member ZIP32 archives** built, CRC inspected, with no external URLs; **84/84** 42-composition × RU/EN CMS adapter insertions validated and inspected against registered component manifests. Separately the **exact existing** `bin/build-browser-bundle.cjs` read first-party GitHub sources+eight component manifests in a V8-mocked Node filesystem and confirmed exact bytes of `studio/runtime.generated.js`, no source drift.
+
+**Committed D7 integration:** added `tests/preview-matrix-smoke.cjs` with the complete interconnected project → four pages → client feedback → deterministic ZIP → 42-composition adapter workflow. The release audit and candidate now require this as the ninth Node suite; exact audit schema checks updated to 11 total checks without Chromium, 12 with. This new on-disk Node CLI has been syntax-parsed, but **not yet run in a real git checkout**. Separate isolated V8 source-equivalent matrix is factual evidence, not a real Node run.
+
+**Unchanged formal blockers:** real Node audit NOT RUN (checkout GitHub DNS failure); real Chromium E2E and 54 screenshot matrix NOT RUN (headless startup timed out); 42 compositions not human-reviewed; six real PHP parity probes NOT RUN; actual final source ZIP/CRC/byte-by-byte SHA256 NOT RUN. D7 OPEN, Stage2 NO-GO, Stage3 UNACCEPTED, 0/135. No release authorization, deployment, hosting action or merge. Implementation coverage stays D1–D6 = 6/7 ≈86%.
+
+
 ## 26 October — final D7 engineering pass
 
 Functional checkpoint `0c00c5deb97d28827af571eb92ef7d1efd481523`. Added a regression for a subtle client-feedback race: edits update project state before the 120ms preview debounce, so Studio now recompiles the live project before every feedback import/export/resolution action. Old comments cannot be exported against the previous render. The existing Studio smoke now includes a real Chromium scenario for extracting and running `review.html` from the eight-file preview ZIP, round-tripping a client JSON report through Studio, and rejecting stale exports both immediately after a change and after the preview refresh.

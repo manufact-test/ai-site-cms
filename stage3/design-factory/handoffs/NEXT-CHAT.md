@@ -1,5 +1,14 @@
 # Design Factory — NEXT CHAT / independent developer handoff
 
+## 26 October 2026 — comprehensive D7 runtime / static preview QA gate
+
+**Full original GitHub source executed in isolated V8:** 12 industry kits × 12 themes × two languages = **288/288 valid CMS variants**; their **1,152/1,152 linked four-page static HTML previews** have correct relative styles/navigation and remain noindex even with owner-approved facts; **288/288 client-feedback snapshot round trips** and **288/288 real eight-member ZIP32 archives** built, CRC inspected, with no external URLs; **84/84** 42-composition × RU/EN CMS adapter insertions validated and inspected against registered component manifests. Separately the **exact existing** `bin/build-browser-bundle.cjs` read first-party GitHub sources+eight component manifests in a V8-mocked Node filesystem and confirmed exact bytes of `studio/runtime.generated.js`, no source drift.
+
+**Committed D7 integration:** added `tests/preview-matrix-smoke.cjs` with the complete interconnected project → four pages → client feedback → deterministic ZIP → 42-composition adapter workflow. The release audit and candidate now require this as the ninth Node suite; exact audit schema checks updated to 11 total checks without Chromium, 12 with. This new on-disk Node CLI has been syntax-parsed, but **not yet run in a real git checkout**. Separate isolated V8 source-equivalent matrix is factual evidence, not a real Node run.
+
+**Unchanged formal blockers:** real Node audit NOT RUN (checkout GitHub DNS failure); real Chromium E2E and 54 screenshot matrix NOT RUN (headless startup timed out); 42 compositions not human-reviewed; six real PHP parity probes NOT RUN; actual final source ZIP/CRC/byte-by-byte SHA256 NOT RUN. D7 OPEN, Stage2 NO-GO, Stage3 UNACCEPTED, 0/135. No release authorization, deployment, hosting action or merge. Implementation coverage stays D1–D6 = 6/7 ≈86%.
+
+
 ## Latest substantial work — 26 October: D7 async review race and audit assertion closeout
 
 Functional code commit `3ead7d1d2d75b58f6146aedb3bbaac93af82e035`; read live branch SHA after this documentation commit. **Five owned files changed in one major pass**: `studio/studio.js`, `studio/client-feedback.js`, `lib/visual-review-ui.cjs`, `tests/studio-smoke.cjs`, `tests/visual-review-smoke.cjs`. Studio's last-selected file now wins for concurrent project and feedback JSON imports. The offline client feedback portal prevents delayed restores from clobbering new notes. The 54-image visual-review UI prevents delayed drafts overwriting newly entered human verdicts/notes and clears attestations on valid restoration. Two Node smoke assertions that had become certain failures after previous source fixes were corrected.
