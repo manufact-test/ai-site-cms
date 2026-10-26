@@ -347,6 +347,23 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
       .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex').formFields.length,4);
 
+    // A click on a configured form question in the safe whole-page preview
+    // deep-links to exactly its existing form-builder row (no new draft write).
+    const flexPage=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .find(p=>p.sections.some(s=>s.id===conditionalForm.id));
+    await page.locator('#cms-open-page-preview').click();
+    await page.locator('#cms-page-preview-path').selectOption(flexPage.path);
+    const visualFlex=page.frameLocator('#cms-page-preview-frame');
+    await visualFlex.locator('[data-cms-section-id="'+conditionalForm.id+'"]').waitFor();
+    await visualFlex.locator('[data-cms-section-id="'+conditionalForm.id+'"] label')
+      .filter({hasText:'Модель оборудования'}).first().click();
+    assert.match(await page.locator('#cms-work-form-focus').innerText(),/Модель оборудования/);
+    await page.locator('#cms-work-form-edit').click();
+    await page.locator('#cms-form-builder[open]').waitFor();
+    assert.equal(await page.locator('#cms-form-rows .cms-form-row-selected').getAttribute('data-form-field'),
+      conditionalForm.formFields[1].id,'Visual question selects its exact configured form row');
+    await page.locator('#cms-form-builder').getByRole('button',{name:'Закрыть'}).click();
+
     // Search diagnostics and manage URL aliases from the same undoable document.
     await page.locator('#cms-quality-open').click();
     await page.locator('#cms-site-report').waitFor({state:'visible'});

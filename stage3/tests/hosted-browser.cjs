@@ -221,6 +221,26 @@ async function execute(){
   await imagePreview.waitFor({state:'attached'});
   assert.match(await imagePreview.getAttribute('src'),/^data:image\/png;base64,/);
 
+  // The actual PHP-rendered photo selects its media field, and replacing it
+  // in the visual picker remains an Undoable private draft change.
+  await page.locator('#cms-open-page-preview').click();
+  const imageCanvas=page.frameLocator('#cms-page-preview-frame');
+  await imageCanvas.locator('section.showcase img.showcase-photo').click();
+  assert.equal(await page.locator('#cms-work-element').inputValue(),
+    (await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
+      .find(s=>s.component==='image-showcase').elements.find(e=>e.slot==='photo').id);
+  await page.locator('#cms-work-media > summary').click();
+  assert.equal(await page.locator('#cms-work-media [data-media-id="'+assetId+'"]').getAttribute('aria-pressed'),'true');
+  await page.locator('#cms-work-media [data-media-id=""]').click();
+  assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
+    .find(s=>s.component==='image-showcase').elements.find(e=>e.slot==='photo')
+    .values['content.media'],'','Visual media picker modifies the private draft only');
+  await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+  assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
+    .find(s=>s.component==='image-showcase').elements.find(e=>e.slot==='photo')
+    .values['content.media'],assetId,'Undo restores selected media in draft');
+  await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Черновик #8/).waitFor();
   assert.equal((await visitor.goto(origin+'/published/'+siteId+'/assets/'+assetId+'.png')).status(),404);
