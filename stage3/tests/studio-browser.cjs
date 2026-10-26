@@ -764,6 +764,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
     assert.equal(await inlineGraphCount(),graphCountBefore,'Undo reverses insertion');
 
+    // Undo after structural changes may select the first surviving node; explicitly
+    // choose the intended nested node before testing focus handoff.
+    await page.locator('#cms-work-graph-node').selectOption(selectedSection+'-copy');
     await page.locator('#cms-work-graph-open').click();
     await page.locator('#cms-design-graph-dialog[open]').waitFor();
     assert.equal(await page.locator('#cms-design-node-select').inputValue(),selectedSection+'-copy',
