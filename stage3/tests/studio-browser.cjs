@@ -514,6 +514,23 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.frameLocator('#cms-page-preview-frame').locator('section.hero p').first().click();
     assert.equal(await page.locator('#cms-work-element').inputValue(),'section-hero-summary',
       'Hero description selects summary field, not the headline');
+    await page.locator('#cms-work-component').selectOption('service-grid');
+    await page.locator('#cms-work-add').getByRole('button',{name:'+ Блок после'}).click();
+    const repeatSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+    const repeated=repeatSite.pages[0].sections.find(section=>section.component==='service-grid');
+    assert.ok(repeated,'Visual composer adds typed repeated section to home page');
+    const repeatCard=page.frameLocator('#cms-page-preview-frame')
+      .locator('[data-cms-section-id="'+repeated.id+'"] .cms-preview-grid > article');
+    await repeatCard.first().locator('h3').click();
+    assert.equal(await page.locator('#cms-work-element').inputValue(),repeated.items[0].id,
+      'Click on repeated card selects its exact stable item ID');
+    await page.locator('#cms-work-repeat-copy').click();
+    const copiedSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+    assert.equal(copiedSite.pages[0].sections.find(s=>s.id===repeated.id).items.length,repeated.items.length+1);
+    await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+    await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
+      .some(section=>section.id===repeated.id),false,'Both canvas changes Undo cleanly');
     await page.locator('#cms-page-preview-path').selectOption('/contact/');
 
     await page.frameLocator('#cms-page-preview-frame').locator('.cms-menu-preview .cms-menu-cta').getByText('Написать нам').waitFor();

@@ -103,14 +103,15 @@ async function execute(){
   await draftFrame.locator('h1').getByText('Редактирование страницы в Studio').waitFor();
   await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
   assert.equal(await draftFrame.locator('h1').innerText(),'Проверка серверного сайта');
+  const oldSummary=await draftFrame.locator('section.hero p').first().innerText();
   await draftFrame.locator('section.hero p').first().dblclick();
   assert.equal(await page.locator('#cms-work-element').inputValue(),'section-hero-summary');
   await page.locator('#cms-work-quick-input').fill('Текст через визуальный редактор PHP');
   await page.locator('#cms-work-quick-save').click();
   await draftFrame.locator('section.hero p').getByText('Текст через визуальный редактор PHP').waitFor();
   await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
-  assert.equal(await draftFrame.locator('section.hero p').first().innerText(),
-    'Промышленное оборудование и инженерные решения под ваш проект.');
+  assert.equal(await draftFrame.locator('section.hero p').first().innerText(),oldSummary,
+    'Undo must restore the actual server-saved description');
   const startingPreviewSite=await page.evaluate(()=>window.Stage3Editor.getSite());
   await page.locator('.cms-work-appearance > summary').click();
   await page.locator('#cms-work-fields [data-work-appearance="surface"]').selectOption('dark');
