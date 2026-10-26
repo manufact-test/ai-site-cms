@@ -86,7 +86,18 @@ async function execute(){
   // A single operator-facing launch checklist previews every page and device
   // without publishing or bypassing the existing guarded Save/Publish buttons.
   await page.locator('#server-launch-review').click();
-  await page.locator('#server-launch-dialog[open]').waitFor();
+  try {
+    await page.locator('#server-launch-dialog[open]').waitFor({timeout:3000});
+  } catch(error) {
+    const diagnosis=await page.evaluate(()=>({
+      toast:document.querySelector('#toast')?.textContent,
+      launchButtonDisabled:document.querySelector('#server-launch-review')?.disabled,
+      dialogCount:document.querySelectorAll('#server-launch-dialog').length,
+      dialogOpen:document.querySelector('#server-launch-dialog')?.open,
+      status:document.querySelector('#server-status')?.textContent
+    }));
+    throw Error('Launch review failed to open: '+JSON.stringify(diagnosis),{cause:error});
+  }
   assert.equal(await page.locator('#server-launch-pages button').count(),2);
   assert.equal(await page.locator('#server-launch-save').isDisabled(),true);
   await page.locator('#server-launch-modes [data-device="mobile"]').click();
