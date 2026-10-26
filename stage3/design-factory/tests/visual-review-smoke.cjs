@@ -95,6 +95,18 @@ try{
  // HTML and CSS are source-bound even when all PNG hashes are unchanged.
  const sourcePath=sourcePaths(files[0]),sourceHTML=path.join(dir,sourcePath.html),sourceCSS=path.join(dir,sourcePath.css);
  const oldHTML=fs.readFileSync(sourceHTML),oldCSS=fs.readFileSync(sourceCSS);
+ // A captured HTML page must not link to a route missing from its own preview site.
+ try{
+  fs.writeFileSync(sourceHTML,oldHTML.toString('utf8').replace('</body>',
+   '<a href="unavailable/index.html">Bad route</a></body>'));
+  assert.throws(()=>sourceIdentity(dir,files[0]),/ENOENT|Preview navigation/);
+  fs.writeFileSync(sourceHTML,oldHTML.toString('utf8').replace('</body>',
+   '<a href="https://example.com">External route</a></body>'));
+  assert.throws(()=>sourceIdentity(dir,files[0]),/External or unsafe preview navigation/);
+  fs.writeFileSync(sourceHTML,oldHTML.toString('utf8').replace('</body>',
+   '<a href="#missing-anchor">Bad fragment</a></body>'));
+  assert.throws(()=>sourceIdentity(dir,files[0]),/Preview anchor target is missing/);
+ }finally{fs.writeFileSync(sourceHTML,oldHTML);}
  try{
   fs.appendFileSync(sourceHTML,'\n<!-- altered page -->');
   reject(approved,/Visual source bytes or identity mismatch/);

@@ -36,12 +36,38 @@ function readSource(root,relative){
   throw Error('Generated source changed during capture: '+relative);
  return bytes;
 }
+
+function assertOfflineNavigation(root,htmlPath,html){
+ // This is a static link reachability audit, not JavaScript execution.
+ // Check local anchors and every linked route, not only pages with screenshots.
+ const links=[...html.matchAll(/<a\b[^>]*\bhref="([^"]*)"/gi)];
+ if(links.length>500)throw Error('Generated preview has too many navigation links: '+htmlPath);
+ const group=htmlPath.startsWith('showcase/')?'showcase/':
+  'sites/'+htmlPath.split('/')[1]+'/';
+ for(const match of links){
+  const href=match[1];
+  if(typeof href!=='string'||!href||!/^([a-zA-Z0-9._/-]*)(?:#([a-zA-Z0-9_-]+))?$/.test(href))
+   throw Error('External or unsafe preview navigation: '+href);
+  const [route,fragment]=href.split('#');
+  if(route&&(!/^(?:[.][.]\/)?(?:[a-z0-9-]+\/)*index[.]html$/.test(route)||route.includes('//')))
+   throw Error('Unsupported generated preview route: '+href);
+  const target=route?path.posix.normalize(path.posix.join(path.posix.dirname(htmlPath),route)):htmlPath;
+  if(!target.startsWith(group)||!target.endsWith('/index.html'))
+   throw Error('Preview navigation leaves its own site: '+href);
+  const page=target===htmlPath?html:readSource(root,target).toString('utf8');
+  if(fragment&&!page.includes('id="'+fragment+'"'))
+   throw Error('Preview anchor target is missing: '+href);
+ }
+ return links.length;
+}
+
 function sourceIdentity(root,image){
  const src=sourcePaths(image),html=readSource(root,src.html),css=readSource(root,src.css);
  const text=html.toString('utf8');
  if(!/^<!doctype html>/i.test(text)||Buffer.byteLength(text,'utf8')!==html.length||
     text.split('<link rel="stylesheet" href="'+src.href+'">').length!==2)
   throw Error('Generated page stylesheet contract mismatch: '+src.html);
+ assertOfflineNavigation(root,src.html,text);
  return Object.freeze({html:src.html,htmlSha256:sha(html),css:src.css,cssSha256:sha(css)});
 }
 function assertSourceIdentity(root,image,claimed){
@@ -53,4 +79,4 @@ function assertSourceIdentity(root,image,claimed){
   throw Error('Visual source bytes or identity mismatch: '+image);
  return actual;
 }
-module.exports=Object.freeze({sourcePaths,sourceIdentity,assertSourceIdentity});
+module.exports=Object.freeze({sourcePaths,sourceIdentity,assertSourceIdentity,assertOfflineNavigation});
