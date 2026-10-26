@@ -474,10 +474,19 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     // enabling scripts/network for the iframe.
     await page.locator('#cms-open-page-preview').click();
     await page.locator('#cms-page-preview').waitFor({state:'visible'});
-    assert.equal(await page.locator('#cms-page-preview-frame').getAttribute('sandbox'),'');
+    assert.equal(await page.locator('#cms-page-preview-frame').getAttribute('sandbox'),'allow-same-origin');
     await page.frameLocator('#cms-page-preview-frame').locator('h1').first().waitFor();
     await page.locator('#cms-page-preview-path').selectOption('/contact/');
     await page.frameLocator('#cms-page-preview-frame').locator('.contact').first().waitFor();
+    await page.frameLocator('#cms-page-preview-frame').locator('section.contact h2').first().click();
+    const original=await page.frameLocator('#cms-page-preview-frame').locator('section.contact h2').innerText();
+    const field=page.locator('#cms-work-fields [data-page-field="content.text"]');
+    await field.fill('Контакт в визуальном редакторе');
+    await field.dispatchEvent('change');
+    await page.frameLocator('#cms-page-preview-frame').locator('section.contact h2').getByText('Контакт в визуальном редакторе').waitFor();
+    await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+    assert.equal(await page.frameLocator('#cms-page-preview-frame').locator('section.contact h2').innerText(),original);
+
     await page.frameLocator('#cms-page-preview-frame').locator('.cms-menu-preview .cms-menu-cta').getByText('Написать нам').waitFor();
     assert.equal(await page.frameLocator('#cms-page-preview-frame').locator('.cms-menu-mobile a').count(),2);
     await page.locator('.cms-page-preview-modes [data-mode="mobile"]').click();

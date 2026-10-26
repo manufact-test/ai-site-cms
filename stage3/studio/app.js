@@ -646,7 +646,7 @@
     const frameMode=document.createElement('div');frameMode.className='cms-page-preview-modes';
     const area=document.createElement('div');area.className='cms-page-preview-area';
     const frame=document.createElement('iframe');frame.id='cms-page-preview-frame';
-    frame.setAttribute('sandbox',HOSTED?'allow-same-origin':'');frame.title='Изолированный предпросмотр всей страницы';
+    frame.setAttribute('sandbox','allow-same-origin');frame.title='Изолированный предпросмотр всей страницы';
     frame.setAttribute('referrerpolicy','no-referrer');area.append(frame);
     let mode='desktop',previewRequest=0;
     const render=async()=>{
@@ -674,14 +674,170 @@
     header.append(heading,pathSelect,frameMode,close);
     const note=document.createElement('small');
     note.textContent=HOSTED?'Черновик отрисован тем же PHP-рендерером, что и публикация. Скрипты, ссылки и отправка форм отключены; ничего не публикуется.':'Предпросмотр только черновика · без выполнения скриптов, без отправки заявок и без публикации.';
-    modal.append(header,note,area);document.body.append(modal);
-    const open=button('Вся страница','btn small',()=>{
+
+    const layout=document.createElement('div');layout.className='cms-work-layout';
+    const workPanel=document.createElement('aside');workPanel.className='cms-work-panel';
+    const workTitle=document.createElement('h3');workTitle.id='cms-work-title';
+    const workSectionPicker=document.createElement('select');workSectionPicker.id='cms-work-section';workSectionPicker.className='control';
+    const workElementPicker=document.createElement('select');workElementPicker.id='cms-work-element';workElementPicker.className='control';
+    const workActions=document.createElement('div');workActions.className='cms-work-actions';
+    const workFields=document.createElement('div');workFields.id='cms-work-fields';
+    const workAdd=document.createElement('div');workAdd.className='cms-work-add';
+    const workStatus=document.createElement('small');workStatus.id='cms-work-status';workStatus.setAttribute('role','status');
+    const workError=document.createElement('small');workError.id='cms-work-error';workError.setAttribute('role','alert');
+    workPanel.append(workTitle,workSectionPicker,workActions,workElementPicker,workFields,workAdd,workStatus,workError);
+    layout.append(area,workPanel);modal.append(header,note,layout);document.body.append(modal);
+
+    // Select sections only in the validated, scriptless page preview.
+    // Every edit uses the same SDK draft history as the right-side inspector.
+    let workSection='',workElement='';
+    const canWrite=()=>!HOSTED||!!window.Stage3Host?.canEditStudio?.();
+    const pageForWork=()=>session.current.pages.find(p=>p.path===pathSelect.value);
+    const sectionForWork=()=>pageForWork()?.sections.find(s=>s.id===workSection);
+    const feedback=(s,bad=false)=>{workError.textContent=bad?s:'';workStatus.textContent=bad?'Не применено':s;};
+    const workButton=(label,fn)=>{const b=button(label,'btn small',fn);b.dataset.editorWrite='true';return b;};
+    function highlightWork(){
+      const doc=frame.contentDocument;if(!doc)return;
+      for(const el of doc.querySelectorAll('section.cms-work-target'))
+        el.classList.toggle('cms-work-current',el.id===workSection);
+    }
+    frame.addEventListener('load',()=>{
+      const doc=frame.contentDocument,page=pageForWork();if(!doc||!page)return;
+      const ids=new Set(page.sections.map(s=>s.id));
+      const css=doc.createElement('style');
+      css.textContent='section.cms-work-target:hover{outline:2px dashed #20b0dc!important;cursor:pointer}section.cms-work-current{outline:3px solid #ff9b37!important;outline-offset:-3px!important}';
+      doc.head.append(css);
+      for(const el of doc.querySelectorAll('section[id]'))if(ids.has(el.id))el.classList.add('cms-work-target');
+      doc.addEventListener('click',e=>{
+        e.preventDefault();e.stopPropagation();
+        const target=e.target;if(!(target instanceof doc.defaultView.Element))return;
+        const el=target.closest('section.cms-work-target');
+        if(el&&ids.has(el.id)){workSection=el.id;workElement='';showWork();highlightWork();}
+      },true);
+      doc.addEventListener('submit',e=>{e.preventDefault();e.stopPropagation();},true);
+      highlightWork();
+    });
+    function structureWork(action){
+      if(!canWrite())return feedback('Нет права на редактирование.',true);
+      try{
+        const signature=x=>[x.kind,x.pageId,x.sectionId||'',x.path].join('|');
+        const before=new Set(C.inspectSite(session.current,manifests).errors
+          .filter(x=>x.kind==='broken-link'||x.kind==='broken-anchor').map(signature));
+        const next=D.structure(session,manifests,{...action,expectedRevision:session.revision});
+        const broken=C.inspectSite(next.current,manifests).errors.filter(x=>
+          (x.kind==='broken-link'||x.kind==='broken-anchor')&&!before.has(signature(x)));
+        if(broken.length)throw Error('Новая битая ссылка: '+broken[0].path);
+        session=next;
+        if(!sectionForWork())workSection=pageForWork()?.sections[0]?.id||'';
+        workElement='';draw();showWork();render();
+        feedback('Структура изменена в черновике. Сохранить и опубликовать — отдельно.');
+      }catch(e){feedback(e.message,true);}
+    }
+    function editWork(f,field){
+      if(!canWrite())return feedback('Нет права на редактирование.',true);
+      const page=pageForWork(),section=sectionForWork();
+      if(!page||!section)return;
+      try{
+        const raw=f.type==='boolean'?field.checked:field.value;
+        session=D.edit(session,manifests,{pageId:page.id,sectionId:section.id,
+          elementId:workElement,path:f.path,value:f.type==='number'?Number(raw):raw,
+          breakpoint:f.responsive?mode:null,expectedRevision:session.revision});
+        draw();showWork();render();
+        feedback('Поле изменено в черновике. Undo доступен.');
+      }catch(e){feedback(e.message,true);}
+    }
+    function showWork(){
+      const page=pageForWork(),section=sectionForWork();
+      workTitle.textContent=section?(manifest(section)?.label||section.component):'Выберите блок на странице';
+      workSectionPicker.replaceChildren();workElementPicker.replaceChildren();
+      workActions.replaceChildren();workFields.replaceChildren();workAdd.replaceChildren();
+      if(!page||!section)return;
+      for(const s of page.sections){const o=document.createElement('option');o.value=s.id;
+        o.textContent=manifest(s)?.label||s.component;workSectionPicker.append(o);}
+      workSectionPicker.value=section.id;
+      const position=page.sections.indexOf(section);
+      const up=workButton('↑',()=>structureWork({action:'moveSection',pageId:page.id,sectionId:section.id,delta:-1}));
+      const down=workButton('↓',()=>structureWork({action:'moveSection',pageId:page.id,sectionId:section.id,delta:1}));
+      up.disabled=position===0;down.disabled=position===page.sections.length-1;
+      const duplicate=workButton('Копия',()=>{
+        const id=uniqueId('section');
+        structureWork({action:'duplicateSection',pageId:page.id,sectionId:section.id,id});
+        if(pageForWork()?.sections.some(s=>s.id===id)){workSection=id;showWork();highlightWork();}
+      });
+      const remove=workButton('Удалить',()=>{
+        if(page.sections.length>1&&confirm('Удалить блок из черновика?'))
+          structureWork({action:'removeSection',pageId:page.id,sectionId:section.id});
+      });
+      remove.disabled=page.sections.length===1;
+      const inspect=button('Полный инспектор','btn small',()=>{
+        pageId=page.id;sectionId=section.id;elementId=workElement;breakpoint=mode;draw();modal.close();
+      });
+      workActions.append(up,down,duplicate,remove,inspect);
+      const els=[...section.elements,...(section.items||[])];
+      if(!els.some(e=>e.id===workElement))workElement=section.elements[0].id;
+      for(const e of els){const o=document.createElement('option');o.value=e.id;
+        o.textContent=e.slot||'Карточка '+(section.items.indexOf(e)+1);workElementPicker.append(o);}
+      workElementPicker.value=workElement;
+      for(const f of C.controls(session.current,manifests,page.id,section.id,workElement)){
+        const line=document.createElement('label');line.className='cms-work-field';
+        const caption=document.createElement('span');caption.textContent=f.label+(f.responsive?' · '+mode:'');
+        const initial=f.responsive?C.effectiveValue(f.value,mode):f.value;
+        let control;
+        if(f.type==='enum'||f.type==='media'){
+          control=document.createElement('select');
+          for(const v of f.type==='enum'?f.options:['',...session.current.assets.map(a=>a.id)]){
+            const o=document.createElement('option');o.value=v;
+            o.textContent=f.type==='enum'?v:(session.current.assets.find(a=>a.id===v)?.alt||v||'Без изображения');
+            control.append(o);
+          }
+          control.value=initial;
+        }else{
+          control=document.createElement(f.path==='content.options'?'textarea':'input');
+          if(control.tagName==='INPUT')control.type=f.type==='boolean'?'checkbox':f.type==='number'?'number':f.type==='color'?'color':'text';
+          if(f.type==='boolean')control.checked=initial;
+          else control.value=safeText(initial);
+          if(f.type==='number'){control.min=f.min;control.max=f.max;}
+          if(f.maxLength)control.maxLength=f.maxLength;
+        }
+        control.className='control';control.dataset.pageField=f.path;control.disabled=!canWrite();
+        control.addEventListener('change',()=>editWork(f,control));
+        line.append(caption,control);workFields.append(line);
+      }
+      if(section.designGraph){
+        const help=document.createElement('small');
+        help.textContent='Для вложенных узлов откройте полный инспектор → Дизайн-композиция.';
+        workFields.prepend(help);
+      }
+      const choose=document.createElement('select');choose.className='control';choose.id='cms-work-component';
+      for(const m of manifests){const o=document.createElement('option');o.value=m.id;o.textContent=m.label;choose.append(o);}
+      choose.value='feature-highlights';
+      const add=workButton('+ Блок после',()=>{
+        const id=uniqueId('section');
+        structureWork({action:'addSection',pageId:page.id,sectionId:section.id,id,component:choose.value});
+        if(pageForWork()?.sections.some(s=>s.id===id)){workSection=id;showWork();render();}
+      });
+      workAdd.append(choose,add);
+      for(const b of workPanel.querySelectorAll('[data-editor-write]'))b.disabled ||= !canWrite();
+    }
+    workSectionPicker.addEventListener('change',()=>{workSection=workSectionPicker.value;workElement='';showWork();highlightWork();});
+    workElementPicker.addEventListener('change',()=>{workElement=workElementPicker.value;showWork();});
+    pathSelect.addEventListener('change',()=>{workSection=pageForWork()?.sections[0]?.id||'';workElement='';showWork();});
+    const history=document.createElement('div');history.id='cms-work-history';history.className='cms-work-history';
+    history.append(workButton('↶ Отмена',()=>{
+      if(!canWrite())return;session=D.undo(session,manifests);draw();showWork();render();
+      feedback('Undo восстановил черновик, публикация не изменена.');
+    }),workButton('↷ Повтор',()=>{
+      if(!canWrite())return;session=D.redo(session,manifests);draw();showWork();render();
+      feedback('Redo обновил черновик, публикация не изменена.');
+    }));workPanel.append(history);
+    const open=button('Вся страница · редактировать','btn small',()=>{
       pathSelect.replaceChildren();
       for(const page of session.current.pages){
         const option=document.createElement('option');option.value=page.path;
         option.textContent=page.title+' · '+page.path;pathSelect.append(option);
       }
       pathSelect.value=current().page.path;
+      workSection=current().section.id;workElement=elementId;showWork();
       frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el.dataset.mode===mode));
       render();modal.showModal();
     });

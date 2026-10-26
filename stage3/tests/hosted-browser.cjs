@@ -94,6 +94,14 @@ async function execute(){
   assert.equal(await draftFrame.locator('h1').innerText(),'Проверка серверного сайта',
     'Hosted Studio previews the draft through the publication renderer');
   assert.equal(await draftFrame.locator('meta[name="robots"]').getAttribute('content'),'noindex,nofollow');
+  await draftFrame.locator('section.hero h1').click();
+  const field=page.locator('#cms-work-fields [data-page-field="content.text"]');
+  await field.fill('Редактирование страницы в Studio');
+  await field.dispatchEvent('change');
+  await draftFrame.locator('h1').getByText('Редактирование страницы в Studio').waitFor();
+  await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+  assert.equal(await draftFrame.locator('h1').innerText(),'Проверка серверного сайта');
+
   await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
   await page.locator('#cms-page-preview[open]').waitFor({state:'hidden'});
   assert.equal((await visitor.goto(publicUrl)).status(),404,'Preview remains non-public');

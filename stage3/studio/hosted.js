@@ -976,6 +976,7 @@
     api,safe,notice,principal:()=>state.principal,refreshSites:()=>refreshSites(),
     lock:()=>{state.authorized=false;state.principal=null;state.csrf=null;editorVisible(false);setGate(true);},
     compositionTemplates,createComposition,canCompose:()=>isOwner()&&!state.busy,
+    canEditStudio:()=>state.authorized&&!state.busy&&Boolean(state.siteId)&&canEdit(),
     canEditMedia:()=>state.authorized&&!state.busy&&Boolean(state.siteId)&&canEdit()&&!editor.isDirty(),
     uploadProcessed});
   $('versions').replaceChildren();
