@@ -51,7 +51,8 @@ try{
   renderSourceSha256:sourceFingerprint(path.resolve(__dirname,'../../..'))};
  report.evidenceSha256=evidenceHash(report);
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
- const approved={format:'manufact-design-factory-visual-review-v1',version:1,
+ assert.equal(ACTIVITIES.length,5);
+ const approved={format:'manufact-design-factory-visual-review-v2',version:2,
   evidenceSha256:report.evidenceSha256,reviewer:'Independent tester',
   reviewedAt:'2026-10-26T00:00:00.000Z',
   manualChecks:Object.fromEntries(ACTIVITIES.map(k=>[k,true])),
@@ -65,7 +66,11 @@ try{
  assert.ok(output.includes('data-evidence-sha256="'+report.evidenceSha256+'"'));
  assert.equal((output.match(/<article data-review /g)||[]).length,54);
  assert.ok(output.includes('visual-review-decision.json'));
+ assert.ok(output.includes('href="showcase/index.html"'));
+ assert.ok(output.includes('id="showcaseCoverage"'));
+ assert.ok(output.includes('inspect all 42 compositions'));
  const reject=(modified,pattern)=>assert.throws(()=>verify(dir,modified),pattern);
+ reject({...approved,format:'manufact-design-factory-visual-review-v1',version:1},/does not match/);
  reject({...approved,evidenceSha256:'0'.repeat(64)},/does not match/);
  const missingSource={...report,renderSourceSha256:null};
  missingSource.evidenceSha256=evidenceHash(missingSource);
@@ -74,7 +79,8 @@ try{
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
  reject({...approved,images:approved.images.slice(1)},/Every screenshot/);
  reject({...approved,images:[...approved.images.slice(0,-1),approved.images[0]]},/Duplicate/);
- reject({...approved,manualChecks:{...approved.manualChecks,keyboardAndTouch:false}},/four independent/);
+ reject({...approved,manualChecks:{...approved.manualChecks,keyboardAndTouch:false}},/five independent/);
+ reject({...approved,manualChecks:{...approved.manualChecks,showcaseCoverage:false}},/five independent/);
  reject({...approved,images:approved.images.map((x,i)=>i===0?{...x,verdict:'rejected',note:'Bad layout'}:x)},/rejected/);
  reject({...approved,images:approved.images.map((x,i)=>i===0?{...x,verdict:'rejected',note:''}:x)},/diagnostic note/);
  const original=fs.readFileSync(path.join(dir,files[0]));

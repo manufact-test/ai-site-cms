@@ -26,7 +26,7 @@ function pngDimensions(bytes){
  return {width:bytes.readUInt32BE(16),height:bytes.readUInt32BE(20)};
 }
 const ACTIVITIES=Object.freeze([
- 'layoutAndOverflow','keyboardAndTouch','localesAndCopy','motionAndContent'
+ 'layoutAndOverflow','showcaseCoverage','keyboardAndTouch','localesAndCopy','motionAndContent'
 ]);
 function checkEvidence(directory,report){
  if(report?.format!=='manufact-design-factory-visual-evidence-v1'||report.version!==1)
@@ -69,15 +69,15 @@ function checkEvidence(directory,report){
 function verify(directory,review){
  const report=JSON.parse(fs.readFileSync(path.join(directory,'visual-evidence.json'),'utf8'));
  const evidence=checkEvidence(directory,report);
- if(!review||review.format!=='manufact-design-factory-visual-review-v1'||
-  review.version!==1||review.evidenceSha256!==report.evidenceSha256)
+ if(!review||review.format!=='manufact-design-factory-visual-review-v2'||
+  review.version!==2||review.evidenceSha256!==report.evidenceSha256)
   throw Error('Visual review receipt does not match this evidence set');
  if(typeof review.reviewer!=='string'||review.reviewer.trim().length<3||
   review.reviewer.length>120||!/^\d{4}-\d\d-\d\dT/.test(review.reviewedAt||'')||
   !Number.isFinite(Date.parse(review.reviewedAt)))
   throw Error('Reviewer and ISO review date are required');
  if(!review.manualChecks||ACTIVITIES.some(key=>review.manualChecks[key]!==true))
-  throw Error('All four independent manual interaction/content review attestations required');
+  throw Error('All five independent manual interaction/content review attestations required, including full 42-composition showcase review');
  if(!Array.isArray(review.images)||review.images.length!==evidence.size)
   throw Error('Every screenshot requires an explicit review verdict');
  const seen=new Set(),rejected=[];
