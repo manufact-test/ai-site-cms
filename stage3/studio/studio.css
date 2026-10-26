@@ -165,3 +165,26 @@
 .cms-content-row p:last-child{color:#9fe7c6}
 .cms-content-row-nav{display:flex;gap:5px;flex-wrap:wrap}
 @media(max-width:720px){.cms-content-filters{grid-template-columns:1fr}.cms-content-row{grid-template-columns:auto minmax(0,1fr)}.cms-content-row-nav{grid-column:2}}
+
+/* Isolated form builder: editable questions + no-network visibility simulation. */
+.cms-form-builder-dialog{width:min(1060px,96vw);max-height:92vh}
+.cms-form-builder-dialog[open]{display:block}
+.cms-form-builder-dialog>p{color:#bbccd9;line-height:1.6}
+.cms-form-preset-bar{display:grid;grid-template-columns:minmax(230px,1fr) auto;gap:10px;align-items:center;padding:14px;border:1px solid #395062;border-radius:12px;margin:12px 0}
+.cms-form-preset-bar small{grid-column:1/-1;line-height:1.5;color:#adbecd}
+#cms-form-rows fieldset{border:1px solid #40566b;border-radius:12px;padding:15px;margin:12px 0;min-width:0}
+#cms-form-rows legend{color:#d9f8e8;font-weight:700;padding-inline:8px}
+.cms-form-row-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+#cms-form-rows .structure-tools{padding:11px 0 0}
+.cms-form-simulator{margin:18px 0;border:1px solid #3c6b66;background:#0d2027;border-radius:14px;padding:17px}
+.cms-form-simulator h3{margin:0 0 8px;font-size:18px}
+.cms-form-simulator>p{color:#bed2d9;font-size:12px;line-height:1.55}
+#cms-form-sim-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;padding:10px 0}
+.cms-form-sim-field{min-width:0;border:1px solid #355057;border-radius:10px;padding:12px;background:#122b32}
+.cms-form-sim-field[hidden]{display:none!important}
+.cms-form-sim-field>label{display:grid;gap:8px;font-weight:650}
+.cms-form-sim-choices{display:grid;gap:8px;padding-top:10px}
+.cms-form-sim-choice{display:flex!important;align-items:center;gap:9px}
+.cms-form-sim-choice input,.cms-form-sim-field input[type=checkbox]{width:auto;margin-right:7px}
+#cms-form-sim-status{font-size:12px;color:#a3e7ce;margin:10px 0}
+@media(max-width:620px){.cms-form-preset-bar{grid-template-columns:1fr}.cms-form-preset-bar small{grid-column:1}}

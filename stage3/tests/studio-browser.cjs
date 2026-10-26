@@ -284,6 +284,39 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
       .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex').formFields.length,1);
 
+    // Full form scenario: branching preview, duplicate and one-step draft undo.
+    await page.locator('#cms-form-builder-open').click();
+    await page.locator('#cms-form-preset').selectOption('order');
+    page.once('dialog',dialog=>dialog.accept());
+    await page.locator('#cms-form-preset-apply').click();
+    assert.equal(await page.locator('#cms-form-rows [data-form-field]').count(),4);
+    const sim=page.locator('#cms-form-sim-fields');
+    const equipment=sim.locator('select').first();
+    assert.equal(await sim.getByText('Модель оборудования *').isVisible(),false,
+      'Conditional question is hidden until its prerequisite matches');
+    await equipment.selectOption('Новое оборудование');
+    assert.equal(await sim.getByText('Модель оборудования *').isVisible(),true);
+    await sim.locator('[data-sim-field] input[type=text]').fill('Тестовая модель');
+    await sim.locator('[data-sim-field] input[type=text]').dispatchEvent('change');
+    await sim.locator('select').first().selectOption('Запчасти');
+    assert.equal(await sim.getByText('Модель оборудования *').isVisible(),false);
+    assert.match(await page.locator('#cms-form-sim-status').innerText(),/отправка отключена/);
+    await page.locator('#cms-form-rows [data-form-field]').first().locator('[data-form-duplicate]').click();
+    assert.equal(await page.locator('#cms-form-rows [data-form-field]').count(),5);
+    await page.locator('#cms-form-rows [data-form-field]').nth(1).getByText('Удалить').click();
+    assert.equal(await page.locator('#cms-form-rows [data-form-field]').count(),4);
+    await page.locator('#cms-form-apply').click();
+    const conditionalForm=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex');
+    assert.equal(conditionalForm.formFields[1].when.field,conditionalForm.formFields[0].id);
+    assert.equal(conditionalForm.formFields[1].when.option,1);
+    await page.locator('#undo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex').formFields[0].label,'Номер заказа');
+    await page.locator('#redo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex').formFields.length,4);
+
     // Search diagnostics and manage URL aliases from the same undoable document.
     await page.locator('#cms-quality-open').click();
     await page.locator('#cms-site-report').waitFor({state:'visible'});

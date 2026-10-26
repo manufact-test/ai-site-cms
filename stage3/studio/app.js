@@ -1651,18 +1651,38 @@
     make($('sections'),sectionActions);
   }
 
-  // Additive validated form builder; edits keep existing manifests and Undo.
+  // Site-specific form builder, curated presets and an inert conditional logic simulator.
+  // No visitor POST, API, publish or delivery is performed from this dialog.
   const openFormBuilder=(()=>{
-    const dlg=document.createElement('dialog');dlg.id='cms-form-builder';dlg.className='cms-settings-dialog';
-    Object.assign(dlg.style,{width:'min(960px,95vw)',maxHeight:'88vh',overflow:'auto'});
-    const title=document.createElement('h2');title.textContent='Дополнительные поля формы';
-    const description=document.createElement('p');description.textContent='До 9 дополнительных полей сверх трёх встроенных. Доступны текст, телефон, email, список, радио, флажок, число, дата, ссылка и длинный текст. Условия зависят от выбранного значения предыдущего списка; проверяются сервером.';
+    const dlg=document.createElement('dialog');dlg.id='cms-form-builder';dlg.className='cms-settings-dialog cms-form-builder-dialog';
+    const title=document.createElement('h2');title.textContent='Конструктор формы и проверка условий';
+    const description=document.createElement('p');description.textContent='Три стандартных поля (имя, email, сообщение) сохраняются. Можно добавить до 9 вопросов, менять порядок, копировать и проверить условные ветки. Изменения попадут только в черновик после подтверждения.';
+    const presetBar=document.createElement('div');presetBar.className='cms-form-preset-bar';
+    const preset=document.createElement('select');preset.className='control';preset.id='cms-form-preset';
+    const presets=[
+      ['','Выберите готовый сценарий'],
+      ['quote','Запрос коммерческого предложения'],
+      ['order','Заказ оборудования'],
+      ['consultation','Запись на консультацию'],
+      ['feedback','Обратная связь']
+    ];
+    for(const [value,name] of presets){const option=document.createElement('option');option.value=value;option.textContent=name;preset.append(option);}
+    const presetApply=button('Заполнить сценарий','btn small',loadPreset);
+    presetApply.id='cms-form-preset-apply';
+    const presetNote=document.createElement('small');presetNote.textContent='Сценарий заменит только дополнительные поля в этом окне — исходная форма и черновик останутся нетронутыми до «Применить».';
+    presetBar.append(preset,presetApply,presetNote);
     const list=document.createElement('div');list.id='cms-form-rows';
     const add=button('+ Добавить поле','btn small',()=>{});add.id='cms-form-add';
+    const simulator=document.createElement('section');simulator.id='cms-form-simulator';simulator.className='cms-form-simulator';
+    const simTitle=document.createElement('h3');simTitle.textContent='Проверка формы перед сохранением';
+    const simNote=document.createElement('p');simNote.textContent='Выберите варианты и заполните поля: условные вопросы появятся или исчезнут, а обязательные будут отмечены. Это только симуляция в редакторе, данные никуда не отправляются.';
+    const simFields=document.createElement('div');simFields.id='cms-form-sim-fields';
+    const simStatus=document.createElement('p');simStatus.id='cms-form-sim-status';simStatus.setAttribute('role','status');
+    simulator.append(simTitle,simNote,simFields,simStatus);
     const apply=button('Применить к черновику','btn primary',()=>{});apply.id='cms-form-apply';
     const cancel=button('Закрыть','btn',()=>dlg.close());
-    dlg.append(title,description,list,add,apply,cancel);document.body.append(dlg);
-    let source,fields;
+    dlg.append(title,description,presetBar,list,add,simulator,apply,cancel);document.body.append(dlg);
+    let source,fields,answers={};
     function input(label,type,value,changed){
       const wrap=document.createElement('label');wrap.textContent=label;
       const node=document.createElement(type==='textarea'?'textarea':type==='select'?'select':'input');
@@ -1679,6 +1699,125 @@
         node.append(option);
       }
     }
+    function createField(label,kind='text',required=false,extra={}){
+      return {id:uniqueId('field-f'),label,kind,required,
+        options:extra.options||[],placeholder:extra.placeholder||'',...(extra.when?{when:extra.when}:{})};
+    }
+    function loadPreset(){
+      if(!preset.value)return;
+      const templates={
+        quote:()=>[
+          createField('Какая услуга нужна?','select',true,{options:['Разработка сайта','Дизайн','SEO','Реклама']}),
+          createField('Ориентировочный бюджет','number',false,{placeholder:'Бюджет'}),
+          createField('Подробности проекта','textarea',true,{placeholder:'Цели, сроки и пожелания'})
+        ],
+        order:()=>{
+          const choice=createField('Что вы заказываете?','select',true,{options:['Новое оборудование','Запчасти','Сервис']});
+          return [choice,
+            createField('Модель оборудования','text',true,{when:{field:choice.id,option:1},placeholder:'Модель или техническое задание'}),
+            createField('Количество','number',true,{placeholder:'Например, 2'}),
+            createField('Желаемая дата','date',false,{})];
+        },
+        consultation:()=>[
+          createField('Тема консультации','select',true,{options:['Веб-разработка','Дизайн','Реклама','SEO']}),
+          createField('Удобная дата','date',false),
+          createField('Способ связи','radio',true,{options:['Email','Телефон','Видеозвонок']}),
+          createField('Вопросы к консультации','textarea',false)
+        ],
+        feedback:()=>[
+          createField('Категория обращения','select',true,{options:['Вопрос','Предложение','Проблема']}),
+          createField('Оценка','radio',false,{options:['Отлично','Хорошо','Нужно улучшить']}),
+          createField('Ваш комментарий','textarea',true)
+        ]
+      };
+      if(fields.length&&!confirm('Заменить только дополнительные поля выбранным сценарием? Изменения ещё не попадут в черновик.'))return;
+      fields=templates[preset.value]();answers={};render();
+    }
+    // Safe local-only simulation of exactly the public collector's select/required visibility.
+    function drawSimulator(){
+      simFields.replaceChildren();
+      const definitions=[];
+      for(const [i,slot] of ['extra-one','extra-two','extra-three'].entries()){
+        const v=source.elements.find(e=>e.slot===slot)?.values;
+        if(v&&v['behavior.kind']!=='off'){
+          definitions.push({id:'extra'+(i+1),kind:v['behavior.kind'],
+            label:v['content.text'],required:v['behavior.required'],
+            options:v['behavior.kind']==='select'?v['content.options'].split(/\r?\n/).map(x=>x.trim()).filter(Boolean):[],placeholder:''});
+        }
+      }
+      definitions.push(...fields);
+      const previousOptions=new Map(),activeValues={},inputs=[];
+      for(const definition of definitions){
+        const wrap=document.createElement('div');wrap.className='cms-form-sim-field';
+        wrap.dataset.simField=definition.id;
+        const prior=definition.when&&previousOptions.get(definition.when.field);
+        const isActive=!definition.when||!!prior&&
+          activeValues[definition.when.field]===prior[definition.when.option-1];
+        wrap.hidden=!isActive;
+        const label=document.createElement('label');
+        label.textContent=definition.label+(definition.required?' *':'');
+        wrap.append(label);
+        const stored=isActive?(answers[definition.id]||''):'';
+        if(!isActive)delete answers[definition.id];
+        const control=(tag,type)=>{
+          const node=document.createElement(tag);
+          if(type)node.type=type;
+          node.className='control';
+          node.dataset.simControl=definition.id;
+          return node;
+        };
+        const changed=value=>{answers[definition.id]=value;drawSimulator();};
+        const choice=definition.kind==='select'||definition.kind==='radio';
+        if(definition.kind==='select'){
+          const node=control('select');
+          options(node,[['','Выберите вариант'],...definition.options.map(x=>[x,x])]);
+          node.value=stored;node.addEventListener('change',()=>changed(node.value));
+          wrap.append(node);inputs.push({definition,node,isActive});
+          previousOptions.set(definition.id,definition.options);
+        }else if(definition.kind==='radio'){
+          const group=document.createElement('div');group.className='cms-form-sim-choices';
+          const nodes=[];
+          for(const option of definition.options){
+            const line=document.createElement('label');line.className='cms-form-sim-choice';
+            const node=control('input','radio');node.name='sim-'+definition.id;node.value=option;
+            node.checked=stored===option;node.addEventListener('change',()=>changed(node.value));
+            line.append(node,document.createTextNode(option));group.append(line);nodes.push(node);
+          }
+          wrap.append(group);inputs.push({definition,node:nodes[0],isActive,value:stored});
+        }else if(definition.kind==='checkbox'){
+          const node=control('input','checkbox');node.checked=stored==='yes';
+          node.addEventListener('change',()=>changed(node.checked?'yes':''));
+          label.prepend(node);inputs.push({definition,node,isActive,value:stored});
+        }else{
+          const tag=definition.kind==='textarea'?'textarea':'input';
+          const type=tag==='input'?definition.kind==='tel'?'tel':
+            ['email','number','date','url'].includes(definition.kind)?definition.kind:'text':null;
+          const node=control(tag,type);
+          if(definition.placeholder)node.placeholder=definition.placeholder;
+          node.value=stored;node.addEventListener('change',()=>changed(node.value));
+          wrap.append(node);inputs.push({definition,node,isActive});
+        }
+        if(definition.kind!=='select')previousOptions.delete(definition.id);
+        activeValues[definition.id]=stored;
+        simFields.append(wrap);
+      }
+      let required=0,missing=0,active=0;
+      for(const {definition,node,isActive,value} of inputs){
+        if(!isActive)continue;
+        active++;
+        if(definition.required){
+          required++;
+          const current=value!==undefined?value:node?.value||'';
+          const filled=definition.kind==='checkbox'?node?.checked:
+            definition.kind==='radio'?!!current:!!String(current).trim();
+          if(!filled)missing++;
+        }
+      }
+      simStatus.textContent='Активных дополнительных полей: '+active+
+        ' · обязательных: '+required+
+        (missing?' · ещё не заполнено: '+missing:' · все обязательные заполнены')+
+        ' · отправка отключена';
+    }
     function render(){
       list.replaceChildren();add.disabled=fields.length>=9;
       const selectable=new Map();
@@ -1689,18 +1828,16 @@
       });
       fields.forEach((field,i)=>{
         const row=document.createElement('fieldset');row.dataset.formField=field.id;
-        Object.assign(row.style,{border:'1px solid #586c87',borderRadius:'12px',padding:'12px',margin:'10px 0'});
         const legend=document.createElement('legend');legend.textContent=(i+1)+'. '+field.id;
-        const grid=document.createElement('div');
-        Object.assign(grid.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:'10px'});
-        const [label,ln]=input('Подпись','text',field.label,v=>{field.label=v;});ln.maxLength=100;
+        const grid=document.createElement('div');grid.className='cms-form-row-grid';
+        const [label,ln]=input('Подпись','text',field.label,v=>{field.label=v;drawSimulator();});ln.maxLength=100;
         const [kind,kn]=input('Тип','select',null,v=>{
-          field.kind=v;field.options=['select','radio'].includes(v)?['Вариант 1','Вариант 2']:[];render();
+          field.kind=v;field.options=['select','radio'].includes(v)?['Вариант 1','Вариант 2']:[];delete field.when;delete answers[field.id];render();
         });
         options(kn,[['text','Текст'],['tel','Телефон'],['email','Email'],['select','Список'],['radio','Радиокнопки'],['checkbox','Флажок'],['number','Число'],['date','Дата'],['url','Ссылка'],['textarea','Длинный текст']]);
         kn.value=field.kind;
-        const [required]=input('Обязательно','checkbox',field.required,v=>{field.required=v;});
-        const [placeholder,pn]=input('Подсказка','text',field.placeholder,v=>{field.placeholder=v;});
+        const [required]=input('Обязательно','checkbox',field.required,v=>{field.required=v;drawSimulator();});
+        const [placeholder,pn]=input('Подсказка','text',field.placeholder,v=>{field.placeholder=v;drawSimulator();});
         pn.maxLength=120;
         grid.append(label,kind,required,placeholder);
         if(['select','radio'].includes(field.kind)){
@@ -1710,8 +1847,9 @@
           cn.rows=3;grid.append(choices);
         }
         const [when,wn]=input('Условие видимости','select',null,v=>{
-          if(v){const [name,n]=v.split('|');field.when={field:name,option:Number(n)};}
+          if(v){const separator=v.lastIndexOf('|');field.when={field:v.slice(0,separator),option:Number(v.slice(separator+1))};}
           else delete field.when;
+          drawSimulator();
         });
         const choices=[['','Всегда показывать']];
         for(const [name,values] of selectable)
@@ -1721,15 +1859,20 @@
         const ops=document.createElement('div');ops.className='structure-tools';
         ops.append(button('↑','btn small',()=>{if(i>0){[fields[i-1],fields[i]]=[fields[i],fields[i-1]];render();}}));
         ops.append(button('↓','btn small',()=>{if(i+1<fields.length){[fields[i+1],fields[i]]=[fields[i],fields[i+1]];render();}}));
-        ops.append(button('Удалить','btn small',()=>{fields.splice(i,1);render();}));
+        const duplicate=button('Копировать','btn small',()=>{
+          if(fields.length>=9)return;
+          const copied=cp(field);copied.id=uniqueId('field-f');fields.splice(i+1,0,copied);render();
+        });
+        duplicate.dataset.formDuplicate=field.id;duplicate.disabled=fields.length>=9;
+        ops.append(duplicate,button('Удалить','btn small',()=>{delete answers[field.id];fields.splice(i,1);render();}));
         row.append(legend,grid,ops);list.append(row);
         if(field.kind==='select')selectable.set(field.id,field.options);
       });
+      drawSimulator();
     }
     add.addEventListener('click',()=>{
       if(fields.length>=9)return;
-      fields.push({id:uniqueId('field-f'),label:'Новый вопрос',kind:'text',
-        required:false,options:[],placeholder:''});render();
+      fields.push(createField('Новый вопрос'));render();
     });
     apply.addEventListener('click',()=>{
       try{
@@ -1738,13 +1881,14 @@
         if(!section||section.component!=='lead-form-flex')throw Error('Форма отсутствует');
         section.formFields=cp(fields);
         session=D.replaceSite(session,manifests,site,session.revision);
-        dlg.close();draw();notice('Конструктор обновлён в черновике. Сохранение и публикация отдельно.');
+        dlg.close();draw();notice('Форма обновлена в черновике одной операцией Undo. Сохранение и публикация отдельно.');
       }catch(e){notice('Изменение полей отклонено: '+e.message,true);}
     });
     return ()=>{
       const section=current().section;
       if(section.component!=='lead-form-flex')return;
-      source=cp(section);fields=cp(section.formFields||[]);render();dlg.showModal();
+      source=cp(section);fields=cp(section.formFields||[]);answers={};preset.value='';
+      render();dlg.showModal();
     };
   })();
 
