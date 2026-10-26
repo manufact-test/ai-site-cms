@@ -183,11 +183,19 @@ const reviewPage=feedback.reviewHtml(feedbackToken);
 assert.ok(reviewPage.includes('id="feedback-add"')&&reviewPage.includes('id="feedback-download"'));
 assert.ok(reviewPage.includes('href="contact/index.html"'));
 assert.ok(reviewPage.includes('script-src &apos;unsafe-inline&apos;'));
+const portalScript=reviewPage.match(/<script>([\s\S]+?)<\/script>/)?.[1];
+assert.ok(portalScript&&portalScript.includes('feedback-add'));
+new Function(portalScript); // Client script is parseable as standalone browser source.
 const customerNote=feedback.create(feedbackToken,'Reviewer',[
  {page:'services',type:'issue',message:'Navigation label overlaps the mobile header',resolved:false}
 ]);
 assert.equal(feedback.validate(customerNote,feedbackToken).notes.length,1);
 assert.throws(()=>feedback.validate(customerNote,'df-00000000'),/different site snapshot/);
+const changedClientSite=JSON.parse(JSON.stringify(approvedDraft));
+changedClientSite.site.pages[0].seo.title+=' revised';
+assert.notEqual(feedback.context(changedClientSite,changedClientSite.project||{
+ kit:'agency',theme:'editorial',language:'en'
+},null),feedbackToken,'Customer feedback must follow actual content snapshot');
 assert.throws(()=>feedback.validate({...customerNote,notes:[{
  ...customerNote.notes[0],message:''
 }]},feedbackToken),/Invalid feedback note/);
