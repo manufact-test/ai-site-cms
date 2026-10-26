@@ -803,12 +803,12 @@ async function execute(){
   }
   // Full-page Design Graph editing now includes structural edits and survives
   // server save/reload/publish with responsive fidelity in the public renderer.
-  page.once('dialog',dialog=>dialog.accept('feature-highlights'));
+  replies.length=0;
+  replies.push('feature-highlights');
   await page.locator('#section-add').click();
   const graphSectionId=await page.evaluate(()=>window.Stage3Editor.selection().sectionId);
   assert.equal((await page.evaluate(id=>window.Stage3Editor.getSite().pages.flatMap(p=>p.sections)
     .find(s=>s.id===id).component,graphSectionId)),'feature-highlights');
-  page.once('dialog',dialog=>dialog.accept());
   await page.locator('#section-design-graph').click();
   await page.locator('#cms-design-graph-dialog[open]').waitFor();
   await page.locator('#cms-design-apply').click();
@@ -874,7 +874,6 @@ async function execute(){
   await visitor.goto(publicUrl);
   assert.equal(await visitor.locator('.cmsdg').count(),0,'Reloaded draft still does not leak to visitors');
   const graphVersionBefore=Number((await page.locator('#server-status').innerText()).match(/Опубликовано: v(\\d+)/)[1]);
-  page.once('dialog',dialog=>dialog.accept());
   await page.locator('#server-publish').click();
   await page.locator('#server-status').getByText(new RegExp('Опубликовано: v'+(graphVersionBefore+1)+'\\\\b')).waitFor();
   await visitor.setViewportSize({width:390,height:844});
