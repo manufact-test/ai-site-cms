@@ -897,7 +897,32 @@
     if(!state.authorized||!state.siteId||!Number.isInteger(state.revision))
       throw Error('Откройте серверный сайт для проверки');
     const site=editor.getSite();
-    const inspected=CONTRACT.inspectSite(site,editor.manifests());
+    // This hosted module does not own the SDK globals (they are private to the
+    // editor bundle). Offer a small fail-safe page checklist here and direct
+    // users to the existing full SDK SEO/a11y report for complete findings.
+    const inspected={errors:[],warnings:[]};
+    const addFinding=(page,message,error=false)=>{
+      inspected[error?'errors':'warnings'].push({pageId:page.id,message});
+    };
+    for(const page of site.pages){
+      if(!page.seo?.title?.trim())addFinding(page,'Не задан индивидуальный SEO title.');
+      if(!page.seo?.description?.trim())addFinding(page,'Не заполнено SEO-описание.');
+      let h1=0;
+      const examine=nodes=>{
+        for(const node of nodes||[]){
+          if(node.type==='heading'&&Number(node.level)===1)h1++;
+          if(node.type==='image'&&!String(node.alt||'').trim())
+            addFinding(page,'Изображение композиции без описания alt.');
+          if(node.children)examine(node.children);
+        }
+      };
+      for(const section of page.sections){
+        if(section.designGraph)examine(section.designGraph.nodes);
+        else if(section.component==='company-hero')h1++;
+      }
+      if(!h1)addFinding(page,'Отсутствует H1 в визуальной структуре.');
+      if(h1>1)addFinding(page,'Найдено '+h1+' заголовков H1; проверьте иерархию.');
+    }
     const allSections=site.pages.flatMap(page=>page.sections);
     const formSections=allSections.filter(section=>section.component==='lead-form-flex');
     const conditionalFields=formSections.flatMap(section=>section.formFields||[])
@@ -915,7 +940,7 @@
       site.pages.length+' стр. · '+allSections.length+' блоков · '+totalGraphNodes+
       ' узлов композиции · '+site.assets.length+' медиа · '+formSections.length+
       ' форм ('+conditionalFields+' условных полей) · '+inspected.errors.length+
-      ' ошибок · '+inspected.warnings.length+' рекомендаций');
+      ' базовых ошибок · '+inspected.warnings.length+' базовых рекомендаций');
     const revision=element('p','hosted-launch-revision',
       'Черновик #'+state.revision+' · '+(editor.isDirty()?'есть несохранённые изменения':'сохранён')+
       ' · публикация '+(state.sites.find(s=>s.site_id===state.siteId)?.published_version||'отсутствует'));
