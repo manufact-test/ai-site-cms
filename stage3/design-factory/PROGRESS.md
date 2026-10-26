@@ -1,5 +1,25 @@
 # Design Factory — operational progress and D7 continuation
 
+## 27.10.2026 — D7 two substantial follow-on workstreams: diagnostic capture + release pipeline correctness
+
+**New functional commits:** `8d3f3dff9a825d1501e97e16a1b765d58b4781c2` (Chromium static in-memory screenshot diagnostic and provenance gate) and `2f5aff89fb76a4c8eb2e11ab7c42ace8c334c02d` (nine-suite release-candidate smoke, audit consistency and diagnostic-only Chromium regression mode). Read current GitHub branch HEAD after this docs commit. Own branch `feature/stage3-design-factory`, own path `stage3/design-factory/`; **no merge / main / SDK / PHP / workflows / Hostinger edits**.
+
+**Workstream 1 completed in source:** a strict, explicit `--static-in-memory` option for `bin/visual-qa.cjs` uses the real headless Chromium CDP process and an in-memory HTML document with exactly one bounded local CSS file. It rejects script/iframe/object/media, external URLs/CSS imports and unexpected assets. The output manifest binds `captureTransport:'memory-static'` and `diagnosticOnly:true` into the evidence fingerprint. The 54-image review interface visibly labels this as **diagnostic**, disables final review receipt generation, and `lib/visual-review.cjs` refuses it for the formal D7 gate, even if the viewport matrix itself is complete. Ordinary file-URL mode remains the default and the only formal path.
+
+**Workstream 2 completed in source:** corrected the previously definitely stale one-command candidate smoke (`tests/release-candidate-smoke.cjs`) from 8 suites/10 checks to **9 suites/11 checks** and added an exact ordered audit inventory assertion requiring `preview-matrix-smoke.cjs`. Updated audit description; strengthened visual-review regression to refuse memory-only evidence; added an explicit `DF_STATIC_DIAGNOSTIC_ONLY=1` visual pipe test path whose output marker **cannot** satisfy the formal `DESIGN_FACTORY_D7_VISUAL_PIPE PASS` gate. This prevents a simulated local navigation success. Useful commands on a real checkout:
+
+```bash
+DF_CHROMIUM_BIN=/usr/bin/chromium DF_STATIC_DIAGNOSTIC_ONLY=1 node stage3/design-factory/tests/visual-pipe-smoke.cjs
+DF_CHROMIUM_BIN=/usr/bin/chromium node stage3/design-factory/bin/visual-qa.cjs --out /tmp/df-static-visual-diagnostics --static-in-memory
+node stage3/design-factory/tests/release-candidate-smoke.cjs
+```
+
+**Actually executed, with exact limits:** syntax parsed 11 modified sources (five files then six files); **the exact GitHub version of `BrowserPipe.screenshotStatic` passed eight mocked-CDP/filesystem behavior cases** (accepted one bounded local CSS HTML and rejected script, external URL, imported CSS, missing/duplicate stylesheet, iframe, stylesheet-breaking markup). Separately, a **real Chromium 144 DevTools session** successfully ran `Page.setDocumentContent` and wrote a **390×844 PNG** from a synthetic local test document. This is proof the underlying in-memory browser route works in this environment, not proof of a real generated Design Factory page or 54 captures. `file://` navigation was independently confirmed blocked with `net::ERR_BLOCKED_BY_ADMINISTRATOR`. Local network to GitHub unavailable (both DNS and direct IP), and **no actual full Git checkout** exists. No full Node suite, source ZIP, Lead SDK/PHP parity, real site Chromium E2E, full 54 screenshot matrix, human 42-composition review or SHA256 candidate release was performed.
+
+**Formal status unchanged:** D1–D6 implemented; engineering progress ≈86% (6/7); **D7 OPEN, Stage2 NO-GO, Stage3 UNACCEPTED, 0/135 accepted**. Next viable block is full checkout plus real 9-suite Node audit and source-exact ZIP, formal Chromium file navigation/Studio E2E, 54 real screenshots and human review of 42 compositions, and six real Lead PHP parity probes. Memory-only diagnostics cannot close any of these formal gates. Never claim D7 acceptance from isolated V8/Chromium synthetic evidence.
+
+
+
 ## 26.10.2026 — D7 acceptance blocker removal, latest live status
 
 **Functional commits on this independent branch:** [`84638e0`](https://github.com/manufact-test/ai-site-cms/commit/84638e074290c847be6ad2cca2a3612b4bc84d8f) (release gate correctness) and [`180be8d`](https://github.com/manufact-test/ai-site-cms/commit/180be8d47b7e0ba134dc72bac131c9b01d6378a3) (Studio Chromium E2E migrated to shared CDP pipe). Read live branch HEAD before writing; this docs commit changes HEAD again.
