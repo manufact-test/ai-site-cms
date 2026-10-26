@@ -5,6 +5,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const crypto=require('node:crypto'),zlib=require('node:zlib'),cp=require('node:child_process');
 const {evidenceHash,verify,ACTIVITIES}=require('../lib/visual-review.cjs');
+const {inspectPng}=require('../lib/png-integrity.cjs');
 const {reviewHtml}=require('../lib/visual-review-ui.cjs');
 const {expectedFiles}=require('../bin/visual-qa.cjs');
 const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
@@ -93,6 +94,41 @@ try{
  reject({...approved,manualChecks:{...approved.manualChecks,showcaseCoverage:false}},/five independent/);
  reject({...approved,images:approved.images.map((x,i)=>i===0?{...x,verdict:'rejected',note:'Bad layout'}:x)},/rejected/);
  reject({...approved,images:approved.images.map((x,i)=>i===0?{...x,verdict:'rejected',note:''}:x)},/diagnostic note/);
+
+ // PNG integrity: verify complete chunks/CRC/IDAT decode/filter, not just IHDR.
+ assert.deepEqual(inspectPng(imgs.mobile),{width:390,height:844});
+ const first=path.join(dir,files[0]),validBytes=fs.readFileSync(first);
+ const changePng=(bytes,expected)=>{
+  fs.writeFileSync(first,bytes);
+  const changed={...report,images:images.map((x,i)=>i===0?
+   {...x,bytes:bytes.length,sha256:hash(bytes)}:x)};
+  changed.evidenceSha256=evidenceHash(changed);
+  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(changed));
+  reject({...approved,evidenceSha256:changed.evidenceSha256},expected);
+  fs.writeFileSync(first,validBytes);
+  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
+ };
+ changePng(validBytes.subarray(0,24),/PNG signature\/size invalid/);
+ const wrongCrc=Buffer.from(validBytes);wrongCrc[50]^=3;
+ changePng(wrongCrc,/PNG chunk CRC mismatch/);
+ changePng(Buffer.concat([validBytes,Buffer.from([0])]),/PNG invalid IEND\/trailing bytes/);
+ const brokenIdat=Buffer.concat([
+  Buffer.from('89504e470d0a1a0a','hex'),
+  chunk('IHDR',validBytes.subarray(16,29)),
+  chunk('IDAT',Buffer.from([1,2,3])),
+  chunk('IEND',Buffer.alloc(0))
+ ]);
+ changePng(brokenIdat,/PNG IDAT zlib invalid/);
+ const badFilter=Buffer.alloc((1280*4+1)*800);
+ badFilter[0]=5;
+ const illegalFilter=Buffer.concat([
+  Buffer.from('89504e470d0a1a0a','hex'),
+  chunk('IHDR',validBytes.subarray(16,29)),
+  chunk('IDAT',zlib.deflateSync(badFilter)),
+  chunk('IEND',Buffer.alloc(0))
+ ]);
+ changePng(illegalFilter,/PNG invalid scanline filter/);
+
  const original=fs.readFileSync(path.join(dir,files[0]));
  fs.writeFileSync(path.join(dir,files[0]),Buffer.concat([original,Buffer.from('tamper')]));
  reject(approved,/hash or file size mismatch/);

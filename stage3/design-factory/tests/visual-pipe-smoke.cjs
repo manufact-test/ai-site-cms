@@ -7,15 +7,13 @@ const os=require('node:os');
 const path=require('node:path');
 const {pathToFileURL}=require('node:url');
 const {openBrowser}=require('../lib/chromium-pipe.cjs');
+const {inspectPng}=require('../lib/png-integrity.cjs');
 const chrome=process.env.DF_CHROMIUM_BIN;
 if(!chrome){
  console.log('DESIGN_FACTORY_D7_VISUAL_PIPE SKIP: DF_CHROMIUM_BIN not set');
  process.exit(0);
 }
-const size=bytes=>{
- assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a','PNG signature');
- return {width:bytes.readUInt32BE(16),height:bytes.readUInt32BE(20)};
-};
+const size=inspectPng;
 (async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'df-visual-pipe-smoke-'));
  const filename=path.join(dir,'responsive.html');

@@ -9,6 +9,7 @@ const {resolveOutsideRepository}=require('../lib/output-path.cjs');
 const {openBrowser}=require('../lib/chromium-pipe.cjs');
 const {evidenceHash}=require('../lib/visual-review.cjs');
 const {reviewHtml}=require('../lib/visual-review-ui.cjs');
+const {inspectPng}=require('../lib/png-integrity.cjs');
 const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
 const {FORMAT,THEMES,KITS,compile}=require('../lib/compiler.cjs');
 const {writePreview}=require('../lib/preview.cjs');
@@ -39,11 +40,7 @@ function assessMatrix(expected,images){
  return {complete:missing.length===0&&unexpected.length===0&&duplicates===0&&actual.length===expected.length&&dimensionMismatches===0,
   expectedCount:expected.length,actualCount:actual.length,missing,unexpected,duplicates,dimensionMismatches};
 }
-function pngSize(bytes){
- if(bytes.length<24||bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a'||
-    bytes.toString('ascii',12,16)!=='IHDR')throw Error('Invalid PNG screenshot');
- return {width:bytes.readUInt32BE(16),height:bytes.readUInt32BE(20)};
-}
+const pngSize=inspectPng;
 function args(list){
  const result={output:null,bin:process.env.DF_CHROMIUM_BIN||null,quick:false};
  let sawOut=false,sawChromium=false;

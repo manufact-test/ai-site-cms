@@ -4,6 +4,7 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
+const {inspectPng}=require('./png-integrity.cjs');
 const SHA=/^[a-f0-9]{64}$/;
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 const own=(object,key)=>Object.prototype.hasOwnProperty.call(object,key);
@@ -20,11 +21,7 @@ function evidenceHash(report){
   expectedImages:report.expectedImages,images:rows
  })));
 }
-function pngDimensions(bytes){
- if(bytes.length<24||bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a'||
-  bytes.toString('ascii',12,16)!=='IHDR')throw Error('Not a PNG');
- return {width:bytes.readUInt32BE(16),height:bytes.readUInt32BE(20)};
-}
+const pngDimensions=inspectPng;
 const ACTIVITIES=Object.freeze([
  'layoutAndOverflow','showcaseCoverage','keyboardAndTouch','localesAndCopy','motionAndContent'
 ]);
