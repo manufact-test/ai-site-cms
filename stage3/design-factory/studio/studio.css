@@ -126,3 +126,7 @@ body[data-review-mode=overview] .stage-area{min-width:0;padding-inline:clamp(12p
  body[data-review-mode=compare] .stage-area,
  body[data-review-mode=overview] .stage-area{padding-inline:12px}
 }
+
+/* Browser-only HTML prototype download stays accessible on mobile toolbars. */
+#save-preview-zip{white-space:nowrap}
+@media(max-width:730px){.top-right{flex-wrap:wrap}#save-preview-zip{flex:1 1 140px}}

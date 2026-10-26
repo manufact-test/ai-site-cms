@@ -8,6 +8,7 @@
   <title>Design Factory Studio · AI Site CMS</title>
   <link rel="stylesheet" href="studio.css">
   <script src="runtime.generated.js" defer></script>
+  <script src="preview-zip.js" defer></script>
   <script src="studio.js" defer></script>
 </head>
 <body>
@@ -21,6 +22,7 @@
       <button id="redo" class="icon-button" type="button" title="Повторить (Ctrl+Shift+Z)" aria-label="Повторить изменение" disabled>↷</button>
       <button id="save-project" type="button" class="ghost-btn">Проект JSON <span aria-hidden="true">↓</span></button>
       <button id="save-site" type="button" class="primary-btn">Экспорт CMS <span aria-hidden="true">↗</span></button>
+      <button id="save-preview-zip" type="button" class="ghost-btn" title="Скачать четыре связанные HTML-страницы и локальные стили как демонстрацию">HTML-демо ZIP <span aria-hidden="true">↓</span></button>
     </div>
   </header>
   <div class="layout">
@@ -85,6 +87,7 @@
       </div>
       <p id="page-overview-note" class="review-mode-hint" hidden>Четыре страницы одного сайта, каждая на ширине 390px. Нажмите «Открыть страницу», чтобы вернуться в основной просмотр.</p>
       <section id="page-overview" class="page-overview" aria-label="Четыре страницы сайта" hidden></section>
+      <div class="preview-disclaimer"><span aria-hidden="true">ⓘ</span> Кнопка HTML-демо ZIP скачивает полноценный 4-страничный статический прототип с локальными стилями и работающими ссылками. Только для предварительного согласования; это не экспорт PHP CMS и не публикация.</div>
       <div class="preview-disclaimer"><span aria-hidden="true">ⓘ</span> Визуальный HTML/CSS — расширенный предпросмотр фабрики. В CMS экспортируются только поддерживаемые поля реального <code>manufact-ai-site-v1</code>.</div>
       <div id="message" class="message" role="status" aria-live="polite"></div>
     </main>

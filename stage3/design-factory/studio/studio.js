@@ -372,6 +372,64 @@ function download(name,text,type='application/json'){
  setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
 function safeName(){return (state.project.facts.siteId||'design-factory').replace(/[^a-z0-9-]/g,'-');}
+function savePreviewZip(){
+ try{
+  const packer=globalThis.DesignFactoryPreviewZip;
+  if(!packer)throw Error('Локальный упаковщик HTML-прототипа недоступен');
+  const compiled=compileCurrent(),site=compiled.site,theme=state.project.theme;
+  const routes=[
+   {id:'home',name:'index.html',path:'/'},
+   {id:'services',name:'services/index.html',path:'/services/'},
+   {id:'approach',name:'approach/index.html',path:'/approach/'},
+   {id:'contact',name:'contact/index.html',path:'/contact/'}
+  ];
+  if(site.pages.length!==4)throw Error('HTML-прототип требует все четыре страницы');
+  const contents=routes.map(route=>{
+   const page=site.pages.find(p=>p.id==='df-page-'+route.id&&p.path===route.path);
+   if(!page)throw Error('В прототипе отсутствует маршрут '+route.path);
+   const markup=engine.preview.pageHtml(site,page,theme,state.project.language);
+   if(!/<meta name="robots" content="noindex">/.test(markup))
+    throw Error('Не найден защитный noindex в '+route.name);
+   return {name:route.name,content:markup};
+  });
+  const notes=[
+   'DESIGN FACTORY — STATIC HTML PREVIEW / ЛОКАЛЬНЫЙ HTML-ПРОТОТИП',
+   '',
+   'Open index.html after extracting this archive. All four pages are linked',
+   'and use assets/preview.css locally. No server, CDN or API is required.',
+   '',
+   'Откройте index.html после распаковки архива.',
+   'Это макет для согласования, а НЕ работающий PHP-рендерер CMS.',
+   'Публикация, работающие формы и интеграция не включены.',
+   'Тексты, контакты и права на материалы требует подтвердить владелец.',
+   'All pages retain robots=noindex even when owner review is marked in Studio.',
+   'Do NOT treat this ZIP as a release certificate or production deliverable.',
+   ''
+  ].join('\n');
+  const info={
+   format:'manufact-design-factory-static-preview-v1',version:1,
+   type:'static-html-preview-not-cms-export',theme,kit:state.project.kit,
+   language:state.project.language,paths:routes.map(route=>route.name),
+   pages:4,offline:true,productionReady:false,formsConfigured:false,
+   ownerVerificationRequired:true
+  };
+  const files=[
+   ...contents,
+   {name:'assets/preview.css',content:engine.preview.css(theme)},
+   {name:'README.txt',content:notes},
+   {name:'preview-info.json',content:JSON.stringify(info,null,2)+'\n'}
+  ];
+  const bytes=packer.build(files),verification=packer.inspect(bytes);
+  if(!verification.crcVerified||verification.files!==7)
+   throw Error('ZIP-проверка отклонила результат');
+  const blob=new Blob([bytes],{type:'application/zip'}),url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=safeName()+'-html-preview.zip';
+  document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  say('HTML-прототип скачан: 4 связанные страницы, локальный CSS, README, проверенный ZIP32. Только предпросмотр, не релиз CMS.');
+ }catch(error){say('HTML-прототип не создан: '+error.message,true);}
+}
 function serialize(v){return engine.compiler.serialize(v);}
 function saveSite(){
  try{
@@ -484,6 +542,7 @@ function init(){
  });
  $('save-project').addEventListener('click',saveProject);
  $('save-site').addEventListener('click',saveSite);
+ $('save-preview-zip').addEventListener('click',savePreviewZip);
  $('save-workspace').addEventListener('click',saveWorkspace);
  $('save-bridge').addEventListener('click',saveBridge);
  $('save-bundle').addEventListener('click',()=>{

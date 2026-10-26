@@ -12,6 +12,7 @@ const root=path.resolve(__dirname,'..');
 const studio=path.join(root,'studio');
 const read=name=>fs.readFileSync(path.join(studio,name),'utf8');
 const bundle=read('runtime.generated.js'),app=read('studio.js'),markup=read('index.html'),css=read('studio.css');
+const zipSource=read('preview-zip.js'),previewZip=require(path.join(studio,'preview-zip.js'));
 const build=cp.spawnSync(process.execPath,[path.join(root,'bin/build-browser-bundle.cjs'),'--check'],{encoding:'utf8'});
 assert.equal(build.status,0,'Browser bundle must match actual local CMS source: '+build.stderr);
 // Regression: the bundle writer must not follow a generated-file symlink out of
@@ -82,6 +83,15 @@ assert.equal(build.status,0,'Browser bundle must match actual local CMS source: 
  }finally{fs.rmSync(temp,{recursive:true,force:true});}
 }
 new Function(app);
+new Function(zipSource);
+assert.ok(markup.indexOf('preview-zip.js')<markup.indexOf('studio.js'),
+ 'Preview ZIP script must load before Studio');
+assert.ok(markup.includes('id="save-preview-zip"'));
+assert.ok(app.includes('function savePreviewZip()'));
+assert.ok(app.includes('packer.build(files),verification=packer.inspect(bytes)'));
+assert.ok(!/@import|fetch\s*\(|XMLHttpRequest|https?:\/\//i.test(zipSource),
+ 'Preview ZIP packer must remain offline');
+
 assert.ok(markup.includes('runtime.generated.js')&&markup.includes('studio.js'));
 assert.ok(!/@import|url\(\s*["']?https?:\/\//i.test(css));
 assert.ok(css.includes('prefers-reduced-motion')&&css.includes('max-width:730px'));
@@ -142,6 +152,36 @@ const approvedDraft=api.compiler.compile({format:api.compiler.FORMAT,version:2,
   ]},ownerReviewConfirmed:true});
 assert.equal(approvedDraft.checklist.readyForPublish,true);
 assert.ok(approvedDraft.site.pages.every(page=>page.seo.robots==='index'));
+// Real Node preview ZIP contents: same first-party HTML/CSS as the CMS-validated Studio source.
+const routeFiles={home:'index.html',services:'services/index.html',
+ approach:'approach/index.html',contact:'contact/index.html'};
+const previewEntries=approvedDraft.site.pages.map(page=>({
+ name:routeFiles[page.id.slice('df-page-'.length)],
+ content:api.preview.pageHtml(approvedDraft.site,page,'editorial','en')
+}));
+assert.equal(previewEntries.length,4);
+for(const file of previewEntries){
+ assert.ok(file.name&&file.content.includes('<meta name="robots" content="noindex">'));
+}
+previewEntries.push({name:'assets/preview.css',content:api.preview.css('editorial')},
+ {name:'README.txt',content:'Static preview only. Not a production CMS release.'},
+ {name:'preview-info.json',content:JSON.stringify({format:'manufact-design-factory-static-preview-v1'})});
+const actualPreviewZip=previewZip.build(previewEntries);
+assert.deepEqual(previewZip.build(previewEntries),actualPreviewZip,
+ 'Browser ZIP bytes must be deterministic for identical inputs');
+const inspectedPreviewZip=previewZip.inspect(actualPreviewZip);
+assert.equal(inspectedPreviewZip.files,7);
+assert.equal(inspectedPreviewZip.crcVerified,true);
+assert.equal(actualPreviewZip.readUInt32LE?.(0)??new DataView(actualPreviewZip.buffer).getUint32(0,true),0x04034b50);
+const corruptPreview=new Uint8Array(actualPreviewZip);
+corruptPreview[40]^=0x1;
+assert.throws(()=>previewZip.inspect(corruptPreview),/CRC mismatch/);
+assert.throws(()=>previewZip.build(previewEntries.slice(1)),/exactly seven/);
+assert.throws(()=>previewZip.build([...previewEntries.slice(0,-1),
+ {name:'../escape.html',content:'evil'}]),/Unexpected or duplicate/);
+assert.throws(()=>previewZip.build(previewEntries.map(x=>x.name==='README.txt'
+ ?{...x,content:'x'.repeat(2*1024*1024+1)}:x)),/too large/);
+
 const templateFacts={title:'Verified title',headline:'Owner headline',description:'Owner description',
  contactText:'Verified contact information'};
 const sampleServices=[
@@ -241,8 +281,8 @@ try{
  "const originalURL=URL.createObjectURL,originalClick=HTMLAnchorElement.prototype.click;",
  "URL.createObjectURL=function(blob){blobs.push(blob);return originalURL.call(URL,blob)};",
  "HTMLAnchorElement.prototype.click=function(){downloadNames.push(this.download)};",
- "for(const id of ['save-site','save-bundle','save-project','save-workspace'])document.getElementById(id).click();",
- "if(blobs.length!==4||downloadNames.length!==4)throw Error('four exports missing');",
+ "for(const id of ['save-site','save-bundle','save-project','save-workspace','save-preview-zip'])document.getElementById(id).click();",
+ "if(blobs.length!==5||downloadNames.length!==5)throw Error('five exports missing');",
  "const site=JSON.parse(await blobs[0].text());",
  "if(site.format!=='manufact-ai-site-v1'||site.pages.length!==4)throw Error('CMS export contract');",
  "if(!site.pages.every(page=>page.seo.robots==='noindex'))throw Error('default CMS export must be protected by noindex');",
@@ -251,6 +291,9 @@ try{
  "if(JSON.stringify(bundle.site)!==JSON.stringify(site))throw Error('CMS and D6 exports diverge');",
  "const project=JSON.parse(await blobs[2].text()),workspace=JSON.parse(await blobs[3].text());",
  "if(project.facts.title!=='Verified Demo Company'||workspace.composition!=='gallery-mosaic')throw Error('exported edits missing');",
+ "if(!downloadNames[4].endsWith('-html-preview.zip'))throw Error('HTML preview ZIP name');",
+ "const previewZip=window.DesignFactoryPreviewZip.inspect(new Uint8Array(await blobs[4].arrayBuffer()));",
+ "if(previewZip.files!==7||!previewZip.crcVerified)throw Error('HTML ZIP contents failed CRC');",
  "const setField=(id,value)=>{const field=document.getElementById(id);field.focus();field.value=value;field.dispatchEvent(new Event('input',{bubbles:true}));field.dispatchEvent(new Event('change',{bubbles:true}));};",
  "setField('headline','Verified owner headline');setField('description','Verified owner description');setField('contactText','Verified owner contact');",
  "setField('service-0-title','Verified service one');setField('service-0-description','Owner confirmed service one');",
@@ -258,11 +301,11 @@ try{
  "await new Promise(resolve=>setTimeout(resolve,180));",
  "const gate=document.getElementById('owner-review-confirmed');if(gate.disabled)throw Error('review confirmation should unlock only after required facts are complete');",
  "gate.checked=true;gate.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,180));",
- "document.getElementById('save-site').click();const approvedSite=JSON.parse(await blobs[4].text());if(!approvedSite.pages.every(page=>page.seo.robots==='index'))throw Error('explicit owner review must allow indexing');",
+ "document.getElementById('save-site').click();const approvedSite=JSON.parse(await blobs[5].text());if(!approvedSite.pages.every(page=>page.seo.robots==='index'))throw Error('explicit owner review must allow indexing');",
  "setField('headline','Edited after review');if(gate.checked)throw Error('editing content must revoke owner review');await new Promise(resolve=>setTimeout(resolve,180));",
- "document.getElementById('save-site').click();const revokedSite=JSON.parse(await blobs[5].text());if(!revokedSite.pages.every(page=>page.seo.robots==='noindex'))throw Error('editing after review must restore noindex');",
+ "document.getElementById('save-site').click();const revokedSite=JSON.parse(await blobs[6].text());if(!revokedSite.pages.every(page=>page.seo.robots==='noindex'))throw Error('editing after review must restore noindex');",
  "URL.createObjectURL=originalURL;HTMLAnchorElement.prototype.click=originalClick;",
- "if(blobs.length!==6||downloadNames.length!==6)throw Error('expected six exports across review workflow');",
+ "if(blobs.length!==7||downloadNames.length!==7)throw Error('expected seven exports across review workflow');",
  "mark('D5_BROWSER_E2E_PASS');",
  "}catch(e){mark('D5_BROWSER_E2E_FAIL: '+e.message)}",
  "},600);",
