@@ -5,6 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
 const MAX_FILE=2*1024*1024,MAX_TOTAL=32*1024*1024,MAX_FILES=512;
+const MAX_ENTRIES=1024,MAX_DEPTH=32;
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 function canonicalDirectory(requested,label){
  if(typeof requested!=='string'||!requested.trim())throw Error(label+' path required');
@@ -19,20 +20,27 @@ function sameStat(a,b){
 }
 function captureExternalInputs(sdkDirectory,phpFile=null){
  const sdkPath=canonicalDirectory(sdkDirectory,'Lead SDK');
- const files=[],budget={bytes:0};
- function visit(directory,relative=''){
+ const files=[],budget={bytes:0,entries:0};
+ function visit(directory,relative='',depth=0){
+  if(depth>MAX_DEPTH)throw Error('Lead SDK exceeds maximum directory depth');
+  const directoryBefore=fs.lstatSync(directory);
+  if(directoryBefore.isSymbolicLink()||!directoryBefore.isDirectory()||fs.realpathSync(directory)!==directory)
+   throw Error('Lead SDK directory is not canonical: '+(relative||'.'));
   const entries=fs.readdirSync(directory,{withFileTypes:true})
    .sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0);
   for(const entry of entries){
+   budget.entries++;
+   if(budget.entries>MAX_ENTRIES)throw Error('Lead SDK has too many filesystem entries');
    if(entry.name.startsWith('.')||entry.name==='node_modules')
     throw Error('Unapproved Lead SDK entry: '+(relative?relative+'/':'')+entry.name);
    const rel=relative?relative+'/'+entry.name:entry.name;
    const absolute=path.join(directory,entry.name),before=fs.lstatSync(absolute);
    if(before.isSymbolicLink())throw Error('Lead SDK symlink is not allowed: '+rel);
    if(entry.isDirectory()){
+    if(depth>=MAX_DEPTH)throw Error('Lead SDK exceeds maximum directory depth: '+rel);
     if(fs.realpathSync(absolute)!==absolute)
      throw Error('Lead SDK directory is not canonical: '+rel);
-    visit(absolute,rel);
+    visit(absolute,rel,depth+1);
     continue;
    }
    if(!before.isFile())throw Error('Unsupported Lead SDK entry: '+rel);
@@ -46,6 +54,10 @@ function captureExternalInputs(sdkDirectory,phpFile=null){
    if(budget.bytes>MAX_TOTAL)throw Error('Lead SDK exceeds total fingerprint size limit');
    files.push({path:rel,bytes:bytes.length,sha256:sha(bytes)});
   }
+  const directoryAfter=fs.lstatSync(directory);
+  if(directoryAfter.isSymbolicLink()||!directoryAfter.isDirectory()||
+   fs.realpathSync(directory)!==directory||!sameStat(directoryBefore,directoryAfter))
+   throw Error('Lead SDK directory changed while fingerprinting: '+(relative||'.'));
  }
  visit(sdkPath);
  const byName=new Set(files.map(item=>item.path));

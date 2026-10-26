@@ -70,6 +70,15 @@ function exerciseExternalInputManifest(){
     fs.unlinkSync(phpAlias);
    }
   }
+  const deepSdk=path.join(dir,'deep-sdk');fs.mkdirSync(deepSdk);
+  let nested=deepSdk;
+  for(let i=0;i<34;i++){nested=path.join(nested,'d'+i);fs.mkdirSync(nested);}
+  assert.throws(()=>captureExternalInputs(deepSdk),/maximum directory depth/,
+   'Excessively deep SDK directory trees must be rejected before recursive traversal can exhaust the stack');
+  const crowdedSdk=path.join(dir,'crowded-sdk');fs.mkdirSync(crowdedSdk);
+  for(let i=0;i<1025;i++)fs.mkdirSync(path.join(crowdedSdk,'d'+String(i).padStart(4,'0')));
+  assert.throws(()=>captureExternalInputs(crowdedSdk),/too many filesystem entries/,
+   'Empty directories must count toward the total traversal budget');
   const invalidSdk=path.join(dir,'incomplete-sdk');fs.mkdirSync(invalidSdk);
   assert.throws(()=>captureExternalInputs(invalidSdk),/missing required runtime input/,
    'A purported SDK must contain both runtime entry points');
