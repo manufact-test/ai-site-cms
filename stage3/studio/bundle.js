@@ -4163,6 +4163,26 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const walk=n=>{ids.push(n.id);for(const child of n.children||[])walk(child);};
       walk(node);return ids;
     };
+    const DESIGN_RECIPES={
+      container:[
+        ['split','Две колонки',{display:'grid',columns:2,gap:'@medium',padding:'@large'},
+          {tablet:{gap:'@small',padding:'@medium'},mobile:{columns:1,padding:'@small'}}],
+        ['gallery','Адаптивная галерея',{display:'grid',columns:3,gap:'@small',padding:'@small'},
+          {tablet:{columns:2},mobile:{columns:1}}],
+        ['card','Карточка',{display:'flex',direction:'column',gap:'@small',padding:'@medium',
+          radius:'@soft',shadow:'soft'},{mobile:{padding:'@small'}}]],
+      heading:[
+        ['hero','Крупный заголовок',{fluidFont:{min:30,max:72},lineHeight:110,
+          fontWeight:700,textWrap:'balance'},{mobile:{lineHeight:115}}],
+        ['section','Заголовок секции',{fluidFont:{min:24,max:46},lineHeight:120,fontWeight:700},{}]],
+      text:[['body','Читабельный текст',{fontSize:'@body',lineHeight:155,maxWidth:820},{}]],
+      button:[['cta','Кнопка действия',{display:'block',background:'@accent',
+        color:'@background',paddingX:'@medium',paddingY:'@small',
+        radius:'@round',textAlign:'center',fontWeight:700},{}]],
+      image:[['cover','Широкая обложка',{objectFit:'cover',aspectRatio:'landscape',
+        radius:'@soft',widthPercent:100},{mobile:{aspectRatio:'portrait'}}]],
+      video:[['wide','Видео 16:9',{aspectRatio:'wide',widthPercent:100,radius:'@soft'},{}]]
+    };
     const make=(tag,text,cls)=>{
       const n=document.createElement(tag);
       if(text!==undefined)n.textContent=text;
@@ -4387,6 +4407,45 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         });
         fit.id='cms-design-fit-width';
       }
+      const recipes=DESIGN_RECIPES[n.type]||[];
+      if(recipes.length){
+        const box=make('div',undefined,'cms-design-recipe');box.id='cms-design-recipe';
+        const select=make('select',undefined,'control');select.id='cms-design-recipe-choice';
+        for(const rec of recipes){const option=make('option',rec[1]);option.value=rec[0];select.append(option);}
+        const overwrite=make('input');overwrite.type='checkbox';overwrite.id='cms-design-recipe-overwrite';
+        const optionLabel=make('label','Перезаписать ручные стили только этого элемента');optionLabel.prepend(overwrite);
+        const preset=button('Применить стиль','btn small',()=>{
+          try{
+            const rec=recipes.find(r=>r[0]===select.value),copy=cp(graph);
+            const find=nodes=>{for(const item of nodes){
+              if(item.id===n.id)return item;
+              if(item.children){const hit=find(item.children);if(hit)return hit;}
+            }return null;};
+            const target=find(copy.nodes);
+            const merge=(layer,props)=>{
+              for(const [key,value] of Object.entries(props)){
+                if(!overwrite.checked&&layer[key]!==undefined)continue;
+                const conflict={fluidFont:'fontSize',fontSize:'fluidFont',
+                  widthPercent:'widthPx',widthPx:'widthPercent',
+                  columns:'gridColumnsPreset',gridColumnsPreset:'columns'};
+                if(conflict[key])delete layer[conflict[key]];
+                layer[key]=cp(value);
+              }
+            };
+            merge(target.styles||(target.styles={}),rec[2]);
+            for(const [bp,values] of Object.entries(rec[3])){
+              target.responsive??={};merge(target.responsive[bp]||(target.responsive[bp]={}),values);
+            }
+            DESIGN_GRAPH.validateGraph(copy,new Set(session.current.assets.map(a=>a.id)),
+              new Set(),tokens,new Map(session.current.assets.map(a=>[a.id,a.mime])));
+            if(JSON.stringify(copy)===JSON.stringify(graph))return;
+            recordHistory();graph=copy;render();
+            notice('Стиль применён к элементу. Undo и ручные правки сохранены.');
+          }catch(e){notice('Стиль не применён: '+e.message,true);}
+        });
+        preset.id='cms-design-recipe-apply';
+        box.append(make('strong','Готовые стилевые решения'),select,optionLabel,preset);root.append(box);
+      }
       const headline=make('h3','Редактирование · '+n.type);root.append(headline);
       const fields=make('div','', 'cms-design-fields');root.append(fields);
       if(['heading','text','button'].includes(n.type)){
@@ -4429,9 +4488,24 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         render();
       });
       root.append(make('h3','Свойства · '+mode),modeSelect);
+      if(mode==='tablet'||mode==='mobile'){
+        const inherited={...n.styles,...(mode==='mobile'?n.responsive?.tablet||{}:{})};
+        const ownLayer=n.responsive?.[mode]||{};
+        const area=make('section',undefined,'cms-design-inheritance');area.id='cms-design-inheritance';
+        area.append(make('strong','Каскад ПК → '+(mode==='tablet'?'планшет':'планшет → телефон')));
+        area.append(make('p',Object.keys(inherited).length+' унаследованных · '+
+          Object.keys(ownLayer).length+' ручных переопределений.'));
+        const reset=button('Вернуть наследование','btn small',()=>{
+          if(!Object.keys(ownLayer).length)return;
+          recordHistory();delete n.responsive[mode];render();
+        });
+        reset.id='cms-design-inherit-reset';
+        area.append(reset);root.append(area);
+      }
       const styleFields=make('div',undefined,'cms-design-fields');root.append(styleFields);
       const style=editStyle(n),limited=['hover','focus'].includes(mode);
       for(const key of DESIGN_GRAPH.STYLE_KEYS){
+        if(key==='fluidFont')continue;
         if(limited&&!['color','background','borderColor','borderWidth','radius','opacity','gradient','outlineColor','outlineWidth'].includes(key))continue;
         if(key==='gradient')continue;
         const values={
@@ -4472,7 +4546,24 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           style[key]=v.startsWith('@')?v.trim():Number(v);
         }));
       }
-      const gradient=make('details');gradient.id='cms-design-gradient';
+      const fluid=make('details');fluid.id='cms-design-fluid-font';
+       fluid.append(make('summary','Плавный размер шрифта · от 320 до 1200 px'));
+       const ff=style.fluidFont||{min:22,max:54};
+       const fluidFields=make('div',undefined,'cms-design-fields');
+       fluidFields.append(
+         ctl('Минимум, px',String(ff.min),v=>{
+           delete style.fontSize;
+           style.fluidFont={...(style.fluidFont||ff),min:Number(v)};
+         },'number'),
+         ctl('Максимум, px',String(ff.max),v=>{
+           delete style.fontSize;
+           style.fluidFont={...(style.fluidFont||ff),max:Number(v)};
+         },'number'));
+       fluid.append(fluidFields,button('Сбросить плавный размер','btn small',()=>{
+         if(!style.fluidFont)return;
+         recordHistory();delete style.fluidFont;render();
+       }));root.append(fluid);
+       const gradient=make('details');gradient.id='cms-design-gradient';
       gradient.append(make('summary','Градиент фона · '+mode));
       const gradientFields=make('div',undefined,'cms-design-fields');
       const currentGradient=style.gradient;

@@ -370,3 +370,9 @@
 .cms-repair-label small{font-size:11px;color:#bad4e1}
 #cms-repair-preview{color:#bce8d3}
 @media(max-width:680px){.cms-repair-row{grid-template-columns:auto minmax(0,1fr);align-items:start}.cms-repair-row .control{grid-column:2;max-width:100%}.cms-repair-row .btn{grid-column:2;justify-self:start}}
+
+.cms-design-recipe,.cms-design-inheritance{display:flex;flex-wrap:wrap;gap:9px;align-items:center;background:#132d3c;border:1px solid #3e6574;border-radius:11px;padding:12px;margin:9px 0}
+.cms-design-recipe strong,.cms-design-inheritance strong{width:100%}
+.cms-design-recipe label{display:flex;gap:6px;align-items:center;font-size:12px}
+.cms-design-recipe .control{min-width:160px;flex:1}
+.cms-design-inheritance p{margin:0;color:#bad5db;font-size:12px}
