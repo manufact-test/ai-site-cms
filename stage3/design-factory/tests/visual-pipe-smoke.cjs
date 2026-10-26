@@ -40,7 +40,19 @@ const size=inspectPng;
   assert.equal(await browser.waitForElementText(url,'d7-probe',5000),'CDP READY',
    'DevTools pipe must observe asynchronous DOM state without --dump-dom');
   await assert.rejects(browser.waitForElementText('https://example.com/','d7-probe'),/Only offline file URLs/);
-  console.log('DESIGN_FACTORY_D7_VISUAL_PIPE PASS: real Chromium 1280/768/390 PNG sizes, one persistent browser, asynchronous DOM probe, overflow detection and offline URL restriction');
+  const cssFile=path.join(dir,'styles.css');
+  fs.writeFileSync(cssFile,'body{margin:0;background:#123456}main{padding:20px}');
+  fs.writeFileSync(filename,'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">'+
+   '<link rel="stylesheet" href="styles.css"></head><body><main>Static diagnostic</main></body></html>');
+  const diagnostic=await browser.screenshotStatic(url,widths[2]);
+  assert.deepEqual(size(diagnostic.png),widths[2]);
+  assert.equal(diagnostic.transport,'memory-static');
+  assert.equal(diagnostic.overflowPixels,0);
+  await assert.rejects(browser.screenshotStatic('https://example.com/',widths[2]),/Only offline file URLs/);
+  fs.writeFileSync(filename,'<!doctype html><html><head><link rel="stylesheet" href="styles.css"></head>'+
+   '<body><script>alert(1)</script></body></html>');
+  await assert.rejects(browser.screenshotStatic(url,widths[2]),/refused non-static/);
+  console.log('DESIGN_FACTORY_D7_VISUAL_PIPE PASS: real Chromium 1280/768/390 PNG sizes, one persistent browser, asynchronous DOM probe, memory-only static PNG diagnostics, overflow detection and offline URL restriction');
  }finally{
   if(browser)await browser.close();
   fs.rmSync(dir,{recursive:true,force:true});

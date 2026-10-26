@@ -100,6 +100,56 @@ class BrowserPipe {
   }
   throw Error('Chromium DOM probe timed out for '+elementId+' (last page '+observed+')');
  }
+ // Render first-party static HTML and its local stylesheet in memory.
+ // A diagnostic for managed Chromium instances blocking file:// navigation.
+ // Never substitute this for D7 offline navigation or Studio E2E acceptance.
+ async screenshotStatic(url,view){
+  if(typeof url!=='string'||!url.startsWith('file://'))throw Error('Only offline file URLs may be rendered');
+  const file=fileURLToPath(url);
+  if(!fs.statSync(file).isFile())throw Error('Static capture requires an HTML file');
+  const html=fs.readFileSync(file,'utf8');
+  if(html.length>2*1024*1024||!/^<!doctype html>/i.test(html))
+   throw Error('Static capture requires bounded first-party HTML');
+  if(/<\s*(?:script|iframe|object|embed|base|img|video|audio)\b/i.test(html)||
+     /(?:https?:|javascript:|data:|srcset\s*=|<\s*style\b)/i.test(html))
+   throw Error('Static capture refused non-static or externally dependent HTML');
+  const styles=[...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)">/g)];
+  if(styles.length!==1||/<link\b/i.test(html.replace(styles[0][0],'')))
+   throw Error('Static capture requires exactly one local stylesheet');
+  const href=styles[0][1];
+  if(!/^(?:[.][.]\/)?(?:assets\/)?[a-zA-Z0-9-]+[.]css$/.test(href))
+   throw Error('Unsafe stylesheet path');
+  const cssFile=path.resolve(path.dirname(file),href);
+  if(!fs.statSync(cssFile).isFile())throw Error('Static stylesheet must be a local regular file');
+  const css=fs.readFileSync(cssFile,'utf8');
+  if(css.length>2*1024*1024||/@import\b|url\s*\(|<\/style|<script/i.test(css))
+   throw Error('Static capture refused external CSS resources or markup');
+  if(!Number.isInteger(view.width)||!Number.isInteger(view.height)||
+    view.width<320||view.width>2560||view.height<400||view.height>1800)
+   throw Error('Unsupported D7 viewport');
+  const markup=html.replace(styles[0][0],'<style>'+css+'</style>');
+  await this.send('Emulation.setDeviceMetricsOverride',{
+   width:view.width,height:view.height,deviceScaleFactor:1,mobile:false
+  });
+  const navigated=await this.send('Page.navigate',{url:'about:blank'});
+  if(navigated.errorText)throw Error('Chromium refused blank page: '+navigated.errorText);
+  const frame=(await this.send('Page.getFrameTree')).frameTree.frame.id;
+  await this.send('Page.setDocumentContent',{frameId:frame,html:markup},20000);
+  const metrics=(await this.send('Runtime.evaluate',{
+   expression:'({width:innerWidth,sheets:document.styleSheets.length,scroll:Math.max(document.documentElement.scrollWidth,document.body?document.body.scrollWidth:0),html:document.documentElement?.outerHTML.length||0})',
+   returnByValue:true
+  })).result?.value;
+  if(!metrics||metrics.width!==view.width||metrics.sheets!==1||metrics.html<100)
+   throw Error('In-memory static page did not render at the requested viewport');
+  await sleep(80);
+  const result=await this.send('Page.captureScreenshot',{
+   format:'png',captureBeyondViewport:false,fromSurface:true
+  },20000);
+  if(typeof result.data!=='string'||result.data.length>25*1024*1024)
+   throw Error('Invalid in-memory Chromium PNG payload');
+  return {png:Buffer.from(result.data,'base64'),
+   overflowPixels:Math.max(0,metrics.scroll-metrics.width),transport:'memory-static'};
+ }
  async screenshot(url,view){
   if(typeof url!=='string'||!url.startsWith('file://'))throw Error('Only offline file URLs may be captured');
   const file=fileURLToPath(url);

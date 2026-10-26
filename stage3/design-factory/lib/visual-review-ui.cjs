@@ -28,7 +28,8 @@ function reviewHtml(report){
   images.map(x=>card(x.image,x.i)).join('')+'</div></section>').join('');
  const alerts=report.errors?.length?'<p class="error">CAPTURE ERRORS: '+
   escape(report.errors.join(' | '))+'</p>':'';
- const full=report.matrixComplete===true&&report.captureCompleted===true&&
+ const full=report.captureTransport!=='memory-static'&&
+  report.matrixComplete===true&&report.captureCompleted===true&&
   report.quick===false&&report.images.length===54&&report.errors.length===0;
  return '<!doctype html><html lang="en"><head><meta charset="utf-8">'+
  '<meta name="viewport" content="width=device-width,initial-scale=1">'+
@@ -49,8 +50,8 @@ function reviewHtml(report){
  '<body data-full-matrix="'+String(full)+'" data-evidence-sha256="'+escape(report.evidenceSha256||'')+'"><main>'+
  '<h1>Design Factory · visual review</h1><p class="status">Manual visual acceptance: <strong>PENDING</strong> · '+
  report.images.length+' / '+report.expectedImages+' screenshots · matrix '+
- (report.matrixComplete?'complete':'incomplete')+' · 1280 / 768 / 390 px</p>'+
- alerts+'<p class="muted">Inspect screenshot quality, overflow, navigation, RU/EN, and owner placeholders. Open real sites separately for keyboard, touch and motion checks. A self-declared receipt is NOT PHP pixel parity or CMS approval.</p>'+
+ (report.matrixComplete?'complete':'incomplete')+' · '+escape(report.captureTransport||'file')+' transport · 1280 / 768 / 390 px</p>'+
+ alerts+'<p class="muted">Memory-static screenshots are diagnostics only: formal D7 acceptance requires real offline file navigation. Inspect screenshot quality, overflow, navigation, RU/EN, and owner placeholders. Open real sites separately for keyboard, touch and motion checks. A self-declared receipt is NOT PHP pixel parity or CMS approval.</p>'+
  '<div class="review-form"><h2>Complete human review</h2>'+
  '<p>Approve or reject every PNG below. Rejections require notes. Open the full D3 showroom, scroll through all 42 compositions, then confirm all five manual checks.</p>'+
  '<p><a class="showcase-review-link" href="showcase/index.html" target="_blank" rel="noopener">Open the full D3 showcase · inspect all 42 compositions</a></p>'+

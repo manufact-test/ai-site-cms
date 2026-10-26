@@ -42,7 +42,7 @@ function assessMatrix(expected,images){
 }
 const pngSize=inspectPng;
 function args(list){
- const result={output:null,bin:process.env.DF_CHROMIUM_BIN||null,quick:false};
+ const result={output:null,bin:process.env.DF_CHROMIUM_BIN||null,quick:false,staticInMemory:false};
  let sawOut=false,sawChromium=false;
  for(let i=0;i<list.length;i++){
   if(list[i]==='--out'){
@@ -54,6 +54,7 @@ function args(list){
    if(sawChromium||!value||value.startsWith('--'))throw Error('--chromium requires one executable path');
    result.bin=value;sawChromium=true;i++;
   }else if(list[i]==='--quick')result.quick=true;
+  else if(list[i]==='--static-in-memory')result.staticInMemory=true;
   else throw Error('Usage --out NEW-directory --chromium /path/to/chromium [--quick]');
  }
  if(!result.output||!result.bin)throw Error('Provide --out and --chromium or DF_CHROMIUM_BIN');
@@ -65,6 +66,8 @@ async function run(options){
  fs.mkdirSync(root);
  const expected=expectedFiles(options.quick);
  const report={format:'manufact-design-factory-visual-evidence-v1',version:1,
+  captureTransport:options.staticInMemory?'memory-static':'file',
+  diagnosticOnly:Boolean(options.staticInMemory),
   viewports:VIEWPORTS,quick:options.quick,expectedImages:expected.length,matrixComplete:false,
   images:[],errors:[],humanVisualAcceptance:'pending',
   renderSourceSha256:sourceFingerprint(REPO)};
@@ -72,7 +75,8 @@ async function run(options){
  let browser=null;
  async function screenshot(url,filename,view){
   const dest=path.join(root,'screenshots',filename+'.png');
-  const capture=await browser.screenshot(url,view);
+  const capture=options.staticInMemory?
+   await browser.screenshotStatic(url,view):await browser.screenshot(url,view);
   const buf=capture.png;
   if(buf.length<1000)throw Error(filename+': Chromium returned an empty screenshot');
   const actual=pngSize(buf);
@@ -142,6 +146,7 @@ async function run(options){
   fs.writeFileSync(path.join(root,'visual-review.html'),reviewHtml(report),{flag:'wx'});
   console.log(JSON.stringify({
    captured:report.images.length,captureCompleted:report.captureCompleted,
+   captureTransport:report.captureTransport,diagnosticOnly:report.diagnosticOnly,
    humanVisualAcceptance:report.humanVisualAcceptance,errors:report.errors,
    output:root
   },null,2));
