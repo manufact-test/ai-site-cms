@@ -897,6 +897,61 @@
     if(!state.authorized||!state.siteId||!Number.isInteger(state.revision))
       throw Error('Откройте серверный сайт для проверки');
     const site=editor.getSite();
+    const meta=state.sites.find(row=>row.site_id===state.siteId);
+    let published=null,publishedError='';
+    if(meta?.published_version){
+      try{
+        const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/published-site');
+        if(result.site?.siteId!==site.siteId)throw Error('Публикация другого сайта');
+        published={...result,site:restoreServerGraphMaps(result.site)};
+      }catch(error){publishedError=error.message;}
+    }
+    const byId=new Map((published?.site.pages||[]).map(page=>[page.id,page]));
+    const changesFor=(current,prior)=>{
+      if(!prior)return ['Новая страница — ещё не опубликована'];
+      if(!current)return ['Страница удалена из черновика — пока видна посетителям'];
+      const changes=[];
+      if(current.title!==prior.title)changes.push('Изменено название страницы');
+      if(current.path!==prior.path)changes.push('Изменён URL: '+prior.path+' → '+current.path);
+      const stable=value=>JSON.stringify(value,(key,item)=>
+        item&&typeof item==='object'&&!Array.isArray(item)?
+          Object.fromEntries(Object.keys(item).sort().map(name=>[name,item[name]])):item);
+      if(stable(current.seo||{})!==stable(prior.seo||{}))changes.push('Изменены SEO и метаданные');
+      if(stable(current.navigation||{})!==stable(prior.navigation||{}))
+        changes.push('Изменены настройки меню');
+      const oldSections=new Map(prior.sections.map(section=>[section.id,section]));
+      const newSections=new Map(current.sections.map(section=>[section.id,section]));
+      const added=current.sections.filter(section=>!oldSections.has(section.id)).length;
+      const removed=prior.sections.filter(section=>!newSections.has(section.id)).length;
+      const altered=current.sections.filter(section=>
+        oldSections.has(section.id)&&stable(section)!==stable(oldSections.get(section.id))).length;
+      if(added)changes.push('Добавлено блоков: '+added);
+      if(removed)changes.push('Удалено блоков: '+removed);
+      if(altered)changes.push('Изменено блоков: '+altered);
+      if(current.sections.map(x=>x.id).join('|')!==prior.sections.map(x=>x.id).join('|'))
+        changes.push('Изменён порядок или состав блоков');
+      return changes;
+    };
+    const comparisonRows=site.pages.map(page=>{
+      const prior=byId.get(page.id)||null,changes=published?changesFor(page,prior):[];
+      return {page,current:page,prior,changes,status:!published?'unavailable':
+        !prior?'added':changes.length?'changed':'unchanged'};
+    });
+    for(const prior of published?.site.pages||[])if(!site.pages.some(page=>page.id===prior.id)){
+      comparisonRows.push({page:prior,current:null,prior,
+        changes:changesFor(null,prior),status:'removed'});
+    }
+    const comparisonTotals=Object.fromEntries(['added','removed','changed','unchanged']
+      .map(key=>[key,comparisonRows.filter(row=>row.status===key).length]));
+    const globalChanges=[];
+    if(published){
+      if(site.title!==published.site.title)globalChanges.push('Название сайта');
+      if(site.theme!==published.site.theme)globalChanges.push('Тема сайта');
+      if(JSON.stringify(site.designTokens||{})!==JSON.stringify(published.site.designTokens||{}))
+        globalChanges.push('Дизайн-токены');
+      if(JSON.stringify(site.assets)!==JSON.stringify(published.site.assets))
+        globalChanges.push('Медиабиблиотека');
+    }
     // This hosted module does not own the SDK globals (they are private to the
     // editor bundle). Offer a small fail-safe page checklist here and direct
     // users to the existing full SDK SEO/a11y report for complete findings.
@@ -944,12 +999,24 @@
     const revision=element('p','hosted-launch-revision',
       'Черновик #'+state.revision+' · '+(editor.isDirty()?'есть несохранённые изменения':'сохранён')+
       ' · публикация '+(state.sites.find(s=>s.site_id===state.siteId)?.published_version||'отсутствует'));
-    header.append(heading,explanation,summary,revision);
+    const publicationCompare=element('p','hosted-launch-diff-summary');
+    publicationCompare.id='server-launch-diff-summary';
+    publicationCompare.textContent=published?
+      'Сравнение с опубликованной v'+published.version+' (черновик #'+state.revision+'): '+
+      comparisonTotals.added+' новых · '+comparisonTotals.removed+' удаляемых · '+
+      comparisonTotals.changed+' изменённых · '+comparisonTotals.unchanged+
+      ' без изменений'+(globalChanges.length?' · настройки сайта: '+globalChanges.join(', '):''):
+      (publishedError?'Сравнение с публикацией недоступно: '+publishedError:
+        'Это первая публикация. Все страницы пока доступны только в черновике.');
+    header.append(heading,explanation,summary,revision,publicationCompare);
     const body=element('div','hosted-launch-layout');
     const pages=element('div','hosted-launch-pages');pages.id='server-launch-pages';
     const detail=element('div','hosted-launch-detail');
     const pageHeading=element('h3');
     const devices=element('div','hosted-launch-devices');devices.id='server-launch-modes';
+    const compareModes=element('div','hosted-launch-compare-modes');
+    compareModes.id='server-launch-compare-modes';
+    const previewPanels=element('div','hosted-launch-preview-panels');
     const viewport=element('div','hosted-launch-viewport');
     const frame=element('iframe');frame.id='server-launch-preview';
     frame.setAttribute('title','Проверка черновика страницы');
@@ -958,6 +1025,15 @@
     frame.setAttribute('sandbox','allow-same-origin');
     frame.setAttribute('referrerpolicy','no-referrer');
     viewport.append(frame);
+    const liveViewport=element('div','hosted-launch-viewport hosted-launch-live-viewport');
+    liveViewport.id='server-launch-live-viewport';
+    const liveLabel=element('p','hosted-launch-live-label','Опубликованная версия');
+    const liveFrame=element('iframe');liveFrame.id='server-launch-live-preview';
+    liveFrame.title='Текущая опубликованная страница (без скриптов и отправки форм)';
+    liveFrame.setAttribute('sandbox','allow-same-origin');
+    liveFrame.setAttribute('referrerpolicy','no-referrer');
+    liveViewport.append(liveLabel,liveFrame);
+    previewPanels.append(viewport,liveViewport);
     const previewStatus=element('p','hosted-launch-preview-status','');
     previewStatus.id='server-launch-preview-status';
     const issues=element('div','hosted-launch-issues');
@@ -975,11 +1051,11 @@
     });
     const close=action('Закрыть','server-launch-close',()=>dialog.close());
     footer.append(editPage,quality,saveDraft,publishSaved,close);
-    detail.append(pageHeading,devices,viewport,previewStatus,issues);
+    detail.append(pageHeading,devices,compareModes,previewPanels,previewStatus,issues);
     body.append(pages,detail);
     dialog.append(header,body,footer);
     document.body.append(dialog);
-    let selectedPage=site.pages[0],device='desktop',request=0;
+    let selectedRow=comparisonRows[0],device='desktop',viewMode='draft',request=0;
     const widths={desktop:1200,tablet:780,mobile:390};
     const syncActions=()=>{
       // The launch action itself runs inside safe(), which temporarily marks
@@ -990,74 +1066,121 @@
       publishSaved.title=publishSaved.disabled?'Сначала сохраните черновик и проверьте права публикации':'Потребуется отдельное подтверждение';
     };
     const renderViewport=()=>{
-      const width=widths[device],available=viewport.clientWidth||700;
-      const scale=Math.min(1,Math.max(.25,(available-12)/width));
-      frame.style.width=width+'px';frame.style.height='900px';
-      frame.style.transformOrigin='top left';
-      frame.style.transform='scale('+scale+')';
-      viewport.style.height=Math.min(620,Math.ceil(900*scale))+'px';
+      previewPanels.classList.toggle('is-comparing',viewMode==='compare');
+      viewport.hidden=viewMode==='published';
+      liveViewport.hidden=viewMode==='draft'||!published;
+      for(const [panel,iframe] of [[viewport,frame],[liveViewport,liveFrame]]){
+        if(panel.hidden)continue;
+        const width=widths[device],available=panel.clientWidth||700;
+        const scale=Math.min(1,Math.max(.25,(available-12)/width));
+        iframe.style.width=width+'px';iframe.style.height='900px';
+        iframe.style.transformOrigin='top left';iframe.style.transform='scale('+scale+')';
+        panel.style.height=Math.min(620,Math.ceil(900*scale))+'px';
+      }
+      for(const b of compareModes.querySelectorAll('button')){
+        b.classList.toggle('primary',b.dataset.compareMode===viewMode);
+        b.setAttribute('aria-pressed',String(b.dataset.compareMode===viewMode));
+      }
       for(const button of devices.querySelectorAll('button'))
         button.classList.toggle('primary',button.dataset.device===device);
     };
     const showPreview=async()=>{
-      const ticket=++request;
-      previewStatus.textContent='Строим предпросмотр черновика '+selectedPage.path+'…';
+      const ticket=++request,row=selectedRow;
+      const draft=row.current,live=row.prior;
+      const path=draft?.path||live?.path;
+      previewStatus.textContent='Строим предпросмотр черновика '+path+'…';
       frame.removeAttribute('srcdoc');
+      liveFrame.removeAttribute('src');
+      if(published&&live){
+        liveFrame.src='/published/'+encodeURIComponent(state.siteId)+live.path;
+      }else{
+        liveFrame.srcdoc='<!doctype html><html lang="ru"><meta charset="utf-8"><body style="font:15px system-ui;padding:25px"><p>Эта страница ещё не опубликована.</p></body></html>';
+      }
+      if(!draft){
+        frame.srcdoc='<!doctype html><html lang="ru"><meta charset="utf-8"><body style="font:15px system-ui;padding:25px"><p>Страница удалена из черновика; посетители пока видят опубликованную версию.</p></body></html>';
+        previewStatus.textContent='Черновик · '+path+' · страница удалена · без публикации';
+        return;
+      }
       try{
-        const html=await previewPage(site,selectedPage.path);
+        const html=await previewPage(site,draft.path);
         if(ticket!==request||!dialog.open)return;
         frame.srcdoc=html;
-        previewStatus.textContent='Черновик · '+selectedPage.path+' · '+widths[device]+' px · без публикации';
+        previewStatus.textContent='Черновик · '+draft.path+' · '+widths[device]+
+          ' px · '+(published?'сравнение с v'+published.version:'ещё не опубликован');
       }catch(error){
         if(ticket!==request||!dialog.open)return;
         frame.removeAttribute('srcdoc');
-        previewStatus.textContent='Предпросмотр недоступен: '+error.message;
+        previewStatus.textContent='Черновик недоступен: '+error.message;
       }
     };
-    const choosePage=page=>{
-      selectedPage=page;
+    const choosePage=row=>{
+      selectedRow=row;
+      const page=row.current||row.prior;
       pageHeading.textContent=page.title+' · '+page.path;
       issues.replaceChildren();
       const relevant=[...inspected.errors.map(item=>({item,error:true})),
         ...inspected.warnings.map(item=>({item,error:false}))].filter(entry=>
-          entry.item.pageId===page.id);
+          entry.item.pageId===page.id&&row.current);
+      const diffTitle=element('strong',null,published?
+        (row.status==='unchanged'?'Без изменений относительно публикации':
+          'Изменения относительно опубликованной версии'):'До первой публикации');
+      issues.append(diffTitle);
+      for(const change of row.changes)
+        issues.append(element('p','hosted-launch-delta',change));
+      if(published&&!row.changes.length)
+        issues.append(element('p',null,'Содержимое, SEO и настройки этой страницы не менялись.'));
       const summaryLine=element('p',null,
-        page.sections.length+' блоков · '+relevant.filter(entry=>entry.error).length+
+        (row.current?page.sections.length+' блоков':'Страницы нет в черновике')+
+        ' · '+relevant.filter(entry=>entry.error).length+
         ' ошибок · '+relevant.filter(entry=>!entry.error).length+' рекомендаций');
       issues.append(summaryLine);
-      if(!relevant.length)issues.append(element('p',null,'Замечаний по этой странице нет.'));
-      for(const entry of relevant.slice(0,12)){
-        const line=element('p',entry.error?'hosted-launch-error':'hosted-launch-warning',
-          (entry.error?'Ошибка: ':'Рекомендация: ')+entry.item.message);
-        issues.append(line);
-      }
+      for(const entry of relevant.slice(0,12))
+        issues.append(element('p',entry.error?'hosted-launch-error':'hosted-launch-warning',
+          (entry.error?'Ошибка: ':'Рекомендация: ')+entry.item.message));
       if(relevant.length>12)issues.append(element('small',null,'Остальные замечания доступны в полном аудите.'));
       for(const button of pages.querySelectorAll('button'))
         button.classList.toggle('primary',button.dataset.pageId===page.id);
+      editPage.disabled=!row.current;
       syncActions();renderViewport();void showPreview();
     };
+    for(const [value,label] of [
+      ['draft','Черновик'],['compare','Рядом с публикацией'],['published','Опубликовано']
+    ]){
+      const mode=action(label,'',()=>{
+        if(value!=='draft'&&!published)return;
+        viewMode=value;renderViewport();
+      });
+      mode.dataset.compareMode=value;mode.disabled=value!=='draft'&&!published;
+      compareModes.append(mode);
+    }
     for(const [mode,name] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
       const control=action(name,'',()=>{
         device=mode;renderViewport();
-        if(previewStatus.textContent.startsWith('Черновик ·'))
-          previewStatus.textContent='Черновик · '+selectedPage.path+' · '+widths[device]+' px · без публикации';
+        if(previewStatus.textContent.startsWith('Черновик ·')){
+          const path=selectedRow.current?.path||selectedRow.prior?.path;
+          previewStatus.textContent='Черновик · '+path+' · '+widths[device]+' px · без публикации';
+        }
       });
       control.dataset.device=mode;devices.append(control);
     }
-    for(const page of site.pages){
+    for(const row of comparisonRows){
+      const page=row.page;
       const countIssues=inspected.errors.filter(f=>f.pageId===page.id).length;
-      const control=action(page.title+' · '+page.path+' · '+page.sections.length+' блоков'+
-        (countIssues?' · '+countIssues+' ошибок':''),'',()=>choosePage(page));
+      const type=row.status==='added'?' · новая':row.status==='removed'?' · удалена':
+        row.status==='changed'?' · изменена':row.status==='unchanged'?' · без изменений':'';
+      const control=action(page.title+' · '+page.path+type+
+        (countIssues?' · '+countIssues+' ошибок':''),'',()=>choosePage(row));
       control.dataset.pageId=page.id;
+      control.dataset.diffStatus=row.status;
       pages.append(control);
     }
     editPage.addEventListener('click',()=>{
-      const pageIndex=site.pages.findIndex(page=>page.id===selectedPage.id);
+      const pageIndex=site.pages.findIndex(page=>page.id===selectedRow.current?.id);
       dialog.close();
       document.querySelectorAll('#pages .nav-entry')[pageIndex]?.click();
     });
     dialog.addEventListener('close',()=>{++request;dialog.remove();},{once:true});
-    dialog.showModal();choosePage(selectedPage);
+    dialog.showModal();choosePage(selectedRow);
   }
 
   async function save(){
