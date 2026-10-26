@@ -476,6 +476,9 @@
   // Only an explicit quality-report action can focus a specific graph node.
   // No pending focus is persisted to site JSON, exports or published HTML.
   let pendingGraphAuditFocus=null;
+  // Ephemeral selection handoff from the whole-page canvas to the nested graph
+  // inspector. Never written into the draft, export or published site.
+  let pendingGraphCanvasFocus=null;
   // One review surface for every authored site; analysis never changes documents.
   // Alias creation/deletion uses the same revisioned Undo/Redo contract as page edits.
   function initSiteQuality(){
@@ -694,7 +697,20 @@
     // The preview itself remains script-free; parent only reads first-party IDs.
     // Select sections only in the validated, scriptless page preview.
     // Every edit uses the same SDK draft history as the right-side inspector.
-    let workSection='',workElement='',workFocusPath='',workFormField='';
+    let workSection='',workElement='',workFocusPath='',workFormField='',workGraphNode='';
+    const graphNodes=section=>{
+      const rows=[];
+      const walk=(nodes,depth)=>{
+        for(const node of nodes||[]){
+          rows.push({node,depth});
+          if(node.type==='container')walk(node.children,depth+1);
+        }
+      };
+      if(section?.designGraph)walk(section.designGraph.nodes,0);
+      return rows;
+    };
+    const selectedGraphNode=()=>graphNodes(sectionForWork())
+      .find(x=>x.node.id===workGraphNode)?.node||null;
     const canWrite=()=>!HOSTED||!!window.Stage3Host?.canEditStudio?.();
     const pageForWork=()=>session.current.pages.find(p=>p.path===pathSelect.value);
     const sectionForWork=()=>pageForWork()?.sections.find(s=>s.id===workSection);
@@ -712,6 +728,9 @@
       for(const el of doc.querySelectorAll('[data-cms-work-form-field]'))
         el.classList.toggle('cms-work-form-current',!!workFormField&&
           el.dataset.cmsWorkFormField===workFormField);
+      for(const el of doc.querySelectorAll('[data-cms-work-graph-node]'))
+        el.classList.toggle('cms-work-graph-current',!!workGraphNode&&
+          el.dataset.cmsWorkGraphNode===workGraphNode);
     }
     const quick=document.createElement('div');quick.className='cms-work-quick';quick.hidden=true;
     quick.id='cms-work-quick';quick.setAttribute('role','group');
@@ -722,6 +741,12 @@
     const dismissQuick=()=>{quick.hidden=true;};
     const quickCancel=button('Отмена','btn small',dismissQuick);
     const quickSave=button('Применить','btn small primary',()=>{
+      const node=selectedGraphNode();
+      if(node&&['heading','text','button'].includes(node.type)){
+        if(!canWrite())return feedback('Нет права на редактирование.',true);
+        if(editGraphWork(n=>{n.text=quickInput.value;}))dismissQuick();
+        return;
+      }
       const page=pageForWork(),section=sectionForWork();
       const field=page&&section?C.controls(session.current,manifests,page.id,section.id,workElement)
         .find(f=>f.path===workFocusPath&&f.type==='text'):null;
@@ -735,7 +760,16 @@
       if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();quickSave.click();}
     });
     const quickEdit=()=>{
-      if(!canWrite()||!workFocusPath)return;
+      if(!canWrite())return;
+      const graph=selectedGraphNode();
+      if(graph&&['heading','text','button'].includes(graph.type)){
+        quickLabel.firstChild.textContent='Текст узла: '+graph.type;
+        quickInput.value=graph.text;
+        quickInput.maxLength=3000;
+        quick.hidden=false;quickInput.focus();quickInput.select();
+        return;
+      }
+      if(!workFocusPath)return;
       const page=pageForWork(),section=sectionForWork();
       if(!page||!section)return;
       const field=C.controls(session.current,manifests,page.id,section.id,workElement)
@@ -816,7 +850,19 @@
       };
       for(const section of page.sections){
         const host=sections.find(el=>idOf(el)===section.id);
-        if(!host||section.designGraph)continue; // Nested graph nodes have their own inspector.
+        if(!host)continue;
+        if(section.designGraph){
+          // The same safe node classes are emitted by PHP and offline Graph
+          // renderers. Only bind IDs present in the validated document.
+          for(const {node} of graphNodes(section)){
+            const visual=host.querySelector('.cmsdg-n-'+node.id);
+            if(visual){
+              visual.dataset.cmsWorkGraphNode=node.id;
+              visual.classList.add('cms-work-graph-target');
+            }
+          }
+          continue;
+        }
         const used=new Set();
         const repeatNodes=section.items&&repeatSelectors[section.component]?
           [...host.querySelectorAll(repeatSelectors[section.component])]:[];
@@ -880,7 +926,12 @@
         const field=clickedField(e),section=page.sections.find(s=>s.id===idOf(el));
         const custom=e.target instanceof doc.defaultView.Element?
           e.target.closest('[data-cms-work-form-field]'):null;
+        const graphTarget=e.target instanceof doc.defaultView.Element?
+          e.target.closest('[data-cms-work-graph-node]'):null;
         workSection=section.id;
+        workGraphNode=section.designGraph&&graphNodes(section).some(row=>
+          row.node.id===graphTarget?.dataset.cmsWorkGraphNode)?
+          graphTarget.dataset.cmsWorkGraphNode:'';
         workFormField=section.component==='lead-form-flex'&&
           section.formFields?.some(x=>x.id===custom?.dataset.cmsWorkFormField)?
           custom.dataset.cmsWorkFormField:'';
@@ -957,7 +1008,7 @@
         if(broken.length)throw Error('Новая битая ссылка: '+broken[0].path);
         session=next;
         if(!sectionForWork())workSection=pageForWork()?.sections[0]?.id||'';
-        workElement='';workFocusPath='';workFormField='';dismissQuick();draw();showWork();render();
+        workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();draw();showWork();render();
         feedback('Структура изменена в черновике. Сохранить и опубликовать — отдельно.');
       }catch(e){feedback(e.message,true);}
     }
@@ -973,6 +1024,38 @@
         draw();showWork();render();
         feedback('Поле изменено в черновике. Undo доступен.');
       }catch(e){feedback(e.message,true);}
+    }
+
+    // Graph mutations are applied only against a cloned, validated site. An
+    // invalid style, unsafe href or missing media ID does not touch the draft.
+    // Each successful change is one atomic Undo/Redo entry.
+    function editGraphWork(mutate){
+      if(!canWrite())return feedback('Нет права на редактирование.',true),false;
+      const page=pageForWork(),section=sectionForWork();
+      if(!page||!section?.designGraph||!selectedGraphNode())return false;
+      try{
+        const site=cp(session.current);
+        const edited=site.pages.find(p=>p.id===page.id).sections.find(s=>s.id===section.id);
+        const find=(nodes)=>{
+          for(const node of nodes){
+            if(node.id===workGraphNode)return node;
+            if(node.children){const hit=find(node.children);if(hit)return hit;}
+          }
+          return null;
+        };
+        const node=find(edited.designGraph.nodes);
+        if(!node)throw Error('Узел композиции больше не существует');
+        mutate(node,site);
+        const checked=C.validateSite(site,manifests);
+        session=D.replaceSite(session,manifests,checked,session.revision);
+        draw();showWork();render();
+        feedback('Узел композиции обновлён в черновике. Undo доступен.');
+        return true;
+      }catch(error){
+        feedback('Узел не изменён: '+error.message,true);
+        showWork();
+        return false;
+      }
     }
     function showWork(){
       const page=pageForWork(),section=sectionForWork();
@@ -1133,11 +1216,96 @@
         formInfo.append(caption,openForm);
         workFields.append(formInfo);
       }
+
       if(section.designGraph){
-        const help=document.createElement('small');
-        help.textContent='Для вложенных узлов откройте полный инспектор → Дизайн-композиция.';
-        workFields.prepend(help);
+        const rows=graphNodes(section);
+        if(!rows.some(row=>row.node.id===workGraphNode))
+          workGraphNode=rows[0]?.node.id||'';
+        const current=selectedGraphNode();
+        const panel=document.createElement('section');
+        panel.className='cms-work-graph-panel';panel.id='cms-work-graph-panel';
+        const title=document.createElement('strong');title.textContent='Вложенные элементы · '+rows.length;
+        const hint=document.createElement('small');
+        hint.textContent='Нажмите на элемент в макете. Двойной клик по тексту — быстрая правка. Для размеров и перетаскивания используйте полный граф.';
+        const nodes=document.createElement('select');nodes.id='cms-work-graph-node';nodes.className='control';
+        for(const row of rows){
+          const option=document.createElement('option');option.value=row.node.id;
+          option.textContent='  '.repeat(row.depth)+row.node.type+' · '+(row.node.text||row.node.alt||row.node.id).slice(0,55);
+          nodes.append(option);
+        }
+        nodes.value=workGraphNode;
+        nodes.addEventListener('change',()=>{workGraphNode=nodes.value;showWork();highlightWork();});
+        panel.append(title,hint,nodes);
+        const property=(label,key,value,options=null)=>{
+          const wrap=document.createElement('label');wrap.className='cms-work-field';
+          const caption=document.createElement('span');caption.textContent=label;
+          const input=document.createElement(options?'select':key==='text'?'textarea':'input');
+          input.className='control';input.dataset.workGraphField=key;
+          if(options){
+            for(const [v,t] of options){const opt=document.createElement('option');opt.value=v;opt.textContent=t;input.append(opt);}
+          }else if(input.tagName==='TEXTAREA')input.rows=3;
+          input.value=value??'';
+          input.disabled=!canWrite();
+          input.addEventListener('change',()=>{
+            const val=input.value;
+            if(['fontSize','padding','gap','color','background','textAlign'].includes(key)){
+              editGraphWork(node=>{
+                const style=mode==='desktop'?node.styles||(node.styles={}):
+                  (node.responsive||(node.responsive={}))[mode]||((node.responsive[mode]={}));
+                if(!val){
+                  delete style[key];
+                  if(mode!=='desktop'&&!Object.keys(style).length)delete node.responsive[mode];
+                  if(node.responsive&&!Object.keys(node.responsive).length)delete node.responsive;
+                }else if(['fontSize','padding','gap'].includes(key)){
+                  style[key]=val.startsWith('@')?val.trim():Number(val);
+                }else style[key]=val.trim();
+              });
+            }else editGraphWork(node=>{node[key]=val;});
+          });
+          wrap.append(caption,input);panel.append(wrap);
+          return input;
+        };
+        if(current){
+          if(['heading','text','button'].includes(current.type))
+            property('Текст', 'text',current.text);
+          if(current.type==='button')property('Ссылка', 'href',current.href);
+          if(['image','video','icon'].includes(current.type))property('Описание / alt','alt',current.alt||'');
+          if(['image','video'].includes(current.type)){
+            const media=session.current.assets.filter(x=>current.type==='video'?
+              x.mime==='video/mp4':/^image\/(?:png|jpeg|webp)$/.test(x.mime));
+            property('Медиафайл','assetId',current.assetId,
+              media.map(asset=>[asset.id,asset.alt||asset.id]));
+          }
+          if(current.type==='heading'){
+            property('Уровень H1–H6','level',String(current.level||2),
+              [1,2,3,4,5,6].map(v=>[String(v),'H'+v]));
+          }
+          const styles=mode==='desktop'?current.styles||{}:current.responsive?.[mode]||{};
+          const inherit=mode==='desktop'?'По умолчанию':'Наследовать с ПК';
+          property('Цвет · '+mode,'color',styles.color||'',
+            [['',inherit],...Object.keys(session.current.designTokens?.colors||DESIGN_GRAPH.DEFAULT_TOKENS.colors)
+              .map(x=>['@'+x,x]),['#ffffff','Белый'],['#000000','Чёрный']]);
+          property('Фон · '+mode,'background',styles.background||'',
+            [['',inherit],...Object.keys(session.current.designTokens?.colors||DESIGN_GRAPH.DEFAULT_TOKENS.colors)
+              .map(x=>['@'+x,x]),['#ffffff','Белый'],['#000000','Чёрный']]);
+          property('Размер текста · '+mode,'fontSize',styles.fontSize??'');
+          if(current.type==='container'){
+            property('Внутренний отступ · '+mode,'padding',styles.padding??'');
+            property('Шаг элементов · '+mode,'gap',styles.gap??'');
+          }
+          property('Выравнивание · '+mode,'textAlign',styles.textAlign||'',
+            [['',inherit],['left','Слева'],['center','По центру'],['right','Справа']]);
+        }
+        const edit=workButton('Открыть выбранный узел в Design Graph',()=>{
+          pendingGraphCanvasFocus={pageId:page.id,sectionId:section.id,
+            nodeId:workGraphNode,device:mode};
+          pageId=page.id;sectionId=section.id;elementId=section.elements[0].id;breakpoint=mode;
+          draw();modal.close();$('section-design-graph')?.click();
+        });
+        edit.id='cms-work-graph-open';panel.append(edit);
+        workFields.prepend(panel);
       }
+
       const choose=document.createElement('select');choose.className='control';choose.id='cms-work-component';
       for(const m of manifests){const o=document.createElement('option');o.value=m.id;o.textContent=m.label;choose.append(o);}
       choose.value='feature-highlights';
@@ -1246,9 +1414,9 @@
       workAdd.append(cross);
       for(const b of workPanel.querySelectorAll('[data-editor-write]'))b.disabled ||= !canWrite();
     }
-    workSectionPicker.addEventListener('change',()=>{workSection=workSectionPicker.value;workElement='';workFocusPath='';workFormField='';dismissQuick();showWork();highlightWork();});
+    workSectionPicker.addEventListener('change',()=>{workSection=workSectionPicker.value;workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();showWork();highlightWork();});
     workElementPicker.addEventListener('change',()=>{workElement=workElementPicker.value;workFocusPath='';workFormField='';dismissQuick();showWork();highlightWork();});
-    pathSelect.addEventListener('change',()=>{previewScroll=0;workSection=pageForWork()?.sections[0]?.id||'';workElement='';workFocusPath='';workFormField='';dismissQuick();showWork();});
+    pathSelect.addEventListener('change',()=>{previewScroll=0;workSection=pageForWork()?.sections[0]?.id||'';workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();showWork();});
     const history=document.createElement('div');history.id='cms-work-history';history.className='cms-work-history';
     history.append(workButton('↶ Отмена',()=>{
       if(!canWrite())return;session=D.undo(session,manifests);draw();showWork();render();
@@ -1264,7 +1432,7 @@
         option.textContent=page.title+' · '+page.path;pathSelect.append(option);
       }
       pathSelect.value=current().page.path;
-      workSection=current().section.id;workElement=elementId;workFocusPath='';workFormField='';dismissQuick();showWork();
+      workSection=current().section.id;workElement=elementId;workFocusPath='';workFormField='';workGraphNode='';dismissQuick();showWork();
       frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el.dataset.mode===mode));
       render();modal.showModal();
     });
@@ -2030,6 +2198,13 @@
         if(matches(activeAuditFocus.nodeId)){selection=activeAuditFocus.nodeId;auditNodeFocusPending=true;}
         else{activeAuditFocus=null;auditNodeFocusPending=false;}
       }else auditNodeFocusPending=false;
+      const canvasFocus=pendingGraphCanvasFocus;
+      pendingGraphCanvasFocus=null;
+      if(canvasFocus?.pageId===page.id&&canvasFocus.sectionId===section.id&&
+        matches(canvasFocus.nodeId)){
+        selection=canvasFocus.nodeId;
+        mode=canvasFocus.device;previewDevice=canvasFocus.device;
+      }
       undoStack=[];redoStack=[];activeGesture=null;suppressPreviewClick=false;
       title.textContent='Дизайн-композиция · '+(manifest(section)?.label||section.id);
       dlg.showModal();render();

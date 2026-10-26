@@ -276,3 +276,13 @@
 .cms-work-form-current{outline:3px dashed #d7a2f7!important;outline-offset:2px!important}
 .cms-form-row-selected{border-color:#69d7ec!important;box-shadow:0 0 0 2px #69d7ec65}
 @media(max-width:680px){.cms-work-media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Deep selection / direct typed editing of Design Graph nodes in full-page canvas. */
+.cms-work-graph-panel{display:flex;flex-direction:column;gap:9px;border:1px solid #466d81;border-radius:11px;
+  background:#182f3d;padding:12px;margin:7px 0}
+.cms-work-graph-panel>strong{color:#8bdaf1;font-size:13px}
+.cms-work-graph-panel>small{font-size:11px;color:#aac7d5;line-height:1.45}
+.cms-work-graph-panel .cms-work-field{margin:0}
+.cms-work-graph-panel textarea{min-height:65px;resize:vertical}
+.cms-work-graph-panel .control{max-width:100%;min-width:0}
+.cms-work-graph-panel #cms-work-graph-open{margin-top:5px;white-space:normal}
