@@ -18,7 +18,7 @@ final class DesignGraph
         'top','left','opacity','borderColor','borderWidth','textAlign','order','hidden',
         'rowGap','columnGap','paddingX','paddingY','marginTop','marginBottom','widthPercent',
         'minHeight','gridColumnSpan','flexWrap','flexGrow','alignSelf','letterSpacing',
-        'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'];
+        'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'];
     private const ICON_PATHS=[
         'check'=>'<path d="M5 12l4 4L19 6"/>',
         'arrow'=>'<path d="M5 12h14m-6-6 6 6-6 6"/>',
@@ -107,6 +107,13 @@ final class DesignGraph
             if (in_array($key,['color','background','borderColor','outlineColor'],true)){
                 self::resolve($value,'colors',$tokens,$at.'/'.$key);continue;
             }
+            if ($key==='fluidFont'){
+                self::keys($value,['min','max'],$at.'/fluidFont');
+                self::check(self::integer($value['min']??null,10,120)
+                    &&self::integer($value['max']??null,10,120)
+                    &&$value['min']<=$value['max'],$at.' invalid fluid typography');
+                continue;
+            }
             if ($key==='gradient'){
                 self::keys($value,['angle','from','to','via','viaAt'],$at.'/gradient');
                 self::check(self::integer($value['angle']??null,0,360)&&isset($value['from'],$value['to'])
@@ -130,6 +137,7 @@ final class DesignGraph
             if($key==='hidden'){self::check(is_bool($value),$at.' invalid hidden');continue;}
             self::check(false,$at.' invalid '.$key);
         }
+        self::check(!(isset($style['fontSize'])&&isset($style['fluidFont'])),$at.' competing typography controls');
         self::check(!(isset($style['widthPx'])&&isset($style['widthPercent'])),$at.' competing width units');
         self::check(!(isset($style['columns'])&&isset($style['gridColumnsPreset'])),$at.' competing grid template');
     }
@@ -244,6 +252,14 @@ final class DesignGraph
             'radius'=>'border-radius','fontSize'=>'font-size','minHeight'=>'min-height',
             'top'=>'top','left'=>'left','right'=>'right','bottom'=>'bottom','widthPx'=>'width','heightPx'=>'height','minWidth'=>'min-width','maxHeight'=>'max-height'];
         foreach($styles as $key=>$value){
+            if($key==='fluidFont'){
+                $slope=($value['max']-$value['min'])*100/880;
+                $intercept=$value['min']-$slope*3.2;
+                $put('font-size','clamp('.$value['min'].'px,calc('.
+                    number_format($slope,4,'.','').'vw + '.
+                    number_format($intercept,4,'.','').'px),'.$value['max'].'px)');
+                continue;
+            }
             if($key==='gradient'){
                 $put('background-image','linear-gradient('.$value['angle'].'deg,'.
                     self::resolve($value['from'],'colors',$t,$key).','.

@@ -20,7 +20,7 @@ const STYLE_KEYS=['display','columns','direction','align','justify','gap','paddi
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
   'paddingX','paddingY','marginTop','marginBottom','widthPercent','minHeight','gridColumnSpan',
   'flexWrap','flexGrow','alignSelf','letterSpacing','fontFamily','objectFit','aspectRatio',
-  'overflow','shadow','gradient','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'];
+  'overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'];
 const DEFAULT_TOKENS=Object.freeze({
   colors:{foreground:'#182b3d',background:'#ffffff',accent:'#0a5bff',muted:'#667788'},
   spacing:{small:12,medium:24,large:48},
@@ -79,6 +79,12 @@ function validateStyle(style,tokens,at,mode='base'){
     if(mode==='state'&&!['color','background','borderColor','borderWidth','radius','opacity','gradient','outlineColor','outlineWidth'].includes(key))
       fail(at,'unsupported interaction state property');
     if(['color','background','borderColor','outlineColor'].includes(key)){resolve(value,'colors',tokens,at+'/'+key);continue;}
+    if(key==='fluidFont'){
+      keys(value,['min','max'],at+'/fluidFont');
+      if(!number(value.min,10,120)||!number(value.max,10,120)||value.min>value.max)
+        fail(at,'invalid fluid typography');
+      continue;
+    }
     if(key==='gradient'){
       keys(value,['angle','from','to','via','viaAt'],at+'/gradient');
       if(!number(value.angle,0,360)||!own(value,'from')||!own(value,'to')||own(value,'via')!==own(value,'viaAt')||
@@ -97,6 +103,7 @@ function validateStyle(style,tokens,at,mode='base'){
     if(key==='hidden'){if(typeof value!=='boolean')fail(at,key);continue;}
     fail(at,'invalid style '+key);
   }
+  if(own(style,'fontSize')&&own(style,'fluidFont'))fail(at,'competing typography controls');
   if(own(style,'widthPx')&&own(style,'widthPercent'))fail(at,'competing width units');
   if(own(style,'columns')&&own(style,'gridColumnsPreset'))fail(at,'competing grid template');
 }
@@ -274,6 +281,11 @@ function declarations(style,t){
     marginBottom:'margin-bottom',radius:'border-radius',fontSize:'font-size',
     minHeight:'min-height',top:'top',left:'left',right:'right',bottom:'bottom',widthPx:'width',heightPx:'height',minWidth:'min-width',maxHeight:'max-height'};
   for(const [k,v] of Object.entries(style)){
+    if(k==='fluidFont'){
+      const slope=(v.max-v.min)*100/880,intercept=v.min-slope*3.2;
+      put('font-size','clamp('+v.min+'px,calc('+slope.toFixed(4)+'vw + '+intercept.toFixed(4)+'px),'+v.max+'px)');
+      continue;
+    }
     if(k==='gradient'){
       put('background-image','linear-gradient('+v.angle+'deg,'+resolve(v.from,'colors',t,k)+','+(own(v,'via')?resolve(v.via,'colors',t,k)+' '+v.viaAt+'%,':'')+
         resolve(v.to,'colors',t,k)+')');continue;
@@ -374,7 +386,14 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     if(!asset)return '';
     const base=src||mount+asset.src;
     const variants=asset.variants||[];
-    const responsive=src?'':(variants.length?' srcset="'+variants.map(v=>attr(mount+v.src)+' '+v.width+'w').join(', ')+'" sizes="(max-width:600px) 100vw, (max-width:900px) 50vw, 100vw"':'');
+    // Source parity with PHP PublicRenderer::responsiveAttrs: sorted, deduped
+    // responsive derivatives and the unmodified original at its own width.
+    const candidates=new Map(variants.map(v=>[v.width,mount+v.src]));
+    if(Number.isInteger(asset.width)&&asset.width>0&&!candidates.has(asset.width))
+      candidates.set(asset.width,mount+asset.src);
+    const responsive=src?'':(variants.length?' srcset="'+
+      [...candidates.entries()].sort((a,b)=>a[0]-b[0]).map(([w,url])=>attr(url)+' '+w+'w').join(', ')+
+      '" sizes="(max-width:600px) 100vw, (max-width:900px) 50vw, 100vw"':'');
     const dimensions=Number.isInteger(asset.width)&&Number.isInteger(asset.height)&&
       asset.width>=1&&asset.width<=4096&&asset.height>=1&&asset.height<=4096?
       ' width="'+asset.width+'" height="'+asset.height+'"':'';
