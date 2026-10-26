@@ -1,8 +1,9 @@
 ## Последнее обновление — 26 октября 2026
 
-- Ветка: `feature/stage3-design-factory`; текущий source checkpoint: `c61eaa270902cd019b10417f25fe55c3a60d0981`. Перед началом всегда проверь live HEAD.
+- Ветка: `feature/stage3-design-factory`; текущий source checkpoint: `072baf1f4aa23e9e6cffb2bffa6bbfbe2fbbbf4d`. Перед началом всегда проверь live HEAD.
 - Сохранена приёмка visual-review **v2**: отдельная проверка `showcaseCoverage`, просмотр всех 42 D3-композиций; старые v1 receipts отклоняются.
 - **Исправлена полнота D7-инвентаризации** (`c61eaa270902cd019b10417f25fe55c3a60d0981`): папка `handoffs/` входит в ZIP и теперь также входит в source manifest; проверка сравнивает весь список файлов, а контрактный тест проверяет отклонение изменённого документа передачи.
+- `release-candidate.cjs` отделяет некорректный audit report от корректного отчёта с проваленными проверками; сводные флаги сверяются с результатами отдельных проверок, а дрейф исходников оценивается независимо.
 - Создан единый D7 Release Candidate Pipeline. `release-audit.cjs` выполняет browser-bundle parity + **8 Node suites**; с `--chromium` добавляет visual-pipeline smoke.
 - `release-candidate.cjs` запускает audit, собирает ZIP, независимо сверяет central/local headers, CRC32, полный source inventory/bytes и SHA256; опционально выполняет Chromium capture, review v2, Lead JS smoke и шесть PHP markup-parity probes.
 - Fingerprint связывает все code files в `bin/catalog/lib/studio`, все component JSON manifests и SDK contract. Старая визуальная приёмка отклоняется при изменении исходников; symlink-каталоги скриншотов запрещены.

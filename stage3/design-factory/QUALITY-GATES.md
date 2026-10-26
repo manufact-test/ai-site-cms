@@ -4,11 +4,12 @@
 
 ## Latest D7 release-candidate hardening — 26 October 2026
 
-**Current source checkpoint:** `c61eaa270902cd019b10417f25fe55c3a60d0981`. Always read live HEAD before continuing. This is an engineering checkpoint, not a release certificate.
+**Current source checkpoint:** `072baf1f4aa23e9e6cffb2bffa6bbfbe2fbbbf4d`. Always read live HEAD before continuing. This is an engineering checkpoint, not a release certificate.
 
 - Preserved visual-review receipt **v2**: the reviewer must inspect all 42 D3 compositions and confirm the fifth `showcaseCoverage` check. Old v1 receipts are rejected.
 - Added `lib/source-manifest.cjs` so the release audit and candidate runner use the same deterministic source-inventory rules. The runner validates the exact expected audit schema and check list, recomputes the source-manifest digest, and rejects added, removed or modified source files between audit and packaging.
 - **Complete packaged-file inventory fix (`c61eaa270902cd019b10417f25fe55c3a60d0981`):** `handoffs/` was included in the ZIP but excluded from the audit manifest. The manifest now includes every packaged file; the audit compares all start/end entries; the candidate requires `sourceManifest.length === fileCount` and the expected source directory. The contract smoke mutates a handoff digest and requires the candidate to reject it.
+- **Audit-report semantics hardening (`072baf1f4aa23e9e6cffb2bffa6bbfbe2fbbbf4d`):** the candidate validates report structure and summary flags separately from gate outcomes. A well-formed report with failed checks remains a valid failure report; source-manifest equality is evaluated independently, so an ordinary test failure is not mislabeled as source drift.
 - `bin/release-audit.cjs` now performs **browser-bundle parity plus eight Node smoke suites**, then reruns the source inventory for a final stability gate. With `--chromium`, it also runs the dedicated visual-pipeline smoke. The versioned audit report is v2: 10 checks without Chromium, 11 with Chromium.
 - `bin/release-candidate.cjs` orchestrates the audit, ZIP build, independent ZIP verification, optional Chromium screenshots, v2 human-review receipt, optional Lead JS smoke and six real PHP parity probes. It records before/after Git state and rejects a changed source fingerprint.
 - `bin/verify-release-zip.cjs` independently checks ZIP32 local/central records, CRC32, canonical sorted inventory, exact source bytes, source digest and archive SHA256. A ZIP can be built for engineering review while release gates remain open.
@@ -26,7 +27,7 @@ The output directory must not already exist. Add `--chromium /usr/bin/chromium` 
 
 Exit code **3** means the core audit and exact-source ZIP are ready for engineering review but at least one release gate remains open. Exit code **0** requires every configured gate; it still does not authorize production or merge. Exit code **2** indicates a failed/incomplete core gate or an invalid candidate.
 
-**Verification boundary for source checkpoint `c61eaa270902cd019b10417f25fe55c3a60d0981`:** isolated V8 syntax parsing and source-level regression assertions **PASS** for the four changed JavaScript files. Full Node audit/candidate smoke, Chromium Studio E2E, real 54-image capture/review, Lead PHP parity and actual ZIP/hash remain **NOT RUN**: GitHub DNS resolution still blocks a checkout. GitHub API for this source checkpoint: **0 Actions runs, 0 check runs, 0 commit statuses**. This is not a full Node suite pass.
+**Verification boundary for source checkpoint `072baf1f4aa23e9e6cffb2bffa6bbfbe2fbbbf4d`:** isolated V8 syntax parsing and source-level regression assertions **PASS** for the four changed JavaScript files. Full Node audit/candidate smoke, Chromium Studio E2E, real 54-image capture/review, Lead PHP parity and actual ZIP/hash remain **NOT RUN**: GitHub DNS resolution still blocks a checkout. GitHub API for this source checkpoint: **0 Actions runs, 0 check runs, 0 commit statuses**. This is not a full Node suite pass.
 
 **Decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; **0/135** mandatory criteria. Do not modify workflows, merge, or infer acceptance from authored tests.
 
