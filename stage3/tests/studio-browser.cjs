@@ -43,16 +43,16 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#pages .nav-entry').count(),2,'Preview never creates pages');
     await page.locator('#cms-blueprint-apply').click();
     assert.equal(await page.locator('#pages .nav-entry').count(),3);
-    const assembled=await page.evaluate(()=>window.Stage3Editor.getSite());
-    const built=assembled.pages.find(p=>p.path==='/metal/');
-    assert.ok(built&&built.sections.length===5);
-    assert.equal(built.sections[0].elements.find(e=>e.slot==='heading').values['content.text'],
+    const pageBuilderSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+    const pageBuilderPage=pageBuilderSite.pages.find(p=>p.path==='/metal/');
+    assert.ok(pageBuilderPage&&pageBuilderPage.sections.length===5);
+    assert.equal(pageBuilderPage.sections[0].elements.find(e=>e.slot==='heading').values['content.text'],
       'Обработка металла под заказ');
-    assert.deepEqual(built.sections.find(s=>s.component==='service-grid').items.map(x=>
+    assert.deepEqual(pageBuilderPage.sections.find(s=>s.component==='service-grid').items.map(x=>
       x.values['content.title']),['Резка металла','Гибка металла','Сварка']);
-    const form=built.sections.find(s=>s.component==='lead-form-flex');
-    assert.equal(built.sections[0].elements.find(e=>e.slot==='action').values['behavior.href'],
-      '/metal/#'+form.id);
+    const pageBuilderForm=pageBuilderPage.sections.find(s=>s.component==='lead-form-flex');
+    assert.equal(pageBuilderPage.sections[0].elements.find(e=>e.slot==='action').values['behavior.href'],
+      '/metal/#'+pageBuilderForm.id);
     await page.locator('#undo').click();
     assert.equal(await page.locator('#pages .nav-entry').count(),2,'Whole page is one Undo');
     await page.locator('#redo').click();
