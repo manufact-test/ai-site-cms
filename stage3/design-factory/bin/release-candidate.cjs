@@ -306,8 +306,8 @@ function execute(opts){
   console.log(JSON.stringify({format:result.format,git:result.git,
    node:result.node.status,bundleParity:result.bundleParity.status,
    chromium:result.chromium.status,visualCapture:result.visualCapture.status,
-   visuals:result.visualReview.status,leadGraph:result.leadGraph.status,
-   php:result.leadPhpParity.status,zip:result.zip.status,
+   visuals:result.visualReview.status,leadInputs:result.leadInputs.status,
+   leadGraph:result.leadGraph.status,php:result.leadPhpParity.status,zip:result.zip.status,
    zipSha256:result.zip.sha256||null,leadReviewReady:result.gate.readyForLeadReview,
    report:reportPath,productionReady:false,error:result.error||null},null,2));
  }

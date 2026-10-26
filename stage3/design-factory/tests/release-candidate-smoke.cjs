@@ -23,6 +23,7 @@ try{
  assert.equal(report.renderSourceSha256,sourceFingerprint(path.resolve(__dirname,'../../..')));
  assert.equal(report.node.status,'pass');
  assert.equal(report.leadInputs.status,'not-configured');
+ assert.match(cmd.stdout,/"leadInputs": "not-configured"/);
  assert.equal(report.node.suites,8,'Exactly eight stable Node suites must run');
  assert.equal(report.node.checks,10,'Bundle parity + eight suites + final source stability');
  assert.equal(report.bundleParity.status,'pass');
