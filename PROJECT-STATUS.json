@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-26",
-  "status": "stage2-no-go-stage3-isolated-v1.71-main-graph-canvas-known-ci-failure-handoff",
+  "status": "stage2-no-go-stage3-isolated-v1.72-main-complete-page-and-site-fill",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.71-2026-10-26.md",
-  "latest_source_sha": "f366592db0267faaabfd5b01e7aa6f4f87e02ef4",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40374870144",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.72-2026-10-26.md",
+  "latest_source_sha": "95a9f36759e7feabe435c4733181a73ff70866d9",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925",
   "source_offweb_ci": null,
-  "source_ci_result": "FAILED: functional f366592db0267faaabfd5b01e7aa6f4f87e02ef4, Actions #40374870144; docs-only HEAD 59a8f038615e26afcd36951bda6392352e92e80a, Actions #40375523554 also FAILED at hosted-browser.cjs:863 waiting for clean draft ('Без изменений') after Save; first published guard was disabled. Previous last full SUCCESS functional ac483807cc2f2ac302f6fed3470cac4cfb795896, Actions #40346327511. NOT Stage3 acceptance.",
+  "source_ci_result": "Final functional source SHA 95a9f36759e7feabe435c4733181a73ff70866d9; Actions #40395814925 was still running while documentation was prepared: verify final conclusion/head_sha. Previous exact source 26849690f6090769d9c133e0350a2cf384983cd9 CI #40394085865 SUCCESS. No acceptance or deployment implied.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly, then fix issues from real use; never get stuck testing existing lab",
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "f366592db0267faaabfd5b01e7aa6f4f87e02ef4",
+    "stage3_code_sha": "95a9f36759e7feabe435c4733181a73ff70866d9",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -52,11 +52,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "MAIN: check latest HEAD/CI, diagnose Stage3 hosted save dirty baseline vs server normalized revision (#40375523554 failure at hosted-browser.cjs:863) in one target fix, keep publish guard intact, rerun one full CI, then major site composition workflow. Do not touch independent Design Factory/main/production; Stage2 NO-GO #5-#9.",
+  "next_step": "Lead: read v1.72 handoff, verify actual branch HEAD + Actions for both source and docs, then take ONE large end-to-end user-facing block for launch completeness: identify unfinished copy/media/forms -> direct correction -> multipage review -> Save -> explicit Publish, no duplicate builder, no factory branch changes; Stage2 stays NO-GO #5-#9.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.71",
+  "checkpoint_version": "1.72",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -656,7 +656,7 @@
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.52",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.70-2026-10-26.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.72-2026-10-26.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -677,7 +677,7 @@
       "scope": "Research, license/host analysis, 135-ID reuse matrix and option A preference accepted through owner-delegated technical choice. No product features accepted."
     }
   ],
-  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.70-2026-10-26.md",
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.72-2026-10-26.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
@@ -1225,8 +1225,8 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.71",
-  "last_docs_handoff_note": "Owner-requested final checkpoint with exact RED final CI, next-chat message and stage estimates. New nested graph canvas feature committed but hosted save/publish E2E remains failing; no green claim. Stage2 technical 85-90%, gates 5-9; Stage3 unofficial core estimate 65-75%, formally 0/135.",
+  "last_docs_handoff_version": "1.72",
+  "last_docs_handoff_note": "Owner-requested main-lead handoff after major three green/under-verification product blocks: nested typed Graph studio, multipage review with live snapshot comparison, whole-page assembly, and site-wide verified copy intake. CI for 95a9f367 #40395814925 must be checked before declaring final SUCCESS. Neither Stage2 gates nor formal Stage3 criteria accepted.",
   "latest_tested_code_sha": "ac483807cc2f2ac302f6fed3470cac4cfb795896",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
@@ -1393,7 +1393,7 @@
   },
   "main_branch": "main",
   "main_last_verified_sha": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
-  "stage3_source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40285158586",
+  "stage3_source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925",
   "stage3_studio_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/40204138704/artifacts/12603301098",
   "stage3_screens_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/40204138704/artifacts/12603415800",
   "stage3_parallel": {
@@ -1758,5 +1758,26 @@
   "latest_known_failed_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40375523554",
   "latest_confirmed_successful_functional_sha": "ac483807cc2f2ac302f6fed3470cac4cfb795896",
   "latest_confirmed_successful_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40346327511",
-  "stage3_engineering_estimate": "Approximate subjective core-editor estimate 65-75% done, 25-35% engineering left; NOT mapped to 135 required or formal stage acceptance. Full formal accepted mandatory count remains 0/135."
+  "stage3_engineering_estimate": "Approximate subjective core-editor progress 70-80%, not a verified acceptance fraction; all 135 required Stage3 items still require formal owner acceptance (0/135).",
+  "stage3_v1_72_checkpoint": {
+    "date": "2026-10-26",
+    "branch": "feature/stage3-ai-site-contract",
+    "source_sha": "95a9f36759e7feabe435c4733181a73ff70866d9",
+    "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925",
+    "ci_status_when_handoff_prepared": "IN_PROGRESS — check final SHA/conclusion on GitHub, not assumed SUCCESS",
+    "verified_previous_success_sha": "26849690f6090769d9c133e0350a2cf384983cd9",
+    "verified_previous_success_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40394085865",
+    "delivered": [
+      "Full-page nested typed Design Graph editing with order, media, Undo/Redo",
+      "Authenticated immutable public-site read-only comparison in Launch Review without relaxing frame-ancestors security",
+      "Six-scenario full-page assembly inside existing site with repeaters, anchor links, responsive preview and one Undo",
+      "Whole-site verified-content pass: multi-page copy, services, feature facts, CTA, SEO, safeguards for manual edits and one Undo"
+    ],
+    "safety": "No main merge, deploy, production, live external delivery or Factory integration",
+    "stage2": "NO-GO gates 5-9",
+    "stage3_formal_accepted_required": 0,
+    "stage3_total_required": 135,
+    "engineering_core_editor_estimate": "Approx 70-80% SUBJECTIVE; not mapped to acceptance requirements",
+    "next": "Large unified publish-readiness experience, existing full CI plus one critical real-browser scenario"
+  }
 }
