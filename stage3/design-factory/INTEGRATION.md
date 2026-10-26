@@ -1,5 +1,14 @@
 # Design Factory — D6 Integration Bridge
 
+## 26 October — optional visual selection workflow
+
+Functional checkpoint: ea4b4751d67bdaf0a8fac62d1c9b6058257a3b3c. Studio now has three connected capabilities: (1) live side-by-side previews of two different theme directions on the same owner data, page and device width; (2) explicit adoption of the compared theme through validated project mutation, undo/redo and automatic owner-review revocation, with prior theme retained as reference; (3) an overview of all four actual current-site pages in separate sandboxed 390px mobile iframes, each opening directly in the regular viewer. Full-screen focused workspace makes side-by-side comparisons useful; presentation-only actions never mutate project, site-v1 JSON, or D6 export. Alternate compilation clones the project. Existing local CSS/CSP, safe iframe sandbox and allowlisted page navigation are preserved. No Lead SDK/PHP/main/production changes.
+
+Verification: modified JavaScript and authored smoke syntax parse in isolated V8 PASS; actual Studio JS with mocked DOM/compiler successfully exercised theme comparison, alternate selection, Apply/Undo/Redo, owner-review reset and four distinct pages + navigation. NOT a real Chromium or checked-out Node run. Fresh checkout retry: github.com DNS resolution failed. Full release audit, optional Lead PHP parity (0 probes), 54 actual PNG/human signoff and real ZIP/CRC/SHA256 remain NOT RUN. D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135.
+
+Lead owns actual PHP visual parity, user authorization, version locks, media rights and publish confirmation. The Design Factory review workbench does not add any unknown properties to `manufact-ai-site-v1` or turn preview-only CSS into supported PHP renderer capabilities. The explicit theme adoption is ordinary project editing, not an integration approval.
+
+
 ## Lead verification requirement — image-integrity hardening
 
 **26 October 2026 · D7 PNG integrity functional checkpoint:** `7810e6bee98b4a6d5509bf02a52024edc52ea843`.
