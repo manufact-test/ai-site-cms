@@ -2864,16 +2864,16 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         destination.append(option);
       }
       destination.value=session.current.pages.find(p=>p.id!==page.id)?.id||page.id;
-      const position=document.createElement('select');position.className='control';position.id='cms-work-position';
+      const placementSelect=document.createElement('select');placementSelect.className='control';placementSelect.id='cms-work-position';
       const drawTargets=()=>{
-        position.replaceChildren();
+        placementSelect.replaceChildren();
         const end=document.createElement('option');end.value='';end.textContent='В конец страницы';
-        position.append(end);
+        placementSelect.append(end);
         const target=session.current.pages.find(p=>p.id===destination.value);
         for(const sectionTarget of target?.sections||[]){
           const option=document.createElement('option');option.value=sectionTarget.id;
           option.textContent='Перед: '+(manifest(sectionTarget)?.label||sectionTarget.component);
-          position.append(option);
+          placementSelect.append(option);
         }
       };
       destination.addEventListener('change',drawTargets);drawTargets();
@@ -2882,8 +2882,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const sectionId=section.id;
         const id=modeValue==='copy'?uniqueId('section'):sectionId;
         structureWork({action:'placeSection',mode:modeValue,pageId:page.id,
-          sectionId,toPageId:target.id,targetSectionId:position.value||undefined,
-          side:position.value?'before':'end',...(modeValue==='copy'?{id}:{})});
+          sectionId,toPageId:target.id,targetSectionId:placementSelect.value||undefined,
+          side:placementSelect.value?'before':'end',...(modeValue==='copy'?{id}:{})});
         if(target.sections.some(s=>s.id===id)||session.current.pages
           .find(p=>p.id===target.id)?.sections.some(s=>s.id===id)){
           const actual=session.current.pages.find(p=>p.id===target.id);
@@ -2897,7 +2897,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const move=workButton('Перенести',()=>place('move'));
       move.disabled=page.sections.length===1||!canWrite();
       ops.append(move,workButton('Скопировать',()=>place('copy')));
-      cross.append(crossCaption,destination,position,ops);
+      cross.append(crossCaption,destination,placementSelect,ops);
       workAdd.append(cross);
       for(const b of workPanel.querySelectorAll('[data-editor-write]'))b.disabled ||= !canWrite();
     }
