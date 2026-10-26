@@ -6,6 +6,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const cp=require('node:child_process'),crypto=require('node:crypto');
 const {verify}=require('../bin/verify-release-zip.cjs');
+const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'df-release-pipeline-'));
 const target=path.join(dir,'candidate');
@@ -18,6 +19,7 @@ try{
  const audit=JSON.parse(fs.readFileSync(path.join(target,'node-audit.json'),'utf8'));
  assert.equal(audit.nodePassed,true,'Real seven-suite checkout audit must pass');
  assert.equal(report.format,'manufact-design-factory-release-candidate-v1');
+ assert.equal(report.renderSourceSha256,sourceFingerprint(path.resolve(__dirname,'../../..')));
  assert.equal(report.node.status,'pass');
  assert.equal(report.zip.status,'pass');
  assert.equal(report.gate.node,true);

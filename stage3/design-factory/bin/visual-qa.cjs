@@ -9,6 +9,7 @@ const {resolveOutsideRepository}=require('../lib/output-path.cjs');
 const {openBrowser}=require('../lib/chromium-pipe.cjs');
 const {evidenceHash}=require('../lib/visual-review.cjs');
 const {reviewHtml}=require('../lib/visual-review-ui.cjs');
+const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
 const {FORMAT,THEMES,KITS,compile}=require('../lib/compiler.cjs');
 const {writePreview}=require('../lib/preview.cjs');
 const {writeShowcase}=require('../lib/showcase.cjs');
@@ -68,7 +69,8 @@ async function run(options){
  const expected=expectedFiles(options.quick);
  const report={format:'manufact-design-factory-visual-evidence-v1',version:1,
   viewports:VIEWPORTS,quick:options.quick,expectedImages:expected.length,matrixComplete:false,
-  images:[],errors:[],humanVisualAcceptance:'pending'};
+  images:[],errors:[],humanVisualAcceptance:'pending',
+  renderSourceSha256:sourceFingerprint(REPO)};
 
  let browser=null;
  async function screenshot(url,filename,view){
@@ -132,6 +134,10 @@ async function run(options){
    ' unique viewport-matched images; got '+matrix.actualCount+' ('+matrix.missing.length+
    ' missing, '+matrix.unexpected.length+' unexpected, '+matrix.duplicates+' duplicate, '+
    matrix.dimensionMismatches+' dimension mismatches).');
+  try{
+   if(report.renderSourceSha256!==sourceFingerprint(REPO))
+    report.errors.push('Renderer/Studio/CMS source changed during screenshot capture');
+  }catch(error){report.errors.push('Render source fingerprint failed: '+error.message);}
   report.captureCompleted=matrix.complete&&report.errors.length===0;
   report.evidenceSha256=evidenceHash(report);
   if(!report.captureCompleted)process.exitCode=2;

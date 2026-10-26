@@ -16,6 +16,7 @@ function evidenceHash(report){
  }));
  return sha(Buffer.from(JSON.stringify({
   format:report.format,version:report.version,quick:report.quick,
+  renderSourceSha256:report.renderSourceSha256,
   expectedImages:report.expectedImages,images:rows
  })));
 }
@@ -35,6 +36,8 @@ function checkEvidence(directory,report){
   report.matrixComplete!==true||report.captureCompleted!==true||
   !Array.isArray(report.errors)||report.errors.length!==0)
   throw Error('Full 54-image complete, error-free evidence is required');
+ if(!SHA.test(report.renderSourceSha256||''))
+  throw Error('Missing renderer/CMS source fingerprint in visual evidence');
  const {expectedFiles}=require('../bin/visual-qa.cjs');
  const expected=expectedFiles(false).sort();
  const received=report.images.map(x=>x.file).sort();

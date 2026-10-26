@@ -7,6 +7,7 @@ const crypto=require('node:crypto'),zlib=require('node:zlib'),cp=require('node:c
 const {evidenceHash,verify,ACTIVITIES}=require('../lib/visual-review.cjs');
 const {reviewHtml}=require('../lib/visual-review-ui.cjs');
 const {expectedFiles}=require('../bin/visual-qa.cjs');
+const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const TABLE=Uint32Array.from({length:256},(_,i)=>{
  let c=i;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;return c>>>0;
@@ -46,7 +47,8 @@ try{
  });
  const report={format:'manufact-design-factory-visual-evidence-v1',version:1,
   expectedImages:54,images,matrixComplete:true,captureCompleted:true,
-  errors:[],humanVisualAcceptance:'pending',quick:false};
+  errors:[],humanVisualAcceptance:'pending',quick:false,
+  renderSourceSha256:sourceFingerprint(path.resolve(__dirname,'../../..'))};
  report.evidenceSha256=evidenceHash(report);
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
  const approved={format:'manufact-design-factory-visual-review-v1',version:1,
@@ -65,6 +67,11 @@ try{
  assert.ok(output.includes('visual-review-decision.json'));
  const reject=(modified,pattern)=>assert.throws(()=>verify(dir,modified),pattern);
  reject({...approved,evidenceSha256:'0'.repeat(64)},/does not match/);
+ const missingSource={...report,renderSourceSha256:null};
+ missingSource.evidenceSha256=evidenceHash(missingSource);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(missingSource));
+ reject({...approved,evidenceSha256:missingSource.evidenceSha256},/Missing renderer\/CMS source fingerprint/);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
  reject({...approved,images:approved.images.slice(1)},/Every screenshot/);
  reject({...approved,images:[...approved.images.slice(0,-1),approved.images[0]]},/Duplicate/);
  reject({...approved,manualChecks:{...approved.manualChecks,keyboardAndTouch:false}},/four independent/);

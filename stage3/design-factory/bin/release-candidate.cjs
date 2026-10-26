@@ -7,6 +7,7 @@ const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_pro
 const {resolveOutsideRepository}=require('../lib/output-path.cjs');
 const {verify:verifyZip}=require('./verify-release-zip.cjs');
 const {verify:verifyVisual}=require('../lib/visual-review.cjs');
+const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
 const ROOT=path.resolve(__dirname,'..'),REPO=path.resolve(ROOT,'../..');
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 function options(args){
@@ -61,6 +62,7 @@ function execute(opts){
   generatedAt:new Date().toISOString(),repository:'manufact-test/ai-site-cms',
   independentBranch:'feature/stage3-design-factory',
   sourceDirectory:'stage3/design-factory/',
+  renderSourceSha256:sourceFingerprint(REPO),
   git:gitState(),node:{status:'not-run'},chromium:{status:'not-run'},
   visualCapture:{status:'not-run'},visualReview:{status:'not-run'},
   leadPhpParity:{status:'not-run'},zip:{status:'not-run'},
@@ -107,6 +109,8 @@ function execute(opts){
   if(opts.review&&opts.evidence){
    try{
     const review=JSON.parse(fs.readFileSync(path.resolve(opts.review),'utf8'));
+    const metadata=JSON.parse(fs.readFileSync(path.join(path.resolve(opts.evidence),'visual-evidence.json'),'utf8'));
+    if(metadata.renderSourceSha256!==sourceFingerprint(REPO))throw Error('Old visual evidence does not match this source');
     const receipt=verifyVisual(path.resolve(opts.evidence),review);
     result.visualReview={status:'pass',screenshots:receipt.screenshotsVerified,
      evidenceSha256:receipt.evidenceSha256,receiptSha256:sha(fs.readFileSync(path.resolve(opts.review))),
@@ -142,6 +146,11 @@ function execute(opts){
     result.gate.sourceExact=checked.sourceExactMatch&&checked.crcVerified&&stable;
    }catch(e){result.zip={status:'fail',error:String(e.message)};}
   }else result.zip={status:'fail',error:build.error||build.stderr.slice(-1000)};
+  if(result.renderSourceSha256!==sourceFingerprint(REPO)){
+   result.gate.fullVisualMatrix=false;
+   result.gate.sourceExact=false;
+   result.error='Design Factory sources changed during audit';
+  }
   result.gate.gitVerified=Boolean(result.git.head&&result.git.ownerBranch&&result.git.clean);
   result.gate.readyForLeadReview=[
    'node','chromium','fullVisualMatrix','phpParity','sourceExact','gitVerified'
