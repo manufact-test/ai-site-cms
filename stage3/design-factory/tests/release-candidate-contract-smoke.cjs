@@ -33,6 +33,7 @@ try{
   ['missing suite',x=>x.checks.pop()],
   ['duplicate/wrong suite',x=>{x.checks[1].suite=x.checks[0].suite;}],
   ['failed check',x=>{x.checks[0].passed=false;}],
+  ['contradictory exit code',x=>{x.checks[0].exitCode=2;}],
   ['wrong source digest',x=>{x.sourceManifestSha256='0'.repeat(64);}],
   ['false release-ready claim',x=>{x.releaseReady=true;}],
   ['wrong browser request',x=>{x.browserRequested=true;}],

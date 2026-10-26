@@ -63,7 +63,8 @@ function auditReportIsValid(audit,chromiumRequested=false){
   manifestDigest(audit.sourceManifest)!==audit.sourceManifestSha256)return false;
  const checks=audit.checks;
  if(JSON.stringify(checks.map(x=>x&&x.suite))!==JSON.stringify(expectedAuditChecks(chromiumRequested))||
-  checks.some(x=>!x||x.passed!==true))return false;
+  checks.some(x=>!x||x.passed!==true||
+   (x.suite!=='source-inventory-stability'&&x.exitCode!==0)||x.error!=null))return false;
  const seen=new Set();
  for(const item of audit.sourceManifest){
   if(!item||typeof item.path!=='string'||item.path.startsWith('/')||item.path.includes('\\')||
@@ -124,7 +125,7 @@ function execute(opts){
   if(fs.existsSync(auditFile)){
    try{audit=JSON.parse(fs.readFileSync(auditFile,'utf8'));}catch{}
   }
-  const auditValid=auditReportIsValid(audit,Boolean(opts.chromium));
+  const auditValid=auditReportIsValid(audit,Boolean(opts.chromium))&&localAuditStillMatches(audit);
   const failedChecks=Array.isArray(audit?.checks)?audit.checks.filter(x=>x?.passed!==true).map(x=>x?.suite||'unknown').join(', '):'missing/invalid audit report';
   result.node={status:auditValid?'pass':'fail',
    suites:audit?.checks?.filter(x=>x?.suite!=='build-browser-bundle --check'&&x?.suite!=='source-inventory-stability').length||0,
