@@ -851,6 +851,11 @@ async function stop(){
   for(const field of [...graphSection.elements,...(graphSection.items||[])])
     if(field.values&&Object.hasOwn(field.values,'content.media'))field.values['content.media']='';
   graphSection.designGraph=graphSdk.baseGraph(graphSection.id);
+  // The PHP visitor renderer must honor the exact fluid typography rule
+  // already exercised in the editor and typed JS contract.
+  const richHeading=graphSection.designGraph.nodes[0].children[0];
+  delete richHeading.styles.fontSize;
+  richHeading.styles.fluidFont={min:30,max:72};
   graphSection.designGraph.nodes[0].children.push({
     id:'graph-social-image',type:'image',assetId:picture.id,alt:picture.alt,styles:{}
   });
@@ -863,6 +868,8 @@ async function stop(){
   const richVisitor=(await request('GET','/published/site-rich-ci/')).body;
   const graphSocialVisitor=await request('GET','/published/site-rich-ci/graph-social/');
   assert.equal(graphSocialVisitor.status,200,'Graph-only image page publishes normally');
+  assert.match(graphSocialVisitor.body,/font-size:clamp\(30px,calc\(4\.7727vw \+ 14\.7273px\),72px\)/,
+    'Real PHP publication must match browser fluid typography interpolation');
   assert.ok(graphSocialVisitor.body.includes('<meta property="og:image" content="'+origin+'/published/site-rich-ci/assets/'+picture.id+'.png">'),
     'Automatic Open Graph fallback must find nested Design Graph images');
   assert.ok(graphSocialVisitor.body.includes('<meta name="twitter:image" content="'+origin+'/published/site-rich-ci/assets/'+picture.id+'.png">'),
