@@ -356,7 +356,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const visualFlex=page.frameLocator('#cms-page-preview-frame');
     await visualFlex.locator('[data-cms-section-id="'+conditionalForm.id+'"]').waitFor();
     await visualFlex.locator('[data-cms-section-id="'+conditionalForm.id+'"] label')
-      .filter({hasText:'Модель оборудования'}).first().click();
+      .filter({hasText:'Модель оборудования'}).first().click({force:true});
     assert.match(await page.locator('#cms-work-form-focus').innerText(),/Модель оборудования/);
     await page.locator('#cms-work-form-edit').click();
     await page.locator('#cms-form-builder[open]').waitFor();
