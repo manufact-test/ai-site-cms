@@ -1,5 +1,18 @@
 ## Последнее обновление — 26 октября 2026
 
+## 26.10.2026 — новая контрольная точка Design Factory
+
+**Функциональный SHA:** `509a00fb937c0a14443c81b65daa22cffacb2d02`. После коммита документов HEAD станет новее: обязательно спросить live HEAD ветки `feature/stage3-design-factory`.
+
+Выполнен крупный продуктовый блок — **скачивание готового четырёхстраничного HTML-прототипа прямо из Studio одной кнопкой**. В ZIP входят реальные связанные `index.html`, `services/index.html`, `approach/index.html`, `contact/index.html`, локальный CSS, README и preview-info (всего 7 файлов). Тема, выбранная D3-композиция и тексты проекта берутся из текущего компилятора. Все страницы сохраняют `noindex` независимо от owner review. HTML-прототип предназначен для согласования, **не подменяет** настоящий CMS JSON/PHP renderer, D6 export, авторизацию или публикацию.
+
+Создан `studio/preview-zip.js`: встроенный ZIP32-упаковщик без сторонних зависимостей с точным allowlist путей, размерами/лимитами, CRC32, центральным и локальным каталогом и внутренней проверкой перед скачиванием. Обновлены `studio/index.html`, `studio/studio.js`, `studio/studio.css`, `tests/studio-smoke.cjs`; тесты Node/Chromium описаны в коде.
+
+**Реальные проверки:** V8 source syntax и изолированные вызовы архиватора/инспектора прошли; пробный ZIP распакован стандартным Python zipfile — 7/7 файлов, CRC OK, кириллица и Unicode OK. Реальный `studio.js` исполнялся в mock-DOM со mock compiler: скачивание и ZIP-проверка прошли, проект не менялся. Это не полный Node/Chromium checkout. `github.com` DNS в executor всё ещё не работает. Полный Node audit, 54 скриншота с ручной приёмкой, Chromium E2E, PHP parity (0 probes), релизный ZIP/CRC/SHA256 **не выполнялись**.
+
+**Статус:** D7 OPEN / Stage2 NO-GO / Stage3 не принят / 0/135. В новом чате сначала читай текущий HEAD и документы, затем берись за большой целостный блок. Разрешены изменения строго в `stage3/design-factory/`, запрещено изменять main/Lead SDK/PHP/основную Studio, CI/workflows, hosting/production и делать merge.
+
+
 ## Передача — 26.10.2026 · большой блок Studio
 
 **Функциональный commit:** ea4b4751d67bdaf0a8fac62d1c9b6058257a3b3c. Перед работой получи свежий HEAD (документация записана отдельно).
