@@ -4,20 +4,32 @@
 **Branch:** `feature/stage3-design-factory`  
 **Writable scope:** ONLY `stage3/design-factory/`. No main/lead edits, hosting, production, workflows, SDK, PHP or Studio-main changes.
 
-## Latest D7 review-gate hardening — 26 October 2026
+## Latest D7 release-candidate hardening — 26 October 2026
 
-Source commit: `7acac88cc8b0deda4e5938aa0ffc4d63552db4a1`. The visual-review workflow now makes D3 showcase coverage explicit. The review page links directly to `showcase/index.html`, asks the reviewer to scroll through all 42 compositions, and requires a fifth `showcaseCoverage` attestation. The receipt schema is `manufact-design-factory-visual-review-v2`; old v1 receipts are rejected rather than silently accepted without this gate. The 54-image matrix is unchanged: its three showcase PNGs are viewport snapshots, not proof that all 42 cards were seen.
+**Current source checkpoint:** \`a66e323ce8ddda97b10d64f18fc0ebac601b3ebf\`. Always read live HEAD before continuing. This is an engineering checkpoint, not a release certificate.
 
-Isolated V8 syntax parsing and source-level regression assertions for the changed reviewer, UI and smoke-test files **PASS**. These are not a real Node checkout or execution of the full smoke suite.
+- Preserved visual-review receipt **v2**: the reviewer must inspect all 42 D3 compositions and confirm the fifth \`showcaseCoverage\` check. Old v1 receipts are rejected.
+- Added \`lib/source-manifest.cjs\` so the release audit and candidate runner use the same deterministic source-inventory rules. The runner validates the exact expected audit schema and check list, recomputes the source-manifest digest, and rejects added, removed or modified source files between audit and packaging.
+- \`bin/release-audit.cjs\` now performs **browser-bundle parity plus eight Node smoke suites**. With \`--chromium\`, it also runs the dedicated visual-pipeline smoke. The bundle check is read-only.
+- \`bin/release-candidate.cjs\` orchestrates the audit, ZIP build, independent ZIP verification, optional Chromium screenshots, v2 human-review receipt, optional Lead JS smoke and six real PHP parity probes. It records before/after Git state and rejects a changed source fingerprint.
+- \`bin/verify-release-zip.cjs\` independently checks ZIP32 local/central records, CRC32, canonical sorted inventory, exact source bytes, source digest and archive SHA256. A ZIP can be built for engineering review while release gates remain open.
+- The visual-source fingerprint covers the Design Factory \`bin/\`, \`catalog/\`, \`lib/\`, \`studio/\`, every first-party component JSON manifest and the SDK contract. Review verification rejects symlinked evidence roots and screenshot directories.
+- Added \`tests/release-candidate-contract-smoke.cjs\` to the standard audit. The separate \`tests/release-candidate-smoke.cjs\` exercises the whole runner on a real checkout and is intentionally not nested inside its own audit.
 
-**Fresh environment attempt at audit-start HEAD `9589595157f8712d3d80b8c89eb5162a10027b67`:**
-- Node.js `v22.16.0` is installed; `/usr/bin/chromium` exists.
-- `git ls-remote` failed because GitHub DNS could not resolve. A direct-IP HTTPS attempt also failed to connect.
-- A minimal Chromium data-URL probe timed out after 15 seconds (exit 124, no DOM output).
-- GitHub reports 0 branch Actions runs, 0 check runs and 0 commit statuses.
-- No genuine checkout is available: the seven-suite Node audit, optional Lead/PHP parity, Studio E2E, 54 screenshots, human review, real ZIP/CRC/source-byte verification and ZIP SHA256 remain **NOT RUN**.
+### Commands on a complete checkout
 
-D7 remains **OPEN**; Stage2 **NO-GO**; Stage3 unaccepted; **0/135** mandatory criteria. Do not modify workflows, merge, or claim release acceptance from source-level checks.
+\`\`\`bash
+node stage3/design-factory/bin/release-audit.cjs --out /tmp/df-D7-report.json
+node stage3/design-factory/bin/release-candidate.cjs --out /tmp/df-release-candidate
+\`\`\`
+
+The output directory must not already exist. Add \`--chromium /usr/bin/chromium\` to the candidate command for Studio/browser QA and the full 54-image capture. Supply \`--lead-sdk /path/to/lead/stage3/sdk --lead-php /path/to/lead/stage3/server/DesignGraph.php\` to run the optional Lead suite and six PHP markup-parity probes. After a human completes \`visual-review.html\`, provide the captured evidence directory and the downloaded v2 \`visual-review-decision.json\` using \`--evidence\` and \`--review\`.
+
+Exit code **3** means the core audit and exact-source ZIP are ready for engineering review but at least one release gate remains open. Exit code **0** requires every configured gate; it still does not authorize production or merge. Exit code **2** indicates a failed/incomplete core gate or an invalid candidate.
+
+**Verification boundary for this checkpoint:** static V8 syntax parsing **PASS** for nine changed JavaScript files. The full Node audit, candidate smoke, Chromium Studio E2E, real 54-image capture/review, Lead PHP parity and actual ZIP/hash have **NOT RUN**: no genuine local checkout is available. The last recorded checkout attempt failed at GitHub DNS resolution and the minimal Chromium probe timed out. GitHub API for source HEAD \`a66e323ce8ddda97b10d64f18fc0ebac601b3ebf\`: **0 Actions runs, 0 check runs, 0 commit statuses**.
+
+**Decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; **0/135** mandatory criteria. Do not modify workflows, merge, or infer acceptance from authored tests.
 
 ## Latest source hardening — 25 October 2026
 
@@ -38,7 +50,7 @@ D7 remains **OPEN**; Stage2 **NO-GO**; Stage3 unaccepted; **0/135** mandatory cr
 ### Block 1 — genuine checkout, Node audit and existing CI
 
 - Attempted `git ls-remote https://github.com/manufact-test/ai-site-cms.git refs/heads/feature/stage3-design-factory` in the execution container. Exact failure: `fatal: unable to access 'https://github.com/manufact-test/ai-site-cms.git/': Could not resolve host: github.com`.
-- Node.js `v22.16.0` is installed, but no checkout is available in the workspace. The seven stable D7 suites and the optional Lead suite were **not run** against a real checkout.
+- Node.js `v22.16.0` is installed, but no checkout is available in the workspace. The eight stable D7 suites plus bundle parity and the optional Lead suite were **not run** against a real checkout.
 - GitHub API re-check: branch workflow-runs `total_count=0`; HEAD check-runs `total_count=0`; commit statuses array empty. Do not change workflows to manufacture CI evidence.
 
 ### Block 2 — PHP parity and browser acceptance
@@ -71,7 +83,7 @@ Audit-start live HEAD: `bb219d64a58d590fbf2f806835e996a4277aee7d` (documentation
 - The earlier isolated-source suite reported 504/504 validations/renders/no-op rebuilds/preflights, 8/8 component-family refreshes and 8 loss-aware regression groups. That is evidence for the optional graph adapter source, **not** proof that the newly changed release/output/visual-QA tools pass.
 - PHP parity: 0 probes. Chromium previously timed out even on a minimal page; no actual screenshot matrix or human visual acceptance exists. No release ZIP, CRC/source-byte parity result or real archive SHA256 has been produced.
 
-**Gate remains OPEN:** Stage2 NO-GO, Stage3 unaccepted, 0/135 mandatory criteria. Next, in order: (1) obtain one genuine Node checkout or verifiable existing CI result and run the seven-suite D7 audit plus optional Lead suite if its source is available; (2) run PHP parity and capture/review the 54 real screenshots only if the environment works; (3) create a real source-byte-identical ZIP, verify archive structure/CRC/source bytes and calculate its actual SHA256. No repeated environment retry loops and no fabricated evidence.
+**Gate remains OPEN:** Stage2 NO-GO, Stage3 unaccepted, 0/135 mandatory criteria. Next, in order: (1) obtain one genuine Node checkout or verifiable existing CI result and run the eight-suite D7 audit plus bundle parity plus optional Lead suite if its source is available; (2) run PHP parity and capture/review the 54 real screenshots only if the environment works; (3) create a real source-byte-identical ZIP, verify archive structure/CRC/source bytes and calculate its actual SHA256. No repeated environment retry loops and no fabricated evidence.
 ## Product-level state (honest)
 
 | Result | Engineering implementation | Still outstanding for full acceptance |

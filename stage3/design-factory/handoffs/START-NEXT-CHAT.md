@@ -1,11 +1,13 @@
 ## Последнее обновление — 26 октября 2026
 
-- Ветка: `feature/stage3-design-factory`; source checkpoint: `7acac88cc8b0deda4e5938aa0ffc4d63552db4a1`. Всегда считывай live HEAD заново.
-- D7 review form укреплён: прямой линк на `showcase/index.html`, обязательная проверка всех 42 композиций при прокрутке и пятый флаг `showcaseCoverage`. Формат review receipt повышен до v2; старые v1 receipts отклоняются.
-- В `release-audit.cjs` сейчас **семь** Node suites; документация синхронизирована с реальным списком.
-- Свежий checkout заблокирован: `git ls-remote` не разрешает GitHub DNS, прямое HTTPS-подключение по IP также не установилось. Node.js 22.16.0 есть; `/usr/bin/chromium` существует, но минимальная headless data URL зависает 15 секунд (exit 124, без DOM stdout).
-- API GitHub: 0 Actions runs, 0 check runs, 0 commit statuses. Семь Node suites, optional Lead/PHP, Chromium Studio E2E, 54 реальные PNG, человеческая приёмка, ZIP/CRC/source parity и SHA256 **не выполнены**.
-- Это не приёмка: **D7 OPEN; Stage2 NO-GO; Stage3 не принят; 0/135**. Не меняй workflows и не повторяй сетевые/Chromium попытки без изменения среды.
+- Ветка: \`feature/stage3-design-factory\`; текущий source checkpoint: \`a66e323ce8ddda97b10d64f18fc0ebac601b3ebf\`. Перед началом всегда проверь live HEAD.
+- Сохранена приёмка visual-review **v2**: отдельная проверка \`showcaseCoverage\`, просмотр всех 42 D3-композиций; старые v1 receipts отклоняются.
+- Создан единый D7 Release Candidate Pipeline. \`release-audit.cjs\` выполняет browser-bundle parity + **8 Node suites**; с \`--chromium\` добавляет visual-pipeline smoke.
+- \`release-candidate.cjs\` запускает audit, собирает ZIP, независимо сверяет central/local headers, CRC32, полный source inventory/bytes и SHA256; опционально выполняет Chromium capture, review v2, Lead JS smoke и шесть PHP markup-parity probes.
+- Fingerprint связывает все code files в \`bin/catalog/lib/studio\`, все component JSON manifests и SDK contract. Старая визуальная приёмка отклоняется при изменении исходников; symlink-каталоги скриншотов запрещены.
+- Статически разобраны синтаксисом V8 девять изменённых JS-файлов — **PASS**. Реальный Node audit, pipeline smoke, Chromium Studio E2E, 54 PNG с человеческой проверкой, PHP parity и настоящий ZIP/SHA256 **НЕ ЗАПУЩЕНЫ**.
+- GitHub API на текущем source checkpoint: 0 Actions runs, 0 check runs, 0 commit statuses. Последняя известная локальная попытка checkout упёрлась в GitHub DNS; минимальный Chromium probe завершился timeout. Не повторяй без изменения среды.
+- Статус: **D7 OPEN; Stage2 NO-GO; Stage3 не принят; 0/135**. Никаких изменений workflows, merge, main, SDK, PHP, hosting или production.
 
 ## Жёсткие границы
 
