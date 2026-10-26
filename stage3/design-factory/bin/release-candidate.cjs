@@ -308,7 +308,7 @@ function execute(opts){
    result.leadInputs.snapshotFinalSha256=finalSnapshotInputs?.sha256||null;
    result.leadInputs.snapshotFinalStable=leadSnapshotManifestBaseline?finalSnapshotStable:null;
    result.leadInputs.finalSha256=finalLeadInputs?.sha256||null;
-   result.leadInputs.stable=Boolean(result.leadInputs.stable===true&&finalLeadStable);
+   result.leadInputs.stable=Boolean(result.leadInputs.stable===true&&finalLeadStable&&(!leadSnapshotManifestBaseline||finalSnapshotStable));
    if(!finalLeadStable||!result.leadInputs.stable||(leadSnapshotManifestBaseline&&!finalSnapshotStable)){
     const message=finalLeadError||finalSnapshotError||result.leadInputs.error||'Lead SDK/PHP inputs changed between provenance snapshots';
     result.leadInputs.status=result.leadInputs.status==='invalid'?'invalid':'changed-during-candidate';
@@ -341,6 +341,7 @@ function execute(opts){
     const message='Lead input snapshot cleanup failed: '+String(error.message);
     result.leadInputs.cleanupError=String(error.message);
     result.leadInputs.status='cleanup-failed';
+    result.leadInputs.stable=false;
     result.leadGraph.status='fail';result.leadGraph.error=message;
     if(opts.leadPhp){result.leadPhpParity.status='fail';result.leadPhpParity.probes=0;
      result.leadPhpParity.error=message;}

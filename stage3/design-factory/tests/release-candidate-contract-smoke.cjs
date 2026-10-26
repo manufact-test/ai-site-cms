@@ -133,6 +133,8 @@ try{
   'The isolated copy must be re-fingerprinted after the compatibility test');
  assert.ok(candidateSource.includes('finalSnapshotStable'),
   'The isolated copy must remain stable through the complete candidate run');
+ assert.ok(candidateSource.includes('finalLeadStable&&(!leadSnapshotManifestBaseline||finalSnapshotStable)'),
+  'The final aggregate stable flag must include the snapshot as well as the original checkout');
  const base=fixture(false);
  assert.equal(auditReportIsValid(base,false),true);
  assert.equal(localAuditStillMatches(base),true);
