@@ -707,6 +707,48 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       'Reparenting persists under the intended container');
     await canvas.locator('.cmsdg').waitFor();
     assert.match(await canvas.locator('.cmsdg h2').innerText(),/Новый профессиональный дизайн без ИИ/);
+
+    // Select an actual nested Design Graph node in whole-page view and edit it,
+    // then restore the graph via the same atomic draft undo history.
+    await page.locator('#cms-open-page-preview').click();
+    await page.locator('#cms-page-preview[open]').waitFor();
+    const wholeGraph=page.frameLocator('#cms-page-preview-frame');
+    const graphCopy=wholeGraph.locator('.cmsdg-n-'+selectedSection+'-copy');
+    await graphCopy.click();
+    assert.equal(await page.locator('#cms-work-graph-node').inputValue(),selectedSection+'-copy',
+      'Whole-page selection resolves the exact nested graph node');
+    assert.equal(await graphCopy.getAttribute('data-cms-work-graph-node'),selectedSection+'-copy');
+    await graphCopy.dblclick();
+    await page.locator('#cms-work-quick-input').fill('Текст композиции прямо на странице');
+    await page.locator('#cms-work-quick-save').click();
+    await wholeGraph.locator('.cmsdg-n-'+selectedSection+'-copy')
+      .getByText('Текст композиции прямо на странице').waitFor();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.id===selectedSection).designGraph.nodes[0].children
+      .find(n=>n.id===selectedSection+'-copy').text,'Текст композиции прямо на странице');
+    await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+    assert.equal(await wholeGraph.locator('.cmsdg-n-'+selectedSection+'-copy').innerText(),
+      'Все элементы, сетки, отступы и стили редактируются в CMS.');
+    await page.locator('.cms-page-preview-modes [data-mode="mobile"]').click();
+    await page.locator('#cms-work-graph-panel [data-work-graph-field="fontSize"]').fill('36');
+    await page.locator('#cms-work-graph-panel [data-work-graph-field="fontSize"]').dispatchEvent('change');
+    const mobileGraph=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.id===selectedSection);
+    const mobileText=mobileGraph.designGraph.nodes[0].children.find(n=>n.id===selectedSection+'-copy');
+    assert.equal(mobileText.responsive.mobile.fontSize,36,'Mobile override is typed and breakpoint-specific');
+    assert.equal(mobileText.styles.fontSize,'@body','Desktop typography is unchanged');
+    await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+    const restoredGraph=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.id===selectedSection);
+    assert.equal(restoredGraph.designGraph.nodes[0].children.find(n=>n.id===selectedSection+'-copy').responsive?.mobile?.fontSize,undefined);
+    await page.locator('#cms-work-graph-open').click();
+    await page.locator('#cms-design-graph-dialog[open]').waitFor();
+    assert.equal(await page.locator('#cms-design-node-select').inputValue(),selectedSection+'-copy',
+      'Inspector opens with the exact node selected on the whole-page canvas');
+    assert.equal(await page.locator('#cms-design-breakpoint').inputValue(),'mobile',
+      'Inspector retains the selected mobile breakpoint');
+    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Закрыть'}).click();
+
     await page.locator('#undo').click();
     assert.equal(await canvas.locator('.cmsdg').count(),0,'Undo returns legacy component unchanged');
     await page.locator('#redo').click();
