@@ -111,7 +111,7 @@ assert.ok(!markup.includes('allow-same-origin'));
   assert.ok(markup.includes('id="'+id+'"'),'D7 workbench control '+id);
  assert.ok(markup.includes('id="compare-preview" sandbox="allow-scripts"'));
  assert.ok(app.includes('function compileForTheme(theme)'));
- assert.ok(app.includes('const project=theme===state.project.theme?state.project:{...state.project,theme}'));
+ assert.ok(app.includes('const project=theme===state.project.theme?state.project:{...clone(state.project),theme}'));
  assert.ok(app.includes("if(state.viewMode==='overview')renderOverview(result)"));
  assert.ok(app.includes("if(state.viewMode==='compare')"));
  assert.ok(app.includes('state.overviewFrames.push(frame)'));
@@ -122,6 +122,7 @@ assert.ok(!markup.includes('allow-same-origin'));
  assert.ok(app.includes("if(apply(()=>{state.project.theme=selected;}))"),'Adopting the compared theme must enter Undo/Redo history');
  assert.ok(app.includes('state.compareTheme=original'),'Previous theme must become the comparison baseline after adoption');
  assert.ok(css.includes('#compare-adopt{min-height:44px}'));
+ assert.ok(css.includes('body[data-review-mode=compare] .layout')&&css.includes('body[data-review-mode=overview] .sidebar'));
  assert.ok(app.includes('const trusted=['),'Navigation accepts only current owned iframe sources');
 
 const ctx={structuredClone:global.structuredClone,console};

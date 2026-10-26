@@ -79,7 +79,7 @@ function refreshHistory(){
 }
 function compileForTheme(theme){
  if(!Object.prototype.hasOwnProperty.call(engine.compiler.THEMES,theme))throw Error('Неизвестная тема сравнения');
- const project=theme===state.project.theme?state.project:{...state.project,theme};
+ const project=theme===state.project.theme?state.project:{...clone(state.project),theme};
  const result=engine.compiler.compile(project);
  let site=result.site;
  let bridge=null;
@@ -441,7 +441,7 @@ function init(){
   if(!devices.includes(btn.dataset.device))return;state.device=btn.dataset.device;renderPreview();
  }));
 
- // Both review modes are ephemeral presentation only: never touch project or approval.
+ // Switching modes is presentation-only; explicit adoption uses apply()/Undo and revokes approval.
  const reference=$('compare-theme');
  reference.replaceChildren();
  for(const [id,theme] of Object.entries(engine.compiler.THEMES))

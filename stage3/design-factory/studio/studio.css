@@ -112,3 +112,17 @@ a{color:inherit}a:focus-visible,button:focus-visible,input:focus-visible,textare
 .overview-scroller{justify-content:flex-start}.overview-card-header{flex-wrap:wrap}}
 
 .review-mode-controls #compare-adopt{min-height:44px}
+
+/* Widen the actual working surface while inspecting multiple full-size pages. */
+body[data-review-mode=compare] .layout,
+body[data-review-mode=overview] .layout{grid-template-columns:minmax(0,1fr)}
+body[data-review-mode=compare] .sidebar,
+body[data-review-mode=compare] .inspector,
+body[data-review-mode=overview] .sidebar,
+body[data-review-mode=overview] .inspector{display:none}
+body[data-review-mode=compare] .stage-area,
+body[data-review-mode=overview] .stage-area{min-width:0;padding-inline:clamp(12px,3vw,52px)}
+@media(max-width:730px){
+ body[data-review-mode=compare] .stage-area,
+ body[data-review-mode=overview] .stage-area{padding-inline:12px}
+}
