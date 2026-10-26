@@ -928,7 +928,9 @@
     const viewport=element('div','hosted-launch-viewport');
     const frame=element('iframe');frame.id='server-launch-preview';
     frame.setAttribute('title','Проверка черновика страницы');
-    frame.setAttribute('sandbox','');
+    // Same authenticated, script-disabled sandbox as the existing page preview:
+    // allow same-origin media, but no scripts, forms, popups or navigation.
+    frame.setAttribute('sandbox','allow-same-origin');
     frame.setAttribute('referrerpolicy','no-referrer');
     viewport.append(frame);
     const previewStatus=element('p','hosted-launch-preview-status','');
