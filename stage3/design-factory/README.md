@@ -1,5 +1,14 @@
 # Design Factory — D1–D7 independent engineering program
 
+## Latest D7 reviewer workflow — 26 October 2026
+
+**26 October 2026 · latest functional checkpoint:** `69556a19b887f4dae2ec32328fc2ae487dbaa3fe` (read live branch HEAD on arrival). The offline D7 `visual-review.html` has a substantial usability upgrade: all/pending/approved/rejected image filters, next-pending navigation, private work-in-progress JSON draft export/import, and defect export with diagnostic notes. Draft import checks the complete list of 54 screenshot file names and SHA256 values plus the visual evidence hash, rejects duplicates/foreign/stale/oversized JSON (256 KiB maximum) before changing any decisions, and **always clears the five manual-review attestations** after restoring. It preserves the original v2 review receipt and fail-closed verifier; neither draft nor defect report is approval, identity authentication or publish authorization. No network/browser storage is used by the tool.
+
+**Executed, narrowly:** V8 parsed the inline script; a simulated 54-card browser DOM exercised the filter, rejected-note defect gate, draft export, valid restore, manual-check reset, and stale-evidence rejection without partial mutation. The existing smoke source contains regression assertions but **the real checked-out Node suite has NOT run**. One fresh `git ls-remote` returned `Could not resolve host: github.com`; checkout unavailable. PHP parity: 0 probes; Chromium E2E: NOT RUN; 54 real PNGs + human review: NOT RUN; actual ZIP/CRC/source-byte/SHA256: NOT RUN. **D7 OPEN, Stage2 NO-GO, Stage3 unaccepted, 0/135**. No edits outside `stage3/design-factory/` and no merge.
+
+The reviewer can pause a 54-image inspection, save `visual-review-draft.json`, restore it with identical PNG evidence, and download `visual-review-defects.json` for fixes. Manual checks must be reconfirmed. This is a functional source milestone rather than D7 acceptance.
+
+
 Independent Stage3 Design Factory. **D1–D6 are implemented; D7 final quality gates are still open**. This does not constitute Stage3 acceptance or production release. Branch: `feature/stage3-design-factory`. Only writable subtree: `stage3/design-factory/`.
 
 ## Latest D7 release-candidate hardening — 26 October 2026
