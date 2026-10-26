@@ -1249,18 +1249,86 @@
         nodes.addEventListener('change',()=>{workGraphNode=nodes.value;showWork();highlightWork();});
         const graphActions=document.createElement('div');
         graphActions.className='cms-work-graph-actions';
-        const addText=workButton('+ Текст рядом',()=>{
-          const node={id:uniqueId('dg-node'),type:'text',text:'Новый текстовый элемент',styles:{}};
-          editGraphTreeWork({action:'insert',targetId:current.id,placement:'after',node},node.id);
-        });
+        // Compose real typed content directly in the full-page visual canvas.
+        // All mutations use the same strict Graph validation and draft Undo.
+        const insertType=document.createElement('select');insertType.className='control';
+        insertType.id='cms-work-graph-insert-type';
+        insertType.setAttribute('aria-label','Тип нового элемента');
+        const mediaOf=type=>session.current.assets.filter(asset=>
+          type==='video'?asset.mime==='video/mp4':/^image\/(?:png|jpeg|webp|svg\+xml)$/.test(asset.mime));
+        for(const [type,label] of [
+          ['text','Текст'],['heading','Заголовок'],['button','Кнопка'],
+          ['image','Изображение'],['video','Видео MP4'],['icon','Иконка'],
+          ['container','Контейнер'],['divider','Разделитель']
+        ]){
+          const option=document.createElement('option');option.value=type;option.textContent=label;
+          if(['image','video'].includes(type)&&!mediaOf(type).length)option.disabled=true;
+          insertType.append(option);
+        }
+        const insertPlace=document.createElement('select');insertPlace.className='control';
+        insertPlace.id='cms-work-graph-insert-placement';
+        insertPlace.setAttribute('aria-label','Расположение нового элемента');
+        for(const [value,label] of [['after','После'],['before','Перед'],['inside','Внутрь контейнера']]){
+          const option=document.createElement('option');option.value=value;option.textContent=label;
+          option.disabled=value==='inside'&&current.type!=='container';insertPlace.append(option);
+        }
+        const makeNode=type=>{
+          const node={id:uniqueId('dg-node'),type,styles:{}};
+          if(type==='text')node.text='Новый текстовый элемент';
+          if(type==='heading'){node.text='Новый заголовок';node.level=2;}
+          if(type==='button'){node.text='Подробнее';node.href='/';}
+          if(type==='icon'){node.icon='star';node.alt='';}
+          if(type==='container'){
+            node.children=[];node.styles={display:'grid',columns:2,gap:'@medium'};
+            node.responsive={mobile:{columns:1}};
+          }
+          if(type==='image'||type==='video'){
+            const media=mediaOf(type)[0];
+            if(!media)throw Error(type==='video'
+              ?'Сначала загрузите MP4 в медиабиблиотеку'
+              :'Сначала загрузите изображение в медиабиблиотеку');
+            node.assetId=media.id;node.alt=media.alt||(type==='video'?'Видео':'Изображение');
+          }
+          return node;
+        };
+        const insertNode=(type,placement)=>{
+          if(placement==='inside'&&current.type!=='container')
+            return feedback('Вложить можно только в контейнер.',true);
+          try{
+            const node=makeNode(type);
+            editGraphTreeWork({action:'insert',targetId:current.id,placement,node},node.id);
+          }catch(error){feedback('Элемент не добавлен: '+error.message,true);}
+        };
+        const insertRow=document.createElement('div');insertRow.className='cms-work-graph-insert';
+        const insert=workButton('+ Элемент',()=>insertNode(insertType.value,insertPlace.value));
+        insert.id='cms-work-graph-insert';insert.disabled=!canWrite();
+        insertRow.append(insertType,insertPlace,insert);graphActions.append(insertRow);
+        const addText=workButton('+ Текст рядом',()=>insertNode('text','after'));
         addText.id='cms-work-graph-add-text';addText.disabled=!canWrite();
-        const addChild=workButton('+ Вложенный текст',()=>{
-          if(current.type!=='container')return feedback('Сначала выберите контейнер.',true);
-          const node={id:uniqueId('dg-node'),type:'text',text:'Новый вложенный текст',styles:{}};
-          editGraphTreeWork({action:'insert',targetId:current.id,placement:'inside',node},node.id);
-        });
+        const addChild=workButton('+ Вложенный текст',()=>insertNode('text','inside'));
         addChild.id='cms-work-graph-add-child';
         addChild.disabled=!canWrite()||current.type!=='container';
+        const findSiblings=(nodes,id)=>{
+          for(const node of nodes){
+            if(node.id===id)return nodes;
+            if(node.type==='container'){
+              const hit=findSiblings(node.children,id);if(hit)return hit;
+            }
+          }
+          return null;
+        };
+        const siblings=findSiblings(section.designGraph.nodes,current.id)||[];
+        const siblingIndex=siblings.findIndex(x=>x.id===current.id);
+        const moveGraph=delta=>{
+          const other=siblings[siblingIndex+delta];if(!other)return;
+          editGraphTreeWork({action:'move',nodeId:current.id,targetId:other.id,
+            placement:delta<0?'before':'after'},current.id);
+        };
+        const moveUp=workButton('↑ Элемент',()=>moveGraph(-1));
+        moveUp.id='cms-work-graph-move-up';moveUp.disabled=!canWrite()||siblingIndex<=0;
+        const moveDown=workButton('↓ Элемент',()=>moveGraph(1));
+        moveDown.id='cms-work-graph-move-down';
+        moveDown.disabled=!canWrite()||siblingIndex>=siblings.length-1;
         const duplicateGraphNode=workButton('Копия узла',()=>{
           const ids=[];
           const collect=node=>{ids.push(uniqueId('dg-node'));for(const child of node.children||[])collect(child);};
@@ -1279,7 +1347,7 @@
         removeGraphNode.id='cms-work-graph-remove';
         const subtreeSize=node=>1+(node.children||[]).reduce((sum,child)=>sum+subtreeSize(child),0);
         removeGraphNode.disabled=!canWrite()||subtreeSize(current)>=rows.length;
-        graphActions.append(addText,addChild,duplicateGraphNode,removeGraphNode);
+        graphActions.append(addText,addChild,moveUp,moveDown,duplicateGraphNode,removeGraphNode);
         panel.append(title,hint,nodes,graphActions);
         const property=(label,key,value,options=null)=>{
           const wrap=document.createElement('label');wrap.className='cms-work-field';
