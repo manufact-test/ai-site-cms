@@ -676,6 +676,38 @@ test('site-wide structure: atomic staging can move, copy and rewire anchors safe
     sectionId:'section-cta',toPageId:'page-contact',placement:'start',expectedRevision:42}),/Stale/);
   assert.equal(JSON.stringify(start.current),original,'Staging must never mutate the initial site');
 });
+test('visual page placement: exact reordering, cross-page move/copy and one-step undo',()=>{
+  const step=(s,c)=>draft.structure(s,manifests,{...c,expectedRevision:s.revision});
+  const doc=same(initial);
+  const home=doc.pages[0],contact=doc.pages[1];
+  const first=home.sections[0].id,second=home.sections[1].id;
+  home.sections[0].elements.find(e=>e.slot==='action').values['behavior.href']='/#'+second;
+  let work=draft.begin(doc,manifests);
+  work=step(work,{action:'placeSection',mode:'move',pageId:home.id,sectionId:second,
+    toPageId:home.id,targetSectionId:first,side:'before'});
+  assert.equal(work.current.pages[0].sections[0].id,second,'One gesture reorders the exact section');
+  assert.deepEqual(draft.undo(work,manifests).current,doc,'One Undo restores original order');
+  const revision=work.revision;
+  work=step(work,{action:'placeSection',mode:'copy',pageId:home.id,sectionId:second,
+    toPageId:contact.id,targetSectionId:contact.sections[0].id,side:'before',id:'section-visual-copy'});
+  assert.equal(work.current.pages[1].sections[0].id,'section-visual-copy');
+  assert.equal(work.current.pages[1].sections[0].elements[0].id,'section-visual-copy-'+
+    work.current.pages[1].sections[0].elements[0].slot,'Copied elements receive stable fresh IDs');
+  work=step(work,{action:'placeSection',mode:'move',pageId:home.id,sectionId:second,
+    toPageId:contact.id,side:'end'});
+  assert.equal(work.current.pages[0].sections[0].elements.find(e=>e.slot==='action')
+    .values['behavior.href'],'/contact/#'+second,'Anchors rewrite when moving between pages');
+  assert.equal(work.current.pages[1].sections.at(-1).id,second);
+  assert.equal(draft.undo(work,manifests).current.pages[0].sections[0].id,second);
+  assert.throws(()=>step(work,{action:'placeSection',mode:'move',pageId:contact.id,
+    sectionId:'section-contact',toPageId:home.id,side:'end'}),/only section|Cannot move|Section placement/i);
+  assert.throws(()=>step(work,{action:'placeSection',mode:'copy',pageId:home.id,
+    sectionId:first,toPageId:contact.id,side:'before',targetSectionId:'unknown',id:'new-section'}),
+    /Target section/);
+  assert.throws(()=>step(work,{action:'placeSection',mode:'copy',pageId:home.id,
+    sectionId:first,toPageId:contact.id,side:'end',id:'section-visual-copy'}),/Duplicate stable ID/);
+  assert.ok(work.revision>revision);
+});
 test('image showcase is a closed media-bound component',()=>{
   const image=manifests[3];
   assert.deepEqual(sdk.validateManifest(image),image);

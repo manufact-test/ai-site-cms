@@ -648,8 +648,9 @@
     const frame=document.createElement('iframe');frame.id='cms-page-preview-frame';
     frame.setAttribute('sandbox','allow-same-origin');frame.title='Изолированный предпросмотр всей страницы';
     frame.setAttribute('referrerpolicy','no-referrer');area.append(frame);
-    let mode='desktop',previewRequest=0;
+    let mode='desktop',previewRequest=0,previewScroll=0;
     const render=async()=>{
+      previewScroll=frame.contentWindow?.scrollY||0;
       const requestId=++previewRequest,path=pathSelect.value;
       frame.style.width=mode==='mobile'?'390px':mode==='tablet'?'768px':'100%';
       if(!HOSTED){frame.srcdoc=window.Stage3Editor.previewDocument(session.current,path);return;}
@@ -688,6 +689,8 @@
     workPanel.append(workTitle,workSectionPicker,workActions,workElementPicker,workFields,workAdd,workStatus,workError);
     layout.append(area,workPanel);modal.append(header,note,layout);document.body.append(modal);
 
+    // Selected page persists independently of main inspector focus.
+    // The preview itself remains script-free; parent only reads first-party IDs.
     // Select sections only in the validated, scriptless page preview.
     // Every edit uses the same SDK draft history as the right-side inspector.
     let workSection='',workElement='';
@@ -698,23 +701,68 @@
     const workButton=(label,fn)=>{const b=button(label,'btn small',fn);b.dataset.editorWrite='true';return b;};
     function highlightWork(){
       const doc=frame.contentDocument;if(!doc)return;
-      for(const el of doc.querySelectorAll('section.cms-work-target'))
+      for(const el of doc.querySelectorAll('.cms-work-target'))
         el.classList.toggle('cms-work-current',el.id===workSection);
     }
     frame.addEventListener('load',()=>{
       const doc=frame.contentDocument,page=pageForWork();if(!doc||!page)return;
       const ids=new Set(page.sections.map(s=>s.id));
       const css=doc.createElement('style');
-      css.textContent='section.cms-work-target:hover{outline:2px dashed #20b0dc!important;cursor:pointer}section.cms-work-current{outline:3px solid #ff9b37!important;outline-offset:-3px!important}';
+      css.textContent='.cms-work-target:hover{outline:2px dashed #20b0dc!important;cursor:grab}.cms-work-current{outline:3px solid #ff9b37!important;outline-offset:-3px!important}.cms-work-before{box-shadow:inset 0 6px #20b0dc!important}.cms-work-after{box-shadow:inset 0 -6px #20b0dc!important}';
       doc.head.append(css);
-      for(const el of doc.querySelectorAll('section[id]'))if(ids.has(el.id))el.classList.add('cms-work-target');
+      const idOf=el=>el?.dataset?.cmsSectionId||el?.id||'';
+      const getTarget=event=>{
+        const target=event.target;
+        if(!(target instanceof doc.defaultView.Element))return null;
+        const el=target.closest('[data-cms-section-id],section[id]');
+        return el&&ids.has(idOf(el))?el:null;
+      };
+      const sections=doc.querySelectorAll('[data-cms-section-id],section[id]');
+      for(const el of sections){
+        if(!ids.has(idOf(el)))continue;
+        el.classList.add('cms-work-target');
+        // Dragging is parent-owned: this srcdoc never receives executable code.
+        el.draggable=canWrite();
+      }
       doc.addEventListener('click',e=>{
         e.preventDefault();e.stopPropagation();
-        const target=e.target;if(!(target instanceof doc.defaultView.Element))return;
-        const el=target.closest('section.cms-work-target');
-        if(el&&ids.has(el.id)){workSection=el.id;workElement='';showWork();highlightWork();}
+        const el=getTarget(e);
+        if(el){workSection=idOf(el);workElement='';showWork();highlightWork();}
       },true);
+      let dragging='';
+      const clearDrop=()=>{
+        for(const el of doc.querySelectorAll('.cms-work-before,.cms-work-after'))
+          el.classList.remove('cms-work-before','cms-work-after');
+      };
+      doc.addEventListener('dragstart',e=>{
+        const el=getTarget(e);
+        if(!canWrite()||!el){e.preventDefault();return;}
+        dragging=idOf(el);
+        if(e.dataTransfer){e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','cms-section');}
+      },true);
+      doc.addEventListener('dragover',e=>{
+        const el=getTarget(e),id=idOf(el);
+        if(!dragging||!el||id===dragging||!canWrite())return;
+        e.preventDefault();clearDrop();
+        el.classList.add(e.clientY<el.getBoundingClientRect().top+el.getBoundingClientRect().height/2?
+          'cms-work-before':'cms-work-after');
+        if(e.dataTransfer)e.dataTransfer.dropEffect='move';
+      },true);
+      doc.addEventListener('drop',e=>{
+        const el=getTarget(e),id=idOf(el),moving=dragging;
+        e.preventDefault();clearDrop();dragging='';
+        if(!moving||!el||id===moving||!canWrite())return;
+        const pageNow=pageForWork();if(!pageNow)return;
+        const side=e.clientY<el.getBoundingClientRect().top+el.getBoundingClientRect().height/2?
+          'before':'after';
+        workSection=moving;
+        structureWork({action:'placeSection',mode:'move',pageId:pageNow.id,
+          sectionId:moving,toPageId:pageNow.id,targetSectionId:id,side});
+      },true);
+      doc.addEventListener('dragend',()=>{clearDrop();dragging='';},true);
       doc.addEventListener('submit',e=>{e.preventDefault();e.stopPropagation();},true);
+      // Re-renders must not jump to the top of a long page.
+      if(previewScroll>0)frame.contentWindow?.scrollTo(0,previewScroll);
       highlightWork();
     });
     function structureWork(action){
@@ -817,11 +865,108 @@
         if(pageForWork()?.sections.some(s=>s.id===id)){workSection=id;showWork();render();}
       });
       workAdd.append(choose,add);
+
+      // One-click appearance presets write the same typed appearance as the
+      // classic inspector, with immediate page preview and a single draft Undo.
+      const appearance=document.createElement('details');appearance.className='cms-work-appearance';
+      const caption=document.createElement('summary');caption.textContent='Быстрое оформление блока';
+      appearance.append(caption);
+      const variants={
+        surface:[['default','Как в компоненте'],['paper','Белый'],['tint','Мягкий голубой'],['dark','Тёмный']],
+        spacing:[['tight','Компактно'],['normal','Стандартно'],['airy','Просторно']],
+        align:[['left','Слева'],['center','По центру']],
+        width:[['default','Обычно'],['narrow','Узкий'],['wide','Широкий']],
+        heading:[['default','Обычный заголовок'],['compact','Компактный'],['expressive','Крупный']],
+        corners:[['default','Как в компоненте'],['soft','Мягкие'],['round','Сильное скругление']],
+        button:[['default','Общие кнопки'],['solid','Заливка'],['outline','Контур'],['pill','Округлые']],
+        mobileAlign:[['inherit','Как на ПК'],['left','Слева'],['center','По центру']],
+        mobileSpacing:[['inherit','Как на ПК'],['tight','Компактно'],['normal','Обычно'],['airy','Просторно']]
+      };
+      for(const [key,options] of Object.entries(variants)){
+        const line=document.createElement('label');line.className='cms-work-field';
+        const label=document.createElement('span');label.textContent=({
+          surface:'Фон',spacing:'Отступы',align:'Выравнивание',width:'Ширина',
+          heading:'Заголовок',corners:'Углы',button:'Кнопки',
+          mobileAlign:'Телефон · выравнивание',mobileSpacing:'Телефон · отступы'
+        })[key];
+        const ctl=document.createElement('select');ctl.className='control';
+        ctl.dataset.workAppearance=key;
+        for(const [value,visible] of options){
+          const option=document.createElement('option');option.value=value;option.textContent=visible;ctl.append(option);
+        }
+        ctl.value=section.appearance?.[key]||C.DEFAULT_APPEARANCE[key];ctl.disabled=!canWrite();
+        ctl.addEventListener('change',()=>{
+          const original={...C.DEFAULT_APPEARANCE,...sectionForWork()?.appearance};
+          structureWork({action:'updateAppearance',pageId:page.id,sectionId:section.id,
+            appearance:{...original,[key]:ctl.value}});
+        });
+        line.append(label,ctl);appearance.append(line);
+      }
+      workFields.append(appearance);
+
+      // Use the existing full editors instead of building competing dialogs.
+      const advanced=document.createElement('div');advanced.className='cms-work-advanced';
+      const openExisting=id=>{
+        pageId=page.id;sectionId=section.id;elementId=workElement;breakpoint=mode;
+        draw();modal.close();$(id)?.click();
+      };
+      advanced.append(workButton('Дизайн-композиция',()=>openExisting('section-design-graph')),
+        workButton('Расширенное оформление',()=>openExisting('section-appearance')));
+      if(['lead-form','lead-form-flex'].includes(section.component))
+        advanced.append(workButton('Конструктор формы',()=>openExisting('cms-form-builder-open')));
+      workFields.append(advanced);
+
+      // Precise copy/move across pages and within a page: target before/after,
+      // or append. Only the original moved section rewires incoming anchors.
+      const cross=document.createElement('details');cross.className='cms-work-cross';
+      const crossCaption=document.createElement('summary');crossCaption.textContent='Разместить на другой странице';
+      const destination=document.createElement('select');destination.className='control';
+      destination.id='cms-work-destination';
+      for(const p of session.current.pages){
+        const option=document.createElement('option');option.value=p.id;option.textContent=p.title+' · '+p.path;
+        destination.append(option);
+      }
+      destination.value=session.current.pages.find(p=>p.id!==page.id)?.id||page.id;
+      const position=document.createElement('select');position.className='control';position.id='cms-work-position';
+      const drawTargets=()=>{
+        position.replaceChildren();
+        const end=document.createElement('option');end.value='';end.textContent='В конец страницы';
+        position.append(end);
+        const target=session.current.pages.find(p=>p.id===destination.value);
+        for(const sectionTarget of target?.sections||[]){
+          const option=document.createElement('option');option.value=sectionTarget.id;
+          option.textContent='Перед: '+(manifest(sectionTarget)?.label||sectionTarget.component);
+          position.append(option);
+        }
+      };
+      destination.addEventListener('change',drawTargets);drawTargets();
+      const place=modeValue=>{
+        const target=session.current.pages.find(p=>p.id===destination.value);
+        const sectionId=section.id;
+        const id=modeValue==='copy'?uniqueId('section'):sectionId;
+        structureWork({action:'placeSection',mode:modeValue,pageId:page.id,
+          sectionId,toPageId:target.id,targetSectionId:position.value||undefined,
+          side:position.value?'before':'end',...(modeValue==='copy'?{id}:{})});
+        if(target.sections.some(s=>s.id===id)||session.current.pages
+          .find(p=>p.id===target.id)?.sections.some(s=>s.id===id)){
+          const actual=session.current.pages.find(p=>p.id===target.id);
+          if(actual.sections.some(s=>s.id===id)){
+            pathSelect.value=actual.path;workSection=id;workElement='';
+            showWork();render();
+          }
+        }
+      };
+      const ops=document.createElement('div');ops.className='cms-work-actions';
+      const move=workButton('Перенести',()=>place('move'));
+      move.disabled=page.sections.length===1||!canWrite();
+      ops.append(move,workButton('Скопировать',()=>place('copy')));
+      cross.append(crossCaption,destination,position,ops);
+      workAdd.append(cross);
       for(const b of workPanel.querySelectorAll('[data-editor-write]'))b.disabled ||= !canWrite();
     }
     workSectionPicker.addEventListener('change',()=>{workSection=workSectionPicker.value;workElement='';showWork();highlightWork();});
     workElementPicker.addEventListener('change',()=>{workElement=workElementPicker.value;showWork();});
-    pathSelect.addEventListener('change',()=>{workSection=pageForWork()?.sections[0]?.id||'';workElement='';showWork();});
+    pathSelect.addEventListener('change',()=>{previewScroll=0;workSection=pageForWork()?.sections[0]?.id||'';workElement='';showWork();});
     const history=document.createElement('div');history.id='cms-work-history';history.className='cms-work-history';
     history.append(workButton('↶ Отмена',()=>{
       if(!canWrite())return;session=D.undo(session,manifests);draw();showWork();render();
@@ -2716,7 +2861,7 @@
             '<details class="cms-menu-mobile"><summary>Меню</summary><nav>'+common+'</nav></details>')+
           '</header>';
         const root=first.slice(0,start).replace('<html lang="ru">','<html lang="'+escapeHtml(checked.language||'ru')+'">');
-        return root+navigation+docs.map(doc=>doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))).join('')+first.slice(end);
+        return root+navigation+docs.map((doc,i)=>'<div class="cms-preview-bound-section" data-cms-section-id="'+escapeHtml(page.sections[i].id)+'">'+doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))+'</div>').join('')+first.slice(end);
       }finally{session=prior;}
     },
     applyComposition:site=>{

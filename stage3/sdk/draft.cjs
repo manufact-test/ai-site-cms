@@ -292,6 +292,38 @@ function structure(raw,manifests,command){
       }
       break;
     }
+    // Exact indexed placement for visual page canvas and cross-page section work.
+    // Uses the same versioned, validated and single-Undo transaction as all
+    // other draft structure operations, including anchor repair on cross-page moves.
+    case 'placeSection':{
+      if(!page||sectionIndex<0)throw Error('Unknown section to place');
+      if(!['move','copy'].includes(command.mode)||!['before','after','end'].includes(command.side))
+        throw Error('Invalid section placement operation');
+      const destination=c.pages.find(p=>p.id===command.toPageId);
+      if(!destination)throw Error('Unknown destination page');
+      if(command.side!=='end'&&(!command.targetSectionId||
+        !destination.sections.some(t=>t.id===command.targetSectionId)))
+        throw Error('Target section not found in destination');
+      if(command.mode==='move'&&command.id!==undefined)
+        throw Error('A move cannot assign a new section ID');
+      if(command.mode==='copy'&&typeof command.id!=='string')
+        throw Error('A copy requires a fresh section ID');
+      if(command.mode==='move'&&page===destination&&command.targetSectionId===sectionId)
+        return copy(s);
+      if(command.mode==='move'&&page!==destination&&page.sections.length===1)
+        throw Error('Cannot move the only section of a page; copy it instead');
+      const moving=command.mode==='copy'?rekey(page.sections[sectionIndex],command.id):
+        page.sections.splice(sectionIndex,1)[0];
+      let position=destination.sections.length;
+      if(command.side!=='end'){
+        position=destination.sections.findIndex(t=>t.id===command.targetSectionId);
+        if(position<0)throw Error('Section placement target was removed');
+        if(command.side==='after')position++;
+      }
+      destination.sections.splice(position,0,moving);
+      if(command.mode==='move')rewriteSectionAnchors(c,page.path,destination.path,moving.id);
+      break;
+    }
     case 'moveSection':
       if(!page)throw Error('Unknown page');
       move(page.sections,sectionIndex,command.delta);break;
