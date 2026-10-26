@@ -10,7 +10,7 @@
 - Создан единый D7 Release Candidate Pipeline. `release-audit.cjs` выполняет browser-bundle parity + **8 Node suites**; с `--chromium` добавляет visual-pipeline smoke.
 - `release-candidate.cjs` запускает audit, собирает ZIP, независимо сверяет central/local headers, CRC32, полный source inventory/bytes и SHA256; опционально выполняет Chromium capture, review v2, Lead JS smoke и шесть PHP markup-parity probes.
 - Fingerprint связывает все code files в `bin/catalog/lib/studio`, все component JSON manifests и SDK contract. Старая визуальная приёмка отклоняется при изменении исходников; symlink-каталоги скриншотов запрещены.
-- Изолированный V8 syntax parse и source-level assertions для шести JS-файлов — **PASS**. Реальный Node audit, candidate smoke, Chromium Studio E2E, 54 PNG с человеческой проверкой, Lead JS/PHP parity и настоящий ZIP/SHA256 **НЕ ЗАПУЩЕНЫ**.
+- Статический V8 syntax parse шести изменённых JS-файлов — **PASS**; отдельный Node runtime smoke точного Git blob `external-input-manifest.cjs` также **PASS**. Полный Node audit, candidate smoke, Chromium Studio E2E, 54 PNG с человеческой проверкой, Lead JS/PHP parity и реальный ZIP/SHA256 **НЕ ЗАПУЩЕНЫ**.
 - GitHub API на текущем source checkpoint: 0 Actions runs, 0 check runs, 0 commit statuses. Последняя известная локальная попытка checkout упёрлась в GitHub DNS; минимальный Chromium probe завершился timeout. Не повторяй без изменения среды.
 - Статус: **D7 OPEN; Stage2 NO-GO; Stage3 не принят; 0/135**. Никаких изменений workflows, merge, main, SDK, PHP, hosting или production.
 
