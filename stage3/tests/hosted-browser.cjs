@@ -860,7 +860,19 @@ async function execute(){
   const graphRevisionBeforeSave=Number((await page.locator('#server-status').innerText()).match(/Черновик #(\d+)/)[1]);
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(new RegExp('Черновик #'+(graphRevisionBeforeSave+1)+'\\b')).waitFor();
-  await page.locator('#server-status').getByText(/Без изменений/).waitFor();
+  try {
+    await page.locator('#server-status').getByText(/Без изменений/).waitFor({timeout:3500});
+  } catch(error) {
+    const diagnostic=await page.evaluate(()=>({
+      status:document.querySelector('#server-status')?.textContent,
+      editorDirty:window.Stage3Editor.isDirty(),
+      dirtyLabel:document.querySelector('#dirty')?.textContent,
+      publishDisabled:document.querySelector('#server-publish')?.disabled,
+      saveDisabled:document.querySelector('#save')?.disabled,
+      toast:document.querySelector('#toast')?.textContent
+    }));
+    throw Error('Hosted Save did not settle cleanly: '+JSON.stringify(diagnostic),{cause:error});
+  }
   // Verify visitor isolation before publishing, and only publish a clean,
   // persisted revision. Reload afterwards to inspect the same public content.
   await visitor.goto(publicUrl);
