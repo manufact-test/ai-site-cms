@@ -83,6 +83,16 @@ async function execute(){
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Черновик #2/).waitFor();
   assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/);
+  // A single operator-facing launch checklist previews every page and device
+  // without publishing or bypassing the existing guarded Save/Publish buttons.
+  await page.locator('#server-launch-review').click();
+  await page.locator('#server-launch-dialog[open]').waitFor();
+  assert.equal(await page.locator('#server-launch-pages button').count(),2);
+  assert.equal(await page.locator('#server-launch-save').isDisabled(),true);
+  await page.locator('#server-launch-modes [data-device="mobile"]').click();
+  assert.equal(await page.locator('#server-launch-preview').evaluate(frame=>frame.style.width),'390px');
+  await page.locator('#server-launch-preview-status').getByText(/Черновик ·/).waitFor();
+  await page.locator('#server-launch-close').click();
   const visitor=await ctx.newPage();
   const publicUrl=origin+'/published/'+siteId+'/';
   let pub=await visitor.goto(publicUrl);
