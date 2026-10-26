@@ -641,6 +641,41 @@ test('structure: pages, sections, stable IDs, undo, redo and closed rules',()=>{
   assert.deepEqual(s.current,initial,'Original site content and IDs preserved by round trip');
   assert.equal(JSON.stringify(initial),initialBytes,'Input immutable');
 });
+test('site-wide structure: atomic staging can move, copy and rewire anchors safely',()=>{
+  const site=same(initial),step=(s,command)=>draft.structure(s,manifests,{...command,expectedRevision:s.revision});
+  site.pages[0].sections.push(sdk.sectionFrom(manifests.find(m=>m.id==='cta-banner'),'section-cta'));
+  const action=site.pages[0].sections.at(-1).elements.find(e=>e.slot==='primary');
+  action.values['behavior.href']='/#section-hero';
+  const first=site.pages[0].sections[0].elements.find(e=>e.slot==='action');
+  first.values['behavior.href']='/#section-cta';
+  let start=draft.begin(site,manifests),staged=draft.begin(start.current,manifests);
+  staged=step(staged,{action:'relocateSection',pageId:'page-home',sectionId:'section-cta',
+    toPageId:'page-contact',placement:'end'});
+  assert.deepEqual(staged.current.pages[1].sections.map(s=>s.id),['section-contact','section-cta']);
+  assert.equal(staged.current.pages[0].sections[0].elements.find(e=>e.slot==='action')
+    .values['behavior.href'],'/contact/#section-cta');
+  assert.equal(staged.current.pages[1].sections[1].elements.find(e=>e.slot==='primary')
+    .values['behavior.href'],'/#section-hero');
+  staged=step(staged,{action:'copySectionToPage',pageId:'page-contact',sectionId:'section-cta',
+    toPageId:'page-home',placement:'start',id:'section-cta-copy'});
+  assert.equal(staged.current.pages[0].sections[0].id,'section-cta-copy');
+  assert.equal(staged.current.pages[0].sections[0].elements.find(e=>e.slot==='primary').id,
+    'section-cta-copy-primary');
+  staged=step(staged,{action:'movePage',pageId:'page-contact',delta:-1});
+  const composed=draft.replaceSite(start,manifests,staged.current,start.revision);
+  assert.equal(composed.undo.length,1,'The entire site plan is one undo step');
+  assert.equal(composed.current.pages[0].id,'page-contact');
+  assert.deepEqual(draft.undo(composed,manifests).current,start.current);
+  assert.deepEqual(draft.redo(draft.undo(composed,manifests),manifests).current,composed.current);
+  const original=JSON.stringify(start.current);
+  assert.throws(()=>step(start,{action:'relocateSection',pageId:'page-contact',sectionId:'section-contact',
+    toPageId:'page-home',placement:'end'}),/only section/);
+  assert.throws(()=>step(start,{action:'copySectionToPage',pageId:'page-home',sectionId:'section-cta',
+    toPageId:'page-contact',placement:'end',id:'section-hero'}),/Duplicate stable ID/);
+  assert.throws(()=>draft.structure(start,manifests,{action:'relocateSection',pageId:'page-home',
+    sectionId:'section-cta',toPageId:'page-contact',placement:'start',expectedRevision:42}),/Stale/);
+  assert.equal(JSON.stringify(start.current),original,'Staging must never mutate the initial site');
+});
 test('image showcase is a closed media-bound component',()=>{
   const image=manifests[3];
   assert.deepEqual(sdk.validateManifest(image),image);

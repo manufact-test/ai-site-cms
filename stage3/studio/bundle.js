@@ -1103,6 +1103,27 @@ function rewritePageLinks(site,from,to){
   }
   return changed;
 }
+// Keep incoming section-anchor links valid when a section changes owning page.
+// Full-page links continue to point to their existing page; only the exact
+// anchored section ID is rewritten, including nested Design Graph buttons.
+function rewriteSectionAnchors(site,from,to,sectionId){
+  if(from===to)return 0;
+  let count=0;
+  const oldHref=from+'#'+sectionId,newHref=to+'#'+sectionId;
+  const visit=(holder,key)=>{
+    if(holder[key]===oldHref){holder[key]=newHref;count++;}
+  };
+  for(const page of site.pages)for(const section of page.sections){
+    for(const item of [...section.elements,...(section.items||[])])
+      if(isObj(item.values))visit(item.values,'behavior.href');
+    const walk=node=>{
+      if(typeof node.href==='string')visit(node,'href');
+      for(const child of node.children||[])walk(child);
+    };
+    for(const root of section.designGraph?.nodes||[])walk(root);
+  }
+  return count;
+}
 function select(doc,pageId,sectionId,elementId){
   const page=doc.pages.find(p=>p.id===pageId);
   const section=page?.sections.find(s=>s.id===sectionId);
@@ -1349,6 +1370,24 @@ function structure(raw,manifests,command){
     case 'moveSection':
       if(!page)throw Error('Unknown page');
       move(page.sections,sectionIndex,command.delta);break;
+    case 'relocateSection':{
+      if(!page||sectionIndex<0)throw Error('Unknown section to relocate');
+      const dest=c.pages.find(p=>p.id===command.toPageId);
+      if(!dest||!['start','end'].includes(command.placement))throw Error('Invalid destination or placement');
+      if(dest!==page&&page.sections.length===1)throw Error('Cannot move the only section of a page; copy it instead');
+      const [moved]=page.sections.splice(sectionIndex,1);
+      dest.sections.splice(command.placement==='start'?0:dest.sections.length,0,moved);
+      rewriteSectionAnchors(c,page.path,dest.path,moved.id);
+      break;
+    }
+    case 'copySectionToPage':{
+      if(!page||sectionIndex<0)throw Error('Unknown section to copy');
+      const dest=c.pages.find(p=>p.id===command.toPageId);
+      if(!dest||!['start','end'].includes(command.placement))throw Error('Invalid copy target');
+      const newSection=rekey(page.sections[sectionIndex],command.id);
+      dest.sections.splice(command.placement==='start'?0:dest.sections.length,0,newSection);
+      break;
+    }
     case 'removeSection':
       if(!page||sectionIndex<0||page.sections.length===1)throw Error('Cannot remove last section');
       page.sections.splice(sectionIndex,1);break;
