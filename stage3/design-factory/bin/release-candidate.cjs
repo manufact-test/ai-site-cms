@@ -18,6 +18,19 @@ const EXPECTED_SUITES=Object.freeze([
  'release-candidate-contract-smoke.cjs'
 ]);
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+// Final Lead handoff is evaluated only after all operations, including cleanup.
+// A valid review receipt for stale visual evidence is insufficient.
+function readyForLeadReview(result){
+ const g=result.gate;
+ return !result.error&&[
+  'node','bundleParity','chromium','fullVisualMatrix','phpParity','sourceExact','gitVerified'
+ ].every(key=>g[key]===true)&&
+  result.visualCapture.status==='pass'&&result.visualReview.status==='pass'&&
+  result.leadInputs.status==='stable'&&result.leadInputs.stable===true&&
+  result.leadGraph.status==='pass'&&result.leadPhpParity.status==='pass'&&
+  result.zip.status==='pass'&&result.git.stable===true&&
+  result.git.ownerBranch===true&&result.git.after?.ownerBranch===true;
+}
 function expectedAuditChecks(chromium=false){
  return ['build-browser-bundle --check',...EXPECTED_SUITES,...(chromium?['visual-pipe-smoke.cjs']:[]),'source-inventory-stability'];
 }
@@ -187,7 +200,7 @@ function execute(opts){
      evidenceSha256:receipt.evidenceSha256,receiptSha256:sha(fs.readFileSync(path.resolve(opts.review))),
      reviewer:receipt.reviewer,reviewedAt:receipt.reviewedAt,
      attestation:receipt.humanAttestationRecorded,leadAcceptance:'pending'};
-    result.gate.fullVisualMatrix=true;
+    result.gate.fullVisualMatrix=result.visualCapture.status==='pass';
    }catch(e){result.visualReview={status:'fail',error:String(e.message)};}
   }else result.visualReview={status:'pending-human-review'};
 
@@ -329,9 +342,7 @@ function execute(opts){
   result.git.stable=Boolean(result.git.head&&result.git.head===gitAfter.head&&
    result.git.branch===gitAfter.branch&&result.git.clean&&gitAfter.clean);
   result.gate.gitVerified=Boolean(result.git.stable&&result.git.ownerBranch&&gitAfter.ownerBranch);
-  result.gate.readyForLeadReview=[
-   'node','bundleParity','chromium','fullVisualMatrix','phpParity','sourceExact','gitVerified'
-  ].every(k=>result.gate[k]===true);
+  // Handoff readiness must be decided only after Lead snapshot cleanup.
  }catch(e){
   result.error=String(e.message);
  }finally{
@@ -348,6 +359,7 @@ function execute(opts){
     result.gate.leadGraph=false;result.gate.phpParity=false;
    }
   }
+  result.gate.readyForLeadReview=readyForLeadReview(result);
   result.gate.productionReady=false;
   result.gate.integratorMergeApproved=false;
   fs.writeFileSync(reportPath,JSON.stringify(result,null,2)+'\n',{flag:'wx',mode:0o600});
@@ -362,7 +374,7 @@ function execute(opts){
  process.exitCode=result.gate.readyForLeadReview?0:result.gate.node&&result.gate.sourceExact?3:2;
  return result;
 }
-module.exports=Object.freeze({options,execute,expectedAuditChecks,auditReportIsValid,localAuditStillMatches});
+module.exports=Object.freeze({options,execute,expectedAuditChecks,auditReportIsValid,localAuditStillMatches,readyForLeadReview});
 if(require.main===module){
  try{execute(options(process.argv.slice(2)));}
  catch(e){console.error('D7 RELEASE CANDIDATE REFUSED: '+e.message);process.exitCode=2;}

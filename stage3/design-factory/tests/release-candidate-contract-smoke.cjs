@@ -8,7 +8,7 @@ const {walk,manifestForDesignFactory,manifestDigest}=require('../lib/source-mani
 const {sourceFingerprint,inputPaths}=require('../lib/render-source-fingerprint.cjs');
 const {captureExternalInputs,sameExternalInputs,sameExternalInputContent,
  createExternalInputSnapshot,removeExternalInputSnapshot}=require('../lib/external-input-manifest.cjs');
-const {options,expectedAuditChecks,auditReportIsValid,localAuditStillMatches}=
+const {options,expectedAuditChecks,auditReportIsValid,localAuditStillMatches,readyForLeadReview}=
  require('../bin/release-candidate.cjs');
 const ROOT=path.resolve(__dirname,'..'),REPO=path.resolve(ROOT,'../..');
 const hash=x=>crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex');
@@ -135,6 +135,33 @@ try{
   'The isolated copy must remain stable through the complete candidate run');
  assert.ok(candidateSource.includes('finalLeadStable&&(!leadSnapshotManifestBaseline||finalSnapshotStable)'),
   'The final aggregate stable flag must include the snapshot as well as the original checkout');
+
+ // A complete candidate may be handed over, but no stale visual source or
+ // late Lead snapshot cleanup failure may be reported as accepted.
+ const ready={
+  gate:{node:true,bundleParity:true,chromium:true,fullVisualMatrix:true,
+   phpParity:true,sourceExact:true,gitVerified:true},
+  visualCapture:{status:'pass'},visualReview:{status:'pass'},
+  leadInputs:{status:'stable',stable:true},leadGraph:{status:'pass'},
+  leadPhpParity:{status:'pass'},zip:{status:'pass'},
+  git:{stable:true,ownerBranch:true,after:{ownerBranch:true}}
+ };
+ assert.equal(readyForLeadReview(ready),true,'Complete candidate may proceed to Lead review');
+ for(const [label,mutate] of [
+  ['stale visual evidence',r=>{r.visualCapture.status='fail';}],
+  ['visual matrix flag closed',r=>{r.gate.fullVisualMatrix=false;}],
+  ['review receipt missing',r=>{r.visualReview.status='pending-human-review';}],
+  ['Lead snapshot cleanup failed',r=>{r.leadInputs.status='cleanup-failed';r.leadInputs.stable=false;}],
+  ['Lead snapshot changed',r=>{r.leadInputs.stable=false;}],
+  ['Lead Graph checks failed',r=>{r.leadGraph.status='fail';}],
+  ['PHP parity failed',r=>{r.leadPhpParity.status='fail';}],
+  ['ZIP verification failed',r=>{r.zip.status='fail';}],
+  ['Git branch changed',r=>{r.git.after.ownerBranch=false;}],
+  ['late orchestration error',r=>{r.error='cleanup or final source drift';}]
+ ]){
+  const invalid=structuredClone(ready);mutate(invalid);
+  assert.equal(readyForLeadReview(invalid),false,label+' must close the final Lead handoff gate');
+ }
  const base=fixture(false);
  assert.equal(auditReportIsValid(base,false),true);
  assert.equal(localAuditStillMatches(base),true);
@@ -197,7 +224,7 @@ try{
  ])assert.ok(inputs.includes(required),'Fingerprint must bind '+required);
  assert.equal(sourceFingerprint(REPO),sourceFingerprint(REPO),'Fingerprint must be deterministic');
  exerciseExternalInputManifest();
- console.log('DESIGN_FACTORY_D7_RELEASE_CONTRACT PASS: exact audit schema, bundle + 9-suite inventory, bounded traversal, source stability, isolated Lead snapshot/immutability/drift checks and visual-tooling fingerprint');
+ console.log('DESIGN_FACTORY_D7_RELEASE_CONTRACT PASS: exact audit schema, bundle + 9-suite inventory, bounded traversal, sealed Lead snapshot, source stability and fail-closed final handoff gate');
 }catch(error){
  console.error('DESIGN_FACTORY_D7_RELEASE_CONTRACT FAIL: '+error.message);
  throw error;
