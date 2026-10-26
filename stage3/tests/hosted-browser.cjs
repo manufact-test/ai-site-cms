@@ -67,6 +67,19 @@ async function execute(){
   await page.locator('#undo').click();
   assert.equal(await page.frameLocator('#preview').locator('h1').innerText(),'Проверка серверного сайта');
 
+  // Hosted site-map preview and cross-page copy are Undoable before server Save.
+  await page.locator('#cms-site-map-open').click();
+  await page.locator('#cms-site-map-dialog[open]').waitFor();
+  await page.locator('[data-map-page]').first().locator('[data-map-section]').first()
+    .locator('.cms-map-target').selectOption('page-contact');
+  await page.locator('[data-map-page]').first().locator('[data-map-section]').first()
+    .getByRole('button',{name:'Копировать'}).click();
+  assert.equal(await page.locator('[data-map-page="page-contact"] [data-map-section]').count(),2);
+  await page.locator('#cms-map-apply').click();
+  assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[1].sections.length,2);
+  await page.locator('#undo').click();
+  assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[1].sections.length,1);
+
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Черновик #2/).waitFor();
   assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/);

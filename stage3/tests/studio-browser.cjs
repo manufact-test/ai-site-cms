@@ -150,6 +150,36 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.match(await page.locator('#toast').innerText(),/Импорт отклонён/);
     assert.equal(await canvas.locator('h1').innerText(),'Новое промышленное оборудование');
 
+    // Unified site map: cross-page staging is isolated and committed as one Undo.
+    await page.locator('#cms-site-map-open').click();
+    await page.locator('#cms-site-map-dialog[open]').waitFor();
+    assert.equal(await page.locator('#cms-map-pages [data-map-page]').count(),2);
+    const beforePlan=await page.evaluate(()=>window.Stage3Editor.getSite());
+    const homeFirst=beforePlan.pages[0].sections[0].id;
+    const homeSecond=beforePlan.pages[0].sections[1].id;
+    await page.locator('[data-map-section="'+homeSecond+'"] .cms-map-target').selectOption('page-contact');
+    await page.locator('[data-map-section="'+homeSecond+'"]').getByRole('button',{name:'Перенести'}).click();
+    assert.equal(await page.locator('[data-map-page="page-contact"] [data-map-section="'+homeSecond+'"]').count(),1);
+    assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforePlan,
+      'Unapplied site-map planning must not mutate the Studio draft');
+    await page.locator('[data-map-section="'+homeFirst+'"] .cms-map-target').selectOption('page-contact');
+    await page.locator('[data-map-section="'+homeFirst+'"]').getByRole('button',{name:'Копировать'}).click();
+    assert.equal(await page.locator('[data-map-page="page-contact"] [data-map-section]').count(),3);
+    assert.match(await page.locator('#cms-map-summary').innerText(),/один Undo/);
+    await page.locator('#cms-map-preview-page').selectOption('page-contact');
+    await page.locator('#cms-map-mobile').click();
+    assert.equal(await page.locator('#cms-map-preview.mobile').count(),1);
+    await page.locator('#cms-map-apply').click();
+    const reorganized=await page.evaluate(()=>window.Stage3Editor.getSite());
+    assert.equal(reorganized.pages[0].sections.length,1);
+    assert.equal(reorganized.pages[1].sections.length,3);
+    await page.locator('#undo').click();
+    assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforePlan,
+      'One Undo must restore all planned cross-page changes');
+    await page.locator('#redo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[1].sections.length,3);
+    await page.locator('#undo').click();
+
     // Real offline repeatable cards: add, edit, clone, reorder and Undo through Studio.
     page.once('dialog',d=>d.accept('service-grid'));
     await page.locator('#section-add').click();
