@@ -429,6 +429,25 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.match(await page.locator('#cms-quality-summary').innerText(),/страниц/);
     assert.match(await page.locator('#cms-quality-summary').innerText(),/рекомендаций/);
     assert.match(await page.locator('#cms-quality-findings').innerText(),/H1|SEO title|Описание/);
+    // A second large workflow: bulk site-wide internal links and media audit
+    // with explicit per-binding selection, SDK preview and one-step Undo.
+    assert.match(await page.locator('#cms-repair-summary').innerText(),/внутренних ссылок/);
+    await page.locator('#cms-repair-mode').selectOption('links');
+    const linkRow=page.locator('#cms-repair-list .cms-repair-row')
+      .filter({hasText:'Ссылка: /contact/'}).first();
+    const linkBefore=await page.evaluate(()=>window.Stage3Editor.getSite());
+    await linkRow.locator('input[type=checkbox]').check();
+    await linkRow.locator('select').selectOption('/');
+    await page.locator('#cms-repair-check').click();
+    assert.match(await page.locator('#cms-repair-preview').innerText(),/Предпросмотр/);
+    await page.locator('#cms-repair-apply').click();
+    const linkAfter=await page.evaluate(()=>window.Stage3Editor.getSite());
+    assert.notDeepEqual(linkAfter,linkBefore,'Bulk link repair must edit the draft');
+    await page.locator('#cms-site-report').getByRole('button',{name:'Закрыть'}).click();
+    await page.locator('#undo').click();
+    assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),linkBefore,
+      'One Undo must revert the whole link-repair transaction');
+    await page.locator('#cms-quality-open').click();
     const beforeSeoFix=await page.evaluate(()=>window.Stage3Editor.getSite());
     assert.equal(beforeSeoFix.pages.find(p=>p.id==='page-contact').seo,undefined);
     await page.locator('#cms-seo-safe-fix').click();

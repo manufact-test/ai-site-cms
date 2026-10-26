@@ -546,6 +546,207 @@
     return true;
   }
 
+
+  // Site-wide link/media repairs live inside the existing Quality surface.
+  // Every proposal is explicit; the site is validated and previewed before
+  // a single undoable SDK transaction. No upload, deletion or publication.
+  function createSiteLinkMediaRepair(dialog,rerunAudit){
+    const panel=document.createElement('section');
+    panel.className='cms-quality-repairs';panel.id='cms-site-repairs';
+    const title=document.createElement('h3');title.textContent='Ссылки и медиа всего сайта';
+    const description=document.createElement('p');
+    description.textContent='Исправьте устаревшие и битые внутренние ссылки, заполните пустые медиаполя или переназначьте изображения. Выбирайте изменения вручную; сначала предпросмотр, потом одно Undo. Внешние адреса и Design Graph не перезаписываются.';
+    const filters=document.createElement('div');filters.className='cms-repair-filters';
+    const pageFilter=document.createElement('select');pageFilter.id='cms-repair-page';pageFilter.className='control';
+    pageFilter.setAttribute('aria-label','Страница для исправлений');
+    const mode=document.createElement('select');mode.id='cms-repair-mode';mode.className='control';
+    mode.setAttribute('aria-label','Фильтр привязок');
+    for(const [value,label] of [['issues','Требуют внимания'],['all','Все ссылки и медиа'],['links','Все внутренние ссылки'],['media','Все медиаполя']]){
+      const option=document.createElement('option');option.value=value;option.textContent=label;mode.append(option);
+    }
+    filters.append(pageFilter,mode);
+    const summary=document.createElement('p');summary.id='cms-repair-summary';
+    const list=document.createElement('div');list.id='cms-repair-list';
+    const previewOutput=document.createElement('p');previewOutput.id='cms-repair-preview';
+    previewOutput.setAttribute('role','status');
+    const buttons=document.createElement('div');buttons.className='cms-settings-actions';
+    const preview=button('Предпросмотр изменений','btn small',()=>prepare());
+    preview.id='cms-repair-check';
+    const apply=button('Применить выбранное','btn primary',()=>commit());
+    apply.id='cms-repair-apply';apply.dataset.editorWrite='true';apply.disabled=true;
+    buttons.append(preview,apply);
+    panel.append(title,description,filters,summary,list,previewOutput,buttons);
+    let entries=[],prepared=null;
+    const writable=()=>!HOSTED||window.Stage3Host?.canEditStudio?.();
+    const invalidate=()=>{
+      prepared=null;apply.disabled=true;
+      const choices=entries.filter(item=>item.checked.checked&&item.target.value!==item.value);
+      preview.disabled=!writable()||!choices.length;
+      previewOutput.textContent=choices.length?
+        choices.length+' выбранных замен. Нажмите «Предпросмотр изменений» для проверки полного черновика.':
+        'Отметьте привязки и выберите новые значения. Ничего не изменено.';
+    };
+    const makeOption=(select,value,label)=>{
+      const option=document.createElement('option');
+      option.value=value;option.textContent=label;select.append(option);
+    };
+    const findIssues=(page,section,element,value)=>{
+      const all=C.inspectSite(session.current,manifests);
+      return [...all.errors,...all.warnings].find(item=>
+        ['broken-link','old-link','broken-anchor'].includes(item.kind)&&
+        item.pageId===page.id&&item.sectionId===section.id&&
+        item.elementId===element.id&&item.path===value);
+    };
+    const collect=()=>{
+      const site=session.current,diagnostics=C.inspectSite(site,manifests);
+      const linkFindings=[...diagnostics.errors,...diagnostics.warnings]
+        .filter(item=>['broken-link','old-link','broken-anchor'].includes(item.kind));
+      const rows=[],referenced=new Set();
+      for(const page of site.pages){
+        for(const section of page.sections){
+          const spec=manifests.find(m=>m.id===section.component&&m.version===section.manifestVersion);
+          for(const element of [...section.elements,...(section.items||[])]){
+            const part=element.slot?spec?.elements.find(item=>item.slot===element.slot):spec?.repeat;
+            for(const field of part?.fields||[]){
+              const value=element.values[field.path];
+              if(field.type==='media'&&value)referenced.add(value);
+              if(!['media','url'].includes(field.type))continue;
+              if(field.type==='url'&&(!String(value).startsWith('/')||String(value).startsWith('//')))continue;
+              const issue=field.type==='url'?linkFindings.find(item=>
+                item.pageId===page.id&&item.sectionId===section.id&&
+                item.elementId===element.id&&item.path===value):null;
+              rows.push({pageId:page.id,pageTitle:page.title,sectionId:section.id,
+                elementId:element.id,path:field.path,fieldLabel:field.label,
+                kind:field.type==='url'?'link':'media',value,issue:issue?.kind||'',
+                message:issue?.message||(field.type==='media'&&!value?'Изображение не выбрано':'')});
+            }
+          }
+          if(section.designGraph){
+            const traverse=nodes=>{
+              for(const node of nodes){
+                if(node.type==='image'&&node.assetId)referenced.add(node.assetId);
+                if(node.children)traverse(node.children);
+              }
+            };traverse(section.designGraph.nodes);
+          }
+        }
+      }
+      return {rows,unused:site.assets.filter(asset=>!referenced.has(asset.id)),
+        links:rows.filter(item=>item.kind==='link').length,
+        media:rows.filter(item=>item.kind==='media').length};
+    };
+    const redraw=()=>{
+      prepared=null;entries=[];list.replaceChildren();
+      pageFilter.replaceChildren();makeOption(pageFilter,'','Все страницы');
+      for(const page of session.current.pages)makeOption(pageFilter,page.id,page.title+' · '+page.path);
+      if(!pageFilter.dataset.chosen||!session.current.pages.some(p=>p.id===pageFilter.dataset.chosen))
+        pageFilter.dataset.chosen='';
+      pageFilter.value=pageFilter.dataset.chosen;
+      const all=collect(),filtered=all.rows.filter(item=>
+        (!pageFilter.value||item.pageId===pageFilter.value)&&
+        (mode.value==='all'||mode.value==='links'&&item.kind==='link'||
+        mode.value==='media'&&item.kind==='media'||
+        mode.value==='issues'&&Boolean(item.issue||item.kind==='media'&&!item.value)));
+      summary.textContent=all.links+' внутренних ссылок · '+all.media+
+        ' медиаполей · '+all.unused.length+' неиспользуемых медиа (не удаляются) · '+
+        filtered.length+' в текущем фильтре';
+      for(const item of filtered.slice(0,150)){
+        const line=document.createElement('div');line.className='cms-repair-row';
+        const checked=document.createElement('input');checked.type='checkbox';
+        checked.setAttribute('aria-label','Выбрать '+item.fieldLabel+' — '+item.pageTitle);
+        const caption=document.createElement('div');caption.className='cms-repair-label';
+        const head=document.createElement('strong');head.textContent=item.pageTitle+' · '+item.fieldLabel;
+        const detail=document.createElement('small');
+        detail.textContent=(item.kind==='link'?'Ссылка: ':'Медиа: ')+(item.value||'не выбрано')+
+          (item.message?' · '+item.message:' · привязка работает');
+        caption.append(head,detail);
+        const target=document.createElement('select');target.className='control';
+        target.setAttribute('aria-label','Новое значение для '+item.fieldLabel+' — '+item.pageTitle);
+        if(item.kind==='link'){
+          for(const page of session.current.pages)
+            makeOption(target,page.path,page.title+' · '+page.path);
+          target.value=(session.current.redirects||[]).find(r=>r.from===item.value)?.to||
+            (session.current.pages.some(page=>page.path===item.value)?item.value:session.current.pages[0].path);
+        }else{
+          makeOption(target,'','Без изображения');
+          for(const asset of session.current.assets)
+            if(asset.mime!=='video/mp4')makeOption(target,asset.id,(asset.alt||asset.id)+' · '+asset.mime);
+          target.value=item.value||'';
+        }
+        const jump=button('Открыть','btn small',()=>{
+          dialog.close();focusLaunchIssue({...item,kind:item.kind,path:item.path});
+        });
+        checked.disabled=target.disabled=!writable();
+        checked.addEventListener('change',invalidate);target.addEventListener('change',invalidate);
+        line.append(checked,caption,target,jump);list.append(line);
+        entries.push({...item,checked,target});
+      }
+      if(filtered.length>150){
+        const remainder=document.createElement('p');
+        remainder.textContent='Показаны первые 150. Уточните страницу или фильтр для остальных '+(filtered.length-150)+'.';
+        list.append(remainder);
+      }
+      if(!filtered.length)list.textContent='Совпадений нет. Настроенные поля остаются без изменений.';
+      previewOutput.textContent='Изменения не подготовлены.';
+      invalidate();
+    };
+    const makeCandidate=()=>{
+      const chosen=entries.filter(item=>item.checked.checked&&item.target.value!==item.value);
+      if(!chosen.length)throw Error('Не выбраны изменения');
+      const candidate=cp(session.current);
+      const changes=[];
+      for(const row of chosen){
+        const page=candidate.pages.find(page=>page.id===row.pageId);
+        const section=page?.sections.find(section=>section.id===row.sectionId);
+        const element=[...(section?.elements||[]),...(section?.items||[])].find(item=>item.id===row.elementId);
+        if(!element||element.values[row.path]!==row.value)
+          throw Error('Поле изменилось с момента выбора. Откройте список заново.');
+        const to=row.target.value;
+        if(row.kind==='link'&&!candidate.pages.some(page=>page.path===to))
+          throw Error('Целевая страница отсутствует');
+        if(row.kind==='media'&&to&&!candidate.assets.some(asset=>asset.id===to&&asset.mime!=='video/mp4'))
+          throw Error('Медиа больше нет в библиотеке');
+        element.values[row.path]=to;
+        changes.push({pageId:page.id,sectionId:section.id,elementId:element.id,
+          kind:row.kind,path:row.path,from:row.value,to});
+      }
+      C.validateSite(candidate,manifests);
+      return {candidate,changes};
+    };
+    function prepare(){
+      try{
+        if(!writable())throw Error('Нет права на изменение черновика');
+        const source=JSON.stringify(session.current);
+        const next=makeCandidate();
+        const before=C.inspectSite(session.current,manifests);
+        const after=C.inspectSite(next.candidate,manifests);
+        prepared={...next,source};
+        apply.disabled=false;
+        previewOutput.textContent='Предпросмотр: '+next.changes.length+
+          ' привязок · ошибок ссылок/SEO до: '+before.errors.length+
+          ', после: '+after.errors.length+
+          ' · рекомендаций до: '+before.warnings.length+
+          ', после: '+after.warnings.length+
+          '. Применение изменит только выбранные поля, один Undo. Save/Publish отдельно.';
+      }catch(error){invalidate();notice('Предпросмотр отклонён: '+error.message,true);}
+    }
+    function commit(){
+      try{
+        if(!prepared||!writable())throw Error('Сначала подтвердите предпросмотр');
+        if(JSON.stringify(session.current)!==prepared.source)
+          throw Error('Черновик изменился. Выполните предпросмотр ещё раз.');
+        const count=prepared.changes.length;
+        session=D.replaceSite(session,manifests,prepared.candidate,session.revision);
+        prepared=null;draw();rerunAudit();
+        notice('Применено '+count+' привязок в черновике одной операцией Undo. Save и Publish отдельно.');
+      }catch(error){invalidate();notice('Массовая правка не применена: '+error.message,true);}
+    }
+    pageFilter.addEventListener('change',()=>{pageFilter.dataset.chosen=pageFilter.value;redraw();});
+    mode.addEventListener('change',redraw);
+    dialog.append(panel);
+    return redraw;
+  }
+
   function initSiteQuality(){
     const dialog=document.createElement('dialog');dialog.className='cms-quality-dialog';dialog.id='cms-site-report';
     const heading=document.createElement('h2');heading.textContent='Проверка перед публикацией';
@@ -579,7 +780,9 @@
     });
     safeTitles.id='cms-seo-safe-fix';
     const close=button('Закрыть','btn',()=>dialog.close());
-    dialog.append(heading,summary,findings,subtitle,aliases,form,notes,safeTitles,close);
+    dialog.append(heading,summary,findings,subtitle,aliases,form,notes,safeTitles);
+    const redrawRepairs=createSiteLinkMediaRepair(dialog,()=>print());
+    dialog.append(close);
     document.body.append(dialog);
     const print=()=>{
       const report=C.inspectSite(session.current,manifests);
@@ -649,6 +852,7 @@
         });
         del.dataset.editorWrite='true';line.append(desc,del);aliases.append(line);
       }
+      redrawRepairs();
       if(HOSTED)window.Stage3Host?.onDraw?.();
     };
     form.addEventListener('submit',event=>{

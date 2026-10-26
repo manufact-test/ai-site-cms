@@ -356,3 +356,17 @@
 #cms-fill-changes small{font-size:11px;color:#a9d8ec}
 @media(max-width:790px){.cms-fill-layout{grid-template-columns:1fr}.cms-fill-fields{max-height:none;overflow:visible}
  .cms-fill-dialog{padding:15px}#cms-fill-frame{height:400px}}
+
+/* Existing SEO/a11y Quality dialog also holds explicit bulk link/media repairs. */
+.cms-quality-dialog{width:min(1030px,calc(100% - 24px))}
+.cms-quality-repairs{border-top:1px solid #486475;margin-top:20px;padding-top:14px}
+.cms-quality-repairs>p{font-size:12px;line-height:1.6;color:#c2d6e4}
+.cms-repair-filters{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.cms-repair-filters .control{max-width:290px}
+#cms-repair-list{display:grid;gap:8px;max-height:340px;overflow:auto;margin:10px 0}
+.cms-repair-row{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(155px,220px) auto;gap:9px;align-items:center;background:#1b3848;border:1px solid #37505e;padding:9px;border-radius:9px;font-size:12px}
+.cms-repair-row input[type=checkbox]{width:18px;height:18px}
+.cms-repair-label{min-width:0;overflow-wrap:anywhere;display:grid;gap:4px}
+.cms-repair-label small{font-size:11px;color:#bad4e1}
+#cms-repair-preview{color:#bce8d3}
+@media(max-width:680px){.cms-repair-row{grid-template-columns:auto minmax(0,1fr);align-items:start}.cms-repair-row .control{grid-column:2;max-width:100%}.cms-repair-row .btn{grid-column:2;justify-self:start}}
