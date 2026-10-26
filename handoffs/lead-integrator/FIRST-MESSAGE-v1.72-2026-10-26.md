@@ -4,7 +4,7 @@
 **Твоя рабочая ветка:** `feature/stage3-ai-site-contract`  
 **Главный документ передачи:** [MAIN-HANDOFF-v1.72-2026-10-26.md](MAIN-HANDOFF-v1.72-2026-10-26.md)  
 **Последний функциональный SHA:** `95a9f36759e7feabe435c4733181a73ff70866d9`  
-**Проверка функционального SHA:** https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925 — сначала проверь итоговый статус и точное совпадение SHA, а также CI более новых документационных коммитов. Не подменяй факт SUCCESS предположением.
+**Проверка функционального SHA:** https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925 — **SUCCESS**, SHA проверен. При входе в новый чат всё равно сверяй актуальный HEAD и CI более новых документационных коммитов.
 
 ### Сначала обязательно прочитай
 `handoffs/lead-integrator/MAIN-HANDOFF-v1.72-2026-10-26.md`, `PROJECT-STATUS.json`, начало `docs/NEXT-CHAT.md`, `docs/ROADMAP.md`, `stage3/README.md`. Сверь актуальные HEAD + GitHub Actions. Старую передачу v1.71 не принимай за текущую: тогда был красный hosted Save/Publish тест; его исправили в следующих коммитах и добавили много функциональности.
