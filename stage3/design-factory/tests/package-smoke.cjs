@@ -64,6 +64,28 @@ try{
   const directory=bytes.readUInt32LE(bytes.length-22+16);
   bytes.writeUInt32LE((bytes.readUInt32LE(directory+16)^1)>>>0,directory+16);
  },/Local\/central ZIP header mismatch/);
+ mutated('bad-central-version',bytes=>{
+  const directory=bytes.readUInt32LE(bytes.length-22+16);
+  bytes.writeUInt16LE(21,directory+4);
+ },/Unsupported ZIP member options/);
+ mutated('bad-central-disk-start',bytes=>{
+  const directory=bytes.readUInt32LE(bytes.length-22+16);
+  bytes.writeUInt16LE(1,directory+34);
+ },/Unsupported ZIP member options/);
+ mutated('bad-central-internal-attributes',bytes=>{
+  const directory=bytes.readUInt32LE(bytes.length-22+16);
+  bytes.writeUInt16LE(1,directory+36);
+ },/Unsupported ZIP member options/);
+ mutated('bad-central-timestamp',bytes=>{
+  const directory=bytes.readUInt32LE(bytes.length-22+16);
+  bytes.writeUInt16LE(1,directory+12);
+ },/Unsupported ZIP member options/);
+ mutated('bad-local-version',bytes=>{
+  bytes.writeUInt16LE(21,4);
+ },/Local\/central ZIP header mismatch/);
+ mutated('bad-local-timestamp',bytes=>{
+  bytes.writeUInt16LE(1,10);
+ },/Local\/central ZIP header mismatch/);
  mutated('bad-payload',bytes=>{
   const nameLength=bytes.readUInt16LE(26);
   bytes[30+nameLength+3]^=0xFF;

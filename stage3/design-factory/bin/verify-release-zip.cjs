@@ -53,11 +53,17 @@ function verify(zipFile,root=ROOT){
  for(let i=0;i<count;i++){
   if(pos+46>foot||b.readUInt32LE(pos)!==0x02014b50)
    throw Error('Missing central entry '+i);
+  const madeBy=b.readUInt16LE(pos+4),needed=b.readUInt16LE(pos+6);
   const flags=b.readUInt16LE(pos+8),method=b.readUInt16LE(pos+10);
+  const modTime=b.readUInt16LE(pos+12),modDate=b.readUInt16LE(pos+14);
   const crc=b.readUInt32LE(pos+16),packed=b.readUInt32LE(pos+20),unpacked=b.readUInt32LE(pos+24);
   const n=b.readUInt16LE(pos+28),extra=b.readUInt16LE(pos+30),comment=b.readUInt16LE(pos+32);
+  const diskStart=b.readUInt16LE(pos+34),internal=b.readUInt16LE(pos+36);
   const external=b.readUInt32LE(pos+38),off=b.readUInt32LE(pos+42);
-  if(flags!==0x0800||method!==8||extra||comment||external!==0||unpacked>MAX_FILE||
+  // The builder emits one canonical ZIP32 dialect; reject alternate/multi-disk
+  // metadata rather than relying on different extractors to interpret it alike.
+  if(madeBy!==20||needed!==20||flags!==0x0800||method!==8||modTime!==0||modDate!==0x21||
+    extra||comment||diskStart!==0||internal!==0||external!==0||unpacked>MAX_FILE||
     packed>MAX_FILE+65536||pos+46+n>foot)
    throw Error('Unsupported ZIP member options at '+i);
   const nameBytes=b.subarray(pos+46,pos+46+n);
@@ -67,7 +73,9 @@ function verify(zipFile,root=ROOT){
    throw Error('Invalid or repeated archive path: '+name);
   seen.add(name);
   if(off!==localEnd||off+30+n>start||b.readUInt32LE(off)!==0x04034b50||
-    b.readUInt16LE(off+6)!==flags||b.readUInt16LE(off+8)!==method||
+    b.readUInt16LE(off+4)!==20||b.readUInt16LE(off+6)!==flags||
+    b.readUInt16LE(off+8)!==method||b.readUInt16LE(off+10)!==0||
+    b.readUInt16LE(off+12)!==0x21||
     b.readUInt32LE(off+14)!==crc||b.readUInt32LE(off+18)!==packed||
     b.readUInt32LE(off+22)!==unpacked||b.readUInt16LE(off+26)!==n||
     b.readUInt16LE(off+28)!==0||
