@@ -59,6 +59,26 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#pages .nav-entry').count(),3);
     await page.locator('#undo').click();
     assert.equal(await page.locator('#pages .nav-entry').count(),2);
+    // Whole-site verified content pass protects existing custom headings and
+    // applies one atomic change-set without touching Save/Publish.
+    const beforeFill=await page.evaluate(()=>window.Stage3Editor.getSite());
+    await page.locator('#cms-fill-open').click();
+    await page.locator('#cms-fill-dialog[open]').waitFor();
+    await page.locator('#cms-fill-dialog label').filter({hasText:'Название компании'})
+      .locator('input').fill('Завод оборудования — обновлённый');
+    await page.locator('#cms-fill-dialog label').filter({hasText:'Подтверждённое описание'})
+      .locator('textarea').fill('Проверенные сведения о технологическом оборудовании.');
+    await page.locator('#cms-fill-dialog label').filter({hasText:'Подтверждённые преимущества'})
+      .locator('textarea').fill('Подтверждённый опыт\nСогласованные сроки');
+    assert.match(await page.locator('#cms-fill-summary').innerText(),/изменений/);
+    assert.equal(await page.evaluate(()=>window.Stage3Editor.getSite().title),beforeFill.title,
+      'An uncommitted intake must never change the current site');
+    await page.locator('#cms-fill-apply').click();
+    assert.equal(await page.locator('#site-name').innerText(),'Завод оборудования — обновлённый');
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages.length,2);
+    await page.locator('#undo').click();
+    assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeFill,
+      'Whole-site intake is one Undo and preserves manually customized content');
     const canvas=page.frameLocator('#preview');
     await canvas.locator('h1').waitFor();
     assert.equal(await canvas.locator('h1').innerText(),'Производим технологическое оборудование');
