@@ -4,7 +4,7 @@
 **Repository:** https://github.com/manufact-test/ai-site-cms
 **Your working branch:** `feature/stage3-design-factory`
 **Sole writable subtree:** `stage3/design-factory/`
-**Latest functional/source checkpoint:** `b670b67add2667e750fc94fb09d470da81d6d022`. Always read live HEAD on arrival; this source SHA is not a substitute for querying the branch.
+**Latest functional/source checkpoint:** `9a3a3791ba29ab7681cfceefe345a61ddc0dcc37`. Always read live HEAD on arrival; this source SHA is not a substitute for querying the branch.
 **IMPORTANT:** Read the CURRENT HEAD from GitHub on arrival. Do not use the older SHA as the current branch head, and do not create any competing branch.
 
 This is the **second independent developer's permanent Design Factory program**, not the primary AI Site CMS chat. The main developer integrates into `feature/stage3-ai-site-contract` / main when ready. Do NOT edit the leader's branch or `main`, `stage3/sdk`, `stage3/components`, PHP, Studio-main, workflows, deployment, secrets, hosting or other projects. Do NOT merge this branch yourself.
@@ -12,7 +12,7 @@ This is the **second independent developer's permanent Design Factory program**,
 
 ## Latest D7 release-candidate hardening — 26 October 2026
 
-**Current source checkpoint:** `b670b67add2667e750fc94fb09d470da81d6d022`. Always read live HEAD before continuing. This is an engineering checkpoint, not a release certificate.
+**Current source checkpoint:** `9a3a3791ba29ab7681cfceefe345a61ddc0dcc37`. Always read live HEAD before continuing. This is an engineering checkpoint, not a release certificate.
 
 - Preserved visual-review receipt **v2**: the reviewer must inspect all 42 D3 compositions and confirm the fifth `showcaseCoverage` check. Old v1 receipts are rejected.
 - Added `lib/source-manifest.cjs` so the release audit and candidate runner use the same deterministic source-inventory rules. The runner validates the exact expected audit schema and check list, recomputes the source-manifest digest, and rejects added, removed or modified source files between audit and packaging.
@@ -20,7 +20,7 @@ This is the **second independent developer's permanent Design Factory program**,
 - `bin/release-candidate.cjs` orchestrates the audit, ZIP build, independent ZIP verification, optional Chromium screenshots, v2 human-review receipt, optional Lead JS smoke and six real PHP parity probes. It records before/after Git state and rejects a changed source fingerprint.
 - `bin/verify-release-zip.cjs` independently checks ZIP32 local/central records, CRC32, canonical sorted inventory, exact source bytes, source digest and archive SHA256. A ZIP can be built for engineering review while release gates remain open.
 - The visual-source fingerprint covers the Design Factory `bin/`, `catalog/`, `lib/`, `studio/`, every first-party component JSON manifest and the SDK contract. Review verification rejects symlinked evidence roots and screenshot directories.
-- Added `tests/release-candidate-contract-smoke.cjs` to the standard audit. The separate `tests/release-candidate-smoke.cjs` exercises the whole runner on a real checkout and is intentionally not nested inside its own audit. The audit and candidate report schemas are versioned v2; stale v1 reports are refused.
+- Added `tests/release-candidate-contract-smoke.cjs` to the standard audit. The separate `tests/release-candidate-smoke.cjs` exercises the whole runner on a real checkout and is intentionally not nested inside its own audit. The audit and candidate report schemas are versioned v2; stale v1 reports are refused. The candidate also rejects contradictory check records (for example, `passed: true` with a nonzero exit code) and validates the current source manifest before reporting the Node gate as PASS.
 
 ### Commands on a complete checkout
 
@@ -33,7 +33,7 @@ The output directory must not already exist. Add `--chromium /usr/bin/chromium` 
 
 Exit code **3** means the core audit and exact-source ZIP are ready for engineering review but at least one release gate remains open. Exit code **0** requires every configured gate; it still does not authorize production or merge. Exit code **2** indicates a failed/incomplete core gate or an invalid candidate.
 
-**Verification boundary for this checkpoint:** static V8 syntax parsing **PASS** for nine changed JavaScript files. The full Node audit, candidate smoke, Chromium Studio E2E, real 54-image capture/review, Lead PHP parity and actual ZIP/hash have **NOT RUN**: no genuine local checkout is available. The last recorded checkout attempt failed at GitHub DNS resolution and the minimal Chromium probe timed out. GitHub API for source HEAD `b670b67add2667e750fc94fb09d470da81d6d022`: **0 Actions runs, 0 check runs, 0 commit statuses**.
+**Verification boundary for this checkpoint:** static V8 syntax parsing **PASS** for nine changed JavaScript files. The full Node audit, candidate smoke, Chromium Studio E2E, real 54-image capture/review, Lead PHP parity and actual ZIP/hash have **NOT RUN**: no genuine local checkout is available. The last recorded checkout attempt failed at GitHub DNS resolution and the minimal Chromium probe timed out. GitHub API for source HEAD `9a3a3791ba29ab7681cfceefe345a61ddc0dcc37`: **0 Actions runs, 0 check runs, 0 commit statuses**.
 
 **Decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; **0/135** mandatory criteria. Do not modify workflows, merge, or infer acceptance from authored tests.
 

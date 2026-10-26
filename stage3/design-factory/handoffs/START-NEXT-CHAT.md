@@ -1,6 +1,6 @@
 ## Последнее обновление — 26 октября 2026
 
-- Ветка: `feature/stage3-design-factory`; текущий source checkpoint: `b670b67add2667e750fc94fb09d470da81d6d022`. Перед началом всегда проверь live HEAD.
+- Ветка: `feature/stage3-design-factory`; текущий source checkpoint: `9a3a3791ba29ab7681cfceefe345a61ddc0dcc37`. Перед началом всегда проверь live HEAD.
 - Сохранена приёмка visual-review **v2**: отдельная проверка `showcaseCoverage`, просмотр всех 42 D3-композиций; старые v1 receipts отклоняются.
 - Создан единый D7 Release Candidate Pipeline. `release-audit.cjs` выполняет browser-bundle parity + **8 Node suites**; с `--chromium` добавляет visual-pipeline smoke.
 - `release-candidate.cjs` запускает audit, собирает ZIP, независимо сверяет central/local headers, CRC32, полный source inventory/bytes и SHA256; опционально выполняет Chromium capture, review v2, Lead JS smoke и шесть PHP markup-parity probes.
