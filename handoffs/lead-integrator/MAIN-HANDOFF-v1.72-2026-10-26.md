@@ -3,7 +3,7 @@
 **Репозиторий:** https://github.com/manufact-test/ai-site-cms  
 **Ветка главного разработчика:** `feature/stage3-ai-site-contract`  
 **Последний функциональный SHA:** `95a9f36759e7feabe435c4733181a73ff70866d9`  
-**Проверка исходного SHA:** https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925 (при продолжении обязательно проверить окончательный conclusion и head_sha).  
+**Проверка исходного SHA:** https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925 — **SUCCESS**, полный Stage3 CI; SHA совпал с функциональным коммитом. При продолжении также сверить последующие docs-only HEAD/CI.  
 **Правило:** документационные коммиты, созданные после функционального SHA, также требуют собственной проверки CI. Источником истины является актуальный branch HEAD + Actions на том же SHA.
 
 ## Роль и границы ответственности
