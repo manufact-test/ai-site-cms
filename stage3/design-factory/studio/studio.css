@@ -110,3 +110,5 @@ a{color:inherit}a:focus-visible,button:focus-visible,input:focus-visible,textare
 @media(max-width:900px){.preview-layout[data-compare=true],.page-overview{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:730px){.review-mode-controls{align-items:stretch}.review-reference{width:100%;justify-content:space-between}
 .overview-scroller{justify-content:flex-start}.overview-card-header{flex-wrap:wrap}}
+
+.review-mode-controls #compare-adopt{min-height:44px}

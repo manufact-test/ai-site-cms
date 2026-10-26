@@ -106,7 +106,7 @@ assert.ok(app.includes('clearTimeout(refreshTimer)')&&app.includes('PREVIEW_DEBO
 assert.ok(!markup.includes('allow-same-origin'));
 
  // D7 product workflow: alternate live theme, same owner facts, full four-page mobile board.
- for(const id of ['compare-toggle','overview-toggle','compare-theme','compare-shell',
+ for(const id of ['compare-toggle','overview-toggle','compare-theme','compare-adopt','compare-shell',
   'compare-preview','preview-layout','page-overview','page-overview-note'])
   assert.ok(markup.includes('id="'+id+'"'),'D7 workbench control '+id);
  assert.ok(markup.includes('id="compare-preview" sandbox="allow-scripts"'));
@@ -118,6 +118,10 @@ assert.ok(!markup.includes('allow-same-origin'));
  assert.ok(app.includes("state.viewMode=state.viewMode==='compare'?'single':'compare'"));
  assert.ok(app.includes("state.viewMode=state.viewMode==='overview'?'single':'overview'"));
  assert.ok(css.includes('.preview-layout[data-compare=true]')&&css.includes('.page-overview'));
+ assert.ok(app.includes("if(state.viewMode!=='compare'||selected===original)return"));
+ assert.ok(app.includes("if(apply(()=>{state.project.theme=selected;}))"),'Adopting the compared theme must enter Undo/Redo history');
+ assert.ok(app.includes('state.compareTheme=original'),'Previous theme must become the comparison baseline after adoption');
+ assert.ok(css.includes('#compare-adopt{min-height:44px}'));
  assert.ok(app.includes('const trusted=['),'Navigation accepts only current owned iframe sources');
 
 const ctx={structuredClone:global.structuredClone,console};
@@ -200,6 +204,13 @@ try{
  "const compareTheme=document.getElementById('compare-theme');compareTheme.value='technical';compareTheme.dispatchEvent(new Event('change',{bubbles:true}));",
  "if(!document.getElementById('compare-preview').srcdoc.includes('preview'))throw Error('compare preview missing');",
  "if(document.getElementById('preview-shell').dataset.device!=='desktop')throw Error('comparison device');",
+ "document.getElementById('compare-adopt').click();",
+ "if(document.querySelector('#theme-technical').getAttribute('aria-pressed')!=='true')throw Error('adopting compared theme');",
+ "if(document.getElementById('compare-theme').value==='technical')throw Error('previous theme should be comparison baseline');",
+ "document.getElementById('undo').click();",
+ "if(document.querySelector('#theme-technical').getAttribute('aria-pressed')==='true')throw Error('theme adoption undo');",
+ "document.getElementById('redo').click();",
+ "if(document.querySelector('#theme-technical').getAttribute('aria-pressed')!=='true')throw Error('theme adoption redo');",
  "document.getElementById('compare-toggle').click();",
  "document.getElementById('overview-toggle').click();",
  "if(document.querySelectorAll('.overview-card iframe').length!==4)throw Error('four-page overview count');",

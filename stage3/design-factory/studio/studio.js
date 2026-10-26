@@ -280,6 +280,8 @@ function refreshViewMode(){
  $('compare-toggle').setAttribute('aria-pressed',String(compare));
  $('overview-toggle').setAttribute('aria-pressed',String(overview));
  $('compare-theme-field').hidden=!compare;
+ $('compare-adopt').hidden=!compare;
+ $('compare-adopt').disabled=!compare||state.compareTheme===state.project.theme;
  $('compare-theme').value=state.compareTheme;
  $('compare-shell').hidden=!compare;
  $('preview-layout').hidden=overview;
@@ -457,6 +459,18 @@ function init(){
  $('overview-toggle').addEventListener('click',()=>{
   state.viewMode=state.viewMode==='overview'?'single':'overview';renderPreview();
  });
+ $('compare-adopt').addEventListener('click',()=>{
+  const selected=state.compareTheme,original=state.project.theme;
+  if(state.viewMode!=='compare'||selected===original)return;
+  // A theme change is a real editorial action with Undo/Redo; revoke any owner
+  // sign-off exactly as if the theme was selected from the regular catalog.
+  if(apply(()=>{state.project.theme=selected;})){
+   state.compareTheme=original;
+   renderPreview();
+   say('Тема '+engine.compiler.THEMES[selected].label+' применена. Прежний стиль остался для сравнения; действие доступно в истории Undo.');
+  }
+ });
+
 
  $('composition').addEventListener('change',event=>apply(()=>{state.composition=event.target.value||null;state.page='home';}));
  $('add-service').addEventListener('click',()=>apply(()=>{
