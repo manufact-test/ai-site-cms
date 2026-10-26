@@ -501,8 +501,13 @@
         add(page,null,null,'seo','Добавьте собственное SEO-описание страницы.','seo.description');
       for(const section of page.sections){
         for(const element of [...section.elements,...(section.items||[])]){
-          const controls=C.controls(site,manifests,page.id,section.id,element.id);
-          for(const field of controls){
+          // Resolve declared fields directly: C.controls() revalidates the
+          // entire site on every call, which is quadratic for large sites.
+          const component=manifests.find(m=>m.id===section.component&&m.version===section.manifestVersion);
+          const definition=element.slot?
+            component?.elements.find(item=>item.slot===element.slot):component?.repeat;
+          for(const declared of definition?.fields||[]){
+            const field={...declared,value:element.values[declared.path]};
             if(field.type==='media'&&!String(field.value||'').trim())
               add(page,section,element,'media','Не выбрано изображение: '+field.label,field.path);
             if(field.type==='text'&&field.path.startsWith('content.')){
