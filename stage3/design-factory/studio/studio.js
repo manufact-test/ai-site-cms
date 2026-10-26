@@ -19,7 +19,8 @@ const state={
  project:projectDefault(),
  composition:null,
  page:'home',device:'desktop',query:'',viewMode:'single',compareTheme:'noir',overviewFrames:[],
- past:[],future:[],renderToken:0,lastSite:null,lastCompiled:null,lastError:null,feedback:null
+ past:[],future:[],renderToken:0,lastSite:null,lastCompiled:null,lastError:null,feedback:null,
+ editRevision:0,feedbackRevision:0
 };
 const keys=Object.keys(engine.compiler.KITS);
 const devices=['desktop','tablet','mobile'];
@@ -47,6 +48,7 @@ function snapshot(){return {project:clone(state.project),composition:state.compo
 function equal(a,b){return JSON.stringify(a)===JSON.stringify(b);}
 function historyRecord(before){
  if(equal(before,snapshot()))return;
+ state.editRevision++;
  state.past.push(before);if(state.past.length>MAX_HISTORY)state.past.shift();state.future=[];
  refreshHistory();
 }
@@ -72,6 +74,7 @@ function setHistory(direction){
  if(!from.length)return;
  to.push(snapshot());const next=from.pop();
  state.project=next.project;state.composition=next.composition;
+ state.editRevision++;
  refreshHistory();renderAll();say(direction==='undo'?'Изменение отменено.':'Изменение восстановлено.');
 }
 function refreshHistory(){
@@ -350,6 +353,8 @@ function connectEditor(input,get,set){
   if(!before)before=snapshot();
   state.project.ownerReviewConfirmed=false;
   set(input.value);
+  // Live changes precede blur/history and the debounced preview.
+  state.editRevision++;
   syncReviewControl();
   schedulePreview();
  });
@@ -475,6 +480,7 @@ function renderFeedback(){
   resolve.addEventListener('click',()=>{
    if(!state.feedback||feedbackContext()!==state.feedback.context)return;
    state.feedback.notes[index].resolved=!state.feedback.notes[index].resolved;
+   state.feedbackRevision++;
    renderFeedback();
   });
   actions.append(open,resolve);item.append(heading,copy,actions);items.append(item);
@@ -486,8 +492,14 @@ async function importFeedback(file){
   if(!feedbackTool)throw Error('Модуль обратной связи недоступен.');
   const expected=feedbackContext();
   if(!expected)throw Error('Сначала восстановите корректный проект Studio.');
+  const sourceRevision=state.editRevision,feedbackRevision=state.feedbackRevision;
   const incoming=JSON.parse(await file.text());
-  feedbackTool.validate(incoming,expected);
+  // Reading a file yields: refuse older owner edits, imports and resolutions.
+  const fresh=feedbackContext();
+  if(sourceRevision!==state.editRevision||feedbackRevision!==state.feedbackRevision||
+   !fresh||fresh!==expected)throw Error('Проект или замечания изменились во время чтения. Повторите импорт.');
+  feedbackTool.validate(incoming,fresh);
+  state.feedbackRevision++;
   state.feedback={
    ...incoming,notes:incoming.notes.map(n=>({...n}))
   };
@@ -542,7 +554,12 @@ function saveBridge(){
 async function importFile(file){
  try{
   if(!file||file.size>1024*1024)throw Error('Максимальный размер проекта — 1 МБ.');
-  const raw=engine.compiler.jsonParse(await file.text());
+  const sourceRevision=state.editRevision;
+  const contents=await file.text();
+  // A delayed JSON read cannot replace newer owner edits, Undo/Redo or imports.
+  if(sourceRevision!==state.editRevision)
+   throw Error('Проект изменён во время чтения файла. Повторите импорт.');
+  const raw=engine.compiler.jsonParse(contents);
   let project,composition=null;
   if(raw.format===WORKSPACE){
    if(raw.version!==1||Object.keys(raw).some(k=>!['format','version','project','composition'].includes(k)))
