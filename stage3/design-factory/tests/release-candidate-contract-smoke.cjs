@@ -13,7 +13,9 @@ const hash=x=>crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex'
 const entries=walk(ROOT),manifest=manifestForDesignFactory(ROOT);
 const auditSource=fs.readFileSync(path.join(ROOT,'bin/release-audit.cjs'),'utf8');
 function fixture(chromium=false){
- const checks=expectedAuditChecks(chromium).map(suite=>({suite,passed:true,exitCode:0}));
+ const checks=expectedAuditChecks(chromium).map(suite=>({suite,passed:true,exitCode:0,error:null,
+  stdout:chromium&&suite==='studio-smoke.cjs'?'DESIGN_FACTORY_D5_CHROMIUM PASS':
+   chromium&&suite==='visual-pipe-smoke.cjs'?'DESIGN_FACTORY_D7_VISUAL_PIPE PASS':''}));
  return {format:'manufact-design-factory-release-check-v2',version:2,
   fileCount:entries.length,sourceManifest:structuredClone(manifest),
   sourceManifestSha256:manifestDigest(manifest),checks,nodePassed:true,
@@ -36,7 +38,7 @@ try{
  for(const [label,mutate] of [
   ['missing suite',x=>x.checks.pop()],
   ['duplicate/wrong suite',x=>{x.checks[1].suite=x.checks[0].suite;}],
-  ['failed check',x=>{x.checks[0].passed=false;}],
+  ['failed check with contradictory summary',x=>{x.checks[0].passed=false;}],
   ['contradictory exit code',x=>{x.checks[0].exitCode=2;}],
   ['wrong source digest',x=>{x.sourceManifestSha256='0'.repeat(64);}],
   ['false release-ready claim',x=>{x.releaseReady=true;}],
@@ -46,6 +48,17 @@ try{
   const candidate=structuredClone(base);mutate(candidate);
   assert.equal(auditReportIsValid(candidate,false),false,label);
  }
+ const failedAudit=structuredClone(base);
+ failedAudit.checks[0].passed=false;failedAudit.checks[0].exitCode=1;
+ failedAudit.nodePassed=false;failedAudit.automatedChecksPassed=false;
+ assert.equal(auditReportIsValid(failedAudit,false),true,'A failed but internally consistent audit is a valid report, not a malformed report');
+ assert.equal(localAuditStillMatches(failedAudit),true,'A failed test must not be misreported as source drift when the manifest is unchanged');
+ const failedBrowser=structuredClone(browser);
+ const failedVisual=failedBrowser.checks.find(x=>x.suite==='visual-pipe-smoke.cjs');
+ failedVisual.passed=false;failedVisual.exitCode=1;failedVisual.stdout='';
+ failedBrowser.nodePassed=false;failedBrowser.browserPassed=false;failedBrowser.automatedChecksPassed=false;
+ assert.equal(auditReportIsValid(failedBrowser,true),true,'Browser failure should be recorded as a failed gate, not invalid schema');
+ assert.equal(localAuditStillMatches(failedBrowser),true,'Browser failure must not imply source changed');
  for(const [label,mutate] of [
   ['removed source entry',x=>{x.sourceManifest.pop();x.fileCount--;x.sourceManifestSha256=manifestDigest(x.sourceManifest);}],
   ['unreviewed extra source entry',x=>{x.sourceManifest.push({path:'extra.cjs',bytes:1,sha256:'0'.repeat(64)});x.fileCount++;x.sourceManifestSha256=manifestDigest(x.sourceManifest);}],

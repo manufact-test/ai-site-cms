@@ -57,16 +57,26 @@ function auditReportIsValid(audit,chromiumRequested=false){
   !Array.isArray(audit.checks)||!Array.isArray(audit.sourceManifest)||
   !Number.isInteger(audit.fileCount)||audit.fileCount<20||
   audit.sourceManifest.length!==audit.fileCount||
-  audit.browserRequested!==chromiumRequested||audit.nodePassed!==true||
-  audit.browserPassed!==chromiumRequested||
-  audit.automatedChecksPassed!==(audit.nodePassed&&audit.browserPassed)||
+  audit.browserRequested!==chromiumRequested||typeof audit.nodePassed!=='boolean'||
+  typeof audit.browserPassed!=='boolean'||typeof audit.automatedChecksPassed!=='boolean'||
   audit.humanVisualAcceptance!=='pending'||audit.releaseReady!==false||
   !/^[a-f0-9]{64}$/.test(audit.sourceManifestSha256||'')||
   manifestDigest(audit.sourceManifest)!==audit.sourceManifestSha256)return false;
  const checks=audit.checks;
  if(JSON.stringify(checks.map(x=>x&&x.suite))!==JSON.stringify(expectedAuditChecks(chromiumRequested))||
-  checks.some(x=>!x||x.passed!==true||
-   (x.suite!=='source-inventory-stability'&&x.exitCode!==0)||x.error!=null))return false;
+  checks.some(x=>!x||typeof x.passed!=='boolean'||
+   (x.suite==='source-inventory-stability'?
+    (x.passed?x.error!=null:typeof x.error!=='string'):
+    (x.passed?(x.exitCode!==0||x.error!=null):(x.exitCode===0&&x.error==null)))))return false;
+ const suite=name=>checks.find(x=>x.suite===name);
+ const studio=suite('studio-smoke.cjs'),visual=suite('visual-pipe-smoke.cjs');
+ const browserPassed=Boolean(chromiumRequested&&studio?.passed===true&&
+  typeof studio.stdout==='string'&&studio.stdout.includes('DESIGN_FACTORY_D5_CHROMIUM PASS')&&
+  visual?.passed===true&&typeof visual.stdout==='string'&&
+  visual.stdout.includes('DESIGN_FACTORY_D7_VISUAL_PIPE PASS'));
+ const nodePassed=checks.every(x=>x.passed);
+ if(audit.nodePassed!==nodePassed||audit.browserPassed!==browserPassed||
+  audit.automatedChecksPassed!==(nodePassed&&browserPassed))return false;
  const seen=new Set();
  for(const item of audit.sourceManifest){
   if(!item||typeof item.path!=='string'||item.path.startsWith('/')||item.path.includes('\\')||
@@ -129,16 +139,16 @@ function execute(opts){
   }
   const auditValid=auditReportIsValid(audit,Boolean(opts.chromium))&&localAuditStillMatches(audit);
   const failedChecks=Array.isArray(audit?.checks)?audit.checks.filter(x=>x?.passed!==true).map(x=>x?.suite||'unknown').join(', '):'missing/invalid audit report';
-  result.node={status:auditValid?'pass':'fail',
+  result.node={status:auditValid&&audit?.nodePassed===true?'pass':'fail',
    suites:audit?.checks?.filter(x=>x?.suite!=='build-browser-bundle --check'&&x?.suite!=='source-inventory-stability').length||0,
    checks:audit?.checks?.length||0,sha256:fs.existsSync(auditFile)?sha(fs.readFileSync(auditFile)):null,
    commandExit:auditCommand.exitCode,
-   error:auditValid?null:(auditCommand.error||failedChecks||auditCommand.stderr.slice(-700)||
+   error:auditValid&&audit?.nodePassed===true?null:(auditCommand.error||failedChecks||auditCommand.stderr.slice(-700)||
     'Audit report schema, suite inventory, or source manifest did not validate')};
-  result.bundleParity={status:audit?.checks?.[0]?.suite==='build-browser-bundle --check'&&
+  result.bundleParity={status:auditValid&&audit?.checks?.[0]?.suite==='build-browser-bundle --check'&&
    audit.checks[0].passed===true?'pass':'fail',
    output:audit?.checks?.[0]?.stdout||'',error:audit?.checks?.[0]?.stderr||''};
-  result.gate.node=auditValid;
+  result.gate.node=auditValid&&audit?.nodePassed===true;
   result.gate.bundleParity=result.bundleParity.status==='pass';
   result.chromium={status:opts.chromium?(auditValid&&audit?.browserPassed?'pass':'fail'):'not-requested',
    automatedBrowserPassed:audit?.browserPassed===true,commandExit:auditCommand.exitCode};
