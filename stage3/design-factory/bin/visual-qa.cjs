@@ -47,7 +47,7 @@ function args(list){
  for(let i=0;i<list.length;i++){
   if(list[i]==='--out'){
    const value=list[i+1];
-   if(sawOut||!value||value.startsWith('--'))throw Error('Usage --out NEW-directory --chromium /path/to/chromium [--quick]');
+   if(sawOut||!value||value.startsWith('--'))throw Error('Usage --out NEW-directory --chromium /path/to/chromium [--quick] [--static-in-memory]');
    result.output=value;sawOut=true;i++;
   }else if(list[i]==='--chromium'){
    const value=list[i+1];
@@ -55,7 +55,7 @@ function args(list){
    result.bin=value;sawChromium=true;i++;
   }else if(list[i]==='--quick')result.quick=true;
   else if(list[i]==='--static-in-memory')result.staticInMemory=true;
-  else throw Error('Usage --out NEW-directory --chromium /path/to/chromium [--quick]');
+  else throw Error('Usage --out NEW-directory --chromium /path/to/chromium [--quick] [--static-in-memory]');
  }
  if(!result.output||!result.bin)throw Error('Provide --out and --chromium or DF_CHROMIUM_BIN');
  return result;

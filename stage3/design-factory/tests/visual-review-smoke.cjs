@@ -83,6 +83,15 @@ try{
  assert.ok(output.includes('document.getElementById(key).checked=false'));
 
  const reject=(modified,pattern)=>assert.throws(()=>verify(dir,modified),pattern);
+ const diagnostic={...report,captureTransport:'memory-static',diagnosticOnly:true};
+ diagnostic.evidenceSha256=evidenceHash(diagnostic);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(diagnostic));
+ reject({...approved,evidenceSha256:diagnostic.evidenceSha256},/In-memory screenshots are diagnostics/);
+ const diagnosticUI=reviewHtml(diagnostic);
+ assert.ok(diagnosticUI.includes('data-full-matrix="false"'),
+  'In-memory diagnostic images must not enable a human acceptance receipt');
+ assert.ok(diagnosticUI.includes('memory-static transport'));
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
  reject({...approved,format:'manufact-design-factory-visual-review-v1',version:1},/does not match/);
  reject({...approved,evidenceSha256:'0'.repeat(64)},/does not match/);
  const missingSource={...report,renderSourceSha256:null};

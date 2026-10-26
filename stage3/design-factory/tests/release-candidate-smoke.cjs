@@ -17,17 +17,26 @@ try{
  assert.equal(cmd.status,3,'Without Chromium/Lead PHP/review, candidate must be a verified engineering package but NOT an accepted D7 release: '+cmd.stderr+' '+cmd.stdout);
  const report=JSON.parse(fs.readFileSync(path.join(target,'release-candidate.json'),'utf8'));
  const audit=JSON.parse(fs.readFileSync(path.join(target,'node-audit.json'),'utf8'));
- assert.equal(audit.nodePassed,true,'Bundle parity, eight Node suites and source stability must pass on a real checkout');
+ assert.equal(audit.nodePassed,true,'Bundle parity, nine Node suites and source stability must pass on a real checkout');
  assert.equal(report.format,'manufact-design-factory-release-candidate-v2');
  assert.equal(report.version,2);
  assert.equal(report.renderSourceSha256,sourceFingerprint(path.resolve(__dirname,'../../..')));
  assert.equal(report.node.status,'pass');
  assert.equal(report.leadInputs.status,'not-configured');
  assert.match(cmd.stdout,/"leadInputs": "not-configured"/);
- assert.equal(report.node.suites,8,'Exactly eight stable Node suites must run');
- assert.equal(report.node.checks,10,'Bundle parity + eight suites + final source stability');
+ assert.equal(report.node.suites,9,'All nine D7 Node suites must run');
+ assert.equal(report.node.checks,11,'Bundle parity + nine suites + final source stability');
  assert.equal(report.bundleParity.status,'pass');
  assert.equal(report.gate.bundleParity,true);
+ assert.equal(audit.checks.length,11,'Audit must report each required check');
+ assert.ok(audit.checks.some(c=>c.suite==='preview-matrix-smoke.cjs'&&c.passed),
+  'The complete 288-case preview matrix must run in the release audit');
+ assert.deepEqual(audit.checks.map(c=>c.suite),[
+  'build-browser-bundle --check','smoke.cjs','compositions-smoke.cjs',
+  'kits-smoke.cjs','studio-smoke.cjs','preview-matrix-smoke.cjs',
+  'bridge-smoke.cjs','package-smoke.cjs','visual-review-smoke.cjs',
+  'release-candidate-contract-smoke.cjs','source-inventory-stability'
+ ],'Release audit may not silently omit or duplicate a D7 suite');
  assert.equal(audit.checks.at(-1).suite,'source-inventory-stability');
  assert.equal(audit.checks.at(-1).passed,true);
  assert.equal(report.git.stable,true);
@@ -56,5 +65,5 @@ try{
  bytes[bytes.length-22+8]^=1;
  fs.writeFileSync(bad,bytes);
  assert.throws(()=>verify(bad),/Central directory count\/bounds mismatch/);
- console.log('DESIGN_FACTORY_D7_RELEASE_PIPELINE PASS: real checkout eight-suite Node audit plus bundle parity, candidate archive, independent SHA256/source/CRC verification, explicit pending gates and no overwrite');
+ console.log('DESIGN_FACTORY_D7_RELEASE_PIPELINE PASS: real checkout nine-suite Node audit plus bundle parity, candidate archive, independent SHA256/source/CRC verification, explicit pending gates and no overwrite');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}

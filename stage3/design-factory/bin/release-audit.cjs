@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-// D7 reproducible local release-gate: bundle parity + eight integrated Node suites,
+// D7 reproducible local release-gate: bundle parity + nine integrated Node suites,
 // deterministic source inventory, no network, no production or repo writes.
 // Run on a checked-out repository with Node >=20.
 const fs=require('node:fs'),path=require('node:path');

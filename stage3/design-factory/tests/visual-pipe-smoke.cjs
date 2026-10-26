@@ -25,6 +25,23 @@ const size=inspectPng;
   const url=pathToFileURL(filename).href;
   browser=await openBrowser(chrome);
   const widths=[{width:1280,height:800},{width:768,height:1000},{width:390,height:844}];
+  if(process.env.DF_STATIC_DIAGNOSTIC_ONLY==='1'){
+   const cssFile=path.join(dir,'styles.css');
+   fs.writeFileSync(cssFile,'body{margin:0;background:#123456}main{padding:20px}');
+   fs.writeFileSync(filename,'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">'+
+    '<link rel="stylesheet" href="styles.css"></head><body><main>Static diagnostic</main></body></html>');
+   for(const view of widths){
+    const captured=await browser.screenshotStatic(url,view);
+    assert.deepEqual(size(captured.png),view);
+    assert.equal(captured.transport,'memory-static');
+    assert.equal(captured.overflowPixels,0);
+   }
+   fs.writeFileSync(filename,'<!doctype html><html><head><link rel="stylesheet" href="styles.css"></head>'+
+    '<body><script>alert(1)</script></body></html>');
+   await assert.rejects(browser.screenshotStatic(url,widths[2]),/refused non-static/);
+   console.log('DESIGN_FACTORY_D7_STATIC_DIAGNOSTIC PASS: real in-memory Chromium 1280/768/390 PNGs; file navigation and D7 acceptance NOT verified');
+   return;
+  }
   for(const view of widths){
    const captured=await browser.screenshot(url,view);
    assert.deepEqual(size(captured.png),view,'CDP must capture the actual requested viewport dimensions');

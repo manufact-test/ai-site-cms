@@ -35,7 +35,7 @@ function checkEvidence(directory,report){
   throw Error('Screenshot directory must be a canonical regular directory');
  if(report?.format!=='manufact-design-factory-visual-evidence-v1'||report.version!==1)
   throw Error('Invalid visual evidence format');
- if(report.captureTransport==='memory-static'||report.diagnosticOnly===true)
+ if(![undefined,'file'].includes(report.captureTransport)||report.diagnosticOnly===true)
   throw Error('In-memory screenshots are diagnostics, not verified D7 file-navigation evidence');
  if(report.quick!==false||report.expectedImages!==54||
   !Array.isArray(report.images)||report.images.length!==54||
