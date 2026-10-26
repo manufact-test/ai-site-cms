@@ -2984,6 +2984,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         if(!node)throw Error('Узел композиции больше не существует');
         mutate(node,site);
         const checked=C.validateSite(site,manifests);
+        // Native input change + blur can fire twice. Do not record duplicate
+        // revisions: a single visible edit must always need only one Undo.
+        if(JSON.stringify(checked)===JSON.stringify(session.current))return true;
         session=D.replaceSite(session,manifests,checked,session.revision);
         draw();showWork();render();
         feedback('Узел композиции обновлён в черновике. Undo доступен.');
