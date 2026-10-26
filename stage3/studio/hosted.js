@@ -1091,6 +1091,7 @@
       previewStatus.textContent='Строим предпросмотр черновика '+path+'…';
       frame.removeAttribute('srcdoc');
       liveFrame.removeAttribute('src');
+      liveFrame.removeAttribute('srcdoc');
       if(published&&live){
         liveFrame.src='/published/'+encodeURIComponent(state.siteId)+live.path;
       }else{
