@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-// D7 reproducible local release-gate: six meaningful integrated smoke suites,
+// D7 reproducible local release-gate: seven meaningful integrated Node suites,
 // deterministic source inventory, no network, no production or repo writes.
 // Run on a checked-out repository with Node >=20.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
@@ -8,7 +8,7 @@ const cp=require('node:child_process');
 const ROOT=path.resolve(__dirname,'..');
 const REPO=path.resolve(ROOT,'../..');
 const {resolveOutsideRepository}=require('../lib/output-path.cjs');
-const SUITES=['smoke.cjs','compositions-smoke.cjs','kits-smoke.cjs','studio-smoke.cjs','bridge-smoke.cjs','package-smoke.cjs'];
+const SUITES=['smoke.cjs','compositions-smoke.cjs','kits-smoke.cjs','studio-smoke.cjs','bridge-smoke.cjs','package-smoke.cjs','visual-review-smoke.cjs'];
 function digest(b){return crypto.createHash('sha256').update(b).digest('hex');}
 function walk(base,prefix=''){
  const out=[];

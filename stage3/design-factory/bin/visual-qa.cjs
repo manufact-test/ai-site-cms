@@ -7,6 +7,8 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const {pathToFileURL}=require('node:url');
 const {resolveOutsideRepository}=require('../lib/output-path.cjs');
 const {openBrowser}=require('../lib/chromium-pipe.cjs');
+const {evidenceHash}=require('../lib/visual-review.cjs');
+const {reviewHtml}=require('../lib/visual-review-ui.cjs');
 const {FORMAT,THEMES,KITS,compile}=require('../lib/compiler.cjs');
 const {writePreview}=require('../lib/preview.cjs');
 const {writeShowcase}=require('../lib/showcase.cjs');
@@ -40,47 +42,6 @@ function pngSize(bytes){
  if(bytes.length<24||bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a'||
     bytes.toString('ascii',12,16)!=='IHDR')throw Error('Invalid PNG screenshot');
  return {width:bytes.readUInt32BE(16),height:bytes.readUInt32BE(20)};
-}
-// An offline visual contact sheet for the human acceptance gate. It does not
-// mark images approved and never contacts a remote preview or analytics service.
-function reviewHtml(report){
- const escape=s=>String(s).replace(/[&<>"']/g,c=>({
-  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
- })[c]);
- const card=item=>{
-  const name=escape(item.file.replace(/^screenshots\//,'').replace(/\.png$/,'').replace(/-/g,' '));
-  const label=item.viewportMatch?'dimensions verified':'DIMENSIONS MISMATCH';
-  return '<article><div class="meta"><strong>'+name+'</strong><span>'+
-   escape(item.actualWidth+'×'+item.actualHeight)+' · '+label+'</span></div>'+
-   '<a href="'+escape(item.file)+'" target="_blank" rel="noopener" aria-label="Inspect '+name+'">'+
-   '<img loading="lazy" src="'+escape(item.file)+'" alt="'+name+' screenshot"></a></article>';
- };
- const groups=[
-  ['Themes · 12 visual directions',report.images.filter(x=>x.file.includes('/theme-'))],
-  ['D3 · 42 compositions',report.images.filter(x=>x.file.includes('/42-compositions-'))],
-  ['D4 · industry websites, RU + EN',report.images.filter(x=>x.file.includes('/sector-'))]
- ];
- const sections=groups.map(([name,images])=>
-  '<section><h2>'+escape(name)+'</h2><div class="images">'+images.map(card).join('')+'</div></section>').join('');
- const alerts=report.errors.length?
-  '<p class="error"><strong>CAPTURE ERRORS:</strong> '+escape(report.errors.join(' | '))+'</p>':'';
- return '<!doctype html><html lang="en"><head><meta charset="utf-8">'+
-  '<meta name="viewport" content="width=device-width,initial-scale=1">'+
-  '<meta name="robots" content="noindex"><title>Design Factory · D7 visual review</title>'+
-  '<style>*,*:before,*:after{box-sizing:border-box}body{margin:0;background:#10181a;color:#edf5f2;font:15px/1.55 system-ui,sans-serif}'+
-  'main{max-width:1500px;margin:auto;padding:clamp(16px,3vw,46px)}h1{font-size:clamp(1.8rem,3.5vw,3rem);line-height:1.1}h2{margin:40px 0 17px;font-size:1.5rem}'+
-  '.muted{color:#b4c5c2;max-width:850px}.status{padding:12px 16px;border:1px solid #66716c;border-radius:10px;background:#202a2c}.error{color:#ffd2b6}'+
-  '.images{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:18px}article{padding:10px;background:#202b2e;border:1px solid #48605b;border-radius:12px;min-width:0}'+
-  '.meta{display:grid;gap:3px;padding:8px 6px 12px}.meta span{font-size:.83rem;color:#b6cbc6}img{display:block;width:100%;height:auto;border:1px solid #67716a;background:white}'+
-  'a:focus-visible{outline:3px solid #c5f57b;outline-offset:3px}footer{margin:40px 0;color:#bfccc8}'+
-  '@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}</style></head><body><main>'+
-  '<h1>Design Factory · visual review</h1>'+
-  '<p class="status">Manual visual acceptance: <strong>PENDING</strong> · captured '+
-    report.images.length+' / '+report.expectedImages+' screenshots · matrix '+
-  (report.matrixComplete?'complete':'incomplete')+' · requested 1280 / 768 / 390 px</p>'+
-  alerts+'<p class="muted">Review overflow, typography, navigation, links, keyboard focus, touch targets, RU/EN placeholders, CTA, gallery and motion behavior on the actual sites. Screenshots alone cannot approve these interaction checks. The enhanced CSS preview is NOT PHP renderer pixel parity.</p>'+
-  sections+'<footer>First-party local evidence · no online resources or automatic approval · see visual-evidence.json</footer>'+
-  '</main></body></html>\n';
 }
 function args(list){
  const result={output:null,bin:process.env.DF_CHROMIUM_BIN||null,quick:false};
@@ -172,6 +133,7 @@ async function run(options){
    ' missing, '+matrix.unexpected.length+' unexpected, '+matrix.duplicates+' duplicate, '+
    matrix.dimensionMismatches+' dimension mismatches).');
   report.captureCompleted=matrix.complete&&report.errors.length===0;
+  report.evidenceSha256=evidenceHash(report);
   if(!report.captureCompleted)process.exitCode=2;
   fs.writeFileSync(path.join(root,'visual-evidence.json'),JSON.stringify(report,null,2)+'\n',{flag:'wx'});
   fs.writeFileSync(path.join(root,'visual-review.html'),reviewHtml(report),{flag:'wx'});
