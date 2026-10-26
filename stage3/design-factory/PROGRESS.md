@@ -6,6 +6,8 @@
 
 A read-only review of `bin/release-audit.cjs` confirmed the intended gate: 10 checks without Chromium (bundle parity + eight Node suites + source-inventory stability), 11 with Chromium. The Chromium path requires `DF_CHROMIUM_BIN`. Node-only exit code 3 can mean the Node suites passed while Chromium remains unrequested; it is not full acceptance. PHP parity, real screenshot capture/review and release ZIP verification are outside the Node-only audit and must be evidenced separately.
 
+**Local runtime diagnostics:** Node `v22.16.0`, `/usr/bin/chromium`, and PHP `8.4.24` are installed, but a search of common workspace locations found no local `.git` checkout. One minimal Chromium smoke probe (`--headless --dump-dom` on a data URL) timed out after 15 seconds (exit 124), produced no DOM output, and logged DBus/zygote errors. This is an environment probe, not a Design Factory product test. Do not repeat this same probe until the execution environment changes.
+
 **No false PASS recorded:** real checked-out Node release audit **NOT RUN**; actual Chromium Studio/client portal E2E **NOT RUN**; 54 real PNGs and human review of all 42 compositions **NOT RUN**; PHP parity **0 probes / NOT RUN**; source-exact release ZIP, CRC verification and actual SHA256 **NOT RUN**. No product source was changed in this pass; only D7 documentation records the blocker and the next valid execution sequence.
 
 **Status unchanged:** D1–D6 implemented; engineering roadmap 6/7 (about 86%); D7 OPEN; Stage2 NO-GO; Stage3 UNACCEPTED; 0/135 formal criteria. Do not retry the same DNS failure until the execution environment changes.
