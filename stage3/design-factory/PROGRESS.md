@@ -1,5 +1,18 @@
 # Design Factory — operational progress and D7 continuation
 
+## 26 October 2026 — final engineering pass before D7 acceptance
+
+**Functional checkpoint:** `0c00c5deb97d28827af571eb92ef7d1efd481523`. The client-feedback loop now has a critical stale-state race fix: `studio/studio.js` computes the feedback snapshot from a fresh `compileCurrent()` for every import/export/resolve action, not from the debounced `state.lastCompiled`. If the owner edits a fact and immediately clicks export before the 120ms preview debounce finishes, the old client report is rejected instead of being exported against an outdated render.
+
+The existing `tests/studio-smoke.cjs` now has a real Chromium E2E path for the entire eight-file HTML demo review flow: read `review.html` out of the generated STORE ZIP, execute it in a browser iframe, add/download/restore customer feedback, import the JSON into Studio, navigate to the cited page, resolve the note, export progress, and assert that export is refused immediately after an edit during the preview debounce and remains stale after render. Test source and both changed JS files passed V8 syntax parsing.
+
+**What actually ran in this pass:** V8 source parse for actual current-branch Studio/feedback/ZIP/smoke files; source-level context mismatch rejection; built and CRC-inspected an eight-member preview ZIP; deliberate ZIP corruption rejected. This is isolated V8, not the checked-out Node release audit or a real Chromium E2E. A one-time real checkout attempt still failed DNS resolution for `github.com`; a one-time minimal Chromium headless data-URL probe timed out. Do not repeat the same environment retries and do not claim browser/Node acceptance.
+
+**Engineering progress:** D1–D6 implemented, D7 remains the final acceptance/release gate: **6/7 ≈ 86% of the Design Factory engineering roadmap**; roughly 14% remains, concentrated in actual execution, visual review, parity and package proof. This is not a formal Stage3 acceptance percentage. **D7 OPEN; Stage2 NO-GO; Stage3 UNACCEPTED; 0/135.** The independent branch scope remains only `stage3/design-factory/`; no workflow, SDK, PHP, main CMS, production or hosting changes, no merge.
+
+Next: on a real checkout run the documented release audit once; if environment allows run the real Studio/client review Chromium E2E, capture all 54 1280/768/390 screenshots and have a human review all 42 compositions, run six real Lead PHP parity probes, then generate and independently verify a source-exact ZIP/SHA256. Keep all missing evidence explicitly open.
+
+
 ## Latest major engineering block — 26 October · client feedback round-trip
 
 **26 October 2026 — functional checkpoint `30e7e97cefe80fb32e5b4c5a1d20e01dd5924861`** (subsequent docs commit advances HEAD; fetch live branch SHA).

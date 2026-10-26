@@ -1,5 +1,14 @@
 # D7 · Final quality gates and evidence
 
+## 26 October — feedback debounce regression and final gate status
+
+Functional source checkpoint `0c00c5deb97d28827af571eb92ef7d1efd481523`. `studio.js` now binds every feedback action to a fresh compilation of the live project, preventing a stale report from being exported in the short window before the debounced preview refreshes. `tests/studio-smoke.cjs` now specifies a genuine Chromium end-to-end test for the generated `review.html` portal and its complete JSON round-trip through Studio, including immediate stale-export refusal.
+
+**Executed:** V8 parsing and source-level report/snapshot validation; eight-file ZIP build + CRC inspection and corruption rejection. **Not executed:** actual checkout Node suite/release audit, Chromium E2E, 54 PNG capture/human review, PHP parity, final source-exact ZIP/SHA256. One checkout attempt failed because `github.com` DNS was unavailable; one minimal Chromium headless probe timed out. Do not record either as a product test failure or as a pass.
+
+**Acceptance remains OPEN.** Engineering roadmap progress is D1–D6 implemented (6/7, about 86%); D7 is not complete. The release-candidate tool must report `readyForLeadReview=true` only when its actual required gates pass. Formal Stage2 NO-GO, Stage3 unaccepted, 0/135. Next action is a single genuine checkout/audit attempt in a usable environment, then real browser/visual/PHP/archive evidence; do not add another cosmetic feature or loop on the same environment failure.
+
+
 ## 26 October · client-review report / feedback acceptance checklist
 
 **26 October 2026 — functional checkpoint `30e7e97cefe80fb32e5b4c5a1d20e01dd5924861`** (subsequent docs commit advances HEAD; fetch live branch SHA).

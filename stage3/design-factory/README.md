@@ -1,5 +1,12 @@
 # Design Factory — D1–D7 independent engineering program
 
+## 26 October — final D7 engineering pass
+
+Functional checkpoint `0c00c5deb97d28827af571eb92ef7d1efd481523`. Added a regression for a subtle client-feedback race: edits update project state before the 120ms preview debounce, so Studio now recompiles the live project before every feedback import/export/resolution action. Old comments cannot be exported against the previous render. The existing Studio smoke now includes a real Chromium scenario for extracting and running `review.html` from the eight-file preview ZIP, round-tripping a client JSON report through Studio, and rejecting stale exports both immediately after a change and after the preview refresh.
+
+V8 source-level checks and eight-file ZIP CRC/corruption checks passed. This is not full Node/Chromium acceptance: checkout DNS failed and the minimal headless Chromium probe timed out. D1–D6 are implemented (6/7, ~86% engineering progress); D7 remains open pending genuine Node audit, browser E2E, 54 screenshot captures and human review, PHP parity and a verified source-exact release ZIP/SHA256. Stage2 remains NO-GO, Stage3 unaccepted, 0/135. Continue only in the independent branch and directory.
+
+
 ## 26 October — full offline client feedback loop
 
 **26 October 2026 — functional checkpoint `30e7e97cefe80fb32e5b4c5a1d20e01dd5924861`** (subsequent docs commit advances HEAD; fetch live branch SHA).

@@ -1,5 +1,12 @@
 # Design Factory — D6 Integration Bridge
 
+## 26 October — client feedback freshness guarantee
+
+Functional checkpoint `0c00c5deb97d28827af571eb92ef7d1efd481523`. The offline client-feedback attachment remains a separate, untrusted design-review file and is not a CMS content contract, owner approval or publish permission. Studio now recomputes the current site snapshot from `compileCurrent()` at each feedback action. It no longer relies on `state.lastCompiled`, which can lag behind live form edits during the 120ms preview debounce. A report for the previous compiled content is rejected even if the preview iframe has not refreshed yet.
+
+The real-browser round-trip is now authored in `tests/studio-smoke.cjs`; it has not been executed here because GitHub checkout DNS failed and Chromium's minimal headless probe timed out. The D6 site-v1/bridge contract remains unchanged. Do not import feedback JSON into the CMS importer, persist it as CMS state, or treat `resolved:true` as approval. Independently confirm requested edits and keep owner review, PHP rendering parity, publication authorization and integration review separate.
+
+
 ## 26 October · optional client feedback handoff is not CMS content
 
 **26 October 2026 — functional checkpoint `30e7e97cefe80fb32e5b4c5a1d20e01dd5924861`** (subsequent docs commit advances HEAD; fetch live branch SHA).

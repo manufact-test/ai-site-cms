@@ -1,5 +1,18 @@
 # Design Factory — NEXT CHAT / independent developer handoff
 
+## Latest handoff — 26 October 2026 · final feedback race fix before D7 acceptance
+
+**Functional checkpoint:** `0c00c5deb97d28827af571eb92ef7d1efd481523`; read the live branch HEAD before work.
+
+The last engineering block fixes a real race in client feedback. Previously `feedbackContext()` trusted `state.lastCompiled`, which is deliberately behind current form state for the 120ms preview debounce. A fast click could export an old customer report while the current project was already changed. It now calls `compileCurrent()` fresh on every feedback action; changed snapshots fail closed. The existing `tests/studio-smoke.cjs` now specifies the full real-Chromium workflow: extract `review.html` from the eight-file ZIP, run the portal, create/download/restore a JSON report, import it into Studio, navigate to the cited page, resolve/export, and prove stale export is blocked immediately after an edit and after preview refresh.
+
+V8 parsing and isolated source-level context/ZIP checks passed. This is not a full Node checkout or Chromium run. One actual GitHub checkout attempt failed DNS; one minimal headless Chromium probe timed out. Do not loop on these same failures or misreport them as product failures/passes.
+
+**Progress:** D1–D6 implemented; D7 is the final open gate. Design Factory engineering roadmap ≈ **86% (6/7)**, about 14% remains. This does not mean Stage3 is accepted: **D7 OPEN / Stage2 NO-GO / Stage3 UNACCEPTED / 0/135**.
+
+Next large block is final acceptance, not another new feature: on a working checkout run `node stage3/design-factory/bin/release-audit.cjs --out <new-temp-file>` and inspect the exact report; run the genuine Chromium Studio+review portal E2E, capture/review all 54 responsive PNGs across all 42 compositions, run six real Lead PHP parity probes where the Lead source is available, then create and independently verify the deterministic source-exact ZIP/SHA256. Update gates only from actual evidence. Stay on `feature/stage3-design-factory`, write only under `stage3/design-factory/`; no merge, no main/Lead SDK/PHP/workflow/hosting/production edits.
+
+
 ## Latest next-chat checkpoint — 26 October 2026 · client feedback round-trip
 
 **26 October 2026 — functional checkpoint `30e7e97cefe80fb32e5b4c5a1d20e01dd5924861`** (subsequent docs commit advances HEAD; fetch live branch SHA).

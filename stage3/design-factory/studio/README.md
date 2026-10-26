@@ -1,5 +1,12 @@
 # Design Factory Browser Studio · D5
 
+## 26 October — feedback export uses live state
+
+The feedback inbox now computes the report context from a fresh `compileCurrent()` every time. Do not replace it with `state.lastCompiled`: the latter intentionally updates after the 120ms preview debounce and may represent the previous version while a user has just typed. Feedback import, resolving and progress export must fail closed for a changed site even during that brief interval.
+
+`tests/studio-smoke.cjs` includes a real Chromium test of the review portal extracted from the eight-member HTML demo ZIP, including client JSON creation/restoration, Studio import, navigation, resolution, progress export, and a check that stale export is blocked before the preview refresh. This test is authored but not executed in this environment; see `QUALITY-GATES.md`.
+
+
 ## Client design review handoff · 26 October 2026
 
 **For designer:** after editing a Design Factory project, download **HTML-демо ZIP**. The current archive has **eight** members: `README.txt`, `approach/index.html`, `assets/preview.css`, `contact/index.html`, `index.html`, `preview-info.json`, **`review.html`**, `services/index.html`. This replaces the earlier seven-member layout. `review.html` offers page navigation and offline comments. The ZIP remains view-only, deliberately `noindex`, and is never an export of production PHP or working forms.
