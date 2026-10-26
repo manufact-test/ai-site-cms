@@ -4,7 +4,7 @@
 **Repository:** https://github.com/manufact-test/ai-site-cms
 **Your working branch:** `feature/stage3-design-factory`
 **Sole writable subtree:** `stage3/design-factory/`
-**Latest functional/source checkpoint:** `8e0c233a592145cc5c8ad12434c92db9ff935d9b`. Always read live HEAD on arrival; this source SHA is not a substitute for querying the branch.
+**Latest functional/source checkpoint:** `8417f387e3e72bcd18987968e186ec36ebc525c5`. Always read live HEAD on arrival; this source SHA is not a substitute for querying the branch.
 **IMPORTANT:** Read the CURRENT HEAD from GitHub on arrival. Do not use the older SHA as the current branch head, and do not create any competing branch.
 
 This is the **second independent developer's permanent Design Factory program**, not the primary AI Site CMS chat. The main developer integrates into `feature/stage3-ai-site-contract` / main when ready. Do NOT edit the leader's branch or `main`, `stage3/sdk`, `stage3/components`, PHP, Studio-main, workflows, deployment, secrets, hosting or other projects. Do NOT merge this branch yourself.
@@ -12,16 +12,17 @@ This is the **second independent developer's permanent Design Factory program**,
 
 ## Latest D7 release-candidate hardening — 26 October 2026
 
-**Current functional/source checkpoint:** `8e0c233a592145cc5c8ad12434c92db9ff935d9b`. Always read live HEAD before continuing. This is an engineering checkpoint, not a release certificate.
+**Current functional/source checkpoint:** `8417f387e3e72bcd18987968e186ec36ebc525c5`. Always read live HEAD before continuing. This is an engineering checkpoint, not a release certificate.
 
 - Preserved visual-review receipt **v2**: the reviewer must inspect all 42 D3 compositions and confirm the fifth `showcaseCoverage` check. Old v1 receipts are rejected.
 - `lib/source-manifest.cjs` covers every packaged source file, including `handoffs/`. The audit compares the exact starting/ending inventory; the candidate rejects added, removed or modified bytes between audit and packaging.
 - Audit report semantics are v2 and validate the exact ordered check list, source manifest/digest and summary flags. A well-formed report with failed checks remains a valid failure report; ordinary test failure is not mislabeled as source drift.
 - **External Lead-input provenance:** `lib/external-input-manifest.cjs` fingerprints every regular file in the optional Lead SDK directory and the supplied PHP `DesignGraph.php` file. It records canonical paths, file counts/sizes and SHA256 hashes; rejects symlinked roots/files, hidden/unapproved entries, special files, oversized inputs and missing SDK runtime entry points.
+- **Bounded Lead SDK traversal (`8417f387e3e72bcd18987968e186ec36ebc525c5`):** `captureExternalInputs()` now caps traversal at 1,024 total filesystem entries and 32 directory levels, counting empty directories. Each directory is checked before and after traversal; changed or replaced directories fail closed. Contract smoke adds excessive-depth and directory-flood regressions.
 - `bin/release-candidate.cjs` snapshots the Lead SDK/PHP inputs before the compatibility test, immediately after it and again at candidate end. It records manifests/digests in `leadInputs` and fails Lead Graph/PHP gates if inputs are unreadable, unsafe or changed during the candidate. The CLI summary exposes the provenance status. A digest is provenance evidence, not an authenticated signature.
 - `bin/verify-release-zip.cjs` enforces the builder's canonical ZIP32 metadata: version fields, DOS timestamp, disk number, internal/external attributes and matching local/central headers. `tests/package-smoke.cjs` mutates those fields to confirm rejection.
 - The release audit performs browser-bundle parity plus **eight Node smoke suites** and a final source-inventory stability check: 10 checks without Chromium, 11 with Chromium. The candidate builds an engineering ZIP and independently verifies ZIP32 structure, CRC32, sorted complete inventory, exact source bytes and SHA256.
-- Contract smoke covers deterministic external snapshots, SDK/PHP byte changes, added files, invalid SDK inputs and symlink rejection. The separate integration smoke checks the no-Lead-input default state. The exact external-input helper blob also passed an isolated Node runtime smoke for stable snapshots, SDK/PHP drift, add/remove, required entry points and symlink guards. This is not a full checkout test.
+- Contract smoke covers deterministic external snapshots, SDK/PHP byte changes, added files, invalid SDK inputs, symlink rejection, excessive nesting and empty-directory floods. The latest helper revision has not been run in a real Node process; the earlier helper's isolated runtime smoke does not verify this revision.
 
 ### Commands on a genuine checkout
 
@@ -32,7 +33,7 @@ node stage3/design-factory/bin/release-candidate.cjs --out /tmp/df-release-full 
 
 Use a new output directory for each run. The full command must verify six real PHP markup-parity probes; this is not responsive pixel parity. A human must still review all 54 images at 1280/768/390 and all 42 D3 compositions. Exit 3 means an engineering package exists with acceptance gates open; exit 0 is not production authorization.
 
-**Verification boundary for `8e0c233a592145cc5c8ad12434c92db9ff935d9b`:** static V8 syntax parsing **PASS** for six changed JavaScript files; isolated Node runtime smoke **PASS** for the exact committed external-input helper (its Git blob SHA was independently matched). Full Node audit/candidate smoke, Chromium Studio E2E, actual 54-image capture/review, Lead PHP parity and real ZIP/hash remain **NOT RUN**. A local `git ls-remote` attempt failed with `Could not resolve host: github.com`; GitHub API reports **0 Actions runs, 0 check runs and 0 commit statuses**. This is not a full test pass.
+**Verification boundary for source checkpoint `8417f387e3e72bcd18987968e186ec36ebc525c5`:** isolated V8 syntax parsing and source-level assertions **PASS** for the two changed JavaScript files (`lib/external-input-manifest.cjs`, `tests/release-candidate-contract-smoke.cjs`). The latest helper revision has **NOT** been run in a real Node process. Full Node audit/candidate smoke, Chromium Studio E2E, real 54-image capture/review, Lead JS/PHP parity and actual ZIP/hash remain **NOT RUN**. GitHub API for this source checkpoint: **0 Actions runs, 0 check runs, 0 commit statuses**; the last genuine checkout attempt failed because `github.com` DNS could not be resolved. This is not a full Node suite pass.
 
 **Decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; **0/135** mandatory criteria. Do not modify workflows, merge, or infer acceptance from authored tests.
 
