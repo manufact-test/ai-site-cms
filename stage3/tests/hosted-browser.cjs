@@ -159,6 +159,28 @@ async function execute(){
   await visitor.reload();
   assert.equal(await visitor.locator('h1').innerText(),'Проверка серверного сайта',
     'Draft writes must never publish automatically');
+
+  // Real compare: the saved draft changed, but the public release did not.
+  // Both frames are rendered by PHP, with no iframe script/form execution.
+  await page.locator('#server-launch-review').click();
+  await page.locator('#server-launch-dialog[open]').waitFor();
+  await page.locator('#server-launch-diff-summary').getByText(/1 изменённых/).waitFor();
+  assert.equal(await page.locator('#server-launch-pages [data-diff-status="changed"]').count(),1);
+  await page.locator('#server-launch-compare-modes [data-compare-mode="compare"]').click();
+  const draftCompare=page.frameLocator('#server-launch-preview');
+  const publishedCompare=page.frameLocator('#server-launch-live-preview');
+  await draftCompare.locator('h1').getByText('Не опубликованный третий черновик').waitFor();
+  await publishedCompare.locator('h1').getByText('Проверка серверного сайта').waitFor();
+  await page.locator('#server-launch-modes [data-device="mobile"]').click();
+  assert.equal(await page.locator('#server-launch-preview')
+    .evaluate(frame=>frame.style.width),'390px');
+  assert.equal(await page.locator('#server-launch-live-preview')
+    .evaluate(frame=>frame.style.width),'390px');
+  await page.locator('#server-launch-compare-modes [data-compare-mode="published"]').click();
+  assert.equal(await page.locator('#server-launch-preview').isVisible(),false);
+  assert.equal(await page.locator('#server-launch-live-preview').isVisible(),true);
+  await page.locator('#server-launch-close').click();
+
   // Restore an earlier revision into a NEW draft, leaving visitor unchanged.
   assert.equal(await page.locator('#versions .version').count(),3);
   const acceptDialogs=dialog=>dialog.accept();page.on('dialog',acceptDialogs);
