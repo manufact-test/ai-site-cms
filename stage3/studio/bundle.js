@@ -2590,7 +2590,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       previewScroll=frame.contentWindow?.scrollY||0;
       const requestId=++previewRequest,path=pathSelect.value;
       frame.style.width=mode==='mobile'?'390px':mode==='tablet'?'768px':'100%';
-      if(!HOSTED){frame.srcdoc=window.Stage3Editor.previewDocument(session.current,path);return;}
+      if(!HOSTED){frame.srcdoc=window.Stage3Editor.previewDocument(session.current,path,mode);return;}
       frame.srcdoc='<!doctype html><html><body style="font:15px system-ui;padding:24px">Строим предпросмотр черновика…</body></html>';
       try{
         const html=await window.Stage3Host.previewPage(session.current,path);
@@ -2616,6 +2616,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const layout=document.createElement('div');layout.className='cms-work-layout';
     const workPanel=document.createElement('aside');workPanel.className='cms-work-panel';
     const workTitle=document.createElement('h3');workTitle.id='cms-work-title';
+    const workHint=document.createElement('small');workHint.id='cms-work-hint';workHint.textContent='Нажмите на текст или карточку, чтобы выбрать точное поле. Двойной клик по тексту — быстрое изменение.';
     const workSectionPicker=document.createElement('select');workSectionPicker.id='cms-work-section';workSectionPicker.className='control';
     const workElementPicker=document.createElement('select');workElementPicker.id='cms-work-element';workElementPicker.className='control';
     const workActions=document.createElement('div');workActions.className='cms-work-actions';
@@ -2623,14 +2624,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const workAdd=document.createElement('div');workAdd.className='cms-work-add';
     const workStatus=document.createElement('small');workStatus.id='cms-work-status';workStatus.setAttribute('role','status');
     const workError=document.createElement('small');workError.id='cms-work-error';workError.setAttribute('role','alert');
-    workPanel.append(workTitle,workSectionPicker,workActions,workElementPicker,workFields,workAdd,workStatus,workError);
+    workPanel.append(workTitle,workHint,workSectionPicker,workActions,workElementPicker,workFields,workAdd,workStatus,workError);
     layout.append(area,workPanel);modal.append(header,note,layout);document.body.append(modal);
 
     // Selected page persists independently of main inspector focus.
     // The preview itself remains script-free; parent only reads first-party IDs.
     // Select sections only in the validated, scriptless page preview.
     // Every edit uses the same SDK draft history as the right-side inspector.
-    let workSection='',workElement='';
+    let workSection='',workElement='',workFocusPath='';
     const canWrite=()=>!HOSTED||!!window.Stage3Host?.canEditStudio?.();
     const pageForWork=()=>session.current.pages.find(p=>p.path===pathSelect.value);
     const sectionForWork=()=>pageForWork()?.sections.find(s=>s.id===workSection);
@@ -2639,32 +2640,150 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     function highlightWork(){
       const doc=frame.contentDocument;if(!doc)return;
       for(const el of doc.querySelectorAll('.cms-work-target'))
-        el.classList.toggle('cms-work-current',el.id===workSection);
+        el.classList.toggle('cms-work-current',(el.dataset.cmsSectionId||el.id)===workSection);
+      for(const el of doc.querySelectorAll('[data-cms-work-element]')){
+        const element=el.dataset.cmsWorkElement===workElement;
+        el.classList.toggle('cms-work-element-current',element&&
+          (el.dataset.cmsWorkPath||'')===workFocusPath);
+      }
     }
+    const quick=document.createElement('div');quick.className='cms-work-quick';quick.hidden=true;
+    quick.id='cms-work-quick';quick.setAttribute('role','group');
+    const quickLabel=document.createElement('label');quickLabel.textContent='Изменить текст на странице';
+    const quickInput=document.createElement('textarea');quickInput.id='cms-work-quick-input';
+    quickInput.className='control';quickInput.rows=3;quickLabel.append(quickInput);
+    const quickButtons=document.createElement('div');quickButtons.className='cms-work-quick-actions';
+    const dismissQuick=()=>{quick.hidden=true;};
+    const quickCancel=button('Отмена','btn small',dismissQuick);
+    const quickSave=button('Применить','btn small primary',()=>{
+      const page=pageForWork(),section=sectionForWork();
+      const field=page&&section?C.controls(session.current,manifests,page.id,section.id,workElement)
+        .find(f=>f.path===workFocusPath&&f.type==='text'):null;
+      if(!field||!canWrite())return feedback('Текст не доступен для изменения.',true);
+      editWork(field,quickInput);dismissQuick();
+    });
+    quickSave.id='cms-work-quick-save';
+    quickButtons.append(quickSave,quickCancel);quick.append(quickLabel,quickButtons);area.append(quick);
+    quickInput.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){e.preventDefault();dismissQuick();}
+      if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();quickSave.click();}
+    });
+    const quickEdit=()=>{
+      if(!canWrite()||!workFocusPath)return;
+      const page=pageForWork(),section=sectionForWork();
+      if(!page||!section)return;
+      const field=C.controls(session.current,manifests,page.id,section.id,workElement)
+        .find(f=>f.path===workFocusPath&&f.type==='text');
+      if(!field)return;
+      quickLabel.firstChild.textContent='Изменить: '+field.label;
+      quickInput.value=safeText(field.responsive?C.effectiveValue(field.value,mode):field.value);
+      quickInput.maxLength=field.maxLength||10000;
+      quick.hidden=false;quickInput.focus();quickInput.select();
+    };
     frame.addEventListener('load',()=>{
       const doc=frame.contentDocument,page=pageForWork();if(!doc||!page)return;
       const ids=new Set(page.sections.map(s=>s.id));
       const css=doc.createElement('style');
-      css.textContent='.cms-work-target:hover{outline:2px dashed #20b0dc!important;cursor:grab}.cms-work-current{outline:3px solid #ff9b37!important;outline-offset:-3px!important}.cms-work-before{box-shadow:inset 0 6px #20b0dc!important}.cms-work-after{box-shadow:inset 0 -6px #20b0dc!important}';
+      css.textContent='.cms-work-target:hover{outline:2px dashed #20b0dc!important;cursor:grab}.cms-work-current{outline:3px solid #ff9b37!important;outline-offset:-3px!important}.cms-work-before{box-shadow:inset 0 6px #20b0dc!important}.cms-work-after{box-shadow:inset 0 -6px #20b0dc!important}.cms-work-element-current{outline:2px solid #ffab58!important;outline-offset:3px!important}.cms-work-linked{cursor:text!important}.cms-work-linked:hover{box-shadow:inset 0 -2px #20b0dc}';
       doc.head.append(css);
       const idOf=el=>el?.dataset?.cmsSectionId||el?.id||'';
       const getTarget=event=>{
         const target=event.target;
         if(!(target instanceof doc.defaultView.Element))return null;
-        const el=target.closest('[data-cms-section-id],section[id]');
+        let el=target.closest('[data-cms-section-id],section[id]');
+        // Content switchers may contain nested panels with their own section IDs.
+        while(el&&!ids.has(idOf(el)))el=el.parentElement?.closest('[data-cms-section-id],section[id]');
         return el&&ids.has(idOf(el))?el:null;
       };
-      const sections=doc.querySelectorAll('[data-cms-section-id],section[id]');
+      const sections=[...doc.querySelectorAll('[data-cms-section-id],section[id]')];
       for(const el of sections){
         if(!ids.has(idOf(el)))continue;
         el.classList.add('cms-work-target');
-        // Dragging is parent-owned: this srcdoc never receives executable code.
+        // Dragging and field selection are owned by the parent, never srcdoc scripts.
         el.draggable=canWrite();
       }
+
+      // Bind rendered first-party text/card nodes back to the validated manifest.
+      // No guesses about generated HTML IDs and no mutations to published markup.
+      const repeatSelectors={
+        'service-grid':'.repeat-grid > article,.cms-preview-grid > article',
+        'pricing-plans':'.cms-pricing-grid > article',
+        'process-timeline':'.cms-process-list > li',
+        'comparison-matrix':'tbody > tr',
+        'content-switcher':'.cms-switcher-tab',
+        'faq-accordion':'details',
+        'testimonials':'.repeat-grid > figure,.cms-preview-grid > blockquote',
+        'photo-gallery':'.gallery-grid > figure,.cms-preview-grid > figure',
+        'adaptive-gallery':'.cms-adaptive-gallery > figure',
+        'partner-logos':'.partner-grid > a,.cms-preview-grid > div.card'
+      };
+      const textSelector='h1,h2,h3,h4,p,small,span,strong,summary,figcaption,blockquote,button,a,label,legend,th,td,caption,article';
+      const norm=value=>String(value??'').replace(/\s+/g,' ').trim();
+      const bindText=(container,entity,section,used)=>{
+        const candidates=[...container.querySelectorAll(textSelector)];
+        for(const field of C.controls(session.current,manifests,page.id,section.id,entity.id)){
+          if(field.type!=='text'||!field.path.startsWith('content.'))continue;
+          const value=norm(field.responsive?C.effectiveValue(field.value,mode):field.value);
+          if(!value)continue;
+          const exact=candidates.find(el=>!used.has(el)&&norm(el.textContent)===value);
+          const arrow=candidates.find(el=>!used.has(el)&&
+            /^(A|BUTTON|SPAN)$/.test(el.tagName)&&norm(el.textContent).startsWith(value)&&
+            /^[\s↗→›]+$/.test(norm(el.textContent).slice(value.length)));
+          const target=exact||arrow;if(!target)continue;
+          used.add(target);
+          target.dataset.cmsWorkElement=entity.id;
+          target.dataset.cmsWorkPath=field.path;
+          target.classList.add('cms-work-linked');
+        }
+      };
+      for(const section of page.sections){
+        const host=sections.find(el=>idOf(el)===section.id);
+        if(!host||section.designGraph)continue; // Nested graph nodes have their own inspector.
+        const used=new Set();
+        const repeatNodes=section.items&&repeatSelectors[section.component]?
+          [...host.querySelectorAll(repeatSelectors[section.component])]:[];
+        for(const [index,card] of repeatNodes.entries()){
+          let item=section.items[index];
+          // Media-only galleries may omit unbound assets from PHP output.
+          if(['partner-logos','photo-gallery','adaptive-gallery'].includes(section.component)){
+            item=section.items.find(x=>!repeatNodes.some((node,k)=>k<index&&
+              node.dataset.cmsWorkElement===x.id)&&
+              (norm(x.values['content.caption'])&&norm(card.textContent)
+                .includes(norm(x.values['content.caption']))))||item;
+          }
+          if(!item)continue;
+          card.dataset.cmsWorkElement=item.id;
+          bindText(card,item,section,used);
+        }
+        for(const entity of section.elements)bindText(host,entity,section,used);
+      }
+      const clickedField=e=>{
+        const target=e.target;
+        return target instanceof doc.defaultView.Element?
+          target.closest('[data-cms-work-element]'):null;
+      };
+      const selectVisual=e=>{
+        const el=getTarget(e);if(!el)return false;
+        const field=clickedField(e),section=page.sections.find(s=>s.id===idOf(el));
+        workSection=section.id;
+        const known=[...section.elements,...(section.items||[])];
+        workElement=known.some(x=>x.id===field?.dataset.cmsWorkElement)?
+          field.dataset.cmsWorkElement:'';
+        workFocusPath=workElement?(field.dataset.cmsWorkPath||''):'';
+        dismissQuick();showWork();highlightWork();
+        if(workFocusPath){
+          const control=[...workFields.querySelectorAll('[data-page-field]')]
+            .find(node=>node.dataset.pageField===workFocusPath);
+          control?.scrollIntoView({block:'nearest'});
+        }
+        return true;
+      };
       doc.addEventListener('click',e=>{
+        e.preventDefault();e.stopPropagation();selectVisual(e);
+      },true);
+      doc.addEventListener('dblclick',e=>{
         e.preventDefault();e.stopPropagation();
-        const el=getTarget(e);
-        if(el){workSection=idOf(el);workElement='';showWork();highlightWork();}
+        if(selectVisual(e))quickEdit();
       },true);
       let dragging='';
       const clearDrop=()=>{
@@ -2714,7 +2833,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         if(broken.length)throw Error('Новая битая ссылка: '+broken[0].path);
         session=next;
         if(!sectionForWork())workSection=pageForWork()?.sections[0]?.id||'';
-        workElement='';draw();showWork();render();
+        workElement='';workFocusPath='';dismissQuick();draw();showWork();render();
         feedback('Структура изменена в черновике. Сохранить и опубликовать — отдельно.');
       }catch(e){feedback(e.message,true);}
     }
@@ -2763,7 +2882,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       for(const e of els){const o=document.createElement('option');o.value=e.id;
         o.textContent=e.slot||'Карточка '+(section.items.indexOf(e)+1);workElementPicker.append(o);}
       workElementPicker.value=workElement;
-      for(const f of C.controls(session.current,manifests,page.id,section.id,workElement)){
+      const controls=C.controls(session.current,manifests,page.id,section.id,workElement);
+      if(!controls.some(f=>f.path===workFocusPath))workFocusPath='';
+      for(const f of controls){
         const line=document.createElement('label');line.className='cms-work-field';
         const caption=document.createElement('span');caption.textContent=f.label+(f.responsive?' · '+mode:'');
         const initial=f.responsive?C.effectiveValue(f.value,mode):f.value;
@@ -2786,7 +2907,46 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         }
         control.className='control';control.dataset.pageField=f.path;control.disabled=!canWrite();
         control.addEventListener('change',()=>editWork(f,control));
+        line.classList.toggle('cms-work-field-current',f.path===workFocusPath);
         line.append(caption,control);workFields.append(line);
+      }
+      const repeat=manifest(section)?.repeat;
+      if(repeat){
+        const repeatBar=document.createElement('div');repeatBar.className='cms-work-repeat';
+        repeatBar.id='cms-work-repeat';
+        const selected=section.items.find(i=>i.id===workElement);
+        const repeatStatus=document.createElement('small');
+        repeatStatus.textContent='Карточки '+section.items.length+'/'+repeat.max+
+          (selected?' · выбрана '+(section.items.indexOf(selected)+1):' · выберите карточку на странице');
+        repeatBar.append(repeatStatus);
+        const operate=(action,extra={})=>{
+          const id=['addItem','duplicateItem'].includes(action)?uniqueId('item'):null;
+          const focus=id||selected?.id;
+          structureWork({action,pageId:page.id,sectionId:section.id,
+            itemId:selected?.id,...(id?{id}:{}),...extra});
+          const latest=sectionForWork();
+          if(focus&&latest?.items.some(x=>x.id===focus)){
+            workElement=focus;workFocusPath='';showWork();render();
+          }
+        };
+        const actions=document.createElement('div');actions.className='cms-work-actions';
+        const addItem=workButton('+ Карточка',()=>operate('addItem'));
+        addItem.id='cms-work-repeat-add';addItem.disabled=section.items.length>=repeat.max;
+        actions.append(addItem);
+        if(selected){
+          const upItem=workButton('↑ Карточка',()=>operate('moveItem',{delta:-1}));
+          upItem.disabled=section.items.indexOf(selected)===0;
+          const downItem=workButton('↓ Карточка',()=>operate('moveItem',{delta:1}));
+          downItem.disabled=section.items.indexOf(selected)===section.items.length-1;
+          const copyItem=workButton('Копия карточки',()=>operate('duplicateItem'));
+          copyItem.id='cms-work-repeat-copy';copyItem.disabled=section.items.length>=repeat.max;
+          const removeItem=workButton('× Карточка',()=>{
+            if(confirm('Удалить выбранную карточку из черновика?'))operate('removeItem');
+          });
+          removeItem.disabled=section.items.length<=repeat.min;
+          actions.append(upItem,downItem,copyItem,removeItem);
+        }
+        repeatBar.append(actions);workFields.append(repeatBar);
       }
       if(section.designGraph){
         const help=document.createElement('small');
@@ -2901,9 +3061,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       workAdd.append(cross);
       for(const b of workPanel.querySelectorAll('[data-editor-write]'))b.disabled ||= !canWrite();
     }
-    workSectionPicker.addEventListener('change',()=>{workSection=workSectionPicker.value;workElement='';showWork();highlightWork();});
-    workElementPicker.addEventListener('change',()=>{workElement=workElementPicker.value;showWork();});
-    pathSelect.addEventListener('change',()=>{previewScroll=0;workSection=pageForWork()?.sections[0]?.id||'';workElement='';showWork();});
+    workSectionPicker.addEventListener('change',()=>{workSection=workSectionPicker.value;workElement='';workFocusPath='';dismissQuick();showWork();highlightWork();});
+    workElementPicker.addEventListener('change',()=>{workElement=workElementPicker.value;workFocusPath='';dismissQuick();showWork();highlightWork();});
+    pathSelect.addEventListener('change',()=>{previewScroll=0;workSection=pageForWork()?.sections[0]?.id||'';workElement='';workFocusPath='';dismissQuick();showWork();});
     const history=document.createElement('div');history.id='cms-work-history';history.className='cms-work-history';
     history.append(workButton('↶ Отмена',()=>{
       if(!canWrite())return;session=D.undo(session,manifests);draw();showWork();render();
@@ -2919,7 +3079,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         option.textContent=page.title+' · '+page.path;pathSelect.append(option);
       }
       pathSelect.value=current().page.path;
-      workSection=current().section.id;workElement=elementId;showWork();
+      workSection=current().section.id;workElement=elementId;workFocusPath='';dismissQuick();showWork();
       frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el.dataset.mode===mode));
       render();modal.showModal();
     });
@@ -4774,12 +4934,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   }));
   window.Stage3Editor=Object.freeze({
     manifests:()=>cp(manifests),
-    previewDocument:(site,path)=>{
+    previewDocument:(site,path,device='desktop')=>{
+      if(!C.BREAKPOINTS.includes(device))throw Error('Invalid preview breakpoint');
       const checked=C.validateSite(site,manifests),prior=session;
       try{
         session=D.begin(checked,manifests);
         const page=checked.pages.find(p=>p.path===path)||checked.pages[0];
-        const docs=page.sections.map(s=>screen(D.blockPreview(session,manifests,page.id,s.id,breakpoint)));
+        const docs=page.sections.map(s=>screen(D.blockPreview(session,manifests,page.id,s.id,device)));
         const first=docs[0],start=first.indexOf('<body>')+6,end=first.lastIndexOf('</body>');
         const navPages=checked.pages.filter(p=>!p.navigation?.hidden);
         const links=parent=>navPages.filter(p=>(p.navigation?.parentId||'')===parent)

@@ -248,3 +248,17 @@
 .cms-work-add{display:flex;flex-direction:column;align-items:stretch}
 .cms-work-add>.control{width:100%}
 .cms-preview-bound-section{position:relative;min-width:0}
+
+/* Contextual editing for rendered first-party fields and repeated cards. */
+#cms-work-hint{font-size:11px;color:#9db7c7;line-height:1.5}
+.cms-work-field-current{padding:7px;border:1px solid #f8a858;border-radius:7px;background:#223b49}
+.cms-work-repeat{border-top:1px solid #38535e;display:flex;flex-direction:column;gap:8px;padding:12px 0}
+.cms-work-repeat>small{color:#b8d7e8}
+.cms-work-quick[hidden]{display:none!important}
+.cms-page-preview-area{position:relative}
+.cms-work-quick{position:absolute;z-index:5;left:16px;right:16px;bottom:15px;max-width:580px;
+  margin-inline:auto;padding:13px;border-radius:10px;background:#132d3c;color:white;
+  box-shadow:0 12px 36px #09202d9c;border:1px solid #63b9da}
+.cms-work-quick label{display:flex;flex-direction:column;gap:8px;font-size:13px;font-weight:600}
+.cms-work-quick textarea{width:100%;min-height:76px;max-height:220px;resize:vertical}
+.cms-work-quick-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:9px}

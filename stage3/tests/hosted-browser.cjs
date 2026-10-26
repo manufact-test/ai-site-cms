@@ -95,12 +95,22 @@ async function execute(){
     'Hosted Studio previews the draft through the publication renderer');
   assert.equal(await draftFrame.locator('meta[name="robots"]').getAttribute('content'),'noindex,nofollow');
   await draftFrame.locator('section.hero h1').click();
+  assert.equal(await page.locator('#cms-work-element').inputValue(),'section-hero-heading',
+    'PHP renderer maps visual headline to exact typed control');
   const visualDraftField=page.locator('#cms-work-fields [data-page-field="content.text"]');
   await visualDraftField.fill('Редактирование страницы в Studio');
   await visualDraftField.dispatchEvent('change');
   await draftFrame.locator('h1').getByText('Редактирование страницы в Studio').waitFor();
   await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
   assert.equal(await draftFrame.locator('h1').innerText(),'Проверка серверного сайта');
+  await draftFrame.locator('section.hero p').first().dblclick();
+  assert.equal(await page.locator('#cms-work-element').inputValue(),'section-hero-summary');
+  await page.locator('#cms-work-quick-input').fill('Текст через визуальный редактор PHP');
+  await page.locator('#cms-work-quick-save').click();
+  await draftFrame.locator('section.hero p').getByText('Текст через визуальный редактор PHP').waitFor();
+  await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+  assert.equal(await draftFrame.locator('section.hero p').first().innerText(),
+    'Промышленное оборудование и инженерные решения под ваш проект.');
   const startingPreviewSite=await page.evaluate(()=>window.Stage3Editor.getSite());
   await page.locator('.cms-work-appearance > summary').click();
   await page.locator('#cms-work-fields [data-work-appearance="surface"]').selectOption('dark');

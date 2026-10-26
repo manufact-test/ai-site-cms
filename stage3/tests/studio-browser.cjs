@@ -480,6 +480,18 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.frameLocator('#cms-page-preview-frame').locator('.contact').first().waitFor();
     await page.frameLocator('#cms-page-preview-frame').locator('section.contact h2').first().click();
     const original=await page.frameLocator('#cms-page-preview-frame').locator('section.contact h2').innerText();
+    assert.equal(await page.locator('#cms-work-element').inputValue(),'section-contact-heading',
+      'Clicking heading selects the exact typed element');
+    assert.equal(await page.locator('#cms-work-fields .cms-work-field-current [data-page-field]').getAttribute('data-page-field'),'content.text');
+    await page.frameLocator('#cms-page-preview-frame').locator('section.contact .action').dblclick();
+    assert.equal(await page.locator('#cms-work-element').inputValue(),'section-contact-action',
+      'Double clicking the button picks its own field, not the heading');
+    await page.locator('#cms-work-quick-input').fill('Контакт напрямую');
+    await page.locator('#cms-work-quick-save').click();
+    await page.frameLocator('#cms-page-preview-frame').locator('section.contact .action').getByText('Контакт напрямую').waitFor();
+    await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+    await page.frameLocator('#cms-page-preview-frame').locator('section.contact h2').first().click();
+    assert.equal(await page.locator('#cms-work-element').inputValue(),'section-contact-heading');
     const field=page.locator('#cms-work-fields [data-page-field="content.text"]');
     await field.fill('Контакт в визуальном редакторе');
     await field.dispatchEvent('change');
@@ -497,6 +509,11 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(withCopy.pages[0].sections.length,beforeCross.pages[0].sections.length+1);
     await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
     assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeCross);
+    await page.locator('#cms-page-preview-path').selectOption('/');
+    await page.frameLocator('#cms-page-preview-frame').locator('section.hero h1').waitFor();
+    await page.frameLocator('#cms-page-preview-frame').locator('section.hero p').first().click();
+    assert.equal(await page.locator('#cms-work-element').inputValue(),'section-hero-summary',
+      'Hero description selects summary field, not the headline');
     await page.locator('#cms-page-preview-path').selectOption('/contact/');
 
     await page.frameLocator('#cms-page-preview-frame').locator('.cms-menu-preview .cms-menu-cta').getByText('Написать нам').waitFor();
