@@ -100,6 +100,18 @@ async function execute(){
   }
   assert.equal(await page.locator('#server-launch-pages button').count(),2);
   assert.equal(await page.locator('#server-launch-save').isDisabled(),true);
+  // One browser route verifies shared SDK readiness, existing fill/blueprint
+  // handoffs, per-page review and no implicit publish on an untouched draft.
+  assert.equal(await page.locator('#server-launch-fill').count(),1);
+  assert.equal(await page.locator('#server-launch-blueprint').count(),1);
+  assert.match(await page.locator('#server-launch-readiness').innerText(),/Что осталось заполнить/);
+  assert.match(await page.locator('.hosted-launch-progress').innerText(),/0\/2/);
+  assert.equal(await page.locator('#server-launch-publish').isDisabled(),true);
+  await page.locator('#server-launch-mark').click();
+  await page.locator('#server-launch-pages button').nth(1).click();
+  await page.locator('#server-launch-mark').click();
+  assert.match(await page.locator('.hosted-launch-progress').innerText(),/2\/2/);
+  assert.equal(await page.locator('#server-launch-pages .is-reviewed').count(),2);
   await page.locator('#server-launch-modes [data-device="mobile"]').click();
   assert.equal(await page.locator('#server-launch-preview').evaluate(frame=>frame.style.width),'390px');
   await page.locator('#server-launch-preview-status').getByText(/Черновик ·/).waitFor();
