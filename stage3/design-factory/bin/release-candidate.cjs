@@ -3,13 +3,14 @@
 // D7 release candidate: run real checkout tests, verify source identity, produce
 // a source-exact ZIP, and bind full human-reviewed PNG evidence to current code.
 // Never deploy, approve production, mutate CMS state, or edit the repository.
-const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),cp=require('node:child_process'),crypto=require('node:crypto');
 const {resolveOutsideRepository}=require('../lib/output-path.cjs');
 const {walk,manifestForDesignFactory,manifestDigest,sameManifest}=require('../lib/source-manifest.cjs');
 const {verify:verifyZip}=require('./verify-release-zip.cjs');
 const {verify:verifyVisual,checkEvidence}=require('../lib/visual-review.cjs');
 const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
-const {captureExternalInputs,sameExternalInputs}=require('../lib/external-input-manifest.cjs');
+const {captureExternalInputs,sameExternalInputs,sameExternalInputContent,
+ createExternalInputSnapshot,removeExternalInputSnapshot}=require('../lib/external-input-manifest.cjs');
 const ROOT=path.resolve(__dirname,'..'),REPO=path.resolve(ROOT,'../..');
 const EXPECTED_SUITES=Object.freeze([
  'smoke.cjs','compositions-smoke.cjs','kits-smoke.cjs','studio-smoke.cjs',
@@ -126,7 +127,7 @@ function execute(opts){
    'A package checksum proves archive identity, not release authorization.']
  };
  const reportPath=path.join(output,'release-candidate.json');
- let leadInputBaseline=null;
+ let leadInputBaseline=null,leadSnapshotRoot=null,leadSnapshotManifestBaseline=null;
  try{
   result.git=gitState();
   result.renderSourceSha256=sourceFingerprint(REPO);
@@ -196,9 +197,25 @@ function execute(opts){
     baseline=captureExternalInputs(opts.leadSdk,opts.leadPhp);
     leadInputBaseline=baseline;
    }catch(error){preflightError=String(error.message);}
-   if(!baseline){
-    const message='Lead input provenance check failed: '+preflightError;
-    result.leadInputs={status:'invalid',error:preflightError};
+   let snapshot=null,snapshotManifest=null,snapshotError=null;
+   if(baseline){
+    try{
+     leadSnapshotRoot=fs.mkdtempSync(path.join(os.tmpdir(),'df-lead-input-snapshot-'));
+     fs.chmodSync(leadSnapshotRoot,0o700);
+     snapshot=createExternalInputSnapshot(baseline,leadSnapshotRoot);
+     snapshotManifest=captureExternalInputs(snapshot.sdkPath,snapshot.phpFile);
+     const originalAfterCopy=captureExternalInputs(opts.leadSdk,opts.leadPhp);
+     if(!sameExternalInputContent(baseline,snapshotManifest))
+      throw Error('Isolated Lead snapshot content differs from the baseline manifest');
+     if(!sameExternalInputs(baseline,originalAfterCopy))
+      throw Error('Lead SDK/PHP inputs changed while the isolated snapshot was created');
+     leadSnapshotManifestBaseline=snapshotManifest;
+    }catch(error){snapshotError=String(error.message);}
+   }
+   if(!baseline||!snapshot||!snapshotManifest||snapshotError){
+    const message='Lead input provenance/snapshot check failed: '+(preflightError||snapshotError||'snapshot unavailable');
+    result.leadInputs={status:'invalid',error:preflightError||snapshotError||'snapshot unavailable',
+     before:baseline,snapshotSha256:snapshotManifest?.sha256||null};
     result.leadGraph={status:'fail',exitCode:null,summary:'',error:message};
     result.gate.leadGraph=false;
     if(opts.leadPhp){
@@ -207,22 +224,31 @@ function execute(opts){
      result.gate.phpParity=false;
     }
    }else{
-    const env={DF_LEAD_SDK_DIR:baseline.sdkPath};
-    if(baseline.phpFile)env.DF_LEAD_PHP_FILE=baseline.phpFile.path;
+    const env={DF_LEAD_SDK_DIR:snapshot.sdkPath};
+    if(snapshot.phpFile)env.DF_LEAD_PHP_FILE=snapshot.phpFile;
     else env.DF_LEAD_PHP_FILE='';
     const lead=shell(process.execPath,[path.join(ROOT,'tests/lead-design-graph-smoke.cjs')],env,300000);
-    let after=null,snapshotError=null;
+    let after=null,snapshotAfter=null,originalError=null,snapshotAfterError=null;
     try{after=captureExternalInputs(opts.leadSdk,opts.leadPhp);}
-    catch(error){snapshotError=String(error.message);}
-    const inputsStable=Boolean(after&&sameExternalInputs(baseline,after));
-    const unstableMessage=snapshotError||'Lead SDK/PHP inputs changed while compatibility checks were running';
+    catch(error){originalError=String(error.message);}
+    try{snapshotAfter=captureExternalInputs(snapshot.sdkPath,snapshot.phpFile);}
+    catch(error){snapshotAfterError=String(error.message);}
+    const originalStable=Boolean(after&&sameExternalInputs(baseline,after));
+    const snapshotStable=Boolean(snapshotAfter&&sameExternalInputs(snapshotManifest,snapshotAfter)&&
+     sameExternalInputContent(baseline,snapshotAfter));
+    const inputsStable=originalStable&&snapshotStable;
+    const unstableMessage=originalError||snapshotAfterError||
+     'Lead SDK/PHP originals or isolated snapshot changed while compatibility checks were running';
     result.leadInputs={status:inputsStable?'stable':'changed-during-check',
-     before:baseline,after,stable:inputsStable,error:inputsStable?null:unstableMessage};
+     before:baseline,after,snapshotSha256:snapshotManifest.sha256,
+     snapshotAfterSha256:snapshotAfter?.sha256||null,snapshotAfter,
+     snapshotContentMatches:sameExternalInputContent(baseline,snapshotManifest),
+     snapshotStable,originalStable,stable:inputsStable,error:inputsStable?null:unstableMessage};
     const graphPass=lead.passed&&/DESIGN_FACTORY_LEAD_GRAPH PASS:/.test(lead.stdout)&&
      !/DESIGN_FACTORY_LEAD_GRAPH SKIP/.test(lead.stdout)&&inputsStable;
     result.leadGraph={status:graphPass?'pass':'fail',exitCode:lead.exitCode,
      summary:lead.stdout.slice(-1100),
-     error:graphPass?null:(snapshotError||(!inputsStable?unstableMessage:
+     error:graphPass?null:(originalError||snapshotAfterError||(!inputsStable?unstableMessage:
       (lead.error||lead.stderr.slice(-700)||'Lead Design Graph smoke did not pass')))};
     result.gate.leadGraph=graphPass;
     if(opts.leadPhp){
@@ -231,7 +257,7 @@ function execute(opts){
      const phpPass=graphPass&&probesObserved===6;
      result.leadPhpParity={status:phpPass?'pass':'fail',exitCode:lead.exitCode,
       probes:phpPass?6:0,probesAttempted:probesObserved,summary:lead.stdout.slice(-800),
-      error:phpPass?null:(snapshotError||(!inputsStable?unstableMessage:
+      error:phpPass?null:(originalError||snapshotAfterError||(!inputsStable?unstableMessage:
        (lead.error||lead.stderr.slice(-700)||'Six real PHP parity probes were not confirmed'))),
       note:'Six typed Graph markup cases; NOT responsive pixel parity'};
      result.gate.phpParity=phpPass;
@@ -267,16 +293,25 @@ function execute(opts){
    result.gate.phpParity=false;result.gate.sourceExact=false;
   }
   if(leadInputBaseline){
-   let finalLeadInputs=null,finalLeadError=null;
+   let finalLeadInputs=null,finalLeadError=null,finalSnapshotInputs=null,finalSnapshotError=null;
    try{finalLeadInputs=captureExternalInputs(opts.leadSdk,opts.leadPhp);}
    catch(error){finalLeadError=String(error.message);}
+   try{if(leadSnapshotManifestBaseline&&leadSnapshotRoot){
+    finalSnapshotInputs=captureExternalInputs(path.join(leadSnapshotRoot,'sdk'),
+     leadInputBaseline.phpFile?path.join(leadSnapshotRoot,'php',path.basename(leadInputBaseline.phpFile.path)):null);
+   }}catch(error){finalSnapshotError=String(error.message);}
    const finalLeadStable=Boolean(finalLeadInputs&&sameExternalInputs(leadInputBaseline,finalLeadInputs));
+   const finalSnapshotStable=Boolean(leadSnapshotManifestBaseline&&finalSnapshotInputs&&
+    sameExternalInputs(leadSnapshotManifestBaseline,finalSnapshotInputs)&&
+    sameExternalInputContent(leadInputBaseline,finalSnapshotInputs));
    result.leadInputs.final=finalLeadInputs;
+   result.leadInputs.snapshotFinalSha256=finalSnapshotInputs?.sha256||null;
+   result.leadInputs.snapshotFinalStable=leadSnapshotManifestBaseline?finalSnapshotStable:null;
    result.leadInputs.finalSha256=finalLeadInputs?.sha256||null;
    result.leadInputs.stable=Boolean(result.leadInputs.stable===true&&finalLeadStable);
-   if(!finalLeadStable||!result.leadInputs.stable){
-    const message=finalLeadError||'Lead SDK/PHP inputs changed between provenance snapshots';
-    result.leadInputs.status='changed-during-candidate';
+   if(!finalLeadStable||!result.leadInputs.stable||(leadSnapshotManifestBaseline&&!finalSnapshotStable)){
+    const message=finalLeadError||finalSnapshotError||result.leadInputs.error||'Lead SDK/PHP inputs changed between provenance snapshots';
+    result.leadInputs.status=result.leadInputs.status==='invalid'?'invalid':'changed-during-candidate';
     result.leadInputs.error=message;
     result.leadGraph.status='fail';
     result.leadGraph.error=message;
@@ -300,6 +335,18 @@ function execute(opts){
  }catch(e){
   result.error=String(e.message);
  }finally{
+  if(leadSnapshotRoot){
+   try{removeExternalInputSnapshot(leadSnapshotRoot);leadSnapshotRoot=null;}
+   catch(error){
+    const message='Lead input snapshot cleanup failed: '+String(error.message);
+    result.leadInputs.cleanupError=String(error.message);
+    result.leadInputs.status='cleanup-failed';
+    result.leadGraph.status='fail';result.leadGraph.error=message;
+    if(opts.leadPhp){result.leadPhpParity.status='fail';result.leadPhpParity.probes=0;
+     result.leadPhpParity.error=message;}
+    result.gate.leadGraph=false;result.gate.phpParity=false;
+   }
+  }
   result.gate.productionReady=false;
   result.gate.integratorMergeApproved=false;
   fs.writeFileSync(reportPath,JSON.stringify(result,null,2)+'\n',{flag:'wx',mode:0o600});

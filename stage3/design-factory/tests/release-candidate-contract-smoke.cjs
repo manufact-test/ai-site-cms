@@ -6,7 +6,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),crypto=require('node:crypto');
 const {walk,manifestForDesignFactory,manifestDigest}=require('../lib/source-manifest.cjs');
 const {sourceFingerprint,inputPaths}=require('../lib/render-source-fingerprint.cjs');
-const {captureExternalInputs,sameExternalInputs}=require('../lib/external-input-manifest.cjs');
+const {captureExternalInputs,sameExternalInputs,sameExternalInputContent,
+ createExternalInputSnapshot,removeExternalInputSnapshot}=require('../lib/external-input-manifest.cjs');
 const {options,expectedAuditChecks,auditReportIsValid,localAuditStillMatches}=
  require('../bin/release-candidate.cjs');
 const ROOT=path.resolve(__dirname,'..'),REPO=path.resolve(ROOT,'../..');
@@ -14,6 +15,7 @@ const hash=x=>crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex'
 const entries=walk(ROOT),manifest=manifestForDesignFactory(ROOT);
 function exerciseExternalInputManifest(){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'df-external-inputs-'));
+ let snapshotRoot=null;
  try{
   const sdk=path.join(dir,'sdk'),php=path.join(dir,'DesignGraph.php');
   fs.mkdirSync(sdk);
@@ -29,6 +31,21 @@ function exerciseExternalInputManifest(){
   assert.match(base.sha256,/^[a-f0-9]{64}$/);
   assert.equal(sameExternalInputs(base,captureExternalInputs(sdk,php)),true,
    'Same SDK/PHP bytes and canonical paths must have a stable fingerprint');
+  snapshotRoot=path.join(dir,'isolated-snapshot');fs.mkdirSync(snapshotRoot,{mode:0o700});
+  const snapshot=createExternalInputSnapshot(base,snapshotRoot);
+  const frozen=captureExternalInputs(snapshot.sdkPath,snapshot.phpFile);
+  assert.equal(sameExternalInputContent(base,frozen),true,
+   'The sealed isolated snapshot must match every original SDK/PHP byte');
+  assert.equal((fs.statSync(path.join(snapshot.sdkPath,'contract.cjs')).mode&0o222),0,
+   'Snapshot files must be read-only while compatibility checks consume them');
+  fs.writeFileSync(contract,Buffer.concat([contractBytes,Buffer.from('// concurrent change\n')]));
+  assert.equal(sameExternalInputs(base,captureExternalInputs(sdk,php)),false,
+   'Changing the external checkout after snapshot creation must be detectable');
+  assert.equal(sameExternalInputContent(base,captureExternalInputs(snapshot.sdkPath,snapshot.phpFile)),true,
+   'The test snapshot must remain byte-identical even if the external checkout changes');
+  fs.writeFileSync(contract,contractBytes);
+  assert.equal(sameExternalInputs(base,captureExternalInputs(sdk,php)),true,
+   'Restoring the original external checkout must restore the original manifest');
   fs.writeFileSync(contract,Buffer.concat([contractBytes,Buffer.from('// changed\n')]));
   assert.equal(sameExternalInputs(base,captureExternalInputs(sdk,php)),false,
    'An SDK source edit must invalidate the original input fingerprint');
@@ -84,7 +101,10 @@ function exerciseExternalInputManifest(){
    'A purported SDK must contain both runtime entry points');
   assert.throws(()=>captureExternalInputs(sdk,path.join(dir,'not-php.txt')),/ENOENT|regular \.php file/,
    'A PHP parity input must be an existing regular PHP file');
- }finally{fs.rmSync(dir,{recursive:true,force:true});}
+ }finally{
+  if(snapshotRoot&&fs.existsSync(snapshotRoot))removeExternalInputSnapshot(snapshotRoot);
+  fs.rmSync(dir,{recursive:true,force:true});
+ }
 }
 const auditSource=fs.readFileSync(path.join(ROOT,'bin/release-audit.cjs'),'utf8');
 function fixture(chromium=false){
@@ -104,6 +124,15 @@ try{
  assert.equal(manifest.length,entries.length,'Release manifest must cover every packaged file');
  assert.ok(manifest.some(item=>item.path.startsWith('handoffs/')),'Handoff documentation is part of the packaged source inventory');
  assert.ok(auditSource.includes('inventoryStable=sameManifest(entries,finalEntries)'), 'Final stability gate must compare every file, including handoffs');
+ const candidateSource=fs.readFileSync(path.join(ROOT,'bin/release-candidate.cjs'),'utf8');
+ assert.ok(candidateSource.includes('createExternalInputSnapshot(baseline,leadSnapshotRoot)'),
+  'Lead compatibility must consume a private snapshot, not the mutable external checkout');
+ assert.ok(candidateSource.includes('DF_LEAD_SDK_DIR:snapshot.sdkPath'),
+  'The Lead test environment must point at the isolated SDK copy');
+ assert.ok(candidateSource.includes('sameExternalInputs(snapshotManifest,snapshotAfter)'),
+  'The isolated copy must be re-fingerprinted after the compatibility test');
+ assert.ok(candidateSource.includes('finalSnapshotStable'),
+  'The isolated copy must remain stable through the complete candidate run');
  const base=fixture(false);
  assert.equal(auditReportIsValid(base,false),true);
  assert.equal(localAuditStillMatches(base),true);
@@ -166,7 +195,7 @@ try{
  ])assert.ok(inputs.includes(required),'Fingerprint must bind '+required);
  assert.equal(sourceFingerprint(REPO),sourceFingerprint(REPO),'Fingerprint must be deterministic');
  exerciseExternalInputManifest();
- console.log('DESIGN_FACTORY_D7_RELEASE_CONTRACT PASS: exact audit schema, bundle + 8-suite inventory + final source stability, optional Chromium inventory, source additions/removals/tampering, option validation and complete visual-tooling fingerprint');
+ console.log('DESIGN_FACTORY_D7_RELEASE_CONTRACT PASS: exact audit schema, bundle + 8-suite inventory, bounded traversal, source stability, isolated Lead snapshot/immutability/drift checks and visual-tooling fingerprint');
 }catch(error){
  console.error('DESIGN_FACTORY_D7_RELEASE_CONTRACT FAIL: '+error.message);
  throw error;

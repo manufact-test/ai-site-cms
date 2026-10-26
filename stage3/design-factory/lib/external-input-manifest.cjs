@@ -87,4 +87,100 @@ function sameExternalInputs(a,b){
   a.sdkPath===b.sdkPath&&JSON.stringify(a.sdkFiles)===JSON.stringify(b.sdkFiles)&&
   JSON.stringify(a.phpFile)===JSON.stringify(b.phpFile));
 }
-module.exports=Object.freeze({captureExternalInputs,sameExternalInputs});
+function sameExternalInputContent(a,b){
+ return Boolean(a&&b&&a.format==='manufact-design-factory-external-input-manifest-v1'&&
+  b.format===a.format&&a.version===b.version&&
+  JSON.stringify(a.sdkFiles)===JSON.stringify(b.sdkFiles)&&
+  ((a.phpFile===null&&b.phpFile===null)||
+   (a.phpFile&&b.phpFile&&path.basename(a.phpFile.path)===path.basename(b.phpFile.path)&&
+    a.phpFile.bytes===b.phpFile.bytes&&a.phpFile.sha256===b.phpFile.sha256)));
+}
+function createExternalInputSnapshot(baseline,snapshotRoot){
+ if(!baseline||baseline.format!=='manufact-design-factory-external-input-manifest-v1')
+  throw Error('A valid Lead input baseline is required');
+ const root=path.resolve(snapshotRoot),rootStat=fs.lstatSync(root);
+ if(rootStat.isSymbolicLink()||!rootStat.isDirectory()||fs.realpathSync(root)!==root||
+  fs.readdirSync(root).length!==0)
+  throw Error('Lead input snapshot target must be a canonical empty directory');
+ const current=captureExternalInputs(baseline.sdkPath,baseline.phpFile?baseline.phpFile.path:null);
+ if(!sameExternalInputs(baseline,current))
+  throw Error('Lead inputs changed before isolated snapshot creation');
+ const sdkPath=path.join(root,'sdk');
+ let phpCopy=null;
+ try{
+  fs.mkdirSync(sdkPath,{mode:0o700});
+  for(const item of baseline.sdkFiles){
+   if(typeof item.path!=='string'||!item.path||item.path.includes('\\')||
+    path.posix.isAbsolute(item.path)||item.path.split('/').some(part=>!part||part==='.'||part==='..'))
+    throw Error('Unsafe relative Lead SDK snapshot path');
+   const source=path.join(baseline.sdkPath,...item.path.split('/'));
+   const before=fs.lstatSync(source);
+   if(before.isSymbolicLink()||!before.isFile()||fs.realpathSync(source)!==source)
+    throw Error('Lead SDK input is no longer a canonical regular file: '+item.path);
+   const bytes=fs.readFileSync(source),after=fs.lstatSync(source);
+   if(after.isSymbolicLink()||!after.isFile()||fs.realpathSync(source)!==source||
+    !sameStat(before,after)||bytes.length!==item.bytes||sha(bytes)!==item.sha256)
+    throw Error('Lead SDK input changed during snapshot creation: '+item.path);
+   const destination=path.join(sdkPath,...item.path.split('/'));
+   fs.mkdirSync(path.dirname(destination),{recursive:true,mode:0o700});
+   fs.writeFileSync(destination,bytes,{flag:'wx',mode:0o400});
+   fs.chmodSync(destination,0o400);
+  }
+  if(baseline.phpFile){
+   const source=baseline.phpFile.path,before=fs.lstatSync(source);
+   if(before.isSymbolicLink()||!before.isFile()||fs.realpathSync(source)!==source)
+    throw Error('Lead PHP input is no longer a canonical regular file');
+   const bytes=fs.readFileSync(source),after=fs.lstatSync(source);
+   if(after.isSymbolicLink()||!after.isFile()||fs.realpathSync(source)!==source||
+    !sameStat(before,after)||bytes.length!==baseline.phpFile.bytes||
+    sha(bytes)!==baseline.phpFile.sha256)
+    throw Error('Lead PHP input changed during snapshot creation');
+   const phpDirectory=path.join(root,'php');
+   fs.mkdirSync(phpDirectory,{mode:0o700});
+   phpCopy=path.join(phpDirectory,path.basename(source));
+   fs.writeFileSync(phpCopy,bytes,{flag:'wx',mode:0o400});
+   fs.chmodSync(phpCopy,0o400);
+  }
+  function seal(directory){
+   for(const entry of fs.readdirSync(directory,{withFileTypes:true})){
+    const child=path.join(directory,entry.name),stat=fs.lstatSync(child);
+    if(stat.isSymbolicLink())throw Error('Unexpected symlink in Lead snapshot');
+    if(stat.isDirectory())seal(child);
+    else if(stat.isFile())fs.chmodSync(child,0o400);
+    else throw Error('Unsupported entry in Lead snapshot');
+   }
+   fs.chmodSync(directory,0o500);
+  }
+  seal(root);
+  const copied=captureExternalInputs(sdkPath,phpCopy);
+  if(!sameExternalInputContent(baseline,copied))
+   throw Error('Isolated Lead snapshot does not match the original input content');
+  return Object.freeze({root,sdkPath,phpFile:phpCopy,manifestSha256:copied.sha256});
+ }catch(error){
+  try{removeExternalInputSnapshot(root);}catch{}
+  throw error;
+ }
+}
+function removeExternalInputSnapshot(snapshotRoot){
+ const root=path.resolve(snapshotRoot);
+ let rootStat;
+ try{rootStat=fs.lstatSync(root);}
+ catch(error){if(error.code==='ENOENT')return;throw error;}
+ if(rootStat.isSymbolicLink()){fs.unlinkSync(root);return;}
+ if(!rootStat.isDirectory()||fs.realpathSync(root)!==root)
+  throw Error('Refusing to clean an untrusted Lead snapshot path');
+ function makeWritable(directory){
+  fs.chmodSync(directory,0o700);
+  for(const entry of fs.readdirSync(directory,{withFileTypes:true})){
+   const child=path.join(directory,entry.name),stat=fs.lstatSync(child);
+   if(stat.isSymbolicLink())fs.unlinkSync(child);
+   else if(stat.isDirectory())makeWritable(child);
+   else if(stat.isFile())fs.chmodSync(child,0o600);
+   else fs.unlinkSync(child);
+  }
+ }
+ makeWritable(root);
+ fs.rmSync(root,{recursive:true,force:false});
+}
+module.exports=Object.freeze({captureExternalInputs,sameExternalInputs,
+ sameExternalInputContent,createExternalInputSnapshot,removeExternalInputSnapshot});
