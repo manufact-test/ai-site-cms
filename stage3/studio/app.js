@@ -2595,10 +2595,11 @@
             const target=find(copy.nodes);
             const merge=(layer,props)=>{
               for(const [key,value] of Object.entries(props)){
-                if(!overwrite.checked&&layer[key]!==undefined)continue;
                 const conflict={fluidFont:'fontSize',fontSize:'fluidFont',
                   widthPercent:'widthPx',widthPx:'widthPercent',
                   columns:'gridColumnsPreset',gridColumnsPreset:'columns'};
+                if(!overwrite.checked&&(layer[key]!==undefined||
+                  (conflict[key]&&layer[conflict[key]]!==undefined)))continue;
                 if(conflict[key])delete layer[conflict[key]];
                 layer[key]=cp(value);
               }
@@ -2714,6 +2715,7 @@
         }else styleFields.append(ctl(key,value,v=>{
           if(!v.trim()){delete style[key];return;}
           if(['color','background','borderColor','outlineColor'].includes(key)){style[key]=v.trim();return;}
+          if(key==='fontSize')delete style.fluidFont;
           style[key]=v.startsWith('@')?v.trim():Number(v);
         }));
       }
@@ -2733,7 +2735,7 @@
        fluid.append(fluidFields,button('Сбросить плавный размер','btn small',()=>{
          if(!style.fluidFont)return;
          recordHistory();delete style.fluidFont;render();
-       }));root.append(fluid);
+       }));if(!limited)root.append(fluid);
        const gradient=make('details');gradient.id='cms-design-gradient';
       gradient.append(make('summary','Градиент фона · '+mode));
       const gradientFields=make('div',undefined,'cms-design-fields');
