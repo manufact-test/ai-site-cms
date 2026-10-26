@@ -4,6 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const cp=require('node:child_process'),crypto=require('node:crypto'),zlib=require('node:zlib');
 const root=path.resolve(__dirname,'..');
+const {verify:verifyZip}=require('../bin/verify-release-zip.cjs');
 const build=path.join(root,'bin/package-release.cjs');
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'df-package-smoke-'));
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
@@ -43,6 +44,33 @@ try{
  }
  const a=fs.readFileSync(outputs[0]),b=fs.readFileSync(outputs[1]);
  assert.equal(sha(a),sha(b),'Reproducible archives must have identical bytes');
+ const verified=verifyZip(outputs[0]);
+ assert.equal(verified.zipSha256,sha(a),'Independent archive verifier must agree with actual ZIP SHA256');
+ assert.equal(verified.sourceSha256,expectedSourceSha256(),'Independent verifier must reconstruct framed source digest');
+ assert.equal(verified.sourceExactMatch,true);
+ assert.equal(verified.crcVerified,true);
+ const mutated=(name,change,pattern)=>{
+  const bytes=Buffer.from(a);
+  change(bytes);
+  const out=path.join(dir,name+'.zip');
+  fs.writeFileSync(out,bytes);
+  assert.throws(()=>verifyZip(out),pattern,name);
+ };
+ // Genuine malformed ZIP examples must fail the independent release verifier.
+ mutated('bad-central-count',bytes=>{
+  bytes.writeUInt16LE(bytes.readUInt16LE(bytes.length-22+10)+1,bytes.length-22+10);
+ },/Central directory count\/bounds mismatch/);
+ mutated('bad-central-crc',bytes=>{
+  const directory=bytes.readUInt32LE(bytes.length-22+16);
+  bytes.writeUInt32LE((bytes.readUInt32LE(directory+16)^1)>>>0,directory+16);
+ },/Local\/central ZIP header mismatch/);
+ mutated('bad-payload',bytes=>{
+  const nameLength=bytes.readUInt16LE(26);
+  bytes[30+nameLength+3]^=0xFF;
+ },/inflation failed|CRC\/size mismatch/i);
+ mutated('bad-zip-comment',bytes=>{
+  bytes.writeUInt16LE(3,bytes.length-2);
+ },/Invalid ZIP32 end record/);
  assert.equal(a.readUInt32LE(0),0x04034B50);
  const ending=a.length-22;
  assert.equal(a.readUInt32LE(ending),0x06054B50);
