@@ -856,7 +856,7 @@ async function execute(){
   assert.equal(await page.locator('#cms-design-node-select').inputValue(),inlineNodeId);
   assert.equal(await page.locator('#cms-design-breakpoint').inputValue(),'mobile');
   await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Закрыть'}).click();
-  await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+  // Opening the full Graph inspector intentionally closes the page-preview modal.
   const graphRevisionBeforeSave=Number((await page.locator('#server-status').innerText()).match(/Черновик #(\d+)/)[1]);
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(new RegExp('Черновик #'+(graphRevisionBeforeSave+1)+'\\b')).waitFor();
