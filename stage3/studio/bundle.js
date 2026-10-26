@@ -3186,18 +3186,86 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         nodes.addEventListener('change',()=>{workGraphNode=nodes.value;showWork();highlightWork();});
         const graphActions=document.createElement('div');
         graphActions.className='cms-work-graph-actions';
-        const addText=workButton('+ Текст рядом',()=>{
-          const node={id:uniqueId('dg-node'),type:'text',text:'Новый текстовый элемент',styles:{}};
-          editGraphTreeWork({action:'insert',targetId:current.id,placement:'after',node},node.id);
-        });
+        // Compose real typed content directly in the full-page visual canvas.
+        // All mutations use the same strict Graph validation and draft Undo.
+        const insertType=document.createElement('select');insertType.className='control';
+        insertType.id='cms-work-graph-insert-type';
+        insertType.setAttribute('aria-label','Тип нового элемента');
+        const mediaOf=type=>session.current.assets.filter(asset=>
+          type==='video'?asset.mime==='video/mp4':/^image\/(?:png|jpeg|webp|svg\+xml)$/.test(asset.mime));
+        for(const [type,label] of [
+          ['text','Текст'],['heading','Заголовок'],['button','Кнопка'],
+          ['image','Изображение'],['video','Видео MP4'],['icon','Иконка'],
+          ['container','Контейнер'],['divider','Разделитель']
+        ]){
+          const option=document.createElement('option');option.value=type;option.textContent=label;
+          if(['image','video'].includes(type)&&!mediaOf(type).length)option.disabled=true;
+          insertType.append(option);
+        }
+        const insertPlace=document.createElement('select');insertPlace.className='control';
+        insertPlace.id='cms-work-graph-insert-placement';
+        insertPlace.setAttribute('aria-label','Расположение нового элемента');
+        for(const [value,label] of [['after','После'],['before','Перед'],['inside','Внутрь контейнера']]){
+          const option=document.createElement('option');option.value=value;option.textContent=label;
+          option.disabled=value==='inside'&&current.type!=='container';insertPlace.append(option);
+        }
+        const makeNode=type=>{
+          const node={id:uniqueId('dg-node'),type,styles:{}};
+          if(type==='text')node.text='Новый текстовый элемент';
+          if(type==='heading'){node.text='Новый заголовок';node.level=2;}
+          if(type==='button'){node.text='Подробнее';node.href='/';}
+          if(type==='icon'){node.icon='star';node.alt='';}
+          if(type==='container'){
+            node.children=[];node.styles={display:'grid',columns:2,gap:'@medium'};
+            node.responsive={mobile:{columns:1}};
+          }
+          if(type==='image'||type==='video'){
+            const media=mediaOf(type)[0];
+            if(!media)throw Error(type==='video'
+              ?'Сначала загрузите MP4 в медиабиблиотеку'
+              :'Сначала загрузите изображение в медиабиблиотеку');
+            node.assetId=media.id;node.alt=media.alt||(type==='video'?'Видео':'Изображение');
+          }
+          return node;
+        };
+        const insertNode=(type,placement)=>{
+          if(placement==='inside'&&current.type!=='container')
+            return feedback('Вложить можно только в контейнер.',true);
+          try{
+            const node=makeNode(type);
+            editGraphTreeWork({action:'insert',targetId:current.id,placement,node},node.id);
+          }catch(error){feedback('Элемент не добавлен: '+error.message,true);}
+        };
+        const insertRow=document.createElement('div');insertRow.className='cms-work-graph-insert';
+        const insert=workButton('+ Элемент',()=>insertNode(insertType.value,insertPlace.value));
+        insert.id='cms-work-graph-insert';insert.disabled=!canWrite();
+        insertRow.append(insertType,insertPlace,insert);graphActions.append(insertRow);
+        const addText=workButton('+ Текст рядом',()=>insertNode('text','after'));
         addText.id='cms-work-graph-add-text';addText.disabled=!canWrite();
-        const addChild=workButton('+ Вложенный текст',()=>{
-          if(current.type!=='container')return feedback('Сначала выберите контейнер.',true);
-          const node={id:uniqueId('dg-node'),type:'text',text:'Новый вложенный текст',styles:{}};
-          editGraphTreeWork({action:'insert',targetId:current.id,placement:'inside',node},node.id);
-        });
+        const addChild=workButton('+ Вложенный текст',()=>insertNode('text','inside'));
         addChild.id='cms-work-graph-add-child';
         addChild.disabled=!canWrite()||current.type!=='container';
+        const findSiblings=(nodes,id)=>{
+          for(const node of nodes){
+            if(node.id===id)return nodes;
+            if(node.type==='container'){
+              const hit=findSiblings(node.children,id);if(hit)return hit;
+            }
+          }
+          return null;
+        };
+        const siblings=findSiblings(section.designGraph.nodes,current.id)||[];
+        const siblingIndex=siblings.findIndex(x=>x.id===current.id);
+        const moveGraph=delta=>{
+          const other=siblings[siblingIndex+delta];if(!other)return;
+          editGraphTreeWork({action:'move',nodeId:current.id,targetId:other.id,
+            placement:delta<0?'before':'after'},current.id);
+        };
+        const moveUp=workButton('↑ Элемент',()=>moveGraph(-1));
+        moveUp.id='cms-work-graph-move-up';moveUp.disabled=!canWrite()||siblingIndex<=0;
+        const moveDown=workButton('↓ Элемент',()=>moveGraph(1));
+        moveDown.id='cms-work-graph-move-down';
+        moveDown.disabled=!canWrite()||siblingIndex>=siblings.length-1;
         const duplicateGraphNode=workButton('Копия узла',()=>{
           const ids=[];
           const collect=node=>{ids.push(uniqueId('dg-node'));for(const child of node.children||[])collect(child);};
@@ -3216,7 +3284,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         removeGraphNode.id='cms-work-graph-remove';
         const subtreeSize=node=>1+(node.children||[]).reduce((sum,child)=>sum+subtreeSize(child),0);
         removeGraphNode.disabled=!canWrite()||subtreeSize(current)>=rows.length;
-        graphActions.append(addText,addChild,duplicateGraphNode,removeGraphNode);
+        graphActions.append(addText,addChild,moveUp,moveDown,duplicateGraphNode,removeGraphNode);
         panel.append(title,hint,nodes,graphActions);
         const property=(label,key,value,options=null)=>{
           const wrap=document.createElement('label');wrap.className='cms-work-field';
@@ -3252,11 +3320,53 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             property('Текст', 'text',current.text);
           if(current.type==='button')property('Ссылка', 'href',current.href);
           if(['image','video','icon'].includes(current.type))property('Описание / alt','alt',current.alt||'');
+          if(current.type==='icon')property('Векторная иконка','icon',current.icon,
+            Object.keys(DESIGN_GRAPH.ICON_PATHS).map(value=>[value,value]));
           if(['image','video'].includes(current.type)){
             const media=session.current.assets.filter(x=>current.type==='video'?
               x.mime==='video/mp4':/^image\/(?:png|jpeg|webp)$/.test(x.mime));
             property('Медиафайл','assetId',current.assetId,
               media.map(asset=>[asset.id,asset.alt||asset.id]));
+            // Preview and bind the immutable IDs already uploaded to this site.
+            // Never insert arbitrary remote URLs into the typed Graph.
+            const mediaPicker=document.createElement('details');
+            mediaPicker.id='cms-work-graph-media';mediaPicker.className='cms-work-media';
+            const summary=document.createElement('summary');
+            summary.textContent='Медиабиблиотека · '+media.length+
+              (current.type==='video'?' видео':' изображений');
+            const mediaGrid=document.createElement('div');mediaGrid.className='cms-work-media-grid';
+            for(const asset of media){
+              const choice=workButton(asset.alt||asset.id,()=>{
+                editGraphWork(node=>{
+                  node.assetId=asset.id;
+                  if(!node.alt)node.alt=asset.alt||(current.type==='video'?'Видео':'Изображение');
+                });
+              });
+              choice.classList.add('cms-work-media-choice');
+              choice.dataset.graphMediaId=asset.id;
+              choice.setAttribute('aria-pressed',current.assetId===asset.id?'true':'false');
+              if(current.type==='image'&&HOSTED){
+                const url=window.Stage3Host?.previewUrl?.(asset.id);
+                if(url&&url.startsWith('/')){
+                  const thumb=document.createElement('img');
+                  thumb.alt='';thumb.src=url;thumb.loading='lazy';choice.prepend(thumb);
+                }
+              }
+              choice.disabled=!canWrite();mediaGrid.append(choice);
+            }
+            mediaPicker.append(summary,mediaGrid);
+            if(HOSTED){
+              const upload=workButton(
+                current.type==='video'?'+ Загрузить MP4':'+ Загрузить изображение',()=>{
+                  modal.close();
+                  $(current.type==='video'?'server-video-upload':'server-media-upload')?.click();
+                });
+              upload.disabled=!canWrite();
+              const tip=document.createElement('small');
+              tip.textContent='Перед загрузкой сохраните черновик. Новый файл затем выберите здесь.';
+              mediaPicker.append(upload,tip);
+            }
+            panel.append(mediaPicker);
           }
           if(current.type==='heading'){
             property('Уровень H1–H6','level',String(current.level||2),
