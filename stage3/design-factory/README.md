@@ -2,6 +2,21 @@
 
 Independent Stage3 Design Factory. **D1–D6 are implemented; D7 final quality gates are still open**. This does not constitute Stage3 acceptance or production release. Branch: `feature/stage3-design-factory`. Only writable subtree: `stage3/design-factory/`.
 
+## Latest D7 review-gate hardening — 26 October 2026
+
+Source commit: `7acac88cc8b0deda4e5938aa0ffc4d63552db4a1`. The visual-review workflow now makes D3 showcase coverage explicit. The review page links directly to `showcase/index.html`, asks the reviewer to scroll through all 42 compositions, and requires a fifth `showcaseCoverage` attestation. The receipt schema is `manufact-design-factory-visual-review-v2`; old v1 receipts are rejected rather than silently accepted without this gate. The 54-image matrix is unchanged: its three showcase PNGs are viewport snapshots, not proof that all 42 cards were seen.
+
+Isolated V8 syntax parsing and source-level regression assertions for the changed reviewer, UI and smoke-test files **PASS**. These are not a real Node checkout or execution of the full smoke suite.
+
+**Fresh environment attempt at audit-start HEAD `9589595157f8712d3d80b8c89eb5162a10027b67`:**
+- Node.js `v22.16.0` is installed; `/usr/bin/chromium` exists.
+- `git ls-remote` failed because GitHub DNS could not resolve. A direct-IP HTTPS attempt also failed to connect.
+- A minimal Chromium data-URL probe timed out after 15 seconds (exit 124, no DOM output).
+- GitHub reports 0 branch Actions runs, 0 check runs and 0 commit statuses.
+- No genuine checkout is available: the seven-suite Node audit, optional Lead/PHP parity, Studio E2E, 54 screenshots, human review, real ZIP/CRC/source-byte verification and ZIP SHA256 remain **NOT RUN**.
+
+D7 remains **OPEN**; Stage2 **NO-GO**; Stage3 unaccepted; **0/135** mandatory criteria. Do not modify workflows, merge, or claim release acceptance from source-level checks.
+
 ## Latest source hardening — 25 October 2026
 
 **Functional/source checkpoint:** `39624c82fc7953c9afaa07452053f3acec6cd86a`. This commit changes only `stage3/design-factory/bin/build-browser-bundle.cjs` and `stage3/design-factory/tests/studio-smoke.cjs`.

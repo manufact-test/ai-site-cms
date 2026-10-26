@@ -1,6 +1,21 @@
 # D7 · Final quality gates and evidence
 
-**Document date:** 25 October 2026. **Status:** Release tooling implemented, **visual/manual and checked-out Node execution pending**. Formal Stage2 NO-GO, Stage3+ unaccepted, 0/135 mandatory criteria.
+**Document date:** 26 October 2026. **Status:** D7 release tooling is implemented; full checkout, visual/manual acceptance and package evidence remain pending. Formal Stage2 NO-GO, Stage3+ unaccepted, 0/135 mandatory criteria.
+
+## Latest D7 review-gate hardening — 26 October 2026
+
+Source commit: `7acac88cc8b0deda4e5938aa0ffc4d63552db4a1`. The visual-review workflow now makes D3 showcase coverage explicit. The review page links directly to `showcase/index.html`, asks the reviewer to scroll through all 42 compositions, and requires a fifth `showcaseCoverage` attestation. The receipt schema is `manufact-design-factory-visual-review-v2`; old v1 receipts are rejected rather than silently accepted without this gate. The 54-image matrix is unchanged: its three showcase PNGs are viewport snapshots, not proof that all 42 cards were seen.
+
+Isolated V8 syntax parsing and source-level regression assertions for the changed reviewer, UI and smoke-test files **PASS**. These are not a real Node checkout or execution of the full smoke suite.
+
+**Fresh environment attempt at audit-start HEAD `9589595157f8712d3d80b8c89eb5162a10027b67`:**
+- Node.js `v22.16.0` is installed; `/usr/bin/chromium` exists.
+- `git ls-remote` failed because GitHub DNS could not resolve. A direct-IP HTTPS attempt also failed to connect.
+- A minimal Chromium data-URL probe timed out after 15 seconds (exit 124, no DOM output).
+- GitHub reports 0 branch Actions runs, 0 check runs and 0 commit statuses.
+- No genuine checkout is available: the seven-suite Node audit, optional Lead/PHP parity, Studio E2E, 54 screenshots, human review, real ZIP/CRC/source-byte verification and ZIP SHA256 remain **NOT RUN**.
+
+D7 remains **OPEN**; Stage2 **NO-GO**; Stage3 unaccepted; **0/135** mandatory criteria. Do not modify workflows, merge, or claim release acceptance from source-level checks.
 
 ## Latest source hardening — 25 October 2026
 
@@ -21,7 +36,7 @@
 ### Block 1 — genuine checkout, Node audit and existing CI
 
 - Attempted `git ls-remote https://github.com/manufact-test/ai-site-cms.git refs/heads/feature/stage3-design-factory` in the execution container. Exact failure: `fatal: unable to access 'https://github.com/manufact-test/ai-site-cms.git/': Could not resolve host: github.com`.
-- Node.js `v22.16.0` is installed, but no checkout is available in the workspace. The six stable D7 suites and the optional Lead suite were **not run** against a real checkout.
+- Node.js `v22.16.0` is installed, but no checkout is available in the workspace. The seven stable D7 suites and the optional Lead suite were **not run** against a real checkout.
 - GitHub API re-check: branch workflow-runs `total_count=0`; HEAD check-runs `total_count=0`; commit statuses array empty. Do not change workflows to manufacture CI evidence.
 
 ### Block 2 — PHP parity and browser acceptance
@@ -42,7 +57,7 @@
 
 | Gate | Current status | Evidence boundary |
 |---|---|---|
-| Real Node checkout + six-suite D7 release audit | **BLOCKED / NOT VERIFIED** | Last known clone failed with DNS resolution error; no branch Actions run, check run or commit status is available for current HEAD. |
+| Real Node checkout + seven-suite D7 release audit | **BLOCKED / NOT VERIFIED** | Last known clone failed with DNS resolution error; no branch Actions run, check run or commit status is available for current HEAD. |
 | Optional Lead Design Graph suite | **NOT RUN** | Requires genuine Node execution and the current lead source; keep it separate from stable D7 suites. |
 | PHP parity | **SKIPPED — 0 probes** | No actual parity execution. |
 | Chromium Studio E2E and visual captures | **BLOCKED — 0 captures** | Chromium previously timed out on a minimal page. The code now checks a 54-image matrix, but no matrix has been captured or human-reviewed. |
@@ -61,7 +76,7 @@ node stage3/design-factory/bin/build-browser-bundle.cjs --check
 node stage3/design-factory/bin/release-audit.cjs --out /tmp/df-D7-report.json
 ```
 
-The release audit runs SIX integrated tests: D1/D2 contract/CLI, D3 composition showcase, D4 sector gallery and SHA256, D5 real bundled SDK parity, D6 reversible/tamper-rejecting package, D7 reproducible ZIP integrity. Output is a JSON report with every suite's status and a SHA256 file inventory. An `exit 3` with all Node suites green means **Chromium was not run and the gate remains intentionally open**; do not report final pass. The audit never runs against production and writes only to an explicitly requested NEW report file (or stdout).
+The release audit runs SEVEN integrated tests: D1/D2 contract/CLI, D3 composition showcase, D4 sector gallery and SHA256, D5 real bundled SDK parity, D6 reversible/tamper-rejecting package, D7 reproducible ZIP integrity. Output is a JSON report with every suite's status and a SHA256 file inventory. An `exit 3` with all Node suites green means **Chromium was not run and the gate remains intentionally open**; do not report final pass. The audit never runs against production and writes only to an explicitly requested NEW report file (or stdout).
 
 ## Browser interaction test
 
@@ -110,7 +125,7 @@ Never state **all seven accepted** merely because new tools are committed, or be
 
 `release-audit.cjs` reports **two different concepts**: `automatedChecksPassed` requires its Node and requested Chromium suites, while `releaseReady` remains false and `humanVisualAcceptance` remains `pending` until a reviewer has inspected real screenshots, locales, keyboard interactions, inner pages and semantic CMS parity. An automated process exit 0 does **not** confer human release approval. Do not treat `nodePassed` as real Node evidence unless the six suites ran on a complete checkout.
 
-`visual-qa.cjs` now records **actualWidth/actualHeight and requestedWidth/requestedHeight** from PNG IHDR. A size mismatch is recorded as an error and makes `captureCompleted=false`. Both the full and quick screenshot set now include an English SaaS site and its three internal mobile pages (services, approach, contact); the full capture expects **54 screenshots** (36 theme, 3 showroom, 12 sector home, 3 SaaS inner-page), and quick expects **30**. Even 54 files do not mean all 42 showcased compositions were visually reviewed: inspect the actual showcase content across its entire scrollable document.
+`visual-qa.cjs` now records **actualWidth/actualHeight and requestedWidth/requestedHeight** from PNG IHDR. A size mismatch is recorded as an error and makes `captureCompleted=false`. Both the full and quick screenshot set now include an English SaaS site and its three internal mobile pages (services, approach, contact); the full capture expects **54 screenshots** (36 theme, 3 showroom, 12 sector home, 3 SaaS inner-page), and quick expects **30**. Even 54 files do not mean all 42 showcased compositions were visually reviewed. Open the linked full D3 showcase from visual-review.html, inspect all 42 cards while scrolling, and record the mandatory showcaseCoverage attestation.
 
 **This checkpoint's observed limits:** GitHub branch code was readable and writable through the connector, but the normal local checkout could not reach `github.com` (DNS error). Headless Chromium failed a minimal `--dump-dom` data-page probe (15-second timeout, exit 124). Hence none of the actual checked-out Node, Chromium, viewport review or ZIP results was performed/approved here. A network-accessible checkout with a functioning Chromium runtime is required to finish D7.
 
@@ -128,7 +143,7 @@ At the current branch code, an isolated V8 execution of the actual GitHub SDK/ma
 - Regenerated `studio/runtime.generated.js` from the exact local first-party SDK and manifests (using the unchanged builder), and verified deterministic parity in an isolated in-memory V8 harness. Contract checks run on the same fetched sources: 288/288 site-v1 and 288/288 bridge round trips, 42/42 section fallbacks, service placeholders rejected, D6 tamper detection PASS.
 - Local developer environment continues to lack resolvable git checkout access and functional headless Chromium. Two minimal Chrome page probes timed out with zero stdout. No screenshot files, no full Node checkout test report or executable ZIP hash exists. No GitHub Actions runs on this feature branch were found at the checkpoint.
 
-**Release gate remains unapproved.** A future runtime with checkout and Chromium must perform six Node suites, the four-download browser E2E, actual 1280/768/390 screenshots and human inspection, build/verify ZIP, inspect diff scope and obtain lead approval. Automated green is not manual release approval. Stage2 NO-GO / Stage3 not accepted / 0/135 unchanged.
+**Release gate remains unapproved.** A future runtime with checkout and Chromium must perform seven Node suites, the four-download browser E2E, actual 1280/768/390 screenshots and human inspection, build/verify ZIP, inspect diff scope and obtain lead approval. Automated green is not manual release approval. Stage2 NO-GO / Stage3 not accepted / 0/135 unchanged.
 
 ## 24 October · D7 cross-serializer and human-review improvements
 
@@ -146,7 +161,7 @@ On a working checkout, run `node stage3/design-factory/bin/release-audit.cjs --o
 
 Read-only comparison against the **current lead** SDK discovered the optional first-party `site.designTokens` / `section.designGraph` contract. All **288/288** original Design Factory sites continue to validate against that new SDK. The new **optional** `lib/lead-design-graph-adapter.cjs` generates typed graph candidates without changing D6 JSON. In isolated V8 with the lead's real `contract.cjs` + `design-graph.cjs`, **504/504** combinations (42 compositions × 12 themes) passed graph validation and host HTML/CSS rendering. Rechecked on lead HEAD `a4d6aedff277752e015f52b383f080d0c3178f5a`; the first-party Graph module has changed in parallel, but all 504 remained valid. Original legacy SDK rejects the optional new keys by design.
 
-Added `tests/lead-design-graph-smoke.cjs` as **optional**, using read-only `DF_LEAD_SDK_DIR`. It is not added to the six-suite D7 audit: it requires the lead branch's newer SDK. Its code was authored and syntax-checked; no checked-out Node pass is claimed. A candidate's `approvedForPublish` is always false, and full visual parity is not asserted. See `proposals/LEAD-DESIGN-GRAPH.md` for supported properties and gaps.
+Added `tests/lead-design-graph-smoke.cjs` as **optional**, using read-only `DF_LEAD_SDK_DIR`. It is not added to the seven-suite D7 audit: it requires the lead branch's newer SDK. Its code was authored and syntax-checked; no checked-out Node pass is claimed. A candidate's `approvedForPublish` is always false, and full visual parity is not asserted. See `proposals/LEAD-DESIGN-GRAPH.md` for supported properties and gaps.
 
 **D7 still open:** local GitHub DNS and Chromium remain blocked, including Chromium under Xvfb (12-second timeout, 0-byte DOM output). Full checked-out Node/Chrome/54-image QA, human visual review, and a real ZIP hash are still missing. Do not mistake 504 isolated SDK cases for release acceptance.
 
@@ -168,7 +183,7 @@ Source-level V8 with latest fetched real lead SDK: optional lead Design Graph sm
 
 ## Provenance-integrity addition — 24 October 2026
 
-Optional cross-branch Node suite `tests/lead-design-graph-smoke.cjs` now contains cases for reordered equivalent bindings (allowed) and incorrect existing item IDs, swapped sources, omitted entries, duplicate entries and unknown nodes (rejected). The implementation rebuilds expected source mappings from the original CMS section, not supplied mapping metadata. This suite is **separate** from the six stable D7 release suites and must be executed against the live lead checkout using `DF_LEAD_SDK_DIR`. The isolated mock checks run while editing this branch are not accepted Node or SDK runtime evidence.
+Optional cross-branch Node suite `tests/lead-design-graph-smoke.cjs` now contains cases for reordered equivalent bindings (allowed) and incorrect existing item IDs, swapped sources, omitted entries, duplicate entries and unknown nodes (rejected). The implementation rebuilds expected source mappings from the original CMS section, not supplied mapping metadata. This suite is **separate** from the seven stable D7 release suites and must be executed against the live lead checkout using `DF_LEAD_SDK_DIR`. The isolated mock checks run while editing this branch are not accepted Node or SDK runtime evidence.
 
 Local checkout is still unavailable because `github.com` cannot resolve here. A standalone minimal Chromium probe with `--no-zygote --single-process` also timed out (exit 124), so no 54 PNG files, visual approval, actual package or ZIP hash were created in this checkpoint. D7 **OPEN**, Stage2 NO-GO, Stage3 unaccepted, 0/135.
 

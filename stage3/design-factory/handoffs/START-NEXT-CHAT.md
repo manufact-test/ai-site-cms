@@ -1,30 +1,11 @@
-Привет! Продолжаем самостоятельную разработку **AI Site CMS — Design Factory**. 😎
+## Последнее обновление — 26 октября 2026
 
-Ты — **второй независимый разработчик**, а не главный разработчик CMS.
-
-**Репозиторий:** https://github.com/manufact-test/ai-site-cms  
-**Рабочая ветка:** `feature/stage3-design-factory`  
-**Единственная разрешённая папка:** `stage3/design-factory/`
-
-## Сначала проверь состояние
-
-1. Получи live HEAD ветки из GitHub. Последний функциональный/source checkpoint: `39624c82fc7953c9afaa07452053f3acec6cd86a`. После обновления документации live HEAD снова продвинется — всегда заново получай его из GitHub.
-2. Проверь diff от текущего HEAD и убедись, что любые изменения касаются только `stage3/design-factory/`.
-3. Прочитай:
-   - `stage3/design-factory/handoffs/NEXT-CHAT.md`
-   - `stage3/design-factory/PROGRESS.md`
-   - `stage3/design-factory/QUALITY-GATES.md`
-   - `stage3/design-factory/INTEGRATION.md`
-   - `stage3/design-factory/README.md`
-   - `stage3/design-factory/handoffs/LEAD-REBUILD-CONTRACT-2026-10-25.md`
-   - `stage3/design-factory/handoffs/SESSION-CLOSEOUT-2026-10-24.md` (историческая передача)
-
-## Последний функциональный checkpoint — 25 октября 2026
-
-- `bin/build-browser-bundle.cjs` больше не пишет напрямую поверх целевого файла: canonical repo root, отказ от symlink-компонентов пути и symlink/non-regular target, запись во временный файл и rename.
-- `tests/studio-smoke.cjs` получил изолированный регрессионный fixture для symlink в build/check mode, создания отсутствующего bundle и безопасной замены hardlink.
-- Изолированный V8 syntax parse обоих изменённых JavaScript-файлов PASS; отдельный Node filesystem primitive probe PASS. Это не выполнение модулей Design Factory или smoke suite. Полный `studio-smoke.cjs`, шесть стабильных D7 suites, optional Lead suite и ZIP smoke **не запускались**: checkout по-прежнему блокирует DNS `Could not resolve host: github.com`.
-- Для ветки по-прежнему 0 Actions runs. PHP parity, Chromium/54 скриншота, человеческая визуальная приёмка, настоящий ZIP и SHA256 не подтверждены. D7 OPEN; Stage2 NO-GO; Stage3 не принят; 0/135.
+- Ветка: `feature/stage3-design-factory`; source checkpoint: `7acac88cc8b0deda4e5938aa0ffc4d63552db4a1`. Всегда считывай live HEAD заново.
+- D7 review form укреплён: прямой линк на `showcase/index.html`, обязательная проверка всех 42 композиций при прокрутке и пятый флаг `showcaseCoverage`. Формат review receipt повышен до v2; старые v1 receipts отклоняются.
+- В `release-audit.cjs` сейчас **семь** Node suites; документация синхронизирована с реальным списком.
+- Свежий checkout заблокирован: `git ls-remote` не разрешает GitHub DNS, прямое HTTPS-подключение по IP также не установилось. Node.js 22.16.0 есть; `/usr/bin/chromium` существует, но минимальная headless data URL зависает 15 секунд (exit 124, без DOM stdout).
+- API GitHub: 0 Actions runs, 0 check runs, 0 commit statuses. Семь Node suites, optional Lead/PHP, Chromium Studio E2E, 54 реальные PNG, человеческая приёмка, ZIP/CRC/source parity и SHA256 **не выполнены**.
+- Это не приёмка: **D7 OPEN; Stage2 NO-GO; Stage3 не принят; 0/135**. Не меняй workflows и не повторяй сетевые/Chromium попытки без изменения среды.
 
 ## Жёсткие границы
 

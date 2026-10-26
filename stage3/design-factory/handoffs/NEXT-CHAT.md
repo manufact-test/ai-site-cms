@@ -1,14 +1,29 @@
 # Design Factory — NEXT CHAT / independent developer handoff
 
-**Date:** 2026-10-25 (latest checkpoint appended below)
+**Date:** 2026-10-26 (latest checkpoint appended below)
 **Repository:** https://github.com/manufact-test/ai-site-cms
 **Your working branch:** `feature/stage3-design-factory`
 **Sole writable subtree:** `stage3/design-factory/`
-**Latest functional/source checkpoint:** `39624c82fc7953c9afaa07452053f3acec6cd86a`. **Last documentation-audit HEAD:** `7b7654d6e42ae64c0ae234b19854e49d8cb388c7`. The source commit above is newer; always read live HEAD on arrival.
+**Latest functional/source checkpoint:** `7acac88cc8b0deda4e5938aa0ffc4d63552db4a1`. Always read live HEAD on arrival; this source SHA is not a substitute for querying the branch.
 **IMPORTANT:** Read the CURRENT HEAD from GitHub on arrival. Do not use the older SHA as the current branch head, and do not create any competing branch.
 
 This is the **second independent developer's permanent Design Factory program**, not the primary AI Site CMS chat. The main developer integrates into `feature/stage3-ai-site-contract` / main when ready. Do NOT edit the leader's branch or `main`, `stage3/sdk`, `stage3/components`, PHP, Studio-main, workflows, deployment, secrets, hosting or other projects. Do NOT merge this branch yourself.
 
+
+## Latest D7 review-gate hardening — 26 October 2026
+
+Source commit: `7acac88cc8b0deda4e5938aa0ffc4d63552db4a1`. The visual-review workflow now makes D3 showcase coverage explicit. The review page links directly to `showcase/index.html`, asks the reviewer to scroll through all 42 compositions, and requires a fifth `showcaseCoverage` attestation. The receipt schema is `manufact-design-factory-visual-review-v2`; old v1 receipts are rejected rather than silently accepted without this gate. The 54-image matrix is unchanged: its three showcase PNGs are viewport snapshots, not proof that all 42 cards were seen.
+
+Isolated V8 syntax parsing and source-level regression assertions for the changed reviewer, UI and smoke-test files **PASS**. These are not a real Node checkout or execution of the full smoke suite.
+
+**Fresh environment attempt at audit-start HEAD `9589595157f8712d3d80b8c89eb5162a10027b67`:**
+- Node.js `v22.16.0` is installed; `/usr/bin/chromium` exists.
+- `git ls-remote` failed because GitHub DNS could not resolve. A direct-IP HTTPS attempt also failed to connect.
+- A minimal Chromium data-URL probe timed out after 15 seconds (exit 124, no DOM output).
+- GitHub reports 0 branch Actions runs, 0 check runs and 0 commit statuses.
+- No genuine checkout is available: the seven-suite Node audit, optional Lead/PHP parity, Studio E2E, 54 screenshots, human review, real ZIP/CRC/source-byte verification and ZIP SHA256 remain **NOT RUN**.
+
+D7 remains **OPEN**; Stage2 **NO-GO**; Stage3 unaccepted; **0/135** mandatory criteria. Do not modify workflows, merge, or claim release acceptance from source-level checks.
 
 ## Latest source hardening — 25 October 2026
 
@@ -26,7 +41,7 @@ This is the **second independent developer's permanent Design Factory program**,
 
 At audit start, live HEAD was `bb219d64a58d590fbf2f806835e996a4277aee7d`, directly above functional/source checkpoint `75884b7f794fa1dabc775d802613c38979eff4b8`. Compare confirms one documentation-only commit affecting six paths, all under `stage3/design-factory/`.
 
-- `git ls-remote https://github.com/manufact-test/ai-site-cms.git refs/heads/feature/stage3-design-factory` failed exactly with `Could not resolve host: github.com`. Node.js 22.16.0 is installed, but no real checkout is available; stable six-suite D7 audit and optional Lead suite were not run.
+- `git ls-remote https://github.com/manufact-test/ai-site-cms.git refs/heads/feature/stage3-design-factory` failed exactly with `Could not resolve host: github.com`. Node.js 22.16.0 is installed, but no real checkout is available; stable seven-suite D7 audit and optional Lead suite were not run.
 - Branch Actions API: zero workflow runs. Audit-start HEAD: zero check runs and no commit statuses.
 - PHP CLI 8.4.24 is present, but PHP parity was not run (0 probes) because no real checkout/Lead SDK source is available.
 - `/usr/bin/chromium` timed out on a minimal headless data URL after 15 seconds (exit 124); no Studio E2E or screenshots were captured.
@@ -47,7 +62,7 @@ Recent code changes after the previous graph-rebuild checkpoint:
 
 **Do not confuse code added with tests executed.** GitHub Actions shows no run for this branch; the current HEAD has zero check runs/statuses. The last known clone failed because DNS could not resolve github.com. PHP parity has 0 probes; Chromium timed out; no actual screenshots, human review, release ZIP or archive SHA256 exists. Earlier 504/504 isolated-V8 evidence belongs to the optional graph adapter and is not proof of the latest D7 tooling. D7 remains OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135.
 
-Next: (1) genuine Node checkout or verifiable existing CI result, then six-suite D7 audit and separate optional Lead suite if available; (2) real PHP parity plus 54 real screenshots and human review if Chromium works; (3) build and verify a real source-byte-identical ZIP and actual SHA256. Do not modify workflows to manufacture a run.
+Next: (1) genuine Node checkout or verifiable existing CI result, then seven-suite D7 audit and separate optional Lead suite if available; (2) real PHP parity plus 54 real screenshots and human review if Chromium works; (3) build and verify a real source-byte-identical ZIP and actual SHA256. Do not modify workflows to manufacture a run.
 ## What has genuinely been built (D1–D6)
 
 - **D1**: deterministic `manufact-design-factory-v1` → real `manufact-ai-site-v1` compiler, first-party manifests/SDK, four-page websites, safe editorial placeholders, versioned project migration and offline CLI/preview.
@@ -63,7 +78,7 @@ Earlier isolated JS matrix checks: **288/288** kit × theme × language contract
 
 - Discovered and fixed a regression in the old D1 smoke: it compared literal industry placeholder text. It now checks actual service fallback semantics.
 - Closed accidental false “ready to publish” with only one owner-provided service: second slot visibly marked “Example (verify)” / “Пример (подтвердить)”, checklist flags missing verified services. Browser bundle regenerated to match exact current source.
-- `bin/release-audit.cjs`: one command executes SIX relevant Node suites and writes an explicit gate report + SHA256 source inventory.
+- `bin/release-audit.cjs`: one command executes SEVEN relevant Node suites and writes an explicit gate report + SHA256 source inventory.
 - `bin/package-release.cjs` and `tests/package-smoke.cjs`: reproducible portable ZIP with local Studio/source/docs, CRC32 and SHA256, no overwrite/symlinks/path escapes.
 - `bin/visual-qa.cjs`: captures real Chrome screenshots of all 12 themes at three viewports, D3 showcase and representative D4 kits; produces evidence JSON. Screenshots require human review; not an automatic PASS.
 - `QUALITY-GATES.md`: exact acceptance criteria and commands.
@@ -134,7 +149,7 @@ What changed: D6 now compares complete recompiled JSON **semantically** (unimpor
 
 Isolated current-runtime V8 checks: 288/288 site SDK + link validation; 288/288 D6 round trips; 42/42 composition fallbacks; reordered JSON accepted; three corrupted/invalid bundles rejected; synthetic HTML contact-sheet/escaping test passed. These are **not** checked-out Node test runs or real screenshots. The local environment still cannot resolve github.com for a checkout and Chromium hangs even on a minimal page. No ZIP exists, no checksum or browser PASS. Formal Stage2 NO-GO, Stage3 not accepted, 0/135.
 
-Next **without asking the owner for scope**: verify live feature HEAD/diff, run six Node suites + build-browser-bundle `--check` on an accessible checkout, run a functional Chromium Studio interaction/download smoke, generate full 54 visual screenshots, inspect `visual-review.html` at 1280/768/390 (and keyboard/locale behaviors), fix only critical failures, generate **real ZIP** with `package-release`, run `package-smoke` and record exact ZIP SHA256. Only after completed evidence and owner visual review should final D7 handoff be made to the lead. Never merge or touch SDK/PHP/workflows/main/hosting/production.
+Next **without asking the owner for scope**: verify live feature HEAD/diff, run seven Node suites + build-browser-bundle `--check` on an accessible checkout, run a functional Chromium Studio interaction/download smoke, generate full 54 visual screenshots, inspect `visual-review.html` at 1280/768/390 (and keyboard/locale behaviors), fix only critical failures, generate **real ZIP** with `package-release`, run `package-smoke` and record exact ZIP SHA256. Only after completed evidence and owner visual review should final D7 handoff be made to the lead. Never merge or touch SDK/PHP/workflows/main/hosting/production.
 
 ## Latest D7 handoff update: read-only lead Design Graph compatibility (24 October 2026)
 
@@ -158,7 +173,7 @@ Latest code: optional `lib/lead-design-graph-adapter.cjs` now exports all first-
 
 Expanded `tests/lead-design-graph-smoke.cjs` covers 504 distinct valid host graphs, all 12 owner services, full FAQ, safe gallery placeholder, preservation of typed styles during sync, forged binding rejection and escaped user HTML. Executed in isolated V8 using current GitHub branch SDK/Graph: PASS (504/504 host JS renders, PHP SKIP). PHP optional parity matrix expanded to 6 patterns. A true Node checkout, PHP execution, Chromium human inspection, final ZIP and SHA256 remain NOT RUN; local GitHub DNS and headless Chromium are blocked. Stage2 NO-GO, Stage3 unaccepted, 0/135.
 
-Next task: verify current lead contract after parallel commits; run checkout six D7 Node suites + optional lead SDK/PHP suite, real Chrome Studio interactions and 54 screenshots, human review, package builder+source-parity ZIP test, record actual SHA256 and pass an explicit integration handoff to the lead developer. No fake PASS claims.
+Next task: verify current lead contract after parallel commits; run checkout seven D7 Node suites + optional lead SDK/PHP suite, real Chrome Studio interactions and 54 screenshots, human review, package builder+source-parity ZIP test, record actual SHA256 and pass an explicit integration handoff to the lead developer. No fake PASS claims.
 
 ## FINAL CHAT TRANSFER — 24 October 2026
 
@@ -170,7 +185,7 @@ Live branch started at `cbba270004524bd1ec31234429dc9c0d362e7dc5`, then implemen
 
 `lead-design-graph-adapter.cjs` now verifies canonical content provenance before every preview or explicit sync: redirects to other valid items, swapped sources and missing/extra mappings fail closed. Equivalent reordering is accepted. This protects owner content against mapping errors but does not sign the baseline or authorize edits. Five new regression scenarios are in optional `tests/lead-design-graph-smoke.cjs`. Modified adapter and test parsed in V8; four isolated mocked-host cases passed. No checked-out Node/real lead SDK/PHP/Chromium results. Latest observed *read-only* lead HEAD: `d215fac8b91dac1fc300312e4829872242763606`.
 
-**Next:** run normal six Node suites + optional host suite on a complete checkout, then 54 real PNGs at 1280/768/390 with human review, offline Studio E2E, package builder, archive integrity and actual SHA256. Here GitHub DNS checkout failed and minimal Chromium still timed out (124); do not claim this as PASS. D7 OPEN, main Stage2 NO-GO, Stage3 unaccepted, 0/135. Remain the second developer; no merges, main, PHP, SDK, CI or production edits.
+**Next:** run normal seven Node suites + optional host suite on a complete checkout, then 54 real PNGs at 1280/768/390 with human review, offline Studio E2E, package builder, archive integrity and actual SHA256. Here GitHub DNS checkout failed and minimal Chromium still timed out (124); do not claim this as PASS. D7 OPEN, main Stage2 NO-GO, Stage3 unaccepted, 0/135. Remain the second developer; no merges, main, PHP, SDK, CI or production edits.
 
 ## Current successor checkpoint — 24 October 2026 · exact semantic editing
 
@@ -180,7 +195,7 @@ Additional optional lead bridge commits: `7481c612b23c67b1fd8f7cdec8c031c6982412
 
 Fresh GitHub lead contract blob `e3e0797632bd0f9c4b50cd1865d516264602bcb8`; isolated V8 actual-source matrix **504/504 SDK validations and 504/504 JS renders** plus four focused edit checks PASS, original D6 untouched. This is NOT real Node/PHP/Chromium. The expanded optional Node smoke includes new blank-to-filled/source-change cases, but no full checkout execution. Local GitHub DNS unavailable and Chromium screenshot probe timed out. No real ZIP hash. Keep D7 OPEN and main 0/135 formal acceptance unchanged.
 
-Next work: obtain complete checkout, run six D7 Node suites and optional lead SDK/PHP smoke, Chromium Studio and 54 responsive PNGs with manual review, then reproducible ZIP and SHA256. Report genuine evidence; do not merge or touch other branches.
+Next work: obtain complete checkout, run seven D7 Node suites and optional lead SDK/PHP smoke, Chromium Studio and 54 responsive PNGs with manual review, then reproducible ZIP and SHA256. Report genuine evidence; do not merge or touch other branches.
 
 **Final verification update:** On the latest adapter source, isolated V8 against the actual lead SDK passed 504/504 typed graph validations, 504/504 real JS renderer invocations, 504 unique graphs, and four focused scenarios: benefit reused in 2 nodes, CTA text/href, blank-to-owner-content and source-switch rejection. These are genuine source-level runtime checks, **not** checked-out Node/PHP/Chromium execution. Continue D7 on a full checkout; do not claim visual acceptance.
 
