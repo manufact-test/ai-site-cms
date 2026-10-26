@@ -1071,7 +1071,7 @@
             caution.textContent='Перед загрузкой сохраните текущий черновик. После загрузки изображение нужно выбрать отдельно.';
             picker.append(upload,caution);
           }
-          line.append(picker);
+          workFields.append(picker);
         }
 
       }
