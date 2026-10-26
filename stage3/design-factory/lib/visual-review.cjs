@@ -5,6 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
 const {inspectPng}=require('./png-integrity.cjs');
+const {assertSourceIdentity}=require('./visual-source-provenance.cjs');
 const SHA=/^[a-f0-9]{64}$/;
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 const own=(object,key)=>Object.prototype.hasOwnProperty.call(object,key);
@@ -13,11 +14,11 @@ function evidenceHash(report){
   file:x.file,sha256:x.sha256,bytes:x.bytes,
   requestedWidth:x.requestedWidth,requestedHeight:x.requestedHeight,
   actualWidth:x.actualWidth,actualHeight:x.actualHeight,
-  viewportMatch:x.viewportMatch,overflowPixels:x.overflowPixels
+  viewportMatch:x.viewportMatch,overflowPixels:x.overflowPixels,source:x.source
  }));
  return sha(Buffer.from(JSON.stringify({
   format:report.format,version:report.version,quick:report.quick,
-  captureTransport:report.captureTransport||'file',
+  captureTransport:report.captureTransport,diagnosticOnly:report.diagnosticOnly,
   renderSourceSha256:report.renderSourceSha256,
   expectedImages:report.expectedImages,images:rows
  })));
@@ -35,7 +36,7 @@ function checkEvidence(directory,report){
   throw Error('Screenshot directory must be a canonical regular directory');
  if(report?.format!=='manufact-design-factory-visual-evidence-v1'||report.version!==1)
   throw Error('Invalid visual evidence format');
- if(![undefined,'file'].includes(report.captureTransport)||report.diagnosticOnly===true)
+ if(report.captureTransport!=='file'||report.diagnosticOnly!==false)
   throw Error('In-memory screenshots are diagnostics, not verified D7 file-navigation evidence');
  if(report.quick!==false||report.expectedImages!==54||
   !Array.isArray(report.images)||report.images.length!==54||
@@ -57,6 +58,7 @@ function checkEvidence(directory,report){
     !/^[a-z0-9][a-z0-9-]*\.png$/.test(item.file.slice('screenshots/'.length)))
    throw Error('Invalid screenshot path: '+item.file);
   names.add(item.file);
+  assertSourceIdentity(root,item.file,item.source);
   const full=path.join(root,item.file),fileStat=fs.lstatSync(full);
   if(!full.startsWith(screenshotsRoot+path.sep)||!fileStat.isFile()||fileStat.isSymbolicLink()||fs.realpathSync(full)!==full)
    throw Error('Screenshot must be a regular file: '+item.file);

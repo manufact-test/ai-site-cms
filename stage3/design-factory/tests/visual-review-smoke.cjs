@@ -9,6 +9,7 @@ const {inspectPng}=require('../lib/png-integrity.cjs');
 const {reviewHtml}=require('../lib/visual-review-ui.cjs');
 const {expectedFiles}=require('../bin/visual-qa.cjs');
 const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
+const {sourcePaths,sourceIdentity}=require('../lib/visual-source-provenance.cjs');
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const TABLE=Uint32Array.from({length:256},(_,i)=>{
  let c=i;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;return c>>>0;
@@ -43,11 +44,19 @@ try{
   assert.ok(viewName,file);
   const view=views[viewName],bytes=imgs[viewName],dest=path.join(dir,file);
   fs.mkdirSync(path.dirname(dest),{recursive:true});fs.writeFileSync(dest,bytes);
-  return {file,sha256:hash(bytes),bytes:bytes.length,viewportMatch:true,overflowPixels:0,
+  const src=sourcePaths(file),html=path.join(dir,src.html),css=path.join(dir,src.css);
+  fs.mkdirSync(path.dirname(html),{recursive:true});fs.mkdirSync(path.dirname(css),{recursive:true});
+  if(!fs.existsSync(css))fs.writeFileSync(css,'body{color:black}');
+  if(!fs.existsSync(html))fs.writeFileSync(html,
+   '<!doctype html><html><head><link rel="stylesheet" href="'+src.href+
+   '"></head><body>Fixture for source-bound screenshot checks</body></html>');
+  const source=sourceIdentity(dir,file);
+  return {file,source,sha256:hash(bytes),bytes:bytes.length,viewportMatch:true,overflowPixels:0,
    requestedWidth:view.width,requestedHeight:view.height,actualWidth:view.width,actualHeight:view.height};
  });
  const report={format:'manufact-design-factory-visual-evidence-v1',version:1,
   expectedImages:54,images,matrixComplete:true,captureCompleted:true,
+  captureTransport:'file',diagnosticOnly:false,
   errors:[],humanVisualAcceptance:'pending',quick:false,
   renderSourceSha256:sourceFingerprint(path.resolve(__dirname,'../../..'))};
  report.evidenceSha256=evidenceHash(report);
@@ -83,6 +92,27 @@ try{
  assert.ok(output.includes('document.getElementById(key).checked=false'));
 
  const reject=(modified,pattern)=>assert.throws(()=>verify(dir,modified),pattern);
+ // HTML and CSS are source-bound even when all PNG hashes are unchanged.
+ const sourcePath=sourcePaths(files[0]),sourceHTML=path.join(dir,sourcePath.html),sourceCSS=path.join(dir,sourcePath.css);
+ const oldHTML=fs.readFileSync(sourceHTML),oldCSS=fs.readFileSync(sourceCSS);
+ try{
+  fs.appendFileSync(sourceHTML,'\n<!-- altered page -->');
+  reject(approved,/Visual source bytes or identity mismatch/);
+  fs.writeFileSync(sourceHTML,oldHTML);
+  fs.appendFileSync(sourceCSS,'\n\/\* altered visual CSS \*\/');
+  reject(approved,/Visual source bytes or identity mismatch/);
+ }finally{fs.writeFileSync(sourceHTML,oldHTML);fs.writeFileSync(sourceCSS,oldCSS);}
+ const absentTransport={...report};
+ delete absentTransport.captureTransport;
+ absentTransport.evidenceSha256=evidenceHash(absentTransport);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(absentTransport));
+ reject({...approved,evidenceSha256:absentTransport.evidenceSha256},/In-memory screenshots are diagnostics/);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
+ const missingBinding={...report,images:report.images.map((x,i)=>i===0?{...x,source:undefined}:x)};
+ missingBinding.evidenceSha256=evidenceHash(missingBinding);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(missingBinding));
+ reject({...approved,evidenceSha256:missingBinding.evidenceSha256},/Visual source bytes or identity mismatch/);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
  const diagnostic={...report,captureTransport:'memory-static',diagnosticOnly:true};
  diagnostic.evidenceSha256=evidenceHash(diagnostic);
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(diagnostic));

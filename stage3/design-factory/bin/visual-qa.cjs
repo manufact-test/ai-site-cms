@@ -11,6 +11,7 @@ const {evidenceHash}=require('../lib/visual-review.cjs');
 const {reviewHtml}=require('../lib/visual-review-ui.cjs');
 const {inspectPng}=require('../lib/png-integrity.cjs');
 const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
+const {sourcePaths,sourceIdentity}=require('../lib/visual-source-provenance.cjs');
 const {FORMAT,THEMES,KITS,compile}=require('../lib/compiler.cjs');
 const {writePreview}=require('../lib/preview.cjs');
 const {writeShowcase}=require('../lib/showcase.cjs');
@@ -75,8 +76,15 @@ async function run(options){
  let browser=null;
  async function screenshot(url,filename,view){
   const dest=path.join(root,'screenshots',filename+'.png');
+  const image='screenshots/'+filename+'.png';
+  const source=sourceIdentity(root,image),paths=sourcePaths(image);
+  if(localFileUrl(path.join(root,...paths.html.split('/')))!==url)
+   throw Error('Captured URL differs from canonical screenshot source: '+image);
   const capture=options.staticInMemory?
    await browser.screenshotStatic(url,view):await browser.screenshot(url,view);
+  const after=sourceIdentity(root,image);
+  if(source.htmlSha256!==after.htmlSha256||source.cssSha256!==after.cssSha256)
+   throw Error('Generated HTML/CSS changed during screenshot capture: '+image);
   const buf=capture.png;
   if(buf.length<1000)throw Error(filename+': Chromium returned an empty screenshot');
   const actual=pngSize(buf);
@@ -90,7 +98,7 @@ async function run(options){
    requestedWidth:view.width,requestedHeight:view.height,
    actualWidth:actual.width,actualHeight:actual.height,viewportMatch,
    overflowPixels:capture.overflowPixels,
-   bytes:buf.length,sha256:sha(buf)});
+   bytes:buf.length,sha256:sha(buf),source});
  }
  try{
   browser=await openBrowser(options.bin);
