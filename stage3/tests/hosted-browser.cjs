@@ -868,7 +868,7 @@ async function execute(){
       if(node.children){const found=walk(node.children);if(found)return found;}}return null;};
     const node=walk(section.designGraph.nodes);
     return node?.text==='Композиция сохранена через весь путь'&&node.responsive?.mobile?.fontSize===36;
-  },{sectionId:graphSectionId,nodeId:inlineNodeId});
+  },{sectionId:graphSectionId,nodeId:inlineNodeId},{timeout:10000});
   hostedNode=await readHostedNode();
   assert.equal(hostedNode.responsive.mobile.fontSize,36,'Responsive graph style survives server reload');
   await visitor.goto(publicUrl);
