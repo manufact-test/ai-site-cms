@@ -3484,6 +3484,168 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     tools.append(open);$('pages').before(tools);
   }
 
+
+  // Plan the entire site without editing the live local draft until Apply.
+  // Every intermediate operation uses the validated immutable SDK and the
+  // final candidate commits through a SINGLE revision/Undo.
+  function initSiteMap(){
+    const dlg=document.createElement('dialog');dlg.id='cms-site-map-dialog';
+    dlg.className='cms-settings-dialog cms-site-map-dialog';
+    const heading=document.createElement('h2');heading.textContent='Карта сайта · организация страниц';
+    const intro=document.createElement('p');intro.textContent='Меняйте порядок страниц и блоков, переносите и копируйте блоки между страницами, создавайте и удаляйте страницы. Сначала проверьте готовый план. Исходный черновик не изменяется до применения.';
+    const summary=document.createElement('p');summary.id='cms-map-summary';summary.setAttribute('role','status');
+    const error=document.createElement('p');error.id='cms-map-error';error.setAttribute('role','alert');
+    const workspace=document.createElement('div');workspace.className='cms-map-work';
+    const left=document.createElement('div');left.className='cms-map-editor';
+    const pages=document.createElement('div');pages.id='cms-map-pages';
+    const addPage=button('+ Создать страницу','btn small',()=>{
+      const title=prompt('Название новой страницы','Новая страница');if(title===null)return;
+      const path=prompt('Адрес новой страницы (например /services/)','/services/');if(path===null)return;
+      stage({action:'addPage',id:uniqueId('page'),title,path,sectionId:uniqueId('section'),component:'company-hero'});
+    });addPage.id='cms-map-add-page';left.append(addPage,pages);
+    const right=document.createElement('aside');right.className='cms-map-preview-pane';
+    const previewTitle=document.createElement('h3');previewTitle.textContent='Предпросмотр плана';
+    const previewPage=document.createElement('select');previewPage.id='cms-map-preview-page';previewPage.className='control';
+    const devices=document.createElement('div');devices.className='cms-map-devices';
+    const desktop=button('Компьютер','btn small',()=>{device='desktop';refreshPreview();});desktop.id='cms-map-desktop';
+    const mobile=button('Телефон','btn small',()=>{device='mobile';refreshPreview();});mobile.id='cms-map-mobile';
+    devices.append(desktop,mobile);
+    const iframe=document.createElement('iframe');iframe.id='cms-map-preview';iframe.title='Безопасный предпросмотр новой структуры';iframe.setAttribute('sandbox','');
+    const previewNote=document.createElement('small');previewNote.textContent='Локальная визуализация Studio, без исполнения скриптов, отправки форм и публикации. Для размещённого сайта доступен отдельный серверный предпросмотр.';
+    right.append(previewTitle,previewPage,devices,iframe,previewNote);workspace.append(left,right);
+    const actions=document.createElement('div');actions.className='cms-settings-actions cms-map-actions';
+    const apply=button('Применить весь план','btn primary',commit);apply.id='cms-map-apply';apply.dataset.editorWrite='true';
+    const reset=button('Сбросить план','btn',()=>{candidate=D.begin(session.current,manifests);failure='';render();});reset.id='cms-map-reset';
+    actions.append(apply,reset,button('Закрыть','btn',()=>dlg.close()));
+    dlg.append(heading,intro,summary,error,workspace,actions);document.body.append(dlg);
+    let candidate=null,openedRevision=0,selectedPage='',device='desktop',failure='';
+    const selectOptions=(control,items)=>{
+      for(const [value,label] of items){
+        const option=document.createElement('option');option.value=value;option.textContent=label;control.append(option);
+      }
+    };
+    const problemKey=v=>[v.kind,v.pageId,v.sectionId||'',v.path].join('|');
+    const broken=site=>C.inspectSite(site,manifests).errors
+      .filter(v=>v.kind==='broken-link'||v.kind==='broken-anchor');
+    function stage(action){
+      try{
+        candidate=D.structure(candidate,manifests,{...action,expectedRevision:candidate.revision});
+        failure='';render();
+      }catch(ex){failure=ex.message;error.textContent='Операция отклонена: '+failure;}
+    }
+    function focus(pageId){selectedPage=pageId;refreshPreview();}
+    function refreshPreview(){
+      if(!candidate)return;
+      const page=candidate.current.pages.find(p=>p.id===selectedPage)||candidate.current.pages[0];
+      selectedPage=page.id;previewPage.value=page.id;
+      iframe.classList.toggle('mobile',device==='mobile');
+      desktop.classList.toggle('primary',device==='desktop');mobile.classList.toggle('primary',device==='mobile');
+      try{iframe.srcdoc=window.Stage3Editor.previewDocument(candidate.current,page.path);}
+      catch(ex){iframe.srcdoc='';error.textContent='Ошибка предпросмотра: '+ex.message;}
+    }
+    previewPage.addEventListener('change',()=>focus(previewPage.value));
+    function render(){
+      if(!candidate)return;
+      const site=candidate.current;
+      pages.replaceChildren();previewPage.replaceChildren();
+      selectOptions(previewPage,site.pages.map(p=>[p.id,p.title+' · '+p.path]));
+      for(const [index,page] of site.pages.entries()){
+        const card=document.createElement('section');card.className='cms-map-page';card.dataset.mapPage=page.id;
+        const head=document.createElement('div');head.className='cms-map-page-head';
+        const title=document.createElement('h3');title.textContent=(index+1)+'. '+page.title;
+        const path=document.createElement('small');path.textContent=page.path+' · '+page.sections.length+' блоков';
+        const bar=document.createElement('div');bar.className='cms-map-controls';
+        const up=button('↑ Страница','btn small',()=>stage({action:'movePage',pageId:page.id,delta:-1}));up.disabled=index===0;
+        const down=button('↓ Страница','btn small',()=>stage({action:'movePage',pageId:page.id,delta:1}));down.disabled=index===site.pages.length-1;
+        const edit=button('Название / URL','btn small',()=>{
+          const title=prompt('Название страницы',page.title);if(title===null)return;
+          const path=prompt('Адрес страницы',page.path);if(path===null)return;
+          stage({action:'updatePage',pageId:page.id,title,path});
+        });
+        const clone=button('Копия страницы','btn small',()=>{
+          const title=prompt('Название копии',page.title+' — копия');if(title===null)return;
+          const path=prompt('Адрес копии','/copy-'+uniqueId('page').slice(5,14)+'/');
+          if(path===null)return;
+          stage({action:'duplicatePage',pageId:page.id,id:uniqueId('page'),title,path});
+        });
+        const remove=button('Удалить страницу','btn small',()=>{
+          if(confirm('Удалить страницу из плана? Битые внутренние ссылки будут проверены перед применением.'))
+            stage({action:'removePage',pageId:page.id});
+        });
+        remove.disabled=page.path==='/'||site.pages.length===1;
+        bar.append(up,down,edit,clone,remove);head.append(title,path,bar);card.append(head);
+        for(const [i,sec] of page.sections.entries()){
+          const row=document.createElement('div');row.className='cms-map-section';row.dataset.mapSection=sec.id;
+          const label=document.createElement('div');label.className='cms-map-section-label';
+          const name=document.createElement('strong');name.textContent=(i+1)+'. '+(manifest(sec)?.label||sec.component);
+          const meta=document.createElement('small');meta.textContent=sec.id+(sec.designGraph?' · Design Graph':'')+
+            (sec.formFields?.length?' · '+sec.formFields.length+' вопросов':'');
+          label.append(name,meta);
+          const controls=document.createElement('div');controls.className='cms-map-controls';
+          const moveUp=button('↑','btn small',()=>stage({action:'moveSection',pageId:page.id,sectionId:sec.id,delta:-1}));moveUp.disabled=i===0;
+          const moveDown=button('↓','btn small',()=>stage({action:'moveSection',pageId:page.id,sectionId:sec.id,delta:1}));moveDown.disabled=i===page.sections.length-1;
+          const target=document.createElement('select');target.className='control cms-map-target';
+          target.setAttribute('aria-label','Страница назначения '+sec.id);
+          selectOptions(target,site.pages.map(p=>[p.id,p.title]));target.value=site.pages.find(p=>p.id!==page.id)?.id||page.id;
+          const placement=document.createElement('select');placement.className='control cms-map-placement';
+          placement.setAttribute('aria-label','Куда поставить блок '+sec.id);
+          selectOptions(placement,[['end','В конец'],['start','В начало']]);
+          const perform=action=>stage({action,pageId:page.id,sectionId:sec.id,toPageId:target.value,
+            placement:placement.value,...(action==='copySectionToPage'?{id:uniqueId('section')}:{})});
+          const move=button('Перенести','btn small',()=>perform('relocateSection'));
+          const copy=button('Копировать','btn small',()=>perform('copySectionToPage'));
+          const drop=button('Удалить','btn small',()=>{
+            if(confirm('Удалить блок из плана? Ссылки будут проверены перед применением.'))
+              stage({action:'removeSection',pageId:page.id,sectionId:sec.id});
+          });drop.disabled=page.sections.length===1;
+          controls.append(moveUp,moveDown,button('Просмотр','btn small',()=>focus(page.id)),
+            target,placement,move,copy,drop);
+          row.append(label,controls);card.append(row);
+        }
+        const footer=document.createElement('div');footer.className='cms-map-new-section';
+        const component=document.createElement('select');component.className='control cms-map-component';
+        selectOptions(component,manifests.map(m=>[m.id,m.label]));component.value='service-grid';
+        footer.append(component,button('+ Добавить блок','btn small',()=>stage({
+          action:'addSection',pageId:page.id,sectionId:page.sections.at(-1).id,
+          id:uniqueId('section'),component:component.value})));
+        card.append(footer);pages.append(card);
+      }
+      const originalProblems=new Set(broken(session.current).map(problemKey));
+      const fresh=broken(site).filter(v=>!originalProblems.has(problemKey(v)));
+      const modified=JSON.stringify(site)!==JSON.stringify(session.current);
+      const count=site.pages.reduce((n,p)=>n+p.sections.length,0);
+      const modifiedPages=site.pages.filter(p=>JSON.stringify(p)!==
+        JSON.stringify(session.current.pages.find(x=>x.id===p.id))).length;
+      summary.textContent=site.pages.length+' страниц · '+count+' блоков · '+
+        modifiedPages+' изменённых страниц · '+(modified?'план не применён':'нет изменений')+
+        ' · '+(fresh.length?'новые битые ссылки: '+fresh.length:'битых ссылок не добавлено')+' · один Undo';
+      error.textContent=failure?'Операция отклонена: '+failure:
+        fresh.length?'Исправьте ссылки перед применением: '+fresh.slice(0,4).map(x=>x.path).join(', '):'';
+      apply.disabled=!modified||fresh.length>0||openedRevision!==session.revision;
+      reset.disabled=!modified;
+      refreshPreview();
+    }
+    function commit(){
+      if(!candidate||apply.disabled)return;
+      try{
+        const previousSection=sectionId;
+        session=D.replaceSite(session,manifests,candidate.current,openedRevision);
+        const owner=session.current.pages.find(p=>p.sections.some(s=>s.id===previousSection));
+        const page=owner||session.current.pages.find(p=>p.id===selectedPage)||session.current.pages[0];
+        pageId=page.id;
+        const section=page.sections.find(s=>s.id===previousSection)||page.sections[0];
+        sectionId=section.id;elementId=section.elements[0].id;
+        dlg.close();draw();notice('Структура всего сайта применена одной операцией Undo. Сохранение и публикация отдельно.');
+      }catch(ex){failure=ex.message;render();}
+    }
+    const open=button('Карта сайта','btn small',()=>{
+      candidate=D.begin(session.current,manifests);openedRevision=session.revision;
+      selectedPage=pageId;device='desktop';failure='';render();dlg.showModal();
+    });open.id='cms-site-map-open';open.dataset.editorWrite='true';
+    const tools=document.createElement('div');tools.className='structure-tools';
+    tools.append(open);$('pages').before(tools);
+  }
+
   function createStructureTools(){
     const openAppearance=initAppearanceEditor();
     const openDesignGraph=initDesignGraphEditor();
@@ -4361,7 +4523,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  initContentWorkbench();createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
+  initContentWorkbench();initSiteMap();createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
 })();
 'use strict';
 // A single owner-reviewed composition path for offline and authenticated Studio.
