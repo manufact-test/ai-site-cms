@@ -699,8 +699,8 @@ test('visual page placement: exact reordering, cross-page move/copy and one-step
     .values['behavior.href'],'/contact/#'+second,'Anchors rewrite when moving between pages');
   assert.equal(work.current.pages[1].sections.at(-1).id,second);
   assert.equal(draft.undo(work,manifests).current.pages[0].sections[0].id,second);
-  assert.throws(()=>step(work,{action:'placeSection',mode:'move',pageId:contact.id,
-    sectionId:'section-contact',toPageId:home.id,side:'end'}),/only section|Cannot move|Section placement/i);
+  assert.throws(()=>step(work,{action:'placeSection',mode:'move',pageId:home.id,
+    sectionId:first,toPageId:contact.id,side:'end'}),/only section|Cannot move|Section placement/i);
   assert.throws(()=>step(work,{action:'placeSection',mode:'copy',pageId:home.id,
     sectionId:first,toPageId:contact.id,side:'before',targetSectionId:'unknown',id:'new-section'}),
     /Target section/);

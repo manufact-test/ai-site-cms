@@ -489,10 +489,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#cms-work-section').inputValue(),'section-contact',
       'Click selection must resolve the actual section, including local page preview IDs');
     const beforeCross=await page.evaluate(()=>window.Stage3Editor.getSite());
-    await page.locator('#cms-work-destination').selectOption('page-home');
-    await page.locator('#cms-work-position').selectOption({index:0});
     await page.locator('#cms-work-destination').evaluate(el=>el.closest('details').open=true);
     await page.locator('#cms-work-destination').selectOption('page-home');
+    await page.locator('#cms-work-position').selectOption({index:0});
     await page.locator('#cms-work-destination').locator('..').getByRole('button',{name:'Скопировать'}).click();
     const withCopy=await page.evaluate(()=>window.Stage3Editor.getSite());
     assert.equal(withCopy.pages[0].sections.length,beforeCross.pages[0].sections.length+1);

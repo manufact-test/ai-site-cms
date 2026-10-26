@@ -102,6 +102,7 @@ async function execute(){
   await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
   assert.equal(await draftFrame.locator('h1').innerText(),'Проверка серверного сайта');
   const startingPreviewSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+  await page.locator('.cms-work-appearance > summary').click();
   await page.locator('#cms-work-fields [data-work-appearance="surface"]').selectOption('dark');
   await draftFrame.locator('.cms-section-skin.cms-surface-dark').waitFor();
   assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections[0].appearance.surface,'dark');
