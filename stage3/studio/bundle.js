@@ -4484,8 +4484,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const count=document.createElement('p');count.id='cms-blueprint-summary';
     const error=document.createElement('p');error.id='cms-blueprint-error';error.setAttribute('role','alert');
     const deviceBar=document.createElement('div');deviceBar.className='cms-blueprint-devices';
-    const desktop=button('Компьютер','btn small',()=>{device='desktop';renderDevice();});
-    const mobile=button('Телефон','btn small',()=>{device='mobile';renderDevice();});
+    const desktop=button('Компьютер','btn small',()=>{device='desktop';renderDevice();refresh();});
+    const mobile=button('Телефон','btn small',()=>{device='mobile';renderDevice();refresh();});
     deviceBar.append(desktop,mobile);
     const frame=document.createElement('iframe');frame.id='cms-blueprint-frame';
     frame.title='Предпросмотр структуры страницы без сценариев и форм';
@@ -4627,6 +4627,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     function commit(){
       if(!candidate||apply.disabled||openedRevision!==session.revision)return;
       try{
+        if(target.value!=='new'&&operation.value==='replace'&&
+          !confirm('Заменить все блоки выбранной страницы? Предыдущая структура останется доступна через Undo до сохранения.'))return;
         // Recompute from current controls at the commit boundary, rather than
         // trusting a stale preview captured before the last keystroke.
         const ready=build();
@@ -4644,7 +4646,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       target.value=selected.id;
       preset.value='home';
       plan=[...BLUEPRINTS.home.components];
-      operation.value='append';
+      operation.value='replace';path.disabled=true;operation.disabled=false;
       pageTitle.value=selected.title;path.value=selected.path;
       headline.value=selected.title;description.value='';action.value='Оставить заявку';
       services.value='';seo.value=selected.seo?.description||'';
