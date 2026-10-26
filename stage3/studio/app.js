@@ -1383,11 +1383,53 @@
             property('Текст', 'text',current.text);
           if(current.type==='button')property('Ссылка', 'href',current.href);
           if(['image','video','icon'].includes(current.type))property('Описание / alt','alt',current.alt||'');
+          if(current.type==='icon')property('Векторная иконка','icon',current.icon,
+            Object.keys(DESIGN_GRAPH.ICON_PATHS).map(value=>[value,value]));
           if(['image','video'].includes(current.type)){
             const media=session.current.assets.filter(x=>current.type==='video'?
               x.mime==='video/mp4':/^image\/(?:png|jpeg|webp)$/.test(x.mime));
             property('Медиафайл','assetId',current.assetId,
               media.map(asset=>[asset.id,asset.alt||asset.id]));
+            // Preview and bind the immutable IDs already uploaded to this site.
+            // Never insert arbitrary remote URLs into the typed Graph.
+            const mediaPicker=document.createElement('details');
+            mediaPicker.id='cms-work-graph-media';mediaPicker.className='cms-work-media';
+            const summary=document.createElement('summary');
+            summary.textContent='Медиабиблиотека · '+media.length+
+              (current.type==='video'?' видео':' изображений');
+            const mediaGrid=document.createElement('div');mediaGrid.className='cms-work-media-grid';
+            for(const asset of media){
+              const choice=workButton(asset.alt||asset.id,()=>{
+                editGraphWork(node=>{
+                  node.assetId=asset.id;
+                  if(!node.alt)node.alt=asset.alt||(current.type==='video'?'Видео':'Изображение');
+                });
+              });
+              choice.classList.add('cms-work-media-choice');
+              choice.dataset.graphMediaId=asset.id;
+              choice.setAttribute('aria-pressed',current.assetId===asset.id?'true':'false');
+              if(current.type==='image'&&HOSTED){
+                const url=window.Stage3Host?.previewUrl?.(asset.id);
+                if(url&&url.startsWith('/')){
+                  const thumb=document.createElement('img');
+                  thumb.alt='';thumb.src=url;thumb.loading='lazy';choice.prepend(thumb);
+                }
+              }
+              choice.disabled=!canWrite();mediaGrid.append(choice);
+            }
+            mediaPicker.append(summary,mediaGrid);
+            if(HOSTED){
+              const upload=workButton(
+                current.type==='video'?'+ Загрузить MP4':'+ Загрузить изображение',()=>{
+                  modal.close();
+                  $(current.type==='video'?'server-video-upload':'server-media-upload')?.click();
+                });
+              upload.disabled=!canWrite();
+              const tip=document.createElement('small');
+              tip.textContent='Перед загрузкой сохраните черновик. Новый файл затем выберите здесь.';
+              mediaPicker.append(upload,tip);
+            }
+            panel.append(mediaPicker);
           }
           if(current.type==='heading'){
             property('Уровень H1–H6','level',String(current.level||2),
