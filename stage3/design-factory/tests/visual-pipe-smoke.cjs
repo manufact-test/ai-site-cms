@@ -35,7 +35,12 @@ const size=inspectPng;
   const overflowing=await browser.screenshot(url,widths[2]);
   assert.ok(overflowing.overflowPixels>600,'Horizontal overflow must be measured from actual page layout');
   await assert.rejects(browser.screenshot('https://example.com/',widths[2]),/Only offline file URLs/);
-  console.log('DESIGN_FACTORY_D7_VISUAL_PIPE PASS: real Chromium 1280/768/390 PNG sizes, one persistent browser, overflow detection and offline URL restriction');
+  fs.writeFileSync(filename,'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>'+
+   '<body><div id="d7-probe"></div><script>setTimeout(()=>{document.getElementById("d7-probe").textContent="CDP READY"},120)</script></body></html>');
+  assert.equal(await browser.waitForElementText(url,'d7-probe',5000),'CDP READY',
+   'DevTools pipe must observe asynchronous DOM state without --dump-dom');
+  await assert.rejects(browser.waitForElementText('https://example.com/','d7-probe'),/Only offline file URLs/);
+  console.log('DESIGN_FACTORY_D7_VISUAL_PIPE PASS: real Chromium 1280/768/390 PNG sizes, one persistent browser, asynchronous DOM probe, overflow detection and offline URL restriction');
  }finally{
   if(browser)await browser.close();
   fs.rmSync(dir,{recursive:true,force:true});

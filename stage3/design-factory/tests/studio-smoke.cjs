@@ -5,6 +5,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const os=require('node:os');
+const {pathToFileURL}=require('node:url');
+const {openBrowser}=require('../lib/chromium-pipe.cjs');
 const vm=require('node:vm');
 const cp=require('node:child_process');
 const sdk=require('../../sdk/contract.cjs');
@@ -272,7 +274,9 @@ console.log('DESIGN_FACTORY_D5_NODE PASS: '+count+' browser bundle/real CMS pari
 // Optional: Chromium is invoked only when explicitly selected by the reviewer.
 const bin=process.env.DF_CHROMIUM_BIN;
 if(!bin){console.log('DESIGN_FACTORY_D5_CHROMIUM SKIP: set DF_CHROMIUM_BIN=/usr/bin/chromium to run browser E2E');process.exit(0);}
+(async()=>{
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'df-studio-chromium-'));
+let browser=null;
 try{
  const fixture=path.join(temp,'studio');fs.cpSync(studio,fixture,{recursive:true});
  let page=fs.readFileSync(path.join(fixture,'index.html'),'utf8');
@@ -395,10 +399,13 @@ try{
  ].join('\n');
  page=page.replace('</body>',probe+'</body>');
  fs.writeFileSync(path.join(fixture,'index.html'),page);
- const run=cp.spawnSync(bin,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--no-first-run',
-  '--disable-background-networking','--allow-file-access-from-files','--virtual-time-budget=8000','--dump-dom',
-  'file://'+path.join(fixture,'index.html')],{encoding:'utf8',timeout:30000,maxBuffer:15*1024*1024});
- assert.equal(run.status,0,'Chromium exit: '+run.stderr.slice(-1000));
- assert.ok(run.stdout.includes('D5_BROWSER_E2E_PASS'),'Chromium UI E2E: '+run.stdout.slice(-900));
+ browser=await openBrowser(bin);
+ const result=await browser.waitForElementText(pathToFileURL(path.join(fixture,'index.html')).href,
+  'd5-browser-result',45000);
+ assert.equal(result,'D5_BROWSER_E2E_PASS','Chromium Studio UI E2E: '+result);
  console.log('DESIGN_FACTORY_D5_CHROMIUM PASS: kit→theme→mobile→edit→gallery→undo→redo, CMS/bridge/project/workspace browser exports');
-}finally{fs.rmSync(temp,{recursive:true,force:true});}
+}finally{
+ if(browser)await browser.close();
+ fs.rmSync(temp,{recursive:true,force:true});
+}
+})().catch(error=>{console.error('DESIGN_FACTORY_D5_CHROMIUM FAIL:',error);process.exitCode=2;});

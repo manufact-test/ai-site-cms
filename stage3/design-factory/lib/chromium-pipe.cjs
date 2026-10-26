@@ -76,6 +76,30 @@ class BrowserPipe {
   await this.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
   return this;
  }
+ async waitForElementText(url,elementId,timeout=45000){
+  if(typeof url!=='string'||!url.startsWith('file://'))
+   throw Error('Only offline file URLs may be inspected');
+  if(typeof elementId!=='string'||!/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(elementId))
+   throw Error('Expected a safe DOM element ID');
+  const file=fileURLToPath(url);
+  if(!fs.statSync(file).isFile())throw Error('Browser inspection input must be a local HTML file');
+  const navigation=await this.send('Page.navigate',{url});
+  if(navigation.errorText)throw Error('Chromium refused offline page: '+navigation.errorText);
+  const deadline=Date.now()+timeout;
+  let observed='';
+  while(Date.now()<deadline){
+   const evaluation=await this.send('Runtime.evaluate',{
+    expression:'({url:location.href,ready:document.readyState,text:document.getElementById('+
+     JSON.stringify(elementId)+')?.textContent??null})',
+    returnByValue:true
+   },10000);
+   const value=evaluation.result?.value;
+   if(value?.url===url&&typeof value.text==='string'&&value.text.length)return value.text;
+   observed=value?.url||observed;
+   await sleep(100);
+  }
+  throw Error('Chromium DOM probe timed out for '+elementId+' (last page '+observed+')');
+ }
  async screenshot(url,view){
   if(typeof url!=='string'||!url.startsWith('file://'))throw Error('Only offline file URLs may be captured');
   const file=fileURLToPath(url);
