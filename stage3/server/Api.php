@@ -72,7 +72,7 @@ final class Api
             $this->response(403, ['error' => 'No permission for this operation or site']);
         }
         $action = $m[2] ?? '';
-        if ($method === 'GET' && (in_array($action, ['', 'revisions','releases','templates'], true)
+        if ($method === 'GET' && (in_array($action, ['', 'revisions','releases','templates','published-site'], true)
             || preg_match('~^media/[a-z][a-z0-9-]{2,79}$~D', $action))) return;
         if ($method === 'POST' && $action === 'preview') return;
         $edit = in_array($principal['role'], ['editor','publisher'], true);
@@ -565,11 +565,16 @@ final class Api
                 if($operation==='cancel')
                     $this->response(200,$this->sites->cancelVideoUpload($siteId,$actor,$uploadId));
             }
-            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/(revisions|restore|save|publish|media|video))?$~D', $path, $matches)) {
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/(revisions|restore|save|publish|media|video|published-site))?$~D', $path, $matches)) {
                 $id = $matches[1];
                 $action = $matches[2] ?? '';
                 if ($method === 'GET' && $action === '') {
                     $this->response(200, $this->sites->getDraft($id));
+                }
+                // Authenticated read-only comparison source: immutable live release,
+                // never a draft write, rollback or implicit publication.
+                if ($method === 'GET' && $action === 'published-site') {
+                    $this->response(200, $this->sites->published($id));
                 }
                 if ($method === 'GET' && $action === 'revisions') {
                     $this->response(200, ['revisions' => $this->sites->history($id)]);
