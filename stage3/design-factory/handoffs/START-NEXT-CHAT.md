@@ -1,13 +1,16 @@
 ## Последнее обновление — 26 октября 2026
 
-- Ветка: `feature/stage3-design-factory`; текущий source checkpoint: `072baf1f4aa23e9e6cffb2bffa6bbfbe2fbbbf4d`. Перед началом всегда проверь live HEAD.
+- Ветка: `feature/stage3-design-factory`; текущий source checkpoint: `8e0c233a592145cc5c8ad12434c92db9ff935d9b`. Перед началом всегда проверь live HEAD.
 - Сохранена приёмка visual-review **v2**: отдельная проверка `showcaseCoverage`, просмотр всех 42 D3-композиций; старые v1 receipts отклоняются.
 - **Исправлена полнота D7-инвентаризации** (`c61eaa270902cd019b10417f25fe55c3a60d0981`): папка `handoffs/` входит в ZIP и теперь также входит в source manifest; проверка сравнивает весь список файлов, а контрактный тест проверяет отклонение изменённого документа передачи.
+- **Lead input provenance** (`c3696b3a9e9cb20b4da03a3bde09b708becaa6e5`): before/during/after хешируются все внешние файлы Lead SDK и optional PHP renderer; изменение входов блокирует соответствующий gate.
+- **Canonical ZIP32 headers** (`9aa4016f347cfbee98205458013ffae5302a156b`): verifier проверяет version, flags, compression, timestamps, single-disk metadata и локальные/центральные заголовки; package smoke содержит повреждённые ZIP-header cases.
+- **Candidate summary** (`8e0c233a592145cc5c8ad12434c92db9ff935d9b`): итоговый CLI JSON показывает статус `leadInputs`, это закреплено smoke-проверкой.
 - `release-candidate.cjs` отделяет некорректный audit report от корректного отчёта с проваленными проверками; сводные флаги сверяются с результатами отдельных проверок, а дрейф исходников оценивается независимо.
 - Создан единый D7 Release Candidate Pipeline. `release-audit.cjs` выполняет browser-bundle parity + **8 Node suites**; с `--chromium` добавляет visual-pipeline smoke.
 - `release-candidate.cjs` запускает audit, собирает ZIP, независимо сверяет central/local headers, CRC32, полный source inventory/bytes и SHA256; опционально выполняет Chromium capture, review v2, Lead JS smoke и шесть PHP markup-parity probes.
 - Fingerprint связывает все code files в `bin/catalog/lib/studio`, все component JSON manifests и SDK contract. Старая визуальная приёмка отклоняется при изменении исходников; symlink-каталоги скриншотов запрещены.
-- Статически разобраны синтаксисом V8 девять изменённых JS-файлов — **PASS**. Реальный Node audit, pipeline smoke, Chromium Studio E2E, 54 PNG с человеческой проверкой, PHP parity и настоящий ZIP/SHA256 **НЕ ЗАПУЩЕНЫ**.
+- Изолированный V8 syntax parse и source-level assertions для шести JS-файлов — **PASS**. Реальный Node audit, candidate smoke, Chromium Studio E2E, 54 PNG с человеческой проверкой, Lead JS/PHP parity и настоящий ZIP/SHA256 **НЕ ЗАПУЩЕНЫ**.
 - GitHub API на текущем source checkpoint: 0 Actions runs, 0 check runs, 0 commit statuses. Последняя известная локальная попытка checkout упёрлась в GitHub DNS; минимальный Chromium probe завершился timeout. Не повторяй без изменения среды.
 - Статус: **D7 OPEN; Stage2 NO-GO; Stage3 не принят; 0/135**. Никаких изменений workflows, merge, main, SDK, PHP, hosting или production.
 
