@@ -69,6 +69,16 @@ try{
  assert.ok(output.includes('href="showcase/index.html"'));
  assert.ok(output.includes('id="showcaseCoverage"'));
  assert.ok(output.includes('inspect all 42 compositions'));
+ for(const id of ['download-draft','import-draft','review-filter','next-pending','download-defects'])
+  assert.ok(output.includes('id="'+id+'"'),id+' must be present');
+ assert.ok(output.includes('data-review-group'));
+ assert.ok(output.includes('manufact-design-factory-visual-draft-v1'));
+ assert.ok(output.includes('Draft is incompatible with this visual evidence set'));
+ assert.ok(output.includes('Reconfirm all five manual review checks'));
+ assert.ok(output.includes('item.sha256!==allowed.get(item.file)'));
+ assert.ok(output.includes('radio.checked=radio.value===item.verdict'));
+ assert.ok(output.includes('document.getElementById(key).checked=false'));
+
  const reject=(modified,pattern)=>assert.throws(()=>verify(dir,modified),pattern);
  reject({...approved,format:'manufact-design-factory-visual-review-v1',version:1},/does not match/);
  reject({...approved,evidenceSha256:'0'.repeat(64)},/does not match/);
