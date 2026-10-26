@@ -104,6 +104,22 @@ assert.ok(app.includes("{throwOnError:true}"),'Import must not report success af
 assert.ok(app.includes('clearTimeout(refreshTimer)')&&app.includes('PREVIEW_DEBOUNCE_MS=120'),
  'Live preview should debounce full iframe recompilation while text is being edited');
 assert.ok(!markup.includes('allow-same-origin'));
+
+ // D7 product workflow: alternate live theme, same owner facts, full four-page mobile board.
+ for(const id of ['compare-toggle','overview-toggle','compare-theme','compare-shell',
+  'compare-preview','preview-layout','page-overview','page-overview-note'])
+  assert.ok(markup.includes('id="'+id+'"'),'D7 workbench control '+id);
+ assert.ok(markup.includes('id="compare-preview" sandbox="allow-scripts"'));
+ assert.ok(app.includes('function compileForTheme(theme)'));
+ assert.ok(app.includes('const project=theme===state.project.theme?state.project:{...state.project,theme}'));
+ assert.ok(app.includes("if(state.viewMode==='overview')renderOverview(result)"));
+ assert.ok(app.includes("if(state.viewMode==='compare')"));
+ assert.ok(app.includes('state.overviewFrames.push(frame)'));
+ assert.ok(app.includes("state.viewMode=state.viewMode==='compare'?'single':'compare'"));
+ assert.ok(app.includes("state.viewMode=state.viewMode==='overview'?'single':'overview'"));
+ assert.ok(css.includes('.preview-layout[data-compare=true]')&&css.includes('.page-overview'));
+ assert.ok(app.includes('const trusted=['),'Navigation accepts only current owned iframe sources');
+
 const ctx={structuredClone:global.structuredClone,console};
 ctx.globalThis=ctx;
 vm.runInNewContext(bundle,ctx,{timeout:10000});
@@ -178,6 +194,18 @@ try{
  "const themes=document.querySelectorAll('.theme-card');if(themes.length!==12)throw Error('theme selector');",
  "themes[7].focus();themes[7].click();if(document.querySelectorAll('.theme-card')[7].getAttribute('aria-pressed')!=='true')throw Error('theme selection');",
  "if(document.activeElement.id!==themes[7].id)throw Error('theme focus lost after selection');",
+
+ "document.getElementById('compare-toggle').click();",
+ "if(document.getElementById('preview-layout').dataset.compare!=='true')throw Error('compare activation');",
+ "const compareTheme=document.getElementById('compare-theme');compareTheme.value='technical';compareTheme.dispatchEvent(new Event('change',{bubbles:true}));",
+ "if(!document.getElementById('compare-preview').srcdoc.includes('preview'))throw Error('compare preview missing');",
+ "if(document.getElementById('preview-shell').dataset.device!=='desktop')throw Error('comparison device');",
+ "document.getElementById('compare-toggle').click();",
+ "document.getElementById('overview-toggle').click();",
+ "if(document.querySelectorAll('.overview-card iframe').length!==4)throw Error('four-page overview count');",
+ "if(!document.getElementById('page-overview').querySelector('iframe').srcdoc.includes('<html'))throw Error('overview HTML missing');",
+ "document.querySelector('.overview-card button').click();",
+ "if(document.getElementById('page-overview').hidden!==true)throw Error('overview exit');",
  "document.querySelector('[data-device=mobile]').click();",
  "if(document.getElementById('preview-shell').dataset.device!=='mobile')throw Error('mobile view');",
  "const t=document.getElementById('title');t.focus();t.value='Verified Demo Company';",

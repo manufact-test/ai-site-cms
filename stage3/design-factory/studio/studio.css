@@ -78,3 +78,35 @@ a{color:inherit}a:focus-visible,button:focus-visible,input:focus-visible,textare
 @media(max-width:1090px){.layout{grid-template-columns:240px minmax(0,1fr)}.inspector{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}.inspector-content{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px;padding:0 22px 35px}.inspector-content .form-section{padding:20px 0}.inspector-header{padding:22px}.kit-list{max-height:650px}}
 @media(max-width:730px){.topbar{height:auto;min-height:64px;padding:12px;flex-wrap:wrap}.brand{font-size:14px}.brand-muted{font-size:12px}.top-right{width:100%;justify-content:space-between;gap:5px}.environment{display:none}.ghost-btn,.primary-btn{padding:0 10px;font-size:11px}.layout{display:block}.sidebar{border-right:0;border-bottom:1px solid var(--line)}.sidebar-intro{padding:22px 17px 12px}.sidebar h1{font-size:24px}.kit-list{display:flex;overflow-x:auto;max-height:none;min-height:0;padding:0 12px 15px}.kit-item{min-width:190px;max-width:190px}.sidebar-footer{padding:15px 16px}.sidebar-footnote{display:none}.stage-area{padding:24px 13px}.workbench-header{align-items:start;flex-direction:column}.device-toolbar{max-width:100%}.inspector-content{display:block}.inspector-header{padding:18px 20px}.preview-shell{padding:7px}.browser-chrome{padding:0 9px}.preview-scroller{max-height:660px}.preview-shell[data-device=tablet] #site-preview{width:768px}.preview-shell[data-device=mobile] #site-preview{width:390px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
+
+/* D7 studio review modes: true iframe viewport widths, never CSS-scaled fake screens. */
+[hidden]{display:none!important}
+.review-mode-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:16px}
+.review-mode-controls .minor-btn{margin:0}
+.review-mode-controls [aria-pressed=true]{border-color:var(--acid);color:var(--acid);background:#294237}
+.review-reference{display:flex;gap:9px;align-items:center;color:#d0e1d8;font-size:12px}
+.review-reference select{background:var(--control);color:var(--text);border:1px solid #526f63;border-radius:8px;min-height:44px;padding:8px;max-width:210px}
+.review-mode-hint{font-size:11px;line-height:1.55;color:#b6cac5;margin:11px 0 6px}
+.preview-layout{min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.preview-layout[data-compare=true]{grid-template-columns:repeat(2,minmax(0,1fr))}
+.preview-layout .preview-shell{min-width:0}
+.compare-caption{display:none;font-size:12px;margin:0 0 10px;color:var(--acid)}
+.preview-layout[data-compare=true] .compare-caption{display:block}
+.preview-layout[data-compare=true] #site-preview,
+#compare-preview{display:block;background:white;flex-shrink:0;width:1280px;height:730px;border:0}
+.preview-layout[data-compare=true] .preview-scroller{justify-content:flex-start}
+.preview-layout[data-compare=true] .preview-shell[data-device=tablet] iframe{width:768px}
+.preview-layout[data-compare=true] .preview-shell[data-device=mobile] iframe{width:390px}
+#compare-preview{width:1280px}
+.preview-shell[data-device=tablet] #compare-preview{width:768px}
+.preview-shell[data-device=mobile] #compare-preview{width:390px}
+.page-overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}
+.overview-card{background:#091214;border:1px solid #405b53;border-radius:13px;padding:12px;min-width:0}
+.overview-card-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.overview-card-header strong{font-size:14px;color:#e3f3ed}
+.overview-card-header .minor-btn{margin:0}
+.overview-scroller{overflow:auto;display:flex;justify-content:center;max-height:560px;background:#102024;border-radius:9px}
+.overview-scroller iframe{display:block;border:0;flex:0 0 390px;width:390px;height:540px;background:white}
+@media(max-width:900px){.preview-layout[data-compare=true],.page-overview{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:730px){.review-mode-controls{align-items:stretch}.review-reference{width:100%;justify-content:space-between}
+.overview-scroller{justify-content:flex-start}.overview-card-header{flex-wrap:wrap}}

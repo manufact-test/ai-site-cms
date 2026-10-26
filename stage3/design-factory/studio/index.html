@@ -58,14 +58,32 @@
       </div>
       <div class="theme-header"><span>ВИЗУАЛЬНОЕ НАПРАВЛЕНИЕ</span><span id="theme-current"></span></div>
       <div id="theme-list" class="theme-list" role="group" aria-label="Выбор дизайн-системы"></div>
+      <div class="review-mode-controls" role="group" aria-label="Способ просмотра дизайна">
+        <button id="compare-toggle" type="button" aria-pressed="false" class="minor-btn">Сравнить две темы</button>
+        <button id="overview-toggle" type="button" aria-pressed="false" class="minor-btn">Все 4 страницы</button>
+        <label class="review-reference" id="compare-theme-field" for="compare-theme" hidden>
+          Эталонная тема <select id="compare-theme" aria-label="Тема для сравнения"></select>
+        </label>
+      </div>
+      <p class="review-mode-hint">Сравнение показывает одни и те же подтверждённые данные в двух темах. Обзор четырёх страниц — мобильный (390px). Оба режима только для просмотра и не меняют CMS-экспорт.</p>
       <div class="preview-top">
         <nav id="page-list" class="page-list" aria-label="Страницы сайта"></nav>
-        <span class="preview-label">ЛОКАЛЬНЫЙ ПРЕДПРОСМОТР · НЕ РЕНДЕРЕР CMS</span>
+        <span class="preview-label" id="single-preview-label">ЛОКАЛЬНЫЙ ПРЕДПРОСМОТР · НЕ РЕНДЕРЕР CMS</span>
       </div>
+      <div id="preview-layout" class="preview-layout" data-compare="false">
       <div id="preview-shell" class="preview-shell">
+        <h3 id="compare-current-title" class="compare-caption">Текущая тема</h3>
         <div class="browser-chrome"><span class="chrome-lights" aria-hidden="true"><i></i><i></i><i></i></span><span id="browser-url">design-preview.local /</span><span>100%</span></div>
         <div class="preview-scroller"><iframe id="site-preview" sandbox="allow-scripts" title="Безопасный предпросмотр сайта без доступа к родительскому окну" referrerpolicy="no-referrer"></iframe></div>
       </div>
+        <div id="compare-shell" class="preview-shell" hidden>
+          <h3 id="compare-reference-title" class="compare-caption">Тема сравнения</h3>
+          <div class="browser-chrome"><span class="chrome-lights" aria-hidden="true"><i></i><i></i><i></i></span><span id="compare-browser-url">design-preview.local /</span><span>100%</span></div>
+          <div class="preview-scroller"><iframe id="compare-preview" sandbox="allow-scripts" title="Сравнение с другой темой — локальный безопасный предпросмотр" referrerpolicy="no-referrer"></iframe></div>
+        </div>
+      </div>
+      <p id="page-overview-note" class="review-mode-hint" hidden>Четыре страницы одного сайта, каждая на ширине 390px. Нажмите «Открыть страницу», чтобы вернуться в основной просмотр.</p>
+      <section id="page-overview" class="page-overview" aria-label="Четыре страницы сайта" hidden></section>
       <div class="preview-disclaimer"><span aria-hidden="true">ⓘ</span> Визуальный HTML/CSS — расширенный предпросмотр фабрики. В CMS экспортируются только поддерживаемые поля реального <code>manufact-ai-site-v1</code>.</div>
       <div id="message" class="message" role="status" aria-live="polite"></div>
     </main>

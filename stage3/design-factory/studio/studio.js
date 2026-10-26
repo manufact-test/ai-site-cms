@@ -17,7 +17,7 @@ const projectDefault=()=>engine.compiler.migrate(null);
 const state={
  project:projectDefault(),
  composition:null,
- page:'home',device:'desktop',query:'',
+ page:'home',device:'desktop',query:'',viewMode:'single',compareTheme:'noir',overviewFrames:[],
  past:[],future:[],renderToken:0,lastSite:null,lastCompiled:null,lastError:null
 };
 const keys=Object.keys(engine.compiler.KITS);
@@ -77,8 +77,10 @@ function refreshHistory(){
  $('undo').disabled=!state.past.length;
  $('redo').disabled=!state.future.length;
 }
-function compileCurrent(){
- const result=engine.compiler.compile(state.project);
+function compileForTheme(theme){
+ if(!Object.prototype.hasOwnProperty.call(engine.compiler.THEMES,theme))throw Error('Неизвестная тема сравнения');
+ const project=theme===state.project.theme?state.project:{...state.project,theme};
+ const result=engine.compiler.compile(project);
  let site=result.site;
  let bridge=null;
  if(state.composition){
@@ -92,6 +94,7 @@ function compileCurrent(){
  }
  return {...result,site,bridge};
 }
+function compileCurrent(){return compileForTheme(state.project.theme);}
 function renderKits(){
  const holder=$('kit-list');holder.replaceChildren();
  let visible=0;
@@ -235,28 +238,84 @@ const navigationCode=[
  "});",
  '</script>'
 ].join('');
+
+const PREVIEW_INVALID='<!doctype html><html lang="ru"><meta charset="utf-8"><body style="font:16px system-ui;padding:2rem;background:#fff;color:#222">Предпросмотр недоступен: исправьте данные проекта.</body></html>';
+function previewPageHtml(compiled,theme,pageId){
+ const page=compiled.site.pages.find(p=>p.id==='df-page-'+pageId);
+ if(!page)throw Error('Нет страницы '+pageId);
+ let html=engine.preview.pageHtml(compiled.site,page,theme,state.project.language);
+ const localStyle='<style>'+engine.preview.css(theme)+'</style>';
+ html=html.replace(/<link rel="stylesheet" href="[^"]+">/,localStyle);
+ html=html.replace('</head>', '<meta http-equiv="Content-Security-Policy" content="default-src &apos;none&apos;; style-src &apos;unsafe-inline&apos;; script-src &apos;unsafe-inline&apos;; base-uri &apos;none&apos;; form-action &apos;none&apos;"></head>');
+ return {html:html.replace('</body>',navigationCode+'</body>'),page};
+}
+function renderOverview(compiled){
+ const holder=$('page-overview');
+ holder.replaceChildren();
+ state.overviewFrames=[];
+ for(const pageId of pages){
+  const title=LANG[state.project.language][pageId];
+  const card=el('article',{class:'overview-card'});
+  const head=el('div',{class:'overview-card-header'});
+  const open=el('button',{type:'button',class:'minor-btn',text:'Открыть страницу'});
+  open.addEventListener('click',()=>{
+   state.page=pageId;state.viewMode='single';
+   renderPages();renderPreview();
+  });
+  head.append(el('strong',{text:title}),open);
+  const scroller=el('div',{class:'overview-scroller'});
+  const frame=el('iframe',{
+   title:'Мобильный просмотр: '+title,
+   sandbox:'allow-scripts',referrerpolicy:'no-referrer'
+  });
+  frame.srcdoc=previewPageHtml(compiled,state.project.theme,pageId).html;
+  scroller.append(frame);
+  card.append(head,scroller);
+  holder.append(card);
+  state.overviewFrames.push(frame);
+ }
+}
+function refreshViewMode(){
+ const compare=state.viewMode==='compare',overview=state.viewMode==='overview';
+ $('compare-toggle').setAttribute('aria-pressed',String(compare));
+ $('overview-toggle').setAttribute('aria-pressed',String(overview));
+ $('compare-theme-field').hidden=!compare;
+ $('compare-theme').value=state.compareTheme;
+ $('compare-shell').hidden=!compare;
+ $('preview-layout').hidden=overview;
+ $('preview-layout').dataset.compare=String(compare);
+ $('page-overview').hidden=!overview;
+ $('page-overview-note').hidden=!overview;
+ $('single-preview-label').hidden=overview;
+ $('preview-shell').dataset.device=state.device;
+ $('compare-shell').dataset.device=state.device;
+ document.body.dataset.reviewMode=state.viewMode;
+}
+
 function renderPreview(){
  if(refreshTimer!==null){clearTimeout(refreshTimer);refreshTimer=null;}
- const frame=$('site-preview');
- $('preview-shell').dataset.device=state.device;
+ const frame=$('site-preview'),comparisonFrame=$('compare-preview');
+ refreshViewMode();
  document.querySelectorAll('[data-device]').forEach(btn=>{
-  btn.setAttribute('aria-pressed',btn.dataset.device===state.device);
+  btn.setAttribute('aria-pressed',String(btn.dataset.device===state.device));
  });
- let result;
  try{
-  result=compileCurrent();
+  const result=compileCurrent();
   state.lastSite=result.site;state.lastCompiled=result;state.lastError=null;
   renderChecklist(result);
-  const page=result.site.pages.find(p=>p.id==='df-page-'+state.page);
-  if(!page)throw Error('Нет страницы '+state.page);
-  let html=engine.preview.pageHtml(result.site,page,state.project.theme,state.project.language);
-  const localStyle='<style>'+engine.preview.css(state.project.theme)+'</style>';
-  html=html.replace(/<link rel="stylesheet" href="[^"]+">/,localStyle);
-  // Sandboxed unique-origin frame: only trusted local event forwarding runs.
-  html=html.replace('</head>', '<meta http-equiv="Content-Security-Policy" content="default-src &apos;none&apos;; style-src &apos;unsafe-inline&apos;; script-src &apos;unsafe-inline&apos;; base-uri &apos;none&apos;; form-action &apos;none&apos;"></head>');
-  html=html.replace('</body>',navigationCode+'</body>');
-  frame.srcdoc=html;
-  $('browser-url').textContent='design-preview.local'+page.path;
+  const active=previewPageHtml(result,state.project.theme,state.page);
+  frame.srcdoc=active.html;
+  $('browser-url').textContent='design-preview.local'+active.page.path;
+  if(state.viewMode==='compare'){
+   const other=compileForTheme(state.compareTheme);
+   const compared=previewPageHtml(other,state.compareTheme,state.page);
+   comparisonFrame.srcdoc=compared.html;
+   $('compare-browser-url').textContent='design-preview.local'+compared.page.path;
+   $('compare-current-title').textContent=engine.compiler.THEMES[state.project.theme].label;
+   $('compare-reference-title').textContent=engine.compiler.THEMES[state.compareTheme].label;
+  }else comparisonFrame.srcdoc=PREVIEW_INVALID;
+  if(state.viewMode==='overview')renderOverview(result);
+  else{$('page-overview').replaceChildren();state.overviewFrames=[];}
   say(!result.checklist.factsComplete
     ?'Черновик готов. Обязательных полей для заполнения: '+result.checklist.missing.length+'. Экспорт защищён robots=noindex.'
     :!result.checklist.readyForPublish
@@ -264,13 +323,12 @@ function renderPreview(){
       :'Проверка подтверждена. Экспортируемые страницы получат robots=index; публикация остаётся отдельным действием.');
   $('save-site').disabled=false;
  }catch(error){
-  state.lastError=error;
-  state.lastSite=null;state.lastCompiled=null;
-  // Do not display the last successful website when current inputs are invalid.
-  frame.srcdoc='<!doctype html><html lang="ru"><meta charset="utf-8"><body style="font:16px system-ui;padding:2rem;background:#fff;color:#222">Предпросмотр недоступен: исправьте данные проекта.</body></html>';
+  state.lastError=error;state.lastSite=null;state.lastCompiled=null;
+  frame.srcdoc=PREVIEW_INVALID;comparisonFrame.srcdoc=PREVIEW_INVALID;
+  $('page-overview').replaceChildren();state.overviewFrames=[];
   $('browser-url').textContent='design-preview.local / invalid';
-  renderChecklist(null);
-  $('save-site').disabled=true;
+  $('compare-browser-url').textContent='design-preview.local / invalid';
+  renderChecklist(null);$('save-site').disabled=true;
   say('Ошибка данных: '+error.message,true);
  }
 }
@@ -380,6 +438,26 @@ function init(){
  document.querySelectorAll('[data-device]').forEach(btn=>btn.addEventListener('click',()=>{
   if(!devices.includes(btn.dataset.device))return;state.device=btn.dataset.device;renderPreview();
  }));
+
+ // Both review modes are ephemeral presentation only: never touch project or approval.
+ const reference=$('compare-theme');
+ reference.replaceChildren();
+ for(const [id,theme] of Object.entries(engine.compiler.THEMES))
+  reference.append(el('option',{value:id,text:theme.label}));
+ if(state.compareTheme===state.project.theme)
+  state.compareTheme=Object.keys(engine.compiler.THEMES).find(id=>id!==state.project.theme);
+ reference.value=state.compareTheme;
+ reference.addEventListener('change',event=>{
+  if(!Object.prototype.hasOwnProperty.call(engine.compiler.THEMES,event.target.value))return;
+  state.compareTheme=event.target.value;renderPreview();
+ });
+ $('compare-toggle').addEventListener('click',()=>{
+  state.viewMode=state.viewMode==='compare'?'single':'compare';renderPreview();
+ });
+ $('overview-toggle').addEventListener('click',()=>{
+  state.viewMode=state.viewMode==='overview'?'single':'overview';renderPreview();
+ });
+
  $('composition').addEventListener('change',event=>apply(()=>{state.composition=event.target.value||null;state.page='home';}));
  $('add-service').addEventListener('click',()=>apply(()=>{
   if(!state.project.facts.services)state.project.facts.services=[];
@@ -410,9 +488,10 @@ function init(){
  });
  $('project-file').addEventListener('change',event=>importFile(event.target.files[0]));
  window.addEventListener('message',event=>{
-  if(event.source!==$('site-preview').contentWindow||!event.data||event.data.type!=='df-navigation')return;
+  const trusted=[ $('site-preview'),$('compare-preview'),...state.overviewFrames ].some(frame=>frame.contentWindow===event.source);
+  if(!trusted||!event.data||event.data.type!=='df-navigation')return;
   if(!pages.includes(event.data.page))return;
-  state.page=event.data.page;renderPages();renderPreview();
+  state.page=event.data.page;if(state.viewMode==='overview')state.viewMode='single';renderPages();renderPreview();
  });
  renderAll();
  say('Design Factory загружена локально. Можно редактировать и экспортировать сайт.');
