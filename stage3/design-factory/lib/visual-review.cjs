@@ -29,6 +29,12 @@ const ACTIVITIES=Object.freeze([
  'layoutAndOverflow','showcaseCoverage','keyboardAndTouch','localesAndCopy','motionAndContent'
 ]);
 function checkEvidence(directory,report){
+ const root=path.resolve(directory),rootStat=fs.lstatSync(root);
+ if(rootStat.isSymbolicLink()||!rootStat.isDirectory()||fs.realpathSync(root)!==root)
+  throw Error('Visual evidence root must be a canonical regular directory');
+ const screenshotsRoot=path.join(root,'screenshots'),screenshotsStat=fs.lstatSync(screenshotsRoot);
+ if(screenshotsStat.isSymbolicLink()||!screenshotsStat.isDirectory()||fs.realpathSync(screenshotsRoot)!==screenshotsRoot)
+  throw Error('Screenshot directory must be a canonical regular directory');
  if(report?.format!=='manufact-design-factory-visual-evidence-v1'||report.version!==1)
   throw Error('Invalid visual evidence format');
  if(report.quick!==false||report.expectedImages!==54||
@@ -51,8 +57,8 @@ function checkEvidence(directory,report){
     !/^[a-z0-9][a-z0-9-]*\.png$/.test(item.file.slice('screenshots/'.length)))
    throw Error('Invalid screenshot path: '+item.file);
   names.add(item.file);
-  const full=path.join(directory,item.file);
-  if(!fs.lstatSync(full).isFile()||fs.lstatSync(full).isSymbolicLink())
+  const full=path.join(root,item.file),fileStat=fs.lstatSync(full);
+  if(!full.startsWith(screenshotsRoot+path.sep)||!fileStat.isFile()||fileStat.isSymbolicLink()||fs.realpathSync(full)!==full)
    throw Error('Screenshot must be a regular file: '+item.file);
   const bytes=fs.readFileSync(full);
   if(!SHA.test(item.sha256||'')||sha(bytes)!==item.sha256||bytes.length!==item.bytes)

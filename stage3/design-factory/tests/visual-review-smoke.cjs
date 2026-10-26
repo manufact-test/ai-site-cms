@@ -96,6 +96,20 @@ try{
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(quick));
  reject({...approved,evidenceSha256:quick.evidenceSha256},/Full 54-image/);
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
+ // Evidence verification must not follow a symlinked screenshots directory.
+ const screenshotRoot=path.join(dir,'screenshots'),movedRoot=path.join(dir,'screenshots-real');
+ fs.renameSync(screenshotRoot,movedRoot);
+ let symlinkSupported=true;
+ try{fs.symlinkSync(movedRoot,screenshotRoot,'dir');}
+ catch(error){
+  fs.renameSync(movedRoot,screenshotRoot);
+  if(['EPERM','EACCES','ENOTSUP','EINVAL'].includes(error.code))symlinkSupported=false;
+  else throw error;
+ }
+ if(symlinkSupported){
+  try{reject(approved,/Screenshot directory must be a canonical regular directory/);}
+  finally{fs.unlinkSync(screenshotRoot);fs.renameSync(movedRoot,screenshotRoot);}
+ }
  const receiptFile=path.join(dir,'review.json');
  fs.writeFileSync(receiptFile,JSON.stringify(approved));
  const run=cp.spawnSync(process.execPath,[path.join(__dirname,'../bin/verify-visual-review.cjs'),dir,receiptFile],

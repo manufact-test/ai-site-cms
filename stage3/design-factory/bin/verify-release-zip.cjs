@@ -25,18 +25,21 @@ function sourceFiles(dir=ROOT,relative=''){
   if(stat.isSymbolicLink())throw Error('Source symlink: '+rel);
   if(e.isDirectory())list.push(...sourceFiles(absolute,rel));
   else if(e.isFile()){
-   if(stat.size>MAX_FILE||!NAME.test(PREFIX+rel)||rel.split('/').includes('..'))
+   if(stat.size>MAX_FILE||!NAME.test(PREFIX+rel)||rel.includes('..')||rel.split('/').includes('..'))
     throw Error('Unsafe source member: '+rel);
    list.push(PREFIX+rel);
   }else throw Error('Unsupported source member: '+rel);
  }
- return list;
+ return list.sort(cmp);
 }
 function verify(zipFile,root=ROOT){
  if(typeof zipFile!=='string'||!zipFile.endsWith('.zip'))throw Error('Expected existing .zip path');
  const input=path.resolve(zipFile),stat=fs.lstatSync(input);
  if(!stat.isFile()||stat.isSymbolicLink()||stat.size>MAX_ZIP||stat.size<22)
   throw Error('ZIP must be a regular file below 64 MiB');
+ const canonicalRoot=fs.realpathSync(root);
+ if(canonicalRoot!==path.resolve(root)||!fs.lstatSync(root).isDirectory()||fs.lstatSync(root).isSymbolicLink())
+  throw Error('Source root must be a canonical regular directory');
  const b=fs.readFileSync(input);
  const foot=b.length-22;
  if(b.readUInt32LE(foot)!==0x06054b50||b.readUInt16LE(foot+20)!==0||
@@ -79,8 +82,8 @@ function verify(zipFile,root=ROOT){
    throw Error('ZIP CRC/size mismatch: '+name);
   totalBytes+=unpacked;
   if(totalBytes>MAX_ZIP)throw Error('Oversized source total');
-  const relative=name.slice(PREFIX.length),file=path.join(root,relative);
-  const canonicalRoot=fs.realpathSync(root),canonicalFile=fs.realpathSync(file);
+  const relative=name.slice(PREFIX.length),file=path.join(canonicalRoot,relative);
+  const canonicalFile=fs.realpathSync(file);
   if(!canonicalFile.startsWith(canonicalRoot+path.sep)||!fs.lstatSync(file).isFile()||
     fs.lstatSync(file).isSymbolicLink()||!content.equals(fs.readFileSync(file)))
    throw Error('Extracted ZIP bytes differ from actual source: '+name);

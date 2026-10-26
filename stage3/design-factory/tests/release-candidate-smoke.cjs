@@ -45,5 +45,5 @@ try{
  bytes[bytes.length-22+8]^=1;
  fs.writeFileSync(bad,bytes);
  assert.throws(()=>verify(bad),/Central directory count\/bounds mismatch/);
- console.log('DESIGN_FACTORY_D7_RELEASE_PIPELINE PASS: real checkout seven-suite Node audit, candidate archive, independent SHA256/source/CRC verification, explicit pending gates and no overwrite');
+ console.log('DESIGN_FACTORY_D7_RELEASE_PIPELINE PASS: real checkout eight-suite Node audit plus bundle parity, candidate archive, independent SHA256/source/CRC verification, explicit pending gates and no overwrite');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}

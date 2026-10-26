@@ -1,31 +1,16 @@
 #!/usr/bin/env node
 'use strict';
-// D7 reproducible local release-gate: seven meaningful integrated Node suites,
+// D7 reproducible local release-gate: bundle parity + eight integrated Node suites,
 // deterministic source inventory, no network, no production or repo writes.
 // Run on a checked-out repository with Node >=20.
-const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const fs=require('node:fs'),path=require('node:path');
 const cp=require('node:child_process');
 const ROOT=path.resolve(__dirname,'..');
 const REPO=path.resolve(ROOT,'../..');
 const {resolveOutsideRepository}=require('../lib/output-path.cjs');
-const SUITES=['smoke.cjs','compositions-smoke.cjs','kits-smoke.cjs','studio-smoke.cjs','bridge-smoke.cjs','package-smoke.cjs','visual-review-smoke.cjs'];
-function digest(b){return crypto.createHash('sha256').update(b).digest('hex');}
-function walk(base,prefix=''){
- const out=[];
- for(const e of fs.readdirSync(base,{withFileTypes:true}).sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0)){
-  if(e.name==='node_modules'||e.name==='.git'||e.name==='.DS_Store')throw Error('Unapproved file/directory: '+e.name);
-  const rel=prefix?prefix+'/'+e.name:e.name,file=path.join(base,e.name);
-  const stat=fs.lstatSync(file);
-  if(stat.isSymbolicLink())throw Error('Symlink not allowed: '+rel);
-  if(e.isDirectory())out.push(...walk(file,rel));
-  else if(e.isFile()){
-   if(!/\.(cjs|js|json|md|html|css)$/.test(e.name))throw Error('Unexpected asset type: '+rel);
-   if(stat.size>2*1024*1024)throw Error('Oversized artifact: '+rel);
-   out.push({path:rel,bytes:stat.size,sha256:digest(fs.readFileSync(file))});
-  }else throw Error('Unsupported file: '+rel);
- }
- return out;
-}
+const {walk,manifestForDesignFactory,manifestDigest}=require('../lib/source-manifest.cjs');
+const SUITES=['smoke.cjs','compositions-smoke.cjs','kits-smoke.cjs','studio-smoke.cjs','bridge-smoke.cjs','package-smoke.cjs','visual-review-smoke.cjs','release-candidate-contract-smoke.cjs'];
+
 function flags(args){
  const x={out:null,chromium:false};
  for(let i=0;i<args.length;i++){
@@ -39,11 +24,17 @@ function release(args){
  const f=flags(args);
  const reportTarget=f.out?resolveOutsideRepository(f.out,REPO,'Report output'):null;
  const entries=walk(ROOT);
- const manifest=entries.filter(x=>!x.path.startsWith('handoffs/'));
+ const manifest=manifestForDesignFactory(ROOT);
  const listed=manifest.map(x=>x.path);
  for(const must of ['studio/index.html','studio/studio.js','studio/runtime.generated.js','lib/compiler.cjs','lib/bridge.cjs','catalog/themes.cjs','catalog/compositions.cjs','catalog/kits.cjs'])
   if(!listed.includes(must))throw Error('Missing necessary source: '+must);
  const results=[];
+ const bundle=cp.spawnSync(process.execPath,[path.join(ROOT,'bin/build-browser-bundle.cjs'),'--check'],{
+  cwd:REPO,encoding:'utf8',timeout:90000,maxBuffer:3*1024*1024,env:process.env});
+ results.push({suite:'build-browser-bundle --check',passed:bundle.status===0&&!bundle.error,
+  exitCode:bundle.status,signal:bundle.signal||null,
+  stdout:(bundle.stdout||'').slice(-3500),stderr:(bundle.stderr||'').slice(-3500),
+  error:bundle.error?String(bundle.error):null});
  const suiteNames=f.chromium?[...SUITES,'visual-pipe-smoke.cjs']:SUITES;
  for(const suite of suiteNames){
   const env={...process.env};
@@ -66,7 +57,7 @@ function release(args){
  const report={
   format:'manufact-design-factory-release-check-v1',
   version:1,sourceDirectory:'stage3/design-factory/',fileCount:entries.length,
-  sourceManifest:manifest,sourceManifestSha256:digest(JSON.stringify(manifest)),
+  sourceManifest:manifest,sourceManifestSha256:manifestDigest(manifest),
   checks:results,
   nodePassed,browserRequested:f.chromium,browserPassed,
   automatedChecksPassed:nodePassed&&browserPassed,
