@@ -25,6 +25,8 @@
   const row=element('div','hosted-buttons');
   row.append(open,action('Обновить','server-reload',()=>safe(reload)),
     action('Выйти','server-logout',()=>safe(logout)));
+  const launchReviewButton=action('Проверка сайта','server-launch-review',()=>safe(openLaunchReview));
+  row.append(launchReviewButton);
   toolbar.append(label,picker,row,status);
   document.querySelector('.site-actions').before(toolbar);
   $('save').textContent='Сохранить на сервере';
@@ -764,6 +766,7 @@
     $('save').disabled=!available||!isDirty()||!canEdit();
     $('server-publish').disabled=!available||isDirty()||!canPublish();
     $('server-reload').disabled=!available;
+    launchReviewButton.disabled=!available;
     $('server-open').disabled=state.busy||!state.authorized||!picker.value;
     $('server-site-select').disabled=state.busy||!state.authorized;
     $('server-logout').disabled=state.busy||!state.authorized;
@@ -887,6 +890,146 @@
       throw Error('Сервер вернул некорректный предпросмотр');
     return result.html;
   }
+  // Launch review is read-only until the operator deliberately clicks the
+  // existing Save or Publish actions. Every preview is the isolated server
+  // renderer for the current authenticated draft, never a new publication.
+  async function openLaunchReview(){
+    if(!state.authorized||!state.siteId||!Number.isInteger(state.revision))
+      throw Error('Откройте серверный сайт для проверки');
+    const site=editor.getSite();
+    const inspected=CONTRACT.inspectSite(site,editor.manifests());
+    const allSections=site.pages.flatMap(page=>page.sections);
+    const formSections=allSections.filter(section=>section.component==='lead-form-flex');
+    const conditionalFields=formSections.flatMap(section=>section.formFields||[])
+      .filter(field=>field.when).length;
+    const graphNodes=nodes=>nodes.reduce((total,node)=>total+1+
+      (node.children?graphNodes(node.children):0),0);
+    const totalGraphNodes=allSections.reduce((total,section)=>total+
+      (section.designGraph?graphNodes(section.designGraph.nodes):0),0);
+    const dialog=element('dialog','hosted-launch-dialog');dialog.id='server-launch-dialog';
+    const header=element('div','hosted-launch-header');
+    const heading=element('h2',null,'Проверка сайта перед публикацией');
+    const explanation=element('p',null,
+      'Предпросмотр каждой страницы использует текущий черновик. Сохранение и публикация — отдельные действия; ничего не запускается автоматически.');
+    const summary=element('p','hosted-launch-summary',
+      site.pages.length+' стр. · '+allSections.length+' блоков · '+totalGraphNodes+
+      ' узлов композиции · '+site.assets.length+' медиа · '+formSections.length+
+      ' форм ('+conditionalFields+' условных полей) · '+inspected.errors.length+
+      ' ошибок · '+inspected.warnings.length+' рекомендаций');
+    const revision=element('p','hosted-launch-revision',
+      'Черновик #'+state.revision+' · '+(editor.isDirty()?'есть несохранённые изменения':'сохранён')+
+      ' · публикация '+(state.sites.find(s=>s.site_id===state.siteId)?.published_version||'отсутствует'));
+    header.append(heading,explanation,summary,revision);
+    const body=element('div','hosted-launch-layout');
+    const pages=element('div','hosted-launch-pages');pages.id='server-launch-pages';
+    const detail=element('div','hosted-launch-detail');
+    const pageHeading=element('h3');
+    const devices=element('div','hosted-launch-devices');devices.id='server-launch-modes';
+    const viewport=element('div','hosted-launch-viewport');
+    const frame=element('iframe');frame.id='server-launch-preview';
+    frame.setAttribute('title','Проверка черновика страницы');
+    frame.setAttribute('sandbox','');
+    frame.setAttribute('referrerpolicy','no-referrer');
+    viewport.append(frame);
+    const previewStatus=element('p','hosted-launch-preview-status','');
+    previewStatus.id='server-launch-preview-status';
+    const issues=element('div','hosted-launch-issues');
+    const footer=element('div','hosted-launch-footer');
+    const editPage=action('Редактировать страницу','server-launch-edit',()=>{});
+    const quality=action('Все замечания SEO и доступности','server-launch-quality',()=>{
+      dialog.close();$('cms-quality-open')?.click();
+    });
+    const saveDraft=action('Сохранить черновик','server-launch-save',()=>{
+      if($('save').disabled)return;dialog.close();save();
+    });
+    const publishSaved=action('Опубликовать сохранённый','server-launch-publish',()=>{
+      if($('server-publish').disabled)return;
+      dialog.close();$('server-publish').click();
+    });
+    const close=action('Закрыть','server-launch-close',()=>dialog.close());
+    footer.append(editPage,quality,saveDraft,publishSaved,close);
+    detail.append(pageHeading,devices,viewport,previewStatus,issues);
+    body.append(pages,detail);
+    dialog.append(header,body,footer);
+    document.body.append(dialog);
+    let selectedPage=site.pages[0],device='desktop',request=0;
+    const widths={desktop:1200,tablet:780,mobile:390};
+    const syncActions=()=>{
+      saveDraft.disabled=$('save').disabled;
+      publishSaved.disabled=$('server-publish').disabled;
+      publishSaved.title=publishSaved.disabled?'Сначала сохраните черновик и проверьте права публикации':'Потребуется отдельное подтверждение';
+    };
+    const renderViewport=()=>{
+      const width=widths[device],available=viewport.clientWidth||700;
+      const scale=Math.min(1,Math.max(.25,(available-12)/width));
+      frame.style.width=width+'px';frame.style.height='900px';
+      frame.style.transformOrigin='top left';
+      frame.style.transform='scale('+scale+')';
+      viewport.style.height=Math.min(620,Math.ceil(900*scale))+'px';
+      for(const button of devices.querySelectorAll('button'))
+        button.classList.toggle('primary',button.dataset.device===device);
+    };
+    const showPreview=async()=>{
+      const ticket=++request;
+      previewStatus.textContent='Строим предпросмотр черновика '+selectedPage.path+'…';
+      frame.removeAttribute('srcdoc');
+      try{
+        const html=await previewPage(site,selectedPage.path);
+        if(ticket!==request||!dialog.open)return;
+        frame.srcdoc=html;
+        previewStatus.textContent='Черновик · '+selectedPage.path+' · '+widths[device]+' px · без публикации';
+      }catch(error){
+        if(ticket!==request||!dialog.open)return;
+        frame.removeAttribute('srcdoc');
+        previewStatus.textContent='Предпросмотр недоступен: '+error.message;
+      }
+    };
+    const choosePage=page=>{
+      selectedPage=page;
+      pageHeading.textContent=page.title+' · '+page.path;
+      issues.replaceChildren();
+      const relevant=[...inspected.errors.map(item=>({item,error:true})),
+        ...inspected.warnings.map(item=>({item,error:false}))].filter(entry=>
+          entry.item.pageId===page.id);
+      const summaryLine=element('p',null,
+        page.sections.length+' блоков · '+relevant.filter(entry=>entry.error).length+
+        ' ошибок · '+relevant.filter(entry=>!entry.error).length+' рекомендаций');
+      issues.append(summaryLine);
+      if(!relevant.length)issues.append(element('p',null,'Замечаний по этой странице нет.'));
+      for(const entry of relevant.slice(0,12)){
+        const line=element('p',entry.error?'hosted-launch-error':'hosted-launch-warning',
+          (entry.error?'Ошибка: ':'Рекомендация: ')+entry.item.message);
+        issues.append(line);
+      }
+      if(relevant.length>12)issues.append(element('small',null,'Остальные замечания доступны в полном аудите.'));
+      for(const button of pages.querySelectorAll('button'))
+        button.classList.toggle('primary',button.dataset.pageId===page.id);
+      syncActions();renderViewport();void showPreview();
+    };
+    for(const [mode,name] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
+      const control=action(name,'',()=>{
+        device=mode;renderViewport();
+        if(previewStatus.textContent.startsWith('Черновик ·'))
+          previewStatus.textContent='Черновик · '+selectedPage.path+' · '+widths[device]+' px · без публикации';
+      });
+      control.dataset.device=mode;devices.append(control);
+    }
+    for(const page of site.pages){
+      const countIssues=inspected.errors.filter(f=>f.pageId===page.id).length;
+      const control=action(page.title+' · '+page.path+' · '+page.sections.length+' блоков'+
+        (countIssues?' · '+countIssues+' ошибок':''),'',()=>choosePage(page));
+      control.dataset.pageId=page.id;
+      pages.append(control);
+    }
+    editPage.addEventListener('click',()=>{
+      const pageIndex=site.pages.findIndex(page=>page.id===selectedPage.id);
+      dialog.close();
+      document.querySelectorAll('#pages .nav-entry')[pageIndex]?.click();
+    });
+    dialog.addEventListener('close',()=>{++request;dialog.remove();},{once:true});
+    dialog.showModal();choosePage(selectedPage);
+  }
+
   async function save(){
     return safe(async()=>{
       if(!state.siteId)throw Error('Сначала откройте сайт');
