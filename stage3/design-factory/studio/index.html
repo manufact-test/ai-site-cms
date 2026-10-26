@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="studio.css">
   <script src="runtime.generated.js" defer></script>
   <script src="preview-zip.js" defer></script>
+  <script src="client-feedback.js" defer></script>
   <script src="studio.js" defer></script>
 </head>
 <body>
@@ -87,6 +88,7 @@
       </div>
       <p id="page-overview-note" class="review-mode-hint" hidden>Четыре страницы одного сайта, каждая на ширине 390px. Нажмите «Открыть страницу», чтобы вернуться в основной просмотр.</p>
       <section id="page-overview" class="page-overview" aria-label="Четыре страницы сайта" hidden></section>
+      <div class="preview-disclaimer"><span aria-hidden="true">ⓘ</span> Внутри HTML-демо ZIP есть review.html для офлайн-замечаний клиента. Файл замечаний импортируется через раздел 05 справа. Это не подтверждение публикации.</div>
       <div class="preview-disclaimer"><span aria-hidden="true">ⓘ</span> Кнопка HTML-демо ZIP скачивает полноценный 4-страничный статический прототип с локальными стилями и работающими ссылками. Только для предварительного согласования; это не экспорт PHP CMS и не публикация.</div>
       <div class="preview-disclaimer"><span aria-hidden="true">ⓘ</span> Визуальный HTML/CSS — расширенный предпросмотр фабрики. В CMS экспортируются только поддерживаемые поля реального <code>manufact-ai-site-v1</code>.</div>
       <div id="message" class="message" role="status" aria-live="polite"></div>
@@ -131,6 +133,15 @@
             <button id="save-workspace" type="button" class="minor-btn full">Скачать рабочее пространство JSON</button>
             <button id="save-bridge" type="button" class="minor-btn full">Скачать карту совместимости</button>
             <button id="save-bundle" type="button" class="minor-btn full">Скачать пакет для интеграции D6</button>
+          </div>
+          <div class="form-section client-feedback">
+            <div class="form-section-title"><span>05</span><strong>Замечания клиента</strong></div>
+            <p>В HTML-демо ZIP есть страница review.html. Клиент может оставить замечания к четырём страницам и скачать JSON, который вы загрузите здесь.</p>
+            <label class="field" for="feedback-file"><span>Загрузить замечания JSON</span><input type="file" id="feedback-file" accept=".json,application/json"></label>
+            <p id="feedback-summary" role="status" aria-live="polite">Замечания пока не загружены.</p>
+            <div id="feedback-list" class="feedback-review-list"></div>
+            <button id="feedback-export" class="minor-btn full" type="button" disabled>Скачать замечания с отметками</button>
+            <p class="feedback-guidance">Замечания — не подтверждение владельца, не приёмка дизайна и не разрешение публиковать сайт.</p>
           </div>
         </div>
       </form>

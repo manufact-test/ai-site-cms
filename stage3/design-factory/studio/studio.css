@@ -130,3 +130,6 @@ body[data-review-mode=overview] .stage-area{min-width:0;padding-inline:clamp(12p
 /* Browser-only HTML prototype download stays accessible on mobile toolbars. */
 #save-preview-zip{white-space:nowrap}
 @media(max-width:730px){.top-right{flex-wrap:wrap}#save-preview-zip{flex:1 1 140px}}
+
+/* D7 offline client feedback inbox: no uncontrolled HTML insertion. */
+.client-feedback>p{font-size:11px;line-height:1.6;color:#b1c5c0}.feedback-review-list{display:grid;gap:10px;margin-top:12px}.feedback-item{padding:12px;border:1px solid #526d63;border-radius:11px;background:#21322f}.feedback-item>strong{font-size:12px;color:#c5f57b}.feedback-item>p{overflow-wrap:anywhere;white-space:pre-wrap;font-size:12px;color:#eff7f0}.feedback-actions{display:flex;gap:8px;flex-wrap:wrap}.feedback-actions .minor-btn{margin-top:2px;font-size:11px}.feedback-guidance{font-size:10px;color:#b3c8bf}

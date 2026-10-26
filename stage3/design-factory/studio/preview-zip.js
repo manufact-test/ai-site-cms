@@ -10,7 +10,7 @@
  'use strict';
  const FILES=Object.freeze([
   'README.txt','approach/index.html','assets/preview.css','contact/index.html',
-  'index.html','preview-info.json','services/index.html'
+  'index.html','preview-info.json','review.html','services/index.html'
  ]);
  const MAX_MEMBER=2*1024*1024,MAX_TOTAL=8*1024*1024,MAX_ZIP=9*1024*1024;
  const CRC=Uint32Array.from({length:256},(_,index)=>{
@@ -49,7 +49,7 @@
  function u16(view,at,n){view.setUint16(at,n,true);}
  function u32(view,at,n){view.setUint32(at,n,true);}
  function contentMap(files){
-  if(!Array.isArray(files)||files.length!==FILES.length)throw Error('Preview requires exactly seven files');
+  if(!Array.isArray(files)||files.length!==FILES.length)throw Error('Preview requires exactly eight files');
   const entries=new Map();
   for(const file of files){
    if(!file||typeof file.name!=='string'||!FILES.includes(file.name)||entries.has(file.name))

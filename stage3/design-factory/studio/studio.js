@@ -6,6 +6,7 @@
 const engine=globalThis.DesignFactory;
 const $=id=>document.getElementById(id);
 const WORKSPACE='manufact-design-factory-workspace-v1';
+const feedbackTool=globalThis.DesignFactoryFeedback;
 const LANG={
  ru:{home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'},
  en:{home:'Home',services:'Services',approach:'Approach',contact:'Contact'}
@@ -18,7 +19,7 @@ const state={
  project:projectDefault(),
  composition:null,
  page:'home',device:'desktop',query:'',viewMode:'single',compareTheme:'noir',overviewFrames:[],
- past:[],future:[],renderToken:0,lastSite:null,lastCompiled:null,lastError:null
+ past:[],future:[],renderToken:0,lastSite:null,lastCompiled:null,lastError:null,feedback:null
 };
 const keys=Object.keys(engine.compiler.KITS);
 const devices=['desktop','tablet','mobile'];
@@ -324,6 +325,7 @@ function renderPreview(){
       ?'Все обязательные поля заполнены. Подтвердите проверку владельцем; экспорт пока robots=noindex.'
       :'Проверка подтверждена. Экспортируемые страницы получат robots=index; публикация остаётся отдельным действием.');
   $('save-site').disabled=false;
+  renderFeedback();
  }catch(error){
   state.lastError=error;state.lastSite=null;state.lastCompiled=null;
   frame.srcdoc=PREVIEW_INVALID;comparisonFrame.srcdoc=PREVIEW_INVALID;
@@ -331,6 +333,7 @@ function renderPreview(){
   $('browser-url').textContent='design-preview.local / invalid';
   $('compare-browser-url').textContent='design-preview.local / invalid';
   renderChecklist(null);$('save-site').disabled=true;
+  renderFeedback();
   say('Ошибка данных: '+error.message,true);
  }
 }
@@ -377,6 +380,8 @@ function savePreviewZip(){
   const packer=globalThis.DesignFactoryPreviewZip;
   if(!packer)throw Error('Локальный упаковщик HTML-прототипа недоступен');
   const compiled=compileCurrent(),site=compiled.site,theme=state.project.theme;
+  if(!feedbackTool)throw Error('Модуль обратной связи не загружен');
+  const reviewContext=feedbackTool.context(compiled,state.project,state.composition);
   const routes=[
    {id:'home',name:'index.html',path:'/'},
    {id:'services',name:'services/index.html',path:'/services/'},
@@ -396,9 +401,11 @@ function savePreviewZip(){
    'DESIGN FACTORY — STATIC HTML PREVIEW / ЛОКАЛЬНЫЙ HTML-ПРОТОТИП',
    '',
    'Open index.html after extracting this archive. All four pages are linked',
+   'Open review.html to leave feedback and download the JSON for the developer.',
    'and use assets/preview.css locally. No server, CDN or API is required.',
    '',
    'Откройте index.html после распаковки архива.',
+   'Откройте review.html для замечаний. Передайте скачанный JSON разработчику.',
    'Это макет для согласования, а НЕ работающий PHP-рендерер CMS.',
    'Публикация, работающие формы и интеграция не включены.',
    'Тексты, контакты и права на материалы требует подтвердить владелец.',
@@ -411,25 +418,93 @@ function savePreviewZip(){
    type:'static-html-preview-not-cms-export',theme,kit:state.project.kit,
    language:state.project.language,paths:routes.map(route=>route.name),
    pages:4,offline:true,productionReady:false,formsConfigured:false,
-   ownerVerificationRequired:true
+   ownerVerificationRequired:true,clientFeedbackFormat:feedbackTool.FORMAT,
+   reviewContext,reviewPortal:'review.html'
   };
   const files=[
    ...contents,
    {name:'assets/preview.css',content:engine.preview.css(theme)},
    {name:'README.txt',content:notes},
-   {name:'preview-info.json',content:JSON.stringify(info,null,2)+'\n'}
+   {name:'preview-info.json',content:JSON.stringify(info,null,2)+'\n'},
+   {name:'review.html',content:feedbackTool.reviewHtml(reviewContext)}
   ];
   const bytes=packer.build(files),verification=packer.inspect(bytes);
-  if(!verification.crcVerified||verification.files!==7)
+  if(!verification.crcVerified||verification.files!==8)
    throw Error('ZIP-проверка отклонила результат');
   const blob=new Blob([bytes],{type:'application/zip'}),url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;a.download=safeName()+'-html-preview.zip';
   document.body.append(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),5000);
-  say('HTML-прототип скачан: 4 связанные страницы, локальный CSS, README, проверенный ZIP32. Только предпросмотр, не релиз CMS.');
+  say('HTML-прототип скачан: четыре страницы, локальный CSS и review.html для замечаний. Проверенный ZIP32, не релиз CMS.');
  }catch(error){say('HTML-прототип не создан: '+error.message,true);}
 }
+
+function feedbackContext(){
+ if(!feedbackTool||!state.lastCompiled)return null;
+ try{return feedbackTool.context(state.lastCompiled,state.project,state.composition);}
+ catch{return null;}
+}
+function renderFeedback(){
+ const summary=$('feedback-summary'),items=$('feedback-list'),button=$('feedback-export');
+ if(!summary||!items||!button)return;
+ items.replaceChildren();
+ const report=state.feedback;
+ if(!report){summary.textContent='Замечания пока не загружены.';button.disabled=true;return;}
+ const active=feedbackContext(),matched=Boolean(active&&report.context===active);
+ const resolved=report.notes.filter(n=>n.resolved).length;
+ summary.textContent=(matched?'':'Другой вариант сайта — импортированные замечания устарели. ')+
+  'Замечаний: '+report.notes.length+'; исправлено: '+resolved+
+  '; осталось: '+(report.notes.length-resolved)+'.';
+ button.disabled=!matched;
+ for(const [index,note] of report.notes.entries()){
+  const item=el('article',{class:'feedback-item'});
+  const heading=el('strong',{text:(LANG[state.project.language][note.page]||note.page)+
+   ' · '+({change:'Исправить',issue:'Ошибка',question:'Вопрос'}[note.type])});
+  const copy=el('p',{text:note.message});
+  const actions=el('div',{class:'feedback-actions'});
+  const open=el('button',{type:'button',text:'Открыть страницу',class:'minor-btn',disabled:!matched});
+  open.addEventListener('click',()=>{
+   state.page=note.page;state.viewMode='single';renderPages();renderPreview();
+  });
+  const resolve=el('button',{type:'button',class:'minor-btn',
+   text:note.resolved?'Вернуть в работу':'Отметить исправленным',disabled:!matched});
+  resolve.addEventListener('click',()=>{
+   if(!state.feedback||feedbackContext()!==state.feedback.context)return;
+   state.feedback.notes[index].resolved=!state.feedback.notes[index].resolved;
+   renderFeedback();
+  });
+  actions.append(open,resolve);item.append(heading,copy,actions);items.append(item);
+ }
+}
+async function importFeedback(file){
+ try{
+  if(!file||file.size>128*1024)throw Error('Файл замечаний больше 128 КБ или не выбран.');
+  if(!feedbackTool)throw Error('Модуль обратной связи недоступен.');
+  const expected=feedbackContext();
+  if(!expected)throw Error('Сначала восстановите корректный проект Studio.');
+  const incoming=JSON.parse(await file.text());
+  feedbackTool.validate(incoming,expected);
+  state.feedback={
+   ...incoming,notes:incoming.notes.map(n=>({...n}))
+  };
+  renderFeedback();
+  say('Получено '+incoming.notes.length+' замечаний. Их можно открыть, отметить исправленными и скачать новый JSON.');
+ }catch(error){say('Импорт замечаний отклонён: '+error.message,true);}
+ $('feedback-file').value='';
+}
+function saveFeedback(){
+ try{
+  const expected=feedbackContext();
+  if(!state.feedback||!expected)throw Error('Нет актуальных замечаний');
+  feedbackTool.validate(state.feedback,expected);
+  const output=feedbackTool.create(expected,state.feedback.reviewer,
+   state.feedback.notes.map(note=>({...note})));
+  download(safeName()+'-feedback-progress.json',JSON.stringify(output,null,2)+'\n');
+  say('Замечания с текущими отметками скачаны. Это не подтверждение приёмки.');
+ }catch(error){say('Выгрузка замечаний отклонена: '+error.message,true);}
+}
+
 function serialize(v){return engine.compiler.serialize(v);}
 function saveSite(){
  try{
@@ -543,6 +618,8 @@ function init(){
  $('save-project').addEventListener('click',saveProject);
  $('save-site').addEventListener('click',saveSite);
  $('save-preview-zip').addEventListener('click',savePreviewZip);
+ $('feedback-file').addEventListener('change',event=>importFeedback(event.target.files[0]));
+ $('feedback-export').addEventListener('click',saveFeedback);
  $('save-workspace').addEventListener('click',saveWorkspace);
  $('save-bridge').addEventListener('click',saveBridge);
  $('save-bundle').addEventListener('click',()=>{
