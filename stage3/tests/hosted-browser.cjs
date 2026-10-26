@@ -872,6 +872,59 @@ async function execute(){
   let hostedNode=await readHostedNode();
   assert.equal(hostedNode.text,'Композиция сохранена через весь путь');
   assert.equal(hostedNode.responsive.mobile.fontSize,36);
+  await page.locator('#cms-work-graph-insert-type').selectOption('button');
+  await page.locator('#cms-work-graph-insert').click();
+  const ctaId=await page.locator('#cms-work-graph-node').inputValue();
+  await page.locator('#cms-work-graph-panel [data-work-graph-field="text"]').fill('Перейти на главную');
+  await page.locator('#cms-work-graph-panel [data-work-graph-field="text"]').dispatchEvent('change');
+  await page.locator('#cms-work-graph-panel [data-work-graph-field="href"]').fill('/');
+  await page.locator('#cms-work-graph-panel [data-work-graph-field="href"]').dispatchEvent('change');
+  const ctaData=await page.evaluate(({sectionId,nodeId})=>{
+    const section=window.Stage3Editor.getSite().pages.flatMap(p=>p.sections).find(s=>s.id===sectionId);
+    const walk=nodes=>{for(const n of nodes){if(n.id===nodeId)return n;
+      if(n.children){const v=walk(n.children);if(v)return v;}}return null;};
+    return walk(section.designGraph.nodes);
+  },{sectionId:graphSectionId,nodeId:ctaId});
+  assert.equal(ctaData.href,'/');
+  assert.equal(ctaData.text,'Перейти на главную');
+  await page.locator('#cms-work-graph-move-up').click();
+  assert.equal(await page.locator('#cms-work-graph-node').inputValue(),ctaId);
+  await page.locator('#cms-work-graph-insert-type').selectOption('image');
+  await page.locator('#cms-work-graph-insert').click();
+  const imageNodeId=await page.locator('#cms-work-graph-node').inputValue();
+  const imageData=await page.evaluate(({sectionId,nodeId})=>{
+    const section=window.Stage3Editor.getSite().pages.flatMap(p=>p.sections).find(s=>s.id===sectionId);
+    const walk=nodes=>{for(const n of nodes){if(n.id===nodeId)return n;
+      if(n.children){const v=walk(n.children);if(v)return v;}}return null;};
+    return walk(section.designGraph.nodes);
+  },{sectionId:graphSectionId,nodeId:imageNodeId});
+  assert.equal(imageData.type,'image');
+  assert.ok((await page.evaluate(id=>window.Stage3Editor.getSite().assets.some(a=>a.id===id),imageData.assetId)));
+  assert.equal(await page.locator('#cms-work-graph-media [data-graph-media-id="'+imageData.assetId+'"]').count(),1);
+  await page.locator('#cms-work-graph-insert-type').selectOption('container');
+  await page.locator('#cms-work-graph-insert').click();
+  const layoutId=await page.locator('#cms-work-graph-node').inputValue();
+  await page.locator('#cms-work-graph-insert-type').selectOption('heading');
+  await page.locator('#cms-work-graph-insert-placement').selectOption('inside');
+  await page.locator('#cms-work-graph-insert').click();
+  const headingId=await page.locator('#cms-work-graph-node').inputValue();
+  const layoutData=await page.evaluate(({sectionId,nodeId})=>{
+    const section=window.Stage3Editor.getSite().pages.flatMap(p=>p.sections).find(s=>s.id===sectionId);
+    const walk=nodes=>{for(const n of nodes){if(n.id===nodeId)return n;
+      if(n.children){const v=walk(n.children);if(v)return v;}}return null;};
+    return walk(section.designGraph.nodes);
+  },{sectionId:graphSectionId,nodeId:layoutId});
+  assert.equal(layoutData.children[0].id,headingId);
+  assert.equal(layoutData.responsive.mobile.columns,1);
+  await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+  assert.equal((await page.evaluate(({sectionId,nodeId})=>{
+    const graph=window.Stage3Editor.getSite().pages.flatMap(p=>p.sections)
+      .find(s=>s.id===sectionId).designGraph;
+    const walk=nodes=>nodes.some(n=>n.id===nodeId||(n.children&&walk(n.children)));
+    return walk(graph.nodes);
+  },{sectionId:graphSectionId,nodeId:headingId})),false);
+  await page.locator('#cms-work-history').getByRole('button',{name:'↷ Повтор'}).click();
+  await page.locator('#cms-work-graph-node').selectOption(headingId);
   await page.locator('#cms-work-graph-open').click();
   await page.locator('#cms-design-graph-dialog[open]').waitFor();
   assert.equal(await page.locator('#cms-design-node-select').inputValue(),inlineNodeId);
