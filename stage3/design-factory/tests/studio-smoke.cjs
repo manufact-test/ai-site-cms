@@ -13,6 +13,7 @@ const studio=path.join(root,'studio');
 const read=name=>fs.readFileSync(path.join(studio,name),'utf8');
 const bundle=read('runtime.generated.js'),app=read('studio.js'),markup=read('index.html'),css=read('studio.css');
 const zipSource=read('preview-zip.js'),previewZip=require(path.join(studio,'preview-zip.js'));
+const feedbackSource=read('client-feedback.js'),feedback=require(path.join(studio,'client-feedback.js'));
 const build=cp.spawnSync(process.execPath,[path.join(root,'bin/build-browser-bundle.cjs'),'--check'],{encoding:'utf8'});
 assert.equal(build.status,0,'Browser bundle must match actual local CMS source: '+build.stderr);
 // Regression: the bundle writer must not follow a generated-file symlink out of
@@ -84,9 +85,15 @@ assert.equal(build.status,0,'Browser bundle must match actual local CMS source: 
 }
 new Function(app);
 new Function(zipSource);
+new Function(feedbackSource);
+assert.ok(markup.indexOf('client-feedback.js')<markup.indexOf('studio.js'),'Feedback bridge must load first');
 assert.ok(markup.indexOf('preview-zip.js')<markup.indexOf('studio.js'),
  'Preview ZIP script must load before Studio');
 assert.ok(markup.includes('id="save-preview-zip"'));
+for(const name of ['feedback-file','feedback-list','feedback-export','feedback-summary'])
+ assert.ok(markup.includes('id="'+name+'"'),'Missing feedback UI '+name);
+assert.ok(app.includes('feedbackTool.validate(incoming,expected)'));
+assert.ok(app.includes('feedbackTool.reviewHtml(reviewContext)'));
 assert.ok(app.includes('function savePreviewZip()'));
 assert.ok(app.includes('packer.build(files),verification=packer.inspect(bytes)'));
 assert.ok(!/@import|fetch\s*\(|XMLHttpRequest|https?:\/\//i.test(zipSource),
@@ -165,18 +172,46 @@ for(const file of previewEntries){
 }
 previewEntries.push({name:'assets/preview.css',content:api.preview.css('editorial')},
  {name:'README.txt',content:'Static preview only. Not a production CMS release.'},
- {name:'preview-info.json',content:JSON.stringify({format:'manufact-design-factory-static-preview-v1'})});
+ {name:'preview-info.json',content:JSON.stringify({format:'manufact-design-factory-static-preview-v1'})},
+ {name:'review.html',content:feedback.reviewHtml(feedback.context(approvedDraft,approvedDraft.project||{kit:'agency',theme:'editorial',language:'en'},null))});
+
+const feedbackToken=feedback.context(approvedDraft,approvedDraft.project||{
+ kit:'agency',theme:'editorial',language:'en'
+},null);
+assert.match(feedbackToken,/^df-[0-9a-f]{8}$/);
+const reviewPage=feedback.reviewHtml(feedbackToken);
+assert.ok(reviewPage.includes('id="feedback-add"')&&reviewPage.includes('id="feedback-download"'));
+assert.ok(reviewPage.includes('href="contact/index.html"'));
+assert.ok(reviewPage.includes('script-src &apos;unsafe-inline&apos;'));
+const customerNote=feedback.create(feedbackToken,'Reviewer',[
+ {page:'services',type:'issue',message:'Navigation label overlaps the mobile header',resolved:false}
+]);
+assert.equal(feedback.validate(customerNote,feedbackToken).notes.length,1);
+assert.throws(()=>feedback.validate(customerNote,'df-00000000'),/different site snapshot/);
+assert.throws(()=>feedback.validate({...customerNote,notes:[{
+ ...customerNote.notes[0],message:''
+}]},feedbackToken),/Invalid feedback note/);
+assert.throws(()=>feedback.validate({...customerNote,notes:customerNote.notes.map(x=>({
+ ...x,page:'http://external/'
+}))},feedbackToken),/Invalid feedback note/);
+assert.throws(()=>feedback.validate({...customerNote,notes:Array(31).fill(customerNote.notes[0])},feedbackToken),
+ /Too many/);
+assert.throws(()=>feedback.validate({...customerNote,
+ ownerApproved:true},feedbackToken),/Unexpected feedback fields/);
+const resolvedNote={...customerNote,notes:customerNote.notes.map(x=>({...x,resolved:true}))};
+assert.equal(feedback.validate(resolvedNote,feedbackToken).notes[0].resolved,true);
+
 const actualPreviewZip=previewZip.build(previewEntries);
 assert.deepEqual(previewZip.build(previewEntries),actualPreviewZip,
  'Browser ZIP bytes must be deterministic for identical inputs');
 const inspectedPreviewZip=previewZip.inspect(actualPreviewZip);
-assert.equal(inspectedPreviewZip.files,7);
+assert.equal(inspectedPreviewZip.files,8);
 assert.equal(inspectedPreviewZip.crcVerified,true);
 assert.equal(actualPreviewZip.readUInt32LE?.(0)??new DataView(actualPreviewZip.buffer).getUint32(0,true),0x04034b50);
 const corruptPreview=new Uint8Array(actualPreviewZip);
 corruptPreview[40]^=0x1;
 assert.throws(()=>previewZip.inspect(corruptPreview),/CRC mismatch/);
-assert.throws(()=>previewZip.build(previewEntries.slice(1)),/exactly seven/);
+assert.throws(()=>previewZip.build(previewEntries.slice(1)),/exactly eight/);
 assert.throws(()=>previewZip.build([...previewEntries.slice(0,-1),
  {name:'../escape.html',content:'evil'}]),/Unexpected or duplicate/);
 assert.throws(()=>previewZip.build(previewEntries.map(x=>x.name==='README.txt'
@@ -293,7 +328,7 @@ try{
  "if(project.facts.title!=='Verified Demo Company'||workspace.composition!=='gallery-mosaic')throw Error('exported edits missing');",
  "if(!downloadNames[4].endsWith('-html-preview.zip'))throw Error('HTML preview ZIP name');",
  "const previewZip=window.DesignFactoryPreviewZip.inspect(new Uint8Array(await blobs[4].arrayBuffer()));",
- "if(previewZip.files!==7||!previewZip.crcVerified)throw Error('HTML ZIP contents failed CRC');",
+ "if(previewZip.files!==8||!previewZip.crcVerified)throw Error('HTML ZIP contents failed CRC');",
  "const setField=(id,value)=>{const field=document.getElementById(id);field.focus();field.value=value;field.dispatchEvent(new Event('input',{bubbles:true}));field.dispatchEvent(new Event('change',{bubbles:true}));};",
  "setField('headline','Verified owner headline');setField('description','Verified owner description');setField('contactText','Verified owner contact');",
  "setField('service-0-title','Verified service one');setField('service-0-description','Owner confirmed service one');",
