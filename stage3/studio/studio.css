@@ -329,3 +329,30 @@
 @media(max-width:800px){.cms-blueprint-layout{grid-template-columns:1fr}
  .cms-blueprint-fields{max-height:none;overflow:visible}.cms-blueprint-preview{min-height:300px}
  #cms-blueprint-frame{height:430px}.cms-blueprint-dialog{padding:14px}}
+
+
+/* Whole-site verified copy intake with non-destructive overwrite policy. */
+.cms-fill-dialog{width:min(1170px,calc(100vw - 24px));max-width:none;max-height:calc(100vh - 24px);overflow:auto}
+.cms-fill-dialog>h2{margin:0;font-size:22px}
+.cms-fill-dialog>.subdued{margin:0}
+.cms-fill-layout{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(370px,1.2fr);gap:16px;min-height:0}
+.cms-fill-fields{display:grid;align-content:start;gap:11px;max-height:67vh;overflow:auto;padding-right:9px}
+.cms-fill-fields>label{min-width:0}
+.cms-fill-fields textarea{min-height:76px;resize:vertical}
+.cms-fill-fields .control{width:100%;min-width:0;box-sizing:border-box}
+.cms-fill-fields .cms-fill-overwrite{display:flex;align-items:flex-start;gap:7px;line-height:1.5;
+ border:1px solid #956c45;padding:10px;border-radius:9px;font-size:12px}
+.cms-fill-overwrite input{flex:none;accent-color:#f6c579;width:19px;height:19px}
+.cms-fill-preview{display:grid;align-content:start;gap:9px;min-width:0}
+.cms-fill-preview>.control{width:100%;box-sizing:border-box}
+#cms-fill-summary{margin:0;font-size:12px;font-weight:750;color:#b2e7d4}
+#cms-fill-error{margin:0;min-height:18px;color:#ffb4aa;font-size:12px}
+.cms-fill-devices{display:flex;gap:7px}
+#cms-fill-frame{width:100%;height:min(470px,52vh);display:block;background:white;border:1px solid #526a78;border-radius:10px}
+#cms-fill-frame.mobile{width:min(390px,100%);margin-inline:auto}
+#cms-fill-changes{display:grid;gap:5px;max-height:170px;overflow:auto}
+#cms-fill-changes p{font-size:11px;line-height:1.5;margin:0;padding:6px 8px;border:1px solid #365366;
+ border-radius:6px;overflow-wrap:anywhere}
+#cms-fill-changes small{font-size:11px;color:#a9d8ec}
+@media(max-width:790px){.cms-fill-layout{grid-template-columns:1fr}.cms-fill-fields{max-height:none;overflow:visible}
+ .cms-fill-dialog{padding:15px}#cms-fill-frame{height:400px}}
