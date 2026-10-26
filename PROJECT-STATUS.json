@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
-  "date": "2026-10-25",
-  "status": "stage2-no-go-stage3-isolated-v1.68-inbox-handoff",
+  "date": "2026-10-26",
+  "status": "stage2-no-go-stage3-isolated-v1.69-lead-site-map-handoff",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.68-2026-10-25.md",
-  "latest_source_sha": "70a6a4776b0389fd5a35830226952a0372cccd65",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40234189046",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40234189046",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.69-2026-10-26.md",
+  "latest_source_sha": "17e9061ee6ca40f12eb6f07f4e31f2ae6b3393c0",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40285158586",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40285158586",
   "source_offweb_ci": null,
-  "source_ci_result": "SUCCESS on 70a6a4776b0389fd5a35830226952a0372cccd65, Actions #40234189046; private lead inbox/CSV/bulk review + unread acknowledgement fix; isolated CI, NOT product acceptance",
+  "source_ci_result": "SUCCESS on exact functional SHA 17e9061ee6ca40f12eb6f07f4e31f2ae6b3393c0, Actions #40285158586; site-wide atomic text workbench, conditional forms, cross-page relocation and atomic site-map planner with hosted/offline Chromium, PHP HTTP and SDK CI. This is not product acceptance.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly, then fix issues from real use; never get stuck testing existing lab",
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "70a6a4776b0389fd5a35830226952a0372cccd65",
+    "stage3_code_sha": "17e9061ee6ca40f12eb6f07f4e31f2ae6b3393c0",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -52,11 +52,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Verify current HEAD and run status before a new commit. Deliver one large end-to-end CMS workflow improving content/editor/forms/preview/published UX. Final Design Factory D7 needs actual artifact and loss matrix. Stage2 NO-GO #5–#9, Stage3 not formally accepted, 0/135; no main or production.",
+  "next_step": "MAIN DEVELOPER ONLY. Verify latest HEAD/CI and continue main CMS site creation/visual composition, conditional lead forms, preview/save/published fidelity in one large end-to-end block. The independent Design Factory belongs to a different chat and must not be edited or merged. Stage2 NO-GO #5–#9, Stage3 unaccepted, 0/135. Do not touch main or production.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.68",
+  "checkpoint_version": "1.69",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -624,7 +624,7 @@
       15
     ],
     "formal_exit_gates_open": 8,
-    "latest_tested_code_sha": "b6de6197d3c5d93731c58934bda7c7107f9cb191",
+    "latest_tested_code_sha": "17e9061ee6ca40f12eb6f07f4e31f2ae6b3393c0",
     "product_preview": {
       "path": "cms/stage2-preview/index.html",
       "documentation": "cms/stage2-preview/README.md",
@@ -656,7 +656,7 @@
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.52",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.68-2026-10-25.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.69-2026-10-26.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -1225,8 +1225,8 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.68",
-  "last_docs_handoff_note": "Owner-requested v1.68 transfer after SUCCESS CI #40234189046 on 70a6a4776b0389fd5a35830226952a0372cccd65. Previous v1.67 docs were written during a newer failing inbox test; this source SHA fixes the notification disabled regression and is fully verified. Documentation HEAD and its CI are separate from functional SHA.",
+  "last_docs_handoff_version": "1.69",
+  "last_docs_handoff_note": "Owner-requested corrected v1.69 handoff for MAIN developer/integrator after mistaken transfer to independent Design Factory context. Functional checkpoint 17e9061ee6ca40f12eb6f07f4e31f2ae6b3393c0 has full CI SUCCESS #40285158586. Documentation HEAD is a later, separate commit; independently verify CI.",
   "latest_tested_code_sha": "70a6a4776b0389fd5a35830226952a0372cccd65",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
@@ -1393,7 +1393,7 @@
   },
   "main_branch": "main",
   "main_last_verified_sha": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
-  "stage3_source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40234189046",
+  "stage3_source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40285158586",
   "stage3_studio_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/40204138704/artifacts/12603301098",
   "stage3_screens_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/40204138704/artifacts/12603415800",
   "stage3_parallel": {
