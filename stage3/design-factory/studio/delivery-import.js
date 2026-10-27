@@ -44,15 +44,17 @@
     manifest.phpParity!==false||manifest.manualVisualAcceptance!==false)
    fail('Unsupported delivery profile');
   if(!Array.isArray(manifest.files)||manifest.files.length!==17)fail('Unexpected member manifest count');
-  const expected=zip.deliveryFiles.filter(n=>n!=='manifest.json');
-  for(let i=0;i<expected.length;i++){
-   const row=manifest.files[i];
+  const expected=new Set(zip.deliveryFiles.filter(n=>n!=='manifest.json'));
+  const recorded=new Set();
+  for(const row of manifest.files){
    obj(row,['path','crc32'],'manifest member');
-   if(row.path!==expected[i]||typeof row.crc32!=='string'||
-      !/^[0-9a-f]{8}$/.test(row.crc32)||
+   if(typeof row.path!=='string'||!expected.has(row.path)||recorded.has(row.path)||
+      typeof row.crc32!=='string'||!/^[0-9a-f]{8}$/.test(row.crc32)||
       row.crc32!==zip.crcText(files[row.path]).toString(16).padStart(8,'0'))
-    fail('Manifest member checksum mismatch: '+expected[i]);
+    fail('Manifest member checksum mismatch');
+   recorded.add(row.path);
   }
+  if(recorded.size!==expected.size)fail('Incomplete manifest paths');
   const workspace=parse('design/workspace.json');
   // D6 validates workspaces v1-v3, registered CMS fields, local links and
   // canonical reconstruction. Do not trust the copied site as executable input.
