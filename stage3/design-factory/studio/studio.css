@@ -167,3 +167,17 @@ body[data-review-mode=overview] .stage-area{min-width:0;padding-inline:clamp(12p
 #save-delivery-zip{white-space:nowrap}
 @media(max-width:1420px){.top-right{flex-wrap:wrap;justify-content:flex-end}.topbar{min-height:72px;height:auto;padding-block:10px}}
 @media(max-width:730px){#save-delivery-zip{flex:1 1 170px}#save-preview-zip{flex:1 1 140px}}
+
+/* Four-page section workbench: readable section identity and real touch controls. */
+.section-editor-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;color:#e4f7f0;font-size:13px}
+.section-editor-heading span{color:#a8c5ba;font-size:11px}
+.section-editor-list{display:grid;gap:8px;margin:10px 0 16px}
+.section-editor-row{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid rgba(179,208,195,.22);border-radius:12px;padding:9px 10px;background:rgba(255,255,255,.045);min-width:0}
+.section-editor-copy{display:grid;gap:4px;min-width:0;flex:1 1 auto}
+.section-editor-copy strong{font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.section-editor-copy small{font-size:10px;color:#aec6bc;overflow-wrap:anywhere;line-height:1.4}
+.section-editor-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.section-editor-actions button{min-width:35px;min-height:42px}
+.section-editor-actions-bottom{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}
+.section-editor-actions-bottom button{white-space:normal;min-height:44px}
+@media(max-width:440px){.section-editor-row{align-items:flex-start;flex-direction:column}.section-editor-actions{width:100%;justify-content:flex-end}.section-editor-actions-bottom{grid-template-columns:minmax(0,1fr)}}
