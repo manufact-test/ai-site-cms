@@ -11,6 +11,7 @@ const {expectedFiles}=require('../bin/visual-qa.cjs');
 const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
 const {sourcePaths,sourceIdentity,assertShowcaseCoverage}=require('../lib/visual-source-provenance.cjs');
 const {compositions}=require('../catalog/compositions.cjs');
+const {expectedGeneratedPaths,snapshotGeneratedSources}=require('../lib/generated-source-manifest.cjs');
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const TABLE=Uint32Array.from({length:256},(_,i)=>{
  let c=i;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;return c>>>0;
@@ -40,6 +41,22 @@ try{
  const imgs=Object.fromEntries(Object.entries(views).map(([name,v])=>[name,png(v.width,v.height)]));
  const files=expectedFiles(false);
  assert.equal(files.length,54);
+ const generated=expectedGeneratedPaths(files);
+ assert.equal(generated.length,164);
+ for(const relative of generated){
+  const dest=path.join(dir,relative);fs.mkdirSync(path.dirname(dest),{recursive:true});
+  if(relative.endsWith('.css'))fs.writeFileSync(dest,'body{margin:0}');
+  else if(relative.endsWith('.json'))fs.writeFileSync(dest,'{"format":"synthetic-test-record"}');
+  else{
+   const href=relative==='showcase/index.html'?'showcase.css':
+    /\/(?:services|approach|contact)\/index.html$/.test(relative)?'../assets/preview.css':'assets/preview.css';
+   const body=relative==='showcase/index.html'?
+    compositions.map(c=>'<article class="pattern layout-'+c.layout+'" id="'+c.id+'">Example</article>').join(''):
+    '<section class="section" id="content">Test preview source</section>';
+   fs.writeFileSync(dest,'<!doctype html><html><head><link rel="stylesheet" href="'+href+
+    '"></head><body><main>'+body+'</main></body></html>');
+  }
+ }
  const images=files.map(file=>{
   const viewName=Object.keys(views).find(name=>file.endsWith('-'+name+'.png'));
   assert.ok(viewName,file);
@@ -66,7 +83,8 @@ try{
   expectedImages:54,images,matrixComplete:true,captureCompleted:true,
   captureTransport:'file',diagnosticOnly:false,
   errors:[],humanVisualAcceptance:'pending',quick:false,
-  renderSourceSha256:sourceFingerprint(path.resolve(__dirname,'../../..'))};
+  renderSourceSha256:sourceFingerprint(path.resolve(__dirname,'../../..')),
+  generatedSourceFiles:snapshotGeneratedSources(dir,files)};
  report.evidenceSha256=evidenceHash(report);
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
  assert.equal(ACTIVITIES.length,5);
@@ -114,6 +132,17 @@ try{
  assert.ok(output.includes('document.getElementById(key).checked=false'));
 
  const reject=(modified,pattern)=>assert.throws(()=>verify(dir,modified),pattern);
+ const unscreened=path.join(dir,'sites/theme-editorial/approach/index.html');
+ const oldUnscreened=fs.readFileSync(unscreened);
+ try{
+  fs.appendFileSync(unscreened,'<!-- changed unphotographed internal route -->');
+  reject(approved,/Generated D7 source modified after capture/);
+ }finally{fs.writeFileSync(unscreened,oldUnscreened);}
+ const absentSourceManifest={...report,generatedSourceFiles:undefined};
+ absentSourceManifest.evidenceSha256=evidenceHash(absentSourceManifest);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(absentSourceManifest));
+ reject({...approved,evidenceSha256:absentSourceManifest.evidenceSha256},/Generated D7 source manifest is missing/);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
  const badDom={...report,images:report.images.map((x,i)=>i===0?{...x,dom:{...x.dom,stylesheets:0}}:x)};
  badDom.evidenceSha256=evidenceHash(badDom);
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(badDom));

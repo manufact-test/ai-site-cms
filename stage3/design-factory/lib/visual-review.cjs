@@ -7,6 +7,7 @@ const crypto=require('node:crypto');
 const {inspectPng}=require('./png-integrity.cjs');
 const {assertSourceIdentity}=require('./visual-source-provenance.cjs');
 const {compositions}=require('../catalog/compositions.cjs');
+const {verifyGeneratedSources}=require('./generated-source-manifest.cjs');
 const SHA=/^[a-f0-9]{64}$/;
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 const own=(object,key)=>Object.prototype.hasOwnProperty.call(object,key);
@@ -21,7 +22,8 @@ function evidenceHash(report){
   format:report.format,version:report.version,quick:report.quick,
   captureTransport:report.captureTransport,diagnosticOnly:report.diagnosticOnly,
   renderSourceSha256:report.renderSourceSha256,
-  expectedImages:report.expectedImages,images:rows
+  expectedImages:report.expectedImages,images:rows,
+  generatedSourceFiles:report.generatedSourceFiles
  })));
 }
 const pngDimensions=inspectPng;
@@ -83,6 +85,7 @@ function checkEvidence(directory,report){
    item.overflowPixels>8||item.overflowPixels<0)
    throw Error('Viewport or horizontal overflow mismatch: '+item.file);
  }
+ verifyGeneratedSources(root,expected,report.generatedSourceFiles);
  return new Map(report.images.map(x=>[x.file,x]));
 }
 function verify(directory,review){

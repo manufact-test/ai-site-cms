@@ -13,6 +13,7 @@ const {inspectPng}=require('../lib/png-integrity.cjs');
 const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
 const {sourcePaths,sourceIdentity}=require('../lib/visual-source-provenance.cjs');
 const {compositions}=require('../catalog/compositions.cjs');
+const {snapshotGeneratedSources}=require('../lib/generated-source-manifest.cjs');
 const {FORMAT,THEMES,KITS,compile}=require('../lib/compiler.cjs');
 const {writePreview}=require('../lib/preview.cjs');
 const {writeShowcase}=require('../lib/showcase.cjs');
@@ -155,6 +156,8 @@ async function run(options){
    ' unique viewport-matched images; got '+matrix.actualCount+' ('+matrix.missing.length+
    ' missing, '+matrix.unexpected.length+' unexpected, '+matrix.duplicates+' duplicate, '+
    matrix.dimensionMismatches+' dimension mismatches).');
+  try{report.generatedSourceFiles=snapshotGeneratedSources(root,expected);}
+  catch(error){report.errors.push('Full generated source inventory: '+error.message);}
   try{
    if(report.renderSourceSha256!==sourceFingerprint(REPO))
     report.errors.push('Renderer/Studio/CMS source changed during screenshot capture');

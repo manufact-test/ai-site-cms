@@ -90,4 +90,4 @@ function assertSourceIdentity(root,image,claimed){
   throw Error('Visual source bytes or identity mismatch: '+image);
  return actual;
 }
-module.exports=Object.freeze({sourcePaths,sourceIdentity,assertSourceIdentity,assertOfflineNavigation,assertShowcaseCoverage});
+module.exports=Object.freeze({sourcePaths,readSource,sourceIdentity,assertSourceIdentity,assertOfflineNavigation,assertShowcaseCoverage});
