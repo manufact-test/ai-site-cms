@@ -74,6 +74,9 @@ function setHistory(direction){
  if(!from.length)return;
  to.push(snapshot());const next=from.pop();
  state.project=next.project;state.composition=next.composition;
+ // Undo/Redo must never silently restore a previous authorization to index.
+ // Owner must actively re-confirm after any history navigation.
+ state.project.ownerReviewConfirmed=false;
  state.editRevision++;
  refreshHistory();renderAll();say(direction==='undo'?'Изменение отменено.':'Изменение восстановлено.');
 }
@@ -90,7 +93,11 @@ function compileForTheme(theme){
  if(state.composition){
   const registry=engine.compiler.loadRegistry();
   const replacement=engine.adapter.sectionFor(state.composition,'df-selected-composition',state.project.language,registry);
-  site.pages[0].sections[site.pages[0].sections.length-1]=replacement;
+  // Keep the original CTA as a conversion path. Optional design composition is
+  // additive, never an accidental replacement of the visitor's final action.
+  const sections=site.pages[0].sections;
+  const cta=sections.findIndex(s=>s.component==='cta-banner');
+  sections.splice(cta<0?sections.length:cta,0,replacement);
   site=engine.sdk.validateSite(site,registry);
   const inspect=engine.sdk.inspectSite(site,registry);
   if(inspect.errors.length)throw Error('Некорректные ссылки: '+inspect.errors.length);

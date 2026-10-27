@@ -142,6 +142,10 @@ assert.ok(!markup.includes('allow-same-origin'));
   assert.ok(markup.includes('id="'+id+'"'),'D7 workbench control '+id);
  assert.ok(markup.includes('id="compare-preview" sandbox="allow-scripts"'));
  assert.ok(app.includes('function compileForTheme(theme)'));
+assert.ok(app.includes("sections.splice(cta<0?sections.length:cta,0,replacement)"),
+ 'Composition must not delete the default CTA block');
+assert.ok(app.includes('state.project.ownerReviewConfirmed=false;\n state.editRevision++;'),
+ 'Undo/Redo must not implicitly restore a previous owner approval');
  assert.ok(app.includes('const project=theme===state.project.theme?state.project:{...clone(state.project),theme}'));
  assert.ok(app.includes("if(state.viewMode==='overview')renderOverview(result)"));
  assert.ok(app.includes("if(state.viewMode==='compare')"));
@@ -350,6 +354,7 @@ try{
  "const c=document.getElementById('composition');c.value='gallery-mosaic';c.dispatchEvent(new Event('change',{bubbles:true}));",
  "if(document.getElementById('composition').value!=='gallery-mosaic')throw Error('composition selection');",
  "if(!document.getElementById('site-preview').srcdoc.includes('photo-gallery-preview'))throw Error('gallery preview');",
+ "if(!document.getElementById('site-preview').srcdoc.includes('cta-banner'))throw Error('selected composition removed original CTA');",
  "document.getElementById('undo').click();",
  "if(document.getElementById('composition').value==='gallery-mosaic')throw Error('undo failure');",
  "document.getElementById('redo').click();",
