@@ -2494,6 +2494,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const section=page.sections.find(s=>s.id===issue.sectionId)||page.sections[0];
     const element=[...section.elements,...(section.items||[])].find(e=>e.id===issue.elementId)||section.elements[0];
     pageId=page.id;sectionId=section.id;elementId=element.id;draw();
+    if(issue.nodeId&&section.designGraph){
+      pendingGraphCanvasFocus={pageId:page.id,sectionId:section.id,
+        nodeId:issue.nodeId,device:'desktop'};
+      $('section-design-graph')?.click();return true;
+    }
     if(issue.kind==='seo'){$('cms-open-seo')?.click();return true;}
     if(issue.kind==='form'){$('cms-form-builder-open')?.click();return true;}
     const field=[...$('fields').querySelectorAll('[data-field]')]
@@ -2511,7 +2516,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     panel.className='cms-quality-repairs';panel.id='cms-site-repairs';
     const title=document.createElement('h3');title.textContent='Ссылки и медиа всего сайта';
     const description=document.createElement('p');
-    description.textContent='Исправьте устаревшие и битые внутренние ссылки, заполните пустые медиаполя или переназначьте изображения. Выбирайте изменения вручную; сначала предпросмотр, потом одно Undo. Внешние адреса и Design Graph не перезаписываются.';
+    description.textContent='Исправьте устаревшие и битые внутренние ссылки, заполните пустые медиаполя или переназначьте изображения. Выбирайте изменения вручную; сначала предпросмотр, потом одно Undo. Внешние адреса не затрагиваются. Поддерживаются также кнопки, изображения, видео и постеры Design Graph.';
     const filters=document.createElement('div');filters.className='cms-repair-filters';
     const pageFilter=document.createElement('select');pageFilter.id='cms-repair-page';pageFilter.className='control';
     pageFilter.setAttribute('aria-label','Страница для исправлений');
@@ -2546,20 +2551,44 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const option=document.createElement('option');
       option.value=value;option.textContent=label;select.append(option);
     };
-    const findIssues=(page,section,element,value)=>{
-      const all=C.inspectSite(session.current,manifests);
-      return [...all.errors,...all.warnings].find(item=>
-        ['broken-link','old-link','broken-anchor'].includes(item.kind)&&
-        item.pageId===page.id&&item.sectionId===section.id&&
-        item.elementId===element.id&&item.path===value);
-    };
     const collect=()=>{
       const site=session.current,diagnostics=C.inspectSite(site,manifests);
       const linkFindings=[...diagnostics.errors,...diagnostics.warnings]
         .filter(item=>['broken-link','old-link','broken-anchor'].includes(item.kind));
       const rows=[],referenced=new Set();
       for(const page of site.pages){
+        if(page.seo?.ogImage)referenced.add(page.seo.ogImage);
         for(const section of page.sections){
+          if(section.designGraph){
+            const traverse=nodes=>{
+              for(const node of nodes){
+                const common={pageId:page.id,pageTitle:page.title,sectionId:section.id,
+                  nodeId:node.id,elementId:null,graph:true};
+                if(node.type==='button'&&node.href?.startsWith('/')&&!node.href.startsWith('//')){
+                  const issue=linkFindings.find(item=>item.pageId===page.id&&
+                    item.sectionId===section.id&&item.nodeId===node.id&&item.path===node.href);
+                  rows.push({...common,path:'href',fieldLabel:'Кнопка · '+node.id,
+                    kind:'link',value:node.href,issue:issue?.kind||'',
+                    message:issue?.message||''});
+                }
+                if(['image','video'].includes(node.type)){
+                  referenced.add(node.assetId);
+                  rows.push({...common,path:'assetId',fieldLabel:
+                    (node.type==='video'?'Видео':'Изображение')+' · '+node.id,
+                    kind:'media',mediaKind:node.type,value:node.assetId,issue:'',message:''});
+                  if(node.type==='video'){
+                    if(node.posterAssetId)referenced.add(node.posterAssetId);
+                    rows.push({...common,path:'posterAssetId',fieldLabel:'Постер видео · '+node.id,
+                      kind:'media',mediaKind:'poster',value:node.posterAssetId||'',issue:'',
+                      message:node.posterAssetId?'':'Постер не выбран (необязательно)'});
+                  }
+                }
+                if(node.children)traverse(node.children);
+              }
+            };
+            traverse(section.designGraph.nodes);
+            continue; // Hidden legacy component fields are not public output.
+          }
           const spec=manifests.find(m=>m.id===section.component&&m.version===section.manifestVersion);
           for(const element of [...section.elements,...(section.items||[])]){
             const part=element.slot?spec?.elements.find(item=>item.slot===element.slot):spec?.repeat;
@@ -2576,14 +2605,6 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                 kind:field.type==='url'?'link':'media',value,issue:issue?.kind||'',
                 message:issue?.message||(field.type==='media'&&!value?'Изображение не выбрано':'')});
             }
-          }
-          if(section.designGraph){
-            const traverse=nodes=>{
-              for(const node of nodes){
-                if(node.type==='image'&&node.assetId)referenced.add(node.assetId);
-                if(node.children)traverse(node.children);
-              }
-            };traverse(section.designGraph.nodes);
           }
         }
       }
@@ -2624,9 +2645,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           target.value=(session.current.redirects||[]).find(r=>r.from===item.value)?.to||
             (session.current.pages.some(page=>page.path===item.value)?item.value:session.current.pages[0].path);
         }else{
-          makeOption(target,'','Без изображения');
+          if(!item.graph||item.mediaKind==='poster')makeOption(target,'','Без изображения');
           for(const asset of session.current.assets)
-            if(asset.mime!=='video/mp4')makeOption(target,asset.id,(asset.alt||asset.id)+' · '+asset.mime);
+            if((item.mediaKind==='video')===(asset.mime==='video/mp4')&&
+              (item.mediaKind==='video'||asset.mime!=='video/mp4'))
+              makeOption(target,asset.id,(asset.alt||asset.id)+' · '+asset.mime);
           target.value=item.value||'';
         }
         const jump=button('Открыть','btn small',()=>{
@@ -2654,17 +2677,44 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       for(const row of chosen){
         const page=candidate.pages.find(page=>page.id===row.pageId);
         const section=page?.sections.find(section=>section.id===row.sectionId);
-        const element=[...(section?.elements||[]),...(section?.items||[])].find(item=>item.id===row.elementId);
-        if(!element||element.values[row.path]!==row.value)
-          throw Error('Поле изменилось с момента выбора. Откройте список заново.');
+        if(!section)throw Error('Блок удалён. Обновите список.');
         const to=row.target.value;
         if(row.kind==='link'&&!candidate.pages.some(page=>page.path===to))
           throw Error('Целевая страница отсутствует');
-        if(row.kind==='media'&&to&&!candidate.assets.some(asset=>asset.id===to&&asset.mime!=='video/mp4'))
-          throw Error('Медиа больше нет в библиотеке');
-        element.values[row.path]=to;
-        changes.push({pageId:page.id,sectionId:section.id,elementId:element.id,
-          kind:row.kind,path:row.path,from:row.value,to});
+        if(row.kind==='media'){
+          const asset=candidate.assets.find(asset=>asset.id===to);
+          if(row.graph&&row.mediaKind!=='poster'&&!to)
+            throw Error('Для графового изображения или видео обязателен медиафайл');
+          if(to&&(!asset||(row.mediaKind==='video')!==(asset.mime==='video/mp4')))
+            throw Error('Новый медиафайл отсутствует или не соответствует типу');
+        }
+        let element;
+        if(row.graph){
+          if(!section.designGraph)throw Error('Дизайн-композиция больше не существует');
+          const find=nodes=>{
+            for(const node of nodes){
+              if(node.id===row.nodeId)return node;
+              if(node.children){const hit=find(node.children);if(hit)return hit;}
+            }
+            return null;
+          };
+          element=find(section.designGraph.nodes);
+          if(!element||((row.kind==='link'&&element.type!=='button')||
+              (row.mediaKind==='video'&&element.type!=='video')||
+              (row.mediaKind==='poster'&&element.type!=='video')||
+              (row.mediaKind==='image'&&element.type!=='image')))
+            throw Error('Графовый узел изменился. Обновите список.');
+          if((element[row.path]||'')!==row.value)
+            throw Error('Узел изменился с момента выбора.');
+          if(to)element[row.path]=to;else delete element[row.path];
+        }else{
+          element=[...section.elements,...(section.items||[])].find(item=>item.id===row.elementId);
+          if(!element||element.values[row.path]!==row.value)
+            throw Error('Поле изменилось с момента выбора. Обновите список.');
+          element.values[row.path]=to;
+        }
+        changes.push({pageId:page.id,sectionId:section.id,elementId:row.elementId,
+          nodeId:row.nodeId||null,kind:row.kind,path:row.path,from:row.value,to});
       }
       C.validateSite(candidate,manifests);
       return {candidate,changes};
