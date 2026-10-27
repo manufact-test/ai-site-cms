@@ -2,13 +2,15 @@
 
 **Date:** 2026-10-27. **Repo:** https://github.com/manufact-test/ai-site-cms  
 **Independent branch:** `feature/stage3-design-factory`  
-**Latest verified functional commit:** `8e49b2d177f683d26814aba01aac7b4c2d647554` (three quality-fix commits; documentation commits follow).  
+**Latest verified functional commit:** `28fb2d5fe99fb49591edd484fa386606cd265689` (RU/EN client reviews, editable notes and unsaved-edit safety; documentation commit follows).  
 **Scope:** only `stage3/design-factory/**` (do not modify main, lead SDK/PHP/server, CI workflows, hosting, production or other contributors' branches). Do not merge or publish. Check actual remote HEAD first; documentation-only handoff commits follow the functional SHA.
 
 
 > **Runner update, 2026-10-27:** The new chat independently confirmed that this container cannot resolve GitHub for `git clone` and Chromium blocks **both** `file://` and loopback `http://127.0.0.1` with `ERR_BLOCKED_BY_ADMINISTRATOR`. Real D7 remains NOT RUN. Eight common Lead component manifests are byte-identical; the Lead contract/schema have evolved. See [D7-EXECUTION-BLOCKER-2026-10-27.md](D7-EXECUTION-BLOCKER-2026-10-27.md). Do not run another synthetic D7 acceptance or claim 86% changed. Real runner + genuine human signoff are required.
 
 > **Product correction update, 2026-10-27:** Three committed D7-facing fixes: verified contact facts now reach the HTML contact panel without a self-link; rejected screenshot/composition verdicts cannot yield a ready human-approval receipt; all 12 themes use their CMS font stack in HTML previews. See `PROGRESS.md` for the three exact SHAs. Generated Studio runtime was source-parity checked using current GitHub source, but **no real Node checkout audit, Chromium full E2E, human signoff, PHP probes or release ZIP was executed**. D7 OPEN, Stage3 UNACCEPTED, 0/135.
+
+> **Client review update, 2026-10-27:** RU/EN `review.html` generated per Studio project locale; notes can be edited (page/type/content), reopened on change, and exported only after saving or cancelling active edits. Real first-party compiler + 8-file ZIP CRC32 worked for RU and EN in isolated JS, as did a mocked-DOM feedback edit/download. Actual Chromium/Node/PHP/D7 release evidence **NOT RUN**. See `studio/README.md` and `PROGRESS.md`.
 
 ## First rule for this chat
 
