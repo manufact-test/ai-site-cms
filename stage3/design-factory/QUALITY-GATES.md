@@ -488,3 +488,10 @@ Workspace v3 introduces `pageSettings`: four explicit routes, exact `title`, `se
 
 Real GitHub source was executed in **isolated JS with mock DOM**, including per-page changes, non-persistent drafts, live snippet, reset/cancel, D6 equality, old-workspace parity and malformed metadata rejection. This does **not** constitute a passing Chromium E2E, full Node checkout, actual PHP renderer, visual design acceptance or production approval. Official 0/135, Stage2 NO-GO, Stage3 UNACCEPTED and D7 OPEN remain as before.
 
+
+## ZIP restore safety, 27 October 2026
+
+The handoff ZIP importer is *offline only*: `preview-zip.js` verifies exact 18 names, ZIP32 STORE local + central records, bounds, CRC32 and strict UTF-8; `delivery-import.js` verifies all declared manifest CRCs by path, registered CMS/D6 workspace parity, owner/project metadata, four regenerated HTML previews and CSS, review portal context, audit route/SEO/section summary, services TXT and bridge information. Restored owner verification never authorizes indexing — even previously `index` exports are restored as `noindex` and require new sign-off. Archive contents are parsed as data; no archived HTML scripts, links or images are executed. CRC32 detects transfer corruption, **not deliberate signed authenticity**. Explicit user apply follows successful preflight, with current work protected against an asynchronous stale-file swap and recoverable by Undo.
+
+Real first-party GitHub JS was run in isolated V8 to verify both successful full ZIP recoveries and rejected altered/corrupt packages. The existing Node and Chromium smoke sources have focused new paths but **were not executed as checked-out Node suite or real Chromium** in the DNS-blocked environment. These checks do not count towards official D7, PHP parity, responsive screenshots, or owner visual acceptance; 0/135 accepted, Stage2 NO-GO and Stage3 UNACCEPTED remain.
+
