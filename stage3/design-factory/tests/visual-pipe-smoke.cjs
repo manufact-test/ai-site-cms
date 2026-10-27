@@ -60,6 +60,20 @@ const size=inspectPng;
   assert.equal(await browser.waitForElementText(url,'d7-probe',5000),'CDP READY',
    'DevTools pipe must observe asynchronous DOM state without --dump-dom');
   await assert.rejects(browser.waitForElementText('https://example.com/','d7-probe'),/Only offline file URLs/);
+  // Full route smoke is separate from screenshot capture.
+  const routeFile=path.join(dir,'index.html'),routeUrl=pathToFileURL(routeFile).href;
+  const routeHtml='<!doctype html><html><head><meta name="robots" content="noindex">'+
+   '<style>.section{padding:20px}</style></head><body><header><nav>'+
+   '<a href="index.html">Home</a><a href="index.html">Services</a>'+
+   '<a href="index.html">Approach</a><a href="index.html">Contact</a>'+
+   '</nav></header><main><section class="section">Offline route with verified page body and first-party navigation.</section></main></body></html>';
+  fs.writeFileSync(routeFile,routeHtml);
+  const route=await browser.inspectOfflineRoute(routeUrl,widths[2]);
+  assert.equal(route.viewportWidth,390);
+  assert.equal(route.robots,'noindex');
+  assert.equal(route.navigationLinks,4);
+  fs.writeFileSync(routeFile,routeHtml.replace('content="noindex"','content="index"'));
+  await assert.rejects(browser.inspectOfflineRoute(routeUrl,widths[2]),/Incomplete real Chromium offline route/);
   const cssFile=path.join(dir,'styles.css');
   fs.writeFileSync(cssFile,'body{margin:0;background:#123456}main{padding:20px}');
   fs.writeFileSync(filename,'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">'+

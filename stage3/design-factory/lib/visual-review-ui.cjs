@@ -41,6 +41,9 @@ function reviewHtml(report){
  const alerts=report.errors?.length?'<p class="error">CAPTURE ERRORS: '+
   escape(report.errors.join(' | '))+'</p>':'';
  const full=report.captureTransport==='file'&&report.diagnosticOnly===false&&
+  Array.isArray(report.generatedSourceFiles)&&report.generatedSourceFiles.length===164&&
+  Array.isArray(report.routeAudit)&&report.routeAudit.length===64&&
+  report.images.every(image=>image.source&&image.dom)&&
   report.matrixComplete===true&&report.captureCompleted===true&&
   report.quick===false&&report.images.length===54&&report.errors.length===0;
  return '<!doctype html><html lang="en"><head><meta charset="utf-8">'+
@@ -62,7 +65,8 @@ function reviewHtml(report){
  '<body data-full-matrix="'+String(full)+'" data-evidence-sha256="'+escape(report.evidenceSha256||'')+'"><main>'+
  '<h1>Design Factory · visual review</h1><p class="status">Manual visual acceptance: <strong>PENDING</strong> · '+
  report.images.length+' / '+report.expectedImages+' screenshots · matrix '+
- (report.matrixComplete?'complete':'incomplete')+' · '+escape(report.captureTransport||'file')+' transport · 1280 / 768 / 390 px</p>'+
+ (report.matrixComplete?'complete':'incomplete')+' · '+escape(report.captureTransport||'file')+' transport · 1280 / 768 / 390 px · '+
+ (report.generatedSourceFiles?.length||0)+'/164 source files · '+(report.routeAudit?.length||0)+'/64 audited routes</p>'+
  alerts+'<p class="muted">Memory-static screenshots are diagnostics only: formal D7 acceptance requires real offline file navigation. Inspect screenshot quality, overflow, navigation, RU/EN, and owner placeholders. Open real sites separately for keyboard, touch and motion checks. A self-declared receipt is NOT PHP pixel parity or CMS approval.</p>'+
  '<div class="review-form"><h2>Complete human review</h2>'+
  '<p>Approve or reject every PNG and all 42 compositions separately. Rejections require notes. Use the individual showroom links, then confirm the five manual checks.</p>'+

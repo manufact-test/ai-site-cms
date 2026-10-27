@@ -112,6 +112,10 @@ try{
  assert.equal(receipt.humanAttestationRecorded,true);
  const output=reviewHtml(report);
  assert.ok(output.includes('data-full-matrix="true"'));
+ assert.ok(output.includes('164 source files'));
+ assert.ok(output.includes('64 audited routes'));
+ assert.ok(reviewHtml({...report,generatedSourceFiles:[]}).includes('data-full-matrix="false"'));
+ assert.ok(reviewHtml({...report,routeAudit:[]}).includes('data-full-matrix="false"'));
  assert.ok(output.includes('data-evidence-sha256="'+report.evidenceSha256+'"'));
  assert.equal((output.match(/<article data-review /g)||[]).length,54);
  assert.equal((output.match(/<article data-composition /g)||[]).length,42);
