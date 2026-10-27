@@ -580,7 +580,7 @@ try{
  "restoreInput.files=restoreUpload.files;restoreInput.dispatchEvent(new Event('change',{bubbles:true}));",
  "const restoreButton=document.getElementById('delivery-restore-apply');",
  "for(let attempt=0;attempt<60&&restoreButton.disabled;attempt++)await new Promise(done=>setTimeout(done,50));",
- "if(restoreButton.disabled||!document.getElementById('delivery-restore-status').textContent.includes('18'))throw Error('ZIP restore preview did not validate');",
+ "if(restoreButton.disabled||!document.getElementById('delivery-restore-status').textContent.includes('18'))throw Error('ZIP restore preview did not validate: '+document.getElementById('delivery-restore-status').textContent);",
  "restoreButton.click();",
  "if(!document.getElementById('delivery-restore-status').textContent.includes('восстановлен'))throw Error('ZIP restore commit failed');",
  "if(!document.getElementById('site-preview').srcdoc.includes('Verified section heading'))throw Error('ZIP restore lost edited page copy');",
