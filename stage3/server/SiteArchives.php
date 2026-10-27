@@ -71,12 +71,30 @@ trait SiteArchives
             foreach ($this->archiveRows('stage3_notifications', $id, 'submission_id,created_at,seen_at', 'submission_id') as $r) {
                 $notices[$r['submission_id']] = ['createdAt' => $r['created_at'], 'seenAt' => $r['seen_at']];
             }
+            $workflows=[];
+            foreach($this->archiveRows('stage3_lead_workflow',$id,
+                'submission_id,priority,note,revision,operator,changed_at','submission_id') as $w){
+                $workflows[$w['submission_id']]=['priority'=>$w['priority'],'note'=>$w['note'],
+                    'revision'=>(int)$w['revision'],'operator'=>$w['operator'],'changedAt'=>$w['changed_at']];
+            }
+            $events=[];
+            foreach($this->archiveRows('stage3_lead_events',$id,
+                'event_id,submission_id,operator,from_status,to_status,from_priority,to_priority,note_changed,changed_at',
+                'submission_id,changed_at,event_id') as $row){
+                $events[$row['submission_id']][]=[
+                    'eventId'=>$row['event_id'],'operator'=>$row['operator'],
+                    'fromStatus'=>$row['from_status'],'toStatus'=>$row['to_status'],
+                    'fromPriority'=>$row['from_priority'],'toPriority'=>$row['to_priority'],
+                    'noteChanged'=>(int)$row['note_changed'],'changedAt'=>$row['changed_at']];
+            }
             $leads = [];
             foreach ($this->archiveRows('stage3_submissions', $id,
                 'submission_id,section_id,source_version,name,email,message,submitted_at,status,extras', 'submission_id') as $r) {
                 $r['source_version'] = (int)$r['source_version'];
                 $r['extras'] = self::decode($r['extras']);
                 $r['notification'] = $notices[$r['submission_id']] ?? null;
+                $r['workflow']=$workflows[$r['submission_id']]??null;
+                $r['workflowEvents']=$events[$r['submission_id']]??[];
                 $leads[] = $r;
             }
             $q = $this->db->prepare('SELECT version FROM stage3_publications WHERE site_id = ?');
@@ -217,7 +235,12 @@ trait SiteArchives
         }
         $leadIds = [];
         foreach ($p['submissions'] as $lead) {
-            self::archiveKeys($lead, ['submission_id','section_id','source_version','name','email','message','submitted_at','status','extras','notification']);
+            $baseKeys=['submission_id','section_id','source_version','name','email','message',
+                'submitted_at','status','extras','notification'];
+            if(array_key_exists('workflow',$lead)||array_key_exists('workflowEvents',$lead)){
+                // New backups include both fields; legacy v1 archives include neither.
+                self::archiveKeys($lead,[...$baseKeys,'workflow','workflowEvents']);
+            }else self::archiveKeys($lead,$baseKeys);
             self::archiveCheck(is_string($lead['submission_id']) && preg_match('/^lead-[a-f0-9]{24}$/D', $lead['submission_id']) === 1
                 && !isset($leadIds[$lead['submission_id']]), 'invalid/duplicate submission');
             $leadIds[$lead['submission_id']] = true;
@@ -231,12 +254,47 @@ trait SiteArchives
             }
             self::archiveCheck($form !== null, 'lead form is missing');
             foreach (['name' => 120, 'email' => 254, 'message' => 4000] as $field => $max) self::archiveText($lead[$field], $max);
-            self::archiveCheck(in_array($lead['status'], ['new','reviewed'], true) && is_array($lead['extras']) && count($lead['extras']) <= 3, 'invalid lead data');
+            self::archiveCheck(in_array($lead['status'], ['new','in_progress','reviewed'], true) && is_array($lead['extras']) && count($lead['extras']) <= 3, 'invalid lead data');
             foreach ($lead['extras'] as $key => $extra) {
                 self::archiveCheck(is_string($key) && preg_match('/^[a-z0-9_-]{1,80}$/D', $key) === 1, 'invalid extra key');
                 self::archiveKeys($extra, ['label','value']); self::archiveText($extra['label'], 200); self::archiveText($extra['value'], 4000);
             }
             self::archiveDate($lead['submitted_at']);
+            if(array_key_exists('workflow',$lead)){
+                $workflow=$lead['workflow'];
+                if($workflow!==null){
+                    self::archiveKeys($workflow,['priority','note','revision','operator','changedAt']);
+                    self::archiveCheck(in_array($workflow['priority'],['normal','high'],true)
+                        &&is_int($workflow['revision'])&&$workflow['revision']>=1
+                        &&$workflow['revision']<=1000000000
+                        &&is_string($workflow['operator'])
+                        &&preg_match('/^[a-z][a-z0-9_-]{2,39}$/D',$workflow['operator'])===1,
+                        'invalid private lead workflow');
+                    self::archiveText($workflow['note'],2000);self::archiveDate($workflow['changedAt']);
+                }
+                self::archiveCheck(is_array($lead['workflowEvents'])&&array_is_list($lead['workflowEvents'])
+                    &&count($lead['workflowEvents'])<=5000,'invalid lead audit event count');
+                if($lead['status']==='in_progress')self::archiveCheck($workflow!==null,'missing in-progress workflow');
+                if($workflow===null)self::archiveCheck(count($lead['workflowEvents'])===0,'orphan lead audit events');
+                $seenEvents=[];
+                foreach($lead['workflowEvents'] as $event){
+                    self::archiveKeys($event,['eventId','operator','fromStatus','toStatus','fromPriority',
+                        'toPriority','noteChanged','changedAt']);
+                    self::archiveCheck(is_string($event['eventId'])
+                        &&preg_match('/^event-[a-f0-9]{24}$/D',$event['eventId'])===1
+                        &&!isset($seenEvents[$event['eventId']])
+                        &&is_string($event['operator'])
+                        &&preg_match('/^[a-z][a-z0-9_-]{2,39}$/D',$event['operator'])===1
+                        &&in_array($event['fromStatus'],['new','in_progress','reviewed'],true)
+                        &&in_array($event['toStatus'],['new','in_progress','reviewed'],true)
+                        &&in_array($event['fromPriority'],['normal','high'],true)
+                        &&in_array($event['toPriority'],['normal','high'],true)
+                        &&in_array($event['noteChanged'],[0,1],true),'invalid lead audit event');
+                    $seenEvents[$event['eventId']]=true;
+                    self::archiveDate($event['changedAt']);
+                }
+            }else self::archiveCheck($lead['status']!=='in_progress',
+                'legacy archive has unsupported in-progress lead');
             if ($lead['notification'] !== null) {
                 self::archiveKeys($lead['notification'], ['createdAt','seenAt']); self::archiveDate($lead['notification']['createdAt']);
                 if ($lead['notification']['seenAt'] !== null) self::archiveDate($lead['notification']['seenAt']);
@@ -280,12 +338,21 @@ trait SiteArchives
             foreach ($p['templates'] as $t) $q->execute([$target,$t['id'],$t['title'],$t['component'],self::encode($t['section']),$t['createdAt']]);
             $leadInsert = $this->db->prepare('INSERT INTO stage3_submissions (submission_id,site_id,section_id,source_version,name,email,message,submitted_at,visitor_hash,status,extras) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
             $noticeInsert = $this->db->prepare('INSERT INTO stage3_notifications (site_id,submission_id,created_at,seen_at) VALUES (?,?,?,?)');
+            $workflowInsert=$this->db->prepare('INSERT INTO stage3_lead_workflow (site_id,submission_id,priority,note,revision,operator,changed_at) VALUES (?,?,?,?,?,?,?)');
+            $eventInsert=$this->db->prepare('INSERT INTO stage3_lead_events (event_id,site_id,submission_id,operator,from_status,to_status,from_priority,to_priority,note_changed,changed_at) VALUES (?,?,?,?,?,?,?,?,?,?)');
             foreach ($p['submissions'] as $lead) {
                 // Lead identity is installation-global: generate a fresh ID for independent copies.
                 $id = 'lead-' . bin2hex(random_bytes(12));
                 $leadInsert->execute([$id,$target,$lead['section_id'],$lead['source_version'],$lead['name'],$lead['email'],$lead['message'],
                     $lead['submitted_at'],hash('sha256',random_bytes(32)),$lead['status'],self::encode($lead['extras'])]);
                 if ($lead['notification'] !== null) $noticeInsert->execute([$target,$id,$lead['notification']['createdAt'],$lead['notification']['seenAt']]);
+                $workflow=$lead['workflow']??null;
+                if($workflow!==null)$workflowInsert->execute([$target,$id,$workflow['priority'],
+                    $workflow['note'],$workflow['revision'],$workflow['operator'],$workflow['changedAt']]);
+                foreach($lead['workflowEvents']??[] as $event)$eventInsert->execute([
+                    'event-'.bin2hex(random_bytes(12)),$target,$id,$event['operator'],
+                    $event['fromStatus'],$event['toStatus'],$event['fromPriority'],$event['toPriority'],
+                    $event['noteChanged'],$event['changedAt']]);
             }
             return ['site' => $p['draft']['site'], 'revision' => $p['draft']['revision']];
         });
