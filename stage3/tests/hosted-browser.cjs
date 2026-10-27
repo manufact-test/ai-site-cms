@@ -1255,7 +1255,31 @@ async function execute(){
     return site;
   });
   fs.writeFileSync(path.join(folder,'site.json'),JSON.stringify(external));
-  await page.locator('#server-approved-folder').setInputFiles(folder);
+  // The Chromium directory picker is human-driven; Playwright's setInputFiles
+  // cannot consistently feed a folder in headless Linux. Inject the exact File
+  // objects with webkitRelativePath, as emitted by the native folder control.
+  const uploaded=[];
+  const walk=(dir,prefix='')=>{
+    for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
+      const relative=prefix+entry.name,absolute=path.join(dir,entry.name);
+      if(entry.isDirectory())walk(absolute,relative+'/');
+      else uploaded.push({relative:'approved-external-site/'+relative,
+        name:entry.name,base64:fs.readFileSync(absolute).toString('base64')});
+    }
+  };
+  walk(folder);
+  await page.evaluate(entries=>{
+    const list=new DataTransfer();
+    for(const entry of entries){
+      const bytes=Uint8Array.from(atob(entry.base64),char=>char.charCodeAt(0));
+      const file=new File([bytes],entry.name);
+      Object.defineProperty(file,'webkitRelativePath',{value:entry.relative});
+      list.items.add(file);
+    }
+    const input=document.querySelector('#server-approved-folder');
+    input.files=list.files;
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  },uploaded);
   await page.locator('#toast').getByText(/Сайт подключён как черновик/).waitFor({timeout:15000});
   const imported=await page.evaluate(()=>window.Stage3Editor.getSite());
   assert.equal(imported.siteId,'site-approved-browser');
