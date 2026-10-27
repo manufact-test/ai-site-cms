@@ -140,7 +140,7 @@ async function main(){
     };
     for(const page of pub.pages){
       const response=await request(page.path),body=await response.text();
-      check('GET '+page.path,response.status===200&&body.startsWith('<!doctype html>'),
+      check('GET '+page.path,response.status===200&&/^\s*<!doctype\s+html>/i.test(body),
         'status '+response.status+'; published HTML route');
       const head=await request(page.path,'HEAD');
       const empty=Buffer.from(await head.arrayBuffer()).length===0;
