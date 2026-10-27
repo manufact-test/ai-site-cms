@@ -1302,6 +1302,72 @@ function validateFallbacks(){
 module.exports=Object.freeze({sectionFor,compare,validateFallbacks,PROPOSALS});
 
 },
+"sectionEdits":function(module,exports,require,__dirname){
+'use strict';
+// Registered text/url overrides only. Never trust arbitrary section JSON.
+const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+function fail(message){throw Error('SECTION_EDIT: '+message);}
+function exact(o,keys,where){
+ if(!o||typeof o!=='object'||Array.isArray(o)||Object.keys(o).some(k=>!keys.includes(k)))
+  fail('Invalid '+where);
+}
+function apply(section,raw,registry){
+ exact(raw,['elements','items'],'edit object');
+ if(!Array.isArray(raw.elements)||raw.elements.length>32)fail('Invalid element edits');
+ const manifest=registry.get(section.component);
+ if(!manifest)fail('Unregistered component');
+ const sources=new Map(manifest.elements.map(e=>[e.slot,e]));
+ const destinations=new Map(section.elements.map(e=>[e.slot,e]));
+ const seen=new Set(),elements=[];
+ for(const change of raw.elements){
+  exact(change,['slot','path','value'],'element change');
+  if(typeof change.slot!=='string'||typeof change.path!=='string'||
+     typeof change.value!=='string'||seen.has(change.slot+'|'+change.path))
+   fail('Duplicate or invalid element change');
+  seen.add(change.slot+'|'+change.path);
+  const def=sources.get(change.slot)?.fields.find(f=>f.path===change.path);
+  const dest=destinations.get(change.slot);
+  if(!def||!dest||!['text','url'].includes(def.type)||!own(dest.values,change.path))
+   fail('Field not editable');
+  dest.values[change.path]=change.value;
+  elements.push({slot:change.slot,path:change.path,value:change.value});
+ }
+ elements.sort((a,b)=>a.slot.localeCompare(b.slot,'en')||a.path.localeCompare(b.path,'en'));
+ const edit={elements};
+ if(own(raw,'items')){
+  const repeat=manifest.repeat;
+  if(!repeat||!Array.isArray(raw.items)||raw.items.length<repeat.min||
+     raw.items.length>repeat.max)fail('Invalid repeater count');
+  const baseline=new Map((section.items||[]).map(item=>[item.id,item]));
+  const seenIds=new Set(),items=[];
+  const paths=repeat.fields.map(f=>f.path);
+  for(const row of raw.items){
+   exact(row,['id','values'],'repeater item');
+   if(typeof row.id!=='string'||seenIds.has(row.id)||
+      (!baseline.has(row.id)&&!row.id.startsWith(section.id+'-item-'))||
+      !/^[a-z][a-z0-9-]{2,79}$/.test(row.id))fail('Invalid item ID');
+   seenIds.add(row.id);
+   exact(row.values,paths,'repeater values');
+   if(Object.keys(row.values).length!==paths.length)fail('Missing repeater field');
+   const values={};
+   for(const field of repeat.fields){
+    const value=row.values[field.path];
+    if(typeof value!=='string')fail('Invalid repeater value type');
+    const original=baseline.get(row.id)?.values[field.path]??field.default;
+    if(!['text','url'].includes(field.type)&&value!==original)
+     fail('Media/style changes require separate approved asset workflow');
+    values[field.path]=value;
+   }
+   items.push({id:row.id,values});
+  }
+  section.items=items;
+  edit.items=items;
+ }
+ return edit;
+}
+module.exports=Object.freeze({apply});
+
+},
 "sectionPlan":function(module,exports,require,__dirname){
 'use strict';
 // D7 editorial section order for all four fixed CMS routes. The plan stores only
@@ -1309,6 +1375,7 @@ module.exports=Object.freeze({sectionFor,compare,validateFallbacks,PROPOSALS});
 const sdk=require('../../sdk/contract.cjs');
 const adapter=require('./composition-adapter.cjs');
 const catalog=require('../catalog/compositions.cjs');
+const edits=require('./section-edits.cjs');
 const FORMAT='manufact-design-factory-section-plan-v1';
 const PAGES=Object.freeze(['home','services','approach','contact']);
 const MAX_ADDED=8,MAX_SECTIONS=24;
@@ -1356,12 +1423,12 @@ function applyToSite(site,language,composition,raw,reg){
  if(!['ru','en'].includes(language))fail('Unknown language');
  if(composition!==null)catalog.get(composition);
  composeBase(site,composition,language,reg);
- if(raw===null)return {site,plan:null,added:0};
+ if(raw===null)return {site,plan:null,added:0,edited:0};
  exact(raw,['format','version','pages'],'plan');
- if(raw.format!==FORMAT||raw.version!==1)fail('Unsupported section plan version');
+ if(raw.format!==FORMAT||![1,2].includes(raw.version))fail('Unsupported section plan version');
  exact(raw.pages,PAGES,'pages');
  if(Object.keys(raw.pages).length!==PAGES.length)fail('Four pages required');
- let added=0;
+ let added=0,edited=0;
  const normalized={},allIds=new Set();
  for(const key of PAGES){
   const page=site.pages.find(p=>p.id==='df-page-'+key);
@@ -1373,7 +1440,7 @@ function applyToSite(site,language,composition,raw,reg){
   const used=new Set(),sections=[],rows=[];
   let pageAdded=0;
   for(const row of rawRows){
-   exact(row,['id','composition'],'section');
+   exact(row,raw.version===1?['id','composition']:['id','composition','edit'],'section');
    if(typeof row.id!=='string'||!/^[a-z][a-z0-9-]{2,79}$/.test(row.id)||
       used.has(row.id)||allIds.has(row.id))fail('Invalid or duplicate section ID');
    used.add(row.id);allIds.add(row.id);
@@ -1385,13 +1452,24 @@ function applyToSite(site,language,composition,raw,reg){
      if(own(row,'composition'))fail('Base section cannot change its CMS component');
      rows.push({id:row.id});
     }
-    sections.push(source.get(row.id));
+    const section=source.get(row.id);
+    if(own(row,'edit')){
+     rows[rows.length-1].edit=edits.apply(section,row.edit,reg);
+     edited++;
+    }
+    sections.push(section);
    }else{
     if(!new RegExp('^df-added-'+key+'-[0-9]{2}$').test(row.id)||
        typeof row.composition!=='string')fail('Unknown inserted section');
     catalog.get(row.composition);
-    sections.push(adapter.sectionFor(row.composition,row.id,language,reg));
-    rows.push({id:row.id,composition:row.composition});
+    const section=adapter.sectionFor(row.composition,row.id,language,reg);
+    const normalized={id:row.id,composition:row.composition};
+    if(own(row,'edit')){
+     normalized.edit=edits.apply(section,row.edit,reg);
+     edited++;
+    }
+    sections.push(section);
+    rows.push(normalized);
     pageAdded++;added++;
    }
   }
@@ -1409,7 +1487,7 @@ function applyToSite(site,language,composition,raw,reg){
  const validated=sdk.validateSite(site,reg);
  const inspection=sdk.inspectSite(validated,reg);
  if(inspection.errors.length)fail('Broken local routes or anchors');
- return {site:validated,plan:{format:FORMAT,version:1,pages:normalized},added};
+ return {site:validated,plan:{format:FORMAT,version:raw.version,pages:normalized},added,edited};
 }
 module.exports=Object.freeze({FORMAT,PAGES,MAX_ADDED,MAX_SECTIONS,capture,nextId,applyToSite});
 
@@ -1457,7 +1535,7 @@ function build(input){
  let site=(w.composition||w.version===2)?sdk.validateSite(planned.site,reg):planned.site;
  const comp=w.composition?adapter.compare(w.composition):null;
  // A new registered composition is a draft with placeholder copy, not owner sign-off.
- if(planned.added){
+ if(planned.added||planned.edited){
   compiled.checklist={...compiled.checklist,readyForPublish:false,
    requiresOwnerReview:true,indexing:'noindex',publicationStatus:'section_drafts_require_owner_review'};
   for(const page of site.pages)page.seo.robots='noindex';
@@ -1474,7 +1552,7 @@ function build(input){
    'fabricated reviews or awards','unlicensed media','production publication without CMS/integrator approval'
   ],
   composition:comp,
-  ...(w.version===2?{sectionPlan:{format:sectionPlan.FORMAT,addedDrafts:planned.added,
+  ...(w.version===2?{sectionPlan:{format:sectionPlan.FORMAT,addedDrafts:planned.added,editedSections:planned.edited,
    pages:sectionPlan.PAGES.map(key=>({page:key,sections:w.sectionPlan.pages[key].length}))}}:{}),
   source:['stage3/sdk/contract.cjs','stage3/components/*.json','stage3/server/PublicRenderer.php'],
   previewOnly:true,
@@ -1532,11 +1610,11 @@ const modules=Object.create(null);
 const names={
 '../../sdk/contract.cjs':'sdk','../catalog/themes.cjs':'themes','../catalog/kits.cjs':'kits',
 '../catalog/compositions.cjs':'compositions','./compiler.cjs':'compiler',
-'./preview.cjs':'preview','./composition-adapter.cjs':'adapter','./section-plan.cjs':'sectionPlan','./bridge.cjs':'bridge'
+'./preview.cjs':'preview','./composition-adapter.cjs':'adapter','./section-edits.cjs':'sectionEdits','./section-plan.cjs':'sectionPlan','./bridge.cjs':'bridge'
 };
 const safeFS=Object.freeze({readFileSync:function(p){const file=String(p).split("/").pop();if(!/^[a-z][a-z0-9-]*\.json$/.test(file))throw Error("Unsupported bundled manifest path");const id=file.slice(0,-5);if(!Object.prototype.hasOwnProperty.call(manifestBytes,id))throw Error("Missing manifest "+id);return manifestBytes[id];}});
 const safePath=Object.freeze({join:(...p)=>p.join("/"),resolve:(...p)=>p.join("/")});
 function load(id){if(modules[id])return modules[id].exports;const factory=moduleFactories[id];if(!factory)throw Error("Unknown factory "+id);const module={exports:{}};modules[id]=module;function request(p){if(p==="node:fs")return safeFS;if(p==="node:path")return safePath;const target=names[p];if(!target)throw Error("Blocked dependency "+p);return load(target)}factory(module,module.exports,request,"/stage3/design-factory/lib");return module.exports;}
-const api=Object.freeze({sdk:load("sdk"),compiler:load("compiler"),preview:load("preview"),themes:load("themes"),kits:load("kits"),compositions:load("compositions"),adapter:load("adapter"),sectionPlan:load("sectionPlan"),bridge:load("bridge")});
+const api=Object.freeze({sdk:load("sdk"),compiler:load("compiler"),preview:load("preview"),themes:load("themes"),kits:load("kits"),compositions:load("compositions"),adapter:load("adapter"),sectionEdits:load("sectionEdits"),sectionPlan:load("sectionPlan"),bridge:load("bridge")});
 Object.defineProperty(root,"DesignFactory",{value:api,writable:false,configurable:false});
 })(globalThis);
