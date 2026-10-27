@@ -4,6 +4,12 @@
 const crypto=require('node:crypto');
 const {sourcePaths,readSource,assertOfflineNavigation,assertShowcaseCoverage}=require('./visual-source-provenance.cjs');
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+const compiler=require('./compiler.cjs');
+const preview=require('./preview.cjs');
+const showcase=require('./showcase.cjs');
+const compositions=require('../catalog/compositions.cjs');
+const adapter=require('./composition-adapter.cjs');
+const SAMPLE_KITS=Object.freeze([['industrial','ru'],['saas','en'],['architecture','ru'],['restaurant','ru']]);
 const ROUTES=Object.freeze(['index.html','services/index.html','approach/index.html','contact/index.html']);
 const DATA=Object.freeze(['site-v1.json','design-spec.json','project.json','owner-checklist.json','inspection.json']);
 function expectedGeneratedPaths(images){
@@ -23,9 +29,59 @@ function expectedGeneratedPaths(images){
   files.push(base+'/'+rel);
  return files.sort();
 }
+// Independently rebuild all source bytes from the current first-party authoring
+// contract. A matching hash alone cannot prove that generated files correspond
+// to their declared project/kit/theme or to the actual D3 renderer.
+function reproducibleBytes(images){
+ const manifest=expectedGeneratedPaths(images),names=new Set(manifest);
+ const result=new Map();
+ const make=(file,content)=>{
+  if(!names.has(file)||result.has(file))throw Error('Unexpected or duplicate regenerated output: '+file);
+  result.set(file,Buffer.from(content,'utf8'));
+ };
+ for(const theme of Object.keys(compiler.THEMES)){
+  const base='sites/theme-'+theme;
+  const built=compiler.compile({format:compiler.FORMAT,version:1,
+   kit:'agency',theme,language:'ru',facts:{}});
+  for(const [file,value] of [
+   ['site-v1.json',built.site],['design-spec.json',built.designSpec],
+   ['project.json',built.project],['owner-checklist.json',built.checklist],
+   ['inspection.json',built.inspection]])make(base+'/'+file,compiler.serialize(value));
+  make(base+'/assets/preview.css',preview.css(built.project.theme));
+  for(const page of built.site.pages)
+   make(base+'/'+(page.path==='/'?'index.html':page.path.slice(1)+'index.html'),
+    preview.pageHtml(built.site,page,built.project.theme,built.project.language));
+ }
+ for(const [kit,language] of SAMPLE_KITS){
+  const base='sites/sector-'+kit+'-'+language;
+  const built=compiler.compile({format:compiler.FORMAT,version:1,
+   kit,theme:compiler.KITS[kit].theme,language,facts:{}});
+  for(const [file,value] of [
+   ['site-v1.json',built.site],['design-spec.json',built.designSpec],
+   ['project.json',built.project],['owner-checklist.json',built.checklist],
+   ['inspection.json',built.inspection]])make(base+'/'+file,compiler.serialize(value));
+  make(base+'/assets/preview.css',preview.css(built.project.theme));
+  for(const page of built.site.pages)
+   make(base+'/'+(page.path==='/'?'index.html':page.path.slice(1)+'index.html'),
+    preview.pageHtml(built.site,page,built.project.theme,built.project.language));
+ }
+ make('showcase/index.html',showcase.html());
+ make('showcase/showcase.css',showcase.style);
+ make('showcase/compositions.json',compiler.serialize({
+  format:compositions.FORMAT,items:compositions.compositions}));
+ make('showcase/fallbacks.json',compiler.serialize({
+  format:'manufact-design-compositions-bridge-v1',
+  items:compositions.compositions.map(c=>adapter.compare(c.id))}));
+ if(result.size!==manifest.length)throw Error('Generated source manifest differs from first-party renderer');
+ return result;
+}
 function snapshotGeneratedSources(root,images){
+ const expected=reproducibleBytes(images);
  return expectedGeneratedPaths(images).map(file=>{
   const bytes=readSource(root,file);
+  const canonical=expected.get(file);
+  if(!canonical||bytes.length!==canonical.length||!bytes.equals(canonical))
+   throw Error('Generated D7 source is not reproducible from first-party compiler: '+file);
   if(file.endsWith('.html')){
    const html=bytes.toString('utf8');
    if(!/^<!doctype html>/i.test(html)||Buffer.byteLength(html)!==bytes.length)
@@ -60,4 +116,4 @@ function verifyGeneratedSources(root,images,claimed){
   throw Error('Generated D7 source modified after capture: '+actual[i].file);
  return Object.freeze({files:actual.length,sites:(actual.length-4)/10});
 }
-module.exports=Object.freeze({expectedGeneratedPaths,snapshotGeneratedSources,verifyGeneratedSources});
+module.exports=Object.freeze({expectedGeneratedPaths,reproducibleBytes,snapshotGeneratedSources,verifyGeneratedSources});
