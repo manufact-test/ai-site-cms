@@ -9,6 +9,7 @@ const WORKSPACE='manufact-design-factory-workspace-v1';
 const feedbackTool=globalThis.DesignFactoryFeedback;
 const auditTool=globalThis.DesignFactorySiteAudit;
 const deliveryTool=globalThis.DesignFactoryDeliveryPackage;
+const sectionTool=globalThis.DesignFactorySectionEditor;
 const LANG={
  ru:{home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'},
  en:{home:'Home',services:'Services',approach:'Approach',contact:'Contact'}
@@ -98,6 +99,7 @@ function compileForTheme(theme){
   designSpec:built.designSpec,bridge:built.compatibility.composition};
 }
 function compileCurrent(){return compileForTheme(state.project.theme);}
+const sectionEditor=sectionTool?.create({engine,state,apply,compile:compileCurrent,tr,say});
 function renderKits(){
  const holder=$('kit-list');holder.replaceChildren();
  let visible=0;
@@ -376,7 +378,10 @@ function renderChecklist(info){
  const node=$('checklist');node.replaceChildren();
  if(!info)return;
  const gate=info.checklist;
- const statusText=gate.readyForPublish
+ const statusText=gate.publicationStatus==='section_drafts_require_owner_review'
+   ?tr('Новые композиции содержат черновой контент. CMS экспорт защищён noindex.',
+    'Inserted compositions contain draft copy. CMS export remains noindex.')
+   :gate.readyForPublish
   ?'Проверка владельцем подтверждена. Экспорт получит robots=index; публикация не выполняется автоматически.'
   :gate.factsComplete
    ?'Обязательные поля заполнены, но проверка владельцем не подтверждена. Экспорт получит robots=noindex.'
@@ -474,6 +479,7 @@ function renderPreview(){
   const result=compileCurrent();
   state.lastSite=result.site;state.lastCompiled=result;state.lastError=null;
   renderChecklist(result);
+  sectionEditor?.render(result.site);
   renderSiteAudit(result);
   const active=previewPageHtml(result,state.project.theme,state.page);
   frame.srcdoc=active.html;
@@ -501,7 +507,7 @@ function renderPreview(){
   $('page-overview').replaceChildren();state.overviewFrames=[];
   $('browser-url').textContent='design-preview.local / invalid';
   $('compare-browser-url').textContent='design-preview.local / invalid';
-  renderChecklist(null);renderSiteAudit(null);$('save-site').disabled=true;
+  renderChecklist(null);sectionEditor?.render(null);renderSiteAudit(null);$('save-site').disabled=true;
   renderFeedback();
   say('Ошибка данных: '+error.message,true);
  }
@@ -753,15 +759,17 @@ async function importFile(file){
   if(request!==state.projectImportSerial||sourceRevision!==state.editRevision)
    throw Error('Проект или выбранный файл изменились во время чтения. Повторите импорт.');
   const raw=engine.compiler.jsonParse(contents);
-  let project,composition=null;
+  let project,composition=null,sectionPlan=null;
   if(raw.format===WORKSPACE){
-   if(raw.version!==1||Object.keys(raw).some(k=>!['format','version','project','composition'].includes(k)))
-    throw Error('Неизвестная версия или свойства рабочего пространства');
-   project=engine.compiler.validateProject(raw.project);
-   if(raw.composition!==null){engine.compositions.get(raw.composition);composition=raw.composition;}
+   const validated=engine.bridge.workspace(raw);
+   project=validated.project;composition=validated.composition;
+   sectionPlan=validated.version===2?validated.sectionPlan:null;
   }else project=engine.compiler.migrate(raw);
-  engine.compiler.compile(project);
-  apply(()=>{state.project=project;state.composition=composition;state.page='home';},{throwOnError:true,preserveReview:true});
+  const candidate={format:WORKSPACE,version:sectionPlan?2:1,project,composition};
+  if(sectionPlan)candidate.sectionPlan=sectionPlan;
+  engine.bridge.build(candidate);
+  apply(()=>{state.project=project;state.composition=composition;
+   state.sectionPlan=sectionPlan;state.page='home';},{throwOnError:true,preserveReview:true});
   const gate=engine.compiler.checklist(project);
   say('Проект импортирован и проверен по действующему CMS-контракту. Индексация экспорта: '+gate.indexing+'.');
  }catch(e){say('Импорт отклонён: '+e.message,true);}
@@ -818,7 +826,8 @@ function init(){
  });
 
 
- $('composition').addEventListener('change',event=>apply(()=>{state.composition=event.target.value||null;state.page='home';}));
+ $('composition').addEventListener('change',event=>sectionEditor.legacy(event.target.value||null));
+  sectionEditor.mount();
  $('bulk-services-add').addEventListener('click',addBulkServices);
  $('edit-services-as-list').addEventListener('click',editFullServices);
  $('replace-services-list').addEventListener('click',replaceFullServices);
