@@ -82,6 +82,55 @@ try{
   project:approved.workspace.project,composition:'hero-center',
   sectionPlan:sectionPlan.capture(legacy.site,'hero-center')});
  assert.deepEqual(preserved.site,legacy.site);
+
+ // Real owner content edits in the v2 plan keep typed manifest validation,
+ // exact D6/CMS parity, old v1 compatibility and explicit noindex.
+ const copyPlan=value=>JSON.parse(JSON.stringify(value));
+ const editedPlan=copyPlan(plan);
+ editedPlan.version=2;
+ editedPlan.pages.home.find(x=>x.id==='df-home-01').edit={
+  elements:[{slot:'heading',path:'content.text',value:'Verified owner heading'}]
+ };
+ const editedWorkspace={...workspaceV2,sectionPlan:editedPlan};
+ const contentEdited=bridge.build(editedWorkspace);
+ assert.equal(contentEdited.compatibility.sectionPlan.editedSections,1);
+ assert.equal(contentEdited.site.pages[0].sections[0].elements
+  .find(x=>x.slot==='heading').values['content.text'],'Verified owner heading');
+ assert.ok(contentEdited.site.pages.every(x=>x.seo.robots==='noindex'));
+ assert.equal(contentEdited.ownerChecklist.readyForPublish,false);
+ assert.deepEqual(bridge.validateBundle(contentEdited).site,contentEdited.site);
+ const selectedFaq='faq-minimal',faqPlan=copyPlan(editedPlan);
+ const faqId=sectionPlan.nextId(faqPlan,'contact');
+ faqPlan.pages.contact.splice(1,0,{id:faqId,composition:selectedFaq});
+ const faqBaseline=bridge.build({...editedWorkspace,sectionPlan:faqPlan});
+ const faq=faqBaseline.site.pages[3].sections.find(x=>x.id===faqId);
+ faqPlan.pages.contact.find(x=>x.id===faqId).edit={
+  elements:[{slot:'heading',path:'content.text',value:'Verified customer questions'}],
+  items:[...faq.items.map(item=>({id:item.id,values:item.values})),{
+   id:faqId+'-item-3',values:{'content.question':'Third question',
+    'content.answer':'Owner verified third answer'}}]
+ };
+ const withFaq=bridge.build({...editedWorkspace,sectionPlan:faqPlan});
+ const contactFaq=withFaq.site.pages[3].sections.find(x=>x.id===faqId);
+ assert.equal(contactFaq.items.length,3);
+ assert.equal(contactFaq.items[2].values['content.answer'],'Owner verified third answer');
+ assert.deepEqual(bridge.importForCMS(bridge.validateBundle(withFaq)),withFaq.site);
+ for(const change of [
+  {elements:[{slot:'photo',path:'content.media',value:'unknown'}]},
+  {elements:[{slot:'heading',path:'content.text',value:'X'.repeat(500)}]},
+  {elements:[{slot:'heading',path:'content.text',value:'Safe'},{slot:'heading',path:'content.text',value:'Duplicate'}]}
+ ]){
+  const failed=copyPlan(faqPlan);
+  failed.pages.contact.find(x=>x.id===faqId).edit=change;
+  assert.throws(()=>bridge.build({...editedWorkspace,sectionPlan:failed}));
+ }
+ const forgedItem=copyPlan(faqPlan);
+ forgedItem.pages.contact.find(x=>x.id===faqId).edit.items[2].id='foreign-item';
+ assert.throws(()=>bridge.build({...editedWorkspace,sectionPlan:forgedItem}),/Invalid item ID/);
+ // An existing v1 plan is never allowed to smuggle a new edit property.
+ const smuggled=copyPlan(plan);
+ smuggled.pages.home[0].edit={elements:[]};
+ assert.throws(()=>bridge.build({...workspaceV2,sectionPlan:smuggled}),/Invalid section fields/);
  // JSON parsers/formatters legitimately reorder object keys. Such imports
  // must remain valid while any actual nested data mutation is still refused.
  const shuffled=(value)=>{
