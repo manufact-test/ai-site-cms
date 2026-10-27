@@ -12,6 +12,7 @@
   <script src="client-feedback.js" defer></script>
   <script src="site-audit.js" defer></script>
   <script src="delivery-package.js" defer></script>
+  <script src="delivery-import.js" defer></script>
   <script src="section-editor.js" defer></script>
   <script src="page-settings.js" defer></script>
   <script src="studio.js" defer></script>
@@ -191,7 +192,15 @@
             <div class="import-area">
               <label class="field-label" for="project-file">Импорт проекта JSON</label>
               <input id="project-file" type="file" accept=".json,application/json">
-              <p>Поддерживается фабричный проект или рабочее пространство v1 (до 1 МБ).</p>
+              <p>Поддерживаются фабричный проект и рабочие пространства v1–v3 (до 1 МБ).</p>
+            </div>
+            <div class="delivery-restore">
+              <strong>Восстановить ранее переданный проект из ZIP</strong>
+              <label class="field" for="delivery-file"><span>Пакет передачи Design Factory (18 файлов)</span>
+                <input id="delivery-file" type="file" accept=".zip,application/zip,application/x-zip-compressed"></label>
+              <p id="delivery-restore-status" class="bulk-services-hint" role="status" aria-live="polite">Выберите ZIP. Сначала проверим все файлы, затем предложим восстановление.</p>
+              <button id="delivery-restore-apply" type="button" class="minor-btn full" disabled>Восстановить проверенный проект</button>
+              <p class="bulk-services-hint">Заменяет текущий рабочий проект только по отдельному нажатию. Отменить можно через Undo. Разрешение индексации не переносится.</p>
             </div>
             <button id="save-workspace" type="button" class="minor-btn full">Скачать рабочее пространство JSON</button>
             <button id="save-bridge" type="button" class="minor-btn full">Скачать карту совместимости</button>
