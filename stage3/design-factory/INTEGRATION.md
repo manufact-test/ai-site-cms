@@ -329,3 +329,9 @@ Regression evidence: 504/504 source-level validation/render/no-op rebuild/prefli
 ## D7 candidate verification (non-publishing)
 
 Run `node stage3/design-factory/bin/release-candidate.cjs --out /tmp/df-release-candidate` on a genuine checkout. The runner checks bundle parity + eight Node suites, exact audit inventory, reproducible ZIP bytes/CRC/SHA256, optional Chromium screenshots, review v2 and optional Lead/PHP parity. It never deploys or authorizes publication. Exit 3 is an engineering candidate with gates open; D7 remains OPEN until actual acceptance.
+## 27 October — final independent branch handoff focus (no further feature expansion)
+
+A concrete preview data-fidelity issue is fixed at the source: `studio/runtime.generated.js` and `lib/preview.cjs` now respect the real `behavior.href` of all registered CMS actions: Hero, Services repeater cards, Media Story, CTA primary/secondary and Contact Panel. The owner report lists exact target URLs. This makes the offline design preview a more reliable content/navigation reference; **it does not prove PHP visual parity** or authorize publication. The CMS contract and SDK were not modified. External owner HTTPS anchors require intentional clicks and have `noopener noreferrer`; unknown local routes fail closed.
+
+**Recommendation to Lead:** import the supported `cms/site-v1.json`, run six existing PHP parity probes, show user actual rendered four-page site, compare header/buttons/CTA and CSS parity against offline Studio demo. All enhanced standalone layouts still require a deliberate PHP integration decision. Read [owner reality report](handoffs/OWNER-REALITY-REPORT-2026-10-27.md) and `handoffs/NEXT-CHAT.md`. STOP repeating isolated V8 simulations as if these remove the PHP/Chromium gate. Stage2 NO-GO / Stage3 UNACCEPTED / 0 of 135 formal CMS acceptance continue.
+
