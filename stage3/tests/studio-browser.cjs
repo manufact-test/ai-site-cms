@@ -1061,6 +1061,76 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeTokens);
     await page.locator('#redo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).designTokens.colors.accent,'#ba4818');
+
+    // Macroblock B1: visible graph texts, CTA links and media are first-class
+    // participants in site-wide workbenches, not hidden legacy slot edits.
+    const b1=await page.evaluate(()=>window.Stage3Editor.getSite());
+    const b1Sec=b1.pages.flatMap(p=>p.sections).find(s=>s.id===selectedSection);
+    const allNodes=nodes=>nodes.flatMap(n=>[n,...allNodes(n.children||[])]);
+    const b1Heading=allNodes(b1Sec.designGraph.nodes).find(n=>n.type==='heading');
+    assert.ok(b1Heading,'The existing composition has a visible heading');
+    b1Heading.text='Ваш уникальный заголовок';
+    b1Sec.designGraph.nodes.push({id:'graph-b1-button',type:'button',
+      text:'Новый элемент',href:'/',styles:{}});
+    b1Sec.designGraph.nodes.push({id:'graph-b1-image',type:'image',
+      assetId:'asset-audit-alt',alt:'Фрезерный станок',styles:{}});
+    const b1OriginalFallback=structuredClone(b1Sec.elements);
+    await page.evaluate(site=>window.Stage3Editor.replace(site),b1);
+    assert.ok((await page.evaluate(()=>window.Stage3Editor.launchReadiness()))
+      .issues.some(i=>i.elementId===b1Heading.id&&i.kind==='graph-placeholder'));
+    await page.locator('#cms-content-open').click();
+    await page.locator('#cms-content-search').fill('Ваш уникальный заголовок');
+    await page.locator('#cms-content-replace').fill('Проверенный графовый заголовок');
+    assert.match(await page.locator('#cms-content-results').innerText(),/Дизайн-композиция/);
+    await page.locator('#cms-content-apply').click();
+    const getB1=(site,id)=>allNodes(site.pages.flatMap(p=>p.sections)
+      .find(s=>s.id===selectedSection).designGraph.nodes).find(n=>n.id===id);
+    assert.equal(getB1(await page.evaluate(()=>window.Stage3Editor.getSite()),b1Heading.id).text,
+      'Проверенный графовый заголовок');
+    await page.locator('#undo').click();
+    assert.equal(getB1(await page.evaluate(()=>window.Stage3Editor.getSite()),b1Heading.id).text,
+      'Ваш уникальный заголовок','One undo reverts bulk visible-graph text edits');
+
+    await page.locator('#cms-fill-open').click();
+    await page.locator('#cms-fill-dialog').waitFor({state:'visible'});
+    await page.locator('#cms-fill-dialog label').filter({hasText:'Главный заголовок на главной'})
+      .locator('input').fill('Подтверждённый заголовок компании');
+    assert.match(await page.locator('#cms-fill-summary').innerText(),/изменени/);
+    await page.locator('#cms-fill-apply').click();
+    const afterFill=await page.evaluate(()=>window.Stage3Editor.getSite());
+    assert.equal(getB1(afterFill,b1Heading.id).text,'Подтверждённый заголовок компании');
+    assert.deepEqual(afterFill.pages.flatMap(p=>p.sections)
+      .find(s=>s.id===selectedSection).elements,b1OriginalFallback,
+      'Whole-site fill must preserve dormant fallback fields behind the rendered Design Graph');
+
+    await page.locator('#cms-quality-open').click();
+    await page.locator('#cms-site-report').waitFor({state:'visible'});
+    await page.locator('#cms-repair-mode').selectOption('all');
+    const b1LinkRow=page.locator('#cms-repair-list .cms-repair-row')
+      .filter({hasText:'Кнопка · graph-b1-button'}).first();
+    assert.equal(await b1LinkRow.count(),1,'Graph CTA is visible to site-wide link repair');
+    await b1LinkRow.locator('input[type=checkbox]').check();
+    await b1LinkRow.locator('select').selectOption('/contact/');
+    const b1ImageRow=page.locator('#cms-repair-list .cms-repair-row')
+      .filter({hasText:'Изображение · graph-b1-image'}).first();
+    assert.equal(await b1ImageRow.count(),1,'Graph image is visible to site-wide media repair');
+    const replacement=b1.assets.find(a=>a.mime.startsWith('image/')&&a.id!=='asset-audit-alt');
+    if(replacement){
+      await b1ImageRow.locator('input[type=checkbox]').check();
+      await b1ImageRow.locator('select').selectOption(replacement.id);
+    }
+    await page.locator('#cms-repair-check').click();
+    assert.match(await page.locator('#cms-repair-preview').innerText(),/Предпросмотр/);
+    await page.locator('#cms-repair-apply').click();
+    const changedB1=await page.evaluate(()=>window.Stage3Editor.getSite());
+    assert.equal(getB1(changedB1,'graph-b1-button').href,'/contact/');
+    if(replacement)assert.equal(getB1(changedB1,'graph-b1-image').assetId,replacement.id);
+    await page.locator('#cms-site-report').getByRole('button',{name:'Закрыть'}).click();
+    await page.locator('#undo').click();
+    assert.equal(getB1(await page.evaluate(()=>window.Stage3Editor.getSite()),'graph-b1-button').href,'/');
+    await page.locator('#redo').click();
+    assert.equal(getB1(await page.evaluate(()=>window.Stage3Editor.getSite()),'graph-b1-button').href,'/contact/');
+
     assert.deepEqual(errors,[],'No page JS errors or unsupported dependencies');
     assert.deepEqual(remote,[],'No outgoing network requests, even through iframe');
     console.log('STAGE3 REAL CHROMIUM STUDIO E2E PASS: typed edit, inert preview, responsive, undo/redo, saved versions, reload, export/import, no-design and fail-closed import');
