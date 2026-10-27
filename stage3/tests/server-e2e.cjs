@@ -422,8 +422,8 @@ async function stop(){
     assert.equal(now.workflow_revision,old.workflow_revision+1);
     assert.equal(now.note,old.note,'Bulk stage and priority must preserve private notes');
     const history=(await request('GET',endpoint+'/submissions/'+now.submission_id+'/history')).body;
-    assert.equal(history.events[0].to_status,'in_progress');
-    assert.equal(history.events[0].to_priority,'high');
+    assert.ok(history.events.some(event=>event.to_status==='in_progress'&&
+      event.to_priority==='high'),'Bulk triage audit remains queryable even when events share one UTC second');
   }
   assert.equal((await request('POST',bulkWorkflow,{
     items:chosen,status:'reviewed',priority:'normal'})).status,409,
