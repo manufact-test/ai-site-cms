@@ -18,6 +18,7 @@ const zipSource=read('preview-zip.js'),previewZip=require(path.join(studio,'prev
 const feedbackSource=read('client-feedback.js'),feedback=require(path.join(studio,'client-feedback.js'));
 const auditSource=read('site-audit.js'),audit=require(path.join(studio,'site-audit.js'));
 const deliverySource=read('delivery-package.js'),delivery=require(path.join(studio,'delivery-package.js'));
+const sectionEditorSource=read('section-editor.js');
 
 const build=cp.spawnSync(process.execPath,[path.join(root,'bin/build-browser-bundle.cjs'),'--check'],{encoding:'utf8'});
 assert.equal(build.status,0,'Browser bundle must match actual local CMS source: '+build.stderr);
@@ -30,7 +31,7 @@ assert.equal(build.status,0,'Browser bundle must match actual local CMS source: 
  const fixtureFiles=[
   'bin/build-browser-bundle.cjs','lib/compiler.cjs','lib/preview.cjs',
   'catalog/themes.cjs','catalog/kits.cjs','catalog/compositions.cjs',
-  'lib/composition-adapter.cjs','lib/bridge.cjs'
+  'lib/composition-adapter.cjs','lib/section-plan.cjs','lib/bridge.cjs'
  ];
  const manifestIds=['company-hero','contact-panel','cta-banner','faq-accordion',
   'feature-highlights','service-grid','media-story','photo-gallery'];
@@ -93,6 +94,10 @@ new Function(zipSource);
 new Function(feedbackSource);
 new Function(auditSource);
 new Function(deliverySource);
+new Function(sectionEditorSource);
+assert.ok(markup.indexOf('section-editor.js')<markup.indexOf('studio.js'));
+for(const id of ['section-list','section-template','section-add','section-reset','section-page-name'])
+ assert.ok(markup.includes('id="'+id+'"'),'Missing section editor: '+id);
 assert.ok(markup.indexOf('site-audit.js')<markup.indexOf('studio.js'));
 assert.ok(markup.indexOf('delivery-package.js')<markup.indexOf('studio.js'));
 assert.ok(markup.indexOf('client-feedback.js')<markup.indexOf('studio.js'),'Feedback bridge must load first');
