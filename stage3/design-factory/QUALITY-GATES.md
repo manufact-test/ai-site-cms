@@ -474,3 +474,10 @@ The editor adds a new **workspace-v2 / section-plan-v1** route across Studio, D6
 
 These **do not** count as Node checkout, actual offline Chromium navigation, PHP parity, human design review or full release evidence. This context has Node and Chromium binaries but cannot resolve GitHub for a real checkout. Formal D7 is **still 0/135**, Stage2 **NO-GO**, Stage3 **UNACCEPTED**. Newly inserted draft compositions must export **noindex** until owner content is verified in a supported editorial workflow; the design CSS remains `integration_required` for PHP parity.
 
+
+## 27.10.2026 — real owner-content edits in Studio, not D7 release acceptance
+
+First-party section edit surfaces use only manifest-registered text/URL fields and repeater items. Section-plan reader accepts v1 order-only and v2 typed edit data. CMS validation and D6 exact reproducibility reject altered/unknown fields, bad URLs, oversized copy, forged item IDs, missing required cards and media asset modifications. A fresh save invalidates previous owner confirmation; inserted or edited sections force CMS noindex even if previous project JSON was approved. Existing Node bridge/studio smoke source now asserts such cases, awaiting an accessible real checkout.
+
+Actually observed isolated V8: direct D6 overlay plus manifest rejection cases, *actual* section-editor mock-DOM clicks to Save a hero field and add/edit a third FAQ repeater item; JavaScript syntax checks. **This is not a real Chromium or Node checkout pass.** The earlier D7 formal gates are unchanged: 0/135 accepted, Stage2 NO-GO, Stage3 UNACCEPTED. Real browser screenshot/human review, PHP parity and release ZIP remain outstanding.
+
