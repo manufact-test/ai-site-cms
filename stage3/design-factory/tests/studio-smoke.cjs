@@ -367,7 +367,7 @@ assert.equal(actualPreviewZip.readUInt32LE?.(0)??new DataView(actualPreviewZip.b
 const corruptPreview=new Uint8Array(actualPreviewZip);
 corruptPreview[40]^=0x1;
 assert.throws(()=>previewZip.inspect(corruptPreview),/CRC mismatch/);
-assert.throws(()=>previewZip.build(previewEntries.slice(1)),/exactly eight/);
+assert.throws(()=>previewZip.build(previewEntries.slice(1)),/Unexpected ZIP file count/);
 assert.throws(()=>previewZip.build([...previewEntries.slice(0,-1),
  {name:'../escape.html',content:'evil'}]),/Unexpected or duplicate/);
 assert.throws(()=>previewZip.build(previewEntries.map(x=>x.name==='README.txt'

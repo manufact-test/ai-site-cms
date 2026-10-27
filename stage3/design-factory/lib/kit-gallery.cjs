@@ -65,7 +65,7 @@ function generate(dir){
     const folder=kit+'-'+language;
     if(!idSafe(folder))throw Error('Invalid generated folder');
     const project={format:FORMAT,version:VERSION,kit,theme:item.theme,language,
-      facts:{siteId:'factory-'+kit+'-'+language}};
+      facts:{siteId:'factory-'+kit+'-'+language},ownerReviewConfirmed:false};
     const compiled=compile(project);
     const child=path.join(output,folder);
     writePreview(compiled,child);
