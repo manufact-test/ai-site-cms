@@ -1302,6 +1302,118 @@ function validateFallbacks(){
 module.exports=Object.freeze({sectionFor,compare,validateFallbacks,PROPOSALS});
 
 },
+"sectionPlan":function(module,exports,require,__dirname){
+'use strict';
+// D7 editorial section order for all four fixed CMS routes. The plan stores only
+// identities and registered D3 fallback references, never arbitrary CMS objects.
+const sdk=require('../../sdk/contract.cjs');
+const adapter=require('./composition-adapter.cjs');
+const catalog=require('../catalog/compositions.cjs');
+const FORMAT='manufact-design-factory-section-plan-v1';
+const PAGES=Object.freeze(['home','services','approach','contact']);
+const MAX_ADDED=8,MAX_SECTIONS=24;
+const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+function fail(message){throw Error('SECTION_PLAN: '+message);}
+function exact(o,keys,where){
+ if(!o||typeof o!=='object'||Array.isArray(o)||Object.keys(o).some(k=>!keys.includes(k)))
+  fail('Invalid '+where+' fields');
+}
+function composeBase(site,composition,language,reg){
+ if(composition!==null){
+  catalog.get(composition);
+  if(site.pages[0].id!=='df-page-home')fail('Unexpected page order');
+  const home=site.pages[0].sections;
+  if(home.some(s=>s.id==='df-selected-composition'))fail('Duplicate legacy composition ID');
+  const cta=home.findIndex(s=>s.component==='cta-banner');
+  home.splice(cta<0?home.length:cta,0,
+   adapter.sectionFor(composition,'df-selected-composition',language,reg));
+ }
+ return site;
+}
+function capture(site,composition){
+ if(!site||!Array.isArray(site.pages)||site.pages.length!==PAGES.length)fail('Cannot capture incomplete site');
+ const pages={};
+ for(const key of PAGES){
+  const page=site.pages.find(x=>x.id==='df-page-'+key);
+  if(!page||!Array.isArray(page.sections))fail('Missing page '+key);
+  pages[key]=page.sections.map(s=>s.id==='df-selected-composition'
+   ?{id:s.id,composition}: {id:s.id});
+ }
+ return {format:FORMAT,version:1,pages};
+}
+function nextId(plan,page){
+ if(!PAGES.includes(page))fail('Unknown page');
+ if(!plan||!plan.pages||!Array.isArray(plan.pages[page]))fail('No section plan');
+ for(let i=1;i<=99;i++){
+  const id='df-added-'+page+'-'+String(i).padStart(2,'0');
+  if(!plan.pages[page].some(s=>s.id===id))return id;
+ }
+ fail('No free composition IDs');
+}
+function applyToSite(site,language,composition,raw,reg){
+ if(!site||site.format!=='manufact-ai-site-v1'||!Array.isArray(site.pages)||
+    site.pages.length!==4)fail('Invalid base CMS site');
+ if(!['ru','en'].includes(language))fail('Unknown language');
+ if(composition!==null)catalog.get(composition);
+ composeBase(site,composition,language,reg);
+ if(raw===null)return {site,plan:null,added:0};
+ exact(raw,['format','version','pages'],'plan');
+ if(raw.format!==FORMAT||raw.version!==1)fail('Unsupported section plan version');
+ exact(raw.pages,PAGES,'pages');
+ if(Object.keys(raw.pages).length!==PAGES.length)fail('Four pages required');
+ let added=0;
+ const normalized={},allIds=new Set();
+ for(const key of PAGES){
+  const page=site.pages.find(p=>p.id==='df-page-'+key);
+  if(!page)fail('Missing canonical page '+key);
+  const source=new Map(page.sections.map(s=>[s.id,s]));
+  const rawRows=raw.pages[key];
+  if(!Array.isArray(rawRows)||rawRows.length<1||rawRows.length>MAX_SECTIONS)
+   fail('Section count outside bounds on '+key);
+  const used=new Set(),sections=[],rows=[];
+  let pageAdded=0;
+  for(const row of rawRows){
+   exact(row,['id','composition'],'section');
+   if(typeof row.id!=='string'||!/^[a-z][a-z0-9-]{2,79}$/.test(row.id)||
+      used.has(row.id)||allIds.has(row.id))fail('Invalid or duplicate section ID');
+   used.add(row.id);allIds.add(row.id);
+   if(source.has(row.id)){
+    if(row.id==='df-selected-composition'){
+     if(row.composition!==composition||composition===null)fail('Legacy composition mismatch');
+     rows.push({id:row.id,composition});
+    }else{
+     if(own(row,'composition'))fail('Base section cannot change its CMS component');
+     rows.push({id:row.id});
+    }
+    sections.push(source.get(row.id));
+   }else{
+    if(!new RegExp('^df-added-'+key+'-[0-9]{2}$').test(row.id)||
+       typeof row.composition!=='string')fail('Unknown inserted section');
+    catalog.get(row.composition);
+    sections.push(adapter.sectionFor(row.composition,row.id,language,reg));
+    rows.push({id:row.id,composition:row.composition});
+    pageAdded++;added++;
+   }
+  }
+  if(pageAdded>MAX_ADDED)fail('Too many inserted compositions on '+key);
+  // Original site navigation and visitor action must not be silently removed.
+  for(const s of source.values()){
+   if(['company-hero','cta-banner'].includes(s.component)&&!used.has(s.id))
+    fail('Protected original section missing: '+s.id);
+  }
+  if(composition!==null&&key==='home'&&!used.has('df-selected-composition'))
+   fail('Legacy selection must be present or explicitly cleared');
+  page.sections=sections;
+  normalized[key]=rows;
+ }
+ const validated=sdk.validateSite(site,reg);
+ const inspection=sdk.inspectSite(validated,reg);
+ if(inspection.errors.length)fail('Broken local routes or anchors');
+ return {site:validated,plan:{format:FORMAT,version:1,pages:normalized},added};
+}
+module.exports=Object.freeze({FORMAT,PAGES,MAX_ADDED,MAX_SECTIONS,capture,nextId,applyToSite});
+
+},
 "bridge":function(module,exports,require,__dirname){
 'use strict';
 // D6 immutable bridge, not a CMS publish service. 100% first-party validators.
@@ -1309,6 +1421,7 @@ const sdk=require('../../sdk/contract.cjs');
 const compiler=require('./compiler.cjs');
 const adapter=require('./composition-adapter.cjs');
 const catalog=require('../catalog/compositions.cjs');
+const sectionPlan=require('./section-plan.cjs');
 const WORKSPACE='manufact-design-factory-workspace-v1';
 const EXPORT='manufact-design-factory-export-v2';
 const own=(obj,key)=>Object.prototype.hasOwnProperty.call(obj,key);
@@ -1318,12 +1431,19 @@ function exact(value,allowed,label){
 }
 function workspace(raw){
  if(raw&&raw.format===WORKSPACE){
-  exact(raw,['format','version','project','composition'],'workspace');
-  if(raw.version!==1)throw Error('D6: unsupported workspace version');
+  if(![1,2].includes(raw.version))throw Error('D6: unsupported workspace version');
+  exact(raw,raw.version===2
+   ?['format','version','project','composition','sectionPlan']
+   :['format','version','project','composition'],'workspace');
   const project=compiler.validateProject(raw.project);
   const id=raw.composition;
   if(id!==null)catalog.get(id);
-  return {format:WORKSPACE,version:1,project,composition:id};
+  if(raw.version===1)return {format:WORKSPACE,version:1,project,composition:id};
+  if(!raw.sectionPlan)throw Error('D6: missing versioned section plan');
+  const reg=compiler.loadRegistry();
+  const normalized=sectionPlan.applyToSite(compiler.compile(project,reg).site,
+   project.language,id,raw.sectionPlan,reg);
+  return {format:WORKSPACE,version:2,project,composition:id,sectionPlan:normalized.plan};
  }
  const project=compiler.migrate(raw);
  return {format:WORKSPACE,version:1,project,composition:null};
@@ -1332,16 +1452,16 @@ function build(input){
  const w=workspace(input);
  const compiled=compiler.compile(w.project);
  const reg=compiler.loadRegistry();
- let site=compiled.site,comp=null;
- if(w.composition){
-  const section=adapter.sectionFor(w.composition,'df-selected-composition',w.project.language,reg);
-  // Add, never replace an existing section. Studio and the D6 adapter must
-  // produce byte-equivalent CMS sites including the original CTA and stable IDs.
-  const sections=site.pages[0].sections;
-  const cta=sections.findIndex(item=>item.component==='cta-banner');
-  sections.splice(cta<0?sections.length:cta,0,section);
+ const planned=sectionPlan.applyToSite(compiled.site,w.project.language,w.composition,
+  w.version===2?w.sectionPlan:null,reg);
+ let site=(w.composition||w.version===2)?sdk.validateSite(planned.site,reg):planned.site;
+ const comp=w.composition?adapter.compare(w.composition):null;
+ // A new registered composition is a draft with placeholder copy, not owner sign-off.
+ if(planned.added){
+  compiled.checklist={...compiled.checklist,readyForPublish:false,
+   requiresOwnerReview:true,indexing:'noindex',publicationStatus:'section_drafts_require_owner_review'};
+  for(const page of site.pages)page.seo.robots='noindex';
   site=sdk.validateSite(site,reg);
-  comp=adapter.compare(w.composition);
  }
  const inspection=sdk.inspectSite(site,reg);
  if(inspection.errors.length)throw Error('D6: invalid local routes');
@@ -1353,7 +1473,10 @@ function build(input){
    ...(compiled.checklist.readyForPublish?[]:['unverified owner facts','unchecked contact channels','owner review not confirmed']),
    'fabricated reviews or awards','unlicensed media','production publication without CMS/integrator approval'
   ],
-  composition:comp,source:['stage3/sdk/contract.cjs','stage3/components/*.json','stage3/server/PublicRenderer.php'],
+  composition:comp,
+  ...(w.version===2?{sectionPlan:{format:sectionPlan.FORMAT,addedDrafts:planned.added,
+   pages:sectionPlan.PAGES.map(key=>({page:key,sections:w.sectionPlan.pages[key].length}))}}:{}),
+  source:['stage3/sdk/contract.cjs','stage3/components/*.json','stage3/server/PublicRenderer.php'],
   previewOnly:true,
   publishGate:compiled.checklist.readyForPublish?'owner_review_confirmed_by_exporter':'owner_review_required',
   indexing:compiled.checklist.indexing
@@ -1409,11 +1532,11 @@ const modules=Object.create(null);
 const names={
 '../../sdk/contract.cjs':'sdk','../catalog/themes.cjs':'themes','../catalog/kits.cjs':'kits',
 '../catalog/compositions.cjs':'compositions','./compiler.cjs':'compiler',
-'./preview.cjs':'preview','./composition-adapter.cjs':'adapter','./bridge.cjs':'bridge'
+'./preview.cjs':'preview','./composition-adapter.cjs':'adapter','./section-plan.cjs':'sectionPlan','./bridge.cjs':'bridge'
 };
 const safeFS=Object.freeze({readFileSync:function(p){const file=String(p).split("/").pop();if(!/^[a-z][a-z0-9-]*\.json$/.test(file))throw Error("Unsupported bundled manifest path");const id=file.slice(0,-5);if(!Object.prototype.hasOwnProperty.call(manifestBytes,id))throw Error("Missing manifest "+id);return manifestBytes[id];}});
 const safePath=Object.freeze({join:(...p)=>p.join("/"),resolve:(...p)=>p.join("/")});
 function load(id){if(modules[id])return modules[id].exports;const factory=moduleFactories[id];if(!factory)throw Error("Unknown factory "+id);const module={exports:{}};modules[id]=module;function request(p){if(p==="node:fs")return safeFS;if(p==="node:path")return safePath;const target=names[p];if(!target)throw Error("Blocked dependency "+p);return load(target)}factory(module,module.exports,request,"/stage3/design-factory/lib");return module.exports;}
-const api=Object.freeze({sdk:load("sdk"),compiler:load("compiler"),preview:load("preview"),themes:load("themes"),kits:load("kits"),compositions:load("compositions"),adapter:load("adapter"),bridge:load("bridge")});
+const api=Object.freeze({sdk:load("sdk"),compiler:load("compiler"),preview:load("preview"),themes:load("themes"),kits:load("kits"),compositions:load("compositions"),adapter:load("adapter"),sectionPlan:load("sectionPlan"),bridge:load("bridge")});
 Object.defineProperty(root,"DesignFactory",{value:api,writable:false,configurable:false});
 })(globalThis);
