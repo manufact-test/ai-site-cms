@@ -862,8 +862,8 @@ async function stop(){
     'Deleted page recovered from revision with same authored IDs and content');
   assert.equal(revived.body.site.pages.find(p=>p.id==='page-home').title,
     'Edited neighbour metadata','Recovery does not roll back other pages');
-  assert.equal((await request('GET',kitTarget+'/published-site')).status,404,
-    'All selective history operations stay unpublished');
+  assert.deepEqual((await request('GET',kitTarget+'/published-site')).body,kitPublished,
+    'Selective recovery never changes any previously published release');
 
   // Backup -> read-only plan -> transactional recovery -> release restoration.
   await request('POST',tplRoot,{name:'Архивный шаблон',pageId:'page-home',sectionId:'section-hero',expectedRevision:sourceRevision});
