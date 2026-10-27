@@ -78,3 +78,15 @@ jobs:
         run: |
           node stage3/bin/ai-site.cjs create --id=site-no-mockup --title="No design brief" > "$RUNNER_TEMP/ai-site.json"
           node stage3/bin/ai-site.cjs validate "$RUNNER_TEMP/ai-site.json"
+  technology-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Disposable Next Static real build and Next SSR loopback HTTP proof
+        run: node stage3/runtime-export/tests/next-probe.cjs
