@@ -219,3 +219,12 @@ body[data-review-mode=overview] .stage-area{min-width:0;padding-inline:clamp(12p
 #page-meta-snippet-title{font-size:14px;font-weight:600;line-height:1.4;color:#d5eaff}
 #page-meta-snippet-url{font-size:11px;color:#b5e3bb}
 #page-meta-snippet-description{font-size:11px;line-height:1.55;color:#c5d3cb;margin:3px 0 0}
+
+/* Explicit two-phase offline ZIP restoration: inspect, then user applies. */
+.delivery-restore{display:grid;gap:8px;margin:16px 0;padding:14px;border:1px solid rgba(185,225,199,.24);
+ border-radius:14px;background:rgba(255,255,255,.045);min-width:0}
+.delivery-restore>strong{font-size:13px;line-height:1.4}
+.delivery-restore .field{margin:0;min-width:0}
+.delivery-restore input[type=file]{width:100%;min-width:0;font-size:12px}
+#delivery-restore-status{overflow-wrap:anywhere;line-height:1.5}
+#delivery-restore-apply{min-height:44px;white-space:normal}
