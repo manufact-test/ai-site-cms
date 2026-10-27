@@ -33,6 +33,7 @@ function auditSite(site,manifests,blueprint){
  const pageMap=new Map(site.pages.map(p=>[p.id,p]));
  const byPath=new Map(site.pages.map(p=>[p.path,p]));
  const incoming=new Map(site.pages.map(p=>[p.id,0]));
+ const authoredEdges=new Map(site.pages.map(p=>[p.id,new Set()]));
  const redirectMap=new Map((site.redirects||[]).map(x=>[x.from,x.to]));
  for(const p of site.pages){
   for(const s of p.sections){
@@ -43,7 +44,7 @@ function auditSite(site,manifests,blueprint){
     if(dest==='')dest=p.path;
     dest=redirectMap.get(dest)||dest;
     const target=byPath.get(dest);
-    if(target&&target.id!==p.id)incoming.set(target.id,incoming.get(target.id)+1);
+    if(target&&target.id!==p.id){incoming.set(target.id,incoming.get(target.id)+1);authoredEdges.get(p.id).add(target.id);}
    };
    for(const el of [...s.elements,...(s.items||[])])visit(el.values?.['behavior.href'],s.id,el.id,null);
    const walk=ns=>{for(const n of ns||[]){if(n.type==='button')visit(n.href,s.id,null,n.id);walk(n.children);}};
@@ -64,13 +65,23 @@ function auditSite(site,manifests,blueprint){
    const p=pageMap.get(pp.id);
    if(!p){items.push(issue('planned-page-missing','error',pp.id,pp.path,'Planned page not present in implemented site.'));continue;}
    if(p.path!==pp.path)items.push(issue('path-diff','warning',p.id,p.path,'Implemented route differs from approved SEO blueprint.',{expected:pp.path}));
-   if(p.seo?.robots!==(pp.seo.robots))items.push(issue('indexation-diff','warning',p.id,p.path,'Indexation differs from blueprint; confirm deliberate change.',{expected:pp.seo.robots,actual:p.seo?.robots??'implicit index'}));
+   const effectiveRobots=p.seo?.robots||'index';
+   if(effectiveRobots!==pp.seo.robots)items.push(issue('indexation-diff','warning',p.id,p.path,'Indexation differs from blueprint; confirm deliberate change.',{expected:pp.seo.robots,actual:effectiveRobots}));
    for(const section of pp.sections){
-    if(!p.sections.some(s=>s.id===section.id))
+    const implemented=p.sections.find(s=>s.id===section.id);
+    if(!implemented){
      items.push(issue('planned-section-missing','recommendation',p.id,p.path,'Blueprint section not identified by stable ID in Site v1; verify content coverage.',{sectionId:section.id}));
+     continue;
+    }
+    const heading=implemented.elements?.find(el=>el.slot==='heading')?.values?.['content.text'];
+    if(typeof heading==='string'&&normalize(heading)!==normalize(section.heading))
+     items.push(issue('planned-heading-diff','recommendation',p.id,p.path,'Main section heading differs from approved editorial blueprint; check whether the change is intended.',{sectionId:section.id,expected:section.heading,actual:heading}));
    }
    for(const l of pp.links){
-    if(!pageMap.has(l.toPageId))items.push(issue('planned-link-target-missing','warning',p.id,p.path,'Planned internal-link target is missing.',{targetPageId:l.toPageId}));
+    if(!pageMap.has(l.toPageId))
+     items.push(issue('planned-link-target-missing','warning',p.id,p.path,'Planned internal-link target is missing.',{targetPageId:l.toPageId}));
+    else if(l.toPageId!==p.id&&!authoredEdges.get(p.id).has(l.toPageId))
+     items.push(issue('planned-internal-link-not-implemented','recommendation',p.id,p.path,'Planned contextual link not present in authored section links; navigation could differ.',{targetPageId:l.toPageId,proposedAnchor:l.anchor}));
    }
    for(const cand of pp.schemaCandidates)if(!cand.eligible)
     items.push(issue('schema-evidence-pending','warning',p.id,p.path,'Do not publish '+cand.type+' without verified supporting facts.'));
