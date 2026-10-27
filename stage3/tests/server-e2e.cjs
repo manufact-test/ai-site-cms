@@ -141,6 +141,23 @@ async function stop(){
   assert.doesNotMatch(pub.body,/<img src=x onerror/);
   assert.match(pub.body,/\/published\/site-industrial-demo\/contact\//);
   assert.equal((await request('GET','/published/'+id+'/contact/')).status,200);
+  // Site operations: owner-only CAS toggle, immediate visitor isolation, no release mutation.
+  const operations=await request('GET',endpoint+'/operations');
+  assert.equal(operations.status,200);
+  assert.equal(operations.body.maintenance.enabled,false);
+  assert.equal(operations.body.publishedVersion,1);
+  assert.equal((await request('POST',endpoint+'/operations',
+    {expectedRevision:0,enabled:true,message:'Плановое обслуживание'})).status,200);
+  const maintenancePage=await request('GET','/published/'+id+'/');
+  assert.equal(maintenancePage.status,503);
+  assert.match(maintenancePage.body,/Плановое обслуживание/);
+  assert.equal(maintenancePage.headers.get('cache-control'),'no-store');
+  assert.equal((await request('POST',endpoint+'/operations',
+    {expectedRevision:0,enabled:false,message:''})).status,409,'stale status must fail');
+  assert.equal((await request('POST',endpoint+'/operations',
+    {expectedRevision:1,enabled:false,message:''})).status,200);
+  assert.equal((await request('GET','/published/'+id+'/')).status,200);
+  assert.equal((await request('GET',endpoint+'/operations')).body.publishedVersion,1);
   const invalid=structuredClone(changed);
   invalid.pages[0].sections[0].elements[0].values['style.hiddenExecutable']='alert(1)';
   assert.equal((await request('POST',endpoint+'/save',{expectedRevision:2,site:invalid})).status,422);
@@ -328,6 +345,13 @@ async function stop(){
   assert.equal((await postForm({...values,_token:'0'.repeat(64)})).status,422);
   assert.equal((await postForm({...values,consent:''})).status,422);
   assert.equal((await postForm(values,'https://attacker.example')).status,422);
+  // Maintenance blocks the already-published form without creating a lead.
+  assert.equal((await request('POST',endpoint+'/operations',
+    {expectedRevision:2,enabled:true,message:'Приём заявок приостановлен'})).status,200);
+  const stoppedForm=await postForm(values);
+  assert.equal(stoppedForm.status,503);
+  assert.equal((await request('POST',endpoint+'/operations',
+    {expectedRevision:3,enabled:false,message:''})).status,200);
   const sent=await postForm(values);
   assert.equal(sent.status,201,sent.body);
   assert.match(sent.body,/заявка сохранена/);

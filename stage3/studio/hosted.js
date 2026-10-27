@@ -27,6 +27,66 @@
     action('Выйти','server-logout',()=>safe(logout)));
   const launchReviewButton=action('Проверка сайта','server-launch-review',()=>safe(openLaunchReview));
   row.append(launchReviewButton);
+  // Owner-controlled maintenance is independent from editor Save / Publish.
+  const operationsButton=action('Доступность сайта','server-operations-open',()=>safe(openOperations));
+  row.append(operationsButton);
+  const operationsDialog=element('dialog','hosted-backup-dialog');
+  operationsDialog.id='server-operations-dialog';
+  const operationsStatus=element('div','hosted-backup-summary');
+  operationsStatus.id='server-operations-status';
+  const maintenanceToggle=element('input');maintenanceToggle.type='checkbox';maintenanceToggle.id='server-maintenance-enabled';
+  const maintenanceRow=element('label','hosted-label','Включить техническое обслуживание (публичные страницы и отправка форм вернут HTTP 503)');
+  maintenanceRow.prepend(maintenanceToggle);
+  const maintenanceText=element('textarea','control');
+  maintenanceText.id='server-maintenance-message';maintenanceText.maxLength=240;maintenanceText.rows=3;
+  maintenanceText.placeholder='Мы скоро вернёмся.';
+  const maintenanceLabel=element('label','hosted-label','Сообщение посетителю');
+  maintenanceLabel.append(maintenanceText);
+  const incidents=element('div','hosted-backup-summary');incidents.id='server-operations-incidents';
+  let operationsRevision=null;
+  const operationsApply=action('Применить статус сайта','server-operations-apply',()=>safe(async()=>{
+    if(!state.siteId||!isOwner()||operationsRevision===null)throw Error('Откройте диагностику владельца');
+    const siteId=state.siteId,enabled=maintenanceToggle.checked;
+    if(enabled&&!maintenanceText.value.trim())throw Error('Укажите сообщение посетителям');
+    if(!confirm((enabled?'Включить обслуживание':'Отключить обслуживание')+
+      ' для '+siteId+'? Изменение сработает сразу, без Save/Publish.'))return;
+    const result=await api('/api/sites/'+encodeURIComponent(siteId)+'/operations','POST',{
+      expectedRevision:operationsRevision,enabled,message:maintenanceText.value
+    });
+    operationsRevision=result.maintenance.revision;
+    await readOperations(siteId);
+    notice(enabled?'Обслуживание включено: посетители увидят HTTP 503.':'Обычная работа опубликованного сайта восстановлена.');
+  }));
+  const operationsClose=action('Закрыть','server-operations-close',()=>operationsDialog.close());
+  operationsDialog.append(element('h2',null,'Доступность и диагностика сайта'),
+    element('p',null,'Только владелец. Переключение действует сразу на текущем PHP-сервере и не меняет черновик, историю или публикации. Независимые ZIP-сайты не затрагиваются.'),
+    operationsStatus,maintenanceRow,maintenanceLabel,operationsApply,element('h3',null,'Технические события (не более 30 последних)'),incidents,operationsClose);
+  document.body.append(operationsDialog);
+  async function readOperations(siteId){
+    const info=await api('/api/sites/'+encodeURIComponent(siteId)+'/operations');
+    if(state.siteId!==siteId||!operationsDialog.open)return;
+    operationsRevision=info.maintenance.revision;
+    maintenanceToggle.checked=info.maintenance.enabled;
+    maintenanceText.value=info.maintenance.message||'';
+    operationsStatus.replaceChildren(
+      element('strong',null,info.maintenance.enabled?'На обслуживании':'Работает в обычном режиме'),
+      element('p',null,'Черновик #'+info.draftRevision+' · публикация: '+(info.publishedVersion?'v'+info.publishedVersion:'нет')+
+        ' · страниц: '+info.publishedPages+' · форм: '+info.publishedForms),
+      element('p',null,'Публичный origin: '+(info.publicOriginConfigured?'задан':'не задан')+
+        ' · секрет сборщика форм: '+(info.collectorConfigured?'задан':'не задан')),
+      element('small',null,'Диагностика локальная: сеть, DNS и внешний хостинг не проверяются.')
+    );
+    incidents.replaceChildren(...(info.incidents.length
+      ?info.incidents.map(x=>element('p',null,x.createdAt+' · '+x.kind+' · '+x.id))
+      :[element('p',null,'Зарегистрированных внутренних ошибок нет.')]));
+  }
+  async function openOperations(){
+    if(!state.siteId||!isOwner())throw Error('Раздел доступен владельцу сайта');
+    operationsRevision=null;operationsDialog.showModal();
+    try{await readOperations(state.siteId);}
+    catch(error){operationsDialog.close();throw error;}
+  }
+  operationsDialog.addEventListener('close',()=>{operationsRevision=null;});
   toolbar.append(label,picker,row,status);
   document.querySelector('.site-actions').before(toolbar);
   $('save').textContent='Сохранить на сервере';
@@ -1775,6 +1835,7 @@
     $('server-publish').disabled=!available||isDirty()||!canPublish();
     $('server-reload').disabled=!available;
     launchReviewButton.disabled=!available;
+    operationsButton.hidden=!isOwner();operationsButton.disabled=!available||!isOwner();
     techOpen.disabled=!available||!state.authorized;
     $('server-open').disabled=state.busy||!state.authorized||!picker.value;
     $('server-site-select').disabled=state.busy||!state.authorized;
@@ -2373,7 +2434,7 @@
   async function logout(){
     if(isDirty()&&!confirm('Выйти без сохранения текущих правок?'))return;
     await api('/api/logout','POST',{});
-    clearArchive();backupDialog.close();releaseList.replaceChildren();
+    clearArchive();backupDialog.close();operationsDialog.close();releaseList.replaceChildren();
     state.authorized=false;state.principal=null;state.csrf=null;state.siteId=null;state.revision=null;
     state.revisions=[];state.sites=[];picker.replaceChildren();
     mediaList.replaceChildren();templatesList.replaceChildren();deliveryReport.replaceChildren();deliveryRecent.replaceChildren();currentDelivery=null;

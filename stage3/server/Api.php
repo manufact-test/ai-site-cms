@@ -230,6 +230,17 @@ final class Api
         if (preg_match('~^/published/([a-z][a-z0-9-]{2,79})(/.*)$~D', $path, $match) && $method === 'GET') {
             try {
                 $published = $this->sites->published($match[1]);
+                if ($this->sites->operationsState($match[1])['enabled']) {
+                    http_response_code(503);
+                    header('Retry-After: 3600');
+                    header('Cache-Control: no-store');
+                    header('X-Robots-Tag: noindex, nofollow');
+                    header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'");
+                    header('Content-Type: text/html; charset=utf-8');
+                    echo '<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Техническое обслуживание</title><body style="font:18px/1.5 system-ui;max-width:640px;margin:12vh auto;padding:24px"><h1>Сайт временно недоступен</h1><p>'
+                        .htmlspecialchars($this->sites->operationsState($match[1])['message'],ENT_QUOTES|ENT_SUBSTITUTE|ENT_HTML5,'UTF-8').'</p></body></html>';
+                    exit;
+                }
                 $mount='/published/'.$match[1];
                 $origin=PublicRenderer::origin(getenv('STAGE3_PUBLIC_ORIGIN')?:null);
                 if (in_array($match[2],['/sitemap.xml','/robots.txt'],true)) {
@@ -333,6 +344,10 @@ final class Api
                 echo $image['bytes'];
                 exit;
             }
+            if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/operations$~D',$path,$op)) {
+                if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
+                $this->response(200,$this->sites->siteDiagnostics($op[1]));
+            }
             if ($path === '/api/sites' && $method === 'GET') {
                 $listed = $this->sites->listSites();
                 if ($principal['role'] !== 'owner') $listed = array_values(array_filter($listed, static fn (array $r): bool => in_array($r['site_id'], $principal['sites'], true)));
@@ -353,6 +368,13 @@ final class Api
                 }
                 if ($path === '/api/sites') {
                     $this->response(201, $this->sites->createSite($body['site'] ?? []));
+                }
+                if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/operations$~D',$path,$op)) {
+                    if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
+                    if (!is_bool($body['enabled']??null) || !is_int($body['expectedRevision']??null)
+                        || !is_string($body['message']??null)) throw new InvalidArgumentException('Maintenance status, message and revision required');
+                    $this->auditDetail='Maintenance '.($body['enabled']?'enabled':'disabled');
+                    $this->response(200,['maintenance'=>$this->sites->setMaintenance($op[1],$body['expectedRevision'],$body['enabled'],$body['message'],$principal['username'])]);
                 }
                 if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/preview$~D',$path,$previewMatch)) {
                     $siteId=$previewMatch[1];
@@ -909,6 +931,9 @@ final class Api
             $this->response(400, ['error' => 'Invalid JSON']);
         } catch (Throwable $e) {
             error_log('Stage3 API internal error: ' . get_class($e));
+            if (isset($siteScope) && is_string($siteScope)) {
+                try { $this->sites->recordIncident($siteScope,'api_failure'); } catch (Throwable $ignored) {}
+            }
             $this->response(500, ['error' => 'Internal error']);
         }
     }
