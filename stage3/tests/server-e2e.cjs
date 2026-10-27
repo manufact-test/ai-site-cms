@@ -285,7 +285,7 @@ async function stop(){
   // Private operator inbox: bounded search, status, paging, CSV and transactional bulk review.
   const summary=await request('GET',endpoint+'/submissions?status=new&page=1');
   assert.equal(summary.status,200);
-  assert.deepEqual(summary.body.counts,{all:5,new:4,reviewed:1});
+  assert.deepEqual(summary.body.counts,{all:5,new:4,in_progress:0,reviewed:1});
   assert.equal(summary.body.total,4);
   assert.equal(summary.body.submissions.length,4);
   assert.equal((await request('GET',endpoint+'/submissions?status=bogus')).status,422);
@@ -317,9 +317,65 @@ async function stop(){
   assert.equal(bulk.status,200,JSON.stringify(bulk.body));
   assert.equal(bulk.body.reviewed,2);
   assert.deepEqual((await request('GET',endpoint+'/submissions?status=reviewed')).body.counts,
-    {all:5,new:2,reviewed:3});
+    {all:5,new:2,in_progress:0,reviewed:3});
   assert.equal((await request('GET',endpoint+'/submissions?status=new')).body.total,2);
 
+  // B2: owner- and editor-only workflow state, private notes and event trail.
+  const leadWorkflowId=newLeadIds[0];
+  const workflowRoute=endpoint+'/submissions/'+leadWorkflowId+'/workflow';
+  const historyRoute=endpoint+'/submissions/'+leadWorkflowId+'/history';
+  assert.equal((await request('GET',endpoint+'/submissions?priority=unknown')).status,422);
+  assert.equal((await request('GET',endpoint+'/submissions?priority=high')).body.total,0);
+  const deniedUpgrade=spawnSync('php',['stage3/server/bin/upgrade-leads.php'],
+    {cwd:root,env,encoding:'utf8'});
+  assert.notEqual(deniedUpgrade.status,0,'Lead schema changes are CLI gated');
+  const authorizedUpgrade=spawnSync('php',['stage3/server/bin/upgrade-leads.php'],
+    {cwd:root,env:{...env,STAGE3_ALLOW_LEAD_WORKFLOW_UPGRADE:'YES'},encoding:'utf8'});
+  assert.equal(authorizedUpgrade.status,0,authorizedUpgrade.stderr);
+  const originalState=(await request('GET',endpoint+'/submissions')).body.submissions
+    .find(x=>x.submission_id===leadWorkflowId);
+  assert.equal(originalState.priority,'normal');
+  assert.equal(originalState.note,'');
+  assert.equal(originalState.workflow_revision,0);
+  assert.equal((await request('POST',workflowRoute,{
+    status:'in_progress',priority:'high',note:'=SUM(1,1) Внутренняя заметка',
+    expectedWorkflowRevision:0},{'x-csrf-token':'bogus'})).status,403);
+  assert.equal((await request('POST',workflowRoute,{
+    status:'invalid',priority:'high',note:'test',expectedWorkflowRevision:0})).status,422);
+  assert.equal((await request('POST',workflowRoute,{
+    status:'in_progress',priority:'high',note:'a'.repeat(2001),expectedWorkflowRevision:0})).status,422);
+  const updatedLead=await request('POST',workflowRoute,{
+    status:'in_progress',priority:'high',note:'=SUM(1,1) Внутренняя заметка',
+    expectedWorkflowRevision:0});
+  assert.equal(updatedLead.status,200,JSON.stringify(updatedLead.body));
+  assert.equal(updatedLead.body.workflow_revision,1);
+  assert.equal(updatedLead.body.changed,true);
+  assert.equal((await request('POST',workflowRoute,{
+    status:'reviewed',priority:'normal',note:'bad overwrite',
+    expectedWorkflowRevision:0})).status,409,'Stale operator cannot overwrite new notes');
+  assert.equal((await request('GET',endpoint+'/submissions?priority=high')).body.total,1);
+  assert.equal((await request('GET',endpoint+'/submissions?status=in_progress')).body.total,1);
+  const priorityCsv=await request('GET',endpoint+'/submissions/export?priority=high');
+  assert.equal(priorityCsv.status,200);
+  assert.match(priorityCsv.body,/'=SUM\(1,1\)|'=SUM\(1,1\)/);
+  assert.match(priorityCsv.body,/'=SUM/,'Private notes are protected against CSV spreadsheet formula execution');
+  const updatedHistory=await request('GET',historyRoute);
+  assert.equal(updatedHistory.status,200);
+  assert.equal(updatedHistory.body.events.length,1);
+  assert.equal(updatedHistory.body.events[0].from_status,'reviewed');
+  assert.equal(updatedHistory.body.events[0].to_status,'in_progress');
+  assert.equal(updatedHistory.body.events[0].note_changed,1);
+  assert.ok(!JSON.stringify(updatedHistory.body).includes('Внутренняя заметка'),
+    'History records edit metadata without duplicating private note contents');
+  const restoredLead=await request('POST',workflowRoute,{
+    status:'reviewed',priority:'high',note:'=SUM(1,1) Внутренняя заметка',
+    expectedWorkflowRevision:1});
+  assert.equal(restoredLead.status,200);
+  assert.deepEqual((await request('GET',endpoint+'/submissions?status=reviewed')).body.counts,
+    {all:5,new:2,in_progress:0,reviewed:3});
+  assert.equal((await request('GET',historyRoute)).body.events.length,2);
+  assert.equal((await request('GET','/published/site-industrial-demo/contact/')).status,200,
+    'Private workflow must not affect visitor website');
   const pendingSetup=spawnSync('php',['-r',
     '$db=new PDO(getenv("STAGE3_DSN"));$q=$db->prepare("UPDATE stage3_delivery_outbox SET state=?,last_error=NULL WHERE site_id=? AND submission_id=? AND channel=?");$q->execute(["pending","site-industrial-demo",$argv[1],"email"]);if($q->rowCount()!==1)exit(3);',
     allLeads[0].submission_id],{cwd:root,env,encoding:'utf8'});

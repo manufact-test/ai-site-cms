@@ -331,7 +331,20 @@ async function execute(){
   await page.locator('#server-submissions-refresh').click();
   await page.locator('#server-submission-heading').getByText(/Заявки сайта · 1/).waitFor();
   assert.match(await page.locator('#server-submissions .hosted-lead').innerText(),/Алексей Тест/);
-  await page.locator('#server-submissions .hosted-lead button').click();
+  await page.locator('#server-submissions .hosted-lead-workflow summary').click();
+  await page.locator('#server-submissions select[data-lead-stage]').selectOption('in_progress');
+  await page.locator('#server-submissions select[data-lead-priority]').selectOption('high');
+  await page.locator('#server-submissions textarea[data-lead-note]').fill('Связаться с заявителем во вторник');
+  await page.locator('#server-submissions button[data-lead-workflow-save]').click();
+  await page.locator('#server-submissions .hosted-lead small').getByText(/in_progress/).waitFor();
+  await page.locator('#server-inbox-priority').selectOption('high');
+  await page.locator('#server-submissions .hosted-lead').getByText(/Алексей Тест/).waitFor();
+  await page.locator('#server-inbox-priority').selectOption('all');
+  await page.locator('#server-submissions .hosted-lead-workflow summary').click();
+  await page.locator('#server-submissions button').getByText('История изменений').click();
+  await page.locator('#server-submissions .hosted-lead-history').getByText(/new → in_progress/).waitFor();
+  await page.locator('#server-submissions select[data-lead-stage]').selectOption('reviewed');
+  await page.locator('#server-submissions button[data-lead-workflow-save]').click();
   await page.locator('#server-submissions .hosted-lead small').getByText(/reviewed/).waitFor();
   // Operators can filter/search and download private CSV without publication.
   await page.locator('#server-inbox-status').selectOption('new');
