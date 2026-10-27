@@ -173,3 +173,12 @@ The Studio inspector now includes **«Секции всех страниц»** f
 
 The old single-Home composition selector remains available for legacy workflows, and coexists safely with a new per-page plan. This feature has been exercised with first-party GitHub source in isolated V8/DOM simulation, **not accepted by actual Chromium/PHP**; do not treat it as D7 completion.
 
+
+## Owner section content editor · 27 October 2026
+
+Click **✎ Edit** on any section row (Home, Services, Approach, Contact). The editor uses the **actual CMS component manifest** for its field labels and limits: editable headings/body text, CTA button labels and URLs; repeatable FAQ/service-card fields support add, move and delete within the manifest's min/max bounds. Draft input does **not** change the compiled website until **Save section**; **Cancel** discards it. Saving creates one Undo/Redo entry, updates the four-page preview and CMS/D6 JSON, and makes previously received client notes stale if their underlying site snapshot changed. Added sections and original kit sections are both editable. Media, arbitrary HTML, unknown slots, unsupported values and injected manifest fields are not editable here; media still needs the separately approved asset workflow.
+
+For reproducibility, the existing **workspace v2** now accepts both **section-plan-v1 version 1** (order-only legacy, unchanged) and **section-plan-v1 version 2** (order plus strict typed `row.edit`). This is an evolution of the *Design Factory workspace* and does **not** change `manufact-ai-site-v1` or CMS manifests. Each edit carries only registered element `{slot,path,value}` changes and, where present, typed repeater item `{id,values}` lists. Stable CMS IDs and field types are validated against the first-party registry and the exact SDK; invalid links, field lengths, media/asset replacements, malformed item IDs or repeater bounds fail without replacing the active project. All content edits and unreviewed inserted compositions keep **CMS robots=noindex** even if old owner facts had been previously confirmed. No automatic publication/approval path is provided.
+
+Saving **project.json** alone preserves the factual brief, not section edits. Use **workspace.json**, **D6 integration-v2.json**, or the **18-file delivery ZIP** for editable per-section copy. Standalone preview CSS still does not promise PHP layout parity. The new UI and real GitHub browser runtime were exercised in focused isolated V8/mock DOM, not in full Chromium or real PHP. Formal D7 remains open.
+
