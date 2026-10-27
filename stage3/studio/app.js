@@ -4113,30 +4113,39 @@
         ()=>{elementId=e.id;drawElements();drawFields();}));
     });
     if(m.repeat){
+      const faq=section.component==='faq-accordion';
+      const noun=faq?'вопрос':'карточку';
       const label=document.createElement('small');label.className='field-path';
-      label.textContent='ПОВТОРЯЕМЫЕ ЭЛЕМЕНТЫ · '+section.items.length+'/'+m.repeat.max;row.append(label);
+      label.textContent=(faq?'ВОПРОСЫ FAQ':'ПОВТОРЯЕМЫЕ ЭЛЕМЕНТЫ')+' · '+
+        section.items.length+'/'+m.repeat.max+
+        (section.items.length<=m.repeat.min?' · минимум '+m.repeat.min:'');
+      row.append(label);
       section.items.forEach((item,i)=>{
         const headline=item.values['content.title']||item.values['content.question']||
-          item.values['content.author']||item.values['content.caption']||'Карточка '+(i+1);
+          item.values['content.author']||item.values['content.caption']||
+          (faq?'Вопрос ':'Карточка ')+(i+1);
         const line=document.createElement('div');line.className='cms-repeat-row';
         const choice=button((i+1)+'. '+String(headline).slice(0,56),'element'+(item.id===elementId?' active':''),
           ()=>{elementId=item.id;drawElements();drawFields();});
         choice.dataset.repeatId=item.id;line.append(choice);
-        const op=(title,label,action,more={})=>{
+        const op=(title,label,action,disabled=false,more={})=>{
           const control=button(title,'btn small',()=>operateRepeat(action,item.id,more));
-          control.title=label;control.setAttribute('aria-label',label+' '+(i+1));line.append(control);
+          control.title=label;control.setAttribute('aria-label',label+' '+(i+1));
+          control.disabled=disabled;line.append(control);
         };
-        op('↑','Поднять карточку','moveItem',{delta:-1});
-        op('↓','Опустить карточку','moveItem',{delta:1});
-        op('⧉','Копировать карточку','duplicateItem');
-        op('×','Удалить карточку','removeItem');
+        op('↑','Поднять '+noun,'moveItem',i===0,{delta:-1});
+        op('↓','Опустить '+noun,'moveItem',i===section.items.length-1,{delta:1});
+        op('⧉','Копировать '+noun,'duplicateItem',section.items.length>=m.repeat.max);
+        op('×','Удалить '+noun,'removeItem',section.items.length<=m.repeat.min);
         row.append(line);
       });
-      const add=button('+ Добавить карточку','btn small',()=>operateRepeat('addItem',null));
-      add.id='cms-repeat-add';row.append(add);
+      const add=button(faq?'+ Добавить вопрос':'+ Добавить карточку','btn small',
+        ()=>operateRepeat('addItem',null));
+      add.id='cms-repeat-add';add.disabled=section.items.length>=m.repeat.max;row.append(add);
     }
   }
   function operateRepeat(action,itemId,extra={}){
+    if(action==='removeItem'&&!confirm('Удалить выбранный повторяемый элемент из черновика? Его можно вернуть кнопкой «Отменить».'))return;
     const id=action==='addItem'||action==='duplicateItem'?uniqueId('item'):undefined;
     structural({action,pageId,sectionId,itemId,...(id?{id}:{}),...extra});
     const section=current().section;

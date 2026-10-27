@@ -2484,6 +2484,37 @@
         }
         media.push({id:item.id,original,variants,alt:item.alt});
       }
+      // Refuse corrupt/wrongly described images BEFORE creating the first draft.
+      // Trust the signature and decoded dimensions, not the client-provided extension.
+      const verifyImage=async(file,mime,expectedWidth,expectedHeight)=>{
+        const header=new Uint8Array(await file.slice(0,16).arrayBuffer());
+        const png=header.length>=8&&[137,80,78,71,13,10,26,10].every((v,i)=>header[i]===v);
+        const jpeg=header.length>=3&&header[0]===255&&header[1]===216&&header[2]===255;
+        const webp=header.length>=12&&
+          String.fromCharCode(...header.slice(0,4))==='RIFF'&&
+          String.fromCharCode(...header.slice(8,12))==='WEBP';
+        if(!({ 'image/png':png,'image/jpeg':jpeg,'image/webp':webp })[mime])
+          throw Error('Файл не соответствует заявленному формату: '+file.name);
+        let bitmap;
+        try{bitmap=await createImageBitmap(file);}
+        catch(_){throw Error('Повреждённое изображение: '+file.name);}
+        try{
+          if((expectedWidth!==undefined&&bitmap.width!==expectedWidth)||
+            (expectedHeight!==undefined&&bitmap.height!==expectedHeight))
+            throw Error('Размеры не совпадают с манифестом: '+file.name);
+        }finally{bitmap.close();}
+      };
+      for(const entry of media){
+        const declared=site.assets.find(asset=>asset.id===entry.id);
+        await verifyImage(entry.original,declared.mime,declared.width,declared.height);
+        for(const variant of entry.variants){
+          await verifyImage(variant.file,declared.mime,variant.width,
+            declared.variants.find(item=>item.sha256===variant.sha256)?.height);
+          const sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',
+            await variant.file.arrayBuffer()))).map(b=>b.toString(16).padStart(2,'0')).join('');
+          if(sha256!==variant.sha256)throw Error('Не совпадает SHA256 responsive-файла: '+variant.file.name);
+        }
+      }
       if(!confirm('Подключить сайт «'+site.title+'» ('+handoff.version+')? Подтвердите, что три макета и их спецификация действительно утверждены. Публикация будет отдельно.'))return;
       const fileBase64=file=>new Promise((resolve,reject)=>{
         const reader=new FileReader();
