@@ -954,6 +954,9 @@ async function stop(){
   const changedForRecovery=structuredClone(releasedPage.site);
   changedForRecovery.pages.find(p=>p.id===originalPage.id).title='Wrong published-page title';
   changedForRecovery.pages.find(p=>p.id===originalPage.id).path='/safe-new-slug/';
+  // Keep the old public URL as a valid redirect, as the CMS requires before publishing.
+  changedForRecovery.redirects??=[];
+  changedForRecovery.redirects.push({from:originalPage.path,to:'/safe-new-slug/'});
   const changedReleaseDraft=await request('POST','/api/sites/'+target+'/save',
     {site:changedForRecovery,expectedRevision:releasedPage.revision});
   assert.equal(changedReleaseDraft.status,200,JSON.stringify(changedReleaseDraft.body));
