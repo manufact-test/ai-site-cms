@@ -16,6 +16,13 @@ function create({engine,state,apply,compile,tr,say}){
    navigationLabel:p.navigation.label}:null;
  }
  function same(a,b){return fields.every(k=>a?.[k]===b?.[k]);}
+ function snippet(key,row){
+  if(!row)return;
+  $('page-meta-snippet-title').textContent=row.seoTitle||row.title;
+  $('page-meta-snippet-url').textContent='design-preview.local'+(key==='home'?'/':'/'+key+'/');
+  $('page-meta-snippet-description').textContent=row.seoDescription||
+   tr('Добавьте SEO-описание страницы.','Add a page SEO description.');
+ }
  function clearDrafts(){drafts.clear();}
  function render(site){
   const key=state.page;
@@ -29,6 +36,7 @@ function create({engine,state,apply,compile,tr,say}){
    return;
   }
   const row=draft||original,edited=draft&&!same(draft,original);
+  snippet(key,row);
   for(const field of fields){
    const input=$('page-meta-'+field);
    if(document.activeElement!==input)input.value=row[field];
@@ -55,6 +63,7 @@ function create({engine,state,apply,compile,tr,say}){
   const row=drafts.get(key)||{...live};
   row[field]=value;
   drafts.set(key,row);
+  snippet(key,row);
   const saved=currentRow(compile().site,key);
   $('page-meta-save').disabled=same(row,saved);
   $('page-meta-cancel').disabled=false;
