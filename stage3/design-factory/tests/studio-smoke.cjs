@@ -115,7 +115,7 @@ assert.ok(markup.includes('runtime.generated.js')&&markup.includes('studio.js'))
 assert.ok(!/@import|url\(\s*["']?https?:\/\//i.test(css));
 assert.ok(css.includes('prefers-reduced-motion')&&css.includes('max-width:730px'));
 for(const minTarget of ['.device-button{min-height:44px','.page-list button{min-height:44px',
- '.icon-button{height:44px','.remove-service{'])assert.ok(css.includes(minTarget),minTarget);
+ '.icon-button{height:44px','.service-action{height:44px'])assert.ok(css.includes(minTarget),minTarget);
 for(const id of ['kit-list','theme-list','site-preview','page-list','title','headline','description',
  'services-list','bulk-services-input','bulk-services-add','composition','undo','redo','save-project','save-site','save-workspace','project-file','checklist','owner-review-confirmed'])
  assert.ok(markup.includes('id="'+id+'"'),'UI control '+id);
@@ -395,6 +395,16 @@ try{
  "setField('headline','Verified owner headline');setField('description','Verified owner description');setField('contactText','Verified owner contact');",
  "setField('service-0-title','Verified service one');setField('service-0-description','Owner confirmed service one');",
  "document.getElementById('add-service').click();setField('service-1-title','Verified service two');setField('service-1-description','Owner confirmed service two');",
+ "document.getElementById('move-service-up-1').click();if(document.getElementById('service-0-title').value!=='Verified service two')throw Error('service reorder');",
+ "document.getElementById('undo').click();if(document.getElementById('service-0-title').value!=='Verified service one')throw Error('undo reorder');",
+ "document.getElementById('redo').click();if(document.getElementById('service-0-title').value!=='Verified service two')throw Error('redo reorder');",
+ "document.getElementById('duplicate-service-0').click();if(document.querySelectorAll('.service-editor').length!==3||!document.getElementById('service-1-title').value.startsWith('Пример (подтвердить):'))throw Error('duplicated service should be a draft');",
+ "document.getElementById('undo').click();if(document.querySelectorAll('.service-editor').length!==2)throw Error('undo duplicate');",
+ "const batch=document.getElementById('bulk-services-input');batch.value='Batch service | Owner fact\\nDraft only';document.getElementById('bulk-services-add').click();",
+ "if(document.querySelectorAll('.service-editor').length!==4||document.getElementById('service-3-description').value!=='Добавьте подтверждённое описание.')throw Error('bulk import draft');",
+ "document.getElementById('undo').click();if(document.querySelectorAll('.service-editor').length!==2)throw Error('undo bulk import');",
+ "batch.value='X'.repeat(121);document.getElementById('bulk-services-add').click();if(document.querySelectorAll('.service-editor').length!==2||batch.value.length!==121)throw Error('invalid bulk not atomic');",
+ "batch.value='';",
  "await new Promise(resolve=>setTimeout(resolve,180));",
  "const gate=document.getElementById('owner-review-confirmed');if(gate.disabled)throw Error('review confirmation should unlock only after required facts are complete');",
  "gate.checked=true;gate.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,180));",
