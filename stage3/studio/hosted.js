@@ -104,6 +104,9 @@
   leadsTitle.id='server-submission-heading';
   const leadsRefresh=action('Обновить заявки','server-submissions-refresh',()=>safe(loadSubmissions));
   const leadsList=element('div','hosted-leads-list');leadsList.id='server-submissions';
+  const leadsPipeline=element('div','hosted-inbox-pipeline');
+  leadsPipeline.id='server-inbox-pipeline';
+  leadsPipeline.setAttribute('aria-label','Очередь заявок по этапам');
   const leadsTools=element('div','hosted-inbox-tools');
   const leadsStatus=element('select','control');leadsStatus.id='server-inbox-status';
   for(const [value,name] of [['all','Все'],['new','Новые'],['in_progress','В работе'],['reviewed','Обработанные']]){
@@ -145,6 +148,52 @@
     notice('Отмечено обработанными заявок: '+result.reviewed+'.');
   }));
   leadsBulk.disabled=true;
+  const batchActions=element('div','hosted-inbox-batch');batchActions.id='server-inbox-batch-actions';
+  const batchStage=element('select','control');batchStage.id='server-inbox-batch-stage';
+  batchStage.setAttribute('aria-label','Массовый этап');
+  for(const [value,label] of [['keep','Этап — без изменений'],['new','Вернуть в новые'],
+    ['in_progress','В работу'],['reviewed','Завершить']]){
+    const option=element('option',null,label);option.value=value;batchStage.append(option);
+  }
+  const batchPriority=element('select','control');batchPriority.id='server-inbox-batch-priority';
+  batchPriority.setAttribute('aria-label','Массовый приоритет');
+  for(const [value,label] of [['keep','Приоритет — без изменений'],['high','Высокий'],
+    ['normal','Обычный']]){
+    const option=element('option',null,label);option.value=value;batchPriority.append(option);
+  }
+  const refreshBatchButtons=()=>{
+    const selection=[...inboxSelected];
+    const canBulk=selection.length>0&&selection.length<=50&&
+      selection.every(id=>inboxVisible.some(row=>row.submission_id===id));
+    leadsBulk.disabled=!canBulk||!selection.every(id=>inboxVisible.some(
+      row=>row.submission_id===id&&row.status==='new'));
+    batchApply.disabled=!canBulk||(batchStage.value==='keep'&&batchPriority.value==='keep');
+  };
+  const batchApply=action('Применить к выбранным','server-inbox-batch-apply',()=>safe(async()=>{
+    if(!state.siteId||!canEdit())throw Error('Нет доступа к рабочей очереди');
+    refreshBatchButtons();
+    if(batchApply.disabled)throw Error('Выберите до 50 заявок и операцию');
+    const chosen=[...inboxSelected].map(id=>{
+      const lead=inboxVisible.find(item=>item.submission_id===id);
+      if(!lead)throw Error('Выбор заявок устарел — обновите страницу');
+      return {id,expectedWorkflowRevision:lead.workflow_revision};
+    });
+    if(!confirm('Изменить '+chosen.length+' заявок одной операцией? Заметки сохранятся.'))return;
+    const currentSite=state.siteId;
+    const result=await api('/api/sites/'+encodeURIComponent(currentSite)+'/submissions/bulk-workflow','POST',{
+      items:chosen,status:batchStage.value==='keep'?null:batchStage.value,
+      priority:batchPriority.value==='keep'?null:batchPriority.value
+    });
+    if(state.siteId!==currentSite)return;
+    batchStage.value='keep';batchPriority.value='keep';
+    await loadSubmissions();
+    notice('Обновлено: '+result.changed+' из '+result.selected+' заявок. История сохранена.');
+  }));
+  batchStage.addEventListener('change',refreshBatchButtons);
+  batchPriority.addEventListener('change',refreshBatchButtons);
+  batchApply.disabled=true;
+  const selectionNote=element('small',null,'Выбор только на текущей странице · до 50 заявок · одна операция Undo недоступна');
+  batchActions.append(batchStage,batchPriority,batchApply,selectionNote);
   const leadsPageLabel=element('small',null,'Страница 1 из 1');leadsPageLabel.id='server-inbox-page-label';
   const leadsPrev=action('← Назад','server-inbox-prev',()=>safe(async()=>{inboxPage=Math.max(1,inboxPage-1);await loadSubmissions();}));
   const leadsNext=action('Дальше →','server-inbox-next',()=>safe(async()=>{inboxPage++;await loadSubmissions();}));
@@ -152,7 +201,7 @@
   const leadsPager=element('div','hosted-inbox-pager');
   leadsPager.append(leadsPrev,leadsPageLabel,leadsNext);
   leadsTools.append(leadsStatus,leadsPriority,leadsSearch,leadsFind,leadsExport,leadsBulk);
-  leadsPanel.append(leadsTitle,leadsRefresh,leadsTools,leadsTotals,leadsList,leadsPager);
+  leadsPanel.append(leadsTitle,leadsRefresh,leadsPipeline,leadsTools,batchActions,leadsTotals,leadsList,leadsPager);
   leadsStatus.addEventListener('change',()=>safe(async()=>{inboxPage=1;await loadSubmissions();}));
   leadsPriority.addEventListener('change',()=>safe(async()=>{inboxPage=1;await loadSubmissions();}));
   leadsSearch.addEventListener('keydown',event=>{
@@ -280,7 +329,7 @@
 
   async function loadSubmissions(){
     leadsList.replaceChildren();inboxSelected.clear();inboxVisible=[];
-    leadsBulk.disabled=true;
+    leadsBulk.disabled=true;batchApply.disabled=true;leadsPipeline.replaceChildren();
     if(!state.authorized||!state.siteId||!canEdit()){
       leadsTitle.textContent='Заявки сайта';leadsTotals.textContent='';
       leadsPrev.disabled=true;leadsNext.disabled=true;leadsExport.disabled=true;
@@ -294,6 +343,17 @@
     await refreshAlerts(); // Inbox refresh and new-lead indicator are one operation.
     inboxPage=response.page;inboxVisible=response.submissions;
     leadsTitle.textContent='Заявки сайта · '+response.counts.all;
+    const stages=[['new','Новые'],['in_progress','В работе'],['reviewed','Обработанные']];
+    for(const [stage,label] of stages){
+      const stats=response.pipeline?.[stage]||{all:response.counts[stage]||0,high:0};
+      const tile=action(label+' · '+stats.all+' · срочных '+stats.high,'',()=>safe(async()=>{
+        leadsStatus.value=stage;inboxPage=1;await loadSubmissions();
+      }));
+      tile.className='hosted-inbox-pipeline-tile'+(leadsStatus.value===stage?' is-selected':'');
+      tile.dataset.pipelineStage=stage;
+      tile.setAttribute('aria-pressed',String(leadsStatus.value===stage));
+      leadsPipeline.append(tile);
+    }
     leadsTotals.textContent='Новые: '+response.counts.new+' · В работе: '+response.counts.in_progress+
       ' · Обработанные: '+response.counts.reviewed+
       ' · Найдено: '+response.total;
@@ -303,25 +363,25 @@
     if(!response.submissions.length){
       leadsList.append(element('small',null,'По фильтру заявок нет.'));return;
     }
-    const selectable=response.submissions.filter(lead=>lead.status==='new');
+    const selectable=response.submissions;
     if(selectable.length){
       const selectAll=element('label','hosted-inbox-select-all');
       const checkbox=element('input');checkbox.type='checkbox';checkbox.id='server-inbox-select-all';
-      selectAll.append(checkbox,element('span',null,'Выбрать новые на этой странице'));
+      selectAll.append(checkbox,element('span',null,'Выбрать заявки на этой странице'));
       checkbox.addEventListener('change',()=>{
         for(const lead of selectable){
           if(checkbox.checked)inboxSelected.add(lead.submission_id);
           else inboxSelected.delete(lead.submission_id);
         }
         for(const input of leadsList.querySelectorAll('input[data-inbox-id]'))input.checked=checkbox.checked;
-        leadsBulk.disabled=!inboxSelected.size;
+        refreshBatchButtons();
       });
       leadsList.append(selectAll);
     }
     for(const lead of response.submissions){
       const wrap=element('article','hosted-lead');
       wrap.dataset.submissionId=lead.submission_id;
-      if(lead.status==='new'){
+      {
         const tick=element('input');tick.type='checkbox';tick.dataset.inboxId=lead.submission_id;
         tick.setAttribute('aria-label','Выбрать заявку '+lead.name);
         tick.addEventListener('change',()=>{
@@ -329,7 +389,7 @@
           else inboxSelected.delete(lead.submission_id);
           const all=leadsList.querySelector('#server-inbox-select-all');
           if(all)all.checked=selectable.every(x=>inboxSelected.has(x.submission_id));
-          leadsBulk.disabled=!inboxSelected.size;
+          refreshBatchButtons();
         });
         wrap.append(tick);
       }
@@ -831,7 +891,11 @@
     leadsRefresh.disabled=state.busy||!state.authorized||!state.siteId||!canEdit();
     leadsFind.disabled=leadsExport.disabled=state.busy||!state.siteId||!canEdit();
     leadsStatus.disabled=leadsSearch.disabled=leadsPriority.disabled=state.busy||!state.siteId||!canEdit();
-    leadsBulk.disabled=state.busy||!state.siteId||!canEdit()||!inboxSelected.size;
+    leadsBulk.disabled=state.busy||!state.siteId||!canEdit()||!inboxSelected.size||
+      ![...inboxSelected].every(id=>inboxVisible.some(lead=>lead.submission_id===id&&lead.status==='new'));
+    batchApply.disabled=state.busy||!state.siteId||!canEdit()||!inboxSelected.size||
+      (batchStage.value==='keep'&&batchPriority.value==='keep');
+    batchStage.disabled=batchPriority.disabled=state.busy||!state.siteId||!canEdit();
     deliveryPanel.hidden=!isOwner();
     deliverySave.disabled=!available||!isOwner();deliveryRefresh.disabled=!available||!isOwner();
     deliveryRetry.disabled=!available||!isOwner()||!currentDelivery?.retryable;

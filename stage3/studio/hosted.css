@@ -183,3 +183,16 @@
 .hosted-inbox-tools .control{min-width:135px;max-width:220px}
 @media(max-width:650px){.hosted-lead-workflow-fields{grid-template-columns:1fr}
 .hosted-lead-workflow-fields textarea,.hosted-lead-history{grid-column:1}}
+
+/* Site-scoped lead workbench: status totals, urgency and explicit atomic triage. */
+.hosted-inbox-pipeline{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.hosted-inbox-pipeline-tile{border:1px solid #477082;border-radius:9px;
+  background:rgba(43,91,108,.2);padding:9px 6px;color:inherit;cursor:pointer;
+  text-align:center;font-size:11px;line-height:1.45;min-height:54px}
+.hosted-inbox-pipeline-tile.is-selected{border-color:#89d5ce;background:rgba(65,138,136,.24)}
+.hosted-inbox-batch{display:flex;gap:7px;align-items:center;flex-wrap:wrap;
+  border:1px solid rgba(128,150,160,.3);border-radius:9px;padding:9px}
+.hosted-inbox-batch .control{flex:1 1 180px;min-width:145px}
+.hosted-inbox-batch small{flex-basis:100%;opacity:.72;font-size:10px}
+@media(max-width:490px){.hosted-inbox-pipeline{grid-template-columns:1fr}
+.hosted-inbox-batch .control,.hosted-inbox-batch button{width:100%}}
