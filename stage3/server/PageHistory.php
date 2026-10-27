@@ -35,7 +35,7 @@ trait PageHistory
                     'id'=>$section['id'],'component'=>$section['component']
                 ],$page['sections'])
             ],$snapshot['pages'])
-        )];
+        ];
     }
 
     private static function historicalReferencedMedia(array $sections,?array $seo): array
