@@ -148,6 +148,7 @@ function create({engine,state,apply,compile,tr,say}){
   });
   if(success){
    editing=null;
+   render(compile().site);
    say(tr('Содержимое секции сохранено в рабочем пространстве. Undo доступен; экспорт остаётся noindex до проверки.',
     'Section content saved to workspace. Undo available; export stays noindex until approved.'));
   }
