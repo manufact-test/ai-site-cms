@@ -188,6 +188,13 @@ const feedbackToken=feedback.context(approvedDraft,approvedDraft.project||{
 },null);
 assert.match(feedbackToken,/^df-[0-9a-f]{8}$/);
 const reviewPage=feedback.reviewHtml(feedbackToken);
+const englishReview=feedback.reviewHtml(feedbackToken,'en');
+assert.ok(englishReview.includes('<html lang="en">')&&
+ englishReview.includes('Feedback on the preview')&&englishReview.includes('Your feedback')&&
+ englishReview.includes('>Services</a>'));
+assert.ok(englishReview.includes(JSON.stringify(feedbackToken)+',"en"'));
+assert.throws(()=>feedback.reviewHtml(feedbackToken,'de'),/Unsupported feedback language/);
+assert.ok(app.includes('feedbackTool.reviewHtml(reviewContext,state.project.language)'));
 assert.ok(reviewPage.includes('id="feedback-add"')&&reviewPage.includes('id="feedback-download"'));
 assert.ok(reviewPage.includes('href="contact/index.html"'));
 assert.ok(reviewPage.includes('script-src &apos;unsafe-inline&apos;'));

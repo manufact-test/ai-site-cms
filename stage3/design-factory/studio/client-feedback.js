@@ -61,12 +61,16 @@
    reviewer,reviewedAt:new Date().toISOString(),notes};
   return validate(report,contextId);
  }
- function reviewerApp(contextId){
+ function reviewerApp(contextId,language){
   'use strict';
   const LIMIT=30;
   const $=id=>document.getElementById(id),notes=[];
   let notesRevision=0,importSerial=0;
-  const PAGES={home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'};
+  const t=(ru,en)=>language==='en'?en:ru;
+  const PAGES=language==='en'?{home:'Home',services:'Services',approach:'Approach',contact:'Contact'}:
+   {home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'};
+  const TYPES=language==='en'?{change:'Change',issue:'Issue',question:'Question'}:
+   {change:'Изменение',issue:'Ошибка',question:'Вопрос'};
   function message(text,error=false){
    $('feedback-status').textContent=text;
    $('feedback-status').dataset.error=String(error);
@@ -76,10 +80,10 @@
    $('feedback-count').textContent=String(notes.length)+' / '+LIMIT;
    notes.forEach((n,i)=>{
     const item=document.createElement('li'),description=document.createElement('p');
-    description.textContent=PAGES[n.page]+' · '+({change:'Изменение',issue:'Ошибка',question:'Вопрос'}[n.type]);
+    description.textContent=PAGES[n.page]+' · '+TYPES[n.type];
     const copy=document.createElement('blockquote');copy.textContent=n.message;
     const remove=document.createElement('button');
-    remove.type='button';remove.textContent='Удалить замечание';
+    remove.type='button';remove.textContent=t('Удалить замечание','Remove note');
     remove.addEventListener('click',()=>{notes.splice(i,1);notesRevision++;render();});
     item.append(description,copy,remove);holder.append(item);
    });
@@ -93,7 +97,7 @@
     typeof value.reviewer!=='string'||value.reviewer.length>80||
     typeof value.reviewedAt!=='string'||!Number.isFinite(Date.parse(value.reviewedAt))||
     Object.keys(value).some(k=>!['format','version','context','reviewer','reviewedAt','notes'].includes(k)))
-    throw Error('Несовместимый JSON или другой сайт');
+    throw Error(t('Несовместимый JSON или другой сайт','Incompatible JSON or another site'));
    const clean=[];
    for(const note of value.notes){
     if(!note||typeof note!=='object'||Array.isArray(note)||
@@ -102,7 +106,7 @@
      typeof note.message!=='string'||!note.message.trim()||note.message.length>900||
      typeof note.resolved!=='boolean'||
      Object.keys(note).some(k=>!['page','type','message','resolved'].includes(k)))
-     throw Error('Некорректное замечание');
+     throw Error(t('Некорректное замечание','Invalid feedback note'));
     clean.push({page:note.page,type:note.type,message:note.message,resolved:note.resolved});
    }
    return {reviewer:value.reviewer,notes:clean};
@@ -117,17 +121,17 @@
    link.download='design-factory-client-feedback.json';
    document.body.append(link);link.click();link.remove();
    setTimeout(()=>URL.revokeObjectURL(url),3000);
-   message('Файл замечаний сохранён. Передайте его разработчику для импорта в Studio.');
+   message(t('Файл замечаний сохранён. Передайте его разработчику для импорта в Studio.','Feedback saved. Send the JSON to the Studio developer.'));
   }
   $('feedback-add').addEventListener('click',()=>{
    const entry=$('feedback-note').value.trim();
    if(entry.length<1||entry.length>900||notes.length>=LIMIT){
-    message('Введите замечание до 900 символов (максимум 30).',true);return;
+    message(t('Введите замечание до 900 символов (максимум 30).','Enter a note up to 900 characters (maximum 30).'),true);return;
    }
    notes.push({page:$('feedback-page').value,type:$('feedback-type').value,
     message:entry,resolved:false});
    notesRevision++;
-   $('feedback-note').value='';render();message('Замечание добавлено.');
+   $('feedback-note').value='';render();message(t('Замечание добавлено.','Note added.'));
   });
   $('feedback-download').addEventListener('click',download);
   $('feedback-reviewer').addEventListener('input',()=>{notesRevision++;});
@@ -135,27 +139,30 @@
    const request=++importSerial,revision=notesRevision;
    try{
     const file=event.target.files[0];
-    if(!file||file.size>128*1024)throw Error('JSON больше 128 КБ');
+    if(!file||file.size>128*1024)throw Error(t('JSON больше 128 КБ','JSON exceeds 128 KiB'));
     const result=sanitize(JSON.parse(await file.text()));
     if(request!==importSerial||revision!==notesRevision)
-     throw Error('Замечания изменились во время чтения файла. Повторите импорт.');
+     throw Error(t('Замечания изменились во время чтения файла. Повторите импорт.','Notes changed while reading the file. Import again.'));
     notes.splice(0,notes.length,...result.notes);
     notesRevision++;
     $('feedback-reviewer').value=result.reviewer;render();
-    message('Черновик восстановлен. Замечания можно редактировать или отправить.');
-   }catch(error){message('Импорт отклонён: '+error.message,true);}
+    message(t('Черновик восстановлен. Замечания можно редактировать или отправить.','Draft restored. You can continue editing or send notes.'));
+   }catch(error){message(t('Импорт отклонён: ','Import rejected: ')+error.message,true);}
    if(request===importSerial)event.target.value='';
   });
   render();
  }
- function reviewHtml(contextId){
+ function reviewHtml(contextId,language='ru'){
   if(!/^df-[0-9a-f]{8}$/.test(contextId))throw Error('Invalid feedback context');
+  if(!['ru','en'].includes(language))throw Error('Unsupported feedback language');
+  const captions=language==='en'?{home:'Home',services:'Services',approach:'Approach',contact:'Contact'}:
+   {home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'};
   const links=Object.entries(ROUTES).map(([id,path])=>
    '<a href="'+path+'" target="_blank" rel="noopener">'+
-    ({home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'}[id])+'</a>').join('');
+    captions[id]+'</a>').join('');
   const options=Object.keys(ROUTES).map(id=>'<option value="'+id+'">'+
-   ({home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'}[id])+'</option>').join('');
-  return '<!doctype html><html lang="ru"><head><meta charset="utf-8">'+
+   captions[id]+'</option>').join('');
+  const markup='<!doctype html><html lang="ru"><head><meta charset="utf-8">'+
    '<meta name="viewport" content="width=device-width,initial-scale=1">'+
    '<meta name="robots" content="noindex">'+
    '<meta http-equiv="Content-Security-Policy" content="default-src &apos;none&apos;; style-src &apos;unsafe-inline&apos;; script-src &apos;unsafe-inline&apos;; base-uri &apos;none&apos;; form-action &apos;none&apos;">'+
@@ -180,7 +187,36 @@
    '<label>Продолжить работу с сохранённым JSON<input id="feedback-import" type="file" accept=".json,application/json"></label>'+
    '<p id="feedback-status" role="status" aria-live="polite"></p>'+
    '<p>До 30 замечаний, каждое до 900 символов. Отправьте скачанный файл ответственному за Studio.</p></section></main>'+
-   '<script>('+reviewerApp.toString()+')('+JSON.stringify(contextId)+');</script></body></html>\n';
+   '<script>('+reviewerApp.toString()+')('+JSON.stringify(contextId)+','+JSON.stringify(language)+');</script></body></html>\n';
+  if(language==='ru')return markup;
+  // Translate only visible HTML, never mutate the embedded JS source.
+  const scriptAt=markup.indexOf('<script>');
+  if(scriptAt<0)throw Error('Missing reviewer script');
+  let visible=markup.slice(0,scriptAt);
+  const strings=[
+   ['lang="ru"','lang="en"'],
+   ['Design Factory — замечания к HTML-прототипу','Design Factory — HTML preview feedback'],
+   ['Замечания к прототипу','Feedback on the preview'],
+   ['Откройте нужную страницу, осмотрите дизайн и запишите, что требуется изменить. Замечания сохраняются только в скачиваемом JSON, браузер ничего не отправляет. Это не согласование публикации.','Review the four pages and describe what needs to change. Notes stay in a downloadable JSON file; nothing is sent over the network. This is not publication approval.'],
+   ['Четыре страницы','Four pages'],
+   ['Ваше имя (необязательно)','Your name (optional)'],
+   ['Страница<select','Page<select'],
+   ['Тип замечания','Feedback type'],
+   ['Нужно изменить','Change'],
+   ['>Ошибка</option>','>Issue</option>'],
+   ['>Вопрос</option>','>Question</option>'],
+   ['Ваше замечание','Your feedback'],
+   ['Например: на мобильном слишком длинный заголовок','For example: the mobile heading is too long'],
+   ['>Добавить замечание</button>','>Add feedback</button>'],
+   ['>Скачать замечания JSON</button>','>Download feedback JSON</button>'],
+   ['Продолжить работу с сохранённым JSON','Restore saved JSON draft'],
+   ['До 30 замечаний, каждое до 900 символов. Отправьте скачанный файл ответственному за Studio.','Up to 30 notes, each up to 900 characters. Send the downloaded file to the Studio developer.']
+  ];
+  for(const [original,translation] of strings){
+   if(!visible.includes(original))throw Error('Missing portal label: '+original);
+   visible=visible.replace(original,translation);
+  }
+  return visible+markup.slice(scriptAt);
  }
  return Object.freeze({FORMAT,ROUTES,context,validate,create,reviewHtml});
 });

@@ -431,7 +431,7 @@ function savePreviewZip(){
    {name:'assets/preview.css',content:engine.preview.css(theme)},
    {name:'README.txt',content:notes},
    {name:'preview-info.json',content:JSON.stringify(info,null,2)+'\n'},
-   {name:'review.html',content:feedbackTool.reviewHtml(reviewContext)}
+   {name:'review.html',content:feedbackTool.reviewHtml(reviewContext,state.project.language)}
   ];
   const bytes=packer.build(files),verification=packer.inspect(bytes);
   if(!verification.crcVerified||verification.files!==8)
