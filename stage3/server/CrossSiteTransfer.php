@@ -11,6 +11,60 @@ use PDO;
  */
 trait CrossSiteTransfer
 {
+    /**
+     * Materialize only the copied graph's source-side design token values.
+     * The destination's global palette/spacing/typography is never overwritten,
+     * even when a token name exists in both sites with different values.
+     */
+    private static function crossSiteFreezeGraphTokens(array &$graph,array $sourceSite): int
+    {
+        $tokens=DesignGraph::tokens($sourceSite['designTokens']??null);
+        $count=0;
+        $style=function(array &$styles) use($tokens,&$count): void {
+            $colors=['color','background','borderColor','outlineColor'];
+            $spacing=['gap','rowGap','columnGap','padding','paddingX','paddingY',
+                'top','left','right','bottom','minHeight'];
+            $radii=['radius','borderTopLeftRadius','borderTopRightRadius',
+                'borderBottomRightRadius','borderBottomLeftRadius'];
+            foreach($styles as $key=>&$value) {
+                if($key==='gradient' && is_array($value)) {
+                    foreach(['from','via','to'] as $part) {
+                        if(!isset($value[$part])||!is_string($value[$part])||
+                            !str_starts_with($value[$part],'@'))continue;
+                        $name=substr($value[$part],1);
+                        if(!array_key_exists($name,$tokens['colors']))
+                            throw new \InvalidArgumentException('Source graph uses unknown color token');
+                        $value[$part]=$tokens['colors'][$name];$count++;
+                    }
+                    continue;
+                }
+                $kind=in_array($key,$colors,true)?'colors':
+                    (in_array($key,$spacing,true)?'spacing':
+                    (in_array($key,$radii,true)?'radii':
+                    ($key==='fontSize'?'typography':null)));
+                if($kind===null||!is_string($value)||!str_starts_with($value,'@'))continue;
+                $name=substr($value,1);
+                if(!array_key_exists($name,$tokens[$kind]))
+                    throw new \InvalidArgumentException('Source graph uses unknown design token');
+                $value=$tokens[$kind][$name];$count++;
+            }
+            unset($value);
+        };
+        $walk=function(array &$nodes) use(&$walk,$style): void {
+            foreach($nodes as &$node) {
+                if(isset($node['styles']))$style($node['styles']);
+                foreach(['tablet','mobile'] as $breakpoint)
+                    if(isset($node['responsive'][$breakpoint]))$style($node['responsive'][$breakpoint]);
+                foreach(['hover','focus'] as $state)
+                    if(isset($node['states'][$state]))$style($node['states'][$state]);
+                if(isset($node['children']))$walk($node['children']);
+            }
+            unset($node);
+        };
+        $walk($graph['nodes']);
+        return $count;
+    }
+
     private function crossSitePrepare(
         string $targetId, string $sourceId, string $sourcePageId, string $sectionId,
         string $targetPageId, int $sourceRevision, int $targetRevision
@@ -41,16 +95,27 @@ trait CrossSiteTransfer
         $available=[];
         foreach ($source['site']['assets'] as $asset) $available[$asset['id']]=$asset;
         $used=[];
-        $scan=function(mixed $value) use (&$scan,&$used,$available): void {
-            if (is_string($value) && isset($available[$value])) $used[$value]=true;
-            elseif (is_array($value)) foreach ($value as $child) $scan($child);
+        // Only typed media bindings are dependencies. Arbitrary text matching
+        // an asset ID must remain untouched during copying.
+        foreach (array_merge($section['elements'],$section['items']??[]) as $entry) {
+            $ref=$entry['values']['content.media']??null;
+            if (is_string($ref) && isset($available[$ref])) $used[$ref]=true;
+        }
+        $scanGraph=function(array $nodes) use (&$scanGraph,&$used,$available): void {
+            foreach ($nodes as $node) {
+                foreach (['assetId','posterAssetId'] as $key) {
+                    $ref=$node[$key]??null;
+                    if (is_string($ref) && isset($available[$ref])) $used[$ref]=true;
+                }
+                if(isset($node['children']))$scanGraph($node['children']);
+            }
         };
-        $scan($section);
+        if (isset($section['designGraph'])) $scanGraph($section['designGraph']['nodes']);
         if (count($used)>40) throw new \InvalidArgumentException('Maximum 40 media assets per transfer');
         if (count($target['site']['assets'])+count($used)>300)
             throw new \InvalidArgumentException('Destination media library is full');
 
-        $mediaMap=[];$additions=[];$binary=[];$bytesTotal=0;
+        $mediaMap=[];$additions=[];$binary=[];$bytesTotal=0;$manifest=[];
         foreach (array_keys($used) as $oldId) {
             $asset=$available[$oldId];
             $newId='asset-'.bin2hex(random_bytes(10));
@@ -84,20 +149,42 @@ trait CrossSiteTransfer
                 if ($bytesTotal>25165824) throw new \InvalidArgumentException('Transfer exceeds 24 MB');
                 $binary[]=['id'=>$to,'mime'=>$stored['mime'],'sha256'=>$stored['sha256'],'bytes'=>$stored['bytes']];
             }
+            $original=$this->image($sourceId,$oldId);
+            $manifest[]=['id'=>$oldId,'mime'=>$asset['mime'],'alt'=>$asset['alt'],
+                'sha256'=>$original['sha256'],'responsiveVariants'=>count($asset['variants']??[])];
             $additions[]=$newAsset;
         }
         $copy=$section;
-        $rewrite=function(mixed $value) use (&$rewrite,$mediaMap): mixed {
-            if (is_string($value)) return $mediaMap[$value]??$value;
-            if (is_array($value)) foreach ($value as $key=>$child) $value[$key]=$rewrite($child);
-            return $value;
+        foreach ($copy['elements'] as &$entry) {
+            $ref=$entry['values']['content.media']??null;
+            if (is_string($ref) && isset($mediaMap[$ref]))
+                $entry['values']['content.media']=$mediaMap[$ref];
+        }
+        unset($entry);
+        foreach ($copy['items']??[] as $i=>$entry) {
+            $ref=$entry['values']['content.media']??null;
+            if (is_string($ref) && isset($mediaMap[$ref]))
+                $copy['items'][$i]['values']['content.media']=$mediaMap[$ref];
+        }
+        $rewriteGraph=function(array &$nodes) use (&$rewriteGraph,$mediaMap): void {
+            foreach ($nodes as &$node) {
+                foreach (['assetId','posterAssetId'] as $key) {
+                    $ref=$node[$key]??null;
+                    if (is_string($ref) && isset($mediaMap[$ref]))
+                        $node[$key]=$mediaMap[$ref];
+                }
+                if(isset($node['children']))$rewriteGraph($node['children']);
+            }
+            unset($node);
         };
-        $copy=$rewrite($copy);
+        if (isset($copy['designGraph'])) $rewriteGraph($copy['designGraph']['nodes']);
         $copy['id']='section-'.bin2hex(random_bytes(10));
         foreach ($copy['elements'] as &$element) $element['id']='element-'.bin2hex(random_bytes(10));
         unset($element);
         foreach ($copy['items']??[] as $index=>$item) $copy['items'][$index]['id']='item-'.bin2hex(random_bytes(10));
+        $frozenTokens=0;
         if (isset($copy['designGraph'])) {
+            $frozenTokens=self::crossSiteFreezeGraphTokens($copy['designGraph'],$source['site']);
             $copy['designGraph']['id']='graph-'.bin2hex(random_bytes(10));
             $renew=function(array &$nodes) use (&$renew): void {
                 foreach ($nodes as &$node) {
@@ -129,8 +216,10 @@ trait CrossSiteTransfer
             'targetRevision'=>$targetRevision,'sourcePageId'=>$sourcePageId,
             'targetPageId'=>$targetPageId,'sectionId'=>$sectionId,
             'mediaCount'=>count($additions),'mediaParts'=>count($binary),
-            'mediaBytes'=>$bytesTotal,'missingTargetLinks'=>array_keys($links),
-            'newSectionId'=>$copy['id']];
+            'mediaManifest'=>$manifest,
+            'mediaBytes'=>$bytesTotal,'frozenDesignTokens'=>$frozenTokens,
+            'missingTargetLinks'=>array_keys($links),
+            'sectionsAfter'=>count($candidate['pages'][$targetIndex]['sections'])];
         return ['candidate'=>$candidate,'binary'=>$binary,'mediaMap'=>$mediaMap,'summary'=>$summary];
     }
 

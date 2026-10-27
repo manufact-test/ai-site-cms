@@ -1052,6 +1052,44 @@ async function execute(){
     'Published PHP renderer honors the mobile graph override');
   await visitor.setViewportSize({width:1400,height:1000});
 
+  // Full hosted UI cross-site transfer: select an existing source graph,
+  // preflight, copy into a different site's saved draft, never auto-publish.
+  const graphSourcePageId=await page.evaluate(sectionId=>window.Stage3Editor.getSite().pages
+    .find(p=>p.sections.some(s=>s.id===sectionId))?.id,graphSectionId);
+  assert.ok(graphSourcePageId,'Source graph belongs to an existing page');
+  const crossBrowserSite=JSON.parse(fs.readFileSync(
+    path.join(root,'stage3/fixtures/industrial-site.json'),'utf8'));
+  crossBrowserSite.siteId='site-cross-browser';
+  await page.evaluate(async site=>{
+    await window.Stage3Host.api('/api/sites','POST',{site});
+    await window.Stage3Host.refreshSites();
+  },crossBrowserSite);
+  await page.locator('#server-site-select').selectOption('site-cross-browser');
+  await page.locator('#server-open').click();
+  await page.locator('#server-status').getByText(/Черновик #1/).waitFor();
+  await page.locator('#server-cross-open').click();
+  await page.locator('#server-cross-dialog[open]').waitFor();
+  await page.locator('#server-cross-source').selectOption(siteId);
+  const sourceGraphOption=graphSourcePageId+'|'+graphSectionId;
+  await page.locator('#server-cross-section option[value="'+sourceGraphOption+'"]').waitFor();
+  await page.locator('#server-cross-section').selectOption(sourceGraphOption);
+  await page.locator('#server-cross-target').selectOption('page-home');
+  await page.locator('#server-cross-plan').click();
+  await page.locator('#server-cross-summary').getByText(/Готов к переносу/).waitFor();
+  assert.equal(await page.locator('#server-cross-apply').isDisabled(),false);
+  await page.locator('#server-cross-apply').click();
+  await page.locator('#server-cross-dialog').waitFor({state:'hidden'});
+  await page.locator('#server-status').getByText(/Черновик #2/).waitFor();
+  assert.ok(await page.evaluate(id=>{
+    const blocks=window.Stage3Editor.getSite().pages[0].sections;
+    return blocks.some(section=>section.designGraph&&section.id!==id&&
+      section.designGraph.nodes.length>0);
+  },graphSectionId),'Entire Design Graph is copied with fresh section identity');
+  assert.equal((await page.request.get(origin+'/published/site-cross-browser/')).status(),404,
+    'Cross-site transfer never activates the destination site');
+  await page.locator('#server-site-select').selectOption(siteId);
+  await page.locator('#server-open').click();
+  await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();
   await staffCtx.close();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();

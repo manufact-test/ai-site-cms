@@ -135,6 +135,15 @@
         '. После подтверждения создастся новая ревизия черновика без публикации.'),
       element('p',null,'Содержимое: '+(crossPreview||'проверьте выбранный блок в редакторе источника.'))
     );
+    if(plan.frozenDesignTokens)
+      crossSummary.append(element('p',null,'Локально закреплены значения '+plan.frozenDesignTokens+
+        ' дизайн-токенов из источника — глобальная палитра назначения не изменится.'));
+    for(const media of plan.mediaManifest||[]){
+      crossSummary.append(element('small',null,
+        'Файл: '+(media.alt||media.id)+' · '+media.mime+
+        ' · SHA256 '+media.sha256.slice(0,12)+'…'+
+        (media.responsiveVariants?' · '+media.responsiveVariants+' адаптивных варианта':'') ));
+    }
     if(plan.missingTargetLinks.length)
       crossSummary.append(element('p',null,'Проверьте ссылки на отсутствующие страницы назначения: '+
         plan.missingTargetLinks.join(', ')));
