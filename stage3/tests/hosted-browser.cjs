@@ -1252,6 +1252,20 @@ async function execute(){
       mime:'image/png',alt:'Фото внешнего сайта'}];
     site.pages[0].seo={title:'Внешний готовый сайт',description:'Проверка подключения внешнего сайта',
       robots:'index',ogImage:'asset-external-hero'};
+    const faq=window.Stage3Editor.manifests().find(x=>x.id==='faq-accordion');
+    const fromFields=fields=>Object.fromEntries(fields.map(f=>[f.path,structuredClone(f.default)]));
+    const section={
+      id:'section-approved-faq',component:faq.id,manifestVersion:faq.version,
+      elements:faq.elements.map((el,i)=>({
+        id:'element-approved-faq-'+i,slot:el.slot,values:fromFields(el.fields)
+      })),
+      items:['Как оформить заказ?','Как происходит доставка?'].map((question,i)=>({
+        id:'approved-faq-item-'+i,
+        values:{...fromFields(faq.repeat.fields),'content.question':question,
+          'content.answer':'Уточните условия непосредственно у исполнителя.'}
+      }))
+    };
+    site.pages[0].sections.push(section);
     return site;
   });
   fs.writeFileSync(path.join(folder,'site.json'),JSON.stringify(external));
@@ -1290,6 +1304,25 @@ async function execute(){
     'Approved folder import must never publish implicitly');
   await page.locator('#fields [data-field="content.text"]').first().fill('Редактируется после подключения');
   await page.locator('#fields [data-field="content.text"]').first().dispatchEvent('change');
+  // Same imported site's FAQ — real add, edit, reorder, delete and Undo controls.
+  await page.locator('#sections .nav-entry').last().click();
+  assert.match(await page.locator('#inspector-title').innerText(),/FAQ/);
+  await page.locator('#cms-repeat-add').click();
+  assert.equal(await page.locator('#elements .cms-repeat-row').count(),3);
+  await page.locator('#fields [data-field="content.question"]').fill('Что входит в комплект?');
+  await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
+  await page.locator('#fields [data-field="content.answer"]').fill('Состав услуги указан в договоре.');
+  await page.locator('#fields [data-field="content.answer"]').dispatchEvent('change');
+  await page.locator('#elements .cms-repeat-row').last()
+    .locator('button[aria-label^="Поднять вопрос"]').click();
+  await page.locator('#elements .cms-repeat-row').last()
+    .locator('button[aria-label^="Удалить вопрос"]').click();
+  assert.equal(await page.locator('#elements .cms-repeat-row').count(),2);
+  assert.equal(await page.locator('#cms-repeat-add').innerText(),'+ Добавить вопрос');
+  await page.locator('#cms-open-seo').click();
+  await page.locator('#cms-setting-seo-title').fill('FAQ и готовый сайт — SEO');
+  await page.locator('#cms-setting-seo-description').fill('Новые вопросы и SEO опубликованы после ручного сохранения');
+  await page.locator('#cms-settings-apply').click();
   await page.locator('#save').click();
   await page.locator('#server-publish').click();
   await page.locator('#server-status').getByText(/Опубликовано: v1/).waitFor();
@@ -1297,9 +1330,12 @@ async function execute(){
   const approvedPage=await visitor.goto(origin+'/published/site-approved-browser/');
   assert.equal(approvedPage.status(),200);
   assert.equal(await visitor.locator('h1').innerText(),'Редактируется после подключения');
-  assert.equal(await visitor.title(),'Внешний готовый сайт');
+  assert.equal(await visitor.title(),'FAQ и готовый сайт — SEO');
   assert.equal(await visitor.locator('meta[name="description"]').getAttribute('content'),
-    'Проверка подключения внешнего сайта');
+    'Новые вопросы и SEO опубликованы после ручного сохранения');
+  assert.deepEqual(await visitor.locator('section.faq summary').allInnerTexts(),
+    ['Как оформить заказ?','Что входит в комплект?']);
+  assert.equal(await visitor.locator('section.faq details').count(),2);
   // Absolute og:image markup needs STAGE3_PUBLIC_ORIGIN, intentionally unset in this CI.
   // Check that its immutable media binding survives the actual publication instead.
   const publishedApproved=(await (await page.request.get(origin+
