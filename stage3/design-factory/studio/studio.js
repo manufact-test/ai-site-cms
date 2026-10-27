@@ -55,6 +55,9 @@ function equal(a,b){return JSON.stringify(a)===JSON.stringify(b);}
 function historyRecord(before){
  if(equal(before,snapshot()))return;
  state.editRevision++;
+ // A fresh owner edit permits the next normal preview status to replace an
+ // earlier import/validation error. Until then, async preview must not hide it.
+ $('message').classList.remove('error');
  state.past.push(before);if(state.past.length>MAX_HISTORY)state.past.shift();state.future=[];
  refreshHistory();
 }
@@ -504,7 +507,7 @@ function renderPreview(){
   }else comparisonFrame.srcdoc=PREVIEW_INVALID;
   if(state.viewMode==='overview')renderOverview(result);
   else{$('page-overview').replaceChildren();state.overviewFrames=[];}
-  say(!result.checklist.factsComplete
+  if(!$('message').classList.contains('error'))say(!result.checklist.factsComplete
     ?'Черновик готов. Обязательных полей для заполнения: '+result.checklist.missing.length+'. Экспорт защищён robots=noindex.'
     :!result.checklist.readyForPublish
       ?(['section_drafts_require_owner_review','page_metadata_requires_owner_review'].includes(result.checklist.publicationStatus)?

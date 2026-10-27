@@ -7,7 +7,7 @@ const path=require('node:path');
 const os=require('node:os');
 const cp=require('node:child_process');
 const sdk=require('../../sdk/contract.cjs');
-const {compile,migrate,validateProject,serialize,KITS,THEMES,loadRegistry}=require('../lib/compiler.cjs');
+const {compile,migrate,validateProject,serialize,FORMAT,KITS,THEMES,loadRegistry}=require('../lib/compiler.cjs');
 const {writePreview}=require('../lib/preview.cjs');
 const {resolveOutsideRepository}=require('../lib/output-path.cjs');
 const visualQA=require('../bin/visual-qa.cjs');
@@ -152,7 +152,7 @@ try{
   const approvedProject={...project('agency','editorial','en',{...completeBase,services:[
     {title:'Service one',description:'Owner confirmed service one'},
     {title:'Service two',description:'Owner confirmed service two'}
-  ]}),version:2,ownerReviewConfirmed:true};
+  ]}),format:FORMAT,version:2,ownerReviewConfirmed:true};
   const approved=compile(approvedProject,registry);
   assert.equal(approved.checklist.factsComplete,true);
   assert.equal(approved.checklist.readyForPublish,true);
@@ -176,7 +176,7 @@ try{
   assert.throws(()=>compile({...approvedProject,ownerReviewConfirmed:'yes'},registry),/Invalid owner review confirmation/);
   assert.equal(migrate(approvedProject).ownerReviewConfirmed,true);
   const migrated=migrate(project('agency','editorial','en'));
-  assert.deepEqual(migrated,{...project('agency','editorial','en'),version:2,ownerReviewConfirmed:false});
+  assert.deepEqual(migrated,{...project('agency','editorial','en'),format:FORMAT,version:2,ownerReviewConfirmed:false});
   assert.deepEqual(migrate(migrated),migrated);
   const legacyFormat=migrate({...project('agency','editorial','en'),format:'manufact-design-factory-v1',version:1});
   assert.equal(legacyFormat.format,FORMAT);
