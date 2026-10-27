@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
-  "date": "2026-10-26",
-  "status": "stage2-no-go-stage3-isolated-v1.72-main-complete-page-and-site-fill",
+  "date": "2026-10-27",
+  "status": "stage2-no-go-stage3-isolated-v1.73-b3-private-lead-bulk-pipeline",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.72-2026-10-26.md",
-  "latest_source_sha": "95a9f36759e7feabe435c4733181a73ff70866d9",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.73-2026-10-27.md",
+  "latest_source_sha": "24506eeca3afb4594cddf4d5b1df05c4416aeca4",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40475356099",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40475356099",
   "source_offweb_ci": null,
-  "source_ci_result": "SUCCESS — full Stage3 functional CI #40395814925 on exact source 95a9f36759e7feabe435c4733181a73ff70866d9 (offline Chromium + PHP SQLite + hosted Chromium). No release acceptance, deploy or main merge.",
+  "source_ci_result": "PENDING at handoff preparation: full Stage3 GitHub Actions #40475356099 for exact B3 SHA 24506eeca3afb4594cddf4d5b1df05c4416aeca4. Check final result before claiming green. Previous complete B2 CI #40471816303 SUCCESS. No release acceptance, deploy or merge.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly with cross-subsystem workflows (no duration padding), then correct issues from real use; avoid tiny features and endless tests",
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "95a9f36759e7feabe435c4733181a73ff70866d9",
+    "stage3_code_sha": "24506eeca3afb4594cddf4d5b1df05c4416aeca4",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -55,20 +55,20 @@
       "D: Technology adapters + deploy foundations (2/13/12; isolated only)",
       "E: System checks + 135 owner approvals + release (14/15/16/17; owner GO required)"
     ],
-    "next_macroblock": "A1: universal multi-page Design Graph layout/typography/geometry plus responsive media/motion plus global override/save/renderer parity; if already built, pick nearest missing vertical, no duplicate modules",
+    "next_macroblock": "C1: meaningful cross-site content reuse/import workflow using existing templates and media library, typed site-owned asset remapping, preflight, atomic revision Save, no implicit publish; first verify current features to avoid duplication.",
     "execution_policy_document": "docs/ACCELERATED-MACROBLOCK-PROGRAM.md",
     "policy_owner_request_date": "2026-10-27",
     "current_code_checkpoint_at_policy_change": "cf369988ec16904d945413f36ad292fb94d17da2",
-    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/40406416703"
+    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/40475356099"
   },
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Lead developer: follow docs/ACCELERATED-MACROBLOCK-PROGRAM.md. First verify exact branch HEAD and CI, then deliver A1 as 2-4 substantial cross-subsystem vertical packages (visual graph+responsive/media+global overrides+real renderer), no cosmetic-only work; Stage2 NO-GO and 0/135 owner acceptance unchanged.",
+  "next_step": "New main chat: read v1.73 handoff, verify exact branch HEAD and Actions, then deliver a single substantial C1/D macroblock (cross-site reuse and safe media remap suggested), not tiny isolated fixes. Stage2 NO-GO #5–#9 and 0/135 owner acceptance remain.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.72",
+  "checkpoint_version": "1.73",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -1792,5 +1792,18 @@
     "engineering_core_editor_estimate": "Approx 70-80% SUBJECTIVE; not mapped to acceptance requirements",
     "next": "Large unified publish-readiness experience, existing full CI plus one critical real-browser scenario",
     "ci_final_status": "SUCCESS"
+  },
+  "last_completed_macroblock": {
+    "name": "B3 private operator lead workbench",
+    "date": "2026-10-27",
+    "source_sha": "24506eeca3afb4594cddf4d5b1df05c4416aeca4",
+    "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/40475356099",
+    "ci_result_at_handoff": "in_progress",
+    "features": [
+      "Atomic revision-checked multi-lead stage/priority transitions (1–50), notes retained, full rollback",
+      "Private pipeline counts by stage and urgency with direct filters",
+      "Current-page batch controls, correct RBAC/CSRF and audit history"
+    ],
+    "previous_confirmed_green_sha": "fa3c558a62e19005c25e62373ef1eb14dceafdc7"
   }
 }
