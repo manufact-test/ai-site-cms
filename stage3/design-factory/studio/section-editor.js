@@ -56,7 +56,7 @@ function create({engine,state,apply,compile,tr,say}){
    const before=cta?items.findIndex(s=>s.id===cta.id):-1;
    items.splice(before<0?items.length:before,0,{id,composition:value});
   });
-  if(success){
+  if(successful){
    $('section-template').value='';
    $('section-add').disabled=true;
    say(tr('Секция добавлена. Доступен Undo; CMS остаётся noindex до проверки черновиков.',
