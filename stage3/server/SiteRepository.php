@@ -615,35 +615,37 @@ final class SiteRepository
 
 
     /** Scoped, bounded and parameterized inbox filtering for real CMS operators. */
-    private function inboxWhere(string $siteId, string $status, string $query): array
+    private function inboxWhere(string $siteId, string $status, string $query, string $priority='all'): array
     {
-        if (!in_array($status, ['all','new','in_progress','reviewed'], true)) {
-            throw new \InvalidArgumentException('Unknown inbox status filter');
+        if (!in_array($status, ['all','new','in_progress','reviewed'], true)
+            ||!in_array($priority,['all','high','normal'],true)) {
+            throw new \InvalidArgumentException('Unknown inbox status/priority filter');
         }
         if (strlen($query)>120 || preg_match('//u',$query)!==1
             || preg_match('/[\x00-\x1f\x7f]/',$query)===1) {
             throw new \InvalidArgumentException('Invalid inbox search');
         }
-        $where='site_id = ?';$params=[$siteId];
-        if ($status!=='all') {$where.=' AND status = ?';$params[]=$status;}
+        $where='s.site_id = ?';$params=[$siteId];
+        if ($status!=='all') {$where.=' AND s.status = ?';$params[]=$status;}
+        if ($priority!=='all') {$where.=" AND COALESCE(w.priority,'normal') = ?";$params[]=$priority;}
         $query=trim($query);
         if ($query!=='') {
             // Explicit LIKE wildcard escaping is portable across SQLite/MySQL.
             $escaped=str_replace(['!','%','_'],['!!','!%','!_'],$query);
             $like='%'.$escaped.'%';
-            $where.=" AND (name LIKE ? ESCAPE '!' OR email LIKE ? ESCAPE '!' OR message LIKE ? ESCAPE '!')";
+            $where.=" AND (s.name LIKE ? ESCAPE '!' OR s.email LIKE ? ESCAPE '!' OR s.message LIKE ? ESCAPE '!')";
             array_push($params,$like,$like,$like);
         }
         return [$where,$params];
     }
 
-    public function inboxPage(string $siteId, string $status='all', string $query='', int $page=1, int $limit=25): array
+    public function inboxPage(string $siteId, string $status='all', string $query='', int $page=1, int $limit=25,string $priority='all'): array
     {
         $this->getDraft($siteId);
         if ($page<1 || $page>10000 || $limit<1 || $limit>1000)
             throw new \InvalidArgumentException('Invalid inbox page or limit');
-        [$where,$params]=$this->inboxWhere($siteId,$status,$query);
-        $count=$this->db->prepare('SELECT COUNT(*) FROM stage3_submissions WHERE '.$where);
+        [$where,$params]=$this->inboxWhere($siteId,$status,$query,$priority);
+        $count=$this->db->prepare('SELECT COUNT(*) FROM stage3_submissions s LEFT JOIN stage3_lead_workflow w ON w.site_id=s.site_id AND w.submission_id=s.submission_id WHERE '.$where);
         $count->execute($params);$total=(int)$count->fetchColumn();
         $stats=['all'=>0,'new'=>0,'in_progress'=>0,'reviewed'=>0];
         $totals=$this->db->prepare('SELECT status, COUNT(*) AS tally FROM stage3_submissions WHERE site_id = ? GROUP BY status');
@@ -659,9 +661,8 @@ final class SiteRepository
             .' COALESCE(w.revision,0) AS workflow_revision,w.operator AS workflow_operator,w.changed_at AS workflow_changed_at'
             .' FROM stage3_submissions s LEFT JOIN stage3_lead_workflow w'
             .' ON w.site_id=s.site_id AND w.submission_id=s.submission_id'
-            .' WHERE '.str_replace(['site_id =',' AND status =','name LIKE','email LIKE','message LIKE'],
-              ['s.site_id =',' AND s.status =','s.name LIKE','s.email LIKE','s.message LIKE'],$where)
-            .' ORDER BY submitted_at DESC,submission_id DESC LIMIT ? OFFSET ?');
+            .' WHERE '.$where
+            .' ORDER BY s.submitted_at DESC,s.submission_id DESC LIMIT ? OFFSET ?');
         foreach($params as $i=>$value)$stmt->bindValue($i+1,$value,PDO::PARAM_STR);
         $stmt->bindValue(count($params)+1,$limit,PDO::PARAM_INT);
         $stmt->bindValue(count($params)+2,($page-1)*$limit,PDO::PARAM_INT);
@@ -674,9 +675,9 @@ final class SiteRepository
     }
 
     /** Entire filtered CSV or explicit refusal: never silently truncate private exports. */
-    public function inboxCsv(string $siteId, string $status='all', string $query=''): string
+    public function inboxCsv(string $siteId, string $status='all', string $query='',string $priority='all'): string
     {
-        $data=$this->inboxPage($siteId,$status,$query,1,1000);
+        $data=$this->inboxPage($siteId,$status,$query,1,1000,$priority);
         if ($data['total']>1000)
             throw new \InvalidArgumentException('CSV export exceeds 1000 leads; narrow the filter');
         $stream=fopen('php://temp','w+');

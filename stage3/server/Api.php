@@ -508,11 +508,11 @@ final class Api
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/submissions(?:/(export|bulk-review|lead-[0-9a-f]{24}/(?:review|workflow|history)))?$~D', $path, $inboxMatch)) {
                 $siteId=$inboxMatch[1];$operation=$inboxMatch[2]??'';
                 if($method==='GET'&&in_array($operation,['','export'],true)){
-                    $status=$_GET['status']??'all';$query=$_GET['q']??'';
-                    if(!is_string($status)||!is_string($query))
+                    $status=$_GET['status']??'all';$query=$_GET['q']??'';$priority=$_GET['priority']??'all';
+                    if(!is_string($status)||!is_string($query)||!is_string($priority))
                         throw new InvalidArgumentException('Invalid inbox filters');
                     if($operation==='export'){
-                        $csv=$this->sites->inboxCsv($siteId,$status,$query);
+                        $csv=$this->sites->inboxCsv($siteId,$status,$query,$priority);
                         $this->sites->audit($principal['username'],'GET submissions/export',$siteId,'success','Private filtered CSV export');
                         $this->auditContext=null;
                         header('Content-Type: text/csv; charset=utf-8');
@@ -525,7 +525,7 @@ final class Api
                     $rawPage=$_GET['page']??'1';
                     if(!is_string($rawPage)||preg_match('/^[1-9][0-9]{0,3}$/D',$rawPage)!==1)
                         throw new InvalidArgumentException('Invalid inbox page');
-                    $this->response(200,$this->sites->inboxPage($siteId,$status,$query,(int)$rawPage));
+                    $this->response(200,$this->sites->inboxPage($siteId,$status,$query,(int)$rawPage,25,$priority));
                 }
                 if($method==='GET'&&preg_match('/^(lead-[0-9a-f]{24})\/history$/D',$operation,$leadMatch)){
                     $this->response(200,$this->sites->leadWorkflowHistory($siteId,$leadMatch[1]));
