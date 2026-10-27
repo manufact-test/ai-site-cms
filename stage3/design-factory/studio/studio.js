@@ -10,6 +10,7 @@ const feedbackTool=globalThis.DesignFactoryFeedback;
 const auditTool=globalThis.DesignFactorySiteAudit;
 const deliveryTool=globalThis.DesignFactoryDeliveryPackage;
 const sectionTool=globalThis.DesignFactorySectionEditor;
+const pageSettingsTool=globalThis.DesignFactoryPageSettings;
 const LANG={
  ru:{home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'},
  en:{home:'Home',services:'Services',approach:'Approach',contact:'Contact'}
@@ -21,7 +22,7 @@ const clone=v=>structuredClone(v);
 const projectDefault=()=>engine.compiler.migrate(null);
 const state={
  project:projectDefault(),
- composition:null,sectionPlan:null,
+ composition:null,sectionPlan:null,pageSettings:null,
  page:'home',device:'desktop',query:'',viewMode:'single',compareTheme:'noir',overviewFrames:[],
  past:[],future:[],renderToken:0,lastSite:null,lastCompiled:null,lastError:null,feedback:null,
  editRevision:0,feedbackRevision:0,projectImportSerial:0,feedbackImportSerial:0,lastAudit:null
@@ -48,7 +49,7 @@ function el(tag,props,children){
 function say(text,isError=false){
  const node=$('message');node.textContent=text;node.classList.toggle('error',isError);
 }
-function snapshot(){return {project:clone(state.project),composition:state.composition,sectionPlan:clone(state.sectionPlan)};}
+function snapshot(){return {project:clone(state.project),composition:state.composition,sectionPlan:clone(state.sectionPlan),pageSettings:clone(state.pageSettings)};}
 function equal(a,b){return JSON.stringify(a)===JSON.stringify(b);}
 function historyRecord(before){
  if(equal(before,snapshot()))return;
@@ -61,12 +62,12 @@ function apply(mutator,options={}){
  try{mutator();if(!options.preserveReview)state.project.ownerReviewConfirmed=false;
    engine.compiler.validateProject(state.project);
    if(state.composition!==null)engine.compositions.get(state.composition);
-    if(state.sectionPlan)engine.bridge.workspace(workspace());
+    if(state.sectionPlan||state.pageSettings)engine.bridge.workspace(workspace());
    renderAll();
    historyRecord(prev);
    return true;
  }catch(error){
-  state.project=prev.project;state.composition=prev.composition;state.sectionPlan=prev.sectionPlan;
+  state.project=prev.project;state.composition=prev.composition;state.sectionPlan=prev.sectionPlan;state.pageSettings=prev.pageSettings;
   renderAll();
   if(options.throwOnError)throw error;
   say(error.message,true);
@@ -78,7 +79,7 @@ function setHistory(direction){
  const to=direction==='undo'?state.future:state.past;
  if(!from.length)return;
  to.push(snapshot());const next=from.pop();
- state.project=next.project;state.composition=next.composition;state.sectionPlan=next.sectionPlan;
+ state.project=next.project;state.composition=next.composition;state.sectionPlan=next.sectionPlan;state.pageSettings=next.pageSettings;
  // Undo/Redo must never silently restore a previous authorization to index.
  // Owner must actively re-confirm after any history navigation.
  state.project.ownerReviewConfirmed=false;
@@ -92,14 +93,16 @@ function refreshHistory(){
 function compileForTheme(theme){
  if(!Object.prototype.hasOwnProperty.call(engine.compiler.THEMES,theme))throw Error('Неизвестная тема сравнения');
  const project=theme===state.project.theme?state.project:{...clone(state.project),theme};
- const w={format:WORKSPACE,version:state.sectionPlan?2:1,project,composition:state.composition};
+ const w={format:WORKSPACE,version:state.pageSettings?3:state.sectionPlan?2:1,project,composition:state.composition};
  if(state.sectionPlan)w.sectionPlan=state.sectionPlan;
+ if(state.pageSettings)w.pageSettings=state.pageSettings;
  const built=engine.bridge.build(w);
  return {project,site:built.site,checklist:built.ownerChecklist,inspection:built.inspection,
   designSpec:built.designSpec,bridge:built.compatibility.composition};
 }
 function compileCurrent(){return compileForTheme(state.project.theme);}
 const sectionEditor=sectionTool?.create({engine,state,apply,compile:compileCurrent,tr,say});
+const pageSettingsEditor=pageSettingsTool?.create({engine,state,apply,compile:compileCurrent,tr,say});
 function renderKits(){
  const holder=$('kit-list');holder.replaceChildren();
  let visible=0;
@@ -118,6 +121,8 @@ function renderKits(){
    state.project.kit=kitId;
    state.project.theme=item.theme;
     state.sectionPlan=null; // Reset mappings that may change with a new kit.
+    state.pageSettings=null;
+    pageSettingsEditor?.clearDrafts();
    state.page='home';
   }));
   holder.append(button);
@@ -480,6 +485,7 @@ function renderPreview(){
   state.lastSite=result.site;state.lastCompiled=result;state.lastError=null;
   renderChecklist(result);
   sectionEditor?.render(result.site);
+  pageSettingsEditor?.render(result.site);
   renderSiteAudit(result);
   const active=previewPageHtml(result,state.project.theme,state.page);
   frame.srcdoc=active.html;
@@ -509,7 +515,7 @@ function renderPreview(){
   $('page-overview').replaceChildren();state.overviewFrames=[];
   $('browser-url').textContent='design-preview.local / invalid';
   $('compare-browser-url').textContent='design-preview.local / invalid';
-  renderChecklist(null);sectionEditor?.render(null);renderSiteAudit(null);$('save-site').disabled=true;
+  renderChecklist(null);sectionEditor?.render(null);pageSettingsEditor?.render(null);renderSiteAudit(null);$('save-site').disabled=true;
   renderFeedback();
   say('Ошибка данных: '+error.message,true);
  }
@@ -732,9 +738,10 @@ function saveProject(){
  }catch(err){say(err.message,true);}
 }
 function workspace(){
- const w={format:WORKSPACE,version:state.sectionPlan?2:1,
+ const w={format:WORKSPACE,version:state.pageSettings?3:state.sectionPlan?2:1,
   project:engine.compiler.validateProject(state.project),composition:state.composition};
  if(state.sectionPlan)w.sectionPlan=state.sectionPlan;
+ if(state.pageSettings)w.pageSettings=state.pageSettings;
  return w;
 }
 function saveWorkspace(){try{download(safeName()+'-workspace.json',serialize(workspace()));say('Рабочее пространство сохранено.');}catch(e){say(e.message,true);}}
@@ -762,17 +769,20 @@ async function importFile(file){
   if(request!==state.projectImportSerial||sourceRevision!==state.editRevision)
    throw Error('Проект или выбранный файл изменились во время чтения. Повторите импорт.');
   const raw=engine.compiler.jsonParse(contents);
-  let project,composition=null,sectionPlan=null;
+  let project,composition=null,sectionPlan=null,pageSettings=null;
   if(raw.format===WORKSPACE){
    const validated=engine.bridge.workspace(raw);
    project=validated.project;composition=validated.composition;
-   sectionPlan=validated.version===2?validated.sectionPlan:null;
+   sectionPlan=validated.sectionPlan||null;
+   pageSettings=validated.version===3?validated.pageSettings:null;
   }else project=engine.compiler.migrate(raw);
-  const candidate={format:WORKSPACE,version:sectionPlan?2:1,project,composition};
+  const candidate={format:WORKSPACE,version:pageSettings?3:sectionPlan?2:1,project,composition};
   if(sectionPlan)candidate.sectionPlan=sectionPlan;
+  if(pageSettings)candidate.pageSettings=pageSettings;
   engine.bridge.build(candidate);
   apply(()=>{state.project=project;state.composition=composition;
-   state.sectionPlan=sectionPlan;state.page='home';},{throwOnError:true,preserveReview:true});
+   state.sectionPlan=sectionPlan;state.pageSettings=pageSettings;state.page='home';},{throwOnError:true,preserveReview:true});
+  pageSettingsEditor?.clearDrafts();
   const gate=engine.compiler.checklist(project);
   say('Проект импортирован и проверен по действующему CMS-контракту. Индексация экспорта: '+gate.indexing+'.');
  }catch(e){say('Импорт отклонён: '+e.message,true);}
@@ -783,7 +793,11 @@ function init(){
  $('search-kit').addEventListener('input',event=>{
   state.query=event.target.value.trim().toLowerCase().slice(0,100);renderKits();
  });
- $('language').addEventListener('change',event=>apply(()=>{state.project.language=event.target.value;}));
+ $('language').addEventListener('change',event=>apply(()=>{
+  state.project.language=event.target.value;
+  state.pageSettings=null;
+  pageSettingsEditor?.clearDrafts();
+ }));
  $('siteId').addEventListener('change',event=>apply(()=>{
   if(event.target.value.trim())state.project.facts.siteId=event.target.value.trim();
   else delete state.project.facts.siteId;
@@ -831,6 +845,7 @@ function init(){
 
  $('composition').addEventListener('change',event=>sectionEditor.legacy(event.target.value||null));
   sectionEditor.mount();
+  pageSettingsEditor.mount();
  $('bulk-services-add').addEventListener('click',addBulkServices);
  $('edit-services-as-list').addEventListener('click',editFullServices);
  $('replace-services-list').addEventListener('click',replaceFullServices);
