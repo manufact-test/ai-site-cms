@@ -12,6 +12,7 @@ const LANG={
  ru:{home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'},
  en:{home:'Home',services:'Services',approach:'Approach',contact:'Contact'}
 };
+const tr=(ru,en)=>state.project.language==='en'?en:ru;
 const icons={agency:'✦',industrial:'▥',consulting:'◎','local-services':'⌂',saas:'⬡',logistics:'⇢',architecture:'◫',education:'◈',portfolio:'◉',restaurant:'✳',repair:'⚒',nonprofit:'♡'};
 const factLabels={title:'Название',headline:'Главный заголовок',description:'Описание',services:'Услуги',contactText:'Контактные данные'};
 const clone=v=>structuredClone(v);
@@ -184,21 +185,21 @@ function renderServices(){
  const services=state.project.facts.services||[];
  services.forEach((row,i)=>{
   const box=el('div',{class:'service-editor'}),header=el('div',{class:'service-editor-header'});
-  header.append(el('p',{class:'service-index',text:'УСЛУГА '+String(i+1).padStart(2,'0')}));
+  header.append(el('p',{class:'service-index',text:tr('УСЛУГА ','SERVICE ')+String(i+1).padStart(2,'0')}));
   const actions=el('div',{class:'service-editor-actions'});
   const control=(id,label,symbol,disabled,run)=>{
    const button=el('button',{id,type:'button',class:'service-action',title:label,
     'aria-label':label+' '+(i+1),disabled,text:symbol});
    button.addEventListener('click',run);actions.append(button);
   };
-  control('move-service-up-'+i,'Поднять услугу','↑',i===0,()=>moveService(i,-1));
-  control('move-service-down-'+i,'Опустить услугу','↓',i===services.length-1,()=>moveService(i,1));
-  control('duplicate-service-'+i,'Дублировать как черновик','⧉',services.length>=12,()=>duplicateService(i));
-  control('remove-service-'+i,'Удалить услугу','×',false,()=>apply(()=>{
+  control('move-service-up-'+i,tr('Поднять услугу','Move service up'),'↑',i===0,()=>moveService(i,-1));
+  control('move-service-down-'+i,tr('Опустить услугу','Move service down'),'↓',i===services.length-1,()=>moveService(i,1));
+  control('duplicate-service-'+i,tr('Дублировать как черновик','Duplicate as draft'),'⧉',services.length>=12,()=>duplicateService(i));
+  control('remove-service-'+i,tr('Удалить услугу','Remove service'),'×',false,()=>apply(()=>{
    state.project.facts.services.splice(i,1);
   }));
   header.append(actions);box.append(header);
-  for(const [field,label,max,rows] of [['title','Название',120,1],['description','Описание',320,3]]){
+  for(const [field,label,max,rows] of [['title',tr('Название','Title'),120,1],['description',tr('Описание','Description'),320,3]]){
    const id='service-'+i+'-'+field;
    const inp=rows===1?el('input',{id,type:'text',maxlength:max,value:row[field]}):
     el('textarea',{id,maxlength:max,rows:rows});
@@ -210,6 +211,21 @@ function renderServices(){
  });
  $('add-service').disabled=services.length>=12;
  $('bulk-services-add').disabled=services.length>=12;
+ $('edit-services-as-list').disabled=services.length===0;
+ $('download-services-text').disabled=services.length===0;
+ $('replace-services-list').disabled=false;
+ $('add-service').textContent=tr('+ Добавить услугу','+ Add service');
+ $('bulk-services-add').textContent=tr('+ Добавить список','+ Append list');
+ $('replace-services-list').textContent=tr('Заменить список ↺','Replace all ↺');
+ $('edit-services-as-list').textContent=tr('Редактировать весь список','Edit full list');
+ $('download-services-text').textContent=tr('Скачать список TXT','Download TXT');
+ $('bulk-services-label').textContent=tr('Массовое редактирование услуг','Bulk edit services');
+ $('bulk-services-help').textContent=tr(
+  'Одна услуга на строку: Название | Описание. Можно указать только название (черновик). Добавление сохраняет старые услуги, замена переписывает весь список, её можно отменить через Undo.',
+  'One service per line: Title | Description. Title alone creates a draft. Append keeps existing services; Replace changes the whole list (Undo available).');
+ $('bulk-services-input').placeholder=tr(
+  'Разработка сайта | Дизайн и создание сайта\nПоддержка | Исправление ошибок',
+  'Website design | Design and implementation\nSupport | Post-launch fixes');
 }
 function moveService(index,delta){
  return apply(()=>{
@@ -229,10 +245,11 @@ function duplicateService(index){
  });
 }
 function parseBulkServices(input,language){
- if(typeof input!=='string'||input.length>5500)throw Error('Список слишком длинный (до 5500 символов)');
+ const t=(ru,en)=>language==='en'?en:ru;
+ if(typeof input!=='string'||input.length>5500)throw Error(t('Список слишком длинный (до 5500 символов)','Input exceeds 5500 characters'));
  const lines=input.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
- if(!lines.length)throw Error('Вставьте хотя бы одну услугу');
- if(lines.length>12)throw Error('Максимум 12 услуг за одну вставку');
+ if(!lines.length)throw Error(t('Вставьте хотя бы одну услугу','Enter at least one service'));
+ if(lines.length>12)throw Error(t('Максимум 12 услуг за одну вставку','Maximum 12 services per batch'));
  const placeholder=language==='en'?'Add verified description.':'Добавьте подтверждённое описание.';
  return lines.map((line,i)=>{
   // Supports title, "Title | Description" and tab-separated title/description.
@@ -240,7 +257,7 @@ function parseBulkServices(input,language){
   const title=(delimiter<0?line:line.slice(0,delimiter)).trim();
   const description=(delimiter<0?'':line.slice(delimiter+(line[delimiter]==='\t'?1:3))).trim()||placeholder;
   if(!title||title.length>120||description.length>320||/[\u0000-\u001f\u007f]/.test(title+description))
-   throw Error('Некорректная строка '+(i+1)+' (название до 120, описание до 320)');
+   throw Error(t('Некорректная строка ','Invalid service row ')+(i+1)+t(' (название до 120, описание до 320)',' (title ≤120, description ≤320)'));
   return {title,description};
  });
 }
@@ -251,14 +268,51 @@ function addBulkServices(){
   const rows=parseBulkServices(source,state.project.language);
   const list=state.project.facts.services||(state.project.facts.services=[]);
   if(list.length+rows.length>12)
-   throw Error('Максимум 12 услуг. Сейчас: '+list.length+', добавляется: '+rows.length);
+   throw Error(tr('Максимум 12 услуг. Сейчас: ','Maximum 12 services. Current: ')+list.length+tr(', добавляется: ', ', adding: ')+rows.length);
   list.push(...rows);count=rows.length;
  });
  if(success){
   input.value='';
-  say('Добавлено услуг: '+count+'. Список можно отменить через Undo.');
+  say(tr('Добавлено услуг: ','Added services: ')+count+tr('. Список можно отменить через Undo.','. Undo is available.'));
  }
 }
+
+function editFullServices(){
+ const list=state.project.facts.services||[],input=$('bulk-services-input');
+ if(!list.length){say(tr('Сначала добавьте услуги.','Add services first.'),true);return;}
+ if(input.value.trim()){
+  say(tr('Поле списка уже заполнено. Сохраните, замените или вручную очистите его перед загрузкой текущих услуг.',
+   'The list editor already has text. Save, replace, or clear it before loading current services.'),true);return;
+ }
+ input.value=list.map(s=>s.title+'\t'+s.description).join('\n');
+ input.focus();
+ say(tr('Текущие услуги загружены в поле. Исправьте строки и нажмите «Заменить список».',
+  'Existing services are loaded below. Edit and choose Replace all.'));
+}
+function replaceFullServices(){
+ const source=$('bulk-services-input').value;
+ let count=0;
+ const success=apply(()=>{
+  const rows=parseBulkServices(source,state.project.language);
+  state.project.facts.services=rows;
+  count=rows.length;
+ });
+ if(success){
+  $('bulk-services-input').value='';
+  say(tr('Заменено услуг: ','Replaced services: ')+count+tr('. Undo отменит замену.','. Undo restores the previous list.'));
+ }
+}
+function downloadServiceList(){
+ try{
+  const list=state.project.facts.services||[];
+  if(!list.length)throw Error(tr('Список услуг пуст.','No services entered.'));
+  // Plain UTF-8 .txt, not a CSV/Excel file and never a publishable claim.
+  const lines=list.map(s=>s.title+'\t'+s.description);
+  download(safeName()+'-services.txt',lines.join('\n')+'\n','text/plain');
+  say(tr('Список услуг TXT скачан.','Service list TXT downloaded.'));
+ }catch(error){say(error.message,true);}
+}
+
 function renderComposition(){
  const select=$('composition');
  select.replaceChildren(el('option',{value:'',text:'Без замены · стандартный kit'}));
@@ -751,10 +805,16 @@ function init(){
 
  $('composition').addEventListener('change',event=>apply(()=>{state.composition=event.target.value||null;state.page='home';}));
  $('bulk-services-add').addEventListener('click',addBulkServices);
+ $('edit-services-as-list').addEventListener('click',editFullServices);
+ $('replace-services-list').addEventListener('click',replaceFullServices);
+ $('download-services-text').addEventListener('click',downloadServiceList);
  $('add-service').addEventListener('click',()=>apply(()=>{
   if(!state.project.facts.services)state.project.facts.services=[];
   if(state.project.facts.services.length>=12)throw Error('Максимум 12 услуг');
-  state.project.facts.services.push({title:'Уточните название',description:'Добавьте подтверждённое описание.'});
+  state.project.facts.services.push({
+   title:tr('Уточните название','Confirm service name'),
+   description:tr('Добавьте подтверждённое описание.','Add verified description.')
+  });
  }));
  $('owner-review-confirmed').addEventListener('change',event=>{
   const checked=event.target.checked;

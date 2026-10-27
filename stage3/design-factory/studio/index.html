@@ -111,10 +111,15 @@
             <div id="services-list" class="services-editor"></div>
             <button class="minor-btn" id="add-service" type="button">+ Добавить услугу</button>
             <div class="bulk-services">
-              <label class="field" for="bulk-services-input"><span>Добавить услуги списком</span></label>
-              <p class="bulk-services-hint" id="bulk-services-help">По одной услуге на строку. Формат: Название | Описание. Если описания нет — оставим черновик. Не больше 12 услуг всего.</p>
-              <textarea id="bulk-services-input" rows="4" maxlength="5500" aria-describedby="bulk-services-help" placeholder="Разработка сайта | Дизайн и создание сайта&#10;Поддержка сайта | Исправление ошибок"></textarea>
-              <button class="minor-btn" id="bulk-services-add" type="button">+ Добавить список</button>
+              <label class="field" for="bulk-services-input"><span id="bulk-services-label">Массовое редактирование услуг</span></label>
+              <p class="bulk-services-hint" id="bulk-services-help">Каждая строка: Название | Описание. Добавление сохраняет старые услуги; замена переписывает весь список и доступна для Undo.</p>
+              <textarea id="bulk-services-input" rows="5" maxlength="5500" aria-describedby="bulk-services-help" placeholder="Разработка сайта | Дизайн и создание сайта&#10;Поддержка | Исправление ошибок"></textarea>
+              <div class="bulk-services-actions">
+                <button class="minor-btn" id="bulk-services-add" type="button">+ Добавить список</button>
+                <button class="minor-btn" id="replace-services-list" type="button">Заменить список ↺</button>
+                <button class="minor-btn" id="edit-services-as-list" type="button">Редактировать весь список</button>
+                <button class="minor-btn" id="download-services-text" type="button">Скачать список TXT</button>
+              </div>
             </div>
           </div>
           <div class="form-section">

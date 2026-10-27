@@ -157,3 +157,8 @@ body[data-review-mode=overview] .stage-area{min-width:0;padding-inline:clamp(12p
 .site-audit-actions button{flex:1 1 130px;margin-top:4px}
 .site-audit .site-audit-warning{font-size:10px;color:#94b0a8;margin-top:10px}
 @media(max-width:400px){.site-audit-pages{grid-template-columns:minmax(0,1fr)}}
+
+/* Batch service authoring across full customer lists. */
+.bulk-services-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.bulk-services-actions .minor-btn{margin:0;white-space:normal;text-align:center}
+@media(max-width:480px){.bulk-services-actions{grid-template-columns:minmax(0,1fr)}}

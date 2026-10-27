@@ -113,7 +113,10 @@ assert.ok(app.includes('function savePreviewZip()'));
 assert.ok(app.includes('function moveService(index,delta)')&&
  app.includes('function duplicateService(index)')&&
  app.includes('function parseBulkServices(input,language)')&&
- app.includes('function addBulkServices()'));
+ app.includes('function addBulkServices()')&&
+ app.includes('function editFullServices()')&&
+ app.includes('function replaceFullServices()')&&
+ app.includes('function downloadServiceList()'));
 assert.ok(css.includes('.service-editor-actions')&&css.includes('.bulk-services'));
 assert.ok(app.includes("title:prefix+list[index].title.slice(0,120-prefix.length)"));
 assert.ok(app.includes('packer.build(files),verification=packer.inspect(bytes)'));
@@ -126,7 +129,7 @@ assert.ok(css.includes('prefers-reduced-motion')&&css.includes('max-width:730px'
 for(const minTarget of ['.device-button{min-height:44px','.page-list button{min-height:44px',
  '.icon-button{height:44px','.service-action{height:44px'])assert.ok(css.includes(minTarget),minTarget);
 for(const id of ['kit-list','theme-list','site-preview','page-list','title','headline','description',
- 'services-list','bulk-services-input','bulk-services-add','composition','undo','redo','save-project','save-site','save-workspace','project-file','checklist','owner-review-confirmed'])
+ 'services-list','bulk-services-input','bulk-services-add','replace-services-list','edit-services-as-list','download-services-text','composition','undo','redo','save-project','save-site','save-workspace','project-file','checklist','owner-review-confirmed'])
  assert.ok(markup.includes('id="'+id+'"'),'UI control '+id);
 assert.ok(markup.includes('sandbox="allow-scripts"'));
 assert.ok(markup.includes('id="owner-review-help"')&&app.includes('robots=noindex'));
