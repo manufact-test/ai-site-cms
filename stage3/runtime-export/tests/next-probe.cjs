@@ -64,7 +64,8 @@ async function probe() {
   assert.ok(fs.existsSync(path.join(targets.static,'out/assets/image-abc.png')));
   const port=await freePort();
   const child=spawn('npm',['run','start','--','-p',String(port),'-H','127.0.0.1'],
-    {cwd:targets.ssr,env:{...process.env,NEXT_TELEMETRY_DISABLED:'1'},stdio:['ignore','pipe','pipe']});
+    {cwd:targets.ssr,env:{...process.env,NEXT_TELEMETRY_DISABLED:'1'},detached:true,
+      stdio:['ignore','pipe','pipe']});
   let output='';
   child.stdout.on('data',d=>output+=String(d));
   child.stderr.on('data',d=>output+=String(d));
@@ -90,7 +91,12 @@ async function probe() {
     assert.equal((await fetch(origin+'/does-not-exist/')).status,404);
     console.log('Next static BUILD + Next SSR HTTP PROOF PASS (disposable loopback)');
   } finally {
-    if(child.exitCode===null){child.kill('SIGTERM');}
+    // npm starts a shell and next-server child. Kill the whole disposable
+    // process group, not just npm, or inherited pipes keep CI alive forever.
+    const closed=new Promise(resolve=>child.once('close',resolve));
+    try { if(child.pid) process.kill(-child.pid,'SIGTERM'); }
+    catch(error) { if(error.code!=='ESRCH') throw error; }
+    await Promise.race([closed,new Promise(resolve=>setTimeout(resolve,2000))]);
   }
 }
 probe().catch(error=>{console.error(error);process.exitCode=1;})
