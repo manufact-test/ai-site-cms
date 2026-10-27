@@ -497,7 +497,9 @@ function renderPreview(){
   say(!result.checklist.factsComplete
     ?'Черновик готов. Обязательных полей для заполнения: '+result.checklist.missing.length+'. Экспорт защищён robots=noindex.'
     :!result.checklist.readyForPublish
-      ?'Все обязательные поля заполнены. Подтвердите проверку владельцем; экспорт пока robots=noindex.'
+      ?(result.checklist.publicationStatus==='section_drafts_require_owner_review'?
+        'Содержимое секций требует отдельной проверки владельцем. CMS экспорт защищён robots=noindex.':
+        'Все обязательные поля заполнены. Подтвердите проверку владельцем; экспорт пока robots=noindex.')
       :'Проверка подтверждена. Экспортируемые страницы получат robots=index; публикация остаётся отдельным действием.');
   $('save-site').disabled=false;
   renderFeedback();
