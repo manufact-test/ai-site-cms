@@ -1138,6 +1138,25 @@ async function execute(){
   await page.locator('#server-status').getByText(/Черновик #5/).waitFor();
   assert.equal((await page.request.get(origin+'/published/site-cross-browser/copied-browser/')).status(),404,
     'Selective historical recovery cannot implicitly publish a copied page');
+  // Authenticated cross-page media inventory, staged alt change and one
+  // immutable draft transaction. Never publish or mutate active live version.
+  await page.locator('#server-media-work-open').click();
+  await page.locator('#server-media-work-dialog[open]').waitFor();
+  const mediaWorkFirst=page.locator('#server-media-work-rows [data-media-work-id]').first();
+  await mediaWorkFirst.waitFor();
+  const mediaWorkAlt=mediaWorkFirst.locator('input[data-role="alt"]');
+  const mediaAuditOriginal=await mediaWorkAlt.inputValue();
+  await mediaWorkAlt.fill('Browser batch alt description');
+  await page.locator('#server-media-work-plan').click();
+  await page.locator('#server-media-work-summary').getByText(/обновится описаний: 1/).waitFor();
+  assert.equal(await page.locator('#server-media-work-apply').isDisabled(),false);
+  await page.locator('#server-media-work-apply').click();
+  await page.locator('#server-media-work-dialog').waitFor({state:'hidden'});
+  await page.locator('#server-status').getByText(/Черновик #6/).waitFor();
+  assert.ok(await page.evaluate(()=>window.Stage3Editor.getSite().assets
+    .some(a=>a.alt==='Browser batch alt description')));
+  assert.equal((await page.request.get(origin+'/published/site-cross-browser/copied-browser/')).status(),404,
+    'Media maintenance does not publish new cloned pages');
   await page.locator('#server-site-select').selectOption(siteId);
   await page.locator('#server-open').click();
   await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();

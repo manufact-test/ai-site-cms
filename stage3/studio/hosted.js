@@ -51,6 +51,137 @@
   const videoUpload=action('+ Загрузить MP4 (до 16 МБ)','server-video-upload',()=>videoInput.click());
   mediaPanel.append(mediaTitle,mediaHint,mediaUpload,mediaInput,videoUpload,videoInput,mediaList);
   toolbar.after(mediaPanel);
+  // Auditable site-wide media maintenance. Immutable bytes and all published
+  // snapshots survive; an operator previews and applies one bounded draft CAS.
+  const mediaWorkOpen=action('Центр медиа: аудит и массовые правки','server-media-work-open',
+    ()=>safe(openMediaWork));
+  mediaPanel.insertBefore(mediaWorkOpen,mediaList);
+  const mediaWorkDialog=element('dialog','hosted-backup-dialog');mediaWorkDialog.id='server-media-work-dialog';
+  const mediaWorkSummary=element('div','hosted-backup-summary');mediaWorkSummary.id='server-media-work-summary';
+  const mediaWorkRows=element('div','hosted-media-entries');mediaWorkRows.id='server-media-work-rows';
+  const mediaWorkPrune=element('input');mediaWorkPrune.type='checkbox';mediaWorkPrune.id='server-media-work-prune';
+  const mediaWorkPruneLabel=element('label',null,'Исключить все неиспользуемые файлы из текущего черновика (байты и публикации остаются)');
+  mediaWorkPruneLabel.htmlFor=mediaWorkPrune.id;
+  let mediaWorkAudit=null,mediaWorkPending=null,mediaWorkOpening=false;
+  const invalidateMediaWork=()=>{
+    mediaWorkPending=null;mediaWorkApply.disabled=true;mediaWorkSummary.replaceChildren();
+  };
+  const mediaWorkChanges=()=>{
+    if(!mediaWorkAudit)throw Error('Сначала загрузите аудит медиабиблиотеки');
+    const replacements=[],altUpdates=[];
+    for(const row of mediaWorkRows.querySelectorAll('[data-media-work-id]')){
+      const id=row.dataset.mediaWorkId;
+      const original=mediaWorkAudit.assets.find(a=>a.id===id);
+      const to=row.querySelector('select[data-role="replacement"]').value;
+      const alt=row.querySelector('input[data-role="alt"]').value;
+      if(to)replacements.push({from:id,to});
+      if(alt!==original.alt)altUpdates.push({assetId:id,alt});
+    }
+    return {replacements,altUpdates,pruneUnused:mediaWorkPrune.checked};
+  };
+  const loadMediaWork=async()=>{
+    invalidateMediaWork();mediaWorkAudit=null;mediaWorkRows.replaceChildren();
+    const current=state.siteId;
+    if(!current)return;
+    const audit=await api('/api/sites/'+encodeURIComponent(current)+'/media-audit');
+    if(!mediaWorkDialog.open||state.siteId!==current)return;
+    mediaWorkAudit=audit;
+    mediaWorkSummary.append(element('p',null,
+      'Сохранённый черновик #'+audit.revision+' · файлов '+audit.totalAssets+
+      ' · использований '+audit.totalReferences+' · не используются '+audit.unusedAssets));
+    mediaWorkPrune.checked=false;
+    const toolbar=element('div','hosted-media-work-legend');
+    toolbar.append(element('small',null,
+      'Alt можно обновить для нескольких файлов. Замена должна быть того же MIME и затронет все блоки, Design Graph, постеры и социальные изображения.'));
+    mediaWorkRows.append(toolbar);
+    for(const asset of audit.assets){
+      const row=element('div','hosted-media-item');row.dataset.mediaWorkId=asset.id;
+      const details=element('div','hosted-media-description');
+      details.append(element('strong',null,asset.alt||asset.id),
+        element('small',null,asset.id+' · '+asset.mime+' · '+asset.count+' привязок · '+asset.variants+' responsive'));
+      if(asset.references.length){
+        const usages=element('details','hosted-media-references');
+        usages.append(element('summary',null,'Показать все использования ('+asset.count+')'));
+        for(const ref of asset.references.slice(0,24))
+          usages.append(element('small',null,ref.pageTitle+' · '+ref.location+
+            (ref.component?' · '+ref.component:'')));
+        if(asset.references.length>24)usages.append(element('small',null,
+          'Ещё '+(asset.references.length-24)+' использований'));
+        details.append(usages);
+      }
+      const actions=element('div','hosted-media-actions');
+      const alt=element('input','control');alt.type='text';alt.maxLength=200;
+      alt.value=asset.alt;alt.dataset.role='alt';
+      alt.setAttribute('aria-label','Описание '+asset.id);alt.addEventListener('input',invalidateMediaWork);
+      const replacement=element('select','control');replacement.dataset.role='replacement';
+      replacement.setAttribute('aria-label','Заменить '+asset.id);
+      const keep=element('option',null,'Не заменять');keep.value='';replacement.append(keep);
+      for(const other of audit.assets.filter(a=>a.id!==asset.id&&a.mime===asset.mime)){
+        const option=element('option',null,(other.alt||other.id)+' · '+other.id);
+        option.value=other.id;replacement.append(option);
+      }
+      replacement.addEventListener('change',invalidateMediaWork);
+      actions.append(alt,replacement);row.append(details,actions);mediaWorkRows.append(row);
+    }
+    if(!audit.assets.length)mediaWorkRows.append(element('small',null,
+      'Добавьте изображения или видео, чтобы управлять их использованием.'));
+  };
+  const mediaWorkPlan=action('Проверить пакет изменений','server-media-work-plan',()=>safe(async()=>{
+    invalidateMediaWork();
+    if(!state.siteId||!canEdit()||editor.isDirty())
+      throw Error('Сначала сохраните правки перед массовыми действиями с файлами');
+    const changes=mediaWorkChanges(),siteId=state.siteId;
+    if(mediaWorkAudit.revision!==state.revision)
+      throw Error('Аудит устарел — откройте центр медиа повторно');
+    const result=await api('/api/sites/'+encodeURIComponent(siteId)+'/media-maintenance/plan',
+      'POST',{changes,expectedRevision:state.revision});
+    if(siteId!==state.siteId||editor.isDirty())return;
+    const plan=result.plan;
+    mediaWorkPending={siteId,revision:state.revision,token:result.confirmationToken};
+    mediaWorkSummary.replaceChildren(
+      element('strong',null,'План для черновика #'+plan.revision),
+      element('p',null,'Изменится привязок: '+plan.referencesUpdated+
+        ' · обновится описаний: '+plan.altUpdates.length+
+        ' · исключится из текущей библиотеки: '+plan.removedFromDraft.length),
+      element('p',null,'Файлов в библиотеке: '+plan.oldAssetCount+' → '+plan.newAssetCount+
+        '. Хранимые файлы не удаляются; опубликованные версии не меняются.'),
+      element('p',null,'Будет создана ровно одна новая ревизия без публикации.')
+    );
+    for(const r of plan.replacements)mediaWorkSummary.append(element('small',null,
+      r.from+' → '+r.to+' · ссылок '+r.references));
+    mediaWorkApply.disabled=false;
+  }));
+  const mediaWorkApply=action('Применить пакет в черновик','server-media-work-apply',()=>safe(async()=>{
+    if(!mediaWorkPending||!state.siteId||mediaWorkPending.siteId!==state.siteId||
+      mediaWorkPending.revision!==state.revision||editor.isDirty()||!canEdit())
+      throw Error('Черновик изменился — проверьте массовые действия снова');
+    const pending=mediaWorkPending;invalidateMediaWork();
+    const result=await api('/api/sites/'+encodeURIComponent(pending.siteId)+'/media-maintenance/apply',
+      'POST',{confirmationToken:pending.token});
+    mediaWorkDialog.close();
+    selectSite(result);await refreshSites();await loadHistory();await loadTemplates();
+    drawMedia();drawStatus();
+    notice('Массовые правки медиабиблиотеки сохранены одной ревизией. Публикация отдельно.');
+  }));
+  mediaWorkApply.disabled=true;
+  const mediaWorkClose=action('Закрыть','server-media-work-close',()=>mediaWorkDialog.close());
+  const openMediaWork=async()=>{
+    if(mediaWorkOpening)return;
+    if(!state.siteId||!canEdit()||editor.isDirty())
+      throw Error('Откройте сайт и сохраните правки перед аудитом медиа');
+    mediaWorkOpening=true;
+    try{invalidateMediaWork();mediaWorkDialog.showModal();await loadMediaWork();}
+    finally{mediaWorkOpening=false;}
+  };
+  mediaWorkPrune.addEventListener('change',invalidateMediaWork);
+  mediaWorkDialog.addEventListener('close',()=>{
+    invalidateMediaWork();mediaWorkAudit=null;
+  });
+  mediaWorkDialog.append(element('h2',null,'Центр медиабиблиотеки'),
+    element('p',null,'Аудит всех страниц, SEO, адаптивных изображений и Design Graph. Изменения не публикуются автоматически.'),
+    mediaWorkRows,mediaWorkPruneLabel,mediaWorkPrune,
+    mediaWorkPlan,mediaWorkSummary,mediaWorkApply,mediaWorkClose);
+  document.body.append(mediaWorkDialog);
   // Saved section presets are scoped to the currently selected owner site.
   // Applying a preset modifies ONLY the local draft, with undo/redo. Owner
   // must separately save the draft and then explicitly publish it.
@@ -1342,6 +1473,11 @@
     deliveryRetryUncertain.disabled=!available||!isOwner()||!currentDelivery?.uncertain;
     acknowledge.disabled=state.busy||!state.authorized||!state.siteId||!canEdit()||unreadCount===0;
     mediaUpload.disabled=!available||isDirty()||!canEdit();
+    mediaWorkOpen.disabled=!available||isDirty()||!canEdit();
+    mediaWorkPlan.disabled=state.busy||!mediaWorkAudit||!available||isDirty()||!canEdit();
+    mediaWorkApply.disabled=state.busy||!mediaWorkPending||!available||isDirty()||!canEdit();
+    mediaWorkPrune.disabled=state.busy;
+    for(const ctl of mediaWorkRows.querySelectorAll('input,select'))ctl.disabled=state.busy;
     templatesSave.disabled=!available||isDirty()||!canEdit();
     templatesRefresh.disabled=!available;
     videoUpload.disabled=!available||!canEdit()||isDirty();

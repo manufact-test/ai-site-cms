@@ -865,6 +865,79 @@ async function stop(){
   assert.deepEqual((await request('GET',kitTarget+'/published-site')).body,kitPublished,
     'Selective recovery never changes any previously published release');
 
+  // Media operations center: immutable audited refs, batch substitution,
+  // alt text and pruning never delete historical bytes or published releases.
+  const mediaWorkBase=kitTarget+'/media-maintenance';
+  const firstAudit=await request('GET',kitTarget+'/media-audit');
+  assert.equal(firstAudit.status,200,JSON.stringify(firstAudit.body));
+  assert.equal(firstAudit.body.revision,revived.body.revision);
+  const usedMedia=firstAudit.body.assets.filter(a=>a.count>0&&a.mime==='image/png');
+  assert.ok(usedMedia.length>=2,'Batch and page clones retain separate same-MIME media');
+  assert.ok(firstAudit.body.assets.some(a=>a.references.some(r=>r.location==='element')));
+  const beforeMaintenancePublished=(await request('GET',kitTarget+'/published-site')).body;
+  const unbound=await request('POST',kitTarget+'/media',
+    {base64:png64,alt:'Orphan cleanup example',expectedRevision:revived.body.revision});
+  assert.equal(unbound.status,201,JSON.stringify(unbound.body));
+  const uploadedOrphan=unbound.body.asset.id;
+  const workRevision=unbound.body.revision;
+  const workAudit=await request('GET',kitTarget+'/media-audit');
+  assert.equal(workAudit.status,200);
+  assert.equal(workAudit.body.assets.find(a=>a.id===uploadedOrphan).count,0);
+  const mediaWorkChanges={
+    replacements:[{from:usedMedia[0].id,to:usedMedia[1].id}],
+    altUpdates:[{assetId:usedMedia[1].id,alt:'Updated image description for whole site'}],
+    pruneUnused:true
+  };
+  assert.equal((await request('POST',mediaWorkBase+'/plan',{
+    changes:mediaWorkChanges,expectedRevision:workRevision
+  },{'x-csrf-token':'wrong'})).status,403);
+  assert.equal((await request('POST',mediaWorkBase+'/plan',{
+    changes:mediaWorkChanges,expectedRevision:workRevision-1
+  })).status,409);
+  assert.equal((await request('POST',mediaWorkBase+'/plan',{
+    changes:{replacements:[{from:usedMedia[0].id,to:uploadedOrphan}],
+      altUpdates:[],pruneUnused:false},expectedRevision:workRevision
+  })).status,200,'Same MIME valid even for currently unbound replacement');
+  const reviewedWork=await request('POST',mediaWorkBase+'/plan',{
+    changes:mediaWorkChanges,expectedRevision:workRevision
+  });
+  assert.equal(reviewedWork.status,200,JSON.stringify(reviewedWork.body));
+  assert.equal(reviewedWork.body.plan.referencesUpdated,usedMedia[0].count);
+  assert.ok(reviewedWork.body.plan.removedFromDraft.includes(usedMedia[0].id));
+  assert.ok(reviewedWork.body.plan.removedFromDraft.includes(uploadedOrphan));
+  assert.equal(reviewedWork.body.plan.published,false);
+  assert.deepEqual((await request('GET',kitTarget+'/published-site')).body,
+    beforeMaintenancePublished,'Read-only media preflight preserves live site');
+  assert.equal((await request('POST',mediaWorkBase+'/apply',
+    {confirmationToken:'guess'})).status,409);
+  const acceptedWork=await request('POST',mediaWorkBase+'/plan',{
+    changes:mediaWorkChanges,expectedRevision:workRevision
+  });
+  const appliedWork=await request('POST',mediaWorkBase+'/apply',
+    {confirmationToken:acceptedWork.body.confirmationToken});
+  assert.equal(appliedWork.status,200,JSON.stringify(appliedWork.body));
+  assert.equal(appliedWork.body.revision,workRevision+1);
+  assert.equal(appliedWork.body.maintenance.published,false);
+  assert.equal(appliedWork.body.site.assets.some(a=>a.id===usedMedia[0].id),false);
+  assert.equal(appliedWork.body.site.assets.some(a=>a.id===uploadedOrphan),false);
+  assert.equal(appliedWork.body.site.assets.find(a=>a.id===usedMedia[1].id).alt,
+    'Updated image description for whole site');
+  assert.equal((await request('GET',kitTarget+'/media/'+uploadedOrphan)).status,404,
+    'Removed draft media is no longer exposed by private current draft route');
+  assert.equal((await request('POST',mediaWorkBase+'/apply',
+    {confirmationToken:acceptedWork.body.confirmationToken})).status,409,
+    'One-use media confirmation cannot be replayed');
+  assert.equal((await request('POST',mediaWorkBase+'/plan',{
+    changes:mediaWorkChanges,expectedRevision:workRevision
+  })).status,409);
+  assert.deepEqual((await request('GET',kitTarget+'/published-site')).body,
+    beforeMaintenancePublished,'Media cleanup does not alter active publication');
+  const afterAudit=await request('GET',kitTarget+'/media-audit');
+  assert.equal(afterAudit.status,200);
+  assert.ok(afterAudit.body.assets.every(a=>a.count>0));
+  assert.ok(afterAudit.body.assets.some(a=>a.id===usedMedia[1].id&&a.count>
+    usedMedia[1].count),'Media replacements were applied across page content');
+
   // Backup -> read-only plan -> transactional recovery -> release restoration.
   await request('POST',tplRoot,{name:'Архивный шаблон',pageId:'page-home',sectionId:'section-hero',expectedRevision:sourceRevision});
   const archiveResult=await request('GET',endpoint+'/backup');
