@@ -202,3 +202,10 @@ Focused functional checks used the **actual GitHub first-party browser runtime i
 
 **Verification executed:** first-party real GitHub ZIP builder/importer sources in isolated JS performed the full 18-member create → extract → validate → restore loop for v1 and v3, including FAQ and SEO recovery; a separately tested previously-indexable package recovered `noindex` with its feedback present. Eight negative archive cases (bit corruption, mismatched project/CMS/D6, manifest contradiction, modified preview, missing file, altered filename) were rejected. Existing Node/Chromium Studio smoke source was extended for this round, but not run in a real checked-out repository because GitHub DNS still prevents local clone; no Chromium, PHP, 54 PNG, human D7 assessment or production acceptance can be claimed. D7 remains OPEN / 0 of 135.
 
+
+## 27.10.2026 — actual CTA destinations and release scope freeze
+
+The offline Studio HTML preview now respects all owner-provided registered `behavior.href` fields: Hero action, Services cards, Story action, CTA primary/secondary and Contact Panel action. Internal canonical CMS routes become correctly relative local HTML page links; unknown routes **fail**, not silently point to Home. External HTTPS destinations require a deliberate click and open separately with `noopener noreferrer`; the preview remains an offline generation tool and never automatically fetches these URLs. An owner-facing **actual CTA destinations** table is included in HTML/JSON content audit and the 18-file handoff. The online PHP runtime is still integration_required.
+
+No new features should be implemented until the next true Node/Chromium/PHP acceptance run identifies a concrete fault. The old `6/7 ≈86%` describes engineering chapters only, not release readiness. Read [owner truth report](../handoffs/OWNER-REALITY-REPORT-2026-10-27.md) and `handoffs/NEXT-CHAT.md`. Code-level V8 verified 1 152 pages; actual Chromium/PHP never counted.
+
