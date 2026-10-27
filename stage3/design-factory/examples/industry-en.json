@@ -1,0 +1,23 @@
+{
+  "format": "manufact-design-factory-v1",
+  "version": 1,
+  "kit": "industrial",
+  "theme": "technical",
+  "language": "en",
+  "facts": {
+    "siteId": "design-industry-example",
+    "title": "Manufacturing — example",
+    "headline": "Describe your production capabilities",
+    "description": "Illustrative copy only. Replace with confirmed manufacturing specifications and capabilities.",
+    "services": [
+      {
+        "title": "Production capabilities",
+        "description": "Add your verified facilities, capabilities and process details."
+      },
+      {
+        "title": "Engineering support",
+        "description": "Provide an owner-approved explanation of engineering services."
+      }
+    ]
+  }
+}

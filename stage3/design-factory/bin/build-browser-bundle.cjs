@@ -1,0 +1,89 @@
+#!/usr/bin/env node
+'use strict';
+// Deterministic browser bundle generation; use only explicitly allowlisted first-party files.
+const fs=require('node:fs'),path=require('node:path');
+const requestedBase=path.resolve(__dirname,'../../..');
+const base=fs.realpathSync(requestedBase);
+// The generated bundle is the only output this script writes. Refuse symlinked
+// directory components before reading or replacing it; a symlink here could
+// redirect a build outside the independently owned Design Factory subtree.
+for(const relative of ['stage3','stage3/design-factory','stage3/design-factory/studio']){
+ const directory=path.join(base,relative),stat=fs.lstatSync(directory);
+ if(stat.isSymbolicLink()||!stat.isDirectory())
+  throw Error('Unsafe browser bundle output directory: '+relative);
+}
+const sources={
+ sdk:'stage3/sdk/contract.cjs',
+ compiler:'stage3/design-factory/lib/compiler.cjs',
+ preview:'stage3/design-factory/lib/preview.cjs',
+ themes:'stage3/design-factory/catalog/themes.cjs',
+ kits:'stage3/design-factory/catalog/kits.cjs',
+ compositions:'stage3/design-factory/catalog/compositions.cjs',
+ adapter:'stage3/design-factory/lib/composition-adapter.cjs',
+ sectionEdits:'stage3/design-factory/lib/section-edits.cjs',
+ pageSettings:'stage3/design-factory/lib/page-settings.cjs',
+ sectionPlan:'stage3/design-factory/lib/section-plan.cjs',
+ bridge:'stage3/design-factory/lib/bridge.cjs'
+};
+const manifests=['company-hero','contact-panel','cta-banner','faq-accordion','feature-highlights','service-grid','media-story','photo-gallery'];
+const manifestBytes=Object.fromEntries(manifests.map(id=>[id,fs.readFileSync(path.join(base,'stage3/components/'+id+'.json'),'utf8')]));
+const factories=Object.entries(sources).map(([id,file])=>{
+ const body=fs.readFileSync(path.join(base,file),'utf8');
+ return JSON.stringify(id)+':function(module,exports,require,__dirname){\n'+body+'\n}';
+}).join(',\n');
+const header=[
+ '/* Design Factory D5 first-party browser bundle. Generated from exact existing Stage3 SDK/manifests.',
+ ' * No packages, eval, remote files or dynamic code; original JS source is bundled as static functions.',
+ ' * Build script: stage3/design-factory/bin/build-browser-bundle.cjs',
+ ' */',
+ '(function(root){',
+ "'use strict';",
+ 'const manifestBytes='+JSON.stringify(manifestBytes)+';',
+ 'const moduleFactories={',
+ factories,
+ '};',
+ 'const modules=Object.create(null);',
+ 'const names={',
+ "'../../sdk/contract.cjs':'sdk','../catalog/themes.cjs':'themes','../catalog/kits.cjs':'kits',",
+ "'../catalog/compositions.cjs':'compositions','./compiler.cjs':'compiler',",
+ "'./preview.cjs':'preview','./composition-adapter.cjs':'adapter','./section-edits.cjs':'sectionEdits','./page-settings.cjs':'pageSettings','./section-plan.cjs':'sectionPlan','./bridge.cjs':'bridge'",
+ '};',
+ 'const safeFS=Object.freeze({readFileSync:function(p){const file=String(p).split("/").pop();if(!/^[a-z][a-z0-9-]*\\.json$/.test(file))throw Error("Unsupported bundled manifest path");const id=file.slice(0,-5);if(!Object.prototype.hasOwnProperty.call(manifestBytes,id))throw Error("Missing manifest "+id);return manifestBytes[id];}});',
+ 'const safePath=Object.freeze({join:(...p)=>p.join("/"),resolve:(...p)=>p.join("/")});',
+ 'function load(id){if(modules[id])return modules[id].exports;const factory=moduleFactories[id];if(!factory)throw Error("Unknown factory "+id);const module={exports:{}};modules[id]=module;function request(p){if(p==="node:fs")return safeFS;if(p==="node:path")return safePath;const target=names[p];if(!target)throw Error("Blocked dependency "+p);return load(target)}factory(module,module.exports,request,"/stage3/design-factory/lib");return module.exports;}',
+ 'const api=Object.freeze({sdk:load("sdk"),compiler:load("compiler"),preview:load("preview"),themes:load("themes"),kits:load("kits"),compositions:load("compositions"),adapter:load("adapter"),sectionEdits:load("sectionEdits"),pageSettings:load("pageSettings"),sectionPlan:load("sectionPlan"),bridge:load("bridge")});',
+ 'Object.defineProperty(root,"DesignFactory",{value:api,writable:false,configurable:false});',
+ '})(globalThis);',
+ ''
+].join('\n');
+const target=path.join(base,'stage3/design-factory/studio/runtime.generated.js');
+function assertTarget(allowMissing){
+ try{
+  const stat=fs.lstatSync(target);
+  if(stat.isSymbolicLink()||!stat.isFile())
+   throw Error('Browser bundle target must be a regular non-symlink file');
+ }catch(error){
+  if(error.code==='ENOENT'&&allowMissing)return;
+  throw error;
+ }
+}
+if(process.argv.includes('--check')){
+ assertTarget(false);
+ if(fs.readFileSync(target,'utf8')!==header){console.error('Browser bundle does not match current source');process.exitCode=1;}
+ else console.log('Design Factory browser bundle verified');
+}else{
+ assertTarget(true);
+ // Rename a same-directory temporary file instead of truncating the target:
+ // even a hard-linked target cannot cause writes to an external inode.
+ const temporary=path.join(path.dirname(target),'.runtime.generated.'+process.pid+'.tmp');
+ try{
+  fs.writeFileSync(temporary,header,{flag:'wx',mode:0o644});
+  // Explicit chmod overrides a restrictive process umask so the static browser
+  // runtime stays readable when generated by CI or a different local account.
+  fs.chmodSync(temporary,0o644);
+  fs.renameSync(temporary,target);
+  console.log('Built '+target+' ('+header.length+' characters)');
+ }finally{
+  if(fs.existsSync(temporary))fs.unlinkSync(temporary);
+ }
+}

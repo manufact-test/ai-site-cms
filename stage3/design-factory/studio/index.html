@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="robots" content="noindex">
+  <title>Design Factory Studio · AI Site CMS</title>
+  <link rel="stylesheet" href="studio.css">
+  <script src="runtime.generated.js" defer></script>
+  <script src="preview-zip.js" defer></script>
+  <script src="client-feedback.js" defer></script>
+  <script src="site-audit.js" defer></script>
+  <script src="delivery-package.js" defer></script>
+  <script src="delivery-import.js" defer></script>
+  <script src="section-editor.js" defer></script>
+  <script src="page-settings.js" defer></script>
+  <script src="studio.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#studio-main">Перейти к предпросмотру</a>
+<div class="app-shell">
+  <header class="topbar">
+    <a href="#studio-main" class="brand" aria-label="Design Factory — главная"><span class="brand-mark">◆</span><span>MANUFACT<span class="brand-muted"> / Design Factory</span></span></a>
+    <div class="top-right">
+      <span class="environment"><span class="environment-dot"></span> OFFLINE / STAGE 3</span>
+      <button id="undo" class="icon-button" type="button" title="Отменить (Ctrl+Z)" aria-label="Отменить изменение" disabled>↶</button>
+      <button id="redo" class="icon-button" type="button" title="Повторить (Ctrl+Shift+Z)" aria-label="Повторить изменение" disabled>↷</button>
+      <button id="save-project" type="button" class="ghost-btn">Проект JSON <span aria-hidden="true">↓</span></button>
+      <button id="save-site" type="button" class="primary-btn">Экспорт CMS <span aria-hidden="true">↗</span></button>
+      <button id="save-preview-zip" type="button" class="ghost-btn" title="Скачать четыре связанные HTML-страницы и локальные стили как демонстрацию">HTML-демо ZIP <span aria-hidden="true">↓</span></button>
+      <button id="save-delivery-zip" type="button" class="primary-btn" title="18 файлов: проект, D6/CMS JSON, четыре HTML-страницы, акт владельцу и замечания">Передать проект ZIP <span aria-hidden="true">↓</span></button>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar" aria-labelledby="catalog-label">
+      <div class="sidebar-intro">
+        <div class="overline">01 / ВЫБОР ОСНОВЫ</div>
+        <h1 id="catalog-label">Каталог сайтов<span class="accent-dot">.</span></h1>
+        <p>12 отраслей · 12 дизайнерских концепций · реальные страницы</p>
+      </div>
+      <label class="field-label" for="search-kit">Найти направление</label>
+      <div class="search-control"><span aria-hidden="true">⌕</span><input id="search-kit" type="search" placeholder="Например, SaaS или архитектура" autocomplete="off"></div>
+      <div class="catalog-head"><span>ОТРАСЛИ</span><span id="catalog-count">12</span></div>
+      <div id="kit-list" class="kit-list" role="group" aria-label="Выбор отрасли"></div>
+      <div class="sidebar-footer">
+        <span>ПАРАМЕТРЫ ПРОЕКТА</span>
+        <div class="grid-two">
+          <label class="field"><span>Язык</span><select id="language"><option value="ru">Русский</option><option value="en">English</option></select></label>
+          <label class="field"><span>Site ID</span><input id="siteId" type="text" maxlength="80" spellcheck="false"></label>
+        </div>
+        <div class="sidebar-footnote">Никаких сторонних данных, API и публикации. Все правки выполняются в браузере.</div>
+      </div>
+    </aside>
+    <main id="studio-main" class="stage-area">
+      <div class="workbench-header">
+        <div class="workbench-titles">
+          <div class="overline">02 / КОМПОЗИЦИЯ И ПРОСМОТР</div>
+          <h2 id="workbench-title">Дизайн сайта</h2>
+          <p id="workbench-subtitle">Выберите концепцию и посмотрите страницы.</p>
+        </div>
+        <div class="device-toolbar" role="group" aria-label="Размер предпросмотра">
+          <button type="button" class="device-button active" data-device="desktop" aria-pressed="true" title="Десктоп (1280px)"><span aria-hidden="true">▣</span> ПК</button>
+          <button type="button" class="device-button" data-device="tablet" aria-pressed="false" title="Планшет (768px)"><span aria-hidden="true">▤</span> Планшет</button>
+          <button type="button" class="device-button" data-device="mobile" aria-pressed="false" title="Телефон (390px)"><span aria-hidden="true">▯</span> Телефон</button>
+        </div>
+      </div>
+      <div class="theme-header"><span>ВИЗУАЛЬНОЕ НАПРАВЛЕНИЕ</span><span id="theme-current"></span></div>
+      <div id="theme-list" class="theme-list" role="group" aria-label="Выбор дизайн-системы"></div>
+      <div class="review-mode-controls" role="group" aria-label="Способ просмотра дизайна">
+        <button id="compare-toggle" type="button" aria-pressed="false" class="minor-btn">Сравнить две темы</button>
+        <button id="overview-toggle" type="button" aria-pressed="false" class="minor-btn">Все 4 страницы</button>
+        <label class="review-reference" id="compare-theme-field" for="compare-theme" hidden>
+          Тема для сравнения <select id="compare-theme" aria-label="Тема для сравнения"></select>
+        </label>
+        <button id="compare-adopt" type="button" class="primary-btn" hidden>Применить выбранную тему</button>
+      </div>
+      <p class="review-mode-hint">Сравнение показывает одни и те же подтверждённые данные в двух темах. Обзор четырёх страниц — мобильный (390px). Оба режима только для просмотра и не меняют CMS-экспорт.</p>
+      <div class="preview-top">
+        <nav id="page-list" class="page-list" aria-label="Страницы сайта"></nav>
+        <span class="preview-label" id="single-preview-label">ЛОКАЛЬНЫЙ ПРЕДПРОСМОТР · НЕ РЕНДЕРЕР CMS</span>
+      </div>
+      <div id="preview-layout" class="preview-layout" data-compare="false">
+      <div id="preview-shell" class="preview-shell">
+        <h3 id="compare-current-title" class="compare-caption">Текущая тема</h3>
+        <div class="browser-chrome"><span class="chrome-lights" aria-hidden="true"><i></i><i></i><i></i></span><span id="browser-url">design-preview.local /</span><span>100%</span></div>
+        <div class="preview-scroller"><iframe id="site-preview" sandbox="allow-scripts" title="Безопасный предпросмотр сайта без доступа к родительскому окну" referrerpolicy="no-referrer"></iframe></div>
+      </div>
+        <div id="compare-shell" class="preview-shell" hidden>
+          <h3 id="compare-reference-title" class="compare-caption">Тема сравнения</h3>
+          <div class="browser-chrome"><span class="chrome-lights" aria-hidden="true"><i></i><i></i><i></i></span><span id="compare-browser-url">design-preview.local /</span><span>100%</span></div>
+          <div class="preview-scroller"><iframe id="compare-preview" sandbox="allow-scripts" title="Сравнение с другой темой — локальный безопасный предпросмотр" referrerpolicy="no-referrer"></iframe></div>
+        </div>
+      </div>
+      <p id="page-overview-note" class="review-mode-hint" hidden>Четыре страницы одного сайта, каждая на ширине 390px. Нажмите «Открыть страницу», чтобы вернуться в основной просмотр.</p>
+      <section id="page-overview" class="page-overview" aria-label="Четыре страницы сайта" hidden></section>
+      <div class="preview-disclaimer"><span aria-hidden="true">ⓘ</span> Внутри HTML-демо ZIP есть review.html для офлайн-замечаний клиента. Файл замечаний импортируется через раздел 05 справа. Это не подтверждение публикации.</div>
+      <div class="preview-disclaimer"><span aria-hidden="true">ⓘ</span> Кнопка HTML-демо ZIP скачивает полноценный 4-страничный статический прототип с локальными стилями и работающими ссылками. Только для предварительного согласования; это не экспорт PHP CMS и не публикация.</div>
+      <div class="preview-disclaimer"><span aria-hidden="true">ⓘ</span> Визуальный HTML/CSS — расширенный предпросмотр фабрики. В CMS экспортируются только поддерживаемые поля реального <code>manufact-ai-site-v1</code>.</div>
+      <div id="message" class="message" role="status" aria-live="polite"></div>
+    </main>
+    <aside class="inspector" aria-labelledby="inspector-title">
+      <div class="inspector-header"><div class="overline">03 / РЕДАКТИРОВАНИЕ</div><h2 id="inspector-title">Содержание</h2><p>Вводите только настоящие данные владельца сайта.</p></div>
+      <form id="brief-form" novalidate>
+        <div class="inspector-content">
+          <div class="form-section">
+            <div class="form-section-title"><span>01</span><strong>Бренд и коммуникация</strong></div>
+            <label class="field"><span>Название компании</span><input id="title" data-fact="title" maxlength="120" placeholder="Название, подтверждённое владельцем"></label>
+            <label class="field"><span>Главный заголовок</span><textarea id="headline" data-fact="headline" rows="2" maxlength="120" placeholder="Опишите настоящее предложение"></textarea></label>
+            <label class="field"><span>Описание</span><textarea id="description" data-fact="description" rows="4" maxlength="400" placeholder="Реальные услуги, без выдуманных цифр и обещаний"></textarea></label>
+            <label class="field"><span>Текст кнопки</span><input id="ctaLabel" data-fact="ctaLabel" maxlength="100" placeholder="Связаться"></label>
+            <label class="field"><span>Информация о связи</span><textarea id="contactText" data-fact="contactText" rows="2" maxlength="400" placeholder="Только проверенные данные"></textarea></label>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title"><span>02</span><strong>Реальные услуги</strong></div>
+            <div id="services-list" class="services-editor"></div>
+            <button class="minor-btn" id="add-service" type="button">+ Добавить услугу</button>
+            <div class="bulk-services">
+              <label class="field" for="bulk-services-input"><span id="bulk-services-label">Массовое редактирование услуг</span></label>
+              <p class="bulk-services-hint" id="bulk-services-help">Каждая строка: Название | Описание. Добавление сохраняет старые услуги; замена переписывает весь список и доступна для Undo.</p>
+              <textarea id="bulk-services-input" rows="5" maxlength="5500" aria-describedby="bulk-services-help" placeholder="Разработка сайта | Дизайн и создание сайта&#10;Поддержка | Исправление ошибок"></textarea>
+              <div class="bulk-services-actions">
+                <button class="minor-btn" id="bulk-services-add" type="button">+ Добавить список</button>
+                <button class="minor-btn" id="replace-services-list" type="button">Заменить список ↺</button>
+                <button class="minor-btn" id="edit-services-as-list" type="button">Редактировать весь список</button>
+                <button class="minor-btn" id="download-services-text" type="button">Скачать список TXT</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title"><span>03</span><strong>Дополнительная секция главной (старые проекты)</strong></div>
+            <label class="field"><span>Вариант секции</span><select id="composition"><option value="">Без замены · стандартный kit</option></select></label>
+            <div id="composition-info" class="composition-info">Можно выбрать любой из 42 вариантов. Для неподдерживаемого оформления используется честный CMS fallback.</div>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title"><span>04</span><strong>Секции всех страниц</strong></div>
+            <div class="section-editor-heading"><strong id="section-page-name">Главная</strong><span><span id="section-count">0</span> секций</span></div>
+            <div id="section-list" class="section-editor-list" aria-live="polite"></div>
+            <label class="field"><span>Добавить композицию на открытую страницу</span>
+              <select id="section-template"><option value="">Выберите композицию…</option></select></label>
+            <div class="section-editor-actions-bottom">
+              <button id="section-add" type="button" class="minor-btn" disabled>+ Добавить секцию</button>
+              <button id="section-reset" type="button" class="minor-btn" disabled>Вернуть секции этой страницы</button>
+            </div>
+            <p id="section-editor-note" class="bulk-services-hint">Секции доступны на всех четырёх страницах.</p>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title"><span>05</span><strong>SEO и настройки страницы</strong></div>
+            <div class="page-meta-top"><strong id="page-meta-name">Главная</strong><span>CMS / SEO</span></div>
+            <div class="page-meta-fields">
+              <label class="field" for="page-meta-title"><span id="page-meta-label-title">Заголовок страницы</span><input id="page-meta-title" type="text" maxlength="160"><small id="page-meta-count-title" class="page-meta-counter">0 / 160</small></label>
+              <label class="field" for="page-meta-seoTitle"><span id="page-meta-label-seoTitle">SEO Title</span><input id="page-meta-seoTitle" type="text" maxlength="160"><small id="page-meta-count-seoTitle" class="page-meta-counter">0 / 160</small></label>
+              <label class="field" for="page-meta-seoDescription"><span id="page-meta-label-seoDescription">SEO Description</span><textarea id="page-meta-seoDescription" rows="3" maxlength="300"></textarea><small id="page-meta-count-seoDescription" class="page-meta-counter">0 / 300</small></label>
+              <label class="field" for="page-meta-navigationLabel"><span id="page-meta-label-navigationLabel">Название в меню</span><input id="page-meta-navigationLabel" type="text" maxlength="100"><small id="page-meta-count-navigationLabel" class="page-meta-counter">0 / 100</small></label>
+            </div>
+            <div class="page-meta-search-preview" aria-label="Локальный пример поисковой карточки">
+              <span class="page-meta-search-label">Поисковый сниппет · пример</span>
+              <strong id="page-meta-snippet-title">Заголовок страницы</strong>
+              <span id="page-meta-snippet-url">design-preview.local/</span>
+              <p id="page-meta-snippet-description">SEO описание страницы</p>
+            </div>
+            <div class="page-meta-buttons">
+              <button id="page-meta-save" type="button" class="minor-btn" disabled>Сохранить SEO</button>
+              <button id="page-meta-cancel" type="button" class="minor-btn" disabled>Отменить ввод</button>
+              <button id="page-meta-reset" type="button" class="minor-btn" disabled>Вернуть значения kit</button>
+            </div>
+            <p id="page-meta-status" class="bulk-services-hint" role="status" aria-live="polite">Выберите страницу для настройки.</p>
+            <p class="bulk-services-hint">Путь страницы, идентификаторы и robots не редактируются здесь. Предпросмотр и CMS JSON обновятся после сохранения.</p>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title"><span>06</span><strong>Перед экспортом</strong></div>
+            <div id="checklist" class="checklist"></div>
+            <div class="site-audit">
+              <h3>Проверка проекта и четырёх страниц</h3>
+              <p>Показывает реальные поля, секции, SEO и открытые замечания. Откройте страницу для проверки или скачайте отдельный отчёт для владельца.</p>
+              <p id="site-audit-summary" role="status" aria-live="polite">Формируем отчёт…</p>
+              <div id="site-audit-pages" class="site-audit-pages"></div>
+              <div class="site-audit-actions">
+                <button id="site-audit-html" type="button" class="minor-btn" disabled>Отчёт владельцу HTML</button>
+                <button id="site-audit-json" type="button" class="minor-btn" disabled>Аудит JSON</button>
+              </div>
+              <p class="site-audit-warning">Отчёт локальный, может содержать введённые контакты. Он не является подписью клиента и не подтверждает лицензии, PHP parity или публикацию.</p>
+            </div>
+
+            <div class="review-gate">
+              <label for="owner-review-confirmed">
+                <input id="owner-review-confirmed" type="checkbox" disabled>
+                <span>Я подтвердил с владельцем тексты, услуги, контакты и права на материалы. Разрешить индексацию экспортируемого сайта.</span>
+              </label>
+              <p id="owner-review-help">Подтверждение доступно после заполнения обязательных полей. Любое дальнейшее изменение сбрасывает его. Это не публикует сайт автоматически.</p>
+            </div>
+            <div class="import-area">
+              <label class="field-label" for="project-file">Импорт проекта JSON</label>
+              <input id="project-file" type="file" accept=".json,application/json">
+              <p>Поддерживаются фабричный проект и рабочие пространства v1–v3 (до 1 МБ).</p>
+            </div>
+            <div class="delivery-restore">
+              <strong>Восстановить ранее переданный проект из ZIP</strong>
+              <label class="field" for="delivery-file"><span>Пакет передачи Design Factory (18 файлов)</span>
+                <input id="delivery-file" type="file" accept=".zip,application/zip,application/x-zip-compressed"></label>
+              <p id="delivery-restore-status" class="bulk-services-hint" role="status" aria-live="polite">Выберите ZIP. Сначала проверим все файлы, затем предложим восстановление.</p>
+              <button id="delivery-restore-apply" type="button" class="minor-btn full" disabled>Восстановить проверенный проект</button>
+              <p class="bulk-services-hint">Заменяет текущий рабочий проект только по отдельному нажатию. Отменить можно через Undo. Разрешение индексации не переносится.</p>
+            </div>
+            <button id="save-workspace" type="button" class="minor-btn full">Скачать рабочее пространство JSON</button>
+            <button id="save-bridge" type="button" class="minor-btn full">Скачать карту совместимости</button>
+            <button id="save-bundle" type="button" class="minor-btn full">Скачать пакет для интеграции D6</button>
+          </div>
+          <div class="form-section client-feedback">
+            <div class="form-section-title"><span>05</span><strong>Замечания клиента</strong></div>
+            <p>В HTML-демо ZIP есть страница review.html. Клиент может оставить замечания к четырём страницам и скачать JSON, который вы загрузите здесь.</p>
+            <label class="field" for="feedback-file"><span>Загрузить замечания JSON</span><input type="file" id="feedback-file" accept=".json,application/json"></label>
+            <p id="feedback-summary" role="status" aria-live="polite">Замечания пока не загружены.</p>
+            <div id="feedback-list" class="feedback-review-list"></div>
+            <button id="feedback-export" class="minor-btn full" type="button" disabled>Скачать замечания с отметками</button>
+            <p class="feedback-guidance">Замечания — не подтверждение владельца, не приёмка дизайна и не разрешение публиковать сайт.</p>
+          </div>
+        </div>
+      </form>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

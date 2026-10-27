@@ -1,0 +1,94 @@
+#!/usr/bin/env node
+'use strict';
+// D7 genuine Chromium viewport/capture smoke, optional when DF_CHROMIUM_BIN is set.
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const os=require('node:os');
+const path=require('node:path');
+const {pathToFileURL}=require('node:url');
+const {openBrowser}=require('../lib/chromium-pipe.cjs');
+const {inspectPng}=require('../lib/png-integrity.cjs');
+const chrome=process.env.DF_CHROMIUM_BIN;
+if(!chrome){
+ console.log('DESIGN_FACTORY_D7_VISUAL_PIPE SKIP: DF_CHROMIUM_BIN not set');
+ process.exit(0);
+}
+const size=inspectPng;
+(async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'df-visual-pipe-smoke-'));
+ const filename=path.join(dir,'responsive.html');
+ let browser=null;
+ try{
+  fs.writeFileSync(filename,'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">'+
+   '<style>body{margin:0}main{box-sizing:border-box;max-width:100%;padding:16px}</style></head>'+
+   '<body><main><h1>Real responsive screenshot</h1><p>Offline file.</p></main></body></html>');
+  const url=pathToFileURL(filename).href;
+  browser=await openBrowser(chrome);
+  const widths=[{width:1280,height:800},{width:768,height:1000},{width:390,height:844}];
+  if(process.env.DF_STATIC_DIAGNOSTIC_ONLY==='1'){
+   const cssFile=path.join(dir,'styles.css');
+   fs.writeFileSync(cssFile,'body{margin:0;background:#123456}main{padding:20px}');
+   fs.writeFileSync(filename,'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">'+
+    '<link rel="stylesheet" href="styles.css"></head><body><main>Static diagnostic</main></body></html>');
+   for(const view of widths){
+    const captured=await browser.screenshotStatic(url,view);
+    assert.deepEqual(size(captured.png),view);
+    assert.equal(captured.transport,'memory-static');
+    assert.equal(captured.overflowPixels,0);
+   const probe=await browser.inspectVisualStructure();
+   assert.equal(probe.main,true);
+   assert.ok(probe.styles>=1);
+   }
+   fs.writeFileSync(filename,'<!doctype html><html><head><link rel="stylesheet" href="styles.css"></head>'+
+    '<body><script>alert(1)</script></body></html>');
+   await assert.rejects(browser.screenshotStatic(url,widths[2]),/refused non-static/);
+   console.log('DESIGN_FACTORY_D7_STATIC_DIAGNOSTIC PASS: real in-memory Chromium 1280/768/390 PNGs; file navigation and D7 acceptance NOT verified');
+   return;
+  }
+  for(const view of widths){
+   const captured=await browser.screenshot(url,view);
+   assert.deepEqual(size(captured.png),view,'CDP must capture the actual requested viewport dimensions');
+   assert.equal(captured.overflowPixels,0,'Simple page must not overflow horizontally');
+  }
+  fs.writeFileSync(filename,'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>'+
+   '<body style="margin:0"><div style="width:1100px;height:50px">Intentional overflow</div></body></html>');
+  const overflowing=await browser.screenshot(url,widths[2]);
+  assert.ok(overflowing.overflowPixels>600,'Horizontal overflow must be measured from actual page layout');
+  await assert.rejects(browser.screenshot('https://example.com/',widths[2]),/Only offline file URLs/);
+  fs.writeFileSync(filename,'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>'+
+   '<body><div id="d7-probe"></div><script>setTimeout(()=>{document.getElementById("d7-probe").textContent="CDP READY"},120)</script></body></html>');
+  assert.equal(await browser.waitForElementText(url,'d7-probe',5000),'CDP READY',
+   'DevTools pipe must observe asynchronous DOM state without --dump-dom');
+  await assert.rejects(browser.waitForElementText('https://example.com/','d7-probe'),/Only offline file URLs/);
+  // Full route smoke is separate from screenshot capture.
+  const routeFile=path.join(dir,'index.html'),routeUrl=pathToFileURL(routeFile).href;
+  const routeHtml='<!doctype html><html><head><meta name="robots" content="noindex">'+
+   '<style>.section{padding:20px}</style></head><body><header><nav>'+
+   '<a href="index.html">Home</a><a href="index.html">Services</a>'+
+   '<a href="index.html">Approach</a><a href="index.html">Contact</a>'+
+   '</nav></header><main><section class="section">Offline route with verified page body and first-party navigation.</section></main></body></html>';
+  fs.writeFileSync(routeFile,routeHtml);
+  const route=await browser.inspectOfflineRoute(routeUrl,widths[2]);
+  assert.equal(route.viewportWidth,390);
+  assert.equal(route.robots,'noindex');
+  assert.equal(route.navigationLinks,4);
+  fs.writeFileSync(routeFile,routeHtml.replace('content="noindex"','content="index"'));
+  await assert.rejects(browser.inspectOfflineRoute(routeUrl,widths[2]),/Incomplete real Chromium offline route/);
+  const cssFile=path.join(dir,'styles.css');
+  fs.writeFileSync(cssFile,'body{margin:0;background:#123456}main{padding:20px}');
+  fs.writeFileSync(filename,'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">'+
+   '<link rel="stylesheet" href="styles.css"></head><body><main>Static diagnostic</main></body></html>');
+  const diagnostic=await browser.screenshotStatic(url,widths[2]);
+  assert.deepEqual(size(diagnostic.png),widths[2]);
+  assert.equal(diagnostic.transport,'memory-static');
+  assert.equal(diagnostic.overflowPixels,0);
+  await assert.rejects(browser.screenshotStatic('https://example.com/',widths[2]),/Only offline file URLs/);
+  fs.writeFileSync(filename,'<!doctype html><html><head><link rel="stylesheet" href="styles.css"></head>'+
+   '<body><script>alert(1)</script></body></html>');
+  await assert.rejects(browser.screenshotStatic(url,widths[2]),/refused non-static/);
+  console.log('DESIGN_FACTORY_D7_VISUAL_PIPE PASS: real Chromium 1280/768/390 PNG sizes, one persistent browser, asynchronous DOM probe, memory-only static PNG diagnostics, overflow detection and offline URL restriction');
+ }finally{
+  if(browser)await browser.close();
+  fs.rmSync(dir,{recursive:true,force:true});
+ }
+})().catch(error=>{console.error('DESIGN_FACTORY_D7_VISUAL_PIPE FAIL:',error);process.exitCode=2;});

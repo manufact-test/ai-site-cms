@@ -1,0 +1,609 @@
+{
+  "format": "manufact-ai-site-v1",
+  "siteId": "factory-industrial",
+  "title": "New website — add your name",
+  "schemaVersion": 1,
+  "assets": [],
+  "pages": [
+    {
+      "id": "df-page-home",
+      "path": "/",
+      "title": "Home",
+      "navigation": {
+        "label": "Home",
+        "hidden": false
+      },
+      "seo": {
+        "title": "New website — add your name",
+        "description": "Overview of services, approach and ways to get in touch. Verify details with the owner.",
+        "robots": "noindex"
+      },
+      "sections": [
+        {
+          "id": "df-home-01",
+          "component": "company-hero",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-home-01-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Describe what you offer",
+                "style.fontSize": {
+                  "desktop": "60px",
+                  "tablet": "43px",
+                  "mobile": "30px"
+                },
+                "style.color": "#172A43"
+              }
+            },
+            {
+              "id": "df-home-01-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Add verified information about the organization and the needs it serves."
+              }
+            },
+            {
+              "id": "df-home-01-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Discuss a project",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-home-02",
+          "component": "media-story",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-home-02-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "How the work is done"
+              }
+            },
+            {
+              "id": "df-home-02-copy",
+              "slot": "copy",
+              "values": {
+                "content.text": "Add real projects, steps or examples of work."
+              }
+            },
+            {
+              "id": "df-home-02-photo",
+              "slot": "photo",
+              "values": {
+                "content.media": ""
+              }
+            },
+            {
+              "id": "df-home-02-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Discuss a project",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-home-03",
+          "component": "feature-highlights",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-home-03-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "What to know"
+              }
+            },
+            {
+              "id": "df-home-03-first",
+              "slot": "first",
+              "values": {
+                "content.text": "Add confirmed information about your working process.",
+                "style.color": "#172A43"
+              }
+            },
+            {
+              "id": "df-home-03-second",
+              "slot": "second",
+              "values": {
+                "content.text": "Ask the owner to confirm scope, timelines and terms."
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-home-04",
+          "component": "cta-banner",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-home-04-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Start with the brief"
+              }
+            },
+            {
+              "id": "df-home-04-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Share your goal and expected outcome to discuss the next steps."
+              }
+            },
+            {
+              "id": "df-home-04-primary",
+              "slot": "primary",
+              "values": {
+                "content.text": "Discuss a project",
+                "behavior.href": "/contact/"
+              }
+            },
+            {
+              "id": "df-home-04-secondary",
+              "slot": "secondary",
+              "values": {
+                "content.text": "Explore services",
+                "behavior.href": "/services/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        }
+      ]
+    },
+    {
+      "id": "df-page-services",
+      "path": "/services/",
+      "title": "Services",
+      "navigation": {
+        "label": "Services",
+        "hidden": false
+      },
+      "seo": {
+        "title": "Services | New website — add your name",
+        "description": "Overview of services, approach and ways to get in touch. Verify details with the owner.",
+        "robots": "noindex"
+      },
+      "sections": [
+        {
+          "id": "df-services-01",
+          "component": "company-hero",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-services-01-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Services",
+                "style.fontSize": {
+                  "desktop": "60px",
+                  "tablet": "43px",
+                  "mobile": "30px"
+                },
+                "style.color": "#172A43"
+              }
+            },
+            {
+              "id": "df-services-01-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Overview of services, approach and ways to get in touch. Verify details with the owner."
+              }
+            },
+            {
+              "id": "df-services-01-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Discuss a project",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-services-02",
+          "component": "service-grid",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-services-02-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Areas of work"
+              }
+            }
+          ],
+          "items": [
+            {
+              "id": "df-services-02-item-1",
+              "values": {
+                "content.title": "Service area 1 — confirm with owner",
+                "content.text": "Describe the service using verified owner-provided details.",
+                "behavior.href": "/contact/"
+              }
+            },
+            {
+              "id": "df-services-02-item-2",
+              "values": {
+                "content.title": "Service area 2 — confirm with owner",
+                "content.text": "Describe the service using verified owner-provided details.",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-services-03",
+          "component": "feature-highlights",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-services-03-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "What to know"
+              }
+            },
+            {
+              "id": "df-services-03-first",
+              "slot": "first",
+              "values": {
+                "content.text": "Add confirmed information about your working process.",
+                "style.color": "#172A43"
+              }
+            },
+            {
+              "id": "df-services-03-second",
+              "slot": "second",
+              "values": {
+                "content.text": "Ask the owner to confirm scope, timelines and terms."
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-services-04",
+          "component": "cta-banner",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-services-04-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Start with the brief"
+              }
+            },
+            {
+              "id": "df-services-04-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Share your goal and expected outcome to discuss the next steps."
+              }
+            },
+            {
+              "id": "df-services-04-primary",
+              "slot": "primary",
+              "values": {
+                "content.text": "Discuss a project",
+                "behavior.href": "/contact/"
+              }
+            },
+            {
+              "id": "df-services-04-secondary",
+              "slot": "secondary",
+              "values": {
+                "content.text": "Explore services",
+                "behavior.href": "/services/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        }
+      ]
+    },
+    {
+      "id": "df-page-approach",
+      "path": "/approach/",
+      "title": "Approach",
+      "navigation": {
+        "label": "Approach",
+        "hidden": false
+      },
+      "seo": {
+        "title": "Approach | New website — add your name",
+        "description": "Overview of services, approach and ways to get in touch. Verify details with the owner.",
+        "robots": "noindex"
+      },
+      "sections": [
+        {
+          "id": "df-approach-01",
+          "component": "company-hero",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-approach-01-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Approach",
+                "style.fontSize": {
+                  "desktop": "60px",
+                  "tablet": "43px",
+                  "mobile": "30px"
+                },
+                "style.color": "#172A43"
+              }
+            },
+            {
+              "id": "df-approach-01-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Overview of services, approach and ways to get in touch. Verify details with the owner."
+              }
+            },
+            {
+              "id": "df-approach-01-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Discuss a project",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-approach-02",
+          "component": "media-story",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-approach-02-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "How the work is done"
+              }
+            },
+            {
+              "id": "df-approach-02-copy",
+              "slot": "copy",
+              "values": {
+                "content.text": "Add real projects, steps or examples of work."
+              }
+            },
+            {
+              "id": "df-approach-02-photo",
+              "slot": "photo",
+              "values": {
+                "content.media": ""
+              }
+            },
+            {
+              "id": "df-approach-02-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Discuss a project",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-approach-03",
+          "component": "faq-accordion",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-approach-03-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Frequently asked questions"
+              }
+            }
+          ],
+          "items": [
+            {
+              "id": "df-approach-03-item-1",
+              "values": {
+                "content.question": "How can we clarify project scope?",
+                "content.answer": "Describe the task so its details can be discussed."
+              }
+            },
+            {
+              "id": "df-approach-03-item-2",
+              "values": {
+                "content.question": "Where can I check cooperation terms?",
+                "content.answer": "Ask the organization for up-to-date terms."
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        }
+      ]
+    },
+    {
+      "id": "df-page-contact",
+      "path": "/contact/",
+      "title": "Contact",
+      "navigation": {
+        "label": "Contact",
+        "hidden": false
+      },
+      "seo": {
+        "title": "Contact | New website — add your name",
+        "description": "Overview of services, approach and ways to get in touch. Verify details with the owner.",
+        "robots": "noindex"
+      },
+      "sections": [
+        {
+          "id": "df-contact-01",
+          "component": "company-hero",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-contact-01-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Contact",
+                "style.fontSize": {
+                  "desktop": "60px",
+                  "tablet": "43px",
+                  "mobile": "30px"
+                },
+                "style.color": "#172A43"
+              }
+            },
+            {
+              "id": "df-contact-01-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Add verified information about the organization and the needs it serves."
+              }
+            },
+            {
+              "id": "df-contact-01-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Discuss a project",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-contact-02",
+          "component": "contact-panel",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-contact-02-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Contact information"
+              }
+            },
+            {
+              "id": "df-contact-02-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Contact details",
+                "behavior.href": "/contact/"
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        },
+        {
+          "id": "df-contact-03",
+          "component": "faq-accordion",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "df-contact-03-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Frequently asked questions"
+              }
+            }
+          ],
+          "items": [
+            {
+              "id": "df-contact-03-item-1",
+              "values": {
+                "content.question": "How can we clarify project scope?",
+                "content.answer": "Describe the task so its details can be discussed."
+              }
+            },
+            {
+              "id": "df-contact-03-item-2",
+              "values": {
+                "content.question": "Where can I check cooperation terms?",
+                "content.answer": "Ask the organization for up-to-date terms."
+              }
+            }
+          ],
+          "appearance": {
+            "surface": "tint",
+            "spacing": "normal",
+            "align": "left"
+          }
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "background": "#EDF3F8",
+    "surface": "#FFFFFF",
+    "text": "#172A43",
+    "primary": "#164F9D",
+    "font": "arial",
+    "maxWidth": 1260
+  }
+}

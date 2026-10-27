@@ -1,0 +1,339 @@
+> **27.10.2026 — Lead action required, no bridge/schema change.** D7 actual runner and six PHP markup parity probes remain pending. See [D7-REAL-RUNNER-LEAD-HANDOFF-2026-10-27.md](handoffs/D7-REAL-RUNNER-LEAD-HANDOFF-2026-10-27.md) for exact commands, visual evidence requirements and integration boundary. The D6 `manufact-ai-site-v1` export is not published PHP parity.
+
+# Design Factory — D6 Integration Bridge
+
+## 26.10.2026 — граница передачи D7 главному интегратору
+
+Design Factory остаётся самостоятельным offline-пакетом. Последний технический узел: `tests/preview-matrix-smoke.cjs` (functional SHA `3650771898ad2ab81accaaaf803e90e169c7979a`) проверяет 288 одобренных и 288 неодобренных вариантов, четыре страницы, статический `noindex`, обратную связь, ZIP32/CRC и CMS-адаптеры. Сценарий выполнен в изолированном V8 на точном исходнике GitHub, **не в реальном checked-out Node или Chromium**. Ни client feedback JSON, ни HTML demo ZIP, ни self-declared human receipt не являются разрешением на публикацию. D6 `manufact-ai-site-v1` остаётся единственным поддерживаемым интеграционным документом; неподдерживаемые дизайнерские возможности — отдельные предложения. До настоящей D7 приёмки никакой merge, правки PHP/SDK/Hostinger/production/CI за пределами своего каталога и никакой обещанной pixel parity. См. свежий чекпоинт в `handoffs/NEXT-CHAT.md`.
+
+
+## 26 October — client feedback freshness guarantee
+
+Functional checkpoint `0c00c5deb97d28827af571eb92ef7d1efd481523`. The offline client-feedback attachment remains a separate, untrusted design-review file and is not a CMS content contract, owner approval or publish permission. Studio now recomputes the current site snapshot from `compileCurrent()` at each feedback action. It no longer relies on `state.lastCompiled`, which can lag behind live form edits during the 120ms preview debounce. A report for the previous compiled content is rejected even if the preview iframe has not refreshed yet.
+
+The real-browser round-trip is now authored in `tests/studio-smoke.cjs`; it has not been executed here because GitHub checkout DNS failed and Chromium's minimal headless probe timed out. The D6 site-v1/bridge contract remains unchanged. Do not import feedback JSON into the CMS importer, persist it as CMS state, or treat `resolved:true` as approval. Independently confirm requested edits and keep owner review, PHP rendering parity, publication authorization and integration review separate.
+
+
+## 26 October · optional client feedback handoff is not CMS content
+
+**26 October 2026 — functional checkpoint `30e7e97cefe80fb32e5b4c5a1d20e01dd5924861`** (subsequent docs commit advances HEAD; fetch live branch SHA).
+
+Completed a connected client-feedback loop in actual offline Design Factory Studio, instead of another narrow audit: Studio's **HTML-демо ZIP** now contains an eighth file, **`review.html`**, a self-contained, no-network Russian client review portal with working links to all four generated pages. The customer can add up to 30 page-tagged notes (change / issue / question, 900 characters each), remove them, download a JSON report, and later restore their own JSON to continue. The Studio inspector now includes section **05 / Замечания клиента**: import client JSON, view each note safely via textContent, open its page, mark or unmark it as resolved, and export the updated progress JSON. No browser storage, server API, CMS state edit or publication request.
+
+The first-party `studio/client-feedback.js` is shared between portal generation and Studio validation. Reports use the closed **`manufact-design-factory-client-feedback-v1`** schema. A non-cryptographic, explicit **site-snapshot correlation key** is computed from the four compiled pages, actual selected theme, kit, locale and D3 composition. Studio refuses reports for other or changed snapshots; modifying content/theme does not silently migrate notes. The key is for matching only: it is **NOT a security signature, authenticated client identity, owner acceptance, signoff or publish permission**. Notes and resolution flags are untrusted suggestions; no guest input is executed as code. The external ZIP portal is static HTML/CSS and an inline trusted first-party script with restrictive CSP, no tracking, no CDN, no network. `studio/preview-zip.js` now canonically packages **8** files, validates all ZIP32 metadata and CRC before download, and retains safe size bounds and `robots=noindex`.
+
+**Verification executed:** V8 JavaScript source syntax PASS. Isolated execution of the actual GitHub client portal JS with mocked DOM: add a note, download the real feedback JSON, restore it and check 8-file ZIP/CRC PASS. A separate isolated execution of actual GitHub Studio + feedback/packer modules with mocked compiler/DOM: generate 8-member archive, import valid feedback, render inbox, navigate to Services, mark resolved, export resolved report, change selected theme, and refuse stale feedback workflow PASS. Actual checkout **not available** (DNS `github.com` still fails from executor); full Node audit, actual Chromium live browser, 54-image human-reviewed matrix, Lead/PHP parity (0 probes), and full source-exact release candidate ZIP/SHA256 **NOT RUN**. This engineering milestone does NOT modify formal status: **D7 OPEN, Stage2 NO-GO, Stage3 UNACCEPTED, 0/135**. Scope strictly `stage3/design-factory/`; no main/SDK/PHP/workflows/hosting/production edits and no merge.
+
+Main developer: the feedback JSON is an **untrusted external design-review attachment**, not a document in the `manufact-ai-site-v1` schema and not something to import into CMS content, auth or publish state. The only supported CMS handoff remains the compiler-validated site JSON and D6 bridge. Use the eight-file HTML ZIP as a static preview when appropriate. Validate the current snapshot before acting on notes; independently confirm with the client and owner any substantive changes. PHP pixel parity still requires real server renderer checks.
+
+
+## 26 October 2026 — offline client HTML demo is not host output
+
+**Functional HEAD:** `509a00fb937c0a14443c81b65daa22cffacb2d02` (documentation commit comes afterward; read live branch HEAD on entry). Added a genuine one-click **HTML-демо ZIP** button to the offline Design Factory Studio. It packages four interconnected CMS-validated *preview* pages (`index.html`, `services/index.html`, `approach/index.html`, `contact/index.html`), `assets/preview.css`, bilingual `README.txt` and a strict `preview-info.json` (7 files total). Pages come from the current owner facts, selected theme and composition fallback via the existing first-party preview renderer; links and relative CSS paths remain local. All pages deliberately retain `robots=noindex`, including after owner review. This is **not** the PHP CMS visitor renderer, form collector, publishing, or owner authorization.
+
+New self-contained `studio/preview-zip.js` writes **deterministic STORE-method ZIP32** entirely in the browser, with canonical allowlisted file paths, UTF-8 encoding, exact bounds (2 MiB per file / 8 MiB total), CRC32, local/central-directory parity and a built-in independent read-only archive inspector. Studio checks the ZIP before download. No CDN, network request, filesystem access or third-party package. `tests/studio-smoke.cjs` now contains real Node ZIP contract assertions and an optional Chromium export step, but these are *authored, not run on a checkout*.
+
+**Executed focused evidence:** actual GitHub source parsed in V8; isolated same-module ZIP builder/inspector PASS including corruption rejection; ZIP fixture generated from the GitHub module was independently extracted using standard Python `zipfile` (7 readable entries, CRC error `None`, RU/Unicode content intact). A separate V8 simulation executed the actual GitHub `studio.js` and ZIP module with a mocked DOM/compiler: real click downloaded ZIP, validated all 7 members, and left owner project unchanged. This does NOT establish actual CMS content generation in a genuine checked-out repo, Chromium GUI or production acceptance. A one-shot checkout probe still failed due to `Could not resolve host: github.com`. Full Node release audit, Chromium E2E/54 real screenshots and human review, Lead PHP parity (0 probes), and full Design Factory release ZIP/source SHA256 remain **NOT RUN**. **D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135**. Git scope restricted to `stage3/design-factory/`, no merge or out-of-scope edits.
+
+The Lead developer should use the regular closed `manufact-ai-site-v1` + D6 bridge for CMS imports. Do not ingest the standalone HTML demo ZIP as approved PHP output or as an authorization to publish. It is a first-party visual reference that can be shared offline for owner feedback. Any production styling parity, forms, auth and licensing remain independently blocked by Lead ownership and D7 acceptance.
+
+
+## 26 October — optional visual selection workflow
+
+Functional checkpoint: ea4b4751d67bdaf0a8fac62d1c9b6058257a3b3c. Studio now has three connected capabilities: (1) live side-by-side previews of two different theme directions on the same owner data, page and device width; (2) explicit adoption of the compared theme through validated project mutation, undo/redo and automatic owner-review revocation, with prior theme retained as reference; (3) an overview of all four actual current-site pages in separate sandboxed 390px mobile iframes, each opening directly in the regular viewer. Full-screen focused workspace makes side-by-side comparisons useful; presentation-only actions never mutate project, site-v1 JSON, or D6 export. Alternate compilation clones the project. Existing local CSS/CSP, safe iframe sandbox and allowlisted page navigation are preserved. No Lead SDK/PHP/main/production changes.
+
+Verification: modified JavaScript and authored smoke syntax parse in isolated V8 PASS; actual Studio JS with mocked DOM/compiler successfully exercised theme comparison, alternate selection, Apply/Undo/Redo, owner-review reset and four distinct pages + navigation. NOT a real Chromium or checked-out Node run. Fresh checkout retry: github.com DNS resolution failed. Full release audit, optional Lead PHP parity (0 probes), 54 actual PNG/human signoff and real ZIP/CRC/SHA256 remain NOT RUN. D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135.
+
+Lead owns actual PHP visual parity, user authorization, version locks, media rights and publish confirmation. The Design Factory review workbench does not add any unknown properties to `manufact-ai-site-v1` or turn preview-only CSS into supported PHP renderer capabilities. The explicit theme adoption is ordinary project editing, not an integration approval.
+
+
+## Lead verification requirement — image-integrity hardening
+
+**26 October 2026 · D7 PNG integrity functional checkpoint:** `7810e6bee98b4a6d5509bf02a52024edc52ea843`.
+
+Found and closed a genuine technical-evidence gap: prior screenshot capture/review only checked PNG signature and IHDR width/height. A truncated, tampered or internally corrupt PNG could have been blessed by a self-consistent report SHA256 and dimensions. New `lib/png-integrity.cjs` validates the **full PNG byte stream**: bounded input/chunk/pixel budget, critical chunk ordering, IHDR encoding and dimensions, per-chunk CRC32, contiguous IDAT, complete IEND/no trailing bytes, bounded zlib inflation, exact filtered scanline lengths (including Adam7 passes), and filter values 0–4. The verifier fails closed for corruption rather than relying on metadata. Integrated into `bin/visual-qa.cjs` (real capture before writing evidence), `lib/visual-review.cjs` (every original PNG byte re-checked at receipt verification), and Chromium pipe smoke. Regression cases in `tests/visual-review-smoke.cjs` now mutate the PNG while consistently updating its hash and evidence manifest; bad CRC, truncated bytes, trailing bytes, bad compressed data and invalid scanline filters must still be refused.
+
+**Verification boundary:** same SHA256 Git blob as isolated Node v22.16.0 module checked with `git hash-object`; an independent real Node test of that **exact module** passed valid RGB/RGBA screenshots and rejects for truncation, incorrect CRC, trailing bytes, malformed zlib, invalid scanline filters and IHDR-only forgery. V8 JavaScript syntax parsing of five changed modules/smokes PASS. These focused checks are **not** a complete checked-out Node release audit or actual Chromium run; the repository checkout remains unavailable in the previous executor (GitHub DNS failure). Added smoke assertions have **not** run in genuine checkout. Real 54 PNGs / human review: NOT RUN; PHP parity: 0 probes; release ZIP/CRC/source-byte parity and actual archive SHA256: NOT RUN. D7 OPEN, Stage2 NO-GO, Stage3 unaccepted, 0/135. No CI/workflow/Lead/main/hosting/production edits or merge.
+
+The Lead must preserve full PNG byte validity checks as well as SHA/evidence provenance, and must still verify reviewer identity, authorizations and PHP/Studio/browser parity outside Design Factory. A structurally valid PNG is not proof of visual correctness.
+
+
+## Offline D7 review — integration boundary update
+
+**26 October 2026 · latest functional checkpoint:** `69556a19b887f4dae2ec32328fc2ae487dbaa3fe` (read live branch HEAD on arrival). The offline D7 `visual-review.html` has a substantial usability upgrade: all/pending/approved/rejected image filters, next-pending navigation, private work-in-progress JSON draft export/import, and defect export with diagnostic notes. Draft import checks the complete list of 54 screenshot file names and SHA256 values plus the visual evidence hash, rejects duplicates/foreign/stale/oversized JSON (256 KiB maximum) before changing any decisions, and **always clears the five manual-review attestations** after restoring. It preserves the original v2 review receipt and fail-closed verifier; neither draft nor defect report is approval, identity authentication or publish authorization. No network/browser storage is used by the tool.
+
+**Executed, narrowly:** V8 parsed the inline script; a simulated 54-card browser DOM exercised the filter, rejected-note defect gate, draft export, valid restore, manual-check reset, and stale-evidence rejection without partial mutation. The existing smoke source contains regression assertions but **the real checked-out Node suite has NOT run**. One fresh `git ls-remote` returned `Could not resolve host: github.com`; checkout unavailable. PHP parity: 0 probes; Chromium E2E: NOT RUN; 54 real PNGs + human review: NOT RUN; actual ZIP/CRC/source-byte/SHA256: NOT RUN. **D7 OPEN, Stage2 NO-GO, Stage3 unaccepted, 0/135**. No edits outside `stage3/design-factory/` and no merge.
+
+Lead must independently verify the current v2 receipt and exact PNG bytes, check owner/reviewer permissions and grant any CMS acceptance. A local draft or defects JSON is not a signed or server-side approval.
+
+
+**Scope:** standalone, offline adapter. All code is constrained to `stage3/design-factory/`; the existing CMS importer, Studio, SDK, server and PHP renderer remain unchanged. This document is for the main integration developer. It is **not** a production deployment guide.
+
+## Latest D7 release-candidate hardening — 26 October 2026
+
+**Current functional/source checkpoint:** `6150e9c323f801acaba0d6bc6c3d7a7664143601`. Always read live HEAD before continuing. This is an engineering checkpoint, not a release certificate.
+
+- Preserved visual-review receipt **v2**: the reviewer must inspect all 42 D3 compositions and confirm the fifth `showcaseCoverage` check. Old v1 receipts are rejected.
+- `lib/source-manifest.cjs` covers every packaged source file, including `handoffs/`. The audit compares the exact starting/ending inventory; the candidate rejects added, removed or modified bytes between audit and packaging.
+- Audit report semantics are v2 and validate the exact ordered check list, source manifest/digest and summary flags. A well-formed report with failed checks remains a valid failure report; ordinary test failure is not mislabeled as source drift.
+- **External Lead-input provenance:** `lib/external-input-manifest.cjs` fingerprints every regular file in the optional Lead SDK directory and the supplied PHP `DesignGraph.php` file. It records canonical paths, file counts/sizes and SHA256 hashes; rejects symlinked roots/files, hidden/unapproved entries, special files, oversized inputs and missing SDK runtime entry points.
+- **Bounded Lead SDK traversal** (`8417f387e3e72bcd18987968e186ec36ebc525c5`): the manifest caps traversal at 1,024 filesystem entries and 32 directory levels, including empty directories. Directory inventories are checked before/after traversal. Contract smoke includes directory-flood and excessive-depth cases.
+- **New: sealed external-input snapshot.** Before Lead compatibility runs, `createExternalInputSnapshot()` copies the exact manifest-bound SDK and optional PHP file into a private temporary directory. It verifies every copied file against the baseline, then makes the copied files/directories read-only. The Lead test environment now consumes this isolated snapshot rather than the mutable external checkout.
+- The candidate compares the original checkout after snapshot creation, after the compatibility test and at candidate end. It also re-fingerprints the isolated snapshot after the test and at candidate end. Any mismatch, invalid snapshot, or cleanup failure fails closed; the final `leadInputs.stable` flag includes both original and snapshot state, and cleanup failure sets it false. Temporary snapshot cleanup happens before the report is written. The report records original/snapshot manifests and stability states under `leadInputs`. SHA256 is provenance evidence, not an authenticated signature.
+- Contract smoke now covers exact snapshot content, read-only file permissions, detection of external-checkout drift while the isolated copy remains unchanged, candidate wiring, bounded traversal and directory floods. The tests were authored and syntax-checked but have **not** been run in a full checked-out Node process.
+- `bin/verify-release-zip.cjs` enforces the builder's canonical ZIP32 metadata: version fields, DOS timestamp, disk number, internal/external attributes and matching local/central headers. `tests/package-smoke.cjs` mutates those fields to confirm rejection.
+- The release audit performs browser-bundle parity plus **eight Node smoke suites** and a final source-inventory stability check: 10 checks without Chromium, 11 with Chromium. The candidate builds an engineering ZIP and independently verifies ZIP32 structure, CRC32, sorted complete inventory, exact source bytes and SHA256.
+
+### Commands on a genuine checkout
+
+```bash
+node stage3/design-factory/bin/release-candidate.cjs --out /tmp/df-release-candidate
+node stage3/design-factory/bin/release-candidate.cjs --out /tmp/df-release-full --chromium /usr/bin/chromium --lead-sdk /path/to/lead/stage3/sdk --lead-php /path/to/lead/stage3/server/DesignGraph.php
+```
+
+Use a new output directory for each run. The full command must verify six real PHP markup-parity probes; this is not responsive pixel parity. A human must still review all 54 images at 1280/768/390 and all 42 D3 compositions. Exit 3 means an engineering package exists with acceptance gates open; exit 0 is not production authorization.
+
+**Verification boundary for `6150e9c323f801acaba0d6bc6c3d7a7664143601`:** static V8 syntax parsing **PASS** for the three changed JavaScript files (`external-input-manifest.cjs`, `release-candidate.cjs`, `release-candidate-contract-smoke.cjs`). The contract test includes snapshot/drift assertions, but it has **NOT RUN**. Full Node audit/candidate smoke, Chromium Studio E2E, actual 54-image capture/review, Lead PHP parity and real ZIP/hash remain **NOT RUN**. GitHub API reports **0 Actions runs, 0 check runs and 0 commit statuses** for this source checkpoint. The last genuine checkout attempt failed because `github.com` DNS could not be resolved; do not repeat until the environment changes. This is not a full test pass.
+
+**Decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; **0/135** mandatory criteria. Do not modify workflows, merge, or infer acceptance from authored tests.
+
+## Latest source hardening — 25 October 2026
+
+**Functional/source checkpoint:** `39624c82fc7953c9afaa07452053f3acec6cd86a`. This commit changes only `stage3/design-factory/bin/build-browser-bundle.cjs` and `stage3/design-factory/tests/studio-smoke.cjs`.
+
+- Fixed an output-boundary defect in the browser bundle builder: it previously wrote directly to `studio/runtime.generated.js`, which could follow an accidental final symlink or truncate a hard-linked external file.
+- The builder now canonicalizes the repository root, rejects symlinked `stage3/`, `stage3/design-factory/` and `studio/` directories, rejects a symlink/non-regular final target, and writes to a same-directory temporary file before renaming it into place. The rename also replaces a hard-linked directory entry without modifying the other hard link.
+- Added an isolated regression fixture to `tests/studio-smoke.cjs`: symlink rejection in build and check modes, creating a missing target, and safe replacement of a hard-linked target.
+- Isolated V8 syntax parsing of both changed JavaScript files **PASSed**; a focused Node filesystem primitive probe **PASSed**: atomic rename left an external hard-link inode unchanged and `lstat` identified a symlink. These checks do not execute the Design Factory modules or suite; the changed test suite has **NOT** run in a genuine checkout.
+- A fresh `git ls-remote` attempt still fails with `Could not resolve host: github.com`. Branch Actions runs remain 0. Do not claim Node/Studio/ZIP/PHP release acceptance from this source-level change.
+
+**Release decision unchanged:** D7 OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135 mandatory criteria. No merge or out-of-scope changes.
+
+## Previous environment re-check — 25 October 2026
+
+At the start of this audit the branch HEAD was `bb219d64a58d590fbf2f806835e996a4277aee7d`; it is a documentation-only child of functional/source checkpoint `75884b7f794fa1dabc775d802613c38979eff4b8`. The compare contains six changed paths and all six are documentation within the allowed Design Factory subtree.
+
+The execution container has Node.js 22.16.0 and PHP 8.4.24, but `git ls-remote` fails with `Could not resolve host: github.com`; no checkout is available. GitHub reports zero Actions runs for this branch and zero check runs for the audit-start HEAD. A minimal `/usr/bin/chromium --headless` data-URL probe timed out after 15 seconds (exit 124), so no Studio E2E or screenshot capture occurred. PHP parity remains 0 probes; no source-byte-identical ZIP, CRC/source-parity result or actual archive SHA256 exists.
+
+This is an environment blocker, not a product acceptance result. The optional Lead Design Graph adapter remains proposed/opt-in and must not be merged by this developer. D7 remains OPEN; Stage2 NO-GO; Stage3 unaccepted; 0/135.
+
+## Previous integration checkpoint — 25 October 2026
+
+Live functional/source checkpoint: `75884b7f794fa1dabc775d802613c38979eff4b8`. All commits since the earlier checkpoint remain confined to `stage3/design-factory/`; no Lead SDK, PHP renderer, primary Studio, workflows, hosting or production files were changed.
+
+Recent independent improvements:
+
+- Studio keyboard focus is preserved across kit/theme/page rerenders; failed state application rolls back instead of falsely reporting success; live preview recompilation is debounced.
+- `lib/output-path.cjs` centralizes safe output destination resolution for package ZIPs, audit reports and visual QA. It canonicalizes the repository and output parent, rejects destinations inside the repository (including symlinked parents) and rejects a final symlink.
+- ZIP inventory ordering is locale-independent; the source digest length-prefixes each path and payload before hashing, avoiding ambiguous path/payload boundaries.
+- Visual QA builds local URLs with `pathToFileURL` and now checks exact full/quick screenshot inventories (54/30), missing or unexpected files, duplicates and requested viewport dimensions.
+
+**Integration status is unchanged:** the Lead Design Graph adapter remains optional and must not be merged by this developer. The host must still authenticate the owner, lock the reviewed revision, obtain exact destructive-change acknowledgement, preserve undo/revision history, and validate permissions/licensing before save or publish.
+
+Evidence boundary: the earlier isolated V8 adapter suite reported 504/504 validations/renders/no-op rebuilds/preflights, 8 component-family refreshes and 8 loss-aware regression groups. It was not a real Node checkout and does not verify the latest packaging/visual-QA changes. The current branch has no Actions runs/checks; PHP parity remains 0, Chromium captures remain 0, and no ZIP/SHA256 artifact exists. D7 is OPEN; Stage2 NO-GO, Stage3 unaccepted, 0/135.
+## Versioned package and round-trip
+
+The first-party bridge lives in [lib/bridge.cjs](lib/bridge.cjs) and exposes:
+
+- `workspace(input)`: validates a raw `manufact-design-factory-v1` project or a strict `manufact-design-factory-workspace-v1` envelope with an optional known D3 composition.
+- `build(input)`: compiles through **the current Stage3 SDK/manifests**, inserts a registered semantic composition fallback if selected, checks broken links, and returns a `manufact-design-factory-export-v1` package.
+- `validateBundle(package)`: closes unknown keys and **recompiles** the complete package to detect changed CMS JSON, layout spec, owner facts, warnings or compatibility claims. JSON object key order is ignored (it has no semantic meaning), while array order, primitive types, unknown members and nested values remain strictly checked. Never treats a supplied JSON string as executable markup.
+- `importForCMS(package)`: returns only the SDK-validated `manufact-ai-site-v1` document, not preview HTML or new unregistered properties.
+
+Package top-level keys are strictly: `format`, `version`, `workspace`, `site`, `designSpec`, `ownerChecklist`, `inspection`, `compatibility`. Version is 1. The bridge accepts key-reordered JSON produced by standard serializers; it rejects non-JSON values and changed nested content. The same deterministic package can therefore be processed by a PHP/CMS serializer without requiring its original object member insertion order. All generated site IDs, routes, navigation, SEO and repeaters are validated by `stage3/sdk/contract.cjs`. This deterministic integrity check is **not a digital signature**: it only prevents silent divergence from the current compiler, not malicious edits to both source code and artifacts.
+
+## CLI sample (Node, no dependencies)
+
+```bash
+node stage3/design-factory/bin/design-factory.cjs bridge-export stage3/design-factory/examples/projects/saas.json /tmp/new-saas-bundle.json
+node stage3/design-factory/bin/design-factory.cjs bridge-validate /tmp/new-saas-bundle.json --out /tmp/new-saas-site-v1.json
+node stage3/design-factory/bin/design-factory.cjs validate /tmp/new-saas-site-v1.json
+node stage3/design-factory/tests/bridge-smoke.cjs
+```
+
+Export destinations **must not already exist**. For the browser counterpart, open `studio/index.html` and click **Скачать пакет для интеграции D6**. No CMS API call or automatic publication occurs.
+
+## Parity matrix (actual source links)
+
+| Feature | Output | Status | Primary source / lead action |
+|---|---|---|---|
+| Site format/schemaVersion | manufact-ai-site-v1 / 1 | supported | `stage3/sdk/contract.cjs` validateSite |
+| Stable IDs, safe paths | Closed ids and routes /, /services/, /approach/, /contact/ | supported | `stage3/sdk/contract.cjs` validateSite/inspectSite |
+| Page SEO/title/description/robots | Real current page.seo fields | supported | `stage3/sdk/contract.cjs` / `stage3/server/PublicRenderer.php` |
+| Navigation and local links | Existing page.navigation and behavior.href values | supported | `stage3/sdk/contract.cjs` |
+| Basic sections | company-hero, service-grid, feature-highlights, media-story, faq-accordion, cta-banner, contact-panel and photo-gallery | supported | Registered `stage3/components/*.json`; no new keys |
+| Theme | CMS background, surface, text, primary, font, maxWidth | supported | `stage3/sdk/contract.cjs` site.theme validation |
+| Section appearance | surface/spacing/align | supported | Existing `stage3/sdk/contract.cjs` and manifests |
+| Responsive hero sizes | Registered manifest desktop/tablet/mobile length values | supported | `stage3/components/company-hero.json` |
+| 12 rich themes / CSS | Layout, art, card, density, font hierarchy beyond CMS | integration_required | `catalog/themes.cjs`, `lib/preview.cjs`; lead PHP parity adapter |
+| 42 D3 rich compositions | 14 categories with 8 new proposals | integration_required | `catalog/compositions.cjs` and `proposals/ADAPTERS.md` |
+| Media assets/images | Empty media slots allowed in examples | integration_required | Connect real first-party Media & Motion assets and verify ALT/licenses |
+| Galleries/carousels | Basic registered photo-gallery semantic fallback | integration_required | Future responsive picture sets / motion feature adapter |
+| Contact details/owner copy | Owner-supplied factual fields | blocked without review | `ownerChecklist` + owner/editor approval |
+| Lead forms + collector | No fake submit behavior in Design Factory | blocked | Actual server FormGateway and explicit production collector configuration |
+| Animations / reduced-motion | Standalone CSS preview uses reduced-motion | integration_required | Must not inject unregistered styles in site-v1 |
+| Client licenses/security/roles | Not managed here | blocked | Main CMS server/application gate |
+| Published output, robots/sitemap/release | None from Design Factory | blocked until actual publishing gate | Main Stage3 PHP renderer/static exporter/release auditor |
+
+## Integration sequence for lead
+
+1. Review only changes under `stage3/design-factory/` and regenerate `studio/runtime.generated.js` with the first-party builder. Verify `--check`.
+2. Run the focused Node smoke suites, especially `tests/studio-smoke.cjs` and `tests/bridge-smoke.cjs`; run optional real Chromium E2E if a browser exists.
+3. Accept only `importForCMS(bundle)`/validated `site-v1` into an existing project, preserving the CMS's site/owner auth, permission checks, revisioning, media validation and publish gate. Do not let this tool become a direct publish endpoint.
+4. Show the **ownerChecklist** in the main editor; never treat demo placeholders, service examples, unsupplied images, absent consent or `readyForPublish` as a signed owner assertion.
+5. For rich preview parity, separately implement and review PHP/Studio adapters. Do not blend unsupported visual CSS into the registered `site-v1` document. The bridge's `integration_required` list remains explicit until genuinely implemented.
+6. Keep Stage2/3 acceptance statuses unchanged; compare all diff paths before integration. Do not deploy to production as a result of green unit tests.
+
+## Remaining gaps
+
+- Main CMS ingest/publish permissions, PHP parity for enhanced themes and D3 patterns, real media upload mapping, formCollector verification and full Chromium responsive/keyboard/owner-content inspection are external integration steps.
+- Bundle validation detects changes by deterministic regeneration, not encryption/authentication. Validate all bytes again on the server, rather than trusting an untrusted browser.
+- D6 is implemented as an independent bridge API and CLI; product acceptance is not complete until the lead imports it into the CMS and completes D7 visual acceptance.
+
+## 24 October D7 bridge compatibility checkpoint
+
+- A concrete serializer interoperability problem was resolved: comparing `JSON.stringify(raw)` byte order rejected a valid bundle whose object properties were reordered during reserialization. The D6 validator now canonicalizes strictly JSON-compatible values (sorted object keys, preserved array order), rejects unsupported types and recompiles the full package against real Stage3 SDK manifests.
+- A dedicated `tests/bridge-smoke.cjs` regression covers a fully reordered exported bundle, a changed nested page SEO title and an invalid non-JSON value. The deterministic offline `studio/runtime.generated.js` was regenerated to carry identical behavior.
+- **Evidence:** in an isolated V8 runtime with the current generated bundle, 288/288 CMS documents and D6 round-trips passed, all 42 semantic composition fallbacks validated, reordered JSON accepted, and three different altered/invalid bundles rejected. This is **not** checked-out Node execution, Chromium acceptance, server-side owner authorization or a digital signature.
+- The lead still must implement/verify PHP visual parity separately, enforce owner permission and explicit publish gates and run full checkout acceptance before integration. None of those capabilities is claimed as completed by this D6 update.
+
+**Formal status unchanged:** Stage2 NO-GO; Stage3+ not accepted; 0/135.
+
+## Optional current Lead Design Graph v1 compatibility (24 October 2026)
+
+The primary developer has introduced actual closed, editable `site.designTokens` and `section.designGraph` to the separate `feature/stage3-ai-site-contract` SDK. This is a **newer host contract** than the SDK pinned by our branch; our stable D6 `manufact-ai-site-v1` export remains unchanged and fully valid for the legacy SDK.
+
+New standalone opt-in adapter: [`lib/lead-design-graph-adapter.cjs`](lib/lead-design-graph-adapter.cjs). It first validates the unmodified D6 package, then adds a typed, responsive graph for the explicitly selected D3 section and validates the result with the **host-injected lead SDK**. It returns `manufact-design-factory-lead-graph-candidate-v1`, not a publishable D6 bundle. New details and mapping/limitations: [`proposals/LEAD-DESIGN-GRAPH.md`](proposals/LEAD-DESIGN-GRAPH.md). Optional actual-checkout test: `DF_LEAD_SDK_DIR=/path/to/lead/stage3/sdk node stage3/design-factory/tests/lead-design-graph-smoke.cjs`; no env → explicit SKIP, and the six normal D7 suites remain independent.
+
+**Observed source-level evidence:** 288/288 original sites accepted by the lead SDK; 504/504 (42 compositions × 12 themes) candidates accepted and rendered using the lead's actual Design Graph module in isolated V8. Rechecked against lead HEAD `a4d6aedff277752e015f52b383f080d0c3178f5a` and Graph blob `976d4bba21f8c6e51a826e3b8f38be1584268373`. This does **not** prove Node checkout, PHP renderer pixel parity, browser Studio editability, visual QA or official Stage3 acceptance.
+
+The candidate supports palette, spacing, radii, typography, typed headings/text/button, grids, mobile/tablet rules and focus/hover state. Advanced D3 art, galleries/scroll snapping, data-bound repeaters and other unique visual effects remain `integration_required`, even though newer host commits also add icon/gradient/motion capabilities. The lead must explicitly adopt and test those features rather than assuming full HTML/CSS parity.
+
+## Latest lead adapter scope — 24 October 2026
+
+Lead candidates now contain actual editable grid layouts/spans/orders, theme typography, spacing, visual card/gradient/icon styling, responsive rules and accessible motion. Source-level checks: 504/504 distinct theme/composition graphs accepted and rendered by the lead JS host; owner-style JSON edits survive SDK validation and re-render without AI. Original D6 export is not mutated. The lead integrator can run optional PHP parity checks using DF_LEAD_SDK_DIR and DF_LEAD_PHP_FILE in tests/lead-design-graph-smoke.cjs. The check has not been executed here; first-party PHP renderer, CMS save/undo and viewport pixel parity remain to be accepted by the lead. Do not deploy or auto-publish.
+
+## 24 October: semantic content preservation and explicit reconciliation
+
+The optional lead adapter no longer reduces all D3 compositions to a single generic detail card. Selected `service-grid` repeaters are represented by up to 12 individually editable service title/description/link nodes; `faq-accordion` exports all questions/answers as static editable Q&A; feature highlights export both registered fields. An empty photo-gallery emits a clearly labelled upload/rights prompt, NEVER fictitious images. For hero and service compositions, validated owner-entered project facts are copied into the lead candidate, while the original revalidated D6 bundle stays unchanged.
+
+Each exported lead candidate contains `mapping.contentBindings` (graph node ID → original CMS element slot or repeater item ID + manifest field), plus `semanticContentMode: 'snapshot-requires-host-reconciliation'`. These are content snapshots, not magical live CMS references. **If the owner edits a registered section field**, the host may explicitly call `reconcileSemantic(candidate, editedSite, hostSdk, registry)` to refresh only graph text/links from the edited semantic field values. It preserves manual graph design styles, rejects removed bindings/invalid links and validates with the current host SDK. It must NOT run automatically after unrelated user graph edits, and is NOT an authorization/publishing mechanism.
+
+The contract has a real limit: the current typed Design Graph does not implement native FAQ accordion interactions or complex photo galleries. Rendered FAQ content is semantic heading/paragraph Q&A, not a functioning accordion; rich gallery media and exact CSS parity remain `integration_required`. The lead CMS must choose its source of truth and explicitly handle graph-vs-semantic edits.
+
+New optional cross-branch regression suite covers 12 owner service records, hero facts, 2 FAQ entries, no fake gallery images, direct service edit + graph-only fontWeight preservation, forged binding rejection and HTML-escaped owner content. The PHP parity matrix now covers six representative host compositions with `DF_LEAD_PHP_FILE`, but was NOT executed here. Source-level isolated V8 suite PASS is not production acceptance.
+
+## Final handoff note — content conflict detection
+
+The optional lead adapter now exports **both** `inspectSemanticSync(candidate, editedSite, hostSdk, hostRegistry)` and `reconcileSemantic(candidate, editedSite, hostSdk, hostRegistry)`. Host UI should offer preview of `changes`, `preservedGraphEdits`, and `conflicts` before an **explicit authorized** sync. If normal CMS source text and the associated graph text were independently modified, `reconcileSemantic` throws rather than choosing either edit. If only the graph text changed, it is preserved. If only the semantic source changed, its linked graph text is updated without altering layout/styles. This is a snapshot comparison, NOT an automatic 2-way data model, cryptographically authenticated diff, conflict-resolution UI or publish authorization. The main developer must wire owner controls/revisions, separately validate PHP visual parity and choose a clear content source of truth. See `handoffs/SESSION-CLOSEOUT-2026-10-24.md`.
+
+## 24 October 2026 — strict optional Design Graph binding provenance
+
+The opt-in `inspectSemanticSync()` / `reconcileSemantic()` now derive the **canonical** content bindings from the original candidate's typed CMS section and explicitly selected D3 composition. The entire exact set of graph node ↔ semantic field bindings must match before comparing or applying content. Changing a valid-looking item ID to another existing CMS item, swapping sources, omitting a binding or introducing extra metadata is rejected. Serialization order of the binding array is immaterial. Original D6 export and graph styles are untouched.
+
+This is **defense against mapping mistakes and accidental retargeting**, NOT cryptographic provenance, authentication, revision locking or owner authorization: a hostile client could also forge the baseline itself. The host must authorize operations, supply the authentic saved baseline and SDK, enforce revision preconditions and review conflicts in its own UI. Normal Node/PHP/browser acceptance on a checked-out lead CMS remains pending. See `tests/lead-design-graph-smoke.cjs`.
+
+## Exact visible CMS-field binding and source-switch refusal (24 October 2026)
+
+An optional Design Graph candidate now records the **specific typed semantic field that rendered each main heading, description and CTA text/link**. Previously a `feature-highlights` second advantage could appear in both the main graph summary and the second detail card but only the detail would update; `cta-banner.primary` could be incorrectly associated with an unrelated action. Both cases are fixed. Initially empty declared fields retain provenance, allowing later owner-provided values to replace the preview placeholder without another AI generation.
+
+The reconciliation helper also checks that field-precedence selection itself did not change between the original host baseline and the edited site. If a different slot now supplies visible content or the selected CTA changed, it refuses stale snapshot sync and asks the host to review/rebuild. This is not an automatic rebinding UI. The main CMS must preserve authentic baselines, owner revisions and authorization; the optional adapter does not publish or apply migrations. For 504 source-derived examples, newest host SDK JS render validation has passed only in isolated V8 (not browser or PHP).
+
+## 25 October — no silent FAQ or repeater content loss
+
+The optional graph exporter previously applied a shared 12-entry slice to **both** services and FAQ, even though the first-party FAQ manifest permits 24 entries. The mapped FAQ now includes all 24 typed question/answer pairs, safely within lead Design Graph v1's 90-node cap. Services remain intentionally capped at the 12 owner records supplied by the independent Design Factory project; over-limit collections throw rather than partially render.
+
+Semantic synchronization handles **value edits only** in an already snapshotted graph. If the registered CMS repeater changes membership or order, or unrepresented `photo-gallery` / `media-story` media/caption fields change, the host helper rejects the operation with an explicit rebuild/review requirement. The primary CMS must implement a revision-safe owner-authorized structural rebuild and PHP/Studio media parity; this adapter does not silently drop additions or fake asset support. Existing individual answer edits can sync without AI, with independent graph styles preserved. Original D6 bundle is unchanged.
+
+Observed isolated JS validator/render check at current lead HEAD `514a060a287d07c308525a802053e899da9ea486`: 504/504 candidates and 24/24 FAQ entries. Not a PHP/Chromium or signed revision claim.
+
+## Explicit authorized media/structural Design Graph rebuild — 25 October 2026
+
+The independent optional `lead-design-graph-adapter.cjs` now exports `rebuildHostCandidate(candidate,editedSite,hostSdk,hostRegistry)`. This is a synchronous **pure candidate transformation**; the host must first authenticate/authorize owner revision and provide a complete typed, same-site CMS snapshot. Baseline provenance, original composition/theme/language, selected section/component and site identity are checked; the new full site is revalidated by the actual injected host SDK. It neither saves, publishes, signs baselines, changes D6, merges PRs nor calls a model.
+
+Gallery rendering: when approved first-party `photo-gallery` items contain registered `content.media` IDs and corresponding `site.assets` records with owner-provided **nonempty alt**, the graph contains actual image nodes + CMS-bound caption nodes; up to 20 images fit (68 nodes). `media-story.photo` similarly becomes a typed image node. No-source galleries still render clearly labeled upload placeholders; no invented photographs. After structural rebuild, existing caption text changes can reconcile without another AI run; media ID/asset alt/src/variants changes require another explicit rebuild. Host must check rights, alt accuracy, media transport/responsive variants, accessibility, HTML/PHP parity and thumbnails.
+
+The rebuild retains styles/responsive/states/motion only for matching stable graph node IDs and types, and refuses to transplant card styling when positional repeat item identities changed. It intentionally regenerates content and structural layout from typed owner CMS source; custom rearranged tree and graph-only copy edits can be reset. Inspect the returned `rebuild` report, review visual diff with the owner and require explicit authorization/revision lock before saving. Original candidate remains immutable. Final `approvedForPublish=false` and `requiresOwnerVisualReview=true`. Unsupported URLs (CMS may permit HTTPS :443 but Graph not) fail loudly; safe external HTTPS CTAs and service links now map correctly. This is an opt-in lead-integration proposal, not main Studio deployment.
+
+## 25 October — owner-authored Graph edits on AI-free rebuild
+
+The optional `rebuildHostCandidate(candidate, editedSite, currentLeadSdk, registry, options?)` now handles owner-authored Graph copy in addition to style preservation. Identical bound source fields whose CMS value is unchanged keep independent owner Graph text/href; incompatible simultaneous CMS+Graph edits fail rather than selecting a winner. Repeater card styles and copy are transplanted only when **the same CMS item ID** remains at the same ordinal; a wrong escaped regex that permitted card-to-card styling transfer was corrected.
+
+If a deleted/replaced Graph node contains independent user-edited content, rebuild fails with the exact `nodeId:property` IDs. The host must show the lost text, obtain owner authorization/revision lock, and retry with `{acceptedDiscardedNodes:[...exact ids...]}`; extra/missing/duplicate IDs are rejected. This **is not a permission capability**: the host still must enforce all authorization/revisions and owner review. `rebuild.explicitlyDiscardedGraphEdits` and `retainedGraphCopyNodes` expose the decision/audit. A rebuild can still reset custom structural tree edits; show visual diff and support undo. New detailed integration examples in `handoffs/LEAD-REBUILD-CONTRACT-2026-10-25.md`.
+
+Current source-level optional lead smoke passed 504/504 Graph validation+JS render and owner-edit regressions using isolated V8 against actual GitHub source; do not claim real Node/PHP/browser acceptance.
+
+## 25 October — structured owner-review preview for rebuild
+
+Before changing the candidate, a host may call the new read-only `inspectRebuild(candidate, editedSite, hostSdk, registry)`:
+
+```js
+const preview = adapter.inspectRebuild(candidate, editedSite, hostSdk, registry);
+if (!preview.canApply) {
+  if (preview.requiresOwnerConfirmation) {
+    // Show preview.discardedGraphEdits: nodeId, property, previousValue,
+    // currentValue and nodeStillPresent. Ask the owner about these exact edits.
+    // preview.rebuild is a simulated diff, NOT permission to persist or publish.
+  } else {
+    // Show preview.error; resolve conflict/validation error before retry.
+  }
+} else {
+  // Show preview.rebuild's preserved/created/reset/removed node-ID arrays.
+  // Structural rebuild still requires host authorization and owner visual review.
+}
+```
+
+A successful preview has `canApply:true`, `noMutation:true`; a destructive preview has `canApply:false`, `requiresOwnerConfirmation:true`, a structured list of the exact copy/link values at risk and the predicted rebuild report. The API does not persist, publish, authorize a revision or invoke AI. Its internal retry with exact IDs exists only to calculate the hypothetical diff; it does not mean the owner approved deletion.
+
+`rebuildHostCandidate()` returns counts plus `preservedVisualNodeIds`, `createdVisualNodeIds`, `resetVisualNodeIds` and `removedVisualNodeIds`. The host should use these to display a meaningful diff, provide undo and request visual approval before save. Exact destructive acknowledgements remain bounded; the host must also lock the reviewed site revision and authenticate the owner.
+
+Current source-level smoke: 504/504 candidate validations, renders, no-op rebuilds and read-only previews; 8 component-family content refreshes passed in isolated V8. This is not real Node/PHP/Chromium acceptance.
+
+## 25 October — structured owner-review preview for rebuild
+
+Before changing the candidate, a host may call the new read-only `inspectRebuild(candidate, editedSite, hostSdk, registry)`:
+
+```js
+const preview = adapter.inspectRebuild(candidate, editedSite, hostSdk, registry);
+if (!preview.canApply) {
+  if (preview.requiresOwnerConfirmation) {
+    // Show preview.discardedGraphEdits: nodeId, property, previousValue,
+    // currentValue and nodeStillPresent. Ask the owner about these exact edits.
+    // preview.rebuild is a simulated diff, NOT permission to persist or publish.
+  } else {
+    // Show preview.error; resolve conflict/validation error before retry.
+  }
+} else {
+  // Show preview.rebuild's preserved/created/reset/removed node-ID arrays.
+  // Structural rebuild still requires host authorization and owner visual review.
+}
+```
+
+A successful preview has `canApply:true`, `noMutation:true`; a destructive preview has `canApply:false`, `requiresOwnerConfirmation:true`, a structured list of the exact copy/link values at risk and the predicted rebuild report. The API does not persist, publish, authorize a revision or invoke AI. Its internal retry with exact IDs exists only to calculate the hypothetical diff; it does not mean the owner approved deletion.
+
+`rebuildHostCandidate()` returns counts plus `preservedVisualNodeIds`, `createdVisualNodeIds`, `resetVisualNodeIds` and `removedVisualNodeIds`. The host should use these to display a meaningful diff, provide undo and request visual approval before save. Exact destructive acknowledgements remain bounded; the host must also lock the reviewed site revision and authenticate the owner.
+
+Current source-level smoke: 504/504 candidate validations, renders, no-op rebuilds and read-only previews; 8 component-family content refreshes passed in isolated V8. This is not real Node/PHP/Chromium acceptance.
+
+## 25 October — loss-aware graph structure and media conflict contract
+
+The rebuild review must cover more than text/href. A manually deleted node that would be recreated, a custom node that would be dropped, a custom ID that collides with a newly generated semantic node, or edited properties on a removed/reset node all require explicit owner acknowledgement.
+
+`rebuildHostCandidate()` tracks the editable fields `type`, `text`, `href`, `styles`, `responsive`, `states`, `motion`, `assetId`, `alt`, `level`, `icon`, `posterAssetId` and `loop`. It throws an Error with code `DF_REBUILD_OWNER_REVIEW_REQUIRED` and `discardedGraphEditIds` containing the exact IDs the host must review. For node-level loss the property suffix is `__node__`.
+
+`inspectRebuild()` returns each affected node/property with `kind`, `previousValue`, `currentValue`, `rebuiltValue`, `nodeInEditedGraph`, and `nodeInRebuiltGraph`. Use both presence flags: a custom ID can exist before and after rebuild while the rebuilt node is a different CMS-generated identity. Acknowledge the exact set only after the owner reviews the diff and the host locks/authenticates the intended revision.
+
+Graph-owned image/video `assetId` and alt/media properties are preserved when their CMS-derived source is unchanged. If the CMS and graph both change a media property differently, the adapter rejects the rebuild as a conflict. Do not silently choose either side.
+
+Regression evidence: 504/504 source-level validation/render/no-op rebuild/preflight cases; 8/8 component-family refreshes; 8 loss-aware structural/style/media groups. This was isolated V8 over current GitHub JS sources with emulated Node core modules, not an actual checkout/Node process. Real Node, PHP, Chromium and ZIP/SHA256 acceptance remain open.
+
+
+## D7 candidate verification (non-publishing)
+
+Run `node stage3/design-factory/bin/release-candidate.cjs --out /tmp/df-release-candidate` on a genuine checkout. The runner checks bundle parity + eight Node suites, exact audit inventory, reproducible ZIP bytes/CRC/SHA256, optional Chromium screenshots, review v2 and optional Lead/PHP parity. It never deploys or authorizes publication. Exit 3 is an engineering candidate with gates open; D7 remains OPEN until actual acceptance.
+## 27 October — final independent branch handoff focus (no further feature expansion)
+
+A concrete preview data-fidelity issue is fixed at the source: `studio/runtime.generated.js` and `lib/preview.cjs` now respect the real `behavior.href` of all registered CMS actions: Hero, Services repeater cards, Media Story, CTA primary/secondary and Contact Panel. The owner report lists exact target URLs. This makes the offline design preview a more reliable content/navigation reference; **it does not prove PHP visual parity** or authorize publication. The CMS contract and SDK were not modified. External owner HTTPS anchors require intentional clicks and have `noopener noreferrer`; unknown local routes fail closed.
+
+**Recommendation to Lead:** import the supported `cms/site-v1.json`, run six existing PHP parity probes, show user actual rendered four-page site, compare header/buttons/CTA and CSS parity against offline Studio demo. All enhanced standalone layouts still require a deliberate PHP integration decision. Read [owner reality report](handoffs/OWNER-REALITY-REPORT-2026-10-27.md) and `handoffs/NEXT-CHAT.md`. STOP repeating isolated V8 simulations as if these remove the PHP/Chromium gate. Stage2 NO-GO / Stage3 UNACCEPTED / 0 of 135 formal CMS acceptance continue.
+
