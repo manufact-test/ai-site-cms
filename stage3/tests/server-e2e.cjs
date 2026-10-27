@@ -162,6 +162,73 @@ async function stop(){
   assert.equal((await request('POST',endpoint+'/publish',{expectedRevision:3})).status,409);
   assert.equal((await request('POST',endpoint+'/publish',{expectedRevision:4})).body.version,2);
   assert.doesNotMatch((await request('GET','/published/'+id+'/')).body,/Updated/);
+  // D2: choose immutable v1 rather than newer live v2; explicit plan,
+  // digest-bound one-use download and offline independent HTML/PHP/Next handoff.
+  const techBase=endpoint+'/technology-export';
+  const currentHistory=await request('GET',techBase+'/releases');
+  assert.equal(currentHistory.status,200);
+  assert.deepEqual(currentHistory.body.releases.map(r=>r.version),[2,1]);
+  const comparison=await request('GET',techBase+'/compare?from=1&to=2');
+  assert.equal(comparison.status,200);
+  assert.ok(comparison.body.changes.some(c=>c.status==='changed'&&c.pageId==='page-home'));
+  assert.equal(comparison.body.doesNotPublish,true);
+  assert.equal((await request('GET',techBase+'/compare?from=1&to=1')).status,422);
+  assert.equal((await request('POST',techBase+'/plan',{version:999})).status,404);
+  assert.equal((await request('POST',techBase+'/plan',{
+    version:1,publicOrigin:'http://evil.example',formCollector:null
+  })).status,422);
+  assert.equal((await request('POST',techBase+'/plan',{
+    version:1,publicOrigin:'https://example.test'
+  },{'x-csrf-token':'invalid'})).status,403);
+  const releasePlan=await request('POST',techBase+'/plan',{
+    version:1,publicOrigin:'https://example.test',formCollector:null
+  });
+  assert.equal(releasePlan.status,200,JSON.stringify(releasePlan.body));
+  assert.equal(releasePlan.body.plan.version,1);
+  assert.equal(releasePlan.body.plan.pages,2);
+  assert.deepEqual(releasePlan.body.plan.paths,['/','/contact/']);
+  assert.ok(releasePlan.body.plan.draftModified,
+    'Current draft was restored and cannot silently replace historical publication');
+  assert.equal((await request('POST',techBase+'/download',{
+    confirmationToken:'not-this-token'
+  })).status,409);
+  const transfer=await request('POST',techBase+'/download',{
+    confirmationToken:releasePlan.body.confirmationToken
+  });
+  assert.equal(transfer.status,200,JSON.stringify(transfer.body).slice(0,450));
+  assert.equal(transfer.body.capsule.format,'manufact-runtime-handoff-v1');
+  assert.equal(transfer.body.capsule.version,1);
+  const handoffFile=path.join(dbdir,'historical-v1-handoff.json');
+  fs.writeFileSync(handoffFile,JSON.stringify(transfer.body.capsule));
+  const exportedOldHtml=path.join(dbdir,'historical-v1-html');
+  const hydrated=spawnSync('node',['stage3/runtime-export/bin/build-handoff.cjs',
+    handoffFile,'html',exportedOldHtml],{cwd:root,encoding:'utf8'});
+  assert.equal(hydrated.status,0,hydrated.stderr);
+  const oldHome=fs.readFileSync(path.join(exportedOldHtml,'index.html'),'utf8');
+  assert.match(oldHome,/&lt;img src=x onerror=alert\(1\)&gt; Updated/,
+    'Export an EXACT older immutable published snapshot, never newer draft/live version');
+  assert.match(oldHome,/rel="canonical" href="https:\/\/example.test\/"/);
+  const oldManifest=JSON.parse(fs.readFileSync(path.join(exportedOldHtml,'release-manifest.json'),'utf8'));
+  assert.equal(oldManifest.publishedVersion,1);
+  assert.equal(oldManifest.sourceRevision,2);
+  for(const technology of ['php','next-static','next-ssr']){
+    const out=path.join(dbdir,'historical-v1-'+technology);
+    const generated=spawnSync('node',['stage3/runtime-export/bin/build-handoff.cjs',
+      handoffFile,technology,out],{cwd:root,encoding:'utf8'});
+    assert.equal(generated.status,0,generated.stderr);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(out,'runtime-build.json'),'utf8')).publishedVersion,1);
+  }
+  assert.equal((await request('POST',techBase+'/download',{
+    confirmationToken:releasePlan.body.confirmationToken
+  })).status,409,'Confirmation token used only once');
+  const damaged=structuredClone(transfer.body.capsule);
+  damaged.files.find(f=>f.path==='index.html').base64=Buffer.from('tampered').toString('base64');
+  const damagedFile=path.join(dbdir,'tampered-handoff.json');
+  fs.writeFileSync(damagedFile,JSON.stringify(damaged));
+  assert.notEqual(spawnSync('node',['stage3/runtime-export/bin/build-handoff.cjs',
+    damagedFile,'html',path.join(dbdir,'unsafe-handoff')],{cwd:root,encoding:'utf8'}).status,0);
+  assert.equal((await request('GET',endpoint+'/published-site')).body.version,2,
+    'Historical handoff download must not change current publication');
   // Media pipeline: authenticated upload, immutable bytes, valid component
   // binding, unpublished media isolation and static release without CMS.
   const png64='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y6Pe3UAAAAASUVORK5CYII=';

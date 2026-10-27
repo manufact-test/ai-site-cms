@@ -241,6 +241,31 @@ async function execute(){
   await page.locator('#server-status').getByText(/Опубликовано: v3/).waitFor();
   const newPage=await visitor.goto(origin+'/published/'+siteId+'/equipment/');
   assert.equal(newPage.status(),200);
+
+  // D2 hosted export center: select historical v2, inspect changes, one-use
+  // download of independent published content. No preview/draft publication.
+  await page.locator('#server-tech-open').click();
+  await page.locator('#server-tech-dialog[open]').waitFor();
+  await page.locator('#server-tech-version').selectOption('2');
+  await page.locator('#server-tech-compare').getByText(/Отличия публикации v1 → v2/).waitFor();
+  await page.locator('#server-tech-target').selectOption('next-static');
+  await page.locator('#server-tech-origin').fill('https://example.test');
+  await page.locator('#server-tech-plan').click();
+  await page.locator('#server-tech-summary').getByText(/План: публикация v2/).waitFor();
+  const [techDownload]=await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('#server-tech-download').click()
+  ]);
+  const techCapsule=JSON.parse(fs.readFileSync(await techDownload.path(),'utf8'));
+  assert.equal(techCapsule.format,'manufact-runtime-handoff-v1');
+  assert.equal(techCapsule.version,2);
+  assert.equal(techCapsule.siteId,siteId);
+  assert.ok(techCapsule.files.some(f=>f.path==='release-manifest.json'));
+  assert.equal(await page.locator('#server-tech-download').isDisabled(),true);
+  assert.equal((await visitor.goto(origin+'/published/'+siteId+'/equipment/')).status(),200,
+    'History export does not roll back public website');
+  await page.locator('#server-tech-close').click();
+
   assert.equal(await visitor.locator('h1').innerText(),'Оборудование для вашего производства');
   const renamedRoute=await fetch(origin+'/published/'+siteId+'/solutions/',{redirect:'manual'});
   assert.deepEqual({status:renamedRoute.status,location:renamedRoute.headers.get('location')},

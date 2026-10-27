@@ -38,6 +38,136 @@
   publicLink.id='server-public-link';publicLink.target='_blank';publicLink.rel='noopener noreferrer';
   publicLink.hidden=true;
   toolbar.append(publicLink);
+
+  // D2 · Published technology release center. Historical releases and capsules
+  // are read-only; an unpublished draft is never turned into a live artifact.
+  const techOpen=action('Технологические выпуски','server-tech-open',()=>safe(openTechnologyCenter));
+  row.append(techOpen);
+  const techDialog=element('dialog','hosted-backup-dialog');techDialog.id='server-tech-dialog';
+  const techTitle=element('h2',null,'Независимый выпуск сайта');
+  const techHint=element('p',null,'Выберите только опубликованную версию. Доступны HTML, PHP, Next Static и Next SSR. '
+    +'Скачать пакет можно после проверки. Развёртывания, изменения черновика и автоматической публикации нет.');
+  const techField=(id,name)=>{
+    const wrap=element('label','hosted-label',name);
+    const input=element('input','control');input.id=id;input.type='text';
+    wrap.append(input);return [wrap,input];
+  };
+  const techVersionWrap=element('label','hosted-label','Опубликованная версия');
+  const techVersion=element('select','control');techVersion.id='server-tech-version';techVersionWrap.append(techVersion);
+  const techTargetWrap=element('label','hosted-label','Технология конечного сайта');
+  const techTarget=element('select','control');techTarget.id='server-tech-target';techTargetWrap.append(techTarget);
+  for(const [value,name] of [
+    ['html','HTML/CSS/JS · готовая статическая папка'],
+    ['php','PHP · маршруты и настоящие 301'],
+    ['next-static','Next Static · сборка в out/'],
+    ['next-ssr','Next SSR · нужен Node.js']
+  ]){const o=element('option',null,name);o.value=value;techTarget.append(o);}
+  const [techOriginWrap,techOrigin]=techField('server-tech-origin','HTTPS-адрес будущего публичного сайта (необязательно)');
+  techOrigin.placeholder='https://example.com';
+  const [techCollectorWrap,techCollector]=techField('server-tech-collector',
+    'HTTPS-адрес отдельного сборщика форм (обязателен, если есть формы)');
+  techCollector.placeholder='https://forms.example.com';
+  const techCompare=element('div','hosted-backup-summary');techCompare.id='server-tech-compare';
+  const techPlanSummary=element('div','hosted-backup-summary');techPlanSummary.id='server-tech-summary';
+  const techActions=element('div','hosted-buttons');
+  let techPending=null,techReleases=[],techOpening=false;
+  const techInvalidate=()=>{techPending=null;techDownload.disabled=true;techPlanSummary.replaceChildren();};
+  const techCompareVersions=async()=>{
+    techCompare.replaceChildren();if(!state.siteId||!techReleases.length)return;
+    const version=Number(techVersion.value);
+    const idx=techReleases.findIndex(r=>r.version===version);
+    const older=techReleases[idx+1];
+    if(!older){techCompare.append(element('small',null,'Это первая публикация; предыдущего выпуска ещё нет.'));return;}
+    const id=state.siteId;
+    const data=await api('/api/sites/'+encodeURIComponent(id)+'/technology-export/compare?'+
+      new URLSearchParams({from:String(older.version),to:String(version)}));
+    if(id!==state.siteId||!techDialog.open||Number(techVersion.value)!==version)return;
+    techCompare.append(element('strong',null,
+      'Отличия публикации v'+older.version+' → v'+version+' · страниц изменилось: '+data.changes.length));
+    for(const row of data.changes.slice(0,20))techCompare.append(element('small',null,
+      (row.status==='added'?'Новая':row.status==='removed'?'Удалена':'Изменена')+
+      ' · '+(row.to||row.from)+' · '+row.pageId+
+      (row.seoChanged?' · SEO':'')+(row.contentChanged?' · содержимое':'')));
+    techCompare.append(element('small',null,
+      'Медиа: '+(data.assetsChanged?'изменены':'без изменений')+
+      ' · редиректы: '+(data.redirectsChanged?'изменены':'без изменений')+
+      ' · глобальный стиль: '+(data.themeChanged?'изменён':'без изменений')));
+  };
+  const techLoad=async()=>{
+    techInvalidate();techVersion.replaceChildren();techCompare.replaceChildren();
+    const id=state.siteId;
+    const data=await api('/api/sites/'+encodeURIComponent(id)+'/technology-export/releases');
+    if(id!==state.siteId||!techDialog.open)return;
+    techReleases=data.releases;
+    for(const r of techReleases){
+      const o=element('option',null,'v'+r.version+' · черновик #'+r.sourceRevision+' · '+r.publishedAt);
+      o.value=String(r.version);techVersion.append(o);
+    }
+    if(!techReleases.length)techPlanSummary.append(element('p',null,
+      'Публикаций пока нет. Сохраните черновик и опубликуйте сайт отдельно.'));
+    techPlan.disabled=!techReleases.length;
+    await techCompareVersions();
+  };
+  const techPlan=action('Проверить независимый выпуск','server-tech-plan',()=>safe(async()=>{
+    techInvalidate();
+    if(!state.siteId||!canPublish())throw Error('Для независимого выпуска нужны права владельца или издателя');
+    const id=state.siteId,version=Number(techVersion.value);
+    const result=await api('/api/sites/'+encodeURIComponent(id)+'/technology-export/plan','POST',{
+      version,publicOrigin:techOrigin.value.trim()||null,formCollector:techCollector.value.trim()||null
+    });
+    if(id!==state.siteId||!techDialog.open||version!==Number(techVersion.value))return;
+    techPending={siteId:id,version,token:result.confirmationToken};
+    const p=result.plan;
+    const technology=techTarget.value;
+    techPlanSummary.replaceChildren(element('strong',null,'План: публикация v'+p.version),
+      element('p',null,'Страниц: '+p.pages+' · медиафайлов: '+p.assets+
+        ' · редиректов: '+p.redirects+' · форм: '+p.forms),
+      element('p',null,'Исходная ревизия #'+p.sourceRevision+
+        ' · сборка '+technology+' · '+(p.draftModified?'Текущий черновик отличается.':'Черновик на исходной ревизии.')),
+      element('p',null,'Переносимый JSON содержит только опубликованный HTML и медиа, а не пароли, заявки или базу CMS.'),
+      element('small',null,'После скачивания используйте локальную команду build-handoff.cjs для '+technology+
+        '. Пакет не устанавливается и не публикуется автоматически.'));
+    techDownload.disabled=false;
+  }));
+  const techDownload=action('Скачать подтверждённый выпуск','server-tech-download',()=>safe(async()=>{
+    if(!techPending||techPending.siteId!==state.siteId||techPending.version!==Number(techVersion.value))
+      throw Error('Параметры выпуска изменились — проверьте план ещё раз');
+    const pending=techPending;techInvalidate();
+    const result=await api('/api/sites/'+encodeURIComponent(pending.siteId)+
+      '/technology-export/download','POST',{confirmationToken:pending.token});
+    if(!result.capsule||result.capsule.version!==pending.version)
+      throw Error('Сервер вернул другой опубликованный выпуск');
+    const blob=new Blob([JSON.stringify(result.capsule)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    try {
+      const a=element('a');
+      a.href=url;a.download=pending.siteId+'-published-v'+pending.version+'-handoff.json';
+      document.body.append(a);a.click();a.remove();
+    }finally{setTimeout(()=>URL.revokeObjectURL(url),1200);}
+    notice('Независимый выпуск v'+pending.version+' скачан. Собирайте на изолированном компьютере; публикация отдельно.');
+  }));
+  techDownload.disabled=true;
+  const techClose=action('Закрыть','server-tech-close',()=>techDialog.close());
+  techActions.append(techPlan,techDownload,techClose);
+  techDialog.append(techTitle,techHint,techVersionWrap,techTargetWrap,
+    techOriginWrap,techCollectorWrap,techCompare,techPlanSummary,techActions);
+  document.body.append(techDialog);
+  const openTechnologyCenter=async()=>{
+    if(techOpening)return;
+    if(!state.authorized||!state.siteId)throw Error('Сначала откройте сайт');
+    techOpening=true;
+    try{
+      techInvalidate();techDialog.showModal();await techLoad();
+    }finally{techOpening=false;}
+  };
+  for(const field of [techVersion,techTarget,techOrigin,techCollector])
+    field.addEventListener('change',()=>{techInvalidate();
+      if(field===techVersion)void safe(techCompareVersions);
+    });
+  techOrigin.addEventListener('input',techInvalidate);
+  techCollector.addEventListener('input',techInvalidate);
+  techDialog.addEventListener('close',()=>{techInvalidate();techReleases=[];});
+
   // Server-only media library: binary bytes never enter document JSON.
   const mediaPanel=element('div','hosted-media');
   const mediaTitle=element('strong',null,'Медиабиблиотека');
@@ -1592,6 +1722,7 @@
     $('server-publish').disabled=!available||isDirty()||!canPublish();
     $('server-reload').disabled=!available;
     launchReviewButton.disabled=!available;
+    techOpen.disabled=!available||!state.authorized;
     $('server-open').disabled=state.busy||!state.authorized||!picker.value;
     $('server-site-select').disabled=state.busy||!state.authorized;
     $('server-logout').disabled=state.busy||!state.authorized;

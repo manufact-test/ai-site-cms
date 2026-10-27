@@ -17,6 +17,7 @@ require_once __DIR__ . '/LinkOperations.php';
 require_once __DIR__ . '/VideoUploads.php';
 require_once __DIR__ . '/SiteRepository.php';
 require_once __DIR__ . '/PublicRenderer.php';
+require_once __DIR__ . '/TechnologyHandoff.php';
 require_once __DIR__ . '/FlexForm.php';
 require_once __DIR__ . '/FormGateway.php';
 require_once __DIR__ . '/Api.php';

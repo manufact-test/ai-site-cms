@@ -72,7 +72,7 @@ final class Api
             $this->response(403, ['error' => 'No permission for this operation or site']);
         }
         $action = $m[2] ?? '';
-        if ($method === 'GET' && (in_array($action, ['', 'revisions','releases','templates','published-site','history/catalog','media-audit','links/audit'], true)
+        if ($method === 'GET' && (in_array($action, ['', 'revisions','releases','templates','published-site','history/catalog','media-audit','links/audit','technology-export/releases','technology-export/compare'], true)
             || preg_match('~^media/[a-z][a-z0-9-]{2,79}$~D', $action))) return;
         if ($method === 'POST' && $action === 'preview') return;
         $edit = in_array($principal['role'], ['editor','publisher'], true);
@@ -85,7 +85,8 @@ final class Api
             || $action==='submissions/bulk-review'
             || $action==='submissions/bulk-workflow'
             || preg_match('~^submissions/lead-[0-9a-f]{24}/workflow$~D',$action))) return;
-        if ($principal['role'] === 'publisher' && $method === 'POST' && $action === 'publish') return;
+        if ($principal['role'] === 'publisher' && $method === 'POST'
+            && in_array($action,['publish','technology-export/plan','technology-export/download'],true)) return;
         $this->response(403, ['error' => 'Role does not allow this operation']);
     }
 
@@ -439,6 +440,57 @@ final class Api
                 $restored = $this->sites->importArchive($archive, $target);
                 unset($_SESSION['stage3_archive_plan']);
                 $this->response(201, $restored);
+            }
+            // D2 export is private to its site and selected immutable publication.
+            // No drafts, filesystem writes, hosting calls, archive secrets or auto-publish.
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/technology-export/(releases|compare|plan|download)$~D',$path,$tech)) {
+                $id=$tech[1];$action=$tech[2];
+                if ($method==='GET' && $action==='releases') {
+                    $this->response(200,['releases'=>$this->sites->publicationHistory($id)]);
+                }
+                if ($method==='GET' && $action==='compare') {
+                    $a=$_GET['from']??null;$b=$_GET['to']??null;
+                    if(!is_string($a)||!preg_match('/^[1-9][0-9]{0,8}$/D',$a)
+                        ||!is_string($b)||!preg_match('/^[1-9][0-9]{0,8}$/D',$b))
+                        throw new InvalidArgumentException('Two published versions required');
+                    $this->response(200,\Manufact\Stage3\TechnologyHandoff::compare($this->sites,$id,(int)$a,(int)$b));
+                }
+                if ($method==='POST' && $action==='plan') {
+                    $ver=self::revision($body['version']??null);
+                    $origin=$body['publicOrigin']??null;$collector=$body['formCollector']??null;
+                    if(($origin!==null&&!is_string($origin)) || ($collector!==null&&!is_string($collector)))
+                        throw new InvalidArgumentException('Origins must be strings');
+                    $plan=\Manufact\Stage3\TechnologyHandoff::plan($this->sites,$id,$ver,$origin,$collector);
+                    $token=bin2hex(random_bytes(32));
+                    $_SESSION['stage3_technology_export']=[
+                        'token'=>$token,'siteId'=>$id,'version'=>$ver,
+                        'origin'=>$plan['publicOrigin'],'collector'=>$plan['formCollector'],
+                        'fingerprint'=>$plan['fingerprint'],'actor'=>$principal['username'],
+                        'expires'=>time()+900
+                    ];
+                    $this->auditDetail='Private published export plan v'.$ver;
+                    $this->response(200,['plan'=>$plan,'confirmationToken'=>$token,'expiresInSeconds'=>900]);
+                }
+                if ($method==='POST' && $action==='download') {
+                    $pending=$_SESSION['stage3_technology_export']??null;
+                    $token=$body['confirmationToken']??null;
+                    if(!is_array($pending)||!is_string($token)
+                        ||($pending['expires']??0)<time()
+                        ||($pending['siteId']??null)!==$id
+                        ||($pending['actor']??null)!==$principal['username']
+                        ||!hash_equals((string)($pending['token']??''),$token))
+                        throw new Conflict('Published export confirmation expired or does not match this site');
+                    // One-use BEFORE expensive render; failed bundles are never reused.
+                    unset($_SESSION['stage3_technology_export']);
+                    $current=\Manufact\Stage3\TechnologyHandoff::options($this->sites,$id,
+                        $pending['version'],$pending['origin'],$pending['collector']);
+                    if(!hash_equals($pending['fingerprint'],$current['fingerprint']))
+                        throw new Conflict('Published snapshot changed after export plan');
+                    $capsule=\Manufact\Stage3\TechnologyHandoff::capsule($this->sites,$id,
+                        $pending['version'],$pending['origin'],$pending['collector']);
+                    $this->auditDetail='Private published runtime capsule v'.$pending['version'];
+                    $this->response(200,['capsule'=>$capsule]);
+                }
             }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/(backup|releases|restore-release)$~D', $path, $backupMatch)) {
                 $id = $backupMatch[1]; $action = $backupMatch[2];
