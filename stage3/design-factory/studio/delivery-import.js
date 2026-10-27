@@ -65,6 +65,31 @@
   if(!same(project,w.project))fail('ZIP project and workspace disagree');
   const site=engine.sdk.validateSite(parse('cms/site-v1.json'),engine.compiler.loadRegistry());
   if(!same(site,bundle.site))fail('CMS site and validated D6 disagree');
+  const serviceText=(project.facts.services||[])
+   .map(row=>row.title+'\t'+row.description).join('\n')+'\n';
+  if(files['design/services.txt']!==serviceText)
+   fail('Service handoff text differs from verified project');
+  const guidance=parse('cms/bridge-v2.json');
+  if(guidance.format!=='manufact-design-factory-bridge-v2'||guidance.version!==2||
+     guidance.pageCount!==4||guidance.kit!==project.kit||
+     guidance.theme!==project.theme||guidance.indexing!==bundle.ownerChecklist.indexing||
+     !same(guidance.ownerChecklist,bundle.ownerChecklist)||
+     !same(guidance.composition,bundle.compatibility.composition))
+   fail('Bridge guidance contradicts validated D6');
+  const audit=parse('audit/content-audit.json');
+  if(audit.format!=='manufact-design-factory-site-audit-v1'||audit.version!==1||
+     audit.kit!==project.kit||audit.theme!==project.theme||
+     audit.language!==project.language||audit.indexing!==bundle.ownerChecklist.indexing||
+     !Array.isArray(audit.pages)||audit.pages.length!==4)
+   fail('Owner audit contradicts verified workspace');
+  for(const page of bundle.site.pages){
+   const summary=audit.pages.find(x=>x.id===page.id);
+   if(!summary||summary.path!==page.path||summary.title!==page.title||
+      summary.seoTitle!==page.seo.title||summary.seoDescription!==page.seo.description||
+      summary.indexing!==page.seo.robots||
+      !same(summary.sections,page.sections.map(x=>({id:x.id,component:x.component}))))
+    fail('Owner audit diverges from CMS route '+page.path);
+  }
   if(manifest.kit!==project.kit||manifest.theme!==project.theme||
      manifest.language!==project.language||
      manifest.ownerReviewConfirmed!==project.ownerReviewConfirmed||
