@@ -180,20 +180,20 @@ async function stop(){
   assert.equal((await request('POST',techBase+'/plan',{
     version:1,publicOrigin:'https://example.test'
   },{'x-csrf-token':'invalid'})).status,403);
-  const releasePlan=await request('POST',techBase+'/plan',{
+  const techD2Plan=await request('POST',techBase+'/plan',{
     version:1,publicOrigin:'https://example.test',formCollector:null
   });
-  assert.equal(releasePlan.status,200,JSON.stringify(releasePlan.body));
-  assert.equal(releasePlan.body.plan.version,1);
-  assert.equal(releasePlan.body.plan.pages,2);
-  assert.deepEqual(releasePlan.body.plan.paths,['/','/contact/']);
-  assert.ok(releasePlan.body.plan.draftModified,
+  assert.equal(techD2Plan.status,200,JSON.stringify(techD2Plan.body));
+  assert.equal(techD2Plan.body.plan.version,1);
+  assert.equal(techD2Plan.body.plan.pages,2);
+  assert.deepEqual(techD2Plan.body.plan.paths,['/','/contact/']);
+  assert.ok(techD2Plan.body.plan.draftModified,
     'Current draft was restored and cannot silently replace historical publication');
   assert.equal((await request('POST',techBase+'/download',{
     confirmationToken:'not-this-token'
   })).status,409);
   const transfer=await request('POST',techBase+'/download',{
-    confirmationToken:releasePlan.body.confirmationToken
+    confirmationToken:techD2Plan.body.confirmationToken
   });
   assert.equal(transfer.status,200,JSON.stringify(transfer.body).slice(0,450));
   assert.equal(transfer.body.capsule.format,'manufact-runtime-handoff-v1');
@@ -219,12 +219,12 @@ async function stop(){
     assert.equal(JSON.parse(fs.readFileSync(path.join(out,'runtime-build.json'),'utf8')).publishedVersion,1);
   }
   assert.equal((await request('POST',techBase+'/download',{
-    confirmationToken:releasePlan.body.confirmationToken
+    confirmationToken:techD2Plan.body.confirmationToken
   })).status,409,'Confirmation token used only once');
-  const damaged=structuredClone(transfer.body.capsule);
-  damaged.files.find(f=>f.path==='index.html').base64=Buffer.from('tampered').toString('base64');
+  const techD2Damaged=structuredClone(transfer.body.capsule);
+  techD2Damaged.files.find(f=>f.path==='index.html').base64=Buffer.from('tampered').toString('base64');
   const damagedFile=path.join(dbdir,'tampered-handoff.json');
-  fs.writeFileSync(damagedFile,JSON.stringify(damaged));
+  fs.writeFileSync(damagedFile,JSON.stringify(techD2Damaged));
   assert.notEqual(spawnSync('node',['stage3/runtime-export/bin/build-handoff.cjs',
     damagedFile,'html',path.join(dbdir,'unsafe-handoff')],{cwd:root,encoding:'utf8'}).status,0);
   assert.equal((await request('GET',endpoint+'/published-site')).body.version,2,
