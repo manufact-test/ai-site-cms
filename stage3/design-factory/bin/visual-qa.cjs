@@ -13,7 +13,7 @@ const {inspectPng}=require('../lib/png-integrity.cjs');
 const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
 const {sourcePaths,sourceIdentity}=require('../lib/visual-source-provenance.cjs');
 const {compositions}=require('../catalog/compositions.cjs');
-const {snapshotGeneratedSources}=require('../lib/generated-source-manifest.cjs');
+const {snapshotGeneratedSources,expectedGeneratedPaths}=require('../lib/generated-source-manifest.cjs');
 const {FORMAT,THEMES,KITS,compile}=require('../lib/compiler.cjs');
 const {writePreview}=require('../lib/preview.cjs');
 const {writeShowcase}=require('../lib/showcase.cjs');
@@ -72,7 +72,7 @@ async function run(options){
   captureTransport:options.staticInMemory?'memory-static':'file',
   diagnosticOnly:Boolean(options.staticInMemory),
   viewports:VIEWPORTS,quick:options.quick,expectedImages:expected.length,matrixComplete:false,
-  images:[],errors:[],humanVisualAcceptance:'pending',
+  images:[],routeAudit:[],errors:[],humanVisualAcceptance:'pending',
   renderSourceSha256:sourceFingerprint(REPO)};
 
  let browser=null;
@@ -138,6 +138,14 @@ async function run(options){
    if(kit==='saas')for(const page of ['services','approach','contact'])
     await screenshot(localFileUrl(path.join(dir,page,'index.html')),
       'sector-'+kit+'-'+language+'-'+page+'-mobile',VIEWPORTS[2]);
+  }
+  if(!options.staticInMemory){
+   const routes=expectedGeneratedPaths(expected).filter(file=>file.startsWith('sites/')&&
+    file.endsWith('/index.html'));
+   for(const file of routes){
+    const checked=await browser.inspectOfflineRoute(localFileUrl(path.join(root,...file.split('/'))),VIEWPORTS[2]);
+    report.routeAudit.push({file,...checked});
+   }
   }
   report.imagesProduced=report.images.length;
  }catch(error){

@@ -150,6 +150,41 @@ class BrowserPipe {
   return {png:Buffer.from(result.data,'base64'),
    overflowPixels:Math.max(0,metrics.scroll-metrics.width),transport:'memory-static'};
  }
+ // Visit generated pages without taking additional PNGs. Tests all 64 routes.
+ async inspectOfflineRoute(url,view){
+  if(typeof url!=='string'||!url.startsWith('file://'))throw Error('Local file URL required');
+  const file=fileURLToPath(url);
+  if(!/\/index\.html$/.test(file)||!fs.statSync(file).isFile())
+   throw Error('Existing generated index.html required');
+  if(!view||!Number.isInteger(view.width)||!Number.isInteger(view.height)||
+     view.width<320||view.width>2560||view.height<400||view.height>1800)
+   throw Error('Invalid Chromium audit viewport');
+  await this.send('Emulation.setDeviceMetricsOverride',{
+   width:view.width,height:view.height,deviceScaleFactor:1,mobile:false
+  });
+  const loaded=await this.send('Page.navigate',{url});
+  if(loaded.errorText)throw Error('Chromium blocked offline route: '+loaded.errorText);
+  const end=Date.now()+20000;
+  let metrics=null;
+  while(Date.now()<end){
+   const data=await this.send('Runtime.evaluate',{
+    expression:'({url:location.href,ready:document.readyState,width:innerWidth,main:!!document.querySelector("main"),stylesheets:document.styleSheets.length,sections:document.querySelectorAll("main .section").length,navLinks:document.querySelectorAll("header nav a").length,robots:document.querySelector("meta[name=robots]")?.content||"",bodyTextLength:(document.body?.innerText||"").length})',
+    returnByValue:true
+   });
+   metrics=data.result?.value;
+   if(metrics?.url===url&&metrics.ready==='complete')break;
+   await sleep(100);
+  }
+  if(!metrics||metrics.url!==url||metrics.ready!=='complete'||
+     metrics.width!==view.width||metrics.main!==true||metrics.stylesheets<1||
+     metrics.sections<1||metrics.navLinks!==4||metrics.robots!=='noindex'||
+     metrics.bodyTextLength<30)
+   throw Error('Incomplete real Chromium offline route: '+url);
+  return Object.freeze({viewportWidth:metrics.width,main:metrics.main,
+   stylesheets:metrics.stylesheets,sections:metrics.sections,
+   navigationLinks:metrics.navLinks,robots:metrics.robots,
+   bodyTextLength:metrics.bodyTextLength});
+ }
  async inspectVisualStructure(){
   // Inspect the actual rendered Chromium DOM; static HTML hashes do not prove
   // that CSS loaded or that any of the 42 patterns reached the browser.

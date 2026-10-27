@@ -7,7 +7,7 @@ const crypto=require('node:crypto');
 const {inspectPng}=require('./png-integrity.cjs');
 const {assertSourceIdentity}=require('./visual-source-provenance.cjs');
 const {compositions}=require('../catalog/compositions.cjs');
-const {verifyGeneratedSources}=require('./generated-source-manifest.cjs');
+const {verifyGeneratedSources,expectedGeneratedPaths}=require('./generated-source-manifest.cjs');
 const SHA=/^[a-f0-9]{64}$/;
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 const own=(object,key)=>Object.prototype.hasOwnProperty.call(object,key);
@@ -23,7 +23,8 @@ function evidenceHash(report){
   captureTransport:report.captureTransport,diagnosticOnly:report.diagnosticOnly,
   renderSourceSha256:report.renderSourceSha256,
   expectedImages:report.expectedImages,images:rows,
-  generatedSourceFiles:report.generatedSourceFiles
+  generatedSourceFiles:report.generatedSourceFiles,
+  routeAudit:report.routeAudit
  })));
 }
 const pngDimensions=inspectPng;
@@ -86,6 +87,21 @@ function checkEvidence(directory,report){
    throw Error('Viewport or horizontal overflow mismatch: '+item.file);
  }
  verifyGeneratedSources(root,expected,report.generatedSourceFiles);
+ const routes=expectedGeneratedPaths(expected).filter(file=>
+  file.startsWith('sites/')&&file.endsWith('/index.html'));
+ if(routes.length!==64||!Array.isArray(report.routeAudit)||report.routeAudit.length!==64)
+  throw Error('64 real offline route checks are required');
+ for(let i=0;i<64;i++){
+  const actual=report.routeAudit[i];
+  if(!actual||Object.keys(actual).sort().join(',')!==
+    'bodyTextLength,file,main,navigationLinks,robots,sections,stylesheets,viewportWidth'||
+    actual.file!==routes[i]||actual.viewportWidth!==390||actual.main!==true||
+    actual.robots!=='noindex'||actual.navigationLinks!==4||
+    !Number.isSafeInteger(actual.stylesheets)||actual.stylesheets<1||
+    !Number.isSafeInteger(actual.sections)||actual.sections<1||
+    !Number.isSafeInteger(actual.bodyTextLength)||actual.bodyTextLength<30)
+   throw Error('Invalid Chromium route audit entry: '+routes[i]);
+ }
  return new Map(report.images.map(x=>[x.file,x]));
 }
 function verify(directory,review){

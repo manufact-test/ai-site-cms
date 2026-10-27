@@ -84,7 +84,10 @@ try{
   captureTransport:'file',diagnosticOnly:false,
   errors:[],humanVisualAcceptance:'pending',quick:false,
   renderSourceSha256:sourceFingerprint(path.resolve(__dirname,'../../..')),
-  generatedSourceFiles:snapshotGeneratedSources(dir,files)};
+  generatedSourceFiles:snapshotGeneratedSources(dir,files),
+  routeAudit:generated.filter(file=>file.startsWith('sites/')&&file.endsWith('/index.html'))
+   .map(file=>({file,viewportWidth:390,main:true,stylesheets:1,
+    sections:2,navigationLinks:4,robots:'noindex',bodyTextLength:180}))};
  report.evidenceSha256=evidenceHash(report);
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
  assert.equal(ACTIVITIES.length,5);
@@ -132,6 +135,18 @@ try{
  assert.ok(output.includes('document.getElementById(key).checked=false'));
 
  const reject=(modified,pattern)=>assert.throws(()=>verify(dir,modified),pattern);
+ assert.equal(report.routeAudit.length,64);
+ const missingRoute={...report,routeAudit:report.routeAudit.slice(1)};
+ missingRoute.evidenceSha256=evidenceHash(missingRoute);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(missingRoute));
+ reject({...approved,evidenceSha256:missingRoute.evidenceSha256},/64 real offline route checks/);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
+ const badIndexing={...report,routeAudit:report.routeAudit.map((x,i)=>
+  i===0?{...x,robots:'index'}:x)};
+ badIndexing.evidenceSha256=evidenceHash(badIndexing);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(badIndexing));
+ reject({...approved,evidenceSha256:badIndexing.evidenceSha256},/Invalid Chromium route audit entry/);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
  const unscreened=path.join(dir,'sites/theme-editorial/approach/index.html');
  const oldUnscreened=fs.readFileSync(unscreened);
  try{
