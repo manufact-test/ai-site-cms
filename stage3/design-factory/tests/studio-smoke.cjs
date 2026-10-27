@@ -19,6 +19,7 @@ const feedbackSource=read('client-feedback.js'),feedback=require(path.join(studi
 const auditSource=read('site-audit.js'),audit=require(path.join(studio,'site-audit.js'));
 const deliverySource=read('delivery-package.js'),delivery=require(path.join(studio,'delivery-package.js'));
 const sectionEditorSource=read('section-editor.js');
+const pageSettingsSource=read('page-settings.js');
 
 const build=cp.spawnSync(process.execPath,[path.join(root,'bin/build-browser-bundle.cjs'),'--check'],{encoding:'utf8'});
 assert.equal(build.status,0,'Browser bundle must match actual local CMS source: '+build.stderr);
@@ -95,6 +96,10 @@ new Function(feedbackSource);
 new Function(auditSource);
 new Function(deliverySource);
 new Function(sectionEditorSource);
+new Function(pageSettingsSource);
+assert.ok(markup.indexOf('page-settings.js')<markup.indexOf('studio.js'));
+for(const id of ['page-meta-title','page-meta-seoTitle','page-meta-seoDescription','page-meta-navigationLabel','page-meta-save','page-meta-reset','page-meta-snippet-title'])
+ assert.ok(markup.includes('id="'+id+'"'),'Page SEO editor missing: '+id);
 assert.ok(markup.indexOf('section-editor.js')<markup.indexOf('studio.js'));
 for(const id of ['section-list','section-template','section-add','section-reset','section-page-name'])
  assert.ok(markup.includes('id="'+id+'"'),'Missing section editor: '+id);
@@ -419,6 +424,13 @@ try{
  "if(document.querySelectorAll('.section-content-panel .section-repeat-row').length!==3)throw Error('FAQ add item');",
  "Array.from(document.querySelectorAll('.section-content-panel button')).find(b=>b.textContent==='Сохранить секцию').click();",
  "if(!document.getElementById('site-preview').srcdoc.includes('faq'))throw Error('FAQ preview missing');",
+ "document.getElementById('page-home').click();",
+ "const seoField=document.getElementById('page-meta-seoTitle');if(!seoField)throw Error('SEO editor unavailable');",
+ "seoField.value='Verified SEO page title';seoField.dispatchEvent(new Event('input',{bubbles:true}));",
+ "if(!document.getElementById('page-meta-snippet-title').textContent.includes('Verified SEO'))throw Error('SEO snippet not updated');",
+ "if(document.getElementById('site-preview').srcdoc.includes('Verified SEO page title'))throw Error('Unsaved SEO draft leaked');",
+ "document.getElementById('page-meta-save').click();",
+ "if(!document.getElementById('site-preview').srcdoc.includes('Verified SEO page title'))throw Error('Saved SEO not in preview');",
  "const blobs=[],downloadNames=[];",
  "const originalURL=URL.createObjectURL,originalClick=HTMLAnchorElement.prototype.click;",
  "URL.createObjectURL=function(blob){blobs.push(blob);return originalURL.call(URL,blob)};",
@@ -434,6 +446,7 @@ try{
  "if(JSON.stringify(bundle.site)!==JSON.stringify(site))throw Error('CMS and D6 exports diverge');",
  "const project=JSON.parse(await blobs[2].text()),workspace=JSON.parse(await blobs[3].text());",
  "if(project.facts.title!=='Verified Demo Company'||workspace.composition!=='gallery-mosaic')throw Error('exported edits missing');",
+ "if(workspace.version!==3||workspace.pageSettings.pages.home.seoTitle!=='Verified SEO page title'||site.pages[0].seo.title!=='Verified SEO page title')throw Error('SEO workspace v3 not exported');",
  "if(!downloadNames[4].endsWith('-html-preview.zip'))throw Error('HTML preview ZIP name');",
  "const previewZip=window.DesignFactoryPreviewZip.inspect(new Uint8Array(await blobs[4].arrayBuffer()));",
  "if(previewZip.files!==8||!previewZip.crcVerified)throw Error('HTML ZIP contents failed CRC');",
