@@ -12,6 +12,15 @@
   'README.txt','approach/index.html','assets/preview.css','contact/index.html',
   'index.html','preview-info.json','review.html','services/index.html'
  ]);
+ const DELIVERY_FILES=Object.freeze([
+  'README.txt','audit/content-audit.json','audit/owner-review.html',
+  'client/feedback.json','cms/bridge-v2.json','cms/integration-v2.json',
+  'cms/site-v1.json','design/project.json','design/services.txt',
+  'design/workspace.json','manifest.json',
+  'preview/approach/index.html','preview/assets/preview.css',
+  'preview/contact/index.html','preview/index.html',
+  'preview/preview-info.json','preview/review.html','preview/services/index.html'
+ ]);
  const MAX_MEMBER=2*1024*1024,MAX_TOTAL=8*1024*1024,MAX_ZIP=9*1024*1024;
  const CRC=Uint32Array.from({length:256},(_,index)=>{
   let value=index;
@@ -48,23 +57,23 @@
  }
  function u16(view,at,n){view.setUint16(at,n,true);}
  function u32(view,at,n){view.setUint32(at,n,true);}
- function contentMap(files){
-  if(!Array.isArray(files)||files.length!==FILES.length)throw Error('Preview requires exactly eight files');
+ function contentMap(files,names){
+  if(!Array.isArray(files)||files.length!==names.length)throw Error('Unexpected ZIP file count');
   const entries=new Map();
   for(const file of files){
-   if(!file||typeof file.name!=='string'||!FILES.includes(file.name)||entries.has(file.name))
+   if(!file||typeof file.name!=='string'||!names.includes(file.name)||entries.has(file.name))
     throw Error('Unexpected or duplicate preview ZIP member');
    const bytes=utf8(file.content);
    if(bytes.length>MAX_MEMBER)throw Error('Preview ZIP member too large: '+file.name);
    entries.set(file.name,bytes);
   }
-  if(FILES.some(name=>!entries.has(name)))throw Error('Incomplete preview ZIP inventory');
+  if(names.some(name=>!entries.has(name)))throw Error('Incomplete preview ZIP inventory');
   return entries;
  }
- function build(files){
-  const records=contentMap(files),local=[],central=[];
+ function buildProfile(files,names){
+  const records=contentMap(files,names),local=[],central=[];
   let offset=0,total=0,centralSize=0;
-  for(const name of FILES){
+  for(const name of names){
    const path=utf8(name),data=records.get(name),crc=crc32(data);
    total+=data.length;if(total>MAX_TOTAL)throw Error('Preview exceeds 8 MiB');
    const localHeader=new Uint8Array(30),a=new DataView(localHeader.buffer);
@@ -81,24 +90,24 @@
    if(offset+centralSize+22>MAX_ZIP)throw Error('Preview ZIP exceeds 9 MiB');
   }
   const end=new Uint8Array(22),v=new DataView(end.buffer);
-  u32(v,0,0x06054b50);u16(v,8,FILES.length);u16(v,10,FILES.length);
+  u32(v,0,0x06054b50);u16(v,8,names.length);u16(v,10,names.length);
   u32(v,12,centralSize);u32(v,16,offset);
   return concat([...local,...central,end],offset+centralSize+22);
  }
- function inspect(bytes){
+ function inspectProfile(bytes,names){
   if(!(bytes instanceof Uint8Array)||bytes.length<22||bytes.length>MAX_ZIP)
    throw Error('Invalid preview ZIP bytes');
   const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
   const length=bytes.length,foot=length-22;
   if(view.getUint32(foot,true)!==0x06054b50||
    view.getUint16(foot+4,true)!==0||view.getUint16(foot+6,true)!==0||
-   view.getUint16(foot+8,true)!==FILES.length||
-   view.getUint16(foot+10,true)!==FILES.length||view.getUint16(foot+20,true)!==0)
+   view.getUint16(foot+8,true)!==names.length||
+   view.getUint16(foot+10,true)!==names.length||view.getUint16(foot+20,true)!==0)
    throw Error('Invalid ZIP end directory');
   const start=view.getUint32(foot+16,true),size=view.getUint32(foot+12,true);
   if(start+size!==foot)throw Error('Preview ZIP central directory bounds');
   let pos=start,localEnd=0,total=0;
-  for(const name of FILES){
+  for(const name of names){
    const encoded=utf8(name),n=encoded.length;
    if(pos+46+n>foot||view.getUint32(pos,true)!==0x02014b50||
     view.getUint16(pos+4,true)!==20||view.getUint16(pos+6,true)!==20||
@@ -127,8 +136,14 @@
   }
   if(pos!==foot||localEnd!==start)throw Error('Preview ZIP trailing records');
   return Object.freeze({format:'manufact-design-factory-preview-zip-v1',
-   files:FILES.length,bytes:length,sourceBytes:total,crcVerified:true,
+   files:names.length,bytes:length,sourceBytes:total,crcVerified:true,
    warning:'Offline static preview only; not CMS PHP parity, human approval or production release'});
  }
- return {build,inspect,files:FILES,crc32};
+ function build(files){return buildProfile(files,FILES);}
+ function inspect(bytes){return inspectProfile(bytes,FILES);}
+ function buildDelivery(files){return buildProfile(files,DELIVERY_FILES);}
+ function inspectDelivery(bytes){return inspectProfile(bytes,DELIVERY_FILES);}
+ function crcText(value){return crc32(utf8(value));}
+ return {build,inspect,files:FILES,crc32,crcText,
+  buildDelivery,inspectDelivery,deliveryFiles:DELIVERY_FILES};
 });
