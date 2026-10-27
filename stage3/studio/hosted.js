@@ -433,6 +433,13 @@
           expectedWorkflowRevision:Number(lead.workflow_revision)||0
         });
         if(state.siteId===currentSite){
+          // A saved lead should remain observable after moving out of the
+          // active status or priority filter; keep unrelated search intact.
+          if(leadsStatus.value!=='all'&&leadsStatus.value!==stage.value)
+            leadsStatus.value='all';
+          if(leadsPriority.value!=='all'&&leadsPriority.value!==priority.value)
+            leadsPriority.value='all';
+          inboxPage=1;
           await loadSubmissions();
           notice(result.changed?'Заявка обновлена. Изменение добавлено в историю.':'Изменений нет.');
         }
