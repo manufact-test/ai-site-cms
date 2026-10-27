@@ -88,7 +88,7 @@ function inspect(file){
     readiness:meta.readiness,files:entries.size,bytes:raw.length,
     formCount:meta.forms,redirects:Object.keys(meta.redirects).length};
 }
-try{
+if(require.main===module)try{
   if(process.argv.length!==3)die('Usage: verify-delivery.cjs ABSOLUTE-delivery.zip');
   process.stdout.write(JSON.stringify(inspect(process.argv[2]),null,2)+'\n');
 }catch(error){console.error(error.message);process.exitCode=1;}

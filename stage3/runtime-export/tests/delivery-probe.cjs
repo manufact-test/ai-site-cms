@@ -84,6 +84,36 @@ try{
   assert.match(refuses('verify-delivery.cjs',corrupt),/CRC mismatch/);
   const archivePath=path.join(tmp,'handoff.json');
   fs.writeFileSync(archivePath,JSON.stringify(capsule(html)));
+  // D5: one-command HTML and PHP shipment, in-file offline preflight,
+  // independent operator report, atomically published output and no overwrite.
+  const shippedHtml=success('ship.cjs',archivePath,'html',path.join(tmp,'shipped-html.zip'),
+    '--expect-origin=https://example.test');
+  const reportHtml=JSON.parse(fs.readFileSync(shippedHtml.report,'utf8'));
+  assert.equal(shippedHtml.technology,'html');
+  assert.equal(shippedHtml.approvalGranted,false);
+  assert.equal(shippedHtml.productionDeployed,false);
+  assert.equal(reportHtml.counts.blockers,0);
+  assert.equal(reportHtml.stats.pages,2);
+  assert.equal(reportHtml.readiness,'requires-operator-approval');
+  assert.equal(success('verify-delivery.cjs',shippedHtml.zip).sha256,shippedHtml.zipSha256);
+  const auditHtml=success('audit-delivery.cjs',shippedHtml.zip,
+    '--expect-origin=https://example.test','--fail-on-blockers');
+  assert.equal(auditHtml.counts.blockers,0);
+  assert.match(refuses('ship.cjs',archivePath,'html',shippedHtml.zip),/unused absolute paths/);
+  assert.match(refuses('ship.cjs',archivePath,'html',path.join(tmp,'wrong-host.zip'),
+    '--expect-origin=https://bad-host.test'),/canonical origin|blocker|refused/i);
+  const shippedPhp=success('ship.cjs',archivePath,'php',path.join(tmp,'shipped-php.zip'));
+  assert.equal(shippedPhp.technology,'php');
+  assert.equal(JSON.parse(fs.readFileSync(shippedPhp.report,'utf8')).stats.pages,2);
+  assert.match(refuses('ship.cjs',archivePath,'next-static',path.join(tmp,'unsafe-next.zip')),
+    /Opt in explicitly/);
+  const shippedSsr=success('ship.cjs',archivePath,'next-ssr',path.join(tmp,'shipped-ssr.zip'));
+  assert.equal(shippedSsr.technology,'next-ssr');
+  assert.equal(shippedSsr.readiness,'blocked');
+  const ssrAudit=JSON.parse(fs.readFileSync(shippedSsr.report,'utf8'));
+  assert.ok(ssrAudit.findings.some(f=>f.code==='SSR_BUILD_REQUIRED'));
+  assert.match(refuses('audit-delivery.cjs',shippedSsr.zip,'--fail-on-blockers'),
+    /^$/);
   const oneShot=success('package-handoff.cjs',archivePath,'php',path.join(tmp,'from-d2-php.zip'));
   assert.equal(oneShot.technology,'php');assert.equal(oneShot.verified,true);
   const phpEntries=readArchive(fs.readFileSync(oneShot.delivery));

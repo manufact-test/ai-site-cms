@@ -172,30 +172,35 @@
   });
   // D4: direct immutable D2 capsule -> one-command ZIP handoff. This only
   // explains OFFLINE commands; it never runs or exposes deployment credentials.
+  // D5: one command for all runtimes. Only Next Static may intentionally
+  // download npm packages, and ONLY with an explicit local operator flag.
   const techZipHelp=element('details','hosted-backup-summary');
   techZipHelp.id='server-tech-zip-help';
-  const zipHeading=element('summary',null,'D4 · Готовый ZIP для передачи на хостинг');
+  const zipHeading=element('summary',null,'D5 · Одна команда: ZIP + аудит + отчёт');
   const zipExplanation=element('p',null,
-    'После скачивания JSON соберите настоящий ZIP локально. ZIP содержит файлы сайта, SHA256, маршруты и инструкции. Это не автоматический деплой.');
-  const zipCommands=element('pre');zipCommands.style.whiteSpace='pre-wrap';
-  zipCommands.style.overflowWrap='anywhere';zipCommands.id='server-tech-zip-commands';
+    'После скачивания JSON создайте проверенный ZIP и отдельный отчёт .preflight.json одной командой. Проверяются SEO, страницы, медиа, формы, маршруты и SHA256. Выпуск не разворачивается на хостинге.');
+  const zipCommands=element('pre');
+  zipCommands.style.whiteSpace='pre-wrap';
+  zipCommands.style.overflowWrap='anywhere';
+  zipCommands.id='server-tech-zip-commands';
+  const zipDisclaimer=element('p',null,
+    'Важно: Next Static с флагом --allow-npm-install скачивает зависимости npm и выполняет реальную локальную сборку. Для Next SSR пакет содержит исходники, и без Node-сборки не считается готовым. Успешный аудит не заменяет проверку на хостинге.');
   const refreshZipHelp=()=>{
     const name='site-published-v'+techVersion.value+'-handoff.json';
-    const base='stage3/runtime-export/bin/';
+    const command='node stage3/runtime-export/bin/ship.cjs';
+    const output='/ABS/new-site-delivery.zip';
     const target=techTarget.value;
-    zipCommands.textContent=target==='next-static'?[
-      'node '+base+'build-handoff.cjs /ABS/'+name+' next-static /ABS/new-next-project',
-      'cd /ABS/new-next-project && npm install && npm run build',
-      'node /ABS/REPO/'+base+'prepare-delivery.cjs /ABS/new-next-project /ABS/new-next-static.zip',
-      'node /ABS/REPO/'+base+'verify-delivery.cjs /ABS/new-next-static.zip'
-    ].join('\n'):[
-      'node '+base+'package-handoff.cjs /ABS/'+name+' '+target+' /ABS/new-site-delivery.zip',
-      'node '+base+'verify-delivery.cjs /ABS/new-site-delivery.zip'
+    zipCommands.textContent=[
+      command+' /ABS/'+name+' '+target+' '+output+
+        (target==='next-static'?' --allow-npm-install':''),
+      'node stage3/runtime-export/bin/audit-delivery.cjs '+output+' --fail-on-blockers',
+      'Отчёт: '+output+'.preflight.json',
+      'Production: НЕТ · Одобрение владельца: обязательно'
     ].join('\n');
   };
   for(const field of [techVersion,techTarget])field.addEventListener('change',refreshZipHelp);
   refreshZipHelp();
-  techZipHelp.append(zipHeading,zipExplanation,zipCommands);
+  techZipHelp.append(zipHeading,zipExplanation,zipCommands,zipDisclaimer);
   techDialog.append(techTitle,techHint,techVersionWrap,techTargetWrap,
     techOriginWrap,techCollectorWrap,techCompare,techPlanSummary,techLabHelp,techZipHelp,techActions);
   document.body.append(techDialog);

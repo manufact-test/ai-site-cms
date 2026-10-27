@@ -57,6 +57,9 @@ jobs:
           node --check stage3/runtime-export/bin/prepare-delivery.cjs
           node --check stage3/runtime-export/bin/package-handoff.cjs
           node --check stage3/runtime-export/bin/verify-delivery.cjs
+          node --check stage3/runtime-export/lib/delivery-preflight.cjs
+          node --check stage3/runtime-export/bin/audit-delivery.cjs
+          node --check stage3/runtime-export/bin/ship.cjs
           node stage3/runtime-export/tests/delivery-probe.cjs
       - name: Server syntax and one full HTTP persistence/publish E2E
         run: |

@@ -250,7 +250,9 @@ async function execute(){
   await page.locator('#server-tech-compare').getByText(/Отличия публикации v1 → v2/).waitFor();
   await page.locator('#server-tech-target').selectOption('next-static');
   await page.locator('#server-tech-zip-help').locator('summary').click();
-  assert.match(await page.locator('#server-tech-zip-commands').innerText(),/npm run build/);
+  assert.match(await page.locator('#server-tech-zip-commands').innerText(),/ship\.cjs/);
+  assert.match(await page.locator('#server-tech-zip-commands').innerText(),/--allow-npm-install/);
+  assert.match(await page.locator('#server-tech-zip-commands').innerText(),/preflight\.json/);
 
   await page.locator('#server-tech-origin').fill('https://example.test');
   await page.locator('#server-tech-plan').click();

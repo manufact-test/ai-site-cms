@@ -51,30 +51,48 @@ async function probe() {
     formCollector:null,publicOrigin:'https://example.test'
   },null,2));
   const dir=path.join(tmp,'release');
-  const targets={static:path.join(tmp,'static'),ssr:path.join(tmp,'ssr')};
-  cmd('node',['stage3/runtime-export/bin/build.cjs',dir,'next-static',targets.static],root);
+  const targets={ssr:path.join(tmp,'ssr')};
   cmd('node',['stage3/runtime-export/bin/build.cjs',dir,'next-ssr',targets.ssr],root);
-  for(const dest of Object.values(targets)) {
-    cmd('npm',['install','--no-audit','--no-fund'],dest);
-    cmd('npm',['run','build'],dest);
+  cmd('npm',['install','--no-audit','--no-fund'],targets.ssr);
+  cmd('npm',['run','build'],targets.ssr);
+  // D5 performs a *single command* real Next Static npm build + ZIP, rather
+  // than building once for testing and then building it a second time.
+  const capsuleFiles=[];
+  function collect(folder,rel=''){
+    for(const entry of fs.readdirSync(folder,{withFileTypes:true})){
+      const name=rel?rel+'/'+entry.name:entry.name,full=path.join(folder,entry.name);
+      if(entry.isDirectory())collect(full,name);
+      else { const bytes=fs.readFileSync(full);
+        capsuleFiles.push({path:name,sha256:hash(bytes),base64:bytes.toString('base64')}); }
+    }
   }
-  // D4 real built Next Static output -> transportable verified ZIP.
+  collect(dir);
+  const manifestBytes=fs.readFileSync(path.join(dir,'release-manifest.json'));
+  const jsonCapsule=path.join(tmp,'D2-capsule.json');
+  fs.writeFileSync(jsonCapsule,JSON.stringify({format:'manufact-runtime-handoff-v1',
+    siteId:'site-next-proof',version:2,sourceRevision:7,manifestSha256:hash(manifestBytes),
+    rawBytes:capsuleFiles.reduce((t,f)=>t+Buffer.from(f.base64,'base64').length,0),
+    files:capsuleFiles}));
   const readyZip=path.join(tmp,'actual-next-static-delivery.zip');
-  cmd('node',['stage3/runtime-export/bin/prepare-delivery.cjs',targets.static,readyZip],root);
+  cmd('node',['stage3/runtime-export/bin/ship.cjs',jsonCapsule,'next-static',readyZip,
+    '--allow-npm-install','--expect-origin=https://example.test'],root,360000);
   const checked=spawnSync('node',['stage3/runtime-export/bin/verify-delivery.cjs',readyZip],
     {cwd:root,encoding:'utf8'});
   assert.equal(checked.status,0,checked.stderr);
   const delivery=JSON.parse(checked.stdout);
   assert.equal(delivery.technology,'next-static');
   assert.equal(delivery.readiness,'files-prepared');
+  const report=JSON.parse(fs.readFileSync(readyZip+'.preflight.json','utf8'));
+  assert.equal(report.counts.blockers,0);
+  assert.equal(report.stats.pages,2);
   const zipTree=require('../lib/delivery-zip.cjs').readArchive(fs.readFileSync(readyZip));
   assert.ok(zipTree.has('deploy/about/index.html'));
   assert.ok(zipTree.has('deploy/old/index.html'));
   assert.ok(String(zipTree.get('deploy/.htaccess')).includes('RewriteRule ^old'));
-  assert.match(fs.readFileSync(path.join(targets.static,'out/index.html'),'utf8'),/Visible CMS published home/);
-  assert.match(fs.readFileSync(path.join(targets.static,'out/about/index.html'),'utf8'),/Visible CMS published about/);
-  assert.match(fs.readFileSync(path.join(targets.static,'out/old/index.html'),'utf8'),/Moved/);
-  assert.ok(fs.existsSync(path.join(targets.static,'out/assets/image-abc.png')));
+  assert.match(String(zipTree.get('deploy/index.html')),/Visible CMS published home/);
+  assert.match(String(zipTree.get('deploy/about/index.html')),/Visible CMS published about/);
+  assert.match(String(zipTree.get('deploy/old/index.html')),/Moved/);
+  assert.ok(zipTree.has('deploy/assets/image-abc.png'));
   const port=await freePort();
   const child=spawn('npm',['run','start','--','-p',String(port),'-H','127.0.0.1'],
     {cwd:targets.ssr,env:{...process.env,NEXT_TELEMETRY_DISABLED:'1'},detached:true,
