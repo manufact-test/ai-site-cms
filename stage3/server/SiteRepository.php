@@ -21,6 +21,7 @@ final class SiteRepository
     use AccessControl;
     use Licenses;
     use FormDelivery;
+    use LeadWorkflow;
     private string $driver;
     public function __construct(private PDO $db, private ContractValidator $validator)
     {
@@ -61,7 +62,7 @@ final class SiteRepository
             "CREATE TABLE stage3_notifications (site_id $id NOT NULL, submission_id $id NOT NULL, created_at VARCHAR(35) NOT NULL, seen_at VARCHAR(35) NULL, PRIMARY KEY(site_id, submission_id))$tail",
             "CREATE TABLE stage3_section_templates (site_id $id NOT NULL, template_id $id NOT NULL, title VARCHAR(160) NOT NULL, component VARCHAR(80) NOT NULL, body $big NOT NULL, created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id,template_id))$tail"
         ];
-        foreach (array_merge($schema, $this->accessSchema(), [$this->licenseSchema()], $this->deliverySchema(), $this->videoUploadSchema()) as $sql) {
+        foreach (array_merge($schema, $this->accessSchema(), [$this->licenseSchema()], $this->deliverySchema(), $this->videoUploadSchema(), $this->leadWorkflowSchema()) as $sql) {
             $this->db->exec($sql);
         }
     }
@@ -603,7 +604,7 @@ final class SiteRepository
     public function submissions(string $siteId): array
     {
         $this->getDraft($siteId);
-        $stmt = $this->db->prepare('SELECT submission_id, section_id, source_version, name, email, message, submitted_at, status, extras FROM stage3_submissions WHERE site_id = ? ORDER BY submitted_at DESC, submission_id DESC LIMIT 100');
+        $stmt = $this->db->prepare('SELECT s.submission_id,s.section_id,s.source_version,s.name,s.email,s.message,s.submitted_at,s.status,s.extras,COALESCE(w.priority,\'normal\') AS priority,COALESCE(w.note,\'\') AS note,COALESCE(w.revision,0) AS workflow_revision FROM stage3_submissions s LEFT JOIN stage3_lead_workflow w ON w.site_id=s.site_id AND w.submission_id=s.submission_id WHERE s.site_id = ? ORDER BY s.submitted_at DESC,s.submission_id DESC LIMIT 100');
         $stmt->execute([$siteId]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         foreach ($rows as &$row) {
@@ -616,7 +617,7 @@ final class SiteRepository
     /** Scoped, bounded and parameterized inbox filtering for real CMS operators. */
     private function inboxWhere(string $siteId, string $status, string $query): array
     {
-        if (!in_array($status, ['all','new','reviewed'], true)) {
+        if (!in_array($status, ['all','new','in_progress','reviewed'], true)) {
             throw new \InvalidArgumentException('Unknown inbox status filter');
         }
         if (strlen($query)>120 || preg_match('//u',$query)!==1
@@ -644,17 +645,22 @@ final class SiteRepository
         [$where,$params]=$this->inboxWhere($siteId,$status,$query);
         $count=$this->db->prepare('SELECT COUNT(*) FROM stage3_submissions WHERE '.$where);
         $count->execute($params);$total=(int)$count->fetchColumn();
-        $stats=['all'=>0,'new'=>0,'reviewed'=>0];
+        $stats=['all'=>0,'new'=>0,'in_progress'=>0,'reviewed'=>0];
         $totals=$this->db->prepare('SELECT status, COUNT(*) AS tally FROM stage3_submissions WHERE site_id = ? GROUP BY status');
         $totals->execute([$siteId]);
         foreach ($totals->fetchAll(PDO::FETCH_ASSOC) as $row) {
             if (array_key_exists($row['status'],$stats))$stats[$row['status']]=(int)$row['tally'];
         }
-        $stats['all']=$stats['new']+$stats['reviewed'];
+        $stats['all']=$stats['new']+$stats['in_progress']+$stats['reviewed'];
         $pages=max(1,(int)ceil($total/$limit));
         $page=min($page,$pages);
-        $stmt=$this->db->prepare('SELECT submission_id,section_id,source_version,name,email,message,submitted_at,status,extras'
-            .' FROM stage3_submissions WHERE '.$where
+        $stmt=$this->db->prepare('SELECT s.submission_id,s.section_id,s.source_version,s.name,s.email,s.message,s.submitted_at,s.status,s.extras,'
+            .' COALESCE(w.priority,\'normal\') AS priority,COALESCE(w.note,\'\') AS note,'
+            .' COALESCE(w.revision,0) AS workflow_revision,w.operator AS workflow_operator,w.changed_at AS workflow_changed_at'
+            .' FROM stage3_submissions s LEFT JOIN stage3_lead_workflow w'
+            .' ON w.site_id=s.site_id AND w.submission_id=s.submission_id'
+            .' WHERE '.str_replace(['site_id =',' AND status =','name LIKE','email LIKE','message LIKE'],
+              ['s.site_id =',' AND s.status =','s.name LIKE','s.email LIKE','s.message LIKE'],$where)
             .' ORDER BY submitted_at DESC,submission_id DESC LIMIT ? OFFSET ?');
         foreach($params as $i=>$value)$stmt->bindValue($i+1,$value,PDO::PARAM_STR);
         $stmt->bindValue(count($params)+1,$limit,PDO::PARAM_INT);
@@ -676,14 +682,14 @@ final class SiteRepository
         $stream=fopen('php://temp','w+');
         if ($stream===false)throw new \RuntimeException('Cannot prepare CSV');
         fwrite($stream,"\xEF\xBB\xBF");
-        fputcsv($stream,['ID','Date UTC','Status','Name','Email','Message','Form section','Published version','Extra fields'],',','"','');
+        fputcsv($stream,['ID','Date UTC','Status','Priority','Name','Email','Message','Private note','Form section','Published version','Extra fields'],',','"','');
         foreach ($data['submissions'] as $row) {
             $extras=[];
             foreach ($row['extras'] as $extra) {
                 if (is_array($extra))$extras[]=($extra['label']??'').': '.($extra['value']??'');
             }
-            $cells=[$row['submission_id'],$row['submitted_at'],$row['status'],$row['name'],$row['email'],
-                $row['message'],$row['section_id'],(string)$row['source_version'],implode(' | ',$extras)];
+            $cells=[$row['submission_id'],$row['submitted_at'],$row['status'],$row['priority'],$row['name'],$row['email'],
+                $row['message'],$row['note'],$row['section_id'],(string)$row['source_version'],implode(' | ',$extras)];
             // Neutralize spreadsheet formulas, including values preceded by whitespace.
             $cells=array_map(static function(string $value): string {
                 return preg_match('/^[\x00-\x20]*[=+\-@]/',$value)===1?"'".$value:$value;

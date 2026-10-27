@@ -76,13 +76,14 @@ final class Api
             || preg_match('~^media/[a-z][a-z0-9-]{2,79}$~D', $action))) return;
         if ($method === 'POST' && $action === 'preview') return;
         $edit = in_array($principal['role'], ['editor','publisher'], true);
-        if ($edit && $method === 'GET' && in_array($action, ['notifications','submissions','submissions/export'], true)) return;
+        if ($edit && $method === 'GET' && (in_array($action, ['notifications','submissions','submissions/export'], true) || preg_match('~^submissions/lead-[0-9a-f]{24}/history$~D',$action))) return;
         if ($edit && $method === 'POST' &&
             preg_match('~^video-uploads/(?:start|video-[a-f0-9]{20}/(?:chunk|finish|cancel))$~D',$action)) return;
         if ($edit && $method === 'POST' && (in_array($action, ['save','restore','restore-release','media','video','templates','notifications/seen'], true)
             || preg_match('~^templates/template-[0-9a-f]{18}/delete$~D', $action)
             || preg_match('~^submissions/lead-[0-9a-f]{24}/review$~D', $action)
-            || $action==='submissions/bulk-review')) return;
+            || $action==='submissions/bulk-review'
+            || preg_match('~^submissions/lead-[0-9a-f]{24}/workflow$~D',$action))) return;
         if ($principal['role'] === 'publisher' && $method === 'POST' && $action === 'publish') return;
         $this->response(403, ['error' => 'Role does not allow this operation']);
     }
@@ -504,7 +505,7 @@ final class Api
                     $this->response(200, $this->sites->markNotificationsSeen($alertMatch[1]));
                 }
             }
-            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/submissions(?:/(export|bulk-review|lead-[0-9a-f]{24}/review))?$~D', $path, $inboxMatch)) {
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/submissions(?:/(export|bulk-review|lead-[0-9a-f]{24}/(?:review|workflow|history)))?$~D', $path, $inboxMatch)) {
                 $siteId=$inboxMatch[1];$operation=$inboxMatch[2]??'';
                 if($method==='GET'&&in_array($operation,['','export'],true)){
                     $status=$_GET['status']??'all';$query=$_GET['q']??'';
@@ -525,6 +526,18 @@ final class Api
                     if(!is_string($rawPage)||preg_match('/^[1-9][0-9]{0,3}$/D',$rawPage)!==1)
                         throw new InvalidArgumentException('Invalid inbox page');
                     $this->response(200,$this->sites->inboxPage($siteId,$status,$query,(int)$rawPage));
+                }
+                if($method==='GET'&&preg_match('/^(lead-[0-9a-f]{24})\/history$/D',$operation,$leadMatch)){
+                    $this->response(200,$this->sites->leadWorkflowHistory($siteId,$leadMatch[1]));
+                }
+                if($method==='POST'&&preg_match('/^(lead-[0-9a-f]{24})\/workflow$/D',$operation,$leadMatch)){
+                    if(!is_string($body['status']??null)||!is_string($body['priority']??null)
+                        ||!is_string($body['note']??null)||!is_int($body['expectedWorkflowRevision']??null))
+                        throw new InvalidArgumentException('Typed lead workflow fields required');
+                    $result=$this->sites->updateLeadWorkflow($siteId,$leadMatch[1],$principal['username'],
+                        $body['status'],$body['priority'],$body['note'],$body['expectedWorkflowRevision']);
+                    $this->auditDetail='Lead workflow changed '.($result['changed']?'yes':'no');
+                    $this->response(200,$result);
                 }
                 if($method==='POST'&&$operation==='bulk-review'){
                     $ids=$body['ids']??null;
