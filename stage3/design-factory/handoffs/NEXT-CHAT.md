@@ -1,5 +1,9 @@
 # Design Factory — NEXT CHAT / independent developer handoff
 
+## 27.10.2026 — concise authoritative next-chat handoff
+
+**Read [`START-HERE-2026-10-27.md`](START-HERE-2026-10-27.md) first.** Final functional SHA before this documentation update: `f08426ed48ac23264e51433c3d641243ecd31b49`. This update introduced byte-for-byte recompilation of **all 164 generated artifacts**, including 16 four-page sites and the D3 showroom, plus fixture generation using the real compiler. **V8 source-only tests are not full Node or Chromium acceptance. D7 remains OPEN, 6/7 ~86%, Stage3 UNACCEPTED and 0/135 accepted.** The repeated 86% figure is phase-based and will change only when end-to-end D7 evidence actually passes, not because another validator was added. Previous chronology below is historical; the new short handoff supersedes it for next steps.
+
 ## 27.10.2026 — D7 whole-site identity and all-route real-Chromium preflight
 
 **Branch-only engineering commits:** `3a13d2995c510fbcdb4ef75edb45840a48a0a0be`, `e85c45cf628960335995a3d729490afb6b476b15`, `dab572bfaac3a5ac8b65a3639279895361dc57e0`, `5fb219954bfd336c26fe2c32b4a00a73ab28e89a`. All are strictly inside `stage3/design-factory/` on `feature/stage3-design-factory`. No merge, production, main, SDK, PHP or workflow edits.
