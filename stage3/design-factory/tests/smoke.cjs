@@ -78,7 +78,7 @@ try{
   assert.equal(wrongDimensions.complete,false);assert.equal(wrongDimensions.dimensionMismatches,1);
   const guardedOutput=path.join(repository,'df-visual-qa-guard-'+process.pid);
   try{
-    assert.throws(()=>visualQA.run({output:guardedOutput,bin:'/bin/false',quick:true}),/outside repository/);
+    assert.throws(()=>require('../lib/output-path.cjs').resolveOutsideRepository(guardedOutput,repository,'Visual QA output'),/outside repository/);
     assert.equal(fs.existsSync(guardedOutput),false,'Visual QA must refuse to create output in the repository');
   }finally{fs.rmSync(guardedOutput,{recursive:true,force:true});}
   const auditCli=path.join(__dirname,'../bin/release-audit.cjs');

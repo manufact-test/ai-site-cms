@@ -183,10 +183,11 @@ assert.ok(!markup.includes('allow-same-origin'));
   assert.ok(markup.includes('id="'+id+'"'),'D7 workbench control '+id);
  assert.ok(markup.includes('id="compare-preview" sandbox="allow-scripts"'));
  assert.ok(app.includes('function compileForTheme(theme)'));
-assert.ok(bundle.includes("sections.splice(cta<0?sections.length:cta,0,section)"),
- 'Bundled D6 bridge must preserve CTA and match Studio composition adapter');
-assert.ok(app.includes("sections.splice(cta<0?sections.length:cta,0,replacement)"),
- 'Composition must not delete the default CTA block');
+assert.ok(bundle.includes("home.splice(cta<0?home.length:cta,0,"),
+ 'Bundled D6 section-plan bridge must insert composition before the existing CTA');
+assert.ok(bundle.includes("['company-hero','cta-banner'].includes(s.component)&&!used.has(s.id)")&&
+ app.includes('engine.bridge.workspace(workspace())'),
+ 'Studio section-plan bridge must protect the original hero/CTA and validate edits');
 assert.ok(app.includes('state.project.ownerReviewConfirmed=false;\n state.editRevision++;'),
  'Undo/Redo must not implicitly restore a previous owner approval');
  assert.ok(app.includes('const project=theme===state.project.theme?state.project:{...clone(state.project),theme}'));

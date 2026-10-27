@@ -64,7 +64,7 @@ function generate(dir){
    for(const language of (item.bilingual?['ru','en']:['ru'])){
     const folder=kit+'-'+language;
     if(!idSafe(folder))throw Error('Invalid generated folder');
-    const project={format:PROJECT_FORMAT,version:VERSION,kit,theme:item.theme,language,
+    const project={format:FORMAT,version:VERSION,kit,theme:item.theme,language,
       facts:{siteId:'factory-'+kit+'-'+language}};
     const compiled=compile(project);
     const child=path.join(output,folder);

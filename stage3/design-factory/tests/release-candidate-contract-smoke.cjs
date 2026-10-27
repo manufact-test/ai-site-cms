@@ -112,7 +112,7 @@ function fixture(chromium=false){
   stdout:chromium&&suite==='studio-smoke.cjs'?'DESIGN_FACTORY_D5_CHROMIUM PASS':
    chromium&&suite==='visual-pipe-smoke.cjs'?'DESIGN_FACTORY_D7_VISUAL_PIPE PASS':''}));
  return {format:'manufact-design-factory-release-check-v2',version:2,
-  fileCount:entries.length,sourceManifest:structuredClone(manifest),
+  sourceDirectory:'stage3/design-factory/',fileCount:entries.length,sourceManifest:structuredClone(manifest),
   sourceManifestSha256:manifestDigest(manifest),checks,nodePassed:true,
   browserRequested:chromium,browserPassed:chromium,
   automatedChecksPassed:chromium,humanVisualAcceptance:'pending',releaseReady:false};

@@ -176,7 +176,7 @@ try{
  const oldUnscreened=fs.readFileSync(unscreened);
  try{
   fs.appendFileSync(unscreened,'<!-- changed unphotographed internal route -->');
-  reject(approved,/Generated D7 source modified after capture/);
+  reject(approved,/Generated D7 source is not reproducible from first-party compiler/);
  }finally{fs.writeFileSync(unscreened,oldUnscreened);}
  const absentSourceManifest={...report,generatedSourceFiles:undefined};
  absentSourceManifest.evidenceSha256=evidenceHash(absentSourceManifest);

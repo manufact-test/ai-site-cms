@@ -236,11 +236,16 @@ class BrowserPipe {
  }
  async close(){
   this.closed=true;
-  try{this.child.kill('SIGTERM');}catch(_){}
-  await Promise.race([new Promise(resolve=>this.child.once('exit',resolve)),sleep(800)]);
-  if(this.child.exitCode===null)try{this.child.kill('SIGKILL');}catch(_){}
-  // Chromium can briefly keep profile files open after terminating.
-  fs.rmSync(this.profile,{recursive:true,force:true,maxRetries:8,retryDelay:120});
+  const exited=()=>this.child.exitCode!==null||this.child.signalCode!==null;
+  const completion=exited()?Promise.resolve():new Promise(resolve=>this.child.once('exit',resolve));
+  if(!exited())try{this.child.kill('SIGTERM');}catch(_){}
+  await Promise.race([completion,sleep(1200)]);
+  if(!exited()){
+   try{this.child.kill('SIGKILL');}catch(_){}
+   await Promise.race([completion,sleep(2500)]);
+  }
+  // Chromium may keep profile files open briefly after its main process exits.
+  await fs.promises.rm(this.profile,{recursive:true,force:true,maxRetries:18,retryDelay:180});
  }
 }
 async function openBrowser(binary){
