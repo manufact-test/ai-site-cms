@@ -171,3 +171,15 @@
 .hosted-launch-progress{border:1px solid #3b695d;border-radius:8px;padding:10px 12px;background:#163b32}
 #server-launch-mark{border-color:#618e9e}
 #server-launch-mark:disabled{opacity:.55}
+
+/* Private CRM workflow: per-lead optimistic edit + readonly server audit trail. */
+.hosted-lead-workflow{border-top:1px solid rgba(128,150,160,.22);padding:9px 0 0;margin-top:6px}
+.hosted-lead-workflow summary{cursor:pointer;font-weight:650;font-size:12px;line-height:1.5}
+.hosted-lead-workflow-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.hosted-lead-workflow-fields .control{min-width:0;max-width:100%}
+.hosted-lead-workflow-fields textarea{grid-column:1/-1;resize:vertical;min-height:80px}
+.hosted-lead-history{grid-column:1/-1;display:grid;gap:5px}
+.hosted-lead-history small{padding:5px;border-inline-start:2px solid #4d8189;font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere}
+.hosted-inbox-tools .control{min-width:135px;max-width:220px}
+@media(max-width:650px){.hosted-lead-workflow-fields{grid-template-columns:1fr}
+.hosted-lead-workflow-fields textarea,.hosted-lead-history{grid-column:1}}

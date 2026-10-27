@@ -106,10 +106,15 @@
   const leadsList=element('div','hosted-leads-list');leadsList.id='server-submissions';
   const leadsTools=element('div','hosted-inbox-tools');
   const leadsStatus=element('select','control');leadsStatus.id='server-inbox-status';
-  for(const [value,name] of [['all','Все'],['new','Новые'],['reviewed','Обработанные']]){
+  for(const [value,name] of [['all','Все'],['new','Новые'],['in_progress','В работе'],['reviewed','Обработанные']]){
     const opt=element('option',null,name);opt.value=value;leadsStatus.append(opt);
   }
   leadsStatus.setAttribute('aria-label','Фильтр статуса заявок');
+  const leadsPriority=element('select','control');leadsPriority.id='server-inbox-priority';
+  leadsPriority.setAttribute('aria-label','Приоритет заявок');
+  for(const [value,label] of [['all','Все приоритеты'],['high','Высокий приоритет'],['normal','Обычный']]){
+    const option=element('option',null,label);option.value=value;leadsPriority.append(option);
+  }
   const leadsSearch=element('input','control');leadsSearch.type='search';leadsSearch.id='server-inbox-search';
   leadsSearch.placeholder='Имя, email или сообщение';leadsSearch.maxLength=120;
   leadsSearch.setAttribute('aria-label','Поиск по заявкам');
@@ -118,7 +123,7 @@
   const leadsExport=action('Скачать CSV','server-inbox-export',()=>safe(async()=>{
     if(!state.siteId||!canEdit())throw Error('Нет доступа к заявкам');
     const url='/api/sites/'+encodeURIComponent(state.siteId)+'/submissions/export?'+
-      new URLSearchParams({status:leadsStatus.value,q:leadsSearch.value});
+      new URLSearchParams({status:leadsStatus.value,q:leadsSearch.value,priority:leadsPriority.value});
     const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
     if(!response.ok){
       const error=await response.json().catch(()=>({error:'Ошибка CSV экспорта'}));
@@ -146,9 +151,10 @@
   const leadsTotals=element('small',null,'');leadsTotals.id='server-inbox-totals';
   const leadsPager=element('div','hosted-inbox-pager');
   leadsPager.append(leadsPrev,leadsPageLabel,leadsNext);
-  leadsTools.append(leadsStatus,leadsSearch,leadsFind,leadsExport,leadsBulk);
+  leadsTools.append(leadsStatus,leadsPriority,leadsSearch,leadsFind,leadsExport,leadsBulk);
   leadsPanel.append(leadsTitle,leadsRefresh,leadsTools,leadsTotals,leadsList,leadsPager);
   leadsStatus.addEventListener('change',()=>safe(async()=>{inboxPage=1;await loadSubmissions();}));
+  leadsPriority.addEventListener('change',()=>safe(async()=>{inboxPage=1;await loadSubmissions();}));
   leadsSearch.addEventListener('keydown',event=>{
     if(event.key==='Enter'){event.preventDefault();leadsFind.click();}
   });
@@ -280,14 +286,16 @@
       leadsPrev.disabled=true;leadsNext.disabled=true;leadsExport.disabled=true;
       leadsList.append(element('small',null,'Выберите сайт.'));return;
     }
-    if(inboxSite!==state.siteId){inboxSite=state.siteId;inboxPage=1;leadsSearch.value='';leadsStatus.value='all';}
+    if(inboxSite!==state.siteId){inboxSite=state.siteId;inboxPage=1;leadsSearch.value='';leadsStatus.value='all';leadsPriority.value='all';}
     const url='/api/sites/'+encodeURIComponent(state.siteId)+'/submissions?'+
-      new URLSearchParams({status:leadsStatus.value,q:leadsSearch.value,page:String(inboxPage)});
+      new URLSearchParams({status:leadsStatus.value,q:leadsSearch.value,
+        priority:leadsPriority.value,page:String(inboxPage)});
     const response=await api(url);
     await refreshAlerts(); // Inbox refresh and new-lead indicator are one operation.
     inboxPage=response.page;inboxVisible=response.submissions;
     leadsTitle.textContent='Заявки сайта · '+response.counts.all;
-    leadsTotals.textContent='Новые: '+response.counts.new+' · Обработанные: '+response.counts.reviewed+
+    leadsTotals.textContent='Новые: '+response.counts.new+' · В работе: '+response.counts.in_progress+
+      ' · Обработанные: '+response.counts.reviewed+
       ' · Найдено: '+response.total;
     leadsPageLabel.textContent='Страница '+response.page+' из '+response.pages;
     leadsPrev.disabled=response.page<=1;leadsNext.disabled=response.page>=response.pages;
@@ -335,13 +343,60 @@
           }
         }
       }
-      if(lead.status==='new'){
-        wrap.append(action('Обработано','',()=>safe(async()=>{
-          await api('/api/sites/'+encodeURIComponent(state.siteId)+'/submissions/'+
-            encodeURIComponent(lead.submission_id)+'/review','POST',{});
-          await loadSubmissions();notice('Заявка отмечена обработанной.');
-        })));
-      }
+      // Workflow is PRIVATE operator metadata, never sent to the published site.
+      // The editor requires a typed, optimistic revision (not the site revision).
+      const workflow=element('details','hosted-lead-workflow');
+      workflow.append(element('summary',null,'Работа с заявкой · '+
+        (lead.priority==='high'?'Высокий приоритет':'Обычный')+
+        (lead.note?' · есть заметка':'')));
+      const inputs=element('div','hosted-lead-workflow-fields');
+      const stage=element('select','control');stage.dataset.leadStage=lead.submission_id;
+      stage.setAttribute('aria-label','Этап заявки '+lead.name);
+      for(const [value,label] of [['new','Новая'],['in_progress','В работе'],['reviewed','Обработана']]){
+        const option=element('option',null,label);option.value=value;stage.append(option);
+      }stage.value=lead.status;
+      const priority=element('select','control');priority.dataset.leadPriority=lead.submission_id;
+      priority.setAttribute('aria-label','Приоритет заявки '+lead.name);
+      for(const [value,label] of [['normal','Обычный'],['high','Высокий']]){
+        const option=element('option',null,label);option.value=value;priority.append(option);
+      }priority.value=lead.priority||'normal';
+      const note=element('textarea','control');note.dataset.leadNote=lead.submission_id;
+      note.setAttribute('aria-label','Приватная заметка заявки '+lead.name);
+      note.maxLength=2000;note.rows=3;note.placeholder='Внутренняя заметка. Посетителю не показывается.';
+      note.value=lead.note||'';
+      const saveWorkflow=action('Сохранить работу','',()=>safe(async()=>{
+        const currentSite=state.siteId;
+        if(!currentSite||!canEdit())throw Error('Нет прав на управление заявками');
+        const result=await api('/api/sites/'+encodeURIComponent(currentSite)+
+          '/submissions/'+encodeURIComponent(lead.submission_id)+'/workflow','POST',{
+          status:stage.value,priority:priority.value,note:note.value,
+          expectedWorkflowRevision:Number(lead.workflow_revision)||0
+        });
+        if(state.siteId===currentSite){
+          await loadSubmissions();
+          notice(result.changed?'Заявка обновлена. Изменение добавлено в историю.':'Изменений нет.');
+        }
+      }));
+      saveWorkflow.dataset.leadWorkflowSave=lead.submission_id;
+      const history=action('История изменений','',()=>safe(async()=>{
+        const currentSite=state.siteId;
+        const response=await api('/api/sites/'+encodeURIComponent(currentSite)+
+          '/submissions/'+encodeURIComponent(lead.submission_id)+'/history');
+        if(state.siteId!==currentSite)return;
+        historyBox.replaceChildren();
+        if(!response.events.length){
+          historyBox.append(element('small',null,'Изменений ещё нет.'));return;
+        }
+        for(const item of response.events){
+          historyBox.append(element('small',null,item.changed_at+' · '+item.operator+
+            ' · '+item.from_status+' → '+item.to_status+
+            ' · '+item.from_priority+' → '+item.to_priority+
+            (Number(item.note_changed)?' · заметка изменена':'')));
+        }
+      }));
+      const historyBox=element('div','hosted-lead-history');
+      inputs.append(stage,priority,note,saveWorkflow,history,historyBox);
+      workflow.append(inputs);wrap.append(workflow);
       leadsList.append(wrap);
     }
   }
@@ -775,7 +830,7 @@
     $('import').disabled=state.busy||!isOwner();
     leadsRefresh.disabled=state.busy||!state.authorized||!state.siteId||!canEdit();
     leadsFind.disabled=leadsExport.disabled=state.busy||!state.siteId||!canEdit();
-    leadsStatus.disabled=leadsSearch.disabled=state.busy||!state.siteId||!canEdit();
+    leadsStatus.disabled=leadsSearch.disabled=leadsPriority.disabled=state.busy||!state.siteId||!canEdit();
     leadsBulk.disabled=state.busy||!state.siteId||!canEdit()||!inboxSelected.size;
     deliveryPanel.hidden=!isOwner();
     deliverySave.disabled=!available||!isOwner();deliveryRefresh.disabled=!available||!isOwner();
