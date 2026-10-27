@@ -1273,7 +1273,14 @@ async function execute(){
   const approvedPage=await visitor.goto(origin+'/published/site-approved-browser/');
   assert.equal(approvedPage.status(),200);
   assert.equal(await visitor.locator('h1').innerText(),'Редактируется после подключения');
-  assert.equal(await visitor.locator('meta[property="og:image"]').count(),1);
+  assert.equal(await visitor.title(),'Внешний готовый сайт');
+  assert.equal(await visitor.locator('meta[name="description"]').getAttribute('content'),
+    'Проверка подключения внешнего сайта');
+  // Absolute og:image markup needs STAGE3_PUBLIC_ORIGIN, intentionally unset in this CI.
+  // Check that its immutable media binding survives the actual publication instead.
+  const publishedApproved=(await (await page.request.get(origin+
+    '/api/sites/site-approved-browser/published-site')).json()).site;
+  assert.equal(publishedApproved.pages[0].seo.ogImage,imported.assets[0].id);
   await page.locator('#server-site-select').selectOption(siteId);
   await page.locator('#server-open').click();
   await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();
