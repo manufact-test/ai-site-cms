@@ -20,7 +20,7 @@ const clone=v=>structuredClone(v);
 const projectDefault=()=>engine.compiler.migrate(null);
 const state={
  project:projectDefault(),
- composition:null,
+ composition:null,sectionPlan:null,
  page:'home',device:'desktop',query:'',viewMode:'single',compareTheme:'noir',overviewFrames:[],
  past:[],future:[],renderToken:0,lastSite:null,lastCompiled:null,lastError:null,feedback:null,
  editRevision:0,feedbackRevision:0,projectImportSerial:0,feedbackImportSerial:0,lastAudit:null
@@ -47,7 +47,7 @@ function el(tag,props,children){
 function say(text,isError=false){
  const node=$('message');node.textContent=text;node.classList.toggle('error',isError);
 }
-function snapshot(){return {project:clone(state.project),composition:state.composition};}
+function snapshot(){return {project:clone(state.project),composition:state.composition,sectionPlan:clone(state.sectionPlan)};}
 function equal(a,b){return JSON.stringify(a)===JSON.stringify(b);}
 function historyRecord(before){
  if(equal(before,snapshot()))return;
@@ -60,11 +60,12 @@ function apply(mutator,options={}){
  try{mutator();if(!options.preserveReview)state.project.ownerReviewConfirmed=false;
    engine.compiler.validateProject(state.project);
    if(state.composition!==null)engine.compositions.get(state.composition);
+    if(state.sectionPlan)engine.bridge.workspace(workspace());
    renderAll();
    historyRecord(prev);
    return true;
  }catch(error){
-  state.project=prev.project;state.composition=prev.composition;
+  state.project=prev.project;state.composition=prev.composition;state.sectionPlan=prev.sectionPlan;
   renderAll();
   if(options.throwOnError)throw error;
   say(error.message,true);
@@ -76,7 +77,7 @@ function setHistory(direction){
  const to=direction==='undo'?state.future:state.past;
  if(!from.length)return;
  to.push(snapshot());const next=from.pop();
- state.project=next.project;state.composition=next.composition;
+ state.project=next.project;state.composition=next.composition;state.sectionPlan=next.sectionPlan;
  // Undo/Redo must never silently restore a previous authorization to index.
  // Owner must actively re-confirm after any history navigation.
  state.project.ownerReviewConfirmed=false;
@@ -90,23 +91,11 @@ function refreshHistory(){
 function compileForTheme(theme){
  if(!Object.prototype.hasOwnProperty.call(engine.compiler.THEMES,theme))throw Error('Неизвестная тема сравнения');
  const project=theme===state.project.theme?state.project:{...clone(state.project),theme};
- const result=engine.compiler.compile(project);
- let site=result.site;
- let bridge=null;
- if(state.composition){
-  const registry=engine.compiler.loadRegistry();
-  const replacement=engine.adapter.sectionFor(state.composition,'df-selected-composition',state.project.language,registry);
-  // Keep the original CTA as a conversion path. Optional design composition is
-  // additive, never an accidental replacement of the visitor's final action.
-  const sections=site.pages[0].sections;
-  const cta=sections.findIndex(s=>s.component==='cta-banner');
-  sections.splice(cta<0?sections.length:cta,0,replacement);
-  site=engine.sdk.validateSite(site,registry);
-  const inspect=engine.sdk.inspectSite(site,registry);
-  if(inspect.errors.length)throw Error('Некорректные ссылки: '+inspect.errors.length);
-  bridge=engine.adapter.compare(state.composition);
- }
- return {...result,site,bridge};
+ const w={format:WORKSPACE,version:state.sectionPlan?2:1,project,composition:state.composition};
+ if(state.sectionPlan)w.sectionPlan=state.sectionPlan;
+ const built=engine.bridge.build(w);
+ return {project,site:built.site,checklist:built.ownerChecklist,inspection:built.inspection,
+  designSpec:built.designSpec,bridge:built.compatibility.composition};
 }
 function compileCurrent(){return compileForTheme(state.project.theme);}
 function renderKits(){
@@ -126,6 +115,7 @@ function renderKits(){
   button.addEventListener('click',()=>apply(()=>{
    state.project.kit=kitId;
    state.project.theme=item.theme;
+    state.sectionPlan=null; // Reset mappings that may change with a new kit.
    state.page='home';
   }));
   holder.append(button);
@@ -732,7 +722,12 @@ function saveProject(){
   say('Проект фабрики скачан.');
  }catch(err){say(err.message,true);}
 }
-function workspace(){return {format:WORKSPACE,version:1,project:engine.compiler.validateProject(state.project),composition:state.composition};}
+function workspace(){
+ const w={format:WORKSPACE,version:state.sectionPlan?2:1,
+  project:engine.compiler.validateProject(state.project),composition:state.composition};
+ if(state.sectionPlan)w.sectionPlan=state.sectionPlan;
+ return w;
+}
 function saveWorkspace(){try{download(safeName()+'-workspace.json',serialize(workspace()));say('Рабочее пространство сохранено.');}catch(e){say(e.message,true);}}
 function saveBridge(){
  try{
