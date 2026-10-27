@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-27. **Repo:** https://github.com/manufact-test/ai-site-cms  
 **Independent branch:** `feature/stage3-design-factory`  
-**Latest verified functional commit:** `0c8c0247fe0233f0ae7832cb3b64aa804d1fc658` (services workflow + browser smoke; documentation commit follows).  
+**Latest verified functional commit:** `7e67db16fd7d08ee73065851954baa8c8f0815c2` (composition/approval fixes, owner report, bulk service replacement and existing E2E update; documentation commit follows).  
 **Scope:** only `stage3/design-factory/**` (do not modify main, lead SDK/PHP/server, CI workflows, hosting, production or other contributors' branches). Do not merge or publish. Check actual remote HEAD first; documentation-only handoff commits follow the functional SHA.
 
 
@@ -13,6 +13,8 @@
 > **Client review update, 2026-10-27:** RU/EN `review.html` generated per Studio project locale; notes can be edited (page/type/content), reopened on change, and exported only after saving or cancelling active edits. Real first-party compiler + 8-file ZIP CRC32 worked for RU and EN in isolated JS, as did a mocked-DOM feedback edit/download. Actual Chromium/Node/PHP/D7 release evidence **NOT RUN**. See `studio/README.md` and `PROGRESS.md`.
 
 > **Service editor update, 2026-10-27:** `31dc193` adds service reorder, draft duplication and paste-many with owner gate and Undo/Redo; `0c8c024` extends the existing browser scenario and removes an obsolete CSS assertion. 15 isolated real-source Studio/export checks PASS. **Actual Node/Chromium D7 not run**. Details: `PROGRESS.md`, `studio/README.md`.
+
+> **Large connected Studio implementation, 2026-10-27:** Owner audit HTML/JSON, full service list replace/load/TXT + EN fields, safe additive 42-composition fallback (preserving CTAs), Undo/Redo requires new explicit owner review. 18 isolated connected Studio checks, 1008 real compiler/schema combinations PASS, not genuine Chromium/Node release acceptance. See `PROGRESS.md` and `studio/README.md`; do not confuse this with clearing D7.
 
 ## First rule for this chat
 

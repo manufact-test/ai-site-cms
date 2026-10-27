@@ -1,5 +1,24 @@
 # Design Factory Browser Studio · D5
 
+## 27 October — End-to-end content, owner audit and safe design composition
+
+## 2026-10-27 — integrated Design Studio content workbench, owner audit, and no-loss page composition
+
+**Functional commits:** `fe75882660b9f90f1e76117d7b611cf96ae2c1b4` (preserve all original Home sections/CTA under D3 composition; Undo/Redo cannot silently reinstate prior owner index authorization), `1926aea1b1199ca87be42ee5e243a103d955901b` (new independent `studio/site-audit.js`), `93ab2a7906a38e105bd39228342fe8f3f1148603` (live Studio owner-audit UI and HTML/JSON downloads), `3e30c3d9290dd6340c57aa90468fc9a03dd0eac9` (complete services-list replacement/edit/export + RU/EN services UI), `7e67db16fd7d08ee73065851954baa8c8f0815c2` (existing Node/Chromium smoke extension and corrected CTA HTML assertion). All strictly inside `stage3/design-factory/**` on the independent branch.
+
+### Finished user workflows
+
+1. **Composition without missing CTA:** choosing any of the 42 D3 compositions inserts the registered fallback *before* the first existing Home CTA, keeping every existing section and stable ID instead of replacing the final block. In three kits (architecture, portfolio, nonprofit) the CTA was not the last block; preserve the original position relative to other existing sections. Same validated CMS contract; no unsupported new component.
+2. **Owner review not silently restored:** Undo/Redo navigates editorial history but always revokes old `ownerReviewConfirmed`; the owner must affirm explicitly before a new `robots=index` export. Imported owner-reviewed JSON retains the existing documented explicit import behavior; no auto publishing.
+3. **Four-page owner audit:** section 04 of Studio shows all four page entries (direct click to inspect), required owner-fact count, section counts, CTA counts, SEO/indexing state and matching/stale client feedback count. Download standalone `*-owner-review.html` for owner verification/printing (CSP, escaped owner strings, no remote network), or `*-content-audit.json` for a developer. The report is generated from a fresh `compileCurrent()` on click, never an old debounced preview. Format `manufact-design-factory-site-audit-v1`, offline and informational only, no owner signature, no PHP pixel parity, no license verification, no publication.
+4. **Complete services editor:** load the current list into the editable paste box (refuse to overwrite existing unsaved paste), batch append, full list replace as one reversible Undo step, or download human-editable UTF-8 TXT (title + TAB + description). English-language projects get English service labels, placeholder descriptions, actions and editor guidance. Invalid long/empty inputs or more than 12 services fail atomically and retain the draft; unverified new services remain blockers for indexing. No browser persistence or external APIs.
+
+### Evidence actually obtained
+
+Actual GitHub first-party browser bundle + audit/feedback/ZIP modules were loaded in an isolated DOM executor. **18 connected Studio checks passed** including audit navigation, downloadable owner HTML/JSON, service append/replacement/Undo/Redo, TXT, rejection of invalid replacement, non-clobbering edit buffer, English controls, actual CMS site validation and surviving CTA after composition. Pure live-source integration across **12 kits × 42 compositions × 2 languages = 1008 combinations passed**: CMS validateSite, preservation of all original section IDs and CTAs (including non-last CTA kits), HTML CTA, and printable owner audit. All **24** default kit/language owner reports compiled. Expanded existing Chromium smoke parses but was **NOT EXECUTED**. These isolated checks are NOT a substitute for actual checked-out Node suites, Chromium E2E, 54 real PNG/64 route runs, human 42 composition + 54 screenshots review, 6 real PHP parity probes or SHA256 release ZIP.
+
+**Formal status unchanged:** D1–D6 engineered, D7 OPEN, Stage2 NO-GO, Stage3 UNACCEPTED, **0/135 approved**, phase-based ~86%. Only Lead may integrate; no merge/main/SDK/PHP/CI/hosting/production touched.
+
 ## 27 October — Service editor / multi-row workbench
 
 ## 2026-10-27 — Service workbench: bulk import, safe duplication and ordered CMS export
