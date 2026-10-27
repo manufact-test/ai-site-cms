@@ -1313,6 +1313,10 @@ async function execute(){
     'Approved folder import must never publish implicitly');
   await page.locator('#fields [data-field="content.text"]').first().fill('Редактируется после подключения');
   await page.locator('#fields [data-field="content.text"]').first().dispatchEvent('change');
+  await page.locator('.device[data-bp="mobile"]').click();
+  await page.locator('#fields [data-field="style.fontSize"]').fill('31px');
+  await page.locator('#fields [data-field="style.fontSize"]').dispatchEvent('change');
+  await page.locator('.device[data-bp="desktop"]').click();
   // Same imported site's FAQ — real add, edit, reorder, delete and Undo controls.
   await page.locator('#sections .nav-entry').last().click();
   assert.match(await page.locator('#inspector-title').innerText(),/FAQ/);
@@ -1339,6 +1343,8 @@ async function execute(){
   const approvedPage=await visitor.goto(origin+'/published/site-approved-browser/');
   assert.equal(approvedPage.status(),200);
   assert.equal(await visitor.locator('h1').innerText(),'Редактируется после подключения');
+  assert.match(await visitor.locator('section.hero h1').getAttribute('style'),/--title-mobile:31px/,
+    'Mobile typography override survives server save and public rendering');
   assert.equal(await visitor.title(),'FAQ и готовый сайт — SEO');
   assert.equal(await visitor.locator('meta[name="description"]').getAttribute('content'),
     'Новые вопросы и SEO опубликованы после ручного сохранения');
@@ -1356,6 +1362,22 @@ async function execute(){
   const publishedApproved=(await (await page.request.get(origin+
     '/api/sites/site-approved-browser/published-site')).json()).site;
   assert.equal(publishedApproved.pages[0].seo.ogImage,imported.assets[0].id);
+  // Owner can restore imported site's previously saved version without mutating
+  // public content: stale drafts and published pages are separate snapshots.
+  await page.locator('#elements .cms-repeat-row').last().locator('button.element').click();
+  await page.locator('#fields [data-field="content.question"]').fill('Черновик, который нужно откатить');
+  await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
+  await page.locator('#save').click();
+  await page.locator('#versions .version').nth(1).click();
+  assert.deepEqual((await page.evaluate(()=>window.Stage3Editor.getSite()))
+    .pages[0].sections.find(s=>s.id==='section-approved-faq')
+    .items.map(i=>i.values['content.question']),
+    ['Как оформить заказ?','Что входит в комплект?'],
+    'Restored previous server revision of imported website');
+  await visitor.reload();
+  assert.deepEqual(await visitor.locator('section.faq summary').allInnerTexts(),
+    ['Как оформить заказ?','Что входит в комплект?'],
+    'Restoring a private revision never changes the public site');
   await page.locator('#server-site-select').selectOption(siteId);
   await page.locator('#server-open').click();
   await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();
