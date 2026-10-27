@@ -1234,7 +1234,7 @@ async function execute(){
   const folder=path.join(temp,'approved-external-site');
   fs.mkdirSync(path.join(folder,'prototypes'),{recursive:true});
   fs.mkdirSync(path.join(folder,'assets'),{recursive:true});
-  const examplePng=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y6Pe3UAAAAASUVORK5CYII=','base64');
+  const examplePng=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGM0ajrBwMDAxMDAwMDAAAARZAGA1I+vcwAAAABJRU5ErkJggg==','base64');
   for(const name of ['desktop','tablet','mobile'])
     fs.writeFileSync(path.join(folder,'prototypes',name+'.png'),examplePng);
   fs.writeFileSync(path.join(folder,'assets','asset-external-hero.png'),examplePng);
