@@ -20,6 +20,7 @@ const sources={
  kits:'stage3/design-factory/catalog/kits.cjs',
  compositions:'stage3/design-factory/catalog/compositions.cjs',
  adapter:'stage3/design-factory/lib/composition-adapter.cjs',
+ sectionPlan:'stage3/design-factory/lib/section-plan.cjs',
  bridge:'stage3/design-factory/lib/bridge.cjs'
 };
 const manifests=['company-hero','contact-panel','cta-banner','faq-accordion','feature-highlights','service-grid','media-story','photo-gallery'];
@@ -43,12 +44,12 @@ const header=[
  'const names={',
  "'../../sdk/contract.cjs':'sdk','../catalog/themes.cjs':'themes','../catalog/kits.cjs':'kits',",
  "'../catalog/compositions.cjs':'compositions','./compiler.cjs':'compiler',",
- "'./preview.cjs':'preview','./composition-adapter.cjs':'adapter','./bridge.cjs':'bridge'",
+ "'./preview.cjs':'preview','./composition-adapter.cjs':'adapter','./section-plan.cjs':'sectionPlan','./bridge.cjs':'bridge'",
  '};',
  'const safeFS=Object.freeze({readFileSync:function(p){const file=String(p).split("/").pop();if(!/^[a-z][a-z0-9-]*\\.json$/.test(file))throw Error("Unsupported bundled manifest path");const id=file.slice(0,-5);if(!Object.prototype.hasOwnProperty.call(manifestBytes,id))throw Error("Missing manifest "+id);return manifestBytes[id];}});',
  'const safePath=Object.freeze({join:(...p)=>p.join("/"),resolve:(...p)=>p.join("/")});',
  'function load(id){if(modules[id])return modules[id].exports;const factory=moduleFactories[id];if(!factory)throw Error("Unknown factory "+id);const module={exports:{}};modules[id]=module;function request(p){if(p==="node:fs")return safeFS;if(p==="node:path")return safePath;const target=names[p];if(!target)throw Error("Blocked dependency "+p);return load(target)}factory(module,module.exports,request,"/stage3/design-factory/lib");return module.exports;}',
- 'const api=Object.freeze({sdk:load("sdk"),compiler:load("compiler"),preview:load("preview"),themes:load("themes"),kits:load("kits"),compositions:load("compositions"),adapter:load("adapter"),bridge:load("bridge")});',
+ 'const api=Object.freeze({sdk:load("sdk"),compiler:load("compiler"),preview:load("preview"),themes:load("themes"),kits:load("kits"),compositions:load("compositions"),adapter:load("adapter"),sectionPlan:load("sectionPlan"),bridge:load("bridge")});',
  'Object.defineProperty(root,"DesignFactory",{value:api,writable:false,configurable:false});',
  '})(globalThis);',
  ''
