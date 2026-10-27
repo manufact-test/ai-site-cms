@@ -15,7 +15,7 @@
   "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
   "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
   "source_offweb_ci": null,
-  "source_ci_result": "Stage3 D6 functional SHA 32297b94... exact CI #40551009731; check completed/conclusion before claiming SUCCESS. Previous D5 bf66650cefce and #40546024612 completed SUCCESS.",
+  "source_ci_result": "Completed SUCCESS on functional Stage3 D6 SHA 32297b94b009c3fbe1cd6e730356261442d849cd: actions #40551009731; both contract and technology-runtime SUCCESS. Documentation-only commits after functional SHA change no runtime source.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly with cross-subsystem workflows (no duration padding), then correct issues from real use; avoid tiny features and endless tests",
@@ -1414,7 +1414,7 @@
     "branch": "feature/stage3-ai-site-contract",
     "source_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
     "ci_url": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
-    "ci_result": "VERIFY exact #40551009731",
+    "ci_result": "SUCCESS on exact source SHA",
     "owner_scope": "autonomous isolated branch code only; host/DB/production operations still need separate scoped permission",
     "implementation": [
       "Versioned first-party component manifests, stable IDs, typed responsive editor, undo/redo and immutable drafts",
@@ -1768,8 +1768,8 @@
     ]
   },
   "latest_known_failed_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40375523554",
-  "latest_confirmed_successful_functional_sha": "95a9f36759e7feabe435c4733181a73ff70866d9",
-  "latest_confirmed_successful_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40395814925",
+  "latest_confirmed_successful_functional_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
+  "latest_confirmed_successful_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
   "stage3_engineering_estimate": "Approximate subjective core-editor progress 70-80%, not a verified acceptance fraction; all 135 required Stage3 items still require formal owner acceptance (0/135).",
   "stage3_v1_72_checkpoint": {
     "date": "2026-10-26",
@@ -1798,7 +1798,7 @@
     "date": "2026-10-27",
     "source_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
     "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
-    "ci_result_at_handoff": "VERIFY exact workflow conclusion",
+    "ci_result_at_handoff": "completed SUCCESS / #40551009731",
     "features": [
       "Immutable ZIP verification before disposable loopback visitor",
       "Real PHP public router and static/Next Static host simulation",
@@ -1882,7 +1882,7 @@
       "stage": "D6",
       "sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
       "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
-      "verified": "VERIFY CI",
+      "verified": "success",
       "scope": "Disposable local real PHP/static HTTP visitor rehearsal"
     }
   ],
@@ -1890,7 +1890,7 @@
     "handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.75-2026-10-27.md",
     "functional_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
     "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
-    "verified_status": "VERIFY exact completed conclusion",
+    "verified_status": "completed SUCCESS / #40551009731, both jobs",
     "engineering_complete": [
       "D1 standalone technology adapters HTML PHP Next Static/SSR",
       "D2 immutable published handoff and version compare",

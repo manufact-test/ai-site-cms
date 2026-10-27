@@ -4,7 +4,7 @@
 **Репозиторий:** https://github.com/manufact-test/ai-site-cms
 **Рабочая ветка ТОЛЬКО:** feature/stage3-ai-site-contract
 **Функциональный SHA после D6:** 32297b94b009c3fbe1cd6e730356261442d849cd
-**Его полный CI:** https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731
+**Его полный CI:** https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731 — **completed SUCCESS, оба job contract и technology-runtime**
 **Последний до D6 полностью подтверждённый SUCCESS:** bf66650cefcea7159d81dad859e55baaaa50266a, https://github.com/manufact-test/ai-site-cms/actions/runs/40546024612
 **Обязательное правило:** перед заявлением об успехе D6 проверить exact HEAD, CI head_sha, status=completed и conclusion=success. После сохранения этого документа появится docs-only HEAD — он не равен исходному SHA; отсутствие отдельного запуска CI у docs-only не означает, что код поменялся. Не подменять результат прежнего запуска новым HEAD.
 
@@ -23,7 +23,7 @@
 | D3 | Локальные неизменяемые слоты выпусков, атомарное локальное переключение, одноразовое подтверждение, PHP loopback preview и rollback, never deploy | 2248a4f3ccc5c10d5df16f025546dac44e70764d / #40526644375 SUCCESS |
 | D4 | Реальный ZIP32 STORE, CRC32/SHA256 всех файлов, разделённые deploy/handoff, инструкции Apache/Nginx и правильные PHP private/web roots, честный Next SSR source-only | 420817c0dd7f63a43ac104cda896305b89f73171 / #40537925680 SUCCESS |
 | D5 | Одна команда из D2 JSON для HTML/PHP/Next Static/SSR -> ZIP + SEO/forms/media/links readiness report; real Next Static npm build только после --allow-npm-install | bf66650cefcea7159d81dad859e55baaaa50266a / #40546024612 SUCCESS |
-| D6 | Реальный localhost HTTP проход опубликованных страниц, media SHA256, 301, 404, HEAD и POST-denial, private-root protection; HTML/Next Static эмуляция static host, PHP actual router; --http-rehearsal opt-in в D5 + report. SSR не выдаётся за готовый runtime | 32297b94b009c3fbe1cd6e730356261442d849cd / #40551009731 — СВЕРИТЬ |
+| D6 | Реальный localhost HTTP проход опубликованных страниц, media SHA256, 301, 404, HEAD и POST-denial, private-root protection; HTML/Next Static эмуляция static host, PHP actual router; --http-rehearsal opt-in в D5 + report. SSR не выдаётся за готовый runtime | 32297b94b009c3fbe1cd6e730356261442d849cd / #40551009731 SUCCESS |
  
 Главные файлы: stage3/runtime-export/D1..., D2-PUBLISHED-HANDOFF.md, D3-LOCAL-CUTOVER.md, D4-VERIFIED-DELIVERY.md, D5-SHIPMENT-PREFLIGHT.md, D6-LOCAL-HTTP-REHEARSAL.md; stage3/runtime-export/bin/{build,build-handoff,package-handoff,release-manager,prepare-delivery,verify-delivery,audit-delivery,ship,rehearse-delivery}.cjs; stage3/studio/hosted.js; stage3/server/TechnologyHandoff.php.
 

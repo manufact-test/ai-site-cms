@@ -6,7 +6,7 @@
 https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.75-2026-10-27.md
 
 **Функциональная точка после D6:** 32297b94b009c3fbe1cd6e730356261442d849cd
-**Её CI:** https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731 — обязательно проверь фактические completed/conclusion и совпадение head_sha. Если docs-only HEAD уже новее, сверь diff: он не должен менять функциональный код. Последний предварительно точно зелёный D5: bf66650cefcea7159d81dad859e55baaaa50266a, CI #40546024612 SUCCESS.
+**Её CI:** https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731 — **completed SUCCESS в обоих job**, head_sha совпадает с функциональным SHA. В новом чате всё равно сверяй актуальный HEAD и отсутствие изменённого кода в docs-only коммитах. Если docs-only HEAD уже новее, сверь diff: он не должен менять функциональный код. Последний предварительно точно зелёный D5: bf66650cefcea7159d81dad859e55baaaa50266a, CI #40546024612 SUCCESS.
 
 Прочти PROJECT-STATUS.json, docs/ROADMAP.md, docs/NEXT-CHAT.md, docs/ACCELERATED-MACROBLOCK-PROGRAM.md и stage3/README.md.
 
