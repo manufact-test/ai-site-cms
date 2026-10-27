@@ -170,8 +170,34 @@
     const old=techLabCommands.textContent;
     techLabCommands.textContent=old.replace(/(downloaded-handoff\.json )(?:html|php|next-static|next-ssr)/, '$1'+techTarget.value);
   });
+  // D4: direct immutable D2 capsule -> one-command ZIP handoff. This only
+  // explains OFFLINE commands; it never runs or exposes deployment credentials.
+  const techZipHelp=element('details','hosted-backup-summary');
+  techZipHelp.id='server-tech-zip-help';
+  const zipHeading=element('summary',null,'D4 · Готовый ZIP для передачи на хостинг');
+  const zipExplanation=element('p',null,
+    'После скачивания JSON соберите настоящий ZIP локально. ZIP содержит файлы сайта, SHA256, маршруты и инструкции. Это не автоматический деплой.');
+  const zipCommands=element('pre');zipCommands.style.whiteSpace='pre-wrap';
+  zipCommands.style.overflowWrap='anywhere';zipCommands.id='server-tech-zip-commands';
+  const refreshZipHelp=()=>{
+    const name='site-published-v'+techVersion.value+'-handoff.json';
+    const base='stage3/runtime-export/bin/';
+    const target=techTarget.value;
+    zipCommands.textContent=target==='next-static'?[
+      'node '+base+'build-handoff.cjs /ABS/'+name+' next-static /ABS/new-next-project',
+      'cd /ABS/new-next-project && npm install && npm run build',
+      'node /ABS/REPO/'+base+'prepare-delivery.cjs /ABS/new-next-project /ABS/new-next-static.zip',
+      'node /ABS/REPO/'+base+'verify-delivery.cjs /ABS/new-next-static.zip'
+    ].join('\n'):[
+      'node '+base+'package-handoff.cjs /ABS/'+name+' '+target+' /ABS/new-site-delivery.zip',
+      'node '+base+'verify-delivery.cjs /ABS/new-site-delivery.zip'
+    ].join('\n');
+  };
+  for(const field of [techVersion,techTarget])field.addEventListener('change',refreshZipHelp);
+  refreshZipHelp();
+  techZipHelp.append(zipHeading,zipExplanation,zipCommands);
   techDialog.append(techTitle,techHint,techVersionWrap,techTargetWrap,
-    techOriginWrap,techCollectorWrap,techCompare,techPlanSummary,techLabHelp,techActions);
+    techOriginWrap,techCollectorWrap,techCompare,techPlanSummary,techLabHelp,techZipHelp,techActions);
   document.body.append(techDialog);
   const openTechnologyCenter=async()=>{
     if(techOpening)return;

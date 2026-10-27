@@ -58,6 +58,19 @@ async function probe() {
     cmd('npm',['install','--no-audit','--no-fund'],dest);
     cmd('npm',['run','build'],dest);
   }
+  // D4 real built Next Static output -> transportable verified ZIP.
+  const readyZip=path.join(tmp,'actual-next-static-delivery.zip');
+  cmd('node',['stage3/runtime-export/bin/prepare-delivery.cjs',targets.static,readyZip],root);
+  const checked=spawnSync('node',['stage3/runtime-export/bin/verify-delivery.cjs',readyZip],
+    {cwd:root,encoding:'utf8'});
+  assert.equal(checked.status,0,checked.stderr);
+  const delivery=JSON.parse(checked.stdout);
+  assert.equal(delivery.technology,'next-static');
+  assert.equal(delivery.readiness,'files-prepared');
+  const zipTree=require('../lib/delivery-zip.cjs').readArchive(fs.readFileSync(readyZip));
+  assert.ok(zipTree.has('deploy/about/index.html'));
+  assert.ok(zipTree.has('deploy/old/index.html'));
+  assert.ok(String(zipTree.get('deploy/.htaccess')).includes('RewriteRule ^old'));
   assert.match(fs.readFileSync(path.join(targets.static,'out/index.html'),'utf8'),/Visible CMS published home/);
   assert.match(fs.readFileSync(path.join(targets.static,'out/about/index.html'),'utf8'),/Visible CMS published about/);
   assert.match(fs.readFileSync(path.join(targets.static,'out/old/index.html'),'utf8'),/Moved/);

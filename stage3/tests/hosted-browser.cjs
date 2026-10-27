@@ -249,6 +249,9 @@ async function execute(){
   await page.locator('#server-tech-version').selectOption('2');
   await page.locator('#server-tech-compare').getByText(/Отличия публикации v1 → v2/).waitFor();
   await page.locator('#server-tech-target').selectOption('next-static');
+  await page.locator('#server-tech-zip-help').locator('summary').click();
+  assert.match(await page.locator('#server-tech-zip-commands').innerText(),/npm run build/);
+
   await page.locator('#server-tech-origin').fill('https://example.test');
   await page.locator('#server-tech-plan').click();
   await page.locator('#server-tech-summary').getByText(/План: публикация v2/).waitFor();

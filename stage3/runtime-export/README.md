@@ -30,3 +30,5 @@ Every target carries runtime-build.json with published version, source revision,
 CI uses one disposable published-site HTTP/SQLite E2E to verify emitted runtime structure, manifest integrity, redirects, PHP HTTP, media/SEO and no overwrite. **A separate disposable CI job additionally proves real Next Static build and Next SSR loopback HTTP (not production hosting).** React pages preserve trusted rendered HTML in React components; this is not an automatic conversion of the original sections to editable JSX source components. Stage2 NO-GO and Stage3 0/135 owner acceptance remain unchanged.
 
 D2 private Studio handoff: [D2-PUBLISHED-HANDOFF.md](./D2-PUBLISHED-HANDOFF.md). D3 local-only cutover rehearsal: [D3-LOCAL-CUTOVER.md](./D3-LOCAL-CUTOVER.md).
+
+D4 verified offline ZIP handover: [D4-VERIFIED-DELIVERY.md](./D4-VERIFIED-DELIVERY.md). Includes one-command D2 JSON -> HTML/PHP/SSR ZIP, real built Next Static ZIP, per-file SHA256/CRC and Apache/Nginx redirect instructions, with no deployment.
