@@ -83,7 +83,11 @@ function inspect(root) {
     insist(typeof m.publicOrigin === 'string' && /^https:\/\/[a-z0-9.-]+(?::\d{2,5})?$/i.test(m.publicOrigin), 'public origin');
   }
   if (m.formCollector !== null && m.formCollector !== undefined) {
-    insist(typeof m.formCollector === 'string' && /^https:\/\//i.test(m.formCollector), 'form collector must be HTTPS');
+    insist(typeof m.formCollector === 'string', 'invalid form collector');
+    const endpoint = new URL(m.formCollector);
+    const localOnly = endpoint.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(endpoint.hostname);
+    insist(!endpoint.username && !endpoint.password && (endpoint.protocol === 'https:' || localOnly),
+      'form collector must be HTTPS outside loopback isolation');
   }
   function walk(dir, rel = '') {
     for (const entry of fs.readdirSync(dir, {withFileTypes:true})) {
