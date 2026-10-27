@@ -9,6 +9,7 @@ const cp=require('node:child_process');
 const sdk=require('../../sdk/contract.cjs');
 const {KITS,THEMES,FORMAT,serialize,loadRegistry}=require('../lib/compiler.cjs');
 const bridge=require('../lib/bridge.cjs');
+const sectionPlan=require('../lib/section-plan.cjs');
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'df-d6-'));
 const cli=path.resolve(__dirname,'../bin/design-factory.cjs');
 const run=args=>cp.spawnSync(process.execPath,[cli,...args],{encoding:'utf8'});
@@ -47,6 +48,40 @@ try{
   assert.equal(approved.compatibility.previewOnly,true,'Review attestation never publishes the site');
   assert.ok(approved.compatibility.blocked.includes('production publication without CMS/integrator approval'));
   assert.equal(bridge.importForCMS(approved).pages.every(page=>page.seo.robots==='index'),true);
+ // v2 plans: all four pages, protected originals, placeholder noindex and legacy v1.
+ const plan=sectionPlan.capture(approved.site,null);
+ for(const page of sectionPlan.PAGES)
+  plan.pages[page].splice(1,0,{id:sectionPlan.nextId(plan,page),composition:'benefits-bento'});
+ const workspaceV2={format:bridge.WORKSPACE,version:2,project:approved.workspace.project,
+  composition:null,sectionPlan:plan};
+ const changed=bridge.build(workspaceV2);
+ assert.equal(changed.workspace.version,2);
+ assert.equal(changed.compatibility.sectionPlan.addedDrafts,4);
+ assert.equal(changed.ownerChecklist.readyForPublish,false);
+ assert.ok(changed.site.pages.every(page=>page.seo.robots==='noindex'));
+ for(let i=0;i<4;i++){
+  assert.equal(changed.site.pages[i].sections.length,approved.site.pages[i].sections.length+1);
+  assert.ok(approved.site.pages[i].sections
+   .filter(s=>['company-hero','cta-banner'].includes(s.component))
+   .every(s=>changed.site.pages[i].sections.some(x=>x.id===s.id)));
+ }
+ assert.deepEqual(bridge.importForCMS(bridge.validateBundle(changed)),changed.site);
+ const reversed=JSON.parse(JSON.stringify(plan));
+ reversed.pages.approach.reverse();
+ const moved=bridge.build({...workspaceV2,sectionPlan:reversed});
+ assert.equal(moved.site.pages[2].sections[0].id,reversed.pages.approach[0].id);
+ const removedHero=JSON.parse(JSON.stringify(plan));
+ removedHero.pages.home=removedHero.pages.home.filter(s=>s.id!=='df-home-01');
+ assert.throws(()=>bridge.build({...workspaceV2,sectionPlan:removedHero}),/Protected original section/);
+ const corrupted=JSON.parse(JSON.stringify(changed));
+ corrupted.site.pages[0].sections[0].id='df-injected';
+ assert.throws(()=>bridge.validateBundle(corrupted),/D6: changed/);
+ const legacy=bridge.build({format:bridge.WORKSPACE,version:1,
+  project:approved.workspace.project,composition:'hero-center'});
+ const preserved=bridge.build({format:bridge.WORKSPACE,version:2,
+  project:approved.workspace.project,composition:'hero-center',
+  sectionPlan:sectionPlan.capture(legacy.site,'hero-center')});
+ assert.deepEqual(preserved.site,legacy.site);
  // JSON parsers/formatters legitimately reorder object keys. Such imports
  // must remain valid while any actual nested data mutation is still refused.
  const shuffled=(value)=>{
