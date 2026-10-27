@@ -1335,7 +1335,11 @@ function build(input){
  let site=compiled.site,comp=null;
  if(w.composition){
   const section=adapter.sectionFor(w.composition,'df-selected-composition',w.project.language,reg);
-  site.pages[0].sections[site.pages[0].sections.length-1]=section;
+  // Add, never replace an existing section. Studio and the D6 adapter must
+  // produce byte-equivalent CMS sites including the original CTA and stable IDs.
+  const sections=site.pages[0].sections;
+  const cta=sections.findIndex(item=>item.component==='cta-banner');
+  sections.splice(cta<0?sections.length:cta,0,section);
   site=sdk.validateSite(site,reg);
   comp=adapter.compare(w.composition);
  }
