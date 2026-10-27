@@ -531,14 +531,12 @@ async function execute(){
   await page.locator('#server-operations-status').getByText(/публикация: v1/).waitFor();
   await page.locator('#server-maintenance-enabled').check();
   await page.locator('#server-maintenance-message').fill('Плановые работы');
-  page.once('dialog',d=>d.accept());
   await page.locator('#server-operations-apply').click();
   await page.locator('#server-operations-status').getByText('На обслуживании').waitFor();
   const stopped=await visitor.goto(origin+'/published/'+generatedId+'/offerings/');
   assert.equal(stopped.status(),503);
   assert.match(await visitor.locator('body').innerText(),/Плановые работы/);
   await page.locator('#server-maintenance-enabled').uncheck();
-  page.once('dialog',d=>d.accept());
   await page.locator('#server-operations-apply').click();
   await page.locator('#server-operations-status').getByText('Работает в обычном режиме').waitFor();
   await page.locator('#server-operations-close').click();
