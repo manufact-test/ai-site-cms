@@ -8,6 +8,7 @@ const $=id=>document.getElementById(id);
 const WORKSPACE='manufact-design-factory-workspace-v1';
 const feedbackTool=globalThis.DesignFactoryFeedback;
 const auditTool=globalThis.DesignFactorySiteAudit;
+const deliveryTool=globalThis.DesignFactoryDeliveryPackage;
 const LANG={
  ru:{home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'},
  en:{home:'Home',services:'Services',approach:'Approach',contact:'Contact'}
@@ -620,6 +621,25 @@ function savePreviewZip(){
  }catch(error){say('HTML-прототип не создан: '+error.message,true);}
 }
 
+function saveDeliveryZip(){
+ try{
+  const packer=globalThis.DesignFactoryPreviewZip;
+  if(!packer||!deliveryTool)throw Error('Модуль единого пакета не загружен');
+  const compiled=compileCurrent(),w=workspace();
+  const built=deliveryTool.build({engine,zip:packer,feedbackTool,auditTool,
+   project:state.project,workspace:w,compiled,feedback:state.feedback});
+  const blob=new Blob([built.bytes],{type:'application/zip'});
+  const url=URL.createObjectURL(blob),anchor=document.createElement('a');
+  anchor.href=url;anchor.download=safeName()+'-delivery.zip';
+  document.body.append(anchor);anchor.click();anchor.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  say(tr('Пакет передачи скачан: 18 файлов. Клиентские замечания: ',
+   '18-file delivery ZIP downloaded. Client feedback: ')+built.manifest.feedback+
+   '. '+tr('Это не релиз CMS и не разрешение публикации.',
+   'Not a CMS release or permission to publish.'));
+ }catch(error){say(tr('Пакет не создан: ','Delivery failed: ')+error.message,true);}
+}
+
 function feedbackContext(){
  if(!feedbackTool)return null;
  // Never bind approval/export to the debounced preview's previous compile. A user
@@ -825,6 +845,7 @@ function init(){
  $('save-project').addEventListener('click',saveProject);
  $('save-site').addEventListener('click',saveSite);
  $('save-preview-zip').addEventListener('click',savePreviewZip);
+ $('save-delivery-zip').addEventListener('click',saveDeliveryZip);
  $('feedback-file').addEventListener('change',event=>importFeedback(event.target.files[0]));
  $('feedback-export').addEventListener('click',saveFeedback);
  $('save-workspace').addEventListener('click',saveWorkspace);

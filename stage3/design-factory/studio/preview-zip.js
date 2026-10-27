@@ -137,7 +137,7 @@
   if(pos!==foot||localEnd!==start)throw Error('Preview ZIP trailing records');
   return Object.freeze({format:'manufact-design-factory-preview-zip-v1',
    files:names.length,bytes:length,sourceBytes:total,crcVerified:true,
-   warning:'Offline static preview only; not CMS PHP parity, human approval or production release'});
+   warning:names===FILES?'Offline static preview only; not CMS PHP parity, human approval or production release':'Offline transfer bundle only; no real PHP parity, human signoff or D7 production release'});
  }
  function build(files){return buildProfile(files,FILES);}
  function inspect(bytes){return inspectProfile(bytes,FILES);}

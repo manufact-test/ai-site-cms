@@ -17,6 +17,7 @@ const bundle=read('runtime.generated.js'),app=read('studio.js'),markup=read('ind
 const zipSource=read('preview-zip.js'),previewZip=require(path.join(studio,'preview-zip.js'));
 const feedbackSource=read('client-feedback.js'),feedback=require(path.join(studio,'client-feedback.js'));
 const auditSource=read('site-audit.js'),audit=require(path.join(studio,'site-audit.js'));
+const deliverySource=read('delivery-package.js'),delivery=require(path.join(studio,'delivery-package.js'));
 
 const build=cp.spawnSync(process.execPath,[path.join(root,'bin/build-browser-bundle.cjs'),'--check'],{encoding:'utf8'});
 assert.equal(build.status,0,'Browser bundle must match actual local CMS source: '+build.stderr);
@@ -91,11 +92,24 @@ new Function(app);
 new Function(zipSource);
 new Function(feedbackSource);
 new Function(auditSource);
+new Function(deliverySource);
 assert.ok(markup.indexOf('site-audit.js')<markup.indexOf('studio.js'));
+assert.ok(markup.indexOf('delivery-package.js')<markup.indexOf('studio.js'));
 assert.ok(markup.indexOf('client-feedback.js')<markup.indexOf('studio.js'),'Feedback bridge must load first');
 assert.ok(markup.indexOf('preview-zip.js')<markup.indexOf('studio.js'),
  'Preview ZIP script must load before Studio');
 assert.ok(markup.includes('id="save-preview-zip"'));
+assert.ok(markup.includes('id="save-delivery-zip"'));
+assert.ok(app.includes('function saveDeliveryZip()')&&
+ app.includes('deliveryTool.build({engine,zip:packer,feedbackTool,auditTool,'));
+assert.equal(previewZip.deliveryFiles.length,18);
+const strictDeliveryFiles=previewZip.deliveryFiles.map(name=>({name,content:'fixture '+name}));
+const strictDeliveryBytes=previewZip.buildDelivery(strictDeliveryFiles);
+assert.equal(previewZip.inspectDelivery(strictDeliveryBytes).files,18);
+assert.throws(()=>previewZip.inspect(strictDeliveryBytes),/Invalid ZIP end directory/);
+assert.throws(()=>previewZip.buildDelivery(strictDeliveryFiles.slice(1)),/ZIP file count/);
+const tamperDelivery=strictDeliveryBytes.slice();tamperDelivery[51]^=1;
+assert.throws(()=>previewZip.inspectDelivery(tamperDelivery),/CRC mismatch|ZIP local\/central mismatch/);
 for(const id of ['site-audit-summary','site-audit-pages','site-audit-html','site-audit-json'])
  assert.ok(markup.includes('id="'+id+'"'));
 assert.ok(app.includes('function currentAudit()')&&app.includes('function renderSiteAudit(compiled)')&&
