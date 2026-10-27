@@ -99,8 +99,14 @@ assert.ok(app.includes('feedbackTool.validate(incoming,fresh)')&&
  'Feedback validation must use fresh compiled context and newest selection');
 assert.ok(app.includes('feedbackTool.context(compileCurrent(),state.project,state.composition)'),
  'Feedback actions must compile the live project, not trust the debounced preview snapshot');
-assert.ok(app.includes('feedbackTool.reviewHtml(reviewContext)'));
+assert.ok(app.includes('feedbackTool.reviewHtml(reviewContext,state.project.language)'));
 assert.ok(app.includes('function savePreviewZip()'));
+assert.ok(app.includes('function moveService(index,delta)')&&
+ app.includes('function duplicateService(index)')&&
+ app.includes('function parseBulkServices(input,language)')&&
+ app.includes('function addBulkServices()'));
+assert.ok(css.includes('.service-editor-actions')&&css.includes('.bulk-services'));
+assert.ok(app.includes("title:prefix+list[index].title.slice(0,120-prefix.length)"));
 assert.ok(app.includes('packer.build(files),verification=packer.inspect(bytes)'));
 assert.ok(!/@import|fetch\s*\(|XMLHttpRequest|https?:\/\//i.test(zipSource),
  'Preview ZIP packer must remain offline');
@@ -111,7 +117,7 @@ assert.ok(css.includes('prefers-reduced-motion')&&css.includes('max-width:730px'
 for(const minTarget of ['.device-button{min-height:44px','.page-list button{min-height:44px',
  '.icon-button{height:44px','.remove-service{'])assert.ok(css.includes(minTarget),minTarget);
 for(const id of ['kit-list','theme-list','site-preview','page-list','title','headline','description',
- 'services-list','composition','undo','redo','save-project','save-site','save-workspace','project-file','checklist','owner-review-confirmed'])
+ 'services-list','bulk-services-input','bulk-services-add','composition','undo','redo','save-project','save-site','save-workspace','project-file','checklist','owner-review-confirmed'])
  assert.ok(markup.includes('id="'+id+'"'),'UI control '+id);
 assert.ok(markup.includes('sandbox="allow-scripts"'));
 assert.ok(markup.includes('id="owner-review-help"')&&app.includes('robots=noindex'));

@@ -175,15 +175,25 @@ function renderServices(){
  const target=$('services-list');target.replaceChildren();
  const services=state.project.facts.services||[];
  services.forEach((row,i)=>{
-  const box=el('div',{class:'service-editor'});
-  box.append(el('p',{class:'service-index',text:'УСЛУГА '+String(i+1).padStart(2,'0')}));
-  const del=el('button',{id:'remove-service-'+i,type:'button',class:'remove-service',title:'Удалить услугу','aria-label':'Удалить услугу '+(i+1),text:'×'});
-  del.addEventListener('click',()=>apply(()=>{state.project.facts.services.splice(i,1);}));
-  box.append(del);
+  const box=el('div',{class:'service-editor'}),header=el('div',{class:'service-editor-header'});
+  header.append(el('p',{class:'service-index',text:'УСЛУГА '+String(i+1).padStart(2,'0')}));
+  const actions=el('div',{class:'service-editor-actions'});
+  const control=(id,label,symbol,disabled,run)=>{
+   const button=el('button',{id,type:'button',class:'service-action',title:label,
+    'aria-label':label+' '+(i+1),disabled,text:symbol});
+   button.addEventListener('click',run);actions.append(button);
+  };
+  control('move-service-up-'+i,'Поднять услугу','↑',i===0,()=>moveService(i,-1));
+  control('move-service-down-'+i,'Опустить услугу','↓',i===services.length-1,()=>moveService(i,1));
+  control('duplicate-service-'+i,'Дублировать как черновик','⧉',services.length>=12,()=>duplicateService(i));
+  control('remove-service-'+i,'Удалить услугу','×',false,()=>apply(()=>{
+   state.project.facts.services.splice(i,1);
+  }));
+  header.append(actions);box.append(header);
   for(const [field,label,max,rows] of [['title','Название',120,1],['description','Описание',320,3]]){
    const id='service-'+i+'-'+field;
    const inp=rows===1?el('input',{id,type:'text',maxlength:max,value:row[field]}):
-     el('textarea',{id,maxlength:max,rows:rows});
+    el('textarea',{id,maxlength:max,rows:rows});
    if(rows!==1)inp.value=row[field];
    connectEditor(inp,()=>state.project.facts.services[i][field],v=>{state.project.facts.services[i][field]=v;});
    box.append(el('label',{class:'field'},[el('span',{text:label}),inp]));
@@ -191,6 +201,55 @@ function renderServices(){
   target.append(box);
  });
  $('add-service').disabled=services.length>=12;
+ $('bulk-services-add').disabled=services.length>=12;
+}
+function moveService(index,delta){
+ return apply(()=>{
+  const list=state.project.facts.services||[],destination=index+delta;
+  if(index<0||destination<0||destination>=list.length)throw Error('Некорректное перемещение услуги');
+  [list[index],list[destination]]=[list[destination],list[index]];
+ });
+}
+function duplicateService(index){
+ return apply(()=>{
+  const list=state.project.facts.services||[];
+  if(!list[index]||list.length>=12)throw Error('Максимум 12 услуг');
+  const prefix=state.project.language==='ru'?'Пример (подтвердить): ':'Example (verify): ';
+  // A duplicate stays an explicit draft until rewritten and approved by the owner.
+  const duplicate={...list[index],title:prefix+list[index].title.slice(0,120-prefix.length)};
+  list.splice(index+1,0,duplicate);
+ });
+}
+function parseBulkServices(input,language){
+ if(typeof input!=='string'||input.length>5500)throw Error('Список слишком длинный (до 5500 символов)');
+ const lines=input.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+ if(!lines.length)throw Error('Вставьте хотя бы одну услугу');
+ if(lines.length>12)throw Error('Максимум 12 услуг за одну вставку');
+ const placeholder=language==='en'?'Add verified description.':'Добавьте подтверждённое описание.';
+ return lines.map((line,i)=>{
+  // Supports title, "Title | Description" and tab-separated title/description.
+  const delimiter=line.includes('\t')?line.indexOf('\t'):line.indexOf(' | ');
+  const title=(delimiter<0?line:line.slice(0,delimiter)).trim();
+  const description=(delimiter<0?'':line.slice(delimiter+(line[delimiter]==='\t'?1:3))).trim()||placeholder;
+  if(!title||title.length>120||description.length>320||/[\u0000-\u001f\u007f]/.test(title+description))
+   throw Error('Некорректная строка '+(i+1)+' (название до 120, описание до 320)');
+  return {title,description};
+ });
+}
+function addBulkServices(){
+ const input=$('bulk-services-input'),source=input.value;
+ let count=0;
+ const success=apply(()=>{
+  const rows=parseBulkServices(source,state.project.language);
+  const list=state.project.facts.services||(state.project.facts.services=[]);
+  if(list.length+rows.length>12)
+   throw Error('Максимум 12 услуг. Сейчас: '+list.length+', добавляется: '+rows.length);
+  list.push(...rows);count=rows.length;
+ });
+ if(success){
+  input.value='';
+  say('Добавлено услуг: '+count+'. Список можно отменить через Undo.');
+ }
 }
 function renderComposition(){
  const select=$('composition');
@@ -628,6 +687,7 @@ function init(){
 
 
  $('composition').addEventListener('change',event=>apply(()=>{state.composition=event.target.value||null;state.page='home';}));
+ $('bulk-services-add').addEventListener('click',addBulkServices);
  $('add-service').addEventListener('click',()=>apply(()=>{
   if(!state.project.facts.services)state.project.facts.services=[];
   if(state.project.facts.services.length>=12)throw Error('Максимум 12 услуг');

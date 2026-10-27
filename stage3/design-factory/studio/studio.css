@@ -61,9 +61,19 @@ a{color:inherit}a:focus-visible,button:focus-visible,input:focus-visible,textare
 .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--teal)}.field textarea{min-height:72px}
 .field input::placeholder,.field textarea::placeholder{color:#76918F}
 .services-editor{display:grid;gap:10px}.service-editor{position:relative;border-radius:10px;border:1px solid var(--line);padding:12px;background:#1B2A2E}
-.service-editor .service-index{font-size:10px;letter-spacing:.1em;font-weight:850;color:var(--teal);margin:0 0 10px}
-.service-editor .field{margin-bottom:9px}.service-editor .field textarea{min-height:65px}.remove-service{position:absolute;right:8px;top:8px;background:transparent;border:0;color:#BDBBB6;font-size:19px;min-height:44px;min-width:44px;border-radius:6px}.service-index{padding-right:46px}
-.remove-service:hover{background:#58393D;color:white}.minor-btn{padding:11px 14px;min-height:44px;border:1px solid #455C57;background:#273A37;color:#D7ECE5;margin-top:12px;text-align:center}
+.service-editor-header{display:flex;justify-content:space-between;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.service-editor .service-index{font-size:10px;letter-spacing:.1em;font-weight:850;color:var(--teal);margin:0}
+.service-editor-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.service-action{height:44px;min-width:44px;background:#26383B;border:1px solid transparent;border-radius:7px;color:#D8E7E0;font-size:18px;cursor:pointer}
+.service-action:hover:not(:disabled){background:#39534D;color:#fff;border-color:#708C82}
+.service-action:disabled{opacity:.35;cursor:not-allowed}
+.service-editor .field{margin-bottom:9px}.service-editor .field textarea{min-height:65px}
+.bulk-services{margin-top:14px;padding:13px;border:1px dashed #526e65;border-radius:11px}
+.bulk-services-hint{font-size:11px;line-height:1.5;color:#B4C8BF;margin:5px 0 10px}
+.bulk-services textarea{width:100%;min-height:110px;background:var(--control);border:1px solid #526f68;border-radius:9px;padding:10px 12px;color:var(--text);font:12px/1.5 system-ui,sans-serif;resize:vertical}
+.bulk-services textarea:focus-visible{outline:2px solid var(--acid);outline-offset:3px}
+.bulk-services .minor-btn{margin-top:8px}.bulk-services .minor-btn:disabled{opacity:.45}
+.minor-btn{padding:11px 14px;min-height:44px;border:1px solid #455C57;background:#273A37;color:#D7ECE5;margin-top:12px;text-align:center}
 .minor-btn:hover{background:#35514A}.minor-btn.full{width:100%}
 .composition-info{color:#8FAAA5;line-height:1.65;font-size:11px;border-left:2px solid #456F65;padding-left:10px}
 .checklist{display:grid;gap:7px}.check-item{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line);background:#1C2C30;border-radius:8px;padding:8px 10px;font-size:11px;color:#BCD0C8}

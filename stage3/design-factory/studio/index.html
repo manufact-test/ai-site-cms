@@ -109,6 +109,12 @@
             <div class="form-section-title"><span>02</span><strong>Реальные услуги</strong></div>
             <div id="services-list" class="services-editor"></div>
             <button class="minor-btn" id="add-service" type="button">+ Добавить услугу</button>
+            <div class="bulk-services">
+              <label class="field" for="bulk-services-input"><span>Добавить услуги списком</span></label>
+              <p class="bulk-services-hint" id="bulk-services-help">По одной услуге на строку. Формат: Название | Описание. Если описания нет — оставим черновик. Не больше 12 услуг всего.</p>
+              <textarea id="bulk-services-input" rows="4" maxlength="5500" aria-describedby="bulk-services-help" placeholder="Разработка сайта | Дизайн и создание сайта&#10;Поддержка сайта | Исправление ошибок"></textarea>
+              <button class="minor-btn" id="bulk-services-add" type="button">+ Добавить список</button>
+            </div>
           </div>
           <div class="form-section">
             <div class="form-section-title"><span>03</span><strong>Композиция главной</strong></div>
