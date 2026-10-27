@@ -143,7 +143,24 @@
  function inspect(bytes){return inspectProfile(bytes,FILES);}
  function buildDelivery(files){return buildProfile(files,DELIVERY_FILES);}
  function inspectDelivery(bytes){return inspectProfile(bytes,DELIVERY_FILES);}
+ // Extraction is available ONLY after strict ZIP32 profile verification: fixed
+ // canonical 18-name inventory, STORE, UTF-8, CRC, duplicate/path/bounds checks.
+ // No generic ZIP extraction, inflate, filesystem access or markup execution.
+ function extractDelivery(bytes){
+  const inspection=inspectDelivery(bytes);
+  const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+  const decoder=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true});
+  const files=Object.create(null);
+  let offset=0;
+  for(const name of DELIVERY_FILES){
+   const n=view.getUint16(offset+26,true),size=view.getUint32(offset+18,true);
+   const start=offset+30+n;
+   files[name]=decoder.decode(bytes.subarray(start,start+size));
+   offset=start+size;
+  }
+  return Object.freeze({inspection,files});
+ }
  function crcText(value){return crc32(utf8(value));}
  return {build,inspect,files:FILES,crc32,crcText,
-  buildDelivery,inspectDelivery,deliveryFiles:DELIVERY_FILES};
+  buildDelivery,inspectDelivery,extractDelivery,deliveryFiles:DELIVERY_FILES};
 });
