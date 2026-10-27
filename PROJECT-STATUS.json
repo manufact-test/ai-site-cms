@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-27",
-  "status": "stage2-no-go-stage3-isolated-v1.73-b3-private-lead-bulk-pipeline",
+  "status": "stage2-no-go-stage3-isolated-v1.74-route-and-content-lifecycle",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.73-2026-10-27.md",
-  "latest_source_sha": "320cdf53859926032e41102904c19c1986159155",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40476473360",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40476473360",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.74-2026-10-27.md",
+  "latest_source_sha": "8b097eef0980211ce2cb80f1e6c4c41d47a336ad",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40502513858",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40502513858",
   "source_offweb_ci": null,
-  "source_ci_result": "PENDING at final handoff preparation: full Stage3 CI #40476473360 for exact B3 source SHA 320cdf53859926032e41102904c19c1986159155. Previous docs-head #40476221048 FAILED due to a same-second ordering assumption in a new audit assertion; test now checks event existence, not arbitrary event position. B3 core SQL/API #40475172572 SUCCESS. Verify final CI before green claims; no deploy, no formal acceptance.",
+  "source_ci_result": "VERIFY exact completed conclusion of Stage3 CI #40502513858 (source SHA 8b097eef0980211ce2cb80f1e6c4c41d47a336ad). Previous complete SUCCESS: source 29c52210e24ad29b20c059c3ec72ef91e57476e7 CI #40498839746 17/17. No official Stage2 or Stage3 acceptance; no deployment.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly with cross-subsystem workflows (no duration padding), then correct issues from real use; avoid tiny features and endless tests",
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "320cdf53859926032e41102904c19c1986159155",
+    "stage3_code_sha": "8b097eef0980211ce2cb80f1e6c4c41d47a336ad",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -55,20 +55,20 @@
       "D: Technology adapters + deploy foundations (2/13/12; isolated only)",
       "E: System checks + 135 owner approvals + release (14/15/16/17; owner GO required)"
     ],
-    "next_macroblock": "C1: meaningful cross-site content reuse/import workflow using existing templates and media library, typed site-owned asset remapping, preflight, atomic revision Save, no implicit publish; first verify current features to avoid duplication.",
+    "next_macroblock": "D1: verify current standalone HTML/PHP/React/Next Static/SSR technology adapters and implement the next 2-4 missing end-to-end output/runtime packages on disposable CI; if covered choose a different real gap from the 135 requirements. Avoid duplicating C1-C4 route/media/history/cross-site modules.",
     "execution_policy_document": "docs/ACCELERATED-MACROBLOCK-PROGRAM.md",
     "policy_owner_request_date": "2026-10-27",
     "current_code_checkpoint_at_policy_change": "cf369988ec16904d945413f36ad292fb94d17da2",
-    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/40476473360"
+    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/40502513858"
   },
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "New main chat: read v1.73 handoff, verify exact branch HEAD and Actions, then deliver a single substantial C1/D macroblock (cross-site reuse and safe media remap suggested), not tiny isolated fixes. Stage2 NO-GO #5–#9 and 0/135 owner acceptance remain.",
+  "next_step": "New main chat: read handoff v1.74, check exact feature branch HEAD and CI, then implement substantive D1 technology-adapters/export runtime macroblock (or nearest uncovered A2 requirement) with 2-4 real vertical packages. Stage2 NO-GO #5-#9, 0/135 formal acceptance; Design Factory separately isolated.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.73",
+  "checkpoint_version": "1.74",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -1807,5 +1807,42 @@
     "previous_confirmed_green_sha": "fa3c558a62e19005c25e62373ef1eb14dceafdc7",
     "bugfix": "Operator transition out of selected stage/priority auto-returns to All, so saved lead remains visible",
     "test_correction": "Correctness verification of newly recorded same-second events is order-independent (per-event audit retained)."
-  }
+  },
+  "latest_engineering_macroblocks": [
+    {
+      "stage": "C1",
+      "sha": "d418418a58c6ac5a1cb3d81277510b139cf38fbc",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40482549463",
+      "verified": "success",
+      "scope": "Cross-site section transfer and immutable site-owned media remap"
+    },
+    {
+      "stage": "C2",
+      "sha": "6358b9a982f03f7993a88990a70c612f9f7d7b0e",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40487689527",
+      "verified": "success",
+      "scope": "Multi-section and whole-page cross-site imports"
+    },
+    {
+      "stage": "C3",
+      "sha": "5b30e926ae65dbfd039cc3cbaa5f9410f56b45e8",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40494658851",
+      "verified": "success",
+      "scope": "Historical page and section selection, compare and recovery"
+    },
+    {
+      "stage": "C4",
+      "sha": "29c52210e24ad29b20c059c3ec72ef91e57476e7",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40498839746",
+      "verified": "success",
+      "scope": "Site-wide media audit, remap, alt and safe cleanup"
+    },
+    {
+      "stage": "B/C links",
+      "sha": "8b097eef0980211ce2cb80f1e6c4c41d47a336ad",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40502513858",
+      "verified": "PENDING — verify",
+      "scope": "Link audit, page URL migrations, bulk repairs and 301s"
+    }
+  ]
 }
