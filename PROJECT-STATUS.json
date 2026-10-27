@@ -11,11 +11,11 @@
     "not_needed": 16
   },
   "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.73-2026-10-27.md",
-  "latest_source_sha": "21a8c66611c8f9812f6c69d25847778d390d533d",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40476026585",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40476026585",
+  "latest_source_sha": "320cdf53859926032e41102904c19c1986159155",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40476473360",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40476473360",
   "source_offweb_ci": null,
-  "source_ci_result": "PENDING at handoff finalization: full Stage3 CI #40476026585 for exact B3 fix SHA 21a8c66611c8f9812f6c69d25847778d390d533d. Previous B3 #40475356099 FAILED in hosted browser: reviewed lead vanished under in_progress filter. UI fixed to reveal changed lead by resetting incompatible status/priority filters. Last confirmed B3 server/API CI #40475172572 SUCCESS. Confirm current run before stating final green. No formal acceptance or deployment.",
+  "source_ci_result": "PENDING at final handoff preparation: full Stage3 CI #40476473360 for exact B3 source SHA 320cdf53859926032e41102904c19c1986159155. Previous docs-head #40476221048 FAILED due to a same-second ordering assumption in a new audit assertion; test now checks event existence, not arbitrary event position. B3 core SQL/API #40475172572 SUCCESS. Verify final CI before green claims; no deploy, no formal acceptance.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly with cross-subsystem workflows (no duration padding), then correct issues from real use; avoid tiny features and endless tests",
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "21a8c66611c8f9812f6c69d25847778d390d533d",
+    "stage3_code_sha": "320cdf53859926032e41102904c19c1986159155",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -59,7 +59,7 @@
     "execution_policy_document": "docs/ACCELERATED-MACROBLOCK-PROGRAM.md",
     "policy_owner_request_date": "2026-10-27",
     "current_code_checkpoint_at_policy_change": "cf369988ec16904d945413f36ad292fb94d17da2",
-    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/40476026585"
+    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/40476473360"
   },
   "celikom_independent": true,
   "code_exists": true,
@@ -1796,15 +1796,16 @@
   "last_completed_macroblock": {
     "name": "B3 private operator lead workbench",
     "date": "2026-10-27",
-    "source_sha": "21a8c66611c8f9812f6c69d25847778d390d533d",
-    "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/40476026585",
-    "ci_result_at_handoff": "in_progress; exact source #40476026585",
+    "source_sha": "320cdf53859926032e41102904c19c1986159155",
+    "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/40476473360",
+    "ci_result_at_handoff": "in_progress; exact source #40476473360",
     "features": [
       "Atomic revision-checked multi-lead stage/priority transitions (1–50), notes retained, full rollback",
       "Private pipeline counts by stage and urgency with direct filters",
       "Current-page batch controls, correct RBAC/CSRF and audit history"
     ],
     "previous_confirmed_green_sha": "fa3c558a62e19005c25e62373ef1eb14dceafdc7",
-    "bugfix": "Operator transition out of selected stage/priority auto-returns to All, so saved lead remains visible"
+    "bugfix": "Operator transition out of selected stage/priority auto-returns to All, so saved lead remains visible",
+    "test_correction": "Correctness verification of newly recorded same-second events is order-independent (per-event audit retained)."
   }
 }
