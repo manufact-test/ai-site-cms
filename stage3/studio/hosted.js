@@ -2421,6 +2421,123 @@
       notice('Создан новый серверный сайт без макета. Ревизия #1; сайт не опубликован.');
     });
   }
+
+  // Connect a compiled external site, not a prototype or arbitrary external HTML.
+  // The three images and the human-approved specification remain in the portable folder.
+  async function importApprovedFolder(uploadedFiles){
+    return safe(async()=>{
+      if(!isOwner())throw Error('Подключение нового сайта доступно только владельцу CMS');
+      if(isDirty()&&!confirm('Несохранённые изменения будут потеряны. Продолжить?'))return;
+      const files=new Map();
+      for(const file of uploadedFiles){
+        const relative=(file.webkitRelativePath||'').split('/').slice(1).join('/');
+        if(!relative||relative.split('/').includes('..')||files.has(relative))
+          throw Error('Неверная структура каталога или повтор файла: '+relative);
+        files.set(relative,file);
+      }
+      const required=path=>{
+        if(typeof path!=='string'||path.length>200||
+          !/^[a-zA-Z0-9_/-]+\.(?:json|md|txt|png|jpe?g|webp)$/.test(path)||
+          path.split('/').includes('..')||!files.has(path))
+          throw Error('В каталоге отсутствует файл: '+String(path));
+        return files.get(path);
+      };
+      const manifestFile=required('handoff.json');
+      if(manifestFile.size<10||manifestFile.size>12000)throw Error('Некорректный handoff.json');
+      const handoff=JSON.parse(await manifestFile.text());
+      if(handoff.format!=='manufact-approved-site-handoff-v1'||handoff.status!=='approved'||
+        typeof handoff.version!=='string'||!/^[a-zA-Z0-9._-]{1,64}$/.test(handoff.version)||
+        !handoff.files||typeof handoff.files!=='object')
+        throw Error('Требуется версия и статус approved после фактического согласования макетов');
+      const refs=handoff.files;
+      for(const kind of ['desktop','tablet','mobile']){
+        const file=required(refs[kind]);
+        if(!/\.(png|jpe?g|webp)$/i.test(refs[kind])||file.size<64||file.size>8000000)
+          throw Error('Неверный статический макет: '+kind);
+      }
+      if(new Set([refs.desktop,refs.tablet,refs.mobile]).size!==3)
+        throw Error('Для desktop, tablet и mobile нужны три самостоятельных макета');
+      for(const kind of ['clientExplanation','implementationSpec']){
+        const file=required(refs[kind]);
+        if(file.size<10||file.size>200000||!/\.(md|txt|json)$/.test(refs[kind]))
+          throw Error('Отсутствует переносимое описание: '+kind);
+      }
+      const source=required(refs.site);
+      if(!/\.json$/.test(refs.site)||source.size<10||source.size>500000)
+        throw Error('site.json должен быть не более 500 КБ');
+      const site=JSON.parse(await source.text());
+      // The existing Stage3Editor uses the same typed contract as the PHP server.
+      // Validation happens BEFORE creating a server-side site or writing any media.
+      editor.previewDocument(site,site.pages[0]?.path||'/');
+      const media=[];
+      for(const item of site.assets){
+        if(!['image/png','image/jpeg','image/webp'].includes(item.mime))
+          throw Error('Пакет пока принимает PNG/JPEG/WebP, но не '+item.mime);
+        const original=required(item.src.replace(/^\/assets\//,'assets/'));
+        if(original.size<20||original.size>450000)
+          throw Error('Изображение больше 450 КБ или пустое: '+item.id);
+        const variants=[];
+        for(const variant of item.variants||[]){
+          const file=required(variant.src.replace(/^\/assets\//,'assets/'));
+          if(file.size<20||file.size>450000)throw Error('Недопустимый responsive-файл: '+variant.id);
+          variants.push({file,width:variant.width,sha256:variant.sha256});
+        }
+        media.push({id:item.id,original,variants,alt:item.alt});
+      }
+      if(!confirm('Подключить сайт «'+site.title+'» ('+handoff.version+')? Подтвердите, что три макета и их спецификация действительно утверждены. Публикация будет отдельно.'))return;
+      const fileBase64=file=>new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');
+        reader.onerror=()=>reject(Error('Ошибка чтения: '+file.name));
+        reader.readAsDataURL(file);
+      });
+      let created=false;
+      try{
+        // POST /api/sites disallows untrusted media references. Use a safe
+        // unpublished seed, existing authenticated uploads, then one validated Save.
+        let result=await api('/api/sites','POST',{site:editor.fromBrief(site.siteId,site.title)});
+        created=true;
+        selectSite(result);
+        const ids=new Map();
+        for(let i=0;i<media.length;i++){
+          const entry=media[i],variants=[];
+          notice('Подключение '+site.title+': загрузка файла '+(i+1)+' из '+media.length);
+          for(const part of entry.variants){
+            const sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await part.file.arrayBuffer())))
+              .map(b=>b.toString(16).padStart(2,'0')).join('');
+            if(sha256!==part.sha256)throw Error('Не совпадает контрольная сумма '+part.file.name);
+            variants.push({width:part.width,sha256,base64:await fileBase64(part.file)});
+          }
+          result=await api('/api/sites/'+encodeURIComponent(site.siteId)+'/media','POST',
+            {base64:await fileBase64(entry.original),alt:entry.alt,variants,expectedRevision:result.revision});
+          ids.set(entry.id,result.asset.id);
+        }
+        const retarget=value=>{
+          if(typeof value==='string')return ids.get(value)||value;
+          if(Array.isArray(value))return value.map(retarget);
+          if(value&&typeof value==='object')
+            return Object.fromEntries(Object.entries(value).map(([key,part])=>[key,retarget(part)]));
+          return value;
+        };
+        const next=retarget(site);
+        next.assets=result.site.assets; // Server-issued immutable IDs, paths, dimensions and responsive hashes.
+        result=await api('/api/sites/'+encodeURIComponent(site.siteId)+'/save','POST',
+          {site:next,expectedRevision:result.revision});
+        selectSite(result);
+        await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();await loadDeliverySettings();
+        notice('Сайт подключён как черновик. Редактируйте страницы, FAQ, изображения и SEO; публикация только по отдельной кнопке.');
+      }catch(error){
+        if(created){
+          try{
+            const current=await api('/api/sites/'+encodeURIComponent(site.siteId));
+            selectSite(current);await refreshSites();await loadHistory();
+          }catch(_){}
+          throw Error('Импорт не завершён; остался только НЕОПУБЛИКОВАННЫЙ черновик. '+error.message);
+        }
+        throw error;
+      }
+    });
+  }
   async function importSite(site){
     return safe(async()=>{
       if(isDirty()&&!confirm('Есть несохранённые правки. Импортировать другой сайт?'))return false;
@@ -2499,6 +2616,20 @@
     canEditStudio:()=>state.authorized&&!state.busy&&Boolean(state.siteId)&&canEdit(),
     canEditMedia:()=>state.authorized&&!state.busy&&Boolean(state.siteId)&&canEdit()&&!editor.isDirty(),
     uploadProcessed});
+
+  // A folder is a complete external-author handoff. Raw JSON import remains
+  // available for existing media-free sites. No additional editor engine.
+  const approvedFolder=document.createElement('input');
+  approvedFolder.type='file';approvedFolder.multiple=true;
+  approvedFolder.setAttribute('webkitdirectory','');
+  approvedFolder.hidden=true;approvedFolder.id='server-approved-folder';
+  const approvedButton=action('Подключить готовый сайт','server-approved-import',
+    ()=>approvedFolder.click());
+  $('import').parentElement.append(approvedButton,approvedFolder);
+  approvedFolder.addEventListener('change',()=>{
+    const entries=[...approvedFolder.files];approvedFolder.value='';
+    if(entries.length)importApprovedFolder(entries);
+  });
   $('versions').replaceChildren();
   editorVisible(false);
   state.loading=true;setGate(true);
