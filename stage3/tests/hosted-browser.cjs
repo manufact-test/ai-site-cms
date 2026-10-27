@@ -1228,6 +1228,55 @@ async function execute(){
   await page.locator('#server-site-select').selectOption(siteId);
   await page.locator('#server-open').click();
   await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();
+  // ONE critical real-browser path for the approved external folder: the PHP
+  // server must store asset bytes before accepting any references to them.
+  // Tiny synthetic design images exercise transport only, not visual acceptance.
+  const folder=path.join(temp,'approved-external-site');
+  fs.mkdirSync(path.join(folder,'prototypes'),{recursive:true});
+  fs.mkdirSync(path.join(folder,'assets'),{recursive:true});
+  const examplePng=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y6Pe3UAAAAASUVORK5CYII=','base64');
+  for(const name of ['desktop','tablet','mobile'])
+    fs.writeFileSync(path.join(folder,'prototypes',name+'.png'),examplePng);
+  fs.writeFileSync(path.join(folder,'assets','asset-external-hero.png'),examplePng);
+  fs.writeFileSync(path.join(folder,'client-explanation.md'),'Browser-only fixture: client-facing explanation for the full approved prototype.');
+  fs.writeFileSync(path.join(folder,'implementation-spec.md'),'Browser-only fixture: source of truth for component properties, responsive behavior, and CTA.');
+  fs.writeFileSync(path.join(folder,'handoff.json'),JSON.stringify({
+    format:'manufact-approved-site-handoff-v1',status:'approved',version:'fixture-1',
+    files:{site:'site.json',desktop:'prototypes/desktop.png',
+      tablet:'prototypes/tablet.png',mobile:'prototypes/mobile.png',
+      clientExplanation:'client-explanation.md',implementationSpec:'implementation-spec.md'}
+  }));
+  const external=await page.evaluate(()=>{
+    const site=window.Stage3Editor.fromBrief('site-approved-browser','Внешний готовый сайт');
+    site.assets=[{id:'asset-external-hero',src:'/assets/asset-external-hero.png',
+      mime:'image/png',alt:'Фото внешнего сайта'}];
+    site.pages[0].seo={title:'Внешний готовый сайт',description:'Проверка подключения внешнего сайта',
+      robots:'index',ogImage:'asset-external-hero'};
+    return site;
+  });
+  fs.writeFileSync(path.join(folder,'site.json'),JSON.stringify(external));
+  await page.locator('#server-approved-folder').setInputFiles(folder);
+  await page.locator('#toast').getByText(/Сайт подключён как черновик/).waitFor({timeout:15000});
+  const imported=await page.evaluate(()=>window.Stage3Editor.getSite());
+  assert.equal(imported.siteId,'site-approved-browser');
+  assert.equal(imported.assets.length,1);
+  assert.notEqual(imported.assets[0].id,'asset-external-hero','Server gives immutable site-owned asset ID');
+  assert.equal(imported.pages[0].seo.ogImage,imported.assets[0].id,'SEO media reference remapped');
+  assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),404,
+    'Approved folder import must never publish implicitly');
+  await page.locator('#fields [data-field="content.text"]').first().fill('Редактируется после подключения');
+  await page.locator('#fields [data-field="content.text"]').first().dispatchEvent('change');
+  await page.locator('#save').click();
+  await page.locator('#server-publish').click();
+  await page.locator('#server-status').getByText(/Опубликовано: v1/).waitFor();
+  assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),200);
+  const approvedPage=await visitor.goto(origin+'/published/site-approved-browser/');
+  assert.equal(approvedPage.status(),200);
+  assert.equal(await visitor.locator('h1').innerText(),'Редактируется после подключения');
+  assert.equal(await visitor.locator('meta[property="og:image"]').count(),1);
+  await page.locator('#server-site-select').selectOption(siteId);
+  await page.locator('#server-open').click();
+  await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();
   await staffCtx.close();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
