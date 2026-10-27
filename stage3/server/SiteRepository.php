@@ -648,11 +648,20 @@ final class SiteRepository
         $count=$this->db->prepare('SELECT COUNT(*) FROM stage3_submissions s LEFT JOIN stage3_lead_workflow w ON w.site_id=s.site_id AND w.submission_id=s.submission_id WHERE '.$where);
         $count->execute($params);$total=(int)$count->fetchColumn();
         $stats=['all'=>0,'new'=>0,'in_progress'=>0,'reviewed'=>0];
-        $totals=$this->db->prepare('SELECT status, COUNT(*) AS tally FROM stage3_submissions WHERE site_id = ? GROUP BY status');
+        $totals=$this->db->prepare('SELECT s.status,COALESCE(w.priority,\'normal\') AS priority,COUNT(*) AS tally'
+            .' FROM stage3_submissions s LEFT JOIN stage3_lead_workflow w'
+            .' ON w.site_id=s.site_id AND w.submission_id=s.submission_id'
+            .' WHERE s.site_id=? GROUP BY s.status,COALESCE(w.priority,\'normal\')');
         $totals->execute([$siteId]);
-        foreach ($totals->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            if (array_key_exists($row['status'],$stats))$stats[$row['status']]=(int)$row['tally'];
+        $pipeline=['new'=>['all'=>0,'high'=>0],
+            'in_progress'=>['all'=>0,'high'=>0],'reviewed'=>['all'=>0,'high'=>0]];
+        foreach($totals->fetchAll(PDO::FETCH_ASSOC) as $row){
+            if(!isset($pipeline[$row['status']]))continue;
+            $n=(int)$row['tally'];
+            $pipeline[$row['status']]['all']+=$n;
+            if($row['priority']==='high')$pipeline[$row['status']]['high']+=$n;
         }
+        foreach($pipeline as $name=>$counts)$stats[$name]=$counts['all'];
         $stats['all']=$stats['new']+$stats['in_progress']+$stats['reviewed'];
         $pages=max(1,(int)ceil($total/$limit));
         $page=min($page,$pages);
@@ -671,7 +680,7 @@ final class SiteRepository
         foreach ($rows as &$row)$row['extras']=self::decode($row['extras']);
         unset($row);
         return ['submissions'=>$rows,'page'=>$page,'pages'=>$pages,'limit'=>$limit,
-            'total'=>$total,'counts'=>$stats];
+            'total'=>$total,'counts'=>$stats,'pipeline'=>$pipeline];
     }
 
     /** Entire filtered CSV or explicit refusal: never silently truncate private exports. */

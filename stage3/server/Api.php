@@ -83,6 +83,7 @@ final class Api
             || preg_match('~^templates/template-[0-9a-f]{18}/delete$~D', $action)
             || preg_match('~^submissions/lead-[0-9a-f]{24}/review$~D', $action)
             || $action==='submissions/bulk-review'
+            || $action==='submissions/bulk-workflow'
             || preg_match('~^submissions/lead-[0-9a-f]{24}/workflow$~D',$action))) return;
         if ($principal['role'] === 'publisher' && $method === 'POST' && $action === 'publish') return;
         $this->response(403, ['error' => 'Role does not allow this operation']);
@@ -505,7 +506,7 @@ final class Api
                     $this->response(200, $this->sites->markNotificationsSeen($alertMatch[1]));
                 }
             }
-            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/submissions(?:/(export|bulk-review|lead-[0-9a-f]{24}/(?:review|workflow|history)))?$~D', $path, $inboxMatch)) {
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/submissions(?:/(export|bulk-review|bulk-workflow|lead-[0-9a-f]{24}/(?:review|workflow|history)))?$~D', $path, $inboxMatch)) {
                 $siteId=$inboxMatch[1];$operation=$inboxMatch[2]??'';
                 if($method==='GET'&&in_array($operation,['','export'],true)){
                     $status=$_GET['status']??'all';$query=$_GET['q']??'';$priority=$_GET['priority']??'all';
@@ -537,6 +538,17 @@ final class Api
                     $result=$this->sites->updateLeadWorkflow($siteId,$leadMatch[1],$principal['username'],
                         $body['status'],$body['priority'],$body['note'],$body['expectedWorkflowRevision']);
                     $this->auditDetail='Lead workflow changed '.($result['changed']?'yes':'no');
+                    $this->response(200,$result);
+                }
+                if($method==='POST'&&$operation==='bulk-workflow'){
+                    if(!is_array($body['items']??null)
+                        ||!array_key_exists('status',$body)||!array_key_exists('priority',$body)
+                        ||($body['status']!==null&&!is_string($body['status']))
+                        ||($body['priority']!==null&&!is_string($body['priority'])))
+                        throw new InvalidArgumentException('Typed bulk lead workflow fields required');
+                    $result=$this->sites->bulkLeadWorkflow($siteId,$principal['username'],
+                        $body['items'],$body['status'],$body['priority']);
+                    $this->auditDetail='Lead workflow triage '.$result['changed'].'/'.$result['selected'];
                     $this->response(200,$result);
                 }
                 if($method==='POST'&&$operation==='bulk-review'){
