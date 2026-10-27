@@ -189,6 +189,11 @@ const feedbackToken=feedback.context(approvedDraft,approvedDraft.project||{
 assert.match(feedbackToken,/^df-[0-9a-f]{8}$/);
 const reviewPage=feedback.reviewHtml(feedbackToken);
 const englishReview=feedback.reviewHtml(feedbackToken,'en');
+assert.ok(englishReview.includes('feedback-note-editor')&&
+ englishReview.includes('Note updated.')&&englishReview.includes('Remove note'));
+assert.ok(englishReview.includes('note.message')&&englishReview.includes('notesRevision++'));
+assert.ok(englishReview.includes('notes[index]={page:page.value,type:type.value,message:value,resolved:false}'),
+ 'Edited customer note must be reopened for owner/developer action');
 assert.ok(englishReview.includes('<html lang="en">')&&
  englishReview.includes('Feedback on the preview')&&englishReview.includes('Your feedback')&&
  englishReview.includes('>Services</a>'));

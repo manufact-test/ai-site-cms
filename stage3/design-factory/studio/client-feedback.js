@@ -75,6 +75,51 @@
    $('feedback-status').textContent=text;
    $('feedback-status').dataset.error=String(error);
   }
+
+  // Edit an existing client note in-place. Do not inject note text into markup.
+  // Changed review text reopens a previously resolved item for a fresh decision.
+  function startEdit(note,index,item){
+   notesRevision++;
+   const panel=document.createElement('div');panel.className='feedback-note-editor';
+   const selectField=(caption,options,current)=>{
+    const label=document.createElement('label'),select=document.createElement('select');
+    label.textContent=caption;
+    for(const [value,title] of Object.entries(options)){
+     const option=document.createElement('option');option.value=value;option.textContent=title;
+     select.append(option);
+    }
+    select.value=current;
+    select.addEventListener('change',()=>{notesRevision++;});
+    label.append(select);panel.append(label);
+    return select;
+   };
+   const page=selectField(t('Страница','Page'),PAGES,note.page);
+   const type=selectField(t('Тип замечания','Feedback type'),TYPES,note.type);
+   const label=document.createElement('label');label.textContent=t('Ваше замечание','Your feedback');
+   const messageField=document.createElement('textarea');
+   messageField.maxLength=900;messageField.value=note.message;
+   messageField.addEventListener('input',()=>{notesRevision++;});
+   label.append(messageField);panel.append(label);
+   const actions=document.createElement('div');actions.className='feedback-note-actions';
+   const save=document.createElement('button'),cancel=document.createElement('button');
+   save.type='button';save.textContent=t('Сохранить','Save');
+   cancel.type='button';cancel.className='secondary';cancel.textContent=t('Отмена','Cancel');
+   save.addEventListener('click',()=>{
+    const value=messageField.value.trim();
+    if(!value||value.length>900||!Object.prototype.hasOwnProperty.call(PAGES,page.value)||
+       !Object.prototype.hasOwnProperty.call(TYPES,type.value)){
+     message(t('Некорректное замечание','Invalid feedback note'),true);return;
+    }
+    if(notes[index]!==note)return;
+    notes[index]={page:page.value,type:type.value,message:value,resolved:false};
+    notesRevision++;render();
+    message(t('Замечание изменено. При необходимости отправьте обновлённый JSON.','Note updated. Download a fresh JSON when ready.'));
+   });
+   cancel.addEventListener('click',()=>{notesRevision++;render();});
+   actions.append(save,cancel);panel.append(actions);
+   item.append(panel);messageField.focus();
+  }
+
   function render(){
    const holder=$('feedback-list');holder.replaceChildren();
    $('feedback-count').textContent=String(notes.length)+' / '+LIMIT;
@@ -82,10 +127,13 @@
     const item=document.createElement('li'),description=document.createElement('p');
     description.textContent=PAGES[n.page]+' · '+TYPES[n.type];
     const copy=document.createElement('blockquote');copy.textContent=n.message;
+    const edit=document.createElement('button');
+    edit.type='button';edit.textContent=t('Изменить','Edit');
+    edit.addEventListener('click',()=>startEdit(n,i,item));
     const remove=document.createElement('button');
     remove.type='button';remove.textContent=t('Удалить замечание','Remove note');
     remove.addEventListener('click',()=>{notes.splice(i,1);notesRevision++;render();});
-    item.append(description,copy,remove);holder.append(item);
+    item.append(description,copy,edit,remove);holder.append(item);
    });
    $('feedback-download').disabled=notes.length===0;
    $('feedback-add').disabled=notes.length>=LIMIT;
@@ -95,7 +143,8 @@
     value.format!=='manufact-design-factory-client-feedback-v1'||value.version!==1||
     value.context!==contextId||!Array.isArray(value.notes)||value.notes.length>LIMIT||
     typeof value.reviewer!=='string'||value.reviewer.length>80||
-    typeof value.reviewedAt!=='string'||!Number.isFinite(Date.parse(value.reviewedAt))||
+    typeof value.reviewedAt!=='string'||!/^\d{4}-\d\d-\d\dT/.test(value.reviewedAt)||
+    !Number.isFinite(Date.parse(value.reviewedAt))||
     Object.keys(value).some(k=>!['format','version','context','reviewer','reviewedAt','notes'].includes(k)))
     throw Error(t('Несовместимый JSON или другой сайт','Incompatible JSON or another site'));
    const clean=[];
@@ -172,7 +221,7 @@
    'nav a{color:#c5f57b;padding:12px 16px;border:1px solid #688375;border-radius:9px}section{padding:20px;background:#1d2d30;border:1px solid #425c53;border-radius:15px}'+
    'label{display:grid;gap:7px;margin:12px 0}input,select,textarea{font:inherit;width:100%;background:#0d191c;color:white;border:1px solid #678579;padding:12px;border-radius:8px}'+
    'textarea{min-height:110px}button{font:inherit;background:#c5f57b;color:#0d1b14;border:0;border-radius:8px;font-weight:700;padding:12px 16px;cursor:pointer;min-height:44px}'+
-   'button:disabled{opacity:.4;cursor:not-allowed}button.secondary{background:#344e45;color:white}li{margin:10px 0;padding:12px;border:1px solid #557368;border-radius:9px}blockquote{white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0}'+
+   'button:disabled{opacity:.4;cursor:not-allowed}button.secondary{background:#344e45;color:white}li{margin:10px 0;padding:12px;border:1px solid #557368;border-radius:9px}li>button{margin:4px 8px 4px 0}.feedback-note-editor{margin-top:12px;padding:12px;border:1px solid #678579;border-radius:9px}.feedback-note-actions{display:flex;gap:8px;flex-wrap:wrap}blockquote{white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0}'+
    '#feedback-status[data-error=true]{color:#ffafa2}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #c5f57b;outline-offset:3px}</style></head>'+
    '<body><main><h1>Замечания к прототипу</h1>'+
    '<p>Откройте нужную страницу, осмотрите дизайн и запишите, что требуется изменить. Замечания сохраняются только в скачиваемом JSON, браузер ничего не отправляет. Это не согласование публикации.</p>'+
