@@ -1,10 +1,12 @@
 # AI Site CMS — передача главному разработчику / интегратору v1.73
 
+**Важное уточнение к B3 CI:** предварительный source SHA `24506eeca3af` / [#40475356099](https://github.com/manufact-test/ai-site-cms/actions/runs/40475356099) завершился **FAILED** в hosted-browser: после смены стадии заявка исчезала из активного фильтра, а тест ожидал её увидеть. Код исправлен отдельным коммитом `21a8c66611c8`: несовместимый статус/приоритет сбрасывается в «Все», чтобы сохранить видимость сохранённой заявки. Последний CI финального функционального SHA: [#40476026585](https://github.com/manufact-test/ai-site-cms/actions/runs/40476026585), проверить окончательный статус. Исходные PHP/контрактные B3 ветви ранее проходили. До точного SUCCESS никаких заявлений о приёмке.
+
 **Дата:** 27.10.2026  
 **Репозиторий:** https://github.com/manufact-test/ai-site-cms  
 **Главная ветка разработки (НЕ `main`):** `feature/stage3-ai-site-contract`  
-**Последний функциональный B3 SHA:** `24506eeca3afb4594cddf4d5b1df05c4416aeca4`  
-**CI исходного SHA:** https://github.com/manufact-test/ai-site-cms/actions/runs/40475356099 — **проверить конечный результат**; на момент подготовки handoff выполнялся (не называть PASS заранее).  
+**Последний функциональный B3 SHA:** `21a8c66611c8f9812f6c69d25847778d390d533d`  
+**CI исходного SHA:** https://github.com/manufact-test/ai-site-cms/actions/runs/40476026585 — **проверить конечный результат**; на момент подготовки handoff выполнялся (не называть PASS заранее).  
 **Последний точно подтверждённый полный SUCCESS:** B2 `fa3c558a62e19005c25e62373ef1eb14dceafdc7`, https://github.com/manufact-test/ai-site-cms/actions/runs/40471816303.  
 **После документационного коммита:** branch HEAD будет новее исходного; проверить его собственный CI и отметить, что docs-only SHA ≠ source SHA.
 
@@ -33,7 +35,7 @@
 B3: `stage3/server/LeadWorkflow.php`, `stage3/server/Api.php`, `stage3/server/SiteRepository.php`, `stage3/studio/hosted.js`, `stage3/studio/hosted.css`, `stage3/tests/server-e2e.cjs`, `stage3/tests/hosted-browser.cjs`. A1/B1: `stage3/studio/app.js`, сгенерированный `stage3/studio/bundle.js`, `stage3/sdk/design-graph.cjs`, `stage3/server/DesignGraph.php`. Архив: `stage3/server/SiteArchives.php`.
 
 ## Что делать в следующем чате
-1. **Сначала** прочитать v1.73 + основные status/roadmap, запросить GitHub branch HEAD `feature/stage3-ai-site-contract` и последний CI, включая `24506eeca3afb4594cddf4d5b1df05c4416aeca4`. Данные о CI из документа — исторический снимок: если он завершился, показать конечный SUCCESS/FAIL. При FAIL исправить только подтверждённый реальный регресс, не переписывать всё заново. Проверить также docs-only HEAD CI.
+1. **Сначала** прочитать v1.73 + основные status/roadmap, запросить GitHub branch HEAD `feature/stage3-ai-site-contract` и последний CI, включая `21a8c66611c8f9812f6c69d25847778d390d533d`. Данные о CI из документа — исторический снимок: если он завершился, показать конечный SUCCESS/FAIL. При FAIL исправить только подтверждённый реальный регресс, не переписывать всё заново. Проверить также docs-only HEAD CI.
 2. **Затем** взять полноценный **C1/D** макроблок. Предложение: безопасное переиспользование наполненных секций, Design Graph и site-owned media **между разными сайтами** (не просто библиотека секций внутри одного сайта — она уже есть). Нужны preflight/manifest checks, явная карта ассетов, превью и атомарный Save без Publish, запрет cross-site leakage, ревизии и один критичный E2E. Прежде чем делать, инвентаризировать существующие section templates / backup / cross-page copy и выбрать действительно отсутствующий вертикальный путь. Если это уже покрыто, выбрать иной крупный пробел по матрице 135.
 3. После завершения каждого захода дать пользователю функциональный SHA, exact CI с выводом, что реально готово, и оставить формальную приёмку Stage2 NO-GO и Stage3 0/135 неизменными. Документы заново обновлять только по отдельной просьбе сменить чат.
 
