@@ -2,11 +2,13 @@
 
 **Date:** 2026-10-27. **Repo:** https://github.com/manufact-test/ai-site-cms  
 **Independent branch:** `feature/stage3-design-factory`  
-**Authoritative last functional commit:** `f08426ed48ac23264e51433c3d641243ecd31b49`  
+**Latest verified functional commit:** `8e49b2d177f683d26814aba01aac7b4c2d647554` (three quality-fix commits; documentation commits follow).  
 **Scope:** only `stage3/design-factory/**` (do not modify main, lead SDK/PHP/server, CI workflows, hosting, production or other contributors' branches). Do not merge or publish. Check actual remote HEAD first; documentation-only handoff commits follow the functional SHA.
 
 
 > **Runner update, 2026-10-27:** The new chat independently confirmed that this container cannot resolve GitHub for `git clone` and Chromium blocks **both** `file://` and loopback `http://127.0.0.1` with `ERR_BLOCKED_BY_ADMINISTRATOR`. Real D7 remains NOT RUN. Eight common Lead component manifests are byte-identical; the Lead contract/schema have evolved. See [D7-EXECUTION-BLOCKER-2026-10-27.md](D7-EXECUTION-BLOCKER-2026-10-27.md). Do not run another synthetic D7 acceptance or claim 86% changed. Real runner + genuine human signoff are required.
+
+> **Product correction update, 2026-10-27:** Three committed D7-facing fixes: verified contact facts now reach the HTML contact panel without a self-link; rejected screenshot/composition verdicts cannot yield a ready human-approval receipt; all 12 themes use their CMS font stack in HTML previews. See `PROGRESS.md` for the three exact SHAs. Generated Studio runtime was source-parity checked using current GitHub source, but **no real Node checkout audit, Chromium full E2E, human signoff, PHP probes or release ZIP was executed**. D7 OPEN, Stage3 UNACCEPTED, 0/135.
 
 ## First rule for this chat
 
