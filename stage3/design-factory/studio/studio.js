@@ -9,6 +9,7 @@ const WORKSPACE='manufact-design-factory-workspace-v1';
 const feedbackTool=globalThis.DesignFactoryFeedback;
 const auditTool=globalThis.DesignFactorySiteAudit;
 const deliveryTool=globalThis.DesignFactoryDeliveryPackage;
+const restoreTool=globalThis.DesignFactoryDeliveryImport;
 const sectionTool=globalThis.DesignFactorySectionEditor;
 const pageSettingsTool=globalThis.DesignFactoryPageSettings;
 const LANG={
@@ -762,6 +763,77 @@ function saveBridge(){
   say('Карта совместимости выгружена.');
  }catch(e){say(e.message,true);}
 }
+
+let pendingDelivery=null;
+function resetDeliveryCandidate(message){
+ pendingDelivery=null;
+ const applyButton=$('delivery-restore-apply');
+ if(applyButton)applyButton.disabled=true;
+ const status=$('delivery-restore-status');
+ if(status&&message)status.textContent=message;
+}
+async function inspectDeliveryFile(file){
+ const request=++state.projectImportSerial;
+ resetDeliveryCandidate('Проверяем ZIP и совпадение CMS/D6…');
+ try{
+  if(!restoreTool)throw Error('Модуль восстановления ZIP отсутствует.');
+  if(!file||file.size<22||file.size>9*1024*1024)
+   throw Error('Допускаются ZIP пакеты размером до 9 МБ.');
+  const revision=state.editRevision,feedbackRevision=state.feedbackRevision;
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  if(request!==state.projectImportSerial||revision!==state.editRevision||
+   feedbackRevision!==state.feedbackRevision)
+   throw Error('Проект изменился во время чтения ZIP. Выберите файл повторно.');
+  const result=restoreTool.restore({bytes,engine,zip:globalThis.DesignFactoryPreviewZip,
+   feedbackTool});
+  if(request!==state.projectImportSerial||revision!==state.editRevision||
+    feedbackRevision!==state.feedbackRevision)
+   throw Error('Проект изменился во время проверки ZIP. Повторите импорт.');
+  pendingDelivery={request,revision,feedbackRevision,result};
+  $('delivery-restore-apply').disabled=false;
+  $('delivery-restore-status').textContent='Проверено '+result.inspection.files+
+   ' файлов (CRC32). CMS/D6 совпадают, страниц: '+result.verifiedCMSPages+
+   '. Исходная индексация: '+result.originalIndexing+
+   '. После восстановления: noindex. Для замены текущего проекта нажмите кнопку ниже.';
+ }catch(error){resetDeliveryCandidate('ZIP отклонён: '+error.message);}
+ if(request===state.projectImportSerial)$('delivery-file').value='';
+}
+function applyDeliveryCandidate(){
+ const candidate=pendingDelivery;
+ if(!candidate)return;
+ if(candidate.request!==state.projectImportSerial||
+    candidate.revision!==state.editRevision||
+    candidate.feedbackRevision!==state.feedbackRevision){
+  resetDeliveryCandidate('Данные изменились после проверки ZIP. Выберите пакет повторно.');
+  return;
+ }
+ try{
+  const w=candidate.result.workspace;
+  // Existing editing state is recoverable by the ordinary Undo action.
+  const success=apply(()=>{
+   state.project=clone(w.project);
+   state.composition=w.composition;
+   state.sectionPlan=clone(w.sectionPlan||null);
+   state.pageSettings=clone(w.pageSettings||null);
+   state.page='home';
+   state.viewMode='single';
+  },{preserveReview:true,throwOnError:true});
+  if(!success)throw Error('Восстановление не применено');
+  pageSettingsEditor?.clearDrafts();
+  // Preserve historical client remarks, but render as stale after re-review
+  // invalidated the original owner signoff. Never automatically approve them.
+  state.feedback=candidate.result.feedback?clone(candidate.result.feedback):null;
+  state.feedbackRevision++;
+  renderFeedback();
+  resetDeliveryCandidate('Рабочий проект восстановлен из проверенного ZIP. '+
+   'Старое подтверждение владельца сброшено, CMS noindex; доступен Undo.');
+  say('Проект восстановлен: четыре страницы, композиции, тексты и SEO. '+
+   'Подтверждение владельца требуется заново.');
+ }catch(error){
+  resetDeliveryCandidate('Восстановление не выполнено: '+error.message);
+ }
+}
+
 async function importFile(file){
  const request=++state.projectImportSerial;
  try{
@@ -890,6 +962,8 @@ function init(){
   event.preventDefault();setHistory(event.shiftKey?'redo':'undo');
  });
  $('project-file').addEventListener('change',event=>importFile(event.target.files[0]));
+ $('delivery-file').addEventListener('change',event=>inspectDeliveryFile(event.target.files[0]));
+ $('delivery-restore-apply').addEventListener('click',applyDeliveryCandidate);
  window.addEventListener('message',event=>{
   const trusted=[ $('site-preview'),$('compare-preview'),...state.overviewFrames ].some(frame=>frame.contentWindow===event.source);
   if(!trusted||!event.data||event.data.type!=='df-navigation')return;
