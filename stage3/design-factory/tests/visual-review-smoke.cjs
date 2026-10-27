@@ -102,6 +102,9 @@ try{
   assert.ok(output.includes('id="'+id+'"'),id+' must be present');
  assert.ok(output.includes('data-review-group'));
  assert.ok(output.includes('manufact-design-factory-visual-draft-v2'));
+ assert.ok(output.includes('compositionDefects'));
+ assert.ok(output.includes('rejectedPatterns'));
+ assert.ok(output.includes('compositionDecisions()'));
  assert.ok(output.includes('Draft is incompatible with this visual evidence set'));
   assert.ok(output.includes('request!==draftReadSerial||revision!==reviewRevision'),
    'Offline visual-review draft import must not overwrite newer manual decisions');
