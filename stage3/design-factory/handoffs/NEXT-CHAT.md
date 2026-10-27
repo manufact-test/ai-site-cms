@@ -562,3 +562,12 @@ Useful files: `lib/section-edits.cjs`, `lib/section-plan.cjs`, `lib/bridge.cjs`,
 
 Next valuable round: obtain real read-only Node checkout/Chromium `file://` navigation and execute the *existing* Studio E2E, then D7 human responsive design and Lead PHP parity. If unavailable, continue focused product functionality (e.g. safe editing of page-level SEO/navigation metadata with CMS/D6 parity, or offline import of existing 18-file delivery ZIP) rather than building redundant simulation tests. Keep all writes in independent branch `stage3/design-factory/**`, no merge/deploy/Lead/CI edits.
 
+
+## LATEST — 27.10.2026: four-route SEO / navigation editor implemented
+
+The last independent product round added **four-page SEO metadata control**: Home, Services, Approach and Contact each allow explicit Save/Cancel/Restore for CMS page title, SEO title, SEO description, navigation label, with a local live search-snippet mockup. Unsaved values remain drafts, never enter exports. New `lib/page-settings.cjs` version 1 and **workspace envelope v3** preserve old v1/v2 workspace and optional section plans. D6, Studio CMS JSON and 18-file delivery use the same SDK-backed overlay. Any changed SEO/navigation title disables indexing until owner re-review; no route/ID/robots/nav-hidden direct editing or automatic publication. Switching kit or language clears old metadata. Read `studio/README.md`, `lib/page-settings.cjs`, `lib/bridge.cjs`, `studio/page-settings.js`.
+
+Executed on real GitHub JS in isolated V8: saved/unsaved copy, valid per-page metadata, D6 site equality, old workspace compatibility, six invalid metadata rejection cases, mock-DOM save/cancel/reset/snippet. **Not checked-out Node or Chromium/PHP proof.** GitHub DNS remains blocked from local checkout; still pending actual Node suites, Chromium file navigation, 54 responsive PNGs, 64 routes, human reviews, six Lead PHP parity probes, hashed source-exact ZIP. D7 OPEN · Stage2 NO-GO · Stage3 UNACCEPTED · 0/135 formally accepted; six of seven engineering phases ~86%, not release readiness.
+
+**Next large useful block:** secure offline import of the existing **18-file delivery ZIP** to restore `design/workspace.json` and verify it matches `cms/site-v1.json` / D6, manifest and CRC, without executing archive markup/code, or run real Chromium acceptance once a true checkout becomes available. Do not edit outside `stage3/design-factory/**`, merge or touch Lead SDK/PHP/workflows/production.
+
