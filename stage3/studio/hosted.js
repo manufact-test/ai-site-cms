@@ -1349,6 +1349,10 @@
     backupOpen.disabled=state.busy||!isOwner();
     releaseRefresh.disabled=!available;
     historyOpen.disabled=!available||isDirty()||!canEdit();
+    historyPlan.disabled=!available||isDirty()||!canEdit();
+    historyApply.disabled=state.busy||!historyPending||!available||isDirty()||!canEdit();
+    for(const control of [historyKind,historyNumber,historyPage,historyMode,historySection])
+      control.disabled=state.busy;
     backupPlan.disabled=state.busy||!state.authorized;
     backupClose.disabled=state.busy;
     backupFile.disabled=state.busy;backupTarget.disabled=state.busy;
