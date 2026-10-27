@@ -2456,7 +2456,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       if(!String(page.seo?.description||'').trim())
         add(page,null,null,'seo','Добавьте собственное SEO-описание страницы.','seo.description');
       for(const section of page.sections){
-        for(const element of [...section.elements,...(section.items||[])]){
+        // The legacy section data remains stored for safe rollback but is
+        // intentionally hidden while its Design Graph is the public output.
+        if(!section.designGraph)for(const element of [...section.elements,...(section.items||[])]){
           // Resolve declared fields directly: C.controls() revalidates the
           // entire site on every call, which is quadratic for large sites.
           const component=manifests.find(m=>m.id===section.component&&m.version===section.manifestVersion);
