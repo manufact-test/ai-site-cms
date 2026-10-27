@@ -47,6 +47,12 @@ jobs:
           php-version: '8.3'
           extensions: pdo_sqlite
           coverage: none
+      - name: D3 isolated release cutover and rollback on loopback
+        run: |
+          node --check stage3/runtime-export/bin/release-manager.cjs
+          node --check stage3/runtime-export/tests/release-lab.cjs
+          php -l stage3/runtime-export/templates/release-lab/router.php
+          node stage3/runtime-export/tests/release-lab.cjs
       - name: Server syntax and one full HTTP persistence/publish E2E
         run: |
           for file in stage3/server/*.php stage3/server/public/*.php stage3/server/bin/*.php; do php -l "$file"; done

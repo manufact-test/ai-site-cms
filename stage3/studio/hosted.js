@@ -149,8 +149,29 @@
   techDownload.disabled=true;
   const techClose=action('Закрыть','server-tech-close',()=>techDialog.close());
   techActions.append(techPlan,techDownload,techClose);
+  const techLabHelp=element('details','hosted-backup-summary');
+  const techLabHeading=element('summary',null,'D3 · Локальная проверка, переключение и откат выпуска');
+  const techLabDescription=element('p',null,
+    'Скачанный пакет можно безопасно подготовить в отдельном локальном реестре и включать выпуски только в localhost. Это не переключает действующий сайт и не отправляет формы.');
+  const techLabCommands=element('pre');
+  techLabCommands.style.whiteSpace='pre-wrap';
+  techLabCommands.style.overflowWrap='anywhere';
+  techLabCommands.textContent=[
+    'node stage3/runtime-export/bin/release-manager.cjs init /ABS/new-lab',
+    'node stage3/runtime-export/bin/release-manager.cjs stage /ABS/new-lab release-v1 /ABS/downloaded-handoff.json '+techTarget.value,
+    'node stage3/runtime-export/bin/release-manager.cjs plan /ABS/new-lab release-v1',
+    'node stage3/runtime-export/bin/release-manager.cjs activate /ABS/new-lab TOKEN',
+    'node stage3/runtime-export/bin/release-manager.cjs plan-rollback /ABS/new-lab',
+    'node stage3/runtime-export/bin/release-manager.cjs rollback /ABS/new-lab TOKEN',
+    'php -S 127.0.0.1:8181 -t /ABS/new-lab/public /ABS/new-lab/public/router.php'
+  ].join('\\n');
+  techLabHelp.append(techLabHeading,techLabDescription,techLabCommands);
+  techTarget.addEventListener('change',()=>{
+    const old=techLabCommands.textContent;
+    techLabCommands.textContent=old.replace(/(downloaded-handoff\\.json )(?:html|php|next-static|next-ssr)/, '$1'+techTarget.value);
+  });
   techDialog.append(techTitle,techHint,techVersionWrap,techTargetWrap,
-    techOriginWrap,techCollectorWrap,techCompare,techPlanSummary,techActions);
+    techOriginWrap,techCollectorWrap,techCompare,techPlanSummary,techLabHelp,techActions);
   document.body.append(techDialog);
   const openTechnologyCenter=async()=>{
     if(techOpening)return;
