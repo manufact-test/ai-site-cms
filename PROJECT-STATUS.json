@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-10-27",
-  "status": "stage2-no-go-stage3-isolated-v1.74-route-and-content-lifecycle",
+  "status": "stage2-no-go-stage3-isolated-v1.75-D1-D6-user-journey-next",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.74-2026-10-27.md",
-  "latest_source_sha": "8b097eef0980211ce2cb80f1e6c4c41d47a336ad",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40502513858",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40502513858",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.75-2026-10-27.md",
+  "latest_source_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
   "source_offweb_ci": null,
-  "source_ci_result": "VERIFY exact completed conclusion of Stage3 CI #40502513858 (source SHA 8b097eef0980211ce2cb80f1e6c4c41d47a336ad). Previous complete SUCCESS: source 29c52210e24ad29b20c059c3ec72ef91e57476e7 CI #40498839746 17/17. No official Stage2 or Stage3 acceptance; no deployment.",
+  "source_ci_result": "Stage3 D6 functional SHA 32297b94... exact CI #40551009731; check completed/conclusion before claiming SUCCESS. Previous D5 bf66650cefce and #40546024612 completed SUCCESS.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly with cross-subsystem workflows (no duration padding), then correct issues from real use; avoid tiny features and endless tests",
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "8b097eef0980211ce2cb80f1e6c4c41d47a336ad",
+    "stage3_code_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -55,20 +55,20 @@
       "D: Technology adapters + deploy foundations (2/13/12; isolated only)",
       "E: System checks + 135 owner approvals + release (14/15/16/17; owner GO required)"
     ],
-    "next_macroblock": "D1: verify current standalone HTML/PHP/React/Next Static/SSR technology adapters and implement the next 2-4 missing end-to-end output/runtime packages on disposable CI; if covered choose a different real gap from the 135 requirements. Avoid duplicating C1-C4 route/media/history/cross-site modules.",
+    "next_macroblock": "A/B/C user journey and mandatory coverage: map 135 requirements to actual code, pick largest uncovered verticals, build end-to-end authored multipage site → explicit publish → form → inbox → restore/export. No D7 exporter by default.",
     "execution_policy_document": "docs/ACCELERATED-MACROBLOCK-PROGRAM.md",
     "policy_owner_request_date": "2026-10-27",
     "current_code_checkpoint_at_policy_change": "cf369988ec16904d945413f36ad292fb94d17da2",
-    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/40502513858"
+    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731"
   },
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "New main chat: read handoff v1.74, check exact feature branch HEAD and CI, then implement substantive D1 technology-adapters/export runtime macroblock (or nearest uncovered A2 requirement) with 2-4 real vertical packages. Stage2 NO-GO #5-#9, 0/135 formal acceptance; Design Factory separately isolated.",
+  "next_step": "NEW MAIN CHAT: prioritize one complete CMS user journey and gap mapping of mandatory 135 requirements; deliver 2–4 substantive A/B/C feature packages Studio→PHP API/storage→published visitor. D1–D6 independent runtime/export/ZIP/rehearsal is already engineered; do not expand D7 by inertia. Stage2 owner gates #5–#9 remain NO-GO; no production or Design Factory integration.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.74",
+  "checkpoint_version": "1.75",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -668,7 +668,7 @@
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.52",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.72-2026-10-26.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.75-2026-10-27.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -1237,7 +1237,7 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.72",
+  "last_docs_handoff_version": "1.75",
   "last_docs_handoff_note": "Owner requested transition to incoming lead after verified full CI #40395814925 SUCCESS on source SHA 95a9f36759e7feabe435c4733181a73ff70866d9; docs-only commits need separate HEAD/CI check. New intake, page builder, launch compare and Graph studio documented. Stage2 NO-GO #5-9, Stage3 0/135 formal.",
   "latest_tested_code_sha": "ac483807cc2f2ac302f6fed3470cac4cfb795896",
   "development_policy_v1_50": {
@@ -1412,9 +1412,9 @@
     "state": "code-in-progress-isolated-not-formally-accepted",
     "started_at": "2026-10-23",
     "branch": "feature/stage3-ai-site-contract",
-    "source_sha": "964e6746db7680c064cce502ae034c00683115b5",
-    "ci_url": "https://github.com/manufact-test/ai-site-cms/actions/runs/40019059962",
-    "ci_result": "SUCCESS",
+    "source_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
+    "ci_url": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
+    "ci_result": "VERIFY exact #40551009731",
     "owner_scope": "autonomous isolated branch code only; host/DB/production operations still need separate scoped permission",
     "implementation": [
       "Versioned first-party component manifests, stable IDs, typed responsive editor, undo/redo and immutable drafts",
@@ -1794,19 +1794,18 @@
     "ci_final_status": "SUCCESS"
   },
   "last_completed_macroblock": {
-    "name": "B3 private operator lead workbench",
+    "name": "D6 published-ZIP local visitor HTTP rehearsal",
     "date": "2026-10-27",
-    "source_sha": "320cdf53859926032e41102904c19c1986159155",
-    "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/40476473360",
-    "ci_result_at_handoff": "in_progress; exact source #40476473360",
+    "source_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
+    "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
+    "ci_result_at_handoff": "VERIFY exact workflow conclusion",
     "features": [
-      "Atomic revision-checked multi-lead stage/priority transitions (1–50), notes retained, full rollback",
-      "Private pipeline counts by stage and urgency with direct filters",
-      "Current-page batch controls, correct RBAC/CSRF and audit history"
+      "Immutable ZIP verification before disposable loopback visitor",
+      "Real PHP public router and static/Next Static host simulation",
+      "HTTP page 200/HEAD, 301, media SHA256, 404/private boundary, POST 405",
+      "Opt-in ship --http-rehearsal and sidecar evidence; Next SSR source-only refusal"
     ],
-    "previous_confirmed_green_sha": "fa3c558a62e19005c25e62373ef1eb14dceafdc7",
-    "bugfix": "Operator transition out of selected stage/priority auto-returns to All, so saved lead remains visible",
-    "test_correction": "Correctness verification of newly recorded same-second events is order-independent (per-event audit retained)."
+    "previous_confirmed_green_sha": "bf66650cefcea7159d81dad859e55baaaa50266a"
   },
   "latest_engineering_macroblocks": [
     {
@@ -1843,6 +1842,86 @@
       "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40502513858",
       "verified": "PENDING — verify",
       "scope": "Link audit, page URL migrations, bulk repairs and 301s"
+    },
+    {
+      "stage": "D1",
+      "sha": "3d8b1314add56c6db96263983d835ac8747811cc",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40510082805",
+      "verified": "success",
+      "scope": "Independent published HTML/PHP/Next Static/SSR visitor runtimes"
+    },
+    {
+      "stage": "D2",
+      "sha": "9f00ad021090278711edd20bcf1c4c04ea7673ba",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40519245243",
+      "verified": "success",
+      "scope": "Private immutable historical version handoff and Studio compare"
+    },
+    {
+      "stage": "D3",
+      "sha": "2248a4f3ccc5c10d5df16f025546dac44e70764d",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40526644375",
+      "verified": "success",
+      "scope": "Local immutable slots, confirmed switch and rollback"
+    },
+    {
+      "stage": "D4",
+      "sha": "420817c0dd7f63a43ac104cda896305b89f73171",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40537925680",
+      "verified": "success",
+      "scope": "Verified independent technology ZIP handover"
+    },
+    {
+      "stage": "D5",
+      "sha": "bf66650cefcea7159d81dad859e55baaaa50266a",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40546024612",
+      "verified": "success",
+      "scope": "One-command four-technology shipment and readiness audit"
+    },
+    {
+      "stage": "D6",
+      "sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
+      "verified": "VERIFY CI",
+      "scope": "Disposable local real PHP/static HTTP visitor rehearsal"
     }
-  ]
+  ],
+  "stage3_v1_75_checkpoint": {
+    "handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.75-2026-10-27.md",
+    "functional_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
+    "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
+    "verified_status": "VERIFY exact completed conclusion",
+    "engineering_complete": [
+      "D1 standalone technology adapters HTML PHP Next Static/SSR",
+      "D2 immutable published handoff and version compare",
+      "D3 local slots/cutover/rollback",
+      "D4 verified ZIP handover",
+      "D5 one-command shipment plus offline readiness audit",
+      "D6 disposable localhost HTTP visitor rehearsal"
+    ],
+    "acceptance": "Stage2 NO-GO #5–#9; Stage3 formally 0/135 mandatory accepted; no real deploy/merge",
+    "next_focus": "map full 135 to actual runtime features, close end-to-end user journey gaps, owner acceptance gates"
+  },
+  "product_progress_interpretation_v1_75": {
+    "initial_roadmap_stages": 18,
+    "formally_accepted_stages": [
+      0,
+      1
+    ],
+    "current_formal_stage": 2,
+    "stage2_technical_estimate": "85-90% subjective, no formal GO",
+    "stage2_manual_gates_open": [
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "stage3_engineering_core_editor_estimate": "70-80% subjective, not equal to full product progress",
+    "mandatory_release_requirements_total": 135,
+    "owner_accepted_mandatory_requirements": 0,
+    "engineering_waves": "A/B/C/D implemented partly/in isolated source; E acceptance and live proof not done",
+    "next_product_checkpoint": "one complete Studio site-create/edit/publish/leads workflow plus owner-readable mandatory coverage matrix",
+    "global_percent": "NOT CLAIMED: engineering modules and owner acceptance are different denominators"
+  }
 }
