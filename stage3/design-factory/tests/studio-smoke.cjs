@@ -226,6 +226,12 @@ const auditProject={kit:'agency',theme:'editorial',language:'en',facts:{
 const auditDoc=audit.build(approvedDraft,auditProject,null);
 assert.equal(auditDoc.format,audit.FORMAT);
 assert.equal(auditDoc.pages.length,4);
+assert.ok(Array.isArray(auditDoc.links)&&auditDoc.links.length>=8,
+ 'Audit must report actual CMS CTA and service item href values');
+assert.ok(auditDoc.links.some(link=>link.page==='/'&&link.component==='company-hero'&&
+ link.href==='/contact/'));
+assert.ok(audit.html(auditDoc).includes('Actual CTA and card destinations'),
+ 'Owner handoff must display CMS destinations for manual review');
 assert.ok(auditDoc.pages.every(p=>p.sections.length>0&&p.seoTitle));
 const auditHtml=audit.html(auditDoc);
 assert.ok(auditHtml.includes('&lt;b&gt;Test&lt;/b&gt;')&&!auditHtml.includes('<b>Test</b>'));
