@@ -1351,7 +1351,8 @@
     historyOpen.disabled=!available||isDirty()||!canEdit();
     historyPlan.disabled=!available||isDirty()||!canEdit();
     historyApply.disabled=state.busy||!historyPending||!available||isDirty()||!canEdit();
-    for(const control of [historyKind,historyNumber,historyPage,historyMode,historySection])
+    for(const control of [historyKind,historyNumber,historyPage,historyMode,historySection,
+      crossFrom,crossSection,crossTargetPage,kitSource,kitSourcePage,kitMode,kitDestPage,kitNewPath])
       control.disabled=state.busy;
     backupPlan.disabled=state.busy||!state.authorized;
     backupClose.disabled=state.busy;
