@@ -29,8 +29,12 @@
   const pages=site.pages.map(p=>({id:p.id,path:p.path}));
   if(Object.keys(ROUTES).some(k=>!pages.some(p=>p.id==='df-page-'+k&&
    p.path===(k==='home'?'/':'/'+k+'/'))))throw Error('Feedback requires all four canonical routes');
+  // Source facts remain part of the customer-approved snapshot even if a
+  // section override hides their rendered output until the next recomposition.
+  // Otherwise edits made while reading feedback could falsely appear current.
   return 'df-'+textHash(JSON.stringify({site,kit:project.kit,
-   theme:project.theme,language:project.language,composition:composition||null}));
+   theme:project.theme,language:project.language,composition:composition||null,
+   facts:project.facts||{}}));
  }
  function exact(obj,allowed,where){
   if(!obj||typeof obj!=='object'||Array.isArray(obj)||
