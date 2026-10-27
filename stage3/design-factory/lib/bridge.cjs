@@ -40,7 +40,7 @@ function build(input){
  let site=(w.composition||w.version===2)?sdk.validateSite(planned.site,reg):planned.site;
  const comp=w.composition?adapter.compare(w.composition):null;
  // A new registered composition is a draft with placeholder copy, not owner sign-off.
- if(planned.added){
+ if(planned.added||planned.edited){
   compiled.checklist={...compiled.checklist,readyForPublish:false,
    requiresOwnerReview:true,indexing:'noindex',publicationStatus:'section_drafts_require_owner_review'};
   for(const page of site.pages)page.seo.robots='noindex';
@@ -57,7 +57,7 @@ function build(input){
    'fabricated reviews or awards','unlicensed media','production publication without CMS/integrator approval'
   ],
   composition:comp,
-  ...(w.version===2?{sectionPlan:{format:sectionPlan.FORMAT,addedDrafts:planned.added,
+  ...(w.version===2?{sectionPlan:{format:sectionPlan.FORMAT,addedDrafts:planned.added,editedSections:planned.edited,
    pages:sectionPlan.PAGES.map(key=>({page:key,sections:w.sectionPlan.pages[key].length}))}}:{}),
   source:['stage3/sdk/contract.cjs','stage3/components/*.json','stage3/server/PublicRenderer.php'],
   previewOnly:true,
