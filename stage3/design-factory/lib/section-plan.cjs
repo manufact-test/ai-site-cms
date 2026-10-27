@@ -4,6 +4,7 @@
 const sdk=require('../../sdk/contract.cjs');
 const adapter=require('./composition-adapter.cjs');
 const catalog=require('../catalog/compositions.cjs');
+const edits=require('./section-edits.cjs');
 const FORMAT='manufact-design-factory-section-plan-v1';
 const PAGES=Object.freeze(['home','services','approach','contact']);
 const MAX_ADDED=8,MAX_SECTIONS=24;
@@ -51,12 +52,12 @@ function applyToSite(site,language,composition,raw,reg){
  if(!['ru','en'].includes(language))fail('Unknown language');
  if(composition!==null)catalog.get(composition);
  composeBase(site,composition,language,reg);
- if(raw===null)return {site,plan:null,added:0};
+ if(raw===null)return {site,plan:null,added:0,edited:0};
  exact(raw,['format','version','pages'],'plan');
- if(raw.format!==FORMAT||raw.version!==1)fail('Unsupported section plan version');
+ if(raw.format!==FORMAT||![1,2].includes(raw.version))fail('Unsupported section plan version');
  exact(raw.pages,PAGES,'pages');
  if(Object.keys(raw.pages).length!==PAGES.length)fail('Four pages required');
- let added=0;
+ let added=0,edited=0;
  const normalized={},allIds=new Set();
  for(const key of PAGES){
   const page=site.pages.find(p=>p.id==='df-page-'+key);
@@ -68,7 +69,7 @@ function applyToSite(site,language,composition,raw,reg){
   const used=new Set(),sections=[],rows=[];
   let pageAdded=0;
   for(const row of rawRows){
-   exact(row,['id','composition'],'section');
+   exact(row,raw.version===1?['id','composition']:['id','composition','edit'],'section');
    if(typeof row.id!=='string'||!/^[a-z][a-z0-9-]{2,79}$/.test(row.id)||
       used.has(row.id)||allIds.has(row.id))fail('Invalid or duplicate section ID');
    used.add(row.id);allIds.add(row.id);
@@ -80,13 +81,24 @@ function applyToSite(site,language,composition,raw,reg){
      if(own(row,'composition'))fail('Base section cannot change its CMS component');
      rows.push({id:row.id});
     }
-    sections.push(source.get(row.id));
+    const section=source.get(row.id);
+    if(own(row,'edit')){
+     rows[rows.length-1].edit=edits.apply(section,row.edit,reg);
+     edited++;
+    }
+    sections.push(section);
    }else{
     if(!new RegExp('^df-added-'+key+'-[0-9]{2}$').test(row.id)||
        typeof row.composition!=='string')fail('Unknown inserted section');
     catalog.get(row.composition);
-    sections.push(adapter.sectionFor(row.composition,row.id,language,reg));
-    rows.push({id:row.id,composition:row.composition});
+    const section=adapter.sectionFor(row.composition,row.id,language,reg);
+    const normalized={id:row.id,composition:row.composition};
+    if(own(row,'edit')){
+     normalized.edit=edits.apply(section,row.edit,reg);
+     edited++;
+    }
+    sections.push(section);
+    rows.push(normalized);
     pageAdded++;added++;
    }
   }
@@ -104,6 +116,6 @@ function applyToSite(site,language,composition,raw,reg){
  const validated=sdk.validateSite(site,reg);
  const inspection=sdk.inspectSite(validated,reg);
  if(inspection.errors.length)fail('Broken local routes or anchors');
- return {site:validated,plan:{format:FORMAT,version:1,pages:normalized},added};
+ return {site:validated,plan:{format:FORMAT,version:raw.version,pages:normalized},added,edited};
 }
 module.exports=Object.freeze({FORMAT,PAGES,MAX_ADDED,MAX_SECTIONS,capture,nextId,applyToSite});
