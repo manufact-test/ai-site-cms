@@ -136,6 +136,7 @@ function create({engine,state,apply,compile,tr,say}){
    ]){
     const button=element('button',symbol,'service-action');
     button.type='button';button.disabled=disabled;
+    button.id='section-'+(symbol==='↑'?'up':symbol==='↓'?'down':'remove')+'-'+row.id;
     button.title=label;button.setAttribute('aria-label',label+' '+(index+1));
     button.addEventListener('click',handler);
     actions.append(button);
