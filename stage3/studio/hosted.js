@@ -226,6 +226,162 @@
     crossLabel('Страница назначения',crossTargetPage),crossTargetPage,
     crossCheck,crossSummary,crossApply,crossClose);
   document.body.append(crossDialog);
+  // Transfer collections from a separate site without importing customer data,
+  // credentials, global theme or published versions. One immutable draft save.
+  const kitPanel=element('div','hosted-templates');
+  const kitLaunch=action('Копировать страницу или набор блоков','server-kit-open',()=>safe(openKit));
+  kitPanel.append(element('strong',null,'Повторное использование наполнения'),
+    element('small',null,'Выберите от 1 до 10 секций или целую страницу с SEO и медиа. Изменения остаются черновиком.'),
+    kitLaunch);
+  crossPanel.after(kitPanel);
+  const kitDialog=element('dialog','hosted-backup-dialog');kitDialog.id='server-kit-dialog';
+  const kitSource=element('select','control');kitSource.id='server-kit-source';
+  const kitSourcePage=element('select','control');kitSourcePage.id='server-kit-source-page';
+  const kitMode=element('select','control');kitMode.id='server-kit-mode';
+  for(const [value,label] of [['sections','Выбранные блоки'],['page','Целая страница с SEO']]){
+    const opt=element('option',null,label);opt.value=value;kitMode.append(opt);
+  }
+  const kitSelection=element('div','hosted-templates-list');kitSelection.id='server-kit-sections';
+  const kitDestPage=element('select','control');kitDestPage.id='server-kit-destination';
+  const kitNewPath=element('input','control');kitNewPath.type='text';
+  kitNewPath.id='server-kit-new-path';kitNewPath.maxLength=240;kitNewPath.placeholder='/new-page/';
+  const kitDestLabel=element('label',null,'Добавить блоки на страницу');kitDestLabel.htmlFor=kitDestPage.id;
+  const kitNewPathLabel=element('label',null,'Новый URL страницы');kitNewPathLabel.htmlFor=kitNewPath.id;
+  const kitSummary=element('div','hosted-backup-summary');kitSummary.id='server-kit-summary';
+  let kitSourceDocument=null,kitSourceRevision=null,kitPending=null,kitOpening=false;
+  const kitInvalidate=()=>{kitPending=null;kitApply.disabled=true;kitSummary.replaceChildren();};
+  const kitUpdateMode=()=>{
+    const page=kitMode.value==='page';
+    kitSelection.hidden=page;kitDestPage.hidden=page;kitDestLabel.hidden=page;
+    kitNewPath.hidden=!page;kitNewPathLabel.hidden=!page;
+    kitInvalidate();
+  };
+  const kitSelectLabel=(name,input)=>{
+    const label=element('label',null,name);label.htmlFor=input.id;return label;
+  };
+  const kitSectionChoices=()=>{
+    kitSelection.replaceChildren();
+    const selected=kitSourceDocument?.pages.find(p=>p.id===kitSourcePage.value);
+    if(!selected)return;
+    for(const section of selected.sections){
+      const row=element('label','hosted-template');
+      const cb=element('input');cb.type='checkbox';cb.value=section.id;
+      cb.addEventListener('change',kitInvalidate);
+      row.append(cb,element('span',null,section.component+' · '+section.id));
+      kitSelection.append(row);
+    }
+    kitInvalidate();
+    if(selected.path==='/')kitNewPath.value='/imported-page/';
+    else kitNewPath.value='/copy'+selected.path;
+  };
+  const kitLoadPage=()=>{
+    kitSourcePage.replaceChildren();
+    for(const page of kitSourceDocument?.pages||[]){
+      const option=element('option',null,page.title+' · '+page.path);
+      option.value=page.id;kitSourcePage.append(option);
+    }
+    kitSectionChoices();
+  };
+  const kitLoadSource=async()=>{
+    kitInvalidate();kitSourceDocument=null;kitSourceRevision=null;
+    kitSourcePage.replaceChildren();kitSelection.replaceChildren();
+    const sourceId=kitSource.value;
+    if(!sourceId)return;
+    const result=await api('/api/sites/'+encodeURIComponent(sourceId));
+    if(kitSource.value!==sourceId||!kitDialog.open)return;
+    kitSourceDocument=result.site;kitSourceRevision=result.revision;
+    kitLoadPage();
+  };
+  kitSource.addEventListener('change',()=>safe(kitLoadSource));
+  kitSourcePage.addEventListener('change',kitSectionChoices);
+  kitDestPage.addEventListener('change',kitInvalidate);
+  kitNewPath.addEventListener('input',kitInvalidate);
+  kitMode.addEventListener('change',kitUpdateMode);
+  const kitPayload=()=>{
+    const mode=kitMode.value;
+    const selected=[...kitSelection.querySelectorAll('input[type="checkbox"]:checked')]
+      .map(input=>input.value);
+    if(mode==='sections'&&(selected.length<1||selected.length>10))
+      throw Error('Выберите 1–10 блоков с исходной страницы');
+    if(mode==='page'&&!kitNewPath.value.trim())throw Error('Укажите новый URL страницы');
+    return {
+      sourceSiteId:kitSource.value,sourcePageId:kitSourcePage.value,mode,
+      sectionIds:mode==='sections'?selected:[],
+      targetPageId:mode==='sections'?kitDestPage.value:null,
+      newPath:mode==='page'?kitNewPath.value.trim():null,
+      expectedSourceRevision:kitSourceRevision,expectedTargetRevision:state.revision
+    };
+  };
+  const kitCheck=action('Предварительная проверка','server-kit-plan',()=>safe(async()=>{
+    kitInvalidate();
+    if(!state.siteId||!canEdit()||editor.isDirty())
+      throw Error('Сначала сохраните изменения на сайте назначения');
+    const id=state.siteId,request=kitPayload();
+    const result=await api('/api/sites/'+encodeURIComponent(id)+'/import/plan','POST',request);
+    if(id!==state.siteId||editor.isDirty())return;
+    kitPending={token:result.confirmationToken,siteId:id,revision:state.revision};
+    const p=result.plan;
+    kitSummary.replaceChildren(
+      element('strong',null,(p.createsPage?'Новая страница: ':'Набор секций: ')+p.pageTitle),
+      element('p',null,'Секций: '+p.sections+' · файлов: '+p.mediaCount+' · адаптивных частей: '+
+        p.mediaParts+' · '+Math.round(p.mediaBytes/1024)+' КБ.'),
+      element('p',null,'Источник #'+p.sourceRevision+' → получатель #'+p.targetRevision+
+        (p.createsPage?' · новый путь '+p.newPath:'')+
+        '. Одно сохранение в черновик без публикации.'),
+      element('p',null,'Содержимое: '+(p.contentPreview.join(' · ')||'Проверьте выбранные элементы на исходном сайте.'))
+    );
+    if(p.copiesSEO)kitSummary.append(element('p',null,'SEO и социальные данные страницы будут скопированы. Настройки сайта остаются прежними.'));
+    if(p.frozenDesignTokens)kitSummary.append(element('p',null,'Зафиксировано дизайн-токенов: '+p.frozenDesignTokens));
+    if(p.missingTargetLinks.length)kitSummary.append(element('p',null,
+      'Проверьте внутренние ссылки, которых нет на сайте назначения: '+p.missingTargetLinks.join(', ')));
+    for(const media of p.mediaManifest||[])kitSummary.append(element('small',null,
+      'Медиа: '+(media.alt||media.id)+' · '+media.mime+' · '+media.sha256.slice(0,12)+'…'));
+    kitApply.disabled=false;
+  }));
+  const kitApply=action('Сохранить копию в черновик','server-kit-apply',()=>safe(async()=>{
+    if(!kitPending||!state.siteId||kitPending.siteId!==state.siteId||
+        kitPending.revision!==state.revision||editor.isDirty()||!canEdit())
+      throw Error('Черновик изменился. Проверьте перенос заново');
+    const pending=kitPending;kitInvalidate();
+    const saved=await api('/api/sites/'+encodeURIComponent(pending.siteId)+'/import/apply',
+      'POST',{confirmationToken:pending.token});
+    kitDialog.close();
+    selectSite(saved);await refreshSites();await loadHistory();await loadTemplates();
+    drawMedia();drawStatus();
+    notice(saved.import.createsPage?'Страница с SEO и медиа скопирована в черновик. Публикация отдельно.':
+      'Выбранные блоки сохранены одной ревизией. Публикация отдельно.');
+  }));
+  kitApply.disabled=true;
+  const kitClose=action('Закрыть','server-kit-close',()=>kitDialog.close());
+  const openKit=async()=>{
+    if(kitOpening)return;
+    if(!state.siteId||!canEdit())throw Error('Откройте сайт с правами редактирования');
+    if(editor.isDirty())throw Error('Сначала сохраните текущие изменения');
+    kitOpening=true;
+    try{
+      kitInvalidate();kitSource.replaceChildren();kitDestPage.replaceChildren();
+      for(const site of state.sites.filter(x=>x.site_id!==state.siteId)){
+        const opt=element('option',null,site.site_id+' · '+(site.title||'Сайт'));
+        opt.value=site.site_id;kitSource.append(opt);
+      }
+      if(!kitSource.options.length)throw Error('Для переноса требуется ещё один доступный сайт');
+      for(const page of editor.getSite().pages){
+        const opt=element('option',null,page.title+' · '+page.path);
+        opt.value=page.id;kitDestPage.append(opt);
+      }
+      kitMode.value='sections';kitNewPath.value='/imported-page/';
+      kitUpdateMode();kitDialog.showModal();await kitLoadSource();
+    }finally{kitOpening=false;}
+  };
+  kitDialog.addEventListener('close',kitInvalidate);
+  kitDialog.append(element('h2',null,'Перенос страниц и наборов блоков'),
+    element('p',null,'Два существующих сайта. Приватные формы заявок, права, меню, история и публикации не копируются.'),
+    kitSelectLabel('Сайт-источник',kitSource),kitSource,
+    kitSelectLabel('Исходная страница',kitSourcePage),kitSourcePage,
+    kitSelectLabel('Что копировать',kitMode),kitMode,
+    kitSelection,kitDestLabel,kitDestPage,kitNewPathLabel,kitNewPath,
+    kitCheck,kitSummary,kitApply,kitClose);
+  document.body.append(kitDialog);kitUpdateMode();
   const leadsPanel=element('div','hosted-leads');
   const leadsTitle=element('strong',null,'Заявки сайта');
   leadsTitle.id='server-submission-heading';

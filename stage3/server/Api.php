@@ -79,7 +79,7 @@ final class Api
         if ($edit && $method === 'GET' && (in_array($action, ['notifications','submissions','submissions/export'], true) || preg_match('~^submissions/lead-[0-9a-f]{24}/history$~D',$action))) return;
         if ($edit && $method === 'POST' &&
             preg_match('~^video-uploads/(?:start|video-[a-f0-9]{20}/(?:chunk|finish|cancel))$~D',$action)) return;
-        if ($edit && $method === 'POST' && (in_array($action, ['save','restore','restore-release','media','video','templates','transfer/plan','transfer/apply','notifications/seen'], true)
+        if ($edit && $method === 'POST' && (in_array($action, ['save','restore','restore-release','media','video','templates','transfer/plan','transfer/apply','import/plan','import/apply','notifications/seen'], true)
             || preg_match('~^templates/template-[0-9a-f]{18}/delete$~D', $action)
             || preg_match('~^submissions/lead-[0-9a-f]{24}/review$~D', $action)
             || $action==='submissions/bulk-review'
@@ -342,7 +342,7 @@ final class Api
                 $body = $this->request(in_array($path, ['/api/backups/plan','/api/backups/restore'], true)
                     ? SiteRepository::ARCHIVE_LIMIT
                     : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/preview$~D',$path) ? 900000 : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/media$~D', $path) ? 2600000 : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/video$~D',$path)?2100000:750000))));
-                if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|video|transfer/(?:plan|apply)|video-uploads(?:/.*)?|templates(?:/.*)?)$~D',$path)) {
+                if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|video|transfer/(?:plan|apply)|import/(?:plan|apply)|video-uploads(?:/.*)?|templates(?:/.*)?)$~D',$path)) {
                     $this->sites->assertLicenseWritable($siteScope);
                 }
                 if ($path === '/api/logout') {
@@ -518,6 +518,53 @@ final class Api
                     $this->response(403,['error'=>'Source site access denied']);
                 $this->auditDetail='copied selected section from site '.$sourceId;
                 $this->response(200,$this->sites->applyCrossSiteSection(...$pending['args']));
+            }
+            if ($method==='POST' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/import/(plan|apply)$~D',$path,$importMatch)) {
+                $targetId=$importMatch[1];$operation=$importMatch[2];
+                $this->sites->assertLicenseWritable($targetId);
+                if($operation==='plan'){
+                    $sourceId=$body['sourceSiteId']??null;
+                    $sourcePageId=$body['sourcePageId']??null;
+                    $mode=$body['mode']??null;
+                    $sectionIds=$body['sectionIds']??null;
+                    $targetPageId=$body['targetPageId']??null;
+                    $newPath=$body['newPath']??null;
+                    if(!is_string($sourceId)||!is_string($sourcePageId)||
+                        !is_string($mode)||!is_array($sectionIds)||
+                        ($targetPageId!==null&&!is_string($targetPageId))||
+                        ($newPath!==null&&!is_string($newPath)))
+                        throw new InvalidArgumentException('Invalid import fields');
+                    self::siteId($sourceId);
+                    if($principal['role']!=='owner' && !in_array($sourceId,$principal['sites'],true))
+                        $this->response(403,['error'=>'Source site not granted']);
+                    $sourceRevision=self::revision($body['expectedSourceRevision']??null);
+                    $targetRevision=self::revision($body['expectedTargetRevision']??null);
+                    $args=[$targetId,$sourceId,$sourcePageId,$mode,$sectionIds,
+                        $targetPageId,$newPath,$sourceRevision,$targetRevision];
+                    $plan=$this->sites->planCrossSiteCollection(...$args);
+                    $token=bin2hex(random_bytes(24));
+                    $_SESSION['stage3_collection_import']=[
+                        'token'=>$token,'actor'=>$principal['username'],
+                        'expires'=>time()+900,'args'=>$args];
+                    $this->response(200,['plan'=>$plan,'confirmationToken'=>$token,
+                        'expiresInSeconds'=>900,'published'=>false]);
+                }
+                $pending=$_SESSION['stage3_collection_import']??null;
+                unset($_SESSION['stage3_collection_import']);
+                $token=$body['confirmationToken']??null;
+                if(!is_array($pending)||!is_string($token)||
+                    !is_string($pending['token']??null)||
+                    !hash_equals($pending['token'],$token)||
+                    ($pending['actor']??null)!==$principal['username']||
+                    ($pending['expires']??0)<time()||
+                    !is_array($pending['args']??null)||
+                    ($pending['args'][0]??null)!==$targetId)
+                    $this->response(409,['error'=>'Import plan expired or invalid; check again']);
+                $sourceId=$pending['args'][1];
+                if($principal['role']!=='owner' && !in_array($sourceId,$principal['sites'],true))
+                    $this->response(403,['error'=>'Source site not granted']);
+                $this->auditDetail='import '.($pending['args'][3]??'').' from '.$sourceId;
+                $this->response(200,$this->sites->applyCrossSiteCollection(...$pending['args']));
             }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/delivery(?:/(retry))?$~D',$path,$deliveryMatch)) {
                 $siteId=$deliveryMatch[1];$operation=$deliveryMatch[2]??null;

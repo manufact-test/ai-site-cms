@@ -714,6 +714,76 @@ async function stop(){
     'Old destination revision cannot import a second section');
   assert.equal((await request('GET',crossTarget)).body.revision,beforeCross.revision+1,
     'Rejected transfers cannot create partial revisions');
+  // Batch selection and full-page import share one cross-site transaction,
+  // preserve real referenced media once and never touch source/public releases.
+  const kitTarget='/api/sites/site-flex-ci';
+  const kitBefore=(await request('GET',kitTarget)).body;
+  const kitPublished=(await request('GET',kitTarget+'/published-site')).body;
+  const kitBase={sourceSiteId:id,sourcePageId:'page-home',
+    expectedSourceRevision:sourceRevision,expectedTargetRevision:kitBefore.revision};
+  const kitSections={...kitBase,mode:'sections',
+    sectionIds:['section-photo','section-hero'],
+    targetPageId:kitBefore.site.pages[0].id,newPath:null};
+  assert.equal((await request('POST',kitTarget+'/import/plan',
+    {...kitSections,sourceSiteId:'site-ungranted'})).status,404);
+  assert.equal((await request('POST',kitTarget+'/import/plan',
+    {...kitSections,sectionIds:['section-hero','section-hero']})).status,422);
+  assert.equal((await request('POST',kitTarget+'/import/plan',
+    {...kitSections,expectedSourceRevision:sourceRevision+1})).status,409);
+  const checkedKit=await request('POST',kitTarget+'/import/plan',kitSections);
+  assert.equal(checkedKit.status,200,JSON.stringify(checkedKit.body));
+  assert.equal(checkedKit.body.plan.sections,2);
+  assert.equal(checkedKit.body.plan.mediaCount,1,'Media referenced twice is copied once per batch');
+  assert.deepEqual(checkedKit.body.plan.sectionComponents,['company-hero','image-showcase'],
+    'Selected source sections retain original page order');
+  assert.equal(checkedKit.body.plan.willPublish,false);
+  assert.equal((await request('GET',kitTarget)).body.revision,kitBefore.revision,
+    'Batch preflight never mutates draft');
+  assert.equal((await request('POST',kitTarget+'/import/apply',
+    {confirmationToken:'made-up'})).status,409);
+  const kitRecheck=await request('POST',kitTarget+'/import/plan',kitSections);
+  const importedKit=await request('POST',kitTarget+'/import/apply',
+    {confirmationToken:kitRecheck.body.confirmationToken});
+  assert.equal(importedKit.status,200,JSON.stringify(importedKit.body));
+  assert.equal(importedKit.body.revision,kitBefore.revision+1);
+  assert.equal(importedKit.body.published,false);
+  const addedKit=importedKit.body.site.pages[0].sections.slice(-2);
+  assert.deepEqual(addedKit.map(x=>x.component),['company-hero','image-showcase']);
+  const importedKitPhoto=addedKit[1].elements.find(x=>x.slot==='photo').values['content.media'];
+  assert.notEqual(importedKitPhoto,asset.id);
+  assert.ok(importedKit.body.site.assets.some(x=>x.id===importedKitPhoto));
+  assert.equal((await request('GET',kitTarget+'/media/'+importedKitPhoto)).status,200);
+  assert.equal((await request('GET','/published/site-flex-ci/assets/'+importedKitPhoto+'.png')).status,404);
+  assert.equal((await request('POST',kitTarget+'/import/apply',
+    {confirmationToken:kitRecheck.body.confirmationToken})).status,409,'Replay forbidden');
+  assert.equal((await request('POST',kitTarget+'/import/plan',kitSections)).status,409,
+    'Stale batch cannot increment revision');
+  const pageBase={sourceSiteId:id,sourcePageId:'page-home',mode:'page',
+    sectionIds:[],targetPageId:null,newPath:'/copied-production/',
+    expectedSourceRevision:sourceRevision,expectedTargetRevision:importedKit.body.revision};
+  assert.equal((await request('POST',kitTarget+'/import/plan',
+    {...pageBase,newPath:'/'})).status,409,'Existing destination paths cannot be overwritten');
+  const pagePlan=await request('POST',kitTarget+'/import/plan',pageBase);
+  assert.equal(pagePlan.status,200,JSON.stringify(pagePlan.body));
+  assert.equal(pagePlan.body.plan.createsPage,true);
+  assert.equal(pagePlan.body.plan.newPath,'/copied-production/');
+  assert.equal(pagePlan.body.plan.mediaCount,1);
+  const pageCopy=await request('POST',kitTarget+'/import/apply',
+    {confirmationToken:pagePlan.body.confirmationToken});
+  assert.equal(pageCopy.status,200,JSON.stringify(pageCopy.body));
+  assert.equal(pageCopy.body.revision,importedKit.body.revision+1);
+  const newPage=pageCopy.body.site.pages.find(p=>p.path==='/copied-production/');
+  assert.ok(newPage && newPage.id!=='page-home');
+  assert.deepEqual(newPage.sections.map(s=>s.component),
+    (await request('GET',endpoint)).body.site.pages[0].sections.map(s=>s.component));
+  assert.notEqual(newPage.sections.find(s=>s.component==='image-showcase')
+    .elements.find(e=>e.slot==='photo').values['content.media'],asset.id);
+  assert.deepEqual((await request('GET',kitTarget+'/published-site')).body,kitPublished,
+    'Whole page clone remains draft until explicit publishing');
+  assert.equal((await request('GET','/published/site-flex-ci/copied-production/')).status,404,
+    'Visitors cannot see imported page before publish');
+  assert.equal((await request('GET',endpoint)).body.revision,sourceRevision,
+    'Page/batch import does not mutate source');
   // Backup -> read-only plan -> transactional recovery -> release restoration.
   await request('POST',tplRoot,{name:'Архивный шаблон',pageId:'page-home',sectionId:'section-hero',expectedRevision:sourceRevision});
   const archiveResult=await request('GET',endpoint+'/backup');

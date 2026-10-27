@@ -1087,6 +1087,40 @@ async function execute(){
   },graphSectionId),'Entire Design Graph is copied with fresh section identity');
   assert.equal((await page.request.get(origin+'/published/site-cross-browser/')).status(),404,
     'Cross-site transfer never activates the destination site');
+  // Curated multi-section kit: server preflight, one revision for two sections,
+  // browser confirmation, and completely private unpublished destination.
+  await page.locator('#server-kit-open').click();
+  await page.locator('#server-kit-dialog[open]').waitFor();
+  await page.locator('#server-kit-source').selectOption(siteId);
+  await page.locator('#server-kit-source-page').selectOption(graphSourcePageId);
+  const kitChecks=page.locator('#server-kit-sections input[type="checkbox"]');
+  await kitChecks.first().check();
+  await kitChecks.nth(1).check();
+  await page.locator('#server-kit-destination').selectOption('page-home');
+  await page.locator('#server-kit-plan').click();
+  await page.locator('#server-kit-summary').getByText(/Секций: 2/).waitFor();
+  assert.equal(await page.locator('#server-kit-apply').isDisabled(),false);
+  await page.locator('#server-kit-apply').click();
+  await page.locator('#server-kit-dialog').waitFor({state:'hidden'});
+  await page.locator('#server-status').getByText(/Черновик #3/).waitFor();
+  assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections.length)),5,
+    'Two selected source blocks copied in one save');
+  await page.locator('#server-kit-open').click();
+  await page.locator('#server-kit-dialog[open]').waitFor();
+  await page.locator('#server-kit-source').selectOption(siteId);
+  await page.locator('#server-kit-source-page').selectOption(graphSourcePageId);
+  await page.locator('#server-kit-mode').selectOption('page');
+  await page.locator('#server-kit-new-path').fill('/copied-browser/');
+  await page.locator('#server-kit-plan').click();
+  await page.locator('#server-kit-summary').getByText(/Новая страница/).waitFor();
+  await page.locator('#server-kit-apply').click();
+  await page.locator('#server-kit-dialog').waitFor({state:'hidden'});
+  await page.locator('#server-status').getByText(/Черновик #4/).waitFor();
+  assert.equal(await page.evaluate(()=>window.Stage3Editor.getSite().pages
+    .some(p=>p.path==='/copied-browser/'&&p.sections.length>=2)),true,
+    'Whole-page copy preserves the source page structure');
+  assert.equal((await page.request.get(origin+'/published/site-cross-browser/copied-browser/')).status(),404,
+    'Imported page is not published implicitly');
   await page.locator('#server-site-select').selectOption(siteId);
   await page.locator('#server-open').click();
   await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();
