@@ -495,3 +495,12 @@ The handoff ZIP importer is *offline only*: `preview-zip.js` verifies exact 18 n
 
 Real first-party GitHub JS was run in isolated V8 to verify both successful full ZIP recoveries and rejected altered/corrupt packages. The existing Node and Chromium smoke sources have focused new paths but **were not executed as checked-out Node suite or real Chromium** in the DNS-blocked environment. These checks do not count towards official D7, PHP parity, responsive screenshots, or owner visual acceptance; 0/135 accepted, Stage2 NO-GO and Stage3 UNACCEPTED remain.
 
+
+## 27.10.2026 / D7 freeze checkpoint — link fidelity + truth in metrics
+
+**User-visible mismatch corrected:** CMS `behavior.href` previously changed in Studio/D6 but was ignored by HTML preview in Hero, services, Story and CTA; contact-panel CMS action wasn't shown. The first-party preview now follows the authored route for registered actions, maps only canonical local paths to real offline HTML, marks external HTTPS as explicit outbound `target=_blank` with `noopener noreferrer`, rejects unsupported internal links instead of silently routing to Home, and adds the missing contact action. The owner content-audit HTML/JSON enumerates exact CMS link destinations. This is still standalone preview behavior, not PHP pixel parity.
+
+**Executed facts:** first-party GitHub JS V8 compile/render 288 sector/theme/language combinations and 1 152 HTML pages, plus targeted five-component and audit/URL refusal scenario PASS. Chromium binary present but attempted `file://` headless DOM probe timed out; direct Git checkout DNS failed. Existing Node regression source modified, *not run*. D7 0 formal accepted; 54 screenshots, 42 design decisions, 64 real Chromium route audits, six PHP integration probes, verified release candidate absent.
+
+**Owner has explicitly asked to stop circling on 86%:** 6/7 is not a release-completeness measurement. See [owner status and closure plan](handoffs/OWNER-REALITY-REPORT-2026-10-27.md). **No more feature expansion in D1–D6; prioritize actual acceptance or handoff to Lead with runner access.**
+
