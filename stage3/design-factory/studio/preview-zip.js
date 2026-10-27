@@ -135,7 +135,7 @@
    localEnd=endData;pos+=46+n;
   }
   if(pos!==foot||localEnd!==start)throw Error('Preview ZIP trailing records');
-  return Object.freeze({format:'manufact-design-factory-preview-zip-v1',
+  return Object.freeze({format:names===FILES?'manufact-design-factory-preview-zip-v1':'manufact-design-factory-delivery-zip-v1',
    files:names.length,bytes:length,sourceBytes:total,crcVerified:true,
    warning:names===FILES?'Offline static preview only; not CMS PHP parity, human approval or production release':'Offline transfer bundle only; no real PHP parity, human signoff or D7 production release'});
  }
