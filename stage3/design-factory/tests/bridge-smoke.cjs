@@ -131,6 +131,42 @@ try{
  const smuggled=copyPlan(plan);
  smuggled.pages.home[0].edit={elements:[]};
  assert.throws(()=>bridge.build({...workspaceV2,sectionPlan:smuggled}),/Invalid section fields/);
+ // Four-page page metadata overlays never authorize robots, path changes or publication.
+ const metadata=require('../lib/page-settings.cjs');
+ const seo=metadata.capture(approved.site);
+ seo.pages.home.seoTitle='Owner confirmed homepage title';
+ seo.pages.home.navigationLabel='Start';
+ seo.pages.services.seoDescription='Owner confirmed services description';
+ const seoWorkspace={format:bridge.WORKSPACE,version:3,project:approved.workspace.project,
+  composition:null,pageSettings:seo};
+ const seoBundle=bridge.build(seoWorkspace);
+ assert.equal(seoBundle.workspace.version,3);
+ assert.equal(seoBundle.compatibility.pageSettings.changedPages,2);
+ assert.equal(seoBundle.site.pages[0].seo.title,'Owner confirmed homepage title');
+ assert.equal(seoBundle.site.pages[0].navigation.label,'Start');
+ assert.equal(seoBundle.site.pages[1].seo.description,'Owner confirmed services description');
+ assert.equal(seoBundle.ownerChecklist.readyForPublish,false);
+ assert.equal(seoBundle.ownerChecklist.indexing,'noindex');
+ assert.equal(seoBundle.ownerChecklist.publicationStatus,'page_metadata_requires_owner_review');
+ assert.ok(seoBundle.site.pages.every(page=>page.seo.robots==='noindex'));
+ assert.deepEqual(bridge.importForCMS(bridge.validateBundle(seoBundle)),seoBundle.site);
+ const combined=bridge.build({...seoWorkspace,sectionPlan:editedPlan});
+ assert.equal(combined.workspace.version,3);
+ assert.equal(combined.site.pages[0].seo.title,'Owner confirmed homepage title');
+ assert.equal(combined.site.pages[0].sections[0].elements
+  .find(x=>x.slot==='heading').values['content.text'],'Verified owner heading');
+ for(const mutate of [
+  x=>{x.pages.home.seoTitle='';},
+  x=>{x.pages.home.seoDescription='Z'.repeat(301);},
+  x=>{x.pages.contact.path='/forbidden/';},
+  x=>{x.pages.home.robots='index';},
+  x=>{delete x.pages.services;}
+ ]){
+  const modified=JSON.parse(JSON.stringify(seo));
+  mutate(modified);
+  assert.throws(()=>bridge.build({...seoWorkspace,pageSettings:modified}));
+ }
+ assert.throws(()=>bridge.workspace({...seoWorkspace,unauthorized:true}),/unknown workspace/);
  // JSON parsers/formatters legitimately reorder object keys. Such imports
  // must remain valid while any actual nested data mutation is still refused.
  const shuffled=(value)=>{
