@@ -383,10 +383,13 @@ function renderChecklist(info){
  const node=$('checklist');node.replaceChildren();
  if(!info)return;
  const gate=info.checklist;
- const statusText=gate.publicationStatus==='section_drafts_require_owner_review'
-   ?tr('Новые композиции содержат черновой контент. CMS экспорт защищён noindex.',
-    'Inserted compositions contain draft copy. CMS export remains noindex.')
-   :gate.readyForPublish
+ const statusText=gate.publicationStatus==='page_metadata_requires_owner_review'
+   ?tr('SEO или название страницы изменены после подтверждения. CMS экспорт защищён noindex до повторной проверки.',
+    'SEO or page metadata changed after approval. CMS export remains noindex until reviewed.')
+   :gate.publicationStatus==='section_drafts_require_owner_review'
+    ?tr('Секции изменены после проверки. CMS экспорт защищён noindex.',
+     'Sections changed after review. CMS export remains noindex.')
+    :gate.readyForPublish
   ?'Проверка владельцем подтверждена. Экспорт получит robots=index; публикация не выполняется автоматически.'
   :gate.factsComplete
    ?'Обязательные поля заполнены, но проверка владельцем не подтверждена. Экспорт получит robots=noindex.'
@@ -503,7 +506,7 @@ function renderPreview(){
   say(!result.checklist.factsComplete
     ?'Черновик готов. Обязательных полей для заполнения: '+result.checklist.missing.length+'. Экспорт защищён robots=noindex.'
     :!result.checklist.readyForPublish
-      ?(result.checklist.publicationStatus==='section_drafts_require_owner_review'?
+      ?(['section_drafts_require_owner_review','page_metadata_requires_owner_review'].includes(result.checklist.publicationStatus)?
         'Содержимое секций требует отдельной проверки владельцем. CMS экспорт защищён robots=noindex.':
         'Все обязательные поля заполнены. Подтвердите проверку владельцем; экспорт пока robots=noindex.')
       :'Проверка подтверждена. Экспортируемые страницы получат robots=index; публикация остаётся отдельным действием.');
