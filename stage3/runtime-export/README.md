@@ -34,3 +34,5 @@ D2 private Studio handoff: [D2-PUBLISHED-HANDOFF.md](./D2-PUBLISHED-HANDOFF.md).
 D4 verified offline ZIP handover: [D4-VERIFIED-DELIVERY.md](./D4-VERIFIED-DELIVERY.md). Includes one-command D2 JSON -> HTML/PHP/SSR ZIP, real built Next Static ZIP, per-file SHA256/CRC and Apache/Nginx redirect instructions, with no deployment.
 
 D5 one-command shipment and local readiness audit: [D5-SHIPMENT-PREFLIGHT.md](./D5-SHIPMENT-PREFLIGHT.md).
+
+D6 actual loopback rehearsal from independently verified ZIP (HTML/Next Static simulated host, genuine independent PHP router): [D6-LOCAL-HTTP-REHEARSAL.md](./D6-LOCAL-HTTP-REHEARSAL.md). D5 --http-rehearsal opt-in integrates the local HTTP evidence in the same shipment receipt, with no production contact.

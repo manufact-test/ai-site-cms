@@ -75,7 +75,7 @@ async function probe() {
     files:capsuleFiles}));
   const readyZip=path.join(tmp,'actual-next-static-delivery.zip');
   cmd('node',['stage3/runtime-export/bin/ship.cjs',jsonCapsule,'next-static',readyZip,
-    '--allow-npm-install','--expect-origin=https://example.test'],root,360000);
+    '--allow-npm-install','--expect-origin=https://example.test','--http-rehearsal'],root,360000);
   const checked=spawnSync('node',['stage3/runtime-export/bin/verify-delivery.cjs',readyZip],
     {cwd:root,encoding:'utf8'});
   assert.equal(checked.status,0,checked.stderr);
@@ -84,6 +84,8 @@ async function probe() {
   assert.equal(delivery.readiness,'files-prepared');
   const report=JSON.parse(fs.readFileSync(readyZip+'.preflight.json','utf8'));
   assert.equal(report.counts.blockers,0);
+  assert.equal(report.httpRehearsal.status,'local-http-pass');
+  assert.equal(report.httpRehearsal.technology,'next-static');
   assert.equal(report.stats.pages,2);
   const zipTree=require('../lib/delivery-zip.cjs').readArchive(fs.readFileSync(readyZip));
   assert.ok(zipTree.has('deploy/about/index.html'));

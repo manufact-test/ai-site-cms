@@ -252,6 +252,7 @@ async function execute(){
   await page.locator('#server-tech-zip-help').locator('summary').click();
   assert.match(await page.locator('#server-tech-zip-commands').innerText(),/ship\.cjs/);
   assert.match(await page.locator('#server-tech-zip-commands').innerText(),/--allow-npm-install/);
+  assert.match(await page.locator('#server-tech-zip-commands').innerText(),/--http-rehearsal/);
   assert.match(await page.locator('#server-tech-zip-commands').innerText(),/preflight\.json/);
 
   await page.locator('#server-tech-origin').fill('https://example.test');

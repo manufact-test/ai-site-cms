@@ -17,10 +17,10 @@ const supported=new Set(['html','php','next-static','next-ssr']);
 const opts={};let flagSet=new Set();
 for(const f of flags){
   const [name,...pieces]=f.split('=');
-  if(!['--expect-origin','--allow-npm-install','--report','--allow-blocked'].includes(name)||flagSet.has(name))
+  if(!['--expect-origin','--allow-npm-install','--report','--allow-blocked','--http-rehearsal'].includes(name)||flagSet.has(name))
     fail('unsupported/duplicate flag '+name);
   flagSet.add(name);
-  if(['--allow-npm-install','--allow-blocked'].includes(name)){
+  if(['--allow-npm-install','--allow-blocked','--http-rehearsal'].includes(name)){
     if(pieces.length)fail('boolean flag does not take a value');opts[name]=true;
   }else {
     const val=pieces.join('=');
@@ -50,7 +50,9 @@ const checkTarget=file=>{
 function main(){
   if(process.argv.length<5||!path.isAbsolute(source??'')||!supported.has(technology)
     ||!path.isAbsolute(destination??'')||!destination.endsWith('.zip'))
-    fail('Usage: ship.cjs ABSOLUTE-D2.json html|php|next-static|next-ssr ABSOLUTE-NEW.zip [--expect-origin=https://site] [--allow-npm-install] [--report=ABSOLUTE-NEW.json] [--allow-blocked]');
+    fail('Usage: ship.cjs ABSOLUTE-D2.json html|php|next-static|next-ssr ABSOLUTE-NEW.zip [--expect-origin=https://site] [--allow-npm-install] [--report=ABSOLUTE-NEW.json] [--allow-blocked] [--http-rehearsal]');
+  if(opts['--http-rehearsal']&&technology==='next-ssr')
+    fail('Next SSR is an unbuilt source-only package; it cannot be HTTP-rehearsed without a real Next server.');
   if(opts['--allow-npm-install']&&technology!=='next-static')
     fail('--allow-npm-install is for Next Static only');
   if(technology==='next-static'&&!opts['--allow-npm-install'])
@@ -90,6 +92,16 @@ function main(){
       '). Use --allow-blocked only to ship for offline investigation, never production.');
   const rawZip=fs.readFileSync(stagedZip),fingerprint=crypto.createHash('sha256').update(rawZip).digest('hex');
   if(fingerprint!==report.zipSha256||fingerprint!==verified.sha256)fail('archive changed during preflight');
+  // D6 optional real disposable loopback HTTP probe before publishing either
+  // customer-facing artifact. The original D5 behavior is unchanged by default.
+  let httpRehearsal=null;
+  if(opts['--http-rehearsal']){
+    httpRehearsal=JSON.parse(exec(process.execPath,
+      [path.join(__dirname,'rehearse-delivery.cjs'),stagedZip],null,90000));
+    if(httpRehearsal.status!=='local-http-pass'
+      ||httpRehearsal.zipSha256!==fingerprint)
+      fail('local HTTP rehearsal did not certify this exact ZIP');
+  }
   const result={
     format:'manufact-shipment-result-v1',
     siteId:verified.siteId,publishedVersion:verified.publishedVersion,
@@ -98,6 +110,7 @@ function main(){
     automatedChecks:report.counts,manualApprovalRequired:true,
     approvalGranted:false,productionDeployed:false,
     npmNetworkOptIn:Boolean(opts['--allow-npm-install']),
+    localHttpRehearsed:Boolean(httpRehearsal),
     blockedPackageAllowed:Boolean(unexpected.length&&opts['--allow-blocked'])
   };
   // Build both outputs in the target directory first and publish only after
@@ -107,7 +120,7 @@ function main(){
   const tempReport=path.join(path.dirname(reportPath),'.stage3-D5-'+unique+'.json');
   try{
     fs.writeFileSync(tempZip,rawZip,{flag:'wx',mode:0o600});
-    fs.writeFileSync(tempReport,JSON.stringify({...report,shipment:result},null,2)+'\n',
+    fs.writeFileSync(tempReport,JSON.stringify({...report,shipment:result,...(httpRehearsal?{httpRehearsal}:{})},null,2)+'\n',
       {flag:'wx',mode:0o600});
     if(exists(destination)||exists(reportPath))fail('destination changed; refusing to overwrite');
     fs.linkSync(tempZip,destination); // atomic no-overwrite publication on same filesystem

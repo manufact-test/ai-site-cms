@@ -87,12 +87,16 @@ try{
   // D5: one-command HTML and PHP shipment, in-file offline preflight,
   // independent operator report, atomically published output and no overwrite.
   const shippedHtml=success('ship.cjs',archivePath,'html',path.join(tmp,'shipped-html.zip'),
-    '--expect-origin=https://example.test');
+    '--expect-origin=https://example.test','--http-rehearsal');
   const reportHtml=JSON.parse(fs.readFileSync(shippedHtml.report,'utf8'));
   assert.equal(shippedHtml.technology,'html');
   assert.equal(shippedHtml.approvalGranted,false);
   assert.equal(shippedHtml.productionDeployed,false);
   assert.equal(reportHtml.counts.blockers,0);
+  assert.equal(shippedHtml.localHttpRehearsed,true);
+  assert.equal(reportHtml.httpRehearsal.status,'local-http-pass');
+  assert.ok(reportHtml.httpRehearsal.checks.some(x=>x.name==='301 /old/'&&x.ok));
+  assert.ok(reportHtml.httpRehearsal.checks.some(x=>x.name==='FORMS READ-ONLY POST /'&&x.ok));
   assert.equal(reportHtml.stats.pages,2);
   assert.equal(reportHtml.readiness,'requires-operator-approval');
   assert.equal(success('verify-delivery.cjs',shippedHtml.zip).sha256,shippedHtml.zipSha256);
@@ -102,8 +106,9 @@ try{
   assert.match(refuses('ship.cjs',archivePath,'html',shippedHtml.zip),/unused absolute paths/);
   assert.match(refuses('ship.cjs',archivePath,'html',path.join(tmp,'wrong-host.zip'),
     '--expect-origin=https://bad-host.test'),/canonical origin|blocker|refused/i);
-  const shippedPhp=success('ship.cjs',archivePath,'php',path.join(tmp,'shipped-php.zip'));
+  const shippedPhp=success('ship.cjs',archivePath,'php',path.join(tmp,'shipped-php.zip'),'--http-rehearsal');
   assert.equal(shippedPhp.technology,'php');
+  assert.equal(shippedPhp.localHttpRehearsed,true);
   assert.equal(JSON.parse(fs.readFileSync(shippedPhp.report,'utf8')).stats.pages,2);
   assert.match(refuses('ship.cjs',archivePath,'next-static',path.join(tmp,'unsafe-next.zip')),
     /Opt in explicitly/);
@@ -122,6 +127,12 @@ try{
   assert.ok(phpEntries.has('deploy/data/release-manifest.json'));
   assert.ok(!phpEntries.has('deploy/public/release-manifest.json'));
   assert.equal(success('verify-delivery.cjs',oneShot.delivery).technology,'php');
+  assert.match(refuses('ship.cjs',archivePath,'next-ssr',path.join(tmp,'invalid-ssr-rehearsal.zip'),'--http-rehearsal'),
+    /cannot be HTTP-rehearsed/);
+  const standalone=success('rehearse-delivery.cjs',shippedHtml.zip);
+  assert.equal(standalone.status,'local-http-pass');
+  const standalonePhp=success('rehearse-delivery.cjs',shippedPhp.zip);
+  assert.equal(standalonePhp.status,'local-http-pass');
   const ssrOne=success('package-handoff.cjs',archivePath,'next-ssr',path.join(tmp,'next-ssr.zip'));
   assert.equal(ssrOne.technology,'next-ssr');
   assert.equal(ssrOne.readiness,'build-or-host-configuration-required');

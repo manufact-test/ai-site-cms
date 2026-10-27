@@ -178,13 +178,13 @@
   techZipHelp.id='server-tech-zip-help';
   const zipHeading=element('summary',null,'D5 · Одна команда: ZIP + аудит + отчёт');
   const zipExplanation=element('p',null,
-    'После скачивания JSON создайте проверенный ZIP и отдельный отчёт .preflight.json одной командой. Проверяются SEO, страницы, медиа, формы, маршруты и SHA256. Выпуск не разворачивается на хостинге.');
+    'Из JSON создаются ZIP и отчёт .preflight.json. D6 дополнительно проверяет страницы, 301, медиа, приватные файлы и HTTP-ответы через localhost. Никакого деплоя.');
   const zipCommands=element('pre');
   zipCommands.style.whiteSpace='pre-wrap';
   zipCommands.style.overflowWrap='anywhere';
   zipCommands.id='server-tech-zip-commands';
   const zipDisclaimer=element('p',null,
-    'Важно: Next Static с флагом --allow-npm-install скачивает зависимости npm и выполняет реальную локальную сборку. Для Next SSR пакет содержит исходники, и без Node-сборки не считается готовым. Успешный аудит не заменяет проверку на хостинге.');
+    'Next Static с --allow-npm-install скачивает зависимости npm. D6 выполняется только локально: реальный PHP-router или имитация статического хостинга. Next SSR без Node-сборки HTTP-проверку не проходит. TLS, реальные Apache/Nginx и формы проверяются отдельно на разрешённом стенде.');
   const refreshZipHelp=()=>{
     const name='site-published-v'+techVersion.value+'-handoff.json';
     const command='node stage3/runtime-export/bin/ship.cjs';
@@ -192,7 +192,8 @@
     const target=techTarget.value;
     zipCommands.textContent=[
       command+' /ABS/'+name+' '+target+' '+output+
-        (target==='next-static'?' --allow-npm-install':''),
+        (target==='next-static'?' --allow-npm-install':'')+
+        (target==='next-ssr'?'':' --http-rehearsal'),
       'node stage3/runtime-export/bin/audit-delivery.cjs '+output+' --fail-on-blockers',
       'Отчёт: '+output+'.preflight.json',
       'Production: НЕТ · Одобрение владельца: обязательно'
