@@ -196,3 +196,18 @@ body[data-review-mode=overview] .stage-area{min-width:0;padding-inline:clamp(12p
 .section-repeat-actions strong{margin-right:auto;font-size:11px;color:#bcdace}
 .section-content-panel .section-editor-actions-bottom{margin:0}
 .section-editor-row .section-editor-actions{flex-wrap:wrap;justify-content:flex-end}
+
+/* Page metadata inspector — one route at a time; changes remain staged. */
+.page-meta-top{display:flex;justify-content:space-between;align-items:center;gap:10px;
+ padding:10px 0 14px;color:#e1f4ea;font-size:13px}
+.page-meta-top span{font-size:10px;color:#9cb9ac;text-transform:uppercase;letter-spacing:.09em}
+.page-meta-fields{display:grid;gap:11px}
+.page-meta-fields .field{margin:0}
+.page-meta-fields .field>span{font-size:12px}
+.page-meta-counter{display:block;margin-top:4px;text-align:right;font-size:10px;color:#b2c9c0}
+.page-meta-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0}
+.page-meta-buttons .minor-btn{min-width:0;min-height:44px;white-space:normal}
+#page-meta-reset{grid-column:span 2}
+#page-meta-status{min-height:28px}
+@media(max-width:480px){.page-meta-buttons{grid-template-columns:minmax(0,1fr)}
+ #page-meta-reset{grid-column:auto}}
