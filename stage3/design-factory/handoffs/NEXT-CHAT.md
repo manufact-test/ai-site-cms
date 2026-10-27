@@ -1,3 +1,15 @@
+# 27.10.2026 — MANDATORY NEXT CHAT START / D7 CLOSURE (read first)
+
+**Stop feature creep.** Owner explicitly observed 10–20 chats at «86%». This is merely `6/7` engineering chapters, not release readiness; prior rounds added many UI features but did not execute formal D7 acceptance. Objective status: **D1–D6 implemented, D7 OPEN, 0/135 formal CMS criteria, Stage2 NO-GO, Stage3 UNACCEPTED.** Single source of truth: [OWNER-REALITY-REPORT-2026-10-27.md](OWNER-REALITY-REPORT-2026-10-27.md).
+
+Last substantial product fix: `lib/preview.cjs` now follows actual CMS `behavior.href` instead of hardcoded Contact/Services for Hero, cards, Story, CTA, contact; `studio/site-audit.js` includes actual owner-facing URL inventory; `studio/runtime.generated.js` updated. Exact source isolated JS 288 combinations / 1 152 preview pages PASS, but actual Node checkout, real Chromium `file://`, 54 visual PNGs, 42 per-composition human reviews, 64 Chromium routes, 6 PHP parity probes, final source ZIP/SHA256 are **NOT DONE**. The older Node/Chromium source tests are authored but unexecuted in this environment. Current runner has Node 22 and `/usr/bin/chromium`; GitHub DNS unavailable and a simple Chromium file navigation check did not return an accepted DOM result.
+
+**Next chat action order:** (1) Confirm GitHub HEAD of `feature/stage3-design-factory` and scope. (2) Try one real checked-out `node stage3/design-factory/bin/release-audit.cjs --out /tmp/df-audit.json --chromium` with `DF_CHROMIUM_BIN=/usr/bin/chromium`, **only if checkout genuinely exists**; do not claim V8 mocks as acceptance. (3) If feasible run existing `bin/visual-qa.cjs --out <NEW DIR> --chromium <PATH>`, require file-mode evidence of 54 PNG and 64 routes and manual verdicts (42 compositions), then 6 Lead PHP parity probes and `release-candidate.cjs`. (4) If runner still blocked, transfer branch and exact limitations immediately to Lead's environment; do not spend another chat building a new harness or editor. (5) Record actual failing cases only and fix them in one batch. No merge or SDK/PHP/out-of-scope changes from this independent chat.
+
+The branch is not merged, and historical acceptance remains unchanged. The owner wants a viewable working result, not a perpetual 86% label. **Read this before the thousands of lines of chronological older progress notes below.**
+
+---
+
 # Design Factory — NEXT CHAT / independent developer handoff
 
 ## 2026-10-27 — FINAL HANDOFF / ONE-CLICK 18-FILE DELIVERY
