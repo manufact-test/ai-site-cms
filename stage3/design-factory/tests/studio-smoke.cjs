@@ -16,6 +16,8 @@ const read=name=>fs.readFileSync(path.join(studio,name),'utf8');
 const bundle=read('runtime.generated.js'),app=read('studio.js'),markup=read('index.html'),css=read('studio.css');
 const zipSource=read('preview-zip.js'),previewZip=require(path.join(studio,'preview-zip.js'));
 const feedbackSource=read('client-feedback.js'),feedback=require(path.join(studio,'client-feedback.js'));
+const auditSource=read('site-audit.js'),audit=require(path.join(studio,'site-audit.js'));
+
 const build=cp.spawnSync(process.execPath,[path.join(root,'bin/build-browser-bundle.cjs'),'--check'],{encoding:'utf8'});
 assert.equal(build.status,0,'Browser bundle must match actual local CMS source: '+build.stderr);
 // Regression: the bundle writer must not follow a generated-file symlink out of
@@ -88,10 +90,17 @@ assert.equal(build.status,0,'Browser bundle must match actual local CMS source: 
 new Function(app);
 new Function(zipSource);
 new Function(feedbackSource);
+new Function(auditSource);
+assert.ok(markup.indexOf('site-audit.js')<markup.indexOf('studio.js'));
 assert.ok(markup.indexOf('client-feedback.js')<markup.indexOf('studio.js'),'Feedback bridge must load first');
 assert.ok(markup.indexOf('preview-zip.js')<markup.indexOf('studio.js'),
  'Preview ZIP script must load before Studio');
 assert.ok(markup.includes('id="save-preview-zip"'));
+for(const id of ['site-audit-summary','site-audit-pages','site-audit-html','site-audit-json'])
+ assert.ok(markup.includes('id="'+id+'"'));
+assert.ok(app.includes('function currentAudit()')&&app.includes('function renderSiteAudit(compiled)')&&
+ app.includes('function saveSiteAudit(asHtml)')&&app.includes('const report=currentAudit()'),
+ 'Owner report must compile live project at download time');
 for(const name of ['feedback-file','feedback-list','feedback-export','feedback-summary'])
  assert.ok(markup.includes('id="'+name+'"'),'Missing feedback UI '+name);
 assert.ok(app.includes('feedbackTool.validate(incoming,fresh)')&&
@@ -176,6 +185,19 @@ const approvedDraft=api.compiler.compile({format:api.compiler.FORMAT,version:2,
    {title:'Service two',description:'Owner confirmed service two'}
   ]},ownerReviewConfirmed:true});
 assert.equal(approvedDraft.checklist.readyForPublish,true);
+const auditProject={kit:'agency',theme:'editorial',language:'en',facts:{
+ title:'Company & <b>Test</b>',headline:'Owner verified',description:'Confirmed description',
+ contactText:'Owner@company.test',services:[{title:'Design',description:'Owner confirmed service'}]
+ },ownerReviewConfirmed:false};
+const auditDoc=audit.build(approvedDraft,auditProject,null);
+assert.equal(auditDoc.format,audit.FORMAT);
+assert.equal(auditDoc.pages.length,4);
+assert.ok(auditDoc.pages.every(p=>p.sections.length>0&&p.seoTitle));
+const auditHtml=audit.html(auditDoc);
+assert.ok(auditHtml.includes('&lt;b&gt;Test&lt;/b&gt;')&&!auditHtml.includes('<b>Test</b>'));
+assert.ok(auditHtml.includes('<html lang="en">'));
+assert.ok(!/<script\b/i.test(auditHtml));
+assert.throws(()=>audit.html({format:'unknown'}),/Invalid site audit report/);
 assert.ok(approvedDraft.site.pages.every(page=>page.seo.robots==='index'));
 // Real Node preview ZIP contents: same first-party HTML/CSS as the CMS-validated Studio source.
 const routeFiles={home:'index.html',services:'services/index.html',

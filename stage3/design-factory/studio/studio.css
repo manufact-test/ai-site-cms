@@ -143,3 +143,17 @@ body[data-review-mode=overview] .stage-area{min-width:0;padding-inline:clamp(12p
 
 /* D7 offline client feedback inbox: no uncontrolled HTML insertion. */
 .client-feedback>p{font-size:11px;line-height:1.6;color:#b1c5c0}.feedback-review-list{display:grid;gap:10px;margin-top:12px}.feedback-item{padding:12px;border:1px solid #526d63;border-radius:11px;background:#21322f}.feedback-item>strong{font-size:12px;color:#c5f57b}.feedback-item>p{overflow-wrap:anywhere;white-space:pre-wrap;font-size:12px;color:#eff7f0}.feedback-actions{display:flex;gap:8px;flex-wrap:wrap}.feedback-actions .minor-btn{margin-top:2px;font-size:11px}.feedback-guidance{font-size:10px;color:#b3c8bf}
+
+/* Owner handoff & per-page audit; first-party report has no network links. */
+.site-audit{margin:17px 0;padding:15px;border:1px solid #44635A;border-radius:12px;background:#1d2c2e}
+.site-audit h3{margin:0 0 8px;color:#d5f6b8;font-size:13px}
+.site-audit p{margin:7px 0 11px;font-size:11px;line-height:1.6;color:#b7cdc5}
+#site-audit-summary{font-weight:700;color:#deeee5}
+.site-audit-pages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.site-audit-page{display:grid;gap:3px;min-height:61px;text-align:left;background:#243a39;border:1px solid #526f63;border-radius:8px;color:#e8f5ec;padding:10px;min-width:0;cursor:pointer}
+.site-audit-page:hover{background:#36504a;border-color:#c5f57b}
+.site-audit-page strong{font-size:11px}.site-audit-page small{font-size:10px;color:#aec6bc;overflow-wrap:anywhere}
+.site-audit-actions{display:flex;flex-wrap:wrap;gap:8px}
+.site-audit-actions button{flex:1 1 130px;margin-top:4px}
+.site-audit .site-audit-warning{font-size:10px;color:#94b0a8;margin-top:10px}
+@media(max-width:400px){.site-audit-pages{grid-template-columns:minmax(0,1fr)}}

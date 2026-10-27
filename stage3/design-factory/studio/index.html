@@ -10,6 +10,7 @@
   <script src="runtime.generated.js" defer></script>
   <script src="preview-zip.js" defer></script>
   <script src="client-feedback.js" defer></script>
+  <script src="site-audit.js" defer></script>
   <script src="studio.js" defer></script>
 </head>
 <body>
@@ -124,6 +125,18 @@
           <div class="form-section">
             <div class="form-section-title"><span>04</span><strong>Перед экспортом</strong></div>
             <div id="checklist" class="checklist"></div>
+            <div class="site-audit">
+              <h3>Проверка проекта и четырёх страниц</h3>
+              <p>Показывает реальные поля, секции, SEO и открытые замечания. Откройте страницу для проверки или скачайте отдельный отчёт для владельца.</p>
+              <p id="site-audit-summary" role="status" aria-live="polite">Формируем отчёт…</p>
+              <div id="site-audit-pages" class="site-audit-pages"></div>
+              <div class="site-audit-actions">
+                <button id="site-audit-html" type="button" class="minor-btn" disabled>Отчёт владельцу HTML</button>
+                <button id="site-audit-json" type="button" class="minor-btn" disabled>Аудит JSON</button>
+              </div>
+              <p class="site-audit-warning">Отчёт локальный, может содержать введённые контакты. Он не является подписью клиента и не подтверждает лицензии, PHP parity или публикацию.</p>
+            </div>
+
             <div class="review-gate">
               <label for="owner-review-confirmed">
                 <input id="owner-review-confirmed" type="checkbox" disabled>

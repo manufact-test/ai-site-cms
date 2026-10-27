@@ -7,6 +7,7 @@ const engine=globalThis.DesignFactory;
 const $=id=>document.getElementById(id);
 const WORKSPACE='manufact-design-factory-workspace-v1';
 const feedbackTool=globalThis.DesignFactoryFeedback;
+const auditTool=globalThis.DesignFactorySiteAudit;
 const LANG={
  ru:{home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'},
  en:{home:'Home',services:'Services',approach:'Approach',contact:'Contact'}
@@ -20,7 +21,7 @@ const state={
  composition:null,
  page:'home',device:'desktop',query:'',viewMode:'single',compareTheme:'noir',overviewFrames:[],
  past:[],future:[],renderToken:0,lastSite:null,lastCompiled:null,lastError:null,feedback:null,
- editRevision:0,feedbackRevision:0,projectImportSerial:0,feedbackImportSerial:0
+ editRevision:0,feedbackRevision:0,projectImportSerial:0,feedbackImportSerial:0,lastAudit:null
 };
 const keys=Object.keys(engine.compiler.KITS);
 const devices=['desktop','tablet','mobile'];
@@ -273,6 +274,59 @@ function renderComposition(){
   ?item.label+'. '+item.fallback+'. Требования: '+item.requirements.join('; ')+'.'
   :'Доступны все 42 варианта. Для неподдерживаемой визуальной схемы используется настоящий CMS fallback.';
 }
+
+function currentAudit(){
+ if(!auditTool)throw Error('Модуль отчёта о сайте не загружен');
+ const current=compileCurrent();
+ const context=feedbackTool?feedbackTool.context(current,state.project,state.composition):null;
+ return auditTool.build(current,state.project,state.composition,state.feedback,context);
+}
+function renderSiteAudit(compiled){
+ const summary=$('site-audit-summary'),holder=$('site-audit-pages');
+ if(!summary||!holder)return;
+ holder.replaceChildren();
+ try{
+  if(!compiled)throw Error('Исправьте данные проекта');
+  const context=feedbackTool?feedbackTool.context(compiled,state.project,state.composition):null;
+  const report=auditTool.build(compiled,state.project,state.composition,state.feedback,context);
+  state.lastAudit=report;
+  const required=report.ownerFields.filter(f=>f.required&&f.status==='needs-owner').length;
+  const unresolved=report.feedback.status==='matching'?report.feedback.open:0;
+  summary.textContent='Страниц: '+report.pages.length+
+   ' · обязательных полей для проверки: '+required+
+   ' · замечаний открыто: '+unresolved+
+   ' · robots='+report.indexing+'.';
+  for(const page of report.pages){
+   const item=el('button',{type:'button',class:'site-audit-page',
+    title:'Открыть '+page.path,'aria-label':'Проверить '+page.title});
+   item.append(el('strong',{text:page.title}),
+    el('small',{text:page.path+' · '+page.sections.length+' секций · '+page.callToActionCount+' CTA'}));
+   item.addEventListener('click',()=>{
+    const id=pages.find(x=>page.id==='df-page-'+x);
+    if(!id)return;state.page=id;state.viewMode='single';renderPages();renderPreview();
+   });
+   holder.append(item);
+  }
+  $('site-audit-json').disabled=false;
+  $('site-audit-html').disabled=false;
+ }catch(error){
+  state.lastAudit=null;
+  summary.textContent='Отчёт недоступен: '+error.message;
+  $('site-audit-json').disabled=true;
+  $('site-audit-html').disabled=true;
+ }
+}
+function saveSiteAudit(asHtml){
+ try{
+  // Compile at click-time: no exports from a stale debounced preview.
+  const report=currentAudit();
+  if(asHtml)download(safeName()+'-owner-review.html',auditTool.html(report),'text/html');
+  else download(safeName()+'-content-audit.json',JSON.stringify(report,null,2)+'\n');
+  say(asHtml?'HTML-отчёт для владельца скачан (без разрешения на публикацию).':
+   'Структурированный отчёт о сайте скачан. Это не сертификат релиза.');
+ }catch(error){say('Аудит не выгружен: '+error.message,true);}
+}
+
 function renderChecklist(info){
  const node=$('checklist');node.replaceChildren();
  if(!info)return;
@@ -375,6 +429,7 @@ function renderPreview(){
   const result=compileCurrent();
   state.lastSite=result.site;state.lastCompiled=result;state.lastError=null;
   renderChecklist(result);
+  renderSiteAudit(result);
   const active=previewPageHtml(result,state.project.theme,state.page);
   frame.srcdoc=active.html;
   $('browser-url').textContent='design-preview.local'+active.page.path;
@@ -401,7 +456,7 @@ function renderPreview(){
   $('page-overview').replaceChildren();state.overviewFrames=[];
   $('browser-url').textContent='design-preview.local / invalid';
   $('compare-browser-url').textContent='design-preview.local / invalid';
-  renderChecklist(null);$('save-site').disabled=true;
+  renderChecklist(null);renderSiteAudit(null);$('save-site').disabled=true;
   renderFeedback();
   say('Ошибка данных: '+error.message,true);
  }
@@ -551,6 +606,7 @@ function renderFeedback(){
   });
   actions.append(open,resolve);item.append(heading,copy,actions);items.append(item);
  }
+ if(state.lastCompiled)renderSiteAudit(state.lastCompiled);
 }
 async function importFeedback(file){
  const request=++state.feedbackImportSerial;
@@ -704,6 +760,8 @@ function init(){
   const checked=event.target.checked;
   apply(()=>{state.project.ownerReviewConfirmed=checked;},{preserveReview:true});
  });
+ $('site-audit-json').addEventListener('click',()=>saveSiteAudit(false));
+ $('site-audit-html').addEventListener('click',()=>saveSiteAudit(true));
  $('save-project').addEventListener('click',saveProject);
  $('save-site').addEventListener('click',saveSite);
  $('save-preview-zip').addEventListener('click',savePreviewZip);
