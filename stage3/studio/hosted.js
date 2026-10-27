@@ -164,11 +164,11 @@
     'node stage3/runtime-export/bin/release-manager.cjs plan-rollback /ABS/new-lab',
     'node stage3/runtime-export/bin/release-manager.cjs rollback /ABS/new-lab TOKEN',
     'php -S 127.0.0.1:8181 -t /ABS/new-lab/public /ABS/new-lab/public/router.php'
-  ].join('\\n');
+  ].join('\n');
   techLabHelp.append(techLabHeading,techLabDescription,techLabCommands);
   techTarget.addEventListener('change',()=>{
     const old=techLabCommands.textContent;
-    techLabCommands.textContent=old.replace(/(downloaded-handoff\\.json )(?:html|php|next-static|next-ssr)/, '$1'+techTarget.value);
+    techLabCommands.textContent=old.replace(/(downloaded-handoff\.json )(?:html|php|next-static|next-ssr)/, '$1'+techTarget.value);
   });
   techDialog.append(techTitle,techHint,techVersionWrap,techTargetWrap,
     techOriginWrap,techCollectorWrap,techCompare,techPlanSummary,techLabHelp,techActions);
