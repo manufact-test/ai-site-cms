@@ -38,6 +38,8 @@ function propose(site,manifests,blueprint){
  return {format:'manufact-seo-handoff-v1',version:1,siteId:site.siteId,readOnly:true,
   currentContract:'manufact-ai-site-v1',
   supportedChanges:changes,
+  editorialReviewActions:audit.contentReview?.editorialActions||[],
+  blueprintStructureReview:audit.contentReview?.blueprintReview?.issues||[],
   requiresLeadImplementation:requires,
   evidencePending:pending,
   alreadyAvailable:['page.seo.title','page.seo.description','page.seo.robots','page.seo.ogTitle','page.seo.ogDescription','page.seo.ogImage (existing media asset ID only)','assets[].alt','published sitemap.xml + robots.txt','self canonical where public origin is set','core.inspectSite warnings/errors'],

@@ -24,9 +24,38 @@ try{
  assert.equal(audit.format,'manufact-seo-analysis-v1');
  assert.equal(audit.mode,'site-v1');assert.equal(audit.siteId,'site-industrial-demo');
  assert.equal(audit.capabilities.coreInspector,'reused');
+ const editorial=JSON.parse(good('analyze-content',{site,blueprint:bp}));
+ assert.equal(editorial.format,'manufact-seo-content-review-v1');
+ assert.equal(editorial.pages.length,2);
+ assert.ok(editorial.findings.some(x=>x.code.startsWith('content:topic-')));
+ const planReview=JSON.parse(good('review-blueprint',{blueprint:bp}));
+ assert.equal(planReview.format,'manufact-seo-blueprint-review-v1');
  const handoff=JSON.parse(good('handoff',{site,blueprint:bp}));
- assert.equal(handoff.readOnly,true);assert.ok(handoff.supportedChanges.some(x=>x.field==='seo.title'));
+ assert.equal(handoff.readOnly,true);
+ assert.ok(Array.isArray(handoff.editorialReviewActions));
+ assert.ok(handoff.editorialReviewActions.some(x=>x.automatic===false));
+ assert.ok(handoff.supportedChanges.some(x=>x.field==='seo.title'));
  assert.ok(handoff.requiresLeadImplementation.some(x=>x.kind==='structured-data-adapter'));
+ // Deliberate content regression: approved CTA route was changed in source data.
+ const {collectReview,reviewBlueprint}=require('../lib/content-intelligence.cjs');
+ const {compileBrief}=require('../lib/blueprint.cjs');
+ const original=JSON.parse(fs.readFileSync(site,'utf8'));
+ const plan=JSON.parse(fs.readFileSync(bp,'utf8'));
+ const routeRegression=structuredClone(original);
+ routeRegression.pages[0].sections[0].elements.find(x=>x.slot==='action').values['behavior.href']='/';
+ const routeReport=collectReview(routeRegression,plan);
+ assert.ok(routeReport.findings.some(x=>x.code==='content:planned-cta-missing'&&x.sectionId==='section-hero'));
+ const shared=Array.from({length:5},()=> 'Verified editorial description of the same product category and customer requirements.').join(' ');
+ const synthetic={siteId:plan.siteId,pages:[
+  {id:'page-home',path:'/',sections:[{id:'section-hero',elements:[{id:'content-one',slot:'copy',values:{'content.text':shared}}]}]},
+  {id:'page-contact',path:'/contact/',sections:[{id:'section-contact',elements:[{id:'content-two',slot:'copy',values:{'content.text':shared}}]}]}
+ ]};
+ assert.ok(collectReview(synthetic,plan).findings.some(x=>x.code==='content:duplicate-body'));
+ const overlap=JSON.parse(fs.readFileSync(fixture('industrial.brief.json'),'utf8'));
+ overlap.pages[1].intent.type=overlap.pages[0].intent.type;
+ overlap.pages[1].intent.topics[0]=overlap.pages[0].intent.topics[0];
+ assert.ok(reviewBlueprint(compileBrief(overlap)).issues.some(x=>x.code==='blueprint:primary-intent-overlap'));
+
  const normal=JSON.parse(good('analyze-html',{snapshot:fixture('normal.snapshot.json')}));
  assert.deepEqual(normal.issues,[],'normal HTML snapshot should have no static issues');
  const bad=JSON.parse(good('analyze-html',{snapshot:fixture('invalid.snapshot.json')}));
@@ -38,6 +67,6 @@ try{
  const rejected=command('compile',{brief:file});
  assert.notEqual(rejected.status,0,'invalid accessibility alt must fail');
  assert.match(rejected.stderr,/informative image requires alt intent/);
- process.stdout.write('PASS: 2 briefs and byte-stable plans; explanation; Site v1/core inspector + safe handoff; clean and defective HTML snapshots; negative validation.\n');
+ process.stdout.write('PASS: 2 briefs/plans, SEO content and blueprint review, evidence-backed handoff, Site v1 core inspection, clean/defective HTML, invalid input rejection.\n');
  process.stdout.write('Audit issues: '+audit.issues.length+'; supported SEO proposals: '+handoff.supportedChanges.length+'; invalid HTML findings: '+bad.issues.length+'.\n');
 }finally{fs.rmSync(tmp,{recursive:true,force:true});}

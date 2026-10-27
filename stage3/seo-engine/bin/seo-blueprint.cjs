@@ -5,6 +5,7 @@ const {compileBrief,checkBlueprint}=require('../lib/blueprint.cjs');
 const {auditSite,snapshotAudit}=require('../lib/analyze.cjs');
 const {explain}=require('../lib/explain.cjs');
 const {propose}=require('../lib/handoff.cjs');
+const CONTENT=require('../lib/content-intelligence.cjs');
 function main(argv){
  const [command,...args]=argv;
  const flags={};
@@ -20,10 +21,16 @@ function main(argv){
  let out;
  if(command==='compile')out=compileBrief(read('brief'));
  else if(command==='explain')out=explain(checkBlueprint(read('blueprint')));
+ else if(command==='review-blueprint')out=CONTENT.reviewBlueprint(read('blueprint'));
  else if(command==='analyze-site')out=auditSite(read('site'),manifests(),flags.blueprint?read('blueprint'):null);
+ else if(command==='analyze-content'){
+  const site=read('site'),blueprint=read('blueprint');
+  // Run existing authoritative Site v1 validation before producing an editorial review.
+  out=auditSite(site,manifests(),blueprint).contentReview;
+ }
  else if(command==='analyze-html')out=snapshotAudit(read('snapshot'));
  else if(command==='handoff')out=propose(read('site'),manifests(),read('blueprint'));
- else throw Error('Commands: compile --brief file | explain --blueprint file | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-html --snapshot file | handoff --site file --blueprint file [--manifests dir]');
+ else throw Error('Commands: compile --brief file | explain --blueprint file | review-blueprint --blueprint file | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | handoff --site file --blueprint file [--manifests dir]');
  process.stdout.write(typeof out==='string'?out+'\n':JSON.stringify(out,null,2)+'\n');
 }
 try{main(process.argv.slice(2));}catch(e){process.stderr.write('SEO Engine: '+e.message+'\n');process.exitCode=1;}

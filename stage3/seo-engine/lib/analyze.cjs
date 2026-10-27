@@ -2,6 +2,7 @@
 // Evidence-driven supplements to the core inspectSite. Offline; no page loads, scripts or network.
 const {checkBlueprint}=require('./blueprint.cjs');
 const core=require('../../sdk/contract.cjs');
+const CONTENT=require('./content-intelligence.cjs');
 const FORMAT='manufact-seo-analysis-v1';
 const severity={blocker:0,error:1,warning:2,recommendation:3};
 const normalize=x=>String(x||'').trim().normalize('NFKC').toLowerCase().replace(/\s+/g,' ');
@@ -88,9 +89,18 @@ function auditSite(site,manifests,blueprint){
   }
   for(const p of site.pages)if(!plans.has(p.id))items.push(issue('unplanned-page','recommendation',p.id,p.path,'Page not documented in SEO blueprint; check intent and cross-links.'));
  }
- return result('site-v1',site.siteId,items,{siteContract:'validated by stage3/sdk/contract.cjs',
+ const contentReview=plan?CONTENT.collectReview(site,plan):null;
+ if(contentReview){
+  for(const extra of [...contentReview.blueprintReview.issues,...contentReview.findings])
+   items.push(issue(extra.code,extra.severity,extra.pageId,extra.path||pageMap.get(extra.pageId)?.path||null,
+    extra.message,Object.fromEntries(Object.entries(extra).filter(([key])=>!['code','severity','pageId','path','message'].includes(key)))));
+ }
+ const report=result('site-v1',site.siteId,items,{siteContract:'validated by stage3/sdk/contract.cjs',
   coreInspector:'reused',htmlSnapshot:false,canonicalEditable:false,structuredDataEditable:false,
-  robotsSitemap:'publisher-generated; deployment not verified',measuredPerformance:false});
+  robotsSitemap:'publisher-generated; deployment not verified',measuredPerformance:false,
+  editorialEvidence:'exact-phrase and content/CTA observations only'});
+ if(contentReview)report.contentReview=contentReview;
+ return report;
 }
 // A deliberately bounded HTML snapshot parser: diagnostic-only, not a browser/DOM or a crawler.
 // Unknown/ambiguous markup is a recommendation, never a claim about what a browser rendered.
