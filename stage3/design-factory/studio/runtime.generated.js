@@ -705,32 +705,48 @@ function slot(s,name,key='content.text'){
   const el=s.elements.find(e=>e.slot===name);
   return el&&typeof el.values[key]==='string'?el.values[key]:'';
 }
+// Render the exact CMS behavior.href. Unknown local routes must not silently
+// become Home links; validated external HTTPS links are opt-in clicks only.
 function href(route,depth){
   const map={'/':'index.html','/services/':'services/index.html','/approach/':'approach/index.html','/contact/':'contact/index.html'};
-  return (depth?'../':'')+(map[route]||'index.html');
+  if(typeof route!=='string')throw Error('Invalid CMS preview link');
+  const local=/^(\/(?:[a-z0-9-]+\/)*)([?#][^\s"'<>\\]*)?$/i.exec(route);
+  if(local){
+    if(!Object.prototype.hasOwnProperty.call(map,local[1]))throw Error('Unknown CMS preview route: '+local[1]);
+    return (depth?'../':'')+map[local[1]]+(local[2]||'');
+  }
+  if(/^https:\/\/[a-z0-9.-]+(?::443)?(?:\/[^\s"'<>\\]*)?$/i.test(route))
+    return route;
+  throw Error('Unsafe CMS preview link');
 }
 function a(route,label,depth,klass='button'){
-  return '<a class="'+klass+'" href="'+esc(href(route,depth))+'">'+esc(label)+'</a>';
+  const target=href(route,depth),external=target.startsWith('https://');
+  return '<a class="'+klass+'" href="'+esc(target)+'"'+
+    (external?' target="_blank" rel="noopener noreferrer"':'')+'>'+esc(label)+'</a>';
+}
+function action(s,slotName,depth,klass='button'){
+  return a(slot(s,slotName,'behavior.href'),slot(s,slotName),depth,klass);
 }
 function renderSection(s,depth,i,language,contactCopy=''){
   const ru=language==='ru';
   const name=s.component, id=esc(s.id),heading=slot(s,'heading');
   const head='<p class="eyebrow">SECTION '+String(i+1).padStart(2,'0')+'</p><h2>'+esc(heading)+'</h2>';
   if(name==='company-hero')
-    return '<section id="'+id+'" class="section hero"><div class="hero-copy"><p class="eyebrow">DESIGN FACTORY / ORIGINAL LAYOUT</p><h1>'+esc(heading)+'</h1><p class="lede">'+esc(slot(s,'summary'))+'</p><div class="actions">'+a('/contact/',slot(s,'action'),depth)+a('/services/',ru?'Услуги →':'Explore services →',depth,'text-link')+'</div></div><div class="art" aria-hidden="true"><div class="art-caption">DF · '+String(i+1).padStart(2,'0')+'</div><div class="art-shape"></div><div class="art-circle"></div></div></section>';
+    return '<section id="'+id+'" class="section hero"><div class="hero-copy"><p class="eyebrow">DESIGN FACTORY / ORIGINAL LAYOUT</p><h1>'+esc(heading)+'</h1><p class="lede">'+esc(slot(s,'summary'))+'</p><div class="actions">'+action(s,'action',depth)+a('/services/',ru?'Услуги →':'Explore services →',depth,'text-link')+'</div></div><div class="art" aria-hidden="true"><div class="art-caption">DF · '+String(i+1).padStart(2,'0')+'</div><div class="art-shape"></div><div class="art-circle"></div></div></section>';
   if(name==='feature-highlights')
     return '<section id="'+id+'" class="section features"><div class="section-heading">'+head+'</div><div class="features-grid"><article><span class="index">01 /</span><h3>'+esc(slot(s,'first'))+'</h3></article><article><span class="index">02 /</span><h3>'+esc(slot(s,'second'))+'</h3></article></div></section>';
   if(name==='service-grid')
-    return '<section id="'+id+'" class="section services"><div class="section-heading">'+head+'</div><div class="service-grid">'+s.items.map((it,j)=>'<article class="service-card"><div class="card-top"><span>0'+(j+1)+'</span><span aria-hidden="true">↗</span></div><h3>'+esc(it.values['content.title'])+'</h3><p>'+esc(it.values['content.text'])+'</p>'+a('/contact/',ru?'Обсудить →':'Discuss →',depth,'text-link')+'</article>').join('')+'</div></section>';
+    return '<section id="'+id+'" class="section services"><div class="section-heading">'+head+'</div><div class="service-grid">'+s.items.map((it,j)=>'<article class="service-card"><div class="card-top"><span>0'+(j+1)+'</span><span aria-hidden="true">↗</span></div><h3>'+esc(it.values['content.title'])+'</h3><p>'+esc(it.values['content.text'])+'</p>'+a(it.values['behavior.href'],ru?'Обсудить →':'Discuss →',depth,'text-link')+'</article>').join('')+'</div></section>';
   if(name==='media-story')
-    return '<section id="'+id+'" class="section story"><div class="story-art" aria-label="Illustrative placeholder; no owner photo supplied"><span>'+(ru?'ИЗОБРАЖЕНИЕ / ПРИМЕР':'IMAGE / PLACEHOLDER')+'</span><div class="story-shape"></div></div><div class="story-text">'+head+'<p>'+esc(slot(s,'copy'))+'</p>'+a('/contact/',slot(s,'action'),depth,'text-link')+'</div></section>';
+    return '<section id="'+id+'" class="section story"><div class="story-art" aria-label="Illustrative placeholder; no owner photo supplied"><span>'+(ru?'ИЗОБРАЖЕНИЕ / ПРИМЕР':'IMAGE / PLACEHOLDER')+'</span><div class="story-shape"></div></div><div class="story-text">'+head+'<p>'+esc(slot(s,'copy'))+'</p>'+action(s,'action',depth,'text-link')+'</div></section>';
   if(name==='faq-accordion')
     return '<section id="'+id+'" class="section faq"><div>'+head+'</div><div class="faqs">'+s.items.map(it=>'<details><summary>'+esc(it.values['content.question'])+'</summary><p>'+esc(it.values['content.answer'])+'</p></details>').join('')+'</div></section>';
   if(name==='cta-banner')
-    return '<section id="'+id+'" class="section cta"><div><p class="eyebrow">'+(ru?'ДАЛЬНЕЙШИЙ ШАГ':'NEXT STEP')+'</p><h2>'+esc(heading)+'</h2><p>'+esc(slot(s,'summary'))+'</p></div><div class="cta-actions">'+a('/contact/',slot(s,'primary'),depth)+a('/services/',slot(s,'secondary')+' →',depth,'text-link')+'</div></section>';
+    return '<section id="'+id+'" class="section cta"><div><p class="eyebrow">'+(ru?'ДАЛЬНЕЙШИЙ ШАГ':'NEXT STEP')+'</p><h2>'+esc(heading)+'</h2><p>'+esc(slot(s,'summary'))+'</p></div><div class="cta-actions">'+action(s,'primary',depth)+a(slot(s,'secondary','behavior.href'),slot(s,'secondary')+' →',depth,'text-link')+'</div></section>';
   if(name==='contact-panel')
     return '<section id="'+id+'" class="section contact">'+head+
-      '<p class="contact-details">'+esc(contactCopy||(ru?'Укажите подтверждённые контакты перед публикацией.':'Add verified contact information before publication.'))+'</p></section>';
+      '<p class="contact-details">'+esc(contactCopy||(ru?'Укажите подтверждённые контакты перед публикацией.':'Add verified contact information before publication.'))+'</p>'+
+      '<div class="contact-actions">'+action(s,'action',depth)+'</div></section>';
   if(name==='photo-gallery')
     return '<section id="'+id+'" class="section photo-gallery-preview"><div class="section-heading">'+head+'</div><div class="preview-photos">'+
       (s.items||[]).map((item,j)=>'<figure class="preview-photo"><div role="img" aria-label="'+esc(ru?'Фотография не предоставлена':'Photo not provided')+'">'+
@@ -761,7 +777,7 @@ function css(theme){
     '.service-card{padding:32px}.card-top{display:flex;justify-content:space-between;font-size:12px;color:var(--accent);font-weight:900}.service-card h3{font:500 clamp(1.4rem,2.3vw,2.4rem)/1.13 var(--display);letter-spacing:-.035em;margin:34px 0 13px}.service-card p{opacity:.8}.story{display:grid;grid-template-columns:1fr 1fr;gap:7%;align-items:center}.story-art{height:390px;position:relative;overflow:hidden;background:var(--accent);color:white;padding:24px;border-radius:var(--radius)}.story-art span{position:relative;z-index:2;font-size:11px}.story-shape{position:absolute;right:-11%;bottom:-10%;width:75%;height:75%;border:55px solid var(--bg);transform:rotate(23deg);border-radius:35%}.story-text p{opacity:.8}',
     '.faq{display:grid;grid-template-columns:.8fr 1.2fr;gap:55px}.faqs details{padding:22px 0;border-bottom:1px solid var(--line)} .faqs summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-weight:800}.faqs p{opacity:.8}',
     '.cta{background:var(--text);color:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:30px;padding:clamp(50px,7vw,85px);margin-top:55px;margin-bottom:55px;border-radius:var(--radius)}.cta .eyebrow{color:var(--bg);opacity:.7}.cta h2{max-width:600px}.cta-actions{display:flex;flex-direction:column;gap:20px;align-items:flex-start}.contact{text-align:center}.contact .contact-details{opacity:.83;white-space:pre-line;overflow-wrap:anywhere;max-width:750px;margin:0 auto}.footer{padding:60px 22px;background:var(--text);color:var(--bg)}.footer-inner{max-width:var(--wide);margin:auto;display:flex;flex-wrap:wrap;gap:25px;justify-content:space-between;font-size:13px}',
-    '.preview-photos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.preview-photo{margin:0}.preview-photo>div{background:var(--surface);border:1px dashed var(--line);min-height:250px;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-weight:750;font-size:11px;color:var(--accent)}.preview-photo figcaption{margin-top:7px;font-size:12px}',
+    '.contact-actions{display:flex;justify-content:center;margin-top:24px}.contact-actions .button{max-width:100%;overflow-wrap:anywhere}.preview-photos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.preview-photo{margin:0}.preview-photo>div{background:var(--surface);border:1px dashed var(--line);min-height:250px;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-weight:750;font-size:11px;color:var(--accent)}.preview-photo figcaption{margin-top:7px;font-size:12px}',
     '@media(max-width:620px){.preview-photos{grid-template-columns:1fr}.preview-photo>div{min-height:190px}}',
     '@media(max-width:860px){.hero,.story,.faq{grid-template-columns:1fr}.hero{min-height:0}.art{height:280px}.story-art{height:300px}.cta{flex-direction:column;align-items:flex-start}}',
     '@media(max-width:600px){.navwrap{display:block}.navwrap nav{padding-top:17px;gap:14px}.section{padding:52px 19px}.hero h1{font-size:clamp(2.7rem,12vw,4.1rem)}.features-grid,.service-grid{grid-template-columns:1fr}.features-grid article{min-height:0}.art{height:230px}.cta{padding:40px 26px;margin:24px 8px}.story-art{height:240px}}',
