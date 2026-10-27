@@ -181,3 +181,18 @@ body[data-review-mode=overview] .stage-area{min-width:0;padding-inline:clamp(12p
 .section-editor-actions-bottom{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}
 .section-editor-actions-bottom button{white-space:normal;min-height:44px}
 @media(max-width:440px){.section-editor-row{align-items:flex-start;flex-direction:column}.section-editor-actions{width:100%;justify-content:flex-end}.section-editor-actions-bottom{grid-template-columns:minmax(0,1fr)}}
+
+/* Section-content editing is a single in-place panel; explicit Save/Cancel. */
+.section-content-panel{width:100%;display:grid;gap:10px;padding:12px;margin-top:8px;
+ border-radius:12px;background:rgba(2,22,18,.32);border:1px solid rgba(180,223,195,.24)}
+.section-editor-row:has(.section-content-panel){flex-wrap:wrap}
+.section-content-panel>.field{margin:0;min-width:0}
+.section-content-panel textarea,.section-content-panel input{width:100%;min-width:0}
+.section-repeater-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px}
+.section-repeater-head strong{font-size:12px}.section-repeater-head small{font-size:11px;color:#aec6bc}
+.section-repeat-row{display:grid;gap:8px;padding:12px;border-radius:10px;background:rgba(255,255,255,.04)}
+.section-repeat-row .field{margin:0}
+.section-repeat-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.section-repeat-actions strong{margin-right:auto;font-size:11px;color:#bcdace}
+.section-content-panel .section-editor-actions-bottom{margin:0}
+.section-editor-row .section-editor-actions{flex-wrap:wrap;justify-content:flex-end}
