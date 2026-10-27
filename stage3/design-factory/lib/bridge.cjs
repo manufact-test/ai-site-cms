@@ -5,6 +5,7 @@ const compiler=require('./compiler.cjs');
 const adapter=require('./composition-adapter.cjs');
 const catalog=require('../catalog/compositions.cjs');
 const sectionPlan=require('./section-plan.cjs');
+const pageSettings=require('./page-settings.cjs');
 const WORKSPACE='manufact-design-factory-workspace-v1';
 const EXPORT='manufact-design-factory-export-v2';
 const own=(obj,key)=>Object.prototype.hasOwnProperty.call(obj,key);
@@ -14,19 +15,22 @@ function exact(value,allowed,label){
 }
 function workspace(raw){
  if(raw&&raw.format===WORKSPACE){
-  if(![1,2].includes(raw.version))throw Error('D6: unsupported workspace version');
-  exact(raw,raw.version===2
-   ?['format','version','project','composition','sectionPlan']
-   :['format','version','project','composition'],'workspace');
-  const project=compiler.validateProject(raw.project);
-  const id=raw.composition;
+  if(![1,2,3].includes(raw.version))throw Error('D6: unsupported workspace version');
+  exact(raw,raw.version===3
+   ?['format','version','project','composition','sectionPlan','pageSettings']
+   :raw.version===2?['format','version','project','composition','sectionPlan']
+    :['format','version','project','composition'],'workspace');
+  const project=compiler.validateProject(raw.project),id=raw.composition;
   if(id!==null)catalog.get(id);
   if(raw.version===1)return {format:WORKSPACE,version:1,project,composition:id};
-  if(!raw.sectionPlan)throw Error('D6: missing versioned section plan');
-  const reg=compiler.loadRegistry();
-  const normalized=sectionPlan.applyToSite(compiler.compile(project,reg).site,
-   project.language,id,raw.sectionPlan,reg);
-  return {format:WORKSPACE,version:2,project,composition:id,sectionPlan:normalized.plan};
+  if(raw.version===2&&!raw.sectionPlan)throw Error('D6: missing versioned section plan');
+  if(raw.version===3&&!own(raw,'pageSettings'))throw Error('D6: missing page settings');
+  const reg=compiler.loadRegistry(),original=compiler.compile(project,reg).site;
+  const planned=raw.sectionPlan?sectionPlan.applyToSite(original,project.language,id,raw.sectionPlan,reg):null;
+  if(raw.version===2)return {format:WORKSPACE,version:2,project,composition:id,sectionPlan:planned.plan};
+  const overlay=pageSettings.apply(compiler.compile(project,reg).site,raw.pageSettings);
+  return {format:WORKSPACE,version:3,project,composition:id,
+   ...(planned?{sectionPlan:planned.plan}:{}),pageSettings:overlay.settings};
  }
  const project=compiler.migrate(raw);
  return {format:WORKSPACE,version:1,project,composition:null};
@@ -36,16 +40,17 @@ function build(input){
  const compiled=compiler.compile(w.project);
  const reg=compiler.loadRegistry();
  const planned=sectionPlan.applyToSite(compiled.site,w.project.language,w.composition,
-  w.version===2?w.sectionPlan:null,reg);
- let site=(w.composition||w.version===2)?sdk.validateSite(planned.site,reg):planned.site;
+  w.sectionPlan||null,reg);
+ let site=planned.site;
+ const meta=w.version===3?pageSettings.apply(site,w.pageSettings):null;
  const comp=w.composition?adapter.compare(w.composition):null;
- // A new registered composition is a draft with placeholder copy, not owner sign-off.
- if(planned.added||planned.edited){
+ // An edited page or section must not inherit earlier approval for unrelated copy.
+ if(planned.added||planned.edited||meta?.changed){
   compiled.checklist={...compiled.checklist,readyForPublish:false,
    requiresOwnerReview:true,indexing:'noindex',publicationStatus:'section_drafts_require_owner_review'};
   for(const page of site.pages)page.seo.robots='noindex';
-  site=sdk.validateSite(site,reg);
  }
+ site=sdk.validateSite(site,reg);
  const inspection=sdk.inspectSite(site,reg);
  if(inspection.errors.length)throw Error('D6: invalid local routes');
  const compatibility={
@@ -57,8 +62,9 @@ function build(input){
    'fabricated reviews or awards','unlicensed media','production publication without CMS/integrator approval'
   ],
   composition:comp,
-  ...(w.version===2?{sectionPlan:{format:sectionPlan.FORMAT,addedDrafts:planned.added,editedSections:planned.edited,
+  ...(w.sectionPlan?{sectionPlan:{format:sectionPlan.FORMAT,addedDrafts:planned.added,editedSections:planned.edited,
    pages:sectionPlan.PAGES.map(key=>({page:key,sections:w.sectionPlan.pages[key].length}))}}:{}),
+  ...(meta?{pageSettings:{format:pageSettings.FORMAT,changedPages:meta.changed}}:{}),
   source:['stage3/sdk/contract.cjs','stage3/components/*.json','stage3/server/PublicRenderer.php'],
   previewOnly:true,
   publishGate:compiled.checklist.readyForPublish?'owner_review_confirmed_by_exporter':'owner_review_required',
