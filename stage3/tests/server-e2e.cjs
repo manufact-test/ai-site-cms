@@ -601,6 +601,10 @@ async function stop(){
   assert.equal(archive.payload.media.length,1);
   assert.equal(archive.payload.templates.length,1);
   assert.ok(archive.payload.submissions.length>0);
+  const archivedWorkflow=archive.payload.submissions.find(lead=>lead.submission_id===leadWorkflowId);
+  assert.equal(archivedWorkflow.workflow.priority,'high');
+  assert.equal(archivedWorkflow.workflow.note,'=SUM(1,1) Внутренняя заметка');
+  assert.equal(archivedWorkflow.workflowEvents.length,2,'Complete CRM event history is backed up');
   assert.equal(archive.payload.revisions.length,sourceRevision);
   assert.equal(archive.payload.releases.length,4);
   assert.doesNotMatch(JSON.stringify(archive),/password_hash|visitor_hash|STAGE3_FORM_SECRET/);
@@ -612,6 +616,23 @@ async function stop(){
   assert.equal((await request('POST','/api/backups/restore',{...payload,confirmationToken:'wrong'})).status,409);
   const damaged=structuredClone(archive);damaged.payload.draft.site.title='Tampered';
   assert.equal((await request('POST','/api/backups/plan',{archive:damaged,targetSiteId:target})).status,422);
+  const invalidLeadBackup=structuredClone(archive);
+  invalidLeadBackup.payload.submissions.find(x=>x.submission_id===leadWorkflowId).workflow.note='X'.repeat(2001);
+  invalidLeadBackup.sha256=require('node:crypto').createHash('sha256')
+    .update(JSON.stringify(invalidLeadBackup.payload)).digest('hex');
+  assert.equal((await request('POST','/api/backups/plan',
+    {archive:invalidLeadBackup,targetSiteId:target})).status,422,
+    'Tampered private lead notes are rejected even with recomputed checksum');
+  // Historical v1 backups without operator workflow fields remain readable.
+  const legacyLeadArchive=structuredClone(archive);
+  for(const lead of legacyLeadArchive.payload.submissions){
+    delete lead.workflow;delete lead.workflowEvents;
+  }
+  legacyLeadArchive.sha256=require('node:crypto').createHash('sha256')
+    .update(JSON.stringify(legacyLeadArchive.payload)).digest('hex');
+  assert.equal((await request('POST','/api/backups/plan',
+    {archive:legacyLeadArchive,targetSiteId:target})).status,200,
+    'Older content-only backups can still be restored after CRM upgrade');
   const missingImage=structuredClone(archive);missingImage.payload.media=[];
   // Recompute PHP's compact JSON representation: every key is textual, no floats in this fixture.
   missingImage.sha256=require('node:crypto').createHash('sha256').update(JSON.stringify(missingImage.payload)).digest('hex');
@@ -626,6 +647,13 @@ async function stop(){
   assert.equal(copyBackup.status,200,JSON.stringify(copyBackup.body));
   assert.equal(copyBackup.body.payload.media[0].sha256,archive.payload.media[0].sha256);
   assert.equal(copyBackup.body.payload.submissions.length,archive.payload.submissions.length);
+  const restoredWorkflow=copyBackup.body.payload.submissions.find(l=>l.workflow?.note===
+    '=SUM(1,1) Внутренняя заметка');
+  assert.ok(restoredWorkflow,'Private operator note survives independent-site backup restore');
+  assert.equal(restoredWorkflow.workflow.priority,'high');
+  assert.equal(restoredWorkflow.workflowEvents.length,2);
+  assert.notEqual(restoredWorkflow.submission_id,leadWorkflowId,
+    'Restored leads get a new global identity without losing operator history');
   assert.notEqual(copyBackup.body.payload.submissions[0].submission_id,archive.payload.submissions[0].submission_id);
   assert.equal(copyBackup.body.payload.templates.length,1);
   assert.equal((await request('POST','/api/backups/plan',payload)).status,409,'No overwrite of existing sites');
