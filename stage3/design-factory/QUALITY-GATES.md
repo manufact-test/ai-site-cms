@@ -466,3 +466,11 @@ A rebuild must never silently discard graph structure or owner-authored node pro
 The adapter raises a typed `DF_REBUILD_OWNER_REVIEW_REQUIRED` error with exact `discardedGraphEditIds`; `inspectRebuild()` returns structured entries including `kind`, `previousValue`, `currentValue`, `rebuiltValue`, `nodeInEditedGraph` and `nodeInRebuiltGraph`. The host must present these entries, authenticate the owner, lock the reviewed revision and pass the exact approved ID set. A preview is not consent, save, publish or authorization.
 
 **Isolated-source evidence:** 504/504 validations, renders, no-op rebuilds and read-only preflights; 8 component-family source-refresh rebuilds; 8 loss-aware regression groups PASS. Actual Node checkout unavailable because `git clone` failed at DNS resolution; PHP parity SKIP (0 probes); Chromium/54 visual captures and real ZIP/SHA256 remain unrun. GitHub commit status contains no checks for this head. This is strong source-level evidence, not D7 acceptance. Do not add the optional Lead suite to stable D7 release-audit before Lead SDK integration.
+
+
+## 2026-10-27 — section editing is product work, not D7 acceptance
+
+The editor adds a new **workspace-v2 / section-plan-v1** route across Studio, D6 and 18-file handoff. Reviewed first-party V8 scenarios: inserting a registered composition on Approach without losing its CTA, rearranging ordered sections, stable ID continuity, D6 site equality and package validation, rejecting removal of original hero; a separate mock-DOM run of the actual Studio editor verified Home/Contact insertion, page-specific reset and legacy composition coexistence. The original test sources were amended to cover real Node semantics when a checkout becomes available. A `successful` handler typo was caught and corrected before documenting the round.
+
+These **do not** count as Node checkout, actual offline Chromium navigation, PHP parity, human design review or full release evidence. This context has Node and Chromium binaries but cannot resolve GitHub for a real checkout. Formal D7 is **still 0/135**, Stage2 **NO-GO**, Stage3 **UNACCEPTED**. Newly inserted draft compositions must export **noindex** until owner content is verified in a supported editorial workflow; the design CSS remains `integration_required` for PHP parity.
+
