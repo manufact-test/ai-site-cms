@@ -22,6 +22,14 @@
   }
   return h.toString(16).padStart(8,'0');
  }
+ // Feedback correlation must survive JSON persistence and the compiler's
+ // canonical facts ordering without treating object key order as a site edit.
+ function canonical(value){
+  if(Array.isArray(value))return value.map(canonical);
+  if(value&&typeof value==='object')
+   return Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])]));
+  return value;
+ }
  function context(compiled,project,composition){
   if(!compiled||!compiled.site||!Array.isArray(compiled.site.pages)||
    compiled.site.pages.length!==4||!project)throw Error('Feedback needs complete compiled site');
@@ -32,9 +40,9 @@
   // Source facts remain part of the customer-approved snapshot even if a
   // section override hides their rendered output until the next recomposition.
   // Otherwise edits made while reading feedback could falsely appear current.
-  return 'df-'+textHash(JSON.stringify({site,kit:project.kit,
+  return 'df-'+textHash(JSON.stringify(canonical({site,kit:project.kit,
    theme:project.theme,language:project.language,composition:composition||null,
-   facts:project.facts||{}}));
+   facts:project.facts||{}})));
  }
  function exact(obj,allowed,where){
   if(!obj||typeof obj!=='object'||Array.isArray(obj)||
