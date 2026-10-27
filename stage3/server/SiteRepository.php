@@ -703,7 +703,7 @@ final class SiteRepository
     }
 
     /** All-or-nothing review for explicitly selected new leads. No deletes or auto-ack. */
-    public function bulkReviewSubmissions(string $siteId, array $ids): array
+    public function bulkReviewSubmissions(string $siteId, array $ids,string $operator='system'): array
     {
         if (!array_is_list($ids)||count($ids)<1||count($ids)>50)
             throw new \InvalidArgumentException('Select 1–50 lead IDs');
@@ -713,7 +713,7 @@ final class SiteRepository
                 throw new \InvalidArgumentException('Invalid or duplicate lead ID');
             $seen[$id]=true;
         }
-        return $this->atomic(function() use($siteId,$ids): array {
+        return $this->atomic(function() use($siteId,$ids,$operator): array {
             $this->getDraft($siteId);
             $placeholders=implode(',',array_fill(0,count($ids),'?'));
             $check=$this->db->prepare('SELECT submission_id,status FROM stage3_submissions WHERE site_id = ? AND submission_id IN ('.$placeholders.')');
@@ -724,6 +724,7 @@ final class SiteRepository
             $update=$this->db->prepare("UPDATE stage3_submissions SET status = 'reviewed' WHERE site_id = ? AND status = 'new' AND submission_id IN (".$placeholders.")");
             $update->execute([$siteId,...$ids]);
             if($update->rowCount()!==count($ids))throw new Conflict('Concurrent review; transaction rolled back');
+            foreach($ids as $leadId)$this->recordLeadReviewTransition($siteId,$leadId,$operator,'new');
             return ['reviewed'=>count($ids)];
         });
     }
@@ -745,17 +746,21 @@ final class SiteRepository
         return $this->notificationSummary($siteId);
     }
 
-    public function reviewSubmission(string $siteId, string $submissionId): void
+    public function reviewSubmission(string $siteId,string $submissionId,string $operator='system'): void
     {
-        $this->getDraft($siteId);
-        if (!preg_match('/^lead-[0-9a-f]{24}$/D', $submissionId)) {
+        if(!preg_match('/^lead-[0-9a-f]{24}$/D',$submissionId))
             throw new \InvalidArgumentException('Invalid submission ID');
-        }
-        $stmt = $this->db->prepare('UPDATE stage3_submissions SET status = ? WHERE site_id = ? AND submission_id = ?');
-        $stmt->execute(['reviewed', $siteId, $submissionId]);
-        if ($stmt->rowCount() !== 1) {
-            throw new NotFound('Unknown or already reviewed submission');
-        }
+        $this->atomic(function()use($siteId,$submissionId,$operator):void{
+            $this->getDraft($siteId);
+            $q=$this->db->prepare('SELECT status FROM stage3_submissions WHERE site_id=? AND submission_id=?');
+            $q->execute([$siteId,$submissionId]);$old=$q->fetchColumn();
+            if(!is_string($old)||$old==='reviewed')
+                throw new NotFound('Unknown or already reviewed submission');
+            $stmt=$this->db->prepare('UPDATE stage3_submissions SET status=? WHERE site_id=? AND submission_id=? AND status=?');
+            $stmt->execute(['reviewed',$siteId,$submissionId,$old]);
+            if($stmt->rowCount()!==1)throw new Conflict('Concurrent review');
+            $this->recordLeadReviewTransition($siteId,$submissionId,$operator,$old);
+        });
     }
 
 

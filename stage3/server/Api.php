@@ -542,12 +542,12 @@ final class Api
                 if($method==='POST'&&$operation==='bulk-review'){
                     $ids=$body['ids']??null;
                     if(!is_array($ids))throw new InvalidArgumentException('Lead IDs array required');
-                    $result=$this->sites->bulkReviewSubmissions($siteId,$ids);
+                    $result=$this->sites->bulkReviewSubmissions($siteId,$ids,$principal['username']);
                     $this->auditDetail='Bulk reviewed '.$result['reviewed'].' leads';
                     $this->response(200,$result);
                 }
                 if($method==='POST'&&preg_match('/^lead-[0-9a-f]{24}\/review$/D',$operation)){
-                    $this->sites->reviewSubmission($siteId,substr($operation,0,29));
+                    $this->sites->reviewSubmission($siteId,substr($operation,0,29),$principal['username']);
                     $this->response(200,['status'=>'reviewed']);
                 }
             }

@@ -95,6 +95,32 @@ trait LeadWorkflow
         });
     }
 
+
+    /**
+     * Existing legacy mark-reviewed and bulk-review operations must use the
+     * same private audit/revision model as explicit workflow editing.
+     * Called from within an existing site-scoped SQL transaction.
+     */
+    private function recordLeadReviewTransition(
+        string $siteId,string $submissionId,string $operator,string $fromStatus
+    ): void {
+        $q=$this->db->prepare('SELECT priority,revision FROM stage3_lead_workflow WHERE site_id=? AND submission_id=?');
+        $q->execute([$siteId,$submissionId]);$prior=$q->fetch(PDO::FETCH_ASSOC);
+        $priority=$prior['priority']??'normal';
+        $version=(int)($prior['revision']??0)+1;
+        $at=$this->now();
+        if($prior){
+            $u=$this->db->prepare('UPDATE stage3_lead_workflow SET revision=?,operator=?,changed_at=? WHERE site_id=? AND submission_id=?');
+            $u->execute([$version,$operator,$at,$siteId,$submissionId]);
+        }else{
+            $u=$this->db->prepare('INSERT INTO stage3_lead_workflow (site_id,submission_id,priority,note,revision,operator,changed_at) VALUES (?,?,?,?,?,?,?)');
+            $u->execute([$siteId,$submissionId,'normal','',1,$operator,$at]);
+        }
+        $event=$this->db->prepare('INSERT INTO stage3_lead_events (event_id,site_id,submission_id,operator,from_status,to_status,from_priority,to_priority,note_changed,changed_at) VALUES (?,?,?,?,?,?,?,?,?,?)');
+        $event->execute(['event-'.bin2hex(random_bytes(12)),$siteId,$submissionId,$operator,
+            $fromStatus,'reviewed',$priority,$priority,0,$at]);
+    }
+
     public function leadWorkflowHistory(string $siteId,string $submissionId): array
     {
         $this->getDraft($siteId);

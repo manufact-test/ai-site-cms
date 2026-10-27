@@ -321,7 +321,11 @@ async function stop(){
   assert.equal((await request('GET',endpoint+'/submissions?status=new')).body.total,2);
 
   // B2: owner- and editor-only workflow state, private notes and event trail.
-  const leadWorkflowId=newLeadIds[0];
+  const bulkTrail=await request('GET',endpoint+'/submissions/'+newLeadIds[0]+'/history');
+  assert.equal(bulkTrail.status,200);
+  assert.equal(bulkTrail.body.events.length,1,'Bulk review now writes durable operator history');
+  assert.equal(bulkTrail.body.events[0].to_status,'reviewed');
+  const leadWorkflowId=allLeads.find(x=>x.status==='new'&&!newLeadIds.includes(x.submission_id)).submission_id;
   const workflowRoute=endpoint+'/submissions/'+leadWorkflowId+'/workflow';
   const historyRoute=endpoint+'/submissions/'+leadWorkflowId+'/history';
   assert.equal((await request('GET',endpoint+'/submissions?priority=unknown')).status,422);
@@ -362,13 +366,13 @@ async function stop(){
   const updatedHistory=await request('GET',historyRoute);
   assert.equal(updatedHistory.status,200);
   assert.equal(updatedHistory.body.events.length,1);
-  assert.equal(updatedHistory.body.events[0].from_status,'reviewed');
+  assert.equal(updatedHistory.body.events[0].from_status,'new');
   assert.equal(updatedHistory.body.events[0].to_status,'in_progress');
   assert.equal(updatedHistory.body.events[0].note_changed,1);
   assert.ok(!JSON.stringify(updatedHistory.body).includes('Внутренняя заметка'),
     'History records edit metadata without duplicating private note contents');
   const restoredLead=await request('POST',workflowRoute,{
-    status:'reviewed',priority:'high',note:'=SUM(1,1) Внутренняя заметка',
+    status:'new',priority:'high',note:'=SUM(1,1) Внутренняя заметка',
     expectedWorkflowRevision:1});
   assert.equal(restoredLead.status,200);
   assert.deepEqual((await request('GET',endpoint+'/submissions?status=reviewed')).body.counts,
