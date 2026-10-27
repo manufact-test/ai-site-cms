@@ -784,6 +784,87 @@ async function stop(){
     'Visitors cannot see imported page before publish');
   assert.equal((await request('GET',endpoint)).body.revision,sourceRevision,
     'Page/batch import does not mutate source');
+  // Three independent history operations: compare a former page, recover
+  // just one edited block, then recreate a page deleted from today's draft.
+  const historyKit=kitTarget+'/history';
+  const kitSnapshot=(await request('GET',kitTarget)).body;
+  const oldHero=kitSnapshot.site.pages.find(p=>p.id==='page-home')
+    .sections.find(x=>x.id==='section-hero');
+  assert.ok(oldHero);
+  const changedKit=structuredClone(kitSnapshot.site);
+  changedKit.pages.find(p=>p.id==='page-home')
+    .sections.find(x=>x.id==='section-hero').elements[0].values['content.text']='One bad block';
+  changedKit.pages.find(p=>p.id==='page-home').title='Edited neighbour metadata';
+  const changedKitSave=await request('POST',kitTarget+'/save',
+    {site:changedKit,expectedRevision:kitSnapshot.revision});
+  assert.equal(changedKitSave.status,200,JSON.stringify(changedKitSave.body));
+  const savedHeroVersion=kitSnapshot.revision;
+  const historyPage='page-home';
+  const catalog=await request('GET',historyKit+'/catalog?kind=revision&number='+savedHeroVersion);
+  assert.equal(catalog.status,200,JSON.stringify(catalog.body));
+  assert.ok(catalog.body.pages.find(p=>p.id===historyPage).sections
+    .some(s=>s.id==='section-hero'));
+  assert.equal((await request('GET',historyKit+'/catalog?kind=revision&number=0')).status,422);
+  assert.equal((await request('GET',historyKit+'/catalog?kind=revision&number=999999')).status,404);
+  const historyBody={historyKind:'revision',historyNumber:savedHeroVersion,
+    pageId:historyPage,mode:'section',sectionId:'section-hero',
+    expectedRevision:changedKitSave.body.revision};
+  assert.equal((await request('POST',historyKit+'/plan',
+    {...historyBody,expectedRevision:kitSnapshot.revision})).status,409);
+  assert.equal((await request('POST',historyKit+'/plan',
+    {...historyBody,sectionId:'section-unknown'})).status,404);
+  const historyCheck=await request('POST',historyKit+'/plan',historyBody);
+  assert.equal(historyCheck.status,200,JSON.stringify(historyCheck.body));
+  assert.equal(historyCheck.body.plan.restoredSections,1);
+  assert.equal(historyCheck.body.plan.globalThemeChanged,false);
+  assert.equal(historyCheck.body.plan.published,false);
+  assert.ok(historyCheck.body.plan.sectionChanges
+    .some(s=>s.sectionId==='section-hero'&&s.change==='changed'));
+  assert.equal((await request('GET',kitTarget)).body.revision,changedKitSave.body.revision);
+  assert.equal((await request('POST',historyKit+'/apply',
+    {confirmationToken:'not-valid'})).status,409);
+  const heroReplan=await request('POST',historyKit+'/plan',historyBody);
+  const restoredHero=await request('POST',historyKit+'/apply',
+    {confirmationToken:heroReplan.body.confirmationToken});
+  assert.equal(restoredHero.status,200,JSON.stringify(restoredHero.body));
+  assert.equal(restoredHero.body.revision,changedKitSave.body.revision+1);
+  const restoredHome=restoredHero.body.site.pages.find(p=>p.id==='page-home');
+  assert.deepEqual(restoredHome.sections.find(s=>s.id==='section-hero'),oldHero,
+    'One recovered section is identical to historical content');
+  assert.equal(restoredHome.title,'Edited neighbour metadata',
+    'Selective section recovery leaves the page title untouched');
+  assert.equal((await request('POST',historyKit+'/apply',
+    {confirmationToken:heroReplan.body.confirmationToken})).status,409,
+    'Historical confirmation is single-use');
+  assert.equal((await request('POST',historyKit+'/plan',historyBody)).status,409,
+    'Stale historical recovery cannot silently overwrite a newer draft');
+  const kitDeletedPage=restoredHero.body.site.pages.find(p=>p.path==='/copied-production/');
+  assert.ok(kitDeletedPage);
+  const withoutPage=structuredClone(restoredHero.body.site);
+  withoutPage.pages=withoutPage.pages.filter(p=>p.id!==kitDeletedPage.id);
+  const deletion=await request('POST',kitTarget+'/save',
+    {site:withoutPage,expectedRevision:restoredHero.body.revision});
+  assert.equal(deletion.status,200,JSON.stringify(deletion.body));
+  assert.equal(deletion.body.site.pages.some(p=>p.id===kitDeletedPage.id),false);
+  const lostCatalog=await request('GET',historyKit+'/catalog?kind=revision&number='+restoredHero.body.revision);
+  assert.equal(lostCatalog.status,200);
+  assert.ok(lostCatalog.body.pages.some(p=>p.id===kitDeletedPage.id));
+  const bringBack={historyKind:'revision',historyNumber:restoredHero.body.revision,
+    pageId:kitDeletedPage.id,mode:'page',sectionId:null,expectedRevision:deletion.body.revision};
+  const revivePlan=await request('POST',historyKit+'/plan',bringBack);
+  assert.equal(revivePlan.status,200,JSON.stringify(revivePlan.body));
+  assert.equal(revivePlan.body.plan.pageRecreated,true);
+  assert.equal(revivePlan.body.plan.pagePath,'/copied-production/');
+  const revived=await request('POST',historyKit+'/apply',
+    {confirmationToken:revivePlan.body.confirmationToken});
+  assert.equal(revived.status,200,JSON.stringify(revived.body));
+  assert.deepEqual(revived.body.site.pages.find(p=>p.id===kitDeletedPage.id),kitDeletedPage,
+    'Deleted page recovered from revision with same authored IDs and content');
+  assert.equal(revived.body.site.pages.find(p=>p.id==='page-home').title,
+    'Edited neighbour metadata','Recovery does not roll back other pages');
+  assert.equal((await request('GET',kitTarget+'/published-site')).status,404,
+    'All selective history operations stay unpublished');
+
   // Backup -> read-only plan -> transactional recovery -> release restoration.
   await request('POST',tplRoot,{name:'Архивный шаблон',pageId:'page-home',sectionId:'section-hero',expectedRevision:sourceRevision});
   const archiveResult=await request('GET',endpoint+'/backup');
@@ -862,6 +943,37 @@ async function stop(){
   assert.equal(activated.status,200,JSON.stringify(activated.body));
   assert.equal(activated.body.version,5,'Publication versions continue after imported history');
   assert.equal((await request('GET','/published/'+target+'/')).status,200);
+  // Published snapshots can also be the source for a *single* page recovery.
+  // No public publication version, submissions or other site pages are replaced.
+  const targetHistory='/api/sites/'+target+'/history';
+  const releasedPage=(await request('GET','/api/sites/'+target)).body;
+  const chosenFromRelease=await request('GET',targetHistory+'/catalog?kind=release&number=5');
+  assert.equal(chosenFromRelease.status,200,JSON.stringify(chosenFromRelease.body));
+  const originalPage=chosenFromRelease.body.pages[0];
+  const changedForRecovery=structuredClone(releasedPage.site);
+  changedForRecovery.pages.find(p=>p.id===originalPage.id).title='Wrong published-page title';
+  changedForRecovery.pages.find(p=>p.id===originalPage.id).path='/safe-new-slug/';
+  const changedReleaseDraft=await request('POST','/api/sites/'+target+'/save',
+    {site:changedForRecovery,expectedRevision:releasedPage.revision});
+  assert.equal(changedReleaseDraft.status,200,JSON.stringify(changedReleaseDraft.body));
+  const releasePageRecovery={
+    historyKind:'release',historyNumber:5,pageId:originalPage.id,
+    mode:'page',sectionId:null,expectedRevision:changedReleaseDraft.body.revision
+  };
+  const releasePlan=await request('POST',targetHistory+'/plan',releasePageRecovery);
+  assert.equal(releasePlan.status,200,JSON.stringify(releasePlan.body));
+  assert.equal(releasePlan.body.plan.pagePath,'/safe-new-slug/',
+    'Restore plan preserves current URL rather than resurrecting outdated slug');
+  assert.equal(releasePlan.body.plan.seoRestored,true);
+  const restoredOnePage=await request('POST',targetHistory+'/apply',
+    {confirmationToken:releasePlan.body.confirmationToken});
+  assert.equal(restoredOnePage.status,200,JSON.stringify(restoredOnePage.body));
+  assert.equal(restoredOnePage.body.site.pages.find(p=>p.id===originalPage.id).path,
+    '/safe-new-slug/','Historical page content does not reset route');
+  assert.notEqual(restoredOnePage.body.site.pages.find(p=>p.id===originalPage.id).title,
+    'Wrong published-page title','Page title returned from published snapshot');
+  assert.equal((await request('GET','/api/sites/'+target+'/published-site')).body.version,5,
+    'Selective restoration does not change published version');
   assert.equal((await request('GET',endpoint)).body.revision,sourceRevision,'Original draft intact');
   // Site-scoped manual licences: due date is a reminder, not an automatic shutdown.
   const licenceRoute='/api/licenses/'+target,today=new Date().toISOString().slice(0,10);

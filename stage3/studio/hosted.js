@@ -1115,6 +1115,156 @@
   backupDialog.addEventListener('cancel',event=>{
     if(state.busy){event.preventDefault();return;}clearArchive();
   });
+  // Historical surgery: compare immutable saved snapshots with the current
+  // draft, then recover one section or one page. Never roll back other pages.
+  const historyPanel=element('div','hosted-backups');historyPanel.id='server-page-history-panel';
+  const historyOpen=action('Сравнить и восстановить страницу','server-history-open',
+    ()=>safe(openHistoricalRecovery));
+  historyPanel.append(element('strong',null,'История отдельных страниц'),
+    element('small',null,'Сравнение с черновиком или опубликованной версией. Возврат одного блока, страницы или удалённой страницы без отката сайта.'),
+    historyOpen);
+  backupPanel.after(historyPanel);
+  const historyDialog=element('dialog','hosted-backup-dialog');historyDialog.id='server-history-dialog';
+  const historyKind=element('select','control');historyKind.id='server-history-kind';
+  for(const [key,label] of [['revision','Сохранённые черновики'],['release','Опубликованные версии']]){
+    const option=element('option',null,label);option.value=key;historyKind.append(option);
+  }
+  const historyNumber=element('select','control');historyNumber.id='server-history-number';
+  const historyPage=element('select','control');historyPage.id='server-history-page';
+  const historyMode=element('select','control');historyMode.id='server-history-mode';
+  for(const [key,label] of [['section','Один блок'],['page','Страница целиком (контент и SEO)']]){
+    const option=element('option',null,label);option.value=key;historyMode.append(option);
+  }
+  const historySection=element('select','control');historySection.id='server-history-section';
+  const historySectionLabel=element('label',null,'Блок из сохранённой версии');
+  historySectionLabel.htmlFor=historySection.id;
+  const historySummary=element('div','hosted-backup-summary');historySummary.id='server-history-summary';
+  let historyCatalog=null,historyPending=null,historyOpening=false;
+  const historyInvalidate=()=>{
+    historyPending=null;historyApply.disabled=true;historySummary.replaceChildren();
+  };
+  const historyModes=()=>{
+    const pageMode=historyMode.value==='page';
+    historySection.hidden=pageMode;historySectionLabel.hidden=pageMode;
+    historyInvalidate();
+  };
+  const historyUpdateSections=()=>{
+    historySection.replaceChildren();
+    const original=historyCatalog?.pages.find(p=>p.id===historyPage.value);
+    for(const section of original?.sections||[]){
+      const option=element('option',null,section.component+' · '+section.id);
+      option.value=section.id;historySection.append(option);
+    }
+    historyInvalidate();
+  };
+  const historyUpdateCatalog=async()=>{
+    historyCatalog=null;historyInvalidate();
+    historyPage.replaceChildren();historySection.replaceChildren();
+    if(!state.siteId||!historyNumber.value)return;
+    const target=state.siteId,kind=historyKind.value,num=historyNumber.value;
+    const data=await api('/api/sites/'+encodeURIComponent(target)+'/history/catalog?'+
+      new URLSearchParams({kind,number:num}));
+    if(!historyDialog.open||target!==state.siteId||historyKind.value!==kind||
+      historyNumber.value!==num)return;
+    historyCatalog=data;
+    for(const original of data.pages){
+      const option=element('option',null,original.title+' · '+original.path+
+        (editor.getSite().pages.some(p=>p.id===original.id)?'':' · удалена в текущем черновике'));
+      option.value=original.id;historyPage.append(option);
+    }
+    historyUpdateSections();
+  };
+  const historyUpdateNumbers=async()=>{
+    historyNumber.replaceChildren();historyInvalidate();
+    if(!state.siteId)return;
+    const items=historyKind.value==='revision'
+      ?state.revisions.map(v=>({id:Number(v.revision),label:'Черновик #'+v.revision+' · '+v.created_at}))
+      :(await api('/api/sites/'+encodeURIComponent(state.siteId)+'/releases')).releases
+        .map(v=>({id:Number(v.version),label:'Публикация v'+v.version+' · '+v.publishedAt}));
+    for(const row of items){
+      const option=element('option',null,row.label);
+      option.value=String(row.id);historyNumber.append(option);
+    }
+    await historyUpdateCatalog();
+  };
+  historyKind.addEventListener('change',()=>safe(historyUpdateNumbers));
+  historyNumber.addEventListener('change',()=>safe(historyUpdateCatalog));
+  historyPage.addEventListener('change',historyUpdateSections);
+  historySection.addEventListener('change',historyInvalidate);
+  historyMode.addEventListener('change',historyModes);
+  const historyPlan=action('Сравнить с текущим черновиком','server-history-plan',()=>safe(async()=>{
+    historyInvalidate();
+    if(!canEdit()||!state.siteId||isDirty())
+      throw Error('Сначала сохраните текущие правки черновика');
+    if(!historyCatalog)throw Error('Выберите сохранённую версию');
+    if(historyMode.value==='section'&&!historySection.value)
+      throw Error('В выбранной странице нет доступных блоков');
+    const target=state.siteId,body={
+      historyKind:historyKind.value,historyNumber:Number(historyNumber.value),
+      pageId:historyPage.value,mode:historyMode.value,
+      sectionId:historyMode.value==='section'?historySection.value:null,
+      expectedRevision:state.revision
+    };
+    const result=await api('/api/sites/'+encodeURIComponent(target)+'/history/plan','POST',body);
+    if(target!==state.siteId||isDirty())return;
+    const plan=result.plan;
+    historyPending={token:result.confirmationToken,siteId:target,revision:state.revision};
+    const diffs=plan.sectionChanges.slice(0,12).map(r=>r.component+' ('+r.change+')');
+    historySummary.replaceChildren(
+      element('strong',null,plan.pageTitle+' · '+plan.pagePath),
+      element('p',null,(plan.pageRecreated?'Вернётся удалённая страница. ':
+        'Адрес и структура меню текущего сайта сохранятся. ')+
+        'Восстанавливается '+(plan.mode==='page'?'вся страница':'один блок')+
+        ', ревизия '+plan.currentRevision+' → '+(plan.currentRevision+1)+'.'),
+      element('p',null,'Изменения по сравнению с '+(plan.historyKind==='release'?
+        'публикацией v':'черновиком #')+plan.historyNumber+': '+
+        (diffs.join(' · ')||'Контент совпадает с сохранённой версией.')),
+      element('p',null,'Возвращаемых файлов в библиотеку: '+plan.addedMediaIds.length+
+        ' · дизайн-токенов зафиксировано: '+plan.frozenDesignTokens+
+        '. Публичная версия не изменится.'),
+      element('p',null,'Содержимое: '+(plan.contentPreview.join(' · ')||'Текстовых фрагментов нет.'))
+    );
+    historyApply.disabled=false;
+  }));
+  const historyApply=action('Восстановить только выбранное','server-history-apply',()=>safe(async()=>{
+    if(!historyPending||!state.siteId||historyPending.siteId!==state.siteId||
+      historyPending.revision!==state.revision||isDirty()||!canEdit())
+      throw Error('Текущий черновик изменился. Сравните историю заново');
+    const pending=historyPending;historyInvalidate();
+    const restored=await api('/api/sites/'+encodeURIComponent(pending.siteId)+'/history/apply',
+      'POST',{confirmationToken:pending.token});
+    historyDialog.close();
+    selectSite(restored);await refreshSites();await loadHistory();await loadTemplates();
+    drawMedia();drawStatus();
+    notice(restored.recovered.pageRecreated?
+      'Удалённая страница восстановлена отдельной ревизией. Публикация — отдельно.':
+      'Выбранный контент восстановлен, другие страницы не тронуты. Публикация — отдельно.');
+  }));
+  historyApply.disabled=true;
+  const historyClose=action('Закрыть','server-history-close',()=>historyDialog.close());
+  const openHistoricalRecovery=async()=>{
+    if(historyOpening)return;
+    if(!state.siteId||!canEdit()||isDirty())
+      throw Error('Выберите сайт и сохраните все изменения перед работой с историей');
+    historyOpening=true;
+    try{
+      historyInvalidate();historyKind.value='revision';historyMode.value='section';
+      historyModes();historyDialog.showModal();await historyUpdateNumbers();
+    }finally{historyOpening=false;}
+  };
+  historyDialog.addEventListener('close',historyInvalidate);
+  const labeled=(labelText,control)=>{
+    const label=element('label',null,labelText);label.htmlFor=control.id;return label;
+  };
+  historyDialog.append(element('h2',null,'Выборочное восстановление из истории'),
+    element('p',null,'Остальные страницы, адреса и глобальный стиль не откатываются. Сохранённая публикация останется неизменной.'),
+    labeled('Источник версии',historyKind),historyKind,
+    labeled('Сохранённая версия',historyNumber),historyNumber,
+    labeled('Историческая страница',historyPage),historyPage,
+    labeled('Объём восстановления',historyMode),historyMode,
+    historySectionLabel,historySection,historyPlan,historySummary,historyApply,historyClose);
+  document.body.append(historyDialog);historyModes();
+
   async function loadReleases(){
     releaseList.replaceChildren();
     if(!state.siteId||!state.authorized)return;
@@ -1198,6 +1348,7 @@
     backupDownload.disabled=!available||isDirty()||!isOwner();
     backupOpen.disabled=state.busy||!isOwner();
     releaseRefresh.disabled=!available;
+    historyOpen.disabled=!available||isDirty()||!canEdit();
     backupPlan.disabled=state.busy||!state.authorized;
     backupClose.disabled=state.busy;
     backupFile.disabled=state.busy;backupTarget.disabled=state.busy;

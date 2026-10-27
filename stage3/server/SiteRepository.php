@@ -24,6 +24,7 @@ final class SiteRepository
     use LeadWorkflow;
     use CrossSiteTransfer;
     use CrossSiteCollections;
+    use PageHistory;
     private string $driver;
     public function __construct(private PDO $db, private ContractValidator $validator)
     {

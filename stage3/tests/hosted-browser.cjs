@@ -1121,6 +1121,21 @@ async function execute(){
     'Whole-page copy preserves the source page structure');
   assert.equal((await page.request.get(origin+'/published/site-cross-browser/copied-browser/')).status(),404,
     'Imported page is not published implicitly');
+  await page.locator('#server-history-open').click();
+  await page.locator('#server-history-dialog[open]').waitFor();
+  await page.locator('#server-history-number').selectOption('1');
+  await page.locator('#server-history-page option[value="page-home"]').waitFor({state:'attached'});
+  await page.locator('#server-history-page').selectOption('page-home');
+  await page.locator('#server-history-section option[value="section-hero"]').waitFor({state:'attached'});
+  await page.locator('#server-history-section').selectOption('section-hero');
+  await page.locator('#server-history-plan').click();
+  await page.locator('#server-history-summary').getByText(/дизайн-токенов зафиксировано/).waitFor();
+  assert.equal(await page.locator('#server-history-apply').isDisabled(),false);
+  await page.locator('#server-history-apply').click();
+  await page.locator('#server-history-dialog').waitFor({state:'hidden'});
+  await page.locator('#server-status').getByText(/Черновик #5/).waitFor();
+  assert.equal((await page.request.get(origin+'/published/site-cross-browser/copied-browser/')).status(),404,
+    'Selective historical recovery cannot implicitly publish a copied page');
   await page.locator('#server-site-select').selectOption(siteId);
   await page.locator('#server-open').click();
   await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();
