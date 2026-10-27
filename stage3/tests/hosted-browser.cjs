@@ -346,6 +346,24 @@ async function execute(){
   await page.locator('#server-submissions select[data-lead-stage]').selectOption('reviewed');
   await page.locator('#server-submissions button[data-lead-workflow-save]').click();
   await page.locator('#server-submissions .hosted-lead small').getByText(/reviewed/).waitFor();
+  // One real browser triage on the current page, with stage tiles and
+  // explicit priority. No publish, no note loss and persistent audit.
+  assert.match(await page.locator('#server-inbox-pipeline').innerText(),/Обработанные/);
+  await page.locator('#server-submissions input[data-inbox-id]').check();
+  await page.locator('#server-inbox-batch-stage').selectOption('in_progress');
+  await page.locator('#server-inbox-batch-priority').selectOption('keep');
+  await page.locator('#server-inbox-batch-apply').click();
+  await page.locator('#server-submissions .hosted-lead small').getByText(/in_progress/).waitFor();
+  assert.match(await page.locator('#server-inbox-pipeline').innerText(),/В работе/);
+  await page.locator('#server-inbox-pipeline [data-pipeline-stage="in_progress"]').click();
+  await page.locator('#server-submissions .hosted-lead').getByText(/Алексей Тест/).waitFor();
+  await page.locator('#server-submissions .hosted-lead-workflow summary').click();
+  assert.equal(await page.locator('#server-submissions textarea[data-lead-note]').inputValue(),
+    'Связаться с заявителем во вторник');
+  await page.locator('#server-submissions select[data-lead-stage]').selectOption('reviewed');
+  await page.locator('#server-submissions button[data-lead-workflow-save]').click();
+  await page.locator('#server-submissions .hosted-lead small').getByText(/reviewed/).waitFor();
+  await page.locator('#server-inbox-status').selectOption('all');
   // Operators can filter/search and download private CSV without publication.
   await page.locator('#server-inbox-status').selectOption('new');
   await page.locator('#server-submissions').getByText('По фильтру заявок нет.').waitFor();

@@ -380,6 +380,64 @@ async function stop(){
   assert.equal((await request('GET',historyRoute)).body.events.length,2);
   assert.equal((await request('GET','/published/site-industrial-demo/contact/')).status,200,
     'Private workflow must not affect visitor website');
+  // B3: two stages in one bounded, rollback-safe operator triage.
+  const triageLeads=(await request('GET',endpoint+'/submissions')).body.submissions;
+  const mixedTriage=[
+    triageLeads.find(x=>x.submission_id===newLeadIds[0]),
+    triageLeads.find(x=>x.status==='new'&&x.submission_id!==leadWorkflowId)
+  ];
+  assert.equal(mixedTriage.length,2);
+  assert.equal(mixedTriage[0].status,'reviewed');
+  assert.equal(mixedTriage[1].status,'new');
+  const bulkWorkflow=endpoint+'/submissions/bulk-workflow';
+  const chosen=mixedTriage.map(x=>({id:x.submission_id,expectedWorkflowRevision:x.workflow_revision}));
+  assert.equal((await request('POST',bulkWorkflow,{items:chosen,status:null,priority:null})).status,422,
+    'Batch must have at least one deliberate action');
+  assert.equal((await request('POST',bulkWorkflow,{items:[chosen[0],chosen[0]],
+    status:'reviewed',priority:null})).status,422,'Duplicate selection rejected');
+  assert.equal((await request('POST',bulkWorkflow,{items:chosen,status:'in_progress',priority:'high'},
+    {'x-csrf-token':'wrong'})).status,403,'Triage respects CSRF');
+  assert.equal((await request('POST',bulkWorkflow,{items:[
+    chosen[0],{...chosen[1],expectedWorkflowRevision:chosen[1].expectedWorkflowRevision+1}],
+    status:'in_progress',priority:'high'})).status,409,
+    'One stale revision rolls back entire batch');
+  const beforeTriage=(await request('GET',endpoint+'/submissions')).body.submissions;
+  for(const old of mixedTriage){
+    const now=beforeTriage.find(x=>x.submission_id===old.submission_id);
+    assert.equal(now.workflow_revision,old.workflow_revision);
+    assert.equal(now.status,old.status);
+    assert.equal(now.priority,old.priority);
+  }
+  const batch=await request('POST',bulkWorkflow,{
+    items:chosen,status:'in_progress',priority:'high'});
+  assert.equal(batch.status,200,JSON.stringify(batch.body));
+  assert.deepEqual(batch.body,{selected:2,changed:2});
+  const triageSummary=(await request('GET',endpoint+'/submissions?status=in_progress')).body;
+  assert.equal(triageSummary.total,2);
+  assert.equal(triageSummary.pipeline.in_progress.high,2);
+  assert.equal((await request('GET',endpoint+'/submissions?priority=high')).body.total,3);
+  const afterTriage=(await request('GET',endpoint+'/submissions')).body.submissions;
+  for(const old of mixedTriage){
+    const now=afterTriage.find(x=>x.submission_id===old.submission_id);
+    assert.equal(now.workflow_revision,old.workflow_revision+1);
+    assert.equal(now.note,old.note,'Bulk stage and priority must preserve private notes');
+    const history=(await request('GET',endpoint+'/submissions/'+now.submission_id+'/history')).body;
+    assert.equal(history.events[0].to_status,'in_progress');
+    assert.equal(history.events[0].to_priority,'high');
+  }
+  assert.equal((await request('POST',bulkWorkflow,{
+    items:chosen,status:'reviewed',priority:'normal'})).status,409,
+    'A repeated stale batch may not change an already completed batch');
+  for(const original of mixedTriage){
+    const now=afterTriage.find(x=>x.submission_id===original.submission_id);
+    const restored=await request('POST',endpoint+'/submissions/'+original.submission_id+'/workflow',{
+      status:original.status,priority:original.priority,note:original.note,
+      expectedWorkflowRevision:now.workflow_revision});
+    assert.equal(restored.status,200,JSON.stringify(restored.body));
+  }
+  assert.equal((await request('GET',endpoint+'/submissions?status=in_progress')).body.total,0);
+  assert.equal((await request('GET','/published/site-industrial-demo/contact/')).status,200,
+    'Private triage is not a site publish operation');
   const pendingSetup=spawnSync('php',['-r',
     '$db=new PDO(getenv("STAGE3_DSN"));$q=$db->prepare("UPDATE stage3_delivery_outbox SET state=?,last_error=NULL WHERE site_id=? AND submission_id=? AND channel=?");$q->execute(["pending","site-industrial-demo",$argv[1],"email"]);if($q->rowCount()!==1)exit(3);',
     allLeads[0].submission_id],{cwd:root,env,encoding:'utf8'});
@@ -714,6 +772,8 @@ async function stop(){
   }
   // Private lead workflows cannot be read or mutated via an ungranted site.
   assert.equal((await request('GET',endpoint+'/submissions/'+leadWorkflowId+'/history')).status,403);
+  assert.equal((await request('POST',endpoint+'/submissions/bulk-workflow',{
+    items:chosen,status:'reviewed',priority:null})).status,403,'Editor cannot triage foreign site');
   assert.equal((await request('POST',workflowRoute,{
     status:'reviewed',priority:'high',note:'not allowed',expectedWorkflowRevision:2})).status,403);
   assert.equal((await request('POST','/api/sites/'+target+'/publish',{expectedRevision:sourceRevision+1})).status,403);
@@ -743,6 +803,9 @@ async function stop(){
   assert.equal((await request('POST','/api/sites/'+target+'/submissions/'+leadWorkflowId+'/workflow',{
     status:'new',priority:'normal',note:'viewer forbidden',expectedWorkflowRevision:2})).status,403,
     'Viewer cannot write operator notes');
+  assert.equal((await request('POST','/api/sites/'+target+'/submissions/bulk-workflow',{
+    items:chosen,status:'reviewed',priority:'high'})).status,403,
+    'Viewer cannot triage even granted site');
   assert.equal((await request('POST','/api/sites/'+target+'/save',{site:editable.site,expectedRevision:editable.revision+1})).status,403);
   cookie=ownerCookie;csrf=ownerCsrf;
   const auditLog=await request('GET','/api/audit');
