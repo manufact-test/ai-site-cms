@@ -543,3 +543,13 @@ These are code changes plus added assertions, not an acceptance result. No curre
 
 **Release status unchanged:** D1–D6 engineered, D7 **OPEN**, roughly 6/7 (86%), Stage2 NO-GO, Stage3 UNACCEPTED, **0/135 formally accepted**. Real nine-suite Node audit, Chromium Studio E2E, 54 PNG, 64 real browser route probes, 164 exact regeneration, 42 independently reviewed compositions plus 54 screenshot reviews, six genuine PHP parity probes and ZIP CRC/SHA-256 remain **NOT RUN** due terminal GitHub networking and managed Chromium local-navigation policy. Never mark a gate green based on V8 source checks. See `handoffs/D7-EXECUTION-BLOCKER-2026-10-27.md`. Next time: run existing commands in an authorized full checkout/browser environment; fix observed defects rather than adding test infrastructure.
 
+
+
+## LATEST / 27 October 2026 — four-route section editor delivered, D7 not accepted
+
+Current autonomous development round added actual product functionality, not another D7 test harness. **Read `studio/README.md` and `lib/section-plan.cjs`.** Studio now allows inserting any of 42 registered compositions on Home/Services/Approach/Contact, moving rows, deleting optional sections, restoring a single page and Undo/Redo; original hero/CTA and stable IDs are protected. Workspace-v1 version 2 stores a complete `manufact-design-factory-section-plan-v1` map and round-trips through the same first-party `lib/bridge.cjs` D6 builder as the Studio CMS JSON. Legacy v1 opens unchanged. 18-file owner/Lead delivery ZIP remains exact inventory; new drafts cannot be indexed and enhanced preview CSS is never falsely promised as PHP parity. The bundle and Studio tests were updated.
+
+**Verification actually performed:** first-party GitHub source V8 D6 CMS parity, strict plan tests and isolated mock-DOM clicks covering page-specific insert/reset plus legacy Home coexistence. No full checked-out Node suite / real file-navigation Chromium / 54 PNG / 42 individual human decisions / 64 route audits / six PHP probes / D7 release ZIP with SHA256. `git ls-remote` cannot resolve `github.com` from the available local container despite Node+Chromium binaries. Stage2 NO-GO, Stage3 UNACCEPTED, D7 OPEN, 0/135 acceptance; engineering phase metric still ≈86%.
+
+**Next large round:** When checkout access exists, run the existing Node nine-suite + bundle check + actual Chromium Studio smoke including this four-page editor, then continue formal D7 visual/release work. Until then, prioritize real owner editing of newly inserted section copy/repeaters or safe import of the existing 18-file delivery archive, rather than expanding synthetic QA infrastructure. Do not touch any path outside `stage3/design-factory/**`, merge, deploy or edit Lead SDK/PHP/CI.
+
