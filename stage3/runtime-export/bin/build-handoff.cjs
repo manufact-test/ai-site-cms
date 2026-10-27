@@ -11,12 +11,14 @@ const {spawnSync}=require('node:child_process');
 const {inspect}=require('../lib/verify.cjs');
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
 const fail=m=>{throw Error('Published handoff refused: '+m);};
+const occupied=p=>{try{fs.lstatSync(p);return true;}
+  catch(error){if(error.code==='ENOENT')return false;throw error;}};
 const [source,target,destination]=process.argv.slice(2);
 let staging=null;
 try{
   if(process.argv.length!==5||!['html','php','next-static','next-ssr'].includes(target)
     ||!path.isAbsolute(source??'')||!path.isAbsolute(destination??'')
-    ||fs.existsSync(destination)||!fs.existsSync(source))
+    ||occupied(destination)||!fs.existsSync(source))
     fail('Usage: build-handoff.cjs ABSOLUTE-capsule.json html|php|next-static|next-ssr ABSOLUTE-new-output');
   const maxJson=41000000;
   if(fs.statSync(source).size>maxJson)fail('Capsule exceeds 41 MB');
@@ -55,7 +57,7 @@ try{
     ||m.manifest.sourceRevision!==capsule.sourceRevision)
     fail('Published manifest identity mismatch');
   if(target==='html'){
-    if(fs.existsSync(destination))fail('Target already exists');
+    if(occupied(destination))fail('Target already exists');
     fs.renameSync(staging,destination);
     staging=null;
   }else{

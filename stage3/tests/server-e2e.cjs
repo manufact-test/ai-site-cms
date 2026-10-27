@@ -227,6 +227,11 @@ async function stop(){
   fs.writeFileSync(damagedFile,JSON.stringify(techD2Damaged));
   assert.notEqual(spawnSync('node',['stage3/runtime-export/bin/build-handoff.cjs',
     damagedFile,'html',path.join(dbdir,'unsafe-handoff')],{cwd:root,encoding:'utf8'}).status,0);
+  const techD2Dangling=path.join(dbdir,'dangling-output');
+  fs.symlinkSync(path.join(dbdir,'missing-symlink-target'),techD2Dangling);
+  assert.notEqual(spawnSync('node',['stage3/runtime-export/bin/build-handoff.cjs',
+    handoffFile,'html',techD2Dangling],{cwd:root,encoding:'utf8'}).status,0,
+    'Standalone builder refuses to overwrite dangling symlinks as output paths');
   assert.equal((await request('GET',endpoint+'/published-site')).body.version,2,
     'Historical handoff download must not change current publication');
   // Media pipeline: authenticated upload, immutable bytes, valid component
