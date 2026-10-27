@@ -1,0 +1,145 @@
+name: D7 genuine checkout / Chromium evidence (NO MERGE OR DEPLOY)
+on:
+  push:
+    branches: ['feature/stage3-design-factory-d7-validation']
+    paths: ['.github/workflows/d7-design-factory-validation.yml']
+permissions:
+  contents: read
+jobs:
+  d7-evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Checkout exact handed-off Design Factory SHA
+        uses: actions/checkout@v4
+        with:
+          ref: '2311c5a52362a77a125de50361fcab8a104c8e88'
+          path: design
+          persist-credentials: false
+      - name: Checkout exact accepted Lead SDK/PHP SHA separately — NO MERGE
+        uses: actions/checkout@v4
+        with:
+          ref: '05c5781599b4b2a2de711b0beb0267bf01bc0589'
+          path: lead
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite
+          coverage: none
+      - name: Fingerprints and real browser executable
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/d7"
+          {
+            echo "Source SHA: $(git -C design rev-parse HEAD)"
+            echo "Lead SHA: $(git -C lead rev-parse HEAD)"
+            echo "Source clean: $(test -z "$(git -C design status --porcelain)" && echo yes || echo no)"
+            echo "Lead clean: $(test -z "$(git -C lead status --porcelain)" && echo yes || echo no)"
+            node --version
+            php --version | head -2
+            CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+            echo "Chromium: $CHROME"
+            "$CHROME" --version
+          } | tee "$RUNNER_TEMP/d7/environment.txt"
+          test "$(git -C design rev-parse HEAD)" = '2311c5a52362a77a125de50361fcab8a104c8e88'
+          test "$(git -C lead rev-parse HEAD)" = '05c5781599b4b2a2de711b0beb0267bf01bc0589'
+          test -z "$(git -C design status --porcelain)"
+          test -z "$(git -C lead status --porcelain)"
+      - name: Existing genuine Node + Chromium release audit (no synthetic shortcuts)
+        shell: bash
+        working-directory: design
+        run: |
+          mkdir -p "$RUNNER_TEMP/d7"
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          set +e
+          DF_CHROMIUM_BIN="$CHROME" node stage3/design-factory/bin/release-audit.cjs --out "$RUNNER_TEMP/d7/audit.json" --chromium > "$RUNNER_TEMP/d7/audit.log" 2>&1
+          code=$?
+          echo "$code" > "$RUNNER_TEMP/d7/audit.exit"
+          cat "$RUNNER_TEMP/d7/audit.log"
+          exit 0
+      - name: Generate REAL 54 PNG / 164 source artifacts / 64 file routes
+        shell: bash
+        working-directory: design
+        run: |
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          set +e
+          DF_CHROMIUM_BIN="$CHROME" node stage3/design-factory/bin/visual-qa.cjs --out "$RUNNER_TEMP/d7/visual" --chromium "$CHROME" > "$RUNNER_TEMP/d7/visual.log" 2>&1
+          code=$?
+          echo "$code" > "$RUNNER_TEMP/d7/visual.exit"
+          cat "$RUNNER_TEMP/d7/visual.log"
+          exit 0
+      - name: Run existing 6 genuine Lead PHP parity probes (no simulated PHP)
+        shell: bash
+        working-directory: design
+        run: |
+          set +e
+          DF_LEAD_SDK_DIR="$GITHUB_WORKSPACE/lead/stage3/sdk" DF_LEAD_PHP_FILE="$GITHUB_WORKSPACE/lead/stage3/server/DesignGraph.php" node stage3/design-factory/tests/lead-design-graph-smoke.cjs > "$RUNNER_TEMP/d7/php-parity.log" 2>&1
+          code=$?
+          echo "$code" > "$RUNNER_TEMP/d7/php-parity.exit"
+          tail -80 "$RUNNER_TEMP/d7/php-parity.log"
+          exit 0
+      - name: Existing source-exact release ZIP and independent verification
+        shell: bash
+        working-directory: design
+        run: |
+          set +e
+          node stage3/design-factory/bin/package-release.cjs "$RUNNER_TEMP/d7/design-factory-source.zip" > "$RUNNER_TEMP/d7/package.json" 2> "$RUNNER_TEMP/d7/package.err"
+          a=$?
+          if [ "$a" = 0 ]; then
+            node stage3/design-factory/bin/verify-release-zip.cjs "$RUNNER_TEMP/d7/design-factory-source.zip" > "$RUNNER_TEMP/d7/zip-verification.json" 2> "$RUNNER_TEMP/d7/zip-verify.err"
+            b=$?
+            sha256sum "$RUNNER_TEMP/d7/design-factory-source.zip" > "$RUNNER_TEMP/d7/zip.sha256"
+          else
+            b=2
+          fi
+          echo "$a $b" > "$RUNNER_TEMP/d7/zip.exit"
+          cat "$RUNNER_TEMP/d7/package.json" "$RUNNER_TEMP/d7/package.err" "$RUNNER_TEMP/d7/zip-verification.json" "$RUNNER_TEMP/d7/zip-verify.err" 2>/dev/null
+          exit 0
+      - name: Summarize machine-only D7 gate (human review cannot be automated)
+        shell: bash
+        run: |
+          node -e '
+          const fs=require("fs"),path=require("path");
+          const d=process.env.RUNNER_TEMP+"/d7";
+          const read=p=>fs.existsSync(path.join(d,p))?fs.readFileSync(path.join(d,p),"utf8").trim():null;
+          const json=p=>{try{return JSON.parse(read(p))}catch{return null}};
+          const audit=json("audit.json"),v=json("visual/visual-evidence.json"),zip=json("zip-verification.json");
+          const summary={handedOffSource:"2311c5a52362a77a125de50361fcab8a104c8e88",leadInput:"05c5781599b4b2a2de711b0beb0267bf01bc0589",
+            auditExit:read("audit.exit"),nodePassed:audit?.nodePassed??null,browserPassed:audit?.browserPassed??null,
+            visualExit:read("visual.exit"),pngs:v?.images?.length??0,expectedPngs:v?.expectedImages??54,
+            captureTransport:v?.captureTransport??null,fullMatrix:v?.matrixComplete??false,
+            generatedSourceCount:v?.generatedSourceFiles?.length??null,routeCount:v?.routeAudit?.length??0,
+            visualErrors:v?.errors??["No visual report"],phpExit:read("php-parity.exit"),
+            phpSixProbesConfirmed:(read("php-parity.log")||"").includes("6 real PHP parity probes"),
+            zipExit:read("zip.exit"),zipSha256:zip?.zipSha256??null,zipVerified:zip?.sourceExactMatch??false,
+            humanScreenshotsReviewed:0,humanCompositionsReviewed:0,humanReview:"PENDING",
+            formalD7:"OPEN until actual human review and Lead approval",integrated:false,productionReady:false};
+          fs.writeFileSync(path.join(d,"D7-summary.json"),JSON.stringify(summary,null,2)+"\n");
+          process.stdout.write(JSON.stringify(summary,null,2)+"\n");
+          '
+      - name: Publish exact offline evidence and reviewer gallery for human review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-factory-d7-real-evidence
+          path: ${{ runner.temp }}/d7/
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Enforce automated D7 evidence gate, human review remains external
+        shell: bash
+        run: |
+          test "$(cat "$RUNNER_TEMP/d7/audit.exit")" = 0
+          test "$(cat "$RUNNER_TEMP/d7/visual.exit")" = 0
+          test "$(cat "$RUNNER_TEMP/d7/php-parity.exit")" = 0
+          test "$(cat "$RUNNER_TEMP/d7/zip.exit")" = '0 0'
+          node -e '
+            const s=require(process.env.RUNNER_TEMP+"/d7/D7-summary.json");
+            if(!s.nodePassed||!s.browserPassed||!s.fullMatrix||s.captureTransport!=="file"||
+               s.pngs!==54||s.generatedSourceCount!==164||s.routeCount!==64||
+               !s.phpSixProbesConfirmed||!s.zipVerified)process.exit(1);
+          '
