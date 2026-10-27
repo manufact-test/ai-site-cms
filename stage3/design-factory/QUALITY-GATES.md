@@ -481,3 +481,10 @@ First-party section edit surfaces use only manifest-registered text/URL fields a
 
 Actually observed isolated V8: direct D6 overlay plus manifest rejection cases, *actual* section-editor mock-DOM clicks to Save a hero field and add/edit a third FAQ repeater item; JavaScript syntax checks. **This is not a real Chromium or Node checkout pass.** The earlier D7 formal gates are unchanged: 0/135 accepted, Stage2 NO-GO, Stage3 UNACCEPTED. Real browser screenshot/human review, PHP parity and release ZIP remain outstanding.
 
+
+## 27 October — page SEO editor acceptance is pending real Node/Chromium
+
+Workspace v3 introduces `pageSettings`: four explicit routes, exact `title`, `seoTitle`, `seoDescription`, `navigationLabel` fields bounded by the actual Stage3 SDK and strict no-extra-key validation. Page path, IDs, `seo.robots` and nav hidden state are never editable. Applying metadata to CMS uses `sdk.validateSite` and D6 canonical round-trip; any changed value makes exports noindex pending separate owner review. The optional section plan and workspace v1/v2 remain supported.
+
+Real GitHub source was executed in **isolated JS with mock DOM**, including per-page changes, non-persistent drafts, live snippet, reset/cancel, D6 equality, old-workspace parity and malformed metadata rejection. This does **not** constitute a passing Chromium E2E, full Node checkout, actual PHP renderer, visual design acceptance or production approval. Official 0/135, Stage2 NO-GO, Stage3 UNACCEPTED and D7 OPEN remain as before.
+
