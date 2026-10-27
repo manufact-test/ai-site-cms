@@ -22,6 +22,7 @@ final class SiteRepository
     use Licenses;
     use FormDelivery;
     use LeadWorkflow;
+    use CrossSiteTransfer;
     private string $driver;
     public function __construct(private PDO $db, private ContractValidator $validator)
     {

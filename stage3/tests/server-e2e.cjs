@@ -650,6 +650,70 @@ async function stop(){
   assert.equal((await request('POST',tplRoot+'/'+templateId+'/delete',{})).status,200);
   assert.equal((await request('GET',tplRoot)).body.templates.length,0);
   assert.equal((await request('GET','/published/'+id+'/')).status,200,'No implicit publication');
+  // Cross-site section transfer: preflight, ownership, fresh media identities,
+  // CAS, independent source, atomic draft save and never auto-publish.
+  const crossTarget='/api/sites/site-flex-ci';
+  const beforeCross=(await request('GET',crossTarget)).body;
+  const beforeCrossRelease=(await request('GET',crossTarget+'/published-site')).body;
+  const destinationPageId=beforeCross.site.pages[0].id;
+  const crossBody={
+    sourceSiteId:id,sourcePageId:'page-home',sectionId:'section-photo',
+    targetPageId:destinationPageId,expectedSourceRevision:sourceRevision,
+    expectedTargetRevision:beforeCross.revision
+  };
+  assert.equal((await request('POST',crossTarget+'/transfer/plan',crossBody,
+    {'x-csrf-token':'incorrect'})).status,403,'Cross-site plan requires CSRF');
+  assert.equal((await request('POST',crossTarget+'/transfer/plan',{
+    ...crossBody,sourceSiteId:'site-not-available'
+  })).status,404,'A nonexistent source is never copied');
+  assert.equal((await request('POST',crossTarget+'/transfer/plan',{
+    ...crossBody,expectedTargetRevision:beforeCross.revision+1
+  })).status,409,'Preflight checks destination revision');
+  assert.equal((await request('POST',crossTarget+'/transfer/plan',{
+    ...crossBody,sourcePageId:'page-wrong'
+  })).status,404,'No fallback source page');
+  const crossPlan=await request('POST',crossTarget+'/transfer/plan',crossBody);
+  assert.equal(crossPlan.status,200,JSON.stringify(crossPlan.body));
+  assert.equal(crossPlan.body.plan.mediaCount,1);
+  assert.equal(crossPlan.body.plan.component,'image-showcase');
+  assert.equal((await request('GET',crossTarget)).body.revision,beforeCross.revision,
+    'Preflight does not write to either site');
+  assert.equal((await request('POST',crossTarget+'/transfer/apply',{
+    confirmationToken:'wrong'
+  })).status,409,'Invalid token cannot commit');
+  const crossPlan2=await request('POST',crossTarget+'/transfer/plan',crossBody);
+  assert.equal(crossPlan2.status,200);
+  const copied=await request('POST',crossTarget+'/transfer/apply',{
+    confirmationToken:crossPlan2.body.confirmationToken
+  });
+  assert.equal(copied.status,200,JSON.stringify(copied.body));
+  assert.equal(copied.body.revision,beforeCross.revision+1);
+  assert.equal(copied.body.published,false);
+  const targetSection=copied.body.site.pages[0].sections.at(-1);
+  assert.equal(targetSection.component,'image-showcase');
+  assert.notEqual(targetSection.id,'section-photo','Imported section receives its own identity');
+  const clonedImage=targetSection.elements.find(el=>el.slot==='photo').values['content.media'];
+  assert.notEqual(clonedImage,asset.id,'Cross-site asset IDs are independent');
+  assert.equal(clonedImage,copied.body.assetMap[asset.id]);
+  assert.equal(copied.body.site.assets.find(a=>a.id===clonedImage).alt,'Тестовый станок');
+  const privateCopy=await fetch(origin+crossTarget+'/media/'+clonedImage,
+    {headers:{cookie}});
+  assert.equal(privateCopy.status,200);
+  assert.deepEqual(Buffer.from(await privateCopy.arrayBuffer()),pngBytes,
+    'Full image bytes are copied, not external site URLs');
+  assert.equal((await request('GET',endpoint)).body.revision,sourceRevision,
+    'Source site and revision are untouched');
+  assert.deepEqual((await request('GET',crossTarget+'/published-site')).body,beforeCrossRelease,
+    'Destination publication is immutable until explicit Publish');
+  assert.equal((await request('GET','/published/site-flex-ci/assets/'+clonedImage+'.png')).status,404,
+    'Transferred assets remain private until Publish');
+  assert.equal((await request('POST',crossTarget+'/transfer/apply',{
+    confirmationToken:crossPlan2.body.confirmationToken
+  })).status,409,'Confirmation is one-use only');
+  assert.equal((await request('POST',crossTarget+'/transfer/plan',crossBody)).status,409,
+    'Old destination revision cannot import a second section');
+  assert.equal((await request('GET',crossTarget)).body.revision,beforeCross.revision+1,
+    'Rejected transfers cannot create partial revisions');
   // Backup -> read-only plan -> transactional recovery -> release restoration.
   await request('POST',tplRoot,{name:'Архивный шаблон',pageId:'page-home',sectionId:'section-hero',expectedRevision:sourceRevision});
   const archiveResult=await request('GET',endpoint+'/backup');

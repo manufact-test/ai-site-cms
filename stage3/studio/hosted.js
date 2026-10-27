@@ -99,6 +99,124 @@
       templatesList.append(wrap);
     }
   }
+  // Cross-site transfer is an explicit, server-side copy. Nothing leaves the
+  // authenticated origin; preflight is read-only and Apply creates ONE revision.
+  const crossPanel=element('div','hosted-templates');
+  const crossOpen=action('Перенести блок с другого сайта','server-cross-open',()=>safe(openCrossSite));
+  crossPanel.append(element('strong',null,'Блоки с других сайтов'),
+    element('small',null,'Копия наполненного блока с независимыми файлами. Проверка → одно сохранение в черновик; без публикации.'),
+    crossOpen);
+  templatesPanel.after(crossPanel);
+  const crossDialog=element('dialog','hosted-backup-dialog');crossDialog.id='server-cross-dialog';
+  const crossFrom=element('select','control');crossFrom.id='server-cross-source';
+  const crossSection=element('select','control');crossSection.id='server-cross-section';
+  const crossTargetPage=element('select','control');crossTargetPage.id='server-cross-target';
+  const crossSummary=element('div','hosted-backup-summary');crossSummary.id='server-cross-summary';
+  const crossCheck=action('Проверить перенос','server-cross-plan',()=>safe(async()=>{
+    invalidateCross();
+    if(!state.siteId||!canEdit()||editor.isDirty())throw Error('Сначала сохраните черновик сайта назначения');
+    if(!crossFrom.value||!crossSection.value||!crossTargetPage.value)
+      throw Error('Выберите оба сайта, блок и страницу назначения');
+    const [sourcePageId,sectionId]=crossSection.value.split('|');
+    const destination=state.siteId;
+    const result=await api('/api/sites/'+encodeURIComponent(destination)+'/transfer/plan','POST',{
+      sourceSiteId:crossFrom.value,sourcePageId,sectionId,targetPageId:crossTargetPage.value,
+      expectedSourceRevision:crossSourceRevision,expectedTargetRevision:state.revision
+    });
+    if(destination!==state.siteId)return;
+    crossPending={token:result.confirmationToken,destination,revision:state.revision};
+    const plan=result.plan;
+    crossSummary.replaceChildren(
+      element('strong',null,'Готов к переносу: '+plan.component),
+      element('p',null,'Файлы: '+plan.mediaCount+' · вариантов: '+plan.mediaParts+
+        ' · объём: '+Math.round(plan.mediaBytes/1024)+' КБ. Новые ID; исходные файлы сохраняются.'),
+      element('p',null,'Источник: '+plan.sourceSiteId+' #'+plan.sourceRevision+
+        ' → '+plan.targetSiteId+' #'+plan.targetRevision+
+        '. После подтверждения создастся новая ревизия черновика без публикации.'),
+      element('p',null,'Содержимое: '+(crossPreview||'проверьте выбранный блок в редакторе источника.'))
+    );
+    if(plan.missingTargetLinks.length)
+      crossSummary.append(element('p',null,'Проверьте ссылки на отсутствующие страницы назначения: '+
+        plan.missingTargetLinks.join(', ')));
+    crossApply.disabled=false;
+  }));
+  const crossApply=action('Скопировать в черновик','server-cross-apply',()=>safe(async()=>{
+    if(!crossPending||!state.siteId||state.siteId!==crossPending.destination||
+        state.revision!==crossPending.revision||editor.isDirty()||!canEdit())
+      throw Error('Черновик изменился. Выполните новую проверку переноса');
+    const p=crossPending;
+    invalidateCross();
+    const saved=await api('/api/sites/'+encodeURIComponent(p.destination)+'/transfer/apply',
+      'POST',{confirmationToken:p.token});
+    crossDialog.close();
+    selectSite(saved);await refreshSites();await loadHistory();await loadTemplates();
+    drawMedia();drawStatus();
+    notice('Блок и его медиа скопированы в сохранённый черновик. Публикация — отдельно.');
+  }));
+  crossApply.disabled=true;
+  const crossClose=action('Закрыть','server-cross-close',()=>crossDialog.close());
+  function invalidateCross(){crossPending=null;crossApply.disabled=true;crossSummary.replaceChildren();}
+  let crossPending=null,crossSourceRevision=null,crossPreview='';
+  async function loadCrossSource(){
+    invalidateCross();crossSection.replaceChildren();crossPreview='';crossSourceRevision=null;
+    const sourceId=crossFrom.value;
+    if(!sourceId)return;
+    const response=await api('/api/sites/'+encodeURIComponent(sourceId));
+    if(sourceId!==crossFrom.value||!crossDialog.open)return;
+    crossSourceRevision=response.revision;
+    for(const page of response.site.pages)for(const section of page.sections){
+      const option=element('option',null,page.title+' · '+section.component+' · '+section.id);
+      option.value=page.id+'|'+section.id;crossSection.append(option);
+    }
+    previewCrossSelection(response.site);
+    crossSection.onchange=()=>{invalidateCross();previewCrossSelection(response.site);};
+  }
+  function previewCrossSelection(site){
+    const [pageId,id]=crossSection.value.split('|');
+    const section=site.pages.find(p=>p.id===pageId)?.sections.find(s=>s.id===id);
+    const snippets=[];
+    if(section){
+      for(const el of [...(section.elements||[]),...(section.items||[])])
+        if(typeof el.values?.['content.text']==='string')
+          snippets.push(el.values['content.text'].trim());
+      const walk=nodes=>{for(const node of nodes||[]){
+        if(typeof node.text==='string')snippets.push(node.text.trim());
+        walk(node.children);
+      }};
+      walk(section.designGraph?.nodes);
+    }
+    crossPreview=snippets.filter(Boolean).slice(0,4).join(' · ').slice(0,360);
+  }
+  async function openCrossSite(){
+    if(!state.siteId||!canEdit())throw Error('Откройте сайт с правами редактирования');
+    if(editor.isDirty())throw Error('Сначала сохраните текущие правки черновика');
+    invalidateCross();
+    crossFrom.replaceChildren();crossTargetPage.replaceChildren();crossSection.replaceChildren();
+    for(const site of state.sites.filter(s=>s.site_id!==state.siteId)){
+      const option=element('option',null,site.site_id+' · '+(site.title||'Сайт'));
+      option.value=site.site_id;crossFrom.append(option);
+    }
+    for(const page of editor.getSite().pages){
+      const option=element('option',null,page.title+' · '+page.path);
+      option.value=page.id;crossTargetPage.append(option);
+    }
+    if(!crossFrom.options.length)throw Error('Для переноса нужен второй доступный сайт');
+    crossDialog.showModal();
+    await loadCrossSource();
+  }
+  crossFrom.addEventListener('change',()=>safe(loadCrossSource));
+  crossTargetPage.addEventListener('change',invalidateCross);
+  crossDialog.addEventListener('close',invalidateCross);
+  const crossLabel=(name,input)=>{
+    const l=element('label',null,name);l.htmlFor=input.id;return l;
+  };
+  crossDialog.append(element('h2',null,'Перенос блока между сайтами'),
+    element('p',null,'Оба сайта должны быть доступны вам. Весь блок, Design Graph и связанные изображения/видео переносятся без заявок, секретов и публикаций.'),
+    crossLabel('Сайт-источник',crossFrom),crossFrom,
+    crossLabel('Наполненный блок',crossSection),crossSection,
+    crossLabel('Страница назначения',crossTargetPage),crossTargetPage,
+    crossCheck,crossSummary,crossApply,crossClose);
+  document.body.append(crossDialog);
   const leadsPanel=element('div','hosted-leads');
   const leadsTitle=element('strong',null,'Заявки сайта');
   leadsTitle.id='server-submission-heading';
