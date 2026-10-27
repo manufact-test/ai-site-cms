@@ -541,7 +541,8 @@ function renderAll(){
  const activeId=document.activeElement?.id||'';
  renderKits();renderThemes();renderPages();renderFields();renderComposition();renderPreview();refreshHistory();
  if(activeId){
-  const target=$(activeId)||(activeId.startsWith('remove-service-')?$('add-service'):null);
+  const target=$(activeId)||(activeId.startsWith('remove-service-')?$('add-service'):
+   activeId.startsWith('section-')?$('section-add'):null);
   if(target)target.focus({preventScroll:true});
  }
 }
