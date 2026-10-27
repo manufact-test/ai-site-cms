@@ -65,7 +65,7 @@
   'use strict';
   const LIMIT=30;
   const $=id=>document.getElementById(id),notes=[];
-  let notesRevision=0,importSerial=0;
+  let notesRevision=0,importSerial=0,editing=null;
   const t=(ru,en)=>language==='en'?en:ru;
   const PAGES=language==='en'?{home:'Home',services:'Services',approach:'Approach',contact:'Contact'}:
    {home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'};
@@ -79,7 +79,14 @@
   // Edit an existing client note in-place. Do not inject note text into markup.
   // Changed review text reopens a previously resolved item for a fresh decision.
   function startEdit(note,index,item){
+   if(editing!==null)return;
+   editing=index;
    notesRevision++;
+   // Never download a stale JSON while unsaved edits are open. Editing can
+   // only conclude by Save or Cancel, preserving explicit intent.
+   $('feedback-download').disabled=true;
+   $('feedback-add').disabled=true;
+   $('feedback-import').disabled=true;
    const panel=document.createElement('div');panel.className='feedback-note-editor';
    const selectField=(caption,options,current)=>{
     const label=document.createElement('label'),select=document.createElement('select');
@@ -112,27 +119,33 @@
     }
     if(notes[index]!==note)return;
     notes[index]={page:page.value,type:type.value,message:value,resolved:false};
-    notesRevision++;render();
+    notesRevision++;editing=null;render();
     message(t('Замечание изменено. При необходимости отправьте обновлённый JSON.','Note updated. Download a fresh JSON when ready.'));
    });
-   cancel.addEventListener('click',()=>{notesRevision++;render();});
+   cancel.addEventListener('click',()=>{notesRevision++;editing=null;render();});
    actions.append(save,cancel);panel.append(actions);
    item.append(panel);messageField.focus();
   }
 
   function render(){
+   editing=null;
+   $('feedback-import').disabled=false;
    const holder=$('feedback-list');holder.replaceChildren();
    $('feedback-count').textContent=String(notes.length)+' / '+LIMIT;
    notes.forEach((n,i)=>{
     const item=document.createElement('li'),description=document.createElement('p');
-    description.textContent=PAGES[n.page]+' · '+TYPES[n.type];
+    description.textContent=PAGES[n.page]+' · '+TYPES[n.type]+
+     (n.resolved?' · '+t('Исправлено','Resolved'):'');
     const copy=document.createElement('blockquote');copy.textContent=n.message;
     const edit=document.createElement('button');
     edit.type='button';edit.textContent=t('Изменить','Edit');
     edit.addEventListener('click',()=>startEdit(n,i,item));
     const remove=document.createElement('button');
     remove.type='button';remove.textContent=t('Удалить замечание','Remove note');
-    remove.addEventListener('click',()=>{notes.splice(i,1);notesRevision++;render();});
+    remove.addEventListener('click',()=>{
+     if(editing!==null)return;
+     notes.splice(i,1);notesRevision++;render();
+    });
     item.append(description,copy,edit,remove);holder.append(item);
    });
    $('feedback-download').disabled=notes.length===0;
@@ -161,6 +174,7 @@
    return {reviewer:value.reviewer,notes:clean};
   }
   function download(){
+   if(editing!==null)return;
    const reviewer=$('feedback-reviewer').value.trim();
    const data={format:'manufact-design-factory-client-feedback-v1',version:1,
     context:contextId,reviewer,reviewedAt:new Date().toISOString(),notes:notes.map(n=>({...n}))};
@@ -173,6 +187,7 @@
    message(t('Файл замечаний сохранён. Передайте его разработчику для импорта в Studio.','Feedback saved. Send the JSON to the Studio developer.'));
   }
   $('feedback-add').addEventListener('click',()=>{
+   if(editing!==null)return;
    const entry=$('feedback-note').value.trim();
    if(entry.length<1||entry.length>900||notes.length>=LIMIT){
     message(t('Введите замечание до 900 символов (максимум 30).','Enter a note up to 900 characters (maximum 30).'),true);return;
@@ -188,9 +203,10 @@
    const request=++importSerial,revision=notesRevision;
    try{
     const file=event.target.files[0];
+    if(editing!==null)throw Error(t('Закончите редактирование замечания.','Save or cancel the open edit first.'));
     if(!file||file.size>128*1024)throw Error(t('JSON больше 128 КБ','JSON exceeds 128 KiB'));
     const result=sanitize(JSON.parse(await file.text()));
-    if(request!==importSerial||revision!==notesRevision)
+    if(request!==importSerial||revision!==notesRevision||editing!==null)
      throw Error(t('Замечания изменились во время чтения файла. Повторите импорт.','Notes changed while reading the file. Import again.'));
     notes.splice(0,notes.length,...result.notes);
     notesRevision++;

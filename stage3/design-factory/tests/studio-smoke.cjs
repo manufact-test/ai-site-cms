@@ -189,6 +189,10 @@ const feedbackToken=feedback.context(approvedDraft,approvedDraft.project||{
 assert.match(feedbackToken,/^df-[0-9a-f]{8}$/);
 const reviewPage=feedback.reviewHtml(feedbackToken);
 const englishReview=feedback.reviewHtml(feedbackToken,'en');
+assert.ok(englishReview.includes('editing=null')&&
+ englishReview.includes("editing!==null")&&
+ englishReview.includes("n.resolved?' · '")&&
+ englishReview.includes('Save or cancel the open edit first.'));
 assert.ok(englishReview.includes('feedback-note-editor')&&
  englishReview.includes('Note updated.')&&englishReview.includes('Remove note'));
 assert.ok(englishReview.includes('note.message')&&englishReview.includes('notesRevision++'));
