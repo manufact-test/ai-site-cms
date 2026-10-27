@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-// Verify a self-declared visual review receipt against 54 real local PNG bytes.
+// Verify the self-declared D7 v3 receipt against 54 real PNGs + 42 pattern verdicts.
 // This verifies evidence integrity, NOT reviewer identity, PHP parity or release rights.
 const fs=require('node:fs');
 const path=require('node:path');

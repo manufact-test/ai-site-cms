@@ -141,7 +141,7 @@ try{
  const ready={
   gate:{node:true,bundleParity:true,chromium:true,fullVisualMatrix:true,
    phpParity:true,sourceExact:true,gitVerified:true},
-  visualCapture:{status:'pass'},visualReview:{status:'pass'},
+  visualCapture:{status:'pass'},visualReview:{status:'pass',screenshots:54,compositions:42},
   leadInputs:{status:'stable',stable:true},leadGraph:{status:'pass'},
   leadPhpParity:{status:'pass'},zip:{status:'pass'},
   git:{stable:true,ownerBranch:true,after:{ownerBranch:true}}
@@ -151,6 +151,8 @@ try{
   ['stale visual evidence',r=>{r.visualCapture.status='fail';}],
   ['visual matrix flag closed',r=>{r.gate.fullVisualMatrix=false;}],
   ['review receipt missing',r=>{r.visualReview.status='pending-human-review';}],
+  ['42-composition review omitted',r=>{r.visualReview.compositions=0;}],
+  ['54-PNG review omitted',r=>{r.visualReview.screenshots=0;}],
   ['Lead snapshot cleanup failed',r=>{r.leadInputs.status='cleanup-failed';r.leadInputs.stable=false;}],
   ['Lead snapshot changed',r=>{r.leadInputs.stable=false;}],
   ['Lead Graph checks failed',r=>{r.leadGraph.status='fail';}],
