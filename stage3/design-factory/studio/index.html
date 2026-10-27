@@ -12,6 +12,7 @@
   <script src="client-feedback.js" defer></script>
   <script src="site-audit.js" defer></script>
   <script src="delivery-package.js" defer></script>
+  <script src="section-editor.js" defer></script>
   <script src="studio.js" defer></script>
 </head>
 <body>
@@ -125,12 +126,24 @@
             </div>
           </div>
           <div class="form-section">
-            <div class="form-section-title"><span>03</span><strong>Композиция главной</strong></div>
+            <div class="form-section-title"><span>03</span><strong>Дополнительная секция главной (старые проекты)</strong></div>
             <label class="field"><span>Вариант секции</span><select id="composition"><option value="">Без замены · стандартный kit</option></select></label>
             <div id="composition-info" class="composition-info">Можно выбрать любой из 42 вариантов. Для неподдерживаемого оформления используется честный CMS fallback.</div>
           </div>
           <div class="form-section">
-            <div class="form-section-title"><span>04</span><strong>Перед экспортом</strong></div>
+            <div class="form-section-title"><span>04</span><strong>Секции всех страниц</strong></div>
+            <div class="section-editor-heading"><strong id="section-page-name">Главная</strong><span><span id="section-count">0</span> секций</span></div>
+            <div id="section-list" class="section-editor-list" aria-live="polite"></div>
+            <label class="field"><span>Добавить композицию на открытую страницу</span>
+              <select id="section-template"><option value="">Выберите композицию…</option></select></label>
+            <div class="section-editor-actions-bottom">
+              <button id="section-add" type="button" class="minor-btn" disabled>+ Добавить секцию</button>
+              <button id="section-reset" type="button" class="minor-btn" disabled>Вернуть секции этой страницы</button>
+            </div>
+            <p id="section-editor-note" class="bulk-services-hint">Секции доступны на всех четырёх страницах.</p>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title"><span>05</span><strong>Перед экспортом</strong></div>
             <div id="checklist" class="checklist"></div>
             <div class="site-audit">
               <h3>Проверка проекта и четырёх страниц</h3>
