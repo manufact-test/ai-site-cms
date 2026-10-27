@@ -5,6 +5,9 @@
 **Authoritative last functional commit:** `f08426ed48ac23264e51433c3d641243ecd31b49`  
 **Scope:** only `stage3/design-factory/**` (do not modify main, lead SDK/PHP/server, CI workflows, hosting, production or other contributors' branches). Do not merge or publish. Check actual remote HEAD first; documentation-only handoff commits follow the functional SHA.
 
+
+> **Runner update, 2026-10-27:** The new chat independently confirmed that this container cannot resolve GitHub for `git clone` and Chromium blocks **both** `file://` and loopback `http://127.0.0.1` with `ERR_BLOCKED_BY_ADMINISTRATOR`. Real D7 remains NOT RUN. Eight common Lead component manifests are byte-identical; the Lead contract/schema have evolved. See [D7-EXECUTION-BLOCKER-2026-10-27.md](D7-EXECUTION-BLOCKER-2026-10-27.md). Do not run another synthetic D7 acceptance or claim 86% changed. Real runner + genuine human signoff are required.
+
 ## First rule for this chat
 
 **Stop expanding D7 infrastructure without a demonstrated blocker. Get a real checked-out execution environment and run end-to-end release acceptance.** Previous developers built more increasingly strict evidence logic because this agent runtime had no cloneable Git checkout (GitHub DNS blocked) and managed Chromium refused direct `file://` navigation. Mock-CDP, source-only V8 and synthetic PNG tests never satisfy release gates. Never claim that code-only tests prove browser functionality.
