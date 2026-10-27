@@ -727,7 +727,7 @@ function a(route,label,depth,klass='button'){
 function action(s,slotName,depth,klass='button'){
   return a(slot(s,slotName,'behavior.href'),slot(s,slotName),depth,klass);
 }
-function renderSection(s,depth,i,language,contactCopy=''){
+function renderSection(s,depth,i,language,contactCopy='',isContactPage=false){
   const ru=language==='ru';
   const name=s.component, id=esc(s.id),heading=slot(s,'heading');
   const head='<p class="eyebrow">SECTION '+String(i+1).padStart(2,'0')+'</p><h2>'+esc(heading)+'</h2>';
@@ -743,10 +743,13 @@ function renderSection(s,depth,i,language,contactCopy=''){
     return '<section id="'+id+'" class="section faq"><div>'+head+'</div><div class="faqs">'+s.items.map(it=>'<details><summary>'+esc(it.values['content.question'])+'</summary><p>'+esc(it.values['content.answer'])+'</p></details>').join('')+'</div></section>';
   if(name==='cta-banner')
     return '<section id="'+id+'" class="section cta"><div><p class="eyebrow">'+(ru?'ДАЛЬНЕЙШИЙ ШАГ':'NEXT STEP')+'</p><h2>'+esc(heading)+'</h2><p>'+esc(slot(s,'summary'))+'</p></div><div class="cta-actions">'+action(s,'primary',depth)+a(slot(s,'secondary','behavior.href'),slot(s,'secondary')+' →',depth,'text-link')+'</div></section>';
-  if(name==='contact-panel')
+  if(name==='contact-panel'){
+    // A form-free contact preview must not invite the visitor to its own URL.
+    const selfLink=isContactPage&&slot(s,'action','behavior.href')==='/contact/';
     return '<section id="'+id+'" class="section contact">'+head+
       '<p class="contact-details">'+esc(contactCopy||(ru?'Укажите подтверждённые контакты перед публикацией.':'Add verified contact information before publication.'))+'</p>'+
-      '<div class="contact-actions">'+action(s,'action',depth)+'</div></section>';
+      (selfLink?'':'<div class="contact-actions">'+action(s,'action',depth)+'</div>')+'</section>';
+  }
   if(name==='photo-gallery')
     return '<section id="'+id+'" class="section photo-gallery-preview"><div class="section-heading">'+head+'</div><div class="preview-photos">'+
       (s.items||[]).map((item,j)=>'<figure class="preview-photo"><div role="img" aria-label="'+esc(ru?'Фотография не предоставлена':'Photo not provided')+'">'+
@@ -823,7 +826,7 @@ function pageHtml(site,page,theme,language){
     '<title>'+esc(page.seo.title)+'</title><meta name="description" content="'+esc(page.seo.description)+'"><link rel="stylesheet" href="'+(depth?'../':'')+'assets/preview.css"></head><body>'+
     '<a class="skip" href="#content">'+(ru?'Перейти к содержимому':'Skip to content')+'</a><div class="notice">'+(ru?'Design Factory · предпросмотр, не опубликованный сайт CMS':'Design Factory standalone preview · not published CMS HTML')+'</div>'+
     '<header><div class="navwrap"><a class="brand" href="'+esc(href('/',depth))+'"><span>◆ </span>'+esc(site.title)+'</a><nav aria-label="'+(ru?'Навигация':'Site navigation')+'">'+nav+'</nav></div></header>'+
-    '<main id="content">'+page.sections.map((s,i)=>renderSection(s,depth,i,language,contactCopy)).join('\n')+'</main><footer class="footer"><div class="footer-inner"><b>'+esc(site.title)+'</b><span>'+(ru?'Дизайн-предпросмотр · проверьте сведения перед публикацией':'Design preview — verify details before publishing')+'</span></div></footer></body></html>\n';
+    '<main id="content">'+page.sections.map((s,i)=>renderSection(s,depth,i,language,contactCopy,page.path==='/contact/')).join('\n')+'</main><footer class="footer"><div class="footer-inner"><b>'+esc(site.title)+'</b><span>'+(ru?'Дизайн-предпросмотр · проверьте сведения перед публикацией':'Design preview — verify details before publishing')+'</span></div></footer></body></html>\n';
 }
 function writePreview(compiled,directory){
   const out=path.resolve(directory),parent=path.dirname(out);
