@@ -10,6 +10,7 @@ const {reviewHtml}=require('../lib/visual-review-ui.cjs');
 const {expectedFiles}=require('../bin/visual-qa.cjs');
 const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
 const {sourcePaths,sourceIdentity}=require('../lib/visual-source-provenance.cjs');
+const {compositions}=require('../catalog/compositions.cjs');
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const TABLE=Uint32Array.from({length:256},(_,i)=>{
  let c=i;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;return c>>>0;
@@ -62,19 +63,23 @@ try{
  report.evidenceSha256=evidenceHash(report);
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
  assert.equal(ACTIVITIES.length,5);
- const approved={format:'manufact-design-factory-visual-review-v2',version:2,
+ const approved={format:'manufact-design-factory-visual-review-v3',version:3,
   evidenceSha256:report.evidenceSha256,reviewer:'Independent tester',
   reviewedAt:'2026-10-26T00:00:00.000Z',
   manualChecks:Object.fromEntries(ACTIVITIES.map(k=>[k,true])),
-  images:images.map(x=>({file:x.file,sha256:x.sha256,verdict:'approved',note:''}))};
+  images:images.map(x=>({file:x.file,sha256:x.sha256,verdict:'approved',note:''})),
+  compositions:compositions.map(c=>({id:c.id,verdict:'approved',note:''}))};
  const receipt=verify(dir,approved);
  assert.equal(receipt.screenshotsVerified,54);
+ assert.equal(receipt.compositionsVerified,42);
+ assert.equal(receipt.compositionsApproved,42);
  assert.equal(receipt.leadAcceptance,'pending');
  assert.equal(receipt.humanAttestationRecorded,true);
  const output=reviewHtml(report);
  assert.ok(output.includes('data-full-matrix="true"'));
  assert.ok(output.includes('data-evidence-sha256="'+report.evidenceSha256+'"'));
  assert.equal((output.match(/<article data-review /g)||[]).length,54);
+ assert.equal((output.match(/<article data-composition /g)||[]).length,42);
  assert.ok(output.includes('visual-review-decision.json'));
  assert.ok(output.includes('href="showcase/index.html"'));
  assert.ok(output.includes('id="showcaseCoverage"'));
@@ -134,13 +139,18 @@ try{
   'In-memory diagnostic images must not enable a human acceptance receipt');
  assert.ok(diagnosticUI.includes('memory-static transport'));
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
- reject({...approved,format:'manufact-design-factory-visual-review-v1',version:1},/does not match/);
+ reject({...approved,format:'manufact-design-factory-visual-review-v2',version:2},/does not match/);
  reject({...approved,evidenceSha256:'0'.repeat(64)},/does not match/);
  const missingSource={...report,renderSourceSha256:null};
  missingSource.evidenceSha256=evidenceHash(missingSource);
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(missingSource));
  reject({...approved,evidenceSha256:missingSource.evidenceSha256},/Missing renderer\/CMS source fingerprint/);
  fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
+ reject({...approved,compositions:approved.compositions.slice(1)},/Every one of 42 compositions/);
+ reject({...approved,compositions:[...approved.compositions.slice(0,-1),approved.compositions[0]]},/Duplicate or unknown composition/);
+ reject({...approved,compositions:approved.compositions.map((x,i)=>i===0?{...x,id:'unknown-id'}:x)},/Duplicate or unknown composition/);
+ reject({...approved,compositions:approved.compositions.map((x,i)=>i===0?{...x,verdict:'rejected',note:'Defect'}:x)},/composition\(s\) rejected/);
+ reject({...approved,compositions:approved.compositions.map((x,i)=>i===0?{...x,verdict:'rejected',note:''}:x)},/Rejected compositions require/);
  reject({...approved,images:approved.images.slice(1)},/Every screenshot/);
  reject({...approved,images:[...approved.images.slice(0,-1),approved.images[0]]},/Duplicate/);
  reject({...approved,manualChecks:{...approved.manualChecks,keyboardAndTouch:false}},/five independent/);

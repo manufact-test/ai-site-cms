@@ -6,6 +6,7 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const {inspectPng}=require('./png-integrity.cjs');
 const {assertSourceIdentity}=require('./visual-source-provenance.cjs');
+const {compositions}=require('../catalog/compositions.cjs');
 const SHA=/^[a-f0-9]{64}$/;
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 const own=(object,key)=>Object.prototype.hasOwnProperty.call(object,key);
@@ -77,8 +78,8 @@ function checkEvidence(directory,report){
 function verify(directory,review){
  const report=JSON.parse(fs.readFileSync(path.join(directory,'visual-evidence.json'),'utf8'));
  const evidence=checkEvidence(directory,report);
- if(!review||review.format!=='manufact-design-factory-visual-review-v2'||
-  review.version!==2||review.evidenceSha256!==report.evidenceSha256)
+ if(!review||review.format!=='manufact-design-factory-visual-review-v3'||
+  review.version!==3||review.evidenceSha256!==report.evidenceSha256)
   throw Error('Visual review receipt does not match this evidence set');
  if(typeof review.reviewer!=='string'||review.reviewer.trim().length<3||
   review.reviewer.length>120||!/^\d{4}-\d\d-\d\dT/.test(review.reviewedAt||'')||
@@ -104,10 +105,29 @@ function verify(directory,review){
   }
  }
  if(seen.size!==54)throw Error('Not all images were reviewed');
+
  if(rejected.length)throw Error(rejected.length+' screenshot(s) rejected: '+rejected.slice(0,5).join(', '));
+ if(!Array.isArray(review.compositions)||review.compositions.length!==compositions.length)
+  throw Error('Every one of 42 compositions needs an explicit reviewer decision');
+ const compositionIds=new Set(compositions.map(item=>item.id)),decisions=new Set(),defects=[];
+ for(const item of review.compositions){
+  if(!item||typeof item.id!=='string'||!compositionIds.has(item.id)||decisions.has(item.id))
+   throw Error('Duplicate or unknown composition decision');
+  decisions.add(item.id);
+  if(!['approved','rejected'].includes(item.verdict)||
+      typeof item.note!=='string'||item.note.length>1500)
+   throw Error('Invalid composition review verdict or note');
+  if(item.verdict==='rejected'){
+   if(!item.note.trim())throw Error('Rejected compositions require a diagnostic note');
+   defects.push(item.id);
+  }
+ }
+ if(decisions.size!==42)throw Error('Missing individual composition decisions');
+ if(defects.length)throw Error(defects.length+' composition(s) rejected: '+defects.slice(0,5).join(', '));
  return Object.freeze({
-  format:'manufact-design-factory-visual-review-verification-v1',
+  format:'manufact-design-factory-visual-review-verification-v2',
   fullMatrix:true,screenshotsVerified:54,screenshotsApproved:54,
+  compositionsVerified:42,compositionsApproved:42,
   evidenceSha256:report.evidenceSha256,
   reviewer:review.reviewer.trim(),reviewedAt:review.reviewedAt,
   humanAttestationRecorded:true,leadAcceptance:'pending',
