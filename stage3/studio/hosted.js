@@ -162,7 +162,7 @@
   };
   for(const field of [techVersion,techTarget,techOrigin,techCollector])
     field.addEventListener('change',()=>{techInvalidate();
-      if(field===techVersion)void safe(techCompareVersions);
+      if(field===techVersion)void techCompareVersions().catch(e=>notice(e.message,true));
     });
   techOrigin.addEventListener('input',techInvalidate);
   techCollector.addEventListener('input',techInvalidate);
