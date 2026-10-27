@@ -211,3 +211,11 @@ body[data-review-mode=overview] .stage-area{min-width:0;padding-inline:clamp(12p
 #page-meta-status{min-height:28px}
 @media(max-width:480px){.page-meta-buttons{grid-template-columns:minmax(0,1fr)}
  #page-meta-reset{grid-column:auto}}
+
+.page-meta-search-preview{display:grid;gap:5px;background:rgba(255,255,255,.065);
+ border:1px solid rgba(179,208,195,.17);padding:12px;border-radius:12px;margin-top:12px;overflow-wrap:anywhere}
+.page-meta-search-preview .page-meta-search-label{font-size:10px;letter-spacing:.05em;
+ text-transform:uppercase;color:#abbfb4;margin-bottom:2px}
+#page-meta-snippet-title{font-size:14px;font-weight:600;line-height:1.4;color:#d5eaff}
+#page-meta-snippet-url{font-size:11px;color:#b5e3bb}
+#page-meta-snippet-description{font-size:11px;line-height:1.55;color:#c5d3cb;margin:3px 0 0}
