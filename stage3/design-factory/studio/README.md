@@ -1,5 +1,17 @@
 # Design Factory Browser Studio · D5
 
+## 2026-10-27 — FINAL HANDOFF / ONE-CLICK 18-FILE DELIVERY
+
+**Start here:** [`handoffs/FINAL-TRANSFER-2026-10-27.md`](../handoffs/FINAL-TRANSFER-2026-10-27.md) (from `PROGRESS.md`; other docs use the same repo-relative handoff path). The final comprehensive transfer is the authoritative concise overview for the next independent DF developer.
+
+**Last product sprint:** New `studio/delivery-package.js`, top-bar `save-delivery-zip` button and 18-member deterministic owner + Lead developer ZIP: CMS site-v1, matching D6 integration bundle, bridge guidance, editable project/workspace/services, owner audit HTML/JSON, four standalone HTML pages and CSS, bilingual review portal, manifest CRC32 and client feedback only when current. Stale feedback is explicitly excluded. Both strict 8-member legacy preview and strict 18-member handoff ZIP formats pass independent CRC inspection. No network, automatic publication, plugins, PHP changes or outside-DF file writes.
+
+**Critical fix:** D6 `lib/bridge.cjs` now inserts a requested composition before the existing Home CTA, exactly matching Studio; previously it silently replaced a section, causing D6 to differ from normal CMS export. Generated runtime kept source-exact. **1008** CMS/Studio/D6 source parity combinations passed; **72** handoff archive variants plus **72** current/stale feedback cases passed. Real Studio button built the 18-member ZIP and legacy eight-file preview remained functional. Existing optional Chromium E2E now includes ZIP export checks and fixes an early download-hook restoration flaw, but was **not actually run**. Final functional fix `f728f242707f993110d341e5f4be4730d1868187`, see final transfer for every other SHA.
+
+**NO FALSE ACCEPTANCE:** D1–D6 engineered; D7 OPEN, Stage2 NO-GO, Stage3 UNACCEPTED, 0/135 formal gates passed, approx. 86% phase implementation. Real Node/Chromium/human/PHP D7 evidence is missing, even after these real-source isolated checks. Do not merge, publish, or change outside `stage3/design-factory/`. Owner explicitly wants large connected development blocks, not endless micro-tasks/tests.
+
+
+
 ## 27 October — End-to-end content, owner audit and safe design composition
 
 ## 2026-10-27 — integrated Design Studio content workbench, owner audit, and no-loss page composition
