@@ -31,7 +31,7 @@ assert.equal(build.status,0,'Browser bundle must match actual local CMS source: 
  const fixtureFiles=[
   'bin/build-browser-bundle.cjs','lib/compiler.cjs','lib/preview.cjs',
   'catalog/themes.cjs','catalog/kits.cjs','catalog/compositions.cjs',
-  'lib/composition-adapter.cjs','lib/section-edits.cjs','lib/section-plan.cjs','lib/bridge.cjs'
+  'lib/composition-adapter.cjs','lib/section-edits.cjs','lib/page-settings.cjs','lib/section-plan.cjs','lib/bridge.cjs'
  ];
  const manifestIds=['company-hero','contact-panel','cta-banner','faq-accordion',
   'feature-highlights','service-grid','media-story','photo-gallery'];
