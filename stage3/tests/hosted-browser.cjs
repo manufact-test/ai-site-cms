@@ -1123,6 +1123,7 @@ async function execute(){
     'Imported page is not published implicitly');
   await page.locator('#server-history-open').click();
   await page.locator('#server-history-dialog[open]').waitFor();
+  await page.locator('#server-history-page option').first().waitFor({state:'attached'});
   await page.locator('#server-history-number').selectOption('1');
   await page.locator('#server-history-page option[value="page-home"]').waitFor({state:'attached'});
   await page.locator('#server-history-page').selectOption('page-home');
