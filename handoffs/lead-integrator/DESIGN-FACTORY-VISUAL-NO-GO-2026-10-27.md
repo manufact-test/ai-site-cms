@@ -1,0 +1,6 @@
+# Lead integrator — DESIGN QUALITY NO-GO notification
+Owner decision 2026-10-27: after seeing generated websites, **VISUAL REJECTED (2/10)**. Repetitive theme skins, huge type, strange spacing; not commercially acceptable. D7 runner SUCCESS on separate validation branch is technical only. Design Factory worker's branch is feature/stage3-design-factory, write scope stage3/design-factory/**, where authoritative DESIGN-RESET-2026-10-27.md / DESIGN-REFERENCE-PLAYBOOK.md / handoffs/DESIGN-REBUILD-SECOND-DEVELOPER-2026-10-27.md are now active.
+
+Lead stays sole integration authority on feature/stage3-ai-site-contract. Do not merge draft PR #10 or publish Design Factory. Do not mark old 12/42 visually approved or ask owner for fake signoff. Worker first studies designer references across furniture/industrial/SaaS and creates three truly different coherent responsive sites for owner's EARLY visual verdict. Only after owner's approval consider preserving supported layouts in CMS and PHP/DesignGraph.
+
+Lead independently continues full Stage3 functional product: 135 mandatory gaps, real Studio->PHP->visitor->forms->inbox->revisions; no unnecessary export harness or test loops. Stage2 NO-GO; Stage3 0/135 formally accepted. main/production remain untouched. See MAIN-HANDOFF-v1.76-2026-10-27.md.

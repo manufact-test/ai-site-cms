@@ -1,3 +1,5 @@
+> ⛔ **CURRENT LEAD INSTRUCTION v1.76, 27.10.2026.** Owner reviewed Design Factory and **REJECTED visual quality 2/10** (identical sites, oversize type, bad spacing). Old D7 machine PASS ≠ human design GO; no merge. Worker redesigns with professional visual references and 3 different realistic sites; Lead continues full CMS mandatory user journeys. Read [MAIN-HANDOFF-v1.76-2026-10-27.md](MAIN-HANDOFF-v1.76-2026-10-27.md) and worker [DESIGN-RESET-2026-10-27.md](https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-design-factory/stage3/design-factory/DESIGN-RESET-2026-10-27.md). Historical v1.75 statements below do not replace this decision.
+
 # AI Site CMS — передача ГЛАВНОМУ разработчику / интегратору v1.75
 
 **Дата:** 27.10.2026
