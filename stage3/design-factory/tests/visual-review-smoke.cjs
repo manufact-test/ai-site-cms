@@ -49,6 +49,7 @@ try{
  // Use the real source generator so the 164-file fixture is byte-for-byte
  // reproducible, rather than accepting synthetic HTML and fabricated JSON.
  assert.equal(reproducibleBytes(files).size,164);
+ fs.mkdirSync(path.join(dir,'sites'),{recursive:true});
  for(const theme of Object.keys(compiler.THEMES)){
   writePreview(compiler.compile({format:compiler.FORMAT,version:1,
    kit:'agency',theme,language:'ru',facts:{}}),
