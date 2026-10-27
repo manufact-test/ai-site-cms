@@ -74,3 +74,9 @@ Primary docs:
 ## 6. Deliverables and warnings for the Lead
 
 This branch is **NOT MERGED**. The Studio exports supported-subset `manufact-ai-site-v1` and an integration_required design-spec; never claim that PHP renderer has accepted pixel parity, media rights or live forms. The owner handoff is not a signature, the ZIP CRC32 is not a security proof and client feedback is not human design acceptance. Direct import and publication must remain separate Lead-controlled actions.
+
+
+## 27 October — follow-on implementation since this original FINAL-TRANSFER
+
+The next independent developer completed the proposed large four-page section editor vertical. Current source now supports `manufact-design-factory-workspace-v1` version 2 with strict `manufact-design-factory-section-plan-v1`, preserving legacy v1 and CMS/D6 compilation parity. See the newest sections of `PROGRESS.md`, `studio/README.md` and `handoffs/NEXT-CHAT.md` for actual UI behavior and validation limits. All work remains in `feature/stage3-design-factory` under `stage3/design-factory/**`; this historic handoff's **D7 unaccepted / 0 of 135** status has not changed.
+
