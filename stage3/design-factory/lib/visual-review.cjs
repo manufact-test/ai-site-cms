@@ -15,7 +15,7 @@ function evidenceHash(report){
   file:x.file,sha256:x.sha256,bytes:x.bytes,
   requestedWidth:x.requestedWidth,requestedHeight:x.requestedHeight,
   actualWidth:x.actualWidth,actualHeight:x.actualHeight,
-  viewportMatch:x.viewportMatch,overflowPixels:x.overflowPixels,source:x.source
+  viewportMatch:x.viewportMatch,overflowPixels:x.overflowPixels,source:x.source,dom:x.dom
  }));
  return sha(Buffer.from(JSON.stringify({
   format:report.format,version:report.version,quick:report.quick,
@@ -60,6 +60,16 @@ function checkEvidence(directory,report){
    throw Error('Invalid screenshot path: '+item.file);
   names.add(item.file);
   assertSourceIdentity(root,item.file,item.source);
+  const isShowcase=item.file.startsWith('screenshots/42-compositions-');
+  const dom=item.dom;
+  if(!dom||typeof dom!=='object'||Array.isArray(dom)||
+     Object.keys(dom).sort().join(',')!=='bodyTextLength,compositionCount,main,sections,stylesheets'||
+     !Number.isInteger(dom.stylesheets)||dom.stylesheets<1||
+     dom.main!==true||!Number.isInteger(dom.bodyTextLength)||dom.bodyTextLength<30||
+     !Number.isInteger(dom.sections)||dom.sections<0||
+     !Number.isInteger(dom.compositionCount)||
+     (isShowcase?dom.compositionCount!==42:dom.compositionCount!==0||dom.sections<1))
+   throw Error('Chromium render completeness evidence mismatch: '+item.file);
   const full=path.join(root,item.file),fileStat=fs.lstatSync(full);
   if(!full.startsWith(screenshotsRoot+path.sep)||!fileStat.isFile()||fileStat.isSymbolicLink()||fs.realpathSync(full)!==full)
    throw Error('Screenshot must be a regular file: '+item.file);

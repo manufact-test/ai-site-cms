@@ -50,9 +50,16 @@ try{
   if(!fs.existsSync(css))fs.writeFileSync(css,'body{color:black}');
   if(!fs.existsSync(html))fs.writeFileSync(html,
    '<!doctype html><html><head><link rel="stylesheet" href="'+src.href+
-   '"></head><body>Fixture for source-bound screenshot checks</body></html>');
+   '"></head><body><main>'+
+   (src.html==='showcase/index.html'
+    ?compositions.map(c=>'<article class="pattern layout-'+c.layout+'" id="'+c.id+
+      '">Placeholder composition</article>').join('')
+    :'<section class="section">Fixture for source-bound screenshot checks</section>')+
+   '</main></body></html>');
   const source=sourceIdentity(dir,file);
-  return {file,source,sha256:hash(bytes),bytes:bytes.length,viewportMatch:true,overflowPixels:0,
+  const dom={stylesheets:1,main:true,sections:file.includes('/42-compositions-')?0:4,
+   compositionCount:file.includes('/42-compositions-')?42:0,bodyTextLength:250};
+  return {file,source,dom,sha256:hash(bytes),bytes:bytes.length,viewportMatch:true,overflowPixels:0,
    requestedWidth:view.width,requestedHeight:view.height,actualWidth:view.width,actualHeight:view.height};
  });
  const report={format:'manufact-design-factory-visual-evidence-v1',version:1,
@@ -104,6 +111,16 @@ try{
  assert.ok(output.includes('document.getElementById(key).checked=false'));
 
  const reject=(modified,pattern)=>assert.throws(()=>verify(dir,modified),pattern);
+ const badDom={...report,images:report.images.map((x,i)=>i===0?{...x,dom:{...x.dom,stylesheets:0}}:x)};
+ badDom.evidenceSha256=evidenceHash(badDom);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(badDom));
+ reject({...approved,evidenceSha256:badDom.evidenceSha256},/Chromium render completeness evidence mismatch/);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
+ const noDom={...report,images:report.images.map((x,i)=>i===0?{...x,dom:undefined}:x)};
+ noDom.evidenceSha256=evidenceHash(noDom);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(noDom));
+ reject({...approved,evidenceSha256:noDom.evidenceSha256},/Chromium render completeness evidence mismatch/);
+ fs.writeFileSync(path.join(dir,'visual-evidence.json'),JSON.stringify(report));
  // HTML and CSS are source-bound even when all PNG hashes are unchanged.
  const sourcePath=sourcePaths(files[0]),sourceHTML=path.join(dir,sourcePath.html),sourceCSS=path.join(dir,sourcePath.css);
  const oldHTML=fs.readFileSync(sourceHTML),oldCSS=fs.readFileSync(sourceCSS);
