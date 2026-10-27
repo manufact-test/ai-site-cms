@@ -22,7 +22,7 @@
    throw Error('Delivery requires the current compiled Studio project');
   const validated=engine.compiler.validateProject(project);
   if(JSON.stringify(validated)!==JSON.stringify(workspace.project)||
-    workspace.format!=='manufact-design-factory-workspace-v1'||workspace.version!==1)
+    workspace.format!=='manufact-design-factory-workspace-v1'||![1,2].includes(workspace.version))
    throw Error('Workspace and current project disagree');
   const site=engine.sdk.validateSite(compiled.site,engine.compiler.loadRegistry());
   const bundle=engine.bridge.build(workspace);
