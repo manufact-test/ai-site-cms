@@ -43,6 +43,25 @@
     sections:p.sections.map(s=>({id:s.id,component:s.component})),
     callToActionCount:p.sections.filter(s=>s.component==='cta-banner').length};
   });
+  // Reflect the *actual* CMS behavior.href values. These are the links that
+  // must be reflected in standalone preview and independently integrated by PHP.
+  const links=[];
+  for(const page of site.pages)for(const section of page.sections){
+   const elems=[
+    ...section.elements.map(e=>({id:e.id||e.slot,slot:e.slot,values:e.values})),
+    ...(section.items||[]).map(e=>({id:e.id,slot:'repeat-item',values:e.values}))
+   ];
+   for(const element of elems){
+    const destination=element.values['behavior.href'];
+    if(typeof destination!=='string')continue;
+    const external=destination.startsWith('https://');
+    const pathname=external?null:destination.split(/[?#]/,1)[0];
+    const known=external||ROUTES.includes(pathname);
+    links.push({page:page.path,section:section.id,component:section.component,
+     slot:element.slot,itemId:element.slot==='repeat-item'?element.id:null,
+     href:destination,kind:external?'external-https':'internal',status:known?'declared':'unresolved'});
+   }
+  }
   const feedbackCurrent=Boolean(feedback&&feedbackContext&&feedback.context===feedbackContext);
   const notes=feedbackCurrent&&Array.isArray(feedback.notes)?feedback.notes:[];
   const feedbackSummary={status:feedback?'stale-or-unmatched':'not-loaded',
@@ -56,6 +75,10 @@
   const blockers=checklist.missing.map(id=>id.replace(/^facts\./,''));
   if(!checklist.ownerReviewConfirmed)blockers.push('ownerReviewConfirmed');
   const warnings=['Media permissions, truthful claims and working forms require independent owner/server verification.'];
+  if(links.some(link=>link.status==='unresolved'))
+   warnings.push('Some authored CTA links target a non-canonical route; fix them before approving the HTML preview.');
+  if(links.some(link=>link.kind==='external-https'))
+   warnings.push('External HTTPS links leave the offline preview only after a user click; independently verify destination ownership.');
   if(composition)warnings.push('Custom composition is a preview design choice; enhanced CSS and PHP visual parity require integration.');
   if(feedback&&feedbackSummary.status!=='matching')
    warnings.push('Client feedback belongs to another site snapshot and must not be carried into this handoff.');
@@ -67,7 +90,7 @@
    indexable:checklist.readyForPublish===true,
    indexing:checklist.indexing,ownerFields:fields,
    services:Array.isArray(f.services)?f.services.map(s=>({title:s.title,description:s.description})):[],
-   pages,feedback:feedbackSummary,blockers,warnings,
+   pages,links,feedback:feedbackSummary,blockers,warnings,
    limitations:'Offline editorial report only. Not a client signature, visual QA, real PHP parity or publication approval.'};
  }
  function html(report){
@@ -85,6 +108,9 @@
    '<p><b>SEO:</b> '+esc(p.seoTitle)+'</p><p>'+esc(p.seoDescription)+'</p>'+
    '<p>'+t('Секций: ','Sections: ')+p.sections.length+' · '+t('CTA: ','CTA: ')+
    p.callToActionCount+' · robots: '+esc(p.indexing)+'</p></article>').join('');
+  const linkRows=(Array.isArray(report.links)?report.links:[]).map(x=>
+    '<tr><td>'+esc(x.page)+'</td><td>'+esc(x.component)+' / '+esc(x.slot)+
+    '</td><td>'+esc(x.href)+'</td><td>'+esc(x.kind)+' · '+esc(x.status)+'</td></tr>').join('');
   const problems=report.blockers.map(s=>'<li>'+esc(s)+'</li>').join('');
   const notes=report.warnings.map(s=>'<li>'+esc(s)+'</li>').join('');
   return '<!doctype html><html lang="'+esc(report.language)+'"><head><meta charset="utf-8">'+
@@ -99,6 +125,11 @@
    '<section><h2>'+t('Данные владельца','Owner facts')+'</h2><table><thead><tr><th>'+t('Поле','Field')+'</th><th>'+t('Статус','Status')+'</th><th>'+t('Данные','Value')+'</th></tr></thead><tbody>'+fields+'</tbody></table></section>'+
    '<section><h2>'+t('Список услуг','Services')+'</h2><ol>'+services+'</ol></section>'+
    '<section><h2>'+t('Четыре страницы','Four pages')+'</h2><div class="grid">'+pages+'</div></section>'+
+   '<section><h2>'+t('Реальные адреса CTA и карточек','Actual CTA and card destinations')+'</h2><p>'+
+   t('Показаны значения из CMS, а не подставленные ссылки демо.','Actual CMS values, not invented preview links.')+
+   '</p><table><thead><tr><th>'+t('Страница','Page')+'</th><th>'+t('Компонент','Component')+
+   '</th><th>href</th><th>'+t('Тип / статус','Type / status')+'</th></tr></thead><tbody>'+
+   linkRows+'</tbody></table></section>'+
    '<section><h2>'+t('Что проверить','Review items')+'</h2><ul class="danger">'+problems+'</ul><ul>'+notes+'</ul>'+
    '<p>'+t('Замечания: ','Feedback: ')+esc(report.feedback.status)+'; '+t('не закрыто: ','open: ')+esc(report.feedback.open)+'</p></section>'+
    '<p>'+esc(report.limitations)+'</p></main></body></html>\n';
