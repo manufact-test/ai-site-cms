@@ -571,3 +571,12 @@ Executed on real GitHub JS in isolated V8: saved/unsaved copy, valid per-page me
 
 **Next large useful block:** secure offline import of the existing **18-file delivery ZIP** to restore `design/workspace.json` and verify it matches `cms/site-v1.json` / D6, manifest and CRC, without executing archive markup/code, or run real Chromium acceptance once a true checkout becomes available. Do not edit outside `stage3/design-factory/**`, merge or touch Lead SDK/PHP/workflows/production.
 
+
+## LATEST 27.10.2026 — complete 18-member handoff ZIP restore (independent second developer)
+
+Last completed large product block: **Studio can now safely restore its own complete `*-delivery.zip`**. New `studio/delivery-import.js`, `preview-zip.js` `extractDelivery`, upload/inspect/explicit-apply UI in `studio/index.html` and `studio/studio.js`, CSS. ZIP validation includes fixed member inventory / CRC32 / bounds / strict UTF-8, manifest exact path set (manifest entries are **not** in canonical ZIP local ordering), project + workspace v1-v3, D6/CMS equality, audit, service list, four regenerated HTML previews, CSS, review portal and optional validated client feedback. ZIP HTML is never executed. Restoring previously indexable material strips old owner approval and forces noindex; feedback is historical if its context changes. Two-step user action, stale asynchronous read guards, Undo supported. No SDK/PHP/main/CI/deploy edits, no merge. CRC is not source authenticity.
+
+Real first-party source tested in isolated JS with full 18-file round trips for v1 and v3 (including sections/SEO) and previously indexable owner package + feedback, eight corrupt/tampered cases rejected. Actual `git ls-remote` cannot resolve github.com in local container despite Node/Chromium binaries. Added Node and Chromium smoke scenarios to existing `tests/studio-smoke.cjs` but did NOT claim they ran. D7 OPEN, 0/135 accepted; Stage2 NO-GO, Stage3 UNACCEPTED, D1–D6 engineering ≈86%.
+
+Next big focus: **real checked-out Node tests + Chromium workflows** once GitHub DNS works, then D7 visual quality/human review and Lead PHP parity. If unavailable, complete richer owner workflows with demonstrable design quality rather than redundant synthetic harnesses. Work only in `feature/stage3-design-factory` under `stage3/design-factory/**`, without merge. Consult `studio/README.md` for user workflow and `QUALITY-GATES.md` for honest evidence.
+
