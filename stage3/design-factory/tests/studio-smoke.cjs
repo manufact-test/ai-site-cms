@@ -18,6 +18,7 @@ const zipSource=read('preview-zip.js'),previewZip=require(path.join(studio,'prev
 const feedbackSource=read('client-feedback.js'),feedback=require(path.join(studio,'client-feedback.js'));
 const auditSource=read('site-audit.js'),audit=require(path.join(studio,'site-audit.js'));
 const deliverySource=read('delivery-package.js'),delivery=require(path.join(studio,'delivery-package.js'));
+const restoreSource=read('delivery-import.js'),restore=require(path.join(studio,'delivery-import.js'));
 const sectionEditorSource=read('section-editor.js');
 const pageSettingsSource=read('page-settings.js');
 
@@ -95,6 +96,7 @@ new Function(zipSource);
 new Function(feedbackSource);
 new Function(auditSource);
 new Function(deliverySource);
+new Function(restoreSource);
 new Function(sectionEditorSource);
 new Function(pageSettingsSource);
 assert.ok(markup.indexOf('page-settings.js')<markup.indexOf('studio.js'));
@@ -105,6 +107,9 @@ for(const id of ['section-list','section-template','section-add','section-reset'
  assert.ok(markup.includes('id="'+id+'"'),'Missing section editor: '+id);
 assert.ok(markup.indexOf('site-audit.js')<markup.indexOf('studio.js'));
 assert.ok(markup.indexOf('delivery-package.js')<markup.indexOf('studio.js'));
+assert.ok(markup.indexOf('delivery-import.js')<markup.indexOf('studio.js'));
+for(const id of ['delivery-file','delivery-restore-apply','delivery-restore-status'])
+ assert.ok(markup.includes('id="'+id+'"'),'Missing two-step ZIP restore UI '+id);
 assert.ok(markup.indexOf('client-feedback.js')<markup.indexOf('studio.js'),'Feedback bridge must load first');
 assert.ok(markup.indexOf('preview-zip.js')<markup.indexOf('studio.js'),
  'Preview ZIP script must load before Studio');
@@ -228,6 +233,55 @@ assert.ok(auditHtml.includes('<html lang="en">'));
 assert.ok(!/<script\b/i.test(auditHtml));
 assert.throws(()=>audit.html({format:'unknown'}),/Invalid site audit report/);
 assert.ok(approvedDraft.site.pages.every(page=>page.seo.robots==='index'));
+
+ // ZIP recovery is a product workflow, not a replacement for release acceptance.
+ const oldWorkspace={format:api.bridge.WORKSPACE,version:1,
+  project:api.compiler.migrate(null),composition:null};
+ const baseZip=api.bridge.build(oldWorkspace);
+ const ownerSettings=api.pageSettings.capture(baseZip.site);
+ ownerSettings.pages.home.seoTitle='Restored SEO metadata';
+ const sectionOrder=api.sectionPlan.capture(baseZip.site,null);
+ sectionOrder.pages.contact.splice(1,0,{id:api.sectionPlan.nextId(sectionOrder,'contact'),
+  composition:'faq-minimal'});
+ const zipWorkspace={...oldWorkspace,version:3,sectionPlan:sectionOrder,pageSettings:ownerSettings};
+ const zipBundle=api.bridge.build(zipWorkspace);
+ const zipCompiled={site:zipBundle.site,checklist:zipBundle.ownerChecklist,
+  inspection:zipBundle.inspection,designSpec:zipBundle.designSpec,bridge:zipBundle.compatibility.composition};
+ const handoff=delivery.build({engine:api,zip:previewZip,feedbackTool:feedback,
+  auditTool:audit,project:oldWorkspace.project,workspace:zipWorkspace,
+  compiled:zipCompiled,feedback:null});
+ const unwrapped=restore.restore({bytes:handoff.bytes,engine:api,zip:previewZip,
+  feedbackTool:feedback});
+ assert.equal(unwrapped.workspace.version,3);
+ assert.equal(unwrapped.workspace.pageSettings.pages.home.seoTitle,'Restored SEO metadata');
+ assert.equal(unwrapped.workspace.sectionPlan.pages.contact.length,sectionOrder.pages.contact.length);
+ assert.equal(unwrapped.workspace.project.ownerReviewConfirmed,false);
+ assert.equal(unwrapped.restoredIndexing,'noindex');
+ const badBytes=handoff.bytes.slice();badBytes[53]^=1;
+ assert.throws(()=>restore.restore({bytes:badBytes,engine:api,zip:previewZip,
+  feedbackTool:feedback}),/CRC|local\/central|filename/i);
+ const rezip=(name,mutate)=>{
+  const files=previewZip.extractDelivery(handoff.bytes).files;
+  const entries=previewZip.deliveryFiles.map(path=>({name:path,content:files[path]}));
+  const entry=entries.find(row=>row.name===name);
+  entry.content=mutate(entry.content);
+  const m=entries.find(row=>row.name==='manifest.json');
+  const j=JSON.parse(m.content);
+  j.files.forEach(row=>row.crc32=previewZip.crcText(entries.find(x=>x.name===row.path).content)
+   .toString(16).padStart(8,'0'));
+  m.content=JSON.stringify(j)+'\n';
+  return previewZip.buildDelivery(entries);
+ };
+ for(const [name,mutate] of [
+  ['cms/site-v1.json',text=>JSON.stringify({...JSON.parse(text),title:'Forged CMS'})],
+  ['preview/index.html',text=>text.replace('</head>','<script>forged</script></head>')],
+  ['design/project.json',text=>JSON.stringify({...JSON.parse(text),theme:'technical'})]
+ ]){
+  const altered=rezip(name,mutate);
+  assert.throws(()=>restore.restore({bytes:altered,engine:api,zip:previewZip,
+   feedbackTool:feedback}),/DELIVERY_IMPORT/);
+ }
+
 // Real Node preview ZIP contents: same first-party HTML/CSS as the CMS-validated Studio source.
 const routeFiles={home:'index.html',services:'services/index.html',
  approach:'approach/index.html',contact:'contact/index.html'};
