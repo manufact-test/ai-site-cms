@@ -13,6 +13,7 @@
   <script src="site-audit.js" defer></script>
   <script src="delivery-package.js" defer></script>
   <script src="section-editor.js" defer></script>
+  <script src="page-settings.js" defer></script>
   <script src="studio.js" defer></script>
 </head>
 <body>
@@ -143,7 +144,24 @@
             <p id="section-editor-note" class="bulk-services-hint">Секции доступны на всех четырёх страницах.</p>
           </div>
           <div class="form-section">
-            <div class="form-section-title"><span>05</span><strong>Перед экспортом</strong></div>
+            <div class="form-section-title"><span>05</span><strong>SEO и настройки страницы</strong></div>
+            <div class="page-meta-top"><strong id="page-meta-name">Главная</strong><span>CMS / SEO</span></div>
+            <div class="page-meta-fields">
+              <label class="field" for="page-meta-title"><span id="page-meta-label-title">Заголовок страницы</span><input id="page-meta-title" type="text" maxlength="160"><small id="page-meta-count-title" class="page-meta-counter">0 / 160</small></label>
+              <label class="field" for="page-meta-seoTitle"><span id="page-meta-label-seoTitle">SEO Title</span><input id="page-meta-seoTitle" type="text" maxlength="160"><small id="page-meta-count-seoTitle" class="page-meta-counter">0 / 160</small></label>
+              <label class="field" for="page-meta-seoDescription"><span id="page-meta-label-seoDescription">SEO Description</span><textarea id="page-meta-seoDescription" rows="3" maxlength="300"></textarea><small id="page-meta-count-seoDescription" class="page-meta-counter">0 / 300</small></label>
+              <label class="field" for="page-meta-navigationLabel"><span id="page-meta-label-navigationLabel">Название в меню</span><input id="page-meta-navigationLabel" type="text" maxlength="100"><small id="page-meta-count-navigationLabel" class="page-meta-counter">0 / 100</small></label>
+            </div>
+            <div class="page-meta-buttons">
+              <button id="page-meta-save" type="button" class="minor-btn" disabled>Сохранить SEO</button>
+              <button id="page-meta-cancel" type="button" class="minor-btn" disabled>Отменить ввод</button>
+              <button id="page-meta-reset" type="button" class="minor-btn" disabled>Вернуть значения kit</button>
+            </div>
+            <p id="page-meta-status" class="bulk-services-hint" role="status" aria-live="polite">Выберите страницу для настройки.</p>
+            <p class="bulk-services-hint">Путь страницы, идентификаторы и robots не редактируются здесь. Предпросмотр и CMS JSON обновятся после сохранения.</p>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title"><span>06</span><strong>Перед экспортом</strong></div>
             <div id="checklist" class="checklist"></div>
             <div class="site-audit">
               <h3>Проверка проекта и четырёх страниц</h3>
