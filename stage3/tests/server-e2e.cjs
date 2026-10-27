@@ -1913,6 +1913,74 @@ async function stop(){
   assert.doesNotMatch(urlStaticSitemap,/https:\/\/example[.]test\/contact\//);
   assert.match(fs.readFileSync(path.join(urlOut,'contact','index.html'),'utf8'),/url=\/get-in-touch\//);
 
+  // D1: convert a REAL published multipage snapshot (SEO, redirect, media
+  // parity) into three autonomous technology runtimes, without CMS DB writes.
+  const techPhp=path.join(dbdir,'published-php');
+  const techExport=spawnSync('php',['stage3/server/bin/export-technology.php','site-url-ci','php',techPhp],
+    {cwd:root,env:{...env,STAGE3_EXPORT_ORIGIN:'https://example.test'},encoding:'utf8'});
+  assert.equal(techExport.status,0,techExport.stderr);
+  const techStatic=path.join(dbdir,'published-next-static');
+  const techSsr=path.join(dbdir,'published-next-ssr');
+  for (const [tech,dest] of [['next-static',techStatic],['next-ssr',techSsr]]) {
+    const run=spawnSync('node',['stage3/runtime-export/bin/build.cjs',urlOut,tech,dest],
+      {cwd:root,env,encoding:'utf8'});
+    assert.equal(run.status,0,run.stderr);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dest,'runtime-build.json'),'utf8')).pages,
+      ['/','/get-in-touch/']);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(dest,'package.json'),'utf8')).private,true);
+    assert.match(fs.readFileSync(path.join(dest,'lib/runtime.js'),'utf8'),/metadataFor/);
+    assert.match(fs.readFileSync(path.join(dest,'data/get-in-touch/index.html'),'utf8'),
+      /https:\/\/example[.]test\/get-in-touch\//);
+  }
+  assert.ok(fs.existsSync(path.join(techStatic,'app/get-in-touch/page.jsx')));
+  assert.ok(fs.existsSync(path.join(techStatic,'app/contact/page.jsx')),
+    'Next static ships explicit redirect fallback route');
+  assert.ok(!fs.existsSync(path.join(techStatic,'middleware.js')));
+  assert.ok(fs.existsSync(path.join(techSsr,'app/[[...slug]]/page.jsx')));
+  assert.match(fs.readFileSync(path.join(techSsr,'middleware.js'),'utf8'),/301/);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(techStatic,'next.config.mjs'),'utf8')
+    .replace(/^export default /,'').replace(/;\s*$/,'' )).output,'export');
+  assert.notEqual(spawnSync('node',['stage3/runtime-export/bin/build.cjs',urlOut,'php',techPhp],
+    {cwd:root,encoding:'utf8'}).status,0,'Published output is immutable, not overwritten');
+  const polluted=path.join(dbdir,'tampered-static');
+  fs.cpSync(urlOut,polluted,{recursive:true});
+  fs.appendFileSync(path.join(polluted,'index.html'),'tampered');
+  assert.notEqual(spawnSync('node',['stage3/runtime-export/bin/build.cjs',polluted,'php',
+    path.join(dbdir,'rejected-output')],{cwd:root,encoding:'utf8'}).status,0,
+    'Tampered immutable release must fail closed');
+
+  // Actual loopback PHP HTTP, CMS not loaded: page, 301, SEO, hidden files.
+  const visitorPort=await port();
+  const phpPublic=path.join(techPhp,'public');
+  const visitor=spawn('php',['-S','127.0.0.1:'+visitorPort,'-t',phpPublic,
+    path.join(phpPublic,'index.php')],{cwd:root,env,stdio:['ignore','ignore','pipe']});
+  try {
+    const base='http://127.0.0.1:'+visitorPort;
+    let ready=false;
+    for(let attempt=0;attempt<40;attempt++){
+      if(visitor.exitCode!==null)break;
+      try{const result=await fetch(base+'/');if(result.status===200){ready=true;break;}}catch{}
+      await new Promise(resolve=>setTimeout(resolve,65));
+    }
+    assert.ok(ready,'Standalone PHP runtime starts');
+    const home=await fetch(base+'/');assert.equal(home.status,200);
+    assert.match(await home.text(),/href="\/get-in-touch\/"/);
+    const contact=await fetch(base+'/get-in-touch/');assert.equal(contact.status,200);
+    assert.match(await contact.text(),/rel="canonical" href="https:\/\/example[.]test\/get-in-touch\/"/);
+    const previous=await fetch(base+'/contact/',{redirect:'manual'});
+    assert.equal(previous.status,301);assert.equal(previous.headers.get('location'),'/get-in-touch/');
+    assert.equal((await fetch(base+'/release-manifest.json')).status,404);
+    assert.equal((await fetch(base+'/data/release-manifest.json')).status,404);
+    assert.equal((await fetch(base+'/sitemap.xml')).status,200);
+    assert.equal((await fetch(base+'/get-in-touch/',{method:'POST'})).status,405);
+  } finally {
+    if (visitor.exitCode === null) {
+      const exited=new Promise(resolve=>visitor.once('exit',resolve));
+      visitor.kill('SIGTERM');
+      await exited;
+    }
+  }
+
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET',endpoint+'/backup')).status,401,'Archives remain private');
@@ -1941,6 +2009,13 @@ async function stop(){
   assert.equal(manifest.assets.length,1);
   assert.equal(manifest.assets[0].id,asset.id);
   assert.deepEqual(fs.readFileSync(path.join(out,manifest.assets[0].file)),pngBytes);
+  const mediaRuntime=path.join(dbdir,'media-standalone-php');
+  const mediaPack=spawnSync('node',['stage3/runtime-export/bin/build.cjs',out,'php',mediaRuntime],
+    {cwd:root,encoding:'utf8'});
+  assert.equal(mediaPack.status,0,mediaPack.stderr);
+  assert.deepEqual(fs.readFileSync(path.join(mediaRuntime,'data',manifest.assets[0].file)),pngBytes);
+  assert.ok(fs.readFileSync(path.join(mediaRuntime,'data/contact/index.html'),'utf8')
+    .includes('action="'+origin+'/forms/'), 'Standalone runtime preserves form collector action');
   assert.equal(manifest.assets[0].sha256,require('node:crypto').createHash('sha256').update(pngBytes).digest('hex'));
 
   for(const p of manifest.pages){
