@@ -26,6 +26,7 @@ final class SiteRepository
     use CrossSiteCollections;
     use PageHistory;
     use MediaOperations;
+    use LinkOperations;
     private string $driver;
     public function __construct(private PDO $db, private ContractValidator $validator)
     {

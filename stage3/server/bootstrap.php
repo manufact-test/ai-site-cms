@@ -13,6 +13,7 @@ require_once __DIR__ . '/CrossSiteTransfer.php';
 require_once __DIR__ . '/CrossSiteCollections.php';
 require_once __DIR__ . '/PageHistory.php';
 require_once __DIR__ . '/MediaOperations.php';
+require_once __DIR__ . '/LinkOperations.php';
 require_once __DIR__ . '/VideoUploads.php';
 require_once __DIR__ . '/SiteRepository.php';
 require_once __DIR__ . '/PublicRenderer.php';

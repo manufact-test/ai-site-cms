@@ -938,6 +938,87 @@ async function stop(){
   assert.ok(afterAudit.body.assets.some(a=>a.id===usedMedia[1].id&&a.count>
     usedMedia[1].count),'Media replacements were applied across page content');
 
+  // Multi-page URL migration + broken link repair: one immutable draft
+  // revision, preserved visitor publication, updated CTAs and 301 aliases.
+  const linkRoute=kitTarget+'/links';
+  const beforeLinks=(await request('GET',kitTarget)).body;
+  const authoredLinks=structuredClone(beforeLinks.site);
+  const linkHome=authoredLinks.pages.find(p=>p.id==='page-home');
+  const linkContact=authoredLinks.pages.find(p=>p.path==='/contact/');
+  const cloneLink=authoredLinks.pages.find(p=>p.path==='/copied-production/');
+  assert.ok(linkHome&&linkContact&&cloneLink);
+  const firstLink=linkHome.sections.find(s=>s.component==='company-hero')
+    .elements.find(e=>e.slot==='action');
+  const secondLink=linkContact.sections.find(s=>s.component==='contact-panel')
+    .elements.find(e=>e.slot==='action');
+  const thirdLink=cloneLink.sections.find(s=>s.component==='company-hero')
+    .elements.find(e=>e.slot==='action');
+  firstLink.values['behavior.href']='/copied-production/?from=header';
+  secondLink.values['behavior.href']='/contact/#section-contact';
+  thirdLink.values['behavior.href']='/missing-link/';
+  const linksSaved=await request('POST',kitTarget+'/save',
+    {site:authoredLinks,expectedRevision:beforeLinks.revision});
+  assert.equal(linksSaved.status,200,JSON.stringify(linksSaved.body));
+  const linkAudit=await request('GET',linkRoute+'/audit');
+  assert.equal(linkAudit.status,200,JSON.stringify(linkAudit.body));
+  assert.ok(linkAudit.body.counts.broken>=1);
+  assert.ok(linkAudit.body.references.some(r=>r.href==='/missing-link/'&&r.status==='broken'));
+  const linkChanges={
+    renames:[{pageId:linkContact.id,newPath:'/reach-us/'},
+      {pageId:cloneLink.id,newPath:'/new-gallery/'}],
+    repairs:[{from:'/missing-link/',to:'/reach-us/'}],
+    keepRedirects:true
+  };
+  const linkRequest={changes:linkChanges,expectedRevision:linksSaved.body.revision};
+  assert.equal((await request('POST',linkRoute+'/plan',linkRequest,
+    {'x-csrf-token':'wrong'})).status,403);
+  assert.equal((await request('POST',linkRoute+'/plan',
+    {...linkRequest,expectedRevision:beforeLinks.revision})).status,409);
+  assert.equal((await request('POST',linkRoute+'/plan',{
+    ...linkRequest,changes:{...linkChanges,renames:[{pageId:'page-home',newPath:'/new-home/'}]}
+  })).status,422,'Home page cannot be migrated');
+  assert.equal((await request('POST',linkRoute+'/plan',{
+    ...linkRequest,changes:{...linkChanges,renames:[{pageId:cloneLink.id,newPath:'/contact/'}]}
+  })).status,409,'Occupied route never overwritten');
+  const linkPlan=await request('POST',linkRoute+'/plan',linkRequest);
+  assert.equal(linkPlan.status,200,JSON.stringify(linkPlan.body));
+  assert.equal(linkPlan.body.plan.renames.length,2);
+  assert.equal(linkPlan.body.plan.redirectsAdded,2);
+  assert.ok(linkPlan.body.plan.linksRewritten>=3);
+  assert.equal(linkPlan.body.plan.remainingBroken,0);
+  assert.equal(linkPlan.body.plan.published,false);
+  assert.equal((await request('GET',kitTarget)).body.revision,linksSaved.body.revision,
+    'Read-only URL migration plan must not save the site');
+  assert.deepEqual((await request('GET',kitTarget+'/published-site')).body,kitPublished);
+  assert.equal((await request('POST',linkRoute+'/apply',
+    {confirmationToken:'bad'})).status,409);
+  const verifiedLinkPlan=await request('POST',linkRoute+'/plan',linkRequest);
+  const migratedLinks=await request('POST',linkRoute+'/apply',
+    {confirmationToken:verifiedLinkPlan.body.confirmationToken});
+  assert.equal(migratedLinks.status,200,JSON.stringify(migratedLinks.body));
+  assert.equal(migratedLinks.body.revision,linksSaved.body.revision+1);
+  const finalLinkSite=migratedLinks.body.site;
+  assert.ok(finalLinkSite.pages.some(p=>p.path==='/reach-us/'));
+  assert.ok(finalLinkSite.pages.some(p=>p.path==='/new-gallery/'));
+  assert.equal(finalLinkSite.pages.find(p=>p.id==='page-home').sections
+    .find(s=>s.component==='company-hero').elements.find(e=>e.slot==='action')
+    .values['behavior.href'],'/new-gallery/?from=header',
+    'Query string survives internal route migration');
+  assert.equal(finalLinkSite.pages.find(p=>p.id===linkContact.id).sections
+    .find(s=>s.component==='contact-panel').elements.find(e=>e.slot==='action')
+    .values['behavior.href'],'/reach-us/#section-contact',
+    'Section anchor survives migration');
+  assert.equal(finalLinkSite.pages.find(p=>p.id===cloneLink.id).sections
+    .find(s=>s.component==='company-hero').elements.find(e=>e.slot==='action')
+    .values['behavior.href'],'/reach-us/','Broken URL repaired with a supplied mapping');
+  assert.ok(finalLinkSite.redirects.some(r=>r.from==='/contact/'&&r.to==='/reach-us/'));
+  assert.ok(finalLinkSite.redirects.some(r=>r.from==='/copied-production/'&&r.to==='/new-gallery/'));
+  assert.equal((await request('GET',linkRoute+'/audit')).body.counts.broken,0);
+  assert.equal((await request('POST',linkRoute+'/apply',
+    {confirmationToken:verifiedLinkPlan.body.confirmationToken})).status,409);
+  assert.equal((await request('POST',linkRoute+'/plan',linkRequest)).status,409);
+  assert.deepEqual((await request('GET',kitTarget+'/published-site')).body,kitPublished,
+    'URL migration never changes public release until separately published');
   // Backup -> read-only plan -> transactional recovery -> release restoration.
   await request('POST',tplRoot,{name:'Архивный шаблон',pageId:'page-home',sectionId:'section-hero',expectedRevision:sourceRevision});
   const archiveResult=await request('GET',endpoint+'/backup');

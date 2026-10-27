@@ -1157,6 +1157,25 @@ async function execute(){
     .some(a=>a.alt==='Browser batch alt description')));
   assert.equal((await page.request.get(origin+'/published/site-cross-browser/copied-browser/')).status(),404,
     'Media maintenance does not publish new cloned pages');
+  // Real hosted browser migration: move one page route with a retained
+  // redirect through read-only confirmation into one draft revision.
+  await page.locator('#server-links-open').click();
+  await page.locator('#server-links-dialog[open]').waitFor();
+  const renamedInput=page.locator('#server-links-pages input[data-previous-path="/copied-browser/"]');
+  await renamedInput.waitFor();
+  await renamedInput.fill('/browser-moved/');
+  await page.locator('#server-links-plan').click();
+  await page.locator('#server-links-plan-summary').getByText(/Переименовать страниц: 1/).waitFor();
+  assert.equal(await page.locator('#server-links-apply').isDisabled(),false);
+  await page.locator('#server-links-apply').click();
+  await page.locator('#server-links-dialog').waitFor({state:'hidden'});
+  await page.locator('#server-status').getByText(/Черновик #7/).waitFor();
+  assert.equal(await page.evaluate(()=>window.Stage3Editor.getSite().pages.some(p=>
+    p.path==='/browser-moved/')),true);
+  assert.equal(await page.evaluate(()=>window.Stage3Editor.getSite().redirects.some(r=>
+    r.from==='/copied-browser/'&&r.to==='/browser-moved/')),true);
+  assert.equal((await page.request.get(origin+'/published/site-cross-browser/browser-moved/')).status(),404,
+    'Migrated route remains private until separately published');
   await page.locator('#server-site-select').selectOption(siteId);
   await page.locator('#server-open').click();
   await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();

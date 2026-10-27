@@ -182,6 +182,145 @@
     mediaWorkRows,mediaWorkPruneLabel,mediaWorkPrune,
     mediaWorkPlan,mediaWorkSummary,mediaWorkApply,mediaWorkClose);
   document.body.append(mediaWorkDialog);
+  // Site-wide link inventory and route migration. The plan is a read-only
+  // diff; application writes a single new draft and never touches publication.
+  const linkOpen=action('Ссылки сайта: аудит и перенос адресов','server-links-open',
+    ()=>safe(openLinkWorkbench));
+  mediaPanel.insertBefore(linkOpen,mediaList);
+  const linkDialog=element('dialog','hosted-backup-dialog');linkDialog.id='server-links-dialog';
+  const linkAuditSummary=element('div','hosted-backup-summary');linkAuditSummary.id='server-links-audit';
+  const linkPages=element('div','hosted-media-entries');linkPages.id='server-links-pages';
+  const linkProblems=element('div','hosted-media-entries');linkProblems.id='server-links-problems';
+  const linkFixes=element('textarea','control');linkFixes.id='server-links-repairs';
+  linkFixes.rows=4;linkFixes.placeholder='/неверный-адрес/ => /правильная-страница/';
+  linkFixes.maxLength=5000;
+  const linkRedirect=element('input');linkRedirect.type='checkbox';linkRedirect.id='server-links-redirect';
+  linkRedirect.checked=true;
+  const linkRedirectLabel=element('label',null,'Оставлять постоянные 301-редиректы со старых адресов');
+  linkRedirectLabel.htmlFor=linkRedirect.id;
+  const linkPlanSummary=element('div','hosted-backup-summary');linkPlanSummary.id='server-links-plan-summary';
+  let currentLinkAudit=null,linkPending=null,linkOpening=false;
+  const invalidateLinkPlan=()=>{
+    linkPending=null;linkApply.disabled=true;linkPlanSummary.replaceChildren();
+  };
+  function linkDraftChanges(){
+    if(!currentLinkAudit)throw Error('Сначала загрузите аудит ссылок');
+    const renames=[];
+    for(const input of linkPages.querySelectorAll('input[data-page-id]')){
+      const previous=input.dataset.previousPath;
+      const value=input.value.trim();
+      if(value!==previous)renames.push({pageId:input.dataset.pageId,newPath:value});
+    }
+    const repairs=[];
+    for(const line of linkFixes.value.trim().split(/\r?\n/).filter(Boolean)){
+      const pieces=line.split(/\s*=>\s*/);
+      if(pieces.length!==2||!pieces[0]||!pieces[1])
+        throw Error('Одна строка исправления: /старый-адрес/ => /новая-страница/');
+      repairs.push({from:pieces[0].trim(),to:pieces[1].trim()});
+    }
+    return {renames,repairs,keepRedirects:linkRedirect.checked};
+  }
+  const linkReload=async()=>{
+    invalidateLinkPlan();currentLinkAudit=null;
+    linkPages.replaceChildren();linkProblems.replaceChildren();linkAuditSummary.replaceChildren();
+    if(!state.siteId)return;
+    const id=state.siteId;
+    const result=await api('/api/sites/'+encodeURIComponent(id)+'/links/audit');
+    if(!linkDialog.open||id!==state.siteId)return;
+    currentLinkAudit=result;linkFixes.value='';linkRedirect.checked=true;
+    const broken=result.references.filter(x=>x.status==='broken'||x.status==='broken-anchor');
+    linkAuditSummary.append(element('strong',null,'Сохранённый черновик #'+result.revision),
+      element('p',null,result.pageCount+' страниц · '+result.references.length+
+        ' ссылок · '+result.counts.ok+' прямых · '+result.counts.redirect+
+        ' через редиректы · '+broken.length+' проблем · '+result.redirects.length+' редиректов'));
+    const originals=editor.getSite().pages;
+    for(const page of originals){
+      const row=element('div','hosted-media-item');
+      const label=element('div','hosted-media-description');
+      label.append(element('strong',null,page.title),
+        element('small',null,page.path+' · '+page.id));
+      const path=element('input','control');path.type='text';path.maxLength=240;
+      path.dataset.pageId=page.id;path.dataset.previousPath=page.path;path.value=page.path;
+      path.disabled=page.path==='/'||!canEdit();
+      path.setAttribute('aria-label','Новый URL '+page.title);
+      path.addEventListener('input',invalidateLinkPlan);
+      row.append(label,path);linkPages.append(row);
+    }
+    if(!broken.length)linkProblems.append(element('small',null,
+      'Битых внутренних ссылок и якорей не найдено.'));
+    for(const ref of broken.slice(0,60))
+      linkProblems.append(element('small',null,
+        ref.pageTitle+' · '+ref.component+' · '+ref.href+' ('+
+        (ref.status==='broken-anchor'?'неверный якорь':'нет страницы')+')'));
+    if(broken.length>60)linkProblems.append(element('small',null,
+      'Остальных проблем: '+(broken.length-60)));
+    if(result.redirects.length){
+      const redirectDetails=element('details','hosted-media-references');
+      redirectDetails.append(element('summary',null,'Текущие редиректы ('+result.redirects.length+')'));
+      for(const r of result.redirects)redirectDetails.append(element('small',null,r.from+' → '+r.to));
+      linkAuditSummary.append(redirectDetails);
+    }
+  };
+  const linkPlan=action('Проверить миграцию адресов и ссылок','server-links-plan',
+    ()=>safe(async()=>{
+      invalidateLinkPlan();
+      if(!state.siteId||editor.isDirty()||!canEdit())
+        throw Error('Сохраните правки перед миграцией ссылок');
+      if(!currentLinkAudit||currentLinkAudit.revision!==state.revision)
+        throw Error('Аудит устарел — откройте окно ссылок заново');
+      const changes=linkDraftChanges(),id=state.siteId;
+      const result=await api('/api/sites/'+encodeURIComponent(id)+'/links/plan','POST',
+        {changes,expectedRevision:state.revision});
+      if(id!==state.siteId||editor.isDirty())return;
+      const p=result.plan;
+      linkPending={siteId:id,revision:state.revision,token:result.confirmationToken};
+      linkPlanSummary.replaceChildren(element('strong',null,'План для черновика #'+p.revision),
+        element('p',null,'Переименовать страниц: '+p.renames.length+
+          ' · исправить привязок: '+p.linksRewritten+
+          ' · добавить 301-редиректов: '+p.redirectsAdded+
+          ' · оставшихся проблем со ссылками: '+p.remainingBroken),
+        element('p',null,'Одна новая ревизия; старые публикации и адреса действующего сайта не меняются.'));
+      for(const r of p.renames)
+        linkPlanSummary.append(element('small',null,r.from+' → '+r.to));
+      for(const r of p.changes.slice(0,12))
+        linkPlanSummary.append(element('small',null,r.before+' → '+r.after));
+      linkApply.disabled=false;
+    }));
+  const linkApply=action('Применить безопасную миграцию','server-links-apply',()=>safe(async()=>{
+    const pending=linkPending;
+    if(!pending||pending.siteId!==state.siteId||
+      pending.revision!==state.revision||editor.isDirty()||!canEdit())
+      throw Error('Черновик изменён; проверьте адреса заново');
+    invalidateLinkPlan();
+    const applied=await api('/api/sites/'+encodeURIComponent(pending.siteId)+'/links/apply',
+      'POST',{confirmationToken:pending.token});
+    linkDialog.close();selectSite(applied);
+    await refreshSites();await loadHistory();await loadTemplates();
+    drawStatus();notice('Маршруты и ссылки обновлены одной ревизией. Публикация отдельно.');
+  }));
+  linkApply.disabled=true;
+  const linkClose=action('Закрыть','server-links-close',()=>linkDialog.close());
+  const openLinkWorkbench=async()=>{
+    if(linkOpening)return;
+    if(!state.siteId||editor.isDirty()||!canEdit())
+      throw Error('Сохраните черновик и откройте сайт перед аудитом ссылок');
+    linkOpening=true;
+    try{invalidateLinkPlan();linkDialog.showModal();await linkReload();}
+    finally{linkOpening=false;}
+  };
+  linkFixes.addEventListener('input',invalidateLinkPlan);
+  linkRedirect.addEventListener('change',invalidateLinkPlan);
+  linkDialog.addEventListener('close',()=>{invalidateLinkPlan();currentLinkAudit=null;});
+  const linkFixLabel=element('label',null,
+    'Дополнительные массовые исправления ссылок, по одной строке (до 30)');
+  linkFixLabel.htmlFor=linkFixes.id;
+  linkDialog.append(element('h2',null,'Аудит и перенос адресов сайта'),
+    element('p',null,'Переименуйте несколько страниц, исправьте ссылки в секциях и Design Graph, проверьте результат до записи. Главная страница не переименовывается.'),
+    linkAuditSummary,element('h3',null,'Адреса страниц'),linkPages,
+    element('h3',null,'Проблемные ссылки'),linkProblems,
+    linkFixLabel,linkFixes,linkRedirectLabel,linkRedirect,
+    linkPlan,linkPlanSummary,linkApply,linkClose);
+  document.body.append(linkDialog);
   // Saved section presets are scoped to the currently selected owner site.
   // Applying a preset modifies ONLY the local draft, with undo/redo. Owner
   // must separately save the draft and then explicitly publish it.
@@ -1474,6 +1613,12 @@
     acknowledge.disabled=state.busy||!state.authorized||!state.siteId||!canEdit()||unreadCount===0;
     mediaUpload.disabled=!available||isDirty()||!canEdit();
     mediaWorkOpen.disabled=!available||isDirty()||!canEdit();
+    linkOpen.disabled=!available||isDirty()||!canEdit();
+    linkPlan.disabled=!available||!currentLinkAudit||isDirty()||!canEdit();
+    linkApply.disabled=state.busy||!linkPending||!available||isDirty()||!canEdit();
+    linkFixes.disabled=linkRedirect.disabled=state.busy;
+    for(const input of linkPages.querySelectorAll('input'))
+      input.disabled=state.busy||input.dataset.previousPath==='/';
     mediaWorkPlan.disabled=state.busy||!mediaWorkAudit||!available||isDirty()||!canEdit();
     mediaWorkApply.disabled=state.busy||!mediaWorkPending||!available||isDirty()||!canEdit();
     mediaWorkPrune.disabled=state.busy;

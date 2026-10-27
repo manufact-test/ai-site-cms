@@ -72,14 +72,14 @@ final class Api
             $this->response(403, ['error' => 'No permission for this operation or site']);
         }
         $action = $m[2] ?? '';
-        if ($method === 'GET' && (in_array($action, ['', 'revisions','releases','templates','published-site','history/catalog','media-audit'], true)
+        if ($method === 'GET' && (in_array($action, ['', 'revisions','releases','templates','published-site','history/catalog','media-audit','links/audit'], true)
             || preg_match('~^media/[a-z][a-z0-9-]{2,79}$~D', $action))) return;
         if ($method === 'POST' && $action === 'preview') return;
         $edit = in_array($principal['role'], ['editor','publisher'], true);
         if ($edit && $method === 'GET' && (in_array($action, ['notifications','submissions','submissions/export'], true) || preg_match('~^submissions/lead-[0-9a-f]{24}/history$~D',$action))) return;
         if ($edit && $method === 'POST' &&
             preg_match('~^video-uploads/(?:start|video-[a-f0-9]{20}/(?:chunk|finish|cancel))$~D',$action)) return;
-        if ($edit && $method === 'POST' && (in_array($action, ['save','restore','restore-release','media','video','templates','transfer/plan','transfer/apply','import/plan','import/apply','history/plan','history/apply','media-maintenance/plan','media-maintenance/apply','notifications/seen'], true)
+        if ($edit && $method === 'POST' && (in_array($action, ['save','restore','restore-release','media','video','templates','transfer/plan','transfer/apply','import/plan','import/apply','history/plan','history/apply','media-maintenance/plan','media-maintenance/apply','links/plan','links/apply','notifications/seen'], true)
             || preg_match('~^templates/template-[0-9a-f]{18}/delete$~D', $action)
             || preg_match('~^submissions/lead-[0-9a-f]{24}/review$~D', $action)
             || $action==='submissions/bulk-review'
@@ -342,7 +342,7 @@ final class Api
                 $body = $this->request(in_array($path, ['/api/backups/plan','/api/backups/restore'], true)
                     ? SiteRepository::ARCHIVE_LIMIT
                     : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/preview$~D',$path) ? 900000 : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/media$~D', $path) ? 2600000 : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/video$~D',$path)?2100000:750000))));
-                if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|video|transfer/(?:plan|apply)|import/(?:plan|apply)|history/(?:plan|apply)|media-maintenance/(?:plan|apply)|video-uploads(?:/.*)?|templates(?:/.*)?)$~D',$path)) {
+                if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|video|transfer/(?:plan|apply)|import/(?:plan|apply)|history/(?:plan|apply)|media-maintenance/(?:plan|apply)|links/(?:plan|apply)|video-uploads(?:/.*)?|templates(?:/.*)?)$~D',$path)) {
                     $this->sites->assertLicenseWritable($siteScope);
                 }
                 if ($path === '/api/logout') {
@@ -476,6 +476,40 @@ final class Api
                         self::revision($body['expectedRevision'] ?? null)
                     )]);
                 }
+            }
+            if($method==='GET'&&
+                preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/links/audit$~D',$path,$linkAudit)){
+                $this->response(200,$this->sites->linkAudit($linkAudit[1]));
+            }
+            if($method==='POST'&&
+                preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/links/(plan|apply)$~D',$path,$linkAction)){
+                $linkSite=$linkAction[1];$operation=$linkAction[2];
+                $this->sites->assertLicenseWritable($linkSite);
+                if($operation==='plan'){
+                    $changes=$body['changes']??null;
+                    if(!is_array($changes))throw new InvalidArgumentException('Link migration changes required');
+                    $revision=self::revision($body['expectedRevision']??null);
+                    $args=[$linkSite,$changes,$revision];
+                    $summary=$this->sites->planLinkMigration(...$args);
+                    $token=bin2hex(random_bytes(24));
+                    $_SESSION['stage3_link_migration']=[
+                        'token'=>$token,'actor'=>$principal['username'],
+                        'expires'=>time()+900,'args'=>$args];
+                    $this->response(200,['plan'=>$summary,'confirmationToken'=>$token,
+                        'expiresInSeconds'=>900,'published'=>false]);
+                }
+                $pending=$_SESSION['stage3_link_migration']??null;
+                unset($_SESSION['stage3_link_migration']);
+                $token=$body['confirmationToken']??null;
+                if(!is_array($pending)||!is_string($token)||
+                    !is_string($pending['token']??null)||!hash_equals($pending['token'],$token)||
+                    ($pending['actor']??null)!==$principal['username']||
+                    ($pending['expires']??0)<time()||!is_array($pending['args']??null)||
+                    ($pending['args'][0]??null)!==$linkSite)
+                    $this->response(409,['error'=>'Link migration plan expired; inspect links again']);
+                $this->auditDetail='link migration '.count($pending['args'][1]['renames']??[]).
+                    ' pages and '.count($pending['args'][1]['repairs']??[]).' repairs';
+                $this->response(200,$this->sites->applyLinkMigration(...$pending['args']));
             }
             if($method==='GET'&&
                 preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/media-audit$~D',$path,$mediaAudit)){
