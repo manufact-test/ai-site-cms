@@ -519,7 +519,24 @@
             }
           }
         }
-        if(section.component==='lead-form-flex'){
+        if(section.designGraph){
+          const visit=nodes=>{
+            for(const node of nodes){
+              if(['heading','text','button'].includes(node.type)){
+                const value=String(node.text||'').trim();
+                if(!value)add(page,section,{id:node.id},'graph-text',
+                  'Пустой видимый текст композиции: '+node.type,'text');
+                else if(placeholder.test(value)||
+                  /^(?:ваш уникальный заголовок|новый элемент|новый текст|все элементы, сетки, отступы)/i.test(value))
+                  add(page,section,{id:node.id},'graph-placeholder',
+                    'Шаблонный текст композиции: '+node.type,'text');
+              }
+              if(node.children)visit(node.children);
+            }
+          };
+          visit(section.designGraph.nodes);
+        }
+        if(section.component==='lead-form-flex'&&!section.designGraph){
           for(const field of section.formFields||[]){
             if(!String(field.label||'').trim())
               add(page,section,section.elements[0],'form','У вопроса формы отсутствует подпись.');
@@ -538,9 +555,10 @@
     const section=page.sections.find(s=>s.id===issue.sectionId)||page.sections[0];
     const element=[...section.elements,...(section.items||[])].find(e=>e.id===issue.elementId)||section.elements[0];
     pageId=page.id;sectionId=section.id;elementId=element.id;draw();
-    if(issue.nodeId&&section.designGraph){
+    if((issue.nodeId||(section.designGraph&&
+        ['graph-text','graph-placeholder'].includes(issue.kind)))&&section.designGraph){
       pendingGraphCanvasFocus={pageId:page.id,sectionId:section.id,
-        nodeId:issue.nodeId,device:'desktop'};
+        nodeId:issue.nodeId||issue.elementId,device:'desktop'};
       $('section-design-graph')?.click();return true;
     }
     if(issue.kind==='seo'){$('cms-open-seo')?.click();return true;}
@@ -3318,7 +3336,7 @@
     dlg.className='cms-settings-dialog cms-fill-dialog';
     const heading=document.createElement('h2');heading.textContent='Наполнить весь сайт';
     const intro=document.createElement('p');intro.className='subdued';
-    intro.textContent='Введите подтверждённые сведения один раз. Мастер подготовит изменения главной, услуг, преимуществ, описаний, кнопок и SEO. Изменённые вручную поля защищены.';
+    intro.textContent='Введите подтверждённые сведения один раз. Мастер подготовит изменения видимых блоков и Design Graph, кнопок и SEO. Ручные тексты и ссылки защищены, скрытые данные не перезаписываются.';
     const layout=document.createElement('div');layout.className='cms-fill-layout';
     const left=document.createElement('div');left.className='cms-fill-fields';
     const right=document.createElement('div');right.className='cms-fill-preview';
@@ -3404,8 +3422,49 @@
         changes.push({pageId:null,label:'Название сайта',before:site.title,after:name});site.title=name;
       }
       const home=site.pages.find(p=>p.path==='/');
+      // Graph content is the visible source when a section owns a composition.
+      // Apply only confirmed input to actual rendered nodes; never fabricate.
+      const placeholder=/^(?:ваш уникальный заголовок|новый элемент|новый текст|все элементы, сетки, отступы|расскажите|укажите|добавьте|заполните|опишите|замените|выберите|пример текста|lorem ipsum)/i;
+      let homeHeadingSeen=false;
       for(const page of site.pages){
+        let pageTextSeen=false;
         for(const section of page.sections){
+          if(section.designGraph){
+            const visit=nodes=>{
+              for(const node of nodes){
+                const set=(key,wanted,label)=>{
+                  if(!wanted||node[key]===wanted)return;
+                  const before=node[key]||'';
+                  if(!overwrite.checked&&before.trim()&&!placeholder.test(before)){
+                    skipped++;return;
+                  }
+                  node[key]=wanted;
+                  changes.push({pageId:page.id,label:page.title+' · Design Graph · '+label+' · '+node.id,
+                    before,after:wanted});
+                };
+                if(page===home&&node.type==='heading'&&hero&&!homeHeadingSeen){
+                  set('text',hero,'главный заголовок');
+                  homeHeadingSeen=true;
+                }
+                if(node.type==='text'&&desc&&!pageTextSeen){
+                  set('text',desc,'описание');pageTextSeen=true;
+                }
+                if(node.type==='button'){
+                  set('text',buttonText,'кнопка');
+                  if(href&&node.href!==href){
+                    if(overwrite.checked||node.href==='/'){
+                      const before=node.href;node.href=href;
+                      changes.push({pageId:page.id,label:page.title+' · Design Graph · ссылка '+node.id,
+                        before,after:href});
+                    }else skipped++;
+                  }
+                }
+                if(node.children)visit(node.children);
+              }
+            };
+            visit(section.designGraph.nodes);
+            continue;
+          }
           switch(section.component){
             case 'company-hero':
               if(page===home){
