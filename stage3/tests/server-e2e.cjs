@@ -949,7 +949,8 @@ async function stop(){
   const releasedPage=(await request('GET','/api/sites/'+target)).body;
   const chosenFromRelease=await request('GET',targetHistory+'/catalog?kind=release&number=5');
   assert.equal(chosenFromRelease.status,200,JSON.stringify(chosenFromRelease.body));
-  const originalPage=chosenFromRelease.body.pages[0];
+  const originalPage=chosenFromRelease.body.pages.find(p=>p.path!=='/');
+  assert.ok(originalPage,'Historical release includes an internal page distinct from the homepage');
   const changedForRecovery=structuredClone(releasedPage.site);
   changedForRecovery.pages.find(p=>p.id===originalPage.id).title='Wrong published-page title';
   changedForRecovery.pages.find(p=>p.id===originalPage.id).path='/safe-new-slug/';
