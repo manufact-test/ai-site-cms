@@ -47,7 +47,9 @@ function build(input){
  // An edited page or section must not inherit earlier approval for unrelated copy.
  if(planned.added||planned.edited||meta?.changed){
   compiled.checklist={...compiled.checklist,readyForPublish:false,
-   requiresOwnerReview:true,indexing:'noindex',publicationStatus:'section_drafts_require_owner_review'};
+   requiresOwnerReview:true,indexing:'noindex',
+   publicationStatus:meta?.changed&&!planned.added&&!planned.edited
+    ?'page_metadata_requires_owner_review':'section_drafts_require_owner_review'};
   for(const page of site.pages)page.seo.robots='noindex';
  }
  site=sdk.validateSite(site,reg);
