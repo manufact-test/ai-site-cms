@@ -167,6 +167,49 @@ try{
   assert.throws(()=>bridge.build({...seoWorkspace,pageSettings:modified}));
  }
  assert.throws(()=>bridge.workspace({...seoWorkspace,unauthorized:true}),/unknown workspace/);
+
+ // The standalone preview must show the actual owner-edited CMS destinations.
+ // Earlier previews silently hardcoded Contact/Services, creating false demos.
+ const preview=require('../lib/preview.cjs');
+ const linkPlan=sectionPlan.capture(approved.site,null);
+ linkPlan.version=2;
+ linkPlan.pages.home.find(row=>row.id==='df-home-01').edit={
+  elements:[{slot:'action',path:'behavior.href',value:'/approach/'}]};
+ const serviceSection=approved.site.pages[0].sections.find(s=>s.id==='df-home-03');
+ linkPlan.pages.home.find(row=>row.id==='df-home-03').edit={
+  elements:[],items:serviceSection.items.map((item,index)=>({
+   id:item.id,values:{...item.values,'behavior.href':index===0?'/services/':'/approach/'}
+  }))};
+ linkPlan.pages.home.find(row=>row.id==='df-home-04').edit={
+  elements:[{slot:'primary',path:'behavior.href',value:'/services/'},
+   {slot:'secondary',path:'behavior.href',value:'/approach/'}]};
+ linkPlan.pages.services.find(row=>row.id==='df-services-03').edit={
+  elements:[{slot:'action',path:'behavior.href',value:'/approach/'}]};
+ linkPlan.pages.contact.find(row=>row.id==='df-contact-02').edit={
+  elements:[{slot:'action',path:'behavior.href',value:'/services/'}]};
+ const linked=bridge.build({...workspaceV2,sectionPlan:linkPlan});
+ assert.equal(sdk.inspectSite(linked.site,reg).errors.length,0);
+ assert.deepEqual(bridge.validateBundle(linked).site,linked.site);
+ const htmls=linked.site.pages.map(page=>preview.pageHtml(linked.site,page,
+  approved.workspace.project.theme,approved.workspace.project.language));
+ assert.ok(htmls[0].includes('class="button" href="approach/index.html"'),
+  'Hero must use actual CMS behavior.href');
+ assert.ok(htmls[0].includes('class="button" href="services/index.html"'),
+  'CTA primary must use actual CMS behavior.href');
+ assert.ok(htmls[0].includes('class="text-link" href="approach/index.html"'),
+  'Service item and secondary CTA must use authored route');
+ assert.ok(htmls[1].includes('class="text-link" href="../approach/index.html"'),
+  'Story action must use authored route');
+ assert.ok(htmls[3].includes('class="contact-actions"><a class="button" href="../services/index.html"'),
+  'Contact panel must render its formerly hidden CMS action');
+ const changedHero=JSON.parse(JSON.stringify(linked.site.pages[0]));
+ changedHero.sections[0].elements.find(x=>x.slot==='action').values['behavior.href']='https://example.org/contact';
+ assert.ok(preview.pageHtml(linked.site,changedHero,
+  approved.workspace.project.theme,approved.workspace.project.language)
+  .includes('href="https://example.org/contact" target="_blank" rel="noopener noreferrer"'));
+ changedHero.sections[0].elements.find(x=>x.slot==='action').values['behavior.href']='/missing/';
+ assert.throws(()=>preview.pageHtml(linked.site,changedHero,
+  approved.workspace.project.theme,approved.workspace.project.language),/Unknown CMS preview route/);
  // JSON parsers/formatters legitimately reorder object keys. Such imports
  // must remain valid while any actual nested data mutation is still refused.
  const shuffled=(value)=>{
