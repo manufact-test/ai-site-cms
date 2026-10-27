@@ -122,6 +122,8 @@ try{
  assert.equal(receipt.leadAcceptance,'pending');
  assert.equal(receipt.humanAttestationRecorded,true);
  const output=reviewHtml(report);
+ assert.ok(output.includes('rejected===0&&patternRejected===0'),
+  'Rejected visual decisions must be exported as defects, not a ready approval');
  assert.ok(output.includes('data-full-matrix="true"'));
  assert.ok(output.includes('164 source files'));
  assert.ok(output.includes('64 audited routes'));
