@@ -150,6 +150,20 @@ class BrowserPipe {
   return {png:Buffer.from(result.data,'base64'),
    overflowPixels:Math.max(0,metrics.scroll-metrics.width),transport:'memory-static'};
  }
+ async inspectVisualStructure(){
+  // Inspect the actual rendered Chromium DOM; static HTML hashes do not prove
+  // that CSS loaded or that any of the 42 patterns reached the browser.
+  const result=await this.send('Runtime.evaluate',{
+   expression:'({styles:document.styleSheets.length,main:!!document.querySelector("main"),sections:document.querySelectorAll("main .section").length,patterns:[...document.querySelectorAll("article.pattern")].map(x=>x.id),bodyText:(document.body?.innerText||"").length})',
+   returnByValue:true
+  });
+  const value=result.result?.value;
+  if(!value||!Number.isInteger(value.styles)||!Array.isArray(value.patterns)||
+     !Number.isInteger(value.sections)||typeof value.main!=='boolean'||
+     typeof value.bodyText!=='number')
+   throw Error('Chromium did not return reliable rendered DOM metrics');
+  return value;
+ }
  async screenshot(url,view){
   if(typeof url!=='string'||!url.startsWith('file://'))throw Error('Only offline file URLs may be captured');
   const file=fileURLToPath(url);

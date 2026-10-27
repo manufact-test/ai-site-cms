@@ -12,6 +12,7 @@ const {reviewHtml}=require('../lib/visual-review-ui.cjs');
 const {inspectPng}=require('../lib/png-integrity.cjs');
 const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
 const {sourcePaths,sourceIdentity}=require('../lib/visual-source-provenance.cjs');
+const {compositions}=require('../catalog/compositions.cjs');
 const {FORMAT,THEMES,KITS,compile}=require('../lib/compiler.cjs');
 const {writePreview}=require('../lib/preview.cjs');
 const {writeShowcase}=require('../lib/showcase.cjs');
@@ -82,6 +83,15 @@ async function run(options){
    throw Error('Captured URL differs from canonical screenshot source: '+image);
   const capture=options.staticInMemory?
    await browser.screenshotStatic(url,view):await browser.screenshot(url,view);
+  const dom=await browser.inspectVisualStructure();
+  if(dom.styles<1||dom.main!==true||dom.bodyText<30)
+   throw Error('Chromium rendered missing stylesheet, content or <main> for '+image);
+  if(filename.startsWith('42-compositions-')){
+   const expectedPatterns=compositions.map(c=>c.id);
+   if(JSON.stringify(dom.patterns)!==JSON.stringify(expectedPatterns))
+    throw Error('Chromium did not render all 42 canonical compositions in order');
+  }else if(dom.sections<1)
+   throw Error('Chromium site preview has no rendered content sections: '+image);
   const after=sourceIdentity(root,image);
   if(source.htmlSha256!==after.htmlSha256||source.cssSha256!==after.cssSha256)
    throw Error('Generated HTML/CSS changed during screenshot capture: '+image);
@@ -98,7 +108,9 @@ async function run(options){
    requestedWidth:view.width,requestedHeight:view.height,
    actualWidth:actual.width,actualHeight:actual.height,viewportMatch,
    overflowPixels:capture.overflowPixels,
-   bytes:buf.length,sha256:sha(buf),source});
+   bytes:buf.length,sha256:sha(buf),source,
+   dom:{stylesheets:dom.styles,sections:dom.sections,
+    compositionCount:dom.patterns.length,main:dom.main,bodyTextLength:dom.bodyText}});
  }
  try{
   browser=await openBrowser(options.bin);

@@ -35,6 +35,9 @@ const size=inspectPng;
     assert.deepEqual(size(captured.png),view);
     assert.equal(captured.transport,'memory-static');
     assert.equal(captured.overflowPixels,0);
+   const probe=await browser.inspectVisualStructure();
+   assert.equal(probe.main,true);
+   assert.ok(probe.styles>=1);
    }
    fs.writeFileSync(filename,'<!doctype html><html><head><link rel="stylesheet" href="styles.css"></head>'+
     '<body><script>alert(1)</script></body></html>');

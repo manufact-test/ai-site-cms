@@ -9,7 +9,7 @@ const {inspectPng}=require('../lib/png-integrity.cjs');
 const {reviewHtml}=require('../lib/visual-review-ui.cjs');
 const {expectedFiles}=require('../bin/visual-qa.cjs');
 const {sourceFingerprint}=require('../lib/render-source-fingerprint.cjs');
-const {sourcePaths,sourceIdentity}=require('../lib/visual-source-provenance.cjs');
+const {sourcePaths,sourceIdentity,assertShowcaseCoverage}=require('../lib/visual-source-provenance.cjs');
 const {compositions}=require('../catalog/compositions.cjs');
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const TABLE=Uint32Array.from({length:256},(_,i)=>{
@@ -69,6 +69,13 @@ try{
   manualChecks:Object.fromEntries(ACTIVITIES.map(k=>[k,true])),
   images:images.map(x=>({file:x.file,sha256:x.sha256,verdict:'approved',note:''})),
   compositions:compositions.map(c=>({id:c.id,verdict:'approved',note:''}))};
+ const showcaseHtml='<main>'+compositions.map(c=>
+  '<article class="pattern layout-'+c.layout+'" id="'+c.id+'"></article>').join('')+'</main>';
+ assert.equal(assertShowcaseCoverage(showcaseHtml).length,42);
+ assert.throws(()=>assertShowcaseCoverage(showcaseHtml.replace('id="'+compositions[2].id+'"',
+  'id="unknown-card"')),/42 canonical composition/);
+ assert.throws(()=>assertShowcaseCoverage(showcaseHtml.replace('<article class="pattern',
+  '<article class="not-a-pattern')),/42 canonical composition/);
  const receipt=verify(dir,approved);
  assert.equal(receipt.screenshotsVerified,54);
  assert.equal(receipt.compositionsVerified,42);
@@ -87,7 +94,7 @@ try{
  for(const id of ['download-draft','import-draft','review-filter','next-pending','download-defects'])
   assert.ok(output.includes('id="'+id+'"'),id+' must be present');
  assert.ok(output.includes('data-review-group'));
- assert.ok(output.includes('manufact-design-factory-visual-draft-v1'));
+ assert.ok(output.includes('manufact-design-factory-visual-draft-v2'));
  assert.ok(output.includes('Draft is incompatible with this visual evidence set'));
   assert.ok(output.includes('request!==draftReadSerial||revision!==reviewRevision'),
    'Offline visual-review draft import must not overwrite newer manual decisions');
