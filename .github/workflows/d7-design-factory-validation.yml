@@ -2,7 +2,7 @@ name: D7 genuine checkout / Chromium evidence (NO MERGE OR DEPLOY)
 on:
   push:
     branches: ['feature/stage3-design-factory-d7-validation']
-    paths: ['.github/workflows/d7-design-factory-validation.yml']
+    paths: ['.github/workflows/d7-design-factory-validation.yml', 'stage3/design-factory/**']
 permissions:
   contents: read
 jobs:
