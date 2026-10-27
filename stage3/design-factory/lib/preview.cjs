@@ -2,7 +2,7 @@
 // Standalone D1 preview. Its enhanced layout is NOT part of current PHP renderer.
 const fs=require('node:fs');
 const path=require('node:path');
-const {THEMES,serialize}=require('./compiler.cjs');
+const {THEMES,COPY,serialize}=require('./compiler.cjs');
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function slot(s,name,key='content.text'){
   const el=s.elements.find(e=>e.slot===name);
@@ -15,7 +15,7 @@ function href(route,depth){
 function a(route,label,depth,klass='button'){
   return '<a class="'+klass+'" href="'+esc(href(route,depth))+'">'+esc(label)+'</a>';
 }
-function renderSection(s,depth,i,language){
+function renderSection(s,depth,i,language,contactCopy=''){
   const ru=language==='ru';
   const name=s.component, id=esc(s.id),heading=slot(s,'heading');
   const head='<p class="eyebrow">SECTION '+String(i+1).padStart(2,'0')+'</p><h2>'+esc(heading)+'</h2>';
@@ -32,7 +32,8 @@ function renderSection(s,depth,i,language){
   if(name==='cta-banner')
     return '<section id="'+id+'" class="section cta"><div><p class="eyebrow">'+(ru?'ДАЛЬНЕЙШИЙ ШАГ':'NEXT STEP')+'</p><h2>'+esc(heading)+'</h2><p>'+esc(slot(s,'summary'))+'</p></div><div class="cta-actions">'+a('/contact/',slot(s,'primary'),depth)+a('/services/',slot(s,'secondary')+' →',depth,'text-link')+'</div></section>';
   if(name==='contact-panel')
-    return '<section id="'+id+'" class="section contact">'+head+'<p>'+(ru?'Укажите подтверждённые контакты перед публикацией.':'Add verified contact information before publication.')+'</p>'+a('/contact/',slot(s,'action'),depth)+'</section>';
+    return '<section id="'+id+'" class="section contact">'+head+
+      '<p class="contact-details">'+esc(contactCopy||(ru?'Укажите подтверждённые контакты перед публикацией.':'Add verified contact information before publication.'))+'</p></section>';
   if(name==='photo-gallery')
     return '<section id="'+id+'" class="section photo-gallery-preview"><div class="section-heading">'+head+'</div><div class="preview-photos">'+
       (s.items||[]).map((item,j)=>'<figure class="preview-photo"><div role="img" aria-label="'+esc(ru?'Фотография не предоставлена':'Photo not provided')+'">'+
@@ -62,7 +63,7 @@ function css(theme){
     '.section-heading{max-width:700px;margin-bottom:44px}.features-grid,.service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.features-grid article,.service-card{background:var(--surface);padding:clamp(25px,4vw,54px);border:1px solid var(--line);border-radius:var(--radius)}.features-grid article{min-height:250px}.features-grid h3{font:500 clamp(1.5rem,2.5vw,2.6rem)/1.14 var(--display);letter-spacing:-.04em}.index{color:var(--accent);font-weight:900}',
     '.service-card{padding:32px}.card-top{display:flex;justify-content:space-between;font-size:12px;color:var(--accent);font-weight:900}.service-card h3{font:500 clamp(1.4rem,2.3vw,2.4rem)/1.13 var(--display);letter-spacing:-.035em;margin:34px 0 13px}.service-card p{opacity:.8}.story{display:grid;grid-template-columns:1fr 1fr;gap:7%;align-items:center}.story-art{height:390px;position:relative;overflow:hidden;background:var(--accent);color:white;padding:24px;border-radius:var(--radius)}.story-art span{position:relative;z-index:2;font-size:11px}.story-shape{position:absolute;right:-11%;bottom:-10%;width:75%;height:75%;border:55px solid var(--bg);transform:rotate(23deg);border-radius:35%}.story-text p{opacity:.8}',
     '.faq{display:grid;grid-template-columns:.8fr 1.2fr;gap:55px}.faqs details{padding:22px 0;border-bottom:1px solid var(--line)} .faqs summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-weight:800}.faqs p{opacity:.8}',
-    '.cta{background:var(--text);color:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:30px;padding:clamp(50px,7vw,85px);margin-top:55px;margin-bottom:55px;border-radius:var(--radius)}.cta .eyebrow{color:var(--bg);opacity:.7}.cta h2{max-width:600px}.cta-actions{display:flex;flex-direction:column;gap:20px;align-items:flex-start}.contact{text-align:center}.contact p{opacity:.75}.footer{padding:60px 22px;background:var(--text);color:var(--bg)}.footer-inner{max-width:var(--wide);margin:auto;display:flex;flex-wrap:wrap;gap:25px;justify-content:space-between;font-size:13px}',
+    '.cta{background:var(--text);color:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:30px;padding:clamp(50px,7vw,85px);margin-top:55px;margin-bottom:55px;border-radius:var(--radius)}.cta .eyebrow{color:var(--bg);opacity:.7}.cta h2{max-width:600px}.cta-actions{display:flex;flex-direction:column;gap:20px;align-items:flex-start}.contact{text-align:center}.contact .contact-details{opacity:.83;white-space:pre-line;overflow-wrap:anywhere;max-width:750px;margin:0 auto}.footer{padding:60px 22px;background:var(--text);color:var(--bg)}.footer-inner{max-width:var(--wide);margin:auto;display:flex;flex-wrap:wrap;gap:25px;justify-content:space-between;font-size:13px}',
     '.preview-photos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.preview-photo{margin:0}.preview-photo>div{background:var(--surface);border:1px dashed var(--line);min-height:250px;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-weight:750;font-size:11px;color:var(--accent)}.preview-photo figcaption{margin-top:7px;font-size:12px}',
     '@media(max-width:620px){.preview-photos{grid-template-columns:1fr}.preview-photo>div{min-height:190px}}',
     '@media(max-width:860px){.hero,.story,.faq{grid-template-columns:1fr}.hero{min-height:0}.art{height:280px}.story-art{height:300px}.cta{flex-direction:column;align-items:flex-start}}',
@@ -100,12 +101,16 @@ function css(theme){
 function pageHtml(site,page,theme,language){
   const depth=page.path==='/'?0:1;
   const ru=language==='ru';
+  // Registered contact-page hero stores owner contact facts, so no CMS schema extension is needed.
+  const contactHero=page.path==='/contact/'?page.sections.find(s=>s.component==='company-hero'):null;
+  const suppliedContact=contactHero?slot(contactHero,'summary'):'';
+  const contactCopy=suppliedContact&&suppliedContact!==COPY[language].summary?suppliedContact:'';
   const nav=site.pages.map(p=>'<a href="'+esc(href(p.path,depth))+'"'+(p.path===page.path?' aria-current="page"':'')+'>'+esc(p.navigation.label)+'</a>').join('');
   return '<!doctype html><html lang="'+esc(language)+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">'+
     '<title>'+esc(page.seo.title)+'</title><meta name="description" content="'+esc(page.seo.description)+'"><link rel="stylesheet" href="'+(depth?'../':'')+'assets/preview.css"></head><body>'+
     '<a class="skip" href="#content">'+(ru?'Перейти к содержимому':'Skip to content')+'</a><div class="notice">'+(ru?'Design Factory · предпросмотр, не опубликованный сайт CMS':'Design Factory standalone preview · not published CMS HTML')+'</div>'+
     '<header><div class="navwrap"><a class="brand" href="'+esc(href('/',depth))+'"><span>◆ </span>'+esc(site.title)+'</a><nav aria-label="'+(ru?'Навигация':'Site navigation')+'">'+nav+'</nav></div></header>'+
-    '<main id="content">'+page.sections.map((s,i)=>renderSection(s,depth,i,language)).join('\n')+'</main><footer class="footer"><div class="footer-inner"><b>'+esc(site.title)+'</b><span>'+(ru?'Дизайн-предпросмотр · проверьте сведения перед публикацией':'Design preview — verify details before publishing')+'</span></div></footer></body></html>\n';
+    '<main id="content">'+page.sections.map((s,i)=>renderSection(s,depth,i,language,contactCopy)).join('\n')+'</main><footer class="footer"><div class="footer-inner"><b>'+esc(site.title)+'</b><span>'+(ru?'Дизайн-предпросмотр · проверьте сведения перед публикацией':'Design preview — verify details before publishing')+'</span></div></footer></body></html>\n';
 }
 function writePreview(compiled,directory){
   const out=path.resolve(directory),parent=path.dirname(out);

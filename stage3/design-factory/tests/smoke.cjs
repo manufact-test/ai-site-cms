@@ -152,6 +152,18 @@ try{
   assert.equal(approved.checklist.indexing,'index');
   assert.ok(approved.site.pages.every(page=>page.seo.robots==='index'));
   assert.equal(approved.inspection.indexable,4);
+  // Real owner contact facts must appear in the generated HTML contact section.
+  const verifiedContactPage=approved.site.pages.find(p=>p.path==='/contact/');
+  const verifiedContactHtml=require('../lib/preview.cjs').pageHtml(
+    approved.site,verifiedContactPage,'editorial','en');
+  const contactCard=verifiedContactHtml.match(/<section[^>]*class="section contact"[^>]*>[\s\S]*?<\/section>/)?.[0];
+  assert.ok(contactCard&&contactCard.includes('Contact the owner for confirmed contact details'));
+  assert.ok(!/<a\b/.test(contactCard),'Contact panel must not link back to itself');
+  const draftContactSite=compile(project('agency','editorial','en'),registry);
+  const draftContactPage=draftContactSite.site.pages.find(p=>p.path==='/contact/');
+  const draftContactHtml=require('../lib/preview.cjs').pageHtml(
+    draftContactSite.site,draftContactPage,'editorial','en');
+  assert.ok(draftContactHtml.includes('Add verified contact information before publication.'));
   assert.throws(()=>compile({...approvedProject,facts:{title:'Incomplete'}},registry),/Owner review requires all required facts/);
   assert.throws(()=>compile({...approvedProject,ownerReviewConfirmed:'yes'},registry),/Invalid owner review confirmation/);
   assert.equal(migrate(approvedProject).ownerReviewConfirmed,true);
