@@ -3,6 +3,8 @@
 'use strict';
 function create({engine,state,apply,compile,tr,say}){
  const $=id=>document.getElementById(id);
+ let editing=null;
+ const copy=v=>JSON.parse(JSON.stringify(v));
  const pageLabels={ru:{home:'Главная',services:'Услуги',approach:'Подход',contact:'Контакты'},
   en:{home:'Home',services:'Services',approach:'Approach',contact:'Contact'}};
  function element(tag,text,cls){
@@ -90,6 +92,151 @@ function create({engine,state,apply,compile,tr,say}){
    state.composition=value;state.page='home';
   });
  }
+
+ // Content edits are staged until explicit Save. The live CMS export, client
+ // feedback snapshot and owner sign-off stay untouched during text input.
+ function openEditor(pageKey,section){
+  if(editing&&editing.page===pageKey&&editing.id===section.id){
+   editing=null;
+  }else{
+   const manifest=engine.compiler.loadRegistry().get(section.component);
+   if(!manifest)throw Error('Registered component not found');
+   const fields=[];
+   for(const slot of manifest.elements){
+    const element=section.elements.find(e=>e.slot===slot.slot);
+    if(!element)continue;
+    for(const field of slot.fields){
+     if(!['text','url'].includes(field.type))continue;
+     fields.push({slot:slot.slot,path:field.path,label:slot.label+' · '+field.label,
+      value:element.values[field.path],max:field.maxLength||2048,type:field.type});
+    }
+   }
+   editing={page:pageKey,id:section.id,component:section.component,
+    original:JSON.stringify(section),fields,items:copy(section.items||[]),
+    repeat:manifest.repeat||null,hasMedia:manifest.elements.some(e=>e.fields.some(f=>f.type==='media'))||
+      Boolean(manifest.repeat?.fields.some(f=>f.type==='media'))};
+  }
+  render(compile().site);
+ }
+ function draftChanged(section){
+  if(!editing)return false;
+  const slots=new Map(section.elements.map(e=>[e.slot,e]));
+  if(editing.fields.some(f=>slots.get(f.slot)?.values[f.path]!==f.value))return true;
+  return JSON.stringify(editing.items)!==JSON.stringify(section.items||[]);
+ }
+ function saveEdit(){
+  if(!editing)return;
+  const selected=editing;
+  const current=compile().site.pages.find(p=>p.id==='df-page-'+selected.page)
+   ?.sections.find(s=>s.id===selected.id);
+  if(!current||current.component!==selected.component||
+     JSON.stringify(current)!==selected.original){
+   say(tr('Раздел изменился после открытия. Откройте редактор заново.',
+    'Section changed since it was opened. Reopen editor.'),true);
+   return;
+  }
+  if(!draftChanged(current)){editing=null;render(compile().site);return;}
+  const change={elements:selected.fields.map(f=>({slot:f.slot,path:f.path,value:f.value}))};
+  if(selected.repeat)change.items=copy(selected.items);
+  const success=apply(()=>{
+   ensurePlan();
+   // Existing v1 section-plan files remain valid until the first content change.
+   state.sectionPlan.version=2;
+   const row=state.sectionPlan.pages[selected.page].find(r=>r.id===selected.id);
+   if(!row)throw Error('Section removed while editing');
+   row.edit=change;
+  });
+  if(success){
+   editing=null;
+   say(tr('Содержимое секции сохранено в рабочем пространстве. Undo доступен; экспорт остаётся noindex до проверки.',
+    'Section content saved to workspace. Undo available; export stays noindex until approved.'));
+  }
+ }
+ function cancelEdit(){editing=null;render(compile().site);}
+ function addItem(){
+  if(!editing?.repeat||editing.items.length>=editing.repeat.max)return;
+  const occupied=new Set(editing.items.map(item=>item.id));
+  let id=null;
+  for(let n=1;n<=999;n++){
+   const candidate=editing.id+'-item-'+n;
+   if(!occupied.has(candidate)&&candidate.length<=79){id=candidate;break;}
+  }
+  if(!id)return;
+  editing.items.push({id,values:Object.fromEntries(editing.repeat.fields.map(f=>[f.path,f.default]))});
+  render(compile().site);
+ }
+ function changeItem(index,delta){
+  if(!editing||index<0||index>=editing.items.length)return;
+  const dest=index+delta;if(dest<0||dest>=editing.items.length)return;
+  [editing.items[index],editing.items[dest]]=[editing.items[dest],editing.items[index]];
+  render(compile().site);
+ }
+ function deleteItem(index){
+  if(!editing?.repeat||editing.items.length<=editing.repeat.min)return;
+  editing.items.splice(index,1);render(compile().site);
+ }
+ function editPanel(card,section){
+  if(!editing||editing.page!==state.page||editing.id!==section.id)return;
+  const area=element('div',undefined,'section-content-panel');
+  area.append(element('strong',tr('Содержание CMS-секции','CMS section content')));
+  const guidance=element('p',tr(
+   'Правки сохраняются только кнопкой ниже. Вводите проверенные сведения; ссылки должны соответствовать маршрутам CMS.',
+   'Changes are saved only when you press Save. Use verified facts and supported CMS links.'));
+  guidance.className='bulk-services-hint';area.append(guidance);
+  const makeField=(label,value,max,type,onInput)=>{
+   const wrapper=element('label',undefined,'field');
+   wrapper.append(element('span',label));
+   const input=type==='url'||max<=180?element('input'):element('textarea');
+   if(input.tagName==='INPUT')input.type='text';
+   else input.rows=max>500?4:3;
+   input.value=value;input.maxLength=max;
+   input.addEventListener('input',()=>onInput(input.value));
+   wrapper.append(input);return wrapper;
+  };
+  for(const field of editing.fields)
+   area.append(makeField(field.label,field.value,field.max,field.type,v=>{field.value=v;}));
+  if(editing.repeat){
+   const descriptor=element('div',undefined,'section-repeater-head');
+   descriptor.append(element('strong',tr('Карточки / повторяемые элементы','Repeatable items')),
+    element('small',editing.items.length+' / '+editing.repeat.max));
+   area.append(descriptor);
+   editing.items.forEach((item,index)=>{
+    const group=element('div',undefined,'section-repeat-row');
+    const bar=element('div',undefined,'section-repeat-actions');
+    bar.append(element('strong',String(index+1).padStart(2,'0')));
+    for(const [symbol,label,blocked,fn] of [
+     ['↑',tr('Вверх','Up'),index===0,()=>changeItem(index,-1)],
+     ['↓',tr('Вниз','Down'),index===editing.items.length-1,()=>changeItem(index,1)],
+     ['×',tr('Удалить карточку','Remove item'),editing.items.length<=editing.repeat.min,()=>deleteItem(index)]
+    ]){
+     const button=element('button',symbol,'service-action');
+     button.type='button';button.disabled=blocked;button.title=label;
+     button.setAttribute('aria-label',label+' '+(index+1));button.addEventListener('click',fn);
+     bar.append(button);
+    }
+    group.append(bar);
+    for(const field of editing.repeat.fields){
+     if(!['text','url'].includes(field.type))continue;
+     group.append(makeField(field.label,item.values[field.path],field.maxLength||2048,field.type,
+      value=>{item.values[field.path]=value;}));
+    }
+    area.append(group);
+   });
+   const add=element('button',tr('+ Добавить карточку','+ Add item'),'minor-btn');
+   add.type='button';add.disabled=editing.items.length>=editing.repeat.max;
+   add.addEventListener('click',addItem);area.append(add);
+  }
+  if(editing.hasMedia)area.append(element('p',tr(
+   'Медиа здесь не изменяются: для изображений нужен отдельный подтверждённый asset workflow.',
+   'Media cannot be edited here; approved assets need a separate media workflow.'),'bulk-services-hint'));
+  const controls=element('div',undefined,'section-editor-actions-bottom');
+  const save=element('button',tr('Сохранить секцию','Save section'),'minor-btn');
+  save.type='button';save.addEventListener('click',saveEdit);
+  const cancel=element('button',tr('Отмена','Cancel'),'minor-btn');
+  cancel.type='button';cancel.addEventListener('click',cancelEdit);
+  controls.append(save,cancel);area.append(controls);card.append(area);
+ }
+
  function render(site){
   const holder=$('section-list'),choice=$('section-template');
   if(!holder||!choice)return;
@@ -114,6 +261,8 @@ function create({engine,state,apply,compile,tr,say}){
    'Reorder sections of the selected page. Original hero and CTA are protected. New compositions have draft copy: CMS export stays noindex until reviewed.');
   if(!site){holder.append(element('p',tr('Исправьте проект.','Fix project data.')));return;}
   const page=site.pages.find(p=>p.id==='df-page-'+state.page);
+  if(editing&&editing.page===state.page&&!page.sections.some(s=>s.id===editing.id))
+   editing=null;
   const items=rows(site);
   $('section-count').textContent=String(items.length);
   items.forEach((row,index)=>{
@@ -132,7 +281,8 @@ function create({engine,state,apply,compile,tr,say}){
    for(const [symbol,label,disabled,handler] of [
     ['↑',tr('Поднять','Move up'),index===0,()=>move(index,-1)],
     ['↓',tr('Опустить','Move down'),index===items.length-1,()=>move(index,1)],
-    ['×',tr('Удалить','Remove'),locked,()=>remove(index)]
+    ['×',tr('Удалить','Remove'),locked,()=>remove(index)],
+    ['✎',tr('Редактировать контент','Edit content'),false,()=>openEditor(state.page,section)]
    ]){
     const button=element('button',symbol,'service-action');
     button.type='button';button.disabled=disabled;
@@ -141,7 +291,7 @@ function create({engine,state,apply,compile,tr,say}){
     button.addEventListener('click',handler);
     actions.append(button);
    }
-   card.append(text,actions);holder.append(card);
+   card.append(text,actions);editPanel(card,section);holder.append(card);
   });
  }
  function mount(){
