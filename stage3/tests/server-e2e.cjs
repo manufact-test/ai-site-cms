@@ -633,11 +633,15 @@ async function stop(){
   assert.equal((await request('POST','/api/backups/plan',
     {archive:legacyLeadArchive,targetSiteId:target})).status,200,
     'Older content-only backups can still be restored after CRM upgrade');
+  // A successful second plan intentionally invalidates the previous token;
+  // explicitly re-plan the exact new archive before the final restore.
+  const currentPlan=await request('POST','/api/backups/plan',payload);
+  assert.equal(currentPlan.status,200,JSON.stringify(currentPlan.body));
   const missingImage=structuredClone(archive);missingImage.payload.media=[];
   // Recompute PHP's compact JSON representation: every key is textual, no floats in this fixture.
   missingImage.sha256=require('node:crypto').createHash('sha256').update(JSON.stringify(missingImage.payload)).digest('hex');
   assert.equal((await request('POST','/api/backups/plan',{archive:missingImage,targetSiteId:target})).status,422);
-  const recoveredArchive=await request('POST','/api/backups/restore',{...payload,confirmationToken:planned.body.confirmationToken});
+  const recoveredArchive=await request('POST','/api/backups/restore',{...payload,confirmationToken:currentPlan.body.confirmationToken});
   assert.equal(recoveredArchive.status,201,JSON.stringify(recoveredArchive.body));
   assert.equal(recoveredArchive.body.site.siteId,target);
   assert.equal(recoveredArchive.body.revision,sourceRevision);
