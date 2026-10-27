@@ -1,3 +1,5 @@
+> **27.10.2026 — FINAL D7 CHECKPOINT (current instruction supersedes older feature-expansion notes below).** GitHub HEAD verified at session start `e1bff3113192dc102eeaa475d521f5e810e74a7c`; documentation commit advances it. Checkout DNS failed, trivial Chromium file probe timed out, Actions/check-runs 0. The NEXT task belongs to Lead's working runner, NOT another mock/harness iteration. **Read [D7-REAL-RUNNER-LEAD-HANDOFF-2026-10-27.md](D7-REAL-RUNNER-LEAD-HANDOFF-2026-10-27.md) first.** D7 is OPEN; no full Node/Chromium/human/PHP/release evidence.
+
 # 27.10.2026 — MANDATORY NEXT CHAT START / D7 CLOSURE (read first)
 
 **Stop feature creep.** Owner explicitly observed 10–20 chats at «86%». This is merely `6/7` engineering chapters, not release readiness; prior rounds added many UI features but did not execute formal D7 acceptance. Objective status: **D1–D6 implemented, D7 OPEN, 0/135 formal CMS criteria, Stage2 NO-GO, Stage3 UNACCEPTED.** Single source of truth: [OWNER-REALITY-REPORT-2026-10-27.md](OWNER-REALITY-REPORT-2026-10-27.md).

@@ -1,3 +1,5 @@
+> **27.10.2026 — gate run not performed, runner blocked.** The mandatory real-checkout commands and exact evidence accept/reject conditions are collected in [D7-REAL-RUNNER-LEAD-HANDOFF-2026-10-27.md](handoffs/D7-REAL-RUNNER-LEAD-HANDOFF-2026-10-27.md). GitHub DNS failure prevents checkout; direct file:// Chromium probe timed out. Status unchanged: D7 OPEN, Stage2 NO-GO, Stage3 UNACCEPTED, 0/135. No fabricated passes.
+
 # D7 · Final quality gates and evidence
 
 ## 27.10.2026 — concise authoritative next-chat handoff

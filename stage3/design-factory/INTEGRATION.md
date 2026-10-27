@@ -1,3 +1,5 @@
+> **27.10.2026 — Lead action required, no bridge/schema change.** D7 actual runner and six PHP markup parity probes remain pending. See [D7-REAL-RUNNER-LEAD-HANDOFF-2026-10-27.md](handoffs/D7-REAL-RUNNER-LEAD-HANDOFF-2026-10-27.md) for exact commands, visual evidence requirements and integration boundary. The D6 `manufact-ai-site-v1` export is not published PHP parity.
+
 # Design Factory — D6 Integration Bridge
 
 ## 26.10.2026 — граница передачи D7 главному интегратору

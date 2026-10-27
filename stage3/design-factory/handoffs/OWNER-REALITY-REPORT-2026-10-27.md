@@ -1,3 +1,5 @@
+> **27.10.2026 — report supplement:** Verified current branch on GitHub, but real local checkout unavailable (DNS fail); direct Chromium `file://` probe timed out with no DOM. GitHub Actions and check-runs for this branch/head: 0. No final D7 evidence was generated in this executor. **Execution transferred to Lead via [D7-REAL-RUNNER-LEAD-HANDOFF-2026-10-27.md](D7-REAL-RUNNER-LEAD-HANDOFF-2026-10-27.md).** The original reality report below still holds.
+
 # AI Site CMS / Design Factory — отчёт владельцу и выход из цикла «86%»
 Дата: 27.10.2026. Отдельная ветка: `feature/stage3-design-factory`.
 Базовый SHA этого последнего захода: `29ffc016f8cbf0ac3ef5b8e03a07f74f6dd443bb`.

@@ -1,3 +1,5 @@
+> **27.10.2026 — runner handoff is now the next action.** New authoritative execution/Lead transfer: [D7-REAL-RUNNER-LEAD-HANDOFF-2026-10-27.md](handoffs/D7-REAL-RUNNER-LEAD-HANDOFF-2026-10-27.md). This executor again has no checkout (GitHub DNS fails); file:// Chromium probe timed out. No real D7 acceptance was executed; D1–D6 engineered, D7 OPEN. Stop feature expansion and use authorized real checkout.
+
 > **27.10.2026 — РЕШЕНИЕ ПО СКОРОСТИ:** не переводить «6/7 = 86%» в процент выпуска; это число завершённых категорий инженерных работ. Каталог, Studio, экспорт и ZIP уже реализованы. **Ввести feature freeze для Design Factory:** D7 закрывается только реальным Node+Chromium, 54 визуальными PNG/42 вердиктами, 64 маршрутами, шестью PHP parity probes и release source ZIP. Не добавлять новые пользовательские вертикали до проверки, если нет отдельного найденного блокирующего дефекта. Полный понятный отчёт: [OWNER-REALITY-REPORT-2026-10-27.md](handoffs/OWNER-REALITY-REPORT-2026-10-27.md).
 
 # Design Factory — автономная большая дорожная карта, 7 результатов
