@@ -19,6 +19,14 @@ const project=(kit,theme,language,facts={})=>({
 const expectError=(fn,label)=>assert.throws(fn,undefined,label);
 let count=0;
 const registry=loadRegistry();
+// Match actual CMS-safe font stacks for every one of 12 first-party themes.
+const fontStacks={georgia:'Georgia,serif',arial:'Arial,Helvetica,sans-serif',system:'system-ui,Segoe UI,sans-serif'};
+for(const [id,theme] of Object.entries(THEMES)){
+ const stack=fontStacks[theme.cms.font],cssText=require('../lib/preview.cjs').css(id);
+ assert.ok(stack,'Unsupported CMS theme font: '+theme.cms.font);
+ assert.ok(cssText.includes('--display:'+stack+';'),'Headline font drift: '+id);
+ assert.ok(cssText.includes('font:16px/1.6 '+stack+'}a{'),'Body font drift: '+id);
+}
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'df-d1-smoke-'));
 try{
   const repository=path.resolve(__dirname,'../../..');
