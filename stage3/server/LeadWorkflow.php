@@ -33,13 +33,13 @@ trait LeadWorkflow
             'stage3_section_templates','stage3_access_users','stage3_site_grants','stage3_audit',
             'stage3_site_licenses','stage3_delivery_settings','stage3_delivery_outbox'];
         $optional=['stage3_video_uploads','stage3_video_chunks',
-            'stage3_lead_workflow','stage3_lead_events'];
+            'stage3_lead_workflow','stage3_lead_events','stage3_site_operations','stage3_site_incidents'];
         $tables=$this->driver==='sqlite'
             ?$this->db->query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")->fetchAll(PDO::FETCH_COLUMN)
             :$this->db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
         if(array_diff($required,$tables)||array_diff($tables,[...$required,...$optional]))
             throw new RuntimeException('Lead upgrade requires dedicated, upgraded Stage3 database');
-        $new=['stage3_lead_workflow','stage3_lead_events'];
+        $new=['stage3_lead_workflow','stage3_lead_events','stage3_site_operations','stage3_site_incidents'];
         if(in_array($new[0],$tables,true)!==in_array($new[1],$tables,true))
             throw new RuntimeException('Partial lead schema requires manual investigation');
         if(!in_array($new[0],$tables,true))

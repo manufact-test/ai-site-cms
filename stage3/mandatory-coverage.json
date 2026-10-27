@@ -1,0 +1,1749 @@
+{
+  "format": "manufact-stage3-mandatory-evidence-v1",
+  "date": "2026-10-27",
+  "source": "requirements/requirements.csv",
+  "scope": "Engineering triage only, not official acceptance or audited proof of completeness.",
+  "ownerAccepted": 0,
+  "totalRequired": 135,
+  "legend": {
+    "implemented_candidate": "Existing concrete source paths for scenario; candidate pending actual acceptance",
+    "partial": "Subsystem exists; complete requirement not established",
+    "not_implemented": "Explicit currently-unavailable full visitor feature",
+    "owner_environment_gate": "Cannot verify without independently authorized target and owner checks"
+  },
+  "counts": {
+    "implemented_candidate": 100,
+    "partial": 26,
+    "not_implemented": 3,
+    "owner_environment_gate": 6
+  },
+  "requirements": [
+    {
+      "id": 1,
+      "group": "Типографика",
+      "requirement": "Редактирование текста",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/PublicRenderer.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 3,
+      "group": "Типографика",
+      "requirement": "Размер шрифта",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/PublicRenderer.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 4,
+      "group": "Типографика",
+      "requirement": "Толщина шрифта",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/PublicRenderer.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 5,
+      "group": "Типографика",
+      "requirement": "Межстрочный интервал",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/PublicRenderer.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 7,
+      "group": "Типографика",
+      "requirement": "Цвет текста",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/PublicRenderer.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 8,
+      "group": "Типографика",
+      "requirement": "Выравнивание и регистр",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/PublicRenderer.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 9,
+      "group": "Типографика",
+      "requirement": "Адаптивная типографика",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/PublicRenderer.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 10,
+      "group": "Размеры, отступы, расположение",
+      "requirement": "Ширина и высота элементов",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 11,
+      "group": "Размеры, отступы, расположение",
+      "requirement": "Минимальная и максимальная ширина/высота",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 12,
+      "group": "Размеры, отступы, расположение",
+      "requirement": "Внешние отступы (margin)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 13,
+      "group": "Размеры, отступы, расположение",
+      "requirement": "Внутренние отступы (padding)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 14,
+      "group": "Размеры, отступы, расположение",
+      "requirement": "Расстояние между элементами (gap)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 15,
+      "group": "Размеры, отступы, расположение",
+      "requirement": "Горизонтальное и вертикальное выравнивание",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 16,
+      "group": "Размеры, отступы, расположение",
+      "requirement": "Ширина колонок и пропорции сетки",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 18,
+      "group": "Размеры, отступы, расположение",
+      "requirement": "Точная корректировка положения",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 19,
+      "group": "Размеры, отступы, расположение",
+      "requirement": "Отдельная геометрия для ПК, планшета и телефона",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 20,
+      "group": "Размеры, отступы, расположение",
+      "requirement": "Скрытие элементов на разных устройствах",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/studio/app.js",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 22,
+      "group": "Фоны, рамки, скругления и эффекты",
+      "requirement": "Цвет фона",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 23,
+      "group": "Фоны, рамки, скругления и эффекты",
+      "requirement": "Градиентный фон",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 24,
+      "group": "Фоны, рамки, скругления и эффекты",
+      "requirement": "Фоновое изображение",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 25,
+      "group": "Фоны, рамки, скругления и эффекты",
+      "requirement": "Положение и масштаб фонового изображения",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 26,
+      "group": "Фоны, рамки, скругления и эффекты",
+      "requirement": "Фоновое видео",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 28,
+      "group": "Фоны, рамки, скругления и эффекты",
+      "requirement": "Толщина рамки (border)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 29,
+      "group": "Фоны, рамки, скругления и эффекты",
+      "requirement": "Цвет рамки",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 30,
+      "group": "Фоны, рамки, скругления и эффекты",
+      "requirement": "Тип линии рамки",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 31,
+      "group": "Фоны, рамки, скругления и эффекты",
+      "requirement": "Скругления углов (border-radius)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 32,
+      "group": "Фоны, рамки, скругления и эффекты",
+      "requirement": "Тени элементов",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 33,
+      "group": "Фоны, рамки, скругления и эффекты",
+      "requirement": "Точная настройка теней",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 35,
+      "group": "Фоны, рамки, скругления и эффекты",
+      "requirement": "Фильтры изображений",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 38,
+      "group": "Изображения, иконки, видео",
+      "requirement": "Альтернативный текст изображения (alt)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/MediaOperations.php",
+        "stage3/server/VideoUploads.php",
+        "stage3/studio/media-processing.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 41,
+      "group": "Изображения, иконки, видео",
+      "requirement": "Разные изображения для ПК, планшета и телефона",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/MediaOperations.php",
+        "stage3/server/VideoUploads.php",
+        "stage3/studio/media-processing.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 42,
+      "group": "Изображения, иконки, видео",
+      "requirement": "Оптимизация изображений",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/MediaOperations.php",
+        "stage3/server/VideoUploads.php",
+        "stage3/studio/media-processing.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 44,
+      "group": "Изображения, иконки, видео",
+      "requirement": "Замена иконок",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/MediaOperations.php",
+        "stage3/server/VideoUploads.php",
+        "stage3/studio/media-processing.js"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 45,
+      "group": "Изображения, иконки, видео",
+      "requirement": "Настройки внешнего вида иконок",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/MediaOperations.php",
+        "stage3/server/VideoUploads.php",
+        "stage3/studio/media-processing.js"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 46,
+      "group": "Изображения, иконки, видео",
+      "requirement": "Галереи и слайдеры",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/MediaOperations.php",
+        "stage3/server/VideoUploads.php",
+        "stage3/studio/media-processing.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 48,
+      "group": "Изображения, иконки, видео",
+      "requirement": "Настройки воспроизведения видео",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/MediaOperations.php",
+        "stage3/server/VideoUploads.php",
+        "stage3/studio/media-processing.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 50,
+      "group": "Изображения, иконки, видео",
+      "requirement": "Ссылки и действия по клику на медиа",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/MediaOperations.php",
+        "stage3/server/VideoUploads.php",
+        "stage3/studio/media-processing.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 51,
+      "group": "Анимации, переходы, взаимодействия",
+      "requirement": "Включение и отключение анимаций",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/media-motion/lib/contract.cjs",
+        "stage3/sdk/design-graph.cjs"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 52,
+      "group": "Анимации, переходы, взаимодействия",
+      "requirement": "Анимация появления элемента",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/media-motion/lib/contract.cjs",
+        "stage3/sdk/design-graph.cjs"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 53,
+      "group": "Анимации, переходы, взаимодействия",
+      "requirement": "Эффекты при наведении (hover)",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/media-motion/lib/contract.cjs",
+        "stage3/sdk/design-graph.cjs"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 54,
+      "group": "Анимации, переходы, взаимодействия",
+      "requirement": "Эффекты при нажатии (active/tap)",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/media-motion/lib/contract.cjs",
+        "stage3/sdk/design-graph.cjs"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 55,
+      "group": "Анимации, переходы, взаимодействия",
+      "requirement": "Анимации при прокрутке страницы",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/media-motion/lib/contract.cjs",
+        "stage3/sdk/design-graph.cjs"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 56,
+      "group": "Анимации, переходы, взаимодействия",
+      "requirement": "Скорость анимации (duration)",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/media-motion/lib/contract.cjs",
+        "stage3/sdk/design-graph.cjs"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 57,
+      "group": "Анимации, переходы, взаимодействия",
+      "requirement": "Задержка перед анимацией (delay)",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/media-motion/lib/contract.cjs",
+        "stage3/sdk/design-graph.cjs"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 58,
+      "group": "Анимации, переходы, взаимодействия",
+      "requirement": "Плавность движения (easing)",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/media-motion/lib/contract.cjs",
+        "stage3/sdk/design-graph.cjs"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 60,
+      "group": "Анимации, переходы, взаимодействия",
+      "requirement": "Настройка эффекта появления",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/media-motion/lib/contract.cjs",
+        "stage3/sdk/design-graph.cjs"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 64,
+      "group": "Анимации, переходы, взаимодействия",
+      "requirement": "Последовательности анимаций",
+      "engineeringStatus": "not_implemented",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/media-motion/lib/contract.cjs",
+        "stage3/sdk/design-graph.cjs"
+      ],
+      "nextCheck": "Design missing public interaction and add end-to-end visitor/Studio scenario"
+    },
+    {
+      "id": 67,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Действие при нажатии на кнопку",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 68,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Настройки ссылок",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 69,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Переход к секции страницы (якорь)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 71,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Меню и навигация",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 72,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Выпадающие меню",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 73,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Всплывающие окна (popup)",
+      "engineeringStatus": "not_implemented",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Design missing public interaction and add end-to-end visitor/Studio scenario"
+    },
+    {
+      "id": 74,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Вкладки (tabs)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 75,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Раскрывающиеся элементы (accordion)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 76,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Состав и порядок полей форм",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 77,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Настройки полей форм",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 78,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Обязательность и проверка полей",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 80,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Получатели и обработчики заявок",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 81,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Антиспам для форм",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 82,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Многошаговые формы",
+      "engineeringStatus": "not_implemented",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php"
+      ],
+      "nextCheck": "Design missing public interaction and add end-to-end visitor/Studio scenario"
+    },
+    {
+      "id": 83,
+      "group": "Кнопки, ссылки, формы",
+      "requirement": "Поведение после отправки формы",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/FlexForm.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 86,
+      "group": "Глобальные настройки и наследование",
+      "requirement": "Глобальные стили текста",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/contract.cjs",
+        "stage3/sdk/draft.cjs",
+        "stage3/studio/app.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 87,
+      "group": "Глобальные настройки и наследование",
+      "requirement": "Глобальные стили кнопок",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/contract.cjs",
+        "stage3/sdk/draft.cjs",
+        "stage3/studio/app.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 91,
+      "group": "Глобальные настройки и наследование",
+      "requirement": "Индивидуальные исключения",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/contract.cjs",
+        "stage3/sdk/draft.cjs",
+        "stage3/studio/app.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 93,
+      "group": "Глобальные настройки и наследование",
+      "requirement": "Просмотр элементов, использующих общий стиль",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/contract.cjs",
+        "stage3/sdk/draft.cjs",
+        "stage3/studio/app.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 96,
+      "group": "Глобальные настройки и наследование",
+      "requirement": "Наследование настроек ПК → планшет → телефон",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/contract.cjs",
+        "stage3/sdk/draft.cjs",
+        "stage3/studio/app.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 97,
+      "group": "Глобальные настройки и наследование",
+      "requirement": "Отмена и откат массовых изменений",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/contract.cjs",
+        "stage3/sdk/draft.cjs",
+        "stage3/studio/app.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 101,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Единые правила для ИИ",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 102,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Автоматическое описание каждого блока",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 103,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Показывать только реально используемые настройки",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 104,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Автоматическое добавление новых параметров",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 105,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Постоянные идентификаторы элементов",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 106,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Разделение контента, дизайна и поведения",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 107,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Автоматическое создание полей редактора",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 108,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Поддержка нестандартных компонентов",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 109,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Автоматическая регистрация адаптивных настроек",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 110,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Начальные значения из готового дизайна",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 111,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Сохранение твоих ручных изменений",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 112,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Обнаружение конфликтов при обновлении",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 113,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Проверка полноты настроек",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 114,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Проверка допустимых значений",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 115,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Изолированный предпросмотр блока",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 116,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Предварительная проверка перед публикацией",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 117,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "История изменений и восстановление",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PageHistory.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 118,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Работа сайта независимо от редактора",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/sdk/contract.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 119,
+      "group": "ИИ и CMS (включая №119)",
+      "requirement": "Автоматическая подготовка полной системы управления даже без готового дизайна",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/sdk/recipes.cjs",
+        "stage3/studio/composer.js",
+        "stage3/tests/hosted-browser.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 120,
+      "group": "Интерфейс админки",
+      "requirement": "Список всех страниц сайта",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/studio/app.js",
+        "stage3/studio/hosted.js",
+        "stage3/sdk/draft.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 123,
+      "group": "Интерфейс админки",
+      "requirement": "Отдельный редактор каждого блока",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/studio/app.js",
+        "stage3/studio/hosted.js",
+        "stage3/sdk/draft.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 124,
+      "group": "Интерфейс админки",
+      "requirement": "Панель настроек справа",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/studio/app.js",
+        "stage3/studio/hosted.js",
+        "stage3/sdk/draft.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 126,
+      "group": "Интерфейс админки",
+      "requirement": "Выбор элемента нажатием в предпросмотре",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/studio/app.js",
+        "stage3/studio/hosted.js",
+        "stage3/sdk/draft.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 127,
+      "group": "Интерфейс админки",
+      "requirement": "Дерево элементов блока",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/studio/app.js",
+        "stage3/studio/hosted.js",
+        "stage3/sdk/draft.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 130,
+      "group": "Интерфейс админки",
+      "requirement": "Переключение ПК / планшет / телефон",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/studio/app.js",
+        "stage3/studio/hosted.js",
+        "stage3/sdk/draft.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 131,
+      "group": "Интерфейс админки",
+      "requirement": "Изменение настроек в реальном времени",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/studio/app.js",
+        "stage3/studio/hosted.js",
+        "stage3/sdk/draft.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 133,
+      "group": "Интерфейс админки",
+      "requirement": "Отдельные кнопки «Сохранить» и «Опубликовать»",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/studio/app.js",
+        "stage3/studio/hosted.js",
+        "stage3/sdk/draft.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 134,
+      "group": "Интерфейс админки",
+      "requirement": "Быстрая отмена последнего действия",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/studio/app.js",
+        "stage3/studio/hosted.js",
+        "stage3/sdk/draft.cjs"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 140,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Изменение адреса страницы (URL / slug)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 141,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Выбор главной страницы сайта",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 142,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Включение и скрытие секций",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 143,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Изменение порядка секций",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 144,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Общие секции для нескольких страниц",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 145,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Управление повторяющимися элементами",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 147,
+      "group": "Страницы, контент и SEO",
+      "requirement": "SEO-заголовок страницы (Title)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 148,
+      "group": "Страницы, контент и SEO",
+      "requirement": "SEO-описание (Meta Description)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 149,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Настройки отображения в соцсетях",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 150,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Favicon и значки сайта",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 151,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Управление индексацией страниц",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 152,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Автоматические sitemap.xml и robots.txt",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 153,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Переадресации (301 Redirect)",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 154,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Семантические теги заголовков",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 155,
+      "group": "Страницы, контент и SEO",
+      "requirement": "Микроразметка Schema.org",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/server/LinkOperations.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 156,
+      "group": "Публикация, доступ и безопасность",
+      "requirement": "Вход в админку по логину и паролю",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/Api.php",
+        "stage3/server/SiteRepository.php",
+        "stage3/server/AccessControl.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 158,
+      "group": "Публикация, доступ и безопасность",
+      "requirement": "Несколько пользователей админки",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/Api.php",
+        "stage3/server/SiteRepository.php",
+        "stage3/server/AccessControl.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 161,
+      "group": "Публикация, доступ и безопасность",
+      "requirement": "Журнал действий пользователей",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/Api.php",
+        "stage3/server/SiteRepository.php",
+        "stage3/server/AccessControl.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 162,
+      "group": "Публикация, доступ и безопасность",
+      "requirement": "Статус публикации каждой страницы",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/Api.php",
+        "stage3/server/SiteRepository.php",
+        "stage3/server/AccessControl.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 166,
+      "group": "Публикация, доступ и безопасность",
+      "requirement": "Автоматические проверки перед публикацией",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/Api.php",
+        "stage3/server/SiteRepository.php",
+        "stage3/server/AccessControl.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 167,
+      "group": "Публикация, доступ и безопасность",
+      "requirement": "Защита от одновременного редактирования",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/Api.php",
+        "stage3/server/SiteRepository.php",
+        "stage3/server/AccessControl.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 169,
+      "group": "Публикация, доступ и безопасность",
+      "requirement": "Восстановление из резервной копии через админку",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/SiteArchives.php",
+        "stage3/studio/hosted.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 170,
+      "group": "Публикация, доступ и безопасность",
+      "requirement": "Полный откат опубликованного состояния",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/SiteRepository.php",
+        "stage3/studio/hosted.js"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 172,
+      "group": "Публикация, доступ и безопасность",
+      "requirement": "Режим технического обслуживания",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/SiteOperations.php",
+        "stage3/server/Api.php",
+        "stage3/studio/hosted.js",
+        "stage3/server/FormGateway.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 173,
+      "group": "Публикация, доступ и безопасность",
+      "requirement": "Журнал технических ошибок",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/SiteOperations.php",
+        "stage3/server/Api.php",
+        "stage3/studio/hosted.js"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 174,
+      "group": "Архитектура и производительность",
+      "requirement": "Отдельная установка CMS для каждого сайта",
+      "engineeringStatus": "owner_environment_gate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/server/bootstrap.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Requires separately authorized target/environment and owner acceptance evidence"
+    },
+    {
+      "id": 175,
+      "group": "Архитектура и производительность",
+      "requirement": "Независимые базы и настройки сайтов",
+      "engineeringStatus": "owner_environment_gate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/server/bootstrap.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Requires separately authorized target/environment and owner acceptance evidence"
+    },
+    {
+      "id": 176,
+      "group": "Архитектура и производительность",
+      "requirement": "Поддержка обычных HTML/CSS/JavaScript-сайтов",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/server/bootstrap.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 177,
+      "group": "Архитектура и производительность",
+      "requirement": "Поддержка PHP-сайтов",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/server/bootstrap.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 178,
+      "group": "Архитектура и производительность",
+      "requirement": "Поддержка React / Next.js и подобных сайтов",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/templates/next/lib/runtime.js",
+        "stage3/runtime-export/bin/ship.cjs"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 181,
+      "group": "Архитектура и производительность",
+      "requirement": "Работа на обычном виртуальном хостинге",
+      "engineeringStatus": "owner_environment_gate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/server/bootstrap.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Requires separately authorized target/environment and owner acceptance evidence"
+    },
+    {
+      "id": 183,
+      "group": "Архитектура и производительность",
+      "requirement": "Простая первоначальная установка",
+      "engineeringStatus": "owner_environment_gate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/server/bootstrap.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Requires separately authorized target/environment and owner acceptance evidence"
+    },
+    {
+      "id": 184,
+      "group": "Архитектура и производительность",
+      "requirement": "Независимое обновление движка CMS",
+      "engineeringStatus": "owner_environment_gate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/server/bootstrap.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Requires separately authorized target/environment and owner acceptance evidence"
+    },
+    {
+      "id": 185,
+      "group": "Архитектура и производительность",
+      "requirement": "Возможность откатить обновление CMS",
+      "engineeringStatus": "owner_environment_gate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/server/bootstrap.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Requires separately authorized target/environment and owner acceptance evidence"
+    },
+    {
+      "id": 186,
+      "group": "Архитектура и производительность",
+      "requirement": "Модульная загрузка функций редактора",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/server/bootstrap.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 187,
+      "group": "Архитектура и производительность",
+      "requirement": "Минимальное влияние CMS на скорость сайта",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/server/bootstrap.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 190,
+      "group": "Архитектура и производительность",
+      "requirement": "Независимость от конкретного ИИ",
+      "engineeringStatus": "implemented_candidate",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/server/bootstrap.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Confirm complete behavior in real owner workflow; code/CI is not acceptance"
+    },
+    {
+      "id": 191,
+      "group": "Архитектура и производительность",
+      "requirement": "Автоматическая проверка подключения сайта к CMS",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/server/SiteOperations.php",
+        "stage3/studio/hosted.js"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    },
+    {
+      "id": 193,
+      "group": "Архитектура и производительность",
+      "requirement": "Минимум зависимостей и небольшой размер системы",
+      "engineeringStatus": "partial",
+      "ownerAccepted": false,
+      "evidence": [
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/server/bootstrap.php",
+        "stage3/server/SiteRepository.php"
+      ],
+      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+    }
+  ]
+}

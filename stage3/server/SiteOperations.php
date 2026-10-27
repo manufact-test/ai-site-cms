@@ -29,10 +29,22 @@ trait SiteOperations
         if (PHP_SAPI!=='cli' || getenv('STAGE3_ALLOW_OPERATIONS_UPGRADE')!=='YES') {
             throw new RuntimeException('Operations schema upgrade requires explicit CLI opt-in');
         }
-        $this->db->query('SELECT site_id FROM stage3_drafts LIMIT 1');
-        foreach ($this->operationsSchema() as $statement) {
-            $this->db->exec(preg_replace('/^CREATE TABLE /','CREATE TABLE IF NOT EXISTS ',$statement));
+        $core=['stage3_users','stage3_drafts','stage3_revisions','stage3_publications',
+            'stage3_publication_history','stage3_media','stage3_submissions','stage3_notifications',
+            'stage3_section_templates','stage3_access_users','stage3_site_grants','stage3_audit'];
+        $optional=['stage3_site_licenses','stage3_video_uploads','stage3_video_chunks',
+            'stage3_delivery_settings','stage3_delivery_outbox','stage3_lead_workflow','stage3_lead_events',
+            'stage3_site_operations','stage3_site_incidents'];
+        $tables=$this->driver==='sqlite'
+            ?$this->db->query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")->fetchAll(PDO::FETCH_COLUMN)
+            :$this->db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+        if (array_diff($core,$tables)||array_diff($tables,[...$core,...$optional])) {
+            throw new RuntimeException('Operations upgrade requires the dedicated, access-upgraded Stage3 database');
         }
+        $hasState=in_array('stage3_site_operations',$tables,true);
+        $hasIncidents=in_array('stage3_site_incidents',$tables,true);
+        if ($hasState!==$hasIncidents) throw new RuntimeException('Partial operations schema requires manual investigation');
+        if (!$hasState) foreach ($this->operationsSchema() as $statement) $this->db->exec($statement);
     }
 
     public function operationsState(string $siteId): array

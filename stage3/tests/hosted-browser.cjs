@@ -524,6 +524,26 @@ async function execute(){
   await page.locator('#server-status').getByText(/Опубликовано: v1/).waitFor();
   assert.equal((await visitor.goto(origin+'/published/'+generatedId+'/offerings/')).status(),200);
   assert.match(await visitor.locator('main').innerText(),/Третья услуга/);
+  // One new Chromium vertical: owner toggles maintenance in real Studio,
+  // public page returns 503, rollback resumes same immutable publication.
+  await page.locator('#server-operations-open').click();
+  await page.locator('#server-operations-dialog[open]').waitFor();
+  assert.match(await page.locator('#server-operations-status').innerText(),/публикация: v1/);
+  await page.locator('#server-maintenance-enabled').check();
+  await page.locator('#server-maintenance-message').fill('Плановые работы');
+  page.once('dialog',d=>d.accept());
+  await page.locator('#server-operations-apply').click();
+  await page.locator('#server-operations-status').getByText('На обслуживании').waitFor();
+  const stopped=await visitor.goto(origin+'/published/'+generatedId+'/offerings/');
+  assert.equal(stopped.status(),503);
+  assert.match(await visitor.locator('body').innerText(),/Плановые работы/);
+  await page.locator('#server-maintenance-enabled').uncheck();
+  page.once('dialog',d=>d.accept());
+  await page.locator('#server-operations-apply').click();
+  await page.locator('#server-operations-status').getByText('Работает в обычном режиме').waitFor();
+  await page.locator('#server-operations-close').click();
+  assert.equal((await visitor.goto(origin+'/published/'+generatedId+'/offerings/')).status(),200);
+
   await page.reload();
   await page.locator('#server-site-select').selectOption(generatedId);
   await page.locator('#server-open').click();

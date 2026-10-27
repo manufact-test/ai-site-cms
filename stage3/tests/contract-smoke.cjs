@@ -1127,6 +1127,18 @@ test('fluid responsive typography stays typed and matches browser CSS',()=>{
   }
 });
 
+test('135 mandatory requirements keep evidence and honest owner acceptance',()=>{
+  const ledger=read('mandatory-coverage.json');
+  assert.equal(ledger.totalRequired,135);
+  assert.equal(ledger.requirements.length,135);
+  assert.equal(new Set(ledger.requirements.map(x=>x.id)).size,135);
+  assert.equal(ledger.requirements.filter(x=>x.ownerAccepted).length,0);
+  for(const item of ledger.requirements){
+    assert.ok(['implemented_candidate','partial','not_implemented','owner_environment_gate'].includes(item.engineeringStatus));
+    for(const file of item.evidence)assert.ok(fs.existsSync(path.resolve(root,'..',file)),file);
+  }
+});
+
 console.log('STAGE3 CONTRACT OFFLINE E2E PASS: '+checks+
   ' grouped flows; stable IDs, typed/filtered controls, responsive, asset binding,'+
   ' original design defaults, no-design brief, no-silent-overwrite and CLI. NO deploy.');
