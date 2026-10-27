@@ -1,0 +1,148 @@
+{
+  "format": "manufact-seo-blueprint-v1",
+  "version": 1,
+  "siteId": "site-industrial-demo",
+  "title": "Завод оборудования",
+  "language": "ru",
+  "region": "Регион уточняется",
+  "audience": "Представители предприятий, выбирающие технологическое оборудование",
+  "goal": "Объяснить направление работ и помочь посетителю обратиться по вопросу подбора",
+  "facts": [
+    {
+      "id": "fact-scope",
+      "claim": "В демонстрационном брифе описаны технологическое оборудование и консультация",
+      "status": "confirmed",
+      "origin": "owner"
+    }
+  ],
+  "research": [
+    {
+      "url": "https://developers.google.com/search/docs/fundamentals/seo-starter-guide",
+      "observation": "Страницы должны быть полезны, понятны и связаны логичными ссылками",
+      "kind": "primary-guidance"
+    }
+  ],
+  "pages": [
+    {
+      "id": "page-home",
+      "path": "/",
+      "name": "Главная",
+      "intent": {
+        "type": "commercial",
+        "need": "Понять специализацию и перейти к контакту",
+        "topics": [
+          "технологическое оборудование",
+          "производственные решения"
+        ]
+      },
+      "seo": {
+        "title": "Технологическое оборудование — направления и контакты",
+        "description": "Ознакомьтесь с направлением технологического оборудования и узнайте, как связаться с командой для обсуждения задачи.",
+        "robots": "index",
+        "ogTitle": "Технологическое оборудование — направления и контакты",
+        "ogDescription": "Ознакомьтесь с направлением технологического оборудования и узнайте, как связаться с командой для обсуждения задачи.",
+        "canonicalPath": "/"
+      },
+      "sections": [
+        {
+          "id": "section-hero",
+          "heading": "Производим технологическое оборудование",
+          "level": 1,
+          "why": "Сразу объяснить предмет предложения",
+          "points": [
+            "Кратко обозначить специализацию"
+          ],
+          "cta": {
+            "label": "Связаться",
+            "toPageId": "page-contact",
+            "purpose": "Перейти к способам связи"
+          }
+        },
+        {
+          "id": "section-highlights",
+          "heading": "Чем мы занимаемся",
+          "level": 2,
+          "why": "Показать типы запросов заказчиков",
+          "points": [
+            "Описать только подтверждённые направления"
+          ]
+        }
+      ],
+      "links": [
+        {
+          "toPageId": "page-contact",
+          "anchor": "Контакты и обращение",
+          "why": "Дать прямой путь к связи",
+          "toPath": "/contact/"
+        }
+      ],
+      "schemaCandidates": [
+        {
+          "type": "Organization",
+          "factIds": [
+            "fact-scope"
+          ],
+          "why": "Только после подтверждения юридических и контактных сведений",
+          "eligible": true
+        }
+      ],
+      "responsive": {
+        "desktop": "Крупная смысловая иерархия",
+        "tablet": "Сохранить порядок блоков при сжатии сетки",
+        "mobile": "Основной заголовок и переход к контакту не теряются"
+      }
+    },
+    {
+      "id": "page-contact",
+      "path": "/contact/",
+      "name": "Контакты",
+      "intent": {
+        "type": "navigational",
+        "need": "Найти способ связаться с командой",
+        "topics": [
+          "контакты",
+          "обращение"
+        ]
+      },
+      "seo": {
+        "title": "Контакты команды по технологическому оборудованию",
+        "description": "Перейдите к доступным способам связи по вопросам технологического оборудования и уточните условия непосредственно у команды.",
+        "robots": "index",
+        "ogTitle": "Контакты команды по технологическому оборудованию",
+        "ogDescription": "Перейдите к доступным способам связи по вопросам технологического оборудования и уточните условия непосредственно у команды.",
+        "canonicalPath": "/contact/"
+      },
+      "sections": [
+        {
+          "id": "section-contact",
+          "heading": "Свяжитесь с нами",
+          "level": 1,
+          "why": "Показать понятное действие связи без обещания работающей формы",
+          "points": [
+            "Проверить актуальность контактов и способ отправки заявки"
+          ]
+        }
+      ],
+      "links": [
+        {
+          "toPageId": "page-home",
+          "anchor": "Вернуться к направлениям",
+          "why": "Дать возможность изучить услуги",
+          "toPath": "/"
+        }
+      ],
+      "schemaCandidates": [],
+      "responsive": {
+        "desktop": "Контакты читаемы",
+        "tablet": "Контакты не скрыты",
+        "mobile": "Ссылки удобны для касания"
+      }
+    }
+  ],
+  "unresolved": [],
+  "notes": [
+    "Topics are editorial hypotheses; no search volumes or rankings have been measured.",
+    "Canonical paths are proposals, not a promise that the current publisher can configure them.",
+    "Three static prototype images and the full design specification are owned by the lead developer."
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "format": "manufact-seo-html-snapshot-v1",
+  "siteId": "site-bad-example",
+  "pages": [
+    {
+      "id": "page-guide",
+      "path": "/",
+      "html": "<!doctype html><html><head><meta name=\"robots\" content=\"noindex\"></head><body><main><h2>Раздел</h2><h4>Детали</h4><a href=\"/missing/\">Подробнее</a><img src=\"/photo.jpg\"></main></body></html>"
+    },
+    {
+      "id": "page-help",
+      "path": "/help/",
+      "html": "<html><head><title>Помощь</title></head><body><h1>Помощь</h1><a href=\"/\">Главная</a></body></html>"
+    }
+  ],
+  "sitemapPaths": [
+    "/"
+  ],
+  "robotsTxt": "User-agent: *\nAllow: /\n"
+}

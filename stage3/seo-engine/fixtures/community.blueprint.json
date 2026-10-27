@@ -1,0 +1,160 @@
+{
+  "format": "manufact-seo-blueprint-v1",
+  "version": 1,
+  "siteId": "site-neighborhood-guide",
+  "title": "Городской справочник",
+  "language": "ru",
+  "region": "Условный город (образец, не реальный объект)",
+  "audience": "Жители, ищущие информацию о доступных городских занятиях",
+  "goal": "Помочь выбрать раздел справочника и узнать порядок участия без вымышленных событий",
+  "facts": [
+    {
+      "id": "fact-calendar",
+      "claim": "Даты и организаторы событий пока не предоставлены",
+      "status": "unverified",
+      "origin": "owner"
+    }
+  ],
+  "research": [
+    {
+      "url": "https://www.w3.org/WAI/WCAG22/Understanding/",
+      "observation": "Иерархия и названия ссылок должны помогать навигации",
+      "kind": "primary-guidance"
+    }
+  ],
+  "pages": [
+    {
+      "id": "page-guide",
+      "path": "/",
+      "name": "Справочник",
+      "intent": {
+        "type": "informational",
+        "need": "Понять, где найти информацию о занятиях",
+        "topics": [
+          "категории занятий",
+          "городские активности"
+        ]
+      },
+      "seo": {
+        "title": "Городской справочник занятий — основные категории",
+        "description": "Навигация по тематическим категориям городских занятий. Перед посещением уточняйте даты, условия участия и контакты организаторов.",
+        "robots": "index",
+        "ogTitle": "Городской справочник занятий — основные категории",
+        "ogDescription": "Навигация по тематическим категориям городских занятий. Перед посещением уточняйте даты, условия участия и контакты организаторов.",
+        "canonicalPath": "/"
+      },
+      "sections": [
+        {
+          "id": "section-guide-intro",
+          "heading": "Как найти подходящее занятие",
+          "level": 1,
+          "why": "Помочь выбрать категорию",
+          "points": [
+            "Объяснить способ поиска"
+          ],
+          "media": {
+            "purpose": "decorative",
+            "alt": "",
+            "why": "Нейтральное оформление без содержательного смысла"
+          }
+        },
+        {
+          "id": "section-guide-categories",
+          "heading": "Категории занятий",
+          "level": 2,
+          "why": "Сгруппировать направления",
+          "points": [
+            "Не публиковать непроверенные расписания"
+          ],
+          "cta": {
+            "label": "Как пользоваться",
+            "toPageId": "page-help",
+            "purpose": "Перейти к инструкции"
+          }
+        }
+      ],
+      "links": [
+        {
+          "toPageId": "page-help",
+          "anchor": "Инструкция по справочнику",
+          "why": "Объяснить поиск",
+          "toPath": "/help/"
+        }
+      ],
+      "schemaCandidates": [
+        {
+          "type": "Organization",
+          "factIds": [
+            "fact-calendar"
+          ],
+          "why": "Не публиковать до подтверждения фактов",
+          "eligible": false
+        }
+      ],
+      "responsive": {
+        "desktop": "Секции идут по смыслу",
+        "tablet": "Категории хорошо читаемы",
+        "mobile": "Категории остаются доступными клавиатурой и касанием"
+      }
+    },
+    {
+      "id": "page-help",
+      "path": "/help/",
+      "name": "Помощь",
+      "intent": {
+        "type": "support",
+        "need": "Понять, как пользоваться справочником",
+        "topics": [
+          "поиск занятий",
+          "проверка актуальности"
+        ]
+      },
+      "seo": {
+        "title": "Как пользоваться городским справочником занятий",
+        "description": "Узнайте, как выбрать категорию занятий, проверить актуальность информации и уточнить детали участия у организатора.",
+        "robots": "index",
+        "ogTitle": "Как пользоваться городским справочником занятий",
+        "ogDescription": "Узнайте, как выбрать категорию занятий, проверить актуальность информации и уточнить детали участия у организатора.",
+        "canonicalPath": "/help/"
+      },
+      "sections": [
+        {
+          "id": "section-help",
+          "heading": "Как пользоваться справочником",
+          "level": 1,
+          "why": "Простая инструкция без придуманных функций",
+          "points": [
+            "Пояснить способ перехода по разделам"
+          ]
+        }
+      ],
+      "links": [
+        {
+          "toPageId": "page-guide",
+          "anchor": "Список направлений",
+          "why": "Вернуться к выбору",
+          "toPath": "/"
+        }
+      ],
+      "schemaCandidates": [],
+      "responsive": {
+        "desktop": "Читаемый текст",
+        "tablet": "Та же последовательность",
+        "mobile": "Без потери информации"
+      }
+    }
+  ],
+  "unresolved": [
+    {
+      "pageId": "page-guide",
+      "kind": "schema-evidence",
+      "factId": "fact-calendar",
+      "message": "Do not publish structured data relying on unverified claim"
+    }
+  ],
+  "notes": [
+    "Topics are editorial hypotheses; no search volumes or rankings have been measured.",
+    "Canonical paths are proposals, not a promise that the current publisher can configure them.",
+    "Three static prototype images and the full design specification are owned by the lead developer."
+  ]
+}

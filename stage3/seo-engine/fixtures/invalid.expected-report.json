@@ -1,0 +1,10 @@
+{
+  "format": "manufact-seo-expected-codes-v1",
+  "requiredCodes": [
+    "html:missing-title",
+    "html:missing-alt-attribute",
+    "html:broken-link",
+    "html:noindex-sitemap",
+    "html:heading-skip"
+  ]
+}
