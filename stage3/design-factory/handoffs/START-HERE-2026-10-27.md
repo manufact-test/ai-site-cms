@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-27. **Repo:** https://github.com/manufact-test/ai-site-cms  
 **Independent branch:** `feature/stage3-design-factory`  
-**Latest verified functional commit:** `28fb2d5fe99fb49591edd484fa386606cd265689` (RU/EN client reviews, editable notes and unsaved-edit safety; documentation commit follows).  
+**Latest verified functional commit:** `0c8c0247fe0233f0ae7832cb3b64aa804d1fc658` (services workflow + browser smoke; documentation commit follows).  
 **Scope:** only `stage3/design-factory/**` (do not modify main, lead SDK/PHP/server, CI workflows, hosting, production or other contributors' branches). Do not merge or publish. Check actual remote HEAD first; documentation-only handoff commits follow the functional SHA.
 
 
@@ -11,6 +11,8 @@
 > **Product correction update, 2026-10-27:** Three committed D7-facing fixes: verified contact facts now reach the HTML contact panel without a self-link; rejected screenshot/composition verdicts cannot yield a ready human-approval receipt; all 12 themes use their CMS font stack in HTML previews. See `PROGRESS.md` for the three exact SHAs. Generated Studio runtime was source-parity checked using current GitHub source, but **no real Node checkout audit, Chromium full E2E, human signoff, PHP probes or release ZIP was executed**. D7 OPEN, Stage3 UNACCEPTED, 0/135.
 
 > **Client review update, 2026-10-27:** RU/EN `review.html` generated per Studio project locale; notes can be edited (page/type/content), reopened on change, and exported only after saving or cancelling active edits. Real first-party compiler + 8-file ZIP CRC32 worked for RU and EN in isolated JS, as did a mocked-DOM feedback edit/download. Actual Chromium/Node/PHP/D7 release evidence **NOT RUN**. See `studio/README.md` and `PROGRESS.md`.
+
+> **Service editor update, 2026-10-27:** `31dc193` adds service reorder, draft duplication and paste-many with owner gate and Undo/Redo; `0c8c024` extends the existing browser scenario and removes an obsolete CSS assertion. 15 isolated real-source Studio/export checks PASS. **Actual Node/Chromium D7 not run**. Details: `PROGRESS.md`, `studio/README.md`.
 
 ## First rule for this chat
 

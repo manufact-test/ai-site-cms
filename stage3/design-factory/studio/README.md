@@ -1,5 +1,17 @@
 # Design Factory Browser Studio · D5
 
+## 27 October — Service editor / multi-row workbench
+
+## 2026-10-27 — Service workbench: bulk import, safe duplication and ordered CMS export
+
+**Functional commits:** `31dc193144bae14083fca86072655ca85a4a62f3` (Studio service management + previous RU/EN portal smoke assertion update), `0c8c0247fe0233f0ae7832cb3b64aa804d1fc658` (existing Chromium smoke expanded to cover service editing and stale CSS selector updated). Both strictly under `stage3/design-factory/` on `feature/stage3-design-factory`.
+
+**User functionality:** Existing Studio inspector section 02 now offers Up/Down (44px keyboard/touch buttons) to reorder real service rows, duplicate-as-draft (copies title/description but prefixes the copied title `Пример (подтвердить):` / `Example (verify):` so the owner checklist blocks accidental duplicate approval), and bulk insertion of one service per line. Bulk accepts `Title | Description`, tab-separated `Title<TAB>Description`, or `Title` alone; the latter receives a conspicuous unverified description placeholder. Input limits: max 12 total/at once, 120 chars title, 320 description, 5500 chars pasted source. Invalid input or overflowing batch fails atomically, preserving the textarea for correction. All changes go through existing `apply()`/Undo/Redo and revoke previous owner sign-off. This modifies no CMS schema or SDK/PHP code.
+
+**Executed focused verification, NOT full D7:** Actual current GitHub Studio JS + committed first-party browser runtime, feedback module and ZIP packer were loaded together into an isolated DOM evaluator. **15 checks passed**: bootstrap, paste two services, real project export, move, Undo, Redo, duplicate draft, ready-for-publish remains blocked, delete copied row, atomic invalid batch, retain rejected input, append with placeholder, 4-page CMS JSON export, correct CMS service ordering, verified offline 8-file ZIP CRC. Direct parser tests covered RU/EN source, >120 title, 13-row overflow and empty input. Changed app and existing smoke test source parsed; existing smoke's optional real-Chromium scenario was extended with 10 actions and its embedded script was syntax-checked. **Chromium has not executed**, nor full Node suite, 54 real PNG/64 routes, human reviews, six genuine PHP parity probes or full release ZIP.
+
+**Status unchanged:** D1–D6 engineered, **D7 OPEN**, Stage2 NO-GO, Stage3 UNACCEPTED, 0/135 formally accepted, 6/7 ≈86% phase-based. Main developer handles integration after independently verified acceptance. No merge/PR, main, Lead branch, external CMS, workflows, hosting or production writes.
+
 ## 27 October — RU/EN customer reviews, edit existing comments, protect unsaved work
 
 ## 2026-10-27 — bilingual client acceptance workflow and editable feedback
