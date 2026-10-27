@@ -528,7 +528,7 @@ async function execute(){
   // public page returns 503, rollback resumes same immutable publication.
   await page.locator('#server-operations-open').click();
   await page.locator('#server-operations-dialog[open]').waitFor();
-  assert.match(await page.locator('#server-operations-status').innerText(),/публикация: v1/);
+  await page.locator('#server-operations-status').getByText(/публикация: v1/).waitFor();
   await page.locator('#server-maintenance-enabled').check();
   await page.locator('#server-maintenance-message').fill('Плановые работы');
   page.once('dialog',d=>d.accept());
