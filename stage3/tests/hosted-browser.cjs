@@ -1071,7 +1071,7 @@ async function execute(){
   await page.locator('#server-cross-dialog[open]').waitFor();
   await page.locator('#server-cross-source').selectOption(siteId);
   const sourceGraphOption=graphSourcePageId+'|'+graphSectionId;
-  await page.locator('#server-cross-section option[value="'+sourceGraphOption+'"]').waitFor();
+  await page.locator('#server-cross-section option[value="'+sourceGraphOption+'"]').waitFor({state:'attached'});
   await page.locator('#server-cross-section').selectOption(sourceGraphOption);
   await page.locator('#server-cross-target').selectOption('page-home');
   await page.locator('#server-cross-plan').click();
