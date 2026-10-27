@@ -1265,6 +1265,15 @@ async function execute(){
           'content.answer':'Уточните условия непосредственно у исполнителя.'}
       }))
     };
+    const image=window.Stage3Editor.manifests().find(x=>x.id==='image-showcase');
+    site.pages[0].sections.push({
+      id:'section-approved-image',component:image.id,manifestVersion:image.version,
+      elements:image.elements.map((el,i)=>({
+        id:'element-approved-image-'+i,slot:el.slot,
+        values:{...fromFields(el.fields),...(el.slot==='photo'
+          ?{'content.media':'asset-external-hero'}:{})}
+      }))
+    });
     site.pages[0].sections.push(section);
     return site;
   });
@@ -1336,6 +1345,12 @@ async function execute(){
   assert.deepEqual(await visitor.locator('section.faq summary').allInnerTexts(),
     ['Как оформить заказ?','Что входит в комплект?']);
   assert.equal(await visitor.locator('section.faq details').count(),2);
+  const remoteImage=visitor.locator('section.showcase img.showcase-photo');
+  assert.equal(await remoteImage.getAttribute('alt'),'Фото внешнего сайта');
+  assert.match(await remoteImage.getAttribute('src'),
+    /^\/published\/site-approved-browser\/assets\/asset-[a-f0-9]+\.png$/);
+  assert.equal((await page.request.get(origin+await remoteImage.getAttribute('src'))).status(),200,
+    'Public image bytes must come from site-isolated storage, not the local handoff folder');
   // Absolute og:image markup needs STAGE3_PUBLIC_ORIGIN, intentionally unset in this CI.
   // Check that its immutable media binding survives the actual publication instead.
   const publishedApproved=(await (await page.request.get(origin+
