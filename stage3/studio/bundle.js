@@ -4817,7 +4817,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const dlg=document.createElement('dialog');dlg.id='cms-content-workbench';
     dlg.className='cms-settings-dialog cms-content-workbench';
     const h=document.createElement('h2');h.textContent='Тексты всех страниц';
-    const info=document.createElement('p');info.textContent='Поиск по заголовкам, текстам блоков, карточкам, SEO и подписям форм. Ссылки, варианты списков, служебные ID и скрытые значения Design Graph не изменяются. Сначала просмотрите замены, затем примените к черновику. Сохранение и публикация отдельно.';
+    const info=document.createElement('p');info.textContent='Поиск по заголовкам, текстам блоков, карточкам, SEO и подписям форм. Видимые заголовки, тексты и кнопки Design Graph редактируются наряду с полями компонентов. Ссылки, медиа, ID и скрытые поля не изменяются. Сначала просмотрите замены, затем примените к черновику. Сохранение и публикация отдельно.';
     const filters=document.createElement('div');filters.className='cms-content-filters';
     const q=document.createElement('input');q.id='cms-content-search';q.className='control';q.type='search';q.maxLength=120;q.placeholder='Найти текст';
     const value=document.createElement('input');value.id='cms-content-replace';value.className='control';value.maxLength=4000;value.placeholder='Заменить на…';
@@ -4844,7 +4844,18 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           add(page,'seo',null,key,page.seo?.[key],'SEO · '+key);
         add(page,'navigation',null,'label',page.navigation?.label,'Меню · название');
         for(const section of page.sections){
-          if(section.designGraph)continue; // Rendered content is owned by the graph.
+          if(section.designGraph){
+            const walk=nodes=>{
+              for(const node of nodes){
+                if(['heading','text','button'].includes(node.type))
+                  add(page,'graph',null,'text',node.text,
+                    'Дизайн-композиция · '+node.type+' · '+node.id,section,{id:node.id});
+                if(node.children)walk(node.children);
+              }
+            };
+            walk(section.designGraph.nodes);
+            continue; // Legacy component fields are not visible behind Design Graph.
+          }
           const m=manifest(section);if(!m)continue;
           for(const element of [...section.elements,...(section.items||[])]){
             const spec=element.slot?m.elements.find(x=>x.slot===element.slot):m.repeat;
@@ -4867,6 +4878,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       dlg.close();draw();
       if(preview){$('cms-open-page-preview').click();return;}
       if(entry.kind==='form'){$('cms-form-builder-open')?.click();return;}
+      if(entry.kind==='graph'){
+        pendingGraphCanvasFocus={pageId:page.id,sectionId:sec.id,
+          nodeId:entry.elementId,device:'desktop'};
+        $('section-design-graph')?.click();return;
+      }
       const field=[...$('fields').querySelectorAll('[data-field]')].find(x=>x.dataset.field===entry.key);
       if(entry.kind==='field'&&field){field.focus();field.scrollIntoView({block:'nearest'});}
     }
@@ -4913,9 +4929,24 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             e.kind==='navigation'?page.navigation:null;
           if(!target){
             const sec=page.sections.find(x=>x.id===e.sectionId);
-            if(!sec||sec.designGraph)throw Error('Блок изменился');
-            target=e.kind==='form'?sec.formFields?.find(x=>x.id===e.formId):
-              [...sec.elements,...(sec.items||[])].find(x=>x.id===e.elementId)?.values;
+            if(!sec)throw Error('Блок удалён или изменился');
+            if(e.kind==='graph'){
+              if(!sec.designGraph)throw Error('Дизайн-композиция больше не отображается');
+              const find=nodes=>{
+                for(const node of nodes){
+                  if(node.id===e.elementId)return node;
+                  if(node.children){const child=find(node.children);if(child)return child;}
+                }
+                return null;
+              };
+              target=find(sec.designGraph.nodes);
+              if(!target||!['heading','text','button'].includes(target.type))
+                throw Error('Элемент композиции больше не существует');
+            }else{
+              if(sec.designGraph)throw Error('Показан другой источник содержимого');
+              target=e.kind==='form'?sec.formFields?.find(x=>x.id===e.formId):
+                [...sec.elements,...(sec.items||[])].find(x=>x.id===e.elementId)?.values;
+            }
           }
           if(!target||target[e.key]!==e.text)throw Error('Поле изменилось; повторите поиск');
           target[e.key]=e.after;
