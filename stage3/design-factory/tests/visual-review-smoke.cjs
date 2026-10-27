@@ -108,6 +108,8 @@ try{
  assert.equal(receipt.screenshotsVerified,54);
  assert.equal(receipt.compositionsVerified,42);
  assert.equal(receipt.compositionsApproved,42);
+ assert.equal(receipt.generatedSourceFilesVerified,164);
+ assert.equal(receipt.offlineRoutesVerified,64);
  assert.equal(receipt.leadAcceptance,'pending');
  assert.equal(receipt.humanAttestationRecorded,true);
  const output=reviewHtml(report);

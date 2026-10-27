@@ -157,6 +157,7 @@ function verify(directory,review){
   format:'manufact-design-factory-visual-review-verification-v2',
   fullMatrix:true,screenshotsVerified:54,screenshotsApproved:54,
   compositionsVerified:42,compositionsApproved:42,
+  generatedSourceFilesVerified:164,offlineRoutesVerified:64,
   evidenceSha256:report.evidenceSha256,
   reviewer:review.reviewer.trim(),reviewedAt:review.reviewedAt,
   humanAttestationRecorded:true,leadAcceptance:'pending',

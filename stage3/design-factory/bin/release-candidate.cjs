@@ -27,6 +27,7 @@ function readyForLeadReview(result){
  ].every(key=>g[key]===true)&&
   result.visualCapture.status==='pass'&&result.visualReview.status==='pass'&&
   result.visualReview.screenshots===54&&result.visualReview.compositions===42&&
+  result.visualReview.generatedSourceFiles===164&&result.visualReview.offlineRoutes===64&&
   result.leadInputs.status==='stable'&&result.leadInputs.stable===true&&
   result.leadGraph.status==='pass'&&result.leadPhpParity.status==='pass'&&
   result.zip.status==='pass'&&result.git.stable===true&&
@@ -199,6 +200,8 @@ function execute(opts){
     const receipt=verifyVisual(path.resolve(opts.evidence),review);
     result.visualReview={status:'pass',screenshots:receipt.screenshotsVerified,
      compositions:receipt.compositionsVerified,compositionReviewSchema:'v3',
+     generatedSourceFiles:receipt.generatedSourceFilesVerified,
+     offlineRoutes:receipt.offlineRoutesVerified,
      evidenceSha256:receipt.evidenceSha256,receiptSha256:sha(fs.readFileSync(path.resolve(opts.review))),
      reviewer:receipt.reviewer,reviewedAt:receipt.reviewedAt,
      attestation:receipt.humanAttestationRecorded,leadAcceptance:'pending'};
