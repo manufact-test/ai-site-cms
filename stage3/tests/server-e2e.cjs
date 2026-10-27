@@ -680,6 +680,10 @@ async function stop(){
   for(const route of [endpoint,endpoint+'/media/'+asset.id,'/api/users','/api/audit','/api/licenses','/api/sites/'+target+'/backup','/api/sites/'+target+'/delivery']){
     assert.equal((await request('GET',route)).status,403,'Scoped editor denial: '+route);
   }
+  // Private lead workflows cannot be read or mutated via an ungranted site.
+  assert.equal((await request('GET',endpoint+'/submissions/'+leadWorkflowId+'/history')).status,403);
+  assert.equal((await request('POST',workflowRoute,{
+    status:'reviewed',priority:'high',note:'not allowed',expectedWorkflowRevision:2})).status,403);
   assert.equal((await request('POST','/api/sites/'+target+'/publish',{expectedRevision:sourceRevision+1})).status,403);
   const editable=(await request('GET','/api/sites/'+target)).body;
   assert.equal((await request('POST','/api/sites/'+target+'/save',{site:editable.site,expectedRevision:editable.revision})).status,200);
@@ -702,6 +706,11 @@ async function stop(){
   await asUser('labviewer',staffPassword);
   assert.equal((await request('GET','/api/sites/'+target)).status,200);
   assert.equal((await request('GET','/api/sites/'+target+'/submissions')).status,403,'Viewer cannot read contact data');
+  assert.equal((await request('GET','/api/sites/'+target+'/submissions/'+leadWorkflowId+'/history')).status,403,
+    'Viewer cannot read private lead event history');
+  assert.equal((await request('POST','/api/sites/'+target+'/submissions/'+leadWorkflowId+'/workflow',{
+    status:'new',priority:'normal',note:'viewer forbidden',expectedWorkflowRevision:2})).status,403,
+    'Viewer cannot write operator notes');
   assert.equal((await request('POST','/api/sites/'+target+'/save',{site:editable.site,expectedRevision:editable.revision+1})).status,403);
   cookie=ownerCookie;csrf=ownerCsrf;
   const auditLog=await request('GET','/api/audit');
