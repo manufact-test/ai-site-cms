@@ -191,7 +191,9 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
         own(node,'assetId')||own(node,'alt')||own(node,'icon')||own(node,'posterAssetId')||own(node,'loop'))fail(node.id,'invalid text');
       if(['button','link'].includes(node.type)&&
         (typeof node.href!=='string'||node.href.length>300||
-         !SAFE_URL.test(node.href)&&!/^https:\/\/[a-z0-9.-]+(?:\/[^\s"'<>\\]*)?$/i.test(node.href)))
+         !SAFE_URL.test(node.href)&&!/^https:\/\/[a-z0-9.-]+(?:\/[^\s"'<>\\]*)?$/i.test(node.href)&&
+         !/^mailto:[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,63}$/i.test(node.href)&&
+         !/^tel:\+[1-9][0-9]{6,14}$/.test(node.href)))
         fail(node.id,'unsafe link');
       if(!['button','link'].includes(node.type)&&own(node,'href'))fail(node.id,'unexpected link');
       if(node.type==='heading'&&(!number(node.level||2,1,6)))fail(node.id,'heading level');

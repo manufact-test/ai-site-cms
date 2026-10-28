@@ -245,7 +245,9 @@ final class DesignGraph
                     $href=$node['href']??null;
                     self::check(is_string($href)&&strlen($href)<=300
                         &&(preg_match('~^/(?!/)[a-zA-Z0-9/_#?=&.%-]*$~D',$href)===1
-                            ||preg_match('~^https://[a-z0-9.-]+(?:/[^\s"\'<>\\\\]*)?$~iD',$href)===1),
+                            ||preg_match('~^https://[a-z0-9.-]+(?:/[^\s"\'<>\\\\]*)?$~iD',$href)===1
+                            ||preg_match('~^mailto:[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,63}$~iD',$href)===1
+                            ||preg_match('~^tel:\+[1-9][0-9]{6,14}$~D',$href)===1),
                         'unsafe button link');
                 } else self::check(!isset($node['href']),'unexpected link');
                 if ($type==='heading')self::check(self::integer($node['level']??2,1,6),'heading level');
