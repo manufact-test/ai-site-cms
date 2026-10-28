@@ -114,3 +114,9 @@ The sample origin and transcript are synthetic; replace with owner-approved and 
 - Integrated into `review-bundle`; `release-review --acceptance ...` adds blockers for rejected or stale human attestations and displays claimed gate status while preserving `readyToPublish:false`.
 - Expanded the single `tests/smoke.cjs` to cover full ledger, stale site revision, rejected check, incomplete attestation, current/historical backlog and closure candidates. **Actual Node subprocess smoke was not run** without a full checkout; run on Node 20+ before integrating.
 - Write boundary remains `stage3/seo-engine/**`; no main/SDK/Studio/renderer edits, merge or deploy.
+
+## One-file review dossier for first real site
+
+`lib/lead-dossier.cjs` generates `review-bundle.leadDossier` with prioritized release issues, owner-specific actions, prototype/client approval ledger status, Site v1 revision risk, unresolved task comparison and hypothetical CMS impact. The report is read-only and never implies authenticated acceptance, deployed fixes or permission to release.
+
+`review-bundle-md --site <site.json> --blueprint <plan.json> [--acceptance <ledger.json>] [--decisions <decisions.json>] [--before <site-before.json>]` renders the full portable Markdown handoff. It starts with the lead summary then retains remediation, exact page/section mapping, execution and guarded CMS field proposals.

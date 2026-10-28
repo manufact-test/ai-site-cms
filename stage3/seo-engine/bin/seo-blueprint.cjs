@@ -129,7 +129,7 @@ function main(argv){
   const before=read('before'),site=read('site'),blueprint=read('blueprint'),registry=manifests();
   out=REGRESSION.compare(before,site,registry,blueprint);
  }
- else if(['remediation-plan','remediation-md','release-review','review-bundle','triage','execution-plan','execution-plan-md','cms-change-packet','cms-change-packet-md'].includes(command)){
+ else if(['remediation-plan','remediation-md','release-review','review-bundle','review-bundle-md','triage','execution-plan','execution-plan-md','cms-change-packet','cms-change-packet-md'].includes(command)){
   const site=read('site'),blueprint=read('blueprint'),registry=manifests();
   const options={};
   if(flags.snapshot)options.snapshot=read('snapshot');
@@ -137,9 +137,9 @@ function main(argv){
   if(flags.before)options.baselineSite=read('before');
   if(flags.delivery)options.delivery=read('delivery');
   if(flags.media)options.media=read('media');
-  if(command==='review-bundle'&&flags.decisions)options.decisions=read('decisions');
-  if(command==='review-bundle'&&flags['prior-decisions'])options.priorDecisions=read('prior-decisions');
-  if(['review-bundle','release-review'].includes(command)&&flags.acceptance)options.acceptance=read('acceptance');
+  if(['review-bundle','review-bundle-md'].includes(command)&&flags.decisions)options.decisions=read('decisions');
+  if(['review-bundle','review-bundle-md'].includes(command)&&flags['prior-decisions'])options.priorDecisions=read('prior-decisions');
+  if(['review-bundle','review-bundle-md','release-review'].includes(command)&&flags.acceptance)options.acceptance=read('acceptance');
   if(command==='cms-change-packet'||command==='cms-change-packet-md'){
    const backlog=remediation(site,registry,blueprint,options);
    const decisions=flags.decisions?TRIAGE.reconcile(backlog,read('decisions')):null;
@@ -160,11 +160,12 @@ function main(argv){
    const backlog=remediation(site,registry,blueprint,options);
    out=markdownReport(backlog,reviewRelease(site,registry,blueprint,options,backlog));
   }
-  else out=PACKAGE.build(site,registry,blueprint,options);
+  else {const bundle=PACKAGE.build(site,registry,blueprint,options);
+   out=command==='review-bundle-md'?bundle.markdownHandoff:bundle;}
  }
  else if(command==='analyze-html')out=snapshotAudit(read('snapshot'));
  else if(command==='handoff')out=propose(read('site'),manifests(),read('blueprint'));
- else throw Error('Commands: change-impact --site file --blueprint file --decisions file [--snapshot file] | acceptance-template --site file --blueprint file | acceptance-review --site file --blueprint file --acceptance file | task-progress --before file --site file --blueprint file [--prior-decisions file] | compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | deep-html --snapshot file [--blueprint file] | viewport-parity --viewports file --blueprint file | traceability --site file --blueprint file [--snapshot file] [--viewports file] | traceability-md --site file --blueprint file [--snapshot file] [--viewports file] | compare-site --before file --site file --blueprint file | html-parity --site file --blueprint file --snapshot file | evidence-consistency --site file [--snapshot file] [--delivery file] [--media file] | capture-plan --site file --blueprint file [--origin https://host/mount/] | media-review --site file --media file [--snapshot file] | delivery-review --site file --delivery file [--blueprint file] | publication-integrity --site file --snapshot file [--blueprint file] | cms-change-packet[/-md] --site file --blueprint file [--decisions file] | execution-plan[/-md] --site file --blueprint file [--decisions file] [--delivery file] | review-bundle --site file --blueprint file [--snapshot file] [--viewports file] [--before file] [--delivery file] [--decisions file] | remediation-plan --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-md --site file --blueprint file [--snapshot file] [--viewports file] | release-review --site file --blueprint file [--snapshot file] [--viewports file] | triage --site file --blueprint file --decisions file [--snapshot file] | handoff --site file --blueprint file [--manifests dir]');
+ else throw Error('Commands: review-bundle-md --site file --blueprint file [--acceptance file] [--decisions file] | change-impact --site file --blueprint file --decisions file [--snapshot file] | acceptance-template --site file --blueprint file | acceptance-review --site file --blueprint file --acceptance file | task-progress --before file --site file --blueprint file [--prior-decisions file] | compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | deep-html --snapshot file [--blueprint file] | viewport-parity --viewports file --blueprint file | traceability --site file --blueprint file [--snapshot file] [--viewports file] | traceability-md --site file --blueprint file [--snapshot file] [--viewports file] | compare-site --before file --site file --blueprint file | html-parity --site file --blueprint file --snapshot file | evidence-consistency --site file [--snapshot file] [--delivery file] [--media file] | capture-plan --site file --blueprint file [--origin https://host/mount/] | media-review --site file --media file [--snapshot file] | delivery-review --site file --delivery file [--blueprint file] | publication-integrity --site file --snapshot file [--blueprint file] | cms-change-packet[/-md] --site file --blueprint file [--decisions file] | execution-plan[/-md] --site file --blueprint file [--decisions file] [--delivery file] | review-bundle --site file --blueprint file [--snapshot file] [--viewports file] [--before file] [--delivery file] [--decisions file] | remediation-plan --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-md --site file --blueprint file [--snapshot file] [--viewports file] | release-review --site file --blueprint file [--snapshot file] [--viewports file] | triage --site file --blueprint file --decisions file [--snapshot file] | handoff --site file --blueprint file [--manifests dir]');
  process.stdout.write(typeof out==='string'?out+'\n':JSON.stringify(out,null,2)+'\n');
 }
 try{main(process.argv.slice(2));}catch(e){process.stderr.write('SEO Engine: '+e.message+'\n');process.exitCode=1;}

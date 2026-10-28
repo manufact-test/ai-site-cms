@@ -539,6 +539,11 @@ try{
  const integrationApproved=JSON.parse(good('review-bundle',{
   site,blueprint:bp,snapshot:htmlSite,acceptance:approvalPath,before:site}));
  assert.equal(integrationApproved.acceptanceReview.summary.allSuppliedAssertionsComplete,true);
+ assert.equal(integrationApproved.leadDossier.summary.historicalProvenFixes,0);
+ assert.equal(integrationApproved.leadDossier.summary.approvedPrototypeAssertion,true);
+ assert.equal(integrationApproved.leadDossier.summary.actualCmsWrites,0);
+ assert.match(integrationApproved.markdownHandoff,/SEO release handoff — lead overview/);
+ assert.match(good('review-bundle-md',{site,blueprint:bp,acceptance:approvalPath}),/Required handoff sequence/);
  assert.equal(integrationApproved.taskProgress.summary.noLongerPresent,0);
  assert.equal(integrationApproved.coverage.prototypeApprovalLedgerProvided,true);
  const sameRevisionProgress=JSON.parse(good('task-progress',{before:site,site,blueprint:bp}));

@@ -43,7 +43,9 @@ The execution plan separates **approved-for-manual-work** from **completed** (ne
 
 The Markdown handoff also appends a human-readable CMS change packet with exact field preconditions and blocked/pending reasons. Combined HTTP and media evidence with conflicting public origins produces a release blocker until the lead resolves the discrepancy.
 
-The `review-bundle.markdownHandoff` keeps its original remediation report at the top and appends the per-page implementation/acceptance map. No separate document needs to be assembled by the lead.
+The `review-bundle.markdownHandoff` begins with a concise release overview and retains the original complete remediation report and appends the per-page implementation/acceptance map. No separate document needs to be assembled by the lead.
+
+`review-bundle-md --site <site.json> --blueprint <blueprint.json> [--acceptance <ledger.json>]` provides a complete one-file Markdown handoff. It starts with the lead overview (release blockers, actions by owner, revision acceptance, regression closure and hypothetical CMS impact), then includes remediation, traceability, execution and guarded CMS fields.
 
 `change-impact --site <site.json> --blueprint <blueprint.json> --decisions <ledger.json>` builds the guarded CMS change packet, applies only eligible approved field proposals to an **in-memory clone**, validates that clone against the actual existing Site v1 contract and manifests, then compares hypothetical SEO regressions. The preview does not output the site document, save CMS data, deploy, grant automatic permission or replace manual acceptance. `review-bundle.changeImpact` includes this simulation only when a current decision ledger was supplied.
 
@@ -57,6 +59,7 @@ The full `review-bundle` includes a canonical blueprint architecture review, cor
 
 | Command | Purpose | Required input |
 |---|---|---|
+| `review-bundle-md` | Complete lead Markdown: release overview, remediation, mapping, execution and CMS field review | `--site --blueprint`, optional evidence/acceptance/decision flags |
 | `change-impact` | Simulate human-approved CMS field proposals on a temporary Site v1 clone; validate with existing core SDK and analyze hypothetical regression | `--site --blueprint --decisions`, optional evidence flags |
 | `acceptance-template`, `acceptance-review` | Revision-bound human acceptance evidence for three prototype images and seven lead gates | `--site --blueprint`, `--acceptance` to review |
 | `task-progress` | Like-for-like previous/current Site v1 backlog lifecycle, without fake issue closure | `--before --site --blueprint`, optional `--prior-decisions` |

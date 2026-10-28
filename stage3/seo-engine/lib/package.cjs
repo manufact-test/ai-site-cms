@@ -24,6 +24,7 @@ const CONSISTENCY=require('./evidence-consistency.cjs');
 const ACCEPTANCE=require('./acceptance.cjs');
 const PROGRESS=require('./task-progress.cjs');
 const IMPACT=require('./change-impact.cjs');
+const DOSSIER=require('./lead-dossier.cjs');
 const FORMAT='manufact-seo-review-bundle-v1';
 function build(site,manifests,blueprint,options={}){
  const plan=checkBlueprint(blueprint);
@@ -89,6 +90,8 @@ function build(site,manifests,blueprint,options={}){
   historicalTaskComparisonPerformed:Boolean(taskProgress),
   blueprintRevisionFingerprint:ACCEPTANCE.fingerprint(plan),
   siteRevisionFingerprint:ACCEPTANCE.fingerprint(site)};
+ const dossier=DOSSIER.build({siteId:site.siteId,release,coverage,acceptanceReview,
+  taskProgress,changeImpact,executionPlan:execution,cmsChangePacket,traceability});
  const rejected=new Set(decisions?.rejected.map(x=>x.taskId)||[]);
  const approved=new Set(decisions?.approved.map(x=>x.taskId)||[]);
  const deferred=new Set(decisions?.deferred.map(x=>x.taskId)||[]);
@@ -101,10 +104,10 @@ function build(site,manifests,blueprint,options={}){
   contract:acceptedFormats,coverage,
   blueprintReview:architecture,siteAudit:audit,
   htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
-  traceability,decisions,acceptanceReview,taskProgress,changeImpact,deliveryEvidence:delivery,mediaEvidence:media,evidenceConsistency,executionPlan:execution,cmsChangePacket,capturePlan,
+  traceability,decisions,acceptanceReview,taskProgress,changeImpact,leadDossier:dossier,deliveryEvidence:delivery,mediaEvidence:media,evidenceConsistency,executionPlan:execution,cmsChangePacket,capturePlan,
   regression,handoff,backlog,release,nextActions,
   // Retain the original remediation Markdown first for consumers depending on its header.
-  markdownHandoff:renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
+  markdownHandoff:DOSSIER.markdown(dossier)+'\n\n---\n\n'+renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
     '\n\n---\n\n'+EXECUTION.markdown(execution)+'\n\n---\n\n'+CMS_PACKET.markdown(cmsChangePacket),
   integrationOrder:['verified-owner-facts','approved-prototypes-and-blueprint',
    'existing-site-v1-development','current-manifest-and-override-review',
