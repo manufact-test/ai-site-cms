@@ -25,7 +25,7 @@ function canonical(dir) {
     die('expected existing canonical absolute directory without symlinks');
   return path.resolve(dir);
 }
-function collect(root){
+function collect(root,strict=false){
   const files=[];let bytes=0;
   const visit=(folder,rel)=>{
     const nodes=fs.readdirSync(folder,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name,'en'));
@@ -38,7 +38,7 @@ function collect(root){
       if(item.isSymbolicLink()||(!item.isFile()&&!item.isDirectory())
         ||fs.lstatSync(full).isSymbolicLink())die('links and special files forbidden: '+relative);
       if(item.isDirectory()){
-        if(SKIP.has(name))continue;
+        if(SKIP.has(name)){if(strict)die('excluded directory in verified release: '+relative);continue;}
         visit(full,relative);continue;
       }
       if(!EXT.test(name)||/^(?:\.env|.*(?:secret|password|credentials?|private).*)/i.test(name))
@@ -50,6 +50,8 @@ function collect(root){
     }
   };
   const count={value:0};
+  const top=path.join(root,'stage3');
+  if(!exists(top)||fs.lstatSync(top).isSymbolicLink()||!fs.statSync(top).isDirectory())die('missing or linked runtime root');
   for(const dir of ROOTS){
     const folder=path.join(root,'stage3',dir);
     if(!exists(folder)||fs.lstatSync(folder).isSymbolicLink()||!fs.statSync(folder).isDirectory())
@@ -83,7 +85,7 @@ function pack(sourceArg,outputArg){
       fs.copyFileSync(from,to,fs.constants.COPYFILE_EXCL);
       fs.chmodSync(to,0o600);
     }
-    const after=collect(dest);
+    const after=collect(dest,true);
     if(after.fingerprint!==before.fingerprint)die('source changed during packaging');
     const manifest={format:'manufact-cms-engine-release-v1',
       files:after.files,bytes:after.bytes,fingerprint:after.fingerprint,
@@ -104,7 +106,7 @@ function verify(directory){
     ||!Array.isArray(m.files)||m.files.length>MAX_FILES
     ||!Number.isSafeInteger(m.bytes)||m.bytes<1
     ||!(/^[a-f0-9]{64}$/).test(m.fingerprint))die('invalid release descriptor');
-  const current=collect(root);
+  const current=collect(root,true);
   if(current.fingerprint!==m.fingerprint||current.bytes!==m.bytes
     ||JSON.stringify(current.files)!==JSON.stringify(m.files))die('release files modified or incomplete');
   // Reject extras in release root, even if their paths would not be copied.
