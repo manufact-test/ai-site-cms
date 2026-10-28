@@ -2154,6 +2154,43 @@ async function stop(){
   assert.doesNotMatch(urlStaticSitemap,/https:\/\/example[.]test\/contact\//);
   assert.match(fs.readFileSync(path.join(urlOut,'contact','index.html'),'utf8'),/url=\/get-in-touch\//);
 
+  // First-party multi-step forms must remain functional after transforming
+  // published HTML into independent React/Next documents. React innerHTML
+  // alone does not execute the source wizard's script.
+  const nextForms=structuredClone(fixture);
+  nextForms.siteId='site-react-wizard-ci';
+  const wizard=csdk.sectionFrom(richDefs.find(x=>x.id==='lead-form-flex'),'section-react-wizard');
+  wizard.formSteps=[
+    {title:'Контакт',fields:['name','email']},
+    {title:'Заявка',fields:['message']}
+  ];
+  nextForms.pages[1].sections.push(wizard);
+  assert.equal((await request('POST','/api/sites',{site:nextForms})).status,201);
+  assert.equal((await request('POST','/api/sites/site-react-wizard-ci/publish',
+    {expectedRevision:1})).status,200);
+  const wizPublic=(await request('GET','/published/site-react-wizard-ci/contact/')).body;
+  assert.match(wizPublic,/data-multi-step="yes"/);
+  assert.match(wizPublic,/for\(const form of document\.querySelectorAll\('form\[data-multi-step\]'\)\)/);
+  const wizardRelease=path.join(dbdir,'react-wizard-export');
+  const wizardExport=spawnSync('php',['stage3/server/bin/export-published.php',
+    'site-react-wizard-ci',wizardRelease],{cwd:root,encoding:'utf8',
+      env:{...env,STAGE3_EXPORT_ORIGIN:'https://example.test',
+        STAGE3_FORM_ENDPOINT:'https://collector.example.test'}});
+  assert.equal(wizardExport.status,0,wizardExport.stderr);
+  const wizardDocument=fs.readFileSync(path.join(wizardRelease,'contact/index.html'),'utf8');
+  assert.match(wizardDocument,/<script>\(\(\)=>\{/);
+  for(const technology of ['next-static','next-ssr']){
+    const output=path.join(dbdir,'react-wizard-'+technology);
+    const built=spawnSync('node',['stage3/runtime-export/bin/build.cjs',
+      wizardRelease,technology,output],{cwd:root,encoding:'utf8'});
+    assert.equal(built.status,0,built.stderr);
+    const source=fs.readFileSync(path.join(output,'lib/runtime.js'),'utf8');
+    assert.match(source,/Script,\{id:'cms-form-steps',strategy:'afterInteractive'\}/);
+    assert.match(source,/Unexpected visitor script/);
+    assert.match(fs.readFileSync(path.join(output,'data/contact/index.html'),'utf8'),
+      /data-multi-step="yes"/);
+  }
+
   // D1: convert a REAL published multipage snapshot (SEO, redirect, media
   // parity) into three autonomous technology runtimes, without CMS DB writes.
   const techPhp=path.join(dbdir,'published-php');
