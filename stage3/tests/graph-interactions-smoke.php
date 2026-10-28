@@ -153,4 +153,31 @@ $last=count($badEffect['pages'][0]['sections'][2]['designGraph']['nodes'])-1;
 $badEffect['pages'][0]['sections'][2]['designGraph']['nodes'][$last]['styles']['shadowFine']['blur']=161;
 try{$validator->validate($badEffect);throw new RuntimeException('invalid detailed shadow allowed');}
 catch(InvalidArgumentException $expected){}
+// Shared section instances must have unique IDs but identical editable content.
+$linked=$site;
+$original=&$linked['pages'][0]['sections'][0];
+$original['sharedKey']='shared-main-hero';
+$copy=$original;
+$copy['id']='section-main-hero-copy';
+foreach($copy['elements'] as &$item)$item['id']='section-copy-'.$item['slot'];
+unset($item);
+$linked['pages'][1]['sections'][]=$copy;
+$validator->validate($linked);
+graphTest(str_contains(PublicRenderer::html($linked,'/contact/'),'section-main-hero-copy'),
+  'PHP renders page-local shared section instance');
+$badShared=$linked;
+$badShared['pages'][1]['sections'][count($badShared['pages'][1]['sections'])-1]['elements'][0]['values']['content.text']='Другая версия';
+try{$validator->validate($badShared);throw new RuntimeException('Divergent shared sections allowed');}
+catch(InvalidArgumentException $expected){}
+
+$iconsSite=$site;
+$iconsSite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+  'id'=>'graph-specified-icon','type'=>'icon','icon'=>'map-pin',
+  'iconSize'=>48,'iconWeight'=>'bold','alt'=>'Точка на карте',
+  'styles'=>['color'=>'@accent']];
+$validator->validate($iconsSite);
+$iconsHtml=PublicRenderer::html($iconsSite,'/');
+graphTest(str_contains($iconsHtml,'width="48" height="48" fill="none" stroke="currentColor" stroke-width="3"')&&
+  str_contains($iconsHtml,'aria-label="Точка на карте"'),
+  'PHP icon catalog uses typed size/stroke and semantic label');
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";

@@ -1550,6 +1550,88 @@ test('scroll-tied effects, fine shadows and safe interactive states keep PHP-com
   sdk.validateSite(site,manifests);
 });
 
+test('shared sections link across pages, sync one edit, preserve IDs, Undo and detach safely',()=>{
+  const D=require('../sdk/draft.cjs'),site=same(initial);
+  const section=sdk.sectionFrom(manifests.find(m=>m.id==='custom-section'),'section-common-core');
+  section.designGraph={version:1,id:'graph-common-core',nodes:[
+    {id:'common-action',type:'button',text:'Подробнее',popupTarget:'common-popup'},
+    {id:'common-popup',type:'popup',text:'Условия',
+      children:[{id:'common-body',type:'text',text:'Одна секция на нескольких страницах'}]}
+  ]};
+  site.pages[0].sections.push(section);
+  let session=D.begin(site,manifests);
+  session=D.structure(session,manifests,{
+    action:'linkSharedSection',pageId:'page-home',sectionId:'section-common-core',
+    toPageId:'page-contact',id:'section-common-contact',
+    sharedKey:'shared-common-core',expectedRevision:session.revision});
+  const first=session.current.pages[0].sections.at(-1);
+  const second=session.current.pages[1].sections.at(-1);
+  assert.equal(first.sharedKey,'shared-common-core');
+  assert.equal(second.sharedKey,first.sharedKey);
+  assert.notEqual(first.id,second.id);
+  assert.notEqual(first.designGraph.id,second.designGraph.id);
+  assert.notEqual(first.designGraph.nodes[1].id,second.designGraph.nodes[1].id);
+  assert.equal(second.designGraph.nodes[0].popupTarget,second.designGraph.nodes[1].id,
+    'Popups rekey with their local graph IDs');
+  const before=session.revision;
+  session=D.edit(session,manifests,{pageId:'page-home',sectionId:first.id,
+    elementId:first.elements[0].id,path:'content.text',value:'Общий обновлённый текст',
+    expectedRevision:before});
+  assert.equal(session.revision,before+1);
+  assert.equal(session.current.pages[0].sections.at(-1).elements[0].values['content.text'],
+    'Общий обновлённый текст');
+  assert.equal(session.current.pages[1].sections.at(-1).elements[0].values['content.text'],
+    'Общий обновлённый текст');
+  const graphCopy=same(session.current);
+  graphCopy.pages[0].sections.at(-1).designGraph.nodes[1].children[0].text='Обновление двух страниц';
+  session=D.replaceSite(session,manifests,graphCopy,session.revision);
+  assert.equal(session.current.pages[1].sections.at(-1).designGraph.nodes[1].children[0].text,
+    'Обновление двух страниц');
+  let invalid=same(session.current);
+  invalid.pages[1].sections.at(-1).designGraph.nodes[1].children[0].text='Расхождение';
+  refuses(()=>sdk.validateSite(invalid,manifests),'Server must reject a divergent saved copy');
+  session=D.undo(session,manifests);
+  assert.equal(session.current.pages[0].sections.at(-1).designGraph.nodes[1].children[0].text,
+    'Одна секция на нескольких страницах');
+  assert.equal(session.current.pages[1].sections.at(-1).designGraph.nodes[1].children[0].text,
+    'Одна секция на нескольких страницах');
+  session=D.structure(session,manifests,{action:'detachSharedSection',pageId:'page-contact',
+    sectionId:'section-common-contact',expectedRevision:session.revision});
+  assert.equal(session.current.pages[1].sections.at(-1).sharedKey,undefined);
+  const independent=same(session.current);
+  independent.pages[0].sections.at(-1).designGraph.nodes[1].children[0].text='Только главная';
+  session=D.replaceSite(session,manifests,independent,session.revision);
+  assert.equal(session.current.pages[1].sections.at(-1).designGraph.nodes[1].children[0].text,
+    'Одна секция на нескольких страницах');
+  session=D.structure(session,manifests,{action:'duplicateSection',pageId:'page-home',
+    sectionId:'section-common-core',id:'section-independent-copy',expectedRevision:session.revision});
+  assert.equal(session.current.pages[0].sections.at(-1).sharedKey,undefined,
+    'Normal copy must be independent, not silently linked');
+});
+
+test('editable icon catalog stays first-party, bounded, semantic and PHP-compatible',()=>{
+  const G=require('../sdk/design-graph.cjs'),site=same(initial);
+  const section=sdk.sectionFrom(manifests.find(m=>m.id==='custom-section'),'section-icon-catalog');
+  section.designGraph={version:1,id:'graph-icon-catalog',nodes:[
+    {id:'icon-location',type:'icon',icon:'map-pin',iconSize:48,iconWeight:'bold',
+      alt:'Адрес компании',styles:{color:'@accent'}},
+    {id:'icon-decorative',type:'icon',icon:'shopping-cart',iconSize:20,
+      iconWeight:'thin',styles:{}}
+  ]};
+  site.pages[0].sections.push(section);
+  sdk.validateSite(site,manifests);
+  const html=G.render(site,section.designGraph);
+  assert.match(html,/width="48" height="48" fill="none" stroke="currentColor" stroke-width="3"/);
+  assert.match(html,/role="img" aria-label="Адрес компании"/);
+  assert.match(html,/width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.25"/);
+  assert.match(html,/aria-hidden="true"/);
+  const icon=section.designGraph.nodes[0];
+  icon.iconSize=200;refuses(()=>sdk.validateSite(site,manifests));icon.iconSize=48;
+  icon.icon='arbitrary-svg';refuses(()=>sdk.validateSite(site,manifests));icon.icon='map-pin';
+  icon.iconWeight='url(data:)';refuses(()=>sdk.validateSite(site,manifests));icon.iconWeight='bold';
+  sdk.validateSite(site,manifests);
+});
+
 test('135 mandatory requirements keep evidence and honest owner acceptance',()=>{
   const ledger=read('mandatory-coverage.json');
   assert.equal(ledger.totalRequired,135);

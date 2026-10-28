@@ -2122,7 +2122,24 @@ async function stop(){
   assert.deepEqual(Buffer.from(await recoveredPhoto.arrayBuffer()),largeImage);
   assert.equal((await request('GET','/published/site-photo-recovered/')).status,404);
 
+  // CMS connection doctor must verify the exact stored release and public
+  // same-origin canary, never claim external DNS or a separate site deployment.
+  const connection=await request('GET','/api/sites/'+id+'/connection-check');
+  assert.equal(connection.status,200,JSON.stringify(connection.body));
+  assert.equal(connection.body.format,'manufact-ai-site-connection-v1');
+  assert.equal(connection.body.siteId,id);
+  assert.equal(connection.body.localReady,true);
+  assert.equal(connection.body.publishedVersion,4);
+  const probe=await request('GET',connection.body.publicProbeUrl);
+  assert.equal(probe.status,200);
+  assert.equal(probe.body.siteId,id);
+  assert.equal(probe.body.publishedVersion,connection.body.publishedVersion);
+  const missingConnection=await request('GET','/api/sites/site-photo-recovered/connection-check');
+  assert.equal(missingConnection.status,200);
+  assert.equal(missingConnection.body.localReady,false);
+  assert.equal(missingConnection.body.reason,'not_published');
   assert.equal((await request('POST','/api/logout',{})).status,200);
+  assert.equal((await request('GET','/api/sites/'+id+'/connection-check')).status,401);
   assert.equal((await request('GET',endpoint)).status,401);
   assert.equal((await request('GET',endpoint+'/backup')).status,401,'Archives remain private');
   assert.equal((await request('POST','/api/backups/plan',payload)).status,401);
