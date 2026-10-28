@@ -108,3 +108,29 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 `php-local-forms` сверяет `extra1..3`, пользовательские поля (имя/тип/число вариантов radio/required), CSS-условные атрибуты, наличие marker `data-multi-step`, число `.lead-step`, навигационные кнопки next/back и индикатор прогресса. `php-local-head` дополнительно вычисляет SHA-256 фактически полученного inline JS и требует его точного разрешения в реально полученном `Content-Security-Policy`; если Site v1 объявляет wizard, но скрипт не выдан, это также блокировка.
 
 Это проверки **структуры HTTP-выдачи**, а не исполнение JS и не корректность прохождения пользователем многошаговой формы. Нужны реальные desktop/tablet/mobile браузерные проверки, отправка формы, сохранение в CMS и проверка канала доставки. Если фактический JS другого содержания — должен совпадать именно с реальным HTTP CSP, а не с копией из исходника.
+
+
+## Реальный импорт Site v2 в CMS: media-ID remap — важно
+
+**В официальном Studio импорте файлы получают новые site-owned immutable ID.** Поэтому опубликованный PHP не обязан использовать исходные `/assets/asset-hero.jpg` из sealed v2, хотя его контент должен соответствовать утверждённому дизайну. Проверка только исходных URL в настоящей CMS даёт ложные 404.
+
+Для первого реально импортированного в CMS сайта: получите JSON-ответ владельцем авторизованного `GET /api/sites/SITE-ID/published-site`; сохраните его в приватный файл, не используйте draft и не публикуйте служебный ответ. Ответ обязан содержать `site` (Site v1) и числовой `version`. Никаких cookie, ключей или прямых запросов в owner API наш инструмент не принимает/делает.
+
+```bash
+node stage3/seo-engine/bin/first-site-check.cjs \
+  --approved-site /ABS/SEALED-V2 \
+  --blueprint /ABS/approved-blueprint.json \
+  --origin http://127.0.0.1:PORT/published/SITE-ID/ \
+  --published-site /ABS/private-owner-published-site.json \
+  --evidence /ABS/new-http-evidence \
+  --report /ABS/new-report \
+  --php-capture /ABS/lead-capture/evidence.json
+```
+
+`--php-capture` необязателен и добавляет исходные screenshot receipts; `--published-site` обязателен для типичного реального CMS импорта с переназначенными media ID, но может быть опущен для прямой PHP fixture без импорта.
+
+`lib/published-site-reconcile.cjs` проверяет, что `published.site` отличается от утверждённого исходника **только** разрешённой операцией импортера: original/variant ID и URL, server-reported размеры изображений; неизменны страницы, секции, DesignGraph, тексты, ссылки, SEO, ALT, меню, redirect и формы. Проверка медиа требует идентичного порядка оригиналов, типов, ALT и однозначных variant SHA; неизвестные/переупорядоченные файлы fail closed. После этого каждый фактически отданный PHP original и responsive файл проверяется против соответствующего sealed SHA-256. Содержимое media нельзя заменить даже с правильным MIME, ETag и картинкой.
+
+Также при `--published-site` сверяем `_release` во всех формах с числовым `version`, чтобы не выдавать старую форму за опубликованную версию. Это owner-supplied snapshot и HTTP byte correlation, **не** самостоятельное криптографическое удостоверение PHP build/DB revision, не факт реального HTTPS или успешных форм.
+
+Первый прогон этого режима должен сделать ведущий в собственном интегрированном checkout с настоящими файлами клиента. Отдельный JavaScript smoke подтвердил remap, отклонение ALT/референсов и stale published release; полноценного Node subprocess и реального client PHP здесь не было.
