@@ -382,3 +382,38 @@ New lib/php-local-delivery-readiness.cjs checks published form sections (excludi
 These are owner-SUPPLIED configuration hints, NOT actual accepted POSTs, CMS stored leads, mail/Telegram receipt or authenticated delivery. An apparently configured route is NOT proof that messages arrived. The worker cannot claim client acceptance. For changes in current published version, delta treats owner routing evidence as incomparable rather than automatically fixed.
 
 Focused V8 smoke: node stage3/seo-engine/tests/php-local-delivery-readiness-smoke.cjs. Real Node/PHP/browser/HTTPS/form-delivery E2E remain for lead. Note stage3/bin/cms-release.cjs is the lead's CMS engine shipment tool; not a customer site deploy or SEO runtime, and it does not bundle SEO worker code.
+
+## Public static deployment parity + real media GET SHA256 — integration block (29.10.2026)
+
+**Why:** Previously official `export-published.php` and public HTTPS JSON were audited separately. A locally correct static release could be absent or changed at the actual host. `lib/public-static-parity.cjs` now cross-checks operator-supplied public HTTPS *root* captures with the owner-pinned official static release. Compares every page HTTP 200 + exact route, main text, title/description, headings, section/CTA/image/form/CSS/wizard structure, canonical/robots/html lang/JSON-LD, root robots.txt and sitemap.xml bodies, real 301 Location for every declared legacy alias, and original public asset HEAD status/MIME/length vs official byte sizes. Different host or `/published/SITE-ID/` mount is expressly **not comparable** to a root static export, becomes a review rather than false PASS. Errors route to `public-static-deployment-drift` release blockers, task list, dossier, worksheet and previous-run delta. No public request is made by `first-site-check` itself; supplied HTTP JSON provenance remains unauthenticated.
+
+**How to run the public static site SHA256 check (explicit opt-in, no form submissions):**
+
+```bash
+node stage3/seo-engine/bin/capture-public-https.cjs \
+  --approved-site /ABS/SEALED-V2 \
+  --published-site /ABS/owner-published.json \
+  --origin https://your-static-host.example/ \
+  --out /ABS/public-http.json \
+  --media-out /ABS/public-media-head.json \
+  --static-export /ABS/official-static-release \
+  --media-digest-out /ABS/public-media-sha256.json
+```
+
+The two last flags must always be supplied together. Existing CLI without them still uses only page GET and optional media HEAD. The new `public-media-byte-verification.cjs` compares **every original and responsive variant** declared by Site v1 to the official export SHA256. Uses pinned public-DNS TLS-verified HTTPS GET streaming: 12,000,000 bytes max per resource, 180,000,000 bytes total; no redirects followed; no POST; no binary media stored. The private `public-media-sha256.json` contains URL, status, MIME, byte count and SHA256 receipt ONLY (never actual images). It can be expensive for a large customer site; run only when explicitly approving this production host and network traffic. Operator API `sourceRevision`, static export version and manifest are checked before capture and rechecked afterward. The static export must declare exactly that HTTPS production root.
+
+Import the operator-captured evidence to the existing local first-site report with these optional flags (along with the standard mandatory --approved-site, --blueprint, --origin [LOCALHOST], --evidence and --report flags):
+
+```bash
+  --published-site /ABS/owner-published.json \
+  --static-export /ABS/official-static-release \
+  --public-http-evidence /ABS/public-http.json \
+  --public-media-evidence /ABS/public-media-head.json \
+  --public-media-digests /ABS/public-media-sha256.json
+```
+
+`--public-media-digests` requires `--static-export` and version/sourceRevision. The new digest receipt is validated against the same exact static manifest SHA256, source revision, assets and URL origin. Mismatches become `public-bytes:*` tasks and blocking `public-static-media-sha256-integrity`. Missing responsive variants or wrong GET MIME/status/length likewise block. Included in `bundle.publicMediaBytes`, `summary.publicMediaBytes`, dossier, worksheet and previous-run delta. Delta comparisons require the **same static manifest SHA and HTTPS host** to avoid marking unrelated releases as fixed.
+
+**Critical evidence limits:** A saved JSON receipt can be forged; this tool cannot authenticate network provenance after import. An observed SHA match is not client acceptance, running PHP code identity, browser layout equality, real lead POST/recipient delivery, or authorization to deploy. Static export redirect HTML fallbacks are NOT real HTTP 301; real host rewrites must be configured by the lead. Never upload private evidence with customer form HMAC values to GitHub. Existing worker scope `stage3/seo-engine/**` only; no PHP, main or merge.
+
+Focused checks (run in integrated Node checkout): `node stage3/seo-engine/tests/public-static-parity-smoke.cjs` and `node stage3/seo-engine/tests/public-media-byte-verification-smoke.cjs`. This worker session completed V8 execution with mocked dependencies and public transport, plus CJS syntax checks, not live Node/PHP/browser/customer-domain acceptance.
