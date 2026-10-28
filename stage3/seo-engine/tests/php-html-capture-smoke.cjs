@@ -127,6 +127,17 @@ function formAndFirstSiteCliContracts(){
  assert.equal(good.expectedForms,1);assert.equal(good.observedForms,1);
  assert.equal(good.consistentRelease,7);
  assert.equal(good.findings.filter(x=>x.severity==='error').length,0);
+ // PHP prioritizes DesignGraph over even an underlying legacy lead-form.
+ // Do not report a phantom form or expected wizard if that typed section is overridden.
+ const graphOverride=JSON.parse(JSON.stringify(site));
+ graphOverride.pages[0].sections[0].designGraph={id:'graph-override',nodes:[
+  {id:'graphic',type:'heading',level:2,text:'Instead of a form'}]};
+ const overridden=FORM.review(graphOverride,{siteId:'pilot-form',pages:[{
+  id:'page-form',path:'/',html:'<html><body><section id="sec-form" class="cmsdg cmsdg-graph-override"><h2>Instead of a form</h2></section></body></html>'
+ }]});
+ assert.equal(overridden.expectedForms,0);
+ assert.equal(overridden.observedForms,0);
+ assert.equal(overridden.findings.length,0);
  assert.ok(inspect(doc('invalid')).findings.some(x=>x.code==='php-form:token-marker'));
  assert.ok(inspect(doc('a'.repeat(64)).replace('/forms/pilot-form/sec-form','/forms/other-site/sec-form'))
   .findings.some(x=>x.code==='php-form:action-drift'));
@@ -251,7 +262,7 @@ function actualPublishedComponentAndGraphContracts(){
    {id:'sec-cta',component:'cta-banner',elements:[
     {slot:'primary',values:{'content.text':'Contact us','behavior.href':'/contact/'}},
     {slot:'secondary',values:{'content.text':'Details','behavior.href':'/details/'}}]},
-   {id:'sec-graph',designGraph:{id:'graph-one',nodes:[
+   {id:'sec-graph',component:'pricing-plans',designGraph:{id:'graph-one',nodes:[
     {id:'g-heading',type:'heading',level:1,text:'Hello & friends'},
     {id:'g-link',type:'link',href:'/contact/',text:'Reach us'},
     {id:'g-photo',type:'image',assetId:'asset-main',alt:'A & B'},
