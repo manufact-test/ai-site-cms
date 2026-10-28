@@ -2466,7 +2466,7 @@
           ' · Y '+finding.scrollY+' px'));
         const seek=action('К месту','',()=>{
           // Stored position is in real unscaled PHP document CSS pixels.
-          const scale=Number(frame.style.transform.match(/scale\\(([^)]+)\\)/)?.[1])||1;
+          const scale=Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1])||1;
           viewport.scrollTop=finding.scrollY*scale;
         });
         seek.setAttribute('aria-label','Показать место замечания: '+finding.note);
@@ -2491,7 +2491,7 @@
       if(!selectedRow?.current||!freshDraft()||note.length<3||note.length>500){
         notice('Опишите расхождение минимум тремя символами, без изменения черновика.',true);return;
       }
-      const scale=Number(frame.style.transform.match(/scale\\(([^)]+)\\)/)?.[1])||1;
+      const scale=Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1])||1;
       manualFindings.push({pageId:selectedRow.current.id,path:selectedRow.current.path,
         device,note,scrollY:Math.min(60000,Math.round(viewport.scrollTop/scale)),resolved:false});
       reviewed.get(selectedRow.current.id)?.delete(device);
