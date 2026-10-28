@@ -826,7 +826,7 @@ final class Api
                 $this->auditDetail='import '.($pending['args'][3]??'').' from '.$sourceId;
                 $this->response(200,$this->sites->applyCrossSiteCollection(...$pending['args']));
             }
-            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/delivery(?:/(retry))?$~D',$path,$deliveryMatch)) {
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/delivery(?:/(retry|routes))?$~D',$path,$deliveryMatch)) {
                 $siteId=$deliveryMatch[1];$operation=$deliveryMatch[2]??null;
                 if($method==='GET'&&$operation===null)
                     $this->response(200,$this->sites->deliveryStatus($siteId));
@@ -839,6 +839,17 @@ final class Api
                     $result=$this->sites->saveDeliverySettings($siteId,$principal['username'],$body['expectedVersion'],
                         $body['emailEnabled'],$body['emailRecipient'],$body['telegramEnabled'],$body['telegramChatId'],$body['reason']);
                     $this->response(200,$result);
+                }
+                if($method==='POST'&&$operation==='routes'){
+                    if(!is_string($body['sectionId']??null)||!is_string($body['emailMode']??null)
+                        ||!is_string($body['emailRecipient']??null)||!is_string($body['telegramMode']??null)
+                        ||!is_string($body['telegramChatId']??null)||!is_int($body['expectedVersion']??null)
+                        ||!is_string($body['reason']??null))
+                        throw new InvalidArgumentException('Form routing, version and reason required');
+                    $this->auditDetail='Form routing: '.substr(trim($body['reason']),0,180);
+                    $this->response(200,$this->sites->saveFormDeliveryRoute($siteId,$body['sectionId'],
+                        $principal['username'],$body['expectedVersion'],$body['emailMode'],$body['emailRecipient'],
+                        $body['telegramMode'],$body['telegramChatId'],$body['reason']));
                 }
                 if($method==='POST'&&$operation==='retry'){
                     if(!is_string($body['reason']??null)||!is_bool($body['includeUncertain']??null))
