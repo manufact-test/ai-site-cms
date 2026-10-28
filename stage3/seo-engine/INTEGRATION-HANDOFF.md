@@ -207,7 +207,7 @@ The complete `tests/smoke.cjs` includes a bounded synthetic lead-output shape an
 
 ## First site: live loopback PHP HTML into SEO
 
-In addition to the lead-owned Chromium screenshot capture, the SEO-only bin/capture-php-html.cjs now collects **the exact HTML served by isolated PHP pages** over 127.0.0.1 HTTP GET and writes an immutable-by-convention SHA-256-checked manifest directory. This directly fills the existing manufacture-seo-html-snapshot-v1-compatible report pipeline: metadata/H1/links/canonical/indexation, deep HTML, remediation, release and lead traceability. No duplicate SEO parser or CMS write was added.
+In addition to the lead-owned Chromium screenshot capture, the SEO-only bin/capture-php-html.cjs now collects **the exact HTML served by isolated PHP pages** over 127.0.0.1 HTTP GET and writes an immutable-by-convention SHA-256-checked manifest directory. This directly fills the existing manufact-seo-html-snapshot-v1-compatible report pipeline: metadata/H1/links/canonical/indexation, deep HTML, remediation, release and lead traceability. No duplicate SEO parser or CMS write was added.
 
 Run the sealed verifier, start the lead-owned published PHP loopback preview, then capture:
 
