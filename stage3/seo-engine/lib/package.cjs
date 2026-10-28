@@ -21,13 +21,15 @@ const MEDIA=require('./media-delivery.cjs');
 const CMS_PACKET=require('./cms-change-packet.cjs');
 const CAPTURE=require('./capture-plan.cjs');
 const CONSISTENCY=require('./evidence-consistency.cjs');
+const ACCEPTANCE=require('./acceptance.cjs');
+const PROGRESS=require('./task-progress.cjs');
 const FORMAT='manufact-seo-review-bundle-v1';
 function build(site,manifests,blueprint,options={}){
  const plan=checkBlueprint(blueprint);
  if(!site||site.siteId!==plan.siteId)throw Error('Review package siteId mismatch');
  if(!Array.isArray(manifests))throw Error('Review package requires current manifests');
  if(!options||typeof options!=='object'||Array.isArray(options)||
-    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','delivery','media'].includes(k)))
+    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance'].includes(k)))
   throw Error('Unsupported review-package options');
  // Validate with authoritative core first, not just the loosely typed SEO blueprint.
  const audit=auditSite(site,manifests,plan);
@@ -41,12 +43,15 @@ function build(site,manifests,blueprint,options={}){
  const media=options.media?MEDIA.review(site,options.media,options.snapshot):null;
  const evidenceConsistency=CONSISTENCY.review(site,options);
  const handoff=propose(site,manifests,plan);
- const {decisions:ledger,...coreOptions}=options;
+ const {decisions:ledger,priorDecisions:historyLedger,acceptance:acceptanceLedger,...coreOptions}=options;
  const backlog=work(site,manifests,plan,coreOptions);
- const release=assess(site,manifests,plan,coreOptions,backlog);
+ const release=assess(site,manifests,plan,{...coreOptions,
+  ...(acceptanceLedger?{acceptance:acceptanceLedger}:{})},backlog);
  const decisions=ledger?TRIAGE.reconcile(backlog,ledger):null;
  const execution=EXECUTION.compile(backlog,decisions);
  const cmsChangePacket=CMS_PACKET.build(site,manifests,plan,backlog,decisions);
+ const acceptanceReview=acceptanceLedger?ACCEPTANCE.review(site,plan,acceptanceLedger):null;
+ const taskProgress=options.baselineSite?PROGRESS.compare(options.baselineSite,site,manifests,plan,historyLedger||null):null;
  const declaredOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean);
  const originsAgree=new Set(declaredOrigins.map(x=>new URL(x).href)).size<=1;
  const capturePlan=CAPTURE.build(site,plan,originsAgree?declaredOrigins[0]||null:null);
@@ -77,7 +82,11 @@ function build(site,manifests,blueprint,options={}){
   suppliedHttpPages:delivery?.coverage.capturedPages??null,
   declaredPublicOrigin:delivery?.origin??null,
   httpEvidenceProvenanceVerified:false,
-  suppliedMediaResources:media?.coverage.capturedKnownResources??null};
+  suppliedMediaResources:media?.coverage.capturedKnownResources??null,
+  prototypeApprovalLedgerProvided:Boolean(acceptanceLedger),
+  historicalTaskComparisonPerformed:Boolean(taskProgress),
+  blueprintRevisionFingerprint:ACCEPTANCE.fingerprint(plan),
+  siteRevisionFingerprint:ACCEPTANCE.fingerprint(site)};
  const rejected=new Set(decisions?.rejected.map(x=>x.taskId)||[]);
  const approved=new Set(decisions?.approved.map(x=>x.taskId)||[]);
  const deferred=new Set(decisions?.deferred.map(x=>x.taskId)||[]);
@@ -90,7 +99,7 @@ function build(site,manifests,blueprint,options={}){
   contract:acceptedFormats,coverage,
   blueprintReview:architecture,siteAudit:audit,
   htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
-  traceability,decisions,deliveryEvidence:delivery,mediaEvidence:media,evidenceConsistency,executionPlan:execution,cmsChangePacket,capturePlan,
+  traceability,decisions,acceptanceReview,taskProgress,deliveryEvidence:delivery,mediaEvidence:media,evidenceConsistency,executionPlan:execution,cmsChangePacket,capturePlan,
   regression,handoff,backlog,release,nextActions,
   // Retain the original remediation Markdown first for consumers depending on its header.
   markdownHandoff:renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
@@ -102,6 +111,7 @@ function build(site,manifests,blueprint,options={}){
    'Priorities indicate work order only, not ranking performance.',
    'Supplied HTML and device captures are not proof of the deployed browser state.',
    'Release never auto-approved.',
+   'Supplied acceptance ledger is an unverified assertion, even when all gates are marked approved.',
    ...(originsAgree?[]:['Conflicting supplied HTTP and media origins: capture plan has no approved URL until the lead resolves this.'])]};
 }
 module.exports=Object.freeze({FORMAT,build});

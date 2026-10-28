@@ -5,9 +5,12 @@
 const {work}=require('./remediation.cjs');
 const {compare}=require('./parity.cjs');
 const REGRESSION=require('./regression.cjs');
+const ACCEPTANCE=require('./acceptance.cjs');
 const FORMAT='manufact-seo-release-review-v1';
 function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
- const backlog=precomputedBacklog||work(site,manifests,blueprint,options);
+ const {acceptance:acceptanceLedger,...reviewOptions}=options;
+ const backlog=precomputedBacklog||work(site,manifests,blueprint,reviewOptions);
+ const acceptanceReview=acceptanceLedger?ACCEPTANCE.review(site,blueprint,acceptanceLedger):null;
  if(backlog.siteId!==site.siteId||backlog.format!=='manufact-seo-remediation-v1'||!backlog.readOnly)
   throw Error('Incompatible SEO remediation backlog');
  const x=backlog.tasks,parity=options.snapshot?compare(site,blueprint,options.snapshot):null;
@@ -42,6 +45,19 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(dangerousMarkup.length)add(blockers,'published-unverified-structured-data',
   'Review published structured data based on unverified facts',
   'A JSON-LD type appears in captured HTML while its associated blueprint evidence remains unverified. Remove or verify actual claims before release.',dangerousMarkup);
+ if(acceptanceReview?.stale)add(blockers,'acceptance-revision-stale',
+  'Reapprove the current Site v1 and approved Blueprint revisions',
+  'Supplied signoffs refer to a different Site v1 or Blueprint fingerprint; do not reuse stale approval.');
+ if(acceptanceReview?.summary.rejectedAssertions)add(blockers,'explicit-acceptance-rejection',
+  'Resolve rejected human acceptance checks',
+  'At least one supplied manual acceptance check was explicitly rejected; address the underlying issue.');
+ if(acceptanceReview?.summary.incompleteAttestations)add(reviews,'incomplete-acceptance-attestations',
+  'Complete reviewer identity, date and evidence reference for claimed acceptance',
+  'Unattributed or incomplete statements cannot count as a completed human review.');
+ if(acceptanceReview&&(!acceptanceReview.prototype.approvedAssertionRecorded||acceptanceReview.summary.unresolvedChecks))
+  add(reviews,'pending-manual-acceptance',
+   'Collect three actual approved prototype images and remaining manual acceptance evidence',
+   'No script or source-level assertion can replace actual client approval and browser/host checks.');
  if(conflictingEvidence.length)add(blockers,'conflicting-captured-indexation',
   'Resolve disagreeing HTML indexability signals across supplied evidence',
   'Saved HTML and HTTP-captured HTML give inconsistent indexation policy; verify one actual deployed build.',conflictingEvidence);
@@ -99,7 +115,13 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   ['performance','Check measured Web Vitals/performance and accessibility on the deployed site; offline tool has no lab/field data.'],
   ['overrides-and-rollback','Confirm editor manual overrides, Save ≠ Publish, audit history and rollback on the actual installation.']
  ];
- for(const [id,detail] of boundaries)add(manual,id,'Manual acceptance: '+id,detail,[]);
+ for(const [id,detail] of boundaries){
+  const check=acceptanceReview?.checks.find(x=>x.id===id);
+  manual.push({gateId:id,title:'Manual acceptance: '+id,detail,taskIds:[],
+   suppliedAttestationStatus:check?.status||'not-supplied',
+   evidenceReference:check?.evidenceReference||null,
+   sourceAuthenticated:false,automaticPass:false});
+ }
  const coverage={
   validatedSiteV1:true,
   auditedAgainstBlueprint:true,
@@ -108,6 +130,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   suppliedThreeDeviceMarkupReviewed:Boolean(options.viewports),
   deepHtmlEvidenceChecked:Boolean(options.snapshot),
   siteRegressionCompared:Boolean(options.baselineSite),
+  acceptanceLedgerReviewed:Boolean(acceptanceReview),
+  clientPrototypeApprovalAuthenticated:false,
   callerSuppliedHttpTranscriptReviewed:Boolean(options.delivery),
   callerSuppliedMediaTranscriptReviewed:Boolean(options.media),
   liveHostChecked:false,
@@ -119,7 +143,7 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const decision=blockers.length?'repair-required':options.snapshot||options.viewports||options.delivery||options.media?'manual-acceptance-required':'collect-publication-evidence';
  return {format:FORMAT,version:1,siteId:site.siteId,
   decision,automaticReleaseApproval:false,readyToPublish:false,
-  blockers,reviews,manualChecks:manual,coverage,
+  blockers,reviews,manualChecks:manual,acceptanceReview,coverage,
   summary:{blockingGates:blockers.length,reviewGates:reviews.length,manualChecks:manual.length,
    remediationTasks:x.length},
   boundaries:'This is a conservative preparation gate, not a deployment validator or SEO ranking certificate. The lead/site owner must explicitly approve the actual release after browser, host, functional, legal and visual checks.'};
