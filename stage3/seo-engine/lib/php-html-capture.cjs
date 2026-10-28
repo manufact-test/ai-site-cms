@@ -9,6 +9,7 @@ const crypto=require('node:crypto');
 const BRIDGE=require('./approved-site-bridge.cjs');
 const ACCEPTANCE=require('./acceptance.cjs');
 const LOCAL=require('./php-local-publication.cjs');
+const LOCAL_MEDIA=require('./php-local-media.cjs');
 const CAPTURE_FORMAT='manufact-seo-loopback-php-html-v1';
 const SNAPSHOT_FORMAT='manufact-seo-html-snapshot-v1';
 const SHA=/^[a-f0-9]{64}$/;
@@ -129,8 +130,9 @@ function inspect(manifest,site,source,folder){
  baseUrl(manifest.baseUrl,site.siteId);
  const root=fs.realpathSync(folder),seen=new Set(),entries=[];let total=0;
  const external=manifest.publication?LOCAL.records(site,manifest.baseUrl,manifest.publication):[];
+ const mediaFiles=manifest.media?LOCAL_MEDIA.inventory(site,manifest.baseUrl).map(x=>x.file):[];
  const allowed=new Set(['manifest.json',...site.pages.map((_,i)=>pageName(i)),
-  ...external.map(item=>item.file)]);
+  ...external.map(item=>item.file),...mediaFiles]);
  const listing=fs.readdirSync(root);
  if(listing.length!==allowed.size||listing.some(name=>!allowed.has(name)))
   fail('unexpected or missing HTML evidence file');
@@ -175,6 +177,8 @@ function inspect(manifest,site,source,folder){
   if(publication.robotsStatus===200)
    publication=Object.freeze({...publication,robotsTxt:auxBytes.get('robots.txt').toString('utf8')});
  }
+ const localMedia=manifest.media?
+  LOCAL_MEDIA.inspect(site,manifest.baseUrl,manifest.media,root):null;
  const result=Object.freeze({
   format:CAPTURE_FORMAT,siteId:site.siteId,packageVersion:source.packageVersion,
   sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,
@@ -183,7 +187,7 @@ function inspect(manifest,site,source,folder){
   checkedAuxiliaryBytes:total-checkedPageHtmlBytes,sha256VerifiedAtRead:true,
   loopbackHttp200Count:entries.length,sourceRevisionAuthenticated:false,
   realPublicHttpsChecked:false,formsChecked:false,visualParityChecked:false,
-  publication,
+  publication,localMedia,
   snapshot:snapshot(site,source,entries,manifest.baseUrl,manifest.capturedAt,publication),
   limitations:'Read-only local PHP HTTP 200 and byte-checked HTML. Cannot prove the served revision matches saved Site v1, operator identity, client approval, public HTTPS or successful forms.'
  });
@@ -238,12 +242,13 @@ async function capture(sealedFolder,rawOrigin,output){
  for(const [i,alias] of (site.redirects||[]).entries())
   publication.redirects.push(await captureResource('redirect',i,pageUrl(base,alias.from),
    alias.from,alias.to));
+ const observedMedia=await LOCAL_MEDIA.acquire(site,base);
  const manifest={format:CAPTURE_FORMAT,siteId:site.siteId,
   sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,
   packageVersion:source.packageVersion,capturedAt:new Date().toISOString(),baseUrl:base,
-  pages:entries.map(x=>x.record),publication};
+  pages:entries.map(x=>x.record),publication,media:observedMedia.manifest};
  fs.mkdirSync(out);
- for(const x of [...entries,...additional])fs.writeFileSync(path.join(out,x.record.file),x.bytes,{flag:'wx'});
+ for(const x of [...entries,...additional,...observedMedia.files])fs.writeFileSync(path.join(out,x.record.file),x.bytes,{flag:'wx'});
  fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
  const imported=read(out,site,source);
  return {output:out,siteId:site.siteId,pages:imported.pageCount,
@@ -252,6 +257,9 @@ async function capture(sealedFolder,rawOrigin,output){
   robotsStatus:imported.publication.robotsStatus,sitemapStatus:imported.publication.sitemapStatus,
   localRedirectsCaptured:imported.publication.redirectResponses,
   localSeoFindings:imported.publication.findings.length,
+  localMediaAssets:imported.localMedia.capturedResources,
+  localMediaBytes:imported.localMedia.savedBodyBytes,
+  localMediaFindings:imported.localMedia.findings.length,
   publicHttpsChecked:false,readyToPublish:false};
 }
 function isVerified(x){return accepted.has(x);}
