@@ -56,6 +56,27 @@ const configShift=build({summary:summary(1),bundle:etagOld},summary(1),etagMoved
 assert.equal(configShift.summary.observedPhpEtagOrHtmlChanges,1);
 assert.equal(configShift.summary.sameEtagButDifferentHtml,0);
 
+const publicStaticGroup=(manifest,body,etag)=>({
+ ...bundle(1,true),
+ publicStaticParity:{comparable:true,claimedPublicOrigin:'https://site.example/',
+  verifiedStaticPublishedVersion:1,verifiedStaticManifestSha256:manifest,
+  pages:[{pageId:'home',path:'/',publicHtmlSha256:body,publicEtag:etag}],
+  findings:[]}
+});
+const staticBefore=publicStaticGroup('c'.repeat(64),'a'.repeat(64),'"edge-unchanged"');
+const staticAfter=publicStaticGroup('c'.repeat(64),'b'.repeat(64),'"edge-unchanged"');
+const publicCache=build({summary:summary(1),bundle:staticBefore},
+ summary(1),staticAfter);
+assert.equal(publicCache.summary.publicStaticDeploymentComparable,true);
+assert.equal(publicCache.summary.publicHtmlOrEtagChanges,1);
+assert.equal(publicCache.summary.samePublicEtagButDifferentHtml,1);
+assert.equal(publicCache.publicStaticCacheObservations.publicSameEtagDifferentHtml.length,1);
+const changedManifest=publicStaticGroup('d'.repeat(64),'b'.repeat(64),'"edge-unchanged"');
+const incomparableStatic=build({summary:summary(1),bundle:staticBefore},
+ summary(1),changedManifest);
+assert.equal(incomparableStatic.summary.publicStaticDeploymentComparable,false);
+assert.equal(incomparableStatic.summary.publicHtmlOrEtagChanges,0);
+
 const deliveryGroup=v=>({format:BUNDLE,siteId:'pilot',readOnly:true,
  release:{blockers:[{gateId:'owner-form-delivery-configuration'}]},
  deliveryReadiness:{pinnedPublishedVersion:v,
