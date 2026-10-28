@@ -24,6 +24,7 @@ const CONSISTENCY=require('./evidence-consistency.cjs');
 const ACCEPTANCE=require('./acceptance.cjs');
 const APPROVED_SITE=require('./approved-site-bridge.cjs');
 const PHP_CAPTURE=require('./php-capture.cjs');
+const PHP_HTML=require('./php-html-capture.cjs');
 const PROGRESS=require('./task-progress.cjs');
 const MIGRATION=require('./route-migration.cjs');
 const IMPACT=require('./change-impact.cjs');
@@ -34,7 +35,7 @@ function build(site,manifests,blueprint,options={}){
  if(!site||site.siteId!==plan.siteId)throw Error('Review package siteId mismatch');
  if(!Array.isArray(manifests))throw Error('Review package requires current manifests');
  if(!options||typeof options!=='object'||Array.isArray(options)||
-    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource','phpCapture'].includes(k)))
+    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource','phpCapture','phpHtml'].includes(k)))
   throw Error('Unsupported review-package options');
  // A sealed package is verified by the lead CLI before this read-only review.
  const approvedSource=options.approvedSource||null;
@@ -49,6 +50,12 @@ function build(site,manifests,blueprint,options={}){
     options.phpCapture.siteRevisionFingerprint!==ACCEPTANCE.fingerprint(site)||
     options.phpCapture.reviewedSealedSiteRawSha256!==approvedSource.fileSha256))
   throw Error('PHP screenshot evidence is not bound to a verified Approved Site v2 source');
+ if(options.phpHtml&&(!approvedSource||!PHP_HTML.isVerified(options.phpHtml)||
+    options.phpHtml.siteId!==site.siteId||
+    options.phpHtml.sourceSiteSha256!==approvedSource.fileSha256||
+    options.phpHtml.sourceSiteFingerprint!==ACCEPTANCE.fingerprint(site)||
+    options.snapshot!==options.phpHtml.snapshot))
+  throw Error('Local PHP HTML evidence must be the verified capture snapshot for this sealed Site v2 source');
  // Validate with authoritative core first, not just the loosely typed SEO blueprint.
  const audit=auditSite(site,manifests,plan);
  const architecture=reviewArchitecture(plan);
@@ -61,7 +68,7 @@ function build(site,manifests,blueprint,options={}){
  const media=options.media?MEDIA.review(site,options.media,options.snapshot):null;
  const evidenceConsistency=CONSISTENCY.review(site,options);
  const handoff=propose(site,manifests,plan);
- const {decisions:ledger,priorDecisions:historyLedger,acceptance:acceptanceLedger,approvedSource:verifiedSource,...coreOptions}=options;
+ const {decisions:ledger,priorDecisions:historyLedger,acceptance:acceptanceLedger,approvedSource:verifiedSource,phpHtml:verifiedPhpHtml,...coreOptions}=options;
  const backlog=work(site,manifests,plan,coreOptions);
  const release=assess(site,manifests,plan,{...coreOptions,
   ...(acceptanceLedger?{acceptance:acceptanceLedger}:{})},backlog);
@@ -113,6 +120,10 @@ function build(site,manifests,blueprint,options={}){
   approvedPrototypePageReferences:approvedSource?.availablePrototypePageCount??null,
   missingApprovedInteriorPageReferences:approvedSource?.missingInteriorPrototypePageIds??null,
   loopbackPhpScreenshotPages:options.phpCapture?.pages.length??null,
+  loopbackPhpHtmlPages:options.phpHtml?.pageCount??null,
+  loopbackPhpHtmlSha256Checked:Boolean(options.phpHtml),
+  loopbackPhpHtmlHttp200:options.phpHtml?.loopbackHttp200Count??null,
+  loopbackPhpHtmlSourceRevisionAuthenticated:false,
   screenshotFileDigestsChecked:Boolean(options.phpCapture),
   screenshotCaptureExactSiteRevisionProven:false,
   publicHttpsAndSeoHeadVerified:false};
@@ -129,6 +140,15 @@ function build(site,manifests,blueprint,options={}){
  }));
  return {format:FORMAT,version:1,siteId:site.siteId,readOnly:true,
   contract:acceptedFormats,coverage,approvedSiteSource:approvedSource,phpCapture:options.phpCapture||null,
+  phpHtmlCapture:options.phpHtml?{
+    format:options.phpHtml.format,siteId:options.phpHtml.siteId,
+    capturedAt:options.phpHtml.capturedAt,baseUrl:options.phpHtml.baseUrl,
+    pageCount:options.phpHtml.pageCount,checkedHtmlBytes:options.phpHtml.checkedHtmlBytes,
+    loopbackHttp200Count:options.phpHtml.loopbackHttp200Count,
+    sha256VerifiedAtRead:true,sourceSiteSha256:options.phpHtml.sourceSiteSha256,
+    sourceRevisionAuthenticated:false,realPublicHttpsChecked:false,
+    formsChecked:false,visualParityChecked:false
+  }:null,
   blueprintReview:architecture,siteAudit:audit,
   htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
   traceability,decisions,acceptanceReview,taskProgress,routeMigration,changeImpact,leadDossier:dossier,deliveryEvidence:delivery,mediaEvidence:media,evidenceConsistency,executionPlan:execution,cmsChangePacket,capturePlan,
@@ -156,6 +176,13 @@ function build(site,manifests,blueprint,options={}){
         (options.phpCapture.warningPageIds.length?' ('+options.phpCapture.warningPageIds.join(', ')+')':'')+'.\n'+
       '- The lead capture JSON lacks the site.json digest: identical site revision at capture time is NOT cryptographically proven.\n'+
       '- Screenshots are NOT HTML/HTTP SEO head evidence; visual equality, forms and actual public HTTPS remain unverified.\n':'')+
+    (options.phpHtml?'\n\n## Actual local PHP HTML evidence (read-only)\n\n'+
+      '- PHP loopback: '+options.phpHtml.baseUrl+'; capture time: '+options.phpHtml.capturedAt+'\n'+
+      '- HTTP 200 responses: '+options.phpHtml.loopbackHttp200Count+
+        '; verified HTML files: '+options.phpHtml.pageCount+
+        '; total HTML bytes: '+options.phpHtml.checkedHtmlBytes+'.\n'+
+      '- SEO head, H1, links and indexation checked by existing HTML/parity modules against the captured bytes.\n'+
+      '- Source digest recorded at capture, but source revision served by PHP NOT cryptographically attested. No public HTTPS, forms, scripts, actual design equality or client approval verified.\n':'')+
     '\n\n---\n\n'+renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
     '\n\n---\n\n'+EXECUTION.markdown(execution)+'\n\n---\n\n'+CMS_PACKET.markdown(cmsChangePacket),
   integrationOrder:['verified-owner-facts','approved-prototypes-and-blueprint',
