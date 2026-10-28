@@ -245,8 +245,17 @@ async function execute(){
     'New FAQ item must actually receive edited question before reordering');
   await page.locator('#elements .cms-repeat-row').last()
     .locator('button[aria-label^="Поднять вопрос"]').click();
-  assert.deepEqual(await questions(),['Как оформить заказ?','Что входит в комплект?','Как происходит доставка?'],
-    'FAQ move must change ordering of the actual saved draft');
+  const movedQuestions=await questions();
+  const faqMoveDiagnostic=await page.evaluate(()=>({
+    toast:document.querySelector('#toast')?.textContent,
+    selected:[...document.querySelectorAll('#elements .cms-repeat-row')].map(row=>({
+      id:row.querySelector('[data-repeat-id]')?.dataset.repeatId,
+      label:row.querySelector('[data-repeat-id]')?.textContent
+    })),
+    dirty:document.querySelector('#dirty')?.textContent
+  }));
+  assert.deepEqual(movedQuestions,['Как оформить заказ?','Что входит в комплект?','Как происходит доставка?'],
+    'FAQ move must change ordering of the actual saved draft: '+JSON.stringify(faqMoveDiagnostic));
   await page.locator('#elements .cms-repeat-row')
     .filter({hasText:'Как происходит доставка?'}).locator('button[aria-label^="Удалить вопрос"]').click();
   assert.deepEqual(await questions(),['Как оформить заказ?','Что входит в комплект?'],
