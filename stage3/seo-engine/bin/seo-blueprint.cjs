@@ -32,12 +32,24 @@ const IMPACT=require('../lib/change-impact.cjs');
 function main(argv){
  const [command,...args]=argv;
  const flags={};
- const permitted=new Set(['brief','blueprint','site','manifests','snapshot','viewports','before','decisions','prior-decisions','delivery','media','origin','acceptance']);
+ const permitted=new Set(['brief','blueprint','site','manifests','snapshot','viewports','before','decisions','prior-decisions','delivery','media','origin','acceptance','approved-site']);
  for(let i=0;i<args.length;i+=2){
   if(!args[i]?.startsWith('--')||!permitted.has(args[i].slice(2))||!args[i+1]||flags[args[i]])throw Error('Use supported --name value options, without duplicates');
   flags[args[i].slice(2)]=args[i+1];
  }
- function read(key){if(!flags[key])throw Error('Missing --'+key);const data=fs.readFileSync(path.resolve(flags[key]),'utf8');if(data.length>2000000)throw Error('Input too large');return JSON.parse(data);}
+ if(flags['approved-site']&&(flags.site||!['review-bundle','review-bundle-md'].includes(command)))
+  throw Error('--approved-site is exclusive to review-bundle[/-md] and cannot be combined with --site');
+ let sealedSource=null;
+ function read(key){
+  if(key==='site'&&flags['approved-site']){
+   if(!sealedSource)sealedSource=require('../lib/approved-site-bridge.cjs').load(flags['approved-site']);
+   return sealedSource.site;
+  }
+  if(!flags[key])throw Error('Missing --'+key);
+  const data=fs.readFileSync(path.resolve(flags[key]),'utf8');
+  if(data.length>2000000)throw Error('Input too large');
+  return JSON.parse(data);
+ }
  function manifests(){
   const dir=path.resolve(flags.manifests||path.join(__dirname,'../../components'));
   return fs.readdirSync(dir).filter(x=>x.endsWith('.json')).map(f=>JSON.parse(fs.readFileSync(path.join(dir,f),'utf8')));
@@ -138,6 +150,7 @@ function main(argv){
  else if(['remediation-plan','remediation-md','release-review','review-bundle','review-bundle-md','triage','execution-plan','execution-plan-md','cms-change-packet','cms-change-packet-md'].includes(command)){
   const site=read('site'),blueprint=read('blueprint'),registry=manifests();
   const options={};
+  if(sealedSource)options.approvedSource=sealedSource.source;
   if(flags.snapshot)options.snapshot=read('snapshot');
   if(flags.viewports)options.viewports=read('viewports');
   if(flags.before)options.baselineSite=read('before');

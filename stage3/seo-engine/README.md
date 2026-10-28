@@ -157,3 +157,19 @@ Reports use conservative review labels and do **not** prove real HTTP codes, dep
 `node stage3/seo-engine/bin/seo-blueprint.cjs publication-integrity --site <site.json> --snapshot <html.snapshot.json>` compares supplied sitemap routes, page indexation, selected canonical paths and wildcard robots directives with Site v1. If **and only if** the supplied sitemapPaths is the full enumerated sitemap, set `sitemapCompleteness: "complete"` alongside `sitemapPaths` in the snapshot. Omission checks are disabled otherwise. These findings enter `remediation-plan`, `release-review` and `review-bundle.publicationIntegrity`. This tool never fetches a live host and cannot prove indexing, crawl permission, canonical origins or release readiness.
 
 See [INTEGRATION-HANDOFF.md](INTEGRATION-HANDOFF.md), [NEXT-CHAT-HANDOFF.md](NEXT-CHAT-HANDOFF.md) and [research/PRIMARY-SOURCES.md](research/PRIMARY-SOURCES.md).
+
+## First real site: direct sealed Approved Site v2 input (lead integration)
+
+In a **lead-integrated checkout containing** `stage3/bin/verify-approved-site.cjs`, the same read-only SEO review can consume the sealed folder directly:
+
+```sh
+node stage3/bin/verify-approved-site.cjs /ABS/approved-site
+node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle-md \\
+  --approved-site /ABS/approved-site --blueprint /ABS/seo-blueprint.json > /ABS/seo-review.md
+node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle \\
+  --approved-site /ABS/approved-site --blueprint /ABS/seo-blueprint.json > /ABS/seo-review.json
+```
+
+`--approved-site` is **only** for `review-bundle` / `review-bundle-md` and cannot be combined with `--site`. It invokes the **lead-owned** full preflight, requires SHA-256-locked `manufact-approved-site-handoff-v2` and reads its verified original Site v1. It refuses the worker-only checkout (which does not yet contain the lead verifier), unsealed legacy packages, or a changed `site.json`. This is not a second approval system.
+
+The bundle adds `approvedSiteSource`, source byte SHA-256 vs separately named canonical SEO fingerprint, and homepage/per-interior-page reference coverage. Three approved homepage pictures **must not** be presented as independent interior-page visual acceptance. It does not fetch public URLs, inspect screenshots, publish, validate human signoff or write the package. A real Blueprint and real HTTP/viewport/media observations must come from the lead's actual first site; none is implied by the sealed source.

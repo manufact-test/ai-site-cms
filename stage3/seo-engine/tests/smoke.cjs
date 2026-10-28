@@ -20,6 +20,12 @@ try{
   assert.match(explanation,/mobile/i);
  }
  const site=path.resolve(root,'../fixtures/industrial-site.json'),bp=fixture('industrial.blueprint.json');
+ const mixed=command('review-bundle',{site,'approved-site':tmp,blueprint:bp});
+ assert.notEqual(mixed.status,0,'two Site v1 sources must be rejected');
+ assert.match(mixed.stderr,/--approved-site.*cannot be combined with --site/);
+ const oldBundle=JSON.parse(good('review-bundle',{site,blueprint:bp}));
+ assert.equal(oldBundle.approvedSiteSource,null,'legacy --site path remains independent');
+ assert.equal(oldBundle.coverage.sealedSourceVerifiedAtRead,false);
  const audit=JSON.parse(good('analyze-site',{site,blueprint:bp}));
  assert.equal(audit.format,'manufact-seo-analysis-v1');
  assert.equal(audit.mode,'site-v1');assert.equal(audit.siteId,'site-industrial-demo');

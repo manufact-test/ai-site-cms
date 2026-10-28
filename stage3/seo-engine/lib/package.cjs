@@ -32,8 +32,16 @@ function build(site,manifests,blueprint,options={}){
  if(!site||site.siteId!==plan.siteId)throw Error('Review package siteId mismatch');
  if(!Array.isArray(manifests))throw Error('Review package requires current manifests');
  if(!options||typeof options!=='object'||Array.isArray(options)||
-    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance'].includes(k)))
+    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource'].includes(k)))
   throw Error('Unsupported review-package options');
+ // A sealed package is verified by the lead CLI before this read-only review.
+ const approvedSource=options.approvedSource||null;
+ if(approvedSource&&(
+  approvedSource.format!=='manufact-seo-approved-site-source-v1'||
+  approvedSource.siteId!==site.siteId||
+  approvedSource.siteRevisionFingerprint!==ACCEPTANCE.fingerprint(site)||
+  approvedSource.integrity!=='sha256-verified-at-read'))
+  throw Error('Approved Site source metadata does not match the reviewed Site v1');
  // Validate with authoritative core first, not just the loosely typed SEO blueprint.
  const audit=auditSite(site,manifests,plan);
  const architecture=reviewArchitecture(plan);
@@ -46,7 +54,7 @@ function build(site,manifests,blueprint,options={}){
  const media=options.media?MEDIA.review(site,options.media,options.snapshot):null;
  const evidenceConsistency=CONSISTENCY.review(site,options);
  const handoff=propose(site,manifests,plan);
- const {decisions:ledger,priorDecisions:historyLedger,acceptance:acceptanceLedger,...coreOptions}=options;
+ const {decisions:ledger,priorDecisions:historyLedger,acceptance:acceptanceLedger,approvedSource:verifiedSource,...coreOptions}=options;
  const backlog=work(site,manifests,plan,coreOptions);
  const release=assess(site,manifests,plan,{...coreOptions,
   ...(acceptanceLedger?{acceptance:acceptanceLedger}:{})},backlog);
@@ -92,7 +100,11 @@ function build(site,manifests,blueprint,options={}){
   prototypeApprovalLedgerProvided:Boolean(acceptanceLedger),
   historicalTaskComparisonPerformed:Boolean(taskProgress),
   blueprintRevisionFingerprint:ACCEPTANCE.fingerprint(plan),
-  siteRevisionFingerprint:ACCEPTANCE.fingerprint(site)};
+  siteRevisionFingerprint:ACCEPTANCE.fingerprint(site),
+  sealedSourceVerifiedAtRead:Boolean(approvedSource),
+  sealedSourceRawSiteSha256:approvedSource?.fileSha256??null,
+  approvedPrototypePageReferences:approvedSource?.availablePrototypePageCount??null,
+  missingApprovedInteriorPageReferences:approvedSource?.missingInteriorPrototypePageIds??null};
  const dossier=DOSSIER.build({siteId:site.siteId,release,coverage,acceptanceReview,
   taskProgress,changeImpact,executionPlan:execution,cmsChangePacket,traceability,
   capturePlan,deliveryEvidence:delivery,mediaEvidence:media,routeMigration});
@@ -105,13 +117,26 @@ function build(site,manifests,blueprint,options={}){
   instruction:task.instruction,decision:approved.has(task.taskId)?'approved-for-manual-work':deferred.has(task.taskId)?'deferred':'unreviewed',automatic:false
  }));
  return {format:FORMAT,version:1,siteId:site.siteId,readOnly:true,
-  contract:acceptedFormats,coverage,
+  contract:acceptedFormats,coverage,approvedSiteSource:approvedSource,
   blueprintReview:architecture,siteAudit:audit,
   htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
   traceability,decisions,acceptanceReview,taskProgress,routeMigration,changeImpact,leadDossier:dossier,deliveryEvidence:delivery,mediaEvidence:media,evidenceConsistency,executionPlan:execution,cmsChangePacket,capturePlan,
   regression,handoff,backlog,release,nextActions,
   // Retain the original remediation Markdown first for consumers depending on its header.
-  markdownHandoff:DOSSIER.markdown(dossier)+'\n\n---\n\n'+renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
+  markdownHandoff:DOSSIER.markdown(dossier)+
+    (approvedSource?'\n\n## Sealed Approved Site v2 source (read-only)\n\n'+
+     '- Lead source preflight: SHA-256 verified at read; not a client-identity or design-approval certificate.\n'+
+     '- Source version: '+approvedSource.packageVersion+'; raw site.json SHA-256: '+approvedSource.fileSha256+'\n'+
+     '- SEO canonical Site v1 fingerprint: '+approvedSource.siteRevisionFingerprint+
+       ' (not the raw file digest).\n'+
+     '- Homepage references: three sealed images; additional page-specific reference sets: '+
+       (approvedSource.availablePrototypePageCount-1)+'.\n'+
+     '- Interior pages without their own approved images: '+
+       (approvedSource.missingInteriorPrototypePageIds.length?
+         approvedSource.missingInteriorPrototypePageIds.join(', '):'none')+
+       ' (do not substitute homepage mockups).\n'+
+     '- Human approval, visual fidelity and real published HTTP remain unverified.\n':'')+
+    '\n\n---\n\n'+renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
     '\n\n---\n\n'+EXECUTION.markdown(execution)+'\n\n---\n\n'+CMS_PACKET.markdown(cmsChangePacket),
   integrationOrder:['verified-owner-facts','approved-prototypes-and-blueprint',
    'existing-site-v1-development','current-manifest-and-override-review',
