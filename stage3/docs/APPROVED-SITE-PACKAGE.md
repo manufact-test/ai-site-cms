@@ -186,3 +186,18 @@ If media upload or the final Save is interrupted, the server intentionally retai
 Open **Проверка сайта** on an existing imported site. Every page now shows the **actual PHP-rendered draft** as a full-height scrollable desktop (1200 px), tablet (780 px) or mobile (390 px) document. With an existing publication, use the original same-origin public PHP output alongside it; this never silently publishes the draft. A scaled iframe is placed inside a real-height canvas rather than clipped to the first 900 pixels. The owner must scroll and inspect the whole page at all three widths.
 
 For each view, Studio now waits for the PHP HTML to finish loading **and for all page images, including below-fold lazy images, to finish**. It reports image counts, broken images, rendered full height and page-level horizontal overflow. Missing images, horizontal overflow, and an excessively tall preview refuse that device's manual sign-off. This is a technical rendering gate, **not automatic visual fidelity approval** or a substitute for comparing actual approved designs. The existing downloaded launch review JSON includes these per-page/per-device checks and separate human confirmations. No external scripts or forms are executed in the preview, and Save and Publish remain explicit operations.
+
+
+## Private retained approval evidence (v2 only)
+
+**After a successful sealed v2 import**, authenticated owner Studio uploads an immutable private snapshot of `handoff.json`, the original `site.json`, all **three prototype images** and both descriptions. Each document is independently checked against the SHA-256 ledger in the sealed handoff before the server stores its original bytes. Site-owned website images are already retained by the existing media system and are not duplicated in the evidence vault. The archive is not in the visitor release or site contract. Original signed-off files are never modified when page content changes.
+
+The owner can choose **Материалы согласования** to open stored versions, view the three prototypes and both descriptions, and download original evidence bytes. The UI verifies SHA-256 again when reading from the authenticated API. **Архивировать материалы** permits uploading missing or old approved materials to an already existing matching site (again after full preflight and manual review), without touching its draft, revision or publication. Uploads are idempotent and immutable; incomplete evidence packages are shown as incomplete, not falsely completed. Old v1 handoffs are still importable, but cannot be archived as trusted sealed v2 evidence. A new client approval requires a different v2 handoff hash.
+
+**Existing installations:** the new database table is created automatically **only when setting up a new empty dedicated Stage3 DB**. Existing Stage3 instances require the deliberate CLI-only migration below, with the correct isolated Stage3 DSN already configured:
+
+```sh
+STAGE3_ALLOW_APPROVAL_UPGRADE=YES php stage3/server/bin/upgrade-approval-evidence.php
+```
+
+No DDL on HTTP requests, no main/prod migration in this development batch. The original approved handoff folder should also be backed up independently. The existing `manufact-site-backup-v1` exports **do not include this new vault**; do not assume those backups preserve approval evidence. Download the evidence files separately until a versioned archive/export integration is reviewed. SHA-256 integrity is not evidence of a client's identity or actual approval.

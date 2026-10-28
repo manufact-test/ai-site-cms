@@ -1841,6 +1841,10 @@
     techOpen.disabled=!available||!state.authorized;
     const approvedImport=document.getElementById('server-approved-import');
     if(approvedImport)approvedImport.disabled=state.busy||!state.authorized||!isOwner();
+    const approvalOpen=document.getElementById('server-approved-vault-open');
+    if(approvalOpen)approvalOpen.disabled=state.busy||!state.siteId||!isOwner();
+    const approvalAttach=document.getElementById('server-approved-vault-attach');
+    if(approvalAttach)approvalAttach.disabled=state.busy||!state.siteId||!isOwner();
     $('server-open').disabled=state.busy||!state.authorized||!picker.value;
     $('server-site-select').disabled=state.busy||!state.authorized;
     $('server-logout').disabled=state.busy||!state.authorized;
@@ -2499,7 +2503,7 @@
 
   // Connect a compiled external site, not a prototype or arbitrary external HTML.
   // The three images and the human-approved specification remain in the portable folder.
-  async function importApprovedFolder(uploadedFiles){
+  async function importApprovedFolder(uploadedFiles,archiveOnly=false){
     return safe(async()=>{
       if(!isOwner())throw Error('Подключение нового сайта доступно только владельцу CMS');
       if(isDirty()&&!confirm('Несохранённые изменения будут потеряны. Продолжить?'))return;
@@ -2655,7 +2659,8 @@
         const summary=element('p',null,'Сайт: '+site.title+' · версия: '+handoff.version+
           ' · страниц: '+site.pages.length+' · изображений: '+site.assets.length+
           ' · целостность: '+(handoff.format.endsWith('-v2')?'SHA-256 подтверждена':'старый пакет v1'));
-        const description=element('p',null,
+        const description=element('p',null,archiveOnly?
+          'Архивирование не изменит страницы, черновик или публикацию. Проверьте исходные макеты, описания и версию; записи будут доступны только владельцу CMS.':
           'Ниже показаны реальные макеты из пакета. Сравните их с согласованной версией. Подключение создаст только черновик, публикация выполняется отдельно.');
         const pageSelect=element('select','control');
         pageSelect.id='server-approved-review-page';
@@ -2779,7 +2784,8 @@
         const actions=element('div','');
         Object.assign(actions.style,{display:'flex',justifyContent:'flex-end',flexWrap:'wrap',gap:'12px',marginTop:'18px'});
         const cancel=action('Отмена','server-approved-review-cancel',()=>dialog.close('cancel'));
-        const confirmButton=action(matchingTicket()?'Продолжить незавершённый импорт':'Подключить как черновик',
+        const confirmButton=action(archiveOnly?'Сохранить материалы без изменения сайта':
+          (matchingTicket()?'Продолжить незавершённый импорт':'Подключить как черновик'),
           'server-approved-review-confirm',()=>dialog.close('approve'));
         actions.append(cancel,confirmButton);
         dialog.append(heading,summary,description,pageLabel,previews,details,actions);
@@ -2816,6 +2822,37 @@
         reader.onerror=()=>reject(Error('Ошибка чтения: '+file.name));
         reader.readAsDataURL(file);
       });
+      const archiveApproval=async()=>{
+        if(handoff.format!=='manufact-approved-site-handoff-v2'){
+          if(archiveOnly)throw Error('Для архива требуется SHA-256 sealed v2 пакет');
+          return null; // v1 remains readable, but not a reliable approval archive.
+        }
+        const packageSha=Array.from(new Uint8Array(await crypto.subtle.digest(
+          'SHA-256',await manifestFile.arrayBuffer())))
+          .map(b=>b.toString(16).padStart(2,'0')).join('');
+        const map=[['handoff','handoff.json'],...[
+          'site','desktop','tablet','mobile','clientExplanation','implementationSpec'
+        ].map(key=>[key,refs[key]])];
+        let index=null;
+        for(const [kind,path] of map){
+          const file=required(path),digest=kind==='handoff'?packageSha:handoff.integrity.files[path];
+          notice('Архив согласования: '+kind+' · '+(map.findIndex(x=>x[0]===kind)+1)+' из '+map.length);
+          index=await api('/api/sites/'+encodeURIComponent(site.siteId)+'/approval-evidence','POST',{
+            packageSha,kind,sha256:digest,base64:await fileBase64(file)
+          });
+        }
+        if(!index.packages.some(row=>row.packageSha===packageSha&&row.complete))
+          throw Error('Сервер не подтвердил полный архив согласования');
+        return packageSha;
+      };
+      if(archiveOnly){
+        const current=await api('/api/sites/'+encodeURIComponent(site.siteId));
+        if(current.site.siteId!==site.siteId||current.site.title!==site.title)
+          throw Error('Пакет относится к другому сайту; архив не изменён');
+        await archiveApproval();
+        notice('Три макета, два описания и исходный handoff сохранены в закрытом архиве. Сайт и публикация не изменены.');
+        return;
+      }
       let created=false,resumed=false;
       try{
         // The server intentionally refuses foreign media IDs on Create. A
@@ -2910,11 +2947,16 @@
         next.assets=result.site.assets; // Server-issued immutable IDs, paths, dimensions and responsive hashes.
         result=await api('/api/sites/'+encodeURIComponent(site.siteId)+'/save','POST',
           {site:next,expectedRevision:result.revision});
-        forgetTicket();
+        // The site draft is saved BEFORE its independent immutable evidence.
+        // A failed evidence upload never rolls back/publishes the real site;
+        // owner can resume only the approval archive via a separate button.
         selectSite(result);
         await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();await loadDeliverySettings();
+        await archiveApproval();
+        forgetTicket();
         notice((resumed?'Импорт безопасно продолжен. ':'Сайт подключён как черновик. ')+
-          'Редактируйте страницы, FAQ, изображения и SEO; публикация только по отдельной кнопке.');
+          (handoff.format.endsWith('-v2')?'Архив согласования сохранён. ':'Пакет v1: архив не создавался. ')+
+          'Публикация только по отдельной кнопке.');
       }catch(error){
         if(created){
           try{
@@ -3011,6 +3053,99 @@
     canEditMedia:()=>state.authorized&&!state.busy&&Boolean(state.siteId)&&canEdit()&&!editor.isDirty(),
     uploadProcessed});
 
+  const approvalVault=element('dialog','hosted-backup-dialog');
+  approvalVault.id='server-approval-vault';
+  const approvalRows=element('div','hosted-backup-summary');
+  approvalRows.id='server-approval-vault-rows';
+  const approvalClose=action('Закрыть','server-approval-vault-close',()=>approvalVault.close());
+  approvalVault.append(element('h2',null,'Материалы согласования'),
+    element('p',null,'Закрытое хранилище версий согласованного дизайна. Только владелец. Ни одна версия не меняет черновик или публикацию. SHA-256 подтверждает неизменность файлов, но не личность клиента.'),
+    approvalRows,approvalClose);
+  document.body.append(approvalVault);
+  const approvalUrls=new Set();
+  const privateApprovalUrl=(packageSha,kind)=>
+    '/api/sites/'+encodeURIComponent(state.siteId)+'/approval-evidence/'+packageSha+'/'+kind;
+  const approvalKinds=['handoff','site','desktop','tablet','mobile','clientExplanation','implementationSpec'];
+  const approvalDownload=(bytes,name,mime='application/octet-stream')=>{
+    const objectUrl=URL.createObjectURL(new Blob([bytes],{type:mime}));
+    const a=document.createElement('a');a.href=objectUrl;a.download=name;
+    document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(objectUrl),1500);
+  };
+  async function openApprovalVault(){
+    if(!state.siteId||!isOwner())throw Error('Архив доступен только владельцу');
+    const siteId=state.siteId;
+    approvalVault.showModal();approvalRows.replaceChildren(element('p',null,'Читаем архив…'));
+    try{
+      const result=await api('/api/sites/'+encodeURIComponent(siteId)+'/approval-evidence');
+      if(state.siteId!==siteId||!approvalVault.open)return;
+      approvalRows.replaceChildren();
+      if(!result.packages.length)approvalRows.append(element('p',null,
+        'Пока нет сохранённых материалов. Для существующего сайта выберите «Архивировать материалы» и ту же sealed v2 папку.'));
+      for(const entry of result.packages){
+        const section=element('section','hosted-backup-summary');
+        section.style.marginBottom='16px';
+        section.append(element('h3',null,'Версия '+entry.version+' · '+(entry.complete?'полный комплект':'не завершён · можно повторить загрузку')),
+          element('small',null,'SHA-256 handoff: '+entry.packageSha+' · '+entry.createdAt));
+        const previews=element('div');
+        Object.assign(previews.style,{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:'10px'});
+        for(const kind of approvalKinds){
+          if(!entry.files[kind])continue;
+          const fileRow=element('div');fileRow.style.minWidth='0';
+          const digest=entry.files[kind].sha256;
+          const label=element('small',null,kind+' · '+entry.files[kind].bytes+' B');
+          const save=action('Скачать','',()=>safe(async()=>{
+            const response=await fetch(privateApprovalUrl(entry.packageSha,kind),
+              {credentials:'same-origin',cache:'no-store'});
+            if(!response.ok)throw Error('Файл больше недоступен');
+            const bytes=await response.arrayBuffer();
+            const actual=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
+              .map(b=>b.toString(16).padStart(2,'0')).join('');
+            if(actual!==digest)throw Error('Архивный файл не прошёл SHA-256');
+            approvalDownload(bytes,siteId+'-'+entry.version+'-'+kind+'.bin');
+          }));
+          fileRow.append(label,save);
+          if(['desktop','tablet','mobile'].includes(kind)){
+            const img=element('img');img.alt='Согласованный макет '+kind;
+            Object.assign(img.style,{width:'100%',display:'block',maxHeight:'270px',objectFit:'contain'});
+            const response=await fetch(privateApprovalUrl(entry.packageSha,kind),
+              {credentials:'same-origin',cache:'no-store'});
+            if(!response.ok)throw Error('Не удалось загрузить закрытый макет');
+            const bytes=await response.arrayBuffer();
+            const actual=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
+              .map(b=>b.toString(16).padStart(2,'0')).join('');
+            if(actual!==digest)throw Error('Несовпадение SHA-256 сохранённого макета');
+            const header=new Uint8Array(bytes.slice(0,12));
+            const mime=header[0]===137?'image/png':header[0]===255?'image/jpeg':'image/webp';
+            const url=URL.createObjectURL(new Blob([bytes],{type:mime}));approvalUrls.add(url);
+            img.src=url;fileRow.prepend(img);previews.append(fileRow);
+          }else{
+            section.append(fileRow);
+            if(['clientExplanation','implementationSpec'].includes(kind)){
+              const response=await fetch(privateApprovalUrl(entry.packageSha,kind),
+                {credentials:'same-origin',cache:'no-store'});
+              if(!response.ok)throw Error('Нет текста согласования');
+              const bytes=await response.arrayBuffer();
+              const actual=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
+                .map(b=>b.toString(16).padStart(2,'0')).join('');
+              if(actual!==digest)throw Error('Несовпадение SHA-256 описания');
+              const details=element('details');details.append(element('summary',null,kind));
+              const text=element('pre','',new TextDecoder().decode(bytes));
+              Object.assign(text.style,{whiteSpace:'pre-wrap',overflowWrap:'anywhere',maxHeight:'220px',overflowY:'auto'});
+              details.append(text);section.append(details);
+            }
+          }
+        }
+        section.append(previews);approvalRows.append(section);
+      }
+    }catch(error){
+      approvalRows.replaceChildren(element('p',null,'Ошибка архива: '+error.message));
+    }
+  }
+  approvalVault.addEventListener('close',()=>{
+    for(const url of approvalUrls)URL.revokeObjectURL(url);
+    approvalUrls.clear();approvalRows.replaceChildren();
+  });
   // A folder is a complete external-author handoff. Raw JSON import remains
   // available for existing media-free sites. No additional editor engine.
   const approvedFolder=document.createElement('input');
@@ -3019,10 +3154,22 @@
   approvedFolder.hidden=true;approvedFolder.id='server-approved-folder';
   const approvedButton=action('Подключить готовый сайт','server-approved-import',
     ()=>approvedFolder.click());
-  $('import').parentElement.append(approvedButton,approvedFolder);
+  const evidenceFolder=document.createElement('input');
+  evidenceFolder.type='file';evidenceFolder.multiple=true;evidenceFolder.hidden=true;
+  evidenceFolder.setAttribute('webkitdirectory','');
+  evidenceFolder.id='server-approved-vault-folder';
+  const evidenceAttach=action('Архивировать материалы','server-approved-vault-attach',
+    ()=>evidenceFolder.click());
+  const evidenceOpen=action('Материалы согласования','server-approved-vault-open',
+    ()=>safe(openApprovalVault));
+  $('import').parentElement.append(approvedButton,approvedFolder,evidenceAttach,evidenceFolder,evidenceOpen);
   approvedFolder.addEventListener('change',()=>{
     const entries=[...approvedFolder.files];approvedFolder.value='';
     if(entries.length)importApprovedFolder(entries);
+  });
+  evidenceFolder.addEventListener('change',()=>{
+    const entries=[...evidenceFolder.files];evidenceFolder.value='';
+    if(entries.length)importApprovedFolder(entries,true);
   });
   $('versions').replaceChildren();
   editorVisible(false);
