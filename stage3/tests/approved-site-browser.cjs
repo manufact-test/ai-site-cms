@@ -204,7 +204,15 @@ async function execute(){
   await page.locator('#server-approved-expand-desktop').click();
   assert.equal(await page.locator('[data-approved-device="tablet"]').isVisible(),true);
   const pageOptions=await page.locator('#server-approved-review-page option').count();
-  assert.ok(pageOptions>=1,'Owner can preview each page before accepting site');
+  assert.ok(pageOptions>=2,'Owner can preview interior page before accepting site');
+  const beforePageReference=await page.locator('[data-prototype="desktop"]').getAttribute('src');
+  await page.locator('#server-approved-review-page').selectOption(interiorPage.path);
+  await page.waitForFunction(previous=>
+    document.querySelector('[data-prototype="desktop"]')?.getAttribute('src')!==previous,
+    beforePageReference);
+  assert.match(await page.locator('[data-approved-device="desktop"]').innerText(),
+    new RegExp(interiorPage.title),'Interior original should replace the homepage source');
+  await page.locator('#server-approved-review-page').selectOption('/');
   assert.equal(await page.locator('#server-approved-review').getByText(/Описание для клиента/).count(),1);
   assert.equal(await page.locator('#server-approved-review').getByText(/Спецификация реализации/).count(),1);
   const beforeCancel=(await (await page.request.get(origin+'/api/sites')).json()).sites.length;
@@ -328,7 +336,7 @@ async function execute(){
   },uploaded);
   await page.locator('#server-approved-review-confirm').waitFor();
   await page.locator('#server-approved-review-confirm').click();
-  await page.locator('#toast').getByText(/Три макета, два описания/).waitFor({timeout:20000});
+  await page.locator('#toast').getByText(/Макеты 2 страниц/).waitFor({timeout:20000});
   await page.waitForFunction(()=>!document.getElementById('server-approved-vault-attach').disabled);
   assert.equal((await (await page.request.get(origin+
     '/api/sites/site-approved-browser')).json()).revision,archiveRevision);
