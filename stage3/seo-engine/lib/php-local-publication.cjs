@@ -126,8 +126,8 @@ function review(site,base,manifest,bytesByFile){
  return Object.freeze({format:FORMAT,siteId:site.siteId,readOnly:true,
   robotsStatus:robots.status,sitemapStatus:sitemap.status,
   redirectResponses:manifest.redirects.length,
-  parsedSitemapPaths:paths,parsedSitemapComplete:paths!==null,
-  findings:Object.freeze(findings),
+  parsedSitemapPaths:paths?Object.freeze(paths):null,parsedSitemapComplete:paths!==null,
+  findings:Object.freeze(findings.map(item=>Object.freeze(item))),
   actualLoopbackRequests:true,publicHttpsProven:false,
   actualPhpBuildRevisionAuthenticated:false,releaseAuthorized:false,
   limitations:'Hash-checked local PHP HTTP responses only. Sitemap loc origins are from PHP configuration, not authenticated public HTTPS; cannot certify production robots/crawl or current deployed build.'});
