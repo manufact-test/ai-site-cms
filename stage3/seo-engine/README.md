@@ -33,6 +33,8 @@ node stage3/seo-engine/bin/seo-blueprint.cjs remediation-md \
 node stage3/seo-engine/tests/smoke.cjs
 ```
 
+`evidence-consistency` highlights when two caller-supplied captures contradict each other, especially an index/noindex signal. A conflict on captured indexation is a release blocker until the lead confirms the real deployed build; agreement still does not authenticate either recording. Integrated into `review-bundle.evidenceConsistency` and the remediation work queue.
+
 `capture-plan` generates a complete first-real-site evidence capture checklist, including all Site v1 pages, approved blueprint routes, known media, exact HTTPS public URLs when `--origin` is provided, robots/sitemap candidates, desktop/tablet/mobile markup, screenshots, forms and acceptance checks. This is a request manifest, not a fetch or actual observation. `review-bundle.capturePlan` includes the checklist; when provided delivery/media evidence disagree on public origin, the bundle records the conflict and refuses to choose an arbitrary origin.
 
 `cms-change-packet` derives candidate edits only from approved, current backlog items, rechecks Site v1 page/element IDs, manifest version and field limits, verifies the proposed value against the current approved blueprint, and refuses unresolved dependencies. It never writes to CMS; manual saved overrides and real Save/Publish must still be reviewed. The `review-bundle.cmsChangePacket` includes the same guarded instructions.
@@ -63,6 +65,7 @@ The full `review-bundle` includes a canonical blueprint architecture review, cor
 | `remediation-plan`, `remediation-md`, `release-review` | JSON work queue, Markdown work queue, publication checklist | `--site --blueprint`, optional `--snapshot --viewports --before` |
 | `media-review` | Validate caller-supplied OG image resource URL/status/MIME | `--site --media`, optional `--snapshot` |
 | `delivery-review` | Read-only HTTP transcript: statuses, headers, canonical, robots, sitemap | `--site --delivery`, optional `--blueprint` |
+| `evidence-consistency` | Compare the caller-supplied HTML export and HTTP-captured HTML, highlight conflicting title/robots/canonical/OG or media origin | `--site`, optional `--snapshot --delivery --media` |
 | `capture-plan` | First real-site lead capture manifest: exact page/media URLs, HTTP, three device markup and manual acceptance | `--site --blueprint`, optional `--origin https://host/mount/` |
 | `cms-change-packet`, `cms-change-packet-md` | Non-executable manifest- and source-guarded CMS field instructions after decisions | `--site --blueprint`, optional `--decisions --snapshot --delivery` |
 | `execution-plan`, `execution-plan-md` | Dependency-aware phases/owners; approved, blocked, stale, deferred and rejected task lanes | `--site --blueprint`, optional `--decisions --delivery --snapshot --viewports --before` |

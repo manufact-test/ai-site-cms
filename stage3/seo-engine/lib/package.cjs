@@ -20,6 +20,7 @@ const EXECUTION=require('./execution-plan.cjs');
 const MEDIA=require('./media-delivery.cjs');
 const CMS_PACKET=require('./cms-change-packet.cjs');
 const CAPTURE=require('./capture-plan.cjs');
+const CONSISTENCY=require('./evidence-consistency.cjs');
 const FORMAT='manufact-seo-review-bundle-v1';
 function build(site,manifests,blueprint,options={}){
  const plan=checkBlueprint(blueprint);
@@ -38,6 +39,7 @@ function build(site,manifests,blueprint,options={}){
  const publication=options.snapshot?reviewPublication(site,options.snapshot):null;
  const delivery=options.delivery?DELIVERY.review(site,options.delivery):null;
  const media=options.media?MEDIA.review(site,options.media,options.snapshot):null;
+ const evidenceConsistency=CONSISTENCY.review(site,options);
  const handoff=propose(site,manifests,plan);
  const {decisions:ledger,...coreOptions}=options;
  const backlog=work(site,manifests,plan,coreOptions);
@@ -88,7 +90,7 @@ function build(site,manifests,blueprint,options={}){
   contract:acceptedFormats,coverage,
   blueprintReview:architecture,siteAudit:audit,
   htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
-  traceability,decisions,deliveryEvidence:delivery,mediaEvidence:media,executionPlan:execution,cmsChangePacket,capturePlan,
+  traceability,decisions,deliveryEvidence:delivery,mediaEvidence:media,evidenceConsistency,executionPlan:execution,cmsChangePacket,capturePlan,
   regression,handoff,backlog,release,nextActions,
   // Retain the original remediation Markdown first for consumers depending on its header.
   markdownHandoff:renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+

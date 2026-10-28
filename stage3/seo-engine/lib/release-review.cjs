@@ -32,6 +32,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const suppliedOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean)
   .map(x=>new URL(x).href);
  const crossOriginConflict=new Set(suppliedOrigins).size>1;
+ const conflictingEvidence=find(t=>t.sources.some(s=>s.code==='consistency:captured-robots-diff'&&s.severity==='error'));
+ const otherEvidenceDrift=find(t=>t.sources.some(s=>s.code?.startsWith('consistency:')&&s.severity!=='error'));
  const publicationReview=find(t=>t.sources.some(s=>s.code?.startsWith('publication:')&&!['publication:sitemap-noindex','publication:sitemap-indexable-missing'].includes(s.code)));
  if(regression?.summary.criticalReviewItems)add(blockers,'new-critical-regressions',
   'Review new severe SEO regressions since prior Site v1 version',
@@ -40,6 +42,12 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(dangerousMarkup.length)add(blockers,'published-unverified-structured-data',
   'Review published structured data based on unverified facts',
   'A JSON-LD type appears in captured HTML while its associated blueprint evidence remains unverified. Remove or verify actual claims before release.',dangerousMarkup);
+ if(conflictingEvidence.length)add(blockers,'conflicting-captured-indexation',
+  'Resolve disagreeing HTML indexability signals across supplied evidence',
+  'Saved HTML and HTTP-captured HTML give inconsistent indexation policy; verify one actual deployed build.',conflictingEvidence);
+ if(otherEvidenceDrift.length)add(reviews,'captured-html-version-drift',
+  'Reconcile supplied HTML and HTTP snapshot content revisions',
+  'Captured title, canonical, description or OG fields differ across supplied artifacts.',otherEvidenceDrift);
  if(crossOriginConflict)add(blockers,'conflicting-evidence-origins',
   'Resolve mismatched public origins across supplied HTTP and media evidence',
   'HTTP and media recordings claim different public origins; select the approved host and mount before relying on the combined report.');

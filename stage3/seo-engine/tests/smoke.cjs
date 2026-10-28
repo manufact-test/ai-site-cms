@@ -383,6 +383,17 @@ try{
  const missingDelivery=JSON.parse(good('delivery-review',{site,delivery:deliveryDriftFile}));
  assert.ok(missingDelivery.findings.some(x=>x.code==='delivery:page-unchecked'&&x.pageId==='page-contact'));
  assert.equal(deliveryPackage.traceability.summary.suppliedHttpPages,2);
+ const conflictingCaptures=JSON.parse(fs.readFileSync(deliveryExample,'utf8'));
+ conflictingCaptures.pages[0].html=conflictingCaptures.pages[0].html.replace(
+  '<head>','<head><meta name="robots" content="noindex">');
+ const conflictingCaptureFile=path.join(tmp,'inconsistent-delivery.json');
+ fs.writeFileSync(conflictingCaptureFile,JSON.stringify(conflictingCaptures));
+ const consistency=JSON.parse(good('evidence-consistency',{
+  site,snapshot:htmlSite,delivery:conflictingCaptureFile}));
+ assert.ok(consistency.findings.some(x=>x.code==='consistency:captured-robots-diff'&&x.severity==='error'));
+ const inconsistentRelease=JSON.parse(good('release-review',{
+  site,blueprint:bp,snapshot:htmlSite,delivery:conflictingCaptureFile}));
+ assert.ok(inconsistentRelease.blockers.some(x=>x.gateId==='conflicting-captured-indexation'));
  assert.equal(deliveryPackage.deliveryEvidence.coverage.independentlyVerifiedProvenance,false);
  assert.equal(deliveryPackage.release.coverage.callerSuppliedHttpTranscriptReviewed,true);
  const {sitemapPaths:parseXml}=require('../lib/delivery-evidence.cjs');
