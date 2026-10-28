@@ -2705,6 +2705,10 @@
       {expectedRevision:state.revision});
     await refreshSites();await loadReleases();
     notice('Опубликована версия #'+result.version+' из ревизии #'+result.sourceRevision+'.');
+    // After an owner's explicit publication, verify the real PHP public
+    // endpoint automatically. This is diagnostic only: never rewrite or
+    // silently roll back a successful publication.
+    if(isOwner())await openConnection();
   }
   async function newSite(){
     return safe(async()=>{
