@@ -3,6 +3,7 @@
 // submission, automatic deploy or redirect following. DNS is resolved once
 // and pinned to a vetted public IP; TLS remains hostname-verified.
 const https=require('node:https');
+const crypto=require('node:crypto');
 const dns=require('node:dns').promises;
 const net=require('node:net');
 const DELIVERY=require('./delivery-evidence.cjs');
@@ -204,4 +205,53 @@ async function captureMedia(site,rawOrigin,transport={address,requestHead}){
   bodyBytesDownloaded:0,mediaShaVerified:false,publicHttpsTransportChecked:true,
   servedRevisionAuthenticated:false,automaticRelease:false});
 }
-module.exports=Object.freeze({origin,isPublicIp,address,request,requestHead,capture,captureMedia});
+
+/* Streaming bounded public GET. Only a content digest/metadata is retained;
+   no image/video bytes are buffered, written or included in output. */
+function requestDigest(target,pinned,max=12000000){
+ if(!Number.isSafeInteger(max)||max<1||max>12000000)
+  throw Error('Invalid public binary GET resource bound');
+ return new Promise((resolve,reject)=>{
+  const url=new URL(target);
+  if(url.protocol!=='https:'||!isPublicIp(pinned?.address)||url.username||url.password||
+     url.search||url.hash)
+   return reject(Error('Invalid or unsafe public media GET target'));
+  let settled=false;
+  const finish=(error,value)=>{
+   if(settled)return;
+   settled=true;error?reject(error):resolve(value);
+  };
+  const req=https.request({
+   hostname:url.hostname,port:443,protocol:'https:',path:url.pathname,
+   method:'GET',timeout:15000,rejectUnauthorized:true,servername:url.hostname,
+   agent:false,
+   lookup:(_host,_options,callback)=>callback(null,pinned.address,pinned.family),
+   headers:{Accept:'image/*,video/mp4','Accept-Encoding':'identity',
+    'User-Agent':'AI-Site-CMS-Public-SEO-ReadOnly/1.0'}
+  },res=>{
+   const status=res.statusCode||0,type=String(res.headers['content-type']||'').slice(0,150);
+   if(status<100||status>599){res.destroy();return finish(Error('Invalid public binary HTTP status'));}
+   const encoding=String(res.headers['content-encoding']||'identity');
+   if(encoding!=='identity'){res.destroy();return finish(Error('Public media content encoding unsupported for byte integrity'));}
+   const digest=crypto.createHash('sha256');let bytes=0;
+   const reported=res.headers['content-length'];
+   if(reported!==undefined&&/^\d+$/.test(String(reported))&&Number(reported)>max){
+    res.destroy();return finish(Error('Public media Content-Length exceeds per-resource limit'));
+   }
+   res.on('data',chunk=>{
+    bytes+=chunk.length;
+    if(bytes>max){res.destroy();return finish(Error('Public binary GET exceeded permitted bytes'));}
+    digest.update(chunk);
+   });
+   res.on('error',e=>finish(e));
+   res.on('end',()=>finish(null,Object.freeze({
+    status,contentType:type,bodyBytes:bytes,bodySha256:digest.digest('hex'),
+    // Redirects are never followed. A 301 body is not the original image.
+    redirected:status>=300&&status<400
+   })));
+  });
+  req.on('timeout',()=>req.destroy(Error('Public binary GET timed out')));
+  req.on('error',e=>finish(e));req.end();
+ });
+}
+module.exports=Object.freeze({origin,isPublicIp,address,request,requestHead,requestDigest,capture,captureMedia});
