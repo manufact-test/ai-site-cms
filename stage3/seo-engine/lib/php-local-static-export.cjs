@@ -28,6 +28,44 @@ function desc(html){
 }
 const norm=s=>String(s??'').replace(/\s+/g,' ').trim().normalize('NFKC');
 const expectedFile=route=>route==='/'?'index.html':route.slice(1)+'index.html';
+
+/* Compare declarative page structure, never dynamic form secrets or collector URLs.
+   Static export deliberately omits the live /published/SITE-ID mount prefix. */
+function structure(html,siteId){
+ const body=/<main\b[^>]*>([\s\S]*?)<\/main\s*>/i.exec(html)?.[1]||'';
+ const clean=body.replace(/<!--[\s\S]*?-->/g,'')
+  .replace(/<(script|style|template|svg)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
+ const result={sections:[],links:[],images:[],responsive:[],video:[],forms:[],fields:[]};
+ const attrs=raw=>{
+  const a={};
+  for(const m of raw.matchAll(/([a-z][a-z0-9:_-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/gi))
+   a[m[1].toLowerCase()]=decode(m[2]??m[3]??m[4]??'');
+  return a;
+ };
+ const normalizeUrl=x=>{
+  const s=String(x||''),prefix='/published/'+siteId;
+  return s.startsWith(prefix+'/')?s.slice(prefix.length):s;
+ };
+ const srcset=x=>String(x||'').split(',').map(s=>{
+  const pair=s.trim().split(/\s+/);
+  return normalizeUrl(pair[0]||'')+(pair.length>1?' '+pair.slice(1).join(' '):'');
+ }).join(',');
+ for(const match of clean.matchAll(/<(section|a|img|source|video|form|input|select|textarea)\b([^<>]*?)>/gi)){
+  const tag=match[1].toLowerCase(),a=attrs(match[2]);
+  if(tag==='section')result.sections.push(a.id||'');
+  if(tag==='a')result.links.push(normalizeUrl(a.href||''));
+  if(tag==='img')result.images.push([normalizeUrl(a.src),a.alt??null,
+   srcset(a.srcset),a.width??null,a.height??null]);
+  if(tag==='source')result.responsive.push([normalizeUrl(a.src),srcset(a.srcset),a.media||'',a.type||'']);
+  if(tag==='video')result.video.push([normalizeUrl(a.src),normalizeUrl(a.poster)]);
+  if(tag==='form')result.forms.push([a.method?.toLowerCase()||'get',
+    a.enctype?.toLowerCase()||'',a.id||'']);
+  if(['input','select','textarea'].includes(tag))result.fields.push([tag,a.name||'',a.type||'',
+   Object.hasOwn(a,'required')]);
+ }
+ return result;
+}
+
 function checkFile(root,relative,digest,limit){
  if(typeof relative!=='string'||relative.startsWith('/')||relative.includes('\\')||
     relative.includes('..')||!SHA.test(digest)||relative.length>200)
@@ -143,9 +181,15 @@ function compare(site,snapshot,media,release,version){
   const a=inspect(exported.html).headings.map(h=>h.level+':'+norm(h.text));
   const b=inspect(p.html).headings.map(h=>h.level+':'+norm(h.text));
   if(JSON.stringify(a)!==JSON.stringify(b))differences.push('headingHierarchy');
+  const aStructure=structure(exported.html,site.siteId),
+        bStructure=structure(p.html,site.siteId);
+  for(const key of Object.keys(aStructure))
+   if(JSON.stringify(aStructure[key])!==JSON.stringify(bStructure[key]))
+    differences.push('structure.'+key);
   for(const field of differences)
-   add('page-content-drift',p,'Official static release and currently served PHP HTML differ in '+field+'.',{field});
-  pages.push(Object.freeze({pageId:p.id,path:p.path,checkedFields:4,differences}));
+   add(field.startsWith('structure.')?'page-structure-drift':'page-content-drift',p,
+    'Official static release and currently served PHP HTML differ in '+field+'.',{field});
+  pages.push(Object.freeze({pageId:p.id,path:p.path,checkedFields:4+Object.keys(aStructure).length,differences}));
  }
  return Object.freeze({format:FORMAT,siteId:site.siteId,publishedVersion:version,
   sourceRevisionClaim:release.sourceRevision,verifiedExportFiles:release.recordsVerified,
@@ -160,4 +204,4 @@ function review(root,site,snapshot,media,version){
   throw Error('Explicit owner-exported CMS published version required for static parity');
  return compare(site,snapshot,media,read(root,site),version);
 }
-module.exports=Object.freeze({FORMAT,read,compare,review,mainText});
+module.exports=Object.freeze({FORMAT,read,compare,review,mainText,structure});

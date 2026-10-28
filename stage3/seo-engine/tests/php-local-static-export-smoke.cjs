@@ -17,6 +17,24 @@ assert.equal(ok.servedPhpRevisionAuthenticated,false);
 const drift=compare(site,snap,media,{...release,
  pages:new Map([['/',{id:'home',path:'/',html:html('Different')} ]])},4);
 assert.ok(drift.findings.some(f=>f.code==='php-export:page-content-drift'));
+const withAnchor=html('Hello').replace('</main>','<a href="/contact/">Contact</a></main>');
+const servedWithMount=html('Hello').replace('</main>','<a href="/published/a-site/contact/">Contact</a></main>');
+const equivalent=compare(site,{...snap,pages:[{...snap.pages[0],html:servedWithMount}]},
+ media,{...release,pages:new Map([['/',{id:'home',path:'/',html:withAnchor}]])},4);
+assert.equal(equivalent.findings.length,0);
+const wrongTarget=compare(site,snap,media,
+ {...release,pages:new Map([['/',{id:'home',path:'/',html:withAnchor}]])},4);
+assert.ok(wrongTarget.findings.some(f=>f.code==='php-export:page-structure-drift'));
+const formA=html('Hello').replace('</main>',
+ '<form method="POST"><input type="hidden" name="_token" value="secret-one"><input required name="email"></form></main>');
+const formB=formA.replace('secret-one','secret-two');
+assert.equal(compare(site,{...snap,pages:[{...snap.pages[0],html:formB}]},media,
+ {...release,pages:new Map([['/',{id:'home',path:'/',html:formA}]])},4).findings.length,0);
+const brokenForm=formB.replace('name="email"','name="wrong"');
+assert.ok(compare(site,{...snap,pages:[{...snap.pages[0],html:brokenForm}]},media,
+ {...release,pages:new Map([['/',{id:'home',path:'/',html:formA}]])},4)
+ .findings.some(f=>f.code==='php-export:page-structure-drift'));
+
 const swap=compare(site,snap,{...media,resources:[{...media.resources[0],bodySha256:'b'.repeat(64)}]},release,4);
 assert.ok(swap.findings.some(f=>f.code==='php-export:media-byte-drift'));
 assert.throws(()=>compare(site,snap,media,release,5),/must describe one Site/);
