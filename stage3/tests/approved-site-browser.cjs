@@ -365,8 +365,14 @@ async function execute(){
   await page.locator('#elements .cms-repeat-row').last().locator('button.element').click();
   await page.locator('#fields [data-field="content.question"]').fill('Черновик, который нужно откатить');
   await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
+  const preRestoreRevision=(await (await page.request.get(
+    origin+'/api/sites/site-approved-browser')).json()).revision;
   await page.locator('#save').click();
+  await page.locator('#versions .version').first()
+    .getByText('Ревизия #'+(preRestoreRevision+1)).waitFor();
   await page.locator('#versions .version').nth(1).click();
+  await page.locator('#server-status')
+    .getByText(new RegExp('Черновик #'+(preRestoreRevision+2))).waitFor();
   assert.deepEqual((await page.evaluate(()=>window.Stage3Editor.getSite()))
     .pages[0].sections.find(s=>s.id==='section-approved-faq')
     .items.map(i=>i.values['content.question']),

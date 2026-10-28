@@ -1834,6 +1834,8 @@
     $('save').disabled=!available||!isDirty()||!canEdit();
     $('server-publish').disabled=!available||isDirty()||!canPublish();
     $('server-reload').disabled=!available;
+    for(const button of $('versions').querySelectorAll('.version'))
+      button.disabled=!available||!canEdit();
     launchReviewButton.disabled=!available;
     operationsButton.hidden=!isOwner();operationsButton.disabled=!available||!isOwner();
     techOpen.disabled=!available||!state.authorized;
