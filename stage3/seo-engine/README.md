@@ -3,6 +3,10 @@
 **Branch:** `feature/site-seo-engine` · **Writable area:** `stage3/seo-engine/**` only.  
 Offline, Node 20+ CommonJS, no npm packages; does not edit CMS/site/files, deploy, crawl the web, invoke AI providers, or promise SEO outcomes. All outputs are **evidence-bearing recommendations**, not permission to publish.
 
+## Media parity with current PHP DesignGraph (28.10.2026)
+
+The local PHP acceptance now detects `picture/source srcset`, video/poster resources, static CSS `url()` backgrounds, and emitted site-mount media absent from sealed Site v1. Actual broken rendered media enters the same release blockers. See [FIRST-SITE-RUNBOOK.md](FIRST-SITE-RUNBOOK.md). This is a compatibility code change, not completed client acceptance.
+
 ## Latest: one-command first-site PHP acceptance and HTTP head parity (28.10.2026)
 
 **New primary operator guide:** [FIRST-SITE-RUNBOOK.md](FIRST-SITE-RUNBOOK.md). Run `node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/sealed --blueprint /ABS/approved-blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report` from the lead-integrated checkout. This preflights sealed Site v2 and Blueprint, captures actual loopback HTML/robots/sitemap/301/original+responsive media bytes, builds the existing unified SEO package and saves `summary.json`, `bundle.json`, `handoff.md`. It never deploys, edits a CMS, or authenticates public HTTPS.

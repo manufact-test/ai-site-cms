@@ -250,3 +250,11 @@ The original capture-php-html.cjs now GETs exact media bytes for all source orig
 Commands are unchanged: capture-php-html.cjs --approved-site /ABS/sealed --origin http://127.0.0.1:PORT/published/SITE-ID/ --output /ABS/new-dir, then seo-blueprint.cjs review-bundle-md --approved-site /ABS/sealed --blueprint /ABS/plan --php-html /ABS/new-dir.
 
 Media budget: 1.2 MB per still image, 12 MB per MP4, 100 MB media total. No silent partial evidence. Local media findings flow into existing remediation/release/lead dossier; they are not HTTPS public observations. tests/php-html-capture-smoke.cjs adds real local HTTP PNG original/variant, rendered-only image, bad OG, MIME, ETag, responsive SHA/dimensions and binary tamper cases. It uses minimal synthetic PNG headers (not full image decoding). Run actual Node smoke and first real customer checkout in lead integration. No worker edits outside stage3/seo-engine/**, no deploy/PR/merge.
+
+## Current integration fix — real PHP DesignGraph media coverage (28 October 2026)
+
+A concrete gap was identified against current lead `stage3/server/DesignGraph.php`: art-directed images use `<picture><source srcset>`, backgrounds use CSS `url(...)` inside `<style>`, and videos can use `<source src>` plus `poster`. Previous local-media criticality covered only ordinary `<img src/srcset>` and OG assets, so broken displayed responsive/background media might be downgraded to a warning.
+
+The existing `lib/php-local-media.cjs` now recognizes these references through `lib/html-evidence.cjs`. Non-200, MIME, ETag and byte-integrity failures on page-used media are errors for the existing release blockers/remediation. An HTML site-scoped media path missing from sealed Site v1 adds `php-media:untracked-rendered-reference` (error). The current loopback smoke includes art-directed picture/source, CSS background, video poster, and untracked asset scenarios.
+
+**Status:** committed in SEO worker only. No actual Node subprocess smoke, customer sealed v2, PHP served-source identity, real visual parity, public HTTPS or delivered forms have been proven in this chat. Run the two existing smoke commands and real first-site procedure in lead-integrated checkout. No automated release authorization.

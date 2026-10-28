@@ -59,3 +59,11 @@ node stage3/seo-engine/tests/smoke.cjs
 ## После этого этапа
 
 Не расширять бесконечно правила и тесты. Первостепенная работа следующего SEO-чата: устранить ошибки, обнаруженные **на реальном первом сайте**, после интеграции с ведущим, и помочь быстро довести CMS до первой рабочей публикации. Если первый прогон ещё не готов — синхронизировать источники и передать лидеру точные блокировки без изменения PHP/SDK/Studio.
+
+## Current integration fix — real PHP DesignGraph media coverage (28 October 2026)
+
+A concrete gap was identified against current lead `stage3/server/DesignGraph.php`: art-directed images use `<picture><source srcset>`, backgrounds use CSS `url(...)` inside `<style>`, and videos can use `<source src>` plus `poster`. Previous local-media criticality covered only ordinary `<img src/srcset>` and OG assets, so broken displayed responsive/background media might be downgraded to a warning.
+
+The existing `lib/php-local-media.cjs` now recognizes these references through `lib/html-evidence.cjs`. Non-200, MIME, ETag and byte-integrity failures on page-used media are errors for the existing release blockers/remediation. An HTML site-scoped media path missing from sealed Site v1 adds `php-media:untracked-rendered-reference` (error). The current loopback smoke includes art-directed picture/source, CSS background, video poster, and untracked asset scenarios.
+
+**Status:** committed in SEO worker only. No actual Node subprocess smoke, customer sealed v2, PHP served-source identity, real visual parity, public HTTPS or delivered forms have been proven in this chat. Run the two existing smoke commands and real first-site procedure in lead-integrated checkout. No automated release authorization.
