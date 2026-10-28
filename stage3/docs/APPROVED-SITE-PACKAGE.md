@@ -377,3 +377,51 @@ do not claim this feature fully prevents background video downloads.
 The existing sealed handoff and media size restrictions apply. Check text
 contrast, video motion and all three poster crops against the actual client's
 approved references; the CI does not prove visual fidelity.
+
+## Native popup / entrance-sequence Design Graph contract
+
+To place a non-modal popup in a client-approved individual page, add a
+`popup` root to that section's Design Graph and a button referencing it:
+
+```json
+{
+  "version": 1,
+  "id": "graph-sales",
+  "nodes": [
+    {"id": "sales-cta", "type": "button", "text": "Details", "popupTarget": "sales-dialog"},
+    {"id": "sales-dialog", "type": "popup", "text": "Conditions",
+      "children": [{"id": "sales-body", "type": "text", "text": "Client-approved conditions"}]}
+  ]
+}
+```
+
+A button has exactly one action: safe `href` **or** `popupTarget`.
+Popup targets are required to exist in the **same** Design Graph. Popup
+content is typed, escaped and editable; do not provide forms, raw HTML,
+arbitrary external scripts or dynamically constructed popup targets.
+A popup uses native `popover=auto` (non-modal), with browser outside-click,
+Esc and accessible close button. Native Popover API support is required by the
+visitor's browser; there is no JS polyfill. It is not yet a modal/focus-trap
+form-dialog, so seek explicit approval if the customer design requires that.
+
+For controlled load-time staggered animation, use this property on a
+`container` node with real children:
+
+```json
+"sequence": {
+  "effect": "fade-up",
+  "duration": 500,
+  "delay": 50,
+  "stagger": 180,
+  "easing": "ease-out"
+}
+```
+
+Supported effect values are `fade-in`, `fade-up`, `slide-left`,
+`zoom-in`; easings are `ease`, `ease-in`, `ease-out`,
+`ease-in-out`, `linear`. Duration 150–2000ms, initial delay
+0–1000ms, stagger 0–900ms, and total at most 8000ms. Children with
+independent `motion` cannot be sequenced simultaneously. Motion is disabled
+with reduced-motion media preferences. This property does *not* implement
+scroll-triggered choreography or a custom keyframe scripting language.
+Studio edits and PHP rendering preserve the exact typed values.

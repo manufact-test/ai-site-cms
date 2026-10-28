@@ -1131,6 +1131,33 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#redo').click();
     assert.equal(getB1(await page.evaluate(()=>window.Stage3Editor.getSite()),'graph-b1-button').href,'/contact/');
 
+    // Real native Chromium interaction, without adding a custom public runtime.
+    const graphHost=require('../sdk/design-graph.cjs');
+    const nativeSite=JSON.parse(fs.readFileSync(path.join(root,'fixtures/industrial-site.json'),'utf8'));
+    const nativeGraph={version:1,id:'graph-browser-popup',nodes:[
+      {id:'popup-open',type:'button',text:'Открыть',popupTarget:'popup-dialog'},
+      {id:'popup-dialog',type:'popup',text:'Окно браузера',
+        children:[{id:'popup-content',type:'text',text:'Содержимое окна'}]},
+      {id:'popup-animated',type:'container',sequence:{
+        effect:'fade-in',duration:250,delay:0,stagger:130,easing:'ease-out'},
+        children:[{id:'popup-first',type:'text',text:'Первый'},
+          {id:'popup-second',type:'text',text:'Второй'}]}
+    ]};
+    const nativePage=await ctx.newPage();
+    await nativePage.setContent('<!doctype html><html><body>'+
+      graphHost.render(nativeSite,nativeGraph)+'</body></html>');
+    await nativePage.getByRole('button',{name:'Открыть'}).click();
+    assert.equal(await nativePage.locator('[popover="auto"]').evaluate(el=>el.matches(':popover-open')),true,
+      'Native browser popover opens via typed trigger');
+    await nativePage.getByRole('button',{name:'Закрыть окно'}).click();
+    assert.equal(await nativePage.locator('[popover="auto"]').evaluate(el=>el.matches(':popover-open')),false,
+      'Native browser closes without injected JavaScript');
+    await nativePage.getByRole('button',{name:'Открыть'}).click();
+    await nativePage.keyboard.press('Escape');
+    assert.equal(await nativePage.locator('[popover="auto"]').evaluate(el=>el.matches(':popover-open')),false,
+      'Escape closes the native popover');
+    await nativePage.close();
+
     assert.deepEqual(errors,[],'No page JS errors or unsupported dependencies');
     assert.deepEqual(remote,[],'No outgoing network requests, even through iframe');
     console.log('STAGE3 REAL CHROMIUM STUDIO E2E PASS: typed edit, inert preview, responsive, undo/redo, saved versions, reload, export/import, no-design and fail-closed import');

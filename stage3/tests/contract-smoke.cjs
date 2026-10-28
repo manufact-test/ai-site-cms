@@ -1475,6 +1475,43 @@ test('decorative background video is site-owned, muted and safely poster-backed'
   sdk.validateSite(site,manifests);
 });
 
+test('native Design Graph popup plus deterministic entrance sequence stays typed and safe',()=>{
+  const host=require('../sdk/design-graph.cjs'),site=same(initial);
+  const section=sdk.sectionFrom(manifests.find(m=>m.id==='custom-section'),'section-native-popup');
+  section.designGraph={version:1,id:'graph-native-popup',nodes:[
+    {id:'popup-cta',type:'button',text:'Подробнее',popupTarget:'popup-terms',styles:{}},
+    {id:'popup-terms',type:'popup',text:'Описание условий',styles:{radius:16},
+      children:[{id:'popup-description',type:'text',text:'Согласованные условия',styles:{}}]},
+    {id:'animated-grid',type:'container',styles:{display:'grid',columns:2},
+      sequence:{effect:'fade-up',duration:500,delay:50,stagger:180,easing:'ease-out'},
+      children:[{id:'animated-first',type:'text',text:'Пункт один',styles:{}},
+        {id:'animated-second',type:'text',text:'Пункт два',styles:{}}]}
+  ]};
+  site.pages[0].sections.push(section);
+  sdk.validateSite(site,manifests);
+  const html=host.render(site,section.designGraph,'/published/'+site.siteId);
+  assert.match(html,/popover="auto" id="cmsdg-popup-popup-terms"/);
+  assert.match(html,/popovertarget="cmsdg-popup-popup-terms"/);
+  assert.match(html,/popovertargetaction="hide"/);
+  assert.match(html,/animated-first\\{animation:cmsdg-fade-up 500ms ease-out 50ms both/);
+  assert.match(html,/animated-second\\{animation:cmsdg-fade-up 500ms ease-out 230ms both/);
+  assert.match(html,/prefers-reduced-motion:reduce/);
+  const graph=section.designGraph,cta=graph.nodes[0],pop=graph.nodes[1],grid=graph.nodes[2];
+  const bad=()=>refuses(()=>sdk.validateSite(site,manifests));
+  cta.popupTarget='popup-foreign';bad();cta.popupTarget=pop.id;
+  cta.href='https://example.com';bad();delete cta.href;
+  pop.text='<script>test</script>';sdk.validateSite(site,manifests);
+  assert.match(host.render(site,graph),/&lt;script&gt;test&lt;\\/script&gt;/);
+  pop.text='Описание условий';
+  grid.sequence.stagger=900;grid.sequence.delay=1000;bad();
+  grid.sequence.stagger=180;grid.sequence.delay=50;
+  grid.children[0].motion={effect:'fade-in',duration:400,delay:0};bad();
+  delete grid.children[0].motion;
+  grid.sequence.easing='expression(x)';bad();grid.sequence.easing='ease-out';
+  graph.nodes[1].type='container';bad();graph.nodes[1].type='popup';
+  sdk.validateSite(site,manifests);
+});
+
 test('135 mandatory requirements keep evidence and honest owner acceptance',()=>{
   const ledger=read('mandatory-coverage.json');
   assert.equal(ledger.totalRequired,135);

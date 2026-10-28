@@ -604,13 +604,17 @@
       "id": 64,
       "group": "Анимации, переходы, взаимодействия",
       "requirement": "Последовательности анимаций",
-      "engineeringStatus": "not_implemented",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/media-motion/lib/contract.cjs",
-        "stage3/sdk/design-graph.cjs"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Design missing public interaction and add end-to-end visitor/Studio scenario"
+      "nextCheck": "Confirm authoring, mobile behavior, live PHP and visual design on the first approved real customer site; owner GO pending"
     },
     {
       "id": 67,
@@ -681,13 +685,17 @@
       "id": 73,
       "group": "Кнопки, ссылки, формы",
       "requirement": "Всплывающие окна (popup)",
-      "engineeringStatus": "not_implemented",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/server/PublicRenderer.php",
-        "stage3/sdk/contract.cjs"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Design missing public interaction and add end-to-end visitor/Studio scenario"
+      "nextCheck": "Confirm authoring, mobile behavior, live PHP and visual design on the first approved real customer site; owner GO pending"
     },
     {
       "id": 74,
@@ -784,13 +792,15 @@
       "id": 82,
       "group": "Кнопки, ссылки, формы",
       "requirement": "Многошаговые формы",
-      "engineeringStatus": "not_implemented",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
         "stage3/server/FlexForm.php",
-        "stage3/server/PublicRenderer.php"
+        "stage3/server/PublicRenderer.php",
+        "stage3/studio/app.js",
+        "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Design missing public interaction and add end-to-end visitor/Studio scenario"
+      "nextCheck": "Confirm form delivery and multistep experience on the actual approved customer site; owner GO pending"
     },
     {
       "id": 83,

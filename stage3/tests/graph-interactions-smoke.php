@@ -107,4 +107,28 @@ $last=count($badBackdrop['pages'][0]['sections'][2]['designGraph']['nodes'])-1;
 $badBackdrop['pages'][0]['sections'][2]['designGraph']['nodes'][$last]['backgroundVideo']['assetId']='asset-art-fixture';
 try{$validator->validate($badBackdrop);throw new RuntimeException('raster accepted as video');}
 catch(InvalidArgumentException $expected){}
+$popupSite=$site;
+$popupSite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'graph-popup-button','type'=>'button','text'=>'Показать',
+    'popupTarget'=>'graph-popup-panel'];
+$popupSite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'graph-popup-panel','type'=>'popup','text'=>'Условия',
+    'children'=>[['id'=>'graph-popup-text','type'=>'text','text'=>'Текст окна']]];
+$popupSite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'graph-popup-sequence','type'=>'container',
+    'sequence'=>['effect'=>'fade-up','duration'=>500,'delay'=>50,'stagger'=>180,'easing'=>'ease-out'],
+    'children'=>[
+        ['id'=>'graph-popup-first','type'=>'text','text'=>'Первый'],
+        ['id'=>'graph-popup-second','type'=>'text','text'=>'Второй']]];
+$validator->validate($popupSite);
+$popupHtml=PublicRenderer::html($popupSite,'/');
+graphTest(str_contains($popupHtml,'popover="auto" id="cmsdg-popup-graph-popup-panel"')&&
+    str_contains($popupHtml,'popovertarget="cmsdg-popup-graph-popup-panel"')&&
+    str_contains($popupHtml,'popovertargetaction="hide"'),'PHP native popover binding');
+graphTest(str_contains($popupHtml,'animation:cmsdg-fade-up 500ms ease-out 230ms both'),
+    'PHP deterministic staggered animation');
+$badPopup=$popupSite;
+$badPopup['pages'][0]['sections'][2]['designGraph']['nodes'][count($badPopup['pages'][0]['sections'][2]['designGraph']['nodes'])-3]['popupTarget']='foreign-popup';
+try{$validator->validate($badPopup);throw new RuntimeException('foreign popup target allowed');}
+catch(InvalidArgumentException $expected){}
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";
