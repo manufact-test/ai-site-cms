@@ -1375,6 +1375,23 @@
               "pattern": "^@[a-z][a-z0-9-]{1,39}$"
             }
           ]
+        },
+        "borderStyle": {
+          "enum": [
+            "solid",
+            "dashed",
+            "dotted",
+            "double"
+          ]
+        },
+        "filterPreset": {
+          "enum": [
+            "none",
+            "grayscale",
+            "sepia",
+            "contrast",
+            "vibrant"
+          ]
         }
       },
       "allOf": [
@@ -1474,6 +1491,23 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 8
+        },
+        "borderStyle": {
+          "enum": [
+            "solid",
+            "dashed",
+            "dotted",
+            "double"
+          ]
+        },
+        "filterPreset": {
+          "enum": [
+            "none",
+            "grayscale",
+            "sepia",
+            "contrast",
+            "vibrant"
+          ]
         }
       }
     },
@@ -1555,6 +1589,9 @@
             },
             "focus": {
               "$ref": "#/$defs/designState"
+            },
+            "active": {
+              "$ref": "#/$defs/designState"
             }
           }
         },
@@ -1620,6 +1657,9 @@
         "cite": {
           "type": "string",
           "maxLength": 160
+        },
+        "backgroundMedia": {
+          "$ref": "#/$defs/designBackgroundMedia"
         }
       }
     },
@@ -1727,6 +1767,66 @@
           }
         }
       ]
+    },
+    "designBackgroundMedia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assetId"
+      ],
+      "properties": {
+        "assetId": {
+          "$ref": "#/$defs/id"
+        },
+        "tabletAssetId": {
+          "$ref": "#/$defs/id"
+        },
+        "mobileAssetId": {
+          "$ref": "#/$defs/id"
+        },
+        "size": {
+          "enum": [
+            "cover",
+            "contain"
+          ]
+        },
+        "positionX": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "positionY": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "overlay": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "color",
+            "opacity"
+          ],
+          "properties": {
+            "color": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/color"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^@[a-z][a-z0-9-]{1,39}$"
+                }
+              ]
+            },
+            "opacity": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 90
+            }
+          }
+        }
+      }
     }
   }
 }
