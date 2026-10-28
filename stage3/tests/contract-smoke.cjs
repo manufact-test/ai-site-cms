@@ -1153,6 +1153,38 @@ test('fluid responsive typography stays typed and matches browser CSS',()=>{
   }
 });
 
+test('read-only approved folder preflight accepts a custom external design and rejects draft approval',()=>{
+  const os=require('node:os');
+  const {preflight}=require('../bin/verify-approved-site.cjs');
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'stage3-approved-'));
+  try{
+    fs.mkdirSync(path.join(folder,'prototypes'));
+    const validPng=Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nG'+
+      'O06dnHwMDAxMDAwMDAAAAR8AGK2d4bdAAAAABJRU5ErkJggg==','base64');
+    for(const size of ['desktop','tablet','mobile'])
+      fs.writeFileSync(path.join(folder,'prototypes',size+'.png'),validPng);
+    fs.writeFileSync(path.join(folder,'client-explanation.md'),
+      'Actual client-facing explanation and responsive interaction descriptions.');
+    fs.writeFileSync(path.join(folder,'implementation-spec.md'),
+      'Portable section graph, responsive and SEO implementation specification.');
+    const site=sdk.siteFromBrief({siteId:'site-approved-preflight',title:'Preflight'},manifests);
+    site.pages[0].sections.push(sdk.sectionFrom(
+      manifests.find(m=>m.id==='custom-section'),'section-preflight'));
+    fs.writeFileSync(path.join(folder,'site.json'),JSON.stringify(site));
+    const handoff={format:'manufact-approved-site-handoff-v1',status:'approved',
+      version:'spec-1',files:{
+        site:'site.json',desktop:'prototypes/desktop.png',
+        tablet:'prototypes/tablet.png',mobile:'prototypes/mobile.png',
+        clientExplanation:'client-explanation.md',implementationSpec:'implementation-spec.md'}};
+    const handoffFile=path.join(folder,'handoff.json');
+    fs.writeFileSync(handoffFile,JSON.stringify(handoff));
+    assert.equal(preflight(folder).customSections,1);
+    handoff.status='draft';fs.writeFileSync(handoffFile,JSON.stringify(handoff));
+    refuses(()=>preflight(folder),'Non-approved packs must be rejected before import');
+  }finally{fs.rmSync(folder,{recursive:true,force:true});}
+});
+
 test('135 mandatory requirements keep evidence and honest owner acceptance',()=>{
   const ledger=read('mandatory-coverage.json');
   assert.equal(ledger.totalRequired,135);
