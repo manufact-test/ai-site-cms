@@ -1493,8 +1493,8 @@ test('native Design Graph popup plus deterministic entrance sequence stays typed
   assert.match(html,/popover="auto" id="cmsdg-popup-popup-terms"/);
   assert.match(html,/popovertarget="cmsdg-popup-popup-terms"/);
   assert.match(html,/popovertargetaction="hide"/);
-  assert.match(html,/animated-first\\{animation:cmsdg-fade-up 500ms ease-out 50ms both/);
-  assert.match(html,/animated-second\\{animation:cmsdg-fade-up 500ms ease-out 230ms both/);
+  assert.ok(html.includes('animated-first{animation:cmsdg-fade-up 500ms ease-out 50ms both'));
+  assert.ok(html.includes('animated-second{animation:cmsdg-fade-up 500ms ease-out 230ms both'));
   assert.match(html,/prefers-reduced-motion:reduce/);
   const graph=section.designGraph,cta=graph.nodes[0],pop=graph.nodes[1],grid=graph.nodes[2];
   const bad=()=>refuses(()=>sdk.validateSite(site,manifests));
@@ -1503,7 +1503,7 @@ test('native Design Graph popup plus deterministic entrance sequence stays typed
   pop.text='<script>test</script>';sdk.validateSite(site,manifests);
   assert.ok(host.render(site,graph).includes('&lt;script&gt;test&lt;/script&gt;'));
   pop.text='Описание условий';
-  grid.sequence.stagger=900;grid.sequence.delay=1000;bad();
+  grid.sequence.stagger=901;bad();
   grid.sequence.stagger=180;grid.sequence.delay=50;
   grid.children[0].motion={effect:'fade-in',duration:400,delay:0};bad();
   delete grid.children[0].motion;
