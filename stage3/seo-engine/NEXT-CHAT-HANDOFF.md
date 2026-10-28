@@ -58,3 +58,10 @@ Node 20+, CommonJS, без новых npm-зависимостей, без live 
 **Проверено:** синтаксис всех изменённых JS; V8 runtime с актуальными файлами SDK и компонентами нашей ветки (валидный Graph Site v1 и SEO аудиты); V8 runtime с актуальным SDK ведущего + `custom-section@1.0.0` (валидный Site v1, найдено расхождение heading и отсутствие правильной CTA); реальная валидная структура social-fallback фикстуры, рекомендация появляется/исчезает корректно. **Полный subprocess Node smoke/CI не запускался**, как и реальный утверждённый клиентский пакет/production HTTP. Не называй имитацию Node E2E.
 
 Продолжение: сначала интегратор объединяет ветки в собственном checkout, запускает `node stage3/seo-engine/tests/smoke.cjs`, затем проверяет реальную sealed Approved Site v2 и опубликованный PHP HTML с фактическим Blueprint и evidence. Никаких PR, merge, deploy, CMS writes вторым разработчиком.
+
+
+## Added vertical: sealed source -> local PHP HTML -> SEO release handoff
+
+Worker developed lib/php-html-capture.cjs and bin/capture-php-html.cjs. Unlike visual screenshots, this captures real loopback PHP HTML over GET-only local HTTP, records deterministic per-page files with SHA-256 and a sealed-source digest, and imports them via review-bundle[/-md] --approved-site /ABS/sealed --blueprint /ABS/plan --php-html /ABS/evidence-directory. The existing deep HTML/head/robots/links/parity/backlog/lead dossier modules process these actual bytes. Separate --php-capture lead screenshots can be supplied if origin/site version/page count match.
+
+Boundaries: localhost technical evidence, NOT public HTTPS, client approval, pixel/behavior match or proof that the running PHP served the recorded sealed input revision. Output is written only to a new folder, never CMS or the lead repository. New tests/php-html-capture-smoke.cjs exercises a real local Node HTTP server with the sealed verifier stubbed, and the full tests/smoke.cjs runs it. Full Node smoke plus first actual sealed customer site must still be tested on the integrated checkout. No PR/merge/deploy by this worker.
