@@ -93,6 +93,16 @@ function review(site,snapshot){
      const asset=assets.get(n.assetId),source='/published/'+site.siteId+(asset?.src||'');
      if(el.tag!=='img'||a.src!==source||a.alt!==String(n.alt??''))
       mismatch('Published graph image asset path or ALT differs from Site v1.');
+     if(n.href){
+      // Images with a click action must still point to the approved route.
+      const before=html.slice(Math.max(0,el.index-2000),el.index);
+      const opener=before.lastIndexOf('<a '),closer=before.lastIndexOf('</a>');
+      const wrapper=opener>closer?/^<a\b([^>]*?)>/i.exec(before.slice(opener)):null;
+      const linked=wrapper?attrs(wrapper[1]):null;
+      if(!linked||!String(linked.class||'').split(/\s+/).includes('cmsdg-image-action')||
+         linked.href!==expectedHref)
+       mismatch('Published clickable graph image lost its approved link destination.');
+     }
      if(n.responsiveMedia){
       const start=html.lastIndexOf('<picture',el.index),end=html.indexOf('</picture>',el.end);
       const picture=start>=0&&end>el.end?html.slice(start,end):'';
@@ -109,7 +119,7 @@ function review(site,snapshot){
      const src='/published/'+site.siteId+(assets.get(n.assetId)?.src||'');
      const poster=n.posterAssetId?'/published/'+site.siteId+(assets.get(n.posterAssetId)?.src||''):null;
      if(el.tag!=='video'||a['aria-label']!==String(n.alt??'')||
-        (poster!==null&&a.poster!==poster)||
+        (poster!==null&&a.poster!==poster)||(poster===null&&Object.hasOwn(a,'poster'))||
         !body.includes('src="'+src+'"'))
       mismatch('Published graph video source, poster or accessible label differs from Site v1.');
     }else if(n.type==='disclosure'){
@@ -128,9 +138,15 @@ function review(site,snapshot){
         a['aria-label']!==String(n.text)||a.tabindex!=='0')
       mismatch('Published graph gallery is missing accessible scroll region attributes.');
     }else if(n.type==='quote'){
-     if(el.tag!=='figure'||!body.includes('<blockquote>')||
-        !body.includes('<p>')||(n.cite&&!body.includes('<figcaption>')))
-      mismatch('Published graph quote attribution or semantic blockquote is missing.');
+     const quote=/<blockquote\b[^>]*>\s*<p\b[^>]*>([\s\S]*?)<\/p>\s*<\/blockquote>/i.exec(body);
+     const cite=/<figcaption\b[^>]*>([\s\S]*?)<\/figcaption>/i.exec(body);
+     if(el.tag!=='figure'||!quote||text(quote[1])!==norm(n.text)||
+        (n.cite?(!cite||text(cite[1])!==norm(n.cite)):Boolean(cite)))
+      mismatch('Published graph quote text or attribution differs from approved Site v1.');
+    }else if(n.type==='tab'){
+     if(el.tag!=='div'||a.id!=='cmsdg-panel-'+n.id||
+        !String(a.class||'').split(/\s+/).includes('cmsdg-tab-panel'))
+      mismatch('Published tab content panel ID or marker is missing.');
     }else if(n.type==='popup'){
      if(el.tag!=='div'||a.id!=='cmsdg-popup-'+n.id||a.popover!=='auto'||a.role!=='dialog')
       mismatch('Published graph popup is not a valid native popover dialog.');
