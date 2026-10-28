@@ -8,13 +8,16 @@ const BUNDLE='manufact-seo-review-bundle-v1';
 const MAX_SUMMARY=800000,MAX_BUNDLE=42000000;
 const GROUPS=['localPhpHead','localPhpNavigation','localPhpGraph','localPhpComponents',
  'localPhpForms','localPhpMedia','localPhpPublication','localPhpTheme',
- 'localPhpSemantics','localPhpFootprint','localPhpStaticExport'];
+ 'localPhpSemantics','localPhpFootprint','localPhpStaticExport',
+ 'deliveryEvidence','mediaEvidence'];
 const GATES={
  'local-php-head-indexation-or-origin':'localPhpHead',
  'local-php-semantic-and-route-integrity':'localPhpSemantics',
  'local-php-semantic-accessibility-review':'localPhpSemantics',
  'local-php-payload-performance-review':'localPhpFootprint',
  'local-php-static-export-parity':'localPhpStaticExport',
+ 'captured-delivery-conflict':'deliveryEvidence',
+ 'captured-og-media-conflict':'mediaEvidence',
  'local-php-theme-parity':'localPhpTheme',
  'local-php-navigation-parity':'localPhpNavigation',
  'local-php-design-graph-parity':'localPhpGraph',
@@ -106,12 +109,14 @@ function build(previous,currentSummary,currentBundle){
  // A static export attached to a different CMS published version is a different
  // observation cohort. Never call its disappearing findings verified repairs.
  const exportVersionComparable=oldExportVersion!==null&&oldExportVersion===newExportVersion;
- const commonGroups=GROUPS.filter(key=>pb[key]&&currentBundle[key]&&
-  (key!=='localPhpStaticExport'||exportVersionComparable));
- const groupsOnlyPrior=GROUPS.filter(key=>pb[key]&&(!currentBundle[key]||
-  key==='localPhpStaticExport'&&!exportVersionComparable));
- const groupsOnlyCurrent=GROUPS.filter(key=>currentBundle[key]&&(!pb[key]||
-  key==='localPhpStaticExport'&&!exportVersionComparable));
+ const oldPublicOrigin=prior.publicTranscript?.httpsOriginClaim??null;
+ const newPublicOrigin=currentSummary.publicTranscript?.httpsOriginClaim??null;
+ const publicOriginComparable=Boolean(oldPublicOrigin&&oldPublicOrigin===newPublicOrigin);
+ const groupComparable=key=>key==='localPhpStaticExport'?exportVersionComparable:
+  ['deliveryEvidence','mediaEvidence'].includes(key)?publicOriginComparable:true;
+ const commonGroups=GROUPS.filter(key=>pb[key]&&currentBundle[key]&&groupComparable(key));
+ const groupsOnlyPrior=GROUPS.filter(key=>pb[key]&&(!currentBundle[key]||!groupComparable(key)));
+ const groupsOnlyCurrent=GROUPS.filter(key=>currentBundle[key]&&(!pb[key]||!groupComparable(key)));
  const screenshotsComparable=Boolean(pb.phpCapture&&currentBundle.phpCapture);
  const screenshotEvidenceChanged=Boolean(pb.phpCapture)!==Boolean(currentBundle.phpCapture);
  const priorFindings=findings(pb,commonGroups,screenshotsComparable);
@@ -144,6 +149,8 @@ function build(previous,currentSummary,currentBundle){
   screenshotCaptureCoverageChanged:screenshotEvidenceChanged,
   staticExportVersionsComparable:exportVersionComparable,
   staticExportCohortChanged:oldExportVersion!==newExportVersion,
+  publicEvidenceOriginsComparable:publicOriginComparable,
+  publicEvidenceOriginChanged:oldPublicOrigin!==newPublicOrigin,
   operatorConfirmedFixes:0,actualWrites:0,automaticRelease:false
  });
  const lines=['# First-site technical report comparison — not release approval','',
@@ -162,6 +169,8 @@ function build(previous,currentSummary,currentBundle){
   'Screenshot evidence scope changed: '+(screenshotEvidenceChanged?'YES, excluded from finding delta':'no')+'.',
   'Static export version: '+(oldExportVersion??'none')+' → '+(newExportVersion??'none')+
    '; comparable: '+(exportVersionComparable?'yes':'NO; no exported finding auto-closure')+'.',
+  'Public transcript origins: '+safe(oldPublicOrigin||'none')+' → '+safe(newPublicOrigin||'none')+
+   '; comparable: '+(publicOriginComparable?'yes (caller supplied)':'NO; missing or changed origin')+'.',
   '',
   '## New PHP evidence issues',''];
  for(const x of changed.added.slice(0,45))
@@ -195,7 +204,9 @@ function build(previous,currentSummary,currentBundle){
    screenshotCaptureCoverageChanged:screenshotEvidenceChanged,
    staticExportVersionComparable:exportVersionComparable,
    priorStaticExportVersion:oldExportVersion,
-   currentStaticExportVersion:newExportVersion
+   currentStaticExportVersion:newExportVersion,
+   publicEvidenceOriginComparable:publicOriginComparable,
+   oldPublicOrigin,newPublicOrigin
   },
   comparedFromSourceSha256:prior.sourceSiteSha256,
   previousCaptureAt:prior.capturedAt,currentCaptureAt:currentSummary.capturedAt,

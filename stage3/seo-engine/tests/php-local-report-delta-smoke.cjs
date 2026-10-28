@@ -29,4 +29,16 @@ assert.equal(migrated.summary.staticExportVersionsComparable,false);
 assert.equal(migrated.summary.noLongerObservedOccurrences,0); // only incomparable cohorts; no false resolution
 assert.ok(migrated.comparisonCoverage.noLongerInstrumented.includes('localPhpStaticExport'));
 assert.ok(migrated.comparisonCoverage.newlyInstrumented.includes('localPhpStaticExport'));
+
+const pReport={...bundle(1,true),deliveryEvidence:{findings:[code('delivery:non-success-status')]}};
+const pSummary={...summary(1),publicTranscript:{httpsOriginClaim:'https://a.test/'}};
+const nReport={...bundle(1,true),deliveryEvidence:{findings:[]}};
+const nSummary={...summary(1),publicTranscript:{httpsOriginClaim:'https://b.test/'}};
+const crossHost=build({summary:pSummary,bundle:pReport},nSummary,nReport);
+assert.equal(crossHost.summary.noLongerObservedOccurrences,0);
+assert.equal(crossHost.summary.publicEvidenceOriginsComparable,false);
+assert.ok(crossHost.gates.notComparable.length===0);
+const sameHost=build({summary:pSummary,bundle:pReport},
+ {...nSummary,publicTranscript:{httpsOriginClaim:'https://a.test/'}},nReport);
+assert.equal(sameHost.summary.noLongerObservedOccurrences,1);
 console.log('First-site delta group/identity/changed-version smoke PASS');
