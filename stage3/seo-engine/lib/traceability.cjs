@@ -4,6 +4,7 @@
 const {checkBlueprint}=require('./blueprint.cjs');
 const {readHead}=require('./parity.cjs');
 const FORMAT='manufact-seo-traceability-v1';
+const GRAPH=require('./graph-authored.cjs');
 const devices=['desktop','tablet','mobile'];
 const normalize=x=>String(x??'').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();
 function report(site,blueprint,options={},audit=null,backlog=null,decisions=null){
@@ -45,9 +46,14 @@ function report(site,blueprint,options={},audit=null,backlog=null,decisions=null
   const editorial=content.get(p.id)?.sections||[];
   const sections=p.sections.map(s=>{
    const impl=live?.sections?.find(x=>x.id===s.id)||null;
-   const heading=impl?.elements?.find(x=>x.slot==='heading')?.values?.['content.text'];
+   const graphHeading=impl?.designGraph?GRAPH.heading(impl,s.heading):null;
+   const heading=graphHeading?graphHeading.value:
+    impl?.elements?.find(x=>x.slot==='heading')?.values?.['content.text'];
    const value=typeof heading==='string'?heading:null;
-   const headingEvidence=!impl?'section-missing':value===null?'needs-rendered-review':
+   const headingEvidence=!impl?'section-missing':graphHeading?
+    (graphHeading.status==='authoring-match'||graphHeading.status==='authoring-diff'?
+     graphHeading.status:'needs-rendered-review'):
+    value===null?'needs-rendered-review':
     normalize(value)===normalize(s.heading)?'authoring-match':'authoring-diff';
    const cta=s.cta?{
     label:s.cta.label,toPageId:s.cta.toPageId,targetPath:b.pages.find(x=>x.id===s.cta.toPageId)?.path||null,
@@ -55,6 +61,8 @@ function report(site,blueprint,options={},audit=null,backlog=null,decisions=null
     clickTested:false,formDeliveryTested:false}:null;
    return {sectionId:s.id,heading:s.heading,level:s.level,present:Boolean(impl),
     component:impl?.component||null,authoringHeading:value,headingEvidence,
+    authoringHeadingNodeId:graphHeading?.nodeId||null,
+    headingCandidateCount:graphHeading?.candidates??null,
     mediaPurpose:s.media?.purpose||null,cta,visualAccepted:false};
   });
   const tasks=(backlog?.tasks||[]).filter(t=>t.pageId===p.id).map(t=>({
