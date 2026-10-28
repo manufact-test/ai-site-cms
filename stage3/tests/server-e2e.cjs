@@ -2144,6 +2144,19 @@ async function stop(){
   assert.match(enReceipt,/Thank you! Your request has been saved/);
   assert.match(enReceipt,/Return to website/);
   assert.ok(enReceipt.includes('href="'+englishReturn+'"'));
+  const invalidReturn=await fetch(origin+'/forms/site-english-thanks/section-english-form',{
+    method:'POST',headers:{origin,'content-type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({_release:'1',_token:enToken,
+      _return:'https://attacker.example.test/phishing',
+      website:'',name:'Another Customer',email:'another@example.test',
+      message:'This is a second valid inquiry.',consent:'yes'})});
+  assert.equal(invalidReturn.status,201,
+    'Untrusted optional return metadata must not discard a valid private lead');
+  const refusedLink=await invalidReturn.text();
+  assert.match(refusedLink,/Thank you! Your request has been saved/);
+  assert.doesNotMatch(refusedLink,/https:\/\/attacker[.]example[.]test/);
+  assert.doesNotMatch(refusedLink,/Return to website/);
+
   const urlCreated=await request('POST','/api/sites',{site:urlSite});
   assert.equal(urlCreated.status,201,JSON.stringify(urlCreated.body));
   assert.equal((await request('POST','/api/sites/site-url-ci/publish',{expectedRevision:1})).status,200);
