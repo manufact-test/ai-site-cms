@@ -20,10 +20,10 @@ const headersOf=raw=>{
  }
  return result;
 };
-function urlFrom(raw,what){
+function urlFrom(raw,what,allowQuery=false){
  let url;
  try{url=new URL(raw);}catch{throw Error('Invalid '+what);}
- if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||
+ if(url.protocol!=='https:'||url.username||url.password||(!allowQuery&&url.search)||url.hash||
   url.hostname==='snapshot.invalid')throw Error('Unsafe '+what);
  return url;
 }
@@ -54,7 +54,7 @@ function assertEvidence(e){
    p.html!==undefined&&(typeof p.html!=='string'||p.html.length>500000))
     throw Error('Invalid bounded HTTP page observation');
   used.add(p.id);
-  urlFrom(p.requestUrl,'page request URL');urlFrom(p.responseUrl,'page response URL');
+  urlFrom(p.requestUrl,'page request URL',true);urlFrom(p.responseUrl,'page response URL',true);
   headersOf(p.headers);
  }
  for(const [key,limit] of [['robots',250000],['sitemap',750000]]){
@@ -112,8 +112,8 @@ function review(site,evidence){
   evidence:'user-supplied-http-transcript',automatic:false,...extra
  });
  for(const p of evidence.pages){
-  const intended=routes.get(p.id),request=urlFrom(p.requestUrl,'request');
-  const response=urlFrom(p.responseUrl,'response'),expected=base(evidence.origin,p.path);
+  const intended=routes.get(p.id),request=urlFrom(p.requestUrl,'request',true);
+  const response=urlFrom(p.responseUrl,'response',true),expected=base(evidence.origin,p.path);
   const head=p.html?readHead(p.html):null;
   const headers=headersOf(p.headers);
   const xrobots=headers['x-robots-tag']||'';

@@ -355,6 +355,13 @@ try{
  assert.equal(deliveryAudit.coverage.sitemapKind,'urlset');
  assert.equal(deliveryAudit.coverage.independentlyVerifiedProvenance,false);
  assert.ok(!deliveryAudit.findings.some(x=>x.severity==='error'));
+ // Ordinary tracking query parameters must be recorded as URL drift, not abort the audit.
+ const queryDelivery=JSON.parse(fs.readFileSync(deliveryExample,'utf8'));
+ queryDelivery.pages[0].requestUrl+='?utm_source=review';
+ const queryDeliveryFile=path.join(tmp,'query-delivery.json');
+ fs.writeFileSync(queryDeliveryFile,JSON.stringify(queryDelivery));
+ const queryReport=JSON.parse(good('delivery-review',{site,delivery:queryDeliveryFile}));
+ assert.ok(queryReport.findings.some(x=>x.code==='delivery:request-url-mismatch'));
  const deliveryBroken=JSON.parse(fs.readFileSync(deliveryExample,'utf8'));
  deliveryBroken.pages[0].status=404;
  deliveryBroken.pages[1].headers['X-Robots-Tag']='noindex, nofollow';
