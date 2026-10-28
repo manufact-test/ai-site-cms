@@ -603,3 +603,14 @@ This pass closes published visitor behavior rather than creating another website
 Existing server-e2e checks a real locally published flexible multi-step form exported into both Next adapters; real loopback standalone PHP video seeking/HEAD/invalid-range and page/sitemap conditional requests. Green synthetic CI is engineering evidence only, not proof of an externally hosted real approved-v2 site or owner visual sign-off.
 
 Open gates remain actual customer approved-v2 input, desktop/tablet/mobile visual review, authorized external Next/React hosting, real Core Web Vitals and remote URL verification. Do not change owner-acceptance counters or partial/environment-gate statuses solely for these implementation improvements. No main/SEO/production/Hostinger/PR/merge/deploy changes.
+
+### Owner-side acceptance checks for independent visitor exports
+
+When an actual approved-v2 customer site and authorized host are available, verify the exact immutable published release using these visible scenarios before approving deployment. This does not authorize us to run them against production:
+
+1. On a Next Static or Next SSR preview containing a two-step flexible form, confirm that only the first step is visible, Next/Back work, required fields block advancement, conditional fields enable/disable correctly, and final submit goes to the explicitly configured HTTPS collector. Confirm CMS/private endpoints and secrets are absent from the visitor bundle. This is a browser acceptance step, not an automatic network probe.
+2. On a standalone PHP preview with an approved MP4, seek to another time in the native video player. For an explicitly allowed manual HTTP diagnostic, a single Range request should return 206 and a valid Content-Range; an invalid multiple range should return 416. No downloaded video bytes may be mutated.
+3. Confirm a repeated request for the same standalone HTML page and sitemap with If-None-Match returns 304, while a changed immutable release has a different ETag. The independent connection JSON remains no-store.
+4. Compare all three actual pages against client-approved desktop, tablet and mobile source mockups and record owner sign-off. CI alone is not acceptance.
+
+This check is deliberately conditional on the owner providing both a real approved package and permission for a specific target environment. No host changes are performed by this document.
