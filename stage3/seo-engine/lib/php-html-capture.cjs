@@ -177,8 +177,9 @@ function inspect(manifest,site,source,folder){
   if(publication.robotsStatus===200)
    publication=Object.freeze({...publication,robotsTxt:auxBytes.get('robots.txt').toString('utf8')});
  }
+ const checkedSnapshot=snapshot(site,source,entries,manifest.baseUrl,manifest.capturedAt,publication);
  const localMedia=manifest.media?
-  LOCAL_MEDIA.inspect(site,manifest.baseUrl,manifest.media,root):null;
+  LOCAL_MEDIA.inspect(site,manifest.baseUrl,manifest.media,root,checkedSnapshot):null;
  const result=Object.freeze({
   format:CAPTURE_FORMAT,siteId:site.siteId,packageVersion:source.packageVersion,
   sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,
@@ -188,7 +189,7 @@ function inspect(manifest,site,source,folder){
   loopbackHttp200Count:entries.length,sourceRevisionAuthenticated:false,
   realPublicHttpsChecked:false,formsChecked:false,visualParityChecked:false,
   publication,localMedia,
-  snapshot:snapshot(site,source,entries,manifest.baseUrl,manifest.capturedAt,publication),
+  snapshot:checkedSnapshot,
   limitations:'Read-only local PHP HTTP 200 and byte-checked HTML. Cannot prove the served revision matches saved Site v1, operator identity, client approval, public HTTPS or successful forms.'
  });
  accepted.add(result);
