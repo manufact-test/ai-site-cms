@@ -49,6 +49,8 @@ The execution plan separates **approved-for-manual-work** from **completed** (ne
 
 The Markdown handoff also appends a human-readable CMS change packet with exact field preconditions and blocked/pending reasons. Combined HTTP and media evidence with conflicting public origins produces a release blocker until the lead resolves the discrepancy.
 
+The lead dossier includes a concrete `evidenceRequests` checklist, not a readiness score: approved 3-picture signoff, missing page HTML/three-device samples, public HTTP/OG evidence, historical 301 probes and manually retired aliases. `review-bundle-md` exposes owner, reason, page IDs and what remains unverified, even when a caller supplies optimistic evidence flags. It never treats an unverified capture as actual live validation.
+
 The `review-bundle.markdownHandoff` begins with a concise release overview and retains the original complete remediation report and appends the per-page implementation/acceptance map. No separate document needs to be assembled by the lead.
 
 `review-bundle-md --site <site.json> --blueprint <blueprint.json> [--acceptance <ledger.json>]` provides a complete one-file Markdown handoff. It starts with the lead overview (release blockers, actions by owner, revision acceptance, regression closure and hypothetical CMS impact), then includes remediation, traceability, execution and guarded CMS fields.

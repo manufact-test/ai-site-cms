@@ -5,7 +5,8 @@ const safe=v=>String(v??'').replace(/[\x00-\x1f\x7f]/g,' ')
  .replace(/\\/g,'\\\\').replace(/[<>&*_[\](){}#!|]/g,x=>'\\'+x)
  .replace(/\x60/g,'\\'+String.fromCharCode(96)).slice(0,220);
 function build({siteId,release,coverage,acceptanceReview=null,taskProgress=null,
- changeImpact=null,executionPlan=null,cmsChangePacket=null,traceability=null}){
+ changeImpact=null,executionPlan=null,cmsChangePacket=null,traceability=null,
+ capturePlan=null,deliveryEvidence=null,mediaEvidence=null,routeMigration=null}){
  if(!release||release.format!=='manufact-seo-release-review-v1'||release.siteId!==siteId||
   !coverage||typeof coverage!=='object')
   throw Error('Lead dossier requires current reviewed Site v1 publication envelope');
@@ -19,6 +20,38 @@ function build({siteId,release,coverage,acceptanceReview=null,taskProgress=null,
    [{kind:'invalid-hypothetical-site',id:'cms-validation',
     summary:'In-memory proposed site fails authoritative Site v1 validation',relatedTasks:[]}]:[])
  ];
+ // Missing evidence is not "passing" evidence. These are concrete inputs for
+ // the lead to gather, not an implied score or an authenticated web observation.
+ const evidenceRequests=[];
+ const request=(id,owner,reason,affectedPages=[])=>evidenceRequests.push({
+  id,owner,reason,affectedPages,proofProvidedByToolkit:false,
+  automaticallyPassed:false});
+ if(!acceptanceReview||!acceptanceReview.prototype.approvedAssertionRecorded||acceptanceReview.stale)
+  request('approved-three-static-prototypes','client-and-lead',
+   'Supply exactly the approved desktop, tablet and mobile static images, revision ID, client approval and current source fingerprints.');
+ if(acceptanceReview?.summary.unresolvedChecks)
+  request('pending-manual-acceptance-checks','site-owner',
+   'Resolve incomplete, pending and rejected signed manual checks before final release.');
+ if(coverage.htmlExportPageCount===null)
+  request('html-snapshots','lead-developer','Supply actual page HTML/DOM exports and provenance for the target build.');
+ else if(coverage.plannedPagesAbsentFromHtmlExport?.length)
+  request('missing-page-html','lead-developer','Complete page-level HTML evidence for this build.',coverage.plannedPagesAbsentFromHtmlExport);
+ if(coverage.viewportsPageCount===null)
+  request('three-device-captures','lead-developer','Supply real desktop/tablet/mobile captures for every page; static HTML alone is not a visual comparison.');
+ else if(coverage.plannedPagesAbsentFromThreeDeviceExport?.length)
+  request('missing-device-pages','lead-developer','Complete desktop/tablet/mobile page coverage.',coverage.plannedPagesAbsentFromThreeDeviceExport);
+ if(coverage.suppliedHttpPages===null)
+  request('public-http-transcripts','lead-developer','Supply public HTTPS status, head, robots and sitemap captures for the approved host and mount.');
+ else if(coverage.suppliedHttpPages<coverage.sitePageCount)
+  request('missing-http-pages','lead-developer','Public HTTP status and head evidence is incomplete for current Site v1 pages.');
+ if(capturePlan?.media?.length&&coverage.suppliedMediaResources===null)
+  request('media-http-transcripts','lead-developer','Supply selected OG and rendered asset HTTP/MIME evidence for the actual public origin.');
+ if(routeMigration?.summary.renamedPages&&
+   (deliveryEvidence?.coverage.redirectResponsesCaptured??0)<routeMigration.summary.renamedPages)
+  request('historic-redirect-http-301','lead-developer','Supply old public-route HTTP 301 Location transcripts and verify final destination canonical.',
+   routeMigration.changed.map(x=>x.pageId));
+ if(routeMigration?.summary.historicalAliasesRemoved)
+  request('removed-historic-aliases','site-owner','Approve the retirement or reinstatement of previously published 301 aliases.');
  const status=warnings.length?'needs-repair-and-review':'manual-acceptance-pending';
  const tasks=(executionPlan?.nextReviewActions||[]).slice(0,12).map(t=>({
   taskId:t.taskId,priority:t.priority,owner:t.owner,phase:t.phase,
@@ -36,7 +69,8 @@ function build({siteId,release,coverage,acceptanceReview=null,taskProgress=null,
   historicalResolvedCandidates:taskProgress?.summary.noLongerPresent??null,
   historicalProvenFixes:0,
   hypotheticalCmsOperations:changeImpact?.summary.approvedFieldOperationsSimulated??null,
-  actualCmsWrites:0,readyToPublish:false
+  actualCmsWrites:0,missingEvidenceInputGroups:evidenceRequests.length,
+  authenticatedLiveHttpTests:0,readyToPublish:false
  };
  const leadActionSequence=[
   'Confirm approved static prototype images and source revision fingerprint (lead/client)',
@@ -47,7 +81,7 @@ function build({siteId,release,coverage,acceptanceReview=null,taskProgress=null,
   'Have authorized site owner approve final release separately from this report'
  ];
  return {format:FORMAT,version:1,siteId,readOnly:true,
-  status,summary,alerts:warnings,manualGateStatuses,
+  status,summary,alerts:warnings,evidenceRequests,manualGateStatuses,
   immediateActions:tasks,leadActionSequence,
   published:false,automaticApproval:false,
   limitations:'A lead handoff only. Does not authenticate supplied approvals or evidence, prove actual repairs, run browser/host checks, write CMS data or authorize deployment.'};
@@ -68,6 +102,12 @@ function markdown(d){
   '## Blocking or potentially dangerous conflicts',''];
  if(!d.alerts.length)lines.push('No blocking conflicts found in supplied evidence; manual gates still apply.');
  for(const item of d.alerts.slice(0,30))lines.push('- '+safe(item.id)+': '+safe(item.summary));
+ lines.push('','## Inputs still required for the real first-site review','');
+ if(!d.evidenceRequests.length)lines.push('All named input categories were supplied as assertions; real origin and approvals remain unverified.');
+ for(const req of d.evidenceRequests){
+  lines.push('- [ ] '+safe(req.owner)+' · '+safe(req.id)+': '+safe(req.reason)+
+   (req.affectedPages?.length?' ('+safe(req.affectedPages.join(', '))+')':''));
+ }
  lines.push('','## Next actionable reviews','');
  for(const item of d.immediateActions)
   lines.push('- '+safe(item.priority)+' · '+safe(item.owner)+' · '+safe(item.status)+

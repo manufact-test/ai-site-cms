@@ -591,6 +591,9 @@ try{
  assert.equal(integrationApproved.leadDossier.summary.historicalProvenFixes,0);
  assert.equal(integrationApproved.leadDossier.summary.approvedPrototypeAssertion,true);
  assert.equal(integrationApproved.leadDossier.summary.actualCmsWrites,0);
+ assert.ok(integrationApproved.leadDossier.evidenceRequests.some(x=>x.id==='public-http-transcripts'));
+ assert.ok(integrationApproved.leadDossier.evidenceRequests.some(x=>x.id==='three-device-captures'));
+ assert.ok(integrationApproved.leadDossier.evidenceRequests.every(x=>!x.proofProvidedByToolkit));
  assert.match(integrationApproved.markdownHandoff,/SEO release handoff — lead overview/);
  assert.match(good('review-bundle-md',{site,blueprint:bp,acceptance:approvalPath}),/Required handoff sequence/);
  assert.equal(integrationApproved.taskProgress.summary.noLongerPresent,0);
@@ -647,8 +650,17 @@ try{
   x.requestUrl==='https://site.example.test/subsite/contact/'&&
   x.expectedLocationUrl==='https://site.example.test/subsite/team/'));
  assert.equal(routeCapture.summary.httpResponsesActuallyCaptured,0);
+ const olderAliases=structuredClone(original);
+ olderAliases.redirects=[{from:'/old-contact/',to:'/contact/'}];
+ const historicPath=path.join(tmp,'site-previous-historic-alias.json');
+ fs.writeFileSync(historicPath,JSON.stringify(olderAliases));
+ const lostAliases=JSON.parse(good('route-migration',{before:historicPath,site,blueprint:bp}));
+ assert.equal(lostAliases.summary.historicalAliasesRemoved,1);
+ assert.ok(lostAliases.findings.some(x=>x.code==='migration:historical-alias-removed'));
+ assert.ok(lostAliases.probes.some(x=>x.kind==='retired-alias-review'));
  const migrationBundle=JSON.parse(good('review-bundle',{before:site,site:aliasPath,blueprint:bp}));
  assert.equal(migrationBundle.routeMigration.summary.correctMappedAliases,1);
+ assert.ok(migrationBundle.leadDossier.evidenceRequests.some(x=>x.id==='historic-redirect-http-301'));
  // Caller-supplied 301 evidence must agree with declared aliases and public mount.
  const goodMovedDelivery=JSON.parse(fs.readFileSync(deliveryExample,'utf8'));
  goodMovedDelivery.pages[1].path='/team/';

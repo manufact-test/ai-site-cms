@@ -94,7 +94,8 @@ function build(site,manifests,blueprint,options={}){
   blueprintRevisionFingerprint:ACCEPTANCE.fingerprint(plan),
   siteRevisionFingerprint:ACCEPTANCE.fingerprint(site)};
  const dossier=DOSSIER.build({siteId:site.siteId,release,coverage,acceptanceReview,
-  taskProgress,changeImpact,executionPlan:execution,cmsChangePacket,traceability});
+  taskProgress,changeImpact,executionPlan:execution,cmsChangePacket,traceability,
+  capturePlan,deliveryEvidence:delivery,mediaEvidence:media,routeMigration});
  const rejected=new Set(decisions?.rejected.map(x=>x.taskId)||[]);
  const approved=new Set(decisions?.approved.map(x=>x.taskId)||[]);
  const deferred=new Set(decisions?.deferred.map(x=>x.taskId)||[]);
