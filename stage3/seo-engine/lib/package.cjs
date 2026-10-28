@@ -150,6 +150,8 @@ function build(site,manifests,blueprint,options={}){
   localPhpGraphFindings:options.phpHtml?.localGraph?.findings.length??null,
   localPhpNavFindings:options.phpHtml?.localNavigation?.findings.length??null,
   localPhpThemeFindings:options.phpHtml?.localTheme?.findings.length??null,
+  localPhpSemanticFindings:options.phpHtml?.localSemantics?.findings.length??null,
+  localPhpLinksChecked:options.phpHtml?.localSemantics?.checkedLinks??null,
   localPhpComponentFindings:options.phpHtml?.localComponents?.findings.length??null,
   localPhpHeadHeaders:options.phpHtml?.localHead?.pagesWithRecordedHeaders??null,
    localPhpFormCount:options.phpHtml?.localForms?.observedForms??null,
@@ -181,6 +183,16 @@ function build(site,manifests,blueprint,options={}){
     findings:options.phpHtml.localHead.findings,
     publicHttpsProven:false,releaseAuthorized:false
   }:null,
+  localPhpSemantics:options.phpHtml?.localSemantics?{
+    format:options.phpHtml.localSemantics.format,
+    checkedPages:options.phpHtml.localSemantics.checkedPages,
+    checkedLinks:options.phpHtml.localSemantics.checkedLinks,
+    checkedImages:options.phpHtml.localSemantics.checkedImages,
+    checkedAriaReferences:options.phpHtml.localSemantics.checkedAriaReferences,
+    pages:options.phpHtml.localSemantics.pages,
+    findings:options.phpHtml.localSemantics.findings,
+    browserAccessibilityVerified:false,releaseAuthorized:false
+   }:null,
   localPhpTheme:options.phpHtml?.localTheme?{
     format:options.phpHtml.localTheme.format,
     checkedPages:options.phpHtml.localTheme.checkedPages,

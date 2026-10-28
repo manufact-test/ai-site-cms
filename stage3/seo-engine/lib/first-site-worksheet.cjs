@@ -10,7 +10,7 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   site.siteId!==source.siteId||site.siteId!==phpHtml.siteId||bundle.siteId!==site.siteId||
   !Array.isArray(bundle.release?.blockers))
   throw Error('Operator worksheet requires one matching site and verified PHP report');
- const fields=['localHead','localForms','localMedia','localComponents','localGraph','localNavigation','localTheme','publication'];
+ const fields=['localHead','localForms','localMedia','localComponents','localGraph','localNavigation','localTheme','localSemantics','publication'];
  const all=fields.flatMap(key=>(phpHtml[key]?.findings||[]).map(x=>({...x,group:key})));
  if(phpCapture)for(const x of phpCapture.findings||[])all.push({...x,group:'lead-php-screenshots'});
  const stats={pages:site.pages.length,actualFindings:all.length,
@@ -53,6 +53,7 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   const graph=phpHtml.localGraph?.pages.find(x=>x.pageId===page.id);
   const navigation=phpHtml.localNavigation?.pages.find(x=>x.pageId===page.id);
   const theme=phpHtml.localTheme?.pages.find(x=>x.pageId===page.id);
+  const semantic=phpHtml.localSemantics?.pages.find(x=>x.pageId===page.id);
   lines.push('### '+clean(page.path,150)+' ('+clean(page.id,100)+')','',
    '- **PHP STATUS: '+status(issues)+'**; error count: '+
     issues.filter(x=>x.severity==='error').length+'; total findings: '+issues.length+'.',
@@ -60,7 +61,10 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
     '; typed sections '+(typed?.checkedTypedSections??0)+
     '; DesignGraph nodes '+(graph?.inspectedGraphNodes??0)+
     '; desktop/mobile menu links '+(navigation?.desktopLinks??'not checked')+'/'+(navigation?.mobileLinks??'not checked')+
-    '; source-matched CSS tokens '+(theme?.checkedProperties??0)+'.',
+    '; source-matched CSS tokens '+(theme?.checkedProperties??0)+
+    '; live HTML links '+(semantic?.linksChecked??0)+
+    '; images '+(semantic?.imagesChecked??0)+
+    '; H1 '+(semantic?.h1Count??'not checked')+'.',
    '- Утверждённый макет именно этой страницы: '+
     (reference?.devices.length===3?'есть для трёх ширин':'ОТСУТСТВУЕТ; не подменять макетом главной')+'.');
   for(const device of ['desktop','tablet','mobile']){

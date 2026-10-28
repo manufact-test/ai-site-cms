@@ -48,6 +48,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const localPhpProblems=find(t=>t.sources.some(s=>s.code?.startsWith('php-local:')&&s.severity==='error'));
  const localPhpReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-local:')&&s.severity!=='error'));
  const localThemeErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-theme:')&&s.severity==='error'));
+ const localSemanticErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-semantic:')&&s.severity==='error'));
+ const localSemanticReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-semantic:')&&s.severity!=='error'));
  const localNavErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-nav:')&&s.severity==='error'));
  const localGraphErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-graph:')&&s.severity==='error'));
  const localComponentErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-component:')&&s.severity==='error'));
@@ -123,7 +125,11 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   if(localFormReviews.length)add(reviews,'local-php-form-origin-review',
    'Review public form collector host and allowlist',
    'Absolute collector origin remains unverified and was not probed.',localFormReviews);
-  if(localThemeErrors.length)add(blockers,'local-php-theme-parity',
+  if(localSemanticErrors.length)add(blockers,'local-php-semantic-and-route-integrity',
+  'Real PHP HTML has broken local links/fragments, missing H1/landmarks, duplicate IDs or inaccessible link/image markup. Repair before release.',localSemanticErrors);
+ if(localSemanticReviews.length)add(reviews,'local-php-semantic-accessibility-review',
+  'Real HTML suggests heading, ARIA, control-label or link-security concerns. Check in a browser and with assistive technology.',localSemanticReviews);
+ if(localThemeErrors.length)add(blockers,'local-php-theme-parity',
   'Repair actual published PHP global theme colors, typography, container and button variables',
   'Captured PHP style tokens disagree with the source-bound Site v1 theme, potentially altering the appearance of all pages.',localThemeErrors);
  if(localNavErrors.length)add(blockers,'local-php-navigation-parity',

@@ -109,3 +109,11 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 Три полезные сквозные части: 1) реальные PHP desktop/mobile меню + hierarchy/header CTA/footer, точные blockers в package/worksheet; 2) повторная проверка `--previous-report` с `delta.md/json`, только сопоставимые evidence и no auto-closing; 3) поддержка **реальных редактирований владельцем после sealed-v2 импорта**: `--published-site` + `--owner-edit-review` с точным pinned site fingerprint + published version и ручным claim. Без ложного original-media SHA и без выдачи ручной записи за client approval. Дополнительно проверяются авторские внутренние graph link/button/image destinations и anchors. Всё только `stage3/seo-engine/**` в worker ветке, не трогать main/lead/php/Studio.
 
 Важный реальный workflow: получил первый настоящий Approved Site v2 → leader import → owner edits → owner manual review + exact doc → реальный PHP capture → unified SEO package and visual review → исправления → `--previous-report` → manual GO. НЕТ настоящего client approved bundle, формы POST/production HTTPS/Chromium full visual test не подтверждены. Приоритет следующего чата: помогать интеграции первого клиента, не тратить часы на синтетическую дизайн-фабрику и лишние тесты. Команды и JSON: FIRST-SITE-RUNBOOK.md.
+
+## Real PHP semantics and link-integrity gate (28.10.2026)
+
+`lib/php-local-semantics.cjs` validates the actual SHA256-checked PHP HTML for unique main/H1, heading order, duplicate DOM IDs, image ALT presence, unlabeled form controls, broken ARIA references, unsafe links, escapes from the published site mount, unknown page/redirect/media routes and broken target fragments. Remote URLs are not crawled. Certain defects block existing release gates; possible heading/ARIA/new-tab accessibility concerns remain review items.
+
+Available in `first-site-check` `summary.json`, `bundle.json`, remediation, release gates, lead dossier and the per-page `launch-worksheet.md`. Focused smoke: `node stage3/seo-engine/tests/php-local-semantics-smoke.cjs` (alongside existing smoke in the integrated lead checkout).
+
+**Evidence limits:** static local HTML only. No JS runtime, keyboard/a11y certification, source revision attestation, real client first site, public HTTPS, Chromium visual match or delivered forms. Never automatic release approval.

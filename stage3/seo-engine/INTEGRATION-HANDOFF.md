@@ -326,3 +326,11 @@ Worker added a real PHP site-global navigation checker covering desktop/mobile m
 `--previous-report /ABS/prior-report` makes the first-site command write `delta.md` and `delta.json` comparing previous report findings/gates against the current run. Different approved source SHA256, site ID or loopback origin is rejected; newly introduced audit categories and missing screenshot evidence cannot silently become regressions/fixes. This is read-only triage, not automatic closure.
 
 Post-import CMS owner edits (including photo/text/SEO) can be reviewed using an explicit and exact-version-bound `--owner-edit-review` file *with* current `--published-site`. The claimed operator acknowledgement is checked for original sealed raw SHA, current published version/fingerprint, but is **not** a client approval certificate. For edited publications, immutable sealed-media byte comparison is disabled rather than making false claims; current HTTP byte/MIME/ETag checks still apply. A manual approval review gate remains and original sealed-v2 source is not mutated. Exact review schema and CLI: FIRST-SITE-RUNBOOK.md.
+
+## Real PHP semantics and link-integrity gate (28.10.2026)
+
+`lib/php-local-semantics.cjs` validates the actual SHA256-checked PHP HTML for unique main/H1, heading order, duplicate DOM IDs, image ALT presence, unlabeled form controls, broken ARIA references, unsafe links, escapes from the published site mount, unknown page/redirect/media routes and broken target fragments. Remote URLs are not crawled. Certain defects block existing release gates; possible heading/ARIA/new-tab accessibility concerns remain review items.
+
+Available in `first-site-check` `summary.json`, `bundle.json`, remediation, release gates, lead dossier and the per-page `launch-worksheet.md`. Focused smoke: `node stage3/seo-engine/tests/php-local-semantics-smoke.cjs` (alongside existing smoke in the integrated lead checkout).
+
+**Evidence limits:** static local HTML only. No JS runtime, keyboard/a11y certification, source revision attestation, real client first site, public HTTPS, Chromium visual match or delivered forms. Never automatic release approval.

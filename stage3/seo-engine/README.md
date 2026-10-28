@@ -321,3 +321,11 @@ Real PHP head auditing now verifies Open Graph locale/type/image/alt plus Twitte
 ## New first-site workflow: edited CMS and repeated local PHP review
 
 Actual published PHP header/menu/mobile navigation, authored Graph internal links/anchors, exact-version manual owner-edited publication review (`--owner-edit-review` with owner `--published-site`) and previous report comparison (`--previous-report`) are now integrated into the standard SEO capture/release bundle. Added `php-local-navigation.cjs` and `first-site-report-delta.cjs`. Comparison emits `delta.md/json` only with a provided previous report and never auto-closes fixes. Current owner edits are not misrepresented as the original sealed media hashes or as authenticated client approval. See FIRST-SITE-RUNBOOK.md for exact commands and schema.
+
+## Real PHP semantics and link-integrity gate (28.10.2026)
+
+`lib/php-local-semantics.cjs` validates the actual SHA256-checked PHP HTML for unique main/H1, heading order, duplicate DOM IDs, image ALT presence, unlabeled form controls, broken ARIA references, unsafe links, escapes from the published site mount, unknown page/redirect/media routes and broken target fragments. Remote URLs are not crawled. Certain defects block existing release gates; possible heading/ARIA/new-tab accessibility concerns remain review items.
+
+Available in `first-site-check` `summary.json`, `bundle.json`, remediation, release gates, lead dossier and the per-page `launch-worksheet.md`. Focused smoke: `node stage3/seo-engine/tests/php-local-semantics-smoke.cjs` (alongside existing smoke in the integrated lead checkout).
+
+**Evidence limits:** static local HTML only. No JS runtime, keyboard/a11y certification, source revision attestation, real client first site, public HTTPS, Chromium visual match or delivered forms. Never automatic release approval.
