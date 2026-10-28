@@ -200,7 +200,9 @@ function read(folder,site,source){
  const file=path.join(root,'manifest.json');
  if(fs.realpathSync(file)!==file)fail('manifest.json must be an ordinary file in evidence folder');
  const stat=fs.statSync(file);
- if(!stat.isFile()||stat.size<50||stat.size>100000)fail('invalid manifest.json');
+ // A complete Site v1 may declare up to 300 originals and three variants each;
+ // the bound must fit all 1,200 SHA256 media receipts without becoming unbounded.
+ if(!stat.isFile()||stat.size<50||stat.size>1000000)fail('invalid manifest.json');
  return inspect(JSON.parse(fs.readFileSync(file,'utf8')),site,source,root);
 }
 async function capture(sealedFolder,rawOrigin,output){
