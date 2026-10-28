@@ -107,6 +107,9 @@ function snapshot(site,source,entries,base,capturedAt,publication=null){
   ...(publication?.parsedSitemapComplete?{
     sitemapPaths:publication.parsedSitemapPaths,sitemapCompleteness:'complete'
   }:{}),
+  ...(publication?.verifiedRedirectPaths?.length?{
+    redirectPaths:publication.verifiedRedirectPaths
+  }:{}),
   source:'local-loopback-published-php-html',
   sourceRevisionAuthenticated:false,localHttpOnly:true});
 }

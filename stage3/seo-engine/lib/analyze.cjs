@@ -168,6 +168,12 @@ function snapshotAudit(snapshot){
   throw Error('Invalid sitemap completeness or missing sitemapPaths');
  const complete=snapshot.completeness==='complete';
  const mount=MOUNT.fromSnapshot(snapshot);
+ const redirected=snapshot.redirectPaths||[];
+ if(!Array.isArray(redirected)||redirected.length>60||
+    redirected.some(x=>typeof x!=='string'||!/^\/(?:[a-z0-9-]+\/)*$/.test(x))||
+    new Set(redirected).size!==redirected.length)
+  throw Error('Invalid bounded HTML snapshot redirectPaths');
+ const verifiedRedirects=new Set(redirected);
  for(const p of pages){
   if(!p||typeof p.id!=='string'||!/^[a-z][a-z0-9-]{2,79}$/.test(p.id)||
    typeof p.path!=='string'||!/^\/(?:[a-z0-9-]+\/)*$/.test(p.path)||
@@ -223,6 +229,7 @@ function snapshotAudit(snapshot){
   for(const href of links){
    if(!href||href.startsWith('#')||href.startsWith('//'))continue;
    let dest;try{const u=new URL(href,linkBase);if(u.origin!=='https://snapshot.invalid')continue;dest=MOUNT.route(u.pathname,mount);if(dest===null)continue;}catch{continue;}
+   if(!paths.has(dest)&&verifiedRedirects.has(dest))continue;
    if(!paths.has(dest))issues.push(issue(complete?'html:broken-link':'html:target-not-in-snapshot',
     complete?'error':'recommendation',p.id,p.path,
     complete?'Internal link target '+dest+' is missing from the declared complete export.':

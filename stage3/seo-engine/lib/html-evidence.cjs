@@ -84,6 +84,12 @@ function review(snapshot,blueprint=null){
  if(snapshot.completeness!==undefined&&!['partial','complete'].includes(snapshot.completeness))
   throw Error('Unknown HTML snapshot completeness');
  const mount=MOUNT.fromSnapshot(snapshot);
+ const redirects=snapshot.redirectPaths||[];
+ if(!Array.isArray(redirects)||redirects.length>60||
+   redirects.some(x=>typeof x!=='string'||!/^\/(?:[a-z0-9-]+\/)*$/.test(x))||
+   new Set(redirects).size!==redirects.length)
+  throw Error('Invalid HTML evidence redirectPaths');
+ const verifiedRedirects=new Set(redirects);
  const paths=new Map(),data=new Map(),findings=[],pages=[];
  const add=(code,severity,p,message,details={})=>findings.push({code,severity,pageId:p.id,path:p.path,message,...details});
  for(const p of snapshot.pages){
@@ -127,10 +133,10 @@ function review(snapshot,blueprint=null){
    if(resolved.origin!=='https://snapshot.invalid')continue;
    const route=MOUNT.route(resolved.pathname,mount),hash=resolved.hash.slice(1);
    const target=route===null?null:paths.get(route);
-   if(!target){
+   if(!target&&!verifiedRedirects.has(route)){
     add('evidence:link-target-outside-snapshot','recommendation',p,
      'Internal-looking link points outside the supplied static page set; verify against full deployment before declaring broken.',{href:href.slice(0,200)});
-   }else if(hash){
+   }else if(target&&hash){
     let fragment=hash;
     try{fragment=decodeURIComponent(hash);}catch{}
     if(!data.get(target.id).ids.includes(fragment)&&fragment!=='top')

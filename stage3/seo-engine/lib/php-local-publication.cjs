@@ -108,6 +108,7 @@ function review(site,base,manifest,bytesByFile){
     add('php-local:sitemap-unknown-page','warning',path,'Actual PHP sitemap includes a route missing from sealed Site v1.');
   }
  }
+ const verifiedRedirectPaths=[];
  for(const [i,item] of manifest.redirects.entries()){
   const expected=site.redirects[i],request=new URL(item.url),wanted=new URL(expected.to.slice(1),base);
   if(item.status!==301)
@@ -116,16 +117,19 @@ function review(site,base,manifest,bytesByFile){
   let location;
   try{location=new URL(item.location,request);}
   catch{location=null;}
-  if(!location||location.origin!==request.origin||
-    location.pathname!==wanted.pathname||location.search||location.hash||
-    location.username||location.password)
+  const correctlyRouted=Boolean(location&&location.origin===request.origin&&
+    location.pathname===wanted.pathname&&!location.search&&!location.hash&&
+    !location.username&&!location.password);
+  if(!correctlyRouted)
    add('php-local:redirect-location-drift','error',expected.from,
     'Local PHP redirect Location differs from the sealed target inside this site mount.',
     {expectedPath:wanted.pathname,observed:item.location.slice(0,240)});
+  if(item.status===301&&correctlyRouted)verifiedRedirectPaths.push(expected.from);
  }
  return Object.freeze({format:FORMAT,siteId:site.siteId,readOnly:true,
   robotsStatus:robots.status,sitemapStatus:sitemap.status,
   redirectResponses:manifest.redirects.length,
+  verifiedRedirectPaths:Object.freeze(verifiedRedirectPaths),
   parsedSitemapPaths:paths?Object.freeze(paths):null,parsedSitemapComplete:paths!==null,
   findings:Object.freeze(findings.map(item=>Object.freeze(item))),
   actualLoopbackRequests:true,publicHttpsProven:false,
