@@ -26,7 +26,10 @@ try {
     $recovered = ArchiveBundle::restore($repository, $directory, $target);
     bundleAssert($recovered['targetSiteId'] === $target, 'restoration failed');
     bundleAssert($repository->getDraft($target)['site']['siteId'] === $target, 'draft identity mismatch');
-    bundleAssert($repository->published($target) === null, 'recovered site unexpectedly published');
+    try {
+        $repository->published($target);
+        throw new RuntimeException('recovered site unexpectedly published');
+    } catch (\Manufact\Stage3\NotFound $expected) {}
     try {
         ArchiveBundle::restore($repository, $directory, $target);
         throw new RuntimeException('overwriting existing target was accepted');
