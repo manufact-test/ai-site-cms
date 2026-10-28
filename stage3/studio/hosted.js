@@ -2288,6 +2288,23 @@
     const devices=element('div','hosted-launch-devices');devices.id='server-launch-modes';
     const compareModes=element('div','hosted-launch-compare-modes');
     compareModes.id='server-launch-compare-modes';
+    const overlayControls=element('div','hosted-launch-overlay-controls');
+    overlayControls.id='server-launch-overlay-controls';
+    overlayControls.hidden=true;
+    const overlayLabel=element('label',null,'Прозрачность макета: 50%');
+    overlayLabel.setAttribute('for','server-launch-overlay-opacity');
+    const overlayOpacity=element('input');
+    overlayOpacity.id='server-launch-overlay-opacity';
+    overlayOpacity.type='range';overlayOpacity.min='0';overlayOpacity.max='100';
+    overlayOpacity.step='5';overlayOpacity.value='50';
+    overlayOpacity.setAttribute('aria-label','Прозрачность утверждённого макета поверх страницы');
+    const setOverlayOpacity=()=>{
+      const value=Number(overlayOpacity.value);
+      overlayImage.style.opacity=String(value/100);
+      overlayLabel.textContent='Непрозрачность макета: '+value+'%';
+    };
+    overlayOpacity.addEventListener('input',setOverlayOpacity);
+    overlayControls.append(overlayLabel,overlayOpacity);
     const previewPanels=element('div','hosted-launch-preview-panels');
     const viewport=element('div','hosted-launch-viewport');
     const frame=element('iframe');frame.id='server-launch-preview';
@@ -2297,7 +2314,12 @@
     frame.setAttribute('sandbox','allow-same-origin');
     frame.setAttribute('referrerpolicy','no-referrer');
     const draftCanvas=element('div','hosted-launch-canvas');
-    draftCanvas.append(frame);viewport.append(draftCanvas);
+    const overlayImage=element('img','hosted-launch-overlay-image');
+    overlayImage.id='server-launch-overlay-image';
+    overlayImage.alt='Наложение утверждённого макета поверх PHP-превью';
+    overlayImage.hidden=true;
+    overlayImage.setAttribute('aria-hidden','true');
+    draftCanvas.append(frame,overlayImage);viewport.append(draftCanvas);
     const liveViewport=element('div','hosted-launch-viewport hosted-launch-live-viewport');
     liveViewport.id='server-launch-live-viewport';
     const liveLabel=element('p','hosted-launch-live-label','Опубликованная версия');
@@ -2366,7 +2388,7 @@
     const markReviewed=action('Подтвердить просмотр страницы','server-launch-mark',()=>{});
     const close=action('Закрыть','server-launch-close',()=>dialog.close());
     footer.append(editPage,quality,saveDraft,exportReport,publishSaved,close);
-    detail.append(pageHeading,devices,compareModes,previewPanels,previewStatus,issues,markReviewed);
+    detail.append(pageHeading,devices,compareModes,overlayControls,previewPanels,previewStatus,issues,markReviewed);
     body.append(pages,detail);
     dialog.append(header,backlog,body,footer);
     document.body.append(dialog);
@@ -2457,16 +2479,18 @@
     };
     const renderViewport=()=>{
       const currentReference=referenceKind(selectedRow,device);
-      if((viewMode==='approved'||viewMode==='approved-compare')&&!currentReference)
+      if(['approved','approved-compare','approved-overlay'].includes(viewMode)&&!currentReference)
         viewMode='draft';
       for(const btn of compareModes.querySelectorAll('button[data-compare-mode]'))
-        if(['approved','approved-compare'].includes(btn.dataset.compareMode))
+        if(['approved','approved-compare','approved-overlay'].includes(btn.dataset.compareMode))
           btn.disabled=!currentReference;
       previewPanels.classList.toggle('is-comparing',
         viewMode==='compare'||viewMode==='approved-compare');
       viewport.hidden=viewMode==='published'||viewMode==='approved';
       liveViewport.hidden=viewMode!=='compare'&&viewMode!=='published';
       referenceViewport.hidden=viewMode!=='approved'&&viewMode!=='approved-compare';
+      overlayControls.hidden=viewMode!=='approved-overlay';
+      overlayImage.hidden=viewMode!=='approved-overlay'||!overlayImage.hasAttribute('src');
       if(!referenceViewport.hidden){
         referenceViewport.style.height='620px';
         referenceImage.style.width=Math.min(widths[device],
@@ -2485,6 +2509,11 @@
         iframe.style.width=width+'px';iframe.style.height=height+'px';
         iframe.style.transformOrigin='top left';iframe.style.transform='scale('+scale+')';
         canvas.style.height=Math.ceil(height*scale)+'px';
+        if(canvas===draftCanvas){
+          overlayImage.style.width=Math.ceil(width*scale)+'px';
+          // The screenshot is a full-height raster captured at the exact
+          // chosen device width. Both layers scroll in one viewport.
+        }
         panel.style.height=Math.min(620,Math.ceil(height*scale))+'px';
       }
       for(const b of compareModes.querySelectorAll('button')){
@@ -2524,9 +2553,10 @@
       try{await job;}finally{referenceLoads.delete(kind);}
     };
     const showReference=async()=>{
-      if(!approvedReference||!['approved','approved-compare'].includes(viewMode))return;
+      if(!approvedReference||!['approved','approved-compare','approved-overlay'].includes(viewMode))return;
       const mode=device,row=selectedRow,kind=referenceKind(row,mode);
       referenceImage.removeAttribute('src');
+      overlayImage.removeAttribute('src');overlayImage.hidden=true;
       if(!kind){
         referenceLabel.textContent='У этой страницы нет индивидуального утверждённого макета';
         return;
@@ -2535,15 +2565,23 @@
       try{
         await loadReference(kind);
         if(!dialog.open||device!==mode||selectedRow!==row||
-          !['approved','approved-compare'].includes(viewMode))return;
+          !['approved','approved-compare','approved-overlay'].includes(viewMode))return;
         if(!referenceUrls.has(kind))return;
-        referenceImage.src=referenceUrls.get(kind);
-        await referenceImage.decode();
+        if(viewMode==='approved-overlay'){
+          overlayImage.src=referenceUrls.get(kind);
+          await overlayImage.decode();
+        }else{
+          referenceImage.src=referenceUrls.get(kind);
+          await referenceImage.decode();
+        }
         if(!dialog.open||device!==mode||selectedRow!==row||
-          !['approved','approved-compare'].includes(viewMode))return;
+          !['approved','approved-compare','approved-overlay'].includes(viewMode))return;
         referenceLabel.textContent='Согласованный исходник · '+approvedReference.version+
           ' · SHA-256 проверен · '+mode;
         referenceSeen.add(signature(row,mode));
+        if(viewMode==='approved-overlay'){
+          setOverlayOpacity();renderViewport();
+        }
       }catch(error){
         if(!dialog.open||device!==mode||selectedRow!==row)return;
         referenceLabel.textContent='Макет недоступен: '+error.message;
@@ -2692,16 +2730,16 @@
     };
     for(const [value,label] of [
       ['draft','Черновик'],['compare','Рядом с публикацией'],['published','Опубликовано'],
-      ['approved-compare','Рядом с макетом'],['approved','Утверждённый макет']
+      ['approved-compare','Рядом с макетом'],['approved-overlay','Наложить макет'],['approved','Утверждённый макет']
     ]){
       const mode=action(label,'',()=>{
         if((value==='compare'||value==='published')&&!published)return;
-        if((value==='approved'||value==='approved-compare')&&!referenceKind(selectedRow,device))return;
+        if(['approved','approved-compare','approved-overlay'].includes(value)&&!referenceKind(selectedRow,device))return;
         viewMode=value;renderViewport();void showReference();
       });
       mode.dataset.compareMode=value;
       mode.disabled=(['compare','published'].includes(value)&&!published)||
-        (['approved','approved-compare'].includes(value)&&!referenceKind(selectedRow,device));
+        (['approved','approved-compare','approved-overlay'].includes(value)&&!referenceKind(selectedRow,device));
       compareModes.append(mode);
     }
     for(const [mode,name] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
@@ -2732,7 +2770,7 @@
     dialog.addEventListener('close',()=>{
       ++request;window.removeEventListener('resize',adjustPreview);
       for(const url of referenceUrls.values())URL.revokeObjectURL(url);
-      referenceUrls.clear();referenceImage.removeAttribute('src');
+      referenceUrls.clear();referenceImage.removeAttribute('src');overlayImage.removeAttribute('src');
       frame.srcdoc='';liveFrame.srcdoc='';dialog.remove();
     },{once:true});
     dialog.showModal();choosePage(selectedRow);updateReviewed();
