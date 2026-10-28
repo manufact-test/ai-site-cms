@@ -1904,6 +1904,48 @@
               });
               wrap.append(caption,picker);panel.append(wrap);
             }
+            if(current.backgroundMedia){
+              const bg=current.backgroundMedia;
+              const choices=[['','Наследовать ПК'],...bgImages.map(a=>[a.id,a.alt||a.id])];
+              for(const [bp,title] of [['tablet','Фон планшета'],['mobile','Фон телефона']]){
+                const key=bp+'AssetId',holder=document.createElement('label');
+                holder.className='cms-work-field';
+                const text=document.createElement('span');text.textContent=title;
+                const select=document.createElement('select');select.className='control';
+                select.id='cms-work-background-'+bp;
+                for(const [id,name] of choices){
+                  const opt=document.createElement('option');opt.value=id;opt.textContent=name;select.append(opt);
+                }
+                select.value=bg[key]||'';select.disabled=!canWrite();
+                select.addEventListener('change',()=>editGraphWork(node=>{
+                  if(select.value)node.backgroundMedia[key]=select.value;
+                  else delete node.backgroundMedia[key];
+                }));
+                holder.append(text,select);panel.append(holder);
+              }
+              const size=document.createElement('label');size.className='cms-work-field';
+              size.textContent='Масштаб фонового изображения';
+              const choose=document.createElement('select');choose.className='control';choose.id='cms-work-background-size';
+              for(const [value,name] of [['cover','Заполнить область'],['contain','Вписать целиком']]){
+                const option=document.createElement('option');option.value=value;option.textContent=name;choose.append(option);
+              }
+              choose.value=bg.size||'cover';choose.disabled=!canWrite();
+              choose.addEventListener('change',()=>editGraphWork(node=>{node.backgroundMedia.size=choose.value;}));
+              size.append(choose);panel.append(size);
+              for(const [key,label] of [['positionX','Горизонтальное положение, %'],['positionY','Вертикальное положение, %']]){
+                const holder=document.createElement('label');holder.className='cms-work-field';
+                holder.textContent=label;
+                const inp=document.createElement('input');inp.className='control';inp.type='number';
+                inp.min='0';inp.max='100';inp.step='1';inp.disabled=!canWrite();
+                inp.value=String(bg[key]??50);inp.id='cms-work-background-'+key;
+                inp.addEventListener('change',()=>{
+                  const v=Number(inp.value);
+                  if(!Number.isInteger(v)||v<0||v>100)return feedback('Позиция должна быть от 0 до 100%.',true);
+                  editGraphWork(node=>{node.backgroundMedia[key]=v;});
+                });
+                holder.append(inp);panel.append(holder);
+              }
+            }
           }
           if(current.type==='container'){
             const videos=session.current.assets.filter(a=>a.mime==='video/mp4');
@@ -2010,7 +2052,6 @@
           shapeTitle.textContent='Размер, рамка и визуальные эффекты · '+mode;
           shape.append(shapeTitle);panel.append(shape);
           const appendShape=(label,key,val,choices)=>{
-            const oldParent=panel;
             const before=panel.lastElementChild;
             property(label,key,val,choices);
             const field=panel.lastElementChild;
