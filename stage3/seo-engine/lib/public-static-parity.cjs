@@ -4,6 +4,7 @@
 // the HTTP transcript. This answers "what is served?" only if operator
 // corroborates the original network collection.
 const STATIC=require('./php-local-static-export.cjs');
+const BYTES=require('./public-media-byte-verification.cjs');
 const crypto=require('node:crypto');
 const HEAD=require('./public-static-head.cjs');
 const CSP=require('./public-static-csp.cjs');
@@ -16,11 +17,14 @@ const accepted=new WeakSet();
 const norm=x=>String(x??'').replace(/\s+/g,' ').trim().normalize('NFKC');
 const SHA=/^[a-f0-9]{64}$/;
 const HTTPS=u=>u.protocol==='https:'&&!u.username&&!u.password&&!u.hash;
-function compare(site,release,http,media=null){
+function compare(site,release,http,media=null,byteReport=null){
  if(!site||!Array.isArray(site.pages)||!release||
     release.siteId!==site.siteId||!release.sha256VerifiedAtRead||
     !http||http.siteId!==site.siteId||!Array.isArray(http.pages)||
-    media&&media.siteId!==site.siteId)
+    media&&media.siteId!==site.siteId||
+    byteReport&&(!BYTES.isVerified(byteReport)||byteReport.siteId!==site.siteId||
+     byteReport.officialStaticManifestSha256!==release.manifestSha256||
+     byteReport.publishedVersion!==release.publishedVersion))
   throw Error('Static public comparison needs matching published Site v1, official export and captured HTTP evidence');
  DELIVERY.assertEvidence(http);
  if(media)MEDIA.assertEvidence(media);
@@ -199,24 +203,34 @@ function compare(site,release,http,media=null){
     {href:from,expectedUrl:wanted});
  }
  const assetById=new Map((media?.resources||[]).map(x=>[x.assetId,x]));
+ const binaryById=new Map((byteReport?.resources||[]).map(x=>[x.assetId,x]));
  for(const a of site.assets||[]){
   const releaseAsset=release.assets.get(a.id),actual=assetById.get(a.id);
+  const observedGet=binaryById.get(a.id);
+  const getMatched=Boolean(observedGet&&observedGet.status===200&&
+   observedGet.sha256Matched&&observedGet.bytesMatched&&observedGet.mimeMatched);
   if(!releaseAsset)throw Error('Verified static release media inventory incomplete');
-  if(!media){assets.push({assetId:a.id,checked:false,reason:'no-public-media-transcript'});continue;}
+  if(!media){
+   assets.push({assetId:a.id,checked:getMatched,matched:getMatched,
+    method:getMatched?'public-get-sha256':'no-public-media-evidence'});
+   continue;
+  }
   if(!actual){
-   add('public-media-missing','warning',null,
-    'Public media HEAD was not captured for an original published asset.',
+   if(!getMatched)add('public-media-missing','warning',null,
+    'Public media HEAD was not captured and no verified SHA256 GET covers the original asset.',
     {assetId:a.id});
-   assets.push({assetId:a.id,checked:false,reason:'missing-public-head'});continue;
+   assets.push({assetId:a.id,checked:getMatched,matched:getMatched,
+    method:getMatched?'public-get-sha256':'missing-public-head'});continue;
   }
   const expectedUrl=expectedOrigin+a.src,contentType=actual.contentType.split(';')[0].trim().toLowerCase();
   const matched=actual.status===200&&actual.url===expectedUrl&&contentType===a.mime.toLowerCase();
-  if(!matched)add('public-media-head-drift','error',null,
+  if(!matched)add('public-media-head-drift',getMatched?'warning':'error',null,
    'Public static asset URL/status/MIME differs from the official published asset.',{assetId:a.id});
   if(actual.contentLength!==undefined&&actual.contentLength!==releaseAsset.bytes)
-   add('public-media-length-drift','error',null,
+   add('public-media-length-drift',getMatched?'warning':'error',null,
     'Public static asset Content-Length differs from the official hashed file size.',{assetId:a.id});
-  assets.push({assetId:a.id,checked:true,status:actual.status,matched,
+  assets.push({assetId:a.id,checked:true,status:actual.status,matched:matched||getMatched,
+   method:getMatched?'public-get-sha256':'public-head',
    contentLengthMatches:actual.contentLength===undefined?null:actual.contentLength===releaseAsset.bytes});
  }
  const blockers=findings.filter(x=>x.severity==='error').length;
@@ -233,16 +247,16 @@ function compare(site,release,http,media=null){
   pages:Object.freeze(pages),assets:Object.freeze(assets),
   auxiliary:Object.freeze(auxiliary),findings:Object.freeze(findings),
   allComparedSurfacesMatched:blockers===0&&rootWindow?.matched===true&&Boolean(negative)&&
-   [404,410].includes(negative.status)&&Boolean(media)&&
+   [404,410].includes(negative.status)&&
    assets.length===(site.assets||[]).length&&assets.every(x=>x.checked&&x.matched),
   httpTranscriptAuthenticated:false,actualHostRequestsByThisReview:0,
   publicSiteApproval:false,
   limitations:'Public HTTP evidence is locally supplied and unauthenticated. Agreement does not prove production identity, DNS/TLS, user approval, actual browser design, POST or mail delivery; HEAD does not verify media bytes.'});
  accepted.add(out);return out;
 }
-function review(site,release,http,media=null){
+function review(site,release,http,media=null,byteReport=null){
  if(!STATIC.isVerified?.(release))throw Error('Only directly verified official static export can be compared to public HTTP');
- return compare(site,release,http,media);
+ return compare(site,release,http,media,byteReport);
 }
 function isVerified(o){return accepted.has(o);}
 module.exports=Object.freeze({FORMAT,review,compare,isVerified});
