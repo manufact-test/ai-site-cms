@@ -8,7 +8,8 @@ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const vm=require('node:vm'),http=require('node:http');
 const ACCEPTANCE=require('../lib/acceptance.cjs');
 const site={siteId:'pilot-local',pages:[
- {id:'page-home',path:'/'},{id:'page-about',path:'/about/'}]};
+ {id:'page-home',path:'/'},{id:'page-about',path:'/about/'}],
+ redirects:[{from:'/old/',to:'/about/'}]};
 const source={siteId:site.siteId,packageVersion:'sealed-v2',
  fileSha256:'a'.repeat(64),siteRevisionFingerprint:ACCEPTANCE.fingerprint(site)};
 const code=fs.readFileSync(path.join(__dirname,'../lib/php-html-capture.cjs'),'utf8');
@@ -25,7 +26,7 @@ vm.runInNewContext(code,{
 const CAP=moduleShim.exports;
 const html=(title)=>'<!doctype html><html lang="ru"><head><title>'+
  title+'</title><meta name="description" content="Тест локального PHP"></head>'+
- '<body><h1>'+title+'</h1></body></html>';
+ '<body><h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a></body></html>';
 let mode='normal',requests=[];
 const server=http.createServer((req,res)=>{
  requests.push({url:req.url,method:req.method});
@@ -33,6 +34,22 @@ const server=http.createServer((req,res)=>{
  if(mode==='wrong-type'){res.writeHead(200,{'Content-Type':'text/plain'});res.end(html('Bad'));return;}
  if(mode==='oversize'){res.writeHead(200,{'Content-Type':'text/html'});res.end('x'.repeat(450001));return;}
  if(mode==='incomplete'){res.writeHead(200,{'Content-Type':'text/html'});res.end('<h1>Bad</h1>');return;}
+ if(req.url==='/published/pilot-local/robots.txt'){
+  res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8'});
+  res.end('User-agent: *\nAllow: /\nSitemap: https://pilot.example/published/pilot-local/sitemap.xml\n');return;
+ }
+ if(req.url==='/published/pilot-local/sitemap.xml'){
+  res.writeHead(200,{'Content-Type':'application/xml; charset=utf-8'});
+  res.end('<?xml version="1.0" encoding="UTF-8"?>'+
+   '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+
+   '<url><loc>https://pilot.example/published/pilot-local/</loc></url>'+
+   '<url><loc>https://pilot.example/published/pilot-local/about/</loc></url></urlset>');return;
+ }
+ if(req.url==='/published/pilot-local/old/'){
+  res.writeHead(mode==='bad-301'?302:301,{Location:
+   mode==='bad-301'?'/published/pilot-local/':'/published/pilot-local/about/'});
+  res.end();return;
+ }
  if(req.url==='/published/pilot-local/'||req.url==='/published/pilot-local/about/'){
   res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});
   res.end(html(req.url.includes('about')?'About':'Home'));return;
@@ -56,13 +73,24 @@ async function main(){
   const captured=await CAP.capture(sealed,base,out);
   assert.equal(captured.pages,2);assert.equal(captured.localHttp200,2);
   assert.equal(captured.publicHttpsChecked,false);assert.equal(captured.readyToPublish,false);
+  assert.equal(captured.robotsStatus,200);assert.equal(captured.sitemapStatus,200);
+  assert.equal(captured.localRedirectsCaptured,1);assert.equal(captured.localSeoFindings,0);
   assert.deepEqual(requests.map(x=>x.url),[
-   '/published/pilot-local/','/published/pilot-local/about/']);
+   '/published/pilot-local/','/published/pilot-local/about/',
+   '/published/pilot-local/robots.txt','/published/pilot-local/sitemap.xml',
+   '/published/pilot-local/old/']);
   assert.ok(requests.every(x=>x.method==='GET'));
   const result=CAP.read(out,site,source);
   assert.equal(CAP.isVerified(result),true);
   assert.equal(result.snapshot.format,'manufact-seo-html-snapshot-v1');
   assert.equal(result.snapshot.completeness,'complete');
+  assert.equal(result.snapshot.mountPath,'/published/pilot-local/');
+  assert.equal(result.snapshot.sitemapCompleteness,'complete');
+  assert.deepEqual([...result.snapshot.sitemapPaths],['/','/about/']);
+  assert.equal(result.publication.findings.length,0);
+  const audited=require('../lib/analyze.cjs').snapshotAudit(result.snapshot);
+  assert.ok(!audited.issues.some(x=>x.code==='html:broken-link'),
+   'published mount links are normalized, not mistaken for missing pages');
   assert.equal(result.snapshot.pages[1].path,'/about/');
   assert.match(result.snapshot.pages[0].html,/<title>Home<\/title>/);
   assert.equal(result.realPublicHttpsChecked,false);
@@ -84,6 +112,23 @@ async function main(){
   assert.throws(()=>CAP.read(out,site,source),/unexpected or missing HTML evidence file/);
   fs.unlinkSync(path.join(out,'unexpected.txt'));
   assert.equal(CAP.read(out,site,source).pageCount,2);
+  const sitemapFile=path.join(out,'sitemap.txt'),savedSitemap=fs.readFileSync(sitemapFile);
+  fs.appendFileSync(sitemapFile,'bad');
+  assert.throws(()=>CAP.read(out,site,source),/SEO endpoint response size mismatch|content digest mismatch/);
+  fs.writeFileSync(sitemapFile,savedSitemap);
+  const corruptRedirect=JSON.parse(original);
+  corruptRedirect.publication.redirects[0].location='https://external.example/';
+  fs.writeFileSync(manifest,JSON.stringify(corruptRedirect));
+  assert.throws(()=>CAP.read(out,site,source),/HTTP response manifest|redirect path or Location mismatch|Invalid/);
+  fs.writeFileSync(manifest,original);
+  mode='bad-301';
+  const wrongRedirect=path.join(tmp,'bad-301');
+  const badCapture=await CAP.capture(sealed,base,wrongRedirect);
+  assert.equal(badCapture.localSeoFindings>0,true,'bad redirect has review findings');
+  const badRead=CAP.read(wrongRedirect,site,source);
+  assert.ok(badRead.publication.findings.some(x=>x.code==='php-local:redirect-status-drift'));
+  assert.ok(badRead.publication.findings.some(x=>x.code==='php-local:redirect-location-drift'));
+  mode='normal';
   for(const [next,expected] of [['redirect',/HTTP 302/],['wrong-type',/Non-UTF-8 HTML/],
    ['oversize',/per-page byte limit|HTML exceeds/],['incomplete',/complete UTF-8 document/]]){
    mode=next;
@@ -93,7 +138,7 @@ async function main(){
   }
   mode='normal';
   await assert.rejects(CAP.capture(sealed,base,out),/new directory/);
-  console.log('PHP HTML LOOPBACK CAPTURE SMOKE PASS: 2 genuine local HTTP 200 pages, byte/hash/route/mount guards, redirect/type/size/HTML failures, no external requests.');
+  console.log('PHP HTML LOOPBACK CAPTURE SMOKE PASS: real local HTML, sitemap, robots and 301; mount normalization, tamper/route/redirect/type/size guards; no external requests.');
  }finally{
   if(server.listening)await new Promise(resolve=>server.close(resolve));
   fs.rmSync(tmp,{recursive:true,force:true});
