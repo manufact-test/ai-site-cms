@@ -233,6 +233,8 @@ function build(site,manifests,blueprint,options={}){
    checkedRedirects:options.publicStatic.checkedRedirects,
    negativeRouteStatus:options.publicStatic.negativeRouteStatus??null,
    negativeRouteProbed:options.publicStatic.negativeRouteProbed??false,
+   publicRootWindowRechecked:options.publicStatic.publicRootWindowRechecked??false,
+   publicRootWindowStable:options.publicStatic.publicRootWindowStable??null,
    pages:options.publicStatic.pages,
    assets:options.publicStatic.assets,
    auxiliary:options.publicStatic.auxiliary,

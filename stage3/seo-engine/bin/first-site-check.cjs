@@ -220,7 +220,9 @@ async function main(argv){
    redirects:checked.publication?.redirectResponses??null,
    publicUnknownRouteStatus:publicHttp?.negativeProbe?.status??null,
    unknownRouteSoft404Detected:Boolean(publicHttp?.negativeProbe&&
-    ![404,410].includes(publicHttp.negativeProbe.status))},
+    ![404,410].includes(publicHttp.negativeProbe.status)),
+   publicRootWindowRechecked:Boolean(publicHttp?.rootRecheck),
+   publicRootWindowStable:publicHttp?.rootRecheck?.matched??null},
   media:{observed:checked.localMedia?.capturedResources??null,
    comparedAgainstSealedSiteSha256:checked.localMedia?.sealedMediaBytesCompared??false,
    actualFindings:checked.localMedia?.findings.length??null},
