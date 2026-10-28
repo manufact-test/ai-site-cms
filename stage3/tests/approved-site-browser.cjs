@@ -606,7 +606,7 @@ async function execute(){
   const pictureSources=await visitor.locator('.cmsdg-image-action picture.cmsdg-picture source')
     .evaluateAll(nodes=>nodes.map(node=>({media:node.media,url:node.getAttribute('srcset')})));
   assert.equal(pictureSources.length,2,'Both device-native image sources survived import and publishing');
-  assert.deepEqual(pictureSources.map(x=>x.media),['(max-width: 600px)','(max-width: 900px)']);
+  assert.deepEqual(pictureSources.map(x=>x.media.replace(/\s+/g,'')),['(max-width:600px)','(max-width:900px)']);
   for(const source of pictureSources){
     assert.match(source.url,/^\/published\/site-approved-browser\/assets\/asset-[a-f0-9]+\.png$/);
     assert.ok(!source.url.includes('asset-external-hero'),'Responsive source must be server retargeted');
