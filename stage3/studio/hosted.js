@@ -103,6 +103,28 @@
   const maintenanceLabel=element('label','hosted-label','Сообщение посетителю');
   maintenanceLabel.append(maintenanceText);
   const incidents=element('div','hosted-backup-summary');incidents.id='server-operations-incidents';
+  const incidentSummary=element('div','hosted-backup-summary');
+  incidentSummary.id='server-incidents-summary';
+  const incidentFilter=element('select','control');incidentFilter.id='server-incidents-filter';
+  for(const [id,label] of [['all','Все типы'],['api_failure','Сбой API'],
+    ['collector_failure','Сбор заявок'],['visitor_failure','Публичный сайт']]){
+    const opt=element('option',null,label);opt.value=id;incidentFilter.append(opt);
+  }
+  let loadedIncidents=[];
+  const incidentLabels={
+    api_failure:'Ошибка CMS API',collector_failure:'Ошибка обработки заявки',
+    visitor_failure:'Ошибка публичной страницы'
+  };
+  function showIncidents(){
+    const visible=loadedIncidents.filter(x=>
+      incidentFilter.value==='all'||x.kind===incidentFilter.value);
+    incidents.replaceChildren(...(visible.length?
+      visible.map(x=>element('p',null,
+        x.createdAt+' · '+(incidentLabels[x.kind]||x.kind)+' · код '+x.id)):
+      [element('p',null,loadedIncidents.length?'В выбранной категории ошибок нет.':
+        'Зарегистрированных внутренних ошибок нет.')]));
+  }
+  incidentFilter.addEventListener('change',showIncidents);
   let operationsRevision=null;
   const operationsApply=action('Применить статус сайта','server-operations-apply',()=>safe(async()=>{
     if(!state.siteId||!isOwner()||operationsRevision===null)throw Error('Откройте диагностику владельца');
@@ -120,7 +142,8 @@
   const operationsClose=action('Закрыть','server-operations-close',()=>operationsDialog.close());
   operationsDialog.append(element('h2',null,'Доступность и диагностика сайта'),
     element('p',null,'Только владелец. Переключение действует сразу на текущем PHP-сервере и не меняет черновик, историю или публикации. Независимые ZIP-сайты не затрагиваются.'),
-    operationsStatus,maintenanceRow,maintenanceLabel,operationsApply,element('h3',null,'Технические события (не более 30 последних)'),incidents,operationsClose);
+    operationsStatus,maintenanceRow,maintenanceLabel,operationsApply,element('h3',null,'Журнал ошибок · сводка и категории'),
+    incidentSummary,incidentFilter,incidents,operationsClose);
   document.body.append(operationsDialog);
   async function readOperations(siteId){
     const info=await api('/api/sites/'+encodeURIComponent(siteId)+'/operations');
@@ -136,9 +159,16 @@
         ' · секрет сборщика форм: '+(info.collectorConfigured?'задан':'не задан')),
       element('small',null,'Диагностика локальная: сеть, DNS и внешний хостинг не проверяются.')
     );
-    incidents.replaceChildren(...(info.incidents.length
-      ?info.incidents.map(x=>element('p',null,x.createdAt+' · '+x.kind+' · '+x.id))
-      :[element('p',null,'Зарегистрированных внутренних ошибок нет.')]));
+    const d=info.incidentSummary?.day||{},w=info.incidentSummary?.week||{};
+    incidentSummary.replaceChildren(
+      element('strong',null,(d.total||0)>0?'За сутки обнаружены ошибки':'За сутки ошибок нет'),
+      element('p',null,'Последние 24 часа: '+(d.total||0)+
+        ' · CMS '+(d.api||0)+' · заявки '+(d.collector||0)+' · сайт '+(d.visitor||0)),
+      element('p',null,'Последние 7 дней: '+(w.total||0)+
+        ' · CMS '+(w.api||0)+' · заявки '+(w.collector||0)+' · сайт '+(w.visitor||0)),
+      element('small',null,'Хранятся только тип и время сбоя, без IP, содержания заявок, адресов или текста исключений. Не более 100 событий на сайт; ниже — 30 последних.'));
+    loadedIncidents=info.incidents||[];
+    showIncidents();
   }
   async function openOperations(){
     if(!state.siteId||!isOwner())throw Error('Раздел доступен владельцу сайта');

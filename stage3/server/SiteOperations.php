@@ -144,6 +144,21 @@ trait SiteOperations
         $incidents=array_map(static fn(array $row):array=>[
             'id'=>$row['incident_id'],'kind'=>$row['kind'],'createdAt'=>$row['created_at']
         ],$s->fetchAll(PDO::FETCH_ASSOC));
+        $incidentSummary=[];
+        foreach(['day'=>86400,'week'=>604800] as $period=>$seconds){
+            $since=gmdate('Y-m-d\\TH:i:s\\Z',time()-$seconds);
+            $q=$this->db->prepare('SELECT kind,COUNT(*) AS total FROM stage3_site_incidents WHERE site_id=? AND created_at>=? GROUP BY kind');
+            $q->execute([$siteId,$since]);
+            $kinds=['api_failure'=>0,'collector_failure'=>0,'visitor_failure'=>0];
+            foreach($q->fetchAll(PDO::FETCH_ASSOC) as $entry)
+                if(array_key_exists($entry['kind'],$kinds))$kinds[$entry['kind']]=(int)$entry['total'];
+            $incidentSummary[$period]=[
+                'total'=>array_sum($kinds),
+                'api'=>$kinds['api_failure'],
+                'collector'=>$kinds['collector_failure'],
+                'visitor'=>$kinds['visitor_failure']
+            ];
+        }
         $site=$release['site']??null;
         $forms=0;
         foreach ($site['pages']??[] as $page) foreach ($page['sections'] as $section)
@@ -157,6 +172,7 @@ trait SiteOperations
             'publicOriginConfigured'=>\Manufact\Stage3\PublicRenderer::origin(getenv('STAGE3_PUBLIC_ORIGIN')?:null)!==null,
             'collectorConfigured'=>is_string(getenv('STAGE3_FORM_SECRET'))&&strlen((string)getenv('STAGE3_FORM_SECRET'))>=32,
             'incidents'=>$incidents,
+            'incidentSummary'=>$incidentSummary,
             'mode'=>'local-config-and-storage-only'
         ];
     }
