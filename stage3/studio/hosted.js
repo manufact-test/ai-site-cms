@@ -2792,10 +2792,15 @@
             const fileHash=await digest(await entry.original.arrayBuffer());
             for(const saved of result.site.assets){
               if(reused.has(saved.id)||saved.mime!==declared.mime||saved.alt!==entry.alt||
-                saved.width!==declared.width||saved.height!==declared.height)continue;
+                (declared.width!==undefined&&saved.width!==declared.width)||
+                (declared.height!==undefined&&saved.height!==declared.height))continue;
+              // Dimensions are optional in source JSON. PHP computes accurate
+              // dimensions for uploaded originals/variants; require equality
+              // only for values explicitly supplied by the external author.
               const expected=declared.variants||[],actual=saved.variants||[];
               if(actual.length!==expected.length||expected.some(v=>!actual.some(x=>
-                x.width===v.width&&x.height===v.height&&x.sha256===v.sha256)))continue;
+                x.width===v.width&&(v.height===undefined||x.height===v.height)&&
+                x.sha256===v.sha256)))continue;
               if(await remoteDigest(saved.id)!==fileHash)continue;
               for(const variant of actual){
                 if(await remoteDigest(variant.id)!==variant.sha256)
