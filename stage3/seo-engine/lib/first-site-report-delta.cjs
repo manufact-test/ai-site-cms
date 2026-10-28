@@ -22,6 +22,8 @@ const GATES={
  'owner-form-notification-intent':'deliveryReadiness',
  'public-static-deployment-drift':'publicStaticParity',
  'public-static-deployment-coverage':'publicStaticParity',
+ 'public-static-csp-blocks-site':'publicStaticParity',
+ 'public-static-csp-review':'publicStaticParity',
  'public-static-media-sha256-integrity':'publicMediaBytes',
  'local-php-theme-parity':'localPhpTheme',
  'local-php-navigation-parity':'localPhpNavigation',
