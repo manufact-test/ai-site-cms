@@ -46,6 +46,10 @@ function preview(site,manifests,blueprint,backlog,decisions=null){
   valid=false;validationError=String(e?.message||e).slice(0,320);
  }
  const risky=regression?.summary.criticalReviewItems??null;
+ const introducedReviewIssues=(regression?.summary.introduced??0)+(regression?.summary.escalated??0);
+ const hasRisks=Boolean(risky||introducedReviewIssues>0);
+ // A valid Site v1 clone can still introduce fresh editorial, navigation and
+ // semantic warnings. Surface them for a reviewer, never label it "safe to apply".
  const first=fingerprint(site),hypothetical=fingerprint(candidate);
  return {format:FORMAT,version:1,siteId:site.siteId,readOnly:true,
   approvalLedgerSupplied:Boolean(decisions),currentSiteFingerprint:first,
@@ -53,15 +57,16 @@ function preview(site,manifests,blueprint,backlog,decisions=null){
   hypotheticalSiteIncluded:false,
   status:!packet.operations.length?'no-approved-unblocked-operations':
    !valid?'invalid-hypothetical-site':
-   risky?'hypothetical-regression-review-required':'validated-hypothetical-site',
+   hasRisks?'hypothetical-regression-review-required':'validated-hypothetical-site',
   summary:{approvedFieldOperationsSimulated:outcomes.length,
    blockedProposals:packet.blocked.length,pendingDecisions:packet.pending.length,
    hypotheticalValidSiteV1:valid,hypotheticalCriticalReviewItems:risky,
+   hypotheticalIntroducedOrEscalatedReviewItems:introducedReviewIssues,
    actualCmsWrites:0,deployments:0},
   operations:outcomes,blocked:packet.blocked,pending:packet.pending,
   validationError,regression,
   recommendations:!valid?['Do not attempt the proposed field set; resolve Site v1 validation errors first.']:
-   risky?['Review newly introduced SEO issues before any manual CMS edit.']:
+   hasRisks?['Review all newly introduced or escalated SEO findings before any manual CMS edit.']:
    ['Review the current saved overrides, approval ledger and actual editor history.',
     'If authorized, apply each field manually through existing CMS Save, then re-export Site v1 and re-audit.',
     'Publish only after independent browser/HTTP/manual release acceptance.'],

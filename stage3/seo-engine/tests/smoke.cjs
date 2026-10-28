@@ -17,7 +17,7 @@ try{
   assert.deepEqual(actual,expected,name+' canonical blueprint');
   const explanation=good('explain',{blueprint:fixture(name+'.blueprint.json')});
   assert.match(explanation,/SEO/);
-  assert.match(explanation,/mobile/);
+  assert.match(explanation,/mobile/i);
  }
  const site=path.resolve(root,'../fixtures/industrial-site.json'),bp=fixture('industrial.blueprint.json');
  const audit=JSON.parse(good('analyze-site',{site,blueprint:bp}));

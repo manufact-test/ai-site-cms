@@ -82,6 +82,19 @@ function review(before,after,manifests,blueprint){
     {to:destination});
   }
  }
+ // Preserve previously deployed alias URLs too. The authoritative Site v1
+ // publishes 301 aliases directly; removing one can silently break backlinks.
+ const removedAliases=[];
+ for(const [from,to] of oldAliases){
+  if(redirects.has(from)||finalRoutes.has(from))continue;
+  removedAliases.push({from,previousDestination:to,reviewRequired:true});
+  add('migration:historical-alias-removed','warning',null,from,
+   'A previously declared 301 alias disappeared. Confirm retained backlink traffic and a deliberate retirement decision.',
+   {previousDestination:to});
+  probes.push({kind:'retired-alias-review',pageId:null,requestPath:from,
+   expectedHttpStatus:null,expectedLocationPath:null,previousDestination:to,
+   actualHttpVerified:false,leadDecisionRequired:true});
+ }
  const movedOldRoutes=new Set(changed.map(x=>x.previousPath));
  for(const link of authored)if(movedOldRoutes.has(link.targetPath)){
   add('migration:authored-link-uses-old-route','warning',link.pageId,link.pagePath,
@@ -98,8 +111,9 @@ function review(before,after,manifests,blueprint){
    missingOrWrongAliases:changed.filter(x=>x.status!=='mapped').length,
    removedPages:removed.length,addedPages:newPages.length,
    staleInternalLinks:findings.filter(x=>x.code==='migration:authored-link-uses-old-route').length,
+   historicalAliasesRemoved:removedAliases.length,
    blockingFindings:blocking,realHttpProbesPerformed:0},
-  changed,removed,added:newPages,probes,findings,
+  changed,removed,removedAliases,added:newPages,probes,findings,
   releaseAuthorized:false,redirectsCreated:0,
   limitations:'Only authoring snapshots and declared redirect aliases are compared. A matching alias in Site v1 does not prove 301 status, Location header, cache behavior, traffic recovery, actual host canonical, link graph, or search index handling. Removed pages require an explicit lead choice; never auto-redirect all removed pages to home.'};
 }

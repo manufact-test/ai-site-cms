@@ -71,17 +71,31 @@ function build(site,manifests,blueprint,backlog,decisions=null){
   if(definition?.type!==expectedType){
    fail('manifest-field-not-editable','Current manifest does not permit this exact typed field.');continue;
   }
+  // Reconstruct the *same exact candidates* as field-proposals.cjs; do not
+  // infer an editable CTA merely because some element happens to have an href.
+  const headingCandidates=(section.elements||[]).filter(e=>e.slot==='heading');
+  const ctaCandidates=(section.elements||[]).filter(e=>{
+   const spec=manifest.elements?.find(x=>x.slot===e.slot);
+   return spec?.fields?.some(x=>x.path==='content.text'&&x.type==='text')&&
+    spec.fields.some(x=>x.path==='behavior.href'&&x.type==='url')&&
+    typeof e.values?.['behavior.href']==='string';
+  });
+  const isHeading=element.slot==='heading'&&headingCandidates.length===1&&
+   headingCandidates[0].id===element.id;
+  const isCta=planSection.cta&&ctaCandidates.length===1&&
+   ctaCandidates[0].id===element.id;
   let expected;
-  if(task.field==='behavior.href'){
-   if(!planSection.cta||!planned.has(planSection.cta.toPageId)){
-    fail('blueprint-cta-unavailable','Approved CTA target is not present.');continue;
+  if(isHeading&&task.field==='content.text')expected=planSection.heading;
+  else if(isCta){
+   const target=planned.get(planSection.cta.toPageId);
+   const authoredTarget=pages.get(planSection.cta.toPageId);
+   if(!target||!authoredTarget||authoredTarget.path!==target.path){
+    fail('blueprint-cta-unavailable','Approved target is missing or the actual destination route differs.');continue;
    }
-   expected=planned.get(planSection.cta.toPageId).path;
-  }else if(element.slot==='heading')expected=planSection.heading;
-  else if(planSection.cta&&element.values?.['behavior.href']!==undefined){
-   expected=planSection.cta.label;
+   expected=task.field==='behavior.href'?target.path:planSection.cta.label;
   }else{
-   fail('ambiguous-copy-mapping','Only unambiguous section heading and CTA label updates are supported.');continue;
+   fail('ambiguous-copy-mapping',
+    'Only one exact heading slot and one unambiguous manifest-declared CTA can receive human review.');continue;
   }
   if(task.key!==['cms-content',page.id,section.id,element.id,task.field].join('|')||
    element.values?.[task.field]!==task.before||expected!==task.after){
