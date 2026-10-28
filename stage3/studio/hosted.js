@@ -2566,10 +2566,53 @@
           ' · целостность: '+(handoff.format.endsWith('-v2')?'SHA-256 подтверждена':'старый пакет v1'));
         const description=element('p',null,
           'Ниже показаны реальные макеты из пакета. Сравните их с согласованной версией. Подключение создаст только черновик, публикация выполняется отдельно.');
+        const pageSelect=element('select','control');
+        pageSelect.id='server-approved-review-page';
+        pageSelect.setAttribute('aria-label','Страница для сравнения');
+        for(const item of site.pages){
+          const opt=element('option',null,(item.title||item.path)+' · '+item.path);
+          opt.value=item.path;pageSelect.append(opt);
+        }
+        pageSelect.style.maxWidth='400px';
+        const pageLabel=element('label','hosted-label','Страница для визуальной проверки');
+        pageLabel.append(pageSelect);
         const previews=element('div','');
         previews.id='server-approved-prototypes';
         Object.assign(previews.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:'14px'});
-        const objectUrls=[];
+        const objectUrls=[],liveFrames={};
+        const liveImageBytes=new Map();
+        const widths={desktop:1280,tablet:768,mobile:390};
+        const mediaFiles=new Map();
+        for(const asset of site.assets){
+          mediaFiles.set(asset.src,{file:required(asset.src.slice(1)),mime:asset.mime});
+          for(const variant of asset.variants||[])
+            mediaFiles.set(variant.src,{file:required(variant.src.slice(1)),mime:asset.mime});
+        }
+        const toDataUrl=file=>new Promise((resolve,reject)=>{
+          const reader=new FileReader();
+          reader.onload=()=>resolve(String(reader.result));
+          reader.onerror=()=>reject(Error('Невозможно прочитать изображение: '+file.name));
+          reader.readAsDataURL(file);
+        });
+        const renderSite=async()=>{
+          const path=pageSelect.value;
+          for(const [device,view] of Object.entries(liveFrames)){
+            let html=editor.previewDocument(site,path,device);
+            for(const [src,mediaFile] of mediaFiles){
+              if(!html.includes(src))continue;
+              if(!liveImageBytes.has(src))liveImageBytes.set(src,await toDataUrl(mediaFile.file));
+              html=html.replaceAll(src,liveImageBytes.get(src));
+            }
+            view.frame.srcdoc=html;
+          }
+        };
+        const resizeSite=()=>{
+          for(const [device,view] of Object.entries(liveFrames)){
+            const scale=Math.min(1,Math.max(0.12,(view.container.clientWidth-8)/widths[device]));
+            view.frame.style.transform='scale('+scale+')';
+            view.container.style.height=Math.ceil(540*scale)+'px';
+          }
+        };
         const dimensions={desktop:'Десктоп',tablet:'Планшет',mobile:'Телефон'};
         for(const [key,name] of Object.entries(dimensions)){
           const card=element('div','');
@@ -2582,7 +2625,20 @@
           objectUrls.push(img.src);
           Object.assign(img.style,{display:'block',width:'100%',maxHeight:'310px',
             objectFit:'contain',borderRadius:'10px',border:'1px solid #ddd',background:'#f5f5f5'});
-          card.append(caption,img);previews.append(card);
+          const liveTitle=element('h4',null,'Сайт CMS · '+widths[key]+' px');
+          const container=element('div','');
+          Object.assign(container.style,{position:'relative',width:'100%',overflow:'hidden',
+            background:'#fff',border:'1px solid #ddd',borderRadius:'10px'});
+          const frame=document.createElement('iframe');
+          frame.dataset.previewDevice=key;
+          frame.title='Настоящая страница · '+name;
+          frame.sandbox='';
+          frame.referrerPolicy='no-referrer';
+          Object.assign(frame.style,{width:widths[key]+'px',height:'540px',
+            transformOrigin:'top left',border:'0',display:'block',pointerEvents:'none'});
+          container.append(frame);
+          liveFrames[key]={container,frame};
+          card.append(caption,img,liveTitle,container);previews.append(card);
         }
         const details=element('div','');
         Object.assign(details.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:'16px'});
@@ -2600,16 +2656,30 @@
         const cancel=action('Отмена','server-approved-review-cancel',()=>dialog.close('cancel'));
         const confirmButton=action('Подключить как черновик','server-approved-review-confirm',()=>dialog.close('approve'));
         actions.append(cancel,confirmButton);
-        dialog.append(heading,summary,description,previews,details,actions);
+        dialog.append(heading,summary,description,pageLabel,previews,details,actions);
         document.body.append(dialog);
+        const showPage=async()=>{
+          pageSelect.disabled=true;
+          try{await renderSite();resizeSite();}
+          catch(error){
+            description.textContent='Предпросмотр отклонён: '+error.message;
+            confirmButton.disabled=true;
+          }finally{pageSelect.disabled=false;}
+        };
+        pageSelect.addEventListener('change',showPage);
         try{
           dialog.showModal();
+          await showPage();
+          window.addEventListener('resize',resizeSite);
           const decision=await new Promise(resolve=>{
             dialog.addEventListener('close',()=>resolve(dialog.returnValue==='approve'),{once:true});
           });
           return decision;
         }finally{
+          window.removeEventListener('resize',resizeSite);
           for(const url of objectUrls)URL.revokeObjectURL(url);
+          for(const view of Object.values(liveFrames))view.frame.srcdoc='';
+          liveImageBytes.clear();
           dialog.remove();
         }
       };
