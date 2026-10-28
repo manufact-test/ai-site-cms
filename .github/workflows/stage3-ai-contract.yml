@@ -6,6 +6,11 @@ on:
       - 'stage3/**'
       - '.github/workflows/stage3-ai-contract.yml'
   workflow_dispatch:
+# Only the latest commit in this development branch needs the full browser/HTTP
+# suite. Cancel superseded runs; never skip or weaken the final run.
+concurrency:
+  group: stage3-contract-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
