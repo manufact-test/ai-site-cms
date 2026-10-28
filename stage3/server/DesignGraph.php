@@ -161,18 +161,42 @@ final class DesignGraph
         $count=0;
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
-                &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item'],true),
+                &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell'],true),
                 'invalid or duplicate node');
             $ids[$id]=true;
+            self::check(($type==='quote'||!array_key_exists('cite',$node))&&
+                ($type!=='quote'||!array_key_exists('cite',$node)||
+                (is_string($node['cite'])&&strlen($node['cite'])<=160&&
+                    preg_match('/[\x00-\x1f]/',$node['cite'])!==1)),'invalid quote attribution');
+            self::check(($type!=='table-row'||$parentType==='table')&&($parentType!=='table'||$type==='table-row')
+                &&($type!=='table-cell'||$parentType==='table-row')&&
+                ($parentType!=='table-row'||$type==='table-cell')
+                &&($parentType!=='gallery'||$type==='image'),'invalid table/gallery hierarchy');
             self::check(($type==='list'||!array_key_exists('ordered',$node))&&($type!=='list'||!array_key_exists('ordered',$node)||is_bool($node['ordered'])),'invalid ordered-list flag');
             self::check(($type!=='list-item'||$parentType==='list')&&($parentType!=='list'||$type==='list-item'),'invalid list hierarchy');
             self::check(($type!=='tab'||$parentType==='tabs')&&($parentType!=='tabs'||$type==='tab'),'invalid tabs hierarchy');
-            if (in_array($type,['container','divider','tabs','list'],true)) {
+            if($type==='gallery'){
+                self::check(is_string($node['text']??null)&&strlen($node['text'])<=120&&trim($node['text'])!==''&&
+                    preg_match('/[\x00-\x1f]/',$node['text'])!==1&&
+                    !array_intersect(['href','assetId','alt','level','icon','loop','posterAssetId','ordered'],array_keys($node)),
+                    'invalid gallery label');
+            } elseif($type==='table'){
+                self::check((!array_key_exists('text',$node)||
+                    (is_string($node['text'])&&strlen($node['text'])<=160&&
+                      preg_match('/[\x00-\x1f]/',$node['text'])!==1))&&
+                    !array_intersect(['href','assetId','alt','level','icon','loop','posterAssetId','ordered'],array_keys($node)),
+                    'invalid table caption');
+            } elseif (in_array($type,['container','divider','tabs','list','table-row'],true)) {
                 foreach (['text','href','assetId','alt','level','posterAssetId','loop'] as $field)
                     self::check(!array_key_exists($field,$node),'invalid container/divider content');
+            } elseif ($type==='table-cell') {
+                self::check(is_string($node['text']??null)&&strlen($node['text'])<=1600&&
+                    preg_match('/[\x00-\x1f]/',$node['text'])!==1&&
+                    !array_intersect(['href','assetId','alt','level','icon','loop','posterAssetId','ordered'],array_keys($node)),
+                    'invalid table cell');
             } elseif ($type==='list-item') {
                 self::check(is_string($node['text']??null)&&strlen($node['text'])<=3000&&
                     preg_match('/[\x00-\x1f]/',$node['text'])!==1&&
@@ -217,7 +241,7 @@ final class DesignGraph
                 self::check(is_string($node['text']??null)&&strlen($node['text'])<=3000
                     &&preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f]/',$node['text'])!==1
                     &&!isset($node['assetId'])&&!isset($node['alt'])&&!isset($node['icon']),'invalid text node');
-                if ($type==='button') {
+                if (in_array($type,['button','link'],true)) {
                     $href=$node['href']??null;
                     self::check(is_string($href)&&strlen($href)<=300
                         &&(preg_match('~^/(?!/)[a-zA-Z0-9/_#?=&.%-]*$~D',$href)===1
@@ -239,14 +263,23 @@ final class DesignGraph
                 foreach ($node['states'] as $name=>$style)
                     self::style($style,$tokens,$id.'/'.$name,true);
             }
-            if (!in_array($type,['container','disclosure','tabs','tab','list'],true))
+            if (!in_array($type,['container','disclosure','tabs','tab','list','gallery','table','table-row'],true))
                 self::check(!isset($node['children']),'non-container children');
             else {
                 $childCount=is_array($node['children']??null)?count($node['children']):-1;
+                $min=in_array($type,['tabs','gallery','table'],true)?2:
+                    (in_array($type,['disclosure','tab','list','table-row'],true)?1:0);
+                $max=match($type){'tabs'=>8,'list'=>24,'gallery'=>12,'table'=>10,'table-row'=>6,default=>30};
                 self::check(isset($node['children'])&&is_array($node['children'])&&
-                    array_is_list($node['children'])&&$childCount<=($type==='tabs'?8:($type==='list'?24:30))&&
-                    ($type!=='tabs'||$childCount>=2)&&
-                    (!in_array($type,['disclosure','tab','list'],true)||$childCount>=1),'invalid interactive children');
+                    array_is_list($node['children'])&&$childCount>=$min&&$childCount<=$max,
+                    'invalid content-group children');
+                if($type==='table'){
+                    $colCount=count($node['children'][0]['children']??[]);
+                    self::check($colCount>=2&&$colCount<=6,'table columns 2–6');
+                    foreach($node['children'] as $row)
+                        self::check(is_array($row['children']??null)&&
+                            count($row['children'])===$colCount,'table must have equal columns');
+                }
                 foreach ($node['children'] as $child) $visit($child,$depth+1,$type);
             }
         };
@@ -359,7 +392,16 @@ final class DesignGraph
         $t=self::tokens($site['designTokens']??null);
         $assetMap=[];foreach ($site['assets'] as $asset)$assetMap[$asset['id']]=$asset;
         $scope='.cmsdg-'.$graph['id'];$rules=[];
-        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath): string {
+        $headerIds=[];
+        $collectHeaders=function(array $nodes)use(&$collectHeaders,&$headerIds):void{
+            foreach($nodes as $node){
+                if($node['type']==='table')
+                    foreach($node['children'][0]['children'] as $cell)$headerIds[$cell['id']]=true;
+                if(isset($node['children']))$collectHeaders($node['children']);
+            }
+        };
+        $collectHeaders($graph['nodes']);
+        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds): string {
             $selector=$scope.' .cmsdg-n-'.$n['id'];
             $usesTranslate=false;
             foreach ([$n['styles']??[],$n['responsive']['tablet']??[],$n['responsive']['mobile']??[]] as $layer) {
@@ -390,6 +432,25 @@ final class DesignGraph
                     return '<'.$tag.' class="'.$cls.' cmsdg-list">'.$body.'</'.$tag.'>';
                 case 'list-item':
                     return '<li class="'.$cls.'">'.self::h($n['text']).'</li>';
+                case 'gallery':
+                    $body='';foreach($n['children'] as $child)$body.=$visit($child);
+                    return '<div class="'.$cls.' cmsdg-gallery" role="region" aria-roledescription="gallery" aria-label="'.self::h($n['text']).'" tabindex="0">'.$body.'</div>';
+                case 'table':
+                    $first=$visit($n['children'][0]);$rest='';
+                    foreach(array_slice($n['children'],1) as $row)$rest.=$visit($row);
+                    return '<div class="cmsdg-table-scroll" role="region" aria-label="'.self::h($n['text']??'Таблица').'" tabindex="0"><table class="'.$cls.' cmsdg-table">'.
+                        (!empty($n['text'])?'<caption>'.self::h($n['text']).'</caption>':'').
+                        '<thead>'.$first.'</thead><tbody>'.$rest.'</tbody></table></div>';
+                case 'table-row':
+                    $body='';foreach($n['children'] as $cell)$body.=$visit($cell);
+                    return '<tr class="'.$cls.'">'.$body.'</tr>';
+                case 'table-cell':
+                    $isHeader=isset($headerIds[$n['id']]);
+                    $tag=$isHeader?'th':'td';
+                    return '<'.$tag.($isHeader?' scope="col"':'').' class="'.$cls.'">'.self::h($n['text']).'</'.$tag.'>';
+                case 'quote':
+                    return '<figure class="'.$cls.' cmsdg-quote"><blockquote><p>'.self::h($n['text']).'</p></blockquote>'.
+                        (!empty($n['cite'])?'<figcaption>'.self::h($n['cite']).'</figcaption>':'').'</figure>';
                 case 'disclosure':
                     $body='';foreach ($n['children'] as $child)$body.=$visit($child);
                     return '<details class="'.$cls.' cmsdg-disclosure"><summary>'.self::h($n['text']).'</summary><div class="cmsdg-disclosure-body">'.$body.'</div></details>';
@@ -414,8 +475,9 @@ final class DesignGraph
                     return '<'.$tag.' class="'.$cls.'">'.self::h($n['text']).'</'.$tag.'>';
                 case 'text':return '<p class="'.$cls.'">'.self::h($n['text']).'</p>';
                 case 'button':
+                case 'link':
                     $href=str_starts_with($n['href'],'/')?$mount.$n['href']:$n['href'];
-                    return '<a class="'.$cls.'" href="'.self::h($href).'">'.self::h($n['text']).'</a>';
+                    return '<a class="'.$cls.'" href="'.self::h($href).'"'.(str_starts_with($href,'https://')?' rel="noopener noreferrer"':'').'>'.self::h($n['text']).'</a>';
                 case 'video':
                     $video=$assetMap[$n['assetId']];
                     $src=self::h(self::assetUrl($video,$mount,$assetBasePath));
@@ -442,7 +504,17 @@ final class DesignGraph
             .$scope.'{min-width:0;max-width:none;padding:0;min-height:0}'.$scope.' *{box-sizing:border-box;min-width:0}'
             .$scope.' img,'.$scope.' video{max-width:100%;height:auto;object-position:var(--cmsdg-object-x,50%) var(--cmsdg-object-y,50%)}'
             .$scope.' svg{display:inline-block;vertical-align:middle;flex:none}'
-             .$scope.' .cmsdg-list{padding-inline-start:1.5em;margin-block:12px}'
+             .$scope.' .cmsdg-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}'
+            .$scope.' .cmsdg-table-scroll:focus-visible,'.$scope.' .cmsdg-gallery:focus-visible{outline:3px solid #1868d3;outline-offset:2px}'
+            .$scope.' .cmsdg-table{border-collapse:collapse;width:100%;min-width:480px}'
+            .$scope.' .cmsdg-table th,'.$scope.' .cmsdg-table td{padding:12px 16px;border:1px solid #c6cdd7;text-align:start}'
+            .$scope.' .cmsdg-table th{font-weight:700;background:#f2f5f9}'
+            .$scope.' .cmsdg-gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 2px;overscroll-behavior-inline:contain}'
+            .$scope.' .cmsdg-gallery>img{flex:0 0 min(82%,420px);object-fit:cover;scroll-snap-align:start;border-radius:10px}'
+            .$scope.' .cmsdg-quote{margin:12px 0;padding:20px;border-inline-start:4px solid currentColor}'
+            .$scope.' .cmsdg-quote blockquote{margin:0}'
+            .$scope.' .cmsdg-quote figcaption{margin-top:12px;font-size:.9em}'
+            .$scope.' .cmsdg-list{padding-inline-start:1.5em;margin-block:12px}'
             .$scope.' .cmsdg-list > li{margin-block:6px}'
             .$scope.' .cmsdg-disclosure > summary{cursor:pointer;list-style-position:inside}'
             .$scope.' .cmsdg-disclosure-body{padding:12px 0}'
