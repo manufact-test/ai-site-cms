@@ -38,6 +38,12 @@ function run(folder){
     '- Pages: '+site.pages.length+' · sections: '+sections.length+' · custom authored sections: '+custom.length,
     '- Approved device screenshot sets: '+(1+Object.keys(h.files.pagePrototypes||{}).length)+
       ' (homepage + optional page-specific references)',
+    '- Original approved screenshot bytes: '+checked.approvedPrototypeBytes,
+    '- Source and variant raster bytes: '+checked.sourceAssetBytes,
+    '- Minimum JSON Base64 image footprint: '+
+      Math.ceil((checked.approvedPrototypeBytes+checked.sourceAssetBytes)*4/3)+
+      ' bytes before revisions, metadata, leads and additional approved versions',
+    '- Single-file complete-backup budget: 64000000 bytes; exceeding it fails the export',
     '- FAQ sections: '+faq.length+' · FAQ questions: '+faq.reduce((n,s)=>n+(s.items||[]).length,0),
     '- Flexible forms: '+forms.length+' · assets: '+site.assets.length+' · responsive variants: '+
       site.assets.reduce((n,a)=>n+(a.variants||[]).length,0),

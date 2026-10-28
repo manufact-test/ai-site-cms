@@ -226,7 +226,7 @@ trait ApprovalEvidence
      */
     private function validateApprovalArchiveRows(array $rows,string $sourceSiteId): array
     {
-        if(!array_is_list($rows)||count($rows)>140)
+        if(!array_is_list($rows)||count($rows)>1400)
             throw new InvalidArgumentException('Archive: invalid approval document count');
         $groups=[];$checked=[];
         foreach ($rows as $row) {

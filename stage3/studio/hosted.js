@@ -2808,9 +2808,23 @@
           overflowY:'auto',padding:'24px',borderRadius:'18px',border:'1px solid #ddd'});
         const heading=element('h2',null,'Проверка утверждённого сайта');
         heading.id='server-approved-review-heading';
+        const mockups=[refs.desktop,refs.tablet,refs.mobile,
+          ...Object.values(pageReferences).flatMap(devices=>
+            ['desktop','tablet','mobile'].map(bp=>devices[bp]))];
+        const mockupBytes=mockups.reduce((sum,name)=>sum+required(name).size,0);
+        const mediaBytes=media.reduce((sum,item)=>sum+item.original.size+
+          item.variants.reduce((subtotal,v)=>subtotal+v.file.size,0),0);
+        const minimumBackupBytes=Math.ceil((mockupBytes+mediaBytes)*4/3);
         const summary=element('p',null,'Сайт: '+site.title+' · версия: '+handoff.version+
           ' · страниц: '+site.pages.length+' · изображений: '+site.assets.length+
+          ' · оригиналов макетов: '+mockups.length+
+          ' · изображения: '+(mockupBytes+mediaBytes).toLocaleString('ru-RU')+' байт'+
           ' · целостность: '+(handoff.format.endsWith('-v2')?'SHA-256 подтверждена':'старый пакет v1'));
+        if(minimumBackupBytes>45000000)
+          summary.append(element('strong',null,
+            ' · Внимание: только Base64 изображений займёт минимум '+
+            Math.ceil(minimumBackupBytes/1000000)+
+            ' МБ в полном бэкапе. Лимит — 64 МБ, возможен отказ экспорта.'));
         const description=element('p',null,archiveOnly?
           'Архивирование не изменит страницы, черновик или публикацию. Проверьте исходные макеты, описания и версию; записи будут доступны только владельцу CMS.':
           'Ниже показаны реальные макеты из пакета. Сравните их с согласованной версией. Подключение создаст только черновик, публикация выполняется отдельно.');

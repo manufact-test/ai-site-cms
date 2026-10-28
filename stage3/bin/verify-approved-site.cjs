@@ -140,10 +140,18 @@ function preflight(folder){
       actual.some(x=>!SHA256.test(integrity.files[x])||observed.get(x)!==integrity.files[x]))
       throw Error('Approved handoff changed since SHA256 sealing');
   }
+  // A real multi-page customer site can outgrow the single-file 64MB
+  // backup. Report the lower bound before an operator tries to import it.
+  const mockups=[refs.desktop,refs.tablet,refs.mobile,
+    ...perPage.flatMap(({images})=>['desktop','tablet','mobile'].map(bp=>images[bp]))];
+  const sourceMedia=site.assets.flatMap(asset=>[asset.src.slice(1),
+    ...(asset.variants||[]).map(v=>v.src.slice(1))]);
+  const byteSum=files=>files.reduce((n,p)=>n+fs.statSync(path.join(root,p)).size,0);
+  const approvedPrototypeBytes=byteSum(mockups),sourceAssetBytes=byteSum(sourceMedia);
   const graphs=site.pages.flatMap(p=>p.sections).filter(s=>s.designGraph).length;
   const custom=site.pages.flatMap(p=>p.sections).filter(s=>s.component==='custom-section').length;
   return Object.freeze({siteId:site.siteId,version:handoff.version,pages:site.pages.length,
-    assets:site.assets.length,pagePrototypeSets:perPage.length+1,
+    assets:site.assets.length,approvedPrototypeBytes,sourceAssetBytes,pagePrototypeSets:perPage.length+1,
     designGraphs:graphs,customSections:custom,integrity:locked?'sha256-verified':'legacy-unlocked',
     status:'structurally-compatible-not-visual-approval'});
 }
