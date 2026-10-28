@@ -179,6 +179,46 @@ test('Rich individual Design Graph layout: rectangular tables, gallery assets, l
     targetId:'rich-quote',placement:'after'}),'Reject detached table rows');
 });
 
+test('Individual artwork: responsive backgrounds, safe media actions and stateful styling',()=>{
+  const G=require('../sdk/design-graph.cjs');
+  const picture=id=>({id,src:'/assets/'+id+'.png',mime:'image/png',
+    alt:'Site-owned illustration',sha256:'a'.repeat(64),width:800,height:600});
+  const one=picture('artwork-desktop'),two=picture('artwork-mobile');
+  const site={assets:[one,two],designTokens:G.DEFAULT_TOKENS};
+  const graph={version:1,id:'artwork-graph',nodes:[{
+    id:'artwork-hero',type:'container',
+    styles:{minHeight:160,borderWidth:2,borderStyle:'dashed',filterPreset:'contrast'},
+    backgroundMedia:{assetId:one.id,mobileAssetId:two.id,size:'cover',
+      positionX:25,positionY:70,overlay:{color:'@foreground',opacity:40}},
+    children:[{id:'artwork-picture',type:'image',assetId:one.id,
+      alt:'Custom image with link',href:'tel:+48123456789',
+      styles:{filterPreset:'grayscale'},states:{active:{borderStyle:'dotted',opacity:75}}},
+      {id:'artwork-cta',type:'button',text:'Contact us',href:'mailto:info@example.org',
+        states:{active:{background:'@accent',opacity:85}}}]
+  }]};
+  const assets=new Set(site.assets.map(a=>a.id)),kinds=new Map(site.assets.map(a=>[a.id,a.mime]));
+  G.validateGraph(graph,assets,new Set(),site.designTokens,kinds);
+  const html=G.render(site,graph,'/published/example-site/');
+  assert.match(html,/artwork-hero\{background-image:linear-gradient\(#182b3d66,#182b3d66\),url\("\/published\/example-site\/assets\/artwork-desktop.png"\)/);
+  assert.match(html,/@media\(max-width:600px\).*artwork-mobile.png/);
+  assert.match(html,/border-style:dashed/);
+  assert.match(html,/filter:grayscale\(1\)/);
+  assert.match(html,/:active\{background-color:#0a5bff;opacity:0.85\}/);
+  assert.match(html,/class="cmsdg-image-action" href="tel:\+48123456789"/);
+  const detached=JSON.parse(JSON.stringify(graph));
+  detached.nodes[0].backgroundMedia.assetId='missing-file';
+  refuses(()=>G.validateGraph(detached,assets,new Set(),site.designTokens,kinds),'No external background files');
+  const invalidMedia=JSON.parse(JSON.stringify(graph));
+  invalidMedia.nodes[0].children[0].href='javascript:alert(1)';
+  refuses(()=>G.validateGraph(invalidMedia,assets,new Set(),site.designTokens,kinds),'No script media action');
+  const brokenOverlay=JSON.parse(JSON.stringify(graph));
+  brokenOverlay.nodes[0].backgroundMedia.overlay.opacity=101;
+  refuses(()=>G.validateGraph(brokenOverlay,assets,new Set(),site.designTokens,kinds),'Opaque overlay prohibited');
+  const invalidGradient=JSON.parse(JSON.stringify(graph));
+  invalidGradient.nodes[0].styles.gradient={angle:0,from:'@accent',to:'@background'};
+  refuses(()=>G.validateGraph(invalidGradient,assets,new Set(),site.designTokens,kinds),'No competing backgrounds');
+});
+
 test('four production components: typed repeater contracts, structural editing and safety',()=>{
   const D=require('../sdk/draft.cjs'),newTypes=['pricing-plans','process-timeline',
     'comparison-matrix','content-switcher'];
