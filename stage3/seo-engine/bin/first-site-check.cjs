@@ -13,17 +13,18 @@ const PROGRESS=require('../lib/first-site-report-delta.cjs');
 const STATIC_EXPORT=require('../lib/php-local-static-export.cjs');
 const DELIVERY_READY=require('../lib/php-local-delivery-readiness.cjs');
 const PUBLIC_STATIC=require('../lib/public-static-parity.cjs');
+const PUBLIC_BYTES=require('../lib/public-media-byte-verification.cjs');
 const DELIVERY=require('../lib/delivery-evidence.cjs');
 const MEDIA=require('../lib/media-delivery.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
 const {auditSite}=require('../lib/analyze.cjs');
 const REQUIRED=['approved-site','blueprint','origin','evidence','report'];
-const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review','static-export','public-http-evidence','public-media-evidence','delivery-status'];
+const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review','static-export','public-http-evidence','public-media-evidence','delivery-status','public-media-digests'];
 function parse(argv){
  const opts={};
  if(!Array.isArray(argv)||argv.length<REQUIRED.length*2||
   argv.length>(REQUIRED.length+OPTIONAL.length)*2||argv.length%2)
-  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json] [--static-export /ABS/official-static-release] [--public-http-evidence /ABS/public-http-transcript.json] [--public-media-evidence /ABS/public-media-transcript.json] [--delivery-status /ABS/private-owner-delivery.json]');
+  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json] [--static-export /ABS/official-static-release] [--public-http-evidence /ABS/public-http-transcript.json] [--public-media-evidence /ABS/public-media-transcript.json] [--delivery-status /ABS/private-owner-delivery.json] [--public-media-digests /ABS/public-media-sha256.json]');
  for(let i=0;i<argv.length;i+=2){
   const name=argv[i]?.startsWith('--')?argv[i].slice(2):null;
   if(![...REQUIRED,...OPTIONAL].includes(name)||!argv[i+1]||opts[name])throw Error('Unknown, missing or duplicate first-site option');
@@ -93,6 +94,8 @@ async function main(argv){
  const published=o['published-site']?readPublishedSite(o['published-site']):null;
  if(o['delivery-status']&&!published)
   throw Error('--delivery-status requires a pinned --published-site owner API JSON');
+ if(o['public-media-digests']&&!o['static-export'])
+  throw Error('--public-media-digests requires a verified --static-export from the same owner release');
  if(o['static-export']&&(!published||!published.sourceRevision))
   throw Error('--static-export requires an owner published-site API record with version and sourceRevision');
  if(o['owner-edit-review']&&!published)
@@ -113,6 +116,7 @@ async function main(argv){
  const publicHttpSha=o['public-http-evidence']?fileSha256(o['public-http-evidence']):null;
  const publicMediaSha=o['public-media-evidence']?fileSha256(o['public-media-evidence']):null;
  const deliveryStatusSha=o['delivery-status']?fileSha256(o['delivery-status']):null;
+ const publicDigestsSha=o['public-media-digests']?fileSha256(o['public-media-digests']):null;
  const previous=o['previous-report']?PROGRESS.read(o['previous-report']):null;
  if(previous&&([report,evidence].some(target=>{
    const parent=fs.realpathSync(path.dirname(target));
@@ -157,11 +161,14 @@ async function main(argv){
   throw Error('Official static export manifest changed during PHP HTTP capture; discard mixed evidence');
  if(publicHttpSha&&fileSha256(o['public-http-evidence'])!==publicHttpSha||
     publicMediaSha&&fileSha256(o['public-media-evidence'])!==publicMediaSha||
-    deliveryStatusSha&&fileSha256(o['delivery-status'])!==deliveryStatusSha)
+    deliveryStatusSha&&fileSha256(o['delivery-status'])!==deliveryStatusSha||
+    publicDigestsSha&&fileSha256(o['public-media-digests'])!==publicDigestsSha)
   throw Error('Public evidence file changed during PHP capture; discard mixed source report');
  if(checked.localStaticExport&&checked.localStaticExport.sourceRevisionClaim!==published.sourceRevision)
   throw Error('Official static export sourceRevision conflicts with owner CMS published sourceRevision');
  if(!PHP.isVerified(checked))throw Error('First-site PHP evidence was not source-bound verified');
+ const publicMediaBytes=o['public-media-digests']?
+  PUBLIC_BYTES.read(o['public-media-digests'],fresh.site,exportPreflight):null;
  const publicStatic=exportPreflight&&publicHttp?
   PUBLIC_STATIC.review(fresh.site,exportPreflight,publicHttp,publicMedia):null;
  let deliveryReadiness=null;
@@ -178,7 +185,8 @@ async function main(argv){
   ...(publicHttp?{delivery:publicHttp}:{}),
   ...(publicMedia?{media:publicMedia}:{}),
   ...(deliveryReadiness?{deliveryReadiness}:{}),
-  ...(publicStatic?{publicStatic}:{})
+  ...(publicStatic?{publicStatic}:{}),
+  ...(publicMediaBytes?{publicMediaBytes}:{})
  });
  const release=bundle.release;
  const worksheet=WORKSHEET.build({site:fresh.site,source:fresh.source,
@@ -217,6 +225,13 @@ async function main(argv){
    cssVariablesChecked:checked.localTheme?.expectedCssVariables??null,
    actualFindings:checked.localTheme?.findings.length??null,
    pixelParityVerified:false},
+  publicMediaBytes:{supplied:Boolean(publicMediaBytes),
+   comparedOriginalsAndResponsiveVariants:publicMediaBytes?.comparedOriginalsAndResponsiveVariants??null,
+   checkedResources:publicMediaBytes?.capturedResources??null,
+   officialResources:publicMediaBytes?.expectedMediaResources??null,
+   sha256Mismatches:publicMediaBytes?.findings.length??null,
+   allCapturedByteDigestsMatch:publicMediaBytes?.allCapturedByteDigestsMatch??null,
+   hostProvenanceAuthenticated:false},
   publicStaticParity:{compared:Boolean(publicStatic),
    scope:publicStatic?.comparisonScope??null,comparable:publicStatic?.comparable??null,
    observedPages:publicStatic?.checkedPages??null,

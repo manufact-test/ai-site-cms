@@ -14,9 +14,11 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
  const all=fields.flatMap(key=>(phpHtml[key]?.findings||[]).map(x=>({...x,group:key})));
  const ownerDelivery=bundle.deliveryReadiness||null;
  const publicStatic=bundle.publicStaticParity||null;
+ const publicMediaBytes=bundle.publicMediaBytes||null;
  if(phpCapture)for(const x of phpCapture.findings||[])all.push({...x,group:'lead-php-screenshots'});
  if(ownerDelivery)for(const x of ownerDelivery.findings||[])all.push({...x,group:'owner-form-delivery'});
  if(publicStatic)for(const x of publicStatic.findings||[])all.push({...x,group:'public-static-deployment'});
+ if(publicMediaBytes)for(const x of publicMediaBytes.findings||[])all.push({...x,group:'public-media-byte-integrity'});
  const stats={pages:site.pages.length,actualFindings:all.length,
   actualBlockingFindings:all.filter(x=>x.severity==='error').length,
   screenshotPages:phpCapture?.pages.length??0,
@@ -119,7 +121,8 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   if(common.length>25)lines.push('- Ещё '+(common.length-25)+' общих findings в JSON bundle.');
   lines.push('');
  }
- const publicReports=[['HTTP',bundle.deliveryEvidence],['Медиа',bundle.mediaEvidence]]
+ const publicReports=[['HTTP',bundle.deliveryEvidence],['Медиа',bundle.mediaEvidence],
+  ['SHA256 медиа',publicMediaBytes]]
   .filter(([,report])=>Boolean(report));
  if(publicReports.length){
   lines.push('## Предоставленные внешние HTTPS-транскрипты (неаутентифицированные)','',

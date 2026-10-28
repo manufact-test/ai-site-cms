@@ -9,7 +9,7 @@ const MAX_SUMMARY=800000,MAX_BUNDLE=42000000;
 const GROUPS=['localPhpHead','localPhpNavigation','localPhpGraph','localPhpComponents',
  'localPhpForms','localPhpMedia','localPhpPublication','localPhpTheme',
  'localPhpSemantics','localPhpFootprint','localPhpStaticExport',
- 'deliveryEvidence','mediaEvidence','deliveryReadiness','publicStaticParity'];
+ 'deliveryEvidence','mediaEvidence','deliveryReadiness','publicStaticParity','publicMediaBytes'];
 const GATES={
  'local-php-head-indexation-or-origin':'localPhpHead',
  'local-php-semantic-and-route-integrity':'localPhpSemantics',
@@ -22,6 +22,7 @@ const GATES={
  'owner-form-notification-intent':'deliveryReadiness',
  'public-static-deployment-drift':'publicStaticParity',
  'public-static-deployment-coverage':'publicStaticParity',
+ 'public-static-media-sha256-integrity':'publicMediaBytes',
  'local-php-theme-parity':'localPhpTheme',
  'local-php-navigation-parity':'localPhpNavigation',
  'local-php-design-graph-parity':'localPhpGraph',
@@ -122,7 +123,11 @@ function build(previous,currentSummary,currentBundle){
   pb.publicStaticParity.comparable&&currentBundle.publicStaticParity.comparable&&
   pb.publicStaticParity.claimedPublicOrigin===currentBundle.publicStaticParity.claimedPublicOrigin&&
   pb.publicStaticParity.verifiedStaticPublishedVersion===currentBundle.publicStaticParity.verifiedStaticPublishedVersion);
+ const publicMediaBytesComparable=Boolean(pb.publicMediaBytes&&currentBundle.publicMediaBytes&&
+  pb.publicMediaBytes.officialStaticManifestSha256===currentBundle.publicMediaBytes.officialStaticManifestSha256&&
+  pb.publicMediaBytes.origin===currentBundle.publicMediaBytes.origin);
  const groupComparable=key=>key==='localPhpStaticExport'?exportVersionComparable:
+  key==='publicMediaBytes'?publicMediaBytesComparable:
   key==='publicStaticParity'?staticDeploymentComparable:
   key==='deliveryReadiness'?ownerDeliveryComparable:
   ['deliveryEvidence','mediaEvidence'].includes(key)?publicOriginComparable:true;
@@ -182,6 +187,7 @@ function build(previous,currentSummary,currentBundle){
   publicEvidenceOriginChanged:oldPublicOrigin!==newPublicOrigin,
   ownerDeliveryConfigurationComparable:ownerDeliveryComparable,
   publicStaticDeploymentComparable:staticDeploymentComparable,
+  publicMediaBytesComparable,
   observedPhpEtagOrHtmlChanges:etagDrifts.length,
   sameEtagButDifferentHtml:etagContentConflicts.length,
   operatorConfirmedFixes:0,actualWrites:0,automaticRelease:false
@@ -206,6 +212,8 @@ function build(previous,currentSummary,currentBundle){
    '; comparable: '+(exportVersionComparable?'yes':'NO; no exported finding auto-closure')+'.',
   'Public transcript origins: '+safe(oldPublicOrigin||'none')+' → '+safe(newPublicOrigin||'none')+
    '; comparable: '+(publicOriginComparable?'yes (caller supplied)':'NO; missing or changed origin')+'.',
+  'Public media digests cohort: '+(publicMediaBytesComparable?'same official manifest and public host':
+   'not comparable; manifest, host or evidence changed')+'.',
   'Public static deployment cohort: '+(staticDeploymentComparable?'same public origin/export published version':
    'not comparable; one release/host/scope changed')+'.',
   'Owner delivery configuration cohort: '+(ownerDeliveryComparable?'same published version, snapshot only':
@@ -250,6 +258,7 @@ function build(previous,currentSummary,currentBundle){
    currentStaticExportVersion:newExportVersion,
    ownerDeliveryConfigurationComparable:ownerDeliveryComparable,
    publicStaticDeploymentComparable:staticDeploymentComparable,
+   publicMediaBytesComparable,
    publicEvidenceOriginComparable:publicOriginComparable,
    oldPublicOrigin,newPublicOrigin
   },

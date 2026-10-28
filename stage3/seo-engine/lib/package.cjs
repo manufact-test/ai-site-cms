@@ -31,12 +31,13 @@ const IMPACT=require('./change-impact.cjs');
 const DOSSIER=require('./lead-dossier.cjs');
 const FORMAT='manufact-seo-review-bundle-v1';
 const PUBLIC_STATIC=require('./public-static-parity.cjs');
+const PUBLIC_BYTES=require('./public-media-byte-verification.cjs');
 function build(site,manifests,blueprint,options={}){
  const plan=checkBlueprint(blueprint);
  if(!site||site.siteId!==plan.siteId)throw Error('Review package siteId mismatch');
  if(!Array.isArray(manifests))throw Error('Review package requires current manifests');
  if(!options||typeof options!=='object'||Array.isArray(options)||
-    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource','phpCapture','phpHtml','deliveryReadiness','publicStatic'].includes(k)))
+    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource','phpCapture','phpHtml','deliveryReadiness','publicStatic','publicMediaBytes'].includes(k)))
   throw Error('Unsupported review-package options');
  // A sealed package is verified by the lead CLI before this read-only review.
  const approvedSource=options.approvedSource||null;
@@ -62,6 +63,9 @@ function build(site,manifests,blueprint,options={}){
     options.deliveryReadiness.siteId!==site.siteId||
     options.deliveryReadiness.pinnedPublishedVersion!==approvedSource?.publishedVersion))
   throw Error('Form delivery status report not bound to pinned owner-published Site v1 version');
+ if(options.publicMediaBytes&&(!PUBLIC_BYTES.isVerified(options.publicMediaBytes)||
+   options.publicMediaBytes.siteId!==site.siteId||!options.phpHtml?.localStaticExport))
+  throw Error('Public media SHA256 report must originate from the pinned verified static export');
  if(options.publicStatic&&(!PUBLIC_STATIC.isVerified(options.publicStatic)||
    options.publicStatic.siteId!==site.siteId||
    !options.phpHtml?.localStaticExport||!options.delivery))
@@ -165,6 +169,8 @@ function build(site,manifests,blueprint,options={}){
   localPhpFootprintFindings:options.phpHtml?.localFootprint?.findings.length??null,
   localPhpExportFindings:options.phpHtml?.localStaticExport?.findings.length??null,
   publicStaticDeploymentFindings:options.publicStatic?.findings.length??null,
+  publicMediaByteMismatches:options.publicMediaBytes?.findings.length??null,
+  publicMediaByteResources:options.publicMediaBytes?.capturedResources??null,
   publicStaticPagesCompared:options.publicStatic?.checkedPages??null,
   localPhpComponentFindings:options.phpHtml?.localComponents?.findings.length??null,
   localPhpHeadHeaders:options.phpHtml?.localHead?.pagesWithRecordedHeaders??null,
@@ -198,6 +204,21 @@ function build(site,manifests,blueprint,options={}){
     pages:options.phpHtml.localHead.pages,
     findings:options.phpHtml.localHead.findings,
     publicHttpsProven:false,releaseAuthorized:false
+  }:null,
+  publicMediaBytes:options.publicMediaBytes?{
+    format:options.publicMediaBytes.format,
+    siteId:options.publicMediaBytes.siteId,
+    officialStaticManifestSha256:options.publicMediaBytes.officialStaticManifestSha256,
+    origin:options.publicMediaBytes.origin,
+    publishedVersion:options.publicMediaBytes.publishedVersion,
+    expectedMediaResources:options.publicMediaBytes.expectedMediaResources,
+    capturedResources:options.publicMediaBytes.capturedResources,
+    comparedOriginalsAndResponsiveVariants:true,
+    receivedBytes:options.publicMediaBytes.receivedBytes,
+    resources:options.publicMediaBytes.resources,
+    findings:options.publicMediaBytes.findings,
+    allCapturedByteDigestsMatch:options.publicMediaBytes.allCapturedByteDigestsMatch,
+    publicHostProvenanceAuthenticated:false
   }:null,
   publicStaticParity:options.publicStatic?{
    format:options.publicStatic.format,
