@@ -236,3 +236,18 @@ To avoid aggressively downscaling client photography during a genuine site pilot
 
 ### Pre-import capacity checks and immutable output
 The offline `verify-approved-site.cjs` result includes `approvedPrototypeBytes` and `sourceAssetBytes`; `audit-approved-site.cjs` records them and the **minimum Base64 footprint** of originals and responsive media before CMS history. The Studio client review displays the byte total and warns if even the minimum image-only footprint approaches the 64 MB all-in-one backup ceiling. This is an estimate, **not a guarantee that backup succeeds**; revisions, submissions, more approved versions and document metadata add size. At export the server independently validates the complete archive and refuses oversize, never discarding approved files. Always preserve the original sealed source folder as an independent off-CMS backup and test a full v2 export/restore with the real site.
+
+
+## Owner private extended backup bundle (CLI only)
+
+For a site whose **complete** `manufact-site-backup-v2` JSON exceeds the HTTP 64 MB cap, the lead branch now provides a separate bounded private transport, `manufact-site-backup-bundle-v1`. It wraps the exact validated v2 archive in numbered 8 MB binary parts and a SHA-256 manifest, preserving **all** revisions, releases, media, submissions, operator notes and immutable approved source evidence. The extended maximum is **256,000,000 bytes** of full v2 JSON, not unlimited; this implementation assembles the archive in PHP memory and requires adequate operator CLI RAM/disk. It cannot silently remove any source files to fit. Do not expose the bundle directory under a public document root. The existing HTTP backup/restore stays **strictly 64 MB**; v1/v2 compatibility is unchanged.
+
+Run only with a configured, isolated `STAGE3_DSN` and after the explicit approval-evidence schema migration on older databases. Export into a **new absolute directory** under a private writable parent:
+
+```sh
+STAGE3_ALLOW_BUNDLE_EXPORT=YES php stage3/server/bin/archive-bundle.php export site-example /private/backups/site-example-20261028
+php stage3/server/bin/archive-bundle.php plan /private/backups/site-example-20261028 site-example-recovery
+STAGE3_ALLOW_BUNDLE_RESTORE=YES php stage3/server/bin/archive-bundle.php restore /private/backups/site-example-20261028 site-example-recovery
+```
+
+The plan/restore reads **all** parts, rejects symlinks/unexpected files/size and SHA mismatches, then applies existing v2 domain/reference/evidence verification. Restore refuses to overwrite a site and uses one database transaction to create a **new unpublished** site. SHA-256 is integrity detection, **not** an authenticated client approval signature or confidentiality mechanism. Store these unencrypted files in private access-controlled storage, make an off-host copy, and validate recovery. If a site exceeds 256 MB, the command **fails explicitly**; further truly streamed recovery must be designed before onboarding it, not bypassed with higher unreviewed limits.

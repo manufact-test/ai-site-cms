@@ -10,6 +10,8 @@ use PDO;
 trait SiteArchives
 {
     public const ARCHIVE_LIMIT = 64000000;
+    // Explicit owner CLI-only transport ceiling. HTTP remains capped at 64 MB.
+    public const ARCHIVE_BUNDLE_LIMIT = 256000000;
 
     private static function archiveCheck(bool $condition, string $message): void
     {
@@ -48,9 +50,10 @@ trait SiteArchives
     }
 
     /** A consistent snapshot of ALL persisted content, not just the current editor JSON. */
-    public function exportArchive(string $id): array
+    public function exportArchive(string $id, int $limit = self::ARCHIVE_LIMIT): array
     {
-        return $this->atomic(function () use ($id): array {
+        self::archiveCheck(in_array($limit, [self::ARCHIVE_LIMIT, self::ARCHIVE_BUNDLE_LIMIT], true), 'invalid archive ceiling');
+        return $this->atomic(function () use ($id, $limit): array {
             $draft = $this->getDraft($id);
             $revisions = [];
             foreach ($this->archiveRows('stage3_revisions', $id, 'revision,body,created_at', 'revision') as $r) {
@@ -106,30 +109,31 @@ trait SiteArchives
                 'approvalEvidence' => $this->exportApprovalArchiveRows($id)];
             $archive = ['format' => 'manufact-site-backup-v2', 'payload' => $payload,
                 'sha256' => hash('sha256', self::encode($payload))];
-            self::archiveCheck(strlen(self::encode($archive)) <= self::ARCHIVE_LIMIT - 1024, 'exceeds 64 MB export limit');
+            self::archiveCheck(strlen(self::encode($archive)) <= $limit - 1024, 'exceeds export limit');
             // Export and import use one validation policy. Never emit an unrecoverable success.
-            $this->validateArchive($archive, $id);
+            $this->validateArchive($archive, $id, $limit);
             return $archive;
         });
     }
 
     /** Full preflight, before any write. Checks integrity, domain contracts and all references. */
-    private function validateArchive(array $archive, string $target): array
+    private function validateArchive(array $archive, string $target, int $limit = self::ARCHIVE_LIMIT): array
     {
         try {
-            return $this->validateArchiveData($archive, $target);
+            self::archiveCheck(in_array($limit, [self::ARCHIVE_LIMIT, self::ARCHIVE_BUNDLE_LIMIT], true), 'invalid archive ceiling');
+            return $this->validateArchiveData($archive, $target, $limit);
         } catch (\TypeError | \ValueError $e) {
             throw new InvalidArgumentException('Archive: invalid data types');
         }
     }
 
-    private function validateArchiveData(array $archive, string $target): array
+    private function validateArchiveData(array $archive, string $target, int $limit): array
     {
         self::archiveKeys($archive, ['format', 'payload', 'sha256']);
         self::archiveCheck(in_array($archive['format'],['manufact-site-backup-v1','manufact-site-backup-v2'],true) && is_array($archive['payload'])
             && is_string($archive['sha256']) && hash_equals(hash('sha256', self::encode($archive['payload'])), $archive['sha256']),
             'unsupported format or checksum mismatch');
-        self::archiveCheck(strlen(self::encode($archive)) <= self::ARCHIVE_LIMIT - 1024, 'exceeds 64 MB limit');
+        self::archiveCheck(strlen(self::encode($archive)) <= $limit - 1024, 'exceeds backup limit');
         self::archiveCheck(preg_match('/^[a-z][a-z0-9-]{2,79}$/D', $target) === 1, 'invalid target site ID');
         $p = $archive['payload'];
         $isV2=$archive['format']==='manufact-site-backup-v2';
@@ -310,9 +314,9 @@ trait SiteArchives
         return $p;
     }
 
-    public function planArchive(array $archive, string $target): array
+    public function planArchive(array $archive, string $target, int $limit = self::ARCHIVE_LIMIT): array
     {
-        $p = $this->validateArchive($archive, $target);
+        $p = $this->validateArchive($archive, $target, $limit);
         $q = $this->db->prepare('SELECT site_id FROM stage3_drafts WHERE site_id = ?'); $q->execute([$target]);
         if ($q->fetchColumn() !== false) throw new Conflict('Target site already exists; choose a new ID');
         return ['targetSiteId' => $target, 'sourceSiteId' => $p['siteId'], 'title' => $p['draft']['site']['title'],
@@ -325,10 +329,10 @@ trait SiteArchives
     }
 
     /** Restore into a NEW site only. Whole import commits once or rolls back, never deletes anything. */
-    public function importArchive(array $archive, string $target): array
+    public function importArchive(array $archive, string $target, int $limit = self::ARCHIVE_LIMIT): array
     {
-        $this->planArchive($archive, $target);
-        $p = $this->validateArchive($archive, $target);
+        $this->planArchive($archive, $target, $limit);
+        $p = $this->validateArchive($archive, $target, $limit);
         return $this->atomic(function () use ($p, $target): array {
             $q = $this->db->prepare('SELECT site_id FROM stage3_drafts WHERE site_id = ?'); $q->execute([$target]);
             if ($q->fetchColumn() !== false) throw new Conflict('Target site already exists');
