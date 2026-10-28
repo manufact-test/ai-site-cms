@@ -1980,7 +1980,7 @@
       ...(method==='POST'?{body:JSON.stringify(payload||{})}:{})});
     const body=await response.json();
     if(!response.ok){
-      if(response.status===401&&route!=='/api/login'){state.authorized=false;state.principal=null;setGate(true);}
+      if(response.status===401&&route!=='/api/login'){reviewNotesByRevision.clear();state.authorized=false;state.principal=null;setGate(true);}
       const err=Error(body.error||('HTTP '+response.status));err.status=response.status;throw err;
     }
     return body;
@@ -2432,7 +2432,7 @@
     // Each device's own real PHP document must render before sign-off. These
     // observations are diagnostic hints, not visual/pixel-match approval.
     const renderEvidence=new Map(),referenceSeen=new Set();
-    const reviewKey=site.siteId+'|'+openedRevision;
+    const reviewKey=(state.principal?.username||'unknown')+'|'+site.siteId+'|'+openedRevision;
     if(!reviewNotesByRevision.has(reviewKey))reviewNotesByRevision.set(reviewKey,[]);
     const manualFindings=reviewNotesByRevision.get(reviewKey);
     const openFindings=(pageId,mode)=>manualFindings.filter(f=>
@@ -2488,6 +2488,9 @@
     };
     findingAdd.addEventListener('click',()=>{
       const note=findingInput.value.trim();
+      if(manualFindings.length>=200){
+        notice('Достигнут предел 200 замечаний. Экспортируйте отчёт JSON.',true);return;
+      }
       if(!selectedRow?.current||!freshDraft()||note.length<3||note.length>500){
         notice('Опишите расхождение минимум тремя символами, без изменения черновика.',true);return;
       }
@@ -2582,7 +2585,7 @@
         if(file.size<10||file.size>256000)throw Error('Отчёт должен быть меньше 256 КБ');
         const report=JSON.parse(await file.text());
         if(report?.format!=='manufact-launch-review-v1'||report.siteId!==site.siteId
-          ||!Number.isInteger(report.revision)||report.revision<1
+          ||!Number.isInteger(report.revision)||report.revision<1||report.revision>openedRevision
           ||!Array.isArray(report.visualFindings)||report.visualFindings.length>200)
           throw Error('Это не отчёт визуальной проверки данного сайта');
         if(!freshDraft())throw Error('Черновик изменился — сначала сохраните ревизию');
@@ -3717,7 +3720,7 @@
   }
   window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewPage,previewUrl,videoUrl,
     api,safe,notice,principal:()=>state.principal,refreshSites:()=>refreshSites(),
-    lock:()=>{state.authorized=false;state.principal=null;state.csrf=null;editorVisible(false);setGate(true);},
+    lock:()=>{reviewNotesByRevision.clear();state.authorized=false;state.principal=null;state.csrf=null;editorVisible(false);setGate(true);},
     compositionTemplates,createComposition,canCompose:()=>isOwner()&&!state.busy,
     canEditStudio:()=>state.authorized&&!state.busy&&Boolean(state.siteId)&&canEdit(),
     canEditMedia:()=>state.authorized&&!state.busy&&Boolean(state.siteId)&&canEdit()&&!editor.isDirty(),
