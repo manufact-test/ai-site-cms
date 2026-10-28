@@ -203,3 +203,22 @@ The complete `tests/smoke.cjs` includes a bounded synthetic lead-output shape an
 **Important publisher nuance:** the lead PHP social-image fallback currently still checks legacy `content.media` **before** Graph images. `analyze-site` therefore adds `social-fallback-hidden-media-review` only if the image selected from a graph-overridden section is **not found anywhere in the rendered page media**. An intentional social-image override is legitimate; this is a recommendation, not an SEO blocker or automatic change. `publisher-media.cjs` remains source-compatible with the actual PHP fallback ordering.
 
 **Verification:** isolated V8 execution against the actual current lead `custom-section@1.0.0` SDK successfully validated a typed custom graph Site v1 and produced correct changed-heading/missing-CTA diagnostics. Isolated worker SDK Graph checks likewise passed. The one Node smoke script includes industrial graph overlay and legacy social-fallback cases, but the **complete Node subprocess smoke is still unverified** without a full accessible checkout. No first-client sealed package, production HTTP, screenshot comparison or user signoff has been fabricated.
+
+
+## First site: live loopback PHP HTML into SEO
+
+In addition to the lead-owned Chromium screenshot capture, the SEO-only bin/capture-php-html.cjs now collects **the exact HTML served by isolated PHP pages** over 127.0.0.1 HTTP GET and writes an immutable-by-convention SHA-256-checked manifest directory. This directly fills the existing manufacture-seo-html-snapshot-v1-compatible report pipeline: metadata/H1/links/canonical/indexation, deep HTML, remediation, release and lead traceability. No duplicate SEO parser or CMS write was added.
+
+Run the sealed verifier, start the lead-owned published PHP loopback preview, then capture:
+
+~~~sh
+node stage3/seo-engine/bin/capture-php-html.cjs --approved-site /ABS/sealed \
+  --origin http://127.0.0.1:PORT/published/SITE-ID/ --output /ABS/new-folder
+node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle-md \
+  --approved-site /ABS/sealed --blueprint /ABS/blueprint.json \
+  --php-html /ABS/new-folder
+~~~
+
+Optionally attach the original lead screenshot evidence with --php-capture /ABS/screens/evidence.json. Mismatched source/version/page count/base URL, modified bytes, non-HTML responses, redirects, symlink escapes and unsafe paths fail closed. This is local publisher evidence only; no actual public HTTPS/crawl, form delivery, visual approval or authenticated running PHP source revision. The lead dossier explicitly requests a served-revision correlation review.
+
+New tests/php-html-capture-smoke.cjs uses a **real localhost Node HTTP server** and synthetic sealed-verifier mock only; it is invoked by the full tests/smoke.cjs. Real client-approved pilot and full Node/CI remain to be validated in the lead-integrated checkout.
