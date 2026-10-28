@@ -120,3 +120,13 @@ The sample origin and transcript are synthetic; replace with owner-approved and 
 `lib/lead-dossier.cjs` generates `review-bundle.leadDossier` with prioritized release issues, owner-specific actions, prototype/client approval ledger status, Site v1 revision risk, unresolved task comparison and hypothetical CMS impact. The report is read-only and never implies authenticated acceptance, deployed fixes or permission to release.
 
 `review-bundle-md --site <site.json> --blueprint <plan.json> [--acceptance <ledger.json>] [--decisions <decisions.json>] [--before <site-before.json>]` renders the full portable Markdown handoff. It starts with the lead summary then retains remediation, exact page/section mapping, execution and guarded CMS field proposals.
+
+## Current lead core cross-check (28 October 2026)
+
+The active lead branch `feature/stage3-ai-site-contract` (read-only inspected SHA `88c291dab5e6bea40ccca51ca77a2056b48c10d8`) introduced an additional Site v1 invariant: a `custom-section` must include its Design Graph. That stricter core was used directly in an isolated V8 run: `stage3/fixtures/industrial-site.json` + 3 real component manifests passed authoritative validation and the SEO analyzer returned 13 review findings. No core, server or Studio files were modified.
+
+The current `PublicRenderer.php` resolves OG media from `page.seo.ogImage`, otherwise first legacy `content.media` in section/repeat order, otherwise nested Design Graph image nodes. Worker module `lib/publisher-media.cjs` mirrors that published order for the read-only media and capture reports. A separate fixture with a **valid** `media-story` component, absent explicit OG image and fallback WebP was validated with the updated lead SDK; its synthetic public HTTP 404 was detected as a release-relevant OG failure. The media evidence is a fixture, not a captured live site.
+
+`lib/explain.cjs` now produces a substantive SEO/UX subsection for the client's prototype explanation (all block points, CTA targets, cross-page links, media purpose/ALT intent, desktop/tablet/mobile behavior, owner fact status and exact planned metadata), while explicitly leaving three static pictures, motion, hover/tap/focus, typography and color approvals to the lead specification. No invented visual decisions or ranking promises.
+
+`media-review` also treats unsafe HTTP/javascript/empty OG and Twitter image URLs as errors and mismatched Twitter images as review actions. Full Node subprocess smoke remains unverified until the lead runs the script in a checkout; isolated real-SDK checks are not a CI substitute.

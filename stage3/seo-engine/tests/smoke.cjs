@@ -437,17 +437,31 @@ try{
  assert.equal(damagedPackage.traceability.pages[0].mediaEvidence.ogImageAssetId,'asset-og-demo');
   // The actual publisher picks fallback OG images from legacy fields and Design Graph.
  const SOCIAL=require('../lib/publisher-media.cjs');
- const mediaFallbackSite=structuredClone(capturedMediaSite);
- delete mediaFallbackSite.pages[0].seo.ogImage;
- mediaFallbackSite.pages[0].sections[0].elements.push({
-  id:'section-home-social-image',slot:'image',values:{'content.media':'asset-og-demo'}});
+ const mediaFallbackSite=JSON.parse(fs.readFileSync(fixture('industrial.social-fallback.site.json'),'utf8'));
+ const mediaFallbackEvidence=fixture('industrial.social-fallback.media.json');
+ const mediaFallbackHtml=fixture('industrial.social-fallback.html.snapshot.json');
  const fallbackSelect=SOCIAL.select(mediaFallbackSite,mediaFallbackSite.pages[0]);
- assert.equal(fallbackSelect.asset.id,'asset-og-demo');
+ assert.equal(fallbackSelect.asset.id,'asset-social-demo');
+ const realFallbackAudit=JSON.parse(good('media-review',{
+  site:fixture('industrial.social-fallback.site.json'),media:mediaFallbackEvidence,
+  snapshot:mediaFallbackHtml}));
+ assert.equal(realFallbackAudit.coverage.referencedOgImageAssets,1);
+ assert.ok(!realFallbackAudit.findings.some(x=>x.severity==='error'));
+ const realFallbackPlan=JSON.parse(good('capture-plan',{
+  site:fixture('industrial.social-fallback.site.json'),blueprint:bp,
+  origin:'https://cms-example.test/'}));
+ assert.deepEqual(realFallbackPlan.media[0].ogReferencedBy,['page-home']);
  assert.equal(fallbackSelect.source,'section-content.media');
- const socialEvidence=structuredClone(capturedMedia);
+ const socialEvidence=JSON.parse(fs.readFileSync(mediaFallbackEvidence,'utf8'));
  socialEvidence.resources[0].status=404;
- const fallbackResult=require('../lib/media-delivery.cjs').review(mediaFallbackSite,socialEvidence);
+ const fallbackBrokenPath=path.join(tmp,'fallback-broken.json');
+ fs.writeFileSync(fallbackBrokenPath,JSON.stringify(socialEvidence));
+ const fallbackResult=JSON.parse(good('media-review',{
+  site:fixture('industrial.social-fallback.site.json'),media:fallbackBrokenPath}));
  assert.ok(fallbackResult.findings.some(x=>x.code==='media:resource-status-error'&&x.severity==='error'));
+ const fallbackRelease=JSON.parse(good('release-review',{
+  site:fixture('industrial.social-fallback.site.json'),blueprint:bp,media:fallbackBrokenPath}));
+ assert.ok(fallbackRelease.blockers.some(x=>x.gateId==='captured-og-media-conflict'));
  const mediaGraphSite=structuredClone(capturedMediaSite);
  delete mediaGraphSite.pages[0].seo.ogImage;
  mediaGraphSite.pages[0].sections[0].designGraph={nodes:[{
