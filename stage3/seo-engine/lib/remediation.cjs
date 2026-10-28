@@ -9,6 +9,7 @@ const HTML=require('./html-evidence.cjs');
 const VIEWPORT=require('./viewport-evidence.cjs');
 const REGRESSION=require('./regression.cjs');
 const PUBLICATION=require('./publication-integrity.cjs');
+const DELIVERY=require('./delivery-evidence.cjs');
 const FORMAT='manufact-seo-remediation-v1';
 const priorityRank={P0:0,P1:1,P2:2,P3:3};
 const phaseOrder={'verify-facts':0,'plan-approval':1,'developer-work':2,'cms-review':3,'validation':4};
@@ -39,13 +40,14 @@ function level(code,severity){
 function work(site,manifests,blueprint,options={}){
  const plan=checkBlueprint(blueprint);
  if(site.siteId!==plan.siteId)throw Error('Remediation siteId mismatch');
- if(!options||typeof options!=='object'||Array.isArray(options)||Object.keys(options).some(k=>!['snapshot','viewports','baselineSite'].includes(k)))throw Error('Unsupported remediation option');
+ if(!options||typeof options!=='object'||Array.isArray(options)||Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','delivery'].includes(k)))throw Error('Unsupported remediation option');
  const handoff=propose(site,manifests,plan),audit=handoff.audit;
  const snapshot=options.snapshot||null;
  const htmlAudit=snapshot?snapshotAudit(snapshot):null;
  const parity=snapshot?compare(site,plan,snapshot):null;
  const htmlEvidence=snapshot?HTML.review(snapshot,plan):null;
  const publicationIntegrity=snapshot?PUBLICATION.review(site,snapshot):null;
+ const delivery=options.delivery?DELIVERY.review(site,options.delivery):null;
  const deviceEvidence=options.viewports?VIEWPORT.review(options.viewports,plan):null;
  const regression=options.baselineSite?REGRESSION.compare(options.baselineSite,site,manifests,plan):null;
  const pagePaths=new Map([...plan.pages,...site.pages].map(p=>[p.id,p.path]));
@@ -133,7 +135,7 @@ function work(site,manifests,blueprint,options={}){
   const key=['investigate',kind,x.pageId||'',x.sectionId||'',x.targetPageId||'',
    x.field||'',x.device||'',x.code,x.fragment||'',x.href||'',x.topic||'',
    x.assetId||'',x.schemaType||'',group].join('|');
-  const fromHtml=['html-snapshot','html-deep','viewport-capture'].includes(kind),fromParity=kind==='publication-parity';
+  const fromHtml=['html-snapshot','html-deep','viewport-capture','http-delivery-evidence'].includes(kind),fromParity=kind==='publication-parity';
   const direct=x.severity==='error'||x.severity==='blocker';
   const owner=group==='verified-facts'?'site-owner':
    fromHtml||fromParity||direct||/planned-(?:page|link|internal-link|section)/.test(x.code)
@@ -161,10 +163,15 @@ function work(site,manifests,blueprint,options={}){
    ...(x.device!==undefined?{device:x.device}:{}),
    ...(x.fragment!==undefined?{fragment:x.fragment}:{}),
    ...(x.href!==undefined?{href:x.href}:{}),
+   ...(x.status!==undefined?{status:x.status}:{}),
+   ...(x.expectedUrl!==undefined?{expectedUrl:x.expectedUrl}:{}),
+   ...(x.observedUrl!==undefined?{observedUrl:x.observedUrl}:{}),
+   ...(x.canonicalUrl!==undefined?{canonicalUrl:x.canonicalUrl}:{}),
    ...(x.missingRoutes!==undefined?{missingRoutes:x.missingRoutes}:{}),
    ...(x.missingHeadings!==undefined?{missingHeadings:x.missingHeadings}:{})});
  }
  for(const x of audit.issues)issueTask(x,'site-audit');
+ if(delivery)for(const x of delivery.findings)issueTask(x,'http-delivery-evidence');
  if(htmlAudit)for(const x of htmlAudit.issues)issueTask(x,'html-snapshot');
  if(parity)for(const x of parity.findings)issueTask(x,'publication-parity');
  if(htmlEvidence)for(const x of htmlEvidence.findings)issueTask(x,'html-deep');
@@ -208,12 +215,14 @@ function work(site,manifests,blueprint,options={}){
    P2:'important editorial/contract review',P3:'optional editorial investigation'},
   summary,packages,tasks:all,
   inputs:{siteValidated:true,blueprintCanonical:true,htmlSnapshotProvided:Boolean(snapshot),
-   deviceCapturesProvided:Boolean(options.viewports),baselineSiteProvided:Boolean(options.baselineSite)},
+   deviceCapturesProvided:Boolean(options.viewports),
+   httpDeliveryCaptureProvided:Boolean(options.delivery),baselineSiteProvided:Boolean(options.baselineSite)},
   sourceReports:{auditIssueCount:audit.issues.length,htmlIssueCount:htmlAudit?.issues.length??null,
    parityFindingCount:parity?.findings.length??null,
    deepHtmlIssueCount:htmlEvidence?.findings.length??null,
    publicationIntegrityFindingCount:publicationIntegrity?.findings.length??null,
    viewportFindingCount:deviceEvidence?.findings.length??null,
+   httpDeliveryFindingCount:delivery?.findings.length??null,
    regressionNewFindings:regression?.introduced.length??null,
    regressionCriticalReviewItems:regression?.summary.criticalReviewItems??null},
   boundaries:'Priorities are deterministic workflow triage, NOT ranking potential, traffic estimates, conversion predictions, production approvals or auto-executable CMS patches. Each task requires human verification. The lead owns release.'};

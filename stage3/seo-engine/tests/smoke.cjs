@@ -337,6 +337,34 @@ try{
  assert.ok(!snapshotAudit(baseSnapshot).issues.some(x=>x.code==='html:broken-link'));
  assert.ok(!reviewHtml(baseSnapshot).findings.some(x=>x.code==='evidence:link-target-outside-snapshot'));
  assert.ok(!reviewHtml(trickyHtml).findings.some(x=>x.href==='/ghost/'));
+ // Three independent publication checks from a supplied HTTP transcript.
+ const deliveryExample=fixture('industrial.delivery.evidence.json');
+ const deliveryAudit=JSON.parse(good('delivery-review',{site,delivery:deliveryExample}));
+ assert.equal(deliveryAudit.format,'manufact-seo-delivery-review-v1');
+ assert.equal(deliveryAudit.coverage.capturedPages,2);
+ assert.equal(deliveryAudit.coverage.sitemapKind,'urlset');
+ assert.equal(deliveryAudit.coverage.independentlyVerifiedProvenance,false);
+ assert.ok(!deliveryAudit.findings.some(x=>x.severity==='error'));
+ const deliveryBroken=JSON.parse(fs.readFileSync(deliveryExample,'utf8'));
+ deliveryBroken.pages[0].status=404;
+ deliveryBroken.pages[1].headers['X-Robots-Tag']='noindex, nofollow';
+ deliveryBroken.sitemap.body=deliveryBroken.sitemap.body.replace(
+  '<url><loc>https://cms-example.test/contact/</loc></url>','');
+ const deliveryDriftFile=path.join(tmp,'delivery-drift.json');
+ fs.writeFileSync(deliveryDriftFile,JSON.stringify(deliveryBroken));
+ const driftDelivery=JSON.parse(good('delivery-review',{site,delivery:deliveryDriftFile}));
+ for(const kind of ['delivery:non-success-status','delivery:indexability-drift','delivery:sitemap-indexable-absent'])
+  assert.ok(driftDelivery.findings.some(x=>x.code===kind),kind);
+ const deliveryBacklog=JSON.parse(good('remediation-plan',{site,blueprint:bp,delivery:deliveryDriftFile}));
+ assert.ok(deliveryBacklog.sourceReports.httpDeliveryFindingCount>=3);
+ const deliveryGate=JSON.parse(good('release-review',{site,blueprint:bp,delivery:deliveryDriftFile}));
+ assert.ok(deliveryGate.blockers.some(g=>g.gateId==='captured-delivery-conflict'));
+ const deliveryPackage=JSON.parse(good('review-bundle',{site,blueprint:bp,delivery:deliveryDriftFile}));
+ assert.equal(deliveryPackage.traceability.summary.suppliedHttpPages,2);
+ assert.equal(deliveryPackage.deliveryEvidence.coverage.independentlyVerifiedProvenance,false);
+ assert.equal(deliveryPackage.release.coverage.callerSuppliedHttpTranscriptReviewed,true);
+ const {sitemapPaths:parseXml}=require('../lib/delivery-evidence.cjs');
+ assert.equal(parseXml('<sitemapindex><sitemap><loc>https://x.test/a.xml</loc></sitemap></sitemapindex>').kind,'index');
  // Per-page/section acceptance map and decision-aware integration envelope.
  const traceable=JSON.parse(good('traceability',{site,blueprint:bp,snapshot:htmlSite,
   viewports:fixture('industrial.viewports.json')}));

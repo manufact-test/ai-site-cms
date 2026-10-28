@@ -22,6 +22,10 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const regression=options.baselineSite?REGRESSION.compare(options.baselineSite,site,manifests,blueprint):null;
  const fragmentProblems=find(t=>t.sources.some(s=>s.code==='evidence:broken-fragment'));
  const sitemapProblems=find(t=>t.sources.some(s=>['publication:sitemap-noindex','publication:sitemap-indexable-missing'].includes(s.code)));
+ const deliveryProblems=find(t=>t.sources.some(s=>['delivery:non-success-status','delivery:indexability-drift',
+  'delivery:canonical-invalid','delivery:sitemap-indexable-absent','delivery:sitemap-noindex-listed',
+  'delivery:unmatched-page'].includes(s.code)&&s.severity==='error'));
+ const deliveryReview=find(t=>t.sources.some(s=>s.code?.startsWith('delivery:')&&s.severity!=='error'));
  const publicationReview=find(t=>t.sources.some(s=>s.code?.startsWith('publication:')&&!['publication:sitemap-noindex','publication:sitemap-indexable-missing'].includes(s.code)));
  if(regression?.summary.criticalReviewItems)add(blockers,'new-critical-regressions',
   'Review new severe SEO regressions since prior Site v1 version',
@@ -30,6 +34,12 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(dangerousMarkup.length)add(blockers,'published-unverified-structured-data',
   'Review published structured data based on unverified facts',
   'A JSON-LD type appears in captured HTML while its associated blueprint evidence remains unverified. Remove or verify actual claims before release.',dangerousMarkup);
+ if(deliveryProblems.length)add(blockers,'captured-delivery-conflict',
+  'Resolve captured HTTP status, indexation, sitemap and canonical conflicts',
+  'The caller-supplied HTTP transcript conflicts with the planned Site v1 publication; reproduce at the actual host.',deliveryProblems);
+ if(deliveryReview.length)add(reviews,'captured-http-review',
+  'Review supplied HTTP headers, public URL, canonical and capture completeness',
+  'Caller-supplied responses are not authenticated live HTTP checks or release acceptance.',deliveryReview);
  if(sitemapProblems.length)add(blockers,'sitemap-indexation-integrity',
   'Resolve conflicting sitemap and Site v1 indexation evidence',
   'The supplied sitemap lists noindex pages, or an explicitly complete enumeration omits indexable pages; verify publication source and fix before release.',sitemapProblems);
@@ -75,13 +85,14 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   suppliedThreeDeviceMarkupReviewed:Boolean(options.viewports),
   deepHtmlEvidenceChecked:Boolean(options.snapshot),
   siteRegressionCompared:Boolean(options.baselineSite),
+  callerSuppliedHttpTranscriptReviewed:Boolean(options.delivery),
   liveHostChecked:false,
   visualPrototypesVerified:false,
   mobileRenderedVerified:false,
   formsVerified:false,
   cwvMeasured:false
  };
- const decision=blockers.length?'repair-required':options.snapshot||options.viewports?'manual-acceptance-required':'collect-publication-evidence';
+ const decision=blockers.length?'repair-required':options.snapshot||options.viewports||options.delivery?'manual-acceptance-required':'collect-publication-evidence';
  return {format:FORMAT,version:1,siteId:site.siteId,
   decision,automaticReleaseApproval:false,readyToPublish:false,
   blockers,reviews,manualChecks:manual,coverage,
