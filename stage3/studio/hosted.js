@@ -2305,6 +2305,11 @@
     };
     overlayOpacity.addEventListener('input',setOverlayOpacity);
     overlayControls.append(overlayLabel,overlayOpacity);
+    const syncControls=element('label','hosted-launch-scroll-sync');
+    syncControls.id='server-launch-scroll-sync';
+    const syncInput=element('input');syncInput.type='checkbox';syncInput.checked=true;
+    syncInput.id='server-launch-scroll-sync-toggle';
+    syncControls.append(syncInput,document.createTextNode(' Синхронная прокрутка двух панелей'));
     const previewPanels=element('div','hosted-launch-preview-panels');
     const viewport=element('div','hosted-launch-viewport');
     const frame=element('iframe');frame.id='server-launch-preview';
@@ -2403,7 +2408,7 @@
     const markReviewed=action('Подтвердить просмотр страницы','server-launch-mark',()=>{});
     const close=action('Закрыть','server-launch-close',()=>dialog.close());
     footer.append(editPage,quality,saveDraft,exportReport,publishSaved,close);
-    detail.append(pageHeading,devices,compareModes,overlayControls,previewPanels,previewStatus,issues,findingPanel,markReviewed);
+    detail.append(pageHeading,devices,compareModes,overlayControls,syncControls,previewPanels,previewStatus,issues,findingPanel,markReviewed);
     body.append(pages,detail);
     dialog.append(header,backlog,body,footer);
     document.body.append(dialog);
@@ -2457,6 +2462,27 @@
       findingInput.value='';drawFindings();updateReviewed();syncActions();
     });
     const referenceUrls=new Map(),referenceLoads=new Map();
+    let syncGuard=false;
+    const syncScroll=(from,to)=>{
+      if(syncGuard||!syncInput.checked||from.hidden||to.hidden)return;
+      const max=from.scrollHeight-from.clientHeight;
+      const otherMax=to.scrollHeight-to.clientHeight;
+      const fraction=max>0?from.scrollTop/max:0;
+      const target=fraction*Math.max(0,otherMax);
+      if(Math.abs(to.scrollTop-target)<1)return;
+      syncGuard=true;to.scrollTop=target;
+      requestAnimationFrame(()=>{syncGuard=false;});
+    };
+    viewport.addEventListener('scroll',()=>{
+      if(viewMode==='compare')syncScroll(viewport,liveViewport);
+      else if(viewMode==='approved-compare')syncScroll(viewport,referenceViewport);
+    },{passive:true});
+    liveViewport.addEventListener('scroll',()=>{
+      if(viewMode==='compare')syncScroll(liveViewport,viewport);
+    },{passive:true});
+    referenceViewport.addEventListener('scroll',()=>{
+      if(viewMode==='approved-compare')syncScroll(referenceViewport,viewport);
+    },{passive:true});
     const referenceKind=(row,mode)=>{
       if(!approvedReference||!row?.current)return null;
       if(row.current.path==='/')return mode;
@@ -2554,6 +2580,7 @@
       liveViewport.hidden=viewMode!=='compare'&&viewMode!=='published';
       referenceViewport.hidden=viewMode!=='approved'&&viewMode!=='approved-compare';
       overlayControls.hidden=viewMode!=='approved-overlay';
+      syncControls.hidden=viewMode!=='compare'&&viewMode!=='approved-compare';
       overlayImage.hidden=viewMode!=='approved-overlay'||!overlayImage.hasAttribute('src');
       if(!referenceViewport.hidden){
         referenceViewport.style.height='620px';
