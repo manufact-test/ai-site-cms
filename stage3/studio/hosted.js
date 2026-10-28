@@ -2588,6 +2588,9 @@
           ||!Number.isInteger(report.revision)||report.revision<1||report.revision>openedRevision
           ||!Array.isArray(report.visualFindings)||report.visualFindings.length>200)
           throw Error('Это не отчёт визуальной проверки данного сайта');
+        if(approvedReference?.complete&&
+          report.sourceApproval?.packageSha!==approvedReference.packageSha)
+          throw Error('Архив исходных макетов отличается от текущего сайта');
         if(!freshDraft())throw Error('Черновик изменился — сначала сохраните ревизию');
         const valid=new Set(site.pages.map(p=>p.id));
         const incoming=[];
