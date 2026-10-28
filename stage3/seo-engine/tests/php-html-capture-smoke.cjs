@@ -36,15 +36,17 @@ const server=http.createServer((req,res)=>{
  if(mode==='oversize'){res.writeHead(200,{'Content-Type':'text/html'});res.end('x'.repeat(450001));return;}
  if(mode==='incomplete'){res.writeHead(200,{'Content-Type':'text/html'});res.end('<h1>Bad</h1>');return;}
  if(req.url==='/published/pilot-local/robots.txt'){
+  if(mode==='no-public-origin'){res.writeHead(503,{'Content-Type':'application/json'});res.end('{"error":"STAGE3_PUBLIC_ORIGIN missing"}');return;}
   res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8'});
   res.end('User-agent: *\nAllow: /\nSitemap: https://pilot.example/published/pilot-local/sitemap.xml\n');return;
  }
  if(req.url==='/published/pilot-local/sitemap.xml'){
+  if(mode==='no-public-origin'){res.writeHead(503,{'Content-Type':'application/json'});res.end('{"error":"STAGE3_PUBLIC_ORIGIN missing"}');return;}
   res.writeHead(200,{'Content-Type':'application/xml; charset=utf-8'});
   res.end('<?xml version="1.0" encoding="UTF-8"?>'+
    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+
    '<url><loc>https://pilot.example/published/pilot-local/</loc></url>'+
-   '<url><loc>https://pilot.example/published/pilot-local/about/</loc></url></urlset>');return;
+   (mode==='bad-sitemap'?'':'<url><loc>https://pilot.example/published/pilot-local/about/</loc></url>')+'</urlset>');return;
  }
  if(req.url==='/published/pilot-local/old/'){
   res.writeHead(mode==='bad-301'?302:301,{Location:
@@ -137,6 +139,20 @@ async function main(){
    await assert.rejects(CAP.capture(sealed,base,destination),expected);
    assert.equal(fs.existsSync(destination),false,'no partial output for '+next);
   }
+  mode='bad-sitemap';
+  const badSitemap=path.join(tmp,'bad-sitemap');
+  const sitemapRun=await CAP.capture(sealed,base,badSitemap);
+  assert.ok(sitemapRun.localSeoFindings>0);
+  assert.ok(CAP.read(badSitemap,site,source).publication.findings
+   .some(x=>x.code==='php-local:sitemap-indexable-missing'));
+  mode='no-public-origin';
+  const noOrigin=path.join(tmp,'no-public-origin');
+  const envRun=await CAP.capture(sealed,base,noOrigin);
+  assert.equal(envRun.robotsStatus,503);assert.equal(envRun.sitemapStatus,503);
+  assert.ok(CAP.read(noOrigin,site,source).publication.findings
+   .some(x=>x.code==='php-local:sitemap-http-status'&&x.severity==='warning'));
+  assert.equal(CAP.read(noOrigin,site,source).snapshot.sitemapCompleteness,undefined,
+   'HTTP 503 does not imply a complete sitemap');
   mode='normal';
   await assert.rejects(CAP.capture(sealed,base,out),/new directory/);
   console.log('PHP HTML LOOPBACK CAPTURE SMOKE PASS: real local HTML, sitemap, robots and 301; mount normalization, tamper/route/redirect/type/size guards; no external requests.');
