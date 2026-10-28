@@ -47,6 +47,7 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const phpBrokenImages=find(t=>t.sources.some(s=>s.code==='php-capture:broken-rendered-image'&&s.severity==='error'));
  const localPhpProblems=find(t=>t.sources.some(s=>s.code?.startsWith('php-local:')&&s.severity==='error'));
  const localPhpReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-local:')&&s.severity!=='error'));
+ const localGraphErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-graph:')&&s.severity==='error'));
  const localComponentErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-component:')&&s.severity==='error'));
  const localMediaErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-media:')&&s.severity==='error'));
  const localMediaWarnings=find(t=>t.sources.some(s=>s.code?.startsWith('php-media:')&&s.severity!=='error'));
@@ -117,7 +118,10 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   if(localFormReviews.length)add(reviews,'local-php-form-origin-review',
    'Review public form collector host and allowlist',
    'Absolute collector origin remains unverified and was not probed.',localFormReviews);
-  if(localComponentErrors.length)add(blockers,'local-php-component-parity',
+  if(localGraphErrors.length)add(blockers,'local-php-design-graph-parity',
+  'Repair actual PHP DesignGraph content, semantics and interactions',
+  'Published DesignGraph nodes, texts, link targets, media, accessible labels or CSS-only tab controls disagree with the source-bound Site v1.',localGraphErrors);
+ if(localComponentErrors.length)add(blockers,'local-php-component-parity',
   'Repair missing or changed published PHP pricing, comparison, timeline or switcher content',
   'Real HTTP HTML differs from Site v1 business components, action targets or CSS-only tab controls. Recapture from the intended published release.',localComponentErrors);
  if(localMediaErrors.length)add(blockers,'local-php-media-integrity',

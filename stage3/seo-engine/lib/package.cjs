@@ -142,6 +142,8 @@ function build(site,manifests,blueprint,options={}){
   localPhpMediaFindings:options.phpHtml?.localMedia?.findings.length??null,
   localPhpHeadFindings:options.phpHtml?.localHead?.findings.length??null,
   localPhpTypedComponentsChecked:options.phpHtml?.localComponents?.checkedTypedSections??null,
+  localPhpGraphNodesChecked:options.phpHtml?.localGraph?.checkedNodes??null,
+  localPhpGraphFindings:options.phpHtml?.localGraph?.findings.length??null,
   localPhpComponentFindings:options.phpHtml?.localComponents?.findings.length??null,
   localPhpHeadHeaders:options.phpHtml?.localHead?.pagesWithRecordedHeaders??null,
    localPhpFormCount:options.phpHtml?.localForms?.observedForms??null,
@@ -173,6 +175,14 @@ function build(site,manifests,blueprint,options={}){
     findings:options.phpHtml.localHead.findings,
     publicHttpsProven:false,releaseAuthorized:false
   }:null,
+  localPhpGraph:options.phpHtml?.localGraph?{
+    format:options.phpHtml.localGraph.format,
+    checkedSections:options.phpHtml.localGraph.checkedSections,
+    checkedNodes:options.phpHtml.localGraph.checkedNodes,
+    pages:options.phpHtml.localGraph.pages,
+    findings:options.phpHtml.localGraph.findings,
+    realBrowserParityChecked:false,releaseAuthorized:false
+   }:null,
   localPhpComponents:options.phpHtml?.localComponents?{
     format:options.phpHtml.localComponents.format,
     checkedTypedSections:options.phpHtml.localComponents.checkedTypedSections,
@@ -255,7 +265,8 @@ function build(site,manifests,blueprint,options={}){
         '; media binary bytes: '+(options.phpHtml.localMedia?.savedBodyBytes??'none')+'.\n'+
       '- SEO head, H1, links and indexation checked by existing HTML/parity modules against the captured bytes.\n'+
       '- Loopback PHP HTTP header/canonical/og:url checks: '+(options.phpHtml.localHead?.findings.length??'not supplied')+' findings; public origin observed in local sitemap: '+(options.phpHtml.localHead?.publicOriginObservedInSitemap??'none')+'.\n'+
-      '- Real PHP business component check: '+(options.phpHtml.localComponents?.checkedTypedSections??0)+' sections, '+(options.phpHtml.localComponents?.findings.length??0)+' findings; no runtime interaction test.\n'+
+      '- Actual PHP DesignGraph check: '+(options.phpHtml.localGraph?.checkedSections??0)+' sections, '+(options.phpHtml.localGraph?.checkedNodes??0)+' nodes, '+(options.phpHtml.localGraph?.findings.length??0)+' findings.\n'+
+       '- Real PHP business component check: '+(options.phpHtml.localComponents?.checkedTypedSections??0)+' sections, '+(options.phpHtml.localComponents?.findings.length??0)+' findings; no runtime interaction test.\n'+
        '- Form markup check: '+(options.phpHtml.localForms?.observedForms??0)+' forms, '+(options.phpHtml.localForms?.findings.length??0)+' findings; no POST or delivery verified.\n'+
        '- Source digest recorded at capture, but source revision served by PHP NOT cryptographically attested. No public HTTPS, delivered forms, scripts, actual design equality or client approval verified.\n':'')+
     '\n\n---\n\n'+renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+

@@ -193,7 +193,9 @@ function work(site,manifests,blueprint,options={}){
  if(options.phpCapture)for(const x of options.phpCapture.findings)issueTask(x,'php-public-screenshots');
  if(options.phpHtml?.publication)for(const x of options.phpHtml.publication.findings)
   issueTask(x,'php-local-publication');
- if(options.phpHtml?.localComponents)for(const x of options.phpHtml.localComponents.findings)
+ if(options.phpHtml?.localGraph)for(const x of options.phpHtml.localGraph.findings)
+   issueTask(x,'php-local-design-graph');
+  if(options.phpHtml?.localComponents)for(const x of options.phpHtml.localComponents.findings)
    issueTask(x,'php-local-components');
   if(options.phpHtml?.localMedia)for(const x of options.phpHtml.localMedia.findings)
   issueTask(x,'php-local-media');
@@ -264,6 +266,7 @@ function work(site,manifests,blueprint,options={}){
    localPhpHeadFindingCount:options.phpHtml?.localHead?.findings.length??null,
     localPhpFormFindingCount:options.phpHtml?.localForms?.findings.length??null,
     localPhpComponentFindingCount:options.phpHtml?.localComponents?.findings.length??null,
+    localPhpGraphFindingCount:options.phpHtml?.localGraph?.findings.length??null,
    crossSourceFindingCount:consistency.findings.length,
    routeMigrationFindingCount:migration?.findings.length??null,
    regressionNewFindings:regression?.introduced.length??null,
