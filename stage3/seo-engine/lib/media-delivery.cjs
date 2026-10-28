@@ -110,7 +110,8 @@ function review(site,evidence,htmlSnapshot=null){
    'Selected public OG media is absent from explicitly complete media evidence.',{assetId:a.id});
   const h=htmlSnapshot?.pages?.find(x=>x.id===p.id&&x.path===p.path);
   if(h&&typeof h.html==='string'){
-   const tags=metaTags(h.html),og=tags.filter(x=>x.property==='og:image');
+   const tags=metaTags(h.html),og=tags.filter(x=>x.property==='og:image'),
+    twitter=tags.filter(x=>x.property==='twitter:image');
    if(og.length===0)add('media:og-meta-missing','warning',p.id,p.path,
     'Supplied HTML lacks og:image despite an explicit or publisher-fallback OG image.',{assetId:a.id});
    if(og.length>1)add('media:multiple-og-images','recommendation',p.id,p.path,
@@ -118,7 +119,9 @@ function review(site,evidence,htmlSnapshot=null){
    const expected=publicUrl(evidence.origin,a.src).href;
    for(const tag of og){
     try{
+     if(!tag.url)throw Error('empty-og-image');
      const u=new URL(tag.url,publicUrl(evidence.origin,p.path));
+     if(u.protocol!=='https:'||u.username||u.password||u.hash)throw Error('unsafe-og-image');
      if(u.href!==expected)add('media:og-html-url-drift','warning',p.id,p.path,
       'OG image published URL differs from the current Site v1 media asset and origin.',
       {assetId:a.id,expectedUrl:expected,observedUrl:u.href});
@@ -126,6 +129,20 @@ function review(site,evidence,htmlSnapshot=null){
       'Use an absolute HTTPS og:image URL for social previews where supported.',{assetId:a.id});
     }catch{add('media:invalid-og-image-url','error',p.id,p.path,
      'Supplied HTML contains an invalid OG image URL.',{assetId:a.id});}
+   }
+   if(twitter.length===0&&og.length)
+    add('media:twitter-image-missing','recommendation',p.id,p.path,
+     'The supplied HTML exposes an OG image but no Twitter image; review publisher output.',{assetId:a.id});
+   for(const tag of twitter){
+    try{
+     if(!tag.url)throw Error('empty-twitter-image');
+     const u=new URL(tag.url,publicUrl(evidence.origin,p.path));
+     if(u.protocol!=='https:'||u.username||u.password||u.hash)throw Error('unsafe-twitter-image');
+     if(u.href!==expected)add('media:twitter-image-drift','warning',p.id,p.path,
+      'Twitter image URL differs from the publisher-selected OG media asset and origin.',
+      {assetId:a.id,expectedUrl:expected,observedUrl:u.href});
+    }catch{add('media:invalid-twitter-image-url','error',p.id,p.path,
+     'Supplied Twitter image URL is invalid or uses an unsafe scheme.',{assetId:a.id});}
    }
   }
  }

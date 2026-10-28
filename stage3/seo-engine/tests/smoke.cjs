@@ -456,6 +456,20 @@ try{
  assert.equal(SOCIAL.select(mediaGraphSite,mediaGraphSite.pages[0]).source,'section-designGraph-image');
  const fallbackCapture=require('../lib/capture-plan.cjs').build(mediaFallbackSite,plan);
  assert.equal(fallbackCapture.media[0].ogReferencedBy[0],'page-home');
+ // Social URLs in supplied captured markup cannot silently use javascript:, http: or empty content.
+ const forgedMediaHtml={format:'manufact-seo-html-snapshot-v1',siteId:plan.siteId,
+  pages:[{id:'page-home',path:'/',
+   html:'<html><head><meta property="og:image" content="javascript:alert(1)">'+
+    '<meta name="twitter:image" content="http://example.test/cover.png"></head><body></body></html>'}]};
+ const blockedSocial=require('../lib/media-delivery.cjs').review(capturedMediaSite,capturedMedia,forgedMediaHtml);
+ assert.ok(blockedSocial.findings.some(x=>x.code==='media:invalid-og-image-url'&&x.severity==='error'));
+ assert.ok(blockedSocial.findings.some(x=>x.code==='media:invalid-twitter-image-url'&&x.severity==='error'));
+ const misplacedSocialHtml=structuredClone(forgedMediaHtml);
+ misplacedSocialHtml.pages[0].html='<html><head>'+
+  '<meta property="og:image" content="https://cms-example.test/assets/og-demo.png">'+
+  '<meta name="twitter:image" content="https://cms-example.test/assets/other.png"></head></html>';
+ const socialDrift=require('../lib/media-delivery.cjs').review(capturedMediaSite,capturedMedia,misplacedSocialHtml);
+ assert.ok(socialDrift.findings.some(x=>x.code==='media:twitter-image-drift'));
  // Non-OG asset failures must not become misleading social-card release blockers.
  const unusedMediaSite=structuredClone(capturedMediaSite);
  unusedMediaSite.assets.push({id:'asset-unused',src:'/assets/unused.jpg',mime:'image/jpeg',alt:''});

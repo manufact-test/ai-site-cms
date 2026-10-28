@@ -30,7 +30,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   'delivery:unmatched-page'].includes(s.code)&&s.severity==='error'));
  const deliveryReview=find(t=>t.sources.some(s=>s.code?.startsWith('delivery:')&&s.severity!=='error'));
  const mediaProblems=find(t=>t.sources.some(s=>['media:resource-status-error','media:resource-mime-mismatch',
-  'media:og-image-not-image','media:invalid-og-image-url'].includes(s.code)&&s.severity==='error'));
+  'media:og-image-not-image','media:invalid-og-image-url',
+  'media:invalid-twitter-image-url'].includes(s.code)&&s.severity==='error'));
  const mediaReview=find(t=>t.sources.some(s=>s.code?.startsWith('media:')&&s.severity!=='error'));
  const suppliedOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean)
   .map(x=>new URL(x).href);
