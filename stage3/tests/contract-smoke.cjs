@@ -63,6 +63,24 @@ test('Interactive custom graph with nested disclosure and tab panels rejects uns
   assert.match(html,/type="radio"/);
   assert.match(html,/cmsdg-tab-custom-tab-two/);
   assert.match(html,/cmsdg-tab-panel\{display:none\}/);
+  const checklist=node('custom-list','list',null,[
+    node('custom-list-one','list-item','Подготовка'),
+    node('custom-list-two','list-item','Согласование')
+  ]);
+  checklist.ordered=true;
+  const withList=same(site);
+  withList.pages[0].sections.at(-1).designGraph.nodes.push(checklist);
+  sdk.validateSite(withList,manifests);
+  assert.match(G.render(withList,withList.pages[0].sections.at(-1).designGraph),/<ol class="cmsdg-n-custom-list cmsdg-list">/);
+  const invalidList=same(withList);
+  invalidList.pages[0].sections.at(-1).designGraph.nodes[2].children[1].type='button';
+  refuses(()=>sdk.validateSite(invalidList,manifests),'List accepts only list items');
+  const inserted=G.editTree(withList.pages[0].sections.at(-1).designGraph,{
+    action:'insert',targetId:'custom-list',placement:'inside',
+    node:node('custom-list-three','list-item','Публикация')
+  });
+  G.validateGraph(inserted,new Set(),new Set());
+  assert.equal(inserted.nodes[2].children.length,3);
   const wrong=same(site);
   wrong.pages[0].sections.at(-1).designGraph.nodes[1].children[0].type='text';
   refuses(()=>sdk.validateSite(wrong,manifests),'Tabs accept only tab children');
