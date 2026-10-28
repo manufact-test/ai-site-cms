@@ -178,6 +178,17 @@ async function execute(){
     'Pre-import CMS renderer resolves packaged image bytes without HTTP requests');
   assert.equal((approvedPreviewHtml.match(/src="data:image\/png;base64,/g)||[]).length,2,
     'Custom composition and image section both use exact packaged image bytes');
+  await page.waitForFunction(()=>{
+    const frame=document.querySelector('iframe[data-preview-device="desktop"]');
+    return frame&&Number.parseInt(frame.style.height,10)>540&&
+      frame.contentDocument?.documentElement?.scrollHeight>540;
+  });
+  await page.locator('#server-approved-expand-desktop').click();
+  assert.match(await page.locator('[data-approved-compare="desktop"]')
+    .evaluate(node=>node.style.gridTemplateColumns),/^repeat\(2,/);
+  assert.equal(await page.locator('[data-approved-device="tablet"]').isVisible(),false);
+  await page.locator('#server-approved-expand-desktop').click();
+  assert.equal(await page.locator('[data-approved-device="tablet"]').isVisible(),true);
   const pageOptions=await page.locator('#server-approved-review-page option').count();
   assert.ok(pageOptions>=1,'Owner can preview each page before accepting site');
   assert.equal(await page.locator('#server-approved-review').getByText(/Описание для клиента/).count(),1);

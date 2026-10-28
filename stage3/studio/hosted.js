@@ -2611,37 +2611,66 @@
         };
         const resizeSite=()=>{
           for(const [device,view] of Object.entries(liveFrames)){
+            if(view.card.hidden)continue;
             const scale=Math.min(1,Math.max(0.12,(view.container.clientWidth-8)/widths[device]));
+            const doc=view.frame.contentDocument;
+            const fullHeight=doc?Math.max(doc.documentElement.scrollHeight,doc.body?.scrollHeight||0):540;
+            const height=Math.min(30000,Math.max(540,fullHeight));
+            view.frame.style.height=height+'px';
             view.frame.style.transform='scale('+scale+')';
-            view.container.style.height=Math.ceil(540*scale)+'px';
+            view.viewport.style.height=Math.ceil(height*scale)+'px';
           }
         };
         const dimensions={desktop:'Десктоп',tablet:'Планшет',mobile:'Телефон'};
         for(const [key,name] of Object.entries(dimensions)){
-          const card=element('div','');
+          const card=element('div','');card.dataset.approvedDevice=key;
           card.style.minWidth='0';
           const caption=element('h3',null,name);
           const img=document.createElement('img');
           img.alt='Утверждённый макет · '+name;
-          img.dataset.prototype=key;
-          img.src=URL.createObjectURL(required(refs[key]));
+          img.dataset.prototype=key;img.src=URL.createObjectURL(required(refs[key]));
           objectUrls.push(img.src);
-          Object.assign(img.style,{display:'block',width:'100%',maxHeight:'310px',
-            objectFit:'contain',borderRadius:'10px',border:'1px solid #ddd',background:'#f5f5f5'});
-          const liveTitle=element('h4',null,'Сайт CMS · '+widths[key]+' px');
+          Object.assign(img.style,{display:'block',width:'100%',height:'auto',
+            borderRadius:'10px',border:'1px solid #ddd',background:'#f5f5f5'});
+          const liveTitle=element('h4',null,'Сайт CMS · '+widths[key]+' px · вся страница');
           const container=element('div','');
-          Object.assign(container.style,{position:'relative',width:'100%',overflow:'hidden',
+          Object.assign(container.style,{position:'relative',width:'100%',minWidth:'0',
+            overflowX:'hidden',overflowY:'auto',maxHeight:'310px',
             background:'#fff',border:'1px solid #ddd',borderRadius:'10px'});
+          const viewport=element('div','');
+          Object.assign(viewport.style,{position:'relative',width:'100%',height:'540px'});
           const frame=document.createElement('iframe');
           frame.dataset.previewDevice=key;
-          frame.title='Настоящая страница · '+name;
-          frame.sandbox='';
+          frame.title='Полностраничный предпросмотр · '+name;
+          // Validated first-party srcdoc, CSP script-src none and no sandbox
+          // allow-scripts/forms/navigation. Same-origin permits height reads only.
+          frame.setAttribute('sandbox','allow-same-origin');
           frame.referrerPolicy='no-referrer';
           Object.assign(frame.style,{width:widths[key]+'px',height:'540px',
             transformOrigin:'top left',border:'0',display:'block',pointerEvents:'none'});
-          container.append(frame);
-          liveFrames[key]={container,frame};
-          card.append(caption,img,liveTitle,container);previews.append(card);
+          viewport.append(frame);container.append(viewport);
+          const compare=element('div','');compare.dataset.approvedCompare=key;
+          Object.assign(compare.style,{display:'grid',gridTemplateColumns:'minmax(0,1fr)',
+            gap:'14px',alignItems:'start'});
+          const prototype=element('div','');prototype.style.minWidth='0';
+          prototype.style.maxHeight='310px';prototype.style.overflowY='auto';
+          prototype.append(element('h4',null,'Согласованный макет'),img);
+          const result=element('div','');result.style.minWidth='0';
+          result.append(liveTitle,container);compare.append(prototype,result);
+          const expand=action('Развернуть сравнение','server-approved-expand-'+key,()=>{
+            const expanded=card.dataset.expanded!=='true';
+            for(const view of Object.values(liveFrames))
+              view.card.hidden=expanded&&view.card!==card;
+            card.dataset.expanded=String(expanded);
+            expand.textContent=expanded?'Свернуть сравнение':'Развернуть сравнение';
+            card.style.gridColumn=expanded?'1 / -1':'';
+            compare.style.gridTemplateColumns=expanded?'repeat(2,minmax(0,1fr))':'minmax(0,1fr)';
+            container.style.maxHeight=prototype.style.maxHeight=expanded?'75vh':'310px';
+            resizeSite();
+          });
+          frame.addEventListener('load',()=>{resizeSite();requestAnimationFrame(resizeSite);});
+          liveFrames[key]={card,container,viewport,frame,expand};
+          card.append(caption,expand,compare);previews.append(card);
         }
         const details=element('div','');
         Object.assign(details.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:'16px'});
