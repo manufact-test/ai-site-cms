@@ -16,6 +16,9 @@ final class NotFound extends RuntimeException {}
  */
 final class SiteRepository
 {
+    // Exact immutable raster cap, shared by upload and archive validation.
+    // Four <=1 MB images fit one 6.5 MB JSON request.
+    public const IMAGE_MAX_BYTES = 1000000;
     use SiteArchives;
     use VideoUploads;
     use AccessControl;
@@ -372,12 +375,12 @@ final class SiteRepository
 
     public function uploadImage(string $siteId, string $base64, string $alt, int $expectedRevision, array $variants = [], ?string $expectedSha = null): array
     {
-        if (strlen($base64) > 700000 || $base64 === '' || !preg_match('~^[A-Za-z0-9+/]+={0,2}$~D', $base64)) {
+        if (strlen($base64) > 1400000 || $base64 === '' || !preg_match('~^[A-Za-z0-9+/]+={0,2}$~D', $base64)) {
             throw new \InvalidArgumentException('Invalid or oversized image');
         }
         $bytes = base64_decode($base64, true);
-        if ($bytes === false || $bytes === '' || strlen($bytes) > 450000) {
-            throw new \InvalidArgumentException('Image must not exceed 450 KB');
+        if ($bytes === false || $bytes === '' || strlen($bytes) > self::IMAGE_MAX_BYTES) {
+            throw new \InvalidArgumentException('Image must not exceed 1 MB');
         }
         if (strlen($alt) > 200 || preg_match('/[\x00-\x1f]/', $alt) === 1) {
             throw new \InvalidArgumentException('Invalid image description');
@@ -405,14 +408,14 @@ final class SiteRepository
             if (!is_array($variant) || array_diff(array_keys($variant), ['width','base64','sha256'])
                 || count($variant) !== 3 || !in_array($variant['width'] ?? null, [360,720,1200], true)
                 || isset($widths[$variant['width']]) || !is_string($variant['base64'])
-                || strlen($variant['base64']) > 600000
+                || strlen($variant['base64']) > 1400000
                 || !preg_match('~^[A-Za-z0-9+/]+={0,2}$~D', $variant['base64'])
                 || !is_string($variant['sha256'])
                 || preg_match('/^[a-f0-9]{64}$/D', $variant['sha256']) !== 1)
                 throw new \InvalidArgumentException('Invalid responsive payload');
             $binary = base64_decode($variant['base64'], true);
             $size = is_string($binary) ? @getimagesizefromstring($binary) : false;
-            if (!is_string($binary) || strlen($binary) < 20 || strlen($binary) > 450000
+            if (!is_string($binary) || strlen($binary) < 20 || strlen($binary) > self::IMAGE_MAX_BYTES
                 || !hash_equals($variant['sha256'], hash('sha256', $binary))
                 || !is_array($size) || ($types[$size[2]][0] ?? null) !== $mime
                 || $size[0] !== $variant['width'] || $size[0] > $info[0]

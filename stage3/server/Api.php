@@ -377,7 +377,7 @@ final class Api
                     : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/approval-evidence$~D',$path)
                       ? 11100000
                       : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/preview$~D',$path) ? 900000
-                        : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/media$~D', $path) ? 2600000
+                        : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/media$~D', $path) ? 6500000
                           : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/video$~D',$path)?2100000:750000)))));
                 if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|video|transfer/(?:plan|apply)|import/(?:plan|apply)|history/(?:plan|apply)|media-maintenance/(?:plan|apply)|links/(?:plan|apply)|video-uploads(?:/.*)?|templates(?:/.*)?)$~D',$path)) {
                     $this->sites->assertLicenseWritable($siteScope);

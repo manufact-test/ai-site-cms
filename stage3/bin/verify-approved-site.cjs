@@ -111,7 +111,7 @@ function preflight(folder){
     const ext=asset.mime==='image/jpeg'?'jpg':asset.mime.split('/')[1];
     const file=asset.src.replace(/^\/assets\//,'assets/');
     if(file===asset.src)throw Error('Asset path not site-scoped: '+asset.id);
-    const bytes=recorded(file,read(file,450000));
+    const bytes=recorded(file,read(file,1000000));
     if(bytes.length<20||!verifyRaster(bytes,asset.mime))
       throw Error('Image bytes and declared MIME do not match: '+file);
     if(asset.mime==='image/png'&&asset.width!==undefined){
@@ -120,7 +120,7 @@ function preflight(folder){
     }
     for(const variant of asset.variants||[]){
       const vfile=variant.src.replace(/^\/assets\//,'assets/');
-      const b=recorded(vfile,read(vfile,450000));
+      const b=recorded(vfile,read(vfile,1000000));
       if(b.length<20||!verifyRaster(b,asset.mime))
         throw Error('Invalid responsive image: '+vfile);
       const digest=crypto.createHash('sha256').update(b).digest('hex');

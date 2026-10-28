@@ -1,6 +1,6 @@
 'use strict';
 // Stage3 authenticated editor adapter for audited first-party Media & Motion
-// raster engine. Only chosen, verified <450000-byte raster is uploaded through
+// raster engine. Only chosen, verified <1000000-byte raster is uploaded through
 // existing immutable SiteRepository media API; no original bytes reach server.
 (()=>{
   const H=window.Stage3Host,E=window.MediaMotionEngine,C=window.MediaMotionContract;
@@ -81,15 +81,15 @@
       const signal={cancelled:false};
       let desired=Math.min(editData.desired,E.geometry(workingSource,editData).outW);
       let processed;
-      // Workbench cap 450 KiB, CMS accepts max 450000 decimal bytes.
+      // CMS accepts up to 1000000 decimal bytes per original and derivative.
       // Reduce width until the exact existing PHP limit is satisfied.
       for(let attempt=0;attempt<7;attempt++){
         processed=await E.optimize(workingSource,editData,desired,mime,editData.quality,signal);
-        if(processed.bytes<=450000)break;
+        if(processed.bytes<=1000000)break;
         desired=Math.floor(processed.width*.84);
-        if(desired<64)throw Error('Результат не помещается в лимит CMS (450 КБ)');
+        if(desired<64)throw Error('Результат не помещается в лимит CMS (1 МБ)');
       }
-      if(processed.bytes>450000)throw Error('Результат превышает 450 КБ');
+      if(processed.bytes>1000000)throw Error('Результат превышает 1 МБ');
       if(processed.sha256!==await E.hash(processed.blob))
         throw Error('Проверка SHA256 результата не пройдена');
       if(requestKey!==sourceKey)throw Error('Исходный файл изменился во время обработки');

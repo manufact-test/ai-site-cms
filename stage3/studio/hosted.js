@@ -284,7 +284,7 @@
   // Server-only media library: binary bytes never enter document JSON.
   const mediaPanel=element('div','hosted-media');
   const mediaTitle=element('strong',null,'Медиабиблиотека');
-  const mediaHint=element('small',null,'PNG/JPEG/WebP до 450 КБ · MP4 до 16 МБ · приватно до публикации');
+  const mediaHint=element('small',null,'PNG/JPEG/WebP до 1 МБ · MP4 до 16 МБ · приватно до публикации');
   const mediaInput=element('input');mediaInput.type='file';mediaInput.id='server-media-file';
   mediaInput.accept='image/png,image/jpeg,image/webp';mediaInput.hidden=true;
   const mediaUpload=action('+ Загрузить изображение','server-media-upload',()=>mediaInput.click());
@@ -1268,7 +1268,7 @@
     return safe(async()=>{
       if(!state.siteId)throw Error('Сначала создайте сайт');
       if(editor.isDirty())throw Error('Сначала сохраните изменения черновика');
-      if(!file||file.size<1||file.size>450000)throw Error('Изображение должно быть не больше 450 КБ');
+      if(!file||file.size<1||file.size>1000000)throw Error('Изображение должно быть не больше 1 МБ');
       const description=prompt('Описание изображения (alt)',file.name.replace(/\.[^.]+$/,''));
       if(description===null)return;
       if(description.length>200)throw Error('Описание не более 200 символов');
@@ -1399,7 +1399,7 @@
         if(!['image/png','image/jpeg','image/webp'].includes(mime))
           throw Error('Неподдерживаемый тип изображения');
         const bytes=await result.blob();
-        if(bytes.size>450000)throw Error('Изображение слишком большое для предпросмотра');
+        if(bytes.size>1000000)throw Error('Изображение слишком большое для предпросмотра');
         return new Promise((resolve,reject)=>{
           const reader=new FileReader();
           reader.onload=()=>resolve(String(reader.result));
@@ -1513,9 +1513,9 @@
     if(state.busy||!state.authorized||!state.siteId||!canEdit())
       throw Error('Загрузка недоступна без входа и прав редактирования');
     if(editor.isDirty())throw Error('Сначала сохраните несохранённый черновик');
-    if(!(blob instanceof Blob)||blob.size<20||blob.size>450000||
+    if(!(blob instanceof Blob)||blob.size<20||blob.size>1000000||
       !['image/png','image/jpeg','image/webp'].includes(blob.type))
-      throw Error('Обработанное изображение должно быть PNG/JPEG/WebP до 450 КБ');
+      throw Error('Обработанное изображение должно быть PNG/JPEG/WebP до 1 МБ');
     if(typeof alt!=='string'||alt.length>200||/[\x00-\x1f]/.test(alt))
       throw Error('Описание изображения должно быть до 200 символов без управляющих символов');
     if(typeof expectedHash!=='string'||!/^[a-f0-9]{64}$/.test(expectedHash))
@@ -1526,7 +1526,7 @@
     const packed=[];
     for(const v of variants){
       if(![360,720,1200].includes(v.width)||!(v.blob instanceof Blob)||v.blob.type!==blob.type||
-        v.blob.size>450000||v.blob.size<20||await window.MediaMotionEngine.hash(v.blob)!==v.sha256)
+        v.blob.size>1000000||v.blob.size<20||await window.MediaMotionEngine.hash(v.blob)!==v.sha256)
         throw Error('Непроверенный responsive-вариант');
       const data=await new Promise((resolve,reject)=>{
         const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));
@@ -2698,12 +2698,12 @@
         if(!['image/png','image/jpeg','image/webp'].includes(item.mime))
           throw Error('Пакет пока принимает PNG/JPEG/WebP, но не '+item.mime);
         const original=required(item.src.replace(/^\/assets\//,'assets/'));
-        if(original.size<20||original.size>450000)
-          throw Error('Изображение больше 450 КБ или пустое: '+item.id);
+        if(original.size<20||original.size>1000000)
+          throw Error('Изображение больше 1 МБ или пустое: '+item.id);
         const variants=[];
         for(const variant of item.variants||[]){
           const file=required(variant.src.replace(/^\/assets\//,'assets/'));
-          if(file.size<20||file.size>450000)throw Error('Недопустимый responsive-файл: '+variant.id);
+          if(file.size<20||file.size>1000000)throw Error('Недопустимый responsive-файл: '+variant.id);
           variants.push({file,width:variant.width,sha256:variant.sha256});
         }
         media.push({id:item.id,original,variants,alt:item.alt});
@@ -3047,7 +3047,7 @@
             encodeURIComponent(assetId),{credentials:'same-origin',cache:'no-store'});
           if(!response.ok)throw Error('Не удалось проверить сохранённый файл: '+assetId);
           const bytes=await response.arrayBuffer();
-          if(bytes.byteLength<20||bytes.byteLength>450000)
+          if(bytes.byteLength<20||bytes.byteLength>1000000)
             throw Error('Некорректный размер ранее загруженного файла: '+assetId);
           return digest(bytes);
         };

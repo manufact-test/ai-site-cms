@@ -38,7 +38,7 @@ function seal(folder,version,options={}){
       throw Error('File escapes bundle: '+relative);
     const max=relative===refs.site?500000:
       [refs.desktop,refs.tablet,refs.mobile].includes(relative)||pageRefs.has(relative)?8000000:
-      [refs.clientExplanation,refs.implementationSpec].includes(relative)?200000:450000;
+      [refs.clientExplanation,refs.implementationSpec].includes(relative)?200000:1000000;
     const length=fs.statSync(actual).size;bytesUsed+=length;
     if(length<1||length>max||bytesUsed>100*1024*1024)
       throw Error('Invalid handoff size or total exceeded 100MB: '+relative);
