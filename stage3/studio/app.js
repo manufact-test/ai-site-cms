@@ -1701,6 +1701,43 @@
           toggleList.id='cms-work-graph-list-ordered';toggleList.disabled=!canWrite();
           graphActions.append(addListItem,toggleList);
         }
+        if(current.type==='gallery'){
+          const addPhoto=workButton('+ Фото в галерею',()=>{
+            const photo=mediaOf('image')[0];
+            if(!photo)return feedback('Сначала загрузите изображение',true);
+            const node={id:uniqueId('dg-node'),type:'image',assetId:photo.id,
+              alt:photo.alt||'Изображение',styles:{}};
+            editGraphTreeWork({action:'insert',targetId:current.id,placement:'inside',node},node.id);
+          });
+          addPhoto.id='cms-work-graph-add-gallery-image';
+          addPhoto.disabled=!canWrite()||current.children.length>=12;
+          graphActions.append(addPhoto);
+        }
+        if(current.type==='table'){
+          const addRow=workButton('+ Строка таблицы',()=>{
+            const cells=current.children[0].children.map((_,col)=>({
+              id:uniqueId('dg-node'),type:'table-cell',text:col?'Значение':'Параметр',styles:{}
+            }));
+            const node={id:uniqueId('dg-node'),type:'table-row',styles:{},children:cells};
+            editGraphTreeWork({action:'insert',targetId:current.id,placement:'inside',node},node.id);
+          });
+          addRow.id='cms-work-graph-table-add-row';
+          addRow.disabled=!canWrite()||current.children.length>=10;
+          const addColumn=workButton('+ Столбец таблицы',()=>mutateGraphWork(({node})=>{
+            for(const [i,row] of node.children.entries())row.children.push({
+              id:uniqueId('dg-node'),type:'table-cell',styles:{},
+              text:i===0?'Новый вариант':'Значение'
+            });
+          }));
+          addColumn.id='cms-work-graph-table-add-column';
+          addColumn.disabled=!canWrite()||current.children[0].children.length>=6;
+          const removeColumn=workButton('− Столбец',()=>mutateGraphWork(({node})=>{
+            for(const row of node.children)row.children.pop();
+          }));
+          removeColumn.id='cms-work-graph-table-remove-column';
+          removeColumn.disabled=!canWrite()||current.children[0].children.length<=2;
+          graphActions.append(addRow,addColumn,removeColumn);
+        }
         if(current.type==='tabs'){
           const addTab=workButton('+ Вкладка',()=>{
             const i=current.children.length+1;
