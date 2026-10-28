@@ -1348,8 +1348,8 @@ async function execute(){
     'Three responsive real site previews are required next to approved prototypes');
   const live=page.locator('iframe[data-preview-device="desktop"]');
   await page.waitForFunction(()=>document.querySelector('iframe[data-preview-device="desktop"]')
-    ?.getAttribute('srcdoc')?.includes('Редактируется после подключения'));
-  assert.match(await live.getAttribute('srcdoc'),/Редактируется после подключения/);
+    ?.getAttribute('srcdoc')?.includes('Особенный согласованный дизайн'));
+  assert.match(await live.getAttribute('srcdoc'),/Особенный согласованный дизайн/);
   assert.match(await live.getAttribute('srcdoc'),/data:image\/png;base64,/,
     'Pre-import CMS renderer resolves packaged image bytes without HTTP requests');
   const pageOptions=await page.locator('#server-approved-review-page option').count();
