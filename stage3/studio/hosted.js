@@ -2798,6 +2798,49 @@
       const forgetTicket=()=>{
         try{sessionStorage.removeItem(checkpointKey);}catch(_){}
       };
+      // Durable owner-private evidence is anchored BEFORE any media upload.
+      // This allows explicit, checksum-bound recovery after the original tab is lost.
+      const stable=value=>Array.isArray(value)?value.map(stable):
+        value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort()
+          .map(key=>[key,stable(value[key])])):value;
+      const seed=editor.fromBrief(site.siteId,site.title);
+      const digest=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
+        .map(v=>v.toString(16).padStart(2,'0')).join('');
+      const packageSha=ticket?await digest(await manifestFile.arrayBuffer()):null;
+      const proofBase='/api/sites/'+encodeURIComponent(site.siteId)+'/approval-evidence';
+      let recovery=null;
+      if(!archiveOnly){
+        const listing=await api('/api/sites');
+        const meta=listing.sites.find(row=>row.site_id===site.siteId);
+        if(meta){
+          if(!ticket||meta.published_version!==null)
+            throw Error('ID уже занят: опубликованный сайт или неподписанный пакет нельзя возобновлять');
+          const current=await api('/api/sites/'+encodeURIComponent(site.siteId));
+          if(JSON.stringify(stable({...current.site,assets:[]}))!==JSON.stringify(stable(seed)))
+            throw Error('ID уже занят: черновик не является нетронутой загрузкой');
+          const index=await api(proofBase);
+          if(index.packages.some(p=>p.packageSha!==packageSha))
+            throw Error('ID уже занят: на сайте хранится другой утверждённый пакет');
+          const packageRecord=index.packages.find(p=>p.packageSha===packageSha);
+          let durable=false;
+          if(packageRecord?.files?.handoff?.sha256===packageSha&&
+            packageRecord.files.site?.sha256===handoff.integrity.files[refs.site]){
+            // The read endpoint itself hashes stored bytes; compare to THIS folder.
+            for(const [kind,hash] of [['handoff',packageSha],
+              ['site',handoff.integrity.files[refs.site]]]){
+              const response=await fetch(proofBase+'/'+packageSha+'/'+kind,{
+                credentials:'same-origin',cache:'no-store'});
+              if(!response.ok||await digest(await response.arrayBuffer())!==hash)
+                throw Error('Не совпадают сохранённые исходники: '+kind);
+            }
+            durable=true;
+          }
+          if(!matchingTicket()&&!durable)
+            throw Error('ID занят незавершённым импортом без подтверждённых исходников. '
+              +'Нужна прежняя вкладка или уже сохранённые handoff и site.json.');
+          recovery={mode:durable?'durable':'session',revision:current.revision};
+        }
+      }
       // A visual approval gate is distinct from checking a filename or status flag.
       // Display the three actual files and source explanations, never untrusted HTML.
       const approve=async()=>{
@@ -2827,7 +2870,12 @@
             ' МБ в полном бэкапе. Лимит — 64 МБ, возможен отказ экспорта.'));
         const description=element('p',null,archiveOnly?
           'Архивирование не изменит страницы, черновик или публикацию. Проверьте исходные макеты, описания и версию; записи будут доступны только владельцу CMS.':
-          'Ниже показаны реальные макеты из пакета. Сравните их с согласованной версией. Подключение создаст только черновик, публикация выполняется отдельно.');
+          recovery?
+            'Обнаружена незавершённая загрузка этого сайта, ревизия #'+recovery.revision+
+            '. Серверный черновик совпадает с исходным seed, а исходники подтверждены '+
+            (recovery.mode==='durable'?'сохранёнными SHA-256 документами':'чеком прежней вкладки')+
+            '. При продолжении каждый уже загруженный файл будет проверен по настоящим байтам. Публикации не будет.':
+            'Ниже показаны реальные макеты из пакета. Сравните их с согласованной версией. Подключение создаст только черновик, публикация выполняется отдельно.');
         const pageSelect=element('select','control');
         pageSelect.id='server-approved-review-page';
         pageSelect.setAttribute('aria-label','Страница для сравнения');
@@ -2951,8 +2999,18 @@
         Object.assign(actions.style,{display:'flex',justifyContent:'flex-end',flexWrap:'wrap',gap:'12px',marginTop:'18px'});
         const cancel=action('Отмена','server-approved-review-cancel',()=>dialog.close('cancel'));
         const confirmButton=action(archiveOnly?'Сохранить материалы без изменения сайта':
-          (matchingTicket()?'Продолжить незавершённый импорт':'Подключить как черновик'),
+          (recovery?'Продолжить незавершённый импорт':'Подключить как черновик'),
           'server-approved-review-confirm',()=>dialog.close('approve'));
+        if(recovery?.mode==='durable'&&!matchingTicket()){
+          const acknowledgement=element('label','hosted-label');
+          const check=element('input');check.type='checkbox';check.id='server-approved-recovery-confirm';
+          confirmButton.disabled=true;
+          check.addEventListener('change',()=>{confirmButton.disabled=!check.checked;});
+          acknowledgement.append(check,document.createTextNode(
+            ' Подтверждаю восстановление незавершённой загрузки '+site.siteId+
+            ' из этой точной утверждённой папки (SHA-256 '+packageSha.slice(0,16)+'…).'));
+          actions.append(acknowledgement);
+        }
         actions.append(cancel,confirmButton);
         dialog.append(heading,summary,description,pageLabel,previews,details,actions);
         document.body.append(dialog);
@@ -3011,9 +3069,7 @@
           if(archiveOnly)throw Error('Для архива требуется SHA-256 sealed v2 пакет');
           return null; // v1 remains readable, but not a reliable approval archive.
         }
-        const packageSha=Array.from(new Uint8Array(await crypto.subtle.digest(
-          'SHA-256',await manifestFile.arrayBuffer())))
-          .map(b=>b.toString(16).padStart(2,'0')).join('');
+        // The SHA256 of the original sealed manifest was computed at preflight.
         const map=[['handoff','handoff.json'],...[
           'site','desktop','tablet','mobile','clientExplanation','implementationSpec'
         ].map(key=>[key,refs[key]])];
@@ -3046,16 +3102,8 @@
       }
       let created=false,resumed=false;
       try{
-        // The server intentionally refuses foreign media IDs on Create. A
-        // previous interrupted multi-image import may have left an unpublished
-        // seed with server-issued media IDs. Resume only with a same-tab sealed
-        // checksum checkpoint and an EXACT matching untouched seed.
-        const seed=editor.fromBrief(site.siteId,site.title);
-        const stable=value=>Array.isArray(value)?value.map(stable):
-          value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort()
-            .map(key=>[key,stable(value[key])])):value;
-        const digest=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
-          .map(v=>v.toString(16).padStart(2,'0')).join('');
+        // Only previously accepted, unpublished, unchanged seeds may be resumed.
+        // Server-stored original handoff + site.json bind the package across tabs.
         const remoteDigest=async assetId=>{
           const response=await fetch('/api/sites/'+encodeURIComponent(site.siteId)+'/media/'+
             encodeURIComponent(assetId),{credentials:'same-origin',cache:'no-store'});
@@ -3066,22 +3114,32 @@
           return digest(bytes);
         };
         let result=null;
-        if(matchingTicket()){
+        if(recovery){
           const all=await api('/api/sites');
           const meta=all.sites.find(row=>row.site_id===site.siteId);
-          if(meta){
-            if(meta.published_version!==null)
-              throw Error('Возобновление запрещено: сайт уже опубликован');
-            result=await api('/api/sites/'+encodeURIComponent(site.siteId));
-            if(JSON.stringify(stable({...result.site,assets:[]}))!==JSON.stringify(stable(seed)))
-              throw Error('Возобновление запрещено: черновик изменён после импорта');
-            created=true;resumed=true;
-          }
-        }
-        if(!result){
-          rememberTicket(); // before POST, survives a lost create response
+          if(!meta||meta.published_version!==null)
+            throw Error('Возобновление запрещено: незавершённый сайт исчез или опубликован');
+          result=await api('/api/sites/'+encodeURIComponent(site.siteId));
+          if(result.revision!==recovery.revision||
+            JSON.stringify(stable({...result.site,assets:[]}))!==JSON.stringify(stable(seed)))
+            throw Error('Возобновление запрещено: черновик изменился после проверки');
+          created=true;resumed=true;
+        }else{
+          rememberTicket(); // Before POST, survives an interrupted create response.
           result=await api('/api/sites','POST',{site:seed});
           created=true;
+          if(ticket){
+            // Persist an immutable recovery anchor BEFORE the first image upload.
+            // An incomplete anchor cannot be used for cross-session recovery.
+            for(const [kind,file,hash] of [
+              ['handoff',manifestFile,packageSha],
+              ['site',source,handoff.integrity.files[refs.site]]
+            ]){
+              await api(proofBase,'POST',{
+                packageSha,kind,sha256:hash,base64:await fileBase64(file)
+              });
+            }
+          }
         }
         selectSite(result);
         const ids=new Map(),reused=new Set();
@@ -3155,7 +3213,7 @@
             selectSite(current);await refreshSites();await loadHistory();
           }catch(_){}
           throw Error('Импорт прерван. Остался неопубликованный черновик. '+
-            (ticket?'Повторно выберите ту же утверждённую папку в этой вкладке для безопасного продолжения. ':
+            (ticket?'Повторно выберите ту же sealed v2 папку. После сохранения исходных handoff/site.json можно продолжить даже в новой вкладке; посторонние черновики защищены. ':
               'Для старого v1-пакета автоматическое продолжение недоступно. ')+error.message);
         }
         // A create request may have succeeded server-side even when its HTTP
