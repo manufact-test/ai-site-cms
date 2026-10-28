@@ -69,6 +69,8 @@ function inspect(html){
  }
  const main=list('main');
  return {headings,ids:[...ids.keys()],duplicateIds:[...duplicates],anchors,images:list('img').map(x=>x.attrs),
+  sources:list('source').map(x=>x.attrs),videos:list('video').map(x=>x.attrs),
+  inlineStyles:elements.filter(x=>x.attrs.style).map(x=>x.attrs.style),
   links,robots:robots.map(x=>x.attrs.content||''),canonicals:canonical.map(x=>x.attrs.href||''),
   htmlLang,baseHref:list('base')[0]?.attrs.href||null,viewport:mobileSettings,mainCount:main.length,forms,controlCount:controls.length,
   unlabelledControls:unlabelled.map(x=>({tag:x.tag,id:x.attrs.id||null,name:x.attrs.name||null})),
