@@ -40,6 +40,8 @@ function main(argv){
  if(flags['php-capture']&&!flags['approved-site'])throw Error('--php-capture requires --approved-site to bind screenshots to a sealed Site v2 source');
  if(flags['php-html']&&(!flags['approved-site']||flags.snapshot))
   throw Error('--php-html requires --approved-site and cannot be combined with --snapshot');
+ if(flags['php-html']&&!['review-bundle','review-bundle-md'].includes(command))
+  throw Error('--php-html is accepted only by review-bundle and review-bundle-md');
  if(flags['approved-site']&&(flags.site||!['review-bundle','review-bundle-md'].includes(command)))
   throw Error('--approved-site is exclusive to review-bundle[/-md] and cannot be combined with --site');
  let sealedSource=null;
