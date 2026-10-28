@@ -3,6 +3,7 @@
 // headers, HTML head, Site v1 indexation and actual captured sitemap origin.
 // This is NOT proof of a deployed public HTTPS host or of its served revision.
 const {readHead}=require('./parity.cjs');
+const crypto=require('node:crypto');
 const FORMAT='manufact-seo-local-php-head-v1';
 // Mirrors PublicRenderer::html SEO fallback from the current lead PHP.
 const normalized=x=>String(x??'').replace(/\s+/g,' ').trim().normalize('NFKC');
@@ -87,6 +88,22 @@ function review(site,snapshot,records,publication){
    add('php-head:meta-robots-drift','error',spec,
     'Real published meta robots indexation conflicts with immutable Site v1.',
     {expectedRobots:expected.robots,observedRobots:(head.robots||'').slice(0,120)});
+  // Current lead PublicRenderer emits formStepsScript() only for multi-step forms,
+  // and public Api.php allows its exact SHA-256 in CSP. Verify both bytes and
+  // header against the response we actually fetched, without executing scripts.
+  const wizardCount=spec.sections.filter(x=>Array.isArray(x.formSteps)&&x.formSteps.length>=2).length;
+  const inlineScripts=[...page.html.matchAll(/<script\b([^>]*?)>([\s\S]*?)<\/script\s*>/gi)]
+   .filter(x=>!/\bsrc\s*=/i.test(x[1]));
+  if(wizardCount&&!inlineScripts.length)
+   add('php-head:wizard-script-absent','error',spec,
+    'Sealed Site v1 requires multi-step form behavior, but published PHP lacks its inline wizard script.');
+  const csp=headers['content-security-policy']||'';
+  for(const script of inlineScripts){
+   const hash=crypto.createHash('sha256').update(script[2],'utf8').digest('base64');
+   if(!csp.includes("'sha256-"+hash+"'"))
+    add('php-head:inline-script-csp-drift','error',spec,
+     'Published PHP inline script does not match the actual response Content-Security-Policy SHA-256 allowance.');
+  }
   const xrobots=headers['x-robots-tag']||'';
   const observedNoindex=/(?:^|[,\s])noindex(?:$|[,\s])/i.test(xrobots);
   const intendedNoindex=(spec.seo?.robots||'index')==='noindex';
@@ -137,6 +154,7 @@ function review(site,snapshot,records,publication){
   pages.push(Object.freeze({
    pageId:page.id,path:page.path,headersRecorded:Boolean(record.headers),
    observedNoindexInXRobots:observedNoindex,siteNoindex:intendedNoindex,
+   inlineScriptsCaptured:inlineScripts.length,wizardExpected:Boolean(wizardCount),
    metaRobotsMatched:metaNoindex===intendedNoindex,
    metadataMatches:!findings.some(x=>x.pageId===page.id&&
     ['php-head:metadata-drift','php-head:meta-robots-drift'].includes(x.code)),
@@ -150,7 +168,7 @@ function review(site,snapshot,records,publication){
   developmentOnlyOrigin:Boolean(claimedOrigin&&claimedOrigin.startsWith('http://')),
   pages:Object.freeze(pages),findings:Object.freeze(findings),
   sourceRevisionProven:false,publicHttpsProven:false,releaseAuthorized:false,
-  limitations:'Only recorded localhost headers and page HTML, reconciled with a locally served sitemap. No browser state, PHP build identity, public DNS/TLS, CDN policies or real deployed HTTP origin was authenticated.'
+  limitations:'Only recorded localhost headers and page HTML, reconciled with a locally served sitemap. No browser JavaScript execution, PHP build identity, public DNS/TLS, CDN policies or real deployed HTTP origin was authenticated.'
  });
 }
 module.exports=Object.freeze({FORMAT,assertHeaders,headersOf,ogUrl,review});
