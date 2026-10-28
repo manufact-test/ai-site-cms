@@ -29,9 +29,11 @@ const origin='https://site.example/';
 const http={
  format:'manufact-seo-delivery-evidence-v1',siteId:site.siteId,origin,capturedAt:'2026-10-28T20:00:00Z',
  pages:[{id:'page-home',path:'/',requestUrl:origin,responseUrl:origin,status:200,
-   headers:{'content-type':'text/html'},html:home},
+   headers:{'content-type':'text/html',
+    'content-security-policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'"},html:home},
   {id:'page-about',path:'/about/',requestUrl:origin+'about/',responseUrl:origin+'about/',status:200,
-   headers:{'content-type':'text/html'},html:about}],
+   headers:{'content-type':'text/html',
+    'content-security-policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'"},html:about}],
  robots:{status:200,url:origin+'robots.txt',contentType:'text/plain',
    body:release.searchFiles['robots.txt']},
  sitemap:{status:200,url:origin+'sitemap.xml',contentType:'application/xml',
