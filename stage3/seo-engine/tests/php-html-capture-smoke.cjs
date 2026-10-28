@@ -362,6 +362,7 @@ function localFirstSiteReportDeltaContracts(){
   readOnly:true,siteId:'pilot-local',release:{blockers:[
    {gateId:'local-php-navigation-parity'},{gateId:'local-php-media-integrity'}]},
   localPhpNavigation:{findings:[issue]},
+  localPhpGraph:{findings:[]},
   localPhpMedia:{findings:[{code:'php-media:non-200',severity:'error',
    assetId:'hero',pageId:'page-home',path:'/',message:'Missing image'}]}}};
  const currentSummary={...previousSummary,publishedVersion:6,
