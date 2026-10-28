@@ -194,6 +194,7 @@ function build(site,manifests,blueprint,options={}){
     staticReferencesChecked:options.phpHtml.localStaticExport.staticReferencesChecked,
     checkedFormSections:options.phpHtml.localStaticExport.checkedFormSections,
     staticForms:options.phpHtml.localStaticExport.staticForms,
+    staticSeoPages:options.phpHtml.localStaticExport.staticSeoPages,
     checkedPages:options.phpHtml.localStaticExport.checkedPages,
     checkedAssets:options.phpHtml.localStaticExport.checkedAssets,
     pages:options.phpHtml.localStaticExport.pages,

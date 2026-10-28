@@ -57,6 +57,7 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   const weight=phpHtml.localFootprint?.pages.find(x=>x.pageId===page.id);
   const exportPage=phpHtml.localStaticExport?.pages.find(x=>x.pageId===page.id);
   const exportedForms=phpHtml.localStaticExport?.staticForms.filter(x=>x.pageId===page.id)||[];
+  const staticSeo=phpHtml.localStaticExport?.staticSeoPages.find(x=>x.pageId===page.id);
   lines.push('### '+clean(page.path,150)+' ('+clean(page.id,100)+')','',
    '- **PHP STATUS: '+status(issues)+'**; error count: '+
     issues.filter(x=>x.severity==='error').length+'; total findings: '+issues.length+'.',
@@ -73,6 +74,10 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
     '; representative rendered media '+(weight?.minimumRepresentativeMediaBytes??'n/a')+
     '–'+(weight?.maximumRepresentativeMediaBytes??'n/a')+' bytes.',
    '- Статический экспорт: '+exportedForms.length+' проверенных форм; collector/version/HMAC marker проверены структурно, без POST.',
+   '- Статический SEO: '+(staticSeo?
+    'canonical '+clean(staticSeo.rootCanonicalExpected||'origin not configured',150)+
+    '; expected noindex '+staticSeo.noindexExpected+'; findings '+staticSeo.staticSeoFindings:
+    'не проверен')+'.',
    '- Статический экспорт vs PHP: '+(exportPage?
     (exportPage.differences.length?'DRIFT '+exportPage.differences.join(', '):'content/headings/SEO text match'):
     'not provided; served revision not verified')+'.',

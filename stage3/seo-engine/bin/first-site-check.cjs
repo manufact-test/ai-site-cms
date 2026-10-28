@@ -195,6 +195,7 @@ async function main(argv){
    sha256CheckedFiles:checked.localStaticExport?.verifiedExportFiles??null,
    staticLinkReferencesChecked:checked.localStaticExport?.staticReferencesChecked??null,
    staticFormsChecked:checked.localStaticExport?.checkedFormSections??null,
+   staticSeoPagesChecked:checked.localStaticExport?.staticSeoPages?.length??null,
    searchFilesChecked:checked.localStaticExport?.exportedSearchFilesVerified??null,
    actualFindings:checked.localStaticExport?.findings.length??null,
    authenticatedServedRevision:false},

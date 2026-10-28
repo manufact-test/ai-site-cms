@@ -1,7 +1,7 @@
 'use strict';
 // Read-only comparison smoke, not a PHP/Chromium or public HTTPS test.
 const assert=require('node:assert/strict');
-const {compare,staticLinks,staticForms,FORMAT}=require('../lib/php-local-static-export.cjs');
+const {compare,staticLinks,staticForms,staticSeo,FORMAT}=require('../lib/php-local-static-export.cjs');
 const site={siteId:'a-site',pages:[{id:'home',path:'/'}]};
 const html=body=>'<html><head><title>Home</title><meta name="description" content="About us"></head><body><main><h1>Our service</h1><p>'+body+'</p></main></body></html>';
 const snap={siteId:'a-site',pages:[{id:'home',path:'/',html:html('Hello')}]};
@@ -78,4 +78,21 @@ assert.ok(wrongCollector.findings.some(x=>x.code==='php-export:static-form-actio
 const badHmac=staticForms(fsite,new Map([['/',{html:html('Hello').replace('</main>',formMarkup('bad')+'</main>')}]]),collector,4);
 assert.ok(badHmac.findings.some(x=>x.code==='php-export:static-form-token-marker'));
 assert.ok(!JSON.stringify(badHmac).includes('a'.repeat(64)));
+
+const seoSite={siteId:'a-site',language:'ru',assets:[],pages:[{
+ id:'home',path:'/',sections:[],seo:{robots:'index'}}]};
+const seoHtml='<html lang="ru"><head><title>Home</title>'+
+ '<link rel="canonical" href="https://example.org/">'+
+ '<meta property="og:url" content="https://example.org/">'+
+ '</head><body><main><h1>Home</h1></main></body></html>';
+const checkedSeo=staticSeo(seoSite,new Map([['/',{html:seoHtml}]]),'https://example.org');
+assert.equal(checkedSeo.findings.length,0);
+const oldSeo=staticSeo(seoSite,new Map([['/',{
+ html:seoHtml.replace('https://example.org/','https://other.org/').replace(
+ '<title>Home</title>','<title>Home</title><meta name="robots" content="noindex">')
+}]]),'https://example.org');
+assert.ok(oldSeo.findings.some(x=>x.code==='php-export:static-canonical-drift'));
+assert.ok(oldSeo.findings.some(x=>x.code==='php-export:static-robots-meta-drift'));
+assert.ok(staticSeo(seoSite,new Map([['/',{html:seoHtml}]]),null).findings
+ .some(x=>x.code==='php-export:static-public-origin-not-configured'&&x.severity==='warning'));
 console.log('Static export + localhost PHP parity focused smoke PASS');
