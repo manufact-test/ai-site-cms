@@ -302,7 +302,19 @@ async function execute(){
     Object.defineProperty(input,'files',{configurable:true,value:selected});
     input.dispatchEvent(new Event('change',{bubbles:true}));
   },uploaded);
-  await page.locator('#server-approved-review-confirm').waitFor({timeout:20000});
+  try{
+    await page.locator('#server-approved-review-confirm').waitFor({timeout:20000});
+  }catch(error){
+    const diagnostic=await page.evaluate(()=>({
+      toast:document.querySelector('#toast')?.textContent,
+      status:document.querySelector('#server-status')?.textContent,
+      isBusy:document.querySelector('#server-approved-import')?.disabled,
+      review:!!document.querySelector('#server-approved-review'),
+      site:window.Stage3Editor?.getSite()?.siteId
+    }));
+    throw Error('Approved site recovery preflight refused: '+JSON.stringify(diagnostic)+
+      ' · page errors: '+JSON.stringify(errors)+' · '+String(error).slice(0,180));
+  }
   assert.match(await page.locator('#server-approved-review-confirm').innerText(),/Продолжить/);
   assert.equal(await page.locator('#server-approved-review-confirm').isDisabled(),true,
     'Recovery from a new tab demands distinct owner acknowledgement');
