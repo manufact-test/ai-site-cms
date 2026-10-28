@@ -607,7 +607,7 @@ test('media library: alt, global replacement, protected detach, undo and rich me
   refuses(()=>step({action:'renameAsset',assetId:next.id,alt:'A\nB'}),'Unsafe control text rejected');
   const bad=same(d.current);bad.assets[0].alt='Bad\u0000alt';
   refuses(()=>sdk.validateSite(bad,manifests),'No control characters in image descriptions');
-  const invalid=same(site);invalid.pages[0].sections.at(-1).items[0].values['content.media']='asset-another-site';
+  const invalid=same(site);invalid.pages[0].sections.find(x=>x.component==='photo-gallery').items[0].values['content.media']='asset-another-site';
   refuses(()=>sdk.validateSite(invalid,manifests),'No foreign image references in partner logos');
 });
 test('intrinsic image dimensions are optional for legacy assets and strict for new raster assets',()=>{
