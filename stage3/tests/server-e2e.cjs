@@ -1994,6 +1994,49 @@ async function stop(){
   assert.equal(videoExport.status,0,videoExport.stderr);
   assert.equal(fs.readFileSync(path.join(videoOut,'assets',videoAsset.id+'.mp4')).toString('hex'),
     videoBytes.toString('hex'));
+  // A standalone PHP customer site must support actual MP4 seeking, unlike
+  // the historical readfile() implementation that sent the entire video.
+  const playable=path.join(dbdir,'independent-php-video');
+  const compiled=spawnSync('node',['stage3/runtime-export/bin/build.cjs',videoOut,'php',playable],
+    {cwd:root,encoding:'utf8'});
+  assert.equal(compiled.status,0,compiled.stderr);
+  const playablePort=await port(),docRoot=path.join(playable,'public');
+  const independent=spawn('php',['-S','127.0.0.1:'+playablePort,'-t',docRoot,
+    path.join(docRoot,'index.php')],{cwd:root,env,stdio:['ignore','ignore','pipe']});
+  try{
+    const visitor='http://127.0.0.1:'+playablePort;
+    let started=false;
+    for(let n=0;n<45;n++){
+      if(independent.exitCode!==null)break;
+      try{if((await fetch(visitor+'/')).status===200){started=true;break;}}catch{}
+      await new Promise(resolve=>setTimeout(resolve,60));
+    }
+    assert.ok(started,'Independent PHP media origin is responsive');
+    const route=visitor+'/assets/'+videoAsset.id+'.mp4';
+    const mediaHead=await fetch(route,{method:'HEAD'});
+    assert.equal(mediaHead.status,200);
+    assert.equal(mediaHead.headers.get('content-length'),String(videoBytes.length));
+    assert.equal(mediaHead.headers.get('accept-ranges'),'bytes');
+    const mediaRange=await fetch(route,{headers:{Range:'bytes=8-23'}});
+    assert.equal(mediaRange.status,206);
+    assert.equal(mediaRange.headers.get('content-range'),'bytes 8-23/'+videoBytes.length);
+    assert.deepEqual(Buffer.from(await mediaRange.arrayBuffer()),videoBytes.subarray(8,24));
+    const suffix=await fetch(route,{headers:{Range:'bytes=-12'}});
+    assert.equal(suffix.status,206);
+    assert.deepEqual(Buffer.from(await suffix.arrayBuffer()),videoBytes.subarray(-12));
+    const check=await fetch(route,{headers:{'if-none-match':'"'+videoHash+'"'}});
+    assert.equal(check.status,304,'Exact unchanged immutable media returns 304');
+    const multi=await fetch(route,{headers:{Range:'bytes=0-3,8-12'}});
+    assert.equal(multi.status,416,'Multiple ranges are rejected');
+    const ifRange=await fetch(route,{headers:{Range:'bytes=0-3','If-Range':'"outdated"'}});
+    assert.equal(ifRange.status,200,'Stale If-Range falls back to full resource');
+    assert.deepEqual(Buffer.from(await ifRange.arrayBuffer()),videoBytes);
+  }finally{
+    if(independent.exitCode===null){
+      const exited=new Promise(resolve=>independent.once('exit',resolve));
+      independent.kill('SIGTERM');await exited;
+    }
+  }
   const staticVideoHtml=fs.readFileSync(path.join(videoOut,'index.html'),'utf8');
   assert.match(staticVideoHtml,new RegExp('src="/assets/'+videoAsset.id+'[.]mp4" type="video/mp4"'));
   const videoBackup=(await request('GET',designEndpoint+'/backup')).body;
