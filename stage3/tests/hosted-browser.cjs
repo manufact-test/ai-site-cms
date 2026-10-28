@@ -1328,15 +1328,17 @@ async function execute(){
   };
   walk(folder);
   await page.evaluate(entries=>{
-    const list=new DataTransfer();
-    for(const entry of entries){
+    // Assign an array of native File objects without DataTransfer cloning them.
+    // webkitRelativePath is provided by the OS directory picker; copying files
+    // through DataTransfer may strip that browser-maintained property.
+    const selected=entries.map(entry=>{
       const bytes=Uint8Array.from(atob(entry.base64),char=>char.charCodeAt(0));
       const file=new File([bytes],entry.name);
       Object.defineProperty(file,'webkitRelativePath',{value:entry.relative});
-      list.items.add(file);
-    }
+      return file;
+    });
     const input=document.querySelector('#server-approved-folder');
-    input.files=list.files;
+    Object.defineProperty(input,'files',{configurable:true,value:selected});
     input.dispatchEvent(new Event('change',{bubbles:true}));
   },uploaded);
   try{
