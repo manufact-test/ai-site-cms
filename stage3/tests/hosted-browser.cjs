@@ -1306,8 +1306,8 @@ async function execute(){
   const lockFile=path.join(folder,'handoff.json');
   const descriptor=JSON.parse(fs.readFileSync(lockFile,'utf8'));
   const filePaths=[...Object.values(descriptor.files),
-    ...external.assets.flatMap(asset=>[asset.src.replace(/^\/assets\//,'assets/'),
-      ...(asset.variants||[]).map(v=>v.src.replace(/^\\/assets\\//,'assets/'))])];
+    ...external.assets.flatMap(asset=>[asset.src.slice(1),
+      ...(asset.variants||[]).map(v=>v.src.slice(1))])];
   descriptor.format='manufact-approved-site-handoff-v2';
   descriptor.integrity={algorithm:'sha256',files:Object.fromEntries(filePaths.map(name=>[
     name,require('node:crypto').createHash('sha256')
