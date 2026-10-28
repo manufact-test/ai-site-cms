@@ -127,6 +127,8 @@ function snapshotAudit(snapshot){
  const pages=snapshot.pages,paths=new Map(),ids=new Set(),issues=[];
  if(snapshot.completeness!==undefined&&!['partial','complete'].includes(snapshot.completeness))
   throw Error('Invalid snapshot completeness');
+ if(snapshot.sitemapCompleteness!==undefined&&(!['partial','complete'].includes(snapshot.sitemapCompleteness)||!Array.isArray(snapshot.sitemapPaths)))
+  throw Error('Invalid sitemap completeness or missing sitemapPaths');
  const complete=snapshot.completeness==='complete';
  for(const p of pages){
   if(!p||typeof p.id!=='string'||!/^[a-z][a-z0-9-]{2,79}$/.test(p.id)||
@@ -176,7 +178,7 @@ function snapshotAudit(snapshot){
   if(title){const k=normalize(title);if(titles.has(k))issues.push(issue('html:duplicate-title','warning',p.id,p.path,'HTML title duplicates '+titles.get(k)+'.'));else titles.set(k,p.path);}
   for(const href of links){
    if(!href||href.startsWith('#')||href.startsWith('//'))continue;
-   let dest;try{const u=new URL(href,'https://snapshot.invalid');if(u.host!=='snapshot.invalid')continue;dest=u.pathname;}catch{continue;}
+   let dest;try{const u=new URL(href,'https://snapshot.invalid'+p.path);if(u.origin!=='https://snapshot.invalid')continue;dest=u.pathname;}catch{continue;}
    if(!paths.has(dest))issues.push(issue(complete?'html:broken-link':'html:target-not-in-snapshot',
     complete?'error':'recommendation',p.id,p.path,
     complete?'Internal link target '+dest+' is missing from the declared complete export.':

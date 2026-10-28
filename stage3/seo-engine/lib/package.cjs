@@ -8,6 +8,7 @@ const {review:reviewHtml}=require('./html-evidence.cjs');
 const {review:reviewViewports}=require('./viewport-evidence.cjs');
 const {compare:compareSite}=require('./regression.cjs');
 const {compare:compareHtml}=require('./parity.cjs');
+const {review:reviewPublication}=require('./publication-integrity.cjs');
 const {propose}=require('./handoff.cjs');
 const {work}=require('./remediation.cjs');
 const {assess}=require('./release-review.cjs');
@@ -27,6 +28,7 @@ function build(site,manifests,blueprint,options={}){
  const viewports=options.viewports?reviewViewports(options.viewports,plan):null;
  const regression=options.baselineSite?compareSite(options.baselineSite,site,manifests,plan):null;
  const published=options.snapshot?compareHtml(site,plan,options.snapshot):null;
+ const publication=options.snapshot?reviewPublication(site,options.snapshot):null;
  const handoff=propose(site,manifests,plan);
  const backlog=work(site,manifests,plan,options);
  const release=assess(site,manifests,plan,options,backlog);
@@ -56,7 +58,7 @@ function build(site,manifests,blueprint,options={}){
  return {format:FORMAT,version:1,siteId:site.siteId,readOnly:true,
   contract:acceptedFormats,coverage,
   blueprintReview:architecture,siteAudit:audit,
-  htmlEvidence:evidence,htmlParity:published,deviceEvidence:viewports,
+  htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
   regression,handoff,backlog,release,nextActions,
   markdownHandoff:renderMarkdown(backlog,release),
   integrationOrder:['verified-owner-facts','approved-prototypes-and-blueprint',

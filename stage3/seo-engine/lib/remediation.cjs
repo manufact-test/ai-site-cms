@@ -8,6 +8,7 @@ const {compare}=require('./parity.cjs');
 const HTML=require('./html-evidence.cjs');
 const VIEWPORT=require('./viewport-evidence.cjs');
 const REGRESSION=require('./regression.cjs');
+const PUBLICATION=require('./publication-integrity.cjs');
 const FORMAT='manufact-seo-remediation-v1';
 const priorityRank={P0:0,P1:1,P2:2,P3:3};
 const phaseOrder={'verify-facts':0,'plan-approval':1,'developer-work':2,'cms-review':3,'validation':4};
@@ -44,6 +45,7 @@ function work(site,manifests,blueprint,options={}){
  const htmlAudit=snapshot?snapshotAudit(snapshot):null;
  const parity=snapshot?compare(site,plan,snapshot):null;
  const htmlEvidence=snapshot?HTML.review(snapshot,plan):null;
+ const publicationIntegrity=snapshot?PUBLICATION.review(site,snapshot):null;
  const deviceEvidence=options.viewports?VIEWPORT.review(options.viewports,plan):null;
  const regression=options.baselineSite?REGRESSION.compare(options.baselineSite,site,manifests,plan):null;
  const pagePaths=new Map([...plan.pages,...site.pages].map(p=>[p.id,p.path]));
@@ -166,6 +168,7 @@ function work(site,manifests,blueprint,options={}){
  if(htmlAudit)for(const x of htmlAudit.issues)issueTask(x,'html-snapshot');
  if(parity)for(const x of parity.findings)issueTask(x,'publication-parity');
  if(htmlEvidence)for(const x of htmlEvidence.findings)issueTask(x,'html-deep');
+ if(publicationIntegrity)for(const x of publicationIntegrity.findings)issueTask(x,'publication-integrity');
  if(deviceEvidence)for(const x of deviceEvidence.findings)issueTask(x,'viewport-capture');
  if(regression){
   for(const x of regression.introduced)issueTask({...x,code:'regression:'+x.code},'site-regression');
@@ -209,6 +212,7 @@ function work(site,manifests,blueprint,options={}){
   sourceReports:{auditIssueCount:audit.issues.length,htmlIssueCount:htmlAudit?.issues.length??null,
    parityFindingCount:parity?.findings.length??null,
    deepHtmlIssueCount:htmlEvidence?.findings.length??null,
+   publicationIntegrityFindingCount:publicationIntegrity?.findings.length??null,
    viewportFindingCount:deviceEvidence?.findings.length??null,
    regressionNewFindings:regression?.introduced.length??null,
    regressionCriticalReviewItems:regression?.summary.criticalReviewItems??null},

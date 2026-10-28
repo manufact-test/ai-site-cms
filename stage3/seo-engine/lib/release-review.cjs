@@ -21,6 +21,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const dangerousMarkup=find(t=>t.sources.some(s=>s.code==='evidence:unverified-schema-published'));
  const regression=options.baselineSite?REGRESSION.compare(options.baselineSite,site,manifests,blueprint):null;
  const fragmentProblems=find(t=>t.sources.some(s=>s.code==='evidence:broken-fragment'));
+ const sitemapProblems=find(t=>t.sources.some(s=>['publication:sitemap-noindex','publication:sitemap-indexable-missing'].includes(s.code)));
+ const publicationReview=find(t=>t.sources.some(s=>s.code?.startsWith('publication:')&&!['publication:sitemap-noindex','publication:sitemap-indexable-missing'].includes(s.code)));
  if(regression?.summary.criticalReviewItems)add(blockers,'new-critical-regressions',
   'Review new severe SEO regressions since prior Site v1 version',
   'New errors or index-to-noindex changes require explicit approval or repair before release.',
@@ -28,6 +30,12 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(dangerousMarkup.length)add(blockers,'published-unverified-structured-data',
   'Review published structured data based on unverified facts',
   'A JSON-LD type appears in captured HTML while its associated blueprint evidence remains unverified. Remove or verify actual claims before release.',dangerousMarkup);
+ if(sitemapProblems.length)add(blockers,'sitemap-indexation-integrity',
+  'Resolve conflicting sitemap and Site v1 indexation evidence',
+  'The supplied sitemap lists noindex pages, or an explicitly complete enumeration omits indexable pages; verify publication source and fix before release.',sitemapProblems);
+ if(publicationReview.length)add(reviews,'publication-artifact-review',
+  'Review static canonical, sitemap route and robots policy observations',
+  'Confirm the actual deployment host, mount and HTTP artifacts; static export alone cannot certify crawler access.',publicationReview);
  if(fragmentProblems.length)add(reviews,'broken-fragments',
   'Review unresolved fragment targets in supplied HTML',
   'The captured target page has no matching HTML id; partial capture and runtime-generated anchors require verification.',fragmentProblems);

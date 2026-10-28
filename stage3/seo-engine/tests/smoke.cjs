@@ -276,6 +276,48 @@ try{
  const staleReview=JSON.parse(good('triage',{site,blueprint:bp,snapshot:htmlSite,decisions:triageFile}));
  assert.equal(staleReview.summary.approved,0);
  assert.equal(staleReview.summary.stale,1);
+ // Publication-integrity: route-based sitemap evidence, honest completeness, and relative links.
+ const PUBLISH=require('../lib/publication-integrity.cjs');
+ const comprehensive=JSON.parse(fs.readFileSync(htmlSite,'utf8'));
+ comprehensive.sitemapCompleteness='complete';
+ const cleanIntegrity=PUBLISH.review(original,comprehensive);
+ assert.deepEqual(cleanIntegrity.findings,[]);
+ const indexDrift=structuredClone(original);
+ indexDrift.pages[1].seo.robots='noindex';
+ assert.ok(PUBLISH.review(indexDrift,comprehensive).findings.some(x=>x.code==='publication:sitemap-noindex'));
+ const incompleteMap=structuredClone(comprehensive);
+ incompleteMap.sitemapPaths=['/'];
+ assert.ok(PUBLISH.review(original,incompleteMap).findings.some(x=>x.code==='publication:sitemap-indexable-missing'));
+ delete incompleteMap.sitemapCompleteness;
+ assert.ok(!PUBLISH.review(original,incompleteMap).findings.some(x=>x.code==='publication:sitemap-indexable-missing'));
+ assert.ok(PUBLISH.wildcardRootBlock('User-agent: *\nDisallow: /\n'));
+ assert.ok(!PUBLISH.wildcardRootBlock('User-agent: *\nDisallow: /\nAllow: /\n'));
+ const integrityCli=JSON.parse(good('publication-integrity',{site,blueprint:bp,snapshot:htmlSite}));
+ assert.equal(integrityCli.format,'manufact-seo-publication-integrity-v1');
+ const integrityBundle=JSON.parse(good('review-bundle',{site,blueprint:bp,snapshot:htmlSite}));
+ assert.equal(integrityBundle.publicationIntegrity.format,'manufact-seo-publication-integrity-v1');
+ const brokenMapFile=path.join(tmp,'missing.sitemap.json');
+ fs.writeFileSync(brokenMapFile,JSON.stringify(incompleteMap));
+ const noMapPlan=JSON.parse(good('remediation-plan',{site,blueprint:bp,snapshot:brokenMapFile}));
+ assert.ok(noMapPlan.sourceReports.publicationIntegrityFindingCount!==null);
+ const noMapGate=JSON.parse(good('release-review',{site,blueprint:bp,snapshot:brokenMapFile}));
+ assert.ok(!noMapGate.blockers.some(x=>x.gateId==='sitemap-indexation-integrity'));
+ incompleteMap.sitemapCompleteness='complete';
+ fs.writeFileSync(brokenMapFile,JSON.stringify(incompleteMap));
+ const absentGate=JSON.parse(good('release-review',{site,blueprint:bp,snapshot:brokenMapFile}));
+ assert.ok(absentGate.blockers.some(x=>x.gateId==='sitemap-indexation-integrity'));
+ const relativeSnapshot={format:'manufact-seo-html-snapshot-v1',completeness:'complete',pages:[
+  {id:'page-root',path:'/',html:'<html><head><title>Root</title></head><body><h1>Root</h1><a href="/help/">Help</a></body></html>'},
+  {id:'page-help',path:'/help/',html:'<html><head><title>Help</title></head><body><h1>Help</h1><a href="more/">More</a></body></html>'},
+  {id:'page-more',path:'/help/more/',html:'<html><head><title>More</title></head><body><h1>More</h1><a href="../">Help</a></body></html>'}
+ ]};
+ const relative=JSON.parse(fs.readFileSync(fixture('normal.snapshot.json'),'utf8'));
+ relative.pages=relativeSnapshot.pages;
+ delete relative.siteId;
+ const {snapshotAudit}=require('../lib/analyze.cjs');
+ assert.ok(!snapshotAudit(relative).issues.some(x=>x.code==='html:broken-link'));
+ const {review:reviewHtml}=require('../lib/html-evidence.cjs');
+ assert.ok(!reviewHtml(relative).findings.some(x=>x.code==='evidence:link-target-outside-snapshot'));
  const unsupported=command('review-bundle',{site,blueprint:bp,unknown:'invalid'});
  assert.notEqual(unsupported.status,0);
  const {inspect:inspectEvidence}=require('../lib/html-evidence.cjs');

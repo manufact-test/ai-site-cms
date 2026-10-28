@@ -98,11 +98,12 @@ function review(snapshot,blueprint=null){
   for(const a of d.anchors){
    const href=a.attrs.href||'';
    if(!href||href==='#')continue;
-   if(/^(?:mailto:|tel:|https?:\/\/|\/\/)/i.test(href))continue;
-   // Javascript/data links are not interpreted as safe navigation.
-   if(!href.startsWith('/')&&!href.startsWith('#'))continue;
-   const [path,hash]=href.startsWith('#')?[p.path,href.slice(1)]:href.split('#',2);
-   const route=path?.split('?')[0]||p.path;
+   // Resolve relative URLs from the CAPTURED page path, not the root origin.
+   // This accepts ./, ../, ?query and #fragment without inventing external targets.
+   let resolved;
+   try{resolved=new URL(href,'https://snapshot.invalid'+p.path);}catch{continue;}
+   if(resolved.origin!=='https://snapshot.invalid')continue;
+   const route=resolved.pathname,hash=resolved.hash.slice(1);
    const target=paths.get(route);
    if(!target){
     add('evidence:link-target-outside-snapshot','recommendation',p,

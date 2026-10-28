@@ -17,6 +17,7 @@ const VIEWPORT=require('../lib/viewport-evidence.cjs');
 const REGRESSION=require('../lib/regression.cjs');
 const PACKAGE=require('../lib/package.cjs');
 const TRIAGE=require('../lib/triage.cjs');
+const PUBLICATION=require('../lib/publication-integrity.cjs');
 function main(argv){
  const [command,...args]=argv;
  const flags={};
@@ -47,6 +48,11 @@ function main(argv){
   // Run existing authoritative Site v1 validation before producing an editorial review.
   out=auditSite(site,manifests(),blueprint).contentReview;
  }
+ else if(command==='publication-integrity'){
+  const site=read('site'),registry=manifests();
+  auditSite(site,registry,flags.blueprint?read('blueprint'):null);
+  out=PUBLICATION.review(site,read('snapshot'));
+ }
  else if(command==='html-parity'){
   const site=read('site'),blueprint=read('blueprint'),snapshot=read('snapshot'),registry=manifests();
   auditSite(site,registry,blueprint);
@@ -75,7 +81,7 @@ function main(argv){
  }
  else if(command==='analyze-html')out=snapshotAudit(read('snapshot'));
  else if(command==='handoff')out=propose(read('site'),manifests(),read('blueprint'));
- else throw Error('Commands: compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | deep-html --snapshot file [--blueprint file] | viewport-parity --viewports file --blueprint file | compare-site --before file --site file --blueprint file | html-parity --site file --blueprint file --snapshot file | review-bundle --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-plan --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-md --site file --blueprint file [--snapshot file] [--viewports file] | release-review --site file --blueprint file [--snapshot file] [--viewports file] | triage --site file --blueprint file --decisions file [--snapshot file] | handoff --site file --blueprint file [--manifests dir]');
+ else throw Error('Commands: compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | deep-html --snapshot file [--blueprint file] | viewport-parity --viewports file --blueprint file | compare-site --before file --site file --blueprint file | html-parity --site file --blueprint file --snapshot file | publication-integrity --site file --snapshot file [--blueprint file] | review-bundle --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-plan --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-md --site file --blueprint file [--snapshot file] [--viewports file] | release-review --site file --blueprint file [--snapshot file] [--viewports file] | triage --site file --blueprint file --decisions file [--snapshot file] | handoff --site file --blueprint file [--manifests dir]');
  process.stdout.write(typeof out==='string'?out+'\n':JSON.stringify(out,null,2)+'\n');
 }
 try{main(process.argv.slice(2));}catch(e){process.stderr.write('SEO Engine: '+e.message+'\n');process.exitCode=1;}

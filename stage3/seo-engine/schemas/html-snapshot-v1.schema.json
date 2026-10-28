@@ -58,6 +58,13 @@
     "robotsTxt": {
       "type": "string",
       "maxLength": 250000
+    },
+    "sitemapCompleteness": {
+      "enum": [
+        "partial",
+        "complete"
+      ],
+      "description": "Only complete permits treating an omitted indexable Site v1 route as missing from sitemapPaths. Defaults to partial-or-unknown."
     }
   }
 }
