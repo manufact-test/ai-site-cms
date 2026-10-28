@@ -136,10 +136,10 @@ async function stop(){
   assert.match(studioAsset.headers.get('cache-control'),/no-cache/);
   assert.equal(studioAsset.headers.get('vary'),'Accept-Encoding');
   assert.ok((await studioAsset.text()).includes('Stage3'),'Studio script is served');
-  const unchanged=await fetch(origin+'/bundle.js',{headers:{
+  const editorUnchanged=await fetch(origin+'/bundle.js',{headers:{
     'accept-encoding':'gzip','if-none-match':studioEtag
   }});
-  assert.equal(unchanged.status,304,'same encoded editor script revalidates');
+  assert.equal(editorUnchanged.status,304,'same encoded editor script revalidates');
   const identity=await fetch(origin+'/bundle.js',{headers:{'accept-encoding':'identity'}});
   assert.equal(identity.status,200);
   assert.equal(identity.headers.get('content-encoding'),null);
