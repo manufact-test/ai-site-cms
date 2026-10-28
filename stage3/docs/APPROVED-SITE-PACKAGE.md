@@ -280,3 +280,28 @@ The typed \`designGraph\` for each \`custom-section@1.0.0\` can now represent ac
 Authoring example: a \`table\` containing two \`table-row\` objects, each with two \`table-cell\` objects \`{"id":"...","type":"table-cell","text":"...","styles":{}}\`. A \`gallery\` contains regular \`image\` nodes with \`assetId\` and \`alt\`, bound to \`site.assets\`; a \`quote\` is \`{"id":"...","type":"quote","text":"...","cite":"...","styles":{}}\`. Each ID must satisfy the existing graph uniqueness constraints. A real client comparison should use verified source values, not example headings or speculative numbers.
 
 Studio workbench and full Design Graph editor expose authoring and per-device style controls; content-wide find/replace can update visible table cells, captions, gallery labels, quote text and attribution, and internal links remain included in the existing quality review. All changes are still **draft-first**, manually saved and only published by a separate owner action. Source approval image parity remains a human gate; schema compliance is not proof that the authored design matches the approved mockups.
+
+
+## Site-owned responsive artwork and image actions
+
+The approved-site Design Graph vocabulary now supports **real, independently chosen artwork per breakpoint** without injecting CSS or external URLs. On a content node such as \`container\`, \`heading\`, \`text\`, \`button\`, \`link\`, \`quote\`, \`list\`, \`gallery\` or \`disclosure\`, the optional \`backgroundMedia\` is a *closed* object:
+
+\`\`\`json
+{
+  "assetId": "asset-hero-desktop",
+  "tabletAssetId": "asset-hero-tablet",
+  "mobileAssetId": "asset-hero-mobile",
+  "size": "cover",
+  "positionX": 50,
+  "positionY": 40,
+  "overlay": {"color": "@foreground", "opacity": 35}
+}
+\`\`\`
+
+All asset IDs must reference raster JPEG/PNG/WebP images already present in the **same site's uploaded and SHA-256-verified media inventory**. These are standalone approved originals, not the automatic 360/720/1200 responsive derivatives of one image. Desktop \`assetId\` is required; omission of \`tabletAssetId\` inherits desktop and omission of \`mobileAssetId\` inherits the latest tablet/desktop image. Breakpoints remain 900/600 CSS pixels. The original file is never overwritten for one viewport. \`size\` is \`cover\` or \`contain\`; \`positionX\`/\`positionY\` are 0–100 percentages; \`overlay\` is optional and uses a valid site color token or six-digit HEX plus opacity 0–90%. No CSS URLs, remote assets, unvalidated SVGs, HTML, JavaScript or unrestricted styling are allowed. A background image and \`styles.gradient\` on the same node cannot be combined; Studio explicitly clears the conflicting gradient on background selection. Backgrounds are not allowed on native \`image\`, \`video\`, \`icon\`, \`divider\`, \`table-row\` or \`table-cell\` nodes.
+
+For regular \`image\` nodes, optional \`href\` enables a clickable image, using the same safe site-relative, HTTPS, simple \`mailto:\` and international \`tel:\` allowlist as ordinary typed links and buttons. A missing \`href\` renders a plain noninteractive image. Native \`<a>\` semantics, media \`alt\`, scoped link URLs and gallery swipe behavior are preserved. Both the central link-rewrite tool and browser/PHP route audit include image links.
+
+Existing Design Graph \`styles\` now permit \`filterPreset\` (\`none\`, \`grayscale\`, \`sepia\`, \`contrast\`, \`vibrant\`) and \`borderStyle\` (\`solid\`, \`dashed\`, \`dotted\`, \`double\`). A typed \`states.active\` layer provides touch/pressed visual feedback; its allowed properties are constrained to the small existing interaction-style subset. The Studio full editor exposes all these controls, and its visual workbench permits one-click background choice and editing the linked image action. The site media inventory, draft media replacement, PHP media maintenance and unused-media deletion **all retain** every referenced desktop/tablet/mobile background. Imported images receive immutable server IDs recursively; no raw asset URL is trusted from the package.
+
+This is a *capability* for realizing an individual approved design, not evidence of visual fidelity. The owner's desktop/tablet/mobile PHP comparison and approval gate remain mandatory. Background photographs must have adequate source dimensions and sufficient contrast with their actual text; an overlay does not automatically prove readability or accessibility.
