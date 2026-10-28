@@ -23,6 +23,7 @@ final class SiteRepository
     use VideoUploads;
     use AccessControl;
     use Licenses;
+    use FormRoutes;
     use FormDelivery;
     use LeadWorkflow;
     use CrossSiteTransfer;
