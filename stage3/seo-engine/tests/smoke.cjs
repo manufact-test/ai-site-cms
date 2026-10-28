@@ -318,6 +318,13 @@ try{
  assert.ok(!snapshotAudit(relative).issues.some(x=>x.code==='html:broken-link'));
  const {review:reviewHtml}=require('../lib/html-evidence.cjs');
  assert.ok(!reviewHtml(relative).findings.some(x=>x.code==='evidence:link-target-outside-snapshot'));
+ // Ignore inert template/script markup in the baseline audit and honor wrapping labels and image link names.
+ const trickyHtml={format:'manufact-seo-html-snapshot-v1',completeness:'complete',pages:[{
+  id:'page-demo',path:'/',html:'<html><head><title>Actual page title</title><script>var fake = \'<title>Fake title</title><a href="/phantom/">Link</a>\';</script></head><body><h1>Actual H1</h1><a href="/"><img alt="Go home" src="/image.png"></a><label>Email <input name="email"></label><template><a href="/ghost/">Ghost</a></template></body></html>'
+ }]};
+ assert.ok(!snapshotAudit(trickyHtml).issues.some(x=>['html:broken-link','html:unlabeled-link'].includes(x.code)));
+ assert.equal(require('../lib/parity.cjs').readHead(trickyHtml.pages[0].html).title,'Actual page title');
+ assert.equal(require('../lib/html-evidence.cjs').inspect(trickyHtml.pages[0].html).unlabelledControls.length,0);
  const unsupported=command('review-bundle',{site,blueprint:bp,unknown:'invalid'});
  assert.notEqual(unsupported.status,0);
  const {inspect:inspectEvidence}=require('../lib/html-evidence.cjs');

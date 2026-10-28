@@ -29,7 +29,12 @@ function inspect(html){
  const labels=list('label').map(x=>x.attrs.for).filter(Boolean);
  const forms=list('form').length;
  const controls=list('input').concat(list('textarea'),list('select')).filter(x=>!['hidden','submit','reset','button','image'].includes((x.attrs.type||'').toLowerCase()));
- const unlabelled=controls.filter(x=>!x.attrs['aria-label']&&!x.attrs['aria-labelledby']&&!(x.attrs.id&&labels.includes(x.attrs.id))&&!(x.attrs.title));
+ // A label wrapping a control is a valid accessible label without a for/id pair.
+ const wrappingLabels=[...body.matchAll(/<label\b[^>]*>[\s\S]*?<\/label\s*>/gi)]
+  .map(m=>[m.index,m.index+m[0].length]);
+ const unlabelled=controls.filter(x=>!x.attrs['aria-label']&&!x.attrs['aria-labelledby']&&
+  !(x.attrs.id&&labels.includes(x.attrs.id))&&!(x.attrs.title)&&
+  !wrappingLabels.some(([start,end])=>x.offset>start&&x.offset<end));
  const metas=list('meta'),links=list('link');
  const pickMeta=(key,value)=>metas.filter(x=>(x.attrs[key]||'').toLowerCase()===value);
  const canonical=links.filter(x=>(x.attrs.rel||'').toLowerCase().split(/\s+/).includes('canonical'));
@@ -86,7 +91,7 @@ function review(snapshot,blueprint=null){
   if(!d.viewport.length)add('evidence:missing-viewport','recommendation',p,'No viewport meta in captured HTML; inspect mobile layout configuration.');
   if(d.canonicals.length>1)add('evidence:multiple-canonicals','warning',p,'More than one canonical link declaration found.');
   if(d.robots.length>1&&new Set(d.robots.map(norm)).size>1)add('evidence:conflicting-robots','warning',p,'Conflicting meta robots directives are present.');
-  if(d.unlabelledControls.length)add('evidence:unlabelled-form-controls','recommendation',p,'Some form controls have no explicit external accessible label identified by static inspection; wrapping labels, JS and accessible-name computation are not detected.',{controls:d.unlabelledControls.slice(0,12)});
+  if(d.unlabelledControls.length)add('evidence:unlabelled-form-controls','recommendation',p,'Some form controls have no explicit external accessible label identified by static inspection; JS and full accessible-name computation are not detected.',{controls:d.unlabelledControls.slice(0,12)});
   for(const error of d.structuredDataErrors)add('evidence:invalid-json-ld','warning',p,'JSON-LD script could not be parsed as bounded JSON.',error);
   if(d.structuredDataTypes.length){
    for(const type of d.structuredDataTypes){

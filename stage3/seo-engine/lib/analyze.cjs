@@ -138,15 +138,16 @@ function snapshotAudit(snapshot){
  }
  const titles=new Map(),incoming=new Map(pages.map(p=>[p.id,0]));
  for(const p of pages){
-  const ts=tokenize(p.html),headings=[],links=[];let title='',description='',robots='',canonical='',imageCount=0;
+  const source=p.html.replace(/<!--[\s\S]*?-->/g,'').replace(/<(script|style|textarea|template|svg)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
+  const ts=tokenize(source),headings=[],links=[];let title='',description='',robots='',canonical='',imageCount=0;
   const clean=s=>s.replace(/<[^>]+>/g,' ').replace(/&(?:amp|lt|gt|quot|nbsp);/gi,' ').replace(/\s+/g,' ').trim();
   for(let i=0;i<ts.length;i++){
    const t=ts[i];if(t.closing)continue;
    if(/^h[1-6]$/.test(t.tag)){
     const end=ts.slice(i+1).find(n=>n.closing&&n.tag===t.tag);
-    headings.push({level:Number(t.tag[1]),text:clean(end?p.html.slice(t.end,end.start):''),start:t.start});
+    headings.push({level:Number(t.tag[1]),text:clean(end?source.slice(t.end,end.start):''),start:t.start});
    }
-   if(t.tag==='title'){const end=ts.slice(i+1).find(n=>n.closing&&n.tag==='title');title=clean(end?p.html.slice(t.end,end.start):'');}
+   if(t.tag==='title'){const end=ts.slice(i+1).find(n=>n.closing&&n.tag==='title');title=clean(end?source.slice(t.end,end.start):'');}
    if(t.tag==='meta'){
     const n=(t.attrs.name||'').toLowerCase();
     if(n==='description')description=t.attrs.content||'';
@@ -160,7 +161,9 @@ function snapshotAudit(snapshot){
    }
    if(t.tag==='a'){
     const end=ts.slice(i+1).find(n=>n.closing&&n.tag==='a');
-    const label=clean(end?p.html.slice(t.end,end.start):'')||t.attrs['aria-label']||'';
+    const linkInner=end?source.slice(t.end,end.start):'';
+    const imageLabel=tokenize(linkInner).filter(x=>!x.closing&&x.tag==='img').map(x=>x.attrs.alt||'').filter(Boolean).join(' ');
+    const label=clean(linkInner)||t.attrs['aria-label']||t.attrs['aria-labelledby']||imageLabel;
     if(!label.trim())issues.push(issue('html:unlabeled-link','warning',p.id,p.path,'Link has no discernible text; verify accessible name.'));
     else if(/^(click here|read more|here|подробнее|сюда)$/i.test(label.trim()))issues.push(issue('html:generic-anchor','recommendation',p.id,p.path,'Context-free anchor "'+label.slice(0,60)+'" may be unclear.'));
     links.push(t.attrs.href||'');
