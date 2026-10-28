@@ -40,6 +40,12 @@ function inlineAllowed(text,nonce,sources){
  if(typeof nonce==='string'&&nonce&&sources.includes("'nonce-"+nonce+"'"))return true;
  return false;
 }
+function attributeAllowed(text,sources){
+ if(sources===null)return true;
+ if(sources.includes("'unsafe-inline'")&&
+    !sources.some(x=>/^'(?:nonce-|sha256-|sha384-|sha512-)/.test(x)))return true;
+ return sources.includes("'unsafe-hashes'")&&sources.includes(sha(text));
+}
 function formAllowed(action,host,policy){
  const sources=tokens(policy,'form-action');
  if(sources===null)return true; // form-action has no default-src fallback.
@@ -109,16 +115,14 @@ function review(siteId,page,html,headers,origin){
   if(Object.hasOwn(a,'style')&&a.style){
    detail.inlineStyleAttributeCount++;
    const policySources=tokens(policy,'style-src-attr','style-src','default-src');
-   if(!inlineAllowed(a.style,null,policySources)&&
-      !(policySources?.includes("'unsafe-hashes'")&&policySources.includes(sha(a.style))))
+   if(!attributeAllowed(a.style,policySources))
     add('inline-style-attribute-blocked','error',
      'Public CSP blocks inline style attributes used in the static design graph or responsive layout.');
   }
   for(const [key,value] of Object.entries(a).filter(([key])=>/^on[a-z]{2,}$/.test(key))){
    detail.inlineEventHandlerCount++;
    const policySources=tokens(policy,'script-src-attr','script-src','default-src');
-   if(!inlineAllowed(value,null,policySources)&&
-      !(policySources?.includes("'unsafe-hashes'")&&policySources.includes(sha(value))))
+   if(!attributeAllowed(value,policySources))
     add('inline-event-handler-blocked','error',
      'Public CSP prevents inline DOM event handlers required by static page interactions.');
   }
@@ -136,4 +140,4 @@ function review(siteId,page,html,headers,origin){
   jsAndCssExecutableUnverified:true,
   limitations:'CSP source-expression parsing is conservative; browser execution and live form POST are not tested.'});
 }
-module.exports=Object.freeze({FORMAT,parse,review,inlineAllowed,formAllowed});
+module.exports=Object.freeze({FORMAT,parse,review,inlineAllowed,attributeAllowed,formAllowed});
