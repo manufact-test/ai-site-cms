@@ -169,7 +169,7 @@ final class DesignGraph
         $count=0;
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','responsiveMedia'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
                 &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell'],true),
@@ -197,6 +197,15 @@ final class DesignGraph
                 foreach([$node['styles']??[],$node['responsive']['tablet']??[],
                     $node['responsive']['mobile']??[]] as $layer)
                     self::check(!array_key_exists('gradient',$layer),'background conflicts with gradient');
+            }
+            if(array_key_exists('responsiveMedia',$node)){
+                self::check($type==='image','device-specific images restricted to image nodes');
+                $m=$node['responsiveMedia'];
+                self::keys($m,['tabletAssetId','mobileAssetId'],$id.'/responsiveMedia');
+                self::check(count($m)>0,'empty device image selection');
+                foreach($m as $assetId)
+                    self::check(is_string($assetId)&&in_array($assets[$assetId]??null,
+                        ['image/png','image/jpeg','image/webp'],true),'invalid device image');
             }
             self::check(($type==='quote'||!array_key_exists('cite',$node))&&
                 ($type!=='quote'||!array_key_exists('cite',$node)||
@@ -551,6 +560,16 @@ final class DesignGraph
                     $attrs=PublicRenderer::responsiveAttrs($asset,$mount,
                         '(max-width:600px) 100vw, (max-width:900px) 50vw, 100vw',$assetBasePath);
                     $img='<img loading="lazy" class="'.$cls.'" src="'.$src.'"'.$attrs.' alt="'.self::h($n['alt']).'">';
+                    if(!empty($n['responsiveMedia'])){
+                        $sources='';
+                        foreach(['mobile'=>600,'tablet'=>900] as $bp=>$max){
+                            $id=$n['responsiveMedia'][$bp.'AssetId']??null;
+                            if($id===null)continue;
+                            $url=self::assetUrl($assetMap[$id],$mount,$assetBasePath);
+                            $sources.='<source media="(max-width:'.$max.'px)" srcset="'.self::h($url).'">';
+                        }
+                        $img='<picture class="cmsdg-picture">'.$sources.$img.'</picture>';
+                    }
                     if(empty($n['href']))return $img;
                     $href=str_starts_with($n['href'],'/')?rtrim($mount,'/').$n['href']:$n['href'];
                     return '<a class="cmsdg-image-action" href="'.self::h($href).'"'.
@@ -569,8 +588,9 @@ final class DesignGraph
             .$scope.' .cmsdg-table th,'.$scope.' .cmsdg-table td{padding:12px 16px;border:1px solid #c6cdd7;text-align:start}'
             .$scope.' .cmsdg-table th{font-weight:700;background:#f2f5f9}'
             .$scope.' .cmsdg-gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 2px;overscroll-behavior-inline:contain}'
-            .$scope.' .cmsdg-gallery>img,'.$scope.' .cmsdg-gallery>a{flex:0 0 min(82%,420px);scroll-snap-align:start;border-radius:10px}'
-            .$scope.' .cmsdg-gallery>a img{width:100%;height:100%;object-fit:cover;border-radius:inherit}'
+            .$scope.' .cmsdg-gallery>img,'.$scope.' .cmsdg-gallery>picture,'.$scope.' .cmsdg-gallery>a{flex:0 0 min(82%,420px);scroll-snap-align:start;border-radius:10px}'
+            .$scope.' .cmsdg-gallery>picture img,'.$scope.' .cmsdg-gallery>a img{width:100%;height:100%;object-fit:cover;border-radius:inherit}'
+            .$scope.' .cmsdg-picture img{max-width:100%;height:auto}'
             .$scope.' .cmsdg-image-action{display:inline-block;max-width:100%}'
             .$scope.' .cmsdg-image-action img{display:block}'
             .$scope.' .cmsdg-quote{margin:12px 0;padding:20px;border-inline-start:4px solid currentColor}'
