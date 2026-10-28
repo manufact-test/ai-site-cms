@@ -180,6 +180,8 @@ function review(site,evidence){
    isExpectedPublicUrl:response.href===expected.href});
  }
  const missing=site.pages.filter(p=>!seen.has(p.id)).map(p=>({pageId:p.id,path:p.path}));
+ for(const p of missing)add('delivery:page-unchecked','recommendation',p.pageId,p.path,
+  'No response was supplied for this Site v1 page; availability and indexation cannot be concluded.');
  const robots=evidence.robots;
  if(robots){
   if(robots.status!==200)add('delivery:robots-status','warning',null,'/robots.txt',

@@ -370,6 +370,11 @@ try{
  const deliveryGate=JSON.parse(good('release-review',{site,blueprint:bp,delivery:deliveryDriftFile}));
  assert.ok(deliveryGate.blockers.some(g=>g.gateId==='captured-delivery-conflict'));
  const deliveryPackage=JSON.parse(good('review-bundle',{site,blueprint:bp,delivery:deliveryDriftFile}));
+ const incompleteDelivery=structuredClone(deliveryBroken);
+ incompleteDelivery.pages=incompleteDelivery.pages.slice(0,1);
+ fs.writeFileSync(deliveryDriftFile,JSON.stringify(incompleteDelivery));
+ const missingDelivery=JSON.parse(good('delivery-review',{site,delivery:deliveryDriftFile}));
+ assert.ok(missingDelivery.findings.some(x=>x.code==='delivery:page-unchecked'&&x.pageId==='page-contact'));
  assert.equal(deliveryPackage.traceability.summary.suppliedHttpPages,2);
  assert.equal(deliveryPackage.deliveryEvidence.coverage.independentlyVerifiedProvenance,false);
  assert.equal(deliveryPackage.release.coverage.callerSuppliedHttpTranscriptReviewed,true);
@@ -466,6 +471,8 @@ try{
  assert.equal(cmsPacket.summary.actualWrites,0);
  assert.ok(cmsPacket.operations.some(x=>x.taskId===task.taskId&&x.application==='existing-cms-manual-field-review'));
  assert.equal(reviewedBundle.cmsChangePacket.summary.eligibleForManualReview,cmsPacket.summary.eligibleForManualReview);
+ assert.match(reviewedBundle.markdownHandoff,/Approved SEO fields for human CMS review/);
+ assert.match(good('cms-change-packet-md',{site,blueprint:bp,snapshot:htmlSite,decisions:triageFile}),/Mandatory lead checks/);
  const workflowPlan=require('../lib/execution-plan.cjs');
  const syntheticBacklog={format:'manufact-seo-remediation-v1',readOnly:true,siteId:plan.siteId,
   tasks:[

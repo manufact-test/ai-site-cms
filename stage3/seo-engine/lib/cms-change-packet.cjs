@@ -108,4 +108,29 @@ function build(site,manifests,blueprint,backlog,decisions=null){
    'Obtain browser, live HTTP, security, mobile and user approval independently.'],
   limitations:'These are guarded source-value proposals, not an executable patch or transaction. Even eligible operations require a human and may already be stale relative to newer CMS saves.'};
 }
-module.exports=Object.freeze({FORMAT,build});
+function markdown(packet){
+ if(!packet||packet.format!==FORMAT||!packet.readOnly)throw Error('Invalid CMS change packet');
+ const safe=x=>String(x??'').replace(/[\x00-\x1f\x7f]/g,' ').replace(/\\/g,'\\\\')
+  .replace(/[<>&*_[\](){}#!|]/g,c=>'\\'+c).replace(/\x60/g,'\\'+String.fromCharCode(96)).slice(0,250);
+ const lines=['# Approved SEO fields for human CMS review','',
+  'Site: '+safe(packet.siteId)+'; current eligible operations: '+packet.operations.length+
+   '; blocked: '+packet.blocked.length+'; pending: '+packet.pending.length+'.','',
+  'These are proposals only. Never paste values without rechecking the saved manual override and exact source value.','',
+  '## Eligible for manual consideration',''];
+ for(const op of packet.operations){
+  lines.push('### '+safe(op.taskId)+' · '+safe(op.field),'',
+   '- Target: '+safe(op.pageId)+(op.sectionId?' / '+safe(op.sectionId):'')+'.',
+   '- Expected current field: '+safe(JSON.stringify(op.expectedBefore))+'.',
+   '- Proposed approved value: '+safe(JSON.stringify(op.proposedAfter))+'.',
+   '- Exact manifest version: '+safe(op.manifestGuard?.version||'page SEO field')+'.',
+   '- Review and edit in existing CMS; Save/Publish, browser and rollback must be confirmed manually.','');
+ }
+ lines.push('## Blocked and pending proposals','');
+ for(const op of [...packet.blocked,...packet.pending])
+  lines.push('- '+safe(op.taskId)+' · '+safe(op.reasonCode)+' (no changes allowed).');
+ lines.push('','## Mandatory lead checks','');
+ for(const item of packet.instructions)lines.push('- [ ] '+safe(item));
+ lines.push('','Read-only handoff. No CMS writes, no deployment authorization.');
+ return lines.join('\n');
+}
+module.exports=Object.freeze({FORMAT,build,markdown});

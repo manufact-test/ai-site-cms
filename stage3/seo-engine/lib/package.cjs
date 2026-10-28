@@ -46,7 +46,7 @@ function build(site,manifests,blueprint,options={}){
  const execution=EXECUTION.compile(backlog,decisions);
  const cmsChangePacket=CMS_PACKET.build(site,manifests,plan,backlog,decisions);
  const declaredOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean);
- const originsAgree=new Set(declaredOrigins).size<=1;
+ const originsAgree=new Set(declaredOrigins.map(x=>new URL(x).href)).size<=1;
  const capturePlan=CAPTURE.build(site,plan,originsAgree?declaredOrigins[0]||null:null);
  const traceability=TRACE.report(site,plan,{
   ...(options.snapshot?{snapshot:options.snapshot}:{}),
@@ -92,7 +92,7 @@ function build(site,manifests,blueprint,options={}){
   regression,handoff,backlog,release,nextActions,
   // Retain the original remediation Markdown first for consumers depending on its header.
   markdownHandoff:renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
-    '\n\n---\n\n'+EXECUTION.markdown(execution),
+    '\n\n---\n\n'+EXECUTION.markdown(execution)+'\n\n---\n\n'+CMS_PACKET.markdown(cmsChangePacket),
   integrationOrder:['verified-owner-facts','approved-prototypes-and-blueprint',
    'existing-site-v1-development','current-manifest-and-override-review',
    'existing-cms-save-and-publish','manual-http-browser-and-three-device-acceptance'],

@@ -29,6 +29,9 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const mediaProblems=find(t=>t.sources.some(s=>['media:resource-status-error','media:resource-mime-mismatch',
   'media:og-image-not-image','media:invalid-og-image-url'].includes(s.code)&&s.severity==='error'));
  const mediaReview=find(t=>t.sources.some(s=>s.code?.startsWith('media:')&&s.severity!=='error'));
+ const suppliedOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean)
+  .map(x=>new URL(x).href);
+ const crossOriginConflict=new Set(suppliedOrigins).size>1;
  const publicationReview=find(t=>t.sources.some(s=>s.code?.startsWith('publication:')&&!['publication:sitemap-noindex','publication:sitemap-indexable-missing'].includes(s.code)));
  if(regression?.summary.criticalReviewItems)add(blockers,'new-critical-regressions',
   'Review new severe SEO regressions since prior Site v1 version',
@@ -37,6 +40,9 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(dangerousMarkup.length)add(blockers,'published-unverified-structured-data',
   'Review published structured data based on unverified facts',
   'A JSON-LD type appears in captured HTML while its associated blueprint evidence remains unverified. Remove or verify actual claims before release.',dangerousMarkup);
+ if(crossOriginConflict)add(blockers,'conflicting-evidence-origins',
+  'Resolve mismatched public origins across supplied HTTP and media evidence',
+  'HTTP and media recordings claim different public origins; select the approved host and mount before relying on the combined report.');
  if(mediaProblems.length)add(blockers,'captured-og-media-conflict',
   'Resolve broken public OG assets, MIME conflicts and invalid OG URLs',
   'The supplied media transcript conflicts with Site v1; verify at the actual host.',mediaProblems);
