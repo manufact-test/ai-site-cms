@@ -2445,9 +2445,10 @@
         return files.get(path);
       };
       const manifestFile=required('handoff.json');
-      if(manifestFile.size<10||manifestFile.size>12000)throw Error('Некорректный handoff.json');
+      if(manifestFile.size<10||manifestFile.size>200000)throw Error('Некорректный handoff.json');
       const handoff=JSON.parse(await manifestFile.text());
-      if(handoff.format!=='manufact-approved-site-handoff-v1'||handoff.status!=='approved'||
+      if(!['manufact-approved-site-handoff-v1','manufact-approved-site-handoff-v2'].includes(handoff.format)||
+        handoff.status!=='approved'||
         typeof handoff.version!=='string'||!/^[a-zA-Z0-9._-]{1,64}$/.test(handoff.version)||
         !handoff.files||typeof handoff.files!=='object')
         throw Error('Требуется версия и статус approved после фактического согласования макетов');
@@ -2485,6 +2486,32 @@
           variants.push({file,width:variant.width,sha256:variant.sha256});
         }
         media.push({id:item.id,original,variants,alt:item.alt});
+      }
+      // Lock v2 to the exact visual evidence, client explanation, source
+      // and all media bytes BEFORE any draft is created or anything is uploaded.
+      if(handoff.format==='manufact-approved-site-handoff-v2'){
+        const lock=handoff.integrity;
+        if(!lock||lock.algorithm!=='sha256'||!lock.files||
+          typeof lock.files!=='object'||Array.isArray(lock.files))
+          throw Error('Пакет v2 не содержит SHA-256 для файлов');
+        const requiredPaths=[refs.site,refs.desktop,refs.tablet,refs.mobile,
+          refs.clientExplanation,refs.implementationSpec];
+        for(const asset of site.assets){
+          requiredPaths.push(asset.src.replace(/^\/assets\//,'assets/'));
+          for(const variant of asset.variants||[])
+            requiredPaths.push(variant.src.replace(/^\/assets\//,'assets/'));
+        }
+        const actual=new Set(requiredPaths),declared=Object.keys(lock.files);
+        if(actual.size!==requiredPaths.length||declared.length!==requiredPaths.length||
+          declared.some(path=>!actual.has(path)))
+          throw Error('Контрольный список файлов не соответствует сайту');
+        for(const filename of requiredPaths){
+          const file=required(filename);
+          const digest=Array.from(new Uint8Array(await crypto.subtle.digest(
+            'SHA-256',await file.arrayBuffer()))).map(n=>n.toString(16).padStart(2,'0')).join('');
+          if(!/^[a-f0-9]{64}$/.test(lock.files[filename])||digest!==lock.files[filename])
+            throw Error('Изменён файл после утверждения: '+filename);
+        }
       }
       // Refuse corrupt/wrongly described images BEFORE creating the first draft.
       // Trust the signature and decoded dimensions, not the client-provided extension.
