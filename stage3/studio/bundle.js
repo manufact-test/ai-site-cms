@@ -1969,6 +1969,18 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   const MAX_VERSIONS=12,MAX_UPLOAD=900000,MAX_INTEROP_UPLOAD=2500000;
   const INTEROP_STORAGE='manufact-ai-design-graph-local-session-v1';
   let interopSession=null,interopStorageFailed=false;
+  // Media bytes from an approved folder exist before any server upload.
+  // This resolver is scoped to previewDocument and never mutates site data.
+  let previewAssetSources=null;
+  function previewImageUrl(assetId){
+    if(previewAssetSources!==null){
+      const data=Object.prototype.hasOwnProperty.call(previewAssetSources,assetId)
+        ?previewAssetSources[assetId]:null;
+      return typeof data==='string'&&
+        /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(data)?data:null;
+    }
+    return HOSTED?window.Stage3Host?.previewUrl?.(assetId):null;
+  }
   const escapeHtml=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const safeText=v=>v===undefined||v===null?'':String(v);
   let session=D.begin(starter,manifests),pageId=session.current.pages[0].id,
@@ -6280,7 +6292,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     }else if(block.component==='photo-gallery'){
       const gallery=block.items.map(item=>{
         const asset=session.current.assets.find(x=>x.id===item.props.content.media);
-        const src=asset&&HOSTED?window.Stage3Host?.previewUrl?.(asset.id):null;
+        const src=asset?previewImageUrl(asset.id):null;
         return '<figure class="card">'+(src?'<img class="showcase-preview" src="'+e(src)+'" alt="'+e(asset.alt)+'">':
           '<div class="media-placeholder">Выберите фотографию</div>')+
           '<figcaption>'+e(item.props.content.caption||'')+'</figcaption></figure>';
@@ -6291,7 +6303,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const layout=setting.layout,fit=setting.fit,cols=setting.columns;
       const photos=block.items.map(item=>{
         const v=item.props,asset=session.current.assets.find(x=>x.id===v.content.media);
-        const photo=asset&&HOSTED?window.Stage3Host?.previewUrl?.(asset.id):null;
+        const photo=asset?previewImageUrl(asset.id):null;
         const visual=photo?'<img src="'+e(photo)+'" alt="'+e(asset.alt)+'" loading="lazy">':
           '<div class="media-placeholder">Выберите фотографию</div>';
         return '<figure class="cms-adaptive-card'+(layout==='grid'&&v.behavior.featured?' cms-gallery-featured':'')+'">'+
@@ -6304,7 +6316,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         '>'+photos+'</div></section>';
     }else if(block.component==='media-story'){
       const item=session.current.assets.find(x=>x.id===p('photo').content.media);
-      const photo=item&&HOSTED?window.Stage3Host?.previewUrl?.(item.id):null;
+      const photo=item?previewImageUrl(item.id):null;
       const visual=photo?'<img class="showcase-preview" src="'+e(photo)+'" alt="'+e(item.alt)+'">':
         '<div class="media-placeholder">Добавьте фотографию из медиабиблиотеки</div>';
       content='<section class="features"><div class="cms-preview-grid"><div><h2>'+e(title.title)+'</h2>'+
@@ -6313,7 +6325,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     }else if(block.component==='partner-logos'){
       const entries=block.items.map(item=>{
         const asset=session.current.assets.find(x=>x.id===item.props.content.media);
-        const photo=asset&&HOSTED?window.Stage3Host?.previewUrl?.(asset.id):null;
+        const photo=asset?previewImageUrl(asset.id):null;
         return '<div class="card">'+(photo?'<img class="showcase-preview" src="'+e(photo)+'" alt="'+e(asset.alt)+'">':
           '<div class="media-placeholder">Логотип не выбран</div>')+
           '<strong>'+e(item.props.content.caption)+'</strong></div>';
@@ -6322,7 +6334,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     }else if(block.component==='image-showcase'){
       const mediaId=p('photo').content.media||'';
       const asset=session.current.assets.find(x=>x.id===mediaId);
-      const data=asset&&HOSTED?window.Stage3Host?.previewUrl?.(asset.id):null;
+      const data=asset?previewImageUrl(asset.id):null;
       const picture=data?'<img class="showcase-preview" src="'+e(data)+'" alt="'+e(asset.alt)+'">':
         '<div class="media-placeholder">'+(asset?'Загружается изображение: '+e(asset.alt||asset.id):'Выберите изображение из медиабиблиотеки')+'</div>';
       content='<section class="features"><span class="kicker">НАШИ ФОТОГРАФИИ</span><h2>'+e(title.title)+'</h2>'+
@@ -6369,7 +6381,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     }else content='<section><h2>Незарегистрированный шаблон</h2></section>';
     // Typed composition overrides only rendering: original component fields survive.
     if(block.designGraph)content=DESIGN_GRAPH.render(session.current,block.designGraph,'',
-      assetId=>HOSTED?window.Stage3Host?.previewUrl?.(assetId):null,block.sectionId,
+      assetId=>previewImageUrl(assetId),block.sectionId,
       assetId=>HOSTED?window.Stage3Host?.videoUrl?.(assetId):null);
     const appearance=block.appearance||C.DEFAULT_APPEARANCE;
     const skin='cms-surface-'+appearance.surface+' cms-spacing-'+appearance.spacing+' cms-align-'+appearance.align+
@@ -6548,10 +6560,15 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   }));
   window.Stage3Editor=Object.freeze({
     manifests:()=>cp(manifests),
-    previewDocument:(site,path,device='desktop')=>{
+    previewDocument:(site,path,device='desktop',assetSources=null)=>{
       if(!C.BREAKPOINTS.includes(device))throw Error('Invalid preview breakpoint');
-      const checked=C.validateSite(site,manifests),prior=session;
+      const checked=C.validateSite(site,manifests),prior=session,priorSources=previewAssetSources;
       try{
+        if(assetSources!==null){
+          if(!assetSources||typeof assetSources!=='object'||Array.isArray(assetSources))
+            throw Error('Invalid local preview media');
+          previewAssetSources=assetSources;
+        }else previewAssetSources=null;
         session=D.begin(checked,manifests);
         const page=checked.pages.find(p=>p.path===path)||checked.pages[0];
         const docs=page.sections.map(s=>screen(D.blockPreview(session,manifests,page.id,s.id,device)));
@@ -6574,7 +6591,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           '</header>';
         const root=first.slice(0,start).replace('<html lang="ru">','<html lang="'+escapeHtml(checked.language||'ru')+'">');
         return root+navigation+docs.map((doc,i)=>'<div class="cms-preview-bound-section" data-cms-section-id="'+escapeHtml(page.sections[i].id)+'">'+doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))+'</div>').join('')+first.slice(end);
-      }finally{session=prior;}
+      }finally{session=prior;previewAssetSources=priorSources;}
     },
     applyComposition:site=>{
       session=D.replaceSite(session,manifests,site,session.revision);draw();

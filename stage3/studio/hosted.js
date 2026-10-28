@@ -2582,12 +2582,6 @@
         const objectUrls=[],liveFrames={};
         const liveImageBytes=new Map();
         const widths={desktop:1280,tablet:768,mobile:390};
-        const mediaFiles=new Map();
-        for(const asset of site.assets){
-          mediaFiles.set(asset.src,{file:required(asset.src.slice(1)),mime:asset.mime});
-          for(const variant of asset.variants||[])
-            mediaFiles.set(variant.src,{file:required(variant.src.slice(1)),mime:asset.mime});
-        }
         const toDataUrl=file=>new Promise((resolve,reject)=>{
           const reader=new FileReader();
           reader.onload=()=>resolve(String(reader.result));
@@ -2596,15 +2590,16 @@
         });
         const renderSite=async()=>{
           const path=pageSelect.value;
-          for(const [device,view] of Object.entries(liveFrames)){
-            let html=editor.previewDocument(site,path,device);
-            for(const [src,mediaFile] of mediaFiles){
-              if(!html.includes(src))continue;
-              if(!liveImageBytes.has(src))liveImageBytes.set(src,await toDataUrl(mediaFile.file));
-              html=html.replaceAll(src,liveImageBytes.get(src));
-            }
-            view.frame.srcdoc=html;
+          // Resolve media by verified local asset ID. The candidate does not
+          // exist on the server yet, so hosted previewUrl cannot serve it.
+          const sources=Object.create(null);
+          for(const asset of site.assets){
+            if(!liveImageBytes.has(asset.id))
+              liveImageBytes.set(asset.id,await toDataUrl(required(asset.src.slice(1))));
+            sources[asset.id]=liveImageBytes.get(asset.id);
           }
+          for(const [device,view] of Object.entries(liveFrames))
+            view.frame.srcdoc=editor.previewDocument(site,path,device,sources);
         };
         const resizeSite=()=>{
           for(const [device,view] of Object.entries(liveFrames)){

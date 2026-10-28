@@ -1350,8 +1350,11 @@ async function execute(){
   await page.waitForFunction(()=>document.querySelector('iframe[data-preview-device="desktop"]')
     ?.getAttribute('srcdoc')?.includes('Особенный согласованный дизайн'));
   assert.match(await live.getAttribute('srcdoc'),/Особенный согласованный дизайн/);
-  assert.match(await live.getAttribute('srcdoc'),/data:image\/png;base64,/,
+  const approvedPreviewHtml=await live.getAttribute('srcdoc');
+  assert.match(approvedPreviewHtml,/data:image\/png;base64,/,
     'Pre-import CMS renderer resolves packaged image bytes without HTTP requests');
+  assert.equal((approvedPreviewHtml.match(/src="data:image\/png;base64,/g)||[]).length,2,
+    'Custom composition and image section both use exact packaged image bytes');
   const pageOptions=await page.locator('#server-approved-review-page option').count();
   assert.ok(pageOptions>=1,'Owner can preview each page before accepting site');
   assert.equal(await page.locator('#server-approved-review').getByText(/Описание для клиента/).count(),1);
