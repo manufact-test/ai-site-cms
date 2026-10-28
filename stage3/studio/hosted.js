@@ -1141,13 +1141,75 @@
       {reason:deliveryReason.value.trim(),includeUncertain:true});
     renderDelivery(result);notice('Повтор неопределённых отправок завершён. Проверьте канал вручную.');
   }));
+  // Private per-form routing, never shipped into visitor HTML or site manifest.
+  const routePanel=element('div','hosted-delivery-routes');
+  const routeForm=element('select','control');routeForm.id='server-delivery-form-select';
+  const routeEmailMode=element('select','control');routeEmailMode.id='server-delivery-form-email-mode';
+  const routeTelegramMode=element('select','control');routeTelegramMode.id='server-delivery-form-telegram-mode';
+  for(const select of [routeEmailMode,routeTelegramMode]){
+    for(const [value,title] of [['inherit','Наследовать сайт'],['off','Не отправлять'],['custom','Свой получатель']]){
+      const opt=element('option',null,title);opt.value=value;select.append(opt);
+    }
+  }
+  const routeEmail=element('input','control');routeEmail.type='email';routeEmail.maxLength=254;
+  routeEmail.id='server-delivery-form-email';routeEmail.placeholder='team@example.com';
+  const routeTelegram=element('input','control');routeTelegram.maxLength=32;
+  routeTelegram.id='server-delivery-form-telegram';routeTelegram.placeholder='Числовой ID чата';
+  const selectedRoute=()=>currentDelivery?.routes?.find(item=>item.sectionId===routeForm.value);
+  const routeSave=action('Сохранить маршрут формы','server-delivery-form-save',()=>safe(async()=>{
+    const route=selectedRoute();
+    if(!route||!state.siteId)throw Error('Выберите форму сайта');
+    if(!deliveryReason.value.trim())throw Error('Укажите причину изменения маршрута');
+    const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/delivery/routes','POST',{
+      sectionId:route.sectionId,emailMode:routeEmailMode.value,
+      emailRecipient:routeEmailMode.value==='custom'?routeEmail.value.trim():'',
+      telegramMode:routeTelegramMode.value,
+      telegramChatId:routeTelegramMode.value==='custom'?routeTelegram.value.trim():'',
+      expectedVersion:route.version,reason:deliveryReason.value.trim()
+    });
+    renderDelivery(result);
+    notice('Маршрут формы сохранён. Ранее принятые заявки сохраняют получателя.');
+  }));
+  const routeModeInputs=()=>{
+    routeEmail.disabled=routeEmailMode.value!=='custom';
+    routeTelegram.disabled=routeTelegramMode.value!=='custom';
+  };
+  const refreshRouteInputs=()=>{
+    const route=selectedRoute();
+    routeEmailMode.value=route?.emailMode||'inherit';
+    routeTelegramMode.value=route?.telegramMode||'inherit';
+    routeEmail.value=route?.emailRecipient||'';
+    routeTelegram.value=route?.telegramChatId||'';
+    routeSave.disabled=!route;
+    routeModeInputs();
+  };
+  routeForm.addEventListener('change',refreshRouteInputs);
+  routeEmailMode.addEventListener('change',routeModeInputs);
+  routeTelegramMode.addEventListener('change',routeModeInputs);
+  function renderRouteInputs(data){
+    const selected=routeForm.value;
+    routeForm.replaceChildren();
+    for(const route of data.routes||[]){
+      const option=element('option',null,route.label);option.value=route.sectionId;routeForm.append(option);
+    }
+    if((data.routes||[]).some(route=>route.sectionId===selected))routeForm.value=selected;
+    routePanel.hidden=!(data.routes||[]).length;
+    refreshRouteInputs();
+  }
+  routePanel.append(element('strong',null,'Маршруты отдельных форм'),
+    deliveryField('Форма',routeForm),deliveryField('Email: режим',routeEmailMode),
+    deliveryField('Email получателя',routeEmail),deliveryField('Telegram: режим',routeTelegramMode),
+    deliveryField('Telegram чат',routeTelegram),
+    element('small',null,'Получатель сохраняется с новой заявкой. Правки маршрута не перенаправляют старую очередь.'),
+    routeSave);
   const deliveryActions=element('div','hosted-delivery-actions');
   deliveryActions.append(deliverySave,deliveryRefresh,deliveryRetry,deliveryRetryUncertain);
   deliveryPanel.append(deliveryTitle,deliveryHelp,deliveryReport,deliveryFields,
-    deliveryField('Причина / операторская заметка',deliveryReason),deliveryActions,deliveryRecent);
+    deliveryField('Причина / операторская заметка',deliveryReason),deliveryActions,routePanel,deliveryRecent);
   leadsPanel.after(deliveryPanel);
   function renderDelivery(data){
     currentDelivery=data;
+    renderRouteInputs(data);
     const s=data.settings||{};
     deliveryEmailEnabled.checked=!!s.emailEnabled;deliveryEmailRecipient.value=s.emailRecipient||'';
     deliveryTelegramEnabled.checked=!!s.telegramEnabled;deliveryTelegramChat.value=s.telegramChatId||'';
