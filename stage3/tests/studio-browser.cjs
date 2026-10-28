@@ -1131,6 +1131,26 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#redo').click();
     assert.equal(getB1(await page.evaluate(()=>window.Stage3Editor.getSite()),'graph-b1-button').href,'/contact/');
 
+    // Real Studio UI: link a native section to another page, and detach it
+    // atomically with the existing global Undo/Redo behavior.
+    const sharedBase=JSON.parse(fs.readFileSync(path.join(root,'fixtures/industrial-site.json'),'utf8'));
+    await page.evaluate(site=>window.Stage3Editor.replace(site),sharedBase);
+    await page.locator('#cms-shared-section-target').selectOption('page-contact');
+    await page.locator('#cms-shared-section-link').click();
+    const sharedUi=await page.evaluate(()=>window.Stage3Editor.getSite());
+    const source=sharedUi.pages[0].sections[0];
+    const linkedUi=sharedUi.pages[1].sections.find(s=>s.sharedKey===source.sharedKey);
+    assert.ok(source.sharedKey&&linkedUi&&source.id!==linkedUi.id,
+      'Studio creates page-local linked copies in one action');
+    await page.locator('#undo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[1].sections.filter(s=>s.sharedKey).length,0,
+      'Single Undo removes the cross-page link');
+    await page.locator('#redo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[1].sections.filter(s=>s.sharedKey).length,1,
+      'Redo restores the shared section without collision');
+
     // Real native Chromium interaction, without adding a custom public runtime.
     const graphHost=require('../sdk/design-graph.cjs');
     const nativeSite=JSON.parse(fs.readFileSync(path.join(root,'fixtures/industrial-site.json'),'utf8'));

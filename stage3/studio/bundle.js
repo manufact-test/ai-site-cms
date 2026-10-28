@@ -4383,7 +4383,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                   style[key]=val.startsWith('@')?val.trim():Number(val);
                 }else{if(key==='shadow')delete style.shadowFine;style[key]=val.trim();}
               });
-            }else editGraphWork(node=>{if(key==='href'&&!val&&node.type==='image')delete node.href;else node[key]=key==='level'?Number(val):val;});
+            }else editGraphWork(node=>{
+              if(key==='href'&&!val&&node.type==='image')delete node.href;
+              else if(key==='iconSize'){
+                if(!val.trim())delete node.iconSize;
+                else node.iconSize=Number(val);
+              }else node[key]=key==='level'?Number(val):val;
+            });
           });
           wrap.append(caption,input);panel.append(wrap);
           return input;
