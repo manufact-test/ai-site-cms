@@ -42,7 +42,7 @@ function inspect(html){
  const htmlLang=list('html')[0]?.attrs.lang||null;
  const vp=pickMeta('name','viewport');
  const mobileSettings=vp.map(x=>x.attrs.content||'');
- const schema=[],parseErrors=[];
+ const schema=[],rootTypes=[],parseErrors=[];
  let visitedSchemaNodes=0;
  function gather(x,depth=0){
   if(depth>12||++visitedSchemaNodes>2000||x==null||typeof x!=='object')return;
@@ -53,9 +53,18 @@ function inspect(html){
   // A traversal budget prevents deeply nested or broad JSON exports exhausting the audit.
   for(const [k,v] of Object.entries(x).slice(0,100))if(k!=='@context'&&k!=='@type')gather(v,depth+1);
  }
+ function topLevelTypes(node){
+  if(!node||typeof node!=='object')return;
+  if(Array.isArray(node)){for(const child of node.slice(0,80))topLevelTypes(child);return;}
+  // A top-level @graph is an independently authored collection of roots.
+  if(node['@type'])for(const type of [node['@type']].flat().slice(0,30))
+   if(typeof type==='string')rootTypes.push(type.split('/').pop());
+  if(Array.isArray(node['@graph']))for(const root of node['@graph'].slice(0,80))topLevelTypes(root);
+ }
  for(const [index,raw] of scripts.entries()){
   if(raw.length>100000){parseErrors.push({scriptIndex:index,reason:'too-large'});continue;}
-  try{const json=JSON.parse(raw);gather(json);}catch{parseErrors.push({scriptIndex:index,reason:'invalid-json'});}
+  try{const json=JSON.parse(raw);gather(json);topLevelTypes(json);}
+  catch{parseErrors.push({scriptIndex:index,reason:'invalid-json'});}
  }
  const main=list('main');
  return {headings,ids:[...ids.keys()],duplicateIds:[...duplicates],anchors,images:list('img').map(x=>x.attrs),
@@ -63,7 +72,8 @@ function inspect(html){
   htmlLang,baseHref:list('base')[0]?.attrs.href||null,viewport:mobileSettings,mainCount:main.length,forms,controlCount:controls.length,
   unlabelledControls:unlabelled.map(x=>({tag:x.tag,id:x.attrs.id||null,name:x.attrs.name||null})),
   ogTitleCount:pickMeta('property','og:title').length,ogDescriptionCount:pickMeta('property','og:description').length,
-  structuredDataTypes:[...new Set(schema)],structuredDataErrors:parseErrors,
+  structuredDataTypes:[...new Set(schema)],rootStructuredDataTypes:[...new Set(rootTypes)],
+  structuredDataErrors:parseErrors,
   bodyHeadingText:headings.map(x=>x.text),allElements:elements.length};
 }
 function review(snapshot,blueprint=null){
@@ -97,8 +107,9 @@ function review(snapshot,blueprint=null){
   if(d.robots.length>1&&new Set(d.robots.map(norm)).size>1)add('evidence:conflicting-robots','warning',p,'Conflicting meta robots directives are present.');
   if(d.unlabelledControls.length)add('evidence:unlabelled-form-controls','recommendation',p,'Some form controls have no explicit external accessible label identified by static inspection; JS and full accessible-name computation are not detected.',{controls:d.unlabelledControls.slice(0,12)});
   for(const error of d.structuredDataErrors)add('evidence:invalid-json-ld','warning',p,'JSON-LD script could not be parsed as bounded JSON.',error);
-  if(d.structuredDataTypes.length){
-   for(const type of d.structuredDataTypes){
+  if(d.rootStructuredDataTypes.length){
+   // Nested Person/Offer/Organization nodes are evidence, not independent page-level claims.
+   for(const type of d.rootStructuredDataTypes){
     const allowed=spec?.schemaCandidates?.filter(c=>c.type===type)||[];
     if(allowed.some(c=>!c.eligible))add('evidence:unverified-schema-published','warning',p,'JSON-LD type occurs although blueprint facts for this type are unverified; review published claims.',{schemaType:type});
     if(spec&&!allowed.length)add('evidence:unplanned-schema-type','recommendation',p,'JSON-LD type is not an approved blueprint candidate; verify applicability and visible supporting facts.',{schemaType:type});
@@ -126,7 +137,8 @@ function review(snapshot,blueprint=null){
   }
   const details={pageId:p.id,path:p.path,headings:d.headings.map(x=>({level:x.level,text:x.text})),
    mainCount:d.mainCount,htmlLang:d.htmlLang,viewportDefined:Boolean(d.viewport.length),
-   structuredDataTypes:d.structuredDataTypes,forms:d.forms,formControls:d.controlCount,
+   structuredDataTypes:d.structuredDataTypes,rootStructuredDataTypes:d.rootStructuredDataTypes,
+   forms:d.forms,formControls:d.controlCount,
    anchors:d.anchors.length};
   pages.push(details);
  }

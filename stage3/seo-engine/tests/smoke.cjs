@@ -359,6 +359,14 @@ try{
   '@context':'https://schema.org','@type':'Article',author:{'@type':'Person'}
  })+'</script></body></html>');
  assert.deepEqual(nested.structuredDataTypes,['Article','Person']);
+ assert.deepEqual(nested.rootStructuredDataTypes,['Article']);
+ const nestedPage={format:'manufact-seo-html-snapshot-v1',siteId:'site-industrial-demo',
+  pages:[{id:'page-home',path:'/',html:'<html><head></head><body><main><script type="application/ld+json">'+
+   JSON.stringify({'@context':'https://schema.org','@type':'Article',
+    author:{'@type':'Person',name:'Editorial team'}})+
+   '</script></main></body></html>'}]};
+ const nestedReview=require('../lib/html-evidence.cjs').review(nestedPage,plan);
+ assert.ok(!nestedReview.findings.some(x=>x.code==='evidence:unplanned-schema-type'&&x.schemaType==='Person'));
 
  const tampered=JSON.parse(fs.readFileSync(fixture('community.brief.json'),'utf8'));
  tampered.pages[0].sections[0].media={purpose:'informative',alt:'',why:'Missing'};
