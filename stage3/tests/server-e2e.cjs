@@ -390,6 +390,7 @@ async function stop(){
   const formHtml=(await request('GET','/published/'+id+'/contact/')).body;
   assert.match(formHtml,/name="message"/);
   assert.match(formHtml,/action="\/forms\/site-industrial-demo\/section-quote-form"/);
+  assert.match(formHtml,/name="_return" value="\/published\/site-industrial-demo\/contact\/"/);
   const token=/name="_token" value="([a-f0-9]{64})"/.exec(formHtml)?.[1];
   assert.ok(token);
   const deliveryRoute=endpoint+'/delivery';
@@ -434,9 +435,11 @@ async function stop(){
   assert.equal(stoppedForm.status,503);
   assert.equal((await request('POST',endpoint+'/operations',
     {expectedRevision:3,enabled:false,message:''})).status,200);
-  const sent=await postForm(values);
+  const sent=await postForm({...values,_return:'/published/'+id+'/contact/'});
   assert.equal(sent.status,201,sent.body);
   assert.match(sent.body,/заявка сохранена/);
+  assert.match(sent.body,/href="\/published\/site-industrial-demo\/contact\/"/);
+  assert.match(sent.body,/Вернуться на сайт/);
   // Destination is frozen at receipt: changing routing cannot redirect the
   // already queued private lead to a different recipient.
   const queuedRecipient=spawnSync('php',['-r',
