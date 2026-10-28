@@ -34,7 +34,9 @@ vm.runInNewContext(code,{
 },{filename:'php-html-capture.cjs',timeout:2000});
 const CAP=moduleShim.exports;
 const html=(title)=>'<!doctype html><html lang="ru"><head><title>'+
- title+'</title><meta name="description" content="Тест локального PHP"></head>'+
+ title+'</title><meta name="description" content="Тест локального PHP">'+
+ '<meta property="og:image" content="https://pilot.example/published/pilot-local/assets/'+
+ (mode==='bad-og-url'?'asset-secondary.png':'asset-banner.png')+'"></head>'+
  '<body><h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a>'+'<a href="/published/pilot-local/old/">Old route</a>'+'<img src="/published/pilot-local/assets/asset-secondary.png" alt="Secondary"></body></html>';
 let mode='normal',requests=[];
 const server=http.createServer((req,res)=>{
@@ -193,6 +195,11 @@ async function main(){
    .some(x=>x.code==='php-local:sitemap-http-status'&&x.severity==='warning'));
   assert.equal(CAP.read(noOrigin,site,source).snapshot.sitemapCompleteness,undefined,
    'HTTP 503 does not imply a complete sitemap');
+  mode='bad-og-url';
+  const ogDrift=path.join(tmp,'og-url-drift');
+  await CAP.capture(sealed,base,ogDrift);
+  assert.ok(CAP.read(ogDrift,site,source).localMedia.findings
+   .some(x=>x.code==='php-media:og-html-url-drift'&&x.severity==='error'));
   mode='bad-media-status';
   const badMediaPath=path.join(tmp,'missing-og');
   const badMediaCapture=await CAP.capture(sealed,base,badMediaPath);
