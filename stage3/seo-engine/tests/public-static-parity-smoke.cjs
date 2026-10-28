@@ -1,6 +1,8 @@
 'use strict';
 // Actual pure comparison in Node; no network or CMS writes.
 const assert=require('node:assert/strict');
+const crypto=require('node:crypto');
+const digest=s=>crypto.createHash('sha256').update(s).digest('hex');
 const {compare,FORMAT}=require('../lib/public-static-parity.cjs');
 const site={siteId:'pilot-site',language:'ru',pages:[
  {id:'page-home',path:'/',seo:{robots:'index'},sections:[]},
@@ -36,7 +38,13 @@ const http={
    body:release.searchFiles['sitemap.xml']},
  redirects:[{from:'/old/',requestUrl:origin+'old/',status:301,location:'/about/'}],
  negativeProbe:{path:'/cms-seo-nonexistent-pilot-site/',requestUrl:origin+'cms-seo-nonexistent-pilot-site/',
-  status:404,contentType:'text/html',bodySha256:'e'.repeat(64)}};
+  status:404,contentType:'text/html',bodySha256:'e'.repeat(64)},
+ rootRecheck:{requestUrl:origin,firstStatus:200,secondStatus:200,
+  initialHtmlSha256:digest(home),finalHtmlSha256:digest(home),
+  matched:true,sourceRevisionAuthenticated:false,publicHostProvenanceAuthenticated:false}};
+const editedHome=changed=>({...http,
+ pages:http.pages.map((p,i)=>i===0?{...p,html:changed}:p),
+ rootRecheck:{...http.rootRecheck,initialHtmlSha256:digest(changed),finalHtmlSha256:digest(changed)}});
 const media={format:'manufact-seo-media-evidence-v1',siteId:site.siteId,origin,
  completeness:'complete',resources:[
   {assetId:'asset-main',url:origin+'assets/asset-main.png',status:200,
@@ -52,12 +60,10 @@ assert.equal(good.checkedRedirects,1);
 assert.equal(good.httpTranscriptAuthenticated,false);
 const soft404=compare(site,release,{...http,negativeProbe:{...http.negativeProbe,status:200}},media);
 assert.ok(soft404.findings.some(x=>x.code==='public-static:soft-404-public-host'));
-const wrongHead=compare(site,release,{...http,pages:http.pages.map((p,i)=>
- i===0?{...p,html:home.replace('<meta property="og:url"',
- '<meta property="og:image" content="https://other.example/image.jpg"><meta property="og:url"')}:p)},media);
+const wrongHead=compare(site,release,editedHome(home.replace('<meta property="og:url"',
+ '<meta property="og:image" content="https://other.example/image.jpg"><meta property="og:url"')),media);
 assert.ok(wrongHead.findings.some(x=>x.code==='public-static:page-deep-head-drift'));
-const wrong=compare(site,release,{...http,pages:http.pages.map((p,i)=>
- i===0?{...p,html:home.replace('Welcome','Altered').replace('href="/about/"','href="/broken/"')}:p)},media);
+const wrong=compare(site,release,editedHome(home.replace('Welcome','Altered').replace('href="/about/"','href="/broken/"')),media);
 assert.ok(wrong.findings.some(x=>x.code==='public-static:page-content-drift'&&x.field==='mainText'));
 assert.ok(wrong.findings.some(x=>x.code==='public-static:page-structure-drift'&&x.field==='structure.links'));
 const redirect=compare(site,release,{...http,redirects:[{...http.redirects[0],status:200}]},media);
@@ -67,7 +73,7 @@ const brokenMedia=compare(site,release,http,{...media,resources:[{...media.resou
 assert.ok(brokenMedia.findings.some(x=>x.code==='public-static:public-media-length-drift'));
 const missingSearch=compare(site,release,{...http,sitemap:undefined},media);
 assert.ok(missingSearch.findings.some(x=>x.code==='public-static:public-search-capture-missing'));
-const other=compare(site,release,{...http,origin:'https://elsewhere.example/'},null);
+const other=compare(site,release,{...http,origin:'https://elsewhere.example/',rootRecheck:undefined},null);
 assert.equal(other.comparable,false);
 assert.equal(other.checkedPages,0);
 assert.ok(other.findings.some(x=>x.code==='public-static:release-host-scope-not-comparable'));
