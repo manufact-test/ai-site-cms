@@ -224,3 +224,13 @@
 .hosted-delivery-routes>strong{font-size:12px}
 .hosted-delivery-routes .control{width:100%;min-width:0}
 .hosted-delivery-routes>small{font-size:10px;opacity:.75;line-height:1.5}
+
+/* Review discrepancies are human annotations, not automatic visual approval. */
+.hosted-launch-findings{display:grid;gap:8px;min-width:0;padding:12px;border:1px solid #5b7080;border-radius:9px;background:#1a3441}
+.hosted-launch-findings h4{margin:0;font-size:13px;color:#f0f7fc}
+.hosted-launch-findings textarea{width:100%;resize:vertical;min-height:48px;max-height:150px}
+.hosted-launch-findings>.btn{justify-self:start}
+.hosted-launch-finding-list{display:grid;gap:6px;max-height:165px;overflow:auto}
+.hosted-launch-finding{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px;border:1px solid #6e8894;border-radius:7px;flex-wrap:wrap}
+.hosted-launch-finding span{font-size:12px;overflow-wrap:anywhere;min-width:0;flex:1}
+.hosted-launch-finding .btn{font-size:11px}
