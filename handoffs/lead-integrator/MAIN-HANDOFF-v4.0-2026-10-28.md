@@ -150,3 +150,25 @@ This lead branch has since gained **four linked feature verticals**:
 Updated details and exact safety boundaries are in docs/ROADMAP.md, stage3/docs/APPROVED-SITE-PACKAGE.md, and stage3/mandatory-coverage.json. The technical requirement registry still reports 124 implemented candidates, five partial, six environment gates and **zero personally owner-accepted** items. Do not advance this count without full workflow evidence. No actual client approved-v2 remains the primary blocker; all CI exercises are disposable synthetic verification.
 
 Before next work, check **actual HEAD + matching Actions jobs**. Apply the owner’s rule: one round means approximately thirty minutes of active functionality, immediately follow a fast block with the next, and leave docs/regression for the end. Do not touch main, production, real databases, Hostinger, CELIKOM, or stage3/seo-engine/**. Only lead may integrate SDK, PHP, core and Studio; no PR/merge/deploy without explicit owner permission.
+
+### Additional lightweight host profile
+
+The offline CMS package CLI now supports a second, deliberately separate
+profile: node stage3/bin/cms-release.cjs pack-php-host /ABS/REPO /ABS/NEW-PHP-HOST.
+
+Unlike a full developer/transfer bundle, the compact PHP profile contains
+PHP CMS server and migration entrypoints, component manifests, the *compiled*
+Studio editor and its exact needed media scripts. It excludes SDK sources,
+Next/ZIP export build tools, uncompiled Studio sources, demos and tests.
+It runs with a PHP host and does not require Node at visitor/admin runtime.
+Use the full source tree on a separate build machine for Node-based D2/D5
+Next/ZIP delivery workflows; this limited profile does NOT ship those CLI
+export tools. Both profiles carry the same fail-closed integrity inventory.
+Verifying either profile works with the full source CLI; comparing packages
+of different profiles is explicitly prohibited (not an upgrade path).
+
+The host profile does NOT install to a real server, create/upgrade the live
+DB or authorize remote operations; its actual suitability must be verified
+on a dedicated owner-approved target before any changeover. The normal
+runtime package is unchanged unless the operator explicitly uses
+pack-php-host.
