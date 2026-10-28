@@ -274,9 +274,9 @@ async function capture(sealedFolder,rawOrigin,output,publishedRecord=null){
   sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,
   packageVersion:source.packageVersion,capturedAt:new Date().toISOString(),baseUrl:base,
   pages:entries.map(x=>x.record),publication,media:observedMedia.manifest};
- fs.mkdirSync(out);
- for(const x of [...entries,...additional,...observedMedia.files])fs.writeFileSync(path.join(out,x.record.file),x.bytes,{flag:'wx'});
- fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
+ fs.mkdirSync(out,{mode:0o700});
+ for(const x of [...entries,...additional,...observedMedia.files])fs.writeFileSync(path.join(out,x.record.file),x.bytes,{flag:'wx',mode:0o600});
+ fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx',mode:0o600});
  const imported=read(out,site,source);
  return {output:out,siteId:site.siteId,pages:imported.pageCount,
   bytes:imported.checkedHtmlBytes,localSeoBytes:imported.checkedAuxiliaryBytes,

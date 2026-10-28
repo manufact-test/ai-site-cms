@@ -315,14 +315,14 @@ async function main(argv){
  };
  const body=JSON.stringify(bundle,null,2)+'\n',brief=JSON.stringify(summary,null,2)+'\n';
  if(body.length>40000000)throw Error('First-site review bundle is too large; inspect inputs rather than publishing a truncated report');
- fs.mkdirSync(report);
- fs.writeFileSync(path.join(report,'bundle.json'),body,{flag:'wx'});
- fs.writeFileSync(path.join(report,'handoff.md'),bundle.markdownHandoff+'\n',{flag:'wx'});
- fs.writeFileSync(path.join(report,'summary.json'),brief,{flag:'wx'});
- fs.writeFileSync(path.join(report,'launch-worksheet.md'),worksheet.markdown+'\n',{flag:'wx'});
+ fs.mkdirSync(report,{mode:0o700});
+ fs.writeFileSync(path.join(report,'bundle.json'),body,{flag:'wx',mode:0o600});
+ fs.writeFileSync(path.join(report,'handoff.md'),bundle.markdownHandoff+'\n',{flag:'wx',mode:0o600});
+ fs.writeFileSync(path.join(report,'summary.json'),brief,{flag:'wx',mode:0o600});
+ fs.writeFileSync(path.join(report,'launch-worksheet.md'),worksheet.markdown+'\n',{flag:'wx',mode:0o600});
  if(delta){
-  fs.writeFileSync(path.join(report,'delta.md'),delta.markdown+'\n',{flag:'wx'});
-  fs.writeFileSync(path.join(report,'delta.json'),JSON.stringify({...delta,markdown:undefined},null,2)+'\n',{flag:'wx'});
+  fs.writeFileSync(path.join(report,'delta.md'),delta.markdown+'\n',{flag:'wx',mode:0o600});
+  fs.writeFileSync(path.join(report,'delta.json'),JSON.stringify({...delta,markdown:undefined},null,2)+'\n',{flag:'wx',mode:0o600});
  }
  return {evidence,report,summary};
 }
