@@ -15,6 +15,7 @@ const LOCAL_FORMS=require('./php-local-forms.cjs');
 const LOCAL_COMPONENTS=require('./php-local-components.cjs');
 const LOCAL_GRAPH=require('./php-local-graph.cjs');
 const LOCAL_NAVIGATION=require('./php-local-navigation.cjs');
+const LOCAL_THEME=require('./php-local-theme.cjs');
 const CAPTURE_FORMAT='manufact-seo-loopback-php-html-v1';
 const SNAPSHOT_FORMAT='manufact-seo-html-snapshot-v1';
 const SHA=/^[a-f0-9]{64}$/;
@@ -190,6 +191,7 @@ function inspect(manifest,site,source,folder){
   const localComponents=LOCAL_COMPONENTS.review(site,checkedSnapshot);
   const localGraph=LOCAL_GRAPH.review(site,checkedSnapshot);
   const localNavigation=LOCAL_NAVIGATION.review(site,checkedSnapshot);
+  const localTheme=LOCAL_THEME.review(site,checkedSnapshot);
  const localMedia=manifest.media?
   LOCAL_MEDIA.inspect(site,manifest.baseUrl,manifest.media,root,checkedSnapshot,
    publication?.declaredPublicOrigin||null,source.sealedMediaSha256):null;
@@ -201,7 +203,7 @@ function inspect(manifest,site,source,folder){
   checkedAuxiliaryBytes:total-checkedPageHtmlBytes,sha256VerifiedAtRead:true,
   loopbackHttp200Count:entries.length,sourceRevisionAuthenticated:false,
   realPublicHttpsChecked:false,formsChecked:false,formMarkupChecked:true,visualParityChecked:false,
-  publication,localMedia,localHead,localForms,localComponents,localGraph,localNavigation,
+  publication,localMedia,localHead,localForms,localComponents,localGraph,localNavigation,localTheme,
   snapshot:checkedSnapshot,
   limitations:'Read-only local PHP HTTP 200 and byte-checked HTML. Cannot prove the served revision matches saved Site v1, operator identity, client approval, public HTTPS or successful forms.'
  });
@@ -283,6 +285,8 @@ async function capture(sealedFolder,rawOrigin,output,publishedRecord=null){
   localGraphFindings:imported.localGraph.findings.length,
   localNavPagesChecked:imported.localNavigation.checkedPages,
   localNavFindings:imported.localNavigation.findings.length,
+  localThemePagesChecked:imported.localTheme.checkedPages,
+  localThemeFindings:imported.localTheme.findings.length,
   localMediaAssets:imported.localMedia.capturedResources,
   localMediaBytes:imported.localMedia.savedBodyBytes,
   localMediaFindings:imported.localMedia.findings.length,

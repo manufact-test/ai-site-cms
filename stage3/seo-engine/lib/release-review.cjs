@@ -47,6 +47,7 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const phpBrokenImages=find(t=>t.sources.some(s=>s.code==='php-capture:broken-rendered-image'&&s.severity==='error'));
  const localPhpProblems=find(t=>t.sources.some(s=>s.code?.startsWith('php-local:')&&s.severity==='error'));
  const localPhpReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-local:')&&s.severity!=='error'));
+ const localThemeErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-theme:')&&s.severity==='error'));
  const localNavErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-nav:')&&s.severity==='error'));
  const localGraphErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-graph:')&&s.severity==='error'));
  const localComponentErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-component:')&&s.severity==='error'));
@@ -122,7 +123,10 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   if(localFormReviews.length)add(reviews,'local-php-form-origin-review',
    'Review public form collector host and allowlist',
    'Absolute collector origin remains unverified and was not probed.',localFormReviews);
-  if(localNavErrors.length)add(blockers,'local-php-navigation-parity',
+  if(localThemeErrors.length)add(blockers,'local-php-theme-parity',
+  'Repair actual published PHP global theme colors, typography, container and button variables',
+  'Captured PHP style tokens disagree with the source-bound Site v1 theme, potentially altering the appearance of all pages.',localThemeErrors);
+ if(localNavErrors.length)add(blockers,'local-php-navigation-parity',
   'Repair actual published desktop and mobile navigation, header CTA and footer',
   'The captured PHP header/menu links, hierarchy, active page, mobile mode or site identity differ from Site v1. Restore published navigation before release.',localNavErrors);
  if(localGraphErrors.length)add(blockers,'local-php-design-graph-parity',
