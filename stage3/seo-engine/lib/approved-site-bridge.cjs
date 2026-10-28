@@ -67,20 +67,60 @@ function load(folder){
  verifiedSources.add(summary);
  return {site,source:summary};
 }
-function reconcile(approved,liveSite,publishedVersion){
+const OWNER_REVIEW_FORMAT='manufact-seo-owner-edited-site-review-v1';
+function checkOwnerReview(review,original,site,version){
+ const fields=['format','siteId','approvedSiteSha256','publishedVersion',
+  'publishedSiteFingerprint','reviewedAt','operator','reason','acknowledged'];
+ if(!review||typeof review!=='object'||Array.isArray(review)||
+    Object.keys(review).length!==fields.length||
+    !fields.every(k=>Object.hasOwn(review,k))||
+    review.format!==OWNER_REVIEW_FORMAT||review.siteId!==site.siteId||
+    review.approvedSiteSha256!==original.fileSha256||
+    review.publishedVersion!==version||
+    review.publishedSiteFingerprint!==fingerprint(site)||
+    review.acknowledged!==true||
+    typeof review.reviewedAt!=='string'||
+    !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/.test(review.reviewedAt)||
+    Number.isNaN(Date.parse(review.reviewedAt))||
+    typeof review.operator!=='string'||review.operator.trim().length<3||
+    review.operator.length>100||/[\x00-\x1f]/.test(review.operator)||
+    typeof review.reason!=='string'||review.reason.trim().length<12||
+    review.reason.length>700||/[\x00-\x1f]/.test(review.reason))
+  throw Error('Owner-edited published Site v1 requires an exact version-bound, manually acknowledged review document; no client approval can be inferred');
+ return Object.freeze({
+  format:OWNER_REVIEW_FORMAT,publishedSiteFingerprint:review.publishedSiteFingerprint,
+  reviewedAt:review.reviewedAt,operatorClaimed:true,manuallyAcknowledged:true,
+  operatorIdentityAuthenticated:false,clientApprovedCurrentRevision:false
+ });
+}
+function reconcile(approved,liveSite,publishedVersion,ownerReview=null){
  if(!approved||!isVerifiedSource(approved.source)||!Number.isSafeInteger(publishedVersion)||
-   publishedVersion<1||publishedVersion>999999999)
-  throw Error('Imported published-site reconciliation requires verified sealed v2 and real numeric release');
- const checked=RECONCILE.correlate(approved.site,liveSite,approved.source.sealedMediaSha256);
+   publishedVersion<1||publishedVersion>999999999||!liveSite||
+   liveSite.siteId!==approved.site.siteId)
+  throw Error('Imported published-site reconciliation requires verified sealed v2, same site and real release version');
  const original=approved.source;
+ let checked=null,strictError=null;
+ try{checked=RECONCILE.correlate(approved.site,liveSite,original.sealedMediaSha256);}
+ catch(e){strictError=e;}
+ if(!checked&&!ownerReview)
+  throw Error('Current CMS publication differs from original Approved Site v2 import: '+
+   String(strictError?.message||'unknown mismatch')+
+   '. Supply --owner-edit-review bound to this published revision after manual change review.');
+ const ownerRecord=ownerReview?checkOwnerReview(ownerReview,original,liveSite,publishedVersion):null;
+ const modified=!checked;
  const bound=Object.freeze({...original,siteRevisionFingerprint:fingerprint(liveSite),
   originalApprovedSiteFingerprint:original.siteRevisionFingerprint,
-  sealedMediaSha256:checked.sealedMediaSha256,
+  // Only strict untouched imports have all sealed original bytes in a
+  // complete source-bound ledger. Never pretend owner-replaced media match.
+  sealedMediaSha256:modified?null:checked.sealedMediaSha256,
   publishedVersion,
-  approvedMediaIdRemappingChecked:true,mappedPublishedMediaFiles:checked.mappedMediaCount,
-  publishedContentAfterMediaRemapMatched:true,
+  approvedMediaIdRemappingChecked:!modified,
+  mappedPublishedMediaFiles:modified?null:checked.mappedMediaCount,
+  publishedContentAfterMediaRemapMatched:!modified,
+  ownerEditedAfterImport:modified,ownerEditReview:ownerRecord,
+  currentPublishedRevisionClientApproved:false,
   sourceRevisionAuthenticated:false});
  verifiedSources.add(bound);
  return {site:liveSite,source:bound};
 }
-module.exports=Object.freeze({SOURCE_FORMAT,load,reconcile,isVerifiedSource});
+module.exports=Object.freeze({SOURCE_FORMAT,OWNER_REVIEW_FORMAT,load,reconcile,isVerifiedSource,checkOwnerReview});
