@@ -31,6 +31,7 @@ final class DesignGraph
         'menu'=>'<path d="M4 7h16M4 12h16M4 17h16"/>'
     ];
     private const MOTIONS=['none','fade-in','fade-up','slide-left','zoom-in'];
+    private const SEQUENCE_EASINGS=['ease','ease-in','ease-out','ease-in-out','linear'];
     private const DEFAULT_TOKENS=[
         'colors'=>['foreground'=>'#182b3d','background'=>'#ffffff','accent'=>'#0a5bff','muted'=>'#667788'],
         'spacing'=>['small'=>12,'medium'=>24,'large'=>48],
@@ -166,15 +167,29 @@ final class DesignGraph
         $tokens=self::tokens($tokensInput);
         self::check(isset($graph['nodes']) && is_array($graph['nodes']) && array_is_list($graph['nodes'])
             && count($graph['nodes'])>=1 && count($graph['nodes'])<=30,'number of root nodes');
-        $count=0;
-        $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,$assets,$tokens): void {
+        $count=0;$popups=[];$triggers=[];
+        $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,&$popups,&$triggers,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
-                &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell'],true),
+                &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup'],true),
                 'invalid or duplicate node');
             $ids[$id]=true;
+            if(array_key_exists('popupTarget',$node)){
+                self::check($type==='button'&&!array_key_exists('href',$node)&&
+                    is_string($node['popupTarget'])&&preg_match(self::IDENT,$node['popupTarget'])===1,
+                    'invalid popup trigger');
+                $triggers[]=[$id,$node['popupTarget']];
+            }
+            if($type==='popup'){
+                self::check($depth===0&&is_string($node['text']??null)&&
+                    trim($node['text'])!==''&&strlen($node['text'])<=120&&
+                    preg_match('/[\x00-\x1f]/',$node['text'])!==1,'popup requires a labelled root');
+                $popups[$id]=true;
+            }
+            self::check($type==='container'||!array_key_exists('sequence',$node),
+                'animation sequence requires container');
             if(array_key_exists('backgroundMedia',$node)){
                 self::check(!in_array($type,['image','video','icon','divider','table-row','table-cell'],true),
                     'background media unsupported for node');
@@ -253,6 +268,9 @@ final class DesignGraph
                       preg_match('/[\x00-\x1f]/',$node['text'])!==1))&&
                     !array_intersect(['href','assetId','alt','level','icon','loop','posterAssetId','ordered'],array_keys($node)),
                     'invalid table caption');
+            } elseif($type==='popup'){
+                self::check(!array_intersect(['href','assetId','alt','level','icon','loop','posterAssetId','ordered'],array_keys($node)),
+                    'invalid popup metadata');
             } elseif (in_array($type,['container','divider','tabs','list','table-row'],true)) {
                 foreach (['text','href','assetId','alt','level','posterAssetId','loop'] as $field)
                     self::check(!array_key_exists($field,$node),'invalid container/divider content');
@@ -306,7 +324,7 @@ final class DesignGraph
                 self::check(is_string($node['text']??null)&&strlen($node['text'])<=3000
                     &&preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f]/',$node['text'])!==1
                     &&!isset($node['assetId'])&&!isset($node['alt'])&&!isset($node['icon']),'invalid text node');
-                if (in_array($type,['button','link'],true)) {
+                if (in_array($type,['button','link'],true)&&!isset($node['popupTarget'])) {
                     $href=$node['href']??null;
                     self::check(is_string($href)&&strlen($href)<=300
                         &&(preg_match('~^/(?!/)[a-zA-Z0-9/_#?=&.%-]*$~D',$href)===1
@@ -330,12 +348,12 @@ final class DesignGraph
                 foreach ($node['states'] as $name=>$style)
                     self::style($style,$tokens,$id.'/'.$name,true);
             }
-            if (!in_array($type,['container','disclosure','tabs','tab','list','gallery','table','table-row'],true))
+            if (!in_array($type,['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'],true))
                 self::check(!isset($node['children']),'non-container children');
             else {
                 $childCount=is_array($node['children']??null)?count($node['children']):-1;
                 $min=in_array($type,['tabs','gallery','table'],true)?2:
-                    (in_array($type,['disclosure','tab','list','table-row'],true)?1:0);
+                    (in_array($type,['disclosure','tab','list','table-row','popup'],true)?1:0);
                 $max=match($type){'tabs'=>8,'list'=>24,'gallery'=>12,'table'=>10,'table-row'=>6,default=>30};
                 self::check(isset($node['children'])&&is_array($node['children'])&&
                     array_is_list($node['children'])&&$childCount>=$min&&$childCount<=$max,
@@ -347,10 +365,25 @@ final class DesignGraph
                         self::check(is_array($row['children']??null)&&
                             count($row['children'])===$colCount,'table must have equal columns');
                 }
+                if(array_key_exists('sequence',$node)){
+                    $seq=$node['sequence'];
+                    self::keys($seq,['effect','duration','delay','stagger','easing'],$id.'/sequence');
+                    self::check(in_array($seq['effect']??null,self::MOTIONS,true)&&$seq['effect']!=='none'&&
+                        self::integer($seq['duration']??null,150,2000)&&
+                        self::integer($seq['delay']??null,0,1000)&&
+                        self::integer($seq['stagger']??null,0,900)&&
+                        in_array($seq['easing']??null,self::SEQUENCE_EASINGS,true)&&$childCount>0&&
+                        $seq['duration']+$seq['delay']+$seq['stagger']*($childCount-1)<=8000,
+                        'invalid animation sequence');
+                    foreach($node['children'] as $child)
+                        self::check(($child['motion']['effect']??'none')==='none','child motion conflicts with sequence');
+                }
                 foreach ($node['children'] as $child) $visit($child,$depth+1,$type);
             }
         };
         foreach ($graph['nodes'] as $node) $visit($node,0);
+        foreach($triggers as [$id,$target])self::check(isset($popups[$target]),
+            'popup target not found in graph: '.$id);
     }
     private static function h(string $str): string
     {
@@ -531,11 +564,23 @@ final class DesignGraph
                 $rules[]='@media(prefers-reduced-motion:reduce){'.$b.' video{display:none!important}}';
                 $rules[]='@media(max-width:600px){'.$b.' video{display:none!important}}';
             }
+            if(isset($n['sequence'])){
+                $t=$n['sequence'];
+                foreach($n['children'] as $i=>$child)
+                    $rules[]=$selector.' > .cmsdg-n-'.$child['id'].'{animation:cmsdg-'.$t['effect'].
+                        ' '.$t['duration'].'ms '.$t['easing'].' '.($t['delay']+$i*$t['stagger']).'ms both}';
+            }
             if(isset($n['motion'])&&$n['motion']['effect']!=='none')
                 $rules[]=$selector.'{animation:cmsdg-'.$n['motion']['effect'].' '.
                     $n['motion']['duration'].'ms ease-out '.$n['motion']['delay'].'ms both}';
             $cls='cmsdg-n-'.$n['id'];
             switch($n['type']){
+                case 'popup':
+                    $body='';foreach($n['children'] as $child)$body.=$visit($child);
+                    return '<div popover="auto" id="cmsdg-popup-'.$n['id'].'" class="'.$cls.
+                        ' cmsdg-popup" role="dialog" aria-label="'.self::h($n['text']).'">'.
+                        '<button type="button" class="cmsdg-popup-close" popovertarget="cmsdg-popup-'.$n['id'].
+                        '" popovertargetaction="hide" aria-label="Закрыть окно">×</button>'.$body.'</div>';
                 case 'container':
                     $body='';foreach ($n['children'] as $child)$body.=$visit($child);
                     $backdrop='';
@@ -597,6 +642,11 @@ final class DesignGraph
                     return '<'.$tag.' class="'.$cls.'">'.self::h($n['text']).'</'.$tag.'>';
                 case 'text':return '<p class="'.$cls.'">'.self::h($n['text']).'</p>';
                 case 'button':
+                    if(isset($n['popupTarget']))
+                        return '<button type="button" class="'.$cls.
+                            ' cmsdg-popup-trigger" popovertarget="cmsdg-popup-'.$n['popupTarget'].'">'.
+                            self::h($n['text']).'</button>';
+                    // Otherwise use the regular safe link renderer.
                 case 'link':
                     $href=str_starts_with($n['href'],'/')?rtrim($mount,'/').$n['href']:$n['href'];
                     return '<a class="'.$cls.'" href="'.self::h($href).'"'.(str_starts_with($href,'https://')?' rel="noopener noreferrer"':'').'>'.self::h($n['text']).'</a>';
@@ -651,6 +701,11 @@ final class DesignGraph
             .$scope.' .cmsdg-picture img{max-width:100%;height:auto}'
             .$scope.' .cmsdg-image-action{display:inline-block;max-width:100%}'
             .$scope.' .cmsdg-image-action img{display:block}'
+            .$scope.' .cmsdg-popup{box-sizing:border-box;position:fixed;inset:0;margin:auto;min-width:0;max-width:min(680px,calc(100vw - 32px));max-height:min(85dvh,900px);overflow:auto;background:#fff;color:#182b3d;border:1px solid #ccd8e4;border-radius:18px;padding:28px;box-shadow:0 20px 65px #0c193b55}'
+            .$scope.' .cmsdg-popup:not(:popover-open){display:none!important}'
+            .$scope.' .cmsdg-popup::backdrop{background:#08172c99}'
+            .$scope.' .cmsdg-popup-close{position:sticky;top:0;float:right;z-index:1;width:40px;height:40px;margin:-14px -14px 4px 10px;border:1px solid #ccd8e4;border-radius:50%;background:#fff;color:#182b3d;font:24px system-ui;cursor:pointer}'
+            .$scope.' .cmsdg-popup-trigger{font:inherit;cursor:pointer}'
             .$scope.' .cmsdg-quote{margin:12px 0;padding:20px;border-inline-start:4px solid currentColor}'
             .$scope.' .cmsdg-quote blockquote{margin:0}'
             .$scope.' .cmsdg-quote figcaption{margin-top:12px;font-size:.9em}'
