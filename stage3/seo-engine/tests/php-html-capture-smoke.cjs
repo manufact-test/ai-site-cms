@@ -39,16 +39,26 @@ const CAP=moduleShim.exports;
 const origin=()=>mode==='dev-origin'?'http://127.0.0.1:'+server.address().port:'https://pilot.example';
 const html=(title)=>{
  const route=title==='About'?'about/':'';
+ const hasImage=title!=='About';
+ const imageUrl=origin()+'/published/pilot-local/assets/'+
+  (mode==='bad-og-url'?'asset-secondary.png':'asset-banner.png');
  return '<!doctype html><html lang="ru"><head><title>'+title+
   '</title><meta name="description" content="Тест локального PHP">'+
   '<meta property="og:title" content="'+(mode==='bad-metadata'?'Old page':title)+'">'+
+  '<meta property="og:type" content="website"><meta property="og:locale" content="ru_RU">'+
   '<meta property="og:description" content="Тест локального PHP">'+
   '<link rel="canonical" href="'+(mode==='bad-canonical'?'https://other.example/':
     origin()+'/published/pilot-local/'+route)+'">'+
   '<meta property="og:url" content="'+(mode==='bad-og-page'?'https://other.example/':
     origin()+'/published/pilot-local/'+route)+'">'+
-  '<meta property="og:image" content="'+origin()+'/published/pilot-local/assets/'+
-  (mode==='bad-og-url'?'asset-secondary.png':'asset-banner.png')+'"></head>'+
+  (hasImage?'<meta property="og:image" content="'+imageUrl+'">':'')+
+  '<meta name="twitter:card" content="'+(hasImage?'summary_large_image':'summary')+'">'+
+  '<meta name="twitter:title" content="'+title+'">'+
+  '<meta name="twitter:description" content="Тест локального PHP">'+
+  (hasImage?'<meta name="twitter:image" content="'+imageUrl+'">'+
+   '<meta property="og:image:alt" content="Actual banner">'+
+   '<meta name="twitter:image:alt" content="Actual banner">':'')+
+  '</head>'+
   '<body><h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a>'+
   '<a href="/published/pilot-local/old/">Old route</a>'+
   (mode.startsWith('other-consumers')?
