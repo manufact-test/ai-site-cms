@@ -110,13 +110,16 @@ async function execute(){
         values:{'content.text':'Авторская композиция клиента'}}],
       designGraph:{version:1,id:'graph-approved-custom',nodes:[{
         id:'approved-custom-container',type:'container',
-        styles:{display:'grid',columns:2,gap:24},
+        styles:{display:'grid',columns:2,gap:24,minHeight:240,borderWidth:2,borderStyle:'dashed'},
+        backgroundMedia:{assetId:'asset-external-hero',tabletAssetId:'asset-external-hero',
+          mobileAssetId:'asset-external-hero',size:'cover',positionX:40,positionY:60,
+          overlay:{color:'@foreground',opacity:35}},
         responsive:{mobile:{columns:1,gap:12}},
         children:[
           {id:'approved-custom-copy',type:'text',text:'Особенный согласованный дизайн',
             styles:{fontSize:24},responsive:{mobile:{fontSize:18}}},
           {id:'approved-custom-photo',type:'image',assetId:'asset-external-hero',
-            alt:'Графическое оформление',styles:{radius:14}}
+            alt:'Графическое оформление',href:'/',styles:{radius:14,filterPreset:'grayscale'}}
         ]
       }]}
     });
@@ -127,7 +130,8 @@ async function execute(){
     const row=(id,values)=>({id,type:'table-row',styles:{},
       children:values.map((v,i)=>cell(id+'-cell-'+(i+1),v))});
     rich.push(
-      {id:'approved-rich-link',type:'link',text:'Перейти к началу',href:'/',styles:{textDecoration:'underline'}},
+      {id:'approved-rich-link',type:'link',text:'Перейти к началу',href:'/',styles:{textDecoration:'underline'},
+        states:{active:{opacity:70,borderColor:'@accent',borderStyle:'dotted'}}},
       {id:'approved-rich-quote',type:'quote',text:'Цитата из согласованной спецификации',
         cite:'Подпись для цитаты',styles:{padding:16}},
       {id:'approved-rich-table',type:'table',text:'Характеристики услуги',styles:{},
@@ -597,6 +601,16 @@ async function execute(){
     'Published gallery uses actual site-owned photos');
   assert.match(await visitor.locator('.cmsdg-n-approved-rich-quote').innerText(),/Технический редактор/);
   assert.equal(await visitor.locator('.cmsdg-n-approved-rich-link').getAttribute('href'),'/published/site-approved-browser/');
+  assert.equal(await visitor.locator('.cmsdg-image-action').first().getAttribute('href'),
+    '/published/site-approved-browser/','Clickable image keeps site-isolated route');
+  const artworkCss=await visitor.locator('.cmsdg-graph-approved-custom style').textContent();
+  assert.match(artworkCss,/background-image:linear-gradient\(#182b3d59,#182b3d59\),url\("/,
+    'PHP renders approved original site-owned raster with 35% dark overlay');
+  assert.match(artworkCss,/@media\(max-width:600px\)\{[^}]+background-image:/,
+    'PHP responsive art direction includes phone image rule');
+  assert.match(artworkCss,/border-style:dashed/);
+  assert.match(artworkCss,/filter:grayscale\(1\)/);
+  assert.match(artworkCss,/:active\{opacity:0.70;border-color:#0a5bff;border-style:dotted\}/);
   const remoteImage=visitor.locator('section.showcase img.showcase-photo');
   assert.equal(await remoteImage.getAttribute('alt'),'Фото внешнего сайта');
   assert.match(await remoteImage.getAttribute('src'),
