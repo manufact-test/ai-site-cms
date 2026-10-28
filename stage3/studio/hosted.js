@@ -2384,6 +2384,8 @@
       backlogList.append(element('p',null,'Ещё '+(readiness.issues.length-100)+' замечаний. Закройте часть полей и откройте проверку снова.'));
     backlog.append(backlogList);
     const exportReport=action('Скачать отчёт JSON','server-launch-report',()=>{});
+    const copyFindings=action('Копировать замечания для разработчика',
+      'server-launch-copy-findings',()=>{});
     const footer=element('div','hosted-launch-footer');
     const editPage=action('Редактировать страницу','server-launch-edit',()=>{});
     const quality=action('Все замечания SEO и доступности','server-launch-quality',()=>{
@@ -2411,7 +2413,7 @@
     });
     const markReviewed=action('Подтвердить просмотр страницы','server-launch-mark',()=>{});
     const close=action('Закрыть','server-launch-close',()=>dialog.close());
-    footer.append(editPage,quality,saveDraft,exportReport,publishSaved,close);
+    footer.append(editPage,quality,saveDraft,exportReport,copyFindings,publishSaved,close);
     detail.append(pageHeading,devices,compareModes,overlayControls,syncControls,previewPanels,previewStatus,issues,findingPanel,markReviewed);
     body.append(pages,detail);
     dialog.append(header,backlog,body,footer);
@@ -2426,6 +2428,18 @@
     const openFindings=(pageId,mode)=>manualFindings.filter(f=>
       !f.resolved&&f.pageId===pageId&&f.device===mode);
     const unresolvedCount=()=>manualFindings.filter(f=>!f.resolved).length;
+    const plainFixList=()=>[
+      'AI Site CMS — замечания к визуальной проверке сайта',
+      'Сайт: '+site.siteId+' | ревизия: '+openedRevision,
+      'Согласованный архив: '+(approvedReference?.packageSha||'не прикреплён'),
+      'Сравнение с реальным PHP-превью, не с HTML-макетом.',
+      ...manualFindings.filter(f=>!f.resolved).map((f,i)=>
+        (i+1)+'. Страница '+f.path+' | '+f.device+' ('+widths[f.device]+
+        ' px) | прокрутка Y '+f.scrollY+' px\n'+f.note),
+      'Исправления вносить в типизированный Design Graph/контент черновика;',
+      'оригинальные макеты не менять. После правок: Save → ручная проверка → Publish.',
+      'Это замечания оператора, не подтверждение 1:1 и не разрешение на публикацию.'
+    ].join('\n\n');
     const drawFindings=()=>{
       findingList.replaceChildren();
       const pageId=selectedRow?.current?.id;
@@ -2502,7 +2516,8 @@
       launchProgress.textContent='Проверено страниц: '+completedCount()+'/'+site.pages.length+
         ' · экранов: '+signedCount()+'/'+(site.pages.length*devicesNeeded.length)+
         (readiness.errors?' · '+readiness.errors+' ошибок SDK-аудита':'')+
-        (readiness.attention?' · '+readiness.attention+' незаполненных полей':'');
+        (readiness.attention?' · '+readiness.attention+' незаполненных полей':'')+
+        (unresolvedCount()?' · '+unresolvedCount()+' открытых замечаний':'');
       for(const control of pages.querySelectorAll('button[data-page-id]')){
         const complete=pageComplete(control.dataset.pageId);
         control.classList.toggle('is-reviewed',complete);
@@ -2510,6 +2525,7 @@
       }
       const marked=reviewed.get(selectedRow?.current?.id)?.has(device);
       const evidence=renderEvidence.get(signature(selectedRow,device));
+      copyFindings.disabled=unresolvedCount()===0;
       markReviewed.textContent=marked?'✓ '+widths[device]+' px проверено':
         'Подтвердить экран '+widths[device]+' px';
       if(evidence?.errors?.length)markReviewed.title=evidence.errors.join(' · ');
@@ -2527,6 +2543,16 @@
       if(openFindings(id,device).length)return;
       if(!reviewed.has(id))reviewed.set(id,new Set());
       reviewed.get(id).add(device);updateReviewed();syncActions();
+    });
+    copyFindings.addEventListener('click',()=>{
+      if(!unresolvedCount())return;
+      if(!navigator.clipboard?.writeText){
+        notice('Копирование недоступно: нужен HTTPS. Используйте отчёт JSON.',true);
+        return;
+      }
+      void navigator.clipboard.writeText(plainFixList())
+        .then(()=>notice('Открытые замечания скопированы для разработчика.'))
+        .catch(()=>notice('Браузер запретил буфер обмена. Используйте отчёт JSON.',true));
     });
     exportReport.addEventListener('click',()=>{
       const report={format:'manufact-launch-review-v1',siteId:site.siteId,
