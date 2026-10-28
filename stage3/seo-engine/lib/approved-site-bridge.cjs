@@ -6,6 +6,8 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const {fingerprint}=require('./acceptance.cjs');
 const SOURCE_FORMAT='manufact-seo-approved-site-source-v1';
+const verifiedSources=new WeakSet();
+function isVerifiedSource(source){return verifiedSources.has(source);}
 function load(folder){
  let lead;
  try{lead=require('../../bin/verify-approved-site.cjs');}
@@ -33,11 +35,11 @@ function load(folder){
  const site=JSON.parse(sourceBytes.toString('utf8'));
  if(site.siteId!==checked.siteId||handoff.version!==checked.version)
   throw Error('Approved Site source changed after preflight');
- const references=site.pages.map(p=>({
+ const references=Object.freeze(site.pages.map(p=>Object.freeze({
   pageId:p.id,path:p.path,
   referenceType:p.path==='/'?'homepage':handoff.files.pagePrototypes?.[p.id]?'page-specific':null,
-  devices:p.path==='/'||handoff.files.pagePrototypes?.[p.id]?['desktop','tablet','mobile']:[]
- }));
+  devices:Object.freeze(p.path==='/'||handoff.files.pagePrototypes?.[p.id]?['desktop','tablet','mobile']:[])
+ })));
  const summary=Object.freeze({
   format:SOURCE_FORMAT,siteId:site.siteId,packageFormat:handoff.format,
   packageVersion:handoff.version,integrity:'sha256-verified-at-read',
@@ -45,9 +47,10 @@ function load(folder){
   fileSha256,siteRevisionFingerprint:fingerprint(site),
   pageReferences:references,
   availablePrototypePageCount:references.filter(p=>p.devices.length===3).length,
-  missingInteriorPrototypePageIds:references.filter(p=>p.path!=='/'&&!p.devices.length).map(p=>p.pageId),
+  missingInteriorPrototypePageIds:Object.freeze(references.filter(p=>p.path!=='/'&&!p.devices.length).map(p=>p.pageId)),
   clientApprovalAuthenticated:false,visualFidelityVerified:false,published:false
  });
+ verifiedSources.add(summary);
  return {site,source:summary};
 }
-module.exports=Object.freeze({SOURCE_FORMAT,load});
+module.exports=Object.freeze({SOURCE_FORMAT,load,isVerifiedSource});

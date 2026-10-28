@@ -26,6 +26,15 @@ try{
  const oldBundle=JSON.parse(good('review-bundle',{site,blueprint:bp}));
  assert.equal(oldBundle.approvedSiteSource,null,'legacy --site path remains independent');
  assert.equal(oldBundle.coverage.sealedSourceVerifiedAtRead,false);
+ // Source verification metadata cannot be forged through the package API.
+ const PACKAGE=require('../lib/package.cjs');
+ const currentRegistry=fs.readdirSync(path.resolve(root,'../components')).filter(x=>x.endsWith('.json'))
+  .map(x=>JSON.parse(fs.readFileSync(path.resolve(root,'../components',x),'utf8')));
+ assert.throws(()=>PACKAGE.build(JSON.parse(fs.readFileSync(site,'utf8')),currentRegistry,
+  JSON.parse(fs.readFileSync(bp,'utf8')),{approvedSource:{
+   format:'manufact-seo-approved-site-source-v1',siteId:'site-industrial-demo',
+   integrity:'sha256-verified-at-read',siteRevisionFingerprint:'forged'
+  }}),/Approved Site source metadata does not match/);
  const audit=JSON.parse(good('analyze-site',{site,blueprint:bp}));
  assert.equal(audit.format,'manufact-seo-analysis-v1');
  assert.equal(audit.mode,'site-v1');assert.equal(audit.siteId,'site-industrial-demo');

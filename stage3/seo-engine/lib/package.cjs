@@ -22,6 +22,7 @@ const CMS_PACKET=require('./cms-change-packet.cjs');
 const CAPTURE=require('./capture-plan.cjs');
 const CONSISTENCY=require('./evidence-consistency.cjs');
 const ACCEPTANCE=require('./acceptance.cjs');
+const APPROVED_SITE=require('./approved-site-bridge.cjs');
 const PROGRESS=require('./task-progress.cjs');
 const MIGRATION=require('./route-migration.cjs');
 const IMPACT=require('./change-impact.cjs');
@@ -36,7 +37,7 @@ function build(site,manifests,blueprint,options={}){
   throw Error('Unsupported review-package options');
  // A sealed package is verified by the lead CLI before this read-only review.
  const approvedSource=options.approvedSource||null;
- if(approvedSource&&(
+ if(approvedSource&&(!APPROVED_SITE.isVerifiedSource(approvedSource)||
   approvedSource.format!=='manufact-seo-approved-site-source-v1'||
   approvedSource.siteId!==site.siteId||
   approvedSource.siteRevisionFingerprint!==ACCEPTANCE.fingerprint(site)||
