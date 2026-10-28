@@ -1082,6 +1082,37 @@ function validateFormSteps(section){
     if(positions.get(source)>positions.get(name))
       fail('Conditional field must not precede source step',section.id);
 }
+// Shared section instances retain their own stable IDs, while content is
+// identical on all pages. Strip per-instance IDs before comparing content.
+function sharedSectionShape(section){
+  const model=clone(section);delete model.id;delete model.sharedKey;
+  for(const element of model.elements)delete element.id;
+  for(const item of model.items||[])delete item.id;
+  if(model.designGraph){
+    const ids=new Map();let counter=0;
+    const index=nodes=>{for(const node of nodes){ids.set(node.id,'shared-node-'+(++counter));if(node.children)index(node.children);}};
+    index(model.designGraph.nodes);
+    model.designGraph.id='shared-design';
+    const normalize=nodes=>{for(const node of nodes){
+      if(own(node,'popupTarget'))node.popupTarget=ids.get(node.popupTarget)||'missing-target';
+      node.id=ids.get(node.id);if(node.children)normalize(node.children);
+    }};
+    normalize(model.designGraph.nodes);
+  }
+  return model;
+}
+function validateSharedSections(groups){
+  for(const [name,members] of groups){
+    if(members.length>20)fail('Too many instances of a shared section',name);
+    const pages=new Set(),reference=JSON.stringify(sharedSectionShape(members[0].section));
+    for(const member of members){
+      if(pages.has(member.pageId))fail('Shared section repeated on the same page',name);
+      pages.add(member.pageId);
+      if(JSON.stringify(sharedSectionShape(member.section))!==reference)
+        fail('Shared section copies have diverged; synchronize before Save or Publish',name);
+    }
+  }
+}
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
   objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language'],'site');
@@ -1121,7 +1152,7 @@ function validateSite(raw,regInput){
     }
   }
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
-  const ids=new Set([raw.siteId,...assetIds]),paths=new Set();
+  const ids=new Set([raw.siteId,...assetIds]),paths=new Set(),sharedGroups=new Map();
   for(const page of raw.pages){
     objectKeys(page,['id','path','title','sections','seo','navigation'],'page');
     if(own(page,'seo'))validSeo(page.seo,assetMimes);
@@ -1132,7 +1163,12 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey'],'section');
+      if(own(section,'sharedKey')){
+        id(section.sharedKey,'shared section group');
+        if(!sharedGroups.has(section.sharedKey))sharedGroups.set(section.sharedKey,[]);
+        sharedGroups.get(section.sharedKey).push({pageId:page.id,section});
+      }
       if(own(section,'appearance'))validAppearance(section.appearance);
       id(section.id,'section.id');if(ids.has(section.id))fail('Duplicate stable ID',section.id);ids.add(section.id);
       const manifest=select(reg,section.component,section.manifestVersion);
@@ -1173,6 +1209,7 @@ function validateSite(raw,regInput){
       if(own(section,'designGraph'))GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens,assetMimes);
     }
   }
+  validateSharedSections(sharedGroups);
   validMenuRelations(raw);
   if(own(raw,'redirects')){
     if(!Array.isArray(raw.redirects)||raw.redirects.length>60)fail('Invalid redirect count');
@@ -1450,7 +1487,7 @@ function upgrade(raw,previous,next,allOtherManifests,decisions={}){
 }
 module.exports=Object.freeze({DEFAULT_MENU,DEFAULT_THEME,
   FORMAT,MANIFEST,BREAKPOINTS,DEFAULT_APPEARANCE,validateManifest,registry,validateSite,inspectSite,
-  controls,effectiveValue,sectionFrom,siteFromBrief,upgrade
+  controls,effectiveValue,sectionFrom,siteFromBrief,upgrade,sharedSectionShape
 });
 
 return module.exports;})();
@@ -1536,6 +1573,7 @@ function edit(raw,manifests,{pageId,sectionId,elementId,path,value,breakpoint=nu
   const candidate=copy(session.current),element=select(candidate,pageId,sectionId,elementId).element;
   if(breakpoint===null)element.values[path]=copy(value);
   else element.values[path][breakpoint]=copy(value);
+  syncSharedSite(candidate,session.current);
   C.validateSite(candidate,manifests);
   if(JSON.stringify(candidate)===JSON.stringify(session.current))return copy(session);
   return {format:SESSION,revision:session.revision+1,base:copy(session.base),
@@ -1558,6 +1596,77 @@ function redo(raw,manifests){
     current:next,undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:future};
 }
 
+// A shared section is a linked set of fully typed page-local instances.
+// Never share DOM IDs, graph IDs or repeater IDs across pages. A single edit
+// advances all sibling instances in one local draft revision/Undo.
+function copyLinkedBody(source,target){
+  const result=copy(source);
+  result.id=target.id;
+  result.sharedKey=target.sharedKey;
+  result.elements=result.elements.map((element,i)=>({
+    ...element,id:target.elements.find(x=>x.slot===element.slot)?.id||target.id+'-'+element.slot
+  }));
+  if(result.items)result.items=result.items.map((item,i)=>({
+    ...item,id:target.items?.[i]?.id||target.id+'-item-'+(i+1)
+  }));
+  if(result.designGraph){
+    const oldNodes=[];
+    const scan=(nodes,items)=>{for(const node of nodes){items.push(node);if(node.children)scan(node.children,items);}};
+    scan(source.designGraph.nodes,oldNodes);
+    const targetNodes=[];if(target.designGraph)scan(target.designGraph.nodes,targetNodes);
+    const ids=new Map(),used=new Set([
+      target.id,...result.elements.map(x=>x.id),...(result.items||[]).map(x=>x.id)
+    ]);
+    let i=0;
+    for(const old of oldNodes){
+      let mapped=targetNodes[i]?.id;
+      if(!mapped||used.has(mapped)){
+        let suffix=i+1;
+        do{mapped=target.id.slice(0,56)+'-n-'+suffix++;}while(used.has(mapped));
+      }
+      ids.set(old.id,mapped);used.add(mapped);i++;
+    }
+    result.designGraph.id=target.designGraph?.id||target.id.slice(0,65)+'-design';
+    const rename=nodes=>{for(const node of nodes){
+      if(node.popupTarget)node.popupTarget=ids.get(node.popupTarget)||node.popupTarget;
+      node.id=ids.get(node.id);
+      if(node.children)rename(node.children);
+    }};
+    rename(result.designGraph.nodes);
+  }
+  return result;
+}
+function syncSharedSite(candidate,previous){
+  const oldById=new Map(previous.pages.flatMap(p=>p.sections.map(s=>[s.id,s])));
+  const groups=new Map();
+  for(const p of candidate.pages)for(const s of p.sections){
+    if(!s.sharedKey)continue;
+    if(!groups.has(s.sharedKey))groups.set(s.sharedKey,[]);
+    groups.get(s.sharedKey).push({page:p,section:s});
+  }
+  for(const [name,members] of groups){
+    if(members.length<2)continue;
+    const changed=members.filter(({section})=>{
+      const old=oldById.get(section.id);
+      return old&&JSON.stringify(C.sharedSectionShape(old))!==
+        JSON.stringify(C.sharedSectionShape(section));
+    });
+    // More than one independent divergent edit is ambiguous. No last-write-wins.
+    if(changed.length>1){
+      const first=JSON.stringify(C.sharedSectionShape(changed[0].section));
+      if(changed.some(x=>JSON.stringify(C.sharedSectionShape(x.section))!==first))
+        throw Error('Concurrent divergent changes to shared section '+name);
+    }
+    if(!changed.length)continue;
+    const source=changed[0].section;
+    for(const member of members){
+      if(member.section.id===source.id)continue;
+      const index=member.page.sections.findIndex(x=>x.id===member.section.id);
+      member.page.sections[index]=copyLinkedBody(source,member.section);
+    }
+  }
+  return candidate;
+}
 // Explicit structure operations use the same validated document as field edits.
 // Undo/redo and optimistic local revision checks therefore work for both.
 function structure(raw,manifests,command){
@@ -1583,13 +1692,20 @@ function structure(raw,manifests,command){
     if(typeof newId!=='string')throw Error('Fresh section ID required');
     const cloned=copy(source);
     if(cloned.designGraph){
-      cloned.designGraph.id=newId+'-design';
-      let counter=0;
+      cloned.designGraph.id=newId.slice(0,65)+'-design';
+      let counter=0;const nodeMap=new Map();
       const rename=node=>{
-        node.id=newId+'-node-'+(++counter);
+        const old=node.id;
+        node.id=newId.slice(0,56)+'-node-'+(++counter);
+        nodeMap.set(old,node.id);
         for(const child of node.children||[])rename(child);
       };
       cloned.designGraph.nodes.forEach(rename);
+      const targets=node=>{
+        if(node.popupTarget)node.popupTarget=nodeMap.get(node.popupTarget)||node.popupTarget;
+        for(const child of node.children||[])targets(child);
+      };
+      cloned.designGraph.nodes.forEach(targets);
     }
     return {...cloned,id:newId,elements:source.elements.map(el=>({
       ...copy(el),id:newId+'-'+el.slot
@@ -1713,7 +1829,9 @@ function structure(raw,manifests,command){
       break;
     case 'duplicateSection':
       if(!page||sectionIndex<0)throw Error('Unknown section to duplicate');
-      page.sections.splice(sectionIndex+1,0,rekey(page.sections[sectionIndex],command.id));
+      const duplicated=rekey(page.sections[sectionIndex],command.id);
+      delete duplicated.sharedKey;
+      page.sections.splice(sectionIndex+1,0,duplicated);
       break;
     case 'applyTemplate':{
       if(!page||typeof command.id!=='string'||!isObj(command.template))
@@ -1722,7 +1840,9 @@ function structure(raw,manifests,command){
       const m=reg.get(source.component);
       if(!m||source.manifestVersion!==m.version)
         throw Error('Template component must match registered version');
-      page.sections.splice(sectionIndex>=0?sectionIndex+1:page.sections.length,0,rekey(source,command.id));
+      const applied=rekey(source,command.id);
+      delete applied.sharedKey;
+      page.sections.splice(sectionIndex>=0?sectionIndex+1:page.sections.length,0,applied);
       break;
     }
     case 'duplicatePage':{
@@ -1781,6 +1901,7 @@ function structure(raw,manifests,command){
         throw Error('Cannot move the only section of a page; copy it instead');
       const moving=command.mode==='copy'?rekey(page.sections[sectionIndex],command.id):
         page.sections.splice(sectionIndex,1)[0];
+      if(command.mode==='copy')delete moving.sharedKey;
       let position=destination.sections.length;
       if(command.side!=='end'){
         position=destination.sections.findIndex(t=>t.id===command.targetSectionId);
@@ -1809,7 +1930,32 @@ function structure(raw,manifests,command){
       const dest=c.pages.find(p=>p.id===command.toPageId);
       if(!dest||!['start','end'].includes(command.placement))throw Error('Invalid copy target');
       const newSection=rekey(page.sections[sectionIndex],command.id);
+      delete newSection.sharedKey;
       dest.sections.splice(command.placement==='start'?0:dest.sections.length,0,newSection);
+      break;
+    }
+    case 'linkSharedSection':{
+      if(!page||sectionIndex<0||typeof command.id!=='string'||
+        typeof command.toPageId!=='string')throw Error('Invalid shared-section link request');
+      const dest=c.pages.find(p=>p.id===command.toPageId);
+      if(!dest||dest===page||dest.sections.length>=100)
+        throw Error('Shared section requires another page with free capacity');
+      const source=page.sections[sectionIndex];
+      const group=source.sharedKey||command.sharedKey;
+      if(typeof group!=='string'||!/^shared-[a-z0-9-]{3,72}$/.test(group))
+        throw Error('Invalid shared group ID');
+      if(dest.sections.some(s=>s.sharedKey===group))
+        throw Error('This page already has an instance of this shared section');
+      source.sharedKey=group;
+      const newSection=rekey(source,command.id);
+      newSection.sharedKey=group;
+      dest.sections.push(newSection);
+      break;
+    }
+    case 'detachSharedSection':{
+      if(!page||sectionIndex<0||!page.sections[sectionIndex].sharedKey)
+        throw Error('Section is not linked');
+      delete page.sections[sectionIndex].sharedKey;
       break;
     }
     case 'removeSection':
@@ -1823,7 +1969,8 @@ function structure(raw,manifests,command){
     current:c,undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:[]};
 }
 function replaceSite(raw,manifests,site,expectedRevision){
-  const s=verifySession(raw,manifests),candidate=C.validateSite(site,manifests);
+  const s=verifySession(raw,manifests);
+  const candidate=C.validateSite(syncSharedSite(copy(site),s.current),manifests);
   if(expectedRevision!==s.revision||candidate.siteId!==s.current.siteId)throw Error('Stale or different site composition');
   return {format:SESSION,revision:s.revision+1,base:copy(s.base),current:candidate,
     undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:[]};
@@ -1906,7 +2053,7 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
     formSteps:copy(section.formSteps||[]),
     elements,items,notPublished:true,hasExecutableHtml:false};
 }
-module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview});
+module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview,syncSharedSite,copyLinkedBody});
 
 return module.exports;})();
 const RECIPES=(()=>{const module={exports:{}};const require=name=>{if(name==='./contract.cjs')return CONTRACT;throw Error('Unknown recipe import');};
@@ -3740,6 +3887,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const node=find(edited.designGraph.nodes);
         if(!node)throw Error('Узел композиции больше не существует');
         mutate({node,site,section:edited});
+        D.syncSharedSite(site,session.current);
         const checked=C.validateSite(site,manifests);
         // Native input change + blur can fire twice. Do not record duplicate
         // revisions: a single visible edit must always need only one Undo.
@@ -3790,6 +3938,40 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         pageId=page.id;sectionId=section.id;elementId=workElement;breakpoint=mode;draw();modal.close();
       });
       workActions.append(up,down,duplicate,remove,inspect);
+      const linked=section.sharedKey;
+      const linkedCount=linked?session.current.pages.reduce((n,p)=>
+        n+p.sections.filter(s=>s.sharedKey===linked).length,0):0;
+      const sharedStatus=document.createElement('small');
+      sharedStatus.id='cms-work-shared-status';
+      sharedStatus.textContent=linked?
+        'Общая секция · '+linkedCount+' связанных страниц':
+        'Секция на одной странице';
+      workActions.append(sharedStatus);
+      const availablePages=session.current.pages.filter(p=>p.id!==page.id&&
+        p.sections.length<100&&(!linked||!p.sections.some(s=>s.sharedKey===linked)));
+      if(availablePages.length){
+        const target=document.createElement('select');target.className='control';
+        target.id='cms-work-shared-target';
+        for(const other of availablePages){
+          const option=document.createElement('option');option.value=other.id;
+          option.textContent=other.title;target.append(option);
+        }
+        const addShared=workButton(linked?'+ На ещё одну страницу':'Связать между страницами',()=>{
+          structureWork({action:'linkSharedSection',pageId:page.id,sectionId:section.id,
+            id:uniqueId('section'),toPageId:target.value,
+            sharedKey:linked||uniqueId('shared')});
+        });
+        addShared.id='cms-work-shared-link';addShared.disabled=!canWrite();
+        workActions.append(target,addShared);
+      }
+      if(linked){
+        const detach=workButton('Отвязать','cms-work-shared-detach',()=>{
+          if(confirm('Оставить самостоятельную копию на этой странице?'))
+            structureWork({action:'detachSharedSection',pageId:page.id,sectionId:section.id});
+        });
+        detach.id='cms-work-shared-detach';detach.disabled=!canWrite();
+        workActions.append(detach);
+      }
       const els=[...section.elements,...(section.items||[])];
       if(!els.some(e=>e.id===workElement))workElement=section.elements[0].id;
       for(const e of els){const o=document.createElement('option');o.value=e.id;
@@ -5799,6 +5981,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const section=draft.pages.find(p=>p.id===sourcePage)?.sections.find(s=>s.id===sourceSection);
         if(!section)throw Error('Блок уже отсутствует');
         section.designGraph=cp(graph);draft.designTokens=cp(tokens);
+        D.syncSharedSite(draft,session.current);
         const checked=C.validateSite(draft,manifests);
         session=D.replaceSite(session,manifests,checked,session.revision);
         const recheck=!!activeAuditFocus;
@@ -7107,6 +7290,47 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const builder=button('Поля и шаги формы · '+(section.formFields||[]).length+'/9'+(section.formSteps?' · '+section.formSteps.length+' шага(ов)':''),
         'btn small',openFormBuilder);
       builder.id='cms-form-builder-open';builder.dataset.editorWrite='true';row.append(builder);
+    }
+    // Multi-page shared sections: one page-local ID per instance and atomic
+    // propagation of every edit. Detach preserves this page's current content.
+    {
+      const currentPage=current().page;
+      const group=section.sharedKey||null;
+      const related=group?session.current.pages.flatMap(page=>
+        page.sections.filter(s=>s.sharedKey===group).map(s=>({page,section:s}))):[];
+      const status=document.createElement('small');
+      status.className='field-path';
+      status.id='cms-shared-section-status';
+      status.textContent=group?
+        'Общая секция · '+related.length+' страниц · '+related.map(x=>x.page.title).join(', '):
+        'Локальная секция · изменения только на этой странице';
+      row.append(status);
+      const candidates=session.current.pages.filter(page=>
+        page.id!==currentPage.id&&page.sections.length<100&&
+        (!group||!page.sections.some(sec=>sec.sharedKey===group)));
+      if(candidates.length){
+        const target=document.createElement('select');target.className='control';
+        target.id='cms-shared-section-target';
+        for(const page of candidates){
+          const opt=document.createElement('option');opt.value=page.id;opt.textContent=page.title;
+          target.append(opt);
+        }
+        const link=button(group?'Добавить общую секцию на страницу':'Сделать общей на другой странице','btn small',()=>{
+          structural({action:'linkSharedSection',pageId:currentPage.id,sectionId:section.id,
+            id:uniqueId('section'),toPageId:target.value,
+            sharedKey:group||uniqueId('shared')});
+        });
+        link.id='cms-shared-section-link';link.dataset.editorWrite='true';
+        row.append(target,link);
+      }
+      if(group){
+        const unlink=button('Отвязать от общих секций','btn small',()=>{
+          if(confirm('Сохранить эту секцию отдельной копией? Остальные страницы останутся связанными.'))
+            structural({action:'detachSharedSection',pageId:currentPage.id,sectionId:section.id});
+        });
+        unlink.id='cms-shared-section-detach';unlink.dataset.editorWrite='true';
+        row.append(unlink);
+      }
     }
     section.elements.forEach(e=>{
       const label=m.elements.find(s=>s.slot===e.slot)?.label||e.slot;

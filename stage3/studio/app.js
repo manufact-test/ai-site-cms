@@ -1408,6 +1408,7 @@
         const node=find(edited.designGraph.nodes);
         if(!node)throw Error('Узел композиции больше не существует');
         mutate({node,site,section:edited});
+        D.syncSharedSite(site,session.current);
         const checked=C.validateSite(site,manifests);
         // Native input change + blur can fire twice. Do not record duplicate
         // revisions: a single visible edit must always need only one Undo.
@@ -1458,6 +1459,40 @@
         pageId=page.id;sectionId=section.id;elementId=workElement;breakpoint=mode;draw();modal.close();
       });
       workActions.append(up,down,duplicate,remove,inspect);
+      const linked=section.sharedKey;
+      const linkedCount=linked?session.current.pages.reduce((n,p)=>
+        n+p.sections.filter(s=>s.sharedKey===linked).length,0):0;
+      const sharedStatus=document.createElement('small');
+      sharedStatus.id='cms-work-shared-status';
+      sharedStatus.textContent=linked?
+        'Общая секция · '+linkedCount+' связанных страниц':
+        'Секция на одной странице';
+      workActions.append(sharedStatus);
+      const availablePages=session.current.pages.filter(p=>p.id!==page.id&&
+        p.sections.length<100&&(!linked||!p.sections.some(s=>s.sharedKey===linked)));
+      if(availablePages.length){
+        const target=document.createElement('select');target.className='control';
+        target.id='cms-work-shared-target';
+        for(const other of availablePages){
+          const option=document.createElement('option');option.value=other.id;
+          option.textContent=other.title;target.append(option);
+        }
+        const addShared=workButton(linked?'+ На ещё одну страницу':'Связать между страницами',()=>{
+          structureWork({action:'linkSharedSection',pageId:page.id,sectionId:section.id,
+            id:uniqueId('section'),toPageId:target.value,
+            sharedKey:linked||uniqueId('shared')});
+        });
+        addShared.id='cms-work-shared-link';addShared.disabled=!canWrite();
+        workActions.append(target,addShared);
+      }
+      if(linked){
+        const detach=workButton('Отвязать','cms-work-shared-detach',()=>{
+          if(confirm('Оставить самостоятельную копию на этой странице?'))
+            structureWork({action:'detachSharedSection',pageId:page.id,sectionId:section.id});
+        });
+        detach.id='cms-work-shared-detach';detach.disabled=!canWrite();
+        workActions.append(detach);
+      }
       const els=[...section.elements,...(section.items||[])];
       if(!els.some(e=>e.id===workElement))workElement=section.elements[0].id;
       for(const e of els){const o=document.createElement('option');o.value=e.id;
@@ -3467,6 +3502,7 @@
         const section=draft.pages.find(p=>p.id===sourcePage)?.sections.find(s=>s.id===sourceSection);
         if(!section)throw Error('Блок уже отсутствует');
         section.designGraph=cp(graph);draft.designTokens=cp(tokens);
+        D.syncSharedSite(draft,session.current);
         const checked=C.validateSite(draft,manifests);
         session=D.replaceSite(session,manifests,checked,session.revision);
         const recheck=!!activeAuditFocus;
@@ -4775,6 +4811,47 @@
       const builder=button('Поля и шаги формы · '+(section.formFields||[]).length+'/9'+(section.formSteps?' · '+section.formSteps.length+' шага(ов)':''),
         'btn small',openFormBuilder);
       builder.id='cms-form-builder-open';builder.dataset.editorWrite='true';row.append(builder);
+    }
+    // Multi-page shared sections: one page-local ID per instance and atomic
+    // propagation of every edit. Detach preserves this page's current content.
+    {
+      const currentPage=current().page;
+      const group=section.sharedKey||null;
+      const related=group?session.current.pages.flatMap(page=>
+        page.sections.filter(s=>s.sharedKey===group).map(s=>({page,section:s}))):[];
+      const status=document.createElement('small');
+      status.className='field-path';
+      status.id='cms-shared-section-status';
+      status.textContent=group?
+        'Общая секция · '+related.length+' страниц · '+related.map(x=>x.page.title).join(', '):
+        'Локальная секция · изменения только на этой странице';
+      row.append(status);
+      const candidates=session.current.pages.filter(page=>
+        page.id!==currentPage.id&&page.sections.length<100&&
+        (!group||!page.sections.some(sec=>sec.sharedKey===group)));
+      if(candidates.length){
+        const target=document.createElement('select');target.className='control';
+        target.id='cms-shared-section-target';
+        for(const page of candidates){
+          const opt=document.createElement('option');opt.value=page.id;opt.textContent=page.title;
+          target.append(opt);
+        }
+        const link=button(group?'Добавить общую секцию на страницу':'Сделать общей на другой странице','btn small',()=>{
+          structural({action:'linkSharedSection',pageId:currentPage.id,sectionId:section.id,
+            id:uniqueId('section'),toPageId:target.value,
+            sharedKey:group||uniqueId('shared')});
+        });
+        link.id='cms-shared-section-link';link.dataset.editorWrite='true';
+        row.append(target,link);
+      }
+      if(group){
+        const unlink=button('Отвязать от общих секций','btn small',()=>{
+          if(confirm('Сохранить эту секцию отдельной копией? Остальные страницы останутся связанными.'))
+            structural({action:'detachSharedSection',pageId:currentPage.id,sectionId:section.id});
+        });
+        unlink.id='cms-shared-section-detach';unlink.dataset.editorWrite='true';
+        row.append(unlink);
+      }
     }
     section.elements.forEach(e=>{
       const label=m.elements.find(s=>s.slot===e.slot)?.label||e.slot;
