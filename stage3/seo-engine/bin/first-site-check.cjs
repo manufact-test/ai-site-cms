@@ -142,7 +142,7 @@ async function main(argv){
      new URL(origin).pathname!==new URL(publicMediaBytes.origin).pathname))
   throw Error('Public media SHA256 receipt and supplied HTTPS/HEAD evidence belong to different site origins or mounts');
  const publicStatic=exportPreflight&&publicHttp?
-  PUBLIC_STATIC.review(site,exportPreflight,publicHttp,publicMedia):null;
+  PUBLIC_STATIC.review(site,exportPreflight,publicHttp,publicMedia,publicMediaBytes):null;
  const blueprint=readBlueprint(o.blueprint),registry=manifests();
  if(blueprint.siteId!==site.siteId)throw Error('First-site approved source and Blueprint site IDs differ');
  // Fail early on incompatible source contracts, not after downloading images.
