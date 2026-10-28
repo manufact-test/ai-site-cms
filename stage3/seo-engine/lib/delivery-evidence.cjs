@@ -294,13 +294,20 @@ function review(site,evidence){
    }
   }
  }
+ if(evidence.negativeProbe){
+  if(![404,410].includes(evidence.negativeProbe.status))
+   add('delivery:soft-404-unknown-route','error',null,evidence.negativeProbe.path,
+    'Public host returned a non-404/410 status for a nonexistent URL. Disable SPA fallback or redirect-to-home for missing static routes.');
+ }
  return {format:OUTPUT,version:1,siteId:site.siteId,readOnly:true,
   origin:evidence.origin,capturedAt:evidence.capturedAt??null,
   coverage:{sitePages:site.pages.length,capturedPages:summaries.length,missingPages:missing,
    capturesHaveHtml:summaries.filter(x=>x.headPresent).length,
    redirectsDeclared:aliases.size,redirectResponsesCaptured:redirectReviews.length,
    robotsCaptured:Boolean(robots),sitemapCaptured:Boolean(sitemap),
-   sitemapKind:parsed?.kind??null,liveRequestsPerformedByToolkit:false,
+   sitemapKind:parsed?.kind??null,
+   negativeRouteStatus:evidence.negativeProbe?.status??null,
+   soft404ProbePerformed:Boolean(evidence.negativeProbe),liveRequestsPerformedByToolkit:false,
    independentlyVerifiedProvenance:false},
   pages:summaries,redirects:redirectReviews,findings,
   releaseAuthorized:false,
