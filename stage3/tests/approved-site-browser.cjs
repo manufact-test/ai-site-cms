@@ -184,6 +184,10 @@ async function execute(){
   assert.equal(await page.locator('#server-approved-review').getByText(/Спецификация реализации/).count(),1);
   const beforeCancel=(await (await page.request.get(origin+'/api/sites')).json()).sites.length;
   await page.locator('#server-approved-review-cancel').click();
+  // The dialog closes before the enclosing authenticated import operation
+  // completes its cleanup. Wait for its busy lock to release before re-picking.
+  await page.locator('#server-approved-review').waitFor({state:'detached'});
+  await page.waitForFunction(()=>!document.getElementById('server-approved-import').disabled);
   assert.equal((await (await page.request.get(origin+'/api/sites')).json()).sites.length,beforeCancel,
     'Cancelling visual approval must not create a database site');
   // Re-select the same authentic folder after cancellation to confirm the
