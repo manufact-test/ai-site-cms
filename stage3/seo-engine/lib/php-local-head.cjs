@@ -205,6 +205,8 @@ function review(site,snapshot,records,publication){
   }
   pages.push(Object.freeze({
    pageId:page.id,path:page.path,headersRecorded:Boolean(record.headers),
+   etag:headers.etag||null,
+   phpHtmlSha256:crypto.createHash('sha256').update(page.html,'utf8').digest('hex'),
    observedNoindexInXRobots:observedNoindex,siteNoindex:intendedNoindex,
    inlineScriptsCaptured:inlineScripts.length,wizardExpected:Boolean(wizardCount),
    metaRobotsMatched:metaNoindex===intendedNoindex,

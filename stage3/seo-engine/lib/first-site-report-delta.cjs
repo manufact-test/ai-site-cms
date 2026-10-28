@@ -131,6 +131,23 @@ function build(previous,currentSummary,currentBundle){
  const incomparableGates=[...new Set([...previousGates,...latestGates])]
   .filter(x=>!gateComparable(x));
  const persistentGates=[...latestGates].filter(x=>previousGates.has(x));
+ const olderHeads=new Map((pb.localPhpHead?.pages||[]).map(p=>[p.pageId,p]));
+ const etagDrifts=[],etagContentConflicts=[];
+ for(const latest of currentBundle.localPhpHead?.pages||[]){
+  const old=olderHeads.get(latest.pageId);
+  if(!old||old.path!==latest.path||!old.etag||!latest.etag||
+     !old.phpHtmlSha256||!latest.phpHtmlSha256)continue;
+  const etagChanged=old.etag!==latest.etag;
+  const htmlChanged=old.phpHtmlSha256!==latest.phpHtmlSha256;
+  if(etagChanged||htmlChanged){
+   const observation={pageId:latest.pageId,path:latest.path,
+    etagChanged,htmlChanged,previousEtag:old.etag,currentEtag:latest.etag,
+    // Hash fingerprints are evidence, not an authentication of served PHP code.
+    previousHtmlSha256:old.phpHtmlSha256,currentHtmlSha256:latest.phpHtmlSha256};
+   etagDrifts.push(observation);
+   if(!etagChanged&&htmlChanged)etagContentConflicts.push(observation);
+  }
+ }
  const previousVersion=prior.publishedVersion??null;
  const currentVersion=currentSummary.publishedVersion??null;
  const summary=Object.freeze({
@@ -151,6 +168,8 @@ function build(previous,currentSummary,currentBundle){
   staticExportCohortChanged:oldExportVersion!==newExportVersion,
   publicEvidenceOriginsComparable:publicOriginComparable,
   publicEvidenceOriginChanged:oldPublicOrigin!==newPublicOrigin,
+  observedPhpEtagOrHtmlChanges:etagDrifts.length,
+  sameEtagButDifferentHtml:etagContentConflicts.length,
   operatorConfirmedFixes:0,actualWrites:0,automaticRelease:false
  });
  const lines=['# First-site technical report comparison — not release approval','',
@@ -163,6 +182,8 @@ function build(previous,currentSummary,currentBundle){
    '; no longer observed: '+summary.noLongerObservedOccurrences+
    '; persistent occurrences: '+summary.persistentFindingOccurrences+'.',
   'Blocking gates: '+summary.previousBlockingGates+' → '+summary.currentBlockingGates+'.',
+  'Recorded PHP ETag / HTML byte changes on comparable routes: '+etagDrifts.length+
+   '; same ETag with changed HTML: '+etagContentConflicts.length+' (check server cache and version).',
   'Comparable evidence groups: '+commonGroups.length+
    '; only present in prior: '+groupsOnlyPrior.length+
    '; only present in current: '+groupsOnlyCurrent.length+'.',
@@ -172,6 +193,10 @@ function build(previous,currentSummary,currentBundle){
   'Public transcript origins: '+safe(oldPublicOrigin||'none')+' → '+safe(newPublicOrigin||'none')+
    '; comparable: '+(publicOriginComparable?'yes (caller supplied)':'NO; missing or changed origin')+'.',
   '',
+  '## ETag / HTML correlation (local PHP only)','',
+  ...etagDrifts.slice(0,40).map(x=>'- '+safe(x.path,100)+': ETag changed '+
+   (x.etagChanged?'YES':'no')+'; SHA256 HTML changed '+(x.htmlChanged?'YES':'no')+'.'),
+  'ETag values here are only locally observed HTTP cache identifiers. They are not published revision identity or public HTTPS proof.','',
   '## New PHP evidence issues',''];
  for(const x of changed.added.slice(0,45))
   lines.push('- '+safe(x.group,70)+' '+safe(x.code,100)+' · '+safe(x.path||x.pageId,130)+
@@ -211,6 +236,8 @@ function build(previous,currentSummary,currentBundle){
   comparedFromSourceSha256:prior.sourceSiteSha256,
   previousCaptureAt:prior.capturedAt,currentCaptureAt:currentSummary.capturedAt,
   summary,findings:changed,
+  phpCacheObservations:{etagDrifts,etagContentConflicts,
+   observedServedRevisionAuthenticated:false},
   gates:{newlyPresent:newGates,noLongerPresent:gatesNotObserved,
     persistent:persistentGates,notComparable:incomparableGates},
   markdown:lines.join('\n'),
