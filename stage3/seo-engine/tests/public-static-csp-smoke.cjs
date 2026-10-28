@@ -34,6 +34,12 @@ const noUnsafeHashes=CSP.review('pilot-site',page,html,policy(
  "; form-action https:"),host);
 assert.ok(noUnsafeHashes.findings.some(x=>x.code==='public-csp:inline-event-handler-blocked'));
 assert.ok(noUnsafeHashes.findings.some(x=>x.code==='public-csp:inline-style-attribute-blocked'));
+const wildcard=CSP.review('pilot-site',page,html,policy(
+ "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; form-action https://*.example"),host);
+assert.equal(wildcard.findings.length,0);
+const wrongWildcard=CSP.review('pilot-site',page,html,policy(
+ "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; form-action https://*.collector.example"),host);
+assert.ok(wrongWildcard.findings.some(x=>x.code==='public-csp:form-collector-blocked'));
 const noPolicy=CSP.review('pilot-site',page,html,{},host);
 assert.ok(noPolicy.findings.some(x=>x.code==='public-csp:missing-public-csp'&&x.severity==='warning'));
 assert.equal(noPolicy.policySupplied,false);
