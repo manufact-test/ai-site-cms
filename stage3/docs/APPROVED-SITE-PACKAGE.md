@@ -305,3 +305,22 @@ For regular \`image\` nodes, optional \`href\` enables a clickable image, using 
 Existing Design Graph \`styles\` now permit \`filterPreset\` (\`none\`, \`grayscale\`, \`sepia\`, \`contrast\`, \`vibrant\`) and \`borderStyle\` (\`solid\`, \`dashed\`, \`dotted\`, \`double\`). A typed \`states.active\` layer provides touch/pressed visual feedback; its allowed properties are constrained to the small existing interaction-style subset. The Studio full editor exposes all these controls, and its visual workbench permits one-click background choice and editing the linked image action. The site media inventory, draft media replacement, PHP media maintenance and unused-media deletion **all retain** every referenced desktop/tablet/mobile background. Imported images receive immutable server IDs recursively; no raw asset URL is trusted from the package.
 
 This is a *capability* for realizing an individual approved design, not evidence of visual fidelity. The owner's desktop/tablet/mobile PHP comparison and approval gate remain mandatory. Background photographs must have adequate source dimensions and sufficient contrast with their actual text; an overlay does not automatically prove readability or accessibility.
+
+## Per-device foreground images — `image.responsiveMedia`
+When the *subject* or *composition* of a visible image differs on desktop/tablet/mobile (art direction, rather than resizing one photograph), use one typed Design Graph `image` node:
+```json
+{
+  "id": "hero-photo",
+  "type": "image",
+  "assetId": "asset-photo-desktop",
+  "responsiveMedia": {
+    "tabletAssetId": "asset-photo-tablet",
+    "mobileAssetId": "asset-photo-mobile"
+  },
+  "alt": "Accurate description of the approved visible photo",
+  "styles": {"radius": 16}
+}
+```
+`assetId` is always the desktop original and is an independently uploaded immutable site-owned media ID. `responsiveMedia` is optional, but **if present must contain at least one** of the two allowed keys. Both values must be existing site-owned PNG/JPEG/WebP image IDs. No videos, SVG, HTTP URLs, data URLs, empty objects or unknown keys. An omitted tablet inherits desktop. An omitted mobile inherits tablet where provided, otherwise desktop. Each of these IDs is checked on import and rewritten to the actual server-issued ID after SHA-256 upload. Normal resized `variants` of one uploaded original remain distinct from **art-directed originals**.
+The JS preview and real PHP publication emit standard `<picture><source media="(max-width:600px)"…><source media="(max-width:900px)"…><img…></picture>`, with only the sources supplied by the author. Native selection preserves the existing `alt`, lazy loading, dimensions, own image styles and optional safe click `href`. Foreground pictures work in galleries and as linked images. Both Studio modes expose separate selectors to switch the photo on tablet/phone; replacing media globally updates these bindings, and a referenced image cannot be pruned accidentally from the media library.
+This is not CSS `backgroundMedia`, which remains a separate typed layer and has its own cover/position/overlay controls. It is not an automatic feature to match a client's original prototype to the finished page. A human must compare the actual image crop, composition and position on real desktop/tablet/mobile PHP pages. Fixed-size image originals, approval mockups, complete backup size and media upload limits remain unchanged. The first real approved site and owner GO are still missing.
