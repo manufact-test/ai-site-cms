@@ -1,5 +1,13 @@
 # AI Site CMS SEO Engine — integration handoff (28 October 2026)
 
+## Latest final worker batch: complete one-pass local first-site acceptance
+
+Run [FIRST-SITE-RUNBOOK.md](FIRST-SITE-RUNBOOK.md) from a *lead-integrated* Node 20+ checkout. New `bin/first-site-check.cjs` validates the sealed Approved Site v2 and source-matching Blueprint, captures actual local PHP HTML, robots/sitemap/301 and all original/variant binary media in one source-bound evidence directory, then calls the EXISTING `PACKAGE.build` and writes independent `summary.json`, `bundle.json` and `handoff.md`. CLI flags: `--approved-site /ABS/sealed --blueprint /ABS/approved-blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report`. Evidence/report directories must not exist beforehand. No PHP server launch, CMS edits, release approval, PR or deploy.
+
+New `lib/php-local-head.cjs` preserves bounded observed response headers from actual PHP page GET and audits X-Robots-Tag indexation, CSP presence, canonical/og:url route and origin consistency with sitemap. All php-head errors/warnings enter the same remediation, release gate, bundle and lead dossier. The PHP PublicRenderer's official local `http://localhost`/`http://127.0.0.1` public-origin configuration is now handled by `lib/php-local-publication.cjs` and `lib/php-local-media.cjs` without falsely asserting real public HTTPS. A malformed/mixed-origin sitemap no longer claims complete enumeration. The synthetic real-localhost smoke now also tests development origin, header/CSP, wrong canonical/og:url and X-Robots noindex.
+
+**Validation limits:** modified JS files were syntax-checked. The full Node subprocess smoke/CI, real client sealed package, real published PHP source-revision identity, browser fidelity, forms and production HTTPS remain unexecuted/unproven; the lead must run them before release. After integration prioritize failures on first real site over further generic SEO feature work.
+
 ## Ownership and repository state
 
 - Repository: `manufact-test/ai-site-cms`; branch `feature/site-seo-engine`.
