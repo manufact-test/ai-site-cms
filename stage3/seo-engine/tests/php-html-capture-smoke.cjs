@@ -46,7 +46,17 @@ const html=(title)=>{
   (mode==='bad-og-url'?'asset-secondary.png':'asset-banner.png')+'"></head>'+
   '<body><h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a>'+
   '<a href="/published/pilot-local/old/">Old route</a>'+
-  '<img src="/published/pilot-local/assets/asset-secondary.png" alt="Secondary"></body></html>';
+  (mode.startsWith('other-consumers')?
+   '<style>.hero{background-image:url("/published/pilot-local/assets/asset-secondary.png")}</style>'+
+   '<picture><source media="(max-width:600px)" srcset="/published/pilot-local/assets/asset-secondary.png">'+
+   '<img src="/published/pilot-local/assets/asset-banner.png" alt="Fallback"></picture>'+
+   '<video poster="/published/pilot-local/assets/asset-secondary.png">'+
+   '<source src="/published/pilot-local/assets/asset-secondary.png"></video>':
+   mode==='untracked-media'?
+   '<picture><source srcset="/published/pilot-local/assets/not-in-site.png">'+
+   '<img src="/published/pilot-local/assets/asset-banner.png" alt="Fallback"></picture>':
+   '<img src="/published/pilot-local/assets/asset-secondary.png" alt="Secondary">')+
+  '</body></html>';
 };
 let mode='normal',requests=[];
 const server=http.createServer((req,res)=>{
@@ -61,7 +71,7 @@ const server=http.createServer((req,res)=>{
   const original=req.url.endsWith('/asset-banner.png');
   const variant=req.url.endsWith('/asset-banner-sm.png');
   const bytes=variant&&mode!=='bad-variant-bytes'?responsive:png;
-  if(mode==='bad-rendered-status'&&req.url.endsWith('/asset-secondary.png')){
+  if((mode==='bad-rendered-status'||mode==='other-consumers-bad')&&req.url.endsWith('/asset-secondary.png')){
    res.writeHead(404);res.end('Missing rendered image');return;
   }
   if(mode==='bad-media-status'&&original){res.writeHead(404);res.end('Not found');return;}
@@ -271,7 +281,24 @@ async function main(){
   assert.throws(()=>CAP.read(out,site,source),/media evidence byte length mismatch|media evidence byte digest mismatch/);
   fs.writeFileSync(mediaFile,savedImage);
   await assert.rejects(CAP.capture(sealed,base,out),/new directory/);
-  console.log('PHP HTML LOOPBACK CAPTURE SMOKE PASS: real HTML, robots, sitemap, 301, OG/rendered media and responsive PNG; missing rendered/OG, SHA/dimensions/MIME/ETag drift, tamper, routes; no external requests.');
+  // New PHP DesignGraph uses CSS backgrounds, <picture><source> and video poster/source.
+  mode='other-consumers';
+  const artDir=path.join(tmp,'art-direction');
+  await CAP.capture(sealed,base,artDir);
+  const art=CAP.read(artDir,site,source).localMedia;
+  assert.deepEqual([...art.resources[2].renderedPageIds],['page-home','page-about']);
+  mode='other-consumers-bad';
+  const brokenArt=path.join(tmp,'broken-art-direction');
+  await CAP.capture(sealed,base,brokenArt);
+  assert.ok(CAP.read(brokenArt,site,source).localMedia.findings.some(x=>
+   x.code==='php-media:non-200'&&x.assetId==='asset-secondary'&&x.severity==='error'));
+  mode='untracked-media';
+  const alien=path.join(tmp,'untracked-art-direction');
+  await CAP.capture(sealed,base,alien);
+  assert.ok(CAP.read(alien,site,source).localMedia.findings.some(x=>
+   x.code==='php-media:untracked-rendered-reference'&&x.severity==='error'));
+  mode='normal';
+  console.log('PHP HTML LOOPBACK CAPTURE SMOKE PASS: actual HTML, robots, sitemap, 301, OG/media, responsive picture, CSS background, video poster, untracked media, SHA/MIME/ETag and tamper; no external requests.');
  }finally{
   if(server.listening)await new Promise(resolve=>server.close(resolve));
   fs.rmSync(tmp,{recursive:true,force:true});
