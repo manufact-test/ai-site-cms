@@ -154,3 +154,18 @@ node stage3/bin/audit-approved-site.cjs /absolute/path/to/approved-site > pilot-
 The report includes page URLs and SEO metadata, counts of custom sections, flexible forms and FAQ questions, asset/ALT/orphan warnings, and a **per-page desktop 1280 / tablet 768 / mobile 390 acceptance matrix**. It lists manual checks of FAQ publishing, save/publish separation, delivery, redirects, responsiveness, and rollback. The audit refuses packages that do not pass the existing contract/integrity preflight, but **does not automatically mark any visual or behavioral check as passed**. Save its report next to the manually recorded approval and real screenshots when doing the owner pilot. This is a pilot worksheet, not proof of client approval or visual fidelity.
 
 Studio now additionally presents **the actual typed CMS rendering of every selectable page** at the three widths alongside approved prototype images, using local media bytes as data URLs. The rendered iframes are sandboxed, no scripts/forms execute, and the external site remains unpublished until separately requested. Note that it is the current first-party preview renderer, not the production PHP renderer: repeat visual checks against the actual public HTML after publishing.
+
+
+## Real public PHP acceptance: full-page desktop/tablet/mobile captures
+
+The pre-import Studio comparison is not the public PHP renderer. For the **actual owner-approved finished customer site**, after its draft has been explicitly published **on an isolated local PHP server**, generate read-only evidence from the actual public URL:
+
+```sh
+node stage3/bin/capture-approved-site.cjs /ABS/approved-site \
+  http://127.0.0.1:PORT/published/ACTUAL-SITE-ID/ \
+  /ABS/pilot-evidence-v1
+```
+
+The tool validates the original **sealed v2 handoff** before using the existing installed Chromium driver; it refuses non-loopback URLs, mismatched site IDs, existing output folders and any output inside the sealed package. It captures **all published pages** at 1280, 768 and 390 pixels using full-page screenshots, with JavaScript disabled, all cross-origin requests blocked and motion reduced. Output includes `report.html` (shared three approved prototype images alongside real published screenshots), `evidence.json` (hashes, viewport sizes, URL and missing-image warnings), and PNG screenshots. It does **not** modify the CMS database, publish, deploy, send requests to third-party origins or prove visual equality. Public interaction/form delivery still needs separate authorized end-to-end verification. Manual approval boxes are intentionally not pre-checked.
+
+Use the capture report for the **real** pilot alongside `audit-approved-site.cjs`, compare actual proportional layout across the full page (not just its first 540 px), log deviations, fix the first-party design implementation, and repeat capture into a **new** evidence folder to preserve the previous evidence. The same three concept images may not prove every secondary page's appearance: obtain additional real approved page references where required, never invent them.
