@@ -121,7 +121,7 @@ function inspect(site,base,manifest,root,snapshot=null){
  const markup=displayedMedia(site,base,snapshot,expected);
  const byPage=new Map(site.pages.map(p=>[p.id,p.path]));
  const add=(code,severity,assetId,message,extra={})=>{
-  const pageId=[...(markup.get(assetId)||[])][0]||
+  const pageId=extra.pageId||[...(markup.get(assetId)||[])][0]||
    selectedOg.find(p=>p.asset?.id===assetId)?.pageId||null;
   issues.push(Object.freeze({code,severity,assetId,pageId,path:byPage.get(pageId)||null,message,
    evidence:'hash-checked-local-php-media',automatic:false,...extra}));
