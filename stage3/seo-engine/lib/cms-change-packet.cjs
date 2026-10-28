@@ -1,0 +1,111 @@
+'use strict';
+// Lead-facing, guarded CMS change packet. Absolutely no writes, no apply callbacks.
+// Derives every field value from the approved blueprint and the authoritative current Site v1.
+const {checkBlueprint}=require('./blueprint.cjs');
+const {compile:execution}=require('./execution-plan.cjs');
+const FORMAT='manufact-seo-cms-change-packet-v1';
+const SEO_FIELDS=new Set(['seo.title','seo.description','seo.robots','seo.ogTitle','seo.ogDescription']);
+function build(site,manifests,blueprint,backlog,decisions=null){
+ const plan=checkBlueprint(blueprint);
+ if(!site||site.siteId!==plan.siteId||!Array.isArray(site.pages)||!Array.isArray(manifests)||
+  backlog?.siteId!==site.siteId||backlog?.format!=='manufact-seo-remediation-v1'||!backlog.readOnly)
+  throw Error('CMS packet requires same-site validated Site v1, blueprint and read-only backlog');
+ const queue=execution(backlog,decisions);
+ const taskStatus=new Map(queue.items.map(t=>[t.taskId,t]));
+ const approved=new Set(decisions?.approved.map(x=>x.taskId)||[]);
+ const pages=new Map(site.pages.map(p=>[p.id,p]));
+ const planned=new Map(plan.pages.map(p=>[p.id,p]));
+ const registry=new Map(manifests.map(m=>[m.id,m]));
+ const operations=[],blocked=[],pending=[];
+ for(const task of backlog.tasks){
+  if(!task.field||!task.key.startsWith('cms-'))continue;
+  const state=taskStatus.get(task.taskId);
+  const result={taskId:task.taskId,taskKey:task.key,pageId:task.pageId,
+   sectionId:task.sectionId||null,field:task.field,owner:task.owner,
+   priority:task.priority,decision:state?.decision||'undecided',automatic:false,
+   currentSiteWritePerformed:false,requiresManualOverrideReview:true,
+   source:'approved-blueprint-and-current-site-v1'};
+  const fail=(code,explain)=>blocked.push({...result,reasonCode:code,explanation:explain});
+  if(state?.status==='excluded-by-human-decision'||state?.status==='deferred-by-human-decision'){
+   pending.push({...result,reasonCode:state.status});continue;
+  }
+  if(!approved.has(task.taskId)||state?.status==='refresh-stale-decision'){
+   pending.push({...result,reasonCode:state?.status||'not-approved'});continue;
+  }
+  if(state?.dependencies.length){
+   fail('dependencies-unresolved','One or more dependency tasks remain in the current backlog. Human approval alone is not completion.');continue;
+  }
+  const page=pages.get(task.pageId),spec=planned.get(task.pageId);
+  if(!page||!spec||page.path!==spec.path){
+   fail('page-or-route-changed','Page stable ID or approved route differs from current Site v1.');continue;
+  }
+  if(task.key.startsWith('cms-seo|')){
+   if(!SEO_FIELDS.has(task.field)||task.key!==['cms-seo',task.pageId,task.field].join('|')){
+    fail('unsupported-seo-field','Only the existing five editable page SEO fields are supported.');continue;
+   }
+   const key=task.field.slice(4);
+   const current=page.seo?.[key]??(key==='robots'?'index':'');
+   if(current!==task.before||spec.seo[key]!==task.after){
+    fail('source-value-drift','Current field value or approved blueprint value changed since this task was proposed.');continue;
+   }
+   operations.push({...result,target:{pageId:page.id,property:task.field},
+    expectedBefore:task.before,proposedAfter:task.after,
+    manifestGuard:null,application:'existing-cms-manual-field-review'});
+   continue;
+  }
+  if(!task.key.startsWith('cms-content|')||
+   !['content.text','behavior.href'].includes(task.field)||
+   task.key.split('|').length!==5){
+   fail('unsupported-content-mapping','Not a supported exact content field task.');continue;
+  }
+  const loc=task.locator,section=page.sections?.find(x=>x.id===task.sectionId);
+  const planSection=spec.sections.find(x=>x.id===task.sectionId);
+  const element=section?.elements?.find(x=>x.id===loc?.elementId);
+  const manifest=registry.get(section?.component);
+  if(!section||!planSection||!element||!manifest||manifest.version!==section.manifestVersion||
+   loc?.pageId!==page.id||loc?.sectionId!==section.id||loc?.property!==task.field){
+   fail('component-or-manifest-drift','Stable IDs, locator or exact component manifest version do not match.');continue;
+  }
+  const definition=manifest.elements?.find(x=>x.slot===element.slot)?.fields?.find(x=>x.path===task.field);
+  const expectedType=task.field==='behavior.href'?'url':'text';
+  if(definition?.type!==expectedType){
+   fail('manifest-field-not-editable','Current manifest does not permit this exact typed field.');continue;
+  }
+  let expected;
+  if(task.field==='behavior.href'){
+   if(!planSection.cta||!planned.has(planSection.cta.toPageId)){
+    fail('blueprint-cta-unavailable','Approved CTA target is not present.');continue;
+   }
+   expected=planned.get(planSection.cta.toPageId).path;
+  }else if(element.slot==='heading')expected=planSection.heading;
+  else if(planSection.cta&&element.values?.['behavior.href']!==undefined){
+   expected=planSection.cta.label;
+  }else{
+   fail('ambiguous-copy-mapping','Only unambiguous section heading and CTA label updates are supported.');continue;
+  }
+  if(task.key!==['cms-content',page.id,section.id,element.id,task.field].join('|')||
+   element.values?.[task.field]!==task.before||expected!==task.after){
+   fail('source-value-drift','Current value or approved target differs from recorded proposal.');continue;
+  }
+  if(typeof expected!=='string'||(expectedType==='text'&&expected.length>definition.maxLength)){
+   fail('value-outside-manifest','Proposed value is outside current typed manifest bounds.');continue;
+  }
+  operations.push({...result,target:{pageId:page.id,sectionId:section.id,
+   component:section.component,elementId:element.id,property:task.field},
+   expectedBefore:task.before,proposedAfter:task.after,
+   manifestGuard:{component:section.component,version:section.manifestVersion,fieldType:definition.type},
+   application:'existing-cms-manual-field-review'});
+ }
+ return {format:FORMAT,version:1,siteId:site.siteId,readOnly:true,
+  automaticApplication:false,releaseAuthorized:false,
+  summary:{eligibleForManualReview:operations.length,blocked:blocked.length,
+   pendingDecisionOrDeferred:pending.length,actualWrites:0},
+  operations,blocked,pending,
+  instructions:['Compare every expectedBefore to the currently saved CMS value and manual override history.',
+   'Reconfirm source facts, current component manifest and client-approved prototype revision.',
+   'Use only existing CMS field editor; Save does not mean Publish.',
+   'Re-export Site v1, regenerate backlog and verify the intended change and all dependencies.',
+   'Obtain browser, live HTTP, security, mobile and user approval independently.'],
+  limitations:'These are guarded source-value proposals, not an executable patch or transaction. Even eligible operations require a human and may already be stale relative to newer CMS saves.'};
+}
+module.exports=Object.freeze({FORMAT,build});
