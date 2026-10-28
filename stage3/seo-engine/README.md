@@ -118,6 +118,30 @@ Fixtures include industrial and community briefs/plans; clean, defective, public
 
 `task-progress --before <prior-site.json> --site <site.json> --blueprint <blueprint.json>` compares two **like-for-like, Site v1-only** remediation backlogs using the same Blueprint and component manifests; optional `--prior-decisions` reconciles human decisions against the **prior** queue. The report separates vanished, introduced, persistent and modified tasks, and marks any matching accepted field change as a *candidate*, never a proven completion. Deployment captures are excluded from historical comparison to avoid misleading closures.
 
+## Integration with the lead's sealed approved-site v2 package (October 2026)
+
+The lead's **actual** import source of truth is `stage3/docs/APPROVED-SITE-PACKAGE.md`, not this toolkit's optional acceptance ledger. A real handoff is an externally created folder with `handoff.json` v2, `site.json`, three static desktop/tablet/mobile images, `client-explanation.md`, `implementation-spec.md`, and source assets. Lead scripts `stage3/bin/seal-approved-site.cjs` and `stage3/bin/verify-approved-site.cjs` seal and check the **original file bytes**, image MIME, SDK compatibility and source SHA-256; `audit-approved-site.cjs` and `capture-approved-site.cjs` create separate human-review/published-PHP evidence. These are lead-owned capabilities; **do not reimplement them in SEO Engine**. Supplementary per-page approved images are permitted by the lead's current v2 handoff.
+
+For a real approved site, first have the lead run `verify-approved-site.cjs APPROVED_FOLDER`, then use its validated `APPROVED_FOLDER/site.json` and the project SEO Blueprint for this toolkit's `review-bundle-md` or `review-bundle`. The optional `acceptance-template` ledger is *a separate, caller-reported SEO review record*, bound to a deterministic hash of parsed Site v1 and Blueprint; it is **not** the v2 handoff raw-file digest, does not verify original PNG/JPEG/WebP bytes, does not authenticate client identity and cannot replace sealed-folder verification. A changed site revision or post-import CMS override needs fresh source/approval review.
+
+```bash
+# The first command is owned by the main developer and checks the real sealed folder.
+node stage3/bin/verify-approved-site.cjs /ABS/approved-site
+
+# This worker's one complete, offline, read-only SEO review.
+node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle-md \
+  --site /ABS/approved-site/site.json \
+  --blueprint /ABS/seo-blueprint.json > /ABS/seo-lead-review.md
+
+# Optional comparison after an approved CMS revision; add evidence flags only
+# when their source artifacts actually exist and were collected for the same build.
+node stage3/seo-engine/bin/seo-blueprint.cjs route-migration \
+  --before /ABS/previous-site.json --site /ABS/current-site.json \
+  --blueprint /ABS/seo-blueprint.json
+```
+
+The lead dossier's `evidenceRequests` list identifies which **input categories** remain missing: prototype/client signoff, static HTML, desktop/tablet/mobile, public HTTP, selected media, legacy redirects and human gate attestations. It never proves independently that the supplied captures are genuine, that the approved prototype matches the PHP renderer, that forms submit, or that publication is authorized.
+
 ## Ownership and guarantees
 
 The external AI developer studies the actual niche, sources, users and SEO, then prepares **three STATIC design images** (desktop/tablet/mobile), client explanation, and portable internal specification. The lead constructs the actual site after approval. This toolkit supports research intake, blueprint, site audit, HTML evidence, readonly patch suggestions, and handoff. It never fabricates performance, rankings, demand, business facts, testimonials, or competitive evidence.

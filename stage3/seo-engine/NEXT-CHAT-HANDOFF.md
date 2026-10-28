@@ -1,71 +1,48 @@
-# Передача следующему SEO-разработчику / чату — 28.10.2026
+# AI Site CMS — SEO worker: передача новому чату
 
-**Проект:** MANUFACT AI Site CMS. **Роль:** второй независимый разработчик, направление SEO Intelligence & Blueprint Engine.  
-**Репозиторий:** https://github.com/manufact-test/ai-site-cms  
-**Собственная ветка:** `feature/site-seo-engine`  
-**Единственная разрешённая область записи:** `stage3/seo-engine/**`. **НЕ** менять main/production, `docs/**`, `handoffs/**`, SDK, Studio, сервер, Design Factory и код ведущего. Не делать merge/PR/deploy самостоятельно.
+**Дата:** 28 октября 2026. **Репозиторий:** https://github.com/manufact-test/ai-site-cms
+**Рабочая ветка:** `feature/site-seo-engine`. **Никаких самостоятельных PR/merge/deploy.**
+**Разрешено изменять только:** `stage3/seo-engine/**`. Не менять `main`, `stage3/sdk/**`, `stage3/server/**`, `stage3/studio/**`, `docs/**`, `handoffs/**`, `.github/**` и код ведущего.
 
-## Необходимые исходники перед началом
+## Начни здесь, без лишних вопросов
 
-1. [MASTER-TZ.md](../../docs/MASTER-TZ.md) — главный продуктовый договор.
-2. [SEO-ENGINE-v2-ASSIGNMENT.md](../../handoffs/parallel/SEO-ENGINE-v2-ASSIGNMENT.md) — персональное задание SEO-worker.
-3. [README.md](README.md) — основной пользовательский процесс/CLI/контракты.
-4. [INTEGRATION-HANDOFF.md](INTEGRATION-HANDOFF.md) — точные границы существующей CMS и совместимость.
-5. [research/PRIMARY-SOURCES.md](research/PRIMARY-SOURCES.md) — первоисточники SEO/UX.
-6. [tests/smoke.cjs](tests/smoke.cjs) и [fixtures/](fixtures/) — единый offline E2E и примеры.
+**Главное ТЗ:** [MASTER-TZ.md](../../docs/MASTER-TZ.md) (v2, 27.10.2026).
+**Задание второго разработчика:** [SEO-ENGINE-v2-ASSIGNMENT.md](../../handoffs/parallel/SEO-ENGINE-v2-ASSIGNMENT.md).
+**README:** [README.md](README.md).
+**Интеграционный handoff:** [INTEGRATION-HANDOFF.md](INTEGRATION-HANDOFF.md).
+**Один большой smoke:** [tests/smoke.cjs](tests/smoke.cjs).
 
-**Опорный коммит функциональности:** `11c0e06a743ff784e2ec20a4e67854be89f80e29`. После него обновлена документация, поэтому **текущий HEAD ветки смотри в GitHub**. Не считать опорный SHA HEAD автоматически.
+Проверь **фактический HEAD** `feature/site-seo-engine` при старте; не доверяй старым SHA в исторических записях. Ветка ведущего: `feature/stage3-ai-site-contract`. На момент этой передачи ведущий работал с SHA `16346a16413838e5652117471e11f5b37df91cbb`, но он может измениться.
 
-## Что уже создано (не переделывать с нуля)
+## Что уже сделано — не переделывать
 
-- Strict `brief → canonical blueprint` с верифицированными/неподтверждёнными фактами; 2 проекта-примера, схема, версия.
-- План SEO с intent, темами, архитектурой, секциями/H1, полезным контентом, CTA, внутренними ссылками, canonical/indexation, OG/Title/Description, изображениями, alt и условными Schema.org кандидатами. Клиентский SEO/UX текст отдельно.
-- Валидация Site v1 **через настоящий** `stage3/sdk/contract.cjs` + план/контент/архитектура. Точные поля/ID, без дублирования CMS-редактора.
-- HTML diagnostics и deep evidence, сопоставление опубликованного HTML с CMS, трёх captures desktop/tablet/mobile, передача сведений о страницах без captures.
-- Сравнение Site v1 до/после, предложения CMS SEO + manifest-safe полей heading/CTA, учитывающие before-значения/версии. Без автоприменения.
-- Единый remediation backlog: priority/owner/phase/dependencies/evidence, читаемый Markdown, консервативный release review.
-- `lib/package.cjs` = один `review-bundle` JSON: всё основное + coverage + handoff + список дальнейших действий.
-- `lib/triage.cjs` = реестр осознанных решений по рекомендациям (approve/reject/defer), с детекцией устаревших полей/задач. **Не разрешает релиз**.
-- Схемы, два типа брифов, хорошие/ошибочные HTML, viewport и regression fixtures, **один** сквозной smoke тест.
+- Полный Brief → SEO Blueprint с фактами, намерениями, архитектурой, страницами, метаданными, Schema.org кандидатами, media/ALT и адаптивными правилами.
+- Клиентское SEO/UX описание всех секций, CTA, ссылок, смысловой иерархии и desktop/tablet/mobile. Оно дополняет, но НЕ заменяет согласование трёх статических изображений.
+- Отчёт Site v1, семантика, HTML snapshot, source/HTTP consistency, три viewport, media и реальный статус/robots/sitemap; всё **offline/read-only**.
+- Рекомендации по точным полям существующей CMS, разрешения/отклонения/зависимости, закрытие задач между версиями, изменение CMS **только гипотетически в памяти**, ни одной записи в БД.
+- Безопасная миграция URL с проверкой существующего Site v1 301, Location, потерянных исторических alias, старых внутренних ссылок.
+- Приёмка с привязкой к конкретной версии Site v1 и Blueprint, семь ручных gate; `review-bundle`, `review-bundle-md`, `leadDossier.evidenceRequests` и `capture-plan`.
+- Структурные примеры промышленного сайта, community проекта и фикстуры настоящего SDK для автоматически выбранных OG изображений.
+- README и INTEGRATION-HANDOFF обновлены. Все это **не разрешает публикацию**.
 
-## Продуктовые ограничения, которые нельзя нарушать
+## Очень важная новая интеграция ведущего
 
-CMS НЕ генерирует сайты и НЕ включает собственную ИИ-модель; прототип = ТРИ отдельные **статические картинки** desktop/tablet/mobile + понятное описание клиенту + внутреннее переносимое ТЗ. ИИ-разработчик исследует и программирует сайт только после утверждения прототипа. SEO планируется уже до картинки. Нет второй SEO админки, фабрики шаблонов, SERP crawler, keyword API, рекламных метрик, фиктивных отзывов и рейтингов. Нет обещания поисковых позиций. Schema.org без реальных фактов запрещена.
+Ведущий уже реализовал папку `manufact-approved-site-handoff-v2`, запечатанную SHA-256: оригинальный Site v1, три статических утверждённых прототипа, клиентское описание и переносимая спецификация. Он добавил `stage3/bin/verify-approved-site.cjs`, `seal-approved-site.cjs`, `audit-approved-site.cjs` и `capture-approved-site.cjs`, а также собственный Studio/prototype review. **НЕ создавай вторую такую систему.** SEO ledger — отдельная вспомогательная запись, её `siteSha256` (от канонизированного JSON) НЕ совпадает по определению с хешем байт файла `site.json` в запечатанном handoff. Читай `stage3/docs/APPROVED-SITE-PACKAGE.md` на актуальной ветке ведущего.
 
-`stage3/schemas/site-v1.schema.json`: SEO поля `title/description/robots/ogTitle/ogDescription/ogImage`; произвольные canonical/JSON-LD не подтверждены как редактируемые. Публикация и ручные overrides — только через существующую CMS и ведущего разработчика.
+## Следующая большая задача
 
-## Что объективно осталось и какие приоритеты
+Одна **крупная** работа: проверить и совместить SEO Engine с реальным первым approved-site пакетом ведущего.
+1. Сначала на полном Node 20+ checkout выполнить `node stage3/seo-engine/tests/smoke.cjs`; если есть реальные ошибки, исправить их пачкой **только в разрешённом каталоге**. До этого запуск полного smoke НЕ подтверждён.
+2. Перепроверить актуальные core SDK, manifests, PHP renderer и sealed-v2 handoff. Ведущий продолжает работу параллельно. Учитывай `custom-section` + обязательный Design Graph.
+3. При наличии фактически утверждённого сайта взять его `site.json`, точный SEO Blueprint, исходные три картинки, реальные browser/HTTP/media-свидетельства. Генерировать единый `review-bundle-md`, закрывать найденные несовместимости **одним большим заходом**, без самовольной публикации.
+4. Если реального пакета нет, не выдумывать факты/согласования/замеры. Лучше подготовить одну конкретную интеграционную совместимость и короткий отчёт для ведущего, чем продолжать умножать тесты и вспомогательные библиотеки.
 
-**Главное:** не переписывать уже готовую функциональность. Превратить независимый SEO toolkit в проверенно совместимый вход для разработки реального первого сайта.
+**Скорость принципиальна:** пользователь просит большие завершённые задачи за сообщение, минимальные необходимые smoke/contract проверки, без длительной микрополировки. Не останавливайся после каждой маленькой правки. Каждая задача должна приближать первую полноценную CMS к реальному пользовательскому тестированию.
 
-1. **Самый высокий приоритет:** запустить `node stage3/seo-engine/tests/smoke.cjs` на настоящем Node 20+/полном checkout; в прошлых чатах запуск Node/CI был недоступен. При обнаружении багов исправить их **только в нашей папке**. Не выдавать V8 shim за Node CLI.
-2. Проверить текущие на момент продолжения реестр компонентных манифестов, `stage3/sdk/contract.cjs`, `PublicRenderer.php` и контракт Studio. Ведущий параллельно работает над CMS и мог обновить основной код — не предполагай неизменность версий.
-3. Если при интеграции остаются реальные кейсы, добавь их одним крупным пакетом: корректные patch hints и точные blocker/unsupported причины, недостающие contract fields, schema candidate verification, валидная поддержка частичных HTML/sitemap/robots экспортов, реплики ИИ/клиентского объяснения.
-4. Подготовить **одну** настоящую вертикальную проверку на первом согласованном сайте/трёх static pictures в совместной работе с ведущим — не генерировать отдельную демонстрационную фабрику. Выполнить реальные браузерные/HTTP проверки только с разрешения владельца и доступом. Указать, что offline нельзя подтвердить.
-5. В конце обновить handoff для ведущего, включая реальные ограничения/версии и финальный SHA. Никакого самостоятельного слияния с `main`.
+## Технические границы
 
-**Темп:** пользователь категорически просит брать максимально **крупные законченные паки** задач, не останавливаться каждые 4–10 минут с несколькими микроправками; первыми делать полезный продукт, а не бесконечные микротесты и рефакторинг. Единственный сквозной smoke и несколько точных проверок достаточны до живой приёмки. Документы обновлять по запросу или по необходимости при передаче.
+Node 20+, CommonJS, без новых npm-зависимостей, без live crawler, AI/provider API, SERP metrics, SEO-админки, автоматического CMS write, скрытой генерации страниц, выдуманных SEO гарантий. Никаких git merge, deploy, изменений master/docs/SDK/Studio. Главный единолично интегрирует branch после проверки.
 
+## Проверки честно
 
-## Большой пакет: HTTP, execution plan, медиа
-
-Три завершённых направления в одной изолированной ветке `feature/site-seo-engine`: `lib/delivery-evidence.cjs` анализирует переданный HTTP-транскрипт со статусами, canonical, robots и sitemap; `lib/execution-plan.cjs` превращает backlog и решения редактора в план по этапам, зависимостям и ответственным; `lib/media-delivery.cjs` проверяет доступность и MIME медиа, OG-ссылки и существующие Site v1 asset IDs.
-
-Инструменты доступны через CLI: `delivery-review`, `execution-plan`, `execution-plan-md`, `media-review`, а также через `review-bundle --delivery ... --media ... --decisions ...` и существующие remediation/release/traceability команды. Схемы и примеры находятся только в `stage3/seo-engine/`.
-
-Критически: инструмент не делает live HTTP-запросов, не подтверждает запись данных на production и не утверждает social/SEO ранжирование. В V8 проверены ключевые функциональные сценарии, однако настоящий Node smoke не выполнялся. Начать со smoke на полноценном checkout и первой реальной Site v1 интеграции с ведущим. Все изменения только `stage3/seo-engine/**`, без merge/deploy и изменений SDK/Studio/PHP.
-
-## Текущее подтверждение качества
-
-Реальные исходники SDK и манифесты проверялись в V8-окружении с shim; отдельно проверялась сборка package/triage, сценарии частичных/полных HTML snapshots, schema/viewport/CTA/regression. **Это НЕ настоящий запуск Node CLI, GitHub Actions/CI или проверка production.** Если где-либо видишь слово PASS, оцени точную область проверки. No auto-applied proposals.
-
-Новый разработчик должен начать с проверки HEAD ветки и технического состояния, а затем самостоятельно взять **следующий большой пакет** из перечисленного, не задавая пользователю вопросов, на которые уже есть ответы.
-
-
-## Large publisher-and-route compatibility sprint — 28.10.2026
-
-The latest worker commit should be read from the GitHub branch head (do not reuse earlier SHA). Work now covers publisher-derived OG fallback from legacy `content.media` and nested Design Graph, strict OG/Twitter HTTPS URL handling, a real-SDK-validated social-media fixture, substantial client SEO/UX explanation, 301 redirect migration checks keyed by stable page IDs, and captured `Location`/HTTP status verification. Full route migration connects `route-migration`, `remediation`, `release-review`, `capture-plan --before`, `delivery-review --delivery` and `review-bundle`. No CMS changes, live HTTP or automatic release.
-
-**Next single large goal (not microtasks):** have the lead run the full Node smoke against the latest lead branch and provide one *actual* client-approved project Site v1 + Blueprint + three approved static images / browser/HTTP outputs. Resolve contract/manifest/renderer integration as one batch and produce one reviewed release handoff. Do not invent actual signoffs or success on a synthetic fixture; do not add unrelated infrastructure or duplicate SEO administration.
-
-Lead current SDK was checked read-only and already enforces Design Graph for custom-section, which is stricter than the worker branch base. Actual V8 validation on the real lead SDK and real company/feature/contact/media manifests passed; this **is not** a complete Node smoke or GitHub Actions run.
+Синтаксис и связь модулей проверялись; сценарии CTA-предпосылок, OG, текущего Site v1 контракта и 301-переносов выполнены изолированно. Полный Node smoke, CI, PHP/Chromium и production **НЕ проверены в этом чате**. Не называй такую частичную проверку полноценным PASS. Последний SHA смотри в ветке.

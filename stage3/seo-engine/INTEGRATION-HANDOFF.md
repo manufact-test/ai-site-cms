@@ -149,3 +149,30 @@ The current `PublicRenderer.php` resolves OG media from `page.seo.ogImage`, othe
 **Current lead contract drift:** lead ref `88c291dab5e6bea40ccca51ca77a2056b48c10d8` has a stricter `custom-section` requirement: a Design Graph must exist. Worker has not changed or rebased core SDK; later integration must use the actual latest lead validator and manifest registry.
 
 **Write scope and release:** only `stage3/seo-engine/**`; no main, master TЗ, SDK, Studio, server, GitHub Actions, merge, PR or deployment. Core owner approval and actual three-picture client signoff remain required.
+
+
+## FINAL integration alignment — sealed lead handoff v2, real first-site workflow
+
+**Source checked:** lead branch \`feature/stage3-ai-site-contract\` at \`16346a16413838e5652117471e11f5b37df91cbb\` (read only). Between earlier core-check SHA \`88c291dab5e6bea40ccca51ca77a2056b48c10d8\` and this revision, the lead added sealed approval evidence, a private owner-only approval archive, Studio side-by-side three-device prototype review, package preflight/audit and local public-PHP screenshot capture.
+
+**Do not duplicate this functionality.** The lead's approved-source evidence is **\`manufact-approved-site-handoff-v2\`**, a folder with original \`site.json\`, mockup images, client explanation, implementation specification, media and file-level SHA-256. It may also contain extra per-page approved prototype triplets. The actual \`stage3/bin/verify-approved-site.cjs\` checks sealed bytes, Site v1 contract, prototype MIME and asset integrity. The lead's import is an explicitly authorized draft, not SEO publication.
+
+The SEO worker's \`manufact-seo-acceptance-v1\` is **additional human SEO evidence** only. Its \`siteSha256\` is a canonical parsed-object SHA-256, **not** the raw \`site.json\` byte hash in the sealed package. It must not be compared as though the digests are interchangeable or represented as client authentication. The SEO tool never executes the lead's PHP runner or image verifier. Real prototype verification and final publishing remain solely with the lead and site owner.
+
+### Recommended first-real-site handoff
+
+1. Lead gathers actual client-approved folder, three required images (and per-page references if appropriate), written client explanation, implementation specification and site source. Verify v2 source with \`node stage3/bin/verify-approved-site.cjs /ABS/approved-site\`. Do not create invented signoffs.
+2. External AI/lead maintains the SEO Blueprint from verified owner facts and approved page information. \`node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle-md --site /ABS/approved-site/site.json --blueprint /ABS/seo-blueprint.json > /ABS/seo-review.md\` provides source-only SEO review and all missing-evidence requests. The standalone SEO ledger is optional supplementary review, not an import artifact.
+3. Lead uses its already-implemented \`stage3/bin/audit-approved-site.cjs\` and, if and when owner-authorized locally published PHP site exists, \`stage3/bin/capture-approved-site.cjs\` to obtain real screenshots. The SEO engine consumes separately supplied HTML/viewport/HTTP/media observations only with honest provenance disclaimers.
+4. After approved CMS field changes, use \`task-progress --before ... --site ...\` and \`route-migration --before ... --site ...\`, and review exact declared Site v1 redirects and saved overrides. \`capture-plan --before ...\` lists 301, canonical, media and viewport items not independently captured.
+5. Lead manually verifies actual content/rendering/forms/performance, authorizes Save vs Publish and closes the release. SEO's \`readyToPublish:false\` is intentionally permanent.
+
+### Final cleanup of this SEO-worker batch
+
+- **CMS field safety:** CTA labels/destinations in \`cms-change-packet\` now require *exactly one* manifest-declared CTA candidate, exactly one corresponding heading, matching real target route and current field preconditions. Ambiguous candidates are blocked, not guessed.
+- **Historical redirect protection:** \`route-migration\` now detects removed **previous** 301 aliases as review items, even if no current page was renamed. It produces retired-alias human HTTP probes, never an automatic redirect.
+- **Change-preview conservatism:** \`change-impact\` now highlights *introduced/escalated SEO warnings* as review-worthy, not just blocker/error severity, while continuing to simulate only in memory.
+- **First-site dossier:** \`lead-dossier.evidenceRequests\` specifies missing artifact categories, owner/reason/affected pages for real manual signoff, HTML/device coverage, public HTTP/media and 301 captures. All flags stay unverified without live collection.
+- **Smoke fix:** the full Node smoke explanation assertion is now case-insensitive for "Mobile", matching the expanded client-facing document. More full smoke validation is needed on a checkout after lead integration.
+
+**Actual check status:** isolated module logic and a real current-lead SDK sample have been exercised in V8, and the worker branch syntax/import graph was validated. A full Node 20 smoke subprocess, GitHub Actions test suite, binary image integrity test, PHP renderer/browser run and deployed live-host check **were not performed by the SEO worker**. The next chat should first run \`node stage3/seo-engine/tests/smoke.cjs\` in a complete checkout, fix any genuine failures only inside owned path and then perform one real first-site integration batch. Do **not** spend the next sprint polishing existing offline diagnostics without first-site evidence.
