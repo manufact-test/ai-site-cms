@@ -236,6 +236,8 @@ try{
  }));
  assert.equal(fullBundle.contract.site,'manufact-ai-site-v1');
  assert.equal(fullBundle.handoff.readOnly,true);
+ assert.equal(fullBundle.capturePlan.summary.pagesToCapture,2);
+ assert.equal(fullBundle.capturePlan.summary.httpResponsesActuallyCaptured,0);
  assert.equal(fullBundle.coverage.plannedPagesAbsentFromHtmlExport.length,0);
  assert.equal(fullBundle.coverage.plannedPagesAbsentFromThreeDeviceExport.length,0);
  assert.equal(fullBundle.release.readyToPublish,false);
@@ -337,6 +339,14 @@ try{
  assert.ok(!snapshotAudit(baseSnapshot).issues.some(x=>x.code==='html:broken-link'));
  assert.ok(!reviewHtml(baseSnapshot).findings.some(x=>x.code==='evidence:link-target-outside-snapshot'));
  assert.ok(!reviewHtml(trickyHtml).findings.some(x=>x.href==='/ghost/'));
+ // First-site capture manifest has exact mounted public routes but never invents results.
+ const plannedCapture=JSON.parse(good('capture-plan',{site,blueprint:bp,
+  origin:'https://preview.example.test/site/'}));
+ assert.equal(plannedCapture.format,'manufact-seo-capture-plan-v1');
+ assert.equal(plannedCapture.pages[1].publicUrl,'https://preview.example.test/site/contact/');
+ assert.equal(plannedCapture.media.length,0);
+ assert.equal(plannedCapture.summary.httpResponsesActuallyCaptured,0);
+ assert.ok(plannedCapture.pages.every(p=>p.evidenceState==='not-collected-by-toolkit'));
  // Three independent publication checks from a supplied HTTP transcript.
  const deliveryExample=fixture('industrial.delivery.evidence.json');
  const deliveryAudit=JSON.parse(good('delivery-review',{site,delivery:deliveryExample}));

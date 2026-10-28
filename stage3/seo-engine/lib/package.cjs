@@ -19,6 +19,7 @@ const DELIVERY=require('./delivery-evidence.cjs');
 const EXECUTION=require('./execution-plan.cjs');
 const MEDIA=require('./media-delivery.cjs');
 const CMS_PACKET=require('./cms-change-packet.cjs');
+const CAPTURE=require('./capture-plan.cjs');
 const FORMAT='manufact-seo-review-bundle-v1';
 function build(site,manifests,blueprint,options={}){
  const plan=checkBlueprint(blueprint);
@@ -44,6 +45,9 @@ function build(site,manifests,blueprint,options={}){
  const decisions=ledger?TRIAGE.reconcile(backlog,ledger):null;
  const execution=EXECUTION.compile(backlog,decisions);
  const cmsChangePacket=CMS_PACKET.build(site,manifests,plan,backlog,decisions);
+ const declaredOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean);
+ const originsAgree=new Set(declaredOrigins).size<=1;
+ const capturePlan=CAPTURE.build(site,plan,originsAgree?declaredOrigins[0]||null:null);
  const traceability=TRACE.report(site,plan,{
   ...(options.snapshot?{snapshot:options.snapshot}:{}),
   ...(options.viewports?{viewports:options.viewports}:{}),
@@ -60,6 +64,7 @@ function build(site,manifests,blueprint,options={}){
   viewports:options.viewports?.format||null
  };
  const coverage={plannedPageCount:expected.length,sitePageCount:site.pages.length,
+  suppliedPublicOriginsAgree:originsAgree,
   plannedPagesAbsentFromSite:expected.filter(id=>!fromSite.has(id)),
   htmlExportPageCount:options.snapshot?.pages?.length??null,
   htmlExportCompleteness:options.snapshot?.completeness||'partial-or-unknown',
@@ -83,7 +88,7 @@ function build(site,manifests,blueprint,options={}){
   contract:acceptedFormats,coverage,
   blueprintReview:architecture,siteAudit:audit,
   htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
-  traceability,decisions,deliveryEvidence:delivery,mediaEvidence:media,executionPlan:execution,cmsChangePacket,
+  traceability,decisions,deliveryEvidence:delivery,mediaEvidence:media,executionPlan:execution,cmsChangePacket,capturePlan,
   regression,handoff,backlog,release,nextActions,
   // Retain the original remediation Markdown first for consumers depending on its header.
   markdownHandoff:renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
@@ -94,6 +99,7 @@ function build(site,manifests,blueprint,options={}){
   caveats:['No direct database/CMS writes.','No main branch merge or deploy.',
    'Priorities indicate work order only, not ranking performance.',
    'Supplied HTML and device captures are not proof of the deployed browser state.',
-   'Release never auto-approved.']};
+   'Release never auto-approved.',
+   ...(originsAgree?[]:['Conflicting supplied HTTP and media origins: capture plan has no approved URL until the lead resolves this.'])]};
 }
 module.exports=Object.freeze({FORMAT,build});
