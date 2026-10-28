@@ -1,6 +1,6 @@
 {
   "format": "manufact-stage3-mandatory-evidence-v1",
-  "date": "2026-10-27",
+  "date": "2026-10-28",
   "source": "requirements/requirements.csv",
   "scope": "Engineering triage only, not official acceptance or audited proof of completeness.",
   "ownerAccepted": 0,
@@ -12,9 +12,8 @@
     "owner_environment_gate": "Cannot verify without independently authorized target and owner checks"
   },
   "counts": {
-    "implemented_candidate": 100,
-    "partial": 26,
-    "not_implemented": 3,
+    "implemented_candidate": 124,
+    "partial": 5,
     "owner_environment_gate": 6
   },
   "requirements": [
@@ -208,14 +207,14 @@
       "id": 18,
       "group": "Размеры, отступы, расположение",
       "requirement": "Точная корректировка положения",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/sdk/design-graph.cjs",
         "stage3/studio/app.js",
+        "stage3/sdk/design-graph.cjs",
         "stage3/server/DesignGraph.php"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "Implemented candidate in first-party SDK, PHP and Studio; requires visual/owner approval on one real approved-v2 site."
     },
     {
       "id": 19,
@@ -460,27 +459,30 @@
       "id": 44,
       "group": "Изображения, иконки, видео",
       "requirement": "Замена иконок",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/server/MediaOperations.php",
-        "stage3/server/VideoUploads.php",
-        "stage3/studio/media-processing.js"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "Implemented candidate in first-party SDK, PHP and Studio; requires visual/owner approval on one real approved-v2 site."
     },
     {
       "id": 45,
       "group": "Изображения, иконки, видео",
       "requirement": "Настройки внешнего вида иконок",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/server/MediaOperations.php",
-        "stage3/server/VideoUploads.php",
-        "stage3/studio/media-processing.js"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/tests/contract-smoke.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "Implemented candidate in first-party SDK, PHP and Studio; requires visual/owner approval on one real approved-v2 site."
     },
     {
       "id": 46,
@@ -1386,14 +1388,19 @@
       "id": 144,
       "group": "Страницы, контент и SEO",
       "requirement": "Общие секции для нескольких страниц",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/server/PublicRenderer.php",
+        "stage3/sdk/contract.cjs",
+        "stage3/sdk/draft.cjs",
+        "stage3/server/ContractValidator.php",
         "stage3/studio/app.js",
-        "stage3/server/LinkOperations.php"
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/server-e2e.cjs",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "Implemented candidate in first-party SDK, PHP and Studio; requires visual/owner approval on one real approved-v2 site."
     },
     {
       "id": 145,
@@ -1645,14 +1652,15 @@
       "id": 173,
       "group": "Публикация, доступ и безопасность",
       "requirement": "Журнал технических ошибок",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
         "stage3/server/SiteOperations.php",
         "stage3/server/Api.php",
-        "stage3/studio/hosted.js"
+        "stage3/studio/hosted.js",
+        "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "Implemented candidate in first-party SDK, PHP and Studio; requires visual/owner approval on one real approved-v2 site."
     },
     {
       "id": 174,
@@ -1790,11 +1798,12 @@
       "engineeringStatus": "partial",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/runtime-export/bin/build.cjs",
-        "stage3/server/bootstrap.php",
-        "stage3/server/SiteRepository.php"
+        "stage3/server/Api.php",
+        "stage3/server/PublicRenderer.php",
+        "stage3/tests/server-e2e.cjs",
+        "stage3/runtime-export/bin/build.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "Partial: owner must verify external site/host deployment and real page performance; current same-origin PHP scenario only."
     },
     {
       "id": 190,
@@ -1817,9 +1826,11 @@
       "ownerAccepted": false,
       "evidence": [
         "stage3/server/SiteOperations.php",
-        "stage3/studio/hosted.js"
+        "stage3/server/Api.php",
+        "stage3/studio/hosted.js",
+        "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "Partial: owner must verify external site/host deployment and real page performance; current same-origin PHP scenario only."
     },
     {
       "id": 193,

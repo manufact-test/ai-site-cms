@@ -472,3 +472,63 @@ limits, border, filter and responsive background crops and the popup builder.
 All editing is non-destructive and follows normal validated Save/Publish.
 CI remains a technical gate; visual fidelity and owner GO depend on actual
 customer-approved three-device prototypes.
+
+## Linked sections shared by pages
+
+Every page still embeds a complete independently keyed section. For
+*multiple-page shared content* add `"sharedKey":"shared-footer-company"`
+to matching sections on two or more distinct pages. Their component,
+manifestVersion, editable slots, repeaters, appearance, form configuration,
+Design Graph, backgrounds and visual content must match after stripping
+per-instance IDs. Every section, element, repeat item and graph node still
+needs its **own globally unique** stable ID. Popup targets must point to
+the page-local popup node, not an ID on another page.
+
+Link, edit and detach through Studio instead of manually editing JSON:
+- «Сделать общей на другой странице» creates another local instance.
+- «Добавить ... на ещё одну страницу» extends that group, maximum 20.
+- Edits of a linked section sync all members in one draft transaction and Undo.
+- «Отвязать» keeps this instance unchanged but independent. Plain duplicate
+  and cross-site copy are **always independent**.
+- On save/import/publish, both JS and PHP reject diverged groups; neither
+  renderer resolves a shared section by fetching from another page at runtime.
+  This keeps exported static/Next sites self-contained and editable.
+
+`sharedKey` is a site-local content-link identity. It is not a database
+relation to another customer's site, a global design template or a shared
+publisher. Creating it never silently publishes changes.
+
+## Owner CMS connection doctor
+
+On the hosted PHP server (owner role), GET
+`/api/sites/{siteId}/connection-check` returns a privacy-minimal state of
+the current draft/publication and `/published/{siteId}/_cms-connect` returns
+read-only public release identity/version. Studio compares both over the
+same origin and shows a match, no-release or mismatch. The same check runs
+after owner Publish without opening a modal; the detailed owner dialog is
+still available. No external network probing, DNS verification or assurance
+about separate static/Next deployments is implied. Maintenance replies
+HTTP 503 before the public canary.
+
+## Typed icon catalog, positional controls and operational response
+
+Design Graph `type:"icon"` supports only compiled `ICON_PATHS` names,
+optional `iconSize` integer 12..128 and `iconWeight` one of
+`thin`, `regular`, `bold`; `alt` determines accessible name.
+Both first-party JS and PHP render identical safe SVG path markup.
+The catalog now has 31 entries; arbitrary inline SVG, URLs and scripts
+remain prohibited. Responsive text/foreground color is controlled via
+existing safe styles. The Studio precision pad adjusts translateX/Y
+±600 pixels in ±1/±10 steps for the active breakpoint and supports Undo,
+with quick X/Y fields in Workbench.
+
+Site-scoped technical incidents retain only type/time/random ID and are
+shown in owner-only Studio with 24-hour/7-day totals and type filters.
+They exclude lead data, IPs, exception messages and private URLs.
+
+For existing hosted PHP published HTML routes, matching release-version
+ETags allow a conditional HTTP 304 while a new version or changed form
+transport secret changes the validator. This is **revalidation**, not an
+unsafe multi-day cache. Maintenance, redirects, 404 and public-form
+sanitization remain authoritative. Standalone ZIP and Next targets are
+independent of CMS; run their own real-host measurements and checks.
