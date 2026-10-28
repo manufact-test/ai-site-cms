@@ -112,3 +112,13 @@ Example section (append to a page's `sections` array; replace the graph nodes wi
 ```
 
 Use a graph heading with level 1 only once per page. Validate the entire document before connection; custom-section must include at least one graph node and obey the existing global node, depth and media limits.
+
+## Preflight for a complete external AI handoff
+
+Before opening Studio, run from repository root:
+
+```sh
+node stage3/bin/verify-approved-site.cjs /absolute/path/to/approved-site
+```
+
+The command validates all existing registered manifests including `custom-section`, graph IDs and allowed styles, cross-section asset references, required three prototype files, descriptions, image MIME/size and responsive variant SHA256. It performs **no writes, network calls, automatic approval or publication**. An affirmative report means structurally compatible, **not** that the actual visual design matches the client's approved prototype. The user still reviews the visuals and explicitly imports/publishes in Studio.

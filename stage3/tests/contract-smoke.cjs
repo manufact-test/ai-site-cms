@@ -7,7 +7,7 @@ const {execFileSync}=require('node:child_process');
 const sdk=require('../sdk/contract.cjs');
 const root=path.resolve(__dirname,'..');
 const read=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8'));
-const manifests=['company-hero','feature-highlights','contact-panel','image-showcase','lead-form','lead-form-flex','service-grid','faq-accordion','testimonials','photo-gallery','media-story','partner-logos','cta-banner','pricing-plans','process-timeline','comparison-matrix','content-switcher','adaptive-gallery'].map(
+const manifests=['company-hero','feature-highlights','contact-panel','image-showcase','lead-form','lead-form-flex','service-grid','faq-accordion','testimonials','photo-gallery','media-story','partner-logos','cta-banner','pricing-plans','process-timeline','comparison-matrix','content-switcher','adaptive-gallery','custom-section'].map(
   name=>read('components/'+name+'.json'));
 let checks=0;
 const test=(name,fn)=>{fn();checks++;};
@@ -16,6 +16,30 @@ const initial=read('fixtures/industrial-site.json');
 const same=x=>JSON.parse(JSON.stringify(x));
 const reg=sdk.registry(manifests);
 const hero=manifests[0],highlights=manifests[1],contact=manifests[2];
+
+test('externally authored section is graph-only and fail-closed on browser contract',()=>{
+  const site=same(initial),section=sdk.sectionFrom(
+    manifests.find(m=>m.id==='custom-section'),'section-unique-layout');
+  site.pages[0].sections.push(section);
+  refuses(()=>sdk.validateSite(site,manifests),'No empty custom sections');
+  section.designGraph={version:1,id:'graph-unique-layout',nodes:[{
+    id:'unique-layout-root',type:'container',styles:{display:'grid',columns:2,gap:20},
+    responsive:{mobile:{columns:1,gap:12}},children:[
+      {id:'unique-layout-copy',type:'text',text:'Designed by external AI',styles:{fontSize:18}},
+      {id:'unique-layout-link',type:'button',text:'More',href:'/contact/',
+        styles:{background:'#205099',radius:12},
+        states:{hover:{opacity:80}}}
+    ]
+  }]};
+  assert.equal(sdk.validateSite(site,manifests).pages[0].sections.at(-1).component,'custom-section');
+  const graph=require('../sdk/design-graph.cjs');
+  const html=graph.render(site,section.designGraph);
+  assert.match(html,/Designed by external AI/);
+  assert.match(html,/@media\(max-width:600px\)/);
+  const bad=same(site);bad.pages[0].sections.at(-1).designGraph.nodes[0]
+    .children[1].href='javascript:alert(1)';
+  refuses(()=>sdk.validateSite(bad,manifests),'No executable links from external design');
+});
 
 test('four production components: typed repeater contracts, structural editing and safety',()=>{
   const D=require('../sdk/draft.cjs'),newTypes=['pricing-plans','process-timeline',

@@ -1274,6 +1274,23 @@ async function execute(){
           ?{'content.media':'asset-external-hero'}:{})}
       }))
     });
+    const custom=window.Stage3Editor.manifests().find(x=>x.id==='custom-section');
+    site.pages[0].sections.push({
+      id:'section-approved-custom',component:custom.id,manifestVersion:custom.version,
+      elements:[{id:'element-approved-custom-note',slot:'section-note',
+        values:{'content.text':'Авторская композиция клиента'}}],
+      designGraph:{version:1,id:'graph-approved-custom',nodes:[{
+        id:'approved-custom-container',type:'container',
+        styles:{display:'grid',columns:2,gap:24},
+        responsive:{mobile:{columns:1,gap:12}},
+        children:[
+          {id:'approved-custom-copy',type:'text',text:'Особенный согласованный дизайн',
+            styles:{fontSize:24},responsive:{mobile:{fontSize:18}}},
+          {id:'approved-custom-photo',type:'image',assetId:'asset-external-hero',
+            alt:'Графическое оформление',styles:{radius:14}}
+        ]
+      }]}
+    });
     site.pages[0].sections.push(section);
     return site;
   });
@@ -1362,6 +1379,9 @@ async function execute(){
   assert.deepEqual(await visitor.locator('section.faq summary').allInnerTexts(),
     ['Как оформить заказ?','Что входит в комплект?']);
   assert.equal(await visitor.locator('section.faq details').count(),2);
+  assert.equal(await visitor.locator('.cmsdg-n-approved-custom-copy').innerText(),
+    'Особенный согласованный дизайн',
+    'Custom AI composition renders from the external Design Graph, not a fixed template');
   const remoteImage=visitor.locator('section.showcase img.showcase-photo');
   assert.equal(await remoteImage.getAttribute('alt'),'Фото внешнего сайта');
   assert.match(await remoteImage.getAttribute('src'),
