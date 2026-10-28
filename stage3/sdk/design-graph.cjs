@@ -129,7 +129,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   let count=0;
   function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','responsiveMedia'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(own(node,'backgroundMedia')){
@@ -153,6 +153,17 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       }
       if([node.styles||{},node.responsive?.tablet||{},node.responsive?.mobile||{}].some(layer=>own(layer,'gradient')))
         fail(node.id,'background image conflicts with CSS gradient');
+    }
+    if(own(node,'responsiveMedia')){
+      if(node.type!=='image')fail(node.id,'device images only on image nodes');
+      const media=node.responsiveMedia;
+      keys(media,['tabletAssetId','mobileAssetId'],node.id+'/responsiveMedia');
+      if(!Object.keys(media).length)fail(node.id,'empty device image selection');
+      for(const id of Object.values(media)){
+        if(typeof id!=='string'||!assetIds.has(id)||
+          !['image/png','image/jpeg','image/webp'].includes(mediaKinds.get(id)))
+          fail(node.id,'device image must reference a site-owned raster asset');
+      }
     }
     if((node.type!=='list'&&own(node,'ordered'))||(node.type==='list'&&own(node,'ordered')&&typeof node.ordered!=='boolean'))fail(node.id,'invalid ordered list flag');
     if(node.type==='table-row'&&parentType!=='table')fail(node.id,'row must belong to table');
@@ -535,9 +546,20 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       asset.width>=1&&asset.width<=4096&&asset.height>=1&&asset.height<=4096?
       ' width="'+asset.width+'" height="'+asset.height+'"':'';
     const img='<img loading="lazy" class="'+cls+'" src="'+attr(base)+'"'+responsive+dimensions+' alt="'+attr(n.alt)+'">';
-    if(!n.href)return img;
+    const variantsByDevice=n.responsiveMedia;
+    let picture=img;
+    if(variantsByDevice){
+      let source='';
+      for(const [device,limit] of [['mobile',600],['tablet',900]]){
+        const id=variantsByDevice[device+'AssetId'];if(!id)continue;
+        const selected=imageUrl(id);
+        if(selected)source+='<source media="(max-width:'+limit+'px)" srcset="'+attr(selected)+'">';
+      }
+      picture='<picture class="cmsdg-picture">'+source+img+'</picture>';
+    }
+    if(!n.href)return picture;
     const href=n.href.startsWith('/')?mount.replace(/\/$/,'')+n.href:n.href;
-    return '<a class="cmsdg-image-action" href="'+attr(href)+'"'+(href.startsWith('https://')?' rel="noopener noreferrer"':'')+'>'+img+'</a>';
+    return '<a class="cmsdg-image-action" href="'+attr(href)+'"'+(href.startsWith('https://')?' rel="noopener noreferrer"':'')+'>'+picture+'</a>';
   }
   const html=graph.nodes.map(visit).join('');
   return '<section class="cmsdg '+('cmsdg-'+graph.id)+'" id="'+attr(sectionId)+'"><style>'+
@@ -549,8 +571,9 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     scope+' .cmsdg-table th,'+scope+' .cmsdg-table td{padding:12px 16px;border:1px solid #c6cdd7;text-align:start}'+
     scope+' .cmsdg-table th{font-weight:700;background:#f2f5f9}'+
     scope+' .cmsdg-gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 2px;overscroll-behavior-inline:contain}'+
-    scope+' .cmsdg-gallery>img,'+scope+' .cmsdg-gallery>a{flex:0 0 min(82%,420px);scroll-snap-align:start;border-radius:10px}'+
-    scope+' .cmsdg-gallery>a img{width:100%;height:100%;object-fit:cover;border-radius:inherit}'+
+    scope+' .cmsdg-gallery>img,'+scope+' .cmsdg-gallery>picture,'+scope+' .cmsdg-gallery>a{flex:0 0 min(82%,420px);scroll-snap-align:start;border-radius:10px}'+
+    scope+' .cmsdg-gallery>picture img,'+scope+' .cmsdg-gallery>a img{width:100%;height:100%;object-fit:cover;border-radius:inherit}'+
+    scope+' .cmsdg-picture img{max-width:100%;height:auto}'+
     scope+' .cmsdg-image-action{display:inline-block;max-width:100%}'+
     scope+' .cmsdg-image-action img{display:block}'+
     scope+' .cmsdg-quote{margin:12px 0;padding:20px;border-inline-start:4px solid currentColor}'+
