@@ -9,6 +9,14 @@ const mount=siteId=>'/published/'+siteId+'/';
 const resourceName=(kind,index)=>kind==='redirect'?
  'redirect-'+String(index+1).padStart(3,'0')+'.txt':kind+'.txt';
 const expectedUrl=(base,name)=>new URL(name,base).href;
+function publicLoc(raw){
+ const u=new URL(raw);
+ if((u.protocol!=='https:'&&!(u.protocol==='http:'&&
+     ['localhost','127.0.0.1'].includes(u.hostname)))||
+    u.username||u.password||u.search||u.hash)
+  throw Error('Unsafe PHP public sitemap URL');
+ return u;
+}
 function records(site,base,publication){
  if(!publication||typeof publication!=='object'||Array.isArray(publication)||
     Object.keys(publication).some(k=>!['robots','sitemap','redirects'].includes(k))||
@@ -64,7 +72,7 @@ function review(site,base,manifest,bytesByFile){
    add('php-local:robots-sitemap-pointer','recommendation',null,
     'Real loopback robots body does not reference this site-mount sitemap.xml.');
  }
- let parsed=null,paths=null;
+ let parsed=null,paths=null,declaredPublicOrigin=null;
  if(sitemap.status===200){
   parsed=DELIVERY.sitemapPaths(sText);
   if(parsed.kind!=='urlset'||parsed.unverified){
@@ -75,14 +83,12 @@ function review(site,base,manifest,bytesByFile){
    paths=[];const seen=new Set(),siteMount=mount(site.siteId),hosts=new Set();
    for(const raw of parsed.urls){
     let url;
-    try{url=new URL(raw);}catch{
+    try{url=publicLoc(raw);}catch{
      add('php-local:sitemap-invalid-url','error',null,'Local sitemap has a non-URL loc.');continue;
     }
-    if(url.protocol!=='https:'||url.username||url.password||url.hash||url.search){
-     add('php-local:sitemap-invalid-url','error',null,'Local sitemap has non-HTTPS/credential/query/fragment loc.',{observedUrl:raw.slice(0,240)});
-     continue;
-    }
     hosts.add(url.origin);
+    if(url.protocol==='http:')add('php-local:development-public-origin','recommendation',null,
+     'The PHP sitemap uses an explicit loopback HTTP origin for local testing; do not treat it as an approved public HTTPS host.');
     if(!url.pathname.startsWith(siteMount)){
      add('php-local:sitemap-route-escape','error',null,'Local sitemap loc is outside this published site mount.',{observedUrl:raw.slice(0,240)});
      continue;
@@ -96,7 +102,8 @@ function review(site,base,manifest,bytesByFile){
      add('php-local:sitemap-duplicate','warning',path,'Local sitemap contains the same logical page more than once.');
     else{seen.add(path);paths.push(path);}
    }
-   if(hosts.size>1)add('php-local:sitemap-multiple-origins','warning',null,'Local sitemap mixes public origins; confirm published host configuration.');
+   if(hosts.size>1)add('php-local:sitemap-multiple-origins','error',null,'Local sitemap mixes public origins; these URLs cannot be considered one published site.');
+   if(hosts.size===1)declaredPublicOrigin=[...hosts][0];
    for(const p of site.pages){
     const indexable=(p.seo?.robots||'index')==='index';
     if(indexable&&!seen.has(p.path))
@@ -107,6 +114,18 @@ function review(site,base,manifest,bytesByFile){
    for(const path of seen)if(!site.pages.some(p=>p.path===path))
     add('php-local:sitemap-unknown-page','warning',path,'Actual PHP sitemap includes a route missing from sealed Site v1.');
   }
+ }
+ if(sitemap.status===200&&paths!==null&&findings.some(x=>x.code.startsWith('php-local:sitemap-')&&x.severity==='error')){
+  paths=null;declaredPublicOrigin=null;
+ }
+ if(robots.status===200&&sitemap.status===200&&declaredPublicOrigin!==null){
+  const expectedSitemap=declaredPublicOrigin+mount(site.siteId)+'sitemap.xml';
+  const declared=(rText.match(/^\s*Sitemap:\s*(\S+)\s*$/gim)||[])
+    .map(line=>line.replace(/^\s*Sitemap:\s*/i,'').trim());
+  if(!declared.includes(expectedSitemap))
+   add('php-local:robots-sitemap-origin-drift','warning',null,
+    'Local robots.txt Sitemap pointer does not match the public origin actually used by PHP sitemap loc entries.',
+    {expectedUrl:expectedSitemap});
  }
  const verifiedRedirectPaths=[];
  for(const [i,item] of manifest.redirects.entries()){
@@ -131,6 +150,7 @@ function review(site,base,manifest,bytesByFile){
   redirectResponses:manifest.redirects.length,
   verifiedRedirectPaths:Object.freeze(verifiedRedirectPaths),
   parsedSitemapPaths:paths?Object.freeze(paths):null,parsedSitemapComplete:paths!==null,
+  declaredPublicOrigin,
   findings:Object.freeze(findings.map(item=>Object.freeze(item))),
   actualLoopbackRequests:true,publicHttpsProven:false,
   actualPhpBuildRevisionAuthenticated:false,releaseAuthorized:false,
