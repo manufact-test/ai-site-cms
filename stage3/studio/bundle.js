@@ -436,12 +436,13 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
   validateGraph(graph,new Set(site.assets.map(x=>x.id)),new Set(),
     site.designTokens,new Map(site.assets.map(x=>[x.id,x.mime])));
   const tokens=validateTokens(site.designTokens);
+  const safeMount=mount.replace(/\/$/,'');
   const assets=new Map(site.assets.map(a=>[a.id,a])),rules=[];
   const scope='.cmsdg-'+graph.id;
   const attr=s=>escapeHtml(s);
   const imageUrl=id=>{
     const a=assets.get(id);
-    return a?(mediaPreview?mediaPreview(id):null)||mount+a.src:null;
+    return a?(mediaPreview?mediaPreview(id):null)||safeMount+a.src:null;
   };
   const cssUrl=url=>JSON.stringify(String(url)).replace(/</g,'\\3c ').replace(/>/g,'\\3e ');
   const makeBackdrop=(m,id)=>{
@@ -510,10 +511,10 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     if(n.type==='button'||n.type==='link')return '<a class="'+cls+'" href="'+attr(n.href.startsWith('/')?mount.replace(/\/$/,'')+n.href:n.href)+'"'+(n.href.startsWith('https://')?' rel="noopener noreferrer"':'')+'>'+attr(n.text)+'</a>';
     if(n.type==='video'){
       const videoAsset=assets.get(n.assetId);
-      const videoSrc=videoPreview?videoPreview(n.assetId):mount+videoAsset.src;
+      const videoSrc=videoPreview?videoPreview(n.assetId):safeMount+videoAsset.src;
       if(!videoSrc)return '<div class="'+cls+'" role="status">Загружается защищённое видео</div>';
       const poster=n.posterAssetId?assets.get(n.posterAssetId):null;
-      const posterSource=poster?(mediaPreview?mediaPreview(n.posterAssetId):mount+poster.src):null;
+      const posterSource=poster?(mediaPreview?mediaPreview(n.posterAssetId):safeMount+poster.src):null;
       const posterHtml=posterSource?' poster="'+attr(posterSource)+'"':'';
       // No autoplay, external providers, unknown formats, script or iframe.
       return '<video class="'+cls+'" controls playsinline preload="metadata"'+
@@ -523,13 +524,13 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     }
     const asset=assets.get(n.assetId),src=mediaPreview?mediaPreview(n.assetId):null;
     if(!asset)return '';
-    const base=src||mount+asset.src;
+    const base=src||safeMount+asset.src;
     const variants=asset.variants||[];
     // Source parity with PHP PublicRenderer::responsiveAttrs: sorted, deduped
     // responsive derivatives and the unmodified original at its own width.
-    const candidates=new Map(variants.map(v=>[v.width,mount+v.src]));
+    const candidates=new Map(variants.map(v=>[v.width,safeMount+v.src]));
     if(Number.isInteger(asset.width)&&asset.width>0&&!candidates.has(asset.width))
-      candidates.set(asset.width,mount+asset.src);
+      candidates.set(asset.width,safeMount+asset.src);
     const responsive=src?'':(variants.length?' srcset="'+
       [...candidates.entries()].sort((a,b)=>a[0]-b[0]).map(([w,url])=>attr(url)+' '+w+'w').join(', ')+
       '" sizes="(max-width:600px) 100vw, (max-width:900px) 50vw, 100vw"':'');
