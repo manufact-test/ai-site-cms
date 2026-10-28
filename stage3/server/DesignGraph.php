@@ -103,7 +103,7 @@ final class DesignGraph
             'outlineWidth'=>[0,8],'zIndex'=>[-10,30],'widthPx'=>[1,1920],'heightPx'=>[1,1400],'minWidth'=>[0,1920],'maxHeight'=>[0,1600],'gridRowSpan'=>[1,12],'flexBasisPercent'=>[0,100],'flexShrink'=>[0,1],'objectPositionX'=>[0,100],'objectPositionY'=>[0,100],'marginTop'=>[-160,160],'marginBottom'=>[-160,160],'wordSpacing'=>[-40,100],'textIndent'=>[-100,200],'gridColumnStart'=>[1,13],'gridRowStart'=>[1,13],'translateX'=>[-600,600],'translateY'=>[-600,600],'rotateDeg'=>[-180,180],'scalePercent'=>[50,200],'backdropBlur'=>[0,32]];
         foreach ($style as $key=>$value) {
             if ($state)self::check(in_array($key,
-                ['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset'],true),
+                ['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset','scalePercent'],true),
                 $at.' unsafe state property');
             if (in_array($key,['color','background','borderColor','outlineColor'],true)){
                 self::resolve($value,'colors',$tokens,$at.'/'.$key);continue;
@@ -182,7 +182,7 @@ final class DesignGraph
         $count=0;$popups=[];$triggers=[];
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,&$popups,&$triggers,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
                 &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup'],true),
@@ -350,6 +350,13 @@ final class DesignGraph
             }
             self::style($node['styles']??[],$tokens,$id.'/style');
             if(array_key_exists('motion',$node))self::motion($node['motion'],$id.'/motion');
+            if(array_key_exists('transition',$node)){
+                $transition=$node['transition'];
+                self::keys($transition,['duration','easing'],$id.'/transition');
+                self::check(self::integer($transition['duration']??null,0,1000)&&
+                    in_array($transition['easing']??null,self::SEQUENCE_EASINGS,true),
+                    'invalid interaction transition');
+            }
             if (isset($node['responsive'])) {
                 self::keys($node['responsive'],['tablet','mobile'],$id.'/responsive');
                 foreach ($node['responsive'] as $bp=>$style)
@@ -545,6 +552,13 @@ final class DesignGraph
             foreach (['tablet'=>900,'mobile'=>600] as $bp=>$width) {
                 $css=self::declarations($n['responsive'][$bp]??[],$t);
                 if($css!=='')$rules[]='@media(max-width:'.$width.'px){'.$selector.'{'.$css.'}}';
+            }
+            if(isset($n['transition'])){
+                $transition=$n['transition'];$duration=$transition['duration'].'ms '.$transition['easing'];
+                $props=['color','background-color','border-color','border-radius',
+                    'opacity','filter','scale'];
+                $rules[]=$selector.'{transition:'.implode(',',array_map(
+                    static fn(string $prop)=>$prop.' '.$duration,$props)).'}';
             }
             foreach (['hover'=>':hover','focus'=>':focus-visible','active'=>':active'] as $name=>$state) {
                 $css=self::declarations($n['states'][$name]??[],$t);

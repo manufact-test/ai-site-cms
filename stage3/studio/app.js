@@ -3110,7 +3110,7 @@
       const style=editStyle(n),limited=['hover','focus','active'].includes(mode);
       for(const key of DESIGN_GRAPH.STYLE_KEYS){
         if(key==='fluidFont'||key==='shadowFine')continue;
-        if(limited&&!['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset'].includes(key))continue;
+        if(limited&&!['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset','scalePercent'].includes(key))continue;
         if(key==='gradient')continue;
         const values={
           display:['block','grid','flex','none'],
@@ -3338,6 +3338,25 @@
         sequence.append(fields,enable,make('p','Элементы появляются по очереди при загрузке страницы. У отдельных дочерних элементов не должно быть собственной анимации. В режиме reduced motion всё статично.'));
         root.append(sequence);
       }
+      const interactions=make('details');interactions.id='cms-design-transitions';
+      interactions.append(make('summary','Плавные hover / focus / tap-состояния'));
+      const transition=n.transition||{duration:180,easing:'ease-out'};
+      const transitionControls=make('div',undefined,'cms-design-fields');
+      transitionControls.append(
+        ctl('Длительность перехода, мс',String(transition.duration),v=>{
+          n.transition={...(n.transition||transition),duration:Number(v)};
+        },'number'),
+        ctl('Плавность',{initial:transition.easing,
+          choices:DESIGN_GRAPH.SEQUENCE_EASINGS.map(v=>[v,v])},v=>{
+          n.transition={...(n.transition||transition),easing:v};
+        },'select'));
+      const removeTransition=button('Без плавных переходов','btn small',()=>{
+        if(!n.transition)return;
+        recordHistory();delete n.transition;render();
+      });
+      interactions.append(transitionControls,removeTransition,
+        make('p','Настраивайте цвет, непрозрачность, масштаб, рамку и фильтр отдельно в режимах «Наведение», «Фокус» и «Нажатие». При уменьшенном движении переходы отключены.'));
+      root.append(interactions);
       const motionBox=make('details');motionBox.id='cms-design-motion';
       motionBox.append(make('summary','Анимация элемента · учитывает reduced motion'));
       const motionFields=make('div',undefined,'cms-design-fields');

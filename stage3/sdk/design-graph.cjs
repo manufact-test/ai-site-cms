@@ -76,7 +76,7 @@ function validateStyle(style,tokens,at,mode='base'){
     lineHeight:[80,250],letterSpacing:[-50,200],maxWidth:[0,1920],widthPercent:[1,100],
     borderWidth:[0,12],order:[-30,30],opacity:[0,100],outlineWidth:[0,8],zIndex:[-10,30],widthPx:[1,1920],heightPx:[1,1400],minWidth:[0,1920],maxHeight:[0,1600],gridRowSpan:[1,12],flexBasisPercent:[0,100],flexShrink:[0,1],objectPositionX:[0,100],objectPositionY:[0,100],marginTop:[-160,160],marginBottom:[-160,160],wordSpacing:[-40,100],textIndent:[-100,200],gridColumnStart:[1,13],gridRowStart:[1,13],translateX:[-600,600],translateY:[-600,600],rotateDeg:[-180,180],scalePercent:[50,200],backdropBlur:[0,32]};
   for(const [key,value] of Object.entries(style)){
-    if(mode==='state'&&!['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset'].includes(key))
+    if(mode==='state'&&!['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset','scalePercent'].includes(key))
       fail(at,'unsupported interaction state property');
     if(['color','background','borderColor','outlineColor'].includes(key)){resolve(value,'colors',tokens,at+'/'+key);continue;}
     if(key==='fluidFont'){
@@ -151,7 +151,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   let count=0;const popups=new Set(),triggers=[];
   function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(own(node,'popupTarget')){
@@ -299,6 +299,12 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
     }
     validateStyle(node.styles||{},tokens,node.id+'/styles');
     if(own(node,'motion'))validateMotion(node.motion,node.id+'/motion');
+    if(own(node,'transition')){
+      keys(node.transition,['duration','easing'],node.id+'/transition');
+      if(!number(node.transition.duration,0,1000)||
+        !SEQUENCE_EASINGS.includes(node.transition.easing))
+        fail(node.id,'invalid interaction transition');
+    }
     if(own(node,'responsive')){
       keys(node.responsive,['tablet','mobile'],node.id+'/responsive');
       for(const [bp,st] of Object.entries(node.responsive))validateStyle(st,tokens,node.id+'/'+bp);
@@ -547,6 +553,16 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     for(const bp of ['tablet','mobile']){
       const css=declarations(n.responsive?.[bp]||{},tokens);
       if(css)rules.push('@media(max-width:'+(bp==='tablet'?'900':'600')+'px){'+selector+'{'+css+'}}');
+    }
+    if(n.transition){
+      const t=n.transition,base=selector;
+      rules.push(base+'{transition:color '+t.duration+'ms '+t.easing+
+        ',background-color '+t.duration+'ms '+t.easing+
+        ',border-color '+t.duration+'ms '+t.easing+
+        ',border-radius '+t.duration+'ms '+t.easing+
+        ',opacity '+t.duration+'ms '+t.easing+
+        ',filter '+t.duration+'ms '+t.easing+
+        ',scale '+t.duration+'ms '+t.easing+'}');
     }
     for(const state of ['hover','focus','active']){
       const css=declarations(n.states?.[state]||{},tokens);
