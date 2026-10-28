@@ -236,6 +236,25 @@ function formAndFirstSiteCliContracts(){
  assert.throws(()=>RECONCILE.correlate(orig,edited,sealed),/content differs/);
  const altered=JSON.parse(JSON.stringify(imported));altered.assets[0].alt='Unapproved';
  assert.throws(()=>RECONCILE.correlate(orig,altered,sealed),/ALT/);
+
+ // Legitimate owner edits must be bound to the exact published CMS fingerprint
+ // instead of silently masquerading as the original immutable client package.
+ const BRIDGE=require('../lib/approved-site-bridge.cjs');
+ const record={format:BRIDGE.OWNER_REVIEW_FORMAT,siteId:site.siteId,
+  approvedSiteSha256:'c'.repeat(64),publishedVersion:8,
+  publishedSiteFingerprint:ACCEPTANCE.fingerprint(site),
+  reviewedAt:'2026-10-28T17:00:00Z',operator:'Site owner',
+  reason:'I have checked every changed field, media item and page layout before release',
+  acknowledged:true};
+ const owner=BRIDGE.checkOwnerReview(record,{fileSha256:'c'.repeat(64)},site,8);
+ assert.equal(owner.manuallyAcknowledged,true);
+ assert.equal(owner.clientApprovedCurrentRevision,false);
+ assert.equal(owner.operatorIdentityAuthenticated,false);
+ assert.throws(()=>BRIDGE.checkOwnerReview({...record,publishedVersion:9},
+  {fileSha256:'c'.repeat(64)},site,8),/owner-edited|requires/i);
+ assert.throws(()=>BRIDGE.checkOwnerReview({...record,publishedSiteFingerprint:'0'.repeat(64)},
+  {fileSha256:'c'.repeat(64)},site,8),/owner-edited|requires/i);
+
  // This CLI remains a single command, with optional lead screenshot evidence.
  const cliSource=fs.readFileSync(path.join(__dirname,'../bin/first-site-check.cjs'),'utf8')
   .replace(/^#![^\n]*\n/,'');
@@ -256,6 +275,8 @@ function formAndFirstSiteCliContracts(){
   '--published-site','/tmp/published.json'])['published-site'],'/tmp/published.json');
  assert.equal(m.exports.parse([...argv,'--previous-report','/tmp/previous-report'])['previous-report'],
   '/tmp/previous-report');
+ assert.equal(m.exports.parse([...argv,'--owner-edit-review','/tmp/owner.json'])['owner-edit-review'],
+  '/tmp/owner.json');
  assert.throws(()=>m.exports.parse([...argv,'--unknown','value']),/Unknown/);
 }
 
