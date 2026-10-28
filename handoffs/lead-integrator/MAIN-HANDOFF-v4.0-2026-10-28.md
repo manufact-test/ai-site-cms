@@ -172,3 +172,9 @@ DB or authorize remote operations; its actual suitability must be verified
 on a dedicated owner-approved target before any changeover. The normal
 runtime package is unchanged unless the operator explicitly uses
 pack-php-host.
+
+## Continuation checkpoint — 29 October 2026 · independent PHP and Next visitor parity
+
+The lead branch now includes three more visitor-facing capabilities beyond the previous checkpoint: (1) Next Static and SSR restore functional native multi-step form wizard behavior using next/script afterInteractive, admitting only the PHP publisher's known first-party script and rejecting other body scripts; authored OG locale/image alt/Twitter card metadata is carried across; (2) standalone PHP published MP4 media supports byte-range seeking, HTTP 206/416, HEAD, If-Range, immutable ETags, bounded streaming; and (3) standalone PHP published HTML, sitemap.xml and robots.txt respond conditionally with ETag/304. The original form collector, CMS database, and published source revisions remain independent. No generic arbitrary JS integration, CMS site generation, new framework or dependencies have been introduced.
+
+The existing server HTTP E2E now covers an actual sealed-by-publisher multi-step form export to both Next adapters, real PHP MP4 requests and conditional HTML/sitemap requests. The registry remains 124 implemented candidates, 5 partial, 6 owner-environment gates, ownerAccepted=0; the first approved-v2 customer site and actual external hosting/performance tests are not available. See docs/ROADMAP.md and stage3/docs/APPROVED-SITE-PACKAGE.md. For future work: check current branch HEAD and matching Actions first; do not assume this appended note's older SHA is HEAD. User's ~30-minute active-development-per-round rule continues, and the SEO parallel branch remains out of bounds. Do not touch main, production, Hostinger, real databases, PR or merge without separate owner approval.
