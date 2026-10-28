@@ -23,7 +23,7 @@ const STYLE_KEYS=['display','columns','direction','align','justify','gap','paddi
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
   'paddingX','paddingY','marginTop','marginBottom','widthPercent','minHeight','gridColumnSpan',
   'flexWrap','flexGrow','alignSelf','letterSpacing','fontFamily','objectFit','aspectRatio',
-  'overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset'];
+  'overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset','shadowFine'];
 const DEFAULT_TOKENS=Object.freeze({
   colors:{foreground:'#182b3d',background:'#ffffff',accent:'#0a5bff',muted:'#667788'},
   spacing:{small:12,medium:24,large:48},
@@ -88,6 +88,14 @@ function validateStyle(style,tokens,at,mode='base'){
         fail(at,'invalid fluid typography');
       continue;
     }
+    if(key==='shadowFine'){
+      keys(value,['x','y','blur','spread','color','inset'],at+'/shadowFine');
+      for(const [field,min,max] of [['x',-100,100],['y',-100,100],['blur',0,160],['spread',-80,80]])
+        if(!number(value[field],min,max))fail(at,'invalid shadowFine '+field);
+      resolve(value.color,'colors',tokens,at+'/shadowFine.color');
+      if(typeof value.inset!=='boolean')fail(at,'invalid shadowFine inset');
+      continue;
+    }
     if(key==='gradient'){
       keys(value,['angle','from','to','via','viaAt'],at+'/gradient');
       if(!number(value.angle,0,360)||!own(value,'from')||!own(value,'to')||own(value,'via')!==own(value,'viaAt')||
@@ -109,10 +117,14 @@ function validateStyle(style,tokens,at,mode='base'){
   if(own(style,'fontSize')&&own(style,'fluidFont'))fail(at,'competing typography controls');
   if(own(style,'widthPx')&&own(style,'widthPercent'))fail(at,'competing width units');
   if(own(style,'columns')&&own(style,'gridColumnsPreset'))fail(at,'competing grid template');
+  if(own(style,'shadow')&&own(style,'shadowFine'))fail(at,'competing shadow controls');
 }
 function validateMotion(motion,at){
-  keys(motion,['effect','duration','delay'],at);
-  if(!MOTIONS.includes(motion.effect)||!number(motion.duration,150,2000)||!number(motion.delay,0,1000))
+  keys(motion,['effect','duration','delay','trigger','easing'],at);
+  if(!MOTIONS.includes(motion.effect)||!number(motion.duration,150,2000)||!number(motion.delay,0,1000)||
+    (own(motion,'trigger')&&!['load','scroll'].includes(motion.trigger))||
+    (own(motion,'easing')&&!['ease','ease-in','ease-out','ease-in-out','linear'].includes(motion.easing))||
+    (motion.trigger==='scroll'&&motion.delay!==0))
     fail(at,'invalid motion');
 }
 const SEQUENCE_EASINGS=['ease','ease-in','ease-out','ease-in-out','linear'];
@@ -440,6 +452,10 @@ function declarations(style,t){
       put('font-size','clamp('+v.min+'px,calc('+slope.toFixed(4)+'vw + '+intercept.toFixed(4)+'px),'+v.max+'px)');
       continue;
     }
+    if(k==='shadowFine'){
+      put('box-shadow',(v.inset?'inset ':'')+v.x+'px '+v.y+'px '+v.blur+'px '+v.spread+'px '+
+        resolve(v.color,'colors',t,k));continue;
+    }
     if(k==='gradient'){
       put('background-image','linear-gradient('+v.angle+'deg,'+resolve(v.from,'colors',t,k)+','+(own(v,'via')?resolve(v.via,'colors',t,k)+' '+v.viaAt+'%,':'')+
         resolve(v.to,'colors',t,k)+')');continue;
@@ -574,7 +590,15 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       n.children.forEach((ch,i)=>rules.push(selector+' > .cmsdg-n-'+ch.id+
         '{animation:cmsdg-'+t.effect+' '+t.duration+'ms '+t.easing+' '+(t.delay+i*t.stagger)+'ms both}'));
     }
-    if(n.motion&&n.motion.effect!=='none')rules.push(selector+'{animation:cmsdg-'+n.motion.effect+' '+n.motion.duration+'ms ease-out '+n.motion.delay+'ms both}');
+    if(n.motion&&n.motion.effect!=='none'){
+      const m=n.motion,easing=m.easing||'ease-out';
+      if(m.trigger==='scroll'){
+        // CSS-only scroll timeline: non-supporting browsers retain visible static content.
+        // Timeline durations follow view progress rather than milliseconds.
+        rules.push('@supports (animation-timeline: view()){'+selector+
+          '{animation:cmsdg-'+m.effect+' 1s '+easing+' both;animation-timeline:view(block);animation-range:entry 0% cover 35%}}');
+      }else rules.push(selector+'{animation:cmsdg-'+m.effect+' '+m.duration+'ms '+easing+' '+m.delay+'ms both}');
+    }
     const cls='cmsdg-n-'+n.id;
     if(n.type==='popup')return '<div popover="auto" id="cmsdg-popup-'+n.id+'" class="'+cls+' cmsdg-popup" role="dialog" aria-label="'+attr(n.text)+'">'+
       '<button type="button" class="cmsdg-popup-close" popovertarget="cmsdg-popup-'+n.id+'" popovertargetaction="hide" aria-label="Закрыть окно">×</button>'+
@@ -4104,7 +4128,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           input.disabled=!canWrite();
           input.addEventListener('change',()=>{
             const val=input.value;
-            if(['fontSize','padding','gap','color','background','textAlign'].includes(key)){
+            if(['fontSize','padding','gap','color','background','textAlign','widthPx','heightPx',
+              'minWidth','maxWidth','minHeight','maxHeight','borderWidth','borderStyle',
+              'filterPreset','shadow','objectPositionX','objectPositionY'].includes(key)){
               editGraphWork(node=>{
                 const style=mode==='desktop'?node.styles||(node.styles={}):
                   (node.responsive||(node.responsive={}))[mode]||((node.responsive[mode]={}));
@@ -4112,7 +4138,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                   delete style[key];
                   if(mode!=='desktop'&&!Object.keys(style).length)delete node.responsive[mode];
                   if(node.responsive&&!Object.keys(node.responsive).length)delete node.responsive;
-                }else if(['fontSize','padding','gap'].includes(key)){
+                }else if(['fontSize','padding','gap','widthPx','heightPx','minWidth',
+                  'maxWidth','minHeight','maxHeight','borderWidth','objectPositionX','objectPositionY'].includes(key)){
                   style[key]=val.startsWith('@')?val.trim():Number(val);
                 }else style[key]=val.trim();
               });
@@ -4289,9 +4316,36 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             [['',inherit],...Object.keys(session.current.designTokens?.colors||DESIGN_GRAPH.DEFAULT_TOKENS.colors)
               .map(x=>['@'+x,x]),['#ffffff','Белый'],['#000000','Чёрный']]);
           property('Размер текста · '+mode,'fontSize',styles.fontSize??'');
-          if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(current.type)){
+          if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(current.type)){
             property('Внутренний отступ · '+mode,'padding',styles.padding??'');
             property('Шаг элементов · '+mode,'gap',styles.gap??'');
+          }
+          const shape=document.createElement('details');shape.className='cms-work-appearance';
+          shape.id='cms-work-graph-geometry';
+          const shapeTitle=document.createElement('summary');
+          shapeTitle.textContent='Размер, рамка и визуальные эффекты · '+mode;
+          shape.append(shapeTitle);panel.append(shape);
+          const appendShape=(label,key,val,choices)=>{
+            const oldParent=panel;
+            const before=panel.lastElementChild;
+            property(label,key,val,choices);
+            const field=panel.lastElementChild;
+            if(field!==before)shape.append(field);
+          };
+          for(const [key,label] of [['widthPx','Ширина, px'],['heightPx','Высота, px'],
+            ['minWidth','Мин. ширина, px'],['maxWidth','Макс. ширина, px'],
+            ['minHeight','Мин. высота, px'],['maxHeight','Макс. высота, px'],
+            ['borderWidth','Толщина рамки, px']])
+            appendShape(label,key,styles[key]??'');
+          appendShape('Тип рамки','borderStyle',styles.borderStyle||'',
+            [['','Наследовать'],...['solid','dashed','dotted','double'].map(v=>[v,v])]);
+          appendShape('Тень','shadow',styles.shadow||'',
+            [['','Наследовать'],...['none','soft','medium','strong'].map(v=>[v,v])]);
+          if(['image','video'].includes(current.type)){
+            appendShape('Фильтр','filterPreset',styles.filterPreset||'',
+              [['','Наследовать'],...['none','grayscale','sepia','contrast','vibrant'].map(v=>[v,v])]);
+            appendShape('Кадрирование X, %','objectPositionX',styles.objectPositionX??'');
+            appendShape('Кадрирование Y, %','objectPositionY',styles.objectPositionY??'');
           }
           property('Выравнивание · '+mode,'textAlign',styles.textAlign||'',
             [['',inherit],['left','Слева'],['center','По центру'],['right','Справа']]);
@@ -5371,7 +5425,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const styleFields=make('div',undefined,'cms-design-fields');root.append(styleFields);
       const style=editStyle(n),limited=['hover','focus','active'].includes(mode);
       for(const key of DESIGN_GRAPH.STYLE_KEYS){
-        if(key==='fluidFont')continue;
+        if(key==='fluidFont'||key==='shadowFine')continue;
         if(limited&&!['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset'].includes(key))continue;
         if(key==='gradient')continue;
         const values={
@@ -5413,6 +5467,29 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           if(key==='fontSize')delete style.fluidFont;
           style[key]=v.startsWith('@')?v.trim():Number(v);
         }));
+      }
+      if(!limited){
+        const details=make('details');details.id='cms-design-shadow-fine';
+        details.append(make('summary','Точная тень · смещение / размытие / цвет'));
+        const defaults={x:0,y:12,blur:30,spread:0,color:'#000000',inset:false};
+        const fine=style.shadowFine||defaults;
+        const ensureFine=()=>{
+          delete style.shadow;
+          return style.shadowFine||(style.shadowFine=cp(defaults));
+        };
+        const controls=make('div',undefined,'cms-design-fields');
+        for(const [key,label] of [['x','Смещение X, px'],['y','Смещение Y, px'],
+          ['blur','Размытие, px'],['spread','Размах, px']])
+          controls.append(ctl(label,String(fine[key]),v=>{ensureFine()[key]=Number(v);},'number'));
+        controls.append(ctl('Цвет (HEX или @token)',fine.color,v=>{ensureFine().color=v.trim();}),
+          ctl('Внутренняя тень',{initial:String(fine.inset),
+            choices:[['false','Снаружи'],['true','Внутри']]},
+            v=>{ensureFine().inset=v==='true';},'select'));
+        details.append(controls,button('Убрать точную тень','btn small',()=>{
+          if(!style.shadowFine)return;
+          recordHistory();delete style.shadowFine;render();
+        }));
+        root.append(details);
       }
       if(!limited&&!['image','video','icon','divider','table-row','table-cell'].includes(n.type)){
         const images=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
@@ -5580,17 +5657,26 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const motionBox=make('details');motionBox.id='cms-design-motion';
       motionBox.append(make('summary','Анимация элемента · учитывает reduced motion'));
       const motionFields=make('div',undefined,'cms-design-fields');
-      const motion=n.motion||{effect:'none',duration:500,delay:0};
+      const motion=n.motion||{effect:'none',duration:500,delay:0,trigger:'load',easing:'ease-out'};
       const changeMotion=(key,v)=>{
-        n.motion={...(n.motion||{effect:'none',duration:500,delay:0}),[key]:v};
+        const next={...(n.motion||{effect:'none',duration:500,delay:0}),[key]:v};
+        if(next.trigger==='scroll')next.delay=0;
+        n.motion=next;
       };
       motionFields.append(
         ctl('Эффект',{initial:motion.effect,choices:DESIGN_GRAPH.MOTIONS.map(v=>[v,v])},
           v=>changeMotion('effect',v),'select'),
         ctl('Длительность, мс',String(motion.duration),v=>changeMotion('duration',Number(v)),'number'),
-        ctl('Задержка, мс',String(motion.delay),v=>changeMotion('delay',Number(v)),'number')
+        ctl('Задержка, мс (при загрузке)',String(motion.delay),v=>changeMotion('delay',Number(v)),'number'),
+        ctl('Когда запускать',{initial:motion.trigger||'load',choices:[
+          ['load','При загрузке'],['scroll','Когда элемент входит в экран']]},
+          v=>changeMotion('trigger',v),'select'),
+        ctl('Плавность',{initial:motion.easing||'ease-out',
+          choices:DESIGN_GRAPH.SEQUENCE_EASINGS.map(v=>[v,v])},
+          v=>changeMotion('easing',v),'select')
       );
       motionBox.append(motionFields,
+        make('p','Прокрутка: CSS View Timeline при поддержке браузера, иначе элемент виден без анимации. Длительность и задержка относятся к режиму загрузки; при прокрутке эффект привязан к положению в окне.'),
         button('Без анимации','btn small',()=>{
           if(!n.motion)return;
           recordHistory();delete n.motion;render();

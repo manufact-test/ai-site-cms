@@ -1812,7 +1812,9 @@
           input.disabled=!canWrite();
           input.addEventListener('change',()=>{
             const val=input.value;
-            if(['fontSize','padding','gap','color','background','textAlign'].includes(key)){
+            if(['fontSize','padding','gap','color','background','textAlign','widthPx','heightPx',
+              'minWidth','maxWidth','minHeight','maxHeight','borderWidth','borderStyle',
+              'filterPreset','shadow','objectPositionX','objectPositionY'].includes(key)){
               editGraphWork(node=>{
                 const style=mode==='desktop'?node.styles||(node.styles={}):
                   (node.responsive||(node.responsive={}))[mode]||((node.responsive[mode]={}));
@@ -1820,7 +1822,8 @@
                   delete style[key];
                   if(mode!=='desktop'&&!Object.keys(style).length)delete node.responsive[mode];
                   if(node.responsive&&!Object.keys(node.responsive).length)delete node.responsive;
-                }else if(['fontSize','padding','gap'].includes(key)){
+                }else if(['fontSize','padding','gap','widthPx','heightPx','minWidth',
+                  'maxWidth','minHeight','maxHeight','borderWidth','objectPositionX','objectPositionY'].includes(key)){
                   style[key]=val.startsWith('@')?val.trim():Number(val);
                 }else style[key]=val.trim();
               });
@@ -1997,9 +2000,36 @@
             [['',inherit],...Object.keys(session.current.designTokens?.colors||DESIGN_GRAPH.DEFAULT_TOKENS.colors)
               .map(x=>['@'+x,x]),['#ffffff','Белый'],['#000000','Чёрный']]);
           property('Размер текста · '+mode,'fontSize',styles.fontSize??'');
-          if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(current.type)){
+          if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(current.type)){
             property('Внутренний отступ · '+mode,'padding',styles.padding??'');
             property('Шаг элементов · '+mode,'gap',styles.gap??'');
+          }
+          const shape=document.createElement('details');shape.className='cms-work-appearance';
+          shape.id='cms-work-graph-geometry';
+          const shapeTitle=document.createElement('summary');
+          shapeTitle.textContent='Размер, рамка и визуальные эффекты · '+mode;
+          shape.append(shapeTitle);panel.append(shape);
+          const appendShape=(label,key,val,choices)=>{
+            const oldParent=panel;
+            const before=panel.lastElementChild;
+            property(label,key,val,choices);
+            const field=panel.lastElementChild;
+            if(field!==before)shape.append(field);
+          };
+          for(const [key,label] of [['widthPx','Ширина, px'],['heightPx','Высота, px'],
+            ['minWidth','Мин. ширина, px'],['maxWidth','Макс. ширина, px'],
+            ['minHeight','Мин. высота, px'],['maxHeight','Макс. высота, px'],
+            ['borderWidth','Толщина рамки, px']])
+            appendShape(label,key,styles[key]??'');
+          appendShape('Тип рамки','borderStyle',styles.borderStyle||'',
+            [['','Наследовать'],...['solid','dashed','dotted','double'].map(v=>[v,v])]);
+          appendShape('Тень','shadow',styles.shadow||'',
+            [['','Наследовать'],...['none','soft','medium','strong'].map(v=>[v,v])]);
+          if(['image','video'].includes(current.type)){
+            appendShape('Фильтр','filterPreset',styles.filterPreset||'',
+              [['','Наследовать'],...['none','grayscale','sepia','contrast','vibrant'].map(v=>[v,v])]);
+            appendShape('Кадрирование X, %','objectPositionX',styles.objectPositionX??'');
+            appendShape('Кадрирование Y, %','objectPositionY',styles.objectPositionY??'');
           }
           property('Выравнивание · '+mode,'textAlign',styles.textAlign||'',
             [['',inherit],['left','Слева'],['center','По центру'],['right','Справа']]);
@@ -3079,7 +3109,7 @@
       const styleFields=make('div',undefined,'cms-design-fields');root.append(styleFields);
       const style=editStyle(n),limited=['hover','focus','active'].includes(mode);
       for(const key of DESIGN_GRAPH.STYLE_KEYS){
-        if(key==='fluidFont')continue;
+        if(key==='fluidFont'||key==='shadowFine')continue;
         if(limited&&!['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset'].includes(key))continue;
         if(key==='gradient')continue;
         const values={
@@ -3121,6 +3151,29 @@
           if(key==='fontSize')delete style.fluidFont;
           style[key]=v.startsWith('@')?v.trim():Number(v);
         }));
+      }
+      if(!limited){
+        const details=make('details');details.id='cms-design-shadow-fine';
+        details.append(make('summary','Точная тень · смещение / размытие / цвет'));
+        const defaults={x:0,y:12,blur:30,spread:0,color:'#000000',inset:false};
+        const fine=style.shadowFine||defaults;
+        const ensureFine=()=>{
+          delete style.shadow;
+          return style.shadowFine||(style.shadowFine=cp(defaults));
+        };
+        const controls=make('div',undefined,'cms-design-fields');
+        for(const [key,label] of [['x','Смещение X, px'],['y','Смещение Y, px'],
+          ['blur','Размытие, px'],['spread','Размах, px']])
+          controls.append(ctl(label,String(fine[key]),v=>{ensureFine()[key]=Number(v);},'number'));
+        controls.append(ctl('Цвет (HEX или @token)',fine.color,v=>{ensureFine().color=v.trim();}),
+          ctl('Внутренняя тень',{initial:String(fine.inset),
+            choices:[['false','Снаружи'],['true','Внутри']]},
+            v=>{ensureFine().inset=v==='true';},'select'));
+        details.append(controls,button('Убрать точную тень','btn small',()=>{
+          if(!style.shadowFine)return;
+          recordHistory();delete style.shadowFine;render();
+        }));
+        root.append(details);
       }
       if(!limited&&!['image','video','icon','divider','table-row','table-cell'].includes(n.type)){
         const images=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
@@ -3288,17 +3341,26 @@
       const motionBox=make('details');motionBox.id='cms-design-motion';
       motionBox.append(make('summary','Анимация элемента · учитывает reduced motion'));
       const motionFields=make('div',undefined,'cms-design-fields');
-      const motion=n.motion||{effect:'none',duration:500,delay:0};
+      const motion=n.motion||{effect:'none',duration:500,delay:0,trigger:'load',easing:'ease-out'};
       const changeMotion=(key,v)=>{
-        n.motion={...(n.motion||{effect:'none',duration:500,delay:0}),[key]:v};
+        const next={...(n.motion||{effect:'none',duration:500,delay:0}),[key]:v};
+        if(next.trigger==='scroll')next.delay=0;
+        n.motion=next;
       };
       motionFields.append(
         ctl('Эффект',{initial:motion.effect,choices:DESIGN_GRAPH.MOTIONS.map(v=>[v,v])},
           v=>changeMotion('effect',v),'select'),
         ctl('Длительность, мс',String(motion.duration),v=>changeMotion('duration',Number(v)),'number'),
-        ctl('Задержка, мс',String(motion.delay),v=>changeMotion('delay',Number(v)),'number')
+        ctl('Задержка, мс (при загрузке)',String(motion.delay),v=>changeMotion('delay',Number(v)),'number'),
+        ctl('Когда запускать',{initial:motion.trigger||'load',choices:[
+          ['load','При загрузке'],['scroll','Когда элемент входит в экран']]},
+          v=>changeMotion('trigger',v),'select'),
+        ctl('Плавность',{initial:motion.easing||'ease-out',
+          choices:DESIGN_GRAPH.SEQUENCE_EASINGS.map(v=>[v,v])},
+          v=>changeMotion('easing',v),'select')
       );
       motionBox.append(motionFields,
+        make('p','Прокрутка: CSS View Timeline при поддержке браузера, иначе элемент виден без анимации. Длительность и задержка относятся к режиму загрузки; при прокрутке эффект привязан к положению в окне.'),
         button('Без анимации','btn small',()=>{
           if(!n.motion)return;
           recordHistory();delete n.motion;render();
