@@ -32,9 +32,9 @@ const ident=x=>JSON.stringify([
  x.code||'',x.pageId||'',x.path||'',x.sectionId||'',x.graphNodeId||'',
  x.assetId||'',x.field||'',x.device||'',x.expectedPath||''
 ]);
-function findings(bundle){
+function findings(bundle,groups=GROUPS,includeCapture=true){
  const all=[];
- for(const group of GROUPS){
+ for(const group of groups){
   const arr=bundle[group]?.findings;
   if(arr===null||arr===undefined)continue;
   if(!Array.isArray(arr)||arr.length>15000)throw Error('Invalid local findings group '+group);
@@ -44,7 +44,7 @@ function findings(bundle){
    all.push({group,...issue});
   }
  }
- if(bundle.phpCapture?.findings)for(const issue of bundle.phpCapture.findings){
+ if(includeCapture&&bundle.phpCapture?.findings)for(const issue of bundle.phpCapture.findings){
   if(!issue||typeof issue.code!=='string')throw Error('Invalid previous PHP screenshot finding');
   all.push({group:'phpCapture',...issue});
  }
@@ -84,7 +84,13 @@ function build(previous,currentSummary,currentBundle){
     currentSummary.packageVersion!==prior.packageVersion||
     currentSummary.origin!==prior.origin)
   throw Error('Comparing different approved packages, site IDs or localhost origins is not safe');
- const priorFindings=findings(pb),newFindings=findings(currentBundle);
+ const commonGroups=GROUPS.filter(key=>pb[key]&&currentBundle[key]);
+ const groupsOnlyPrior=GROUPS.filter(key=>pb[key]&&!currentBundle[key]);
+ const groupsOnlyCurrent=GROUPS.filter(key=>!pb[key]&&currentBundle[key]);
+ const screenshotsComparable=Boolean(pb.phpCapture&&currentBundle.phpCapture);
+ const screenshotEvidenceChanged=Boolean(pb.phpCapture)!==Boolean(currentBundle.phpCapture);
+ const priorFindings=findings(pb,commonGroups,screenshotsComparable);
+ const newFindings=findings(currentBundle,commonGroups,screenshotsComparable);
  const changed=diff(priorFindings,newFindings);
  const previousGates=new Set(pb.release.blockers.map(x=>x.gateId));
  const latestGates=new Set(currentBundle.release.blockers.map(x=>x.gateId));
@@ -103,6 +109,10 @@ function build(previous,currentSummary,currentBundle){
   changedSeverityGroups:changed.changedSeverity.length,
   previousBlockingGates:previousGates.size,currentBlockingGates:latestGates.size,
   newlyBlockingGates:newGates.length,blockingGatesNoLongerObserved:gatesNotObserved.length,
+  comparedGroups:commonGroups.length,
+  newlyInstrumentedGroups:groupsOnlyCurrent.length,
+  noLongerInstrumentedGroups:groupsOnlyPrior.length,
+  screenshotCaptureCoverageChanged:screenshotEvidenceChanged,
   operatorConfirmedFixes:0,actualWrites:0,automaticRelease:false
  });
  const lines=['# First-site technical report comparison — not release approval','',
@@ -115,6 +125,10 @@ function build(previous,currentSummary,currentBundle){
    '; no longer observed: '+summary.noLongerObservedOccurrences+
    '; persistent occurrences: '+summary.persistentFindingOccurrences+'.',
   'Blocking gates: '+summary.previousBlockingGates+' → '+summary.currentBlockingGates+'.',
+  'Comparable evidence groups: '+commonGroups.length+
+   '; only present in prior: '+groupsOnlyPrior.length+
+   '; only present in current: '+groupsOnlyCurrent.length+'.',
+  'Screenshot evidence scope changed: '+(screenshotEvidenceChanged?'YES, excluded from finding delta':'no')+'.',
   '',
   '## New PHP evidence issues',''];
  for(const x of changed.added.slice(0,45))
@@ -139,6 +153,13 @@ function build(previous,currentSummary,currentBundle){
   '- [ ] Accept or reject fixes manually. No automatic closure, publish or deployment.',
   '');
  const result={format:FORMAT,siteId:prior.siteId,readOnly:true,
+  comparisonCoverage:{
+   comparedGroups:commonGroups,
+   noLongerInstrumented:groupsOnlyPrior,
+   newlyInstrumented:groupsOnlyCurrent,
+   screenshotCaptureComparable:screenshotsComparable,
+   screenshotCaptureCoverageChanged:screenshotEvidenceChanged
+  },
   comparedFromSourceSha256:prior.sourceSiteSha256,
   previousCaptureAt:prior.capturedAt,currentCaptureAt:currentSummary.capturedAt,
   summary,findings:changed,
