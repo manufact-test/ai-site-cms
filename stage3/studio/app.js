@@ -1622,7 +1622,7 @@
           ['text','Текст'],['heading','Заголовок'],['button','Кнопка'],['link','Текстовая ссылка'],['quote','Цитата / отзыв'],
           ['image','Изображение'],['video','Видео MP4'],['icon','Иконка'],
           ['container','Контейнер'],['list','Список пунктов'],['disclosure','Раскрывающаяся панель'],
-          ['tabs','Вкладки'],['gallery','Галерея со свайпом'],['table','Таблица с данными'],['divider','Разделитель']
+          ['tabs','Вкладки'],['gallery','Галерея со свайпом'],['table','Таблица с данными'],['divider','Разделитель'],['popup','Всплывающее окно']
         ]){
           const option=document.createElement('option');option.value=type;option.textContent=label;
           if(['image','video','gallery'].includes(type)&&!mediaOf(type).length)option.disabled=true;
@@ -1633,7 +1633,7 @@
         insertPlace.setAttribute('aria-label','Расположение нового элемента');
         for(const [value,label] of [['after','После'],['before','Перед'],['inside','Внутрь контейнера']]){
           const option=document.createElement('option');option.value=value;option.textContent=label;
-          option.disabled=value==='inside'&&!['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(current.type);insertPlace.append(option);
+          option.disabled=value==='inside'&&!['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(current.type);insertPlace.append(option);
         }
         const makeNode=type=>{
           const node={id:uniqueId('dg-node'),type,styles:{}};
@@ -1669,6 +1669,13 @@
             node.children=[1,2].map(i=>({id:uniqueId('dg-node'),type:'tab',text:'Вкладка '+i,styles:{},
               children:[{id:uniqueId('dg-node'),type:'text',text:'Содержимое вкладки '+i,styles:{}}]}));
           }
+          if(type==='popup'){
+            node.text='Информация';
+            node.children=[
+              {id:uniqueId('dg-node'),type:'heading',level:2,text:'Заголовок окна',styles:{}},
+              {id:uniqueId('dg-node'),type:'text',text:'Содержимое окна',styles:{}}
+            ];
+          }
           if(type==='container'){
             node.children=[];node.styles={display:'grid',columns:2,gap:'@medium'};
             node.responsive={mobile:{columns:1}};
@@ -1683,11 +1690,14 @@
           return node;
         };
         const insertNode=(type,placement)=>{
-          if(placement==='inside'&&!['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(current.type))
+          if(placement==='inside'&&!['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(current.type))
             return feedback('Вложить можно только в контейнер.',true);
           try{
             const node=makeNode(type);
-            editGraphTreeWork({action:'insert',targetId:current.id,placement,node},node.id);
+            // Popovers belong only to the graph root, regardless of inspector selection.
+            const rootTarget=section.designGraph.nodes.at(-1)?.id;
+            editGraphTreeWork({action:'insert',targetId:type==='popup'?rootTarget:current.id,
+              placement:type==='popup'?'after':placement,node},node.id);
           }catch(error){feedback('Элемент не добавлен: '+error.message,true);}
         };
         const insertRow=document.createElement('div');insertRow.className='cms-work-graph-insert';
@@ -1698,7 +1708,7 @@
         addText.id='cms-work-graph-add-text';addText.disabled=!canWrite();
         const addChild=workButton('+ Вложенный текст',()=>insertNode('text','inside'));
         addChild.id='cms-work-graph-add-child';
-        addChild.disabled=!canWrite()||!['container','disclosure','tab'].includes(current.type);
+        addChild.disabled=!canWrite()||!['container','disclosure','tab','popup'].includes(current.type);
         if(current.type==='list'){
           const addListItem=workButton('+ Пункт списка',()=>{
             const node={id:uniqueId('dg-node'),type:'list-item',text:'Новый пункт',styles:{}};
@@ -1825,7 +1835,7 @@
                 }else if(['fontSize','padding','gap','widthPx','heightPx','minWidth',
                   'maxWidth','minHeight','maxHeight','borderWidth','objectPositionX','objectPositionY'].includes(key)){
                   style[key]=val.startsWith('@')?val.trim():Number(val);
-                }else style[key]=val.trim();
+                }else{if(key==='shadow')delete style.shadowFine;style[key]=val.trim();}
               });
             }else editGraphWork(node=>{if(key==='href'&&!val&&node.type==='image')delete node.href;else node[key]=key==='level'?Number(val):val;});
           });
@@ -3190,6 +3200,7 @@
           if(!v.trim()){delete style[key];return;}
           if(['color','background','borderColor','outlineColor'].includes(key)){style[key]=v.trim();return;}
           if(key==='fontSize')delete style.fluidFont;
+          if(key==='shadow')delete style.shadowFine;
           style[key]=v.startsWith('@')?v.trim():Number(v);
         }));
       }
