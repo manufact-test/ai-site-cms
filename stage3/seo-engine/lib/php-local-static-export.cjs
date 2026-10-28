@@ -161,6 +161,84 @@ function staticLinks(site,pages,assetLedger,aliasLedger){
  return {pages:Object.freeze(summary),findings:Object.freeze(findings)};
 }
 
+
+/* Static-host forms require an explicit external collector and source version.
+   Do NOT include HMAC token values or user-provided form data in findings. */
+function staticForms(site,pages,collector,version){
+ const findings=[],checked=[];
+ const add=(page,section,code,message)=>findings.push(Object.freeze({
+  code:'php-export:'+code,severity:'error',pageId:page?.id??null,
+  path:page?.path??null,sectionId:section?.id??null,message,
+  evidence:'sha256-verified-official-static-html',automatic:false
+ }));
+ const declared=site.pages.flatMap(page=>
+  (page.sections||[]).filter(section=>
+   ['lead-form','lead-form-flex'].includes(section.component)&&!section.designGraph)
+   .map(section=>({page,section})));
+ const validCollector=typeof collector==='string'&&
+  /^https:\/\/[a-z0-9.-]+(?::443)?$|^http:\/\/(?:localhost|127\.0\.0\.1)(?::[0-9]{2,5})?$/i.test(collector);
+ if(declared.length&&!validCollector)
+  add(null,null,'static-form-collector-missing',
+   'Official static release contains lead forms without a valid declared collector origin.');
+ if(!declared.length&&collector)
+  add(null,null,'static-form-collector-unexpected',
+   'Static release declares a form collector although no published form sections exist.');
+ if(declared.length&&typeof collector==='string'&&/^http:/i.test(collector))
+  findings.push(Object.freeze({code:'php-export:static-form-local-collector',severity:'warning',
+   pageId:null,path:null,sectionId:null,
+   message:'Loopback collector is valid only in development; a public static deployment requires an accessible HTTPS collector.',
+   evidence:'sha256-verified-official-static-html',automatic:false}));
+ const attributes=raw=>{
+  const a={};
+  for(const m of raw.matchAll(/([a-z][a-z0-9:_-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/gi))
+   a[m[1].toLowerCase()]=decode(m[2]??m[3]??m[4]??'');
+  return a;
+ };
+ for(const page of site.pages){
+  const html=pages.get(page.path)?.html||'';
+  const actualForms=[...html.matchAll(/<form\b([^>]*?)>/gi)];
+  const expectedSections=declared.filter(x=>x.page.id===page.id);
+  if(actualForms.length!==expectedSections.length)
+   add(page,null,'static-form-count-drift',
+    'Published static page contains a different number of forms than its source sections.');
+  for(const {section} of expectedSections){
+   // A form must be within its own approved section, not merely somewhere on the page.
+   const sectionHtml=require('./php-local-components.cjs').sectionById(html,section.id);
+   const forms=[...(sectionHtml||'').matchAll(/<form\b([^>]*?)>/gi)];
+   if(forms.length!==1){
+    add(page,section,'static-form-section-missing',
+     'Approved form section is missing, duplicated or no longer contains one POST form.');
+    continue;
+   }
+   const form=attributes(forms[0][1]);
+   const action=validCollector?collector+'/forms/'+site.siteId+'/'+section.id:null;
+   if(form.method?.toLowerCase()!=='post'||form['accept-charset']?.toLowerCase()!=='utf-8'||
+      action!==null&&form.action!==action)
+    add(page,section,'static-form-action-drift',
+     'The static form POST method, UTF-8 encoding or collector action differs from approved release.');
+   const hidden=[...sectionHtml.matchAll(/<input\b([^>]*?)>/gi)]
+    .map(m=>attributes(m[1]));
+   const releases=hidden.filter(a=>a.name==='_release');
+   if(releases.length!==1||releases[0].type!=='hidden'||
+      releases[0].value!==String(version))
+    add(page,section,'static-form-version-drift',
+     'Static form release marker differs from the official immutable published CMS version.');
+   const tokens=hidden.filter(a=>a.name==='_token');
+   if(tokens.length!==1||tokens[0].type!=='hidden'||!/^[a-f0-9]{64}$/i.test(tokens[0].value||''))
+    add(page,section,'static-form-token-marker',
+     'Static form HMAC marker is missing or malformed; token secret is never logged.');
+   if(Array.isArray(section.formSteps)&&section.formSteps.length>0&&form['data-multi-step']!=='yes')
+    add(page,section,'static-form-wizard-marker',
+     'Static multi-step form lacks its declared wizard marker.');
+   checked.push(Object.freeze({pageId:page.id,sectionId:section.id,method:'post',
+    collectorActionMatched:action!==null&&form.action===action,releaseVersionMatched:releases.length===1&&
+     releases[0].value===String(version),tokenStructureMatched:tokens.length===1&&
+     /^[a-f0-9]{64}$/i.test(tokens[0].value||'')}));
+  }
+ }
+ return {checkedForms:checked.length,forms:Object.freeze(checked),findings:Object.freeze(findings)};
+}
+
 function read(root,site){
  const directory=fs.realpathSync(root),metaFile=path.join(directory,'release-manifest.json');
  if(fs.lstatSync(root).isSymbolicLink())throw Error('Symlinked static export folder');
@@ -259,12 +337,15 @@ function read(root,site){
  };walk(directory);
  const links=staticLinks(site,pages,assets,redirects);
  integrityFindings.push(...links.findings);
+ const forms=staticForms(site,pages,data.formCollector??null,data.publishedVersion);
+ integrityFindings.push(...forms.findings);
  return Object.freeze({format:FORMAT,siteId:site.siteId,publishedVersion:data.publishedVersion,
   sourceRevision:data.sourceRevision??null,assets,pages,redirects,origin:data.publicOrigin??null,
   recordsVerified:readFiles.size-1,sha256VerifiedAtRead:true,
   findings:Object.freeze(integrityFindings),searchFilesVerified:search.size,
   staticReferencesChecked:links.pages.reduce((n,p)=>n+p.staticReferencesChecked,0),
-  staticLinkPages:links.pages});
+  staticLinkPages:links.pages,checkedFormSections:forms.checkedForms,
+  staticForms:forms.forms});
 }
 function compare(site,snapshot,media,release,version){
  if(!release||release.format!==FORMAT||!release.sha256VerifiedAtRead||
@@ -310,6 +391,8 @@ function compare(site,snapshot,media,release,version){
   exportedSearchFilesVerified:release.searchFilesVerified??0,
   staticReferencesChecked:release.staticReferencesChecked??0,
   staticLinkPages:release.staticLinkPages||[],
+  checkedFormSections:release.checkedFormSections??0,
+  staticForms:release.staticForms||[],
   checkedPages:pages.length,checkedAssets:assets.length,pages:Object.freeze(pages),
   assets:Object.freeze(assets),findings:Object.freeze(findings),
   contentAndMediaMatched:findings.length===0,servedPhpRevisionAuthenticated:false,
@@ -321,4 +404,4 @@ function review(root,site,snapshot,media,version){
   throw Error('Explicit owner-exported CMS published version required for static parity');
  return compare(site,snapshot,media,read(root,site),version);
 }
-module.exports=Object.freeze({FORMAT,read,compare,review,mainText,structure,staticLinks});
+module.exports=Object.freeze({FORMAT,read,compare,review,mainText,structure,staticLinks,staticForms});
