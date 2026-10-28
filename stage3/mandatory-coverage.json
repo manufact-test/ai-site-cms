@@ -291,13 +291,18 @@
       "id": 26,
       "group": "Фоны, рамки, скругления и эффекты",
       "requirement": "Фоновое видео",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
         "stage3/sdk/design-graph.cjs",
-        "stage3/server/DesignGraph.php"
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/server/MediaOperations.php",
+        "stage3/sdk/draft.cjs",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "Run exact-head CI; then confirm on real client-approved desktop/tablet/mobile prototypes and deployed PHP site. Owner acceptance remains pending."
     },
     {
       "id": 28,
