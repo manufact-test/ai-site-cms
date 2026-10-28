@@ -1182,6 +1182,20 @@ test('read-only approved folder preflight accepts a custom external design and r
     assert.equal(preflight(folder).customSections,1);
     handoff.status='draft';fs.writeFileSync(handoffFile,JSON.stringify(handoff));
     refuses(()=>preflight(folder),'Non-approved packs must be rejected before import');
+    handoff.status='approved';fs.writeFileSync(handoffFile,JSON.stringify(handoff));
+    const {seal}=require('../bin/seal-approved-site.cjs');
+    refuses(()=>seal(folder,'rev-1'), 'Must never infer approval from existing files');
+    const locked=seal(folder,'rev-1',{confirmedApproved:true,replace:true});
+    assert.equal(locked.customSections,1);
+    assert.equal(locked.integrity,'sha256-verified');
+    assert.ok(locked.lockedFiles>=6);
+    const desc=path.join(folder,'client-explanation.md'),before=fs.readFileSync(desc);
+    fs.appendFileSync(desc,' CHANGED WITHOUT REAPPROVAL');
+    refuses(()=>preflight(folder),'Locked v2 must reject changed client explanation');
+    fs.writeFileSync(desc,before);
+    assert.equal(preflight(folder).integrity,'sha256-verified');
+    refuses(()=>seal(folder,'rev-2',{confirmedApproved:true}),'No silent overwrite of a sealed design');
+    assert.equal(seal(folder,'rev-2',{confirmedApproved:true,replace:true}).version,'rev-2');
   }finally{fs.rmSync(folder,{recursive:true,force:true});}
 });
 
