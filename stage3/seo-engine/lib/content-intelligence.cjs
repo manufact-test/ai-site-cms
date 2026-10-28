@@ -38,12 +38,17 @@ function extractSection(section,assets){
   if(typeof media==='string'&&assets.has(media))
    images.push({assetId:media,alt:assets.get(media).alt,locator:{...locator,fieldPath:'content.media'}});
  };
- for(const el of section.elements||[])parseValues(el,{sectionId:section.id,elementId:el.id});
- for(const item of section.items||[])parseValues(item,{sectionId:section.id,elementId:item.id});
+ // The public PHP renderer substitutes Design Graph markup for legacy slots.
+ // Do not count hidden old CTA labels, link targets, media or text as rendered SEO content.
+ if(!section.designGraph){
+  for(const el of section.elements||[])parseValues(el,{sectionId:section.id,elementId:el.id});
+  for(const item of section.items||[])parseValues(item,{sectionId:section.id,elementId:item.id});
+ }
  function walk(nodes){
   for(const n of nodes||[]){
    const locator={sectionId:section.id,nodeId:n.id};
-   if(n.type==='heading'||n.type==='text'||n.type==='button')add(n.text,n.type==='button'?'link':n.type==='heading'?'heading':'body',locator);
+   if(['heading','text','button','list-item','disclosure','tab'].includes(n.type))
+    add(n.text,n.type==='button'?'link':n.type==='heading'?'heading':'body',locator);
    if(n.type==='button'&&relative(n.href)!==null)links.push({toPath:relative(n.href),label:clip(n.text,120),locator});
    if(n.type==='image')images.push({assetId:n.assetId,alt:n.alt??'',locator});
    if(n.children)walk(n.children);
