@@ -559,4 +559,4 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
     formSteps:copy(section.formSteps||[]),
     elements,items,notPublished:true,hasExecutableHtml:false};
 }
-module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview});
+module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview,syncSharedSite,copyLinkedBody});
