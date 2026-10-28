@@ -6,6 +6,9 @@
   if(!editor||document.documentElement.dataset.stage3Mode!=='server')throw Error('Hosted Studio bootstrap mismatch');
   const $=id=>document.getElementById(id);
   const state={csrf:null,siteId:null,revision:null,sites:[],revisions:[],busy:false,authorized:false,loading:false,principal:null};
+  // Tab-memory ONLY: closing the review dialog must not drop visual findings.
+  // Different saved revisions never inherit obsolete evidence or sign-offs.
+  const reviewNotesByRevision=new Map();
   const isOwner=()=>state.principal?.role==='owner';
   const currentLicense=()=>state.sites.find(s=>s.site_id===state.siteId)?.license;
   const canEdit=()=>['owner','editor','publisher'].includes(state.principal?.role)&&!currentLicense()?.paused;
@@ -2429,7 +2432,9 @@
     // Each device's own real PHP document must render before sign-off. These
     // observations are diagnostic hints, not visual/pixel-match approval.
     const renderEvidence=new Map(),referenceSeen=new Set();
-    const manualFindings=[];
+    const reviewKey=site.siteId+'|'+openedRevision;
+    if(!reviewNotesByRevision.has(reviewKey))reviewNotesByRevision.set(reviewKey,[]);
+    const manualFindings=reviewNotesByRevision.get(reviewKey);
     const openFindings=(pageId,mode)=>manualFindings.filter(f=>
       !f.resolved&&f.pageId===pageId&&f.device===mode);
     const unresolvedCount=()=>manualFindings.filter(f=>!f.resolved).length;
@@ -3636,6 +3641,7 @@
   async function logout(){
     if(isDirty()&&!confirm('Выйти без сохранения текущих правок?'))return;
     await api('/api/logout','POST',{});
+    reviewNotesByRevision.clear();
     clearArchive();backupDialog.close();operationsDialog.close();connectionDialog.close();releaseList.replaceChildren();
     state.authorized=false;state.principal=null;state.csrf=null;state.siteId=null;state.revision=null;
     state.revisions=[];state.sites=[];picker.replaceChildren();
