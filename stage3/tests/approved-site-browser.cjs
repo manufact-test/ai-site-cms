@@ -119,7 +119,7 @@ async function execute(){
           {id:'approved-custom-copy',type:'text',text:'Особенный согласованный дизайн',
             styles:{fontSize:24},responsive:{mobile:{fontSize:18}}},
           {id:'approved-custom-photo',type:'image',assetId:'asset-external-hero',
-            alt:'Графическое оформление',href:'/',styles:{radius:14,filterPreset:'grayscale'}}
+            alt:'Графическое оформление',href:'/',responsiveMedia:{tabletAssetId:'asset-external-hero',mobileAssetId:'asset-external-hero'},styles:{radius:14,filterPreset:'grayscale'}}
         ]
       }]}
     });
@@ -603,6 +603,14 @@ async function execute(){
   assert.equal(await visitor.locator('.cmsdg-n-approved-rich-link').getAttribute('href'),'/published/site-approved-browser/');
   assert.equal(await visitor.locator('.cmsdg-image-action').first().getAttribute('href'),
     '/published/site-approved-browser/','Clickable image keeps site-isolated route');
+  const pictureSources=await visitor.locator('.cmsdg-image-action picture.cmsdg-picture source')
+    .evaluateAll(nodes=>nodes.map(node=>({media:node.media,url:node.getAttribute('srcset')})));
+  assert.equal(pictureSources.length,2,'Both device-native image sources survived import and publishing');
+  assert.deepEqual(pictureSources.map(x=>x.media),['(max-width: 600px)','(max-width: 900px)']);
+  for(const source of pictureSources){
+    assert.match(source.url,/^\/published\/site-approved-browser\/assets\/asset-[a-f0-9]+\.png$/);
+    assert.ok(!source.url.includes('asset-external-hero'),'Responsive source must be server retargeted');
+  }
   const artworkCss=await visitor.locator('.cmsdg-graph-approved-custom style').textContent();
   assert.match(artworkCss,/background-image:linear-gradient\(#182b3d59,#182b3d59\),url\("/,
     'PHP renders approved original site-owned raster with 35% dark overlay');
