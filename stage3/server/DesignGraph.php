@@ -428,6 +428,19 @@ final class DesignGraph
         $t=self::tokens($site['designTokens']??null);
         $assetMap=[];foreach ($site['assets'] as $asset)$assetMap[$asset['id']]=$asset;
         $scope='.cmsdg-'.$graph['id'];$rules=[];
+        $backdrop=static function(array $m,string $imageId)use($assetMap,$mount,$assetBasePath,$t):string{
+            $url=self::assetUrl($assetMap[$imageId],$mount,$assetBasePath);
+            $url=str_replace(['\\','"','<','>'],['\\\\','\\"','\\3c ','\\3e '],$url);
+            $layer='url("'.$url.'")';
+            if(isset($m['overlay'])){
+                $color=self::resolve($m['overlay']['color'],'colors',$t,'background');
+                $alpha=sprintf('%02x',(int)round($m['overlay']['opacity']*255/100));
+                $layer='linear-gradient('.$color.$alpha.','.$color.$alpha.'),'.$layer;
+            }
+            return 'background-image:'.$layer.';background-size:'.($m['size']??'cover').
+                ';background-position:'.($m['positionX']??50).'% '.($m['positionY']??50).
+                '%;background-repeat:no-repeat';
+        };
         $headerIds=[];
         $collectHeaders=function(array $nodes)use(&$collectHeaders,&$headerIds):void{
             foreach($nodes as $node){
@@ -437,7 +450,7 @@ final class DesignGraph
             }
         };
         $collectHeaders($graph['nodes']);
-        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds): string {
+        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$backdrop): string {
             $selector=$scope.' .cmsdg-n-'.$n['id'];
             $usesTranslate=false;
             foreach ([$n['styles']??[],$n['responsive']['tablet']??[],$n['responsive']['mobile']??[]] as $layer) {
@@ -453,6 +466,12 @@ final class DesignGraph
             foreach (['hover'=>':hover','focus'=>':focus-visible','active'=>':active'] as $name=>$state) {
                 $css=self::declarations($n['states'][$name]??[],$t);
                 if($css!=='')$rules[]=$selector.$state.'{'.$css.'}';
+            }
+            if(isset($n['backgroundMedia'])){
+                $m=$n['backgroundMedia'];
+                $rules[]=$selector.'{'.$backdrop($m,$m['assetId']).'}';
+                foreach(['tablet'=>900,'mobile'=>600] as $bp=>$width)if(isset($m[$bp.'AssetId']))
+                    $rules[]='@media(max-width:'.$width.'px){'.$selector.'{'.$backdrop($m,$m[$bp.'AssetId']).'}}';
             }
             if(isset($n['motion'])&&$n['motion']['effect']!=='none')
                 $rules[]=$selector.'{animation:cmsdg-'.$n['motion']['effect'].' '.
@@ -531,7 +550,11 @@ final class DesignGraph
                     $src=self::h(self::assetUrl($asset,$mount,$assetBasePath));
                     $attrs=PublicRenderer::responsiveAttrs($asset,$mount,
                         '(max-width:600px) 100vw, (max-width:900px) 50vw, 100vw',$assetBasePath);
-                    return '<img loading="lazy" class="'.$cls.'" src="'.$src.'"'.$attrs.' alt="'.self::h($n['alt']).'">';
+                    $img='<img loading="lazy" class="'.$cls.'" src="'.$src.'"'.$attrs.' alt="'.self::h($n['alt']).'">';
+                    if(empty($n['href']))return $img;
+                    $href=str_starts_with($n['href'],'/')?rtrim($mount,'/').$n['href']:$n['href'];
+                    return '<a class="cmsdg-image-action" href="'.self::h($href).'"'.
+                        (str_starts_with($href,'https://')?' rel="noopener noreferrer"':'').'>'.$img.'</a>';
             }
             return '';
         };
@@ -546,7 +569,10 @@ final class DesignGraph
             .$scope.' .cmsdg-table th,'.$scope.' .cmsdg-table td{padding:12px 16px;border:1px solid #c6cdd7;text-align:start}'
             .$scope.' .cmsdg-table th{font-weight:700;background:#f2f5f9}'
             .$scope.' .cmsdg-gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 2px;overscroll-behavior-inline:contain}'
-            .$scope.' .cmsdg-gallery>img{flex:0 0 min(82%,420px);object-fit:cover;scroll-snap-align:start;border-radius:10px}'
+            .$scope.' .cmsdg-gallery>img,'.$scope.' .cmsdg-gallery>a{flex:0 0 min(82%,420px);scroll-snap-align:start;border-radius:10px}'
+            .$scope.' .cmsdg-gallery>a img{width:100%;height:100%;object-fit:cover;border-radius:inherit}'
+            .$scope.' .cmsdg-image-action{display:inline-block;max-width:100%}'
+            .$scope.' .cmsdg-image-action img{display:block}'
             .$scope.' .cmsdg-quote{margin:12px 0;padding:20px;border-inline-start:4px solid currentColor}'
             .$scope.' .cmsdg-quote blockquote{margin:0}'
             .$scope.' .cmsdg-quote figcaption{margin-top:12px;font-size:.9em}'
