@@ -51,9 +51,10 @@ function readPublishedSite(file){
  // Export is taken from owner-authenticated GET /api/sites/SITE-ID/published-site.
  if(!input||typeof input!=='object'||Array.isArray(input)||
     !input.site||typeof input.site!=='object'||Array.isArray(input.site)||
-    !Number.isSafeInteger(input.version)||input.version<1||input.version>999999999)
+    !Number.isSafeInteger(input.version)||input.version<1||input.version>999999999||
+    input.sourceRevision!==undefined&&(!Number.isSafeInteger(input.sourceRevision)||input.sourceRevision<1))
   throw Error('Published-site JSON requires {site:SiteV1, version:int} from the authenticated owner API');
- return {site:input.site,version:input.version};
+ return {site:input.site,version:input.version,sourceRevision:input.sourceRevision??null};
 }
 function readOwnerEditReview(file){
  const stat=fs.lstatSync(file);
@@ -81,8 +82,8 @@ function manifests(){
 async function main(argv){
  const o=parse(argv),approved=BRIDGE.load(o['approved-site']);
  const published=o['published-site']?readPublishedSite(o['published-site']):null;
- if(o['static-export']&&!published)
-  throw Error('--static-export requires a pinned --published-site owner API JSON');
+ if(o['static-export']&&(!published||!published.sourceRevision))
+  throw Error('--static-export requires an owner published-site API record with version and sourceRevision');
  if(o['owner-edit-review']&&!published)
   throw Error('--owner-edit-review requires --published-site for the current CMS release');
  const ownerReview=o['owner-edit-review']?readOwnerEditReview(o['owner-edit-review']):null;
@@ -120,6 +121,8 @@ async function main(argv){
  if(JSON.stringify(latestReview)!==JSON.stringify(ownerReview))
   throw Error('Owner review file changed during local PHP capture; discard this evidence');
  const originalFresh=BRIDGE.load(o['approved-site']);
+ if(published&&latestPublished?.sourceRevision!==published.sourceRevision)
+  throw Error('CMS published sourceRevision changed during evidence acquisition; discard capture');
  const fresh=latestPublished?BRIDGE.reconcile(originalFresh,latestPublished.site,
   latestPublished.version,latestReview):originalFresh;
  if(fresh.source.fileSha256!==source.fileSha256||
@@ -127,6 +130,8 @@ async function main(argv){
     fresh.source.publishedVersion!==source.publishedVersion)
   throw Error('Sealed site source changed during local PHP evidence acquisition; discard evidence and rerun');
  const checked=PHP.read(evidence,fresh.site,fresh.source,o['static-export']||null);
+ if(checked.localStaticExport&&checked.localStaticExport.sourceRevisionClaim!==published.sourceRevision)
+  throw Error('Official static export sourceRevision conflicts with owner CMS published sourceRevision');
  if(!PHP.isVerified(checked))throw Error('First-site PHP evidence was not source-bound verified');
  const bundle=PACKAGE.build(fresh.site,registry,blueprint,{
   approvedSource:fresh.source,phpHtml:checked,snapshot:checked.snapshot,
@@ -143,6 +148,7 @@ async function main(argv){
   siteRevisionFingerprint:fresh.source.siteRevisionFingerprint,
   packageVersion:fresh.source.packageVersion,
   publishedVersion:fresh.source.publishedVersion??null,
+  ownerPublishedSourceRevisionClaim:latestPublished?.sourceRevision??null,
   cmsImportMediaIdsReconciled:fresh.source.approvedMediaIdRemappingChecked===true,
   cmsMediaFilesMapped:fresh.source.mappedPublishedMediaFiles??null,
   cmsPublishedSiteMatchesApprovedAfterRemap:fresh.source.publishedContentAfterMediaRemapMatched===true,
