@@ -30,6 +30,34 @@ $site['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
 $validator->validate($site);
 $html=PublicRenderer::html($site,'/');
 graphTest(str_contains($html,'<ol class="cmsdg-n-graph-list cmsdg-list">') && str_contains($html,'<li class="cmsdg-n-graph-list-one">Шаг один</li>'),'PHP semantic ordered list');
+$rich=&$site['pages'][0]['sections'][2]['designGraph']['nodes'];
+$rich[]=['id'=>'graph-rich-link','type'=>'link','text'=>'На главную','href'=>'/'];
+$rich[]=['id'=>'graph-rich-quote','type'=>'quote','text'=>'Подтверждённая формулировка',
+    'cite'=>'<Источник>'];
+$rich[]=['id'=>'graph-rich-table','type'=>'table','text'=>'Сравнение планов','children'=>[
+    ['id'=>'graph-rich-row-header','type'=>'table-row','children'=>[
+        ['id'=>'graph-rich-header-one','type'=>'table-cell','text'=>'Параметр'],
+        ['id'=>'graph-rich-header-two','type'=>'table-cell','text'=>'План']]],
+    ['id'=>'graph-rich-row-data','type'=>'table-row','children'=>[
+        ['id'=>'graph-rich-value-one','type'=>'table-cell','text'=>'Срок'],
+        ['id'=>'graph-rich-value-two','type'=>'table-cell','text'=>'По договору']]]]];
+$validator->validate($site);
+$html=PublicRenderer::html($site,'/');
+graphTest(str_contains($html,'<table class="cmsdg-n-graph-rich-table cmsdg-table">'),'PHP typed table missing');
+graphTest(str_contains($html,'<th scope="col" class="cmsdg-n-graph-rich-header-one">Параметр</th>'),'PHP column headers not semantic');
+graphTest(str_contains($html,'<td class="cmsdg-n-graph-rich-value-two">По договору</td>'),'PHP data rows missing');
+graphTest(str_contains($html,'&lt;Источник&gt;')&&!str_contains($html,'<Источник>'),'quote attribution must be escaped');
+graphTest(str_contains($html,'<a class="cmsdg-n-graph-rich-link" href="/">На главную</a>'),'PHP link rendering');
+$invalid=$site;
+$invalid['pages'][0]['sections'][2]['designGraph']['nodes'][5]['children'][1]['children'][]=
+    ['id'=>'graph-rich-extra-cell','type'=>'table-cell','text'=>'Лишняя ячейка'];
+try{$validator->validate($invalid);throw new RuntimeException('ragged table accepted');}
+catch(InvalidArgumentException $expected){}
+$invalid=$site;
+$invalid['pages'][0]['sections'][2]['designGraph']['nodes'][3]['href']='javascript:alert(1)';
+try{$validator->validate($invalid);throw new RuntimeException('unsafe link accepted');}
+catch(InvalidArgumentException $expected){}
+unset($rich);
 graphTest(is_string($html)&&str_contains($html,'<summary>Вопрос и ответ</summary>'),'native disclosure missing');
 graphTest(str_contains($html,'type="radio"')&&str_contains($html,':checked) > .cmsdg-tabs-panels'),'interactive tab rendering missing');
 $broken=$site;
