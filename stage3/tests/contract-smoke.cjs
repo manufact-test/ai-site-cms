@@ -43,6 +43,51 @@ test('externally authored section is graph-only and fail-closed on browser contr
   refuses(()=>sdk.validateSite(bad,manifests),'No executable links from external design');
 });
 
+test('Interactive custom graph with nested disclosure and tab panels rejects unsafe hierarchy',()=>{
+  const G=require('../sdk/design-graph.cjs');
+  const site=same(initial);
+  const section=sdk.sectionFrom(manifests.find(m=>m.id==='custom-section'),'section-interactive');
+  const node=(id,type,text,children)=>({id,type,...(text===null?{}:{text}),styles:{},...(children?{children}:{})});
+  const faq=node('custom-faq','disclosure','Вопрос?',[
+    node('custom-faq-answer','text','Подробный ответ')]);
+  const tabs=node('custom-tabs','tabs',null,[
+    node('custom-tab-one','tab','Описание',[node('custom-tab-one-text','text','Описание услуги')]),
+    node('custom-tab-two','tab','Контакты',[node('custom-tab-two-text','text','Связаться')])
+  ]);
+  section.designGraph={version:1,id:'custom-design-graph',nodes:[faq,tabs]};
+  site.pages[0].sections.push(section);
+  sdk.validateSite(site,manifests);
+  const html=G.render(site,section.designGraph);
+  assert.match(html,/<details .*cmsdg-disclosure/);
+  assert.match(html,/<summary>Вопрос\?<\/summary>/);
+  assert.match(html,/type="radio"/);
+  assert.match(html,/cmsdg-tab-custom-tab-two/);
+  assert.match(html,/cmsdg-tab-panel\{display:none\}/);
+  const wrong=same(site);
+  wrong.pages[0].sections.at(-1).designGraph.nodes[1].children[0].type='text';
+  refuses(()=>sdk.validateSite(wrong,manifests),'Tabs accept only tab children');
+  const escaped=same(site);
+  escaped.pages[0].sections.at(-1).designGraph.nodes[0].text='<img src=x onerror=alert(1)>';
+  assert.match(G.render(escaped,escaped.pages[0].sections.at(-1).designGraph),/&lt;img src=x/);
+  const detached=same(site);
+  detached.pages[0].sections.at(-1).designGraph.nodes.push(
+    node('standalone-tab','tab','Invalid',[node('inner-text','text','x')]));
+  refuses(()=>sdk.validateSite(detached,manifests),'Detached tab rejected');
+  const added=G.editTree(section.designGraph,{
+    action:'insert',targetId:'custom-tabs',placement:'inside',
+    node:node('custom-tab-three','tab','Цена',[node('custom-tab-three-text','text','По запросу')])
+  });
+  G.validateGraph(added,new Set(),new Set());
+  assert.equal(added.nodes[1].children.length,3);
+  const duplicated=G.editTree(added,{action:'duplicate',nodeId:'custom-tab-three',
+    ids:['custom-tab-copy','custom-tab-copy-body']});
+  G.validateGraph(duplicated,new Set(),new Set());
+  assert.equal(duplicated.nodes[1].children.length,4);
+  refuses(()=>G.editTree(duplicated,{
+    action:'move',nodeId:'custom-tab-copy',targetId:'custom-faq',placement:'after'
+  }),'Tab cannot leave its parent');
+});
+
 test('four production components: typed repeater contracts, structural editing and safety',()=>{
   const D=require('../sdk/draft.cjs'),newTypes=['pricing-plans','process-timeline',
     'comparison-matrix','content-switcher'];
