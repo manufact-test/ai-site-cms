@@ -27,7 +27,7 @@ vm.runInNewContext(code,{
 const CAP=moduleShim.exports;
 const html=(title)=>'<!doctype html><html lang="ru"><head><title>'+
  title+'</title><meta name="description" content="Тест локального PHP"></head>'+
- '<body><h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a></body></html>';
+ '<body><h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a>'+'<a href="/published/pilot-local/old/">Old route</a></body></html>';
 let mode='normal',requests=[];
 const server=http.createServer((req,res)=>{
  requests.push({url:req.url,method:req.method});
@@ -91,6 +91,8 @@ async function main(){
   assert.equal(result.snapshot.sitemapCompleteness,'complete');
   assert.deepEqual([...result.snapshot.sitemapPaths],['/','/about/']);
   assert.equal(result.publication.findings.length,0);
+  assert.deepEqual([...result.publication.verifiedRedirectPaths],['/old/']);
+  assert.deepEqual([...result.snapshot.redirectPaths],['/old/']);
   const audited=require('../lib/analyze.cjs').snapshotAudit(result.snapshot);
   assert.ok(!audited.issues.some(x=>x.code==='html:broken-link'),
    'published mount links are normalized, not mistaken for missing pages');
@@ -131,6 +133,10 @@ async function main(){
   const badRead=CAP.read(wrongRedirect,site,source);
   assert.ok(badRead.publication.findings.some(x=>x.code==='php-local:redirect-status-drift'));
   assert.ok(badRead.publication.findings.some(x=>x.code==='php-local:redirect-location-drift'));
+  assert.equal(badRead.snapshot.redirectPaths,undefined);
+  const badAudit=require('../lib/analyze.cjs').snapshotAudit(badRead.snapshot);
+  assert.ok(badAudit.issues.some(x=>x.code==='html:broken-link'),
+   'unverified bad 301 cannot satisfy a complete HTML link to an old route');
   mode='normal';
   for(const [next,expected] of [['redirect',/HTTP 302/],['wrong-type',/Non-UTF-8 HTML/],
    ['oversize',/per-page byte limit|HTML exceeds/],['incomplete',/complete UTF-8 document/]]){
