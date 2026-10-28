@@ -13,22 +13,33 @@ const ROUTE=/^\/(?:[a-z0-9-]+\/)*$/;
 const HEADER_ALLOW=new Set(['content-type','content-length','content-language','cache-control',
  'etag','last-modified','location','x-robots-tag','content-security-policy',
  'x-content-type-options','referrer-policy','strict-transport-security','server']);
+/* A conservative public-only allowlist. Reject every IPv4 special-use range
+   relevant to SSRF, including TEST-NET, benchmarking, NAT and shared space,
+   and IPv6 transition/tunnel/documentation/benchmark prefixes. For every DNS
+   answer a single unsafe address fails capture, even if another is public. */
 function isPublicIp(ip){
  const family=net.isIP(ip);
  if(family===4){
-  const x=ip.split('.').map(Number),[a,b,c]=x;
-  if(a===0||a===10||a===127||a>=224||a===169&&b===254||
+  const [a,b,c]=ip.split('.').map(Number);
+  if(a===0||a===10||a===127||a>=224||
+     a===100&&b>=64&&b<=127||a===169&&b===254||
      a===172&&b>=16&&b<=31||a===192&&b===168||
-     a===100&&b>=64&&b<=127||a===198&&[18,19,51].includes(b)||
-     a===203&&b===0&&c===113||a===192&&b===0||
-     a===198&&b===19||a===192&&b===88&&c===99)
+     a===192&&b===0||a===192&&b===88&&c===99||
+     a===198&&b>=18&&b<=19||
+     a===198&&b===51&&c===100||
+     a===203&&b===0&&c===113)
    return false;
   return true;
  }
  if(family===6){
-  const first=parseInt(ip.split(':')[0]||'0',16);
-  return first>=0x2000&&first<=0x3fff&&
-   !/^2001:db8:/i.test(ip)&&!ip.includes('%');
+  const parts=ip.toLowerCase().split(':'),first=parseInt(parts[0]||'0',16);
+  const second=parseInt(parts[1]||'0',16);
+  if(first<0x2000||first>0x3fff||ip.includes('%')||
+     first===0x2002|| // 6to4: embeds arbitrary IPv4 addresses.
+     first===0x3fff|| // IPv6 documentation/benchmark reservation.
+     first===0x2001&&(second<=0x01ff||second===0x0db8))
+   return false;
+  return true;
  }
  return false;
 }
