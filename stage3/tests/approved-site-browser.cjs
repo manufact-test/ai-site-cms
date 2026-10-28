@@ -572,7 +572,11 @@ async function execute(){
   // The original raster overlays the SAME real PHP iframe and supports an
   // adjustable visual mix for comparing alignment, spacing and proportions.
   await page.locator('#server-launch-compare-modes [data-compare-mode="approved-overlay"]').click();
-  await page.locator('#server-launch-overlay-image[src^="blob:"]').waitFor({timeout:15000});
+  await page.waitForFunction(()=>{
+    const img=document.querySelector('#server-launch-overlay-image');
+    return Boolean(img?.src?.startsWith('blob:')&&!img.hidden&&img.complete&&
+      img.naturalWidth>0&&img.style.opacity==='0.5');
+  },null,{timeout:15000});
   const overlay=await page.locator('#server-launch-overlay-image').evaluate(img=>({
     opacity:img.style.opacity,hidden:img.hidden,renderedWidth:img.clientWidth,
     sourceWidth:img.naturalWidth,pointerEvents:getComputedStyle(img).pointerEvents
