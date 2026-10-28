@@ -532,3 +532,24 @@ transport secret changes the validator. This is **revalidation**, not an
 unsafe multi-day cache. Maintenance, redirects, 404 and public-form
 sanitization remain authoritative. Standalone ZIP and Next targets are
 independent of CMS; run their own real-host measurements and checks.
+
+## Lead integrator continuation checkpoint · 28 October 2026
+
+At the last verified **code** commit `d8cfdb2f23ef94e111c63e2965f757c21bfca1b8`, both existing CI jobs passed
+(run #40758345036). The required capabilities above are engineering
+candidates, not visual owner acceptance. After documentation-only commits,
+read the actual branch HEAD before further work.
+
+The owner explicitly requires each autonomous work round to target
+**approximately 30 minutes of active feature implementation**. After
+completing an early block, immediately implement another meaningful
+unresolved end-to-end capability rather than stopping after 7–12 minutes.
+Do not artificially delay or promise background delivery; run the existing
+CI as a batch gate and update documentation at the end. See the current
+integrator handoff and next-chat starter.
+
+No actual customer-approved v2 handoff has been accepted. The next owner
+GO requires a real desktop/tablet/mobile approved site, imported and
+verified through the visible Save/Publish/Rollback workflow. External
+hosting, independent PHP installs, Next deployment and production
+updates remain environment-dependent and must not be claimed verified.
