@@ -117,9 +117,9 @@ async function main(){
   assert.throws(()=>CAP.read(out,site,source),/SEO endpoint response size mismatch|content digest mismatch/);
   fs.writeFileSync(sitemapFile,savedSitemap);
   const corruptRedirect=JSON.parse(original);
-  corruptRedirect.publication.redirects[0].location='https://external.example/';
+  corruptRedirect.publication.redirects[0].from='/wrong/';
   fs.writeFileSync(manifest,JSON.stringify(corruptRedirect));
-  assert.throws(()=>CAP.read(out,site,source),/HTTP response manifest|redirect path or Location mismatch|Invalid/);
+  assert.throws(()=>CAP.read(out,site,source),/redirect path or Location mismatch/);
   fs.writeFileSync(manifest,original);
   mode='bad-301';
   const wrongRedirect=path.join(tmp,'bad-301');
