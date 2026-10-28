@@ -369,7 +369,8 @@ try{
  const capturedMediaSite=structuredClone(original);
  capturedMediaSite.assets.push({id:'asset-og-demo',src:'/assets/og-demo.png',mime:'image/png',
   alt:'Preview of industrial equipment',width:1200,height:630});
- capturedMediaSite.pages[0].seo={...(capturedMediaSite.pages[0].seo||{}),ogImage:'asset-og-demo'};
+ capturedMediaSite.pages[0].seo={title:'',description:'',robots:'index',
+  ...(capturedMediaSite.pages[0].seo||{}),ogImage:'asset-og-demo'};
  const capturedMediaSitePath=path.join(tmp,'captured-media-site.json');
  fs.writeFileSync(capturedMediaSitePath,JSON.stringify(capturedMediaSite));
  const capturedMedia={format:'manufact-seo-media-evidence-v1',siteId:plan.siteId,
