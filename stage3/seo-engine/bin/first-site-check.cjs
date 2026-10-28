@@ -11,17 +11,18 @@ const PACKAGE=require('../lib/package.cjs');
 const WORKSHEET=require('../lib/first-site-worksheet.cjs');
 const PROGRESS=require('../lib/first-site-report-delta.cjs');
 const STATIC_EXPORT=require('../lib/php-local-static-export.cjs');
+const DELIVERY_READY=require('../lib/php-local-delivery-readiness.cjs');
 const DELIVERY=require('../lib/delivery-evidence.cjs');
 const MEDIA=require('../lib/media-delivery.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
 const {auditSite}=require('../lib/analyze.cjs');
 const REQUIRED=['approved-site','blueprint','origin','evidence','report'];
-const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review','static-export','public-http-evidence','public-media-evidence'];
+const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review','static-export','public-http-evidence','public-media-evidence','delivery-status'];
 function parse(argv){
  const opts={};
  if(!Array.isArray(argv)||argv.length<REQUIRED.length*2||
   argv.length>(REQUIRED.length+OPTIONAL.length)*2||argv.length%2)
-  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json] [--static-export /ABS/official-static-release] [--public-http-evidence /ABS/public-http-transcript.json] [--public-media-evidence /ABS/public-media-transcript.json]');
+  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json] [--static-export /ABS/official-static-release] [--public-http-evidence /ABS/public-http-transcript.json] [--public-media-evidence /ABS/public-media-transcript.json] [--delivery-status /ABS/private-owner-delivery.json]');
  for(let i=0;i<argv.length;i+=2){
   const name=argv[i]?.startsWith('--')?argv[i].slice(2):null;
   if(![...REQUIRED,...OPTIONAL].includes(name)||!argv[i+1]||opts[name])throw Error('Unknown, missing or duplicate first-site option');
@@ -89,6 +90,8 @@ function manifests(){
 async function main(argv){
  const o=parse(argv),approved=BRIDGE.load(o['approved-site']);
  const published=o['published-site']?readPublishedSite(o['published-site']):null;
+ if(o['delivery-status']&&!published)
+  throw Error('--delivery-status requires a pinned --published-site owner API JSON');
  if(o['static-export']&&(!published||!published.sourceRevision))
   throw Error('--static-export requires an owner published-site API record with version and sourceRevision');
  if(o['owner-edit-review']&&!published)
@@ -108,6 +111,7 @@ async function main(argv){
   throw Error('Supplied public HTTP and media evidence point to different origins');
  const publicHttpSha=o['public-http-evidence']?fileSha256(o['public-http-evidence']):null;
  const publicMediaSha=o['public-media-evidence']?fileSha256(o['public-media-evidence']):null;
+ const deliveryStatusSha=o['delivery-status']?fileSha256(o['delivery-status']):null;
  const previous=o['previous-report']?PROGRESS.read(o['previous-report']):null;
  if(previous&&([report,evidence].some(target=>{
    const parent=fs.realpathSync(path.dirname(target));
@@ -151,16 +155,26 @@ async function main(argv){
  if(exportPreflight&&checked.localStaticExport?.staticManifestSha256!==exportPreflight.manifestSha256)
   throw Error('Official static export manifest changed during PHP HTTP capture; discard mixed evidence');
  if(publicHttpSha&&fileSha256(o['public-http-evidence'])!==publicHttpSha||
-    publicMediaSha&&fileSha256(o['public-media-evidence'])!==publicMediaSha)
+    publicMediaSha&&fileSha256(o['public-media-evidence'])!==publicMediaSha||
+    deliveryStatusSha&&fileSha256(o['delivery-status'])!==deliveryStatusSha)
   throw Error('Public evidence file changed during PHP capture; discard mixed source report');
  if(checked.localStaticExport&&checked.localStaticExport.sourceRevisionClaim!==published.sourceRevision)
   throw Error('Official static export sourceRevision conflicts with owner CMS published sourceRevision');
  if(!PHP.isVerified(checked))throw Error('First-site PHP evidence was not source-bound verified');
+ let deliveryReadiness=null;
+ if(o['delivery-status']){
+  const stat=fs.lstatSync(o['delivery-status']);
+  if(stat.isSymbolicLink()||!stat.isFile()||stat.size<50||stat.size>100000)
+   throw Error('Unsafe or oversized owner delivery-status JSON file');
+  deliveryReadiness=DELIVERY_READY.review(fresh.site,
+   JSON.parse(fs.readFileSync(o['delivery-status'],'utf8')),fresh.source.publishedVersion);
+ }
  const bundle=PACKAGE.build(fresh.site,registry,blueprint,{
   approvedSource:fresh.source,phpHtml:checked,snapshot:checked.snapshot,
   ...(screenshots?{phpCapture:screenshots}:{}),
   ...(publicHttp?{delivery:publicHttp}:{}),
-  ...(publicMedia?{media:publicMedia}:{})
+  ...(publicMedia?{media:publicMedia}:{}),
+  ...(deliveryReadiness?{deliveryReadiness}:{})
  });
  const release=bundle.release;
  const worksheet=WORKSHEET.build({site:fresh.site,source:fresh.source,
@@ -231,6 +245,12 @@ async function main(argv){
   typedComponents:{actualPhpSectionsChecked:checked.localComponents?.checkedTypedSections??null,
    actualFindings:checked.localComponents?.findings.length??null,
    browserInteractionVerified:false},
+  deliveryReadiness:{supplied:Boolean(deliveryReadiness),
+   expectedPublishedVersion:fresh.source.publishedVersion??null,
+   publishedFormsChecked:deliveryReadiness?.checkedForms??null,
+   configuredNotificationForms:deliveryReadiness?.configuredForms??null,
+   ownerConfigurationFindings:deliveryReadiness?.findings.length??null,
+   recipientsExposed:false,actualPostPerformed:false,deliveryVerified:false},
   forms:{markupObserved:checked.localForms?.observedForms??null,
    technicalFindings:checked.localForms?.findings.length??null,
    actualPostPerformed:false,deliveryVerified:false},
