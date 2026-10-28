@@ -17,7 +17,8 @@ function inventory(html){
  if(typeof html!=='string'||html.length>MAX)
   throw Error('Public sensitive markup is outside bounded static HTML');
  const result={scriptLoaders:[],styleLoaders:[],embeddedFrames:[],
-  formDestinations:[],formSecurityMarkers:[],linkOpenerPolicy:[],
+  formDestinations:[],formSecurityMarkers:[],submitOverrides:[],
+  inlineExecutionAttrs:[],linkOpenerPolicy:[],
   imageLoadingPolicy:[]};
  const max=200;
  const collect=(name,row)=>{
@@ -51,6 +52,20 @@ function inventory(html){
   const a=attrs(m[1]);
   if(!['_release','_token'].includes(a.name))continue;
   collect('formSecurityMarkers',[a.name,a.type||'',sum(a.value||''),a.value?.length||0]);
+ }
+ // A submit button's formaction/formmethod takes precedence over <form>.
+ // Hash event handlers and inline style attributes instead of reporting code.
+ for(const m of scan.matchAll(/<(button|input)\b([^<>]*?)>/gi)){
+  const tag=m[1].toLowerCase(),a=attrs(m[2]);
+  if(['formaction','formmethod','formenctype','formtarget','formnovalidate'].some(k=>Object.hasOwn(a,k)))
+   collect('submitOverrides',[tag,a.formaction||'',a.formmethod||'',
+    a.formenctype||'',a.formtarget||'',a.formnovalidate!==undefined]);
+ }
+ for(const m of scan.matchAll(/<([a-z][a-z0-9:-]*)\b([^<>]*?)>/gi)){
+  const tag=m[1].toLowerCase(),a=attrs(m[2]);
+  if(a.style)collect('inlineExecutionAttrs',[tag,'style',sum(a.style)]);
+  for(const [key,value] of Object.entries(a))if(/^on[a-z]{2,}$/.test(key))
+   collect('inlineExecutionAttrs',[tag,key,sum(value)]);
  }
  for(const m of scan.matchAll(/<a\b([^<>]*?)>/gi)){
   const a=attrs(m[1]);
