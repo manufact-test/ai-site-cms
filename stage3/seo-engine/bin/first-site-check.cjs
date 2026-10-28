@@ -13,12 +13,12 @@ const PROGRESS=require('../lib/first-site-report-delta.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
 const {auditSite}=require('../lib/analyze.cjs');
 const REQUIRED=['approved-site','blueprint','origin','evidence','report'];
-const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review'];
+const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review','static-export'];
 function parse(argv){
  const opts={};
  if(!Array.isArray(argv)||argv.length<REQUIRED.length*2||
   argv.length>(REQUIRED.length+OPTIONAL.length)*2||argv.length%2)
-  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json]');
+  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json] [--static-export /ABS/official-static-release]');
  for(let i=0;i<argv.length;i+=2){
   const name=argv[i]?.startsWith('--')?argv[i].slice(2):null;
   if(![...REQUIRED,...OPTIONAL].includes(name)||!argv[i+1]||opts[name])throw Error('Unknown, missing or duplicate first-site option');
@@ -70,6 +70,8 @@ function manifests(){
 async function main(argv){
  const o=parse(argv),approved=BRIDGE.load(o['approved-site']);
  const published=o['published-site']?readPublishedSite(o['published-site']):null;
+ if(o['static-export']&&!published)
+  throw Error('--static-export requires a pinned --published-site owner API JSON');
  if(o['owner-edit-review']&&!published)
   throw Error('--owner-edit-review requires --published-site for the current CMS release');
  const ownerReview=o['owner-edit-review']?readOwnerEditReview(o['owner-edit-review']):null;
@@ -107,7 +109,7 @@ async function main(argv){
     fresh.source.siteRevisionFingerprint!==source.siteRevisionFingerprint||
     fresh.source.publishedVersion!==source.publishedVersion)
   throw Error('Sealed site source changed during local PHP evidence acquisition; discard evidence and rerun');
- const checked=PHP.read(evidence,fresh.site,fresh.source);
+ const checked=PHP.read(evidence,fresh.site,fresh.source,o['static-export']||null);
  if(!PHP.isVerified(checked))throw Error('First-site PHP evidence was not source-bound verified');
  const bundle=PACKAGE.build(fresh.site,registry,blueprint,{
   approvedSource:fresh.source,phpHtml:checked,snapshot:checked.snapshot,
@@ -149,6 +151,11 @@ async function main(argv){
    cssVariablesChecked:checked.localTheme?.expectedCssVariables??null,
    actualFindings:checked.localTheme?.findings.length??null,
    pixelParityVerified:false},
+  staticExport:{supplied:Boolean(checked.localStaticExport),
+   matchingContentAndMedia:checked.localStaticExport?.contentAndMediaMatched??null,
+   sha256CheckedFiles:checked.localStaticExport?.verifiedExportFiles??null,
+   actualFindings:checked.localStaticExport?.findings.length??null,
+   authenticatedServedRevision:false},
   payload:{pagesChecked:checked.localFootprint?.checkedPages??null,
    actualFindings:checked.localFootprint?.findings.length??null,
    compressedOrWebVitalsMeasured:false},

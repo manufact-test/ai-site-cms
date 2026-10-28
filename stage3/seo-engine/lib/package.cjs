@@ -153,6 +153,7 @@ function build(site,manifests,blueprint,options={}){
   localPhpSemanticFindings:options.phpHtml?.localSemantics?.findings.length??null,
   localPhpLinksChecked:options.phpHtml?.localSemantics?.checkedLinks??null,
   localPhpFootprintFindings:options.phpHtml?.localFootprint?.findings.length??null,
+  localPhpExportFindings:options.phpHtml?.localStaticExport?.findings.length??null,
   localPhpComponentFindings:options.phpHtml?.localComponents?.findings.length??null,
   localPhpHeadHeaders:options.phpHtml?.localHead?.pagesWithRecordedHeaders??null,
    localPhpFormCount:options.phpHtml?.localForms?.observedForms??null,
@@ -184,6 +185,18 @@ function build(site,manifests,blueprint,options={}){
     findings:options.phpHtml.localHead.findings,
     publicHttpsProven:false,releaseAuthorized:false
   }:null,
+  localPhpStaticExport:options.phpHtml?.localStaticExport?{
+    format:options.phpHtml.localStaticExport.format,
+    publishedVersion:options.phpHtml.localStaticExport.publishedVersion,
+    sourceRevisionClaim:options.phpHtml.localStaticExport.sourceRevisionClaim,
+    verifiedExportFiles:options.phpHtml.localStaticExport.verifiedExportFiles,
+    checkedPages:options.phpHtml.localStaticExport.checkedPages,
+    checkedAssets:options.phpHtml.localStaticExport.checkedAssets,
+    pages:options.phpHtml.localStaticExport.pages,
+    assets:options.phpHtml.localStaticExport.assets,
+    findings:options.phpHtml.localStaticExport.findings,
+    servedRevisionAuthenticated:false,clientApprovalVerified:false
+   }:null,
   localPhpFootprint:options.phpHtml?.localFootprint?{
     format:options.phpHtml.localFootprint.format,
     pages:options.phpHtml.localFootprint.pages,
@@ -307,6 +320,8 @@ function build(site,manifests,blueprint,options={}){
         '; separately verified robots/sitemap/301 bytes: '+options.phpHtml.checkedAuxiliaryBytes+
         '; media binary bytes: '+(options.phpHtml.localMedia?.savedBodyBytes??'none')+'.\n'+
       '- SEO head, H1, links and indexation checked by existing HTML/parity modules against the captured bytes.\n'+
+      (options.phpHtml.localStaticExport?
+       '- Official static export: '+options.phpHtml.localStaticExport.verifiedExportFiles+' SHA-256 verified files, '+options.phpHtml.localStaticExport.checkedPages+' pages, '+options.phpHtml.localStaticExport.checkedAssets+' media files, '+options.phpHtml.localStaticExport.findings.length+' output drift(s). No server revision authentication.\n':'')+
       '- Loopback PHP HTTP header/canonical/og:url checks: '+(options.phpHtml.localHead?.findings.length??'not supplied')+' findings; public origin observed in local sitemap: '+(options.phpHtml.localHead?.publicOriginObservedInSitemap??'none')+'.\n'+
       '- Published PHP theme CSS variable check: '+(options.phpHtml.localTheme?.checkedPages??0)+' pages, '+(options.phpHtml.localTheme?.findings.length??0)+' findings.\n'+
        '- Actual PHP desktop/mobile navigation check: '+(options.phpHtml.localNavigation?.checkedPages??0)+' pages, '+(options.phpHtml.localNavigation?.findings.length??0)+' findings.\n'+

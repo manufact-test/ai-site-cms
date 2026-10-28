@@ -18,6 +18,7 @@ const LOCAL_NAVIGATION=require('./php-local-navigation.cjs');
 const LOCAL_THEME=require('./php-local-theme.cjs');
 const LOCAL_SEMANTICS=require('./php-local-semantics.cjs');
 const LOCAL_FOOTPRINT=require('./php-local-footprint.cjs');
+const STATIC_EXPORT=require('./php-local-static-export.cjs');
 const CAPTURE_FORMAT='manufact-seo-loopback-php-html-v1';
 const SNAPSHOT_FORMAT='manufact-seo-html-snapshot-v1';
 const SHA=/^[a-f0-9]{64}$/;
@@ -123,7 +124,7 @@ function snapshot(site,source,entries,base,capturedAt,publication=null){
   source:'local-loopback-published-php-html',
   sourceRevisionAuthenticated:false,localHttpOnly:true});
 }
-function inspect(manifest,site,source,folder){
+function inspect(manifest,site,source,folder,staticExportFolder=null){
  if(!BRIDGE.isVerifiedSource(source)||source.siteId!==site.siteId||
     source.siteRevisionFingerprint!==ACCEPTANCE.fingerprint(site))
   fail('requires the original verified Approved Site v2 source');
@@ -199,6 +200,8 @@ function inspect(manifest,site,source,folder){
   LOCAL_MEDIA.inspect(site,manifest.baseUrl,manifest.media,root,checkedSnapshot,
    publication?.declaredPublicOrigin||null,source.sealedMediaSha256):null;
  const localFootprint=localMedia?LOCAL_FOOTPRINT.review(site,checkedSnapshot,localMedia):null;
+ const localStaticExport=staticExportFolder?
+  STATIC_EXPORT.review(staticExportFolder,site,checkedSnapshot,localMedia,source.publishedVersion):null;
  const result=Object.freeze({
   format:CAPTURE_FORMAT,siteId:site.siteId,packageVersion:source.packageVersion,
   sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,
@@ -207,14 +210,14 @@ function inspect(manifest,site,source,folder){
   checkedAuxiliaryBytes:total-checkedPageHtmlBytes,sha256VerifiedAtRead:true,
   loopbackHttp200Count:entries.length,sourceRevisionAuthenticated:false,
   realPublicHttpsChecked:false,formsChecked:false,formMarkupChecked:true,visualParityChecked:false,
-  publication,localMedia,localHead,localForms,localComponents,localGraph,localNavigation,localTheme,localSemantics,localFootprint,
+  publication,localMedia,localHead,localForms,localComponents,localGraph,localNavigation,localTheme,localSemantics,localFootprint,localStaticExport,
   snapshot:checkedSnapshot,
   limitations:'Read-only local PHP HTTP 200 and byte-checked HTML. Cannot prove the served revision matches saved Site v1, operator identity, client approval, public HTTPS or successful forms.'
  });
  accepted.add(result);
  return result;
 }
-function read(folder,site,source){
+function read(folder,site,source,staticExportFolder=null){
  const root=fs.realpathSync(folder);
  const file=path.join(root,'manifest.json');
  if(fs.realpathSync(file)!==file)fail('manifest.json must be an ordinary file in evidence folder');
@@ -222,7 +225,7 @@ function read(folder,site,source){
  // A complete Site v1 may declare up to 300 originals and three variants each;
  // the bound must fit all 1,200 SHA256 media receipts without becoming unbounded.
  if(!stat.isFile()||stat.size<50||stat.size>1000000)fail('invalid manifest.json');
- return inspect(JSON.parse(fs.readFileSync(file,'utf8')),site,source,root);
+ return inspect(JSON.parse(fs.readFileSync(file,'utf8')),site,source,root,staticExportFolder);
 }
 async function capture(sealedFolder,rawOrigin,output,publishedRecord=null){
  const approved=BRIDGE.load(sealedFolder);

@@ -51,6 +51,7 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const localSemanticErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-semantic:')&&s.severity==='error'));
  const localSemanticReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-semantic:')&&s.severity!=='error'));
  const localFootprintReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-footprint:')));
+ const localExportErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-export:')&&s.severity==='error'));
  const localNavErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-nav:')&&s.severity==='error'));
  const localGraphErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-graph:')&&s.severity==='error'));
  const localComponentErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-component:')&&s.severity==='error'));
@@ -128,6 +129,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
    'Absolute collector origin remains unverified and was not probed.',localFormReviews);
   if(localSemanticErrors.length)add(blockers,'local-php-semantic-and-route-integrity',
   'Real PHP HTML has broken local links/fragments, missing H1/landmarks, duplicate IDs or inaccessible link/image markup. Repair before release.',localSemanticErrors);
+ if(localExportErrors.length)add(blockers,'local-php-static-export-parity',
+  'Owner-pinned official static PHP export disagrees with locally served content or media. Verify which CMS release is being served before approval.',localExportErrors);
  if(localFootprintReviews.length)add(reviews,'local-php-payload-performance-review',
   'Actual local PHP bytes show large markup/media candidates or load-priority concerns. Review real browser LCP/CLS/INP and responsive downloads before public approval.',localFootprintReviews);
  if(localSemanticReviews.length)add(reviews,'local-php-semantic-accessibility-review',
