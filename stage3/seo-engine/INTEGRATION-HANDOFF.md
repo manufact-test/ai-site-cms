@@ -222,3 +222,14 @@ node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle-md \
 Optionally attach the original lead screenshot evidence with --php-capture /ABS/screens/evidence.json. Mismatched source/version/page count/base URL, modified bytes, non-HTML responses, redirects, symlink escapes and unsafe paths fail closed. This is local publisher evidence only; no actual public HTTPS/crawl, form delivery, visual approval or authenticated running PHP source revision. The lead dossier explicitly requests a served-revision correlation review.
 
 New tests/php-html-capture-smoke.cjs uses a **real localhost Node HTTP server** and synthetic sealed-verifier mock only; it is invoked by the full tests/smoke.cjs. Real client-approved pilot and full Node/CI remain to be validated in the lead-integrated checkout.
+
+
+## Additional completed batch: PHP mount semantics, sitemap, robots, 301
+
+Confirmed against latest lead stage3/server/Api.php: published PHP serves /published/SITE-ID/{page-path}, /published/SITE-ID/robots.txt, /published/SITE-ID/sitemap.xml and HTTP 301 aliases inside the mount. Both robots/sitemap currently require STAGE3_PUBLIC_ORIGIN and may respond 503 on unconfigured local preview. Existing SEO static scanners lacked this mount mapping. The worker added lib/published-mount.cjs plus mount-aware link and canonical checks in analyze.cjs, html-evidence.cjs and publication-integrity.cjs. No HTML rewriting or source mutation.
+
+lib/php-local-publication.cjs handles bounded and hashed **actual localhost HTTP** SEO artifacts. lib/php-html-capture.cjs now records local robots/sitemap/301 into manifest.json alongside page HTML, in one new directory. Actual HTTP statuses, body content and Location are bound to the sealed source ID/version and exact logical routes and reviewed for indexability / redirects. Findings are wired to remediation, release review, bundle and lead dossier, with stable affected page IDs. Invalid local PHP sitemap or redirect becomes a real technical release conflict; missing STAGE3_PUBLIC_ORIGIN is a warning. Neither case proves public HTTPS or that the PHP process was running the particular sealed revision.
+
+The standalone real localhost test in tests/php-html-capture-smoke.cjs now covers valid HTML/robots/sitemap/301, missing indexable page, wrong 301/Location, origin-not-configured 503, hash tampering and invalid mounts. Main tests/smoke.cjs calls it. Test files have been syntax checked, but full Node subprocess tests and actual client published site acceptance require the lead-integrated checkout. Do not call smoke green until it runs there.
+
+No worker edits outside stage3/seo-engine/**; no PR, merging, CMS writes, production deploy or human approval.
