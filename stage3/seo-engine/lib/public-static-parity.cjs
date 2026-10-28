@@ -6,6 +6,7 @@
 const STATIC=require('./php-local-static-export.cjs');
 const HEAD=require('./public-static-head.cjs');
 const CSP=require('./public-static-csp.cjs');
+const SENSITIVE=require('./public-static-sensitive-markup.cjs');
 const DELIVERY=require('./delivery-evidence.cjs');
 const MEDIA=require('./media-delivery.cjs');
 const {inspect}=require('./html-evidence.cjs');
@@ -102,6 +103,11 @@ function compare(site,release,http,media=null){
     mismatch('page-html-missing','Public page HTTP transcript lacks a complete HTML body.','html');
    else{
     const live=supplied.html,staticHtml=official.html;
+    const sensitive=SENSITIVE.review(staticHtml,live);
+    for(const kind of sensitive.changedCategories)
+     mismatch('page-sensitive-markup-drift',
+      'Publicly deployed HTML altered a form submission action, release token marker, external resource loader, link security policy or image loading behavior.',
+      'security.'+kind);
     const csp=CSP.review(site.siteId,page,live,headers,expectedOrigin);
     findings.push(...csp.findings);
     if(csp.findings.some(x=>x.severity==='error'))issues.push('headers.content-security-policy');
