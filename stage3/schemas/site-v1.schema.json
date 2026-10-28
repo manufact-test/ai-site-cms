@@ -1497,7 +1497,10 @@
             "image",
             "divider",
             "icon",
-            "video"
+            "video",
+            "disclosure",
+            "tabs",
+            "tab"
           ]
         },
         "text": {
