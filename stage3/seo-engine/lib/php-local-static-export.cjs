@@ -4,6 +4,7 @@
 // Two outputs may share a database: this is consistency, not server identity proof.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {inspect}=require('./html-evidence.cjs');
+const PUBLISHER=require('./publisher-media.cjs');
 const {text,decode}=require('./php-local-components.cjs');
 const FORMAT='manufact-seo-static-export-parity-v1';
 const SHA=/^[a-f0-9]{64}$/;
@@ -239,6 +240,70 @@ function staticForms(site,pages,collector,version){
  return {checkedForms:checked.length,forms:Object.freeze(checked),findings:Object.freeze(findings)};
 }
 
+
+/* Static publication is mounted at "/" rather than /published/SITE-ID/.
+   Its canonical, social URL, noindex policy and structured data therefore
+   require their OWN SEO check, not a byte-for-byte PHP-head comparison. */
+function staticSeo(site,pages,publicOrigin){
+ const findings=[],checked=[];
+ const add=(page,code,message,details={})=>findings.push(Object.freeze({
+  code:'php-export:'+code,severity:'error',pageId:page?.id??null,path:page?.path??null,
+  message,evidence:'sha256-verified-official-static-html',automatic:false,...details
+ }));
+ const normalize=x=>String(x||'').trim().replace(/\s+/g,' ');
+ for(const page of site.pages){
+  const html=pages.get(page.path)?.html||'',doc=inspect(html);
+  const head=/<head\b[^>]*>([\s\S]*?)<\/head\s*>/i.exec(html)?.[1]||'';
+  const metas=[];
+  for(const m of head.matchAll(/<meta\b([^>]*?)\/?>/gi)){
+   const attrs={};
+   for(const x of m[1].matchAll(/([a-z][a-z0-9:_-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+))/gi))
+    attrs[x[1].toLowerCase()]=decode(x[2]??x[3]??x[4]??'');
+   metas.push(attrs);
+  }
+  const value=(key,name)=>metas.filter(a=>a[key]?.toLowerCase()===name.toLowerCase()).map(a=>a.content||'');
+  const actualRobots=doc.robots.join(',').toLowerCase(),noindex=page.seo?.robots==='noindex';
+  if(/\bnoindex\b/.test(actualRobots)!==noindex)
+   add(page,'static-robots-meta-drift','Exported page robots indexability differs from published Site v1.');
+  if(doc.htmlLang!==(site.language||'ru'))
+   add(page,'static-html-lang-drift','Static page HTML language differs from the approved site language.');
+  if(doc.structuredDataErrors.length)
+   add(page,'static-invalid-json-ld','Static page includes invalid or oversized JSON-LD.');
+  let expected=null;
+  if(publicOrigin){
+   expected=publicOrigin.replace(/\/$/,'')+page.path;
+   if(doc.canonicals.length!==1||doc.canonicals[0]!==expected)
+    add(page,'static-canonical-drift','Root-mounted static canonical URL differs from the declared export origin and page route.',
+     {expectedUrl:expected});
+   const ogUrls=value('property','og:url');
+   if(ogUrls.length!==1||ogUrls[0]!==expected)
+    add(page,'static-og-url-drift','Static OG URL differs from root-mounted canonical.',
+     {expectedUrl:expected});
+   const social=PUBLISHER.select(site,page),img=social?.asset||null;
+   const expectedImage=img?publicOrigin.replace(/\/$/,'')+img.src:null;
+   const ogImages=value('property','og:image'),twImages=value('name','twitter:image');
+   if(expectedImage){
+    if(ogImages.length!==1||ogImages[0]!==expectedImage)
+     add(page,'static-og-image-drift','Static OG image URL differs from publisher-selected image under exported root.',
+      {expectedUrl:expectedImage});
+    if(twImages.length!==1||twImages[0]!==expectedImage)
+     add(page,'static-twitter-image-drift','Static Twitter image URL differs from publisher-selected asset.',
+      {expectedUrl:expectedImage});
+   }else if(ogImages.length||twImages.length)
+    add(page,'static-undeclared-social-image','Static output advertises image metadata not selected from Site v1.');
+  }
+  checked.push(Object.freeze({pageId:page.id,path:page.path,rootCanonicalExpected:expected,
+   noindexExpected:noindex,jsonLdRootTypes:doc.rootStructuredDataTypes,
+   staticSeoFindings:findings.filter(f=>f.pageId===page.id).length}));
+ }
+ if(!publicOrigin)
+  findings.push(Object.freeze({code:'php-export:static-public-origin-not-configured',
+   severity:'warning',pageId:null,path:null,
+   message:'Exported static pages have no public-origin canonical/OG URL; set STAGE3_EXPORT_ORIGIN before production release.',
+   evidence:'official-static-export-manifest',automatic:false}));
+ return {pages:Object.freeze(checked),findings:Object.freeze(findings)};
+}
+
 function read(root,site){
  const directory=fs.realpathSync(root),metaFile=path.join(directory,'release-manifest.json');
  if(fs.lstatSync(root).isSymbolicLink())throw Error('Symlinked static export folder');
@@ -339,13 +404,15 @@ function read(root,site){
  integrityFindings.push(...links.findings);
  const forms=staticForms(site,pages,data.formCollector??null,data.publishedVersion);
  integrityFindings.push(...forms.findings);
+ const seo=staticSeo(site,pages,data.publicOrigin??null);
+ integrityFindings.push(...seo.findings);
  return Object.freeze({format:FORMAT,siteId:site.siteId,publishedVersion:data.publishedVersion,
   sourceRevision:data.sourceRevision??null,assets,pages,redirects,origin:data.publicOrigin??null,
   recordsVerified:readFiles.size-1,sha256VerifiedAtRead:true,
   findings:Object.freeze(integrityFindings),searchFilesVerified:search.size,
   staticReferencesChecked:links.pages.reduce((n,p)=>n+p.staticReferencesChecked,0),
   staticLinkPages:links.pages,checkedFormSections:forms.checkedForms,
-  staticForms:forms.forms});
+  staticForms:forms.forms,staticSeoPages:seo.pages});
 }
 function compare(site,snapshot,media,release,version){
  if(!release||release.format!==FORMAT||!release.sha256VerifiedAtRead||
@@ -393,6 +460,7 @@ function compare(site,snapshot,media,release,version){
   staticLinkPages:release.staticLinkPages||[],
   checkedFormSections:release.checkedFormSections??0,
   staticForms:release.staticForms||[],
+  staticSeoPages:release.staticSeoPages||[],
   checkedPages:pages.length,checkedAssets:assets.length,pages:Object.freeze(pages),
   assets:Object.freeze(assets),findings:Object.freeze(findings),
   contentAndMediaMatched:findings.length===0,servedPhpRevisionAuthenticated:false,
@@ -404,4 +472,4 @@ function review(root,site,snapshot,media,version){
   throw Error('Explicit owner-exported CMS published version required for static parity');
  return compare(site,snapshot,media,read(root,site),version);
 }
-module.exports=Object.freeze({FORMAT,read,compare,review,mainText,structure,staticLinks,staticForms});
+module.exports=Object.freeze({FORMAT,read,compare,review,mainText,structure,staticLinks,staticForms,staticSeo});
