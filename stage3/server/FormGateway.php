@@ -34,6 +34,48 @@ final class FormGateway
         return $base . '/forms/' . $siteId . '/' . $sectionId;
     }
 
+    /**
+     * Confirm the optional return destination against the exact PUBLISHED
+     * form's page, and the browser's allowed site origin. A form value is
+     * never sufficient authority for an arbitrary outbound link/redirect.
+     * No automatic navigation; the visitor explicitly chooses to go back.
+     */
+    private static function returnPage(
+        SiteRepository $sites,string $siteId,string $sectionId,int $release,
+        string $requested,string $ours,?string $origin,array $allowed
+    ): string {
+        if($requested===''||strlen($requested)>260||strpbrk($requested,"\r\n\t")!==false)return '';
+        $published=$sites->publishedVersion($siteId,$release);
+        $routes=[];
+        foreach($published['pages'] as $page) {
+            foreach($page['sections'] as $section) {
+                if($section['id']===$sectionId&&
+                    in_array($section['component'],['lead-form','lead-form-flex'],true))
+                    $routes[]=$page['path'];
+            }
+        }
+        if($routes===[])return '';
+        if(str_starts_with($requested,'/')) {
+            if(str_starts_with($requested,'//')||($origin!==null&&$origin!==$ours))return '';
+            foreach($routes as $path)
+                if($requested==='/published/'.$siteId.$path)return $requested;
+            return '';
+        }
+        $parts=parse_url($requested);
+        if(!is_array($parts)||!isset($parts['scheme'],$parts['host'],$parts['path'])
+            ||isset($parts['user'])||isset($parts['pass'])||isset($parts['query'])
+            ||isset($parts['fragment'])||!in_array($parts['scheme'],['https','http'],true))
+            return '';
+        $target=$parts['scheme'].'://'.$parts['host'].
+            (isset($parts['port'])?':'.$parts['port']:'');
+        if($parts['scheme']==='http'&&$target!==$ours)return '';
+        if($target!==$ours&&!in_array($target,$allowed,true))return '';
+        foreach($routes as $path)
+            if($parts['path']===$path||
+                $parts['path']==='/published/'.$siteId.$path)return $requested;
+        return '';
+    }
+
     public static function respond(SiteRepository $sites, string $siteId, string $sectionId): never
     {
         header('Content-Type: text/html; charset=utf-8');
@@ -42,6 +84,7 @@ final class FormGateway
         header('X-Content-Type-Options: nosniff');
         $message = 'Запрос не принят. Проверьте поля формы.';
         $status = 422;
+        $returnTarget='';
         try {
             $origin = $_SERVER['HTTP_ORIGIN'] ?? null;
             $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -68,6 +111,8 @@ final class FormGateway
                     throw new InvalidArgumentException('Invalid form field');
                 }
             }
+            $returnRequest=(string)($fields['_return']??'');
+            unset($fields['_return']); // never saved into private lead records
             $release = filter_var($fields['_release'] ?? '', FILTER_VALIDATE_INT);
             if ($release === false || $release < 1) {
                 throw new InvalidArgumentException('Invalid form release');
@@ -79,6 +124,10 @@ final class FormGateway
                 $submissionId=$sites->collectSubmission($siteId, $sectionId, $release, $fields,
                     (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), self::secret());
                 $sites->dispatchSubmissionDeliveries($siteId,$submissionId);
+                try {
+                    $returnTarget=self::returnPage($sites,$siteId,$sectionId,(int)$release,
+                        $returnRequest,$ours,$origin,$allow);
+                }catch(\Throwable $ignored){$returnTarget='';}
                 $message = 'Спасибо! Ваша заявка сохранена.';
                 $status = 201;
             }
@@ -97,7 +146,11 @@ final class FormGateway
         http_response_code($status);
         echo '<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Обращение</title><style>body{font:18px/1.5 system-ui,sans-serif;max-width:660px;margin:12vh auto;padding:24px;color:#17324d}main{border:1px solid #dde5ef;padding:30px;border-radius:12px}</style></head><body><main><h1>Обращение</h1><p>'
             . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8')
-            . '</p></main></body></html>';
+            . '</p>'
+            . ($status===201&&$returnTarget!==''?
+                '<p><a href="'.htmlspecialchars($returnTarget,ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5,'UTF-8').
+                '" rel="noopener noreferrer">Вернуться на сайт</a></p>':'')
+            . '</main></body></html>';
         exit;
     }
 }
