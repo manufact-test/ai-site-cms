@@ -2631,10 +2631,12 @@
         };
         const resizeSite=()=>{
           for(const [device,view] of Object.entries(liveFrames)){
-            if(view.card.hidden)continue;
+            if(view.card.hidden||!view.card.isConnected)continue;
             const scale=Math.min(1,Math.max(0.12,(view.container.clientWidth-8)/widths[device]));
-            const doc=view.frame.contentDocument;
-            const fullHeight=doc?Math.max(doc.documentElement.scrollHeight,doc.body?.scrollHeight||0):540;
+            const doc=view.frame.contentDocument,root=doc?.documentElement;
+            // srcdoc='' on dialog cleanup can fire a late load while its
+            // document is temporarily empty or already detached.
+            const fullHeight=root?Math.max(root.scrollHeight,doc.body?.scrollHeight||0):540;
             const height=Math.min(30000,Math.max(540,fullHeight));
             view.frame.style.height=height+'px';
             view.frame.style.transform='scale('+scale+')';
