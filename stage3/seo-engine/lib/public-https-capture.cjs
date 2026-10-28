@@ -139,4 +139,64 @@ async function capture(site,rawOrigin,transport={address,request}){
   captureActuallyPerformed:true,publicHttpsTransportChecked:true,
   servedRevisionAuthenticated:false,formsDelivered:false,automaticRelease:false});
 }
-module.exports=Object.freeze({origin,isPublicIp,address,request,capture});
+
+// HEAD requests validate public media status and content headers without a
+// potentially large download. A successful HEAD is NOT image-byte integrity.
+function requestHead(target,pinned){
+ return new Promise((resolve,reject)=>{
+  const url=new URL(target);
+  const req=https.request({hostname:url.hostname,port:443,protocol:'https:',
+   path:url.pathname,method:'HEAD',timeout:12000,rejectUnauthorized:true,
+   servername:url.hostname,agent:false,
+   lookup:(_host,_options,cb)=>cb(null,pinned.address,pinned.family),
+   headers:{Accept:'image/*,video/mp4','Accept-Encoding':'identity',
+    'User-Agent':'AI-Site-CMS-Public-SEO-ReadOnly/1.0'}},res=>{
+   const status=res.statusCode||0;
+   if(status<100||status>599){res.resume();reject(Error('Invalid HTTPS media HEAD status'));return;}
+   const type=String(res.headers['content-type']||'').slice(0,150);
+   const rawLength=res.headers['content-length'];
+   const len=rawLength!==undefined&&/^\d+$/.test(String(rawLength))?
+    Number(rawLength):null;
+   res.resume();res.on('end',()=>resolve({
+    status,contentType:type,
+    ...(len!==null&&Number.isSafeInteger(len)?{contentLength:len}:{})
+   }));
+   res.on('error',reject);
+  });
+  req.on('timeout',()=>req.destroy(Error('Public HTTPS HEAD timed out')));
+  req.on('error',reject);req.end();
+ });
+}
+async function captureMedia(site,rawOrigin,transport={address,requestHead}){
+ if(!site||!Array.isArray(site.assets)||site.assets.length>300||!site.siteId)
+  throw Error('Public media HEAD requires a validated and bounded published site');
+ const base=origin(rawOrigin,site.siteId),pinned=await transport.address(base.hostname);
+ if(!pinned||!isPublicIp(pinned.address))
+  throw Error('Public media HEAD DNS resolution is not a safe public IP');
+ const resources=[];
+ // Only original Site v1 assets are part of the existing media-delivery
+ // transcript. Responsive variant GET bytes are checked by local PHP capture.
+ for(const asset of site.assets){
+  if(typeof asset.id!=='string'||typeof asset.src!=='string'||
+     !/^\/assets\/[a-z][a-z0-9-]{2,79}\.(png|jpg|webp|mp4)$/.test(asset.src))
+   throw Error('Invalid current Site v1 media inventory path');
+  const url=resource(base,asset.src);
+  const target=new URL(url);
+  if(target.origin!==base.origin||!target.pathname.startsWith(base.pathname))
+   throw Error('Public asset URL escaped approved origin/mount');
+  const found=await transport.requestHead(url,pinned);
+  if(!Number.isInteger(found.status)||found.status<100||found.status>599||
+     typeof found.contentType!=='string'||found.contentType.length>150)
+   throw Error('Public media HEAD returned malformed response');
+  resources.push({assetId:asset.id,url,status:found.status,
+   contentType:found.contentType,
+   ...(Number.isSafeInteger(found.contentLength)&&found.contentLength>=0?
+      {contentLength:found.contentLength}:{})});
+ }
+ const evidence={format:'manufact-seo-media-evidence-v1',
+  siteId:site.siteId,origin:base.href,completeness:'complete',resources};
+ return Object.freeze({evidence,requests:resources.length,headActuallyPerformed:true,
+  bodyBytesDownloaded:0,mediaShaVerified:false,publicHttpsTransportChecked:true,
+  servedRevisionAuthenticated:false,automaticRelease:false});
+}
+module.exports=Object.freeze({origin,isPublicIp,address,request,requestHead,capture,captureMedia});
