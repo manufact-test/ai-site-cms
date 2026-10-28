@@ -156,6 +156,12 @@ function staticLinks(site,pages,assetLedger,aliasLedger){
    try{url=new URL(href,base);}catch{
     add('static-malformed-url','Static document references an invalid URL.',{href:String(href).slice(0,160)});continue;
    }
+   if(item.kind!=='link'&&['http:','ftp:'].includes(url.protocol)){
+    add('static-mixed-content-resource',
+     'A static page references an insecure HTTP/FTP image, video, srcset or CSS asset; the HTTPS deployment may refuse to load it.',
+     {href:String(href).slice(0,160),kind:item.kind});
+    continue;
+   }
    if(url.origin!==base.origin)continue;
    if(url.pathname.startsWith('/published/'+site.siteId+'/')){
     add('static-php-mount-leak','Static export contains a PHP-specific /published/SITE-ID link.',
