@@ -640,12 +640,15 @@
               for(const node of nodes){
                 const common={pageId:page.id,pageTitle:page.title,sectionId:section.id,
                   nodeId:node.id,elementId:null,graph:true};
-                if(['button','link'].includes(node.type)&&node.href?.startsWith('/')&&!node.href.startsWith('//')){
+                if(['button','link','image'].includes(node.type)&&node.href?.startsWith('/')&&!node.href.startsWith('//')){
                   const issue=linkFindings.find(item=>item.pageId===page.id&&
                     item.sectionId===section.id&&item.nodeId===node.id&&item.path===node.href);
-                  rows.push({...common,path:'href',fieldLabel:(node.type==='link'?'Ссылка':'Кнопка')+' · '+node.id,
+                  rows.push({...common,path:'href',fieldLabel:(node.type==='image'?'Изображение по клику':node.type==='link'?'Ссылка':'Кнопка')+' · '+node.id,
                     kind:'link',value:node.href,issue:issue?.kind||'',
                     message:issue?.message||''});
+                }
+                if(node.backgroundMedia){
+                  for(const id of [node.backgroundMedia.assetId,node.backgroundMedia.tabletAssetId,node.backgroundMedia.mobileAssetId])if(id)referenced.add(id);
                 }
                 if(['image','video'].includes(node.type)){
                   referenced.add(node.assetId);
