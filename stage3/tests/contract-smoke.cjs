@@ -110,6 +110,63 @@ test('Interactive custom graph with nested disclosure and tab panels rejects uns
   }),'Tab cannot leave its parent');
 });
 
+test('Rich individual Design Graph layout: rectangular tables, gallery assets, links and attributed quotes',()=>{
+  const G=require('../sdk/design-graph.cjs'),base=same(initial);
+  const asset=base.assets.find(x=>x.mime?.startsWith('image/'));
+  const n=(id,type,text,children)=>({id,type,styles:{},...(text===null?{}:{text}),...(children?{children}:{})});
+  const cell=(id,text)=>n(id,'table-cell',text);
+  const row=(id,values)=>n(id,'table-row',null,values.map((v,i)=>cell(id+'-cell-'+i,v)));
+  const table=n('rich-table','table','Параметры',[
+    row('rich-head',['Параметр','Базовый','Полный']),
+    row('rich-one',['Срок','1 день','2 дня']),
+    row('rich-two',['Поддержка','Есть','Дополнительно'])]);
+  const quote=n('rich-quote','quote','Условия определяются договором');quote.cite='<Название организации>';
+  const link=n('rich-link','link','Вернуться к началу');link.href='/';
+  const nodes=[table,quote,link];
+  if(asset){
+    nodes.push(n('rich-gallery','gallery','Образцы',[
+      {...n('rich-photo-one','image',null),assetId:asset.id,alt:'Первое изображение'},
+      {...n('rich-photo-two','image',null),assetId:asset.id,alt:'Второе изображение'}
+    ]));
+  }
+  const section=sdk.sectionFrom(manifests.find(m=>m.id==='custom-section'),'section-rich');
+  section.designGraph={id:'graph-rich',version:1,nodes};
+  base.pages[0].sections.push(section);
+  sdk.validateSite(base,manifests);
+  const html=G.render(base,section.designGraph);
+  assert.match(html,/<table class="cmsdg-n-rich-table cmsdg-table">/);
+  assert.match(html,/<caption>Параметры<\/caption>/);
+  assert.match(html,/<thead><tr/);
+  assert.match(html,/<th scope="col"/);
+  assert.match(html,/<td class="cmsdg-n-rich-one-cell-1">1 день<\/td>/);
+  assert.match(html,/&lt;Название организации&gt;/);
+  assert.match(html,/<a class="cmsdg-n-rich-link" href="\/">/);
+  if(asset)assert.match(html,/cmsdg-gallery/);
+  const ragged=same(base),t=ragged.pages[0].sections.at(-1).designGraph.nodes[0];
+  t.children[2].children.pop();
+  refuses(()=>sdk.validateSite(ragged,manifests),'Reject non-rectangular tables');
+  const malformed=same(base);
+  malformed.pages[0].sections.at(-1).designGraph.nodes[0].children[0].children[0].type='text';
+  refuses(()=>sdk.validateSite(malformed,manifests),'Reject table cell of wrong type');
+  const corrupt=same(base);
+  corrupt.pages[0].sections.at(-1).designGraph.nodes[2].href='javascript:alert(1)';
+  refuses(()=>sdk.validateSite(corrupt,manifests),'Reject link script URL');
+  const added=G.editTree(section.designGraph,{
+    action:'insert',targetId:'rich-table',placement:'inside',
+    node:row('rich-three',['Регион','Север','Юг'])
+  });
+  G.validateGraph(added,new Set(base.assets.map(x=>x.id)),new Set(),
+    base.designTokens,new Map(base.assets.map(x=>[x.id,x.mime])));
+  assert.equal(added.nodes[0].children.length,4);
+  const copied=G.editTree(added,{action:'duplicate',nodeId:'rich-three',
+    ids:['rich-three-copy','rich-three-a','rich-three-b','rich-three-c']});
+  G.validateGraph(copied,new Set(base.assets.map(x=>x.id)),new Set(),
+    base.designTokens,new Map(base.assets.map(x=>[x.id,x.mime])));
+  assert.equal(copied.nodes[0].children.length,5);
+  refuses(()=>G.editTree(copied,{action:'move',nodeId:'rich-three-copy',
+    targetId:'rich-quote',placement:'after'}),'Reject detached table rows');
+});
+
 test('four production components: typed repeater contracts, structural editing and safety',()=>{
   const D=require('../sdk/draft.cjs'),newTypes=['pricing-plans','process-timeline',
     'comparison-matrix','content-switcher'];
