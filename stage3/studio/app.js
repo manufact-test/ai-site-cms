@@ -1828,7 +1828,32 @@
           if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item'].includes(current.type))
             property('Текст', 'text',current.text);
           if(['button','link'].includes(current.type))property('Ссылка', 'href',current.href);
-          if(current.type==='image')property('Действие по клику (необязательно)','href',current.href||'');
+          if(current.type==='image'){
+            property('Действие по клику (необязательно)','href',current.href||'');
+            const raster=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
+            for(const [bp,label] of [['tablet','Планшет · своё изображение'],['mobile','Телефон · своё изображение']]){
+              const key=bp+'AssetId';
+              const labelEl=document.createElement('label');labelEl.className='cms-work-field';
+              const caption=document.createElement('span');caption.textContent=label;
+              const select=document.createElement('select');select.className='control';
+              select.dataset.deviceImage=bp;
+              for(const [id,name] of [['','Наследовать'],...raster.map(a=>[a.id,a.alt||a.id])]){
+                const opt=document.createElement('option');opt.value=id;opt.textContent=name;select.append(opt);
+              }
+              select.value=current.responsiveMedia?.[key]||'';
+              select.disabled=!canWrite();
+              select.addEventListener('change',()=>{
+                editGraphWork(node=>{
+                  if(select.value)(node.responsiveMedia||(node.responsiveMedia={}))[key]=select.value;
+                  else if(node.responsiveMedia){
+                    delete node.responsiveMedia[key];
+                    if(!Object.keys(node.responsiveMedia).length)delete node.responsiveMedia;
+                  }
+                });
+              });
+              labelEl.append(caption,select);panel.append(labelEl);
+            }
+          }
           if(!['image','video','icon','divider','table-row','table-cell'].includes(current.type)){
             const bgImages=session.current.assets.filter(x=>/^image\/(png|jpeg|webp)$/.test(x.mime));
             if(bgImages.length){
@@ -2915,6 +2940,18 @@
         const options=session.current.assets.filter(a=>a.mime!=='video/mp4').map(a=>[a.id,a.alt||a.id]);
         fields.append(ctl('Изображение',{initial:n.assetId,choices:options},v=>{n.assetId=v;},'select'),
           ctl('Описание изображения',n.alt,v=>{n.alt=v;}));
+        const raster=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
+        const artChoices=[['','Наследовать предыдущий размер'],...raster.map(a=>[a.id,a.alt||a.id])];
+        for(const [bp,label] of [['tablet','Изображение планшета'],['mobile','Изображение телефона']]){
+          const key=bp+'AssetId';
+          fields.append(ctl(label,{initial:n.responsiveMedia?.[key]||'',choices:artChoices},v=>{
+            if(v)(n.responsiveMedia||(n.responsiveMedia={}))[key]=v;
+            else if(n.responsiveMedia){
+              delete n.responsiveMedia[key];
+              if(!Object.keys(n.responsiveMedia).length)delete n.responsiveMedia;
+            }
+          },'select'));
+        }
       }
       if(n.type==='video'){
         const videos=session.current.assets.filter(a=>a.mime==='video/mp4').map(a=>[a.id,a.alt||a.id]);
