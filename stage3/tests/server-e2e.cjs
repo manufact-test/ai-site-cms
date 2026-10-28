@@ -200,7 +200,15 @@ async function stop(){
   const pub=await request('GET','/published/'+id+'/');
   assert.equal(pub.status,200);
   assert.match(pub.headers.get('cache-control'),/no-cache/);
-  assert.match(pub.headers.get('etag'),/^"cms3-[a-f0-9]{64}"$/);
+  assert.match(pub.headers.get('etag'),/^"cms3-[a-f0-9]{64}-(?:plain|gz)"$/);
+  const identityPublic=await request('GET','/published/'+id+'/',undefined,
+    {'accept-encoding':'identity'});
+  assert.equal(identityPublic.status,200);
+  assert.equal(identityPublic.headers.get('content-encoding'),null);
+  assert.equal(identityPublic.body,pub.body);
+  if(pub.headers.get('content-encoding')==='gzip')
+    assert.notEqual(identityPublic.headers.get('etag'),pub.headers.get('etag'),
+      'Public HTML must not reuse a strong ETag for different byte encodings');
   const notModified=await request('GET','/published/'+id+'/',undefined,
     {'if-none-match':pub.headers.get('etag')});
   assert.equal(notModified.status,304,'Unchanged release skips HTML generation');
@@ -2163,6 +2171,12 @@ async function stop(){
   assert.ok(!renamedSitemap.body.includes(origin+'/published/site-url-ci/contact/'));
   assert.ok((await request('GET','/published/site-url-ci/robots.txt')).body.includes(
     'Sitemap: '+origin+'/published/site-url-ci/sitemap.xml'));
+  const robots=await request('GET','/published/site-url-ci/robots.txt');
+  assert.match(robots.headers.get('cache-control'),/no-cache/);
+  assert.equal((await request('GET','/published/site-url-ci/robots.txt',undefined,
+    {'if-none-match':robots.headers.get('etag')})).status,304);
+  assert.equal((await request('GET','/published/site-url-ci/sitemap.xml',undefined,
+    {'if-none-match':renamedSitemap.headers.get('etag')})).status,304);
   const urlOut=path.join(dbdir,'url-static');
   const urlExport=spawnSync('php',['stage3/server/bin/export-published.php','site-url-ci',urlOut],
     {cwd:root,env:{...env,STAGE3_EXPORT_ORIGIN:'https://example.test'},encoding:'utf8'});
