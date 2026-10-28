@@ -209,3 +209,10 @@
 .hosted-launch-reference-viewport{min-width:0;background:#e5ebf1}
 #server-launch-reference-image{display:block;height:auto;max-width:none;margin:0;object-fit:contain}
 .hosted-launch-reference-viewport .hosted-launch-live-label{max-width:90%;overflow-wrap:anywhere}
+
+/* Site-private per-form routing editor. */
+.hosted-delivery-routes{display:grid;gap:8px;padding:12px;min-width:0;border:1px solid rgba(128,150,160,.35);border-radius:10px}
+.hosted-delivery-routes[hidden]{display:none!important}
+.hosted-delivery-routes>strong{font-size:12px}
+.hosted-delivery-routes .control{width:100%;min-width:0}
+.hosted-delivery-routes>small{font-size:10px;opacity:.75;line-height:1.5}
