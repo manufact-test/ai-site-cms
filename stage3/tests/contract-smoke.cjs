@@ -81,6 +81,10 @@ test('Interactive custom graph with nested disclosure and tab panels rejects uns
   });
   G.validateGraph(inserted,new Set(),new Set());
   assert.equal(inserted.nodes[2].children.length,3);
+  const clonedList=G.editTree(inserted,{action:'duplicate',nodeId:'custom-list',
+    ids:['custom-list-clone','custom-list-clone-a','custom-list-clone-b','custom-list-clone-c']});
+  G.validateGraph(clonedList,new Set(),new Set());
+  assert.equal(clonedList.nodes[3].children[0].id,'custom-list-clone-a');
   const wrong=same(site);
   wrong.pages[0].sections.at(-1).designGraph.nodes[1].children[0].type='text';
   refuses(()=>sdk.validateSite(wrong,manifests),'Tabs accept only tab children');
