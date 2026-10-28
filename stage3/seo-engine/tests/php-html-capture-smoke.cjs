@@ -219,7 +219,7 @@ async function main(){
   const envRun=await CAP.capture(sealed,base,noOrigin);
   assert.equal(envRun.robotsStatus,503);assert.equal(envRun.sitemapStatus,503);
   assert.ok(CAP.read(noOrigin,site,source).publication.findings
-   .some(x=>x.code==='php-local:sitemap-http-status'&&x.severity==='warning'));
+   .some(x=>x.code==='php-local:sitemap-http-status'&&x.severity==='error'));
   assert.equal(CAP.read(noOrigin,site,source).snapshot.sitemapCompleteness,undefined,
    'HTTP 503 does not imply a complete sitemap');
   mode='dev-origin';

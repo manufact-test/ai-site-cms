@@ -217,8 +217,8 @@ function inspect(site,base,manifest,root,snapshot=null,publicOrigin=null){
   const imageTags=MEDIA.metaTags(p.html).filter(x=>x.property==='og:image');
   const expectedPath='/published/'+site.siteId+selected.asset.src;
   if(!imageTags.length){
-   add('php-media:og-meta-absent','recommendation',selected.asset.id,
-    'No og:image appeared in captured PHP HTML despite a selected site image; confirm configured public origin.',{pageId:p.id});
+   add('php-media:og-meta-absent',publicOrigin?'error':'recommendation',selected.asset.id,
+    'Published PHP HTML omitted og:image for a selected image; verify public origin and publisher state.',{pageId:p.id});
   }
   for(const tag of imageTags){
    let url;

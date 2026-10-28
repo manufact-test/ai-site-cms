@@ -58,18 +58,18 @@ function review(site,base,manifest,bytesByFile){
  const sText=bytesByFile.get(sitemap.file).toString('utf8');
  for(const [kind,r,expected] of [['robots',robots,'text/plain'],['sitemap',sitemap,'application/xml']]){
   if(r.status!==200){
-   add('php-local:'+kind+'-http-status','warning',mount(site.siteId)+kind+'.txt',
-    'Local PHP '+kind+' endpoint responded with HTTP '+r.status+'; STAGE3_PUBLIC_ORIGIN may be missing or this preview may not expose public SEO resources.',{status:r.status});
+   add('php-local:'+kind+'-http-status','error',mount(site.siteId)+kind+'.txt',
+    'Local PHP '+kind+' endpoint returned HTTP '+r.status+'; configure STAGE3_PUBLIC_ORIGIN and republish before accepting SEO endpoints.',{status:r.status});
   }else if(!String(r.contentType).toLowerCase().startsWith(expected)){
-   add('php-local:'+kind+'-content-type','warning',mount(site.siteId)+kind+'.txt',
+   add('php-local:'+kind+'-content-type','error',mount(site.siteId)+kind+'.txt',
     'Local PHP '+kind+' endpoint has unexpected Content-Type.',{observed:r.contentType});
   }
  }
  if(robots.status===200){
   if(INTEGRITY.wildcardRootBlock(rText))
-   add('php-local:robots-disallow-all','warning',null,'Real loopback robots body contains a possible wildcard root block.');
+   add('php-local:robots-disallow-all','error',null,'Real loopback robots body contains a possible wildcard root block.');
   if(!rText.includes(mount(site.siteId)+'sitemap.xml'))
-   add('php-local:robots-sitemap-pointer','recommendation',null,
+   add('php-local:robots-sitemap-pointer','error',null,
     'Real loopback robots body does not reference this site-mount sitemap.xml.');
  }
  let parsed=null,paths=null,declaredPublicOrigin=null;
@@ -112,7 +112,7 @@ function review(site,base,manifest,bytesByFile){
      add('php-local:sitemap-noindex-listed','error',p.path,'Noindex Site v1 route appears in actual local PHP sitemap.');
    }
    for(const path of seen)if(!site.pages.some(p=>p.path===path))
-    add('php-local:sitemap-unknown-page','warning',path,'Actual PHP sitemap includes a route missing from sealed Site v1.');
+    add('php-local:sitemap-unknown-page','error',path,'Actual PHP sitemap includes a route missing from sealed Site v1.');
   }
  }
  if(sitemap.status===200&&paths!==null&&findings.some(x=>x.code.startsWith('php-local:sitemap-')&&x.severity==='error')){
@@ -123,7 +123,7 @@ function review(site,base,manifest,bytesByFile){
   const declared=(rText.match(/^\s*Sitemap:\s*(\S+)\s*$/gim)||[])
     .map(line=>line.replace(/^\s*Sitemap:\s*/i,'').trim());
   if(!declared.includes(expectedSitemap))
-   add('php-local:robots-sitemap-origin-drift','warning',null,
+   add('php-local:robots-sitemap-origin-drift','error',null,
     'Local robots.txt Sitemap pointer does not match the public origin actually used by PHP sitemap loc entries.',
     {expectedUrl:expectedSitemap});
  }
