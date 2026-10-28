@@ -53,8 +53,8 @@ trait LinkOperations
                 }
                 $walk=static function(array $nodes)use(&$walk,$record,$where):void {
                     foreach($nodes as $node){
-                        if($node['type']==='button'&&isset($node['href']))
-                            $record($node['href'],$where+['kind'=>'graph-button','nodeId'=>$node['id']]);
+                        if(in_array($node['type'],['button','link','image'],true)&&isset($node['href']))
+                            $record($node['href'],$where+['kind'=>$node['type']==='image'?'graph-image':($node['type']==='link'?'graph-link':'graph-button'),'nodeId'=>$node['id']]);
                         if(isset($node['children']))$walk($node['children']);
                     }
                 };
@@ -176,9 +176,9 @@ trait LinkOperations
                 if(isset($section['designGraph'])){
                     $walk=static function(array &$nodes)use(&$walk,$map,$record,$where):void{
                         foreach($nodes as &$node){
-                            if($node['type']==='button'&&isset($node['href'])){
+                            if(in_array($node['type'],['button','link','image'],true)&&isset($node['href'])){
                                 $before=$node['href'];$after=self::linkRewrite($before,$map);
-                                $record($before,$after,$where+['kind'=>'graph-button','id'=>$node['id']]);
+                                $record($before,$after,$where+['kind'=>$node['type']==='image'?'graph-image':($node['type']==='link'?'graph-link':'graph-button'),'id'=>$node['id']]);
                                 $node['href']=$after;
                             }
                             if(isset($node['children']))$walk($node['children']);

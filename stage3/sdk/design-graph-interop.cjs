@@ -58,7 +58,7 @@ function validateBindings(bindings,section){
     if(seen.has(signature))fail('Duplicate binding for '+signature);
     seen.add(signature);
     const node=index.get(binding.nodeId).node;
-    if(property==='href'?(!['button','link'].includes(node.type)||!own(node,'href')):
+    if(property==='href'?(!['button','link','image'].includes(node.type)||!own(node,'href')):
       (!['heading','text','button','link','quote','disclosure','tab','list-item','table','table-cell','gallery'].includes(node.type)||typeof node.text!=='string'))
       fail('Binding property is incompatible with its graph node');
     const source=binding.source;
@@ -163,7 +163,7 @@ function graphStats(graph){
     if(node.responsive&&Object.keys(node.responsive).length)out.responsiveNodes++;
     if(node.states&&Object.keys(node.states).length)out.stateNodes++;
     if(node.motion)out.motionNodes++;
-    if(node.type==='image'||node.type==='video')out.mediaNodes++;
+    if(node.type==='image'||node.type==='video'||node.backgroundMedia)out.mediaNodes++;
     for(const layer of [node.styles||{},...Object.values(node.responsive||{}),...Object.values(node.states||{})])
       Object.keys(layer).forEach(key=>keys.add(key));
     if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type))visit(node.children);
