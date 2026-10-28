@@ -226,7 +226,64 @@ function formAndFirstSiteCliContracts(){
  assert.throws(()=>m.exports.parse([...argv,'--unknown','value']),/Unknown/);
 }
 
+
+function actualPublishedComponentAndGraphContracts(){
+ // A compact end-to-end synthetic PHP HTML parity check for the components
+ // and DesignGraph nodes emitted by the current real PublicRenderer/DesignGraph.
+ const COMPONENTS=require('../lib/php-local-components.cjs');
+ const GRAPH=require('../lib/php-local-graph.cjs');
+ const mock={siteId:'pilot-typed',assets:[{id:'asset-main',src:'/assets/asset-main.png'}],
+  pages:[{id:'page-home',path:'/',sections:[
+   {id:'sec-pricing',component:'pricing-plans',items:[{id:'price-one',values:{
+    'content.title':'Basic','content.price':'£10','content.features':'A\nB',
+    'content.button':'Learn more','behavior.href':'/contact/'}}]},
+   {id:'sec-process',component:'process-timeline',items:[{id:'step-one',values:{
+    'content.title':'Setup','content.description':'Delivery','content.detail':'One day'}}]},
+   {id:'sec-matrix',component:'comparison-matrix',items:[{id:'metric-one',values:{
+    'content.metric':'Support','content.first':'Yes','content.second':'No'}}]},
+   {id:'sec-switch',component:'content-switcher',items:[
+    {id:'choice-one',values:{'content.title':'First','content.heading':'Heading A','content.body':'Body A'}},
+    {id:'choice-two',values:{'content.title':'Second','content.heading':'Heading B','content.body':'Body B'}}]},
+   {id:'sec-graph',designGraph:{id:'graph-one',nodes:[
+    {id:'g-heading',type:'heading',level:1,text:'Hello & friends'},
+    {id:'g-link',type:'link',href:'/contact/',text:'Reach us'},
+    {id:'g-photo',type:'image',assetId:'asset-main',alt:'A & B'},
+    {id:'g-tabs',type:'tabs',children:[
+     {id:'g-tab-one',type:'tab',text:'Alpha',children:[{id:'g-t1',type:'text',text:'Panel one'}]},
+     {id:'g-tab-two',type:'tab',text:'Beta',children:[{id:'g-t2',type:'text',text:'Panel two'}]}]}
+   ]}}
+  ]}]};
+ const html='<html><head></head><body>'+
+  '<section id="sec-pricing"><article class="cms-pricing-card"><h3>Basic</h3><p class="cms-pricing-price">£10</p><ul><li>A</li><li>B</li></ul><a href="/published/pilot-typed/contact/">Learn more</a></article></section>'+
+  '<section id="sec-process"><li class="cms-process-step"><h3>Setup</h3><p>Delivery</p><small>One day</small></li></section>'+
+  '<section id="sec-matrix"><table><thead><tr><th scope="col">Metric</th><th scope="col">A</th><th scope="col">B</th></tr></thead><tbody><tr><th scope="row">Support</th><td>Yes</td><td>No</td></tr></tbody></table></section>'+
+  '<section id="sec-switch"><fieldset class="cms-switcher"><input class="cms-switcher-radio" type="radio" name="switch-sec-switch" id="cms-switch-choice-one" checked><label class="cms-switcher-tab" for="cms-switch-choice-one">First</label><input class="cms-switcher-radio" type="radio" name="switch-sec-switch" id="cms-switch-choice-two"><label class="cms-switcher-tab" for="cms-switch-choice-two">Second</label><div class="cms-switcher-panels"><section class="cms-switcher-panel" id="cms-pane-choice-one"><h3>Heading A</h3><p>Body A</p></section><section class="cms-switcher-panel" id="cms-pane-choice-two"><h3>Heading B</h3><p>Body B</p></section></div></fieldset><style>#cms-switch-choice-one:checked~.cms-switcher-panels>#cms-pane-choice-one{display:block}#cms-switch-choice-two:checked~.cms-switcher-panels>#cms-pane-choice-two{display:block}</style></section>'+
+  '<section id="sec-graph" class="cmsdg cmsdg-graph-one"><style>.cmsdg-tabs-g-tabs:has(> .cmsdg-tabs-controls > #cmsdg-tab-g-tab-one:checked) > .cmsdg-tabs-panels > #cmsdg-panel-g-tab-one{display:block}.cmsdg-tabs-g-tabs:has(> .cmsdg-tabs-controls > #cmsdg-tab-g-tab-two:checked) > .cmsdg-tabs-panels > #cmsdg-panel-g-tab-two{display:block}</style><h1 class="cmsdg-n-g-heading">Hello &amp; friends</h1><a class="cmsdg-n-g-link" href="/published/pilot-typed/contact/">Reach us</a><img class="cmsdg-n-g-photo" src="/published/pilot-typed/assets/asset-main.png" alt="A &amp; B"><div class="cmsdg-n-g-tabs cmsdg-tabs-g-tabs"><div class="cmsdg-tabs-controls"><input type="radio" name="cmsdg-tabs-g-tabs" id="cmsdg-tab-g-tab-one" aria-controls="cmsdg-panel-g-tab-one" checked><label for="cmsdg-tab-g-tab-one">Alpha</label><input type="radio" name="cmsdg-tabs-g-tabs" id="cmsdg-tab-g-tab-two" aria-controls="cmsdg-panel-g-tab-two"><label for="cmsdg-tab-g-tab-two">Beta</label></div><div class="cmsdg-tabs-panels"><div class="cmsdg-n-g-tab-one cmsdg-tab-panel" id="cmsdg-panel-g-tab-one"><p class="cmsdg-n-g-t1">Panel one</p></div><div class="cmsdg-n-g-tab-two cmsdg-tab-panel" id="cmsdg-panel-g-tab-two"><p class="cmsdg-n-g-t2">Panel two</p></div></div></div></section>'+
+  '</body></html>';
+ const read=markup=>({siteId:mock.siteId,pages:[{id:'page-home',path:'/',html:markup}]});
+ const correctComponents=COMPONENTS.review(mock,read(html));
+ const correctGraph=GRAPH.review(mock,read(html));
+ assert.equal(correctComponents.checkedTypedSections,4);
+ assert.equal(correctGraph.checkedNodes,8);
+ assert.deepEqual(correctComponents.findings,[]);
+ assert.deepEqual(correctGraph.findings,[]);
+ const changed=html.replace('href="/published/pilot-typed/contact/"',
+  'href="/published/pilot-typed/missing/"')
+  .replace('id="cms-pane-choice-two"','id="wrong-pane"')
+  .replace('aria-controls="cmsdg-panel-g-tab-two"','aria-controls="wrong-panel"')
+  .replace('alt="A &amp; B"','alt="Altered"');
+ assert.ok(COMPONENTS.review(mock,read(changed)).findings.some(x=>
+  x.code==='php-component:pricing-content'&&x.sectionId==='sec-pricing'));
+ assert.ok(COMPONENTS.review(mock,read(changed)).findings.some(x=>
+  x.code==='php-component:switcher-parity'&&x.sectionId==='sec-switch'));
+ assert.ok(GRAPH.review(mock,read(changed)).findings.some(x=>
+  x.code==='php-graph:node-content-drift'&&x.graphNodeId==='g-photo'));
+ assert.ok(GRAPH.review(mock,read(changed)).findings.some(x=>
+  x.code==='php-graph:tabs-control'&&x.graphNodeId==='g-tab-two'));
+}
+
 async function main(){
+ actualPublishedComponentAndGraphContracts();
  formAndFirstSiteCliContracts();
  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'seo-loopback-html-test-'));
  const sealed=path.join(tmp,'sealed');fs.mkdirSync(sealed);
