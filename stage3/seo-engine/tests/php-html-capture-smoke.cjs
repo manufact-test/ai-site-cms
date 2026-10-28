@@ -244,6 +244,13 @@ function actualPublishedComponentAndGraphContracts(){
    {id:'sec-switch',component:'content-switcher',items:[
     {id:'choice-one',values:{'content.title':'First','content.heading':'Heading A','content.body':'Body A'}},
     {id:'choice-two',values:{'content.title':'Second','content.heading':'Heading B','content.body':'Body B'}}]},
+   {id:'sec-faq',component:'faq-accordion',items:[{id:'faq-one',values:{
+    'content.question':'How?','content.answer':'Simple.'}}]},
+   {id:'sec-review',component:'testimonials',items:[{id:'review-one',values:{
+    'content.quote':'A great site','content.author':'Reviewer','content.role':'Customer'}}]},
+   {id:'sec-cta',component:'cta-banner',elements:[
+    {slot:'primary',values:{'content.text':'Contact us','behavior.href':'/contact/'}},
+    {slot:'secondary',values:{'content.text':'Details','behavior.href':'/details/'}}]},
    {id:'sec-graph',designGraph:{id:'graph-one',nodes:[
     {id:'g-heading',type:'heading',level:1,text:'Hello & friends'},
     {id:'g-link',type:'link',href:'/contact/',text:'Reach us'},
@@ -259,11 +266,14 @@ function actualPublishedComponentAndGraphContracts(){
   '<section id="sec-matrix"><table><thead><tr><th scope="col">Metric</th><th scope="col">A</th><th scope="col">B</th></tr></thead><tbody><tr><th scope="row">Support</th><td>Yes</td><td>No</td></tr></tbody></table></section>'+
   '<section id="sec-switch"><fieldset class="cms-switcher"><input class="cms-switcher-radio" type="radio" name="switch-sec-switch" id="cms-switch-choice-one" checked><label class="cms-switcher-tab" for="cms-switch-choice-one">First</label><input class="cms-switcher-radio" type="radio" name="switch-sec-switch" id="cms-switch-choice-two"><label class="cms-switcher-tab" for="cms-switch-choice-two">Second</label><div class="cms-switcher-panels"><section class="cms-switcher-panel" id="cms-pane-choice-one"><h3>Heading A</h3><p>Body A</p></section><section class="cms-switcher-panel" id="cms-pane-choice-two"><h3>Heading B</h3><p>Body B</p></section></div></fieldset><style>#cms-switch-choice-one:checked~.cms-switcher-panels>#cms-pane-choice-one{display:block}#cms-switch-choice-two:checked~.cms-switcher-panels>#cms-pane-choice-two{display:block}</style></section>'+
   '<section id="sec-graph" class="cmsdg cmsdg-graph-one"><style>.cmsdg-tabs-g-tabs:has(> .cmsdg-tabs-controls > #cmsdg-tab-g-tab-one:checked) > .cmsdg-tabs-panels > #cmsdg-panel-g-tab-one{display:block}.cmsdg-tabs-g-tabs:has(> .cmsdg-tabs-controls > #cmsdg-tab-g-tab-two:checked) > .cmsdg-tabs-panels > #cmsdg-panel-g-tab-two{display:block}</style><h1 class="cmsdg-n-g-heading">Hello &amp; friends</h1><a class="cmsdg-n-g-link" href="/published/pilot-typed/contact/">Reach us</a><img class="cmsdg-n-g-photo" src="/published/pilot-typed/assets/asset-main.png" alt="A &amp; B"><div class="cmsdg-n-g-tabs cmsdg-tabs-g-tabs"><div class="cmsdg-tabs-controls"><input type="radio" name="cmsdg-tabs-g-tabs" id="cmsdg-tab-g-tab-one" aria-controls="cmsdg-panel-g-tab-one" checked><label for="cmsdg-tab-g-tab-one">Alpha</label><input type="radio" name="cmsdg-tabs-g-tabs" id="cmsdg-tab-g-tab-two" aria-controls="cmsdg-panel-g-tab-two"><label for="cmsdg-tab-g-tab-two">Beta</label></div><div class="cmsdg-tabs-panels"><div class="cmsdg-n-g-tab-one cmsdg-tab-panel" id="cmsdg-panel-g-tab-one"><p class="cmsdg-n-g-t1">Panel one</p></div><div class="cmsdg-n-g-tab-two cmsdg-tab-panel" id="cmsdg-panel-g-tab-two"><p class="cmsdg-n-g-t2">Panel two</p></div></div></div></section>'+
+  '<section id="sec-faq"><details><summary>How?</summary><p>Simple.</p></details></section>'+
+  '<section id="sec-review"><figure class="review"><blockquote>A great site</blockquote><figcaption>Reviewer · Customer</figcaption></figure></section>'+
+  '<section id="sec-cta"><div class="cta-actions"><a class="action" href="/published/pilot-typed/contact/">Contact us</a><a class="action" href="/published/pilot-typed/details/">Details</a></div></section>'+
   '</body></html>';
  const read=markup=>({siteId:mock.siteId,pages:[{id:'page-home',path:'/',html:markup}]});
  const correctComponents=COMPONENTS.review(mock,read(html));
  const correctGraph=GRAPH.review(mock,read(html));
- assert.equal(correctComponents.checkedTypedSections,4);
+ assert.equal(correctComponents.checkedTypedSections,7);
  assert.equal(correctGraph.checkedNodes,8);
  assert.deepEqual(correctComponents.findings,[]);
  assert.deepEqual(correctGraph.findings,[]);
@@ -271,7 +281,9 @@ function actualPublishedComponentAndGraphContracts(){
   'href="/published/pilot-typed/missing/"')
   .replace('id="cms-pane-choice-two"','id="wrong-pane"')
   .replace('aria-controls="cmsdg-panel-g-tab-two"','aria-controls="wrong-panel"')
-  .replace('alt="A &amp; B"','alt="Altered"');
+  .replace('alt="A &amp; B"','alt="Altered"')
+  .replace('<summary>How?</summary>','<summary>Why?</summary>')
+  .replace('<blockquote>A great site</blockquote>','<blockquote>A bad site</blockquote>');
  assert.ok(COMPONENTS.review(mock,read(changed)).findings.some(x=>
   x.code==='php-component:pricing-content'&&x.sectionId==='sec-pricing'));
  assert.ok(COMPONENTS.review(mock,read(changed)).findings.some(x=>
@@ -280,6 +292,10 @@ function actualPublishedComponentAndGraphContracts(){
   x.code==='php-graph:node-content-drift'&&x.graphNodeId==='g-photo'));
  assert.ok(GRAPH.review(mock,read(changed)).findings.some(x=>
   x.code==='php-graph:tabs-control'&&x.graphNodeId==='g-tab-two'));
+ assert.ok(COMPONENTS.review(mock,read(changed)).findings.some(x=>
+  x.code==='php-component:faq-content'&&x.sectionId==='sec-faq'));
+ assert.ok(COMPONENTS.review(mock,read(changed)).findings.some(x=>
+  x.code==='php-component:testimonial-content'&&x.sectionId==='sec-review'));
  const WORKSHEET=require('../lib/first-site-worksheet.cjs');
  const worksheet=WORKSHEET.build({
   site:mock,source:{siteId:mock.siteId,packageVersion:'sealed-v2',
