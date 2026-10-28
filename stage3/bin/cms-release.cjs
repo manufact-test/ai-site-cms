@@ -10,6 +10,8 @@ const die=message=>{throw Error('CMS engine package refused: '+message);};
 const exists=p=>{try{fs.lstatSync(p);return true;}catch(e){if(e.code==='ENOENT')return false;throw e;}};
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const ROOTS=['bin','components','media-motion','runtime-export','schemas','sdk','server','studio'];
+const PHP_ROOTS=['components','media-motion','server','studio'];
+const PROFILES=['full','php-host'];
 const SKIP=new Set(['tests','fixtures','docs','node_modules','.git','coverage','screenshots','out']);
 const EXT=/\.(?:php|cjs|js|jsx|mjs|css|html|json|txt|md)$/i;
 const MAX_FILES=2000,MAX_BYTES=60000000;
@@ -25,7 +27,9 @@ function canonical(dir) {
     die('expected existing canonical absolute directory without symlinks');
   return path.resolve(dir);
 }
-function collect(root,strict=false){
+function collect(root,strict=false,profile='full'){
+  if(!PROFILES.includes(profile))die('unsupported CMS package profile');
+  const roots=profile==='php-host'?PHP_ROOTS:ROOTS;
   const files=[];let bytes=0;
   const visit=(folder,rel)=>{
     const nodes=fs.readdirSync(folder,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name,'en'));
@@ -52,14 +56,15 @@ function collect(root,strict=false){
   const count={value:0};
   const top=path.join(root,'stage3');
   if(!exists(top)||fs.lstatSync(top).isSymbolicLink()||!fs.statSync(top).isDirectory())die('missing or linked runtime root');
-  for(const dir of ROOTS){
+  for(const dir of roots){
     const folder=path.join(root,'stage3',dir);
     if(!exists(folder)||fs.lstatSync(folder).isSymbolicLink()||!fs.statSync(folder).isDirectory())
       die('missing required first-party runtime directory: '+dir);
     visit(folder,'stage3/'+dir);
   }
   files.sort((a,b)=>a.path.localeCompare(b.path,'en'));
-  for(const required of REQUIRED)if(!files.some(f=>f.path===required))
+  const required=profile==='php-host'?REQUIRED.filter(p=>!p.startsWith('stage3/sdk/')&&!p.startsWith('stage3/runtime-export/')):REQUIRED;
+  for(const required of required)if(!files.some(f=>f.path===required))
     die('missing essential engine file: '+required);
   return {files,bytes,fingerprint:sha(Buffer.from(JSON.stringify(files)))};
 }
@@ -67,7 +72,7 @@ function write(directory,manifest){
   const dest=path.join(directory,'cms-release.json');
   fs.writeFileSync(dest,JSON.stringify(manifest,null,2)+'\n',{flag:'wx',mode:0o600});
 }
-function pack(sourceArg,outputArg){
+function pack(sourceArg,outputArg,profile='full'){
   const source=canonical(sourceArg);
   if(!path.isAbsolute(outputArg??'')||exists(outputArg)||outputArg.endsWith(path.sep))
     die('output must be a new absolute directory');
@@ -76,7 +81,7 @@ function pack(sourceArg,outputArg){
     die('output must be outside the source tree');
   const parent=canonical(path.dirname(dest));
   if(path.dirname(dest)!==parent)die('non-canonical output parent');
-  const before=collect(source);
+  const before=collect(source,false,profile);
   fs.mkdirSync(dest,{mode:0o700});
   try{
     for(const file of before.files){
@@ -85,13 +90,13 @@ function pack(sourceArg,outputArg){
       fs.copyFileSync(from,to,fs.constants.COPYFILE_EXCL);
       fs.chmodSync(to,0o600);
     }
-    const after=collect(dest,true);
+    const after=collect(dest,true,profile);
     if(after.fingerprint!==before.fingerprint)die('source changed during packaging');
-    const manifest={format:'manufact-cms-engine-release-v1',
+    const manifest={format:'manufact-cms-engine-release-v1',profile,
       files:after.files,bytes:after.bytes,fingerprint:after.fingerprint,
       sourceTrusted:false,ownerApprovalRequired:true,dbMigrated:false,deployed:false};
     write(dest,manifest);
-    report({action:'pack',directory:dest,files:after.files.length,bytes:after.bytes,
+    report({action:'pack',directory:dest,profile,files:after.files.length,bytes:after.bytes,
       fingerprint:after.fingerprint,deployed:false});
   }catch(e){fs.rmSync(dest,{recursive:true,force:true});throw e;}
 }
@@ -101,28 +106,30 @@ function verify(directory){
   if(!exists(file)||fs.lstatSync(file).isSymbolicLink()||fs.statSync(file).size>400000)
     die('missing or oversized release descriptor');
   const m=JSON.parse(fs.readFileSync(file,'utf8'));
-  if(m.format!=='manufact-cms-engine-release-v1'||m.sourceTrusted!==false
+  if(m.format!=='manufact-cms-engine-release-v1'||!PROFILES.includes(m.profile)||m.sourceTrusted!==false
     ||m.ownerApprovalRequired!==true||m.dbMigrated!==false||m.deployed!==false
     ||!Array.isArray(m.files)||m.files.length>MAX_FILES
     ||!Number.isSafeInteger(m.bytes)||m.bytes<1
     ||!(/^[a-f0-9]{64}$/).test(m.fingerprint))die('invalid release descriptor');
-  const current=collect(root,true);
+  const current=collect(root,true,m.profile);
   if(current.fingerprint!==m.fingerprint||current.bytes!==m.bytes
     ||JSON.stringify(current.files)!==JSON.stringify(m.files))die('release files modified or incomplete');
   // Reject extras in release root, even if their paths would not be copied.
   const extra=fs.readdirSync(root).filter(n=>!['stage3','cms-release.json'].includes(n));
   if(extra.length)die('untracked files in release root');
-  const stage3extra=fs.readdirSync(path.join(root,'stage3')).filter(n=>!ROOTS.includes(n));
+  const roots=m.profile==='php-host'?PHP_ROOTS:ROOTS;
+  const stage3extra=fs.readdirSync(path.join(root,'stage3')).filter(n=>!roots.includes(n));
   if(stage3extra.length)die('untracked runtime directories');
   return {root,manifest:m};
 }
 function compare(oldArg,newArg){
   const old=verify(oldArg).manifest,next=verify(newArg).manifest;
+  if(old.profile!==next.profile)die('cannot compare different engine installation profiles');
   const a=new Map(old.files.map(x=>[x.path,x.sha256]));
   const b=new Map(next.files.map(x=>[x.path,x.sha256]));
   const changed=[...new Set([...a.keys(),...b.keys()])].sort()
     .filter(p=>a.get(p)!==b.get(p));
-  report({action:'compare',oldFingerprint:old.fingerprint,newFingerprint:next.fingerprint,
+  report({action:'compare',profile:old.profile,oldFingerprint:old.fingerprint,newFingerprint:next.fingerprint,
     unchanged:old.fingerprint===next.fingerprint,
     added:changed.filter(p=>!a.has(p)),removed:changed.filter(p=>!b.has(p)),
     modified:changed.filter(p=>a.has(p)&&b.has(p)),
@@ -135,9 +142,10 @@ function report(x){process.stdout.write(JSON.stringify(x,null,2)+'\n');}
 try{
   const [cmd,...args]=process.argv.slice(2);
   if(cmd==='pack'&&args.length===2)pack(args[0],args[1]);
+  else if(cmd==='pack-php-host'&&args.length===2)pack(args[0],args[1],'php-host');
   else if(cmd==='verify'&&args.length===1){
-    const x=verify(args[0]);report({action:'verify',fingerprint:x.manifest.fingerprint,
+    const x=verify(args[0]);report({action:'verify',profile:x.manifest.profile,fingerprint:x.manifest.fingerprint,
       files:x.manifest.files.length,bytes:x.manifest.bytes,valid:true});
   }else if(cmd==='compare'&&args.length===2)compare(args[0],args[1]);
-  else die('usage: pack ABS_SOURCE_REPO ABS_NEW_OUTPUT | verify ABS_RELEASE | compare ABS_OLD_RELEASE ABS_NEW_RELEASE');
+  else die('usage: pack|pack-php-host ABS_SOURCE_REPO ABS_NEW_OUTPUT | verify ABS_RELEASE | compare ABS_OLD_RELEASE ABS_NEW_RELEASE');
 }catch(error){console.error(error.message);process.exitCode=1;}
