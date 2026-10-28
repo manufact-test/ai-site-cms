@@ -140,6 +140,9 @@ function snapshotAudit(snapshot){
  for(const p of pages){
   const source=p.html.replace(/<!--[\s\S]*?-->/g,'').replace(/<(script|style|textarea|template|svg)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
   const ts=tokenize(source),headings=[],links=[];let title='',description='',robots='',canonical='',imageCount=0;
+  const baseHref=ts.find(x=>!x.closing&&x.tag==='base'&&x.attrs.href)?.attrs.href;
+  let linkBase='https://snapshot.invalid'+p.path;
+  try{if(baseHref)linkBase=new URL(baseHref,linkBase).href;}catch{/* Unknown base does not prove a broken link. */}
   const clean=s=>s.replace(/<[^>]+>/g,' ').replace(/&(?:amp|lt|gt|quot|nbsp);/gi,' ').replace(/\s+/g,' ').trim();
   for(let i=0;i<ts.length;i++){
    const t=ts[i];if(t.closing)continue;
@@ -181,7 +184,7 @@ function snapshotAudit(snapshot){
   if(title){const k=normalize(title);if(titles.has(k))issues.push(issue('html:duplicate-title','warning',p.id,p.path,'HTML title duplicates '+titles.get(k)+'.'));else titles.set(k,p.path);}
   for(const href of links){
    if(!href||href.startsWith('#')||href.startsWith('//'))continue;
-   let dest;try{const u=new URL(href,'https://snapshot.invalid'+p.path);if(u.origin!=='https://snapshot.invalid')continue;dest=u.pathname;}catch{continue;}
+   let dest;try{const u=new URL(href,linkBase);if(u.origin!=='https://snapshot.invalid')continue;dest=u.pathname;}catch{continue;}
    if(!paths.has(dest))issues.push(issue(complete?'html:broken-link':'html:target-not-in-snapshot',
     complete?'error':'recommendation',p.id,p.path,
     complete?'Internal link target '+dest+' is missing from the declared complete export.':

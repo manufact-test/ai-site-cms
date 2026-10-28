@@ -5,8 +5,19 @@ const {checkBlueprint}=require('./blueprint.cjs');
 const FORMAT='manufact-seo-viewport-evidence-v1';
 const norm=x=>String(x||'').normalize('NFKC').trim().toLowerCase().replace(/\s+/g,' ');
 const DEVICES=['desktop','tablet','mobile'];
-function hrefs(doc){
- return [...new Set(doc.anchors.map(x=>x.attrs.href||'').filter(x=>x.startsWith('/')&&!x.startsWith('//')).map(x=>x.split('#')[0].split('?')[0]).filter(Boolean))].sort();
+function hrefs(doc,pagePath){
+ let base='https://snapshot.invalid'+pagePath;
+ try{if(doc.baseHref)base=new URL(doc.baseHref,base).href;}catch{/* unverified base; preserve page context */}
+ const routes=[];
+ for(const a of doc.anchors){
+  const raw=a.attrs.href||'';
+  if(!raw||raw.startsWith('#')||raw.startsWith('?')||raw.startsWith('//'))continue;
+  try{
+   const target=new URL(raw,base);
+   if(target.origin==='https://snapshot.invalid')routes.push(target.pathname);
+  }catch{/* malformed href has no trusted destination */}
+ }
+ return [...new Set(routes)].sort();
 }
 function review(captures,blueprint){
  const b=checkBlueprint(blueprint);
@@ -31,7 +42,7 @@ function review(captures,blueprint){
    docs[device]=inspect(c.html);
    signals[device]={method:c.method,headings:docs[device].headings.map(x=>x.text),
     h1:docs[device].headings.filter(x=>x.level===1).map(x=>x.text),
-    links:hrefs(docs[device]),mainCount:docs[device].mainCount,
+    links:hrefs(docs[device],p.path),mainCount:docs[device].mainCount,
     imagesWithAlt:docs[device].images.filter(x=>Object.prototype.hasOwnProperty.call(x,'alt')).length,
     imageCount:docs[device].images.length};
   }

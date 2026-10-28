@@ -15,7 +15,7 @@ function attrs(str){
 }
 function readHead(html){
  const match=/<head(?:\s[^>]*)?>([\s\S]*?)<\/head\s*>/i.exec(html);
- if(!match)return {status:'head-not-supplied',title:null,description:null,ogTitle:null,ogDescription:null,robots:null,canonical:null,h1:null,language:null};
+ if(!match)return {status:'head-not-supplied',title:null,description:null,ogTitle:null,ogDescription:null,robots:null,canonical:null,baseHref:null,h1:null,language:null};
  // Raw script/style text may contain apparent <title> or <meta> markup; never parse it as actual head elements.
  const head=match[1].replace(/<!--[\s\S]*?-->/g,'').replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
  const title=/<title(?:\s[^>]*)?>([\s\S]*?)<\/title\s*>/i.exec(head);
@@ -28,6 +28,7 @@ function readHead(html){
   description:meta('name','description'),ogTitle:meta('property','og:title'),
   ogDescription:meta('property','og:description'),robots:meta('name','robots'),
   canonical:links.find(l=>(l.rel||'').toLowerCase().split(/\s+/).includes('canonical'))?.href??null,
+  baseHref:links.find(l=>(l.rel||'').toLowerCase().split(/\s+/).includes('base'))?.href??(/<base\b([^>]*?)\/?\s*>/i.exec(head)?attrs(/<base\b([^>]*?)\/?\s*>/i.exec(head)[1]).href:null),
   h1:heading?clean(heading[1]):null,language:lang};
 }
 function compare(site,blueprint,snapshot){

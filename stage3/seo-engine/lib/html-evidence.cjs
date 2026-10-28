@@ -16,7 +16,7 @@ function inspect(html){
  const scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)]
   .filter(x=>(attributes(x[1]).type||'').toLowerCase().trim()==='application/ld+json')
   .map(x=>x[2].trim());
- const body=html.replace(/<!--[\s\S]*?-->/g,'').replace(/<(script|style|textarea|svg)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
+ const body=html.replace(/<!--[\s\S]*?-->/g,'').replace(/<(script|style|textarea|template|svg)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
  const elements=[],tag=/<\s*(\/?)\s*([a-z][a-z0-9:-]*)([^<>]*?)>/gi;let m;
  while((m=tag.exec(body))!==null)if(!m[1])elements.push({tag:m[2].toLowerCase(),attrs:attributes(m[3]),offset:m.index});
  const list=name=>elements.filter(x=>x.tag===name);
@@ -60,7 +60,7 @@ function inspect(html){
  const main=list('main');
  return {headings,ids:[...ids.keys()],duplicateIds:[...duplicates],anchors,images:list('img').map(x=>x.attrs),
   links,robots:robots.map(x=>x.attrs.content||''),canonicals:canonical.map(x=>x.attrs.href||''),
-  htmlLang,viewport:mobileSettings,mainCount:main.length,forms,controlCount:controls.length,
+  htmlLang,baseHref:list('base')[0]?.attrs.href||null,viewport:mobileSettings,mainCount:main.length,forms,controlCount:controls.length,
   unlabelledControls:unlabelled.map(x=>({tag:x.tag,id:x.attrs.id||null,name:x.attrs.name||null})),
   ogTitleCount:pickMeta('property','og:title').length,ogDescriptionCount:pickMeta('property','og:description').length,
   structuredDataTypes:[...new Set(schema)],structuredDataErrors:parseErrors,
@@ -84,6 +84,10 @@ function review(snapshot,blueprint=null){
  for(const p of snapshot.pages){
   const d=data.get(p.id),spec=planPages.get(p.id);
   const ids=new Set(d.ids);
+  let linkBase='https://snapshot.invalid'+p.path;
+  try{if(d.baseHref)linkBase=new URL(d.baseHref,linkBase).href;}catch{
+   add('evidence:invalid-base-href','recommendation',p,'Supplied HTML base href could not be resolved; relative links need browser review.');
+  }
   for(const id of d.duplicateIds)add('evidence:duplicate-dom-id','warning',p,'Duplicate HTML id may break fragment navigation and labels.',{fragment:id});
   if(d.mainCount===0)add('evidence:missing-main-landmark','recommendation',p,'No main landmark in supplied static HTML; verify actual page landmark structure.');
   if(d.mainCount>1)add('evidence:multiple-main-landmarks','recommendation',p,'Multiple main landmarks; verify that only intended primary content is exposed.');
@@ -106,7 +110,7 @@ function review(snapshot,blueprint=null){
    // Resolve relative URLs from the CAPTURED page path, not the root origin.
    // This accepts ./, ../, ?query and #fragment without inventing external targets.
    let resolved;
-   try{resolved=new URL(href,'https://snapshot.invalid'+p.path);}catch{continue;}
+   try{resolved=new URL(href,linkBase);}catch{continue;}
    if(resolved.origin!=='https://snapshot.invalid')continue;
    const route=resolved.pathname,hash=resolved.hash.slice(1);
    const target=paths.get(route);

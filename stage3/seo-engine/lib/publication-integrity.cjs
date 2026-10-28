@@ -34,7 +34,6 @@ function review(site,snapshot){
  const findings=[],sitePaths=new Map(site.pages.map(p=>[p.path,p]));
  const sitemap=Array.isArray(snapshot.sitemapPaths)?snapshot.sitemapPaths:null;
  const exhaustive=snapshot.sitemapCompleteness==='complete';
- const capturedById=new Map(snapshot.pages.map(p=>[p.id,p]));
  const add=(code,severity,pageId,path,message,details={})=>
   findings.push({code,severity,pageId:pageId||null,path:path||null,message,...details,
    automatic:false,evidence:'supplied-static-artifact'});
@@ -67,7 +66,8 @@ function review(site,snapshot){
   const raw=head.canonical.trim();
   let canonical;
   try{
-   canonical=new URL(raw,'https://snapshot.invalid'+capture.path);
+   const base=new URL(head.baseHref||capture.path,'https://snapshot.invalid'+capture.path);
+   canonical=new URL(raw,base);
    if(!['https:','http:'].includes(canonical.protocol)||canonical.username||canonical.password)
     throw Error('Invalid canonical scheme');
   }catch{

@@ -325,6 +325,18 @@ try{
  assert.ok(!snapshotAudit(trickyHtml).issues.some(x=>['html:broken-link','html:unlabeled-link'].includes(x.code)));
  assert.equal(require('../lib/parity.cjs').readHead(trickyHtml.pages[0].html).title,'Actual page title');
  assert.equal(require('../lib/html-evidence.cjs').inspect(trickyHtml.pages[0].html).unlabelledControls.length,0);
+ // Relative CTA links are real links at all 3 widths. HTML <base> changes resolution.
+ const relativeDevices=JSON.parse(fs.readFileSync(fixture('industrial.viewports.json'),'utf8'));
+ for(const d of ['desktop','tablet','mobile'])
+  relativeDevices.pages[0].captures[d].html=relativeDevices.pages[0].captures[d].html.replace('href="/contact/"','href="contact/"');
+ const relativeDeviceResult=require('../lib/viewport-evidence.cjs').review(relativeDevices,plan);
+ assert.ok(relativeDeviceResult.pages[0].captures.mobile.links.includes('/contact/'));
+ assert.ok(!relativeDeviceResult.findings.some(x=>x.code==='viewport:planned-cta-route-absent'&&x.pageId==='page-home'));
+ const baseSnapshot=structuredClone(relative);
+ baseSnapshot.pages[1].html=baseSnapshot.pages[1].html.replace('href="more/"','<base href="/"><a href="help/more/"').replace('<a href="help/more/">','<a href="help/more/">');
+ assert.ok(!snapshotAudit(baseSnapshot).issues.some(x=>x.code==='html:broken-link'));
+ assert.ok(!reviewHtml(baseSnapshot).findings.some(x=>x.code==='evidence:link-target-outside-snapshot'));
+ assert.ok(!reviewHtml(trickyHtml).findings.some(x=>x.href==='/ghost/'));
  const unsupported=command('review-bundle',{site,blueprint:bp,unknown:'invalid'});
  assert.notEqual(unsupported.status,0);
  const {inspect:inspectEvidence}=require('../lib/html-evidence.cjs');
