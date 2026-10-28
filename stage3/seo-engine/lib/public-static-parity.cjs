@@ -210,7 +210,8 @@ function compare(site,release,http,media=null){
   negativeRouteStatus:negative?.status??null,negativeRouteProbed:Boolean(negative),
   pages:Object.freeze(pages),assets:Object.freeze(assets),
   auxiliary:Object.freeze(auxiliary),findings:Object.freeze(findings),
-  allComparedSurfacesMatched:blockers===0&&Boolean(media)&&
+  allComparedSurfacesMatched:blockers===0&&Boolean(negative)&&
+   [404,410].includes(negative.status)&&Boolean(media)&&
    assets.length===(site.assets||[]).length&&assets.every(x=>x.checked&&x.matched),
   httpTranscriptAuthenticated:false,actualHostRequestsByThisReview:0,
   publicSiteApproval:false,
