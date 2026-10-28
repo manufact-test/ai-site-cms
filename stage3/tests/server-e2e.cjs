@@ -2108,6 +2108,30 @@ async function stop(){
 
   // Full URL rename flow through the same validated SDK used by Studio.
   const urlSite=structuredClone(fixture);urlSite.siteId='site-url-ci';
+  const english=structuredClone(urlSite);
+  english.siteId='site-english-thanks';
+  english.language='en';
+  english.pages[1].sections.push(csdk.sectionFrom(
+    richDefs.find(def=>def.id==='lead-form'),'section-english-form'));
+  const createdEn=await request('POST','/api/sites',{site:english});
+  assert.equal(createdEn.status,201,JSON.stringify(createdEn.body));
+  assert.equal((await request('POST','/api/sites/site-english-thanks/publish',
+    {expectedRevision:1})).status,200);
+  const enPage=(await request('GET','/published/site-english-thanks/contact/')).body;
+  assert.match(enPage,/name="_return" value="\/published\/site-english-thanks\/contact\/"/);
+  const enToken=/name="_token" value="([a-f0-9]{64})"/.exec(enPage)?.[1];
+  assert.ok(enToken);
+  const responseEn=await fetch(origin+'/forms/site-english-thanks/section-english-form',{
+    method:'POST',headers:{origin,'content-type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({_release:'1',_token:enToken,_return:'/published/site-english-thanks/contact/',
+      website:'',name:'A Customer',email:'customer@example.test',
+      message:'Please tell me about your services.',consent:'yes'})});
+  assert.equal(responseEn.status,201);
+  const enReceipt=await responseEn.text();
+  assert.match(enReceipt,/<html lang="en">/);
+  assert.match(enReceipt,/Thank you! Your request has been saved/);
+  assert.match(enReceipt,/Return to website/);
+  assert.match(enReceipt,/href="\/published\/site-english-thanks\/contact\/"/);
   const urlCreated=await request('POST','/api/sites',{site:urlSite});
   assert.equal(urlCreated.status,201,JSON.stringify(urlCreated.body));
   assert.equal((await request('POST','/api/sites/site-url-ci/publish',{expectedRevision:1})).status,200);
