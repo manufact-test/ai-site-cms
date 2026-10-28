@@ -54,6 +54,11 @@ function compare(site,release,http,media=null){
    actualHostRequestsByThisReview:0,publicSiteApproval:false});
   accepted.add(unscoped);return unscoped;
  }
+ const rootWindow=http.rootRecheck;
+ if(!rootWindow)add('public-root-not-rechecked','warning',null,
+  'No final root HTML/status SHA256 recheck was supplied after public page/media capture; deployment consistency is unverified.');
+ else if(!rootWindow.matched)add('public-root-window-drift','error',null,
+  'Public static homepage changed during page/media evidence collection; discard this mixed release evidence.');
  const negative=http.negativeProbe;
  if(!negative)add('negative-route-not-captured','warning',null,
   'Public HTTPS transcript does not include the safe nonexistent-route probe; soft-404 behavior is unverified.');
@@ -208,9 +213,11 @@ function compare(site,release,http,media=null){
   checkedSearchFiles:auxiliary.filter(x=>x.checked).length,
   checkedRedirects:Math.min(redirects.length,release.redirects.size),
   negativeRouteStatus:negative?.status??null,negativeRouteProbed:Boolean(negative),
+  publicRootWindowRechecked:Boolean(rootWindow),
+  publicRootWindowStable:rootWindow?.matched??null,
   pages:Object.freeze(pages),assets:Object.freeze(assets),
   auxiliary:Object.freeze(auxiliary),findings:Object.freeze(findings),
-  allComparedSurfacesMatched:blockers===0&&Boolean(negative)&&
+  allComparedSurfacesMatched:blockers===0&&rootWindow?.matched===true&&Boolean(negative)&&
    [404,410].includes(negative.status)&&Boolean(media)&&
    assets.length===(site.assets||[]).length&&assets.every(x=>x.checked&&x.matched),
   httpTranscriptAuthenticated:false,actualHostRequestsByThisReview:0,
