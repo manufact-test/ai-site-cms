@@ -10,7 +10,7 @@ const die=message=>{throw Error('CMS engine package refused: '+message);};
 const exists=p=>{try{fs.lstatSync(p);return true;}catch(e){if(e.code==='ENOENT')return false;throw e;}};
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const ROOTS=['bin','components','media-motion','runtime-export','schemas','sdk','server','studio'];
-const SKIP=new Set(['tests','fixtures','docs','node_modules','.git','coverage','screenshots']);
+const SKIP=new Set(['tests','fixtures','docs','node_modules','.git','coverage','screenshots','out']);
 const EXT=/\.(?:php|cjs|js|jsx|mjs|css|html|json|txt|md)$/i;
 const MAX_FILES=2000,MAX_BYTES=60000000;
 const REQUIRED=[
