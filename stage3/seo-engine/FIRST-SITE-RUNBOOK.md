@@ -155,3 +155,10 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 Команда и flags прежние (`--published-site` нужен для реального CMS media remap, `--php-capture` добавляет снимки по желанию); изменение опубликованного состояния CMS и отправка POST не выполняются.
 
 Целевой smoke: `node stage3/seo-engine/tests/php-html-capture-smoke.cjs` (в нём добавлены корректный HTML и намеренно испорченные CSS tabs, CTA, media ALT, связь panel, а также worksheet). Следом один раз `node stage3/seo-engine/tests/smoke.cjs`. В worker проверены JS parse и несколько локальных isolated JS scenarios, но полный Node subprocess и настоящий PHP/клиентский пакет всё ещё только у ведущего.
+
+
+### Расширение реального компонента PHP: 14 типов вместо четырёх
+
+К `php-local-components.cjs` дополнительно подключены **FAQ, карточки услуг, отзывы, photo-gallery, adaptive-gallery, логотипы партнёров, CTA-banner, contact-panel, image-showcase, media-story**. Для каждого типа сопоставляются фактически отданные PHP HTML структура/содержание и элементы из sealed Site v1, где применимо: вопросы/ответы, услуги, подписи/авторы, image src/ALT/caption, внутренние и внешние CTA destination и видимые цены. Нет DOM исполнения, нет запроса к внешнему URL и нет изменения сайта. Нарушения — существующий `local-php-component-parity` release blocker с `sectionId` и `pageId`.
+
+Репрезентативные валидные и намеренно сломанные FAQ/testimonial/CTA добавлены в *тот же* `php-html-capture-smoke.cjs`; pure JS smoke этих актуальных модулей прошёл. Полный Node subprocess/реальный PHP первого клиента по-прежнему обязан выполнить ведущий.

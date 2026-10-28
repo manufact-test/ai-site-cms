@@ -290,3 +290,8 @@ Local PHP HTML capture now runs **source-bound** inspection of official business
 The first-site CLI now writes a fourth report file, `launch-worksheet.md`, next to `summary.json`, `bundle.json`, `handoff.md`. It gives verified actual findings and section/node locators for each page, separately lists availability of three matching approved prototype references and actual lead screenshot files, and deliberately leaves all human desktop/tablet/mobile approval, submission delivery, HTTPS and version-authentication checks **unsigned**. Generated worksheets do not expose raw HTML/HMAC values.
 
 The existing `tests/php-html-capture-smoke.cjs` now includes valid and deliberately broken business/graph HTML and worksheet scenarios. Isolated JS/V8 checks passed; full Node subprocess, actual PHP client publication, browser visual matching and form POST have not been claimed. See FIRST-SITE-RUNBOOK.md.
+
+
+## 14 published PHP components audited against approved Site v1
+
+The source-bound PHP component reviewer now covers 14 first-party public components: business-pricing/process/switcher/comparison plus FAQ, service cards, testimonials, photo-gallery, adaptive-gallery, partner logos, CTA banner, contact panel, image showcase, and media story. Image and ALT bindings, rendered caption/quote content and critical CTA addresses are compared to current Site v1. All findings route to existing release and task infrastructure; no new site editor, network crawler or autobuild system is introduced. See FIRST-SITE-RUNBOOK.md.
