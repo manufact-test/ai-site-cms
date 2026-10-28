@@ -233,6 +233,9 @@ function compare(site,release,http,media=null,byteReport=null){
    method:getMatched?'public-get-sha256':'public-head',
    contentLengthMatches:actual.contentLength===undefined?null:actual.contentLength===releaseAsset.bytes});
  }
+ if(!media&&assets.some(x=>!x.checked))
+  add('public-media-coverage-incomplete','warning',null,
+   'Public static asset delivery is not completely observed: provide media HEAD or complete original/variant SHA256 GET receipts.');
  const blockers=findings.filter(x=>x.severity==='error').length;
  const out=Object.freeze({format:FORMAT,siteId:site.siteId,
   claimedPublicOrigin:http.origin,officialPublicOrigin:claim,comparisonScope:'root-static-https',
