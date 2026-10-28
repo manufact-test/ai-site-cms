@@ -124,11 +124,25 @@ async function execute(){
     return site;
   });
   fs.writeFileSync(path.join(folder,'site.json'),JSON.stringify(external));
+  const interiorPage=external.pages.find(item=>item.path!=='/');
+  assert.ok(interiorPage,'Second page required to verify independent approved mockups');
+  for(const bp of ['desktop','tablet','mobile'])
+    fs.writeFileSync(path.join(folder,'prototypes','interior-'+bp+'.png'),examplePng);
   // The complete mockup/spec/site/media handoff is sealed before browser import.
   // It must be checked again by Studio against original bytes before any POST.
   const lockFile=path.join(folder,'handoff.json');
   const descriptor=JSON.parse(fs.readFileSync(lockFile,'utf8'));
-  const filePaths=[...Object.values(descriptor.files),
+  descriptor.files.pagePrototypes={
+    [interiorPage.id]:{
+      desktop:'prototypes/interior-desktop.png',
+      tablet:'prototypes/interior-tablet.png',
+      mobile:'prototypes/interior-mobile.png'
+    }
+  };
+  const filePaths=[...Object.entries(descriptor.files).filter(([key])=>key!=='pagePrototypes')
+    .map(([,v])=>v),
+    ...Object.values(descriptor.files.pagePrototypes).flatMap(devices=>
+      ['desktop','tablet','mobile'].map(bp=>devices[bp])),
     ...external.assets.flatMap(asset=>[asset.src.slice(1),
       ...(asset.variants||[]).map(v=>v.src.slice(1))])];
   descriptor.format='manufact-approved-site-handoff-v2';
@@ -272,11 +286,16 @@ async function execute(){
   assert.equal(originalEvidence.length,1,'Import automatically creates one approved v2 evidence package');
   const approvedPack=originalEvidence[0];
   assert.equal(approvedPack.complete,true,'All seven original approval documents are retained');
-  assert.equal(Object.keys(approvedPack.files).length,7);
+  assert.equal(Object.keys(approvedPack.files).length,10);
+  assert.equal(Object.keys(approvedPack.pageReferences).length,1);
+  assert.equal(approvedPack.pageReferences[interiorPage.id].desktop,'ref-0-desktop');
   for(const [kind,fileName] of Object.entries({
     handoff:'handoff.json',site:'site.json',
     desktop:'prototypes/desktop.png',tablet:'prototypes/tablet.png',mobile:'prototypes/mobile.png',
-    clientExplanation:'client-explanation.md',implementationSpec:'implementation-spec.md'
+    clientExplanation:'client-explanation.md',implementationSpec:'implementation-spec.md',
+    'ref-0-desktop':'prototypes/interior-desktop.png',
+    'ref-0-tablet':'prototypes/interior-tablet.png',
+    'ref-0-mobile':'prototypes/interior-mobile.png'
   })){
     const archived=await page.request.get(evidenceRoute+'/'+approvedPack.packageSha+'/'+kind);
     assert.equal(archived.status(),200,'Only owner may read private evidence '+kind);
@@ -324,7 +343,7 @@ async function execute(){
   assert.equal(realBackupResponse.status(),200);
   const realBackup=await realBackupResponse.json();
   assert.equal(realBackup.format,'manufact-site-backup-v2');
-  assert.equal(realBackup.payload.approvalEvidence.length,7);
+  assert.equal(realBackup.payload.approvalEvidence.length,10);
   const copyId='site-approved-recovery';
   const creds=await (await page.request.get(origin+'/api/session')).json();
   const recoveryHeaders={'x-csrf-token':creds.csrfToken};
@@ -333,7 +352,7 @@ async function execute(){
   });
   assert.equal(recoveryPlan.status(),200,await recoveryPlan.text());
   const recoveryInfo=await recoveryPlan.json();
-  assert.equal(recoveryInfo.plan.approvalFiles,7);
+  assert.equal(recoveryInfo.plan.approvalFiles,10);
   assert.equal(recoveryInfo.plan.approvalPackages,1);
   assert.equal(recoveryInfo.plan.willPublish,false);
   assert.equal((await page.request.get(origin+'/api/sites/'+copyId)).status(),404,
@@ -371,6 +390,8 @@ async function execute(){
   assert.equal(restoredIndex.packages[0].packageSha,approvedPack.packageSha,
     'Original approved package checksum survives isolated copy');
   assert.equal(restoredIndex.packages[0].complete,true);
+  assert.equal(restoredIndex.packages[0].pageReferences[interiorPage.id].mobile,
+    'ref-0-mobile','Restored vault retains page-specific references');
   for(const kind of Object.keys(approvedPack.files)){
     const sourceBytes=await (await page.request.get(
       evidenceRoute+'/'+approvedPack.packageSha+'/'+kind)).body();
@@ -458,6 +479,16 @@ async function execute(){
     /SHA-256 проверен/,'Launch review compares against verified original image from vault');
   assert.match(await page.locator('#server-launch-approval-summary').innerText(),
     /Исходные утверждённые макеты/);
+  await page.locator('#server-launch-pages [data-page-id="'+interiorPage.id+'"]').click();
+  await page.locator('#server-launch-compare-modes [data-compare-mode="approved-compare"]').click();
+  await page.waitForFunction(()=>{
+    const image=document.querySelector('#server-launch-reference-image');
+    return Boolean(image?.src?.startsWith('blob:')&&image.complete&&image.naturalWidth>0);
+  },null,{timeout:15000});
+  assert.match(await page.locator('#server-launch-reference-viewport').innerText(),
+    /SHA-256 проверен/);
+  await page.locator('#server-launch-pages button').first().click();
+  await page.locator('#server-launch-compare-modes [data-compare-mode="approved-compare"]').click();
   await page.locator('#server-launch-modes [data-device="mobile"]').click();
   await page.waitForFunction(()=>{
     const status=document.querySelector('#server-launch-preview-status')?.textContent||'';
