@@ -2,6 +2,7 @@
 // Evidence collection manifest for the LEAD on the first real site.
 // Never fetch, invent HTTP statuses, claim visual approval, or produce a second editor.
 const {checkBlueprint}=require('./blueprint.cjs');
+const PUBLISHER=require('./publisher-media.cjs');
 const FORMAT='manufact-seo-capture-plan-v1';
 function originUrl(origin,route){
  if(!origin)return null;
@@ -33,9 +34,11 @@ function build(site,blueprint,publicOrigin=null){
     pagePerformance:'real browser/lab or field measurement after deployment'
    },evidenceState:'not-collected-by-toolkit',automaticPass:false};
  });
+ const chosen=PUBLISHER.inventory(site);
  const known=new Set(site.assets.map(a=>a.id));
  const media=site.assets.map(a=>({assetId:a.id,source:a.src,url:originUrl(publicOrigin,a.src),
-  mime:a.mime,ogReferencedBy:site.pages.filter(p=>p.seo?.ogImage===a.id).map(p=>p.id),
+  mime:a.mime,ogReferencedBy:chosen.filter(p=>p.asset?.id===a.id).map(p=>p.pageId),
+  ogSelectionSources:chosen.filter(p=>p.asset?.id===a.id).map(p=>({pageId:p.pageId,source:p.source})),
   expectedBytes:null,verifiedMime:null,verifiedStatus:null,
   capture:['final-response-url','http-status','content-type','content-length','intrinsic-dimensions-if-known'],
   needManualAltReview:true}));
@@ -51,6 +54,8 @@ function build(site,blueprint,publicOrigin=null){
    assetsToCapture:media.length,referencedOgAssets:media.filter(a=>a.ogReferencedBy.length).length,
    httpResponsesActuallyCaptured:0,visualApprovalsActuallyCompleted:0},
   pages:active,missingPlannedPages:absent,media,invalidOgReferences:missingOg,
+  ogSelection:chosen.map(x=>({pageId:x.pageId,assetId:x.asset?.id||null,
+   source:x.source,sectionId:x.sectionId})),
   resources:[
    {kind:'robots',route:'/robots.txt',candidateUrl:host?host+'/robots.txt':null,
     expectedStatus:'200 only if deployed publisher exposes it',

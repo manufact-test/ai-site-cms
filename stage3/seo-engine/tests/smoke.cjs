@@ -435,7 +435,28 @@ try{
  const damagedPackage=JSON.parse(good('review-bundle',{site:capturedMediaSitePath,blueprint:bp,media:capturedMediaPath}));
  assert.equal(damagedPackage.mediaEvidence.coverage.capturedKnownResources,1);
  assert.equal(damagedPackage.traceability.pages[0].mediaEvidence.ogImageAssetId,'asset-og-demo');
-  // Non-OG asset failures must not become misleading social-card release blockers.
+  // The actual publisher picks fallback OG images from legacy fields and Design Graph.
+ const SOCIAL=require('../lib/publisher-media.cjs');
+ const mediaFallbackSite=structuredClone(capturedMediaSite);
+ delete mediaFallbackSite.pages[0].seo.ogImage;
+ mediaFallbackSite.pages[0].sections[0].elements.push({
+  id:'section-home-social-image',slot:'image',values:{'content.media':'asset-og-demo'}});
+ const fallbackSelect=SOCIAL.select(mediaFallbackSite,mediaFallbackSite.pages[0]);
+ assert.equal(fallbackSelect.asset.id,'asset-og-demo');
+ assert.equal(fallbackSelect.source,'section-content.media');
+ const socialEvidence=structuredClone(capturedMedia);
+ socialEvidence.resources[0].status=404;
+ const fallbackResult=require('../lib/media-delivery.cjs').review(mediaFallbackSite,socialEvidence);
+ assert.ok(fallbackResult.findings.some(x=>x.code==='media:resource-status-error'&&x.severity==='error'));
+ const mediaGraphSite=structuredClone(capturedMediaSite);
+ delete mediaGraphSite.pages[0].seo.ogImage;
+ mediaGraphSite.pages[0].sections[0].designGraph={nodes:[{
+  id:'demo-container',type:'container',children:[{id:'demo-image',type:'image',assetId:'asset-og-demo'}]
+ }]};
+ assert.equal(SOCIAL.select(mediaGraphSite,mediaGraphSite.pages[0]).source,'section-designGraph-image');
+ const fallbackCapture=require('../lib/capture-plan.cjs').build(mediaFallbackSite,plan);
+ assert.equal(fallbackCapture.media[0].ogReferencedBy[0],'page-home');
+ // Non-OG asset failures must not become misleading social-card release blockers.
  const unusedMediaSite=structuredClone(capturedMediaSite);
  unusedMediaSite.assets.push({id:'asset-unused',src:'/assets/unused.jpg',mime:'image/jpeg',alt:''});
  const unusedEvidence=structuredClone(capturedMedia);

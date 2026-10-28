@@ -2,6 +2,7 @@
 // Site v1 media assets, supplied HTTP responses and HTML OG image references.
 // Read-only, no image retrieval or browser rendering. Do not infer image accessibility
 // or social sharing appearance from metadata strings alone.
+const PUBLISHER=require('./publisher-media.cjs');
 const FORMAT='manufact-seo-media-evidence-v1',OUTPUT='manufact-seo-media-review-v1';
 const pathPattern=/^\/assets\/[a-zA-Z0-9/_-]+\.(?:png|webp|jpe?g|svg|mp4)$/;
 const MIME={'image/png':'image/png','image/jpeg':'image/jpeg','image/webp':'image/webp',
@@ -66,7 +67,8 @@ function review(site,evidence,htmlSnapshot=null){
   htmlSnapshot.siteId&&htmlSnapshot.siteId!==site.siteId||!Array.isArray(htmlSnapshot.pages)))
   throw Error('Invalid HTML capture for media review');
  const assets=new Map(site.assets.map(a=>[a.id,a]));
- const referencedOg=new Set(site.pages.map(p=>p.seo?.ogImage).filter(Boolean));
+ const socialImages=PUBLISHER.inventory(site);
+ const referencedOg=new Set(socialImages.map(x=>x.asset?.id).filter(Boolean));
  const reports=new Map(),issues=[];
  const add=(code,severity,pageId,path,message,extra={})=>issues.push({
   code,severity,pageId:pageId||null,path:path||null,message,...extra,
@@ -80,12 +82,12 @@ function review(site,evidence,htmlSnapshot=null){
    'Captured media URL differs from the current site asset path.',{assetId:a.id,expectedUrl:expected,observedUrl:actual.href});
   if(r.status<200||r.status>=300)
    add('media:resource-status-error',r.status>=400&&referencedOg.has(a.id)?'error':'warning',null,a.src,
-    'Captured media resource has a non-success status; only a failed referenced OG image is a release blocker.',
+    'Captured media has a non-success status; the explicit or fallback published OG image is critical.',
     {assetId:a.id,status:r.status});
   const observedMime=r.contentType.split(';')[0].trim().toLowerCase();
   if(r.status>=200&&r.status<300&&observedMime!==a.mime.toLowerCase())
    add('media:resource-mime-mismatch',referencedOg.has(a.id)?'error':'warning',null,a.src,
-    'Captured Content-Type does not agree with Site v1 asset MIME; only a referenced OG image mismatch is a release blocker.',
+    'Captured MIME disagrees with Site v1; mismatch on a publisher-selected OG image is critical.',
     {assetId:a.id,expectedMime:a.mime,observedMime});
   if(r.status===200&&r.contentLength!==undefined&&r.contentLength>10*1024*1024)
    add('media:heavy-asset','recommendation',null,a.src,
@@ -98,18 +100,19 @@ function review(site,evidence,htmlSnapshot=null){
  const complete=evidence.completeness==='complete';
  const used=new Set();
  for(const p of site.pages){
-  const a=p.seo?.ogImage?assets.get(p.seo.ogImage):null;
+  const choice=socialImages.find(x=>x.pageId===p.id);
+  const a=choice?.asset||null;
   if(!a)continue;
   used.add(a.id);
   if(!a.mime.startsWith('image/'))add('media:og-image-not-image','error',p.id,p.path,
    'Site v1 OG media reference must point to an image asset.',{assetId:a.id});
   if(complete&&!reports.has(a.id))add('media:og-resource-not-captured','warning',p.id,p.path,
-   'Referenced OG media is absent from explicitly complete media evidence.',{assetId:a.id});
+   'Selected public OG media is absent from explicitly complete media evidence.',{assetId:a.id});
   const h=htmlSnapshot?.pages?.find(x=>x.id===p.id&&x.path===p.path);
   if(h&&typeof h.html==='string'){
    const tags=metaTags(h.html),og=tags.filter(x=>x.property==='og:image');
    if(og.length===0)add('media:og-meta-missing','warning',p.id,p.path,
-    'Supplied HTML lacks og:image despite a Site v1 OG image reference.',{assetId:a.id});
+    'Supplied HTML lacks og:image despite an explicit or publisher-fallback OG image.',{assetId:a.id});
    if(og.length>1)add('media:multiple-og-images','recommendation',p.id,p.path,
     'Several og:image declarations appear; review intentional fallbacks.',{assetId:a.id});
    const expected=publicUrl(evidence.origin,a.src).href;
@@ -131,6 +134,8 @@ function review(site,evidence,htmlSnapshot=null){
   origin:evidence.origin,completeness:complete?'declared-complete':'partial-or-unknown',
   coverage:{siteAssets:site.assets.length,capturedKnownResources:reports.size,
    referencedOgImageAssets:used.size,missingResourceIds:uncaptured,
+   socialImageSelection:socialImages.map(x=>({pageId:x.pageId,assetId:x.asset?.id||null,
+    source:x.source,sectionId:x.sectionId})),
    sampledHtmlPages:htmlSnapshot?.pages?.length??null,
    authenticatedHttpRequests:0,visuallyApprovedImages:0},
   resources:[...reports.values()],findings:issues,releaseAuthorized:false,
