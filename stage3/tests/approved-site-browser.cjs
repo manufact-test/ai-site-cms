@@ -453,6 +453,29 @@ async function execute(){
     origin+'/api/sites/'+copyId+'/approval-evidence')).status(),401);
 
   
+  // Real owner edit, not just JSON validation: change a multirow table, add
+  // a gallery photo and edit quote attribution inside the existing Studio.
+  // The final saved+published PHP output must reflect those exact operations.
+  await page.locator('#sections .nav-entry').nth(3).click();
+  await page.locator('#section-design-graph').click();
+  await page.locator('#cms-design-graph-dialog').waitFor();
+  await page.locator('#cms-design-node-select').selectOption('approved-rich-table');
+  await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Строка',exact:true}).click();
+  await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Столбец',exact:true}).click();
+  await page.locator('#cms-design-node-select').selectOption('approved-rich-gallery');
+  await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Фото',exact:true}).click();
+  await page.locator('#cms-design-node-select').selectOption('approved-rich-quote');
+  await page.locator('#cms-design-graph-dialog label')
+    .filter({hasText:'Автор или источник цитаты'}).locator('input').fill('Технический редактор');
+  await page.locator('#cms-design-apply').click();
+  const authored=await page.evaluate(()=>{
+    const graph=window.Stage3Editor.getSite().pages[0].sections.find(x=>x.id==='section-approved-custom').designGraph;
+    const find=id=>graph.nodes.find(x=>x.id===id);
+    return {rows:find('approved-rich-table').children.length,
+      columns:find('approved-rich-table').children[0].children.length,
+      gallery:find('approved-rich-gallery').children.length,cite:find('approved-rich-quote').cite};
+  });
+  assert.deepEqual(authored,{rows:4,columns:4,gallery:3,cite:'Технический редактор'});
   assert.notEqual(imported.assets[0].id,'asset-external-hero','Server gives immutable site-owned asset ID');
   assert.equal(imported.pages[0].seo.ogImage,imported.assets[0].id,'SEO media reference remapped');
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),404,
@@ -563,12 +586,12 @@ async function execute(){
   assert.equal(await visitor.locator('.cmsdg-n-approved-custom-copy').innerText(),
     'Особенный согласованный дизайн',
     'Custom AI composition renders from the external Design Graph, not a fixed template');
-  assert.equal(await visitor.locator('.cmsdg-n-approved-rich-table tbody tr').count(),2,
+  assert.equal(await visitor.locator('.cmsdg-n-approved-rich-table tbody tr').count(),3,
     'PHP publication renders rows from the imported typed table');
-  assert.equal(await visitor.locator('.cmsdg-n-approved-rich-table thead th').count(),3);
-  assert.equal(await visitor.locator('.cmsdg-n-approved-rich-gallery img').count(),2,
+  assert.equal(await visitor.locator('.cmsdg-n-approved-rich-table thead th').count(),4);
+  assert.equal(await visitor.locator('.cmsdg-n-approved-rich-gallery img').count(),3,
     'Published gallery uses actual site-owned photos');
-  assert.match(await visitor.locator('.cmsdg-n-approved-rich-quote').innerText(),/Подпись для цитаты/);
+  assert.match(await visitor.locator('.cmsdg-n-approved-rich-quote').innerText(),/Технический редактор/);
   assert.equal(await visitor.locator('.cmsdg-n-approved-rich-link').getAttribute('href'),'/');
   const remoteImage=visitor.locator('section.showcase img.showcase-photo');
   assert.equal(await remoteImage.getAttribute('alt'),'Фото внешнего сайта');
