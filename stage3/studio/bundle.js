@@ -810,6 +810,7 @@ function validateSite(raw,regInput){
         }
       }else if(own(section,'items'))fail('Unregistered repeat items',section.id);
       validateFormFields(section);
+      if(section.component==='custom-section'&&!own(section,'designGraph'))fail('Custom section requires a Design Graph',section.id);
       if(own(section,'designGraph'))GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens,assetMimes);
     }
   }
