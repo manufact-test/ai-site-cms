@@ -1227,7 +1227,13 @@ async function execute(){
     'Migrated route remains private until separately published');
   await page.locator('#server-site-select').selectOption(siteId);
   await page.locator('#server-open').click();
-  await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();
+  // A prior published status can match before the API finishes opening
+  // the requested site; wait until this exact site is loaded and not busy.
+  await page.waitForFunction(expected=>{
+    const picker=document.getElementById('server-site-select');
+    return window.Stage3Editor.getSite().siteId===expected &&
+      picker && !picker.disabled;
+  },siteId,{timeout:20000});
   // ONE critical real-browser path for the approved external folder: the PHP
   // server must store asset bytes before accepting any references to them.
   // Tiny synthetic design images exercise transport only, not visual acceptance.

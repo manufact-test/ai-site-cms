@@ -1837,6 +1837,8 @@
     launchReviewButton.disabled=!available;
     operationsButton.hidden=!isOwner();operationsButton.disabled=!available||!isOwner();
     techOpen.disabled=!available||!state.authorized;
+    const approvedImport=document.getElementById('server-approved-import');
+    if(approvedImport)approvedImport.disabled=state.busy||!state.authorized||!isOwner();
     $('server-open').disabled=state.busy||!state.authorized||!picker.value;
     $('server-site-select').disabled=state.busy||!state.authorized;
     $('server-logout').disabled=state.busy||!state.authorized;
