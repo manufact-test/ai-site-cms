@@ -3324,8 +3324,9 @@
                 approvalUrls.add(url);
                 const img=element('img');img.alt='Утверждённый макет '+pageImage.pageId+' '+pageImage.bp;
                 Object.assign(img.style,{display:'block',width:'100%',maxHeight:'450px',objectFit:'contain'});
-                await img.decode?.().catch(()=>{});
-                fileRow.append(img);img.src=url;reveal.disabled=true;
+                fileRow.append(img);img.src=url;
+                await img.decode().catch(()=>{});
+                reveal.disabled=true;
               }));
               fileRow.append(reveal);
             }

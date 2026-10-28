@@ -1,6 +1,6 @@
 # External approved website: folder handoff
 
-**Purpose:** Connect an externally developed **finished site**, built only after client approval of three static prototype images. This is neither a PNG-to-code converter nor evidence that the client really approved; the operator must confirm approval. The design/specification files stay in the portable folder for future AI update work, not in the CMS database.
+**Purpose:** Connect an externally developed **finished site**, built only after client approval of three static prototype images. This is neither a PNG-to-code converter nor evidence that the client really approved; the operator must confirm approval. The original sealed folder remains the portable source of truth. Sealed v2 source evidence is also stored in the private owner-only CMS archive after import.
 
 ```text
 approved-site/
@@ -35,7 +35,7 @@ The `site.json` is the actual completed site contract (`manufact-ai-site-v1`) us
 
 In authenticated server Studio, the owner chooses **Подключить готовый сайт**, picks the folder in a Chromium-compatible directory picker, and confirms the real client approval. The existing typed validator checks the actual site JSON. The existing authenticated API first creates a nonpublished seed (because createSite forbids unstored images), stores each real image into this site's isolated database, issues new immutable IDs, and Save replaces the seed with the fully mapped site manifest. Current page/FAQ/SEO/image editing, Publish and rollback work via the existing CMS path. No network requests to AI providers; no publication without separate user action.
 
-Limitations of this first vertical handoff: images are PNG/JPEG/WebP up to 450 KB per source and variant, at most three supported responsive variants, site.json <=500 KB, prototype image <=8 MB; SVG and MP4 need separate current Studio flows. Client explanation and portable specification are required to be present but qualitative review is human. Errors stop import; after remote creation a recoverable *unpublished* partial seed may remain, never a half-published site. Preserve the original local folder; currently CMS does not archive the client prototype files. Unsupported custom HTML components are a future contract integration task, not automatically 'converted'.
+Limitations of this first vertical handoff: images are PNG/JPEG/WebP up to 450 KB per source and variant, at most three supported responsive variants, site.json <=500 KB, prototype image <=8 MB; SVG and MP4 need separate current Studio flows. Client explanation and portable specification are required to be present but qualitative review is human. Errors stop import; after remote creation a recoverable *unpublished* partial seed may remain, never a half-published site. Preserve the original local folder; sealed v2 imports also retain private immutable approved prototypes, source JSON and descriptions in the CMS. Unsupported custom HTML components are a future contract integration task, not automatically 'converted'.
 
 ## Individual AI-authored sections (no fixed templates)
 
