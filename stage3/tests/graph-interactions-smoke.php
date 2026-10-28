@@ -131,4 +131,26 @@ $badPopup=$popupSite;
 $badPopup['pages'][0]['sections'][2]['designGraph']['nodes'][count($badPopup['pages'][0]['sections'][2]['designGraph']['nodes'])-3]['popupTarget']='foreign-popup';
 try{$validator->validate($badPopup);throw new RuntimeException('foreign popup target allowed');}
 catch(InvalidArgumentException $expected){}
+$effectsSite=$popupSite;
+$effectsSite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+  'id'=>'graph-visual-effects','type'=>'container',
+  'styles'=>['shadowFine'=>['x'=>-8,'y'=>16,'blur'=>30,'spread'=>0,'color'=>'#122334','inset'=>false]],
+  'children'=>[
+    ['id'=>'graph-scroll-motion','type'=>'text','text'=>'Появляется при прокрутке',
+      'motion'=>['effect'=>'fade-up','duration'=>620,'delay'=>0,'trigger'=>'scroll','easing'=>'ease-in-out']],
+    ['id'=>'graph-hover-action','type'=>'button','href'=>'/','text'=>'Далее',
+      'states'=>['hover'=>['scalePercent'=>106],'active'=>['scalePercent'=>95]],
+      'transition'=>['duration'=>240,'easing'=>'ease-in-out']]
+  ]];
+$validator->validate($effectsSite);
+$effectsHtml=PublicRenderer::html($effectsSite,'/');
+graphTest(str_contains($effectsHtml,'box-shadow:-8px 16px 30px 0px #122334')&&
+  str_contains($effectsHtml,'animation-timeline:view(block)')&&
+  str_contains($effectsHtml,'transition:color 240ms ease-in-out')&&
+  str_contains($effectsHtml,'scale:1.06'),'PHP scroll / fine shadow / hover interaction parity');
+$badEffect=$effectsSite;
+$last=count($badEffect['pages'][0]['sections'][2]['designGraph']['nodes'])-1;
+$badEffect['pages'][0]['sections'][2]['designGraph']['nodes'][$last]['styles']['shadowFine']['blur']=161;
+try{$validator->validate($badEffect);throw new RuntimeException('invalid detailed shadow allowed');}
+catch(InvalidArgumentException $expected){}
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";

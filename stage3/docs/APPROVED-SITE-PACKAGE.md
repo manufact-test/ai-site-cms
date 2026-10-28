@@ -425,3 +425,50 @@ independent `motion` cannot be sequenced simultaneously. Motion is disabled
 with reduced-motion media preferences. This property does *not* implement
 scroll-triggered choreography or a custom keyframe scripting language.
 Studio edits and PHP rendering preserve the exact typed values.
+
+## Rich interactive styles, accurate shadows and scroll-linked entrance
+
+Typed Design Graph node attributes (all optional):
+
+```json
+{
+  "styles": {
+    "shadowFine": {"x": -8, "y": 16, "blur": 30, "spread": 0,
+      "color": "@foreground", "inset": false}
+  },
+  "motion": {
+    "effect": "fade-up", "duration": 620, "delay": 0,
+    "trigger": "scroll", "easing": "ease-in-out"
+  },
+  "transition": {"duration": 240, "easing": "ease-out"},
+  "states": {
+    "hover": {"scalePercent": 106},
+    "active": {"scalePercent": 95}
+  }
+}
+```
+
+`shadowFine` is mutually exclusive with the existing `shadow` preset;
+widths, minimum/maximum dimensions and border types remain typed. It accepts
+pixel coordinates x/y (-100..100), blur (0..160), spread (-80..80), a
+site-token or #RRGGBB color, and boolean inset; no free CSS.
+
+`motion.trigger`: `load` (default) or `scroll`. Optional motion
+`easing` follows the same closed enum as sequence easing.
+`scroll` requires `delay:0` and is implemented via CSS View Timeline
+progress, not millisecond duration. Browser support is feature detected via
+`@supports (animation-timeline: view())`. Unsupported browsers show static
+content; user reduced-motion disables the animation. Neither JS nor third-party
+CSS engines are added to the published site.
+
+A node's `transition` accepts `duration` (0..1000ms) and a typed
+`easing`. Only color, background color, border, opacity, filter and
+independent scale get smooth changes. States may override `scalePercent`
+(50..200), while generic user CSS, JS, URLs and unbounded transforms are
+rejected. Keyboard `:focus-visible` is available separately from hover and tap.
+
+Studio has full typed editors; the workbench additionally exposes dimensional
+limits, border, filter and responsive background crops and the popup builder.
+All editing is non-destructive and follows normal validated Save/Publish.
+CI remains a technical gate; visual fidelity and owner GO depend on actual
+customer-approved three-device prototypes.

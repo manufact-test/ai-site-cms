@@ -126,14 +126,18 @@
       "id": 11,
       "group": "Размеры, отступы, расположение",
       "requirement": "Минимальная и максимальная ширина/высота",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
         "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
         "stage3/studio/app.js",
-        "stage3/server/DesignGraph.php"
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 12,
@@ -267,25 +271,35 @@
       "id": 24,
       "group": "Фоны, рамки, скругления и эффекты",
       "requirement": "Фоновое изображение",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
         "stage3/sdk/design-graph.cjs",
-        "stage3/server/DesignGraph.php"
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 25,
       "group": "Фоны, рамки, скругления и эффекты",
       "requirement": "Положение и масштаб фонового изображения",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
         "stage3/sdk/design-graph.cjs",
-        "stage3/server/DesignGraph.php"
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 26,
@@ -332,13 +346,18 @@
       "id": 30,
       "group": "Фоны, рамки, скругления и эффекты",
       "requirement": "Тип линии рамки",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
         "stage3/sdk/design-graph.cjs",
-        "stage3/server/DesignGraph.php"
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 31,
@@ -368,25 +387,35 @@
       "id": 33,
       "group": "Фоны, рамки, скругления и эффекты",
       "requirement": "Точная настройка теней",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
         "stage3/sdk/design-graph.cjs",
-        "stage3/server/DesignGraph.php"
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 35,
       "group": "Фоны, рамки, скругления и эффекты",
       "requirement": "Фильтры изображений",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
         "stage3/sdk/design-graph.cjs",
-        "stage3/server/DesignGraph.php"
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 38,
@@ -496,109 +525,154 @@
       "id": 51,
       "group": "Анимации, переходы, взаимодействия",
       "requirement": "Включение и отключение анимаций",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/media-motion/lib/contract.cjs",
-        "stage3/sdk/design-graph.cjs"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 52,
       "group": "Анимации, переходы, взаимодействия",
       "requirement": "Анимация появления элемента",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/media-motion/lib/contract.cjs",
-        "stage3/sdk/design-graph.cjs"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 53,
       "group": "Анимации, переходы, взаимодействия",
       "requirement": "Эффекты при наведении (hover)",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/media-motion/lib/contract.cjs",
-        "stage3/sdk/design-graph.cjs"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 54,
       "group": "Анимации, переходы, взаимодействия",
       "requirement": "Эффекты при нажатии (active/tap)",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/media-motion/lib/contract.cjs",
-        "stage3/sdk/design-graph.cjs"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 55,
       "group": "Анимации, переходы, взаимодействия",
       "requirement": "Анимации при прокрутке страницы",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/media-motion/lib/contract.cjs",
-        "stage3/sdk/design-graph.cjs"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 56,
       "group": "Анимации, переходы, взаимодействия",
       "requirement": "Скорость анимации (duration)",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/media-motion/lib/contract.cjs",
-        "stage3/sdk/design-graph.cjs"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 57,
       "group": "Анимации, переходы, взаимодействия",
       "requirement": "Задержка перед анимацией (delay)",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/media-motion/lib/contract.cjs",
-        "stage3/sdk/design-graph.cjs"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 58,
       "group": "Анимации, переходы, взаимодействия",
       "requirement": "Плавность движения (easing)",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/media-motion/lib/contract.cjs",
-        "stage3/sdk/design-graph.cjs"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 60,
       "group": "Анимации, переходы, взаимодействия",
       "requirement": "Настройка эффекта появления",
-      "engineeringStatus": "partial",
+      "engineeringStatus": "implemented_candidate",
       "ownerAccepted": false,
       "evidence": [
-        "stage3/media-motion/lib/contract.cjs",
-        "stage3/sdk/design-graph.cjs"
+        "stage3/sdk/design-graph.cjs",
+        "stage3/server/DesignGraph.php",
+        "stage3/studio/app.js",
+        "stage3/studio/bundle.js",
+        "stage3/tests/contract-smoke.cjs",
+        "stage3/tests/graph-interactions-smoke.php",
+        "stage3/tests/studio-browser.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "JS/PHP typed behavior and Studio authoring implemented; first real approved site visual/interaction acceptance remains pending. Scroll animation is CSS View Timeline and degrades to static content on unsupported browsers."
     },
     {
       "id": 64,

@@ -1135,7 +1135,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const graphHost=require('../sdk/design-graph.cjs');
     const nativeSite=JSON.parse(fs.readFileSync(path.join(root,'fixtures/industrial-site.json'),'utf8'));
     const nativeGraph={version:1,id:'graph-browser-popup',nodes:[
-      {id:'popup-open',type:'button',text:'Открыть',popupTarget:'popup-dialog'},
+      {id:'popup-open',type:'button',text:'Открыть',popupTarget:'popup-dialog',
+        transition:{duration:200,easing:'ease-out'},
+        states:{hover:{scalePercent:106},active:{scalePercent:95}}},
       {id:'popup-dialog',type:'popup',text:'Окно браузера',
         children:[{id:'popup-content',type:'text',text:'Содержимое окна'}]},
       {id:'popup-animated',type:'container',sequence:{
@@ -1146,6 +1148,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const nativePage=await ctx.newPage();
     await nativePage.setContent('<!doctype html><html><body>'+
       graphHost.render(nativeSite,nativeGraph)+'</body></html>');
+    assert.ok((await nativePage.locator('style').last().innerText()).includes('transition:color 200ms ease-out'));
     await nativePage.getByRole('button',{name:'Открыть'}).click();
     assert.equal(await nativePage.locator('[popover="auto"]').evaluate(el=>el.matches(':popover-open')),true,
       'Native browser popover opens via typed trigger');

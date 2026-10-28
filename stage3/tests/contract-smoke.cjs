@@ -1512,6 +1512,44 @@ test('native Design Graph popup plus deterministic entrance sequence stays typed
   sdk.validateSite(site,manifests);
 });
 
+test('scroll-tied effects, fine shadows and safe interactive states keep PHP-compatible typed boundaries',()=>{
+  const graph=require('../sdk/design-graph.cjs'),site=same(initial);
+  const section=sdk.sectionFrom(manifests.find(x=>x.id==='custom-section'),'section-motion-panel');
+  section.designGraph={version:1,id:'graph-motion-panel',nodes:[
+    {id:'motion-panel',type:'container',styles:{shadowFine:{
+      x:-8,y:16,blur:30,spread:0,color:'#122334',inset:false}},
+    children:[
+      {id:'motion-heading',type:'heading',level:2,text:'О проекте',styles:{},
+        motion:{effect:'fade-up',duration:620,delay:0,trigger:'scroll',easing:'ease-in-out'}},
+      {id:'motion-button',type:'button',text:'Продолжить',href:'/',styles:{},
+        transition:{duration:240,easing:'ease-in-out'},
+        states:{hover:{scalePercent:106},active:{scalePercent:95}}}
+    ]}
+  ]};
+  site.pages[0].sections.push(section);
+  sdk.validateSite(site,manifests);
+  const html=graph.render(site,section.designGraph);
+  assert.ok(html.includes('box-shadow:-8px 16px 30px 0px #122334'));
+  assert.ok(html.includes('@supports (animation-timeline: view())'));
+  assert.ok(html.includes('animation-timeline:view(block)'));
+  assert.ok(html.includes('transition:color 240ms ease-in-out'));
+  assert.ok(html.includes('scale:1.06'));
+  assert.match(html,/prefers-reduced-motion:reduce/);
+  const [container,heading,button]=[
+    section.designGraph.nodes[0],
+    section.designGraph.nodes[0].children[0],
+    section.designGraph.nodes[0].children[1]];
+  const bad=()=>refuses(()=>sdk.validateSite(site,manifests));
+  heading.motion.delay=100;bad();heading.motion.delay=0;
+  heading.motion.trigger='javascript';bad();heading.motion.trigger='scroll';
+  container.styles.shadowFine.blur=161;bad();container.styles.shadowFine.blur=30;
+  container.styles.shadowFine.color='url(https://x.invalid)';bad();container.styles.shadowFine.color='#122334';
+  container.styles.shadow='strong';bad();delete container.styles.shadow;
+  button.transition.duration=1200;bad();button.transition.duration=240;
+  button.states.hover.scalePercent=210;bad();button.states.hover.scalePercent=106;
+  sdk.validateSite(site,manifests);
+});
+
 test('135 mandatory requirements keep evidence and honest owner acceptance',()=>{
   const ledger=read('mandatory-coverage.json');
   assert.equal(ledger.totalRequired,135);
