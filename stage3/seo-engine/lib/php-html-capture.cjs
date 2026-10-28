@@ -186,7 +186,7 @@ function inspect(manifest,site,source,folder){
  const localForms=LOCAL_FORMS.review(site,checkedSnapshot);
  const localMedia=manifest.media?
   LOCAL_MEDIA.inspect(site,manifest.baseUrl,manifest.media,root,checkedSnapshot,
-   publication?.declaredPublicOrigin||null):null;
+   publication?.declaredPublicOrigin||null,source.sealedMediaSha256):null;
  const result=Object.freeze({
   format:CAPTURE_FORMAT,siteId:site.siteId,packageVersion:source.packageVersion,
   sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,

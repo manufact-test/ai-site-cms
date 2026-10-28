@@ -40,11 +40,22 @@ function load(folder){
   referenceType:p.path==='/'?'homepage':handoff.files.pagePrototypes?.[p.id]?'page-specific':null,
   devices:Object.freeze(p.path==='/'||handoff.files.pagePrototypes?.[p.id]?['desktop','tablet','mobile']:[])
  })));
+ // The lead's v2 preflight checked every original/variant against this ledger.
+ // Expose only path -> digest, never raw media, for read-only PHP HTTP correlation.
+ const sealedMediaSha256=Object.freeze(Object.fromEntries(site.assets.flatMap(asset=>
+  [asset,...(asset.variants||[])].map(media=>{
+   const filename=media.src.slice(1);
+   const digest=handoff.integrity.files[filename];
+   if(typeof digest!=='string'||!/^[a-f0-9]{64}$/.test(digest))
+    throw Error('Sealed source media digest not recorded for '+filename);
+   return [media.src,digest];
+  }))));
  const summary=Object.freeze({
   format:SOURCE_FORMAT,siteId:site.siteId,packageFormat:handoff.format,
   packageVersion:handoff.version,integrity:'sha256-verified-at-read',
   verifiedBy:'stage3/bin/verify-approved-site.cjs',
   fileSha256,siteRevisionFingerprint:fingerprint(site),
+  sealedMediaSha256,
   pageReferences:references,
   homepagePrototypeSha256:Object.freeze(Object.fromEntries(['desktop','tablet','mobile'].map(device=>
    [device,handoff.integrity.files[handoff.files[device]]]))),

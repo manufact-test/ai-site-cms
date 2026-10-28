@@ -87,6 +87,7 @@ async function main(argv){
    sitemap:checked.publication?.sitemapStatus??null,
    redirects:checked.publication?.redirectResponses??null},
   media:{observed:checked.localMedia?.capturedResources??null,
+   comparedAgainstSealedSiteSha256:checked.localMedia?.sealedMediaBytesCompared??false,
    actualFindings:checked.localMedia?.findings.length??null},
   forms:{markupObserved:checked.localForms?.observedForms??null,
    technicalFindings:checked.localForms?.findings.length??null,

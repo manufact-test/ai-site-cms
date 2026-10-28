@@ -137,10 +137,15 @@ function displayedMedia(site,base,snapshot,inventoryItems){
  }
  return {referenced,untracked:[...untracked.values()]};
 }
-function inspect(site,base,manifest,root,snapshot=null,publicOrigin=null){
+function inspect(site,base,manifest,root,snapshot=null,publicOrigin=null,sealedMediaSha256=null){
  if(!manifest||manifest.format!==FORMAT||!Array.isArray(manifest.assets))
   throw Error('Invalid local PHP media evidence manifest');
  const expected=inventory(site,base);
+ if(sealedMediaSha256!==null&&(
+    typeof sealedMediaSha256!=='object'||Array.isArray(sealedMediaSha256)||
+    Object.keys(sealedMediaSha256).length!==expected.length||
+    expected.some(x=>!SHA.test(sealedMediaSha256[x.src]||''))))
+  throw Error('Local media review is missing a complete verified sealed media ledger');
  if(manifest.assets.length!==expected.length)throw Error('Local media evidence coverage does not match source Site v1');
  let totalBytes=0;const issues=[],resources=[];
  const selectedOg=PUBLISHER.inventory(site);
@@ -200,6 +205,11 @@ function inspect(site,base,manifest,root,snapshot=null,publicOrigin=null){
   if(item.status===200&&!imageValid(bytes,expectedMime))
    add('php-media:invalid-media-bytes',critical?'error':'warning',src.id,
     'Actual PHP media bytes do not have the expected PNG/JPEG/WebP/MP4 header.');
+  if(item.status===200&&sealedMediaSha256&&
+    item.sha256!==sealedMediaSha256[src.src])
+   add('php-media:sealed-source-sha-drift','error',src.id,
+    'Actual published PHP media bytes do not match the same file in the verified Approved Site v2 package.',
+    {expected:sealedMediaSha256[src.src],observed:item.sha256});
   if(item.status===200&&src.expectedSha256&&item.sha256!==src.expectedSha256)
    add('php-media:variant-sha-drift','error',src.id,
     'Responsive variant body SHA256 differs from sealed Site v1 bytes.',{expected:src.expectedSha256,observed:item.sha256});
@@ -242,8 +252,8 @@ function inspect(site,base,manifest,root,snapshot=null,publicOrigin=null){
   savedBodyBytes:totalBytes,resources:Object.freeze(resources),
   findings:Object.freeze(issues),criticalCount:problems.length,
   verifiedLocalHttpBytes:true,publicHttpsProven:false,
-  sourceBuildAuthenticated:false,visualQualityVerified:false,
+  sourceBuildAuthenticated:false,sealedMediaBytesCompared:Boolean(sealedMediaSha256),visualQualityVerified:false,
   releaseAuthorized:false,
-  limitations:'Exact saved bytes from loopback PHP only. Rendered media references cover img/picture/source, video poster/src and static CSS url() in HTML, not JavaScript-injected DOM or browser visibility. Does not verify externally deployed HTTPS, served Site v1 revision, responsive behavior or client approval.'});
+  limitations:'Exact saved bytes from loopback PHP only. When the sealed v2 digest ledger is present, every HTTP media response is compared to its approved original SHA-256; this still does not identify the served PHP revision. Rendered media references cover img/picture/source, video poster/src and static CSS url() in HTML, not JavaScript-injected DOM or browser visibility. Does not verify externally deployed HTTPS, served Site v1 revision, responsive behavior or client approval.'});
 }
 module.exports=Object.freeze({FORMAT,inventory,get,acquire,inspect,imageValid});

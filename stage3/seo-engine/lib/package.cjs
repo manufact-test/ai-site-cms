@@ -134,6 +134,7 @@ function build(site,manifests,blueprint,options={}){
   localPhpRedirectResponses:options.phpHtml?.publication?.redirectResponses??null,
   localPhpMediaResources:options.phpHtml?.localMedia?.capturedResources??null,
   localPhpMediaBytesChecked:options.phpHtml?.localMedia?.savedBodyBytes??null,
+  localPhpMediaSealedShaCompared:options.phpHtml?.localMedia?.sealedMediaBytesCompared??null,
   localPhpMediaFindings:options.phpHtml?.localMedia?.findings.length??null,
   localPhpHeadFindings:options.phpHtml?.localHead?.findings.length??null,
   localPhpHeadHeaders:options.phpHtml?.localHead?.pagesWithRecordedHeaders??null,
@@ -179,6 +180,7 @@ function build(site,manifests,blueprint,options={}){
    localPhpMedia:options.phpHtml?.localMedia?{
     format:options.phpHtml.localMedia.format,fullyCaptured:options.phpHtml.localMedia.fullyCaptured,
     savedBodyBytes:options.phpHtml.localMedia.savedBodyBytes,
+    sealedMediaBytesCompared:options.phpHtml.localMedia.sealedMediaBytesCompared,
     capturedResources:options.phpHtml.localMedia.capturedResources,
     resources:options.phpHtml.localMedia.resources,
     findings:options.phpHtml.localMedia.findings,
