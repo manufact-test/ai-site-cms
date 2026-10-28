@@ -47,7 +47,11 @@ graphTest(str_contains($html,'<table class="cmsdg-n-graph-rich-table cmsdg-table
 graphTest(str_contains($html,'<th scope="col" class="cmsdg-n-graph-rich-header-one">Параметр</th>'),'PHP column headers not semantic');
 graphTest(str_contains($html,'<td class="cmsdg-n-graph-rich-value-two">По договору</td>'),'PHP data rows missing');
 graphTest(str_contains($html,'&lt;Источник&gt;')&&!str_contains($html,'<Источник>'),'quote attribution must be escaped');
-graphTest(str_contains($html,'<a class="cmsdg-n-graph-rich-link" href="/">На главную</a>'),'PHP link rendering');
+graphTest(str_contains($html,'<a class="cmsdg-n-graph-rich-link" href="/published/site-industrial-demo/">На главную</a>'),
+    'PHP published mounted link rendering');
+$rootHtml=PublicRenderer::html($site,'/','/');
+graphTest(str_contains($rootHtml,'<a class="cmsdg-n-graph-rich-link" href="/">На главную</a>'),
+    'PHP root mount must not create protocol-relative URL');
 $invalid=$site;
 $invalid['pages'][0]['sections'][2]['designGraph']['nodes'][5]['children'][1]['children'][]=
     ['id'=>'graph-rich-extra-cell','type'=>'table-cell','text'=>'Лишняя ячейка'];
