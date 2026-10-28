@@ -305,6 +305,8 @@ final class ContractValidator
                     }
                 } else self::must(!array_key_exists('items',$section),'Undeclared repeater');
                 FlexForm::definitions($section); // optional new fields, select dependencies and cross-field constraints
+                if ($section['component']==='custom-section')
+                    self::must(array_key_exists('designGraph',$section),'Custom section requires a Design Graph');
                 if (array_key_exists('designGraph',$section))
                     DesignGraph::validate($section['designGraph'],$assets,$ids,$site['designTokens']??null);
             }

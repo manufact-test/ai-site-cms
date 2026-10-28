@@ -1,0 +1,22 @@
+{
+  "format": "manufact-ai-component-v1",
+  "id": "custom-section",
+  "version": "1.0.0",
+  "label": "Индивидуальная секция · Design Graph",
+  "elements": [
+    {
+      "slot": "section-note",
+      "label": "Служебное название секции",
+      "fields": [
+        {
+          "path": "content.text",
+          "label": "Название для внутреннего описания (не выводится на сайт)",
+          "type": "text",
+          "default": "Индивидуальная секция",
+          "responsive": false,
+          "maxLength": 180
+        }
+      ]
+    }
+  ]
+}

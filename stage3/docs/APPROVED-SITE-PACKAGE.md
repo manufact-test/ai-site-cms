@@ -36,3 +36,79 @@ The `site.json` is the actual completed site contract (`manufact-ai-site-v1`) us
 In authenticated server Studio, the owner chooses **Подключить готовый сайт**, picks the folder in a Chromium-compatible directory picker, and confirms the real client approval. The existing typed validator checks the actual site JSON. The existing authenticated API first creates a nonpublished seed (because createSite forbids unstored images), stores each real image into this site's isolated database, issues new immutable IDs, and Save replaces the seed with the fully mapped site manifest. Current page/FAQ/SEO/image editing, Publish and rollback work via the existing CMS path. No network requests to AI providers; no publication without separate user action.
 
 Limitations of this first vertical handoff: images are PNG/JPEG/WebP up to 450 KB per source and variant, at most three supported responsive variants, site.json <=500 KB, prototype image <=8 MB; SVG and MP4 need separate current Studio flows. Client explanation and portable specification are required to be present but qualitative review is human. Errors stop import; after remote creation a recoverable *unpublished* partial seed may remain, never a half-published site. Preserve the original local folder; currently CMS does not archive the client prototype files. Unsupported custom HTML components are a future contract integration task, not automatically 'converted'.
+
+## Individual AI-authored sections (no fixed templates)
+
+**Contract support:** The registered `custom-section@1.0.0` component allows an external AI to deliver an original visual composition in `section.designGraph`, without claiming that one of the fixed demo blocks reproduces its design. The section must contain exactly one `section-note` element with `values: {"content.text":"<internal note>"}`; this field is internal metadata, not the published title. The actual page is rendered from the typed graph and edited through Studio's Design Graph controls. `designGraph` is mandatory for this component in both browser and server validators, so empty or half-built custom sections cannot be saved/published.
+
+The existing Design Graph vocabulary supports containers, headings, text, safe links/buttons, images, icons, separators and controlled video, with independent responsive rules, hover/focus styles and allowlisted motion. The external AI must write these nodes, their responsive styles, actual media IDs and interactions into `site.json`. This is an **individual design**, not unrestricted HTML/CSS/JavaScript import. A client-approved design that needs a behavior beyond the current controlled vocabulary must be explicitly implemented and reviewed as a versioned first-party CMS capability before import. The three static prototype images and full descriptions remain mandatory.
+
+Example section (append to a page's `sections` array; replace the graph nodes with the actual approved design):
+
+```json
+{
+  "id": "section-custom-brand",
+  "component": "custom-section",
+  "manifestVersion": "1.0.0",
+  "elements": [
+    {
+      "id": "element-custom-brand-note",
+      "slot": "section-note",
+      "values": {
+        "content.text": "Авторский первый экран"
+      }
+    }
+  ],
+  "designGraph": {
+    "version": 1,
+    "id": "graph-custom-brand",
+    "nodes": [
+      {
+        "id": "brand-layout",
+        "type": "container",
+        "styles": {
+          "display": "grid",
+          "columns": 2,
+          "gap": 24,
+          "padding": 32
+        },
+        "responsive": {
+          "tablet": {
+            "columns": 1
+          },
+          "mobile": {
+            "padding": 16,
+            "gap": 12
+          }
+        },
+        "children": [
+          {
+            "id": "brand-heading",
+            "type": "heading",
+            "level": 1,
+            "text": "Ваш согласованный заголовок",
+            "styles": {
+              "fontSize": 52
+            },
+            "responsive": {
+              "mobile": {
+                "fontSize": 32
+              }
+            }
+          },
+          {
+            "id": "brand-intro",
+            "type": "text",
+            "text": "Согласованное описание услуги",
+            "styles": {
+              "fontSize": 18
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Use a graph heading with level 1 only once per page. Validate the entire document before connection; custom-section must include at least one graph node and obey the existing global node, depth and media limits.
