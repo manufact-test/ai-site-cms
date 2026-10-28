@@ -5,6 +5,7 @@
 const crypto=require('node:crypto');
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http');
 const PUBLISHER=require('./publisher-media.cjs');
+const HTML=require('./html-evidence.cjs');
 const FORMAT='manufact-seo-local-php-media-v1';
 const SHA=/^[a-f0-9]{64}$/;
 const MAX_TOTAL=100000000;
@@ -26,8 +27,8 @@ function inventory(site,base){
   throw Error('Local media inventory requires a bounded site and explicit loopback base');
  const records=[],used=new Set();
  for(const asset of site.assets){
-  const parts=[{id:asset.id,src:asset.src,mime:asset.mime,sha256:null,kind:'original'},
-   ...(asset.variants||[]).map(v=>({id:v.id,src:v.src,mime:asset.mime,sha256:v.sha256,kind:'variant'}))];
+  const parts=[{id:asset.id,src:asset.src,mime:asset.mime,sha256:null,kind:'original',width:asset.width,height:asset.height},
+   ...(asset.variants||[]).map(v=>({id:v.id,src:v.src,mime:asset.mime,sha256:v.sha256,kind:'variant',width:v.width,height:v.height}))];
   if(parts.length>4)throw Error('Too many responsive media variants');
   for(const part of parts){
    const match=RE.exec(part.src||'');
@@ -39,7 +40,9 @@ function inventory(site,base){
    if(url.origin!==new URL(base).origin||!url.pathname.startsWith(new URL(base).pathname))
     throw Error('Local media escaped published site mount');
    records.push({id:part.id,src:part.src,mime:part.mime,variantOf:part.kind==='variant'?asset.id:null,
-    expectedSha256:part.sha256,url:url.href,file,maxBytes:part.mime==='video/mp4'?12000000:1200000});
+    expectedSha256:part.sha256,url:url.href,file,
+    width:part.width||null,height:part.height||null,
+    maxBytes:part.mime==='video/mp4'?12000000:1200000});
   }
  }
  if(records.length>1200)throw Error('Too many local published media resources');
@@ -81,15 +84,44 @@ async function acquire(site,base){
  }
  return {manifest:{format:FORMAT,assets:received.map(x=>x.record)},files:received,totalBytes:bytes};
 }
-function inspect(site,base,manifest,root){
+function displayedMedia(site,base,snapshot,inventoryItems){
+ const known=new Map(inventoryItems.map(x=>[x.url,x.id]));
+ const result=new Map();
+ for(const p of snapshot?.pages||[]){
+  const pageUrl=new URL(p.path.slice(1),base),html=HTML.inspect(p.html);
+  const raw=[];
+  for(const image of html.images){
+   if(image.src)raw.push(image.src);
+   if(image.srcset)for(const part of image.srcset.split(','))
+    raw.push(part.trim().split(/\s+/)[0]);
+  }
+  for(const src of raw){
+   try{
+    const url=new URL(src,pageUrl);
+    if(url.search||url.hash)continue;
+    const id=known.get(url.href);
+    if(id){
+     if(!result.has(id))result.set(id,new Set());
+     result.get(id).add(p.id);
+    }
+   }catch{/* Unsupported data: URL or invalid authoring is reviewed separately. */}
+  }
+ }
+ return result;
+}
+function inspect(site,base,manifest,root,snapshot=null){
  if(!manifest||manifest.format!==FORMAT||!Array.isArray(manifest.assets))
   throw Error('Invalid local PHP media evidence manifest');
  const expected=inventory(site,base);
  if(manifest.assets.length!==expected.length)throw Error('Local media evidence coverage does not match source Site v1');
  let totalBytes=0;const issues=[],resources=[];
  const ogAssets=new Set(PUBLISHER.inventory(site).map(p=>p.asset?.id).filter(Boolean));
+ const markup=displayedMedia(site,base,snapshot,expected);
+ const byPage=new Map(site.pages.map(p=>[p.id,p.path]));
  const add=(code,severity,assetId,message,extra={})=>{
-  issues.push(Object.freeze({code,severity,assetId,pageId:null,path:null,message,
+  const pageId=[...(markup.get(assetId)||[])][0]||
+   PUBLISHER.inventory(site).find(p=>p.asset?.id===assetId)?.pageId||null;
+  issues.push(Object.freeze({code,severity,assetId,pageId,path:byPage.get(pageId)||null,message,
    evidence:'hash-checked-local-php-media',automatic:false,...extra}));
  };
  const nameSet=new Set();
@@ -117,12 +149,20 @@ function inspect(site,base,manifest,root){
   const bytes=fs.readFileSync(real);
   if(sha(bytes)!==item.sha256)throw Error('PHP media evidence byte digest mismatch');
   const expectedMime=src.mime,actualMime=item.contentType.split(';')[0].trim().toLowerCase();
-  const critical=ogAssets.has(src.id);
+  const referencedPageIds=Object.freeze([...(markup.get(src.id)||[])]);
+  const critical=ogAssets.has(src.id)||referencedPageIds.length>0;
   if(item.status!==200)add('php-media:non-200',critical?'error':'warning',src.id,
    'Published PHP media endpoint did not return HTTP 200.',{status:item.status});
   if(item.status===200&&actualMime!==expectedMime)
    add('php-media:mime-mismatch',critical?'error':'warning',src.id,
     'HTTP media Content-Type differs from Site v1 declaration.',{expected:expectedMime,observed:actualMime});
+  if(item.status===200&&expectedMime==='image/png'&&imageValid(bytes,expectedMime)&&
+    ((src.width!==null&&bytes.readUInt32BE(16)!==src.width)||
+     (src.height!==null&&bytes.readUInt32BE(20)!==src.height)))
+   add('php-media:png-dimension-drift','error',src.id,
+    'Actual published PNG dimensions differ from declared Site v1 dimensions.',
+    {expectedWidth:src.width,expectedHeight:src.height,
+     actualWidth:bytes.readUInt32BE(16),actualHeight:bytes.readUInt32BE(20)});
   if(item.status===200&&!imageValid(bytes,expectedMime))
    add('php-media:invalid-media-bytes',critical?'error':'warning',src.id,
     'Actual PHP media bytes do not have the expected PNG/JPEG/WebP/MP4 header.');
@@ -134,7 +174,7 @@ function inspect(site,base,manifest,root){
     'Immutable PHP media ETag is missing or differs from actual HTTP bytes.',{etag:item.etag});
   const r=Object.freeze({assetId:src.id,variantOf:src.variantOf,status:item.status,
    mime:actualMime,expectedMime,bodySha256:item.sha256,bodyBytes:item.length,
-   etag:item.etag,ogImageAsset:critical});
+   etag:item.etag,ogImageAsset:ogAssets.has(src.id),renderedPageIds:referencedPageIds});
   resources.push(r);
  }
  const problems=issues.filter(x=>x.severity==='error');
@@ -146,6 +186,6 @@ function inspect(site,base,manifest,root){
   verifiedLocalHttpBytes:true,publicHttpsProven:false,
   sourceBuildAuthenticated:false,visualQualityVerified:false,
   releaseAuthorized:false,
-  limitations:'Exact saved bytes from loopback PHP only; does not verify externally deployed HTTPS, served Site v1 revision, responsive browser behavior or client image approval.'});
+  limitations:'Exact saved bytes from loopback PHP only. Rendered-image references cover static img src/srcset in captured HTML, not CSS backgrounds, scripted DOM or browser visibility. Does not verify externally deployed HTTPS, served Site v1 revision, responsive behavior or client approval.'});
 }
 module.exports=Object.freeze({FORMAT,inventory,get,acquire,inspect,imageValid});
