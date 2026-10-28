@@ -148,6 +148,10 @@ function structure(raw,manifests,command){
             cb({values:node},'assetId',node.assetId,p,section);
           if(node.type==='video'&&node.posterAssetId)
             cb({values:node},'posterAssetId',node.posterAssetId,p,section);
+          if(node.type==='image'&&node.responsiveMedia)
+            for(const key of ['tabletAssetId','mobileAssetId'])
+              if(node.responsiveMedia[key])
+                cb({values:node.responsiveMedia},key,node.responsiveMedia[key],p,section);
           if(node.backgroundMedia)for(const key of ['assetId','tabletAssetId','mobileAssetId'])
             if(node.backgroundMedia[key])
               cb({values:node.backgroundMedia},key,node.backgroundMedia[key],p,section);

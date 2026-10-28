@@ -650,6 +650,9 @@
                 if(node.backgroundMedia){
                   for(const id of [node.backgroundMedia.assetId,node.backgroundMedia.tabletAssetId,node.backgroundMedia.mobileAssetId])if(id)referenced.add(id);
                 }
+                if(node.type==='image'&&node.responsiveMedia){
+                  for(const id of [node.responsiveMedia.tabletAssetId,node.responsiveMedia.mobileAssetId])if(id)referenced.add(id);
+                }
                 if(['image','video'].includes(node.type)){
                   referenced.add(node.assetId);
                   rows.push({...common,path:'assetId',fieldLabel:
