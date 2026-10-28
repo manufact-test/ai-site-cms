@@ -175,6 +175,38 @@ final class ContractValidator
             'Invalid global menu settings');
     }
 
+    /** Normalize one linked instance without its page/element/graph IDs. */
+    private static function sharedShape(array $section): array
+    {
+        unset($section['id'],$section['sharedKey']);
+        foreach($section['elements'] as &$element)unset($element['id']);
+        unset($element);
+        if(isset($section['items'])){
+            foreach($section['items'] as &$item)unset($item['id']);
+            unset($item);
+        }
+        if(isset($section['designGraph'])){
+            $mapping=[];$number=0;
+            $index=static function(array $nodes) use (&$index,&$mapping,&$number):void{
+                foreach($nodes as $node){
+                    $mapping[$node['id']]='shared-node-'.(++$number);
+                    if(isset($node['children']))$index($node['children']);
+                }
+            };
+            $index($section['designGraph']['nodes']);
+            $normalize=static function(array &$nodes) use (&$normalize,$mapping):void{
+                foreach($nodes as &$node){
+                    if(isset($node['popupTarget']))$node['popupTarget']=$mapping[$node['popupTarget']]??'missing-target';
+                    $node['id']=$mapping[$node['id']];
+                    if(isset($node['children']))$normalize($node['children']);
+                }
+                unset($node);
+            };
+            $section['designGraph']['id']='shared-design';
+            $normalize($section['designGraph']['nodes']);
+        }
+        return $section;
+    }
     public function validate(mixed $site): array
     {
         self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu', 'designTokens', 'language']);
@@ -228,7 +260,7 @@ final class ContractValidator
         }
         self::must(is_array($site['pages']) && array_is_list($site['pages'])
             && count($site['pages']) >= 1 && count($site['pages']) <= 100, 'Invalid pages');
-        $paths = [];
+        $paths = [];$sharedGroups=[];
         foreach ($site['pages'] as $page) {
             self::keys($page, ['id', 'path', 'title', 'sections', 'seo', 'navigation']);
             if (array_key_exists('seo',$page)) self::seo($page['seo'],$assets);
@@ -241,7 +273,11 @@ final class ContractValidator
             self::must(is_array($page['sections']) && array_is_list($page['sections'])
                 && count($page['sections']) >= 1 && count($page['sections']) <= 100, 'Invalid sections');
             foreach ($page['sections'] as $section) {
-                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance', 'formFields', 'formSteps', 'designGraph']);
+                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance', 'formFields', 'formSteps', 'designGraph','sharedKey']);
+                if(array_key_exists('sharedKey',$section)){
+                    self::id($section['sharedKey']);
+                    $sharedGroups[$section['sharedKey']][]=['pageId'=>$page['id'],'section'=>$section];
+                }
                 if (array_key_exists('appearance',$section)) {
                     self::keys($section['appearance'],['surface','spacing','align','width','heading','corners','mobileAlign','mobileSpacing','button']);
                     self::must(in_array($section['appearance']['surface']??null,['default','paper','tint','dark'],true)
@@ -310,6 +346,17 @@ final class ContractValidator
                     self::must(array_key_exists('designGraph',$section),'Custom section requires a Design Graph');
                 if (array_key_exists('designGraph',$section))
                     DesignGraph::validate($section['designGraph'],$assets,$ids,$site['designTokens']??null);
+            }
+        }
+        foreach($sharedGroups as $key=>$members){
+            self::must(count($members)<=20,'Too many shared section instances');
+            $reference=json_encode(self::sharedShape($members[0]['section']),JSON_THROW_ON_ERROR);
+            $visited=[];
+            foreach($members as $member){
+                self::must(!isset($visited[$member['pageId']]),'Shared section repeated on same page');
+                $visited[$member['pageId']]=true;
+                self::must(json_encode(self::sharedShape($member['section']),JSON_THROW_ON_ERROR)===$reference,
+                    'Shared section copies diverged: '.$key);
             }
         }
         $pageIds=[];

@@ -241,6 +241,37 @@ function validateFormSteps(section){
     if(positions.get(source)>positions.get(name))
       fail('Conditional field must not precede source step',section.id);
 }
+// Shared section instances retain their own stable IDs, while content is
+// identical on all pages. Strip per-instance IDs before comparing content.
+function sharedSectionShape(section){
+  const model=clone(section);delete model.id;delete model.sharedKey;
+  for(const element of model.elements)delete element.id;
+  for(const item of model.items||[])delete item.id;
+  if(model.designGraph){
+    const ids=new Map();let counter=0;
+    const index=nodes=>{for(const node of nodes){ids.set(node.id,'shared-node-'+(++counter));if(node.children)index(node.children);}};
+    index(model.designGraph.nodes);
+    model.designGraph.id='shared-design';
+    const normalize=nodes=>{for(const node of nodes){
+      if(own(node,'popupTarget'))node.popupTarget=ids.get(node.popupTarget)||'missing-target';
+      node.id=ids.get(node.id);if(node.children)normalize(node.children);
+    }};
+    normalize(model.designGraph.nodes);
+  }
+  return model;
+}
+function validateSharedSections(groups){
+  for(const [name,members] of groups){
+    if(members.length>20)fail('Too many instances of a shared section',name);
+    const pages=new Set(),reference=JSON.stringify(sharedSectionShape(members[0].section));
+    for(const member of members){
+      if(pages.has(member.pageId))fail('Shared section repeated on the same page',name);
+      pages.add(member.pageId);
+      if(JSON.stringify(sharedSectionShape(member.section))!==reference)
+        fail('Shared section copies have diverged; synchronize before Save or Publish',name);
+    }
+  }
+}
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
   objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language'],'site');
@@ -280,7 +311,7 @@ function validateSite(raw,regInput){
     }
   }
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
-  const ids=new Set([raw.siteId,...assetIds]),paths=new Set();
+  const ids=new Set([raw.siteId,...assetIds]),paths=new Set(),sharedGroups=new Map();
   for(const page of raw.pages){
     objectKeys(page,['id','path','title','sections','seo','navigation'],'page');
     if(own(page,'seo'))validSeo(page.seo,assetMimes);
@@ -291,7 +322,12 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey'],'section');
+      if(own(section,'sharedKey')){
+        id(section.sharedKey,'shared section group');
+        if(!sharedGroups.has(section.sharedKey))sharedGroups.set(section.sharedKey,[]);
+        sharedGroups.get(section.sharedKey).push({pageId:page.id,section});
+      }
       if(own(section,'appearance'))validAppearance(section.appearance);
       id(section.id,'section.id');if(ids.has(section.id))fail('Duplicate stable ID',section.id);ids.add(section.id);
       const manifest=select(reg,section.component,section.manifestVersion);
@@ -332,6 +368,7 @@ function validateSite(raw,regInput){
       if(own(section,'designGraph'))GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens,assetMimes);
     }
   }
+  validateSharedSections(sharedGroups);
   validMenuRelations(raw);
   if(own(raw,'redirects')){
     if(!Array.isArray(raw.redirects)||raw.redirects.length>60)fail('Invalid redirect count');
@@ -609,5 +646,5 @@ function upgrade(raw,previous,next,allOtherManifests,decisions={}){
 }
 module.exports=Object.freeze({DEFAULT_MENU,DEFAULT_THEME,
   FORMAT,MANIFEST,BREAKPOINTS,DEFAULT_APPEARANCE,validateManifest,registry,validateSite,inspectSite,
-  controls,effectiveValue,sectionFrom,siteFromBrief,upgrade
+  controls,effectiveValue,sectionFrom,siteFromBrief,upgrade,sharedSectionShape
 });
