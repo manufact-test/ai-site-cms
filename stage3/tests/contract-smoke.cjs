@@ -1446,6 +1446,35 @@ test('read-only approved folder preflight accepts a custom external design and r
   }finally{fs.rmSync(folder,{recursive:true,force:true});}
 });
 
+test('decorative background video is site-owned, muted and safely poster-backed',()=>{
+  const graph=require('../sdk/design-graph.cjs'),site=same(initial);
+  site.assets.push({id:'asset-background-mp4',src:'/assets/asset-background-mp4.mp4',
+    mime:'video/mp4',alt:'Фоновый ролик'},{
+    id:'asset-background-poster',src:'/assets/asset-background-poster.png',
+    mime:'image/png',alt:'Кадр для обложки',width:2,height:2});
+  const section=sdk.sectionFrom(manifests.find(x=>x.id==='custom-section'),'section-background-video');
+  section.designGraph={version:1,id:'graph-background-video',nodes:[{
+    id:'background-layout',type:'container',backgroundVideo:{
+      assetId:'asset-background-mp4',posterAssetId:'asset-background-poster',
+      mobilePosterAssetId:'asset-background-poster',overlay:{color:'#000000',opacity:40}
+    },children:[{id:'background-text',type:'heading',level:2,text:'Наша история'}]
+  }]};
+  site.pages[0].sections.push(section);
+  sdk.validateSite(site,manifests);
+  const html=graph.render(site,section.designGraph,'/published/'+site.siteId);
+  assert.match(html,/class="cmsdg-video-backdrop" aria-hidden="true"/);
+  assert.match(html,/<video autoplay muted loop playsinline preload="none"/);
+  assert.match(html,/prefers-reduced-motion:reduce/);
+  const node=section.designGraph.nodes[0],v=node.backgroundVideo;
+  const bad=()=>refuses(()=>sdk.validateSite(site,manifests));
+  v.assetId='asset-background-poster';bad();v.assetId='asset-background-mp4';
+  v.posterAssetId='asset-background-mp4';bad();v.posterAssetId='asset-background-poster';
+  v.overlay.opacity=100;bad();v.overlay.opacity=40;
+  node.backgroundMedia={assetId:'asset-background-poster'};bad();delete node.backgroundMedia;
+  node.type='heading';bad();node.type='container';
+  sdk.validateSite(site,manifests);
+});
+
 test('135 mandatory requirements keep evidence and honest owner acceptance',()=>{
   const ledger=read('mandatory-coverage.json');
   assert.equal(ledger.totalRequired,135);
