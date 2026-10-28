@@ -6,6 +6,19 @@ const contract=require('../sdk/contract.cjs');
 const components=path.resolve(__dirname,'../components');
 const names=fs.readdirSync(components).filter(name=>/^[a-z][a-z0-9-]+\.json$/.test(name));
 const manifests=names.map(name=>JSON.parse(fs.readFileSync(path.join(components,name),'utf8')));
+const HANDOFF_V2='manufact-approved-site-handoff-v2';
+const SHA256=/^[a-f0-9]{64}$/;
+function namedFiles(site,refs){
+  const names=[refs.site,refs.desktop,refs.tablet,refs.mobile,
+    refs.clientExplanation,refs.implementationSpec];
+  for(const asset of site.assets){
+    names.push(asset.src.replace(/^\/assets\//,'assets/'));
+    for(const variant of asset.variants||[])
+      names.push(variant.src.replace(/^\/assets\//,'assets/'));
+  }
+  if(new Set(names).size!==names.length)throw Error('Duplicate file paths within approved package');
+  return names;
+}
 const SIGNATURES={
   'image/png':buffer=>buffer.length>=24&&buffer.subarray(0,8).equals(
     Buffer.from([137,80,78,71,13,10,26,10])),
@@ -29,32 +42,35 @@ function preflight(folder){
     if(!fileStat.isFile()||fileStat.size>limit||fileStat.size===0)
       throw Error('Unexpected file size or type: '+file);
     total+=fileStat.size;
-    if(total>24*1024*1024)throw Error('Handoff exceeds 24MB read budget');
+    if(total>100*1024*1024)throw Error('Handoff exceeds 100MB read budget');
     return fs.readFileSync(resolved);
   }
-  const descriptor=read('handoff.json',12000);
+  const descriptor=read('handoff.json',200000);
   const handoff=JSON.parse(descriptor.toString('utf8'));
-  if(handoff.format!=='manufact-approved-site-handoff-v1'||
+  if(!['manufact-approved-site-handoff-v1',HANDOFF_V2].includes(handoff.format)||
     handoff.status!=='approved'||typeof handoff.version!=='string'||
     !/^[a-zA-Z0-9._-]{1,64}$/.test(handoff.version)||
     !handoff.files||typeof handoff.files!=='object')
     throw Error('Missing approved versioned handoff.json');
   const refs=handoff.files;
+  const locked=handoff.format===HANDOFF_V2;
+  const observed=new Map();
+  const recorded=(name,bytes)=>{observed.set(name,crypto.createHash('sha256').update(bytes).digest('hex'));return bytes;};
   const prototypes=new Set();
   for(const size of ['desktop','tablet','mobile']){
-    const file=refs[size],bytes=read(file,8*1024*1024);
+    const file=refs[size],bytes=recorded(file,read(file,8*1024*1024));
     if(bytes.length<64||!verifyRaster(bytes,MIME[file.split('.').pop().toLowerCase()]))
       throw Error('Missing or invalid '+size+' design prototype');
     prototypes.add(file);
   }
   if(prototypes.size!==3)throw Error('Three independent prototype files are required');
   for(const name of ['clientExplanation','implementationSpec']){
-    const file=refs[name],bytes=read(file,200000);
+    const file=refs[name],bytes=recorded(file,read(file,200000));
     if(!/\.(md|txt|json)$/.test(file)||bytes.length<10)
       throw Error('Missing client explanation or portable specification: '+name);
   }
   if(!/\.json$/.test(refs.site))throw Error('site.json expected');
-  const source=read(refs.site,500000);
+  const source=recorded(refs.site,read(refs.site,500000));
   if(source.length<10)throw Error('Empty site.json');
   const site=JSON.parse(source.toString('utf8'));
   contract.validateSite(site,manifests); // Every field, graph, media ID and component.
@@ -65,7 +81,7 @@ function preflight(folder){
     const ext=asset.mime==='image/jpeg'?'jpg':asset.mime.split('/')[1];
     const file=asset.src.replace(/^\/assets\//,'assets/');
     if(file===asset.src)throw Error('Asset path not site-scoped: '+asset.id);
-    const bytes=read(file,450000);
+    const bytes=recorded(file,read(file,450000));
     if(bytes.length<20||!verifyRaster(bytes,asset.mime))
       throw Error('Image bytes and declared MIME do not match: '+file);
     if(asset.mime==='image/png'&&asset.width!==undefined){
@@ -74,7 +90,7 @@ function preflight(folder){
     }
     for(const variant of asset.variants||[]){
       const vfile=variant.src.replace(/^\/assets\//,'assets/');
-      const b=read(vfile,450000);
+      const b=recorded(vfile,read(vfile,450000));
       if(b.length<20||!verifyRaster(b,asset.mime))
         throw Error('Invalid responsive image: '+vfile);
       const digest=crypto.createHash('sha256').update(b).digest('hex');
@@ -84,10 +100,20 @@ function preflight(folder){
         throw Error('Responsive PNG dimensions mismatch: '+vfile);
     }
   }
+  if(locked){
+    const actual=namedFiles(site,refs),integrity=handoff.integrity;
+    if(!integrity||integrity.algorithm!=='sha256'||!integrity.files||
+      typeof integrity.files!=='object'||Array.isArray(integrity.files))
+      throw Error('V2 package has no SHA256 lockfile');
+    const declared=Object.keys(integrity.files);
+    if(declared.length!==actual.length||declared.some(x=>!actual.includes(x))||
+      actual.some(x=>!SHA256.test(integrity.files[x])||observed.get(x)!==integrity.files[x]))
+      throw Error('Approved handoff changed since SHA256 sealing');
+  }
   const graphs=site.pages.flatMap(p=>p.sections).filter(s=>s.designGraph).length;
   const custom=site.pages.flatMap(p=>p.sections).filter(s=>s.component==='custom-section').length;
   return Object.freeze({siteId:site.siteId,version:handoff.version,pages:site.pages.length,
-    assets:site.assets.length,designGraphs:graphs,customSections:custom,
+    assets:site.assets.length,designGraphs:graphs,customSections:custom,integrity:locked?'sha256-verified':'legacy-unlocked',
     status:'structurally-compatible-not-visual-approval'});
 }
 function verifyRaster(bytes,mime){
@@ -100,4 +126,4 @@ if(require.main===module){
     process.stdout.write('APPROVED SITE PREFLIGHT PASS: '+JSON.stringify(result)+'\n');
   }catch(e){console.error('APPROVED SITE PREFLIGHT FAIL: '+e.message);process.exitCode=1;}
 }
-module.exports=Object.freeze({preflight});
+module.exports=Object.freeze({preflight,namedFiles,HANDOFF_V2});
