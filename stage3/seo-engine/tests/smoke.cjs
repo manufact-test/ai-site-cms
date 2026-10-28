@@ -183,6 +183,53 @@ try{
  assert.equal(unpublishedGate.automaticReleaseApproval,false);
  assert.equal(unpublishedGate.coverage.staticHtmlSupplied,false);
 
+
+ // Large integrated semantic/viewport/regression acceptance using supplied evidence.
+ const deep=JSON.parse(good('deep-html',{
+  snapshot:fixture('community.deep.snapshot.json'),
+  blueprint:fixture('community.blueprint.json')
+ }));
+ assert.equal(deep.format,'manufact-seo-html-evidence-v1');
+ for(const code of ['evidence:duplicate-dom-id','evidence:unverified-schema-published',
+  'evidence:broken-fragment','evidence:unlabelled-form-controls'])
+  assert.ok(deep.findings.some(x=>x.code===code),code);
+ const deviceClean=JSON.parse(good('viewport-parity',{
+  viewports:fixture('industrial.viewports.json'),blueprint:bp
+ }));
+ assert.equal(deviceClean.format,'manufact-seo-viewport-review-v1');
+ assert.deepEqual(deviceClean.findings,[],'three identical device HTML exports have no parity issues');
+ const deviceDrift=JSON.parse(good('viewport-parity',{
+  viewports:fixture('industrial.mobile-gap.viewports.json'),blueprint:bp
+ }));
+ assert.ok(deviceDrift.findings.some(x=>x.code==='viewport:h1-missing'&&x.device==='mobile'));
+ assert.ok(deviceDrift.findings.some(x=>x.code==='viewport:planned-cta-route-absent'));
+ const regSite=fixture('industrial.site.regression.json');
+ const diff=JSON.parse(good('compare-site',{before:site,site:regSite,blueprint:bp}));
+ assert.equal(diff.format,'manufact-seo-regression-v1');
+ assert.ok(diff.seoChanges.some(x=>x.field==='seo.robots'&&x.potentialIndexationRegression));
+ const evidencePlan=JSON.parse(good('remediation-plan',{
+  site,blueprint:bp,snapshot:htmlSite,
+  viewports:fixture('industrial.mobile-gap.viewports.json')
+ }));
+ assert.ok(evidencePlan.tasks.some(x=>x.sources.some(s=>s.code==='viewport:h1-missing')));
+ assert.ok(evidencePlan.sourceReports.deepHtmlIssueCount!==null);
+ const regPlan=JSON.parse(good('remediation-plan',{
+  site:regSite,before:site,blueprint:bp
+ }));
+ assert.ok(regPlan.tasks.some(x=>x.sources.some(s=>s.code==='regression:indexation-decreased')));
+ const regRelease=JSON.parse(good('release-review',{
+  site:regSite,before:site,blueprint:bp
+ }));
+ assert.ok(regRelease.blockers.some(x=>x.gateId==='new-critical-regressions'));
+ const bundle=JSON.parse(good('review-bundle',{
+  site,blueprint:bp,snapshot:htmlSite,viewports:fixture('industrial.viewports.json')
+ }));
+ assert.equal(bundle.format,'manufact-seo-review-bundle-v1');
+ assert.equal(bundle.release.automaticReleaseApproval,false);
+ assert.equal(bundle.deviceEvidence.findings.length,0);
+ assert.ok(bundle.siteAudit.issues.length>0);
+ assert.ok(bundle.backlog.tasks.length>0);
+
  const tampered=JSON.parse(fs.readFileSync(fixture('community.brief.json'),'utf8'));
  tampered.pages[0].sections[0].media={purpose:'informative',alt:'',why:'Missing'};
  const file=path.join(tmp,'tampered.json');fs.writeFileSync(file,JSON.stringify(tampered));

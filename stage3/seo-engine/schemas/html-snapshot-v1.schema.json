@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Trusted bounded static HTML snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "pages"
+  ],
+  "properties": {
+    "format": {
+      "const": "manufact-seo-html-snapshot-v1"
+    },
+    "siteId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,79}$"
+    },
+    "completeness": {
+      "enum": [
+        "partial",
+        "complete"
+      ]
+    },
+    "pages": {
+      "type": "array",
+      "maxItems": 80,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "path",
+          "html"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{2,79}$"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^/(?:[a-z0-9-]+/)*$"
+          },
+          "html": {
+            "type": "string",
+            "maxLength": 500000
+          }
+        }
+      }
+    },
+    "sitemapPaths": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": {
+        "type": "string"
+      }
+    },
+    "robotsTxt": {
+      "type": "string",
+      "maxLength": 250000
+    }
+  }
+}

@@ -4,6 +4,7 @@
 // require real manual checks owned by the lead.
 const {work}=require('./remediation.cjs');
 const {compare}=require('./parity.cjs');
+const REGRESSION=require('./regression.cjs');
 const FORMAT='manufact-seo-release-review-v1';
 function assess(site,manifests,blueprint,options={}){
  const backlog=work(site,manifests,blueprint,options);
@@ -11,9 +12,23 @@ function assess(site,manifests,blueprint,options={}){
  const blockers=[],reviews=[],manual=[];
  const add=(where,id,title,detail,related=[])=>where.push({gateId:id,title,detail,taskIds:related,automaticPass:false});
  const find=(predicate)=>x.filter(predicate).map(t=>t.taskId);
- const broken=find(t=>t.sources.some(s=>['core:broken-link','core:broken-anchor','html:broken-link'].includes(s.code)));
+ const broken=find(t=>t.sources.some(s=>['core:broken-link','core:broken-anchor'].includes(s.code)||
+  (options.snapshot?.completeness==='complete'&&s.code==='html:broken-link')));
  const missing=find(t=>t.sources.some(s=>s.reason==='page-development'||s.code==='planned-page-missing'));
  const drift=find(t=>t.sources.some(s=>['parity:indexation-drift','parity:path-mismatch'].includes(s.code)));
+ const dangerousMarkup=find(t=>t.sources.some(s=>s.code==='evidence:unverified-schema-published'));
+ const regression=options.baselineSite?REGRESSION.compare(options.baselineSite,site,manifests,blueprint):null;
+ const fragmentProblems=find(t=>t.sources.some(s=>s.code==='evidence:broken-fragment'));
+ if(regression?.summary.criticalReviewItems)add(blockers,'new-critical-regressions',
+  'Review new severe SEO regressions since prior Site v1 version',
+  'New errors or index-to-noindex changes require explicit approval or repair before release.',
+  find(t=>t.sources.some(s=>s.kind==='site-regression')));
+ if(dangerousMarkup.length)add(blockers,'published-unverified-structured-data',
+  'Review published structured data based on unverified facts',
+  'A JSON-LD type appears in captured HTML while its associated blueprint evidence remains unverified. Remove or verify actual claims before release.',dangerousMarkup);
+ if(fragmentProblems.length)add(reviews,'broken-fragments',
+  'Review unresolved fragment targets in supplied HTML',
+  'The captured target page has no matching HTML id; partial capture and runtime-generated anchors require verification.',fragmentProblems);
  if(broken.length)add(blockers,'broken-navigation','Resolve confirmed broken page/anchor links',
   'Broken implemented navigation or supplied HTML links must be reviewed and corrected before public release.',broken);
  if(missing.length)add(blockers,'approved-pages-absent','Resolve missing approved pages',
@@ -47,6 +62,9 @@ function assess(site,manifests,blueprint,options={}){
   auditedAgainstBlueprint:true,
   staticHtmlSupplied:Boolean(options.snapshot),
   staticHtmlChecked:Boolean(parity),
+  suppliedThreeDeviceMarkupReviewed:Boolean(options.viewports),
+  deepHtmlEvidenceChecked:Boolean(options.snapshot),
+  siteRegressionCompared:Boolean(options.baselineSite),
   liveHostChecked:false,
   visualPrototypesVerified:false,
   mobileRenderedVerified:false,

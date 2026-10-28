@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Offline SEO three-viewport captured HTML evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "siteId",
+    "pages"
+  ],
+  "properties": {
+    "format": {
+      "const": "manufact-seo-viewport-evidence-v1"
+    },
+    "siteId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,79}$"
+    },
+    "pages": {
+      "type": "array",
+      "maxItems": 80,
+      "items": {
+        "$ref": "#/$defs/page"
+      }
+    }
+  },
+  "$defs": {
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "html"
+      ],
+      "properties": {
+        "method": {
+          "enum": [
+            "rendered-dom",
+            "static-html"
+          ]
+        },
+        "html": {
+          "type": "string",
+          "maxLength": 250000
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "captures"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{2,79}$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/(?:[a-z0-9-]+/)*$"
+        },
+        "captures": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "desktop",
+            "tablet",
+            "mobile"
+          ],
+          "properties": {
+            "desktop": {
+              "$ref": "#/$defs/capture"
+            },
+            "tablet": {
+              "$ref": "#/$defs/capture"
+            },
+            "mobile": {
+              "$ref": "#/$defs/capture"
+            }
+          }
+        }
+      }
+    }
+  }
+}
