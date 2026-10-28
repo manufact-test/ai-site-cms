@@ -2551,6 +2551,24 @@
           if(sha256!==variant.sha256)throw Error('Не совпадает SHA256 responsive-файла: '+variant.file.name);
         }
       }
+      // A resumed import is only possible for this exact, sealed package,
+      // owner and browser tab. No other site/document is ever overwritten.
+      const checkpointKey='manufact-stage3-approved-import-v2:'+site.siteId;
+      const ticket=handoff.format==='manufact-approved-site-handoff-v2'
+        ?{siteId:site.siteId,title:site.title,owner:state.principal?.username,
+          digest:handoff.integrity.files[refs.site]}:null;
+      const readTicket=()=>{
+        try{return JSON.parse(sessionStorage.getItem(checkpointKey)||'null');}
+        catch(_){return null;}
+      };
+      const matchingTicket=()=>ticket&&JSON.stringify(readTicket())===JSON.stringify(ticket);
+      const rememberTicket=()=>{
+        if(!ticket)return;
+        try{sessionStorage.setItem(checkpointKey,JSON.stringify(ticket));}catch(_){}
+      };
+      const forgetTicket=()=>{
+        try{sessionStorage.removeItem(checkpointKey);}catch(_){}
+      };
       // A visual approval gate is distinct from checking a filename or status flag.
       // Display the three actual files and source explanations, never untrusted HTML.
       const approve=async()=>{
@@ -2686,7 +2704,8 @@
         const actions=element('div','');
         Object.assign(actions.style,{display:'flex',justifyContent:'flex-end',flexWrap:'wrap',gap:'12px',marginTop:'18px'});
         const cancel=action('Отмена','server-approved-review-cancel',()=>dialog.close('cancel'));
-        const confirmButton=action('Подключить как черновик','server-approved-review-confirm',()=>dialog.close('approve'));
+        const confirmButton=action(matchingTicket()?'Продолжить незавершённый импорт':'Подключить как черновик',
+          'server-approved-review-confirm',()=>dialog.close('approve'));
         actions.append(cancel,confirmButton);
         dialog.append(heading,summary,description,pageLabel,previews,details,actions);
         document.body.append(dialog);
@@ -2722,20 +2741,77 @@
         reader.onerror=()=>reject(Error('Ошибка чтения: '+file.name));
         reader.readAsDataURL(file);
       });
-      let created=false;
+      let created=false,resumed=false;
       try{
-        // POST /api/sites disallows untrusted media references. Use a safe
-        // unpublished seed, existing authenticated uploads, then one validated Save.
-        let result=await api('/api/sites','POST',{site:editor.fromBrief(site.siteId,site.title)});
-        created=true;
+        // The server intentionally refuses foreign media IDs on Create. A
+        // previous interrupted multi-image import may have left an unpublished
+        // seed with server-issued media IDs. Resume only with a same-tab sealed
+        // checksum checkpoint and an EXACT matching untouched seed.
+        const seed=editor.fromBrief(site.siteId,site.title);
+        const stable=value=>Array.isArray(value)?value.map(stable):
+          value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort()
+            .map(key=>[key,stable(value[key])])):value;
+        const digest=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
+          .map(v=>v.toString(16).padStart(2,'0')).join('');
+        const remoteDigest=async assetId=>{
+          const response=await fetch('/api/sites/'+encodeURIComponent(site.siteId)+'/media/'+
+            encodeURIComponent(assetId),{credentials:'same-origin',cache:'no-store'});
+          if(!response.ok)throw Error('Не удалось проверить сохранённый файл: '+assetId);
+          const bytes=await response.arrayBuffer();
+          if(bytes.byteLength<20||bytes.byteLength>450000)
+            throw Error('Некорректный размер ранее загруженного файла: '+assetId);
+          return digest(bytes);
+        };
+        let result=null;
+        if(matchingTicket()){
+          const all=await api('/api/sites');
+          const meta=all.sites.find(row=>row.site_id===site.siteId);
+          if(meta){
+            if(meta.published_version!==null)
+              throw Error('Возобновление запрещено: сайт уже опубликован');
+            result=await api('/api/sites/'+encodeURIComponent(site.siteId));
+            if(JSON.stringify(stable({...result.site,assets:[]}))!==JSON.stringify(stable(seed)))
+              throw Error('Возобновление запрещено: черновик изменён после импорта');
+            created=true;resumed=true;
+          }
+        }
+        if(!result){
+          rememberTicket(); // before POST, survives a lost create response
+          result=await api('/api/sites','POST',{site:seed});
+          created=true;
+        }
         selectSite(result);
-        const ids=new Map();
+        const ids=new Map(),reused=new Set();
+        if(resumed){
+          // Compare actual authenticated server media bytes with the exact
+          // sealed source/variant checksums. Metadata alone is insufficient.
+          for(const entry of media){
+            const declared=site.assets.find(asset=>asset.id===entry.id);
+            const fileHash=await digest(await entry.original.arrayBuffer());
+            for(const saved of result.site.assets){
+              if(reused.has(saved.id)||saved.mime!==declared.mime||saved.alt!==entry.alt||
+                saved.width!==declared.width||saved.height!==declared.height)continue;
+              const expected=declared.variants||[],actual=saved.variants||[];
+              if(actual.length!==expected.length||expected.some(v=>!actual.some(x=>
+                x.width===v.width&&x.height===v.height&&x.sha256===v.sha256)))continue;
+              if(await remoteDigest(saved.id)!==fileHash)continue;
+              for(const variant of actual){
+                if(await remoteDigest(variant.id)!==variant.sha256)
+                  throw Error('Изменился ранее загруженный responsive-файл: '+variant.id);
+              }
+              ids.set(entry.id,saved.id);reused.add(saved.id);break;
+            }
+          }
+          if(reused.size!==result.site.assets.length)
+            throw Error('В незавершённом импорте найдены посторонние файлы; черновик не изменён');
+          notice('Возобновление: '+reused.size+' уже проверенных изображений сохранены, загружаем оставшиеся.');
+        }
         for(let i=0;i<media.length;i++){
           const entry=media[i],variants=[];
+          if(ids.has(entry.id))continue;
           notice('Подключение '+site.title+': загрузка файла '+(i+1)+' из '+media.length);
           for(const part of entry.variants){
-            const sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await part.file.arrayBuffer())))
-              .map(b=>b.toString(16).padStart(2,'0')).join('');
+            const sha256=await digest(await part.file.arrayBuffer());
             if(sha256!==part.sha256)throw Error('Не совпадает контрольная сумма '+part.file.name);
             variants.push({width:part.width,sha256,base64:await fileBase64(part.file)});
           }
@@ -2754,17 +2830,22 @@
         next.assets=result.site.assets; // Server-issued immutable IDs, paths, dimensions and responsive hashes.
         result=await api('/api/sites/'+encodeURIComponent(site.siteId)+'/save','POST',
           {site:next,expectedRevision:result.revision});
+        forgetTicket();
         selectSite(result);
         await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();await loadDeliverySettings();
-        notice('Сайт подключён как черновик. Редактируйте страницы, FAQ, изображения и SEO; публикация только по отдельной кнопке.');
+        notice((resumed?'Импорт безопасно продолжен. ':'Сайт подключён как черновик. ')+
+          'Редактируйте страницы, FAQ, изображения и SEO; публикация только по отдельной кнопке.');
       }catch(error){
         if(created){
           try{
             const current=await api('/api/sites/'+encodeURIComponent(site.siteId));
             selectSite(current);await refreshSites();await loadHistory();
           }catch(_){}
-          throw Error('Импорт не завершён; остался только НЕОПУБЛИКОВАННЫЙ черновик. '+error.message);
+          throw Error('Импорт прерван. Остался неопубликованный черновик. '+
+            (ticket?'Повторно выберите ту же утверждённую папку в этой вкладке для безопасного продолжения. ':
+              'Для старого v1-пакета автоматическое продолжение недоступно. ')+error.message);
         }
+        forgetTicket();
         throw error;
       }
     });
