@@ -597,7 +597,7 @@ async function execute(){
     /отступы отличаются/);
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),true,
     'Open visual discrepancy blocks human sign-off for selected device');
-  await page.locator('#server-launch-finding-list').getByRole('button',{name:/Исправлено/}).click();
+  await page.locator('#server-launch-finding-list').getByRole('button',{name:/Отметить замечание исправленным/}).click();
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
     'Resolved discrepancy permits explicit new human approval');
   // Previous review notes may be resumed without restoring any stale
@@ -619,7 +619,7 @@ async function execute(){
   await page.waitForFunction(()=>document.querySelector('#server-launch-finding-list')
     ?.textContent?.includes('Вернуть точную ширину'));
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),true);
-  await page.locator('#server-launch-finding-list').getByRole('button',{name:/Исправлено/}).click();
+  await page.locator('#server-launch-finding-list').getByRole('button',{name:/Отметить замечание исправленным/}).click();
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),false);
   await page.locator('#server-launch-pages [data-page-id="'+interiorPage.id+'"]').click();
   await page.locator('#server-launch-compare-modes [data-compare-mode="approved-compare"]').click();
