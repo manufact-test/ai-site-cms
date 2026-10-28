@@ -2407,6 +2407,15 @@ async function stop(){
   const contactPage=fs.readFileSync(path.join(out,'contact','index.html'),'utf8');
   assert.ok(contactPage.includes('action="'+origin+'/forms/'));
   assert.match(contactPage,/name="_token" value="[a-f0-9]{64}"/);
+  assert.doesNotMatch(contactPage,/name="_return"/,
+    'Unknown independent visitor origin cannot be invented by the publisher');
+  const withOrigin=path.join(dbdir,'export-v4-visitor-origin');
+  const withOriginRun=spawnSync('php',['stage3/server/bin/export-published.php',id,withOrigin],{
+    cwd:root,encoding:'utf8',env:{...env,STAGE3_EXPORT_ORIGIN:'https://client.example.test'}});
+  assert.equal(withOriginRun.status,0,withOriginRun.stderr);
+  const visitorPage=fs.readFileSync(path.join(withOrigin,'contact/index.html'),'utf8');
+  assert.match(visitorPage,/name="_return" value="https:\/\/client[.]example[.]test\/contact\/"/,
+    'Independent origin is explicitly configured, not guessed from collector hostname');
   assert.equal(manifest.assets.length,1);
   assert.equal(manifest.assets[0].id,asset.id);
   assert.deepEqual(fs.readFileSync(path.join(out,manifest.assets[0].file)),pngBytes);
