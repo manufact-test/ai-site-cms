@@ -84,3 +84,25 @@ For a project with Site v1 image assets, provide a JSON document conforming to `
 **Verification limits:** changed CommonJS source syntax was checked; targeted V8 checks used actual industrial fixture data and a test URL shim. A clean synthetic HTTP recording had no critical errors; supplied 404, noindex response header, and missing sitemap route produced expected conflicts; a missing OG asset also produced an error. The execution planner distinguished approved, dependent and rejected work. **No actual Node subprocess CLI smoke, GitHub CI, live HTTP request or production browser verification was performed.** The lead must run `node stage3/seo-engine/tests/smoke.cjs` on a complete checkout and perform actual browser/host/manual acceptance.
 
 **Boundary:** worker writes `stage3/seo-engine/**` only. No merge, deploy, PR, CMS mutation or auto-approval.
+
+
+## First real-site integration workstream: execution safety and capture confidence (28 October 2026)
+
+Additional worker-owned modules now form a lead-ready, read-only workflow:
+
+1. `lib/capture-plan.cjs` + CLI `capture-plan --site ... --blueprint ... [--origin https://host/mount/]` creates the request manifest for every actual Site v1 route, media asset, robots/sitemap candidate, three device markups, screenshot comparison and human acceptance. URL values require an explicit approved HTTPS public origin; without it, request URLs remain null. The tool performs **no HTTP calls**.
+2. `lib/cms-change-packet.cjs` + CLI `cms-change-packet` / `cms-change-packet-md` turns **approved only** backlog field tasks into non-executable, manually applicable CMS field instructions. It verifies exact ID, blueprint value, site field before-value, manifest version and unresolved dependencies. It includes manual-override/Save/Publish warnings and never writes CMS data. Both JSON and human-readable versions enter `review-bundle`.
+3. `lib/evidence-consistency.cjs` + CLI `evidence-consistency` compares two supplied HTML captures (snapshot vs HTTP transcript). Conflicting index/noindex becomes a release blocker; title/canonical/meta/OG mismatches prompt revision review. Caller-supplied HTTP/media origins must agree. Matching static sources never prove actual live origin.
+4. `lib/delivery-evidence.cjs` now refuses completeness conclusions from malformed/truncated XML sitemap URL sets; a sitemap index remains unenumerated. Missing HTTP page responses become explicit unverified coverage findings. URLs with tracking query parameters are reviewable drift, not a fatal parsing error. `lib/media-delivery.cjs` only classifies failures of specifically referenced OG assets as OG release blockers; unused asset failures remain review work.
+
+Recommended integrator sequence:
+
+```bash
+node stage3/seo-engine/tests/smoke.cjs
+node stage3/seo-engine/bin/seo-blueprint.cjs capture-plan --site stage3/fixtures/industrial-site.json --blueprint stage3/seo-engine/fixtures/industrial.blueprint.json --origin https://example.test/site/
+node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle --site stage3/fixtures/industrial-site.json --blueprint stage3/seo-engine/fixtures/industrial.blueprint.json --snapshot stage3/seo-engine/fixtures/industrial.html.snapshot.json --delivery stage3/seo-engine/fixtures/industrial.delivery.evidence.json
+```
+
+The sample origin and transcript are synthetic; replace with owner-approved and independently captured values before drawing conclusions. Add `--decisions` for human approvals; use `cms-change-packet-md` only after reconciling a current ledger and verifying saved CMS override history.
+
+**Verification reality:** targeted real-fixture module checks were run in isolated V8 shims for sitemap, read-only CMS change eligibility, manifest/precondition drift, first-site capture URL mapping, and cross-source indexation discrepancy. New CommonJS sources were syntax checked. **Actual Node CLI smoke was not executable here**: the external container has Node v22 but no repository checkout and cannot resolve github.com to clone. CI result is not claimed. Run on a full local checkout before integration. No merge or deployment, and only `stage3/seo-engine/**` is writable.
