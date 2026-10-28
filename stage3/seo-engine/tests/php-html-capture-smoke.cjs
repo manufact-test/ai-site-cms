@@ -128,6 +128,54 @@ function formAndFirstSiteCliContracts(){
   .findings.some(x=>x.code==='php-form:action-drift'));
  assert.ok(!JSON.stringify(inspect(doc('invalid'))).includes('a'.repeat(64)),
   'HMAC values must not appear in findings');
+ // New FlexForm v1 builder custom fields and optional wizard steps.
+ const withBuilder=JSON.parse(JSON.stringify(site));
+ withBuilder.pages[0].sections[0].component='lead-form-flex';
+ withBuilder.pages[0].sections[0].formFields=[{
+  id:'field-inquiry',kind:'text',required:true,options:[],placeholder:'',label:'Inquiry'
+ }];
+ const built=doc('a'.repeat(64)).replace('</form>',
+  '<input type="text" name="field-inquiry" required></form>');
+ const builtCapture={siteId:'pilot-form',pages:[{id:'page-form',path:'/',html:built}]};
+ assert.ok(!FORM.review(withBuilder,builtCapture).findings.some(x=>x.severity==='error'));
+ assert.ok(FORM.review(withBuilder,{siteId:'pilot-form',pages:[{id:'page-form',path:'/',
+  html:doc('a'.repeat(64))}]}).findings.some(x=>x.code==='php-form:extra-field-drift'));
+ const withSteps=JSON.parse(JSON.stringify(site));
+ withSteps.pages[0].sections[0].component='lead-form-flex';
+ withSteps.pages[0].sections[0].formSteps=[
+  {title:'Contact',fields:['name','email']},{title:'Details',fields:['message']}
+ ];
+ const wizard=doc('a'.repeat(64))
+  .replace('<form method="post"','<form data-multi-step="yes" method="post"')
+  .replace('</form>','<p class="lead-step-progress"></p><fieldset class="lead-step"></fieldset>'+
+   '<fieldset class="lead-step"></fieldset><button type="button" data-step-next>Next</button>'+
+   '<button type="button" data-step-back>Back</button></form>');
+ assert.ok(!FORM.review(withSteps,{siteId:'pilot-form',pages:[{id:'page-form',path:'/',html:wizard}]})
+  .findings.some(x=>x.severity==='error'));
+ assert.ok(FORM.review(withSteps,{siteId:'pilot-form',pages:[{id:'page-form',path:'/',
+  html:doc('a'.repeat(64))}]}).findings.some(x=>x.code==='php-form:step-layout-drift'));
+ // Current PublicRenderer.php emits a source-pinned inline wizard; CSP must
+ // contain the digest of that exact served script (no JS is executed here).
+ const HEAD=require('../lib/php-local-head.cjs');
+ const script='(()=>{const wizard=1;})();';
+ const digest=crypto.createHash('sha256').update(script,'utf8').digest('base64');
+ const siteHead={siteId:'pilot-form',title:'Pilot',language:'ru',pages:[{
+  id:'page-form',path:'/',title:'Home',
+  seo:{title:'Home',description:'Test',robots:'index'},
+  sections:[{id:'sec-form',component:'lead-form-flex',formSteps:withSteps.pages[0].sections[0].formSteps}]
+ }]};
+ const docHead='<html lang="ru"><head><title>Home</title><meta name="description" content="Test">'+
+  '<meta property="og:title" content="Home"><meta property="og:description" content="Test"></head>'+
+  '<body><script>'+script+'</script></body></html>';
+ const headCheck=(html,policy)=>HEAD.review(siteHead,{siteId:'pilot-form',
+  pages:[{id:'page-form',path:'/',html}]},
+  [{pageId:'page-form',path:'/',headers:{'content-security-policy':policy}}],null);
+ const goodPolicy="default-src 'none'; frame-ancestors 'none'; script-src 'sha256-"+digest+"'";
+ assert.ok(!headCheck(docHead,goodPolicy).findings.some(x=>x.severity==='error'));
+ assert.ok(headCheck(docHead,"default-src 'none'; frame-ancestors 'none'").findings.some(x=>
+  x.code==='php-head:inline-script-csp-drift'&&x.severity==='error'));
+ assert.ok(headCheck(docHead.replace('<script>'+script+'</script>',''),goodPolicy).findings.some(x=>
+  x.code==='php-head:wizard-script-absent'&&x.severity==='error'));
  // This CLI remains a single command, with optional lead screenshot evidence.
  const cliSource=fs.readFileSync(path.join(__dirname,'../bin/first-site-check.cjs'),'utf8')
   .replace(/^#![^\n]*\n/,'');
