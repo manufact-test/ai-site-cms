@@ -16,7 +16,8 @@ trait FormDelivery
         $tail=$this->driver==='mysql'?' ENGINE=InnoDB':'';
         return [
             "CREATE TABLE stage3_delivery_settings (site_id $id PRIMARY KEY, email_enabled INTEGER NOT NULL, email_recipient VARCHAR(254) NOT NULL, telegram_enabled INTEGER NOT NULL, telegram_chat_id VARCHAR(32) NOT NULL, version INTEGER NOT NULL, operator $id NOT NULL, reason VARCHAR(240) NOT NULL, changed_at VARCHAR(35) NOT NULL)$tail",
-            "CREATE TABLE stage3_delivery_outbox (delivery_id $id PRIMARY KEY, site_id $id NOT NULL, submission_id $id NOT NULL, channel VARCHAR(16) NOT NULL, state VARCHAR(32) NOT NULL, attempts INTEGER NOT NULL, created_at VARCHAR(35) NOT NULL, updated_at VARCHAR(35) NOT NULL, accepted_at VARCHAR(35) NULL, last_error VARCHAR(64) NULL, UNIQUE(site_id,submission_id,channel))$tail"
+            "CREATE TABLE stage3_delivery_outbox (delivery_id $id PRIMARY KEY, site_id $id NOT NULL, submission_id $id NOT NULL, channel VARCHAR(16) NOT NULL, state VARCHAR(32) NOT NULL, attempts INTEGER NOT NULL, created_at VARCHAR(35) NOT NULL, updated_at VARCHAR(35) NOT NULL, accepted_at VARCHAR(35) NULL, last_error VARCHAR(64) NULL, target VARCHAR(254) NOT NULL DEFAULT '', UNIQUE(site_id,submission_id,channel))$tail",
+            ...$this->deliveryRouteSchema()
         ];
     }
 
@@ -37,6 +38,13 @@ trait FormDelivery
             preg_match('/CREATE TABLE ([a-z0-9_]+)/',$sql,$m);
             if(!in_array($m[1],$tables,true))$this->db->exec($sql);
         }
+        // Outbox destinations for existing leads are left blank for legacy fallback.
+        $columns=$this->driver==='sqlite'
+            ?$this->db->query('PRAGMA table_info(stage3_delivery_outbox)')->fetchAll(PDO::FETCH_ASSOC)
+            :$this->db->query('SHOW COLUMNS FROM stage3_delivery_outbox')->fetchAll(PDO::FETCH_ASSOC);
+        $names=array_map(static fn(array $r):string=>(string)($r['name']??$r['Field']),$columns);
+        if(!in_array('target',$names,true))
+            $this->db->exec("ALTER TABLE stage3_delivery_outbox ADD COLUMN target VARCHAR(254) NOT NULL DEFAULT ''");
     }
 
     private function deliverySettingsRow(string $siteId): ?array
@@ -103,7 +111,7 @@ trait FormDelivery
             'acceptedAt'=>$row['accepted_at'],'lastError'=>$row['last_error']
         ],$q->fetchAll(PDO::FETCH_ASSOC));
         return ['settings'=>$settings,'transport'=>$transport,'channels'=>$channels,'totals'=>$totals,
-            'recent'=>$recent,'retryable'=>$totals['pending']+$totals['failed']+$totals['configuration_required']>0,
+            'routes'=>$this->deliveryFormRoutes($siteId),'recent'=>$recent,'retryable'=>$totals['pending']+$totals['failed']+$totals['configuration_required']>0,
             'uncertain'=>$totals['uncertain']];
     }
 
@@ -141,12 +149,19 @@ trait FormDelivery
 
     private function enqueueLeadDeliveries(string $siteId,string $submissionId): void
     {
-        $settings=$this->deliverySettingsRow($siteId);if($settings===null)return;
-        foreach(['email'=>'email_enabled','telegram'=>'telegram_enabled'] as $channel=>$column){
-            if((int)$settings[$column]!==1)continue;
+        $settings=$this->deliverySettingsRow($siteId);
+        // Snapshot recipient per accepted lead, independently of future routing edits.
+        $q=$this->db->prepare('SELECT section_id FROM stage3_submissions WHERE site_id=? AND submission_id=?');
+        $q->execute([$siteId,$submissionId]);$sectionId=$q->fetchColumn();
+        if(!is_string($sectionId))return;
+        $route=$this->formRouteRow($siteId,$sectionId);
+        $defaults=$settings??['email_enabled'=>0,'email_recipient'=>'','telegram_enabled'=>0,'telegram_chat_id'=>''];
+        foreach(['email','telegram'] as $channel){
+            $target=$this->deliveryTarget($channel,$defaults,$route);
+            if($target===null)continue;
             $now=$this->now();$id='delivery-'.bin2hex(random_bytes(12));
-            $q=$this->db->prepare('INSERT INTO stage3_delivery_outbox (delivery_id,site_id,submission_id,channel,state,attempts,created_at,updated_at,accepted_at,last_error) VALUES (?,?,?,?,?,0,?,?,NULL,NULL)');
-            $q->execute([$id,$siteId,$submissionId,$channel,'pending',$now,$now]);
+            $q=$this->db->prepare('INSERT INTO stage3_delivery_outbox (delivery_id,site_id,submission_id,channel,state,attempts,created_at,updated_at,accepted_at,last_error,target) VALUES (?,?,?,?,?,0,?,?,NULL,NULL,?)');
+            $q->execute([$id,$siteId,$submissionId,$channel,'pending',$now,$now,$target]);
         }
     }
 
@@ -224,15 +239,19 @@ trait FormDelivery
 
     private function dispatchDelivery(string $deliveryId): void
     {
-        $q=$this->db->prepare('SELECT delivery_id,site_id,submission_id,channel,state FROM stage3_delivery_outbox WHERE delivery_id=?');
+        $q=$this->db->prepare('SELECT delivery_id,site_id,submission_id,channel,state,target FROM stage3_delivery_outbox WHERE delivery_id=?');
         $q->execute([$deliveryId]);$job=$q->fetch(PDO::FETCH_ASSOC);
         if(!$job||$job['state']!=='pending')return;
         $siteId=(string)$job['site_id'];$submissionId=(string)$job['submission_id'];$channel=(string)$job['channel'];
         $settings=$this->deliverySettingsRow($siteId);
-        $enabled=$channel==='email'?(int)($settings['email_enabled']??0)===1:
-            ($channel==='telegram'&&(int)($settings['telegram_enabled']??0)===1);
-        if(!$enabled){$this->finishDelivery($deliveryId,'disabled',null);return;}
-        $recipient=$channel==='email'?($settings['email_recipient']??''):($settings['telegram_chat_id']??'');
+        // Existing pending deliveries with target='' preserve legacy fallback.
+        $recipient=(string)$job['target'];
+        if($recipient===''){
+            $enabled=$channel==='email'?(int)($settings['email_enabled']??0)===1:
+                ($channel==='telegram'&&(int)($settings['telegram_enabled']??0)===1);
+            if(!$enabled){$this->finishDelivery($deliveryId,'disabled',null);return;}
+            $recipient=$channel==='email'?($settings['email_recipient']??''):($settings['telegram_chat_id']??'');
+        }
         if($recipient===''){$this->finishDelivery($deliveryId,'configuration_required','recipient_missing');return;}
         $transport=$this->deliveryTransport($channel);
         if(!$transport['ready']){$this->finishDelivery($deliveryId,'configuration_required',$transport['reason']);return;}
