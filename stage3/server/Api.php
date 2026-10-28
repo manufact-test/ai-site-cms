@@ -344,7 +344,7 @@ final class Api
                 echo $image['bytes'];
                 exit;
             }
-            if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/approval-evidence/([a-f0-9]{64})/(handoff|site|desktop|tablet|mobile|clientExplanation|implementationSpec)$~D',$path,$proofFile)) {
+            if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/approval-evidence/([a-f0-9]{64})/(handoff|site|desktop|tablet|mobile|clientExplanation|implementationSpec|ref-(?:[0-9]|1[0-9])-(?:desktop|tablet|mobile))$~D',$path,$proofFile)) {
                 if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
                 $document=$this->sites->readApprovalEvidence($proofFile[1],$proofFile[2],$proofFile[3]);
                 $kind=$proofFile[3];

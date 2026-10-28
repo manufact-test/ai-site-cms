@@ -59,7 +59,8 @@ trait ApprovalEvidence
 
     private static function approvalKind(mixed $value): string
     {
-        if (!is_string($value)||!isset(self::APPROVAL_KINDS[$value]))
+        if (!is_string($value)||(!isset(self::APPROVAL_KINDS[$value])&&
+            !preg_match('/^ref-(?:[0-9]|1[0-9])-(?:desktop|tablet|mobile)$/D',$value)))
             throw new InvalidArgumentException('Unknown approval evidence kind');
         return $value;
     }
@@ -89,7 +90,40 @@ trait ApprovalEvidence
             $paths[$path]=true;
             self::approvalHash($handoff['integrity']['files'][$path]??null);
         }
+        $extra=$files['pagePrototypes']??null;
+        if($extra!==null){
+            if(!is_array($extra)||array_is_list($extra)||count($extra)<1||count($extra)>20)
+                throw new InvalidArgumentException('Invalid per-page approved prototype map');
+            foreach($extra as $id=>$mockups){
+                if(!is_string($id)||!preg_match('/^[a-z][a-z0-9-]{2,79}$/D',$id)
+                    ||!is_array($mockups)||count($mockups)!==3||
+                    !isset($mockups['desktop'],$mockups['tablet'],$mockups['mobile']))
+                    throw new InvalidArgumentException('Page mockups require a site page ID and all three devices');
+                foreach(['desktop','tablet','mobile'] as $bp){
+                    $file=$mockups[$bp];
+                    if(!is_string($file)||strlen($file)>200||
+                        !preg_match('~^[a-zA-Z0-9_/-]+[.](?:png|jpe?g|webp)$~D',$file)
+                        ||str_contains('/'.$file.'/','/../')||isset($paths[$file]))
+                        throw new InvalidArgumentException('Unsafe duplicate page prototype path');
+                    $paths[$file]=true;
+                    self::approvalHash($handoff['integrity']['files'][$file]??null);
+                }
+            }
+        }
         return $handoff;
+    }
+
+    /** Find the exact trusted page / device file path in a sealed handoff. */
+    private static function approvalReferencePath(array $handoff,string $kind): string
+    {
+        if(isset(self::APPROVAL_KINDS[$kind]))return $handoff['files'][$kind];
+        $list=$handoff['files']['pagePrototypes']??[];
+        $ids=array_keys($list);sort($ids,SORT_STRING);
+        if(!preg_match('/^ref-([0-9]{1,2})-(desktop|tablet|mobile)$/D',$kind,$found)
+            ||(int)$found[1]>=count($ids)
+            ||$kind!=='ref-'.(int)$found[1].'-'.$found[2])
+            throw new InvalidArgumentException('Source reference not present in sealed handoff');
+        return $list[$ids[(int)$found[1]]][$found[2]];
     }
 
     /** Idempotent same-byte upload, never overwrite an existing evidence file. */
@@ -103,7 +137,7 @@ trait ApprovalEvidence
         if (!is_string($base64)||strlen($base64)>11000000||$base64==='')
             throw new InvalidArgumentException('Invalid approval file upload');
         $bytes=base64_decode($base64,true);
-        $limit=in_array($kind,['desktop','tablet','mobile'],true)?8000000:
+        $limit=in_array($kind,['desktop','tablet','mobile'],true)||str_starts_with($kind,'ref-')?8000000:
             ($kind==='site'?500000:200000);
         if (!is_string($bytes)||strlen($bytes)<10||strlen($bytes)>$limit||
             !hash_equals($sha256,hash('sha256',$bytes)))
@@ -115,10 +149,10 @@ trait ApprovalEvidence
         } else {
             $handoffFile=$this->readApprovalEvidence($siteId,$packageSha,'handoff');
             $handoff=self::approvalHandoff($handoffFile['bytes']);
-            $path=$handoff['files'][$kind];
+            $path=self::approvalReferencePath($handoff,$kind);
             if (!hash_equals(self::approvalHash($handoff['integrity']['files'][$path]??null),$sha256))
                 throw new InvalidArgumentException('Approved source file not included in signed-off SHA256 list');
-            if (in_array($kind,['desktop','tablet','mobile'],true)) {
+            if (in_array($kind,['desktop','tablet','mobile'],true)||str_starts_with($kind,'ref-')) {
                 $pixels=@getimagesizefromstring($bytes);
                 $expected=strtolower(pathinfo($path,PATHINFO_EXTENSION));
                 $mime=$expected==='png'?'image/png':($expected==='webp'?'image/webp':'image/jpeg');
@@ -130,6 +164,10 @@ trait ApprovalEvidence
                 if (!is_array($site)||($site['siteId']??null)!==$siteId)
                     throw new InvalidArgumentException('Approval source site does not match selected site');
                 $this->validator->validate($site);
+                $pages=array_column($site['pages'],'path','id');
+                foreach(array_keys($handoff['files']['pagePrototypes']??[]) as $pageId)
+                    if(!isset($pages[$pageId])||$pages[$pageId]==='/')
+                        throw new InvalidArgumentException('Page-specific prototype ID is not an interior page');
             } elseif (in_array($kind,['clientExplanation','implementationSpec'],true)) {
                 if (!preg_match('//u',$bytes))
                     throw new InvalidArgumentException('Approval description must be UTF-8');
@@ -202,7 +240,7 @@ trait ApprovalEvidence
                 !is_string($row['base64'])||strlen($row['base64'])>11000000)
                 throw new InvalidArgumentException('Archive: invalid approval metadata');
             $bytes=base64_decode($row['base64'],true);
-            $limit=in_array($kind,['desktop','tablet','mobile'],true)?8000000:
+            $limit=in_array($kind,['desktop','tablet','mobile'],true)||str_starts_with($kind,'ref-')?8000000:
                 ($kind==='site'?500000:200000);
             if(!is_string($bytes)||strlen($bytes)<10||strlen($bytes)>$limit||
                 !hash_equals(hash('sha256',$bytes),$sha))
@@ -224,12 +262,12 @@ trait ApprovalEvidence
                 if($entry['row']['version']!==$handoff['version'])
                     throw new InvalidArgumentException('Archive: approval handoff version mismatch');
                 if($kind==='handoff')continue;
-                $sourcePath=$handoff['files'][$kind];
+                $sourcePath=self::approvalReferencePath($handoff,$kind);
                 if(!hash_equals(self::approvalHash(
                     $handoff['integrity']['files'][$sourcePath]??null),$entry['row']['sha256']))
                     throw new InvalidArgumentException('Archive: approval ledger mismatch');
                 $bytes=$entry['bytes'];
-                if(in_array($kind,['desktop','tablet','mobile'],true)){
+                if(in_array($kind,['desktop','tablet','mobile'],true)||str_starts_with($kind,'ref-')){
                     $info=@getimagesizefromstring($bytes);
                     $ext=strtolower(pathinfo($sourcePath,PATHINFO_EXTENSION));
                     $mime=$ext==='png'?'image/png':($ext==='webp'?'image/webp':'image/jpeg');
@@ -244,6 +282,10 @@ trait ApprovalEvidence
                         ||!preg_match('/^[a-z][a-z0-9-]{2,79}$/D',$source['siteId']))
                         throw new InvalidArgumentException('Archive: invalid original approval site identity');
                     $this->validator->validate($source);
+                    $pages=array_column($source['pages'],'path','id');
+                    foreach(array_keys($handoff['files']['pagePrototypes']??[]) as $pageId)
+                        if(!isset($pages[$pageId])||$pages[$pageId]==='/')
+                            throw new InvalidArgumentException('Archive: page-specific prototype not in signed source site');
                 }elseif(!preg_match('//u',$bytes))
                     throw new InvalidArgumentException('Archive: approval text is not UTF-8');
             }
@@ -263,8 +305,34 @@ trait ApprovalEvidence
                 'version'=>$row['version'],'createdAt'=>$row['created_at'],'files'=>[]];
             $packages[$key]['files'][$row['kind']]=['sha256'=>$row['sha256'],'bytes'=>(int)$row['size']];
         }
-        foreach ($packages as &$entry)
-            $entry['complete']=count($entry['files'])===count(self::APPROVAL_KINDS);
+        foreach ($packages as &$entry) {
+            $entry['pageReferences']=[];
+            $expected=array_keys(self::APPROVAL_KINDS);
+            $handoff=isset($entry['files']['handoff']);
+            if($handoff) {
+                try{
+                    $original=self::approvalHandoff($this->readApprovalEvidence(
+                        $siteId,$entry['packageSha'],'handoff')['bytes']);
+                    $pages=$original['files']['pagePrototypes']??[];
+                    $ids=array_keys($pages);sort($ids,SORT_STRING);
+                    foreach($ids as $index=>$id){
+                        $entry['pageReferences'][$id]=[
+                            'desktop'=>'ref-'.$index.'-desktop',
+                            'tablet'=>'ref-'.$index.'-tablet',
+                            'mobile'=>'ref-'.$index.'-mobile'
+                        ];
+                        foreach(['desktop','tablet','mobile'] as $bp)
+                            $expected[]='ref-'.$index.'-'.$bp;
+                    }
+                }catch(\Throwable $error){
+                    // Corrupted records cannot be declared complete.
+                    $entry['corrupt']=true;
+                }
+            }
+            $entry['complete']=empty($entry['corrupt'])&&$handoff&&
+                count($entry['files'])===count($expected)&&
+                !array_diff($expected,array_keys($entry['files']));
+        }
         unset($entry);
         return ['packages'=>array_values($packages)];
     }
