@@ -680,6 +680,26 @@ async function execute(){
       Number.parseInt(live.style.height,10)>900;
   },{timeout:15000});
   assert.equal(await page.locator('.hosted-launch-preview-panels.is-comparing').count(),1);
+  assert.equal(await page.locator('#server-launch-scroll-sync-toggle').isChecked(),true);
+  await page.locator('#server-launch-viewport').evaluate(view=>{
+    const max=view.scrollHeight-view.clientHeight;
+    if(max>60)view.scrollTop=Math.min(180,max*0.6);
+  });
+  const scrollProof=await page.locator('#server-launch-viewport').evaluate(view=>{
+    const live=document.querySelector('#server-launch-live-viewport');
+    return {draft:view.scrollTop,live:live.scrollTop,
+      draftMax:view.scrollHeight-view.clientHeight,
+      liveMax:live.scrollHeight-live.clientHeight};
+  });
+  if(scrollProof.draftMax>60&&scrollProof.liveMax>60){
+    await page.waitForFunction(()=>{
+      const source=document.querySelector('#server-launch-viewport');
+      const target=document.querySelector('#server-launch-live-viewport');
+      return target.scrollTop>0&&Math.abs(
+        source.scrollTop/(source.scrollHeight-source.clientHeight)-
+        target.scrollTop/(target.scrollHeight-target.clientHeight))<.06;
+    },null,{timeout:5000});
+  }
   await page.locator('#server-launch-close').click();
   // Actual PUBLIC PHP screenshot evidence, not Studio's JS iframe. Capture
   // every published page at all three original approved breakpoints, read-only.
