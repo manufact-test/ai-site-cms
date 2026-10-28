@@ -30,8 +30,17 @@ try{
  assert.ok(editorial.findings.some(x=>x.code.startsWith('content:topic-')));
  const planReview=JSON.parse(good('review-blueprint',{blueprint:bp}));
  assert.equal(planReview.format,'manufact-seo-blueprint-review-v1');
+ const structure=JSON.parse(good('review-architecture',{blueprint:bp}));
+ assert.equal(structure.format,'manufact-seo-architecture-v1');
+ assert.ok(structure.pages.every(p=>p.reachableFromHome));
+ assert.ok(structure.schemaCandidates.every(c=>c.publicationApproved===false));
+ const candidates=JSON.parse(good('propose-content',{site,blueprint:bp}));
+ assert.equal(candidates.readOnly,true);
+ assert.equal(candidates.proposals.length,0,'fixture headings and CTAs already match blueprint');
  const handoff=JSON.parse(good('handoff',{site,blueprint:bp}));
  assert.equal(handoff.readOnly,true);
+ assert.equal(handoff.architectureReview.format,'manufact-seo-architecture-v1');
+ assert.equal(handoff.contentFieldProposals.readOnly,true);
  assert.ok(Array.isArray(handoff.editorialReviewActions));
  assert.ok(handoff.editorialReviewActions.some(x=>x.automatic===false));
  assert.ok(handoff.supportedChanges.some(x=>x.field==='seo.title'));
@@ -56,6 +65,52 @@ try{
  overlap.pages[1].intent.topics[0]=overlap.pages[0].intent.topics[0];
  assert.ok(reviewBlueprint(compileBrief(overlap)).issues.some(x=>x.code==='blueprint:primary-intent-overlap'));
 
+ // Regressions in supported existing component slots produce precise read-only proposals.
+ const {propose:proposeFields}=require('../lib/field-proposals.cjs');
+ const manifests=fs.readdirSync(path.resolve(root,'../components')).filter(f=>f.endsWith('.json'))
+  .map(f=>JSON.parse(fs.readFileSync(path.resolve(root,'../components',f),'utf8')));
+ const changed=structuredClone(original);
+ changed.pages[0].sections[0].elements.find(e=>e.slot==='heading').values['content.text']='Temporary heading';
+ changed.pages[0].sections[0].elements.find(e=>e.slot==='action').values['behavior.href']='/';
+ const fieldReport=proposeFields(changed,manifests,plan);
+ assert.ok(fieldReport.proposals.some(p=>p.field==='content.text'&&p.before==='Temporary heading'
+  &&p.after==='Производим технологическое оборудование'&&p.preconditions.expectedBefore===p.before));
+ assert.ok(fieldReport.proposals.some(p=>p.field==='behavior.href'&&p.before==='/'&&p.after==='/contact/'));
+ assert.ok(fieldReport.proposals.every(p=>p.reviewRequired&&p.automatic===false));
+ const ambiguous=structuredClone(changed);
+ ambiguous.pages[0].sections[0].elements.push({
+  id:'another-cta',slot:'action',values:{'content.text':'Второе действие','behavior.href':'/'}
+ });
+ assert.ok(proposeFields(ambiguous,manifests,plan).blocked.some(x=>x.reason==='ambiguous-cta-element'));
+ const noManifest=proposeFields(changed,[],plan);
+ assert.equal(noManifest.proposals.length,0);
+ assert.ok(noManifest.blocked.some(x=>x.reason==='component-manifest-unavailable'));
+ const communityReview=JSON.parse(good('review-architecture',{blueprint:fixture('community.blueprint.json')}));
+ assert.ok(communityReview.schemaCandidates.some(c=>c.status==='blocked-unverified-facts'));
+ const unreachable=structuredClone(overlap);
+ unreachable.pages[0].sections[0].cta.toPageId=overlap.pages[0].id;
+ unreachable.pages[0].links=[];unreachable.pages[1].links=[];
+ const isolated=compileBrief(unreachable);
+ const {report:reviewArchitecture}=require('../lib/architecture.cjs');
+ assert.ok(reviewArchitecture(isolated).findings.some(x=>x.code==='architecture:unreachable-from-home'));
+
+ // Blueprint-only architecture regressions: canonical/indexation conflicts,
+ // duplicate metadata, and meaningful heading hierarchy.
+ const canonicalDraft=JSON.parse(fs.readFileSync(fixture('industrial.brief.json'),'utf8'));
+ canonicalDraft.pages[0].seo.canonicalPath='/contact/';
+ canonicalDraft.pages[1].seo.robots='noindex';
+ assert.ok(reviewArchitecture(compileBrief(canonicalDraft)).findings
+  .some(x=>x.code==='architecture:canonical-noindex-target'));
+ const duplicateDraft=JSON.parse(fs.readFileSync(fixture('industrial.brief.json'),'utf8'));
+ duplicateDraft.pages[1].seo.title=duplicateDraft.pages[0].seo.title;
+ duplicateDraft.pages[0].sections[1].level=3;
+ const structuralIssues=reviewArchitecture(compileBrief(duplicateDraft)).findings;
+ assert.ok(structuralIssues.some(x=>x.code==='architecture:duplicate-title'));
+ assert.ok(structuralIssues.some(x=>x.code==='architecture:heading-jump'));
+ const stale=structuredClone(changed);
+ stale.pages[0].sections[0].manifestVersion='0.0.0';
+ assert.ok(proposeFields(stale,manifests,plan).blocked.some(x=>x.reason==='manifest-version-mismatch'));
+ assert.ok(proposeFields(stale,manifests,plan).proposals.every(x=>x.sectionId!=='section-hero'));
  const normal=JSON.parse(good('analyze-html',{snapshot:fixture('normal.snapshot.json')}));
  assert.deepEqual(normal.issues,[],'normal HTML snapshot should have no static issues');
  const bad=JSON.parse(good('analyze-html',{snapshot:fixture('invalid.snapshot.json')}));

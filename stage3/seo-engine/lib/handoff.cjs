@@ -2,6 +2,7 @@
 // Pure proposals only. The CMS source, database and live site never change.
 const {checkBlueprint}=require('./blueprint.cjs');
 const {auditSite}=require('./analyze.cjs');
+const FIELDS=require('./field-proposals.cjs');
 const SUPPORTED=['title','description','robots','ogTitle','ogDescription'];
 function propose(site,manifests,blueprint){
  const plan=checkBlueprint(blueprint);
@@ -38,6 +39,8 @@ function propose(site,manifests,blueprint){
  return {format:'manufact-seo-handoff-v1',version:1,siteId:site.siteId,readOnly:true,
   currentContract:'manufact-ai-site-v1',
   supportedChanges:changes,
+  contentFieldProposals:FIELDS.propose(site,manifests,plan),
+  architectureReview:audit.architectureReview||null,
   editorialReviewActions:audit.contentReview?.editorialActions||[],
   blueprintStructureReview:audit.contentReview?.blueprintReview?.issues||[],
   requiresLeadImplementation:requires,

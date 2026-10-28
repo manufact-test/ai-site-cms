@@ -3,6 +3,7 @@
 const {checkBlueprint}=require('./blueprint.cjs');
 const core=require('../../sdk/contract.cjs');
 const CONTENT=require('./content-intelligence.cjs');
+const ARCHITECTURE=require('./architecture.cjs');
 const FORMAT='manufact-seo-analysis-v1';
 const severity={blocker:0,error:1,warning:2,recommendation:3};
 const normalize=x=>String(x||'').trim().normalize('NFKC').toLowerCase().replace(/\s+/g,' ');
@@ -90,6 +91,10 @@ function auditSite(site,manifests,blueprint){
   for(const p of site.pages)if(!plans.has(p.id))items.push(issue('unplanned-page','recommendation',p.id,p.path,'Page not documented in SEO blueprint; check intent and cross-links.'));
  }
  const contentReview=plan?CONTENT.collectReview(site,plan):null;
+ const architectureReview=plan?ARCHITECTURE.report(plan):null;
+ if(architectureReview)for(const extra of architectureReview.findings)
+  items.push(issue(extra.code,extra.severity,extra.pageId,extra.path,extra.message,
+   Object.fromEntries(Object.entries(extra).filter(([key])=>!['code','severity','pageId','path','message'].includes(key)))));
  if(contentReview){
   for(const extra of [...contentReview.blueprintReview.issues,...contentReview.findings])
    items.push(issue(extra.code,extra.severity,extra.pageId,extra.path||pageMap.get(extra.pageId)?.path||null,
@@ -100,6 +105,7 @@ function auditSite(site,manifests,blueprint){
   robotsSitemap:'publisher-generated; deployment not verified',measuredPerformance:false,
   editorialEvidence:'exact-phrase and content/CTA observations only'});
  if(contentReview)report.contentReview=contentReview;
+ if(architectureReview)report.architectureReview=architectureReview;
  return report;
 }
 // A deliberately bounded HTML snapshot parser: diagnostic-only, not a browser/DOM or a crawler.
