@@ -192,6 +192,7 @@ test('Individual artwork: responsive backgrounds, safe media actions and statefu
       positionX:25,positionY:70,overlay:{color:'@foreground',opacity:40}},
     children:[{id:'artwork-picture',type:'image',assetId:one.id,
       alt:'Custom image with link',href:'tel:+48123456789',
+      responsiveMedia:{tabletAssetId:two.id,mobileAssetId:two.id},
       styles:{filterPreset:'grayscale'},states:{active:{borderStyle:'dotted',opacity:75}}},
       {id:'artwork-cta',type:'button',text:'Contact us',href:'mailto:info@example.org',
         states:{active:{background:'@accent',opacity:85}}}]
@@ -205,6 +206,18 @@ test('Individual artwork: responsive backgrounds, safe media actions and statefu
   assert.match(html,/filter:grayscale\(1\)/);
   assert.match(html,/:active\{background-color:#0a5bff;opacity:0.85\}/);
   assert.match(html,/class="cmsdg-image-action" href="tel:\+48123456789"/);
+  assert.match(html,/<picture class="cmsdg-picture"><source media="\(max-width:600px\)" srcset="\/published\/example-site\/assets\/artwork-mobile.png">/);
+  assert.match(html,/<source media="\(max-width:900px\)" srcset="\/published\/example-site\/assets\/artwork-mobile.png">/);
+  assert.match(html,/<img loading="lazy" class="cmsdg-n-artwork-picture"[^>]+alt="Custom image with link">/);
+  const deviceForeign=JSON.parse(JSON.stringify(graph));
+  deviceForeign.nodes[0].children[0].responsiveMedia.mobileAssetId='asset-not-owned';
+  refuses(()=>G.validateGraph(deviceForeign,assets,new Set(),site.designTokens,kinds),'Reject unknown phone photo');
+  const deviceEmpty=JSON.parse(JSON.stringify(graph));
+  deviceEmpty.nodes[0].children[0].responsiveMedia={};
+  refuses(()=>G.validateGraph(deviceEmpty,assets,new Set(),site.designTokens,kinds),'Reject empty device media');
+  const illegalHost=JSON.parse(JSON.stringify(graph));
+  illegalHost.nodes[0].responsiveMedia={tabletAssetId:two.id};
+  refuses(()=>G.validateGraph(illegalHost,assets,new Set(),site.designTokens,kinds),'No alternate image on non-image node');
   const detached=JSON.parse(JSON.stringify(graph));
   detached.nodes[0].backgroundMedia.assetId='missing-file';
   refuses(()=>G.validateGraph(detached,assets,new Set(),site.designTokens,kinds),'No external background files');
@@ -565,8 +578,13 @@ test('media library: alt, global replacement, protected detach, undo and rich me
   story.elements.find(x=>x.slot==='photo').values['content.media']=first.id;
   logos.items[0].values['content.media']=first.id;
   photos.items[0].values['content.media']=first.id;
-  site.pages[0].sections.push(story,logos,photos);
-  assert.equal(sdk.validateSite(site,manifests).pages[0].sections.length,5);
+  const custom=sdk.sectionFrom(m('custom-section'),'section-art-directed-photo');
+  custom.designGraph={version:1,id:'graph-device-artwork',nodes:[{
+    id:'node-device-image',type:'image',assetId:next.id,alt:'Artwork preview',
+    responsiveMedia:{tabletAssetId:first.id,mobileAssetId:first.id}
+  }]};
+  site.pages[0].sections.push(story,logos,photos,custom);
+  assert.equal(sdk.validateSite(site,manifests).pages[0].sections.length,6);
   let d=D.begin(site,manifests);
   const step=cmd=>d=D.structure(d,manifests,{...cmd,expectedRevision:d.revision});
   refuses(()=>step({action:'removeAsset',assetId:first.id}),'Cannot detach used image');
@@ -576,7 +594,10 @@ test('media library: alt, global replacement, protected detach, undo and rich me
   assert.ok(D.changes(d,manifests).some(x=>x.kind==='media-library-updated'));
   assert.equal(D.undo(d,manifests).current.assets[0].alt,'Старый кадр');
   step({action:'replaceAsset',assetId:first.id,targetId:next.id});
-  for(const block of d.current.pages[0].sections.slice(-3))
+  const deviceImage=d.current.pages[0].sections.at(-1).designGraph.nodes[0];
+  assert.deepEqual(deviceImage.responsiveMedia,{tabletAssetId:next.id,mobileAssetId:next.id},
+    'Draft media replacement includes each per-device original');
+  for(const block of d.current.pages[0].sections.slice(-4,-1))
     for(const item of [...block.elements,...(block.items||[])])
       assert.notEqual(item.values['content.media'],first.id,'All references re-bound including repeaters');
   step({action:'removeAsset',assetId:first.id});
