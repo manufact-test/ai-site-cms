@@ -14,7 +14,7 @@ const ICON_PATHS=Object.freeze({
  play:'<path d="m8 5 12 7-12 7z"/>',menu:'<path d="M4 7h16M4 12h16M4 17h16"/>'
 });
 const MOTIONS=['none','fade-in','fade-up','slide-left','zoom-in'];
-const TYPES=['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item'];
+const TYPES=['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell'];
 const STYLE_KEYS=['display','columns','direction','align','justify','gap','padding','radius',
   'color','background','fontSize','fontWeight','lineHeight','maxWidth','position','top','left',
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
@@ -123,17 +123,40 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   let count=0;
   function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if((node.type!=='list'&&own(node,'ordered'))||(node.type==='list'&&own(node,'ordered')&&typeof node.ordered!=='boolean'))fail(node.id,'invalid ordered list flag');
+    if(node.type==='table-row'&&parentType!=='table')fail(node.id,'row must belong to table');
+    if(parentType==='table'&&node.type!=='table-row')fail(node.id,'table accepts only rows');
+    if(node.type==='table-cell'&&parentType!=='table-row')fail(node.id,'cell must belong to row');
+    if(parentType==='table-row'&&node.type!=='table-cell')fail(node.id,'row accepts only cells');
+    if(parentType==='gallery'&&node.type!=='image')fail(node.id,'gallery accepts only images');
     if(node.type==='list-item'&&parentType!=='list')fail(node.id,'list item must belong to list');
     if(parentType==='list'&&node.type!=='list-item')fail(node.id,'list accepts only list items');
     if(node.type==='tab'&&parentType!=='tabs')fail(node.id,'tab must belong to tabs');
     if(parentType==='tabs'&&node.type!=='tab')fail(node.id,'tabs accept only tab children');
-    if(node.type==='container'||node.type==='divider'||node.type==='tabs'||node.type==='list'){
+    if(node.type!=='quote'&&own(node,'cite'))fail(node.id,'unexpected citation');
+    if(node.type==='quote'&&own(node,'cite')&&
+      (typeof node.cite!=='string'||node.cite.length>160||/[\x00-\x1f]/.test(node.cite)))
+      fail(node.id,'invalid quote attribution');
+    if(node.type==='gallery'){
+      if(typeof node.text!=='string'||!node.text.trim()||node.text.length>120||
+        /[\x00-\x1f]/.test(node.text)||['href','assetId','alt','level','icon','loop','posterAssetId','ordered'].some(k=>own(node,k)))
+        fail(node.id,'invalid gallery label');
+    }else if(node.type==='table'){
+      if(own(node,'text')&&(typeof node.text!=='string'||node.text.length>160||
+        /[\x00-\x1f]/.test(node.text)))fail(node.id,'invalid table caption');
+      if(['href','assetId','alt','level','icon','loop','posterAssetId','ordered'].some(k=>own(node,k)))
+        fail(node.id,'invalid table metadata');
+    }else if(node.type==='container'||node.type==='divider'||node.type==='tabs'||node.type==='list'||node.type==='table-row'){
+
       if(own(node,'text')||own(node,'href')||own(node,'assetId')||own(node,'alt')||own(node,'level')||own(node,'posterAssetId')||own(node,'loop'))
         fail(node.id,'invalid container content');
+    }else if(node.type==='table-cell'){
+      if(typeof node.text!=='string'||node.text.length>1600||/[\x00-\x1f]/.test(node.text)||
+        ['href','assetId','alt','level','icon','loop','posterAssetId','ordered'].some(k=>own(node,k)))
+        fail(node.id,'invalid table cell');
     }else if(node.type==='list-item'){
       if(typeof node.text!=='string'||node.text.length>3000||/[\x00-\x1f]/.test(node.text)||
         own(node,'href')||own(node,'assetId')||own(node,'alt')||own(node,'level')||own(node,'icon')||own(node,'posterAssetId')||own(node,'loop'))
@@ -166,11 +189,11 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
     }else{
       if(typeof node.text!=='string'||node.text.length>3000||/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(node.text)||
         own(node,'assetId')||own(node,'alt')||own(node,'icon')||own(node,'posterAssetId')||own(node,'loop'))fail(node.id,'invalid text');
-      if(node.type==='button'&&
+      if(['button','link'].includes(node.type)&&
         (typeof node.href!=='string'||node.href.length>300||
          !SAFE_URL.test(node.href)&&!/^https:\/\/[a-z0-9.-]+(?:\/[^\s"'<>\\]*)?$/i.test(node.href)))
         fail(node.id,'unsafe link');
-      if(node.type!=='button'&&own(node,'href'))fail(node.id,'unexpected link');
+      if(!['button','link'].includes(node.type)&&own(node,'href'))fail(node.id,'unexpected link');
       if(node.type==='heading'&&(!number(node.level||2,1,6)))fail(node.id,'heading level');
       if(node.type!=='heading'&&own(node,'level'))fail(node.id,'unexpected level');
     }
@@ -184,12 +207,19 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       keys(node.states,['hover','focus'],node.id+'/states');
       for(const [state,st] of Object.entries(node.states))validateStyle(st,tokens,node.id+'/'+state,'state');
     }
-    if(!['container','disclosure','tabs','tab','list'].includes(node.type)&&own(node,'children'))fail(node.id,'noncontainer children');
-    if(['container','disclosure','tabs','tab','list'].includes(node.type)){
-      if(!Array.isArray(node.children)||node.children.length>(node.type==='tabs'?8:node.type==='list'?24:30)||
-        (node.type==='tabs'&&node.children.length<2)||
-        (['tab','disclosure','list'].includes(node.type)&&node.children.length<1))
-        fail(node.id,'invalid interactive children');
+    if(!['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type)&&own(node,'children'))fail(node.id,'noncontainer children');
+    if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type)){
+      const min=node.type==='tabs'||node.type==='gallery'||node.type==='table'?2:
+        ['tab','disclosure','list','table-row'].includes(node.type)?1:0;
+      const max=node.type==='tabs'?8:node.type==='list'?24:node.type==='gallery'?12:
+        node.type==='table'?10:node.type==='table-row'?6:30;
+      if(!Array.isArray(node.children)||node.children.length<min||node.children.length>max)
+        fail(node.id,'invalid content-group children');
+      if(node.type==='table'){
+        const widths=node.children.map(row=>row.children?.length);
+        if(widths.some(w=>!Number.isInteger(w)||w<2||w>6||w!==widths[0]))
+          fail(node.id,'table must be rectangular with 2-6 columns');
+      }
       node.children.forEach(n=>visit(n,depth+1,node.type));
     }
   }
@@ -222,15 +252,24 @@ function editTree(graph,operation){
     const found=new Map();
     const visit=(node,items,depth,parentType=null)=>{
       if((node.type==='tab'&&parentType!=='tabs')||(parentType==='tabs'&&node.type!=='tab')||
-        (node.type==='list-item'&&parentType!=='list')||(parentType==='list'&&node.type!=='list-item'))fail('edit','invalid group hierarchy');
-      if(node.type==='tabs'&&(!Array.isArray(node.children)||node.children.length<2||node.children.length>8))fail('edit','tabs require two to eight panels');
-      if(['tab','disclosure','list'].includes(node.type)&&(!Array.isArray(node.children)||!node.children.length))fail('edit','interactive panel needs content');
+        (node.type==='list-item'&&parentType!=='list')||(parentType==='list'&&node.type!=='list-item')||
+        (node.type==='table-row'&&parentType!=='table')||(parentType==='table'&&node.type!=='table-row')||
+        (node.type==='table-cell'&&parentType!=='table-row')||(parentType==='table-row'&&node.type!=='table-cell')||
+        (parentType==='gallery'&&node.type!=='image'))fail('edit','invalid group hierarchy');
+      if(['tabs','gallery','table'].includes(node.type)&&(!Array.isArray(node.children)||node.children.length<2))
+        fail('edit','group must contain at least two items');
+      if(['tab','disclosure','list','table-row'].includes(node.type)&&(!Array.isArray(node.children)||!node.children.length))
+        fail('edit','interactive panel needs content');
+      if(node.type==='table'&&node.children.some(row=>!Array.isArray(row.children)||
+        row.children.length<2||row.children.length>6||row.children.length!==node.children[0].children.length))
+        fail('edit','table must have equal columns');
       if(!object(node)||typeof node.id!=='string'||!IDENT.test(node.id)||
         found.has(node.id)||!TYPES.includes(node.type)||depth>8||found.size>=90)
         fail('edit','invalid node, duplicated id or graph limit');
       found.set(node.id,{node,items,depth});
-      if(['container','disclosure','tabs','tab','list'].includes(node.type)){
-        if(!Array.isArray(node.children)||node.children.length>(node.type==='tabs'?8:node.type==='list'?24:30))fail('edit','container limit');
+      if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type)){
+        if(!Array.isArray(node.children)||node.children.length>(node.type==='tabs'?8:node.type==='list'?24:
+          node.type==='gallery'?12:node.type==='table'?10:node.type==='table-row'?6:30))fail('edit','container limit');
         node.children.forEach(child=>visit(child,node.children,depth+1,node.type));
       }else if(own(node,'children'))fail('edit','invalid child owner');
     };
@@ -256,7 +295,7 @@ function editTree(graph,operation){
     if(!target||!['before','after','inside'].includes(operation.placement)||
        !object(operation.node))fail('edit','invalid insertion');
     if(operation.placement==='inside'){
-      if(!['container','disclosure','tabs','tab','list'].includes(target.node.type))fail('edit','destination not a container');
+      if(!['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(target.node.type))fail('edit','destination not a container');
       target.node.children.push(JSON.parse(JSON.stringify(operation.node)));
     }else{
       target.items.splice(target.items.indexOf(target.node)+(operation.placement==='after'?1:0),
@@ -267,7 +306,7 @@ function editTree(graph,operation){
     if(!target||!['before','after','inside'].includes(operation.placement)||
        descendants.some(n=>n.id===operation.targetId))
       fail('edit','invalid destination or cycle');
-    if(operation.placement==='inside'&&!['container','disclosure','tabs','tab','list'].includes(target.node.type))
+    if(operation.placement==='inside'&&!['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(target.node.type))
       fail('edit','destination not a container');
     source.items.splice(source.items.indexOf(source.node),1);
     if(operation.placement==='inside')target.node.children.push(source.node);
@@ -368,6 +407,11 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
   const assets=new Map(site.assets.map(a=>[a.id,a])),rules=[];
   const scope='.cmsdg-'+graph.id;
   const attr=s=>escapeHtml(s);
+  const tableHeaderIds=new Set();
+  const markHeaders=nodes=>{for(const node of nodes){
+    if(node.type==='table')node.children[0]?.children.forEach(cell=>tableHeaderIds.add(cell.id));
+    if(node.children)markHeaders(node.children);
+  }};markHeaders(graph.nodes);
   function visit(n){
     const selector=scope+' .cmsdg-n-'+n.id;
     const usesTranslate=[n.styles||{},n.responsive?.tablet||{},n.responsive?.mobile||{}].some(s=>own(s,'translateX')||own(s,'translateY'));
@@ -387,6 +431,14 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     if(n.type==='container')return '<div class="'+cls+'">'+n.children.map(visit).join('')+'</div>';
     if(n.type==='list')return '<'+(n.ordered?'ol':'ul')+' class="'+cls+' cmsdg-list">'+n.children.map(visit).join('')+'</'+(n.ordered?'ol':'ul')+'>';
     if(n.type==='list-item')return '<li class="'+cls+'">'+attr(n.text)+'</li>';
+    if(n.type==='gallery')return '<div class="'+cls+' cmsdg-gallery" role="region" aria-roledescription="gallery" aria-label="'+attr(n.text)+'" tabindex="0">'+n.children.map(visit).join('')+'</div>';
+    if(n.type==='table')return '<div class="cmsdg-table-scroll" role="region" aria-label="'+attr(n.text||'Таблица')+'" tabindex="0"><table class="'+cls+' cmsdg-table">'+
+      (n.text?'<caption>'+attr(n.text)+'</caption>':'')+
+      '<thead>'+visit(n.children[0])+'</thead><tbody>'+n.children.slice(1).map(visit).join('')+'</tbody></table></div>';
+    if(n.type==='table-row')return '<tr class="'+cls+'">'+n.children.map(visit).join('')+'</tr>';
+    if(n.type==='table-cell')return '<'+(tableHeaderIds.has(n.id)?'th scope="col"':'td')+' class="'+cls+'">'+attr(n.text)+'</'+(tableHeaderIds.has(n.id)?'th':'td')+'>';
+    if(n.type==='quote')return '<figure class="'+cls+' cmsdg-quote"><blockquote><p>'+attr(n.text)+'</p></blockquote>'+
+      (n.cite?'<figcaption>'+attr(n.cite)+'</figcaption>':'')+'</figure>';
     if(n.type==='disclosure')return '<details class="'+cls+' cmsdg-disclosure"><summary>'+attr(n.text)+'</summary><div class="cmsdg-disclosure-body">'+n.children.map(visit).join('')+'</div></details>';
     if(n.type==='tab')return '<div class="'+cls+' cmsdg-tab-panel" id="cmsdg-panel-'+n.id+'">'+n.children.map(visit).join('')+'</div>';
     if(n.type==='tabs'){
@@ -398,7 +450,7 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     if(n.type==='icon')return '<svg class="'+cls+'" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '+(n.alt?'role="img" aria-label="'+attr(n.alt)+'"':'aria-hidden="true"')+'>'+ICON_PATHS[n.icon]+'</svg>';
     if(n.type==='heading')return '<h'+(n.level||2)+' class="'+cls+'">'+attr(n.text)+'</h'+(n.level||2)+'>';
     if(n.type==='text')return '<p class="'+cls+'">'+attr(n.text)+'</p>';
-    if(n.type==='button')return '<a class="'+cls+'" href="'+attr(n.href.startsWith('/')?mount+n.href:n.href)+'">'+attr(n.text)+'</a>';
+    if(n.type==='button'||n.type==='link')return '<a class="'+cls+'" href="'+attr(n.href.startsWith('/')?mount+n.href:n.href)+'"'+(n.href.startsWith('https://')?' rel="noopener noreferrer"':'')+'>'+attr(n.text)+'</a>';
     if(n.type==='video'){
       const videoAsset=assets.get(n.assetId);
       const videoSrc=videoPreview?videoPreview(n.assetId):mount+videoAsset.src;
@@ -433,6 +485,16 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
   return '<section class="cmsdg '+('cmsdg-'+graph.id)+'" id="'+attr(sectionId)+'"><style>'+
     scope+'{min-width:0;max-width:none;padding:0;min-height:0}'+scope+' *{box-sizing:border-box;min-width:0}'+
     scope+' img,'+scope+' video{max-width:100%;height:auto;object-position:var(--cmsdg-object-x,50%) var(--cmsdg-object-y,50%)}'+scope+' svg{display:inline-block;vertical-align:middle;flex:none}'+
+    scope+' .cmsdg-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}'+
+    scope+' .cmsdg-table-scroll:focus-visible,'+scope+' .cmsdg-gallery:focus-visible{outline:3px solid #1868d3;outline-offset:2px}'+
+    scope+' .cmsdg-table{border-collapse:collapse;width:100%;min-width:480px}'+
+    scope+' .cmsdg-table th,'+scope+' .cmsdg-table td{padding:12px 16px;border:1px solid #c6cdd7;text-align:start}'+
+    scope+' .cmsdg-table th{font-weight:700;background:#f2f5f9}'+
+    scope+' .cmsdg-gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 2px;overscroll-behavior-inline:contain}'+
+    scope+' .cmsdg-gallery>img{flex:0 0 min(82%,420px);object-fit:cover;scroll-snap-align:start;border-radius:10px}'+
+    scope+' .cmsdg-quote{margin:12px 0;padding:20px;border-inline-start:4px solid currentColor}'+
+    scope+' .cmsdg-quote blockquote{margin:0}'+
+    scope+' .cmsdg-quote figcaption{margin-top:12px;font-size:.9em}'+
     scope+' .cmsdg-list{padding-inline-start:1.5em;margin-block:12px}'+
     scope+' .cmsdg-list > li{margin-block:6px}'+
     scope+' .cmsdg-disclosure > summary{cursor:pointer;list-style-position:inside}'+
