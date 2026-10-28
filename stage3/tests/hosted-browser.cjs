@@ -1465,6 +1465,11 @@ async function execute(){
   assert.equal(publishedApproved.pages[0].seo.ogImage,imported.assets[0].id);
   // Owner can restore imported site's previously saved version without mutating
   // public content: stale drafts and published pages are separate snapshots.
+  // Save/Publish reload the server snapshot and may reset the inspector focus.
+  // Re-select the exact imported FAQ before changing the next private draft.
+  await page.locator('#pages .nav-entry').first().click();
+  await page.locator('#sections .nav-entry').last().click();
+  assert.match(await page.locator('#inspector-title').innerText(),/FAQ/);
   await page.locator('#elements .cms-repeat-row').last().locator('button.element').click();
   await page.locator('#fields [data-field="content.question"]').fill('Черновик, который нужно откатить');
   await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
