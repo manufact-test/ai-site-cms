@@ -213,8 +213,8 @@ async function execute(){
   assert.match(approvedPreviewHtml,/cmsdg-quote/);
   assert.match(approvedPreviewHtml,/data:image\/png;base64,/,
     'Pre-import CMS renderer resolves packaged image bytes without HTTP requests');
-  assert.equal((approvedPreviewHtml.match(/src="data:image\/png;base64,/g)||[]).length,2,
-    'Custom composition and image section both use exact packaged image bytes');
+  assert.equal((approvedPreviewHtml.match(/src="data:image\/png;base64,/g)||[]).length,4,
+    'Image section, custom image and two gallery frames use exact packaged immutable image bytes');
   await page.waitForFunction(()=>{
     const frame=document.querySelector('iframe[data-preview-device="desktop"]');
     return frame&&Number.parseInt(frame.style.height,10)>540&&
