@@ -18,7 +18,7 @@ function inventory(site,release){
  if(!site||!Array.isArray(site.assets)||site.assets.length>300||
     !release||release.siteId!==site.siteId||!STATIC.isVerified(release))
   throw Error('Public media byte capture requires a directly SHA-verified official static release');
- const declared=site.assets.flatMap(a=>[a,...(a.variants||[])]);
+ const declared=site.assets.flatMap(a=>[a,...(a.variants||[]).map(v=>({...v,mime:a.mime}))]);
  if(declared.length>MAX||declared.length!==release.assets.size)
   throw Error('Official static release media variant inventory does not match Site v1');
  const seen=new Set();
@@ -30,7 +30,7 @@ function inventory(site,release){
    throw Error('Official media inventory contains foreign or inconsistent asset/variant');
   seen.add(x.id);
   return Object.freeze({assetId:x.id,path:x.src,expectedSha256:expected.sha256,
-   expectedBytes:expected.bytes});
+   expectedBytes:expected.bytes,expectedMime:x.mime});
  });
 }
 async function capture(site,release,rawOrigin,transport={address:HTTPS.address,requestDigest:HTTPS.requestDigest}){
@@ -57,7 +57,8 @@ async function capture(site,release,rawOrigin,transport={address:HTTPS.address,r
    mime:result.contentType.split(';')[0].trim().toLowerCase(),bytes:result.bodyBytes,
    sha256:result.bodySha256,expectedSha256:entry.expectedSha256,
    hashMatched:result.status===200&&result.bodySha256===entry.expectedSha256,
-   lengthMatched:result.bodyBytes===entry.expectedBytes
+   lengthMatched:result.bodyBytes===entry.expectedBytes,
+   mimeMatched:result.contentType.split(';')[0].trim().toLowerCase()===entry.expectedMime
   }));
  }
  return Object.freeze({format:FORMAT,siteId:site.siteId,origin:origin.href,
@@ -94,7 +95,8 @@ function validate(evidence,site,release){
      !Number.isSafeInteger(r.bytes)||r.bytes<0||r.bytes>12000000||
      !SHA.test(r.sha256)||typeof r.mime!=='string'||r.mime.length>150||
      r.hashMatched!==(r.status===200&&r.sha256===entry.expectedSha256)||
-     r.lengthMatched!==(r.bytes===entry.expectedBytes))
+     r.lengthMatched!==(r.bytes===entry.expectedBytes)||
+     r.mimeMatched!==(r.mime===entry.expectedMime))
    throw Error('Public media byte transcript contains duplicate/foreign/inconsistent asset data');
   got.add(r.assetId);total+=r.bytes;
  }
@@ -120,10 +122,12 @@ function review(site,release,evidence){
    'Public static media GET did not return an HTTP 200 response.');
   if(!r.hashMatched)add('resource-sha256-mismatch','error',e,
    'Public asset/variant content SHA256 differs from the official static release.');
+  if(!r.mimeMatched)add('resource-mime-mismatch','error',e,
+   'Public media binary GET content-type differs from official CMS asset MIME.');
   if(!r.lengthMatched)add('resource-byte-size-mismatch','error',e,
    'Public static asset byte count differs from the official static release.');
   assets.push({assetId:e.assetId,path:e.path,captured:true,status:r.status,
-   sha256Matched:r.hashMatched,bytesMatched:r.lengthMatched});
+   sha256Matched:r.hashMatched,bytesMatched:r.lengthMatched,mimeMatched:r.mimeMatched});
  }
  const report=Object.freeze({format:FORMAT,siteId:site.siteId,publishedVersion:release.publishedVersion,
   officialStaticManifestSha256:release.manifestSha256,origin:evidence.origin,
