@@ -1,5 +1,17 @@
 # AI Site CMS SEO Engine — integration handoff (28 October 2026)
 
+## Latest worker deliverable — actual PHP theme + individual DesignGraph styling (28 October 2026)
+
+**New first-site implementation:** `lib/php-local-theme.cjs` independently compares 14 actual PHP `:root` CSS variables across every captured page with validated Site v1 theme defaults/overrides: colors, typography, container width, button geometry. `lib/php-local-graph-style.cjs` extends the existing real PHP DesignGraph reviewer with scoped CSS for responsive desktop/tablet/mobile, interactive states, transitions, animations, sequence, static/variant backgrounds and background video's reduced-motion/mobile fallback. Distinct `php-theme:*` release errors enter `local-php-theme-parity`. Existing `php-graph:*` errors remain under `local-php-design-graph-parity`.
+
+**Integrated outputs:** capture, remediation, release, `bundle.json.localPhpTheme`, summary theme counters, `launch-worksheet.md` with per-page CSS counts, owner lead dossier and previous-run `delta.json/md` (shared-evidence categories only). Remediation task identity now includes exact `graphNodeId` or CSS `property`, and the actual local HTML provenance for all graph/component/nav/theme issues. Correct no-op `hidden:false` emits no CSS rule and does not produce false errors.
+
+**Next lead action:** integrate worker branch at its latest SHA into lead checkout, run existing `node stage3/seo-engine/tests/php-html-capture-smoke.cjs` and one actual owner-provided Approved Site v2 through `first-site-check`. No first client full PHP/Node browser verification has been claimed. Never mark actual visual equality, forms delivered or public HTTPS as complete without real evidence. The SEO worker edits only `stage3/seo-engine/**` and does not create PRs or merge/deploy.
+
+**Working rhythm required by owner:** substantial connected product work per turn targeted at roughly 30 minutes of active development; if one unit takes 7–10 minutes, immediately tackle additional useful units in the same turn. This is an effort/size goal, not a guaranteed wall-clock timer. Keep necessary smoke compact and avoid slow repeated generic test work.
+
+
+
 ## Latest final worker batch: complete one-pass local first-site acceptance
 
 Run [FIRST-SITE-RUNBOOK.md](FIRST-SITE-RUNBOOK.md) from a *lead-integrated* Node 20+ checkout. New `bin/first-site-check.cjs` validates the sealed Approved Site v2 and source-matching Blueprint, captures actual local PHP HTML, robots/sitemap/301 and all original/variant binary media in one source-bound evidence directory, then calls the EXISTING `PACKAGE.build` and writes independent `summary.json`, `bundle.json`, `handoff.md` and `launch-worksheet.md`. CLI flags: `--approved-site /ABS/sealed --blueprint /ABS/approved-blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report`. Evidence/report directories must not exist beforehand. No PHP server launch, CMS edits, release approval, PR or deploy.

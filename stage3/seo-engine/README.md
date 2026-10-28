@@ -1,5 +1,13 @@
 # SEO Intelligence & Blueprint Engine (independent Stage 3 toolkit)
 
+## Latest product increment: published PHP theme + responsive DesignGraph styling
+
+The local first-site capture now checks all published PHP theme variables against Site v1 and important scoped DesignGraph mobile/tablet, interactions, animation and media/video presentation CSS. Issues become precise remediation tasks and existing release gates; first-site summary, worksheet and follow-up delta include theme coverage and failures. Existing Node smoke was expanded; isolated JS snippets passed, while the true lead-integrated client-site PHP/Chromium/production check remains pending.
+
+Handoff and **roughly 30-minute multi-block work mode**: [NEXT-CHAT-HANDOFF.md](NEXT-CHAT-HANDOFF.md), [NEXT-CHAT-FIRST-MESSAGE.md](NEXT-CHAT-FIRST-MESSAGE.md); operator steps: [FIRST-SITE-RUNBOOK.md](FIRST-SITE-RUNBOOK.md). Do not edit CMS core, merge branches or independently deploy.
+
+
+
 **Branch:** `feature/site-seo-engine` · **Writable area:** `stage3/seo-engine/**` only.  
 Offline, Node 20+ CommonJS, no npm packages; does not edit CMS/site/files, deploy, crawl the web, invoke AI providers, or promise SEO outcomes. All outputs are **evidence-bearing recommendations**, not permission to publish.
 
