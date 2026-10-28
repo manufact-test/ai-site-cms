@@ -1528,6 +1528,9 @@ function structure(raw,manifests,command){
             for(const key of ['tabletAssetId','mobileAssetId'])
               if(node.responsiveMedia[key])
                 cb({values:node.responsiveMedia},key,node.responsiveMedia[key],p,section);
+          if(node.backgroundVideo)for(const key of ['assetId','posterAssetId','tabletPosterAssetId','mobilePosterAssetId'])
+            if(node.backgroundVideo[key])
+              cb({values:node.backgroundVideo},key,node.backgroundVideo[key],p,section);
           if(node.backgroundMedia)for(const key of ['assetId','tabletAssetId','mobileAssetId'])
             if(node.backgroundMedia[key])
               cb({values:node.backgroundMedia},key,node.backgroundMedia[key],p,section);
@@ -2898,6 +2901,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                 if(node.backgroundMedia){
                   for(const id of [node.backgroundMedia.assetId,node.backgroundMedia.tabletAssetId,node.backgroundMedia.mobileAssetId])if(id)referenced.add(id);
                 }
+                if(node.backgroundVideo){
+                  for(const id of [node.backgroundVideo.assetId,node.backgroundVideo.posterAssetId,
+                    node.backgroundVideo.tabletPosterAssetId,node.backgroundVideo.mobilePosterAssetId])
+                    if(id)referenced.add(id);
+                }
                 if(node.type==='image'&&node.responsiveMedia){
                   for(const id of [node.responsiveMedia.tabletAssetId,node.responsiveMedia.mobileAssetId])if(id)referenced.add(id);
                 }
@@ -4118,12 +4126,45 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                 editGraphWork(node=>{
                   if(!picker.value){delete node.backgroundMedia;return;}
                   node.backgroundMedia={...(node.backgroundMedia||{}),assetId:picker.value};
+                  delete node.backgroundVideo;
                   delete node.styles?.gradient;
                   delete node.responsive?.tablet?.gradient;
                   delete node.responsive?.mobile?.gradient;
                 });
               });
               wrap.append(caption,picker);panel.append(wrap);
+            }
+          }
+          if(current.type==='container'){
+            const videos=session.current.assets.filter(a=>a.mime==='video/mp4');
+            const posters=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
+            if(videos.length&&posters.length){
+              const wrap=document.createElement('label');wrap.className='cms-work-field';
+              const caption=document.createElement('span');caption.textContent='Фоновое MP4 (декоративное)';
+              const sel=document.createElement('select');sel.className='control';sel.id='cms-work-graph-background-video';
+              for(const [id,label] of [['','Без видео'],...videos.map(a=>[a.id,a.alt||a.id])]){
+                const opt=document.createElement('option');opt.value=id;opt.textContent=label;sel.append(opt);
+              }
+              sel.value=current.backgroundVideo?.assetId||'';sel.disabled=!canWrite();
+              sel.addEventListener('change',()=>editGraphWork(node=>{
+                if(!sel.value){delete node.backgroundVideo;return;}
+                node.backgroundVideo={assetId:sel.value,
+                  posterAssetId:node.backgroundVideo?.posterAssetId||posters[0].id};
+                delete node.backgroundMedia;
+                delete node.styles?.gradient;
+                delete node.responsive?.tablet?.gradient;
+                delete node.responsive?.mobile?.gradient;
+              }));
+              wrap.append(caption,sel);panel.append(wrap);
+              if(current.backgroundVideo){
+                const label=document.createElement('label');label.className='cms-work-field';
+                const txt=document.createElement('span');txt.textContent='Обложка фонового видео';
+                const pick=document.createElement('select');pick.className='control';pick.disabled=!canWrite();
+                for(const a of posters){const o=document.createElement('option');o.value=a.id;o.textContent=a.alt||a.id;pick.append(o);}
+                pick.value=current.backgroundVideo.posterAssetId;
+                pick.addEventListener('change',()=>editGraphWork(node=>{node.backgroundVideo.posterAssetId=pick.value;}));
+                label.append(txt,pick);panel.append(label);
+              }
             }
           }
           if(current.type==='quote')property('Подпись автора', 'cite',current.cite||'');
@@ -5303,6 +5344,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           const pick=ctl('Фон для ПК', {initial:bg?.assetId||'',choices},v=>{
             if(!v){delete n.backgroundMedia;return;}
             n.backgroundMedia={...(n.backgroundMedia||{}),assetId:v};
+            delete n.backgroundVideo;
             delete n.styles?.gradient;
             delete n.responsive?.tablet?.gradient;
             delete n.responsive?.mobile?.gradient;
@@ -5333,6 +5375,60 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             background.append(tint);
             if(bg.overlay)background.append(ctl('Непрозрачность наложения 0–90, %',
               String(bg.overlay.opacity),v=>{bg.overlay.opacity=Number(v);},'number'));
+          }
+        }
+        root.append(background);
+      }
+      if(!limited&&n.type==='container'){
+        const videos=session.current.assets.filter(a=>a.mime==='video/mp4');
+        const raster=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
+        const background=make('details');background.id='cms-design-background-video';
+        background.append(make('summary','Видео на фоне · MP4 / обложки / затемнение'));
+        if(!videos.length||!raster.length){
+          background.append(make('p','Для фона нужны локальный MP4 и изображение-обложка JPEG/PNG/WebP. Загрузите их в медиабиблиотеку.'));
+        }else{
+          const videoChoices=[['','Обычный фон без видео'],...videos.map(a=>[a.id,a.alt||a.id])];
+          const imageChoices=raster.map(a=>[a.id,a.alt||a.id]);
+          const bv=n.backgroundVideo;
+          const videoPick=ctl('Фоновый ролик',{initial:bv?.assetId||'',choices:videoChoices},v=>{
+            if(!v){delete n.backgroundVideo;return;}
+            n.backgroundVideo={assetId:v,posterAssetId:bv?.posterAssetId||raster[0].id,
+              ...(bv?.tabletPosterAssetId?{tabletPosterAssetId:bv.tabletPosterAssetId}:{}),
+              ...(bv?.mobilePosterAssetId?{mobilePosterAssetId:bv.mobilePosterAssetId}:{}),
+              ...(bv?.overlay?{overlay:bv.overlay}:{}),
+              ...(bv?.positionX!==undefined?{positionX:bv.positionX}:{}),
+              ...(bv?.positionY!==undefined?{positionY:bv.positionY}:{})};
+            delete n.backgroundMedia;
+            delete n.styles?.gradient;
+            delete n.responsive?.tablet?.gradient;
+            delete n.responsive?.mobile?.gradient;
+          },'select');
+          videoPick.querySelector('select').addEventListener('change',()=>render());
+          background.append(videoPick);
+          if(bv){
+            background.append(
+              ctl('Обложка для ПК (обязательно)',{initial:bv.posterAssetId,choices:imageChoices},
+                v=>{bv.posterAssetId=v;},'select'),
+              ctl('Обложка планшета',{initial:bv.tabletPosterAssetId||'',
+                choices:[['','Наследовать ПК'],...imageChoices]},
+                v=>{if(v)bv.tabletPosterAssetId=v;else delete bv.tabletPosterAssetId;},'select'),
+              ctl('Обложка телефона',{initial:bv.mobilePosterAssetId||'',
+                choices:[['','Наследовать планшет'],...imageChoices]},
+                v=>{if(v)bv.mobilePosterAssetId=v;else delete bv.mobilePosterAssetId;},'select'),
+              ctl('Позиция по X, %',String(bv.positionX??50),v=>{bv.positionX=Number(v);},'number'),
+              ctl('Позиция по Y, %',String(bv.positionY??50),v=>{bv.positionY=Number(v);},'number')
+            );
+            const colors=[['','Без затемнения'],...Object.keys(tokens.colors||{}).map(k=>['@'+k,k]),
+              ['#000000','Чёрный'],['#ffffff','Белый']];
+            const tint=ctl('Цвет затемнения',{initial:bv.overlay?.color||'',choices:colors},v=>{
+              if(v)bv.overlay={color:v,opacity:bv.overlay?.opacity??45};
+              else delete bv.overlay;
+            },'select');
+            tint.querySelector('select').addEventListener('change',()=>render());
+            background.append(tint);
+            if(bv.overlay)background.append(ctl('Затемнение 0–90, %',String(bv.overlay.opacity),
+              v=>{bv.overlay.opacity=Number(v);},'number'));
+            background.append(make('p','Видео автоматически воспроизводится без звука только на ПК и планшете. На телефоне и при настройке «уменьшить движение» видна обложка.'));
           }
         }
         root.append(background);
