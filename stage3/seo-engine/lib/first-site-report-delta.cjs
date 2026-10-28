@@ -7,9 +7,10 @@ const SOURCE='manufact-seo-first-site-check-v1';
 const BUNDLE='manufact-seo-review-bundle-v1';
 const MAX_SUMMARY=800000,MAX_BUNDLE=42000000;
 const GROUPS=['localPhpHead','localPhpNavigation','localPhpGraph','localPhpComponents',
- 'localPhpForms','localPhpMedia','localPhpPublication'];
+ 'localPhpForms','localPhpMedia','localPhpPublication','localPhpTheme'];
 const GATES={
  'local-php-head-indexation-or-origin':'localPhpHead',
+ 'local-php-theme-parity':'localPhpTheme',
  'local-php-navigation-parity':'localPhpNavigation',
  'local-php-design-graph-parity':'localPhpGraph',
  'local-php-component-parity':'localPhpComponents',
