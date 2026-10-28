@@ -17,5 +17,6 @@
     "/",
     "/help/"
   ],
-  "robotsTxt": "User-agent: *\nAllow: /\n"
+  "robotsTxt": "User-agent: *\nAllow: /\n",
+  "completeness": "complete"
 }

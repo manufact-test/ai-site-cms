@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SEO remediation human decision ledger, read-only",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "siteId",
+    "decisions"
+  ],
+  "properties": {
+    "format": {
+      "const": "manufact-seo-triage-v1"
+    },
+    "siteId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,79}$"
+    },
+    "decisions": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskKey",
+          "decision",
+          "reason"
+        ],
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "pattern": "^seo-[a-z0-9]+$"
+          },
+          "taskKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 700
+          },
+          "decision": {
+            "enum": [
+              "approve",
+              "reject",
+              "defer"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "expectedBefore": {
+            "type": [
+              "string",
+              "null",
+              "number",
+              "boolean"
+            ]
+          },
+          "expectedAfter": {
+            "type": [
+              "string",
+              "null",
+              "number",
+              "boolean"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

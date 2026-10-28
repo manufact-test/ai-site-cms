@@ -15,11 +15,14 @@ const {compare:publicationParity}=require('../lib/parity.cjs');
 const HTML=require('../lib/html-evidence.cjs');
 const VIEWPORT=require('../lib/viewport-evidence.cjs');
 const REGRESSION=require('../lib/regression.cjs');
+const PACKAGE=require('../lib/package.cjs');
+const TRIAGE=require('../lib/triage.cjs');
 function main(argv){
  const [command,...args]=argv;
  const flags={};
+ const permitted=new Set(['brief','blueprint','site','manifests','snapshot','viewports','before','decisions']);
  for(let i=0;i<args.length;i+=2){
-  if(!args[i]?.startsWith('--')||!args[i+1]||flags[args[i]])throw Error('Use --name value options');
+  if(!args[i]?.startsWith('--')||!permitted.has(args[i].slice(2))||!args[i+1]||flags[args[i]])throw Error('Use supported --name value options, without duplicates');
   flags[args[i].slice(2)]=args[i+1];
  }
  function read(key){if(!flags[key])throw Error('Missing --'+key);const data=fs.readFileSync(path.resolve(flags[key]),'utf8');if(data.length>2000000)throw Error('Input too large');return JSON.parse(data);}
@@ -55,27 +58,24 @@ function main(argv){
   const before=read('before'),site=read('site'),blueprint=read('blueprint'),registry=manifests();
   out=REGRESSION.compare(before,site,registry,blueprint);
  }
- else if(['remediation-plan','remediation-md','release-review','review-bundle'].includes(command)){
+ else if(['remediation-plan','remediation-md','release-review','review-bundle','triage'].includes(command)){
   const site=read('site'),blueprint=read('blueprint'),registry=manifests();
   const options={};
   if(flags.snapshot)options.snapshot=read('snapshot');
   if(flags.viewports)options.viewports=read('viewports');
   if(flags.before)options.baselineSite=read('before');
   if(command==='remediation-plan')out=remediation(site,registry,blueprint,options);
+  else if(command==='triage')out=TRIAGE.reconcile(remediation(site,registry,blueprint,options),read('decisions'));
   else if(command==='release-review')out=reviewRelease(site,registry,blueprint,options);
-  else if(command==='remediation-md')out=markdownReport(remediation(site,registry,blueprint,options),
-   reviewRelease(site,registry,blueprint,options));
-  else out={format:'manufact-seo-review-bundle-v1',version:1,siteId:site.siteId,readOnly:true,
-   blueprintReview:ARCHITECTURE.report(blueprint),siteAudit:auditSite(site,registry,blueprint),
-   htmlEvidence:options.snapshot?HTML.review(options.snapshot,blueprint):null,
-   deviceEvidence:options.viewports?VIEWPORT.review(options.viewports,blueprint):null,
-   regression:options.baselineSite?REGRESSION.compare(options.baselineSite,site,registry,blueprint):null,
-   backlog:remediation(site,registry,blueprint,options),
-   release:reviewRelease(site,registry,blueprint,options)};
+  else if(command==='remediation-md'){
+   const backlog=remediation(site,registry,blueprint,options);
+   out=markdownReport(backlog,reviewRelease(site,registry,blueprint,options,backlog));
+  }
+  else out=PACKAGE.build(site,registry,blueprint,options);
  }
  else if(command==='analyze-html')out=snapshotAudit(read('snapshot'));
  else if(command==='handoff')out=propose(read('site'),manifests(),read('blueprint'));
- else throw Error('Commands: compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | deep-html --snapshot file [--blueprint file] | viewport-parity --viewports file --blueprint file | compare-site --before file --site file --blueprint file | html-parity --site file --blueprint file --snapshot file | review-bundle --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-plan --site file --blueprint file [--snapshot file] | remediation-md --site file --blueprint file [--snapshot file] [--viewports file] | release-review --site file --blueprint file [--snapshot file] [--viewports file] | handoff --site file --blueprint file [--manifests dir]');
+ else throw Error('Commands: compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | deep-html --snapshot file [--blueprint file] | viewport-parity --viewports file --blueprint file | compare-site --before file --site file --blueprint file | html-parity --site file --blueprint file --snapshot file | review-bundle --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-plan --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-md --site file --blueprint file [--snapshot file] [--viewports file] | release-review --site file --blueprint file [--snapshot file] [--viewports file] | triage --site file --blueprint file --decisions file [--snapshot file] | handoff --site file --blueprint file [--manifests dir]');
  process.stdout.write(typeof out==='string'?out+'\n':JSON.stringify(out,null,2)+'\n');
 }
 try{main(process.argv.slice(2));}catch(e){process.stderr.write('SEO Engine: '+e.message+'\n');process.exitCode=1;}

@@ -38,12 +38,15 @@ function inspect(html){
  const vp=pickMeta('name','viewport');
  const mobileSettings=vp.map(x=>x.attrs.content||'');
  const schema=[],parseErrors=[];
+ let visitedSchemaNodes=0;
  function gather(x,depth=0){
-  if(depth>12||x==null||typeof x!=='object')return;
+  if(depth>12||++visitedSchemaNodes>2000||x==null||typeof x!=='object')return;
   if(Array.isArray(x)){for(const a of x.slice(0,80))gather(a,depth+1);return;}
   if(x['@type'])for(const t of [x['@type']].flat().slice(0,30))
    if(typeof t==='string')schema.push(t.split('/').pop());
-  for(const [k,v] of Object.entries(x))if(k==='@graph'||k==='mainEntity'||k==='itemListElement'||k==='subjectOf')gather(v,depth+1);
+  // Nested schema may live under offers, publisher, author, itemReviewed, etc.
+  // A traversal budget prevents deeply nested or broad JSON exports exhausting the audit.
+  for(const [k,v] of Object.entries(x).slice(0,100))if(k!=='@context'&&k!=='@type')gather(v,depth+1);
  }
  for(const [index,raw] of scripts.entries()){
   if(raw.length>100000){parseErrors.push({scriptIndex:index,reason:'too-large'});continue;}
@@ -83,7 +86,7 @@ function review(snapshot,blueprint=null){
   if(!d.viewport.length)add('evidence:missing-viewport','recommendation',p,'No viewport meta in captured HTML; inspect mobile layout configuration.');
   if(d.canonicals.length>1)add('evidence:multiple-canonicals','warning',p,'More than one canonical link declaration found.');
   if(d.robots.length>1&&new Set(d.robots.map(norm)).size>1)add('evidence:conflicting-robots','warning',p,'Conflicting meta robots directives are present.');
-  if(d.unlabelledControls.length)add('evidence:unlabelled-form-controls','warning',p,'Some form controls have no explicit external accessible label identified by static inspection; implicit labels are not detected.',{controls:d.unlabelledControls.slice(0,12)});
+  if(d.unlabelledControls.length)add('evidence:unlabelled-form-controls','recommendation',p,'Some form controls have no explicit external accessible label identified by static inspection; wrapping labels, JS and accessible-name computation are not detected.',{controls:d.unlabelledControls.slice(0,12)});
   for(const error of d.structuredDataErrors)add('evidence:invalid-json-ld','warning',p,'JSON-LD script could not be parsed as bounded JSON.',error);
   if(d.structuredDataTypes.length){
    for(const type of d.structuredDataTypes){

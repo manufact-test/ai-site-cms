@@ -11,7 +11,7 @@ function hrefs(doc){
 function review(captures,blueprint){
  const b=checkBlueprint(blueprint);
  if(!captures||captures.format!==FORMAT||captures.siteId!==b.siteId||
-  !Array.isArray(captures.pages)||captures.pages.length>80)throw Error('Invalid viewport evidence contract');
+  !Array.isArray(captures.pages)||captures.pages.length>80||!captures.pages.length)throw Error('Invalid viewport evidence contract');
  const planned=new Map(b.pages.map(p=>[p.id,p])),visited=new Set(),findings=[],pages=[];
  const issue=(code,p,device,message,context={})=>findings.push({
   code,severity:'recommendation',pageId:p.id,path:p.path,device,message,...context
@@ -59,10 +59,17 @@ function review(captures,blueprint){
    if(absent.length)issue('viewport:planned-cta-route-absent',p,device,
     'No anchor with the proposed CTA destination exists in supplied device markup; custom JS/form actions may need separate checks.',{plannedPaths:absent});
   }
-  pages.push({pageId:p.id,path:p.path,captures:signals});
+  pages.push({pageId:p.id,path:p.path,captures:signals,
+   evidenceMethods:Object.fromEntries(DEVICES.map(d=>[d,signals[d].method]))});
  }
+ const missingPages=b.pages.filter(p=>!visited.has(p.id)).map(p=>({pageId:p.id,path:p.path}));
+ for(const p of missingPages)findings.push({code:'viewport:blueprint-page-unchecked',
+  severity:'recommendation',pageId:p.pageId,path:p.path,device:null,
+  message:'No desktop/tablet/mobile markup captures were supplied for this planned page; no parity conclusion is possible.'});
  return {format:'manufact-seo-viewport-review-v1',version:1,siteId:b.siteId,
-  pages,findings,completeThreeDevices:pages.every(x=>DEVICES.every(d=>Boolean(x.captures[d]))),
+  pages,findings,completeThreeDevices:missingPages.length===0&&pages.every(x=>DEVICES.every(d=>Boolean(x.captures[d]))),
+  suppliedPagesCapturedAllThreeDevices:pages.every(x=>DEVICES.every(d=>Boolean(x.captures[d]))),
+  plannedPageCount:b.pages.length,checkedPageCount:pages.length,missingPages,
   limitations:'Only supplied device-specific HTML/DOM string captures are compared. CSS display/visibility, tap targets, visual quality, viewport media queries, user interaction and true accessible visible content require actual browser checks.'};
 }
 module.exports=Object.freeze({FORMAT,review});

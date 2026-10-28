@@ -230,6 +230,60 @@ try{
  assert.ok(bundle.siteAudit.issues.length>0);
  assert.ok(bundle.backlog.tasks.length>0);
 
+ // Handoff-grade integration contract, honest partial coverage and change approvals.
+ const fullBundle=JSON.parse(good('review-bundle',{
+  site,blueprint:bp,snapshot:htmlSite,viewports:fixture('industrial.viewports.json')
+ }));
+ assert.equal(fullBundle.contract.site,'manufact-ai-site-v1');
+ assert.equal(fullBundle.handoff.readOnly,true);
+ assert.equal(fullBundle.coverage.plannedPagesAbsentFromHtmlExport.length,0);
+ assert.equal(fullBundle.coverage.plannedPagesAbsentFromThreeDeviceExport.length,0);
+ assert.equal(fullBundle.release.readyToPublish,false);
+ assert.match(fullBundle.markdownHandoff,/SEO implementation/);
+ assert.ok(fullBundle.nextActions.every(x=>x.automatic===false));
+ const snapshotPartial=JSON.parse(fs.readFileSync(fixture('invalid.snapshot.json'),'utf8'));
+ delete snapshotPartial.completeness; // no claim of complete-site export
+ const partialPath=path.join(tmp,'partial.html.snapshot.json');
+ fs.writeFileSync(partialPath,JSON.stringify(snapshotPartial));
+ const partial=JSON.parse(good('analyze-html',{snapshot:partialPath}));
+ assert.ok(!partial.issues.some(x=>x.code==='html:broken-link'),
+  'missing target outside partial export must not be asserted broken');
+ assert.ok(partial.issues.some(x=>x.code==='html:target-not-in-snapshot'));
+ const partialDevices=JSON.parse(fs.readFileSync(fixture('industrial.viewports.json'),'utf8'));
+ partialDevices.pages=partialDevices.pages.slice(0,1);
+ const devicesPath=path.join(tmp,'partial.viewports.json');
+ fs.writeFileSync(devicesPath,JSON.stringify(partialDevices));
+ const unchecked=JSON.parse(good('viewport-parity',{viewports:devicesPath,blueprint:bp}));
+ assert.equal(unchecked.completeThreeDevices,false);
+ assert.equal(unchecked.plannedPageCount,2);
+ assert.equal(unchecked.missingPages.length,1);
+ assert.ok(unchecked.findings.some(x=>x.code==='viewport:blueprint-page-unchecked'));
+ const ledger={format:'manufact-seo-triage-v1',siteId:cleanPlan.siteId,decisions:[]};
+ const task=cleanPlan.tasks.find(x=>x.field&&typeof x.key==='string');
+ assert.ok(task,'at least one field proposal available for ledger precondition');
+ const decision={taskId:task.taskId,taskKey:task.key,decision:'approve',
+  reason:'Reviewed manually for the purpose of this test',
+  expectedBefore:task.before,expectedAfter:task.after};
+ ledger.decisions=[decision];
+ const triageFile=path.join(tmp,'review.decisions.json');
+ fs.writeFileSync(triageFile,JSON.stringify(ledger));
+ const adjudicated=JSON.parse(good('triage',{site,blueprint:bp,snapshot:htmlSite,decisions:triageFile}));
+ assert.equal(adjudicated.summary.approved,1);
+ assert.equal(adjudicated.releaseAuthorized,false);
+ assert.equal(adjudicated.automaticChanges,0);
+ ledger.decisions[0].expectedBefore='stale or superseded field value';
+ fs.writeFileSync(triageFile,JSON.stringify(ledger));
+ const staleReview=JSON.parse(good('triage',{site,blueprint:bp,snapshot:htmlSite,decisions:triageFile}));
+ assert.equal(staleReview.summary.approved,0);
+ assert.equal(staleReview.summary.stale,1);
+ const unsupported=command('review-bundle',{site,blueprint:bp,unknown:'invalid'});
+ assert.notEqual(unsupported.status,0);
+ const {inspect:inspectEvidence}=require('../lib/html-evidence.cjs');
+ const nested=inspect('<html><body><script type="application/ld+json">'+JSON.stringify({
+  '@context':'https://schema.org','@type':'Article',author:{'@type':'Person'}
+ })+'</script></body></html>');
+ assert.deepEqual(nested.structuredDataTypes,['Article','Person']);
+
  const tampered=JSON.parse(fs.readFileSync(fixture('community.brief.json'),'utf8'));
  tampered.pages[0].sections[0].media={purpose:'informative',alt:'',why:'Missing'};
  const file=path.join(tmp,'tampered.json');fs.writeFileSync(file,JSON.stringify(tampered));

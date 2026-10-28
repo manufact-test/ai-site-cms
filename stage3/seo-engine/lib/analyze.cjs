@@ -125,6 +125,9 @@ function tokenize(html){
 function snapshotAudit(snapshot){
  if(!snapshot||snapshot.format!=='manufact-seo-html-snapshot-v1'||!Array.isArray(snapshot.pages)||snapshot.pages.length>80)throw Error('Invalid HTML snapshot format');
  const pages=snapshot.pages,paths=new Map(),ids=new Set(),issues=[];
+ if(snapshot.completeness!==undefined&&!['partial','complete'].includes(snapshot.completeness))
+  throw Error('Invalid snapshot completeness');
+ const complete=snapshot.completeness==='complete';
  for(const p of pages){
   if(!p||typeof p.id!=='string'||!/^[a-z][a-z0-9-]{2,79}$/.test(p.id)||
    typeof p.path!=='string'||!/^\/(?:[a-z0-9-]+\/)*$/.test(p.path)||
@@ -174,14 +177,18 @@ function snapshotAudit(snapshot){
   for(const href of links){
    if(!href||href.startsWith('#')||href.startsWith('//'))continue;
    let dest;try{const u=new URL(href,'https://snapshot.invalid');if(u.host!=='snapshot.invalid')continue;dest=u.pathname;}catch{continue;}
-   if(!paths.has(dest))issues.push(issue('html:broken-link','error',p.id,p.path,'Local link target '+dest+' is absent from snapshot.'));
+   if(!paths.has(dest))issues.push(issue(complete?'html:broken-link':'html:target-not-in-snapshot',
+    complete?'error':'recommendation',p.id,p.path,
+    complete?'Internal link target '+dest+' is missing from the declared complete export.':
+     'Internal link target '+dest+' is outside this partial export; no broken-link conclusion is possible.'));
    else if(dest!==p.path)incoming.set(paths.get(dest).id,incoming.get(paths.get(dest).id)+1);
   }
  }
  for(const p of pages)if(p.path!=='/'&&incoming.get(p.id)===0)issues.push(issue('html:unlinked-page','recommendation',p.id,p.path,'No incoming internal anchors in supplied snapshot.'));
- if(snapshot.robotsTxt!==undefined&&typeof snapshot.robotsTxt!=='string')throw Error('robotsTxt must be text');
- if(snapshot.sitemapPaths!==undefined&&(!Array.isArray(snapshot.sitemapPaths)||snapshot.sitemapPaths.some(x=>typeof x!=='string')))throw Error('Invalid sitemapPaths');
+ if(snapshot.robotsTxt!==undefined&&(typeof snapshot.robotsTxt!=='string'||snapshot.robotsTxt.length>250000))throw Error('robotsTxt must be bounded text');
+ if(snapshot.sitemapPaths!==undefined&&(!Array.isArray(snapshot.sitemapPaths)||snapshot.sitemapPaths.length>2000||
+  snapshot.sitemapPaths.some(x=>typeof x!=='string'||!/^\/(?:[a-z0-9-]+\/)*$/.test(x))))throw Error('Invalid sitemapPaths');
  return result('html-snapshot',snapshot.siteId||null,issues,{siteContract:'not provided',htmlSnapshot:true,
-   parser:'static heuristic (not DOM, not rendered JS)',robotsSitemap:'supplied artifacts only; HTTP rules not fetched',measuredPerformance:false});
+   parser:'static heuristic (not DOM, not rendered JS)',snapshotCoverage:complete?'declared-complete':'partial-or-unknown',robotsSitemap:'supplied artifacts only; HTTP rules not fetched',measuredPerformance:false});
 }
 module.exports=Object.freeze({FORMAT,auditSite,snapshotAudit});

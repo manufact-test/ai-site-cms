@@ -6,8 +6,10 @@ const {work}=require('./remediation.cjs');
 const {compare}=require('./parity.cjs');
 const REGRESSION=require('./regression.cjs');
 const FORMAT='manufact-seo-release-review-v1';
-function assess(site,manifests,blueprint,options={}){
- const backlog=work(site,manifests,blueprint,options);
+function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
+ const backlog=precomputedBacklog||work(site,manifests,blueprint,options);
+ if(backlog.siteId!==site.siteId||backlog.format!=='manufact-seo-remediation-v1'||!backlog.readOnly)
+  throw Error('Incompatible SEO remediation backlog');
  const x=backlog.tasks,parity=options.snapshot?compare(site,blueprint,options.snapshot):null;
  const blockers=[],reviews=[],manual=[];
  const add=(where,id,title,detail,related=[])=>where.push({gateId:id,title,detail,taskIds:related,automaticPass:false});
@@ -71,7 +73,7 @@ function assess(site,manifests,blueprint,options={}){
   formsVerified:false,
   cwvMeasured:false
  };
- const decision=blockers.length?'repair-required':options.snapshot?'manual-acceptance-required':'collect-publication-evidence';
+ const decision=blockers.length?'repair-required':options.snapshot||options.viewports?'manual-acceptance-required':'collect-publication-evidence';
  return {format:FORMAT,version:1,siteId:site.siteId,
   decision,automaticReleaseApproval:false,readyToPublish:false,
   blockers,reviews,manualChecks:manual,coverage,
