@@ -7,6 +7,7 @@ const {inspect}=require('./html-evidence.cjs');
 const PUBLISHER=require('./publisher-media.cjs');
 const {text,decode}=require('./php-local-components.cjs');
 const FORMAT='manufact-seo-static-export-parity-v1';
+const verifiedReleases=new WeakSet();
 const SHA=/^[a-f0-9]{64}$/;
 const ROUTE=/^\/(?:[a-z0-9-]+\/)*$/;
 const ASSET=/^assets\/[a-z][a-z0-9-]{2,79}\.(?:png|jpg|webp|mp4)$/;
@@ -336,8 +337,8 @@ function read(root,site){
   if(!expected||assets.has(a.id)||typeof a.file!=='string'||!ASSET.test(a.file)||
      a.file!==expected.path.slice(1)||a.mime!==expected.mime)
    throw Error('Static release asset does not match published Site v1');
-  load(a.file,a.sha256,12000000);
-  assets.set(a.id,{id:a.id,src:expected.path,sha256:a.sha256});
+  const bytes=load(a.file,a.sha256,12000000);
+  assets.set(a.id,{id:a.id,src:expected.path,sha256:a.sha256,bytes:bytes.length});
  }
  for(const p of data.pages){
   const expected=site.pages.find(x=>x.path===p.path);
@@ -408,14 +409,16 @@ function read(root,site){
  integrityFindings.push(...forms.findings);
  const seo=staticSeo(site,pages,data.publicOrigin??null);
  integrityFindings.push(...seo.findings);
- return Object.freeze({format:FORMAT,siteId:site.siteId,publishedVersion:data.publishedVersion,
+ const result=Object.freeze({format:FORMAT,siteId:site.siteId,publishedVersion:data.publishedVersion,
   manifestSha256,
   sourceRevision:data.sourceRevision??null,assets,pages,redirects,origin:data.publicOrigin??null,
   recordsVerified:readFiles.size-1,sha256VerifiedAtRead:true,
   findings:Object.freeze(integrityFindings),searchFilesVerified:search.size,
   staticReferencesChecked:links.pages.reduce((n,p)=>n+p.staticReferencesChecked,0),
   staticLinkPages:links.pages,checkedFormSections:forms.checkedForms,
-  staticForms:forms.forms,staticSeoPages:seo.pages});
+  staticForms:forms.forms,staticSeoPages:seo.pages,
+  searchFiles:Object.freeze(Object.fromEntries(search))});
+ verifiedReleases.add(result);return result;
 }
 function compare(site,snapshot,media,release,version){
  if(!release||release.format!==FORMAT||!release.sha256VerifiedAtRead||
@@ -476,4 +479,5 @@ function review(root,site,snapshot,media,version){
   throw Error('Explicit owner-exported CMS published version required for static parity');
  return compare(site,snapshot,media,read(root,site),version);
 }
-module.exports=Object.freeze({FORMAT,read,compare,review,mainText,structure,staticLinks,staticForms,staticSeo});
+function isVerified(release){return verifiedReleases.has(release);}
+module.exports=Object.freeze({FORMAT,read,compare,review,mainText,pageTitle:title,pageDescription:desc,structure,staticLinks,staticForms,staticSeo,isVerified});
