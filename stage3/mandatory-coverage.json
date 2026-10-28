@@ -1816,7 +1816,7 @@
         "stage3/runtime-export/bin/build.cjs",
         "stage3/runtime-export/templates/php/index.php"
       ],
-      "nextCheck": "Partial: hosted Studio gzip/ETags, independent PHP immutable page/sitemap 304, standalone MP4 206/416 and bounded range streaming implemented. Actual customer-host Core Web Vitals, transfer measurements and owner-approved live observation remain open."
+      "nextCheck": "Partial: hosted Studio and published PHP HTML now use gzip/representation-specific ETag and revalidation, hosted sitemap/robots content ETag/304; independent PHP page 304 and MP4 range seeking also available. Requires owner-approved actual host/Core Web Vitals and measured transfer size before acceptance."
     },
     {
       "id": 190,
@@ -1861,7 +1861,7 @@
         "stage3/server/Api.php",
         "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Partial: gzip/ETag Studio asset delivery and two bounded engine packages (full and compact PHP-host, without Node build tools) exist; actual host deployment weight and Core Web Vitals still require owner-approved environment measurement."
+      "nextCheck": "Partial: optional PHP gzip on hosted public pages, lightweight Studio static compression/revalidation, and full vs compact PHP-host package profiles. Real independent customer-host package footprint and Core Web Vitals still require owner-authorized measurement."
     }
   ]
 }
