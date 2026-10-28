@@ -18,7 +18,7 @@ final class DesignGraph
         'top','left','opacity','borderColor','borderWidth','textAlign','order','hidden',
         'rowGap','columnGap','paddingX','paddingY','marginTop','marginBottom','widthPercent',
         'minHeight','gridColumnSpan','flexWrap','flexGrow','alignSelf','letterSpacing',
-        'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'];
+        'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset'];
     private const ICON_PATHS=[
         'check'=>'<path d="M5 12l4 4L19 6"/>',
         'arrow'=>'<path d="M5 12h14m-6-6 6 6-6 6"/>',
@@ -94,7 +94,7 @@ final class DesignGraph
             'objectFit'=>['cover','contain','fill','none'],
             'aspectRatio'=>['auto','square','portrait','landscape','wide'],
             'overflow'=>['visible','hidden','auto'],'shadow'=>['none','soft','medium','strong'],'justifySelf'=>['auto','start','center','end','stretch'],'alignContent'=>['start','center','end','stretch','between'],'gridAutoFlow'=>['row','column','row-dense','column-dense'],'textDecoration'=>['none','underline','line-through'],'whiteSpace'=>['normal','nowrap','pre-line'],
-            'fontStyle'=>['normal','italic'],'textTransform'=>['none','uppercase','lowercase','capitalize'],'textWrap'=>['wrap','balance','pretty','nowrap'],'wordBreak'=>['normal','break-all','break-word'],'textOverflow'=>['clip','ellipsis'],'textShadow'=>['none','soft','strong'],'gridColumnsPreset'=>['sidebar-left','sidebar-right','wide-center','editorial'],'transformOrigin'=>['center','top-left','top-right','bottom-left','bottom-right'],'isolation'=>['auto','isolate'],'mixBlendMode'=>['normal','multiply','screen','overlay','darken','lighten'],'clipShape'=>['none','circle','ellipse','diagonal','hexagon']];
+            'fontStyle'=>['normal','italic'],'textTransform'=>['none','uppercase','lowercase','capitalize'],'textWrap'=>['wrap','balance','pretty','nowrap'],'wordBreak'=>['normal','break-all','break-word'],'textOverflow'=>['clip','ellipsis'],'textShadow'=>['none','soft','strong'],'gridColumnsPreset'=>['sidebar-left','sidebar-right','wide-center','editorial'],'transformOrigin'=>['center','top-left','top-right','bottom-left','bottom-right'],'isolation'=>['auto','isolate'],'mixBlendMode'=>['normal','multiply','screen','overlay','darken','lighten'],'clipShape'=>['none','circle','ellipse','diagonal','hexagon'],'borderStyle'=>['solid','dashed','dotted','double'],'filterPreset'=>['none','grayscale','sepia','contrast','vibrant']];
         $ranges=['columns'=>[1,12],'gridColumnSpan'=>[1,12],'flexGrow'=>[0,6],
             'fontWeight'=>[100,900],'lineHeight'=>[80,250],'letterSpacing'=>[-50,200],
             'maxWidth'=>[0,1920],'widthPercent'=>[1,100],
@@ -102,7 +102,7 @@ final class DesignGraph
             'outlineWidth'=>[0,8],'zIndex'=>[-10,30],'widthPx'=>[1,1920],'heightPx'=>[1,1400],'minWidth'=>[0,1920],'maxHeight'=>[0,1600],'gridRowSpan'=>[1,12],'flexBasisPercent'=>[0,100],'flexShrink'=>[0,1],'objectPositionX'=>[0,100],'objectPositionY'=>[0,100],'marginTop'=>[-160,160],'marginBottom'=>[-160,160],'wordSpacing'=>[-40,100],'textIndent'=>[-100,200],'gridColumnStart'=>[1,13],'gridRowStart'=>[1,13],'translateX'=>[-600,600],'translateY'=>[-600,600],'rotateDeg'=>[-180,180],'scalePercent'=>[50,200],'backdropBlur'=>[0,32]];
         foreach ($style as $key=>$value) {
             if ($state)self::check(in_array($key,
-                ['color','background','borderColor','borderWidth','radius','opacity','gradient','outlineColor','outlineWidth'],true),
+                ['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset'],true),
                 $at.' unsafe state property');
             if (in_array($key,['color','background','borderColor','outlineColor'],true)){
                 self::resolve($value,'colors',$tokens,$at.'/'.$key);continue;
@@ -148,6 +148,14 @@ final class DesignGraph
             &&self::integer($motion['duration']??null,150,2000)
             &&self::integer($motion['delay']??null,0,1000),$at.' invalid motion');
     }
+    private static function safeHref(mixed $href): bool
+    {
+        return is_string($href)&&strlen($href)<=300&&(
+            preg_match('~^/(?!/)[a-zA-Z0-9/_#?=&.%-]*$~D',$href)===1||
+            preg_match('~^https://[a-z0-9.-]+(?:/[^\s"\'<>\\\\]*)?$~iD',$href)===1||
+            preg_match('~^mailto:[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,63}$~iD',$href)===1||
+            preg_match('~^tel:\+[1-9][0-9]{6,14}$~D',$href)===1);
+    }
     public static function validate(mixed $graph,array $assets,array &$ids,mixed $tokensInput=null): void
     {
         self::keys($graph,['version','id','nodes'],'graph');
@@ -161,12 +169,35 @@ final class DesignGraph
         $count=0;
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
                 &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell'],true),
                 'invalid or duplicate node');
             $ids[$id]=true;
+            if(array_key_exists('backgroundMedia',$node)){
+                self::check(!in_array($type,['image','video','icon','divider','table-row','table-cell'],true),
+                    'background media unsupported for node');
+                $m=$node['backgroundMedia'];
+                self::keys($m,['assetId','tabletAssetId','mobileAssetId','size','positionX','positionY','overlay'],$id.'/background');
+                self::check(is_string($m['assetId']??null)&&$m['assetId']!=='','missing background asset');
+                foreach(['assetId','tabletAssetId','mobileAssetId'] as $key){
+                    if(!array_key_exists($key,$m))continue;
+                    self::check(is_string($m[$key])&&in_array($assets[$m[$key]]??null,
+                        ['image/png','image/jpeg','image/webp'],true),'invalid raster background');
+                }
+                self::check((!isset($m['size'])||in_array($m['size'],['cover','contain'],true))&&
+                    (!isset($m['positionX'])||self::integer($m['positionX'],0,100))&&
+                    (!isset($m['positionY'])||self::integer($m['positionY'],0,100)),'invalid background placement');
+                if(array_key_exists('overlay',$m)){
+                    self::keys($m['overlay'],['color','opacity'],'background overlay');
+                    self::resolve($m['overlay']['color']??null,'colors',$tokens,'background overlay');
+                    self::check(self::integer($m['overlay']['opacity']??null,0,90),'background overlay opacity');
+                }
+                foreach([$node['styles']??[],$node['responsive']['tablet']??[],
+                    $node['responsive']['mobile']??[]] as $layer)
+                    self::check(!array_key_exists('gradient',$layer),'background conflicts with gradient');
+            }
             self::check(($type==='quote'||!array_key_exists('cite',$node))&&
                 ($type!=='quote'||!array_key_exists('cite',$node)||
                 (is_string($node['cite'])&&strlen($node['cite'])<=160&&
@@ -232,10 +263,11 @@ final class DesignGraph
                     'invalid video binding');
             } elseif ($type==='image') {
                 self::check(is_string($node['assetId']??null)&&isset($assets[$node['assetId']])&&$assets[$node['assetId']]!=='video/mp4'
+                    &&(!array_key_exists('href',$node)||self::safeHref($node['href']))
                     &&!isset($node['posterAssetId'])&&!isset($node['loop'])
                     &&is_string($node['alt']??null)&&strlen($node['alt'])<=200
                     &&preg_match('/[\x00-\x1f]/',$node['alt'])!==1
-                    &&!isset($node['text'])&&!isset($node['href'])&&!isset($node['level'])&&!isset($node['icon']),
+                    &&!isset($node['text'])&&!isset($node['level'])&&!isset($node['icon']),
                     'invalid image binding');
             } else {
                 self::check(is_string($node['text']??null)&&strlen($node['text'])<=3000
@@ -261,7 +293,7 @@ final class DesignGraph
                     self::style($style,$tokens,$id.'/'.$bp);
             }
             if (isset($node['states'])) {
-                self::keys($node['states'],['hover','focus'],$id.'/states');
+                self::keys($node['states'],['hover','focus','active'],$id.'/states');
                 foreach ($node['states'] as $name=>$style)
                     self::style($style,$tokens,$id.'/'.$name,true);
             }
@@ -338,6 +370,8 @@ final class DesignGraph
             if($key==='rotateDeg'){$put('rotate',$value.'deg');continue;}
             if($key==='scalePercent'){$put('scale',number_format($value/100,2,'.',''));continue;}
             if($key==='wordSpacing'){$put('word-spacing',number_format($value/10,1,'.','').'px');continue;}
+            if($key==='filterPreset'){$put('filter',['none'=>'none','grayscale'=>'grayscale(1)','sepia'=>'sepia(.85)','contrast'=>'contrast(1.25)','vibrant'=>'saturate(1.6)'][$value]);continue;}
+            if($key==='borderStyle'){$put('border-style',$value);continue;}
             if($key==='textShadow'){$put('text-shadow',['none'=>'none','soft'=>'0 2px 8px #10182040','strong'=>'0 4px 18px #10182080'][$value]);continue;}
             if($key==='clipShape'){$put('clip-path',['none'=>'none','circle'=>'circle(50% at 50% 50%)','ellipse'=>'ellipse(50% 40% at 50% 50%)','diagonal'=>'polygon(0 0,100% 0,100% 90%,0 100%)','hexagon'=>'polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)'][$value]);continue;}
             if($key==='backdropBlur'){$put('backdrop-filter','blur('.$value.'px)');$put('-webkit-backdrop-filter','blur('.$value.'px)');continue;}
@@ -377,7 +411,7 @@ final class DesignGraph
             if($key==='outlineWidth'){$put('outline-style','solid');$put('outline-width',$value.'px');$put('outline-offset','2px');}
             if($key==='lineHeight')$put('line-height',number_format($value/100,2,'.',''));
             if($key==='opacity')$put('opacity',number_format($value/100,2,'.',''));
-            if($key==='borderWidth'){$put('border-style','solid');$put('border-width',$value.'px');}
+            if($key==='borderWidth'){if(!isset($styles['borderStyle']))$put('border-style','solid');$put('border-width',$value.'px');}
         }
         return implode(';',$out);
     }
@@ -416,7 +450,7 @@ final class DesignGraph
                 $css=self::declarations($n['responsive'][$bp]??[],$t);
                 if($css!=='')$rules[]='@media(max-width:'.$width.'px){'.$selector.'{'.$css.'}}';
             }
-            foreach (['hover'=>':hover','focus'=>':focus-visible'] as $name=>$state) {
+            foreach (['hover'=>':hover','focus'=>':focus-visible','active'=>':active'] as $name=>$state) {
                 $css=self::declarations($n['states'][$name]??[],$t);
                 if($css!=='')$rules[]=$selector.$state.'{'.$css.'}';
             }
