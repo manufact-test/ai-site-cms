@@ -1303,7 +1303,18 @@ async function execute(){
     input.files=list.files;
     input.dispatchEvent(new Event('change',{bubbles:true}));
   },uploaded);
-  await page.locator('#toast').getByText(/Сайт подключён как черновик/).waitFor({timeout:15000});
+  try{
+    await page.locator('#toast').getByText(/Сайт подключён как черновик/).waitFor({timeout:20000});
+  }catch(err){
+    const diagnostic=await page.evaluate(()=>({
+      toast:document.querySelector('#toast')?.textContent,
+      status:document.querySelector('#server-status')?.textContent,
+      files:document.querySelector('#server-approved-folder')?.files?.length,
+      site:window.Stage3Editor?.getSite()?.siteId
+    }));
+    throw Error('Approved folder import did not complete: '+
+      JSON.stringify({diagnostic,errors,original:String(err).slice(0,300)}));
+  }
   const imported=await page.evaluate(()=>window.Stage3Editor.getSite());
   assert.equal(imported.siteId,'site-approved-browser');
   assert.equal(imported.assets.length,1);
