@@ -2175,10 +2175,10 @@ async function stop(){
   assert.ok(!renamedSitemap.body.includes(origin+'/published/site-url-ci/contact/'));
   assert.ok((await request('GET','/published/site-url-ci/robots.txt')).body.includes(
     'Sitemap: '+origin+'/published/site-url-ci/sitemap.xml'));
-  const robots=await request('GET','/published/site-url-ci/robots.txt');
-  assert.match(robots.headers.get('cache-control'),/no-cache/);
+  const updatedRobots=await request('GET','/published/site-url-ci/robots.txt');
+  assert.match(updatedRobots.headers.get('cache-control'),/no-cache/);
   assert.equal((await request('GET','/published/site-url-ci/robots.txt',undefined,
-    {'if-none-match':robots.headers.get('etag')})).status,304);
+    {'if-none-match':updatedRobots.headers.get('etag')})).status,304);
   assert.equal((await request('GET','/published/site-url-ci/sitemap.xml',undefined,
     {'if-none-match':renamedSitemap.headers.get('etag')})).status,304);
   const urlOut=path.join(dbdir,'url-static');
