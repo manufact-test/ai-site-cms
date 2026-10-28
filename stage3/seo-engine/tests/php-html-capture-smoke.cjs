@@ -254,6 +254,8 @@ function formAndFirstSiteCliContracts(){
   '/tmp/published.json');
  assert.equal(m.exports.parse([...argv,'--php-capture','/tmp/lead/evidence.json',
   '--published-site','/tmp/published.json'])['published-site'],'/tmp/published.json');
+ assert.equal(m.exports.parse([...argv,'--previous-report','/tmp/previous-report'])['previous-report'],
+  '/tmp/previous-report');
  assert.throws(()=>m.exports.parse([...argv,'--unknown','value']),/Unknown/);
 }
 
@@ -346,7 +348,49 @@ function actualPublishedComponentAndGraphContracts(){
  assert.equal(worksheet.releaseAuthorized,false);
 }
 
+
+function localFirstSiteReportDeltaContracts(){
+ const DELTA=require('../lib/first-site-report-delta.cjs');
+ const source='a'.repeat(64);
+ const previousSummary={format:'manufact-seo-first-site-check-v1',siteId:'pilot-local',
+  sourceSiteSha256:source,packageVersion:'sealed-v2',
+  origin:'http://127.0.0.1:8080/published/pilot-local/',publishedVersion:5,
+  capturedAt:'2026-10-28T12:00:00Z'};
+ const issue={code:'php-nav:menu-route-content-drift',severity:'error',
+  pageId:'page-home',path:'/',message:'Bad page link'};
+ const old={summary:previousSummary,bundle:{format:'manufact-seo-review-bundle-v1',
+  readOnly:true,siteId:'pilot-local',release:{blockers:[
+   {gateId:'local-php-navigation-parity'},{gateId:'local-php-media-integrity'}]},
+  localPhpNavigation:{findings:[issue]},
+  localPhpMedia:{findings:[{code:'php-media:non-200',severity:'error',
+   assetId:'hero',pageId:'page-home',path:'/',message:'Missing image'}]}}};
+ const currentSummary={...previousSummary,publishedVersion:6,
+  capturedAt:'2026-10-28T13:00:00Z'};
+ const currentBundle={format:'manufact-seo-review-bundle-v1',
+  readOnly:true,siteId:'pilot-local',release:{blockers:[
+   {gateId:'local-php-media-integrity'},{gateId:'local-php-design-graph-parity'}]},
+  localPhpNavigation:{findings:[]},
+  localPhpMedia:{findings:[{code:'php-media:non-200',severity:'error',
+   assetId:'hero',pageId:'page-home',path:'/',message:'Missing image'}]},
+  localPhpGraph:{findings:[{code:'php-graph:tabs-control',severity:'error',
+   graphNodeId:'tab-one',pageId:'page-about',path:'/about/',message:'Broken tab'}]}};
+ const delta=DELTA.build(old,currentSummary,currentBundle);
+ assert.equal(delta.summary.newFindingOccurrences,1);
+ assert.equal(delta.summary.noLongerObservedOccurrences,1);
+ assert.equal(delta.summary.persistentFindingOccurrences,1);
+ assert.equal(delta.summary.operatorConfirmedFixes,0);
+ assert.equal(delta.releaseAuthorized,false);
+ assert.ok(delta.gates.persistent.includes('local-php-media-integrity'));
+ assert.ok(delta.gates.noLongerPresent.includes('local-php-navigation-parity'));
+ assert.ok(delta.gates.newlyPresent.includes('local-php-design-graph-parity'));
+ assert.throws(()=>DELTA.build(old,{...currentSummary,sourceSiteSha256:'b'.repeat(64)},currentBundle),
+  /Comparing different/);
+ assert.throws(()=>DELTA.build(old,{...currentSummary,origin:'http://127.0.0.1:9999/published/pilot-local/'},currentBundle),
+  /Comparing different/);
+}
+
 async function main(){
+ localFirstSiteReportDeltaContracts();
  actualPublishedComponentAndGraphContracts();
  formAndFirstSiteCliContracts();
  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'seo-loopback-html-test-'));
