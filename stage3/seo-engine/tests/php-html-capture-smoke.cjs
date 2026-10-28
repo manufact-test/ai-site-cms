@@ -266,6 +266,7 @@ function actualPublishedComponentAndGraphContracts(){
  const COMPONENTS=require('../lib/php-local-components.cjs');
  const GRAPH=require('../lib/php-local-graph.cjs');
  const mock={siteId:'pilot-typed',assets:[{id:'asset-main',src:'/assets/asset-main.png'}],
+  redirects:[{from:'/contact/',to:'/'}],
   pages:[{id:'page-home',path:'/',sections:[
    {id:'sec-pricing',component:'pricing-plans',items:[{id:'price-one',values:{
     'content.title':'Basic','content.price':'£10','content.features':'A\nB',
@@ -325,6 +326,22 @@ function actualPublishedComponentAndGraphContracts(){
   x.code==='php-graph:node-content-drift'&&x.graphNodeId==='g-photo'));
  assert.ok(GRAPH.review(mock,read(changed)).findings.some(x=>
   x.code==='php-graph:tabs-control'&&x.graphNodeId==='g-tab-two'));
+
+ const sourceBroken=JSON.parse(JSON.stringify(mock));
+ sourceBroken.pages[0].sections.find(x=>x.id==='sec-graph')
+  .designGraph.nodes.find(x=>x.id==='g-link').href='/unpublished/';
+ const brokenMarkup=html.replace('href="/published/pilot-typed/contact/">Reach us',
+  'href="/published/pilot-typed/unpublished/">Reach us');
+ assert.ok(GRAPH.review(sourceBroken,read(brokenMarkup)).findings.some(x=>
+  x.code==='php-graph:broken-internal-route'&&x.graphNodeId==='g-link'));
+ const sourceFragment=JSON.parse(JSON.stringify(mock));
+ sourceFragment.pages[0].sections.find(x=>x.id==='sec-graph')
+  .designGraph.nodes.find(x=>x.id==='g-link').href='/#missing';
+ const fragmentMarkup=html.replace('href="/published/pilot-typed/contact/">Reach us',
+  'href="/published/pilot-typed/#missing">Reach us');
+ assert.ok(GRAPH.review(sourceFragment,read(fragmentMarkup)).findings.some(x=>
+  x.code==='php-graph:broken-internal-fragment'&&x.graphNodeId==='g-link'));
+
  assert.ok(COMPONENTS.review(mock,read(changed)).findings.some(x=>
   x.code==='php-component:faq-content'&&x.sectionId==='sec-faq'));
  assert.ok(COMPONENTS.review(mock,read(changed)).findings.some(x=>
