@@ -3,6 +3,11 @@
 **Branch:** `feature/site-seo-engine` · **Writable area:** `stage3/seo-engine/**` only.  
 Offline, Node 20+ CommonJS, no npm packages; does not edit CMS/site/files, deploy, crawl the web, invoke AI providers, or promise SEO outcomes. All outputs are **evidence-bearing recommendations**, not permission to publish.
 
+
+## Real PHP-first integration: head + forms + screenshot receipts (28.10.2026)
+
+The first-site CLI also accepts optional `--php-capture /ABS/evidence.json` from the lead's existing `stage3/bin/capture-approved-site.cjs`, combining source-verified screenshots and local PHP HTML/SEO/media observations in one release bundle. PHP title/description/OG/lang/robots mismatches now block release as probable publication drift. Public lead form markup is inspected for own-site action, POST, consent, required inputs, release/HMAC marker shape and honeypot without sending submissions or reporting token values. Unavailable or malformed robots/sitemap and selected OG image when public origin is configured are blockers, not soft readiness warnings. Full procedure: [FIRST-SITE-RUNBOOK.md](FIRST-SITE-RUNBOOK.md). This does not prove served version, visuals, public HTTPS or delivered forms.
+
 ## Media parity with current PHP DesignGraph (28.10.2026)
 
 The local PHP acceptance now detects `picture/source srcset`, video/poster resources, static CSS `url()` backgrounds, and emitted site-mount media absent from sealed Site v1. Actual broken rendered media enters the same release blockers. See [FIRST-SITE-RUNBOOK.md](FIRST-SITE-RUNBOOK.md). This is a compatibility code change, not completed client acceptance.

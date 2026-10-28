@@ -14,7 +14,7 @@
 
 1. Используйте checkout ведущего, в который интегрирована актуальная ветка `feature/site-seo-engine`; файлы `stage3/server/**`, SDK, Studio и CI остаются исключительно его зоной ответственности.
 2. Убедитесь, что PHP-сервер действительно публикует **тот же сайт** по `http://127.0.0.1:PORT/published/SITE-ID/`. Сверьте опубликованную версию и revision с sealed v2 в инфраструктуре ведущего: текущий SEO capture записывает SHA256 исходного пакета, но **не аутентифицирует** версию, отданную PHP.
-3. Задайте `STAGE3_PUBLIC_ORIGIN=https://approved.example` для нормальной проверки ссылок на будущий публичный host, либо `STAGE3_PUBLIC_ORIGIN=http://127.0.0.1:PORT` для строго локального режима. Для `localhost` HTTP не утверждается публичная доступность. Без этой переменной robots/sitemap могут возвращать HTTP 503; это отмечается предупреждением.
+3. Задайте `STAGE3_PUBLIC_ORIGIN=https://approved.example` для нормальной проверки ссылок на будущий публичный host, либо `STAGE3_PUBLIC_ORIGIN=http://127.0.0.1:PORT` для строго локального режима. Для `localhost` HTTP не утверждается публичная доступность. Без этой переменной robots/sitemap могут возвращать HTTP 503; теперь это техническая ошибка release gate.
 4. Проверьте, что `stage3/components/*.json`, sealed Approved Site v2 и approved Blueprint актуальны. Для главной и внутренних страниц нужны их **собственные** утверждённые изображения, а не подстановка прототипов главной на все страницы.
 
 ## Проверка одним запуском
@@ -67,3 +67,36 @@ A concrete gap was identified against current lead `stage3/server/DesignGraph.ph
 The existing `lib/php-local-media.cjs` now recognizes these references through `lib/html-evidence.cjs`. Non-200, MIME, ETag and byte-integrity failures on page-used media are errors for the existing release blockers/remediation. An HTML site-scoped media path missing from sealed Site v1 adds `php-media:untracked-rendered-reference` (error). The current loopback smoke includes art-directed picture/source, CSS background, video poster, and untracked asset scenarios.
 
 **Status:** committed in SEO worker only. No actual Node subprocess smoke, customer sealed v2, PHP served-source identity, real visual parity, public HTTPS or delivered forms have been proven in this chat. Run the two existing smoke commands and real first-site procedure in lead-integrated checkout. No automated release authorization.
+
+## Макроблок: реальное SEO, формы и единый screenshot + HTTP handoff (28.10.2026)
+
+1. На настоящих HTTP HTML теперь сравниваются `<title>`, Description, OG title/description, `html lang` и `meta robots` с sealed Site v1 и точными fallback текущего PHP PublicRenderer. Несовпадение — `php-head:metadata-drift` / `php-head:meta-robots-drift`, блокирующее release gate. Это признак несовместимого или устаревшего опубликованного содержимого, **но не криптографическое подтверждение ревизии PHP**.
+2. Модуль `lib/php-local-forms.cjs` анализирует реальные `lead-form` / `lead-form-flex` без отправки заявок: наличие секции, action своего SITE-ID/SECTION-ID, POST, UTF-8, `_release`, форму `_token` (значение HMAC в отчёт не выводится), антиспам-поле, обязательные имя/email/сообщение/согласие и submit. Ошибки `php-form:*` становятся release blockers и задачами существующего remediation. Не подтверждает работающий collector/доставку почты/Telegram/спам-фильтры.
+3. Не отвечающий HTTP 200 или некорректный по MIME robots.txt/sitemap.xml, robots wildcard запрет обхода, неверный Sitemap pointer, лишние страницы sitemap и отсутствующий OG image при заданном public origin теперь технические блокировки. Настроить `STAGE3_PUBLIC_ORIGIN` перед запуском — **HTTP 503 теперь error, не warning**.
+
+Опционально ведущий может сначала получить исходные скриншоты настоящего PHP (этот шаг требует Chrome/Chromium, Playwright ведущего и тот же сервер):
+
+```bash
+node stage3/bin/capture-approved-site.cjs \
+  /ABS/SEALED-V2 \
+  http://127.0.0.1:PORT/published/SITE-ID/ \
+  /ABS/new-lead-capture
+```
+
+И затем включить их в **тот же** первый SEO/HTTP-прогон:
+
+```bash
+node stage3/seo-engine/bin/first-site-check.cjs \
+  --approved-site /ABS/SEALED-V2 \
+  --blueprint /ABS/approved-blueprint.json \
+  --origin http://127.0.0.1:PORT/published/SITE-ID/ \
+  --evidence /ABS/new-http-evidence \
+  --report /ABS/new-report \
+  --php-capture /ABS/new-lead-capture/evidence.json
+```
+
+Флаг `--php-capture` **необязателен**. Проверяются сохранённые скриншоты и утверждённые исходники по SHA-256, совпадение пакета, версии, siteId, маршрутов и полного loopback origin. Итоговый `bundle.json` включает фото-ошибки из снимков, HTML/HEAD, медиа, sitemap, 301 и формы в едином backlog/gate; `summary.json` сообщает число проверенных screenshot файлов. **Скриншоты остаются изображениями, не визуальным PASS.** Не утверждать реальную идентичность версии PHP, одобрение клиента, HTTPS или успешную отправку формы без отдельной работы владельца.
+
+Локальный evidence HTML содержит отображаемые браузеру поля, поэтому хранить файлы capture приватно, не прикладывать исходный HTML с маркерами форм к публичным тикетам. В SEO `bundle.json` значения `_token` не записываются.
+
+Минимальные целевые проверки остаются без создания новых CI-комплексов: `node stage3/seo-engine/tests/php-html-capture-smoke.cjs` и `node stage3/seo-engine/tests/smoke.cjs` в checkout ведущего. В этом SEO-чате реальный Node subprocess, первый клиентский пакет и публичный хост не проверены.

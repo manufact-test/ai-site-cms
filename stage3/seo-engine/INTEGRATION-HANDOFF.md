@@ -258,3 +258,11 @@ A concrete gap was identified against current lead `stage3/server/DesignGraph.ph
 The existing `lib/php-local-media.cjs` now recognizes these references through `lib/html-evidence.cjs`. Non-200, MIME, ETag and byte-integrity failures on page-used media are errors for the existing release blockers/remediation. An HTML site-scoped media path missing from sealed Site v1 adds `php-media:untracked-rendered-reference` (error). The current loopback smoke includes art-directed picture/source, CSS background, video poster, and untracked asset scenarios.
 
 **Status:** committed in SEO worker only. No actual Node subprocess smoke, customer sealed v2, PHP served-source identity, real visual parity, public HTTPS or delivered forms have been proven in this chat. Run the two existing smoke commands and real first-site procedure in lead-integrated checkout. No automated release authorization.
+
+## Current accelerated integration macroblock — 28 October 2026
+
+Implemented additional first-site checks against the lead's actual current PHP renderer (without editing core): real `title`, description, OG metadata, html language and meta robots compared against sealed Site v1 with release-blocking `php-head:*` errors; actual form POST/action, release/HMAC marker shape (never print token), required fields/consent/honeypot with `php-form:*` tasks and gates; robots/sitemap 503, misconfiguration, crawler root-block, wrong sitemap pointer and configured-origin missing OG now technical blockers. This is read-only GET evidence, never a form submission or a deployed-site attestation.
+
+The one-command CLI `bin/first-site-check.cjs` now optionally takes `--php-capture /ABS/lead-capture/evidence.json`, reads the lead's original source-bound SHA-256 screenshot artifacts using the existing adapter, checks exact 127.0.0.1 mount and includes them in the same release bundle/summary. No second screenshot engine. See `FIRST-SITE-RUNBOOK.md` for actual operator commands.
+
+Verification limits: targeted V8 execution passed clean/bad PHP lead-form token and clean/stale SEO title cases, edited CommonJS files syntax-compiled, and existing loopback smoke was extended. Full Node subprocess smoke, actual customer sealed v2, current published PHP revision, screenshots, form delivery and HTTPS have NOT been verified. Do not call local code-only checks client approval or release.
