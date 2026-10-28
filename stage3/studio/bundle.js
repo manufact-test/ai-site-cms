@@ -132,7 +132,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   let count=0;
   function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','responsiveMedia'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(own(node,'backgroundMedia')){
@@ -156,6 +156,17 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       }
       if([node.styles||{},node.responsive?.tablet||{},node.responsive?.mobile||{}].some(layer=>own(layer,'gradient')))
         fail(node.id,'background image conflicts with CSS gradient');
+    }
+    if(own(node,'responsiveMedia')){
+      if(node.type!=='image')fail(node.id,'device images only on image nodes');
+      const media=node.responsiveMedia;
+      keys(media,['tabletAssetId','mobileAssetId'],node.id+'/responsiveMedia');
+      if(!Object.keys(media).length)fail(node.id,'empty device image selection');
+      for(const id of Object.values(media)){
+        if(typeof id!=='string'||!assetIds.has(id)||
+          !['image/png','image/jpeg','image/webp'].includes(mediaKinds.get(id)))
+          fail(node.id,'device image must reference a site-owned raster asset');
+      }
     }
     if((node.type!=='list'&&own(node,'ordered'))||(node.type==='list'&&own(node,'ordered')&&typeof node.ordered!=='boolean'))fail(node.id,'invalid ordered list flag');
     if(node.type==='table-row'&&parentType!=='table')fail(node.id,'row must belong to table');
@@ -538,9 +549,20 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       asset.width>=1&&asset.width<=4096&&asset.height>=1&&asset.height<=4096?
       ' width="'+asset.width+'" height="'+asset.height+'"':'';
     const img='<img loading="lazy" class="'+cls+'" src="'+attr(base)+'"'+responsive+dimensions+' alt="'+attr(n.alt)+'">';
-    if(!n.href)return img;
+    const variantsByDevice=n.responsiveMedia;
+    let picture=img;
+    if(variantsByDevice){
+      let source='';
+      for(const [device,limit] of [['mobile',600],['tablet',900]]){
+        const id=variantsByDevice[device+'AssetId'];if(!id)continue;
+        const selected=imageUrl(id);
+        if(selected)source+='<source media="(max-width:'+limit+'px)" srcset="'+attr(selected)+'">';
+      }
+      picture='<picture class="cmsdg-picture">'+source+img+'</picture>';
+    }
+    if(!n.href)return picture;
     const href=n.href.startsWith('/')?mount.replace(/\/$/,'')+n.href:n.href;
-    return '<a class="cmsdg-image-action" href="'+attr(href)+'"'+(href.startsWith('https://')?' rel="noopener noreferrer"':'')+'>'+img+'</a>';
+    return '<a class="cmsdg-image-action" href="'+attr(href)+'"'+(href.startsWith('https://')?' rel="noopener noreferrer"':'')+'>'+picture+'</a>';
   }
   const html=graph.nodes.map(visit).join('');
   return '<section class="cmsdg '+('cmsdg-'+graph.id)+'" id="'+attr(sectionId)+'"><style>'+
@@ -552,8 +574,9 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     scope+' .cmsdg-table th,'+scope+' .cmsdg-table td{padding:12px 16px;border:1px solid #c6cdd7;text-align:start}'+
     scope+' .cmsdg-table th{font-weight:700;background:#f2f5f9}'+
     scope+' .cmsdg-gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 2px;overscroll-behavior-inline:contain}'+
-    scope+' .cmsdg-gallery>img,'+scope+' .cmsdg-gallery>a{flex:0 0 min(82%,420px);scroll-snap-align:start;border-radius:10px}'+
-    scope+' .cmsdg-gallery>a img{width:100%;height:100%;object-fit:cover;border-radius:inherit}'+
+    scope+' .cmsdg-gallery>img,'+scope+' .cmsdg-gallery>picture,'+scope+' .cmsdg-gallery>a{flex:0 0 min(82%,420px);scroll-snap-align:start;border-radius:10px}'+
+    scope+' .cmsdg-gallery>picture img,'+scope+' .cmsdg-gallery>a img{width:100%;height:100%;object-fit:cover;border-radius:inherit}'+
+    scope+' .cmsdg-picture img{max-width:100%;height:auto}'+
     scope+' .cmsdg-image-action{display:inline-block;max-width:100%}'+
     scope+' .cmsdg-image-action img{display:block}'+
     scope+' .cmsdg-quote{margin:12px 0;padding:20px;border-inline-start:4px solid currentColor}'+
@@ -1409,6 +1432,10 @@ function structure(raw,manifests,command){
             cb({values:node},'assetId',node.assetId,p,section);
           if(node.type==='video'&&node.posterAssetId)
             cb({values:node},'posterAssetId',node.posterAssetId,p,section);
+          if(node.type==='image'&&node.responsiveMedia)
+            for(const key of ['tabletAssetId','mobileAssetId'])
+              if(node.responsiveMedia[key])
+                cb({values:node.responsiveMedia},key,node.responsiveMedia[key],p,section);
           if(node.backgroundMedia)for(const key of ['assetId','tabletAssetId','mobileAssetId'])
             if(node.backgroundMedia[key])
               cb({values:node.backgroundMedia},key,node.backgroundMedia[key],p,section);
@@ -2776,6 +2803,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                 if(node.backgroundMedia){
                   for(const id of [node.backgroundMedia.assetId,node.backgroundMedia.tabletAssetId,node.backgroundMedia.mobileAssetId])if(id)referenced.add(id);
                 }
+                if(node.type==='image'&&node.responsiveMedia){
+                  for(const id of [node.responsiveMedia.tabletAssetId,node.responsiveMedia.mobileAssetId])if(id)referenced.add(id);
+                }
                 if(['image','video'].includes(node.type)){
                   referenced.add(node.assetId);
                   rows.push({...common,path:'assetId',fieldLabel:
@@ -3951,7 +3981,32 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item'].includes(current.type))
             property('Текст', 'text',current.text);
           if(['button','link'].includes(current.type))property('Ссылка', 'href',current.href);
-          if(current.type==='image')property('Действие по клику (необязательно)','href',current.href||'');
+          if(current.type==='image'){
+            property('Действие по клику (необязательно)','href',current.href||'');
+            const raster=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
+            for(const [bp,label] of [['tablet','Планшет · своё изображение'],['mobile','Телефон · своё изображение']]){
+              const key=bp+'AssetId';
+              const labelEl=document.createElement('label');labelEl.className='cms-work-field';
+              const caption=document.createElement('span');caption.textContent=label;
+              const select=document.createElement('select');select.className='control';
+              select.dataset.deviceImage=bp;
+              for(const [id,name] of [['','Наследовать'],...raster.map(a=>[a.id,a.alt||a.id])]){
+                const opt=document.createElement('option');opt.value=id;opt.textContent=name;select.append(opt);
+              }
+              select.value=current.responsiveMedia?.[key]||'';
+              select.disabled=!canWrite();
+              select.addEventListener('change',()=>{
+                editGraphWork(node=>{
+                  if(select.value)(node.responsiveMedia||(node.responsiveMedia={}))[key]=select.value;
+                  else if(node.responsiveMedia){
+                    delete node.responsiveMedia[key];
+                    if(!Object.keys(node.responsiveMedia).length)delete node.responsiveMedia;
+                  }
+                });
+              });
+              labelEl.append(caption,select);panel.append(labelEl);
+            }
+          }
           if(!['image','video','icon','divider','table-row','table-cell'].includes(current.type)){
             const bgImages=session.current.assets.filter(x=>/^image\/(png|jpeg|webp)$/.test(x.mime));
             if(bgImages.length){
@@ -5038,6 +5093,18 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const options=session.current.assets.filter(a=>a.mime!=='video/mp4').map(a=>[a.id,a.alt||a.id]);
         fields.append(ctl('Изображение',{initial:n.assetId,choices:options},v=>{n.assetId=v;},'select'),
           ctl('Описание изображения',n.alt,v=>{n.alt=v;}));
+        const raster=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
+        const artChoices=[['','Наследовать предыдущий размер'],...raster.map(a=>[a.id,a.alt||a.id])];
+        for(const [bp,label] of [['tablet','Изображение планшета'],['mobile','Изображение телефона']]){
+          const key=bp+'AssetId';
+          fields.append(ctl(label,{initial:n.responsiveMedia?.[key]||'',choices:artChoices},v=>{
+            if(v)(n.responsiveMedia||(n.responsiveMedia={}))[key]=v;
+            else if(n.responsiveMedia){
+              delete n.responsiveMedia[key];
+              if(!Object.keys(n.responsiveMedia).length)delete n.responsiveMedia;
+            }
+          },'select'));
+        }
       }
       if(n.type==='video'){
         const videos=session.current.assets.filter(a=>a.mime==='video/mp4').map(a=>[a.id,a.alt||a.id]);
