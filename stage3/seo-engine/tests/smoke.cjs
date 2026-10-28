@@ -11,6 +11,11 @@ function command(op,opts){
 function good(op,opts){const p=command(op,opts);assert.equal(p.status,0,op+': '+p.stderr);return p.stdout;}
 function fixture(f){return path.join(root,'fixtures',f);}
 try{
+ // Actual 127.0.0.1 HTTP GET smoke with a fake-only sealed source adapter.
+ const realLoopback=spawnSync(process.execPath,[path.join(root,'tests/php-html-capture-smoke.cjs')],
+  {encoding:'utf8',timeout:25000,maxBuffer:2000000});
+ assert.equal(realLoopback.status,0,'Local PHP HTML smoke: '+realLoopback.stderr);
+ assert.match(realLoopback.stdout,/PHP HTML LOOPBACK CAPTURE SMOKE PASS/);
  for(const name of ['industrial','community']){
   const actual=JSON.parse(good('compile',{brief:fixture(name+'.brief.json')}));
   const expected=JSON.parse(fs.readFileSync(fixture(name+'.blueprint.json'),'utf8'));
@@ -23,6 +28,13 @@ try{
  const mixed=command('review-bundle',{site,'approved-site':tmp,blueprint:bp});
  assert.notEqual(mixed.status,0,'two Site v1 sources must be rejected');
  assert.match(mixed.stderr,/--approved-site.*cannot be combined with --site/);
+ const missingHtmlSource=command('review-bundle',{site,blueprint:bp,'php-html':tmp});
+ assert.notEqual(missingHtmlSource.status,0);
+ assert.match(missingHtmlSource.stderr,/--php-html requires --approved-site/);
+ const htmlConflict=command('review-bundle',{site,blueprint:bp,
+  'approved-site':tmp,'php-html':tmp,'snapshot':tmp});
+ assert.notEqual(htmlConflict.status,0);
+ assert.match(htmlConflict.stderr,/cannot be combined with --snapshot/);
  const oldBundle=JSON.parse(good('review-bundle',{site,blueprint:bp}));
  assert.equal(oldBundle.approvedSiteSource,null,'legacy --site path remains independent');
  assert.equal(oldBundle.coverage.sealedSourceVerifiedAtRead,false);
@@ -65,6 +77,8 @@ try{
  const {compileBrief}=require('../lib/blueprint.cjs');
  const original=JSON.parse(fs.readFileSync(site,'utf8'));
  const plan=JSON.parse(fs.readFileSync(bp,'utf8'));
+ assert.throws(()=>PACKAGE.build(original,currentRegistry,plan,{phpHtml:{}}),
+  /Local PHP HTML evidence must be the verified capture snapshot/);
 
  // Authoring parity: PHP renders Design Graph instead of legacy element slots.
  // Fake-looking old manifest headings, links and media must not pass SEO review.
