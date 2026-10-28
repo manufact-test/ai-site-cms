@@ -247,6 +247,8 @@ async function main(argv){
    scope:publicStatic?.comparisonScope??null,comparable:publicStatic?.comparable??null,
    observedPages:publicStatic?.checkedPages??null,
    checkedMedia:publicStatic?.checkedMedia??null,
+   declaredResponsiveVariants:publicStatic?.declaredResponsiveVariants??null,
+   sha256VerifiedResponsiveVariants:publicStatic?.sha256VerifiedResponsiveVariants??null,
    searchFiles:publicStatic?.checkedSearchFiles??null,
    redirects:publicStatic?.checkedRedirects??null,
    publicVsOfficialExportFindings:publicStatic?.findings.length??null,

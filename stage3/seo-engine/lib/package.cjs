@@ -230,6 +230,8 @@ function build(site,manifests,blueprint,options={}){
    verifiedStaticManifestSha256:options.publicStatic.verifiedStaticManifestSha256??null,
    checkedPages:options.publicStatic.checkedPages,
    checkedMedia:options.publicStatic.checkedMedia,
+   declaredResponsiveVariants:options.publicStatic.declaredResponsiveVariants??null,
+   sha256VerifiedResponsiveVariants:options.publicStatic.sha256VerifiedResponsiveVariants??null,
    checkedSearchFiles:options.publicStatic.checkedSearchFiles,
    checkedRedirects:options.publicStatic.checkedRedirects,
    negativeRouteStatus:options.publicStatic.negativeRouteStatus??null,
