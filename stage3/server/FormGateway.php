@@ -76,13 +76,28 @@ final class FormGateway
         return '';
     }
 
+    /** Immutable published site's language controls the no-script response. */
+    private static function copy(string $language,string $key): string
+    {
+        $messages=[
+            'ru'=>['invalid'=>'Запрос не принят. Проверьте поля формы.','maintenance'=>'Сайт временно на обслуживании. Попробуйте отправить заявку позже.','success'=>'Спасибо! Ваша заявка сохранена.','limit'=>'Слишком много обращений. Попробуйте позднее.','error'=>'Сервис обращений временно недоступен.','title'=>'Обращение','back'=>'Вернуться на сайт'],
+            'en'=>['invalid'=>'Your request was not accepted. Check the form fields.','maintenance'=>'The website is temporarily under maintenance. Please try again later.','success'=>'Thank you! Your request has been saved.','limit'=>'Too many requests. Please try again later.','error'=>'The contact service is temporarily unavailable.','title'=>'Your request','back'=>'Return to website'],
+            'pl'=>['invalid'=>'Nie przyjęto zgłoszenia. Sprawdź pola formularza.','maintenance'=>'Strona jest chwilowo niedostępna. Spróbuj ponownie później.','success'=>'Dziękujemy! Twoje zgłoszenie zostało zapisane.','limit'=>'Zbyt wiele zgłoszeń. Spróbuj ponownie później.','error'=>'Formularz kontaktowy jest chwilowo niedostępny.','title'=>'Zgłoszenie','back'=>'Wróć do strony'],
+            'de'=>['invalid'=>'Die Anfrage wurde nicht angenommen. Bitte prüfen Sie die Formularfelder.','maintenance'=>'Die Website wird vorübergehend gewartet. Bitte versuchen Sie es später erneut.','success'=>'Vielen Dank! Ihre Anfrage wurde gespeichert.','limit'=>'Zu viele Anfragen. Bitte versuchen Sie es später erneut.','error'=>'Der Kontaktservice ist vorübergehend nicht verfügbar.','title'=>'Ihre Anfrage','back'=>'Zurück zur Website'],
+            'be'=>['invalid'=>'Запыт не прыняты. Праверце палі формы.','maintenance'=>'Сайт часова на абслугоўванні. Паспрабуйце пазней.','success'=>'Дзякуй! Ваша заяўка захавана.','limit'=>'Занадта шмат зваротаў. Паспрабуйце пазней.','error'=>'Сэрвіс зваротаў часова недаступны.','title'=>'Зварот','back'=>'Вярнуцца на сайт'],
+            'uk'=>['invalid'=>'Запит не прийнято. Перевірте поля форми.','maintenance'=>'Сайт тимчасово на обслуговуванні. Спробуйте пізніше.','success'=>'Дякуємо! Вашу заявку збережено.','limit'=>'Забагато звернень. Спробуйте пізніше.','error'=>'Сервіс звернень тимчасово недоступний.','title'=>'Звернення','back'=>'Повернутися на сайт']
+        ];
+        return $messages[$language][$key]??$messages['ru'][$key];
+    }
+
     public static function respond(SiteRepository $sites, string $siteId, string $sectionId): never
     {
         header('Content-Type: text/html; charset=utf-8');
         header('Content-Security-Policy: default-src \'none\'; style-src \'unsafe-inline\'; base-uri \'none\'; form-action \'none\'; frame-ancestors \'none\'');
         header('Cache-Control: no-store');
         header('X-Content-Type-Options: nosniff');
-        $message = 'Запрос не принят. Проверьте поля формы.';
+        $language='ru';
+        $messageKey='invalid';
         $status = 422;
         $returnTarget='';
         try {
@@ -117,8 +132,11 @@ final class FormGateway
             if ($release === false || $release < 1) {
                 throw new InvalidArgumentException('Invalid form release');
             }
+            $published=$sites->publishedVersion($siteId,(int)$release);
+            if(in_array($published['language']??'ru',['ru','en','pl','de','be','uk'],true))
+                $language=$published['language']??'ru';
             if ($sites->operationsState($siteId)['enabled']) {
-                $message='Сайт временно на обслуживании. Попробуйте отправить заявку позже.';
+                $messageKey='maintenance';
                 $status=503;
             } else {
                 $submissionId=$sites->collectSubmission($siteId, $sectionId, $release, $fields,
@@ -128,28 +146,30 @@ final class FormGateway
                     $returnTarget=self::returnPage($sites,$siteId,$sectionId,(int)$release,
                         $returnRequest,$ours,$origin,$allow);
                 }catch(\Throwable $ignored){$returnTarget='';}
-                $message = 'Спасибо! Ваша заявка сохранена.';
+                $messageKey='success';
                 $status = 201;
             }
         } catch (Conflict $e) {
-            $message = 'Слишком много обращений. Попробуйте позднее.';
+            $messageKey='limit';
             $status = 429;
         } catch (\Throwable $e) {
             // Unknown forms, disallowed origin and bad tokens never reveal internals.
             error_log('Stage3 form declined: ' . get_class($e));
             if (!($e instanceof InvalidArgumentException) && !($e instanceof NotFound)) {
                 try { $sites->recordIncident($siteId,'collector_failure'); } catch (\Throwable $ignored) {}
-                $message='Сервис обращений временно недоступен.';
+                $messageKey='error';
                 $status=503;
             }
         }
         http_response_code($status);
-        echo '<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Обращение</title><style>body{font:18px/1.5 system-ui,sans-serif;max-width:660px;margin:12vh auto;padding:24px;color:#17324d}main{border:1px solid #dde5ef;padding:30px;border-radius:12px}</style></head><body><main><h1>Обращение</h1><p>'
+        $title=self::copy($language,'title');
+        $message=self::copy($language,$messageKey);
+        echo '<!doctype html><html lang="'.$language.'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'.$title.'</title><style>body{font:18px/1.5 system-ui,sans-serif;max-width:660px;margin:12vh auto;padding:24px;color:#17324d}main{border:1px solid #dde5ef;padding:30px;border-radius:12px}</style></head><body><main><h1>'.$title.'</h1><p>'
             . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8')
             . '</p>'
             . ($status===201&&$returnTarget!==''?
                 '<p><a href="'.htmlspecialchars($returnTarget,ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5,'UTF-8').
-                '" rel="noopener noreferrer">Вернуться на сайт</a></p>':'')
+                '" rel="noopener noreferrer">'.self::copy($language,'back').'</a></p>':'')
             . '</main></body></html>';
         exit;
     }
