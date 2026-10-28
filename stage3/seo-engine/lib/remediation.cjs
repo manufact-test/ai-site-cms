@@ -150,7 +150,7 @@ function work(site,manifests,blueprint,options={}){
   const key=['investigate',kind,x.pageId||'',x.sectionId||'',x.targetPageId||'',
    x.field||'',x.device||'',x.code,x.fragment||'',x.href||'',x.topic||'',
    x.assetId||'',x.schemaType||'',x.graphNodeId||'',x.property||'',group].join('|');
-  const fromHtml=['html-snapshot','html-deep','viewport-capture','http-delivery-evidence','media-delivery-evidence','php-public-screenshots','php-local-publication','php-local-media','php-local-head','php-local-forms','php-local-components','php-local-design-graph','php-local-navigation','php-local-theme','php-local-semantics','cross-source-consistency'].includes(kind),fromParity=kind==='publication-parity';
+  const fromHtml=['html-snapshot','html-deep','viewport-capture','http-delivery-evidence','media-delivery-evidence','php-public-screenshots','php-local-publication','php-local-media','php-local-head','php-local-forms','php-local-components','php-local-design-graph','php-local-navigation','php-local-theme','php-local-semantics','php-local-footprint','cross-source-consistency'].includes(kind),fromParity=kind==='publication-parity';
   const direct=x.severity==='error'||x.severity==='blocker';
   const owner=group==='verified-facts'?'site-owner':
    fromHtml||fromParity||direct||/planned-(?:page|link|internal-link|section)/.test(x.code)
@@ -200,6 +200,8 @@ function work(site,manifests,blueprint,options={}){
    issueTask(x,'php-local-theme');
  if(options.phpHtml?.localSemantics)for(const x of options.phpHtml.localSemantics.findings)
   issueTask(x,'php-local-semantics');
+ if(options.phpHtml?.localFootprint)for(const x of options.phpHtml.localFootprint.findings)
+  issueTask(x,'php-local-footprint');
   if(options.phpHtml?.localNavigation)for(const x of options.phpHtml.localNavigation.findings)
    issueTask(x,'php-local-navigation');
   if(options.phpHtml?.localGraph)for(const x of options.phpHtml.localGraph.findings)
@@ -279,6 +281,7 @@ function work(site,manifests,blueprint,options={}){
     localPhpNavFindingCount:options.phpHtml?.localNavigation?.findings.length??null,
     localPhpThemeFindingCount:options.phpHtml?.localTheme?.findings.length??null,
     localPhpSemanticFindingCount:options.phpHtml?.localSemantics?.findings.length??null,
+    localPhpFootprintFindingCount:options.phpHtml?.localFootprint?.findings.length??null,
    crossSourceFindingCount:consistency.findings.length,
    routeMigrationFindingCount:migration?.findings.length??null,
    regressionNewFindings:regression?.introduced.length??null,

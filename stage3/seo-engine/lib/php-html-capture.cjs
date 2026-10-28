@@ -17,6 +17,7 @@ const LOCAL_GRAPH=require('./php-local-graph.cjs');
 const LOCAL_NAVIGATION=require('./php-local-navigation.cjs');
 const LOCAL_THEME=require('./php-local-theme.cjs');
 const LOCAL_SEMANTICS=require('./php-local-semantics.cjs');
+const LOCAL_FOOTPRINT=require('./php-local-footprint.cjs');
 const CAPTURE_FORMAT='manufact-seo-loopback-php-html-v1';
 const SNAPSHOT_FORMAT='manufact-seo-html-snapshot-v1';
 const SHA=/^[a-f0-9]{64}$/;
@@ -197,6 +198,7 @@ function inspect(manifest,site,source,folder){
  const localMedia=manifest.media?
   LOCAL_MEDIA.inspect(site,manifest.baseUrl,manifest.media,root,checkedSnapshot,
    publication?.declaredPublicOrigin||null,source.sealedMediaSha256):null;
+ const localFootprint=localMedia?LOCAL_FOOTPRINT.review(site,checkedSnapshot,localMedia):null;
  const result=Object.freeze({
   format:CAPTURE_FORMAT,siteId:site.siteId,packageVersion:source.packageVersion,
   sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,
@@ -205,7 +207,7 @@ function inspect(manifest,site,source,folder){
   checkedAuxiliaryBytes:total-checkedPageHtmlBytes,sha256VerifiedAtRead:true,
   loopbackHttp200Count:entries.length,sourceRevisionAuthenticated:false,
   realPublicHttpsChecked:false,formsChecked:false,formMarkupChecked:true,visualParityChecked:false,
-  publication,localMedia,localHead,localForms,localComponents,localGraph,localNavigation,localTheme,localSemantics,
+  publication,localMedia,localHead,localForms,localComponents,localGraph,localNavigation,localTheme,localSemantics,localFootprint,
   snapshot:checkedSnapshot,
   limitations:'Read-only local PHP HTTP 200 and byte-checked HTML. Cannot prove the served revision matches saved Site v1, operator identity, client approval, public HTTPS or successful forms.'
  });
@@ -291,6 +293,7 @@ async function capture(sealedFolder,rawOrigin,output,publishedRecord=null){
   localThemeFindings:imported.localTheme.findings.length,
   localSemanticLinksChecked:imported.localSemantics.checkedLinks,
   localSemanticFindings:imported.localSemantics.findings.length,
+  localFootprintFindings:imported.localFootprint?.findings.length??null,
   localMediaAssets:imported.localMedia.capturedResources,
   localMediaBytes:imported.localMedia.savedBodyBytes,
   localMediaFindings:imported.localMedia.findings.length,
