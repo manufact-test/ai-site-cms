@@ -2218,6 +2218,11 @@
     // observations are diagnostic hints, not visual/pixel-match approval.
     const renderEvidence=new Map(),referenceSeen=new Set();
     const referenceUrls=new Map(),referenceLoads=new Map();
+    const referenceKind=(row,mode)=>{
+      if(!approvedReference||!row?.current)return null;
+      if(row.current.path==='/')return mode;
+      return approvedReference.pageReferences?.[row.current.id]?.[mode]||null;
+    };
     const signature=(row,mode)=>row?.current?.id+'|'+mode;
     const pageComplete=pageId=>devicesNeeded.every(mode=>reviewed.get(pageId)?.has(mode));
     const completedCount=()=>site.pages.filter(page=>pageComplete(page.id)).length;
@@ -2262,10 +2267,13 @@
             mode,renderEvidence.get(page.id+'|'+mode)||null])),
           originalPrototypeComparedAt:devicesNeeded.filter(mode=>
             referenceSeen.has(page.id+'|'+mode)),
+          approvedReferenceAvailableAt:devicesNeeded.filter(mode=>
+            Boolean(referenceKind({current:page},mode))),
           ready:pageComplete(page.id)})),
         sourceApproval:approvedReference?{
           version:approvedReference.version,packageSha:approvedReference.packageSha,
           complete:approvedReference.complete,
+          pageReferenceCount:Object.keys(approvedReference.pageReferences||{}).length+1,
           note:'SHA256 binds archived originals, not client identity or visual approval'
         }:null,
         eligibleForReviewPublish:!publishSaved.disabled};
@@ -2289,6 +2297,12 @@
         'Все страницы просмотрены на ПК, планшете и телефоне. Потребуется отдельное подтверждение';
     };
     const renderViewport=()=>{
+      const currentReference=referenceKind(selectedRow,device);
+      if((viewMode==='approved'||viewMode==='approved-compare')&&!currentReference)
+        viewMode='draft';
+      for(const btn of compareModes.querySelectorAll('button[data-compare-mode]'))
+        if(['approved','approved-compare'].includes(btn.dataset.compareMode))
+          btn.disabled=!currentReference;
       previewPanels.classList.toggle('is-comparing',
         viewMode==='compare'||viewMode==='approved-compare');
       viewport.hidden=viewMode==='published'||viewMode==='approved';
@@ -2323,19 +2337,19 @@
     };
     // The sealed screenshot stays read-only; the browser verifies bytes
     // against the server index before exposing a local, private Blob URL.
-    const loadReference=async mode=>{
-      if(!approvedReference||referenceUrls.has(mode))return;
-      if(referenceLoads.has(mode))return referenceLoads.get(mode);
+    const loadReference=async kind=>{
+      if(!approvedReference||!kind||referenceUrls.has(kind))return;
+      if(referenceLoads.has(kind))return referenceLoads.get(kind);
       const job=(async()=>{
         const url='/api/sites/'+encodeURIComponent(site.siteId)+'/approval-evidence/'+
-          approvedReference.packageSha+'/'+mode;
+          approvedReference.packageSha+'/'+kind;
         const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
-        if(!response.ok)throw Error('Не удалось открыть утверждённый '+mode+' макет');
+        if(!response.ok)throw Error('Не удалось открыть утверждённый '+kind+' макет');
         const bytes=await response.arrayBuffer();
         if(bytes.byteLength>8000000)throw Error('Слишком большой оригинальный макет');
         const sha=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
           .map(v=>v.toString(16).padStart(2,'0')).join('');
-        if(sha!==approvedReference.files[mode]?.sha256)
+        if(sha!==approvedReference.files[kind]?.sha256)
           throw Error('SHA-256 оригинального макета не совпадает с архивом');
         const magic=new Uint8Array(bytes.slice(0,12));
         const mime=magic[0]===137&&magic[1]===80?'image/png':
@@ -2345,28 +2359,32 @@
         // A slow authenticated fetch may finish after the review was closed.
         // Never retain an orphan object URL in that case.
         if(!dialog.open)return;
-        referenceUrls.set(mode,URL.createObjectURL(new Blob([bytes],{type:mime})));
+        referenceUrls.set(kind,URL.createObjectURL(new Blob([bytes],{type:mime})));
       })();
-      referenceLoads.set(mode,job);
-      try{await job;}finally{referenceLoads.delete(mode);}
+      referenceLoads.set(kind,job);
+      try{await job;}finally{referenceLoads.delete(kind);}
     };
     const showReference=async()=>{
       if(!approvedReference||!['approved','approved-compare'].includes(viewMode))return;
-      const mode=device,row=selectedRow;
+      const mode=device,row=selectedRow,kind=referenceKind(row,mode);
       referenceImage.removeAttribute('src');
+      if(!kind){
+        referenceLabel.textContent='У этой страницы нет индивидуального утверждённого макета';
+        return;
+      }
       referenceLabel.textContent='Загружаем оригинальный макет '+mode+'…';
       try{
-        await loadReference(mode);
+        await loadReference(kind);
         if(!dialog.open||device!==mode||selectedRow!==row||
           !['approved','approved-compare'].includes(viewMode))return;
-        if(!referenceUrls.has(mode))return;
-        referenceImage.src=referenceUrls.get(mode);
+        if(!referenceUrls.has(kind))return;
+        referenceImage.src=referenceUrls.get(kind);
         await referenceImage.decode();
         if(!dialog.open||device!==mode||selectedRow!==row||
           !['approved','approved-compare'].includes(viewMode))return;
         referenceLabel.textContent='Согласованный исходник · '+approvedReference.version+
           ' · SHA-256 проверен · '+mode;
-        if(row.current?.path==='/')referenceSeen.add(signature(row,mode));
+        referenceSeen.add(signature(row,mode));
       }catch(error){
         if(!dialog.open||device!==mode||selectedRow!==row)return;
         referenceLabel.textContent='Макет недоступен: '+error.message;
@@ -2519,12 +2537,12 @@
     ]){
       const mode=action(label,'',()=>{
         if((value==='compare'||value==='published')&&!published)return;
-        if((value==='approved'||value==='approved-compare')&&!approvedReference)return;
+        if((value==='approved'||value==='approved-compare')&&!referenceKind(selectedRow,device))return;
         viewMode=value;renderViewport();void showReference();
       });
       mode.dataset.compareMode=value;
       mode.disabled=(['compare','published'].includes(value)&&!published)||
-        (['approved','approved-compare'].includes(value)&&!approvedReference);
+        (['approved','approved-compare'].includes(value)&&!referenceKind(selectedRow,device));
       compareModes.append(mode);
     }
     for(const [mode,name] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
