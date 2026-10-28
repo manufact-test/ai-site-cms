@@ -42,6 +42,7 @@ const html=(title)=>{
  const hasImage=title!=='About';
  const imageUrl=origin()+'/published/pilot-local/assets/'+
   (mode==='bad-og-url'?'asset-secondary.png':'asset-banner.png');
+ const twitterImage=mode==='bad-twitter-image'?origin()+'/published/pilot-local/assets/asset-secondary.png':imageUrl;
  return '<!doctype html><html lang="ru"><head><title>'+title+
   '</title><meta name="description" content="Тест локального PHP">'+
   '<meta property="og:title" content="'+(mode==='bad-metadata'?'Old page':title)+'">'+
@@ -55,7 +56,7 @@ const html=(title)=>{
   '<meta name="twitter:card" content="'+(hasImage?'summary_large_image':'summary')+'">'+
   '<meta name="twitter:title" content="'+title+'">'+
   '<meta name="twitter:description" content="Тест локального PHP">'+
-  (hasImage?'<meta name="twitter:image" content="'+imageUrl+'">'+
+  (hasImage?'<meta name="twitter:image" content="'+twitterImage+'">'+
    '<meta property="og:image:alt" content="Actual banner">'+
    '<meta name="twitter:image:alt" content="Actual banner">':'')+
   '</head>'+
@@ -470,6 +471,11 @@ async function main(){
   await CAP.capture(sealed,base,socialPageDrift);
   assert.ok(CAP.read(socialPageDrift,site,source).localHead.findings
    .some(x=>x.code==='php-head:og-url-drift'&&x.severity==='error'));
+  mode='bad-twitter-image';
+  const twitterDrift=path.join(tmp,'twitter-drift');
+  await CAP.capture(sealed,base,twitterDrift);
+  assert.ok(CAP.read(twitterDrift,site,source).localHead.findings.some(x=>
+   x.code==='php-head:social-drift'&&x.field==='twitter:image'&&x.severity==='error'));
   mode='bad-xrobots';
   const noindex=path.join(tmp,'xrobots-noindex');
   await CAP.capture(sealed,base,noindex);
