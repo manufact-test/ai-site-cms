@@ -48,9 +48,11 @@ function create(args){
   'Intended HTTPS static document root: '+plan.origin+'/',
   'Page routes: '+plan.allSitePages+'; true HTTP 301 aliases: '+plan.redirectCount+'.',
   '',
-  'Choose ONE hosting server format. Do not install both snippets.',
+  'Choose ONE hosting server format. Do not install multiple redirect snippets.',
   '- Apache: review apache.htaccess, mod_rewrite and AllowOverride in the root-static vhost.',
   '- Nginx: review nginx-redirects.conf inside the HTTPS server block. These are exact-match locations only.',
+  '- Netlify: copy netlify._redirects as _redirects into the publish directory; 301! is forced because static export includes legacy HTML fallbacks.',
+  '- Cloudflare Pages: copy cloudflare-pages._redirects as _redirects into the static asset directory; check Pages Functions routes.',
   '- Copy the static export contents to the approved HTTPS document root using the lead-owned deployment process.',
   '- Configure TLS, document root, index, security and legal/privacy policies separately.',
   '- Check a separate HTTPS collector and real submission delivery for any forms; NEVER infer POST acceptance from markup.',
@@ -70,11 +72,15 @@ function create(args){
  const write=(name,content)=>fs.writeFileSync(path.join(output,name),content,{flag:'wx',mode:0o600});
  write('apache.htaccess',plan.apache.content);
  write('nginx-redirects.conf',plan.nginx.content);
+ write('netlify._redirects',plan.netlify.content);
+ write('cloudflare-pages._redirects',plan.cloudflarePages.content);
  write('plan.json',JSON.stringify({...plan,apache:{...plan.apache,content:undefined},
-  nginx:{...plan.nginx,content:undefined}},null,2)+'\n');
+  nginx:{...plan.nginx,content:undefined},
+  netlify:{...plan.netlify,content:undefined},
+  cloudflarePages:{...plan.cloudflarePages,content:undefined}},null,2)+'\n');
  write('HOSTING-HANDOFF.md',markdown);
  return {folder:output,siteId:site.siteId,manifestSha256:plan.officialManifestSha256,
-  redirectedRoutes:plan.redirectCount,createdFiles:4,actualHostWrites:0,
+  redirectedRoutes:plan.redirectCount,createdFiles:6,actualHostWrites:0,
   publicHttpRequests:0,manualApprovalRequired:true};
 }
 if(require.main===module)
