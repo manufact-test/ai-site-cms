@@ -80,8 +80,11 @@ async function main(argv){
  const evidence=newTarget(o.evidence,o['approved-site']);
  const report=newTarget(o.report,o['approved-site'],evidence);
  const previous=o['previous-report']?PROGRESS.read(o['previous-report']):null;
- if(previous&&(previous.root===report||previous.root===evidence||
-    report.startsWith(previous.root+path.sep)||evidence.startsWith(previous.root+path.sep)))
+ if(previous&&([report,evidence].some(target=>{
+   const parent=fs.realpathSync(path.dirname(target));
+   return target===previous.root||target.startsWith(previous.root+path.sep)||
+    parent===previous.root||parent.startsWith(previous.root+path.sep);
+  })))
   throw Error('Prior report must be a distinct read-only directory outside new capture outputs');
  const blueprint=readBlueprint(o.blueprint),registry=manifests();
  if(blueprint.siteId!==site.siteId)throw Error('First-site approved source and Blueprint site IDs differ');
