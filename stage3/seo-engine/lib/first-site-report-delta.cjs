@@ -7,9 +7,14 @@ const SOURCE='manufact-seo-first-site-check-v1';
 const BUNDLE='manufact-seo-review-bundle-v1';
 const MAX_SUMMARY=800000,MAX_BUNDLE=42000000;
 const GROUPS=['localPhpHead','localPhpNavigation','localPhpGraph','localPhpComponents',
- 'localPhpForms','localPhpMedia','localPhpPublication','localPhpTheme'];
+ 'localPhpForms','localPhpMedia','localPhpPublication','localPhpTheme',
+ 'localPhpSemantics','localPhpFootprint','localPhpStaticExport'];
 const GATES={
  'local-php-head-indexation-or-origin':'localPhpHead',
+ 'local-php-semantic-and-route-integrity':'localPhpSemantics',
+ 'local-php-semantic-accessibility-review':'localPhpSemantics',
+ 'local-php-payload-performance-review':'localPhpFootprint',
+ 'local-php-static-export-parity':'localPhpStaticExport',
  'local-php-theme-parity':'localPhpTheme',
  'local-php-navigation-parity':'localPhpNavigation',
  'local-php-design-graph-parity':'localPhpGraph',
@@ -41,7 +46,8 @@ function read(folder){
 }
 const ident=x=>JSON.stringify([
  x.code||'',x.pageId||'',x.path||'',x.sectionId||'',x.graphNodeId||'',
- x.assetId||'',x.field||'',x.device||'',x.expectedPath||''
+ x.assetId||'',x.field||'',x.device||'',x.expectedPath||'',
+ x.href||'',x.fragment||'',x.targetPageId||'',x.elementId||'',x.property||''
 ]);
 function findings(bundle,groups=GROUPS,includeCapture=true){
  const all=[];
@@ -95,9 +101,17 @@ function build(previous,currentSummary,currentBundle){
     currentSummary.packageVersion!==prior.packageVersion||
     currentSummary.origin!==prior.origin)
   throw Error('Comparing different approved packages, site IDs or localhost origins is not safe');
- const commonGroups=GROUPS.filter(key=>pb[key]&&currentBundle[key]);
- const groupsOnlyPrior=GROUPS.filter(key=>pb[key]&&!currentBundle[key]);
- const groupsOnlyCurrent=GROUPS.filter(key=>!pb[key]&&currentBundle[key]);
+ const oldExportVersion=pb.localPhpStaticExport?.publishedVersion??null;
+ const newExportVersion=currentBundle.localPhpStaticExport?.publishedVersion??null;
+ // A static export attached to a different CMS published version is a different
+ // observation cohort. Never call its disappearing findings verified repairs.
+ const exportVersionComparable=oldExportVersion!==null&&oldExportVersion===newExportVersion;
+ const commonGroups=GROUPS.filter(key=>pb[key]&&currentBundle[key]&&
+  (key!=='localPhpStaticExport'||exportVersionComparable));
+ const groupsOnlyPrior=GROUPS.filter(key=>pb[key]&&(!currentBundle[key]||
+  key==='localPhpStaticExport'&&!exportVersionComparable));
+ const groupsOnlyCurrent=GROUPS.filter(key=>currentBundle[key]&&(!pb[key]||
+  key==='localPhpStaticExport'&&!exportVersionComparable));
  const screenshotsComparable=Boolean(pb.phpCapture&&currentBundle.phpCapture);
  const screenshotEvidenceChanged=Boolean(pb.phpCapture)!==Boolean(currentBundle.phpCapture);
  const priorFindings=findings(pb,commonGroups,screenshotsComparable);
@@ -128,6 +142,8 @@ function build(previous,currentSummary,currentBundle){
   newlyInstrumentedGroups:groupsOnlyCurrent.length,
   noLongerInstrumentedGroups:groupsOnlyPrior.length,
   screenshotCaptureCoverageChanged:screenshotEvidenceChanged,
+  staticExportVersionsComparable:exportVersionComparable,
+  staticExportCohortChanged:oldExportVersion!==newExportVersion,
   operatorConfirmedFixes:0,actualWrites:0,automaticRelease:false
  });
  const lines=['# First-site technical report comparison — not release approval','',
@@ -144,6 +160,8 @@ function build(previous,currentSummary,currentBundle){
    '; only present in prior: '+groupsOnlyPrior.length+
    '; only present in current: '+groupsOnlyCurrent.length+'.',
   'Screenshot evidence scope changed: '+(screenshotEvidenceChanged?'YES, excluded from finding delta':'no')+'.',
+  'Static export version: '+(oldExportVersion??'none')+' → '+(newExportVersion??'none')+
+   '; comparable: '+(exportVersionComparable?'yes':'NO; no exported finding auto-closure')+'.',
   '',
   '## New PHP evidence issues',''];
  for(const x of changed.added.slice(0,45))
@@ -174,7 +192,10 @@ function build(previous,currentSummary,currentBundle){
    noLongerInstrumented:groupsOnlyPrior,
    newlyInstrumented:groupsOnlyCurrent,
    screenshotCaptureComparable:screenshotsComparable,
-   screenshotCaptureCoverageChanged:screenshotEvidenceChanged
+   screenshotCaptureCoverageChanged:screenshotEvidenceChanged,
+   staticExportVersionComparable:exportVersionComparable,
+   priorStaticExportVersion:oldExportVersion,
+   currentStaticExportVersion:newExportVersion
   },
   comparedFromSourceSha256:prior.sourceSiteSha256,
   previousCaptureAt:prior.capturedAt,currentCaptureAt:currentSummary.capturedAt,
