@@ -22,9 +22,11 @@ function seal(folder,version,options={}){
   if(typeof refs.site!=='string'||!/^([a-zA-Z0-9_/-]+)\.json$/.test(refs.site)||
     refs.site.split('/').includes('..')||!fs.realpathSync(siteFile).startsWith(root+path.sep))
     throw Error('Unsafe site.json path');
+  if(fs.statSync(siteFile).size>500000)throw Error('site.json must be at most 500 KB');
   const site=JSON.parse(fs.readFileSync(siteFile,'utf8'));
   if(!Array.isArray(site.assets))throw Error('Site contract assets missing');
   const names=namedFiles(site,refs),hashes={};
+  let bytesUsed=0;
   for(const relative of names){
     if(typeof relative!=='string'||relative.length>200||
       !/^[a-zA-Z0-9_/-]+\.(?:json|md|txt|png|jpe?g|webp)$/.test(relative)||
@@ -32,6 +34,12 @@ function seal(folder,version,options={}){
     const actual=fs.realpathSync(path.resolve(root,relative));
     if(!actual.startsWith(root+path.sep)||!fs.statSync(actual).isFile())
       throw Error('File escapes bundle: '+relative);
+    const max=relative===refs.site?500000:
+      [refs.desktop,refs.tablet,refs.mobile].includes(relative)?8000000:
+      [refs.clientExplanation,refs.implementationSpec].includes(relative)?200000:450000;
+    const length=fs.statSync(actual).size;bytesUsed+=length;
+    if(length<1||length>max||bytesUsed>100*1024*1024)
+      throw Error('Invalid handoff size or total exceeded 100MB: '+relative);
     hashes[relative]=crypto.createHash('sha256').update(fs.readFileSync(actual)).digest('hex');
   }
   const handoff={format:HANDOFF_V2,status:'approved',version,files:refs,
