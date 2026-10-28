@@ -6,6 +6,7 @@ const crypto=require('node:crypto');
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http');
 const PUBLISHER=require('./publisher-media.cjs');
 const HTML=require('./html-evidence.cjs');
+const MEDIA=require('./media-delivery.cjs');
 const FORMAT='manufact-seo-local-php-media-v1';
 const SHA=/^[a-f0-9]{64}$/;
 const MAX_TOTAL=100000000;
@@ -115,12 +116,13 @@ function inspect(site,base,manifest,root,snapshot=null){
  const expected=inventory(site,base);
  if(manifest.assets.length!==expected.length)throw Error('Local media evidence coverage does not match source Site v1');
  let totalBytes=0;const issues=[],resources=[];
- const ogAssets=new Set(PUBLISHER.inventory(site).map(p=>p.asset?.id).filter(Boolean));
+ const selectedOg=PUBLISHER.inventory(site);
+ const ogAssets=new Set(selectedOg.map(p=>p.asset?.id).filter(Boolean));
  const markup=displayedMedia(site,base,snapshot,expected);
  const byPage=new Map(site.pages.map(p=>[p.id,p.path]));
  const add=(code,severity,assetId,message,extra={})=>{
   const pageId=[...(markup.get(assetId)||[])][0]||
-   PUBLISHER.inventory(site).find(p=>p.asset?.id===assetId)?.pageId||null;
+   selectedOg.find(p=>p.asset?.id===assetId)?.pageId||null;
   issues.push(Object.freeze({code,severity,assetId,pageId,path:byPage.get(pageId)||null,message,
    evidence:'hash-checked-local-php-media',automatic:false,...extra}));
  };
@@ -176,6 +178,25 @@ function inspect(site,base,manifest,root,snapshot=null){
    mime:actualMime,expectedMime,bodySha256:item.sha256,bodyBytes:item.length,
    etag:item.etag,ogImageAsset:ogAssets.has(src.id),renderedPageIds:referencedPageIds});
   resources.push(r);
+ }
+ for(const p of snapshot?.pages||[]){
+  const selected=selectedOg.find(x=>x.pageId===p.id);
+  if(!selected?.asset)continue;
+  const imageTags=MEDIA.metaTags(p.html).filter(x=>x.property==='og:image');
+  const expectedPath='/published/'+site.siteId+selected.asset.src;
+  if(!imageTags.length){
+   add('php-media:og-meta-absent','recommendation',selected.asset.id,
+    'No og:image appeared in captured PHP HTML despite a selected site image; confirm configured public origin.',{pageId:p.id});
+  }
+  for(const tag of imageTags){
+   let url;
+   try{url=new URL(tag.url);}catch{/* handled below */}
+   if(!url||url.protocol!=='https:'||url.username||url.password||url.search||url.hash||
+      url.pathname!==expectedPath)
+    add('php-media:og-html-url-drift','error',selected.asset.id,
+     'Captured PHP og:image URL does not match selected published image path and HTTPS scheme.',
+     {pageId:p.id,expectedPath,observedUrl:tag.url.slice(0,240)});
+  }
  }
  const problems=issues.filter(x=>x.severity==='error');
  return Object.freeze({format:FORMAT,siteId:site.siteId,readOnly:true,
