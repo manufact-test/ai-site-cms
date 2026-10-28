@@ -23,6 +23,13 @@ $site['pages'][0]['sections'][]=[
 $validator=new ContractValidator(dirname(__DIR__).'/components');
 $validator->validate($site);
 $html=PublicRenderer::html($site,'/');
+$site['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'graph-list','type'=>'list','ordered'=>true,'children'=>[
+      ['id'=>'graph-list-one','type'=>'list-item','text'=>'Шаг один'],
+      ['id'=>'graph-list-two','type'=>'list-item','text'=>'Шаг два']]];
+$validator->validate($site);
+$html=PublicRenderer::html($site,'/');
+graphTest(str_contains($html,'<ol class="cmsdg-n-graph-list cmsdg-list">') && str_contains($html,'<li class="cmsdg-n-graph-list-one">Шаг один</li>'),'PHP semantic ordered list');
 graphTest(is_string($html)&&str_contains($html,'<summary>Вопрос и ответ</summary>'),'native disclosure missing');
 graphTest(str_contains($html,'type="radio"')&&str_contains($html,':checked) > .cmsdg-tabs-panels'),'interactive tab rendering missing');
 $broken=$site;
