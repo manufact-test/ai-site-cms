@@ -105,7 +105,9 @@ function work(site,manifests,blueprint,options={}){
    phase:'developer-work',owner:'lead-developer',category:'component-contract',
    evidence:'contract-limit',status:'needs-implementation',
    pageId:item.pageId,sectionId:item.sectionId,field:item.field||null,
-   instruction:'Resolve or explicitly reject the blocked mapping without guessing IDs/fields; do not auto-create components.',
+   instruction:item.reason.startsWith('design-graph-')?
+    'Review the exact Design Graph node in existing CMS Studio. Check the current approved heading/CTA, make only a deliberate human edit, and verify the real PHP page. Never patch hidden legacy slots.':
+    'Resolve or explicitly reject the blocked mapping without guessing IDs/fields; do not auto-create components.',
    sources:[{kind:'mapping-blocked',reason:item.reason,details:item}]});
  }
  for(const item of handoff.requiresLeadImplementation){
