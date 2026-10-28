@@ -4169,11 +4169,17 @@
     try{
       const value=field.type==='number'?Number(raw):
         field.type==='boolean'?!!raw:raw;
+      const previousRevision=session.revision;
       session=D.edit(session,manifests,{
         pageId,sectionId,elementId,path:field.path,value,
         breakpoint:field.responsive?breakpoint:null,expectedRevision:session.revision
       });
       output.textContent='';
+      // A native blur/change often arrives again after the explicit change
+      // event. Redrawing controls for a no-op destroys the button under the
+      // pointer before its click dispatch (notably FAQ move/delete buttons).
+      // No document mutation means no UI redraw is needed.
+      if(session.revision===previousRevision)return;
       drawHeader();drawElements();drawPreview();
     }catch(e){
       output.textContent=e.message;output.style.color='#ff9c9c';
