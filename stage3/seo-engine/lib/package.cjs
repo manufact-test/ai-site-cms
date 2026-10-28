@@ -35,7 +35,7 @@ function build(site,manifests,blueprint,options={}){
  if(!site||site.siteId!==plan.siteId)throw Error('Review package siteId mismatch');
  if(!Array.isArray(manifests))throw Error('Review package requires current manifests');
  if(!options||typeof options!=='object'||Array.isArray(options)||
-    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource','phpCapture','phpHtml'].includes(k)))
+    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource','phpCapture','phpHtml','deliveryReadiness'].includes(k)))
   throw Error('Unsupported review-package options');
  // A sealed package is verified by the lead CLI before this read-only review.
  const approvedSource=options.approvedSource||null;
@@ -56,6 +56,11 @@ function build(site,manifests,blueprint,options={}){
     options.phpHtml.sourceSiteFingerprint!==ACCEPTANCE.fingerprint(site)||
     options.snapshot!==options.phpHtml.snapshot))
   throw Error('Local PHP HTML evidence must be the verified capture snapshot for this sealed Site v2 source');
+ if(options.deliveryReadiness&&
+   (options.deliveryReadiness.format!=='manufact-seo-owner-form-delivery-readiness-v1'||
+    options.deliveryReadiness.siteId!==site.siteId||
+    options.deliveryReadiness.pinnedPublishedVersion!==approvedSource?.publishedVersion))
+  throw Error('Form delivery status report not bound to pinned owner-published Site v1 version');
  if(options.phpHtml&&options.phpCapture&&
     (options.phpHtml.baseUrl!==options.phpCapture.baseUrl||
      options.phpHtml.pageCount!==options.phpCapture.pages.length||
@@ -158,6 +163,8 @@ function build(site,manifests,blueprint,options={}){
   localPhpHeadHeaders:options.phpHtml?.localHead?.pagesWithRecordedHeaders??null,
    localPhpFormCount:options.phpHtml?.localForms?.observedForms??null,
    localPhpFormFindings:options.phpHtml?.localForms?.findings.length??null,
+  ownerFormDeliveryFindings:options.deliveryReadiness?.findings.length??null,
+  ownerFormsWithConfiguredChannels:options.deliveryReadiness?.configuredForms??null,
   localPhpObservedPublicOrigin:options.phpHtml?.localHead?.publicOriginObservedInSitemap??null,
   screenshotFileDigestsChecked:Boolean(options.phpCapture),
   screenshotCaptureExactSiteRevisionProven:false,
@@ -248,6 +255,16 @@ function build(site,manifests,blueprint,options={}){
     pages:options.phpHtml.localComponents.pages,
     findings:options.phpHtml.localComponents.findings,
     runtimeInteractionsTested:false,releaseAuthorized:false
+   }:null,
+  deliveryReadiness:options.deliveryReadiness?{
+    format:options.deliveryReadiness.format,
+    pinnedPublishedVersion:options.deliveryReadiness.pinnedPublishedVersion,
+    checkedForms:options.deliveryReadiness.checkedForms,
+    configuredForms:options.deliveryReadiness.configuredForms,
+    formRoutesFromOwner:options.deliveryReadiness.formRoutesFromOwner,
+    forms:options.deliveryReadiness.forms,
+    findings:options.deliveryReadiness.findings,
+    recipientsExposed:false,deliveryProven:false,ownerApiAuthenticated:false
    }:null,
   localPhpForms:options.phpHtml?.localForms?{
     format:options.phpHtml.localForms.format,

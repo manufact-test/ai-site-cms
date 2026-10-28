@@ -61,6 +61,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const localHeadReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-head:')&&s.severity!=='error'));
   const localFormErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-form:')&&s.severity==='error'));
   const localFormReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-form:')&&s.severity!=='error'));
+ const ownerDeliveryErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-delivery:')&&s.severity==='error'));
+ const ownerDeliveryReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-delivery:')&&s.severity!=='error'));
  const phpCapture=options.phpCapture||null;
  const suppliedOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean)
   .map(x=>new URL(x).href);
@@ -124,6 +126,10 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(localFormErrors.length)add(blockers,'local-php-form-markup',
    'Repair observed PHP lead form action, release and anti-spam markup',
    'Captured HTML disagrees with the public form contract. No POST or delivery has been attempted.',localFormErrors);
+ if(ownerDeliveryErrors.length)add(blockers,'owner-form-delivery-configuration',
+  'Owner API reports missing or unusable per-form notification channels. Correct delivery configuration; this does NOT test actual submission.',ownerDeliveryErrors);
+ if(ownerDeliveryReviews.length)add(reviews,'owner-form-notification-intent',
+  'Owner-reported form routing should be checked for deliberate inbox-only collection and transport readiness; no POST or notification receipt is proven.',ownerDeliveryReviews);
   if(localFormReviews.length)add(reviews,'local-php-form-origin-review',
    'Review public form collector host and allowlist',
    'Absolute collector origin remains unverified and was not probed.',localFormReviews);
