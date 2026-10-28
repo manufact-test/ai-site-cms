@@ -24,13 +24,28 @@ trait FormRoutes
 
     private function editableDeliveryForms(string $siteId): array
     {
-        $site=$this->getDraft($siteId)['site'];$forms=[];
-        foreach($site['pages'] as $page)
-            foreach($page['sections'] as $section)
-                if(in_array($section['component'],['lead-form','lead-form-flex'],true))
-                    $forms[]=['sectionId'=>$section['id'],'label'=>(string)$page['title'].' · '.$section['id'],
-                        'pageId'=>$page['id']];
-        return $forms;
+        // The public site can still contain a form already removed from an
+        // unpublished draft. Never hide live forms from owner routing.
+        $forms=[];
+        $add=function(array $site,string $source)use(&$forms):void{
+            foreach($site['pages'] as $page)
+                foreach($page['sections'] as $section)
+                    if(in_array($section['component'],['lead-form','lead-form-flex'],true)){
+                        $id=$section['id'];
+                        if(!isset($forms[$id]))
+                            $forms[$id]=['sectionId'=>$id,'label'=>(string)$page['title'].' · '.$id,
+                                'pageId'=>$page['id'],'sources'=>[]];
+                        $forms[$id]['sources'][]=$source;
+                    }
+        };
+        $add($this->getDraft($siteId)['site'],'draft');
+        try{$add($this->published($siteId)['site'],'published');}
+        catch(NotFound $e){} // Unpublished sites have no public routing target.
+        foreach($forms as &$form)
+            if(!in_array('draft',$form['sources'],true))
+                $form['label'].=' (опубликована, нет в черновике)';
+        unset($form);
+        return array_values($forms);
     }
 
     private function deliveryFormRoutes(string $siteId): array
