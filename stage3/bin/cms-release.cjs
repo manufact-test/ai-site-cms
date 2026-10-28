@@ -12,6 +12,15 @@ const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const ROOTS=['bin','components','media-motion','runtime-export','schemas','sdk','server','studio'];
 const PHP_ROOTS=['components','media-motion','server','studio'];
 const PROFILES=['full','php-host'];
+const PHP_STUDIO=new Set(['index.html','bundle.js','studio.css','hosted.js','hosted.css','access.js','media-processing.js']);
+const PHP_MEDIA=new Set(['lib/contract.cjs','lib/sha256.cjs','workbench/engine.js']);
+function phpHostIncludes(relative) {
+  if(relative.startsWith('stage3/studio/'))return PHP_STUDIO.has(relative.slice('stage3/studio/'.length));
+  if(relative.startsWith('stage3/media-motion/'))return PHP_MEDIA.has(relative.slice('stage3/media-motion/'.length));
+  if(relative.startsWith('stage3/components/'))return relative.endsWith('.json');
+  if(relative.startsWith('stage3/server/'))return relative.endsWith('.php');
+  return false;
+}
 const SKIP=new Set(['tests','fixtures','docs','node_modules','.git','coverage','screenshots','out']);
 const EXT=/\.(?:php|cjs|js|jsx|mjs|css|html|json|txt|md)$/i;
 const MAX_FILES=2000,MAX_BYTES=60000000;
@@ -44,6 +53,10 @@ function collect(root,strict=false,profile='full'){
       if(item.isDirectory()){
         if(SKIP.has(name)){if(strict)die('excluded directory in verified release: '+relative);continue;}
         visit(full,relative);continue;
+      }
+      if(profile==='php-host'&&!phpHostIncludes(relative)){
+        if(strict)die('untracked file in hosted-PHP runtime: '+relative);
+        continue;
       }
       if(!EXT.test(name)||/^(?:\.env|.*(?:secret|password|credentials?|private).*)/i.test(name))
         die('unexpected runtime file: '+relative);
