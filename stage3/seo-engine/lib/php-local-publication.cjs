@@ -41,8 +41,9 @@ function records(site,base,publication){
 }
 function review(site,base,manifest,bytesByFile){
  const checked=records(site,base,manifest),findings=[];
+ const pageIds=new Map(site.pages.map(p=>[p.path,p.id]));
  const add=(code,severity,path,message,details={})=>findings.push({
-  code,severity,pageId:null,path,message,...details,
+  code,severity,pageId:pageIds.get(path)||null,path,message,...details,
   evidence:'hash-checked-local-php-http',automatic:false});
  const robots=manifest.robots,sitemap=manifest.sitemap;
  const rText=bytesByFile.get(robots.file).toString('utf8');
