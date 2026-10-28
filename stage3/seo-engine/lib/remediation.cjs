@@ -16,6 +16,7 @@ const MIGRATION=require('./route-migration.cjs');
 const PHP_CAPTURE=require('./php-capture.cjs');
 const PHP_HTML=require('./php-html-capture.cjs');
 const FORMAT='manufact-seo-remediation-v1';
+const PUBLIC_STATIC=require('./public-static-parity.cjs');
 const priorityRank={P0:0,P1:1,P2:2,P3:3};
 const phaseOrder={'verify-facts':0,'plan-approval':1,'developer-work':2,'cms-review':3,'validation':4};
 const stableId=(key)=>{
@@ -46,9 +47,11 @@ function level(code,severity){
 function work(site,manifests,blueprint,options={}){
  const plan=checkBlueprint(blueprint);
  if(site.siteId!==plan.siteId)throw Error('Remediation siteId mismatch');
- if(!options||typeof options!=='object'||Array.isArray(options)||Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','delivery','media','phpCapture','phpHtml','deliveryReadiness'].includes(k)))throw Error('Unsupported remediation option');
+ if(!options||typeof options!=='object'||Array.isArray(options)||Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','delivery','media','phpCapture','phpHtml','deliveryReadiness','publicStatic'].includes(k)))throw Error('Unsupported remediation option');
  if(options.phpCapture&&(!PHP_CAPTURE.isVerifiedCapture(options.phpCapture)||options.phpCapture.siteId!==site.siteId))
   throw Error('Remediation requires source-bound verified PHP screenshot evidence');
+ if(options.publicStatic&&(!PUBLIC_STATIC.isVerified(options.publicStatic)||options.publicStatic.siteId!==site.siteId))
+  throw Error('Remediation requires verified public/static review instance');
  if(options.phpHtml&&(!PHP_HTML.isVerified(options.phpHtml)||options.phpHtml.siteId!==site.siteId))
   throw Error('Remediation requires original source-bound verified PHP HTML evidence');
  const handoff=propose(site,manifests,plan),audit=handoff.audit;
@@ -150,7 +153,7 @@ function work(site,manifests,blueprint,options={}){
   const key=['investigate',kind,x.pageId||'',x.sectionId||'',x.targetPageId||'',
    x.field||'',x.device||'',x.code,x.fragment||'',x.href||'',x.topic||'',
    x.assetId||'',x.schemaType||'',x.graphNodeId||'',x.property||'',group].join('|');
-  const fromHtml=['html-snapshot','html-deep','viewport-capture','http-delivery-evidence','media-delivery-evidence','php-public-screenshots','php-local-publication','php-local-media','php-local-head','php-local-forms','php-local-components','php-local-design-graph','php-local-navigation','php-local-theme','php-local-semantics','php-local-footprint','php-local-static-export','owner-form-delivery','cross-source-consistency'].includes(kind),fromParity=kind==='publication-parity';
+  const fromHtml=['html-snapshot','html-deep','viewport-capture','http-delivery-evidence','media-delivery-evidence','php-public-screenshots','php-local-publication','php-local-media','php-local-head','php-local-forms','php-local-components','php-local-design-graph','php-local-navigation','php-local-theme','php-local-semantics','php-local-footprint','php-local-static-export','public-static-deployment','owner-form-delivery','cross-source-consistency'].includes(kind),fromParity=kind==='publication-parity';
   const direct=x.severity==='error'||x.severity==='blocker';
   const owner=group==='verified-facts'?'site-owner':
    fromHtml||fromParity||direct||/planned-(?:page|link|internal-link|section)/.test(x.code)
@@ -206,6 +209,8 @@ function work(site,manifests,blueprint,options={}){
   issueTask(x,'php-local-static-export');
  if(options.deliveryReadiness)for(const x of options.deliveryReadiness.findings)
   issueTask(x,'owner-form-delivery');
+ if(options.publicStatic)for(const x of options.publicStatic.findings)
+  issueTask(x,'public-static-deployment');
   if(options.phpHtml?.localNavigation)for(const x of options.phpHtml.localNavigation.findings)
    issueTask(x,'php-local-navigation');
   if(options.phpHtml?.localGraph)for(const x of options.phpHtml.localGraph.findings)
@@ -288,6 +293,7 @@ function work(site,manifests,blueprint,options={}){
     localPhpFootprintFindingCount:options.phpHtml?.localFootprint?.findings.length??null,
     localPhpExportFindingCount:options.phpHtml?.localStaticExport?.findings.length??null,
     ownerFormDeliveryFindingCount:options.deliveryReadiness?.findings.length??null,
+    publicStaticDeploymentFindingCount:options.publicStatic?.findings.length??null,
    crossSourceFindingCount:consistency.findings.length,
    routeMigrationFindingCount:migration?.findings.length??null,
    regressionNewFindings:regression?.introduced.length??null,

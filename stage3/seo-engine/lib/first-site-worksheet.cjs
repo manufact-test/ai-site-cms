@@ -13,8 +13,10 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
  const fields=['localHead','localForms','localMedia','localComponents','localGraph','localNavigation','localTheme','localSemantics','localFootprint','localStaticExport','publication'];
  const all=fields.flatMap(key=>(phpHtml[key]?.findings||[]).map(x=>({...x,group:key})));
  const ownerDelivery=bundle.deliveryReadiness||null;
+ const publicStatic=bundle.publicStaticParity||null;
  if(phpCapture)for(const x of phpCapture.findings||[])all.push({...x,group:'lead-php-screenshots'});
  if(ownerDelivery)for(const x of ownerDelivery.findings||[])all.push({...x,group:'owner-form-delivery'});
+ if(publicStatic)for(const x of publicStatic.findings||[])all.push({...x,group:'public-static-deployment'});
  const stats={pages:site.pages.length,actualFindings:all.length,
   actualBlockingFindings:all.filter(x=>x.severity==='error').length,
   screenshotPages:phpCapture?.pages.length??0,
@@ -61,6 +63,7 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   const exportPage=phpHtml.localStaticExport?.pages.find(x=>x.pageId===page.id);
   const exportedForms=phpHtml.localStaticExport?.staticForms.filter(x=>x.pageId===page.id)||[];
   const staticSeo=phpHtml.localStaticExport?.staticSeoPages.find(x=>x.pageId===page.id);
+  const deployedPage=publicStatic?.pages.find(x=>x.pageId===page.id);
   lines.push('### '+clean(page.path,150)+' ('+clean(page.id,100)+')','',
    '- **PHP STATUS: '+status(issues)+'**; error count: '+
     issues.filter(x=>x.severity==='error').length+'; total findings: '+issues.length+'.',
@@ -80,6 +83,10 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
     '; representative rendered media '+(weight?.minimumRepresentativeMediaBytes??'n/a')+
     '–'+(weight?.maximumRepresentativeMediaBytes??'n/a')+' bytes.',
    '- Статический экспорт: '+exportedForms.length+' проверенных форм; collector/version/HMAC marker проверены структурно, без POST.',
+   '- Публичный HTTPS vs официальная статическая версия: '+(deployedPage?
+    (deployedPage.fieldsWithDifferences.length?
+     'DIFFERENCES: '+deployedPage.fieldsWithDifferences.join(', '):'sampled content/markup matched'):
+    'NOT COMPARABLE OR NOT SUPPLIED')+'.',
    '- Статический SEO: '+(staticSeo?
     'canonical '+clean(staticSeo.rootCanonicalExpected||'origin not configured',150)+
     '; expected noindex '+staticSeo.noindexExpected+'; findings '+staticSeo.staticSeoFindings:

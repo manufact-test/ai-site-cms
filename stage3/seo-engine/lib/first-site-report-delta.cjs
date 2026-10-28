@@ -9,7 +9,7 @@ const MAX_SUMMARY=800000,MAX_BUNDLE=42000000;
 const GROUPS=['localPhpHead','localPhpNavigation','localPhpGraph','localPhpComponents',
  'localPhpForms','localPhpMedia','localPhpPublication','localPhpTheme',
  'localPhpSemantics','localPhpFootprint','localPhpStaticExport',
- 'deliveryEvidence','mediaEvidence','deliveryReadiness'];
+ 'deliveryEvidence','mediaEvidence','deliveryReadiness','publicStaticParity'];
 const GATES={
  'local-php-head-indexation-or-origin':'localPhpHead',
  'local-php-semantic-and-route-integrity':'localPhpSemantics',
@@ -20,6 +20,8 @@ const GATES={
  'captured-og-media-conflict':'mediaEvidence',
  'owner-form-delivery-configuration':'deliveryReadiness',
  'owner-form-notification-intent':'deliveryReadiness',
+ 'public-static-deployment-drift':'publicStaticParity',
+ 'public-static-deployment-coverage':'publicStaticParity',
  'local-php-theme-parity':'localPhpTheme',
  'local-php-navigation-parity':'localPhpNavigation',
  'local-php-design-graph-parity':'localPhpGraph',
@@ -116,7 +118,12 @@ function build(previous,currentSummary,currentBundle){
  const publicOriginComparable=Boolean(oldPublicOrigin&&oldPublicOrigin===newPublicOrigin);
  const ownerDeliveryComparable=Boolean(pb.deliveryReadiness&&currentBundle.deliveryReadiness&&
    pb.deliveryReadiness.pinnedPublishedVersion===currentBundle.deliveryReadiness.pinnedPublishedVersion);
+ const staticDeploymentComparable=Boolean(pb.publicStaticParity&&currentBundle.publicStaticParity&&
+  pb.publicStaticParity.comparable&&currentBundle.publicStaticParity.comparable&&
+  pb.publicStaticParity.claimedPublicOrigin===currentBundle.publicStaticParity.claimedPublicOrigin&&
+  pb.publicStaticParity.verifiedStaticPublishedVersion===currentBundle.publicStaticParity.verifiedStaticPublishedVersion);
  const groupComparable=key=>key==='localPhpStaticExport'?exportVersionComparable:
+  key==='publicStaticParity'?staticDeploymentComparable:
   key==='deliveryReadiness'?ownerDeliveryComparable:
   ['deliveryEvidence','mediaEvidence'].includes(key)?publicOriginComparable:true;
  const commonGroups=GROUPS.filter(key=>pb[key]&&currentBundle[key]&&groupComparable(key));
@@ -174,6 +181,7 @@ function build(previous,currentSummary,currentBundle){
   publicEvidenceOriginsComparable:publicOriginComparable,
   publicEvidenceOriginChanged:oldPublicOrigin!==newPublicOrigin,
   ownerDeliveryConfigurationComparable:ownerDeliveryComparable,
+  publicStaticDeploymentComparable:staticDeploymentComparable,
   observedPhpEtagOrHtmlChanges:etagDrifts.length,
   sameEtagButDifferentHtml:etagContentConflicts.length,
   operatorConfirmedFixes:0,actualWrites:0,automaticRelease:false
@@ -198,6 +206,8 @@ function build(previous,currentSummary,currentBundle){
    '; comparable: '+(exportVersionComparable?'yes':'NO; no exported finding auto-closure')+'.',
   'Public transcript origins: '+safe(oldPublicOrigin||'none')+' → '+safe(newPublicOrigin||'none')+
    '; comparable: '+(publicOriginComparable?'yes (caller supplied)':'NO; missing or changed origin')+'.',
+  'Public static deployment cohort: '+(staticDeploymentComparable?'same public origin/export published version':
+   'not comparable; one release/host/scope changed')+'.',
   'Owner delivery configuration cohort: '+(ownerDeliveryComparable?'same published version, snapshot only':
    'not comparable; version or delivery status availability changed')+'.',
   '',
@@ -239,6 +249,7 @@ function build(previous,currentSummary,currentBundle){
    priorStaticExportVersion:oldExportVersion,
    currentStaticExportVersion:newExportVersion,
    ownerDeliveryConfigurationComparable:ownerDeliveryComparable,
+   publicStaticDeploymentComparable:staticDeploymentComparable,
    publicEvidenceOriginComparable:publicOriginComparable,
    oldPublicOrigin,newPublicOrigin
   },

@@ -52,6 +52,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const localSemanticReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-semantic:')&&s.severity!=='error'));
  const localFootprintReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-footprint:')));
  const localExportErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-export:')&&s.severity==='error'));
+ const deployedStaticErrors=find(t=>t.sources.some(s=>s.code?.startsWith('public-static:')&&s.severity==='error'));
+ const deployedStaticWarnings=find(t=>t.sources.some(s=>s.code?.startsWith('public-static:')&&s.severity!=='error'));
  const localNavErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-nav:')&&s.severity==='error'));
  const localGraphErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-graph:')&&s.severity==='error'));
  const localComponentErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-component:')&&s.severity==='error'));
@@ -135,6 +137,10 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
    'Absolute collector origin remains unverified and was not probed.',localFormReviews);
   if(localSemanticErrors.length)add(blockers,'local-php-semantic-and-route-integrity',
   'Real PHP HTML has broken local links/fragments, missing H1/landmarks, duplicate IDs or inaccessible link/image markup. Repair before release.',localSemanticErrors);
+ if(deployedStaticErrors.length)add(blockers,'public-static-deployment-drift',
+  'Public HTTPS evidence differs from the official SHA256-verified static release; repair the host output before approval.',deployedStaticErrors);
+ if(deployedStaticWarnings.length)add(reviews,'public-static-deployment-coverage',
+  'Public host or static export evidence is incomplete or incomparable; capture the intended root HTTPS deployment.',deployedStaticWarnings);
  if(localExportErrors.length)add(blockers,'local-php-static-export-parity',
   'Owner-pinned official static PHP export disagrees with locally served content or media. Verify which CMS release is being served before approval.',localExportErrors);
  if(localFootprintReviews.length)add(reviews,'local-php-payload-performance-review',

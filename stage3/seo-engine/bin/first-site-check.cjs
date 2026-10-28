@@ -12,6 +12,7 @@ const WORKSHEET=require('../lib/first-site-worksheet.cjs');
 const PROGRESS=require('../lib/first-site-report-delta.cjs');
 const STATIC_EXPORT=require('../lib/php-local-static-export.cjs');
 const DELIVERY_READY=require('../lib/php-local-delivery-readiness.cjs');
+const PUBLIC_STATIC=require('../lib/public-static-parity.cjs');
 const DELIVERY=require('../lib/delivery-evidence.cjs');
 const MEDIA=require('../lib/media-delivery.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
@@ -161,6 +162,8 @@ async function main(argv){
  if(checked.localStaticExport&&checked.localStaticExport.sourceRevisionClaim!==published.sourceRevision)
   throw Error('Official static export sourceRevision conflicts with owner CMS published sourceRevision');
  if(!PHP.isVerified(checked))throw Error('First-site PHP evidence was not source-bound verified');
+ const publicStatic=exportPreflight&&publicHttp?
+  PUBLIC_STATIC.review(fresh.site,exportPreflight,publicHttp,publicMedia):null;
  let deliveryReadiness=null;
  if(o['delivery-status']){
   const stat=fs.lstatSync(o['delivery-status']);
@@ -174,7 +177,8 @@ async function main(argv){
   ...(screenshots?{phpCapture:screenshots}:{}),
   ...(publicHttp?{delivery:publicHttp}:{}),
   ...(publicMedia?{media:publicMedia}:{}),
-  ...(deliveryReadiness?{deliveryReadiness}:{})
+  ...(deliveryReadiness?{deliveryReadiness}:{}),
+  ...(publicStatic?{publicStatic}:{})
  });
  const release=bundle.release;
  const worksheet=WORKSHEET.build({site:fresh.site,source:fresh.source,
@@ -213,6 +217,14 @@ async function main(argv){
    cssVariablesChecked:checked.localTheme?.expectedCssVariables??null,
    actualFindings:checked.localTheme?.findings.length??null,
    pixelParityVerified:false},
+  publicStaticParity:{compared:Boolean(publicStatic),
+   scope:publicStatic?.comparisonScope??null,comparable:publicStatic?.comparable??null,
+   observedPages:publicStatic?.checkedPages??null,
+   checkedMedia:publicStatic?.checkedMedia??null,
+   searchFiles:publicStatic?.checkedSearchFiles??null,
+   redirects:publicStatic?.checkedRedirects??null,
+   publicVsOfficialExportFindings:publicStatic?.findings.length??null,
+   publicHostAuthenticated:false,clientReleaseApproved:false},
   publicTranscript:{httpSupplied:Boolean(publicHttp),mediaSupplied:Boolean(publicMedia),
    httpsOriginClaim:publicHttp?.origin??publicMedia?.origin??null,
    httpFindings:bundle.deliveryEvidence?.findings.length??null,

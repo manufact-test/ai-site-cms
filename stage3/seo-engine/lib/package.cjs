@@ -30,12 +30,13 @@ const MIGRATION=require('./route-migration.cjs');
 const IMPACT=require('./change-impact.cjs');
 const DOSSIER=require('./lead-dossier.cjs');
 const FORMAT='manufact-seo-review-bundle-v1';
+const PUBLIC_STATIC=require('./public-static-parity.cjs');
 function build(site,manifests,blueprint,options={}){
  const plan=checkBlueprint(blueprint);
  if(!site||site.siteId!==plan.siteId)throw Error('Review package siteId mismatch');
  if(!Array.isArray(manifests))throw Error('Review package requires current manifests');
  if(!options||typeof options!=='object'||Array.isArray(options)||
-    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource','phpCapture','phpHtml','deliveryReadiness'].includes(k)))
+    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource','phpCapture','phpHtml','deliveryReadiness','publicStatic'].includes(k)))
   throw Error('Unsupported review-package options');
  // A sealed package is verified by the lead CLI before this read-only review.
  const approvedSource=options.approvedSource||null;
@@ -61,6 +62,10 @@ function build(site,manifests,blueprint,options={}){
     options.deliveryReadiness.siteId!==site.siteId||
     options.deliveryReadiness.pinnedPublishedVersion!==approvedSource?.publishedVersion))
   throw Error('Form delivery status report not bound to pinned owner-published Site v1 version');
+ if(options.publicStatic&&(!PUBLIC_STATIC.isVerified(options.publicStatic)||
+   options.publicStatic.siteId!==site.siteId||
+   !options.phpHtml?.localStaticExport||!options.delivery))
+  throw Error('Public static parity must come from the verified export and matching public HTTP evidence');
  if(options.phpHtml&&options.phpCapture&&
     (options.phpHtml.baseUrl!==options.phpCapture.baseUrl||
      options.phpHtml.pageCount!==options.phpCapture.pages.length||
@@ -159,6 +164,8 @@ function build(site,manifests,blueprint,options={}){
   localPhpLinksChecked:options.phpHtml?.localSemantics?.checkedLinks??null,
   localPhpFootprintFindings:options.phpHtml?.localFootprint?.findings.length??null,
   localPhpExportFindings:options.phpHtml?.localStaticExport?.findings.length??null,
+  publicStaticDeploymentFindings:options.publicStatic?.findings.length??null,
+  publicStaticPagesCompared:options.publicStatic?.checkedPages??null,
   localPhpComponentFindings:options.phpHtml?.localComponents?.findings.length??null,
   localPhpHeadHeaders:options.phpHtml?.localHead?.pagesWithRecordedHeaders??null,
    localPhpFormCount:options.phpHtml?.localForms?.observedForms??null,
@@ -191,6 +198,23 @@ function build(site,manifests,blueprint,options={}){
     pages:options.phpHtml.localHead.pages,
     findings:options.phpHtml.localHead.findings,
     publicHttpsProven:false,releaseAuthorized:false
+  }:null,
+  publicStaticParity:options.publicStatic?{
+   format:options.publicStatic.format,
+   claimedPublicOrigin:options.publicStatic.claimedPublicOrigin,
+   officialPublicOrigin:options.publicStatic.officialPublicOrigin,
+   comparisonScope:options.publicStatic.comparisonScope,
+   comparable:options.publicStatic.comparable,
+   verifiedStaticPublishedVersion:options.publicStatic.verifiedStaticPublishedVersion??null,
+   checkedPages:options.publicStatic.checkedPages,
+   checkedMedia:options.publicStatic.checkedMedia,
+   checkedSearchFiles:options.publicStatic.checkedSearchFiles,
+   checkedRedirects:options.publicStatic.checkedRedirects,
+   pages:options.publicStatic.pages,
+   assets:options.publicStatic.assets,
+   auxiliary:options.publicStatic.auxiliary,
+   findings:options.publicStatic.findings,
+   httpTranscriptAuthenticated:false,publicSiteApproval:false
   }:null,
   localPhpStaticExport:options.phpHtml?.localStaticExport?{
     format:options.phpHtml.localStaticExport.format,
