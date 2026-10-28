@@ -71,12 +71,12 @@ function getHtml(url){
  });
 }
 function snapshot(site,source,entries,base,capturedAt){
- const pages=entries.map(({record,bytes})=>({
+ const pages=Object.freeze(entries.map(({record,bytes})=>Object.freeze({
    id:record.pageId,path:record.path,html:boundedHtml(bytes)
- }));
- return {format:SNAPSHOT_FORMAT,siteId:site.siteId,completeness:'complete',
+ })));
+ return Object.freeze({format:SNAPSHOT_FORMAT,siteId:site.siteId,completeness:'complete',
   pages,source:'local-loopback-published-php-html',
-  sourceRevisionAuthenticated:false,localHttpOnly:true};
+  sourceRevisionAuthenticated:false,localHttpOnly:true});
 }
 function inspect(manifest,site,source,folder){
  if(!BRIDGE.isVerifiedSource(source)||source.siteId!==site.siteId||
