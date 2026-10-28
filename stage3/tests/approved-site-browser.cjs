@@ -315,6 +315,78 @@ async function execute(){
     '/api/sites/site-approved-browser')).json()).revision,archiveRevision);
   assert.equal((await (await page.request.get(evidenceRoute)).json()).packages.length,1,
     'Re-archiving verified same bytes must never add duplicates');
+
+  // Full customer-site recovery must include the actual seven approved source
+  // documents, their exact immutable bytes and all CMS revisions, not merely
+  // a screenshot/gallery link. A restored site is an isolated unpublished copy.
+  const realBackupResponse=await page.request.get(
+    origin+'/api/sites/site-approved-browser/backup');
+  assert.equal(realBackupResponse.status(),200);
+  const realBackup=await realBackupResponse.json();
+  assert.equal(realBackup.format,'manufact-site-backup-v2');
+  assert.equal(realBackup.payload.approvalEvidence.length,7);
+  const copyId='site-approved-recovery';
+  const creds=await (await page.request.get(origin+'/api/session')).json();
+  const recoveryHeaders={'x-csrf-token':creds.csrfToken};
+  const recoveryPlan=await page.request.post(origin+'/api/backups/plan',{
+    headers:recoveryHeaders,data:{archive:realBackup,targetSiteId:copyId}
+  });
+  assert.equal(recoveryPlan.status(),200,await recoveryPlan.text());
+  const recoveryInfo=await recoveryPlan.json();
+  assert.equal(recoveryInfo.plan.approvalFiles,7);
+  assert.equal(recoveryInfo.plan.approvalPackages,1);
+  assert.equal(recoveryInfo.plan.willPublish,false);
+  assert.equal((await page.request.get(origin+'/api/sites/'+copyId)).status(),404,
+    'Restore preflight must not write any site or approval vault');
+  // Damage one file but recompute the *outer* payload checksum: source ledger
+  // remains unchanged and must fail BEFORE a restore creates anything.
+  const tamperedBackup=structuredClone(realBackup);
+  tamperedBackup.payload.approvalEvidence.find(item=>item.kind==='clientExplanation')
+    .base64=Buffer.from('A malicious replacement that is not in the approved ledger.').toString('base64');
+  tamperedBackup.payload.approvalEvidence.find(item=>item.kind==='clientExplanation')
+    .sha256=require('node:crypto').createHash('sha256')
+      .update(Buffer.from('A malicious replacement that is not in the approved ledger.')).digest('hex');
+  tamperedBackup.sha256=require('node:crypto').createHash('sha256')
+    .update(JSON.stringify(tamperedBackup.payload)).digest('hex');
+  const rejectedRecovery=await page.request.post(origin+'/api/backups/plan',{
+    headers:recoveryHeaders,data:{archive:tamperedBackup,targetSiteId:copyId}
+  });
+  assert.equal(rejectedRecovery.status(),422,'Sealed file ledger rejects re-signed tampering');
+  assert.equal((await page.request.get(origin+'/api/sites/'+copyId)).status(),404);
+  const newPlan=await page.request.post(origin+'/api/backups/plan',{
+    headers:recoveryHeaders,data:{archive:realBackup,targetSiteId:copyId}
+  });
+  assert.equal(newPlan.status(),200,await newPlan.text());
+  const copyResponse=await page.request.post(origin+'/api/backups/restore',{
+    headers:recoveryHeaders,
+    data:{archive:realBackup,targetSiteId:copyId,
+      confirmationToken:(await newPlan.json()).confirmationToken}
+  });
+  assert.equal(copyResponse.status(),201,await copyResponse.text());
+  assert.equal((await page.request.get(origin+'/published/'+copyId+'/')).status(),404,
+    'Restoration never publishes the copy');
+  const restoredIndex=await (await page.request.get(
+    origin+'/api/sites/'+copyId+'/approval-evidence')).json();
+  assert.equal(restoredIndex.packages.length,1);
+  assert.equal(restoredIndex.packages[0].packageSha,approvedPack.packageSha,
+    'Original approved package checksum survives isolated copy');
+  assert.equal(restoredIndex.packages[0].complete,true);
+  for(const kind of Object.keys(approvedPack.files)){
+    const sourceBytes=await (await page.request.get(
+      evidenceRoute+'/'+approvedPack.packageSha+'/'+kind)).body();
+    const copyBytes=await (await page.request.get(
+      origin+'/api/sites/'+copyId+'/approval-evidence/'+approvedPack.packageSha+'/'+kind)).body();
+    assert.deepEqual(copyBytes,sourceBytes,'Recovery must retain signed '+kind+' bytes');
+  }
+  const secondBackup=await page.request.get(origin+'/api/sites/'+copyId+'/backup');
+  assert.equal(secondBackup.status(),200,
+    'A copied site must itself be independently backed up without changing original site.json ID');
+  const secondPayload=(await secondBackup.json()).payload;
+  assert.deepEqual(secondPayload.approvalEvidence,realBackup.payload.approvalEvidence,
+    'Restored approval evidence supports future backup/restore cycles');
+  assert.equal((await visitorCtx.request.get(
+    origin+'/api/sites/'+copyId+'/approval-evidence')).status(),401);
+
   
   assert.notEqual(imported.assets[0].id,'asset-external-hero','Server gives immutable site-owned asset ID');
   assert.equal(imported.pages[0].seo.ogImage,imported.assets[0].id,'SEO media reference remapped');

@@ -1120,7 +1120,9 @@ async function stop(){
   const archiveResult=await request('GET',endpoint+'/backup');
   assert.equal(archiveResult.status,200,JSON.stringify(archiveResult.body));
   const archive=archiveResult.body;
-  assert.equal(archive.format,'manufact-site-backup-v1');
+  assert.equal(archive.format,'manufact-site-backup-v2');
+  assert.deepEqual(archive.payload.approvalEvidence,[],
+    'Ordinary sites have an explicit empty approval ledger in v2 backups');
   assert.equal(archive.payload.media.length,1);
   assert.equal(archive.payload.templates.length,1);
   assert.ok(archive.payload.submissions.length>0);
@@ -1146,8 +1148,11 @@ async function stop(){
   assert.equal((await request('POST','/api/backups/plan',
     {archive:invalidLeadBackup,targetSiteId:target})).status,422,
     'Tampered private lead notes are rejected even with recomputed checksum');
-  // Historical v1 backups without operator workflow fields remain readable.
+  // Historical v1 backups without operator workflow AND without approval
+  // records remain readable, not misinterpreted as a corrupt v2 archive.
   const legacyLeadArchive=structuredClone(archive);
+  legacyLeadArchive.format='manufact-site-backup-v1';
+  delete legacyLeadArchive.payload.approvalEvidence;
   for(const lead of legacyLeadArchive.payload.submissions){
     delete lead.workflow;delete lead.workflowEvents;
   }
