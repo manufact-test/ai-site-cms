@@ -1065,7 +1065,7 @@
       const walk=(nodes,depth)=>{
         for(const node of nodes||[]){
           rows.push({node,depth});
-          if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type))walk(node.children,depth+1);
+          if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(node.type))walk(node.children,depth+1);
         }
       };
       if(section?.designGraph)walk(section.designGraph.nodes,0);
@@ -1762,7 +1762,7 @@
         const findSiblings=(nodes,id)=>{
           for(const node of nodes){
             if(node.id===id)return nodes;
-            if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type)){
+            if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(node.type)){
               const hit=findSiblings(node.children,id);if(hit)return hit;
             }
           }
@@ -1830,9 +1830,27 @@
           return input;
         };
         if(current){
-          if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item'].includes(current.type))
+          if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item','popup'].includes(current.type))
             property('Текст', 'text',current.text);
-          if(['button','link'].includes(current.type))property('Ссылка', 'href',current.href);
+          if((current.type==='button'&&!current.popupTarget)||current.type==='link')
+            property('Ссылка','href',current.href);
+          if(current.type==='button'){
+            const popups=section.designGraph.nodes.filter(node=>node.type==='popup');
+            if(popups.length){
+              const holder=document.createElement('label');holder.className='cms-work-field';
+              const caption=document.createElement('span');caption.textContent='Действие кнопки · открыть окно';
+              const select=document.createElement('select');select.className='control';select.id='cms-work-popup-target';
+              for(const [id,label] of [['','Обычная ссылка'],...popups.map(p=>[p.id,p.text])]){
+                const option=document.createElement('option');option.value=id;option.textContent=label;select.append(option);
+              }
+              select.value=current.popupTarget||'';select.disabled=!canWrite();
+              select.addEventListener('change',()=>editGraphWork(node=>{
+                if(select.value){node.popupTarget=select.value;delete node.href;}
+                else{delete node.popupTarget;node.href='/';}
+              }));
+              holder.append(caption,select);panel.append(holder);
+            }
+          }
           if(current.type==='image'){
             property('Действие по клику (необязательно)','href',current.href||'');
             const raster=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
@@ -2758,11 +2776,25 @@
       const redoButton=action('↷ Повторить',redoGraph);redoButton.id='cms-design-redo';
       updateHistoryButtons();
       action('+ Вложенный',()=>{
-        if(!['container','disclosure','tab','list'].includes(n.type))return notice('Для вложенности выберите контейнер или панель',true);
+        if(!['container','disclosure','tab','list','popup'].includes(n.type))return notice('Для вложенности выберите контейнер или панель',true);
         const node={id:uniqueId('dg-node'),type:n.type==='list'?'list-item':'text',
           text:n.type==='list'?'Новый пункт':'Новый текст',styles:{}};
         changeTree({action:'insert',targetId:n.id,placement:'inside',node},node.id);
       });
+      action('+ Popup',()=>{
+        const id=uniqueId('dg-node');
+        const popup={id,type:'popup',text:'Информация',styles:{padding:16},
+          children:[{id:uniqueId('dg-node'),type:'heading',level:2,text:'Заголовок окна',styles:{}},
+            {id:uniqueId('dg-node'),type:'text',text:'Редактируемое содержимое окна',styles:{}}]};
+        changeTree({action:'insert',targetId:graph.nodes.at(-1).id,placement:'after',node:popup},id);
+      });
+      if(n.type==='popup'){
+        action('Открыть окно в предпросмотре',()=>{
+          const frame=previewFrame.contentDocument;
+          const popup=frame?.getElementById('cmsdg-popup-'+n.id);
+          if(popup?.showPopover)popup.showPopover();
+        });
+      }
       if(n.type==='list')action('+ Пункт списка',()=>{
         const item={id:uniqueId('dg-node'),type:'list-item',text:'Новый пункт',styles:{}};
         changeTree({action:'insert',targetId:n.id,placement:'inside',node:item},item.id);
@@ -2820,14 +2852,15 @@
       action('+ Рядом',()=>{
         const node={id:uniqueId('dg-node'),type:'container',styles:{display:'grid',columns:2,gap:'@medium'},
           responsive:{mobile:{columns:1}},children:[]};
-        changeTree({action:'insert',targetId:n.id,placement:'after',node},node.id);
+        changeTree({action:'insert',targetId:type==='popup'?graph.nodes.at(-1).id:n.id,placement:'after',node},node.id);
       });
       action('Тип +',()=>{
-        const type=prompt('Элемент: container / heading / text / button / link / quote / image / gallery / table / divider / icon / video / disclosure / tabs / list','heading');
+        const type=prompt('Элемент: container / heading / text / button / link / quote / image / gallery / table / divider / icon / video / disclosure / tabs / list / popup','heading');
         if(type===null)return;
         if(!DESIGN_GRAPH.TYPES.includes(type))return notice('Неизвестный тип',true);
         const node={id:uniqueId('dg-node'),type,styles:{}};
         if(type==='container')node.children=[];
+        if(type==='popup'){node.text='Информация';node.children=[{id:uniqueId('dg-node'),type:'text',text:'Содержимое окна',styles:{}}];}
         if(type==='list'){node.ordered=false;node.children=[1,2].map(i=>({id:uniqueId('dg-node'),type:'list-item',text:'Пункт '+i,styles:{}}));}
         if(type==='gallery'){
           const first=session.current.assets.find(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
@@ -2965,14 +2998,22 @@
       }
       const headline=make('h3','Редактирование · '+n.type);root.append(headline);
       const fields=make('div','', 'cms-design-fields');root.append(fields);
-      if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item'].includes(n.type)){
+      if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item','popup'].includes(n.type)){
         fields.append(ctl('Текст',n.text,value=>{n.text=value;},'multiline'));
       }
       if(n.type==='quote')fields.append(ctl('Автор или источник цитаты',n.cite||'',value=>{n.cite=value;}));
       if(n.type==='list')fields.append(ctl('Тип списка',{initial:n.ordered?'ordered':'unordered',
         choices:[['unordered','Маркированный'],['ordered','Нумерованный']]},v=>{n.ordered=v==='ordered';},'select'));
       if(n.type==='heading')fields.append(ctl('Уровень заголовка',String(n.level||2),value=>{n.level=Number(value);},'number'));
-      if(['button','link'].includes(n.type))fields.append(ctl('Ссылка',n.href,value=>{n.href=value;}));
+      if(['button','link'].includes(n.type)&&!n.popupTarget)
+        fields.append(ctl('Ссылка',n.href||'/',value=>{n.href=value;}));
+      if(n.type==='button'){
+        const choices=[['','Открыть ссылку'],...graph.nodes.filter(item=>item.type==='popup').map(item=>[item.id,item.text])];
+        fields.append(ctl('Действие кнопки',{initial:n.popupTarget||'',choices},v=>{
+          if(v){n.popupTarget=v;delete n.href;}
+          else{delete n.popupTarget;n.href='/';}
+        },'select'));
+      }
       if(n.type==='image'){
         fields.append(ctl('Ссылка по клику (необязательно)',n.href||'',v=>{if(v.trim())n.href=v.trim();else delete n.href;}));
         const options=session.current.assets.filter(a=>a.mime!=='video/mp4').map(a=>[a.id,a.alt||a.id]);
@@ -3221,6 +3262,29 @@
         recordHistory();delete style.gradient;render();
       });
       gradient.append(gradientFields,dropGradient);root.append(gradient);
+      if(n.type==='container'){
+        const sequence=make('details');sequence.id='cms-design-sequence';
+        sequence.append(make('summary','Последовательная анимация элементов контейнера'));
+        const initial={effect:'fade-up',duration:500,delay:0,stagger:150,easing:'ease-out'};
+        const seq=n.sequence||initial;
+        const ensure=()=>n.sequence||(n.sequence=cp(initial));
+        const fields=make('div',undefined,'cms-design-fields');
+        fields.append(
+          ctl('Эффект',{initial:seq.effect,choices:DESIGN_GRAPH.MOTIONS.filter(v=>v!=='none').map(v=>[v,v])},
+            v=>{ensure().effect=v;},'select'),
+          ctl('Длительность элемента, мс',String(seq.duration),v=>{ensure().duration=Number(v);},'number'),
+          ctl('Начальная задержка, мс',String(seq.delay),v=>{ensure().delay=Number(v);},'number'),
+          ctl('Интервал между элементами, мс',String(seq.stagger),v=>{ensure().stagger=Number(v);},'number'),
+          ctl('Плавность',{initial:seq.easing,choices:DESIGN_GRAPH.SEQUENCE_EASINGS.map(v=>[v,v])},
+            v=>{ensure().easing=v;},'select'));
+        const enable=button(n.sequence?'Убрать последовательность':'Включить последовательность','btn small',()=>{
+          recordHistory();
+          if(n.sequence)delete n.sequence;else n.sequence=cp(initial);
+          render();
+        });
+        sequence.append(fields,enable,make('p','Элементы появляются по очереди при загрузке страницы. У отдельных дочерних элементов не должно быть собственной анимации. В режиме reduced motion всё статично.'));
+        root.append(sequence);
+      }
       const motionBox=make('details');motionBox.id='cms-design-motion';
       motionBox.append(make('summary','Анимация элемента · учитывает reduced motion'));
       const motionFields=make('div',undefined,'cms-design-fields');
