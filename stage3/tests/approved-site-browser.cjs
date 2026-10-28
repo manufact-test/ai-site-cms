@@ -593,7 +593,7 @@ async function execute(){
   assert.equal(await visitor.locator('.cmsdg-n-approved-rich-gallery img').count(),3,
     'Published gallery uses actual site-owned photos');
   assert.match(await visitor.locator('.cmsdg-n-approved-rich-quote').innerText(),/Технический редактор/);
-  assert.equal(await visitor.locator('.cmsdg-n-approved-rich-link').getAttribute('href'),'/');
+  assert.equal(await visitor.locator('.cmsdg-n-approved-rich-link').getAttribute('href'),'/published/site-approved-browser/');
   const remoteImage=visitor.locator('section.showcase img.showcase-photo');
   assert.equal(await remoteImage.getAttribute('alt'),'Фото внешнего сайта');
   assert.match(await remoteImage.getAttribute('src'),

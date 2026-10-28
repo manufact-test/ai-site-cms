@@ -478,7 +478,7 @@ final class DesignGraph
                 case 'text':return '<p class="'.$cls.'">'.self::h($n['text']).'</p>';
                 case 'button':
                 case 'link':
-                    $href=str_starts_with($n['href'],'/')?$mount.$n['href']:$n['href'];
+                    $href=str_starts_with($n['href'],'/')?rtrim($mount,'/').$n['href']:$n['href'];
                     return '<a class="'.$cls.'" href="'.self::h($href).'"'.(str_starts_with($href,'https://')?' rel="noopener noreferrer"':'').'>'.self::h($n['text']).'</a>';
                 case 'video':
                     $video=$assetMap[$n['assetId']];
