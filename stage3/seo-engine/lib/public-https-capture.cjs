@@ -131,6 +131,15 @@ async function capture(site,rawOrigin,transport={address,request}){
   pages.push({id:page.id,path:page.path,requestUrl,responseUrl:requestUrl,
    status:reply.status,headers:reply.headers,html:reply.body});
  }
+ // Negative-route probe detects soft-404s / SPA fallbacks that return 200 for
+ // nonexistent paths. Never submit forms, follow redirects or store response HTML.
+ const missingPath='/cms-seo-nonexistent-'+site.siteId+'/';
+ if(site.pages.some(p=>p.path===missingPath)||(site.redirects||[]).some(x=>x.from===missingPath))
+  throw Error('Negative-route audit path unexpectedly collides with a published Site v1 route');
+ const missingUrl=resource(base,missingPath),missingReply=await fetch(missingUrl,LIMIT_HTML);
+ const negativeProbe={path:missingPath,requestUrl:missingUrl,status:missingReply.status,
+  contentType:missingReply.contentType,
+  bodySha256:crypto.createHash('sha256').update(missingReply.body,'utf8').digest('hex')};
  const robotsUrl=resource(base,'/robots.txt'),sitemapUrl=resource(base,'/sitemap.xml');
  const robotsReply=await fetch(robotsUrl,LIMIT_ROBOTS);
  const sitemapReply=await fetch(sitemapUrl,LIMIT_SITEMAP);
@@ -142,12 +151,12 @@ async function capture(site,rawOrigin,transport={address,request}){
   redirects.push({from:alias.from,requestUrl,status:reply.status,location:reply.location});
  }
  const evidence={format:DELIVERY.FORMAT,siteId:site.siteId,
-  origin:base.href,capturedAt:new Date().toISOString(),pages,
+  origin:base.href,capturedAt:new Date().toISOString(),pages,negativeProbe,
   robots:{status:robotsReply.status,url:robotsUrl,contentType:robotsReply.contentType,body:robotsReply.body},
   sitemap:{status:sitemapReply.status,url:sitemapUrl,contentType:sitemapReply.contentType,body:sitemapReply.body},
   redirects};
  DELIVERY.assertEvidence(evidence);
- return Object.freeze({evidence,bytes:total,requests:pages.length+redirects.length+2,
+ return Object.freeze({evidence,bytes:total,requests:pages.length+redirects.length+3,
   captureActuallyPerformed:true,publicHttpsTransportChecked:true,
   servedRevisionAuthenticated:false,formsDelivered:false,automaticRelease:false});
 }
