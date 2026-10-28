@@ -5,6 +5,7 @@ const core=require('../../sdk/contract.cjs');
 const CONTENT=require('./content-intelligence.cjs');
 const ARCHITECTURE=require('./architecture.cjs');
 const GRAPH=require('./graph-authored.cjs');
+const SOCIAL=require('./publisher-media.cjs');
 const FORMAT='manufact-seo-analysis-v1';
 const severity={blocker:0,error:1,warning:2,recommendation:3};
 const normalize=x=>String(x||'').trim().normalize('NFKC').toLowerCase().replace(/\s+/g,' ');
@@ -61,6 +62,24 @@ function auditSite(site,manifests,blueprint){
   if(p.seo?.robots==='noindex'&&p.path==='/')
    items.push(issue('home-noindex','warning',p.id,p.path,'Home page is set to noindex; confirm intent.'));
   if(p.path.includes('--'))items.push(issue('route-readability','recommendation',p.id,p.path,'Double hyphen in URL path; check clarity.'));
+  // Current PHP OG fallback checks legacy media before Graph images even if
+  // Graph replaced that legacy section. Review a stale fallback only when its
+  // asset is no longer present anywhere in the actual page composition.
+  const social=SOCIAL.select(site,p);
+  const sourceSection=p.sections.find(s=>s.id===social.sectionId);
+  if(social.source==='section-content.media'&&sourceSection?.designGraph){
+   const visibleMedia=new Set();
+   for(const section of p.sections){
+    if(section.designGraph){
+     for(const n of GRAPH.nodes(section))if(n.type==='image')visibleMedia.add(n.assetId);
+    }else for(const el of [...section.elements,...(section.items||[])])
+     if(typeof el.values?.['content.media']==='string')visibleMedia.add(el.values['content.media']);
+   }
+   if(!visibleMedia.has(social.asset.id))
+    items.push(issue('social-fallback-hidden-media-review','recommendation',p.id,p.path,
+     'PHP social-image fallback selects media from a legacy slot hidden by Design Graph. Confirm intended OG image or review the existing page.seo.ogImage field.',
+     {sectionId:sourceSection.id,assetId:social.asset.id}));
+  }
  }
  if(plan){
   if(plan.siteId!==site.siteId)throw Error('Blueprint siteId mismatch');
