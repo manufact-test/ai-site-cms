@@ -2312,6 +2312,7 @@
     syncControls.append(syncInput,document.createTextNode(' Синхронная прокрутка двух панелей'));
     const previewPanels=element('div','hosted-launch-preview-panels');
     const viewport=element('div','hosted-launch-viewport');
+    viewport.id='server-launch-viewport';
     const frame=element('iframe');frame.id='server-launch-preview';
     frame.setAttribute('title','Проверка черновика страницы');
     // Same authenticated, script-disabled sandbox as the existing page preview:
