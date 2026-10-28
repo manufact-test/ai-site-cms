@@ -31,7 +31,7 @@ trait LeadWorkflow
         $required=['stage3_users','stage3_drafts','stage3_revisions','stage3_publications',
             'stage3_publication_history','stage3_media','stage3_submissions','stage3_notifications',
             'stage3_section_templates','stage3_access_users','stage3_site_grants','stage3_audit',
-            'stage3_site_licenses','stage3_delivery_settings','stage3_delivery_outbox'];
+            'stage3_site_licenses','stage3_delivery_settings','stage3_delivery_outbox','stage3_delivery_routes'];
         $optional=['stage3_video_uploads','stage3_video_chunks',
             'stage3_lead_workflow','stage3_lead_events','stage3_site_operations','stage3_site_incidents','stage3_approval_evidence'];
         $tables=$this->driver==='sqlite'
