@@ -1732,7 +1732,7 @@
         "stage3/runtime-export/templates/php/index.php",
         "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Partial: independent Next Static/SSR builds now include read-only release canary; actual individual approved client site, React host integration, external SSR and owner visual acceptance remain unverified."
+      "nextCheck": "Partial: standalone Next Static/SSR now initializes vetted first-party multi-step form JS after React hydration, retains native collector/HMAC submission and preserves extra OG/Twitter metadata. An owner-approved real client and authorized external Next deployment/visual acceptance remain open."
     },
     {
       "id": 181,
@@ -1813,9 +1813,10 @@
         "stage3/server/Api.php",
         "stage3/server/PublicRenderer.php",
         "stage3/tests/server-e2e.cjs",
-        "stage3/runtime-export/bin/build.cjs"
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/runtime-export/templates/php/index.php"
       ],
-      "nextCheck": "Partial: Studio static assets use gzip and ETag/304; owner must measure a real approved site's public/Core Web Vitals and an actual host environment."
+      "nextCheck": "Partial: hosted Studio gzip/ETags, independent PHP immutable page/sitemap 304, standalone MP4 206/416 and bounded range streaming implemented. Actual customer-host Core Web Vitals, transfer measurements and owner-approved live observation remain open."
     },
     {
       "id": 190,
