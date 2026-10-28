@@ -593,6 +593,26 @@ async function execute(){
   await page.locator('#server-launch-finding-list button').click();
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
     'Resolved discrepancy permits explicit new human approval');
+  // Previous review notes may be resumed without restoring any stale
+  // "reviewed" device flags or trusting a different site's report.
+  const revisionInfo=await (await page.request.get(origin+
+    '/api/sites/site-approved-browser')).json();
+  const importedNotes={
+    format:'manufact-launch-review-v1',
+    siteId:'site-approved-browser',
+    revision:revisionInfo.revision,
+    visualFindings:[{pageId:imported.pages[0].id,path:'/',device:'desktop',
+      note:'Вернуть точную ширину главного блока',scrollY:110,resolved:false}]
+  };
+  await page.locator('#server-launch-import-input').setInputFiles({
+    name:'review-notes.json',mimeType:'application/json',
+    buffer:Buffer.from(JSON.stringify(importedNotes))
+  });
+  await page.waitForFunction(()=>document.querySelector('#server-launch-finding-list')
+    ?.textContent?.includes('Вернуть точную ширину'));
+  assert.equal(await page.locator('#server-launch-mark').isDisabled(),true);
+  await page.locator('#server-launch-finding-list button').last().click();
+  assert.equal(await page.locator('#server-launch-mark').isDisabled(),false);
   await page.locator('#server-launch-pages [data-page-id="'+interiorPage.id+'"]').click();
   await page.locator('#server-launch-compare-modes [data-compare-mode="approved-compare"]').click();
   await page.waitForFunction(()=>{
