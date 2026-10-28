@@ -122,3 +122,5 @@ node stage3/bin/verify-approved-site.cjs /absolute/path/to/approved-site
 ```
 
 The command validates all existing registered manifests including `custom-section`, graph IDs and allowed styles, cross-section asset references, required three prototype files, descriptions, image MIME/size and responsive variant SHA256. It performs **no writes, network calls, automatic approval or publication**. An affirmative report means structurally compatible, **not** that the actual visual design matches the client's approved prototype. The user still reviews the visuals and explicitly imports/publishes in Studio.
+
+When the owner adds a `custom-section` manually inside Studio, the editor supplies a safe editable starter Design Graph so the UI can open it. This convenience never changes imported `site.json`: direct external site handoffs missing `designGraph` are rejected in browser/PHP. Do not pass the starter graph off as the client's finished design.

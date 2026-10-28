@@ -1003,6 +1003,9 @@ function sectionFrom(manifest,idValue,overrides={}){
     id:idValue+'-item-'+(i+1),
     values:Object.fromEntries(manifest.repeat.fields.map(f=>[f.path,clone(f.default)]))
   }));
+  // Studio can create an editable first-party starter graph. Imported sites
+  // bypass sectionFrom and are rejected if the author omitted their real graph.
+  if(manifest.id==='custom-section')result.designGraph=GRAPH_HOST.baseGraph(idValue);
   return result;
 }
 function siteFromBrief({siteId='site-generated',title='Новый сайт',brief={}},regInput){

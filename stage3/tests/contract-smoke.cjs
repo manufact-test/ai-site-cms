@@ -21,7 +21,9 @@ test('externally authored section is graph-only and fail-closed on browser contr
   const site=same(initial),section=sdk.sectionFrom(
     manifests.find(m=>m.id==='custom-section'),'section-unique-layout');
   site.pages[0].sections.push(section);
-  refuses(()=>sdk.validateSite(site,manifests),'No empty custom sections');
+  assert.equal(section.designGraph.version,1,'New Studio custom section starts with a valid editable graph');
+  delete section.designGraph;
+  refuses(()=>sdk.validateSite(site,manifests),'No empty external custom sections');
   section.designGraph={version:1,id:'graph-unique-layout',nodes:[{
     id:'unique-layout-root',type:'container',styles:{display:'grid',columns:2,gap:20},
     responsive:{mobile:{columns:1,gap:12}},children:[
