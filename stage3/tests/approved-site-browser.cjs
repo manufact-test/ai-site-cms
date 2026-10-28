@@ -558,14 +558,17 @@ async function execute(){
   assert.ok(desktopCheck.height>900,'PHP launch review must preserve whole page height');
   assert.equal(desktopCheck.hasFooter,true);
   assert.ok(desktopCheck.totalImages>=2,'PHP page includes both imported site-owned images');
-  assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
-    'Manual sign-off only becomes available after PHP content and images rendered');
+  assert.equal(await page.locator('#server-launch-mark').isDisabled(),true,
+    'Sealed approved site cannot be signed off before its original screenshot is viewed');
   await page.locator('#server-launch-compare-modes [data-compare-mode="approved-compare"]').click();
   await page.locator('#server-launch-reference-image[src^="blob:"]').waitFor({timeout:15000});
   assert.match(await page.locator('#server-launch-reference-viewport').innerText(),
     /SHA-256 проверен/,'Launch review compares against verified original image from vault');
   assert.match(await page.locator('#server-launch-approval-summary').innerText(),
     /Исходные утверждённые макеты/);
+  await page.waitForFunction(()=>!document.querySelector('#server-launch-mark')?.disabled);
+  assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
+    'Sign-off is now available after both rendered PHP and verified source image');
   // The original raster overlays the SAME real PHP iframe and supports an
   // adjustable visual mix for comparing alignment, spacing and proportions.
   await page.locator('#server-launch-compare-modes [data-compare-mode="approved-overlay"]').click();
@@ -630,8 +633,10 @@ async function execute(){
       status.includes('Проверка PHP ·')&&status.includes('390 px');
   },null,{timeout:15000});
   const mobileStatus=await page.locator('#server-launch-preview-status').innerText();
+  await page.waitForFunction(()=>!document.querySelector('#server-launch-mark')?.disabled,
+    null,{timeout:15000});
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
-    'Mobile PHP view must finish media and overflow checks: '+mobileStatus);
+    'Mobile review waits for both PHP images and matching original: '+mobileStatus);
   await page.locator('#server-launch-mark').click();
   assert.match(await page.locator('.hosted-launch-progress').innerText(),
     new RegExp('экранов: 1/'+(imported.pages.length*3)));
