@@ -37,6 +37,15 @@ vm.runInNewContext(code,{
 },{filename:'php-html-capture.cjs',timeout:2000});
 const CAP=moduleShim.exports;
 const origin=()=>mode==='dev-origin'?'http://127.0.0.1:'+server.address().port:'https://pilot.example';
+const publicMenu=title=>'<ul class="cms-menu-list">'+
+ '<li class="cms-nav-item"><a href="/published/pilot-local/"'+(title==='Home'?' aria-current="page"':'')+'>Home</a></li>'+
+ '<li class="cms-nav-item"><a href="/published/pilot-local/about/"'+(title==='About'?' aria-current="page"':'')+'>About</a></li></ul>';
+const publicHeader=title=>'<header class="cms-site-header cms-menu-default"><div class="cms-header-inner">'+
+ '<a class="cms-brand" href="/published/pilot-local/">Pilot</a>'+
+ '<nav class="cms-nav-desktop" aria-label="Основная навигация">'+
+ (mode==='bad-menu'?publicMenu(title).replace('href="/published/pilot-local/about/"','href="/bad/"'):publicMenu(title))+'</nav>'+
+ '<details class="cms-mobile-menu"><summary>Меню</summary><nav aria-label="Мобильная навигация">'+
+ publicMenu(title)+'</nav></details></div></header>';
 const html=(title)=>{
  const route=title==='About'?'about/':'';
  const hasImage=title!=='About';
@@ -60,7 +69,7 @@ const html=(title)=>{
    '<meta property="og:image:alt" content="Actual banner">'+
    '<meta name="twitter:image:alt" content="Actual banner">':'')+
   '</head>'+
-  '<body><h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a>'+
+  '<body>'+publicHeader(title)+'<h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a>'+
   '<a href="/published/pilot-local/old/">Old route</a>'+
   (mode.startsWith('other-consumers')?
    '<style>.hero{background-image:url("/published/pilot-local/assets/asset-secondary.png")}</style>'+
@@ -72,7 +81,7 @@ const html=(title)=>{
    '<picture><source srcset="/published/pilot-local/assets/not-in-site.png">'+
    '<img src="/published/pilot-local/assets/asset-banner.png" alt="Fallback"></picture>':
    '<img src="/published/pilot-local/assets/asset-secondary.png" alt="Secondary">')+
-  '</body></html>';
+  '<footer>Pilot</footer></body></html>';
 };
 let mode='normal',requests=[];
 const server=http.createServer((req,res)=>{
@@ -379,6 +388,7 @@ async function main(){
   assert.equal(result.localMedia.capturedResources,3);
   assert.equal(result.localMedia.criticalCount,0);
   assert.equal(result.localHead.findings.length,0);
+   assert.equal(result.localNavigation.findings.length,0);
   assert.equal(result.localHead.pagesWithRecordedHeaders,2);
   assert.equal(result.localHead.publicOriginObservedInSitemap,'https://pilot.example');
   assert.equal(result.localMedia.resources[0].ogImageAsset,true);
@@ -476,6 +486,11 @@ async function main(){
   await CAP.capture(sealed,base,twitterDrift);
   assert.ok(CAP.read(twitterDrift,site,source).localHead.findings.some(x=>
    x.code==='php-head:social-drift'&&x.field==='twitter:image'&&x.severity==='error'));
+  mode='bad-menu';
+  const badMenu=path.join(tmp,'wrong-public-menu');
+  await CAP.capture(sealed,base,badMenu);
+  assert.ok(CAP.read(badMenu,site,source).localNavigation.findings.some(x=>
+   x.code==='php-nav:menu-route-content-drift'&&x.severity==='error'));
   mode='bad-xrobots';
   const noindex=path.join(tmp,'xrobots-noindex');
   await CAP.capture(sealed,base,noindex);
