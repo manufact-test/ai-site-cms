@@ -234,3 +234,7 @@
 .hosted-launch-finding{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px;border:1px solid #6e8894;border-radius:7px;flex-wrap:wrap}
 .hosted-launch-finding span{font-size:12px;overflow-wrap:anywhere;min-width:0;flex:1}
 .hosted-launch-finding .btn{font-size:11px}
+
+.hosted-launch-scroll-sync{display:flex;align-items:center;gap:6px;font-size:12px;color:#d9ecf3;cursor:pointer}
+.hosted-launch-scroll-sync[hidden]{display:none!important}
+.hosted-launch-scroll-sync input{accent-color:#79cbff}
