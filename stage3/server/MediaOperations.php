@@ -38,6 +38,9 @@ trait MediaOperations
                         foreach(['assetId','tabletAssetId','mobileAssetId'] as $key)
                             $record($node['backgroundMedia'][$key]??null,
                                 $baseSection+['location'=>'graph.backgroundMedia.'.$key,'nodeId'=>$node['id']]);
+                        foreach(['assetId','posterAssetId','tabletPosterAssetId','mobilePosterAssetId'] as $key)
+                            $record($node['backgroundVideo'][$key]??null,
+                                $baseSection+['location'=>'graph.backgroundVideo.'.$key,'nodeId'=>$node['id']]);
                         $walk($node['children']??[]);
                     }
                 };
@@ -139,6 +142,10 @@ trait MediaOperations
                             foreach(['assetId','tabletAssetId','mobileAssetId'] as $key){
                                 $id=$node['backgroundMedia'][$key]??null;
                                 if(is_string($id)&&isset($map[$id]))$node['backgroundMedia'][$key]=$map[$id];
+                            }
+                            foreach(['assetId','posterAssetId','tabletPosterAssetId','mobilePosterAssetId'] as $key){
+                                $id=$node['backgroundVideo'][$key]??null;
+                                if(is_string($id)&&isset($map[$id]))$node['backgroundVideo'][$key]=$map[$id];
                             }
                             if(isset($node['children']))$walk($node['children']);
                         }unset($node);
