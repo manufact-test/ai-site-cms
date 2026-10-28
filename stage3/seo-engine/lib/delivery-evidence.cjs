@@ -2,6 +2,7 @@
 // Offline analysis of manually supplied captured HTTP responses.
 // Inputs are untrusted recordings. Never assert that requests actually reached a live host.
 const {readHead}=require('./parity.cjs');
+const crypto=require('node:crypto');
 const {wildcardRootBlock}=require('./publication-integrity.cjs');
 const FORMAT='manufact-seo-delivery-evidence-v1';
 const OUTPUT='manufact-seo-delivery-review-v1';
@@ -38,7 +39,7 @@ function assertEvidence(e){
   !e.origin||typeof e.origin!=='string')throw Error('Invalid HTTP delivery evidence');
  const u=urlFrom(e.origin,'capture origin');
  if(!u.pathname.endsWith('/'))throw Error('Capture origin must end with / (including mount)');
- if(Object.keys(e).some(k=>!['format','siteId','origin','pages','robots','sitemap','redirects','capturedAt','negativeProbe'].includes(k)))
+ if(Object.keys(e).some(k=>!['format','siteId','origin','pages','robots','sitemap','redirects','capturedAt','negativeProbe','rootRecheck'].includes(k)))
   throw Error('Unsupported delivery evidence field');
  if(e.capturedAt!==undefined&&(typeof e.capturedAt!=='string'||
   !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(e.capturedAt)||
@@ -54,6 +55,21 @@ function assertEvidence(e){
    typeof p.bodySha256!=='string'||!/^[a-f0-9]{64}$/.test(p.bodySha256))
    throw Error('Invalid bounded negative-route HTTP observation');
   urlFrom(p.requestUrl,'negative route request');
+ }
+ if(e.rootRecheck!==undefined){
+  const r=e.rootRecheck,home=e.pages.find(x=>x.path==='/');
+  if(!r||typeof r!=='object'||Array.isArray(r)||
+   Object.keys(r).some(k=>!['requestUrl','firstStatus','secondStatus','initialHtmlSha256','finalHtmlSha256','matched','sourceRevisionAuthenticated','publicHostProvenanceAuthenticated'].includes(k))||
+   r.requestUrl!==base(e.origin,'/').href||!home||home.requestUrl!==r.requestUrl||
+   r.firstStatus!==home.status||!Number.isInteger(r.secondStatus)||
+   r.secondStatus<100||r.secondStatus>599||
+   typeof home.html!=='string'||
+   !/^[a-f0-9]{64}$/.test(r.initialHtmlSha256)||
+   !/^[a-f0-9]{64}$/.test(r.finalHtmlSha256)||
+   crypto.createHash('sha256').update(home.html,'utf8').digest('hex')!==r.initialHtmlSha256||
+   r.matched!==(r.firstStatus===r.secondStatus&&r.initialHtmlSha256===r.finalHtmlSha256)||
+   r.sourceRevisionAuthenticated!==false||r.publicHostProvenanceAuthenticated!==false)
+   throw Error('Public root recheck is inconsistent with the first HTTP HTML observation');
  }
  const used=new Set();
  for(const p of e.pages){
@@ -294,6 +310,9 @@ function review(site,evidence){
    }
   }
  }
+ if(evidence.rootRecheck&&!evidence.rootRecheck.matched)
+  add('delivery:public-capture-window-drift','error',null,'/',
+   'Public root HTML/status changed while acquiring independent page/media responses. Discard this mixed evidence run.');
  if(evidence.negativeProbe){
   if(![404,410].includes(evidence.negativeProbe.status))
    add('delivery:soft-404-unknown-route','error',null,evidence.negativeProbe.path,
@@ -307,7 +326,10 @@ function review(site,evidence){
    robotsCaptured:Boolean(robots),sitemapCaptured:Boolean(sitemap),
    sitemapKind:parsed?.kind??null,
    negativeRouteStatus:evidence.negativeProbe?.status??null,
-   soft404ProbePerformed:Boolean(evidence.negativeProbe),liveRequestsPerformedByToolkit:false,
+   soft404ProbePerformed:Boolean(evidence.negativeProbe),
+   publicRootRechecked:Boolean(evidence.rootRecheck),
+   publicRootWindowStable:evidence.rootRecheck?.matched??null,
+   liveRequestsPerformedByToolkit:false,
    independentlyVerifiedProvenance:false},
   pages:summaries,redirects:redirectReviews,findings,
   releaseAuthorized:false,
