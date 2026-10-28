@@ -18,7 +18,7 @@ final class DesignGraph
         'top','left','opacity','borderColor','borderWidth','textAlign','order','hidden',
         'rowGap','columnGap','paddingX','paddingY','marginTop','marginBottom','widthPercent',
         'minHeight','gridColumnSpan','flexWrap','flexGrow','alignSelf','letterSpacing',
-        'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset'];
+        'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset','shadowFine'];
     private const ICON_PATHS=[
         'check'=>'<path d="M5 12l4 4L19 6"/>',
         'arrow'=>'<path d="M5 12h14m-6-6 6 6-6 6"/>',
@@ -115,6 +115,14 @@ final class DesignGraph
                     &&$value['min']<=$value['max'],$at.' invalid fluid typography');
                 continue;
             }
+            if($key==='shadowFine'){
+                self::keys($value,['x','y','blur','spread','color','inset'],$at.'/shadowFine');
+                foreach(['x'=>[-100,100],'y'=>[-100,100],'blur'=>[0,160],'spread'=>[-80,80]] as $field=>$range)
+                    self::check(self::integer($value[$field]??null,...$range),$at.' invalid shadowFine '.$field);
+                self::resolve($value['color']??null,'colors',$tokens,$at.'/shadowFine.color');
+                self::check(is_bool($value['inset']??null),$at.' invalid shadowFine inset');
+                continue;
+            }
             if ($key==='gradient'){
                 self::keys($value,['angle','from','to','via','viaAt'],$at.'/gradient');
                 self::check(self::integer($value['angle']??null,0,360)&&isset($value['from'],$value['to'])
@@ -141,13 +149,17 @@ final class DesignGraph
         self::check(!(isset($style['fontSize'])&&isset($style['fluidFont'])),$at.' competing typography controls');
         self::check(!(isset($style['widthPx'])&&isset($style['widthPercent'])),$at.' competing width units');
         self::check(!(isset($style['columns'])&&isset($style['gridColumnsPreset'])),$at.' competing grid template');
+        self::check(!(isset($style['shadow'])&&isset($style['shadowFine'])),$at.' competing shadow controls');
     }
     private static function motion(mixed $motion,string $at): void
     {
-        self::keys($motion,['effect','duration','delay'],$at);
+        self::keys($motion,['effect','duration','delay','trigger','easing'],$at);
         self::check(in_array($motion['effect']??null,self::MOTIONS,true)
             &&self::integer($motion['duration']??null,150,2000)
-            &&self::integer($motion['delay']??null,0,1000),$at.' invalid motion');
+            &&self::integer($motion['delay']??null,0,1000)
+            &&in_array($motion['trigger']??'load',['load','scroll'],true)
+            &&in_array($motion['easing']??'ease-out',self::SEQUENCE_EASINGS,true)
+            &&(($motion['trigger']??'load')!=='scroll'||$motion['delay']===0),$at.' invalid motion');
     }
     private static function safeHref(mixed $href): bool
     {
@@ -412,6 +424,11 @@ final class DesignGraph
                     number_format($intercept,4,'.','').'px),'.$value['max'].'px)');
                 continue;
             }
+            if($key==='shadowFine'){
+                $put('box-shadow',(!empty($value['inset'])?'inset ':'').
+                    $value['x'].'px '.$value['y'].'px '.$value['blur'].'px '.$value['spread'].'px '.
+                    self::resolve($value['color'],'colors',$t,$key));continue;
+            }
             if($key==='gradient'){
                 $put('background-image','linear-gradient('.$value['angle'].'deg,'.
                     self::resolve($value['from'],'colors',$t,$key).','.
@@ -570,9 +587,16 @@ final class DesignGraph
                     $rules[]=$selector.' > .cmsdg-n-'.$child['id'].'{animation:cmsdg-'.$t['effect'].
                         ' '.$t['duration'].'ms '.$t['easing'].' '.($t['delay']+$i*$t['stagger']).'ms both}';
             }
-            if(isset($n['motion'])&&$n['motion']['effect']!=='none')
-                $rules[]=$selector.'{animation:cmsdg-'.$n['motion']['effect'].' '.
-                    $n['motion']['duration'].'ms ease-out '.$n['motion']['delay'].'ms both}';
+            if(isset($n['motion'])&&$n['motion']['effect']!=='none'){
+                $m=$n['motion'];$easing=$m['easing']??'ease-out';
+                if(($m['trigger']??'load')==='scroll'){
+                    $rules[]='@supports (animation-timeline: view()){'.$selector.
+                        '{animation:cmsdg-'.$m['effect'].' 1s '.$easing.
+                        ' both;animation-timeline:view(block);animation-range:entry 0% cover 35%}}';
+                }else
+                    $rules[]=$selector.'{animation:cmsdg-'.$m['effect'].' '.
+                        $m['duration'].'ms '.$easing.' '.$m['delay'].'ms both}';
+            }
             $cls='cmsdg-n-'.$n['id'];
             switch($n['type']){
                 case 'popup':

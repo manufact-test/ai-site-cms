@@ -20,7 +20,7 @@ const STYLE_KEYS=['display','columns','direction','align','justify','gap','paddi
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
   'paddingX','paddingY','marginTop','marginBottom','widthPercent','minHeight','gridColumnSpan',
   'flexWrap','flexGrow','alignSelf','letterSpacing','fontFamily','objectFit','aspectRatio',
-  'overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset'];
+  'overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset','shadowFine'];
 const DEFAULT_TOKENS=Object.freeze({
   colors:{foreground:'#182b3d',background:'#ffffff',accent:'#0a5bff',muted:'#667788'},
   spacing:{small:12,medium:24,large:48},
@@ -85,6 +85,14 @@ function validateStyle(style,tokens,at,mode='base'){
         fail(at,'invalid fluid typography');
       continue;
     }
+    if(key==='shadowFine'){
+      keys(value,['x','y','blur','spread','color','inset'],at+'/shadowFine');
+      for(const [field,min,max] of [['x',-100,100],['y',-100,100],['blur',0,160],['spread',-80,80]])
+        if(!number(value[field],min,max))fail(at,'invalid shadowFine '+field);
+      resolve(value.color,'colors',tokens,at+'/shadowFine.color');
+      if(typeof value.inset!=='boolean')fail(at,'invalid shadowFine inset');
+      continue;
+    }
     if(key==='gradient'){
       keys(value,['angle','from','to','via','viaAt'],at+'/gradient');
       if(!number(value.angle,0,360)||!own(value,'from')||!own(value,'to')||own(value,'via')!==own(value,'viaAt')||
@@ -106,10 +114,14 @@ function validateStyle(style,tokens,at,mode='base'){
   if(own(style,'fontSize')&&own(style,'fluidFont'))fail(at,'competing typography controls');
   if(own(style,'widthPx')&&own(style,'widthPercent'))fail(at,'competing width units');
   if(own(style,'columns')&&own(style,'gridColumnsPreset'))fail(at,'competing grid template');
+  if(own(style,'shadow')&&own(style,'shadowFine'))fail(at,'competing shadow controls');
 }
 function validateMotion(motion,at){
-  keys(motion,['effect','duration','delay'],at);
-  if(!MOTIONS.includes(motion.effect)||!number(motion.duration,150,2000)||!number(motion.delay,0,1000))
+  keys(motion,['effect','duration','delay','trigger','easing'],at);
+  if(!MOTIONS.includes(motion.effect)||!number(motion.duration,150,2000)||!number(motion.delay,0,1000)||
+    (own(motion,'trigger')&&!['load','scroll'].includes(motion.trigger))||
+    (own(motion,'easing')&&!['ease','ease-in','ease-out','ease-in-out','linear'].includes(motion.easing))||
+    (motion.trigger==='scroll'&&motion.delay!==0))
     fail(at,'invalid motion');
 }
 const SEQUENCE_EASINGS=['ease','ease-in','ease-out','ease-in-out','linear'];
@@ -437,6 +449,10 @@ function declarations(style,t){
       put('font-size','clamp('+v.min+'px,calc('+slope.toFixed(4)+'vw + '+intercept.toFixed(4)+'px),'+v.max+'px)');
       continue;
     }
+    if(k==='shadowFine'){
+      put('box-shadow',(v.inset?'inset ':'')+v.x+'px '+v.y+'px '+v.blur+'px '+v.spread+'px '+
+        resolve(v.color,'colors',t,k));continue;
+    }
     if(k==='gradient'){
       put('background-image','linear-gradient('+v.angle+'deg,'+resolve(v.from,'colors',t,k)+','+(own(v,'via')?resolve(v.via,'colors',t,k)+' '+v.viaAt+'%,':'')+
         resolve(v.to,'colors',t,k)+')');continue;
@@ -571,7 +587,15 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       n.children.forEach((ch,i)=>rules.push(selector+' > .cmsdg-n-'+ch.id+
         '{animation:cmsdg-'+t.effect+' '+t.duration+'ms '+t.easing+' '+(t.delay+i*t.stagger)+'ms both}'));
     }
-    if(n.motion&&n.motion.effect!=='none')rules.push(selector+'{animation:cmsdg-'+n.motion.effect+' '+n.motion.duration+'ms ease-out '+n.motion.delay+'ms both}');
+    if(n.motion&&n.motion.effect!=='none'){
+      const m=n.motion,easing=m.easing||'ease-out';
+      if(m.trigger==='scroll'){
+        // CSS-only scroll timeline: non-supporting browsers retain visible static content.
+        // Timeline durations follow view progress rather than milliseconds.
+        rules.push('@supports (animation-timeline: view()){'+selector+
+          '{animation:cmsdg-'+m.effect+' 1s '+easing+' both;animation-timeline:view(block);animation-range:entry 0% cover 35%}}');
+      }else rules.push(selector+'{animation:cmsdg-'+m.effect+' '+m.duration+'ms '+easing+' '+m.delay+'ms both}');
+    }
     const cls='cmsdg-n-'+n.id;
     if(n.type==='popup')return '<div popover="auto" id="cmsdg-popup-'+n.id+'" class="'+cls+' cmsdg-popup" role="dialog" aria-label="'+attr(n.text)+'">'+
       '<button type="button" class="cmsdg-popup-close" popovertarget="cmsdg-popup-'+n.id+'" popovertargetaction="hide" aria-label="Закрыть окно">×</button>'+
