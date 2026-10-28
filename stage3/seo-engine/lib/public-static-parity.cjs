@@ -160,10 +160,11 @@ function compare(site,release,http,media=null){
    add('public-search-capture-missing','error',null,
     'Public HTTPS capture omitted '+key+'.',{field:key});
   }else{
-   // Exact bytes cannot be reconstructed from a text transcript if transport
-   // rewrites encoding; compare Unicode-normalized text, not fake byte SHA.
+   // Verified static export and public capture both contain strict UTF-8
+   // search metadata. Do not normalize whitespace: robots and sitemap are
+   // protocol files, and silent rewrites can change crawl meaning.
    match=response.status===200&&response.url===target&&
-    norm(response.body)===norm(body);
+    response.body===body;
    if(!match)add('public-search-file-drift','error',null,
     'Public HTTPS '+key+' differs from the SHA-verified official static file.',{field:key});
   }
