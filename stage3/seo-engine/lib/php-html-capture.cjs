@@ -11,6 +11,7 @@ const ACCEPTANCE=require('./acceptance.cjs');
 const LOCAL=require('./php-local-publication.cjs');
 const LOCAL_MEDIA=require('./php-local-media.cjs');
 const LOCAL_HEAD=require('./php-local-head.cjs');
+const LOCAL_FORMS=require('./php-local-forms.cjs');
 const CAPTURE_FORMAT='manufact-seo-loopback-php-html-v1';
 const SNAPSHOT_FORMAT='manufact-seo-html-snapshot-v1';
 const SHA=/^[a-f0-9]{64}$/;
@@ -182,6 +183,7 @@ function inspect(manifest,site,source,folder){
  }
  const checkedSnapshot=snapshot(site,source,entries,manifest.baseUrl,manifest.capturedAt,publication);
  const localHead=LOCAL_HEAD.review(site,checkedSnapshot,manifest.pages,publication);
+ const localForms=LOCAL_FORMS.review(site,checkedSnapshot);
  const localMedia=manifest.media?
   LOCAL_MEDIA.inspect(site,manifest.baseUrl,manifest.media,root,checkedSnapshot,
    publication?.declaredPublicOrigin||null):null;
@@ -192,8 +194,8 @@ function inspect(manifest,site,source,folder){
   checkedHtmlBytes:checkedPageHtmlBytes,
   checkedAuxiliaryBytes:total-checkedPageHtmlBytes,sha256VerifiedAtRead:true,
   loopbackHttp200Count:entries.length,sourceRevisionAuthenticated:false,
-  realPublicHttpsChecked:false,formsChecked:false,visualParityChecked:false,
-  publication,localMedia,localHead,
+  realPublicHttpsChecked:false,formsChecked:false,formMarkupChecked:true,visualParityChecked:false,
+  publication,localMedia,localHead,localForms,
   snapshot:checkedSnapshot,
   limitations:'Read-only local PHP HTTP 200 and byte-checked HTML. Cannot prove the served revision matches saved Site v1, operator identity, client approval, public HTTPS or successful forms.'
  });
@@ -267,6 +269,7 @@ async function capture(sealedFolder,rawOrigin,output){
   localRedirectsCaptured:imported.publication.redirectResponses,
   localSeoFindings:imported.publication.findings.length,
   localHeadFindings:imported.localHead.findings.length,
+  localFormFindings:imported.localForms.findings.length,
   localMediaAssets:imported.localMedia.capturedResources,
   localMediaBytes:imported.localMedia.savedBodyBytes,
   localMediaFindings:imported.localMedia.findings.length,

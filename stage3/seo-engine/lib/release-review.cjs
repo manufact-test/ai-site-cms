@@ -51,6 +51,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const localMediaWarnings=find(t=>t.sources.some(s=>s.code?.startsWith('php-media:')&&s.severity!=='error'));
  const localHeadErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-head:')&&s.severity==='error'));
  const localHeadReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-head:')&&s.severity!=='error'));
+  const localFormErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-form:')&&s.severity==='error'));
+  const localFormReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-form:')&&s.severity!=='error'));
  const phpCapture=options.phpCapture||null;
  const suppliedOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean)
   .map(x=>new URL(x).href);
@@ -108,7 +110,13 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(localHeadReviews.length)add(reviews,'local-php-head-configuration',
   'Review local PHP HTTP headers, canonical and social metadata configuration',
   'Missing security headers or public origin are warnings; validate intended host and production release separately.',localHeadReviews);
- if(localMediaErrors.length)add(blockers,'local-php-media-integrity',
+ if(localFormErrors.length)add(blockers,'local-php-form-markup',
+   'Repair observed PHP lead form action, release and anti-spam markup',
+   'Captured HTML disagrees with the public form contract. No POST or delivery has been attempted.',localFormErrors);
+  if(localFormReviews.length)add(reviews,'local-php-form-origin-review',
+   'Review public form collector host and allowlist',
+   'Absolute collector origin remains unverified and was not probed.',localFormReviews);
+  if(localMediaErrors.length)add(blockers,'local-php-media-integrity',
   'Repair observed PHP media delivery and OG/variant integrity',
   'Hash-checked local PHP responses include failed OG requests, variant SHA or media byte/ETag anomalies. Verify the current published media before public release.',localMediaErrors);
  if(localMediaWarnings.length)add(reviews,'local-php-media-quality-review',

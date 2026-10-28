@@ -149,7 +149,7 @@ function work(site,manifests,blueprint,options={}){
   const key=['investigate',kind,x.pageId||'',x.sectionId||'',x.targetPageId||'',
    x.field||'',x.device||'',x.code,x.fragment||'',x.href||'',x.topic||'',
    x.assetId||'',x.schemaType||'',group].join('|');
-  const fromHtml=['html-snapshot','html-deep','viewport-capture','http-delivery-evidence','media-delivery-evidence','php-public-screenshots','php-local-publication','php-local-media','php-local-head','cross-source-consistency'].includes(kind),fromParity=kind==='publication-parity';
+  const fromHtml=['html-snapshot','html-deep','viewport-capture','http-delivery-evidence','media-delivery-evidence','php-public-screenshots','php-local-publication','php-local-media','php-local-head','php-local-forms','cross-source-consistency'].includes(kind),fromParity=kind==='publication-parity';
   const direct=x.severity==='error'||x.severity==='blocker';
   const owner=group==='verified-facts'?'site-owner':
    fromHtml||fromParity||direct||/planned-(?:page|link|internal-link|section)/.test(x.code)
@@ -197,6 +197,8 @@ function work(site,manifests,blueprint,options={}){
   issueTask(x,'php-local-media');
  if(options.phpHtml?.localHead)for(const x of options.phpHtml.localHead.findings)
   issueTask(x,'php-local-head');
+  if(options.phpHtml?.localForms)for(const x of options.phpHtml.localForms.findings)
+   issueTask(x,'php-local-forms');
  for(const x of consistency.findings)issueTask(x,'cross-source-consistency');
  if(htmlAudit)for(const x of htmlAudit.issues)issueTask(x,'html-snapshot');
  if(parity)for(const x of parity.findings)issueTask(x,'publication-parity');
@@ -258,6 +260,7 @@ function work(site,manifests,blueprint,options={}){
    localPhpPublicationFindingCount:options.phpHtml?.publication?.findings.length??null,
    localPhpMediaFindingCount:options.phpHtml?.localMedia?.findings.length??null,
    localPhpHeadFindingCount:options.phpHtml?.localHead?.findings.length??null,
+    localPhpFormFindingCount:options.phpHtml?.localForms?.findings.length??null,
    crossSourceFindingCount:consistency.findings.length,
    routeMigrationFindingCount:migration?.findings.length??null,
    regressionNewFindings:regression?.introduced.length??null,

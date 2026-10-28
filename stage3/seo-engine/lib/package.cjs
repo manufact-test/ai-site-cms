@@ -137,6 +137,8 @@ function build(site,manifests,blueprint,options={}){
   localPhpMediaFindings:options.phpHtml?.localMedia?.findings.length??null,
   localPhpHeadFindings:options.phpHtml?.localHead?.findings.length??null,
   localPhpHeadHeaders:options.phpHtml?.localHead?.pagesWithRecordedHeaders??null,
+   localPhpFormCount:options.phpHtml?.localForms?.observedForms??null,
+   localPhpFormFindings:options.phpHtml?.localForms?.findings.length??null,
   localPhpObservedPublicOrigin:options.phpHtml?.localHead?.publicOriginObservedInSitemap??null,
   screenshotFileDigestsChecked:Boolean(options.phpCapture),
   screenshotCaptureExactSiteRevisionProven:false,
@@ -164,7 +166,17 @@ function build(site,manifests,blueprint,options={}){
     findings:options.phpHtml.localHead.findings,
     publicHttpsProven:false,releaseAuthorized:false
   }:null,
-  localPhpMedia:options.phpHtml?.localMedia?{
+  localPhpForms:options.phpHtml?.localForms?{
+    format:options.phpHtml.localForms.format,
+    expectedForms:options.phpHtml.localForms.expectedForms,
+    observedForms:options.phpHtml.localForms.observedForms,
+    checkedFormSections:options.phpHtml.localForms.checkedFormSections,
+    consistentRelease:options.phpHtml.localForms.consistentRelease,
+    pages:options.phpHtml.localForms.pages,
+    findings:options.phpHtml.localForms.findings,
+    actualPostPerformed:false,collectorChecked:false,deliveriesProven:false
+   }:null,
+   localPhpMedia:options.phpHtml?.localMedia?{
     format:options.phpHtml.localMedia.format,fullyCaptured:options.phpHtml.localMedia.fullyCaptured,
     savedBodyBytes:options.phpHtml.localMedia.savedBodyBytes,
     capturedResources:options.phpHtml.localMedia.capturedResources,
@@ -190,7 +202,7 @@ function build(site,manifests,blueprint,options={}){
     loopbackHttp200Count:options.phpHtml.loopbackHttp200Count,
     sha256VerifiedAtRead:true,sourceSiteSha256:options.phpHtml.sourceSiteSha256,
     sourceRevisionAuthenticated:false,realPublicHttpsChecked:false,
-    formsChecked:false,visualParityChecked:false
+    formsChecked:false,formMarkupChecked:Boolean(options.phpHtml.localForms),visualParityChecked:false
   }:null,
   blueprintReview:architecture,siteAudit:audit,
   htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
@@ -228,7 +240,8 @@ function build(site,manifests,blueprint,options={}){
         '; media binary bytes: '+(options.phpHtml.localMedia?.savedBodyBytes??'none')+'.\n'+
       '- SEO head, H1, links and indexation checked by existing HTML/parity modules against the captured bytes.\n'+
       '- Loopback PHP HTTP header/canonical/og:url checks: '+(options.phpHtml.localHead?.findings.length??'not supplied')+' findings; public origin observed in local sitemap: '+(options.phpHtml.localHead?.publicOriginObservedInSitemap??'none')+'.\n'+
-      '- Source digest recorded at capture, but source revision served by PHP NOT cryptographically attested. No public HTTPS, forms, scripts, actual design equality or client approval verified.\n':'')+
+      '- Form markup check: '+(options.phpHtml.localForms?.observedForms??0)+' forms, '+(options.phpHtml.localForms?.findings.length??0)+' findings; no POST or delivery verified.\n'+
+       '- Source digest recorded at capture, but source revision served by PHP NOT cryptographically attested. No public HTTPS, delivered forms, scripts, actual design equality or client approval verified.\n':'')+
     '\n\n---\n\n'+renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
     '\n\n---\n\n'+EXECUTION.markdown(execution)+'\n\n---\n\n'+CMS_PACKET.markdown(cmsChangePacket),
   integrationOrder:['verified-owner-facts','approved-prototypes-and-blueprint',
