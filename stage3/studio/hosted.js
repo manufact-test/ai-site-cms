@@ -2291,7 +2291,7 @@
     const overlayControls=element('div','hosted-launch-overlay-controls');
     overlayControls.id='server-launch-overlay-controls';
     overlayControls.hidden=true;
-    const overlayLabel=element('label',null,'Прозрачность макета: 50%');
+    const overlayLabel=element('label',null,'Непрозрачность макета: 50%');
     overlayLabel.setAttribute('for','server-launch-overlay-opacity');
     const overlayOpacity=element('input');
     overlayOpacity.id='server-launch-overlay-opacity';
@@ -2304,7 +2304,10 @@
       overlayLabel.textContent='Непрозрачность макета: '+value+'%';
     };
     overlayOpacity.addEventListener('input',setOverlayOpacity);
-    overlayControls.append(overlayLabel,overlayOpacity);
+    const overlayStatus=element('small','hosted-launch-overlay-status',
+      'Используется исходный SHA-256 проверенный файл, не оценка совпадения пикселей.');
+    overlayStatus.id='server-launch-overlay-status';
+    overlayControls.append(overlayLabel,overlayOpacity,overlayStatus);
     const syncControls=element('label','hosted-launch-scroll-sync');
     syncControls.id='server-launch-scroll-sync';
     const syncInput=element('input');syncInput.type='checkbox';syncInput.checked=true;
@@ -2673,6 +2676,14 @@
           ' · SHA-256 проверен · '+mode;
         referenceSeen.add(signature(row,mode));
         if(viewMode==='approved-overlay'){
+          const imageWidth=overlayImage.naturalWidth;
+          const imageHeight=overlayImage.naturalHeight;
+          overlayStatus.textContent='Оригинал SHA-256 проверен · '+imageWidth+' × '+imageHeight+
+            ' px · PHP-ширина '+widths[mode]+' px · '+
+            (imageWidth===widths[mode]
+              ? 'ширины совпадают; оценка композиции вручную'
+              : 'разные исходные ширины: наложение масштабировано, не пиксельное совпадение');
+
           setOverlayOpacity();renderViewport();
         }
       }catch(error){
