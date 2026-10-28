@@ -1,0 +1,318 @@
+'use strict';
+// Genuine Chromium end-to-end: PHP session -> server Studio -> save -> publish.
+// Disposable SQLite DB; loopback-only server; no Hostinger or external network.
+const {chromium}=require('../../cms/editor/node_modules/playwright-core');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),net=require('node:net');
+const {spawn,spawnSync}=require('node:child_process');
+const assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'../..');
+const temp=fs.mkdtempSync(path.join(os.tmpdir(),'ai-site-studio-http-'));
+const chrome=['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium','/usr/bin/chromium-browser'].find(fs.existsSync);
+if(!chrome)throw Error('Chromium required for hosted Studio scenario');
+const env={...process.env,STAGE3_DSN:'sqlite:'+path.join(temp,'site.sqlite'),
+  STAGE3_OWNER_USER:'testowner',STAGE3_OWNER_PASSWORD:'CI-only-password-123456',
+  STAGE3_FORM_SECRET:'CI-only-form-secret-with-minimum-32-characters',
+  STAGE3_MAIL_FROM:'',STAGE3_TELEGRAM_BOT_TOKEN:''};
+let php=null,browser=null;
+async function pickPort(){
+  const s=net.createServer();
+  await new Promise((resolve,reject)=>{s.once('error',reject);s.listen(0,'127.0.0.1',resolve);});
+  const p=s.address().port;await new Promise(resolve=>s.close(resolve));return p;
+}
+async function start(){
+  const setup=spawnSync('php',['stage3/server/bin/setup.php'],{cwd:root,env,encoding:'utf8'});
+  assert.equal(setup.status,0,setup.stderr);
+  const origin='http://127.0.0.1:'+(await pickPort());
+  php=spawn('php',['-S',new URL(origin).host,'-t','stage3/server/public',
+    'stage3/server/public/index.php'],{cwd:root,env,stdio:['ignore','ignore','pipe']});
+  let err='';php.stderr.on('data',d=>{err+=d.toString();});
+  for(let i=0;i<60;i++){
+    if(php.exitCode!==null)throw Error('PHP exited: '+err.slice(-500));
+    try{if((await fetch(origin+'/api/session')).ok)return origin;}catch(e){}
+    await new Promise(resolve=>setTimeout(resolve,80));
+  }
+  throw Error('PHP server not ready: '+err.slice(-500));
+}
+async function execute(){
+  // Focused REAL Chromium/PHP gate for the externally approved individual site:
+  // no unrelated editorial excursions before the acceptance workflow.
+  const origin=await start();
+  browser=await chromium.launch({executablePath:chrome,headless:true,args:['--no-sandbox']});
+  const ctx=await browser.newContext({viewport:{width:1400,height:1000}});
+  const page=await ctx.newPage(),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(origin+'/studio');
+  await page.locator('#server-login:not([hidden])').waitFor();
+  await page.locator('#server-username').fill('testowner');
+  await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
+  await page.locator('#server-signin').click();
+  await page.locator('#server-login').waitFor({state:'hidden'});
+  // Import requires a selected authenticated owner workspace. This synthetic
+  // workspace is not published and is not claimed to be a customer pilot.
+  page.once('dialog',dialog=>dialog.accept('Черновик для проверки импорта'));
+  await page.locator('#new-site').click();
+  await page.locator('#server-status').getByText(/Черновик #1/).waitFor();
+  const siteId=await page.locator('#server-site-select').inputValue();
+  const visitorCtx=await browser.newContext({viewport:{width:1280,height:900}});
+  const visitor=await visitorCtx.newPage();
+  // FAQ deletion and server restore are explicit confirmation actions.
+  page.on('dialog',dialog=>dialog.accept());
+  // ONE critical real-browser path for the approved external folder: the PHP
+  // server must store asset bytes before accepting any references to them.
+  // Tiny synthetic design images exercise transport only, not visual acceptance.
+  const folder=path.join(temp,'approved-external-site');
+  fs.mkdirSync(path.join(folder,'prototypes'),{recursive:true});
+  fs.mkdirSync(path.join(folder,'assets'),{recursive:true});
+  const examplePng=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGM0ajrBwMDAxMDAwMDAAAARZAGA1I+vcwAAAABJRU5ErkJggg==','base64');
+  for(const name of ['desktop','tablet','mobile'])
+    fs.writeFileSync(path.join(folder,'prototypes',name+'.png'),examplePng);
+  fs.writeFileSync(path.join(folder,'assets','asset-external-hero.png'),examplePng);
+  fs.writeFileSync(path.join(folder,'client-explanation.md'),'Browser-only fixture: client-facing explanation for the full approved prototype.');
+  fs.writeFileSync(path.join(folder,'implementation-spec.md'),'Browser-only fixture: source of truth for component properties, responsive behavior, and CTA.');
+  fs.writeFileSync(path.join(folder,'handoff.json'),JSON.stringify({
+    format:'manufact-approved-site-handoff-v1',status:'approved',version:'fixture-1',
+    files:{site:'site.json',desktop:'prototypes/desktop.png',
+      tablet:'prototypes/tablet.png',mobile:'prototypes/mobile.png',
+      clientExplanation:'client-explanation.md',implementationSpec:'implementation-spec.md'}
+  }));
+  const external=await page.evaluate(()=>{
+    const site=window.Stage3Editor.fromBrief('site-approved-browser','Внешний готовый сайт');
+    site.assets=[{id:'asset-external-hero',src:'/assets/asset-external-hero.png',
+      mime:'image/png',alt:'Фото внешнего сайта'}];
+    site.pages[0].seo={title:'Внешний готовый сайт',description:'Проверка подключения внешнего сайта',
+      robots:'index',ogImage:'asset-external-hero'};
+    const faq=window.Stage3Editor.manifests().find(x=>x.id==='faq-accordion');
+    const fromFields=fields=>Object.fromEntries(fields.map(f=>[f.path,structuredClone(f.default)]));
+    const section={
+      id:'section-approved-faq',component:faq.id,manifestVersion:faq.version,
+      elements:faq.elements.map((el,i)=>({
+        id:'element-approved-faq-'+i,slot:el.slot,values:fromFields(el.fields)
+      })),
+      items:['Как оформить заказ?','Как происходит доставка?'].map((question,i)=>({
+        id:'approved-faq-item-'+i,
+        values:{...fromFields(faq.repeat.fields),'content.question':question,
+          'content.answer':'Уточните условия непосредственно у исполнителя.'}
+      }))
+    };
+    const image=window.Stage3Editor.manifests().find(x=>x.id==='image-showcase');
+    site.pages[0].sections.push({
+      id:'section-approved-image',component:image.id,manifestVersion:image.version,
+      elements:image.elements.map((el,i)=>({
+        id:'element-approved-image-'+i,slot:el.slot,
+        values:{...fromFields(el.fields),...(el.slot==='photo'
+          ?{'content.media':'asset-external-hero'}:{})}
+      }))
+    });
+    const custom=window.Stage3Editor.manifests().find(x=>x.id==='custom-section');
+    site.pages[0].sections.push({
+      id:'section-approved-custom',component:custom.id,manifestVersion:custom.version,
+      elements:[{id:'element-approved-custom-note',slot:'section-note',
+        values:{'content.text':'Авторская композиция клиента'}}],
+      designGraph:{version:1,id:'graph-approved-custom',nodes:[{
+        id:'approved-custom-container',type:'container',
+        styles:{display:'grid',columns:2,gap:24},
+        responsive:{mobile:{columns:1,gap:12}},
+        children:[
+          {id:'approved-custom-copy',type:'text',text:'Особенный согласованный дизайн',
+            styles:{fontSize:24},responsive:{mobile:{fontSize:18}}},
+          {id:'approved-custom-photo',type:'image',assetId:'asset-external-hero',
+            alt:'Графическое оформление',styles:{radius:14}}
+        ]
+      }]}
+    });
+    site.pages[0].sections.push(section);
+    return site;
+  });
+  fs.writeFileSync(path.join(folder,'site.json'),JSON.stringify(external));
+  // The complete mockup/spec/site/media handoff is sealed before browser import.
+  // It must be checked again by Studio against original bytes before any POST.
+  const lockFile=path.join(folder,'handoff.json');
+  const descriptor=JSON.parse(fs.readFileSync(lockFile,'utf8'));
+  const filePaths=[...Object.values(descriptor.files),
+    ...external.assets.flatMap(asset=>[asset.src.slice(1),
+      ...(asset.variants||[]).map(v=>v.src.slice(1))])];
+  descriptor.format='manufact-approved-site-handoff-v2';
+  descriptor.integrity={algorithm:'sha256',files:Object.fromEntries(filePaths.map(name=>[
+    name,require('node:crypto').createHash('sha256')
+      .update(fs.readFileSync(path.join(folder,name))).digest('hex')
+  ]))};
+  fs.writeFileSync(lockFile,JSON.stringify(descriptor));
+  // The Chromium directory picker is human-driven; Playwright's setInputFiles
+  // cannot consistently feed a folder in headless Linux. Inject the exact File
+  // objects with webkitRelativePath, as emitted by the native folder control.
+  const uploaded=[];
+  const walk=(dir,prefix='')=>{
+    for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
+      const relative=prefix+entry.name,absolute=path.join(dir,entry.name);
+      if(entry.isDirectory())walk(absolute,relative+'/');
+      else uploaded.push({relative:'approved-external-site/'+relative,
+        name:entry.name,base64:fs.readFileSync(absolute).toString('base64')});
+    }
+  };
+  walk(folder);
+  await page.evaluate(entries=>{
+    // Assign an array of native File objects without DataTransfer cloning them.
+    // webkitRelativePath is provided by the OS directory picker; copying files
+    // through DataTransfer may strip that browser-maintained property.
+    const selected=entries.map(entry=>{
+      const bytes=Uint8Array.from(atob(entry.base64),char=>char.charCodeAt(0));
+      const file=new File([bytes],entry.name);
+      Object.defineProperty(file,'webkitRelativePath',{value:entry.relative});
+      return file;
+    });
+    const input=document.querySelector('#server-approved-folder');
+    Object.defineProperty(input,'files',{configurable:true,value:selected});
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  },uploaded);
+  await page.locator('#server-approved-review').waitFor({timeout:20000});
+  assert.equal(await page.locator('#server-approved-prototypes img').count(),3,
+    'Operator must inspect desktop/tablet/mobile visual evidence before database writes');
+  assert.equal(await page.locator('#server-approved-prototypes iframe').count(),3,
+    'Three responsive real site previews are required next to approved prototypes');
+  const live=page.locator('iframe[data-preview-device="desktop"]');
+  await page.waitForFunction(()=>document.querySelector('iframe[data-preview-device="desktop"]')
+    ?.getAttribute('srcdoc')?.includes('Особенный согласованный дизайн'));
+  assert.match(await live.getAttribute('srcdoc'),/Особенный согласованный дизайн/);
+  const approvedPreviewHtml=await live.getAttribute('srcdoc');
+  assert.match(approvedPreviewHtml,/data:image\/png;base64,/,
+    'Pre-import CMS renderer resolves packaged image bytes without HTTP requests');
+  assert.equal((approvedPreviewHtml.match(/src="data:image\/png;base64,/g)||[]).length,2,
+    'Custom composition and image section both use exact packaged image bytes');
+  const pageOptions=await page.locator('#server-approved-review-page option').count();
+  assert.ok(pageOptions>=1,'Owner can preview each page before accepting site');
+  assert.equal(await page.locator('#server-approved-review').getByText(/Описание для клиента/).count(),1);
+  assert.equal(await page.locator('#server-approved-review').getByText(/Спецификация реализации/).count(),1);
+  const beforeCancel=(await (await page.request.get(origin+'/api/sites')).json()).sites.length;
+  await page.locator('#server-approved-review-cancel').click();
+  assert.equal((await (await page.request.get(origin+'/api/sites')).json()).sites.length,beforeCancel,
+    'Cancelling visual approval must not create a database site');
+  // Re-select the same authentic folder after cancellation to confirm the
+  // operator can still complete import with precisely the same sealed bytes.
+  await page.evaluate(entries=>{
+    const selected=entries.map(entry=>{
+      const bytes=Uint8Array.from(atob(entry.base64),char=>char.charCodeAt(0));
+      const file=new File([bytes],entry.name);
+      Object.defineProperty(file,'webkitRelativePath',{value:entry.relative});
+      return file;
+    });
+    const input=document.querySelector('#server-approved-folder');
+    Object.defineProperty(input,'files',{configurable:true,value:selected});
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  },uploaded);
+  await page.locator('#server-approved-review-confirm').waitFor({timeout:20000});
+  await page.locator('#server-approved-review-confirm').click();
+  try{
+    await page.locator('#toast').getByText(/Сайт подключён как черновик/).waitFor({timeout:20000});
+  }catch(err){
+    const diagnostic=await page.evaluate(()=>({
+      toast:document.querySelector('#toast')?.textContent,
+      status:document.querySelector('#server-status')?.textContent,
+      files:document.querySelector('#server-approved-folder')?.files?.length,
+      site:window.Stage3Editor?.getSite()?.siteId
+    }));
+    throw Error('Approved folder import did not complete: '+
+      JSON.stringify({diagnostic,errors,original:String(err).slice(0,300)}));
+  }
+  const imported=await page.evaluate(()=>window.Stage3Editor.getSite());
+  assert.equal(imported.siteId,'site-approved-browser');
+  assert.equal(imported.assets.length,1);
+  assert.notEqual(imported.assets[0].id,'asset-external-hero','Server gives immutable site-owned asset ID');
+  assert.equal(imported.pages[0].seo.ogImage,imported.assets[0].id,'SEO media reference remapped');
+  assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),404,
+    'Approved folder import must never publish implicitly');
+  await page.locator('#fields [data-field="content.text"]').first().fill('Редактируется после подключения');
+  await page.locator('#fields [data-field="content.text"]').first().dispatchEvent('change');
+  await page.locator('.device[data-bp="mobile"]').click();
+  await page.locator('#fields [data-field="style.fontSize"]').fill('31px');
+  await page.locator('#fields [data-field="style.fontSize"]').dispatchEvent('change');
+  await page.locator('.device[data-bp="desktop"]').click();
+  // Same imported site's FAQ — real add, edit, reorder, delete and Undo controls.
+  await page.locator('#sections .nav-entry').last().click();
+  assert.match(await page.locator('#inspector-title').innerText(),/FAQ/);
+  await page.locator('#cms-repeat-add').click();
+  assert.equal(await page.locator('#elements .cms-repeat-row').count(),3);
+  await page.locator('#fields [data-field="content.question"]').fill('Что входит в комплект?');
+  await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
+  await page.locator('#fields [data-field="content.answer"]').fill('Состав услуги указан в договоре.');
+  await page.locator('#fields [data-field="content.answer"]').dispatchEvent('change');
+  const questions=()=>page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections
+    .find(section=>section.component==='faq-accordion').items.map(item=>item.values['content.question']));
+  assert.deepEqual(await questions(),['Как оформить заказ?','Как происходит доставка?','Что входит в комплект?'],
+    'New FAQ item must actually receive edited question before reordering');
+  await page.locator('#elements .cms-repeat-row').last()
+    .locator('button[aria-label^="Поднять вопрос"]').click();
+  assert.deepEqual(await questions(),['Как оформить заказ?','Что входит в комплект?','Как происходит доставка?'],
+    'FAQ move must change ordering of the actual saved draft');
+  await page.locator('#elements .cms-repeat-row')
+    .filter({hasText:'Как происходит доставка?'}).locator('button[aria-label^="Удалить вопрос"]').click();
+  assert.deepEqual(await questions(),['Как оформить заказ?','Что входит в комплект?'],
+    'FAQ delete must target the specified question, not the currently selected index');
+  assert.equal(await page.locator('#elements .cms-repeat-row').count(),2);
+  assert.equal(await page.locator('#cms-repeat-add').innerText(),'+ Добавить вопрос');
+  await page.locator('#cms-open-seo').click();
+  await page.locator('#cms-setting-seo-title').fill('FAQ и готовый сайт — SEO');
+  await page.locator('#cms-setting-seo-description').fill('Новые вопросы и SEO опубликованы после ручного сохранения');
+  await page.locator('#cms-settings-apply').click();
+  await page.locator('#save').click();
+  await page.locator('#server-publish').click();
+  await page.locator('#server-status').getByText(/Опубликовано: v1/).waitFor();
+  assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),200);
+  const approvedPage=await visitor.goto(origin+'/published/site-approved-browser/');
+  assert.equal(approvedPage.status(),200);
+  assert.equal(await visitor.locator('h1').innerText(),'Редактируется после подключения');
+  assert.match(await visitor.locator('section.hero h1').getAttribute('style'),/--title-mobile:31px/,
+    'Mobile typography override survives server save and public rendering');
+  assert.equal(await visitor.title(),'FAQ и готовый сайт — SEO');
+  assert.equal(await visitor.locator('meta[name="description"]').getAttribute('content'),
+    'Новые вопросы и SEO опубликованы после ручного сохранения');
+  assert.deepEqual(await visitor.locator('section.faq summary').allInnerTexts(),
+    ['Как оформить заказ?','Что входит в комплект?']);
+  assert.equal(await visitor.locator('section.faq details').count(),2);
+  assert.equal(await visitor.locator('.cmsdg-n-approved-custom-copy').innerText(),
+    'Особенный согласованный дизайн',
+    'Custom AI composition renders from the external Design Graph, not a fixed template');
+  const remoteImage=visitor.locator('section.showcase img.showcase-photo');
+  assert.equal(await remoteImage.getAttribute('alt'),'Фото внешнего сайта');
+  assert.match(await remoteImage.getAttribute('src'),
+    /^\/published\/site-approved-browser\/assets\/asset-[a-f0-9]+\.png$/);
+  assert.equal((await page.request.get(origin+await remoteImage.getAttribute('src'))).status(),200,
+    'Public image bytes must come from site-isolated storage, not the local handoff folder');
+  // Absolute og:image markup needs STAGE3_PUBLIC_ORIGIN, intentionally unset in this CI.
+  // Check that its immutable media binding survives the actual publication instead.
+  const publishedApproved=(await (await page.request.get(origin+
+    '/api/sites/site-approved-browser/published-site')).json()).site;
+  assert.equal(publishedApproved.pages[0].seo.ogImage,imported.assets[0].id);
+  // Owner can restore imported site's previously saved version without mutating
+  // public content: stale drafts and published pages are separate snapshots.
+  await page.locator('#elements .cms-repeat-row').last().locator('button.element').click();
+  await page.locator('#fields [data-field="content.question"]').fill('Черновик, который нужно откатить');
+  await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
+  await page.locator('#save').click();
+  await page.locator('#versions .version').nth(1).click();
+  assert.deepEqual((await page.evaluate(()=>window.Stage3Editor.getSite()))
+    .pages[0].sections.find(s=>s.id==='section-approved-faq')
+    .items.map(i=>i.values['content.question']),
+    ['Как оформить заказ?','Что входит в комплект?'],
+    'Restored previous server revision of imported website');
+  await visitor.reload();
+  assert.deepEqual(await visitor.locator('section.faq summary').allInnerTexts(),
+    ['Как оформить заказ?','Что входит в комплект?'],
+    'Restoring a private revision never changes the public site');
+
+  await page.locator('#server-logout').click();
+  await page.locator('#server-login:not([hidden])').waitFor();
+  assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,
+    'Real public visitor remains accessible without CMS login');
+  assert.deepEqual(errors,[],'No unhandled browser script exceptions');
+  await visitorCtx.close();
+  console.log('STAGE3 APPROVED SITE CHROMIUM E2E PASS: sealed folder, 3 preview sizes, real media, FAQ order, SEO, draft, publish and restore');
+}
+execute().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{
+  if(browser)await browser.close();
+  if(php&&php.exitCode===null){
+    const stopped=new Promise(resolve=>php.once('exit',resolve));
+    php.kill('SIGTERM');
+    await Promise.race([stopped,new Promise(resolve=>setTimeout(resolve,1500))]);
+  }
+  fs.rmSync(temp,{recursive:true,force:true});
+});

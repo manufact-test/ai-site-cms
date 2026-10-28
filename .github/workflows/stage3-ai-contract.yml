@@ -73,7 +73,9 @@ jobs:
           node stage3/tests/server-e2e.cjs
           node --check stage3/studio/hosted.js
           node --check stage3/studio/access.js
-          node stage3/tests/hosted-browser.cjs
+          # Critical, fast real PHP/Chromium journey for one externally compiled site.
+          # The original exhaustive hosted-browser.cjs remains available for manual extended regression.
+          node stage3/tests/approved-site-browser.cjs
       - name: Package click-to-open offline editor (no secrets or server code)
         run: |
           mkdir -p stage3/studio/out
