@@ -340,3 +340,38 @@ Available in `first-site-check` `summary.json`, `bundle.json`, remediation, rele
 New `lib/php-local-footprint.cjs`: actual uncompressed HTML and inline CSS/JS bytes; per-page verified PHP media byte groups with responsive lower/upper representative candidate sizes; large image/video/payload observations; first main image lazy-loading candidate and images without dimensions. The notes are **review-only**, not blockers and not invented Core Web Vitals. Browser resource selection, gzip, field performance, LCP, INP and CLS remain unverified.
 
 The existing one-run `first-site-check` reports `payload` in summary, `localPhpFootprint` in bundle, existing remediation/release reviews, lead dossier and post-page worksheet. Focused test: `node stage3/seo-engine/tests/php-local-footprint-smoke.cjs`. It never modifies PHP, CMS or publishing.
+
+
+## Integration handoff: official static export, public HTTPS and honest previous-run delta (28.10.2026)
+
+**Official static export parity:** Optional \`--static-export /ABS/official-static-release\` requires \`--published-site /ABS/owner-published.json\` including integer \`sourceRevision\`. Lead creates static export with EXISTING \`php stage3/server/bin/export-published.php SITE-ID /ABS/new-release\`. SEO does not edit PHP/deploy. All source/manifest files, redirects and asset SHA-256 checked; exact version and sourceRevision checked before local PHP acquisition; static sitemap/robots, fallback noindex refresh, all internal static links/assets/fragments/mount leaks reviewed. Local PHP page text/title/description/headings/CTA/image srcset/form field structure/CSS and inline wizard JS and actual media bytes compared. Disagreement blocks existing release gates as \`php-export:*\`. Agreement still cannot authenticate running PHP revision or approve client design. Static HTML redirect fallback is not HTTP 301: configure actual 301 on deployed host separately.
+
+**Optional real public HTTPS read-only capture after lead deploy:**
+\`\`\`bash
+node stage3/seo-engine/bin/capture-public-https.cjs \
+  --approved-site /ABS/SEALED-V2 \
+  --published-site /ABS/owner-published.json \
+  --origin https://approved.example/published/SITE-ID/ \
+  --out /ABS/new-public-http.json \
+  --media-out /ABS/new-public-media.json
+\`\`\`
+If the owner edited the imported site, append \`--owner-edit-review /ABS/manual-owner-review.json\`. Requires explicit DNS HTTPS:443 host with either root or exact CMS mount; resolves and pins public IP, rejects mixed/private addresses, verifies TLS hostname, issues GET only for pages/robots/sitemap/301 and HEAD only for original media. No redirects followed, POST, JS or form delivery. Missing HEAD support (405/501) marks evidence partial instead of pretending GET fails. Never transmits form submission. Results saved 0600 outside sealed input. DO NOT commit raw HTML containing tokens.
+
+**Unified first-site report with optional public transcripts and static export:**
+\`\`\`bash
+node stage3/seo-engine/bin/first-site-check.cjs \
+  --approved-site /ABS/SEALED-V2 \
+  --blueprint /ABS/blueprint.json \
+  --published-site /ABS/owner-published.json \
+  --static-export /ABS/official-static-release \
+  --origin http://127.0.0.1:PORT/published/SITE-ID/ \
+  --public-http-evidence /ABS/new-public-http.json \
+  --public-media-evidence /ABS/new-public-media.json \
+  --evidence /ABS/new-local-evidence \
+  --report /ABS/new-report
+\`\`\`
+The public and static flags are optional, but static export requires owner-published version/sourceRevision; public transcript imports are **caller-supplied JSON, not authenticated network calls by first-site-check**. They flow through existing delivery/media reviews, remediation and release gates. No automatic release authorization and no fabricated verification of public HTTPS, forms, client approval or running PHP revision.
+
+**Delta scope:** Existing \`--previous-report\` now covers PHP semantic links, media/HTML footprint, static export and optional public HTTP/media. It refuses to compare changed public-host cohorts or different static-export versions as confirmed fixes. Stable finding identities include href, fragment, targetPageId, graph style property.
+
+Focused tests: \`php-local-static-export-smoke.cjs\`, \`php-local-report-delta-smoke.cjs\`, \`public-https-capture-smoke.cjs\`, plus existing \`php-html-capture-smoke.cjs\`. Worker performed syntax and selected isolated V8 mocks; real Node PHP/browser/HTTPS customer E2E and form POST are NOT confirmed. Actual first customer release is the next priority; avoid proliferating labs or extra CMS code.
