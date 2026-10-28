@@ -477,6 +477,9 @@ async function execute(){
       gallery:find('approved-rich-gallery').children.length,cite:find('approved-rich-quote').cite};
   });
   assert.deepEqual(authored,{rows:4,columns:4,gallery:3,cite:'Технический редактор'});
+  // Graph editor retains the selected custom section. Explicitly restore
+  // hero focus before exercising its separate responsive inspector controls.
+  await page.locator('#sections .nav-entry').first().click();
   assert.notEqual(imported.assets[0].id,'asset-external-hero','Server gives immutable site-owned asset ID');
   assert.equal(imported.pages[0].seo.ogImage,imported.assets[0].id,'SEO media reference remapped');
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),404,
