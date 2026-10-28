@@ -148,9 +148,21 @@ test('Rich individual Design Graph layout: rectangular tables, gallery assets, l
   const malformed=same(base);
   malformed.pages[0].sections.at(-1).designGraph.nodes[0].children[0].children[0].type='text';
   refuses(()=>sdk.validateSite(malformed,manifests),'Reject table cell of wrong type');
+  const contacts=same(base);
+  contacts.pages[0].sections.at(-1).designGraph.nodes[2].href='mailto:support@example.org';
+  sdk.validateSite(contacts,manifests);
+  assert.match(G.render(contacts,contacts.pages[0].sections.at(-1).designGraph),
+    /href="mailto:support@example.org"/);
+  contacts.pages[0].sections.at(-1).designGraph.nodes[2].href='tel:+48123456789';
+  sdk.validateSite(contacts,manifests);
+  assert.match(G.render(contacts,contacts.pages[0].sections.at(-1).designGraph),
+    /href="tel:\+48123456789"/);
   const corrupt=same(base);
   corrupt.pages[0].sections.at(-1).designGraph.nodes[2].href='javascript:alert(1)';
   refuses(()=>sdk.validateSite(corrupt,manifests),'Reject link script URL');
+  const injection=same(base);
+  injection.pages[0].sections.at(-1).designGraph.nodes[2].href='mailto:a@example.com?body=%0aBcc:evil@example.com';
+  refuses(()=>sdk.validateSite(injection,manifests),'Reject mailto header injection');
   const added=G.editTree(section.designGraph,{
     action:'insert',targetId:'rich-table',placement:'inside',
     node:row('rich-three',['Регион','Север','Юг'])
