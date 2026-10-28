@@ -54,6 +54,13 @@ function compare(site,release,http,media=null){
    actualHostRequestsByThisReview:0,publicSiteApproval:false});
   accepted.add(unscoped);return unscoped;
  }
+ const negative=http.negativeProbe;
+ if(!negative)add('negative-route-not-captured','warning',null,
+  'Public HTTPS transcript does not include the safe nonexistent-route probe; soft-404 behavior is unverified.');
+ else if(![404,410].includes(negative.status))
+  add('soft-404-public-host','error',null,
+   'Public root static host must return HTTP 404 or 410 for unknown page paths; a 200/301 home fallback creates a soft-404 SEO defect.',
+   {field:'negativeRoute.status',observedStatus:negative.status});
  const paths=new Map(site.pages.map(p=>[p.path,p]));
  const got=new Map();
  for(const p of http.pages){
@@ -200,6 +207,7 @@ function compare(site,release,http,media=null){
   checkedPages:pages.length,checkedMedia:assets.filter(x=>x.checked).length,
   checkedSearchFiles:auxiliary.filter(x=>x.checked).length,
   checkedRedirects:Math.min(redirects.length,release.redirects.size),
+  negativeRouteStatus:negative?.status??null,negativeRouteProbed:Boolean(negative),
   pages:Object.freeze(pages),assets:Object.freeze(assets),
   auxiliary:Object.freeze(auxiliary),findings:Object.freeze(findings),
   allComparedSurfacesMatched:blockers===0&&Boolean(media)&&
