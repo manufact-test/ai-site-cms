@@ -7,8 +7,11 @@ const {compare}=require('./parity.cjs');
 const REGRESSION=require('./regression.cjs');
 const ACCEPTANCE=require('./acceptance.cjs');
 const MIGRATION=require('./route-migration.cjs');
+const PHP_CAPTURE=require('./php-capture.cjs');
 const FORMAT='manufact-seo-release-review-v1';
 function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
+ if(options.phpCapture&&!PHP_CAPTURE.isVerifiedCapture(options.phpCapture))
+  throw Error('Release review requires verified lead PHP capture evidence');
  const {acceptance:acceptanceLedger,...reviewOptions}=options;
  const backlog=precomputedBacklog||work(site,manifests,blueprint,reviewOptions);
  const acceptanceReview=acceptanceLedger?ACCEPTANCE.review(site,blueprint,acceptanceLedger):null;

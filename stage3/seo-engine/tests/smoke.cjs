@@ -115,6 +115,8 @@ try{
  assert.equal(captured.visualEqualityReviewed,false);
  const forgedCapture={...captured};
  assert.equal(PHP_CAPTURE.isVerifiedCapture(forgedCapture),false);
+ assert.throws(()=>require('../lib/release-review.cjs').assess(original,currentRegistry,plan,
+  {phpCapture:forgedCapture},oldBundle.backlog),/requires verified lead PHP capture/);
  assert.throws(()=>PACKAGE.build(original,currentRegistry,plan,{phpCapture:forgedCapture}),
   /PHP screenshot evidence is not bound/);
  const badPage=structuredClone(leadEvidence);badPage.pages.reverse();
