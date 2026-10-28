@@ -35,7 +35,8 @@ function review(site,snapshot,localMedia){
    }
   }
   const images=[...p.html.matchAll(/<img\b([^>]*?)\/?>/gi)];
-  const firstImage=/<main\b[^>]*>[\s\S]*?<img\b([^>]*?)\/?>/i.exec(p.html)?.[1]||null;
+  const mainMarkup=/<main\b[^>]*>([\s\S]*?)<\/main\s*>/i.exec(p.html)?.[1]||'';
+  const firstImage=/<img\b([^>]*?)\/?>/i.exec(mainMarkup)?.[1]||null;
   const add=(code,message,detail={})=>findings.push(Object.freeze({
    code:'php-footprint:'+code,severity:'warning',pageId:p.id,path:p.path,
    message,evidence:'sha256-verified-local-php-html-and-media',automatic:false,...detail}));
@@ -49,7 +50,7 @@ function review(site,snapshot,localMedia){
    {observed:videoBytes,property:'videoSourceBytes'});
   if(upper>UPPER_SOFT)add('large-possible-media-footprint','Summed upper representative media bytes exceed 8 MB (not a browser transfer measurement).',
    {observed:upper,property:'mediaUpperBytes'});
-  if(firstImage&&/\bloading\s*=\s*(?:"lazy"|'lazy'|lazy)(?:\s|\/?>)/i.test(firstImage))
+  if(firstImage&&/\bloading\s*=\s*(?:"lazy"|'lazy'|lazy)(?:\s|$)/i.test(firstImage))
    add('first-image-lazy','The first image in main is lazy-loaded. Verify that the visible hero/LCP candidate is not delayed.',
     {property:'firstMainImageLoading'});
   const undimensioned=images.filter(x=>!/\bwidth\s*=/i.test(x[1])||!/\bheight\s*=/i.test(x[1])).length;
