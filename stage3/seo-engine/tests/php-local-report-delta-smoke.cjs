@@ -26,7 +26,7 @@ assert.equal(same.summary.noLongerObservedOccurrences,0);
 assert.equal(same.summary.staticExportVersionsComparable,true);
 const migrated=build({summary:summary(1),bundle:bundle(1,true)},summary(2),bundle(2,false));
 assert.equal(migrated.summary.staticExportVersionsComparable,false);
-assert.equal(migrated.summary.noLongerObservedOccurrences,1); // semantics removed; not verified repair
+assert.equal(migrated.summary.noLongerObservedOccurrences,0); // only incomparable cohorts; no false resolution
 assert.ok(migrated.comparisonCoverage.noLongerInstrumented.includes('localPhpStaticExport'));
 assert.ok(migrated.comparisonCoverage.newlyInstrumented.includes('localPhpStaticExport'));
 console.log('First-site delta group/identity/changed-version smoke PASS');
