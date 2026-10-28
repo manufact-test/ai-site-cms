@@ -330,10 +330,14 @@ async function execute(){
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
     'Manual sign-off only becomes available after PHP content and images rendered');
   await page.locator('#server-launch-modes [data-device="mobile"]').click();
-  await page.waitForFunction(()=>document.querySelector('#server-launch-preview-status')
-    ?.textContent?.includes('390 px'),{timeout:15000});
+  await page.waitForFunction(()=>{
+    const status=document.querySelector('#server-launch-preview-status')?.textContent||'';
+    return status.includes('PHP-страница целиком')&&status.includes('390 px')||
+      status.includes('Проверка PHP ·')&&status.includes('390 px');
+  },null,{timeout:15000});
+  const mobileStatus=await page.locator('#server-launch-preview-status').innerText();
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
-    'Mobile PHP view has no broken media or page-level overflow');
+    'Mobile PHP view must finish media and overflow checks: '+mobileStatus);
   await page.locator('#server-launch-mark').click();
   assert.match(await page.locator('.hosted-launch-progress').innerText(),
     new RegExp('экранов: 1/'+(imported.pages.length*3)));
