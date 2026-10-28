@@ -236,12 +236,21 @@ function compare(site,release,http,media=null,byteReport=null){
  if(!media&&assets.some(x=>!x.checked))
   add('public-media-coverage-incomplete','warning',null,
    'Public static asset delivery is not completely observed: provide media HEAD or complete original/variant SHA256 GET receipts.');
+ const responsiveVariants=(site.assets||[]).reduce((n,a)=>n+(a.variants||[]).length,0);
+ const checkedResponsiveVariants=(site.assets||[]).flatMap(a=>a.variants||[])
+  .filter(v=>{const x=binaryById.get(v.id);return x&&x.status===200&&
+   x.sha256Matched&&x.bytesMatched&&x.mimeMatched}).length;
+ if(responsiveVariants>0&&checkedResponsiveVariants<responsiveVariants)
+  add('responsive-variant-byte-coverage-incomplete','warning',null,
+   'Public responsive image variants are not all covered by real SHA256 GET; original-image HEAD is insufficient to prove srcset assets.');
  const blockers=findings.filter(x=>x.severity==='error').length;
  const out=Object.freeze({format:FORMAT,siteId:site.siteId,
   claimedPublicOrigin:http.origin,officialPublicOrigin:claim,comparisonScope:'root-static-https',
   comparable:true,verifiedStaticManifestSha256:release.manifestSha256||null,
   verifiedStaticPublishedVersion:release.publishedVersion,
   checkedPages:pages.length,checkedMedia:assets.filter(x=>x.checked).length,
+  declaredResponsiveVariants:responsiveVariants,
+  sha256VerifiedResponsiveVariants:checkedResponsiveVariants,
   checkedSearchFiles:auxiliary.filter(x=>x.checked).length,
   checkedRedirects:Math.min(redirects.length,release.redirects.size),
   negativeRouteStatus:negative?.status??null,negativeRouteProbed:Boolean(negative),
@@ -251,7 +260,8 @@ function compare(site,release,http,media=null,byteReport=null){
   auxiliary:Object.freeze(auxiliary),findings:Object.freeze(findings),
   allComparedSurfacesMatched:blockers===0&&rootWindow?.matched===true&&Boolean(negative)&&
    [404,410].includes(negative.status)&&
-   assets.length===(site.assets||[]).length&&assets.every(x=>x.checked&&x.matched),
+   assets.length===(site.assets||[]).length&&assets.every(x=>x.checked&&x.matched)&&
+   checkedResponsiveVariants===responsiveVariants,
   httpTranscriptAuthenticated:false,actualHostRequestsByThisReview:0,
   publicSiteApproval:false,
   limitations:'Public HTTP evidence is locally supplied and unauthenticated. Agreement does not prove production identity, DNS/TLS, user approval, actual browser design, POST or mail delivery; HEAD does not verify media bytes.'});
