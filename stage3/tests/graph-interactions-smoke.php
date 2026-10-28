@@ -89,4 +89,22 @@ catch(InvalidArgumentException $expected){}
 $site['pages'][0]['sections'][2]['designGraph']['nodes'][0]['text']='<script>alert(1)</script>';
 $html=PublicRenderer::html($site,'/');
 graphTest(str_contains($html,'&lt;script&gt;alert(1)&lt;/script&gt;'),'unsafe label encoding');
+$backgroundSite=$site;
+$backgroundSite['assets'][]=['id'=>'asset-backdrop-clip','src'=>'/assets/asset-backdrop-clip.mp4',
+    'mime'=>'video/mp4','alt'=>'Декоративное видео'];
+$backgroundSite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'graph-background-container','type'=>'container',
+    'backgroundVideo'=>['assetId'=>'asset-backdrop-clip','posterAssetId'=>'asset-art-fixture',
+        'mobilePosterAssetId'=>'asset-art-fixture','overlay'=>['color'=>'#000000','opacity'=>40]],
+    'children'=>[['id'=>'graph-background-title','type'=>'text','text'=>'Фон видео']]];
+$validator->validate($backgroundSite);
+$backdropHtml=PublicRenderer::html($backgroundSite,'/');
+graphTest(str_contains($backdropHtml,'class="cmsdg-video-backdrop" aria-hidden="true"')&&
+    str_contains($backdropHtml,'autoplay muted loop playsinline preload="none"')&&
+    str_contains($backdropHtml,'prefers-reduced-motion:reduce'),'PHP MP4 decorative background');
+$badBackdrop=$backgroundSite;
+$last=count($badBackdrop['pages'][0]['sections'][2]['designGraph']['nodes'])-1;
+$badBackdrop['pages'][0]['sections'][2]['designGraph']['nodes'][$last]['backgroundVideo']['assetId']='asset-art-fixture';
+try{$validator->validate($badBackdrop);throw new RuntimeException('raster accepted as video');}
+catch(InvalidArgumentException $expected){}
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";
