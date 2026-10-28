@@ -1,0 +1,12 @@
+{
+  "format": "manufact-seo-html-snapshot-v1",
+  "siteId": "site-industrial-demo",
+  "completeness": "partial",
+  "pages": [
+    {
+      "id": "page-home",
+      "path": "/",
+      "html": "<!doctype html><html lang=\"ru\"><head><title>Технологическое оборудование</title><meta property=\"og:image\" content=\"https://cms-example.test/assets/social-demo.webp\"><meta name=\"twitter:image\" content=\"https://cms-example.test/assets/social-demo.webp\"></head><body><main><h1>Технологическое оборудование</h1></main></body></html>"
+    }
+  ]
+}

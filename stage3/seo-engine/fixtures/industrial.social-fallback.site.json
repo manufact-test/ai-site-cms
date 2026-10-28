@@ -1,0 +1,157 @@
+{
+  "format": "manufact-ai-site-v1",
+  "siteId": "site-industrial-demo",
+  "title": "Завод оборудования",
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "id": "asset-social-demo",
+      "src": "/assets/social-demo.webp",
+      "mime": "image/webp",
+      "alt": "Производственное оборудование на фотографии"
+    }
+  ],
+  "pages": [
+    {
+      "id": "page-home",
+      "path": "/",
+      "title": "Главная",
+      "sections": [
+        {
+          "id": "section-hero",
+          "component": "company-hero",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "section-hero-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Производим технологическое оборудование",
+                "style.fontSize": {
+                  "desktop": "64px",
+                  "tablet": "48px",
+                  "mobile": "32px"
+                },
+                "style.color": "#172A43"
+              }
+            },
+            {
+              "id": "section-hero-summary",
+              "slot": "summary",
+              "values": {
+                "content.text": "Промышленные решения для заказчиков"
+              }
+            },
+            {
+              "id": "section-hero-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Связаться",
+                "behavior.href": "/contact/"
+              }
+            }
+          ]
+        },
+        {
+          "id": "section-highlights",
+          "component": "feature-highlights",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "section-highlights-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Чем мы занимаемся"
+              }
+            },
+            {
+              "id": "section-highlights-first",
+              "slot": "first",
+              "values": {
+                "content.text": "Разработка производственных решений",
+                "style.color": "#172A43"
+              }
+            },
+            {
+              "id": "section-highlights-second",
+              "slot": "second",
+              "values": {
+                "content.text": "Помощь в выборе оборудования"
+              }
+            }
+          ]
+        },
+        {
+          "id": "section-social-story",
+          "component": "media-story",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "section-social-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Как мы работаем"
+              }
+            },
+            {
+              "id": "section-social-copy",
+              "slot": "copy",
+              "values": {
+                "content.text": "Ознакомьтесь с одним из наших производственных процессов."
+              }
+            },
+            {
+              "id": "section-social-image",
+              "slot": "photo",
+              "values": {
+                "content.media": "asset-social-demo"
+              }
+            },
+            {
+              "id": "section-social-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Связаться",
+                "behavior.href": "/contact/"
+              }
+            }
+          ]
+        }
+      ],
+      "seo": {
+        "title": "",
+        "description": "",
+        "robots": "index"
+      }
+    },
+    {
+      "id": "page-contact",
+      "path": "/contact/",
+      "title": "Контакты",
+      "sections": [
+        {
+          "id": "section-contact",
+          "component": "contact-panel",
+          "manifestVersion": "1.0.0",
+          "elements": [
+            {
+              "id": "section-contact-heading",
+              "slot": "heading",
+              "values": {
+                "content.text": "Свяжитесь с нами"
+              }
+            },
+            {
+              "id": "section-contact-action",
+              "slot": "action",
+              "values": {
+                "content.text": "Оставить заявку",
+                "behavior.href": "/contact/"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

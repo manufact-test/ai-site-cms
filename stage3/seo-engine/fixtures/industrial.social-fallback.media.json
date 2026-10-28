@@ -1,0 +1,17 @@
+{
+  "format": "manufact-seo-media-evidence-v1",
+  "siteId": "site-industrial-demo",
+  "origin": "https://cms-example.test/",
+  "completeness": "partial",
+  "resources": [
+    {
+      "assetId": "asset-social-demo",
+      "url": "https://cms-example.test/assets/social-demo.webp",
+      "status": 200,
+      "contentType": "image/webp",
+      "contentLength": 78000,
+      "width": 1200,
+      "height": 630
+    }
+  ]
+}
