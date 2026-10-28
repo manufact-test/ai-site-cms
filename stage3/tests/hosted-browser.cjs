@@ -1301,6 +1301,19 @@ async function execute(){
     return site;
   });
   fs.writeFileSync(path.join(folder,'site.json'),JSON.stringify(external));
+  // The complete mockup/spec/site/media handoff is sealed before browser import.
+  // It must be checked again by Studio against original bytes before any POST.
+  const lockFile=path.join(folder,'handoff.json');
+  const descriptor=JSON.parse(fs.readFileSync(lockFile,'utf8'));
+  const filePaths=[...Object.values(descriptor.files),
+    ...external.assets.flatMap(asset=>[asset.src.replace(/^\/assets\//,'assets/'),
+      ...(asset.variants||[]).map(v=>v.src.replace(/^\\/assets\\//,'assets/'))])];
+  descriptor.format='manufact-approved-site-handoff-v2';
+  descriptor.integrity={algorithm:'sha256',files:Object.fromEntries(filePaths.map(name=>[
+    name,require('node:crypto').createHash('sha256')
+      .update(fs.readFileSync(path.join(folder,name))).digest('hex')
+  ]))};
+  fs.writeFileSync(lockFile,JSON.stringify(descriptor));
   // The Chromium directory picker is human-driven; Playwright's setInputFiles
   // cannot consistently feed a folder in headless Linux. Inject the exact File
   // objects with webkitRelativePath, as emitted by the native folder control.
