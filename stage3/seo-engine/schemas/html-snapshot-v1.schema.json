@@ -65,6 +65,31 @@
         "complete"
       ],
       "description": "Only complete permits treating an omitted indexable Site v1 route as missing from sitemapPaths. Defaults to partial-or-unknown."
+    },
+    "mountPath": {
+      "type": "string",
+      "pattern": "^/published/[a-z][a-z0-9-]{2,79}/$",
+      "description": "Optional actual Stage3 PHP mount used to normalize captured links to logical Site v1 paths; must match siteId."
+    },
+    "redirectPaths": {
+      "type": "array",
+      "maxItems": 60,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^/(?:[a-z0-9-]+/)*$"
+      },
+      "description": "Only aliases whose real local PHP responses were independently seen as matching HTTP 301; no claim of public HTTPS."
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "localHttpOnly": {
+      "type": "boolean"
+    },
+    "sourceRevisionAuthenticated": {
+      "type": "boolean"
     }
   }
 }
