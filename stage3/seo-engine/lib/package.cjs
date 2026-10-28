@@ -127,6 +127,7 @@ function build(site,manifests,blueprint,options={}){
   missingApprovedInteriorPageReferences:approvedSource?.missingInteriorPrototypePageIds??null,
   loopbackPhpScreenshotPages:options.phpCapture?.pages.length??null,
   cmsImportedSiteAfterMediaRemapMatched:approvedSource?.publishedContentAfterMediaRemapMatched??null,
+  cmsImportedMediaResourcesMapped:approvedSource?.mappedPublishedMediaFiles??null,
   cmsOwnerSuppliedPublishedVersion:approvedSource?.publishedVersion??null,
   loopbackPhpHtmlPages:options.phpHtml?.pageCount??null,
   loopbackPhpHtmlSha256Checked:Boolean(options.phpHtml),

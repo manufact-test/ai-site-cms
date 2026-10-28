@@ -96,6 +96,7 @@ async function main(argv){
   packageVersion:fresh.source.packageVersion,
   publishedVersion:fresh.source.publishedVersion??null,
   cmsImportMediaIdsReconciled:fresh.source.approvedMediaIdRemappingChecked===true,
+  cmsMediaFilesMapped:fresh.source.mappedPublishedMediaFiles??null,
   cmsPublishedSiteMatchesApprovedAfterRemap:fresh.source.publishedContentAfterMediaRemapMatched===true,
   capturedAt:checked.capturedAt,origin:checked.baseUrl,
   htmlPages:checked.pageCount,

@@ -189,7 +189,9 @@ function inspect(site,base,manifest,root,snapshot=null,publicOrigin=null,sealedM
   if(sha(bytes)!==item.sha256)throw Error('PHP media evidence byte digest mismatch');
   const expectedMime=src.mime,actualMime=item.contentType.split(';')[0].trim().toLowerCase();
   const referencedPageIds=Object.freeze([...(markup.get(src.id)||[])]);
-  const critical=ogAssets.has(src.id)||referencedPageIds.length>0;
+  // All sealed v2 media are approved release resources, including files currently
+   // referenced only from responsive CSS or retained for future source content.
+   const critical=Boolean(sealedMediaSha256)||ogAssets.has(src.id)||referencedPageIds.length>0;
   if(item.status!==200)add('php-media:non-200',critical?'error':'warning',src.id,
    'Published PHP media endpoint did not return HTTP 200.',{status:item.status});
   if(item.status===200&&actualMime!==expectedMime)
