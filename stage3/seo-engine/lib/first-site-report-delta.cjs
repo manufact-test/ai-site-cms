@@ -124,7 +124,9 @@ function build(previous,currentSummary,currentBundle){
  const staticDeploymentComparable=Boolean(pb.publicStaticParity&&currentBundle.publicStaticParity&&
   pb.publicStaticParity.comparable&&currentBundle.publicStaticParity.comparable&&
   pb.publicStaticParity.claimedPublicOrigin===currentBundle.publicStaticParity.claimedPublicOrigin&&
-  pb.publicStaticParity.verifiedStaticPublishedVersion===currentBundle.publicStaticParity.verifiedStaticPublishedVersion);
+  pb.publicStaticParity.verifiedStaticPublishedVersion===currentBundle.publicStaticParity.verifiedStaticPublishedVersion&&
+  Boolean(pb.publicStaticParity.verifiedStaticManifestSha256)&&
+  pb.publicStaticParity.verifiedStaticManifestSha256===currentBundle.publicStaticParity.verifiedStaticManifestSha256);
  const publicMediaBytesComparable=Boolean(pb.publicMediaBytes&&currentBundle.publicMediaBytes&&
   pb.publicMediaBytes.officialStaticManifestSha256===currentBundle.publicMediaBytes.officialStaticManifestSha256&&
   pb.publicMediaBytes.origin===currentBundle.publicMediaBytes.origin);
@@ -167,6 +169,27 @@ function build(previous,currentSummary,currentBundle){
    if(!etagChanged&&htmlChanged)etagContentConflicts.push(observation);
   }
  }
+ // Only cross-compare PUBLIC HTML/ETag when the same official static
+ // manifest SHA and HTTPS host were reviewed in both observations.
+ const publicCacheDrifts=[],publicSameEtagDifferentHtml=[];
+ if(staticDeploymentComparable){
+  const previousPublic=new Map((pb.publicStaticParity.pages||[]).map(p=>[p.pageId,p]));
+  for(const next of currentBundle.publicStaticParity.pages||[]){
+   const old=previousPublic.get(next.pageId);
+   if(!old||old.path!==next.path||!old.publicHtmlSha256||!next.publicHtmlSha256)continue;
+   const htmlChanged=old.publicHtmlSha256!==next.publicHtmlSha256;
+   const etagComparable=Boolean(old.publicEtag&&next.publicEtag);
+   const etagChanged=etagComparable?old.publicEtag!==next.publicEtag:null;
+   if(htmlChanged||etagChanged===true){
+    const change={pageId:next.pageId,path:next.path,
+     publicHtmlChanged:htmlChanged,etagComparable,etagChanged,
+     oldHtmlSha256:old.publicHtmlSha256,newHtmlSha256:next.publicHtmlSha256};
+    publicCacheDrifts.push(change);
+    if(htmlChanged&&etagComparable&&!etagChanged)
+     publicSameEtagDifferentHtml.push(change);
+   }
+  }
+ }
  const previousVersion=prior.publishedVersion??null;
  const currentVersion=currentSummary.publishedVersion??null;
  const summary=Object.freeze({
@@ -192,6 +215,8 @@ function build(previous,currentSummary,currentBundle){
   publicMediaBytesComparable,
   observedPhpEtagOrHtmlChanges:etagDrifts.length,
   sameEtagButDifferentHtml:etagContentConflicts.length,
+  publicHtmlOrEtagChanges:publicCacheDrifts.length,
+  samePublicEtagButDifferentHtml:publicSameEtagDifferentHtml.length,
   operatorConfirmedFixes:0,actualWrites:0,automaticRelease:false
  });
  const lines=['# First-site technical report comparison — not release approval','',
@@ -204,6 +229,9 @@ function build(previous,currentSummary,currentBundle){
    '; no longer observed: '+summary.noLongerObservedOccurrences+
    '; persistent occurrences: '+summary.persistentFindingOccurrences+'.',
   'Blocking gates: '+summary.previousBlockingGates+' → '+summary.currentBlockingGates+'.',
+  'Recorded PUBLIC static HTML/ETag changes (same official manifest and host only): '+
+   publicCacheDrifts.length+'; unchanged public ETag with different body: '+
+   publicSameEtagDifferentHtml.length+' (check CDN edge cache).',
   'Recorded PHP ETag / HTML byte changes on comparable routes: '+etagDrifts.length+
    '; same ETag with changed HTML: '+etagContentConflicts.length+' (check server cache and version).',
   'Comparable evidence groups: '+commonGroups.length+
@@ -225,6 +253,11 @@ function build(previous,currentSummary,currentBundle){
   ...etagDrifts.slice(0,40).map(x=>'- '+safe(x.path,100)+': ETag changed '+
    (x.etagChanged?'YES':'no')+'; SHA256 HTML changed '+(x.htmlChanged?'YES':'no')+'.'),
   'ETag values here are only locally observed HTTP cache identifiers. They are not published revision identity or public HTTPS proof.','',
+  '## Public static HTTPS cache observations','',
+  ...publicCacheDrifts.slice(0,40).map(x=>'- '+safe(x.path,100)+
+   ': HTML SHA256 changed '+(x.publicHtmlChanged?'YES':'no')+
+   '; public ETag changed '+(x.etagComparable?(x.etagChanged?'YES':'no'):'not observed')+'.'),
+  'Public HTTP transcripts are operator-provided; cached versions and CDN routes are not independently authenticated by saved evidence.','',
   '## New PHP evidence issues',''];
  for(const x of changed.added.slice(0,45))
   lines.push('- '+safe(x.group,70)+' '+safe(x.code,100)+' · '+safe(x.path||x.pageId,130)+
@@ -269,6 +302,10 @@ function build(previous,currentSummary,currentBundle){
   summary,findings:changed,
   phpCacheObservations:{etagDrifts,etagContentConflicts,
    observedServedRevisionAuthenticated:false},
+  publicStaticCacheObservations:{
+   comparable:staticDeploymentComparable,
+   publicCacheDrifts,publicSameEtagDifferentHtml,
+   independentlyAuthenticated:false},
   gates:{newlyPresent:newGates,noLongerPresent:gatesNotObserved,
     persistent:persistentGates,notComparable:incomparableGates},
   markdown:lines.join('\n'),
