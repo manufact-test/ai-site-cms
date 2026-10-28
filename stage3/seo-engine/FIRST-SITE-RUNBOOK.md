@@ -45,6 +45,8 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 В ведущем checkout один раз выполнить:
 
 ```bash
+node stage3/seo-engine/tests/php-local-semantics-smoke.cjs
+node stage3/seo-engine/tests/php-local-footprint-smoke.cjs
 node stage3/seo-engine/tests/php-html-capture-smoke.cjs
 node stage3/seo-engine/tests/smoke.cjs
 ```

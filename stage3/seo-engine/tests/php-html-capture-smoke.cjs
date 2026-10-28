@@ -72,7 +72,8 @@ const html=(title)=>{
    '<meta name="twitter:image:alt" content="Actual banner">':'')+
   (mode==='bad-theme'?cssTheme.replace('--cms-primary:#0a5bff','--cms-primary:#ff0033'):cssTheme)+
   '</head>'+
-  '<body>'+publicHeader(title)+'<h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a>'+
+  '<body>'+publicHeader(title)+'<main><h1>'+title+'</h1><a href="'+
+  (mode==='broken-route'?'/published/pilot-local/not-found/':'/published/pilot-local/about/')+'">About</a>'+
   '<a href="/published/pilot-local/old/">Old route</a>'+
   (mode.startsWith('other-consumers')?
    '<style>.hero{background-image:url("/published/pilot-local/assets/asset-secondary.png")}</style>'+
@@ -84,7 +85,7 @@ const html=(title)=>{
    '<picture><source srcset="/published/pilot-local/assets/not-in-site.png">'+
    '<img src="/published/pilot-local/assets/asset-banner.png" alt="Fallback"></picture>':
    '<img src="/published/pilot-local/assets/asset-secondary.png" alt="Secondary">')+
-  '<footer>Pilot</footer></body></html>';
+  '</main><footer>Pilot</footer></body></html>';
 };
 let mode='normal',requests=[];
 const server=http.createServer((req,res)=>{
@@ -520,6 +521,9 @@ async function main(){
   assert.equal(result.localHead.findings.length,0);
    assert.equal(result.localTheme.findings.length,0);
    assert.equal(result.localNavigation.findings.length,0);
+   assert.equal(result.localSemantics.findings.length,0);
+   assert.equal(result.localFootprint.checkedPages,2);
+   assert.equal(result.localFootprint.actualWebVitalsMeasured,false);
   assert.equal(result.localHead.pagesWithRecordedHeaders,2);
   assert.equal(result.localHead.publicOriginObservedInSitemap,'https://pilot.example');
   assert.equal(result.localMedia.resources[0].ogImageAsset,true);
@@ -696,6 +700,11 @@ async function main(){
   await CAP.capture(sealed,base,wrongMeta);
   assert.ok(CAP.read(wrongMeta,site,source).localHead.findings.some(x=>
    x.code==='php-head:metadata-drift'&&x.severity==='error'));
+  mode='broken-route';
+  const invalidRoute=path.join(tmp,'bad-semantic-route');
+  await CAP.capture(sealed,base,invalidRoute);
+  assert.ok(CAP.read(invalidRoute,site,source).localSemantics.findings.some(x=>
+   x.code==='php-semantic:missing-local-route'&&x.severity==='error'));
   mode='normal';
   console.log('PHP HTML LOOPBACK CAPTURE SMOKE PASS: actual HTML, robots, sitemap, 301, OG/media, responsive picture, CSS background, video poster, untracked media, SHA/MIME/ETag and tamper; no external requests.');
  }finally{
