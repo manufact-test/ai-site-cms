@@ -131,7 +131,9 @@ function inspect(manifest,site,source,folder){
 }
 function read(folder,site,source){
  const root=fs.realpathSync(folder);
- const file=path.join(root,'manifest.json'),stat=fs.statSync(file);
+ const file=path.join(root,'manifest.json');
+ if(fs.realpathSync(file)!==file)fail('manifest.json must be an ordinary file in evidence folder');
+ const stat=fs.statSync(file);
  if(!stat.isFile()||stat.size<50||stat.size>100000)fail('invalid manifest.json');
  return inspect(JSON.parse(fs.readFileSync(file,'utf8')),site,source,root);
 }
