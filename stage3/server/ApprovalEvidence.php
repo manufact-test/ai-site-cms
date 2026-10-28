@@ -237,8 +237,12 @@ trait ApprovalEvidence
                         throw new InvalidArgumentException('Archive: invalid approved prototype');
                 }elseif($kind==='site'){
                     $source=json_decode($bytes,true,512,JSON_THROW_ON_ERROR);
-                    if(!is_array($source)||($source['siteId']??null)!==$sourceSiteId)
-                        throw new InvalidArgumentException('Archive: original approval site mismatch');
+                    // A previously restored independent site keeps the
+                    // original signed source siteId, never rewrites it. Both
+                    // identities are validated, but need not be identical.
+                    if(!is_array($source)||!is_string($source['siteId']??null)
+                        ||!preg_match('/^[a-z][a-z0-9-]{2,79}$/D',$source['siteId']))
+                        throw new InvalidArgumentException('Archive: invalid original approval site identity');
                     $this->validator->validate($source);
                 }elseif(!preg_match('//u',$bytes))
                     throw new InvalidArgumentException('Archive: approval text is not UTF-8');
