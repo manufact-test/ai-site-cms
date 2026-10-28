@@ -251,8 +251,17 @@ async function execute(){
     'Server stores only the unpublished seed until final manifest Save');
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),404,
     'Interrupted import must never publish');
-  // A page reload keeps same-tab sealed checkpoint. Re-selecting the exact
-  // folder must recognize and reuse verified server media, not duplicate it.
+  // Simulate a different tab / browser session: remove the old same-tab
+  // checkpoint entirely. Only server-retained, immutable original handoff
+  // and site.json hashes may authorize explicit recovery of this seed.
+  const proofBeforeRetry=(await (await page.request.get(
+    origin+'/api/sites/site-approved-browser/approval-evidence')).json()).packages;
+  assert.equal(proofBeforeRetry.length,1);
+  assert.equal(proofBeforeRetry[0].complete,false,
+    'Partial imported seed keeps recovery originals but no false complete approval');
+  assert.ok(proofBeforeRetry[0].files.handoff && proofBeforeRetry[0].files.site,
+    'Both original sealed documents must survive before any media upload');
+  await page.evaluate(()=>sessionStorage.clear());
   await page.reload();
   await page.locator('#server-approved-import:not([disabled])').waitFor();
   await page.evaluate(entries=>{
@@ -268,6 +277,10 @@ async function execute(){
   },uploaded);
   await page.locator('#server-approved-review-confirm').waitFor({timeout:20000});
   assert.match(await page.locator('#server-approved-review-confirm').innerText(),/Продолжить/);
+  assert.equal(await page.locator('#server-approved-review-confirm').isDisabled(),true,
+    'Recovery from a new tab demands distinct owner acknowledgement');
+  await page.locator('#server-approved-recovery-confirm').check();
+  assert.equal(await page.locator('#server-approved-review-confirm').isEnabled(),true);
   await page.locator('#server-approved-review-confirm').click();
   try{
     await page.locator('#toast').getByText(/Импорт безопасно продолжен/).waitFor({timeout:20000});
@@ -282,7 +295,7 @@ async function execute(){
   }
   const resumed=(await (await page.request.get(origin+'/api/sites/site-approved-browser')).json());
   assert.equal(resumed.revision,unfinished.revision+1,
-    'Continuation reuses stored media and adds ONLY final Save revision');
+    'Cross-session recovery reuses stored media and adds ONLY final Save revision');
   assert.equal(resumed.site.assets.length,1,'Continuation never duplicates immutable asset IDs');
   const imported=await page.evaluate(()=>window.Stage3Editor.getSite());
   assert.equal(imported.siteId,'site-approved-browser');
