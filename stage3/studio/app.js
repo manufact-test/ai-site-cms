@@ -1859,7 +1859,7 @@
             const val=input.value;
             if(['fontSize','padding','gap','color','background','textAlign','widthPx','heightPx',
               'minWidth','maxWidth','minHeight','maxHeight','borderWidth','borderStyle',
-              'filterPreset','shadow','objectPositionX','objectPositionY'].includes(key)){
+              'filterPreset','shadow','objectPositionX','objectPositionY','translateX','translateY'].includes(key)){
               editGraphWork(node=>{
                 const style=mode==='desktop'?node.styles||(node.styles={}):
                   (node.responsive||(node.responsive={}))[mode]||((node.responsive[mode]={}));
@@ -1868,7 +1868,7 @@
                   if(mode!=='desktop'&&!Object.keys(style).length)delete node.responsive[mode];
                   if(node.responsive&&!Object.keys(node.responsive).length)delete node.responsive;
                 }else if(['fontSize','padding','gap','widthPx','heightPx','minWidth',
-                  'maxWidth','minHeight','maxHeight','borderWidth','objectPositionX','objectPositionY'].includes(key)){
+                  'maxWidth','minHeight','maxHeight','borderWidth','objectPositionX','objectPositionY','translateX','translateY'].includes(key)){
                   style[key]=val.startsWith('@')?val.trim():Number(val);
                 }else{if(key==='shadow')delete style.shadowFine;style[key]=val.trim();}
               });
@@ -2116,6 +2116,7 @@
           for(const [key,label] of [['widthPx','Ширина, px'],['heightPx','Высота, px'],
             ['minWidth','Мин. ширина, px'],['maxWidth','Макс. ширина, px'],
             ['minHeight','Мин. высота, px'],['maxHeight','Макс. высота, px'],
+            ['translateX','Смещение по X, px'],['translateY','Смещение по Y, px'],
             ['borderWidth','Толщина рамки, px']])
             appendShape(label,key,styles[key]??'');
           appendShape('Тип рамки','borderStyle',styles.borderStyle||'',
@@ -3255,6 +3256,37 @@
           if(key==='shadow')delete style.shadowFine;
           style[key]=v.startsWith('@')?v.trim():Number(v);
         }));
+      }
+      if(!limited){
+        const exact=make('details');exact.id='cms-design-exact-position';
+        exact.append(make('summary','Позиционирование с точностью 1 / 10 px'));
+        const tip=make('p','Корректирует translate X/Y для текущего устройства, не меняя порядок блоков. Undo отменяет каждое нажатие.');
+        const buttons=make('div',undefined,'cms-design-precision-buttons');
+        const move=(key,delta)=>{
+          const current=editStyle(n),next=(current[key]??0)+delta;
+          if(next<-600||next>600)return notice('Смещение ограничено диапазоном ±600 px',true);
+          recordHistory();
+          current[key]=next;
+          render();
+        };
+        for(const step of [1,10]){
+          const line=make('div',undefined,'cms-design-actions');
+          line.append(make('small','Шаг '+step+' px'));
+          for(const [label,key,delta] of [
+            ['←','translateX',-step],['→','translateX',step],
+            ['↑','translateY',-step],['↓','translateY',step]]){
+            const control=button(label,'btn small',()=>move(key,delta));
+            control.setAttribute('aria-label',label+' сместить на '+step+' px');
+            line.append(control);
+          }
+          buttons.append(line);
+        }
+        const reset=button('Сбросить смещение на этом устройстве','btn small',()=>{
+          const current=editStyle(n);
+          if(!Object.hasOwn(current,'translateX')&&!Object.hasOwn(current,'translateY'))return;
+          recordHistory();delete current.translateX;delete current.translateY;render();
+        });
+        exact.append(tip,buttons,reset);root.append(exact);
       }
       if(!limited){
         const details=make('details');details.id='cms-design-shadow-fine';
