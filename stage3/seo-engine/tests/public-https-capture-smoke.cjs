@@ -1,7 +1,7 @@
 'use strict';
 // Isolated HTTPS transport checks: no outbound requests, no GET, no POST.
 const assert=require('node:assert/strict');
-const {isPublicIp,origin,capture,captureMedia}=require('../lib/public-https-capture.cjs');
+const {isPublicIp,origin,capture,captureMedia,recheckRoot}=require('../lib/public-https-capture.cjs');
 for(const ip of ['127.0.0.1','10.0.1.1','172.16.0.1','192.168.1.1','169.254.2.1',
  '100.64.0.2','198.51.100.1','203.0.113.9','192.0.2.4',
  '192.88.99.1','198.18.0.1','198.19.1.1','2001:db8::1','2002:c0a8:0101::1','::1','fc00::1'])
@@ -33,6 +33,16 @@ const transport={
  assert.equal(result.requests,6);
  assert.equal(result.evidence.negativeProbe.status,404);
  assert.equal(result.evidence.negativeProbe.path,'/cms-seo-nonexistent-pilot/');
+ const stable=await recheckRoot(site,'https://example.org/published/pilot/',
+  result.evidence.pages.find(p=>p.path==='/'),transport);
+ assert.equal(stable.matched,true);
+ assert.equal(stable.sourceRevisionAuthenticated,false);
+ const changed=await recheckRoot(site,'https://example.org/published/pilot/',
+  result.evidence.pages.find(p=>p.path==='/'),{
+    address:transport.address,
+    request:async()=>({status:200,body:'<html>different deployment</html>'})
+  });
+ assert.equal(changed.matched,false);
  assert.equal(result.evidence.pages.length,2);
  assert.equal(result.evidence.redirects[0].status,301);
  assert.ok(called.every(x=>x.startsWith('https://example.org/published/pilot/')));
