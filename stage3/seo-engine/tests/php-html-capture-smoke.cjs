@@ -16,7 +16,8 @@ const site={siteId:'pilot-local',pages:[
  redirects:[{from:'/old/',to:'/about/'}],
  assets:[{id:'asset-banner',src:'/assets/asset-banner.png',mime:'image/png',alt:'Actual banner',
   variants:[{id:'asset-banner-sm',src:'/assets/asset-banner-sm.png',
-   width:2,height:1,sha256:sha(responsive)}]}]};
+   width:2,height:1,sha256:sha(responsive)}]},
+ {id:'asset-secondary',src:'/assets/asset-secondary.png',mime:'image/png',alt:'Page image'}]};
 const source={siteId:site.siteId,packageVersion:'sealed-v2',
  fileSha256:'a'.repeat(64),siteRevisionFingerprint:ACCEPTANCE.fingerprint(site)};
 const code=fs.readFileSync(path.join(__dirname,'../lib/php-html-capture.cjs'),'utf8');
@@ -34,7 +35,7 @@ vm.runInNewContext(code,{
 const CAP=moduleShim.exports;
 const html=(title)=>'<!doctype html><html lang="ru"><head><title>'+
  title+'</title><meta name="description" content="Тест локального PHP"></head>'+
- '<body><h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a>'+'<a href="/published/pilot-local/old/">Old route</a></body></html>';
+ '<body><h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a>'+'<a href="/published/pilot-local/old/">Old route</a>'+'<img src="/published/pilot-local/assets/asset-secondary.png" alt="Secondary"></body></html>';
 let mode='normal',requests=[];
 const server=http.createServer((req,res)=>{
  requests.push({url:req.url,method:req.method});
@@ -43,8 +44,14 @@ const server=http.createServer((req,res)=>{
  if(mode==='oversize'){res.writeHead(200,{'Content-Type':'text/html'});res.end('x'.repeat(450001));return;}
  if(mode==='incomplete'){res.writeHead(200,{'Content-Type':'text/html'});res.end('<h1>Bad</h1>');return;}
  if(req.url==='/published/pilot-local/assets/asset-banner.png'||
-    req.url==='/published/pilot-local/assets/asset-banner-sm.png'){
-  const original=req.url.endsWith('/asset-banner.png'),bytes=original?png:responsive;
+    req.url==='/published/pilot-local/assets/asset-banner-sm.png'||
+    req.url==='/published/pilot-local/assets/asset-secondary.png'){
+  const original=req.url.endsWith('/asset-banner.png');
+  const variant=req.url.endsWith('/asset-banner-sm.png');
+  const bytes=variant&&mode!=='bad-variant-bytes'?responsive:png;
+  if(mode==='bad-rendered-status'&&req.url.endsWith('/asset-secondary.png')){
+   res.writeHead(404);res.end('Missing rendered image');return;
+  }
   if(mode==='bad-media-status'&&original){res.writeHead(404);res.end('Not found');return;}
   const etag=mode==='bad-media-etag'&&original?'"incorrect"':'"'+sha(bytes)+'"';
   const response=mode==='bad-media-mime'&&original?'text/plain':'image/png';
@@ -94,14 +101,15 @@ async function main(){
   assert.equal(captured.publicHttpsChecked,false);assert.equal(captured.readyToPublish,false);
   assert.equal(captured.robotsStatus,200);assert.equal(captured.sitemapStatus,200);
   assert.equal(captured.localRedirectsCaptured,1);assert.equal(captured.localSeoFindings,0);
-  assert.equal(captured.localMediaAssets,2);assert.equal(captured.localMediaFindings,0);
-  assert.equal(captured.localMediaBytes,png.length+responsive.length);
+  assert.equal(captured.localMediaAssets,3);assert.equal(captured.localMediaFindings,0);
+  assert.equal(captured.localMediaBytes,png.length*2+responsive.length);
   assert.deepEqual(requests.map(x=>x.url),[
    '/published/pilot-local/','/published/pilot-local/about/',
    '/published/pilot-local/robots.txt','/published/pilot-local/sitemap.xml',
    '/published/pilot-local/old/',
    '/published/pilot-local/assets/asset-banner.png',
-   '/published/pilot-local/assets/asset-banner-sm.png']);
+   '/published/pilot-local/assets/asset-banner-sm.png',
+   '/published/pilot-local/assets/asset-secondary.png']);
   assert.ok(requests.every(x=>x.method==='GET'));
   const result=CAP.read(out,site,source);
   assert.equal(CAP.isVerified(result),true);
@@ -111,10 +119,12 @@ async function main(){
   assert.equal(result.snapshot.sitemapCompleteness,'complete');
   assert.deepEqual([...result.snapshot.sitemapPaths],['/','/about/']);
   assert.equal(result.publication.findings.length,0);
-  assert.equal(result.localMedia.capturedResources,2);
+  assert.equal(result.localMedia.capturedResources,3);
   assert.equal(result.localMedia.criticalCount,0);
   assert.equal(result.localMedia.resources[0].ogImageAsset,true);
   assert.equal(result.localMedia.resources[1].bodySha256,sha(responsive));
+  assert.deepEqual([...result.localMedia.resources[2].renderedPageIds],['page-home','page-about']);
+  assert.equal(result.localMedia.resources[2].ogImageAsset,false);
   assert.deepEqual([...result.publication.verifiedRedirectPaths],['/old/']);
   assert.deepEqual([...result.snapshot.redirectPaths],['/old/']);
   const audited=require('../lib/analyze.cjs').snapshotAudit(result.snapshot);
@@ -189,6 +199,17 @@ async function main(){
   assert.ok(badMediaCapture.localMediaFindings>0);
   assert.ok(CAP.read(badMediaPath,site,source).localMedia.findings
    .some(x=>x.code==='php-media:non-200'&&x.severity==='error'));
+  mode='bad-rendered-status';
+  const missingRendered=path.join(tmp,'missing-rendered');
+  await CAP.capture(sealed,base,missingRendered);
+  assert.ok(CAP.read(missingRendered,site,source).localMedia.findings
+   .some(x=>x.code==='php-media:non-200'&&x.assetId==='asset-secondary'&&x.severity==='error'));
+  mode='bad-variant-bytes';
+  const badVariant=path.join(tmp,'wrong-responsive-sha');
+  await CAP.capture(sealed,base,badVariant);
+  const wrong=CAP.read(badVariant,site,source).localMedia.findings;
+  assert.ok(wrong.some(x=>x.code==='php-media:variant-sha-drift'&&x.severity==='error'));
+  assert.ok(wrong.some(x=>x.code==='php-media:png-dimension-drift'&&x.severity==='error'));
   mode='bad-media-etag';
   const wrongEtag=path.join(tmp,'wrong-etag');
   await CAP.capture(sealed,base,wrongEtag);
@@ -205,7 +226,7 @@ async function main(){
   assert.throws(()=>CAP.read(out,site,source),/media evidence byte length mismatch|media evidence byte digest mismatch/);
   fs.writeFileSync(mediaFile,savedImage);
   await assert.rejects(CAP.capture(sealed,base,out),/new directory/);
-  console.log('PHP HTML LOOPBACK CAPTURE SMOKE PASS: real HTML, robots, sitemap, 301, original and responsive media bytes; missing OG, bad MIME/ETag, tamper, route and size guards; no external requests.');
+  console.log('PHP HTML LOOPBACK CAPTURE SMOKE PASS: real HTML, robots, sitemap, 301, OG/rendered media and responsive PNG; missing rendered/OG, SHA/dimensions/MIME/ETag drift, tamper, routes; no external requests.');
  }finally{
   if(server.listening)await new Promise(resolve=>server.close(resolve));
   fs.rmSync(tmp,{recursive:true,force:true});
