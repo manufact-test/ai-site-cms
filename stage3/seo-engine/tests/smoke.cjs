@@ -349,6 +349,9 @@ try{
  assert.ok(traceable.pages.every(x=>x.deviceEvidence.screenshotOrVisualVerified===false));
  const humanMap=good('traceability-md',{site,blueprint:bp,snapshot:htmlSite});
  assert.match(humanMap,/Human acceptance required/);
+ // Restore valid decision preconditions after exercising the stale-ledger case above.
+ ledger.decisions[0].expectedBefore=task.before;
+ fs.writeFileSync(triageFile,JSON.stringify(ledger));
  const reviewedBundle=JSON.parse(good('review-bundle',{site,blueprint:bp,snapshot:htmlSite,
   decisions:triageFile}));
  assert.equal(reviewedBundle.decisions.releaseAuthorized,false);
