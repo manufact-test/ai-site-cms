@@ -110,7 +110,7 @@ function displayedMedia(site,base,snapshot,inventoryItems){
  }
  return result;
 }
-function inspect(site,base,manifest,root,snapshot=null){
+function inspect(site,base,manifest,root,snapshot=null,publicOrigin=null){
  if(!manifest||manifest.format!==FORMAT||!Array.isArray(manifest.assets))
   throw Error('Invalid local PHP media evidence manifest');
  const expected=inventory(site,base);
@@ -191,7 +191,12 @@ function inspect(site,base,manifest,root,snapshot=null){
   for(const tag of imageTags){
    let url;
    try{url=new URL(tag.url);}catch{/* handled below */}
-   if(!url||url.protocol!=='https:'||url.username||url.password||url.search||url.hash||
+   const correctSchemeAndHost=Boolean(url&&(
+     (publicOrigin&&url.origin===publicOrigin&&
+       (url.protocol==='https:'||url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)))||
+     (!publicOrigin&&url.protocol==='https:')
+   ));
+   if(!correctSchemeAndHost||url.username||url.password||url.search||url.hash||
       url.pathname!==expectedPath)
     add('php-media:og-html-url-drift','error',selected.asset.id,
      'Captured PHP og:image URL does not match selected published image path and HTTPS scheme.',
