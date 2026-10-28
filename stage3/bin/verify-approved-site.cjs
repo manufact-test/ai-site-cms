@@ -8,9 +8,31 @@ const names=fs.readdirSync(components).filter(name=>/^[a-z][a-z0-9-]+\.json$/.te
 const manifests=names.map(name=>JSON.parse(fs.readFileSync(path.join(components,name),'utf8')));
 const HANDOFF_V2='manufact-approved-site-handoff-v2';
 const SHA256=/^[a-f0-9]{64}$/;
+// Optional extra *page-specific* approved mockups. The six existing files
+// remain mandatory for backward-compatible sealed v2 handoffs.
+function pagePrototypeEntries(site,refs){
+  if(refs.pagePrototypes===undefined)return [];
+  const entries=refs.pagePrototypes;
+  if(!entries||typeof entries!=='object'||Array.isArray(entries)||
+    !Object.keys(entries).length||Object.keys(entries).length>20)
+    throw Error('Invalid page prototype map (1–20 interior pages)');
+  const pages=new Map(site.pages.map(page=>[page.id,page]));
+  const result=[];
+  for(const pageId of Object.keys(entries).sort()){
+    const page=pages.get(pageId),images=entries[pageId];
+    if(!page||page.path==='/'||!images||typeof images!=='object'||
+      Array.isArray(images)||Object.keys(images).length!==3||
+      !['desktop','tablet','mobile'].every(bp=>typeof images[bp]==='string'))
+      throw Error('Page-specific prototype must map to a real interior page and three images: '+pageId);
+    result.push({pageId,images});
+  }
+  return result;
+}
 function namedFiles(site,refs){
   const names=[refs.site,refs.desktop,refs.tablet,refs.mobile,
     refs.clientExplanation,refs.implementationSpec];
+  for(const {images} of pagePrototypeEntries(site,refs))
+    for(const bp of ['desktop','tablet','mobile'])names.push(images[bp]);
   for(const asset of site.assets){
     names.push(asset.src.replace(/^\/assets\//,'assets/'));
     for(const variant of asset.variants||[])
@@ -74,6 +96,14 @@ function preflight(folder){
   if(source.length<10)throw Error('Empty site.json');
   const site=JSON.parse(source.toString('utf8'));
   contract.validateSite(site,manifests); // Every field, graph, media ID and component.
+  if(refs.pagePrototypes!==undefined&&handoff.format!==HANDOFF_V2)
+    throw Error('Page-specific designs require sealed v2 integrity');
+  const perPage=pagePrototypeEntries(site,refs);
+  for(const {pageId,images} of perPage)for(const bp of ['desktop','tablet','mobile']){
+    const file=images[bp],bytes=recorded(file,read(file,8*1024*1024));
+    if(bytes.length<64||!verifyRaster(bytes,MIME[file.split('.').pop().toLowerCase()]))
+      throw Error('Invalid '+bp+' prototype for page '+pageId);
+  }
   if(site.assets.length>300)throw Error('Too many media assets');
   for(const asset of site.assets){
     if(!SIGNATURES[asset.mime])
@@ -113,7 +143,8 @@ function preflight(folder){
   const graphs=site.pages.flatMap(p=>p.sections).filter(s=>s.designGraph).length;
   const custom=site.pages.flatMap(p=>p.sections).filter(s=>s.component==='custom-section').length;
   return Object.freeze({siteId:site.siteId,version:handoff.version,pages:site.pages.length,
-    assets:site.assets.length,designGraphs:graphs,customSections:custom,integrity:locked?'sha256-verified':'legacy-unlocked',
+    assets:site.assets.length,pagePrototypeSets:perPage.length+1,
+    designGraphs:graphs,customSections:custom,integrity:locked?'sha256-verified':'legacy-unlocked',
     status:'structurally-compatible-not-visual-approval'});
 }
 function verifyRaster(bytes,mime){
@@ -126,4 +157,4 @@ if(require.main===module){
     process.stdout.write('APPROVED SITE PREFLIGHT PASS: '+JSON.stringify(result)+'\n');
   }catch(e){console.error('APPROVED SITE PREFLIGHT FAIL: '+e.message);process.exitCode=1;}
 }
-module.exports=Object.freeze({preflight,namedFiles,HANDOFF_V2});
+module.exports=Object.freeze({preflight,namedFiles,pagePrototypeEntries,HANDOFF_V2});

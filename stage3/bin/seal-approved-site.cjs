@@ -2,7 +2,7 @@
 // Offline sealing after EXPLICIT real human approval of three design mockups.
 // No AI calls, no site publication, no network and no source file execution.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
-const {preflight,namedFiles,HANDOFF_V2}=require('./verify-approved-site.cjs');
+const {preflight,namedFiles,pagePrototypeEntries,HANDOFF_V2}=require('./verify-approved-site.cjs');
 function seal(folder,version,options={}){
   if(typeof version!=='string'||!/^[a-zA-Z0-9._-]{1,64}$/.test(version))
     throw Error('Invalid approved design version');
@@ -25,6 +25,8 @@ function seal(folder,version,options={}){
   if(fs.statSync(siteFile).size>500000)throw Error('site.json must be at most 500 KB');
   const site=JSON.parse(fs.readFileSync(siteFile,'utf8'));
   if(!Array.isArray(site.assets))throw Error('Site contract assets missing');
+  const pageRefs=new Set(pagePrototypeEntries(site,refs).flatMap(({images})=>
+    ['desktop','tablet','mobile'].map(bp=>images[bp])));
   const names=namedFiles(site,refs),hashes={};
   let bytesUsed=0;
   for(const relative of names){
@@ -35,7 +37,7 @@ function seal(folder,version,options={}){
     if(!actual.startsWith(root+path.sep)||!fs.statSync(actual).isFile())
       throw Error('File escapes bundle: '+relative);
     const max=relative===refs.site?500000:
-      [refs.desktop,refs.tablet,refs.mobile].includes(relative)?8000000:
+      [refs.desktop,refs.tablet,refs.mobile].includes(relative)||pageRefs.has(relative)?8000000:
       [refs.clientExplanation,refs.implementationSpec].includes(relative)?200000:450000;
     const length=fs.statSync(actual).size;bytesUsed+=length;
     if(length<1||length>max||bytesUsed>100*1024*1024)

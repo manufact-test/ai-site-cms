@@ -36,6 +36,8 @@ function run(folder){
     '- Integrity: '+md(checked.integrity),
     '- Site ID: '+md(site.siteId),
     '- Pages: '+site.pages.length+' · sections: '+sections.length+' · custom authored sections: '+custom.length,
+    '- Approved device screenshot sets: '+(1+Object.keys(h.files.pagePrototypes||{}).length)+
+      ' (homepage + optional page-specific references)',
     '- FAQ sections: '+faq.length+' · FAQ questions: '+faq.reduce((n,s)=>n+(s.items||[]).length,0),
     '- Flexible forms: '+forms.length+' · assets: '+site.assets.length+' · responsive variants: '+
       site.assets.reduce((n,a)=>n+(a.variants||[]).length,0),
@@ -60,8 +62,11 @@ function run(folder){
     '',
     '| Page | Desktop (1280px) | Tablet (768px) | Mobile (390px) |',
     '| --- | --- | --- | --- |');
-  for(const p of site.pages)
-    rows.push('| '+md(p.path)+' | [ ] compare | [ ] compare | [ ] compare |');
+  for(const p of site.pages){
+    const hasSource=p.path==='/'||Boolean(h.files.pagePrototypes?.[p.id]);
+    rows.push('| '+md(p.path)+(hasSource?'':' · no approved per-page reference')+
+      ' | [ ] compare | [ ] compare | [ ] compare |');
+  }
   rows.push('','## Real behavior and release gate','','- [ ] Review three client-approved prototypes and both text specifications; verify client approval outside the CMS',
     '- [ ] Compare actual page at all three widths; check typography, spacing, media crops, navigation, menu, CTA and hover/motion',
     '- [ ] Verify content links, FAQ order/open-close behavior, responsive layout and keyboard navigation',
