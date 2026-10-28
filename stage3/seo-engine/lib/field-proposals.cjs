@@ -3,6 +3,7 @@
 // overrides/history. All changes require the lead's explicit review and Save/Publish.
 const {checkBlueprint}=require('./blueprint.cjs');
 const FORMAT='manufact-seo-content-field-proposals-v1';
+const GRAPH=require('./graph-authored.cjs');
 function propose(site,manifests,blueprint){
  const plan=checkBlueprint(blueprint);
  if(site.siteId!==plan.siteId)throw Error('SEO content proposal: siteId mismatch');
@@ -50,6 +51,36 @@ function propose(site,manifests,blueprint){
      automatic:false,reviewRequired:true,
      safety:'Proposal only; review manual/approved overrides before applying in the existing CMS.'
     });
+   }
+   if(actual.designGraph){
+    // The graph renders instead of element slots: never suggest editing hidden
+    // manifest values. Provide stable graph node IDs for human Studio review.
+    const h=GRAPH.heading(actual,section.heading);
+    if(h.status!=='authoring-match')
+     fail(bp.id,section.id,'designGraph.nodes.text',
+      'design-graph-heading-'+h.status,{nodeId:h.nodeId,candidateCount:h.candidates,
+       before:h.value,expected:section.heading,component:actual.component});
+    if(section.cta){
+     const target=byPage.get(section.cta.toPageId);
+     if(!target){
+      fail(bp.id,section.id,'designGraph.nodes.href','target-page-not-implemented',
+       {targetPageId:section.cta.toPageId});
+     }else{
+      const planned=plan.pages.find(p=>p.id===target.id);
+      if(target.path!==planned?.path)
+       fail(bp.id,section.id,'designGraph.nodes.href','target-path-differs-from-blueprint',
+        {targetPageId:target.id,actualPath:target.path});
+      else{
+       const action=GRAPH.cta(actual,target.path,section.cta.label);
+       if(action.status!=='matching')
+        fail(bp.id,section.id,'designGraph.nodes.href',
+         'design-graph-cta-'+action.status,{nodeId:action.nodeId,candidateCount:action.candidateCount,
+          before:{href:action.href,label:action.label},
+          expected:{href:target.path,label:section.cta.label},component:actual.component});
+      }
+     }
+    }
+    continue;
    }
    const headings=(actual.elements||[]).filter(e=>e.slot==='heading');
    if(headings.length!==1)fail(bp.id,section.id,'content.text','ambiguous-heading-element',{candidateCount:headings.length});
