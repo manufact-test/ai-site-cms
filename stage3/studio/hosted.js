@@ -2464,6 +2464,13 @@
         row.append(element('span',null,
           (finding.resolved?'✓ Исправлено: ':'Не исправлено: ')+finding.note+
           ' · Y '+finding.scrollY+' px'));
+        const seek=action('К месту','',()=>{
+          // Stored position is in real unscaled PHP document CSS pixels.
+          const scale=Number(frame.style.transform.match(/scale\\(([^)]+)\\)/)?.[1])||1;
+          viewport.scrollTop=finding.scrollY*scale;
+        });
+        seek.setAttribute('aria-label','Показать место замечания: '+finding.note);
+        row.append(seek);
         if(!finding.resolved){
           const resolve=action('Исправлено','',()=>{
             if(!freshDraft())return;
@@ -2484,8 +2491,9 @@
       if(!selectedRow?.current||!freshDraft()||note.length<3||note.length>500){
         notice('Опишите расхождение минимум тремя символами, без изменения черновика.',true);return;
       }
+      const scale=Number(frame.style.transform.match(/scale\\(([^)]+)\\)/)?.[1])||1;
       manualFindings.push({pageId:selectedRow.current.id,path:selectedRow.current.path,
-        device,note,scrollY:Math.round(viewport.scrollTop),resolved:false});
+        device,note,scrollY:Math.min(60000,Math.round(viewport.scrollTop/scale)),resolved:false});
       reviewed.get(selectedRow.current.id)?.delete(device);
       findingInput.value='';drawFindings();updateReviewed();syncActions();
     });
@@ -2530,8 +2538,14 @@
         (unresolvedCount()?' · '+unresolvedCount()+' открытых замечаний':'');
       for(const control of pages.querySelectorAll('button[data-page-id]')){
         const complete=pageComplete(control.dataset.pageId);
+        const open=manualFindings.filter(f=>!f.resolved&&f.pageId===control.dataset.pageId).length;
+        control.textContent=control.dataset.originalLabel+(open?' · ⚠ '+open:'');
         control.classList.toggle('is-reviewed',complete);
         control.setAttribute('aria-label',(complete?'Просмотрено · ':'Не полностью проверено · ')+control.textContent);
+      }
+      for(const btn of devices.querySelectorAll('button[data-device]')){
+        const count=openFindings(selectedRow?.current?.id,btn.dataset.device).length;
+        btn.textContent=btn.dataset.originalLabel+(count?' · ⚠ '+count:'');
       }
       const marked=reviewed.get(selectedRow?.current?.id)?.has(device);
       const evidence=renderEvidence.get(signature(selectedRow,device));
@@ -2931,7 +2945,7 @@
         if(device===mode)return;
         device=mode;renderViewport();updateReviewed();syncActions();void showPreview();void showReference();
       });
-      control.dataset.device=mode;devices.append(control);
+      control.dataset.device=mode;control.dataset.originalLabel=name;devices.append(control);
     }
     for(const row of comparisonRows){
       const page=row.page;
@@ -2941,6 +2955,7 @@
       const control=action(page.title+' · '+page.path+type+
         (countIssues?' · '+countIssues+' ошибок':''),'',()=>choosePage(row));
       control.dataset.pageId=page.id;
+      control.dataset.originalLabel=control.textContent;
       control.dataset.diffStatus=row.status;
       pages.append(control);
     }
