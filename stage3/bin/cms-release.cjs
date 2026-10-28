@@ -31,7 +31,7 @@ function collect(root,strict=false){
     const nodes=fs.readdirSync(folder,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name,'en'));
     for(const item of nodes){
       const name=item.name;
-      if(!/^[a-zA-Z0-9._-]+$/.test(name)||name==='.'||name==='..')
+      if(!/^[a-zA-Z0-9._\[\]-]+$/.test(name)||name==='.'||name==='..')
         die('unsafe file or directory name');
       const relative=rel+'/'+name;
       const full=path.join(folder,name);
