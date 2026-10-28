@@ -14,7 +14,29 @@ const ICON_PATHS=Object.freeze({
  shield:'<path d="M12 2 20 6v6c0 5-3 8-8 10-5-2-8-5-8-10V6z"/>',
  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
- play:'<path d="m8 5 12 7-12 7z"/>',menu:'<path d="M4 7h16M4 12h16M4 17h16"/>'
+ play:'<path d="m8 5 12 7-12 7z"/>',menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+ "heart":"<path d=\"M20 5c-2-3-6-3-8 0-2-3-6-3-8 0-3 5 3 10 8 15 5-5 11-10 8-15z\"/>",
+ "phone":"<path d=\"M22 16.6v3a2 2 0 0 1-2 2A20 20 0 0 1 2.4 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 1.7l.5 3a2 2 0 0 1-.6 1.7L7 10a15 15 0 0 0 7 7l1.6-2a2 2 0 0 1 1.7-.6l3 .5a2 2 0 0 1 1.7 1.7z\"/>",
+ "calendar":"<rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M3 10h18\"/>",
+ "user":"<circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4 21a8 8 0 0 1 16 0\"/>",
+ "home":"<path d=\"m3 10 9-7 9 7v11H3zM9 21v-7h6v7\"/>",
+ "map-pin":"<path d=\"M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z\"/><circle cx=\"12\" cy=\"10\" r=\"2.5\"/>",
+ "globe":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3c-5 5-5 13 0 18M12 3c5 5 5 13 0 18\"/>",
+ "chevron-right":"<path d=\"m9 5 7 7-7 7\"/>",
+ "chevron-left":"<path d=\"m15 5-7 7 7 7\"/>",
+ "chevron-down":"<path d=\"m5 9 7 7 7-7\"/>",
+ "plus":"<path d=\"M12 5v14M5 12h14\"/>",
+ "minus":"<path d=\"M5 12h14\"/>",
+ "close":"<path d=\"M5 5 19 19M19 5 5 19\"/>",
+ "shopping-cart":"<circle cx=\"9\" cy=\"20\" r=\"1\"/><circle cx=\"19\" cy=\"20\" r=\"1\"/><path d=\"M2 3h2l3 13h12l3-9H5\"/>",
+ "message-circle":"<path d=\"M20 11.5a8 8 0 0 1-11 7.4L3 21l2.1-6A8 8 0 1 1 20 11.5z\"/>",
+ "camera":"<path d=\"M3 7h4l2-3h6l2 3h4v14H3z\"/><circle cx=\"12\" cy=\"14\" r=\"4\"/>",
+ "download":"<path d=\"M12 3v13m-5-5 5 5 5-5M4 18v3h16v-3\"/>",
+ "external-link":"<path d=\"M13 4h7v7M20 4l-9 9M20 14v6H4V4h6\"/>",
+ "info":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 11v6M12 7h.01\"/>",
+ "search":"<circle cx=\"10.5\" cy=\"10.5\" r=\"7\"/><path d=\"m16 16 5 5\"/>",
+ "truck":"<path d=\"M2 6h13v12H2zM15 11h4l3 4v3h-7z\"/><circle cx=\"7\" cy=\"19\" r=\"2\"/><circle cx=\"18\" cy=\"19\" r=\"2\"/>",
+ "package":"<path d=\"m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10\"/>"
 });
 const MOTIONS=['none','fade-in','fade-up','slide-left','zoom-in'];
 const TYPES=['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup'];
@@ -154,7 +176,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   let count=0;const popups=new Set(),triggers=[];
   function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(own(node,'popupTarget')){
@@ -271,6 +293,9 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
         own(node,'alt')||own(node,'level')||own(node,'icon')||own(node,'posterAssetId')||own(node,'loop'))
         fail(node.id,'invalid disclosure/tab label');
     }else if(node.type==='icon'){
+      if((own(node,'iconSize')&&!number(node.iconSize,12,128))||
+        (own(node,'iconWeight')&&!['thin','regular','bold'].includes(node.iconWeight)))
+        fail(node.id,'invalid icon appearance');
       if(!own(ICON_PATHS,node.icon)||own(node,'text')||own(node,'href')||own(node,'assetId')||
         own(node,'level')||own(node,'children')||own(node,'posterAssetId')||own(node,'loop')||
         (own(node,'alt')&&(typeof node.alt!=='string'||node.alt.length>200||/[\x00-\x1f]/.test(node.alt))))
@@ -300,6 +325,8 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       if(node.type==='heading'&&(!number(node.level||2,1,6)))fail(node.id,'heading level');
       if(node.type!=='heading'&&own(node,'level'))fail(node.id,'unexpected level');
     }
+    if(node.type!=='icon'&&(own(node,'iconSize')||own(node,'iconWeight')))
+      fail(node.id,'unexpected icon appearance');
     validateStyle(node.styles||{},tokens,node.id+'/styles');
     if(own(node,'motion'))validateMotion(node.motion,node.id+'/motion');
     if(own(node,'transition')){
@@ -649,7 +676,12 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       return '<div class="'+cls+' cmsdg-tabs-'+n.id+'"><div class="cmsdg-tabs-controls" role="group" aria-label="Вкладки">'+controls+'</div><div class="cmsdg-tabs-panels">'+n.children.map(visit).join('')+'</div></div>';
     }
     if(n.type==='divider')return '<hr class="'+cls+'">';
-    if(n.type==='icon')return '<svg class="'+cls+'" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '+(n.alt?'role="img" aria-label="'+attr(n.alt)+'"':'aria-hidden="true"')+'>'+ICON_PATHS[n.icon]+'</svg>';
+    if(n.type==='icon'){
+      const size=n.iconSize||'1em',weight={thin:'1.25',regular:'2',bold:'3'}[n.iconWeight||'regular'];
+      return '<svg class="'+cls+'" viewBox="0 0 24 24" width="'+size+'" height="'+size+
+        '" fill="none" stroke="currentColor" stroke-width="'+weight+'" stroke-linecap="round" stroke-linejoin="round" '+
+        (n.alt?'role="img" aria-label="'+attr(n.alt)+'"':'aria-hidden="true"')+'>'+ICON_PATHS[n.icon]+'</svg>';
+    }
     if(n.type==='heading')return '<h'+(n.level||2)+' class="'+cls+'">'+attr(n.text)+'</h'+(n.level||2)+'>';
     if(n.type==='text')return '<p class="'+cls+'">'+attr(n.text)+'</p>';
     if(n.type==='button'&&n.popupTarget)return '<button type="button" class="'+cls+' cmsdg-popup-trigger" popovertarget="cmsdg-popup-'+n.popupTarget+'">'+attr(n.text)+'</button>';
@@ -4505,8 +4537,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           }
           if(current.type==='quote')property('Подпись автора', 'cite',current.cite||'');
           if(['image','video','icon'].includes(current.type))property('Описание / alt','alt',current.alt||'');
-          if(current.type==='icon')property('Векторная иконка','icon',current.icon,
-            Object.keys(DESIGN_GRAPH.ICON_PATHS).map(value=>[value,value]));
+          if(current.type==='icon'){
+            property('Векторная иконка','icon',current.icon,
+              Object.keys(DESIGN_GRAPH.ICON_PATHS).map(value=>[value,value]));
+            property('Размер иконки, px','iconSize',current.iconSize??'');
+            property('Толщина линий','iconWeight',current.iconWeight||'regular',
+              [['thin','Тонкая'],['regular','Обычная'],['bold','Толстая']]);
+          }
           if(['image','video'].includes(current.type)){
             const media=session.current.assets.filter(x=>current.type==='video'?
               x.mime==='video/mp4':/^image\/(?:png|jpeg|webp)$/.test(x.mime));
@@ -5645,6 +5682,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           {initial:n.icon,choices:Object.keys(DESIGN_GRAPH.ICON_PATHS).map(v=>[v,v])},
           value=>{n.icon=value;},'select'));
         fields.append(ctl('Описание для скринридера (пусто = декоративная)',n.alt||'',value=>{n.alt=value;}));
+        fields.append(ctl('Размер иконки (12–128 px)',String(n.iconSize??24),value=>{
+          if(value.trim())n.iconSize=Number(value);else delete n.iconSize;
+        },'number'));
+        fields.append(ctl('Толщина линий',{initial:n.iconWeight||'regular',
+          choices:[['thin','Тонкая'],['regular','Обычная'],['bold','Толстая']]},
+          value=>{n.iconWeight=value;},'select'));
       }
       const modeSelect=make('select',undefined,'control');modeSelect.id='cms-design-breakpoint';
       for(const [v,t] of [['desktop','Компьютер'],['tablet','Планшет'],['mobile','Телефон'],

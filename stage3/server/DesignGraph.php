@@ -28,7 +28,29 @@ final class DesignGraph
         'clock'=>'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
         'mail'=>'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
         'play'=>'<path d="m8 5 12 7-12 7z"/>',
-        'menu'=>'<path d="M4 7h16M4 12h16M4 17h16"/>'
+        'menu'=>'<path d="M4 7h16M4 12h16M4 17h16"/>',
+        'heart'=>'<path d="M20 5c-2-3-6-3-8 0-2-3-6-3-8 0-3 5 3 10 8 15 5-5 11-10 8-15z"/>',
+        'phone'=>'<path d="M22 16.6v3a2 2 0 0 1-2 2A20 20 0 0 1 2.4 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 1.7l.5 3a2 2 0 0 1-.6 1.7L7 10a15 15 0 0 0 7 7l1.6-2a2 2 0 0 1 1.7-.6l3 .5a2 2 0 0 1 1.7 1.7z"/>',
+        'calendar'=>'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+        'user'=>'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+        'home'=>'<path d="m3 10 9-7 9 7v11H3zM9 21v-7h6v7"/>',
+        'map-pin'=>'<path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>',
+        'globe'=>'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-5 5-5 13 0 18M12 3c5 5 5 13 0 18"/>',
+        'chevron-right'=>'<path d="m9 5 7 7-7 7"/>',
+        'chevron-left'=>'<path d="m15 5-7 7 7 7"/>',
+        'chevron-down'=>'<path d="m5 9 7 7 7-7"/>',
+        'plus'=>'<path d="M12 5v14M5 12h14"/>',
+        'minus'=>'<path d="M5 12h14"/>',
+        'close'=>'<path d="M5 5 19 19M19 5 5 19"/>',
+        'shopping-cart'=>'<circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M2 3h2l3 13h12l3-9H5"/>',
+        'message-circle'=>'<path d="M20 11.5a8 8 0 0 1-11 7.4L3 21l2.1-6A8 8 0 1 1 20 11.5z"/>',
+        'camera'=>'<path d="M3 7h4l2-3h6l2 3h4v14H3z"/><circle cx="12" cy="14" r="4"/>',
+        'download'=>'<path d="M12 3v13m-5-5 5 5 5-5M4 18v3h16v-3"/>',
+        'external-link'=>'<path d="M13 4h7v7M20 4l-9 9M20 14v6H4V4h6"/>',
+        'info'=>'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
+        'search'=>'<circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/>',
+        'truck'=>'<path d="M2 6h13v12H2zM15 11h4l3 4v3h-7z"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/>',
+        'package'=>'<path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10"/>'
     ];
     private const MOTIONS=['none','fade-in','fade-up','slide-left','zoom-in'];
     private const SEQUENCE_EASINGS=['ease','ease-in','ease-out','ease-in-out','linear'];
@@ -182,7 +204,7 @@ final class DesignGraph
         $count=0;$popups=[];$triggers=[];
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,&$popups,&$triggers,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
                 &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup'],true),
@@ -304,6 +326,9 @@ final class DesignGraph
                     !isset($node['level'])&&!isset($node['icon'])&&!isset($node['posterAssetId'])&&
                     !isset($node['loop']), 'invalid interactive label');
             } elseif ($type==='icon') {
+                self::check((!isset($node['iconSize'])||self::integer($node['iconSize'],12,128))
+                    &&(!isset($node['iconWeight'])||in_array($node['iconWeight'],['thin','regular','bold'],true)),
+                    'Invalid icon appearance');
                 self::check(is_string($node['icon']??null)
                     &&array_key_exists($node['icon'],self::ICON_PATHS)
                     &&!isset($node['text'])&&!isset($node['href'])&&!isset($node['assetId'])
@@ -348,6 +373,8 @@ final class DesignGraph
                 if ($type==='heading')self::check(self::integer($node['level']??2,1,6),'heading level');
                 else self::check(!isset($node['level']),'unexpected level');
             }
+            self::check($type==='icon'||(!isset($node['iconSize'])&&!isset($node['iconWeight'])),
+                'Unexpected icon appearance');
             self::style($node['styles']??[],$tokens,$id.'/style');
             if(array_key_exists('motion',$node))self::motion($node['motion'],$id.'/motion');
             if(array_key_exists('transition',$node)){
@@ -674,7 +701,9 @@ final class DesignGraph
                 case 'icon':
                     $a=($n['alt']??'')!==''?
                         'role="img" aria-label="'.self::h($n['alt']).'"':'aria-hidden="true"';
-                    return '<svg class="'.$cls.'" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '.$a.'>'.self::ICON_PATHS[$n['icon']].'</svg>';
+                    $size=$n['iconSize']??'1em';
+                    $weight=['thin'=>'1.25','regular'=>'2','bold'=>'3'][$n['iconWeight']??'regular'];
+                    return '<svg class="'.$cls.'" viewBox="0 0 24 24" width="'.$size.'" height="'.$size.'" fill="none" stroke="currentColor" stroke-width="'.$weight.'" stroke-linecap="round" stroke-linejoin="round" '.$a.'>'.self::ICON_PATHS[$n['icon']].'</svg>';
                 case 'heading':
                     $tag='h'.($n['level']??2);
                     return '<'.$tag.' class="'.$cls.'">'.self::h($n['text']).'</'.$tag.'>';

@@ -2026,8 +2026,13 @@
           }
           if(current.type==='quote')property('Подпись автора', 'cite',current.cite||'');
           if(['image','video','icon'].includes(current.type))property('Описание / alt','alt',current.alt||'');
-          if(current.type==='icon')property('Векторная иконка','icon',current.icon,
-            Object.keys(DESIGN_GRAPH.ICON_PATHS).map(value=>[value,value]));
+          if(current.type==='icon'){
+            property('Векторная иконка','icon',current.icon,
+              Object.keys(DESIGN_GRAPH.ICON_PATHS).map(value=>[value,value]));
+            property('Размер иконки, px','iconSize',current.iconSize??'');
+            property('Толщина линий','iconWeight',current.iconWeight||'regular',
+              [['thin','Тонкая'],['regular','Обычная'],['bold','Толстая']]);
+          }
           if(['image','video'].includes(current.type)){
             const media=session.current.assets.filter(x=>current.type==='video'?
               x.mime==='video/mp4':/^image\/(?:png|jpeg|webp)$/.test(x.mime));
@@ -3166,6 +3171,12 @@
           {initial:n.icon,choices:Object.keys(DESIGN_GRAPH.ICON_PATHS).map(v=>[v,v])},
           value=>{n.icon=value;},'select'));
         fields.append(ctl('Описание для скринридера (пусто = декоративная)',n.alt||'',value=>{n.alt=value;}));
+        fields.append(ctl('Размер иконки (12–128 px)',String(n.iconSize??24),value=>{
+          if(value.trim())n.iconSize=Number(value);else delete n.iconSize;
+        },'number'));
+        fields.append(ctl('Толщина линий',{initial:n.iconWeight||'regular',
+          choices:[['thin','Тонкая'],['regular','Обычная'],['bold','Толстая']]},
+          value=>{n.iconWeight=value;},'select'));
       }
       const modeSelect=make('select',undefined,'control');modeSelect.id='cms-design-breakpoint';
       for(const [v,t] of [['desktop','Компьютер'],['tablet','Планшет'],['mobile','Телефон'],
