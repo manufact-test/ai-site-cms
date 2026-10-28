@@ -2530,14 +2530,18 @@
       }
       const marked=reviewed.get(selectedRow?.current?.id)?.has(device);
       const evidence=renderEvidence.get(signature(selectedRow,device));
+      const sourceRequired=Boolean(approvedReference?.complete&&referenceKind(selectedRow,device));
+      const sourceViewed=!sourceRequired||referenceSeen.has(signature(selectedRow,device));
       copyFindings.disabled=unresolvedCount()===0;
       markReviewed.textContent=marked?'✓ '+widths[device]+' px проверено':
         'Подтвердить экран '+widths[device]+' px';
       if(evidence?.errors?.length)markReviewed.title=evidence.errors.join(' · ');
-      markReviewed.disabled=!selectedRow?.current||marked||
+      markReviewed.disabled=!selectedRow?.current||marked||!sourceViewed||
         openFindings(selectedRow?.current?.id,device).length>0||
         !previewReady.has(signature(selectedRow,device))||!freshDraft();
-      if(openFindings(selectedRow?.current?.id,device).length)
+      if(!sourceViewed)
+        markReviewed.title='Сначала откройте утверждённый макет этого экрана — сравните его с PHP-превью.';
+      else if(openFindings(selectedRow?.current?.id,device).length)
         markReviewed.title='Есть неисправленные замечания по этому экрану.';
       else if(!evidence?.errors?.length)markReviewed.title=markReviewed.disabled&&!marked?
         'Дождитесь полной загрузки PHP-страницы и изображений. Сохраните изменения перед подтверждением.':'';
@@ -2545,7 +2549,9 @@
     markReviewed.addEventListener('click',()=>{
       if(markReviewed.disabled||!selectedRow?.current||!freshDraft())return;
       const id=selectedRow.current.id;
-      if(openFindings(id,device).length)return;
+      if(openFindings(id,device).length||
+        (approvedReference?.complete&&referenceKind(selectedRow,device)&&
+          !referenceSeen.has(signature(selectedRow,device))))return;
       if(!reviewed.has(id))reviewed.set(id,new Set());
       reviewed.get(id).add(device);updateReviewed();syncActions();
     });
@@ -2743,6 +2749,7 @@
         referenceLabel.textContent='Согласованный исходник · '+approvedReference.version+
           ' · SHA-256 проверен · '+mode;
         referenceSeen.add(signature(row,mode));
+        updateReviewed();syncActions();
         if(viewMode==='approved-overlay'){
           const imageWidth=overlayImage.naturalWidth;
           const imageHeight=overlayImage.naturalHeight;
