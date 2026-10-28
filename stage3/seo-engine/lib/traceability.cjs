@@ -10,7 +10,7 @@ function report(site,blueprint,options={},audit=null,backlog=null,decisions=null
  const b=checkBlueprint(blueprint);
  if(!site||!Array.isArray(site.pages)||site.siteId!==b.siteId)throw Error('Traceability siteId mismatch');
  if(!options||typeof options!=='object'||Array.isArray(options)||
-  Object.keys(options).some(k=>!['snapshot','viewports','delivery'].includes(k)))throw Error('Unsupported traceability options');
+  Object.keys(options).some(k=>!['snapshot','viewports','delivery','media'].includes(k)))throw Error('Unsupported traceability options');
  for(const [k,format] of [['snapshot','manufact-seo-html-snapshot-v1'],['viewports','manufact-seo-viewport-evidence-v1']]){
   const value=options[k];
   if(value&&(value.format!==format||value.siteId&&value.siteId!==site.siteId||!Array.isArray(value.pages)))
@@ -22,6 +22,9 @@ function report(site,blueprint,options={},audit=null,backlog=null,decisions=null
  const content=new Map((audit?.contentReview?.pages||[]).map(p=>[p.pageId,p]));
  const http=options.delivery?require('./delivery-evidence.cjs').review(site,options.delivery):null;
  const delivered=new Map((http?.pages||[]).map(p=>[p.pageId,p]));
+ const media=options.media?require('./media-delivery.cjs').review(site,options.media,options.snapshot):null;
+ const mediaIssues=new Map();
+ for(const x of media?.findings||[])if(x.pageId){const list=mediaIssues.get(x.pageId)||[];list.push(x.code);mediaIssues.set(x.pageId,list);}
  const triage=new Map();
  for(const key of ['approved','rejected','deferred'])for(const item of decisions?.[key]||[])
   triage.set(item.taskId,key);
@@ -68,7 +71,9 @@ function report(site,blueprint,options={},audit=null,backlog=null,decisions=null
    deviceEvidence:{supplied:Boolean(v),pathMatched:viewportMatched,methods,
     allThreeMarkupSupplied:viewportMatched&&devices.every(d=>Boolean(methods[d])),
     screenshotOrVisualVerified:false},
-   sections,httpEvidence:{supplied:delivered.has(p.id),
+   sections,mediaEvidence:{supplied:Boolean(media),ogImageAssetId:live?.seo?.ogImage||null,
+    findingCodes:mediaIssues.get(p.id)||[],socialPreviewVerified:false},
+   httpEvidence:{supplied:delivered.has(p.id),
     status:delivered.get(p.id)?.status??null,
     isExpectedPublicUrl:delivered.get(p.id)?.isExpectedPublicUrl??null,
     authenticatedLiveOrigin:false},taskIds:tasks.map(x=>x.taskId),tasks,
@@ -81,6 +86,7 @@ function report(site,blueprint,options={},audit=null,backlog=null,decisions=null
   mappedSections:pages.reduce((n,p)=>n+p.sections.filter(s=>s.present).length,0),
   matchedHtmlPages:pages.filter(p=>p.htmlEvidence.pathMatched).length,
   suppliedHttpPages:pages.filter(p=>p.httpEvidence.supplied).length,
+  mediaTranscriptProvided:Boolean(media),
   allThreeDeviceMarkupPages:pages.filter(p=>p.deviceEvidence.allThreeMarkupSupplied).length,
   pagesWithBacklogTasks:pages.filter(p=>p.tasks.length).length,
   decisionsRecorded:decisions?(decisions.summary.approved+decisions.summary.rejected+decisions.summary.deferred):null,

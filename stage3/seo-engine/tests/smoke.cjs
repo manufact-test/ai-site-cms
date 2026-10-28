@@ -365,6 +365,35 @@ try{
  assert.equal(deliveryPackage.release.coverage.callerSuppliedHttpTranscriptReviewed,true);
  const {sitemapPaths:parseXml}=require('../lib/delivery-evidence.cjs');
  assert.equal(parseXml('<sitemapindex><sitemap><loc>https://x.test/a.xml</loc></sitemap></sitemapindex>').kind,'index');
+ // Third workstream: validate OG asset HTTP status and output URL, never fetch it.
+ const capturedMediaSite=structuredClone(original);
+ capturedMediaSite.assets.push({id:'asset-og-demo',src:'/assets/og-demo.png',mime:'image/png',
+  alt:'Preview of industrial equipment',width:1200,height:630});
+ capturedMediaSite.pages[0].seo={...(capturedMediaSite.pages[0].seo||{}),ogImage:'asset-og-demo'};
+ const capturedMediaSitePath=path.join(tmp,'captured-media-site.json');
+ fs.writeFileSync(capturedMediaSitePath,JSON.stringify(capturedMediaSite));
+ const capturedMedia={format:'manufact-seo-media-evidence-v1',siteId:plan.siteId,
+  origin:'https://cms-example.test/',completeness:'complete',
+  resources:[{assetId:'asset-og-demo',url:'https://cms-example.test/assets/og-demo.png',
+   status:200,contentType:'image/png',contentLength:85000,width:1200,height:630}]};
+ const capturedMediaPath=path.join(tmp,'captured-media.json');
+ fs.writeFileSync(capturedMediaPath,JSON.stringify(capturedMedia));
+ const mediaClean=JSON.parse(good('media-review',{site:capturedMediaSitePath,media:capturedMediaPath}));
+ assert.equal(mediaClean.coverage.referencedOgImageAssets,1);
+ assert.deepEqual(mediaClean.findings,[]);
+ capturedMedia.resources[0].status=404;
+ fs.writeFileSync(capturedMediaPath,JSON.stringify(capturedMedia));
+ const mediaDamaged=JSON.parse(good('media-review',{site:capturedMediaSitePath,media:capturedMediaPath}));
+ assert.ok(mediaDamaged.findings.some(x=>x.code==='media:resource-status-error'));
+ const damagedGate=JSON.parse(good('release-review',{site:capturedMediaSitePath,blueprint:bp,media:capturedMediaPath}));
+ assert.ok(damagedGate.blockers.some(x=>x.gateId==='captured-og-media-conflict'));
+ const damagedPackage=JSON.parse(good('review-bundle',{site:capturedMediaSitePath,blueprint:bp,media:capturedMediaPath}));
+ assert.equal(damagedPackage.mediaEvidence.coverage.capturedKnownResources,1);
+ assert.equal(damagedPackage.traceability.pages[0].mediaEvidence.ogImageAssetId,'asset-og-demo');
+ const ogDriftHtml={format:'manufact-seo-html-snapshot-v1',siteId:plan.siteId,
+  pages:[{id:'page-home',path:'/',html:'<html><head><meta property="og:image" content="https://wrong.test/other.png"></head></html>'}]};
+ assert.ok(require('../lib/media-delivery.cjs').review(capturedMediaSite,capturedMedia,ogDriftHtml).findings
+  .some(x=>x.code==='media:og-html-url-drift'));
  // Per-page/section acceptance map and decision-aware integration envelope.
  const traceable=JSON.parse(good('traceability',{site,blueprint:bp,snapshot:htmlSite,
   viewports:fixture('industrial.viewports.json')}));

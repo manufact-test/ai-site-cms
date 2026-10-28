@@ -21,10 +21,11 @@ const TRACE=require('../lib/traceability.cjs');
 const PUBLICATION=require('../lib/publication-integrity.cjs');
 const DELIVERY=require('../lib/delivery-evidence.cjs');
 const EXECUTION=require('../lib/execution-plan.cjs');
+const MEDIA=require('../lib/media-delivery.cjs');
 function main(argv){
  const [command,...args]=argv;
  const flags={};
- const permitted=new Set(['brief','blueprint','site','manifests','snapshot','viewports','before','decisions','delivery']);
+ const permitted=new Set(['brief','blueprint','site','manifests','snapshot','viewports','before','decisions','delivery','media']);
  for(let i=0;i<args.length;i+=2){
   if(!args[i]?.startsWith('--')||!permitted.has(args[i].slice(2))||!args[i+1]||flags[args[i]])throw Error('Use supported --name value options, without duplicates');
   flags[args[i].slice(2)]=args[i+1];
@@ -51,6 +52,11 @@ function main(argv){
   // Run existing authoritative Site v1 validation before producing an editorial review.
   out=auditSite(site,manifests(),blueprint).contentReview;
  }
+ else if(command==='media-review'){
+  const site=read('site'),registry=manifests();
+  auditSite(site,registry,flags.blueprint?read('blueprint'):null);
+  out=MEDIA.review(site,read('media'),flags.snapshot?read('snapshot'):null);
+ }
  else if(command==='delivery-review'){
   const site=read('site'),registry=manifests();
   auditSite(site,registry,flags.blueprint?read('blueprint'):null);
@@ -67,6 +73,7 @@ function main(argv){
   const evidence={...(flags.snapshot?{snapshot:read('snapshot')}:{}),
    ...(flags.viewports?{viewports:read('viewports')}:{})};
   if(flags.delivery)evidence.delivery=read('delivery');
+  if(flags.media)evidence.media=read('media');
   // Generate the same stable task IDs as the review bundle; this also validates
   // optional HTML/device evidence before it enters the acceptance map.
   const backlog=remediation(site,registry,blueprint,evidence);
@@ -91,6 +98,7 @@ function main(argv){
   if(flags.viewports)options.viewports=read('viewports');
   if(flags.before)options.baselineSite=read('before');
   if(flags.delivery)options.delivery=read('delivery');
+  if(flags.media)options.media=read('media');
   if(command==='review-bundle'&&flags.decisions)options.decisions=read('decisions');
   if(command==='execution-plan'||command==='execution-plan-md'){
    const backlog=remediation(site,registry,blueprint,options);
@@ -109,7 +117,7 @@ function main(argv){
  }
  else if(command==='analyze-html')out=snapshotAudit(read('snapshot'));
  else if(command==='handoff')out=propose(read('site'),manifests(),read('blueprint'));
- else throw Error('Commands: compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | deep-html --snapshot file [--blueprint file] | viewport-parity --viewports file --blueprint file | traceability --site file --blueprint file [--snapshot file] [--viewports file] | traceability-md --site file --blueprint file [--snapshot file] [--viewports file] | compare-site --before file --site file --blueprint file | html-parity --site file --blueprint file --snapshot file | delivery-review --site file --delivery file [--blueprint file] | publication-integrity --site file --snapshot file [--blueprint file] | execution-plan[/-md] --site file --blueprint file [--decisions file] [--delivery file] | review-bundle --site file --blueprint file [--snapshot file] [--viewports file] [--before file] [--delivery file] [--decisions file] | remediation-plan --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-md --site file --blueprint file [--snapshot file] [--viewports file] | release-review --site file --blueprint file [--snapshot file] [--viewports file] | triage --site file --blueprint file --decisions file [--snapshot file] | handoff --site file --blueprint file [--manifests dir]');
+ else throw Error('Commands: compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | deep-html --snapshot file [--blueprint file] | viewport-parity --viewports file --blueprint file | traceability --site file --blueprint file [--snapshot file] [--viewports file] | traceability-md --site file --blueprint file [--snapshot file] [--viewports file] | compare-site --before file --site file --blueprint file | html-parity --site file --blueprint file --snapshot file | media-review --site file --media file [--snapshot file] | delivery-review --site file --delivery file [--blueprint file] | publication-integrity --site file --snapshot file [--blueprint file] | execution-plan[/-md] --site file --blueprint file [--decisions file] [--delivery file] | review-bundle --site file --blueprint file [--snapshot file] [--viewports file] [--before file] [--delivery file] [--decisions file] | remediation-plan --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-md --site file --blueprint file [--snapshot file] [--viewports file] | release-review --site file --blueprint file [--snapshot file] [--viewports file] | triage --site file --blueprint file --decisions file [--snapshot file] | handoff --site file --blueprint file [--manifests dir]');
  process.stdout.write(typeof out==='string'?out+'\n':JSON.stringify(out,null,2)+'\n');
 }
 try{main(process.argv.slice(2));}catch(e){process.stderr.write('SEO Engine: '+e.message+'\n');process.exitCode=1;}

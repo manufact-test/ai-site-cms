@@ -26,6 +26,9 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   'delivery:canonical-invalid','delivery:sitemap-indexable-absent','delivery:sitemap-noindex-listed',
   'delivery:unmatched-page'].includes(s.code)&&s.severity==='error'));
  const deliveryReview=find(t=>t.sources.some(s=>s.code?.startsWith('delivery:')&&s.severity!=='error'));
+ const mediaProblems=find(t=>t.sources.some(s=>['media:resource-status-error','media:resource-mime-mismatch',
+  'media:og-image-not-image','media:invalid-og-image-url'].includes(s.code)&&s.severity==='error'));
+ const mediaReview=find(t=>t.sources.some(s=>s.code?.startsWith('media:')&&s.severity!=='error'));
  const publicationReview=find(t=>t.sources.some(s=>s.code?.startsWith('publication:')&&!['publication:sitemap-noindex','publication:sitemap-indexable-missing'].includes(s.code)));
  if(regression?.summary.criticalReviewItems)add(blockers,'new-critical-regressions',
   'Review new severe SEO regressions since prior Site v1 version',
@@ -34,6 +37,12 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(dangerousMarkup.length)add(blockers,'published-unverified-structured-data',
   'Review published structured data based on unverified facts',
   'A JSON-LD type appears in captured HTML while its associated blueprint evidence remains unverified. Remove or verify actual claims before release.',dangerousMarkup);
+ if(mediaProblems.length)add(blockers,'captured-og-media-conflict',
+  'Resolve broken public OG assets, MIME conflicts and invalid OG URLs',
+  'The supplied media transcript conflicts with Site v1; verify at the actual host.',mediaProblems);
+ if(mediaReview.length)add(reviews,'captured-media-review',
+  'Review media delivery, public OG image URLs and media coverage',
+  'Caller-supplied resources are not authenticated live delivery or social card proof.',mediaReview);
  if(deliveryProblems.length)add(blockers,'captured-delivery-conflict',
   'Resolve captured HTTP status, indexation, sitemap and canonical conflicts',
   'The caller-supplied HTTP transcript conflicts with the planned Site v1 publication; reproduce at the actual host.',deliveryProblems);
@@ -86,13 +95,14 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   deepHtmlEvidenceChecked:Boolean(options.snapshot),
   siteRegressionCompared:Boolean(options.baselineSite),
   callerSuppliedHttpTranscriptReviewed:Boolean(options.delivery),
+  callerSuppliedMediaTranscriptReviewed:Boolean(options.media),
   liveHostChecked:false,
   visualPrototypesVerified:false,
   mobileRenderedVerified:false,
   formsVerified:false,
   cwvMeasured:false
  };
- const decision=blockers.length?'repair-required':options.snapshot||options.viewports||options.delivery?'manual-acceptance-required':'collect-publication-evidence';
+ const decision=blockers.length?'repair-required':options.snapshot||options.viewports||options.delivery||options.media?'manual-acceptance-required':'collect-publication-evidence';
  return {format:FORMAT,version:1,siteId:site.siteId,
   decision,automaticReleaseApproval:false,readyToPublish:false,
   blockers,reviews,manualChecks:manual,coverage,
