@@ -36,6 +36,8 @@ vm.runInNewContext(code,{
  }
 },{filename:'php-html-capture.cjs',timeout:2000});
 const CAP=moduleShim.exports;
+const theme=require('../lib/php-local-theme.cjs');
+const cssTheme='<style>:root{'+Object.entries(theme.declaredTheme(site)).map(([key,value])=>key+':'+value).join(';')+'}</style>';
 const origin=()=>mode==='dev-origin'?'http://127.0.0.1:'+server.address().port:'https://pilot.example';
 const publicMenu=title=>'<ul class="cms-menu-list">'+
  '<li class="cms-nav-item"><a href="/published/pilot-local/"'+(title==='Home'?' aria-current="page"':'')+'>Home</a></li>'+
@@ -68,6 +70,7 @@ const html=(title)=>{
   (hasImage?'<meta name="twitter:image" content="'+twitterImage+'">'+
    '<meta property="og:image:alt" content="Actual banner">'+
    '<meta name="twitter:image:alt" content="Actual banner">':'')+
+  (mode==='bad-theme'?cssTheme.replace('--cms-primary:#0a5bff','--cms-primary:#ff0033'):cssTheme)+
   '</head>'+
   '<body>'+publicHeader(title)+'<h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a>'+
   '<a href="/published/pilot-local/old/">Old route</a>'+
@@ -471,6 +474,7 @@ async function main(){
   assert.equal(result.localMedia.capturedResources,3);
   assert.equal(result.localMedia.criticalCount,0);
   assert.equal(result.localHead.findings.length,0);
+   assert.equal(result.localTheme.findings.length,0);
    assert.equal(result.localNavigation.findings.length,0);
   assert.equal(result.localHead.pagesWithRecordedHeaders,2);
   assert.equal(result.localHead.publicOriginObservedInSitemap,'https://pilot.example');
@@ -569,6 +573,11 @@ async function main(){
   await CAP.capture(sealed,base,twitterDrift);
   assert.ok(CAP.read(twitterDrift,site,source).localHead.findings.some(x=>
    x.code==='php-head:social-drift'&&x.field==='twitter:image'&&x.severity==='error'));
+  mode='bad-theme';
+  const badTheme=path.join(tmp,'wrong-theme');
+  await CAP.capture(sealed,base,badTheme);
+  assert.ok(CAP.read(badTheme,site,source).localTheme.findings.some(x=>
+   x.code==='php-theme:token-drift'&&x.property==='--cms-primary'&&x.severity==='error'));
   mode='bad-menu';
   const badMenu=path.join(tmp,'wrong-public-menu');
   await CAP.capture(sealed,base,badMenu);
