@@ -14,7 +14,7 @@ const ICON_PATHS=Object.freeze({
  play:'<path d="m8 5 12 7-12 7z"/>',menu:'<path d="M4 7h16M4 12h16M4 17h16"/>'
 });
 const MOTIONS=['none','fade-in','fade-up','slide-left','zoom-in'];
-const TYPES=['container','heading','text','button','image','divider','icon','video'];
+const TYPES=['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab'];
 const STYLE_KEYS=['display','columns','direction','align','justify','gap','padding','radius',
   'color','background','fontSize','fontWeight','lineHeight','maxWidth','position','top','left',
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
@@ -121,14 +121,21 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   if(!Array.isArray(graph.nodes)||graph.nodes.length<1||graph.nodes.length>30)
     fail('graph.nodes','invalid number of roots');
   let count=0;
-  function visit(node,depth){
+  function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
     keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
-    if(node.type==='container'||node.type==='divider'){
+    if(node.type==='tab'&&parentType!=='tabs')fail(node.id,'tab must belong to tabs');
+    if(parentType==='tabs'&&node.type!=='tab')fail(node.id,'tabs accept only tab children');
+    if(node.type==='container'||node.type==='divider'||node.type==='tabs'){
       if(own(node,'text')||own(node,'href')||own(node,'assetId')||own(node,'alt')||own(node,'level')||own(node,'posterAssetId')||own(node,'loop'))
         fail(node.id,'invalid container content');
+    }else if(node.type==='disclosure'||node.type==='tab'){
+      if(typeof node.text!=='string'||!node.text.trim()||node.text.length>160||
+        /[\x00-\x1f]/.test(node.text)||own(node,'href')||own(node,'assetId')||
+        own(node,'alt')||own(node,'level')||own(node,'icon')||own(node,'posterAssetId')||own(node,'loop'))
+        fail(node.id,'invalid disclosure/tab label');
     }else if(node.type==='icon'){
       if(!own(ICON_PATHS,node.icon)||own(node,'text')||own(node,'href')||own(node,'assetId')||
         own(node,'level')||own(node,'children')||own(node,'posterAssetId')||own(node,'loop')||
@@ -170,10 +177,13 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       keys(node.states,['hover','focus'],node.id+'/states');
       for(const [state,st] of Object.entries(node.states))validateStyle(st,tokens,node.id+'/'+state,'state');
     }
-    if(node.type!=='container'&&own(node,'children'))fail(node.id,'noncontainer children');
-    if(node.type==='container'){
-      if(!Array.isArray(node.children)||node.children.length>30)fail(node.id,'container children');
-      node.children.forEach(n=>visit(n,depth+1));
+    if(!['container','disclosure','tabs','tab'].includes(node.type)&&own(node,'children'))fail(node.id,'noncontainer children');
+    if(['container','disclosure','tabs','tab'].includes(node.type)){
+      if(!Array.isArray(node.children)||node.children.length>(node.type==='tabs'?8:30)||
+        (node.type==='tabs'&&node.children.length<2)||
+        (['tab','disclosure'].includes(node.type)&&node.children.length<1))
+        fail(node.id,'invalid interactive children');
+      node.children.forEach(n=>visit(n,depth+1,node.type));
     }
   }
   graph.nodes.forEach(n=>visit(n,0));return graph;
@@ -203,14 +213,17 @@ function editTree(graph,operation){
     if(next.version!==1||!Array.isArray(next.nodes)||next.nodes.length<1||next.nodes.length>30)
       fail('edit','invalid roots');
     const found=new Map();
-    const visit=(node,items,depth)=>{
+    const visit=(node,items,depth,parentType=null)=>{
+      if((node.type==='tab'&&parentType!=='tabs')||(parentType==='tabs'&&node.type!=='tab'))fail('edit','invalid tab hierarchy');
+      if(node.type==='tabs'&&(!Array.isArray(node.children)||node.children.length<2||node.children.length>8))fail('edit','tabs require two to eight panels');
+      if(['tab','disclosure'].includes(node.type)&&(!Array.isArray(node.children)||!node.children.length))fail('edit','interactive panel needs content');
       if(!object(node)||typeof node.id!=='string'||!IDENT.test(node.id)||
         found.has(node.id)||!TYPES.includes(node.type)||depth>8||found.size>=90)
         fail('edit','invalid node, duplicated id or graph limit');
       found.set(node.id,{node,items,depth});
-      if(node.type==='container'){
-        if(!Array.isArray(node.children)||node.children.length>30)fail('edit','container limit');
-        node.children.forEach(child=>visit(child,node.children,depth+1));
+      if(['container','disclosure','tabs','tab'].includes(node.type)){
+        if(!Array.isArray(node.children)||node.children.length>(node.type==='tabs'?8:30))fail('edit','container limit');
+        node.children.forEach(child=>visit(child,node.children,depth+1,node.type));
       }else if(own(node,'children'))fail('edit','invalid child owner');
     };
     next.nodes.forEach(node=>visit(node,next.nodes,0));
@@ -219,7 +232,7 @@ function editTree(graph,operation){
   const before=scan(),source=operation.action==='insert'?null:before.get(operation.nodeId);
   if(operation.action!=='insert'&&!source)fail('edit','missing selected node');
   const descendants=[];
-  const walk=(node)=>{descendants.push(node);if(node.type==='container')node.children.forEach(walk);};
+  const walk=(node)=>{descendants.push(node);if(['container','disclosure','tabs','tab'].includes(node.type))node.children.forEach(walk);};
   if(source)walk(source.node);
   if(operation.action==='duplicate'){
     if(!Array.isArray(operation.ids)||operation.ids.length!==descendants.length||
@@ -227,7 +240,7 @@ function editTree(graph,operation){
        new Set(operation.ids).size!==operation.ids.length)fail('edit','invalid replacement ids');
     const copy=JSON.parse(JSON.stringify(source.node));
     let idx=0;
-    const rewrite=(node)=>{node.id=operation.ids[idx++];if(node.type==='container')node.children.forEach(rewrite);};
+    const rewrite=(node)=>{node.id=operation.ids[idx++];if(['container','disclosure','tabs','tab'].includes(node.type))node.children.forEach(rewrite);};
     rewrite(copy);
     source.items.splice(source.items.indexOf(source.node)+1,0,copy);
   }else if(operation.action==='insert'){
@@ -235,7 +248,7 @@ function editTree(graph,operation){
     if(!target||!['before','after','inside'].includes(operation.placement)||
        !object(operation.node))fail('edit','invalid insertion');
     if(operation.placement==='inside'){
-      if(target.node.type!=='container')fail('edit','destination not a container');
+      if(!['container','disclosure','tabs','tab'].includes(target.node.type))fail('edit','destination not a container');
       target.node.children.push(JSON.parse(JSON.stringify(operation.node)));
     }else{
       target.items.splice(target.items.indexOf(target.node)+(operation.placement==='after'?1:0),
@@ -246,7 +259,7 @@ function editTree(graph,operation){
     if(!target||!['before','after','inside'].includes(operation.placement)||
        descendants.some(n=>n.id===operation.targetId))
       fail('edit','invalid destination or cycle');
-    if(operation.placement==='inside'&&target.node.type!=='container')
+    if(operation.placement==='inside'&&!['container','disclosure','tabs','tab'].includes(target.node.type))
       fail('edit','destination not a container');
     source.items.splice(source.items.indexOf(source.node),1);
     if(operation.placement==='inside')target.node.children.push(source.node);
@@ -364,6 +377,13 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     if(n.motion&&n.motion.effect!=='none')rules.push(selector+'{animation:cmsdg-'+n.motion.effect+' '+n.motion.duration+'ms ease-out '+n.motion.delay+'ms both}');
     const cls='cmsdg-n-'+n.id;
     if(n.type==='container')return '<div class="'+cls+'">'+n.children.map(visit).join('')+'</div>';
+    if(n.type==='disclosure')return '<details class="'+cls+' cmsdg-disclosure"><summary>'+attr(n.text)+'</summary><div class="cmsdg-disclosure-body">'+n.children.map(visit).join('')+'</div></details>';
+    if(n.type==='tab')return '<div class="'+cls+' cmsdg-tab-panel" id="cmsdg-panel-'+n.id+'">'+n.children.map(visit).join('')+'</div>';
+    if(n.type==='tabs'){
+      const controls=n.children.map((tab,i)=>'<input type="radio" name="cmsdg-tabs-'+n.id+'" id="cmsdg-tab-'+tab.id+'" aria-controls="cmsdg-panel-'+tab.id+'"'+(i===0?' checked':'')+'><label for="cmsdg-tab-'+tab.id+'">'+attr(tab.text)+'</label>').join('');
+      for(const tab of n.children)rules.push(scope+' .cmsdg-tabs-'+n.id+':has(> .cmsdg-tabs-controls > #cmsdg-tab-'+tab.id+':checked) > .cmsdg-tabs-panels > #cmsdg-panel-'+tab.id+'{display:block}');
+      return '<div class="'+cls+' cmsdg-tabs-'+n.id+'"><div class="cmsdg-tabs-controls" role="group" aria-label="Вкладки">'+controls+'</div><div class="cmsdg-tabs-panels">'+n.children.map(visit).join('')+'</div></div>';
+    }
     if(n.type==='divider')return '<hr class="'+cls+'">';
     if(n.type==='icon')return '<svg class="'+cls+'" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '+(n.alt?'role="img" aria-label="'+attr(n.alt)+'"':'aria-hidden="true"')+'>'+ICON_PATHS[n.icon]+'</svg>';
     if(n.type==='heading')return '<h'+(n.level||2)+' class="'+cls+'">'+attr(n.text)+'</h'+(n.level||2)+'>';
@@ -403,6 +423,14 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
   return '<section class="cmsdg '+('cmsdg-'+graph.id)+'" id="'+attr(sectionId)+'"><style>'+
     scope+'{min-width:0;max-width:none;padding:0;min-height:0}'+scope+' *{box-sizing:border-box;min-width:0}'+
     scope+' img,'+scope+' video{max-width:100%;height:auto;object-position:var(--cmsdg-object-x,50%) var(--cmsdg-object-y,50%)}'+scope+' svg{display:inline-block;vertical-align:middle;flex:none}'+
+    scope+' .cmsdg-disclosure > summary{cursor:pointer;list-style-position:inside}'+
+    scope+' .cmsdg-disclosure-body{padding:12px 0}'+
+    scope+' .cmsdg-tabs-controls{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 12px}'+
+    scope+' .cmsdg-tabs-controls input{position:absolute;width:1px;height:1px;opacity:0}'+
+    scope+' .cmsdg-tabs-controls label{cursor:pointer;padding:10px 16px;border:1px solid currentColor;border-radius:8px}'+
+    scope+' .cmsdg-tabs-controls input:checked + label{font-weight:700;background:#eef3fa}'+
+    scope+' .cmsdg-tabs-controls input:focus-visible + label{outline:3px solid #1868d3;outline-offset:2px}'+
+    scope+' .cmsdg-tab-panel{display:none}'+
     '@keyframes cmsdg-fade-in{from{opacity:0}to{opacity:1}}'+
     '@keyframes cmsdg-fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}'+
     '@keyframes cmsdg-slide-left{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}'+
@@ -489,7 +517,7 @@ function auditAccessibility(graph,tokensInput){
         if(ratio<minimum)add('low-contrast','warning',node,
           'Контраст текста '+ratio.toFixed(2)+':1; ориентир WCAG AA — не менее '+minimum.toFixed(1)+':1.');
       }
-      if(node.type==='container'&&Array.isArray(node.children))walk(node.children,{color,backgrounds,fontSize,fontWeight});
+      if(['container','disclosure','tabs','tab'].includes(node.type)&&Array.isArray(node.children))walk(node.children,{color,backgrounds,fontSize,fontWeight});
     }
   };
   if(!graph||!Array.isArray(graph.nodes)){
