@@ -1433,6 +1433,8 @@
           locations.push(page.title+' · обложка видео · '+node.id);
         if(node.responsiveMedia&&['tabletAssetId','mobileAssetId'].some(k=>node.responsiveMedia[k]===assetId))
           locations.push(page.title+' · адаптивная фотография · '+node.id);
+        if(node.backgroundVideo&&['assetId','posterAssetId','tabletPosterAssetId','mobilePosterAssetId'].some(k=>node.backgroundVideo[k]===assetId))
+          locations.push(page.title+' · фоновое видео/обложка · '+node.id);
         if(node.backgroundMedia&&['assetId','tabletAssetId','mobileAssetId'].some(k=>node.backgroundMedia[k]===assetId))
           locations.push(page.title+' · фоновая графика · '+node.id);
         for(const child of node.children||[])walk(child);
