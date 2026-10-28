@@ -399,6 +399,8 @@ function changes(raw,manifests){
         diff.push({kind:'appearance-updated',pageId:page.id,sectionId:section.id});
       if(JSON.stringify(prev.formFields)!==JSON.stringify(section.formFields))
         diff.push({kind:'form-fields-updated',pageId:page.id,sectionId:section.id});
+      if(JSON.stringify(prev.formSteps)!==JSON.stringify(section.formSteps))
+        diff.push({kind:'form-steps-updated',pageId:page.id,sectionId:section.id});
       if(JSON.stringify(prev.items)!==JSON.stringify(section.items))
         diff.push({kind:'items-updated',pageId:page.id,sectionId:section.id});
       for(const el of section.elements){
@@ -441,6 +443,7 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
     appearance:copy(section.appearance||C.DEFAULT_APPEARANCE),
     designGraph:copy(section.designGraph||null),
     formFields:copy(section.formFields||[]),
+    formSteps:copy(section.formSteps||[]),
     elements,items,notPublished:true,hasExecutableHtml:false};
 }
 module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview});

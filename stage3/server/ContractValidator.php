@@ -241,7 +241,7 @@ final class ContractValidator
             self::must(is_array($page['sections']) && array_is_list($page['sections'])
                 && count($page['sections']) >= 1 && count($page['sections']) <= 100, 'Invalid sections');
             foreach ($page['sections'] as $section) {
-                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance', 'formFields', 'designGraph']);
+                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance', 'formFields', 'formSteps', 'designGraph']);
                 if (array_key_exists('appearance',$section)) {
                     self::keys($section['appearance'],['surface','spacing','align','width','heading','corners','mobileAlign','mobileSpacing','button']);
                     self::must(in_array($section['appearance']['surface']??null,['default','paper','tint','dark'],true)
@@ -305,6 +305,7 @@ final class ContractValidator
                     }
                 } else self::must(!array_key_exists('items',$section),'Undeclared repeater');
                 FlexForm::definitions($section); // optional new fields, select dependencies and cross-field constraints
+                FlexForm::steps($section); // all fields partitioned exactly once across 2–4 steps
                 if ($section['component']==='custom-section')
                     self::must(array_key_exists('designGraph',$section),'Custom section requires a Design Graph');
                 if (array_key_exists('designGraph',$section))

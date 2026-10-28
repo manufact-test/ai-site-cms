@@ -324,3 +324,30 @@ When the *subject* or *composition* of a visible image differs on desktop/tablet
 `assetId` is always the desktop original and is an independently uploaded immutable site-owned media ID. `responsiveMedia` is optional, but **if present must contain at least one** of the two allowed keys. Both values must be existing site-owned PNG/JPEG/WebP image IDs. No videos, SVG, HTTP URLs, data URLs, empty objects or unknown keys. An omitted tablet inherits desktop. An omitted mobile inherits tablet where provided, otherwise desktop. Each of these IDs is checked on import and rewritten to the actual server-issued ID after SHA-256 upload. Normal resized `variants` of one uploaded original remain distinct from **art-directed originals**.
 The JS preview and real PHP publication emit standard `<picture><source media="(max-width:600px)"…><source media="(max-width:900px)"…><img…></picture>`, with only the sources supplied by the author. Native selection preserves the existing `alt`, lazy loading, dimensions, own image styles and optional safe click `href`. Foreground pictures work in galleries and as linked images. Both Studio modes expose separate selectors to switch the photo on tablet/phone; replacing media globally updates these bindings, and a referenced image cannot be pruned accidentally from the media library.
 This is not CSS `backgroundMedia`, which remains a separate typed layer and has its own cover/position/overlay controls. It is not an automatic feature to match a client's original prototype to the finished page. A human must compare the actual image crop, composition and position on real desktop/tablet/mobile PHP pages. Fixed-size image originals, approval mockups, complete backup size and media upload limits remain unchanged. The first real approved site and owner GO are still missing.
+
+## Optional multistep lead form in the typed site contract
+
+The existing `lead-form-flex` section may now contain an optional **`formSteps`**
+array. This is a presentation partition, not an alternate form backend:
+
+```json
+"formSteps": [
+  {"title":"Контакты", "fields":["name", "email"]},
+  {"title":"Подробности", "fields":["message", "extra1", "field-budget"]}
+]
+```
+
+The example presumes that `extra-one` is enabled and `field-budget` exists
+in `formFields`. Each of 2–4 steps must have a nonempty title (max 60 chars)
+and 1–15 fields. Include **all and only** actual form field names **once**:
+the standard `name`, `email`, `message`, enabled legacy extras `extra1`–
+`extra3`, and declared `formFields[].id` values. Conditional questions
+cannot occur before the select they depend on. Consent, security token and
+honeypot are managed by the renderer and are never listed in `formSteps`.
+
+Studio includes a step assignment editor; the visitor PHP release progressively
+enhances it with first-party hash-pinned JavaScript for Next/Back and per-step
+validation. Without JavaScript the full form is visible and submits normally.
+The immutable release snapshot, server-side validation/anti-spam, recipient
+routing and explicit Save/Publish flow are unchanged. This does not imply a real
+approved client handoff has been received or visually accepted.

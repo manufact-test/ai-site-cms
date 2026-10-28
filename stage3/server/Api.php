@@ -266,7 +266,7 @@ final class Api
                     echo 'Not found';
                     exit;
                 }
-                header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; media-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+                header("Content-Security-Policy: default-src 'none'; script-src 'sha256-".base64_encode(hash('sha256',PublicRenderer::formStepsScript(),true))."'; style-src 'unsafe-inline'; img-src 'self'; media-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
                 header('Content-Type: text/html; charset=utf-8');
                 echo $html;
                 exit;

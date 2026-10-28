@@ -86,9 +86,9 @@ final class PublicRenderer
         return '<a class="action" href="' . self::h($href) . '">' . self::label($section, $slot) . '</a>';
     }
 
-    private static function extraFields(array $section): string
+    private static function extraFields(array $section): array
     {
-        $html = '';
+        $html = [];
         $css = '';
         foreach (FlexForm::definitions($section) as $field) {
             $name = self::h($field['name']);
@@ -100,9 +100,11 @@ final class PublicRenderer
             $placeholder = $field['placeholder'] !== ''
                 ? ' placeholder="' . self::h($field['placeholder']) . '"' : '';
             $classes = 'lead-field';
+            $attrs = '';
             if ($conditional) {
                 $slug = $field['name'];
                 $classes .= ' lead-conditional-' . $slug;
+                $attrs = ' data-condition-source="' . self::h($field['when']['field']) . '" data-condition-option="' . (int)$field['when']['option'] . '" data-condition-required="' . ($field['required'] ? 'yes' : 'no') . '"';
                 $ref = $field['when']['field'];
                 $nth = $field['when']['option'] + 1; // first select option is the empty placeholder
                 // CSS-only progressive enhancement. No inline scripts or CMS
@@ -123,13 +125,13 @@ final class PublicRenderer
                         . '" value="' . $escaped . '"' . $required . '> <span>' . $escaped . '</span></label>';
                 }
                 $control .= '</fieldset>';
-                $html .= '<div class="' . $classes . '">' . $control . $hint . '</div>';
+                $html[$field['name']] = '<div class="' . $classes . '"' . $attrs . '>' . $control . $hint . '</div>';
                 continue;
             }
             if ($field['kind'] === 'checkbox') {
                 $control = '<label class="lead-checkbox"><input type="checkbox" name="' . $name
                     . '" value="yes"' . $required . '> <span>' . $label . '</span></label>';
-                $html .= '<div class="' . $classes . '">' . $control . $hint . '</div>';
+                $html[$field['name']] = '<div class="' . $classes . '"' . $attrs . '>' . $control . $hint . '</div>';
                 continue;
             }
 
@@ -156,10 +158,78 @@ final class PublicRenderer
                 $control = '<input type="' . $type . '" name="' . $name . '" id="' . $name . '"'
                     . $maxAttr . $extra . $placeholder . $required . '>';
             }
-            $html .= '<div class="' . $classes . '"><label for="' . $name . '">' . $label
+            $html[$field['name']] = '<div class="' . $classes . '"' . $attrs . '><label for="' . $name . '">' . $label
                 . '</label>' . $control . $hint . '</div>';
         }
-        return ($css !== '' ? '<style>' . $css . '</style>' : '') . $html;
+        return ['css'=>$css, 'fields'=>$html];
+    }
+
+    /** Hash-pinned static wizard (never executes submitted form content). */
+    public static function formStepsScript(): string
+    {
+        return <<<'JS'
+(()=>{
+  for(const form of document.querySelectorAll('form[data-multi-step]')){
+    if(form.dataset.wizardReady==='yes')continue;
+    const steps=[...form.querySelectorAll('.lead-step')];
+    if(steps.length<2)continue;
+    form.dataset.wizardReady='yes';
+    const progress=form.querySelector('.lead-step-progress');
+    const submit=form.querySelector('.lead-submit');
+    let current=0;
+    const conditions=[...form.querySelectorAll('[data-condition-source]')];
+    const updateConditions=()=>{
+      for(const row of conditions){
+        const source=form.elements.namedItem(row.dataset.conditionSource);
+        const active=source&&source.tagName==='SELECT'&&source.selectedIndex===Number(row.dataset.conditionOption);
+        row.hidden=!active;
+        for(const input of row.querySelectorAll('input,select,textarea')){
+          if(!active){
+            if(input.type==='checkbox'||input.type==='radio')input.checked=false;
+            else input.value='';
+          }
+          input.disabled=!active;
+          input.required=!!active&&row.dataset.conditionRequired==='yes';
+        }
+      }
+    };
+    const valid=index=>{
+      updateConditions();
+      for(const input of steps[index].querySelectorAll('input,select,textarea')){
+        if(!input.disabled&&!input.checkValidity()){
+          input.reportValidity();
+          return false;
+        }
+      }
+      return true;
+    };
+    const show=index=>{
+      current=index;
+      steps.forEach((step,i)=>{step.hidden=i!==index;});
+      form.dataset.currentStep=String(index);
+      submit.hidden=index!==steps.length-1;
+      progress.textContent='Шаг '+(index+1)+' из '+steps.length+' — '+steps[index].querySelector('legend').textContent;
+      updateConditions();
+    };
+    form.addEventListener('change',updateConditions);
+    form.addEventListener('click',event=>{
+      const next=event.target.closest('[data-step-next]');
+      const back=event.target.closest('[data-step-back]');
+      if(next&&form.contains(next)&&current<steps.length-1){
+        if(valid(current))show(current+1);
+      }else if(back&&form.contains(back)&&current>0)show(current-1);
+    });
+    form.addEventListener('submit',event=>{
+      if(current<steps.length-1){
+        event.preventDefault();
+        if(valid(current))show(current+1);
+      }else updateConditions();
+    });
+    form.classList.add('is-stepped');
+    show(0);
+  }
+})();
+JS;
     }
 
     /**
@@ -586,20 +656,43 @@ final class PublicRenderer
                 }
                 $action = $preview ? '#preview-only' : FormGateway::endpoint($collectorBase ?? '', $siteId, $section['id']);
                 $token = $preview ? '' : FormGateway::token($siteId, $section['id'], $publishedVersion);
+                $extras = self::extraFields($section);
+                $fields = [
+                    'name'=>'<label>' . self::label($section, 'name-label') . '<input name="name" type="text" minlength="2" maxlength="120" required autocomplete="name"></label>',
+                    'email'=>'<label>' . self::label($section, 'email-label') . '<input name="email" type="email" maxlength="254" required autocomplete="email"></label>',
+                    'message'=>'<label>' . self::label($section, 'message-label') . '<textarea name="message" minlength="10" maxlength="4000" required rows="5"></textarea></label>',
+                ] + $extras['fields'];
+                $steps = FlexForm::steps($section);
+                $formFields = '';
+                if ($steps === []) {
+                    $formFields = implode('', $fields);
+                } else {
+                    $formFields .= '<p class="lead-step-progress" role="status" aria-live="polite"></p>';
+                    foreach ($steps as $index => $step) {
+                        $formFields .= '<fieldset class="lead-step"><legend>' . self::h($step['title']) . '</legend>';
+                        foreach ($step['fields'] as $fieldName) $formFields .= $fields[$fieldName];
+                        $formFields .= '<div class="lead-step-nav">';
+                        if ($index > 0) $formFields .= '<button type="button" class="lead-step-back" data-step-back>Назад</button>';
+                        if ($index < count($steps)-1) $formFields .= '<button type="button" class="lead-step-next" data-step-next>Далее</button>';
+                        $formFields .= '</div></fieldset>';
+                    }
+                }
                 $body .= '<section id="' . $id . '" class="lead-section">'
                     . '<h2>' . self::label($section, 'heading') . '</h2>'
-                    . '<form class="lead-form" method="post" accept-charset="utf-8" action="' . self::h($action) . '">'
+                    . '<form class="lead-form"'.($steps !== [] ? ' data-multi-step="yes"' : '')
+                    .' method="post" accept-charset="utf-8" action="' . self::h($action) . '">'
                     . ($preview ? '' : '<input type="hidden" name="_release" value="' . $publishedVersion . '">'
                         . '<input type="hidden" name="_token" value="' . self::h($token) . '">')
                     . '<div class="lead-honey" aria-hidden="true"><label>Website <input tabindex="-1" autocomplete="off" type="text" name="website" value=""></label></div>'
-                    . '<label>' . self::label($section, 'name-label') . '<input name="name" type="text" minlength="2" maxlength="120" required autocomplete="name"></label>'
-                    . '<label>' . self::label($section, 'email-label') . '<input name="email" type="email" maxlength="254" required autocomplete="email"></label>'
-                    . '<label>' . self::label($section, 'message-label') . '<textarea name="message" minlength="10" maxlength="4000" required rows="5"></textarea></label>'
-                    . self::extraFields($section)
+                    . ($extras['css'] !== '' ? '<style>' . $extras['css'] . '</style>' : '')
+                    . $formFields
                     . '<label class="lead-consent"><input type="checkbox" name="consent" value="yes" required> '
                     . self::label($section, 'consent-label') . '</label>'
-                    . '<button class="action" type="submit">' . self::label($section, 'submit-label') . '</button>'
+                    . '<button class="action lead-submit" type="submit">' . self::label($section, 'submit-label') . '</button>'
                     . '</form></section>';
+                if ($steps !== [] && !$preview) {
+                    $body .= '<script>' . self::formStepsScript() . '</script>';
+                }
             } elseif ($section['component'] === 'cta-banner') {
                 $body .= '<section id="' . $id . '" class="cta-banner"><h2>'
                     . self::label($section, 'heading') . '</h2><p>'
@@ -724,7 +817,7 @@ final class PublicRenderer
             . 'padding:14px 22px;border-radius:var(--cms-button-radius);box-shadow:var(--cms-button-shadow);text-decoration:none;font-weight:700}.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}'
             . 'article{padding:24px;background:var(--cms-surface);border:1px solid #e1e8f1;border-radius:12px}'
             . '.showcase-photo{display:block;width:100%;height:auto;max-height:680px;object-fit:contain;border-radius:16px;background:#e4ebf3}'
-            . '.lead-form{display:grid;gap:16px;max-width:700px}.lead-form>label{display:grid;gap:6px;font-weight:600}.lead-field{display:grid;gap:6px;font-weight:600}.lead-field>label{display:block}.lead-form input:not([type=checkbox]):not([type=radio]),.lead-form textarea,.lead-form select{padding:12px;border:1px solid #a5b3c4;border-radius:8px;font:inherit;width:100%}.lead-radio-group{display:grid;gap:8px;border:0;margin:0;padding:0}.lead-radio-group legend{font-weight:700;padding:0 0 6px}.lead-radio-option,.lead-checkbox{display:flex!important;grid-template-columns:none;align-items:center;gap:8px;font-weight:400!important}.lead-radio-option input,.lead-checkbox input{width:auto!important;margin:0}.lead-checkbox{align-items:flex-start}.lead-form button{border:0;cursor:pointer}.lead-consent{display:flex!important;flex-direction:row;align-items:flex-start}.lead-honey{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}'
+            . '.lead-form{display:grid;gap:16px;max-width:700px}.lead-form .lead-field[hidden],.lead-form .lead-step[hidden],.lead-form .lead-submit[hidden]{display:none!important}.lead-step{display:grid;gap:16px;border:1px solid #dae4ef;border-radius:12px;padding:18px;min-width:0}.lead-step legend{font-weight:700;padding:0 9px}.lead-step>label{display:grid;gap:6px;font-weight:600}.lead-step-nav{display:none;gap:12px;justify-content:flex-start}.lead-form.is-stepped .lead-step-nav{display:flex}.lead-step-nav button{padding:11px 18px;border:1px solid #a5b3c4;border-radius:8px;background:var(--cms-surface);cursor:pointer}.lead-step-progress{display:none;margin:0;font-weight:600}.lead-form.is-stepped .lead-step-progress{display:block}.lead-form>label{display:grid;gap:6px;font-weight:600}.lead-field{display:grid;gap:6px;font-weight:600}.lead-field>label{display:block}.lead-form input:not([type=checkbox]):not([type=radio]),.lead-form textarea,.lead-form select{padding:12px;border:1px solid #a5b3c4;border-radius:8px;font:inherit;width:100%}.lead-radio-group{display:grid;gap:8px;border:0;margin:0;padding:0}.lead-radio-group legend{font-weight:700;padding:0 0 6px}.lead-radio-option,.lead-checkbox{display:flex!important;grid-template-columns:none;align-items:center;gap:8px;font-weight:400!important}.lead-radio-option input,.lead-checkbox input{width:auto!important;margin:0}.lead-checkbox{align-items:flex-start}.lead-form button{border:0;cursor:pointer}.lead-consent{display:flex!important;flex-direction:row;align-items:flex-start}.lead-honey{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}'
             . '.repeat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:20px}.repeat-grid article,.repeat-grid .review,.repeat-grid figure{background:var(--cms-surface);border:1px solid #e1e8f1;padding:24px;margin:0;border-radius:12px}.repeat-grid h3{margin:0 0 12px}.repeat-grid .review blockquote{margin:0 0 16px;font-size:19px}.repeat-grid figcaption{font-size:14px;opacity:.75}.repeat-grid img{max-width:100%;height:auto;max-height:420px;object-fit:contain}.faq{max-width:850px}.faq details{border-bottom:1px solid #d0d8e2;padding:18px}.faq summary{cursor:pointer;font-weight:700}.service-link{display:inline-flex;padding-top:14px}'
             . '.story-layout{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center}.story-copy p{max-width:65ch}.story-photo{display:block;width:100%;max-height:620px;object-fit:contain;border-radius:16px}.partner-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:16px}.partner-logo{border:1px solid #e1e8f1;border-radius:12px;display:grid;justify-items:center;gap:8px;text-align:center;padding:18px;background:var(--cms-surface);text-decoration:none}.partner-logo img{max-width:100%;width:auto;height:80px;object-fit:contain}.partner-logo span{font-weight:700;font-size:14px}'
             . '.cta-banner{background:var(--cms-surface)}.cta-banner p{max-width:650px}.cta-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.cta-actions .action{margin:0}.cta-actions .action:last-child{background:transparent;color:var(--cms-primary);box-shadow:inset 0 0 0 2px currentColor}'

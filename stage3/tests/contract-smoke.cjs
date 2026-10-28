@@ -1016,6 +1016,49 @@ test('opt-in flexible forms support independent typed fields and safe select dep
   refuses(()=>sdk.validateSite(other,manifests),'Only form-flex can carry formFields');
 });
 
+
+test('flexible form steps partition fields, preserve undo and reject invalid flows',()=>{
+  const m=manifests.find(m=>m.id==='lead-form-flex'),site=structuredClone(initial);
+  const section=sdk.sectionFrom(m,'section-stepped');
+  const select=section.elements.find(e=>e.slot==='extra-one').values;
+  select['behavior.kind']='select';
+  select['content.options']='Стандарт\nСрочно';
+  section.formFields=[
+    {id:'field-urgency',label:'Описание срочности',kind:'textarea',required:true,
+      options:[],placeholder:'',when:{field:'extra1',option:2}},
+    {id:'field-budget',label:'Бюджет',kind:'number',required:false,options:[],placeholder:''}
+  ];
+  section.formSteps=[
+    {title:'Связаться',fields:['name','email']},
+    {title:'Заявка',fields:['message','extra1','field-urgency','field-budget']}
+  ];
+  site.pages[1].sections.push(section);
+  assert.ok(sdk.validateSite(site,manifests));
+  const D=require('../sdk/draft.cjs');
+  let draft=D.begin(site,manifests);
+  assert.equal(D.blockPreview(draft,manifests,'page-contact','section-stepped').formSteps.length,2);
+  const changed=structuredClone(site);
+  changed.pages[1].sections.at(-1).formSteps[1].title='Уточнения';
+  draft=D.replaceSite(draft,manifests,changed,draft.revision);
+  assert.ok(D.changes(draft,manifests).some(d=>d.kind==='form-steps-updated'));
+  assert.equal(D.undo(draft,manifests).current.pages[1].sections.at(-1).formSteps[1].title,'Заявка');
+  const bad=structuredClone(site),steps=bad.pages[1].sections.at(-1).formSteps;
+  steps[1].fields.pop();
+  refuses(()=>sdk.validateSite(bad,manifests),'No unassigned fields');
+  steps[1].fields.push('field-budget','name');
+  refuses(()=>sdk.validateSite(bad,manifests),'No repeated fields');
+  steps[1].fields.pop();
+  steps[0].fields.push('field-urgency');
+  steps[1].fields.splice(steps[1].fields.indexOf('field-urgency'),1);
+  refuses(()=>sdk.validateSite(bad,manifests),'Conditional source cannot be in a later step');
+  const empty=structuredClone(site);
+  empty.pages[1].sections.at(-1).formSteps[0].fields=[];
+  refuses(()=>sdk.validateSite(empty,manifests),'No empty step');
+  const legacy=structuredClone(initial);
+  legacy.pages[0].sections[0].formSteps=[{title:'A',fields:['name']},{title:'B',fields:['email','message']}];
+  refuses(()=>sdk.validateSite(legacy,manifests),'No steps on non-flex component');
+});
+
 test('reusable section templates, full page duplicates, undo/redo, and no stale changes',()=>{
   const D=require('../sdk/draft.cjs');
   const initialBytes=JSON.stringify(initial);

@@ -116,6 +116,57 @@ final class FlexForm
         return $result;
     }
 
+    /** Optional step partitions are presentation only; POST remains one atomic request. */
+    public static function steps(array $section): array
+    {
+        if (!array_key_exists('formSteps', $section)) return [];
+        if ($section['component'] !== 'lead-form-flex') {
+            throw new InvalidArgumentException('Form steps require a flexible form');
+        }
+        $steps = $section['formSteps'];
+        if (!is_array($steps) || !array_is_list($steps)
+            || count($steps) < 2 || count($steps) > 4) {
+            throw new InvalidArgumentException('Form requires two to four steps');
+        }
+        $definitions = self::definitions($section);
+        $available = ['name'=>true, 'email'=>true, 'message'=>true];
+        $dependencies = [];
+        foreach ($definitions as $field) {
+            $available[$field['name']] = true;
+            if ($field['when'] !== null) {
+                $dependencies[$field['name']] = $field['when']['field'];
+            }
+        }
+        $seen = []; $positions = [];
+        foreach ($steps as $index => $step) {
+            if (!is_array($step) || count(array_diff(array_keys($step), ['title','fields']))
+                || count(array_diff(['title','fields'], array_keys($step)))
+                || !is_string($step['title']) || trim($step['title']) === ''
+                || strlen($step['title']) > 60 || preg_match('//u', $step['title']) !== 1
+                || preg_match('/[\x00-\x1f]/', $step['title'])
+                || !is_array($step['fields']) || !array_is_list($step['fields'])
+                || count($step['fields']) < 1 || count($step['fields']) > 15) {
+                throw new InvalidArgumentException('Invalid form step');
+            }
+            foreach ($step['fields'] as $name) {
+                if (!is_string($name) || !isset($available[$name]) || isset($seen[$name])) {
+                    throw new InvalidArgumentException('Unknown or duplicate form step field');
+                }
+                $seen[$name] = true;
+                $positions[$name] = $index;
+            }
+        }
+        if (count($seen) !== count($available)) {
+            throw new InvalidArgumentException('Form steps must cover all fields once');
+        }
+        foreach ($dependencies as $field => $source) {
+            if ($positions[$source] > $positions[$field]) {
+                throw new InvalidArgumentException('Conditional field precedes its source step');
+            }
+        }
+        return $steps;
+    }
+
     /** Visitor values are validated against the exact published schema. */
     public static function read(array $section, array $payload): array
     {

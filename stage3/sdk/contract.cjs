@@ -208,6 +208,39 @@ function validateFormFields(section){
     if(f.kind==='select')available.set(f.id,f.options);
   }
 }
+// Versioned, optional step layout for the existing flexible form. All fields
+// are still collected and validated once against the immutable release.
+function validateFormSteps(section){
+  if(!own(section,'formSteps'))return;
+  if(section.component!=='lead-form-flex')fail('Steps require flexible form',section.id);
+  const steps=section.formSteps;
+  if(!Array.isArray(steps)||steps.length<2||steps.length>4)fail('Form requires 2–4 steps',section.id);
+  const available=new Set(['name','email','message']),dependencies=[];
+  for(const [i,slot] of ['extra-one','extra-two','extra-three'].entries()){
+    const kind=section.elements.find(e=>e.slot===slot)?.values?.['behavior.kind'];
+    if(kind!=='off')available.add('extra'+(i+1));
+  }
+  for(const field of section.formFields||[]){
+    available.add(field.id);
+    if(field.when)dependencies.push([field.id,field.when.field]);
+  }
+  const used=new Set(),positions=new Map();
+  steps.forEach((step,index)=>{
+    objectKeys(step,['title','fields'],'form step');
+    if(typeof step.title!=='string'||!step.title.trim()||step.title.length>60||
+      /[\x00-\x1f]/.test(step.title)||!Array.isArray(step.fields)||
+      step.fields.length<1||step.fields.length>15)fail('Invalid form step',section.id);
+    for(const name of step.fields){
+      if(typeof name!=='string'||!available.has(name)||used.has(name))
+        fail('Missing, duplicate or unknown form step field',section.id);
+      used.add(name);positions.set(name,index);
+    }
+  });
+  if(used.size!==available.size)fail('Form steps must include all fields exactly once',section.id);
+  for(const [name,source] of dependencies)
+    if(positions.get(source)>positions.get(name))
+      fail('Conditional field must not precede source step',section.id);
+}
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
   objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language'],'site');
@@ -258,7 +291,7 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','designGraph'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph'],'section');
       if(own(section,'appearance'))validAppearance(section.appearance);
       id(section.id,'section.id');if(ids.has(section.id))fail('Duplicate stable ID',section.id);ids.add(section.id);
       const manifest=select(reg,section.component,section.manifestVersion);
@@ -294,6 +327,7 @@ function validateSite(raw,regInput){
         }
       }else if(own(section,'items'))fail('Unregistered repeat items',section.id);
       validateFormFields(section);
+      validateFormSteps(section);
       if(section.component==='custom-section'&&!own(section,'designGraph'))fail('Custom section requires a Design Graph',section.id);
       if(own(section,'designGraph'))GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens,assetMimes);
     }

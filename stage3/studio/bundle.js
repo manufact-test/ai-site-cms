@@ -910,6 +910,39 @@ function validateFormFields(section){
     if(f.kind==='select')available.set(f.id,f.options);
   }
 }
+// Versioned, optional step layout for the existing flexible form. All fields
+// are still collected and validated once against the immutable release.
+function validateFormSteps(section){
+  if(!own(section,'formSteps'))return;
+  if(section.component!=='lead-form-flex')fail('Steps require flexible form',section.id);
+  const steps=section.formSteps;
+  if(!Array.isArray(steps)||steps.length<2||steps.length>4)fail('Form requires 2–4 steps',section.id);
+  const available=new Set(['name','email','message']),dependencies=[];
+  for(const [i,slot] of ['extra-one','extra-two','extra-three'].entries()){
+    const kind=section.elements.find(e=>e.slot===slot)?.values?.['behavior.kind'];
+    if(kind!=='off')available.add('extra'+(i+1));
+  }
+  for(const field of section.formFields||[]){
+    available.add(field.id);
+    if(field.when)dependencies.push([field.id,field.when.field]);
+  }
+  const used=new Set(),positions=new Map();
+  steps.forEach((step,index)=>{
+    objectKeys(step,['title','fields'],'form step');
+    if(typeof step.title!=='string'||!step.title.trim()||step.title.length>60||
+      /[\x00-\x1f]/.test(step.title)||!Array.isArray(step.fields)||
+      step.fields.length<1||step.fields.length>15)fail('Invalid form step',section.id);
+    for(const name of step.fields){
+      if(typeof name!=='string'||!available.has(name)||used.has(name))
+        fail('Missing, duplicate or unknown form step field',section.id);
+      used.add(name);positions.set(name,index);
+    }
+  });
+  if(used.size!==available.size)fail('Form steps must include all fields exactly once',section.id);
+  for(const [name,source] of dependencies)
+    if(positions.get(source)>positions.get(name))
+      fail('Conditional field must not precede source step',section.id);
+}
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
   objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language'],'site');
@@ -960,7 +993,7 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','designGraph'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph'],'section');
       if(own(section,'appearance'))validAppearance(section.appearance);
       id(section.id,'section.id');if(ids.has(section.id))fail('Duplicate stable ID',section.id);ids.add(section.id);
       const manifest=select(reg,section.component,section.manifestVersion);
@@ -996,6 +1029,7 @@ function validateSite(raw,regInput){
         }
       }else if(own(section,'items'))fail('Unregistered repeat items',section.id);
       validateFormFields(section);
+      validateFormSteps(section);
       if(section.component==='custom-section'&&!own(section,'designGraph'))fail('Custom section requires a Design Graph',section.id);
       if(own(section,'designGraph'))GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens,assetMimes);
     }
@@ -1683,6 +1717,8 @@ function changes(raw,manifests){
         diff.push({kind:'appearance-updated',pageId:page.id,sectionId:section.id});
       if(JSON.stringify(prev.formFields)!==JSON.stringify(section.formFields))
         diff.push({kind:'form-fields-updated',pageId:page.id,sectionId:section.id});
+      if(JSON.stringify(prev.formSteps)!==JSON.stringify(section.formSteps))
+        diff.push({kind:'form-steps-updated',pageId:page.id,sectionId:section.id});
       if(JSON.stringify(prev.items)!==JSON.stringify(section.items))
         diff.push({kind:'items-updated',pageId:page.id,sectionId:section.id});
       for(const el of section.elements){
@@ -1725,6 +1761,7 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
     appearance:copy(section.appearance||C.DEFAULT_APPEARANCE),
     designGraph:copy(section.designGraph||null),
     formFields:copy(section.formFields||[]),
+    formSteps:copy(section.formSteps||[]),
     elements,items,notPublished:true,hasExecutableHtml:false};
 }
 module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview});
@@ -6322,6 +6359,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     presetBar.append(preset,presetApply,presetNote);
     const list=document.createElement('div');list.id='cms-form-rows';
     const add=button('+ Добавить поле','btn small',()=>{});add.id='cms-form-add';
+    const stepPanel=document.createElement('section');stepPanel.id='cms-form-steps';stepPanel.className='cms-form-simulator';
     const simulator=document.createElement('section');simulator.id='cms-form-simulator';simulator.className='cms-form-simulator';
     const simTitle=document.createElement('h3');simTitle.textContent='Проверка формы перед сохранением';
     const simNote=document.createElement('p');simNote.textContent='Выберите варианты и заполните поля: условные вопросы появятся или исчезнут, а обязательные будут отмечены. Это только симуляция в редакторе, данные никуда не отправляются.';
@@ -6330,8 +6368,66 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     simulator.append(simTitle,simNote,simFields,simStatus);
     const apply=button('Применить к черновику','btn primary',()=>{});apply.id='cms-form-apply';
     const cancel=button('Закрыть','btn',()=>dlg.close());
-    dlg.append(title,description,presetBar,list,add,simulator,apply,cancel);document.body.append(dlg);
-    let source,fields,answers={};
+    dlg.append(title,description,presetBar,list,add,stepPanel,simulator,apply,cancel);document.body.append(dlg);
+    let source,fields,answers={},stepEnabled=false,stepCount=2,stepTitles=[],stepAssignments={};
+    function availableStepFields(){
+      const all=[['name','Имя'],['email','Email'],['message','Сообщение']];
+      for(const [i,slot] of ['extra-one','extra-two','extra-three'].entries()){
+        const value=source.elements.find(e=>e.slot===slot)?.values;
+        if(value&&value['behavior.kind']!=='off')all.push(['extra'+(i+1),value['content.text']]);
+      }
+      for(const field of fields)all.push([field.id,field.label||field.id]);
+      return all;
+    }
+    function drawSteps(){
+      stepPanel.replaceChildren();
+      const heading=document.createElement('h3');heading.textContent='Многошаговая форма';
+      const description=document.createElement('p');
+      description.textContent='При включении распределите все поля по 2–4 шагам. Заявка отправится только после последнего шага. Без JavaScript посетитель увидит все поля сразу.';
+      const toggleLabel=document.createElement('label');
+      const toggle=document.createElement('input');toggle.type='checkbox';toggle.checked=stepEnabled;
+      toggle.addEventListener('change',()=>{stepEnabled=toggle.checked;drawSteps();});
+      toggleLabel.append(toggle,document.createTextNode(' Включить шаги'));
+      stepPanel.append(heading,description,toggleLabel);
+      if(!stepEnabled)return;
+      const countLabel=document.createElement('label');countLabel.textContent='Количество шагов ';
+      const count=document.createElement('select');count.className='control';
+      for(let i=2;i<=4;i++){
+        const option=document.createElement('option');option.value=String(i);option.textContent=String(i);
+        count.append(option);
+      }
+      count.value=String(stepCount);
+      count.addEventListener('change',()=>{
+        stepCount=Number(count.value);
+        for(const key of Object.keys(stepAssignments))
+          if(stepAssignments[key]>=stepCount)stepAssignments[key]=stepCount-1;
+        drawSteps();
+      });
+      countLabel.append(count);stepPanel.append(countLabel);
+      for(let index=0;index<stepCount;index++){
+        const label=document.createElement('label');label.textContent='Название шага '+(index+1);
+        const field=document.createElement('input');field.className='control';field.type='text';field.maxLength=60;
+        field.value=stepTitles[index]||'Шаг '+(index+1);
+        field.addEventListener('input',()=>{stepTitles[index]=field.value;});
+        label.append(field);stepPanel.append(label);
+      }
+      for(const [id,labelText] of availableStepFields()){
+        const label=document.createElement('label');label.textContent=labelText+' ('+id+') ';
+        const selector=document.createElement('select');selector.className='control';
+        for(let i=0;i<stepCount;i++){
+          const option=document.createElement('option');option.value=String(i);
+          option.textContent='Шаг '+(i+1);selector.append(option);
+        }
+        const fallback=id==='name'||id==='email'?0:stepCount-1;
+        const selected=stepAssignments[id]??fallback;
+        selector.value=String(Math.min(selected,stepCount-1));
+        selector.addEventListener('change',()=>{stepAssignments[id]=Number(selector.value);});
+        label.append(selector);stepPanel.append(label);
+      }
+      const note=document.createElement('small');
+      note.textContent='Каждый шаг должен содержать хотя бы одно поле. Условный вопрос не может идти раньше списка, от которого он зависит. Эти ограничения проверяются при применении.';
+      stepPanel.append(note);
+    }
     function input(label,type,value,changed){
       const wrap=document.createElement('label');wrap.textContent=label;
       const node=document.createElement(type==='textarea'?'textarea':type==='select'?'select':'input');
@@ -6518,6 +6614,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         if(field.kind==='select')selectable.set(field.id,field.options);
       });
       drawSimulator();
+      drawSteps();
     }
     add.addEventListener('click',()=>{
       if(fields.length>=9)return;
@@ -6529,6 +6626,16 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const section=site.pages.flatMap(p=>p.sections).find(s=>s.id===source.id);
         if(!section||section.component!=='lead-form-flex')throw Error('Форма отсутствует');
         section.formFields=cp(fields);
+        if(stepEnabled){
+          const entries=availableStepFields(),groups=Array.from({length:stepCount},(_,i)=>({
+            title:stepTitles[i]||'Шаг '+(i+1),fields:[]
+          }));
+          for(const [id] of entries){
+            const position=stepAssignments[id]??(id==='name'||id==='email'?0:stepCount-1);
+            groups[Math.min(position,stepCount-1)].fields.push(id);
+          }
+          section.formSteps=groups;
+        }else delete section.formSteps;
         session=D.replaceSite(session,manifests,site,session.revision);
         dlg.close();draw();notice('Форма обновлена в черновике одной операцией Undo. Сохранение и публикация отдельно.');
       }catch(e){notice('Изменение полей отклонено: '+e.message,true);}
@@ -6539,6 +6646,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const focus=dlg.dataset.focusField||'';
       delete dlg.dataset.focusField;
       source=cp(section);fields=cp(section.formFields||[]);answers={};preset.value='';
+      stepEnabled=Array.isArray(section.formSteps)&&section.formSteps.length>0;
+      stepCount=stepEnabled?section.formSteps.length:2;
+      stepTitles=stepEnabled?section.formSteps.map(s=>s.title):['Контакты','Детали заявки'];
+      stepAssignments={};
+      for(const [i,step] of (section.formSteps||[]).entries())
+        for(const id of step.fields)stepAssignments[id]=i;
       render();dlg.showModal();
       if(focus){
         const target=[...list.querySelectorAll('[data-form-field]')]
@@ -6559,7 +6672,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     $('inspector-caption').textContent='ID '+section.id+' · схема '+section.manifestVersion;
     const row=$('elements');row.replaceChildren();
     if(section.component==='lead-form-flex'){
-      const builder=button('Конструктор дополнительных полей · '+(section.formFields||[]).length+'/9',
+      const builder=button('Поля и шаги формы · '+(section.formFields||[]).length+'/9'+(section.formSteps?' · '+section.formSteps.length+' шага(ов)':''),
         'btn small',openFormBuilder);
       builder.id='cms-form-builder-open';builder.dataset.editorWrite='true';row.append(builder);
     }
