@@ -4,7 +4,7 @@
 
 ## Что уже реализовано
 
-- `bin/first-site-check.cjs` — **одна локальная команда** для проверки sealed Approved Site v2, Blueprint, всех PHP HTML-страниц, robots.txt, sitemap.xml, каждого объявленного 301, всех оригинальных и responsive-файлов, запуска **существующего** SEO review bundle и сохранения трёх отчётов.
+- `bin/first-site-check.cjs` — **одна локальная команда** для проверки sealed Approved Site v2, Blueprint, всех PHP HTML-страниц, robots.txt, sitemap.xml, каждого объявленного 301, всех оригинальных и responsive-файлов, запуска **существующего** SEO review bundle и сохранения четырёх стандартных отчётов.
 - `lib/php-local-head.cjs` — сверяет реальные HTTP-заголовки страниц, X-Robots-Tag, Content-Security-Policy, canonical и og:url с индексируемостью Site v1 и публичным origin, заявленным в **фактически полученном** PHP sitemap.
 - `lib/php-local-publication.cjs` — сопоставляет URL sitemap, robots и 301 с Site v1. Ошибочный sitemap не считается доказательством полного списка страниц. Разрешён локальный HTTP origin, **только localhost/127.0.0.1**, соответствующий разрешённому режиму PHP PublicRenderer. Любая реальная внешняя HTTP-ссылка в sitemap остаётся ошибкой. Локальный HTTP помечается как проверка разработки, а не боевого HTTPS.
 - `lib/php-local-media.cjs` — подлинные бинарные локальные HTTP-ответы: HTTP 200, MIME, SHA256, ETag, сигнатура PNG/JPEG/WebP/MP4, SHA и PNG-размеры responsive-вариантов, реальные ссылки `img src/srcset`, og:image. Локальный og:image HTTP принят **лишь при совпадении с публичным origin в полученном sitemap**.
@@ -36,6 +36,7 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 - `first-site-report/summary.json` — краткая сводка HTTP, медиа, заголовков, блокировок и остающихся ручных проверок.
 - `first-site-report/bundle.json` — вся существующая аналитика SEO Engine: все проблемы и их задачи, публикация, соответствие Blueprint и gate review.
 - `first-site-report/handoff.md` — человекочитаемая сводка для ведущего интегратора.
+- `first-site-report/launch-worksheet.md` — постраничная карта технической приёмки desktop/tablet/mobile.
 
 Если сервер недоступен, страница возвращает невалидный HTML, файл слишком велик или source сменился, процедура выдаёт явную ошибку. Повторный запуск требует **новых директорий**, не перезаписывает sealed source. Границы: 60 страниц по 450 КБ, до 100 МБ медиа (1,2 МБ изображение, 12 МБ видео), максимум 1200 ресурсов.
 
@@ -174,3 +175,46 @@ PHP PublicRenderer выбирает `section.designGraph` **вместо** legac
 Добавлена сверка фактического PHP HTML `<head>` с Site v1 и текущим `PublicRenderer.php`: `og:type=website`, `og:locale`, `twitter:title`, `twitter:description`, `og:image`, `twitter:image`, `og:image:alt`, `twitter:image:alt`, `twitter:card` (`summary_large_image` только если PHP public origin и изображение доступны). Публичный origin берётся из **реального локального sitemap**, который захватывается той же командой. Изображение выбирается существующим `publisher-media.cjs` по тем же правилам, что PHP. Отсутствующий, дублированный или чужой meta field — `php-head:social-drift` / `php-head:social-unexpected`, error, через уже существующий `local-php-head-indexation-or-origin` release blocker. Если нужного origin нет, не называем HTTPS доказанным.
 
 Обновлён существующий loopback mock PHP HTML для случаев с OG image и без него; добавлен отдельный тест подмены `twitter:image`. Изолированная V8-проверка всей локальной head review (2 страницы) дала 0 ошибок на правильном наборе и нужные errors на изменённых `twitter:image`/`og:image`. Полный Node subprocess и реальный PHP/HTTPS первичного клиента этим не проверялись.
+
+
+## First-site large integration update — real owner edits and continuous technical review
+
+1. **Strict first import:** original sealed Approved Site v2 and the owner-exported GET `/api/sites/SITE-ID/published-site` `{site,version}` are still matched exactly after CMS media-ID remap. Source seal SHA-256 remains the original source of truth.
+2. **Edited CMS publication:** after a real owner checks what changed in published Site v1, the CLI accepts `--owner-edit-review /ABS/owner-review.json` alongside `--published-site`. The exact review document binds original `site.json` SHA256, the exact exported release `version` and `fingerprint(site)`. It records a *claim* of manual review, not an authenticated client approval, user identity or published runtime revision.
+3. **Repeated first-site reviews:** `--previous-report /ABS/previous-report` compares earlier `summary.json`+`bundle.json` with the new verified current report, including only evidence groups instrumented in both runs, same sealed source SHA, siteId and localhost mount. Writes `delta.md` and `delta.json`. Previously seen errors that disappear are *not automatically fixed*.
+4. **Public menu and authored link safety:** `php-local-navigation.cjs` checks real desktop/mobile menu links, nested hierarchy, active route, header CTA/brand/footer. `php-local-graph.cjs` checks source-authored internal button/link/image destinations and anchors even when source HTML parity matches. Errors block release through existing `php-nav:*` and `php-graph:*` gates.
+
+### Manual owner-edited publication review JSON (replace every placeholder after real review)
+
+```json
+{
+  "format": "manufact-seo-owner-edited-site-review-v1",
+  "siteId": "SITE-ID",
+  "approvedSiteSha256": "PASTE-ORIGINAL-SEALED-SITE-JSON-SHA256",
+  "publishedVersion": 8,
+  "publishedSiteFingerprint": "PASTE-FINGERPRINT-FROM-EXPORTED-SITE",
+  "reviewedAt": "2026-10-28T17:00:00Z",
+  "operator": "Site owner",
+  "reason": "I manually checked the owner-edited pages, media and current design against the approved version",
+  "acknowledged": true
+}
+```
+
+Produce the exact `publishedSiteFingerprint` inside lead-integrated checkout:
+
+```bash
+node -e "const fs=require('node:fs');const {fingerprint}=require('./stage3/seo-engine/lib/acceptance.cjs');console.log(fingerprint(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).site))" /ABS/published.json
+sha256sum /ABS/SEALED/site.json
+```
+
+Do not reuse the original hashes for newly changed uploaded photos. The owner-edited mode explicitly disables full sealed-media SHA comparison and uses actual PHP media byte/MIME/ETag verification instead. The original source remains immutable; current edited content and visual approval are separate human checks. Lead's original sealed-source screenshot evidence cannot be represented as a verified snapshot of edited publication.
+
+### One-run command with reviewed owner edits and prior report
+
+```bash
+node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --published-site /ABS/published.json --owner-edit-review /ABS/owner-review.json --previous-report /ABS/previous-report --evidence /ABS/new-evidence --report /ABS/new-report
+```
+
+Six report files when `--previous-report` is present: `summary.json`, `bundle.json`, `handoff.md`, `launch-worksheet.md`, `delta.json`, `delta.md`. Without it, four report files. Both new `--owner-edit-review` and `--previous-report` are optional; the former requires `--published-site` and real manual review. All output directories must not exist before execution.
+
+The existing lead-integrated smoke remains: `node stage3/seo-engine/tests/php-html-capture-smoke.cjs`. Worker has performed isolated JS scenario validation only, not actual first customer Node/PHP/browser/HTTPS end-to-end or client acceptance.

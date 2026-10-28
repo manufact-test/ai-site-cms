@@ -23,7 +23,7 @@
 
 **Последний большой заход (этот чат):** `lib/php-local-publication.cjs` теперь признаёт `http://localhost` и `http://127.0.0.1` допустимыми тестовыми origin PHP, но не боевыми HTTPS. Ошибочные и смешанные sitemap loc не считаются полноценным sitemap. `lib/php-local-head.cjs` анализирует реальные HTTP-заголовки страниц и сопоставляет X-Robots-Tag/CSP, canonical, og:url, исходную индексируемость и origin из полученного sitemap. `lib/php-local-media.cjs` понимает локальный HTTP OG только при совпадении с этим origin. Все findings интегрированы в **старые** `remediation`, `release-review`, `package` и `lead-dossier`.
 
-**Главное новое:** `bin/first-site-check.cjs` — одна команда для Verified Approved Site v2 → реальный localhost HTTP capture → единый SEO bundle → `summary.json`, `bundle.json`, `handoff.md` в новом каталоге. Не создаёт и не публикует сайт, не запускает PHP, не пишет в CMS. Полная инструкция FIRST-SITE-RUNBOOK.md.
+**Главное новое:** `bin/first-site-check.cjs` — одна команда для Verified Approved Site v2 → реальный localhost HTTP capture → единый SEO bundle → `summary.json`, `bundle.json`, `handoff.md`, `launch-worksheet.md` в новом каталоге. Не создаёт и не публикует сайт, не запускает PHP, не пишет в CMS. Полная инструкция FIRST-SITE-RUNBOOK.md.
 
 ```bash
 node stage3/seo-engine/bin/first-site-check.cjs \
@@ -88,3 +88,10 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 ## Последний дополнительный этап: PHP OG/Twitter metadata parity
 
 Сверяются все фактически отданные в PHP SEO social meta: OG type, locale, image URL, image ALT и Twitter title, description, card, image, ALT. Источник выбора изображения — текущий `publisher-media.cjs`, host — только публичный origin из действительного локального sitemap. Неправильное значение блокирует техническую приёмку через существующий `php-head:*`. Mocked PHP normal и целевые OG/Twitter drifts проверены в V8; настоящий первый клиентский PHP/Chromium остаётся задачей интегратора.
+
+
+## Новый крупный завершённый SEO-заход — для следующего чата
+
+Три полезные сквозные части: 1) реальные PHP desktop/mobile меню + hierarchy/header CTA/footer, точные blockers в package/worksheet; 2) повторная проверка `--previous-report` с `delta.md/json`, только сопоставимые evidence и no auto-closing; 3) поддержка **реальных редактирований владельцем после sealed-v2 импорта**: `--published-site` + `--owner-edit-review` с точным pinned site fingerprint + published version и ручным claim. Без ложного original-media SHA и без выдачи ручной записи за client approval. Дополнительно проверяются авторские внутренние graph link/button/image destinations и anchors. Всё только `stage3/seo-engine/**` в worker ветке, не трогать main/lead/php/Studio.
+
+Важный реальный workflow: получил первый настоящий Approved Site v2 → leader import → owner edits → owner manual review + exact doc → реальный PHP capture → unified SEO package and visual review → исправления → `--previous-report` → manual GO. НЕТ настоящего client approved bundle, формы POST/production HTTPS/Chromium full visual test не подтверждены. Приоритет следующего чата: помогать интеграции первого клиента, не тратить часы на синтетическую дизайн-фабрику и лишние тесты. Команды и JSON: FIRST-SITE-RUNBOOK.md.

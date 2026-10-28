@@ -14,7 +14,7 @@ The local PHP acceptance now detects `picture/source srcset`, video/poster resou
 
 ## Latest: one-command first-site PHP acceptance and HTTP head parity (28.10.2026)
 
-**New primary operator guide:** [FIRST-SITE-RUNBOOK.md](FIRST-SITE-RUNBOOK.md). Run `node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/sealed --blueprint /ABS/approved-blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report` from the lead-integrated checkout. This preflights sealed Site v2 and Blueprint, captures actual loopback HTML/robots/sitemap/301/original+responsive media bytes, builds the existing unified SEO package and saves `summary.json`, `bundle.json`, `handoff.md`. It never deploys, edits a CMS, or authenticates public HTTPS.
+**New primary operator guide:** [FIRST-SITE-RUNBOOK.md](FIRST-SITE-RUNBOOK.md). Run `node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/sealed --blueprint /ABS/approved-blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report` from the lead-integrated checkout. This preflights sealed Site v2 and Blueprint, captures actual loopback HTML/robots/sitemap/301/original+responsive media bytes, builds the existing unified SEO package and saves `summary.json`, `bundle.json`, `handoff.md`, `launch-worksheet.md`. It never deploys, edits a CMS, or authenticates public HTTPS.
 
 New `lib/php-local-head.cjs` compares observed PHP page HTTP response headers including X-Robots-Tag/CSP against canonical, og:url, actual sitemap origin and Site v1 indexation. Local `STAGE3_PUBLIC_ORIGIN=http://localhost[:PORT]` or `http://127.0.0.1[:PORT]` is allowed only as an explicitly local PHP test. Non-loopback HTTP or sitemap origin conflicts cannot count as complete public evidence. A malformed URL set now loses its 'complete' sitemap claim. Actual local head findings enter existing remediation/release gates. **Full Node subprocess test and first real sealed client site run remain pending lead integration.**
 
@@ -308,3 +308,8 @@ The existing `tests/php-html-capture-smoke.cjs` now includes valid and deliberat
 ## PHP social metadata coverage
 
 Real PHP head auditing now verifies Open Graph locale/type/image/alt plus Twitter title/description/card/image/alt against the approved site and captured local sitemap origin. Actual wrong URLs or missing expected tags appear as release blockers in the existing head gate, without a second social system or invented host. No actual social platform fetch, public HTTPS confirmation or client acceptance is implied.
+
+
+## New first-site workflow: edited CMS and repeated local PHP review
+
+Actual published PHP header/menu/mobile navigation, authored Graph internal links/anchors, exact-version manual owner-edited publication review (`--owner-edit-review` with owner `--published-site`) and previous report comparison (`--previous-report`) are now integrated into the standard SEO capture/release bundle. Added `php-local-navigation.cjs` and `first-site-report-delta.cjs`. Comparison emits `delta.md/json` only with a provided previous report and never auto-closes fixes. Current owner edits are not misrepresented as the original sealed media hashes or as authenticated client approval. See FIRST-SITE-RUNBOOK.md for exact commands and schema.
