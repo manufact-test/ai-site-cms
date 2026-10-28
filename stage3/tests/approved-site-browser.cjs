@@ -566,6 +566,33 @@ async function execute(){
     /SHA-256 проверен/,'Launch review compares against verified original image from vault');
   assert.match(await page.locator('#server-launch-approval-summary').innerText(),
     /Исходные утверждённые макеты/);
+  // The original raster overlays the SAME real PHP iframe and supports an
+  // adjustable visual mix for comparing alignment, spacing and proportions.
+  await page.locator('#server-launch-compare-modes [data-compare-mode="approved-overlay"]').click();
+  await page.locator('#server-launch-overlay-image[src^="blob:"]').waitFor({timeout:15000});
+  const overlay=await page.locator('#server-launch-overlay-image').evaluate(img=>({
+    opacity:img.style.opacity,hidden:img.hidden,renderedWidth:img.clientWidth,
+    sourceWidth:img.naturalWidth,pointerEvents:getComputedStyle(img).pointerEvents
+  }));
+  assert.equal(overlay.hidden,false);
+  assert.equal(overlay.opacity,'0.5');
+  assert.ok(overlay.renderedWidth>0 && overlay.sourceWidth>0);
+  assert.equal(overlay.pointerEvents,'none');
+  await page.locator('#server-launch-overlay-opacity').evaluate(input=>{
+    input.value='75';input.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  assert.equal(await page.locator('#server-launch-overlay-image').evaluate(img=>img.style.opacity),'0.75');
+  // Manual visual discrepancies stay tied to this immutable revision/device
+  // and prevent a misleading "all screens verified" publication decision.
+  await page.locator('#server-launch-finding-input').fill('Макет на ПК: отступы отличаются');
+  await page.locator('#server-launch-finding-add').click();
+  assert.match(await page.locator('#server-launch-finding-list').innerText(),
+    /отступы отличаются/);
+  assert.equal(await page.locator('#server-launch-mark').isDisabled(),true,
+    'Open visual discrepancy blocks human sign-off for selected device');
+  await page.locator('#server-launch-finding-list button').click();
+  assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
+    'Resolved discrepancy permits explicit new human approval');
   await page.locator('#server-launch-pages [data-page-id="'+interiorPage.id+'"]').click();
   await page.locator('#server-launch-compare-modes [data-compare-mode="approved-compare"]').click();
   await page.waitForFunction(()=>{
