@@ -1,0 +1,142 @@
+'use strict';
+// Explicit read-only public HTTPS GET capture. No POST, JS, cookies, form
+// submission, automatic deploy or redirect following. DNS is resolved once
+// and pinned to a vetted public IP; TLS remains hostname-verified.
+const https=require('node:https');
+const dns=require('node:dns').promises;
+const net=require('node:net');
+const DELIVERY=require('./delivery-evidence.cjs');
+const LIMIT_HTML=450000,LIMIT_ROBOTS=250000,LIMIT_SITEMAP=750000,LIMIT_REDIRECT=4096;
+const MAX_TOTAL=36000000;
+const ROUTE=/^\/(?:[a-z0-9-]+\/)*$/;
+const HEADER_ALLOW=new Set(['content-type','content-length','content-language','cache-control',
+ 'etag','last-modified','location','x-robots-tag','content-security-policy',
+ 'x-content-type-options','referrer-policy','strict-transport-security','server']);
+function isPublicIp(ip){
+ const family=net.isIP(ip);
+ if(family===4){
+  const x=ip.split('.').map(Number),[a,b,c]=x;
+  if(a===0||a===10||a===127||a>=224||a===169&&b===254||
+     a===172&&b>=16&&b<=31||a===192&&b===168||
+     a===100&&b>=64&&b<=127||a===198&&[18,19,51].includes(b)||
+     a===203&&b===0&&c===113||a===192&&b===0||
+     a===198&&b===19||a===192&&b===88&&c===99)
+   return false;
+  return true;
+ }
+ if(family===6){
+  const first=parseInt(ip.split(':')[0]||'0',16);
+  return first>=0x2000&&first<=0x3fff&&
+   !/^2001:db8:/i.test(ip)&&!ip.includes('%');
+ }
+ return false;
+}
+function origin(raw,siteId){
+ if(typeof raw!=='string')throw Error('Explicit public HTTPS origin required');
+ let url;
+ try{url=new URL(raw);}catch{throw Error('Invalid public HTTPS origin');}
+ if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||
+    url.port&&url.port!=='443'||net.isIP(url.hostname)||
+    !/^[a-z0-9.-]+$/i.test(url.hostname)||!url.hostname.includes('.')||
+    /(?:^|\.)(?:localhost|local|internal|test|example|invalid)$/.test(url.hostname)||
+    !['/','/published/'+siteId+'/'].includes(url.pathname))
+  throw Error('Only explicit DNS-based HTTPS:443 public site root or matching CMS mount is permitted');
+ return url;
+}
+async function address(host){
+ const resolved=await dns.lookup(host,{all:true,verbatim:true});
+ if(!resolved.length||resolved.length>50||resolved.some(r=>!isPublicIp(r.address)))
+  throw Error('Public HTTPS host resolves to blocked, private or mixed public/private IPs');
+ const preferred=resolved.find(r=>r.family===4)||resolved[0];
+ return Object.freeze({address:preferred.address,family:preferred.family});
+}
+function request(target,pinned,max){
+ return new Promise((resolve,reject)=>{
+  const url=new URL(target);
+  const req=https.request({
+   hostname:url.hostname,port:443,protocol:'https:',path:url.pathname,
+   method:'GET',timeout:12000,rejectUnauthorized:true,servername:url.hostname,
+   agent:false,
+   lookup:(_host,_options,callback)=>callback(null,pinned.address,pinned.family),
+   headers:{Accept:'text/html,text/plain,application/xml','Accept-Encoding':'identity',
+    'User-Agent':'AI-Site-CMS-Public-SEO-ReadOnly/1.0'}
+  },res=>{
+   const status=res.statusCode||0;
+   if(status<100||status>599){res.resume();reject(Error('Invalid public HTTP status'));return;}
+   if(res.headers['content-encoding']&&res.headers['content-encoding']!=='identity'){
+    res.resume();reject(Error('Public compressed body unsupported for bounded evidence'));return;
+   }
+   const chunks=[];let count=0;
+   res.on('data',x=>{count+=x.length;
+    if(count>max){res.destroy(Error('Public HTTP response exceeds bounded byte limit'));return;}
+    chunks.push(x);
+   });
+   res.on('error',reject);
+   res.on('end',()=>{
+    const bytes=Buffer.concat(chunks),body=bytes.toString('utf8');
+    if(body.includes('\uFFFD')||Buffer.byteLength(body,'utf8')!==bytes.length){
+     reject(Error('Public HTTP response is not valid UTF-8'));return;
+    }
+    const headers={};
+    for(const [key,v] of Object.entries(res.headers)){
+     if(!HEADER_ALLOW.has(key)||v===undefined)continue;
+     const value=Array.isArray(v)?v.join(', '):String(v);
+     if(value.length<4000&&!/[\x00-\x1f\x7f]/.test(value))headers[key]=value;
+    }
+    resolve(Object.freeze({status,body,headers,contentType:headers['content-type']||'',
+     location:headers.location||''}));
+   });
+  });
+  req.on('timeout',()=>req.destroy(Error('Public HTTPS GET timed out')));
+  req.on('error',reject);
+  req.end();
+ });
+}
+const resource=(url,path)=>new URL(url.pathname+path.replace(/^\//,''),url.origin).href;
+async function capture(site,rawOrigin,transport={address,request}){
+ if(!site||!Array.isArray(site.pages)||site.pages.length<1||site.pages.length>60||
+    !Array.isArray(site.redirects||[])||(site.redirects||[]).length>60||
+    typeof site.siteId!=='string')
+  throw Error('Public HTTPS capture requires a bounded and validated published Site v1');
+ const base=origin(rawOrigin,site.siteId);
+ const pinned=await transport.address(base.hostname);
+ if(!pinned||!isPublicIp(pinned.address))
+  throw Error('Pinned public HTTPS DNS resolution failed safety checks');
+ const fetch=async(url,limit)=>{
+  const u=new URL(url);
+  if(u.origin!==base.origin||!u.pathname.startsWith(base.pathname)||u.search||u.hash)
+   throw Error('Read-only public HTTP capture escaped explicitly approved origin/mount');
+  const response=await transport.request(url,pinned,limit);
+  total+=Buffer.byteLength(response.body,'utf8');
+  if(total>MAX_TOTAL)throw Error('Public HTTP evidence exceeded total byte limit');
+  return response;
+ };
+ let total=0;const pages=[],redirects=[];
+ for(const page of site.pages){
+  if(!ROUTE.test(page.path))throw Error('Invalid published Site v1 route');
+  const requestUrl=resource(base,page.path);
+  const reply=await fetch(requestUrl,LIMIT_HTML);
+  pages.push({id:page.id,path:page.path,requestUrl,responseUrl:requestUrl,
+   status:reply.status,headers:reply.headers,html:reply.body});
+ }
+ const robotsUrl=resource(base,'/robots.txt'),sitemapUrl=resource(base,'/sitemap.xml');
+ const robotsReply=await fetch(robotsUrl,LIMIT_ROBOTS);
+ const sitemapReply=await fetch(sitemapUrl,LIMIT_SITEMAP);
+ for(const alias of site.redirects||[]){
+  if(!ROUTE.test(alias.from)||!ROUTE.test(alias.to))
+   throw Error('Invalid published source route alias');
+  const requestUrl=resource(base,alias.from);
+  const reply=await fetch(requestUrl,LIMIT_REDIRECT);
+  redirects.push({from:alias.from,requestUrl,status:reply.status,location:reply.location});
+ }
+ const evidence={format:DELIVERY.FORMAT,siteId:site.siteId,
+  origin:base.href,capturedAt:new Date().toISOString(),pages,
+  robots:{status:robotsReply.status,url:robotsUrl,contentType:robotsReply.contentType,body:robotsReply.body},
+  sitemap:{status:sitemapReply.status,url:sitemapUrl,contentType:sitemapReply.contentType,body:sitemapReply.body},
+  redirects};
+ DELIVERY.assertEvidence(evidence);
+ return Object.freeze({evidence,bytes:total,requests:pages.length+redirects.length+2,
+  captureActuallyPerformed:true,publicHttpsTransportChecked:true,
+  servedRevisionAuthenticated:false,formsDelivered:false,automaticRelease:false});
+}
+module.exports=Object.freeze({origin,isPublicIp,address,request,capture});
