@@ -202,3 +202,36 @@ Current lead PHP `PublicRenderer` treats a typed `section.designGraph` as **the 
 Contract verification: a synthetic `custom-section@1.0.0` site was validated against the lead's updated `stage3/sdk/contract.cjs`, then the SEO auditor detected both the changed graph heading and missing expected CTA. That is an isolated source-level contract check, **not** the full Node smoke, a published PHP capture, or a real approved-site pilot. The existing `tests/smoke.cjs` now covers the same graph-overlay regression on the original industrial fixture using its registered manifest.
 
 **PHP social image exception:** current `PublicRenderer` can still choose an OG image from an old `content.media` slot even when that section's visual markup was replaced by Design Graph. `analyze-site` now emits a non-blocking `social-fallback-hidden-media-review` only if that chosen image is not rendered elsewhere in the actual page. Set an existing explicit `page.seo.ogImage` through normal CMS review if the intended social card needs a different asset; do not overwrite automatically. This warning is confirmed against the actual publisher selection order and a real Site v1-validated fixture (synthetic content, not live HTTP).
+
+
+## First-site real local PHP HTML evidence
+
+The lead's capture-approved-site.cjs provides visual screenshots but no page HTML. The SEO worker now has a separate bounded **read-only local HTTP collector** for actual published PHP HTML:
+
+~~~sh
+node stage3/bin/verify-approved-site.cjs /ABS/approved-site
+# Lead starts its own isolated published PHP preview at the given local origin.
+node stage3/seo-engine/bin/capture-php-html.cjs \
+  --approved-site /ABS/approved-site \
+  --origin http://127.0.0.1:PORT/published/SITE-ID/ \
+  --output /ABS/new-php-html-01
+node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle-md \
+  --approved-site /ABS/approved-site --blueprint /ABS/seo-blueprint.json \
+  --php-html /ABS/new-php-html-01 > /ABS/seo-php-review.md
+
+# Optional separate lead three-viewport screenshot evidence:
+node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle \
+  --approved-site /ABS/approved-site --blueprint /ABS/seo-blueprint.json \
+  --php-html /ABS/new-php-html-01 \
+  --php-capture /ABS/lead-screens/evidence.json > /ABS/seo-php-review.json
+~~~
+
+The acquisition command makes GET requests only to the exact http://127.0.0.1:PORT/published/SITE-ID/ mount. It rejects redirects, unexpected statuses/types, missing or malformed UTF-8 HTML/head, pages above 450 KB, a capture above 18 MB, and missing source pages. It never executes website JavaScript, follows external links, publishes, edits the CMS or writes to an existing evidence directory.
+
+The fresh output contains manifest.json and deterministic page-001.html, etc. Source site digest/version, page IDs, route order, exact URLs, local HTTP 200, file sizes and SHA-256 are rechecked on import; extra files/symlinks and changed bytes fail closed. The immutable HTML snapshot is reused by the existing deep HTML, publication parity, indexation, internal link, remediation, release and lead dossier modules. The report includes phpHtmlCapture, local page counts and byte verification without pretending to certify the public deployment.
+
+The --php-html flag requires --approved-site, applies only to review-bundle or review-bundle-md, and cannot be combined with an unrelated --snapshot. --php-capture still accepts the lead's distinct screenshot evidence.json; when both are supplied, source version/page count/local base URL must match. Matching these fields does not prove both captured the same PHP build.
+
+**Limitations:** this verifies actual local HTTP responses, NOT the actual public HTTPS origin, production canonical/robots/sitemap, visual equality, mobile JS, working forms, client identity or approval. The capture ledger binds to a sealed input digest but **cannot authenticate that the PHP server was serving that exact source revision**. The lead must separately correlate actual publication revision and capture time before acceptance.
+
+Smoke: node stage3/seo-engine/tests/php-html-capture-smoke.cjs starts a genuine local HTTP server and mocks only the unavailable lead sealed-v2 verifier. The main node stage3/seo-engine/tests/smoke.cjs also invokes it. These tests must be run on the integrated checkout and do not replace real customer verification.
