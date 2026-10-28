@@ -38,6 +38,9 @@ function build({siteId,release,coverage,acceptanceReview=null,taskProgress=null,
   request('html-snapshots','lead-developer','Supply actual page HTML/DOM exports and provenance for the target build.');
  else if(coverage.plannedPagesAbsentFromHtmlExport?.length)
   request('missing-page-html','lead-developer','Complete page-level HTML evidence for this build.',coverage.plannedPagesAbsentFromHtmlExport);
+ if(coverage.loopbackPhpHtmlPages!==null&&coverage.loopbackPhpHtmlPages!==undefined)
+  request('php-html-build-identity-review','lead-developer',
+   'Local PHP HTML files were SHA-256 checked and HTTP 200 captured, but the served PHP revision was not independently attested to match the sealed site.json. Correlate published revision, capture time and isolated site before claiming same build.');
  if(!phpCapture)request('lead-php-full-page-screenshots','lead-developer',
   'Run the existing capture-approved-site.cjs on the sealed Site v2 and import evidence.json with --php-capture (real loopback PHP).');
  if(coverage.viewportsPageCount===null)
@@ -75,6 +78,9 @@ function build({siteId,release,coverage,acceptanceReview=null,taskProgress=null,
   hypotheticalCmsOperations:changeImpact?.summary.approvedFieldOperationsSimulated??null,
   actualCmsWrites:0,missingEvidenceInputGroups:evidenceRequests.length,
   authenticatedLiveHttpTests:0,
+  localPhpHtml200Pages:coverage.loopbackPhpHtmlHttp200??0,
+  localPhpHtmlFileDigestsChecked:coverage.loopbackPhpHtmlSha256Checked??false,
+  actualHtmlServedRevisionProven:false,
   leadLoopbackScreenshotFilesChecked:phpCapture?.screenshotCount??0,
   leadLoopbackScreenshotSourceRevisionProven:false,
   leadLoopbackMissingImagePageCount:phpCapture?.warningPageIds.length??null,
