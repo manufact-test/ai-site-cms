@@ -115,8 +115,29 @@ function staticLinks(site,pages,assetLedger,aliasLedger){
     path:p.path,message,evidence:'sha256-verified-official-static-html',automatic:false,...extra}));
   };
   const base=new URL(p.path,'https://static-export.invalid');
+  const cssReferences=[];
+  const cssUrl=/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)/gi;
+  for(const declaration of [
+    ...[...record.html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)].map(m=>m[1]),
+    ...doc.inlineStyles
+  ]){
+   let hit;
+   while((hit=cssUrl.exec(declaration))!==null){
+    const href=(hit[1]??hit[2]??hit[3]??'').trim();
+    if(href.startsWith('data:image/')||href.startsWith('#'))continue;
+    cssReferences.push({href,kind:'css-resource'});
+    if(cssReferences.length>1000)break;
+   }
+   cssUrl.lastIndex=0;
+   if(cssReferences.length>1000)break;
+  }
+  if(cssReferences.length>1000)add('static-css-reference-budget',
+   'Static page has too many CSS resource URLs for a bounded integrity check.');
   const targets=[...doc.anchors.map(a=>({href:a.attrs.href||'',kind:'link'})),
-   ...doc.images.map(a=>({href:a.src||'',kind:'image'})),
+   ...doc.images.flatMap(a=>[
+    {href:a.src||'',kind:'image'},
+    ...String(a.srcset||'').split(',').map(x=>({href:x.trim().split(/\s+/)[0],kind:'image-srcset'}))]), 
+   ...cssReferences,
    ...doc.sources.flatMap(a=>[
     ...(a.src?[{href:a.src,kind:'source'}]:[]),
     ...String(a.srcset||'').split(',').map(x=>({href:x.trim().split(/\s+/)[0],kind:'srcset'}))]),
