@@ -65,6 +65,77 @@ try{
  const {compileBrief}=require('../lib/blueprint.cjs');
  const original=JSON.parse(fs.readFileSync(site,'utf8'));
  const plan=JSON.parse(fs.readFileSync(bp,'utf8'));
+
+ // Integration of the lead's real, bounded evidence.json shape (synthetic bytes only).
+ // Pure validation is smoke-tested even on the isolated SEO branch without lead verifier.
+ const PHP_CAPTURE=require('../lib/php-capture.cjs');
+ const crypto=require('node:crypto');
+ const captureRoot=path.join(tmp,'lead-php-capture');
+ fs.mkdirSync(captureRoot);
+ const widths={desktop:1280,tablet:768,mobile:390};
+ const devices=Object.keys(widths);
+ const png=Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),Buffer.alloc(128)]);
+ function saveCaptureFile(name){
+  fs.writeFileSync(path.join(captureRoot,name),png);
+  return crypto.createHash('sha256').update(png).digest('hex');
+ }
+ const prototypes=Object.fromEntries(devices.map(d=>{
+  const file='prototype-'+d+'.png';
+  return [d,{file,sha256:saveCaptureFile(file),width:widths[d]}];
+ }));
+ const source={
+  format:'manufact-seo-approved-site-source-v1',siteId:original.siteId,
+  packageVersion:'pilot-verified-v1',fileSha256:'a'.repeat(64),
+  siteRevisionFingerprint:require('../lib/acceptance.cjs').fingerprint(original),
+  homepagePrototypeSha256:Object.fromEntries(devices.map(d=>[d,prototypes[d].sha256]))
+ };
+ const realScreens=original.pages.map((p,i)=>{
+  const screenshots=Object.fromEntries(devices.map(d=>{
+   const file='page-'+String(i+1).padStart(2,'0')+'-'+d+'.png';
+   return [d,{file,sha256:saveCaptureFile(file),width:widths[d],height:900}];
+  }));
+  return {path:p.path,title:p.title||'',screenshots,
+   warnings:i===0?['mobile: missing image /assets/not-found.png']:[]};
+ });
+ const leadEvidence={format:'manufact-public-site-acceptance-evidence-v1',
+  status:'screenshots-only-manual-approval-required',siteId:original.siteId,
+  version:source.packageVersion,integrity:'sha256-verified',
+  capturedAt:'2026-10-28T12:00:00.000Z',baseUrl:
+   'http://127.0.0.1:9073/published/'+original.siteId+'/',
+  devices:widths,prototypes,pages:realScreens,
+  warnings:realScreens.flatMap(p=>p.warnings.map(w=>p.path+': '+w))};
+ const captured=PHP_CAPTURE.inspect(leadEvidence,original,source,captureRoot);
+ assert.equal(captured.screenshotCount,original.pages.length*3);
+ assert.equal(captured.findings.length,1);
+ assert.equal(captured.findings[0].pageId,original.pages[0].id);
+ assert.equal(captured.publicHttpsProbed,false);
+ assert.equal(captured.visualEqualityReviewed,false);
+ const forgedCapture={...captured};
+ assert.equal(PHP_CAPTURE.isVerifiedCapture(forgedCapture),false);
+ assert.throws(()=>PACKAGE.build(original,currentRegistry,plan,{phpCapture:forgedCapture}),
+  /PHP screenshot evidence is not bound/);
+ const badPage=structuredClone(leadEvidence);badPage.pages.reverse();
+ assert.throws(()=>PHP_CAPTURE.inspect(badPage,original,source,captureRoot),
+  /reordered or unexpected page/);
+ const badPhoto=structuredClone(leadEvidence);
+ badPhoto.pages[0].screenshots.mobile.sha256='f'.repeat(64);
+ assert.throws(()=>PHP_CAPTURE.inspect(badPhoto,original,source,captureRoot),
+  /modified or swapped screenshot/);
+ const badProto=structuredClone(leadEvidence);
+ badProto.prototypes.mobile.sha256='f'.repeat(64);
+ assert.throws(()=>PHP_CAPTURE.inspect(badProto,original,source,captureRoot),
+  /source prototype hash mismatch/);
+ const badOrigin=structuredClone(leadEvidence);
+ badOrigin.baseUrl='https://example.com/published/'+original.siteId+'/';
+ assert.throws(()=>PHP_CAPTURE.inspect(badOrigin,original,source,captureRoot),
+  /loopback site mount/);
+ const forgedSource=path.join(captureRoot,'evidence.json');
+ fs.writeFileSync(forgedSource,JSON.stringify(leadEvidence));
+ assert.throws(()=>PHP_CAPTURE.read(forgedSource,original,source),
+  /requires the original verified lead/);
+ const missingSource=command('review-bundle',{site,blueprint:bp,'php-capture':forgedSource});
+ assert.notEqual(missingSource.status,0);
+ assert.match(missingSource.stderr,/--php-capture requires --approved-site/);
  const routeRegression=structuredClone(original);
  routeRegression.pages[0].sections[0].elements.find(x=>x.slot==='action').values['behavior.href']='/';
  const routeReport=collectReview(routeRegression,plan);

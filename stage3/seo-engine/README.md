@@ -173,3 +173,20 @@ node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle \\
 `--approved-site` is **only** for `review-bundle` / `review-bundle-md` and cannot be combined with `--site`. It invokes the **lead-owned** full preflight, requires SHA-256-locked `manufact-approved-site-handoff-v2` and reads its verified original Site v1. It refuses the worker-only checkout (which does not yet contain the lead verifier), unsealed legacy packages, or a changed `site.json`. This is not a second approval system.
 
 The bundle adds `approvedSiteSource`, source byte SHA-256 vs separately named canonical SEO fingerprint, and homepage/per-interior-page reference coverage. Three approved homepage pictures **must not** be presented as independent interior-page visual acceptance. It does not fetch public URLs, inspect screenshots, publish, validate human signoff or write the package. A real Blueprint and real HTTP/viewport/media observations must come from the lead's actual first site; none is implied by the sealed source.
+
+## Real PHP capture → SEO remediation/release review (lead-owned, read-only)
+
+The main developer can use the existing Stage 3 screenshot command for the first approved customer site:
+
+```sh
+node stage3/bin/verify-approved-site.cjs /ABS/approved-site
+node stage3/bin/capture-approved-site.cjs /ABS/approved-site \
+  http://127.0.0.1:PORT/published/ACTUAL-SITE-ID/ /ABS/evidence-01
+node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle-md \
+  --approved-site /ABS/approved-site --blueprint /ABS/site.blueprint.json \
+  --php-capture /ABS/evidence-01/evidence.json > /ABS/seo-review.md
+```
+
+The SEO command checks **all three original prototype hashes** against the sealed package, validates the page list/order and loopback mount, and rehashes every captured desktop/tablet/mobile PNG. Screenshot warnings from the actual PHP capture become page-identified **P1 remediation work** and a **publication blocker** for missing rendered images. Coverage, original source byte digest and exact scope enter `review-bundle.phpCapture`, the release review and the lead dossier. Changed/missing capture files, inconsistent paths, bogus sources, incompatible versions or screenshots from another site fail closed.
+
+**What this does not prove:** CSS matches the client's approved mockups; mobile interactions, successful forms, on-page HTML SEO head, HTTPS production, robots/sitemap, public OG assets, performance and any human approval. A screenshot is not an HTML snapshot or actual published HTTP transcript. Use the separate existing `--snapshot`, `--viewports`, `--delivery`, and `--media` inputs only when those artifacts were independently collected for the **same** build. No CMS mutations, no new capture implementation and no visual similarity score.
