@@ -4,6 +4,7 @@ const {checkBlueprint}=require('./blueprint.cjs');
 const core=require('../../sdk/contract.cjs');
 const CONTENT=require('./content-intelligence.cjs');
 const ARCHITECTURE=require('./architecture.cjs');
+const GRAPH=require('./graph-authored.cjs');
 const FORMAT='manufact-seo-analysis-v1';
 const severity={blocker:0,error:1,warning:2,recommendation:3};
 const normalize=x=>String(x||'').trim().normalize('NFKC').toLowerCase().replace(/\s+/g,' ');
@@ -48,9 +49,10 @@ function auditSite(site,manifests,blueprint){
     const target=byPath.get(dest);
     if(target&&target.id!==p.id){incoming.set(target.id,incoming.get(target.id)+1);authoredEdges.get(p.id).add(target.id);}
    };
-   for(const el of [...s.elements,...(s.items||[])])visit(el.values?.['behavior.href'],s.id,el.id,null);
-   const walk=ns=>{for(const n of ns||[]){if(n.type==='button')visit(n.href,s.id,null,n.id);walk(n.children);}};
-   if(s.designGraph)walk(s.designGraph.nodes);
+   if(s.designGraph){
+    for(const n of GRAPH.nodes(s))if(n.type==='button')visit(n.href,s.id,null,n.id);
+   }else for(const el of [...s.elements,...(s.items||[])])
+    visit(el.values?.['behavior.href'],s.id,el.id,null);
   }
  }
  for(const p of site.pages){
@@ -75,9 +77,24 @@ function auditSite(site,manifests,blueprint){
      items.push(issue('planned-section-missing','recommendation',p.id,p.path,'Blueprint section not identified by stable ID in Site v1; verify content coverage.',{sectionId:section.id}));
      continue;
     }
-    const heading=implemented.elements?.find(el=>el.slot==='heading')?.values?.['content.text'];
-    if(typeof heading==='string'&&normalize(heading)!==normalize(section.heading))
-     items.push(issue('planned-heading-diff','recommendation',p.id,p.path,'Main section heading differs from approved editorial blueprint; check whether the change is intended.',{sectionId:section.id,expected:section.heading,actual:heading}));
+    if(implemented.designGraph){
+     const observed=GRAPH.heading(implemented,section.heading);
+     if(observed.status==='authoring-diff')
+      items.push(issue('planned-heading-diff','recommendation',p.id,p.path,
+       'Rendered Design Graph heading differs from the approved editorial Blueprint.',
+       {sectionId:section.id,nodeId:observed.nodeId,expected:section.heading,actual:observed.value}));
+     else if(['ambiguous-heading','missing-heading'].includes(observed.status))
+      items.push(issue('planned-graph-heading-'+(observed.status==='missing-heading'?'missing':'ambiguous'),
+       'recommendation',p.id,p.path,
+       'Cannot map the planned section heading to a unique rendered Design Graph heading.',
+       {sectionId:section.id,expected:section.heading,candidateCount:observed.candidates}));
+    }else{
+     const heading=implemented.elements?.find(el=>el.slot==='heading')?.values?.['content.text'];
+     if(typeof heading==='string'&&normalize(heading)!==normalize(section.heading))
+      items.push(issue('planned-heading-diff','recommendation',p.id,p.path,
+       'Main section heading differs from approved editorial blueprint; check whether the change is intended.',
+       {sectionId:section.id,expected:section.heading,actual:heading}));
+    }
    }
    for(const l of pp.links){
     if(!pageMap.has(l.toPageId))
