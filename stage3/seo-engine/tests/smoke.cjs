@@ -66,6 +66,49 @@ try{
  const original=JSON.parse(fs.readFileSync(site,'utf8'));
  const plan=JSON.parse(fs.readFileSync(bp,'utf8'));
 
+ // Authoring parity: PHP renders Design Graph instead of legacy element slots.
+ // Fake-looking old manifest headings, links and media must not pass SEO review.
+ const graphSite=structuredClone(original);
+ const graphSection=graphSite.pages[0].sections[0];
+ graphSection.designGraph={version:1,id:'seo-graph-hero',nodes:[
+  {id:'seo-graph-layout',type:'container',children:[
+   {id:'seo-graph-title',type:'heading',level:1,text:'Сменённый визуальный заголовок'},
+   {id:'seo-graph-summary',type:'text',text:'Достоверное описание оригинального предложения'},
+   {id:'seo-graph-button',type:'button',text:'Не туда',href:'/'}
+  ]}
+ ]};
+ const graphAudit=require('../lib/analyze.cjs').auditSite(graphSite,currentRegistry,plan);
+ assert.ok(graphAudit.issues.some(x=>x.code==='planned-heading-diff'&&x.nodeId==='seo-graph-title'),
+  'rendered Graph heading must replace hidden legacy heading');
+ assert.ok(graphAudit.issues.some(x=>x.code==='content:planned-cta-missing'&&
+  x.sectionId==='section-hero'), 'hidden legacy CTA cannot satisfy the Blueprint');
+ const graphProposals=require('../lib/field-proposals.cjs').propose(graphSite,currentRegistry,plan);
+ assert.ok(graphProposals.blocked.some(x=>x.nodeId==='seo-graph-title'&&
+  x.reason==='design-graph-heading-authoring-diff'));
+ assert.ok(graphProposals.blocked.some(x=>x.nodeId==='seo-graph-button'&&
+  x.reason==='design-graph-cta-route-diff'));
+ assert.ok(!graphProposals.proposals.some(x=>x.sectionId==='section-hero'),
+  'never propose manifest field edits for graph-rendered sections');
+ const graphTrace=require('../lib/traceability.cjs').report(graphSite,plan,{},graphAudit);
+ const tracedGraph=graphTrace.pages.find(p=>p.pageId==='page-home').sections
+  .find(s=>s.sectionId==='section-hero');
+ assert.equal(tracedGraph.authoringHeadingNodeId,'seo-graph-title');
+ assert.equal(tracedGraph.headingEvidence,'authoring-diff');
+ const graphBacklog=require('../lib/remediation.cjs').work(graphSite,currentRegistry,plan);
+ assert.ok(graphBacklog.tasks.some(t=>t.sources.some(x=>x.kind==='mapping-blocked'&&
+  x.reason==='design-graph-heading-authoring-diff')));
+ const extractedGraph=require('../lib/content-intelligence.cjs').extract(graphSite);
+ const authored=extractedGraph.find(p=>p.id==='page-home').sections.find(s=>s.id==='section-hero');
+ assert.equal(authored.links.some(x=>x.toPath==='/contact/'),false,
+  'legacy links are not rendered and must not count');
+ assert.ok(authored.links.some(x=>x.toPath==='/'));
+ const graphWithList=structuredClone(graphSite);
+ graphWithList.pages[0].sections[0].designGraph.nodes[0].children.push(
+  {id:'seo-graph-list',type:'list',children:[
+   {id:'seo-graph-item',type:'list-item',text:'Особенности оборудования'}]});
+ const listContent=require('../lib/content-intelligence.cjs').extract(graphWithList);
+ assert.ok(listContent[0].sections[0].pieces.some(x=>x.text==='Особенности оборудования'));
+
  // Integration of the lead's real, bounded evidence.json shape (synthetic bytes only).
  // Pure validation is smoke-tested even on the isolated SEO branch without lead verifier.
  const PHP_CAPTURE=require('../lib/php-capture.cjs');
