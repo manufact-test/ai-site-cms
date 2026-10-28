@@ -431,7 +431,51 @@ function localFirstSiteReportDeltaContracts(){
   /Comparing different/);
 }
 
+
+function realPhpThemeAndGraphPresentationContracts(){
+ const THEME=require('../lib/php-local-theme.cjs');
+ const GRAPH_STYLES=require('../lib/php-local-graph-style.cjs');
+ const source={siteId:'theme-pilot',theme:{primary:'#e12638',maxWidth:1060,
+  buttonStyle:'outline',headingScale:'large'},
+  pages:[{id:'home',path:'/'},{id:'about',path:'/about/'}],
+  assets:[{id:'hero',src:'/assets/hero.png'},{id:'mobile',src:'/assets/mobile.png'}]};
+ const rootCss='<style>:root{'+Object.entries(THEME.declaredTheme(source))
+  .map(([k,v])=>k+':'+v).join(';')+'}</style>';
+ const html=markup=>({siteId:source.siteId,pages:source.pages.map(p=>({
+  id:p.id,path:p.path,html:'<html><head>'+markup+'</head><body><h1>Page</h1></body></html>'}))});
+ assert.deepEqual(THEME.review(source,html(rootCss)).findings,[]);
+ const broken=THEME.review(source,html(rootCss.replace('--cms-primary:#e12638',
+  '--cms-primary:#123456')));
+ assert.equal(broken.findings.length,2);
+ assert.ok(broken.findings.every(f=>f.code==='php-theme:token-drift'&&
+  f.property==='--cms-primary'));
+ assert.ok(THEME.review(source,html('<style>h1{color:black}</style>')).findings
+  .every(f=>f.code==='php-theme:root-missing'));
+ const graph={id:'graph-hero'},node={id:'hero',type:'container',
+  styles:{padding:24},responsive:{mobile:{padding:8}},
+  states:{hover:{color:'#c40000'}},
+  backgroundMedia:{assetId:'hero',mobileAssetId:'mobile'}};
+ const selector='.cmsdg-graph-hero .cmsdg-n-hero';
+ const graphCss='<style>'+selector+'{padding:24px}'+
+  '@media(max-width:600px){'+selector+'{padding:8px}}'+
+  selector+':hover{color:#c40000}'+
+  selector+'{background-image:url("/published/theme-pilot/assets/hero.png");background-size:cover}'+
+  '@media(max-width:600px){'+selector+
+  '{background-image:url("/published/theme-pilot/assets/mobile.png");background-size:cover}}'+
+  '</style>';
+ const args={site:source,graph,node,html:graphCss,
+  assets:new Map(source.assets.map(x=>[x.id,x]))};
+ assert.deepEqual(GRAPH_STYLES.reviewNode(args),[]);
+ assert.ok(GRAPH_STYLES.reviewNode({...args,html:graphCss.replace(
+  '/assets/mobile.png','/assets/other.png')}).some(f=>
+  f.code==='background-art-direction-missing'));
+ assert.ok(GRAPH_STYLES.reviewNode({...args,html:graphCss.replace(
+  selector+':hover{color:#c40000}','')}).some(f=>
+  f.code==='interaction-style-missing'));
+}
+
 async function main(){
+ realPhpThemeAndGraphPresentationContracts();
  localFirstSiteReportDeltaContracts();
  actualPublishedComponentAndGraphContracts();
  formAndFirstSiteCliContracts();
