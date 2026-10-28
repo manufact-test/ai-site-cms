@@ -34,7 +34,9 @@ const http={
    body:release.searchFiles['robots.txt']},
  sitemap:{status:200,url:origin+'sitemap.xml',contentType:'application/xml',
    body:release.searchFiles['sitemap.xml']},
- redirects:[{from:'/old/',requestUrl:origin+'old/',status:301,location:'/about/'}]};
+ redirects:[{from:'/old/',requestUrl:origin+'old/',status:301,location:'/about/'}],
+ negativeProbe:{path:'/cms-seo-nonexistent-pilot-site/',requestUrl:origin+'cms-seo-nonexistent-pilot-site/',
+  status:404,contentType:'text/html',bodySha256:'e'.repeat(64)}};
 const media={format:'manufact-seo-media-evidence-v1',siteId:site.siteId,origin,
  completeness:'complete',resources:[
   {assetId:'asset-main',url:origin+'assets/asset-main.png',status:200,
@@ -48,6 +50,12 @@ assert.equal(good.checkedPages,2);
 assert.equal(good.checkedSearchFiles,2);
 assert.equal(good.checkedRedirects,1);
 assert.equal(good.httpTranscriptAuthenticated,false);
+const soft404=compare(site,release,{...http,negativeProbe:{...http.negativeProbe,status:200}},media);
+assert.ok(soft404.findings.some(x=>x.code==='public-static:soft-404-public-host'));
+const wrongHead=compare(site,release,{...http,pages:http.pages.map((p,i)=>
+ i===0?{...p,html:home.replace('<meta property="og:url"',
+ '<meta property="og:image" content="https://other.example/image.jpg"><meta property="og:url"')}:p)},media);
+assert.ok(wrongHead.findings.some(x=>x.code==='public-static:page-deep-head-drift'));
 const wrong=compare(site,release,{...http,pages:http.pages.map((p,i)=>
  i===0?{...p,html:home.replace('Welcome','Altered').replace('href="/about/"','href="/broken/"')}:p)},media);
 assert.ok(wrong.findings.some(x=>x.code==='public-static:page-content-drift'&&x.field==='mainText'));
