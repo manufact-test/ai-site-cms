@@ -2340,6 +2340,21 @@
     const previewStatus=element('p','hosted-launch-preview-status','');
     previewStatus.id='server-launch-preview-status';
     const issues=element('div','hosted-launch-issues');
+    // A manual difference is not a test failure: it is operator evidence tied
+    // to the page, exact device and immutable draft revision being reviewed.
+    const findingPanel=element('section','hosted-launch-findings');
+    findingPanel.id='server-launch-findings';
+    findingPanel.append(element('h4',null,'Замечания по выбранному экрану'));
+    const findingInput=element('textarea','control');
+    findingInput.id='server-launch-finding-input';
+    findingInput.rows=2;findingInput.maxLength=500;
+    findingInput.placeholder='Например: отступ заголовка отличается от макета на телефоне';
+    findingInput.setAttribute('aria-label','Новое замечание по макету и PHP-странице');
+    const findingAdd=action('Добавить замечание','server-launch-finding-add',()=>{});
+    const findingList=element('div','hosted-launch-finding-list');
+    findingList.id='server-launch-finding-list';
+    findingPanel.append(findingInput,findingAdd,findingList);
+
     const backlog=element('section','hosted-launch-backlog');
     backlog.id='server-launch-readiness';
     backlog.append(element('h3',null,'Что осталось заполнить'));
@@ -2388,7 +2403,7 @@
     const markReviewed=action('Подтвердить просмотр страницы','server-launch-mark',()=>{});
     const close=action('Закрыть','server-launch-close',()=>dialog.close());
     footer.append(editPage,quality,saveDraft,exportReport,publishSaved,close);
-    detail.append(pageHeading,devices,compareModes,overlayControls,previewPanels,previewStatus,issues,markReviewed);
+    detail.append(pageHeading,devices,compareModes,overlayControls,previewPanels,previewStatus,issues,findingPanel,markReviewed);
     body.append(pages,detail);
     dialog.append(header,backlog,body,footer);
     document.body.append(dialog);
@@ -2398,6 +2413,49 @@
     // Each device's own real PHP document must render before sign-off. These
     // observations are diagnostic hints, not visual/pixel-match approval.
     const renderEvidence=new Map(),referenceSeen=new Set();
+    const manualFindings=[];
+    const openFindings=(pageId,mode)=>manualFindings.filter(f=>
+      !f.resolved&&f.pageId===pageId&&f.device===mode);
+    const unresolvedCount=()=>manualFindings.filter(f=>!f.resolved).length;
+    const drawFindings=()=>{
+      findingList.replaceChildren();
+      const pageId=selectedRow?.current?.id;
+      const selected=manualFindings.filter(f=>f.pageId===pageId&&f.device===device);
+      findingInput.disabled=findingAdd.disabled=!pageId||!freshDraft();
+      if(!selected.length){
+        findingList.append(element('small',null,'Нет записанных замечаний на этом устройстве.'));
+        return;
+      }
+      for(const finding of selected){
+        const row=element('div','hosted-launch-finding');
+        row.append(element('span',null,
+          (finding.resolved?'✓ Исправлено: ':'Не исправлено: ')+finding.note+
+          ' · Y '+finding.scrollY+' px'));
+        if(!finding.resolved){
+          const resolve=action('Исправлено','',()=>{
+            if(!freshDraft())return;
+            finding.resolved=true;
+            // A fix acknowledgement never implicitly marks the PHP view as
+            // visually reviewed; the human must confirm again.
+            reviewed.get(finding.pageId)?.delete(finding.device);
+            drawFindings();updateReviewed();syncActions();
+          });
+          resolve.setAttribute('aria-label','Отметить замечание исправленным: '+finding.note);
+          row.append(resolve);
+        }
+        findingList.append(row);
+      }
+    };
+    findingAdd.addEventListener('click',()=>{
+      const note=findingInput.value.trim();
+      if(!selectedRow?.current||!freshDraft()||note.length<3||note.length>500){
+        notice('Опишите расхождение минимум тремя символами, без изменения черновика.',true);return;
+      }
+      manualFindings.push({pageId:selectedRow.current.id,path:selectedRow.current.path,
+        device,note,scrollY:Math.round(viewport.scrollTop),resolved:false});
+      reviewed.get(selectedRow.current.id)?.delete(device);
+      findingInput.value='';drawFindings();updateReviewed();syncActions();
+    });
     const referenceUrls=new Map(),referenceLoads=new Map();
     const referenceKind=(row,mode)=>{
       if(!approvedReference||!row?.current)return null;
@@ -2426,13 +2484,17 @@
         'Подтвердить экран '+widths[device]+' px';
       if(evidence?.errors?.length)markReviewed.title=evidence.errors.join(' · ');
       markReviewed.disabled=!selectedRow?.current||marked||
+        openFindings(selectedRow?.current?.id,device).length>0||
         !previewReady.has(signature(selectedRow,device))||!freshDraft();
-      if(!evidence?.errors?.length)markReviewed.title=markReviewed.disabled&&!marked?
+      if(openFindings(selectedRow?.current?.id,device).length)
+        markReviewed.title='Есть неисправленные замечания по этому экрану.';
+      else if(!evidence?.errors?.length)markReviewed.title=markReviewed.disabled&&!marked?
         'Дождитесь полной загрузки PHP-страницы и изображений. Сохраните изменения перед подтверждением.':'';
     };
     markReviewed.addEventListener('click',()=>{
       if(markReviewed.disabled||!selectedRow?.current||!freshDraft())return;
       const id=selectedRow.current.id;
+      if(openFindings(id,device).length)return;
       if(!reviewed.has(id))reviewed.set(id,new Set());
       reviewed.get(id).add(device);updateReviewed();syncActions();
     });
@@ -2442,6 +2504,8 @@
         publicationCompared:published?.version||null,publishedError,
         sdk:{errors:inspected.errors,warnings:inspected.warnings},
         contentGaps:readiness.issues,
+        visualFindings:manualFindings.map(f=>({...f})),
+        visualUnresolvedCount:unresolvedCount(),
         pages:site.pages.map(page=>({id:page.id,path:page.path,title:page.title,
           reviewedDevices:devicesNeeded.filter(mode=>reviewed.get(page.id)?.has(mode)),
           renderChecks:Object.fromEntries(devicesNeeded.map(mode=>[
@@ -2471,10 +2535,10 @@
       // the actual buttons are checked again when clicked.
       saveDraft.disabled=!state.authorized||!state.siteId||!canEdit()||!editor.isDirty();
       publishSaved.disabled=!state.authorized||!state.siteId||!canPublish()||
-        !freshDraft()||readiness.errors>0||completedCount()!==site.pages.length||
+        !freshDraft()||readiness.errors>0||unresolvedCount()>0||completedCount()!==site.pages.length||
         (Boolean(meta?.published_version)&&(!published||!!publishedError));
       publishSaved.title=publishSaved.disabled?
-        'Сохраните текущую ревизию, исправьте ошибки, проверьте 3 ширины каждой страницы; публикация всё равно требует подтверждения.':
+        'Сохраните ревизию, исправьте замечания, проверьте 3 ширины каждой страницы; публикация требует отдельного подтверждения.':
         'Все страницы просмотрены на ПК, планшете и телефоне. Потребуется отдельное подтверждение';
     };
     const renderViewport=()=>{
@@ -2522,6 +2586,7 @@
       }
       for(const button of devices.querySelectorAll('button'))
         button.classList.toggle('primary',button.dataset.device===device);
+      drawFindings();
     };
     // The sealed screenshot stays read-only; the browser verifies bytes
     // against the server index before exposing a local, private Blob URL.
