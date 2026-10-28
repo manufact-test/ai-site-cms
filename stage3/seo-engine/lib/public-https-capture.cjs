@@ -226,6 +226,35 @@ async function captureMedia(site,rawOrigin,transport={address,requestHead}){
   servedRevisionAuthenticated:false,automaticRelease:false});
 }
 
+/* Verify the public root has not changed while separate page/media GET
+   requests were being acquired. This rejects obvious mixed deploy windows;
+   it does NOT authenticate which source revision the host is running. */
+async function recheckRoot(site,rawOrigin,first,transport={address,request}){
+ if(!site||typeof site.siteId!=='string'||!first||first.path!=='/'||
+    !Number.isInteger(first.status)||typeof first.html!=='string'||
+    first.html.length>LIMIT_HTML)
+  throw Error('Root window recheck requires the initial bounded homepage observation');
+ const base=origin(rawOrigin,site.siteId);
+ const homepage=resource(base,'/');
+ if(first.requestUrl!==homepage||first.responseUrl!==homepage)
+  throw Error('Root window recheck refuses a different published host or mount');
+ const pinned=await transport.address(base.hostname);
+ if(!pinned||!isPublicIp(pinned.address))
+  throw Error('Root window recheck DNS is not a public pinned address');
+ const observed=await transport.request(homepage,pinned,LIMIT_HTML);
+ if(!observed||!Number.isInteger(observed.status)||typeof observed.body!=='string'||
+    observed.body.length>LIMIT_HTML)
+  throw Error('Root window recheck received invalid bounded HTTPS data');
+ const firstHash=crypto.createHash('sha256').update(first.html,'utf8').digest('hex');
+ const lastHash=crypto.createHash('sha256').update(observed.body,'utf8').digest('hex');
+ return Object.freeze({
+  requestUrl:homepage,firstStatus:first.status,secondStatus:observed.status,
+  initialHtmlSha256:firstHash,finalHtmlSha256:lastHash,
+  matched:first.status===observed.status&&firstHash===lastHash,
+  sourceRevisionAuthenticated:false,publicHostProvenanceAuthenticated:false
+ });
+}
+
 /* Streaming bounded public GET. Only a content digest/metadata is retained;
    no image/video bytes are buffered, written or included in output. */
 function requestDigest(target,pinned,max=12000000){
@@ -274,4 +303,4 @@ function requestDigest(target,pinned,max=12000000){
   req.on('error',e=>finish(e));req.end();
  });
 }
-module.exports=Object.freeze({origin,isPublicIp,address,request,requestHead,requestDigest,capture,captureMedia});
+module.exports=Object.freeze({origin,isPublicIp,address,request,requestHead,requestDigest,recheckRoot,capture,captureMedia});
