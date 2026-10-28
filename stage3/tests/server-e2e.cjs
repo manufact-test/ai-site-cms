@@ -2080,6 +2080,11 @@ async function stop(){
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dest,'runtime-build.json'),'utf8')).pages,
       ['/','/get-in-touch/']);
     assert.equal(JSON.parse(fs.readFileSync(path.join(dest,'package.json'),'utf8')).private,true);
+    const canary=JSON.parse(fs.readFileSync(path.join(dest,'public/_cms-connect.json'),'utf8'));
+    assert.equal(canary.format,'manufact-ai-site-connection-v1');
+    assert.equal(canary.siteId,'site-url-ci');
+    assert.equal(canary.publishedVersion,urlManifest.publishedVersion);
+    assert.equal(canary.releaseManifestSha256,hash(fs.readFileSync(path.join(urlOut,'release-manifest.json'))));
     assert.match(fs.readFileSync(path.join(dest,'lib/runtime.js'),'utf8'),/metadataFor/);
     assert.match(fs.readFileSync(path.join(dest,'data/get-in-touch/index.html'),'utf8'),
       /https:\/\/example[.]test\/get-in-touch\//);
@@ -2115,6 +2120,14 @@ async function stop(){
       await new Promise(resolve=>setTimeout(resolve,65));
     }
     assert.ok(ready,'Standalone PHP runtime starts');
+    const liveCanary=await fetch(base+'/_cms-connect.json');
+    assert.equal(liveCanary.status,200);
+    assert.equal(liveCanary.headers.get('cache-control'),'no-store');
+    const reported=await liveCanary.json();
+    assert.equal(reported.format,'manufact-ai-site-connection-v1');
+    assert.equal(reported.siteId,'site-url-ci');
+    assert.equal(reported.publishedVersion,urlManifest.publishedVersion);
+    assert.equal(reported.releaseManifestSha256,hash(fs.readFileSync(path.join(urlOut,'release-manifest.json'))));
     const home=await fetch(base+'/');assert.equal(home.status,200);
     assert.match(await home.text(),/href="\/get-in-touch\/"/);
     const contact=await fetch(base+'/get-in-touch/');assert.equal(contact.status,200);
