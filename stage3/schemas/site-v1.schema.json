@@ -1660,6 +1660,9 @@
         },
         "backgroundMedia": {
           "$ref": "#/$defs/designBackgroundMedia"
+        },
+        "responsiveMedia": {
+          "$ref": "#/$defs/designDeviceMedia"
         }
       }
     },
@@ -1825,6 +1828,19 @@
               "maximum": 90
             }
           }
+        }
+      }
+    },
+    "designDeviceMedia": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "tabletAssetId": {
+          "$ref": "#/$defs/id"
+        },
+        "mobileAssetId": {
+          "$ref": "#/$defs/id"
         }
       }
     }
