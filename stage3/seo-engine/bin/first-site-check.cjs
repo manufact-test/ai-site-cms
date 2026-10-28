@@ -10,15 +10,17 @@ const PHP_CAPTURE=require('../lib/php-capture.cjs');
 const PACKAGE=require('../lib/package.cjs');
 const WORKSHEET=require('../lib/first-site-worksheet.cjs');
 const PROGRESS=require('../lib/first-site-report-delta.cjs');
+const DELIVERY=require('../lib/delivery-evidence.cjs');
+const MEDIA=require('../lib/media-delivery.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
 const {auditSite}=require('../lib/analyze.cjs');
 const REQUIRED=['approved-site','blueprint','origin','evidence','report'];
-const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review','static-export'];
+const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review','static-export','public-http-evidence','public-media-evidence'];
 function parse(argv){
  const opts={};
  if(!Array.isArray(argv)||argv.length<REQUIRED.length*2||
   argv.length>(REQUIRED.length+OPTIONAL.length)*2||argv.length%2)
-  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json] [--static-export /ABS/official-static-release]');
+  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json] [--static-export /ABS/official-static-release] [--public-http-evidence /ABS/public-http-transcript.json] [--public-media-evidence /ABS/public-media-transcript.json]');
  for(let i=0;i<argv.length;i+=2){
   const name=argv[i]?.startsWith('--')?argv[i].slice(2):null;
   if(![...REQUIRED,...OPTIONAL].includes(name)||!argv[i+1]||opts[name])throw Error('Unknown, missing or duplicate first-site option');
@@ -59,6 +61,15 @@ function readOwnerEditReview(file){
   throw Error('Owner-edited published site review must be a bounded local JSON file');
  return JSON.parse(fs.readFileSync(file,'utf8'));
 }
+function readPublicEvidence(file,kind){
+ const st=fs.lstatSync(file);
+ const max=kind==='http'?36000000:1800000;
+ if(st.isSymbolicLink()||!st.isFile()||st.size<50||st.size>max)
+  throw Error('Invalid bounded public '+kind+' transcript file');
+ const data=JSON.parse(fs.readFileSync(file,'utf8'));
+ (kind==='http'?DELIVERY:MEDIA).assertEvidence(data);
+ return data;
+}
 function manifests(){
  const dir=path.join(__dirname,'../../components');
  return fs.readdirSync(dir).filter(name=>name.endsWith('.json')).map(name=>{
@@ -81,6 +92,12 @@ async function main(argv){
  PHP.baseUrl(o.origin,site.siteId); // Strict localhost published mount; no outgoing requests.
  const evidence=newTarget(o.evidence,o['approved-site']);
  const report=newTarget(o.report,o['approved-site'],evidence);
+ const publicHttp=o['public-http-evidence']?readPublicEvidence(o['public-http-evidence'],'http'):null;
+ const publicMedia=o['public-media-evidence']?readPublicEvidence(o['public-media-evidence'],'media'):null;
+ if(publicHttp&&publicHttp.siteId!==site.siteId||publicMedia&&publicMedia.siteId!==site.siteId)
+  throw Error('Public transcript Site ID differs from the verified first-site source');
+ if(publicHttp&&publicMedia&&new URL(publicHttp.origin).href!==new URL(publicMedia.origin).href)
+  throw Error('Supplied public HTTP and media evidence point to different origins');
  const previous=o['previous-report']?PROGRESS.read(o['previous-report']):null;
  if(previous&&([report,evidence].some(target=>{
    const parent=fs.realpathSync(path.dirname(target));
@@ -113,7 +130,9 @@ async function main(argv){
  if(!PHP.isVerified(checked))throw Error('First-site PHP evidence was not source-bound verified');
  const bundle=PACKAGE.build(fresh.site,registry,blueprint,{
   approvedSource:fresh.source,phpHtml:checked,snapshot:checked.snapshot,
-  ...(screenshots?{phpCapture:screenshots}:{})
+  ...(screenshots?{phpCapture:screenshots}:{}),
+  ...(publicHttp?{delivery:publicHttp}:{}),
+  ...(publicMedia?{media:publicMedia}:{})
  });
  const release=bundle.release;
  const worksheet=WORKSHEET.build({site:fresh.site,source:fresh.source,
@@ -151,6 +170,11 @@ async function main(argv){
    cssVariablesChecked:checked.localTheme?.expectedCssVariables??null,
    actualFindings:checked.localTheme?.findings.length??null,
    pixelParityVerified:false},
+  publicTranscript:{httpSupplied:Boolean(publicHttp),mediaSupplied:Boolean(publicMedia),
+   httpsOriginClaim:publicHttp?.origin??publicMedia?.origin??null,
+   httpFindings:bundle.deliveryEvidence?.findings.length??null,
+   mediaFindings:bundle.mediaEvidence?.findings.length??null,
+   requestProvenanceAuthenticated:false,networkCapturePerformedBySeoEngine:false},
   staticExport:{supplied:Boolean(checked.localStaticExport),
    matchingContentAndMedia:checked.localStaticExport?.contentAndMediaMatched??null,
    sha256CheckedFiles:checked.localStaticExport?.verifiedExportFiles??null,
@@ -212,4 +236,4 @@ if(require.main===module)
  main(process.argv.slice(2))
   .then(result=>process.stdout.write('FIRST SITE LOCAL TECHNICAL REVIEW: '+JSON.stringify(result)+'\n'))
   .catch(e=>{process.stderr.write('SEO first-site check: '+e.message+'\n');process.exitCode=1;});
-module.exports=Object.freeze({parse,newTarget,readBlueprint,readPublishedSite,readOwnerEditReview,main});
+module.exports=Object.freeze({parse,newTarget,readBlueprint,readPublishedSite,readOwnerEditReview,readPublicEvidence,main});

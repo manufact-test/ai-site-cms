@@ -99,6 +99,16 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   if(common.length>25)lines.push('- Ещё '+(common.length-25)+' общих findings в JSON bundle.');
   lines.push('');
  }
+ const publicReports=[['HTTP',bundle.deliveryEvidence],['Медиа',bundle.mediaEvidence]]
+  .filter(([,report])=>Boolean(report));
+ if(publicReports.length){
+  lines.push('## Предоставленные внешние HTTPS-транскрипты (неаутентифицированные)','',
+   'Это локально проверенные JSON-записи оператора, а не запросы SEO Engine к публичному хосту. Сами ответы и происхождение должны быть независимо подтверждены.','');
+  for(const [label,report] of publicReports)
+   lines.push('- '+label+': '+(report.findings?.length??0)+
+    ' предупреждений и ошибок из предоставленных HTTP-данных; host provenance: NOT AUTHENTICATED.');
+  lines.push('');
+ }
  lines.push('## Только владелец/ведущий отмечает после реального теста','',
   '- [ ] Сверена фактически обслуживаемая PHP revision с утверждённым пакетом и owner-exported published release.',
   '- [ ] Каждая страница полностью сравнена с собственным утверждённым макетом в desktop/tablet/mobile; оценены вкладки, popup, overflow и кликабельность.',
