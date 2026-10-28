@@ -106,3 +106,11 @@ node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle --site stage3/fixture
 The sample origin and transcript are synthetic; replace with owner-approved and independently captured values before drawing conclusions. Add `--decisions` for human approvals; use `cms-change-packet-md` only after reconciling a current ledger and verifying saved CMS override history.
 
 **Verification reality:** targeted real-fixture module checks were run in isolated V8 shims for sitemap, read-only CMS change eligibility, manifest/precondition drift, first-site capture URL mapping, and cross-source indexation discrepancy. New CommonJS sources were syntax checked. **Actual Node CLI smoke was not executable here**: the external container has Node v22 but no repository checkout and cannot resolve github.com to clone. CI result is not claimed. Run on a full local checkout before integration. No merge or deployment, and only `stage3/seo-engine/**` is writable.
+
+## Stage 3 lead acceptance and revision history — major integration batch
+
+- `lib/acceptance.cjs`, `schemas/acceptance-v1.schema.json`: deterministic SHA-256 of approved SEO Blueprint and Site v1, three distinct static image references/hash records and seven explicit manual attestations. CLI: `acceptance-template`, `acceptance-review`. Reviewer identity and evidence URIs are provided assertions, **not authenticated**; any changed revision makes previous signoff stale.
+- `lib/task-progress.cjs`: two independent but equally scoped Site v1 authoring backlogs, stable task keys, decision carry-over for the *old* ledger and candidate field closures. CLI: `task-progress --before ... --site ... --blueprint ... [--prior-decisions ...]`. A disappeared task is not automatically a fix.
+- Integrated into `review-bundle`; `release-review --acceptance ...` adds blockers for rejected or stale human attestations and displays claimed gate status while preserving `readyToPublish:false`.
+- Expanded the single `tests/smoke.cjs` to cover full ledger, stale site revision, rejected check, incomplete attestation, current/historical backlog and closure candidates. **Actual Node subprocess smoke was not run** without a full checkout; run on Node 20+ before integrating.
+- Write boundary remains `stage3/seo-engine/**`; no main/SDK/Studio/renderer edits, merge or deploy.

@@ -506,6 +506,68 @@ try{
  assert.equal(phases.items.find(x=>x.taskId==='child').status,'blocked-on-unresolved-dependency');
  assert.equal(phases.items.find(x=>x.taskId==='ignored').status,'excluded-by-human-decision');
  assert.equal(phases.items.find(x=>x.taskId==='parent').status,'approved-for-manual-work');
+ // Approval workflow: real revision fingerprints, three distinct prototypes and seven gates.
+ const approvalDraft=JSON.parse(good('acceptance-template',{site,blueprint:bp}));
+ assert.equal(approvalDraft.format,'manufact-seo-acceptance-v1');
+ assert.equal(approvalDraft.prototype.images.length,3);
+ assert.equal(approvalDraft.checks.length,7);
+ assert.match(approvalDraft.blueprintSha256,/^[a-f0-9]{64}$/);
+ const approvalPath=path.join(tmp,'approval-ledger.json');
+ fs.writeFileSync(approvalPath,JSON.stringify(approvalDraft));
+ const approvalPending=JSON.parse(good('acceptance-review',{site,blueprint:bp,acceptance:approvalPath}));
+ assert.equal(approvalPending.summary.allSuppliedAssertionsComplete,false);
+ assert.equal(approvalPending.readyToPublish,false);
+ const approvalSigned=structuredClone(approvalDraft);
+ approvalSigned.prototype={revision:'prototype-revision-r1',
+  images:['desktop','tablet','mobile'].map((device,i)=>({
+   device,artifact:'example-'+device+'.png',sha256:['a','b','c'][i].repeat(64)})),
+  approvedBy:'Sample reviewer',approvedAt:'2026-10-28T11:00:00Z',
+  evidenceReference:'fictional-approval-fixture'};
+ for(const check of approvalSigned.checks){
+  check.status='approved';check.reviewedBy='Sample reviewer';
+  check.reviewedAt='2026-10-28T12:00:00Z';
+  check.evidenceReference='fictional-evidence-'+check.id;check.note='Synthetic test';
+ }
+ fs.writeFileSync(approvalPath,JSON.stringify(approvalSigned));
+ const approvalResult=JSON.parse(good('acceptance-review',{site,blueprint:bp,acceptance:approvalPath}));
+ assert.equal(approvalResult.summary.allSuppliedAssertionsComplete,true);
+ assert.equal(approvalResult.summary.authenticatedApprovals,0);
+ assert.equal(approvalResult.readyToPublish,false);
+ const releaseSigned=JSON.parse(good('release-review',{site,blueprint:bp,acceptance:approvalPath}));
+ assert.equal(releaseSigned.readyToPublish,false);
+ assert.ok(releaseSigned.manualChecks.every(x=>x.suppliedAttestationStatus==='approved'&&!x.sourceAuthenticated));
+ const integrationApproved=JSON.parse(good('review-bundle',{
+  site,blueprint:bp,snapshot:htmlSite,acceptance:approvalPath,before:site}));
+ assert.equal(integrationApproved.acceptanceReview.summary.allSuppliedAssertionsComplete,true);
+ assert.equal(integrationApproved.taskProgress.summary.noLongerPresent,0);
+ assert.equal(integrationApproved.coverage.prototypeApprovalLedgerProvided,true);
+ const sameRevisionProgress=JSON.parse(good('task-progress',{before:site,site,blueprint:bp}));
+ assert.equal(sameRevisionProgress.summary.noLongerPresent,0);
+ assert.equal(sameRevisionProgress.summary.introduced,0);
+ assert.equal(sameRevisionProgress.summary.provenCompletedTasks,0);
+ const progressSite=structuredClone(original);
+ progressSite.pages[0].seo={title:plan.pages[0].seo.title,description:'',robots:'index'};
+ const progressSitePath=path.join(tmp,'seo-field-edited.json');
+ fs.writeFileSync(progressSitePath,JSON.stringify(progressSite));
+ const closedCandidate=JSON.parse(good('task-progress',{
+  before:site,site:progressSitePath,blueprint:bp}));
+ assert.ok(closedCandidate.noLongerPresent.some(x=>x.field==='seo.title'&&x.closureCandidate));
+ assert.equal(closedCandidate.summary.provenCompletedTasks,0);
+ const staleApproval=JSON.parse(good('acceptance-review',{
+  site:progressSitePath,blueprint:bp,acceptance:approvalPath}));
+ assert.ok(staleApproval.blockers.includes('site-revision-mismatch'));
+ const staleApprovalRelease=JSON.parse(good('release-review',{
+  site:progressSitePath,blueprint:bp,acceptance:approvalPath}));
+ assert.ok(staleApprovalRelease.blockers.some(x=>x.gateId==='acceptance-revision-stale'));
+ const denialLedger=structuredClone(approvalSigned);
+ denialLedger.checks[0].status='rejected';
+ fs.writeFileSync(approvalPath,JSON.stringify(denialLedger));
+ const deniedRelease=JSON.parse(good('release-review',{site,blueprint:bp,acceptance:approvalPath}));
+ assert.ok(deniedRelease.blockers.some(x=>x.gateId==='explicit-acceptance-rejection'));
+ denialLedger.checks[0].status='approved';denialLedger.checks[0].evidenceReference='';
+ fs.writeFileSync(approvalPath,JSON.stringify(denialLedger));
+ const incompleteSignoff=JSON.parse(good('acceptance-review',{site,blueprint:bp,acceptance:approvalPath}));
+ assert.equal(incompleteSignoff.checks[0].status,'incomplete-attestation');
  const unsupported=command('review-bundle',{site,blueprint:bp,unknown:'invalid'});
  assert.notEqual(unsupported.status,0);
  const {inspect:inspectEvidence}=require('../lib/html-evidence.cjs');
