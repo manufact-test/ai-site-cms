@@ -15,7 +15,9 @@ function strip(s){return s.replace(/<!--[\s\S]*?-->/g,'').replace(/<(?:script|st
 function forms(s){
  return [...strip(s).matchAll(/<form\b([^>]*?)>([\s\S]*?)<\/form\s*>/gi)]
   .map(m=>({attrs:attrs(m[1]),inputs:tags(m[2],'input'),
-   textareas:tags(m[2],'textarea'),buttons:tags(m[2],'button')}));
+   textareas:tags(m[2],'textarea'),selects:tags(m[2],'select'),
+   fieldsets:tags(m[2],'fieldset'),divs:tags(m[2],'div'),
+   paragraphs:tags(m[2],'p'),buttons:tags(m[2],'button')}));
 }
 function sectionForms(html,id){
  const wrappers=[...strip(html).matchAll(/<section\b([^>]*?)>([\s\S]*?)<\/section\s*>/gi)]
@@ -72,6 +74,53 @@ function review(site,snapshot){
    if(msg.length!==1||!Object.hasOwn(msg[0],'required'))
     add(page,section.id,'message-absent','Required message textarea missing.');
    if(!form.buttons.some(x=>x.type==='submit'))add(page,section.id,'submit-absent','Submit button missing.');
+   // Lead's new FlexForm builder is part of the *same* immutable form contract.
+   // Old legacy extra slots and new additive fields are both checked.
+   const definitions=[];
+   if(section.component==='lead-form-flex'){
+    for(const [index,slot] of ['extra-one','extra-two','extra-three'].entries()){
+     const values=section.elements?.find(el=>el.slot===slot)?.values||{};
+     const kind=values['behavior.kind'];
+     if(kind&&kind!=='off')definitions.push({
+      id:'extra'+(index+1),kind,required:values['behavior.required']===true,
+      options:kind==='select'?String(values['content.options']||'').split(/\r?\n/):[],when:null
+     });
+    }
+    for(const x of section.formFields||[])definitions.push(x);
+   }
+   for(const field of definitions){
+    const name=field.id,kind=field.kind;
+    const matching=kind==='textarea'?form.textareas.filter(x=>x.name===name):
+     kind==='select'?form.selects.filter(x=>x.name===name):of(name);
+    const count=kind==='radio'?(field.options||[]).length:1;
+    if(matching.length!==count){
+     add(page,section.id,'extra-field-drift','Published flexible field '+name+' is missing or has incorrect option count.');
+     continue;
+    }
+    if(!['textarea','select'].includes(kind)&&matching.some(x=>x.type!==(kind==='text'?'text':kind)))
+     add(page,section.id,'extra-field-type-drift','Published flexible field '+name+' has the wrong input type.');
+    const required=field.required&&!field.when;
+    if(matching.some(x=>Object.hasOwn(x,'required')!==Boolean(required)))
+     add(page,section.id,'extra-field-required-drift','Published flexible field '+name+' has incorrect required behavior.');
+    if(field.when){
+     const div=form.divs.filter(x=>(x.class||'').split(/\s+/).includes('lead-conditional-'+name));
+     if(div.length!==1||div[0]['data-condition-source']!==field.when.field||
+       div[0]['data-condition-option']!==String(field.when.option)||
+       div[0]['data-condition-required']!==(field.required?'yes':'no'))
+      add(page,section.id,'conditional-field-drift','Conditional field '+name+' lost its published selector and requirement attributes.');
+    }
+   }
+   const steps=section.formSteps||[];
+   const actualSteps=form.fieldsets.filter(x=>(x.class||'').split(/\s+/).includes('lead-step'));
+   if(actualSteps.length!==steps.length||Boolean(steps.length)!==(a['data-multi-step']==='yes'))
+    add(page,section.id,'step-layout-drift','Published multi-step fieldsets or marker differ from sealed form steps.');
+   if(steps.length){
+    const next=form.buttons.filter(x=>Object.hasOwn(x,'data-step-next'));
+    const back=form.buttons.filter(x=>Object.hasOwn(x,'data-step-back'));
+    if(next.length!==steps.length-1||back.length!==steps.length-1||
+       !form.paragraphs.some(x=>(x.class||'').split(/\s+/).includes('lead-step-progress')))
+     add(page,section.id,'step-navigation-drift','Published step navigation or progress status is incomplete.');
+   }
   }
   pages.push(Object.freeze({pageId:page.id,path:page.path,expectedForms:expected.length,actualForms:actual.length,checkedFormSections:checked}));
  }
