@@ -135,6 +135,9 @@ function build(site,manifests,blueprint,options={}){
   localPhpMediaResources:options.phpHtml?.localMedia?.capturedResources??null,
   localPhpMediaBytesChecked:options.phpHtml?.localMedia?.savedBodyBytes??null,
   localPhpMediaFindings:options.phpHtml?.localMedia?.findings.length??null,
+  localPhpHeadFindings:options.phpHtml?.localHead?.findings.length??null,
+  localPhpHeadHeaders:options.phpHtml?.localHead?.pagesWithRecordedHeaders??null,
+  localPhpObservedPublicOrigin:options.phpHtml?.localHead?.publicOriginObservedInSitemap??null,
   screenshotFileDigestsChecked:Boolean(options.phpCapture),
   screenshotCaptureExactSiteRevisionProven:false,
   publicHttpsAndSeoHeadVerified:false};
@@ -151,6 +154,16 @@ function build(site,manifests,blueprint,options={}){
  }));
  return {format:FORMAT,version:1,siteId:site.siteId,readOnly:true,
   contract:acceptedFormats,coverage,approvedSiteSource:approvedSource,phpCapture:options.phpCapture||null,
+  localPhpHead:options.phpHtml?.localHead?{
+    format:options.phpHtml.localHead.format,
+    publicOriginObservedInSitemap:options.phpHtml.localHead.publicOriginObservedInSitemap,
+    developmentOnlyOrigin:options.phpHtml.localHead.developmentOnlyOrigin,
+    observedLocalPages:options.phpHtml.localHead.observedLocalPages,
+    pagesWithRecordedHeaders:options.phpHtml.localHead.pagesWithRecordedHeaders,
+    pages:options.phpHtml.localHead.pages,
+    findings:options.phpHtml.localHead.findings,
+    publicHttpsProven:false,releaseAuthorized:false
+  }:null,
   localPhpMedia:options.phpHtml?.localMedia?{
     format:options.phpHtml.localMedia.format,fullyCaptured:options.phpHtml.localMedia.fullyCaptured,
     savedBodyBytes:options.phpHtml.localMedia.savedBodyBytes,
@@ -214,6 +227,7 @@ function build(site,manifests,blueprint,options={}){
         '; separately verified robots/sitemap/301 bytes: '+options.phpHtml.checkedAuxiliaryBytes+
         '; media binary bytes: '+(options.phpHtml.localMedia?.savedBodyBytes??'none')+'.\n'+
       '- SEO head, H1, links and indexation checked by existing HTML/parity modules against the captured bytes.\n'+
+      '- Loopback PHP HTTP header/canonical/og:url checks: '+(options.phpHtml.localHead?.findings.length??'not supplied')+' findings; public origin observed in local sitemap: '+(options.phpHtml.localHead?.publicOriginObservedInSitemap??'none')+'.\n'+
       '- Source digest recorded at capture, but source revision served by PHP NOT cryptographically attested. No public HTTPS, forms, scripts, actual design equality or client approval verified.\n':'')+
     '\n\n---\n\n'+renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
     '\n\n---\n\n'+EXECUTION.markdown(execution)+'\n\n---\n\n'+CMS_PACKET.markdown(cmsChangePacket),

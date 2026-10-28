@@ -69,10 +69,10 @@ function review(site,snapshot,records,publication){
    add('php-head:x-robots-noindex-conflict','error',spec,
     'Local PHP X-Robots-Tag disallows indexation of a Site v1 page intended for indexing.',
     {observed:xrobots});
-  if(headers['content-security-policy']===undefined)
+  if(record.headers&&headers['content-security-policy']===undefined)
    add('php-head:missing-csp','warning',spec,
     'Local PHP page does not supply a Content-Security-Policy response header; confirm isolated publisher routing.');
-  else if(!/frame-ancestors\s+'none'/i.test(headers['content-security-policy']))
+  else if(record.headers&&!/frame-ancestors\s+'none'/i.test(headers['content-security-policy']))
    add('php-head:frame-ancestors-review','recommendation',spec,
     'Review frame-ancestors policy for publicly rendered HTML.');
   const canonical=head.canonical,canonicalRaw=typeof canonical==='string'?canonical.trim():'';

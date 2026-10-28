@@ -49,6 +49,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const localPhpReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-local:')&&s.severity!=='error'));
  const localMediaErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-media:')&&s.severity==='error'));
  const localMediaWarnings=find(t=>t.sources.some(s=>s.code?.startsWith('php-media:')&&s.severity!=='error'));
+ const localHeadErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-head:')&&s.severity==='error'));
+ const localHeadReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-head:')&&s.severity!=='error'));
  const phpCapture=options.phpCapture||null;
  const suppliedOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean)
   .map(x=>new URL(x).href);
@@ -100,6 +102,12 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(localPhpReviews.length)add(reviews,'local-php-seo-endpoint-review',
   'Review observed local PHP robots, sitemap and endpoint configuration',
   'HTTP status/type, public-origin setting and the actual published build need operator confirmation before release.',localPhpReviews);
+ if(localHeadErrors.length)add(blockers,'local-php-head-indexation-or-origin',
+  'Resolve actual local PHP canonical, OG URL or X-Robots indexation conflicts',
+  'Observed loopback PHP headers and head elements disagree with the captured sitemap origin or Site v1 indexation. This is a technical blocker, not public HTTPS verification.',localHeadErrors);
+ if(localHeadReviews.length)add(reviews,'local-php-head-configuration',
+  'Review local PHP HTTP headers, canonical and social metadata configuration',
+  'Missing security headers or public origin are warnings; validate intended host and production release separately.',localHeadReviews);
  if(localMediaErrors.length)add(blockers,'local-php-media-integrity',
   'Repair observed PHP media delivery and OG/variant integrity',
   'Hash-checked local PHP responses include failed OG requests, variant SHA or media byte/ETag anomalies. Verify the current published media before public release.',localMediaErrors);
