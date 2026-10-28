@@ -105,6 +105,10 @@ function collectReview(site,blueprint){
  if(site.siteId!==b.siteId)throw Error('SEO content review: siteId mismatch');
  const pageDocs=extract(site), byId=new Map(pageDocs.map(p=>[p.id,p])),routes=new Map(pageDocs.map(p=>[p.path,p.id]));
  const findings=[],actions=[],pages=[];
+ const imageUses=new Map();
+ for(const pg of pageDocs)for(const sec of pg.sections)for(const img of sec.images){
+  if(img.assetId)imageUses.set(img.assetId,(imageUses.get(img.assetId)||0)+1);
+ }
  const append=(issue,action)=>{
   findings.push(issue);
   if(action)actions.push({kind:action.kind,priority:issue.severity,pageId:issue.pageId,
@@ -144,6 +148,34 @@ function collectReview(site,blueprint){
    const sectionInfo={sectionId:planned.id,status:'mapped',
     observed,editorialChecks:planned.points.map((point,index)=>({pointIndex:index,request:point,
      status:'human-review-required',reason:'Editorial instruction is not an exact phrase required in page copy.'}))};
+   if(planned.media){
+    const images=actual.images;
+    sectionInfo.media={purpose:planned.media.purpose,plannedAlt:planned.media.alt,
+     observed:images.map(i=>({assetId:i.assetId,alt:i.alt,locator:i.locator,
+      sharedInProject:Boolean(i.assetId&&imageUses.get(i.assetId)>1)}))};
+    if(!images.length){
+     append(finding('content:planned-media-unmapped','recommendation',pp.id,
+      'Planned image intent cannot be mapped to this section; a background or design-only media layer may exist.',
+      {path:doc.path,sectionId:planned.id}),
+     {kind:'media-mapping-review',instruction:'Map approved image purpose to actual media/rendered design without inventing image evidence.',
+      observed:null,requested:planned.media.purpose});
+    }
+    for(const im of images){
+     if(planned.media.purpose==='informative'&&!String(im.alt||'').trim()){
+      append(finding('content:informative-image-alt-review','warning',pp.id,
+       'Planned informative image has empty authoring alt; confirm visible meaning and choose accurate context-specific alt text.',
+       {path:doc.path,sectionId:planned.id,assetId:im.assetId||null,elementId:im.locator.elementId||null,nodeId:im.locator.nodeId||null}),
+      {kind:'image-alt-review',instruction:'Write appropriate alt based on image and context. An asset may be shared; never change global alt silently.',
+       observed:im.alt,requested:planned.media.alt});
+     }else if(planned.media.purpose==='decorative'&&String(im.alt||'').trim()){
+      append(finding('content:decorative-image-alt-review','recommendation',pp.id,
+       'Planned decorative image has descriptive alt; confirm whether it conveys meaning in implementation.',
+       {path:doc.path,sectionId:planned.id,assetId:im.assetId||null}),
+      {kind:'image-purpose-review',instruction:'Verify decorative versus informative role in real rendered context before changing alt.',
+       observed:im.alt,requested:''});
+     }
+    }
+   }
    if(prose.map(x=>x.text).join(' ').trim().length<35&&planned.points.length){
     append(finding('content:section-prose-review','recommendation',pp.id,
      'Planned section has limited explanatory copy; verify that text elsewhere adequately serves its user purpose.',
@@ -153,7 +185,7 @@ function collectReview(site,blueprint){
      requested:planned.points.join(' | ').slice(0,500)});
    }
    if(planned.cta){
-    const destination=pageDocs.find(p=>p.id===planned.cta.toPageId)?.path||pp.path;
+    const destination=pageDocs.find(p=>p.id===planned.cta.toPageId)?.path||b.pages.find(p=>p.id===planned.cta.toPageId).path;
     const match=links.find(l=>l.toPath===destination);
     const sameLabel=match&&normalize(match.label)===normalize(planned.cta.label);
     sectionInfo.cta={destination,expectedLabel:planned.cta.label,
@@ -175,6 +207,25 @@ function collectReview(site,blueprint){
     }
    }
    sections.push(sectionInfo);
+  }
+  const authoredLinks=doc.sections.flatMap(s=>s.links.map(l=>({...l,sectionId:s.id})));
+  for(const plannedLink of pp.links){
+   const targetPath=pageDocs.find(p=>p.id===plannedLink.toPageId)?.path||
+    b.pages.find(p=>p.id===plannedLink.toPageId).path;
+   const matched=authoredLinks.filter(l=>l.toPath===targetPath);
+   if(!matched.length){
+    append(finding('content:planned-contextual-link-not-located','recommendation',pp.id,
+     'Planned contextual relationship is not in authored section links; header/footer navigation is not inspected.',
+     {path:doc.path,targetPageId:plannedLink.toPageId,proposedAnchor:plannedLink.anchor}),
+    {kind:'contextual-link-review',instruction:'Confirm whether useful page copy, card or button should link to this destination. Do not add links mechanically.',
+     observed:[],requested:{toPath:targetPath,anchor:plannedLink.anchor}});
+   }else if(matched.every(l=>/^(?:read more|click here|here|подробнее|здесь|сюда|weiter|więcej)$/i.test(l.label.trim()))){
+    append(finding('content:generic-contextual-anchor','recommendation',pp.id,
+     'A planned contextual link has only generic authored labels; verify clarity of destination.',
+     {path:doc.path,targetPageId:plannedLink.toPageId,proposedAnchor:plannedLink.anchor}),
+    {kind:'anchor-clarity-review',instruction:'Use an accessible label that truthfully describes the target.',
+     observed:matched.map(l=>l.label),requested:plannedLink.anchor});
+   }
   }
   pages.push({pageId:pp.id,path:doc.path,status:'reviewed',topics,sections});
  }

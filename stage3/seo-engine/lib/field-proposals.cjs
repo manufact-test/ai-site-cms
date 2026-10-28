@@ -3,7 +3,6 @@
 // overrides/history. All changes require the lead's explicit review and Save/Publish.
 const {checkBlueprint}=require('./blueprint.cjs');
 const FORMAT='manufact-seo-content-field-proposals-v1';
-const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 function propose(site,manifests,blueprint){
  const plan=checkBlueprint(blueprint);
  if(site.siteId!==plan.siteId)throw Error('SEO content proposal: siteId mismatch');

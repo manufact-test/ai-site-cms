@@ -8,6 +8,10 @@ const {propose}=require('../lib/handoff.cjs');
 const CONTENT=require('../lib/content-intelligence.cjs');
 const ARCHITECTURE=require('../lib/architecture.cjs');
 const FIELDS=require('../lib/field-proposals.cjs');
+const {work:remediation}=require('../lib/remediation.cjs');
+const {assess:reviewRelease}=require('../lib/release-review.cjs');
+const {write:markdownReport}=require('../lib/reporter.cjs');
+const {compare:publicationParity}=require('../lib/parity.cjs');
 function main(argv){
  const [command,...args]=argv;
  const flags={};
@@ -37,9 +41,22 @@ function main(argv){
   // Run existing authoritative Site v1 validation before producing an editorial review.
   out=auditSite(site,manifests(),blueprint).contentReview;
  }
+ else if(command==='html-parity'){
+  const site=read('site'),blueprint=read('blueprint'),snapshot=read('snapshot'),registry=manifests();
+  auditSite(site,registry,blueprint);
+  out=publicationParity(site,blueprint,snapshot);
+ }
+ else if(['remediation-plan','remediation-md','release-review'].includes(command)){
+  const site=read('site'),blueprint=read('blueprint'),registry=manifests();
+  const options=flags.snapshot?{snapshot:read('snapshot')}:{};
+  if(command==='remediation-plan')out=remediation(site,registry,blueprint,options);
+  else if(command==='release-review')out=reviewRelease(site,registry,blueprint,options);
+  else out=markdownReport(remediation(site,registry,blueprint,options),
+   reviewRelease(site,registry,blueprint,options));
+ }
  else if(command==='analyze-html')out=snapshotAudit(read('snapshot'));
  else if(command==='handoff')out=propose(read('site'),manifests(),read('blueprint'));
- else throw Error('Commands: compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | handoff --site file --blueprint file [--manifests dir]');
+ else throw Error('Commands: compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | html-parity --site file --blueprint file --snapshot file | remediation-plan --site file --blueprint file [--snapshot file] | remediation-md --site file --blueprint file [--snapshot file] | release-review --site file --blueprint file [--snapshot file] | handoff --site file --blueprint file [--manifests dir]');
  process.stdout.write(typeof out==='string'?out+'\n':JSON.stringify(out,null,2)+'\n');
 }
 try{main(process.argv.slice(2));}catch(e){process.stderr.write('SEO Engine: '+e.message+'\n');process.exitCode=1;}

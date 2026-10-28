@@ -116,6 +116,73 @@ try{
  const bad=JSON.parse(good('analyze-html',{snapshot:fixture('invalid.snapshot.json')}));
  const expected=JSON.parse(fs.readFileSync(fixture('invalid.expected-report.json'),'utf8'));
  for(const code of expected.requiredCodes)assert.ok(bad.issues.some(x=>x.code===code),code);
+
+ // One integrated evidence-based remediation and release-review vertical.
+ const htmlSite=fixture('industrial.html.snapshot.json');
+ const htmlDrift=fixture('industrial.drift.snapshot.json');
+ const parityGood=JSON.parse(good('html-parity',{site,blueprint:bp,snapshot:htmlSite}));
+ assert.equal(parityGood.format,'manufact-seo-publication-parity-v1');
+ assert.deepEqual(parityGood.findings,[]);
+ const parityBroken=JSON.parse(good('html-parity',{site,blueprint:bp,snapshot:htmlDrift}));
+ assert.ok(parityBroken.findings.some(x=>x.code==='parity:metadata-drift'&&x.field==='title'));
+ assert.ok(parityBroken.findings.some(x=>x.code==='parity:indexation-drift'));
+ const cleanPlan=JSON.parse(good('remediation-plan',{site,blueprint:bp,snapshot:htmlSite}));
+ const rawPlan=good('remediation-plan',{site,blueprint:bp,snapshot:htmlSite});
+ assert.deepEqual(cleanPlan,JSON.parse(rawPlan),'identical inputs produce deterministic plan');
+ assert.equal(cleanPlan.format,'manufact-seo-remediation-v1');
+ assert.equal(cleanPlan.readOnly,true);
+ assert.ok(cleanPlan.summary.total>0);
+ assert.ok(cleanPlan.tasks.every(x=>!x.automatic&&x.requiresHumanReview));
+ assert.ok(cleanPlan.tasks.every(x=>x.taskId.startsWith('seo-')));
+ assert.equal(new Set(cleanPlan.tasks.map(x=>x.taskId)).size,cleanPlan.tasks.length);
+ const changedPlan=JSON.parse(good('remediation-plan',{site,blueprint:bp,snapshot:htmlDrift}));
+ assert.ok(changedPlan.tasks.some(x=>x.sources.some(s=>s.code==='parity:indexation-drift')));
+ const release=JSON.parse(good('release-review',{site,blueprint:bp,snapshot:htmlDrift}));
+ assert.equal(release.format,'manufact-seo-release-review-v1');
+ assert.equal(release.readyToPublish,false);
+ assert.equal(release.automaticReleaseApproval,false);
+ assert.equal(release.decision,'repair-required');
+ assert.ok(release.blockers.some(x=>x.gateId==='publication-drift'));
+ assert.equal(release.coverage.liveHostChecked,false);
+ const md=good('remediation-md',{site,blueprint:bp,snapshot:htmlSite});
+ assert.match(md,/SEO implementation/);
+ assert.match(md,/automatic release approval: \*\*never\*\*/i);
+ assert.match(md,/Existing CMS field proposals/);
+ const {write:renderBacklog}=require('../lib/reporter.cjs');
+ const protectedPlan=structuredClone(cleanPlan);
+ protectedPlan.tasks[0].instruction='<script>alert("unsafe")</script>';
+ const protectedMd=renderBacklog(protectedPlan);
+ assert.ok(!protectedMd.includes('<script>'),'Markdown must not allow raw HTML from untrusted text');
+ const {report:archReview}=require('../lib/architecture.cjs');
+ assert.ok(!archReview(plan).findings.some(f=>f.code==='architecture:repeated-target'),
+  'first contextual link to a target is not a repeated target');
+
+
+ // Asset purpose and authored link evidence: warn without overwriting shared ALT values.
+ const mediaBrief=JSON.parse(fs.readFileSync(fixture('community.brief.json'),'utf8'));
+ mediaBrief.pages[0].sections[0].media={
+  purpose:'informative',alt:'Карта расположения занятий',why:'Помогает ориентироваться'
+ };
+ const mediaPlan=compileBrief(mediaBrief);
+ const mediaSite={siteId:mediaPlan.siteId,assets:[{id:'asset-map',alt:''}],pages:[
+  {id:'page-guide',path:'/',sections:[
+   {id:'section-guide-intro',component:'custom',elements:[
+    {id:'media-image',slot:'photo',values:{'content.media':'asset-map'}}
+   ]},
+   {id:'section-guide-categories',component:'custom',elements:[
+    {id:'media-action',slot:'action',values:{'content.text':'Подробнее','behavior.href':'/help/'}}
+   ]}
+  ]},
+  {id:'page-help',path:'/help/',sections:[{id:'section-help',component:'custom',elements:[]}]}
+ ]};
+ const mediaReview=collectReview(mediaSite,mediaPlan);
+ assert.ok(mediaReview.findings.some(x=>x.code==='content:informative-image-alt-review'));
+ assert.ok(mediaReview.findings.some(x=>x.code==='content:generic-contextual-anchor'));
+ assert.ok(mediaReview.editorialActions.every(x=>!x.automatic&&x.requiresHumanReview));
+ const unpublishedGate=JSON.parse(good('release-review',{site,blueprint:bp}));
+ assert.equal(unpublishedGate.automaticReleaseApproval,false);
+ assert.equal(unpublishedGate.coverage.staticHtmlSupplied,false);
+
  const tampered=JSON.parse(fs.readFileSync(fixture('community.brief.json'),'utf8'));
  tampered.pages[0].sections[0].media={purpose:'informative',alt:'',why:'Missing'};
  const file=path.join(tmp,'tampered.json');fs.writeFileSync(file,JSON.stringify(tampered));

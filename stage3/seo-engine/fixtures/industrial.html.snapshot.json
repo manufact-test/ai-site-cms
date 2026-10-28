@@ -1,0 +1,21 @@
+{
+  "format": "manufact-seo-html-snapshot-v1",
+  "siteId": "site-industrial-demo",
+  "pages": [
+    {
+      "id": "page-home",
+      "path": "/",
+      "html": "<!doctype html><html lang=\"undefined\"><head><meta charset=\"utf-8\"><title>Главная | Завод оборудования</title><meta name=\"description\" content=\"\"><meta property=\"og:title\" content=\"Главная | Завод оборудования\"><meta property=\"og:description\" content=\"\"><link rel=\"canonical\" href=\"/\"></head><body><main><h1>Производим технологическое оборудование</h1><p>Подробности доступны в нашей команде.</p><a href=\"/contact/\">Узнать контакты компании</a></main></body></html>"
+    },
+    {
+      "id": "page-contact",
+      "path": "/contact/",
+      "html": "<!doctype html><html lang=\"undefined\"><head><meta charset=\"utf-8\"><title>Контакты | Завод оборудования</title><meta name=\"description\" content=\"\"><meta property=\"og:title\" content=\"Контакты | Завод оборудования\"><meta property=\"og:description\" content=\"\"><link rel=\"canonical\" href=\"/contact/\"></head><body><main><h1>Свяжитесь с нами</h1><p>Подробности доступны в нашей команде.</p><a href=\"/\">Главная страница</a></main></body></html>"
+    }
+  ],
+  "sitemapPaths": [
+    "/",
+    "/contact/"
+  ],
+  "robotsTxt": "User-agent: *\nAllow: /\n"
+}

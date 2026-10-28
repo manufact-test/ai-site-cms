@@ -39,7 +39,7 @@ function report(blueprint){
    if(generic.test(l.anchor))add('architecture:generic-anchor','recommendation',p.id,'Contextual anchor is generic; a descriptive label may help navigation.',{targetPageId:l.toPageId,anchor:l.anchor});
    if(l.toPageId===p.id)add('architecture:self-link','recommendation',p.id,'Contextual page link points back to this page; verify it serves a purpose.',{anchor:l.anchor});
    const count=incomingMap.get(l.toPageId)||0;incomingMap.set(l.toPageId,count+1);
-   if(count===1)add('architecture:repeated-target','recommendation',p.id,'The page plan repeats contextual links to the same destination; verify placements rather than removing them automatically.',{targetPageId:l.toPageId});
+   if(count===2)add('architecture:repeated-target','recommendation',p.id,'The page plan repeats contextual links to the same destination; verify placements rather than removing them automatically.',{targetPageId:l.toPageId});
   }
   for(const s of p.sections)if(s.media&&s.media.purpose==='informative'&&generic.test(s.media.alt))
    add('architecture:generic-image-alt','recommendation',p.id,'Planned informative image has generic alt intent; describe its purpose rather than adding keywords.',{sectionId:s.id});
