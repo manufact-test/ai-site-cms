@@ -280,3 +280,15 @@ The public and static flags are optional, but static export requires owner-publi
 **Delta scope:** Existing \`--previous-report\` now covers PHP semantic links, media/HTML footprint, static export and optional public HTTP/media. It refuses to compare changed public-host cohorts or different static-export versions as confirmed fixes. Stable finding identities include href, fragment, targetPageId, graph style property.
 
 Focused tests: \`php-local-static-export-smoke.cjs\`, \`php-local-report-delta-smoke.cjs\`, \`public-https-capture-smoke.cjs\`, plus existing \`php-html-capture-smoke.cjs\`. Worker performed syntax and selected isolated V8 mocks; real Node PHP/browser/HTTPS customer E2E and form POST are NOT confirmed. Actual first customer release is the next priority; avoid proliferating labs or extra CMS code.
+
+## Owner per-form delivery routing readiness — PHP FormRoutes integration (28.10.2026)
+
+Lead PHP now supports owner-only per-section delivery routes: inherit, custom, off, plus global email/Telegram settings. A structurally correct published HTML form does not prove notification delivery.
+
+Optional CLI flag: --delivery-status /ABS/private-owner-delivery-status.json together with --published-site /ABS/owner-published.json. Owner must export authorized GET /api/sites/SITE-ID/delivery to a LOCAL private JSON file. Never check the raw file into Git or attach it to a public ticket: it contains private addresses, chat IDs, operator data and submission IDs. File must remain unchanged through capture. The SEO worker never authenticates to or calls this owner API.
+
+New lib/php-local-delivery-readiness.cjs checks published form sections (excluding graph-overridden legacy sections), routes present, inherit/custom/off modes, transport readiness and configured recipient existence. It emits no email/chat IDs or submission history. Results go to existing remediation, release gates, bundle.deliveryReadiness, summary.deliveryReadiness, lead dossier, worksheet and previous-run delta. Disabled notifications require a manual intentionality review; selected channels without a viable recipient/route produce a blocker. A public form collector can still store submissions when notification channels are off.
+
+These are owner-SUPPLIED configuration hints, NOT actual accepted POSTs, CMS stored leads, mail/Telegram receipt or authenticated delivery. An apparently configured route is NOT proof that messages arrived. The worker cannot claim client acceptance. For changes in current published version, delta treats owner routing evidence as incomparable rather than automatically fixed.
+
+Focused V8 smoke: node stage3/seo-engine/tests/php-local-delivery-readiness-smoke.cjs. Real Node/PHP/browser/HTTPS/form-delivery E2E remain for lead. Note stage3/bin/cms-release.cjs is the lead's CMS engine shipment tool; not a customer site deploy or SEO runtime, and it does not bundle SEO worker code.
