@@ -161,16 +161,24 @@ final class DesignGraph
         $count=0;
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
-                &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab'],true),
+                &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item'],true),
                 'invalid or duplicate node');
             $ids[$id]=true;
+            self::check(($type==='list'||!array_key_exists('ordered',$node))&&($type!=='list'||!array_key_exists('ordered',$node)||is_bool($node['ordered'])),'invalid ordered-list flag');
+            self::check(($type!=='list-item'||$parentType==='list')&&($parentType!=='list'||$type==='list-item'),'invalid list hierarchy');
             self::check(($type!=='tab'||$parentType==='tabs')&&($parentType!=='tabs'||$type==='tab'),'invalid tabs hierarchy');
-            if (in_array($type,['container','divider','tabs'],true)) {
+            if (in_array($type,['container','divider','tabs','list'],true)) {
                 foreach (['text','href','assetId','alt','level','posterAssetId','loop'] as $field)
                     self::check(!array_key_exists($field,$node),'invalid container/divider content');
+            } elseif ($type==='list-item') {
+                self::check(is_string($node['text']??null)&&strlen($node['text'])<=3000&&
+                    preg_match('/[\x00-\x1f]/',$node['text'])!==1&&
+                    !isset($node['href'])&&!isset($node['assetId'])&&!isset($node['alt'])&&
+                    !isset($node['level'])&&!isset($node['icon'])&&!isset($node['posterAssetId'])&&
+                    !isset($node['loop']), 'invalid list item');
             } elseif (in_array($type,['disclosure','tab'],true)) {
                 self::check(is_string($node['text']??null)&&strlen($node['text'])<=160&&
                     trim($node['text'])!==''&&preg_match('/[\x00-\x1f]/',$node['text'])!==1&&
@@ -231,14 +239,14 @@ final class DesignGraph
                 foreach ($node['states'] as $name=>$style)
                     self::style($style,$tokens,$id.'/'.$name,true);
             }
-            if (!in_array($type,['container','disclosure','tabs','tab'],true))
+            if (!in_array($type,['container','disclosure','tabs','tab','list'],true))
                 self::check(!isset($node['children']),'non-container children');
             else {
                 $childCount=is_array($node['children']??null)?count($node['children']):-1;
                 self::check(isset($node['children'])&&is_array($node['children'])&&
-                    array_is_list($node['children'])&&$childCount<=($type==='tabs'?8:30)&&
+                    array_is_list($node['children'])&&$childCount<=($type==='tabs'?8:($type==='list'?24:30))&&
                     ($type!=='tabs'||$childCount>=2)&&
-                    (!in_array($type,['disclosure','tab'],true)||$childCount>=1),'invalid interactive children');
+                    (!in_array($type,['disclosure','tab','list'],true)||$childCount>=1),'invalid interactive children');
                 foreach ($node['children'] as $child) $visit($child,$depth+1,$type);
             }
         };
@@ -376,6 +384,12 @@ final class DesignGraph
                 case 'container':
                     $body='';foreach ($n['children'] as $child)$body.=$visit($child);
                     return '<div class="'.$cls.'">'.$body.'</div>';
+                case 'list':
+                    $body='';foreach($n['children'] as $child)$body.=$visit($child);
+                    $tag=!empty($n['ordered'])?'ol':'ul';
+                    return '<'.$tag.' class="'.$cls.' cmsdg-list">'.$body.'</'.$tag.'>';
+                case 'list-item':
+                    return '<li class="'.$cls.'">'.self::h($n['text']).'</li>';
                 case 'disclosure':
                     $body='';foreach ($n['children'] as $child)$body.=$visit($child);
                     return '<details class="'.$cls.' cmsdg-disclosure"><summary>'.self::h($n['text']).'</summary><div class="cmsdg-disclosure-body">'.$body.'</div></details>';
@@ -428,7 +442,9 @@ final class DesignGraph
             .$scope.'{min-width:0;max-width:none;padding:0;min-height:0}'.$scope.' *{box-sizing:border-box;min-width:0}'
             .$scope.' img,'.$scope.' video{max-width:100%;height:auto;object-position:var(--cmsdg-object-x,50%) var(--cmsdg-object-y,50%)}'
             .$scope.' svg{display:inline-block;vertical-align:middle;flex:none}'
-             .$scope.' .cmsdg-disclosure > summary{cursor:pointer;list-style-position:inside}'
+             .$scope.' .cmsdg-list{padding-inline-start:1.5em;margin-block:12px}'
+            .$scope.' .cmsdg-list > li{margin-block:6px}'
+            .$scope.' .cmsdg-disclosure > summary{cursor:pointer;list-style-position:inside}'
             .$scope.' .cmsdg-disclosure-body{padding:12px 0}'
             .$scope.' .cmsdg-tabs-controls{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 12px}'
             .$scope.' .cmsdg-tabs-controls input{position:absolute;width:1px;height:1px;opacity:0}'
