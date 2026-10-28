@@ -107,7 +107,9 @@ function inspect(manifest,site,source,folder){
     record.bytes<25||record.bytes>MAX_PAGE||seen.has(file))
    fail('unexpected route/response/filename at page '+p.id);
   seen.add(file);
-  const dest=fs.realpathSync(path.resolve(root,file));
+  const requested=path.resolve(root,file);
+  if(fs.lstatSync(requested).isSymbolicLink())fail('symlinked HTML evidence file '+p.id);
+  const dest=fs.realpathSync(requested);
   if(!dest.startsWith(root+path.sep))fail('HTML file escaped evidence directory');
   const stat=fs.statSync(dest);
   if(!stat.isFile()||stat.size!==record.bytes)fail('HTML size differs at '+p.id);
