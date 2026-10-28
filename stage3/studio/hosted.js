@@ -2342,6 +2342,9 @@
           magic[0]===255&&magic[1]===216?'image/jpeg':
           magic[0]===82&&magic[1]===73&&magic[8]===87?'image/webp':null;
         if(!mime)throw Error('Неподдерживаемый формат исходного макета');
+        // A slow authenticated fetch may finish after the review was closed.
+        // Never retain an orphan object URL in that case.
+        if(!dialog.open)return;
         referenceUrls.set(mode,URL.createObjectURL(new Blob([bytes],{type:mime})));
       })();
       referenceLoads.set(mode,job);
@@ -2356,12 +2359,16 @@
         await loadReference(mode);
         if(!dialog.open||device!==mode||selectedRow!==row||
           !['approved','approved-compare'].includes(viewMode))return;
+        if(!referenceUrls.has(mode))return;
         referenceImage.src=referenceUrls.get(mode);
+        await referenceImage.decode();
+        if(!dialog.open||device!==mode||selectedRow!==row||
+          !['approved','approved-compare'].includes(viewMode))return;
         referenceLabel.textContent='Согласованный исходник · '+approvedReference.version+
           ' · SHA-256 проверен · '+mode;
         if(row.current?.path==='/')referenceSeen.add(signature(row,mode));
       }catch(error){
-        if(!dialog.open||device!==mode)return;
+        if(!dialog.open||device!==mode||selectedRow!==row)return;
         referenceLabel.textContent='Макет недоступен: '+error.message;
       }
     };

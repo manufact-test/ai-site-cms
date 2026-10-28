@@ -1,5 +1,18 @@
 # AI Site CMS — MAIN LEAD HANDOFF v2.1 · 28.10.2026
 
+> **АКТУАЛЬНОЕ ДОПОЛНЕНИЕ (28.10.2026, крупный интегрированный блок).** Старые разделы ниже сохранены как историческая передача и местами УСТАРЕЛИ: они утверждают, что исходные макеты не сохраняются, PHP-предпросмотр не сравнивается с прототипом и E2E красный. Это уже неверно. Состояние на ветке определяется последним HEAD и GitHub Actions, а не старыми SHA. Смотри [APPROVED-SITE-PACKAGE](../../stage3/docs/APPROVED-SITE-PACKAGE.md) и [ROADMAP](../../docs/ROADMAP.md).
+
+## Изменения после первоначальной передачи — читать прежде старого статуса
+
+- **Импорт sealed v2:** проверка SHA256, 3 full-page оригинала, client-facing/internal specs, индивидуальный Design Graph, реальные media assets, safe resume после прерывания; автоматически **не публикует**.
+- **Приватные доказательства:** все семь файлов утверждённого исходного пакета уже сохраняются в owner-only Stage3 DB, immutable/versioned SHA256, допускается дозагрузка. Их можно увидеть в Studio **«Материалы согласования»**.
+- **Визуальный просмотр:** owner-only исходные макеты прямо в **«Проверке сайта»** рядом с реальным PHP full-page draft для desktop/tablet/mobile; защищённая проверка байтов перед показом, диагностические параметры загрузки и экспорт JSON протокола с packageSha. Без автоматического утверждения клиентского дизайна; для внутренних страниц не подразумевается отдельный утверждённый макет.
+- **Backup v2:** полное сохранение исходного утверждённого пакета + всех прежних данных в `manufact-site-backup-v2`, preflight полного SHA256 ledger, атомарное восстановление на **новый, неопубликованный** site ID, поддержка исторического backup v1. Источник остаётся byte-identical даже если восстановленный сайт переименован. Existing DB requires CLI-only `STAGE3_ALLOW_APPROVAL_UPGRADE=YES php stage3/server/bin/upgrade-approval-evidence.php`; `main` и production НЕ обновлялись. 64MB полный архивный лимит.
+- **Проверки:** сквозной Chromium/PHP/SQLite с реальной v2-папкой, проверкой всех оригинальных байтов, подмены SHA-256, восстановлением и вторичным backup; отдельные Technology Runtime checks. Последний успешный запуск до этого дополнения `https://github.com/manufact-test/ai-site-cms/actions/runs/40677794796`, commit `752d6c14b0b52209a8d2fe4e730bd281f3e2dbf9`. После любого нового коммита перепроверить соответствующий запуск.
+- **Самый существенный незакрытый барьер:** реальный созданный ВНЕ CMS клиентский сайт после настоящего утверждения desktop/tablet/mobile изображений и обеих спецификаций. НИКОГДА не выдавать синтетический fixture, скриншоты Chrome или зелёный CI за внешнее утверждение/owner GO. Сначала настоящий пилот; затем большой проход по несовпадениям, редактирование/Save/Publish/Rollback; только потом UX-polish.
+- **Ритм:** одна большая вертикаль, несколько крупных связанных задач за заход; не зацикливаться на мелких тестах. Не изменять `feature/site-seo-engine` и `stage3/seo-engine/**`, `main`, Hostinger, CELIKOM, старую Design Factory; не merge/deploy.
+
+
 **Owner request:** switch the main chat after this large development batch. New chat is the **sole lead engineer and integrator**. Work autonomously in **large, combined feature slices**, avoid recurring tiny fixes, cosmetic test cycles and long narrations. Commit code to GitHub without asking for permission each time. The second chat remains an independent SEO specialist.
 
 ## Required starting points
