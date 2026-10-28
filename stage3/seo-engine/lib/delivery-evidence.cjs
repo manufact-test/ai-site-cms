@@ -38,11 +38,23 @@ function assertEvidence(e){
   !e.origin||typeof e.origin!=='string')throw Error('Invalid HTTP delivery evidence');
  const u=urlFrom(e.origin,'capture origin');
  if(!u.pathname.endsWith('/'))throw Error('Capture origin must end with / (including mount)');
- if(Object.keys(e).some(k=>!['format','siteId','origin','pages','robots','sitemap','redirects','capturedAt'].includes(k)))
+ if(Object.keys(e).some(k=>!['format','siteId','origin','pages','robots','sitemap','redirects','capturedAt','negativeProbe'].includes(k)))
   throw Error('Unsupported delivery evidence field');
  if(e.capturedAt!==undefined&&(typeof e.capturedAt!=='string'||
   !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(e.capturedAt)||
   !Number.isFinite(Date.parse(e.capturedAt))))throw Error('Invalid capturedAt timestamp');
+ if(e.negativeProbe!==undefined){
+  const p=e.negativeProbe;
+  if(!p||typeof p!=='object'||Array.isArray(p)||
+   Object.keys(p).some(k=>!['path','requestUrl','status','contentType','bodySha256'].includes(k))||
+   p.path!=='/cms-seo-nonexistent-'+e.siteId+'/'||
+   p.requestUrl!==base(e.origin,p.path).href||
+   !Number.isInteger(p.status)||p.status<100||p.status>599||
+   typeof p.contentType!=='string'||p.contentType.length>150||
+   typeof p.bodySha256!=='string'||!/^[a-f0-9]{64}$/.test(p.bodySha256))
+   throw Error('Invalid bounded negative-route HTTP observation');
+  urlFrom(p.requestUrl,'negative route request');
+ }
  const used=new Set();
  for(const p of e.pages){
   if(!p||typeof p!=='object'||Array.isArray(p)||
