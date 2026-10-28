@@ -535,7 +535,7 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       rules.push(b+' video{position:absolute;inset:0;width:100%!important;height:100%!important;'+
         'max-width:none!important;object-fit:cover;object-position:'+(v.positionX??50)+'% '+(v.positionY??50)+'%;display:block}');
       if(v.overlay){
-        const tint=resolve(v.overlay.color,'colors',tokens,node.id+'/video overlay')+
+        const tint=resolve(v.overlay.color,'colors',tokens,n.id+'/video overlay')+
           Math.round(v.overlay.opacity*255/100).toString(16).padStart(2,'0');
         rules.push(b+'::after{content:"";position:absolute;inset:0;background-color:'+tint+'}');
       }
