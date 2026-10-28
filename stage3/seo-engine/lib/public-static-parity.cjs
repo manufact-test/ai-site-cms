@@ -115,12 +115,16 @@ function compare(site,release,http,media=null){
  }
  const expectedAux=release.searchFiles||{};
  for(const [type,key,limit] of [['robots','robots.txt',250000],['sitemap','sitemap.xml',750000]]){
-  const declared=expectedAux[key],response=http[type]||null;
+  const declared=expectedAux[key],body=typeof declared==='string'?declared:declared?.body;
+  const response=http[type]||null;
   const target=expectedOrigin+'/'+key;
   let match=false;
   if(!declared){
    add('official-search-file-missing','error',null,
     'Production static release lacks official search file '+key+'.',{field:key});
+  }else if(typeof body!=='string'){
+   add('official-search-body-unavailable','error',null,
+    'SHA-verified official static search file body is unavailable for comparison.',{field:key});
   }else if(!response){
    add('public-search-capture-missing','error',null,
     'Public HTTPS capture omitted '+key+'.',{field:key});
@@ -128,7 +132,7 @@ function compare(site,release,http,media=null){
    // Exact bytes cannot be reconstructed from a text transcript if transport
    // rewrites encoding; compare Unicode-normalized text, not fake byte SHA.
    match=response.status===200&&response.url===target&&
-    norm(response.body)===norm(declared.body);
+    norm(response.body)===norm(body);
    if(!match)add('public-search-file-drift','error',null,
     'Public HTTPS '+key+' differs from the SHA-verified official static file.',{field:key});
   }
