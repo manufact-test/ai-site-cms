@@ -39,6 +39,10 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   '- Release status: '+clean(bundle.release.decision)+
     '; блокирующих gates: '+stats.releaseBlockingGates+
     '; реальных PHP findings: '+stats.actualFindings+'.',
+  '- Public static soft-404 probe: '+(bundle.publicStaticParity?.negativeRouteProbed?
+   ('HTTP '+bundle.publicStaticParity.negativeRouteStatus+' — '+
+    ([404,410].includes(bundle.publicStaticParity.negativeRouteStatus)?'OK':'BLOCKED')):
+   'НЕ ПРОВЕРЕНО')+'.',
   '- Lead Chromium screenshots: '+(phpCapture?'SHA256 verified':'НЕ ПРЕДОСТАВЛЕНЫ')+
    '; визуальное совпадение автоматикой: НЕ ПРОВЕРЕНО.',
   '',

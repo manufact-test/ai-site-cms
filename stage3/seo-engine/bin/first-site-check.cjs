@@ -217,7 +217,10 @@ async function main(argv){
    media:checked.localMedia?.savedBodyBytes??null},
   endpoints:{robots:checked.publication?.robotsStatus??null,
    sitemap:checked.publication?.sitemapStatus??null,
-   redirects:checked.publication?.redirectResponses??null},
+   redirects:checked.publication?.redirectResponses??null,
+   publicUnknownRouteStatus:publicHttp?.negativeProbe?.status??null,
+   unknownRouteSoft404Detected:Boolean(publicHttp?.negativeProbe&&
+    ![404,410].includes(publicHttp.negativeProbe.status))},
   media:{observed:checked.localMedia?.capturedResources??null,
    comparedAgainstSealedSiteSha256:checked.localMedia?.sealedMediaBytesCompared??false,
    actualFindings:checked.localMedia?.findings.length??null},

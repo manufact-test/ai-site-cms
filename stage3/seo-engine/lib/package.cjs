@@ -231,6 +231,8 @@ function build(site,manifests,blueprint,options={}){
    checkedMedia:options.publicStatic.checkedMedia,
    checkedSearchFiles:options.publicStatic.checkedSearchFiles,
    checkedRedirects:options.publicStatic.checkedRedirects,
+   negativeRouteStatus:options.publicStatic.negativeRouteStatus??null,
+   negativeRouteProbed:options.publicStatic.negativeRouteProbed??false,
    pages:options.publicStatic.pages,
    assets:options.publicStatic.assets,
    auxiliary:options.publicStatic.auxiliary,
