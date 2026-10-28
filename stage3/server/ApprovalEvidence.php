@@ -159,6 +159,94 @@ trait ApprovalEvidence
         return $this->approvalEvidenceIndex($siteId);
     }
 
+    /**
+     * Versioned private backup payload. Original bytes and the signed handoff
+     * are preserved verbatim, including when a future restore uses a new CMS
+     * site ID. Never rewrite the signed site's original siteId.
+     */
+    private function exportApprovalArchiveRows(string $siteId): array
+    {
+        $rows=$this->archiveRows('stage3_approval_evidence',$siteId,
+            'package_sha,kind,version,sha256,created_at','package_sha,kind');
+        $result=[];
+        foreach ($rows as $row) {
+            $entry=$this->readApprovalEvidence($siteId,$row['package_sha'],$row['kind']);
+            $result[]=[
+                'packageSha'=>$row['package_sha'],'kind'=>$row['kind'],
+                'version'=>$row['version'],'sha256'=>$row['sha256'],
+                'base64'=>base64_encode($entry['bytes']),'createdAt'=>$row['created_at']
+            ];
+        }
+        return $result;
+    }
+
+    /**
+     * Full preflight of every original document, before ANY restore write.
+     * External SHA256 alone is insufficient: check the sealed handoff ledger,
+     * actual prototype MIME, original site contract and all package versions.
+     * Incomplete interrupted imports are allowed, but honestly stay incomplete.
+     */
+    private function validateApprovalArchiveRows(array $rows,string $sourceSiteId): array
+    {
+        if(!array_is_list($rows)||count($rows)>140)
+            throw new InvalidArgumentException('Archive: invalid approval document count');
+        $groups=[];$checked=[];
+        foreach ($rows as $row) {
+            self::archiveKeys($row,['packageSha','kind','version','sha256','base64','createdAt']);
+            $packageSha=self::approvalHash($row['packageSha']);
+            $kind=self::approvalKind($row['kind']);
+            $sha=self::approvalHash($row['sha256']);
+            self::archiveDate($row['createdAt']);
+            if(!is_string($row['version'])||
+                !preg_match('/^[a-zA-Z0-9._-]{1,64}$/D',$row['version'])||
+                !is_string($row['base64'])||strlen($row['base64'])>11000000)
+                throw new InvalidArgumentException('Archive: invalid approval metadata');
+            $bytes=base64_decode($row['base64'],true);
+            $limit=in_array($kind,['desktop','tablet','mobile'],true)?8000000:
+                ($kind==='site'?500000:200000);
+            if(!is_string($bytes)||strlen($bytes)<10||strlen($bytes)>$limit||
+                !hash_equals(hash('sha256',$bytes),$sha))
+                throw new InvalidArgumentException('Archive: approval document checksum or size mismatch');
+            if(isset($groups[$packageSha][$kind]))
+                throw new InvalidArgumentException('Archive: duplicate approval document');
+            $groups[$packageSha][$kind]=['row'=>$row,'bytes'=>$bytes];
+            $checked[]=$row;
+        }
+        if(count($groups)>20)throw new InvalidArgumentException('Archive: too many approval packages');
+        foreach($groups as $packageSha=>$group) {
+            if(!isset($group['handoff']))
+                throw new InvalidArgumentException('Archive: missing immutable approval handoff');
+            $raw=$group['handoff'];
+            if(!hash_equals($packageSha,$raw['row']['sha256']))
+                throw new InvalidArgumentException('Archive: approval handoff identity mismatch');
+            $handoff=self::approvalHandoff($raw['bytes']);
+            foreach($group as $kind=>$entry) {
+                if($entry['row']['version']!==$handoff['version'])
+                    throw new InvalidArgumentException('Archive: approval handoff version mismatch');
+                if($kind==='handoff')continue;
+                $sourcePath=$handoff['files'][$kind];
+                if(!hash_equals(self::approvalHash(
+                    $handoff['integrity']['files'][$sourcePath]??null),$entry['row']['sha256']))
+                    throw new InvalidArgumentException('Archive: approval ledger mismatch');
+                $bytes=$entry['bytes'];
+                if(in_array($kind,['desktop','tablet','mobile'],true)){
+                    $info=@getimagesizefromstring($bytes);
+                    $ext=strtolower(pathinfo($sourcePath,PATHINFO_EXTENSION));
+                    $mime=$ext==='png'?'image/png':($ext==='webp'?'image/webp':'image/jpeg');
+                    if(!is_array($info)||$info['mime']!==$mime)
+                        throw new InvalidArgumentException('Archive: invalid approved prototype');
+                }elseif($kind==='site'){
+                    $source=json_decode($bytes,true,512,JSON_THROW_ON_ERROR);
+                    if(!is_array($source)||($source['siteId']??null)!==$sourceSiteId)
+                        throw new InvalidArgumentException('Archive: original approval site mismatch');
+                    $this->validator->validate($source);
+                }elseif(!preg_match('//u',$bytes))
+                    throw new InvalidArgumentException('Archive: approval text is not UTF-8');
+            }
+        }
+        return $checked;
+    }
+
     public function approvalEvidenceIndex(string $siteId): array
     {
         $this->getDraft($siteId);
