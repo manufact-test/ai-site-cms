@@ -138,3 +138,15 @@ environment gates. Начинать с фактического анализа �
 не добавлять дубли. Основная продуктовая цель — первый
 реально approved-v2 клиентский сайт — немедленно имеет приоритет
 при появлении согласованного пакета.
+
+## Lead integrator checkpoint — next autonomous development round (28.10.2026)
+
+This lead branch has since gained **four linked feature verticals**:
+- Owner-only per-form Email/Telegram recipient routing with inherited/off/custom modes, optimistic-lock changes, immutable outbox targets, existing inbox and notification retry; dedicated offline CLI schema upgrade required for pre-existing databases.
+- HTTP gzip and encoding-specific ETag / 304 revalidation for hosted Studio JS/CSS.
+- Read-only independent PHP and Next Static/SSR public release identity at /_cms-connect.json for manual version matching (NOT automatic external connectivity verification).
+- stage3/bin/cms-release.cjs local-only CMS runtime package pack/verify/compare with bounded files and tamper-resistant inventory; NOT auto-updating production, migrating DB or rolling back live installations.
+
+Updated details and exact safety boundaries are in docs/ROADMAP.md, stage3/docs/APPROVED-SITE-PACKAGE.md, and stage3/mandatory-coverage.json. The technical requirement registry still reports 124 implemented candidates, five partial, six environment gates and **zero personally owner-accepted** items. Do not advance this count without full workflow evidence. No actual client approved-v2 remains the primary blocker; all CI exercises are disposable synthetic verification.
+
+Before next work, check **actual HEAD + matching Actions jobs**. Apply the owner’s rule: one round means approximately thirty minutes of active functionality, immediately follow a fast block with the next, and leave docs/regression for the end. Do not touch main, production, real databases, Hostinger, CELIKOM, or stage3/seo-engine/**. Only lead may integrate SDK, PHP, core and Studio; no PR/merge/deploy without explicit owner permission.
