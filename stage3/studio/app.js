@@ -1813,7 +1813,7 @@
                   style[key]=val.startsWith('@')?val.trim():Number(val);
                 }else style[key]=val.trim();
               });
-            }else editGraphWork(node=>{node[key]=key==='level'?Number(val):val;});
+            }else editGraphWork(node=>{if(key==='href'&&!val&&node.type==='image')delete node.href;else node[key]=key==='level'?Number(val):val;});
           });
           wrap.append(caption,input);panel.append(wrap);
           return input;
@@ -1822,6 +1822,31 @@
           if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item'].includes(current.type))
             property('Текст', 'text',current.text);
           if(['button','link'].includes(current.type))property('Ссылка', 'href',current.href);
+          if(current.type==='image')property('Действие по клику (необязательно)','href',current.href||'');
+          if(!['image','video','icon','divider','table-row','table-cell'].includes(current.type)){
+            const bgImages=session.current.assets.filter(x=>/^image\/(png|jpeg|webp)$/.test(x.mime));
+            if(bgImages.length){
+              const wrap=document.createElement('label');wrap.className='cms-work-field';
+              const caption=document.createElement('span');caption.textContent='Фоновое изображение';
+              const picker=document.createElement('select');picker.className='control';
+              picker.id='cms-work-graph-background-asset';
+              for(const [id,label] of [['','Без фона'],...bgImages.map(a=>[a.id,a.alt||a.id])]){
+                const opt=document.createElement('option');opt.value=id;opt.textContent=label;picker.append(opt);
+              }
+              picker.value=current.backgroundMedia?.assetId||'';
+              picker.disabled=!canWrite();
+              picker.addEventListener('change',()=>{
+                editGraphWork(node=>{
+                  if(!picker.value){delete node.backgroundMedia;return;}
+                  node.backgroundMedia={...(node.backgroundMedia||{}),assetId:picker.value};
+                  delete node.styles?.gradient;
+                  delete node.responsive?.tablet?.gradient;
+                  delete node.responsive?.mobile?.gradient;
+                });
+              });
+              wrap.append(caption,picker);panel.append(wrap);
+            }
+          }
           if(current.type==='quote')property('Подпись автора', 'cite',current.cite||'');
           if(['image','video','icon'].includes(current.type))property('Описание / alt','alt',current.alt||'');
           if(current.type==='icon')property('Векторная иконка','icon',current.icon,
@@ -2363,7 +2388,7 @@
         event.preventDefault();
         selection=id;
         const base=row.node.styles||{},bp=(mode==='tablet'||mode==='mobile')?(row.node.responsive?.[mode]||{}):{};
-        activeGesture={kind:event.altKey&&!['hover','focus'].includes(mode)?'translate':'move',
+        activeGesture={kind:event.altKey&&!['hover','focus','active'].includes(mode)?'translate':'move',
           pointerId:event.pointerId,nodeId:id,target,startX:event.clientX,startY:event.clientY,
           startTranslateX:Number(bp.translateX??base.translateX??0),
           startTranslateY:Number(bp.translateY??base.translateY??0),
@@ -2880,6 +2905,7 @@
       if(n.type==='heading')fields.append(ctl('Уровень заголовка',String(n.level||2),value=>{n.level=Number(value);},'number'));
       if(['button','link'].includes(n.type))fields.append(ctl('Ссылка',n.href,value=>{n.href=value;}));
       if(n.type==='image'){
+        fields.append(ctl('Ссылка по клику (необязательно)',n.href||'',v=>{if(v.trim())n.href=v.trim();else delete n.href;}));
         const options=session.current.assets.filter(a=>a.mime!=='video/mp4').map(a=>[a.id,a.alt||a.id]);
         fields.append(ctl('Изображение',{initial:n.assetId,choices:options},v=>{n.assetId=v;},'select'),
           ctl('Описание изображения',n.alt,v=>{n.alt=v;}));
@@ -2905,7 +2931,7 @@
       }
       const modeSelect=make('select',undefined,'control');modeSelect.id='cms-design-breakpoint';
       for(const [v,t] of [['desktop','Компьютер'],['tablet','Планшет'],['mobile','Телефон'],
-        ['hover','Наведение'],['focus','Фокус с клавиатуры']]){
+        ['hover','Наведение'],['focus','Фокус с клавиатуры'],['active','Нажатие']]){
         const opt=make('option',t);opt.value=v;modeSelect.append(opt);
       }
       modeSelect.value=mode;modeSelect.addEventListener('change',()=>{
@@ -2929,10 +2955,10 @@
         area.append(reset);root.append(area);
       }
       const styleFields=make('div',undefined,'cms-design-fields');root.append(styleFields);
-      const style=editStyle(n),limited=['hover','focus'].includes(mode);
+      const style=editStyle(n),limited=['hover','focus','active'].includes(mode);
       for(const key of DESIGN_GRAPH.STYLE_KEYS){
         if(key==='fluidFont')continue;
-        if(limited&&!['color','background','borderColor','borderWidth','radius','opacity','gradient','outlineColor','outlineWidth'].includes(key))continue;
+        if(limited&&!['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset'].includes(key))continue;
         if(key==='gradient')continue;
         const values={
           display:['block','grid','flex','none'],
@@ -2958,6 +2984,7 @@
           isolation:['auto','isolate'],
           mixBlendMode:['normal','multiply','screen','overlay','darken','lighten'],
           clipShape:['none','circle','ellipse','diagonal','hexagon'],
+          borderStyle:['solid','dashed','dotted','double'],filterPreset:['none','grayscale','sepia','contrast','vibrant'],
           hidden:['true','false']
         };
         const value=style[key]===undefined?'':String(style[key]);
@@ -2972,6 +2999,52 @@
           if(key==='fontSize')delete style.fluidFont;
           style[key]=v.startsWith('@')?v.trim():Number(v);
         }));
+      }
+      if(!limited&&!['image','video','icon','divider','table-row','table-cell'].includes(n.type)){
+        const images=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
+        const background=make('details');background.id='cms-design-background-media';
+        background.append(make('summary','Фоновое изображение · ПК / планшет / телефон'));
+        if(!images.length){
+          background.append(make('p','Загрузите JPEG, PNG или WebP в медиабиблиотеку сайта.'));
+        }else{
+          const choices=[['','Без фонового изображения'],...images.map(a=>[a.id,a.alt||a.id])];
+          const bg=n.backgroundMedia;
+          const pick=ctl('Фон для ПК', {initial:bg?.assetId||'',choices},v=>{
+            if(!v){delete n.backgroundMedia;return;}
+            n.backgroundMedia={...(n.backgroundMedia||{}),assetId:v};
+            delete n.styles?.gradient;
+            delete n.responsive?.tablet?.gradient;
+            delete n.responsive?.mobile?.gradient;
+          },'select');
+          pick.querySelector('select').addEventListener('change',()=>render());
+          background.append(pick);
+          if(bg){
+            background.append(
+              ctl('Фон планшета (пусто = ПК)',{initial:bg.tabletAssetId||'',choices},v=>{
+                if(v)bg.tabletAssetId=v;else delete bg.tabletAssetId;
+              },'select'),
+              ctl('Фон телефона (пусто = планшет)',{initial:bg.mobileAssetId||'',choices},v=>{
+                if(v)bg.mobileAssetId=v;else delete bg.mobileAssetId;
+              },'select'),
+              ctl('Масштаб',{initial:bg.size||'cover',choices:[['cover','Заполнить'],['contain','Вписать']]},
+                v=>{bg.size=v;},'select'),
+              ctl('Позиция X, %',String(bg.positionX??50),v=>{bg.positionX=Number(v);},'number'),
+              ctl('Позиция Y, %',String(bg.positionY??50),v=>{bg.positionY=Number(v);},'number')
+            );
+            const colorChoices=[['','Без затемнения'],
+              ...Object.keys(tokens.colors||{}).map(k=>['@'+k,k]),
+              ['#000000','Чёрный'],['#ffffff','Белый']];
+            const tint=ctl('Наложение',{initial:bg.overlay?.color||'',choices:colorChoices},v=>{
+              if(v)bg.overlay={color:v,opacity:bg.overlay?.opacity??40};
+              else delete bg.overlay;
+            },'select');
+            tint.querySelector('select').addEventListener('change',()=>render());
+            background.append(tint);
+            if(bg.overlay)background.append(ctl('Непрозрачность наложения 0–90, %',
+              String(bg.overlay.opacity),v=>{bg.overlay.opacity=Number(v);},'number'));
+          }
+        }
+        root.append(background);
       }
       const fluid=make('details');fluid.id='cms-design-fluid-font';
        fluid.append(make('summary','Плавный размер шрифта · от 320 до 1200 px'));
