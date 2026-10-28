@@ -10,9 +10,9 @@ const ACCEPTANCE=require('../lib/acceptance.cjs');
 const png=Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000','hex');
 const responsive=Buffer.from(png);responsive.writeUInt32BE(2,16);
 const sha=x=>crypto.createHash('sha256').update(x).digest('hex');
-const site={siteId:'pilot-local',pages:[
- {id:'page-home',path:'/',sections:[{id:'sec-hero',elements:[{values:{'content.media':'asset-banner'}}]}]},
- {id:'page-about',path:'/about/',sections:[]}],
+const site={siteId:'pilot-local',title:'Pilot',language:'ru',pages:[
+ {id:'page-home',path:'/',title:'Home',seo:{title:'Home',description:'Тест локального PHP',robots:'index'},sections:[{id:'sec-hero',elements:[{values:{'content.media':'asset-banner'}}]}]},
+ {id:'page-about',path:'/about/',title:'About',seo:{title:'About',description:'Тест локального PHP',robots:'index'},sections:[]}],
  redirects:[{from:'/old/',to:'/about/'}],
  assets:[{id:'asset-banner',src:'/assets/asset-banner.png',mime:'image/png',alt:'Actual banner',
   variants:[{id:'asset-banner-sm',src:'/assets/asset-banner-sm.png',
@@ -38,6 +38,8 @@ const html=(title)=>{
  const route=title==='About'?'about/':'';
  return '<!doctype html><html lang="ru"><head><title>'+title+
   '</title><meta name="description" content="Тест локального PHP">'+
+  '<meta property="og:title" content="'+(mode==='bad-metadata'?'Old page':title)+'">'+
+  '<meta property="og:description" content="Тест локального PHP">'+
   '<link rel="canonical" href="'+(mode==='bad-canonical'?'https://other.example/':
     origin()+'/published/pilot-local/'+route)+'">'+
   '<meta property="og:url" content="'+(mode==='bad-og-page'?'https://other.example/':
@@ -297,6 +299,11 @@ async function main(){
   await CAP.capture(sealed,base,alien);
   assert.ok(CAP.read(alien,site,source).localMedia.findings.some(x=>
    x.code==='php-media:untracked-rendered-reference'&&x.severity==='error'));
+  mode='bad-metadata';
+  const wrongMeta=path.join(tmp,'stale-published-metadata');
+  await CAP.capture(sealed,base,wrongMeta);
+  assert.ok(CAP.read(wrongMeta,site,source).localHead.findings.some(x=>
+   x.code==='php-head:metadata-drift'&&x.severity==='error'));
   mode='normal';
   console.log('PHP HTML LOOPBACK CAPTURE SMOKE PASS: actual HTML, robots, sitemap, 301, OG/media, responsive picture, CSS background, video poster, untracked media, SHA/MIME/ETag and tamper; no external requests.');
  }finally{

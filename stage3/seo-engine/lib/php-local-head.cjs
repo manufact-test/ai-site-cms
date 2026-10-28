@@ -4,6 +4,15 @@
 // This is NOT proof of a deployed public HTTPS host or of its served revision.
 const {readHead}=require('./parity.cjs');
 const FORMAT='manufact-seo-local-php-head-v1';
+// Mirrors PublicRenderer::html SEO fallback from the current lead PHP.
+const normalized=x=>String(x??'').replace(/\s+/g,' ').trim().normalize('NFKC');
+function expectedMeta(site,page){
+ const seo=page.seo||{},title=seo.title?.trim()||page.title+' | '+site.title;
+ const description=seo.description||'';
+ return {title,description,ogTitle:seo.ogTitle?.trim()||title,
+  ogDescription:seo.ogDescription?.trim()||description,
+  language:site.language||'ru',robots:seo.robots||'index'};
+}
 const HEADER_NAMES=['content-security-policy','x-robots-tag','cache-control','content-language','x-content-type-options','etag'];
 const MAX_HEADER=2048;
 function assertHeaders(value){
@@ -62,6 +71,22 @@ function review(site,snapshot,records,publication){
   if(record.headers)withHeaders++;
   const head=readHead(page.html);
   if(head.status!=='parsed-head')throw Error('Local PHP page lacks complete HTML head');
+  const expected=expectedMeta(site,spec);
+  for(const [field,wanted,seen] of [
+   ['title',expected.title,head.title],
+   ['description',expected.description,head.description],
+   ['og:title',expected.ogTitle,head.ogTitle],
+   ['og:description',expected.ogDescription,head.ogDescription],
+   ['html:lang',expected.language,head.language]
+  ])if(normalized(wanted)!==normalized(seen))
+   add('php-head:metadata-drift','error',spec,
+    'Local published PHP '+field+' differs from immutable Site v1 source or PHP fallback.',
+    {field,expected:normalized(wanted).slice(0,240),observed:normalized(seen).slice(0,240)});
+  const metaNoindex=/(?:^|[,\s])noindex(?:$|[,\s])/i.test(head.robots||'');
+  if(metaNoindex!==(expected.robots==='noindex'))
+   add('php-head:meta-robots-drift','error',spec,
+    'Real published meta robots indexation conflicts with immutable Site v1.',
+    {expectedRobots:expected.robots,observedRobots:(head.robots||'').slice(0,120)});
   const xrobots=headers['x-robots-tag']||'';
   const observedNoindex=/(?:^|[,\s])noindex(?:$|[,\s])/i.test(xrobots);
   const intendedNoindex=(spec.seo?.robots||'index')==='noindex';
@@ -112,6 +137,9 @@ function review(site,snapshot,records,publication){
   pages.push(Object.freeze({
    pageId:page.id,path:page.path,headersRecorded:Boolean(record.headers),
    observedNoindexInXRobots:observedNoindex,siteNoindex:intendedNoindex,
+   metaRobotsMatched:metaNoindex===intendedNoindex,
+   metadataMatches:!findings.some(x=>x.pageId===page.id&&
+    ['php-head:metadata-drift','php-head:meta-robots-drift'].includes(x.code)),
    canonicalUrl:canonicalUrl?.href||null,ogUrlCount:social.length,
    sitemapOriginMatched:Boolean(claimedOrigin&&canonicalUrl&&
     canonicalUrl.href===claimedOrigin+mount+page.path.slice(1))}));

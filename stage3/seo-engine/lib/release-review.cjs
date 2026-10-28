@@ -105,8 +105,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   'Review observed local PHP robots, sitemap and endpoint configuration',
   'HTTP status/type, public-origin setting and the actual published build need operator confirmation before release.',localPhpReviews);
  if(localHeadErrors.length)add(blockers,'local-php-head-indexation-or-origin',
-  'Resolve actual local PHP canonical, OG URL or X-Robots indexation conflicts',
-  'Observed loopback PHP headers and head elements disagree with the captured sitemap origin or Site v1 indexation. This is a technical blocker, not public HTTPS verification.',localHeadErrors);
+  'Resolve actual PHP metadata, canonical, OG or robots indexation conflicts',
+  'Real loopback PHP title, description, social metadata, language, robots or canonical disagrees with immutable Site v1 and observed sitemap origin. This indicates a mismatched publication or SEO configuration; not proof of a published build SHA.',localHeadErrors);
  if(localHeadReviews.length)add(reviews,'local-php-head-configuration',
   'Review local PHP HTTP headers, canonical and social metadata configuration',
   'Missing security headers or public origin are warnings; validate intended host and production release separately.',localHeadReviews);
