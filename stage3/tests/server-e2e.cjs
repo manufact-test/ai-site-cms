@@ -137,6 +137,15 @@ async function stop(){
   assert.equal(first.status,200);assert.equal(first.body.version,1);
   const pub=await request('GET','/published/'+id+'/');
   assert.equal(pub.status,200);
+  assert.match(pub.headers.get('cache-control'),/no-cache/);
+  assert.match(pub.headers.get('etag'),/^"cms3-[a-f0-9]{64}"$/);
+  const notModified=await request('GET','/published/'+id+'/',undefined,
+    {'if-none-match':pub.headers.get('etag')});
+  assert.equal(notModified.status,304,'Unchanged release skips HTML generation');
+  assert.equal(notModified.body,'');
+  assert.equal((await request('GET','/published/'+id+'/not-a-page/',undefined,
+    {'if-none-match':pub.headers.get('etag')})).status,404,
+    'Unknown route cannot be cached as an existing page');
   assert.match(pub.body,/&lt;img src=x onerror=alert\(1\)&gt; Updated/);
   assert.doesNotMatch(pub.body,/<img src=x onerror/);
   assert.match(pub.body,/\/published\/site-industrial-demo\/contact\//);

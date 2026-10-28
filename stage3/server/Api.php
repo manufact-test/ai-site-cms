@@ -272,6 +272,30 @@ final class Api
                     echo 'Page moved permanently';
                     exit;
                 }
+                // Cache only exact published pages and revalidate on every
+                // request. Version + relevant runtime settings prevent stale
+                // form tokens or stale canonical markup after configuration
+                // changes; maintenance and redirects were resolved first.
+                $pageFound=false;
+                foreach($published['site']['pages'] as $page)
+                    if($page['path']===$match[2]){$pageFound=true;break;}
+                if(!$pageFound){
+                    http_response_code(404);
+                    echo 'Not found';
+                    exit;
+                }
+                $etag='"cms3-'.hash('sha256',json_encode([
+                    $match[1],$published['version'],$match[2],$origin,
+                    (string)(getenv('STAGE3_FORM_ENDPOINT')?:''),
+                    hash('sha256',(string)(getenv('STAGE3_FORM_SECRET')?:''))
+                ],JSON_THROW_ON_ERROR)).'"';
+                header('ETag: '.$etag);
+                header('Cache-Control: public, no-cache, must-revalidate');
+                header('Vary: Accept-Encoding');
+                if(trim($_SERVER['HTTP_IF_NONE_MATCH']??'')===$etag){
+                    http_response_code(304);
+                    exit;
+                }
                 $html = PublicRenderer::html($published['site'], $match[2], null, null, $published['version'], $origin);
                 if ($html === null) {
                     http_response_code(404);
