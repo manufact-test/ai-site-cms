@@ -27,6 +27,15 @@ trait CrossSiteTransfer
             $radii=['radius','borderTopLeftRadius','borderTopRightRadius',
                 'borderBottomRightRadius','borderBottomLeftRadius'];
             foreach($styles as $key=>&$value) {
+                if($key==='shadowFine' && is_array($value)){
+                    if(is_string($value['color']??null)&&str_starts_with($value['color'],'@')){
+                        $name=substr($value['color'],1);
+                        if(!array_key_exists($name,$tokens['colors']))
+                            throw new \InvalidArgumentException('Unknown source shadow color');
+                        $value['color']=$tokens['colors'][$name];$count++;
+                    }
+                    continue;
+                }
                 if($key==='gradient' && is_array($value)) {
                     foreach(['from','via','to'] as $part) {
                         if(!isset($value[$part])||!is_string($value[$part])||
@@ -55,8 +64,19 @@ trait CrossSiteTransfer
                 if(isset($node['styles']))$style($node['styles']);
                 foreach(['tablet','mobile'] as $breakpoint)
                     if(isset($node['responsive'][$breakpoint]))$style($node['responsive'][$breakpoint]);
-                foreach(['hover','focus'] as $state)
+                foreach(['hover','focus','active'] as $state)
                     if(isset($node['states'][$state]))$style($node['states'][$state]);
+                foreach(['backgroundMedia','backgroundVideo'] as $kind){
+                    if(!isset($node[$kind]['overlay']['color']))continue;
+                    $overlay=&$node[$kind]['overlay']['color'];
+                    if(is_string($overlay)&&str_starts_with($overlay,'@')){
+                        $name=substr($overlay,1);
+                        if(!array_key_exists($name,$tokens['colors']))
+                            throw new \InvalidArgumentException('Unknown source background overlay token');
+                        $overlay=$tokens['colors'][$name];$count++;
+                    }
+                    unset($overlay);
+                }
                 if(isset($node['children']))$walk($node['children']);
             }
             unset($node);
@@ -107,6 +127,13 @@ trait CrossSiteTransfer
                     $ref=$node[$key]??null;
                     if (is_string($ref) && isset($available[$ref])) $used[$ref]=true;
                 }
+                foreach (['responsiveMedia','backgroundMedia','backgroundVideo'] as $type){
+                    foreach (['assetId','posterAssetId','tabletAssetId','mobileAssetId',
+                        'tabletPosterAssetId','mobilePosterAssetId'] as $key){
+                        $ref=$node[$type][$key]??null;
+                        if(is_string($ref)&&isset($available[$ref]))$used[$ref]=true;
+                    }
+                }
                 if(isset($node['children']))$scanGraph($node['children']);
             }
         };
@@ -155,6 +182,9 @@ trait CrossSiteTransfer
             $additions[]=$newAsset;
         }
         $copy=$section;
+        // Cross-site transfer creates a new local section; shared identity
+        // never travels to another site's group namespace.
+        unset($copy['sharedKey']);
         foreach ($copy['elements'] as &$entry) {
             $ref=$entry['values']['content.media']??null;
             if (is_string($ref) && isset($mediaMap[$ref]))
@@ -173,6 +203,15 @@ trait CrossSiteTransfer
                     if (is_string($ref) && isset($mediaMap[$ref]))
                         $node[$key]=$mediaMap[$ref];
                 }
+                foreach (['responsiveMedia','backgroundMedia','backgroundVideo'] as $kind){
+                    if(!isset($node[$kind]))continue;
+                    foreach (['assetId','posterAssetId','tabletAssetId','mobileAssetId',
+                        'tabletPosterAssetId','mobilePosterAssetId'] as $key) {
+                        $ref=$node[$kind][$key]??null;
+                        if(is_string($ref)&&isset($mediaMap[$ref]))
+                            $node[$kind][$key]=$mediaMap[$ref];
+                    }
+                }
                 if(isset($node['children']))$rewriteGraph($node['children']);
             }
             unset($node);
@@ -186,14 +225,25 @@ trait CrossSiteTransfer
         if (isset($copy['designGraph'])) {
             $frozenTokens=self::crossSiteFreezeGraphTokens($copy['designGraph'],$source['site']);
             $copy['designGraph']['id']='graph-'.bin2hex(random_bytes(10));
-            $renew=function(array &$nodes) use (&$renew): void {
+            $nodeMap=[];
+            $renew=function(array &$nodes) use (&$renew,&$nodeMap): void {
                 foreach ($nodes as &$node) {
-                    $node['id']='node-'.bin2hex(random_bytes(10));
+                    $old=$node['id'];$node['id']='node-'.bin2hex(random_bytes(10));
+                    $nodeMap[$old]=$node['id'];
                     if (isset($node['children'])) $renew($node['children']);
                 }
                 unset($node);
             };
             $renew($copy['designGraph']['nodes']);
+            $renewTargets=function(array &$nodes) use (&$renewTargets,$nodeMap): void {
+                foreach($nodes as &$node){
+                    if(isset($node['popupTarget']))
+                        $node['popupTarget']=$nodeMap[$node['popupTarget']]??$node['popupTarget'];
+                    if(isset($node['children']))$renewTargets($node['children']);
+                }
+                unset($node);
+            };
+            $renewTargets($copy['designGraph']['nodes']);
         }
         $candidate=$target['site'];
         foreach ($additions as $asset) $candidate['assets'][]=$asset;
