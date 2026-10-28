@@ -2845,7 +2845,9 @@
             (ticket?'Повторно выберите ту же утверждённую папку в этой вкладке для безопасного продолжения. ':
               'Для старого v1-пакета автоматическое продолжение недоступно. ')+error.message);
         }
-        forgetTicket();
+        // A create request may have succeeded server-side even when its HTTP
+        // response was lost. Keep the sealed v2 checkpoint for safe retry.
+        if(!ticket)forgetTicket();
         throw error;
       }
     });

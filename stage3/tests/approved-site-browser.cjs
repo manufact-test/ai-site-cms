@@ -215,19 +215,53 @@ async function execute(){
     input.dispatchEvent(new Event('change',{bubbles:true}));
   },uploaded);
   await page.locator('#server-approved-review-confirm').waitFor({timeout:20000});
+  // Simulate a real network interruption AFTER media upload but BEFORE final
+  // Save. The first attempt must leave an unpublished recoverable seed.
+  await page.route('**/api/sites/site-approved-browser/save',
+    route=>route.abort('failed'),{times:1});
+  await page.locator('#server-approved-review-confirm').click();
+  await page.locator('#toast.error').getByText(/Импорт прерван/).waitFor({timeout:20000});
+  await page.waitForFunction(()=>!document.getElementById('server-approved-import').disabled);
+  const unfinished=(await (await page.request.get(
+    origin+'/api/sites/site-approved-browser')).json());
+  assert.equal(unfinished.site.assets.length,1,'Interrupted import retains one isolated media file');
+  assert.equal(unfinished.site.pages[0].sections.length,2,
+    'Server stores only the unpublished seed until final manifest Save');
+  assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),404,
+    'Interrupted import must never publish');
+  // A page reload keeps same-tab sealed checkpoint. Re-selecting the exact
+  // folder must recognize and reuse verified server media, not duplicate it.
+  await page.reload();
+  await page.locator('#server-approved-import:not([disabled])').waitFor();
+  await page.evaluate(entries=>{
+    const selected=entries.map(entry=>{
+      const bytes=Uint8Array.from(atob(entry.base64),char=>char.charCodeAt(0));
+      const file=new File([bytes],entry.name);
+      Object.defineProperty(file,'webkitRelativePath',{value:entry.relative});
+      return file;
+    });
+    const input=document.querySelector('#server-approved-folder');
+    Object.defineProperty(input,'files',{configurable:true,value:selected});
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  },uploaded);
+  await page.locator('#server-approved-review-confirm').waitFor({timeout:20000});
+  assert.match(await page.locator('#server-approved-review-confirm').innerText(),/Продолжить/);
   await page.locator('#server-approved-review-confirm').click();
   try{
-    await page.locator('#toast').getByText(/Сайт подключён как черновик/).waitFor({timeout:20000});
+    await page.locator('#toast').getByText(/Импорт безопасно продолжен/).waitFor({timeout:20000});
   }catch(err){
     const diagnostic=await page.evaluate(()=>({
       toast:document.querySelector('#toast')?.textContent,
       status:document.querySelector('#server-status')?.textContent,
-      files:document.querySelector('#server-approved-folder')?.files?.length,
       site:window.Stage3Editor?.getSite()?.siteId
     }));
-    throw Error('Approved folder import did not complete: '+
+    throw Error('Approved folder continuation failed: '+
       JSON.stringify({diagnostic,errors,original:String(err).slice(0,300)}));
   }
+  const resumed=(await (await page.request.get(origin+'/api/sites/site-approved-browser')).json());
+  assert.equal(resumed.revision,unfinished.revision+1,
+    'Continuation reuses stored media and adds ONLY final Save revision');
+  assert.equal(resumed.site.assets.length,1,'Continuation never duplicates immutable asset IDs');
   const imported=await page.evaluate(()=>window.Stage3Editor.getSite());
   assert.equal(imported.siteId,'site-approved-browser');
   assert.equal(imported.assets.length,1);
