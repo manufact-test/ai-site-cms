@@ -1583,7 +1583,7 @@ async function stop(){
   // export them, keep them through archive restore and reject forged checksums.
   const {deflateSync}=require('node:zlib');
   const crypto=require('node:crypto');
-  function solidPng(width,height){
+  function solidPng(width,height,compression=6){
     const stride=width*3+1,raw=Buffer.alloc(stride*height);
     for(let y=0;y<height;y++){
       const off=y*stride;raw[off]=0;
@@ -1596,7 +1596,7 @@ async function stop(){
     const head=Buffer.alloc(13);head.writeUInt32BE(width,0);head.writeUInt32BE(height,4);
     head[8]=8;head[9]=2;
     return Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),
-      chunk('IHDR',head),chunk('IDAT',deflateSync(raw,{level:6})),chunk('IEND',Buffer.alloc(0))]);
+      chunk('IHDR',head),chunk('IDAT',deflateSync(raw,{level:compression})),chunk('IEND',Buffer.alloc(0))]);
   }
   const hash=buf=>crypto.createHash('sha256').update(buf).digest('hex');
   const original=solidPng(1440,960);
@@ -2081,6 +2081,46 @@ async function stop(){
       await exited;
     }
   }
+
+
+  // Real valid PNG above old 450 KB threshold; exact bytes and independent
+  // unpublished backup recovery must survive the new 1 MB raster limit.
+  const largeImage=solidPng(640,300,0);
+  assert.ok(largeImage.length>450000&&largeImage.length<1000000);
+  const qualitySite=structuredClone(fixture);
+  qualitySite.siteId='site-photo-quality';
+  qualitySite.title='Photo quality and full recovery';
+  const qualityCreated=await request('POST','/api/sites',{site:qualitySite});
+  assert.equal(qualityCreated.status,201,JSON.stringify(qualityCreated.body));
+  const rejectLarge=await request('POST','/api/sites/site-photo-quality/media',{
+    base64:Buffer.concat([largeImage,Buffer.alloc(1050000)]).toString('base64'),
+    alt:'Oversized invalid image',expectedRevision:1
+  });
+  assert.equal(rejectLarge.status,422,'Raster above 1MB still rejected');
+  const importedPhoto=await request('POST','/api/sites/site-photo-quality/media',{
+    base64:largeImage.toString('base64'),alt:'High quality image',
+    expectedRevision:1,sha256:hash(largeImage)
+  });
+  assert.equal(importedPhoto.status,201,JSON.stringify(importedPhoto.body));
+  const largeId=importedPhoto.body.asset.id;
+  const originalImage=await fetch(origin+'/api/sites/site-photo-quality/media/'+largeId,{headers:{cookie}});
+  assert.equal(originalImage.status,200);
+  assert.deepEqual(Buffer.from(await originalImage.arrayBuffer()),largeImage);
+  const fullQualityBackup=await request('GET','/api/sites/site-photo-quality/backup');
+  assert.equal(fullQualityBackup.status,200,'New 1MB media must remain recoverable');
+  const qualityPlan=await request('POST','/api/backups/plan',{
+    archive:fullQualityBackup.body,targetSiteId:'site-photo-recovered'
+  });
+  assert.equal(qualityPlan.status,200,JSON.stringify(qualityPlan.body));
+  const qualityRestore=await request('POST','/api/backups/restore',{
+    archive:fullQualityBackup.body,targetSiteId:'site-photo-recovered',
+    confirmationToken:qualityPlan.body.confirmationToken
+  });
+  assert.equal(qualityRestore.status,201,JSON.stringify(qualityRestore.body));
+  const recoveredPhoto=await fetch(origin+'/api/sites/site-photo-recovered/media/'+largeId,{headers:{cookie}});
+  assert.equal(recoveredPhoto.status,200);
+  assert.deepEqual(Buffer.from(await recoveredPhoto.arrayBuffer()),largeImage);
+  assert.equal((await request('GET','/published/site-photo-recovered/')).status,404);
 
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET',endpoint)).status,401);
