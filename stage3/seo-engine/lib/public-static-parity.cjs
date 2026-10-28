@@ -45,12 +45,13 @@ function compare(site,release,http,media=null){
  if(!comparable){
   add('release-host-scope-not-comparable','warning',null,
    'Official root-mounted static export cannot be compared to this public host/mount; collect HTTPS at its declared static origin.');
-  return Object.freeze({format:FORMAT,siteId:site.siteId,
+  const unscoped=Object.freeze({format:FORMAT,siteId:site.siteId,
    claimedPublicOrigin:http.origin,officialPublicOrigin:claim||null,
    comparisonScope:reason,comparable:false,checkedPages:0,checkedMedia:0,
    checkedSearchFiles:0,checkedRedirects:0,pages:[],assets:[],auxiliary:[],findings,
    allComparedSurfacesMatched:false,httpTranscriptAuthenticated:false,
    actualHostRequestsByThisReview:0,publicSiteApproval:false});
+  accepted.add(unscoped);return unscoped;
  }
  const paths=new Map(site.pages.map(p=>[p.path,p]));
  const got=new Map();
