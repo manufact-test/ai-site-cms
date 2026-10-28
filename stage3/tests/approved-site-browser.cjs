@@ -282,6 +282,21 @@ async function execute(){
   const publishedApproved=(await (await page.request.get(origin+
     '/api/sites/site-approved-browser/published-site')).json()).site;
   assert.equal(publishedApproved.pages[0].seo.ogImage,imported.assets[0].id);
+  // Actual PUBLIC PHP screenshot evidence, not Studio's JS iframe. Capture
+  // every published page at all three original approved breakpoints, read-only.
+  const evidenceDir=path.join(temp,'approved-pilot-evidence');
+  const evidenceRun=spawnSync(process.execPath,[
+    'stage3/bin/capture-approved-site.cjs',folder,
+    origin+'/published/site-approved-browser/',evidenceDir
+  ],{cwd:root,encoding:'utf8',timeout:90000});
+  assert.equal(evidenceRun.status,0,
+    'Three-size published capture must succeed: '+evidenceRun.stderr+' '+evidenceRun.stdout);
+  const evidence=JSON.parse(fs.readFileSync(path.join(evidenceDir,'evidence.json'),'utf8'));
+  assert.equal(evidence.status,'screenshots-only-manual-approval-required');
+  assert.equal(evidence.pages.length,imported.pages.length);
+  for(const item of evidence.pages)for(const width of ['desktop','tablet','mobile'])
+    assert.equal(fs.existsSync(path.join(evidenceDir,item.screenshots[width].file)),true);
+  // Capture artifacts are evidence for human visual review, not pixel-diff approval.
   // Owner can restore imported site's previously saved version without mutating
   // public content: stale drafts and published pages are separate snapshots.
   await page.locator('#elements .cms-repeat-row').last().locator('button.element').click();

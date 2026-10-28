@@ -91,7 +91,7 @@ async function capture(folder,rawUrl,destination){
           for(const image of nodes)image.loading='eager';
         });
         await page.waitForFunction(()=>[...document.images].every(image=>image.complete),
-          {timeout:15000});
+          null,{timeout:15000});
         const broken=await page.locator('img').evaluateAll(nodes=>nodes
           .filter(img=>!img.complete||img.naturalWidth===0)
           .map(img=>img.getAttribute('src')||'<empty src>'));
