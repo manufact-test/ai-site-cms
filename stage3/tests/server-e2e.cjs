@@ -102,6 +102,22 @@ async function stop(){
     assert.equal(upgraded.status,0,upgraded.stderr);
   }
   await runServer();
+  const studioAsset=await fetch(origin+'/bundle.js',{headers:{'accept-encoding':'gzip'}});
+  assert.equal(studioAsset.status,200);
+  const studioEtag=studioAsset.headers.get('etag');
+  assert.match(studioEtag,/^"cms-editor-[a-f0-9]{64}"$/);
+  assert.match(studioAsset.headers.get('cache-control'),/no-cache/);
+  assert.equal(studioAsset.headers.get('vary'),'Accept-Encoding');
+  assert.ok((await studioAsset.text()).includes('Stage3'),'Studio script is served');
+  const unchanged=await fetch(origin+'/bundle.js',{headers:{
+    'accept-encoding':'gzip','if-none-match':studioEtag
+  }});
+  assert.equal(unchanged.status,304,'same encoded editor script revalidates');
+  const identity=await fetch(origin+'/bundle.js',{headers:{'accept-encoding':'identity'}});
+  assert.equal(identity.status,200);
+  assert.equal(identity.headers.get('content-encoding'),null);
+  if(studioAsset.headers.get('content-encoding')==='gzip')
+    assert.notEqual(identity.headers.get('etag'),studioEtag,'cache key varies by representation');
   assert.equal((await request('GET','/api/sites')).status,401,'private site list requires login');
   assert.equal((await request('POST','/api/login',{username:'testowner',password:'bad'})).status,401);
   const login=await request('POST','/api/login',{username:'testowner',password});
