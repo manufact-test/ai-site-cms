@@ -97,7 +97,8 @@ function review(site,snapshot){
    // comparison table, whose equivalent heading is a real table caption.
    const primaryHeading=component.component==='comparison-matrix'
     ?elements(root,'caption')[0]:elements(root,'h2')[0];
-   if(!primaryHeading||primaryHeading.text!==norm(value('heading')))
+   if(component.elements?.some(x=>x.slot==='heading')&&
+      (!primaryHeading||primaryHeading.text!==norm(value('heading'))))
     add(page,component,'section-heading','Published component H2 or table caption differs from Site v1.');
    if(['pricing-plans','content-switcher','process-timeline','cta-banner','media-story','image-showcase'].includes(component.component)){
     const extraSlot=({ 'pricing-plans':'intro','content-switcher':'summary',
@@ -105,7 +106,7 @@ function review(site,snapshot){
      'image-showcase':'caption'})[component.component];
     const expected=norm(value(extraSlot));
     const paragraphs=elements(root,'p');
-    if(paragraphs[0]?.text!==expected)
+    if(component.elements?.some(x=>x.slot===extraSlot)&&paragraphs[0]?.text!==expected)
      add(page,component,'section-intro','Published section intro/caption differs from Site v1.');
    }
    if(component.component==='faq-accordion'){
@@ -207,7 +208,8 @@ function review(site,snapshot){
      continue;
     }
     const footnotes=elements(root,'p').filter(x=>classHas(x.attributes,'cms-pricing-footnote'));
-    if(footnotes.length!==1||footnotes[0].text!==norm(value('footnote')))
+    if(component.elements?.some(x=>x.slot==='footnote')&&
+       (footnotes.length!==1||footnotes[0].text!==norm(value('footnote'))))
      add(page,component,'pricing-footnote','Published pricing terms or caveats differ from Site v1.');
     items.forEach((item,i)=>{
      const markup=cards[i].html,values=item.values||{};
@@ -218,9 +220,12 @@ function review(site,snapshot){
      const expectedFeatures=String(values['content.features']||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
      if(h.length!==1||h[0].text!==norm(values['content.title'])||
         price.length!==1||price[0].text!==norm(values['content.price'])||
-        period.length!==1||period[0].text!==norm(values['content.period'])||
-        !paragraphs.some(x=>x.text===norm(values['content.description']))||
-        classHas(cards[i].attributes,'is-featured')!==(values['behavior.featured']===true)||
+        (Object.hasOwn(values,'content.period')&&
+         (period.length!==1||period[0].text!==norm(values['content.period'])))||
+        (Object.hasOwn(values,'content.description')&&
+         !paragraphs.some(x=>x.text===norm(values['content.description'])))||
+        (Object.hasOwn(values,'behavior.featured')&&
+         classHas(cards[i].attributes,'is-featured')!==(values['behavior.featured']===true))||
         list.length!==expectedFeatures.length||list.some((x,j)=>x.text!==norm(expectedFeatures[j]))||
         ctas.length!==1||ctas[0].text!==norm(values['content.button'])||
         ctas[0].href!==hrefFor(values['behavior.href'],site.siteId))
@@ -246,12 +251,13 @@ function review(site,snapshot){
      add(page,component,'table-structure','Published comparison table lost headers, columns or rows.');continue;
     }
     const heading=elements(head[0].html,'th');
-    if(heading[1]?.text!==norm(value('first'))||
-       heading[2]?.text!==norm(value('second'))||
+    if((component.elements?.some(x=>x.slot==='first')&&heading[1]?.text!==norm(value('first')))||
+       (component.elements?.some(x=>x.slot==='second')&&heading[2]?.text!==norm(value('second')))||
        heading.some(x=>x.attributes.scope!=='col'))
      add(page,component,'table-headers','Published comparison headings/column scope differ from Site v1.');
     const notes=elements(root,'p').filter(x=>classHas(x.attributes,'cms-compare-note'));
-    if(notes.length!==1||notes[0].text!==norm(value('caption')))
+    if(component.elements?.some(x=>x.slot==='caption')&&
+       (notes.length!==1||notes[0].text!==norm(value('caption'))))
      add(page,component,'table-note','Published comparison note differs from Site v1.');
     items.forEach((item,i)=>{
      const v=item.values||{},th=elements(rows[i].html,'th'),td=elements(rows[i].html,'td');
