@@ -49,6 +49,23 @@ graphTest(str_contains($html,'<td class="cmsdg-n-graph-rich-value-two">По до
 graphTest(str_contains($html,'&lt;Источник&gt;')&&!str_contains($html,'<Источник>'),'quote attribution must be escaped');
 graphTest(str_contains($html,'<a class="cmsdg-n-graph-rich-link" href="/published/site-industrial-demo/">На главную</a>'),
     'PHP published mounted link rendering');
+$raster=null;foreach($site['assets'] as $asset)
+    if(in_array($asset['mime'],['image/png','image/jpeg','image/webp'],true)){$raster=$asset;break;}
+graphTest($raster!==null,'Source fixture has a raster image for device art-direction parity');
+$rich[]=['id'=>'graph-art-directed','type'=>'image','assetId'=>$raster['id'],
+    'alt'=>'Иллюстрация для ПК и телефона','responsiveMedia'=>[
+        'tabletAssetId'=>$raster['id'],'mobileAssetId'=>$raster['id']]];
+$validator->validate($site);
+$html=PublicRenderer::html($site,'/');
+graphTest(str_contains($html,'<picture class="cmsdg-picture">')&&
+    str_contains($html,'<source media="(max-width:600px)" srcset="/published/site-industrial-demo/assets/'),
+    'PHP renders phone art-direction as real mounted picture source');
+graphTest(str_contains($html,'<source media="(max-width:900px)" srcset="/published/site-industrial-demo/assets/'),
+    'PHP renders tablet art-direction as real mounted picture source');
+$brokenDevice=$site;
+$brokenDevice['pages'][0]['sections'][2]['designGraph']['nodes'][6]['responsiveMedia']['mobileAssetId']='asset-foreign';
+try{$validator->validate($brokenDevice);throw new RuntimeException('foreign phone image accepted');}
+catch(InvalidArgumentException $expected){}
 $rootHtml=PublicRenderer::html($site,'/','/');
 graphTest(str_contains($rootHtml,'<a class="cmsdg-n-graph-rich-link" href="/">На главную</a>'),
     'PHP root mount must not create protocol-relative URL');
