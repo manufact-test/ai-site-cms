@@ -23,6 +23,7 @@ const CAPTURE=require('./capture-plan.cjs');
 const CONSISTENCY=require('./evidence-consistency.cjs');
 const ACCEPTANCE=require('./acceptance.cjs');
 const APPROVED_SITE=require('./approved-site-bridge.cjs');
+const PHP_CAPTURE=require('./php-capture.cjs');
 const PROGRESS=require('./task-progress.cjs');
 const MIGRATION=require('./route-migration.cjs');
 const IMPACT=require('./change-impact.cjs');
@@ -33,7 +34,7 @@ function build(site,manifests,blueprint,options={}){
  if(!site||site.siteId!==plan.siteId)throw Error('Review package siteId mismatch');
  if(!Array.isArray(manifests))throw Error('Review package requires current manifests');
  if(!options||typeof options!=='object'||Array.isArray(options)||
-    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource'].includes(k)))
+    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource','phpCapture'].includes(k)))
   throw Error('Unsupported review-package options');
  // A sealed package is verified by the lead CLI before this read-only review.
  const approvedSource=options.approvedSource||null;
@@ -43,6 +44,11 @@ function build(site,manifests,blueprint,options={}){
   approvedSource.siteRevisionFingerprint!==ACCEPTANCE.fingerprint(site)||
   approvedSource.integrity!=='sha256-verified-at-read'))
   throw Error('Approved Site source metadata does not match the reviewed Site v1');
+ if(options.phpCapture&&(!approvedSource||!PHP_CAPTURE.isVerifiedCapture(options.phpCapture)||
+    options.phpCapture.siteId!==site.siteId||
+    options.phpCapture.siteRevisionFingerprint!==ACCEPTANCE.fingerprint(site)||
+    options.phpCapture.sourceRawSiteSha256!==approvedSource.fileSha256))
+  throw Error('PHP screenshot evidence is not bound to a verified Approved Site v2 source');
  // Validate with authoritative core first, not just the loosely typed SEO blueprint.
  const audit=auditSite(site,manifests,plan);
  const architecture=reviewArchitecture(plan);
@@ -105,7 +111,10 @@ function build(site,manifests,blueprint,options={}){
   sealedSourceVerifiedAtRead:Boolean(approvedSource),
   sealedSourceRawSiteSha256:approvedSource?.fileSha256??null,
   approvedPrototypePageReferences:approvedSource?.availablePrototypePageCount??null,
-  missingApprovedInteriorPageReferences:approvedSource?.missingInteriorPrototypePageIds??null};
+  missingApprovedInteriorPageReferences:approvedSource?.missingInteriorPrototypePageIds??null,
+  loopbackPhpScreenshotPages:options.phpCapture?.pages.length??null,
+  screenshotFileDigestsChecked:Boolean(options.phpCapture),
+  publicHttpsAndSeoHeadVerified:false};
  const dossier=DOSSIER.build({siteId:site.siteId,release,coverage,acceptanceReview,
   taskProgress,changeImpact,executionPlan:execution,cmsChangePacket,traceability,
   capturePlan,deliveryEvidence:delivery,mediaEvidence:media,routeMigration});
@@ -118,7 +127,7 @@ function build(site,manifests,blueprint,options={}){
   instruction:task.instruction,decision:approved.has(task.taskId)?'approved-for-manual-work':deferred.has(task.taskId)?'deferred':'unreviewed',automatic:false
  }));
  return {format:FORMAT,version:1,siteId:site.siteId,readOnly:true,
-  contract:acceptedFormats,coverage,approvedSiteSource:approvedSource,
+  contract:acceptedFormats,coverage,approvedSiteSource:approvedSource,phpCapture:options.phpCapture||null,
   blueprintReview:architecture,siteAudit:audit,
   htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
   traceability,decisions,acceptanceReview,taskProgress,routeMigration,changeImpact,leadDossier:dossier,deliveryEvidence:delivery,mediaEvidence:media,evidenceConsistency,executionPlan:execution,cmsChangePacket,capturePlan,
@@ -137,6 +146,14 @@ function build(site,manifests,blueprint,options={}){
          approvedSource.missingInteriorPrototypePageIds.join(', '):'none')+
        ' (do not substitute homepage mockups).\n'+
      '- Human approval, visual fidelity and real published HTTP remain unverified.\n':'')+
+    (options.phpCapture?'\n\n## Lead PHP full-page capture evidence (source-bound)\n\n'+
+      '- Original lead Chromium capture: '+options.phpCapture.capturedAt+
+        '; loopback URL: '+options.phpCapture.baseUrl+'\n'+
+      '- PNG screenshot file SHA-256 checked: '+options.phpCapture.screenshotCount+
+        '; checked pages: '+options.phpCapture.pages.length+'.\n'+
+      '- Captured pages with missing-image warnings: '+options.phpCapture.warningPageIds.length+
+        (options.phpCapture.warningPageIds.length?' ('+options.phpCapture.warningPageIds.join(', ')+')':'')+'.\n'+
+      '- Screenshots are NOT HTML/HTTP SEO head evidence; visual equality, forms and actual public HTTPS remain unverified.\n':'')+
     '\n\n---\n\n'+renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
     '\n\n---\n\n'+EXECUTION.markdown(execution)+'\n\n---\n\n'+CMS_PACKET.markdown(cmsChangePacket),
   integrationOrder:['verified-owner-facts','approved-prototypes-and-blueprint',

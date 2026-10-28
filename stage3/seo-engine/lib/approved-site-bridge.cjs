@@ -46,6 +46,8 @@ function load(folder){
   verifiedBy:'stage3/bin/verify-approved-site.cjs',
   fileSha256,siteRevisionFingerprint:fingerprint(site),
   pageReferences:references,
+  homepagePrototypeSha256:Object.freeze(Object.fromEntries(['desktop','tablet','mobile'].map(device=>
+   [device,handoff.integrity.files[handoff.files[device]]]))),
   availablePrototypePageCount:references.filter(p=>p.devices.length===3).length,
   missingInteriorPrototypePageIds:Object.freeze(references.filter(p=>p.path!=='/'&&!p.devices.length).map(p=>p.pageId)),
   clientApprovalAuthenticated:false,visualFidelityVerified:false,published:false
