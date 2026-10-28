@@ -536,7 +536,7 @@
         if(section.designGraph){
           const visit=nodes=>{
             for(const node of nodes){
-              if(['heading','text','button'].includes(node.type)){
+              if(['heading','text','button','link','quote','table-cell','table','gallery','list-item','disclosure','tab'].includes(node.type)){
                 const value=String(node.text||'').trim();
                 if(!value)add(page,section,{id:node.id},'graph-text',
                   'Пустой видимый текст композиции: '+node.type,'text');
@@ -640,10 +640,10 @@
               for(const node of nodes){
                 const common={pageId:page.id,pageTitle:page.title,sectionId:section.id,
                   nodeId:node.id,elementId:null,graph:true};
-                if(node.type==='button'&&node.href?.startsWith('/')&&!node.href.startsWith('//')){
+                if(['button','link'].includes(node.type)&&node.href?.startsWith('/')&&!node.href.startsWith('//')){
                   const issue=linkFindings.find(item=>item.pageId===page.id&&
                     item.sectionId===section.id&&item.nodeId===node.id&&item.path===node.href);
-                  rows.push({...common,path:'href',fieldLabel:'Кнопка · '+node.id,
+                  rows.push({...common,path:'href',fieldLabel:(node.type==='link'?'Ссылка':'Кнопка')+' · '+node.id,
                     kind:'link',value:node.href,issue:issue?.kind||'',
                     message:issue?.message||''});
                 }
@@ -1054,7 +1054,7 @@
       const walk=(nodes,depth)=>{
         for(const node of nodes||[]){
           rows.push({node,depth});
-          if(['container','disclosure','tabs','tab','list'].includes(node.type))walk(node.children,depth+1);
+          if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type))walk(node.children,depth+1);
         }
       };
       if(section?.designGraph)walk(section.designGraph.nodes,0);
@@ -1093,7 +1093,7 @@
     const quickCancel=button('Отмена','btn small',dismissQuick);
     const quickSave=button('Применить','btn small primary',()=>{
       const node=selectedGraphNode();
-      if(node&&['heading','text','button'].includes(node.type)){
+      if(node&&['heading','text','button','link','quote','table-cell','list-item','disclosure','tab'].includes(node.type)){
         if(!canWrite())return feedback('Нет права на редактирование.',true);
         if(editGraphWork(n=>{n.text=quickInput.value;}))dismissQuick();
         return;
@@ -1113,10 +1113,10 @@
     const quickEdit=()=>{
       if(!canWrite())return;
       const graph=selectedGraphNode();
-      if(graph&&['heading','text','button'].includes(graph.type)){
+      if(graph&&['heading','text','button','link','quote','table-cell','list-item','disclosure','tab'].includes(graph.type)){
         quickLabel.firstChild.textContent='Текст узла: '+graph.type;
         quickInput.value=graph.text;
-        quickInput.maxLength=3000;
+        quickInput.maxLength=graph.type==='table-cell'?1600:['tab','disclosure'].includes(graph.type)?160:3000;
         quick.hidden=false;quickInput.focus();quickInput.select();
         return;
       }
@@ -1608,13 +1608,13 @@
         const mediaOf=type=>session.current.assets.filter(asset=>
           type==='video'?asset.mime==='video/mp4':/^image\/(?:png|jpeg|webp|svg\+xml)$/.test(asset.mime));
         for(const [type,label] of [
-          ['text','Текст'],['heading','Заголовок'],['button','Кнопка'],
+          ['text','Текст'],['heading','Заголовок'],['button','Кнопка'],['link','Текстовая ссылка'],['quote','Цитата / отзыв'],
           ['image','Изображение'],['video','Видео MP4'],['icon','Иконка'],
           ['container','Контейнер'],['list','Список пунктов'],['disclosure','Раскрывающаяся панель'],
-          ['tabs','Вкладки'],['divider','Разделитель']
+          ['tabs','Вкладки'],['gallery','Галерея со свайпом'],['table','Таблица с данными'],['divider','Разделитель']
         ]){
           const option=document.createElement('option');option.value=type;option.textContent=label;
-          if(['image','video'].includes(type)&&!mediaOf(type).length)option.disabled=true;
+          if(['image','video','gallery'].includes(type)&&!mediaOf(type).length)option.disabled=true;
           insertType.append(option);
         }
         const insertPlace=document.createElement('select');insertPlace.className='control';
@@ -1622,16 +1622,34 @@
         insertPlace.setAttribute('aria-label','Расположение нового элемента');
         for(const [value,label] of [['after','После'],['before','Перед'],['inside','Внутрь контейнера']]){
           const option=document.createElement('option');option.value=value;option.textContent=label;
-          option.disabled=value==='inside'&&!['container','disclosure','tabs','tab','list'].includes(current.type);insertPlace.append(option);
+          option.disabled=value==='inside'&&!['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(current.type);insertPlace.append(option);
         }
         const makeNode=type=>{
           const node={id:uniqueId('dg-node'),type,styles:{}};
           if(type==='text')node.text='Новый текстовый элемент';
           if(type==='heading'){node.text='Новый заголовок';node.level=2;}
-          if(type==='button'){node.text='Подробнее';node.href='/';}
+          if(type==='button'||type==='link'){node.text='Подробнее';node.href='/';}
+          if(type==='quote'){node.text='Цитата или отзыв';node.cite='Автор';}
           if(type==='icon'){node.icon='star';node.alt='';}
           if(type==='list'){
             node.ordered=false;node.children=[1,2].map(i=>({id:uniqueId('dg-node'),type:'list-item',text:'Пункт '+i,styles:{}}));
+          }
+          if(type==='gallery'){
+            const photo=mediaOf('image')[0];
+            if(!photo)throw Error('Для галереи нужны изображения');
+            node.text='Фотогалерея';node.children=[1,2].map(()=>({
+              id:uniqueId('dg-node'),type:'image',assetId:photo.id,alt:photo.alt||'Изображение',styles:{}
+            }));
+          }
+          if(type==='table'){
+            node.text='Сравнение вариантов';
+            node.children=[0,1,2].map(row=>({
+              id:uniqueId('dg-node'),type:'table-row',styles:{},children:[0,1,2].map(col=>({
+                id:uniqueId('dg-node'),type:'table-cell',styles:{},
+                text:row===0?['Параметр','Вариант A','Вариант B'][col]:
+                  col===0?'Параметр '+row:'Значение'
+              }))
+            }));
           }
           if(type==='disclosure'){
             node.text='Вопрос или заголовок';node.children=[{id:uniqueId('dg-node'),type:'text',text:'Содержимое панели',styles:{}}];
@@ -1654,7 +1672,7 @@
           return node;
         };
         const insertNode=(type,placement)=>{
-          if(placement==='inside'&&!['container','disclosure','tabs','tab','list'].includes(current.type))
+          if(placement==='inside'&&!['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(current.type))
             return feedback('Вложить можно только в контейнер.',true);
           try{
             const node=makeNode(type);
@@ -1696,7 +1714,7 @@
         const findSiblings=(nodes,id)=>{
           for(const node of nodes){
             if(node.id===id)return nodes;
-            if(['container','disclosure','tabs','tab','list'].includes(node.type)){
+            if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type)){
               const hit=findSiblings(node.children,id);if(hit)return hit;
             }
           }
@@ -1764,9 +1782,10 @@
           return input;
         };
         if(current){
-          if(['heading','text','button','disclosure','tab','list-item'].includes(current.type))
+          if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item'].includes(current.type))
             property('Текст', 'text',current.text);
-          if(current.type==='button')property('Ссылка', 'href',current.href);
+          if(['button','link'].includes(current.type))property('Ссылка', 'href',current.href);
+          if(current.type==='quote')property('Подпись автора', 'cite',current.cite||'');
           if(['image','video','icon'].includes(current.type))property('Описание / alt','alt',current.alt||'');
           if(current.type==='icon')property('Векторная иконка','icon',current.icon,
             Object.keys(DESIGN_GRAPH.ICON_PATHS).map(value=>[value,value]));
@@ -1829,7 +1848,7 @@
             [['',inherit],...Object.keys(session.current.designTokens?.colors||DESIGN_GRAPH.DEFAULT_TOKENS.colors)
               .map(x=>['@'+x,x]),['#ffffff','Белый'],['#000000','Чёрный']]);
           property('Размер текста · '+mode,'fontSize',styles.fontSize??'');
-          if(['container','disclosure','tabs','tab','list'].includes(current.type)){
+          if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(current.type)){
             property('Внутренний отступ · '+mode,'padding',styles.padding??'');
             property('Шаг элементов · '+mode,'gap',styles.gap??'');
           }
