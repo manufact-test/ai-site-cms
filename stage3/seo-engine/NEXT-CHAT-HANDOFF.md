@@ -83,3 +83,8 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 ## Приоритет PHP DesignGraph и исправления ложных ошибок
 
 Если типовой блок или form section имеют `designGraph`, PHP выводит именно граф, а не старые поля. SEO теперь исключает такие секции из ожидаемого legacy HTML/forms/wizard; source-bound граф анализируется отдельно. При необходимости это обнаруживается в одной существующей smoke. Также в 14 типовых компонентах проверены заголовки, вводные абзацы, тарифные условия, featured и заголовки сравнения. Всё в worker path. Полный first-site Node/PHP прогон и интеграция — у ведущего.
+
+
+## Последний дополнительный этап: PHP OG/Twitter metadata parity
+
+Сверяются все фактически отданные в PHP SEO social meta: OG type, locale, image URL, image ALT и Twitter title, description, card, image, ALT. Источник выбора изображения — текущий `publisher-media.cjs`, host — только публичный origin из действительного локального sitemap. Неправильное значение блокирует техническую приёмку через существующий `php-head:*`. Mocked PHP normal и целевые OG/Twitter drifts проверены в V8; настоящий первый клиентский PHP/Chromium остаётся задачей интегратора.

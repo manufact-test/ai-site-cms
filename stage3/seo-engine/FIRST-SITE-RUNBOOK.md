@@ -167,3 +167,10 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 ### Обязательная приоритетность PHP DesignGraph
 
 PHP PublicRenderer выбирает `section.designGraph` **вместо** legacy component renderer, если поле присутствует. Поэтому `php-local-forms`, проверки PHP wizard CSP и все 14 `php-local-components` не требуют legacy markup при graph override; за такой секцией отвечает `php-local-graph`. Без этого корректный CMS сайт с обновлённым дизайном получал бы ложный release blocker. Исходный клиентский source не изменяется. Также проверяются section heading/intro, отдельные тарифные условия, featured card state, заголовки и примечания таблиц, только если эти значения действительно объявлены в typed Site v1.
+
+
+## Social card parity for real published PHP (28.10.2026)
+
+Добавлена сверка фактического PHP HTML `<head>` с Site v1 и текущим `PublicRenderer.php`: `og:type=website`, `og:locale`, `twitter:title`, `twitter:description`, `og:image`, `twitter:image`, `og:image:alt`, `twitter:image:alt`, `twitter:card` (`summary_large_image` только если PHP public origin и изображение доступны). Публичный origin берётся из **реального локального sitemap**, который захватывается той же командой. Изображение выбирается существующим `publisher-media.cjs` по тем же правилам, что PHP. Отсутствующий, дублированный или чужой meta field — `php-head:social-drift` / `php-head:social-unexpected`, error, через уже существующий `local-php-head-indexation-or-origin` release blocker. Если нужного origin нет, не называем HTTPS доказанным.
+
+Обновлён существующий loopback mock PHP HTML для случаев с OG image и без него; добавлен отдельный тест подмены `twitter:image`. Изолированная V8-проверка всей локальной head review (2 страницы) дала 0 ошибок на правильном наборе и нужные errors на изменённых `twitter:image`/`og:image`. Полный Node subprocess и реальный PHP/HTTPS первичного клиента этим не проверялись.

@@ -300,3 +300,8 @@ The source-bound PHP component reviewer now covers 14 first-party public compone
 ## PHP DesignGraph override — exact publisher precedence
 
 The current PHP PublicRenderer renders `section.designGraph` instead of the component's legacy HTML whenever the graph is present. The worker respects this in `php-local-forms`, wizard CSP expectations in `php-local-head`, and all 14 component audits. Graph sections are inspected by `php-local-graph` exactly once. This prevents false launch failures on valid Studio-modified custom compositions. The source-bound business reviewer also checks heading/intro, pricing period/description/footnote/featured state, comparison headers/notes when those fields are declared in official Site v1.
+
+
+## Actual PHP Twitter and Open Graph cards
+
+The verified local HTTP head audit now compares current `PublicRenderer.php` social metadata against Site v1: OG type/locale/image/ALT, Twitter title/description/card/image/ALT, with the selected fallback image and observed public-origin sitemap. Missing, duplicate or mismatching tags produce `php-head:social-drift` or `php-head:social-unexpected` release-blocking errors in the existing local PHP head gate. Source-bound local HTTP is not independent proof of public deployment. A normal two-page mocked PHP head and separately corrupted OG vs Twitter image URLs were checked in the isolated V8 reviewer; full Node+real PHP smoke remains for the lead.

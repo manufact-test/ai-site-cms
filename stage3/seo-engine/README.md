@@ -303,3 +303,8 @@ The existing `tests/php-html-capture-smoke.cjs` now includes valid and deliberat
 К `php-local-components.cjs` дополнительно подключены **FAQ, карточки услуг, отзывы, photo-gallery, adaptive-gallery, логотипы партнёров, CTA-banner, contact-panel, image-showcase, media-story**. Для каждого типа сопоставляются фактически отданные PHP HTML структура/содержание и элементы из sealed Site v1, где применимо: вопросы/ответы, услуги, подписи/авторы, image src/ALT/caption, внутренние и внешние CTA destination и видимые цены. Нет DOM исполнения, нет запроса к внешнему URL и нет изменения сайта. Нарушения — существующий `local-php-component-parity` release blocker с `sectionId` и `pageId`.
 
 Репрезентативные валидные и намеренно сломанные FAQ/testimonial/CTA добавлены в *тот же* `php-html-capture-smoke.cjs`; pure JS smoke этих актуальных модулей прошёл. Полный Node subprocess/реальный PHP первого клиента по-прежнему обязан выполнить ведущий.
+
+
+## PHP social metadata coverage
+
+Real PHP head auditing now verifies Open Graph locale/type/image/alt plus Twitter title/description/card/image/alt against the approved site and captured local sitemap origin. Actual wrong URLs or missing expected tags appear as release blockers in the existing head gate, without a second social system or invented host. No actual social platform fetch, public HTTPS confirmation or client acceptance is implied.
