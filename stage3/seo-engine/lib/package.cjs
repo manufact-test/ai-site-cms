@@ -16,6 +16,7 @@ const {write:renderMarkdown}=require('./reporter.cjs');
 const TRACE=require('./traceability.cjs');
 const TRIAGE=require('./triage.cjs');
 const DELIVERY=require('./delivery-evidence.cjs');
+const EXECUTION=require('./execution-plan.cjs');
 const FORMAT='manufact-seo-review-bundle-v1';
 function build(site,manifests,blueprint,options={}){
  const plan=checkBlueprint(blueprint);
@@ -38,6 +39,7 @@ function build(site,manifests,blueprint,options={}){
  const backlog=work(site,manifests,plan,coreOptions);
  const release=assess(site,manifests,plan,coreOptions,backlog);
  const decisions=ledger?TRIAGE.reconcile(backlog,ledger):null;
+ const execution=EXECUTION.compile(backlog,decisions);
  const traceability=TRACE.report(site,plan,{
   ...(options.snapshot?{snapshot:options.snapshot}:{}),
   ...(options.viewports?{viewports:options.viewports}:{}),
@@ -66,7 +68,7 @@ function build(site,manifests,blueprint,options={}){
  const rejected=new Set(decisions?.rejected.map(x=>x.taskId)||[]);
  const approved=new Set(decisions?.approved.map(x=>x.taskId)||[]);
  const deferred=new Set(decisions?.deferred.map(x=>x.taskId)||[]);
- const nextActions=backlog.tasks.filter(t=>!rejected.has(t.taskId)).slice(0,12).map(task=>({
+ const nextActions=backlog.tasks.filter(t=>!rejected.has(t.taskId)&&!deferred.has(t.taskId)).slice(0,12).map(task=>({
   taskId:task.taskId,priority:task.priority,owner:task.owner,
   category:task.category,pageId:task.pageId,dependsOn:task.dependsOn,
   instruction:task.instruction,decision:approved.has(task.taskId)?'approved-for-manual-work':deferred.has(task.taskId)?'deferred':'unreviewed',automatic:false
@@ -75,10 +77,11 @@ function build(site,manifests,blueprint,options={}){
   contract:acceptedFormats,coverage,
   blueprintReview:architecture,siteAudit:audit,
   htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
-  traceability,decisions,deliveryEvidence:delivery,
+  traceability,decisions,deliveryEvidence:delivery,executionPlan:execution,
   regression,handoff,backlog,release,nextActions,
   // Retain the original remediation Markdown first for consumers depending on its header.
-  markdownHandoff:renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability),
+  markdownHandoff:renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
+    '\n\n---\n\n'+EXECUTION.markdown(execution),
   integrationOrder:['verified-owner-facts','approved-prototypes-and-blueprint',
    'existing-site-v1-development','current-manifest-and-override-review',
    'existing-cms-save-and-publish','manual-http-browser-and-three-device-acceptance'],

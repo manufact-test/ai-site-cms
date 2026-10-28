@@ -390,6 +390,32 @@ try{
  assert.ok(reviewedBundle.traceability.pages.flatMap(p=>p.tasks).some(x=>x.decision==='approved'));
  assert.equal(reviewedBundle.release.readyToPublish,false);
  assert.ok(reviewedBundle.nextActions.every(x=>x.automatic===false));
+ const execution=JSON.parse(good('execution-plan',{site,blueprint:bp,snapshot:htmlSite,decisions:triageFile}));
+ assert.equal(execution.format,'manufact-seo-execution-plan-v1');
+ assert.equal(execution.summary.humanDecisionsRecorded,1);
+ assert.ok(execution.items.some(t=>t.decision==='approved'));
+ assert.ok(execution.items.every(t=>t.taskStillOpen&&t.automatic===false));
+ assert.equal(execution.summary.releaseAuthorized,false);
+ assert.equal(execution.summary.tasksAutomaticallyApplied,0);
+ const executionText=good('execution-plan-md',{site,blueprint:bp,decisions:triageFile,snapshot:htmlSite});
+ assert.match(executionText,/SEO implementation execution plan/);
+ assert.ok(reviewedBundle.markdownHandoff.includes('## Next review actions'));
+ assert.equal(reviewedBundle.executionPlan.summary.humanDecisionsRecorded,1);
+ const workflowPlan=require('../lib/execution-plan.cjs');
+ const syntheticBacklog={format:'manufact-seo-remediation-v1',readOnly:true,siteId:plan.siteId,
+  tasks:[
+   {taskId:'parent',key:'parent',priority:'P1',phase:'verify-facts',owner:'site-owner',dependsOn:[],sources:[],instruction:'Verify facts'},
+   {taskId:'child',key:'child',priority:'P1',phase:'developer-work',owner:'lead-developer',dependsOn:['parent'],sources:[],instruction:'Implement'},
+   {taskId:'ignored',key:'ignored',priority:'P3',phase:'validation',owner:'editor',dependsOn:[],sources:[],instruction:'No action'}
+  ]};
+ const synthDecisions={format:'manufact-seo-triage-result-v1',readOnly:true,releaseAuthorized:false,
+  siteId:plan.siteId,approved:[{taskId:'parent',reason:'approved'},{taskId:'child',reason:'approved'}],
+  rejected:[{taskId:'ignored',reason:'irrelevant'}],deferred:[],stale:[],
+  summary:{approved:2,rejected:1,deferred:0,stale:0}};
+ const phases=workflowPlan.compile(syntheticBacklog,synthDecisions);
+ assert.equal(phases.items.find(x=>x.taskId==='child').status,'blocked-on-unresolved-dependency');
+ assert.equal(phases.items.find(x=>x.taskId==='ignored').status,'excluded-by-human-decision');
+ assert.equal(phases.items.find(x=>x.taskId==='parent').status,'approved-for-manual-work');
  const unsupported=command('review-bundle',{site,blueprint:bp,unknown:'invalid'});
  assert.notEqual(unsupported.status,0);
  const {inspect:inspectEvidence}=require('../lib/html-evidence.cjs');
