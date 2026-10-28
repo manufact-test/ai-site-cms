@@ -398,7 +398,9 @@ async function stop(){
   const formHtml=(await request('GET','/published/'+id+'/contact/')).body;
   assert.match(formHtml,/name="message"/);
   assert.match(formHtml,/action="\/forms\/site-industrial-demo\/section-quote-form"/);
-  assert.match(formHtml,/name="_return" value="\/published\/site-industrial-demo\/contact\/"/);
+  const formReturn=/name="_return" value="([^"]+)"/.exec(formHtml)?.[1];
+  assert.ok(formReturn,'Published form needs an exact server-authored return path');
+  assert.equal(new URL(formReturn,origin).pathname,'/published/site-industrial-demo/contact/');
   const token=/name="_token" value="([a-f0-9]{64})"/.exec(formHtml)?.[1];
   assert.ok(token);
   const deliveryRoute=endpoint+'/delivery';
@@ -443,10 +445,10 @@ async function stop(){
   assert.equal(stoppedForm.status,503);
   assert.equal((await request('POST',endpoint+'/operations',
     {expectedRevision:3,enabled:false,message:''})).status,200);
-  const sent=await postForm({...values,_return:'/published/'+id+'/contact/'});
+  const sent=await postForm({...values,_return:formReturn});
   assert.equal(sent.status,201,sent.body);
   assert.match(sent.body,/заявка сохранена/);
-  assert.match(sent.body,/href="\/published\/site-industrial-demo\/contact\/"/);
+  assert.ok(sent.body.includes('href="'+formReturn+'"'));
   assert.match(sent.body,/Вернуться на сайт/);
   // Destination is frozen at receipt: changing routing cannot redirect the
   // already queued private lead to a different recipient.
@@ -2126,12 +2128,14 @@ async function stop(){
   assert.equal((await request('POST','/api/sites/site-english-thanks/publish',
     {expectedRevision:1})).status,200);
   const enPage=(await request('GET','/published/site-english-thanks/contact/')).body;
-  assert.match(enPage,/name="_return" value="\/published\/site-english-thanks\/contact\/"/);
+  const englishReturn=/name="_return" value="([^"]+)"/.exec(enPage)?.[1];
+  assert.ok(englishReturn);
+  assert.equal(new URL(englishReturn,origin).pathname,'/published/site-english-thanks/contact/');
   const enToken=/name="_token" value="([a-f0-9]{64})"/.exec(enPage)?.[1];
   assert.ok(enToken);
   const responseEn=await fetch(origin+'/forms/site-english-thanks/section-english-form',{
     method:'POST',headers:{origin,'content-type':'application/x-www-form-urlencoded'},
-    body:new URLSearchParams({_release:'1',_token:enToken,_return:'/published/site-english-thanks/contact/',
+    body:new URLSearchParams({_release:'1',_token:enToken,_return:englishReturn,
       website:'',name:'A Customer',email:'customer@example.test',
       message:'Please tell me about your services.',consent:'yes'})});
   assert.equal(responseEn.status,201);
@@ -2139,7 +2143,7 @@ async function stop(){
   assert.match(enReceipt,/<html lang="en">/);
   assert.match(enReceipt,/Thank you! Your request has been saved/);
   assert.match(enReceipt,/Return to website/);
-  assert.match(enReceipt,/href="\/published\/site-english-thanks\/contact\/"/);
+  assert.ok(enReceipt.includes('href="'+englishReturn+'"'));
   const urlCreated=await request('POST','/api/sites',{site:urlSite});
   assert.equal(urlCreated.status,201,JSON.stringify(urlCreated.body));
   assert.equal((await request('POST','/api/sites/site-url-ci/publish',{expectedRevision:1})).status,200);
