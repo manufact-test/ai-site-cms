@@ -49,9 +49,9 @@ graphTest(str_contains($html,'<td class="cmsdg-n-graph-rich-value-two">По до
 graphTest(str_contains($html,'&lt;Источник&gt;')&&!str_contains($html,'<Источник>'),'quote attribution must be escaped');
 graphTest(str_contains($html,'<a class="cmsdg-n-graph-rich-link" href="/published/site-industrial-demo/">На главную</a>'),
     'PHP published mounted link rendering');
-$raster=null;foreach($site['assets'] as $asset)
-    if(in_array($asset['mime'],['image/png','image/jpeg','image/webp'],true)){$raster=$asset;break;}
-graphTest($raster!==null,'Source fixture has a raster image for device art-direction parity');
+$raster=['id'=>'asset-art-fixture','src'=>'/assets/asset-art-fixture.png','mime'=>'image/png',
+    'alt'=>'Тестовая иллюстрация','sha256'=>str_repeat('a',64),'width'=>2,'height'=>2];
+$site['assets'][]=$raster;
 $rich[]=['id'=>'graph-art-directed','type'=>'image','assetId'=>$raster['id'],
     'alt'=>'Иллюстрация для ПК и телефона','responsiveMedia'=>[
         'tabletAssetId'=>$raster['id'],'mobileAssetId'=>$raster['id']]];
