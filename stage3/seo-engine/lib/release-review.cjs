@@ -47,6 +47,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const phpBrokenImages=find(t=>t.sources.some(s=>s.code==='php-capture:broken-rendered-image'&&s.severity==='error'));
  const localPhpProblems=find(t=>t.sources.some(s=>s.code?.startsWith('php-local:')&&s.severity==='error'));
  const localPhpReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-local:')&&s.severity!=='error'));
+ const localMediaErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-media:')&&s.severity==='error'));
+ const localMediaWarnings=find(t=>t.sources.some(s=>s.code?.startsWith('php-media:')&&s.severity!=='error'));
  const phpCapture=options.phpCapture||null;
  const suppliedOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean)
   .map(x=>new URL(x).href);
@@ -98,6 +100,12 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(localPhpReviews.length)add(reviews,'local-php-seo-endpoint-review',
   'Review observed local PHP robots, sitemap and endpoint configuration',
   'HTTP status/type, public-origin setting and the actual published build need operator confirmation before release.',localPhpReviews);
+ if(localMediaErrors.length)add(blockers,'local-php-media-integrity',
+  'Repair observed PHP media delivery and OG/variant integrity',
+  'Hash-checked local PHP responses include failed OG requests, variant SHA or media byte/ETag anomalies. Verify the current published media before public release.',localMediaErrors);
+ if(localMediaWarnings.length)add(reviews,'local-php-media-quality-review',
+  'Review other local PHP media errors or missing immutability metadata',
+  'Actual local image/video response differed from expected Site v1 MIME, status or ETag. Not a public HTTPS or visual quality attestation.',localMediaWarnings);
  if(mediaProblems.length)add(blockers,'captured-og-media-conflict',
   'Resolve broken public OG assets, MIME conflicts and invalid OG URLs',
   'The supplied media transcript conflicts with Site v1; verify at the actual host.',mediaProblems);

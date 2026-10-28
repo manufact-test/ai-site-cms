@@ -132,6 +132,9 @@ function build(site,manifests,blueprint,options={}){
   localPhpRobotsStatus:options.phpHtml?.publication?.robotsStatus??null,
   localPhpSitemapStatus:options.phpHtml?.publication?.sitemapStatus??null,
   localPhpRedirectResponses:options.phpHtml?.publication?.redirectResponses??null,
+  localPhpMediaResources:options.phpHtml?.localMedia?.capturedResources??null,
+  localPhpMediaBytesChecked:options.phpHtml?.localMedia?.savedBodyBytes??null,
+  localPhpMediaFindings:options.phpHtml?.localMedia?.findings.length??null,
   screenshotFileDigestsChecked:Boolean(options.phpCapture),
   screenshotCaptureExactSiteRevisionProven:false,
   publicHttpsAndSeoHeadVerified:false};
@@ -148,6 +151,14 @@ function build(site,manifests,blueprint,options={}){
  }));
  return {format:FORMAT,version:1,siteId:site.siteId,readOnly:true,
   contract:acceptedFormats,coverage,approvedSiteSource:approvedSource,phpCapture:options.phpCapture||null,
+  localPhpMedia:options.phpHtml?.localMedia?{
+    format:options.phpHtml.localMedia.format,fullyCaptured:options.phpHtml.localMedia.fullyCaptured,
+    savedBodyBytes:options.phpHtml.localMedia.savedBodyBytes,
+    capturedResources:options.phpHtml.localMedia.capturedResources,
+    resources:options.phpHtml.localMedia.resources,
+    findings:options.phpHtml.localMedia.findings,
+    publicHttpsProven:false,releaseAuthorized:false
+  }:null,
   localPhpPublication:options.phpHtml?.publication?{
     format:options.phpHtml.publication.format,
     robotsStatus:options.phpHtml.publication.robotsStatus,
@@ -162,6 +173,7 @@ function build(site,manifests,blueprint,options={}){
     capturedAt:options.phpHtml.capturedAt,baseUrl:options.phpHtml.baseUrl,
     pageCount:options.phpHtml.pageCount,checkedHtmlBytes:options.phpHtml.checkedHtmlBytes,
     checkedAuxiliaryBytes:options.phpHtml.checkedAuxiliaryBytes,
+    checkedMediaBytes:options.phpHtml.localMedia?.savedBodyBytes??null,
     loopbackHttp200Count:options.phpHtml.loopbackHttp200Count,
     sha256VerifiedAtRead:true,sourceSiteSha256:options.phpHtml.sourceSiteSha256,
     sourceRevisionAuthenticated:false,realPublicHttpsChecked:false,
@@ -199,7 +211,8 @@ function build(site,manifests,blueprint,options={}){
       '- HTTP 200 responses: '+options.phpHtml.loopbackHttp200Count+
         '; verified HTML files: '+options.phpHtml.pageCount+
         '; HTML bytes: '+options.phpHtml.checkedHtmlBytes+
-        '; separately verified robots/sitemap/301 bytes: '+options.phpHtml.checkedAuxiliaryBytes+'.\n'+
+        '; separately verified robots/sitemap/301 bytes: '+options.phpHtml.checkedAuxiliaryBytes+
+        '; media binary bytes: '+(options.phpHtml.localMedia?.savedBodyBytes??'none')+'.\n'+
       '- SEO head, H1, links and indexation checked by existing HTML/parity modules against the captured bytes.\n'+
       '- Source digest recorded at capture, but source revision served by PHP NOT cryptographically attested. No public HTTPS, forms, scripts, actual design equality or client approval verified.\n':'')+
     '\n\n---\n\n'+renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
