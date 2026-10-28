@@ -60,3 +60,12 @@ CMS НЕ генерирует сайты и НЕ включает собстве
 Реальные исходники SDK и манифесты проверялись в V8-окружении с shim; отдельно проверялась сборка package/triage, сценарии частичных/полных HTML snapshots, schema/viewport/CTA/regression. **Это НЕ настоящий запуск Node CLI, GitHub Actions/CI или проверка production.** Если где-либо видишь слово PASS, оцени точную область проверки. No auto-applied proposals.
 
 Новый разработчик должен начать с проверки HEAD ветки и технического состояния, а затем самостоятельно взять **следующий большой пакет** из перечисленного, не задавая пользователю вопросов, на которые уже есть ответы.
+
+
+## Large publisher-and-route compatibility sprint — 28.10.2026
+
+The latest worker commit should be read from the GitHub branch head (do not reuse earlier SHA). Work now covers publisher-derived OG fallback from legacy `content.media` and nested Design Graph, strict OG/Twitter HTTPS URL handling, a real-SDK-validated social-media fixture, substantial client SEO/UX explanation, 301 redirect migration checks keyed by stable page IDs, and captured `Location`/HTTP status verification. Full route migration connects `route-migration`, `remediation`, `release-review`, `capture-plan --before`, `delivery-review --delivery` and `review-bundle`. No CMS changes, live HTTP or automatic release.
+
+**Next single large goal (not microtasks):** have the lead run the full Node smoke against the latest lead branch and provide one *actual* client-approved project Site v1 + Blueprint + three approved static images / browser/HTTP outputs. Resolve contract/manifest/renderer integration as one batch and produce one reviewed release handoff. Do not invent actual signoffs or success on a synthetic fixture; do not add unrelated infrastructure or duplicate SEO administration.
+
+Lead current SDK was checked read-only and already enforces Design Graph for custom-section, which is stricter than the worker branch base. Actual V8 validation on the real lead SDK and real company/feature/contact/media manifests passed; this **is not** a complete Node smoke or GitHub Actions run.
