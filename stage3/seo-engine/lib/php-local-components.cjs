@@ -46,6 +46,20 @@ function sectionById(html,id){
  if(count!==1||start<0||end<=start)return null;
  return clean.slice(start,end);
 }
+// Content-switcher panels are nested <section> tags. A generic regex for
+// sections would swallow the outer section through the first panel close.
+function panelsIn(root){
+ const matches=[];
+ for(const m of root.matchAll(/<section\b([^>]*)>/gi)){
+  const attributes=attr(m[1]);
+  if(!classHas(attributes,'cms-switcher-panel'))continue;
+  const tail=root.slice(m.index+m[0].length);
+  const end=tail.search(/<\/section\s*>/i);
+  if(end<0)continue;
+  matches.push({attributes,html:tail.slice(0,end),text:text(tail.slice(0,end))});
+ }
+ return matches;
+}
 function links(s){
  return elements(s,'a').map(x=>({...x,href:x.attributes.href||''}));
 }
@@ -119,7 +133,7 @@ function review(site,snapshot){
    }else if(component.component==='content-switcher'){
     const radios=openTags(root,'input').filter(x=>classHas(x.attributes,'cms-switcher-radio'));
     const labels=elements(root,'label').filter(x=>classHas(x.attributes,'cms-switcher-tab'));
-    const panels=elements(root,'section').filter(x=>classHas(x.attributes,'cms-switcher-panel'));
+    const panels=panelsIn(root);
     const fieldsets=openTags(root,'fieldset').filter(x=>classHas(x.attributes,'cms-switcher'));
     if(radios.length!==items.length||labels.length!==items.length||
        panels.length!==items.length||fieldsets.length!==1){
