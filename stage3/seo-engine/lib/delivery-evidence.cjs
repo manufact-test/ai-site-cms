@@ -38,7 +38,7 @@ function assertEvidence(e){
   !e.origin||typeof e.origin!=='string')throw Error('Invalid HTTP delivery evidence');
  const u=urlFrom(e.origin,'capture origin');
  if(!u.pathname.endsWith('/'))throw Error('Capture origin must end with / (including mount)');
- if(Object.keys(e).some(k=>!['format','siteId','origin','pages','robots','sitemap','capturedAt'].includes(k)))
+ if(Object.keys(e).some(k=>!['format','siteId','origin','pages','robots','sitemap','redirects','capturedAt'].includes(k)))
   throw Error('Unsupported delivery evidence field');
  if(e.capturedAt!==undefined&&(typeof e.capturedAt!=='string'||
   !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(e.capturedAt)||
@@ -56,6 +56,19 @@ function assertEvidence(e){
   used.add(p.id);
   urlFrom(p.requestUrl,'page request URL',true);urlFrom(p.responseUrl,'page response URL',true);
   headersOf(p.headers);
+ }
+ if(e.redirects!==undefined){
+  if(!Array.isArray(e.redirects)||e.redirects.length>60)throw Error('Invalid redirect capture count');
+  const aliases=new Set();
+  for(const item of e.redirects){
+   if(!item||typeof item!=='object'||Array.isArray(item)||
+    Object.keys(item).some(k=>!['from','requestUrl','status','location'].includes(k))||
+    typeof item.from!=='string'||!routePattern.test(item.from)||aliases.has(item.from)||
+    typeof item.requestUrl!=='string'||!Number.isInteger(item.status)||item.status<100||item.status>599||
+    typeof item.location!=='string'||item.location.length>2048||/[\x00-\x1f]/.test(item.location))
+    throw Error('Invalid HTTP redirect response');
+   aliases.add(item.from);urlFrom(item.requestUrl,'redirect request',true);
+  }
  }
  for(const [key,limit] of [['robots',250000],['sitemap',750000]]){
   const x=e[key];if(x===undefined)continue;
@@ -182,6 +195,46 @@ function review(site,evidence){
  const missing=site.pages.filter(p=>!seen.has(p.id)).map(p=>({pageId:p.id,path:p.path}));
  for(const p of missing)add('delivery:page-unchecked','recommendation',p.pageId,p.path,
   'No response was supplied for this Site v1 page; availability and indexation cannot be concluded.');
+ const aliases=new Map((site.redirects||[]).map(r=>[r.from,r.to]));
+ const redirectReviews=[],seenRedirects=new Set();
+ for(const sample of evidence.redirects||[]){
+  seenRedirects.add(sample.from);
+  const wanted=aliases.get(sample.from)||null;
+  const request=urlFrom(sample.requestUrl,'redirect source',true);
+  const expectedSource=base(evidence.origin,sample.from);
+  const expectedTarget=wanted?base(evidence.origin,wanted):null;
+  const check={from:sample.from,to:wanted,expectedUrl:expectedSource.href,
+   requestUrl:request.href,status:sample.status,location:sample.location,
+   expectedLocation:expectedTarget?.href||null,verifiedLive:false};
+  if(!wanted)add('delivery:redirect-unmapped','warning',null,sample.from,
+   'Observed redirect path is not an alias declared in current Site v1; review historical source.');
+  if(request.href!==expectedSource.href)
+   add('delivery:redirect-request-url-mismatch','warning',null,sample.from,
+    'Supplied redirect request URL differs from public mount and alias.',
+    {expectedUrl:expectedSource.href,observedUrl:request.href});
+  if(wanted&&sample.status!==301)
+   add('delivery:redirect-status-drift','error',null,sample.from,
+    'Site v1 publisher expects permanent HTTP 301 for this redirect alias.',
+    {status:sample.status,expectedStatus:301});
+  try{
+   if(!sample.location)throw Error('missing-location');
+   const actual=new URL(sample.location,request);
+   if(actual.protocol!=='https:'||actual.username||actual.password||actual.hash)
+    throw Error('unsafe-location');
+   if(wanted&&actual.href!==expectedTarget.href)
+    add('delivery:redirect-location-drift','error',null,sample.from,
+     'HTTP Location does not match declared Site v1 alias target, public host and mount.',
+     {expectedUrl:expectedTarget.href,observedUrl:actual.href});
+   check.resolvedLocation=actual.href;
+  }catch{
+   add('delivery:redirect-location-invalid',wanted?'error':'warning',null,sample.from,
+    'Redirect Location is missing, invalid or unsafe.');
+  }
+  redirectReviews.push(check);
+ }
+ for(const alias of site.redirects||[])if(!seenRedirects.has(alias.from))
+  add('delivery:redirect-not-captured','recommendation',null,alias.from,
+   'Site v1 declares a redirect alias but no HTTP 301/Location transcript was supplied.');
  const robots=evidence.robots;
  if(robots){
   if(robots.status!==200)add('delivery:robots-status','warning',null,'/robots.txt',
@@ -233,10 +286,11 @@ function review(site,evidence){
   origin:evidence.origin,capturedAt:evidence.capturedAt??null,
   coverage:{sitePages:site.pages.length,capturedPages:summaries.length,missingPages:missing,
    capturesHaveHtml:summaries.filter(x=>x.headPresent).length,
+   redirectsDeclared:aliases.size,redirectResponsesCaptured:redirectReviews.length,
    robotsCaptured:Boolean(robots),sitemapCaptured:Boolean(sitemap),
    sitemapKind:parsed?.kind??null,liveRequestsPerformedByToolkit:false,
    independentlyVerifiedProvenance:false},
-  pages:summaries,findings,
+  pages:summaries,redirects:redirectReviews,findings,
   releaseAuthorized:false,
   limitations:'All HTTP status, response headers, bodies, origin and capture timestamps are caller-provided. The toolkit neither fetches nor authenticates them. A successful supplied response does not prove real availability, indexation, visual quality, form delivery or release acceptance.'};
 }

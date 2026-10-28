@@ -31,7 +31,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const sitemapProblems=find(t=>t.sources.some(s=>['publication:sitemap-noindex','publication:sitemap-indexable-missing'].includes(s.code)));
  const deliveryProblems=find(t=>t.sources.some(s=>['delivery:non-success-status','delivery:indexability-drift',
   'delivery:canonical-invalid','delivery:sitemap-indexable-absent','delivery:sitemap-noindex-listed',
-  'delivery:unmatched-page'].includes(s.code)&&s.severity==='error'));
+  'delivery:unmatched-page','delivery:redirect-status-drift','delivery:redirect-location-drift',
+  'delivery:redirect-location-invalid'].includes(s.code)&&s.severity==='error'));
  const deliveryReview=find(t=>t.sources.some(s=>s.code?.startsWith('delivery:')&&s.severity!=='error'));
  const mediaProblems=find(t=>t.sources.some(s=>['media:resource-status-error','media:resource-mime-mismatch',
   'media:og-image-not-image','media:invalid-og-image-url',

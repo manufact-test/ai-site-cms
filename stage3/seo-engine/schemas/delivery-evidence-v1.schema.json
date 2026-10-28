@@ -78,6 +78,39 @@
     },
     "sitemap": {
       "$ref": "#/$defs/resource"
+    },
+    "redirects": {
+      "type": "array",
+      "maxItems": 60,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "requestUrl",
+          "status",
+          "location"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "pattern": "^/(?:[a-z0-9-]+/)*$"
+          },
+          "requestUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        }
+      }
     }
   },
   "$defs": {

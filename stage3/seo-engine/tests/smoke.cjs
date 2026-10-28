@@ -649,6 +649,29 @@ try{
  assert.equal(routeCapture.summary.httpResponsesActuallyCaptured,0);
  const migrationBundle=JSON.parse(good('review-bundle',{before:site,site:aliasPath,blueprint:bp}));
  assert.equal(migrationBundle.routeMigration.summary.correctMappedAliases,1);
+ // Caller-supplied 301 evidence must agree with declared aliases and public mount.
+ const goodMovedDelivery=JSON.parse(fs.readFileSync(deliveryExample,'utf8'));
+ goodMovedDelivery.pages[1].path='/team/';
+ goodMovedDelivery.pages[1].requestUrl='https://cms-example.test/team/';
+ goodMovedDelivery.pages[1].responseUrl='https://cms-example.test/team/';
+ goodMovedDelivery.sitemap.body=goodMovedDelivery.sitemap.body.replaceAll('/contact/','/team/');
+ goodMovedDelivery.redirects=[{from:'/contact/',requestUrl:'https://cms-example.test/contact/',
+  status:301,location:'https://cms-example.test/team/'}];
+ const redirectEvidencePath=path.join(tmp,'redirect-delivery.json');
+ fs.writeFileSync(redirectEvidencePath,JSON.stringify(goodMovedDelivery));
+ const redirectDelivery=JSON.parse(good('delivery-review',{site:aliasPath,delivery:redirectEvidencePath}));
+ assert.equal(redirectDelivery.coverage.redirectResponsesCaptured,1);
+ assert.ok(!redirectDelivery.findings.some(x=>x.code.startsWith('delivery:redirect-')&&x.severity==='error'));
+ goodMovedDelivery.redirects[0].status=302;
+ goodMovedDelivery.redirects[0].location='https://cms-example.test/unexpected/';
+ fs.writeFileSync(redirectEvidencePath,JSON.stringify(goodMovedDelivery));
+ const wrongRedirect=JSON.parse(good('delivery-review',{site:aliasPath,delivery:redirectEvidencePath}));
+ assert.ok(wrongRedirect.findings.some(x=>x.code==='delivery:redirect-status-drift'));
+ assert.ok(wrongRedirect.findings.some(x=>x.code==='delivery:redirect-location-drift'));
+ const wrongRedirectRelease=JSON.parse(good('release-review',{
+  before:site,site:aliasPath,blueprint:bp,delivery:redirectEvidencePath}));
+ assert.ok(wrongRedirectRelease.blockers.some(x=>x.gateId==='captured-delivery-conflict'));
+
  // An approved field proposal is safe to model on a clone but never applied to CMS.
  const impact=JSON.parse(good('change-impact',{site,blueprint:bp,snapshot:htmlSite,decisions:triageFile}));
  assert.equal(impact.format,'manufact-seo-change-impact-v1');
