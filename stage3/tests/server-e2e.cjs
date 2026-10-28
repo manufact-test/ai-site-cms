@@ -101,6 +101,33 @@ async function stop(){
       {cwd:root,env:{...env,STAGE3_ALLOW_VIDEO_UPGRADE:'YES'},encoding:'utf8'});
     assert.equal(upgraded.status,0,upgraded.stderr);
   }
+  // Offline engine package is separate from public visitor ZIPs. Packaging
+  // never deploys, migrates, overwrites, accepts hidden files or trusts its
+  // own unsigned manifest as a security signature.
+  const cmsRelease=path.join(dbdir,'cms-offline-release');
+  const cmsRelease2=path.join(dbdir,'cms-offline-release-2');
+  for(const output of [cmsRelease,cmsRelease2]){
+    const pack=spawnSync('node',['stage3/bin/cms-release.cjs','pack',root,output],
+      {cwd:root,encoding:'utf8'});
+    assert.equal(pack.status,0,pack.stderr);
+    assert.equal(JSON.parse(pack.stdout).deployed,false);
+    const verify=spawnSync('node',['stage3/bin/cms-release.cjs','verify',output],
+      {cwd:root,encoding:'utf8'});
+    assert.equal(verify.status,0,verify.stderr);
+    assert.equal(JSON.parse(verify.stdout).valid,true);
+  }
+  const diff=spawnSync('node',['stage3/bin/cms-release.cjs','compare',cmsRelease,cmsRelease2],
+    {cwd:root,encoding:'utf8'});
+  assert.equal(diff.status,0,diff.stderr);
+  assert.equal(JSON.parse(diff.stdout).unchanged,true);
+  assert.equal(JSON.parse(diff.stdout).deploymentPerformed,false);
+  fs.appendFileSync(path.join(cmsRelease2,'stage3/studio/hosted.css'),'/* deliberate tamper */');
+  assert.notEqual(spawnSync('node',['stage3/bin/cms-release.cjs','verify',cmsRelease2],
+    {cwd:root,encoding:'utf8'}).status,0,'tampered engine package must be rejected');
+  fs.mkdirSync(path.join(cmsRelease,'stage3/studio/tests'));
+  assert.notEqual(spawnSync('node',['stage3/bin/cms-release.cjs','verify',cmsRelease],
+    {cwd:root,encoding:'utf8'}).status,0,'hidden excluded directory must be rejected');
+
   await runServer();
   const studioAsset=await fetch(origin+'/bundle.js',{headers:{'accept-encoding':'gzip'}});
   assert.equal(studioAsset.status,200);
