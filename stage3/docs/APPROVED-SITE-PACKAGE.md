@@ -208,3 +208,22 @@ No DDL on HTTP requests, no main/prod migration in this development batch. The o
 Owner Studio **Проверка сайта** now offers **«Рядом с макетом»** and **«Утверждённый макет»** alongside the PHP draft/public modes, once a complete private sealed v2 evidence package has been stored. The static source image is SHA-256 checked from the authenticated vault before display; the selected desktop/tablet/mobile reference is shown next to the real PHP draft at that device width, with independent full-page scrolling. This is particularly useful for the first homepage pilot (the handoff's three images describe the full design, not necessarily a separate image for each internal page). Other pages can still be inspected, but the report only marks the original prototype as compared when the page path is `/` to avoid incorrectly claiming a page-specific reference.
 
 A JSON launch review records the **exact original package version and SHA-256** and separately which homepage viewport references the owner opened. These are audit hints, **not an automated equivalence judgement or a claim of genuine client approval**. Manual checking of the full site, real approved files and actual client sign-off remains mandatory. Save, Publish and rollback are still explicit and independent. Original mockups never become editable HTML or executable scripts.
+
+
+## Page-specific approved prototypes (optional on sealed v2)
+
+For complex custom sites the **same** sealed v2 `handoff.json` can reference **independent full-page desktop/tablet/mobile images for interior pages**, keyed by stable `site.json` page IDs. The top-level three images remain required and always represent the homepage. Example (additional member of `files`):
+
+```json
+"pagePrototypes": {
+  "page-services": {
+    "desktop": "prototypes/services-desktop.png",
+    "tablet": "prototypes/services-tablet.png",
+    "mobile": "prototypes/services-mobile.png"
+  }
+}
+```
+
+The `pagePrototypes` member is **optional**, sealed v2 only, at most 20 distinct **interior** pages; every configured page must exist in `site.json`, must have all three separate original images, and cannot duplicate a path already included in the package. The existing `seal-approved-site.cjs` includes these files in the original SHA256 ledger, `verify-approved-site.cjs` checks every image, and `audit-approved-site.cjs` reports which pages have actual approved references. Studio pre-import review switches the *original image and live draft page together* when changing the page selector, never relabeling the homepage as an approved interior screenshot. Studio retains the original bytes in private approval evidence under stable `ref-<index>-<device>` keys, indexed by sorted page ID; the owner can download all, and extra screenshots only load into the evidence UI when requested to avoid fetching dozens of large files. Full backup v2 and isolated restore retain the complete extended evidence. The PHP full-page launch review uses the correct page-specific screenshot when available and records exactly which pages/devices were actually compared; a missing reference is reported as missing, never silently substituted by the homepage.
+
+Total portable package still has the existing 100 MB preflight budget; the `manufact-site-backup-v2` JSON archive still has a 64 MB cap and explicitly fails when exceeded. These are honest operational bounds, not permission to silently omit signed client materials. A real client handoff may carry only the required homepage images, or per-page images as needed. None of these checks establish that any human actually approved the design.

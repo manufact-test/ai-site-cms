@@ -3024,8 +3024,10 @@
         if(current.site.siteId!==site.siteId||current.site.title!==site.title)
           throw Error('Пакет относится к другому сайту; архив не изменён');
         await archiveApproval();
-        notice('Макеты '+(1+Object.keys(pageReferences).length)+
-          ' страниц и исходная спецификация сохранены в закрытом архиве. Сайт и публикация не изменены.');
+        notice(Object.keys(pageReferences).length?
+          'Макеты '+(1+Object.keys(pageReferences).length)+
+            ' страниц и исходная спецификация сохранены в закрытом архиве. Сайт и публикация не изменены.':
+          'Три макета, два описания и исходный handoff сохранены в закрытом архиве. Сайт и публикация не изменены.');
         return;
       }
       let created=false,resumed=false;
@@ -3264,11 +3266,18 @@
           element('small',null,'SHA-256 handoff: '+entry.packageSha+' · '+entry.createdAt));
         const previews=element('div');
         Object.assign(previews.style,{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:'10px'});
-        for(const kind of approvalKinds){
+        const additional=Object.entries(entry.pageReferences||{}).flatMap(([pageId,refs])=>
+          ['desktop','tablet','mobile'].map(bp=>({pageId,kind:refs[bp],bp})));
+        if(additional.length)section.append(element('p',null,
+          'Дополнительные изображения страниц: '+(additional.length/3)+
+          ' · нажмите «Показать», чтобы загрузить конкретный макет.'));
+        for(const kind of [...approvalKinds,...additional.map(row=>row.kind)]){
           if(!entry.files[kind])continue;
           const fileRow=element('div');fileRow.style.minWidth='0';
           const digest=entry.files[kind].sha256;
-          const label=element('small',null,kind+' · '+entry.files[kind].bytes+' B');
+          const pageImage=additional.find(row=>row.kind===kind);
+          const label=element('small',null,(pageImage?
+            pageImage.pageId+' · '+pageImage.bp:kind)+' · '+entry.files[kind].bytes+' B');
           const save=action('Скачать','',()=>safe(async()=>{
             const response=await fetch(privateApprovalUrl(entry.packageSha,kind),
               {credentials:'same-origin',cache:'no-store'});
@@ -3296,6 +3305,30 @@
             img.src=url;fileRow.prepend(img);previews.append(fileRow);
           }else{
             section.append(fileRow);
+            if(pageImage){
+              // A full 20-page package can hold 60 large screenshots.
+              // Never fetch all originals on dialog open; verify and preview
+              // each image only when the owner requests that one.
+              const reveal=action('Показать макет','',()=>safe(async()=>{
+                const response=await fetch(privateApprovalUrl(entry.packageSha,kind),
+                  {credentials:'same-origin',cache:'no-store'});
+                if(!response.ok)throw Error('Макет недоступен');
+                const bytes=await response.arrayBuffer();
+                const actual=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
+                  .map(b=>b.toString(16).padStart(2,'0')).join('');
+                if(actual!==digest)throw Error('Несовпадение SHA-256 макета '+kind);
+                const header=new Uint8Array(bytes.slice(0,12));
+                const mime=header[0]===137?'image/png':header[0]===255?'image/jpeg':'image/webp';
+                const url=URL.createObjectURL(new Blob([bytes],{type:mime}));
+                if(!approvalVault.open){URL.revokeObjectURL(url);return;}
+                approvalUrls.add(url);
+                const img=element('img');img.alt='Утверждённый макет '+pageImage.pageId+' '+pageImage.bp;
+                Object.assign(img.style,{display:'block',width:'100%',maxHeight:'450px',objectFit:'contain'});
+                await img.decode?.().catch(()=>{});
+                fileRow.append(img);img.src=url;reveal.disabled=true;
+              }));
+              fileRow.append(reveal);
+            }
             if(['clientExplanation','implementationSpec'].includes(kind)){
               const response=await fetch(privateApprovalUrl(entry.packageSha,kind),
                 {credentials:'same-origin',cache:'no-store'});
