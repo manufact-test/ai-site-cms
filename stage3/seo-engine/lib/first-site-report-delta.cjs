@@ -8,6 +8,16 @@ const BUNDLE='manufact-seo-review-bundle-v1';
 const MAX_SUMMARY=800000,MAX_BUNDLE=42000000;
 const GROUPS=['localPhpHead','localPhpNavigation','localPhpGraph','localPhpComponents',
  'localPhpForms','localPhpMedia','localPhpPublication'];
+const GATES={
+ 'local-php-head-indexation-or-origin':'localPhpHead',
+ 'local-php-navigation-parity':'localPhpNavigation',
+ 'local-php-design-graph-parity':'localPhpGraph',
+ 'local-php-component-parity':'localPhpComponents',
+ 'local-php-form-markup':'localPhpForms',
+ 'local-php-media-integrity':'localPhpMedia',
+ 'local-php-published-seo-conflict':'localPhpPublication',
+ 'php-published-broken-images':'phpCapture'
+};
 const safe=(x,max=250)=>String(x??'').replace(/[\u0000-\u001f\u007f]/g,' ')
  .replace(/[|]/g,' / ').replace(/[\x60*_<>{}\[\]#]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 function file(folder,name,max){
@@ -94,8 +104,12 @@ function build(previous,currentSummary,currentBundle){
  const changed=diff(priorFindings,newFindings);
  const previousGates=new Set(pb.release.blockers.map(x=>x.gateId));
  const latestGates=new Set(currentBundle.release.blockers.map(x=>x.gateId));
- const newGates=[...latestGates].filter(x=>!previousGates.has(x));
- const gatesNotObserved=[...previousGates].filter(x=>!latestGates.has(x));
+ const gateComparable=id=>!GATES[id]||
+    (GATES[id]==='phpCapture'?screenshotsComparable:commonGroups.includes(GATES[id]));
+ const newGates=[...latestGates].filter(x=>!previousGates.has(x)&&gateComparable(x));
+ const gatesNotObserved=[...previousGates].filter(x=>!latestGates.has(x)&&gateComparable(x));
+ const incomparableGates=[...new Set([...previousGates,...latestGates])]
+  .filter(x=>!gateComparable(x));
  const persistentGates=[...latestGates].filter(x=>previousGates.has(x));
  const previousVersion=prior.publishedVersion??null;
  const currentVersion=currentSummary.publishedVersion??null;
@@ -146,6 +160,7 @@ function build(previous,currentSummary,currentBundle){
   '- Newly present: '+(newGates.map(x=>safe(x,120)).join(', ')||'none')+'.',
   '- No longer present: '+(gatesNotObserved.map(x=>safe(x,120)).join(', ')||'none')+'.',
   '- Still present: '+(persistentGates.map(x=>safe(x,120)).join(', ')||'none')+'.',
+  '- Incomparable because technical evidence scope changed: '+(incomparableGates.map(x=>safe(x,120)).join(', ')||'none')+'.',
   '','## Required operator check','',
   '- [ ] Confirm both captured versions correspond to the intended CMS published release and equivalent PHP server configuration.',
   '- [ ] Compare changed actual PHP HTML plus desktop/tablet/mobile screenshots for the affected pages.',
@@ -163,7 +178,8 @@ function build(previous,currentSummary,currentBundle){
   comparedFromSourceSha256:prior.sourceSiteSha256,
   previousCaptureAt:prior.capturedAt,currentCaptureAt:currentSummary.capturedAt,
   summary,findings:changed,
-  gates:{newlyPresent:newGates,noLongerPresent:gatesNotObserved,persistent:persistentGates},
+  gates:{newlyPresent:newGates,noLongerPresent:gatesNotObserved,
+    persistent:persistentGates,notComparable:incomparableGates},
   markdown:lines.join('\n'),
   manualFixesVerified:false,phpBuildIdentityVerified:false,publicHttpsVerified:false,
   releaseAuthorized:false};
