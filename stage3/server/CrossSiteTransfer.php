@@ -59,7 +59,7 @@ trait CrossSiteTransfer
             }
             unset($value);
         };
-        $walk=function(array &$nodes) use(&$walk,$style): void {
+        $walk=function(array &$nodes) use(&$walk,$style,$tokens,&$count): void {
             foreach($nodes as &$node) {
                 if(isset($node['styles']))$style($node['styles']);
                 foreach(['tablet','mobile'] as $breakpoint)
