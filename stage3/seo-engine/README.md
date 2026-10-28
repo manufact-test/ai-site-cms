@@ -65,6 +65,7 @@ The full `review-bundle` includes a canonical blueprint architecture review, cor
 
 | Command | Purpose | Required input |
 |---|---|---|
+| `route-migration` | Compare former/current Site v1 pages, declared 301 aliases and old authored links | `--before --site --blueprint` |
 | `review-bundle-md` | Complete lead Markdown: release overview, remediation, mapping, execution and CMS field review | `--site --blueprint`, optional evidence/acceptance/decision flags |
 | `change-impact` | Simulate human-approved CMS field proposals on a temporary Site v1 clone; validate with existing core SDK and analyze hypothetical regression | `--site --blueprint --decisions`, optional evidence flags |
 | `acceptance-template`, `acceptance-review` | Revision-bound human acceptance evidence for three prototype images and seven lead gates | `--site --blueprint`, `--acceptance` to review |
@@ -108,6 +109,8 @@ Fixtures include industrial and community briefs/plans; clean, defective, public
 ### First-site acceptance and revision reconciliation
 
 `acceptance-template --site <site.json> --blueprint <blueprint.json>` creates an empty human-approval ledger bound to SHA-256 of the approved Blueprint and actual Site v1 JSON. The lead must supply *three distinct static* desktop/tablet/mobile image references and SHA-256 values, client signoff, and all seven manual gate attestations with actor, date and evidence reference. `acceptance-review --acceptance <ledger.json>` reports incomplete, rejected or stale revision assertions; `release-review --acceptance ...` blocks explicit rejections or changed revisions. None of these assertions is independently authenticated, and even a complete ledger cannot auto-authorize release.
+
+`route-migration --before <prior-site.json> --site <current-site.json> --blueprint <blueprint.json>` checks exact supported Site v1 `redirects: [{from,to}]` after a stable page's slug changes. It flags missing or incorrect 301 aliases, removed indexable pages, old authored links and indexation changes, and adds human HTTP Location/canonical probes via `capture-plan --before ...`. The checks are read-only; a saved alias is not proof of live HTTP 301.
 
 `task-progress --before <prior-site.json> --site <site.json> --blueprint <blueprint.json>` compares two **like-for-like, Site v1-only** remediation backlogs using the same Blueprint and component manifests; optional `--prior-decisions` reconciles human decisions against the **prior** queue. The report separates vanished, introduced, persistent and modified tasks, and marks any matching accepted field change as a *candidate*, never a proven completion. Deployment captures are excluded from historical comparison to avoid misleading closures.
 

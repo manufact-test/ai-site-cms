@@ -12,6 +12,7 @@ const PUBLICATION=require('./publication-integrity.cjs');
 const DELIVERY=require('./delivery-evidence.cjs');
 const MEDIA=require('./media-delivery.cjs');
 const CONSISTENCY=require('./evidence-consistency.cjs');
+const MIGRATION=require('./route-migration.cjs');
 const FORMAT='manufact-seo-remediation-v1';
 const priorityRank={P0:0,P1:1,P2:2,P3:3};
 const phaseOrder={'verify-facts':0,'plan-approval':1,'developer-work':2,'cms-review':3,'validation':4};
@@ -54,6 +55,7 @@ function work(site,manifests,blueprint,options={}){
  const consistency=CONSISTENCY.review(site,options);
  const deviceEvidence=options.viewports?VIEWPORT.review(options.viewports,plan):null;
  const regression=options.baselineSite?REGRESSION.compare(options.baselineSite,site,manifests,plan):null;
+ const migration=options.baselineSite?MIGRATION.review(options.baselineSite,site,manifests,plan):null;
  const pagePaths=new Map([...plan.pages,...site.pages].map(p=>[p.id,p.path]));
  const tasks=new Map();
  function add(key,params){
@@ -135,7 +137,7 @@ function work(site,manifests,blueprint,options={}){
  }
  function issueTask(x,kind){
   if(covered(x))return;
-  const group=bucket(x.code);
+  const group=x.code.startsWith('migration:')?'site-links':bucket(x.code);
   const key=['investigate',kind,x.pageId||'',x.sectionId||'',x.targetPageId||'',
    x.field||'',x.device||'',x.code,x.fragment||'',x.href||'',x.topic||'',
    x.assetId||'',x.schemaType||'',group].join('|');
@@ -186,6 +188,7 @@ function work(site,manifests,blueprint,options={}){
  if(htmlEvidence)for(const x of htmlEvidence.findings)issueTask(x,'html-deep');
  if(publicationIntegrity)for(const x of publicationIntegrity.findings)issueTask(x,'publication-integrity');
  if(deviceEvidence)for(const x of deviceEvidence.findings)issueTask(x,'viewport-capture');
+ if(migration)for(const x of migration.findings)issueTask(x,'route-migration');
  if(regression){
   for(const x of regression.introduced)issueTask({...x,code:'regression:'+x.code},'site-regression');
   for(const x of regression.escalated)issueTask({...x.after,code:'regression:'+x.after.code},'site-regression');
@@ -235,6 +238,7 @@ function work(site,manifests,blueprint,options={}){
    httpDeliveryFindingCount:delivery?.findings.length??null,
    mediaFindingCount:media?.findings.length??null,
    crossSourceFindingCount:consistency.findings.length,
+   routeMigrationFindingCount:migration?.findings.length??null,
    regressionNewFindings:regression?.introduced.length??null,
    regressionCriticalReviewItems:regression?.summary.criticalReviewItems??null},
   boundaries:'Priorities are deterministic workflow triage, NOT ranking potential, traffic estimates, conversion predictions, production approvals or auto-executable CMS patches. Each task requires human verification. The lead owns release.'};

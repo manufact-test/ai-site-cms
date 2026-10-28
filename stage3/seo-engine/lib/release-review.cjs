@@ -6,6 +6,7 @@ const {work}=require('./remediation.cjs');
 const {compare}=require('./parity.cjs');
 const REGRESSION=require('./regression.cjs');
 const ACCEPTANCE=require('./acceptance.cjs');
+const MIGRATION=require('./route-migration.cjs');
 const FORMAT='manufact-seo-release-review-v1';
 function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const {acceptance:acceptanceLedger,...reviewOptions}=options;
@@ -23,7 +24,10 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const drift=find(t=>t.sources.some(s=>['parity:indexation-drift','parity:path-mismatch'].includes(s.code)));
  const dangerousMarkup=find(t=>t.sources.some(s=>s.code==='evidence:unverified-schema-published'));
  const regression=options.baselineSite?REGRESSION.compare(options.baselineSite,site,manifests,blueprint):null;
+ const migration=options.baselineSite?MIGRATION.review(options.baselineSite,site,manifests,blueprint):null;
  const fragmentProblems=find(t=>t.sources.some(s=>s.code==='evidence:broken-fragment'));
+ const oldRoutesMissing=find(t=>t.sources.some(s=>s.code?.startsWith('migration:')&&s.severity==='error'));
+ const oldRouteReview=find(t=>t.sources.some(s=>s.code?.startsWith('migration:')&&s.severity!=='error'));
  const sitemapProblems=find(t=>t.sources.some(s=>['publication:sitemap-noindex','publication:sitemap-indexable-missing'].includes(s.code)));
  const deliveryProblems=find(t=>t.sources.some(s=>['delivery:non-success-status','delivery:indexability-drift',
   'delivery:canonical-invalid','delivery:sitemap-indexable-absent','delivery:sitemap-noindex-listed',
@@ -39,6 +43,12 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const conflictingEvidence=find(t=>t.sources.some(s=>s.code==='consistency:captured-robots-diff'&&s.severity==='error'));
  const otherEvidenceDrift=find(t=>t.sources.some(s=>s.code?.startsWith('consistency:')&&s.severity!=='error'));
  const publicationReview=find(t=>t.sources.some(s=>s.code?.startsWith('publication:')&&!['publication:sitemap-noindex','publication:sitemap-indexable-missing'].includes(s.code)));
+ if(oldRoutesMissing.length)add(blockers,'unprotected-route-migration',
+  'Resolve old public routes without matching 301 or indexation conflicts',
+  'Use existing Site v1 redirects and check HTTP Location, final canonical and the indexation intent.',oldRoutesMissing);
+ if(oldRouteReview.length)add(reviews,'route-migration-manual-review',
+  'Review stale authored links and removed indexable routes',
+  'Old routes need explicit business intent and public HTTP checks.',oldRouteReview);
  if(regression?.summary.criticalReviewItems)add(blockers,'new-critical-regressions',
   'Review new severe SEO regressions since prior Site v1 version',
   'New errors or index-to-noindex changes require explicit approval or repair before release.',
@@ -131,6 +141,7 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   suppliedThreeDeviceMarkupReviewed:Boolean(options.viewports),
   deepHtmlEvidenceChecked:Boolean(options.snapshot),
   siteRegressionCompared:Boolean(options.baselineSite),
+  routeMigrationReviewed:Boolean(migration),
   acceptanceLedgerReviewed:Boolean(acceptanceReview),
   clientPrototypeApprovalAuthenticated:false,
   callerSuppliedHttpTranscriptReviewed:Boolean(options.delivery),

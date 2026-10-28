@@ -27,6 +27,7 @@ const CAPTURE=require('../lib/capture-plan.cjs');
 const CONSISTENCY=require('../lib/evidence-consistency.cjs');
 const ACCEPTANCE=require('../lib/acceptance.cjs');
 const PROGRESS=require('../lib/task-progress.cjs');
+const MIGRATION=require('../lib/route-migration.cjs');
 const IMPACT=require('../lib/change-impact.cjs');
 function main(argv){
  const [command,...args]=argv;
@@ -64,6 +65,10 @@ function main(argv){
   out=command==='acceptance-template'?ACCEPTANCE.template(site,blueprint):
    ACCEPTANCE.review(site,blueprint,read('acceptance'));
  }
+ else if(command==='route-migration'){
+  const site=read('site'),blueprint=read('blueprint'),registry=manifests();
+  out=MIGRATION.review(read('before'),site,registry,blueprint);
+ }
  else if(command==='change-impact'){
   const site=read('site'),blueprint=read('blueprint'),registry=manifests();
   const opt={...(flags.snapshot?{snapshot:read('snapshot')}:{}),
@@ -88,7 +93,8 @@ function main(argv){
  else if(command==='capture-plan'){
   const site=read('site'),blueprint=read('blueprint'),registry=manifests();
   auditSite(site,registry,blueprint);
-  out=CAPTURE.build(site,blueprint,flags.origin||null);
+  out=CAPTURE.build(site,blueprint,flags.origin||null,
+   flags.before?MIGRATION.review(read('before'),site,registry,blueprint):null);
  }
  else if(command==='media-review'){
   const site=read('site'),registry=manifests();
@@ -165,7 +171,7 @@ function main(argv){
  }
  else if(command==='analyze-html')out=snapshotAudit(read('snapshot'));
  else if(command==='handoff')out=propose(read('site'),manifests(),read('blueprint'));
- else throw Error('Commands: review-bundle-md --site file --blueprint file [--acceptance file] [--decisions file] | change-impact --site file --blueprint file --decisions file [--snapshot file] | acceptance-template --site file --blueprint file | acceptance-review --site file --blueprint file --acceptance file | task-progress --before file --site file --blueprint file [--prior-decisions file] | compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | deep-html --snapshot file [--blueprint file] | viewport-parity --viewports file --blueprint file | traceability --site file --blueprint file [--snapshot file] [--viewports file] | traceability-md --site file --blueprint file [--snapshot file] [--viewports file] | compare-site --before file --site file --blueprint file | html-parity --site file --blueprint file --snapshot file | evidence-consistency --site file [--snapshot file] [--delivery file] [--media file] | capture-plan --site file --blueprint file [--origin https://host/mount/] | media-review --site file --media file [--snapshot file] | delivery-review --site file --delivery file [--blueprint file] | publication-integrity --site file --snapshot file [--blueprint file] | cms-change-packet[/-md] --site file --blueprint file [--decisions file] | execution-plan[/-md] --site file --blueprint file [--decisions file] [--delivery file] | review-bundle --site file --blueprint file [--snapshot file] [--viewports file] [--before file] [--delivery file] [--decisions file] | remediation-plan --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-md --site file --blueprint file [--snapshot file] [--viewports file] | release-review --site file --blueprint file [--snapshot file] [--viewports file] | triage --site file --blueprint file --decisions file [--snapshot file] | handoff --site file --blueprint file [--manifests dir]');
+ else throw Error('Commands: route-migration --before file --site file --blueprint file | review-bundle-md --site file --blueprint file [--acceptance file] [--decisions file] | change-impact --site file --blueprint file --decisions file [--snapshot file] | acceptance-template --site file --blueprint file | acceptance-review --site file --blueprint file --acceptance file | task-progress --before file --site file --blueprint file [--prior-decisions file] | compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | deep-html --snapshot file [--blueprint file] | viewport-parity --viewports file --blueprint file | traceability --site file --blueprint file [--snapshot file] [--viewports file] | traceability-md --site file --blueprint file [--snapshot file] [--viewports file] | compare-site --before file --site file --blueprint file | html-parity --site file --blueprint file --snapshot file | evidence-consistency --site file [--snapshot file] [--delivery file] [--media file] | capture-plan --site file --blueprint file [--origin https://host/mount/] | media-review --site file --media file [--snapshot file] | delivery-review --site file --delivery file [--blueprint file] | publication-integrity --site file --snapshot file [--blueprint file] | cms-change-packet[/-md] --site file --blueprint file [--decisions file] | execution-plan[/-md] --site file --blueprint file [--decisions file] [--delivery file] | review-bundle --site file --blueprint file [--snapshot file] [--viewports file] [--before file] [--delivery file] [--decisions file] | remediation-plan --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-md --site file --blueprint file [--snapshot file] [--viewports file] | release-review --site file --blueprint file [--snapshot file] [--viewports file] | triage --site file --blueprint file --decisions file [--snapshot file] | handoff --site file --blueprint file [--manifests dir]');
  process.stdout.write(typeof out==='string'?out+'\n':JSON.stringify(out,null,2)+'\n');
 }
 try{main(process.argv.slice(2));}catch(e){process.stderr.write('SEO Engine: '+e.message+'\n');process.exitCode=1;}

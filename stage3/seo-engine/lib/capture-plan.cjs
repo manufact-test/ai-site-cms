@@ -14,7 +14,7 @@ function originUrl(origin,route){
  if(url.origin!==u.origin)throw Error('Unsafe capture route');
  return url.href;
 }
-function build(site,blueprint,publicOrigin=null){
+function build(site,blueprint,publicOrigin=null,migration=null){
  const plan=checkBlueprint(blueprint);
  if(!site||!Array.isArray(site.pages)||!Array.isArray(site.assets)||
   site.siteId!==plan.siteId)throw Error('Capture plan requires matching Site v1 and approved blueprint');
@@ -47,13 +47,20 @@ function build(site,blueprint,publicOrigin=null){
  const absent=plan.pages.filter(p=>!site.pages.some(x=>x.id===p.id))
   .map(p=>({pageId:p.id,path:p.path}));
  const host=publicOrigin?new URL(publicOrigin).origin:null;
+ if(migration&&(migration.format!=='manufact-seo-route-migration-v1'||migration.siteId!==site.siteId))
+  throw Error('Mismatched route migration capture');
+ const redirectProbes=(migration?.probes||[]).map(x=>({...x,
+  requestUrl:originUrl(publicOrigin,x.requestPath),
+  expectedLocationUrl:x.expectedLocationPath?originUrl(publicOrigin,x.expectedLocationPath):null}));
  return {format:FORMAT,version:1,siteId:site.siteId,readOnly:true,
   publicOrigin:publicOrigin??null,originReviewedByLead:false,
   summary:{plannedPages:plan.pages.length,sitePages:site.pages.length,
    pagesToCapture:active.length,missingPlannedPages:absent.length,
    assetsToCapture:media.length,referencedOgAssets:media.filter(a=>a.ogReferencedBy.length).length,
-   httpResponsesActuallyCaptured:0,visualApprovalsActuallyCompleted:0},
+   httpResponsesActuallyCaptured:0,visualApprovalsActuallyCompleted:0,
+   historicRedirectProbes:redirectProbes.length},
   pages:active,missingPlannedPages:absent,media,invalidOgReferences:missingOg,
+  redirectProbes,
   ogSelection:chosen.map(x=>({pageId:x.pageId,assetId:x.asset?.id||null,
    source:x.source,sectionId:x.sectionId})),
   resources:[

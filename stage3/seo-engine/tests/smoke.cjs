@@ -622,6 +622,33 @@ try{
  fs.writeFileSync(approvalPath,JSON.stringify(denialLedger));
  const incompleteSignoff=JSON.parse(good('acceptance-review',{site,blueprint:bp,acceptance:approvalPath}));
  assert.equal(incompleteSignoff.checks[0].status,'incomplete-attestation');
+ // Public-route migration: exact Site v1 301 mappings are required after a slug change.
+ const movedSite=structuredClone(original);
+ movedSite.pages.find(p=>p.id==='page-contact').path='/team/';
+ for(const page of movedSite.pages)for(const section of page.sections)
+  for(const element of [...section.elements,...(section.items||[])])
+   if(element.values?.['behavior.href']==='/contact/')element.values['behavior.href']='/team/';
+ const movedPath=path.join(tmp,'site-moved-no-alias.json');
+ fs.writeFileSync(movedPath,JSON.stringify(movedSite));
+ const movedReport=JSON.parse(good('route-migration',{before:site,site:movedPath,blueprint:bp}));
+ assert.equal(movedReport.summary.missingOrWrongAliases,1);
+ assert.ok(movedReport.findings.some(x=>x.code==='migration:renamed-route-without-matching-301'));
+ const movedRelease=JSON.parse(good('release-review',{before:site,site:movedPath,blueprint:bp}));
+ assert.ok(movedRelease.blockers.some(x=>x.gateId==='unprotected-route-migration'));
+ movedSite.redirects=[{from:'/contact/',to:'/team/'}];
+ const aliasPath=path.join(tmp,'site-moved-with-301.json');
+ fs.writeFileSync(aliasPath,JSON.stringify(movedSite));
+ const mapped=JSON.parse(good('route-migration',{before:site,site:aliasPath,blueprint:bp}));
+ assert.equal(mapped.summary.correctMappedAliases,1);
+ assert.equal(mapped.summary.missingOrWrongAliases,0);
+ const routeCapture=JSON.parse(good('capture-plan',{
+  before:site,site:aliasPath,blueprint:bp,origin:'https://site.example.test/subsite/'}));
+ assert.ok(routeCapture.redirectProbes.some(x=>x.expectedHttpStatus===301&&
+  x.requestUrl==='https://site.example.test/subsite/contact/'&&
+  x.expectedLocationUrl==='https://site.example.test/subsite/team/'));
+ assert.equal(routeCapture.summary.httpResponsesActuallyCaptured,0);
+ const migrationBundle=JSON.parse(good('review-bundle',{before:site,site:aliasPath,blueprint:bp}));
+ assert.equal(migrationBundle.routeMigration.summary.correctMappedAliases,1);
  // An approved field proposal is safe to model on a clone but never applied to CMS.
  const impact=JSON.parse(good('change-impact',{site,blueprint:bp,snapshot:htmlSite,decisions:triageFile}));
  assert.equal(impact.format,'manufact-seo-change-impact-v1');
