@@ -272,3 +272,9 @@ The media manifest binds the source ID/path, requested URL, HTTP status, MIME, E
 Bounded acquisition: maximum 1.2 MB per image, 12 MB/video and 100 MB for all media; a limit violation fails instead of silently skipping image files. The existing phpHtml localMedia object feeds shared remediation, release blocker local-php-media-integrity, unified review bundle and lead dossier. Report fields include localPhpMediaResources, localPhpMediaBytesChecked and localPhpMediaFindings.
 
 No claim of actual public HTTPS, authentic served Site v1 version, image crop/visual quality, executed JS, form delivery or client approval. HTML img and srcset coverage does not imply coverage of CSS backgrounds or JS-added elements. The original browser screenshot capture remains required. The HTML-snapshot JSON schema now accepts the existing source-bound mountPath, redirectPaths, source and local-only fields.
+
+## Fresh lead PHP FlexForm compatibility — 28 October 2026
+
+Lead branch `074018c63ffebf4ab8a89995f0c321dbbcfc8e02` introduced additive `formFields` and `formSteps` in the approved Site v1 contract and published PHP. Read-only `php-local-forms` checks legacy extras, new field kinds/required/conditional metadata and multi-step envelope/navigation. Read-only `php-local-head` verifies the exact SHA-256 `script-src` CSP approval of observed inline wizard code and detects missing wizard JavaScript. Errors enter existing release blockers; no JS was executed and no POST was performed. Source and test additions remain strictly under `stage3/seo-engine/**`; lead owns the PHP/SDK/Studio integration.
+
+New targeted cases are included in the existing local loopback smoke, but the full Node subprocess run and an actual customer multi-step form remain unexecuted in the isolated SEO worker context. Rerun once from the lead-integrated checkout before real-site acceptance.

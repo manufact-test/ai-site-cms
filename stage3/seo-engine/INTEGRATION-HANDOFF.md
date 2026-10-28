@@ -266,3 +266,9 @@ Implemented additional first-site checks against the lead's actual current PHP r
 The one-command CLI `bin/first-site-check.cjs` now optionally takes `--php-capture /ABS/lead-capture/evidence.json`, reads the lead's original source-bound SHA-256 screenshot artifacts using the existing adapter, checks exact 127.0.0.1 mount and includes them in the same release bundle/summary. No second screenshot engine. See `FIRST-SITE-RUNBOOK.md` for actual operator commands.
 
 Verification limits: targeted V8 execution passed clean/bad PHP lead-form token and clean/stale SEO title cases, edited CommonJS files syntax-compiled, and existing loopback smoke was extended. Full Node subprocess smoke, actual customer sealed v2, current published PHP revision, screenshots, form delivery and HTTPS have NOT been verified. Do not call local code-only checks client approval or release.
+
+## Fresh lead PHP FlexForm compatibility — 28 October 2026
+
+Lead branch `074018c63ffebf4ab8a89995f0c321dbbcfc8e02` introduced additive `formFields` and `formSteps` in the approved Site v1 contract and published PHP. Read-only `php-local-forms` checks legacy extras, new field kinds/required/conditional metadata and multi-step envelope/navigation. Read-only `php-local-head` verifies the exact SHA-256 `script-src` CSP approval of observed inline wizard code and detects missing wizard JavaScript. Errors enter existing release blockers; no JS was executed and no POST was performed. Source and test additions remain strictly under `stage3/seo-engine/**`; lead owns the PHP/SDK/Studio integration.
+
+New targeted cases are included in the existing local loopback smoke, but the full Node subprocess run and an actual customer multi-step form remain unexecuted in the isolated SEO worker context. Rerun once from the lead-integrated checkout before real-site acceptance.

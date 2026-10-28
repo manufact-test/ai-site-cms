@@ -51,3 +51,11 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 ## Состояние после крупного интеграционного блока
 
 Добавлены `php-local-forms` (без POST и утечки HMAC) и real-PHP metadata parity (Title/Description/OG/lang/robots), реальные blockers для сломанных robots/sitemap/OG и возможность `first-site-check --php-capture /ABS/lead/evidence.json` объединить официальные PHP-скриншоты с HTTP SEO анализом. Работает только в `stage3/seo-engine/**`. Все подробности и точные команды в `FIRST-SITE-RUNBOOK.md`; актуальный SHA всегда перепроверять. Прогон первого клиентского Approved Site v2 и реальные формы/HTTPS ещё не выполнены.
+
+## Синхронизация с новым PHP FlexForm / formSteps ведущего
+
+Ведущий обновил PHP/SDK (`feature/stage3-ai-site-contract` SHA `074018c63ffebf4ab8a89995f0c321dbbcfc8e02`): `lead-form-flex` теперь имеет индивидуальные `formFields`, условные зависимости `when`, опциональные `formSteps` (2–4 шага), встроенный JS-wizard и SHA-256 `script-src` в реальном HTTP CSP. **SEO не переписывает PHP.**
+
+`php-local-forms` сверяет `extra1..3`, пользовательские поля (имя/тип/число вариантов radio/required), CSS-условные атрибуты, наличие marker `data-multi-step`, число `.lead-step`, навигационные кнопки next/back и индикатор прогресса. `php-local-head` дополнительно вычисляет SHA-256 фактически полученного inline JS и требует его точного разрешения в реально полученном `Content-Security-Policy`; если Site v1 объявляет wizard, но скрипт не выдан, это также блокировка.
+
+Это проверки **структуры HTTP-выдачи**, а не исполнение JS и не корректность прохождения пользователем многошаговой формы. Нужны реальные desktop/tablet/mobile браузерные проверки, отправка формы, сохранение в CMS и проверка канала доставки. Если фактический JS другого содержания — должен совпадать именно с реальным HTTP CSP, а не с копией из исходника.

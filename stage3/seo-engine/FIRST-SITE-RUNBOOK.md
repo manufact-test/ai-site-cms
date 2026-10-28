@@ -100,3 +100,11 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 Локальный evidence HTML содержит отображаемые браузеру поля, поэтому хранить файлы capture приватно, не прикладывать исходный HTML с маркерами форм к публичным тикетам. В SEO `bundle.json` значения `_token` не записываются.
 
 Минимальные целевые проверки остаются без создания новых CI-комплексов: `node stage3/seo-engine/tests/php-html-capture-smoke.cjs` и `node stage3/seo-engine/tests/smoke.cjs` в checkout ведущего. В этом SEO-чате реальный Node subprocess, первый клиентский пакет и публичный хост не проверены.
+
+## Синхронизация с новым PHP FlexForm / formSteps ведущего
+
+Ведущий обновил PHP/SDK (`feature/stage3-ai-site-contract` SHA `074018c63ffebf4ab8a89995f0c321dbbcfc8e02`): `lead-form-flex` теперь имеет индивидуальные `formFields`, условные зависимости `when`, опциональные `formSteps` (2–4 шага), встроенный JS-wizard и SHA-256 `script-src` в реальном HTTP CSP. **SEO не переписывает PHP.**
+
+`php-local-forms` сверяет `extra1..3`, пользовательские поля (имя/тип/число вариантов radio/required), CSS-условные атрибуты, наличие marker `data-multi-step`, число `.lead-step`, навигационные кнопки next/back и индикатор прогресса. `php-local-head` дополнительно вычисляет SHA-256 фактически полученного inline JS и требует его точного разрешения в реально полученном `Content-Security-Policy`; если Site v1 объявляет wizard, но скрипт не выдан, это также блокировка.
+
+Это проверки **структуры HTTP-выдачи**, а не исполнение JS и не корректность прохождения пользователем многошаговой формы. Нужны реальные desktop/tablet/mobile браузерные проверки, отправка формы, сохранение в CMS и проверка канала доставки. Если фактический JS другого содержания — должен совпадать именно с реальным HTTP CSP, а не с копией из исходника.
