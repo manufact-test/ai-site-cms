@@ -4,6 +4,7 @@ const {checkBlueprint}=require('./blueprint.cjs');
 const core=require('../../sdk/contract.cjs');
 const CONTENT=require('./content-intelligence.cjs');
 const ARCHITECTURE=require('./architecture.cjs');
+const MOUNT=require('./published-mount.cjs');
 const GRAPH=require('./graph-authored.cjs');
 const SOCIAL=require('./publisher-media.cjs');
 const FORMAT='manufact-seo-analysis-v1';
@@ -166,6 +167,7 @@ function snapshotAudit(snapshot){
  if(snapshot.sitemapCompleteness!==undefined&&(!['partial','complete'].includes(snapshot.sitemapCompleteness)||!Array.isArray(snapshot.sitemapPaths)))
   throw Error('Invalid sitemap completeness or missing sitemapPaths');
  const complete=snapshot.completeness==='complete';
+ const mount=MOUNT.fromSnapshot(snapshot);
  for(const p of pages){
   if(!p||typeof p.id!=='string'||!/^[a-z][a-z0-9-]{2,79}$/.test(p.id)||
    typeof p.path!=='string'||!/^\/(?:[a-z0-9-]+\/)*$/.test(p.path)||
@@ -177,7 +179,7 @@ function snapshotAudit(snapshot){
   const source=p.html.replace(/<!--[\s\S]*?-->/g,'').replace(/<(script|style|textarea|template|svg)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
   const ts=tokenize(source),headings=[],links=[];let title='',description='',robots='',canonical='',imageCount=0;
   const baseHref=ts.find(x=>!x.closing&&x.tag==='base'&&x.attrs.href)?.attrs.href;
-  let linkBase='https://snapshot.invalid'+p.path;
+  let linkBase='https://snapshot.invalid'+mount+p.path.slice(1);
   try{if(baseHref)linkBase=new URL(baseHref,linkBase).href;}catch{/* Unknown base does not prove a broken link. */}
   const clean=s=>s.replace(/<[^>]+>/g,' ').replace(/&(?:amp|lt|gt|quot|nbsp);/gi,' ').replace(/\s+/g,' ').trim();
   for(let i=0;i<ts.length;i++){
@@ -215,12 +217,12 @@ function snapshotAudit(snapshot){
   for(let i=1;i<headings.length;i++)if(headings[i].level>headings[i-1].level+1)issues.push(issue('html:heading-skip','warning',p.id,p.path,'Heading jumps from H'+headings[i-1].level+' to H'+headings[i].level+'.'));
   if(robots.toLowerCase().includes('noindex')&&snapshot.sitemapPaths?.includes(p.path))issues.push(issue('html:noindex-sitemap','warning',p.id,p.path,'Noindex page appears in supplied sitemap list.'));
   if(canonical){
-   try{const u=new URL(canonical,'https://snapshot.invalid');if(!['http:','https:'].includes(u.protocol))throw Error('bad');if(u.host==='snapshot.invalid'&&!paths.has(u.pathname))issues.push(issue('html:canonical-target-missing','warning',p.id,p.path,'Local canonical points outside the supplied page set.'));}catch{issues.push(issue('html:invalid-canonical','error',p.id,p.path,'Malformed canonical URL.'));}
+   try{const u=new URL(canonical,'https://snapshot.invalid');if(!['http:','https:'].includes(u.protocol))throw Error('bad');if(u.host==='snapshot.invalid'&&!paths.has(MOUNT.route(u.pathname,mount)))issues.push(issue('html:canonical-target-missing','warning',p.id,p.path,'Local canonical points outside the supplied page set.'));}catch{issues.push(issue('html:invalid-canonical','error',p.id,p.path,'Malformed canonical URL.'));}
   }
   if(title){const k=normalize(title);if(titles.has(k))issues.push(issue('html:duplicate-title','warning',p.id,p.path,'HTML title duplicates '+titles.get(k)+'.'));else titles.set(k,p.path);}
   for(const href of links){
    if(!href||href.startsWith('#')||href.startsWith('//'))continue;
-   let dest;try{const u=new URL(href,linkBase);if(u.origin!=='https://snapshot.invalid')continue;dest=u.pathname;}catch{continue;}
+   let dest;try{const u=new URL(href,linkBase);if(u.origin!=='https://snapshot.invalid')continue;dest=MOUNT.route(u.pathname,mount);if(dest===null)continue;}catch{continue;}
    if(!paths.has(dest))issues.push(issue(complete?'html:broken-link':'html:target-not-in-snapshot',
     complete?'error':'recommendation',p.id,p.path,
     complete?'Internal link target '+dest+' is missing from the declared complete export.':

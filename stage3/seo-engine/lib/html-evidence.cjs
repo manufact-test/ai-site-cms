@@ -1,6 +1,7 @@
 'use strict';
 // Offline evidence from a bounded, trusted HTML export. NOT a browser, crawler or WCAG certificate.
 const {checkBlueprint}=require('./blueprint.cjs');
+const MOUNT=require('./published-mount.cjs');
 const FORMAT='manufact-seo-html-evidence-v1', MAX=500000;
 const plain=x=>String(x??'').replace(/<[^>]*>/g,' ').replace(/&(?:amp|lt|gt|quot|apos|nbsp);/gi,s=>({'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'",'&nbsp;':' '}[s.toLowerCase()]||s)).replace(/\s+/g,' ').trim();
 const norm=x=>plain(x).normalize('NFKC').toLocaleLowerCase();
@@ -82,6 +83,7 @@ function review(snapshot,blueprint=null){
  if(plan&&snapshot.siteId&&plan.siteId!==snapshot.siteId)throw Error('Snapshot and blueprint site IDs differ');
  if(snapshot.completeness!==undefined&&!['partial','complete'].includes(snapshot.completeness))
   throw Error('Unknown HTML snapshot completeness');
+ const mount=MOUNT.fromSnapshot(snapshot);
  const paths=new Map(),data=new Map(),findings=[],pages=[];
  const add=(code,severity,p,message,details={})=>findings.push({code,severity,pageId:p.id,path:p.path,message,...details});
  for(const p of snapshot.pages){
@@ -94,7 +96,7 @@ function review(snapshot,blueprint=null){
  for(const p of snapshot.pages){
   const d=data.get(p.id),spec=planPages.get(p.id);
   const ids=new Set(d.ids);
-  let linkBase='https://snapshot.invalid'+p.path;
+  let linkBase='https://snapshot.invalid'+mount+p.path.slice(1);
   try{if(d.baseHref)linkBase=new URL(d.baseHref,linkBase).href;}catch{
    add('evidence:invalid-base-href','recommendation',p,'Supplied HTML base href could not be resolved; relative links need browser review.');
   }
@@ -123,8 +125,8 @@ function review(snapshot,blueprint=null){
    let resolved;
    try{resolved=new URL(href,linkBase);}catch{continue;}
    if(resolved.origin!=='https://snapshot.invalid')continue;
-   const route=resolved.pathname,hash=resolved.hash.slice(1);
-   const target=paths.get(route);
+   const route=MOUNT.route(resolved.pathname,mount),hash=resolved.hash.slice(1);
+   const target=route===null?null:paths.get(route);
    if(!target){
     add('evidence:link-target-outside-snapshot','recommendation',p,
      'Internal-looking link points outside the supplied static page set; verify against full deployment before declaring broken.',{href:href.slice(0,200)});

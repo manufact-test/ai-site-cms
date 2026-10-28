@@ -75,6 +75,7 @@ function snapshot(site,source,entries,base,capturedAt){
    id:record.pageId,path:record.path,html:boundedHtml(bytes)
  })));
  return Object.freeze({format:SNAPSHOT_FORMAT,siteId:site.siteId,completeness:'complete',
+  mountPath:'/published/'+site.siteId+'/',
   pages,source:'local-loopback-published-php-html',
   sourceRevisionAuthenticated:false,localHttpOnly:true});
 }

@@ -2,6 +2,7 @@
 // Read-only checks of SUPPLIED sitemap/robots/canonical artifacts against the current Site v1.
 // These are not observations of deployed HTTP resources or a search-engine crawl.
 const {snapshotAudit}=require('./analyze.cjs');
+const MOUNT=require('./published-mount.cjs');
 const {readHead}=require('./parity.cjs');
 const FORMAT='manufact-seo-publication-integrity-v1';
 function wildcardRootBlock(text){
@@ -31,6 +32,7 @@ function review(site,snapshot){
   throw Error('Publication artifacts siteId mismatch');
  // Reuse the bounded existing snapshot validator before considering any evidence.
  snapshotAudit(snapshot);
+ const mount=MOUNT.fromSnapshot(snapshot);
  const findings=[],sitePaths=new Map(site.pages.map(p=>[p.path,p]));
  const sitemap=Array.isArray(snapshot.sitemapPaths)?snapshot.sitemapPaths:null;
  const exhaustive=snapshot.sitemapCompleteness==='complete';
@@ -66,7 +68,8 @@ function review(site,snapshot){
   const raw=head.canonical.trim();
   let canonical;
   try{
-   const base=new URL(head.baseHref||capture.path,'https://snapshot.invalid'+capture.path);
+   const base=new URL(head.baseHref||mount+capture.path.slice(1),
+    'https://snapshot.invalid'+mount+capture.path.slice(1));
    canonical=new URL(raw,base);
    if(!['https:','http:'].includes(canonical.protocol)||canonical.username||canonical.password)
     throw Error('Invalid canonical scheme');
@@ -78,7 +81,7 @@ function review(site,snapshot){
   if(canonical.hash||canonical.search)add('publication:canonical-parameters','warning',capture.id,capture.path,
    'Canonical contains a query or fragment; review the intended canonical document.',{canonical:raw.slice(0,240)});
   if(canonical.hostname==='snapshot.invalid'){
-   if(canonical.pathname!==capture.path)
+   if(MOUNT.route(canonical.pathname,mount)!==capture.path)
     add('publication:canonical-route-review','warning',capture.id,capture.path,
      'Relative canonical points to a different route. Review deliberate canonical consolidation.',{canonicalPath:canonical.pathname});
   }else{
