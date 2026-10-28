@@ -6,17 +6,19 @@
 const fs=require('node:fs'),path=require('node:path');
 const BRIDGE=require('../lib/approved-site-bridge.cjs');
 const PHP=require('../lib/php-html-capture.cjs');
+const PHP_CAPTURE=require('../lib/php-capture.cjs');
 const PACKAGE=require('../lib/package.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
 const {auditSite}=require('../lib/analyze.cjs');
 const REQUIRED=['approved-site','blueprint','origin','evidence','report'];
+const OPTIONAL=['php-capture'];
 function parse(argv){
  const opts={};
- if(!Array.isArray(argv)||argv.length!==REQUIRED.length*2)
+ if(!Array.isArray(argv)||![REQUIRED.length*2,(REQUIRED.length+1)*2].includes(argv.length))
   throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report');
  for(let i=0;i<argv.length;i+=2){
   const name=argv[i]?.startsWith('--')?argv[i].slice(2):null;
-  if(!REQUIRED.includes(name)||!argv[i+1]||opts[name])throw Error('Unknown, missing or duplicate first-site option');
+  if(![...REQUIRED,...OPTIONAL].includes(name)||!argv[i+1]||opts[name])throw Error('Unknown, missing or duplicate first-site option');
   opts[name]=argv[i+1];
  }
  if(REQUIRED.some(x=>!opts[x]))throw Error('All first-site flags are required');
@@ -53,6 +55,10 @@ async function main(argv){
  if(blueprint.siteId!==site.siteId)throw Error('First-site approved source and Blueprint site IDs differ');
  // Fail early on incompatible source contracts, not after downloading images.
  auditSite(site,registry,blueprint);
+ // Optional official lead capture is read-only and validated before any new HTTP acquisition.
+ const screenshots=o['php-capture']?PHP_CAPTURE.read(o['php-capture'],site,source):null;
+ if(screenshots&&screenshots.baseUrl!==o.origin)
+  throw Error('Lead PHP screenshot evidence and HTML capture target different origins/mounts');
  const observed=await PHP.capture(o['approved-site'],o.origin,evidence);
  const fresh=BRIDGE.load(o['approved-site']);
  if(fresh.source.fileSha256!==source.fileSha256||
@@ -61,7 +67,8 @@ async function main(argv){
  const checked=PHP.read(evidence,fresh.site,fresh.source);
  if(!PHP.isVerified(checked))throw Error('First-site PHP evidence was not source-bound verified');
  const bundle=PACKAGE.build(fresh.site,registry,blueprint,{
-  approvedSource:fresh.source,phpHtml:checked,snapshot:checked.snapshot
+  approvedSource:fresh.source,phpHtml:checked,snapshot:checked.snapshot,
+  ...(screenshots?{phpCapture:screenshots}:{})
  });
  const release=bundle.release;
  const summary={
@@ -71,6 +78,9 @@ async function main(argv){
   packageVersion:fresh.source.packageVersion,
   capturedAt:checked.capturedAt,origin:checked.baseUrl,
   htmlPages:checked.pageCount,
+  screenshots:{supplied:Boolean(screenshots),sha256CheckedFiles:screenshots?.checkedFileDigests??0,
+   capturedPages:screenshots?.pages.length??0,brokenImageFindings:screenshots?.findings.length??0,
+   visualEqualityReviewed:false,sourceRevisionAuthenticated:false},
   bytes:{html:checked.checkedHtmlBytes,seoEndpoints:checked.checkedAuxiliaryBytes,
    media:checked.localMedia?.savedBodyBytes??null},
   endpoints:{robots:checked.publication?.robotsStatus??null,
