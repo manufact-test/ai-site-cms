@@ -1500,7 +1500,9 @@
             "video",
             "disclosure",
             "tabs",
-            "tab"
+            "tab",
+            "list",
+            "list-item"
           ]
         },
         "text": {
@@ -1604,6 +1606,9 @@
           "$ref": "#/$defs/id"
         },
         "loop": {
+          "type": "boolean"
+        },
+        "ordered": {
           "type": "boolean"
         }
       }
