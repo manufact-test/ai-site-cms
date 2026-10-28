@@ -1,43 +1,72 @@
-# SEO Intelligence & Blueprint Engine v1
+# SEO Intelligence & Blueprint Engine (independent Stage 3 toolkit)
 
-A standalone versioned Node CommonJS toolkit for the external AI developer and lead integrator. Not a CMS, editor, template library, SERP crawler, keyword API or generator of web pages. Offline, no npm dependencies, Node 20+ recommended.
+**Branch:** `feature/site-seo-engine` · **Writable area:** `stage3/seo-engine/**` only.  
+Offline, Node 20+ CommonJS, no npm packages; does not edit CMS/site/files, deploy, crawl the web, invoke AI providers, or promise SEO outcomes. All outputs are **evidence-bearing recommendations**, not permission to publish.
 
-## Two-minute usage (commands from repository root)
+## Working workflow: brief → blueprint → approved 3-picture prototype → real site → review package
 
-1. Fill a project-specific brief based on actual niche/user research. Examples: fixtures/industrial.brief.json and fixtures/community.brief.json (fictional demonstration input).
-2. Compile the approved plan:
+From the repository root:
 
-    node stage3/seo-engine/bin/seo-blueprint.cjs compile --brief stage3/seo-engine/fixtures/industrial.brief.json > /tmp/seo-plan.json
+```bash
+# Research is done by the external AI developer, not this CLI.
+node stage3/seo-engine/bin/seo-blueprint.cjs compile \
+  --brief stage3/seo-engine/fixtures/industrial.brief.json > /tmp/seo-blueprint.json
 
-3. For the three STATIC prototype pictures and the associated full design specification, supply a separate explanatory SEO/UX section to the lead:
+# SEO/UX section of the client's prototype explanation (NOT a design generator).
+node stage3/seo-engine/bin/seo-blueprint.cjs explain \
+  --blueprint /tmp/seo-blueprint.json
 
-    node stage3/seo-engine/bin/seo-blueprint.cjs explain --blueprint /tmp/seo-plan.json
+# Main integration artifact: one complete read-only JSON bundle.
+node stage3/seo-engine/bin/seo-blueprint.cjs review-bundle \
+  --site stage3/fixtures/industrial-site.json \
+  --blueprint /tmp/seo-blueprint.json \
+  --snapshot stage3/seo-engine/fixtures/industrial.html.snapshot.json \
+  --viewports stage3/seo-engine/fixtures/industrial.viewports.json \
+  > /tmp/seo-review.json
 
-4. Once a real site exists, analyze existing Site v1 content and its blueprint:
+# Human-facing work plan; work is grouped by phase/priority/owner/dependency.
+node stage3/seo-engine/bin/seo-blueprint.cjs remediation-md \
+  --site stage3/fixtures/industrial-site.json \
+  --blueprint /tmp/seo-blueprint.json > /tmp/seo-actions.md
 
-    node stage3/seo-engine/bin/seo-blueprint.cjs analyze-site --site stage3/fixtures/industrial-site.json --blueprint /tmp/seo-plan.json
+# One full offline smoke (requires local Node and complete repository checkout).
+node stage3/seo-engine/tests/smoke.cjs
+```
 
-5. Prepare a non-executable mapping for the lead to review in the existing CMS:
+The full `review-bundle` includes a canonical blueprint architecture review, core-validated Site v1 audit, precise CMS field proposals, HTML parity/deep evidence (if provided), three-device captured markup comparisons (if provided), optional before/after Site v1 regression, a prioritized remediation backlog, release gates, evidence coverage, and pre-escaped Markdown handoff. No second CMS editor.
 
-    node stage3/seo-engine/bin/seo-blueprint.cjs handoff --site stage3/fixtures/industrial-site.json --blueprint /tmp/seo-plan.json
+## Other CLI commands
 
-6. Optionally analyze a trusted, explicitly supplied offline HTML snapshot:
+| Command | Purpose | Required input |
+|---|---|---|
+| `review-blueprint`, `review-architecture` | Editorial/route plan review | `--blueprint` |
+| `analyze-site`, `analyze-content` | Core Site v1 + content evidence | `--site`, optionally `--blueprint` for site analysis; required for content |
+| `propose-content` | Manifest-safe heading/CTA field proposals | `--site --blueprint` |
+| `handoff` | Core SEO field changes and lead-only work | `--site --blueprint` |
+| `analyze-html`, `deep-html` | Bounded trusted static HTML diagnostics | `--snapshot`, optional `--blueprint` for deep HTML |
+| `html-parity` | Compare supplied HTML metadata to Site v1 | `--site --blueprint --snapshot` |
+| `viewport-parity` | Compare desktop/tablet/mobile captured HTML | `--blueprint --viewports` |
+| `compare-site` | Before/after Site v1 regression | `--before --site --blueprint` |
+| `remediation-plan`, `remediation-md`, `release-review` | JSON work queue, Markdown work queue, publication checklist | `--site --blueprint`, optional `--snapshot --viewports --before` |
+| `triage` | Reconcile human decisions with current backlog, detect stale proposals | `--site --blueprint --decisions`, optional `--snapshot --viewports --before` |
 
-    node stage3/seo-engine/bin/seo-blueprint.cjs analyze-html --snapshot stage3/seo-engine/fixtures/invalid.snapshot.json
+For custom project manifests, add `--manifests /path/to/manifests` to Site v1 commands; default is `stage3/components`.
 
-One vertical standalone smoke:
+## Evidence input rules
 
-    node stage3/seo-engine/tests/smoke.cjs
+- `schemas/brief-v1.schema.json` and `schemas/blueprint-v1.schema.json`: versioned strict project research/planning; validation and canonical compilation are implemented by `lib/blueprint.cjs`. Confirmed vs unknown facts are explicit, and Schema.org entries are **candidates**, never release authorization.
+- `schemas/html-snapshot-v1.schema.json`: `format=manufact-seo-html-snapshot-v1`; `pages=[{id,path,html}]`; optional sitemap/robots artifacts. **`completeness: "complete"` is a deliberate assertion that missing internal routes are genuinely absent from this supplied export**. Omitted or `"partial"` means *unverified target*, not broken link. This remains a static, trusted export—not deployed HTTP evidence.
+- `schemas/viewport-capture-v1.schema.json`: `format=manufact-seo-viewport-evidence-v1`, `siteId`, and per-page `captures.desktop/tablet/mobile={method:"static-html"|"rendered-dom",html}`. All three must be supplied for *each supplied page*. The report separately flags planned pages **not covered by any capture**. Even a declared `rendered-dom` source cannot certify CSS visibility, responsive screenshots, interactivity, or browser accessibility.
+- `schemas/triage-v1.schema.json`: `format=manufact-seo-triage-v1`, `siteId`, and `decisions=[{taskId,taskKey,decision,reason,expectedBefore?,expectedAfter?}]`. Decisions are `approve`, `reject`, or `defer`. For field tasks, both before/after preconditions are required. `triage` marks stale decisions when matching tasks or field values changed. Approval is **not** applying a patch, passing tests, or releasing a site.
 
-For custom Site v1 manifests use --manifests DIRECTORY on analyze-site/handoff (default: stage3/components).
+Fixtures include industrial and community briefs/plans; clean, defective, publication-drift and deep semantic HTML; mobile parity/drift and prior Site v1; a blank triage ledger.
 
-## Contracts and safety
-- schemas/brief-v1.schema.json and schemas/blueprint-v1.schema.json are descriptive pinned interchange contracts. lib/blueprint.cjs implements strict actual validation, cross-references and canonical reproducible compilation. It deliberately does not perform automatic web research or claim keyword volumes.
-- Editorial brief stores confirmed vs unverified facts; source observations; per-page intent, topics, rationale and section ordering; page SEO; meaningful image ALT intent; target IDs for internal links/CTAs; schema candidates with evidence IDs; and separate desktop/tablet/mobile narratives. Three actual prototype images and full UX/design notes remain the lead's separate responsibility.
-- The core Site v1 validator and its inspectSite implementation are imported from stage3/sdk/contract.cjs; analyzer adds blueprint-to-implemented-site and contextual internal-link checks rather than cloning existing checks.
-- The HTML snapshot JSON shape is format=manufact-seo-html-snapshot-v1, pages=[{id,path,html}], optional sitemapPaths and robotsTxt. Bounded token/regex heuristic; NOT a real DOM, network crawl, JS renderer or HTTP status checker. Some markup cannot be analyzed reliably. Only provided artifacts are examined.
-- Handoff only proposes editable Site v1 SEO fields using stable page IDs and before/after review. It never writes CMS, site, DB, source files or production. Unsupported changes and missing evidence are explicitly separated.
-- The CLI emits plain text/Markdown or JSON, not executable report HTML. All downstream UIs must escape report values.
-- Example plans are pinned in fixtures and can be recreated from each brief. Deliberately defective HTML snapshot and expected finding codes demonstrate failure handling.
+## Ownership and guarantees
 
-See INTEGRATION-HANDOFF.md for exact core integration boundaries and research/PRIMARY-SOURCES.md for professional sources.
+The external AI developer studies the actual niche, sources, users and SEO, then prepares **three STATIC design images** (desktop/tablet/mobile), client explanation, and portable internal specification. The lead constructs the actual site after approval. This toolkit supports research intake, blueprint, site audit, HTML evidence, readonly patch suggestions, and handoff. It never fabricates performance, rankings, demand, business facts, testimonials, or competitive evidence.
+
+Existing Site v1 validator is reused from `stage3/sdk/contract.cjs`; no duplicate SEO UI. Editable SEO fields are limited to `title`, `description`, `robots`, `ogTitle`, `ogDescription` plus the already-existing image-asset-dependent `ogImage`; arbitrary canonical overrides, JSON-LD, and per-occurrence ALT are not automatically editable. All proposals require checking actual saved overrides, current manifest versions, and source values in the existing CMS.
+
+Reports use conservative review labels and do **not** prove real HTTP codes, deployed canonical, Core Web Vitals, crawl results, browser visual parity, mobile UX, working forms, search rankings, or publication acceptance. `readyToPublish` is always false pending external, explicit human acceptance. Downstream UI must escape all data and must never execute reports.
+
+See [INTEGRATION-HANDOFF.md](INTEGRATION-HANDOFF.md), [NEXT-CHAT-HANDOFF.md](NEXT-CHAT-HANDOFF.md) and [research/PRIMARY-SOURCES.md](research/PRIMARY-SOURCES.md).
