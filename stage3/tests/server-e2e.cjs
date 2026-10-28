@@ -121,6 +121,25 @@ async function stop(){
   assert.equal(diff.status,0,diff.stderr);
   assert.equal(JSON.parse(diff.stdout).unchanged,true);
   assert.equal(JSON.parse(diff.stdout).deploymentPerformed,false);
+  const cmsPhpHost=path.join(dbdir,'cms-hosted-php');
+  const phpPack=spawnSync('node',['stage3/bin/cms-release.cjs','pack-php-host',root,cmsPhpHost],
+    {cwd:root,encoding:'utf8'});
+  assert.equal(phpPack.status,0,phpPack.stderr);
+  assert.equal(JSON.parse(phpPack.stdout).profile,'php-host');
+  assert.ok(fs.existsSync(path.join(cmsPhpHost,'stage3/server/bootstrap.php')));
+  assert.ok(fs.existsSync(path.join(cmsPhpHost,'stage3/studio/bundle.js')));
+  assert.ok(!fs.existsSync(path.join(cmsPhpHost,'stage3/sdk')));
+  assert.ok(!fs.existsSync(path.join(cmsPhpHost,'stage3/runtime-export')));
+  assert.ok(!fs.existsSync(path.join(cmsPhpHost,'stage3/studio/app.js')),
+    'PHP runtime uses compiled editor, never requires uncompiled source');
+  const phpVerified=spawnSync('node',['stage3/bin/cms-release.cjs','verify',cmsPhpHost],
+    {cwd:root,encoding:'utf8'});
+  assert.equal(phpVerified.status,0,phpVerified.stderr);
+  assert.equal(JSON.parse(phpVerified.stdout).profile,'php-host');
+  assert.ok(JSON.parse(phpPack.stdout).bytes<JSON.parse(
+    fs.readFileSync(path.join(cmsRelease,'cms-release.json'),'utf8')).bytes);
+  assert.notEqual(spawnSync('node',['stage3/bin/cms-release.cjs','compare',cmsRelease,cmsPhpHost],
+    {cwd:root,encoding:'utf8'}).status,0,'different deployment profiles cannot be compared as compatible');
   fs.appendFileSync(path.join(cmsRelease2,'stage3/studio/hosted.css'),'/* deliberate tamper */');
   assert.notEqual(spawnSync('node',['stage3/bin/cms-release.cjs','verify',cmsRelease2],
     {cwd:root,encoding:'utf8'}).status,0,'tampered engine package must be rejected');
