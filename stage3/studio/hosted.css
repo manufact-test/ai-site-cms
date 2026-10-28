@@ -201,3 +201,11 @@
    canvases so the operator can scroll below the initial desktop viewport. */
 .hosted-launch-canvas{position:relative;width:100%;min-width:0;min-height:0}
 .hosted-launch-viewport{overscroll-behavior:contain}
+
+/* First actual approved client pilot: compare the safe full PHP draft against
+   archived sealed static prototypes without making them editable/interactive. */
+.hosted-launch-approval-summary{color:#bfe8d6;font-weight:650;overflow-wrap:anywhere}
+#server-launch-approval-open{justify-self:start;max-width:max-content}
+.hosted-launch-reference-viewport{min-width:0;background:#e5ebf1}
+#server-launch-reference-image{display:block;height:auto;max-width:none;margin:0;object-fit:contain}
+.hosted-launch-reference-viewport .hosted-launch-live-label{max-width:90%;overflow-wrap:anywhere}

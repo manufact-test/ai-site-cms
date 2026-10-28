@@ -452,6 +452,12 @@ async function execute(){
   assert.ok(desktopCheck.totalImages>=2,'PHP page includes both imported site-owned images');
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
     'Manual sign-off only becomes available after PHP content and images rendered');
+  await page.locator('#server-launch-compare-modes [data-compare-mode="approved-compare"]').click();
+  await page.locator('#server-launch-reference-image[src^="blob:"]').waitFor({timeout:15000});
+  assert.match(await page.locator('#server-launch-reference-viewport').innerText(),
+    /SHA-256 проверен/,'Launch review compares against verified original image from vault');
+  assert.match(await page.locator('#server-launch-approval-summary').innerText(),
+    /Исходные утверждённые макеты/);
   await page.locator('#server-launch-modes [data-device="mobile"]').click();
   await page.waitForFunction(()=>{
     const status=document.querySelector('#server-launch-preview-status')?.textContent||'';

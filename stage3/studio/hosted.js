@@ -1573,7 +1573,8 @@
     const url=URL.createObjectURL(blob),link=element('a');
     link.href=url;link.download=state.siteId+'-backup.json';document.body.append(link);link.click();link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
-    notice('Скачана копия контента, истории, изображений, шаблонов и заявок. Храните файл приватно.');
+    notice('Полный архив '+archive.format+': '+archive.payload.approvalEvidence.length+
+      ' файлов согласования, история, медиа и заявки. Храните файл приватно.');
   }));
   const backupOpen=action('Восстановить из файла','server-backup-open',()=>{
     clearArchive();backupDialog.showModal();
@@ -1581,7 +1582,7 @@
   const releaseRefresh=action('История публикаций','server-releases-refresh',()=>safe(loadReleases));
   const releaseList=element('div','hosted-releases');releaseList.id='server-releases';
   backupPanel.append(element('strong',null,'Резервные копии и откат'),
-    element('small',null,'Архив включает заявки с контактами. Храните его приватно. Учётные записи и секреты в архив не входят.'),
+    element('small',null,'Полная копия v2 включает закрытый архив макетов, исходников и описаний согласования, историю, изображения и заявки с контактами. Храните файл приватно. Учётные записи и секреты не экспортируются.'),
     backupDownload,backupOpen,releaseRefresh,releaseList);
   templatesPanel.after(backupPanel);
   const backupDialog=element('dialog','hosted-backup-dialog');backupDialog.id='server-backup-dialog';
@@ -1600,7 +1601,8 @@
     const p=result.plan;
     backupSummary.replaceChildren(element('strong',null,p.title+' → '+p.targetSiteId),
       element('p',null,'Страниц: '+p.pages+' · Ревизий: '+p.revisions+' · Публикаций: '+p.releases+
-        ' · Изображений: '+p.images+' · Шаблонов: '+p.templates+' · Заявок: '+p.submissions),
+        ' · Изображений: '+p.images+' · Шаблонов: '+p.templates+' · Заявок: '+p.submissions+
+        ' · Файлов согласования: '+p.approvalFiles+' · пакетов: '+p.approvalPackages),
       element('p',null,'Создан: '+p.createdAt+'. Сохранённый черновик #'+p.revision+
         '. Будет создан новый сайт без публикации. Исходный сайт останется доступен.'),
       element('p',null,'Для публичного восстановления выберите прежнюю публикацию в истории и затем нажмите «Опубликовать».'));
@@ -1613,11 +1615,12 @@
     const restored=await api('/api/backups/restore','POST',{archive:p.archive,targetSiteId:p.targetSiteId,confirmationToken:p.token});
     clearArchive();backupDialog.close();
     selectSite(restored);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();
-    notice('Копия восстановлена со всей историей. Публикация выполняется отдельной кнопкой.');
+    notice('Сайт восстановлен с историей и '+(p.archive.payload.approvalEvidence?.length||0)+
+      ' неизменёнными исходниками согласования. Копия НЕ опубликована.');
   }));
   const backupClose=action('Закрыть','server-backup-close',()=>{clearArchive();backupDialog.close();});
   backupDialog.append(element('h2',null,'Восстановление сайта'),
-    element('p',null,'Архив проверяется на сервере до записи. Восстановление создаёт отдельный сайт и сохраняет всю историю, медиа, шаблоны и заявки.'),
+    element('p',null,'Формат v2 сохраняет закрытые исходные материалы согласования. Проверка всех SHA-256 до записи, затем одно транзакционное восстановление. Создаётся новый независимый сайт без публикации; поддерживаются старые архивы v1.'),
     backupFileLabel,backupFile,backupTargetLabel,backupTarget,backupPlan,backupSummary,backupRestore,backupClose);
   document.body.append(backupDialog);
   let pendingArchive=null;
@@ -2005,6 +2008,16 @@
         published={...result,site:restoreServerGraphMaps(result.site)};
       }catch(error){publishedError=error.message;}
     }
+    // Optional owner-only immutable references. Original approved static images
+    // are distinct from public/JS previews; SHA256 binds their actual bytes.
+    let approvedReference=null,referenceError='';
+    if(isOwner()){
+      try{
+        const evidence=await api('/api/sites/'+encodeURIComponent(site.siteId)+'/approval-evidence');
+        const complete=evidence.packages.filter(row=>row.complete);
+        approvedReference=complete.at(-1)||null;
+      }catch(error){referenceError=error.message;}
+    }
     const byId=new Map((published?.site.pages||[]).map(page=>[page.id,page]));
     const changesFor=(current,prior)=>{
       if(!prior)return ['Новая страница — ещё не опубликована'];
@@ -2097,7 +2110,18 @@
     });
     complete.disabled=assemble.disabled=!canEdit();
     fillActions.append(complete,assemble);
-    header.append(heading,explanation,summary,revision,publicationCompare,launchProgress,fillActions);
+    const approvalSummary=element('p','hosted-launch-approval-summary',
+      approvedReference?'Исходные утверждённые макеты: '+approvedReference.version+
+        ' · SHA-256 '+approvedReference.packageSha.slice(0,16)+'… · проверять вручную':
+        (referenceError?'Не удалось прочитать архив: '+referenceError:
+          'В CMS нет полного sealed v2 архива макетов для сравнения.'));
+    approvalSummary.id='server-launch-approval-summary';
+    const archiveLink=action('Материалы согласования','server-launch-approval-open',()=>{
+      dialog.close();void safe(openApprovalVault);
+    });
+    archiveLink.hidden=!isOwner();
+    header.append(heading,explanation,summary,revision,publicationCompare,
+      approvalSummary,archiveLink,launchProgress,fillActions);
     const body=element('div','hosted-launch-layout');
     const pages=element('div','hosted-launch-pages');pages.id='server-launch-pages';
     const detail=element('div','hosted-launch-detail');
@@ -2124,7 +2148,14 @@
     liveFrame.setAttribute('referrerpolicy','no-referrer');
     const publishedCanvas=element('div','hosted-launch-canvas');
     publishedCanvas.append(liveFrame);liveViewport.append(publishedCanvas,liveLabel);
-    previewPanels.append(viewport,liveViewport);
+    const referenceViewport=element('div','hosted-launch-viewport hosted-launch-reference-viewport');
+    referenceViewport.id='server-launch-reference-viewport';
+    const referenceLabel=element('p','hosted-launch-live-label',
+      'Исходный макет · '+(approvedReference?.version||''));
+    const referenceImage=element('img');referenceImage.id='server-launch-reference-image';
+    referenceImage.alt='Оригинальный утверждённый статический макет (не сайт)';
+    referenceViewport.append(referenceImage,referenceLabel);
+    previewPanels.append(viewport,liveViewport,referenceViewport);
     const previewStatus=element('p','hosted-launch-preview-status','');
     previewStatus.id='server-launch-preview-status';
     const issues=element('div','hosted-launch-issues');
@@ -2185,7 +2216,8 @@
     const devicesNeeded=Object.keys(widths),reviewed=new Map(),previewReady=new Set();
     // Each device's own real PHP document must render before sign-off. These
     // observations are diagnostic hints, not visual/pixel-match approval.
-    const renderEvidence=new Map();
+    const renderEvidence=new Map(),referenceSeen=new Set();
+    const referenceUrls=new Map(),referenceLoads=new Map();
     const signature=(row,mode)=>row?.current?.id+'|'+mode;
     const pageComplete=pageId=>devicesNeeded.every(mode=>reviewed.get(pageId)?.has(mode));
     const completedCount=()=>site.pages.filter(page=>pageComplete(page.id)).length;
@@ -2228,7 +2260,14 @@
           reviewedDevices:devicesNeeded.filter(mode=>reviewed.get(page.id)?.has(mode)),
           renderChecks:Object.fromEntries(devicesNeeded.map(mode=>[
             mode,renderEvidence.get(page.id+'|'+mode)||null])),
+          originalPrototypeComparedAt:devicesNeeded.filter(mode=>
+            referenceSeen.has(page.id+'|'+mode)),
           ready:pageComplete(page.id)})),
+        sourceApproval:approvedReference?{
+          version:approvedReference.version,packageSha:approvedReference.packageSha,
+          complete:approvedReference.complete,
+          note:'SHA256 binds archived originals, not client identity or visual approval'
+        }:null,
         eligibleForReviewPublish:!publishSaved.disabled};
       const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)+'\\n'],
         {type:'application/json'}));
@@ -2250,9 +2289,16 @@
         'Все страницы просмотрены на ПК, планшете и телефоне. Потребуется отдельное подтверждение';
     };
     const renderViewport=()=>{
-      previewPanels.classList.toggle('is-comparing',viewMode==='compare');
-      viewport.hidden=viewMode==='published';
-      liveViewport.hidden=viewMode==='draft'||!published;
+      previewPanels.classList.toggle('is-comparing',
+        viewMode==='compare'||viewMode==='approved-compare');
+      viewport.hidden=viewMode==='published'||viewMode==='approved';
+      liveViewport.hidden=viewMode!=='compare'&&viewMode!=='published';
+      referenceViewport.hidden=viewMode!=='approved'&&viewMode!=='approved-compare';
+      if(!referenceViewport.hidden){
+        referenceViewport.style.height='620px';
+        referenceImage.style.width=Math.min(widths[device],
+          Math.max(1,referenceViewport.clientWidth-12))+'px';
+      }
       for(const [panel,iframe,canvas] of [[viewport,frame,draftCanvas],
         [liveViewport,liveFrame,publishedCanvas]]){
         if(panel.hidden)continue;
@@ -2274,6 +2320,50 @@
       }
       for(const button of devices.querySelectorAll('button'))
         button.classList.toggle('primary',button.dataset.device===device);
+    };
+    // The sealed screenshot stays read-only; the browser verifies bytes
+    // against the server index before exposing a local, private Blob URL.
+    const loadReference=async mode=>{
+      if(!approvedReference||referenceUrls.has(mode))return;
+      if(referenceLoads.has(mode))return referenceLoads.get(mode);
+      const job=(async()=>{
+        const url='/api/sites/'+encodeURIComponent(site.siteId)+'/approval-evidence/'+
+          approvedReference.packageSha+'/'+mode;
+        const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+        if(!response.ok)throw Error('Не удалось открыть утверждённый '+mode+' макет');
+        const bytes=await response.arrayBuffer();
+        if(bytes.byteLength>8000000)throw Error('Слишком большой оригинальный макет');
+        const sha=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
+          .map(v=>v.toString(16).padStart(2,'0')).join('');
+        if(sha!==approvedReference.files[mode]?.sha256)
+          throw Error('SHA-256 оригинального макета не совпадает с архивом');
+        const magic=new Uint8Array(bytes.slice(0,12));
+        const mime=magic[0]===137&&magic[1]===80?'image/png':
+          magic[0]===255&&magic[1]===216?'image/jpeg':
+          magic[0]===82&&magic[1]===73&&magic[8]===87?'image/webp':null;
+        if(!mime)throw Error('Неподдерживаемый формат исходного макета');
+        referenceUrls.set(mode,URL.createObjectURL(new Blob([bytes],{type:mime})));
+      })();
+      referenceLoads.set(mode,job);
+      try{await job;}finally{referenceLoads.delete(mode);}
+    };
+    const showReference=async()=>{
+      if(!approvedReference||!['approved','approved-compare'].includes(viewMode))return;
+      const mode=device,row=selectedRow;
+      referenceImage.removeAttribute('src');
+      referenceLabel.textContent='Загружаем оригинальный макет '+mode+'…';
+      try{
+        await loadReference(mode);
+        if(!dialog.open||device!==mode||selectedRow!==row||
+          !['approved','approved-compare'].includes(viewMode))return;
+        referenceImage.src=referenceUrls.get(mode);
+        referenceLabel.textContent='Согласованный исходник · '+approvedReference.version+
+          ' · SHA-256 проверен · '+mode;
+        if(row.current?.path==='/')referenceSeen.add(signature(row,mode));
+      }catch(error){
+        if(!dialog.open||device!==mode)return;
+        referenceLabel.textContent='Макет недоступен: '+error.message;
+      }
     };
     // Only the actually loaded document is eligible for a manual sign-off.
     // No auto-approval: this merely refuses broken media and page-level
@@ -2414,22 +2504,26 @@
       for(const button of pages.querySelectorAll('button'))
         button.classList.toggle('primary',button.dataset.pageId===page.id);
       editPage.disabled=!row.current;
-      updateReviewed();syncActions();renderViewport();void showPreview();
+      updateReviewed();syncActions();renderViewport();void showPreview();void showReference();
     };
     for(const [value,label] of [
-      ['draft','Черновик'],['compare','Рядом с публикацией'],['published','Опубликовано']
+      ['draft','Черновик'],['compare','Рядом с публикацией'],['published','Опубликовано'],
+      ['approved-compare','Рядом с макетом'],['approved','Утверждённый макет']
     ]){
       const mode=action(label,'',()=>{
-        if(value!=='draft'&&!published)return;
-        viewMode=value;renderViewport();
+        if((value==='compare'||value==='published')&&!published)return;
+        if((value==='approved'||value==='approved-compare')&&!approvedReference)return;
+        viewMode=value;renderViewport();void showReference();
       });
-      mode.dataset.compareMode=value;mode.disabled=value!=='draft'&&!published;
+      mode.dataset.compareMode=value;
+      mode.disabled=(['compare','published'].includes(value)&&!published)||
+        (['approved','approved-compare'].includes(value)&&!approvedReference);
       compareModes.append(mode);
     }
     for(const [mode,name] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
       const control=action(name,'',()=>{
         if(device===mode)return;
-        device=mode;renderViewport();updateReviewed();syncActions();void showPreview();
+        device=mode;renderViewport();updateReviewed();syncActions();void showPreview();void showReference();
       });
       control.dataset.device=mode;devices.append(control);
     }
@@ -2453,6 +2547,8 @@
     window.addEventListener('resize',adjustPreview);
     dialog.addEventListener('close',()=>{
       ++request;window.removeEventListener('resize',adjustPreview);
+      for(const url of referenceUrls.values())URL.revokeObjectURL(url);
+      referenceUrls.clear();referenceImage.removeAttribute('src');
       frame.srcdoc='';liveFrame.srcdoc='';dialog.remove();
     },{once:true});
     dialog.showModal();choosePage(selectedRow);updateReviewed();
