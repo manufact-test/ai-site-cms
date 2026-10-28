@@ -461,6 +461,7 @@ async function execute(){
   await page.locator('#cms-design-graph-dialog').waitFor();
   await page.locator('#cms-design-node-select').selectOption('approved-rich-table');
   await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Строка',exact:true}).click();
+  await page.locator('#cms-design-node-select').selectOption('approved-rich-table');
   await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Столбец',exact:true}).click();
   await page.locator('#cms-design-node-select').selectOption('approved-rich-gallery');
   await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Фото',exact:true}).click();
