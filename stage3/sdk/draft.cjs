@@ -79,6 +79,7 @@ function edit(raw,manifests,{pageId,sectionId,elementId,path,value,breakpoint=nu
   const candidate=copy(session.current),element=select(candidate,pageId,sectionId,elementId).element;
   if(breakpoint===null)element.values[path]=copy(value);
   else element.values[path][breakpoint]=copy(value);
+  syncSharedSite(candidate,session.current);
   C.validateSite(candidate,manifests);
   if(JSON.stringify(candidate)===JSON.stringify(session.current))return copy(session);
   return {format:SESSION,revision:session.revision+1,base:copy(session.base),
@@ -101,6 +102,77 @@ function redo(raw,manifests){
     current:next,undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:future};
 }
 
+// A shared section is a linked set of fully typed page-local instances.
+// Never share DOM IDs, graph IDs or repeater IDs across pages. A single edit
+// advances all sibling instances in one local draft revision/Undo.
+function copyLinkedBody(source,target){
+  const result=copy(source);
+  result.id=target.id;
+  result.sharedKey=target.sharedKey;
+  result.elements=result.elements.map((element,i)=>({
+    ...element,id:target.elements.find(x=>x.slot===element.slot)?.id||target.id+'-'+element.slot
+  }));
+  if(result.items)result.items=result.items.map((item,i)=>({
+    ...item,id:target.items?.[i]?.id||target.id+'-item-'+(i+1)
+  }));
+  if(result.designGraph){
+    const oldNodes=[];
+    const scan=(nodes,items)=>{for(const node of nodes){items.push(node);if(node.children)scan(node.children,items);}};
+    scan(source.designGraph.nodes,oldNodes);
+    const targetNodes=[];if(target.designGraph)scan(target.designGraph.nodes,targetNodes);
+    const ids=new Map(),used=new Set([
+      target.id,...result.elements.map(x=>x.id),...(result.items||[]).map(x=>x.id)
+    ]);
+    let i=0;
+    for(const old of oldNodes){
+      let mapped=targetNodes[i]?.id;
+      if(!mapped||used.has(mapped)){
+        let suffix=i+1;
+        do{mapped=target.id.slice(0,56)+'-n-'+suffix++;}while(used.has(mapped));
+      }
+      ids.set(old.id,mapped);used.add(mapped);i++;
+    }
+    result.designGraph.id=target.designGraph?.id||target.id.slice(0,65)+'-design';
+    const rename=nodes=>{for(const node of nodes){
+      if(node.popupTarget)node.popupTarget=ids.get(node.popupTarget)||node.popupTarget;
+      node.id=ids.get(node.id);
+      if(node.children)rename(node.children);
+    }};
+    rename(result.designGraph.nodes);
+  }
+  return result;
+}
+function syncSharedSite(candidate,previous){
+  const oldById=new Map(previous.pages.flatMap(p=>p.sections.map(s=>[s.id,s])));
+  const groups=new Map();
+  for(const p of candidate.pages)for(const s of p.sections){
+    if(!s.sharedKey)continue;
+    if(!groups.has(s.sharedKey))groups.set(s.sharedKey,[]);
+    groups.get(s.sharedKey).push({page:p,section:s});
+  }
+  for(const [name,members] of groups){
+    if(members.length<2)continue;
+    const changed=members.filter(({section})=>{
+      const old=oldById.get(section.id);
+      return old&&JSON.stringify(C.sharedSectionShape(old))!==
+        JSON.stringify(C.sharedSectionShape(section));
+    });
+    // More than one independent divergent edit is ambiguous. No last-write-wins.
+    if(changed.length>1){
+      const first=JSON.stringify(C.sharedSectionShape(changed[0].section));
+      if(changed.some(x=>JSON.stringify(C.sharedSectionShape(x.section))!==first))
+        throw Error('Concurrent divergent changes to shared section '+name);
+    }
+    if(!changed.length)continue;
+    const source=changed[0].section;
+    for(const member of members){
+      if(member.section.id===source.id)continue;
+      const index=member.page.sections.findIndex(x=>x.id===member.section.id);
+      member.page.sections[index]=copyLinkedBody(source,member.section);
+    }
+  }
+  return candidate;
+}
 // Explicit structure operations use the same validated document as field edits.
 // Undo/redo and optimistic local revision checks therefore work for both.
 function structure(raw,manifests,command){
@@ -126,13 +198,20 @@ function structure(raw,manifests,command){
     if(typeof newId!=='string')throw Error('Fresh section ID required');
     const cloned=copy(source);
     if(cloned.designGraph){
-      cloned.designGraph.id=newId+'-design';
-      let counter=0;
+      cloned.designGraph.id=newId.slice(0,65)+'-design';
+      let counter=0;const nodeMap=new Map();
       const rename=node=>{
-        node.id=newId+'-node-'+(++counter);
+        const old=node.id;
+        node.id=newId.slice(0,56)+'-node-'+(++counter);
+        nodeMap.set(old,node.id);
         for(const child of node.children||[])rename(child);
       };
       cloned.designGraph.nodes.forEach(rename);
+      const targets=node=>{
+        if(node.popupTarget)node.popupTarget=nodeMap.get(node.popupTarget)||node.popupTarget;
+        for(const child of node.children||[])targets(child);
+      };
+      cloned.designGraph.nodes.forEach(targets);
     }
     return {...cloned,id:newId,elements:source.elements.map(el=>({
       ...copy(el),id:newId+'-'+el.slot
@@ -256,7 +335,9 @@ function structure(raw,manifests,command){
       break;
     case 'duplicateSection':
       if(!page||sectionIndex<0)throw Error('Unknown section to duplicate');
-      page.sections.splice(sectionIndex+1,0,rekey(page.sections[sectionIndex],command.id));
+      const duplicated=rekey(page.sections[sectionIndex],command.id);
+      delete duplicated.sharedKey;
+      page.sections.splice(sectionIndex+1,0,duplicated);
       break;
     case 'applyTemplate':{
       if(!page||typeof command.id!=='string'||!isObj(command.template))
@@ -265,7 +346,9 @@ function structure(raw,manifests,command){
       const m=reg.get(source.component);
       if(!m||source.manifestVersion!==m.version)
         throw Error('Template component must match registered version');
-      page.sections.splice(sectionIndex>=0?sectionIndex+1:page.sections.length,0,rekey(source,command.id));
+      const applied=rekey(source,command.id);
+      delete applied.sharedKey;
+      page.sections.splice(sectionIndex>=0?sectionIndex+1:page.sections.length,0,applied);
       break;
     }
     case 'duplicatePage':{
@@ -324,6 +407,7 @@ function structure(raw,manifests,command){
         throw Error('Cannot move the only section of a page; copy it instead');
       const moving=command.mode==='copy'?rekey(page.sections[sectionIndex],command.id):
         page.sections.splice(sectionIndex,1)[0];
+      if(command.mode==='copy')delete moving.sharedKey;
       let position=destination.sections.length;
       if(command.side!=='end'){
         position=destination.sections.findIndex(t=>t.id===command.targetSectionId);
@@ -352,7 +436,32 @@ function structure(raw,manifests,command){
       const dest=c.pages.find(p=>p.id===command.toPageId);
       if(!dest||!['start','end'].includes(command.placement))throw Error('Invalid copy target');
       const newSection=rekey(page.sections[sectionIndex],command.id);
+      delete newSection.sharedKey;
       dest.sections.splice(command.placement==='start'?0:dest.sections.length,0,newSection);
+      break;
+    }
+    case 'linkSharedSection':{
+      if(!page||sectionIndex<0||typeof command.id!=='string'||
+        typeof command.toPageId!=='string')throw Error('Invalid shared-section link request');
+      const dest=c.pages.find(p=>p.id===command.toPageId);
+      if(!dest||dest===page||dest.sections.length>=100)
+        throw Error('Shared section requires another page with free capacity');
+      const source=page.sections[sectionIndex];
+      const group=source.sharedKey||command.sharedKey;
+      if(typeof group!=='string'||!/^shared-[a-z0-9-]{3,72}$/.test(group))
+        throw Error('Invalid shared group ID');
+      if(dest.sections.some(s=>s.sharedKey===group))
+        throw Error('This page already has an instance of this shared section');
+      source.sharedKey=group;
+      const newSection=rekey(source,command.id);
+      newSection.sharedKey=group;
+      dest.sections.push(newSection);
+      break;
+    }
+    case 'detachSharedSection':{
+      if(!page||sectionIndex<0||!page.sections[sectionIndex].sharedKey)
+        throw Error('Section is not linked');
+      delete page.sections[sectionIndex].sharedKey;
       break;
     }
     case 'removeSection':
@@ -366,7 +475,8 @@ function structure(raw,manifests,command){
     current:c,undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:[]};
 }
 function replaceSite(raw,manifests,site,expectedRevision){
-  const s=verifySession(raw,manifests),candidate=C.validateSite(site,manifests);
+  const s=verifySession(raw,manifests);
+  const candidate=C.validateSite(syncSharedSite(copy(site),s.current),manifests);
   if(expectedRevision!==s.revision||candidate.siteId!==s.current.siteId)throw Error('Stale or different site composition');
   return {format:SESSION,revision:s.revision+1,base:copy(s.base),current:candidate,
     undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:[]};
