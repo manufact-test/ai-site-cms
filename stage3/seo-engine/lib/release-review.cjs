@@ -52,6 +52,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const localSemanticReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-semantic:')&&s.severity!=='error'));
  const localFootprintReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-footprint:')));
  const localExportErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-export:')&&s.severity==='error'));
+ const publicCspErrors=find(t=>t.sources.some(s=>s.code?.startsWith('public-csp:')&&s.severity==='error'));
+ const publicCspWarnings=find(t=>t.sources.some(s=>s.code?.startsWith('public-csp:')&&s.severity!=='error'));
  const deployedMediaErrors=find(t=>t.sources.some(s=>s.code?.startsWith('public-bytes:')&&s.severity==='error'));
  const deployedStaticErrors=find(t=>t.sources.some(s=>s.code?.startsWith('public-static:')&&s.severity==='error'));
  const deployedStaticWarnings=find(t=>t.sources.some(s=>s.code?.startsWith('public-static:')&&s.severity!=='error'));
@@ -138,6 +140,10 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
    'Absolute collector origin remains unverified and was not probed.',localFormReviews);
   if(localSemanticErrors.length)add(blockers,'local-php-semantic-and-route-integrity',
   'Real PHP HTML has broken local links/fragments, missing H1/landmarks, duplicate IDs or inaccessible link/image markup. Repair before release.',localSemanticErrors);
+ if(publicCspErrors.length)add(blockers,'public-static-csp-blocks-site',
+  'Public HTTPS Content-Security-Policy blocks actual static CSS, inline JS or form POST collector. Repair web host CSP before client acceptance.',publicCspErrors);
+ if(publicCspWarnings.length)add(reviews,'public-static-csp-review',
+  'Confirm public HTTPS CSP policy in a browser; missing or ambiguous headers cannot prove full CMS interactions.',publicCspWarnings);
  if(deployedMediaErrors.length)add(blockers,'public-static-media-sha256-integrity',
   'Live-host media binary GET digests differ from SHA256-verified official static originals/responsive variants.',deployedMediaErrors);
  if(deployedStaticErrors.length)add(blockers,'public-static-deployment-drift',
