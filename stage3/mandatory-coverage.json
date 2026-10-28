@@ -847,9 +847,14 @@
       "evidence": [
         "stage3/server/FlexForm.php",
         "stage3/server/PublicRenderer.php",
-        "stage3/server/FormGateway.php"
+        "stage3/server/FormGateway.php",
+        "stage3/server/FormRoutes.php",
+        "stage3/server/FormDelivery.php",
+        "stage3/server/Api.php",
+        "stage3/studio/hosted.js",
+        "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "Partial: per-form private email/Telegram recipient routing, outbox target snapshot, owner Studio controls and human lead processing added. Verify owner workflow and delivery transport on an explicitly authorized isolated host; no live credentials or actual recipient delivery tested."
     },
     {
       "id": 81,
@@ -1722,9 +1727,12 @@
       "ownerAccepted": false,
       "evidence": [
         "stage3/runtime-export/templates/next/lib/runtime.js",
-        "stage3/runtime-export/bin/ship.cjs"
+        "stage3/runtime-export/bin/ship.cjs",
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/runtime-export/templates/php/index.php",
+        "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "Partial: independent Next Static/SSR builds now include read-only release canary; actual individual approved client site, React host integration, external SSR and owner visual acceptance remain unverified."
     },
     {
       "id": 181,
@@ -1761,9 +1769,11 @@
       "evidence": [
         "stage3/runtime-export/bin/build.cjs",
         "stage3/server/bootstrap.php",
-        "stage3/server/SiteRepository.php"
+        "stage3/server/SiteRepository.php",
+        "stage3/bin/cms-release.cjs",
+        "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Requires separately authorized target/environment and owner acceptance evidence"
+      "nextCheck": "Owner environment gate: offline pack/verify/compare CLI is only preparation; actual DB-compatible engine update, authorization and standalone hosting not exercised."
     },
     {
       "id": 185,
@@ -1774,9 +1784,11 @@
       "evidence": [
         "stage3/runtime-export/bin/build.cjs",
         "stage3/server/bootstrap.php",
-        "stage3/server/SiteRepository.php"
+        "stage3/server/SiteRepository.php",
+        "stage3/bin/cms-release.cjs",
+        "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Requires separately authorized target/environment and owner acceptance evidence"
+      "nextCheck": "Owner environment gate: retained immutable old offline engine copy and checksum comparison are available; tested automatic DB/runtime rollback on an approved host does not exist."
     },
     {
       "id": 186,
@@ -1803,7 +1815,7 @@
         "stage3/tests/server-e2e.cjs",
         "stage3/runtime-export/bin/build.cjs"
       ],
-      "nextCheck": "Partial: owner must verify external site/host deployment and real page performance; current same-origin PHP scenario only."
+      "nextCheck": "Partial: Studio static assets use gzip and ETag/304; owner must measure a real approved site's public/Core Web Vitals and an actual host environment."
     },
     {
       "id": 190,
@@ -1828,9 +1840,11 @@
         "stage3/server/SiteOperations.php",
         "stage3/server/Api.php",
         "stage3/studio/hosted.js",
-        "stage3/tests/server-e2e.cjs"
+        "stage3/tests/server-e2e.cjs",
+        "stage3/runtime-export/bin/build.cjs",
+        "stage3/runtime-export/templates/php/index.php"
       ],
-      "nextCheck": "Partial: owner must verify external site/host deployment and real page performance; current same-origin PHP scenario only."
+      "nextCheck": "Partial: same-origin hosted PHP doctor and read-only independent PHP/Next release identity exist; no external DNS/HTTP connection test or owner-approved live host verification."
     },
     {
       "id": 193,
@@ -1841,9 +1855,12 @@
       "evidence": [
         "stage3/runtime-export/bin/build.cjs",
         "stage3/server/bootstrap.php",
-        "stage3/server/SiteRepository.php"
+        "stage3/server/SiteRepository.php",
+        "stage3/bin/cms-release.cjs",
+        "stage3/server/Api.php",
+        "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Verify editor → contract → saved/public output and remaining behavior"
+      "nextCheck": "Partial: bounded first-party engine inventory and studio code compression implemented; measure actual deployment weight and public runtime requirements on owner-approved hosting."
     }
   ]
 }
