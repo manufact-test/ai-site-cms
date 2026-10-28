@@ -344,6 +344,23 @@ final class Api
                 echo $image['bytes'];
                 exit;
             }
+            if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/approval-evidence/([a-f0-9]{64})/(handoff|site|desktop|tablet|mobile|clientExplanation|implementationSpec)$~D',$path,$proofFile)) {
+                if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
+                $document=$this->sites->readApprovalEvidence($proofFile[1],$proofFile[2],$proofFile[3]);
+                $kind=$proofFile[3];
+                // Serve images as attachments for safety; the hosted dialog
+                // fetches authenticated bytes and displays verified Blob URLs.
+                header('Content-Type: application/octet-stream');
+                header('Content-Disposition: attachment; filename="approved-'.$kind.'.bin"');
+                header("Content-Security-Policy: default-src 'none'; sandbox");
+                header('X-Content-Type-Options: nosniff');
+                header('Cache-Control: private, no-store');
+                echo $document['bytes'];exit;
+            }
+            if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/approval-evidence$~D',$path,$proofList)) {
+                if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
+                $this->response(200,$this->sites->approvalEvidenceIndex($proofList[1]));
+            }
             if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/operations$~D',$path,$op)) {
                 if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
                 $this->response(200,$this->sites->siteDiagnostics($op[1]));
@@ -357,7 +374,11 @@ final class Api
                 $this->csrf();
                 $body = $this->request(in_array($path, ['/api/backups/plan','/api/backups/restore'], true)
                     ? SiteRepository::ARCHIVE_LIMIT
-                    : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/preview$~D',$path) ? 900000 : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/media$~D', $path) ? 2600000 : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/video$~D',$path)?2100000:750000))));
+                    : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/approval-evidence$~D',$path)
+                      ? 11100000
+                      : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/preview$~D',$path) ? 900000
+                        : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/media$~D', $path) ? 2600000
+                          : (preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/video$~D',$path)?2100000:750000)))));
                 if ($siteScope !== null && preg_match('~^/api/sites/[a-z][a-z0-9-]{2,79}/(?:save|restore|restore-release|publish|media|video|transfer/(?:plan|apply)|import/(?:plan|apply)|history/(?:plan|apply)|media-maintenance/(?:plan|apply)|links/(?:plan|apply)|video-uploads(?:/.*)?|templates(?:/.*)?)$~D',$path)) {
                     $this->sites->assertLicenseWritable($siteScope);
                 }
@@ -368,6 +389,15 @@ final class Api
                 }
                 if ($path === '/api/sites') {
                     $this->response(201, $this->sites->createSite($body['site'] ?? []));
+                }
+                if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/approval-evidence$~D',$path,$proofUpload)) {
+                    if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
+                    foreach (['packageSha','kind','sha256','base64'] as $required)
+                        if (!is_string($body[$required]??null))
+                            throw new InvalidArgumentException('Approval evidence payload incomplete');
+                    $this->auditDetail='Immutable approved source evidence '.$body['kind'];
+                    $this->response(201,$this->sites->recordApprovalEvidence($proofUpload[1],
+                        $body['packageSha'],$body['kind'],$body['sha256'],$body['base64']));
                 }
                 if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/operations$~D',$path,$op)) {
                     if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
