@@ -17,7 +17,7 @@ function records(site,base,publication){
     publication.redirects.length>60)throw Error('Invalid local PHP publication manifest');
  const result=[];
  const check=(item,kind,index,source=null)=>{
-  const file=resourceName(kind,index),url=expectedUrl(base,kind==='redirect'?source:kind+'.txt');
+  const file=resourceName(kind,index),url=expectedUrl(base,kind==='redirect'?source:kind==='sitemap'?'sitemap.xml':'robots.txt');
   if(!item||Object.keys(item).some(k=>!['file','url','status','contentType','bytes','sha256','location','from','to'].includes(k))||
    item.file!==file||item.url!==url||!Number.isInteger(item.status)||
    item.status<100||item.status>599||typeof item.contentType!=='string'||
