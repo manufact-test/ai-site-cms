@@ -9,7 +9,7 @@ const MAX_SUMMARY=800000,MAX_BUNDLE=42000000;
 const GROUPS=['localPhpHead','localPhpNavigation','localPhpGraph','localPhpComponents',
  'localPhpForms','localPhpMedia','localPhpPublication','localPhpTheme',
  'localPhpSemantics','localPhpFootprint','localPhpStaticExport',
- 'deliveryEvidence','mediaEvidence'];
+ 'deliveryEvidence','mediaEvidence','deliveryReadiness'];
 const GATES={
  'local-php-head-indexation-or-origin':'localPhpHead',
  'local-php-semantic-and-route-integrity':'localPhpSemantics',
@@ -18,6 +18,8 @@ const GATES={
  'local-php-static-export-parity':'localPhpStaticExport',
  'captured-delivery-conflict':'deliveryEvidence',
  'captured-og-media-conflict':'mediaEvidence',
+ 'owner-form-delivery-configuration':'deliveryReadiness',
+ 'owner-form-notification-intent':'deliveryReadiness',
  'local-php-theme-parity':'localPhpTheme',
  'local-php-navigation-parity':'localPhpNavigation',
  'local-php-design-graph-parity':'localPhpGraph',
@@ -112,7 +114,10 @@ function build(previous,currentSummary,currentBundle){
  const oldPublicOrigin=prior.publicTranscript?.httpsOriginClaim??null;
  const newPublicOrigin=currentSummary.publicTranscript?.httpsOriginClaim??null;
  const publicOriginComparable=Boolean(oldPublicOrigin&&oldPublicOrigin===newPublicOrigin);
+ const ownerDeliveryComparable=Boolean(pb.deliveryReadiness&&currentBundle.deliveryReadiness&&
+   pb.deliveryReadiness.pinnedPublishedVersion===currentBundle.deliveryReadiness.pinnedPublishedVersion);
  const groupComparable=key=>key==='localPhpStaticExport'?exportVersionComparable:
+  key==='deliveryReadiness'?ownerDeliveryComparable:
   ['deliveryEvidence','mediaEvidence'].includes(key)?publicOriginComparable:true;
  const commonGroups=GROUPS.filter(key=>pb[key]&&currentBundle[key]&&groupComparable(key));
  const groupsOnlyPrior=GROUPS.filter(key=>pb[key]&&(!currentBundle[key]||!groupComparable(key)));
@@ -168,6 +173,7 @@ function build(previous,currentSummary,currentBundle){
   staticExportCohortChanged:oldExportVersion!==newExportVersion,
   publicEvidenceOriginsComparable:publicOriginComparable,
   publicEvidenceOriginChanged:oldPublicOrigin!==newPublicOrigin,
+  ownerDeliveryConfigurationComparable:ownerDeliveryComparable,
   observedPhpEtagOrHtmlChanges:etagDrifts.length,
   sameEtagButDifferentHtml:etagContentConflicts.length,
   operatorConfirmedFixes:0,actualWrites:0,automaticRelease:false
@@ -192,6 +198,8 @@ function build(previous,currentSummary,currentBundle){
    '; comparable: '+(exportVersionComparable?'yes':'NO; no exported finding auto-closure')+'.',
   'Public transcript origins: '+safe(oldPublicOrigin||'none')+' → '+safe(newPublicOrigin||'none')+
    '; comparable: '+(publicOriginComparable?'yes (caller supplied)':'NO; missing or changed origin')+'.',
+  'Owner delivery configuration cohort: '+(ownerDeliveryComparable?'same published version, snapshot only':
+   'not comparable; version or delivery status availability changed')+'.',
   '',
   '## ETag / HTML correlation (local PHP only)','',
   ...etagDrifts.slice(0,40).map(x=>'- '+safe(x.path,100)+': ETag changed '+
@@ -230,6 +238,7 @@ function build(previous,currentSummary,currentBundle){
    staticExportVersionComparable:exportVersionComparable,
    priorStaticExportVersion:oldExportVersion,
    currentStaticExportVersion:newExportVersion,
+   ownerDeliveryConfigurationComparable:ownerDeliveryComparable,
    publicEvidenceOriginComparable:publicOriginComparable,
    oldPublicOrigin,newPublicOrigin
   },

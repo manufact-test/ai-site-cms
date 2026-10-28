@@ -55,4 +55,20 @@ const etagMoved={...bundle(1,true),localPhpHead:{pages:[{
 const configShift=build({summary:summary(1),bundle:etagOld},summary(1),etagMoved);
 assert.equal(configShift.summary.observedPhpEtagOrHtmlChanges,1);
 assert.equal(configShift.summary.sameEtagButDifferentHtml,0);
+
+const deliveryGroup=v=>({format:BUNDLE,siteId:'pilot',readOnly:true,
+ release:{blockers:[{gateId:'owner-form-delivery-configuration'}]},
+ deliveryReadiness:{pinnedPublishedVersion:v,
+  findings:[code('php-delivery:email-recipient-missing',{sectionId:'sec-form'})]}});
+const beforeDelivery=build({summary:summary(1),bundle:deliveryGroup(1)},
+ summary(2),deliveryGroup(2));
+assert.equal(beforeDelivery.summary.ownerDeliveryConfigurationComparable,false);
+assert.equal(beforeDelivery.summary.noLongerObservedOccurrences,0);
+assert.ok(beforeDelivery.gates.notComparable.includes('owner-form-delivery-configuration'));
+const sameDelivery=build({summary:summary(1),bundle:deliveryGroup(1)},
+ summary(1),{...deliveryGroup(1),release:{blockers:[]},
+ deliveryReadiness:{pinnedPublishedVersion:1,findings:[]}});
+assert.equal(sameDelivery.summary.ownerDeliveryConfigurationComparable,true);
+assert.equal(sameDelivery.summary.noLongerObservedOccurrences,1);
+assert.equal(sameDelivery.manualFixesVerified,false);
 console.log('First-site delta group/identity/changed-version smoke PASS');
