@@ -41,6 +41,11 @@ if ($path === '/robots.txt' || $path === '/sitemap.xml') {
     $name = ltrim($path, '/');
     if (!isset($manifest['searchFiles'][$name])) { http_response_code(404); exit; }
     header('Content-Type: '.($name === 'robots.txt' ? 'text/plain' : 'application/xml').'; charset=utf-8');
+    header('Cache-Control: public, no-cache, must-revalidate');
+    $etag='"'.$manifest['searchFiles'][$name].'"';
+    header('ETag: '.$etag);
+    if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag){http_response_code(304);exit;}
+    header('Content-Length: '.filesize($release.'/'.$name));
     if ($_SERVER['REQUEST_METHOD'] !== 'HEAD') readfile($release.'/'.$name);
     exit;
 }
@@ -126,6 +131,13 @@ foreach ($manifest['redirects'] as $redirect) {
 foreach ($manifest['pages'] as $page) {
     if ($path === $page['path']) {
         header('Content-Type: text/html; charset=utf-8');
+        header('Cache-Control: public, no-cache, must-revalidate');
+        $etag='"'.$page['sha256'].'"';
+        header('ETag: '.$etag);
+        if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag){
+            http_response_code(304);exit;
+        }
+        header('Content-Length: '.filesize($release.'/'.$page['file']));
         if ($_SERVER['REQUEST_METHOD'] !== 'HEAD') readfile($release.'/'.$page['file']);
         exit;
     }
