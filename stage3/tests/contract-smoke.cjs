@@ -1202,7 +1202,7 @@ test('read-only approved folder preflight accepts a custom external design and r
     assert.match(audit.report,/Tablet \(768px\)/);
     assert.match(audit.report,/Mobile \(390px\)/);
     assert.match(audit.report,/Site ID: site-/);
-    assert.match(audit.report,/Saved draft/);
+    assert.match(audit.report,/saved draft/);
   }finally{fs.rmSync(folder,{recursive:true,force:true});}
 });
 
