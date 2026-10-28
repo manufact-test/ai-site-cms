@@ -82,9 +82,11 @@ function review(site,snapshot){
        Object.hasOwn(link.attributes,'aria-current')!==expected[i]?.current||
        (Object.hasOwn(link.attributes,'aria-current')&&link.attributes['aria-current']!=='page')))
     add(p,'menu-route-content-drift','Published '+device+' navigation links, current-page state or order differ from Site v1.');
-   const all=elements(nav.html,'ul');
-   const sub=all.filter(x=>classed(x.attributes,'cms-nav-submenu'));
-   const expectedSubs=new Set(site.pages.filter(x=>x.navigation?.parentId&&!x.navigation.hidden)
+   const sub=[...nav.html.matchAll(/<ul\b([^>]*?)>/gi)]
+    .filter(x=>classed(attrs(x[1]),'cms-nav-submenu'));
+   const visible=site.pages.filter(x=>x.navigation?.hidden!==true);
+   const topIds=new Set(visible.filter(x=>!x.navigation?.parentId).map(x=>x.id));
+   const expectedSubs=new Set(visible.filter(x=>topIds.has(x.navigation?.parentId))
     .map(x=>x.navigation.parentId)).size;
    if(sub.length!==expectedSubs)
     add(p,'menu-hierarchy','Published '+device+' submenu count differs from Site v1 page hierarchy.');
@@ -115,7 +117,8 @@ function review(site,snapshot){
    add(p,'footer-drift','Published page footer or site title differs from Site v1.');
   pages.push(Object.freeze({pageId:p.id,path:p.path,desktopLinks,mobileLinks,
    expectedLinks:expected.length,mobileMode:settings.mobile,submenuParentCount:
-     new Set(site.pages.filter(x=>x.navigation?.parentId&&x.navigation.hidden!==true)
+     new Set(site.pages.filter(x=>x.navigation?.parentId&&x.navigation.hidden!==true&&
+      site.pages.some(top=>top.id===x.navigation.parentId&&top.navigation?.hidden!==true))
       .map(x=>x.navigation.parentId)).size}));
  }
  return Object.freeze({format:FORMAT,siteId:site.siteId,readOnly:true,
