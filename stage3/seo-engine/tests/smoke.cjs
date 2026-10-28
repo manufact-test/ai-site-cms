@@ -356,6 +356,8 @@ try{
   decisions:triageFile}));
  assert.equal(reviewedBundle.decisions.releaseAuthorized,false);
  assert.ok(reviewedBundle.traceability.pages[0].tasks.length>0);
+ assert.match(reviewedBundle.markdownHandoff,/SEO Blueprint to Site v1 implementation map/);
+ assert.match(reviewedBundle.markdownHandoff,/Human decisions recorded: 1/);
  assert.equal(reviewedBundle.traceability.summary.decisionsRecorded,1);
  assert.ok(reviewedBundle.traceability.pages.flatMap(p=>p.tasks).some(x=>x.decision==='approved'));
  assert.equal(reviewedBundle.release.readyToPublish,false);

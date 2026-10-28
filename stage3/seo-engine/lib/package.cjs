@@ -71,7 +71,8 @@ function build(site,manifests,blueprint,options={}){
   htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
   traceability,decisions,
   regression,handoff,backlog,release,nextActions,
-  markdownHandoff:renderMarkdown(backlog,release),
+  // Retain the original remediation Markdown first for consumers depending on its header.
+  markdownHandoff:renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability),
   integrationOrder:['verified-owner-facts','approved-prototypes-and-blueprint',
    'existing-site-v1-development','current-manifest-and-override-review',
    'existing-cms-save-and-publish','manual-http-browser-and-three-device-acceptance'],

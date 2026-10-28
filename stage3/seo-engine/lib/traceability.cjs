@@ -114,9 +114,11 @@ function markdown(data){
   for(const s of page.sections)lines.push('- '+safe(s.sectionId)+': '+safe(s.headingEvidence)+
    (s.cta?'; CTA: '+safe(s.cta.authoredRouteEvidence):'')+'.');
   if(page.tasks.length)lines.push('Related backlog: '+
-   page.tasks.slice(0,12).map(t=>safe(t.taskId)).join(', ')+(page.tasks.length>12?' (more in JSON)':'')+'.');
+   page.tasks.slice(0,12).map(t=>safe(t.taskId)+' ('+safe(t.decision)+')').join(', ')+(page.tasks.length>12?' (more in JSON)':'')+'.');
   lines.push('');
  }
+ if(t.decisionsRecorded!==null)lines.push('Human decisions recorded: '+t.decisionsRecorded+
+  '; stale decisions: '+t.staleDecisions+'. Rejected tasks are still visible in the full backlog.','');
  lines.push('## Human acceptance required','');
  for(const check of data.manualAcceptance)lines.push('- [ ] '+safe(check));
  lines.push('','No CMS edits, automatic release, rankings or performance certifications.');
