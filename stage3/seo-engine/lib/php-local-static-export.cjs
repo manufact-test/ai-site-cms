@@ -35,13 +35,23 @@ function structure(html,siteId){
  const body=/<main\b[^>]*>([\s\S]*?)<\/main\s*>/i.exec(html)?.[1]||'';
  const clean=body.replace(/<!--[\s\S]*?-->/g,'')
   .replace(/<(script|style|template|svg)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
- const result={sections:[],links:[],images:[],responsive:[],video:[],forms:[],fields:[]};
+ const result={sections:[],links:[],images:[],responsive:[],video:[],forms:[],fields:[],styles:[],scripts:[]};
  const attrs=raw=>{
   const a={};
   for(const m of raw.matchAll(/([a-z][a-z0-9:_-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/gi))
    a[m[1].toLowerCase()]=decode(m[2]??m[3]??m[4]??'');
   return a;
  };
+ // Static export paths are site-root URLs; live PHP uses /published/SITE-ID.
+ // Compare style definitions after removing this one known mount, not by
+ // reformatting arbitrary CSS/JS or masking real style value changes.
+ const cleanCss=x=>String(x??'').replace(new RegExp('/published/'+siteId+'(?=/)','g'),'')
+  .replace(/\s+/g,' ').trim();
+ result.styles=[...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)]
+  .map(m=>cleanCss(m[1]));
+ result.scripts=[...html.matchAll(/<script\b([^>]*?)>([\s\S]*?)<\/script\s*>/gi)]
+  .filter(m=>!/\btype\s*=\s*["']?application\/ld\+json/i.test(m[1]))
+  .map(m=>m[2].trim());
  const normalizeUrl=x=>{
   const s=String(x||''),prefix='/published/'+siteId;
   return s.startsWith(prefix+'/')?s.slice(prefix.length):s;

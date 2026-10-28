@@ -50,4 +50,14 @@ assert.ok(linkBad.findings.some(f=>f.code==='php-export:static-broken-local-rout
 linkedDocs.set('/',{html:linkPage.replace('/contact/#hours','/published/a-site/contact/')});
 assert.ok(staticLinks(linkedSite,linkedDocs,new Map(),new Map()).findings
  .some(f=>f.code==='php-export:static-php-mount-leak'));
+
+const cssVersion=body=>body.replace('</head>','<style>:root{--cms-primary:#123456}</style></head>');
+const cssWrong=body=>body.replace('</head>','<style>:root{--cms-primary:#abcdef}</style></head>');
+assert.ok(compare(site,{...snap,pages:[{...snap.pages[0],html:cssWrong(html('Hello'))}]},media,
+ {...release,pages:new Map([['/',{id:'home',path:'/',html:cssVersion(html('Hello'))}]])},4)
+ .findings.some(f=>f.code==='php-export:page-structure-drift'&&f.field==='structure.styles'));
+const wizard=(body,code)=>body.replace('</body>','<script>'+code+'</script></body>');
+assert.ok(compare(site,{...snap,pages:[{...snap.pages[0],html:wizard(html('Hello'),'const wizard=2;')}]},media,
+ {...release,pages:new Map([['/',{id:'home',path:'/',html:wizard(html('Hello'),'const wizard=1;')}]])},4)
+ .findings.some(f=>f.field==='structure.scripts'));
 console.log('Static export + localhost PHP parity focused smoke PASS');
