@@ -312,6 +312,31 @@ async function execute(){
   await page.locator('#cms-setting-seo-description').fill('Новые вопросы и SEO опубликованы после ручного сохранения');
   await page.locator('#cms-settings-apply').click();
   await page.locator('#save').click();
+  await page.locator('#server-launch-review').click();
+  await page.locator('#server-launch-dialog').waitFor();
+  // The review must measure the real PHP-rendered page, including the footer
+  // below the 900px fold, rather than accepting an HTML string as rendered.
+  await page.waitForFunction(()=>document.querySelector('#server-launch-preview-status')
+    ?.textContent?.includes('PHP-страница целиком'),{timeout:15000});
+  const desktopCheck=await page.locator('#server-launch-preview').evaluate(frame=>({
+    height:Number.parseInt(frame.style.height,10),
+    scrollable:frame.parentElement?.clientHeight,
+    hasFooter:!!frame.contentDocument?.querySelector('footer'),
+    totalImages:frame.contentDocument?.images.length
+  }));
+  assert.ok(desktopCheck.height>900,'PHP launch review must preserve whole page height');
+  assert.equal(desktopCheck.hasFooter,true);
+  assert.ok(desktopCheck.totalImages>=2,'PHP page includes both imported site-owned images');
+  assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
+    'Manual sign-off only becomes available after PHP content and images rendered');
+  await page.locator('#server-launch-modes [data-device="mobile"]').click();
+  await page.waitForFunction(()=>document.querySelector('#server-launch-preview-status')
+    ?.textContent?.includes('390 px'),{timeout:15000});
+  assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
+    'Mobile PHP view has no broken media or page-level overflow');
+  await page.locator('#server-launch-mark').click();
+  assert.match(await page.locator('#server-launch-progress').innerText(),/экранов: 1\/3/);
+  await page.locator('#server-launch-close').click();
   await page.locator('#server-publish').click();
   await page.locator('#server-status').getByText(/Опубликовано: v1/).waitFor();
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),200);
@@ -340,6 +365,18 @@ async function execute(){
   const publishedApproved=(await (await page.request.get(origin+
     '/api/sites/site-approved-browser/published-site')).json()).site;
   assert.equal(publishedApproved.pages[0].seo.ogImage,imported.assets[0].id);
+  // Compare the REAL published PHP response to current draft within one
+  // isolated, script-disabled review screen; no second preview renderer.
+  await page.locator('#server-launch-review').click();
+  await page.locator('#server-launch-dialog').waitFor();
+  await page.locator('#server-launch-compare-modes [data-compare-mode="compare"]').click();
+  await page.waitForFunction(()=>{
+    const live=document.querySelector('#server-launch-live-preview');
+    return live?.contentDocument?.querySelector('section.faq')&&
+      Number.parseInt(live.style.height,10)>900;
+  },{timeout:15000});
+  assert.equal(await page.locator('.hosted-launch-preview-panels.is-comparing').count(),1);
+  await page.locator('#server-launch-close').click();
   // Actual PUBLIC PHP screenshot evidence, not Studio's JS iframe. Capture
   // every published page at all three original approved breakpoints, read-only.
   const evidenceDir=path.join(temp,'approved-pilot-evidence');
