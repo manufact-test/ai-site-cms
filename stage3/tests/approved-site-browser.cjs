@@ -120,6 +120,24 @@ async function execute(){
         ]
       }]}
     });
+    // Individually-authored rich composition: a real comparison table, an
+    // attributed quotation, a plain link and an image swipe gallery.
+    const rich=site.pages[0].sections.find(x=>x.id==='section-approved-custom').designGraph.nodes;
+    const cell=(id,text)=>({id,type:'table-cell',text,styles:{}});
+    const row=(id,values)=>({id,type:'table-row',styles:{},
+      children:values.map((v,i)=>cell(id+'-cell-'+(i+1),v))});
+    rich.push(
+      {id:'approved-rich-link',type:'link',text:'Перейти к началу',href:'/',styles:{textDecoration:'underline'}},
+      {id:'approved-rich-quote',type:'quote',text:'Цитата из согласованной спецификации',
+        cite:'Подпись для цитаты',styles:{padding:16}},
+      {id:'approved-rich-table',type:'table',text:'Характеристики услуги',styles:{},
+        children:[row('approved-table-head',['Параметр','План A','План B']),
+          row('approved-table-one',['Срок','По договору','По согласованию']),
+          row('approved-table-two',['Поддержка','Включена','Уточняется'])]},
+      {id:'approved-rich-gallery',type:'gallery',text:'Фотографии выполненных работ',
+        styles:{},children:[1,2].map(i=>({id:'approved-gallery-photo-'+i,
+          type:'image',assetId:'asset-external-hero',alt:'Изображение демонстрации '+i,styles:{}}))}
+    );
     site.pages[0].sections.push(section);
     return site;
   });
@@ -188,6 +206,11 @@ async function execute(){
     ?.getAttribute('srcdoc')?.includes('Особенный согласованный дизайн'));
   assert.match(await live.getAttribute('srcdoc'),/Особенный согласованный дизайн/);
   const approvedPreviewHtml=await live.getAttribute('srcdoc');
+  assert.match(approvedPreviewHtml,/<table class="cmsdg-n-approved-rich-table cmsdg-table">/,
+    'External authored semantic table previews without arbitrary HTML');
+  assert.match(approvedPreviewHtml,/<th scope="col"/);
+  assert.match(approvedPreviewHtml,/cmsdg-gallery/);
+  assert.match(approvedPreviewHtml,/cmsdg-quote/);
   assert.match(approvedPreviewHtml,/data:image\/png;base64,/,
     'Pre-import CMS renderer resolves packaged image bytes without HTTP requests');
   assert.equal((approvedPreviewHtml.match(/src="data:image\/png;base64,/g)||[]).length,2,
@@ -540,6 +563,13 @@ async function execute(){
   assert.equal(await visitor.locator('.cmsdg-n-approved-custom-copy').innerText(),
     'Особенный согласованный дизайн',
     'Custom AI composition renders from the external Design Graph, not a fixed template');
+  assert.equal(await visitor.locator('.cmsdg-n-approved-rich-table tbody tr').count(),2,
+    'PHP publication renders rows from the imported typed table');
+  assert.equal(await visitor.locator('.cmsdg-n-approved-rich-table thead th').count(),3);
+  assert.equal(await visitor.locator('.cmsdg-n-approved-rich-gallery img').count(),2,
+    'Published gallery uses actual site-owned photos');
+  assert.match(await visitor.locator('.cmsdg-n-approved-rich-quote').innerText(),/Подпись для цитаты/);
+  assert.equal(await visitor.locator('.cmsdg-n-approved-rich-link').getAttribute('href'),'/');
   const remoteImage=visitor.locator('section.showcase img.showcase-photo');
   assert.equal(await remoteImage.getAttribute('alt'),'Фото внешнего сайта');
   assert.match(await remoteImage.getAttribute('src'),
