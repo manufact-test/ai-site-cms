@@ -102,8 +102,9 @@ trait SiteArchives
             $payload = ['siteId' => $id, 'createdAt' => $this->now(), 'draft' => $draft,
                 'publishedVersion' => $active === false ? null : (int)$active,
                 'revisions' => $revisions, 'releases' => $releases, 'media' => $media,
-                'templates' => $this->sectionTemplates($id), 'submissions' => $leads];
-            $archive = ['format' => 'manufact-site-backup-v1', 'payload' => $payload,
+                'templates' => $this->sectionTemplates($id), 'submissions' => $leads,
+                'approvalEvidence' => $this->exportApprovalArchiveRows($id)];
+            $archive = ['format' => 'manufact-site-backup-v2', 'payload' => $payload,
                 'sha256' => hash('sha256', self::encode($payload))];
             self::archiveCheck(strlen(self::encode($archive)) <= self::ARCHIVE_LIMIT - 1024, 'exceeds 64 MB export limit');
             // Export and import use one validation policy. Never emit an unrecoverable success.
@@ -125,15 +126,21 @@ trait SiteArchives
     private function validateArchiveData(array $archive, string $target): array
     {
         self::archiveKeys($archive, ['format', 'payload', 'sha256']);
-        self::archiveCheck($archive['format'] === 'manufact-site-backup-v1' && is_array($archive['payload'])
+        self::archiveCheck(in_array($archive['format'],['manufact-site-backup-v1','manufact-site-backup-v2'],true) && is_array($archive['payload'])
             && is_string($archive['sha256']) && hash_equals(hash('sha256', self::encode($archive['payload'])), $archive['sha256']),
             'unsupported format or checksum mismatch');
         self::archiveCheck(strlen(self::encode($archive)) <= self::ARCHIVE_LIMIT - 1024, 'exceeds 64 MB limit');
         self::archiveCheck(preg_match('/^[a-z][a-z0-9-]{2,79}$/D', $target) === 1, 'invalid target site ID');
         $p = $archive['payload'];
-        self::archiveKeys($p, ['siteId','createdAt','draft','publishedVersion','revisions','releases','media','templates','submissions']);
+        $isV2=$archive['format']==='manufact-site-backup-v2';
+        self::archiveKeys($p, $isV2
+            ? ['siteId','createdAt','draft','publishedVersion','revisions','releases','media','templates','submissions','approvalEvidence']
+            : ['siteId','createdAt','draft','publishedVersion','revisions','releases','media','templates','submissions']);
         self::archiveCheck(is_string($p['siteId']) && preg_match('/^[a-z][a-z0-9-]{2,79}$/D', $p['siteId']) === 1, 'invalid source site');
         self::archiveDate($p['createdAt']);
+        if($isV2)$p['approvalEvidence']=$this->validateApprovalArchiveRows(
+            $p['approvalEvidence'],$p['siteId']);
+        else $p['approvalEvidence']=[];
         foreach (['revisions' => 5000, 'releases' => 5000, 'media' => 3000, 'templates' => 60, 'submissions' => 50000] as $key => $limit) {
             self::archiveCheck(is_array($p[$key]) && array_is_list($p[$key]) && count($p[$key]) <= $limit, 'invalid or oversized ' . $key);
         }
@@ -312,6 +319,8 @@ trait SiteArchives
             'createdAt' => $p['createdAt'], 'revision' => $p['draft']['revision'], 'pages' => count($p['draft']['site']['pages']),
             'revisions' => count($p['revisions']), 'releases' => count($p['releases']), 'images' => count($p['media']),
             'templates' => count($p['templates']), 'submissions' => count($p['submissions']),
+            'approvalFiles' => count($p['approvalEvidence']),
+            'approvalPackages' => count(array_unique(array_column($p['approvalEvidence'],'packageSha'))),
             'formerPublishedVersion' => $p['publishedVersion'], 'willPublish' => false];
     }
 
@@ -331,6 +340,17 @@ trait SiteArchives
             foreach ($p['media'] as $m) {
                 foreach ([$target, $m['id'], $m['mime'], $m['sha256']] as $i => $v) $q->bindValue($i + 1, $v);
                 $q->bindValue(5, base64_decode($m['base64'], true), PDO::PARAM_LOB); $q->bindValue(6, $m['createdAt']); $q->execute();
+            }
+            // Restored package belongs to the NEW site for access isolation,
+            // while its signed original handoff/site.json bytes remain intact.
+            // This is inside the same transaction as the draft and all media.
+            $evidenceInsert=$this->db->prepare('INSERT INTO stage3_approval_evidence (site_id,package_sha,kind,version,sha256,bytes,created_at) VALUES (?,?,?,?,?,?,?)');
+            foreach($p['approvalEvidence'] as $proof){
+                foreach([$target,$proof['packageSha'],$proof['kind'],$proof['version'],
+                    $proof['sha256']] as $i=>$value)$evidenceInsert->bindValue($i+1,$value);
+                $evidenceInsert->bindValue(6,base64_decode($proof['base64'],true),PDO::PARAM_LOB);
+                $evidenceInsert->bindValue(7,$proof['createdAt']);
+                $evidenceInsert->execute();
             }
             $q = $this->db->prepare('INSERT INTO stage3_publication_history (site_id,version,source_revision,body,published_at) VALUES (?,?,?,?,?)');
             foreach ($p['releases'] as $r) $q->execute([$target,$r['version'],$r['sourceRevision'],self::encode($r['site']),$r['publishedAt']]);
