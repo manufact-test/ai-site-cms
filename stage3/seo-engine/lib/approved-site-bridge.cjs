@@ -6,6 +6,7 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const {fingerprint}=require('./acceptance.cjs');
 const SOURCE_FORMAT='manufact-seo-approved-site-source-v1';
+const RECONCILE=require('./published-site-reconcile.cjs');
 const verifiedSources=new WeakSet();
 function isVerifiedSource(source){return verifiedSources.has(source);}
 function load(folder){
@@ -66,4 +67,20 @@ function load(folder){
  verifiedSources.add(summary);
  return {site,source:summary};
 }
-module.exports=Object.freeze({SOURCE_FORMAT,load,isVerifiedSource});
+function reconcile(approved,liveSite,publishedVersion){
+ if(!approved||!isVerifiedSource(approved.source)||!Number.isSafeInteger(publishedVersion)||
+   publishedVersion<1||publishedVersion>999999999)
+  throw Error('Imported published-site reconciliation requires verified sealed v2 and real numeric release');
+ const checked=RECONCILE.correlate(approved.site,liveSite,approved.source.sealedMediaSha256);
+ const original=approved.source;
+ const bound=Object.freeze({...original,siteRevisionFingerprint:fingerprint(liveSite),
+  originalApprovedSiteFingerprint:original.siteRevisionFingerprint,
+  sealedMediaSha256:checked.sealedMediaSha256,
+  publishedVersion,
+  approvedMediaIdRemappingChecked:true,mappedPublishedMediaFiles:checked.mappedMediaCount,
+  publishedContentAfterMediaRemapMatched:true,
+  sourceRevisionAuthenticated:false});
+ verifiedSources.add(bound);
+ return {site:liveSite,source:bound};
+}
+module.exports=Object.freeze({SOURCE_FORMAT,load,reconcile,isVerifiedSource});

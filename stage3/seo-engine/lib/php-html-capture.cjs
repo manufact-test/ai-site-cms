@@ -183,7 +183,7 @@ function inspect(manifest,site,source,folder){
  }
  const checkedSnapshot=snapshot(site,source,entries,manifest.baseUrl,manifest.capturedAt,publication);
  const localHead=LOCAL_HEAD.review(site,checkedSnapshot,manifest.pages,publication);
- const localForms=LOCAL_FORMS.review(site,checkedSnapshot);
+ const localForms=LOCAL_FORMS.review(site,checkedSnapshot,source.publishedVersion??null);
  const localMedia=manifest.media?
   LOCAL_MEDIA.inspect(site,manifest.baseUrl,manifest.media,root,checkedSnapshot,
    publication?.declaredPublicOrigin||null,source.sealedMediaSha256):null;
@@ -212,8 +212,9 @@ function read(folder,site,source){
  if(!stat.isFile()||stat.size<50||stat.size>1000000)fail('invalid manifest.json');
  return inspect(JSON.parse(fs.readFileSync(file,'utf8')),site,source,root);
 }
-async function capture(sealedFolder,rawOrigin,output){
- const {site,source}=BRIDGE.load(sealedFolder);
+async function capture(sealedFolder,rawOrigin,output,publishedRecord=null){
+ const approved=BRIDGE.load(sealedFolder);
+ const {site,source}=publishedRecord?BRIDGE.reconcile(approved,publishedRecord.site,publishedRecord.version):approved;
  if(!Array.isArray(site.pages)||!site.pages.length||site.pages.length>MAX_PAGES)
   fail('expected 1–60 Site v1 pages');
  const base=baseUrl(rawOrigin,site.siteId);

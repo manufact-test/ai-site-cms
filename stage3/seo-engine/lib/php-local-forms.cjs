@@ -30,7 +30,7 @@ function validAction(action,siteId,sectionId){
  return (url.protocol==='https:'||(url.protocol==='http:'&&['127.0.0.1','localhost'].includes(url.hostname)))&&
   !url.username&&!url.password&&!url.search&&!url.hash&&url.pathname==='/forms/'+siteId+'/'+sectionId;
 }
-function review(site,snapshot){
+function review(site,snapshot,publishedVersion=null){
  if(!site||!Array.isArray(site.pages)||!snapshot||snapshot.siteId!==site.siteId||
    !Array.isArray(snapshot.pages)||snapshot.pages.length!==site.pages.length)
   throw Error('PHP form audit requires matching full Site v1 HTML capture');
@@ -124,12 +124,21 @@ function review(site,snapshot){
   }
   pages.push(Object.freeze({pageId:page.id,path:page.path,expectedForms:expected.length,actualForms:actual.length,checkedFormSections:checked}));
  }
+ if(publishedVersion!==null&&(!Number.isSafeInteger(publishedVersion)||publishedVersion<1))
+  throw Error('Invalid expected published form version');
+ if(publishedVersion!==null&&releases.size&&(
+    releases.size!==1||![...releases].includes(publishedVersion)))
+  findings.push(Object.freeze({code:'php-form:release-version-drift',severity:'error',
+   pageId:null,path:null,sectionId:null,
+   message:'Actual PHP form release does not match the owner-supplied published version.',
+   evidence:'hash-checked-local-php-html',automatic:false}));
  if(releases.size>1)findings.push(Object.freeze({code:'php-form:mixed-releases',severity:'error',pageId:null,path:null,sectionId:null,
   message:'Published forms expose inconsistent release versions.',evidence:'hash-checked-local-php-html',automatic:false}));
  return Object.freeze({format:FORMAT,siteId:site.siteId,readOnly:true,pages:Object.freeze(pages),findings:Object.freeze(findings),
   expectedForms:pages.reduce((n,p)=>n+p.expectedForms,0),observedForms:pages.reduce((n,p)=>n+p.actualForms,0),
   checkedFormSections:pages.reduce((n,p)=>n+p.checkedFormSections,0),
   consistentRelease:releases.size===1?[...releases][0]:null,
+  expectedPublishedVersion:publishedVersion,
   actualPostPerformed:false,collectorChecked:false,deliveriesProven:false,servedRevisionAuthenticated:false,
   limitations:'HTML markup and marker shape only. Does not POST, disclose tokens, authenticate PHP revision, validate collector or prove delivery.'});
 }
