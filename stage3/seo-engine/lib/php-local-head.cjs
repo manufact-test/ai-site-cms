@@ -4,6 +4,8 @@
 // This is NOT proof of a deployed public HTTPS host or of its served revision.
 const {readHead}=require('./parity.cjs');
 const crypto=require('node:crypto');
+const PUBLISHER=require('./publisher-media.cjs');
+const {decode}=require('./php-local-components.cjs');
 const FORMAT='manufact-seo-local-php-head-v1';
 // Mirrors PublicRenderer::html SEO fallback from the current lead PHP.
 const normalized=x=>String(x??'').replace(/\s+/g,' ').trim().normalize('NFKC');
@@ -50,6 +52,22 @@ function ogUrl(html){
  }
  return urls;
 }
+function socialMeta(html){
+ const source=/<head\b[^>]*>([\s\S]*?)<\/head\s*>/i.exec(html)?.[1]||'';
+ const clean=source.replace(/<!--[\s\S]*?-->/g,'')
+  .replace(/<(?:script|style|template)\b[^>]*>[\s\S]*?<\/(?:script|style|template)\s*>/gi,'');
+ const out=new Map();
+ for(const tag of clean.matchAll(/<meta\b([^>]*?)\/?>/gi)){
+  const a={};
+  for(const m of tag[1].matchAll(/([a-z][a-z0-9:_-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi))
+   a[m[1].toLowerCase()]=decode(m[2]??m[3]??m[4]);
+  const key=(a.property||a.name||'').toLowerCase();
+  if(!key||!Object.hasOwn(a,'content'))continue;
+  if(!out.has(key))out.set(key,[]);
+  out.get(key).push(a.content);
+ }
+ return out;
+}
 function review(site,snapshot,records,publication){
  if(!site||!Array.isArray(site.pages)||!snapshot||
    snapshot.siteId!==site.siteId||!Array.isArray(snapshot.pages)||
@@ -73,6 +91,20 @@ function review(site,snapshot,records,publication){
   const head=readHead(page.html);
   if(head.status!=='parsed-head')throw Error('Local PHP page lacks complete HTML head');
   const expected=expectedMeta(site,spec);
+  const socialTags=socialMeta(page.html);
+  const selected=PUBLISHER.select(site,spec);
+  const expectedLocale=({ru:'ru_RU',en:'en_US',pl:'pl_PL',de:'de_DE',be:'be_BY',uk:'uk_UA'})[expected.language]||'ru_RU';
+  const socialValue=key=>socialTags.get(key)||[];
+  const expectSocial=(key,wanted)=>{
+   const got=socialValue(key);
+   if(wanted===null){
+    if(got.length)add('php-head:social-unexpected','error',spec,
+     'Published PHP includes unexpected social metadata '+key+'.',{field:key});
+   }else if(got.length!==1||normalized(got[0])!==normalized(wanted))
+    add('php-head:social-drift','error',spec,
+     'Published PHP social metadata '+key+' is absent, duplicated or differs from Site v1.',
+     {field:key,expected:normalized(wanted).slice(0,240),observed:got.map(x=>normalized(x).slice(0,240))});
+  };
   for(const [field,wanted,seen] of [
    ['title',expected.title,head.title],
    ['description',expected.description,head.description],
@@ -83,6 +115,26 @@ function review(site,snapshot,records,publication){
    add('php-head:metadata-drift','error',spec,
     'Local published PHP '+field+' differs from immutable Site v1 source or PHP fallback.',
     {field,expected:normalized(wanted).slice(0,240),observed:normalized(seen).slice(0,240)});
+  expectSocial('og:type','website');
+  expectSocial('og:locale',expectedLocale);
+  expectSocial('twitter:title',expected.ogTitle);
+  expectSocial('twitter:description',expected.ogDescription||null);
+  const selectedImage=selected.asset||null;
+  const actualOgImage=socialValue('og:image');
+  const expectImage=claimedOrigin&&selectedImage
+   ?claimedOrigin+'/published/'+site.siteId+selectedImage.src:null;
+  if(claimedOrigin){
+   expectSocial('og:image',expectImage);
+   expectSocial('twitter:image',expectImage);
+  }else if(actualOgImage.length){
+   expectSocial('twitter:image',actualOgImage.length===1?actualOgImage[0]:null);
+  }else expectSocial('twitter:image',null);
+  const alt=(claimedOrigin?Boolean(expectImage):Boolean(actualOgImage.length))&&selectedImage?.alt
+   ?selectedImage.alt:null;
+  expectSocial('og:image:alt',alt);
+  expectSocial('twitter:image:alt',alt);
+  expectSocial('twitter:card',
+   (claimedOrigin?Boolean(expectImage):Boolean(actualOgImage.length))?'summary_large_image':'summary');
   const metaNoindex=/(?:^|[,\s])noindex(?:$|[,\s])/i.test(head.robots||'');
   if(metaNoindex!==(expected.robots==='noindex'))
    add('php-head:meta-robots-drift','error',spec,
@@ -156,6 +208,9 @@ function review(site,snapshot,records,publication){
    observedNoindexInXRobots:observedNoindex,siteNoindex:intendedNoindex,
    inlineScriptsCaptured:inlineScripts.length,wizardExpected:Boolean(wizardCount),
    metaRobotsMatched:metaNoindex===intendedNoindex,
+   socialMetadataMatched:!findings.some(x=>x.pageId===page.id&&
+    x.code.startsWith('php-head:social-')),
+   twitterCard:socialValue('twitter:card')[0]||null,
    metadataMatches:!findings.some(x=>x.pageId===page.id&&
     ['php-head:metadata-drift','php-head:meta-robots-drift'].includes(x.code)),
    canonicalUrl:canonicalUrl?.href||null,ogUrlCount:social.length,
@@ -171,4 +226,4 @@ function review(site,snapshot,records,publication){
   limitations:'Only recorded localhost headers and page HTML, reconciled with a locally served sitemap. No browser JavaScript execution, PHP build identity, public DNS/TLS, CDN policies or real deployed HTTP origin was authenticated.'
  });
 }
-module.exports=Object.freeze({FORMAT,assertHeaders,headersOf,ogUrl,review});
+module.exports=Object.freeze({FORMAT,assertHeaders,headersOf,ogUrl,socialMeta,review});
