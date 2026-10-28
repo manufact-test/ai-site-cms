@@ -33,6 +33,8 @@ node stage3/seo-engine/bin/seo-blueprint.cjs remediation-md \
 node stage3/seo-engine/tests/smoke.cjs
 ```
 
+`cms-change-packet` derives candidate edits only from approved, current backlog items, rechecks Site v1 page/element IDs, manifest version and field limits, verifies the proposed value against the current approved blueprint, and refuses unresolved dependencies. It never writes to CMS; manual saved overrides and real Save/Publish must still be reviewed. The `review-bundle.cmsChangePacket` includes the same guarded instructions.
+
 The execution plan separates **approved-for-manual-work** from **completed** (never inferred). Rejected/deferred tasks remain visible but are omitted from suggested next actions; stale decisions must be refreshed. Existing dependencies remain blocking until a subsequent audited site/backlog resolves them. This tool cannot implement or complete CMS tasks.
 
 The `review-bundle.markdownHandoff` keeps its original remediation report at the top and appends the per-page implementation/acceptance map. No separate document needs to be assembled by the lead.
@@ -57,6 +59,7 @@ The full `review-bundle` includes a canonical blueprint architecture review, cor
 | `remediation-plan`, `remediation-md`, `release-review` | JSON work queue, Markdown work queue, publication checklist | `--site --blueprint`, optional `--snapshot --viewports --before` |
 | `media-review` | Validate caller-supplied OG image resource URL/status/MIME | `--site --media`, optional `--snapshot` |
 | `delivery-review` | Read-only HTTP transcript: statuses, headers, canonical, robots, sitemap | `--site --delivery`, optional `--blueprint` |
+| `cms-change-packet` | Non-executable manifest- and source-guarded CMS field instructions after decisions | `--site --blueprint`, optional `--decisions --snapshot --delivery` |
 | `execution-plan`, `execution-plan-md` | Dependency-aware phases/owners; approved, blocked, stale, deferred and rejected task lanes | `--site --blueprint`, optional `--decisions --delivery --snapshot --viewports --before` |
 | `triage` | Reconcile human decisions with current backlog, detect stale proposals | `--site --blueprint --decisions`, optional `--snapshot --viewports --before` |
 

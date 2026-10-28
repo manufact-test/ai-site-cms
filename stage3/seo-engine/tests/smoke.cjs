@@ -431,6 +431,12 @@ try{
  assert.match(executionText,/SEO implementation execution plan/);
  assert.ok(reviewedBundle.markdownHandoff.includes('## Next review actions'));
  assert.equal(reviewedBundle.executionPlan.summary.humanDecisionsRecorded,1);
+ const cmsPacket=JSON.parse(good('cms-change-packet',{site,blueprint:bp,snapshot:htmlSite,decisions:triageFile}));
+ assert.equal(cmsPacket.format,'manufact-seo-cms-change-packet-v1');
+ assert.equal(cmsPacket.automaticApplication,false);
+ assert.equal(cmsPacket.summary.actualWrites,0);
+ assert.ok(cmsPacket.operations.some(x=>x.taskId===task.taskId&&x.application==='existing-cms-manual-field-review'));
+ assert.equal(reviewedBundle.cmsChangePacket.summary.eligibleForManualReview,cmsPacket.summary.eligibleForManualReview);
  const workflowPlan=require('../lib/execution-plan.cjs');
  const syntheticBacklog={format:'manufact-seo-remediation-v1',readOnly:true,siteId:plan.siteId,
   tasks:[
