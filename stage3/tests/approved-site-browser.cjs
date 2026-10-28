@@ -608,6 +608,7 @@ async function execute(){
     format:'manufact-launch-review-v1',
     siteId:'site-approved-browser',
     revision:revisionInfo.revision,
+    sourceApproval:{packageSha:approvedPack.packageSha},
     visualFindings:[{pageId:imported.pages[0].id,path:'/',device:'desktop',
       note:'Вернуть точную ширину главного блока',scrollY:110,resolved:false}]
   };
