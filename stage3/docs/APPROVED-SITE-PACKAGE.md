@@ -553,3 +553,19 @@ GO requires a real desktop/tablet/mobile approved site, imported and
 verified through the visible Save/Publish/Rollback workflow. External
 hosting, independent PHP installs, Next deployment and production
 updates remain environment-dependent and must not be claimed verified.
+
+## 28 October 2026 — integrated form routing, cache, independent release identity and offline engine package
+
+Four additive product blocks were implemented on the lead branch, without changing main, production, the SEO engine or customer databases:
+
+1. Requirement #80: private owner-only per-form Email/Telegram notification routes. Each existing lead-form or lead-form-flex section independently selects site default, disabled, or custom recipient. Changes require a reason and optimistic version, and are rejected for unknown forms. New queued notifications snapshot their recipient, so later routing edits cannot redirect previously accepted leads. Existing site-wide delivery/outbox, retry, uncertain-send controls, inbox and lead review are reused. Recipient settings and queued leads are private operational records, not public site.json or the content-only backup-v2.
+2. Requirements #187/#193: hosted first-party Studio JS/CSS assets have optional gzip, representation-specific ETag, Accept-Encoding Vary and no-cache revalidation (304). Private HTML/API and visitors are not changed. This is not yet evidence of real Core Web Vitals on an external host.
+3. Requirements #178/#191: independent published PHP, Next Static and Next SSR visitor builds expose /_cms-connect.json, a read-only release identity containing siteId, publishedVersion, sourceRevision and releaseManifestSha256. This verifies identity if inspected on a host, not availability, correct deployment, or remote CMS connectivity.
+4. Requirements #184/#185/#193: new offline-only engine shipment tool at stage3/bin/cms-release.cjs. The pack, verify and compare commands produce a bounded first-party runtime copy and SHA256 manifest; they reject tampered or untracked package files and allow comparing two versions. There is no network, deploy, database migration, DNS cutover, production release activation, auto-update or automatic rollback. Unsigned checksums are integrity evidence, not source authentication.
+
+Operational usage:
+- Form routing appears in owner-only hosted Studio under External lead notifications; selected form inherits, disables or overrides each channel. The delivery routes table and outbox target column need the existing explicit isolated CLI upgrade: STAGE3_ALLOW_DELIVERY_UPGRADE=YES php stage3/server/bin/upgrade-delivery.php. NEVER perform an upgrade on a real DB without explicit owner authorization and a separate DB backup. Old outbox rows retain legacy default targeting.
+- Engine offline pack: node stage3/bin/cms-release.cjs pack /ABS/REPO /ABS/NEW-RELEASE; verify: node stage3/bin/cms-release.cjs verify /ABS/RELEASE; compare: node stage3/bin/cms-release.cjs compare /ABS/OLD /ABS/NEW. Only new paths are written. New installation and DB update remain environment gates.
+- On independent PHP: manually GET /_cms-connect.json. On Next Static/SSR: static public/_cms-connect.json ships with the bundle. Never assume correct external deployment until owner verifies matching URL and actual site behavior.
+
+The existing PHP/SQLite HTTP E2E includes targeted checks for private routing, immutable queued recipient, Studio asset revalidation, independent runtime canary, and offline engine package tamper rejection. Final matching CI must be checked separately after documentation commits. The first real client-approved v2 site is still absent. Owner accepted MUST: zero. No deploy, PR, merge, or changes to SEO branch.
