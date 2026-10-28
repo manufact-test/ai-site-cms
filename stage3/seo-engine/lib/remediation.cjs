@@ -148,8 +148,8 @@ function work(site,manifests,blueprint,options={}){
   const group=x.code.startsWith('migration:')?'site-links':bucket(x.code);
   const key=['investigate',kind,x.pageId||'',x.sectionId||'',x.targetPageId||'',
    x.field||'',x.device||'',x.code,x.fragment||'',x.href||'',x.topic||'',
-   x.assetId||'',x.schemaType||'',group].join('|');
-  const fromHtml=['html-snapshot','html-deep','viewport-capture','http-delivery-evidence','media-delivery-evidence','php-public-screenshots','php-local-publication','php-local-media','php-local-head','php-local-forms','cross-source-consistency'].includes(kind),fromParity=kind==='publication-parity';
+   x.assetId||'',x.schemaType||'',x.graphNodeId||'',x.property||'',group].join('|');
+  const fromHtml=['html-snapshot','html-deep','viewport-capture','http-delivery-evidence','media-delivery-evidence','php-public-screenshots','php-local-publication','php-local-media','php-local-head','php-local-forms','php-local-components','php-local-design-graph','php-local-navigation','php-local-theme','cross-source-consistency'].includes(kind),fromParity=kind==='publication-parity';
   const direct=x.severity==='error'||x.severity==='blocker';
   const owner=group==='verified-facts'?'site-owner':
    fromHtml||fromParity||direct||/planned-(?:page|link|internal-link|section)/.test(x.code)
@@ -170,6 +170,8 @@ function work(site,manifests,blueprint,options={}){
    ...(x.assetId!==undefined?{assetId:x.assetId}:{}),
    ...(x.elementId!==undefined?{elementId:x.elementId}:{}),
    ...(x.nodeId!==undefined?{nodeId:x.nodeId}:{}),
+   ...(x.graphNodeId!==undefined?{graphNodeId:x.graphNodeId}:{}),
+   ...(x.property!==undefined?{property:x.property}:{}),
    ...(x.proposedAnchor!==undefined?{proposedAnchor:x.proposedAnchor}:{}),
    ...(x.schemaType!==undefined?{schemaType:x.schemaType}:{}),
    ...(x.factIds!==undefined?{factIds:x.factIds}:{}),
