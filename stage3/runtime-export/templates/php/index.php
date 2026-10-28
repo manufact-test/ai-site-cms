@@ -21,6 +21,22 @@ if (!is_string($path) || preg_match('/%(?:2e|2f|5c|00)/i', $path)
     http_response_code(400);
     exit;
 }
+// Diagnostic-only release identity for offline/remote manual verification.
+// This does not imply that an external deployment is connected or healthy.
+if ($path === '/_cms-connect.json') {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    header('X-Robots-Tag: noindex, nofollow');
+    header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
+    if (($_SERVER['REQUEST_METHOD']??'GET') !== 'HEAD') {
+        echo json_encode(['format'=>'manufact-ai-site-connection-v1',
+            'siteId'=>$manifest['siteId'],'publishedVersion'=>$manifest['publishedVersion'],
+            'sourceRevision'=>$manifest['sourceRevision'],
+            'releaseManifestSha256'=>hash_file('sha256',$release.'/release-manifest.json')],
+            JSON_THROW_ON_ERROR);
+    }
+    exit;
+}
 if ($path === '/robots.txt' || $path === '/sitemap.xml') {
     $name = ltrim($path, '/');
     if (!isset($manifest['searchFiles'][$name])) { http_response_code(404); exit; }
