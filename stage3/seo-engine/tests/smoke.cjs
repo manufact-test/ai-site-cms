@@ -102,6 +102,23 @@ try{
  assert.equal(authored.links.some(x=>x.toPath==='/contact/'),false,
   'legacy links are not rendered and must not count');
  assert.ok(authored.links.some(x=>x.toPath==='/'));
+
+ // Publisher social fallback is intentionally source-compatible with PHP, but
+ // its hidden-legacy selection may not occur in rendered page content.
+ const hiddenOgSite=JSON.parse(fs.readFileSync(fixture('industrial.social-fallback.site.json'),'utf8'));
+ const ogSection=hiddenOgSite.pages[0].sections.find(s=>s.id==='section-social-story');
+ ogSection.designGraph={version:1,id:'seo-social-composition',nodes:[
+  {id:'seo-social-layout',type:'container',children:[
+   {id:'seo-social-heading',type:'heading',level:2,text:'Согласованный рассказ'},
+   {id:'seo-social-copy',type:'text',text:'Информация о проекте'}]}]};
+ const hiddenOgAudit=require('../lib/analyze.cjs').auditSite(hiddenOgSite,currentRegistry,plan);
+ assert.ok(hiddenOgAudit.issues.some(x=>x.code==='social-fallback-hidden-media-review'&&
+  x.assetId==='asset-social-demo'), 'unrendered legacy media selected as OG needs review');
+ ogSection.designGraph.nodes[0].children.push(
+  {id:'seo-social-photo',type:'image',assetId:'asset-social-demo',alt:'Фото оборудования'});
+ const shownOgAudit=require('../lib/analyze.cjs').auditSite(hiddenOgSite,currentRegistry,plan);
+ assert.ok(!shownOgAudit.issues.some(x=>x.code==='social-fallback-hidden-media-review'),
+  'no stale image warning when the selected OG asset is also rendered in Graph');
  const graphWithList=structuredClone(graphSite);
  graphWithList.pages[0].sections[0].designGraph.nodes[0].children.push(
   {id:'seo-graph-list',type:'list',children:[
