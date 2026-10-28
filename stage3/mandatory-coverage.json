@@ -854,7 +854,7 @@
         "stage3/studio/hosted.js",
         "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Partial: per-form private email/Telegram recipient routing, outbox target snapshot, owner Studio controls and human lead processing added. Verify owner workflow and delivery transport on an explicitly authorized isolated host; no live credentials or actual recipient delivery tested."
+      "nextCheck": "Partial: per-form private email/Telegram routing now covers draft and still-live published forms, snapshots custom and missing recipients, and supports human lead handling; verify actual transport delivery and owner workflow on an authorized isolated host."
     },
     {
       "id": 81,
@@ -1773,7 +1773,7 @@
         "stage3/bin/cms-release.cjs",
         "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Owner environment gate: offline pack/verify/compare CLI is only preparation; actual DB-compatible engine update, authorization and standalone hosting not exercised."
+      "nextCheck": "Owner environment gate: offline full/compact PHP engine pack, verify and compare support preparation only; owner-approved compatible DB and real engine upgrade remain unperformed."
     },
     {
       "id": 185,
@@ -1788,7 +1788,7 @@
         "stage3/bin/cms-release.cjs",
         "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Owner environment gate: retained immutable old offline engine copy and checksum comparison are available; tested automatic DB/runtime rollback on an approved host does not exist."
+      "nextCheck": "Owner environment gate: immutable old code package can be verified, and cross-profile comparisons are forbidden; actual DB/runtime rollback on owner-approved host is unperformed."
     },
     {
       "id": 186,
@@ -1860,7 +1860,7 @@
         "stage3/server/Api.php",
         "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Partial: bounded first-party engine inventory and studio code compression implemented; measure actual deployment weight and public runtime requirements on owner-approved hosting."
+      "nextCheck": "Partial: gzip/ETag Studio asset delivery and two bounded engine packages (full and compact PHP-host, without Node build tools) exist; actual host deployment weight and Core Web Vitals still require owner-approved environment measurement."
     }
   ]
 }
