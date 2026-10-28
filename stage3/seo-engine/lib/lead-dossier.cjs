@@ -6,13 +6,15 @@ const safe=v=>String(v??'').replace(/[\x00-\x1f\x7f]/g,' ')
  .replace(/\x60/g,'\\'+String.fromCharCode(96)).slice(0,220);
 function build({siteId,release,coverage,acceptanceReview=null,taskProgress=null,
  changeImpact=null,executionPlan=null,cmsChangePacket=null,traceability=null,
- capturePlan=null,deliveryEvidence=null,mediaEvidence=null,routeMigration=null}){
+ capturePlan=null,deliveryEvidence=null,mediaEvidence=null,routeMigration=null,phpCapture=null}){
  if(!release||release.format!=='manufact-seo-release-review-v1'||release.siteId!==siteId||
   !coverage||typeof coverage!=='object')
   throw Error('Lead dossier requires current reviewed Site v1 publication envelope');
  const warnings=[
   ...release.blockers.map(g=>({kind:'release-blocker',id:g.gateId,summary:g.title,relatedTasks:g.taskIds||[]})),
   ...(!coverage.suppliedPublicOriginsAgree?[{kind:'inconsistent-public-origin',id:'origin',summary:'HTTP and media origins disagree',relatedTasks:[]}]:[]),
+  ...(phpCapture?.findings.length?[{kind:'lead-php-broken-images',id:'php-capture',
+   summary:'Lead loopback PHP screenshot capture reported broken images on '+phpCapture.warningPageIds.join(', '),relatedTasks:[]}]:[]),
   ...(changeImpact?.status==='hypothetical-regression-review-required'?
    [{kind:'hypothetical-change-regression',id:'cms-change-impact',
     summary:'Approved but unsaved changes would introduce SEO risks',relatedTasks:[]}]:[]),
@@ -36,6 +38,8 @@ function build({siteId,release,coverage,acceptanceReview=null,taskProgress=null,
   request('html-snapshots','lead-developer','Supply actual page HTML/DOM exports and provenance for the target build.');
  else if(coverage.plannedPagesAbsentFromHtmlExport?.length)
   request('missing-page-html','lead-developer','Complete page-level HTML evidence for this build.',coverage.plannedPagesAbsentFromHtmlExport);
+ if(!phpCapture)request('lead-php-full-page-screenshots','lead-developer',
+  'Run the existing capture-approved-site.cjs on the sealed Site v2 and import evidence.json with --php-capture (real loopback PHP).');
  if(coverage.viewportsPageCount===null)
   request('three-device-captures','lead-developer','Supply real desktop/tablet/mobile captures for every page; static HTML alone is not a visual comparison.');
  else if(coverage.plannedPagesAbsentFromThreeDeviceExport?.length)
@@ -70,7 +74,10 @@ function build({siteId,release,coverage,acceptanceReview=null,taskProgress=null,
   historicalProvenFixes:0,
   hypotheticalCmsOperations:changeImpact?.summary.approvedFieldOperationsSimulated??null,
   actualCmsWrites:0,missingEvidenceInputGroups:evidenceRequests.length,
-  authenticatedLiveHttpTests:0,readyToPublish:false
+  authenticatedLiveHttpTests:0,
+  leadLoopbackScreenshotFilesChecked:phpCapture?.screenshotCount??0,
+  leadLoopbackMissingImagePageCount:phpCapture?.warningPageIds.length??null,
+  readyToPublish:false
  };
  const leadActionSequence=[
   'Confirm approved static prototype images and source revision fingerprint (lead/client)',

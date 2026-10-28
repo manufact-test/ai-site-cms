@@ -38,6 +38,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   'media:og-image-not-image','media:invalid-og-image-url',
   'media:invalid-twitter-image-url'].includes(s.code)&&s.severity==='error'));
  const mediaReview=find(t=>t.sources.some(s=>s.code?.startsWith('media:')&&s.severity!=='error'));
+ const phpBrokenImages=find(t=>t.sources.some(s=>s.code==='php-capture:broken-rendered-image'&&s.severity==='error'));
+ const phpCapture=options.phpCapture||null;
  const suppliedOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean)
   .map(x=>new URL(x).href);
  const crossOriginConflict=new Set(suppliedOrigins).size>1;
@@ -79,6 +81,9 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(crossOriginConflict)add(blockers,'conflicting-evidence-origins',
   'Resolve mismatched public origins across supplied HTTP and media evidence',
   'HTTP and media recordings claim different public origins; select the approved host and mount before relying on the combined report.');
+ if(phpBrokenImages.length)add(blockers,'php-published-broken-images',
+  'Repair broken images in the real PHP three-device screenshot capture',
+  'Lead loopback capture reported missing image resources; inspect page/device and rerun the lead capture after repair.',phpBrokenImages);
  if(mediaProblems.length)add(blockers,'captured-og-media-conflict',
   'Resolve broken public OG assets, MIME conflicts and invalid OG URLs',
   'The supplied media transcript conflicts with Site v1; verify at the actual host.',mediaProblems);
@@ -147,13 +152,17 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   clientPrototypeApprovalAuthenticated:false,
   callerSuppliedHttpTranscriptReviewed:Boolean(options.delivery),
   callerSuppliedMediaTranscriptReviewed:Boolean(options.media),
+  leadPhpThreeDeviceScreenshotsChecked:Boolean(phpCapture),
+  leadPhpScreenshotDigestsChecked:Boolean(phpCapture),
+  leadPhpReportedMissingImages:phpCapture?.findings.length??null,
+  screenshotsProveSeoHtmlOrVisualEquality:false,
   liveHostChecked:false,
   visualPrototypesVerified:false,
   mobileRenderedVerified:false,
   formsVerified:false,
   cwvMeasured:false
  };
- const decision=blockers.length?'repair-required':options.snapshot||options.viewports||options.delivery||options.media?'manual-acceptance-required':'collect-publication-evidence';
+ const decision=blockers.length?'repair-required':options.snapshot||options.viewports||options.delivery||options.media||phpCapture?'manual-acceptance-required':'collect-publication-evidence';
  return {format:FORMAT,version:1,siteId:site.siteId,
   decision,automaticReleaseApproval:false,readyToPublish:false,
   blockers,reviews,manualChecks:manual,acceptanceReview,coverage,

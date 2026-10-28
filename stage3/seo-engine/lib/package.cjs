@@ -117,7 +117,7 @@ function build(site,manifests,blueprint,options={}){
   publicHttpsAndSeoHeadVerified:false};
  const dossier=DOSSIER.build({siteId:site.siteId,release,coverage,acceptanceReview,
   taskProgress,changeImpact,executionPlan:execution,cmsChangePacket,traceability,
-  capturePlan,deliveryEvidence:delivery,mediaEvidence:media,routeMigration});
+  capturePlan,deliveryEvidence:delivery,mediaEvidence:media,routeMigration,phpCapture:options.phpCapture||null});
  const rejected=new Set(decisions?.rejected.map(x=>x.taskId)||[]);
  const approved=new Set(decisions?.approved.map(x=>x.taskId)||[]);
  const deferred=new Set(decisions?.deferred.map(x=>x.taskId)||[]);
