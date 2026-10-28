@@ -310,7 +310,9 @@ function read(root,site){
  const stat=fs.lstatSync(metaFile);
  if(stat.isSymbolicLink()||!stat.isFile()||stat.size>500000||stat.size<80)
   throw Error('Missing or unsafe official static release manifest');
- const data=JSON.parse(fs.readFileSync(metaFile,'utf8'));
+ const manifestBytes=fs.readFileSync(metaFile);
+ const data=JSON.parse(manifestBytes.toString('utf8'));
+ const manifestSha256=sha(manifestBytes);
  if(!data||data.format!=='manufact-ai-static-site-v1'||data.siteId!==site.siteId||
     !Number.isSafeInteger(data.publishedVersion)||data.publishedVersion<1||
     !Array.isArray(data.pages)||!Array.isArray(data.assets)||!Array.isArray(data.redirects)||
@@ -407,6 +409,7 @@ function read(root,site){
  const seo=staticSeo(site,pages,data.publicOrigin??null);
  integrityFindings.push(...seo.findings);
  return Object.freeze({format:FORMAT,siteId:site.siteId,publishedVersion:data.publishedVersion,
+  manifestSha256,
   sourceRevision:data.sourceRevision??null,assets,pages,redirects,origin:data.publicOrigin??null,
   recordsVerified:readFiles.size-1,sha256VerifiedAtRead:true,
   findings:Object.freeze(integrityFindings),searchFilesVerified:search.size,
@@ -455,6 +458,7 @@ function compare(site,snapshot,media,release,version){
  }
  return Object.freeze({format:FORMAT,siteId:site.siteId,publishedVersion:version,
   sourceRevisionClaim:release.sourceRevision,verifiedExportFiles:release.recordsVerified,
+  staticManifestSha256:release.manifestSha256||null,
   exportedSearchFilesVerified:release.searchFilesVerified??0,
   staticReferencesChecked:release.staticReferencesChecked??0,
   staticLinkPages:release.staticLinkPages||[],
