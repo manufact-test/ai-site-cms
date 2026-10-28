@@ -614,3 +614,15 @@ When an actual approved-v2 customer site and authorized host are available, veri
 4. Compare all three actual pages against client-approved desktop, tablet and mobile source mockups and record owner sign-off. CI alone is not acceptance.
 
 This check is deliberately conditional on the owner providing both a real approved package and permission for a specific target environment. No host changes are performed by this document.
+
+## Actual operator visual acceptance — overlay and actionable findings (29 October 2026)
+
+The existing hosted Studio launch-review dialog can now compare the **real PHP-rendered draft** with the actual archived original approved-v2 page prototype at desktop/tablet/mobile widths. Select **Наложить макет** to place the verified source raster directly above the draft and adjust opacity; the original raster and all form/site content remain immutable. The dialog shows the source image's native pixel size and warns if it must scale to fit the preview. This overlay is for human composition/spacing comparison, **not** a claim of automated pixel-perfect equality.
+
+**Рядом с макетом** and **Рядом с публикацией** support optional synchronized long-page scrolling; switch it off to inspect panels independently. All preview iframes are script-disabled and remain noninteractive.
+
+For each device/page, the operator can enter a visual discrepancy, recording the page, device, position in unscaled PHP CSS pixels and the current draft revision. Unresolved notes appear as per-page and per-device warnings, have a jump-to-location control, and block screen sign-off and launch-review Publish. Resolving a note is an explicit manual action; it NEVER re-approves the view. Where a COMPLETE sealed approved-v2 original exists, the associated SHA-256-verified raster must actually be opened before its device can be manually marked reviewed.
+
+Use **Скачать отчёт JSON** for a durable, local copy of the complete review findings. **Продолжить замечания из JSON** reloads same-site findings with strict bounds and device/page checks; for a different saved revision, even previously resolved notes reopen for review and no old screen sign-offs transfer. Within a single editor tab, findings survive closing and reopening this dialog for the exact same saved revision. They are cleared on logout, are **not stored in the operational CMS database**, and should not be confused with permanent client approval records. **Копировать замечания для разработчика** copies only unresolved notes as a plain-text correction brief, when the browser grants clipboard permission.
+
+The actual publish API, separate explicit Publish confirmation, published visitor HTML, source archive and owner approval status remain unchanged. No native mobile screenshot visual acceptance can be claimed without the actual client-approved original. This is a useful review mechanism for the first real customer pilot, not proof of having completed that pilot.
