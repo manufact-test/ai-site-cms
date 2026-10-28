@@ -129,7 +129,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   let count=0;
   function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','responsiveMedia'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(own(node,'backgroundMedia')){
@@ -153,6 +153,32 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       }
       if([node.styles||{},node.responsive?.tablet||{},node.responsive?.mobile||{}].some(layer=>own(layer,'gradient')))
         fail(node.id,'background image conflicts with CSS gradient');
+    }
+    // Decorative video backgrounds need a real raster poster for fallbacks.
+    if(own(node,'backgroundVideo')){
+      if(node.type!=='container'||own(node,'backgroundMedia'))
+        fail(node.id,'video backdrop requires a container without a raster background');
+      const v=node.backgroundVideo;
+      keys(v,['assetId','posterAssetId','tabletPosterAssetId','mobilePosterAssetId','positionX','positionY','overlay'],node.id+'/backgroundVideo');
+      if(typeof v.assetId!=='string'||!assetIds.has(v.assetId)||mediaKinds.get(v.assetId)!=='video/mp4')
+        fail(node.id,'video backdrop must reference a site-owned MP4');
+      for(const key of ['posterAssetId','tabletPosterAssetId','mobilePosterAssetId']){
+        const id=v[key];
+        if(key==='posterAssetId'||id!==undefined){
+          if(typeof id!=='string'||!assetIds.has(id)||
+            !['image/png','image/jpeg','image/webp'].includes(mediaKinds.get(id)))
+            fail(node.id,'video backdrop poster must be a site-owned raster image');
+        }
+      }
+      if(own(v,'positionX')&&!number(v.positionX,0,100)||
+         own(v,'positionY')&&!number(v.positionY,0,100))fail(node.id,'invalid backdrop position');
+      if(own(v,'overlay')){
+        keys(v.overlay,['color','opacity'],node.id+'/backgroundVideo.overlay');
+        resolve(v.overlay.color,'colors',tokens,node.id+'/video overlay');
+        if(!number(v.overlay.opacity,0,90))fail(node.id,'invalid video overlay opacity');
+      }
+      if([node.styles||{},node.responsive?.tablet||{},node.responsive?.mobile||{}].some(layer=>own(layer,'gradient')))
+        fail(node.id,'video backdrop conflicts with CSS gradient');
     }
     if(own(node,'responsiveMedia')){
       if(node.type!=='image')fail(node.id,'device images only on image nodes');
@@ -492,9 +518,41 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
         if(css)rules.push('@media(max-width:'+limit+'px){'+selector+'{'+css+'}}');
       }
     }
+    if(n.backgroundVideo){
+      const v=n.backgroundVideo,b=selector+' > .cmsdg-video-backdrop';
+      const poster=id=>'url('+cssUrl(imageUrl(id))+')';
+      rules.push(selector+'{position:relative;isolation:isolate}'+b+
+        '{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;border-radius:inherit;'+
+        'background-image:'+poster(v.posterAssetId)+';background-size:cover;background-repeat:no-repeat;'+
+        'background-position:'+(v.positionX??50)+'% '+(v.positionY??50)+'%}');
+      for(const [bp,limit] of [['tablet',900],['mobile',600]]){
+        const id=v[bp+'PosterAssetId'];if(id)
+          rules.push('@media(max-width:'+limit+'px){'+b+'{background-image:'+poster(id)+'}}');
+      }
+      rules.push(b+' video{position:absolute;inset:0;width:100%!important;height:100%!important;'+
+        'max-width:none!important;object-fit:cover;object-position:'+(v.positionX??50)+'% '+(v.positionY??50)+'%;display:block}');
+      if(v.overlay){
+        const tint=resolve(v.overlay.color,'colors',tokens,node.id+'/video overlay')+
+          Math.round(v.overlay.opacity*255/100).toString(16).padStart(2,'0');
+        rules.push(b+'::after{content:"";position:absolute;inset:0;background-color:'+tint+'}');
+      }
+      rules.push('@media(prefers-reduced-motion:reduce){'+b+' video{display:none!important}}');
+      rules.push('@media(max-width:600px){'+b+' video{display:none!important}}');
+    }
     if(n.motion&&n.motion.effect!=='none')rules.push(selector+'{animation:cmsdg-'+n.motion.effect+' '+n.motion.duration+'ms ease-out '+n.motion.delay+'ms both}');
     const cls='cmsdg-n-'+n.id;
-    if(n.type==='container')return '<div class="'+cls+'">'+n.children.map(visit).join('')+'</div>';
+    if(n.type==='container'){
+      let backdrop='';
+      if(n.backgroundVideo){
+        const v=n.backgroundVideo,poster=imageUrl(v.posterAssetId);
+        const videoSrc=videoPreview?videoPreview(v.assetId):safeMount+assets.get(v.assetId).src;
+        backdrop='<div class="cmsdg-video-backdrop" aria-hidden="true">'+
+          (videoSrc?'<video autoplay muted loop playsinline preload="none"'+
+            (poster?' poster="'+attr(poster)+'"':'')+'><source src="'+attr(videoSrc)+
+            '" type="video/mp4"></video>':'')+'</div>';
+      }
+      return '<div class="'+cls+'">'+backdrop+n.children.map(visit).join('')+'</div>';
+    }
     if(n.type==='list')return '<'+(n.ordered?'ol':'ul')+' class="'+cls+' cmsdg-list">'+n.children.map(visit).join('')+'</'+(n.ordered?'ol':'ul')+'>';
     if(n.type==='list-item')return '<li class="'+cls+'">'+attr(n.text)+'</li>';
     if(n.type==='gallery')return '<div class="'+cls+' cmsdg-gallery" role="region" aria-roledescription="gallery" aria-label="'+attr(n.text)+'" tabindex="0">'+n.children.map(visit).join('')+'</div>';
