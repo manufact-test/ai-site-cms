@@ -246,3 +246,14 @@ Lead PHP requires STAGE3_PUBLIC_ORIGIN for local sitemap/robots responses. If un
 The real-PHP HTML snapshot now includes mountPath and correctly recognizes links, anchors and canonical path relationships under /published/SITE-ID/ rather than treating valid published links as missing logical routes. Offline snapshots without mountPath retain their previous behavior. Valid 200 sitemap/robots content is also exposed to the existing static publication-integrity modules; an unavailable/unparseable sitemap is **never declared complete**.
 
 Important run boundaries: this adds no CMS schema, router, deployment, GitHub workflow or automatic approvals. The first real customer pilot still requires integration of these files, an actual sealed v2 package, local published PHP with version correlation, public HTTPS/canonical/robots/sitemap validation, visual sign-off and form delivery tests. Tests/php-html-capture-smoke.cjs includes real-local-HTTP happy paths and negative sitemap/301/503/tamper scenarios; the full Node test suite is not proven by source-level checks alone.
+
+
+## Actual local PHP media: verified binary receipts for first-site pilot
+
+The source-bound, read-only local collector now extends its **single** HTML/sitemap/robots/301 evidence folder with exact published media GET responses: asset-0001.bin, etc. Every Site v1 original and responsive variant is checked under the published site mount on explicit 127.0.0.1 only. No public or OG external URL is contacted.
+
+The media manifest binds the source ID/path, requested URL, HTTP status, MIME, ETag, response body SHA-256 and bytes. Import re-reads each binary file and rejects changed sizes/hashes, symlinks, unexpected files, wrong ID/path and missing sources. On HTTP 200 it checks PNG/JPEG/WebP/MP4 signatures, MIME, quoted SHA256 ETag, approved responsive SHA256 and PNG dimensions. An OG image or static img src/srcset actually used in captured HTML is critical if broken. Captured og:image is additionally checked against the selected Site v1 image path and HTTPS scheme without fetching that remote host. Other missing images remain explicit review warnings.
+
+Bounded acquisition: maximum 1.2 MB per image, 12 MB/video and 100 MB for all media; a limit violation fails instead of silently skipping image files. The existing phpHtml localMedia object feeds shared remediation, release blocker local-php-media-integrity, unified review bundle and lead dossier. Report fields include localPhpMediaResources, localPhpMediaBytesChecked and localPhpMediaFindings.
+
+No claim of actual public HTTPS, authentic served Site v1 version, image crop/visual quality, executed JS, form delivery or client approval. HTML img and srcset coverage does not imply coverage of CSS backgrounds or JS-added elements. The original browser screenshot capture remains required. The HTML-snapshot JSON schema now accepts the existing source-bound mountPath, redirectPaths, source and local-only fields.

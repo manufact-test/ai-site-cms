@@ -233,3 +233,12 @@ lib/php-local-publication.cjs handles bounded and hashed **actual localhost HTTP
 The standalone real localhost test in tests/php-html-capture-smoke.cjs now covers valid HTML/robots/sitemap/301, missing indexable page, wrong 301/Location, origin-not-configured 503, hash tampering and invalid mounts. Main tests/smoke.cjs calls it. Test files have been syntax checked, but full Node subprocess tests and actual client published site acceptance require the lead-integrated checkout. Do not call smoke green until it runs there.
 
 No worker edits outside stage3/seo-engine/**; no PR, merging, CMS writes, production deploy or human approval.
+
+
+## New integrated first-site media PHP byte verification
+
+The original capture-php-html.cjs now GETs exact media bytes for all source originals and responsive variants, writes an immutable-by-convention SHA256 manifest with asset-XXXX.bin files, and verifies every byte on import. lib/php-local-media.cjs checks SiteRepository::publishedImage route semantics, HTTP status, MIME/signature, immutable ETag, responsive SHA, PNG dimensions, actual static img references and observed og:image URL path. Missing OG and visibly referenced img responses are critical release issues; other failures remain review items.
+
+Commands are unchanged: capture-php-html.cjs --approved-site /ABS/sealed --origin http://127.0.0.1:PORT/published/SITE-ID/ --output /ABS/new-dir, then seo-blueprint.cjs review-bundle-md --approved-site /ABS/sealed --blueprint /ABS/plan --php-html /ABS/new-dir.
+
+Media budget: 1.2 MB per still image, 12 MB per MP4, 100 MB media total. No silent partial evidence. Local media findings flow into existing remediation/release/lead dossier; they are not HTTPS public observations. tests/php-html-capture-smoke.cjs adds real local HTTP PNG original/variant, rendered-only image, bad OG, MIME, ETag, responsive SHA/dimensions and binary tamper cases. It uses minimal synthetic PNG headers (not full image decoding). Run actual Node smoke and first real customer checkout in lead integration. No worker edits outside stage3/seo-engine/**, no deploy/PR/merge.
