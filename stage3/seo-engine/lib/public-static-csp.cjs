@@ -65,7 +65,8 @@ function review(siteId,page,html,headers,origin){
  if(typeof html!=='string'||html.length>MAX_HTML||!page||typeof page.path!=='string'||
     !headers||typeof headers!=='object'||typeof origin!=='string')
   throw Error('Public CSP review requires captured HTML, response headers and one page route');
- const findings=[],detail={inlineScriptCount:0,inlineStyleCount:0,postFormCount:0};
+ const findings=[],detail={inlineScriptCount:0,inlineStyleCount:0,
+  inlineStyleAttributeCount:0,inlineEventHandlerCount:0,postFormCount:0};
  const add=(code,severity,message)=>findings.push(Object.freeze({
   code:'public-csp:'+code,severity,pageId:page.id,path:page.path,
   evidence:'operator-supplied-public-https-csp-vs-official-static-html',
@@ -98,6 +99,29 @@ function review(siteId,page,html,headers,origin){
   if(!inlineAllowed(m[2],a.nonce,allow))
    add('inline-style-blocked','error',
     'Enforced public CSP does not permit a static page inline stylesheet; actual published design may be unstyled.');
+ }
+ // CSP style-src-attr and script-src-attr can independently forbid
+ // per-node DesignGraph styling or inline button handlers even when
+ // style-src-elem and script-src-elem permit regular style/script tags.
+ const scan=html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
+ for(const match of scan.matchAll(/<[a-z][a-z0-9:-]*\b([^<>]{0,1800})>/gi)){
+  const a=attrs(match[1]);
+  if(Object.hasOwn(a,'style')&&a.style){
+   detail.inlineStyleAttributeCount++;
+   const policySources=tokens(policy,'style-src-attr','style-src','default-src');
+   if(!inlineAllowed(a.style,null,policySources)&&
+      !(policySources?.includes("'unsafe-hashes'")&&policySources.includes(sha(a.style))))
+    add('inline-style-attribute-blocked','error',
+     'Public CSP blocks inline style attributes used in the static design graph or responsive layout.');
+  }
+  for(const [key,value] of Object.entries(a).filter(([key])=>/^on[a-z]{2,}$/.test(key))){
+   detail.inlineEventHandlerCount++;
+   const policySources=tokens(policy,'script-src-attr','script-src','default-src');
+   if(!inlineAllowed(value,null,policySources)&&
+      !(policySources?.includes("'unsafe-hashes'")&&policySources.includes(sha(value))))
+    add('inline-event-handler-blocked','error',
+     'Public CSP prevents inline DOM event handlers required by static page interactions.');
+  }
  }
  for(const m of html.matchAll(/<form\b([^>]*)>/gi)){
   const a=attrs(m[1]);
