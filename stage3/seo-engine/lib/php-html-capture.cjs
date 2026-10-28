@@ -87,10 +87,16 @@ function inspect(manifest,site,source,folder){
    manifest.sourceSiteFingerprint!==source.siteRevisionFingerprint||
    manifest.packageVersion!==source.packageVersion||
    !Array.isArray(manifest.pages)||manifest.pages.length!==site.pages.length||
-   !Number.isNaN(Date.parse(manifest.capturedAt))===false)
+   typeof manifest.capturedAt!=='string'||
+   !/^\d{4}-\d\d-\d\dT/.test(manifest.capturedAt)||
+   Number.isNaN(Date.parse(manifest.capturedAt)))
   fail('manifest is not bound to the sealed source');
  baseUrl(manifest.baseUrl,site.siteId);
  const root=fs.realpathSync(folder),seen=new Set(),entries=[];let total=0;
+ const allowed=new Set(['manifest.json',...site.pages.map((_,i)=>pageName(i))]);
+ const listing=fs.readdirSync(root);
+ if(listing.length!==allowed.size||listing.some(name=>!allowed.has(name)))
+  fail('unexpected or missing HTML evidence file');
  for(let i=0;i<site.pages.length;i++){
   const p=site.pages[i],record=manifest.pages[i],file=pageName(i);
   if(!record||record.pageId!==p.id||record.path!==p.path||
@@ -135,7 +141,9 @@ async function capture(sealedFolder,rawOrigin,output){
   fail('expected 1–60 Site v1 pages');
  const base=baseUrl(rawOrigin,site.siteId);
  const root=fs.realpathSync(sealedFolder),out=path.resolve(output);
- if(out===root||out.startsWith(root+path.sep)||fs.existsSync(out))
+ const parent=fs.realpathSync(path.dirname(out));
+ if(parent===root||parent.startsWith(root+path.sep)||
+    out===root||out.startsWith(root+path.sep)||fs.existsSync(out))
   fail('capture output must be a new directory outside the immutable sealed package');
  // First acquire every response; do not leave a partial evidence directory
  // when the PHP server is missing, redirects, or a page is malformed.
