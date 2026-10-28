@@ -251,3 +251,9 @@ STAGE3_ALLOW_BUNDLE_RESTORE=YES php stage3/server/bin/archive-bundle.php restore
 ```
 
 The plan/restore reads **all** parts, rejects symlinks/unexpected files/size and SHA mismatches, then applies existing v2 domain/reference/evidence verification. Restore refuses to overwrite a site and uses one database transaction to create a **new unpublished** site. SHA-256 is integrity detection, **not** an authenticated client approval signature or confidentiality mechanism. Store these unencrypted files in private access-controlled storage, make an off-host copy, and validate recovery. If a site exceeds 256 MB, the command **fails explicitly**; further truly streamed recovery must be designed before onboarding it, not bypassed with higher unreviewed limits.
+
+## Safe interactive nodes in individual Design Graphs
+
+Custom Design Graph sections now support `disclosure`, `tabs` and `tab` as typed interactive elements alongside free-form, safely validated layout, typography and media. A disclosure uses native `details/summary` semantics and holds 1–30 nested nodes. A tab group holds 2–8 direct `tab` children; every tab has a short label and at least one nested content node. CSS-only radio selection with keyboard focus and `:has()` panel visibility makes individual tab groups interactive without importing arbitrary JavaScript. These are native radio-group controls, not an ARIA tablist; external designers must assess the intended tab UX, browser support and accessibility.
+
+The browser SDK and PHP renderer both validate the hierarchy; invalid/stranded tabs and executable code are rejected. Studio supports editing nested content, responsive properties, copying, reordering and Undo. Approved customer screenshots and specifications remain the reference, and there is no claim of client visual acceptance from these tests.
