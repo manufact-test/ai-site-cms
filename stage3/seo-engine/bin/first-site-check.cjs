@@ -13,12 +13,12 @@ const PROGRESS=require('../lib/first-site-report-delta.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
 const {auditSite}=require('../lib/analyze.cjs');
 const REQUIRED=['approved-site','blueprint','origin','evidence','report'];
-const OPTIONAL=['php-capture','published-site','previous-report'];
+const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review'];
 function parse(argv){
  const opts={};
  if(!Array.isArray(argv)||argv.length<REQUIRED.length*2||
   argv.length>(REQUIRED.length+OPTIONAL.length)*2||argv.length%2)
-  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report]');
+  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json]');
  for(let i=0;i<argv.length;i+=2){
   const name=argv[i]?.startsWith('--')?argv[i].slice(2):null;
   if(![...REQUIRED,...OPTIONAL].includes(name)||!argv[i+1]||opts[name])throw Error('Unknown, missing or duplicate first-site option');
@@ -53,6 +53,12 @@ function readPublishedSite(file){
   throw Error('Published-site JSON requires {site:SiteV1, version:int} from the authenticated owner API');
  return {site:input.site,version:input.version};
 }
+function readOwnerEditReview(file){
+ const stat=fs.lstatSync(file);
+ if(!stat.isFile()||stat.isSymbolicLink()||stat.size<100||stat.size>6000)
+  throw Error('Owner-edited published site review must be a bounded local JSON file');
+ return JSON.parse(fs.readFileSync(file,'utf8'));
+}
 function manifests(){
  const dir=path.join(__dirname,'../../components');
  return fs.readdirSync(dir).filter(name=>name.endsWith('.json')).map(name=>{
@@ -64,7 +70,12 @@ function manifests(){
 async function main(argv){
  const o=parse(argv),approved=BRIDGE.load(o['approved-site']);
  const published=o['published-site']?readPublishedSite(o['published-site']):null;
- const {site,source}=published?BRIDGE.reconcile(approved,published.site,published.version):approved;
+ if(o['owner-edit-review']&&!published)
+  throw Error('--owner-edit-review requires --published-site for the current CMS release');
+ const ownerReview=o['owner-edit-review']?readOwnerEditReview(o['owner-edit-review']):null;
+ const {site,source}=published?BRIDGE.reconcile(approved,published.site,published.version,ownerReview):approved;
+ if(source.ownerEditedAfterImport&&o['php-capture'])
+  throw Error('Lead sealed-source screenshot evidence cannot be reused as source-bound proof of an owner-edited publication');
  PHP.baseUrl(o.origin,site.siteId); // Strict localhost published mount; no outgoing requests.
  const evidence=newTarget(o.evidence,o['approved-site']);
  const report=newTarget(o.report,o['approved-site'],evidence);
@@ -80,10 +91,15 @@ async function main(argv){
  const screenshots=o['php-capture']?PHP_CAPTURE.read(o['php-capture'],site,source):null;
  if(screenshots&&screenshots.baseUrl!==o.origin)
   throw Error('Lead PHP screenshot evidence and HTML capture target different origins/mounts');
- const observed=await PHP.capture(o['approved-site'],o.origin,evidence,published);
+ const observed=await PHP.capture(o['approved-site'],o.origin,evidence,
+  published?{...published,review:ownerReview}:null);
  const latestPublished=o['published-site']?readPublishedSite(o['published-site']):null;
+ const latestReview=o['owner-edit-review']?readOwnerEditReview(o['owner-edit-review']):null;
+ if(JSON.stringify(latestReview)!==JSON.stringify(ownerReview))
+  throw Error('Owner review file changed during local PHP capture; discard this evidence');
  const originalFresh=BRIDGE.load(o['approved-site']);
- const fresh=latestPublished?BRIDGE.reconcile(originalFresh,latestPublished.site,latestPublished.version):originalFresh;
+ const fresh=latestPublished?BRIDGE.reconcile(originalFresh,latestPublished.site,
+  latestPublished.version,latestReview):originalFresh;
  if(fresh.source.fileSha256!==source.fileSha256||
     fresh.source.siteRevisionFingerprint!==source.siteRevisionFingerprint||
     fresh.source.publishedVersion!==source.publishedVersion)
@@ -106,6 +122,9 @@ async function main(argv){
   cmsImportMediaIdsReconciled:fresh.source.approvedMediaIdRemappingChecked===true,
   cmsMediaFilesMapped:fresh.source.mappedPublishedMediaFiles??null,
   cmsPublishedSiteMatchesApprovedAfterRemap:fresh.source.publishedContentAfterMediaRemapMatched===true,
+  ownerEditedAfterImport:fresh.source.ownerEditedAfterImport===true,
+  ownerEditReviewSupplied:Boolean(fresh.source.ownerEditReview),
+  currentPublishedRevisionClientApproved:false,
   capturedAt:checked.capturedAt,origin:checked.baseUrl,
   htmlPages:checked.pageCount,
   operatorWorksheet:{file:'launch-worksheet.md',
@@ -172,4 +191,4 @@ if(require.main===module)
  main(process.argv.slice(2))
   .then(result=>process.stdout.write('FIRST SITE LOCAL TECHNICAL REVIEW: '+JSON.stringify(result)+'\n'))
   .catch(e=>{process.stderr.write('SEO first-site check: '+e.message+'\n');process.exitCode=1;});
-module.exports=Object.freeze({parse,newTarget,readBlueprint,readPublishedSite,main});
+module.exports=Object.freeze({parse,newTarget,readBlueprint,readPublishedSite,readOwnerEditReview,main});

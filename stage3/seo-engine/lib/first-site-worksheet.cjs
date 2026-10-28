@@ -27,6 +27,9 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   '- CMS published version по данным владельца: '+(source.publishedVersion??'нет экспорта')+
    '; сопоставление media ID: '+(source.approvedMediaIdRemappingChecked?'выполнено':'не предоставлено')+'.',
   '- PHP localhost: '+clean(phpHtml.baseUrl,190)+'; дата: '+clean(phpHtml.capturedAt,45)+'.',
+  '- Изменения владельца после sealed-import: '+(source.ownerEditedAfterImport?
+   'ДА. Локальный review документ есть, но не является подтверждением согласования изменённого дизайна клиентом; старые SHA медиа не применяются.':
+   'не выявлены при строгой сверке Site v1 и server-media-ID remap')+'.',
   '- Release status: '+clean(bundle.release.decision)+
     '; блокирующих gates: '+stats.releaseBlockingGates+
     '; реальных PHP findings: '+stats.actualFindings+'.',

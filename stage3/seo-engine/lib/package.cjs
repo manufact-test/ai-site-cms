@@ -76,6 +76,7 @@ function build(site,manifests,blueprint,options={}){
  const {decisions:ledger,priorDecisions:historyLedger,acceptance:acceptanceLedger,approvedSource:verifiedSource,...coreOptions}=options;
  const backlog=work(site,manifests,plan,coreOptions);
  const release=assess(site,manifests,plan,{...coreOptions,
+  ownerEditedSource:approvedSource?.ownerEditedAfterImport===true,
   ...(acceptanceLedger?{acceptance:acceptanceLedger}:{})},backlog);
  const decisions=ledger?TRIAGE.reconcile(backlog,ledger):null;
  const execution=EXECUTION.compile(backlog,decisions);
@@ -127,6 +128,9 @@ function build(site,manifests,blueprint,options={}){
   missingApprovedInteriorPageReferences:approvedSource?.missingInteriorPrototypePageIds??null,
   loopbackPhpScreenshotPages:options.phpCapture?.pages.length??null,
   cmsImportedSiteAfterMediaRemapMatched:approvedSource?.publishedContentAfterMediaRemapMatched??null,
+  ownerEditedAfterImport:approvedSource?.ownerEditedAfterImport??null,
+  ownerEditReviewSupplied:Boolean(approvedSource?.ownerEditReview),
+  currentPublishedRevisionClientApproved:false,
   cmsImportedMediaResourcesMapped:approvedSource?.mappedPublishedMediaFiles??null,
   cmsOwnerSuppliedPublishedVersion:approvedSource?.publishedVersion??null,
   loopbackPhpHtmlPages:options.phpHtml?.pageCount??null,
@@ -254,7 +258,9 @@ function build(site,manifests,blueprint,options={}){
        (approvedSource.missingInteriorPrototypePageIds.length?
          approvedSource.missingInteriorPrototypePageIds.join(', '):'none')+
        ' (do not substitute homepage mockups).\n'+
-     '- Human approval, visual fidelity and real published HTTP remain unverified.\n':'')+
+     '- Human approval, visual fidelity and real published HTTP remain unverified.\n'+
+      (approvedSource.ownerEditedAfterImport?
+        '- IMPORTANT: owner-edited published revision differs from original sealed Site v2. A version-bound local acknowledgement exists, but is not authenticated client design approval. Changed media are not compared against original sealed SHA-256; reapprove affected pages/assets before release.\n':''):'')+
     (options.phpCapture?'\n\n## Lead PHP full-page capture evidence (source-bound)\n\n'+
       '- Original lead Chromium capture: '+options.phpCapture.capturedAt+
         '; loopback URL: '+options.phpCapture.baseUrl+'\n'+

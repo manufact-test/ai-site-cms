@@ -220,7 +220,7 @@ function read(folder,site,source){
 }
 async function capture(sealedFolder,rawOrigin,output,publishedRecord=null){
  const approved=BRIDGE.load(sealedFolder);
- const {site,source}=publishedRecord?BRIDGE.reconcile(approved,publishedRecord.site,publishedRecord.version):approved;
+ const {site,source}=publishedRecord?BRIDGE.reconcile(approved,publishedRecord.site,publishedRecord.version,publishedRecord.review??null):approved;
  if(!Array.isArray(site.pages)||!site.pages.length||site.pages.length>MAX_PAGES)
   fail('expected 1–60 Site v1 pages');
  const base=baseUrl(rawOrigin,site.siteId);

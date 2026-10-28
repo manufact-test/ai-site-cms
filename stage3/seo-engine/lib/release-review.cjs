@@ -89,6 +89,9 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   add(reviews,'pending-manual-acceptance',
    'Collect three actual approved prototype images and remaining manual acceptance evidence',
    'No script or source-level assertion can replace actual client approval and browser/host checks.');
+ if(options.ownerEditedSource)add(reviews,'owner-edited-publication-manual-approval',
+  'Recheck owner-edited publication against real client-approved designs',
+  'The published Site v1 differs from the original sealed-v2 source. Local owner acknowledgement binds a version but is not authenticated client signoff; changed media lack original SHA-256 correlation. Manual page-by-page acceptance remains required.');
  if(conflictingEvidence.length)add(blockers,'conflicting-captured-indexation',
   'Resolve disagreeing HTML indexability signals across supplied evidence',
   'Saved HTML and HTTP-captured HTML give inconsistent indexation policy; verify one actual deployed build.',conflictingEvidence);
