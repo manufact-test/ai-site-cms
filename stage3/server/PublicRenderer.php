@@ -656,6 +656,16 @@ JS;
                 }
                 $action = $preview ? '#preview-only' : FormGateway::endpoint($collectorBase ?? '', $siteId, $section['id']);
                 $token = $preview ? '' : FormGateway::token($siteId, $section['id'], $publishedVersion);
+                // Only an origin authored by the publisher (or this same-origin
+                // /published/site route) can be a post-submit return location.
+                // Never derive a visitor redirect from submitted form text.
+                $returnUrl = '';
+                if (!$preview) {
+                    if ($publicOrigin !== null) $returnUrl = $publicOrigin . $mount . $path;
+                    elseif (($collectorBase ?? '') === ''
+                        && $mount === '/published/' . rawurlencode($siteId))
+                        $returnUrl = $mount . $path;
+                }
                 $extras = self::extraFields($section);
                 $fields = [
                     'name'=>'<label>' . self::label($section, 'name-label') . '<input name="name" type="text" minlength="2" maxlength="120" required autocomplete="name"></label>',
@@ -682,7 +692,8 @@ JS;
                     . '<form class="lead-form"'.($steps !== [] ? ' data-multi-step="yes"' : '')
                     .' method="post" accept-charset="utf-8" action="' . self::h($action) . '">'
                     . ($preview ? '' : '<input type="hidden" name="_release" value="' . $publishedVersion . '">'
-                        . '<input type="hidden" name="_token" value="' . self::h($token) . '">')
+                        . '<input type="hidden" name="_token" value="' . self::h($token) . '">'
+                        . ($returnUrl !== '' ? '<input type="hidden" name="_return" value="' . self::h($returnUrl) . '">' : ''))
                     . '<div class="lead-honey" aria-hidden="true"><label>Website <input tabindex="-1" autocomplete="off" type="text" name="website" value=""></label></div>'
                     . ($extras['css'] !== '' ? '<style>' . $extras['css'] . '</style>' : '')
                     . $formFields
