@@ -159,6 +159,9 @@ trait FormDelivery
         foreach(['email','telegram'] as $channel){
             $target=$this->deliveryTarget($channel,$defaults,$route);
             if($target===null)continue;
+            // New missing recipients must never inherit a future address.
+            // Blank target is reserved exclusively for rows from older schemas.
+            if($target==='')$target='@missing';
             $now=$this->now();$id='delivery-'.bin2hex(random_bytes(12));
             $q=$this->db->prepare('INSERT INTO stage3_delivery_outbox (delivery_id,site_id,submission_id,channel,state,attempts,created_at,updated_at,accepted_at,last_error,target) VALUES (?,?,?,?,?,0,?,?,NULL,NULL,?)');
             $q->execute([$id,$siteId,$submissionId,$channel,'pending',$now,$now,$target]);
@@ -246,6 +249,9 @@ trait FormDelivery
         $settings=$this->deliverySettingsRow($siteId);
         // Existing pending deliveries with target='' preserve legacy fallback.
         $recipient=(string)$job['target'];
+        if($recipient==='@missing'){
+            $this->finishDelivery($deliveryId,'configuration_required','recipient_missing');return;
+        }
         if($recipient===''){
             $enabled=$channel==='email'?(int)($settings['email_enabled']??0)===1:
                 ($channel==='telegram'&&(int)($settings['telegram_enabled']??0)===1);
