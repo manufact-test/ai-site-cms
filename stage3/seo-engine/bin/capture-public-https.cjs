@@ -66,21 +66,28 @@ async function main(argv){
  const publicMedia=mediaOut?await CAP.captureMedia(site,o.origin):null;
  if(publicMedia)MEDIA.assertEvidence(publicMedia.evidence);
  const publicDigests=digestOut?await BYTES.capture(site,release,o.origin):null;
+ const firstRoot=found.evidence.pages.find(p=>p.path==='/');
+ if(!firstRoot)throw Error('Public capture did not observe the mandatory homepage');
+ const rootWindow=await CAP.recheckRoot(site,o.origin,firstRoot);
+ if(!rootWindow.matched)
+  throw Error('Public homepage changed between first and final read; reject potentially mixed deployment evidence');
+ const completeHttp={...found.evidence,rootRecheck:rootWindow};
  const again=FIRST.readPublishedSite(o['published-site']);
  if(again.version!==owner.version||again.sourceRevision!==owner.sourceRevision||
     JSON.stringify(again.site)!==JSON.stringify(owner.site))
   throw Error('Owner-published site input changed during public capture; discard evidence');
  if(release&&STATIC.read(o['static-export'],site).manifestSha256!==release.manifestSha256)
   throw Error('Official static release changed during public HTTPS capture; discard results');
- const inspected=DELIVERY.review(site,found.evidence);
- fs.writeFileSync(out,JSON.stringify(found.evidence,null,2)+'\n',{encoding:'utf8',mode:0o600,flag:'wx'});
+ const inspected=DELIVERY.review(site,completeHttp);
+ fs.writeFileSync(out,JSON.stringify(completeHttp,null,2)+'\n',{encoding:'utf8',mode:0o600,flag:'wx'});
  if(publicDigests)fs.writeFileSync(digestOut,JSON.stringify(publicDigests,null,2)+'\n',
   {encoding:'utf8',mode:0o600,flag:'wx'});
  if(publicMedia)fs.writeFileSync(mediaOut,JSON.stringify(publicMedia.evidence,null,2)+'\n',
   {encoding:'utf8',mode:0o600,flag:'wx'});
  return {file:out,siteId:site.siteId,publishedVersion:source.publishedVersion,
   ownerSourceRevisionClaim:owner.sourceRevision??null,
-  requests:found.requests,bodyBytes:found.bytes,
+  requests:found.requests+1,bodyBytes:found.bytes,
+  rootWindowSha256Rechecked:true,rootWindowMatched:rootWindow.matched,
   publicMediaFile:mediaOut,mediaHeadRequests:publicMedia?.requests??null,
   unsupportedHeadAssets:publicMedia?.unsupportedHeadAssetIds??[],
   publicMediaByteDigestFile:digestOut,
