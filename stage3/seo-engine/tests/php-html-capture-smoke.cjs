@@ -19,7 +19,10 @@ const site={siteId:'pilot-local',title:'Pilot',language:'ru',pages:[
    width:2,height:1,sha256:sha(responsive)}]},
  {id:'asset-secondary',src:'/assets/asset-secondary.png',mime:'image/png',alt:'Page image'}]};
 const source={siteId:site.siteId,packageVersion:'sealed-v2',
- fileSha256:'a'.repeat(64),siteRevisionFingerprint:ACCEPTANCE.fingerprint(site)};
+ fileSha256:'a'.repeat(64),siteRevisionFingerprint:ACCEPTANCE.fingerprint(site),
+ sealedMediaSha256:{'/assets/asset-banner.png':sha(png),
+  '/assets/asset-banner-sm.png':sha(responsive),
+  '/assets/asset-secondary.png':sha(png)}};
 const code=fs.readFileSync(path.join(__dirname,'../lib/php-html-capture.cjs'),'utf8');
 const moduleShim={exports:{}};
 vm.runInNewContext(code,{
@@ -72,7 +75,8 @@ const server=http.createServer((req,res)=>{
     req.url==='/published/pilot-local/assets/asset-secondary.png'){
   const original=req.url.endsWith('/asset-banner.png');
   const variant=req.url.endsWith('/asset-banner-sm.png');
-  const bytes=variant&&mode!=='bad-variant-bytes'?responsive:png;
+  const bytes=mode==='bad-sealed-source'&&req.url.endsWith('asset-secondary.png')?
+   responsive:variant&&mode!=='bad-variant-bytes'?responsive:png;
   if((mode==='bad-rendered-status'||mode==='other-consumers-bad')&&req.url.endsWith('/asset-secondary.png')){
    res.writeHead(404);res.end('Missing rendered image');return;
   }
@@ -176,6 +180,31 @@ function formAndFirstSiteCliContracts(){
   x.code==='php-head:inline-script-csp-drift'&&x.severity==='error'));
  assert.ok(headCheck(docHead.replace('<script>'+script+'</script>',''),goodPolicy).findings.some(x=>
   x.code==='php-head:wizard-script-absent'&&x.severity==='error'));
+ // A real CMS import remaps immutable asset IDs. Source content must remain
+ // byte-equivalent after precisely that retarget, not merely look similar.
+ const RECONCILE=require('../lib/published-site-reconcile.cjs');
+ const orig={siteId:'pilot-source',title:'Approved',pages:[{
+  id:'page-home',path:'/',sections:[{id:'sec-home',
+   elements:[{id:'el-image',values:{'content.media':'asset-main'}}]}]}],
+  assets:[{id:'asset-main',src:'/assets/asset-main.png',mime:'image/png',alt:'Hero',
+   variants:[{id:'asset-small',src:'/assets/asset-small.png',
+    width:2,height:1,sha256:'b'.repeat(64)}]}]};
+ const imported=JSON.parse(JSON.stringify(orig));
+ imported.assets=[{id:'generated-main',src:'/assets/generated-main.png',
+  mime:'image/png',alt:'Hero',width:400,height:200,
+  variants:[{id:'generated-small',src:'/assets/generated-small.png',
+   width:2,height:1,sha256:'b'.repeat(64)}]}];
+ imported.pages[0].sections[0].elements[0].values['content.media']='generated-main';
+ const sealed={'/assets/asset-main.png':'a'.repeat(64),
+  '/assets/asset-small.png':'b'.repeat(64)};
+ const matched=RECONCILE.correlate(orig,imported,sealed);
+ assert.equal(matched.sealedMediaSha256['/assets/generated-main.png'],'a'.repeat(64));
+ assert.equal(matched.mediaIdMap['asset-small'],'generated-small');
+ const edited=JSON.parse(JSON.stringify(imported));
+ edited.pages[0].sections[0].elements[0].values['content.media']='wrong-image';
+ assert.throws(()=>RECONCILE.correlate(orig,edited,sealed),/content differs/);
+ const altered=JSON.parse(JSON.stringify(imported));altered.assets[0].alt='Unapproved';
+ assert.throws(()=>RECONCILE.correlate(orig,altered,sealed),/ALT/);
  // This CLI remains a single command, with optional lead screenshot evidence.
  const cliSource=fs.readFileSync(path.join(__dirname,'../bin/first-site-check.cjs'),'utf8')
   .replace(/^#![^\n]*\n/,'');
@@ -190,6 +219,10 @@ function formAndFirstSiteCliContracts(){
  assert.equal(m.exports.parse(argv)['php-capture'],undefined);
  assert.equal(m.exports.parse([...argv,'--php-capture','/tmp/lead/evidence.json'])['php-capture'],
   '/tmp/lead/evidence.json');
+ assert.equal(m.exports.parse([...argv,'--published-site','/tmp/published.json'])['published-site'],
+  '/tmp/published.json');
+ assert.equal(m.exports.parse([...argv,'--php-capture','/tmp/lead/evidence.json',
+  '--published-site','/tmp/published.json'])['published-site'],'/tmp/published.json');
  assert.throws(()=>m.exports.parse([...argv,'--unknown','value']),/Unknown/);
 }
 
@@ -353,6 +386,11 @@ async function main(){
   const wrong=CAP.read(badVariant,site,source).localMedia.findings;
   assert.ok(wrong.some(x=>x.code==='php-media:variant-sha-drift'&&x.severity==='error'));
   assert.ok(wrong.some(x=>x.code==='php-media:png-dimension-drift'&&x.severity==='error'));
+  mode='bad-sealed-source';
+  const swappedSource=path.join(tmp,'swapped-original');
+  await CAP.capture(sealed,base,swappedSource);
+  assert.ok(CAP.read(swappedSource,site,source).localMedia.findings.some(x=>
+   x.code==='php-media:sealed-source-sha-drift'&&x.assetId==='asset-secondary'&&x.severity==='error'));
   mode='bad-media-etag';
   const wrongEtag=path.join(tmp,'wrong-etag');
   await CAP.capture(sealed,base,wrongEtag);
