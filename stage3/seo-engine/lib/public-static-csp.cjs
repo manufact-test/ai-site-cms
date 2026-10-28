@@ -58,6 +58,18 @@ function formAllowed(action,host,policy){
   if(source==='*')return true;
   if(source==='https:'&&target.protocol==='https:')return true;
   if(/^https:\/\//i.test(source)){
+   // CSP host-source permits DNS subdomain wildcards but *does not*
+   // match the root domain itself. Respect explicit host ports and
+   // path-prefix source expressions without granting a broader origin.
+   const wild=/^https:\/\/\*\.([a-z0-9.-]+)(?::(443|[1-9][0-9]{1,4}))?(\/[^?#]*)?$/i.exec(source);
+   if(wild){
+    const domain=wild[1].toLowerCase(),host=target.hostname.toLowerCase();
+    const port=wild[2]||'443';
+    const actualPort=target.port||'443';
+    if(host.endsWith('.'+domain)&&host!==domain&&actualPort===port&&
+       (wild[3]===undefined||target.pathname.startsWith(wild[3])))return true;
+    continue;
+   }
    try{
     const allowed=new URL(source);
     if(target.origin===allowed.origin&&
