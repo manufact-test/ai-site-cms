@@ -33,11 +33,21 @@ vm.runInNewContext(code,{
  }
 },{filename:'php-html-capture.cjs',timeout:2000});
 const CAP=moduleShim.exports;
-const html=(title)=>'<!doctype html><html lang="ru"><head><title>'+
- title+'</title><meta name="description" content="Тест локального PHP">'+
- '<meta property="og:image" content="https://pilot.example/published/pilot-local/assets/'+
- (mode==='bad-og-url'?'asset-secondary.png':'asset-banner.png')+'"></head>'+
- '<body><h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a>'+'<a href="/published/pilot-local/old/">Old route</a>'+'<img src="/published/pilot-local/assets/asset-secondary.png" alt="Secondary"></body></html>';
+const origin=()=>mode==='dev-origin'?'http://127.0.0.1:'+server.address().port:'https://pilot.example';
+const html=(title)=>{
+ const route=title==='About'?'about/':'';
+ return '<!doctype html><html lang="ru"><head><title>'+title+
+  '</title><meta name="description" content="Тест локального PHP">'+
+  '<link rel="canonical" href="'+(mode==='bad-canonical'?'https://other.example/':
+    origin()+'/published/pilot-local/'+route)+'">'+
+  '<meta property="og:url" content="'+(mode==='bad-og-page'?'https://other.example/':
+    origin()+'/published/pilot-local/'+route)+'">'+
+  '<meta property="og:image" content="'+origin()+'/published/pilot-local/assets/'+
+  (mode==='bad-og-url'?'asset-secondary.png':'asset-banner.png')+'"></head>'+
+  '<body><h1>'+title+'</h1><a href="/published/pilot-local/about/">About</a>'+
+  '<a href="/published/pilot-local/old/">Old route</a>'+
+  '<img src="/published/pilot-local/assets/asset-secondary.png" alt="Secondary"></body></html>';
+};
 let mode='normal',requests=[];
 const server=http.createServer((req,res)=>{
  requests.push({url:req.url,method:req.method});
@@ -63,15 +73,15 @@ const server=http.createServer((req,res)=>{
  if(req.url==='/published/pilot-local/robots.txt'){
   if(mode==='no-public-origin'){res.writeHead(503,{'Content-Type':'application/json'});res.end('{"error":"STAGE3_PUBLIC_ORIGIN missing"}');return;}
   res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8'});
-  res.end('User-agent: *\nAllow: /\nSitemap: https://pilot.example/published/pilot-local/sitemap.xml\n');return;
+  res.end('User-agent: *\nAllow: /\nSitemap: '+origin()+'/published/pilot-local/sitemap.xml\n');return;
  }
  if(req.url==='/published/pilot-local/sitemap.xml'){
   if(mode==='no-public-origin'){res.writeHead(503,{'Content-Type':'application/json'});res.end('{"error":"STAGE3_PUBLIC_ORIGIN missing"}');return;}
   res.writeHead(200,{'Content-Type':'application/xml; charset=utf-8'});
   res.end('<?xml version="1.0" encoding="UTF-8"?>'+
    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+
-   '<url><loc>https://pilot.example/published/pilot-local/</loc></url>'+
-   (mode==='bad-sitemap'?'':'<url><loc>https://pilot.example/published/pilot-local/about/</loc></url>')+'</urlset>');return;
+   '<url><loc>'+origin()+'/published/pilot-local/</loc></url>'+
+   (mode==='bad-sitemap'?'':'<url><loc>'+origin()+'/published/pilot-local/about/</loc></url>')+'</urlset>');return;
  }
  if(req.url==='/published/pilot-local/old/'){
   res.writeHead(mode==='bad-301'?302:301,{Location:
@@ -79,7 +89,9 @@ const server=http.createServer((req,res)=>{
   res.end();return;
  }
  if(req.url==='/published/pilot-local/'||req.url==='/published/pilot-local/about/'){
-  res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});
+  res.writeHead(200,{'Content-Type':'text/html; charset=utf-8',
+   'Content-Security-Policy':"default-src 'none'; frame-ancestors 'none'",
+   ...(mode==='bad-xrobots'?{'X-Robots-Tag':'noindex,nofollow'}:{})});
   res.end(html(req.url.includes('about')?'About':'Home'));return;
  }
  res.writeHead(404);res.end();
@@ -123,6 +135,9 @@ async function main(){
   assert.equal(result.publication.findings.length,0);
   assert.equal(result.localMedia.capturedResources,3);
   assert.equal(result.localMedia.criticalCount,0);
+  assert.equal(result.localHead.findings.length,0);
+  assert.equal(result.localHead.pagesWithRecordedHeaders,2);
+  assert.equal(result.localHead.publicOriginObservedInSitemap,'https://pilot.example');
   assert.equal(result.localMedia.resources[0].ogImageAsset,true);
   assert.equal(result.localMedia.resources[1].bodySha256,sha(responsive));
   assert.deepEqual([...result.localMedia.resources[2].renderedPageIds],['page-home','page-about']);
@@ -195,6 +210,29 @@ async function main(){
    .some(x=>x.code==='php-local:sitemap-http-status'&&x.severity==='warning'));
   assert.equal(CAP.read(noOrigin,site,source).snapshot.sitemapCompleteness,undefined,
    'HTTP 503 does not imply a complete sitemap');
+  mode='dev-origin';
+  const developer=path.join(tmp,'dev-origin');
+  await CAP.capture(sealed,base,developer);
+  const dev=CAP.read(developer,site,source);
+  assert.equal(dev.localHead.developmentOnlyOrigin,true);
+  assert.ok(dev.publication.findings.some(x=>x.code==='php-local:development-public-origin'));
+  assert.ok(!dev.localHead.findings.some(x=>x.severity==='error'));
+  assert.ok(!dev.localMedia.findings.some(x=>x.severity==='error'));
+  mode='bad-canonical';
+  const canonicalDrift=path.join(tmp,'canonical-drift');
+  await CAP.capture(sealed,base,canonicalDrift);
+  assert.ok(CAP.read(canonicalDrift,site,source).localHead.findings
+   .some(x=>x.code==='php-head:canonical-origin-route-drift'&&x.severity==='error'));
+  mode='bad-og-page';
+  const socialPageDrift=path.join(tmp,'social-page-drift');
+  await CAP.capture(sealed,base,socialPageDrift);
+  assert.ok(CAP.read(socialPageDrift,site,source).localHead.findings
+   .some(x=>x.code==='php-head:og-url-drift'&&x.severity==='error'));
+  mode='bad-xrobots';
+  const noindex=path.join(tmp,'xrobots-noindex');
+  await CAP.capture(sealed,base,noindex);
+  assert.ok(CAP.read(noindex,site,source).localHead.findings
+   .some(x=>x.code==='php-head:x-robots-noindex-conflict'&&x.severity==='error'));
   mode='bad-og-url';
   const ogDrift=path.join(tmp,'og-url-drift');
   await CAP.capture(sealed,base,ogDrift);
