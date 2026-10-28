@@ -161,6 +161,7 @@ function build(site,manifests,blueprint,options={}){
     format:options.phpHtml.format,siteId:options.phpHtml.siteId,
     capturedAt:options.phpHtml.capturedAt,baseUrl:options.phpHtml.baseUrl,
     pageCount:options.phpHtml.pageCount,checkedHtmlBytes:options.phpHtml.checkedHtmlBytes,
+    checkedAuxiliaryBytes:options.phpHtml.checkedAuxiliaryBytes,
     loopbackHttp200Count:options.phpHtml.loopbackHttp200Count,
     sha256VerifiedAtRead:true,sourceSiteSha256:options.phpHtml.sourceSiteSha256,
     sourceRevisionAuthenticated:false,realPublicHttpsChecked:false,
@@ -197,7 +198,8 @@ function build(site,manifests,blueprint,options={}){
       '- PHP loopback: '+options.phpHtml.baseUrl+'; capture time: '+options.phpHtml.capturedAt+'\n'+
       '- HTTP 200 responses: '+options.phpHtml.loopbackHttp200Count+
         '; verified HTML files: '+options.phpHtml.pageCount+
-        '; total HTML bytes: '+options.phpHtml.checkedHtmlBytes+'.\n'+
+        '; HTML bytes: '+options.phpHtml.checkedHtmlBytes+
+        '; separately verified robots/sitemap/301 bytes: '+options.phpHtml.checkedAuxiliaryBytes+'.\n'+
       '- SEO head, H1, links and indexation checked by existing HTML/parity modules against the captured bytes.\n'+
       '- Source digest recorded at capture, but source revision served by PHP NOT cryptographically attested. No public HTTPS, forms, scripts, actual design equality or client approval verified.\n':'')+
     '\n\n---\n\n'+renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
