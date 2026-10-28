@@ -85,6 +85,13 @@ async function capture(folder,rawUrl,destination){
         if(!response||response.status()!==200)
           throw Error('Public page not HTTP 200: '+item.path+' ('+(response?.status()??'network failure')+')');
         await page.evaluate(()=>document.fonts?.ready);
+        // Full-page screenshots do not necessarily scroll to trigger native
+        // loading="lazy". Fetch every image explicitly before the capture.
+        await page.locator('img').evaluateAll(nodes=>{
+          for(const image of nodes)image.loading='eager';
+        });
+        await page.waitForFunction(()=>[...document.images].every(image=>image.complete),
+          {timeout:15000});
         const broken=await page.locator('img').evaluateAll(nodes=>nodes
           .filter(img=>!img.complete||img.naturalWidth===0)
           .map(img=>img.getAttribute('src')||'<empty src>'));

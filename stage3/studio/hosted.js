@@ -2582,9 +2582,17 @@
         const objectUrls=[],liveFrames={};
         const liveImageBytes=new Map();
         const widths={desktop:1280,tablet:768,mobile:390};
-        const toDataUrl=file=>new Promise((resolve,reject)=>{
+        const toDataUrl=(file,mime)=>new Promise((resolve,reject)=>{
+          // File.type is not reliable for OS directory pickers or headless File
+          // objects. The image's declared MIME was already checked against the
+          // real bytes and dimensions before the review was opened.
           const reader=new FileReader();
-          reader.onload=()=>resolve(String(reader.result));
+          reader.onload=()=>{
+            const encoded=String(reader.result).split(',')[1]||'';
+            if(!/^[A-Za-z0-9+/=]+$/.test(encoded))
+              reject(Error('Некорректные байты изображения: '+file.name));
+            else resolve('data:'+mime+';base64,'+encoded);
+          };
           reader.onerror=()=>reject(Error('Невозможно прочитать изображение: '+file.name));
           reader.readAsDataURL(file);
         });
@@ -2595,7 +2603,7 @@
           const sources=Object.create(null);
           for(const asset of site.assets){
             if(!liveImageBytes.has(asset.id))
-              liveImageBytes.set(asset.id,await toDataUrl(required(asset.src.slice(1))));
+              liveImageBytes.set(asset.id,await toDataUrl(required(asset.src.slice(1)),asset.mime));
             sources[asset.id]=liveImageBytes.get(asset.id);
           }
           for(const [device,view] of Object.entries(liveFrames))
