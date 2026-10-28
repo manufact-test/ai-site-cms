@@ -20,6 +20,7 @@ vm.runInNewContext(code,{
   if(name==='./approved-site-bridge.cjs')
    return {load:()=>({site,source}),isVerifiedSource:s=>s===source};
   if(name==='./acceptance.cjs')return ACCEPTANCE;
+  if(name.startsWith('./'))return require(path.join(__dirname,'../lib',name.slice(2)));
   return require(name);
  }
 },{filename:'php-html-capture.cjs',timeout:2000});
