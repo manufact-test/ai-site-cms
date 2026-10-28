@@ -162,3 +162,8 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 К `php-local-components.cjs` дополнительно подключены **FAQ, карточки услуг, отзывы, photo-gallery, adaptive-gallery, логотипы партнёров, CTA-banner, contact-panel, image-showcase, media-story**. Для каждого типа сопоставляются фактически отданные PHP HTML структура/содержание и элементы из sealed Site v1, где применимо: вопросы/ответы, услуги, подписи/авторы, image src/ALT/caption, внутренние и внешние CTA destination и видимые цены. Нет DOM исполнения, нет запроса к внешнему URL и нет изменения сайта. Нарушения — существующий `local-php-component-parity` release blocker с `sectionId` и `pageId`.
 
 Репрезентативные валидные и намеренно сломанные FAQ/testimonial/CTA добавлены в *тот же* `php-html-capture-smoke.cjs`; pure JS smoke этих актуальных модулей прошёл. Полный Node subprocess/реальный PHP первого клиента по-прежнему обязан выполнить ведущий.
+
+
+### Обязательная приоритетность PHP DesignGraph
+
+PHP PublicRenderer выбирает `section.designGraph` **вместо** legacy component renderer, если поле присутствует. Поэтому `php-local-forms`, проверки PHP wizard CSP и все 14 `php-local-components` не требуют legacy markup при graph override; за такой секцией отвечает `php-local-graph`. Без этого корректный CMS сайт с обновлённым дизайном получал бы ложный release blocker. Исходный клиентский source не изменяется. Также проверяются section heading/intro, отдельные тарифные условия, featured card state, заголовки и примечания таблиц, только если эти значения действительно объявлены в typed Site v1.

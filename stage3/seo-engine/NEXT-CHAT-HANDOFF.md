@@ -78,3 +78,8 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 ## Завершённый дополнительный блок по real PHP компонентам
 
 Кроме business-компонентов добавлено 10 основных секций CMS: FAQ, услуги, отзывы, photo-gallery, adaptive-gallery, партнёрские логотипы, CTA-banner, contact-panel, image-showcase, media-story. Итого `php-local-components.cjs` сверяет **14 типов** по фактическому HTML, включая содержимое, медиа/ALT и маршруты кнопок. Ошибки являются техническими release blockers, не визуальным утверждением. Синтетические valid/invalid сценарии доступны в уже существующем smoke. Полный PHP/Node смок ведущего не заменяет. Продолжать только в worker directory; передача официальной CMS в ведение lead.
+
+
+## Приоритет PHP DesignGraph и исправления ложных ошибок
+
+Если типовой блок или form section имеют `designGraph`, PHP выводит именно граф, а не старые поля. SEO теперь исключает такие секции из ожидаемого legacy HTML/forms/wizard; source-bound граф анализируется отдельно. При необходимости это обнаруживается в одной существующей smoke. Также в 14 типовых компонентах проверены заголовки, вводные абзацы, тарифные условия, featured и заголовки сравнения. Всё в worker path. Полный first-site Node/PHP прогон и интеграция — у ведущего.

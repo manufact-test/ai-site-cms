@@ -295,3 +295,8 @@ The existing `tests/php-html-capture-smoke.cjs` now includes valid and deliberat
 ## 14 published PHP components audited against approved Site v1
 
 The source-bound PHP component reviewer now covers 14 first-party public components: business-pricing/process/switcher/comparison plus FAQ, service cards, testimonials, photo-gallery, adaptive-gallery, partner logos, CTA banner, contact panel, image showcase, and media story. Image and ALT bindings, rendered caption/quote content and critical CTA addresses are compared to current Site v1. All findings route to existing release and task infrastructure; no new site editor, network crawler or autobuild system is introduced. See FIRST-SITE-RUNBOOK.md.
+
+
+## PHP DesignGraph override — exact publisher precedence
+
+The current PHP PublicRenderer renders `section.designGraph` instead of the component's legacy HTML whenever the graph is present. The worker respects this in `php-local-forms`, wizard CSP expectations in `php-local-head`, and all 14 component audits. Graph sections are inspected by `php-local-graph` exactly once. This prevents false launch failures on valid Studio-modified custom compositions. The source-bound business reviewer also checks heading/intro, pricing period/description/footnote/featured state, comparison headers/notes when those fields are declared in official Site v1.
