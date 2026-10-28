@@ -568,6 +568,21 @@ try{
  fs.writeFileSync(approvalPath,JSON.stringify(denialLedger));
  const incompleteSignoff=JSON.parse(good('acceptance-review',{site,blueprint:bp,acceptance:approvalPath}));
  assert.equal(incompleteSignoff.checks[0].status,'incomplete-attestation');
+ // An approved field proposal is safe to model on a clone but never applied to CMS.
+ const impact=JSON.parse(good('change-impact',{site,blueprint:bp,snapshot:htmlSite,decisions:triageFile}));
+ assert.equal(impact.format,'manufact-seo-change-impact-v1');
+ assert.equal(impact.summary.actualCmsWrites,0);
+ assert.equal(impact.hypotheticalSiteIncluded,false);
+ assert.equal(impact.readyToPublish,false);
+ assert.ok(impact.operations.some(x=>x.taskId===task.taskId&&x.simulationStatus==='applied-to-temporary-clone'));
+ assert.equal(impact.summary.hypotheticalValidSiteV1,true);
+ const reviewedImpact=JSON.parse(good('review-bundle',{
+  site,blueprint:bp,snapshot:htmlSite,decisions:triageFile}));
+ assert.equal(reviewedImpact.changeImpact.summary.actualCmsWrites,0);
+ assert.ok(reviewedImpact.changeImpact.operations.length>0);
+ const noDecisionImpact=JSON.parse(good('change-impact',{site,blueprint:bp}));
+ assert.equal(noDecisionImpact.summary.approvedFieldOperationsSimulated,0);
+ assert.equal(noDecisionImpact.status,'no-approved-unblocked-operations');
  const unsupported=command('review-bundle',{site,blueprint:bp,unknown:'invalid'});
  assert.notEqual(unsupported.status,0);
  const {inspect:inspectEvidence}=require('../lib/html-evidence.cjs');

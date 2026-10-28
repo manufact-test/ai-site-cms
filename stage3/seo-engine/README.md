@@ -45,6 +45,8 @@ The Markdown handoff also appends a human-readable CMS change packet with exact 
 
 The `review-bundle.markdownHandoff` keeps its original remediation report at the top and appends the per-page implementation/acceptance map. No separate document needs to be assembled by the lead.
 
+`change-impact --site <site.json> --blueprint <blueprint.json> --decisions <ledger.json>` builds the guarded CMS change packet, applies only eligible approved field proposals to an **in-memory clone**, validates that clone against the actual existing Site v1 contract and manifests, then compares hypothetical SEO regressions. The preview does not output the site document, save CMS data, deploy, grant automatic permission or replace manual acceptance. `review-bundle.changeImpact` includes this simulation only when a current decision ledger was supplied.
+
 Human acceptance is now explicitly version-bound: generate an empty signed-evidence structure with `acceptance-template`, attach the real client's three static image artifact references/SHA-256 digests and signoff, plus seven manual review attestations, then use `acceptance-review --acceptance ...`. The approved Blueprint and implemented Site v1 are fingerprinted using deterministic SHA-256 of their canonical JSON. A changed revision invalidates the prior assertions. The review still never authenticates a person, fetches artifacts or authorizes release. `release-review --acceptance ...` raises blockers on stale/rejected attestations; `review-bundle.acceptanceReview` carries their exact status. `task-progress` compares *only like-for-like Site v1 authoring tasks* across a baseline and current revision, so missing captures do not look like fixed bugs. Optional `--prior-decisions` refers to the **baseline** backlog, not the current ledger.
 
 Review packages now contain `traceability`: a mapping from approved page/section IDs to implemented Site v1 fields, supplied HTML/device evidence and exact backlog task IDs. Optional `review-bundle --decisions <triage.json>` includes reconciled decisions and annotates suggested next actions; it **never** authorizes release or removes rejected decisions from the full backlog. Use `traceability-md` for the lead's human-readable acceptance map.
@@ -55,6 +57,7 @@ The full `review-bundle` includes a canonical blueprint architecture review, cor
 
 | Command | Purpose | Required input |
 |---|---|---|
+| `change-impact` | Simulate human-approved CMS field proposals on a temporary Site v1 clone; validate with existing core SDK and analyze hypothetical regression | `--site --blueprint --decisions`, optional evidence flags |
 | `acceptance-template`, `acceptance-review` | Revision-bound human acceptance evidence for three prototype images and seven lead gates | `--site --blueprint`, `--acceptance` to review |
 | `task-progress` | Like-for-like previous/current Site v1 backlog lifecycle, without fake issue closure | `--before --site --blueprint`, optional `--prior-decisions` |
 | `review-blueprint`, `review-architecture` | Editorial/route plan review | `--blueprint` |

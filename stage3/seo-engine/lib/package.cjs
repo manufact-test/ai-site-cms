@@ -23,6 +23,7 @@ const CAPTURE=require('./capture-plan.cjs');
 const CONSISTENCY=require('./evidence-consistency.cjs');
 const ACCEPTANCE=require('./acceptance.cjs');
 const PROGRESS=require('./task-progress.cjs');
+const IMPACT=require('./change-impact.cjs');
 const FORMAT='manufact-seo-review-bundle-v1';
 function build(site,manifests,blueprint,options={}){
  const plan=checkBlueprint(blueprint);
@@ -52,6 +53,7 @@ function build(site,manifests,blueprint,options={}){
  const cmsChangePacket=CMS_PACKET.build(site,manifests,plan,backlog,decisions);
  const acceptanceReview=acceptanceLedger?ACCEPTANCE.review(site,plan,acceptanceLedger):null;
  const taskProgress=options.baselineSite?PROGRESS.compare(options.baselineSite,site,manifests,plan,historyLedger||null):null;
+ const changeImpact=ledger?IMPACT.preview(site,manifests,plan,backlog,decisions):null;
  const declaredOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean);
  const originsAgree=new Set(declaredOrigins.map(x=>new URL(x).href)).size<=1;
  const capturePlan=CAPTURE.build(site,plan,originsAgree?declaredOrigins[0]||null:null);
@@ -99,7 +101,7 @@ function build(site,manifests,blueprint,options={}){
   contract:acceptedFormats,coverage,
   blueprintReview:architecture,siteAudit:audit,
   htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
-  traceability,decisions,acceptanceReview,taskProgress,deliveryEvidence:delivery,mediaEvidence:media,evidenceConsistency,executionPlan:execution,cmsChangePacket,capturePlan,
+  traceability,decisions,acceptanceReview,taskProgress,changeImpact,deliveryEvidence:delivery,mediaEvidence:media,evidenceConsistency,executionPlan:execution,cmsChangePacket,capturePlan,
   regression,handoff,backlog,release,nextActions,
   // Retain the original remediation Markdown first for consumers depending on its header.
   markdownHandoff:renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
@@ -112,6 +114,7 @@ function build(site,manifests,blueprint,options={}){
    'Supplied HTML and device captures are not proof of the deployed browser state.',
    'Release never auto-approved.',
    'Supplied acceptance ledger is an unverified assertion, even when all gates are marked approved.',
+   'Change impact is an in-memory hypothetical validated Site v1, not a CMS patch or real saved state.',
    ...(originsAgree?[]:['Conflicting supplied HTTP and media origins: capture plan has no approved URL until the lead resolves this.'])]};
 }
 module.exports=Object.freeze({FORMAT,build});
