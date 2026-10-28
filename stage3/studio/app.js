@@ -2852,7 +2852,7 @@
       action('+ Рядом',()=>{
         const node={id:uniqueId('dg-node'),type:'container',styles:{display:'grid',columns:2,gap:'@medium'},
           responsive:{mobile:{columns:1}},children:[]};
-        changeTree({action:'insert',targetId:type==='popup'?graph.nodes.at(-1).id:n.id,placement:'after',node},node.id);
+        changeTree({action:'insert',targetId:n.id,placement:'after',node},node.id);
       });
       action('Тип +',()=>{
         const type=prompt('Элемент: container / heading / text / button / link / quote / image / gallery / table / divider / icon / video / disclosure / tabs / list / popup','heading');
@@ -2897,7 +2897,7 @@
           if(!first)return notice('Сперва загрузите изображение',true);
           node.assetId=first.id;node.alt=first.alt;
         }
-        changeTree({action:'insert',targetId:n.id,placement:'after',node},node.id);
+        changeTree({action:'insert',targetId:type==='popup'?graph.nodes.at(-1).id:n.id,placement:'after',node},node.id);
       });
       action('↑',()=>{
         const index=selected.items.indexOf(n);

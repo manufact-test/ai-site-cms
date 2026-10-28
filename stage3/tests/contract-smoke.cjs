@@ -1501,7 +1501,7 @@ test('native Design Graph popup plus deterministic entrance sequence stays typed
   cta.popupTarget='popup-foreign';bad();cta.popupTarget=pop.id;
   cta.href='https://example.com';bad();delete cta.href;
   pop.text='<script>test</script>';sdk.validateSite(site,manifests);
-  assert.match(host.render(site,graph),/&lt;script&gt;test&lt;\\/script&gt;/);
+  assert.ok(host.render(site,graph).includes('&lt;script&gt;test&lt;/script&gt;'));
   pop.text='Описание условий';
   grid.sequence.stagger=900;grid.sequence.delay=1000;bad();
   grid.sequence.stagger=180;grid.sequence.delay=50;
