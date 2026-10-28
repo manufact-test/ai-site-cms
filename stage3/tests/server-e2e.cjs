@@ -2147,6 +2147,44 @@ async function stop(){
   assert.equal(missingConnection.status,200);
   assert.equal(missingConnection.body.localReady,false);
   assert.equal(missingConnection.body.reason,'not_published');
+  // Full persisted Save -> Publish -> public HTML for linked sections:
+  // external API must reject drift and render both page-local instances.
+  const linkedSite=structuredClone(fixture);
+  linkedSite.siteId='site-shared-roundtrip';
+  const linkedHero=linkedSite.pages[0].sections[0];
+  linkedHero.sharedKey='shared-hero-roundtrip';
+  const linkedHeroCopy=structuredClone(linkedHero);
+  linkedHeroCopy.id='section-hero-on-contact';
+  for(const element of linkedHeroCopy.elements)
+    element.id='section-hero-copy-'+element.slot;
+  linkedSite.pages[1].sections.push(linkedHeroCopy);
+  const sharedCreated=await request('POST','/api/sites',{site:linkedSite});
+  assert.equal(sharedCreated.status,201,JSON.stringify(sharedCreated.body));
+  assert.equal((await request('POST','/api/sites/site-shared-roundtrip/publish',
+    {expectedRevision:1})).status,200);
+  assert.match((await request('GET','/published/site-shared-roundtrip/contact/')).body,
+    /section-hero-on-contact/);
+  const sharedDrift=structuredClone(linkedSite);
+  sharedDrift.pages[1].sections.at(-1).elements[0].values['content.text']='Независимый текст';
+  assert.equal((await request('POST','/api/sites/site-shared-roundtrip/save',
+    {expectedRevision:1,site:sharedDrift})).status,422,
+    'Server rejects diverged shared sections without partial save');
+  const sharedEdited=structuredClone(linkedSite);
+  for(const section of [sharedEdited.pages[0].sections[0],
+    sharedEdited.pages[1].sections.at(-1)])
+    section.elements[0].values['content.text']='Синхронный заголовок';
+  const sharedSaved=await request('POST','/api/sites/site-shared-roundtrip/save',
+    {expectedRevision:1,site:sharedEdited});
+  assert.equal(sharedSaved.status,200,JSON.stringify(sharedSaved.body));
+  assert.equal(sharedSaved.body.revision,2);
+  const sharedPublished=await request('POST','/api/sites/site-shared-roundtrip/publish',
+    {expectedRevision:2});
+  assert.equal(sharedPublished.status,200);
+  for(const route of ['/','/contact/']){
+    const rendered=await request('GET','/published/site-shared-roundtrip'+route);
+    assert.equal(rendered.status,200);
+    assert.match(rendered.body,/Синхронный заголовок/);
+  }
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET','/api/sites/'+id+'/connection-check')).status,401);
   assert.equal((await request('GET',endpoint)).status,401);
