@@ -335,7 +335,7 @@ async function execute(){
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
     'Mobile PHP view has no broken media or page-level overflow');
   await page.locator('#server-launch-mark').click();
-  assert.match(await page.locator('#server-launch-progress').innerText(),/экранов: 1\/3/);
+  assert.match(await page.locator('.hosted-launch-progress').innerText(),/экранов: 1\/3/);
   await page.locator('#server-launch-close').click();
   await page.locator('#server-publish').click();
   await page.locator('#server-status').getByText(/Опубликовано: v1/).waitFor();
