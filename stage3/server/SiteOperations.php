@@ -98,6 +98,43 @@ trait SiteOperations
         }
     }
 
+    /**
+     * Authenticated self-check of the current CMS connection and published
+     * release. No outbound network requests, secret exposure or data writes.
+     * The browser separately probes the same-origin public release endpoint.
+     */
+    public function connectionCheck(string $siteId): array
+    {
+        $draft=$this->getDraft($siteId);
+        $this->validator->validate($draft['site']);
+        try{$release=$this->published($siteId);}
+        catch(NotFound $notPublished){
+            return [
+                'format'=>'manufact-ai-site-connection-v1','siteId'=>$siteId,
+                'draftRevision'=>$draft['revision'],'publishedVersion'=>null,
+                'localReady'=>false,'publicProbeUrl'=>null,
+                'reason'=>'not_published','publicOriginConfigured'=>
+                    PublicRenderer::origin(getenv('STAGE3_PUBLIC_ORIGIN')?:null)!==null
+            ];
+        }
+        $this->validator->validate($release['site']);
+        $this->assertStoredAssets($siteId,$release['site']);
+        $firstPage=$release['site']['pages'][0]['path'];
+        $html=PublicRenderer::html($release['site'],$firstPage,null,null,
+            $release['version'],PublicRenderer::origin(getenv('STAGE3_PUBLIC_ORIGIN')?:null));
+        if(!is_string($html)||!str_contains($html,'<!doctype html>'))
+            throw new RuntimeException('Published page cannot be rendered');
+        return [
+            'format'=>'manufact-ai-site-connection-v1','siteId'=>$siteId,
+            'draftRevision'=>$draft['revision'],'publishedVersion'=>$release['version'],
+            'localReady'=>true,'publicProbeUrl'=>'/published/'.$siteId.'/_cms-connect',
+            'publishedPageCount'=>count($release['site']['pages']),
+            'publishedAssetCount'=>count($release['site']['assets']),
+            'reason'=>null,'publicOriginConfigured'=>
+                PublicRenderer::origin(getenv('STAGE3_PUBLIC_ORIGIN')?:null)!==null
+        ];
+    }
+
     public function siteDiagnostics(string $siteId): array
     {
         $draft=$this->getDraft($siteId);

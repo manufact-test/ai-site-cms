@@ -241,6 +241,18 @@ final class Api
                         .htmlspecialchars($this->sites->operationsState($match[1])['message'],ENT_QUOTES|ENT_SUBSTITUTE|ENT_HTML5,'UTF-8').'</p></body></html>';
                     exit;
                 }
+                // Read-only public canary for same-origin browser verification.
+                // No private draft, user identities, hashes, paths or secrets.
+                if ($match[2]==='/_cms-connect') {
+                    header('Content-Type: application/json; charset=utf-8');
+                    header('Cache-Control: no-store');
+                    header('X-Robots-Tag: noindex, nofollow');
+                    header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
+                    echo json_encode(['format'=>'manufact-ai-site-connection-v1',
+                        'siteId'=>$match[1],'publishedVersion'=>$published['version']],
+                        JSON_THROW_ON_ERROR);
+                    exit;
+                }
                 $mount='/published/'.$match[1];
                 $origin=PublicRenderer::origin(getenv('STAGE3_PUBLIC_ORIGIN')?:null);
                 if (in_array($match[2],['/sitemap.xml','/robots.txt'],true)) {
@@ -360,6 +372,10 @@ final class Api
             if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/approval-evidence$~D',$path,$proofList)) {
                 if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
                 $this->response(200,$this->sites->approvalEvidenceIndex($proofList[1]));
+            }
+            if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/connection-check$~D',$path,$connection)) {
+                if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
+                $this->response(200,$this->sites->connectionCheck($connection[1]));
             }
             if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/operations$~D',$path,$op)) {
                 if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
