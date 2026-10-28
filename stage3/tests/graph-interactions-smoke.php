@@ -9,7 +9,7 @@ function graphTest(bool $ok,string $message): void { if(!$ok)throw new RuntimeEx
 $site=json_decode(file_get_contents(dirname(__DIR__).'/fixtures/industrial-site.json'),true,512,JSON_THROW_ON_ERROR);
 $site['pages'][0]['sections'][]=[
   'id'=>'section-interactive','component'=>'custom-section','manifestVersion'=>'1.0.0',
-  'elements'=>[], 'designGraph'=>['version'=>1,'id'=>'graph-interactive',
+  'elements'=>[['id'=>'graph-section-note','slot'=>'section-note','values'=>['content.text'=>'Интерактивная секция']]], 'designGraph'=>['version'=>1,'id'=>'graph-interactive',
     'nodes'=>[
       ['id'=>'graph-disclosure','type'=>'disclosure','text'=>'Вопрос и ответ',
         'children'=>[['id'=>'graph-answer','type'=>'text','text'=>'Ответ с деталями']]],
