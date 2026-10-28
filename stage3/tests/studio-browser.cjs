@@ -206,6 +206,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       name:'hostile.json',mimeType:'application/json',
       buffer:Buffer.from(JSON.stringify(bad),'utf8')
     });
+    await page.locator('#toast').getByText('Импорт отклонён').waitFor();
     assert.match(await page.locator('#toast').innerText(),/Импорт отклонён/);
     assert.equal(await canvas.locator('h1').innerText(),'Новое промышленное оборудование');
 
