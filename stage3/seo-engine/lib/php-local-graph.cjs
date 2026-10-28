@@ -39,6 +39,9 @@ function review(site,snapshot){
   throw Error('PHP DesignGraph audit needs full matching page HTML snapshot');
  const assets=new Map((site.assets||[]).map(x=>[x.id,x]));
  const issues=[],pages=[];
+ const byPath=new Map(site.pages.map(p=>[p.path,p]));
+ const redirects=new Map((site.redirects||[]).map(r=>[r.from,r.to]));
+ const capturedPaths=new Map(snapshot.pages.map(p=>[p.path,p.html]));
  const add=(page,section,node,code,message)=>issues.push(Object.freeze({
   code:'php-graph:'+code,severity:'error',pageId:page.id,path:page.path,
   sectionId:section.id,graphNodeId:node?.id||null,message,
@@ -154,6 +157,38 @@ function review(site,snapshot){
      mismatch('Published graph separator is not an HR element.');
     else if(n.type==='icon'&&el.tag!=='svg')
      mismatch('Published graph icon is missing SVG markup.');
+    // A typed DesignGraph link can match the approved source while the
+    // approved source itself points to a deleted page or missing anchor.
+    // Check *all* clickable graph types: buttons, links and linked images.
+    if(['link','button','image'].includes(n.type)&&n.href&&!n.popupTarget&&
+       n.href.startsWith('/')&&!n.href.startsWith('//')){
+     let route=null,fragment='';
+     try{
+      const url=new URL(n.href,'https://site-v1.invalid');
+      if(url.origin!=='https://site-v1.invalid')throw Error('Unexpected origin');
+      route=url.pathname;
+      fragment=url.hash?decodeURIComponent(url.hash.slice(1)):'';
+     }catch{
+      add(page,section,n,'invalid-internal-target','Authored DesignGraph internal target URL cannot be parsed.');
+     }
+     if(route!==null){
+      const mapped=byPath.get(route)||byPath.get(redirects.get(route));
+      if(!mapped)
+       add(page,section,n,'broken-internal-route',
+        'Authored DesignGraph click target '+route+' is absent from current Site v1 pages and redirects.');
+      else if(fragment){
+       const targetHtml=(capturedPaths.get(mapped.path)||'')
+        .replace(/<!--[\s\S]*?-->/g,'')
+        .replace(/<(?:script|style|template)\b[^>]*>[\s\S]*?<\/(?:script|style|template)\s*>/gi,'');
+       const ids=[...targetHtml.matchAll(/<[a-z][a-z0-9-]*\b([^>]*?)>/gi)]
+        .map(m=>attrs(m[1]).id).filter(Boolean);
+       if(!ids.includes(fragment))
+        add(page,section,n,'broken-internal-fragment',
+         'Authored DesignGraph link fragment #'+fragment.slice(0,110)+
+         ' is not present in actual captured target-page HTML.');
+      }
+     }
+    }
     if(n.type==='tabs'){
      const group='cmsdg-tabs-'+n.id;
      if(!String(a.class||'').split(/\s+/).includes(group))
