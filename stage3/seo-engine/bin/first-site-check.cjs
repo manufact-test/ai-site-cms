@@ -10,6 +10,7 @@ const PHP_CAPTURE=require('../lib/php-capture.cjs');
 const PACKAGE=require('../lib/package.cjs');
 const WORKSHEET=require('../lib/first-site-worksheet.cjs');
 const PROGRESS=require('../lib/first-site-report-delta.cjs');
+const STATIC_EXPORT=require('../lib/php-local-static-export.cjs');
 const DELIVERY=require('../lib/delivery-evidence.cjs');
 const MEDIA=require('../lib/media-delivery.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
@@ -106,6 +107,14 @@ async function main(argv){
     parent===previous.root||parent.startsWith(previous.root+path.sep);
   })))
   throw Error('Prior report must be a distinct read-only directory outside new capture outputs');
+ // Validate the optional official PHP static export before acquiring any HTTP evidence.
+ // A stale or tampered export must not waste the operator's capture run.
+ if(o['static-export']){
+  const preflight=STATIC_EXPORT.read(o['static-export'],site);
+  if(preflight.publishedVersion!==source.publishedVersion||
+     preflight.sourceRevision!==published.sourceRevision)
+   throw Error('Official static export version/sourceRevision differs from the owner CMS published release');
+ }
  const blueprint=readBlueprint(o.blueprint),registry=manifests();
  if(blueprint.siteId!==site.siteId)throw Error('First-site approved source and Blueprint site IDs differ');
  // Fail early on incompatible source contracts, not after downloading images.
