@@ -363,3 +363,10 @@ Focused isolated V8 test: `node stage3/seo-engine/tests/static-host-rewrites-smo
 Для запуска остаются предыдущие команды capture-public-https, prepare-static-host, first-site-check в этом файле. Ведущий должен интегрировать latest HEAD SEO в свой checkout, реально выполнить Node+PHP+Chromium+HTTPS/form POST на первом клиенте. Изолированные V8/syntax проверки — не полноценный Node/CI/реальный клиентский PASS.
 
 **Этот блок актуальнее ранних исторических секций документа (там ещё может быть написано про четыре вместо шести файлов).**
+
+### Final production checks for the 29.10.2026 continuation
+
+- Public CSP form-action matcher understands https://*.example.com for subdomains but not the exact parent. Does not claim actual POST delivery.
+- Public root-static comparison reports declaredResponsiveVariants and sha256VerifiedResponsiveVariants. When responsive srcset variants exist, original-image HEAD alone **cannot** justify allComparedSurfacesMatched=true; all variants need successful public GET SHA256 evidence.
+- Successful verified GET SHA256 can resolve HEAD 405/501 lack of coverage, but contradictory HEAD metadata stays visible as a warning.
+- Positive/negative CSP focused V8 smoke with real source modules and mocked URL/crypto passed. Full Node/CI, real HTTPS/Chromium/PHP and client form submission remain unexecuted in the worker.
