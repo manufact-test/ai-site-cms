@@ -227,6 +227,7 @@ function build(site,manifests,blueprint,options={}){
    comparisonScope:options.publicStatic.comparisonScope,
    comparable:options.publicStatic.comparable,
    verifiedStaticPublishedVersion:options.publicStatic.verifiedStaticPublishedVersion??null,
+   verifiedStaticManifestSha256:options.publicStatic.verifiedStaticManifestSha256??null,
    checkedPages:options.publicStatic.checkedPages,
    checkedMedia:options.publicStatic.checkedMedia,
    checkedSearchFiles:options.publicStatic.checkedSearchFiles,
