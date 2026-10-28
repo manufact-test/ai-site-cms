@@ -3,7 +3,7 @@
 // One explicit read-only first-site technical acceptance run.
 // Reuses verified Approved Site v2, the PHP loopback capture and the existing
 // SEO review bundle. Does not launch PHP, touch the CMS or authorize release.
-const fs=require('node:fs'),path=require('node:path');
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const BRIDGE=require('../lib/approved-site-bridge.cjs');
 const PHP=require('../lib/php-html-capture.cjs');
 const PHP_CAPTURE=require('../lib/php-capture.cjs');
@@ -63,6 +63,12 @@ function readOwnerEditReview(file){
   throw Error('Owner-edited published site review must be a bounded local JSON file');
  return JSON.parse(fs.readFileSync(file,'utf8'));
 }
+function fileSha256(file){
+ const st=fs.lstatSync(file);
+ if(st.isSymbolicLink()||!st.isFile()||st.size>36000000)
+  throw Error('Input evidence file changed into unsafe storage');
+ return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
 function readPublicEvidence(file,kind){
  const st=fs.lstatSync(file);
  const max=kind==='http'?36000000:1800000;
@@ -100,6 +106,8 @@ async function main(argv){
   throw Error('Public transcript Site ID differs from the verified first-site source');
  if(publicHttp&&publicMedia&&new URL(publicHttp.origin).href!==new URL(publicMedia.origin).href)
   throw Error('Supplied public HTTP and media evidence point to different origins');
+ const publicHttpSha=o['public-http-evidence']?fileSha256(o['public-http-evidence']):null;
+ const publicMediaSha=o['public-media-evidence']?fileSha256(o['public-media-evidence']):null;
  const previous=o['previous-report']?PROGRESS.read(o['previous-report']):null;
  if(previous&&([report,evidence].some(target=>{
    const parent=fs.realpathSync(path.dirname(target));
@@ -109,8 +117,9 @@ async function main(argv){
   throw Error('Prior report must be a distinct read-only directory outside new capture outputs');
  // Validate the optional official PHP static export before acquiring any HTTP evidence.
  // A stale or tampered export must not waste the operator's capture run.
+ let exportPreflight=null;
  if(o['static-export']){
-  const preflight=STATIC_EXPORT.read(o['static-export'],site);
+  const preflight=exportPreflight=STATIC_EXPORT.read(o['static-export'],site);
   if(preflight.publishedVersion!==source.publishedVersion||
      preflight.sourceRevision!==published.sourceRevision)
    throw Error('Official static export version/sourceRevision differs from the owner CMS published release');
@@ -139,6 +148,11 @@ async function main(argv){
     fresh.source.publishedVersion!==source.publishedVersion)
   throw Error('Sealed site source changed during local PHP evidence acquisition; discard evidence and rerun');
  const checked=PHP.read(evidence,fresh.site,fresh.source,o['static-export']||null);
+ if(exportPreflight&&checked.localStaticExport?.staticManifestSha256!==exportPreflight.manifestSha256)
+  throw Error('Official static export manifest changed during PHP HTTP capture; discard mixed evidence');
+ if(publicHttpSha&&fileSha256(o['public-http-evidence'])!==publicHttpSha||
+    publicMediaSha&&fileSha256(o['public-media-evidence'])!==publicMediaSha)
+  throw Error('Public evidence file changed during PHP capture; discard mixed source report');
  if(checked.localStaticExport&&checked.localStaticExport.sourceRevisionClaim!==published.sourceRevision)
   throw Error('Official static export sourceRevision conflicts with owner CMS published sourceRevision');
  if(!PHP.isVerified(checked))throw Error('First-site PHP evidence was not source-bound verified');
@@ -193,6 +207,7 @@ async function main(argv){
   staticExport:{supplied:Boolean(checked.localStaticExport),
    matchingContentAndMedia:checked.localStaticExport?.contentAndMediaMatched??null,
    sha256CheckedFiles:checked.localStaticExport?.verifiedExportFiles??null,
+   staticManifestSha256:checked.localStaticExport?.staticManifestSha256??null,
    staticLinkReferencesChecked:checked.localStaticExport?.staticReferencesChecked??null,
    staticFormsChecked:checked.localStaticExport?.checkedFormSections??null,
    staticSeoPagesChecked:checked.localStaticExport?.staticSeoPages?.length??null,
