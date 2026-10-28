@@ -5,7 +5,7 @@ const FORMAT='manufact-seo-local-php-components-v1';
 const TYPES=new Set(['content-switcher','pricing-plans','process-timeline','comparison-matrix']);
 const attr=s=>{
  const o={};for(const m of String(s).matchAll(/([a-z][a-z0-9:_-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/gi))
-  o[m[1].toLowerCase()]=m[2]??m[3]??m[4]??'';
+  o[m[1].toLowerCase()]=decode(m[2]??m[3]??m[4]??'');
  return o;
 };
 const classHas=(a,c)=>String(a.class||'').split(/\s+/).includes(c);
@@ -160,4 +160,4 @@ function review(site,snapshot){
   findings:Object.freeze(findings),runtimeInteractionsTested:false,
   limitations:'Checks real PHP static markup and declared content/CTA/semantic relationships only. Does not execute tabs, measure browser responsiveness or assert client visual equality.'});
 }
-module.exports=Object.freeze({FORMAT,review,sectionById,text,hrefFor});
+module.exports=Object.freeze({FORMAT,review,sectionById,text,decode,hrefFor});

@@ -2,12 +2,12 @@
 // Actual PHP DesignGraph acceptance: inspect source-bound, sha-checked HTML.
 // Does not run scripts, approve aesthetics or mutate published content.
 const FORMAT='manufact-seo-local-php-design-graph-v1';
-const {sectionById,text,hrefFor}=require('./php-local-components.cjs');
+const {sectionById,text,decode,hrefFor}=require('./php-local-components.cjs');
 const norm=x=>String(x??'').replace(/\s+/g,' ').trim().normalize('NFKC');
 function attrs(s){
  const out={};
  for(const m of String(s).matchAll(/([a-z][a-z0-9:_-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/gi))
-  out[m[1].toLowerCase()]=m[2]??m[3]??m[4]??'';
+  out[m[1].toLowerCase()]=decode(m[2]??m[3]??m[4]??'');
  return out;
 }
 function markedTags(s,cls){
@@ -56,6 +56,8 @@ function review(site,snapshot){
     continue;
    }
    const spec=section.designGraph,nodes=allNodes(spec),ids=new Set();
+   const headingCells=new Set(nodes.filter(n=>n.type==='table')
+    .flatMap(n=>(n.children?.[0]?.children||[]).map(cell=>cell.id)));
    const css=snapshotPage.html;
    if(!/<section\b/i.test(html)||!html.includes('cmsdg-'+spec.id))
     add(page,section,null,'graph-wrapper','Published graph wrapper or identifier differs from Site v1.');
@@ -76,9 +78,10 @@ function review(site,snapshot){
      if(el.tag!=='h'+(n.level||2)||textValue()!==norm(n.text))
       mismatch('Published graph heading level or visible text differs from Site v1.');
     }else if(n.type==='text'||n.type==='list-item'||n.type==='table-cell'){
-     const tags={text:'p','list-item':'li','table-cell':n.tableHeader?'th':'td'};
-     if(!([n.type==='table-cell'?'td':tags[n.type],...(n.type==='table-cell'?['th']:[])].includes(el.tag))||
-       textValue()!==norm(n.text))
+     const tags={text:'p','list-item':'li','table-cell':headingCells.has(n.id)?'th':'td'};
+     if(el.tag!==tags[n.type]||
+       textValue()!==norm(n.text)||
+        (n.type==='table-cell'&&headingCells.has(n.id)&&a.scope!=='col'))
       mismatch('Published graph text/list/table cell differs from Site v1.');
     }else if(n.type==='link'||n.type==='button'){
      const popup=Boolean(n.popupTarget);
@@ -110,7 +113,8 @@ function review(site,snapshot){
         !body.includes('src="'+src+'"'))
       mismatch('Published graph video source, poster or accessible label differs from Site v1.');
     }else if(n.type==='disclosure'){
-     if(el.tag!=='details'||!body.includes('<summary>'+String(n.text).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</summary>'))
+     if(el.tag!=='details'||!/<summary\b/i.test(body)||
+        text(/<summary\b[^>]*>([\s\S]*?)<\/summary>/i.exec(body)?.[1]||'')!==norm(n.text))
       mismatch('Published graph disclosure has lost native details/summary label.');
     }else if(n.type==='list'){
      if(el.tag!==(n.ordered?'ol':'ul')||!String(a.class||'').includes('cmsdg-list'))
@@ -143,10 +147,12 @@ function review(site,snapshot){
       const input=new RegExp('<input\\b([^>]*\\bid="'+control+'"[^>]*?)>','i').exec(html);
       const field=input?attrs(input[1]):null;
       const label=new RegExp('<label\\s+for="'+control+'">','i').test(html);
+      const actualLabel=new RegExp('<label\\s+for="'+control+'">([\\s\\S]*?)<\\/label>','i').exec(html);
+      const labelMatches=actualLabel&&text(actualLabel[1])===norm(tab.text);
       const rules=css.includes(':has(> .cmsdg-tabs-controls > #'+control+':checked) > .cmsdg-tabs-panels > #'+panel+'{display:block}');
       if(!field||field.type!=='radio'||field.name!=='cmsdg-tabs-'+n.id||
          field['aria-controls']!==panel||Boolean(Object.hasOwn(field,'checked'))!==(i===0)||
-         !label||!rules)
+         !label||!labelMatches||!rules)
        add(page,section,tab,'tabs-control','Published DesignGraph tab lost labeled radio/ARIA/panel/CSS activation.');
      }
     }
