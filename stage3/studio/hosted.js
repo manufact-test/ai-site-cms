@@ -2652,6 +2652,29 @@
       // The existing Stage3Editor uses the same typed contract as the PHP server.
       // Validation happens BEFORE creating a server-side site or writing any media.
       editor.previewDocument(site,site.pages[0]?.path||'/');
+      // One main/homepage design remains required; optional separate,
+      // sealed three-device mockups may bind to up to 20 interior pages.
+      const pageReferences=refs.pagePrototypes||{};
+      const pageIds=new Map(site.pages.map(page=>[page.id,page]));
+      if(refs.pagePrototypes!==undefined){
+        if(handoff.format!=='manufact-approved-site-handoff-v2'||
+          !pageReferences||typeof pageReferences!=='object'||Array.isArray(pageReferences)||
+          !Object.keys(pageReferences).length||Object.keys(pageReferences).length>20)
+          throw Error('Отдельные макеты страниц требуют sealed v2 и 1–20 страниц');
+      }
+      for(const [pageId,devices] of Object.entries(pageReferences)){
+        if(!pageIds.has(pageId)||pageIds.get(pageId).path==='/'||
+          !devices||typeof devices!=='object'||Array.isArray(devices)||
+          Object.keys(devices).length!==3||
+          !['desktop','tablet','mobile'].every(bp=>typeof devices[bp]==='string'))
+          throw Error('Неверные привязки макетов к внутренней странице: '+pageId);
+        for(const device of ['desktop','tablet','mobile']){
+          const file=required(devices[device]);
+          if(!/\.(png|jpe?g|webp)$/.test(devices[device])||
+            file.size<64||file.size>8000000)
+            throw Error('Повреждённый или большой оригинальный макет: '+pageId+' / '+device);
+        }
+      }
       const media=[];
       for(const item of site.assets){
         if(!['image/png','image/jpeg','image/webp'].includes(item.mime))
@@ -2676,6 +2699,8 @@
           throw Error('Пакет v2 не содержит SHA-256 для файлов');
         const requiredPaths=[refs.site,refs.desktop,refs.tablet,refs.mobile,
           refs.clientExplanation,refs.implementationSpec];
+        for(const devices of Object.values(pageReferences))
+          for(const bp of ['desktop','tablet','mobile'])requiredPaths.push(devices[bp]);
         for(const asset of site.assets){
           requiredPaths.push(asset.src.replace(/^\/assets\//,'assets/'));
           for(const variant of asset.variants||[])
@@ -2720,6 +2745,12 @@
         if(!mime)throw Error('Неизвестный формат утверждённого макета: '+filename);
         await verifyImage(required(filename),mime);
       }
+      for(const devices of Object.values(pageReferences))
+        for(const bp of ['desktop','tablet','mobile']){
+          const filename=devices[bp],ext=filename.split('.').pop();
+          await verifyImage(required(filename),ext==='png'?'image/png':
+            ext==='webp'?'image/webp':'image/jpeg');
+        }
       for(const entry of media){
         const declared=site.assets.find(asset=>asset.id===entry.id);
         await verifyImage(entry.original,declared.mime,declared.width,declared.height);
@@ -2870,7 +2901,7 @@
             resizeSite();
           });
           frame.addEventListener('load',()=>{resizeSite();requestAnimationFrame(resizeSite);});
-          liveFrames[key]={card,container,viewport,frame,expand};
+          liveFrames[key]={card,container,viewport,frame,expand,img,prototype};
           card.append(caption,expand,compare);previews.append(card);
         }
         const details=element('div','');
@@ -2893,8 +2924,26 @@
         actions.append(cancel,confirmButton);
         dialog.append(heading,summary,description,pageLabel,previews,details,actions);
         document.body.append(dialog);
+        const pageImageUrls=new Map();
         const showPage=async()=>{
           pageSelect.disabled=true;
+          const current=site.pages.find(page=>page.path===pageSelect.value);
+          const devices=current?.path==='/'?refs:
+            pageReferences[current?.id]||null;
+          for(const [bp,view] of Object.entries(liveFrames)){
+            const path=devices?.[bp];
+            view.img.hidden=!path;
+            view.prototype.querySelector('h4').textContent=path?
+              'Согласованный макет · '+(current?.title||current?.path):
+              'Для этой страницы нет отдельного утверждённого макета';
+            if(path){
+              if(!pageImageUrls.has(path)){
+                const url=URL.createObjectURL(required(path));
+                pageImageUrls.set(path,url);objectUrls.push(url);
+              }
+              view.img.src=pageImageUrls.get(path);
+            }
+          }
           try{await renderSite();resizeSite();}
           catch(error){
             description.textContent='Предпросмотр отклонён: '+error.message;
@@ -2936,6 +2985,10 @@
         const map=[['handoff','handoff.json'],...[
           'site','desktop','tablet','mobile','clientExplanation','implementationSpec'
         ].map(key=>[key,refs[key]])];
+        const sortedPageIds=Object.keys(pageReferences).sort();
+        for(let i=0;i<sortedPageIds.length;i++)
+          for(const bp of ['desktop','tablet','mobile'])
+            map.push(['ref-'+i+'-'+bp,pageReferences[sortedPageIds[i]][bp]]);
         let index=null;
         for(const [kind,path] of map){
           const file=required(path),digest=kind==='handoff'?packageSha:handoff.integrity.files[path];
@@ -2953,7 +3006,8 @@
         if(current.site.siteId!==site.siteId||current.site.title!==site.title)
           throw Error('Пакет относится к другому сайту; архив не изменён');
         await archiveApproval();
-        notice('Три макета, два описания и исходный handoff сохранены в закрытом архиве. Сайт и публикация не изменены.');
+        notice('Макеты '+(1+Object.keys(pageReferences).length)+
+          ' страниц и исходная спецификация сохранены в закрытом архиве. Сайт и публикация не изменены.');
         return;
       }
       let created=false,resumed=false;
