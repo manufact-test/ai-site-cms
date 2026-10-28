@@ -294,3 +294,15 @@ DB or authorize remote operations; its actual suitability must be verified
 on a dedicated owner-approved target before any changeover. The normal
 runtime package is unchanged unless the operator explicitly uses
 pack-php-host.
+
+## Lead integrator development pass — 29 October 2026 · independent visitor runtime parity
+
+This pass closes published visitor behavior rather than creating another website factory.
+
+- **#178, Next.js Static / SSR form parity.** The sealed PHP publisher appends a first-party wizard script after multi-step flexible forms. React dangerouslySetInnerHTML never executes those scripts. The standalone Next adapter now extracts ONLY this publisher script from verified released HTML, rejects unexpected or differing body scripts, and activates native Next/Back controls, per-step validity, dependent field handling and native HTTPS collector submission through next/script afterInteractive. Published form action, release and HMAC tokens are preserved. No generic arbitrary JS or new external dependencies. SEO metadata additionally carries Open Graph locale, social image alt and authored Twitter card information.
+- **#187, standalone PHP MP4 playback.** A separate PHP visitor supports single validated HTTP byte ranges, suffix and open-ended requests, 206/416, If-Range, exact immutable ETags, HEAD, Content-Length and bounded streaming. Browsers can seek MP4 media without downloading the whole file again. CMS storage and source files are unchanged.
+- **#187, standalone PHP page revalidation.** Published HTML, sitemap.xml and robots.txt now support conditional HTTP 304 from immutable release SHA-256 ETags. The independent public canary remains no-store.
+
+Existing server-e2e checks a real locally published flexible multi-step form exported into both Next adapters; real loopback standalone PHP video seeking/HEAD/invalid-range and page/sitemap conditional requests. Green synthetic CI is engineering evidence only, not proof of an externally hosted real approved-v2 site or owner visual sign-off.
+
+Open gates remain actual customer approved-v2 input, desktop/tablet/mobile visual review, authorized external Next/React hosting, real Core Web Vitals and remote URL verification. Do not change owner-acceptance counters or partial/environment-gate statuses solely for these implementation improvements. No main/SEO/production/Hostinger/PR/merge/deploy changes.
