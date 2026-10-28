@@ -85,30 +85,57 @@ async function acquire(site,base){
  }
  return {manifest:{format:FORMAT,assets:received.map(x=>x.record)},files:received,totalBytes:bytes};
 }
+// Actual PHP media consumers include responsive picture sources, video/poster
+// assets and DesignGraph CSS backgroundMedia as well as ordinary img tags.
 function displayedMedia(site,base,snapshot,inventoryItems){
  const known=new Map(inventoryItems.map(x=>[x.url,x.id]));
- const result=new Map();
- for(const p of snapshot?.pages||[]){
-  const pageUrl=new URL(p.path.slice(1),base),html=HTML.inspect(p.html);
-  const raw=[];
+ const referenced=new Map(),untracked=new Map();
+ const mount=new URL(base).pathname;
+ const srcset=value=>typeof value==='string'?value.split(',').map(p=>p.trim().split(/\s+/)[0]).filter(Boolean):[];
+ const cssUrls=css=>{
+  const urls=[],pattern=/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]+))\s*\)/gi;
+  for(const match of css.matchAll(pattern))urls.push(match[1]??match[2]??match[3]);
+  return urls;
+ };
+ for(const page of snapshot?.pages||[]){
+  const pageUrl=new URL(page.path.slice(1),base),html=HTML.inspect(page.html),raw=[];
   for(const image of html.images){
    if(image.src)raw.push(image.src);
-   if(image.srcset)for(const part of image.srcset.split(','))
-    raw.push(part.trim().split(/\s+/)[0]);
+   raw.push(...srcset(image.srcset));
   }
+  for(const source of html.sources||[]){
+   if(source.src)raw.push(source.src);
+   raw.push(...srcset(source.srcset));
+  }
+  for(const video of html.videos||[]){
+   if(video.poster)raw.push(video.poster);
+   if(video.src)raw.push(video.src);
+  }
+  const css=[...(html.inlineStyles||[])];
+  for(const match of page.html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi))
+   css.push(match[1]);
+  for(const text of css)raw.push(...cssUrls(text));
   for(const src of raw){
    try{
     const url=new URL(src,pageUrl);
     if(url.search||url.hash)continue;
     const id=known.get(url.href);
     if(id){
-     if(!result.has(id))result.set(id,new Set());
-     result.get(id).add(p.id);
+     if(!referenced.has(id))referenced.set(id,new Set());
+     referenced.get(id).add(page.id);
+    }else if(url.pathname.startsWith(mount+'assets/')&&
+             ['http:','https:'].includes(url.protocol)){
+     // An actual site-scoped PHP reference without sealed inventory must not
+     // pass simply because the downloader only requests declared assets.
+     const key=page.id+'|'+url.href;
+     if(!untracked.has(key))untracked.set(key,{
+      pageId:page.id,url:url.href.slice(0,240)
+     });
     }
-   }catch{/* Unsupported data: URL or invalid authoring is reviewed separately. */}
+   }catch{/* Dynamic or invalid URLs need separate browser scrutiny. */}
   }
  }
- return result;
+ return {referenced,untracked:[...untracked.values()]};
 }
 function inspect(site,base,manifest,root,snapshot=null,publicOrigin=null){
  if(!manifest||manifest.format!==FORMAT||!Array.isArray(manifest.assets))
@@ -118,7 +145,8 @@ function inspect(site,base,manifest,root,snapshot=null,publicOrigin=null){
  let totalBytes=0;const issues=[],resources=[];
  const selectedOg=PUBLISHER.inventory(site);
  const ogAssets=new Set(selectedOg.map(p=>p.asset?.id).filter(Boolean));
- const markup=displayedMedia(site,base,snapshot,expected);
+ const observed=displayedMedia(site,base,snapshot,expected);
+ const markup=observed.referenced;
  const byPage=new Map(site.pages.map(p=>[p.id,p.path]));
  const add=(code,severity,assetId,message,extra={})=>{
   const pageId=extra.pageId||[...(markup.get(assetId)||[])][0]||
@@ -126,6 +154,10 @@ function inspect(site,base,manifest,root,snapshot=null,publicOrigin=null){
   issues.push(Object.freeze({code,severity,assetId,pageId,path:byPage.get(pageId)||null,message,
    evidence:'hash-checked-local-php-media',automatic:false,...extra}));
  };
+ for(const item of observed.untracked)
+  add('php-media:untracked-rendered-reference','error',null,
+   'Published PHP HTML references media under its site mount absent from sealed Site v1.',
+   {pageId:item.pageId,observedUrl:item.url});
  const nameSet=new Set();
  for(let i=0;i<expected.length;i++){
   const src=expected[i],item=manifest.assets[i],file=src.file;
@@ -212,6 +244,6 @@ function inspect(site,base,manifest,root,snapshot=null,publicOrigin=null){
   verifiedLocalHttpBytes:true,publicHttpsProven:false,
   sourceBuildAuthenticated:false,visualQualityVerified:false,
   releaseAuthorized:false,
-  limitations:'Exact saved bytes from loopback PHP only. Rendered-image references cover static img src/srcset in captured HTML, not CSS backgrounds, scripted DOM or browser visibility. Does not verify externally deployed HTTPS, served Site v1 revision, responsive behavior or client approval.'});
+  limitations:'Exact saved bytes from loopback PHP only. Rendered media references cover img/picture/source, video poster/src and static CSS url() in HTML, not JavaScript-injected DOM or browser visibility. Does not verify externally deployed HTTPS, served Site v1 revision, responsive behavior or client approval.'});
 }
 module.exports=Object.freeze({FORMAT,inventory,get,acquire,inspect,imageValid});
