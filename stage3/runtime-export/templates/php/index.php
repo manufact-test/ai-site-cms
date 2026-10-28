@@ -44,18 +44,74 @@ if ($path === '/robots.txt' || $path === '/sitemap.xml') {
     if ($_SERVER['REQUEST_METHOD'] !== 'HEAD') readfile($release.'/'.$name);
     exit;
 }
-if (preg_match('~^/assets/([a-z][a-z0-9-]{2,79}\.(png|jpg|webp|mp4))$~D', $path, $match)) {
-    $allowed = false;
-    foreach ($manifest['assets'] as $asset) {
-        if ($asset['file'] === 'assets/'.$match[1]) { $allowed = true; break; }
+if (preg_match('~^/assets/([a-z][a-z0-9-]{2,79}\.(png|jpg|webp|mp4))$~D',$path,$match)) {
+    $asset=null;
+    foreach($manifest['assets'] as $candidate) {
+        if($candidate['file']==='assets/'.$match[1]){$asset=$candidate;break;}
     }
-    if (!$allowed) { http_response_code(404); exit; }
-    $mime = ['png'=>'image/png','jpg'=>'image/jpeg','webp'=>'image/webp','mp4'=>'video/mp4'][$match[2]];
+    if($asset===null){http_response_code(404);exit;}
+    $file=$release.'/assets/'.$match[1];
+    if(!is_file($file)||is_link($file)){http_response_code(503);exit;}
+    $size=filesize($file);
+    if(!is_int($size)||$size<1){http_response_code(503);exit;}
+    $mime=['png'=>'image/png','jpg'=>'image/jpeg','webp'=>'image/webp','mp4'=>'video/mp4'][$match[2]];
+    $etag='"'.$asset['sha256'].'"';
     header('Content-Type: '.$mime);
     header('Cache-Control: public, max-age=31536000, immutable');
-    if ($_SERVER['REQUEST_METHOD'] !== 'HEAD') readfile($release.'/assets/'.$match[1]);
+    header('ETag: '.$etag);
+    header("Content-Security-Policy: default-src 'none'; sandbox");
+    if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag) {
+        http_response_code(304);
+        exit;
+    }
+    $start=0;$end=$size-1;
+    if($match[2]==='mp4') {
+        header('Accept-Ranges: bytes');
+        $range=trim((string)($_SERVER['HTTP_RANGE']??''));
+        $ifRange=trim((string)($_SERVER['HTTP_IF_RANGE']??''));
+        // If-Range mismatch means the client receives the full new resource.
+        if($ifRange!==''&&$ifRange!==$etag)$range='';
+        if($range!=='') {
+            if(!preg_match('/^bytes=(\d*)-(\d*)$/D',$range,$m)
+                ||($m[1]===''&&$m[2]==='')) {
+                header('Content-Range: bytes */'.$size);
+                http_response_code(416);
+                exit;
+            }
+            if($m[1]==='') {
+                $suffix=(int)$m[2];
+                if($suffix<1){header('Content-Range: bytes */'.$size);http_response_code(416);exit;}
+                $start=max(0,$size-$suffix);
+            } else {
+                $start=(int)$m[1];
+            }
+            if($m[2]!==''&&$m[1]!=='')$end=min($size-1,(int)$m[2]);
+            if($start>=$size||$end<$start){
+                header('Content-Range: bytes */'.$size);
+                http_response_code(416);
+                exit;
+            }
+            http_response_code(206);
+            header('Content-Range: bytes '.$start.'-'.$end.'/'.$size);
+        }
+    }
+    $remaining=$end-$start+1;
+    header('Content-Length: '.$remaining);
+    if(($_SERVER['REQUEST_METHOD']??'GET')==='HEAD')exit;
+    $stream=fopen($file,'rb');
+    if($stream===false){http_response_code(503);exit;}
+    try {
+        if($start>0&&fseek($stream,$start)!==0){http_response_code(503);exit;}
+        while($remaining>0&&!feof($stream)) {
+            $part=fread($stream,min(65536,$remaining));
+            if(!is_string($part)||$part==='')break;
+            echo $part;
+            $remaining-=strlen($part);
+        }
+    } finally {fclose($stream);}
     exit;
 }
+
 if ($path !== '/' && !preg_match('~^/(?:[a-z0-9-]+/)+$~D', $path)) {
     http_response_code(404);
     exit;
