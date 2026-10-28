@@ -173,7 +173,7 @@ async function captureMedia(site,rawOrigin,transport={address,requestHead}){
  const base=origin(rawOrigin,site.siteId),pinned=await transport.address(base.hostname);
  if(!pinned||!isPublicIp(pinned.address))
   throw Error('Public media HEAD DNS resolution is not a safe public IP');
- const resources=[];
+ const resources=[],unsupportedHeadAssets=[];
  // Only original Site v1 assets are part of the existing media-delivery
  // transcript. Responsive variant GET bytes are checked by local PHP capture.
  for(const asset of site.assets){
@@ -188,14 +188,19 @@ async function captureMedia(site,rawOrigin,transport={address,requestHead}){
   if(!Number.isInteger(found.status)||found.status<100||found.status>599||
      typeof found.contentType!=='string'||found.contentType.length>150)
    throw Error('Public media HEAD returned malformed response');
+  if(found.status===405||found.status===501){
+   unsupportedHeadAssets.push(asset.id);continue; // HEAD unavailable does not prove GET failed.
+  }
   resources.push({assetId:asset.id,url,status:found.status,
    contentType:found.contentType,
    ...(Number.isSafeInteger(found.contentLength)&&found.contentLength>=0?
       {contentLength:found.contentLength}:{})});
  }
  const evidence={format:'manufact-seo-media-evidence-v1',
-  siteId:site.siteId,origin:base.href,completeness:'complete',resources};
- return Object.freeze({evidence,requests:resources.length,headActuallyPerformed:true,
+  siteId:site.siteId,origin:base.href,
+  completeness:unsupportedHeadAssets.length?'partial':'complete',resources};
+ return Object.freeze({evidence,requests:resources.length+unsupportedHeadAssets.length,
+  unsupportedHeadAssetIds:Object.freeze(unsupportedHeadAssets),headActuallyPerformed:true,
   bodyBytesDownloaded:0,mediaShaVerified:false,publicHttpsTransportChecked:true,
   servedRevisionAuthenticated:false,automaticRelease:false});
 }
