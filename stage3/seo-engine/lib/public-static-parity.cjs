@@ -4,6 +4,7 @@
 // the HTTP transcript. This answers "what is served?" only if operator
 // corroborates the original network collection.
 const STATIC=require('./php-local-static-export.cjs');
+const HEAD=require('./public-static-head.cjs');
 const DELIVERY=require('./delivery-evidence.cjs');
 const MEDIA=require('./media-delivery.cjs');
 const {inspect}=require('./html-evidence.cjs');
@@ -75,12 +76,29 @@ function compare(site,release,http,media=null){
    const expectedUrl=expectedOrigin+page.path;
    if(supplied.status!==200)mismatch('page-response-status',
     'Public static page was not served with HTTP 200.','status');
+   const headers=supplied.headers||{};
+   const type=String(headers['content-type']||'').split(';')[0].trim().toLowerCase();
+   if(supplied.status===200&&type!=='text/html')
+    mismatch('public-html-content-type','Public static page is not served as text/html.','headers.content-type');
+   const xRobots=String(headers['x-robots-tag']||'').toLowerCase();
+   if((page.seo?.robots||'index')==='index'&&/(^|[\s,])noindex([\s,]|$)/.test(xRobots))
+    mismatch('public-x-robots-noindex','Host headers block indexation of an indexable static page.','headers.x-robots-tag');
    if(supplied.requestUrl!==expectedUrl||supplied.responseUrl!==expectedUrl)
     mismatch('page-response-url','Public page URL differs from root-mounted official static route.','url');
    if(typeof supplied.html!=='string'||!supplied.html.trim())
     mismatch('page-html-missing','Public page HTTP transcript lacks a complete HTML body.','html');
    else{
     const live=supplied.html,staticHtml=official.html;
+    try{
+     const deep=HEAD.review(staticHtml,live);
+     for(const field of deep.changedHeadFields)
+      mismatch('page-deep-head-drift',
+       'Public static SEO head data differs in values or structure (OG, Twitter, alternate, canonical or JSON-LD).',
+       'head.'+field);
+    }catch{
+     mismatch('page-head-unparseable',
+      'Public or official static HTML head cannot be safely parsed.','head.parse');
+    }
     const parts=[
       ['mainText',STATIC.mainText(staticHtml),STATIC.mainText(live)],
       ['title',STATIC.pageTitle(staticHtml),STATIC.pageTitle(live)],
