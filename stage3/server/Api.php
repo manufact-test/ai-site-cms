@@ -284,10 +284,17 @@ final class Api
                     if ($origin===null) {
                         $this->response(503,['error'=>'STAGE3_PUBLIC_ORIGIN required for public sitemap and robots']);
                     }
-                    header('Content-Type: '.($match[2]==='/sitemap.xml'?'application/xml':'text/plain').'; charset=utf-8');
-                    echo $match[2]==='/sitemap.xml'
+                    $searchBody=$match[2]==='/sitemap.xml'
                         ?PublicRenderer::sitemap($published['site'],$mount,$origin)
                         :PublicRenderer::robots($mount,$origin);
+                    $searchEtag='"'.hash('sha256',$searchBody).'"';
+                    header('Content-Type: '.($match[2]==='/sitemap.xml'?'application/xml':'text/plain').'; charset=utf-8');
+                    header('Cache-Control: public, no-cache, must-revalidate');
+                    header('ETag: '.$searchEtag);
+                    if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$searchEtag){
+                        http_response_code(304);exit;
+                    }
+                    echo $searchBody;
                     exit;
                 }
                 $redirect=PublicRenderer::redirectTarget($published['site'],$match[2]);
@@ -309,11 +316,16 @@ final class Api
                     echo 'Not found';
                     exit;
                 }
+                $encoding=(string)($_SERVER['HTTP_ACCEPT_ENCODING']??'');
+                $gzip=extension_loaded('zlib')
+                    &&!filter_var((string)ini_get('zlib.output_compression'),FILTER_VALIDATE_BOOLEAN)
+                    &&preg_match('/(?:^|,)\s*gzip(?:\s*;\s*q=([01](?:\.\d+)?))?(?=,|$)/i',$encoding,$enc)===1
+                    &&(!isset($enc[1])||(float)$enc[1]>0);
                 $etag='"cms3-'.hash('sha256',json_encode([
                     $match[1],$published['version'],$match[2],$origin,
                     (string)(getenv('STAGE3_FORM_ENDPOINT')?:''),
                     hash('sha256',(string)(getenv('STAGE3_FORM_SECRET')?:''))
-                ],JSON_THROW_ON_ERROR)).'"';
+                ],JSON_THROW_ON_ERROR)).($gzip?'-gz':'-plain').'"';
                 header('ETag: '.$etag);
                 header('Cache-Control: public, no-cache, must-revalidate');
                 header('Vary: Accept-Encoding');
@@ -329,6 +341,16 @@ final class Api
                 }
                 header("Content-Security-Policy: default-src 'none'; script-src 'sha256-".base64_encode(hash('sha256',PublicRenderer::formStepsScript(),true))."'; style-src 'unsafe-inline'; img-src 'self'; media-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
                 header('Content-Type: text/html; charset=utf-8');
+                if($gzip){
+                    $packed=gzencode($html,6);
+                    if(is_string($packed)){
+                        header('Content-Encoding: gzip');
+                        echo $packed;exit;
+                    }
+                    // Extremely unusual zlib failure: never send an identity
+                    // body under a compressed representation's validator.
+                    header('ETag: "cms3-'.hash('sha256',$html).'-plain"');
+                }
                 echo $html;
                 exit;
             } catch (NotFound $e) {
