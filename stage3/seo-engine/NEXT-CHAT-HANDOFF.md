@@ -1,5 +1,19 @@
 # AI Site CMS — передача SEO Engine следующему чату
 
+## АКТУАЛЬНОЕ НАЧАЛО — ПОСЛЕДНИЙ ЗАХОД 28.10.2026
+
+**Режим работы пользователя — обязательно:** делать *большой связанный заход с целевым объёмом примерно на 30 минут активной разработки*. Это не жёсткий таймер и не повод искусственно растягивать работу. Если первая задача закончена за 7–10 минут, **без просьб и ожидания сразу бери второй/третий крупный продуктовый блок**; закрой достаточный объём реализации и передай фактические коммиты. Короткие заходы на одну-две мелочи не подходят. Скорость важна: создать первую живую CMS, а не месяцами множить тесты. Только минимальные необходимые smoke и явные честные ограничения.
+
+**Последний выполненный крупный блок:** source-bound PHP **theme CSS parity** для всех страниц (`lib/php-local-theme.cjs`) — 14 глобальных CSS переменных: цвета, ширина, типографика, форма кнопок. Плюс `lib/php-local-graph-style.cjs` сверяет актуальные CSS responsive breakpoints, hover/focus/active, transition/motion, sequence, background images, tablet/mobile art direction и motion-safe background video для DesignGraph. Реальные `php-theme:*` и `php-graph:*` попадают в существующие capture → remediation → release blockers → lead dossier, `bundle.json`, `summary.json`, operator worksheet и previous-run delta. Исправлена точность backlog: разные CSS свойства и graphNodeId теперь дают отдельные задачи с корректной ссылкой на локальную HTML выдачу. Учтён допустимый CSS no-op `hidden:false`.
+
+**Проверки:** проверка синтаксиса и целевых изолированных V8 сценариев, включая existing smoke helpers `realPhpThemeAndGraphPresentationContracts`, `actualPublishedComponentAndGraphContracts`, `localFirstSiteReportDeltaContracts`. **Не утверждать, что полностью запускали Node E2E, реальный PHP клиента, Chromium, формы POST или публичный HTTPS.** Проверить на интегрированном checkout ведущего при первом реальном пакете.
+
+**Критически важно для следующего чата:** начать с нового HEAD `feature/site-seo-engine` и `feature/stage3-ai-site-contract`, найти реальные проблемы первого сайта и/или последние новые must-have вертикали. Не создавать вторую CMS, не работать над PHP/SDK/Studio и не трогать main/production/PR/merge. Ведущий — единственный интегратор. Вся работа — исключительно `stage3/seo-engine/**`.
+
+См. также отдельный **готовый для копирования текст**: [NEXT-CHAT-FIRST-MESSAGE.md](NEXT-CHAT-FIRST-MESSAGE.md).
+
+
+
 **Дата:** 28 октября 2026. **Репозиторий:** https://github.com/manufact-test/ai-site-cms  
 **Наша ветка:** `feature/site-seo-engine`. **Ведущий разработчик и единственный интегратор:** `feature/stage3-ai-site-contract`.  
 **Рабочая область:** строго `stage3/seo-engine/**`. **Нельзя менять** `main`, SDK, PHP, Studio, component manifests, `docs/**`, `handoffs/**`, GitHub Actions; нельзя самостоятельно PR/merge/deploy.

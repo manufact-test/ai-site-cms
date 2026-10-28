@@ -218,3 +218,14 @@ node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --bl
 Six report files when `--previous-report` is present: `summary.json`, `bundle.json`, `handoff.md`, `launch-worksheet.md`, `delta.json`, `delta.md`. Without it, four report files. Both new `--owner-edit-review` and `--previous-report` are optional; the former requires `--published-site` and real manual review. All output directories must not exist before execution.
 
 The existing lead-integrated smoke remains: `node stage3/seo-engine/tests/php-html-capture-smoke.cjs`. Worker has performed isolated JS scenario validation only, not actual first customer Node/PHP/browser/HTTPS end-to-end or client acceptance.
+
+## Глобальное оформление и индивидуальный DesignGraph — новая фактическая PHP проверка
+
+После извлечения sha256-verified HTML для **каждой** опубликованной страницы `lib/php-local-theme.cjs` проверяет фактическое CSS `:root` от PHP `PublicRenderer::themeCss`, сравнивая значения с текущим validated `Site v1.theme`: `--cms-bg`, `--cms-surface`, `--cms-text`, `--cms-primary`, `--cms-width`, `--cms-font`, `--cms-body-size`, `--cms-line-height`, `--cms-h2-size`, переменные кнопок/радиусов/теней. Если нет единственного корневого набора или значение отличается — `php-theme:root-missing` / `php-theme:token-drift` (error), блокирующий gate `local-php-theme-parity`.
+
+`lib/php-local-graph-style.cjs` встроен прямо в существующий `php-local-graph.cjs`: проверяет наличие реально опубликованных базовых и media-query селекторов на `tablet (900px)` и `mobile (600px)`, hover/focus/active, transition, анимации, sequence, CSS фоновых оригиналов и адаптивных фото, фонового видео и poster, подавление видео на mobile и `prefers-reduced-motion`. Это проверка **наличия источником объявленных правил**, не аналог CSS engine и не доказательство визуальной пиксельной идентичности. Стиль `hidden:false` осознанно не требует emitted CSS. Все расхождения имеют точный graphNodeId и будут отдельно привязаны к задачам `remediation`.
+
+Проверка не меняет CMS и не выносит HTML/HMAC в отчёт. Новая `summary.json.theme` сообщает число проверенных страниц, переменных и ошибок, а `bundle.json.localPhpTheme`, `launch-worksheet.md` и `delta.json/md` отражают найденные отклонения. Для запуска команд **ничего не изменилось**. Включено в уже существующий smoke `tests/php-html-capture-smoke.cjs`, дополнительный CI не создан.
+
+**Границы:** не доказывает настоящий CSS computed layout, визуальное соответствие трём утверждённым макетам, работу JS в браузере, текущую PHP ревизию или публичный HTTPS. Эти проверки остаются ручными у ведущего.
+
