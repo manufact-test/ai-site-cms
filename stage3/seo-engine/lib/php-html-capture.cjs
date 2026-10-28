@@ -8,6 +8,7 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const BRIDGE=require('./approved-site-bridge.cjs');
 const ACCEPTANCE=require('./acceptance.cjs');
+const LOCAL=require('./php-local-publication.cjs');
 const CAPTURE_FORMAT='manufact-seo-loopback-php-html-v1';
 const SNAPSHOT_FORMAT='manufact-seo-html-snapshot-v1';
 const SHA=/^[a-f0-9]{64}$/;
@@ -70,13 +71,43 @@ function getHtml(url){
   req.on('error',reject);
  });
 }
-function snapshot(site,source,entries,base,capturedAt){
+function getAuxiliary(url,limit){
+ return new Promise((resolve,reject)=>{
+  const req=http.get({hostname:'127.0.0.1',port:Number(url.port),path:url.pathname,
+   agent:false,timeout:10000,
+   headers:{'Accept':'text/plain, application/xml','Accept-Encoding':'identity',
+    'User-Agent':'AI-Site-CMS-SEO-Local-Review/1.0'}},res=>{
+    if(res.headers['content-encoding']&&res.headers['content-encoding']!=='identity'){
+     res.resume();reject(Error('Compressed local SEO resource unsupported'));return;
+    }
+    const chunks=[];let bytes=0;
+    res.on('data',chunk=>{
+     bytes+=chunk.length;
+     if(bytes>limit){res.destroy(Error('Local SEO response exceeds bounded limit'));return;}
+     chunks.push(chunk);
+    });
+    res.on('error',reject);
+    res.on('end',()=>resolve({status:res.statusCode,
+     contentType:String(res.headers['content-type']||'').slice(0,150),
+     location:String(res.headers.location||'').slice(0,2048),
+     bytes:Buffer.concat(chunks)}));
+   });
+  req.on('timeout',()=>req.destroy(Error('Local SEO GET timed out')));
+  req.on('error',reject);
+ });
+}
+function snapshot(site,source,entries,base,capturedAt,publication=null){
  const pages=Object.freeze(entries.map(({record,bytes})=>Object.freeze({
    id:record.pageId,path:record.path,html:boundedHtml(bytes)
  })));
  return Object.freeze({format:SNAPSHOT_FORMAT,siteId:site.siteId,completeness:'complete',
   mountPath:'/published/'+site.siteId+'/',
-  pages,source:'local-loopback-published-php-html',
+  pages,
+  ...(publication?.robotsStatus===200?{robotsTxt:publication.robotsTxt}:{}),
+  ...(publication?.parsedSitemapComplete?{
+    sitemapPaths:publication.parsedSitemapPaths,sitemapCompleteness:'complete'
+  }:{}),
+  source:'local-loopback-published-php-html',
   sourceRevisionAuthenticated:false,localHttpOnly:true});
 }
 function inspect(manifest,site,source,folder){
@@ -94,7 +125,9 @@ function inspect(manifest,site,source,folder){
   fail('manifest is not bound to the sealed source');
  baseUrl(manifest.baseUrl,site.siteId);
  const root=fs.realpathSync(folder),seen=new Set(),entries=[];let total=0;
- const allowed=new Set(['manifest.json',...site.pages.map((_,i)=>pageName(i))]);
+ const external=manifest.publication?LOCAL.records(site,manifest.baseUrl,manifest.publication):[];
+ const allowed=new Set(['manifest.json',...site.pages.map((_,i)=>pageName(i)),
+  ...external.map(item=>item.file)]);
  const listing=fs.readdirSync(root);
  if(listing.length!==allowed.size||listing.some(name=>!allowed.has(name)))
   fail('unexpected or missing HTML evidence file');
@@ -119,6 +152,25 @@ function inspect(manifest,site,source,folder){
   if(sha(bytes)!==record.sha256)fail('HTML hash differs at '+p.id);
   boundedHtml(bytes);entries.push({record,bytes});
  }
+ const auxBytes=new Map();let publication=null;
+ for(const item of external){
+  const file=path.join(root,item.file);
+  if(fs.lstatSync(file).isSymbolicLink())fail('symlinked PHP SEO endpoint evidence');
+  const resolved=fs.realpathSync(file);
+  if(!resolved.startsWith(root+path.sep))fail('local SEO endpoint file escapes root');
+  const stat=fs.statSync(resolved);
+  if(!stat.isFile()||stat.size!==item.bytes)fail('PHP SEO endpoint response size mismatch');
+  total+=stat.size;if(total>MAX_TOTAL+1000000)fail('PHP SEO endpoint total budget exceeded');
+  const bytes=fs.readFileSync(resolved);
+  if(sha(bytes)!==item.sha256)fail('PHP SEO endpoint content digest mismatch');
+  auxBytes.set(item.file,bytes);
+ }
+ if(manifest.publication){
+  publication=LOCAL.review(site,manifest.baseUrl,manifest.publication,auxBytes);
+  // Preserve exact observed robots bytes separately from static snapshot metadata.
+  if(publication.robotsStatus===200)
+   publication=Object.freeze({...publication,robotsTxt:auxBytes.get('robots.txt').toString('utf8')});
+ }
  const result=Object.freeze({
   format:CAPTURE_FORMAT,siteId:site.siteId,packageVersion:source.packageVersion,
   sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,
@@ -126,7 +178,8 @@ function inspect(manifest,site,source,folder){
   checkedHtmlBytes:total,sha256VerifiedAtRead:true,
   loopbackHttp200Count:entries.length,sourceRevisionAuthenticated:false,
   realPublicHttpsChecked:false,formsChecked:false,visualParityChecked:false,
-  snapshot:snapshot(site,source,entries,manifest.baseUrl,manifest.capturedAt),
+  publication,
+  snapshot:snapshot(site,source,entries,manifest.baseUrl,manifest.capturedAt,publication),
   limitations:'Read-only local PHP HTTP 200 and byte-checked HTML. Cannot prove the served revision matches saved Site v1, operator identity, client approval, public HTTPS or successful forms.'
  });
  accepted.add(result);
@@ -162,16 +215,37 @@ async function capture(sealedFolder,rawOrigin,output){
    url:url.href,status:200,contentType:response.contentType,bytes:response.bytes.length,
    sha256:sha(response.bytes)},bytes:response.bytes});
  }
+ const publication={robots:null,sitemap:null,redirects:[]},additional=[];
+ const captureResource=async(kind,index,url,from=null,to=null)=>{
+  const maximum=kind==='sitemap'?750000:kind==='robots'?250000:4096;
+  const response=await getAuxiliary(url,maximum);
+  total+=response.bytes.length;
+  if(total>MAX_TOTAL+1000000)fail('Local PHP SEO endpoint total budget exceeded');
+  const item={file:LOCAL.resourceName(kind,index),url:url.href,
+   status:response.status,contentType:response.contentType,
+   bytes:response.bytes.length,sha256:sha(response.bytes),
+   ...(kind==='redirect'?{from,to,location:response.location}:{})};
+  additional.push({record:item,bytes:response.bytes});
+  return item;
+ };
+ publication.robots=await captureResource('robots',null,new URL('robots.txt',base));
+ publication.sitemap=await captureResource('sitemap',null,new URL('sitemap.xml',base));
+ for(const [i,alias] of (site.redirects||[]).entries())
+  publication.redirects.push(await captureResource('redirect',i,pageUrl(base,alias.from),
+   alias.from,alias.to));
  const manifest={format:CAPTURE_FORMAT,siteId:site.siteId,
   sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,
   packageVersion:source.packageVersion,capturedAt:new Date().toISOString(),baseUrl:base,
-  pages:entries.map(x=>x.record)};
+  pages:entries.map(x=>x.record),publication};
  fs.mkdirSync(out);
- for(const x of entries)fs.writeFileSync(path.join(out,x.record.file),x.bytes,{flag:'wx'});
+ for(const x of [...entries,...additional])fs.writeFileSync(path.join(out,x.record.file),x.bytes,{flag:'wx'});
  fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
  const imported=read(out,site,source);
  return {output:out,siteId:site.siteId,pages:imported.pageCount,
   bytes:imported.checkedHtmlBytes,localHttp200:imported.loopbackHttp200Count,
+  robotsStatus:imported.publication.robotsStatus,sitemapStatus:imported.publication.sitemapStatus,
+  localRedirectsCaptured:imported.publication.redirectResponses,
+  localSeoFindings:imported.publication.findings.length,
   publicHttpsChecked:false,readyToPublish:false};
 }
 function isVerified(x){return accepted.has(x);}
