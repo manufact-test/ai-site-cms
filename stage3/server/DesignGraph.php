@@ -169,7 +169,7 @@ final class DesignGraph
         $count=0;
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','responsiveMedia'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
                 &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell'],true),
@@ -197,6 +197,30 @@ final class DesignGraph
                 foreach([$node['styles']??[],$node['responsive']['tablet']??[],
                     $node['responsive']['mobile']??[]] as $layer)
                     self::check(!array_key_exists('gradient',$layer),'background conflicts with gradient');
+            }
+            if(array_key_exists('backgroundVideo',$node)){
+                self::check($type==='container'&&!array_key_exists('backgroundMedia',$node),
+                    'video backdrop must be on a container without raster background');
+                $v=$node['backgroundVideo'];
+                self::keys($v,['assetId','posterAssetId','tabletPosterAssetId','mobilePosterAssetId','positionX','positionY','overlay'],$id.'/backgroundVideo');
+                self::check(is_string($v['assetId']??null)&&($assets[$v['assetId']]??null)==='video/mp4',
+                    'invalid site-owned MP4 backdrop');
+                foreach(['posterAssetId','tabletPosterAssetId','mobilePosterAssetId'] as $key){
+                    if($key!=='posterAssetId'&&!array_key_exists($key,$v))continue;
+                    self::check(is_string($v[$key]??null)&&in_array($assets[$v[$key]]??null,
+                        ['image/png','image/jpeg','image/webp'],true),'invalid site-owned backdrop poster');
+                }
+                self::check((!array_key_exists('positionX',$v)||self::integer($v['positionX'],0,100))&&
+                    (!array_key_exists('positionY',$v)||self::integer($v['positionY'],0,100)),
+                    'invalid backdrop position');
+                if(array_key_exists('overlay',$v)){
+                    self::keys($v['overlay'],['color','opacity'],'video overlay');
+                    self::resolve($v['overlay']['color']??null,'colors',$tokens,'video overlay');
+                    self::check(self::integer($v['overlay']['opacity']??null,0,90),'video overlay opacity');
+                }
+                foreach([$node['styles']??[],$node['responsive']['tablet']??[],
+                    $node['responsive']['mobile']??[]] as $layer)
+                    self::check(!array_key_exists('gradient',$layer),'video backdrop conflicts with gradient');
             }
             if(array_key_exists('responsiveMedia',$node)){
                 self::check($type==='image','device-specific images restricted to image nodes');
@@ -482,6 +506,31 @@ final class DesignGraph
                 foreach(['tablet'=>900,'mobile'=>600] as $bp=>$width)if(isset($m[$bp.'AssetId']))
                     $rules[]='@media(max-width:'.$width.'px){'.$selector.'{'.$backdrop($m,$m[$bp.'AssetId']).'}}';
             }
+            if(isset($n['backgroundVideo'])){
+                $v=$n['backgroundVideo'];$b=$selector.' > .cmsdg-video-backdrop';
+                $poster=static function(string $id)use($assetMap,$mount,$assetBasePath):string{
+                    $url=self::assetUrl($assetMap[$id],$mount,$assetBasePath);
+                    $url=str_replace(['\\','"','<','>'],['\\\\','\\"','\\3c ','\\3e '],$url);
+                    return 'url("'.$url.'")';
+                };
+                $rules[]=$selector.'{position:relative;isolation:isolate}'.$b.
+                    '{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;border-radius:inherit;'.
+                    'background-image:'.$poster($v['posterAssetId']).';background-size:cover;background-repeat:no-repeat;'.
+                    'background-position:'.($v['positionX']??50).'% '.($v['positionY']??50).'%}';
+                foreach(['tablet'=>900,'mobile'=>600] as $bp=>$limit)
+                    if(isset($v[$bp.'PosterAssetId']))
+                        $rules[]='@media(max-width:'.$limit.'px){'.$b.'{background-image:'.$poster($v[$bp.'PosterAssetId']).'}}';
+                $rules[]=$b.' video{position:absolute;inset:0;width:100%!important;height:100%!important;'.
+                    'max-width:none!important;object-fit:cover;object-position:'.($v['positionX']??50).'% '.
+                    ($v['positionY']??50).'%;display:block}';
+                if(isset($v['overlay'])){
+                    $color=self::resolve($v['overlay']['color'],'colors',$t,'video overlay');
+                    $alpha=sprintf('%02x',(int)round($v['overlay']['opacity']*255/100));
+                    $rules[]=$b.'::after{content:"";position:absolute;inset:0;background-color:'.$color.$alpha.'}';
+                }
+                $rules[]='@media(prefers-reduced-motion:reduce){'.$b.' video{display:none!important}}';
+                $rules[]='@media(max-width:600px){'.$b.' video{display:none!important}}';
+            }
             if(isset($n['motion'])&&$n['motion']['effect']!=='none')
                 $rules[]=$selector.'{animation:cmsdg-'.$n['motion']['effect'].' '.
                     $n['motion']['duration'].'ms ease-out '.$n['motion']['delay'].'ms both}';
@@ -489,7 +538,16 @@ final class DesignGraph
             switch($n['type']){
                 case 'container':
                     $body='';foreach ($n['children'] as $child)$body.=$visit($child);
-                    return '<div class="'.$cls.'">'.$body.'</div>';
+                    $backdrop='';
+                    if(isset($n['backgroundVideo'])){
+                        $v=$n['backgroundVideo'];
+                        $url=self::h(self::assetUrl($assetMap[$v['assetId']],$mount,$assetBasePath));
+                        $poster=self::h(self::assetUrl($assetMap[$v['posterAssetId']],$mount,$assetBasePath));
+                        $backdrop='<div class="cmsdg-video-backdrop" aria-hidden="true">'.
+                            '<video autoplay muted loop playsinline preload="none" poster="'.$poster.'">'.
+                            '<source src="'.$url.'" type="video/mp4"></video></div>';
+                    }
+                    return '<div class="'.$cls.'">'.$backdrop.$body.'</div>';
                 case 'list':
                     $body='';foreach($n['children'] as $child)$body.=$visit($child);
                     $tag=!empty($n['ordered'])?'ol':'ul';
