@@ -17,3 +17,7 @@ Previous lead head: \`f02b3b0a8512bcc3a6798271c56309db65ba5379\`. \`main\` was \
 
 ## Boundaries
 No merge to \`main\`, external production/Hostinger, or CELIKOM live. No stealth deletion of integrated code, no design-factory import. A prior unapproved "3 new websites/designs" assignment is **cancelled**. Docs edits are authorized for this scope reset; further implementation should prioritize actual code.
+
+
+## Переход к следующему главному чату · 28.10.2026
+**Обязательно начать с [MAIN-HANDOFF-v2.1-2026-10-28.md](MAIN-HANDOFF-v2.1-2026-10-28.md)** — там актуальные SHA, CLI, результаты проверки и пилотная последовательность. Этот файл сохранён для истории, а не как самое свежее состояние.

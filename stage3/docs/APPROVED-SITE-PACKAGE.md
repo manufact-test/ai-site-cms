@@ -141,3 +141,16 @@ The CLI verifies compatibility with the registered component and Design Graph vo
 ## Mandatory operator review before import
 
 After filesystem, SDK, image and SHA-256 checks, Studio now opens a **visual review dialog** displaying the actual three prototype images, full client-facing explanation, full implementation specification, version, page count and checksum status. The operator can **Cancel** without a database write; **Подключить как черновик** begins the authenticated media import. This UI is not a pixel-diff test and cannot infer that the client approved the prototypes: the operator verifies the three images against external approval records. No HTML from the explanation/specification is executed; it is displayed as plain text. Publishing remains a separate permission-controlled action.
+
+## Offline pilot inventory and human acceptance worksheet
+
+After sealing a real package, generate a **read-only, deterministic Markdown report**:
+
+```sh
+node stage3/bin/verify-approved-site.cjs /absolute/path/to/approved-site
+node stage3/bin/audit-approved-site.cjs /absolute/path/to/approved-site > pilot-acceptance.md
+```
+
+The report includes page URLs and SEO metadata, counts of custom sections, flexible forms and FAQ questions, asset/ALT/orphan warnings, and a **per-page desktop 1280 / tablet 768 / mobile 390 acceptance matrix**. It lists manual checks of FAQ publishing, save/publish separation, delivery, redirects, responsiveness, and rollback. The audit refuses packages that do not pass the existing contract/integrity preflight, but **does not automatically mark any visual or behavioral check as passed**. Save its report next to the manually recorded approval and real screenshots when doing the owner pilot. This is a pilot worksheet, not proof of client approval or visual fidelity.
+
+Studio now additionally presents **the actual typed CMS rendering of every selectable page** at the three widths alongside approved prototype images, using local media bytes as data URLs. The rendered iframes are sandboxed, no scripts/forms execute, and the external site remains unpublished until separately requested. Note that it is the current first-party preview renderer, not the production PHP renderer: repeat visual checks against the actual public HTML after publishing.
