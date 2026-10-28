@@ -2386,6 +2386,11 @@
     const exportReport=action('Скачать отчёт JSON','server-launch-report',()=>{});
     const copyFindings=action('Копировать замечания для разработчика',
       'server-launch-copy-findings',()=>{});
+    const importReviewFile=element('input');
+    importReviewFile.type='file';importReviewFile.accept='.json,application/json';
+    importReviewFile.id='server-launch-import-input';importReviewFile.hidden=true;
+    const importReview=action('Продолжить замечания из JSON',
+      'server-launch-import',()=>importReviewFile.click());
     const footer=element('div','hosted-launch-footer');
     const editPage=action('Редактировать страницу','server-launch-edit',()=>{});
     const quality=action('Все замечания SEO и доступности','server-launch-quality',()=>{
@@ -2413,7 +2418,7 @@
     });
     const markReviewed=action('Подтвердить просмотр страницы','server-launch-mark',()=>{});
     const close=action('Закрыть','server-launch-close',()=>dialog.close());
-    footer.append(editPage,quality,saveDraft,exportReport,copyFindings,publishSaved,close);
+    footer.append(editPage,quality,saveDraft,exportReport,importReview,importReviewFile,copyFindings,publishSaved,close);
     detail.append(pageHeading,devices,compareModes,overlayControls,syncControls,previewPanels,previewStatus,issues,findingPanel,markReviewed);
     body.append(pages,detail);
     dialog.append(header,backlog,body,footer);
@@ -2543,6 +2548,43 @@
       if(openFindings(id,device).length)return;
       if(!reviewed.has(id))reviewed.set(id,new Set());
       reviewed.get(id).add(device);updateReviewed();syncActions();
+    });
+    importReviewFile.addEventListener('change',()=>{
+      void (async()=>{
+        const file=importReviewFile.files?.[0];
+        importReviewFile.value='';
+        if(!file)return;
+        if(file.size<10||file.size>256000)throw Error('Отчёт должен быть меньше 256 КБ');
+        const report=JSON.parse(await file.text());
+        if(report?.format!=='manufact-launch-review-v1'||report.siteId!==site.siteId
+          ||!Number.isInteger(report.revision)||report.revision<1
+          ||!Array.isArray(report.visualFindings)||report.visualFindings.length>200)
+          throw Error('Это не отчёт визуальной проверки данного сайта');
+        if(!freshDraft())throw Error('Черновик изменился — сначала сохраните ревизию');
+        const valid=new Set(site.pages.map(p=>p.id));
+        const incoming=[];
+        for(const item of report.visualFindings){
+          if(!item||!valid.has(item.pageId)||!Object.hasOwn(widths,item.device)
+            ||typeof item.note!=='string'||item.note.length<3||item.note.length>500
+            ||!Number.isInteger(item.scrollY)||item.scrollY<0||item.scrollY>60000
+            ||typeof item.resolved!=='boolean'
+            ||site.pages.find(p=>p.id===item.pageId)?.path!==item.path)
+            throw Error('Некорректное замечание или изменён адрес страницы');
+          incoming.push({pageId:item.pageId,path:item.path,device:item.device,
+            note:item.note,scrollY:item.scrollY,
+            resolved:report.revision===openedRevision&&item.resolved});
+        }
+        let added=0;
+        for(const row of incoming){
+          if(manualFindings.some(f=>f.pageId===row.pageId&&f.device===row.device
+            &&f.note===row.note&&f.scrollY===row.scrollY))continue;
+          manualFindings.push(row);added++;
+          reviewed.get(row.pageId)?.delete(row.device);
+        }
+        drawFindings();updateReviewed();syncActions();
+        notice('Замечания загружены: '+added+
+          (report.revision===openedRevision?'':' · другая ревизия: проверьте заново'));
+      })().catch(e=>notice('Импорт замечаний отклонён: '+e.message,true));
     });
     copyFindings.addEventListener('click',()=>{
       if(!unresolvedCount())return;
