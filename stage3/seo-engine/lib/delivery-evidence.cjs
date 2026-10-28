@@ -70,16 +70,36 @@ function assertEvidence(e){
  return u;
 }
 function sitemapPaths(xml){
- // This is a bounded, non-validating XML loc extractor; no entity or network expansion.
- // Only a urlset is enumerable. Sitemap indexes require separately supplied child sitemaps.
- const kind=/<(?:[a-z][\w.-]*:)?sitemapindex(?:\s|>)/i.test(xml)?'index':
-  /<(?:[a-z][\w.-]*:)?urlset(?:\s|>)/i.test(xml)?'urlset':'unknown';
- if(kind!=='urlset')return {kind,urls:[],unverified:true};
- const locs=[],regex=/<(?:[a-z][\w.-]*:)?loc(?:\s[^>]*)?>([^<]{1,2048})<\/(?:[a-z][\w.-]*:)?loc\s*>/gi;
- let match;while((match=regex.exec(xml))!==null&&locs.length<2000){
-  locs.push(match[1].trim().replace(/&amp;/g,'&'));
+ // Bounded *conservative* extractor, NOT a general XML parser.
+ // Never assert sitemap omissions unless all direct URL entries can be enumerated.
+ if(typeof xml!=='string'||xml.length>750000)throw Error('Invalid bounded sitemap body');
+ const index=/<(?:[a-z][\w.-]*:)?sitemapindex(?:\s|>)/i.test(xml);
+ const kind=index?'index':/<(?:[a-z][\w.-]*:)?urlset(?:\s|>)/i.test(xml)?'urlset':'unknown';
+ if(kind!=='urlset'||/<!DOCTYPE|<!ENTITY|<!\[CDATA\[|<script\b/i.test(xml))
+  return {kind,urls:[],unverified:true,reason:'unsupported-xml-document'};
+ const roots=[...xml.matchAll(/<(?!\/)(?:[a-z][\w.-]*:)?urlset(?:\s[^<>]*?)?>/gi)];
+ const endRoots=[...xml.matchAll(/<\/(?:[a-z][\w.-]*:)?urlset\s*>/gi)];
+ if(roots.length!==1||endRoots.length!==1||endRoots[0].index<roots[0].index)
+  return {kind,urls:[],unverified:true,reason:'unclosed-or-ambiguous-urlset'};
+ const start=[...xml.matchAll(/<(?!\/)(?:[a-z][\w.-]*:)?url(?:\s[^<>]*?)?>/gi)];
+ const ends=[...xml.matchAll(/<\/(?:[a-z][\w.-]*:)?url\s*>/gi)];
+ if(start.length!==ends.length||start.length>2000)
+  return {kind,urls:[],unverified:true,reason:'url-count-or-limit'};
+ const urls=[],urlBlocks=[...xml.matchAll(/<(?:[a-z][\w.-]*:)?url(?:\s[^<>]*?)?>([\s\S]*?)<\/(?:[a-z][\w.-]*:)?url\s*>/gi)];
+ if(urlBlocks.length!==start.length)
+  return {kind,urls:[],unverified:true,reason:'unbalanced-url-blocks'};
+ const allLocTags=[...xml.matchAll(/<(?!\/)(?:[a-z][\w.-]*:)?loc(?:\s[^<>]*?)?>/gi)];
+ const allCloseLoc=[...xml.matchAll(/<\/(?:[a-z][\w.-]*:)?loc\s*>/gi)];
+ if(allLocTags.length!==urlBlocks.length||allCloseLoc.length!==urlBlocks.length)
+  return {kind,urls:[],unverified:true,reason:'ambiguous-loc-count'};
+ for(const block of urlBlocks){
+  const matches=[...block[1].matchAll(/<(?:[a-z][\w.-]*:)?loc(?:\s[^<>]*?)?>([^<>]{1,2048})<\/(?:[a-z][\w.-]*:)?loc\s*>/gi)];
+  if(matches.length!==1)return {kind,urls:[],unverified:true,reason:'missing-or-invalid-loc'};
+  const raw=matches[0][1].trim();
+  if(/&(?!(?:amp);)/i.test(raw))return {kind,urls:[],unverified:true,reason:'unhandled-xml-entity'};
+  urls.push(raw.replace(/&amp;/gi,'&'));
  }
- return {kind,urls:locs,unverified:locs.length===2000||/<!DOCTYPE|<!ENTITY/i.test(xml)};
+ return {kind,urls,unverified:false,reason:null};
 }
 function review(site,evidence){
  if(!site||!Array.isArray(site.pages)||site.siteId!==evidence?.siteId)
@@ -182,7 +202,7 @@ function review(site,evidence){
   if(parsed.kind!=='urlset'||parsed.unverified)
    add('delivery:sitemap-enumeration-unverified','recommendation',null,'/sitemap.xml',
     'Sitemap body is not a complete, parseable direct URL set; child sitemap indexes require separate review.',
-    {kind:parsed.kind});
+    {kind:parsed.kind,reason:parsed.reason||null});
   else if(sitemap.status===200){
    const seenRoutes=new Set();
    for(const raw of parsed.urls){

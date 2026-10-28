@@ -66,6 +66,7 @@ function review(site,evidence,htmlSnapshot=null){
   htmlSnapshot.siteId&&htmlSnapshot.siteId!==site.siteId||!Array.isArray(htmlSnapshot.pages)))
   throw Error('Invalid HTML capture for media review');
  const assets=new Map(site.assets.map(a=>[a.id,a]));
+ const referencedOg=new Set(site.pages.map(p=>p.seo?.ogImage).filter(Boolean));
  const reports=new Map(),issues=[];
  const add=(code,severity,pageId,path,message,extra={})=>issues.push({
   code,severity,pageId:pageId||null,path:path||null,message,...extra,
@@ -78,13 +79,13 @@ function review(site,evidence,htmlSnapshot=null){
   if(actual.href!==expected)add('media:resource-url-drift','warning',null,a.src,
    'Captured media URL differs from the current site asset path.',{assetId:a.id,expectedUrl:expected,observedUrl:actual.href});
   if(r.status<200||r.status>=300)
-   add('media:resource-status-error',r.status>=400?'error':'warning',null,a.src,
-    'Referenced media resource has a non-success captured HTTP status.',
+   add('media:resource-status-error',r.status>=400&&referencedOg.has(a.id)?'error':'warning',null,a.src,
+    'Captured media resource has a non-success status; only a failed referenced OG image is a release blocker.',
     {assetId:a.id,status:r.status});
   const observedMime=r.contentType.split(';')[0].trim().toLowerCase();
   if(r.status>=200&&r.status<300&&observedMime!==a.mime.toLowerCase())
-   add('media:resource-mime-mismatch','error',null,a.src,
-    'Captured Content-Type does not agree with Site v1 asset MIME.',
+   add('media:resource-mime-mismatch',referencedOg.has(a.id)?'error':'warning',null,a.src,
+    'Captured Content-Type does not agree with Site v1 asset MIME; only a referenced OG image mismatch is a release blocker.',
     {assetId:a.id,expectedMime:a.mime,observedMime});
   if(r.status===200&&r.contentLength!==undefined&&r.contentLength>10*1024*1024)
    add('media:heavy-asset','recommendation',null,a.src,

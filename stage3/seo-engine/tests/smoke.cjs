@@ -365,6 +365,17 @@ try{
  assert.equal(deliveryPackage.release.coverage.callerSuppliedHttpTranscriptReviewed,true);
  const {sitemapPaths:parseXml}=require('../lib/delivery-evidence.cjs');
  assert.equal(parseXml('<sitemapindex><sitemap><loc>https://x.test/a.xml</loc></sitemap></sitemapindex>').kind,'index');
+ assert.equal(parseXml('<urlset><url><loc>https://cms-example.test/</loc></url>').unverified,true,
+  'a truncated sitemap may not create missing-page blockers');
+ assert.equal(parseXml('<urlset><url><loc>https://cms-example.test/</loc></url>'+
+  '<url><loc>https://cms-example.test/contact/</loc></url></urlset>').unverified,false);
+ assert.equal(parseXml('<urlset><url><loc>https://cms-example.test/</loc></url>'+
+  '<url><loc>https://cms-example.test/contact/</url></urlset>').unverified,true);
+ const incompleteXml=structuredClone(deliveryBroken);
+ incompleteXml.sitemap.body='<urlset><url><loc>https://cms-example.test/</loc></url>';
+ fs.writeFileSync(deliveryDriftFile,JSON.stringify(incompleteXml));
+ const untrustedXml=JSON.parse(good('delivery-review',{site,delivery:deliveryDriftFile}));
+ assert.ok(!untrustedXml.findings.some(x=>x.code==='delivery:sitemap-indexable-absent'));
  // Third workstream: validate OG asset HTTP status and output URL, never fetch it.
  const capturedMediaSite=structuredClone(original);
  capturedMediaSite.assets.push({id:'asset-og-demo',src:'/assets/og-demo.png',mime:'image/png',
@@ -391,6 +402,14 @@ try{
  const damagedPackage=JSON.parse(good('review-bundle',{site:capturedMediaSitePath,blueprint:bp,media:capturedMediaPath}));
  assert.equal(damagedPackage.mediaEvidence.coverage.capturedKnownResources,1);
  assert.equal(damagedPackage.traceability.pages[0].mediaEvidence.ogImageAssetId,'asset-og-demo');
+  // Non-OG asset failures must not become misleading social-card release blockers.
+ const unusedMediaSite=structuredClone(capturedMediaSite);
+ unusedMediaSite.assets.push({id:'asset-unused',src:'/assets/unused.jpg',mime:'image/jpeg',alt:''});
+ const unusedEvidence=structuredClone(capturedMedia);
+ unusedEvidence.resources.push({assetId:'asset-unused',
+  url:'https://cms-example.test/assets/unused.jpg',status:404,contentType:'image/jpeg'});
+ assert.ok(require('../lib/media-delivery.cjs').review(unusedMediaSite,unusedEvidence).findings
+  .some(x=>x.code==='media:resource-status-error'&&x.assetId==='asset-unused'&&x.severity==='warning'));
  const ogDriftHtml={format:'manufact-seo-html-snapshot-v1',siteId:plan.siteId,
   pages:[{id:'page-home',path:'/',html:'<html><head><meta property="og:image" content="https://wrong.test/other.png"></head></html>'}]};
  assert.ok(require('../lib/media-delivery.cjs').review(capturedMediaSite,capturedMedia,ogDriftHtml).findings
