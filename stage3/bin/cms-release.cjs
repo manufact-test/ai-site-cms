@@ -76,8 +76,8 @@ function collect(root,strict=false,profile='full'){
     visit(folder,'stage3/'+dir);
   }
   files.sort((a,b)=>a.path.localeCompare(b.path,'en'));
-  const required=profile==='php-host'?REQUIRED.filter(p=>!p.startsWith('stage3/sdk/')&&!p.startsWith('stage3/runtime-export/')):REQUIRED;
-  for(const required of required)if(!files.some(f=>f.path===required))
+  const requiredPaths=profile==='php-host'?REQUIRED.filter(p=>!p.startsWith('stage3/sdk/')&&!p.startsWith('stage3/runtime-export/')):REQUIRED;
+  for(const required of requiredPaths)if(!files.some(f=>f.path===required))
     die('missing essential engine file: '+required);
   return {files,bytes,fingerprint:sha(Buffer.from(JSON.stringify(files)))};
 }
