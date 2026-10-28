@@ -2,7 +2,9 @@
 // Verify actual public PHP HTML for business-critical typed components.
 // No browser execution, no fetched sites and no claims of dynamic correctness.
 const FORMAT='manufact-seo-local-php-components-v1';
-const TYPES=new Set(['content-switcher','pricing-plans','process-timeline','comparison-matrix']);
+const TYPES=new Set(['content-switcher','pricing-plans','process-timeline','comparison-matrix',
+ 'faq-accordion','service-grid','testimonials','photo-gallery','adaptive-gallery',
+ 'cta-banner','contact-panel','image-showcase','partner-logos','media-story']);
 const attr=s=>{
  const o={};for(const m of String(s).matchAll(/([a-z][a-z0-9:_-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/gi))
   o[m[1].toLowerCase()]=decode(m[2]??m[3]??m[4]??'');
@@ -87,7 +89,103 @@ function review(site,snapshot){
    const root=sectionById(captured.html,component.id);
    if(!root){add(page,component,'section-missing','The typed published component section is absent or duplicated.');continue;}
    const items=component.items||[];
-   if(component.component==='pricing-plans'){
+   const value=(slot,key='content.text')=>component.elements?.find(x=>x.slot===slot)?.values?.[key]??'';
+   const assetById=id=>(site.assets||[]).find(x=>x.id===id);
+   const mountedImage=id=>{const a=assetById(id);return a?'/published/'+site.siteId+a.src:null;};
+   const expectedLink=slot=>({text:norm(value(slot)),href:hrefFor(value(slot,'behavior.href')||'/',site.siteId)});
+   if(component.component==='faq-accordion'){
+    const faq=elements(root,'details');
+    if(faq.length!==items.length){
+     add(page,component,'faq-count','Published FAQ count differs from approved items.');
+     continue;
+    }
+    items.forEach((item,i)=>{
+     const v=item.values||{},question=elements(faq[i].html,'summary'),answer=elements(faq[i].html,'p');
+     if(question.length!==1||question[0].text!==norm(v['content.question'])||
+        answer.length!==1||answer[0].text!==norm(v['content.answer']))
+      add(page,component,'faq-content','Published FAQ question or answer differs from Site v1 item '+item.id+'.');
+    });
+   }else if(component.component==='service-grid'){
+    const cards=elements(root,'article');
+    if(cards.length!==items.length){
+     add(page,component,'service-count','Published service card count differs from approved items.');continue;
+    }
+    items.forEach((item,i)=>{
+     const v=item.values||{},card=cards[i].html;
+     const h=elements(card,'h3'),body=elements(card,'p'),a=links(card);
+     if(h.length!==1||h[0].text!==norm(v['content.title'])||
+        body.length!==1||body[0].text!==norm(v['content.text'])||
+        a.length!==1||a[0].href!==hrefFor(v['behavior.href'],site.siteId))
+      add(page,component,'service-content','Published service text or destination differs from Site v1 item '+item.id+'.');
+    });
+   }else if(component.component==='testimonials'){
+    const reviews=elements(root,'figure').filter(x=>classHas(x.attributes,'review'));
+    if(reviews.length!==items.length){
+     add(page,component,'testimonial-count','Published testimonial count differs from approved items.');continue;
+    }
+    items.forEach((item,i)=>{
+     const v=item.values||{},quote=elements(reviews[i].html,'blockquote'),caption=elements(reviews[i].html,'figcaption');
+     const attribution=norm(v['content.author']+(v['content.role']?' · '+v['content.role']:''));
+     if(quote.length!==1||quote[0].text!==norm(v['content.quote'])||
+        caption.length!==1||caption[0].text!==attribution)
+      add(page,component,'testimonial-content','Published testimonial quote or attribution differs from Site v1 item '+item.id+'.');
+    });
+   }else if(component.component==='photo-gallery'||component.component==='adaptive-gallery'){
+    const gallery=component.component==='adaptive-gallery';
+    const figures=elements(root,'figure').filter(x=>!gallery||classHas(x.attributes,'cms-adaptive-card'));
+    const settings=component.elements?.find(x=>x.slot==='settings')?.values||{};
+    const showCaption=!gallery||settings['behavior.caption']===true;
+    if(figures.length!==items.length){
+     add(page,component,'gallery-count','Published gallery picture count differs from approved items.');continue;
+    }
+    items.forEach((item,i)=>{
+     const v=item.values||{},images=openTags(figures[i].html,'img'),captions=elements(figures[i].html,'figcaption');
+     const src=mountedImage(v['content.media']),asset=assetById(v['content.media']);
+     if(images.length!==1||!src||images[0].attributes.src!==src||
+        images[0].attributes.alt!==String(asset?.alt||'')||
+        captions.length!==(showCaption?1:0)||
+        showCaption&&captions[0]?.text!==norm(v['content.caption']))
+      add(page,component,'gallery-content','Published gallery picture, ALT or caption differs from Site v1 item '+item.id+'.');
+    });
+   }else if(component.component==='partner-logos'){
+    const cards=links(root).filter(x=>classHas(x.attributes,'partner-logo'));
+    if(cards.length!==items.length){
+     add(page,component,'logo-count','Published partner-logo count differs from approved items.');continue;
+    }
+    items.forEach((item,i)=>{
+     const v=item.values||{},card=cards[i],img=openTags(card.html,'img');
+     const asset=assetById(v['content.media']),src=mountedImage(v['content.media']);
+     const expectedAlt=asset?.alt||v['content.caption'];
+     const spans=elements(card.html,'span');
+     if(img.length!==1||!src||card.href!==hrefFor(v['behavior.href'],site.siteId)||
+        img[0].attributes.src!==src||img[0].attributes.alt!==String(expectedAlt??'')||
+        spans.length!==1||spans[0].text!==norm(v['content.caption']))
+      add(page,component,'logo-content','Published partner logo, link, ALT or caption differs from Site v1 item '+item.id+'.');
+    });
+   }else if(component.component==='cta-banner'||component.component==='contact-panel'){
+    const ctas=links(root).filter(x=>classHas(x.attributes,'action'));
+    const slots=component.component==='cta-banner'?['primary','secondary']:['action'];
+    if(ctas.length!==slots.length||slots.some((slot,i)=>{
+      const wanted=expectedLink(slot);
+      return ctas[i].href!==wanted.href||ctas[i].text!==wanted.text;
+    }))
+     add(page,component,'cta-drift','Published call-to-action button text, order or destination differs from Site v1.');
+   }else if(component.component==='image-showcase'||component.component==='media-story'){
+    const slot=component.component==='media-story'?'photo':'photo';
+    const media=value(slot,'content.media');
+    const expected=media?mountedImage(media):null;
+    const images=openTags(root,'img').filter(x=>classHas(x.attributes,
+      component.component==='media-story'?'story-photo':'showcase-photo'));
+    if(images.length!==(expected?1:0)||
+       expected&&(images[0].attributes.src!==expected||
+        images[0].attributes.alt!==String(assetById(media)?.alt||'')))
+     add(page,component,'media-content','Published hero/story image or ALT differs from Site v1.');
+    if(component.component==='media-story'){
+     const ctas=links(root).filter(x=>classHas(x.attributes,'action')),want=expectedLink('action');
+     if(ctas.length!==1||ctas[0].text!==want.text||ctas[0].href!==want.href)
+      add(page,component,'story-cta','Published media-story action differs from Site v1.');
+    }
+   }else if(component.component==='pricing-plans'){
     const cards=elements(root,'article').filter(x=>classHas(x.attributes,'cms-pricing-card'));
     if(cards.length!==items.length){
      add(page,component,'pricing-count','Published pricing card count differs from approved items.');
