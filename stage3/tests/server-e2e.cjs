@@ -2255,7 +2255,19 @@ async function stop(){
     assert.equal(reported.publishedVersion,urlManifest.publishedVersion);
     assert.equal(reported.releaseManifestSha256,hash(fs.readFileSync(path.join(urlOut,'release-manifest.json'))));
     const home=await fetch(base+'/');assert.equal(home.status,200);
+    assert.match(home.headers.get('etag'),/^"[a-f0-9]{64}"$/);
+    assert.match(home.headers.get('cache-control'),/no-cache/);
     assert.match(await home.text(),/href="\/get-in-touch\/"/);
+    const cachedHome=await fetch(base+'/',{headers:{'If-None-Match':home.headers.get('etag')}});
+    assert.equal(cachedHome.status,304,'Unmodified immutable standalone HTML revalidates');
+    const cachedHead=await fetch(base+'/',{method:'HEAD'});
+    assert.equal(cachedHead.status,200);
+    assert.ok(Number(cachedHead.headers.get('content-length'))>0);
+    const sitemap=await fetch(base+'/sitemap.xml');
+    assert.equal(sitemap.status,200);
+    assert.equal((await fetch(base+'/sitemap.xml',{headers:{
+      'If-None-Match':sitemap.headers.get('etag')
+    }})).status,304,'Standalone sitemap revalidates');
     const contact=await fetch(base+'/get-in-touch/');assert.equal(contact.status,200);
     assert.match(await contact.text(),/rel="canonical" href="https:\/\/example[.]test\/get-in-touch\/"/);
     const previous=await fetch(base+'/contact/',{redirect:'manual'});
