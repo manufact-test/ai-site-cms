@@ -417,3 +417,19 @@ Import the operator-captured evidence to the existing local first-site report wi
 **Critical evidence limits:** A saved JSON receipt can be forged; this tool cannot authenticate network provenance after import. An observed SHA match is not client acceptance, running PHP code identity, browser layout equality, real lead POST/recipient delivery, or authorization to deploy. Static export redirect HTML fallbacks are NOT real HTTP 301; real host rewrites must be configured by the lead. Never upload private evidence with customer form HMAC values to GitHub. Existing worker scope `stage3/seo-engine/**` only; no PHP, main or merge.
 
 Focused checks (run in integrated Node checkout): `node stage3/seo-engine/tests/public-static-parity-smoke.cjs` and `node stage3/seo-engine/tests/public-media-byte-verification-smoke.cjs`. This worker session completed V8 execution with mocked dependencies and public transport, plus CJS syntax checks, not live Node/PHP/browser/customer-domain acceptance.
+
+## True static-host HTTP 301 deployment handoff — operator-only (29.10.2026)
+
+Official `stage3/server/bin/export-published.php` creates static HTML redirects with noindex + meta-refresh, NOT a real HTTP 301. Our new `lib/static-host-rewrites.cjs` builds **alternative** Apache mod_rewrite and Nginx exact-match `return 301` rules for every declared old Site v1 route, pinned to the **SHA256-verified official static release**, publishedVersion, sourceRevision and declared HTTPS static root. Rejects redirects that are duplicated, collide with real pages or do not point at a real published page; refuses exports already containing static-publication blocking findings. It never edits or accesses the hosted web server.
+
+Generate local operator-ready files (explicit, no deployment):
+```bash
+node stage3/seo-engine/bin/prepare-static-host.cjs \
+  --approved-site /ABS/SEALED-V2 \
+  --published-site /ABS/owner-published.json \
+  --static-export /ABS/official-static-release \
+  --out /ABS/new-static-host-plan
+```
+Add `--owner-edit-review /ABS/manual-owner-review.json` when the owner changed the imported Site v1. Output is a NEW private directory: `apache.htaccess` (contents suitable for root `.htaccess` after manual installation), `nginx-redirects.conf` (exact `location = /old/ { return 301 /new/; }` blocks for existing HTTPS server context), `plan.json` (revision and file SHA256 inventory) and `HOSTING-HANDOFF.md` (site/document root, route counts, manual curl -I probes). Choose ONE server format and review its interaction with existing site rules; configure TLS, document root, index, CSP/privacy and form collector separately. This does not overwrite an existing plan or make any live server writes. Real public 301 + Location must be confirmed by the public HTTPS capture before approval.
+
+Focused isolated V8 test: `node stage3/seo-engine/tests/static-host-rewrites-smoke.cjs`; full Node/Apache/Nginx/client-host checks have NOT been run in the SEO worker. The lead remains sole integrator/deployer and may choose not to deploy static output at all; keep the PHP route separate.
