@@ -124,3 +124,16 @@ node stage3/bin/verify-approved-site.cjs /absolute/path/to/approved-site
 The command validates all existing registered manifests including `custom-section`, graph IDs and allowed styles, cross-section asset references, required three prototype files, descriptions, image MIME/size and responsive variant SHA256. It performs **no writes, network calls, automatic approval or publication**. An affirmative report means structurally compatible, **not** that the actual visual design matches the client's approved prototype. The user still reviews the visuals and explicitly imports/publishes in Studio.
 
 When the owner adds a `custom-section` manually inside Studio, the editor supplies a safe editable starter Design Graph so the UI can open it. This convenience never changes imported `site.json`: direct external site handoffs missing `designGraph` are rejected in browser/PHP. Do not pass the starter graph off as the client's finished design.
+
+## Versioned SHA-256 approval lock (v2)
+
+The earlier `manufact-approved-site-handoff-v1` format remains readable for historical handoffs. For a newly approved client website, seal the finished folder:
+
+```sh
+node stage3/bin/seal-approved-site.cjs /absolute/path/to/approved-site client-approved-v1 --confirmed-approved
+node stage3/bin/verify-approved-site.cjs /absolute/path/to/approved-site
+```
+
+Sealing requires the operator's explicit confirmation of actual client approval. It is **not** proof that a client approved the design. The resulting `manufact-approved-site-handoff-v2` file contains SHA-256 digests for `site.json`, all three prototype images, both text documents, every original image and every responsive variant referenced from the site. Studio verifies the same hashes **before its first server write**. A changed specification, image, mockup or website manifest fails closed. When a client approves a new revision, re-seal deliberately using a new version with `--confirmed-approved --replace`; do not silently edit a sealed package. The integrity lock detects local package modification; it is not a digital signature authenticating the client.
+
+The CLI verifies compatibility with the registered component and Design Graph vocabulary but cannot judge whether final HTML visually matches the three actual mockups. Keep the original versioned handoff separately; the CMS does not store its prototype evidence.
