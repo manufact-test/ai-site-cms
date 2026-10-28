@@ -155,6 +155,7 @@ function inspect(manifest,site,source,folder){
   if(sha(bytes)!==record.sha256)fail('HTML hash differs at '+p.id);
   boundedHtml(bytes);entries.push({record,bytes});
  }
+ const checkedPageHtmlBytes=total;
  const auxBytes=new Map();let publication=null;
  for(const item of external){
   const file=path.join(root,item.file);
@@ -178,7 +179,8 @@ function inspect(manifest,site,source,folder){
   format:CAPTURE_FORMAT,siteId:site.siteId,packageVersion:source.packageVersion,
   sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,
   capturedAt:manifest.capturedAt,baseUrl:manifest.baseUrl,pageCount:entries.length,
-  checkedHtmlBytes:total,sha256VerifiedAtRead:true,
+  checkedHtmlBytes:checkedPageHtmlBytes,
+  checkedAuxiliaryBytes:total-checkedPageHtmlBytes,sha256VerifiedAtRead:true,
   loopbackHttp200Count:entries.length,sourceRevisionAuthenticated:false,
   realPublicHttpsChecked:false,formsChecked:false,visualParityChecked:false,
   publication,
@@ -245,7 +247,8 @@ async function capture(sealedFolder,rawOrigin,output){
  fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
  const imported=read(out,site,source);
  return {output:out,siteId:site.siteId,pages:imported.pageCount,
-  bytes:imported.checkedHtmlBytes,localHttp200:imported.loopbackHttp200Count,
+  bytes:imported.checkedHtmlBytes,localSeoBytes:imported.checkedAuxiliaryBytes,
+  localHttp200:imported.loopbackHttp200Count,
   robotsStatus:imported.publication.robotsStatus,sitemapStatus:imported.publication.sitemapStatus,
   localRedirectsCaptured:imported.publication.redirectResponses,
   localSeoFindings:imported.publication.findings.length,
