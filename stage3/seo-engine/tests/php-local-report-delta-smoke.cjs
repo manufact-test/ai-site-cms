@@ -41,4 +41,18 @@ assert.ok(crossHost.gates.notComparable.length===0);
 const sameHost=build({summary:pSummary,bundle:pReport},
  {...nSummary,publicTranscript:{httpsOriginClaim:'https://a.test/'}},nReport);
 assert.equal(sameHost.summary.noLongerObservedOccurrences,1);
+
+const etagOld={...bundle(1,true),localPhpHead:{pages:[{
+ pageId:'home',path:'/',etag:'"cms3-same"',phpHtmlSha256:'a'.repeat(64)}],findings:[]}};
+const etagNew={...bundle(1,true),localPhpHead:{pages:[{
+ pageId:'home',path:'/',etag:'"cms3-same"',phpHtmlSha256:'b'.repeat(64)}],findings:[]}};
+const cacheConflict=build({summary:summary(1),bundle:etagOld},summary(1),etagNew);
+assert.equal(cacheConflict.summary.sameEtagButDifferentHtml,1);
+assert.equal(cacheConflict.phpCacheObservations.etagContentConflicts.length,1);
+assert.equal(cacheConflict.phpBuildIdentityVerified,false);
+const etagMoved={...bundle(1,true),localPhpHead:{pages:[{
+ pageId:'home',path:'/',etag:'"cms3-new"',phpHtmlSha256:'a'.repeat(64)}],findings:[]}};
+const configShift=build({summary:summary(1),bundle:etagOld},summary(1),etagMoved);
+assert.equal(configShift.summary.observedPhpEtagOrHtmlChanges,1);
+assert.equal(configShift.summary.sameEtagButDifferentHtml,0);
 console.log('First-site delta group/identity/changed-version smoke PASS');

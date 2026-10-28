@@ -235,7 +235,9 @@ async function main(argv){
   newFindingOccurrences:delta.summary.newFindingOccurrences,
   noLongerObservedOccurrences:delta.summary.noLongerObservedOccurrences,
   currentBlockingGates:delta.summary.currentBlockingGates,
-  operatorConfirmedFixes:0
+  operatorConfirmedFixes:0,
+  observedPhpEtagOrHtmlChanges:delta.summary.observedPhpEtagOrHtmlChanges,
+  sameEtagButDifferentHtml:delta.summary.sameEtagButDifferentHtml
  };
  const body=JSON.stringify(bundle,null,2)+'\n',brief=JSON.stringify(summary,null,2)+'\n';
  if(body.length>40000000)throw Error('First-site review bundle is too large; inspect inputs rather than publishing a truncated report');
