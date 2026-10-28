@@ -341,6 +341,17 @@ async function stop(){
     telegramChatId:'',expectedVersion:1,reason:'Reject invalid email'})).status,422);
   assert.equal((await request('POST',deliveryRoute,{emailEnabled:true,emailRecipient:'other@example.test',telegramEnabled:false,
     telegramChatId:'',expectedVersion:0,reason:'Reject stale version'})).status,409);
+  const routed=await request('POST',deliveryRoute+'/routes',{
+    sectionId:'section-quote-form',emailMode:'custom',emailRecipient:'team-a@example.test',
+    telegramMode:'off',telegramChatId:'',expectedVersion:0,reason:'Route industrial inquiries'});
+  assert.equal(routed.status,200,JSON.stringify(routed.body));
+  assert.equal(routed.body.routes.find(r=>r.sectionId==='section-quote-form').version,1);
+  assert.equal((await request('POST',deliveryRoute+'/routes',{
+    sectionId:'section-quote-form',emailMode:'custom',emailRecipient:'team-b@example.test',
+    telegramMode:'off',telegramChatId:'',expectedVersion:0,reason:'Reject stale route'})).status,409);
+  assert.equal((await request('POST',deliveryRoute+'/routes',{
+    sectionId:'not-a-real-form',emailMode:'custom',emailRecipient:'team-b@example.test',
+    telegramMode:'off',telegramChatId:'',expectedVersion:0,reason:'Reject missing form'})).status,404);
   const values={_release:'4',_token:token,website:'',name:'Тест Клиент',
     email:'client@example.test',message:'Интересует стоимость оборудования',consent:'yes'};
   const postForm=async(fields,from=origin)=>{
@@ -364,6 +375,21 @@ async function stop(){
   const sent=await postForm(values);
   assert.equal(sent.status,201,sent.body);
   assert.match(sent.body,/заявка сохранена/);
+  // Destination is frozen at receipt: changing routing cannot redirect the
+  // already queued private lead to a different recipient.
+  const queuedRecipient=spawnSync('php',['-r',
+    '$db=new PDO(getenv("STAGE3_DSN"));$q=$db->prepare("SELECT target FROM stage3_delivery_outbox WHERE site_id=? AND channel=? ORDER BY created_at,delivery_id LIMIT 1");$q->execute(["site-industrial-demo","email"]);echo $q->fetchColumn();'],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(queuedRecipient.status,0,queuedRecipient.stderr);
+  assert.equal(queuedRecipient.stdout,'team-a@example.test');
+  const editedRoute=await request('POST',deliveryRoute+'/routes',{
+    sectionId:'section-quote-form',emailMode:'custom',emailRecipient:'team-b@example.test',
+    telegramMode:'off',telegramChatId:'',expectedVersion:1,reason:'Move future inquiries only'});
+  assert.equal(editedRoute.status,200,JSON.stringify(editedRoute.body));
+  const stillQueued=spawnSync('php',['-r',
+    '$db=new PDO(getenv("STAGE3_DSN"));$q=$db->prepare("SELECT target FROM stage3_delivery_outbox WHERE site_id=? AND channel=? ORDER BY created_at,delivery_id LIMIT 1");$q->execute(["site-industrial-demo","email"]);echo $q->fetchColumn();'],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(stillQueued.stdout,'team-a@example.test');
   let delivery=(await request('GET',deliveryRoute)).body;
   assert.equal(delivery.totals.configuration_required,1,'Lead is saved but email delivery remains explicitly unconfigured');
   assert.equal(delivery.recent[0].state,'configuration_required');
