@@ -4,6 +4,7 @@
 // the HTTP transcript. This answers "what is served?" only if operator
 // corroborates the original network collection.
 const STATIC=require('./php-local-static-export.cjs');
+const crypto=require('node:crypto');
 const HEAD=require('./public-static-head.cjs');
 const CSP=require('./public-static-csp.cjs');
 const SENSITIVE=require('./public-static-sensitive-markup.cjs');
@@ -152,6 +153,9 @@ function compare(site,release,http,media=null){
   }
   pages.push(Object.freeze({pageId:page.id,path:page.path,sourceExportSha256:official.sha256,
    capturedHttpStatus:supplied?.status??null,compared:Boolean(supplied?.html),
+   publicHtmlSha256:typeof supplied?.html==='string'?
+    crypto.createHash('sha256').update(supplied.html,'utf8').digest('hex'):null,
+   publicEtag:supplied?.headers?.etag??null,
    fieldsWithDifferences:Object.freeze(issues)}));
  }
  const expectedAux=release.searchFiles||{};
