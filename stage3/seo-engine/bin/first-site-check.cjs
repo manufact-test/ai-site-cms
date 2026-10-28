@@ -9,15 +9,16 @@ const PHP=require('../lib/php-html-capture.cjs');
 const PHP_CAPTURE=require('../lib/php-capture.cjs');
 const PACKAGE=require('../lib/package.cjs');
 const WORKSHEET=require('../lib/first-site-worksheet.cjs');
+const PROGRESS=require('../lib/first-site-report-delta.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
 const {auditSite}=require('../lib/analyze.cjs');
 const REQUIRED=['approved-site','blueprint','origin','evidence','report'];
-const OPTIONAL=['php-capture','published-site'];
+const OPTIONAL=['php-capture','published-site','previous-report'];
 function parse(argv){
  const opts={};
  if(!Array.isArray(argv)||argv.length<REQUIRED.length*2||
   argv.length>(REQUIRED.length+OPTIONAL.length)*2||argv.length%2)
-  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json]');
+  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report]');
  for(let i=0;i<argv.length;i+=2){
   const name=argv[i]?.startsWith('--')?argv[i].slice(2):null;
   if(![...REQUIRED,...OPTIONAL].includes(name)||!argv[i+1]||opts[name])throw Error('Unknown, missing or duplicate first-site option');
@@ -67,6 +68,10 @@ async function main(argv){
  PHP.baseUrl(o.origin,site.siteId); // Strict localhost published mount; no outgoing requests.
  const evidence=newTarget(o.evidence,o['approved-site']);
  const report=newTarget(o.report,o['approved-site'],evidence);
+ const previous=o['previous-report']?PROGRESS.read(o['previous-report']):null;
+ if(previous&&(previous.root===report||previous.root===evidence||
+    report.startsWith(previous.root+path.sep)||evidence.startsWith(previous.root+path.sep)))
+  throw Error('Prior report must be a distinct read-only directory outside new capture outputs');
  const blueprint=readBlueprint(o.blueprint),registry=manifests();
  if(blueprint.siteId!==site.siteId)throw Error('First-site approved source and Blueprint site IDs differ');
  // Fail early on incompatible source contracts, not after downloading images.
@@ -142,6 +147,14 @@ async function main(argv){
   actualBrowserDesignApproved:false,formsDelivered:false,automaticRelease:false,
   nextStep:'Lead must correlate published revision, resolve blockers and verify real HTTPS, client-approved three-device layouts and end-to-end forms before publishing.'
  };
+ const delta=previous?PROGRESS.build(previous,summary,bundle):null;
+ if(delta)summary.previousRunComparison={
+  file:'delta.md',jsonFile:'delta.json',
+  newFindingOccurrences:delta.summary.newFindingOccurrences,
+  noLongerObservedOccurrences:delta.summary.noLongerObservedOccurrences,
+  currentBlockingGates:delta.summary.currentBlockingGates,
+  operatorConfirmedFixes:0
+ };
  const body=JSON.stringify(bundle,null,2)+'\n',brief=JSON.stringify(summary,null,2)+'\n';
  if(body.length>40000000)throw Error('First-site review bundle is too large; inspect inputs rather than publishing a truncated report');
  fs.mkdirSync(report);
@@ -149,6 +162,10 @@ async function main(argv){
  fs.writeFileSync(path.join(report,'handoff.md'),bundle.markdownHandoff+'\n',{flag:'wx'});
  fs.writeFileSync(path.join(report,'summary.json'),brief,{flag:'wx'});
  fs.writeFileSync(path.join(report,'launch-worksheet.md'),worksheet.markdown+'\n',{flag:'wx'});
+ if(delta){
+  fs.writeFileSync(path.join(report,'delta.md'),delta.markdown+'\n',{flag:'wx'});
+  fs.writeFileSync(path.join(report,'delta.json'),JSON.stringify({...delta,markdown:undefined},null,2)+'\n',{flag:'wx'});
+ }
  return {evidence,report,summary};
 }
 if(require.main===module)
