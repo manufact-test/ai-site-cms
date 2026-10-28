@@ -32,12 +32,14 @@ const IMPACT=require('../lib/change-impact.cjs');
 function main(argv){
  const [command,...args]=argv;
  const flags={};
- const permitted=new Set(['brief','blueprint','site','manifests','snapshot','viewports','before','decisions','prior-decisions','delivery','media','origin','acceptance','approved-site','php-capture']);
+ const permitted=new Set(['brief','blueprint','site','manifests','snapshot','viewports','before','decisions','prior-decisions','delivery','media','origin','acceptance','approved-site','php-capture','php-html']);
  for(let i=0;i<args.length;i+=2){
   if(!args[i]?.startsWith('--')||!permitted.has(args[i].slice(2))||!args[i+1]||flags[args[i]])throw Error('Use supported --name value options, without duplicates');
   flags[args[i].slice(2)]=args[i+1];
  }
  if(flags['php-capture']&&!flags['approved-site'])throw Error('--php-capture requires --approved-site to bind screenshots to a sealed Site v2 source');
+ if(flags['php-html']&&(!flags['approved-site']||flags.snapshot))
+  throw Error('--php-html requires --approved-site and cannot be combined with --snapshot');
  if(flags['approved-site']&&(flags.site||!['review-bundle','review-bundle-md'].includes(command)))
   throw Error('--approved-site is exclusive to review-bundle[/-md] and cannot be combined with --site');
  let sealedSource=null;
@@ -153,6 +155,10 @@ function main(argv){
   const options={};
   if(sealedSource)options.approvedSource=sealedSource.source;
   if(flags['php-capture'])options.phpCapture=require('../lib/php-capture.cjs').read(flags['php-capture'],site,sealedSource.source);
+  if(flags['php-html']){
+   options.phpHtml=require('../lib/php-html-capture.cjs').read(flags['php-html'],site,sealedSource.source);
+   options.snapshot=options.phpHtml.snapshot;
+  }
   if(flags.snapshot)options.snapshot=read('snapshot');
   if(flags.viewports)options.viewports=read('viewports');
   if(flags.before)options.baselineSite=read('before');
