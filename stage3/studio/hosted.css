@@ -210,6 +210,14 @@
 #server-launch-reference-image{display:block;height:auto;max-width:none;margin:0;object-fit:contain}
 .hosted-launch-reference-viewport .hosted-launch-live-label{max-width:90%;overflow-wrap:anywhere}
 
+/* Compare an archived source raster directly above the same measured PHP
+   viewport. Overlay never receives pointer events or edits the actual site. */
+.hosted-launch-overlay-controls{display:flex;flex-wrap:wrap;align-items:center;gap:13px;padding:9px 12px;border:1px solid #55707e;border-radius:8px;background:#1b3441}
+.hosted-launch-overlay-controls[hidden],.hosted-launch-overlay-image[hidden]{display:none!important}
+.hosted-launch-overlay-controls label{font-size:12px;font-weight:700;color:#dcebf3}
+.hosted-launch-overlay-controls input{accent-color:#82d4ff;flex:1;min-width:125px;max-width:320px}
+.hosted-launch-overlay-image{position:absolute;inset:0 auto auto 0;height:auto;max-width:none;object-fit:fill;z-index:3;pointer-events:none;user-select:none}
+
 /* Site-private per-form routing editor. */
 .hosted-delivery-routes{display:grid;gap:8px;padding:12px;min-width:0;border:1px solid rgba(128,150,160,.35);border-radius:10px}
 .hosted-delivery-routes[hidden]{display:none!important}
