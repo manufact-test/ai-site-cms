@@ -287,3 +287,12 @@ Official `stage3/studio/hosted.js` v2 import replaces original image IDs/URLs wi
 The new `published-site-reconcile.cjs` requires exact source content equality after only the official Studio media `retarget()` and asset replacement. Media mapping binds MIME, ALT, declared dimensions and variant SHA/width, retains original sealed source raw digest and observed published Site fingerprint. Actual PHP original and responsive binary SHA-256 must match the *renamed* sealed ledger entry, with any mismatch a release blocker. Published form `_release` is checked against the supplied actual version. Ambiguous asset order, content changes or invalid media fail closed.
 
 For real CMS-imported sites, supply `--published-site`; for direct sealed PHP fixtures it stays optional. Screenshots via optional `--php-capture` remain supported. The export file is operator-supplied, not an independently authenticated PHP build receipt; actual client/host provenance, visual approval, HTTPS, submission delivery and full Node subprocess are not yet verified. Exact commands in `FIRST-SITE-RUNBOOK.md`.
+
+
+## First-site actual PHP business content, DesignGraph and operator worksheet
+
+Local PHP HTML capture now runs **source-bound** inspection of official business components (`content-switcher`, `pricing-plans`, `comparison-matrix`, `process-timeline`) and arbitrary typed DesignGraph sections (node semantics, content, CTA URLs, linked images, ALT, responsive art direction, tabs, quotes, tables, gallery, disclosure, popup). Static markup issues flow through existing remediation, review bundle and release gates as `php-component:*` / `php-graph:*` blockers. No extra CMS fields, a second SEO editor or automated web interaction.
+
+The first-site CLI now writes a fourth report file, `launch-worksheet.md`, next to `summary.json`, `bundle.json`, `handoff.md`. It gives verified actual findings and section/node locators for each page, separately lists availability of three matching approved prototype references and actual lead screenshot files, and deliberately leaves all human desktop/tablet/mobile approval, submission delivery, HTTPS and version-authentication checks **unsigned**. Generated worksheets do not expose raw HTML/HMAC values.
+
+The existing `tests/php-html-capture-smoke.cjs` now includes valid and deliberately broken business/graph HTML and worksheet scenarios. Isolated JS/V8 checks passed; full Node subprocess, actual PHP client publication, browser visual matching and form POST have not been claimed. See FIRST-SITE-RUNBOOK.md.

@@ -134,3 +134,24 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 Также при `--published-site` сверяем `_release` во всех формах с числовым `version`, чтобы не выдавать старую форму за опубликованную версию. Это owner-supplied snapshot и HTTP byte correlation, **не** самостоятельное криптографическое удостоверение PHP build/DB revision, не факт реального HTTPS или успешных форм.
 
 Первый прогон этого режима должен сделать ведущий в собственном интегрированном checkout с настоящими файлами клиента. Отдельный JavaScript smoke подтвердил remap, отклонение ALT/референсов и stale published release; полноценного Node subprocess и реального client PHP здесь не было.
+
+
+## Большой блок первого реального клиента: опубликованный контент и рабочий лист (28.10.2026)
+
+Поверх прежнего sealed v2 → owner-exported published Site v1 → настоящего localhost PHP capture добавлены **две** практические проверки фактически отданного HTML:
+
+- `lib/php-local-components.cjs`: `pricing-plans` (названия тарифов, цены, пункты, CTA текст/URL), `process-timeline` (шаги и содержание), `comparison-matrix` (строки, заголовки, семантические th/td) и `content-switcher` (доступные radio+label, наличие первой выбранной вкладки, связность панелей и CSS selector, тексты). Модуль обрабатывает вложенные section без ошибочного захвата первого закрывающего тега.
+- `lib/php-local-graph.cjs`: узлы **реального PHP DesignGraph** — заголовки/уровни, текст, кнопки и адреса, изображения и ALT, art-directed responsive image source, подписи видео/постеры, списки, таблицы/заголовки, галереи, цитаты и атрибуции, disclosure, нативные popover, tab/panel/ARIA/CSS и др. Проверяет фактический HTML против Site v1; не исполняет JS и не подтверждает функциональную работу браузера.
+
+Все ошибки `php-component:*` и `php-graph:*` идут в **существующий** remediation + release blocker (`local-php-component-parity` и `local-php-design-graph-parity`), освещены в `bundle.json` и сводке. Новую CMS или редактор SEO не добавляли.
+
+Команда `first-site-check.cjs` теперь выдаёт **четыре** файла в папке `--report`, сохранив три прежних:
+
+- `summary.json` — счётчики и blocking gate IDs, включая реальные business components, DesignGraph nodes и operator worksheet.
+- `bundle.json` — полная existing SEO аналитика, фактические localPhpComponents и localPhpGraph с точными section/node IDs и findings.
+- `handoff.md` — автоматизированный handoff задач ведущему.
+- `launch-worksheet.md` — краткий приватный отчёт по каждой странице: фактические ошибки PHP, технический статус, наличие **своего** источника approved design, наличие SHA-checked screenshot для desktop/tablet/mobile, список ручных проверок. Никакие manual галочки не выставляются автоматически. Исходные HTML и HMAC `_token` не включены.
+
+Команда и flags прежние (`--published-site` нужен для реального CMS media remap, `--php-capture` добавляет снимки по желанию); изменение опубликованного состояния CMS и отправка POST не выполняются.
+
+Целевой smoke: `node stage3/seo-engine/tests/php-html-capture-smoke.cjs` (в нём добавлены корректный HTML и намеренно испорченные CSS tabs, CTA, media ALT, связь panel, а также worksheet). Следом один раз `node stage3/seo-engine/tests/smoke.cjs`. В worker проверены JS parse и несколько локальных isolated JS scenarios, но полный Node subprocess и настоящий PHP/клиентский пакет всё ещё только у ведущего.

@@ -64,3 +64,12 @@ node stage3/seo-engine/bin/first-site-check.cjs \
 ## Импортированный сайт с новыми media ID
 
 Новый `--published-site /ABS/owner-published-site.json` загружает опубликованный Site v1 из приватного owner-authorized API ответа с `site` и `version`, после чего exact `retarget` сверяет его с sealed v2 и привязывает реальные HTTP байты медиа к исходным SHA-256. Это закрывает ложные 404 после официального импорта в CMS; подробности и инструкция в `FIRST-SITE-RUNBOOK.md`. Не менять PHP/SDK/Studio, не считать экспорт доказательством сервируемой ревизии. CLI без флага подходит только для прямой fixture без media remapping.
+
+
+## Текущий большой заход — для следующего чата
+
+После последнего SHA `502262de...` SEO worker расширен до **настоящего содержимого PHP** и личного рабочего листа первого сайта: `php-local-components.cjs`, `php-local-graph.cjs` и `first-site-worksheet.cjs` + общая интеграция в capture, remediation, release, package, dossier и CLI. Результат: при пропавшем тарифе, неверной CTA/цене, пропавшем шаге, сломанной radio вкладке, отличающемся DesignGraph тексте/ALT/cite/ссылке или неправильном CSS tab panel реальная выдача PHP порождает blocker. `first-site-check` создаёт `launch-worksheet.md` с отдельными desktop/tablet/mobile MANUAL CHECK UNCONFIRMED; не считать это визуальным PASS.
+
+**Режим пользователя:** большие заходы с ориентиром около 30 минут активной разработки; после первого готового блока переходить к следующему без согласований, не заканчивать после нескольких минут. Это ориентир объёма, а не гарантированный таймер. Не растягивать мелочи и не строить лишние тесты. Работать только в `stage3/seo-engine/**` ветки worker; лид интегрирует сам.
+
+Следующий реальный продуктовый шаг: ведущий получает настоящий sealed Approved Site v2 и его owner-exported `published-site` JSON; запускает действующий PHP, существующий loopback smoke и единую команду, исправляет реальные отклонения. В worker нельзя утверждать, что Chromium/PHP клиентского сайта, полный Node smoke, публичный HTTPS или form delivery прошли.
