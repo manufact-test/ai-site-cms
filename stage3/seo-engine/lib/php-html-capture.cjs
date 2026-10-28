@@ -10,6 +10,7 @@ const BRIDGE=require('./approved-site-bridge.cjs');
 const ACCEPTANCE=require('./acceptance.cjs');
 const LOCAL=require('./php-local-publication.cjs');
 const LOCAL_MEDIA=require('./php-local-media.cjs');
+const LOCAL_HEAD=require('./php-local-head.cjs');
 const CAPTURE_FORMAT='manufact-seo-loopback-php-html-v1';
 const SNAPSHOT_FORMAT='manufact-seo-html-snapshot-v1';
 const SHA=/^[a-f0-9]{64}$/;
@@ -65,7 +66,8 @@ function getHtml(url){
       chunks.push(chunk);
     });
     res.on('error',reject);res.on('end',()=>resolve({
-      bytes:Buffer.concat(chunks),contentType:ct,status:200
+      bytes:Buffer.concat(chunks),contentType:ct,status:200,
+      headers:LOCAL_HEAD.headersOf(res)
     }));
   });
   req.on('timeout',()=>req.destroy(Error('Loopback HTML GET timed out')));
@@ -143,7 +145,8 @@ function inspect(manifest,site,source,folder){
     record.status!==200||typeof record.contentType!=='string'||
     !/^text\/html(?:\s*;|$)/i.test(record.contentType)||
     !SHA.test(record.sha256)||!Number.isSafeInteger(record.bytes)||
-    record.bytes<25||record.bytes>MAX_PAGE||seen.has(file))
+    record.bytes<25||record.bytes>MAX_PAGE||seen.has(file)||
+    record.headers!==undefined&&!LOCAL_HEAD.assertHeaders(record.headers))
    fail('unexpected route/response/filename at page '+p.id);
   seen.add(file);
   const requested=path.resolve(root,file);
@@ -178,8 +181,10 @@ function inspect(manifest,site,source,folder){
    publication=Object.freeze({...publication,robotsTxt:auxBytes.get('robots.txt').toString('utf8')});
  }
  const checkedSnapshot=snapshot(site,source,entries,manifest.baseUrl,manifest.capturedAt,publication);
+ const localHead=LOCAL_HEAD.review(site,checkedSnapshot,manifest.pages,publication);
  const localMedia=manifest.media?
-  LOCAL_MEDIA.inspect(site,manifest.baseUrl,manifest.media,root,checkedSnapshot):null;
+  LOCAL_MEDIA.inspect(site,manifest.baseUrl,manifest.media,root,checkedSnapshot,
+   publication?.declaredPublicOrigin||null):null;
  const result=Object.freeze({
   format:CAPTURE_FORMAT,siteId:site.siteId,packageVersion:source.packageVersion,
   sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,
@@ -188,7 +193,7 @@ function inspect(manifest,site,source,folder){
   checkedAuxiliaryBytes:total-checkedPageHtmlBytes,sha256VerifiedAtRead:true,
   loopbackHttp200Count:entries.length,sourceRevisionAuthenticated:false,
   realPublicHttpsChecked:false,formsChecked:false,visualParityChecked:false,
-  publication,localMedia,
+  publication,localMedia,localHead,
   snapshot:checkedSnapshot,
   limitations:'Read-only local PHP HTTP 200 and byte-checked HTML. Cannot prove the served revision matches saved Site v1, operator identity, client approval, public HTTPS or successful forms.'
  });
@@ -224,7 +229,8 @@ async function capture(sealedFolder,rawOrigin,output){
   boundedHtml(response.bytes);
   total+=response.bytes.length;if(total>MAX_TOTAL)fail('total HTML budget exceeded');
   entries.push({record:{pageId:p.id,path:p.path,file:pageName(i),
-   url:url.href,status:200,contentType:response.contentType,bytes:response.bytes.length,
+   url:url.href,status:200,contentType:response.contentType,headers:response.headers,
+   bytes:response.bytes.length,
    sha256:sha(response.bytes)},bytes:response.bytes});
  }
  const publication={robots:null,sitemap:null,redirects:[]},additional=[];
@@ -260,6 +266,7 @@ async function capture(sealedFolder,rawOrigin,output){
   robotsStatus:imported.publication.robotsStatus,sitemapStatus:imported.publication.sitemapStatus,
   localRedirectsCaptured:imported.publication.redirectResponses,
   localSeoFindings:imported.publication.findings.length,
+  localHeadFindings:imported.localHead.findings.length,
   localMediaAssets:imported.localMedia.capturedResources,
   localMediaBytes:imported.localMedia.savedBodyBytes,
   localMediaFindings:imported.localMedia.findings.length,
