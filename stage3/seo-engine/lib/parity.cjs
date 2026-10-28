@@ -21,6 +21,7 @@ function readHead(html){
  const title=/<title(?:\s[^>]*)?>([\s\S]*?)<\/title\s*>/i.exec(head);
  const metas=[...head.matchAll(/<meta\b([^>]*?)\/?>/gi)].map(m=>attrs(m[1]));
  const links=[...head.matchAll(/<link\b([^>]*?)\/?>/gi)].map(m=>attrs(m[1]));
+ const base=/<base\b([^>]*?)\/?\s*>/i.exec(head);
  const meta=(key,value)=>metas.find(m=>String(m[key]||'').toLowerCase()===value)?.content??null;
  const lang=attrs(/<html\b([^>]*)>/i.exec(html)?.[1]||'').lang||null;
  const heading=/<h1(?:\s[^>]*)?>([\s\S]*?)<\/h1\s*>/i.exec(html);
@@ -28,7 +29,7 @@ function readHead(html){
   description:meta('name','description'),ogTitle:meta('property','og:title'),
   ogDescription:meta('property','og:description'),robots:meta('name','robots'),
   canonical:links.find(l=>(l.rel||'').toLowerCase().split(/\s+/).includes('canonical'))?.href??null,
-  baseHref:links.find(l=>(l.rel||'').toLowerCase().split(/\s+/).includes('base'))?.href??(/<base\b([^>]*?)\/?\s*>/i.exec(head)?attrs(/<base\b([^>]*?)\/?\s*>/i.exec(head)[1]).href:null),
+  baseHref:base?(attrs(base[1]).href||null):null,
   h1:heading?clean(heading[1]):null,language:lang};
 }
 function compare(site,blueprint,snapshot){

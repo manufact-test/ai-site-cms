@@ -333,7 +333,7 @@ try{
  assert.ok(relativeDeviceResult.pages[0].captures.mobile.links.includes('/contact/'));
  assert.ok(!relativeDeviceResult.findings.some(x=>x.code==='viewport:planned-cta-route-absent'&&x.pageId==='page-home'));
  const baseSnapshot=structuredClone(relative);
- baseSnapshot.pages[1].html=baseSnapshot.pages[1].html.replace('href="more/"','<base href="/"><a href="help/more/"').replace('<a href="help/more/">','<a href="help/more/">');
+ baseSnapshot.pages[1].html=baseSnapshot.pages[1].html.replace('<head>','<head><base href="/">').replace('href="more/"','href="help/more/"');
  assert.ok(!snapshotAudit(baseSnapshot).issues.some(x=>x.code==='html:broken-link'));
  assert.ok(!reviewHtml(baseSnapshot).findings.some(x=>x.code==='evidence:link-target-outside-snapshot'));
  assert.ok(!reviewHtml(trickyHtml).findings.some(x=>x.href==='/ghost/'));
