@@ -1670,6 +1670,29 @@
         const addChild=workButton('+ Вложенный текст',()=>insertNode('text','inside'));
         addChild.id='cms-work-graph-add-child';
         addChild.disabled=!canWrite()||!['container','disclosure','tab'].includes(current.type);
+        if(current.type==='list'){
+          const addListItem=workButton('+ Пункт списка',()=>{
+            const node={id:uniqueId('dg-node'),type:'list-item',text:'Новый пункт',styles:{}};
+            editGraphTreeWork({action:'insert',targetId:current.id,placement:'inside',node},node.id);
+          });
+          addListItem.id='cms-work-graph-add-list-item';
+          addListItem.disabled=!canWrite()||current.children.length>=24;
+          const toggleList=workButton(current.ordered?'Маркированный список':'Нумерованный список',()=>{
+            editGraphWork(node=>{node.ordered=!node.ordered;});
+          });
+          toggleList.id='cms-work-graph-list-ordered';toggleList.disabled=!canWrite();
+          graphActions.append(addListItem,toggleList);
+        }
+        if(current.type==='tabs'){
+          const addTab=workButton('+ Вкладка',()=>{
+            const i=current.children.length+1;
+            const node={id:uniqueId('dg-node'),type:'tab',text:'Вкладка '+i,styles:{},
+              children:[{id:uniqueId('dg-node'),type:'text',text:'Содержимое вкладки '+i,styles:{}}]};
+            editGraphTreeWork({action:'insert',targetId:current.id,placement:'inside',node},node.id);
+          });
+          addTab.id='cms-work-graph-add-tab';addTab.disabled=!canWrite()||current.children.length>=8;
+          graphActions.append(addTab);
+        }
         const findSiblings=(nodes,id)=>{
           for(const node of nodes){
             if(node.id===id)return nodes;
