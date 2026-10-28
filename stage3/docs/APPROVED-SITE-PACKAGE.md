@@ -351,3 +351,29 @@ validation. Without JavaScript the full form is visible and submits normally.
 The immutable release snapshot, server-side validation/anti-spam, recipient
 routing and explicit Save/Publish flow are unchanged. This does not imply a real
 approved client handoff has been received or visually accepted.
+
+## Decorative background MP4 on individually designed containers
+
+A typed Design Graph `container` may include this `backgroundVideo` object:
+```json
+{
+  "assetId": "asset-local-background-video",
+  "posterAssetId": "asset-local-background-cover",
+  "tabletPosterAssetId": "asset-local-tablet-cover",
+  "mobilePosterAssetId": "asset-local-mobile-cover",
+  "positionX": 50,
+  "positionY": 50,
+  "overlay": {"color": "#000000", "opacity": 40}
+}
+```
+Use it on a container node, not a new node. The MP4 and all poster IDs must
+already exist in site.assets with matching MIME. Desktop raster poster is
+mandatory; optional tablet/mobile posters inherit when unspecified. Do not set
+backgroundMedia or gradient on this node. Background video is decorative:
+muted, looping, autoplay, no controls, no external provider. On phones and
+with reduced motion settings the visible fallback is the raster poster.
+CSS-only hiding cannot guarantee the browser won't request the video bytes;
+do not claim this feature fully prevents background video downloads.
+The existing sealed handoff and media size restrictions apply. Check text
+contrast, video motion and all three poster crops against the actual client's
+approved references; the CI does not prove visual fidelity.
