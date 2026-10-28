@@ -30,6 +30,66 @@
   // Owner-controlled maintenance is independent from editor Save / Publish.
   const operationsButton=action('Доступность сайта','server-operations-open',()=>safe(openOperations));
   row.append(operationsButton);
+  // Owner's explicit two-stage check: local storage/render health + actual
+  // same-origin public response. Never report an external deployment as tested.
+  const connectionButton=action('Проверить подключение','server-connection-open',()=>safe(openConnection));
+  row.append(connectionButton);
+  const connectionDialog=element('dialog','hosted-backup-dialog');
+  connectionDialog.id='server-connection-dialog';
+  const connectionSummary=element('div','hosted-backup-summary');
+  connectionSummary.id='server-connection-result';
+  const connectionRetry=action('Проверить повторно','server-connection-retry',()=>safe(checkConnection));
+  const connectionClose=action('Закрыть','server-connection-close',()=>connectionDialog.close());
+  connectionDialog.append(element('h2',null,'Проверка подключения CMS'),
+    element('p',null,'Проверяет локальную БД, актуальную публикацию и публичный endpoint на том же origin. Не обращается к DNS, внешнему хостингу, домену клиента или другим серверам.'),
+    connectionSummary,connectionRetry,connectionClose);
+  document.body.append(connectionDialog);
+  async function checkConnection(){
+    if(!state.siteId||!isOwner())throw Error('Проверка подключения доступна владельцу');
+    const siteId=state.siteId;
+    connectionSummary.replaceChildren(element('p',null,'Проверка локального выпуска…'));
+    const result=await api('/api/sites/'+encodeURIComponent(siteId)+'/connection-check');
+    if(!connectionDialog.open||state.siteId!==siteId)return;
+    const row=(title,value)=>element('p',null,title+': '+value);
+    const details=[
+      row('Сайт в базе',result.siteId),
+      row('Редакция черновика','#'+result.draftRevision),
+      row('Опубликованная версия',result.publishedVersion?'v'+result.publishedVersion:'отсутствует'),
+      row('Проверка PHP и медиа',result.localReady?'успешно':'нет публикации'),
+      row('Публичный origin',result.publicOriginConfigured?'указан':'не указан')
+    ];
+    if(result.localReady&&result.publicProbeUrl?.startsWith('/published/'+siteId+'/')){
+      try{
+        const response=await fetch(result.publicProbeUrl,{method:'GET',cache:'no-store',
+          credentials:'same-origin',redirect:'error',
+          headers:{Accept:'application/json'}});
+        const responseType=response.headers.get('content-type')||'';
+        const probe=response.ok&&responseType.includes('application/json')?
+          await response.json():null;
+        const matching=probe?.format===result.format&&probe.siteId===siteId&&
+          probe.publishedVersion===result.publishedVersion;
+        details.push(row('Публичный HTTP',response.status+
+          (matching?' · сайт подключён, версия совпадает':' · не соответствует ожидаемой версии')));
+        if(matching){
+          const success=element('strong',null,'Подключение текущей PHP-публикации подтверждено');
+          details.unshift(success);
+        }else details.unshift(element('strong',null,'Публичное подключение не подтверждено'));
+      }catch(error){
+        details.unshift(element('strong',null,'Публичный endpoint недоступен'));
+        details.push(row('Причина',String(error.message).slice(0,140)));
+      }
+    }else details.unshift(element('strong',null,'Для проверки требуется первая публикация'));
+    details.push(element('small',null,
+      'Проверяется только текущий PHP origin. Экспортированный ZIP, Next.js и внешний домен требуют отдельной проверки на своей площадке.'));
+    if(connectionDialog.open&&state.siteId===siteId)connectionSummary.replaceChildren(...details);
+  }
+  async function openConnection(){
+    if(!state.siteId||!isOwner())throw Error('Откройте сайт в роли владельца');
+    connectionDialog.showModal();
+    try{await checkConnection();}catch(error){
+      connectionSummary.replaceChildren(element('strong',null,'Не удалось проверить: '+error.message));
+    }
+  }
   const operationsDialog=element('dialog','hosted-backup-dialog');
   operationsDialog.id='server-operations-dialog';
   const operationsStatus=element('div','hosted-backup-summary');
@@ -1847,6 +1907,7 @@
       button.disabled=!available||!canEdit();
     launchReviewButton.disabled=!available;
     operationsButton.hidden=!isOwner();operationsButton.disabled=!available||!isOwner();
+    connectionButton.hidden=!isOwner();connectionButton.disabled=!available||!isOwner();
     techOpen.disabled=!available||!state.authorized;
     const approvedImport=document.getElementById('server-approved-import');
     if(approvedImport)approvedImport.disabled=state.busy||!state.authorized||!isOwner();
@@ -3242,7 +3303,7 @@
   async function logout(){
     if(isDirty()&&!confirm('Выйти без сохранения текущих правок?'))return;
     await api('/api/logout','POST',{});
-    clearArchive();backupDialog.close();operationsDialog.close();releaseList.replaceChildren();
+    clearArchive();backupDialog.close();operationsDialog.close();connectionDialog.close();releaseList.replaceChildren();
     state.authorized=false;state.principal=null;state.csrf=null;state.siteId=null;state.revision=null;
     state.revisions=[];state.sites=[];picker.replaceChildren();
     mediaList.replaceChildren();templatesList.replaceChildren();deliveryReport.replaceChildren();deliveryRecent.replaceChildren();currentDelivery=null;
