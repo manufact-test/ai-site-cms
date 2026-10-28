@@ -141,6 +141,8 @@ function build(site,manifests,blueprint,options={}){
   localPhpMediaSealedShaCompared:options.phpHtml?.localMedia?.sealedMediaBytesCompared??null,
   localPhpMediaFindings:options.phpHtml?.localMedia?.findings.length??null,
   localPhpHeadFindings:options.phpHtml?.localHead?.findings.length??null,
+  localPhpTypedComponentsChecked:options.phpHtml?.localComponents?.checkedTypedSections??null,
+  localPhpComponentFindings:options.phpHtml?.localComponents?.findings.length??null,
   localPhpHeadHeaders:options.phpHtml?.localHead?.pagesWithRecordedHeaders??null,
    localPhpFormCount:options.phpHtml?.localForms?.observedForms??null,
    localPhpFormFindings:options.phpHtml?.localForms?.findings.length??null,
@@ -171,6 +173,13 @@ function build(site,manifests,blueprint,options={}){
     findings:options.phpHtml.localHead.findings,
     publicHttpsProven:false,releaseAuthorized:false
   }:null,
+  localPhpComponents:options.phpHtml?.localComponents?{
+    format:options.phpHtml.localComponents.format,
+    checkedTypedSections:options.phpHtml.localComponents.checkedTypedSections,
+    pages:options.phpHtml.localComponents.pages,
+    findings:options.phpHtml.localComponents.findings,
+    runtimeInteractionsTested:false,releaseAuthorized:false
+   }:null,
   localPhpForms:options.phpHtml?.localForms?{
     format:options.phpHtml.localForms.format,
     expectedForms:options.phpHtml.localForms.expectedForms,
@@ -246,7 +255,8 @@ function build(site,manifests,blueprint,options={}){
         '; media binary bytes: '+(options.phpHtml.localMedia?.savedBodyBytes??'none')+'.\n'+
       '- SEO head, H1, links and indexation checked by existing HTML/parity modules against the captured bytes.\n'+
       '- Loopback PHP HTTP header/canonical/og:url checks: '+(options.phpHtml.localHead?.findings.length??'not supplied')+' findings; public origin observed in local sitemap: '+(options.phpHtml.localHead?.publicOriginObservedInSitemap??'none')+'.\n'+
-      '- Form markup check: '+(options.phpHtml.localForms?.observedForms??0)+' forms, '+(options.phpHtml.localForms?.findings.length??0)+' findings; no POST or delivery verified.\n'+
+      '- Real PHP business component check: '+(options.phpHtml.localComponents?.checkedTypedSections??0)+' sections, '+(options.phpHtml.localComponents?.findings.length??0)+' findings; no runtime interaction test.\n'+
+       '- Form markup check: '+(options.phpHtml.localForms?.observedForms??0)+' forms, '+(options.phpHtml.localForms?.findings.length??0)+' findings; no POST or delivery verified.\n'+
        '- Source digest recorded at capture, but source revision served by PHP NOT cryptographically attested. No public HTTPS, delivered forms, scripts, actual design equality or client approval verified.\n':'')+
     '\n\n---\n\n'+renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
     '\n\n---\n\n'+EXECUTION.markdown(execution)+'\n\n---\n\n'+CMS_PACKET.markdown(cmsChangePacket),
