@@ -87,6 +87,70 @@ function checkFile(root,relative,digest,limit){
  if(sha(bytes)!==digest)throw Error('Static export file SHA256 mismatch: '+relative);
  return bytes;
 }
+
+/* Audit static-root routes in the OFFICIAL exported HTML, not the PHP
+   /published mount. Remote sites and dynamic JavaScript URLs are not fetched. */
+function staticLinks(site,pages,assetLedger,aliasLedger){
+ const findings=[],summary=[],routeMap=new Map(site.pages.map(p=>[p.path,p]));
+ const assetPaths=new Set([...assetLedger.values()].map(a=>a.src));
+ for(const p of site.pages){
+  const record=pages.get(p.path),doc=inspect(record.html),ids=new Set(doc.ids);
+  let visited=0,errors=0;
+  const add=(code,message,extra={})=>{
+   if(errors>=60)return;
+   errors++;
+   findings.push(Object.freeze({code:'php-export:'+code,severity:'error',pageId:p.id,
+    path:p.path,message,evidence:'sha256-verified-official-static-html',automatic:false,...extra}));
+  };
+  const base=new URL(p.path,'https://static-export.invalid');
+  const targets=[...doc.anchors.map(a=>({href:a.attrs.href||'',kind:'link'})),
+   ...doc.images.map(a=>({href:a.src||'',kind:'image'})),
+   ...doc.sources.flatMap(a=>[
+    ...(a.src?[{href:a.src,kind:'source'}]:[]),
+    ...String(a.srcset||'').split(',').map(x=>({href:x.trim().split(/\s+/)[0],kind:'srcset'}))]),
+   ...doc.videos.flatMap(a=>[
+    ...(a.poster?[{href:a.poster,kind:'poster'}]:[]),
+    ...(a.src?[{href:a.src,kind:'video'}]:[])])];
+  for(const item of targets){
+   const href=item.href;
+   if(!href||href==='#'||/^(?:mailto:|tel:|sms:)/i.test(href))continue;
+   visited++;
+   if(/^(?:javascript|data|file|vbscript):/i.test(href)){
+    add('static-unsafe-url','Exported static document contains a non-navigation unsafe URL scheme.',
+      {href:String(href).slice(0,160)});continue;
+   }
+   let url;
+   try{url=new URL(href,base);}catch{
+    add('static-malformed-url','Static document references an invalid URL.',{href:String(href).slice(0,160)});continue;
+   }
+   if(url.origin!==base.origin)continue;
+   if(url.pathname.startsWith('/published/'+site.siteId+'/')){
+    add('static-php-mount-leak','Static export contains a PHP-specific /published/SITE-ID link.',
+      {href:String(href).slice(0,160)});continue;
+   }
+   const route=routeMap.get(url.pathname);
+   const redirect=aliasLedger.get(url.pathname);
+   const isAsset=assetPaths.has(url.pathname);
+   if(!route&&!redirect&&!isAsset){
+    add('static-broken-local-route','Exported link/media points to a missing published page, redirect or asset.',
+     {href:String(href).slice(0,160)});continue;
+   }
+   if(item.kind!=='link'||!url.hash)continue;
+   const target=route||(redirect&&routeMap.get(redirect));
+   if(!target)continue;
+   let fragment=url.hash.slice(1);
+   try{fragment=decodeURIComponent(fragment);}catch{
+    add('static-invalid-fragment','Static link includes an invalid URL fragment.',{href:String(href).slice(0,160)});continue;
+   }
+   if(fragment!=='top'&&!new Set(target.path===p.path?ids:inspect(pages.get(target.path).html).ids).has(fragment))
+    add('static-broken-fragment','Static link points at a missing target ID.',{href:String(href).slice(0,160),
+      fragment:String(fragment).slice(0,120),targetPageId:target.id});
+  }
+  summary.push(Object.freeze({pageId:p.id,path:p.path,staticReferencesChecked:visited,findings:errors}));
+ }
+ return {pages:Object.freeze(summary),findings:Object.freeze(findings)};
+}
+
 function read(root,site){
  const directory=fs.realpathSync(root),metaFile=path.join(directory,'release-manifest.json');
  if(fs.lstatSync(root).isSymbolicLink())throw Error('Symlinked static export folder');
@@ -183,10 +247,14 @@ function read(root,site){
    else if(!readFiles.has(rel))throw Error('Unexpected file in static export: '+rel);
   }
  };walk(directory);
+ const links=staticLinks(site,pages,assets,redirects);
+ integrityFindings.push(...links.findings);
  return Object.freeze({format:FORMAT,siteId:site.siteId,publishedVersion:data.publishedVersion,
   sourceRevision:data.sourceRevision??null,assets,pages,redirects,origin:data.publicOrigin??null,
   recordsVerified:readFiles.size-1,sha256VerifiedAtRead:true,
-  findings:Object.freeze(integrityFindings),searchFilesVerified:search.size});
+  findings:Object.freeze(integrityFindings),searchFilesVerified:search.size,
+  staticReferencesChecked:links.pages.reduce((n,p)=>n+p.staticReferencesChecked,0),
+  staticLinkPages:links.pages});
 }
 function compare(site,snapshot,media,release,version){
  if(!release||release.format!==FORMAT||!release.sha256VerifiedAtRead||
@@ -230,6 +298,8 @@ function compare(site,snapshot,media,release,version){
  return Object.freeze({format:FORMAT,siteId:site.siteId,publishedVersion:version,
   sourceRevisionClaim:release.sourceRevision,verifiedExportFiles:release.recordsVerified,
   exportedSearchFilesVerified:release.searchFilesVerified??0,
+  staticReferencesChecked:release.staticReferencesChecked??0,
+  staticLinkPages:release.staticLinkPages||[],
   checkedPages:pages.length,checkedAssets:assets.length,pages:Object.freeze(pages),
   assets:Object.freeze(assets),findings:Object.freeze(findings),
   contentAndMediaMatched:findings.length===0,servedPhpRevisionAuthenticated:false,
@@ -241,4 +311,4 @@ function review(root,site,snapshot,media,version){
   throw Error('Explicit owner-exported CMS published version required for static parity');
  return compare(site,snapshot,media,read(root,site),version);
 }
-module.exports=Object.freeze({FORMAT,read,compare,review,mainText,structure});
+module.exports=Object.freeze({FORMAT,read,compare,review,mainText,structure,staticLinks});

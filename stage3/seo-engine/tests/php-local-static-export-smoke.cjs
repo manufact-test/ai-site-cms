@@ -1,7 +1,7 @@
 'use strict';
 // Read-only comparison smoke, not a PHP/Chromium or public HTTPS test.
 const assert=require('node:assert/strict');
-const {compare,FORMAT}=require('../lib/php-local-static-export.cjs');
+const {compare,staticLinks,FORMAT}=require('../lib/php-local-static-export.cjs');
 const site={siteId:'a-site',pages:[{id:'home',path:'/'}]};
 const html=body=>'<html><head><title>Home</title><meta name="description" content="About us"></head><body><main><h1>Our service</h1><p>'+body+'</p></main></body></html>';
 const snap={siteId:'a-site',pages:[{id:'home',path:'/',html:html('Hello')}]};
@@ -38,4 +38,16 @@ assert.ok(compare(site,{...snap,pages:[{...snap.pages[0],html:brokenForm}]},medi
 const swap=compare(site,snap,{...media,resources:[{...media.resources[0],bodySha256:'b'.repeat(64)}]},release,4);
 assert.ok(swap.findings.some(f=>f.code==='php-export:media-byte-drift'));
 assert.throws(()=>compare(site,snap,media,release,5),/must describe one Site/);
+
+const linkPage=html('Hello').replace('</main>','<a href="/contact/#hours">Visit</a></main>');
+const linkedSite={...site,pages:[...site.pages,{id:'contact',path:'/contact/'}]};
+const linkedDocs=new Map([['/',{html:linkPage}],['/contact/',{html:html('Contact').replace('<main>','<main><section id="hours">')}]]);
+const linkGood=staticLinks(linkedSite,linkedDocs,new Map(),new Map());
+assert.equal(linkGood.findings.length,0);
+linkedDocs.set('/',{html:linkPage.replace('/contact/#hours','/not-found/')});
+const linkBad=staticLinks(linkedSite,linkedDocs,new Map(),new Map());
+assert.ok(linkBad.findings.some(f=>f.code==='php-export:static-broken-local-route'));
+linkedDocs.set('/',{html:linkPage.replace('/contact/#hours','/published/a-site/contact/')});
+assert.ok(staticLinks(linkedSite,linkedDocs,new Map(),new Map()).findings
+ .some(f=>f.code==='php-export:static-php-mount-leak'));
 console.log('Static export + localhost PHP parity focused smoke PASS');
