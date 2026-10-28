@@ -418,7 +418,7 @@ final class DesignGraph
     private static function assetUrl(array $asset,string $mount,?string $assetBasePath): string
     {
         return $assetBasePath===null
-            ? $mount.$asset['src']
+            ? rtrim($mount,'/').$asset['src']
             : rtrim($assetBasePath,'/').'/'.rawurlencode($asset['id']);
     }
 
