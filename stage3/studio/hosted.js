@@ -2708,7 +2708,27 @@
     // After an owner's explicit publication, verify the real PHP public
     // endpoint automatically. This is diagnostic only: never rewrite or
     // silently roll back a successful publication.
-    if(isOwner())await openConnection();
+    if(isOwner()){
+      try{
+        const report=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/connection-check');
+        let matching=false;
+        if(report.localReady&&report.publicProbeUrl?.startsWith('/published/'+state.siteId+'/')){
+          const response=await fetch(report.publicProbeUrl,{method:'GET',cache:'no-store',
+            credentials:'same-origin',redirect:'error',headers:{Accept:'application/json'}});
+          if(response.ok&&(response.headers.get('content-type')||'').includes('application/json')){
+            const probe=await response.json();
+            matching=probe.format===report.format&&probe.siteId===state.siteId&&
+              probe.publishedVersion===report.publishedVersion;
+          }
+        }
+        notice('Опубликована версия #'+result.version+'. Подключение текущего PHP-сайта: '+
+          (matching?'подтверждено':'нужна проверка; откройте «Проверить подключение».'),
+          !matching);
+      }catch(error){
+        notice('Версия #'+result.version+' опубликована. Автопроверка недоступна: '+
+          error.message.slice(0,100),true);
+      }
+    }
   }
   async function newSite(){
     return safe(async()=>{
