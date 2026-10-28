@@ -272,3 +272,25 @@ Operational usage:
 - On independent PHP: manually GET /_cms-connect.json. On Next Static/SSR: static public/_cms-connect.json ships with the bundle. Never assume correct external deployment until owner verifies matching URL and actual site behavior.
 
 The existing PHP/SQLite HTTP E2E includes targeted checks for private routing, immutable queued recipient, Studio asset revalidation, independent runtime canary, and offline engine package tamper rejection. Final matching CI must be checked separately after documentation commits. The first real client-approved v2 site is still absent. Owner accepted MUST: zero. No deploy, PR, merge, or changes to SEO branch.
+
+### Additional lightweight host profile
+
+The offline CMS package CLI now supports a second, deliberately separate
+profile: node stage3/bin/cms-release.cjs pack-php-host /ABS/REPO /ABS/NEW-PHP-HOST.
+
+Unlike a full developer/transfer bundle, the compact PHP profile contains
+PHP CMS server and migration entrypoints, component manifests, the *compiled*
+Studio editor and its exact needed media scripts. It excludes SDK sources,
+Next/ZIP export build tools, uncompiled Studio sources, demos and tests.
+It runs with a PHP host and does not require Node at visitor/admin runtime.
+Use the full source tree on a separate build machine for Node-based D2/D5
+Next/ZIP delivery workflows; this limited profile does NOT ship those CLI
+export tools. Both profiles carry the same fail-closed integrity inventory.
+Verifying either profile works with the full source CLI; comparing packages
+of different profiles is explicitly prohibited (not an upgrade path).
+
+The host profile does NOT install to a real server, create/upgrade the live
+DB or authorize remote operations; its actual suitability must be verified
+on a dedicated owner-approved target before any changeover. The normal
+runtime package is unchanged unless the operator explicitly uses
+pack-php-host.
