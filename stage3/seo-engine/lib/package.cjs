@@ -56,6 +56,11 @@ function build(site,manifests,blueprint,options={}){
     options.phpHtml.sourceSiteFingerprint!==ACCEPTANCE.fingerprint(site)||
     options.snapshot!==options.phpHtml.snapshot))
   throw Error('Local PHP HTML evidence must be the verified capture snapshot for this sealed Site v2 source');
+ if(options.phpHtml&&options.phpCapture&&
+    (options.phpHtml.baseUrl!==options.phpCapture.baseUrl||
+     options.phpHtml.pageCount!==options.phpCapture.pages.length||
+     options.phpHtml.packageVersion!==options.phpCapture.packageVersion))
+  throw Error('PHP screenshot and PHP HTML captures describe different local site instances or versions');
  // Validate with authoritative core first, not just the loosely typed SEO blueprint.
  const audit=auditSite(site,manifests,plan);
  const architecture=reviewArchitecture(plan);
