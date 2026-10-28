@@ -6,7 +6,7 @@ const {readHead}=require('./parity.cjs');
 const FORMAT='manufact-seo-traceability-v1';
 const devices=['desktop','tablet','mobile'];
 const normalize=x=>String(x??'').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();
-function report(site,blueprint,options={},audit=null,backlog=null){
+function report(site,blueprint,options={},audit=null,backlog=null,decisions=null){
  const b=checkBlueprint(blueprint);
  if(!site||!Array.isArray(site.pages)||site.siteId!==b.siteId)throw Error('Traceability siteId mismatch');
  if(!options||typeof options!=='object'||Array.isArray(options)||
@@ -20,6 +20,9 @@ function report(site,blueprint,options={},audit=null,backlog=null){
  const html=new Map((options.snapshot?.pages||[]).map(p=>[p.id,p]));
  const viewports=new Map((options.viewports?.pages||[]).map(p=>[p.id,p]));
  const content=new Map((audit?.contentReview?.pages||[]).map(p=>[p.pageId,p]));
+ const triage=new Map();
+ for(const key of ['approved','rejected','deferred'])for(const item of decisions?.[key]||[])
+  triage.set(item.taskId,key);
  const pages=b.pages.map(p=>{
   const live=current.get(p.id)||null,h=html.get(p.id),v=viewports.get(p.id);
   const htmlMatched=Boolean(live&&h&&live.path===h.path);
@@ -51,6 +54,7 @@ function report(site,blueprint,options={},audit=null,backlog=null){
   });
   const tasks=(backlog?.tasks||[]).filter(t=>t.pageId===p.id).map(t=>({
    taskId:t.taskId,priority:t.priority,phase:t.phase,owner:t.owner,sectionId:t.sectionId,
+   decision:triage.get(t.taskId)||'undecided',
    dependsOn:t.dependsOn||[]
   }));
   const status=!live?'page-not-implemented':live.path!==p.path?'route-mismatch':
@@ -73,6 +77,8 @@ function report(site,blueprint,options={},audit=null,backlog=null){
   matchedHtmlPages:pages.filter(p=>p.htmlEvidence.pathMatched).length,
   allThreeDeviceMarkupPages:pages.filter(p=>p.deviceEvidence.allThreeMarkupSupplied).length,
   pagesWithBacklogTasks:pages.filter(p=>p.tasks.length).length,
+  decisionsRecorded:decisions?(decisions.summary.approved+decisions.summary.rejected+decisions.summary.deferred):null,
+  staleDecisions:decisions?.summary.stale??null,
   verifiedLiveSites:0,completedVisualApprovals:0
  };
  return {format:FORMAT,version:1,siteId:site.siteId,readOnly:true,summary,pages,

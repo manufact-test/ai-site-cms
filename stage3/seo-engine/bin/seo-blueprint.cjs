@@ -59,7 +59,10 @@ function main(argv){
   const audit=auditSite(site,registry,blueprint);
   const evidence={...(flags.snapshot?{snapshot:read('snapshot')}:{}),
    ...(flags.viewports?{viewports:read('viewports')}:{})};
-  const trace=TRACE.report(site,blueprint,evidence,audit);
+  // Generate the same stable task IDs as the review bundle; this also validates
+  // optional HTML/device evidence before it enters the acceptance map.
+  const backlog=remediation(site,registry,blueprint,evidence);
+  const trace=TRACE.report(site,blueprint,evidence,audit,backlog);
   out=command==='traceability-md'?TRACE.markdown(trace):trace;
  }
  else if(command==='html-parity'){

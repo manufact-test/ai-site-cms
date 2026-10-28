@@ -343,6 +343,8 @@ try{
  assert.equal(traceable.format,'manufact-seo-traceability-v1');
  assert.equal(traceable.summary.implementedPages,2);
  assert.equal(traceable.summary.allThreeDeviceMarkupPages,2);
+ assert.ok(traceable.summary.pagesWithBacklogTasks>0);
+ assert.ok(traceable.pages.some(x=>x.taskIds.length>0));
  assert.ok(traceable.pages[0].sections.some(x=>x.cta&&x.cta.authoredRouteEvidence==='matching'));
  assert.ok(traceable.pages.every(x=>x.deviceEvidence.screenshotOrVisualVerified===false));
  const humanMap=good('traceability-md',{site,blueprint:bp,snapshot:htmlSite});
@@ -351,6 +353,9 @@ try{
   decisions:triageFile}));
  assert.equal(reviewedBundle.decisions.releaseAuthorized,false);
  assert.ok(reviewedBundle.traceability.pages[0].tasks.length>0);
+ assert.equal(reviewedBundle.traceability.summary.decisionsRecorded,1);
+ assert.ok(reviewedBundle.traceability.pages.flatMap(p=>p.tasks).some(x=>x.decision==='approved'));
+ assert.equal(reviewedBundle.release.readyToPublish,false);
  assert.ok(reviewedBundle.nextActions.every(x=>x.automatic===false));
  const unsupported=command('review-bundle',{site,blueprint:bp,unknown:'invalid'});
  assert.notEqual(unsupported.status,0);

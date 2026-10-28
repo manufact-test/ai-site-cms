@@ -35,10 +35,10 @@ function build(site,manifests,blueprint,options={}){
  const {decisions:ledger,...coreOptions}=options;
  const backlog=work(site,manifests,plan,coreOptions);
  const release=assess(site,manifests,plan,coreOptions,backlog);
+ const decisions=ledger?TRIAGE.reconcile(backlog,ledger):null;
  const traceability=TRACE.report(site,plan,{
   ...(options.snapshot?{snapshot:options.snapshot}:{}),
-  ...(options.viewports?{viewports:options.viewports}:{})},audit,backlog);
- const decisions=ledger?TRIAGE.reconcile(backlog,ledger):null;
+  ...(options.viewports?{viewports:options.viewports}:{})},audit,backlog,decisions);
  const expected=plan.pages.map(p=>p.id),fromSite=new Set(site.pages.map(p=>p.id));
  const exported=new Set((options.snapshot?.pages||[]).map(p=>p.id));
  const deviceIds=new Set((options.viewports?.pages||[]).map(p=>p.id));
