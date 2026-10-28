@@ -1344,6 +1344,16 @@ async function execute(){
   await page.locator('#server-approved-review').waitFor({timeout:20000});
   assert.equal(await page.locator('#server-approved-prototypes img').count(),3,
     'Operator must inspect desktop/tablet/mobile visual evidence before database writes');
+  assert.equal(await page.locator('#server-approved-prototypes iframe').count(),3,
+    'Three responsive real site previews are required next to approved prototypes');
+  const live=page.locator('iframe[data-preview-device="desktop"]');
+  await page.waitForFunction(()=>document.querySelector('iframe[data-preview-device="desktop"]')
+    ?.getAttribute('srcdoc')?.includes('Редактируется после подключения'));
+  assert.match(await live.getAttribute('srcdoc'),/Редактируется после подключения/);
+  assert.match(await live.getAttribute('srcdoc'),/data:image\/png;base64,/,
+    'Pre-import CMS renderer resolves packaged image bytes without HTTP requests');
+  const pageOptions=await page.locator('#server-approved-review-page option').count();
+  assert.ok(pageOptions>=1,'Owner can preview each page before accepting site');
   assert.equal(await page.locator('#server-approved-review').getByText(/Описание для клиента/).count(),1);
   assert.equal(await page.locator('#server-approved-review').getByText(/Спецификация реализации/).count(),1);
   const beforeCancel=(await (await page.request.get(origin+'/api/sites')).json()).sites.length;
