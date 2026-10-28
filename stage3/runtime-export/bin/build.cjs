@@ -56,6 +56,13 @@ function compile() {
       copyTree(path.join(templates,'app'),path.join(temp,'app'));
       const publicDir = path.join(temp,'public');
       fs.mkdirSync(publicDir);
+      // Identical public release identity on Next Static and SSR. No CMS
+      // credentials, private host paths, collector secrets or draft data.
+      put(temp,'public/_cms-connect.json',JSON.stringify({
+        format:'manufact-ai-site-connection-v1',siteId:manifest.siteId,
+        publishedVersion:manifest.publishedVersion,sourceRevision:manifest.sourceRevision,
+        releaseManifestSha256:sha256
+      },null,2)+'\n');
       for (const asset of manifest.assets) {
         const to = path.join(publicDir,asset.file);
         fs.mkdirSync(path.dirname(to),{recursive:true});
