@@ -159,17 +159,24 @@ final class DesignGraph
         self::check(isset($graph['nodes']) && is_array($graph['nodes']) && array_is_list($graph['nodes'])
             && count($graph['nodes'])>=1 && count($graph['nodes'])<=30,'number of root nodes');
         $count=0;
-        $visit=function (mixed $node,int $depth) use (&$visit,&$count,&$ids,$assets,$tokens): void {
+        $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
             self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
-                &&in_array($type,['container','heading','text','button','image','divider','icon','video'],true),
+                &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab'],true),
                 'invalid or duplicate node');
             $ids[$id]=true;
-            if (in_array($type,['container','divider'],true)) {
+            self::check(($type!=='tab'||$parentType==='tabs')&&($parentType!=='tabs'||$type==='tab'),'invalid tabs hierarchy');
+            if (in_array($type,['container','divider','tabs'],true)) {
                 foreach (['text','href','assetId','alt','level','posterAssetId','loop'] as $field)
                     self::check(!array_key_exists($field,$node),'invalid container/divider content');
+            } elseif (in_array($type,['disclosure','tab'],true)) {
+                self::check(is_string($node['text']??null)&&strlen($node['text'])<=160&&
+                    trim($node['text'])!==''&&preg_match('/[\x00-\x1f]/',$node['text'])!==1&&
+                    !isset($node['href'])&&!isset($node['assetId'])&&!isset($node['alt'])&&
+                    !isset($node['level'])&&!isset($node['icon'])&&!isset($node['posterAssetId'])&&
+                    !isset($node['loop']), 'invalid interactive label');
             } elseif ($type==='icon') {
                 self::check(is_string($node['icon']??null)
                     &&array_key_exists($node['icon'],self::ICON_PATHS)
@@ -224,11 +231,15 @@ final class DesignGraph
                 foreach ($node['states'] as $name=>$style)
                     self::style($style,$tokens,$id.'/'.$name,true);
             }
-            if ($type!=='container')self::check(!isset($node['children']),'non-container children');
+            if (!in_array($type,['container','disclosure','tabs','tab'],true))
+                self::check(!isset($node['children']),'non-container children');
             else {
-                self::check(isset($node['children'])&&is_array($node['children'])
-                    &&array_is_list($node['children'])&&count($node['children'])<=30,'invalid children');
-                foreach ($node['children'] as $child) $visit($child,$depth+1);
+                $childCount=is_array($node['children']??null)?count($node['children']):-1;
+                self::check(isset($node['children'])&&is_array($node['children'])&&
+                    array_is_list($node['children'])&&$childCount<=($type==='tabs'?8:30)&&
+                    ($type!=='tabs'||$childCount>=2)&&
+                    (!in_array($type,['disclosure','tab'],true)||$childCount>=1),'invalid interactive children');
+                foreach ($node['children'] as $child) $visit($child,$depth+1,$type);
             }
         };
         foreach ($graph['nodes'] as $node) $visit($node,0);
@@ -365,6 +376,20 @@ final class DesignGraph
                 case 'container':
                     $body='';foreach ($n['children'] as $child)$body.=$visit($child);
                     return '<div class="'.$cls.'">'.$body.'</div>';
+                case 'disclosure':
+                    $body='';foreach ($n['children'] as $child)$body.=$visit($child);
+                    return '<details class="'.$cls.' cmsdg-disclosure"><summary>'.self::h($n['text']).'</summary><div class="cmsdg-disclosure-body">'.$body.'</div></details>';
+                case 'tab':
+                    $body='';foreach ($n['children'] as $child)$body.=$visit($child);
+                    return '<div class="'.$cls.' cmsdg-tab-panel" id="cmsdg-panel-'.$n['id'].'">'.$body.'</div>';
+                case 'tabs':
+                    $controls='';$panels='';
+                    foreach($n['children'] as $i=>$tab){
+                        $controls.='<input type="radio" name="cmsdg-tabs-'.$n['id'].'" id="cmsdg-tab-'.$tab['id'].'" aria-controls="cmsdg-panel-'.$tab['id'].'"'.($i===0?' checked':'').'><label for="cmsdg-tab-'.$tab['id'].'">'.self::h($tab['text']).'</label>';
+                        $rules[]=$scope.' .cmsdg-tabs-'.$n['id'].':has(> .cmsdg-tabs-controls > #cmsdg-tab-'.$tab['id'].':checked) > .cmsdg-tabs-panels > #cmsdg-panel-'.$tab['id'].'{display:block}';
+                        $panels.=$visit($tab);
+                    }
+                    return '<div class="'.$cls.' cmsdg-tabs-'.$n['id'].'"><div class="cmsdg-tabs-controls" role="group" aria-label="Вкладки">'.$controls.'</div><div class="cmsdg-tabs-panels">'.$panels.'</div></div>';
                 case 'divider':return '<hr class="'.$cls.'">';
                 case 'icon':
                     $a=($n['alt']??'')!==''?
@@ -403,6 +428,14 @@ final class DesignGraph
             .$scope.'{min-width:0;max-width:none;padding:0;min-height:0}'.$scope.' *{box-sizing:border-box;min-width:0}'
             .$scope.' img,'.$scope.' video{max-width:100%;height:auto;object-position:var(--cmsdg-object-x,50%) var(--cmsdg-object-y,50%)}'
             .$scope.' svg{display:inline-block;vertical-align:middle;flex:none}'
+             .$scope.' .cmsdg-disclosure > summary{cursor:pointer;list-style-position:inside}'
+            .$scope.' .cmsdg-disclosure-body{padding:12px 0}'
+            .$scope.' .cmsdg-tabs-controls{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 12px}'
+            .$scope.' .cmsdg-tabs-controls input{position:absolute;width:1px;height:1px;opacity:0}'
+            .$scope.' .cmsdg-tabs-controls label{cursor:pointer;padding:10px 16px;border:1px solid currentColor;border-radius:8px}'
+            .$scope.' .cmsdg-tabs-controls input:checked + label{font-weight:700;background:#eef3fa}'
+            .$scope.' .cmsdg-tabs-controls input:focus-visible + label{outline:3px solid #1868d3;outline-offset:2px}'
+            .$scope.' .cmsdg-tab-panel{display:none}'
             .'@keyframes cmsdg-fade-in{from{opacity:0}to{opacity:1}}'
             .'@keyframes cmsdg-fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}'
             .'@keyframes cmsdg-slide-left{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}'
