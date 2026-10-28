@@ -1346,7 +1346,24 @@ async function execute(){
     'Operator must inspect desktop/tablet/mobile visual evidence before database writes');
   assert.equal(await page.locator('#server-approved-review').getByText(/Описание для клиента/).count(),1);
   assert.equal(await page.locator('#server-approved-review').getByText(/Спецификация реализации/).count(),1);
-  assert.equal((await page.request.get(origin+'/api/sites')).status(),200);
+  const beforeCancel=(await (await page.request.get(origin+'/api/sites')).json()).sites.length;
+  await page.locator('#server-approved-review-cancel').click();
+  assert.equal((await (await page.request.get(origin+'/api/sites')).json()).sites.length,beforeCancel,
+    'Cancelling visual approval must not create a database site');
+  // Re-select the same authentic folder after cancellation to confirm the
+  // operator can still complete import with precisely the same sealed bytes.
+  await page.evaluate(entries=>{
+    const selected=entries.map(entry=>{
+      const bytes=Uint8Array.from(atob(entry.base64),char=>char.charCodeAt(0));
+      const file=new File([bytes],entry.name);
+      Object.defineProperty(file,'webkitRelativePath',{value:entry.relative});
+      return file;
+    });
+    const input=document.querySelector('#server-approved-folder');
+    Object.defineProperty(input,'files',{configurable:true,value:selected});
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  },uploaded);
+  await page.locator('#server-approved-review-confirm').waitFor({timeout:20000});
   await page.locator('#server-approved-review-confirm').click();
   try{
     await page.locator('#toast').getByText(/Сайт подключён как черновик/).waitFor({timeout:20000});

@@ -2533,6 +2533,13 @@
             throw Error('Размеры не совпадают с манифестом: '+file.name);
         }finally{bitmap.close();}
       };
+      for(const kind of ['desktop','tablet','mobile']){
+        const filename=refs[kind],extension=filename.split('.').pop().toLowerCase();
+        const mime=extension==='png'?'image/png':extension==='webp'?'image/webp':
+          ['jpg','jpeg'].includes(extension)?'image/jpeg':null;
+        if(!mime)throw Error('Неизвестный формат утверждённого макета: '+filename);
+        await verifyImage(required(filename),mime);
+      }
       for(const entry of media){
         const declared=site.assets.find(asset=>asset.id===entry.id);
         await verifyImage(entry.original,declared.mime,declared.width,declared.height);
