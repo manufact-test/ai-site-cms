@@ -3,6 +3,7 @@
 // Does not run scripts, approve aesthetics or mutate published content.
 const FORMAT='manufact-seo-local-php-design-graph-v1';
 const {sectionById,text,decode,hrefFor}=require('./php-local-components.cjs');
+const STYLES=require('./php-local-graph-style.cjs');
 const norm=x=>String(x??'').replace(/\s+/g,' ').trim().normalize('NFKC');
 function attrs(s){
  const out={};
@@ -74,6 +75,8 @@ function review(site,snapshot){
     }
     const el=found[0],a=el.attrs,inside=contents(html,el.tag,el.end);
     const body=inside===null?'':inside;
+    for(const problem of STYLES.reviewNode({site,graph:spec,node:n,html,assets}))
+     add(page,section,n,problem.code,problem.message);
     const textValue=()=>text(body);
     const expectedHref=n.href?hrefFor(n.href,site.siteId):null;
     const mismatch=reason=>add(page,section,n,'node-content-drift',reason);
