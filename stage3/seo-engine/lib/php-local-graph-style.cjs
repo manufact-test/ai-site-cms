@@ -9,17 +9,18 @@ function reviewNode({site,graph,node,html,assets}){
   .map(m=>m[1]).join('');
  const has=s=>styles.includes(s);
  const issue=(code,message)=>problems.push({code,message});
- const ownsStyles=Object.keys(node.styles||{}).length>0;
+ const emitsStyle=object=>Object.entries(object||{}).some(([key,value])=>key!=='hidden'||value===true);
+ const ownsStyles=emitsStyle(node.styles);
  if(ownsStyles&&!has(selector+'{'))
   issue('base-style-missing','Approved DesignGraph base-style CSS selector was not published.');
  for(const [device,width] of [['tablet',900],['mobile',600]]){
   const cfg=node.responsive?.[device];
-  if(cfg&&Object.keys(cfg).length&&!has('@media(max-width:'+width+'px){'+selector+'{'))
+  if(emitsStyle(cfg)&&!has('@media(max-width:'+width+'px){'+selector+'{'))
    issue('responsive-style-missing','Approved DesignGraph '+device+' breakpoint CSS was not published.');
  }
  for(const [name,pseudo] of [['hover',':hover'],['focus',':focus-visible'],['active',':active']]){
   const state=node.states?.[name];
-  if(state&&Object.keys(state).length&&!has(selector+pseudo+'{'))
+  if(emitsStyle(state)&&!has(selector+pseudo+'{'))
    issue('interaction-style-missing','Approved '+name+' visual state CSS was not published.');
  }
  if(node.transition&&!has(selector+'{transition:'))
