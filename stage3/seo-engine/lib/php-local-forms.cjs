@@ -41,7 +41,7 @@ function review(site,snapshot,publishedVersion=null){
  for(const observed of snapshot.pages){
   const page=site.pages.find(p=>p.id===observed.id&&p.path===observed.path);
   if(!page)throw Error('PHP form page identity mismatch');
-  const expected=page.sections.filter(s=>['lead-form','lead-form-flex'].includes(s.component));
+  const expected=page.sections.filter(s=>!s.designGraph&&['lead-form','lead-form-flex'].includes(s.component));
   const actual=forms(observed.html);let checked=0;
   if(actual.length!==expected.length)add(page,null,'count-drift','Published form count differs from sealed Site v1.');
   for(const section of expected){

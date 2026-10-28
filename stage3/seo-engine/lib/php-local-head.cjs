@@ -91,7 +91,7 @@ function review(site,snapshot,records,publication){
   // Current lead PublicRenderer emits formStepsScript() only for multi-step forms,
   // and public Api.php allows its exact SHA-256 in CSP. Verify both bytes and
   // header against the response we actually fetched, without executing scripts.
-  const wizardCount=spec.sections.filter(x=>Array.isArray(x.formSteps)&&x.formSteps.length>=2).length;
+  const wizardCount=spec.sections.filter(x=>!x.designGraph&&Array.isArray(x.formSteps)&&x.formSteps.length>=2).length;
   const inlineScripts=[...page.html.matchAll(/<script\b([^>]*?)>([\s\S]*?)<\/script\s*>/gi)]
    .filter(x=>!/\bsrc\s*=/i.test(x[1]));
   if(wizardCount&&!inlineScripts.length)

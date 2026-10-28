@@ -84,7 +84,7 @@ function review(site,snapshot){
   const page=site.pages.find(x=>x.id===captured.id&&x.path===captured.path);
   if(!page)throw Error('Actual PHP component page identity differs');
   let checked=0;
-  for(const component of page.sections.filter(x=>TYPES.has(x.component))){
+  for(const component of page.sections.filter(x=>!x.designGraph&&TYPES.has(x.component))){
    checked++;
    const root=sectionById(captured.html,component.id);
    if(!root){add(page,component,'section-missing','The typed published component section is absent or duplicated.');continue;}
