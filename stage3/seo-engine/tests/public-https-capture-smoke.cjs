@@ -1,7 +1,7 @@
 'use strict';
 // Isolated HTTPS transport checks: no outbound requests, no GET, no POST.
 const assert=require('node:assert/strict');
-const {isPublicIp,origin,capture}=require('../lib/public-https-capture.cjs');
+const {isPublicIp,origin,capture,captureMedia}=require('../lib/public-https-capture.cjs');
 for(const ip of ['127.0.0.1','10.0.1.1','172.16.0.1','192.168.1.1','169.254.2.1',
  '100.64.0.2','198.51.100.1','203.0.113.9','::1','fc00::1'])
  assert.equal(isPublicIp(ip),false,ip);
@@ -33,5 +33,13 @@ const transport={
  assert.equal(result.evidence.redirects[0].status,301);
  assert.ok(called.every(x=>x.startsWith('https://example.org/published/pilot/')));
  assert.equal(result.servedRevisionAuthenticated,false);
+ const mediaSource={siteId:'pilot',assets:[{id:'asset-photo',src:'/assets/asset-photo.png'}]};
+ const head=await captureMedia(mediaSource,'https://example.org/published/pilot/',{
+  address:transport.address,requestHead:async()=>({status:405,contentType:'text/html'})
+ });
+ assert.equal(head.requests,1);
+ assert.equal(head.evidence.completeness,'partial');
+ assert.equal(head.evidence.resources.length,0);
+ assert.equal(head.unsupportedHeadAssetIds[0],'asset-photo');
  console.log('Public HTTPS pinned-host capture focused smoke PASS');
 })().catch(e=>{console.error(e);process.exitCode=1;});

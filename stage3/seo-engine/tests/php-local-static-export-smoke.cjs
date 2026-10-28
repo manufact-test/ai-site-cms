@@ -1,7 +1,7 @@
 'use strict';
 // Read-only comparison smoke, not a PHP/Chromium or public HTTPS test.
 const assert=require('node:assert/strict');
-const {compare,staticLinks,FORMAT}=require('../lib/php-local-static-export.cjs');
+const {compare,staticLinks,staticForms,FORMAT}=require('../lib/php-local-static-export.cjs');
 const site={siteId:'a-site',pages:[{id:'home',path:'/'}]};
 const html=body=>'<html><head><title>Home</title><meta name="description" content="About us"></head><body><main><h1>Our service</h1><p>'+body+'</p></main></body></html>';
 const snap={siteId:'a-site',pages:[{id:'home',path:'/',html:html('Hello')}]};
@@ -60,4 +60,22 @@ const wizard=(body,code)=>body.replace('</body>','<script>'+code+'</script></bod
 assert.ok(compare(site,{...snap,pages:[{...snap.pages[0],html:wizard(html('Hello'),'const wizard=2;')}]},media,
  {...release,pages:new Map([['/',{id:'home',path:'/',html:wizard(html('Hello'),'const wizard=1;')}]])},4)
  .findings.some(f=>f.field==='structure.scripts'));
+
+const fsite={...site,pages:[{...site.pages[0],sections:[{id:'sec-form',component:'lead-form'}]}]};
+const collector='https://collector.example';
+const formMarkup=token=>'<section id="sec-form"><h2>Contact</h2>'+
+ '<form method="post" accept-charset="utf-8" action="'+collector+'/forms/a-site/sec-form">'+
+ '<input type="hidden" name="_release" value="4">'+
+ '<input type="hidden" name="_token" value="'+token+'">'+
+ '<input type="text" name="website"><input name="email" required></form></section>';
+const fhtml=html('Hello').replace('</main>',formMarkup('a'.repeat(64))+'</main>');
+const forms=staticForms(fsite,new Map([['/',{html:fhtml}]]),collector,4);
+assert.equal(forms.checkedForms,1);
+assert.equal(forms.findings.length,0);
+const wrongCollector=staticForms(fsite,new Map([['/',{html:fhtml.replace(
+ collector+'/forms/a-site/sec-form','https://other.example/forms/a-site/sec-form')}]]),collector,4);
+assert.ok(wrongCollector.findings.some(x=>x.code==='php-export:static-form-action-drift'));
+const badHmac=staticForms(fsite,new Map([['/',{html:html('Hello').replace('</main>',formMarkup('bad')+'</main>')}]]),collector,4);
+assert.ok(badHmac.findings.some(x=>x.code==='php-export:static-form-token-marker'));
+assert.ok(!JSON.stringify(badHmac).includes('a'.repeat(64)));
 console.log('Static export + localhost PHP parity focused smoke PASS');
