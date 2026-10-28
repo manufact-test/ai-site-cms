@@ -231,7 +231,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       for(const [bp,st] of Object.entries(node.responsive))validateStyle(st,tokens,node.id+'/'+bp);
     }
     if(own(node,'states')){
-      keys(node.states,['hover','focus'],node.id+'/states');
+      keys(node.states,['hover','focus','active'],node.id+'/states');
       for(const [state,st] of Object.entries(node.states))validateStyle(st,tokens,node.id+'/'+state,'state');
     }
     if(!['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type)&&own(node,'children'))fail(node.id,'noncontainer children');
@@ -467,9 +467,9 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       const css=declarations(n.responsive?.[bp]||{},tokens);
       if(css)rules.push('@media(max-width:'+(bp==='tablet'?'900':'600')+'px){'+selector+'{'+css+'}}');
     }
-    for(const state of ['hover','focus']){
+    for(const state of ['hover','focus','active']){
       const css=declarations(n.states?.[state]||{},tokens);
-      if(css)rules.push(selector+(state==='focus'?':focus-visible':':hover')+'{'+css+'}');
+      if(css)rules.push(selector+(state==='focus'?':focus-visible':state==='active'?':active':':hover')+'{'+css+'}');
     }
     if(n.backgroundMedia){
       const m=n.backgroundMedia;
