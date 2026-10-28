@@ -108,7 +108,45 @@ const server=http.createServer((req,res)=>{
  }
  res.writeHead(404);res.end();
 });
+function formAndFirstSiteCliContracts(){
+ // Targeted offline check: no real POSTs, no mail or Telegram actions.
+ const FORM=require('../lib/php-local-forms.cjs');
+ const site={siteId:'pilot-form',pages:[{id:'page-form',path:'/',sections:[
+  {id:'sec-form',component:'lead-form'}]}]};
+ const doc=token=>'<html><body><section id="sec-form"><form method="post" accept-charset="utf-8" action="/forms/pilot-form/sec-form">'+
+  '<input type="hidden" name="_release" value="7"><input type="hidden" name="_token" value="'+token+'">'+
+  '<input type="text" name="website"><input name="name" type="text" required>'+
+  '<input name="email" type="email" required><textarea name="message" required></textarea>'+
+  '<input name="consent" type="checkbox" required><button type="submit">Go</button></form></section></body></html>';
+ const inspect=html=>FORM.review(site,{siteId:'pilot-form',pages:[{id:'page-form',path:'/',html}]});
+ const good=inspect(doc('a'.repeat(64)));
+ assert.equal(good.expectedForms,1);assert.equal(good.observedForms,1);
+ assert.equal(good.consistentRelease,7);
+ assert.equal(good.findings.filter(x=>x.severity==='error').length,0);
+ assert.ok(inspect(doc('invalid')).findings.some(x=>x.code==='php-form:token-marker'));
+ assert.ok(inspect(doc('a'.repeat(64)).replace('/forms/pilot-form/sec-form','/forms/other-site/sec-form'))
+  .findings.some(x=>x.code==='php-form:action-drift'));
+ assert.ok(!JSON.stringify(inspect(doc('invalid'))).includes('a'.repeat(64)),
+  'HMAC values must not appear in findings');
+ // This CLI remains a single command, with optional lead screenshot evidence.
+ const cliSource=fs.readFileSync(path.join(__dirname,'../bin/first-site-check.cjs'),'utf8')
+  .replace(/^#![^\n]*\n/,'');
+ const m={exports:{}};
+ vm.runInNewContext(cliSource,{
+  module:m,exports:m.exports,__dirname:path.join(__dirname,'../bin'),
+  require:n=>n.startsWith('../lib/')?{}:require(n)
+ },{filename:'first-site-check.cjs',timeout:2000});
+ const argv=['--approved-site','/tmp/sealed','--blueprint','/tmp/blueprint.json',
+  '--origin','http://127.0.0.1:8080/published/pilot-form/',
+  '--evidence','/tmp/new-evidence','--report','/tmp/new-report'];
+ assert.equal(m.exports.parse(argv)['php-capture'],undefined);
+ assert.equal(m.exports.parse([...argv,'--php-capture','/tmp/lead/evidence.json'])['php-capture'],
+  '/tmp/lead/evidence.json');
+ assert.throws(()=>m.exports.parse([...argv,'--unknown','value']),/Unknown/);
+}
+
 async function main(){
+ formAndFirstSiteCliContracts();
  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'seo-loopback-html-test-'));
  const sealed=path.join(tmp,'sealed');fs.mkdirSync(sealed);
  try{
