@@ -1341,6 +1341,13 @@ async function execute(){
     Object.defineProperty(input,'files',{configurable:true,value:selected});
     input.dispatchEvent(new Event('change',{bubbles:true}));
   },uploaded);
+  await page.locator('#server-approved-review').waitFor({timeout:20000});
+  assert.equal(await page.locator('#server-approved-prototypes img').count(),3,
+    'Operator must inspect desktop/tablet/mobile visual evidence before database writes');
+  assert.equal(await page.locator('#server-approved-review').getByText(/Описание для клиента/).count(),1);
+  assert.equal(await page.locator('#server-approved-review').getByText(/Спецификация реализации/).count(),1);
+  assert.equal((await page.request.get(origin+'/api/sites')).status(),200);
+  await page.locator('#server-approved-review-confirm').click();
   try{
     await page.locator('#toast').getByText(/Сайт подключён как черновик/).waitFor({timeout:20000});
   }catch(err){

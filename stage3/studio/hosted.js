@@ -2544,7 +2544,69 @@
           if(sha256!==variant.sha256)throw Error('Не совпадает SHA256 responsive-файла: '+variant.file.name);
         }
       }
-      if(!confirm('Подключить сайт «'+site.title+'» ('+handoff.version+')? Подтвердите, что три макета и их спецификация действительно утверждены. Публикация будет отдельно.'))return;
+      // A visual approval gate is distinct from checking a filename or status flag.
+      // Display the three actual files and source explanations, never untrusted HTML.
+      const approve=async()=>{
+        const dialog=document.createElement('dialog');
+        dialog.id='server-approved-review';
+        dialog.setAttribute('aria-labelledby','server-approved-review-heading');
+        Object.assign(dialog.style,{width:'min(1200px,95vw)',maxHeight:'90vh',
+          overflowY:'auto',padding:'24px',borderRadius:'18px',border:'1px solid #ddd'});
+        const heading=element('h2',null,'Проверка утверждённого сайта');
+        heading.id='server-approved-review-heading';
+        const summary=element('p',null,'Сайт: '+site.title+' · версия: '+handoff.version+
+          ' · страниц: '+site.pages.length+' · изображений: '+site.assets.length+
+          ' · целостность: '+(handoff.format.endsWith('-v2')?'SHA-256 подтверждена':'старый пакет v1'));
+        const description=element('p',null,
+          'Ниже показаны реальные макеты из пакета. Сравните их с согласованной версией. Подключение создаст только черновик, публикация выполняется отдельно.');
+        const previews=element('div','');
+        previews.id='server-approved-prototypes';
+        Object.assign(previews.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:'14px'});
+        const objectUrls=[];
+        const dimensions={desktop:'Десктоп',tablet:'Планшет',mobile:'Телефон'};
+        for(const [key,name] of Object.entries(dimensions)){
+          const card=element('div','');
+          card.style.minWidth='0';
+          const caption=element('h3',null,name);
+          const img=document.createElement('img');
+          img.alt='Утверждённый макет · '+name;
+          img.dataset.prototype=key;
+          img.src=URL.createObjectURL(required(refs[key]));
+          objectUrls.push(img.src);
+          Object.assign(img.style,{display:'block',width:'100%',maxHeight:'310px',
+            objectFit:'contain',borderRadius:'10px',border:'1px solid #ddd',background:'#f5f5f5'});
+          card.append(caption,img);previews.append(card);
+        }
+        const details=element('div','');
+        Object.assign(details.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:'16px'});
+        for(const [key,label] of [['clientExplanation','Описание для клиента'],
+          ['implementationSpec','Спецификация реализации']]){
+          const panel=element('section','');
+          panel.append(element('h3',null,label));
+          const content=element('pre','',await required(refs[key]).text());
+          Object.assign(content.style,{whiteSpace:'pre-wrap',overflowWrap:'anywhere',maxHeight:'190px',
+            overflowY:'auto',padding:'12px',background:'#f5f5f5',borderRadius:'10px'});
+          panel.append(content);details.append(panel);
+        }
+        const actions=element('div','');
+        Object.assign(actions.style,{display:'flex',justifyContent:'flex-end',flexWrap:'wrap',gap:'12px',marginTop:'18px'});
+        const cancel=action('Отмена','server-approved-review-cancel',()=>dialog.close('cancel'));
+        const confirmButton=action('Подключить как черновик','server-approved-review-confirm',()=>dialog.close('approve'));
+        actions.append(cancel,confirmButton);
+        dialog.append(heading,summary,description,previews,details,actions);
+        document.body.append(dialog);
+        try{
+          dialog.showModal();
+          const decision=await new Promise(resolve=>{
+            dialog.addEventListener('close',()=>resolve(dialog.returnValue==='approve'),{once:true});
+          });
+          return decision;
+        }finally{
+          for(const url of objectUrls)URL.revokeObjectURL(url);
+          dialog.remove();
+        }
+      };
+      if(!await approve())return;
       const fileBase64=file=>new Promise((resolve,reject)=>{
         const reader=new FileReader();
         reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');
