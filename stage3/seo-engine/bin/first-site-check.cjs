@@ -133,6 +133,16 @@ async function main(argv){
      preflight.sourceRevision!==published.sourceRevision)
    throw Error('Official static export version/sourceRevision differs from the owner CMS published release');
  }
+ // Fail before localhost capture when public media receipts belong to a different
+ // host or official release. A verification claim must never combine hosts.
+ const publicMediaBytes=o['public-media-digests']?
+  PUBLIC_BYTES.read(o['public-media-digests'],site,exportPreflight):null;
+ if(publicMediaBytes&&[publicHttp?.origin,publicMedia?.origin].filter(Boolean)
+   .some(origin=>new URL(origin).origin!==new URL(publicMediaBytes.origin).origin||
+     new URL(origin).pathname!==new URL(publicMediaBytes.origin).pathname))
+  throw Error('Public media SHA256 receipt and supplied HTTPS/HEAD evidence belong to different site origins or mounts');
+ const publicStatic=exportPreflight&&publicHttp?
+  PUBLIC_STATIC.review(site,exportPreflight,publicHttp,publicMedia):null;
  const blueprint=readBlueprint(o.blueprint),registry=manifests();
  if(blueprint.siteId!==site.siteId)throw Error('First-site approved source and Blueprint site IDs differ');
  // Fail early on incompatible source contracts, not after downloading images.
@@ -167,10 +177,6 @@ async function main(argv){
  if(checked.localStaticExport&&checked.localStaticExport.sourceRevisionClaim!==published.sourceRevision)
   throw Error('Official static export sourceRevision conflicts with owner CMS published sourceRevision');
  if(!PHP.isVerified(checked))throw Error('First-site PHP evidence was not source-bound verified');
- const publicMediaBytes=o['public-media-digests']?
-  PUBLIC_BYTES.read(o['public-media-digests'],fresh.site,exportPreflight):null;
- const publicStatic=exportPreflight&&publicHttp?
-  PUBLIC_STATIC.review(fresh.site,exportPreflight,publicHttp,publicMedia):null;
  let deliveryReadiness=null;
  if(o['delivery-status']){
   const stat=fs.lstatSync(o['delivery-status']);
