@@ -3,6 +3,12 @@
 **Branch:** `feature/site-seo-engine` · **Writable area:** `stage3/seo-engine/**` only.  
 Offline, Node 20+ CommonJS, no npm packages; does not edit CMS/site/files, deploy, crawl the web, invoke AI providers, or promise SEO outcomes. All outputs are **evidence-bearing recommendations**, not permission to publish.
 
+## Latest: one-command first-site PHP acceptance and HTTP head parity (28.10.2026)
+
+**New primary operator guide:** [FIRST-SITE-RUNBOOK.md](FIRST-SITE-RUNBOOK.md). Run `node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/sealed --blueprint /ABS/approved-blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report` from the lead-integrated checkout. This preflights sealed Site v2 and Blueprint, captures actual loopback HTML/robots/sitemap/301/original+responsive media bytes, builds the existing unified SEO package and saves `summary.json`, `bundle.json`, `handoff.md`. It never deploys, edits a CMS, or authenticates public HTTPS.
+
+New `lib/php-local-head.cjs` compares observed PHP page HTTP response headers including X-Robots-Tag/CSP against canonical, og:url, actual sitemap origin and Site v1 indexation. Local `STAGE3_PUBLIC_ORIGIN=http://localhost[:PORT]` or `http://127.0.0.1[:PORT]` is allowed only as an explicitly local PHP test. Non-loopback HTTP or sitemap origin conflicts cannot count as complete public evidence. A malformed URL set now loses its 'complete' sitemap claim. Actual local head findings enter existing remediation/release gates. **Full Node subprocess test and first real sealed client site run remain pending lead integration.**
+
 ## Working workflow: brief → blueprint → approved 3-picture prototype → real site → review package
 
 From the repository root:
