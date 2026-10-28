@@ -280,6 +280,23 @@ function actualPublishedComponentAndGraphContracts(){
   x.code==='php-graph:node-content-drift'&&x.graphNodeId==='g-photo'));
  assert.ok(GRAPH.review(mock,read(changed)).findings.some(x=>
   x.code==='php-graph:tabs-control'&&x.graphNodeId==='g-tab-two'));
+ const WORKSHEET=require('../lib/first-site-worksheet.cjs');
+ const worksheet=WORKSHEET.build({
+  site:mock,source:{siteId:mock.siteId,packageVersion:'sealed-v2',
+   fileSha256:'a'.repeat(64),pageReferences:[{pageId:'page-home',
+    devices:['desktop','tablet','mobile']}]},
+  phpHtml:{siteId:mock.siteId,baseUrl:'http://127.0.0.1:9900/published/pilot-typed/',
+   capturedAt:'2026-10-28T11:00:00Z',
+   localComponents:COMPONENTS.review(mock,read(changed)),
+   localGraph:GRAPH.review(mock,read(changed)),localForms:{pages:[],findings:[]},
+   localMedia:{findings:[]},localHead:{findings:[]},publication:{findings:[]}},
+  bundle:{siteId:mock.siteId,release:{decision:'review-required',
+   blockers:[{gateId:'local-php-design-graph-parity',title:'Fix graph',taskIds:['one']}]}}
+ });
+ assert.ok(worksheet.statistics.actualBlockingFindings>=3);
+ assert.ok(worksheet.markdown.includes('MANUAL CHECK UNCONFIRMED'));
+ assert.ok(worksheet.markdown.includes('local-php-design-graph-parity'));
+ assert.equal(worksheet.releaseAuthorized,false);
 }
 
 async function main(){
