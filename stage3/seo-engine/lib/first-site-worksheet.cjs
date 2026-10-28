@@ -12,7 +12,9 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   throw Error('Operator worksheet requires one matching site and verified PHP report');
  const fields=['localHead','localForms','localMedia','localComponents','localGraph','localNavigation','localTheme','localSemantics','localFootprint','localStaticExport','publication'];
  const all=fields.flatMap(key=>(phpHtml[key]?.findings||[]).map(x=>({...x,group:key})));
+ const ownerDelivery=bundle.deliveryReadiness||null;
  if(phpCapture)for(const x of phpCapture.findings||[])all.push({...x,group:'lead-php-screenshots'});
+ if(ownerDelivery)for(const x of ownerDelivery.findings||[])all.push({...x,group:'owner-form-delivery'});
  const stats={pages:site.pages.length,actualFindings:all.length,
   actualBlockingFindings:all.filter(x=>x.severity==='error').length,
   screenshotPages:phpCapture?.pages.length??0,
@@ -49,6 +51,7 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   const screenshots=phpCapture?.pages.find(x=>x.pageId===page.id);
   const reference=source.pageReferences?.find(x=>x.pageId===page.id);
   const forms=phpHtml.localForms?.pages.find(x=>x.pageId===page.id);
+  const routes=ownerDelivery?.forms.filter(f=>f.pageId===page.id)||[];
   const typed=phpHtml.localComponents?.pages.find(x=>x.pageId===page.id);
   const graph=phpHtml.localGraph?.pages.find(x=>x.pageId===page.id);
   const navigation=phpHtml.localNavigation?.pages.find(x=>x.pageId===page.id);
@@ -61,6 +64,9 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   lines.push('### '+clean(page.path,150)+' ('+clean(page.id,100)+')','',
    '- **PHP STATUS: '+status(issues)+'**; error count: '+
     issues.filter(x=>x.severity==='error').length+'; total findings: '+issues.length+'.',
+   '- Owner delivery configuration: '+(ownerDelivery?routes.length+' published forms, '+
+    routes.filter(r=>r.configuredChannels>0).length+' with configured channel; NO POST/delivery proven.':
+    'NOT SUPPLIED — actual notification delivery remains unverified.') ,
    '- PHP HTML: forms '+(forms?.checkedFormSections??0)+
     '; typed sections '+(typed?.checkedTypedSections??0)+
     '; DesignGraph nodes '+(graph?.inspectedGraphNodes??0)+
