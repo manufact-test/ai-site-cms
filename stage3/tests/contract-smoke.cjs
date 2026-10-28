@@ -1196,6 +1196,13 @@ test('read-only approved folder preflight accepts a custom external design and r
     assert.equal(preflight(folder).integrity,'sha256-verified');
     refuses(()=>seal(folder,'rev-2',{confirmedApproved:true}),'No silent overwrite of a sealed design');
     assert.equal(seal(folder,'rev-2',{confirmedApproved:true,replace:true}).version,'rev-2');
+    const audit=require('../bin/audit-approved-site.cjs').run(folder);
+    assert.equal(audit.summary.integrity,'sha256-verified');
+    assert.match(audit.report,/Desktop \(1280px\)/);
+    assert.match(audit.report,/Tablet \(768px\)/);
+    assert.match(audit.report,/Mobile \(390px\)/);
+    assert.match(audit.report,/Site ID: site-/);
+    assert.match(audit.report,/Saved draft/);
   }finally{fs.rmSync(folder,{recursive:true,force:true});}
 });
 
