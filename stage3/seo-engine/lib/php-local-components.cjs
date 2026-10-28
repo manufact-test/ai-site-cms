@@ -93,6 +93,21 @@ function review(site,snapshot){
    const assetById=id=>(site.assets||[]).find(x=>x.id===id);
    const mountedImage=id=>{const a=assetById(id);return a?'/published/'+site.siteId+a.src:null;};
    const expectedLink=slot=>({text:norm(value(slot)),href:hrefFor(value(slot,'behavior.href')||'/',site.siteId)});
+   // First-party PHP uses a section H2 in all these components except the
+   // comparison table, whose equivalent heading is a real table caption.
+   const primaryHeading=component.component==='comparison-matrix'
+    ?elements(root,'caption')[0]:elements(root,'h2')[0];
+   if(!primaryHeading||primaryHeading.text!==norm(value('heading')))
+    add(page,component,'section-heading','Published component H2 or table caption differs from Site v1.');
+   if(['pricing-plans','content-switcher','process-timeline','cta-banner','media-story','image-showcase'].includes(component.component)){
+    const extraSlot=({ 'pricing-plans':'intro','content-switcher':'summary',
+     'process-timeline':'description','cta-banner':'summary','media-story':'copy',
+     'image-showcase':'caption'})[component.component];
+    const expected=norm(value(extraSlot));
+    const paragraphs=elements(root,'p');
+    if(paragraphs[0]?.text!==expected)
+     add(page,component,'section-intro','Published section intro/caption differs from Site v1.');
+   }
    if(component.component==='faq-accordion'){
     const faq=elements(root,'details');
     if(faq.length!==items.length){
@@ -191,13 +206,21 @@ function review(site,snapshot){
      add(page,component,'pricing-count','Published pricing card count differs from approved items.');
      continue;
     }
+    const footnotes=elements(root,'p').filter(x=>classHas(x.attributes,'cms-pricing-footnote'));
+    if(footnotes.length!==1||footnotes[0].text!==norm(value('footnote')))
+     add(page,component,'pricing-footnote','Published pricing terms or caveats differ from Site v1.');
     items.forEach((item,i)=>{
      const markup=cards[i].html,values=item.values||{};
-     const h=elements(markup,'h3'),price=elements(markup,'p').filter(x=>classHas(x.attributes,'cms-pricing-price'));
+     const h=elements(markup,'h3'),paragraphs=elements(markup,'p');
+     const price=paragraphs.filter(x=>classHas(x.attributes,'cms-pricing-price'));
+     const period=paragraphs.filter(x=>classHas(x.attributes,'cms-pricing-period'));
      const ctas=links(markup),list=elements(markup,'li');
      const expectedFeatures=String(values['content.features']||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
      if(h.length!==1||h[0].text!==norm(values['content.title'])||
         price.length!==1||price[0].text!==norm(values['content.price'])||
+        period.length!==1||period[0].text!==norm(values['content.period'])||
+        !paragraphs.some(x=>x.text===norm(values['content.description']))||
+        classHas(cards[i].attributes,'is-featured')!==(values['behavior.featured']===true)||
         list.length!==expectedFeatures.length||list.some((x,j)=>x.text!==norm(expectedFeatures[j]))||
         ctas.length!==1||ctas[0].text!==norm(values['content.button'])||
         ctas[0].href!==hrefFor(values['behavior.href'],site.siteId))
@@ -222,6 +245,14 @@ function review(site,snapshot){
        rows.some(r=>elements(r.html,'td').length!==2||elements(r.html,'th').length!==1)){
      add(page,component,'table-structure','Published comparison table lost headers, columns or rows.');continue;
     }
+    const heading=elements(head[0].html,'th');
+    if(heading[1]?.text!==norm(value('first'))||
+       heading[2]?.text!==norm(value('second'))||
+       heading.some(x=>x.attributes.scope!=='col'))
+     add(page,component,'table-headers','Published comparison headings/column scope differ from Site v1.');
+    const notes=elements(root,'p').filter(x=>classHas(x.attributes,'cms-compare-note'));
+    if(notes.length!==1||notes[0].text!==norm(value('caption')))
+     add(page,component,'table-note','Published comparison note differs from Site v1.');
     items.forEach((item,i)=>{
      const v=item.values||{},th=elements(rows[i].html,'th'),td=elements(rows[i].html,'td');
      if(th[0].attributes.scope!=='row'||th[0].text!==norm(v['content.metric'])||
