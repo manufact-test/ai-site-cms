@@ -33,6 +33,8 @@ node stage3/seo-engine/bin/seo-blueprint.cjs remediation-md \
 node stage3/seo-engine/tests/smoke.cjs
 ```
 
+Review packages now contain `traceability`: a mapping from approved page/section IDs to implemented Site v1 fields, supplied HTML/device evidence and exact backlog task IDs. Optional `review-bundle --decisions <triage.json>` includes reconciled decisions and annotates suggested next actions; it **never** authorizes release or removes rejected decisions from the full backlog. Use `traceability-md` for the lead's human-readable acceptance map.
+
 The full `review-bundle` includes a canonical blueprint architecture review, core-validated Site v1 audit, precise CMS field proposals, HTML parity/deep evidence (if provided), three-device captured markup comparisons (if provided), optional before/after Site v1 regression, a prioritized remediation backlog, release gates, evidence coverage, and pre-escaped Markdown handoff. No second CMS editor.
 
 ## Other CLI commands
@@ -47,6 +49,7 @@ The full `review-bundle` includes a canonical blueprint architecture review, cor
 | `html-parity` | Compare supplied HTML metadata to Site v1 | `--site --blueprint --snapshot` |
 | `viewport-parity` | Compare desktop/tablet/mobile captured HTML | `--blueprint --viewports` |
 | `compare-site` | Before/after Site v1 regression | `--before --site --blueprint` |
+| `traceability`, `traceability-md` | Page/section coverage, authoring evidence and acceptance map | `--site --blueprint`, optional `--snapshot --viewports` |
 | `remediation-plan`, `remediation-md`, `release-review` | JSON work queue, Markdown work queue, publication checklist | `--site --blueprint`, optional `--snapshot --viewports --before` |
 | `triage` | Reconcile human decisions with current backlog, detect stale proposals | `--site --blueprint --decisions`, optional `--snapshot --viewports --before` |
 

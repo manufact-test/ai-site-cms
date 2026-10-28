@@ -337,6 +337,21 @@ try{
  assert.ok(!snapshotAudit(baseSnapshot).issues.some(x=>x.code==='html:broken-link'));
  assert.ok(!reviewHtml(baseSnapshot).findings.some(x=>x.code==='evidence:link-target-outside-snapshot'));
  assert.ok(!reviewHtml(trickyHtml).findings.some(x=>x.href==='/ghost/'));
+ // Per-page/section acceptance map and decision-aware integration envelope.
+ const traceable=JSON.parse(good('traceability',{site,blueprint:bp,snapshot:htmlSite,
+  viewports:fixture('industrial.viewports.json')}));
+ assert.equal(traceable.format,'manufact-seo-traceability-v1');
+ assert.equal(traceable.summary.implementedPages,2);
+ assert.equal(traceable.summary.allThreeDeviceMarkupPages,2);
+ assert.ok(traceable.pages[0].sections.some(x=>x.cta&&x.cta.authoredRouteEvidence==='matching'));
+ assert.ok(traceable.pages.every(x=>x.deviceEvidence.screenshotOrVisualVerified===false));
+ const humanMap=good('traceability-md',{site,blueprint:bp,snapshot:htmlSite});
+ assert.match(humanMap,/Human acceptance required/);
+ const reviewedBundle=JSON.parse(good('review-bundle',{site,blueprint:bp,snapshot:htmlSite,
+  decisions:triageFile}));
+ assert.equal(reviewedBundle.decisions.releaseAuthorized,false);
+ assert.ok(reviewedBundle.traceability.pages[0].tasks.length>0);
+ assert.ok(reviewedBundle.nextActions.every(x=>x.automatic===false));
  const unsupported=command('review-bundle',{site,blueprint:bp,unknown:'invalid'});
  assert.notEqual(unsupported.status,0);
  const {inspect:inspectEvidence}=require('../lib/html-evidence.cjs');

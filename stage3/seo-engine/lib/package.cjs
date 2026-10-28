@@ -13,13 +13,15 @@ const {propose}=require('./handoff.cjs');
 const {work}=require('./remediation.cjs');
 const {assess}=require('./release-review.cjs');
 const {write:renderMarkdown}=require('./reporter.cjs');
+const TRACE=require('./traceability.cjs');
+const TRIAGE=require('./triage.cjs');
 const FORMAT='manufact-seo-review-bundle-v1';
 function build(site,manifests,blueprint,options={}){
  const plan=checkBlueprint(blueprint);
  if(!site||site.siteId!==plan.siteId)throw Error('Review package siteId mismatch');
  if(!Array.isArray(manifests))throw Error('Review package requires current manifests');
  if(!options||typeof options!=='object'||Array.isArray(options)||
-    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite'].includes(k)))
+    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions'].includes(k)))
   throw Error('Unsupported review-package options');
  // Validate with authoritative core first, not just the loosely typed SEO blueprint.
  const audit=auditSite(site,manifests,plan);
@@ -30,8 +32,13 @@ function build(site,manifests,blueprint,options={}){
  const published=options.snapshot?compareHtml(site,plan,options.snapshot):null;
  const publication=options.snapshot?reviewPublication(site,options.snapshot):null;
  const handoff=propose(site,manifests,plan);
- const backlog=work(site,manifests,plan,options);
- const release=assess(site,manifests,plan,options,backlog);
+ const {decisions:ledger,...coreOptions}=options;
+ const backlog=work(site,manifests,plan,coreOptions);
+ const release=assess(site,manifests,plan,coreOptions,backlog);
+ const traceability=TRACE.report(site,plan,{
+  ...(options.snapshot?{snapshot:options.snapshot}:{}),
+  ...(options.viewports?{viewports:options.viewports}:{})},audit,backlog);
+ const decisions=ledger?TRIAGE.reconcile(backlog,ledger):null;
  const expected=plan.pages.map(p=>p.id),fromSite=new Set(site.pages.map(p=>p.id));
  const exported=new Set((options.snapshot?.pages||[]).map(p=>p.id));
  const deviceIds=new Set((options.viewports?.pages||[]).map(p=>p.id));
@@ -50,15 +57,19 @@ function build(site,manifests,blueprint,options={}){
   viewportsPageCount:options.viewports?.pages?.length??null,
   plannedPagesAbsentFromThreeDeviceExport:options.viewports?missingDevice:null,
   actualVisualComparisonPerformed:false,liveHttpVerified:false,sitePublished:false};
- const nextActions=backlog.tasks.slice(0,12).map(task=>({
+ const rejected=new Set(decisions?.rejected.map(x=>x.taskId)||[]);
+ const approved=new Set(decisions?.approved.map(x=>x.taskId)||[]);
+ const deferred=new Set(decisions?.deferred.map(x=>x.taskId)||[]);
+ const nextActions=backlog.tasks.filter(t=>!rejected.has(t.taskId)).slice(0,12).map(task=>({
   taskId:task.taskId,priority:task.priority,owner:task.owner,
   category:task.category,pageId:task.pageId,dependsOn:task.dependsOn,
-  instruction:task.instruction,automatic:false
+  instruction:task.instruction,decision:approved.has(task.taskId)?'approved-for-manual-work':deferred.has(task.taskId)?'deferred':'unreviewed',automatic:false
  }));
  return {format:FORMAT,version:1,siteId:site.siteId,readOnly:true,
   contract:acceptedFormats,coverage,
   blueprintReview:architecture,siteAudit:audit,
   htmlEvidence:evidence,htmlParity:published,publicationIntegrity:publication,deviceEvidence:viewports,
+  traceability,decisions,
   regression,handoff,backlog,release,nextActions,
   markdownHandoff:renderMarkdown(backlog,release),
   integrationOrder:['verified-owner-facts','approved-prototypes-and-blueprint',

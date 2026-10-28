@@ -17,6 +17,7 @@ const VIEWPORT=require('../lib/viewport-evidence.cjs');
 const REGRESSION=require('../lib/regression.cjs');
 const PACKAGE=require('../lib/package.cjs');
 const TRIAGE=require('../lib/triage.cjs');
+const TRACE=require('../lib/traceability.cjs');
 const PUBLICATION=require('../lib/publication-integrity.cjs');
 function main(argv){
  const [command,...args]=argv;
@@ -53,6 +54,14 @@ function main(argv){
   auditSite(site,registry,flags.blueprint?read('blueprint'):null);
   out=PUBLICATION.review(site,read('snapshot'));
  }
+ else if(command==='traceability'||command==='traceability-md'){
+  const site=read('site'),blueprint=read('blueprint'),registry=manifests();
+  const audit=auditSite(site,registry,blueprint);
+  const evidence={...(flags.snapshot?{snapshot:read('snapshot')}:{}),
+   ...(flags.viewports?{viewports:read('viewports')}:{})};
+  const trace=TRACE.report(site,blueprint,evidence,audit);
+  out=command==='traceability-md'?TRACE.markdown(trace):trace;
+ }
  else if(command==='html-parity'){
   const site=read('site'),blueprint=read('blueprint'),snapshot=read('snapshot'),registry=manifests();
   auditSite(site,registry,blueprint);
@@ -70,6 +79,7 @@ function main(argv){
   if(flags.snapshot)options.snapshot=read('snapshot');
   if(flags.viewports)options.viewports=read('viewports');
   if(flags.before)options.baselineSite=read('before');
+  if(command==='review-bundle'&&flags.decisions)options.decisions=read('decisions');
   if(command==='remediation-plan')out=remediation(site,registry,blueprint,options);
   else if(command==='triage')out=TRIAGE.reconcile(remediation(site,registry,blueprint,options),read('decisions'));
   else if(command==='release-review')out=reviewRelease(site,registry,blueprint,options);
@@ -81,7 +91,7 @@ function main(argv){
  }
  else if(command==='analyze-html')out=snapshotAudit(read('snapshot'));
  else if(command==='handoff')out=propose(read('site'),manifests(),read('blueprint'));
- else throw Error('Commands: compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | deep-html --snapshot file [--blueprint file] | viewport-parity --viewports file --blueprint file | compare-site --before file --site file --blueprint file | html-parity --site file --blueprint file --snapshot file | publication-integrity --site file --snapshot file [--blueprint file] | review-bundle --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-plan --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-md --site file --blueprint file [--snapshot file] [--viewports file] | release-review --site file --blueprint file [--snapshot file] [--viewports file] | triage --site file --blueprint file --decisions file [--snapshot file] | handoff --site file --blueprint file [--manifests dir]');
+ else throw Error('Commands: compile --brief file | explain --blueprint file | review-blueprint --blueprint file | review-architecture --blueprint file | propose-content --site file --blueprint file [--manifests dir] | analyze-site --site file [--manifests dir] [--blueprint file] | analyze-content --site file --blueprint file [--manifests dir] | analyze-html --snapshot file | deep-html --snapshot file [--blueprint file] | viewport-parity --viewports file --blueprint file | traceability --site file --blueprint file [--snapshot file] [--viewports file] | traceability-md --site file --blueprint file [--snapshot file] [--viewports file] | compare-site --before file --site file --blueprint file | html-parity --site file --blueprint file --snapshot file | publication-integrity --site file --snapshot file [--blueprint file] | review-bundle --site file --blueprint file [--snapshot file] [--viewports file] [--before file] [--decisions file] | remediation-plan --site file --blueprint file [--snapshot file] [--viewports file] [--before file] | remediation-md --site file --blueprint file [--snapshot file] [--viewports file] | release-review --site file --blueprint file [--snapshot file] [--viewports file] | triage --site file --blueprint file --decisions file [--snapshot file] | handoff --site file --blueprint file [--manifests dir]');
  process.stdout.write(typeof out==='string'?out+'\n':JSON.stringify(out,null,2)+'\n');
 }
 try{main(process.argv.slice(2));}catch(e){process.stderr.write('SEO Engine: '+e.message+'\n');process.exitCode=1;}
