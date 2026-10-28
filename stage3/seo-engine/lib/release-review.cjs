@@ -8,8 +8,11 @@ const REGRESSION=require('./regression.cjs');
 const ACCEPTANCE=require('./acceptance.cjs');
 const MIGRATION=require('./route-migration.cjs');
 const PHP_CAPTURE=require('./php-capture.cjs');
+const PHP_HTML=require('./php-html-capture.cjs');
 const FORMAT='manufact-seo-release-review-v1';
 function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
+ if(options.phpHtml&&!PHP_HTML.isVerified(options.phpHtml))
+  throw Error('Release review requires original verified local PHP HTML evidence');
  if(options.phpCapture&&!PHP_CAPTURE.isVerifiedCapture(options.phpCapture))
   throw Error('Release review requires verified lead PHP capture evidence');
  const {acceptance:acceptanceLedger,...reviewOptions}=options;
@@ -42,6 +45,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
   'media:invalid-twitter-image-url'].includes(s.code)&&s.severity==='error'));
  const mediaReview=find(t=>t.sources.some(s=>s.code?.startsWith('media:')&&s.severity!=='error'));
  const phpBrokenImages=find(t=>t.sources.some(s=>s.code==='php-capture:broken-rendered-image'&&s.severity==='error'));
+ const localPhpProblems=find(t=>t.sources.some(s=>s.code?.startsWith('php-local:')&&s.severity==='error'));
+ const localPhpReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-local:')&&s.severity!=='error'));
  const phpCapture=options.phpCapture||null;
  const suppliedOrigins=[options.delivery?.origin,options.media?.origin].filter(Boolean)
   .map(x=>new URL(x).href);
@@ -87,6 +92,12 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(phpBrokenImages.length)add(blockers,'php-published-broken-images',
   'Repair broken images in the real PHP three-device screenshot capture',
   'Lead loopback capture reported missing image resources; inspect page/device and rerun the lead capture after repair.',phpBrokenImages);
+ if(localPhpProblems.length)add(blockers,'local-php-published-seo-conflict',
+  'Repair observed local PHP sitemap and 301 redirect mismatches',
+  'Actual loopback HTTP endpoint content disagrees with the sealed Site v1 routes or indexation; check PHP publication and re-capture. Not a public HTTPS certification.',localPhpProblems);
+ if(localPhpReviews.length)add(reviews,'local-php-seo-endpoint-review',
+  'Review observed local PHP robots, sitemap and endpoint configuration',
+  'HTTP status/type, public-origin setting and the actual published build need operator confirmation before release.',localPhpReviews);
  if(mediaProblems.length)add(blockers,'captured-og-media-conflict',
   'Resolve broken public OG assets, MIME conflicts and invalid OG URLs',
   'The supplied media transcript conflicts with Site v1; verify at the actual host.',mediaProblems);

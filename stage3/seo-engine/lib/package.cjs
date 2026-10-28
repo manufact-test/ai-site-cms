@@ -73,7 +73,7 @@ function build(site,manifests,blueprint,options={}){
  const media=options.media?MEDIA.review(site,options.media,options.snapshot):null;
  const evidenceConsistency=CONSISTENCY.review(site,options);
  const handoff=propose(site,manifests,plan);
- const {decisions:ledger,priorDecisions:historyLedger,acceptance:acceptanceLedger,approvedSource:verifiedSource,phpHtml:verifiedPhpHtml,...coreOptions}=options;
+ const {decisions:ledger,priorDecisions:historyLedger,acceptance:acceptanceLedger,approvedSource:verifiedSource,...coreOptions}=options;
  const backlog=work(site,manifests,plan,coreOptions);
  const release=assess(site,manifests,plan,{...coreOptions,
   ...(acceptanceLedger?{acceptance:acceptanceLedger}:{})},backlog);
@@ -129,6 +129,9 @@ function build(site,manifests,blueprint,options={}){
   loopbackPhpHtmlSha256Checked:Boolean(options.phpHtml),
   loopbackPhpHtmlHttp200:options.phpHtml?.loopbackHttp200Count??null,
   loopbackPhpHtmlSourceRevisionAuthenticated:false,
+  localPhpRobotsStatus:options.phpHtml?.publication?.robotsStatus??null,
+  localPhpSitemapStatus:options.phpHtml?.publication?.sitemapStatus??null,
+  localPhpRedirectResponses:options.phpHtml?.publication?.redirectResponses??null,
   screenshotFileDigestsChecked:Boolean(options.phpCapture),
   screenshotCaptureExactSiteRevisionProven:false,
   publicHttpsAndSeoHeadVerified:false};
@@ -145,6 +148,15 @@ function build(site,manifests,blueprint,options={}){
  }));
  return {format:FORMAT,version:1,siteId:site.siteId,readOnly:true,
   contract:acceptedFormats,coverage,approvedSiteSource:approvedSource,phpCapture:options.phpCapture||null,
+  localPhpPublication:options.phpHtml?.publication?{
+    format:options.phpHtml.publication.format,
+    robotsStatus:options.phpHtml.publication.robotsStatus,
+    sitemapStatus:options.phpHtml.publication.sitemapStatus,
+    redirectResponses:options.phpHtml.publication.redirectResponses,
+    parsedSitemapPaths:options.phpHtml.publication.parsedSitemapPaths,
+    findings:options.phpHtml.publication.findings,
+    publicHttpsProven:false,releaseAuthorized:false
+  }:null,
   phpHtmlCapture:options.phpHtml?{
     format:options.phpHtml.format,siteId:options.phpHtml.siteId,
     capturedAt:options.phpHtml.capturedAt,baseUrl:options.phpHtml.baseUrl,
