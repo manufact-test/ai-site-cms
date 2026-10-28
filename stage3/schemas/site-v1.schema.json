@@ -1502,7 +1502,13 @@
             "tabs",
             "tab",
             "list",
-            "list-item"
+            "list-item",
+            "link",
+            "quote",
+            "gallery",
+            "table",
+            "table-row",
+            "table-cell"
           ]
         },
         "text": {
@@ -1610,6 +1616,10 @@
         },
         "ordered": {
           "type": "boolean"
+        },
+        "cite": {
+          "type": "string",
+          "maxLength": 160
         }
       }
     },
