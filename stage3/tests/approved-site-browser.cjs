@@ -265,6 +265,57 @@ async function execute(){
   const imported=await page.evaluate(()=>window.Stage3Editor.getSite());
   assert.equal(imported.siteId,'site-approved-browser');
   assert.equal(imported.assets.length,1);
+  const evidenceRoute=origin+'/api/sites/site-approved-browser/approval-evidence';
+  const approvalIndexResponse=await page.request.get(evidenceRoute);
+  assert.equal(approvalIndexResponse.status(),200,'Owner can access private approved evidence archive');
+  const originalEvidence=(await approvalIndexResponse.json()).packages;
+  assert.equal(originalEvidence.length,1,'Import automatically creates one approved v2 evidence package');
+  const approvedPack=originalEvidence[0];
+  assert.equal(approvedPack.complete,true,'All seven original approval documents are retained');
+  assert.equal(Object.keys(approvedPack.files).length,7);
+  for(const [kind,fileName] of Object.entries({
+    handoff:'handoff.json',site:'site.json',
+    desktop:'prototypes/desktop.png',tablet:'prototypes/tablet.png',mobile:'prototypes/mobile.png',
+    clientExplanation:'client-explanation.md',implementationSpec:'implementation-spec.md'
+  })){
+    const archived=await page.request.get(evidenceRoute+'/'+approvedPack.packageSha+'/'+kind);
+    assert.equal(archived.status(),200,'Only owner may read private evidence '+kind);
+    assert.deepEqual(await archived.body(),fs.readFileSync(path.join(folder,fileName)),
+      'CMS must preserve the exact original approved bytes for '+kind);
+    assert.equal(approvedPack.files[kind].sha256,
+      require('node:crypto').createHash('sha256').update(await archived.body()).digest('hex'));
+  }
+  assert.equal((await visitorCtx.request.get(evidenceRoute)).status(),401,
+    'Approval files never exposed to public visitor');
+  await page.locator('#server-approved-vault-open').click();
+  await page.locator('#server-approval-vault-rows img').first().waitFor();
+  assert.equal(await page.locator('#server-approval-vault-rows img').count(),3,
+    'Owner can view all original static approved prototypes after import');
+  await page.locator('#server-approval-vault-close').click();
+  // Re-selecting the same sealed package in evidence-only mode must be
+  // idempotent and must not save another site revision.
+  const archiveRevision=(await (await page.request.get(
+    origin+'/api/sites/site-approved-browser')).json()).revision;
+  await page.evaluate(entries=>{
+    const selected=entries.map(entry=>{
+      const bytes=Uint8Array.from(atob(entry.base64),char=>char.charCodeAt(0));
+      const file=new File([bytes],entry.name);
+      Object.defineProperty(file,'webkitRelativePath',{value:entry.relative});
+      return file;
+    });
+    const input=document.querySelector('#server-approved-vault-folder');
+    Object.defineProperty(input,'files',{configurable:true,value:selected});
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  },uploaded);
+  await page.locator('#server-approved-review-confirm').waitFor();
+  await page.locator('#server-approved-review-confirm').click();
+  await page.locator('#toast').getByText(/Три макета, два описания/).waitFor({timeout:20000});
+  await page.waitForFunction(()=>!document.getElementById('server-approved-vault-attach').disabled);
+  assert.equal((await (await page.request.get(origin+
+    '/api/sites/site-approved-browser')).json()).revision,archiveRevision);
+  assert.equal((await (await page.request.get(evidenceRoute)).json()).packages.length,1,
+    'Re-archiving verified same bytes must never add duplicates');
+  
   assert.notEqual(imported.assets[0].id,'asset-external-hero','Server gives immutable site-owned asset ID');
   assert.equal(imported.pages[0].seo.ogImage,imported.assets[0].id,'SEO media reference remapped');
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),404,
