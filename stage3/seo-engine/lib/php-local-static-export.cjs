@@ -100,7 +100,11 @@ function read(root,site){
     data.pages.length!==site.pages.length||data.assets.length>1200||
     data.redirects.length!==(site.redirects||[]).length)
   throw Error('Static release manifest does not match the current published site');
- const pages=new Map(),assets=new Map(),redirects=new Map(),readFiles=new Set(['release-manifest.json']);
+ const pages=new Map(),assets=new Map(),redirects=new Map(),search=new Map(),
+  integrityFindings=[],readFiles=new Set(['release-manifest.json']);
+ const note=(code,message,extra={})=>integrityFindings.push(Object.freeze({
+  code:'php-export:'+code,severity:'error',pageId:null,path:null,
+  message,evidence:'sha256-verified-official-static-export',automatic:false,...extra}));
  const load=(filename,digest,limit)=>{
   if(readFiles.has(filename))throw Error('Duplicate static release output filename');
   const bytes=checkFile(directory,filename,digest,limit);readFiles.add(filename);return bytes;
@@ -130,14 +134,45 @@ function read(root,site){
   const alias=(site.redirects||[]).find(x=>x.from===r.from);
   if(!alias||r.to!==alias.to||redirects.has(r.from)||r.file!==expectedFile(r.from))
    throw Error('Static release redirects differ from published Site v1');
-  load(r.file,r.sha256,4096);redirects.set(r.from,r.to);
+  const redirectHtml=load(r.file,r.sha256,4096).toString('utf8');
+  redirects.set(r.from,r.to);
+  if(!/<meta\s+name="robots"\s+content="noindex,follow"\s*\/?>/i.test(redirectHtml)||
+     !redirectHtml.includes('http-equiv="refresh" content="0;url='+r.to.replace(/&/g,'&amp;')+'"'))
+   note('static-fallback-drift',
+    'The exported static redirect fallback differs from the expected noindex/meta-refresh behavior; it is never a true HTTP 301.',
+    {href:r.from});
  }
  if(data.searchFiles!==undefined){
   if(!data.searchFiles||Object.keys(data.searchFiles).some(x=>!['robots.txt','sitemap.xml'].includes(x))||
     Object.keys(data.searchFiles).length!==2)throw Error('Invalid static SEO auxiliary manifest');
   for(const name of ['robots.txt','sitemap.xml'])
-   load(name,data.searchFiles[name],name==='robots.txt'?250000:750000);
+   search.set(name,load(name,data.searchFiles[name],name==='robots.txt'?250000:750000).toString('utf8'));
  }
+ if(data.publicOrigin){
+  let origin;
+  try{
+   origin=new URL(data.publicOrigin);
+   if(!['https:','http:'].includes(origin.protocol)||origin.username||origin.password||
+      origin.search||origin.hash||origin.pathname!=='/'||
+      origin.protocol==='http:'&&!['localhost','127.0.0.1'].includes(origin.hostname))
+    throw Error('bad origin');
+  }catch{throw Error('Invalid official static export origin');}
+  const canonicalOrigin=origin.origin;
+  const expectedUrls=site.pages.filter(p=>(p.seo?.robots||'index')!=='noindex')
+   .map(p=>canonicalOrigin+p.path).sort();
+  const xml=search.get('sitemap.xml')||'';
+  const urls=[...xml.matchAll(/<loc>([^<]*)<\/loc>/gi)]
+   .map(x=>decode(x[1])).sort();
+  if(!xml.includes('<urlset')||JSON.stringify(urls)!==JSON.stringify(expectedUrls))
+   note('static-sitemap-drift','Official static sitemap contains unexpected or missing indexable page URLs.',
+    {expected:expectedUrls.length,observed:urls.length});
+  const robots=search.get('robots.txt')||'';
+  if(!/^User-agent:\s*\*\s*$/im.test(robots)||
+     !/^Allow:\s*\/\s*$/im.test(robots)||
+     !robots.includes('Sitemap: '+canonicalOrigin+'/sitemap.xml'))
+   note('static-robots-drift','Official static robots.txt does not expose the declared sitemap/crawl policy.');
+ }else if(data.searchFiles!==undefined)
+  note('static-search-origin-missing','Search metadata was exported without a configured public origin.');
  // A manifest is a ledger. Reject silently omitted or injected export files.
  const walk=(dir,prefix='')=>{
   for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
@@ -150,14 +185,15 @@ function read(root,site){
  };walk(directory);
  return Object.freeze({format:FORMAT,siteId:site.siteId,publishedVersion:data.publishedVersion,
   sourceRevision:data.sourceRevision??null,assets,pages,redirects,origin:data.publicOrigin??null,
-  recordsVerified:readFiles.size-1,sha256VerifiedAtRead:true});
+  recordsVerified:readFiles.size-1,sha256VerifiedAtRead:true,
+  findings:Object.freeze(integrityFindings),searchFilesVerified:search.size});
 }
 function compare(site,snapshot,media,release,version){
  if(!release||release.format!==FORMAT||!release.sha256VerifiedAtRead||
     release.siteId!==site.siteId||release.publishedVersion!==version||
     !snapshot||snapshot.siteId!==site.siteId||!media||media.siteId!==site.siteId)
   throw Error('Static release, CMS published version and loopback capture must describe one Site v1');
- const findings=[],pages=[],assets=[];
+ const findings=[...(release.findings||[])],pages=[],assets=[];
  const add=(code,page,message,extra={})=>findings.push(Object.freeze({
   code:'php-export:'+code,severity:'error',pageId:page?.id??null,path:page?.path??null,
   message,evidence:'sha256-verified-static-export-vs-local-php',automatic:false,...extra}));
@@ -193,6 +229,7 @@ function compare(site,snapshot,media,release,version){
  }
  return Object.freeze({format:FORMAT,siteId:site.siteId,publishedVersion:version,
   sourceRevisionClaim:release.sourceRevision,verifiedExportFiles:release.recordsVerified,
+  exportedSearchFilesVerified:release.searchFilesVerified??0,
   checkedPages:pages.length,checkedAssets:assets.length,pages:Object.freeze(pages),
   assets:Object.freeze(assets),findings:Object.freeze(findings),
   contentAndMediaMatched:findings.length===0,servedPhpRevisionAuthenticated:false,
