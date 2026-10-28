@@ -8,6 +8,7 @@ const BRIDGE=require('../lib/approved-site-bridge.cjs');
 const PHP=require('../lib/php-html-capture.cjs');
 const PHP_CAPTURE=require('../lib/php-capture.cjs');
 const PACKAGE=require('../lib/package.cjs');
+const WORKSHEET=require('../lib/first-site-worksheet.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
 const {auditSite}=require('../lib/analyze.cjs');
 const REQUIRED=['approved-site','blueprint','origin','evidence','report'];
@@ -89,6 +90,8 @@ async function main(argv){
   ...(screenshots?{phpCapture:screenshots}:{})
  });
  const release=bundle.release;
+ const worksheet=WORKSHEET.build({site:fresh.site,source:fresh.source,
+  phpHtml:checked,phpCapture:screenshots,bundle});
  const summary={
   format:'manufact-seo-first-site-check-v1',siteId:site.siteId,
   sourceSiteSha256:fresh.source.fileSha256,
@@ -100,6 +103,10 @@ async function main(argv){
   cmsPublishedSiteMatchesApprovedAfterRemap:fresh.source.publishedContentAfterMediaRemapMatched===true,
   capturedAt:checked.capturedAt,origin:checked.baseUrl,
   htmlPages:checked.pageCount,
+  operatorWorksheet:{file:'launch-worksheet.md',
+   localObservedFindings:worksheet.statistics.actualFindings,
+   localBlockingFindings:worksheet.statistics.actualBlockingFindings,
+   perPageDeviceSignoffPerformed:false},
   screenshots:{supplied:Boolean(screenshots),sha256CheckedFiles:screenshots?.checkedFileDigests??0,
    capturedPages:screenshots?.pages.length??0,brokenImageFindings:screenshots?.findings.length??0,
    visualEqualityReviewed:false,sourceRevisionAuthenticated:false},
@@ -138,6 +145,7 @@ async function main(argv){
  fs.writeFileSync(path.join(report,'bundle.json'),body,{flag:'wx'});
  fs.writeFileSync(path.join(report,'handoff.md'),bundle.markdownHandoff+'\n',{flag:'wx'});
  fs.writeFileSync(path.join(report,'summary.json'),brief,{flag:'wx'});
+ fs.writeFileSync(path.join(report,'launch-worksheet.md'),worksheet.markdown+'\n',{flag:'wx'});
  return {evidence,report,summary};
 }
 if(require.main===module)
