@@ -75,13 +75,16 @@ try{
  const widths={desktop:1280,tablet:768,mobile:390};
  const devices=Object.keys(widths);
  const png=Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),Buffer.alloc(128)]);
- function saveCaptureFile(name){
-  fs.writeFileSync(path.join(captureRoot,name),png);
-  return crypto.createHash('sha256').update(png).digest('hex');
+ function saveCaptureFile(name,width){
+  const bytes=Buffer.from(png);
+  bytes.writeUInt32BE(width,16);
+  bytes.writeUInt32BE(1200,20);
+  fs.writeFileSync(path.join(captureRoot,name),bytes);
+  return crypto.createHash('sha256').update(bytes).digest('hex');
  }
  const prototypes=Object.fromEntries(devices.map(d=>{
   const file='prototype-'+d+'.png';
-  return [d,{file,sha256:saveCaptureFile(file),width:widths[d]}];
+  return [d,{file,sha256:saveCaptureFile(file,widths[d]),width:widths[d]}];
  }));
  const source={
   format:'manufact-seo-approved-site-source-v1',siteId:original.siteId,
@@ -125,6 +128,16 @@ try{
  badProto.prototypes.mobile.sha256='f'.repeat(64);
  assert.throws(()=>PHP_CAPTURE.inspect(badProto,original,source,captureRoot),
   /source prototype hash mismatch/);
+ const alteredPixels=structuredClone(leadEvidence);
+ const originalPhoto=path.join(captureRoot,alteredPixels.pages[0].screenshots.mobile.file);
+ const wrongPixels=fs.readFileSync(originalPhoto);
+ wrongPixels.writeUInt32BE(768,16);
+ fs.writeFileSync(originalPhoto,wrongPixels);
+ alteredPixels.pages[0].screenshots.mobile.sha256=crypto.createHash('sha256').update(wrongPixels).digest('hex');
+ assert.throws(()=>PHP_CAPTURE.inspect(alteredPixels,original,source,captureRoot),
+  /PNG pixel dimensions/);
+ // Restore the original file before any follow-on fixture checks.
+ saveCaptureFile(alteredPixels.pages[0].screenshots.mobile.file,widths.mobile);
  const badOrigin=structuredClone(leadEvidence);
  badOrigin.baseUrl='https://example.com/published/'+original.siteId+'/';
  assert.throws(()=>PHP_CAPTURE.inspect(badOrigin,original,source,captureRoot),

@@ -76,6 +76,7 @@ function build({siteId,release,coverage,acceptanceReview=null,taskProgress=null,
   actualCmsWrites:0,missingEvidenceInputGroups:evidenceRequests.length,
   authenticatedLiveHttpTests:0,
   leadLoopbackScreenshotFilesChecked:phpCapture?.screenshotCount??0,
+  leadLoopbackScreenshotSourceRevisionProven:false,
   leadLoopbackMissingImagePageCount:phpCapture?.warningPageIds.length??null,
   readyToPublish:false
  };

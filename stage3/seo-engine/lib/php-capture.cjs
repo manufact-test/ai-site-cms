@@ -35,7 +35,8 @@ function fileBytes(root,filename,seen){
   err('invalid JPEG bytes '+filename);
  if(ext==='.webp'&&!(bytes.toString('ascii',0,4)==='RIFF'&&bytes.toString('ascii',8,12)==='WEBP'))
   err('invalid WebP bytes '+filename);
- return sha(bytes);
+ return {sha256:sha(bytes),pixelWidth:ext==='.png'&&bytes.length>=24?bytes.readUInt32BE(16):null,
+  pixelHeight:ext==='.png'&&bytes.length>=24?bytes.readUInt32BE(20):null};
 }
 const keysExact=(obj,expected)=>plain(obj)&&Object.keys(obj).length===expected.length&&expected.every(k=>Object.hasOwn(obj,k));
 function inspect(evidence,site,source,folder){
@@ -59,7 +60,7 @@ function inspect(evidence,site,source,folder){
   if(!plain(record)||!SHA.test(record.sha256)||record.width!==widths[device]||
    record.sha256!==source.homepagePrototypeSha256?.[device])
    err('source prototype hash mismatch for '+device);
-  if(fileBytes(folder,record.file,files)!==record.sha256)
+  if(fileBytes(folder,record.file,files).sha256!==record.sha256)
    err('changed copied approved prototype '+device);
  }
  for(let i=0;i<site.pages.length;i++){
@@ -74,9 +75,12 @@ function inspect(evidence,site,source,folder){
     !Number.isSafeInteger(shot.height)||shot.height<1||shot.height>100000||
     typeof shot.file!=='string'||!shot.file.endsWith('.png'))
     err('invalid '+device+' screenshot record '+expected.id);
-   if(fileBytes(folder,shot.file,files)!==shot.sha256)
+   const actual=fileBytes(folder,shot.file,files);
+   if(actual.sha256!==shot.sha256)
     err('modified or swapped screenshot '+expected.id+' '+device);
-   screenshots[device]=Object.freeze({width:shot.width,height:shot.height,
+   if(actual.pixelWidth!==widths[device]||!Number.isSafeInteger(actual.pixelHeight)||actual.pixelHeight<1||actual.pixelHeight>100000)
+    err('PNG pixel dimensions do not match the captured device '+expected.id+' '+device);
+   screenshots[device]=Object.freeze({width:shot.width,height:shot.height,pixelHeight:actual.pixelHeight,
     sha256:shot.sha256,file:shot.file});
   }
   const warnings=[];
@@ -97,7 +101,8 @@ function inspect(evidence,site,source,folder){
    aggregate.some((w,i)=>w!==evidence.warnings[i]))
   err('capture global warning list does not match page-level evidence');
  const result=Object.freeze({
-  format:FORMAT,siteId:site.siteId,sourceRawSiteSha256:source.fileSha256,
+  format:FORMAT,siteId:site.siteId,reviewedSealedSiteRawSha256:source.fileSha256,
+  captureManifestContainsSiteSha256:false,exactSourceRevisionProvenByCapture:false,
   siteRevisionFingerprint:fingerprint(site),
   packageVersion:source.packageVersion,
   capturedAt:evidence.capturedAt,baseUrl:u.href,
@@ -108,7 +113,7 @@ function inspect(evidence,site,source,folder){
   source:'lead-capture-approved-site-cli-artifact',readOnly:true,
   actualScreenshotsRead:true,visualEqualityReviewed:false,clientSignoffAuthenticated:false,
   publicHttpsProbed:false,seoHeadInspected:false,formsTested:false,
-  limitations:'Verifies local files and their declared checksums against the sealed Site v2 source. The origin is lead CLI loopback PHP. It cannot authenticate capture authorship, compare visual designs, measure CWV, validate public HTTPS, forms, canonical, robots or published SEO metadata.'
+  limitations:'Checks local image file bytes/dimensions, copied approved mockups, site ID, version, page paths and loopback URL. The lead capture manifest does not contain the source site.json SHA-256, so exact source-revision identity and artifact authorship cannot be proven. It cannot compare visual designs, measure CWV or validate public HTTPS, forms, canonical, robots or published SEO metadata.'
  });
  return result;
 }

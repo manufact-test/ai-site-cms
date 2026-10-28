@@ -47,7 +47,7 @@ function build(site,manifests,blueprint,options={}){
  if(options.phpCapture&&(!approvedSource||!PHP_CAPTURE.isVerifiedCapture(options.phpCapture)||
     options.phpCapture.siteId!==site.siteId||
     options.phpCapture.siteRevisionFingerprint!==ACCEPTANCE.fingerprint(site)||
-    options.phpCapture.sourceRawSiteSha256!==approvedSource.fileSha256))
+    options.phpCapture.reviewedSealedSiteRawSha256!==approvedSource.fileSha256))
   throw Error('PHP screenshot evidence is not bound to a verified Approved Site v2 source');
  // Validate with authoritative core first, not just the loosely typed SEO blueprint.
  const audit=auditSite(site,manifests,plan);
@@ -114,6 +114,7 @@ function build(site,manifests,blueprint,options={}){
   missingApprovedInteriorPageReferences:approvedSource?.missingInteriorPrototypePageIds??null,
   loopbackPhpScreenshotPages:options.phpCapture?.pages.length??null,
   screenshotFileDigestsChecked:Boolean(options.phpCapture),
+  screenshotCaptureExactSiteRevisionProven:false,
   publicHttpsAndSeoHeadVerified:false};
  const dossier=DOSSIER.build({siteId:site.siteId,release,coverage,acceptanceReview,
   taskProgress,changeImpact,executionPlan:execution,cmsChangePacket,traceability,
@@ -153,6 +154,7 @@ function build(site,manifests,blueprint,options={}){
         '; checked pages: '+options.phpCapture.pages.length+'.\n'+
       '- Captured pages with missing-image warnings: '+options.phpCapture.warningPageIds.length+
         (options.phpCapture.warningPageIds.length?' ('+options.phpCapture.warningPageIds.join(', ')+')':'')+'.\n'+
+      '- The lead capture JSON lacks the site.json digest: identical site revision at capture time is NOT cryptographically proven.\n'+
       '- Screenshots are NOT HTML/HTTP SEO head evidence; visual equality, forms and actual public HTTPS remain unverified.\n':'')+
     '\n\n---\n\n'+renderMarkdown(backlog,release)+'\n\n---\n\n'+TRACE.markdown(traceability)+
     '\n\n---\n\n'+EXECUTION.markdown(execution)+'\n\n---\n\n'+CMS_PACKET.markdown(cmsChangePacket),
