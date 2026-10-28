@@ -2109,7 +2109,8 @@
     // allow same-origin media, but no scripts, forms, popups or navigation.
     frame.setAttribute('sandbox','allow-same-origin');
     frame.setAttribute('referrerpolicy','no-referrer');
-    viewport.append(frame);
+    const draftCanvas=element('div','hosted-launch-canvas');
+    draftCanvas.append(frame);viewport.append(draftCanvas);
     const liveViewport=element('div','hosted-launch-viewport hosted-launch-live-viewport');
     liveViewport.id='server-launch-live-viewport';
     const liveLabel=element('p','hosted-launch-live-label','Опубликованная версия');
@@ -2117,7 +2118,8 @@
     liveFrame.title='Текущая опубликованная страница (без скриптов и отправки форм)';
     liveFrame.setAttribute('sandbox','allow-same-origin');
     liveFrame.setAttribute('referrerpolicy','no-referrer');
-    liveViewport.append(liveLabel,liveFrame);
+    const publishedCanvas=element('div','hosted-launch-canvas');
+    publishedCanvas.append(liveFrame);liveViewport.append(publishedCanvas,liveLabel);
     previewPanels.append(viewport,liveViewport);
     const previewStatus=element('p','hosted-launch-preview-status','');
     previewStatus.id='server-launch-preview-status';
@@ -2177,6 +2179,9 @@
     let selectedRow=comparisonRows[0],device='desktop',viewMode='draft',request=0;
     const widths={desktop:1200,tablet:780,mobile:390};
     const devicesNeeded=Object.keys(widths),reviewed=new Map(),previewReady=new Set();
+    // Each device's own real PHP document must render before sign-off. These
+    // observations are diagnostic hints, not visual/pixel-match approval.
+    const renderEvidence=new Map();
     const signature=(row,mode)=>row?.current?.id+'|'+mode;
     const pageComplete=pageId=>devicesNeeded.every(mode=>reviewed.get(pageId)?.has(mode));
     const completedCount=()=>site.pages.filter(page=>pageComplete(page.id)).length;
@@ -2194,12 +2199,14 @@
         control.setAttribute('aria-label',(complete?'Просмотрено · ':'Не полностью проверено · ')+control.textContent);
       }
       const marked=reviewed.get(selectedRow?.current?.id)?.has(device);
+      const evidence=renderEvidence.get(signature(selectedRow,device));
       markReviewed.textContent=marked?'✓ '+widths[device]+' px проверено':
         'Подтвердить экран '+widths[device]+' px';
+      if(evidence?.errors?.length)markReviewed.title=evidence.errors.join(' · ');
       markReviewed.disabled=!selectedRow?.current||marked||
         !previewReady.has(signature(selectedRow,device))||!freshDraft();
-      markReviewed.title=markReviewed.disabled&&!marked?
-        'Сначала успешно загрузите текущий предпросмотр на выбранной ширине, без правок после Save.':'';
+      if(!evidence?.errors?.length)markReviewed.title=markReviewed.disabled&&!marked?
+        'Дождитесь полной загрузки PHP-страницы и изображений. Сохраните изменения перед подтверждением.':'';
     };
     markReviewed.addEventListener('click',()=>{
       if(markReviewed.disabled||!selectedRow?.current||!freshDraft())return;
@@ -2215,6 +2222,8 @@
         contentGaps:readiness.issues,
         pages:site.pages.map(page=>({id:page.id,path:page.path,title:page.title,
           reviewedDevices:devicesNeeded.filter(mode=>reviewed.get(page.id)?.has(mode)),
+          renderChecks:Object.fromEntries(devicesNeeded.map(mode=>[
+            mode,renderEvidence.get(page.id+'|'+mode)||null])),
           ready:pageComplete(page.id)})),
         eligibleForReviewPublish:!publishSaved.disabled};
       const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)+'\\n'],
@@ -2240,13 +2249,20 @@
       previewPanels.classList.toggle('is-comparing',viewMode==='compare');
       viewport.hidden=viewMode==='published';
       liveViewport.hidden=viewMode==='draft'||!published;
-      for(const [panel,iframe] of [[viewport,frame],[liveViewport,liveFrame]]){
+      for(const [panel,iframe,canvas] of [[viewport,frame,draftCanvas],
+        [liveViewport,liveFrame,publishedCanvas]]){
         if(panel.hidden)continue;
         const width=widths[device],available=panel.clientWidth||700;
         const scale=Math.min(1,Math.max(.25,(available-12)/width));
-        iframe.style.width=width+'px';iframe.style.height='900px';
+        // Layout-sized wrapper preserves real scroll extent after scaling:
+        // absolute-positioned, transformed iframes alone clipped lower blocks.
+        const doc=iframe.contentDocument,root=doc?.documentElement;
+        const pageHeight=root?Math.max(root.scrollHeight,doc.body?.scrollHeight||0):900;
+        const height=Math.min(60000,Math.max(900,pageHeight));
+        iframe.style.width=width+'px';iframe.style.height=height+'px';
         iframe.style.transformOrigin='top left';iframe.style.transform='scale('+scale+')';
-        panel.style.height=Math.min(620,Math.ceil(900*scale))+'px';
+        canvas.style.height=Math.ceil(height*scale)+'px';
+        panel.style.height=Math.min(620,Math.ceil(height*scale))+'px';
       }
       for(const b of compareModes.querySelectorAll('button')){
         b.classList.toggle('primary',b.dataset.compareMode===viewMode);
@@ -2255,9 +2271,58 @@
       for(const button of devices.querySelectorAll('button'))
         button.classList.toggle('primary',button.dataset.device===device);
     };
+    // Only the actually loaded document is eligible for a manual sign-off.
+    // No auto-approval: this merely refuses broken media and page-level
+    // horizontal overflow before asking a human to review the full page.
+    frame.addEventListener('load',()=>{
+      const doc=frame.contentDocument,token=doc?.querySelector(
+        'meta[name="manufact-preview-ticket"]')?.content;
+      if(!dialog.open||token!==String(request))return;
+      const ticket=request,row=selectedRow,mode=device;
+      void (async()=>{
+        const images=[...doc.images];
+        // Lazy images below the fold must be checked too; otherwise a broken
+        // footer image could pass merely because it hasn't been scrolled into.
+        for(const img of images)img.loading='eager';
+        await Promise.all(images.map(img=>new Promise(resolve=>{
+          if(img.complete){resolve();return;}
+          const done=()=>{img.removeEventListener('load',done);img.removeEventListener('error',done);resolve();};
+          img.addEventListener('load',done,{once:true});
+          img.addEventListener('error',done,{once:true});
+          setTimeout(done,10000);
+        })));
+        if(ticket!==request||!dialog.open||row!==selectedRow||mode!==device)return;
+        const root=doc.documentElement;
+        if(!root)return;
+        const width=widths[mode],overflow=Math.max(0,Math.ceil(
+          Math.max(root.scrollWidth,doc.body?.scrollWidth||0)-width));
+        const broken=images.filter(img=>!img.complete||img.naturalWidth===0).length;
+        const height=Math.max(root.scrollHeight,doc.body?.scrollHeight||0);
+        const errors=[];
+        if(overflow>2)errors.push('Горизонтальное переполнение: '+overflow+' px');
+        if(broken)errors.push('Не загрузились изображения: '+broken);
+        if(height>60000)errors.push('Страница длиннее лимита предпросмотра 60 000 px');
+        const key=signature(row,mode);
+        renderEvidence.set(key,{width,fullHeight:height,imageCount:images.length,
+          brokenImages:broken,horizontalOverflowPx:overflow,errors});
+        if(!errors.length)previewReady.add(key);
+        else previewReady.delete(key);
+        renderViewport();updateReviewed();syncActions();
+        previewStatus.textContent=errors.length?
+          'Проверка PHP · '+row.current.path+' · '+errors.join(' · ')+
+            '. Исправьте ошибки перед подтверждением.':
+          'PHP-страница целиком · '+row.current.path+' · '+width+' px · '+height+
+            ' px по высоте · изображения '+images.length+' загружены · горизонтального переполнения нет';
+      })().catch(error=>{
+        if(ticket!==request||!dialog.open)return;
+        previewStatus.textContent='Ошибка проверки отрисовки: '+error.message;
+        previewReady.delete(signature(row,mode));updateReviewed();syncActions();
+      });
+    });
     const showPreview=async()=>{
       const ticket=++request,row=selectedRow;
       previewReady.delete(signature(row,device));
+      renderEvidence.delete(signature(row,device));
       updateReviewed();
       const draft=row.current,live=row.prior;
       const path=draft?.path||live?.path;
@@ -2280,6 +2345,7 @@
             if(html.length>4*1024*1024)throw Error('Страница слишком большая для визуального сравнения');
             if(ticket!==request||!dialog.open)return;
             liveFrame.srcdoc=html;
+            liveFrame.onload=()=>{if(ticket===request&&dialog.open)renderViewport();};
           }catch(error){
             if(ticket!==request||!dialog.open)return;
             liveFrame.srcdoc='<!doctype html><html lang="ru"><meta charset="utf-8"><body style="font:15px system-ui;padding:25px"><p>Не удалось открыть опубликованный HTML для сравнения.</p></body></html>';
@@ -2297,11 +2363,11 @@
       try{
         const html=await previewPage(site,draft.path);
         if(ticket!==request||!dialog.open)return;
-        frame.srcdoc=html;
-        previewReady.add(signature(row,device));
+        if(!html.includes('<head>'))throw Error('PHP-превью не содержит HTML head');
+        frame.srcdoc=html.replace('<head>','<head><meta name="manufact-preview-ticket" content="'+ticket+'">');
         updateReviewed();syncActions();
-        previewStatus.textContent='Черновик · '+draft.path+' · '+widths[device]+
-          ' px · '+(published?'сравнение с v'+published.version:'ещё не опубликован');
+        previewStatus.textContent='Проверяем полную PHP-страницу и все изображения · '+
+          draft.path+' · '+widths[device]+' px…';
       }catch(error){
         if(ticket!==request||!dialog.open)return;
         previewReady.delete(signature(row,device));
@@ -2379,7 +2445,12 @@
       dialog.close();
       document.querySelectorAll('#pages .nav-entry')[pageIndex]?.click();
     });
-    dialog.addEventListener('close',()=>{++request;dialog.remove();},{once:true});
+    const adjustPreview=()=>{if(dialog.open)renderViewport();};
+    window.addEventListener('resize',adjustPreview);
+    dialog.addEventListener('close',()=>{
+      ++request;window.removeEventListener('resize',adjustPreview);
+      frame.srcdoc='';liveFrame.srcdoc='';dialog.remove();
+    },{once:true});
     dialog.showModal();choosePage(selectedRow);updateReviewed();
   }
 
