@@ -114,6 +114,36 @@ final class Api
         }
     }
 
+    /**
+     * Cache only public first-party editor code, never the authenticated HTML,
+     * API JSON, draft data or private media. Revalidate on every visit.
+     * Encoding-specific ETags prevent a compressed/identity cache mix-up.
+     */
+    private function staticStudioResource(string $bytes,string $type): never
+    {
+        $encoding=(string)($_SERVER['HTTP_ACCEPT_ENCODING']??'');
+        $gzip=extension_loaded('zlib')&&!filter_var((string)ini_get('zlib.output_compression'),FILTER_VALIDATE_BOOLEAN)
+            &&preg_match('/(?:^|,)\s*gzip(?:\s*;\s*q=([01](?:\.\d+)?))?(?=,|$)/i',$encoding,$m)===1
+            &&(!isset($m[1])||(float)$m[1]>0);
+        if($gzip&&strlen($bytes)>1024){
+            $compressed=gzencode($bytes,6);
+            if(is_string($compressed)&&strlen($compressed)<strlen($bytes)){
+                $bytes=$compressed;
+                header('Content-Encoding: gzip');
+            }
+        }
+        $etag='"cms-editor-'.hash('sha256',$bytes).'"';
+        header('Content-Type: '.$type);
+        header("Content-Security-Policy: default-src 'none'");
+        header('Cache-Control: public, no-cache, must-revalidate');
+        header('Vary: Accept-Encoding');
+        header('ETag: '.$etag);
+        if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag){
+            http_response_code(304);exit;
+        }
+        echo $bytes;exit;
+    }
+
     public function handle(): never
     {
         header('Cache-Control: no-store');
@@ -166,9 +196,7 @@ final class Api
         if ($method==='GET' && isset($mediaScripts[$path])) {
             $bytes=file_get_contents(__DIR__.'/../media-motion/'.$mediaScripts[$path]);
             if($bytes===false)$this->response(503,['error'=>'Media engine unavailable']);
-            header('Content-Type: text/javascript; charset=utf-8');
-            header("Content-Security-Policy: default-src 'none'");
-            echo $bytes;exit;
+            $this->staticStudioResource($bytes,'text/javascript; charset=utf-8');
         }
         if ($method === 'GET' && isset($assets[$path])) {
             [$file, $type] = $assets[$path];
@@ -176,10 +204,7 @@ final class Api
             if ($data === false) {
                 $this->response(503, ['error' => 'Studio asset unavailable']);
             }
-            header('Content-Type: ' . $type);
-            header("Content-Security-Policy: default-src 'none'");
-            echo $data;
-            exit;
+            $this->staticStudioResource($data,$type);
         }
         if ($method === 'GET' && preg_match('~^/published/([a-z][a-z0-9-]{2,79})/assets/([a-z][a-z0-9-]{2,79})\.(png|jpg|webp|mp4)$~D', $path, $assetMatch)) {
             try {
