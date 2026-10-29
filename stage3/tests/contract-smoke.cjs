@@ -1443,6 +1443,26 @@ test('read-only approved folder preflight accepts a custom external design and r
     assert.match(audit.report,/Mobile \(390px\)/);
     assert.match(audit.report,/Site ID: site-/);
     assert.match(audit.report,/saved draft/);
+    // The approved package now includes an actual MP4, not a video URL or
+    // an image masquerading as an MP4. The existing PHP fixture is playable.
+    fs.mkdirSync(path.join(folder,'assets'));
+    const film=fs.readFileSync(path.join(root,'tests/fixtures/tiny-h264.mp4.b64'),'utf8').trim();
+    const video=Buffer.from(film,'base64');
+    const videoFile=path.join(folder,'assets/asset-approved-film.mp4');
+    fs.writeFileSync(videoFile,video);
+    site.assets.push({id:'asset-approved-film',src:'/assets/asset-approved-film.mp4',
+      mime:'video/mp4',alt:'Утверждённая видеопрезентация'});
+    fs.writeFileSync(path.join(folder,'site.json'),JSON.stringify(site));
+    const withVideo=seal(folder,'rev-video',{confirmedApproved:true,replace:true});
+    assert.equal(withVideo.integrity,'sha256-verified');
+    assert.equal(withVideo.assets,1);
+    assert.equal(preflight(folder).sourceAssetBytes,video.length);
+    fs.writeFileSync(videoFile,Buffer.alloc(video.length,0));
+    refuses(()=>preflight(folder),'Tampered MP4 must fail SHA and structural verification');
+    refuses(()=>seal(folder,'rev-tamper',{confirmedApproved:true,replace:true}),
+      'Cannot seal fake video bytes as MP4');
+    fs.writeFileSync(videoFile,video);
+    assert.equal(preflight(folder).integrity,'sha256-verified');
   }finally{fs.rmSync(folder,{recursive:true,force:true});}
 });
 
