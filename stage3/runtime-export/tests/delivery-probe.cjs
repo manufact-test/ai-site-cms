@@ -114,6 +114,35 @@ try{
   assert.equal(reportHtml.performance.totals.publishedMediaBytes,
     fs.statSync(path.join(html,'assets/image-abc.png')).size);
   assert.equal(reportHtml.performance.totals.unreferencedInHtmlMediaCount,1);
+
+  // One real immutable next publication, with a deliberately heavy HTML page:
+  // compare does not mix sites or call a remote host.
+  const nextSource=path.join(tmp,'published-v4');
+  fs.cpSync(html,nextSource,{recursive:true});
+  const largeText=Array.from({length:3000},(_,i)=>crypto.createHash('sha256')
+    .update('page-weight-'+i).digest('hex')).join(' ');
+  const largeHome=fs.readFileSync(path.join(nextSource,'index.html'),'utf8')
+    .replace('</body>','<p>'+largeText+'</p></body>');
+  fs.writeFileSync(path.join(nextSource,'index.html'),largeHome);
+  const nextManifest=JSON.parse(fs.readFileSync(path.join(nextSource,'release-manifest.json'),'utf8'));
+  nextManifest.publishedVersion=4;nextManifest.sourceRevision=8;
+  nextManifest.pages.find(x=>x.path==='/').sha256=sha(largeHome);
+  fs.writeFileSync(path.join(nextSource,'release-manifest.json'),JSON.stringify(nextManifest,null,2)+'\n');
+  const nextZip=path.join(tmp,'next-release-v4.zip');
+  success('prepare-delivery.cjs',nextSource,nextZip,'--expect-origin=https://example.test');
+  const evolution=success('compare-delivery-performance.cjs',shippedHtml.zip,nextZip);
+  assert.equal(evolution.siteId,'site-d4-shipping');
+  assert.equal(evolution.fromVersion,3);assert.equal(evolution.toVersion,4);
+  assert.ok(evolution.regressions.some(x=>x.code==='HTML_GZIP_GROWTH'));
+  assert.equal(evolution.pageChanges.find(x=>x.route==='/').status,'changed');
+  assert.equal(evolution.pageChanges.find(x=>x.route==='/about/').status,'unchanged');
+  assert.ok(evolution.newBudgetFindings.some(x=>x.code==='PERF_HTML_RAW_HIGH'));
+  const stopOnRegression=script('compare-delivery-performance.cjs',
+    shippedHtml.zip,nextZip,'--fail-on-regression');
+  assert.equal(stopOnRegression.status,3,'Operator opt-in regression gate');
+  assert.notEqual(script('compare-delivery-performance.cjs',nextZip,shippedHtml.zip).status,0,
+    'Never compare a newer release as if it were an older baseline');
+
   const auditBudget=success('audit-delivery.cjs',shippedHtml.zip,'--fail-on-performance');
   assert.equal(auditBudget.performance.findings.length,0);
   const weighted=require('../lib/performance-envelope.cjs').inspectPerformance(
