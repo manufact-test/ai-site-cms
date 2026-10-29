@@ -349,13 +349,28 @@ JS;
             .$cta.$mobile.'</div></header>';
     }
 
-    private static function themeCss(array $site): string
+    private static function themeCss(array $site,string $mount): string
     {
         $t = array_merge(['background'=>'#f7f9fc','surface'=>'#ffffff','text'=>'#172a43',
             'primary'=>'#0a5bff','font'=>'system','maxWidth'=>1140,'bodySize'=>16,
             'lineHeight'=>'normal','headingScale'=>'normal','buttonStyle'=>'solid',
             'buttonRadius'=>9,'buttonText'=>'#ffffff'],$site['theme'] ?? []);
         $fonts=['system'=>'system-ui,Arial,sans-serif','arial'=>'Arial,sans-serif','georgia'=>'Georgia,serif'];
+        $faceCss='';$bodyFont=$fonts[$t['font']];$headingFont=$bodyFont;
+        $assets=[];
+        foreach($site['assets'] as $asset)$assets[$asset['id']]=$asset;
+        foreach(['body','heading'] as $role){
+            $id=$t['fontFiles'][$role]??null;
+            if($id===null)continue;
+            // Exact same-site WOFF2 asset was checked by the typed contract.
+            $asset=$assets[$id];
+            $family=$role==='body'?'CMS Site Body':'CMS Site Heading';
+            $faceCss.='@font-face{font-family:"'.$family.'";src:url("'.$mount.$asset['src'].
+                '") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}';
+            if($role==='body')$bodyFont='"CMS Site Body",'.$bodyFont;
+            else $headingFont='"CMS Site Heading",'.$bodyFont;
+        }
+        if(!isset($t['fontFiles']['heading']))$headingFont=$bodyFont;
         $lineHeights=['compact'=>'1.4','normal'=>'1.6','relaxed'=>'1.8'];
         $headingSizes=['compact'=>'clamp(24px,2.5vw,34px)','normal'=>'clamp(28px,3vw,42px)',
             'large'=>'clamp(36px,4.5vw,56px)'];
@@ -364,8 +379,8 @@ JS;
         $buttonColor=$buttonStyle==='outline'?'var(--cms-primary)':$t['buttonText'];
         $buttonShadow=$buttonStyle==='outline'?'inset 0 0 0 2px var(--cms-primary)':'none';
         $buttonRadius=$buttonStyle==='pill'?'999px':$t['buttonRadius'].'px';
-        return ':root{--cms-bg:'.$t['background'].';--cms-surface:'.$t['surface'].';--cms-text:'.$t['text'].
-            ';--cms-primary:'.$t['primary'].';--cms-width:'.$t['maxWidth'].'px;--cms-font:'.$fonts[$t['font']].
+        return $faceCss.':root{--cms-bg:'.$t['background'].';--cms-surface:'.$t['surface'].';--cms-text:'.$t['text'].
+            ';--cms-primary:'.$t['primary'].';--cms-width:'.$t['maxWidth'].'px;--cms-font:'.$bodyFont.';--cms-heading-font:'.$headingFont.
             ';--cms-body-size:'.$t['bodySize'].'px;--cms-line-height:'.$lineHeights[$t['lineHeight']].
             ';--cms-h2-size:'.$headingSizes[$t['headingScale']].';--cms-button-bg:'.$buttonBg.
             ';--cms-button-color:'.$buttonColor.';--cms-button-text:'.$t['buttonText'].
@@ -889,8 +904,8 @@ JS;
             : '';
         return '<!doctype html><html lang="'.$language.'"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1">' . $previewHead
-            . '<title>' . $title . '</title>' . $description . $robots . $canonical . $social . '<style>' . self::themeCss($site)
-            . '*,*:before,*:after{box-sizing:border-box}body{margin:0;background:var(--cms-bg);color:var(--cms-text);font:var(--cms-body-size)/var(--cms-line-height) var(--cms-font)}'
+            . '<title>' . $title . '</title>' . $description . $robots . $canonical . $social . '<style>' . self::themeCss($site,$mount)
+            . '*,*:before,*:after{box-sizing:border-box}body{margin:0;background:var(--cms-bg);color:var(--cms-text);font:var(--cms-body-size)/var(--cms-line-height) var(--cms-font)}h1,h2,h3,h4,h5,h6{font-family:var(--cms-heading-font)}'
             . 'header,main,footer{max-width:var(--cms-width);margin:auto;padding:24px}nav{display:flex;flex-wrap:wrap;gap:18px}a{color:inherit}'
             . 'section{padding:64px 24px;border-bottom:1px solid #e2e8f0}h1{font-size:var(--title-desktop);color:var(--title-color);line-height:1.1;max-width:960px}'
             . 'h2{font-size:var(--cms-h2-size);line-height:1.2}.hero{padding-block:90px}.action{display:inline-block;background:var(--cms-button-bg);color:var(--cms-button-color);'
