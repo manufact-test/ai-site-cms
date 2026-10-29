@@ -119,7 +119,7 @@ final class ContractValidator
 
     private static function theme(mixed $t): void
     {
-        self::keys($t,['background','surface','text','primary','font','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText']);
+        self::keys($t,['background','surface','text','primary','font','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText','fontFiles']);
         foreach (['background','surface','text','primary'] as $name)
             self::must(is_string($t[$name]) && preg_match('/^#[0-9a-fA-F]{6}$/D',$t[$name])===1,'Invalid theme color');
         self::must(in_array($t['font'],['system','arial','georgia'],true)
@@ -225,9 +225,9 @@ final class ContractValidator
             self::keys($a, ['id', 'src', 'alt', 'mime', 'variants', 'width', 'height']);
             self::id($a['id']);
             self::must(!isset($assets[$a['id']])
-                && in_array($a['mime'], ['image/png','image/webp','image/jpeg','image/svg+xml','video/mp4'], true)
+                && in_array($a['mime'], ['image/png','image/webp','image/jpeg','image/svg+xml','video/mp4','font/woff2'], true)
                 && is_string($a['src'])
-                && preg_match('~^/assets/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg|mp4)$~D', $a['src']) === 1
+                && preg_match('~^/assets/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg|mp4|woff2)$~D', $a['src']) === 1
                 && is_string($a['alt']) && strlen($a['alt']) <= 200 && preg_match('/[\x00-\x1f]/',$a['alt'])!==1, 'Invalid asset');
             $hasWidth = array_key_exists('width', $a);
             $hasHeight = array_key_exists('height', $a);
@@ -239,10 +239,11 @@ final class ContractValidator
             self::must(!isset($ids[$a['id']]), 'Duplicate asset ID');
             $assets[$a['id']] = $a['mime'];
             if($a['mime']==='video/mp4')self::must($a['src']==='/assets/'.$a['id'].'.mp4','Invalid video URL');
+            if($a['mime']==='font/woff2')self::must($a['src']==='/assets/'.$a['id'].'.woff2','Invalid WOFF2 path');
             $ids[$a['id']] = true;
             if (array_key_exists('variants', $a)) {
                 self::must(is_array($a['variants']) && array_is_list($a['variants'])
-                    && count($a['variants']) <= 3 && !in_array($a['mime'],['image/svg+xml','video/mp4'],true),
+                    && count($a['variants']) <= 3 && !in_array($a['mime'],['image/svg+xml','video/mp4','font/woff2'],true),
                     'Invalid responsive variants');
                 $widths = [];
                 $ext = ['image/png'=>'png','image/jpeg'=>'jpg','image/webp'=>'webp'][$a['mime']];
@@ -257,6 +258,14 @@ final class ContractValidator
                     $ids[$variant['id']] = true; $widths[$variant['width']] = true;
                 }
             }
+        }
+        if (isset($site['theme']['fontFiles'])) {
+            $faces=$site['theme']['fontFiles'];
+            self::keys($faces,['body','heading']);
+            self::must(count($faces)>0,'At least one WOFF2 font required');
+            foreach($faces as $role=>$assetId)
+                self::must(is_string($assetId)&&($assets[$assetId]??null)==='font/woff2',
+                    'Theme font must reference a site-owned WOFF2 asset');
         }
         self::must(is_array($site['pages']) && array_is_list($site['pages'])
             && count($site['pages']) >= 1 && count($site['pages']) <= 100, 'Invalid pages');
