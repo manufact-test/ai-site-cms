@@ -151,6 +151,10 @@ async function execute(){
         mime:'video/mp4',alt:'Видеопрезентация утверждённого сайта'},
       {id:'asset-external-font',src:'/assets/asset-external-font.woff2',
         mime:'font/woff2',alt:'CMS original CI typeface'}];
+    site.footer={description:'Контакты и поддержка из утверждённого дизайна',
+      email:'contact@example.com',phone:'+48 500 600 700',
+      links:[{label:'Юридическая информация',pageId:site.pages[1].id}],
+      socials:[{network:'instagram',url:'https://instagram.com/manufact'}]};
     site.branding={logoAssetId:'asset-external-hero',
       mobileLogoAssetId:'asset-external-mobile',
       faviconAssetId:'asset-external-hero',logoWidth:176};
@@ -298,6 +302,8 @@ async function execute(){
   assert.match(approvedPreviewHtml,/<table class="cmsdg-n-approved-rich-table cmsdg-table">/,
     'External authored semantic table previews without arbitrary HTML');
   assert.match(approvedPreviewHtml,/<th scope="col"/);
+  assert.match(approvedPreviewHtml,/cms-preview-site-footer/);
+  assert.match(approvedPreviewHtml,/Юридическая информация/);
   assert.match(approvedPreviewHtml,/cmsdg-gallery/);
   assert.match(approvedPreviewHtml,/cmsdg-quote/);
   assert.match(approvedPreviewHtml,/data:image\/png;base64,/,
@@ -431,6 +437,8 @@ async function execute(){
   assert.equal(imported.branding.mobileLogoAssetId,importedMobileLogo.id);
   assert.equal(imported.branding.faviconAssetId,importedDesktopLogo.id);
   assert.equal(imported.branding.logoWidth,176);
+  assert.equal(imported.footer.links[0].pageId,interiorPage.id);
+  assert.equal(imported.footer.socials[0].network,'instagram');
   const importedFont=imported.assets.find(asset=>asset.mime==='font/woff2');
   assert.ok(importedFont&&importedFont.id!=='asset-external-font');
   assert.equal(imported.theme.fontFiles.body,importedFont.id);
@@ -824,6 +832,19 @@ async function execute(){
     '/published/site-approved-browser/assets/'+importedDesktopLogo.id+'.png');
   assert.equal(await visitor.locator('link[rel="icon"]').getAttribute('type'),'image/png');
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/assets/'+importedMobileLogo.id+'.png')).status(),200);
+  const footer=visitor.locator('footer.cms-site-footer');
+  assert.equal(await footer.locator('.cms-footer-description').innerText(),
+    'Контакты и поддержка из утверждённого дизайна');
+  assert.equal(await footer.locator('.cms-footer-nav a').getAttribute('href'),
+    '/published/site-approved-browser'+interiorPage.path);
+  assert.equal(await footer.locator('.cms-footer-contact a[href^="mailto:"]').getAttribute('href'),
+    'mailto:contact@example.com');
+  assert.equal(await footer.locator('.cms-footer-contact a[href^="tel:"]').getAttribute('href'),
+    'tel:+48500600700');
+  assert.equal(await footer.locator('.cms-footer-social a').getAttribute('href'),
+    'https://instagram.com/manufact');
+  assert.equal(await footer.locator('.cms-footer-social a').getAttribute('rel'),
+    'noopener noreferrer nofollow');
   assert.equal(await visitor.locator('h1').innerText(),'Редактируется после подключения');
   assert.match(await visitor.locator('section.hero h1').getAttribute('style'),/--title-mobile:31px/,
     'Mobile typography override survives server save and public rendering');
@@ -1071,6 +1092,25 @@ async function execute(){
     ['Как оформить заказ?','Что входит в комплект?'],
     'Restoring a private revision never changes the public site');
 
+  // Edit the global footer through Studio, save a private revision, and verify
+  // that the already-published visitor remains unchanged without Publish.
+  await page.locator('#cms-open-footer').click();
+  await page.locator('#cms-footer-editor').waitFor({state:'visible'});
+  await page.locator('#cms-footer-editor textarea').fill('Обновлённые контакты после запуска');
+  await page.locator('#cms-footer-editor-apply').click();
+  await page.locator('#cms-footer-editor').waitFor({state:'hidden'});
+  const beforeFooterSave=(await (await page.request.get(origin+
+    '/api/sites/site-approved-browser')).json()).revision;
+  await page.locator('#save').click();
+  await page.locator('#server-status')
+    .getByText(new RegExp('Черновик #'+(beforeFooterSave+1))).waitFor();
+  const footerDraft=(await (await page.request.get(origin+
+    '/api/sites/site-approved-browser')).json());
+  assert.equal(footerDraft.site.footer.description,'Обновлённые контакты после запуска');
+  await visitor.reload();
+  assert.equal(await visitor.locator('.cms-footer-description').innerText(),
+    'Контакты и поддержка из утверждённого дизайна',
+    'Private footer changes must never silently alter the public release');
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
   assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,
