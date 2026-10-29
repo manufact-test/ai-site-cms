@@ -282,6 +282,7 @@ function compare(site,release,http,media=null,byteReport=null){
   publicReleaseMarkerMatched:markerMatched,
   internalArtifactProbes:operatorArtifacts?.length??0,
   internalArtifactPublicHttp200:operatorArtifacts?.filter(x=>x.status===200).length??null,
+  internalArtifactPublicSuccess2xx:operatorArtifacts?.filter(x=>x.status>=200&&x.status<300).length??null,
   pages:Object.freeze(pages),assets:Object.freeze(assets),
   auxiliary:Object.freeze(auxiliary),findings:Object.freeze(findings),
   allComparedSurfacesMatched:blockers===0&&markerMatched&&Boolean(operatorArtifacts)&&
