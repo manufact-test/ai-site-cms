@@ -1838,6 +1838,8 @@
   }
   function mediaUses(site,assetId){
     const locations=[];
+    for(const [key,label] of [['logoAssetId','логотип'],['mobileLogoAssetId','мобильный логотип'],['faviconAssetId','favicon']])
+      if(site.branding?.[key]===assetId)locations.push('Все страницы · '+label);
     for(const role of ['body','heading'])
       if(site.theme?.fontFiles?.[role]===assetId)
         locations.push('Все страницы · '+(role==='body'?'основной текст':'заголовки'));
