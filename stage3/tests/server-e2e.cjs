@@ -362,7 +362,7 @@ async function stop(){
   assert.equal(oldManifest.stylesheets.length,1,'One cached base CSS for every page');
   const oldStyle=oldManifest.stylesheets[0];
   const originalCss=fs.readFileSync(path.join(exportedOldHtml,oldStyle.file),'utf8');
-  assert.equal(hash(Buffer.from(originalCss)),oldStyle.sha256);
+  assert.equal(require('node:crypto').createHash('sha256').update(originalCss).digest('hex'),oldStyle.sha256);
   assert.ok(originalCss.includes('body{margin:0'));
   for(const page of oldManifest.pages){
     const html=fs.readFileSync(path.join(exportedOldHtml,page.file),'utf8');
