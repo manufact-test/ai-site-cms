@@ -40,7 +40,7 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
     '; блокирующих gates: '+stats.releaseBlockingGates+
     '; реальных PHP findings: '+stats.actualFindings+'.',
   '- Public operator file exposure probes: '+(bundle.publicStaticParity?.internalArtifactProbes??'НЕ ПРОВЕРЕНО')+
-   '; served HTTP 200: '+(bundle.publicStaticParity?.internalArtifactPublicHttp200??'НЕ ПРОВЕРЕНО')+'.',
+   '; exposed HTTP 2xx: '+(bundle.publicStaticParity?.internalArtifactPublicSuccess2xx??'НЕ ПРОВЕРЕНО')+'.',
   '- Public HTTPS acquisition window: '+(bundle.publicStaticParity?.publicRootWindowRechecked?
    (bundle.publicStaticParity.publicRootWindowStable?'root SHA256 stable':'BLOCKED: root changed'):
    'НЕ ПРОВЕРЕНО')+'.',
