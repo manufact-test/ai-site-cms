@@ -17,10 +17,10 @@ const supported=new Set(['html','php','next-static','next-ssr']);
 const opts={};let flagSet=new Set();
 for(const f of flags){
   const [name,...pieces]=f.split('=');
-  if(!['--expect-origin','--allow-npm-install','--report','--allow-blocked','--http-rehearsal','--enforce-performance-budget'].includes(name)||flagSet.has(name))
+  if(!['--expect-origin','--allow-npm-install','--report','--allow-blocked','--http-rehearsal','--enforce-performance-budget','--compare-to','--enforce-no-regression'].includes(name)||flagSet.has(name))
     fail('unsupported/duplicate flag '+name);
   flagSet.add(name);
-  if(['--allow-npm-install','--allow-blocked','--http-rehearsal','--enforce-performance-budget'].includes(name)){
+  if(['--allow-npm-install','--allow-blocked','--http-rehearsal','--enforce-performance-budget','--enforce-no-regression'].includes(name)){
     if(pieces.length)fail('boolean flag does not take a value');opts[name]=true;
   }else {
     const val=pieces.join('=');
@@ -50,7 +50,12 @@ const checkTarget=file=>{
 function main(){
   if(process.argv.length<5||!path.isAbsolute(source??'')||!supported.has(technology)
     ||!path.isAbsolute(destination??'')||!destination.endsWith('.zip'))
-    fail('Usage: ship.cjs ABSOLUTE-D2.json html|php|next-static|next-ssr ABSOLUTE-NEW.zip [--expect-origin=https://site] [--allow-npm-install] [--report=ABSOLUTE-NEW.json] [--allow-blocked] [--http-rehearsal] [--enforce-performance-budget]');
+    fail('Usage: ship.cjs ABSOLUTE-D2.json html|php|next-static|next-ssr ABSOLUTE-NEW.zip [--expect-origin=https://site] [--allow-npm-install] [--report=ABSOLUTE-NEW.json] [--allow-blocked] [--http-rehearsal] [--enforce-performance-budget] [--compare-to=/ABS/OLD.zip] [--enforce-no-regression]');
+  if(opts['--enforce-no-regression']&&!opts['--compare-to'])
+    fail('--enforce-no-regression requires a verified older --compare-to ZIP');
+  if(opts['--compare-to']&&(!path.isAbsolute(opts['--compare-to'])
+      ||opts['--compare-to']===destination||opts['--compare-to']===source))
+    fail('comparison ZIP must be a distinct absolute path');
   if(opts['--http-rehearsal']&&technology==='next-ssr')
     fail('Next SSR is an unbuilt source-only package; it cannot be HTTP-rehearsed without a real Next server.');
   if(opts['--allow-npm-install']&&technology!=='next-static')
@@ -96,6 +101,18 @@ function main(){
       '). Adjust the individual published website or omit the opt-in strict gate after owner review.');
   const rawZip=fs.readFileSync(stagedZip),fingerprint=crypto.createHash('sha256').update(rawZip).digest('hex');
   if(fingerprint!==report.zipSha256||fingerprint!==verified.sha256)fail('archive changed during preflight');
+  let comparison=null;
+  if(opts['--compare-to']){
+    comparison=JSON.parse(exec(process.execPath,[
+      path.join(__dirname,'compare-delivery-performance.cjs'),
+      opts['--compare-to'],stagedZip],null,90000));
+    if(comparison.toZipSha256!==fingerprint||comparison.siteId!==verified.siteId)
+      fail('comparison report did not match the verified candidate ZIP');
+    if(opts['--enforce-no-regression']&&comparison.regressions.length)
+      fail('new release has '+comparison.regressions.length+
+        ' measured offline byte-size regressions; strict operator gate refused this shipment');
+  }
+  if(comparison)report.performanceComparison=comparison;
   // D6 optional real disposable loopback HTTP probe before publishing either
   // customer-facing artifact. The original D5 behavior is unchanged by default.
   let httpRehearsal=null;
@@ -114,6 +131,9 @@ function main(){
     automatedChecks:report.counts,
     performanceBudgetWarnings:report.performance.findings.length,
     performanceBudgetEnforced:Boolean(opts['--enforce-performance-budget']),
+    performanceComparisonIncluded:Boolean(comparison),
+    performanceRegressions:comparison?.regressions.length??null,
+    noRegressionEnforced:Boolean(opts['--enforce-no-regression']),
     manualApprovalRequired:true,
     approvalGranted:false,productionDeployed:false,
     npmNetworkOptIn:Boolean(opts['--allow-npm-install']),

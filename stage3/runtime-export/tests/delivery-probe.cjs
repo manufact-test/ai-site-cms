@@ -54,8 +54,9 @@ function capsule(dir){
     }
   }
   crawl(dir);const manifest=fs.readFileSync(path.join(dir,'release-manifest.json'));
+  const release=JSON.parse(manifest.toString('utf8'));
   return {format:'manufact-runtime-handoff-v1',siteId:'site-d4-shipping',
-    version:3,sourceRevision:7,manifestSha256:sha(manifest),
+    version:release.publishedVersion,sourceRevision:release.sourceRevision,manifestSha256:sha(manifest),
     rawBytes:files.reduce((s,x)=>s+Buffer.from(x.base64,'base64').length,0),files};
 }
 try{
@@ -137,6 +138,18 @@ try{
   assert.equal(evolution.pageChanges.find(x=>x.route==='/').status,'changed');
   assert.equal(evolution.pageChanges.find(x=>x.route==='/about/').status,'unchanged');
   assert.ok(evolution.newBudgetFindings.some(x=>x.code==='PERF_HTML_RAW_HIGH'));
+  const handoffV4=path.join(tmp,'published-v4-handoff.json');
+  fs.writeFileSync(handoffV4,JSON.stringify(capsule(nextSource)));
+  const incremental=success('ship.cjs',handoffV4,'html',
+    path.join(tmp,'compared-v4.zip'),'--compare-to='+shippedHtml.zip);
+  assert.equal(incremental.performanceComparisonIncluded,true);
+  assert.ok(incremental.performanceRegressions>0);
+  const incrementalReport=JSON.parse(fs.readFileSync(incremental.report,'utf8'));
+  assert.equal(incrementalReport.performanceComparison.toVersion,4);
+  assert.equal(incrementalReport.performanceComparison.toZipSha256,incremental.zipSha256);
+  assert.match(refuses('ship.cjs',handoffV4,'html',path.join(tmp,'refused-regression.zip'),
+    '--compare-to='+shippedHtml.zip,'--enforce-no-regression'),/regressions/i);
+  assert.equal(fs.existsSync(path.join(tmp,'refused-regression.zip')),false);
   const stopOnRegression=script('compare-delivery-performance.cjs',
     shippedHtml.zip,nextZip,'--fail-on-regression');
   assert.equal(stopOnRegression.status,3,'Operator opt-in regression gate');
