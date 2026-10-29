@@ -676,6 +676,23 @@ async function stop(){
   let delivery=(await request('GET',deliveryRoute)).body;
   assert.equal(delivery.totals.configuration_required,1,'Lead is saved but email delivery remains explicitly unconfigured');
   assert.equal(delivery.recent[0].state,'configuration_required');
+  // One targeted owner retry is version-checked, never resends other leads,
+  // and remains safe against double clicks even if SMTP is not configured.
+  const one=delivery.recent[0];
+  const retryOneBody={deliveryId:one.id,expectedState:one.state,
+    expectedAttempts:one.attempts,includeUncertain:false,reason:'Retry only this form lead',confirm:true};
+  assert.equal((await request('POST',deliveryRoute+'/retry-one',{
+    ...retryOneBody,confirm:false})).status,422,'Explicit confirmation is mandatory');
+  const onlyOne=await request('POST',deliveryRoute+'/retry-one',retryOneBody);
+  assert.equal(onlyOne.status,200,JSON.stringify(onlyOne.body));
+  assert.equal(onlyOne.body.totals.configuration_required,1);
+  assert.equal(onlyOne.body.recent[0].attempts,one.attempts+1,
+    'A failed-config retry advances the CAS counter exactly once');
+  assert.equal((await request('POST',deliveryRoute+'/retry-one',retryOneBody)).status,409,
+    'Stale double-click must not resend a second time');
+  assert.equal((await request('POST',deliveryRoute+'/retry-one',{
+    ...retryOneBody,deliveryId:'delivery-'+('0'.repeat(24))})).status,409,
+    'Unknown or foreign delivery is never requeued');
   const retry=await request('POST',deliveryRoute+'/retry',{reason:'CI retry without transport',includeUncertain:false});
   assert.equal(retry.status,200);assert.equal(retry.body.totals.configuration_required,1);
   assert.equal(retry.body.totals.accepted,0,'Missing transport must never be reported as sent');
