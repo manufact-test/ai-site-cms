@@ -87,10 +87,20 @@ function preflight(config,output){
    if(new URL(c.inputs.origin).pathname!=='/published/'+published.site.siteId+'/')
     throw Error('Local PHP URL does not match exact owner-published site ID');
   }
+  const officialAssets=release.assets instanceof Map?[...release.assets.values()]:[];
+  const estimatedOfficialMediaBytes=officialAssets.reduce((sum,asset)=>sum+asset.bytes,0);
+  if(!Number.isSafeInteger(estimatedOfficialMediaBytes)||estimatedOfficialMediaBytes<0)
+   throw Error('Official published media byte budget is invalid');
   source={siteId:published.site.siteId,publishedVersion:owner.version,
    sourceRevisionClaim:owner.sourceRevision,
    officialStaticManifestSha256:release.manifestSha256,
-   sealedApprovedSourceSha256:published.source.fileSha256};
+   sealedApprovedSourceSha256:published.source.fileSha256,
+   ...(c.phase==='public-capture'?{
+    expectedPublicPageRoutes:published.site.pages.length,
+    expectedMediaGetResources:officialAssets.length,
+    officialMediaSourceBytes:estimatedOfficialMediaBytes,
+    liveHttpsReadOnlyGETRequired:true
+   }:{})};
  }
  if(c.phase!=='local'){
   candidate=CANDIDATE.inspect(c.inputs.candidate,source);
