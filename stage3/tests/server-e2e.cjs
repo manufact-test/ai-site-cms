@@ -2479,8 +2479,10 @@ async function stop(){
         scrollY:0,note:'Чужой URL'}]});
   assert.equal(badImport.status,422,'Invalid import rejects entire batch');
   assert.equal((await request('GET',visualPath+'?revision=1')).body.openCount,1);
+  const longLocalizedNote='Заметка на русском '.repeat(22).trim();
+  assert.ok(longLocalizedNote.length<500&&Buffer.byteLength(longLocalizedNote,'utf8')>500);
   const importRows=[{pageId:visualSite.pages[1].id,path:'/contact/',device:'desktop',
-    scrollY:10,note:'Расстояния в нижнем блоке различаются'}];
+    scrollY:10,note:longLocalizedNote}];
   const importedReview=await request('POST',visualPath,
     {action:'import',expectedRevision:1,findings:importRows});
   assert.equal(importedReview.status,200,JSON.stringify(importedReview.body));
