@@ -453,3 +453,22 @@ Focused isolated V8 test: `node stage3/seo-engine/tests/static-host-rewrites-smo
 Для запуска остаются предыдущие команды capture-public-https, prepare-static-host, first-site-check в этом файле. Ведущий должен интегрировать latest HEAD SEO в свой checkout, реально выполнить Node+PHP+Chromium+HTTPS/form POST на первом клиенте. Изолированные V8/syntax проверки — не полноценный Node/CI/реальный клиентский PASS.
 
 **Этот блок актуальнее ранних исторических секций документа (там ещё может быть написано про четыре вместо шести файлов).**
+
+## 29.10.2026 — Большой запускной блок: deployment candidate / локальный preview / upgrade impact
+
+**Новый главный документ:** [STATIC-LAUNCH-WORKFLOW.md](STATIC-LAUNCH-WORKFLOW.md). Читай его первым для запуска первого реального сайта. Прежние инструкции об отдельном `prepare-static-host` — исторические, новый `prepare-static-upload` собирает непосредственно готовую к ручному деплою папку, а `prepare-first-site` объединяет localhost PHP SEO capture, upload и worksheet в одну команду.
+
+**Доставлено в этот заход:**
+
+1. `lib/static-host-bundle.cjs` + `bin/prepare-static-upload.cjs` — весь проверенный официальный HTML/robots/sitemap/301 fallback/media оригиналов+вариантов, из SHA256-verified export и owner-published version. В публичную `public/` никогда не включаются `release-manifest.json`, owner API/история/диагностика. Никакой живой загрузки.
+2. `404.html` — локализованная noindex ошибка; предотвращает Cloudflare Pages SPA fallback HTTP 200 для неизвестных страниц. На Apache/Nginx конфиге настраивается настоящее HTTP 404, прежние адреса — HTTP 301.
+3. `_redirects` Netlify forced 301! и Cloudflare Pages 301, Apache `.htaccess`, Nginx отдельный операторский server snippet; `_headers` на Netlify/Cloudflare безопасно включает nosniff/referrer и HTML cache revalidation, **не ломая CMS жёстким неутверждённым CSP**.
+4. `ai-site-release.json` публичный только с SHA256 официального манифеста и publishedVersion, НЕТ sourceRevision/секретов. `public-https-capture` теперь считывает этот маркер и `public-static-parity` блокирует mismatched release. Подписи исполняемого PHP нет — host provenance и владелец по-прежнему вручную проверяются.
+5. `lib/static-host-preview.cjs` + `bin/preview-static-upload.cjs` — localhost-only 127.0.0.1, SHA256 verification всех файлов, локальная браузерная навигация 200/301/404, GET/HEAD; POST запрещён. Это **симуляция** правил размещения, не доказательство настоящих rewrite на публичном CDN.
+6. `bin/prepare-first-site.cjs` — один операторский запуск PHP localhost capture + SEO release findings + staged static upload + приватные `CANDIDATE-HANDOFF.md` и `CANDIDATE-STATUS.json`. Всегда blockers/manual check, не автоматический GO.
+7. `lib/static-upload-impact.cjs` + `bin/compare-static-uploads.cjs` — сравнение двух verified staging uploads: критическая потеря опубликованной страницы без 301, исчезновение canonical/noindex, отмена 301, изменение host/version и same-URL media bytes; частная release impact ведомость.
+8. Публичный HTTPS **пробует только фиксированные адреса** внутренних служебных файлов (`release-manifest.json`, `upload-inventory.json`, `CANDIDATE-STATUS.json`, `CANDIDATE-HANDOFF.md`) и записывает только HTTP-статус + SHA256, **не содержимое**. Публичные приватные документы блокируют release. Теперь дополнительно есть public-revision marker и сохранение стабильного root HTML SHA256. Нет POST или редиректов.
+
+**Проверки:** синтаксис изменённых CJS, актуальный public-static-parity с настоящими module bodies и тестами в изолированном V8 прошли. Полноценные Node/PHP/Chromium/первый клиент/CI без интегрированного checkout не подтверждены. Не называть READY TO DEPLOY без трёх утверждённых макетов, форм POST/доставки, реального HTTPS и owner signoff.
+
+**Темп:** ориентир ~30 минут активного существенного кодинга на заход; если закончили за 10–12 минут — сразу следующий крупный блок. Без PR/merge/main/deploy, только stage3/seo-engine/**.
