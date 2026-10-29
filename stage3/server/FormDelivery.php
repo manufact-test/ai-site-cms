@@ -400,6 +400,33 @@ trait FormDelivery
         return $this->deliveryStatus($siteId);
     }
 
+    /**
+     * Owner-triggered, exactly one outbox attempt. A stale Studio page cannot
+     * re-queue a different state or repeat an attempt completed in another tab.
+     * Recipient is the immutable recipient snapshot from the original lead.
+     */
+    public function retryOneLeadDelivery(
+        string $siteId,string $deliveryId,string $expectedState,int $expectedAttempts,
+        bool $includeUncertain,string $reason
+    ): array {
+        $reason=trim($reason);
+        if(!preg_match('/^delivery-[a-f0-9]{24}$/D',$deliveryId)
+            ||!in_array($expectedState,['pending','failed','configuration_required','uncertain'],true)
+            ||($expectedState==='uncertain'&&!$includeUncertain)
+            ||$expectedAttempts<0||$expectedAttempts>1000000000
+            ||$reason===''||strlen($reason)>240||preg_match('/[\\x00-\\x1f\\x7f]/',$reason))
+            throw new InvalidArgumentException('Invalid single-delivery retry details');
+        $this->getDraft($siteId);
+        $this->atomic(function()use($siteId,$deliveryId,$expectedState,$expectedAttempts):void{
+            $q=$this->db->prepare("UPDATE stage3_delivery_outbox SET state='pending',last_error=NULL,updated_at=? WHERE site_id=? AND delivery_id=? AND state=? AND attempts=?");
+            $q->execute([$this->now(),$siteId,$deliveryId,$expectedState,$expectedAttempts]);
+            if($q->rowCount()!==1)
+                throw new Conflict('Delivery changed or does not belong to this site; refresh before retry');
+        });
+        $this->dispatchDelivery($deliveryId);
+        return $this->deliveryStatus($siteId);
+    }
+
     private function dispatchDelivery(string $deliveryId): void
     {
         $q=$this->db->prepare('SELECT delivery_id,site_id,submission_id,channel,state,target FROM stage3_delivery_outbox WHERE delivery_id=?');
