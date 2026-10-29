@@ -4,9 +4,11 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const GSC=require('../lib/gsc-performance.cjs');
 const BRIEFS=require('../lib/content-optimization-briefs.cjs');
+const CONTEXT=require('../lib/search-evidence-context.cjs');
+const LINKS=require('../lib/search-link-opportunities.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
-const KEYS=new Set(['blueprint','origin','pages','queries','pairs','site','period-start','period-end','previous-pages','previous-start','previous-end','out']);
-const HELP='Required: --blueprint FILE --origin https://example.com/ --pages Pages.csv --period-start YYYY-MM-DD --period-end YYYY-MM-DD --out NEW-DIR; optional --site Site-v1.json --queries Queries.csv --pairs PageQuery.csv --previous-pages OlderPages.csv --previous-start DATE --previous-end DATE';
+const KEYS=new Set(['blueprint','origin','pages','queries','pairs','site','period-start','period-end','previous-pages','previous-start','previous-end','context','out']);
+const HELP='Required: --blueprint FILE --origin https://example.com/ --pages Pages.csv --period-start YYYY-MM-DD --period-end YYYY-MM-DD --context GSC-context.json --out NEW-DIR; optional --site Site-v1.json --queries Queries.csv --pairs PageQuery.csv --previous-pages OlderPages.csv --previous-start DATE --previous-end DATE';
 function argsToFlags(args){
  if(args.length===1&&args[0]==='--help')return null;
  if(args.length%2)throw Error(HELP);
@@ -16,7 +18,7 @@ function argsToFlags(args){
   if(!args[i]?.startsWith('--')||!KEYS.has(k)||!args[i+1]||f[k])throw Error('Bad or repeated flag: '+args[i]);
   f[k]=args[i+1];
  }
- for(const k of ['blueprint','origin','pages','period-start','period-end','out'])if(!f[k])throw Error('Missing --'+k+'. '+HELP);
+ for(const k of ['blueprint','origin','pages','period-start','period-end','context','out'])if(!f[k])throw Error('Missing --'+k+'. '+HELP);
  if([f['previous-pages'],f['previous-start'],f['previous-end']].filter(Boolean).length%3!==0)
   throw Error('Previous comparison needs --previous-pages, --previous-start and --previous-end together');
  return f;
@@ -82,6 +84,7 @@ function main(argv){
   return item.text;
  };
  const blueprint=checkBlueprint(JSON.parse(read('blueprint',2500000)));
+ const searchContext=CONTEXT.validate(JSON.parse(read('context',30000)));
  const site=f.site?JSON.parse(read('site',2500000)):null;
  if(site){
   const {auditSite}=require('../lib/analyze.cjs');
@@ -104,11 +107,16 @@ function main(argv){
   try{fs.writeFileSync(fd,value);}finally{fs.closeSync(fd);}
  };
  result.inputDigests=digests;
+ result.searchContext=searchContext;
+ result.blueprintSha256=digests.blueprint.sha256;
  const briefs=BRIEFS.compile(blueprint,result);
+ const links=LINKS.build(blueprint,result,site);
  write('performance-insights.json',JSON.stringify(result,null,2)+'\n');
  write('editorial-worklist.md',renderMarkdown(result));
  write('editorial-page-briefs.json',JSON.stringify(briefs,null,2)+'\n');
  write('editorial-page-briefs.md',BRIEFS.markdown(briefs));
+ write('search-internal-links.json',JSON.stringify(links,null,2)+'\n');
+ write('search-internal-links.md',LINKS.markdown(links));
  write('PRIVATE-README.txt','Private search data. Do not publish this directory, upload to static public/ or commit to Git.\n');
  process.stdout.write('SEO worklist: '+result.actions.length+' editorial actions; '+result.summary.measuredPages+' measured approved pages.\nOutput: '+dest+'\n');
 }

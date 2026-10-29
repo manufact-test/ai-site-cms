@@ -132,3 +132,15 @@ After commit 5fe040979a9aa59509f119a2fe4128fafb58cde5 the worker added a real pr
 - SEARCH-PERFORMANCE-WORKFLOW.md and tests/gsc-performance-smoke.cjs document a practical private first real GSC export workflow and one focused synthetic check.
 
 Only stage3/seo-engine/** changes. No merge/PR/deploy. V8 actual-library sample scenario checked, but Node suite/CI on worker HEAD, real GSC CSV, current PHP integration, customer ranking outcomes, real deployment and signoff **not verified**. Lead alone integrates. Recheck exact SHA and Actions live in GitHub before work.
+
+## 9. Новый крупный заход SEO Search Operations — 29.10.2026
+
+Добавлены независимые, **реально применимые после первого запуска CMS** функциональные системы в stage3/seo-engine/**:
+
+1. **Эксплицитный GSC context** (lib/search-evidence-context.cjs): точная owner-declared Search Console property, searchType, country/device/filters, method, final data and SHA-256 comparabilityKey. CLI analyze-search-performance.cjs теперь требует --context и сохраняет exact Blueprint raw SHA256, чтобы нельзя было сравнивать разные версии макета как одну SEO серию. Старые отчёты без контекста должны быть пересобраны из настоящих CSV, а не исправлены вручную.
+2. **Многопериодная история** (lib/search-history.cjs + bin/analyze-search-history.cjs): 2–24 private reports, равные непересекающиеся периоды, запрет смешения properties/filters/method/Blueprint/host и неполной структуры; UNKNOWN вместо нуля, real per-page CTR/clicks/impressions/position, разовый или устойчивый сигнал снижения, human Markdown.
+3. **Журнал human SEO actions** (lib/search-action-ledger.cjs + bin/manage-search-actions.cjs): private editable ledger, полностью привязанный к SHA256 истории, отдельная проверка owner decision status, reported completion не считается проверенным выпуском, past statuses reference only после новой ревизии.
+4. **SEO-aware internal linking** (lib/search-link-opportunities.cjs, output from performance CLI): approved Blueprint contextual/CTA edges + measured GSC target page, при переданном Site v1 — actual authored links including DesignGraph. Не придумывает маршруты, не считает отсутствие в authoring доказательством сломанного публичного link, не изменяет CMS.
+5. Руководство SEARCH-OPERATIONS-WORKFLOW.md и один продуктовый smoke tests/search-operations-smoke.cjs.
+
+**Обязательная честность:** не было live GSC property authentication, реального CSV клиента, customer acceptance, полного Node CI worker HEAD и publication. Проверки новых модулей выполнены на актуальном коде в изолированных V8 scenarios; lead должен выполнить Node smoke в своем full checkout. Только ведущий объединяет ветки/деплоит. После коммитов live SHA и Actions проверить заново.

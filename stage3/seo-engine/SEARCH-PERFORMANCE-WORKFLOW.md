@@ -2,6 +2,8 @@
 
 **Scope:** only stage3/seo-engine/**. This is an offline, read-only **post-publication SEO improvement worklist** based on operator-exported Google Search Console (GSC) CSV data. It does **not** query Google, modify the CMS, publish content, validate GSC property ownership or predict search rankings.
 
+**New prerequisite (29 Oct):** a private --context file is REQUIRED. It explicitly declares GSC property, search type, device, country, filters, method and final data status; without it the report is ineligible for historical comparison. See [SEARCH-OPERATIONS-WORKFLOW.md](SEARCH-OPERATIONS-WORKFLOW.md) for an exact JSON example and the new historical/action-ledger workflows.
+
 ## Goal
 
 Earlier SEO Engine checks approved Blueprint, actual PHP rendering, static uploads and public HTTPS evidence. This module answers a different operational question: **which published pages should the editor investigate or improve when search impressions and clicks become available?**
@@ -21,6 +23,7 @@ Example (fictional URLs and private local paths):
 ~~~bash
 node stage3/seo-engine/bin/analyze-search-performance.cjs \
   --blueprint /ABS/private/approved-blueprint.json \
+  --context /ABS/private/gsc-context.json \
   --origin https://example.com/ \
   --pages /ABS/private/Pages.csv \
   --queries /ABS/private/Queries.csv \
@@ -73,3 +76,7 @@ Production GSC data, owner approval and customer results are **not yet verified*
 The same CLI additionally writes **editorial-page-briefs.json** and **editorial-page-briefs.md**. These join the approved page intent, meta title/description, sections, planned talking points, CTA targets, contextual links, declared schema candidate fact statuses and observed per-page GSC queries (only when paired evidence was supplied). P1/P2 findings become specific, page-bound human editorial assignments. No new marketing claims, drafts or CMS changes are produced. Missing queries remain explicitly unverified, and noindex/canonical decisions are never automated.
 
 This is a private, human-review-only companion to the measured search performance worklist. Publishing it or treating the approved Blueprint as proof of actual live HTML is forbidden.
+
+## Post-publication operations: several periods, decisions and links
+
+See [SEARCH-OPERATIONS-WORKFLOW.md](SEARCH-OPERATIONS-WORKFLOW.md). The performance CLI now additionally creates search-internal-links.json/.md. The new standalone analyze-search-history.cjs compares 2–24 fully comparable report periods; manage-search-actions.cjs creates source-SHA-pinned private human decision templates and reviews. These are operator-asserted Search Console observations, not automatic permission to edit/publish a client website.
