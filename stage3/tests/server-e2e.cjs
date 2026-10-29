@@ -701,6 +701,10 @@ async function stop(){
   assert.equal(leads[0].email,'client@example.test');
   assert.equal(leads[0].delivery.email,'configuration_required',
     'Owner inbox exposes actual lead transport state without recipient details');
+  assert.match(leads[0].deliveryJobs.email.id,/^delivery-[a-f0-9]{24}$/,
+    'Owner receives only operational outbox identity, not recipient secrets');
+  assert.equal(leads[0].deliveryJobs.email.state,leads[0].delivery.email);
+  assert.equal(leads[0].deliveryJobs.email.id,one.id);
   assert.equal(leads[0].status,'new');
   assert.equal((await request('POST',endpoint+'/submissions/'+leads[0].submission_id+'/review',{})).status,200);
   assert.equal((await request('GET',endpoint+'/submissions')).body.submissions[0].status,'reviewed');
