@@ -173,7 +173,7 @@ final class Api
                 '<script src="/media-motion-engine.js" defer></script>' .
                 '<script src="/hosted.js" defer></script><script src="/access.js" defer></script>' .
                 '<script src="/media-processing.js" defer></script></head>', $html);
-            header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+            header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; frame-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
             header('Content-Type: text/html; charset=utf-8');
             echo $html;
             exit;
