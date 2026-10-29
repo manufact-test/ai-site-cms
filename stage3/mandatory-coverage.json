@@ -852,9 +852,11 @@
         "stage3/server/FormDelivery.php",
         "stage3/server/Api.php",
         "stage3/studio/hosted.js",
-        "stage3/tests/server-e2e.cjs"
+        "stage3/tests/server-e2e.cjs",
+        "stage3/server/SmtpTransport.php",
+        "stage3/docs/SMTP-DELIVERY.md"
       ],
-      "nextCheck": "Partial: owner-only readiness inventories draft/live forms and per-form delivery evidence; manual per-form Email/Telegram probes are explicitly confirmed, rate-limited and audited without creating leads. Owner can record one receipt/not-received observation. Tests are bound to private saved site+form routing versions: changing either setting makes previous observations visibly stale. Actual visitor lead delivery and authorized host/client GO remain unverified."
+      "nextCheck": "Partial: owner-only per-site/per-form Email/Telegram routing, private lead outbox and saved recipient snapshot; explicit manual probes + owner receipt observations; optional authenticated TLS SMTP without PHP mail fallback, transport readiness surfaced in Studio, single-delivery owner CAS retry and private lead CSV delivery-state columns (not receipt evidence). Real visitor lead delivery to authorized external inbox/host, and owner GO are not yet verified."
     },
     {
       "id": 81,
