@@ -7,6 +7,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),
  os=require('node:os'),vm=require('node:vm');
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const PREVIEW=require('../lib/static-host-preview.cjs');
+const ZIP=require('../lib/static-upload-zip.cjs');
+const VERIFY=require('../lib/static-upload-zip-verify.cjs');
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'cms-seo-static-stage-'));
 try{
  const source=path.join(root,'official'),site={siteId:'pilot',language:'en',
@@ -85,6 +87,19 @@ try{
  assert.equal(PREVIEW.route(preview,'GET','/release-manifest.json').status,404);
  assert.equal(PREVIEW.route(preview,'POST','/').status,405);
  assert.equal(preview.liveRewriteVerified,false);
+ const packaged=ZIP.zip(output,path.join(root,'public-upload.zip'));
+ const secondZip=ZIP.zip(output,path.join(root,'repeat-public-upload.zip'));
+ const verifiedZip=VERIFY.verify(packaged.output,output);
+ assert.equal(packaged.sha256,secondZip.sha256);
+ assert.equal(packaged.sha256,verifiedZip.sha256);
+ assert.equal(verifiedZip.fileCount,actual.files);
+ assert.equal(verifiedZip.operatorPrivateFilesIncluded,false);
+ assert.ok(!fs.readFileSync(packaged.output).includes('release-manifest.json'));
+ const corruptedArchive=path.join(root,'corrupted.zip');
+ const corrupt=fs.readFileSync(packaged.output);
+ corrupt[41]^=0xff;
+ fs.writeFileSync(corruptedArchive,corrupt);
+ assert.throws(()=>VERIFY.verify(corruptedArchive,output),/ZIP|SHA256|CRC32|central|header|checksum/);
  assert.throws(()=>B.prepare(site,release,source,output,'cloudflare-pages'),/overwrite/);
  assert.throws(()=>B.inventory(site,release,source,'unsupported'),/supported provider/);
  const second=path.join(root,'nginx-out');
