@@ -177,7 +177,11 @@ final class ContractValidator
 
     private static function footer(mixed $footer,array $pages): void
     {
-        self::keys($footer,['description','email','phone','links','socials']);
+        self::keys($footer,['description','email','phone','links','socials','style','layout']);
+        self::must(!isset($footer['style'])||in_array($footer['style'],['light','dark','primary'],true),
+            'Invalid footer color style');
+        self::must(!isset($footer['layout'])||in_array($footer['layout'],['columns','stacked'],true),
+            'Invalid footer layout');
         foreach(['description'=>300,'email'=>254,'phone'=>32] as $key=>$max)
             self::must(is_string($footer[$key]??null)&&strlen($footer[$key])<=$max
                 &&preg_match('/[\x00-\x1f]/',$footer[$key])!==1,'Invalid footer text or contacts');
