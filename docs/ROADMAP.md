@@ -397,3 +397,7 @@ Fixed a real hosted Studio first-login race exposed by the approved-v2 recovery 
 ### Route-version binding of manual delivery tests
 
 Each test records the saved private site notification-settings version and per-form route version in audit metadata (not email addresses, chat IDs or tokens). Owner-only history and launch review mark whether a prior test still applies to the **current saved routing configuration**; changing either version or removing the form invalidates its applicability while retaining the original operator observation. Old audit rows without versions remain visible as history but never claim current applicability. This is deliberately conservative: an external transport could change without a CMS version bump, so matching versions are not proof of receipt or real visitor lead delivery. No schema changes or acceptance-status inflation.
+
+### Legacy audit compatibility check
+
+Routing-probe audit rows created before configuration-version metadata existed remain viewable and can still receive one owner observation. Empty regex capture groups must not be converted to version zero; these historic tests always show **not applicable to current configuration**. One isolated PHP HTTP E2E checks this backwards-compatible behavior without any real outgoing message.

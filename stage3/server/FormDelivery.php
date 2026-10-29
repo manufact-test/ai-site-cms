@@ -155,8 +155,8 @@ trait FormDelivery
             if(!isset($probes[$id]))$probes[$id]=[
                 'probeId'=>$id,'sectionId'=>$m[2],'channel'=>$m[3],
                 'requestedAt'=>null,'transportState'=>null,'transportError'=>null,
-                'settingsVersion'=>isset($m[4])?(int)$m[4]:null,
-                'routeVersion'=>isset($m[5])?(int)$m[5]:null,
+                'settingsVersion'=>isset($m[4])&&$m[4]!==''?(int)$m[4]:null,
+                'routeVersion'=>isset($m[5])&&$m[5]!==''?(int)$m[5]:null,
                 'appliesToCurrentSavedRoute'=>false,
                 'ownerReceived'=>null,'ownerReceiptAt'=>null,'ownerReceiptActor'=>null
             ];
@@ -214,7 +214,8 @@ trait FormDelivery
                 if(!preg_match('/^'.preg_quote($probeId,'/').' form=([a-z][a-z0-9-]{2,79}) channel=(email|telegram)(?: settingsVersion=(\d{1,10}) routeVersion=(\d{1,10}))?(?: error=[a-z_]+)?$/D',
                     $row['detail'],$m))continue;
                 $detail=$probeId.' form='.$m[1].' channel='.$m[2].
-                    (isset($m[3],$m[4])?' settingsVersion='.$m[3].' routeVersion='.$m[4]:'');
+                    (isset($m[3],$m[4])&&$m[3]!==''&&$m[4]!==''
+                        ?' settingsVersion='.$m[3].' routeVersion='.$m[4]:'');
                 if($row['action']==='delivery-probe-attempt')$attempt=$detail;
                 if($row['action']==='delivery-probe-result')$result=$detail;
                 if($row['action']==='delivery-probe-receipt')$already=true;
