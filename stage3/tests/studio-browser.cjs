@@ -809,6 +809,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       /href="\/contact\/"/);
     await page.locator('#cms-design-rich-clear').click();
     assert.equal(await page.locator('#cms-design-rich-text [data-rich-index]').count(),0);
+    await page.locator('#cms-design-graph-dialog .cms-design-fields > label').filter({hasText:'Текст (сбрасывает акценты)'})
+      .locator('textarea').fill('Новый профессиональный дизайн без ИИ');
     assert.equal(await page.locator('#cms-design-undo').isDisabled(),false);
     // Accessibility findings update while editing and jump back to the exact typed node.
     await page.locator('#cms-design-a11y-summary').waitFor();
