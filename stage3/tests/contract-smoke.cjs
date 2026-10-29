@@ -39,6 +39,31 @@ test('optional site header is safe, page-ID linked and editable',()=>{
   sdk.validateSite(deleted.current,manifests);
 });
 
+test('semantic formatted inline heading fragments are safe and copyable',()=>{
+  const G=require('../sdk/design-graph.cjs'),site=same(initial);
+  const section=sdk.sectionFrom(manifests.find(m=>m.id==='custom-section'),'section-rich-words');
+  section.designGraph={version:1,id:'graph-rich-words',nodes:[
+    {id:'node-rich-heading',type:'heading',level:1,
+      text:'Сайты нового уровня <без скриптов>',
+      runs:[{text:'Сайты '},{text:'нового уровня ',strong:true,color:'@accent'},
+        {text:'<без скриптов>',italic:true}],
+      styles:{fontSize:48}}
+  ]};
+  site.pages[0].sections=[section];
+  sdk.validateSite(site,manifests);
+  const html=G.render(site,section.designGraph);
+  assert.match(html,/<strong>нового уровня <\/strong>/);
+  assert.match(html,/style="color:#0a5bff"/);
+  assert.match(html,/<em>&lt;без скриптов&gt;<\/em>/);
+  assert.doesNotMatch(html,/<без скриптов>/);
+  const mismatch=same(site);mismatch.pages[0].sections[0].designGraph.nodes[0].runs[1].text='чужой';
+  refuses(()=>sdk.validateSite(mismatch,manifests),'formatted and plain text cannot diverge');
+  const unsafe=same(site);unsafe.pages[0].sections[0].designGraph.nodes[0].runs[1].color='url(javascript:1)';
+  refuses(()=>sdk.validateSite(unsafe,manifests),'unsafe CSS rejected');
+  const foreign=same(site);foreign.pages[0].sections[0].designGraph.nodes[0].runs[1].href='https://evil.example';
+  refuses(()=>sdk.validateSite(foreign,manifests),'arbitrary fragment links forbidden');
+});
+
 test('author sections can use viewport edge width while keeping bounded enums',()=>{
   const source=same(initial),section=source.pages[0].sections[0];
   section.appearance={surface:'default',spacing:'normal',align:'left',width:'edge'};
