@@ -133,7 +133,9 @@ async function main(argv){
      ...(read.config.phase==='search'&&inps.searchHistory?
       {search:{history:inps.searchHistory}}:{}),
      ...(read.config.phase==='search'&&inps.indexing?
-      {indexing:{report:inps.indexing}}:{})};
+      {indexing:{report:inps.indexing}}:{}),
+     ...(read.config.phase==='search'&&inps.liveAcceptanceReview?
+      {liveAcceptance:{report:inps.liveAcceptanceReview,contract:inps.liveAcceptanceContract}}:{})};
     fs.writeFileSync(path.join(root,'workspace-config.json'),JSON.stringify(src,null,2)+'\n',
      {flag:'wx',mode:0o600});
     WORKSPACE.main(argv);

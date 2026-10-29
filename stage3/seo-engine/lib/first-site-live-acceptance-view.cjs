@@ -27,6 +27,10 @@ function render(review,contract,contractSha,first,firstSha,postSha){
   !Number.isSafeInteger(review.checks.passed)||!Number.isSafeInteger(review.checks.pending)||
   !Number.isSafeInteger(review.checks.failed)||
   review.checks.passed+review.checks.pending+review.checks.failed!==review.checks.required||
+  !['realFormOccurrencesExpected','operatorFormPostReceipts','passedFormReceipts',
+     'failedFormReceipts'].every(k=>Number.isSafeInteger(review.checks[k])&&review.checks[k]>=0)||
+  review.checks.operatorFormPostReceipts!==review.checks.passedFormReceipts+
+    review.checks.failedFormReceipts||
   review.status==='OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION'&&(
    first.postDeploy.disposition!=='TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED'||
    review.checks.pending>0||review.checks.failed>0||

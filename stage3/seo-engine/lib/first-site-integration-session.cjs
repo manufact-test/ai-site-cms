@@ -12,7 +12,7 @@ const PHASES=Object.freeze({
   optional:['publicMediaEvidence','ownerEditReview','previousPublicHttp',
     'previousPublicMediaDigests']},
  search:{required:['candidate','postDeploy','blueprint'],
-  optional:['indexing','searchHistory']}
+  optional:['indexing','searchHistory','liveAcceptanceReview','liveAcceptanceContract']}
 });
 const PREP_KEYS={approvedSite:'approved-site',publishedSite:'published-site',
  blueprint:'blueprint',origin:'origin',staticExport:'static-export',provider:'provider',
@@ -60,6 +60,8 @@ function validate(value){
  }
  if(value.phase==='search'){
   assert(o.indexing||o.searchHistory,'Search follow-up needs a genuine indexing or history report');
+  assert(Boolean(o.liveAcceptanceReview)===Boolean(o.liveAcceptanceContract),
+   'Real-world human acceptance review and exact lead contract must be supplied together');
  }
  return Object.freeze({format:FORMAT,phase:value.phase,inputs:Object.freeze({...o})});
 }

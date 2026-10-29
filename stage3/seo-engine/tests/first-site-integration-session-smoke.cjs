@@ -46,6 +46,9 @@ const follow=PLAN.steps(f,home);
 assert.deepEqual(follow.map(x=>x.key),['relay','workspace']);
 assert(follow[0].argv.includes('--indexing'));
 assert(follow[0].argv.includes('--search-history'));
+assert.throws(()=>PLAN.validate({...f,inputs:{...f.inputs,liveAcceptanceReview:'/tmp/review.json'}}),/must be supplied together/);
+assert.equal(PLAN.validate({...f,inputs:{...f.inputs,
+ liveAcceptanceReview:'/tmp/review.json',liveAcceptanceContract:'/tmp/relay.json'}}).phase,'search');
 assert.throws(()=>PLAN.validate({...f,inputs:{candidate,postDeploy:'/tmp/post.json',
  blueprint:'/tmp/blueprint.json'}}),/genuine indexing or history/);
 console.log('first-site integration session plan smoke PASS (pure local planning only)');
