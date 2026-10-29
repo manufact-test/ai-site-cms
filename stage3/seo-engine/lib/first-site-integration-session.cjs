@@ -91,6 +91,11 @@ function steps(config,root){
    {key:'relay',cli:'build-first-site-lead-relay.cjs',
     argv:flags({candidate:inps.candidate,postDeploy:path.join(out,'post-deploy-summary.json'),
      out:path.join(root,'lead-relay')}, {candidate:'candidate',postDeploy:'post-deploy',out:'out'})},
+   {key:'live-acceptance-template',cli:'first-site-live-acceptance.cjs',
+    argv:['template','--candidate',inps.candidate,
+     '--contract',path.join(root,'lead-relay','INTEGRATION-CONTRACT.json'),
+     '--post-deploy',path.join(out,'post-deploy-summary.json'),
+     '--out',path.join(root,'live-acceptance-template')]},
    {key:'workspace',cli:'build-seo-operator-workspace.cjs',
     argv:['--config',path.join(root,'workspace-config.json'),
      '--out',path.join(root,'operator-workspace')]}
@@ -108,7 +113,7 @@ function summary(config,outputs){
  const c=validate(config);
  const plan=steps(c,outputs.root);
  const expected=c.phase==='local'?['prepare','relay','acceptance-template','workspace']:
-  c.phase==='public'?['verify','relay','workspace']:['relay','workspace'];
+  c.phase==='public'?['verify','relay','live-acceptance-template','workspace']:['relay','workspace'];
  assert(expected.every(k=>outputs[k]&&typeof outputs[k]==='object'),
   'stage results are incomplete');
  const result={format:'manufact-seo-first-site-integration-session-v1',version:1,
@@ -122,6 +127,9 @@ function summary(config,outputs){
   instructionsRelativePath:'lead-relay/LEAD-NEXT-ACTIONS.md',
   privateOperatorWorkspaceRelativeFile:'operator-workspace/index.html',
   humanAcceptanceTemplateCreated:c.phase==='local',
+  liveAcceptanceTemplateCreated:c.phase==='public',
+  ...(c.phase==='public'?{liveAcceptanceTemplateRelativeFile:
+   'live-acceptance-template/live-acceptance-template.json'}:{}),
   ...(c.phase==='local'?{humanAcceptanceTemplateRelativeFile:
    'human-acceptance-template/first-site-operator-template.json'}:{}),
   ...(c.phase==='local'?{candidateRelativeDir:'candidate'}:{}),

@@ -14,6 +14,7 @@ const VERIFY=require('./verify-deployed-site.cjs');
 const RELAY=require('./build-first-site-lead-relay.cjs');
 const ACCEPT=require('./manage-first-site-acceptance.cjs');
 const WORKSPACE=require('./build-seo-operator-workspace.cjs');
+const LIVE=require('./first-site-live-acceptance.cjs');
 const ROOT=fs.realpathSync(path.resolve(__dirname,'../../..'));
 const LIMIT=120000;
 const HELP='Usage: node stage3/seo-engine/bin/run-first-site-integration.cjs --config /ABS/private/integration-session.json --out /ABS/NEW-private-session [--preflight-only]';
@@ -112,6 +113,15 @@ async function main(argv){
      throw Error('Human acceptance template is not pinned to this release');
     return {siteId:v.siteId,templateSha256:sha(bytes)};
    },
+   'live-acceptance-template':argv=>{
+    const info=LIVE.main(argv);
+    const bytes=fs.readFileSync(path.join(root,'live-acceptance-template','live-acceptance-template.json'));
+    const data=JSON.parse(bytes.toString('utf8'));
+    if(info.siteId!==results.relay.siteId||data.siteId!==results.relay.siteId||
+       data.format!=='manufact-seo-first-site-live-acceptance-v1')
+     throw Error('Live acceptance template does not match verified public release');
+    return {siteId:data.siteId,templateSha256:sha(bytes)};
+   },
    workspace:argv=>{
     const inps=read.config.inputs,candidate=read.config.phase==='local'?
      path.join(root,'candidate'):inps.candidate;
@@ -147,6 +157,8 @@ async function main(argv){
    workspaceManifestSha256:results.workspace.workspaceManifestSha256,
    ...(results['acceptance-template']?
     {humanAcceptanceTemplateSha256:results['acceptance-template'].templateSha256}:{}),
+   ...(results['live-acceptance-template']?
+    {liveAcceptanceTemplateSha256:results['live-acceptance-template'].templateSha256}:{}),
    ...(read.config.phase==='local'?
     {candidateStatusSha256:sha(fs.readFileSync(path.join(root,'candidate','CANDIDATE-STATUS.json')))}:{}),
    ...(read.config.phase==='public'?

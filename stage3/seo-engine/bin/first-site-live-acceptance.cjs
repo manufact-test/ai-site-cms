@@ -30,7 +30,7 @@ function outside(file,folder=false){
  const rp=fs.realpathSync(file),rel=path.relative(ROOT,rp),st=fs.lstatSync(file);
  if(rel===''||rel==='.'||rel!=='..'&&!rel.startsWith('..'+path.sep)&&!path.isAbsolute(rel))
   throw Error('Private live client acceptance files must be outside Git checkout');
- if(st.isSymbolicLink()||folder?!(!st.isDirectory()):!st.isFile())
+ if(st.isSymbolicLink()||(folder?!st.isDirectory():!st.isFile()))
   throw Error('Human acceptance requires regular private source files/directories');
  return rp;
 }

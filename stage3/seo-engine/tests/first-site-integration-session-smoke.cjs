@@ -29,13 +29,16 @@ const p={format:PLAN.FORMAT,phase:'public',
  staticExport:'/tmp/export',publicHttpEvidence:'/tmp/public-http.json',
  publicMediaDigests:'/tmp/public-media.json'}};
 const pub=PLAN.steps(p,home);
-assert.deepEqual(pub.map(x=>x.key),['verify','relay','workspace']);
+assert.deepEqual(pub.map(x=>x.key),['verify','relay','live-acceptance-template','workspace']);
 assert.equal(pub[1].argv[pub[1].argv.indexOf('--post-deploy')+1],
  '/tmp/private-first-site-new/post-deploy/post-deploy-summary.json');
+assert.equal(pub[2].argv[0],'template');
 assert.equal(PLAN.summary(p,{root:home,verify:{siteId:'my-site',status:'NOT-READY'},
- relay:{siteId:'my-site',stage:'PUBLIC-TECHNICAL-BLOCKED'},workspace:{siteId:'my-site'}}).phase,'public');
+ relay:{siteId:'my-site',stage:'PUBLIC-TECHNICAL-BLOCKED'},
+ 'live-acceptance-template':{siteId:'my-site'},workspace:{siteId:'my-site'}}).phase,'public');
 assert.throws(()=>PLAN.summary(p,{root:home,verify:{siteId:'different'},
- relay:{siteId:'my-site'},workspace:{siteId:'my-site'}}),/site IDs conflict/);
+ relay:{siteId:'my-site'},'live-acceptance-template':{siteId:'my-site'},
+ workspace:{siteId:'my-site'}}),/site IDs conflict/);
 const f={format:PLAN.FORMAT,phase:'search',
  inputs:{candidate,postDeploy:'/tmp/post.json',blueprint:'/tmp/blueprint.json',
  indexing:'/tmp/indexing.json',searchHistory:'/tmp/history.json'}};
