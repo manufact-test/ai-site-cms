@@ -1529,7 +1529,7 @@ async function stop(){
   assert.match(richPublished.body,/class="cms-site-header cms-menu-bold cms-menu-sticky"/);
   assert.match(richPublished.body,/class="cms-nav-submenu"/);
   assert.match(richPublished.body,/Свяжитесь с нами/);
-  assert.match(richPublished.body,/aria-label="Мобильная навигация"/);
+  assert.match(richPublished.body,/aria-label="Nawigacja mobilna"/);
   assert.match(richPublished.body,/Получить консультацию/);
   assert.match(richPublished.body,/href="\/published\/site-rich-ci\/contact\/"/);
   assert.doesNotMatch(richPublished.body,/<script/i,'No runtime JS required by menu');
