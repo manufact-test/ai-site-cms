@@ -123,6 +123,55 @@ trait VisualReview
         });
     }
 
+    /**
+     * A downloaded review report can contribute still-open observations.
+     * Never import old sign-offs, resolved state, usernames or arbitrary
+     * site coordinates. The whole request commits or rejects atomically.
+     */
+    public function visualReviewImport(string $siteId,int $revision,array $incoming,string $operator): array
+    {
+        if(!$this->hasVisualReviewTable())throw new RuntimeException('Visual review schema upgrade required');
+        if(count($incoming)>200)throw new InvalidArgumentException('Review import limited to 200 findings');
+        $draft=$this->getDraft($siteId);
+        if($draft['revision']!==$revision)throw new Conflict('Draft revision changed before review import');
+        $pages=[];
+        foreach($draft['site']['pages'] as $page)$pages[$page['id']]=$page['path'];
+        $items=[];
+        foreach($incoming as $item){
+            if(!is_array($item)||!is_string($item['pageId']??null)
+                ||!is_string($item['path']??null)||!is_string($item['device']??null)
+                ||!is_string($item['note']??null)||!is_int($item['scrollY']??null)
+                ||!isset($pages[$item['pageId']])||$pages[$item['pageId']]!==$item['path']
+                ||!in_array($item['device'],['desktop','tablet','mobile'],true)
+                ||$item['scrollY']<0||$item['scrollY']>60000
+                ||strlen($item['note'])<3||strlen($item['note'])>500
+                ||preg_match('//u',$item['note'])!==1
+                ||preg_match('/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]/',$item['note']))
+                throw new InvalidArgumentException('Invalid imported review finding');
+            $items[]=$item;
+        }
+        return $this->atomic(function()use($siteId,$revision,$operator,$items):array{
+            $this->lockVisualDraftRevision($siteId,$revision);
+            $rows=$this->visualReviewRows($siteId,$revision);
+            $keys=[];
+            $key=static fn(array $r):string=>hash('sha256',json_encode(
+                [$r['pageId'],$r['device'],$r['path'],$r['scrollY'],$r['note']],JSON_THROW_ON_ERROR));
+            foreach($rows as $row)$keys[$key($row)]=true;
+            $insert=$this->db->prepare('INSERT INTO stage3_visual_findings (site_id,draft_revision,finding_id,page_id,page_path,device,scroll_y,note,state,version,created_by,created_at,resolved_by,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,NULL,NULL)');
+            $added=0;
+            foreach($items as $item){
+                $fingerprint=$key($item);
+                if(isset($keys[$fingerprint]))continue;
+                if(count($keys)>=200)throw new InvalidArgumentException('Maximum 200 review findings');
+                $insert->execute([$siteId,$revision,'visual-'.bin2hex(random_bytes(12)),
+                    $item['pageId'],$item['path'],$item['device'],$item['scrollY'],
+                    $item['note'],'open',1,$operator,$this->now()]);
+                $keys[$fingerprint]=true;$added++;
+            }
+            return [...$this->visualReviewStatus($siteId,$revision),'added'=>$added];
+        });
+    }
+
     public function visualReviewResolve(string $siteId,int $revision,string $findingId,
         int $expectedVersion,string $operator): array
     {
