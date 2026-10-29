@@ -27,6 +27,10 @@ function compare(before,after){
   type,severity,path,message,automaticRelease:false}));
  if(b.publishedVersion<a.publishedVersion)
   note('release-version-rollback','error',null,'New candidate publishedVersion is older than the prior upload.');
+ if(b.publishedVersion===a.publishedVersion&&
+    a.officialStaticManifestSha256!==b.officialStaticManifestSha256)
+  note('immutable-published-version-drift','error',null,
+   'Two different official static manifests claim the same published CMS version; require immutable release/version identity.');
  if(a.origin!==b.origin)
   note('public-origin-migration','error',null,'Canonical public HTTPS origin changed; require explicit domain migration review.');
  if(a.provider!==b.provider)
