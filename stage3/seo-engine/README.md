@@ -1,3 +1,5 @@
+**Operator usability:** First-site human template now includes an automatically generated PRIVATE `LIVE-FORM-POST-WORKSHEET.md` enumerating each source-backed published form and its required POST/delivery/manual receipt. This is never evidence of a performed POST, not a deploy command. See [LIVE-ACCEPTANCE-WORKFLOW.md](LIVE-ACCEPTANCE-WORKFLOW.md).
+
 ## 29 October 2026 — exact PHP form-instance acceptance
 
 The original PHP audit `bundle.json.localPhpForms.pages[].formInstances` now contains **only** the Site v1 sectionId for each verified lead form observed in the page's actual local PHP HTML, never POST data, HMAC markers, recipients or private tokens. Human operator templates include `required.formRefsByPage` (route → exact section IDs). Each `formTests[].formRef` MUST equal the original sectionId on that route. Fabricated references no longer count; unidentifiable, duplicated, extra or missing PHP form instances require repair and recapture before creating a human template.

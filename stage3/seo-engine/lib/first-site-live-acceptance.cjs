@@ -245,6 +245,42 @@ function review(original,filled,post){
    'Owner must verify each private receipt independently, then manually authorize or reject the exact release.',
    'Changing the owner-published revision, ZIP or public host requires new source-bound evidence.']});
 }
+function formWorksheet(t){
+ requireThat(t?.format===FORMAT&&t.version===1&&t.required&&
+  Array.isArray(t.required.pages)&&
+  t.required.formRefsByPage&&typeof t.required.formRefsByPage==='object',
+  'private form worksheet requires original source-bound live template');
+ const rows=t.required.pages.flatMap(page=>{
+  const refs=t.required.formRefsByPage[page];
+  requireThat(Array.isArray(refs)&&refs.length===t.required.formOccurrencesByPage[page]&&
+   new Set(refs).size===refs.length&&refs.every(x=>/^[a-z][a-z0-9-]{2,79}$/.test(x)),
+   'private worksheet cannot enumerate exact source-backed forms');
+  return refs.map(sectionId=>({page,sectionId}));
+ });
+ requireThat(rows.length===t.required.observedPhpFormOccurrences,
+  'private worksheet differs from original PHP form count');
+ const lines=['# Source-bound live form POST worksheet','',
+  'Site ID: '+t.siteId,
+  'Original public ZIP SHA256: '+t.pinned.publicZipSha256,
+  'Original PHP audit bundle SHA256: '+t.pinned.originalPhpReviewBundleSha256,
+  'Total forms needing separate real POST and delivery receipts: '+rows.length,'',
+  'This is an UNFILLED operator checklist, not evidence that any POST/delivery happened.',
+  'Do not store customer data, form body, HMAC, email address, tokens or private recipient information here.',''];
+ if(!rows.length)lines.push('No lead forms were found in the hash-checked local PHP pages. Still complete all browser/manual checks.','');
+ for(const {page,sectionId} of rows){
+  lines.push('## Route '+page+' | sectionId '+sectionId,'',
+   '- [ ] Open exact deployed HTTPS page and identify the form by original sectionId.',
+   '- [ ] Submit an explicitly authorized non-sensitive test POST with required consent.',
+   '- [ ] Verify correct response, validation and user-visible success/error state.',
+   '- [ ] Independently verify the expected persistence/notification/delivery receipt.',
+   '- [ ] Record operator, observation date and private evidence reference OUTSIDE GitHub.',
+   '- [ ] Add a formTests[] record using exactly page='+page+
+    ' and formRef='+sectionId+' in the private filled acceptance JSON.','');
+ }
+ lines.push('A checked box in this worksheet does not authenticate delivery or authorize release.',
+  'The lead must independently validate the actual receipts and receive client approval.','');
+ return lines.join('\n');
+}
 function markdown(r){
  requireThat(r?.format===RESULT,'review summary format is invalid');
  return ['# First-site real-world human acceptance review','',
@@ -269,4 +305,4 @@ function markdown(r){
  'Never copy private URLs, test submissions, recipient addresses or HMAC values into the repository.',''
  ].join('\n');
 }
-module.exports=Object.freeze({FORMAT,RESULT,HOST_CHECKS,pagesFromUpload,template,review,markdown});
+module.exports=Object.freeze({FORMAT,RESULT,HOST_CHECKS,pagesFromUpload,template,review,formWorksheet,markdown});

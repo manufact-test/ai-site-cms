@@ -35,6 +35,11 @@ assert.equal(original.required.browserChecks,6);
 assert.deepEqual(original.required.formOccurrencesByPage,{'/':0,'/contact/':1});
 assert.deepEqual(original.required.formRefsByPage,{'/':[],'/contact/':['contact-lead']});
 assert.equal(original.pinned.originalPhpReviewBundleSha256,e);
+const worksheet=FLOW.formWorksheet(original);
+assert(worksheet.includes('contact-lead')&&worksheet.includes('Route /contact/'));
+assert(!worksheet.includes('_token')&&!worksheet.includes('fake receipt'));
+assert.throws(()=>FLOW.formWorksheet({...original,required:{...original.required,
+ formRefsByPage:{'/':[],'/contact/':['unknown-id','other-id']}}}),/enumerate/);
 assert.equal(original.tasks.length,6+FLOW.HOST_CHECKS.length);
 assert.equal(FLOW.review(original,original,post).status,'HUMAN-EVIDENCE-INCOMPLETE');
 const reviewed=JSON.parse(JSON.stringify(original));

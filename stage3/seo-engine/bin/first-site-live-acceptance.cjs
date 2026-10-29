@@ -71,6 +71,7 @@ function main(argv){
  let filledSourceSha256=null;
  if(o.action==='template'){
   content['live-acceptance-template.json']=JSON.stringify(template,null,2)+'\n';
+  content['LIVE-FORM-POST-WORKSHEET.md']=FLOW.formWorksheet(template);
   content['LIVE-ACCEPTANCE-INSTRUCTIONS.md']=[
    '# Real-world first-site manual verification','',
    'Only complete tasks actually observed in a REAL browser on the deployed HTTPS site.',
