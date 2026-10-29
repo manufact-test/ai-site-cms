@@ -255,3 +255,18 @@
 .hosted-launch-review-history-details{display:grid;gap:6px;max-height:185px;overflow:auto}
 .hosted-launch-review-history-details strong{font-size:12px}
 .hosted-launch-review-history-details p{font-size:11px;padding:7px;margin:0;border:1px solid #506c78;border-radius:6px;white-space:normal;overflow-wrap:anywhere}
+
+/* Owner's existing launch review: per-form notification readiness,
+   always a configuration report, never an external delivery receipt. */
+.hosted-launch-forms{display:grid;gap:10px;min-width:0;padding:12px;border:1px solid #526e7e;border-radius:9px;background:#172f3c}
+.hosted-launch-forms[hidden]{display:none!important}
+.hosted-launch-forms-header{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.hosted-launch-forms-header h3{margin:0;font-size:14px;flex:1}
+.hosted-launch-forms-header .btn{font-size:12px}
+.hosted-launch-forms-rows{display:grid;gap:9px;max-height:370px;overflow:auto}
+.hosted-launch-form-entry{border:1px solid #536d7b;padding:10px;border-radius:7px;display:grid;gap:6px;background:#132835}
+.hosted-launch-form-entry strong{font-size:12px;overflow-wrap:anywhere}
+.hosted-launch-form-entry small{font-size:11px;color:#d4e3ed}
+.hosted-launch-form-entry p{font-size:12px;margin:0}
+.hosted-launch-form-entry .btn{justify-self:start;font-size:11px}
+.hosted-launch-forms-warning{color:#ffcc8c!important}
