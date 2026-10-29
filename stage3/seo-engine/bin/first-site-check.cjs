@@ -13,6 +13,7 @@ const PROGRESS=require('../lib/first-site-report-delta.cjs');
 const STATIC_EXPORT=require('../lib/php-local-static-export.cjs');
 const DELIVERY_READY=require('../lib/php-local-delivery-readiness.cjs');
 const VISUAL=require('../lib/php-local-visual-review.cjs');
+const APPROVAL_ARCHIVE=require('../lib/php-local-approval-archive.cjs');
 const PUBLIC_STATIC=require('../lib/public-static-parity.cjs');
 const PUBLIC_BYTES=require('../lib/public-media-byte-verification.cjs');
 const DELIVERY=require('../lib/delivery-evidence.cjs');
@@ -20,12 +21,12 @@ const MEDIA=require('../lib/media-delivery.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
 const {auditSite}=require('../lib/analyze.cjs');
 const REQUIRED=['approved-site','blueprint','origin','evidence','report'];
-const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review','static-export','public-http-evidence','public-media-evidence','delivery-status','visual-review-status','public-media-digests'];
+const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review','static-export','public-http-evidence','public-media-evidence','delivery-status','visual-review-status','approval-archive-index','public-media-digests'];
 function parse(argv){
  const opts={};
  if(!Array.isArray(argv)||argv.length<REQUIRED.length*2||
   argv.length>(REQUIRED.length+OPTIONAL.length)*2||argv.length%2)
-  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json] [--static-export /ABS/official-static-release] [--public-http-evidence /ABS/public-http-transcript.json] [--public-media-evidence /ABS/public-media-transcript.json] [--delivery-status /ABS/private-owner-delivery.json] [--visual-review-status /ABS/private-owner-visual-review.json] [--public-media-digests /ABS/public-media-sha256.json]');
+  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json] [--static-export /ABS/official-static-release] [--public-http-evidence /ABS/public-http-transcript.json] [--public-media-evidence /ABS/public-media-transcript.json] [--delivery-status /ABS/private-owner-delivery.json] [--visual-review-status /ABS/private-owner-visual-review.json] [--approval-archive-index /ABS/private-owner-approval-index.json] [--public-media-digests /ABS/public-media-sha256.json]');
  for(let i=0;i<argv.length;i+=2){
   const name=argv[i]?.startsWith('--')?argv[i].slice(2):null;
   if(![...REQUIRED,...OPTIONAL].includes(name)||!argv[i+1]||opts[name])throw Error('Unknown, missing or duplicate first-site option');
@@ -120,6 +121,7 @@ async function main(argv){
  const publicMediaSha=o['public-media-evidence']?fileSha256(o['public-media-evidence']):null;
  const deliveryStatusSha=o['delivery-status']?fileSha256(o['delivery-status']):null;
  const visualStatusSha=o['visual-review-status']?fileSha256(o['visual-review-status']):null;
+ const approvalIndexSha=o['approval-archive-index']?fileSha256(o['approval-archive-index']):null;
  const publicDigestsSha=o['public-media-digests']?fileSha256(o['public-media-digests']):null;
  const previous=o['previous-report']?PROGRESS.read(o['previous-report']):null;
  if(previous&&([report,evidence].some(target=>{
@@ -177,11 +179,20 @@ async function main(argv){
     publicMediaSha&&fileSha256(o['public-media-evidence'])!==publicMediaSha||
     deliveryStatusSha&&fileSha256(o['delivery-status'])!==deliveryStatusSha||
     visualStatusSha&&fileSha256(o['visual-review-status'])!==visualStatusSha||
+    approvalIndexSha&&fileSha256(o['approval-archive-index'])!==approvalIndexSha||
     publicDigestsSha&&fileSha256(o['public-media-digests'])!==publicDigestsSha)
   throw Error('Public evidence file changed during PHP capture; discard mixed source report');
  if(checked.localStaticExport&&checked.localStaticExport.sourceRevisionClaim!==published.sourceRevision)
   throw Error('Official static export sourceRevision conflicts with owner CMS published sourceRevision');
  if(!PHP.isVerified(checked))throw Error('First-site PHP evidence was not source-bound verified');
+ let archivedApproval=null;
+ if(o['approval-archive-index']){
+  const stat=fs.lstatSync(o['approval-archive-index']);
+  if(stat.isSymbolicLink()||!stat.isFile()||stat.size<10||stat.size>300000)
+   throw Error('Unsafe or oversized owner approval archive index JSON');
+  archivedApproval=APPROVAL_ARCHIVE.review(o['approved-site'],fresh.site,fresh.source,
+   JSON.parse(fs.readFileSync(o['approval-archive-index'],'utf8')));
+ }
  let ownerVisualReview=null;
  if(o['visual-review-status']){
   const stat=fs.lstatSync(o['visual-review-status']);
@@ -203,6 +214,7 @@ async function main(argv){
   ...(screenshots?{phpCapture:screenshots}:{}),
   ...(publicHttp?{delivery:publicHttp}:{}),
   ...(publicMedia?{media:publicMedia}:{}),
+  ...(archivedApproval?{approvalArchive:archivedApproval}:{}),
   ...(ownerVisualReview?{visualReview:ownerVisualReview}:{}),
   ...(deliveryReadiness?{deliveryReadiness}:{}),
   ...(publicStatic?{publicStatic}:{}),
@@ -306,6 +318,12 @@ async function main(argv){
   typedComponents:{actualPhpSectionsChecked:checked.localComponents?.checkedTypedSections??null,
    actualFindings:checked.localComponents?.findings.length??null,
    browserInteractionVerified:false},
+  approvalArchive:{supplied:Boolean(archivedApproval),
+   exactSealedPackageFound:archivedApproval?.exactSealedPackageFound??null,
+   ownerArchiveKindsChecked:archivedApproval?.ownerArchiveKindsChecked??null,
+   missingOrMismatchedKinds:archivedApproval?
+    archivedApproval.missingKinds+archivedApproval.mismatchedKinds:null,
+   clientApprovalSignatureVerified:false,rawPrototypesExposed:false},
   visualReview:{supplied:Boolean(ownerVisualReview),
    publishedSourceRevisionClaim:published?.sourceRevision??null,
    visualNotesForPinnedRevision:ownerVisualReview?.checkedFindingCount??null,
