@@ -190,6 +190,28 @@ trait VisualReview
         });
     }
 
+    /**
+     * After saving a new draft, keep unresolved remarks on pages still
+     * present. A cosmetic no-op Save must not bypass the publish gate.
+     * Closed notes stay in their original revision; no approval is carried.
+     */
+    private function carryOpenVisualFindings(string $siteId,int $previous,int $next,array $site): void
+    {
+        if(!$this->hasVisualReviewTable())return;
+        $paths=[];
+        foreach($site['pages'] as $page)$paths[$page['id']]=$page['path'];
+        $q=$this->db->prepare("SELECT page_id,device,scroll_y,note FROM stage3_visual_findings WHERE site_id=? AND draft_revision=? AND state='open' ORDER BY created_at,finding_id LIMIT 201");
+        $q->execute([$siteId,$previous]);$old=$q->fetchAll(PDO::FETCH_ASSOC);
+        if(count($old)>200)throw new RuntimeException('Too many visual findings to migrate');
+        $add=$this->db->prepare('INSERT INTO stage3_visual_findings (site_id,draft_revision,finding_id,page_id,page_path,device,scroll_y,note,state,version,created_by,created_at,resolved_by,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,NULL,NULL)');
+        foreach($old as $row){
+            if(!isset($paths[$row['page_id']]))continue; // The entire page was removed.
+            $add->execute([$siteId,$next,'visual-'.bin2hex(random_bytes(12)),
+                $row['page_id'],$paths[$row['page_id']],$row['device'],(int)$row['scroll_y'],
+                $row['note'],'open',1,'system',$this->now()]);
+        }
+    }
+
     /** Fail closed for open recorded notes; migrations remain separately opted in. */
     private function assertNoOpenVisualFindings(string $siteId,int $revision): void
     {
