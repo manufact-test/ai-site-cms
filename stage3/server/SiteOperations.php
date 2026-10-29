@@ -135,6 +135,54 @@ trait SiteOperations
         ];
     }
 
+
+    /**
+     * Owner compares a manually copied independent runtime identity with
+     * the exact published immutable export. No outbound network / DNS,
+     * writes, migrations, client data, public status claims or auto-GO.
+     */
+    public function compareIndependentConnection(string $siteId,array $remote,string $origin,?string $collector): array
+    {
+        $published=$this->published($siteId);
+        $version=$published['version'];
+        if(!is_int($version)||$version<1)throw new RuntimeException('Site has no publication');
+        if(strlen($origin)<9||strlen($origin)>250||PublicRenderer::origin($origin)!==$origin)
+            throw new \InvalidArgumentException('Use the exact public origin used for the independent export');
+        if($collector!==null&&strlen($collector)>250)
+            throw new \InvalidArgumentException('Collector origin is too long');
+        $keys=['format','siteId','publishedVersion','sourceRevision','releaseManifestSha256'];
+        if(count($remote)!==count($keys)||array_keys($remote)!==$keys && (
+            count(array_diff(array_keys($remote),$keys))!==0||count(array_diff($keys,array_keys($remote)))!==0))
+            throw new \InvalidArgumentException('Paste the complete independent /_cms-connect.json object');
+        if(($remote['format']??null)!=='manufact-ai-site-connection-v1'
+            ||!is_string($remote['siteId'])||!preg_match('/^[a-z][a-z0-9-]{2,79}$/D',$remote['siteId'])
+            ||!is_int($remote['publishedVersion'])||$remote['publishedVersion']<1
+            ||!is_int($remote['sourceRevision'])||$remote['sourceRevision']<1
+            ||!is_string($remote['releaseManifestSha256'])
+            ||!preg_match('/^[a-f0-9]{64}$/D',$remote['releaseManifestSha256']))
+            throw new \InvalidArgumentException('Invalid independent release identity fields');
+        $capsule=TechnologyHandoff::capsule($this,$siteId,$version,$origin,$collector);
+        $expected=['siteId'=>$siteId,'publishedVersion'=>$version,
+            'sourceRevision'=>$capsule['sourceRevision'],
+            'releaseManifestSha256'=>$capsule['manifestSha256']];
+        $observed=[
+            'siteId'=>$remote['siteId'],'publishedVersion'=>$remote['publishedVersion'],
+            'sourceRevision'=>$remote['sourceRevision'],'releaseManifestSha256'=>$remote['releaseManifestSha256']
+        ];
+        $checks=[];
+        foreach($expected as $name=>$value)
+            $checks[$name]=$name==='releaseManifestSha256'
+                ?hash_equals($value,$observed[$name]):$value===$observed[$name];
+        $matches=!in_array(false,$checks,true);
+        return ['format'=>'manufact-independent-connection-comparison-v1','siteId'=>$siteId,
+            'origin'=>$origin,'expected'=>$expected,'observed'=>$observed,'checks'=>$checks,
+            'exactReleaseMatch'=>$matches,'outboundRequestMade'=>false,
+            'remoteHttpVerified'=>false,'ownerAcceptanceConfirmed'=>false,
+            'nextAction'=>$matches?'Check real HTTPS response and visitor pages on the authorized target':
+                'Rebuild and redeploy the exact published version with matching origin/collector',
+            'note'=>'Pasted JSON proves only metadata parity, not DNS, TLS, host reachability, actual deployment, form receipt or owner approval.'];
+    }
+
     /**
      * Read-only launch preparation for a REAL client form on its current draft
      * AND any still-live published release.  No outbound connection, no fake

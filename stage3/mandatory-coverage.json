@@ -1845,7 +1845,7 @@
         "stage3/runtime-export/bin/build.cjs",
         "stage3/runtime-export/templates/php/index.php"
       ],
-      "nextCheck": "Partial: same-origin hosted PHP doctor and read-only independent PHP/Next release identity exist; no external DNS/HTTP connection test or owner-approved live host verification."
+      "nextCheck": "Partial: same-origin hosted PHP connection doctor plus manually pasted independent PHP/Next deployed /_cms-connect.json comparison against freshly rebuilt exact immutable D2 published manifest SHA256, site ID/version/source revision, with owner-only Studio and API. No outbound DNS/HTTP, therefore cannot certify actual remote reachability, TLS, real client host or owner GO."
     },
     {
       "id": 193,

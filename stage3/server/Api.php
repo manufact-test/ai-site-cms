@@ -917,6 +917,16 @@ final class Api
                 $this->auditDetail='import '.($pending['args'][3]??'').' from '.$sourceId;
                 $this->response(200,$this->sites->applyCrossSiteCollection(...$pending['args']));
             }
+            if($method==='POST' &&
+                preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/connection/compare$~D',$path,$externalConnection)){
+                if($principal['role']!=='owner')$this->response(403,['error'=>'Owner only']);
+                if(!is_array($body['remoteIdentity']??null)||!is_string($body['publicOrigin']??null)
+                    ||isset($body['formCollector'])&&!is_string($body['formCollector']))
+                    throw new InvalidArgumentException('Provide independent JSON identity and exact export origin');
+                $this->auditDetail='Read-only manual independent release identity comparison';
+                $this->response(200,$this->sites->compareIndependentConnection($externalConnection[1],
+                    $body['remoteIdentity'],$body['publicOrigin'],$body['formCollector']??null));
+            }
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/delivery(?:/(retry|routes|probe/receipt|probe|probes))?$~D',$path,$deliveryMatch)) {
                 $siteId=$deliveryMatch[1];$operation=$deliveryMatch[2]??null;
                 if($method==='GET'&&$operation===null)

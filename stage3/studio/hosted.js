@@ -47,10 +47,75 @@
     element('p',null,'Проверяет локальную БД, актуальную публикацию и публичный endpoint на том же origin. Не обращается к DNS, внешнему хостингу, домену клиента или другим серверам.'),
     connectionSummary,connectionRetry,connectionClose);
   document.body.append(connectionDialog);
+  /* An external deployment is NEVER fetched from the CMS server.
+     Owner manually copies the public identity; exact SHA comparison is computed
+     only against the immutable release and origin/collector used to export it. */
+  const externalConnection=element('section','hosted-connection-external');
+  const externalConnectionTitle=element('h3',null,'Независимый PHP / Next: сравнить реальный выпуск');
+  const externalConnectionHelp=element('p',null,
+    'Откройте на отдельном опубликованном сайте /_cms-connect.json и вставьте его содержимое. '+
+    'Проверка сравнит точный SHA-256 выпуска с текущей публикацией CMS. '+
+    'Никаких запросов к чужим доменам, DNS, деплоя или изменений сайта нет.');
+  const externalField=(labelText,id,control)=>{
+    const label=element('label','hosted-label',labelText);control.id=id;control.className='control';
+    label.append(control);return label;
+  };
+  const externalOrigin=element('input');externalOrigin.type='url';
+  externalOrigin.placeholder='https://client.example';externalOrigin.maxLength=250;
+  const externalCollector=element('input');externalCollector.type='url';
+  externalCollector.placeholder='https://forms.example (если в выпуске формы)';externalCollector.maxLength=250;
+  const externalIdentity=element('textarea');externalIdentity.rows=6;
+  externalIdentity.maxLength=4096;
+  externalIdentity.placeholder='{"format":"manufact-ai-site-connection-v1","siteId":"...", ...}';
+  const externalSummary=element('div','hosted-backup-summary');
+  externalSummary.id='server-connection-external-result';
+  const externalCompare=action('Сравнить SHA-256 независимого выпуска','server-connection-compare',()=>safe(async()=>{
+    if(!state.siteId||!isOwner())throw Error('Доступно только владельцу CMS');
+    let identity;
+    try{identity=JSON.parse(externalIdentity.value);}catch(_){throw Error('Вставьте корректный JSON из /_cms-connect.json');}
+    if(!identity||Array.isArray(identity)||typeof identity!=='object')
+      throw Error('Ожидается объект JSON из независимого выпуска');
+    externalSummary.replaceChildren(element('p',null,'Проверка текущей опубликованной версии...'));
+    const siteId=state.siteId;
+    const data=await api('/api/sites/'+encodeURIComponent(siteId)+'/connection/compare','POST',{
+      remoteIdentity:identity,publicOrigin:externalOrigin.value.trim(),
+      formCollector:externalCollector.value.trim()||null
+    });
+    if(siteId!==state.siteId||!connectionDialog.open)return;
+    const status=data.exactReleaseMatch?
+      'Совпала точная идентичность опубликованного выпуска (по вставленному JSON)':
+      'Обнаружено расхождение: независимый выпуск отличается от текущей публикации CMS';
+    externalSummary.replaceChildren(element('strong',null,status));
+    for(const [key,labelText] of [
+      ['siteId','ID сайта'],['publishedVersion','Версия публикации'],
+      ['sourceRevision','Исходная ревизия'],['releaseManifestSha256','SHA-256 всех файлов в манифесте']]){
+      const ok=data.checks?.[key];
+      externalSummary.append(element('p',ok?'':'hosted-connection-mismatch',
+        (ok?'✓ ':'✗ ')+labelText+' · CMS: '+data.expected[key]+
+        ' · внешний JSON: '+data.observed[key]));
+    }
+    externalSummary.append(element('small',null,
+      'Это только сравнение вставленного JSON. Не проверены реальный DNS, HTTPS, доступность страниц '+
+      'и фактическая доставка форм. Нужна отдельная проверка на разрешённом хосте.'));
+  }));
+  const externalOpen=action('Открыть JSON независимого сайта','server-connection-external-open',()=>{
+    const origin=externalOrigin.value.trim();
+    if(!/^https:\/\/[a-z0-9][a-z0-9.-]*(?::443)?$/i.test(origin))
+      return notice('Укажите HTTPS origin без пути, логина и параметров',true);
+    window.open(origin+'/_cms-connect.json','_blank','noopener,noreferrer');
+  });
+  externalConnection.append(externalConnectionTitle,externalConnectionHelp,
+    externalField('HTTPS-адрес, использованный при сборке выпуска','server-connection-external-origin',externalOrigin),
+    externalField('HTTPS-сборщик форм из того же выпуска (если есть)','server-connection-external-collector',externalCollector),
+    externalOpen,
+    externalField('JSON из /_cms-connect.json','server-connection-external-identity',externalIdentity),
+    externalCompare,externalSummary);
+  connectionDialog.insertBefore(externalConnection,connectionClose);
   async function checkConnection(){
     if(!state.siteId||!isOwner())throw Error('Проверка подключения доступна владельцу');
     const siteId=state.siteId;
     connectionSummary.replaceChildren(element('p',null,'Проверка локального выпуска…'));
+    externalSummary.replaceChildren();
     const result=await api('/api/sites/'+encodeURIComponent(siteId)+'/connection-check');
     if(!connectionDialog.open||state.siteId!==siteId)return;
     const row=(title,value)=>element('p',null,title+': '+value);

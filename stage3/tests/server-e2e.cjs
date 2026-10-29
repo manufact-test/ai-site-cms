@@ -233,6 +233,40 @@ async function stop(){
   assert.doesNotMatch(pub.body,/<img src=x onerror/);
   assert.match(pub.body,/\/published\/site-industrial-demo\/contact\//);
   assert.equal((await request('GET','/published/'+id+'/contact/')).status,200);
+
+  /* No external HTTP is made: verify exact identity parity using a generated,
+     self-contained independent release manifest bound to the current publication. */
+  const comparePath=endpoint+'/connection/compare';
+  assert.equal((await request('POST',comparePath,{publicOrigin:'https://client.example',
+    remoteIdentity:{}})).status,422,'Incomplete remote JSON refused');
+  assert.equal((await request('POST',comparePath,{publicOrigin:'http://169.254.169.254',
+    remoteIdentity:{}})).status,422,'Only explicit HTTPS origin or loopback test allowed');
+  const comparisonCapsule=(await request('POST',endpoint+'/technology-export/plan',{
+    version:1,publicOrigin:'https://client.example',formCollector:null})).body;
+  assert.equal(comparisonCapsule.plan.version,1);
+  const downloaded=(await request('POST',endpoint+'/technology-export/download',
+    {confirmationToken:comparisonCapsule.confirmationToken}));
+  assert.equal(downloaded.status,200,JSON.stringify(downloaded.body));
+  const remoteIdentity={format:'manufact-ai-site-connection-v1',siteId:id,
+    publishedVersion:1,sourceRevision:downloaded.body.capsule.sourceRevision,
+    releaseManifestSha256:downloaded.body.capsule.manifestSha256};
+  const equalRemote=await request('POST',comparePath,{
+    publicOrigin:'https://client.example',formCollector:null,remoteIdentity});
+  assert.equal(equalRemote.status,200,JSON.stringify(equalRemote.body));
+  assert.equal(equalRemote.body.exactReleaseMatch,true);
+  assert.equal(equalRemote.body.remoteHttpVerified,false);
+  assert.equal(equalRemote.body.ownerAcceptanceConfirmed,false);
+  assert.equal(equalRemote.body.outboundRequestMade,false);
+  const staleRemote=await request('POST',comparePath,{
+    publicOrigin:'https://client.example',formCollector:null,
+    remoteIdentity:{...remoteIdentity,releaseManifestSha256:'0'.repeat(64)}});
+  assert.equal(staleRemote.status,200);
+  assert.equal(staleRemote.body.exactReleaseMatch,false);
+  assert.equal(staleRemote.body.checks.releaseManifestSha256,false);
+  assert.equal((await request('POST',comparePath,{
+    publicOrigin:'https://client.example',formCollector:null,
+    remoteIdentity:{...remoteIdentity,debug:'private'}})).status,422,
+    'Unknown identity fields refused, never interpreted as proof');
   // Site operations: owner-only CAS toggle, immediate visitor isolation, no release mutation.
   const operations=await request('GET',endpoint+'/operations');
   assert.equal(operations.status,200);
