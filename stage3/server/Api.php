@@ -262,7 +262,7 @@ final class Api
                 exit;
             }
         }
-        if (preg_match('~^/published/([a-z][a-z0-9-]{2,79})(/.*)$~D', $path, $match) && $method === 'GET') {
+        if (preg_match('~^/published/([a-z][a-z0-9-]{2,79})(/.*)$~D', $path, $match) && in_array($method,['GET','HEAD'],true)) {
             try {
                 $published = $this->sites->published($match[1]);
                 if ($this->sites->operationsState($match[1])['enabled']) {
@@ -272,7 +272,7 @@ final class Api
                     header('X-Robots-Tag: noindex, nofollow');
                     header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'");
                     header('Content-Type: text/html; charset=utf-8');
-                    echo '<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Техническое обслуживание</title><body style="font:18px/1.5 system-ui;max-width:640px;margin:12vh auto;padding:24px"><h1>Сайт временно недоступен</h1><p>'
+                    if($method!=='HEAD')echo '<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Техническое обслуживание</title><body style="font:18px/1.5 system-ui;max-width:640px;margin:12vh auto;padding:24px"><h1>Сайт временно недоступен</h1><p>'
                         .htmlspecialchars($this->sites->operationsState($match[1])['message'],ENT_QUOTES|ENT_SUBSTITUTE|ENT_HTML5,'UTF-8').'</p></body></html>';
                     exit;
                 }
@@ -283,7 +283,7 @@ final class Api
                     header('Cache-Control: no-store');
                     header('X-Robots-Tag: noindex, nofollow');
                     header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
-                    echo json_encode(['format'=>'manufact-ai-site-connection-v1',
+                    if($method!=='HEAD')echo json_encode(['format'=>'manufact-ai-site-connection-v1',
                         'siteId'=>$match[1],'publishedVersion'=>$published['version']],
                         JSON_THROW_ON_ERROR);
                     exit;
@@ -304,14 +304,15 @@ final class Api
                     if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$searchEtag){
                         http_response_code(304);exit;
                     }
-                    echo $searchBody;
+                    header('Content-Length: '.strlen($searchBody));
+                    if($method!=='HEAD')echo $searchBody;
                     exit;
                 }
                 $redirect=PublicRenderer::redirectTarget($published['site'],$match[2]);
                 if ($redirect!==null) {
                     header('Location: '.$mount.$redirect,true,301);
                     header('Content-Type: text/plain; charset=utf-8');
-                    echo 'Page moved permanently';
+                    if($method!=='HEAD')echo 'Page moved permanently';
                     exit;
                 }
                 // Cache only exact published pages and revalidate on every
@@ -323,7 +324,7 @@ final class Api
                     if($page['path']===$match[2]){$pageFound=true;break;}
                 if(!$pageFound){
                     http_response_code(404);
-                    echo 'Not found';
+                    if($method!=='HEAD')echo 'Not found';
                     exit;
                 }
                 $encoding=(string)($_SERVER['HTTP_ACCEPT_ENCODING']??'');
@@ -355,13 +356,16 @@ final class Api
                     $packed=gzencode($html,6);
                     if(is_string($packed)){
                         header('Content-Encoding: gzip');
-                        echo $packed;exit;
+                        header('Content-Length: '.strlen($packed));
+                        if($method!=='HEAD')echo $packed;
+                        exit;
                     }
                     // Extremely unusual zlib failure: never send an identity
                     // body under a compressed representation's validator.
                     header('ETag: "cms3-'.hash('sha256',$html).'-plain"');
                 }
-                echo $html;
+                header('Content-Length: '.strlen($html));
+                if($method!=='HEAD')echo $html;
                 exit;
             } catch (NotFound $e) {
                 http_response_code(404);

@@ -137,3 +137,8 @@ For hosted `/published/{siteId}/assets/{assetId}.{png|jpg|webp|mp4}`, the owner 
 ### 29 Oct — first visible Design Graph image priority
 
 Publisher now marks exactly one image inside the **first page section**'s Design Graph as `loading="eager" fetchpriority="high"` (if such an image exists). Every other graph image remains `loading="lazy"`; optional responsive `picture/source` selection, aspect ratio dimensions, escaping and immutable asset URLs are unchanged. Below-first-section galleries do not get a high priority solely because they are the first image of their container. This is a conservative first-screen resource scheduling improvement, not a guaranteed LCP win: a real client's rendered viewport and Core Web Vitals must still be measured with the approved responsive mockups and real host.
+
+
+### 29 Oct — hosted public PHP standard HEAD requests
+
+The built-in public CMS PHP renderer now accepts `HEAD` for exact published pages, the same-origin connection identity, sitemap/robots, permanent redirects and maintenance responses, alongside existing GET. Successful published HTML returns the exact negotiated Content-Length and representation-specific ETag/Vary as GET without returning the document body; 304 still bypasses page render and HEAD for nonexistent routes stays 404. The independent PHP site already offered HEAD. This makes HTTP monitoring, caches and visitor tooling more predictable, while not proving live customer DNS/TLS or visual acceptance. Public forms remain POST-only and are not touched.

@@ -214,6 +214,15 @@ async function stop(){
   assert.equal(pub.status,200);
   assert.match(pub.headers.get('cache-control'),/no-cache/);
   assert.match(pub.headers.get('etag'),/^"cms3-[a-f0-9]{64}-(?:plain|gz)"$/);
+  const publicHead=await request('HEAD','/published/'+id+'/');
+  assert.equal(publicHead.status,200);
+  assert.equal(publicHead.body,'');
+  assert.equal(publicHead.headers.get('etag'),pub.headers.get('etag'));
+  assert.ok(Number(publicHead.headers.get('content-length'))>0);
+  const publicCanaryHead=await request('HEAD','/published/'+id+'/_cms-connect');
+  assert.equal(publicCanaryHead.status,200);
+  assert.equal(publicCanaryHead.body,'');
+  assert.equal((await request('HEAD','/published/'+id+'/missing/')).status,404);
   const identityPublic=await request('GET','/published/'+id+'/',undefined,
     {'accept-encoding':'identity'});
   assert.equal(identityPublic.status,200);
@@ -226,6 +235,9 @@ async function stop(){
     {'if-none-match':pub.headers.get('etag')});
   assert.equal(notModified.status,304,'Unchanged release skips HTML generation');
   assert.equal(notModified.body,'');
+  assert.equal((await request('HEAD','/published/'+id+'/',undefined,{
+    'if-none-match':pub.headers.get('etag')
+  })).status,304,'HEAD must honor exact public variant revalidation');
   assert.equal((await request('GET','/published/'+id+'/not-a-page/',undefined,
     {'if-none-match':pub.headers.get('etag')})).status,404,
     'Unknown route cannot be cached as an existing page');
