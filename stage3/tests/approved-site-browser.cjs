@@ -151,7 +151,7 @@ async function execute(){
         mime:'video/mp4',alt:'Видеопрезентация утверждённого сайта'},
       {id:'asset-external-font',src:'/assets/asset-external-font.woff2',
         mime:'font/woff2',alt:'CMS original CI typeface'}];
-    site.footer={description:'Контакты и поддержка из утверждённого дизайна',
+    site.footer={style:'dark',layout:'columns',description:'Контакты и поддержка из утверждённого дизайна',
       email:'contact@example.com',phone:'+48 500 600 700',
       links:[{label:'Юридическая информация',pageId:site.pages[1].id}],
       socials:[{network:'instagram',url:'https://instagram.com/manufact'}]};
@@ -833,6 +833,7 @@ async function execute(){
   assert.equal(await visitor.locator('link[rel="icon"]').getAttribute('type'),'image/png');
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/assets/'+importedMobileLogo.id+'.png')).status(),200);
   const footer=visitor.locator('footer.cms-site-footer');
+  assert.match(await footer.getAttribute('class'),/cms-footer-style-dark/);
   assert.equal(await footer.locator('.cms-footer-description').innerText(),
     'Контакты и поддержка из утверждённого дизайна');
   assert.equal(await footer.locator('.cms-footer-nav a').getAttribute('href'),
@@ -845,6 +846,12 @@ async function execute(){
     'https://instagram.com/manufact');
   assert.equal(await footer.locator('.cms-footer-social a').getAttribute('rel'),
     'noopener noreferrer nofollow');
+  await visitor.setViewportSize({width:375,height:800});
+  const footerMobile=await footer.locator('.cms-footer-inner').evaluate(el=>
+    getComputedStyle(el).gridTemplateColumns.trim());
+  assert.equal(footerMobile.split(/\\s+/).length,1,
+    'Footer collapses to one column for real mobile Chromium viewport');
+  await visitor.setViewportSize({width:1280,height:900});
   assert.equal(await visitor.locator('h1').innerText(),'Редактируется после подключения');
   assert.match(await visitor.locator('section.hero h1').getAttribute('style'),/--title-mobile:31px/,
     'Mobile typography override survives server save and public rendering');
@@ -1097,6 +1104,7 @@ async function execute(){
   await page.locator('#cms-open-footer').click();
   await page.locator('#cms-footer-editor').waitFor({state:'visible'});
   await page.locator('#cms-footer-editor textarea').fill('Обновлённые контакты после запуска');
+  await page.locator('#cms-footer-editor select').first().selectOption('primary');
   await page.locator('#cms-footer-editor-apply').click();
   await page.locator('#cms-footer-editor').waitFor({state:'hidden'});
   const beforeFooterSave=(await (await page.request.get(origin+
@@ -1107,6 +1115,7 @@ async function execute(){
   const footerDraft=(await (await page.request.get(origin+
     '/api/sites/site-approved-browser')).json());
   assert.equal(footerDraft.site.footer.description,'Обновлённые контакты после запуска');
+  assert.equal(footerDraft.site.footer.style,'primary');
   await visitor.reload();
   assert.equal(await visitor.locator('.cms-footer-description').innerText(),
     'Контакты и поддержка из утверждённого дизайна',
