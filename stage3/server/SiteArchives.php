@@ -162,6 +162,7 @@ trait SiteArchives
             self::archiveCheck(is_string($bytes) && $bytes !== '' && strlen($bytes) <= ($m['mime']==='video/mp4'?VideoGuard::MAX_BYTES:self::IMAGE_MAX_BYTES)
                 && is_string($m['sha256']) && hash_equals(hash('sha256', $bytes), $m['sha256']), 'image checksum mismatch');
             if($m['mime']==='video/mp4')VideoGuard::validate($bytes,$m['sha256']);
+            elseif($m['mime']==='font/woff2')FontGuard::validate($bytes,$m['sha256']);
             else{
                 $info = @getimagesizefromstring($bytes);
                 $types = [IMAGETYPE_PNG => 'image/png', IMAGETYPE_JPEG => 'image/jpeg', IMAGETYPE_WEBP => 'image/webp'];
@@ -171,7 +172,7 @@ trait SiteArchives
             }
             self::archiveDate($m['createdAt']);
             $media[$m['id']] = $m;
-            $ext = ['image/png' => 'png','image/jpeg' => 'jpg','image/webp' => 'webp','video/mp4'=>'mp4'][$m['mime']];
+            $ext = ['image/png' => 'png','image/jpeg' => 'jpg','image/webp' => 'webp','video/mp4'=>'mp4','font/woff2'=>'woff2'][$m['mime']];
             $assetList[$m['id']] = ['id' => $m['id'], 'mime' => $m['mime'], 'src' => '/assets/' . $m['id'] . '.' . $ext, 'alt' => ''];
         }
         $validateSite = function (mixed $site) use ($p, $target, $assetList, $media): array {
