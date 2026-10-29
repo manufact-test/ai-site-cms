@@ -453,6 +453,10 @@ final class Api
                 $revision=self::revision(filter_var($_GET['revision']??null,FILTER_VALIDATE_INT,FILTER_NULL_ON_FAILURE));
                 $this->response(200,$this->sites->visualReviewStatus($review[1],$revision));
             }
+            if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/launch-forms$~D',$path,$launchForms)) {
+                if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
+                $this->response(200,$this->sites->launchFormReadiness($launchForms[1]));
+            }
             if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/connection-check$~D',$path,$connection)) {
                 if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
                 $this->response(200,$this->sites->connectionCheck($connection[1]));
