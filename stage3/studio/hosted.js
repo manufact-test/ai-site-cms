@@ -1535,6 +1535,39 @@
         statuses.length?statuses.join(' · '):'Внешние уведомления не создавались · заявка сохранена в CMS');
       deliveryLine.setAttribute('aria-label','Статус доставки уведомлений по заявке');
       wrap.append(deliveryLine);
+      if(isOwner()){
+        const jobs=[['email','Email'],['telegram','Telegram']]
+          .map(([channel,name])=>({channel,name,job:lead.deliveryJobs?.[channel]}))
+          .filter(x=>x.job&&['pending','failed','configuration_required','uncertain'].includes(x.job.state));
+        if(jobs.length){
+          const retryBox=element('details','hosted-lead-workflow');
+          retryBox.append(element('summary',null,'Повторить уведомление по этой заявке ('+jobs.length+')'));
+          const retryReason=element('input','control');
+          retryReason.placeholder='Причина повторной отправки';retryReason.maxLength=240;
+          retryReason.setAttribute('aria-label','Причина повтора уведомления заявки '+lead.submission_id);
+          retryBox.append(retryReason);
+          const retryActions=element('div','hosted-buttons');
+          for(const {channel,name,job} of jobs){
+            retryActions.append(action('Повторить '+name,'server-inbox-delivery-retry-'+job.id,()=>safe(async()=>{
+              const siteId=state.siteId,reason=retryReason.value.trim();
+              if(!siteId||!reason)throw Error('Укажите причину ручного повтора');
+              const uncertain=job.state==='uncertain';
+              if(!confirm(uncertain
+                ?'Предыдущая отправка могла дойти. Повтор '+name+' может создать дубликат. Продолжить?'
+                :'Повторить только '+name+' для этой заявки? Это реальная отправка уведомления.'))return;
+              const result=await api('/api/sites/'+encodeURIComponent(siteId)+'/delivery/retry-one','POST',{
+                deliveryId:job.id,expectedState:job.state,expectedAttempts:job.attempts,
+                includeUncertain:uncertain,reason,confirm:true
+              });
+              if(siteId!==state.siteId)return;
+              renderDelivery(result);
+              await loadSubmissions();
+              notice('Статус этой заявки и внешнего уведомления обновлён.');
+            })));
+          }
+          retryBox.append(retryActions);wrap.append(retryBox);
+        }
+      }
       wrap.append(element('p',null,lead.message));
       if(lead.extras){
         for(const field of Object.values(lead.extras)){
