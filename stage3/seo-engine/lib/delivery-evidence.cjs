@@ -39,7 +39,7 @@ function assertEvidence(e){
   !e.origin||typeof e.origin!=='string')throw Error('Invalid HTTP delivery evidence');
  const u=urlFrom(e.origin,'capture origin');
  if(!u.pathname.endsWith('/'))throw Error('Capture origin must end with / (including mount)');
- if(Object.keys(e).some(k=>!['format','siteId','origin','pages','robots','sitemap','redirects','capturedAt','negativeProbe','rootRecheck'].includes(k)))
+ if(Object.keys(e).some(k=>!['format','siteId','origin','pages','robots','sitemap','redirects','capturedAt','negativeProbe','rootRecheck','securityProbes'].includes(k)))
   throw Error('Unsupported delivery evidence field');
  if(e.capturedAt!==undefined&&(typeof e.capturedAt!=='string'||
   !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(e.capturedAt)||
@@ -70,6 +70,17 @@ function assertEvidence(e){
    r.matched!==(r.firstStatus===r.secondStatus&&r.initialHtmlSha256===r.finalHtmlSha256)||
    r.sourceRevisionAuthenticated!==false||r.publicHostProvenanceAuthenticated!==false)
    throw Error('Public root recheck is inconsistent with the first HTTP HTML observation');
+ }
+ if(e.securityProbes!==undefined){
+  const protectedPaths=['/release-manifest.json','/upload-inventory.json',
+   '/CANDIDATE-STATUS.json','/CANDIDATE-HANDOFF.md'];
+  if(!Array.isArray(e.securityProbes)||e.securityProbes.length!==protectedPaths.length||
+     e.securityProbes.some((r,i)=>!r||typeof r!=='object'||Array.isArray(r)||
+      Object.keys(r).some(k=>!['path','requestUrl','status','bodySha256'].includes(k))||
+      r.path!==protectedPaths[i]||r.requestUrl!==base(e.origin,r.path).href||
+      !Number.isInteger(r.status)||r.status<100||r.status>599||
+      typeof r.bodySha256!=='string'||!/^[a-f0-9]{64}$/.test(r.bodySha256)))
+   throw Error('Invalid public hidden-file status probes; only fixed paths and SHA256 receipts permitted');
  }
  const used=new Set();
  for(const p of e.pages){
@@ -310,6 +321,12 @@ function review(site,evidence){
    }
   }
  }
+ if(evidence.securityProbes)for(const p of evidence.securityProbes){
+  if(p.status===200)add('delivery:operator-artifact-exposed','error',null,p.path,
+   'A public HTTPS host appears to serve internal CMS release/owner diagnostics. Do not launch until these paths are inaccessible.');
+  else if(p.status>=300&&p.status<400)add('delivery:operator-artifact-redirect','warning',null,p.path,
+   'An internal operator document path redirects; confirm it cannot expose private CMS files.');
+ }
  if(evidence.rootRecheck&&!evidence.rootRecheck.matched)
   add('delivery:public-capture-window-drift','error',null,'/',
    'Public root HTML/status changed while acquiring independent page/media responses. Discard this mixed evidence run.');
@@ -327,6 +344,8 @@ function review(site,evidence){
    sitemapKind:parsed?.kind??null,
    negativeRouteStatus:evidence.negativeProbe?.status??null,
    soft404ProbePerformed:Boolean(evidence.negativeProbe),
+   internalArtifactExposureProbes:evidence.securityProbes?.length??0,
+   internalArtifactPublicHttp200:evidence.securityProbes?.filter(p=>p.status===200).length??null,
    publicRootRechecked:Boolean(evidence.rootRecheck),
    publicRootWindowStable:evidence.rootRecheck?.matched??null,
    liveRequestsPerformedByToolkit:false,
