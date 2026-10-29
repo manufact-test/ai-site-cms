@@ -3670,18 +3670,22 @@
       }
       const media=[];
       for(const item of site.assets){
-        if(!['image/png','image/jpeg','image/webp'].includes(item.mime))
-          throw Error('Пакет пока принимает PNG/JPEG/WebP, но не '+item.mime);
+        const video=item.mime==='video/mp4';
+        if(!video&&!['image/png','image/jpeg','image/webp'].includes(item.mime))
+          throw Error('Пакет принимает PNG/JPEG/WebP и MP4, но не '+item.mime);
         const original=required(item.src.replace(/^\/assets\//,'assets/'));
-        if(original.size<20||original.size>1000000)
-          throw Error('Изображение больше 1 МБ или пустое: '+item.id);
+        if(video?(original.size<100||original.size>16777216):
+          (original.size<20||original.size>1000000))
+          throw Error('Медиафайл пуст или превышает допустимый размер: '+item.id);
+        if(video&&(item.variants!==undefined||!item.src.endsWith('.mp4')))
+          throw Error('MP4 не может содержать responsive варианты: '+item.id);
         const variants=[];
         for(const variant of item.variants||[]){
           const file=required(variant.src.replace(/^\/assets\//,'assets/'));
           if(file.size<20||file.size>1000000)throw Error('Недопустимый responsive-файл: '+variant.id);
           variants.push({file,width:variant.width,sha256:variant.sha256});
         }
-        media.push({id:item.id,original,variants,alt:item.alt});
+        media.push({id:item.id,original,variants,alt:item.alt,video});
       }
       // Lock v2 to the exact visual evidence, client explanation, source
       // and all media bytes BEFORE any draft is created or anything is uploaded.
@@ -3744,8 +3748,31 @@
           await verifyImage(required(filename),ext==='png'?'image/png':
             ext==='webp'?'image/webp':'image/jpeg');
         }
+      const verifyMp4=async file=>{
+        // Same bounded MP4 top-level box contract as PHP VideoGuard.
+        const bytes=new DataView(await file.arrayBuffer());
+        let offset=0;const counts={ftyp:0,moov:0,mdat:0};
+        const typeAt=at=>String.fromCharCode(...new Uint8Array(bytes.buffer,at,4));
+        while(offset<bytes.byteLength){
+          if(bytes.byteLength-offset<8)throw Error('Повреждённая структура MP4: '+file.name);
+          const size=bytes.getUint32(offset),kind=typeAt(offset+4);
+          if(size<8||size>bytes.byteLength-offset||
+            !['ftyp','moov','mdat','free'].includes(kind))
+            throw Error('Некорректные MP4-блоки: '+file.name);
+          if(offset===0){
+            if(kind!=='ftyp'||size<16||size>128||
+              !['isom','iso2','mp41','mp42','avc1'].includes(typeAt(offset+8)))
+              throw Error('Неподдерживаемый MP4: '+file.name);
+          }
+          if(Object.hasOwn(counts,kind))counts[kind]++;
+          offset+=size;
+        }
+        if(counts.ftyp!==1||counts.moov!==1||counts.mdat!==1)
+          throw Error('В MP4 отсутствуют обязательные блоки: '+file.name);
+      };
       for(const entry of media){
         const declared=site.assets.find(asset=>asset.id===entry.id);
+        if(entry.video){await verifyMp4(entry.original);continue;}
         await verifyImage(entry.original,declared.mime,declared.width,declared.height);
         for(const variant of entry.variants){
           await verifyImage(variant.file,declared.mime,variant.width,
@@ -4084,7 +4111,7 @@
             encodeURIComponent(assetId),{credentials:'same-origin',cache:'no-store'});
           if(!response.ok)throw Error('Не удалось проверить сохранённый файл: '+assetId);
           const bytes=await response.arrayBuffer();
-          if(bytes.byteLength<20||bytes.byteLength>1000000)
+          if(bytes.byteLength<20||bytes.byteLength>16777216)
             throw Error('Некорректный размер ранее загруженного файла: '+assetId);
           return digest(bytes);
         };
@@ -4151,6 +4178,48 @@
           const entry=media[i],variants=[];
           if(ids.has(entry.id))continue;
           notice('Подключение '+site.title+': загрузка файла '+(i+1)+' из '+media.length);
+          if(entry.video){
+            const bytes=new Uint8Array(await entry.original.arrayBuffer());
+            const sha256=await digest(bytes);
+            const encode=part=>{
+              let data='';
+              for(let k=0;k<part.length;k+=32768)
+                data+=String.fromCharCode(...part.subarray(k,k+32768));
+              return btoa(data);
+            };
+            const prefix='/api/sites/'+encodeURIComponent(site.siteId);
+            if(bytes.length<=1500000){
+              result=await api(prefix+'/video','POST',{
+                base64:encode(bytes),alt:entry.alt,sha256,expectedRevision:result.revision
+              });
+            }else{
+              const size=524288,chunks=Math.ceil(bytes.length/size);
+              const begun=await api(prefix+'/video-uploads/start','POST',{
+                alt:entry.alt,bytes:bytes.length,sha256,chunks,expectedRevision:result.revision
+              });
+              const endpoint=prefix+'/video-uploads/'+encodeURIComponent(begun.uploadId);
+              try{
+                if(begun.chunkBytes!==size||begun.totalChunks!==chunks)
+                  throw Error('Не совпадает размер видеочастей на сервере');
+                for(let index=0;index<chunks;index++){
+                  const part=bytes.subarray(index*size,Math.min((index+1)*size,bytes.length));
+                  await api(endpoint+'/chunk','POST',{
+                    index,base64:encode(part),sha256:await digest(part)
+                  });
+                  if(index%4===0||index===chunks-1)
+                    notice('Подключение MP4: '+(index+1)+'/'+chunks+' частей');
+                }
+                result=await api(endpoint+'/finish','POST',{});
+              }catch(error){
+                await api(endpoint+'/cancel','POST',{}).catch(()=>{});
+                throw error;
+              }
+            }
+            if(result.sha256!==sha256||result.asset?.mime!=='video/mp4')
+              throw Error('Серверная проверка загруженного MP4 не совпадает');
+            ids.set(entry.id,result.asset.id);
+            continue;
+          }
           for(const part of entry.variants){
             const sha256=await digest(await part.file.arrayBuffer());
             if(sha256!==part.sha256)throw Error('Не совпадает контрольная сумма '+part.file.name);
