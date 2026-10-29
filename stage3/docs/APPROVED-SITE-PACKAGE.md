@@ -675,3 +675,13 @@ validator separation with SEO resource revalidation. Studio Chromium E2E
 covers the human approved-source overlay and notes. These are synthetic
 proofs; the first real approved-v2 customer site and personal owner sign-off
 remain absent.
+
+## Server-persistent manual visual notes and review-only release blocker
+
+For owner-operated hosted CMS installations with the optional `stage3_visual_findings` schema, the visual review dialog now stores every page/device observation on the server immediately. Reopening Studio, restarting a browser or opening a fresh owner session retrieves the same current-revision notes. A site-wide list makes it possible to jump to any open remark at its recorded PHP CSS scroll coordinate. Notes may be closed only by an explicit owner POST with the current optimistic version. Concurrent edits are rejected (no last-writer-wins). Every note contains page ID/path, device, scroll position, author and timestamps. Original approved image bytes and visitor page output remain unchanged.
+
+**Server gate:** If current saved revision has an open visual finding, even a direct authenticated `POST /publish` refuses it. Saving the draft creates a new revision and carries still-open findings for pages retained in that draft, so Save cannot erase a review blocker. Closed notes remain historical. Removing an entire page means its old visual concern no longer applies to that removed page, but the old note stays in history. This is a corrective-issues workflow, not a complete approval process; device-by-device manual sign-offs are not moved to later revisions and the CMS still requires real owner approval.
+
+Schema upgrade for existing sites is **not automatic**. After a separate owner decision, isolation check and backup, execute `STAGE3_ALLOW_VISUAL_REVIEW_UPGRADE=YES php stage3/server/bin/upgrade-visual-review.php` on the specifically authorized dedicated DB. It is never called from HTTP. Without it, the review UI clearly says notes are browser-tab/JSON only and Publish continues its previous behavior.
+
+The private full backup-v2 has a new OPTIONAL `visualFindings` ledger of historical page/device observations. Old backup-v2 (without this key) and v1 remain accepted. Validation checks that each note belongs to the correct original revision and page, and refuses forged IDs, statuses, authors, dates or incompatible counts even if an outer checksum was recomputed. Restore is all-or-nothing into a new, unpublished isolated site and rejects a note-bearing archive during preflight when the target dedicated DB has not been explicitly upgraded. This private ledger does not encode client approval, persistent visual sign-offs, and is never exported to the public site.
