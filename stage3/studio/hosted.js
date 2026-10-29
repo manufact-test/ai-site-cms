@@ -1181,7 +1181,7 @@
   let currentDelivery=null;
   const deliveryPanel=element('section','hosted-delivery');deliveryPanel.id='server-delivery-panel';
   const deliveryTitle=element('strong',null,'Внешние уведомления о заявках');
-  const deliveryHelp=element('small',null,'Email и Telegram настраиваются отдельно для каждого сайта. STAGE3_MAIL_FROM и STAGE3_TELEGRAM_BOT_TOKEN задаются только в окружении сервера, не в Studio и не в резервной копии.');
+  const deliveryHelp=element('small',null,'Email и Telegram настраиваются отдельно для каждого сайта. Для Email доступен PHP mail() или SMTP с обязательным TLS: SMTP выбирается настройками окружения сервера и никогда не переключается на mail() при ошибке. Пароли, STAGE3_MAIL_FROM и STAGE3_TELEGRAM_BOT_TOKEN не сохраняются в Studio или резервной копии.');
   const deliveryReport=element('div','hosted-delivery-status');deliveryReport.id='server-delivery-status';
   const deliveryRecent=element('div','hosted-delivery-recent');deliveryRecent.id='server-delivery-recent';
   const deliveryFields=element('div','hosted-delivery-fields');
@@ -1373,7 +1373,7 @@
     deliveryReport.replaceChildren();
     const reasonLabels={
       sender_missing:'На сервере не задан STAGE3_MAIL_FROM',sender_invalid:'STAGE3_MAIL_FROM некорректен',
-      mail_unavailable:'PHP mail() недоступен',bot_token_missing:'На сервере не задан STAGE3_TELEGRAM_BOT_TOKEN',
+      mail_unavailable:'PHP mail() недоступен',smtp_host_invalid:'Некорректный SMTP_HOST',smtp_security_invalid:'Неверная пара SMTP_SECURITY/SMTP_PORT',smtp_tls_unavailable:'На PHP нет поддержки OpenSSL для SMTP',smtp_user_missing:'Нет или неверен SMTP_USER',smtp_password_missing:'Нет SMTP_PASSWORD',bot_token_missing:'На сервере не задан STAGE3_TELEGRAM_BOT_TOKEN',
       bot_token_invalid:'STAGE3_TELEGRAM_BOT_TOKEN некорректен',
       https_transport_unavailable:'На сервере недоступен HTTPS-транспорт',
       recipient_missing:'Не указан получатель',ready:'Транспорт настроен',disabled:'Канал выключен'
@@ -1384,7 +1384,9 @@
       const label=ch.configurationStatus==='disabled'?'Выключен':
         ch.configurationStatus==='configuration_required'?'Требуется настройка: '+(reasonLabels[ch.configurationReason]||ch.configurationReason):
         'Настроен; транспорт доступен';
-      row.append(element('strong',null,labelText+' · '+label));
+      const method=key==='email'&&ch.transportReady?
+        (data.transport?.email?.mode==='smtp'?' · SMTP (TLS)':' · PHP mail()'):'';
+      row.append(element('strong',null,labelText+' · '+label+method));
       row.append(element('small',null,'Ожидают: '+(counts.pending||0)+' · Принято транспортом: '+(counts.accepted||0)+
         ' · Ошибка: '+(counts.failed||0)+' · Требуется настройка: '+(counts.configuration_required||0)+
         ' · Неопределённо: '+(counts.uncertain||0)));
