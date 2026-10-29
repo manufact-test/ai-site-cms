@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
+import {expectedWizardSha256} from './wizard-contract.js';
 import {notFound, permanentRedirect} from 'next/navigation';
 import Script from 'next/script';
 import React from 'react';
@@ -70,7 +72,8 @@ export function visitorBody(html){
   const wizard=scripts[0]?.[1]??null;
   if(scripts.some(x=>x[1]!==wizard))throw Error('Multiple distinct visitor scripts');
   if(wizard!==null&&(!wizard.startsWith("(()=>{\n  for(const form of document.querySelectorAll('form[data-multi-step]')){")
-    ||!wizard.trimEnd().endsWith('})();')||!withoutScripts.includes('data-multi-step="yes"')))
+    ||!wizard.trimEnd().endsWith('})();')||!withoutScripts.includes('data-multi-step="yes"')
+    ||createHash('sha256').update(wizard.trimEnd()).digest('hex')!==expectedWizardSha256))
     throw Error('Unexpected visitor script');
   return {body:withoutScripts,wizard};
 }
@@ -83,7 +86,12 @@ export function renderPage(route,serverRedirect=false){
   return React.createElement(React.Fragment,null,
     React.createElement('style',{dangerouslySetInnerHTML:{__html:styles}}),
     React.createElement('div',{dangerouslySetInnerHTML:{__html:body}}),
-    wizard?React.createElement(Script,{id:'cms-form-steps',strategy:'afterInteractive'},wizard):null
+    // A unique route ID prevents Next's script de-duplication from silently
+    // skipping wizard initialization on a later client-side navigation.
+    wizard?React.createElement(Script,{
+      id:'cms-form-steps-'+createHash('sha256').update(route).digest('hex').slice(0,16),
+      strategy:'afterInteractive'
+    },wizard):null
   );
 }
 export function language(){return tag(htmlFor('/'),/<html lang="([^"]*)"/i)||'ru';}
