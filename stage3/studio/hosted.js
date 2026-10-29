@@ -2077,17 +2077,19 @@
     connectionButton.hidden=!isOwner();connectionButton.disabled=!available||!isOwner();
     techOpen.disabled=!available||!state.authorized;
     const approvedImport=document.getElementById('server-approved-import');
-    if(approvedImport)approvedImport.disabled=state.busy||!state.authorized||!isOwner();
+    // Bootstrap can authenticate before its first site has finished loading.
+    // Keep folder import locked until that initial owner session is ready.
+    if(approvedImport)approvedImport.disabled=state.busy||state.loading||!state.authorized||!isOwner();
     const approvalOpen=document.getElementById('server-approved-vault-open');
-    if(approvalOpen)approvalOpen.disabled=state.busy||!state.siteId||!isOwner();
+    if(approvalOpen)approvalOpen.disabled=state.busy||state.loading||!state.siteId||!isOwner();
     const approvalAttach=document.getElementById('server-approved-vault-attach');
-    if(approvalAttach)approvalAttach.disabled=state.busy||!state.siteId||!isOwner();
-    $('server-open').disabled=state.busy||!state.authorized||!picker.value;
-    $('server-site-select').disabled=state.busy||!state.authorized;
+    if(approvalAttach)approvalAttach.disabled=state.busy||state.loading||!state.siteId||!isOwner();
+    $('server-open').disabled=state.busy||state.loading||!state.authorized||!picker.value;
+    $('server-site-select').disabled=state.busy||state.loading||!state.authorized;
     $('server-logout').disabled=state.busy||!state.authorized;
-    $('new-site').disabled=state.busy||!isOwner();
-    $('compose-site').disabled=state.busy||!isOwner();
-    $('import').disabled=state.busy||!isOwner();
+    $('new-site').disabled=state.busy||state.loading||!isOwner();
+    $('compose-site').disabled=state.busy||state.loading||!isOwner();
+    $('import').disabled=state.busy||state.loading||!isOwner();
     leadsRefresh.disabled=state.busy||!state.authorized||!state.siteId||!canEdit();
     leadsFind.disabled=leadsExport.disabled=state.busy||!state.siteId||!canEdit();
     leadsStatus.disabled=leadsSearch.disabled=leadsPriority.disabled=state.busy||!state.siteId||!canEdit();
