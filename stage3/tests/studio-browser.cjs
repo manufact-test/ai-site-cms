@@ -790,6 +790,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await designFrame.locator('.cmsdg h2').getByText('Новый профессиональный дизайн без ИИ').waitFor();
     // Individual typography: author styled fragments without raw HTML, then
     // return to a single text field while retaining full editor Undo history.
+    await page.locator('#cms-design-rich-text > summary').click();
     await page.locator('#cms-design-rich-start').click();
     assert.equal(await page.locator('#cms-design-rich-text [data-rich-index]').count(),2);
     assert.match(await page.locator('#cms-design-preview-frame').getAttribute('srcdoc'),
