@@ -470,6 +470,150 @@
   }
 
 
+  // Page-ID-based global footer. Internal paths are resolved at render time,
+  // so a page rename changes every footer link without string rewrites.
+  function initFooterEditor(){
+    const dlg=document.createElement('dialog');
+    dlg.id='cms-footer-editor';dlg.className='cms-settings-dialog';
+    Object.assign(dlg.style,{width:'min(920px,95vw)',maxHeight:'90vh',overflow:'auto'});
+    const heading=document.createElement('h2');heading.textContent='Подвал сайта · контакты и ссылки';
+    const help=document.createElement('p');
+    help.textContent='Один подвал для всех страниц. Внутренние ссылки привязаны к страницам; внешние — только проверенные HTTPS-адреса соцсетей. Сохранение и публикация отдельно.';
+    const form=document.createElement('div');form.className='cms-settings-grid';
+    const rows=document.createElement('div');
+    const preview=document.createElement('section');preview.id='cms-footer-editor-preview';
+    preview.style.cssText='padding:18px;border:1px solid #d1dce9;border-radius:12px;margin:18px 0;background:var(--cms-surface)';
+    const actions=document.createElement('div');actions.className='cms-settings-actions';
+    let draft=null;
+    const networks=['instagram','facebook','linkedin','youtube','telegram',
+      'whatsapp','tiktok','x','github'];
+    const labelField=(title,node)=>{
+      const label=document.createElement('label');label.textContent=title;
+      label.append(node);return label;
+    };
+    const entry=(value,max,changed,kind='text')=>{
+      const control=document.createElement(kind==='textarea'?'textarea':'input');
+      if(kind!=='textarea')control.type=kind;
+      control.className='control';control.maxLength=max;control.value=value;
+      control.addEventListener('input',()=>{changed(control.value);updatePreview();});
+      return control;
+    };
+    const select=(options,value,changed)=>{
+      const control=document.createElement('select');control.className='control';
+      for(const [id,name] of options){
+        const option=document.createElement('option');
+        option.value=id;option.textContent=name;control.append(option);
+      }
+      control.value=value;
+      control.addEventListener('change',()=>{changed(control.value);updatePreview();});
+      return control;
+    };
+    const description=entry('',300,v=>{draft.description=v;},'textarea');
+    description.rows=3;
+    const email=entry('',254,v=>{draft.email=v;},'email');
+    const phone=entry('',32,v=>{draft.phone=v;},'tel');
+    form.append(
+      labelField('Описание компании (до 300 символов)',description),
+      labelField('Публичный email (необязательно)',email),
+      labelField('Телефон (необязательно)',phone)
+    );
+    const links=document.createElement('div');links.id='cms-footer-internal-links';
+    const socials=document.createElement('div');socials.id='cms-footer-social-links';
+    const linkHeader=document.createElement('h3');linkHeader.textContent='Полезные и юридические страницы';
+    const socialHeader=document.createElement('h3');socialHeader.textContent='Социальные сети';
+    const linkAdd=button('+ Добавить страницу','btn small',()=>{
+      if(draft.links.length>=8){notice('Не более 8 ссылок в подвале',true);return;}
+      const first=session.current.pages.find(p=>!draft.links.some(x=>x.pageId===p.id));
+      if(!first){notice('Все страницы уже представлены в подвале',true);return;}
+      draft.links.push({label:first.title.slice(0,70),pageId:first.id});renderRows();
+    });
+    const socialAdd=button('+ Добавить соцсеть','btn small',()=>{
+      if(draft.socials.length>=8){notice('Не более 8 соцсетей',true);return;}
+      const first=networks.find(x=>!draft.socials.some(item=>item.network===x));
+      if(!first){notice('Все социальные сети уже выбраны',true);return;}
+      draft.socials.push({network:first,url:'https://'+
+        ({instagram:'instagram.com',facebook:'facebook.com',linkedin:'linkedin.com',
+          youtube:'youtube.com',telegram:'t.me',whatsapp:'wa.me',tiktok:'tiktok.com',
+          x:'x.com',github:'github.com'})[first]+'/'});
+      renderRows();
+    });
+    function renderRows(){
+      links.replaceChildren();socials.replaceChildren();
+      const availablePages=session.current.pages.map(p=>[p.id,p.title+' · '+p.path]);
+      draft.links.forEach((item,i)=>{
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:end;gap:8px;flex-wrap:wrap;padding:8px 0';
+        const link=select(availablePages,item.pageId,v=>{item.pageId=v;});
+        const name=entry(item.label,70,v=>{item.label=v;});
+        link.style.minWidth='180px';name.style.minWidth='180px';
+        const remove=button('Удалить','btn small',()=>{
+          draft.links.splice(i,1);renderRows();
+        });
+        row.append(labelField('Страница',link),labelField('Название ссылки',name),remove);
+        links.append(row);
+      });
+      draft.socials.forEach((item,i)=>{
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:end;gap:8px;flex-wrap:wrap;padding:8px 0';
+        const network=select(networks.map(n=>[n,n]),item.network,v=>{item.network=v;});
+        const url=entry(item.url,300,v=>{item.url=v;},'url');
+        url.style.minWidth='min(330px,75vw)';
+        const remove=button('Удалить','btn small',()=>{
+          draft.socials.splice(i,1);renderRows();
+        });
+        row.append(labelField('Сервис',network),labelField('HTTPS-ссылка',url),remove);
+        socials.append(row);
+      });
+      linkAdd.disabled=draft.links.length>=8;
+      socialAdd.disabled=draft.socials.length>=8;
+      updatePreview();
+    }
+    function updatePreview(){
+      preview.replaceChildren();
+      const title=document.createElement('strong');
+      title.textContent=session.current.title;
+      preview.append(title);
+      if(draft.description){
+        const summary=document.createElement('p');summary.textContent=draft.description;
+        summary.style.whiteSpace='pre-line';preview.append(summary);
+      }
+      const detail=document.createElement('small');
+      detail.textContent=[draft.email,draft.phone].filter(Boolean).join(' · ');
+      preview.append(detail);
+      const l=document.createElement('p');
+      l.textContent='Страницы: '+draft.links.map(x=>x.label).join(' · ')+
+        (draft.links.length?'':'нет');
+      preview.append(l);
+      const network=document.createElement('p');
+      network.textContent='Социальные сети: '+draft.socials.map(x=>x.network).join(' · ')+
+        (draft.socials.length?'':'нет');
+      preview.append(network);
+    }
+    const open=()=>{
+      const site=session.current;
+      draft=cp(site.footer||{description:'',email:'',phone:'',links:[],socials:[]});
+      description.value=draft.description;email.value=draft.email;phone.value=draft.phone;
+      renderRows();dlg.showModal();
+    };
+    const apply=()=>{
+      try{
+        const site=cp(session.current);site.footer=cp(draft);
+        session=D.replaceSite(session,manifests,site,session.revision);
+        dlg.close();draw();
+        notice('Подвал изменён в черновике. Сохраните сайт и опубликуйте отдельно.');
+      }catch(error){notice('Подвал не принят: '+error.message,true);}
+    };
+    const save=button('Применить к черновику','btn primary',apply);
+    save.id='cms-footer-editor-apply';
+    actions.append(save,button('Закрыть','btn',()=>dlg.close()));
+    dlg.append(heading,help,form,linkHeader,links,linkAdd,
+      socialHeader,socials,socialAdd,preview,actions);
+    document.body.append(dlg);
+    const trigger=button('Подвал · контакты и ссылки','btn small',open);
+    trigger.id='cms-open-footer';
+    document.querySelector('.cms-site-settings').append(trigger);
+  }
+
   // A single Undo-able menu editor, independent of the selected component.
   // All relationships reference immutable page IDs, not URLs.
   function initMenuEditor(){
@@ -5585,5 +5729,5 @@
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
+  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initFooterEditor();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
 })();
