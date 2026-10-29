@@ -54,7 +54,7 @@ assert(w.humanHtml.includes('Human First-Site Acceptance'));
 assert(w.humanHtml.includes('manual'));
 assert(w.humanHtml.includes('/contact/'));
 assert(w.humanHtml.includes('Unresolved browser and manual checks'));
-assert(w.humanHtml.includes('page:/contact/:mobile'));
+assert(w.humanHtml.includes('manual:client-approved-visual'));
 assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
  report:{...report,checks:{...report.checks,perTaskChecks:baseTasks.slice(1)}}}}),
  /browser and manual tasks/);
