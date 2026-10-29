@@ -83,7 +83,7 @@ try {
             $relative = ltrim($part['src'], '/');
             $expectedPrefix = 'assets/' . $part['id'] . '.';
             if (!str_starts_with($relative, $expectedPrefix)
-                || !preg_match('~^assets/[a-z][a-z0-9-]{2,79}\.(png|jpg|webp|mp4)$~D', $relative)) {
+                || !preg_match('~^assets/[a-z][a-z0-9-]{2,79}\.(png|jpg|webp|mp4|woff2)$~D', $relative)) {
                 failExport('Unsafe media export path');
             }
             if (!is_dir($temp . '/assets') && !mkdir($temp . '/assets', 0755)) {
