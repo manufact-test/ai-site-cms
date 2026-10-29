@@ -17,6 +17,7 @@ const WORKSPACE=require('./build-seo-operator-workspace.cjs');
 const LIVE=require('./first-site-live-acceptance.cjs');
 const CAPTURE=require('./capture-public-https.cjs');
 const HTTPS=require('../lib/public-https-capture.cjs');
+const CANDIDATE=require('../lib/first-site-candidate-preflight.cjs');
 const ROOT=fs.realpathSync(path.resolve(__dirname,'../../..'));
 const LIMIT=120000;
 const HELP='Usage: node stage3/seo-engine/bin/run-first-site-integration.cjs --config /ABS/private/integration-session.json --out /ABS/NEW-private-session [--preflight-only]';
@@ -61,7 +62,9 @@ function preflight(config,output){
  }
  // These are the same canonical owner/approved validators used by actual PHP
  // capture and post-deployment verifier. No stand-in synthetic source accepted.
- let source=null;
+ // Verify the ORIGINAL candidate and every public ZIP byte BEFORE any public GET.
+ // This prevents cross-site/cross-version public capture against the wrong release.
+ let source=null,candidate=null;
  if(['local','public','public-capture'].includes(c.phase)){
   const sealed=BRIDGE.load(c.inputs.approvedSite);
   const owner=FIRST.readPublishedSite(c.inputs.publishedSite);
@@ -89,7 +92,16 @@ function preflight(config,output){
    officialStaticManifestSha256:release.manifestSha256,
    sealedApprovedSourceSha256:published.source.fileSha256};
  }
- return {phase:c.phase,source,stageKeys:PLAN.steps(c,target).map(s=>s.key),
+ if(c.phase!=='local'){
+  candidate=CANDIDATE.inspect(c.inputs.candidate,source);
+  if(c.phase==='search'){
+   const file=c.inputs.postDeploy,st=fs.lstatSync(file);
+   if(st.isSymbolicLink()||!st.isFile()||st.size<10||st.size>2500000)
+    throw Error('Search follow-up needs a bounded private post-deploy report file');
+   CANDIDATE.postDeploy(candidate,JSON.parse(fs.readFileSync(file,'utf8')));
+  }
+ }
+ return {phase:c.phase,source,candidate,stageKeys:PLAN.steps(c,target).map(s=>s.key),
   privateInputsChecked:Object.keys(sources).length,operatorOnly:true,
   clientApprovalConfirmed:false,phpServerContacted:false,
   publicHttpsAuthenticated:false,releaseAuthorized:false};
