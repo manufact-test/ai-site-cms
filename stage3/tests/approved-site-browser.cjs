@@ -870,6 +870,24 @@ async function execute(){
     });
     await offline.locator('#status').getByText(/Импорт отклонён/).waitFor();
     assert.match(await offline.locator('#overview').innerText(),/открытых замечаний: 1/);
+    // Bring the portable non-approved notes back to the same immutable source
+    // in owner Studio; only OPEN findings can be recorded, never sign-offs.
+    await page.locator('#server-launch-review').click();
+    await page.locator('#server-launch-dialog').waitFor();
+    await page.locator('#server-launch-import-input').setInputFiles({
+      name:'offline-pilot-findings.json',mimeType:'application/json',
+      buffer:Buffer.from(JSON.stringify(downloaded))
+    });
+    await page.waitForFunction(()=>document.querySelector('#server-launch-visual-index')
+      ?.textContent?.includes('Открытые замечания по сайту: 1'),null,{timeout:10000});
+    const studioRevision=(await (await page.request.get(origin+
+      '/api/sites/site-approved-browser')).json()).revision;
+    const serverFromOffline=(await (await page.request.get(origin+
+      '/api/sites/site-approved-browser/visual-review?revision='+studioRevision)).json());
+    assert.equal(serverFromOffline.openCount,1);
+    assert.equal(serverFromOffline.findings.find(x=>!x.resolved).note,
+      'На мобильном экране нужно исправить поля');
+    await page.locator('#server-launch-close').click();
     assert.deepEqual(offlineErrors,[],'Offline review must function without JS errors');
   }finally{await offlineContext.close();}
     // Capture artifacts are evidence for human visual review, not pixel-diff approval.
