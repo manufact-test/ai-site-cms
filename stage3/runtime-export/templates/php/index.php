@@ -21,6 +21,44 @@ if (!is_string($path) || preg_match('/%(?:2e|2f|5c|00)/i', $path)
     http_response_code(400);
     exit;
 }
+/*
+ * Independent PHP visitor sends a real, representation-specific body and
+ * strong validator. ETags are checked BEFORE reading the HTML/CSS bytes.
+ * Compressed HTML/CSS can be shared among visitors via the public cache,
+ * and HEAD exposes the exact chosen Content-Length without a response body.
+ * No Node, extension installation or dynamic cache directory required.
+ */
+$serveText=static function(string $file,string $mime,string $sha,bool $immutable): never {
+    if(!is_file($file)||is_link($file)){http_response_code(503);exit;}
+    $size=filesize($file);
+    if(!is_int($size)||$size<0){http_response_code(503);exit;}
+    $encoding=(string)($_SERVER['HTTP_ACCEPT_ENCODING']??'');
+    $gzip=$size>1024&&extension_loaded('zlib')
+        &&!filter_var((string)ini_get('zlib.output_compression'),FILTER_VALIDATE_BOOLEAN)
+        &&preg_match('/(?:^|,)\\s*gzip(?:\\s*;\\s*q=([01](?:\\.\\d+)?))?(?=,|$)/i',$encoding,$m)===1
+        &&(!isset($m[1])||(float)$m[1]>0);
+    $etag='"'.$sha.($gzip?'-gz':'').'"';
+    header('Content-Type: '.$mime);
+    header('Cache-Control: '.($immutable?'public, max-age=31536000, immutable':'public, no-cache, must-revalidate'));
+    header('Vary: Accept-Encoding');
+    header('ETag: '.$etag);
+    if($gzip)header('Content-Encoding: gzip');
+    if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag){
+        http_response_code(304);exit;
+    }
+    $plain=file_get_contents($file);
+    if(!is_string($plain)){http_response_code(503);exit;}
+    $body=$gzip?gzencode($plain,6):$plain;
+    if(!is_string($body)){
+        header_remove('Content-Encoding');
+        header('ETag: "'.$sha.'"');
+        $body=$plain;
+    }
+    header('Content-Length: '.strlen($body));
+    if(($_SERVER['REQUEST_METHOD']??'GET')!=='HEAD')echo $body;
+    exit;
+};
+
 // Diagnostic-only release identity for offline/remote manual verification.
 // This does not imply that an external deployment is connected or healthy.
 if ($path === '/_cms-connect.json') {
@@ -45,15 +83,7 @@ if(preg_match('~^/styles/(site-[a-f0-9]{64}\.css)$~D',$path,$styleMatch)){
     if($listed===null){http_response_code(404);exit;}
     $file=$release.'/'.$relative;
     if(!is_file($file)||is_link($file)){http_response_code(503);exit;}
-    header('Content-Type: text/css; charset=utf-8');
-    header('Cache-Control: public, max-age=31536000, immutable');
-    header('ETag: "'.$listed['sha256'].'"');
-    if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))==='"'.$listed['sha256'].'"'){
-        http_response_code(304);exit;
-    }
-    header('Content-Length: '.filesize($file));
-    if(($_SERVER['REQUEST_METHOD']??'GET')!=='HEAD')readfile($file);
-    exit;
+    $serveText($file,'text/css; charset=utf-8',$listed['sha256'],true);
 }
 if ($path === '/robots.txt' || $path === '/sitemap.xml') {
     $name = ltrim($path, '/');
@@ -148,16 +178,7 @@ foreach ($manifest['redirects'] as $redirect) {
 }
 foreach ($manifest['pages'] as $page) {
     if ($path === $page['path']) {
-        header('Content-Type: text/html; charset=utf-8');
-        header('Cache-Control: public, no-cache, must-revalidate');
-        $etag='"'.$page['sha256'].'"';
-        header('ETag: '.$etag);
-        if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag){
-            http_response_code(304);exit;
-        }
-        header('Content-Length: '.filesize($release.'/'.$page['file']));
-        if ($_SERVER['REQUEST_METHOD'] !== 'HEAD') readfile($release.'/'.$page['file']);
-        exit;
+        $serveText($release.'/'.$page['file'],'text/html; charset=utf-8',$page['sha256'],false);
     }
 }
 http_response_code(404);
