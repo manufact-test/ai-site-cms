@@ -127,6 +127,22 @@ function validFontFiles(theme,assetMimes){
     if(typeof assetId!=='string'||assetMimes.get(assetId)!=='font/woff2')
       fail('Local font must reference a site-owned WOFF2 asset',role);
 }
+function validBranding(branding,assetMimes){
+  objectKeys(branding,['logoAssetId','mobileLogoAssetId','faviconAssetId','logoWidth'],'branding');
+  const image=['image/png','image/jpeg','image/webp'];
+  for(const key of ['logoAssetId','mobileLogoAssetId','faviconAssetId']){
+    if(!own(branding,key))continue;
+    const asset=branding[key];
+    if(typeof asset!=='string'||(asset!==''&&!image.includes(assetMimes.get(asset))))
+      fail('Brand asset must reference an existing site-owned raster image',key);
+    if(key==='faviconAssetId'&&asset!==''&&assetMimes.get(asset)!=='image/png')
+      fail('Browser favicon must use a PNG image',key);
+  }
+  if(branding.mobileLogoAssetId&&!branding.logoAssetId)
+    fail('Mobile logo requires a desktop logo');
+  if(own(branding,'logoWidth')&&(!Number.isInteger(branding.logoWidth)||
+    branding.logoWidth<48||branding.logoWidth>320))fail('Logo width must be 48–320 px');
+}
 function validSeo(s,assetMimes){
   objectKeys(s,['title','description','robots','ogTitle','ogDescription','ogImage'],'seo');
   if(typeof s.title!=='string'||s.title.length>160||/[\x00-\x1f]/.test(s.title)||
@@ -283,7 +299,7 @@ function validateSharedSections(groups){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding'],'site');
   GRAPH_HOST.validateTokens(raw.designTokens);
   if(own(raw,'menu'))validMenu(raw.menu);
   if(own(raw,'theme'))validTheme(raw.theme);
@@ -321,6 +337,7 @@ function validateSite(raw,regInput){
     }
   }
   if(own(raw,'theme'))validFontFiles(raw.theme,assetMimes);
+  if(own(raw,'branding'))validBranding(raw.branding,assetMimes);
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
   const ids=new Set([raw.siteId,...assetIds]),paths=new Set(),sharedGroups=new Map();
   for(const page of raw.pages){
