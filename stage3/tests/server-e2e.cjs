@@ -2509,7 +2509,17 @@ async function stop(){
     {expectedRevision:2})).status,200,'Resolve all observations before release');
   assert.equal((await request('POST',visualPath,{action:'resolve',expectedRevision:2,
     findingId:continued.body.findings[0].findingId,expectedVersion:1})).status,409);
-  assert.equal((await request('GET',visualPath+'?revision=1')).status,409);
+  const readOnlyPast=await request('GET',visualPath+'?revision=1');
+  assert.equal(readOnlyPast.status,200,'Owner can inspect former review revision read-only');
+  assert.equal(readOnlyPast.body.historical,true);
+  assert.equal(readOnlyPast.body.openCount,2);
+  assert.equal((await request('POST',visualPath,{action:'resolve',expectedRevision:1,
+    findingId:firstFinding.findingId,expectedVersion:1})).status,409,
+    'Read-only historical findings cannot be resolved after draft advances');
+  const historicalIndex=await request('GET',visualPath+'/history');
+  assert.equal(historicalIndex.status,200);
+  assert.deepEqual(historicalIndex.body.revisions.map(x=>x.revision),[2,1]);
+  assert.deepEqual(historicalIndex.body.revisions.map(x=>x.open),[0,2]);
   assert.equal((await request('GET','/published/site-visual-ci/')).status,200);
   // Full backup-v2 preserves historical visual observations, not approval.
   const visualArchive=(await request('GET','/api/sites/site-visual-ci/backup')).body;
