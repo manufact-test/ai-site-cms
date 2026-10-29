@@ -177,7 +177,7 @@
     const dlg=document.createElement('dialog');dlg.className='cms-settings-dialog';dlg.id='cms-settings-dialog';
     const header=document.createElement('h2'),tip=document.createElement('small'),grid=document.createElement('div');
     grid.className='cms-settings-grid';const actions=document.createElement('div');actions.className='cms-settings-actions';
-    const fields={},themeKeys=['background','surface','text','primary','font','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText'],globalKeys=[...themeKeys,'language'];
+    const fields={},themeKeys=['background','surface','text','primary','font','font-body','font-heading','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText'],globalKeys=[...themeKeys,'language'];
     const metaKeys=['seo-title','seo-description','seo-robots','seo-og-title','seo-og-description','seo-og-image','nav-label','nav-hidden'];
     const add=(name,labelText,type='text',max)=>{
       const wrap=document.createElement('label');wrap.textContent=labelText;
@@ -191,6 +191,22 @@
     for(const [value,text] of [['system','Системный'],['arial','Arial'],['georgia','Georgia']]){
       const option=document.createElement('option');option.value=value;option.textContent=text;font.append(option);
     }
+    add('font-body','Локальный WOFF2 для основного текста','select');
+    add('font-heading','Локальный WOFF2 для заголовков','select');
+    const refreshFonts=()=>{
+      for(const [key,label] of [['font-body','Стандартный шрифт сайта'],
+        ['font-heading','Как основной текст']]){
+        const field=fields[key],current=field.value;
+        field.replaceChildren();
+        const defaultOption=document.createElement('option');
+        defaultOption.value='';defaultOption.textContent=label;field.append(defaultOption);
+        for(const asset of session.current.assets.filter(a=>a.mime==='font/woff2')){
+          const option=document.createElement('option');
+          option.value=asset.id;option.textContent=asset.alt||asset.id;field.append(option);
+        }
+        field.value=current;
+      }
+    };
     const width=add('maxWidth','Максимальная ширина (680–1600 px)','number');width.min='680';width.max='1600';
     const bodySize=add('bodySize','Размер основного текста (14–22 px)','number');bodySize.min='14';bodySize.max='22';bodySize.step='1';
     const lineHeight=add('lineHeight','Межстрочный интервал','select');
@@ -333,7 +349,10 @@
       seoPreview.hidden=kind!=='seo';
       if(kind==='theme'){
         const t={...C.DEFAULT_THEME,...session.current.theme};
-        for(const key of themeKeys)fields[key].value=t[key];
+        refreshFonts();
+        for(const key of themeKeys.filter(key=>!key.startsWith('font-')))fields[key].value=t[key];
+        fields['font-body'].value=t.fontFiles?.body||'';
+        fields['font-heading'].value=t.fontFiles?.heading||'';
         fields.language.value=session.current.language||'ru';
       }else{
         const p=current().page,seo=p.seo||{},nav=p.navigation||{};
@@ -359,6 +378,10 @@
             lineHeight:fields.lineHeight.value,headingScale:fields.headingScale.value,
             buttonStyle:fields.buttonStyle.value,buttonRadius:Number(fields.buttonRadius.value),
             buttonText:fields.buttonText.value};
+          const fontFiles={};
+          if(fields['font-body'].value)fontFiles.body=fields['font-body'].value;
+          if(fields['font-heading'].value)fontFiles.heading=fields['font-heading'].value;
+          if(Object.keys(fontFiles).length)site.theme.fontFiles=fontFiles;
           site.language=fields.language.value;
         }else{
           const p=site.pages.find(p=>p.id===chosenPage);
@@ -3222,7 +3245,7 @@
           justify:['start','center','end','stretch','between'],
           position:['static','relative','absolute'],textAlign:['left','center','right'],
           flexWrap:['nowrap','wrap'],alignSelf:['auto','start','center','end','stretch'],
-          fontFamily:['inherit','system','arial','georgia','serif','mono'],
+          fontFamily:['inherit','system','arial','georgia','serif','mono','site-body','site-heading'],
           objectFit:['cover','contain','fill','none'],
           aspectRatio:['auto','square','portrait','landscape','wide'],
           overflow:['visible','hidden','auto'],shadow:['none','soft','medium','strong'],
@@ -5032,15 +5055,32 @@
     const buttonColor=t.buttonStyle==='outline'?'var(--cms-primary)':e(t.buttonText);
     const buttonRadius=t.buttonStyle==='pill'?'999px':Number(t.buttonRadius)+'px';
     const buttonShadow=t.buttonStyle==='outline'?'inset 0 0 0 2px var(--cms-primary)':'none';
-    const palette='<style>:root{--cms-bg:'+e(t.background)+';--cms-surface:'+e(t.surface)+
+    const fontAssets=new Map(session.current.assets.map(asset=>[asset.id,asset]));
+    let faceCss='',bodyFont=t.font==='georgia'?'Georgia,serif':
+      t.font==='arial'?'Arial,sans-serif':'system-ui,Arial,sans-serif';
+    let headingFont=bodyFont;
+    for(const role of ['body','heading']){
+      const id=t.fontFiles?.[role];
+      if(!id||fontAssets.get(id)?.mime!=='font/woff2')continue;
+      const source=previewAssetSources?.[id]||(
+        HOSTED?'/api/sites/'+encodeURIComponent(session.current.siteId)+'/media/'+encodeURIComponent(id):null);
+      if(!source)continue;
+      const family=role==='body'?'CMS Site Body':'CMS Site Heading';
+      faceCss+='@font-face{font-family:"'+family+'";src:url("'+e(source)+
+        '") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}';
+      if(role==='body')bodyFont='"CMS Site Body",'+bodyFont;
+      else headingFont='"CMS Site Heading",'+bodyFont;
+    }
+    if(!t.fontFiles?.heading)headingFont=bodyFont;
+    const palette='<style>'+faceCss+':root{--cms-bg:'+e(t.background)+';--cms-surface:'+e(t.surface)+
       ';--cms-text:'+e(t.text)+';--cms-primary:'+e(t.primary)+';--cms-width:'+t.maxWidth+
-      'px;--cms-font:'+(t.font==='georgia'?'Georgia,serif':t.font==='arial'?'Arial,sans-serif':'system-ui,Arial,sans-serif')+
+      'px;--cms-font:'+bodyFont+';--cms-heading-font:'+headingFont+
       ';--cms-body-size:'+Number(t.bodySize)+'px;--cms-line-height:'+lineHeights[t.lineHeight]+
       ';--cms-h2-size:'+headingSizes[t.headingScale]+';--cms-button-bg:'+buttonBackground+
       ';--cms-button-color:'+buttonColor+';--cms-button-text:'+e(t.buttonText)+
       ';--cms-button-radius:'+buttonRadius+';--cms-button-shadow:'+buttonShadow+'}'+
       'body{background:var(--cms-bg)!important;color:var(--cms-text)!important;font-family:var(--cms-font)!important;font-size:var(--cms-body-size)!important;line-height:var(--cms-line-height)!important}'+
-      'h2{font-size:var(--cms-h2-size)!important}'+
+      'h1,h2,h3,h4,h5,h6{font-family:var(--cms-heading-font)!important}h2{font-size:var(--cms-h2-size)!important}'+
       '.action{background:var(--cms-button-bg)!important;color:var(--cms-button-color)!important;border-radius:var(--cms-button-radius)!important;box-shadow:var(--cms-button-shadow)!important}'+
       '.card{background:var(--cms-surface)!important}section{max-width:var(--cms-width);margin-inline:auto}</style>';
     let content='';
