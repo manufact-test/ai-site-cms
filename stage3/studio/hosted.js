@@ -2261,6 +2261,13 @@
       (publishedError?'Сравнение с публикацией недоступно: '+publishedError:
         'Это первая публикация. Все страницы пока доступны только в черновике.');
     const openedRevision=state.revision;
+    const reviewEndpoint='/api/sites/'+encodeURIComponent(site.siteId)+'/visual-review';
+    let storedReview={available:false,findings:[]},reviewLoadError='';
+    if(isOwner()){
+      try{
+        storedReview=await api(reviewEndpoint+'?revision='+openedRevision);
+      }catch(error){reviewLoadError=error.message;}
+    }
     const reviewedDraft=JSON.stringify(site);
     const launchProgress=element('p','hosted-launch-progress','Проверено страниц: 0/'+site.pages.length);
     const fillActions=element('div','hosted-launch-quick-actions');
@@ -2357,6 +2364,13 @@
     const findingPanel=element('section','hosted-launch-findings');
     findingPanel.id='server-launch-findings';
     findingPanel.append(element('h4',null,'Замечания по выбранному экрану'));
+    const persistenceHint=element('small','hosted-launch-review-storage',
+      storedReview.available?'Замечания сохраняются в приватной CMS отдельно от сайта.':
+        'Замечания только в этой вкладке и экспортируемом JSON. '+
+        (reviewLoadError?'Проверка хранилища: '+reviewLoadError:
+          'Для серверного хранения нужна отдельная CLI-миграция.'));
+    persistenceHint.id='server-launch-review-storage';
+    findingPanel.append(persistenceHint);
     const findingInput=element('textarea','control');
     findingInput.id='server-launch-finding-input';
     findingInput.rows=2;findingInput.maxLength=500;
@@ -2435,6 +2449,15 @@
     const reviewKey=(state.principal?.username||'unknown')+'|'+site.siteId+'|'+openedRevision;
     if(!reviewNotesByRevision.has(reviewKey))reviewNotesByRevision.set(reviewKey,[]);
     const manualFindings=reviewNotesByRevision.get(reviewKey);
+    if(storedReview.available)
+      manualFindings.splice(0,manualFindings.length,...storedReview.findings.map(x=>({...x})));
+    let remoteBusy=false;
+    const replaceRemote=report=>{
+      if(!report?.available||report.revision!==openedRevision||!Array.isArray(report.findings))
+        throw Error('Сервер вернул замечания от другого сайта или ревизии');
+      manualFindings.splice(0,manualFindings.length,...report.findings.map(x=>({...x})));
+      drawFindings();updateReviewed();syncActions();
+    };
     const openFindings=(pageId,mode)=>manualFindings.filter(f=>
       !f.resolved&&f.pageId===pageId&&f.device===mode);
     const unresolvedCount=()=>manualFindings.filter(f=>!f.resolved).length;
@@ -2454,7 +2477,7 @@
       findingList.replaceChildren();
       const pageId=selectedRow?.current?.id;
       const selected=manualFindings.filter(f=>f.pageId===pageId&&f.device===device);
-      findingInput.disabled=findingAdd.disabled=!pageId||!freshDraft();
+      findingInput.disabled=findingAdd.disabled=!pageId||!freshDraft()||remoteBusy;
       if(!selected.length){
         findingList.append(element('small',null,'Нет записанных замечаний на этом устройстве.'));
         return;
@@ -2473,7 +2496,16 @@
         row.append(seek);
         if(!finding.resolved){
           const resolve=action('Исправлено','',()=>{
-            if(!freshDraft())return;
+            if(!freshDraft()||remoteBusy)return;
+            if(storedReview.available){
+              remoteBusy=true;resolve.disabled=true;findingAdd.disabled=true;
+              void api(reviewEndpoint,'POST',{action:'resolve',expectedRevision:openedRevision,
+                findingId:finding.findingId,expectedVersion:finding.version})
+                .then(replaceRemote)
+                .catch(error=>notice('Не удалось закрыть замечание: '+error.message,true))
+                .finally(()=>{remoteBusy=false;if(dialog.open){drawFindings();updateReviewed();syncActions();}});
+              return;
+            }
             finding.resolved=true;
             // A fix acknowledgement never implicitly marks the PHP view as
             // visually reviewed; the human must confirm again.
@@ -2495,8 +2527,22 @@
         notice('Опишите расхождение минимум тремя символами, без изменения черновика.',true);return;
       }
       const scale=Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1])||1;
-      manualFindings.push({pageId:selectedRow.current.id,path:selectedRow.current.path,
-        device,note,scrollY:Math.min(60000,Math.round(viewport.scrollTop/scale)),resolved:false});
+      const finding={pageId:selectedRow.current.id,path:selectedRow.current.path,
+        device,note,scrollY:Math.min(60000,Math.round(viewport.scrollTop/scale)),resolved:false};
+      if(remoteBusy)return;
+      if(storedReview.available){
+        remoteBusy=true;findingAdd.disabled=true;
+        void api(reviewEndpoint,'POST',{action:'create',expectedRevision:openedRevision,...finding})
+          .then(result=>{
+            replaceRemote(result);
+            findingInput.value='';
+            reviewed.get(finding.pageId)?.delete(finding.device);
+          })
+          .catch(error=>notice('Не удалось записать замечание: '+error.message,true))
+          .finally(()=>{remoteBusy=false;if(dialog.open){drawFindings();updateReviewed();syncActions();}});
+        return;
+      }
+      manualFindings.push(finding);
       reviewed.get(selectedRow.current.id)?.delete(device);
       findingInput.value='';drawFindings();updateReviewed();syncActions();
     });
@@ -2558,7 +2604,7 @@
       markReviewed.textContent=marked?'✓ '+widths[device]+' px проверено':
         'Подтвердить экран '+widths[device]+' px';
       if(evidence?.errors?.length)markReviewed.title=evidence.errors.join(' · ');
-      markReviewed.disabled=!selectedRow?.current||marked||!sourceViewed||
+      markReviewed.disabled=remoteBusy||!selectedRow?.current||marked||!sourceViewed||
         openFindings(selectedRow?.current?.id,device).length>0||
         !previewReady.has(signature(selectedRow,device))||!freshDraft();
       if(!sourceViewed)
@@ -2569,7 +2615,7 @@
         'Дождитесь полной загрузки PHP-страницы и изображений. Сохраните изменения перед подтверждением.':'';
     };
     markReviewed.addEventListener('click',()=>{
-      if(markReviewed.disabled||!selectedRow?.current||!freshDraft())return;
+      if(remoteBusy||markReviewed.disabled||!selectedRow?.current||!freshDraft())return;
       const id=selectedRow.current.id;
       if(openFindings(id,device).length||
         (approvedReference?.complete&&referenceKind(selectedRow,device)&&
@@ -2663,7 +2709,7 @@
       // the global toolbar busy. Use the identical rights/dirty conditions;
       // the actual buttons are checked again when clicked.
       saveDraft.disabled=!state.authorized||!state.siteId||!canEdit()||!editor.isDirty();
-      publishSaved.disabled=!state.authorized||!state.siteId||!canPublish()||
+      publishSaved.disabled=remoteBusy||!state.authorized||!state.siteId||!canPublish()||
         !freshDraft()||readiness.errors>0||unresolvedCount()>0||completedCount()!==site.pages.length||
         (Boolean(meta?.published_version)&&(!published||!!publishedError));
       publishSaved.title=publishSaved.disabled?
