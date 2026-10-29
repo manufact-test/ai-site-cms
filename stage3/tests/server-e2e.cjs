@@ -475,7 +475,7 @@ async function stop(){
     '$q=$db->prepare("INSERT INTO stage3_audit (event_id,actor,action,site_id,outcome,detail,created_at) VALUES (?,?,?,?,?,?,?)");'+
     'foreach([["delivery-probe-attempt","requested"],["delivery-probe-result","accepted"]] as $r){'+
     '$q->execute(["event-".bin2hex(random_bytes(12)),"ci",$r[0],"site-industrial-demo",$r[1],'+
-    '"probe-aaaaaaaaaaaaaaaa form=section-quote-form channel=email".($r[0]==="delivery-probe-result"?" error=none":""),gmdate("Y-m-d\\TH:i:s\\Z")]);}'],
+    '"probe-aaaaaaaaaaaaaaaa form=section-quote-form channel=email settingsVersion=1 routeVersion=1".($r[0]==="delivery-probe-result"?" error=none":""),gmdate("Y-m-d\\TH:i:s\\Z")]);}'],
     {cwd:root,env,encoding:'utf8'});
   assert.equal(auditSeed.status,0,auditSeed.stderr);
   const observed=await request('POST',probePath+'/receipt',
@@ -483,6 +483,7 @@ async function stop(){
   assert.equal(observed.status,200,JSON.stringify(observed.body));
   assert.equal(observed.body.probes[0].ownerReceived,true);
   assert.equal(observed.body.probes[0].transportState,'accepted');
+  assert.equal(observed.body.probes[0].appliesToCurrentSavedRoute,true);
   assert.equal((await request('POST',probePath+'/receipt',
     {probeId:'probe-aaaaaaaaaaaaaaaa',received:false})).status,409,
     'An owner observation cannot be overwritten in another browser tab');
@@ -579,6 +580,10 @@ async function stop(){
     '$db=new PDO(getenv("STAGE3_DSN"));$q=$db->prepare("SELECT target FROM stage3_delivery_outbox WHERE site_id=? AND channel=? ORDER BY created_at,delivery_id LIMIT 1");$q->execute(["site-industrial-demo","email"]);echo $q->fetchColumn();'],
     {cwd:root,env,encoding:'utf8'});
   assert.equal(stillQueued.stdout,'team-a@example.test');
+  const staleProbe=(await request('GET',probePath+'s')).body.probes[0];
+  assert.equal(staleProbe.ownerReceived,true,'Original operator observation is retained');
+  assert.equal(staleProbe.appliesToCurrentSavedRoute,false,
+    'Changing a form recipient invalidates old test applicability');
   let delivery=(await request('GET',deliveryRoute)).body;
   assert.equal(delivery.totals.configuration_required,1,'Lead is saved but email delivery remains explicitly unconfigured');
   assert.equal(delivery.recent[0].state,'configuration_required');

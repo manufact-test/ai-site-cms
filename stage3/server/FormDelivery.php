@@ -90,7 +90,10 @@ trait FormDelivery
             throw new NotFound('Form is not in the current draft or publication');
         $settings=$this->deliverySettingsRow($siteId)
             ??['email_enabled'=>0,'email_recipient'=>'','telegram_enabled'=>0,'telegram_chat_id'=>''];
-        $recipient=$this->deliveryTarget($channel,$settings,$this->formRouteRow($siteId,$sectionId));
+        $route=$this->formRouteRow($siteId,$sectionId);
+        $recipient=$this->deliveryTarget($channel,$settings,$route);
+        $settingsVersion=(int)($settings['version']??0);
+        $routeVersion=(int)($route['version']??0);
         if($recipient===null)throw new InvalidArgumentException('Channel is disabled for this form');
         if($recipient==='')throw new InvalidArgumentException('Save a recipient for this form first');
         $transport=$this->deliveryTransport($channel);
@@ -103,14 +106,16 @@ trait FormDelivery
         $probeId='probe-'.bin2hex(random_bytes(8));
         // Serialized by the existing dedicated DB transaction. No concurrent
         // owner tabs can bypass three attempts per site per fifteen minutes.
-        $this->atomic(function()use($siteId,$sectionId,$channel,$operator,$probeId):void{
+        $stamp=' form='.$sectionId.' channel='.$channel.
+            ' settingsVersion='.$settingsVersion.' routeVersion='.$routeVersion;
+        $this->atomic(function()use($siteId,$operator,$probeId,$stamp):void{
             $q=$this->db->prepare("SELECT COUNT(*) FROM stage3_audit
                 WHERE site_id=? AND action='delivery-probe-attempt' AND created_at>=?");
             $q->execute([$siteId,gmdate('Y-m-d\TH:i:s\Z',time()-900)]);
             if((int)$q->fetchColumn()>=3)
                 throw new Conflict('Maximum three routing tests per site in 15 minutes');
             $this->audit($operator,'delivery-probe-attempt',$siteId,'requested',
-                $probeId.' form='.$sectionId.' channel='.$channel);
+                $probeId.$stamp);
         });
         $message="MANUFACT AI Site CMS — ROUTING TEST (NOT A CLIENT LEAD)\n".
             "Site ID: ".$siteId."\nForm: ".$sectionId."\nChannel: ".$channel.
@@ -125,9 +130,10 @@ trait FormDelivery
         }
         $state=$result['state']??'uncertain';
         $this->audit($operator,'delivery-probe-result',$siteId,$state,
-            $probeId.' form='.$sectionId.' channel='.$channel.' error='.($result['error']??'none'));
+            $probeId.$stamp.' error='.($result['error']??'none'));
         return ['format'=>'manufact-form-delivery-probe-v1','siteId'=>$siteId,
             'sectionId'=>$sectionId,'channel'=>$channel,'probeId'=>$probeId,
+            'settingsVersion'=>$settingsVersion,'routeVersion'=>$routeVersion,
             'state'=>$state,'error'=>$result['error']??null,
             'leadCreated'=>false,'externalReceiptConfirmed'=>false,
             'note'=>'Transport acceptance is not inbox receipt; check the intended recipient manually.'];
@@ -143,12 +149,15 @@ trait FormDelivery
             ORDER BY created_at DESC,event_id DESC LIMIT 240");
         $q->execute([$siteId]);$probes=[];
         foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row){
-            if(!preg_match('/^(probe-[a-f0-9]{16}) form=([a-z][a-z0-9-]{2,79}) channel=(email|telegram)(?: error=([a-z_]+))?$/D',
+            if(!preg_match('/^(probe-[a-f0-9]{16}) form=([a-z][a-z0-9-]{2,79}) channel=(email|telegram)(?: settingsVersion=(\d{1,10}) routeVersion=(\d{1,10}))?(?: error=([a-z_]+))?$/D',
                 $row['detail'],$m))continue;
             $id=$m[1];
             if(!isset($probes[$id]))$probes[$id]=[
                 'probeId'=>$id,'sectionId'=>$m[2],'channel'=>$m[3],
                 'requestedAt'=>null,'transportState'=>null,'transportError'=>null,
+                'settingsVersion'=>isset($m[4])?(int)$m[4]:null,
+                'routeVersion'=>isset($m[5])?(int)$m[5]:null,
+                'appliesToCurrentSavedRoute'=>false,
                 'ownerReceived'=>null,'ownerReceiptAt'=>null,'ownerReceiptActor'=>null
             ];
             if($probes[$id]['sectionId']!==$m[2]||$probes[$id]['channel']!==$m[3])continue;
@@ -156,7 +165,7 @@ trait FormDelivery
                 $probes[$id]['requestedAt']=$row['created_at'];
             if($row['action']==='delivery-probe-result'){
                 $probes[$id]['transportState']=$row['outcome'];
-                $probes[$id]['transportError']=($m[4]??'none')==='none'?null:($m[4]??null);
+                $probes[$id]['transportError']=($m[6]??'none')==='none'?null:($m[6]??null);
             }
             if($row['action']==='delivery-probe-receipt'){
                 $probes[$id]['ownerReceived']=$row['outcome']==='received';
@@ -166,6 +175,22 @@ trait FormDelivery
         }
         $items=array_values(array_filter($probes,static fn(array $item):bool=>
             $item['requestedAt']!==null&&$item['transportState']!==null));
+        // A previously acknowledged test must never certify a later recipient.
+        // Private version counters are not addresses, chat IDs, or secrets.
+        $settingsVersion=(int)($this->deliverySettingsRow($siteId)['version']??0);
+        $activeForms=array_column($this->editableDeliveryForms($siteId),'sectionId');
+        $routeVersions=[];
+        foreach($items as &$item){
+            $id=$item['sectionId'];
+            if(!isset($routeVersions[$id]))
+                $routeVersions[$id]=(int)($this->formRouteRow($siteId,$id)['version']??0);
+            $item['appliesToCurrentSavedRoute']=$item['settingsVersion']!==null
+                &&$item['routeVersion']!==null
+                &&$item['settingsVersion']===$settingsVersion
+                &&$item['routeVersion']===$routeVersions[$id]
+                &&in_array($id,$activeForms,true);
+        }
+        unset($item);
         usort($items,static fn(array $a,array $b):int=>
             strcmp($b['requestedAt'],$a['requestedAt'])?:strcmp($b['probeId'],$a['probeId']));
         return ['format'=>'manufact-form-delivery-probe-history-v1','siteId'=>$siteId,
@@ -186,9 +211,10 @@ trait FormDelivery
             $q->execute([$siteId,$probeId.' form=%']);
             $attempt=null;$result=null;$already=false;
             foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row){
-                if(!preg_match('/^'.preg_quote($probeId,'/').' form=([a-z][a-z0-9-]{2,79}) channel=(email|telegram)(?: error=[a-z_]+)?$/D',
+                if(!preg_match('/^'.preg_quote($probeId,'/').' form=([a-z][a-z0-9-]{2,79}) channel=(email|telegram)(?: settingsVersion=(\d{1,10}) routeVersion=(\d{1,10}))?(?: error=[a-z_]+)?$/D',
                     $row['detail'],$m))continue;
-                $detail=$probeId.' form='.$m[1].' channel='.$m[2];
+                $detail=$probeId.' form='.$m[1].' channel='.$m[2].
+                    (isset($m[3],$m[4])?' settingsVersion='.$m[3].' routeVersion='.$m[4]:'');
                 if($row['action']==='delivery-probe-attempt')$attempt=$detail;
                 if($row['action']==='delivery-probe-result')$result=$detail;
                 if($row['action']==='delivery-probe-receipt')$already=true;

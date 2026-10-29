@@ -1216,6 +1216,9 @@
       item.append(element('strong',null,probe.channel.toUpperCase()+' · '+probe.sectionId));
       item.append(element('small',null,probe.probeId+' · '+probe.requestedAt+
         ' · '+(labels[probe.transportState]||probe.transportState)));
+      item.append(element('small',null,probe.appliesToCurrentSavedRoute?
+        'Проверка относится к текущим сохранённым настройкам (внешний транспорт мог измениться).':
+        'Внимание: проверка от предыдущих настроек, для актуального маршрута повторите тест.'));
       if(probe.ownerReceived!==null){
         item.append(element('small',null,'По словам владельца: '+
           (probe.ownerReceived?'сообщение получено':'сообщение не получено')+
@@ -2557,7 +2560,9 @@
           entry.append(element('small',null,'Ручной тест '+probe.channel+' '+probe.probeId+
             ': '+probe.transportState+'; наблюдение владельца: '+
             (probe.ownerReceived===null?'не записано':(probe.ownerReceived?'получено':'не получено'))+
-            '. Это не доказательство доставки посетительской заявки.'));
+            '. '+(probe.appliesToCurrentSavedRoute?'Настройки маршрута те же.':
+              'Маршрут изменён — тест устарел!')+
+            ' Это не доказательство доставки посетительской заявки.'));
         if(counts.length)entry.append(element('small',null,
           'История попыток: '+counts.join(' · ')+'. Принято транспортом ≠ получено человеком.'));
         const configure=action('К настройкам этой формы','',()=>{

@@ -854,7 +854,7 @@
         "stage3/studio/hosted.js",
         "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Partial: owner-only read-only launch review inventories all current and still-live forms plus effective private routing, local leads/outbox and latest non-secret manual transport probe. Owner may explicitly trigger a rate-limited per-form test without creating a lead, inspect durable audit-backed test history across sessions and record one received/not-received observation; neither provider acceptance nor owner's test observation proves real visitor inquiry delivery. Owner-authorized host and real client GO remain unverified."
+      "nextCheck": "Partial: owner-only readiness inventories draft/live forms and per-form delivery evidence; manual per-form Email/Telegram probes are explicitly confirmed, rate-limited and audited without creating leads. Owner can record one receipt/not-received observation. Tests are bound to private saved site+form routing versions: changing either setting makes previous observations visibly stale. Actual visitor lead delivery and authorized host/client GO remain unverified."
     },
     {
       "id": 81,

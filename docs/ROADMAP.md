@@ -392,3 +392,8 @@ The owner-only `GET /api/sites/{id}/delivery/probes` lists bounded, metadata-onl
 ### 29 October — first-login import action gating
 
 Fixed a real hosted Studio first-login race exposed by the approved-v2 recovery Chromium journey: authentication could re-enable **Connect approved site** during the asynchronous initial site hydration, and an immediate folder selection would silently be ignored by the busy guard. Approved-folder import, private approval-vault actions, site switch/creation and JSON import now stay disabled until initial hydration completes. This is an operator safety fix for the actual approved client import path, not a new synthetic readiness mechanism. Re-run the existing Chromium journey; do not count the earlier failing CI as green.
+
+
+### Route-version binding of manual delivery tests
+
+Each test records the saved private site notification-settings version and per-form route version in audit metadata (not email addresses, chat IDs or tokens). Owner-only history and launch review mark whether a prior test still applies to the **current saved routing configuration**; changing either version or removing the form invalidates its applicability while retaining the original operator observation. Old audit rows without versions remain visible as history but never claim current applicability. This is deliberately conservative: an external transport could change without a CMS version bump, so matching versions are not proof of receipt or real visitor lead delivery. No schema changes or acceptance-status inflation.
