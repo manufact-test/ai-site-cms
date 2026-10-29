@@ -176,7 +176,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   let count=0;const popups=new Set(),triggers=[];
   function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(own(node,'popupTarget')){
@@ -324,6 +324,23 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       if(!['button','link'].includes(node.type)&&own(node,'href'))fail(node.id,'unexpected link');
       if(node.type==='heading'&&(!number(node.level||2,1,6)))fail(node.id,'heading level');
       if(node.type!=='heading'&&own(node,'level'))fail(node.id,'unexpected level');
+    }
+    if(own(node,'runs')){
+      if(!['heading','text'].includes(node.type)||!Array.isArray(node.runs)||
+        node.runs.length<2||node.runs.length>16)
+        fail(node.id,'formatted fragments require a heading or paragraph');
+      let sum='';
+      for(const run of node.runs){
+        keys(run,['text','strong','italic','color'],node.id+'/run');
+        if(typeof run.text!=='string'||run.text.length<1||run.text.length>1500||
+          /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(run.text))
+          fail(node.id,'invalid formatted fragment');
+        for(const key of ['strong','italic'])if(own(run,key)&&typeof run[key]!=='boolean')
+          fail(node.id,'invalid fragment emphasis');
+        if(own(run,'color'))resolve(run.color,'colors',tokens,node.id+'/run/color');
+        sum+=run.text;
+      }
+      if(sum!==node.text)fail(node.id,'formatted fragments must equal the editable plain text');
     }
     if(node.type!=='icon'&&(own(node,'iconSize')||own(node,'iconWeight')))
       fail(node.id,'unexpected icon appearance');
@@ -575,10 +592,21 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     if(node.type==='table')node.children[0]?.children.forEach(cell=>tableHeaderIds.add(cell.id));
     if(node.children)markHeaders(node.children);
   }};markHeaders(graph.nodes);
+  const richText=n=>{
+    if(!n.runs)return attr(n.text);
+    return n.runs.map(run=>{
+      let part=attr(run.text);
+      if(run.strong)part='<strong>'+part+'</strong>';
+      if(run.italic)part='<em>'+part+'</em>';
+      if(run.color)part='<span style="color:'+resolve(run.color,'colors',tokens,n.id+'/run/color')+'">'+part+'</span>';
+      return part;
+    }).join('');
+  };
   function visit(n){
     const selector=scope+' .cmsdg-n-'+n.id;
     const usesTranslate=[n.styles||{},n.responsive?.tablet||{},n.responsive?.mobile||{}].some(s=>own(s,'translateX')||own(s,'translateY'));
     if(usesTranslate)rules.push(selector+'{--cmsdg-tx:0px;--cmsdg-ty:0px;translate:var(--cmsdg-tx) var(--cmsdg-ty)}');
+    if(n.runs)rules.push(selector+'{white-space:pre-line}');
     const baseline=declarations(n.styles||{},tokens);
     if(baseline)rules.push(selector+'{'+baseline+'}');
     for(const bp of ['tablet','mobile']){
@@ -683,8 +711,8 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
         '" fill="none" stroke="currentColor" stroke-width="'+weight+'" stroke-linecap="round" stroke-linejoin="round" '+
         (n.alt?'role="img" aria-label="'+attr(n.alt)+'"':'aria-hidden="true"')+'>'+ICON_PATHS[n.icon]+'</svg>';
     }
-    if(n.type==='heading')return '<h'+(n.level||2)+' class="'+cls+'">'+attr(n.text)+'</h'+(n.level||2)+'>';
-    if(n.type==='text')return '<p class="'+cls+'">'+attr(n.text)+'</p>';
+    if(n.type==='heading')return '<h'+(n.level||2)+' class="'+cls+'">'+richText(n)+'</h'+(n.level||2)+'>';
+    if(n.type==='text')return '<p class="'+cls+'">'+richText(n)+'</p>';
     if(n.type==='button'&&n.popupTarget)return '<button type="button" class="'+cls+' cmsdg-popup-trigger" popovertarget="cmsdg-popup-'+n.popupTarget+'">'+attr(n.text)+'</button>';
     if(n.type==='button'||n.type==='link')return '<a class="'+cls+'" href="'+attr(n.href.startsWith('/')?mount.replace(/\/$/,'')+n.href:n.href)+'"'+(n.href.startsWith('https://')?' rel="noopener noreferrer"':'')+'>'+attr(n.text)+'</a>';
     if(n.type==='video'){
@@ -1113,7 +1141,7 @@ function validMenuRelations(raw){
   if(raw.menu?.ctaPageId&&!pages.has(raw.menu.ctaPageId))fail('Menu CTA destination missing');
 }
 const DEFAULT_APPEARANCE=Object.freeze({surface:'default',spacing:'normal',align:'left',width:'default',heading:'default',corners:'default',mobileAlign:'inherit',mobileSpacing:'inherit',button:'default'});
-const EXTRA_APPEARANCE=Object.freeze({"width":["default","narrow","wide"],"heading":["default","compact","expressive"],"corners":["default","soft","round"],"mobileAlign":["inherit","left","center"],"mobileSpacing":["inherit","tight","normal","airy"],"button":["default","solid","outline","pill"]});
+const EXTRA_APPEARANCE=Object.freeze({"width":["default","narrow","wide","edge"],"heading":["default","compact","expressive"],"corners":["default","soft","round"],"mobileAlign":["inherit","left","center"],"mobileSpacing":["inherit","tight","normal","airy"],"button":["default","solid","outline","pill"]});
 function validAppearance(a){
   objectKeys(a,['surface','spacing','align',...Object.keys(EXTRA_APPEARANCE)],'appearance');
   if(!['default','paper','tint','dark'].includes(a.surface)||
@@ -3995,7 +4023,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const node=selectedGraphNode();
       if(node&&['heading','text','button','link','quote','table-cell','list-item','disclosure','tab'].includes(node.type)){
         if(!canWrite())return feedback('Нет права на редактирование.',true);
-        if(editGraphWork(n=>{n.text=quickInput.value;}))dismissQuick();
+        if(editGraphWork(n=>{n.text=quickInput.value;delete n.runs;}))dismissQuick();
         return;
       }
       const page=pageForWork(),section=sectionForWork();
@@ -4766,7 +4794,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
               else if(key==='iconSize'){
                 if(!val.trim())delete node.iconSize;
                 else node.iconSize=Number(val);
-              }else node[key]=key==='level'?Number(val):val;
+              }else{node[key]=key==='level'?Number(val):val;if(key==='text')delete node.runs;}
             });
           });
           wrap.append(caption,input);panel.append(wrap);
@@ -5050,7 +5078,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         surface:[['default','Как в компоненте'],['paper','Белый'],['tint','Мягкий голубой'],['dark','Тёмный']],
         spacing:[['tight','Компактно'],['normal','Стандартно'],['airy','Просторно']],
         align:[['left','Слева'],['center','По центру']],
-        width:[['default','Обычно'],['narrow','Узкий'],['wide','Широкий']],
+        width:[['default','Обычно'],['narrow','Узкий'],['wide','Широкий'],['edge','От края до края экрана']],
         heading:[['default','Обычный заголовок'],['compact','Компактный'],['expressive','Крупный']],
         corners:[['default','Как в компоненте'],['soft','Мягкие'],['round','Сильное скругление']],
         button:[['default','Общие кнопки'],['solid','Заливка'],['outline','Контур'],['pill','Округлые']],
@@ -5183,7 +5211,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       pick('surface','Фон', [['default','Как в компоненте'],['paper','Белый / поверхность'],['tint','Мягкий голубой'],['dark','Тёмный']]),
       pick('spacing','Вертикальные отступы',[['tight','Компактные'],['normal','Стандартные'],['airy','Просторные']]),
       pick('align','Выравнивание',[['left','Слева'],['center','По центру']]),
-      pick('width','Ширина секции',[['default','Стандартная'],['narrow','Узкая'],['wide','Во всю ширину содержимого']]),
+      pick('width','Ширина секции',[['default','Стандартная'],['narrow','Узкая'],['wide','Во всю ширину содержимого'],['edge','От края до края экрана']]),
       pick('heading','Типографика H2',[['default','Стандартная'],['compact','Компактная'],['expressive','Выразительная']]),
       pick('corners','Скругления элементов',[['default','Как в компоненте'],['soft','12 пикселей'],['round','28 пикселей']]),
       pick('button','Оформление кнопок',[['default','Наследовать стиль сайта'],['solid','Залитые'],['outline','Контурные'],['pill','Округлые']]),
@@ -6016,7 +6044,76 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const headline=make('h3','Редактирование · '+n.type);root.append(headline);
       const fields=make('div','', 'cms-design-fields');root.append(fields);
       if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item','popup'].includes(n.type)){
-        fields.append(ctl('Текст',n.text,value=>{n.text=value;},'multiline'));
+        fields.append(ctl('Текст (сбрасывает акценты)',n.text,value=>{n.text=value;delete n.runs;},'multiline'));
+      }
+      if(['heading','text'].includes(n.type)){
+        const editor=make('details');editor.id='cms-design-rich-text';editor.open=!!n.runs;
+        editor.append(make('summary','Акценты внутри текста · цвет, жирный, курсив'));
+        editor.append(make('p','Каждый фрагмент остаётся текстом, а не HTML. Изменение общего текста выше сбросит фрагменты.'));
+        const applyRuns=update=>{
+          try{
+            const next=cp(graph);
+            const find=nodes=>{for(const item of nodes){
+              if(item.id===n.id)return item;
+              if(item.children){const x=find(item.children);if(x)return x;}
+            }return null;};
+            const target=find(next.nodes);update(target);
+            if(target.runs)target.text=target.runs.map(part=>part.text).join('');
+            DESIGN_GRAPH.validateGraph(next,new Set(session.current.assets.map(a=>a.id)),
+              new Set(),tokens,new Map(session.current.assets.map(a=>[a.id,a.mime])));
+            recordHistory();graph=next;render();
+          }catch(error){notice('Фрагменты не изменены: '+error.message,true);}
+        };
+        if(!n.runs){
+          const start=button('Добавить оформленные фрагменты','btn small',()=>applyRuns(node=>{
+            const split=node.text.length>1500?1500:node.text.length;
+            node.runs=[{text:node.text.slice(0,split)||'Текст'},
+              {text:node.text.slice(split)||' новый фрагмент',strong:true,color:'@accent'}];
+          }));
+          start.id='cms-design-rich-start';editor.append(start);
+        }else{
+          const rows=make('div',undefined,'cms-design-fields');
+          n.runs.forEach((fragment,i)=>{
+            const line=make('fieldset');line.dataset.richIndex=String(i);
+            line.append(make('legend','Фрагмент '+(i+1)));
+            const words=make('textarea',undefined,'control');words.rows=2;words.value=fragment.text;
+            words.setAttribute('aria-label','Текст фрагмента '+(i+1));
+            words.addEventListener('change',()=>applyRuns(node=>{node.runs[i].text=words.value;}));
+            const strong=make('input');strong.type='checkbox';strong.checked=!!fragment.strong;
+            strong.setAttribute('aria-label','Жирный фрагмент '+(i+1));
+            strong.addEventListener('change',()=>applyRuns(node=>{node.runs[i].strong=strong.checked;}));
+            const italic=make('input');italic.type='checkbox';italic.checked=!!fragment.italic;
+            italic.setAttribute('aria-label','Курсив фрагмента '+(i+1));
+            italic.addEventListener('change',()=>applyRuns(node=>{node.runs[i].italic=italic.checked;}));
+            const color=make('input');color.type='text';color.className='control';
+            color.placeholder='@accent или #112233';color.value=fragment.color||'';
+            color.setAttribute('aria-label','Цвет фрагмента '+(i+1));
+            color.addEventListener('change',()=>applyRuns(node=>{
+              if(color.value.trim())node.runs[i].color=color.value.trim();
+              else delete node.runs[i].color;
+            }));
+            const up=button('↑','btn small',()=>applyRuns(node=>{
+              [node.runs[i-1],node.runs[i]]=[node.runs[i],node.runs[i-1]];
+            }));up.disabled=i===0;up.setAttribute('aria-label','Поднять фрагмент '+(i+1));
+            const down=button('↓','btn small',()=>applyRuns(node=>{
+              [node.runs[i+1],node.runs[i]]=[node.runs[i],node.runs[i+1]];
+            }));down.disabled=i===n.runs.length-1;down.setAttribute('aria-label','Опустить фрагмент '+(i+1));
+            const remove=button('Удалить','btn small',()=>applyRuns(node=>{
+              node.runs.splice(i,1);if(node.runs.length<2)delete node.runs;
+            }));
+            line.append(words,make('label','Жирный '),strong,make('label','Курсив '),italic,
+              make('label','Цвет'),color,up,down,remove);rows.append(line);
+          });
+          editor.append(rows);
+          const add=button('+ Фрагмент','btn small',()=>applyRuns(node=>{
+            node.runs.push({text:' новый фрагмент'});
+          }));
+          add.id='cms-design-rich-add';add.disabled=n.runs.length>=16;
+          const clear=button('Убрать оформление','btn small',()=>applyRuns(node=>{delete node.runs;}));
+          clear.id='cms-design-rich-clear';
+          editor.append(add,clear);
+        }
+        fields.append(editor);
       }
       if(n.type==='quote')fields.append(ctl('Автор или источник цитаты',n.cite||'',value=>{n.cite=value;}));
       if(n.type==='list')fields.append(ctl('Тип списка',{initial:n.ordered?'ordered':'unordered',
@@ -8135,7 +8232,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       '.cms-align-center>section{text-align:center!important}'+
       '.cms-align-center>section>p{margin-left:auto;margin-right:auto}'+
       '.cms-width-narrow>section{max-width:780px!important;margin-inline:auto!important}'+
-      '.cms-width-wide>section{max-width:none!important}'+
+      '.cms-width-wide>section{max-width:none!important}.cms-width-edge{position:relative;left:50%;width:100vw;max-width:none;margin-left:-50vw;margin-right:0}.cms-width-edge>section{max-width:none!important}body:has(.cms-width-edge){overflow-x:clip}'+
       '.cms-heading-compact>section h2{font-size:clamp(24px,2.5vw,34px)!important}'+
       '.cms-heading-expressive>section h2{font-size:clamp(36px,4.5vw,56px)!important}'+
       '.cms-corners-soft>section :is(article,.card,details,img,.action){border-radius:12px!important}'+
