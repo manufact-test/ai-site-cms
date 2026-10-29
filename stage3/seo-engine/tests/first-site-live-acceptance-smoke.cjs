@@ -57,6 +57,7 @@ reviewed.formTests=[{page:'/contact/',formRef:'contact-lead',state:'passed',
 const done=FLOW.review(original,reviewed,post);
 assert.equal(done.status,'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION');
 assert.deepEqual(done.checks.perFormChecks,[{page:'/contact/',sectionId:'contact-lead',state:'passed'}]);
+assert.equal(done.checks.operatorFormObservations,1);
 assert.equal(done.checks.submittedFormEvidenceReceipts,1);
 assert.equal(done.checks.confirmedFormDeliveryReceipts,1);
 assert.equal(done.releaseAuthorized,false);
@@ -72,6 +73,16 @@ assert.throws(()=>FLOW.review(original,{...reviewed,formTests:[
  {...reviewed.formTests[0],deliveryObservedAt:'2026-10-28'}]},post),/independent destination-side/);
 assert.throws(()=>FLOW.review(original,{...reviewed,formTests:[
  {...reviewed.formTests[0],submissionEvidenceRef:''}]},post),/separate private submission/);
+const failedWithoutPost={...reviewed,formTests:[{
+ ...reviewed.formTests[0],state:'failed',submissionEvidenceRef:'',
+ deliveryEvidenceRef:'',deliveryChannel:'none',deliveryObservedAt:null,
+ notes:'Form click never issued a POST request.'}]};
+const failedNoPostResult=FLOW.review(original,failedWithoutPost,post);
+assert.equal(failedNoPostResult.status,'HUMAN-OBSERVATIONS-FAILED');
+assert.equal(failedNoPostResult.checks.operatorFormObservations,1);
+assert.equal(failedNoPostResult.checks.operatorFormPostReceipts,0);
+assert.equal(failedNoPostResult.checks.failedFormReceipts,1);
+assert.equal(FOLLOW.build(failedNoPostResult).counts.urgent,1);
 assert.throws(()=>FLOW.review(original,{...reviewed,formTests:[
  {...reviewed.formTests[0],formRef:'invented-form'}]},post),/exact observed PHP sectionId/);
 assert.equal(done.clientApprovalAuthenticated,false);

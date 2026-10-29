@@ -30,11 +30,14 @@ function render(review,contract,contractSha,first,firstSha,postSha){
   !Number.isSafeInteger(review.checks.passed)||!Number.isSafeInteger(review.checks.pending)||
   !Number.isSafeInteger(review.checks.failed)||
   review.checks.passed+review.checks.pending+review.checks.failed!==review.checks.required||
-  !['realFormOccurrencesExpected','operatorFormPostReceipts','passedFormReceipts',
+  !['realFormOccurrencesExpected','operatorFormObservations',
+     'operatorFormPostReceipts','passedFormReceipts',
      'submittedFormEvidenceReceipts','confirmedFormDeliveryReceipts',
      'failedFormReceipts'].every(k=>Number.isSafeInteger(review.checks[k])&&review.checks[k]>=0)||
-  review.checks.operatorFormPostReceipts!==review.checks.passedFormReceipts+
+  review.checks.operatorFormObservations!==review.checks.passedFormReceipts+
     review.checks.failedFormReceipts||
+  review.checks.operatorFormPostReceipts<review.checks.passedFormReceipts||
+  review.checks.operatorFormPostReceipts>review.checks.operatorFormObservations||
   review.checks.submittedFormEvidenceReceipts!==review.checks.operatorFormPostReceipts||
   review.checks.confirmedFormDeliveryReceipts!==review.checks.passedFormReceipts||
   !Array.isArray(review.checks.missingFormPages)||
@@ -144,6 +147,7 @@ function render(review,contract,contractSha,first,firstSha,postSha){
   ['Not reviewed',review.checks.pending],
   ['Actual PHP form occurrences (minimum)',review.checks.realFormOccurrencesExpected],
   ['Operator real POST receipts passed',review.checks.passedFormReceipts],
+  ['All form observations, including failed no-POST attempts',review.checks.operatorFormObservations],
   ['Post-submission evidence references',review.checks.submittedFormEvidenceReceipts],
   ['Destination-side delivery confirmations',review.checks.confirmedFormDeliveryReceipts],
   ['Operator real POST receipts failed',review.checks.failedFormReceipts]

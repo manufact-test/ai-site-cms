@@ -179,7 +179,7 @@ function review(original,filled,post){
  }
  requireThat(Array.isArray(filled.formTests)&&filled.formTests.length<=300,
   'form POST receipt list must be a bounded operator input');
- const forms=new Set(),formCountByPage=new Map();let formPassed=0,formFailed=0;
+ const forms=new Set(),formCountByPage=new Map();let formPassed=0,formFailed=0,formSubmitted=0;
  const DELIVERY=['email','telegram','persistence','webhook','other'];
  const safeRef=v=>typeof v==='string'&&v.length>=3&&v.length<=240&&
   !/[\x00-\x1f<>]/.test(v)&&!!v.trim();
@@ -194,8 +194,14 @@ function review(original,filled,post){
    'unsafe, incomplete or ungrounded real form POST observation');
   // Separately attest actual submission and destination-side delivery/persistence.
   // References must be opaque PRIVATE evidence labels; never POST bodies or tokens.
-  requireThat(safeRef(f.submissionEvidenceRef),
-   'real form POST requires a separate private submission receipt');
+  // A broken button or blocked browser request may have NO real POST receipt.
+  // Such a failure must be reportable, not force fabricated POST proof.
+  if(f.state==='passed')requireThat(safeRef(f.submissionEvidenceRef),
+   'passed real form POST requires a separate private submission receipt');
+  else requireThat(f.submissionEvidenceRef===undefined||f.submissionEvidenceRef===''||
+   safeRef(f.submissionEvidenceRef),
+   'failed form POST reference must be empty or a safe private observation');
+  if(safeRef(f.submissionEvidenceRef))formSubmitted++;
   if(f.state==='passed'){
    requireThat(safeRef(f.deliveryEvidenceRef)&&f.deliveryEvidenceRef!==f.submissionEvidenceRef&&
     DELIVERY.includes(f.deliveryChannel)&&date(f.deliveryObservedAt)&&
@@ -254,9 +260,11 @@ function review(original,filled,post){
     const value=filled.tasks.find(t=>t.id===x.id);
     return {id:x.id,kind:x.kind,page:x.page,viewport:x.viewport,state:value.state};
    }),
-   realFormOccurrencesExpected:required,operatorFormPostReceipts:filled.formTests.length,
+   realFormOccurrencesExpected:required,
+   operatorFormObservations:filled.formTests.length,
+   operatorFormPostReceipts:formSubmitted,
    passedFormReceipts:formPassed,failedFormReceipts:formFailed,
-   submittedFormEvidenceReceipts:filled.formTests.length,
+   submittedFormEvidenceReceipts:formSubmitted,
    confirmedFormDeliveryReceipts:formPassed,
    missingFormPages,perFormChecks,
    perPageFormReceipts:Object.fromEntries([...formCountByPage].sort()),
@@ -315,6 +323,7 @@ function markdown(r){
  'Browser/manual checks: '+r.checks.passed+' passed, '+r.checks.failed+' failed, '+
   r.checks.pending+' awaiting evidence.',
  'Independently asserted destination delivery confirmations: '+r.checks.confirmedFormDeliveryReceipts+'.',
+ 'Form observations recorded (including no-POST failures): '+r.checks.operatorFormObservations+'.',
  'Actual POST submission evidence references: '+r.checks.submittedFormEvidenceReceipts+'.',
  'Real form POST receipts: '+r.checks.passedFormReceipts+' passed / '+
   r.checks.realFormOccurrencesExpected+' actual PHP occurrences expected.',

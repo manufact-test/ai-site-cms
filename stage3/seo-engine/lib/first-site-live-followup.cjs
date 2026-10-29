@@ -43,9 +43,11 @@ function valid(report){
  if(forms.length!==report.checks.realFormOccurrencesExpected||
   formPassed!==report.checks.passedFormReceipts||
   formFailed!==report.checks.failedFormReceipts||
-  formPassed+formFailed!==report.checks.operatorFormPostReceipts||
+  formPassed+formFailed!==report.checks.operatorFormObservations||
   report.checks.confirmedFormDeliveryReceipts!==formPassed||
-  report.checks.submittedFormEvidenceReceipts!==formPassed+formFailed)
+  report.checks.operatorFormPostReceipts< formPassed||
+  report.checks.operatorFormPostReceipts>report.checks.operatorFormObservations||
+  report.checks.submittedFormEvidenceReceipts!==report.checks.operatorFormPostReceipts)
   fail('per-form receipts conflict with source-backed totals');
  return true;
 }

@@ -85,7 +85,7 @@ function render(template){
    const by=field(grid,'Operator','text',existing.checkedBy);
    const date=field(grid,'POST observed date','date',existing.observedAt);
    const ref=field(grid,'Operator check reference','text',existing.evidenceRef);
-   const submitted=field(grid,'Submission receipt reference','text',existing.submissionEvidenceRef);
+   const submitted=field(grid,'Submission receipt reference (optional if POST failed before send)','text',existing.submissionEvidenceRef);
    const delivered=field(grid,'Separate delivery receipt reference','text',existing.deliveryEvidenceRef);
    const channel=choice(grid,'Destination-side confirmation channel',
     [['none','Not confirmed'],['email','Email'],['telegram','Telegram'],
