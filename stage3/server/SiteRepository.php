@@ -527,7 +527,7 @@ final class SiteRepository
         $row=$stmt->fetch(PDO::FETCH_ASSOC);
         if(!$row||$row['mime']!==$expectedMime
             ||($variantSha!==null&&!hash_equals($variantSha,(string)$row['sha256']))
-            ||!is_numeric($row['byte_size'])||(int)$row['byte_size']<1)
+            ||!is_numeric($row['byte_size'])||(int)$row['byte_size']<1
             ||!preg_match('/^[a-f0-9]{64}$/D',(string)$row['sha256']))
             throw new \RuntimeException('Published media metadata integrity mismatch');
         return ['mime'=>$row['mime'],'sha256'=>$row['sha256'],'byteSize'=>(int)$row['byte_size']];
