@@ -442,6 +442,15 @@ async function stop(){
   assert.equal(publicImage.status,200);
   assert.equal(publicImage.headers.get('content-type'),'image/png');
   assert.deepEqual(Buffer.from(await publicImage.arrayBuffer()),pngBytes);
+  const imagePath='/published/'+id+'/assets/'+asset.id+'.png';
+  const imageHead=await fetch(origin+imagePath,{method:'HEAD'});
+  assert.equal(imageHead.status,200);
+  assert.equal(Number(imageHead.headers.get('content-length')),pngBytes.length);
+  assert.equal(imageHead.headers.get('etag'),publicImage.headers.get('etag'));
+  assert.equal((await fetch(origin+imagePath,{
+    headers:{'If-None-Match':publicImage.headers.get('etag')}})).status,304);
+  assert.equal((await fetch(origin+'/published/'+id+'/assets/not-listed.png',
+    {method:'HEAD'})).status,404,'An unknown asset has no public metadata');
   assert.match((await request('GET','/published/'+id+'/')).body,new RegExp(asset.id+'[.]png'));
 
   const formDef=JSON.parse(fs.readFileSync(path.join(root,'stage3/components/lead-form.json'),'utf8'));
@@ -2186,6 +2195,11 @@ async function stop(){
   assert.equal(allVideo.headers.get('content-type'),'video/mp4');
   assert.equal(allVideo.headers.get('x-content-type-options'),'nosniff');
   assert.equal(allVideo.headers.get('etag'),'"'+videoHash+'"');
+  const videoHead=await fetch(origin+baseVideo,{method:'HEAD'});
+  assert.equal(videoHead.status,200);
+  assert.equal(Number(videoHead.headers.get('content-length')),videoBytes.length);
+  assert.equal(videoHead.headers.get('accept-ranges'),'bytes');
+  assert.equal(videoHead.headers.get('etag'),allVideo.headers.get('etag'));
   assert.equal(Buffer.from(await allVideo.arrayBuffer()).toString('hex'),videoBytes.toString('hex'));
   const rangedVideo=await fetch(origin+baseVideo,{headers:{Range:'bytes=0-15'}});
   assert.equal(rangedVideo.status,206);
@@ -2526,7 +2540,12 @@ async function stop(){
     assert.equal(reported.publishedVersion,urlManifest.publishedVersion);
     assert.equal(reported.releaseManifestSha256,hash(fs.readFileSync(path.join(urlOut,'release-manifest.json'))));
     const home=await fetch(base+'/');assert.equal(home.status,200);
-    assert.match(home.headers.get('etag'),/^"[a-f0-9]{64}"$/);
+    assert.match(home.headers.get('etag'),/^"[a-f0-9]{64}(?:-gz)?"$/);
+    assert.equal(home.headers.get('vary'),'Accept-Encoding');
+    const sameHead=await fetch(base+'/',{method:'HEAD'});
+    assert.equal(sameHead.status,200);
+    assert.equal(sameHead.headers.get('etag'),home.headers.get('etag'),
+      'HEAD and GET choose the same encoded immutable page variant');
     assert.match(home.headers.get('cache-control'),/no-cache/);
     assert.match(await home.text(),/href="\/get-in-touch\/"/);
     const cachedHome=await fetch(base+'/',{headers:{'If-None-Match':home.headers.get('etag')}});
