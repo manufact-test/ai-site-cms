@@ -548,6 +548,13 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-menu-editor select').nth(2).selectOption('page-contact');
     await page.locator('#cms-menu-cta-label').fill('Написать нам');
     await page.locator('#cms-menu-cta-label').dispatchEvent('change');
+    await page.locator('#cms-header-notice').fill('Звоните нам в рабочее время');
+    await page.locator('#cms-header-notice').dispatchEvent('change');
+    await page.locator('#cms-header-notice-page').selectOption('page-contact');
+    await page.locator('#cms-header-phone').fill('+48 500 600 700');
+    await page.locator('#cms-header-phone').dispatchEvent('change');
+    await page.locator('#cms-header-email').fill('hello@example.com');
+    await page.locator('#cms-header-email').dispatchEvent('change');
     const contactMenu=page.locator('[data-menu-page="page-contact"]');
     await contactMenu.locator('input[type=text]').fill('Контакты и поддержка');
     await contactMenu.locator('input[type=text]').dispatchEvent('change');
@@ -557,14 +564,35 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(menuSite.menu.style,'bold');
     assert.equal(menuSite.menu.mobile,'expanded');
     assert.equal(menuSite.menu.ctaPageId,'page-contact');
+    assert.equal(menuSite.header.noticePageId,'page-contact');
+    assert.equal(menuSite.header.email,'hello@example.com');
     assert.equal(menuSite.pages[1].navigation.parentId,'page-home');
     assert.equal(menuSite.pages[1].navigation.label,'Контакты и поддержка');
     await page.locator('#undo').click();
     menuSite=await page.evaluate(()=>window.Stage3Editor.getSite());
     assert.equal(menuSite.menu,undefined);
+    assert.equal(menuSite.header,undefined);
     await page.locator('#redo').click();
     menuSite=await page.evaluate(()=>window.Stage3Editor.getSite());
     assert.equal(menuSite.menu.ctaLabel,'Написать нам');
+    const brandedPreview=await page.evaluate(()=>{
+      const document=window.Stage3Editor.getSite();
+      document.assets.push({id:'asset-desktop-logo',src:'/assets/asset-desktop-logo.png',
+        alt:'Desktop brand logo',mime:'image/png'});
+      document.assets.push({id:'asset-mobile-logo',src:'/assets/asset-mobile-logo.png',
+        alt:'Mobile brand logo',mime:'image/png'});
+      document.branding={logoAssetId:'asset-desktop-logo',mobileLogoAssetId:'asset-mobile-logo',
+        logoWidth:176};
+      const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/Rc0AAAAASUVORK5CYII=';
+      return window.Stage3Editor.previewDocument(document,'/','tablet',
+        {'asset-desktop-logo':png,'asset-mobile-logo':png});
+    });
+    assert.match(brandedPreview,/cms-menu-preview-brand/);
+    assert.match(brandedPreview,/source media="\(max-width:900px\)"/);
+    assert.match(brandedPreview,/cms-topbar-preview-light/);
+    assert.match(brandedPreview,/mailto:hello@example\.com/);
+    assert.match(brandedPreview,/Звоните нам в рабочее время/);
+
 
     // Inspect a complete draft page at device widths without publishing or
     // enabling scripts/network for the iframe.
