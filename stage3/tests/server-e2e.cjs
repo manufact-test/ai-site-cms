@@ -459,6 +459,27 @@ async function stop(){
   assert.equal(afterRouting.body.forms[0].channels.email.recipientConfigured,true);
   assert.equal(afterRouting.body.formConfigurationRequired,1);
   assert.equal(afterRouting.body.liveDeliveryVerified,false);
+  // A currently LIVE form must remain in launch readiness if its section
+  // was removed from an unpublished draft. Public requests still reach it.
+  const publishedOnly=structuredClone(formDraft);
+  publishedOnly.siteId='site-form-live-readiness';
+  assert.equal((await request('POST','/api/sites',{site:publishedOnly})).status,201);
+  assert.equal((await request('POST','/api/sites/'+publishedOnly.siteId+'/publish',
+    {expectedRevision:1})).status,200);
+  const deletedFromDraft=structuredClone(publishedOnly);
+  deletedFromDraft.pages[1].sections=deletedFromDraft.pages[1].sections
+    .filter(section=>section.id!=='section-quote-form');
+  assert.equal((await request('POST','/api/sites/'+publishedOnly.siteId+'/save',
+    {expectedRevision:1,site:deletedFromDraft})).status,200);
+  const surviving=(await request('GET','/api/sites/'+publishedOnly.siteId+'/launch-forms')).body;
+  assert.equal(surviving.draftRevision,2);
+  assert.equal(surviving.publishedVersion,1);
+  assert.equal(surviving.formCount,1);
+  assert.deepEqual(surviving.forms[0].sources,['published']);
+  assert.equal(surviving.forms[0].pages[0].source,'published');
+  assert.equal(surviving.forms[0].pages[0].path,'/contact/');
+  assert.equal(surviving.formConfigurationRequired,1);
+
 
   assert.equal((await request('POST',deliveryRoute+'/routes',{
     sectionId:'section-quote-form',emailMode:'custom',emailRecipient:'team-b@example.test',
