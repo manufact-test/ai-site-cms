@@ -47,7 +47,12 @@ test('global footer is typed, site-scoped, safe and survives page renames',()=>{
     email:'hello@example.com',phone:'+48 (500) 600-700',
     links:[{label:'Юридическая информация',pageId:target.id}],
     socials:[{network:'instagram',url:'https://www.instagram.com/manufact/'}]};
+  site.footer.style='dark';site.footer.layout='stacked';
   sdk.validateSite(site,manifests);
+  const badStyle=same(site);badStyle.footer.style='script';
+  refuses(()=>sdk.validateSite(badStyle,manifests),'Only fixed footer color presets');
+  const badLayout=same(site);badLayout.footer.layout='nonsense';
+  refuses(()=>sdk.validateSite(badLayout,manifests),'Only fixed footer layout presets');
   const X=require('../sdk/draft.cjs');
   const draft=X.begin(site,manifests);
   const renamed=X.structure(draft,manifests,{
