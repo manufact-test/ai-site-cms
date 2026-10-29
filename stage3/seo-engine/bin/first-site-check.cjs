@@ -256,6 +256,7 @@ async function main(argv){
    redirects:publicStatic?.checkedRedirects??null,
    privateArtifactProbes:publicStatic?.internalArtifactProbes??null,
    publiclyExposedOperatorFiles:publicStatic?.internalArtifactPublicHttp200??null,
+   publiclyExposedOperatorFileResponses2xx:publicStatic?.internalArtifactPublicSuccess2xx??null,
    publicReleaseFingerprintMatched:publicStatic?.publicReleaseMarkerMatched??null,
    publicVsOfficialExportFindings:publicStatic?.findings.length??null,
    publicHostAuthenticated:false,clientReleaseApproved:false},
