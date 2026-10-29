@@ -100,7 +100,7 @@ function inspect(candidate,site,release,publicHttp,publicMedia,byteReport,cohort
  const fatal=parity.findings.filter(x=>x.severity==='error');
  const review=parity.findings.filter(x=>x.severity!=='error');
  const blockers=[];
- if(cohort&&!cohort.cohortFresh)
+ if(!cohort||cohort.cohortFresh!==true)
   blockers.push({code:'public-evidence-stale-or-mixed',
    reason:'Public HTTPS page and media SHA256 capture must be within two hours of verification and no more than thirty minutes apart. Capture a fresh coherent public deployment snapshot.',count:1});
  if(status.blockingGates||status.status==='TECHNICAL-BLOCKED')
