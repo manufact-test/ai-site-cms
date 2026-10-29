@@ -3612,7 +3612,7 @@
       }
       const required=path=>{
         if(typeof path!=='string'||path.length>200||
-          !/^[a-zA-Z0-9_/-]+\.(?:json|md|txt|png|jpe?g|webp)$/.test(path)||
+          !/^[a-zA-Z0-9_/-]+\.(?:json|md|txt|png|jpe?g|webp|mp4)$/.test(path)||
           path.split('/').includes('..')||!files.has(path))
           throw Error('В каталоге отсутствует файл: '+String(path));
         return files.get(path);
@@ -3863,7 +3863,8 @@
         const summary=element('p',null,'Сайт: '+site.title+' · версия: '+handoff.version+
           ' · страниц: '+site.pages.length+' · изображений: '+site.assets.length+
           ' · оригиналов макетов: '+mockups.length+
-          ' · изображения: '+(mockupBytes+mediaBytes).toLocaleString('ru-RU')+' байт'+
+           ' · MP4: '+media.filter(entry=>entry.video).length+
+          ' · размер медиа: '+(mockupBytes+mediaBytes).toLocaleString('ru-RU')+' байт'+
           ' · целостность: '+(handoff.format.endsWith('-v2')?'SHA-256 подтверждена':'старый пакет v1'));
         if(minimumBackupBytes>45000000)
           summary.append(element('strong',null,
@@ -3914,6 +3915,9 @@
           // exist on the server yet, so hosted previewUrl cannot serve it.
           const sources=Object.create(null);
           for(const asset of site.assets){
+            // Before installation the script-disabled approval preview uses
+            // poster images; full MP4 plays only after verified private upload.
+            if(asset.mime==='video/mp4')continue;
             if(!liveImageBytes.has(asset.id))
               liveImageBytes.set(asset.id,await toDataUrl(required(asset.src.slice(1)),asset.mime));
             sources[asset.id]=liveImageBytes.get(asset.id);
