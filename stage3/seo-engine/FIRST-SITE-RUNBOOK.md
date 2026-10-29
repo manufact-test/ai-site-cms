@@ -410,3 +410,8 @@ Once this runbook's regular first-site-check command has produced a private summ
 ## Source-bound operator launch ledger (optional)
 
 Generate and review a private human first-site acceptance ledger after original technical report. It references all current blocker IDs plus six manual browser/form/public-host/client-approval checks; never auto-closes any technical gate. The first-site cockpit may display its source-pinned status without altering release disposition. See [FIRST-SITE-OPERATOR-LEDGER.md](FIRST-SITE-OPERATOR-LEDGER.md) for operator commands, source hash guards and privacy.
+
+
+## Optional unified local SEO operator workspace
+
+Once existing local first-site evidence has been created, an operator may generate one private landing page that links the first-site cockpit and, when real Search Console data exists, post-publication SEO search analytics. See [SEO-OPERATOR-WORKSPACE.md](SEO-OPERATOR-WORKSPACE.md). These are local read-only visualizations, not additional readiness gates or permission to publish.

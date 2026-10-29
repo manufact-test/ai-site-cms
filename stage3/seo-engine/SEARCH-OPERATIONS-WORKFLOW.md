@@ -144,3 +144,7 @@ This is intentionally compatible with the existing field-proposals.cjs and appro
 ## 8. Private release and operations dashboard
 
 See [SEARCH-RELEASE-AND-DASHBOARD.md](SEARCH-RELEASE-AND-DASHBOARD.md). It provides source-pinned owner-declared release comparison against actual operator-provided GSC periods, plus an offline HTML dashboard for all page metrics, manual SEO statuses and release follow-up. A click difference is **not causal evidence**. Dashboard HTML is PRIVATE, not a CMS static site export, and must never be uploaded to public hosting.
+
+## 9. Optional unified private client workspace
+
+A combined owner-only local HTML entry point for this Search History dashboard and existing First Site Launch Cockpit is available through [SEO-OPERATOR-WORKSPACE.md](SEO-OPERATOR-WORKSPACE.md). The two phases must have exactly matching siteId; the output remains a private operator report, NEVER a published website or Google-authenticated dashboard.
