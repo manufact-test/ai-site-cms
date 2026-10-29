@@ -469,3 +469,5 @@ The lead integrator completed a user-facing forms/lead batch on the dedicated ma
 - Existing server HTTP E2E covers explicit confirmation and stale retry refusal; one small no-network SMTP configuration test is run in the existing `contract` job. Configuration and owner guidance: [stage3/docs/SMTP-DELIVERY.md](../stage3/docs/SMTP-DELIVERY.md).
 
 This is **functional engineering**, not proof that an actual customer got an Email/Telegram notification. Requirement #80 stays `partial`; counters remain 124 implemented candidates / 5 partial / 6 owner-environment gates, owner accepted 0. The next work is still the first real approved-v2 site and authorized delivery/host acceptance. Final SHA and matching CI should be recorded against the actual branch HEAD, not a prior documentation checkpoint.
+
+The same bounded per-lead outbox lookup now also powers the **owner inbox itself**, not only CSV. Each inquiry visibly reports Email/Telegram notification outcomes or transparently indicates inbox-only delivery. No recipient addresses or credentials are returned in the inbox payload, and this is not a recipient receipt. The existing E2E checks inbox/CSV parity.
