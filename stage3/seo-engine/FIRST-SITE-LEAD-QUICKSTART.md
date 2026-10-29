@@ -7,9 +7,9 @@ Date: 2026-10-29. **This is a lead-owned integration task, NOT worker authorizat
 The SEO worker has no PR and must not modify the lead branch. In your own authenticated checkout, independently inspect the current worker HEAD, HEAD of feature/stage3-ai-site-contract and GitHub Compare. If and only if the directory is not already being independently edited, bring in the whole worker-owned subtree:
 
 ~~~bash
-git fetch origin feature/site-seo-engine
+git fetch origin feature/site-seo-engine feature/stage3-ai-site-contract
 git status --short
-git diff --name-status feature/stage3-ai-site-contract...origin/feature/site-seo-engine -- stage3/seo-engine
+git diff --name-status origin/feature/stage3-ai-site-contract...origin/feature/site-seo-engine -- stage3/seo-engine
 # LEAD DECISION ONLY: inspect first, then integrate without overwriting your work
 git restore --source origin/feature/site-seo-engine --staged --worktree stage3/seo-engine
 ~~~

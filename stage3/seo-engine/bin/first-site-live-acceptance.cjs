@@ -88,6 +88,15 @@ function main(argv){
  try{
   for(const [name,body] of Object.entries(content))
    fs.writeFileSync(path.join(temp,name),body,{flag:'wx',mode:0o600});
+  // Reject concurrent edits to any source-bound JSON evidence while writing.
+  for(const [source,expected,max] of [
+   [path.join(folder,'CANDIDATE-STATUS.json'),candidate.sha256,800000],
+   [path.join(folder,'seo-report','summary.json'),summary.sha256,3600000],
+   [path.join(folder,'static-upload','upload-inventory.json'),uploadFile.sha256,800000],
+   [o.contract,contract.sha256,500000],
+   [o['post-deploy'],post.sha256,2500000]
+  ])if(read(source,max).sha256!==expected)
+   throw Error('Live acceptance source changed during private review; discard and repeat with fresh evidence');
   if(fs.existsSync(output))throw Error('Private output appeared while staging');
   fs.renameSync(temp,output);
  }catch(e){fs.rmSync(temp,{recursive:true,force:true});throw e;}
