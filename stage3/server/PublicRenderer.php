@@ -505,11 +505,11 @@ JS;
         $language=self::language($site);
         $header=self::siteHeader($site,$path,$mount);
         $body = '';
-        foreach ($page['sections'] as $section) {
+        foreach ($page['sections'] as $sectionIndex=>$section) {
             $beforeSkin = strlen($body);
             $id = self::h($section['id']);
             if (isset($section['designGraph'])) {
-                $body .= DesignGraph::render($site,$section['designGraph'],$mount,$section['id'],$assetBasePath);
+                $body .= DesignGraph::render($site,$section['designGraph'],$mount,$section['id'],$assetBasePath,$sectionIndex===0);
             } elseif ($section['component'] === 'company-hero') {
                 $values = self::element($section, 'heading');
                 $color = (string)$values['style.color'];

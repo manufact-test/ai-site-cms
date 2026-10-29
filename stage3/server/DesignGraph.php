@@ -540,11 +540,14 @@ final class DesignGraph
     }
 
     /** Builds a portable, fully escaped, no-JavaScript composition for both PHP and static output. */
-    public static function render(array $site,array $graph,string $mount,?string $sectionId=null,?string $assetBasePath=null): string
+    public static function render(array $site,array $graph,string $mount,?string $sectionId=null,?string $assetBasePath=null,bool $aboveFold=false): string
     {
         $t=self::tokens($site['designTokens']??null);
         $assetMap=[];foreach ($site['assets'] as $asset)$assetMap[$asset['id']]=$asset;
         $scope='.cmsdg-'.$graph['id'];$rules=[];
+        // Only the FIRST visual image of the first section receives LCP priority.
+        // Existing explicit PHP/Studio callers default to non-priority images.
+        $firstImagePriorityAvailable=$aboveFold;
         $backdrop=static function(array $m,string $imageId)use($assetMap,$mount,$assetBasePath,$t):string{
             $url=self::assetUrl($assetMap[$imageId],$mount,$assetBasePath);
             $url=str_replace(['\\','"','<','>'],['\\\\','\\"','\\3c ','\\3e '],$url);
@@ -567,7 +570,7 @@ final class DesignGraph
             }
         };
         $collectHeaders($graph['nodes']);
-        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$backdrop): string {
+        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$backdrop,&$firstImagePriorityAvailable): string {
             $selector=$scope.' .cmsdg-n-'.$n['id'];
             $usesTranslate=false;
             foreach ([$n['styles']??[],$n['responsive']['tablet']??[],$n['responsive']['mobile']??[]] as $layer) {
@@ -734,7 +737,11 @@ final class DesignGraph
                     $src=self::h(self::assetUrl($asset,$mount,$assetBasePath));
                     $attrs=PublicRenderer::responsiveAttrs($asset,$mount,
                         '(max-width:600px) 100vw, (max-width:900px) 50vw, 100vw',$assetBasePath);
-                    $img='<img loading="lazy" class="'.$cls.'" src="'.$src.'"'.$attrs.' alt="'.self::h($n['alt']).'">';
+                    $priority=$firstImagePriorityAvailable;
+                    if($priority)$firstImagePriorityAvailable=false;
+                    $img='<img loading="'.($priority?'eager':'lazy').'"'.
+                        ($priority?' fetchpriority="high"':'').
+                        ' class="'.$cls.'" src="'.$src.'"'.$attrs.' alt="'.self::h($n['alt']).'">';
                     if(!empty($n['responsiveMedia'])){
                         $sources='';
                         foreach(['mobile'=>600,'tablet'=>900] as $bp=>$max){

@@ -1816,7 +1816,7 @@
         "stage3/runtime-export/bin/build.cjs",
         "stage3/runtime-export/templates/php/index.php"
       ],
-      "nextCheck": "Partial: published PHP and Studio conditional gzip/ETags; independent PHP now gzip-compresses visitor HTML and CSS with representation-safe ETags, Vary and 304. All new independent HTML/PHP/Next releases share one content-addressed site CSS instead of repeating large base rules on each page. Need approved real host/Core Web Vitals, transfer and LCP measurements. Hosted PHP media now has metadata-only 304/HEAD with SQL LENGTH and publication-bound SHA before BLOB loading, while real GET still verifies immutable bytes."
+      "nextCheck": "Partial: published PHP and Studio conditional gzip/ETags; independent PHP now gzip-compresses visitor HTML and CSS with representation-safe ETags, Vary and 304. All new independent HTML/PHP/Next releases share one content-addressed site CSS instead of repeating large base rules on each page. Need approved real host/Core Web Vitals, transfer and LCP measurements. Hosted PHP media now has metadata-only 304/HEAD with SQL LENGTH and publication-bound SHA before BLOB loading, while real GET still verifies immutable bytes. Only the first image in a page's top Design Graph section is eagerly prioritized with fetchpriority=high; other images remain lazy; real LCP still unmeasured."
     },
     {
       "id": 190,

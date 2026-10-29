@@ -132,3 +132,8 @@ Independent PHP visitor HTML and CSS now honor gzip Accept-Encoding when availab
 ### 29 Oct — no-BLOB media revalidation and HEAD on hosted PHP
 
 For hosted `/published/{siteId}/assets/{assetId}.{png|jpg|webp|mp4}`, the owner PHP runtime now checks that each asset is actually part of the **current immutable publication**, looks up only mime, SHA-256 and SQL LENGTH in a single metadata query, then responds to `If-None-Match` with 304 **without pulling image/video bytes into PHP**. It also answers HEAD with correct Content-Length (and Accept-Ranges on MP4), without a body/BLOB read. Real GET and range requests still load and verify SHA-256 of immutable media, and mismatching published responsive variants fail closed. No schema change and no effect on the private editor image routes. This reduces repeated-media work on PHP/SQLite and MySQL, but does not replace measured Core Web Vitals on an authorized live host.
+
+
+### 29 Oct — first visible Design Graph image priority
+
+Publisher now marks exactly one image inside the **first page section**'s Design Graph as `loading="eager" fetchpriority="high"` (if such an image exists). Every other graph image remains `loading="lazy"`; optional responsive `picture/source` selection, aspect ratio dimensions, escaping and immutable asset URLs are unchanged. Below-first-section galleries do not get a high priority solely because they are the first image of their container. This is a conservative first-screen resource scheduling improvement, not a guaranteed LCP win: a real client's rendered viewport and Core Web Vitals must still be measured with the approved responsive mockups and real host.
