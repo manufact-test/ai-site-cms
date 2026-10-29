@@ -1046,6 +1046,19 @@ function validMenu(m){
     (m.ctaPageId!==''&&!m.ctaLabel.trim())||(m.ctaPageId===''&&m.ctaLabel!==''))
     fail('Invalid site menu settings');
 }
+function validHeader(h,pages){
+  objectKeys(h,['notice','noticePageId','email','phone','tone','mobile'],'site.header');
+  const plain=(v,max)=>typeof v==='string'&&v.length<=max&&!/[\x00-\x1f]/.test(v);
+  if(!plain(h.notice,180)||!plain(h.email,254)||!plain(h.phone,32)||
+    !['light','dark','primary'].includes(h.tone)||!['show','hide'].includes(h.mobile)||
+    typeof h.noticePageId!=='string'||
+    (h.noticePageId!==''&&(!h.notice.trim()||!pages.some(p=>p.id===h.noticePageId))))
+    fail('Invalid site header fields');
+  if(h.email&&!/^[a-zA-Z0-9.!#$%&'*+\/=?^_\x60{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,24}$/.test(h.email))
+    fail('Invalid header email');
+  if(h.phone&&(!/^\+?[0-9 ()-]{6,32}$/.test(h.phone)||h.phone.replace(/\D/g,'').length<6))
+    fail('Invalid header phone');
+}
 const FOOTER_DOMAINS=Object.freeze({
   instagram:['instagram.com'],facebook:['facebook.com','fb.com'],
   linkedin:['linkedin.com'],youtube:['youtube.com','youtu.be'],
@@ -1215,7 +1228,7 @@ function validateSharedSections(groups){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding','footer'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding','footer','header'],'site');
   GRAPH_HOST.validateTokens(raw.designTokens);
   if(own(raw,'menu'))validMenu(raw.menu);
   if(own(raw,'theme'))validTheme(raw.theme);
@@ -1255,6 +1268,7 @@ function validateSite(raw,regInput){
   if(own(raw,'theme'))validFontFiles(raw.theme,assetMimes);
   if(own(raw,'branding'))validBranding(raw.branding,assetMimes);
   if(own(raw,'footer'))validFooter(raw.footer,raw.pages);
+  if(own(raw,'header'))validHeader(raw.header,raw.pages);
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
   const ids=new Set([raw.siteId,...assetIds]),paths=new Set(),sharedGroups=new Map();
   for(const page of raw.pages){
@@ -1922,6 +1936,7 @@ function structure(raw,manifests,command){
         delete child.navigation.parentId;
       if(c.menu?.ctaPageId===page.id){c.menu.ctaPageId='';c.menu.ctaLabel='';}
       if(c.footer?.links)c.footer.links=c.footer.links.filter(link=>link.pageId!==page.id);
+      if(c.header?.noticePageId===page.id)c.header.noticePageId='';
       if(c.redirects){
         c.redirects=c.redirects.filter(r=>r.to!==page.path);
         if(!c.redirects.length)delete c.redirects;
@@ -2088,6 +2103,7 @@ function changes(raw,manifests){
   if(JSON.stringify(s.base.designTokens)!==JSON.stringify(s.current.designTokens))diff.push({kind:'design-tokens-updated'});
   if(JSON.stringify(s.base.menu)!==JSON.stringify(s.current.menu))diff.push({kind:'menu-updated'});
   if(JSON.stringify(s.base.footer)!==JSON.stringify(s.current.footer))diff.push({kind:'site-footer-updated'});
+  if(JSON.stringify(s.base.header)!==JSON.stringify(s.current.header))diff.push({kind:'site-header-updated'});
   if(JSON.stringify(s.base.assets)!==JSON.stringify(s.current.assets))
     diff.push({kind:'media-library-updated'});
   if(JSON.stringify(s.base.redirects||[])!==JSON.stringify(s.current.redirects||[]))
@@ -3289,6 +3305,23 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       global.append(field('Вид меню',style),field('Закрепить вверху при прокрутке',sticky),
         field('На мобильных',mobile),field('Куда ведёт кнопка',dest),
         field('Текст кнопки',cta));
+      const header=draft.header||{notice:'',noticePageId:'',email:'',phone:'',tone:'light',mobile:'show'};
+      draft.header=header;
+      const title=document.createElement('h3');title.textContent='Верхняя полоса · информация и контакты';
+      const note=textField(header.notice,180,v=>{header.notice=v;if(!v.trim())header.noticePageId='';});
+      note.id='cms-header-notice';
+      const noticePage=select([['','Без ссылки'],...draft.pages.map(p=>[p.id,p.title])],
+        header.noticePageId,v=>{header.noticePageId=v;});
+      noticePage.id='cms-header-notice-page';
+      const phone=textField(header.phone,32,v=>{header.phone=v;});phone.id='cms-header-phone';
+      const email=textField(header.email,254,v=>{header.email=v;});email.id='cms-header-email';
+      const tone=select([['light','Светлая'],['dark','Тёмная'],['primary','Фирменный цвет']],
+        header.tone,v=>{header.tone=v;});
+      const mobileTop=select([['show','Показывать'],['hide','Скрывать полосу']],
+        header.mobile,v=>{header.mobile=v;});
+      global.append(title,field('Сообщение',note),field('Ссылка сообщения на страницу',noticePage),
+        field('Телефон',phone),field('Email',email),field('Цвет полосы',tone),
+        field('На мобильном экране',mobileTop));
       draft.pages.forEach((page,i)=>{
         const nav=page.navigation||{label:'',hidden:false};page.navigation=nav;
         const row=document.createElement('fieldset');row.dataset.menuPage=page.id;
@@ -8284,8 +8317,21 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const cta=buttonPage?'<a class="cms-menu-cta" href="'+escapeHtml(buttonPage.path)+'">'+
           escapeHtml(menu.ctaLabel)+'</a>':'';
         const common='<ul class="cms-menu-links">'+links('')+'</ul>';
-        const navigation='<style>.cms-menu-preview{padding:16px;background:var(--cms-surface);color:var(--cms-text);border-bottom:1px solid #dde6ed;display:flex;align-items:center;gap:20px;flex-wrap:wrap}.cms-menu-preview a{text-decoration:none;color:var(--cms-text)}.cms-menu-preview a[aria-current=page]{color:var(--cms-primary);font-weight:800}.cms-menu-links{display:flex;flex-wrap:wrap;list-style:none;gap:12px;padding:0;margin:0}.cms-menu-links ul{list-style:none;margin:0;padding:0 0 0 15px}.cms-menu-cta{margin-left:auto;padding:9px 14px;border-radius:var(--cms-button-radius);background:var(--cms-button-bg);color:var(--cms-button-color)!important;box-shadow:var(--cms-button-shadow)}.cms-menu-mobile{display:none}@media(max-width:640px){.cms-menu-preview .cms-menu-desktop{display:none}.cms-menu-mobile{display:block;width:100%}.cms-menu-mobile .cms-menu-links{display:block}.cms-menu-mobile summary{cursor:pointer}}</style>'+
-          '<header class="cms-menu-preview"><strong>'+escapeHtml(checked.title)+'</strong>'+
+        const top=checked.header;
+        let previewTop='';
+        if(top&&(top.notice||top.phone||top.email)){
+          const linked=checked.pages.find(p=>p.id===top.noticePageId);
+          const notice=escapeHtml(top.notice);
+          const noticeHtml=linked?'<a href="'+escapeHtml(linked.path)+'">'+notice+'</a>':notice;
+          const contacts=(top.phone?'<a href="tel:'+escapeHtml(top.phone.replace(/[^0-9+]/g,''))+'">'+
+            escapeHtml(top.phone)+'</a>':'')+
+            (top.email?'<a href="mailto:'+escapeHtml(top.email)+'">'+escapeHtml(top.email)+'</a>':'');
+          previewTop='<div class="cms-topbar-preview cms-topbar-preview-'+top.tone+
+            (top.mobile==='hide'?' cms-topbar-preview-hide':'')+'">'+
+            (top.notice?'<span>'+noticeHtml+'</span>':'')+'<span>'+contacts+'</span></div>';
+        }
+        const navigation='<style>.cms-menu-preview{padding:16px;background:var(--cms-surface);color:var(--cms-text);border-bottom:1px solid #dde6ed;display:flex;align-items:center;gap:20px;flex-wrap:wrap}.cms-menu-preview a{text-decoration:none;color:var(--cms-text)}.cms-menu-preview a[aria-current=page]{color:var(--cms-primary);font-weight:800}.cms-menu-links{display:flex;flex-wrap:wrap;list-style:none;gap:12px;padding:0;margin:0}.cms-menu-links ul{list-style:none;margin:0;padding:0 0 0 15px}.cms-menu-cta{margin-left:auto;padding:9px 14px;border-radius:var(--cms-button-radius);background:var(--cms-button-bg);color:var(--cms-button-color)!important;box-shadow:var(--cms-button-shadow)}.cms-menu-mobile{display:none}.cms-topbar-preview{flex-basis:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:8px 16px;margin:-16px -16px 0;background:var(--cms-surface);border-bottom:1px solid #dce5ee;font-size:13px}.cms-topbar-preview a{color:inherit}.cms-topbar-preview span{display:flex;flex-wrap:wrap;gap:10px}.cms-topbar-preview-dark{background:#152539;color:#fff}.cms-topbar-preview-primary{background:var(--cms-primary);color:#fff}@media(max-width:640px){.cms-topbar-preview-hide{display:none}}@media(max-width:640px){.cms-menu-preview .cms-menu-desktop{display:none}.cms-menu-mobile{display:block;width:100%}.cms-menu-mobile .cms-menu-links{display:block}.cms-menu-mobile summary{cursor:pointer}}</style>'+
+          '<header class="cms-menu-preview">'+previewTop+'<strong>'+escapeHtml(checked.title)+'</strong>'+
           '<nav class="cms-menu-desktop" aria-label="Навигация">'+common+'</nav>'+cta+
           (menu.mobile==='expanded'?'<nav class="cms-menu-mobile">'+common+'</nav>':
             '<details class="cms-menu-mobile"><summary>Меню</summary><nav>'+common+'</nav></details>')+
