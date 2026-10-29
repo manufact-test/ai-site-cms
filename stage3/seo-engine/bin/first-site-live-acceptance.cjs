@@ -68,6 +68,7 @@ function main(argv){
  const template=FLOW.template(contract.json,bundle.inventory,post.json,summary.json,
   hashes,bundleFile.json);
  const content={};
+ let filledSourceSha256=null;
  if(o.action==='template'){
   content['live-acceptance-template.json']=JSON.stringify(template,null,2)+'\n';
   content['LIVE-ACCEPTANCE-INSTRUCTIONS.md']=[
@@ -80,6 +81,7 @@ function main(argv){
   ].join('\n');
  }else{
   const filled=read(o.filled,1800000);
+  filledSourceSha256=filled.sha256;
   const result=FLOW.review(template,filled.json,post.json);
   content['live-acceptance-review.json']=JSON.stringify({
    ...result,sourceEditedAcceptanceSha256:filled.sha256},null,2)+'\n';
@@ -98,9 +100,14 @@ function main(argv){
    [path.join(folder,'seo-report','bundle.json'),bundleFile.sha256,45000000],
    [path.join(folder,'static-upload','upload-inventory.json'),uploadFile.sha256,800000],
    [o.contract,contract.sha256,500000],
-   [o['post-deploy'],post.sha256,2500000]
+   [o['post-deploy'],post.sha256,2500000],
+   ...(o.action==='review'?[[o.filled,filledSourceSha256,1800000]]:[])
   ])if(read(source,max).sha256!==expected)
    throw Error('Live acceptance source changed during private review; discard and repeat with fresh evidence');
+  const archiveAgain=ZIP.verify(path.join(folder,'public-site.zip'),path.join(folder,'static-upload'));
+  if(archiveAgain.sha256!==archive.sha256||
+     archiveAgain.officialManifestSha256!==archive.officialManifestSha256)
+   throw Error('Public ZIP or public upload bytes changed during manual acceptance; rebuild candidate');
   if(fs.existsSync(output))throw Error('Private output appeared while staging');
   fs.renameSync(temp,output);
  }catch(e){fs.rmSync(temp,{recursive:true,force:true});throw e;}
