@@ -41,6 +41,9 @@ const http={
  redirects:[{from:'/old/',requestUrl:origin+'old/',status:301,location:'/about/'}],
  negativeProbe:{path:'/cms-seo-nonexistent-pilot-site/',requestUrl:origin+'cms-seo-nonexistent-pilot-site/',
   status:404,contentType:'text/html',bodySha256:'e'.repeat(64)},
+ securityProbes:['/release-manifest.json','/upload-inventory.json',
+  '/CANDIDATE-STATUS.json','/CANDIDATE-HANDOFF.md'].map(path=>({
+   path,requestUrl:origin+path.slice(1),status:404,bodySha256:'e'.repeat(64)})),
  rootRecheck:{requestUrl:origin,firstStatus:200,secondStatus:200,
   initialHtmlSha256:digest(home),finalHtmlSha256:digest(home),
   matched:true,sourceRevisionAuthenticated:false,publicHostProvenanceAuthenticated:false}};
@@ -60,6 +63,10 @@ assert.equal(good.checkedPages,2);
 assert.equal(good.checkedSearchFiles,2);
 assert.equal(good.checkedRedirects,1);
 assert.equal(good.httpTranscriptAuthenticated,false);
+const leaked=compare(site,release,{...http,
+ securityProbes:http.securityProbes.map((x,i)=>i===0?{...x,status:200}:x)},media);
+assert.ok(leaked.findings.some(x=>x.code==='public-static:operator-file-publicly-served'));
+assert.equal(leaked.allComparedSurfacesMatched,false);
 const soft404=compare(site,release,{...http,negativeProbe:{...http.negativeProbe,status:200}},media);
 assert.ok(soft404.findings.some(x=>x.code==='public-static:soft-404-public-host'));
 const wrongHead=compare(site,release,editedHome(home.replace('<meta property="og:url"',
