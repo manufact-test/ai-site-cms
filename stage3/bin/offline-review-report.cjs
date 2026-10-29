@@ -153,7 +153,7 @@ for(const [name,label] of Object.entries({desktop:'ПК 1280',tablet:'Планш
 }
 for(const [name,label] of Object.entries({side:'Рядом',overlay:'Наложить',rendered:'Только PHP'})){
   const b=button(label,()=>{mode=name;renderAll();});
-  b.dataset.mode=name;el('modes').append(b);
+  b.dataset.mode=name;if(name==='overlay')b.id='overlay-option';el('modes').append(b);
 }
 el('opacity-control').addEventListener('input',()=>{
   el('overlay-image').style.opacity=Number(el('opacity-control').value)/100;
