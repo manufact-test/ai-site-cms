@@ -380,7 +380,7 @@ final class DesignGraph
                     'formatted fragments only belong to headings/paragraphs');
                 $whole='';
                 foreach($node['runs'] as $run){
-                    self::keys($run,['text','strong','italic','color'],$id.'/fragment');
+                    self::keys($run,['text','strong','italic','color','href'],$id.'/fragment');
                     self::check(is_string($run['text']??null)&&strlen($run['text'])>=1
                         &&mb_strlen($run['text'],'UTF-8')<=1500
                         &&preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f]/',$run['text'])!==1,
@@ -390,6 +390,8 @@ final class DesignGraph
                             'invalid fragment emphasis');
                     if(array_key_exists('color',$run))
                         self::resolve($run['color'],'colors',$tokens,$id.'/fragment/color');
+                    if(array_key_exists('href',$run))self::check(self::safeHref($run['href']),
+                        'invalid rich fragment link');
                     $whole.=$run['text'];
                 }
                 self::check($whole===($node['text']??null),
@@ -593,7 +595,7 @@ final class DesignGraph
             }
         };
         $collectHeaders($graph['nodes']);
-        $richText=static function(array $node)use($t):string{
+        $richText=static function(array $node)use($t,$mount):string{
             if(!isset($node['runs']))return self::h($node['text']);
             $html='';
             foreach($node['runs'] as $run){
@@ -602,6 +604,10 @@ final class DesignGraph
                 if(!empty($run['italic']))$part='<em>'.$part.'</em>';
                 if(isset($run['color']))
                     $part='<span style="color:'.self::resolve($run['color'],'colors',$t,'fragment').'">'.$part.'</span>';
+                if(isset($run['href'])){
+                    $href=str_starts_with($run['href'],'/')?rtrim($mount,'/').$run['href']:$run['href'];
+                    $part='<a href="'.self::h($href).'"'.(str_starts_with($href,'https://')?' rel="noopener noreferrer"':'').'>'.$part.'</a>';
+                }
                 $html.=$part;
             }
             return $html;
