@@ -935,6 +935,14 @@
                     kind:'link',value:node.href,issue:issue?.kind||'',
                     message:issue?.message||''});
                 }
+                for(const [runIndex,run] of (node.runs||[]).entries()){
+                  if(!run.href?.startsWith('/')||run.href.startsWith('//'))continue;
+                  const issue=linkFindings.find(item=>item.pageId===page.id&&
+                    item.sectionId===section.id&&item.nodeId===node.id&&item.path===run.href);
+                  rows.push({...common,path:'href',runIndex,
+                    fieldLabel:'Ссылка в тексте · '+node.id+' / '+(runIndex+1),
+                    kind:'link',value:run.href,issue:issue?.kind||'',message:issue?.message||''});
+                }
                 if(node.backgroundMedia){
                   for(const id of [node.backgroundMedia.assetId,node.backgroundMedia.tabletAssetId,node.backgroundMedia.mobileAssetId])if(id)referenced.add(id);
                 }
@@ -1074,14 +1082,16 @@
             return null;
           };
           element=find(section.designGraph.nodes);
-          if(!element||((row.kind==='link'&&element.type!=='button')||
+          if(!element||(row.kind==='link'&&row.runIndex===undefined&&
+              !['button','link','image'].includes(element.type))||
               (row.mediaKind==='video'&&element.type!=='video')||
               (row.mediaKind==='poster'&&element.type!=='video')||
-              (row.mediaKind==='image'&&element.type!=='image')))
+              (row.mediaKind==='image'&&element.type!=='image'))
             throw Error('Графовый узел изменился. Обновите список.');
-          if((element[row.path]||'')!==row.value)
+          const holder=row.runIndex===undefined?element:element.runs?.[row.runIndex];
+          if(!holder||(holder[row.path]||'')!==row.value)
             throw Error('Узел изменился с момента выбора.');
-          if(to)element[row.path]=to;else delete element[row.path];
+          if(to)holder[row.path]=to;else delete holder[row.path];
         }else{
           element=[...section.elements,...(section.items||[])].find(item=>item.id===row.elementId);
           if(!element||element.values[row.path]!==row.value)
@@ -3463,6 +3473,13 @@
               if(color.value.trim())node.runs[i].color=color.value.trim();
               else delete node.runs[i].color;
             }));
+            const href=make('input');href.type='text';href.className='control';
+            href.placeholder='/contacts/ или https://...';href.value=fragment.href||'';
+            href.setAttribute('aria-label','Ссылка фрагмента '+(i+1));
+            href.addEventListener('change',()=>applyRuns(node=>{
+              if(href.value.trim())node.runs[i].href=href.value.trim();
+              else delete node.runs[i].href;
+            }));
             const up=button('↑','btn small',()=>applyRuns(node=>{
               [node.runs[i-1],node.runs[i]]=[node.runs[i],node.runs[i-1]];
             }));up.disabled=i===0;up.setAttribute('aria-label','Поднять фрагмент '+(i+1));
@@ -3473,7 +3490,7 @@
               node.runs.splice(i,1);if(node.runs.length<2)delete node.runs;
             }));
             line.append(words,make('label','Жирный '),strong,make('label','Курсив '),italic,
-              make('label','Цвет'),color,up,down,remove);rows.append(line);
+              make('label','Цвет'),color,make('label','Ссылка'),href,up,down,remove);rows.append(line);
           });
           editor.append(rows);
           const add=button('+ Фрагмент','btn small',()=>applyRuns(node=>{
