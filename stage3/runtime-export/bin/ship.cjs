@@ -17,10 +17,10 @@ const supported=new Set(['html','php','next-static','next-ssr']);
 const opts={};let flagSet=new Set();
 for(const f of flags){
   const [name,...pieces]=f.split('=');
-  if(!['--expect-origin','--allow-npm-install','--report','--allow-blocked','--http-rehearsal'].includes(name)||flagSet.has(name))
+  if(!['--expect-origin','--allow-npm-install','--report','--allow-blocked','--http-rehearsal','--enforce-performance-budget'].includes(name)||flagSet.has(name))
     fail('unsupported/duplicate flag '+name);
   flagSet.add(name);
-  if(['--allow-npm-install','--allow-blocked','--http-rehearsal'].includes(name)){
+  if(['--allow-npm-install','--allow-blocked','--http-rehearsal','--enforce-performance-budget'].includes(name)){
     if(pieces.length)fail('boolean flag does not take a value');opts[name]=true;
   }else {
     const val=pieces.join('=');
@@ -50,7 +50,7 @@ const checkTarget=file=>{
 function main(){
   if(process.argv.length<5||!path.isAbsolute(source??'')||!supported.has(technology)
     ||!path.isAbsolute(destination??'')||!destination.endsWith('.zip'))
-    fail('Usage: ship.cjs ABSOLUTE-D2.json html|php|next-static|next-ssr ABSOLUTE-NEW.zip [--expect-origin=https://site] [--allow-npm-install] [--report=ABSOLUTE-NEW.json] [--allow-blocked] [--http-rehearsal]');
+    fail('Usage: ship.cjs ABSOLUTE-D2.json html|php|next-static|next-ssr ABSOLUTE-NEW.zip [--expect-origin=https://site] [--allow-npm-install] [--report=ABSOLUTE-NEW.json] [--allow-blocked] [--http-rehearsal] [--enforce-performance-budget]');
   if(opts['--http-rehearsal']&&technology==='next-ssr')
     fail('Next SSR is an unbuilt source-only package; it cannot be HTTP-rehearsed without a real Next server.');
   if(opts['--allow-npm-install']&&technology!=='next-static')
@@ -90,6 +90,10 @@ function main(){
     fail(unexpected.length+' critical readiness blockers ('+
       unexpected.slice(0,6).map(x=>x.code).join(', ')+
       '). Use --allow-blocked only to ship for offline investigation, never production.');
+  if(opts['--enforce-performance-budget']&&report.performance.findings.length)
+    fail('performance budget exceeded ('+report.performance.findings.slice(0,6)
+      .map(x=>x.code+' '+x.route).join(', ')+
+      '). Adjust the individual published website or omit the opt-in strict gate after owner review.');
   const rawZip=fs.readFileSync(stagedZip),fingerprint=crypto.createHash('sha256').update(rawZip).digest('hex');
   if(fingerprint!==report.zipSha256||fingerprint!==verified.sha256)fail('archive changed during preflight');
   // D6 optional real disposable loopback HTTP probe before publishing either
@@ -107,7 +111,10 @@ function main(){
     siteId:verified.siteId,publishedVersion:verified.publishedVersion,
     technology,zip:destination,zipSha256:fingerprint,
     report:reportPath,readiness:report.readiness,
-    automatedChecks:report.counts,manualApprovalRequired:true,
+    automatedChecks:report.counts,
+    performanceBudgetWarnings:report.performance.findings.length,
+    performanceBudgetEnforced:Boolean(opts['--enforce-performance-budget']),
+    manualApprovalRequired:true,
     approvalGranted:false,productionDeployed:false,
     npmNetworkOptIn:Boolean(opts['--allow-npm-install']),
     localHttpRehearsed:Boolean(httpRehearsal),

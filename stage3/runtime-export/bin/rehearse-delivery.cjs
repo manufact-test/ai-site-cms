@@ -137,9 +137,9 @@ async function main(){
       port=server.address().port;
     }
     const base='http://127.0.0.1:'+port;
-    const request=async(route,method='GET')=>{
+    const request=async(route,method='GET',headers={})=>{
       if(!route.startsWith('/')||route.startsWith('//'))error('unsafe test route');
-      return withTimeout(fetch(base+route,{method,redirect:'manual',signal:AbortSignal.timeout(2200)}));
+      return withTimeout(fetch(base+route,{method,headers,redirect:'manual',signal:AbortSignal.timeout(2200)}));
     };
     for(const page of pub.pages){
       const response=await request(page.path),body=await response.text();
@@ -148,6 +148,37 @@ async function main(){
       const head=await request(page.path,'HEAD');
       const empty=Buffer.from(await head.arrayBuffer()).length===0;
       check('HEAD '+page.path,head.status===200&&empty,'status '+head.status+'; body empty='+empty);
+      if(info.technology==='php'){
+        // Same bytes through both HTTP representations; Node fetch decompresses
+        // transparently, so compare decoded SHA separately from wire length.
+        const expected=entries.get('deploy/data/'+page.file);
+        const plain=await request(page.path,'GET',{'Accept-Encoding':'identity'});
+        const plainBytes=Buffer.from(await plain.arrayBuffer());
+        check('PHP HTML IDENTITY '+page.path,
+          plain.status===200&&!plain.headers.get('content-encoding')
+          &&plainBytes.equals(expected)
+          &&Number(plain.headers.get('content-length'))===expected.length,
+          'Uncompressed body, byte count and immutable published source agree');
+        const encoded=await request(page.path,'GET',{'Accept-Encoding':'gzip'});
+        const encodedBody=Buffer.from(await encoded.arrayBuffer());
+        const etag=encoded.headers.get('etag');
+        const isCompressed=encoded.headers.get('content-encoding')==='gzip';
+        check('PHP HTML NEGOTIATION '+page.path,
+          encoded.status===200&&encodedBody.equals(expected)
+          &&encoded.headers.get('vary')==='Accept-Encoding'
+          &&etag!==plain.headers.get('etag')===isCompressed
+          &&(!isCompressed||Number(encoded.headers.get('content-length'))<expected.length),
+          'gzip/identity decoded bytes match; strong ETags differ only by encoding');
+        const unchanged=await request(page.path,'GET',{
+          'Accept-Encoding':'gzip','If-None-Match':etag??''});
+        check('PHP HTML 304 '+page.path,unchanged.status===304,
+          'Matching compressed ETag revalidates without a body');
+        const compressedHead=await request(page.path,'HEAD',{'Accept-Encoding':'gzip'});
+        check('PHP HTML HEAD VARIANT '+page.path,
+          compressedHead.status===200&&compressedHead.headers.get('etag')===etag
+          &&compressedHead.headers.get('content-length')===encoded.headers.get('content-length'),
+          'HEAD identifies the same selected representation as GET');
+      }
     }
     for(const redirect of pub.redirects){
       const res=await request(redirect.from);
@@ -168,6 +199,19 @@ async function main(){
         check('CSS CACHE /'+style.file,/immutable/.test(res.headers.get('cache-control')||'')&&
           res.headers.get('etag')!==null,
           'Immutable CSS caching and strong validator');
+        const identity=await request('/'+style.file,'GET',{'Accept-Encoding':'identity'});
+        const gzip=await request('/'+style.file,'GET',{'Accept-Encoding':'gzip'});
+        const [identityBody,gzipBody]=await Promise.all([identity.arrayBuffer(),gzip.arrayBuffer()]);
+        const zipped=gzip.headers.get('content-encoding')==='gzip';
+        check('CSS PHP ENCODING /'+style.file,
+          Buffer.from(identityBody).equals(bytes)&&Buffer.from(gzipBody).equals(bytes)
+          &&gzip.headers.get('vary')==='Accept-Encoding'
+          &&(identity.headers.get('etag')!==gzip.headers.get('etag'))===zipped,
+          'Immutable CSS has representation-specific validators');
+        const cached=await request('/'+style.file,'GET',{
+          'Accept-Encoding':'gzip','If-None-Match':gzip.headers.get('etag')??''});
+        check('CSS PHP 304 /'+style.file,cached.status===304,
+          'Immutable CSS revalidates with the correct compressed variant');
       }
     }
     for(const media of pub.assets){
@@ -176,6 +220,17 @@ async function main(){
       const sha=crypto.createHash('sha256').update(bytes).digest('hex');
       check('MEDIA /'+media.file,res.status===200&&sha===media.sha256,
         'status '+res.status+'; sha256='+sha);
+      if(info.technology==='php'){
+        const head=await request('/'+media.file,'HEAD');
+        const etag=res.headers.get('etag');
+        check('MEDIA HEAD /'+media.file,head.status===200&&
+          head.headers.get('etag')===etag&&
+          Number(head.headers.get('content-length'))===bytes.length,
+          'HEAD with immutable ETag and exact byte length');
+        const cached=await request('/'+media.file,'GET',{'If-None-Match':etag??''});
+        check('MEDIA 304 /'+media.file,cached.status===304,
+          'Immutable binary revalidates without transfer');
+      }
     }
     for(const search of ['robots.txt','sitemap.xml']){
       const res=await request('/'+search),expected=Object.hasOwn(pub.searchFiles??{},search)?200:404;

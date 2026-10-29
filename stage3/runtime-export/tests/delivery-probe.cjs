@@ -112,8 +112,15 @@ try{
   assert.ok(reportHtml.performance.pages[0].htmlBytes>100);
   assert.ok(reportHtml.performance.pages[0].htmlGzipEstimateBytes>0);
   assert.equal(reportHtml.performance.totals.publishedMediaBytes,
-    fs.statSync(path.join(html,png.file)).size);
+    fs.statSync(path.join(html,'assets/image-abc.png')).size);
   assert.equal(reportHtml.performance.totals.unreferencedInHtmlMediaCount,1);
+  const auditBudget=success('audit-delivery.cjs',shippedHtml.zip,'--fail-on-performance');
+  assert.equal(auditBudget.performance.findings.length,0);
+  const weighted=require('../lib/performance-envelope.cjs').inspectPerformance(
+    new Map([['deploy/index.html',Buffer.from('<html>'+('heavy'.repeat(40000))+'</html>')]]),
+    {pages:[{path:'/',file:'index.html'}],assets:[]},'html');
+  assert.ok(weighted.findings.some(f=>f.code==='PERF_HTML_RAW_HIGH'));
+  assert.ok(weighted.findings.every(f=>f.severity==='warning'));
   assert.ok(reportHtml.performance.notice.includes('LCP'));
   assert.equal(reportHtml.readiness,'requires-operator-approval');
   assert.equal(success('verify-delivery.cjs',shippedHtml.zip).sha256,shippedHtml.zipSha256);

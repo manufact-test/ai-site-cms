@@ -7,11 +7,15 @@ const path=require('node:path');
 const {audit}=require('../lib/delivery-preflight.cjs');
 try{
   const [filename,...options]=process.argv.slice(2);
-  if(!path.isAbsolute(filename??'')||options.length>2
-    ||options.some(x=>!x.startsWith('--expect-origin=')&&x!=='--fail-on-blockers'))
-    throw Error('Usage: audit-delivery.cjs /ABS/site-delivery.zip [--expect-origin=https://host] [--fail-on-blockers]');
+  const allowed=options.every(x=>x.startsWith('--expect-origin=')
+    ||x==='--fail-on-blockers'||x==='--fail-on-performance');
+  if(!path.isAbsolute(filename??'')||options.length>3||!allowed
+    ||new Set(options.map(x=>x.split('=')[0])).size!==options.length)
+    throw Error('Usage: audit-delivery.cjs /ABS/site-delivery.zip [--expect-origin=https://host] [--fail-on-blockers] [--fail-on-performance]');
   const origin=options.find(x=>x.startsWith('--expect-origin='))?.slice('--expect-origin='.length)??null;
   const report=audit(filename,origin);
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
   if(options.includes('--fail-on-blockers')&&report.counts.blockers)process.exitCode=2;
+  else if(options.includes('--fail-on-performance')&&report.performance.findings.length)
+    process.exitCode=3;
 }catch(e){console.error('D5 audit refused: '+e.message);process.exitCode=1;}
