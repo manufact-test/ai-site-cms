@@ -1,6 +1,6 @@
 {
   "format": "manufact-stage3-mandatory-evidence-v1",
-  "date": "2026-10-28",
+  "date": "2026-10-29",
   "source": "requirements/requirements.csv",
   "scope": "Engineering triage only, not official acceptance or audited proof of completeness.",
   "ownerAccepted": 0,
@@ -1816,7 +1816,7 @@
         "stage3/runtime-export/bin/build.cjs",
         "stage3/runtime-export/templates/php/index.php"
       ],
-      "nextCheck": "Partial: published PHP and Studio conditional gzip/ETags; independent PHP now gzip-compresses visitor HTML and CSS with representation-safe ETags, Vary and 304. All new independent HTML/PHP/Next releases share one content-addressed site CSS instead of repeating large base rules on each page. Need approved real host/Core Web Vitals, transfer and LCP measurements. Hosted PHP media now has metadata-only 304/HEAD with SQL LENGTH and publication-bound SHA before BLOB loading, while real GET still verifies immutable bytes. Only the first image in a page's top Design Graph section is eagerly prioritized with fetchpriority=high; other images remain lazy; real LCP still unmeasured. Hosted PHP public HEAD pages and search endpoints now mirror GET ETag/Vary and Content-Length without bodies. D4 static HTML/Next Static Apache and Nginx examples provide conditional one-year cache headers for content-addressed shared styles, without freezing HTML. D4 Apache/Nginx operator configuration now also caches bounded immutable image/MP4 asset IDs for one year; dynamic HTML remains revalidated."
+      "nextCheck": "Partial: published PHP and Studio conditional gzip/ETags; independent PHP now gzip-compresses visitor HTML and CSS with representation-safe ETags, Vary and 304. All new independent HTML/PHP/Next releases share one content-addressed site CSS instead of repeating large base rules on each page. Need approved real host/Core Web Vitals, transfer and LCP measurements. Hosted PHP media now has metadata-only 304/HEAD with SQL LENGTH and publication-bound SHA before BLOB loading, while real GET still verifies immutable bytes. Only the first image in a page's top Design Graph section is eagerly prioritized with fetchpriority=high; other images remain lazy; real LCP still unmeasured. Hosted PHP public HEAD pages and search endpoints now mirror GET ETag/Vary and Content-Length without bodies. D4 static HTML/Next Static Apache and Nginx examples provide conditional one-year cache headers for content-addressed shared styles, without freezing HTML. D4 Apache/Nginx operator configuration now also caches bounded immutable image/MP4 asset IDs for one year; dynamic HTML remains revalidated. D7 preflight now inventories each immutable exported page's raw/gzip-estimated HTML, CSS, referenced media and eager image candidates, offers optional budget gating and compares substantial size regressions between verified releases. D6 additionally validates independent PHP representation-specific HTTP gzip/ETag/304/HEAD/media on loopback. This is not measured live browser LCP or CWV; owner-approved client host test remains required."
     },
     {
       "id": 190,
@@ -1861,7 +1861,7 @@
         "stage3/server/Api.php",
         "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Partial: dependency-light full/compact CMS engine profiles and self-contained independent PHP, plus one SHA256 cached base CSS asset for multipage HTML/PHP/Next exports, audited in ZIP preflight. Real customer host file and package footprint and capability acceptance pending."
+      "nextCheck": "Partial: dependency-light full/compact CMS engine profiles and self-contained independent PHP, plus one SHA256 cached base CSS asset for multipage HTML/PHP/Next exports, audited in ZIP preflight. Real customer host file and package footprint and capability acceptance pending. D7 release comparison quantifies HTML/CSS/media footprint across two immutable releases (same site), with optional regression rejection; still no measured real-host footprint or owner acceptance."
     }
   ]
 }

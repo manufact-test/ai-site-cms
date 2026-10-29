@@ -82,3 +82,22 @@ without building Next Static twice.
 ### 29 October — static immutable media cache policy
 
 D4 bundles for standalone HTML and built Next Static now include **scoped visitor-media caching** in the generated Apache `.htaccess` (conditional `mod_headers`) and the Nginx host-configuration example: only matching, immutable published `assets/{assetId}.{png|jpg|webp|mp4}` paths receive `Cache-Control: public, max-age=31536000, immutable` and `nosniff`. This mirrors the existing standalone PHP media router without altering form collectors, admin assets, dynamic pages or redirect caching. Host support still needs explicit operator configuration and validation; no live server was modified.
+
+## D7 postраничный performance envelope и сравнение двух выпусков
+
+Пример безопасной локальной подготовки следующего выпуска с сравнением:
+
+```bash
+node stage3/runtime-export/bin/ship.cjs /ABS/site-v2-handoff.json php /ABS/site-v2.zip --compare-to=/ABS/site-v1.zip --http-rehearsal
+```
+
+`*.preflight.json` содержит `performance.pages[]` с точным размером исходных HTML/общего и inline CSS, медиа-ссылками, количеством eager/lazy изображений, а также **расчётной** gzip-величиной. Пороговые находки (`PERF_HTML_RAW_HIGH`, `PERF_PAGE_MEDIA_HIGH` и др.) — warnings, не blockers, пока оператор явно не включил `--enforce-performance-budget`. Если есть предыдущая версия, `--compare-to=/ABS/old.zip` добавляет `performanceComparison` и разницу по страницам, `--enforce-no-regression` блокирует заметное увеличение веса. Эти опции не дают никаких разрешений на deployment/production.
+
+Без повторной сборки проверить имеющиеся ZIP можно командами:
+
+```bash
+node stage3/runtime-export/bin/audit-delivery.cjs /ABS/site-v2.zip --fail-on-performance
+node stage3/runtime-export/bin/compare-delivery-performance.cjs /ABS/site-v1.zip /ABS/site-v2.zip --fail-on-regression --report=/ABS/unused-diff.json
+```
+
+Strict flags возвращают ненулевой код при предупреждениях/регрессиях, но всегда показывают отчёт. Если нет реальных одобренных источников сайта и host access, это **только offline size telemetry**. Грузящиеся изображения, `srcset`, lazy-поведение и gzip в реальном браузере, Core Web Vitals и доставка формы проверяются отдельно на разрешённом стенде. Legacy D4 ZIP без stylesheet inventory допустим.
