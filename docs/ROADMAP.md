@@ -342,3 +342,7 @@ Implemented on the isolated lead branch after the visual comparison UI already e
 - The existing real SQLite/PHP HTTP E2E and owner Chromium approved-v2 review now exercise this path, including migration refusal/opt-in, persistent notes, stale resolver CAS, deduplicated atomic import, cross-revision carry, direct publish gate, private backup compatibility/tamper refusal and restored note history.
 
 Owner acceptance and real-client design match remain unverified; do NOT infer them from stored human notes or screenshots. Current branch owner accepted=0. No changes to main, parallel SEO scope, external hosting, live DB, deployment or customer data.
+
+### Visual issue history extension
+
+The private visual review API also offers owner-only `GET /api/sites/{id}/visual-review/history` (bounded counts per last 100 revisions), and read-only historical `GET /api/sites/{id}/visual-review?revision=N`. Writes always require the CURRENT saved revision; old historical notes may never be edited, deleted or impersonated. Hosted Studio has an optional History section inside the visual review dashboard, with per-revision counts, full operator/timestamp details and no historical approval controls. This closes the gap where a saved draft advanced and the operator could no longer inspect the previous findings. The existing signed-source human visual check remains separate; none of the history constitutes approval.
