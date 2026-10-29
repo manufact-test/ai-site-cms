@@ -42,7 +42,7 @@ function zip(bundleDir,zipFile){
  if(fs.existsSync(output)||output===bundle||output.startsWith(bundle+path.sep)||
     parent===bundle||parent.startsWith(bundle+path.sep))
   throw Error('New static ZIP must be outside the private immutable bundle');
- const ordered=[...snapshot.files.entries()].sort(([a],[b])=>a.localeCompare(b,'en'));
+ const ordered=[...snapshot.files.entries()].sort(([a],[b])=>a<b?-1:a>b?1:0);
  if(ordered.length>1405||ordered.length>65535)throw Error('Static ZIP exceeds entry budget');
  const tempDir=fs.mkdtempSync(path.join(parent,'.seo-zip-incomplete-'));
  const temp=path.join(tempDir,'upload.zip');
