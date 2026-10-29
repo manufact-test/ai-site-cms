@@ -727,3 +727,9 @@ A sealed, imported client project may have multiple lead forms, each with a diff
 **What STILL requires owner authorization and real-world proof:** actual Email/Telegram transport and recipient test, verified runtime host, actual client approved-v2 source, observed real visitor success and personal owner GO. A green CI run, configured delivery route, or previously accepted outbox row must not be used to close #80 or declare the first client website accepted. No schema upgrade, network calls, host/DB changes, PR, merge or deployment were performed for this improvement.
 
 Follow-up source of truth: `handoffs/lead-integrator/MAIN-HANDOFF-v5.0-2026-10-29.md`; check the actual branch HEAD and matching GitHub Actions at the start of the next chat.
+
+## 29 October 2026 — final lead-chat transfer reference
+
+The original lead chat is closing because the conversation became unreliable, **not** because implementation or owner acceptance finished. The current single entry point for a new lead integrator is `handoffs/lead-integrator/MAIN-HANDOFF-v5.0-2026-10-29.md`. Its last verified functional baseline is `d68008f2b3905c928218718f65213eb8e11a9a50` (GitHub Actions `#40860008584`, both jobs SUCCESS); as always, the next chat must fetch the actual feature-branch HEAD and verify the final matching Actions run, especially after these docs-only commits.
+
+Most recent added customer-facing owner feature is read-only form readiness in Studio, with `GET /api/sites/{siteId}/launch-forms` covering both saved draft and still-live published forms, transport setup without private recipient disclosure, per-form local lead/outbox counts and manual test links. It **does not** prove delivery or owner GO. No real client approved-v2 handoff or personally accepted final site exists; the owner must explicitly provide/approve those in a later separate step. Do not auto-migrate, deploy, touch Hostinger, merge `main`, or interfere with the independent SEO branch.
