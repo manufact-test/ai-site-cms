@@ -2929,6 +2929,10 @@
         contentGaps:readiness.issues,
         visualFindings:manualFindings.map(f=>({...f})),
         visualUnresolvedCount:unresolvedCount(),
+        formLaunchReadiness:formReadiness&&formReadiness.siteId===site.siteId?
+          {...formReadiness,source:'read-only local operator preflight',
+            realDeliveryVerified:false,ownerAcceptanceConfirmed:false}:null,
+        formLaunchReadinessError:formReadinessError||null,
         pages:site.pages.map(page=>({id:page.id,path:page.path,title:page.title,
           reviewedDevices:devicesNeeded.filter(mode=>reviewed.get(page.id)?.has(mode)),
           renderChecks:Object.fromEntries(devicesNeeded.map(mode=>[
