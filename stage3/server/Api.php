@@ -79,7 +79,7 @@ final class Api
         if ($edit && $method === 'GET' && (in_array($action, ['notifications','submissions','submissions/export'], true) || preg_match('~^submissions/lead-[0-9a-f]{24}/history$~D',$action))) return;
         if ($edit && $method === 'POST' &&
             preg_match('~^video-uploads/(?:start|video-[a-f0-9]{20}/(?:chunk|finish|cancel))$~D',$action)) return;
-        if ($edit && $method === 'POST' && (in_array($action, ['save','restore','restore-release','media','video','templates','transfer/plan','transfer/apply','import/plan','import/apply','history/plan','history/apply','media-maintenance/plan','media-maintenance/apply','links/plan','links/apply','notifications/seen'], true)
+        if ($edit && $method === 'POST' && (in_array($action, ['save','restore','restore-release','media','font','video','templates','transfer/plan','transfer/apply','import/plan','import/apply','history/plan','history/apply','media-maintenance/plan','media-maintenance/apply','links/plan','links/apply','notifications/seen'], true)
             || preg_match('~^templates/template-[0-9a-f]{18}/delete$~D', $action)
             || preg_match('~^submissions/lead-[0-9a-f]{24}/review$~D', $action)
             || $action==='submissions/bulk-review'
@@ -173,7 +173,7 @@ final class Api
                 '<script src="/media-motion-engine.js" defer></script>' .
                 '<script src="/hosted.js" defer></script><script src="/access.js" defer></script>' .
                 '<script src="/media-processing.js" defer></script></head>', $html);
-            header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; frame-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+            header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; font-src 'self' data: blob:; frame-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
             header('Content-Type: text/html; charset=utf-8');
             echo $html;
             exit;
