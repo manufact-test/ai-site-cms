@@ -21,4 +21,9 @@ assert.throws(()=>GSC.readCsv('Page,Clicks,Impressions,Position\nhttps://example
 assert.throws(()=>GSC.analyze({blueprint,origin:'https://example.com/',current:{pages},
  period:{start:'2026-10-01',end:'2026-10-07'},previousPages:previous,
  previousPeriod:{start:'2026-09-01',end:'2026-09-02'}}),/equal-length/);
-process.stdout.write('GSC offline content intelligence smoke PASS\n');
+const briefs=require('../lib/content-optimization-briefs.cjs').compile(blueprint,result);
+assert.equal(briefs.summary.approvedPages,2);
+assert(briefs.priorityPageIds.includes('page-home'));
+assert.equal(briefs.pages[0].approvedContent.sections[0].plannedHeading,'Производим технологическое оборудование');
+assert.equal(briefs.pages[0].measuredPageQueries[0].declaredTopicMatch,true);
+process.stdout.write('GSC offline performance and editorial briefs smoke PASS\n');

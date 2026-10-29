@@ -121,3 +121,14 @@ node stage3/seo-engine/bin/prepare-first-site.cjs \
 - В `verify-deployed-site.cjs` перечитываются и сверяются SHA256 **всех** важных исходных файлов до и после анализа: owner published record, sealed handoff, official manifest, первая `CANDIDATE-STATUS.json`, `seo-report/summary.json`, `static-upload/upload-inventory.json`, полный `public-site.zip`, при обновлении upgrade impact + rollback ZIP, и публичные JSON. Для 190 MB ZIP SHA256 читается чанками 1 MiB. Это обнаруживает обычные race/подмены файлов между началом и концом read-only проверки, но не криптографическая подпись и не полная атомарность хостинга.
 - В текущей активной ветке ведущего к 29.10 появились правки `stage3/server/PublicRenderer.php` (в том числе адаптивная галерея), `stage3/runtime-export/**`, `stage3/docs/APPROVED-SITE-PACKAGE.md`. На момент последнего прочтения SEO `publisher-media.cjs` покрывает legacy `content.media` и вложенные DesignGraph image nodes, как и текущий PHP fallback, но **после интеграции необходим настоящий Node+PHP smoke** с новыми section templates, вместо предположения о полном соответствии.
 - Для новых `bin/verify-deployed-site.cjs` и `bin/compare-public-cdn.cjs` нового PR/Actions на worker commit нет; проверены CJS syntax и выборочные actual-code V8 scenarios, а не весь репозиторий. Ведущий должен запускать указанные Node smoke после интеграции.
+
+## 8. NEW — SEO Performance Intelligence and editorial page briefs (new worker session)
+
+After commit 5fe040979a9aa59509f119a2fe4128fafb58cde5 the worker added a real product layer independent of repeated technical deployment gates:
+
+- lib/gsc-performance.cjs: bounded UTF-8 Search Console CSV import (Pages; separate global Queries; optional actual paired Page+Query), exact public HTTPS origin/mount and approved page mapping, historical equal-length comparison, measured CTR/position/decline and query overlap editorial signals.
+- lib/content-optimization-briefs.cjs: actionable per-page optimization briefs using *approved* Blueprint sections/meta/CTA/contextual links, owner fact status and supplied real search query evidence; never generates customer claims or modifies CMS.
+- bin/analyze-search-performance.cjs: one private operator command outputs performance-insights.json, editorial-worklist.md, editorial-page-briefs.json, editorial-page-briefs.md and private README, with SHA256 of private inputs; no network access.
+- SEARCH-PERFORMANCE-WORKFLOW.md and tests/gsc-performance-smoke.cjs document a practical private first real GSC export workflow and one focused synthetic check.
+
+Only stage3/seo-engine/** changes. No merge/PR/deploy. V8 actual-library sample scenario checked, but Node suite/CI on worker HEAD, real GSC CSV, current PHP integration, customer ranking outcomes, real deployment and signoff **not verified**. Lead alone integrates. Recheck exact SHA and Actions live in GitHub before work.

@@ -3,6 +3,7 @@
 /* Offline Search Console CSV -> private editorial worklist; never changes CMS. */
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const GSC=require('../lib/gsc-performance.cjs');
+const BRIEFS=require('../lib/content-optimization-briefs.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
 const KEYS=new Set(['blueprint','origin','pages','queries','pairs','site','period-start','period-end','previous-pages','previous-start','previous-end','out']);
 const HELP='Required: --blueprint FILE --origin https://example.com/ --pages Pages.csv --period-start YYYY-MM-DD --period-end YYYY-MM-DD --out NEW-DIR; optional --site Site-v1.json --queries Queries.csv --pairs PageQuery.csv --previous-pages OlderPages.csv --previous-start DATE --previous-end DATE';
@@ -103,8 +104,11 @@ function main(argv){
   try{fs.writeFileSync(fd,value);}finally{fs.closeSync(fd);}
  };
  result.inputDigests=digests;
+ const briefs=BRIEFS.compile(blueprint,result);
  write('performance-insights.json',JSON.stringify(result,null,2)+'\n');
  write('editorial-worklist.md',renderMarkdown(result));
+ write('editorial-page-briefs.json',JSON.stringify(briefs,null,2)+'\n');
+ write('editorial-page-briefs.md',BRIEFS.markdown(briefs));
  write('PRIVATE-README.txt','Private search data. Do not publish this directory, upload to static public/ or commit to Git.\n');
  process.stdout.write('SEO worklist: '+result.actions.length+' editorial actions; '+result.summary.measuredPages+' measured approved pages.\nOutput: '+dest+'\n');
 }

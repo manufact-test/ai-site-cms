@@ -1,3 +1,5 @@
+> **NEW — 29.10.2026 Search Performance Intelligence:** For post-publication SEO improvements based on operator-supplied real GSC CSVs, see [SEARCH-PERFORMANCE-WORKFLOW.md](SEARCH-PERFORMANCE-WORKFLOW.md). It produces private observed performance reports and approved-Blueprint editorial page briefs, not CMS changes or client approval. Node CI and real GSC exports pending lead verification.
+
 > **АКТУАЛЬНАЯ ПЕРЕДАЧА 29.10.2026:** открой [SEO-WORKER-HANDOFF-2026-10-29.md](SEO-WORKER-HANDOFF-2026-10-29.md) прежде, чем пользоваться историческим текстом ниже. Новый контур: `verify-deployed-site.cjs` (public HTTPS / ZIP / owner sourceRevision / SHA256 / freshness / ручной signoff) и `compare-public-cdn.cjs` (один официальный релиз, два HTTPS/media snapshot, HTML/301/robots/cache drift). Границы: только `stage3/seo-engine/**`, ведущий делает merge/deploy; без ложного CI/клиентской приёмки. Большие заходы около 30 минут активной работы, следующий блок сразу после раннего завершения первого.
 
 # SEO Intelligence & Blueprint Engine (independent Stage 3 toolkit)

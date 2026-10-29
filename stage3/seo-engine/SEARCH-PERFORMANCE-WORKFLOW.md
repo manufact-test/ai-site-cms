@@ -67,3 +67,9 @@ node stage3/seo-engine/bin/analyze-search-performance.cjs --help
 ~~~
 
 Production GSC data, owner approval and customer results are **not yet verified**. First real CSV data must be reviewed against property, date, search type, filters and expected canonical host before acting on the findings.
+
+## Editorial page briefs — second major capability
+
+The same CLI additionally writes **editorial-page-briefs.json** and **editorial-page-briefs.md**. These join the approved page intent, meta title/description, sections, planned talking points, CTA targets, contextual links, declared schema candidate fact statuses and observed per-page GSC queries (only when paired evidence was supplied). P1/P2 findings become specific, page-bound human editorial assignments. No new marketing claims, drafts or CMS changes are produced. Missing queries remain explicitly unverified, and noindex/canonical decisions are never automated.
+
+This is a private, human-review-only companion to the measured search performance worklist. Publishing it or treating the approved Blueprint as proof of actual live HTML is forbidden.
