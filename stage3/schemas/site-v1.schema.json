@@ -1733,6 +1733,10 @@
               "color": {
                 "type": "string",
                 "pattern": "^(?:#[0-9a-fA-F]{6}|@[a-z][a-z0-9-]{1,39})$"
+              },
+              "href": {
+                "type": "string",
+                "maxLength": 300
               }
             }
           }
