@@ -854,7 +854,7 @@
         "stage3/studio/hosted.js",
         "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Partial: per-form private email/Telegram routing now covers draft and still-live published forms, snapshots custom and missing recipients, and supports human lead handling; verify actual transport delivery and owner workflow on an authorized isolated host."
+      "nextCheck": "Partial: owner-only read-only launch review now covers each draft and still-live published form, effective private Email/Telegram routing, recipient/transport configuration, local persisted leads and per-form outbox outcomes; Studio links to existing route editor and manual published-form test. Actual recipient delivery and owner-authorized external host check remain unperformed; no client GO."
     },
     {
       "id": 81,
