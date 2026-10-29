@@ -593,11 +593,19 @@ async function execute(){
   // and prevent a misleading "all screens verified" publication decision.
   await page.locator('#server-launch-finding-input').fill('Макет на ПК: отступы отличаются');
   await page.locator('#server-launch-finding-add').click();
-  assert.match(await page.locator('#server-launch-finding-list').innerText(),
-    /отступы отличаются/);
+  await page.waitForFunction(()=>document.querySelector('#server-launch-finding-list')
+    ?.textContent?.includes('отступы отличаются'));
+  assert.match(await page.locator('#server-launch-review-storage').innerText(),
+    /приватной CMS/);
+  const visualUrl=origin+'/api/sites/site-approved-browser/visual-review';
+  const serverReview=await (await page.request.get(visualUrl+
+    '?revision='+(await (await page.request.get(origin+'/api/sites/site-approved-browser')).json()).revision)).json();
+  assert.equal(serverReview.openCount,1,'Actual operator note must be stored in SQLite');
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),true,
     'Open visual discrepancy blocks human sign-off for selected device');
   await page.locator('#server-launch-finding-list').getByRole('button',{name:/Отметить замечание исправленным/}).click();
+  await page.waitForFunction(()=>document.querySelector('#server-launch-finding-list')
+    ?.textContent?.includes('✓ Исправлено:'));
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),false,
     'Resolved discrepancy permits explicit new human approval');
   // Previous review notes may be resumed without restoring any stale
@@ -620,7 +628,13 @@ async function execute(){
     ?.textContent?.includes('Вернуть точную ширину'));
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),true);
   await page.locator('#server-launch-finding-list').getByRole('button',{name:/Отметить замечание исправленным/}).click();
+  await page.waitForFunction(()=>document.querySelector('#server-launch-finding-list')
+    ?.textContent?.includes('✓ Исправлено: Вернуть точную ширину'));
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),false);
+  const savedFindings=(await (await page.request.get(visualUrl+
+    '?revision='+revisionInfo.revision)).json()).findings;
+  assert.equal(savedFindings.length,2,'Imported JSON notes are permanently stored with attribution');
+  assert.ok(savedFindings.every(row=>row.resolved&&row.resolvedBy));
   await page.locator('#server-launch-pages [data-page-id="'+interiorPage.id+'"]').click();
   await page.locator('#server-launch-compare-modes [data-compare-mode="approved-compare"]').click();
   await page.waitForFunction(()=>{
@@ -645,6 +659,11 @@ async function execute(){
   await page.locator('#server-launch-mark').click();
   assert.match(await page.locator('.hosted-launch-progress').innerText(),
     new RegExp('экранов: 1/'+(imported.pages.length*3)));
+  await page.locator('#server-launch-close').click();
+  await page.locator('#server-launch-review').click();
+  await page.locator('#server-launch-dialog').waitFor();
+  await page.waitForFunction(()=>document.querySelector('#server-launch-finding-list')
+    ?.textContent?.includes('✓ Исправлено: Вернуть точную ширину'));
   await page.locator('#server-launch-close').click();
   await page.locator('#server-publish').click();
   await page.locator('#server-status').getByText(/Опубликовано: v1/).waitFor();
