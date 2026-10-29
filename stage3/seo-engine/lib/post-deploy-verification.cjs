@@ -186,14 +186,18 @@ function inspect(candidate,site,release,publicHttp,publicMedia,byteReport,cohort
   limitations:'The inputs are privately saved operator-collected HTTPS transcripts. This offline check does not authenticate DNS/TLS origin, actual production process revision, forms POST, recipients, rendered browser output, or client signoff.'});
  return result;
 }
-function readAndInspect(candidate,site,release,httpFile,mediaFile,byteFile,previousHttpFile=null){
+function readAndInspect(candidate,site,release,httpFile,mediaFile,byteFile,previousHttpFile=null,previousMediaFile=null){
  const http=input(httpFile,36000000),media=mediaFile?input(mediaFile,1800000):null;
  if(media)MEDIA.assertEvidence(media);
  DELIVERY.assertEvidence(http);
  const byteEvidence=input(byteFile,1800000);
  const bytes=BYTES.review(site,release,byteEvidence);
  const cohort=freshness(http.capturedAt,byteEvidence.capturedAt);
- const previousCdn=previousHttpFile?CDN.compare(input(previousHttpFile,36000000),http):null;
+ if(previousMediaFile&&!previousHttpFile)
+  throw Error('Earlier SHA256 media receipt requires matching earlier public HTTPS pages');
+ const previousCdn=previousHttpFile?CDN.compare(input(previousHttpFile,36000000),http,
+  previousMediaFile?input(previousMediaFile,1800000):null,
+  previousMediaFile?byteEvidence:null):null;
  return inspect(candidate,site,release,http,media,bytes,cohort,previousCdn);
 }
 module.exports=Object.freeze({FORMAT,freshness,inspect,readAndInspect});
