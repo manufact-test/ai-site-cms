@@ -14,6 +14,7 @@ const post={format:'manufact-seo-post-deploy-release-verification-v1',siteId:sit
  originalCandidateBlockingGates:0,disposition:'TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED',
  postDeployBlockingReasons:[],finalReleaseAuthorized:false,productionHostWrites:0};
 const contract={format:'manufact-seo-first-site-lead-relay-v1',siteId:site,
+ readOnly:true,deploymentAuthorized:false,
  identity:{officialStaticManifestSha256:manifest,publicZipSha256:zip},
  inputSha256:{summary:summarySha,post:postSha},
  evidence:{originalLocalBlockers:0}};
@@ -36,6 +37,8 @@ assert(w.humanHtml.includes('Human First-Site Acceptance'));
 assert(w.humanHtml.includes('manual'));
 assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
  contractSha:SHA('9')}}),/different release/);
+assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
+ contract:{...contract,deploymentAuthorized:true}}}),/different release/);
 assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
  report:{...report,releaseAuthorized:true}}}),/false authorization/);
 assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,

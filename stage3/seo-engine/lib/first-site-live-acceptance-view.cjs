@@ -9,6 +9,7 @@ const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 function render(review,contract,contractSha,first,firstSha,postSha){
  if(!review||review.format!==REPORT||!contract||contract.format!==CONTRACT||
+  contract.readOnly!==true||contract.deploymentAuthorized!==false||
   !sha.test(contractSha||'')||!sha.test(firstSha||'')||!sha.test(postSha||'')||
   review.sourceContractSha256!==contractSha||
   review.siteId!==first?.summary?.siteId||review.siteId!==contract.siteId||
