@@ -3612,7 +3612,7 @@
       }
       const required=path=>{
         if(typeof path!=='string'||path.length>200||
-          !/^[a-zA-Z0-9_/-]+\.(?:json|md|txt|png|jpe?g|webp|mp4)$/.test(path)||
+          !/^[a-zA-Z0-9_/-]+\.(?:json|md|txt|png|jpe?g|webp|mp4|woff2)$/.test(path)||
           path.split('/').includes('..')||!files.has(path))
           throw Error('В каталоге отсутствует файл: '+String(path));
         return files.get(path);
@@ -3670,24 +3670,27 @@
       }
       const media=[];
       for(const item of site.assets){
-        const video=item.mime==='video/mp4';
-        if(!video&&!['image/png','image/jpeg','image/webp'].includes(item.mime))
-          throw Error('Пакет принимает PNG/JPEG/WebP и MP4, но не '+item.mime);
+        const video=item.mime==='video/mp4',font=item.mime==='font/woff2';
+        if(!video&&!font&&!['image/png','image/jpeg','image/webp'].includes(item.mime))
+          throw Error('Пакет принимает PNG/JPEG/WebP, MP4 и WOFF2, но не '+item.mime);
         const original=required(item.src.replace(/^\/assets\//,'assets/'));
         if(video?(original.size<100||original.size>16777216):
+          font?(original.size<48||original.size>1048576):
           (original.size<20||original.size>1000000))
           throw Error('Медиафайл пуст или превышает допустимый размер: '+item.id);
         if(video&&(item.variants!==undefined||!item.src.endsWith('.mp4')))
           throw Error('MP4 не может содержать responsive варианты: '+item.id);
         if(video&&(!item.alt||!item.alt.trim()))
           throw Error('Для MP4 нужно доступное описание в site.json: '+item.id);
+        if(font&&(item.variants!==undefined||!item.src.endsWith('.woff2')||!item.alt.trim()))
+          throw Error('WOFF2 должен иметь локальный путь, описание и не содержать variants: '+item.id);
         const variants=[];
         for(const variant of item.variants||[]){
           const file=required(variant.src.replace(/^\/assets\//,'assets/'));
           if(file.size<20||file.size>1000000)throw Error('Недопустимый responsive-файл: '+variant.id);
           variants.push({file,width:variant.width,sha256:variant.sha256});
         }
-        media.push({id:item.id,original,variants,alt:item.alt,video});
+        media.push({id:item.id,original,variants,alt:item.alt,video,font});
       }
       // Same total bound as the offline sealed package. Reject oversized
       // customer transfers BEFORE creating a partially imported site.
@@ -3787,8 +3790,20 @@
         if(counts.ftyp!==1||counts.moov!==1||counts.mdat!==1)
           throw Error('В MP4 отсутствуют обязательные блоки: '+file.name);
       };
+      const verifyWoff2=async file=>{
+        const view=new DataView(await file.arrayBuffer());
+        const magic=(offset)=>String.fromCharCode(...new Uint8Array(view.buffer,offset,4));
+        if(view.byteLength<48||view.byteLength>1048576||magic(0)!=='wOF2'||
+          !['OTTO','true','\\u0000\\u0001\\u0000\\u0000'].includes(magic(4))||
+          view.getUint32(8)!==view.byteLength||view.getUint16(12)<1||
+          view.getUint16(12)>128||view.getUint16(14)!==0||
+          view.getUint32(16)<12||view.getUint32(16)>33554432||
+          view.getUint32(20)<1||view.getUint32(20)>view.byteLength-48)
+          throw Error('Недопустимый WOFF2-файл: '+file.name);
+      };
       for(const entry of media){
         const declared=site.assets.find(asset=>asset.id===entry.id);
+        if(entry.font){await verifyWoff2(entry.original);continue;}
         if(entry.video){await verifyMp4(entry.original);continue;}
         await verifyImage(entry.original,declared.mime,declared.width,declared.height);
         for(const variant of entry.variants){
@@ -4222,6 +4237,18 @@
           const entry=media[i],variants=[];
           if(ids.has(entry.id))continue;
           notice('Подключение '+site.title+': загрузка файла '+(i+1)+' из '+media.length);
+          if(entry.font){
+            const bytes=new Uint8Array(await entry.original.arrayBuffer());
+            const sha256=await digest(bytes);
+            const response=await api('/api/sites/'+encodeURIComponent(site.siteId)+'/font','POST',{
+              base64:await fileBase64(entry.original),alt:entry.alt,sha256,
+              expectedRevision:result.revision
+            });
+            if(response.sha256!==sha256||response.asset?.mime!=='font/woff2')
+              throw Error('Сервер не подтвердил SHA-256 загруженного WOFF2');
+            result=response;ids.set(entry.id,response.asset.id);
+            continue;
+          }
           if(entry.video){
             const bytes=new Uint8Array(await entry.original.arrayBuffer());
             const sha256=await digest(bytes);
