@@ -212,6 +212,77 @@ trait VisualReview
         }
     }
 
+    /** Portable private backup rows, excluding login tokens and approval badges. */
+    private function exportVisualReviewArchiveRows(string $siteId): array
+    {
+        if(!$this->hasVisualReviewTable())return [];
+        $q=$this->db->prepare('SELECT draft_revision,finding_id,page_id,page_path,device,scroll_y,note,state,version,created_by,created_at,resolved_by,resolved_at FROM stage3_visual_findings WHERE site_id=? ORDER BY draft_revision,finding_id LIMIT 10001');
+        $q->execute([$siteId]);$rows=$q->fetchAll(PDO::FETCH_ASSOC);
+        if(count($rows)>10000)throw new RuntimeException('Visual review archive exceeds 10000 records');
+        return array_map(static fn(array $r):array=>[
+            'revision'=>(int)$r['draft_revision'],'findingId'=>$r['finding_id'],
+            'pageId'=>$r['page_id'],'path'=>$r['page_path'],'device'=>$r['device'],
+            'scrollY'=>(int)$r['scroll_y'],'note'=>$r['note'],
+            'resolved'=>$r['state']==='resolved','version'=>(int)$r['version'],
+            'createdBy'=>$r['created_by'],'createdAt'=>$r['created_at'],
+            'resolvedBy'=>$r['resolved_by'],'resolvedAt'=>$r['resolved_at']
+        ],$rows);
+    }
+
+    /** Validate ALL source references before any restore writes occur. */
+    private function validateVisualReviewArchiveRows(array $rows,array $revisionMap): array
+    {
+        self::archiveCheck(array_is_list($rows)&&count($rows)<=10000,'invalid visual finding count');
+        $ids=[];$perRevision=[];
+        foreach($rows as $r){
+            self::archiveKeys($r,['revision','findingId','pageId','path','device','scrollY',
+                'note','resolved','version','createdBy','createdAt','resolvedBy','resolvedAt']);
+            self::archiveNumber($r['revision']);self::archiveNumber($r['version']);
+            self::archiveCheck(is_string($r['findingId'])&&preg_match('/^visual-[a-f0-9]{24}$/D',$r['findingId'])===1
+                &&!isset($ids[$r['findingId']])&&isset($revisionMap[$r['revision']]),
+                'invalid or duplicate visual finding reference');
+            $ids[$r['findingId']]=true;
+            $perRevision[$r['revision']]=($perRevision[$r['revision']]??0)+1;
+            self::archiveCheck($perRevision[$r['revision']]<=200,'too many visual findings per revision');
+            $hasPage=false;
+            foreach($revisionMap[$r['revision']]['pages'] as $page)
+                if($page['id']===$r['pageId']&&$page['path']===$r['path']){$hasPage=true;break;}
+            self::archiveCheck($hasPage,'visual finding refers to a different source revision/page');
+            self::archiveCheck(in_array($r['device'],['desktop','tablet','mobile'],true)
+                &&is_int($r['scrollY'])&&$r['scrollY']>=0&&$r['scrollY']<=60000
+                &&is_bool($r['resolved'])&&is_string($r['note'])
+                &&strlen($r['note'])>=3&&strlen($r['note'])<=500
+                &&preg_match('//u',$r['note'])===1
+                &&preg_match('/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]/',$r['note'])!==1,
+                'invalid archived visual note');
+            foreach(['createdBy','resolvedBy'] as $person){
+                $value=$r[$person];
+                self::archiveCheck($value===null||(
+                    is_string($value)&&preg_match('/^[a-z][a-z0-9_-]{2,39}$/D',$value)===1),
+                    'invalid visual operator');
+            }
+            self::archiveCheck(is_string($r['createdBy'])&&
+                ($r['resolved']?($r['resolvedBy']!==null&&$r['resolvedAt']!==null&&$r['version']>=2):
+                    ($r['resolvedBy']===null&&$r['resolvedAt']===null&&$r['version']===1)),
+                'invalid visual finding transition');
+            self::archiveDate($r['createdAt']);
+            if($r['resolvedAt']!==null)self::archiveDate($r['resolvedAt']);
+        }
+        return $rows;
+    }
+
+    private function restoreVisualReviewArchiveRows(string $target,array $rows): void
+    {
+        if($rows===[])return;
+        if(!$this->hasVisualReviewTable())
+            throw new RuntimeException('Visual review schema upgrade required to restore findings');
+        $q=$this->db->prepare('INSERT INTO stage3_visual_findings (site_id,draft_revision,finding_id,page_id,page_path,device,scroll_y,note,state,version,created_by,created_at,resolved_by,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        foreach($rows as $r)$q->execute([$target,$r['revision'],$r['findingId'],
+            $r['pageId'],$r['path'],$r['device'],$r['scrollY'],$r['note'],
+            $r['resolved']?'resolved':'open',$r['version'],$r['createdBy'],$r['createdAt'],
+            $r['resolvedBy'],$r['resolvedAt']]);
+    }
+
     /** Fail closed for open recorded notes; migrations remain separately opted in. */
     private function assertNoOpenVisualFindings(string $siteId,int $revision): void
     {
