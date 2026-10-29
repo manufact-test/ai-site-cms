@@ -416,6 +416,24 @@ async function stop(){
   assert.equal(new URL(formReturn,origin).pathname,'/published/site-industrial-demo/contact/');
   const token=/name="_token" value="([a-f0-9]{64})"/.exec(formHtml)?.[1];
   assert.ok(token);
+  const launchFormsPath=endpoint+'/launch-forms';
+  const beforeRouting=await request('GET',launchFormsPath);
+  assert.equal(beforeRouting.status,200,JSON.stringify(beforeRouting.body));
+  assert.equal(beforeRouting.body.format,'manufact-launch-form-readiness-v1');
+  assert.equal(beforeRouting.body.siteId,id);
+  assert.equal(beforeRouting.body.draftRevision,7);
+  assert.equal(beforeRouting.body.publishedVersion,4);
+  assert.equal(beforeRouting.body.formCount,1);
+  assert.equal(beforeRouting.body.formConfigurationRequired,1);
+  const noReceiver=beforeRouting.body.forms[0];
+  assert.deepEqual(noReceiver.sources,['draft','published']);
+  assert.equal(noReceiver.inboxOnly,true);
+  assert.equal(noReceiver.externalDeliveryVerified,false);
+  assert.equal(noReceiver.channels.email.status,'disabled');
+  assert.equal(beforeRouting.body.liveDeliveryVerified,false);
+  assert.equal(beforeRouting.body.ownerAcceptanceConfirmed,false);
+  assert.ok(!JSON.stringify(beforeRouting.body).includes('CI-only-form-secret'),
+    'Read-only readiness must not include private collector secret');
   const deliveryRoute=endpoint+'/delivery';
   const deliverySetup=await request('POST',deliveryRoute,{emailEnabled:true,emailRecipient:'leads@example.test',
     telegramEnabled:false,telegramChatId:'',expectedVersion:0,reason:'CI delivery setup'});
@@ -432,6 +450,16 @@ async function stop(){
     telegramMode:'off',telegramChatId:'',expectedVersion:0,reason:'Route industrial inquiries'});
   assert.equal(routed.status,200,JSON.stringify(routed.body));
   assert.equal(routed.body.routes.find(r=>r.sectionId==='section-quote-form').version,1);
+  const afterRouting=await request('GET',launchFormsPath);
+  assert.equal(afterRouting.status,200,JSON.stringify(afterRouting.body));
+  assert.equal(afterRouting.body.formCount,1);
+  assert.equal(afterRouting.body.forms[0].channels.email.status,'configuration_required',
+    'Configured email recipient does not prove missing server sender/transport');
+  assert.equal(afterRouting.body.forms[0].channels.telegram.status,'disabled');
+  assert.equal(afterRouting.body.forms[0].channels.email.recipientConfigured,true);
+  assert.equal(afterRouting.body.formConfigurationRequired,1);
+  assert.equal(afterRouting.body.liveDeliveryVerified,false);
+
   assert.equal((await request('POST',deliveryRoute+'/routes',{
     sectionId:'section-quote-form',emailMode:'custom',emailRecipient:'team-b@example.test',
     telegramMode:'off',telegramChatId:'',expectedVersion:0,reason:'Reject stale route'})).status,409);
