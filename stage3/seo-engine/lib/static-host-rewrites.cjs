@@ -37,6 +37,7 @@ function build(site,release){
   '# Save in an Apache vhost where mod_rewrite is enabled. Do not use on the PHP CMS mount.',
   '# Real HTTP 301 required: static meta-refresh is NOT a search-engine 301.',
   'DirectoryIndex index.html',
+  'ErrorDocument 404 /404.html',
   'RewriteEngine On',
   ...redirects.map(([from,to])=>'RewriteRule ^'+from.slice(1).replace(/\/$/,'/')+'$ '+to+' [R=301,L,NE]'),
   ''
@@ -46,6 +47,8 @@ function build(site,release){
   '# Paste location blocks INSIDE the existing Nginx HTTPS server {} for the declared origin.',
   '# Existing document root, TLS, index and location rules remain operator-owned.',
   '# Place exact locations before a generic app/router location.',
+  'error_page 404 /404.html;',
+  '# Preserve 404 status. Do not use error_page 404 =200 or rewrite unknown paths to /.',
   ...redirects.map(([from,to])=>'location = '+from+' { return 301 '+to+'; }'),
   ''
  ].join('\n');
