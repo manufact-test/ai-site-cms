@@ -206,7 +206,7 @@ final class Api
             }
             $this->staticStudioResource($data,$type);
         }
-        if (in_array($method,['GET','HEAD'],true) && preg_match('~^/published/([a-z][a-z0-9-]{2,79})/assets/([a-z][a-z0-9-]{2,79})\.(png|jpg|webp|mp4)$~D', $path, $assetMatch)) {
+        if (in_array($method,['GET','HEAD'],true) && preg_match('~^/published/([a-z][a-z0-9-]{2,79})/assets/([a-z][a-z0-9-]{2,79})\.(png|jpg|webp|mp4|woff2)$~D', $path, $assetMatch)) {
             try {
                 $meta=$this->sites->publishedMediaMetadata($assetMatch[1],$assetMatch[2],$assetMatch[3]);
                 $etag='"'.$meta['sha256'].'"';
@@ -350,7 +350,7 @@ final class Api
                     echo 'Not found';
                     exit;
                 }
-                header("Content-Security-Policy: default-src 'none'; script-src 'sha256-".base64_encode(hash('sha256',PublicRenderer::formStepsScript(),true))."'; style-src 'unsafe-inline'; img-src 'self'; media-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+                header("Content-Security-Policy: default-src 'none'; script-src 'sha256-".base64_encode(hash('sha256',PublicRenderer::formStepsScript(),true))."'; style-src 'unsafe-inline'; img-src 'self'; media-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
                 header('Content-Type: text/html; charset=utf-8');
                 if($gzip){
                     $packed=gzencode($html,6);
@@ -1098,7 +1098,7 @@ final class Api
                 if($operation==='cancel')
                     $this->response(200,$this->sites->cancelVideoUpload($siteId,$actor,$uploadId));
             }
-            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/(revisions|restore|save|publish|media|video|published-site))?$~D', $path, $matches)) {
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/(revisions|restore|save|publish|media|font|video|published-site))?$~D', $path, $matches)) {
                 $id = $matches[1];
                 $action = $matches[2] ?? '';
                 if ($method === 'GET' && $action === '') {
@@ -1113,6 +1113,14 @@ final class Api
                     $this->response(200, ['revisions' => $this->sites->history($id)]);
                 }
                 if ($method === 'POST') {
+                    if($action==='font'){
+                        $base64=$body['base64']??null;$label=$body['alt']??null;$sha=$body['sha256']??null;
+                        if(!is_string($base64)||!is_string($label)||
+                            ($sha!==null&&!is_string($sha)))
+                            throw new InvalidArgumentException('Font bytes, description and checksum required');
+                        $this->response(201,$this->sites->uploadFont($id,$base64,$label,
+                            self::revision($body['expectedRevision']??null),$sha));
+                    }
                     if($action==='video'){
                         $base64=$body['base64']??null;$label=$body['alt']??null;$sha=$body['sha256']??null;
                         if(!is_string($base64)||!is_string($label)||
