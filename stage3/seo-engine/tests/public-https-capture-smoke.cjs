@@ -20,6 +20,8 @@ const transport={
  address:async()=>({address:'1.1.1.1',family:4}),
  request:async(url,_pinned,_max)=>{
   called.push(url);
+  if(['/release-manifest.json','/upload-inventory.json','/CANDIDATE-STATUS.json','/CANDIDATE-HANDOFF.md'].some(p=>url.endsWith(p)))
+   return {status:404,body:'Not found',headers:{'content-type':'text/plain'},contentType:'text/plain',location:''};
   if(url.includes('/cms-seo-nonexistent-pilot/'))return {status:404,body:'Not found',headers:{'content-type':'text/plain'},contentType:'text/plain',location:''};
   if(url.endsWith('/old/'))return {status:301,body:'',headers:{location:'/about/'},location:'/about/',contentType:'text/html'};
   if(url.endsWith('/sitemap.xml'))return {status:200,body:'<urlset></urlset>',headers:{'content-type':'application/xml'},contentType:'application/xml',location:''};
@@ -30,7 +32,10 @@ const transport={
 };
 (async()=>{
  const result=await capture(site,'https://example.org/published/pilot/',transport);
- assert.equal(result.requests,6);
+ assert.equal(result.requests,10);
+ assert.equal(result.evidence.securityProbes.length,4);
+ assert.ok(result.evidence.securityProbes.every(x=>x.status===404));
+ assert.ok(!JSON.stringify(result.evidence.securityProbes).includes('Not found'));
  assert.equal(result.evidence.negativeProbe.status,404);
  assert.equal(result.evidence.negativeProbe.path,'/cms-seo-nonexistent-pilot/');
  const stable=await recheckRoot(site,'https://example.org/published/pilot/',
