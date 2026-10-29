@@ -76,6 +76,10 @@ try{
     'Static Apache configuration caches only content-addressed styles');
   assert.match(String(entries.get('handoff/nginx-redirects.example.conf')),/styles\/site-/,
     'Nginx hosting example includes immutable shared stylesheet caching');
+  assert.ok(String(entries.get('deploy/.htaccess')).includes('png|jpg|webp|mp4'),
+    'Static Apache must cache immutable visitor media, not just CSS');
+  assert.ok(String(entries.get('handoff/nginx-redirects.example.conf')).includes('location ~ ^/assets/'),
+    'Nginx example must cache strictly bounded visitor media URLs');
   assert.match(refuses('prepare-delivery.cjs',html,zipFile),/refused|overwrite/i);
   assert.match(refuses('prepare-delivery.cjs',html,path.join(tmp,'wrong.zip'),
     '--expect-origin=https://another.test'),/origin differs/);

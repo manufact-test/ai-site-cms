@@ -77,3 +77,8 @@ shipments, operator reports, integrity and blocked/warning cases. The
 actual Next.js CI now uses the D5 one-command Next Static path to prove
 npm installation, real compilation, exported HTML and the verified ZIP
 without building Next Static twice.
+
+
+### 29 October — static immutable media cache policy
+
+D4 bundles for standalone HTML and built Next Static now include **scoped visitor-media caching** in the generated Apache `.htaccess` (conditional `mod_headers`) and the Nginx host-configuration example: only matching, immutable published `assets/{assetId}.{png|jpg|webp|mp4}` paths receive `Cache-Control: public, max-age=31536000, immutable` and `nosniff`. This mirrors the existing standalone PHP media router without altering form collectors, admin assets, dynamic pages or redirect caching. Host support still needs explicit operator configuration and validation; no live server was modified.

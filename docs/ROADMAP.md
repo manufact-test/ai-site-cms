@@ -438,3 +438,8 @@ The built-in public CMS PHP renderer now accepts `HEAD` for exact published page
 ### 29 Oct — immutable CSS host headers for static deliveries
 
 D4 ZIP generation now includes scoped, optional `mod_headers` Apache rules (for HTML and built Next Static document roots) and equivalent Nginx configuration guidance so the single content-addressed `styles/site-<sha256>.css` can be cached for a year without making page HTML immutable. Unsupported Apache mod_headers configurations remain deployable due to `<IfModule>`. Published PHP visitor CSS has the same immutable header directly in its router. Site and form transport rules remain unchanged. D4/D5/D6 still only prepare/rehearse local artifacts; no actual DNS/hosting modification.
+
+
+### 29 October — static immutable media cache policy
+
+D4 bundles for standalone HTML and built Next Static now include **scoped visitor-media caching** in the generated Apache `.htaccess` (conditional `mod_headers`) and the Nginx host-configuration example: only matching, immutable published `assets/{assetId}.{png|jpg|webp|mp4}` paths receive `Cache-Control: public, max-age=31536000, immutable` and `nosniff`. This mirrors the existing standalone PHP media router without altering form collectors, admin assets, dynamic pages or redirect caching. Host support still needs explicit operator configuration and validation; no live server was modified.

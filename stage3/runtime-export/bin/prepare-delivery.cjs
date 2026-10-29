@@ -51,6 +51,11 @@ function apache(redirects){
     'Header set Cache-Control "public, max-age=31536000, immutable"',
     'Header set X-Content-Type-Options "nosniff"',
     '</FilesMatch>',
+    '# Media IDs are never repointed to different binary data.',
+    '<FilesMatch "^[a-z][a-z0-9-]{2,79}\\.(png|jpg|webp|mp4)$">',
+    'Header set Cache-Control "public, max-age=31536000, immutable"',
+    'Header set X-Content-Type-Options "nosniff"',
+    '</FilesMatch>',
     '</IfModule>');
   return Buffer.from(rules.join('\n')+'\n');
 }
@@ -63,6 +68,12 @@ function nginx(routes){
   }
   lines.push('# An immutable, content-addressed shared site stylesheet.',
     'location ~ ^/styles/site-[a-f0-9]{64}\\.css$ {',
+    '  add_header Cache-Control "public, max-age=31536000, immutable";',
+    '  add_header X-Content-Type-Options "nosniff";',
+    '  try_files $uri =404;',
+    '}',
+    '# Visitor media IDs contain immutable bytes; no CMS API or collector here.',
+    'location ~ ^/assets/[a-z][a-z0-9-]{2,79}\\.(png|jpg|webp|mp4)$ {',
     '  add_header Cache-Control "public, max-age=31536000, immutable";',
     '  add_header X-Content-Type-Options "nosniff";',
     '  try_files $uri =404;',
