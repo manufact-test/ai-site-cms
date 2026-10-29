@@ -173,7 +173,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   let count=0;const popups=new Set(),triggers=[];
   function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(own(node,'popupTarget')){
@@ -321,6 +321,23 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       if(!['button','link'].includes(node.type)&&own(node,'href'))fail(node.id,'unexpected link');
       if(node.type==='heading'&&(!number(node.level||2,1,6)))fail(node.id,'heading level');
       if(node.type!=='heading'&&own(node,'level'))fail(node.id,'unexpected level');
+    }
+    if(own(node,'runs')){
+      if(!['heading','text'].includes(node.type)||!Array.isArray(node.runs)||
+        node.runs.length<2||node.runs.length>16)
+        fail(node.id,'formatted fragments require a heading or paragraph');
+      let sum='';
+      for(const run of node.runs){
+        keys(run,['text','strong','italic','color'],node.id+'/run');
+        if(typeof run.text!=='string'||run.text.length<1||run.text.length>1500||
+          /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(run.text))
+          fail(node.id,'invalid formatted fragment');
+        for(const key of ['strong','italic'])if(own(run,key)&&typeof run[key]!=='boolean')
+          fail(node.id,'invalid fragment emphasis');
+        if(own(run,'color'))resolve(run.color,'colors',tokens,node.id+'/run/color');
+        sum+=run.text;
+      }
+      if(sum!==node.text)fail(node.id,'formatted fragments must equal the editable plain text');
     }
     if(node.type!=='icon'&&(own(node,'iconSize')||own(node,'iconWeight')))
       fail(node.id,'unexpected icon appearance');
@@ -572,10 +589,21 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     if(node.type==='table')node.children[0]?.children.forEach(cell=>tableHeaderIds.add(cell.id));
     if(node.children)markHeaders(node.children);
   }};markHeaders(graph.nodes);
+  const richText=n=>{
+    if(!n.runs)return attr(n.text);
+    return n.runs.map(run=>{
+      let part=attr(run.text);
+      if(run.strong)part='<strong>'+part+'</strong>';
+      if(run.italic)part='<em>'+part+'</em>';
+      if(run.color)part='<span style="color:'+resolve(run.color,'colors',tokens,n.id+'/run/color')+'">'+part+'</span>';
+      return part;
+    }).join('');
+  };
   function visit(n){
     const selector=scope+' .cmsdg-n-'+n.id;
     const usesTranslate=[n.styles||{},n.responsive?.tablet||{},n.responsive?.mobile||{}].some(s=>own(s,'translateX')||own(s,'translateY'));
     if(usesTranslate)rules.push(selector+'{--cmsdg-tx:0px;--cmsdg-ty:0px;translate:var(--cmsdg-tx) var(--cmsdg-ty)}');
+    if(n.runs)rules.push(selector+'{white-space:pre-line}');
     const baseline=declarations(n.styles||{},tokens);
     if(baseline)rules.push(selector+'{'+baseline+'}');
     for(const bp of ['tablet','mobile']){
@@ -680,8 +708,8 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
         '" fill="none" stroke="currentColor" stroke-width="'+weight+'" stroke-linecap="round" stroke-linejoin="round" '+
         (n.alt?'role="img" aria-label="'+attr(n.alt)+'"':'aria-hidden="true"')+'>'+ICON_PATHS[n.icon]+'</svg>';
     }
-    if(n.type==='heading')return '<h'+(n.level||2)+' class="'+cls+'">'+attr(n.text)+'</h'+(n.level||2)+'>';
-    if(n.type==='text')return '<p class="'+cls+'">'+attr(n.text)+'</p>';
+    if(n.type==='heading')return '<h'+(n.level||2)+' class="'+cls+'">'+richText(n)+'</h'+(n.level||2)+'>';
+    if(n.type==='text')return '<p class="'+cls+'">'+richText(n)+'</p>';
     if(n.type==='button'&&n.popupTarget)return '<button type="button" class="'+cls+' cmsdg-popup-trigger" popovertarget="cmsdg-popup-'+n.popupTarget+'">'+attr(n.text)+'</button>';
     if(n.type==='button'||n.type==='link')return '<a class="'+cls+'" href="'+attr(n.href.startsWith('/')?mount.replace(/\/$/,'')+n.href:n.href)+'"'+(n.href.startsWith('https://')?' rel="noopener noreferrer"':'')+'>'+attr(n.text)+'</a>';
     if(n.type==='video'){
