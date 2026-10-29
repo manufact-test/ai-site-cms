@@ -553,6 +553,7 @@ function inspectSite(raw,regInput){
           for(const node of nodes||[]){
             if(node.type==='heading')pushHeading(page,section,headings,Number(node.level)||2,node.text,node.id);
             if(['button','link','image'].includes(node.type)&&node.href)checkLink(node.href,page,section.id,null,node.id);
+            for(const run of node.runs||[])if(run.href)checkLink(run.href,page,section.id,null,node.id);
             if(node.children)walk(node.children);
           }
         };
