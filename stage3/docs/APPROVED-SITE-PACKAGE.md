@@ -811,3 +811,32 @@ In authenticated Studio, first upload all image files through the existing media
 The server and JS contracts reject unknown media, video/font-as-logo, non-PNG favicon, mobile-only logo and invalid widths. Approved-v2 imports remap all three branding IDs to the immutable server IDs along with content media and fonts. Media-maintenance audits and guarded replacements count global branding usage so logos are never silently considered unused. Existing isolated backup/restore, PHP/HTML/Next Static/Next SSR exports include the unchanged image bytes and their checksums. Next metadata explicitly carries the favicon because visitor head tags cannot be assumed to survive React rendering. Sites without a `branding` object continue with the original text brand and no favicon.
 
 The successful synthetic CI check verifies cross-session import recovery and real PHP/Chromium publishing of two separate logo IDs and the favicon. It does **not** demonstrate that a customer's actual approved logo is the correct size/color or grant owner GO. The source designer must still compare desktop, tablet and mobile mockups in the owner's visual review.
+
+## Global customer footer, legal pages and verified contact links (29 October 2026)
+
+A finished approved individual website may now include a typed **optional top-level `footer`** on `site.json`. It is not a generic page template: this is only the site's shared brand/contact/navigation shell, independent of its author-designed page sections and Design Graphs. Example:
+
+```json
+"footer": {
+  "style": "dark",
+  "layout": "columns",
+  "description": "Family-owned workshop serving our customers since 1998.",
+  "email": "office@example.com",
+  "phone": "+48 500 600 700",
+  "links": [
+    {"pageId": "page-contact", "label": "Contact and legal details"}
+  ],
+  "socials": [
+    {"network": "instagram", "url": "https://instagram.com/example"},
+    {"network": "linkedin", "url": "https://linkedin.com/company/example"}
+  ]
+}
+```
+
+Required when the `footer` object exists: `description` (0–300 chars), `email` (empty or valid bounded email), `phone` (empty or bounded dialable number), `links` (0–8), `socials` (0–8). Optional color style is `light` (default), `dark`, or `primary` (existing site primary color); layout is `columns` (default) or `stacked`. All values are plain typed data; no arbitrary HTML, CSS or JavaScript, including in descriptions. A link has an immutable **page ID**, not a hardcoded path, and a short label. Each page is linked at most once. Renaming the page's URL updates its destination automatically at render time; deleting a page removes its footer link in the same existing undoable structural edit. Links to privacy/terms pages require those pages to actually exist in the approved site; CMS does not invent privacy text or legal declarations.
+
+A social link has one service label and a matching HTTPS URL on its **actual service hostname**; no credentials, ports, HTTP links or masquerading suffix domains. Allowed services: Instagram, Facebook, LinkedIn, YouTube, Telegram, WhatsApp, TikTok, X and GitHub, at most one of each. External links open in a new tab with `noopener noreferrer nofollow`; email and phone use escaped `mailto:` and normalised `tel:` links. Contact data are public visitor information, not admin secrets; include them only with the customer's authorization.
+
+The private Studio has a **«Подвал · контакты и ссылки»** global editor: descriptions/contacts, live branding color/layout preview, page selects with editable labels, social selects/HTTPS fields, add/remove controls. One Apply action validates and updates a *draft* with Undo; Save/Publish remain explicit. Approved signed-v2 import retains exactly the external author's footer fields and binds internal links by ID. Pre-import three-device preview includes the real footer. PHP, independent HTML, Next Static and Next SSR share the exact server-rendered semantic footer; existing exports include the HTML/CSS without new dependencies. A new private footer revision does not alter an older published site. Backup/restore retain the versioned site document.
+
+Old individual sites without `footer` keep their historical text-only footer. Responsive layout is structurally exercised in a real loopback Chromium visitor at 375px, but the owner's three-device mockup review and real legal/contact accuracy still require manual approval; a synthetic passing browser test is **not** user sign-off.
