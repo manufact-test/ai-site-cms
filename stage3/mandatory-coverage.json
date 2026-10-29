@@ -1732,7 +1732,7 @@
         "stage3/runtime-export/templates/php/index.php",
         "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Partial: standalone Next Static/SSR now initializes vetted first-party multi-step form JS after React hydration, retains native collector/HMAC submission and preserves extra OG/Twitter metadata. An owner-approved real client and authorized external Next deployment/visual acceptance remain open."
+      "nextCheck": "Partial: standalone Next Static/SSR now validates the exact trusted publisher wizard by SHA256, runs a route-specific first-party Next Script, and preserves keyboard/Enter, conditional-required/consent validation, six-language visitor navigation and form progress. PHP publisher, standalone HTML and Next use the same immutable form collector and HMAC release. Real owner-approved source, external Next deployment and visual/host acceptance remain unperformed."
     },
     {
       "id": 181,
