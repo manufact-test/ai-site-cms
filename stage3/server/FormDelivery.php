@@ -270,7 +270,7 @@ trait FormDelivery
             'state'=>$row['state'],'attempts'=>(int)$row['attempts'],'updatedAt'=>$row['updated_at'],
             'acceptedAt'=>$row['accepted_at'],'lastError'=>$row['last_error']
         ],$q->fetchAll(PDO::FETCH_ASSOC));
-        return ['settings'=>$settings,'transport'=>$transport,'channels'=>$channels,'totals'=>$totals,
+        return ['settings'=>$settings,'transport'=>$transport,'dispatch'=>$this->deliveryDispatchMode(),'channels'=>$channels,'totals'=>$totals,
             'routes'=>$this->deliveryFormRoutes($siteId),'recent'=>$recent,'retryable'=>$totals['pending']+$totals['failed']+$totals['configuration_required']>0,
             'uncertain'=>$totals['uncertain']];
     }
@@ -328,8 +328,23 @@ trait FormDelivery
         }
     }
 
+    /**
+     * Opt-in queue mode keeps the public form response independent of a slow
+     * outbound SMTP/Telegram host. It requires the existing authorized CLI
+     * worker to be scheduled by the owner; inline remains the default.
+     */
+    private function deliveryDispatchMode(): array
+    {
+        $raw=getenv('STAGE3_DELIVERY_DISPATCH_MODE');
+        $valid=$raw===false||$raw===''||in_array($raw,['inline','queue'],true);
+        // Unknown explicit values are fail-closed: store but DO NOT send.
+        return ['mode'=>($raw===false||$raw===''||$raw==='inline')?'inline':'queue',
+            'valid'=>$valid];
+    }
+
     public function dispatchSubmissionDeliveries(string $siteId,string $submissionId): void
     {
+        if($this->deliveryDispatchMode()['mode']==='queue')return;
         try{
             $this->getDraft($siteId);
             $q=$this->db->prepare("SELECT delivery_id FROM stage3_delivery_outbox WHERE site_id=? AND submission_id=? AND state='pending'");
