@@ -2400,6 +2400,12 @@
     if(readiness.issues.length>100)
       backlogList.append(element('p',null,'Ещё '+(readiness.issues.length-100)+' замечаний. Закройте часть полей и откройте проверку снова.'));
     backlog.append(backlogList);
+    const visualIndex=element('section','hosted-launch-visual-index');
+    visualIndex.id='server-launch-visual-index';
+    const visualIndexTitle=element('h3',null,'Открытые замечания по сайту');
+    const visualIndexRows=element('div','hosted-launch-visual-index-rows');
+    visualIndexRows.id='server-launch-visual-index-rows';
+    visualIndex.append(visualIndexTitle,visualIndexRows);
     const exportReport=action('Скачать отчёт JSON','server-launch-report',()=>{});
     const copyFindings=action('Копировать замечания для разработчика',
       'server-launch-copy-findings',()=>{});
@@ -2438,9 +2444,10 @@
     footer.append(editPage,quality,saveDraft,exportReport,importReview,importReviewFile,copyFindings,publishSaved,close);
     detail.append(pageHeading,devices,compareModes,overlayControls,syncControls,previewPanels,previewStatus,issues,findingPanel,markReviewed);
     body.append(pages,detail);
-    dialog.append(header,backlog,body,footer);
+    dialog.append(header,backlog,visualIndex,body,footer);
     document.body.append(dialog);
     let selectedRow=comparisonRows[0],device='desktop',viewMode='draft',request=0;
+    let pendingFindingJump=null;
     const widths={desktop:1200,tablet:780,mobile:390};
     const devicesNeeded=Object.keys(widths),reviewed=new Map(),previewReady=new Set();
     // Each device's own real PHP document must render before sign-off. These
@@ -2579,7 +2586,36 @@
     const signedCount=()=>Array.from(reviewed.values()).reduce((total,set)=>total+set.size,0);
     const freshDraft=()=>state.siteId===site.siteId&&state.revision===openedRevision&&
       !editor.isDirty()&&JSON.stringify(editor.getSite())===reviewedDraft;
+    const drawReviewIndex=()=>{
+      visualIndexRows.replaceChildren();
+      const open=manualFindings.filter(f=>!f.resolved);
+      visualIndexTitle.textContent='Открытые замечания по сайту: '+open.length;
+      if(!open.length){
+        visualIndexRows.append(element('small',null,
+          'Незакрытых расхождений нет. Это не означает автоматическую визуальную приёмку.'));
+        return;
+      }
+      for(const finding of open.slice(0,60)){
+        const page=site.pages.find(p=>p.id===finding.pageId);
+        if(!page)continue;
+        const link=action(page.title+' · '+finding.device+' · '+finding.note,'',()=>{
+          if(!dialog.open)return;
+          const next=comparisonRows.find(row=>row.current?.id===finding.pageId);
+          if(!next)return;
+          pendingFindingJump={pageId:finding.pageId,device:finding.device,
+            scrollY:finding.scrollY};
+          device=finding.device;
+          choosePage(next);
+        });
+        link.setAttribute('aria-label','Перейти к замечанию: '+page.title+' · '+finding.device+
+          ' · '+finding.note);
+        visualIndexRows.append(link);
+      }
+      if(open.length>60)visualIndexRows.append(element('small',null,
+        'Показаны первые 60 замечаний из '+open.length));
+    };
     const updateReviewed=()=>{
+      drawReviewIndex();
       launchProgress.textContent='Проверено страниц: '+completedCount()+'/'+site.pages.length+
         ' · экранов: '+signedCount()+'/'+(site.pages.length*devicesNeeded.length)+
         (readiness.errors?' · '+readiness.errors+' ошибок SDK-аудита':'')+
@@ -2895,6 +2931,12 @@
         if(!errors.length)previewReady.add(key);
         else previewReady.delete(key);
         renderViewport();updateReviewed();syncActions();
+        if(pendingFindingJump&&pendingFindingJump.pageId===row.current.id
+          &&pendingFindingJump.device===mode){
+          const scale=Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1])||1;
+          viewport.scrollTop=pendingFindingJump.scrollY*scale;
+          pendingFindingJump=null;
+        }
         previewStatus.textContent=errors.length?
           'Проверка PHP · '+row.current.path+' · '+errors.join(' · ')+
             '. Исправьте ошибки перед подтверждением.':
