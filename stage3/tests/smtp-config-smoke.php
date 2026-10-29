@@ -29,4 +29,17 @@ putenv('STAGE3_SMTP_PASSWORD');
 $check(SmtpTransport::configuration()['reason']==='smtp_password_missing','No SMTP fallback if password is absent');
 putenv('STAGE3_SMTP_HOST=127.0.0.1');
 $check(SmtpTransport::configuration()['reason']==='smtp_host_invalid','Non-DNS SMTP host rejected');
+require dirname(__DIR__).'/server/FormDelivery.php';
+$modeProbe=new class {
+    use \Manufact\Stage3\FormDelivery;
+    public function mode(): array { return $this->deliveryDispatchMode(); }
+};
+putenv('STAGE3_DELIVERY_DISPATCH_MODE');
+$check($modeProbe->mode()['mode']==='inline','Default forms still send inline');
+putenv('STAGE3_DELIVERY_DISPATCH_MODE=queue');
+$check($modeProbe->mode()['mode']==='queue'&&$modeProbe->mode()['valid'],
+    'Explicit queue mode avoids synchronous outgoing calls');
+putenv('STAGE3_DELIVERY_DISPATCH_MODE=typo');
+$check($modeProbe->mode()['mode']==='queue'&&!$modeProbe->mode()['valid'],
+    'Unknown dispatch modes fail closed without accidentally sending');
 echo "SMTP configuration-only smoke passed (no network I/O)\n";
