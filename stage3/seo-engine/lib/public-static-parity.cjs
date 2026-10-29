@@ -80,7 +80,7 @@ function compare(site,release,http,media=null,byteReport=null){
  if(!operatorArtifacts)add('operator-file-probes-not-captured','warning',null,
   'No public HTTP observations were supplied for private release-manifest/operator files; exposure is unverified.');
  else for(const item of operatorArtifacts){
-  if(item.status===200)add('operator-file-publicly-served','error',null,
+  if(item.status>=200&&item.status<300)add('operator-file-publicly-served','error',null,
    'Static hosting is publicly serving a file intended only for owner/operator use; exclude release manifests and private reports.',
    {field:'internalPublicFile.status',href:item.path});
   if(item.status>=300&&item.status<400)
@@ -285,7 +285,7 @@ function compare(site,release,http,media=null,byteReport=null){
   pages:Object.freeze(pages),assets:Object.freeze(assets),
   auxiliary:Object.freeze(auxiliary),findings:Object.freeze(findings),
   allComparedSurfacesMatched:blockers===0&&markerMatched&&Boolean(operatorArtifacts)&&
-   operatorArtifacts.every(x=>x.status!==200)&&rootWindow?.matched===true&&Boolean(negative)&&
+   operatorArtifacts.every(x=>x.status<200||x.status>=300)&&rootWindow?.matched===true&&Boolean(negative)&&
    [404,410].includes(negative.status)&&
    assets.length===(site.assets||[]).length&&assets.every(x=>x.checked&&x.matched)&&
    checkedResponsiveVariants===responsiveVariants,

@@ -338,7 +338,7 @@ function review(site,evidence){
   add('delivery:public-release-marker-malformed','warning',null,'/ai-site-release.json',
    'Public HTTPS deployment advertises a CMS release marker but not in the expected safe schema.');
  if(evidence.securityProbes)for(const p of evidence.securityProbes){
-  if(p.status===200)add('delivery:operator-artifact-exposed','error',null,p.path,
+  if(p.status>=200&&p.status<300)add('delivery:operator-artifact-exposed','error',null,p.path,
    'A public HTTPS host appears to serve internal CMS release/owner diagnostics. Do not launch until these paths are inaccessible.');
   else if(p.status>=300&&p.status<400)add('delivery:operator-artifact-redirect','warning',null,p.path,
    'An internal operator document path redirects; confirm it cannot expose private CMS files.');

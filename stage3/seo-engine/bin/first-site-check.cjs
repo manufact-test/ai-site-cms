@@ -230,7 +230,7 @@ async function main(argv){
    publicRootWindowRechecked:Boolean(publicHttp?.rootRecheck),
    publicRootWindowStable:publicHttp?.rootRecheck?.matched??null,
    internalFileProbes:publicHttp?.securityProbes?.length??null,
-   publiclyExposedOperatorArtifacts:publicHttp?.securityProbes?.filter(x=>x.status===200).length??null,
+   publiclyExposedOperatorArtifacts:publicHttp?.securityProbes?.filter(x=>x.status>=200&&x.status<300).length??null,
    publicReleaseMarkerValid:publicHttp?.publicReleaseMarker?.valid??null},
   media:{observed:checked.localMedia?.capturedResources??null,
    comparedAgainstSealedSiteSha256:checked.localMedia?.sealedMediaBytesCompared??false,
