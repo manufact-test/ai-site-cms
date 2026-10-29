@@ -22,6 +22,7 @@ function rewritePageLinks(site,from,to){
     }
     const walk=node=>{
       if(typeof node.href==='string')rewrite(node,'href');
+      for(const run of node.runs||[])if(typeof run.href==='string')rewrite(run,'href');
       for(const child of node.children||[])walk(child);
     };
     for(const root of section.designGraph?.nodes||[])walk(root);
@@ -43,6 +44,7 @@ function rewriteSectionAnchors(site,from,to,sectionId){
       if(isObj(item.values))visit(item.values,'behavior.href');
     const walk=node=>{
       if(typeof node.href==='string')visit(node,'href');
+      for(const run of node.runs||[])if(typeof run.href==='string')visit(run,'href');
       for(const child of node.children||[])walk(child);
     };
     for(const root of section.designGraph?.nodes||[])walk(root);
