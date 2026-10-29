@@ -39,6 +39,9 @@ const http={
  sitemap:{status:200,url:origin+'sitemap.xml',contentType:'application/xml',
    body:release.searchFiles['sitemap.xml']},
  redirects:[{from:'/old/',requestUrl:origin+'old/',status:301,location:'/about/'}],
+ publicReleaseMarker:{url:origin+'ai-site-release.json',status:200,valid:true,
+  format:'manufact-ai-public-release-marker-v1',
+  officialManifestSha256:'a'.repeat(64),publishedVersion:3},
  negativeProbe:{path:'/cms-seo-nonexistent-pilot-site/',requestUrl:origin+'cms-seo-nonexistent-pilot-site/',
   status:404,contentType:'text/html',bodySha256:'e'.repeat(64)},
  securityProbes:['/release-manifest.json','/upload-inventory.json',
@@ -67,6 +70,10 @@ const leaked=compare(site,release,{...http,
  securityProbes:http.securityProbes.map((x,i)=>i===0?{...x,status:200}:x)},media);
 assert.ok(leaked.findings.some(x=>x.code==='public-static:operator-file-publicly-served'));
 assert.equal(leaked.allComparedSurfacesMatched,false);
+const wrongMarker=compare(site,release,{...http,
+ publicReleaseMarker:{...http.publicReleaseMarker,officialManifestSha256:'f'.repeat(64)}},media);
+assert.ok(wrongMarker.findings.some(x=>x.code==='public-static:public-release-marker-mismatch'));
+assert.equal(wrongMarker.allComparedSurfacesMatched,false);
 const soft404=compare(site,release,{...http,negativeProbe:{...http.negativeProbe,status:200}},media);
 assert.ok(soft404.findings.some(x=>x.code==='public-static:soft-404-public-host'));
 const wrongHead=compare(site,release,editedHome(home.replace('<meta property="og:url"',
