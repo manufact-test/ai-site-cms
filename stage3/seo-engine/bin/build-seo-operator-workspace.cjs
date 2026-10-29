@@ -27,11 +27,14 @@ function input(file,max){
 }
 function readConfiguration(source){
  if(source?.format!==CONFIG||typeof source!=='object'||Array.isArray(source)||
-   Object.keys(source).some(k=>!['format','firstSite','search'].includes(k))||
-   !source.firstSite&&!source.search)
+   Object.keys(source).some(k=>!['format','firstSite','search','indexing'].includes(k))||
+   !source.firstSite&&!source.search&&!source.indexing)
   throw Error('Private workspace configuration needs firstSite or search inputs');
  const shapes={firstSite:['summary','bundle','postDeploy','operatorReview'],
   search:['history','decisions','releases']};
+ if(source.indexing&&(!source.indexing.report||Object.keys(source.indexing).some(k=>k!=='report')||
+   typeof source.indexing.report!=='string'||!path.isAbsolute(source.indexing.report)))
+  throw Error('Indexing workspace source must be a private absolute report path');
  for(const [kind,names] of Object.entries(shapes)){
   const s=source[kind];
   if(!s)continue;
@@ -64,7 +67,8 @@ function main(argv){
  const search=collect('search',{history:4500000,decisions:2500000,releases:4500000});
  if(first)first.summarySha=digests.firstSite.summary;
  if(search)search.historySha=digests.search.history;
- const workspace=WORK.build({firstSite:first,search});
+ const indexing=collect('indexing',{report:4500000});
+ const workspace=WORK.build({firstSite:first,search,indexing:indexing?.report||null});
  const out=PRIVATE.privateOutput(args.out);
  fs.mkdirSync(out,{mode:0o700,recursive:false});
  function write(name,content){
@@ -74,12 +78,13 @@ function main(argv){
  write('index.html',workspace.homeHtml);
  if(workspace.launchHtml)write('launch.html',workspace.launchHtml);
  if(workspace.searchHtml)write('search.html',workspace.searchHtml);
+ if(workspace.indexingHtml)write('indexing.html',workspace.indexingHtml);
  write('workspace-manifest.json',JSON.stringify({format:workspace.format,siteId:workspace.siteId,
   readOnly:true,overview:workspace.overview,inputSHA256:digests,configSHA256:input(args.config,150000).sha256,
   releaseAuthorized:false,limitations:workspace.limitations},null,2)+'\n');
  write('PRIVATE-README.txt','Private local SEO operator workspace. No actual CMS/Google connection, release approval or deploy. NEVER publish, upload or commit these reports.\n');
  process.stdout.write('MANUFACT PRIVATE WORKSPACE: '+workspace.siteId+
-  ' (launch '+workspace.overview.launchIncluded+', search '+workspace.overview.searchIncluded+
+  ' (launch '+workspace.overview.launchIncluded+', search '+workspace.overview.searchIncluded+', indexing '+workspace.overview.indexingIncluded+
   '); open locally '+path.join(out,'index.html')+'\n');
 }
 if(require.main===module){try{main(process.argv.slice(2));}catch(e){process.stderr.write('SEO operator workspace: '+e.message+'\n');process.exitCode=1;}}

@@ -77,3 +77,7 @@ The focused smoke uses synthetic source-bound reports with both phases, only lau
 ## 5. Recommended launch sequence for the lead developer
 
 Use the standard first-site source/approval/PHP contracts first. Build a cockpit, reconcile original blockers, perform actual public HTTPS and form/device/client checks manually, and archive the approved published version. After real Search Console data exists, add a private Search History and optional editor/owner decisions to the same workspace. This gives one operational view without pretending SEO data are proof of technical release readiness.
+
+## Optional third phase — observed URL indexing statuses
+
+The unified workspace can also include an independent indexing report produced by [SEARCH-INDEXING-WORKFLOW.md](SEARCH-INDEXING-WORKFLOW.md). Add a sibling `indexing` object to the existing private config: `"indexing": { "report": "/ABS/private/indexing-intelligence.json" }`. `firstSite`, `search` and `indexing` are individually optional; at least one is required. Combining them requires identical `siteId`; combining Search History and indexing also requires identical approved Blueprint **raw SHA-256**. If indexing is supplied, the workspace creates `indexing.html` and a local navigation card. Missing URL observations are UNKNOWN, never automatically interpreted as excluded. No Google property authentication or publication permissions are implied.

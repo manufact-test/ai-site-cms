@@ -148,3 +148,7 @@ See [SEARCH-RELEASE-AND-DASHBOARD.md](SEARCH-RELEASE-AND-DASHBOARD.md). It provi
 ## 9. Optional unified private client workspace
 
 A combined owner-only local HTML entry point for this Search History dashboard and existing First Site Launch Cockpit is available through [SEO-OPERATOR-WORKSPACE.md](SEO-OPERATOR-WORKSPACE.md). The two phases must have exactly matching siteId; the output remains a private operator report, NEVER a published website or Google-authenticated dashboard.
+
+## 10. Search Console page indexing observations
+
+The existing Search Performance workflow measures traffic, not Google's actual URL indexation state. A separate post-launch private [SEARCH-INDEXING-WORKFLOW.md](SEARCH-INDEXING-WORKFLOW.md) now handles operator-normalized URL Indexing exports and explicit GSC status notes, approved robots/canonical comparisons, multiple snapshots and manual CMS editor work packets. Use this when reviewing reported excluded pages, not as Google API authentication or automatic indexing remediation.
