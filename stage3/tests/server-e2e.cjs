@@ -2511,6 +2511,42 @@ async function stop(){
     findingId:continued.body.findings[0].findingId,expectedVersion:1})).status,409);
   assert.equal((await request('GET',visualPath+'?revision=1')).status,409);
   assert.equal((await request('GET','/published/site-visual-ci/')).status,200);
+  // Full backup-v2 preserves historical visual observations, not approval.
+  const visualArchive=(await request('GET','/api/sites/site-visual-ci/backup')).body;
+  assert.equal(visualArchive.format,'manufact-site-backup-v2');
+  assert.equal(visualArchive.payload.visualFindings.length,4);
+  assert.equal(visualArchive.payload.visualFindings.filter(f=>!f.resolved).length,2);
+  assert.equal(visualArchive.payload.visualFindings.filter(f=>f.resolved).length,2);
+  const visualRestoreTarget='site-visual-copy-ci';
+  const visualPayload={archive:visualArchive,targetSiteId:visualRestoreTarget};
+  const forged=structuredClone(visualArchive);
+  forged.payload.visualFindings[0].path='/another-site/';
+  forged.sha256=require('node:crypto').createHash('sha256')
+    .update(JSON.stringify(forged.payload)).digest('hex');
+  assert.equal((await request('POST','/api/backups/plan',
+    {archive:forged,targetSiteId:visualRestoreTarget})).status,422,
+    'Recomputed checksum cannot bypass per-revision review source references');
+  const oldV2=structuredClone(visualArchive);
+  delete oldV2.payload.visualFindings;
+  oldV2.sha256=require('node:crypto').createHash('sha256')
+    .update(JSON.stringify(oldV2.payload)).digest('hex');
+  assert.equal((await request('POST','/api/backups/plan',
+    {archive:oldV2,targetSiteId:visualRestoreTarget})).status,200,
+    'Legacy valid backup-v2 without visual findings remains supported');
+  const planVisual=await request('POST','/api/backups/plan',visualPayload);
+  assert.equal(planVisual.status,200,JSON.stringify(planVisual.body));
+  assert.equal(planVisual.body.plan.visualFindings,4);
+  const restoredVisual=await request('POST','/api/backups/restore',
+    {...visualPayload,confirmationToken:planVisual.body.confirmationToken});
+  assert.equal(restoredVisual.status,201,JSON.stringify(restoredVisual.body));
+  assert.equal((await request('GET','/published/'+visualRestoreTarget+'/')).status,404);
+  const copiedVisual=(await request('GET','/api/sites/'+visualRestoreTarget+'/visual-review?revision=2')).body;
+  assert.equal(copiedVisual.available,true);
+  assert.equal(copiedVisual.openCount,0);
+  assert.equal(copiedVisual.findings.length,2);
+  assert.deepEqual((await request('GET','/api/sites/'+visualRestoreTarget+'/backup'))
+    .body.payload.visualFindings,visualArchive.payload.visualFindings);
+
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET','/api/sites/'+id+'/connection-check')).status,401);
   assert.equal((await request('GET',endpoint)).status,401);
