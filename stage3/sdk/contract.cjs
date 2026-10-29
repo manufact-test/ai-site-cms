@@ -179,7 +179,11 @@ const FOOTER_DOMAINS=Object.freeze({
   tiktok:['tiktok.com'],x:['x.com','twitter.com'],github:['github.com']
 });
 function validFooter(footer,pages){
-  objectKeys(footer,['description','email','phone','links','socials'],'site.footer');
+  objectKeys(footer,['description','email','phone','links','socials','style','layout'],'site.footer');
+  if(own(footer,'style')&&!['light','dark','primary'].includes(footer.style))
+    fail('Invalid footer color style');
+  if(own(footer,'layout')&&!['columns','stacked'].includes(footer.layout))
+    fail('Invalid footer layout');
   const plain=(v,max)=>typeof v==='string'&&v.length<=max&&!/[\x00-\x1f]/.test(v);
   if(!plain(footer.description,300)||!plain(footer.email,254)||!plain(footer.phone,32))
     fail('Invalid footer description or contacts');
