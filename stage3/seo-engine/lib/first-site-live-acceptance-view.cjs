@@ -33,6 +33,9 @@ function render(review,contract,contractSha,first,firstSha,postSha){
      'failedFormReceipts'].every(k=>Number.isSafeInteger(review.checks[k])&&review.checks[k]>=0)||
   review.checks.operatorFormPostReceipts!==review.checks.passedFormReceipts+
     review.checks.failedFormReceipts||
+  !Array.isArray(review.checks.missingFormPages)||
+  !review.checks.perPageFormReceipts||
+  typeof review.checks.perPageFormReceipts!=='object'||
   review.originalTechnicalEvidenceMatched!==
    (first.postDeploy.disposition==='TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED'&&
     first.postDeploy.originalCandidateBlockingGates===0&&
@@ -44,12 +47,37 @@ function render(review,contract,contractSha,first,firstSha,postSha){
    review.checks.failedFormReceipts>0||
    review.checks.passedFormReceipts<review.checks.realFormOccurrencesExpected))
   throw Error('Human acceptance cannot be combined with a different release, original evidence or false authorization');
+ const sourceForms=first.bundle?.localPhpForms;
+ if(first.bundle?.format!=='manufact-seo-review-bundle-v1'||
+  first.bundle.readOnly!==true||first.bundle.siteId!==review.siteId||
+  first.bundle.approvedSiteSource?.fileSha256!==first.summary.sourceSiteSha256||
+  sourceForms?.format!=='manufact-seo-local-php-forms-v1'||
+  !Array.isArray(sourceForms.pages)||sourceForms.observedForms!==
+   review.checks.realFormOccurrencesExpected)
+  throw Error('Human acceptance requires original verified PHP bundle to audit real POSTs per page');
+ const formRows=[],known=new Set(),missing=[];
+ let observed=0,reported=0;
+ for(const p of sourceForms.pages){
+  const count=review.checks.perPageFormReceipts[p.path]||0;
+  if(known.has(p.path)||!Number.isSafeInteger(p.actualForms)||p.actualForms<0||
+   !Number.isSafeInteger(count)||count<0||count>p.actualForms)
+   throw Error('Human acceptance per-page form numbers differ from original PHP source');
+  known.add(p.path);observed+=p.actualForms;reported+=count;
+  formRows.push({path:p.path,expected:p.actualForms,passed:count});
+  if(count<p.actualForms)missing.push({page:p.path,expected:p.actualForms,passed:count});
+ }
+ if(observed!==review.checks.realFormOccurrencesExpected||
+  reported!==review.checks.passedFormReceipts||
+  Object.keys(review.checks.perPageFormReceipts).some(p=>!known.has(p))||
+  JSON.stringify(missing.sort((a,b)=>a.page.localeCompare(b.page)))!==
+   JSON.stringify(review.checks.missingFormPages.slice().sort((a,b)=>a.page.localeCompare(b.page))))
+  throw Error('Reported missing real form tests do not match the source PHP page inventory');
  const technicalMatched=first.postDeploy.disposition==='TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED'&&
   first.postDeploy.originalCandidateBlockingGates===0&&
   first.postDeploy.postDeployBlockingReasons.length===0;
  const expectedStatus=!technicalMatched?'TECHNICAL-EVIDENCE-BLOCKED':
   review.checks.failed||review.checks.failedFormReceipts?'HUMAN-OBSERVATIONS-FAILED':
-  review.checks.pending||review.checks.passedFormReceipts<review.checks.realFormOccurrencesExpected?
+  review.checks.pending||missing.length?
    'HUMAN-EVIDENCE-INCOMPLETE':'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION';
  if(review.status!==expectedStatus)
   throw Error('Human acceptance summary claims a status unsupported by the technical or operator evidence counts');
@@ -74,6 +102,11 @@ function render(review,contract,contractSha,first,firstSha,postSha){
   ' · Operator-reported HTTPS host '+esc(review.observedPublicHttpsHostClaim)+'</p><p class="status">'+
   esc(review.status)+'</p></header><section><h2>Operator evidence counts</h2><div class="grid">'+
   facts.map(([k,v])=>'<div class="fact"><small>'+esc(k)+'</small><b>'+esc(v)+'</b></div>').join('')+
+  '</div></section><section><h2>PHP forms by published page</h2><p>Counts below are source-bound operator claims, not a proof of POST delivery.</p>'+
+  '<div class="grid">'+
+  formRows.filter(x=>x.expected>0).map(x=>
+   '<div class="fact"><small>'+esc(x.path)+'</small><b>'+esc(x.passed)+' / '+esc(x.expected)+'</b></div>').join('')+
+  (formRows.every(x=>x.expected===0)?'<p>No PHP lead forms were observed in the pinned source.</p>':'')+
   '</div></section><section><h2>What remains independent of this report</h2><ul>'+
   '<li>The owner/lead must authenticate the original client signature, browser recordings, TLS/host and real submitted form receipts.</li>'+
   '<li>Human checkmarks cannot close original PHP/HTTPS technical blockers or authorize publishing.</li>'+

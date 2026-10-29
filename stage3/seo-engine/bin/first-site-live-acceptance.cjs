@@ -54,7 +54,7 @@ function main(argv){
  const contract=read(o.contract,500000);
  const post=read(o['post-deploy'],2500000);
  const uploadFile=read(path.join(folder,'static-upload','upload-inventory.json'),800000);
- const bundleFile=read(path.join(folder,'seo-report','bundle.json'),12000000);
+ const bundleFile=read(path.join(folder,'seo-report','bundle.json'),45000000);
  const bundle=PREVIEW.load(path.join(folder,'static-upload'));
  const archive=ZIP.verify(path.join(folder,'public-site.zip'),path.join(folder,'static-upload'));
  if(archive.sha256!==contract.json.identity?.publicZipSha256||
@@ -95,7 +95,7 @@ function main(argv){
   for(const [source,expected,max] of [
    [path.join(folder,'CANDIDATE-STATUS.json'),candidate.sha256,800000],
    [path.join(folder,'seo-report','summary.json'),summary.sha256,3600000],
-   [path.join(folder,'seo-report','bundle.json'),bundleFile.sha256,12000000],
+   [path.join(folder,'seo-report','bundle.json'),bundleFile.sha256,45000000],
    [path.join(folder,'static-upload','upload-inventory.json'),uploadFile.sha256,800000],
    [o.contract,contract.sha256,500000],
    [o['post-deploy'],post.sha256,2500000]

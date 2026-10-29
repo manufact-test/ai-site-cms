@@ -194,6 +194,9 @@ function review(original,filled,post){
  const missingFormPages=Object.entries(original.required.formOccurrencesByPage)
   .filter(([page,count])=>(formCountByPage.get(page)||0)<count)
   .map(([page,count])=>({page,expected:count,passed:formCountByPage.get(page)||0}));
+ requireThat(Object.entries(original.required.formOccurrencesByPage).every(([page,count])=>
+  (formCountByPage.get(page)||0)<=count),
+  'real POST receipts exceed observed published PHP forms on a page');
  const enoughForms=!missingFormPages.length&&!formFailed;
  const technicalMatched=post?.format===POST&&
   post.disposition==='TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED'&&
