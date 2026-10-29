@@ -400,3 +400,8 @@ Focused isolated V8 test: `node stage3/seo-engine/tests/static-host-rewrites-smo
 The one-command \`prepare-first-site\` additionally generates \`public-site.zip\` with only public bytes. \`bin/zip-static-upload.cjs\` uses deterministic, stored-only ZIP ordering and an independent CRC32/SHA256/central-directory verifier. Both static upload and whole launch candidate are staged privately and promoted only when complete; failures remove staging rather than leaving a seemingly finished output folder. Rollback ZIP never reverts CMS DB or form data; all deployment remains lead/operator-owned.
 
 **Boundaries:** Strictly \`stage3/seo-engine/**\`; NO PR/merge/deploy, NO actual client signoff, NO real form POST or guaranteed complete Node/PHP/Chromium/GitHub CI on worker head. The lead should integrate and test on the actual first published site before extending isolated test labs. Working cadence: about 30 minutes active substantial coding per session, multiple major blocks if time remains.
+
+
+## Optional local launch cockpit (read-only)
+
+Once this runbook's regular first-site-check command has produced a private summary.json/bundle.json, the lead may use bin/build-first-site-cockpit.cjs to render a local operator-only HTML view. After manual publication, an independently produced post-deploy-summary.json may be added. This never replaces the operational checks or changes release approval. Full command, source guards, privacy and caveats: [FIRST-SITE-COCKPIT.md](FIRST-SITE-COCKPIT.md). Do not upload the cockpit HTML to the published customer site.
