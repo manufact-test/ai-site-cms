@@ -601,6 +601,27 @@ async function execute(){
   await page.locator('#save').click();
   await page.locator('#server-launch-review').click();
   await page.locator('#server-launch-dialog').waitFor();
+  // Prelaunch disclosure must never claim a configured channel proves
+  // external delivery. Owner can export the local report without sending.
+  const prelaunch=await (await page.request.get(origin+
+    '/api/sites/site-approved-browser/launch-forms')).json();
+  assert.equal(prelaunch.format,'manufact-launch-form-readiness-v1');
+  assert.equal(prelaunch.siteId,'site-approved-browser');
+  assert.equal(prelaunch.ownerAcceptanceConfirmed,false);
+  assert.equal(prelaunch.liveDeliveryVerified,false);
+  await page.locator('#server-launch-forms-summary').waitFor();
+  assert.match(await page.locator('#server-launch-forms').innerText(),
+    /подтверждённых реальных доставок: нет/);
+  const refresh=page.locator('#server-launch-forms-refresh');
+  await refresh.click();
+  await page.locator('#server-launch-forms-summary').waitFor({timeout:10000});
+  const formReportEvent=page.waitForEvent('download');
+  await page.locator('#server-launch-forms-export').click();
+  const formReport=await formReportEvent;
+  assert.equal(formReport.suggestedFilename(),'site-approved-browser-form-readiness.json');
+  const savedReport=JSON.parse(fs.readFileSync(await formReport.path(),'utf8'));
+  assert.equal(savedReport.purpose,'configuration-preflight-not-external-delivery-or-client-approval');
+  assert.equal(savedReport.liveDeliveryVerified,false);
   // The review must measure the real PHP-rendered page, including the footer
   // below the 900px fold, rather than accepting an HTML string as rendered.
   await page.waitForFunction(()=>document.querySelector('#server-launch-preview-status')
