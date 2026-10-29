@@ -3794,7 +3794,7 @@
         const view=new DataView(await file.arrayBuffer());
         const magic=(offset)=>String.fromCharCode(...new Uint8Array(view.buffer,offset,4));
         if(view.byteLength<48||view.byteLength>1048576||magic(0)!=='wOF2'||
-          !['OTTO','true','\\u0000\\u0001\\u0000\\u0000'].includes(magic(4))||
+          !['OTTO','true'].includes(magic(4))&&view.getUint32(4)!==65536||
           view.getUint32(8)!==view.byteLength||view.getUint16(12)<1||
           view.getUint16(12)>128||view.getUint16(14)!==0||
           view.getUint32(16)<12||view.getUint32(16)>33554432||
