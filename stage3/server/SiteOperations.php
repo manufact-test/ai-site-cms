@@ -301,6 +301,8 @@ trait SiteOperations
             'formsWithConfiguredNotifications'=>count(array_filter($items,
                 static fn(array $form):bool=>$form['notificationsConfigured'])),
             'queue'=>$queue,
+            'dispatch'=>$this->deliveryDispatchMode(),
+            'queueWorkerVerified'=>false,
             'liveDeliveryVerified'=>false,
             'ownerAcceptanceConfirmed'=>false,
             'scope'=>'private-configuration-inspection-only',
