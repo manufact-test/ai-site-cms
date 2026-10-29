@@ -1,3 +1,7 @@
+## 29 October 2026 — Real client public capture workflow
+
+**New recommended public read-only mode:** [PUBLIC-CAPTURE-QUICKSTART.md](PUBLIC-CAPTURE-QUICKSTART.md). `run-first-site-integration.cjs` now supports `phase: "public-capture"` after an explicit lead-owned manual deployment. It first verifies owner-published site/version/revision, official static manifest and every byte of original candidate/ZIP *without network access*. Only then it performs safe DNS-pinned TLS-verified HTTPS GET and media SHA256 capture, existing public verification, source-bound lead relay, unfilled real device/form acceptance and private dashboard in one new session folder. `INTEGRATION-SESSION-HANDOFF.md` is generated as a human-readable companion to the JSON. This is not a production deploy, client signoff or actual form POST. Focused offline smokes exist; full Node/real client acceptance must be done in the lead-integrated checkout.
+
 # First-site integration session — practical lead-run workflow
 
 Date: 2026-10-29. Scope: stage3/seo-engine/** only. Lead owns CMS, PHP, deployment, client approval and integration. This is not automatic publishing.
