@@ -24,6 +24,10 @@ const transport={
    return {status:404,body:'Not found',headers:{'content-type':'text/plain'},contentType:'text/plain',location:''};
   if(url.includes('/cms-seo-nonexistent-pilot/'))return {status:404,body:'Not found',headers:{'content-type':'text/plain'},contentType:'text/plain',location:''};
   if(url.endsWith('/old/'))return {status:301,body:'',headers:{location:'/about/'},location:'/about/',contentType:'text/html'};
+  if(url.endsWith('/ai-site-release.json'))return {status:200,
+   body:JSON.stringify({format:'manufact-ai-public-release-marker-v1',
+    officialManifestSha256:'a'.repeat(64),publishedVersion:3}),
+   headers:{'content-type':'application/json'},contentType:'application/json',location:''};
   if(url.endsWith('/sitemap.xml'))return {status:200,body:'<urlset></urlset>',headers:{'content-type':'application/xml'},contentType:'application/xml',location:''};
   if(url.endsWith('/robots.txt'))return {status:200,body:'User-agent: *\nAllow: /\n',headers:{'content-type':'text/plain'},contentType:'text/plain',location:''};
   return {status:200,body:'<!doctype html><html><head></head><body>Page</body></html>',
@@ -32,7 +36,9 @@ const transport={
 };
 (async()=>{
  const result=await capture(site,'https://example.org/published/pilot/',transport);
- assert.equal(result.requests,10);
+ assert.equal(result.requests,11);
+ assert.equal(result.evidence.publicReleaseMarker.valid,true);
+ assert.equal(result.evidence.publicReleaseMarker.publishedVersion,3);
  assert.equal(result.evidence.securityProbes.length,4);
  assert.ok(result.evidence.securityProbes.every(x=>x.status===404));
  assert.ok(!JSON.stringify(result.evidence.securityProbes).includes('Not found'));
