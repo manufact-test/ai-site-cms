@@ -102,3 +102,20 @@ node stage3/seo-engine/tests/first-site-live-acceptance-smoke.cjs
 node stage3/seo-engine/tests/first-site-lead-relay-smoke.cjs
 ~~~
 These are offline contract checks only; no full end-to-end CI or real customer acceptance is claimed for isolated worker branch.
+
+## Unified manual human acceptance in the private SEO workspace (29.10.2026)
+
+After the actual operator completes the private live browser/device/form template, run first-site-live-acceptance.cjs review on the exact public lead relay and post-deploy summary. The resulting live-acceptance-review.json can be added to the existing unified private SEO Operator Workspace, along with the **original** lead relay contract, by adding the optional sibling config:
+
+~~~json
+"liveAcceptance": {
+  "report": "/ABS/private/actual-live-acceptance-review.json",
+  "contract": "/ABS/private/actual-public-phase-lead-relay/INTEGRATION-CONTRACT.json"
+}
+~~~
+
+It MUST be accompanied by firstSite.summary and firstSite.postDeploy from the SAME original PHP/source and public release; exact raw SHA256 of the human report's lead contract, PHP summary and postDeploy report are compared. The workspace adds human.html with checked/pending/failed tasks and actual POST receipt counts, never an automatic GO. Offline claims remain subject to independent real TLS, screenshots, mail/Telegram delivery and client signoff.
+
+The one-command first-site integration runner supports optional search-phase keys liveAcceptanceReview and liveAcceptanceContract **together**. This permits a single later private workspace including local launch, public technical evidence, human acceptance, real indexing and Search History, only when each source identity agrees. If the human review is not available, omit both keys and proceed with observational GSC reports without fabricating acceptance.
+
+Example search phase extension: add "liveAcceptanceReview":"/ABS/private/live-acceptance-review.json" and "liveAcceptanceContract":"/ABS/private/public-phase/lead-relay/INTEGRATION-CONTRACT.json" to the search inputs. Both required together, omitted when review is pending.
