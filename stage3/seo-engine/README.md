@@ -472,3 +472,12 @@ Focused isolated V8 test: `node stage3/seo-engine/tests/static-host-rewrites-smo
 **Проверки:** синтаксис изменённых CJS, актуальный public-static-parity с настоящими module bodies и тестами в изолированном V8 прошли. Полноценные Node/PHP/Chromium/первый клиент/CI без интегрированного checkout не подтверждены. Не называть READY TO DEPLOY без трёх утверждённых макетов, форм POST/доставки, реального HTTPS и owner signoff.
 
 **Темп:** ориентир ~30 минут активного существенного кодинга на заход; если закончили за 10–12 минут — сразу следующий крупный блок. Без PR/merge/main/deploy, только stage3/seo-engine/**.
+
+
+## SEO worker update — 29.10.2026, first-site launch consolidation
+
+**Use current [STATIC-LAUNCH-WORKFLOW.md](STATIC-LAUNCH-WORKFLOW.md) first.** New first-site CLI flags: \`--visual-review-status\` reads owner GET \`/api/sites/SITE-ID/visual-review?revision=PUBLISHED_SOURCE_REVISION\`; unresolved exact-revision desktop/tablet/mobile findings block release and raw private notes are never included. \`--approval-archive-index\` reads owner GET \`/api/sites/SITE-ID/approval-evidence\` and SHA256-checks the exact sealed v2 original, three mockups, per-page mockups and source docs (not client-signature proof). \`--previous-upload\` accepts an independently verified old static upload, blocks regression such as dropped 301/noindex/canonical/immutable version and generates \`UPGRADE-IMPACT.*\` and SHA256-confirmed \`rollback-public-site.zip\`. Separate \`--previous-report\` keeps earlier local SEO report delta.
+
+The one-command \`prepare-first-site\` additionally generates \`public-site.zip\` with only public bytes. \`bin/zip-static-upload.cjs\` uses deterministic, stored-only ZIP ordering and an independent CRC32/SHA256/central-directory verifier. Both static upload and whole launch candidate are staged privately and promoted only when complete; failures remove staging rather than leaving a seemingly finished output folder. Rollback ZIP never reverts CMS DB or form data; all deployment remains lead/operator-owned.
+
+**Boundaries:** Strictly \`stage3/seo-engine/**\`; NO PR/merge/deploy, NO actual client signoff, NO real form POST or guaranteed complete Node/PHP/Chromium/GitHub CI on worker head. The lead should integrate and test on the actual first published site before extending isolated test labs. Working cadence: about 30 minutes active substantial coding per session, multiple major blocks if time remains.
