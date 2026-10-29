@@ -856,7 +856,7 @@
         "stage3/server/SmtpTransport.php",
         "stage3/docs/SMTP-DELIVERY.md"
       ],
-      "nextCheck": "Partial: owner-only per-site/per-form Email/Telegram routing, private lead outbox and saved recipient snapshot; explicit manual probes + owner receipt observations; optional authenticated TLS SMTP without PHP mail fallback and opt-in queue-first visitor form processing via the existing CLI worker, transport readiness surfaced in Studio, single-delivery owner CAS retry directly from both the delivery panel and an individual lead card and real per-lead delivery-state visibility in owner inbox plus private CSV columns (not receipt evidence). Real visitor lead delivery to authorized external inbox/host, and owner GO are not yet verified."
+      "nextCheck": "Partial: owner-only per-site/per-form Email/Telegram routing, private lead outbox and saved recipient snapshot; explicit manual probes + owner receipt observations; optional authenticated TLS SMTP without PHP mail fallback and opt-in queue-first visitor form processing via the existing CLI worker, transport readiness surfaced in Studio, single-delivery owner CAS retry directly from both the delivery panel and an individual lead card and real per-lead delivery-state visibility in owner inbox plus private CSV columns (not receipt evidence). Real visitor lead delivery to authorized external inbox/host, and owner GO are not yet verified. Launch review surfaces effective queue dispatch and explicitly unverified external cron/worker (never inferred from saved leads)."
     },
     {
       "id": 81,
