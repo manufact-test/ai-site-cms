@@ -30,6 +30,7 @@ const bundle={format:'manufact-seo-review-bundle-v1',readOnly:true,siteId:'site-
  {path:'/contact/',expectedForms:1,actualForms:1,checkedFormSections:1,
   formInstances:[{sectionId:'contact-lead'}]}]}};
 const original=FLOW.template(contract,upload,post,summary,hashes,bundle);
+assert.equal(original.version,2);
 assert.deepEqual(original.required.pages,['/','/contact/']);
 assert.equal(original.required.browserChecks,6);
 assert.deepEqual(original.required.formOccurrencesByPage,{'/':0,'/contact/':1});
@@ -49,11 +50,21 @@ for(const t of reviewed.tasks){
 }
 assert.equal(FLOW.review(original,reviewed,post).status,'HUMAN-EVIDENCE-INCOMPLETE');
 reviewed.formTests=[{page:'/contact/',formRef:'contact-lead',state:'passed',
- observedAt:'2026-10-29',checkedBy:'Lead',evidenceRef:'private://form-receipt',notes:''}];
+ observedAt:'2026-10-29',checkedBy:'Lead',evidenceRef:'private://form-receipt',
+ submissionEvidenceRef:'private://submitted-1',deliveryEvidenceRef:'private://delivered-1',
+ deliveryChannel:'email',deliveryObservedAt:'2026-10-29',notes:''}];
 const done=FLOW.review(original,reviewed,post);
 assert.equal(done.status,'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION');
 assert.deepEqual(done.checks.perFormChecks,[{page:'/contact/',sectionId:'contact-lead',state:'passed'}]);
+assert.equal(done.checks.submittedFormEvidenceReceipts,1);
+assert.equal(done.checks.confirmedFormDeliveryReceipts,1);
 assert.equal(done.releaseAuthorized,false);
+assert.throws(()=>FLOW.review(original,{...reviewed,formTests:[
+ {...reviewed.formTests[0],deliveryEvidenceRef:reviewed.formTests[0].submissionEvidenceRef}]},post),/independent destination-side/);
+assert.throws(()=>FLOW.review(original,{...reviewed,formTests:[
+ {...reviewed.formTests[0],deliveryObservedAt:'2026-10-28'}]},post),/independent destination-side/);
+assert.throws(()=>FLOW.review(original,{...reviewed,formTests:[
+ {...reviewed.formTests[0],submissionEvidenceRef:''}]},post),/separate private submission/);
 assert.throws(()=>FLOW.review(original,{...reviewed,formTests:[
  {...reviewed.formTests[0],formRef:'invented-form'}]},post),/exact observed PHP sectionId/);
 assert.equal(done.clientApprovalAuthenticated,false);
@@ -96,6 +107,7 @@ assert.equal(FLOW.review(two,half,post).status,'HUMAN-EVIDENCE-INCOMPLETE');
 assert.deepEqual(FLOW.review(two,half,post).checks.perFormChecks.map(x=>x.state),['passed','missing']);
 assert.throws(()=>FLOW.review(two,{...half,formTests:[
  half.formTests[0],{...half.formTests[0],formRef:'invented-form'}]},post),/exact observed PHP sectionId/);
-half.formTests.push({...half.formTests[0],formRef:'contact-secondary'});
+half.formTests.push({...half.formTests[0],formRef:'contact-secondary',
+ submissionEvidenceRef:'private://submitted-2',deliveryEvidenceRef:'private://delivered-2'});
 assert.equal(FLOW.review(two,half,post).status,'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION');
 console.log('live first-site operator acceptance matrix smoke PASS (synthetic, no live network)');

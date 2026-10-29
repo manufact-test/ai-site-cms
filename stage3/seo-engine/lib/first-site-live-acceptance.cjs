@@ -118,7 +118,7 @@ function template(contract,upload,post,summary,hashes,bundle){
    'Inspect published '+page+' at '+viewport+': design, interactions and accessibility'));
  for(const [id,label] of HOST_CHECKS)
   tasks.push(task('manual:'+id,'manual',null,null,label));
- return Object.freeze({format:FORMAT,version:1,siteId:contract.siteId,
+ return Object.freeze({format:FORMAT,version:2,siteId:contract.siteId,
   pinned:{contractSha256:hashes.contract,sourceSummarySha256:hashes.summary,
    publicUploadSha256:hashes.upload,postDeploySha256:hashes.post,
    originalPhpReviewBundleSha256:hashes.bundle,
@@ -134,6 +134,7 @@ function template(contract,upload,post,summary,hashes,bundle){
   limitations:[
    'These are human claims tied to an offline release, not authenticated browser recordings.',
    'Each formTests.formRef must match a real sectionId in required.formRefsByPage[page], never an arbitrary label.',
+   'Every passed form requires TWO distinct PRIVATE evidence references: submitted test POST and independently confirmed delivery or persistence.',
    'All form instances need an actual authorized POST and notification/persistence receipt; never store POST bodies or tokens.',
    'Complete checkmarks alone NEVER authorize deployment, declare real client approval or override technical blockers.',
    'Store this private template and all evidence outside GitHub.']
@@ -159,7 +160,7 @@ function reviewedTask(actual,reference){
 }
 function review(original,filled,post){
  requireThat(original?.format===FORMAT&&filled?.format===FORMAT&&
-  original.version===1&&filled.version===1&&
+  original.version===2&&filled.version===2&&
   JSON.stringify(original.pinned)===JSON.stringify(filled.pinned)&&
   JSON.stringify(original.required)===JSON.stringify(filled.required)&&
   filled.siteId===original.siteId,
@@ -179,6 +180,9 @@ function review(original,filled,post){
  requireThat(Array.isArray(filled.formTests)&&filled.formTests.length<=300,
   'form POST receipt list must be a bounded operator input');
  const forms=new Set(),formCountByPage=new Map();let formPassed=0,formFailed=0;
+ const DELIVERY=['email','telegram','persistence','webhook','other'];
+ const safeRef=v=>typeof v==='string'&&v.length>=3&&v.length<=240&&
+  !/[\x00-\x1f<>]/.test(v)&&!!v.trim();
  for(const f of filled.formTests){
   requireThat(f&&original.required.pages.includes(f.page)&&
    typeof f.formRef==='string'&&/^[a-z0-9][a-z0-9_-]{1,79}$/.test(f.formRef)&&
@@ -188,6 +192,19 @@ function review(original,filled,post){
    typeof f.notes==='string'&&f.notes.length<=500&&
    !/[\x00-\x1f]/.test(f.evidenceRef+f.notes+f.checkedBy),
    'unsafe, incomplete or ungrounded real form POST observation');
+  // Separately attest actual submission and destination-side delivery/persistence.
+  // References must be opaque PRIVATE evidence labels; never POST bodies or tokens.
+  requireThat(safeRef(f.submissionEvidenceRef),
+   'real form POST requires a separate private submission receipt');
+  if(f.state==='passed'){
+   requireThat(safeRef(f.deliveryEvidenceRef)&&f.deliveryEvidenceRef!==f.submissionEvidenceRef&&
+    DELIVERY.includes(f.deliveryChannel)&&date(f.deliveryObservedAt)&&
+    f.deliveryObservedAt>=f.observedAt,
+    'passed form requires independent destination-side delivery proof, channel and non-earlier date');
+  }else requireThat((f.deliveryEvidenceRef===undefined||f.deliveryEvidenceRef==='')&&
+   (f.deliveryChannel===undefined||f.deliveryChannel==='none')&&
+   (f.deliveryObservedAt===undefined||f.deliveryObservedAt===null),
+   'failed form cannot assert confirmed delivery; record failure in notes');
   const id=f.page+'#'+f.formRef;
   requireThat(!forms.has(id),'duplicate form checks cannot count twice');
   requireThat(original.required.formOccurrencesByPage[f.page]>0,
@@ -235,6 +252,8 @@ function review(original,filled,post){
   checks:{required:original.tasks.length,passed,failed,pending,
    realFormOccurrencesExpected:required,operatorFormPostReceipts:filled.formTests.length,
    passedFormReceipts:formPassed,failedFormReceipts:formFailed,
+   submittedFormEvidenceReceipts:filled.formTests.length,
+   confirmedFormDeliveryReceipts:formPassed,
    missingFormPages,perFormChecks,
    perPageFormReceipts:Object.fromEntries([...formCountByPage].sort()),
    operatorFormInventorySigned:filled.tasks.some(x=>x.id==='manual:real-form-inventory'&&x.state==='passed')},
@@ -246,7 +265,7 @@ function review(original,filled,post){
    'Changing the owner-published revision, ZIP or public host requires new source-bound evidence.']});
 }
 function formWorksheet(t){
- requireThat(t?.format===FORMAT&&t.version===1&&t.required&&
+ requireThat(t?.format===FORMAT&&t.version===2&&t.required&&
   Array.isArray(t.required.pages)&&
   t.required.formRefsByPage&&typeof t.required.formRefsByPage==='object',
   'private form worksheet requires original source-bound live template');
@@ -273,6 +292,8 @@ function formWorksheet(t){
    '- [ ] Submit an explicitly authorized non-sensitive test POST with required consent.',
    '- [ ] Verify correct response, validation and user-visible success/error state.',
    '- [ ] Independently verify the expected persistence/notification/delivery receipt.',
+   '- [ ] Record separate private submissionEvidenceRef for the actual POST request.',
+   '- [ ] Record independent deliveryEvidenceRef, deliveryChannel and deliveryObservedAt after checking inbox/Telegram/persistence.',
    '- [ ] Record operator, observation date and private evidence reference OUTSIDE GitHub.',
    '- [ ] Add a formTests[] record using exactly page='+page+
     ' and formRef='+sectionId+' in the private filled acceptance JSON.','');
@@ -289,6 +310,8 @@ function markdown(r){
  'Disposition: **'+r.status+'**','',
  'Browser/manual checks: '+r.checks.passed+' passed, '+r.checks.failed+' failed, '+
   r.checks.pending+' awaiting evidence.',
+ 'Independently asserted destination delivery confirmations: '+r.checks.confirmedFormDeliveryReceipts+'.',
+ 'Actual POST submission evidence references: '+r.checks.submittedFormEvidenceReceipts+'.',
  'Real form POST receipts: '+r.checks.passedFormReceipts+' passed / '+
   r.checks.realFormOccurrencesExpected+' actual PHP occurrences expected.',
  'Pages with missing actual form receipts: '+r.checks.missingFormPages.length+

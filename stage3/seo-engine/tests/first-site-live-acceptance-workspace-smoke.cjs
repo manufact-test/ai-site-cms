@@ -27,6 +27,7 @@ const report={format:'manufact-seo-first-site-live-acceptance-review-v1',
  status:'HUMAN-EVIDENCE-INCOMPLETE',originalTechnicalEvidenceMatched:true,
  checks:{required:10,passed:7,failed:0,pending:3,
   realFormOccurrencesExpected:1,operatorFormPostReceipts:0,
+  submittedFormEvidenceReceipts:0,confirmedFormDeliveryReceipts:0,
   passedFormReceipts:0,failedFormReceipts:0,operatorFormInventorySigned:false,
   missingFormPages:[{page:'/contact/',expected:1,passed:0}],
   perPageFormReceipts:{},perFormChecks:[{page:'/contact/',sectionId:'contact-lead',state:'missing'}]}};
@@ -61,6 +62,7 @@ assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
  /different release|unsupported/);
 const fakeSuccess={...report,status:'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION',
  checks:{...report.checks,pending:0,passed:10,operatorFormPostReceipts:1,
+  submittedFormEvidenceReceipts:1,confirmedFormDeliveryReceipts:1,
   passedFormReceipts:1,operatorFormInventorySigned:true,
   missingFormPages:[],perPageFormReceipts:{'/contact/':1},
   perFormChecks:[{page:'/contact/',sectionId:'contact-lead',state:'passed'}]}};
