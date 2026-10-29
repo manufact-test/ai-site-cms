@@ -3,6 +3,7 @@
  * The source is a manually completed report; never authorize public release.
  */
 const REPORT='manufact-seo-first-site-live-acceptance-review-v1';
+const HOST_CHECKS=require('./first-site-live-acceptance.cjs').HOST_CHECKS;
 const CONTRACT='manufact-seo-first-site-lead-relay-v1';
 const sha=/^[a-f0-9]{64}$/;
 const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -102,6 +103,31 @@ function render(review,contract,contractSha,first,firstSha,postSha){
   missingForms+failedForms+review.checks.passedFormReceipts!==observed||
   [...known].some(page=>(passedPerPage.get(page)||0)!==(review.checks.perPageFormReceipts[page]||0)))
   throw Error('Individual form receipts conflict with aggregate operator claims');
+ // Recompute every expected browser/device and manual task from original PHP page paths.
+ // Aggregate-only task totals cannot falsely conceal an untested actual page.
+ const expectedTasks=new Map();
+ for(const page of known)for(const viewport of ['desktop','tablet','mobile']){
+  const id='page:'+page+':'+viewport;
+  expectedTasks.set(id,{kind:'browser',page,viewport});
+ }
+ for(const [name] of HOST_CHECKS)
+  expectedTasks.set('manual:'+name,{kind:'manual',page:null,viewport:null});
+ const actualTasks=review.checks.perTaskChecks;
+ if(!Array.isArray(actualTasks)||actualTasks.length!==expectedTasks.size||
+  review.checks.required!==expectedTasks.size)
+  throw Error('Human browser and manual tasks are not complete for the original PHP page map');
+ const seenTasks=new Set(),taskCounts={passed:0,failed:0,unreviewed:0};
+ for(const t of actualTasks){
+  const x=expectedTasks.get(t?.id);
+  if(!x||seenTasks.has(t.id)||x.kind!==t.kind||x.page!==t.page||
+   x.viewport!==t.viewport||!Object.hasOwn(taskCounts,t.state))
+   throw Error('Human acceptance task is missing, duplicated or substituted');
+  seenTasks.add(t.id);taskCounts[t.state]++;
+ }
+ if(taskCounts.passed!==review.checks.passed||taskCounts.failed!==review.checks.failed||
+  taskCounts.unreviewed!==review.checks.pending)
+  throw Error('Human acceptance task state counts differ from original operator checks');
+ const unresolvedTasks=actualTasks.filter(t=>t.state!=='passed');
  const technicalMatched=first.postDeploy.disposition==='TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED'&&
   first.postDeploy.originalCandidateBlockingGates===0&&
   first.postDeploy.postDeployBlockingReasons.length===0;
@@ -134,6 +160,10 @@ function render(review,contract,contractSha,first,firstSha,postSha){
   ' · Operator-reported HTTPS host '+esc(review.observedPublicHttpsHostClaim)+'</p><p class="status">'+
   esc(review.status)+'</p></header><section><h2>Operator evidence counts</h2><div class="grid">'+
   facts.map(([k,v])=>'<div class="fact"><small>'+esc(k)+'</small><b>'+esc(v)+'</b></div>').join('')+
+  '</div></section><section><h2>Unresolved browser and manual checks</h2><p>Each pending or failed source-bound task remains open regardless of aggregate totals.</p><div class="grid">'+
+  unresolvedTasks.map(t=>'<div class="fact"><small>'+esc(t.page||'Site-wide')+(
+   t.viewport?' · '+esc(t.viewport):' · manual')+'</small><div>'+esc(t.id)+'</div><b>'+esc(t.state.toUpperCase())+'</b></div>').join('')+
+  (unresolvedTasks.length?'':'<p>No browser/manual tasks remain in the operator claims. Lead must still authenticate actual evidence.</p>')+
   '</div></section><section><h2>PHP forms by published page</h2><p>Counts below are source-bound operator claims, not a proof of POST delivery.</p>'+
   '<div class="grid">'+
   formRows.filter(x=>x.expected>0).map(x=>

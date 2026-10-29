@@ -1,3 +1,7 @@
+## Private dashboard: verified per-page/browser manual task completeness
+
+The existing `human.html` SEO Operator Workspace now independently reconstructs the expected desktop/tablet/mobile tasks for **every original PHP page** plus all global manual checks. It refuses reports where aggregate counts mask omitted, duplicated, substituted or unexpectedly reordered task identities. Pending and failed browser/manual tasks are displayed individually with their route/viewport; no private evidence references are echoed. This complements the new `LIVE-ACCEPTANCE-NEXT-ACTIONS.json/.md` owner work queue and the exact per-form evidence matrix. The panel remains an operator-only, offline claim — no independent visual proof, real POST, authenticated recipient delivery or client authorization.
+
 ## Actionable human acceptance remediation (new private output)
 
 The `first-site-live-acceptance.cjs review` action now also saves `LIVE-ACCEPTANCE-NEXT-ACTIONS.json` and `.md`. Based on original source-bound page/device/manual task statuses and each actual PHP form section, the queue names failed/pending checks, owner, priority (`P0` observed failure / source technical blockers; `P1` pending manual work), and evidence required. It always retains a separate independent owner/client authorization task even if all operator boxes are ticked. The plan contains no form payload, HMAC, recipient addresses, operator notes or private receipt URLs; it has `readOnly:true` and `releaseAuthorized:false`. A pass in this plan never proves a real POST or client approval.

@@ -2,6 +2,13 @@
 /* Private human acceptance page rendered only against exact release and SHA records. */
 const assert=require('node:assert/strict');
 const WORK=require('../lib/seo-operator-workspace.cjs');
+const FLOW=require('../lib/first-site-live-acceptance.cjs');
+const baseTasks=[...['/','/contact/'].flatMap(page=>
+ ['desktop','tablet','mobile'].map(viewport=>({id:'page:'+page+':'+viewport,
+  kind:'browser',page,viewport,state:'unreviewed'}))),
+ ...FLOW.HOST_CHECKS.map(([name])=>({id:'manual:'+name,kind:'manual',
+  page:null,viewport:null,state:'unreviewed'}))].map((t,i)=>({
+ ...t,state:i<7?'passed':'unreviewed'}));
 const SHA=x=>x.repeat(64);
 const site='site-demo',source=SHA('a'),manifest=SHA('b'),summarySha=SHA('c'),
  postSha=SHA('d'),contractSha=SHA('e'),zip=SHA('f');
@@ -25,7 +32,7 @@ const report={format:'manufact-seo-first-site-live-acceptance-review-v1',
  observedPublicHttpsHostClaim:'https://example.org',
  releaseAuthorized:false,clientApprovalAuthenticated:false,
  status:'HUMAN-EVIDENCE-INCOMPLETE',originalTechnicalEvidenceMatched:true,
- checks:{required:10,passed:7,failed:0,pending:3,
+ checks:{required:13,passed:7,failed:0,pending:6,perTaskChecks:baseTasks,
   realFormOccurrencesExpected:1,operatorFormPostReceipts:0,
   submittedFormEvidenceReceipts:0,confirmedFormDeliveryReceipts:0,
   passedFormReceipts:0,failedFormReceipts:0,operatorFormInventorySigned:false,
@@ -46,6 +53,11 @@ assert(w.homeHtml.includes('human.html'));
 assert(w.humanHtml.includes('Human First-Site Acceptance'));
 assert(w.humanHtml.includes('manual'));
 assert(w.humanHtml.includes('/contact/'));
+assert(w.humanHtml.includes('Unresolved browser and manual checks'));
+assert(w.humanHtml.includes('page:/contact/:mobile'));
+assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
+ report:{...report,checks:{...report.checks,perTaskChecks:baseTasks.slice(1)}}}}),
+ /browser and manual tasks/);
 assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
  contractSha:SHA('9')}}),/different release/);
 assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
@@ -61,7 +73,8 @@ assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
  report:{...report,status:'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION'}}}),
  /different release|unsupported/);
 const fakeSuccess={...report,status:'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION',
- checks:{...report.checks,pending:0,passed:10,operatorFormPostReceipts:1,
+ checks:{...report.checks,pending:0,passed:13,
+  perTaskChecks:baseTasks.map(t=>({...t,state:'passed'})),operatorFormPostReceipts:1,
   submittedFormEvidenceReceipts:1,confirmedFormDeliveryReceipts:1,
   passedFormReceipts:1,operatorFormInventorySigned:true,
   missingFormPages:[],perPageFormReceipts:{'/contact/':1},
