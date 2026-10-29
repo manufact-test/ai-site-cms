@@ -39,6 +39,46 @@ test('site-wide branding only binds same-site raster logos and PNG favicon',()=>
   sdk.validateSite(noBrand,manifests); // Existing custom sites remain backward-compatible.
 });
 
+test('global footer is typed, site-scoped, safe and survives page renames',()=>{
+  const site=same(initial);
+  assert.ok(site.pages.length>=2);
+  const target=site.pages.find(page=>page.path!=='/');
+  site.footer={description:'Полный сервис и поддержка клиентов',
+    email:'hello@example.com',phone:'+48 (500) 600-700',
+    links:[{label:'Юридическая информация',pageId:target.id}],
+    socials:[{network:'instagram',url:'https://www.instagram.com/manufact/'}]};
+  sdk.validateSite(site,manifests);
+  const X=require('../sdk/draft.cjs');
+  const draft=X.begin(site,manifests);
+  const renamed=X.structure(draft,manifests,{
+    action:'updatePage',pageId:target.id,title:target.title,path:'/updated-contact/',
+    expectedRevision:draft.revision
+  });
+  assert.equal(renamed.current.footer.links[0].pageId,target.id);
+  sdk.validateSite(renamed.current,manifests);
+  const removed=X.structure(renamed,manifests,{
+    action:'removePage',pageId:target.id,expectedRevision:renamed.revision
+  });
+  assert.equal(removed.current.footer.links.length,0);
+  const unsafe=same(site);
+  unsafe.footer.socials[0].url='https://instagram.com.evil.test/user';
+  refuses(()=>sdk.validateSite(unsafe,manifests),'Subdomain phishing is not a social link');
+  const script=same(site);
+  script.footer.socials[0].url='javascript:alert(1)';
+  refuses(()=>sdk.validateSite(script,manifests),'Executable URLs are invalid');
+  const other=same(site);
+  other.footer.links[0].pageId='page-foreign';
+  refuses(()=>sdk.validateSite(other,manifests),'Footer page must exist');
+  const duplicated=same(site);
+  duplicated.footer.links.push({...duplicated.footer.links[0]});
+  refuses(()=>sdk.validateSite(duplicated,manifests),'Duplicate pages not allowed');
+  const wrongPhone=same(site);
+  wrongPhone.footer.phone='0810<script>';
+  refuses(()=>sdk.validateSite(wrongPhone,manifests),'No HTML in telephone');
+  delete site.footer;
+  sdk.validateSite(site,manifests); // Backwards compatibility with old individual sites.
+});
+
 test('externally authored section is graph-only and fail-closed on browser contract',()=>{
   const site=same(initial),section=sdk.sectionFrom(
     manifests.find(m=>m.id==='custom-section'),'section-unique-layout');
