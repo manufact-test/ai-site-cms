@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/VideoGuard.php';
+require_once __DIR__ . '/FontGuard.php';
 require_once __DIR__ . '/DesignGraph.php';
 require_once __DIR__ . '/ContractValidator.php';
 require_once __DIR__ . '/SiteArchives.php';
