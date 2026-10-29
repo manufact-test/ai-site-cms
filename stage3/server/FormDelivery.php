@@ -7,6 +7,8 @@ use PDO;
 use PDOException;
 use Throwable;
 
+require_once __DIR__.'/SmtpTransport.php';
+
 /** Per-site optional email/Telegram delivery. Secrets remain in process env. */
 trait FormDelivery
 {
@@ -61,8 +63,12 @@ trait FormDelivery
             if(!is_string($from)||trim($from)==='')return ['ready'=>false,'reason'=>'sender_missing'];
             if(strlen($from)>254||filter_var($from,FILTER_VALIDATE_EMAIL)===false||preg_match('/[\r\n]/',$from))
                 return ['ready'=>false,'reason'=>'sender_invalid'];
-            if(!function_exists('mail'))return ['ready'=>false,'reason'=>'mail_unavailable'];
-            return ['ready'=>true,'reason'=>'ready'];
+            // Selecting SMTP is explicit: invalid/missing credentials must never
+            // silently fall back to the PHP mail() transport.
+            $smtp=SmtpTransport::configuration();
+            if($smtp['enabled'])return ['ready'=>$smtp['ready'],'reason'=>$smtp['reason'],'mode'=>'smtp'];
+            if(!function_exists('mail'))return ['ready'=>false,'reason'=>'mail_unavailable','mode'=>'mail'];
+            return ['ready'=>true,'reason'=>'ready','mode'=>'mail'];
         }
         if($channel==='telegram'){
             $token=getenv('STAGE3_TELEGRAM_BOT_TOKEN');
@@ -446,8 +452,11 @@ trait FormDelivery
         $from=(string)getenv('STAGE3_MAIL_FROM');
         if(!filter_var($from,FILTER_VALIDATE_EMAIL)||preg_match('/[\r\n]/',$from))
             return ['state'=>'configuration_required','error'=>'sender_invalid'];
+        $subject=$subject??('New website inquiry ['.$siteId.']');
+        $smtp=SmtpTransport::configuration();
+        if($smtp['enabled'])return SmtpTransport::send($recipient,$from,$subject,$message);
         $headers="From: ".$from."\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8";
-        try{$accepted=mail($recipient,$subject??('New website inquiry ['.$siteId.']'),$message,$headers);}
+        try{$accepted=mail($recipient,$subject,$message,$headers);}
         catch(Throwable $e){return ['state'=>'failed','error'=>'mail_exception'];}
         return $accepted?['state'=>'accepted','error'=>null]:['state'=>'failed','error'=>'mail_rejected'];
     }
