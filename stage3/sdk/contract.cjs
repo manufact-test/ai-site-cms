@@ -430,7 +430,7 @@ function inspectSite(raw,regInput){
   const checkMedia=(assetId,page,section,elementId)=>{
     if(typeof assetId!=='string'||!assetId)return;
     const asset=site.assets.find(item=>item.id===assetId);
-    if(!asset||asset.mime==='video/mp4')return;
+    if(!asset||!asset.mime.startsWith('image/'))return;
     const key=page.id+'|'+section.id+'|'+assetId;
     if(imageUses.has(key))return;
     imageUses.add(key);
