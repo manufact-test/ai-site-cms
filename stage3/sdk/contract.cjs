@@ -107,7 +107,7 @@ function fieldMap(def){return new Map(def.fields.map(f=>[f.path,f]));}
 
 const DEFAULT_THEME=Object.freeze({background:'#f7f9fc',surface:'#ffffff',text:'#172a43',primary:'#0a5bff',font:'system',maxWidth:1140,bodySize:16,lineHeight:'normal',headingScale:'normal',buttonStyle:'solid',buttonRadius:9,buttonText:'#ffffff'});
 function validTheme(t){
-  objectKeys(t,['background','surface','text','primary','font','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText'],'theme');
+  objectKeys(t,['background','surface','text','primary','font','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText','fontFiles'],'theme');
   for(const k of ['background','surface','text','primary'])
     if(typeof t[k]!=='string'||!/^#[0-9a-fA-F]{6}$/.test(t[k]))fail('Invalid theme color',k);
   if(!['system','arial','georgia'].includes(t.font)||!Number.isInteger(t.maxWidth)||t.maxWidth<680||t.maxWidth>1600)fail('Invalid theme font or width');
@@ -117,6 +117,15 @@ function validTheme(t){
   if(own(t,'buttonStyle')&&!['solid','outline','pill'].includes(t.buttonStyle))fail('Invalid global button style');
   if(own(t,'buttonRadius')&&(!Number.isInteger(t.buttonRadius)||t.buttonRadius<0||t.buttonRadius>32))fail('Invalid global button radius');
   if(own(t,'buttonText')&&(typeof t.buttonText!=='string'||!/^#[0-9a-fA-F]{6}$/.test(t.buttonText)))fail('Invalid global button text color');
+}
+function validFontFiles(theme,assetMimes){
+  if(!own(theme,'fontFiles'))return;
+  const faces=theme.fontFiles;
+  objectKeys(faces,['body','heading'],'theme.fontFiles');
+  if(!Object.keys(faces).length)fail('At least one local font required');
+  for(const [role,assetId] of Object.entries(faces))
+    if(typeof assetId!=='string'||assetMimes.get(assetId)!=='font/woff2')
+      fail('Local font must reference a site-owned WOFF2 asset',role);
 }
 function validSeo(s,assetMimes){
   objectKeys(s,['title','description','robots','ogTitle','ogDescription','ogImage'],'seo');
@@ -285,8 +294,8 @@ function validateSite(raw,regInput){
   const assetIds=new Set(),assetMimes=new Map(),imageIds=new Set();
   for(const asset of raw.assets){
     objectKeys(asset,['id','src','alt','mime','variants','width','height'],'asset');id(asset.id,'asset.id');
-    if(assetIds.has(asset.id)||!['image/png','image/webp','image/jpeg','image/svg+xml','video/mp4'].includes(asset.mime)||
-      typeof asset.src!=='string'||!/^\/assets\/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg|mp4)$/.test(asset.src)||
+    if(assetIds.has(asset.id)||!['image/png','image/webp','image/jpeg','image/svg+xml','video/mp4','font/woff2'].includes(asset.mime)||
+      typeof asset.src!=='string'||!/^\/assets\/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg|mp4|woff2)$/.test(asset.src)||
       typeof asset.alt!=='string'||asset.alt.length>200||/[\x00-\x1f]/.test(asset.alt))fail('Invalid asset',asset.id);
     const hasWidth=own(asset,'width'),hasHeight=own(asset,'height');
     if(hasWidth!==hasHeight||(hasWidth&&(!['image/png','image/jpeg','image/webp'].includes(asset.mime)||
@@ -294,8 +303,9 @@ function validateSite(raw,regInput){
       !Number.isInteger(asset.height)||asset.height<1||asset.height>4096)))
       fail('Invalid intrinsic image dimensions',asset.id);
     assetIds.add(asset.id);assetMimes.set(asset.id,asset.mime);
-    if(asset.mime!=='video/mp4')imageIds.add(asset.id);
+    if(asset.mime.startsWith('image/'))imageIds.add(asset.id);
     if(asset.mime==='video/mp4'&&asset.src!=='/assets/'+asset.id+'.mp4')fail('Invalid video path',asset.id);
+    if(asset.mime==='font/woff2'&&asset.src!=='/assets/'+asset.id+'.woff2')fail('Invalid WOFF2 font path',asset.id);
     if(asset.variants!==undefined){
       if(!Array.isArray(asset.variants)||asset.variants.length>3)fail('Invalid responsive variants',asset.id);
       const widths=new Set(),ext={'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[asset.mime];
@@ -310,6 +320,7 @@ function validateSite(raw,regInput){
       }
     }
   }
+  if(own(raw,'theme'))validFontFiles(raw.theme,assetMimes);
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
   const ids=new Set([raw.siteId,...assetIds]),paths=new Set(),sharedGroups=new Map();
   for(const page of raw.pages){
