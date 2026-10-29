@@ -39,23 +39,44 @@ function main(argv){
  if(release.publishedVersion!==owner.version||release.sourceRevision!==owner.sourceRevision)
   throw Error('Official static release differs from owner CMS currently published version/revision');
  const inputs=[o['published-site'],o['approved-site']+'/handoff.json',
+  path.join(o.candidate,'CANDIDATE-STATUS.json'),
+  path.join(o.candidate,'seo-report','summary.json'),
+  path.join(o.candidate,'static-upload','upload-inventory.json'),
+  path.join(o.candidate,'public-site.zip'),
+  ...(fs.existsSync(path.join(o.candidate,'UPGRADE-IMPACT.json'))?
+   [path.join(o.candidate,'UPGRADE-IMPACT.json'),
+    path.join(o.candidate,'rollback-public-site.zip')]:[]),
   o['static-export']+'/release-manifest.json',
   o['public-http-evidence'],o['public-media-digests'],
   ...(o['public-media-evidence']?[o['public-media-evidence']]:[]),
   ...(o['owner-edit-review']?[o['owner-edit-review']]:[]),
   ...(o['previous-public-http']?[o['previous-public-http']]:[]),
   ...(o['previous-public-media-digests']?[o['previous-public-media-digests']]:[])];
- const crypto=require('node:crypto'),pinned=inputs.map(file=>{
-  const stat=fs.lstatSync(file);
-  if(!stat.isFile()||stat.isSymbolicLink()||stat.size<5||stat.size>36000000)
-   throw Error('Post-deploy input must be an ordinary bounded private file: '+file);
-  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
- });
+ // Re-read metadata and both upload ZIPs after the review; reject anyone
+ // editing an evidence file or a candidate behind the operator's back.
+ const crypto=require('node:crypto');
+ const shaFile=file=>{
+  const stat=fs.lstatSync(file),large=file.endsWith('.zip');
+  if(!stat.isFile()||stat.isSymbolicLink()||stat.size<5||
+     stat.size>(large?190000000:36000000))
+   throw Error('Post-deploy input must be a bounded ordinary private file: '+file);
+  const h=crypto.createHash('sha256'),fd=fs.openSync(file,'r');
+  try{
+   const block=Buffer.alloc(1048576);
+   for(;;){
+    const n=fs.readSync(fd,block,0,block.length,null);
+    if(!n)break;
+    h.update(block.subarray(0,n));
+   }
+  }finally{fs.closeSync(fd);}
+  return h.digest('hex');
+ };
+ const pinned=inputs.map(shaFile);
  const verdict=VERIFY.readAndInspect(o.candidate,site,release,
   o['public-http-evidence'],o['public-media-evidence']??null,o['public-media-digests'],
   o['previous-public-http']??null,o['previous-public-media-digests']??null);
  for(let i=0;i<inputs.length;i++){
-  const current=crypto.createHash('sha256').update(fs.readFileSync(inputs[i])).digest('hex');
+  const current=shaFile(inputs[i]);
   if(pinned[i]!==current)
    throw Error('Post-deploy inputs changed during validation; discard evidence and reacquire');
  }
