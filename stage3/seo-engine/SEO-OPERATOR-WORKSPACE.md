@@ -1,3 +1,5 @@
+LATEST 29.10.2026: practical first-site integrated workflow — FIRST-SITE-INTEGRATION-SESSION.md and LIVE-ACCEPTANCE-WORKFLOW.md. Added one-command private local/public/search sessions (original real localhost PHP checks, static public ZIP, source-pinned lead relay, original human ledger, private workspace, post-public manual device/form matrix). No automatic GO/PR/merge/deploy; actual client browser, POST, TLS and signoff pending lead. Isolated V8 syntax/contract checks only, not complete Node CI.
+
 # MANUFACT — Private Client SEO Operator Workspace
 
 The SEO Engine now supports a single locally browsable entry point for two independent phases of an AI Site CMS customer project:

@@ -1,3 +1,5 @@
+LATEST 29.10.2026: practical first-site integrated workflow — FIRST-SITE-INTEGRATION-SESSION.md and LIVE-ACCEPTANCE-WORKFLOW.md. Added one-command private local/public/search sessions (original real localhost PHP checks, static public ZIP, source-pinned lead relay, original human ledger, private workspace, post-public manual device/form matrix). No automatic GO/PR/merge/deploy; actual client browser, POST, TLS and signoff pending lead. Isolated V8 syntax/contract checks only, not complete Node CI.
+
 > **АКТУАЛЬНАЯ ПЕРЕДАЧА 29.10.2026:** открой [SEO-WORKER-HANDOFF-2026-10-29.md](SEO-WORKER-HANDOFF-2026-10-29.md) прежде, чем пользоваться историческим текстом ниже. Новый контур: `verify-deployed-site.cjs` (public HTTPS / ZIP / owner sourceRevision / SHA256 / freshness / ручной signoff) и `compare-public-cdn.cjs` (один официальный релиз, два HTTPS/media snapshot, HTML/301/robots/cache drift). Границы: только `stage3/seo-engine/**`, ведущий делает merge/deploy; без ложного CI/клиентской приёмки. Большие заходы около 30 минут активной работы, следующий блок сразу после раннего завершения первого.
 
 # AI Site CMS — статический запуск первого сайта (29 октября 2026)

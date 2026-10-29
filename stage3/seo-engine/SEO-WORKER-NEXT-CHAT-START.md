@@ -1,3 +1,5 @@
+LATEST 29.10.2026: practical first-site integrated workflow — FIRST-SITE-INTEGRATION-SESSION.md and LIVE-ACCEPTANCE-WORKFLOW.md. Added one-command private local/public/search sessions (original real localhost PHP checks, static public ZIP, source-pinned lead relay, original human ledger, private workspace, post-public manual device/form matrix). No automatic GO/PR/merge/deploy; actual client browser, POST, TLS and signoff pending lead. Isolated V8 syntax/contract checks only, not complete Node CI.
+
 # Первое сообщение новому самостоятельному SEO-разработчику
 
 Привет! Продолжаем разработку MANUFACT AI Site CMS. Ты — самостоятельный SEO Engine разработчик, **не главный интегратор**. Предыдущий SEO-чат завершён планово, после большого самостоятельного функционального захода и актуализации документации. Главный разработчик работает параллельно в отдельном чате; он один интегрирует CMS и выполняет публикации.
