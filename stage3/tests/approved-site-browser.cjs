@@ -804,6 +804,23 @@ async function execute(){
   assert.match(reportHtml,/script-src 'sha256-/);
   assert.match(reportHtml,/connect-src 'none'/);
   assert.doesNotMatch(reportHtml,/onerror=|<script src=/i);
+  const captureVerify=spawnSync(process.execPath,
+    ['stage3/bin/verify-capture.cjs',evidenceDir,folder],{cwd:root,encoding:'utf8'});
+  assert.equal(captureVerify.status,0,captureVerify.stderr);
+  const verifyReport=JSON.parse(captureVerify.stdout);
+  assert.equal(verifyReport.valid,true);
+  assert.equal(verifyReport.copiedApprovedReferences,6);
+  assert.equal(verifyReport.visualApprovalEstablished,false);
+  const copiedShot=path.join(evidenceDir,interiorEvidence.screenshots.mobile.file);
+  const originalShot=fs.readFileSync(copiedShot);
+  fs.appendFileSync(copiedShot,Buffer.from('tamper'));
+  assert.notEqual(spawnSync(process.execPath,
+    ['stage3/bin/verify-capture.cjs',evidenceDir,folder],
+    {cwd:root,encoding:'utf8'}).status,0,'Modified screenshot cannot pass portable evidence verification');
+  fs.writeFileSync(copiedShot,originalShot);
+  assert.equal(spawnSync(process.execPath,
+    ['stage3/bin/verify-capture.cjs',evidenceDir,folder],
+    {cwd:root,encoding:'utf8'}).status,0,'Restored exact screenshot bytes pass verification');
   const offlineContext=await browser.newContext({acceptDownloads:true,viewport:{width:1440,height:950}});
   const offline=await offlineContext.newPage(),offlineErrors=[];
   offline.on('pageerror',err=>offlineErrors.push(err.message));
