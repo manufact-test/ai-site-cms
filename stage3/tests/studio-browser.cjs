@@ -801,6 +801,12 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       .dispatchEvent('change');
     assert.match(await page.locator('#cms-design-preview-frame').getAttribute('srcdoc'),
       /с фирменным акцентом/);
+    await page.locator('#cms-design-rich-text [data-rich-index="1"] [aria-label="Ссылка фрагмента 2"]')
+      .fill('/contact/');
+    await page.locator('#cms-design-rich-text [data-rich-index="1"] [aria-label="Ссылка фрагмента 2"]')
+      .dispatchEvent('change');
+    assert.match(await page.locator('#cms-design-preview-frame').getAttribute('srcdoc'),
+      /href="\/contact\/"/);
     await page.locator('#cms-design-rich-clear').click();
     assert.equal(await page.locator('#cms-design-rich-text [data-rich-index]').count(),0);
     assert.equal(await page.locator('#cms-design-undo').isDisabled(),false);
