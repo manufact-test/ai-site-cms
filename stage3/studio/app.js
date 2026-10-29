@@ -614,6 +614,31 @@
     document.querySelector('.cms-site-settings').append(trigger);
   }
 
+  // Pre-import static three-device previews must include the actual global
+  // footer, not only body sections. All values come from the typed contract.
+  function previewFooter(site){
+    const e=escapeHtml,f=site.footer;
+    if(!f)return '<footer>'+e(site.title)+'</footer>';
+    const pageById=new Map(site.pages.map(page=>[page.id,page]));
+    const legal=f.links.map(item=>'<li><a href="'+e(pageById.get(item.pageId).path)+'">'+
+      e(item.label)+'</a></li>').join('');
+    const socialNames={instagram:'Instagram',facebook:'Facebook',linkedin:'LinkedIn',
+      youtube:'YouTube',telegram:'Telegram',whatsapp:'WhatsApp',
+      tiktok:'TikTok',x:'X',github:'GitHub'};
+    const socials=f.socials.map(item=>'<li><a href="'+e(item.url)+
+      '" target="_blank" rel="noopener noreferrer nofollow">'+
+      e(socialNames[item.network])+'</a></li>').join('');
+    const email=f.email?'<a href="mailto:'+e(f.email)+'">'+e(f.email)+'</a>':'';
+    const phone=f.phone?'<a href="tel:'+e(f.phone.replace(/[^0-9+]/g,''))+'">'+
+      e(f.phone)+'</a>':'';
+    return '<style>.cms-preview-site-footer{background:var(--cms-surface);border-top:1px solid #dce5ee;padding:32px 24px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;overflow-wrap:anywhere}.cms-preview-site-footer p{white-space:pre-line}.cms-preview-site-footer ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:12px}.cms-preview-site-footer address{display:grid;gap:8px;font-style:normal}.cms-preview-site-footer small{grid-column:1/-1}@media(max-width:650px){.cms-preview-site-footer{grid-template-columns:1fr}}</style>'+
+      '<footer class="cms-preview-site-footer"><div><strong>'+e(site.title)+'</strong>'+
+      (f.description?'<p>'+e(f.description)+'</p>':'')+'</div>'+
+      '<div>'+(legal?'<nav aria-label="Footer navigation"><ul>'+legal+'</ul></nav>':'')+
+      (socials?'<nav aria-label="Social media"><ul>'+socials+'</ul></nav>':'')+'</div>'+
+      '<address>'+email+phone+'</address><small>© '+e(site.title)+'</small></footer>';
+  }
+
   // A single Undo-able menu editor, independent of the selected component.
   // All relationships reference immutable page IDs, not URLs.
   function initMenuEditor(){
@@ -5669,7 +5694,7 @@
             '<details class="cms-menu-mobile"><summary>Меню</summary><nav>'+common+'</nav></details>')+
           '</header>';
         const root=first.slice(0,start).replace('<html lang="ru">','<html lang="'+escapeHtml(checked.language||'ru')+'">');
-        return root+navigation+docs.map((doc,i)=>'<div class="cms-preview-bound-section" data-cms-section-id="'+escapeHtml(page.sections[i].id)+'">'+doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))+'</div>').join('')+first.slice(end);
+        return root+navigation+docs.map((doc,i)=>'<div class="cms-preview-bound-section" data-cms-section-id="'+escapeHtml(page.sections[i].id)+'">'+doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))+'</div>').join('')+previewFooter(checked)+first.slice(end);
       }finally{session=prior;previewAssetSources=priorSources;}
     },
     applyComposition:site=>{
