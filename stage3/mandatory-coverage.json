@@ -1816,7 +1816,7 @@
         "stage3/runtime-export/bin/build.cjs",
         "stage3/runtime-export/templates/php/index.php"
       ],
-      "nextCheck": "Partial: hosted Studio and published PHP HTML now use gzip/representation-specific ETag and revalidation, hosted sitemap/robots content ETag/304; independent PHP page 304 and MP4 range seeking also available. Requires owner-approved actual host/Core Web Vitals and measured transfer size before acceptance."
+      "nextCheck": "Partial: published PHP and Studio conditional gzip/ETags; independent PHP now gzip-compresses visitor HTML and CSS with representation-safe ETags, Vary and 304. All new independent HTML/PHP/Next releases share one content-addressed site CSS instead of repeating large base rules on each page. Need approved real host/Core Web Vitals, transfer and LCP measurements."
     },
     {
       "id": 190,
@@ -1861,7 +1861,7 @@
         "stage3/server/Api.php",
         "stage3/tests/server-e2e.cjs"
       ],
-      "nextCheck": "Partial: optional PHP gzip on hosted public pages, lightweight Studio static compression/revalidation, and full vs compact PHP-host package profiles. Real independent customer-host package footprint and Core Web Vitals still require owner-authorized measurement."
+      "nextCheck": "Partial: dependency-light full/compact CMS engine profiles and self-contained independent PHP, plus one SHA256 cached base CSS asset for multipage HTML/PHP/Next exports, audited in ZIP preflight. Real customer host file and package footprint and capability acceptance pending."
     }
   ]
 }

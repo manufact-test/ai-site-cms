@@ -83,6 +83,22 @@ function inspect(file){
   for(const a of publication.assets)
     if(!entries.has((meta.technology==='php'?'deploy/data/':meta.technology==='next-ssr'?'deploy/data/':'deploy/')+a.file))
       die('published media missing: '+a.file);
+  for(const style of publication.stylesheets??[]){
+    if(!style||typeof style.file!=='string'||typeof style.sha256!=='string'
+      ||!/^[a-f0-9]{64}$/.test(style.sha256)
+      ||style.file!=='styles/site-'+style.sha256+'.css')
+      die('unsafe stylesheet provenance');
+    const prefix=meta.technology==='php'||meta.technology==='next-ssr'?'deploy/data/':'deploy/';
+    const bytes=entries.get(prefix+style.file);
+    if(!bytes||zip.hash(bytes)!==style.sha256)
+      die('published immutable CSS missing or mismatched: '+style.file);
+    if(meta.technology.startsWith('next-')){
+      const publicCss=entries.get(meta.technology==='next-ssr'?
+        'deploy/public/'+style.file:'deploy/'+style.file);
+      if(!publicCss||zip.hash(publicCss)!==style.sha256)
+        die('Next visitor CSS not published: '+style.file);
+    }
+  }
   return {sha256:zip.hash(raw),format:meta.format,technology:meta.technology,
     siteId:meta.siteId,publishedVersion:meta.publishedVersion,
     readiness:meta.readiness,files:entries.size,bytes:raw.length,

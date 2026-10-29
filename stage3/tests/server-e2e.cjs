@@ -359,6 +359,16 @@ async function stop(){
   const oldManifest=JSON.parse(fs.readFileSync(path.join(exportedOldHtml,'release-manifest.json'),'utf8'));
   assert.equal(oldManifest.publishedVersion,1);
   assert.equal(oldManifest.sourceRevision,2);
+  assert.equal(oldManifest.stylesheets.length,1,'One cached base CSS for every page');
+  const oldStyle=oldManifest.stylesheets[0];
+  const originalCss=fs.readFileSync(path.join(exportedOldHtml,oldStyle.file),'utf8');
+  assert.equal(hash(Buffer.from(originalCss)),oldStyle.sha256);
+  assert.ok(originalCss.includes('body{margin:0'));
+  for(const page of oldManifest.pages){
+    const html=fs.readFileSync(path.join(exportedOldHtml,page.file),'utf8');
+    assert.match(html,new RegExp('href="/'+oldStyle.file.replaceAll('.','\\.')+'"'));
+    assert.ok(!html.includes('body{margin:0'),'Global CSS not duplicated into each published HTML page');
+  }
   for(const technology of ['php','next-static','next-ssr']){
     const out=path.join(dbdir,'historical-v1-'+technology);
     const generated=spawnSync('node',['stage3/runtime-export/bin/build-handoff.cjs',
@@ -2535,6 +2545,12 @@ async function stop(){
     assert.equal(previous.status,301);assert.equal(previous.headers.get('location'),'/get-in-touch/');
     assert.equal((await fetch(base+'/release-manifest.json')).status,404);
     assert.equal((await fetch(base+'/data/release-manifest.json')).status,404);
+    const css=await fetch(base+'/'+urlManifest.stylesheets[0].file);
+    assert.equal(css.status,200,'Independent PHP CSS route works');
+    assert.match(css.headers.get('cache-control'),/immutable/);
+    assert.equal(hash(Buffer.from(await css.arrayBuffer())),urlManifest.stylesheets[0].sha256);
+    assert.equal((await fetch(base+'/'+urlManifest.stylesheets[0].file,
+      {headers:{'If-None-Match':css.headers.get('etag')}})).status,304);
     assert.equal((await fetch(base+'/sitemap.xml')).status,200);
     assert.equal((await fetch(base+'/get-in-touch/',{method:'POST'})).status,405);
   } finally {
@@ -2771,6 +2787,13 @@ async function stop(){
   assert.equal(manifest.publishedVersion,4);
   assert.equal(manifest.sourceRevision,7);
   assert.deepEqual(manifest.pages.map(p=>p.path),['/','/contact/']);
+  assert.equal(manifest.stylesheets.length,1);
+  const shared=manifest.stylesheets[0];
+  assert.equal(hash(fs.readFileSync(path.join(out,shared.file))),shared.sha256);
+  for(const page of manifest.pages)
+    assert.ok(fs.readFileSync(path.join(out,page.file),'utf8')
+      .includes('rel="stylesheet" href="/'+shared.file+'"'));
+
   assert.equal(manifest.formCollector,origin);
   const contactPage=fs.readFileSync(path.join(out,'contact','index.html'),'utf8');
   assert.ok(contactPage.includes('action="'+origin+'/forms/'));

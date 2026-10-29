@@ -33,6 +33,7 @@ function localStaticServer(entries,pub){
   const pages=new Map(pub.pages.map(p=>[p.path,p.file]));
   const assets=new Map(pub.assets.map(a=>['/'+a.file,a]));
   const files=pub.searchFiles??{};
+  const styles=new Map((pub.stylesheets??[]).map(x=>['/'+x.file,x]));
   const mime={png:'image/png',jpg:'image/jpeg',webp:'image/webp',mp4:'video/mp4',
     ico:'image/x-icon',svg:'image/svg+xml'};
   return http.createServer((req,res)=>{
@@ -54,6 +55,8 @@ function localStaticServer(entries,pub){
     else if(assets.has(pathname)){
       file=pathname.slice(1);
       type=assets.get(pathname).mime??mime[path.extname(file).slice(1)]??'application/octet-stream';
+    }else if(styles.has(pathname)){
+      file=pathname.slice(1);type='text/css; charset=utf-8';
     }else if(pathname==='/robots.txt'||pathname==='/sitemap.xml'){
       file=pathname.slice(1);
       if(!Object.hasOwn(files,file))file=null;
@@ -150,6 +153,22 @@ async function main(){
       const res=await request(redirect.from);
       check('301 '+redirect.from,res.status===301&&res.headers.get('location')===redirect.to,
         'status '+res.status+'; location='+res.headers.get('location'));
+    }
+    for(const style of pub.stylesheets??[]){
+      const res=await request('/'+style.file);
+      const bytes=Buffer.from(await res.arrayBuffer());
+      const checksum=crypto.createHash('sha256').update(bytes).digest('hex');
+      check('CSS /'+style.file,res.status===200&&checksum===style.sha256,
+        'status '+res.status+'; shared immutable CSS SHA256='+checksum);
+      const head=await request('/'+style.file,'HEAD');
+      check('CSS HEAD /'+style.file,head.status===200&&
+        Buffer.from(await head.arrayBuffer()).length===0,
+        'status '+head.status+'; no response body');
+      if(info.technology==='php'){
+        check('CSS CACHE /'+style.file,/immutable/.test(res.headers.get('cache-control')||'')&&
+          res.headers.get('etag')!==null,
+          'Immutable CSS caching and strong validator');
+      }
     }
     for(const media of pub.assets){
       const res=await request('/'+media.file);

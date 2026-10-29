@@ -122,6 +122,19 @@ function audit(zipFile,expectedOrigin=null){
     add('blocker','APACHE_RULES_MISSING','Missing generated Apache routing rules');
   if(m.technology==='php'&&archive.has('deploy/public/release-manifest.json'))
     add('blocker','PRIVATE_SNAPSHOT_EXPOSED','Private published manifest exposed in public directory');
+  let sharedCssBytes=0,sharedCssFileCount=0;
+  for(const style of pub.stylesheets??[]){
+    const relative=m.technology==='php'||m.technology==='next-ssr'?'deploy/data/':'deploy/';
+    const bytes=archive.get(relative+style.file);
+    if(!bytes||hash(bytes)!==style.sha256){
+      add('blocker','SHARED_CSS_INVALID','Immutable shared CSS file missing or altered');continue;
+    }
+    sharedCssBytes+=bytes.length;sharedCssFileCount++;
+  }
+  const publishedHtmlBytes=pub.pages.reduce((sum,p)=>{
+    const dir=m.technology==='php'||m.technology==='next-ssr'?'deploy/data/':'deploy/';
+    return sum+(archive.get(dir+p.file)?.length??0);
+  },0);
   const counts={blockers:findings.filter(x=>x.severity==='blocker').length,
     warnings:findings.filter(x=>x.severity==='warning').length,
     manual:findings.filter(x=>x.severity==='manual').length};
@@ -130,7 +143,9 @@ function audit(zipFile,expectedOrigin=null){
     technology:m.technology,zipSha256:verified.sha256,
     readiness:counts.blockers?'blocked':'requires-operator-approval',
     counts,stats:{pages:pagesSeen,forms:formsSeen,links:linksSeen,externalLinks,mediaReferences,
-      files:verified.files,zipBytes:verified.bytes,redirects:verified.redirects},
+      files:verified.files,zipBytes:verified.bytes,redirects:verified.redirects,
+      sharedCssFileCount,sharedCssBytes,publishedHtmlBytes,
+      repeatedInlineCssBytesAvoided:Math.max(0,pub.pages.length-1)*sharedCssBytes},
     expectedOrigin,publicOrigin:m.publicOrigin??null,
     findings:findings.slice(0,500),findingsTruncated:findings.length>500,
     notice:'Offline integrity and published-HTML audit only; no actual host, TLS, email, forms or production deployment verified.'};
