@@ -177,7 +177,9 @@
     const dlg=document.createElement('dialog');dlg.className='cms-settings-dialog';dlg.id='cms-settings-dialog';
     const header=document.createElement('h2'),tip=document.createElement('small'),grid=document.createElement('div');
     grid.className='cms-settings-grid';const actions=document.createElement('div');actions.className='cms-settings-actions';
-    const fields={},themeKeys=['background','surface','text','primary','font','font-body','font-heading','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText'],globalKeys=[...themeKeys,'language'];
+    const fields={},themeKeys=['background','surface','text','primary','font','font-body','font-heading','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText'],
+      brandKeys=['brand-logo','brand-mobile','brand-favicon','brand-width'],
+      globalKeys=[...themeKeys,...brandKeys,'language'];
     const metaKeys=['seo-title','seo-description','seo-robots','seo-og-title','seo-og-description','seo-og-image','nav-label','nav-hidden'];
     const add=(name,labelText,type='text',max)=>{
       const wrap=document.createElement('label');wrap.textContent=labelText;
@@ -187,6 +189,33 @@
       wrap.append(control);grid.append(wrap);fields[name]=control;return control;
     };
     for(const [name,label] of [['background','Фон страниц'],['surface','Фон карточек'],['text','Цвет текста'],['primary','Цвет кнопок']])add(name,label,'color');
+    add('brand-logo','Логотип в шапке сайта (PNG/JPEG/WebP)','select');
+    add('brand-mobile','Отдельный логотип для телефона','select');
+    add('brand-favicon','Favicon для вкладки браузера (PNG)','select');
+    const brandWidth=add('brand-width','Ширина логотипа (48–320 px)','number');
+    brandWidth.min='48';brandWidth.max='320';brandWidth.step='1';
+    const refreshBrandAssets=()=>{
+      const current={
+        'brand-logo':fields['brand-logo'].value,
+        'brand-mobile':fields['brand-mobile'].value,
+        'brand-favicon':fields['brand-favicon'].value
+      };
+      for(const [key,title] of [['brand-logo','Текстовое название сайта'],
+        ['brand-mobile','Использовать основной логотип'],
+        ['brand-favicon','Без favicon']]){
+        const field=fields[key];field.replaceChildren();
+        const empty=document.createElement('option');empty.value='';
+        empty.textContent=title;field.append(empty);
+        for(const asset of session.current.assets){
+          if(!['image/png','image/jpeg','image/webp'].includes(asset.mime)||
+            (key==='brand-favicon'&&asset.mime!=='image/png'))continue;
+          const opt=document.createElement('option');
+          opt.value=asset.id;opt.textContent=(asset.alt||asset.id)+' · '+asset.mime;
+          field.append(opt);
+        }
+        field.value=current[key]||'';
+      }
+    };
     const font=add('font','Шрифт сайта','select');
     for(const [value,text] of [['system','Системный'],['arial','Arial'],['georgia','Georgia']]){
       const option=document.createElement('option');option.value=value;option.textContent=text;font.append(option);
@@ -248,6 +277,30 @@
     add('nav-label','Название в меню (необязательно)','text',100);
     add('nav-hidden','Скрыть из меню','checkbox');
     let mode='theme',chosenPage=null;
+    const brandPreview=document.createElement('section');
+    brandPreview.id='cms-branding-preview';
+    brandPreview.style.cssText='display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:12px 0';
+    const renderBrandPreview=()=>{
+      brandPreview.replaceChildren();
+      for(const [key,label] of [['brand-logo','ПК'],['brand-mobile','Телефон'],['brand-favicon','Favicon']]){
+        const id=fields[key].value;
+        const asset=session.current.assets.find(x=>x.id===id);
+        if(!asset)continue;
+        const preview=document.createElement('figure');
+        preview.style.cssText='margin:0;display:grid;gap:6px;min-width:72px;max-width:210px';
+        const image=document.createElement('img');
+        image.alt=asset.alt||label;
+        const src=HOSTED?'/api/sites/'+encodeURIComponent(session.current.siteId)+'/media/'+encodeURIComponent(id):
+          /^data:image\/(?:png|jpeg|webp);base64,/.test(asset.src)?asset.src:'';
+        if(src)image.src=src;
+        image.style.cssText='max-width:180px;max-height:65px;object-fit:contain';
+        const caption=document.createElement('figcaption');
+        caption.textContent=label+' · '+(asset.alt||id);
+        preview.append(image,caption);brandPreview.append(preview);
+      }
+    };
+    for(const key of ['brand-logo','brand-mobile','brand-favicon'])
+      fields[key].addEventListener('change',renderBrandPreview);
     const seoPreview=document.createElement('section');
     seoPreview.className='cms-seo-preview';seoPreview.id='cms-seo-preview';seoPreview.hidden=true;
     const seoPreviewHeading=document.createElement('h3');seoPreviewHeading.textContent='Предпросмотр поисковой выдачи и соцсетей';
@@ -347,12 +400,20 @@
       grid.querySelectorAll('label').forEach(n=>n.hidden=true);
       for(const key of (kind==='theme'?globalKeys:metaKeys))fields[key].parentElement.hidden=false;
       seoPreview.hidden=kind!=='seo';
+      brandPreview.hidden=kind!=='theme';
       if(kind==='theme'){
         const t={...C.DEFAULT_THEME,...session.current.theme};
         refreshFonts();
         for(const key of themeKeys.filter(key=>!key.startsWith('font-')))fields[key].value=t[key];
         fields['font-body'].value=t.fontFiles?.body||'';
         fields['font-heading'].value=t.fontFiles?.heading||'';
+        refreshBrandAssets();
+        const brand=session.current.branding||{};
+        fields['brand-logo'].value=brand.logoAssetId||'';
+        fields['brand-mobile'].value=brand.mobileLogoAssetId||'';
+        fields['brand-favicon'].value=brand.faviconAssetId||'';
+        fields['brand-width'].value=brand.logoWidth??154;
+        renderBrandPreview();
         fields.language.value=session.current.language||'ru';
       }else{
         const p=current().page,seo=p.seo||{},nav=p.navigation||{};
@@ -382,6 +443,11 @@
           if(fields['font-body'].value)fontFiles.body=fields['font-body'].value;
           if(fields['font-heading'].value)fontFiles.heading=fields['font-heading'].value;
           if(Object.keys(fontFiles).length)site.theme.fontFiles=fontFiles;
+          const branding={logoWidth:Number(fields['brand-width'].value)};
+          if(fields['brand-logo'].value)branding.logoAssetId=fields['brand-logo'].value;
+          if(fields['brand-mobile'].value)branding.mobileLogoAssetId=fields['brand-mobile'].value;
+          if(fields['brand-favicon'].value)branding.faviconAssetId=fields['brand-favicon'].value;
+          site.branding=branding;
           site.language=fields.language.value;
         }else{
           const p=site.pages.find(p=>p.id===chosenPage);
@@ -396,7 +462,7 @@
     };
     const ok=button('Применить к черновику','btn primary',apply);ok.id='cms-settings-apply';
     const close=button('Закрыть','btn',()=>dlg.close());close.id='cms-settings-close';
-    actions.append(ok,close);dlg.append(header,tip,grid,seoPreview,actions);document.body.append(dlg);
+    actions.append(ok,close);dlg.append(header,tip,grid,brandPreview,seoPreview,actions);document.body.append(dlg);
     const tools=document.createElement('div');tools.className='structure-tools cms-site-settings';
     const theme=button('Стили и язык сайта','btn small',()=>open('theme'));theme.id='cms-open-theme';
     const seo=button('SEO и меню','btn small',()=>open('seo'));seo.id='cms-open-seo';
