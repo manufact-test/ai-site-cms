@@ -1523,6 +1523,18 @@
       }
       wrap.append(element('strong',null,lead.name+' · '+lead.email));
       wrap.append(element('small',null,lead.submitted_at+' · '+lead.status));
+      const channelStates=lead.delivery||{};
+      const deliveryNames={accepted:'Принято транспортом (не подтверждено получателем)',
+        failed:'Ошибка отправки',configuration_required:'Требуется настройка',
+        uncertain:'Результат неизвестен',pending:'В очереди',
+        sending:'Отправляется',disabled:'Выключено'};
+      const statuses=[['email','Email'],['telegram','Telegram']]
+        .filter(([key])=>typeof channelStates[key]==='string')
+        .map(([key,name])=>name+': '+(deliveryNames[channelStates[key]]||'Неизвестный статус'));
+      const deliveryLine=element('small','hosted-lead-delivery',
+        statuses.length?statuses.join(' · '):'Внешние уведомления не создавались · заявка сохранена в CMS');
+      deliveryLine.setAttribute('aria-label','Статус доставки уведомлений по заявке');
+      wrap.append(deliveryLine);
       wrap.append(element('p',null,lead.message));
       if(lead.extras){
         for(const field of Object.values(lead.extras)){
