@@ -1403,7 +1403,7 @@
       row.append(element('small',null,item.submissionId+' · попыток: '+item.attempts+' · '+item.updatedAt+
         (item.lastError?' · '+item.lastError:'')));
       if(isOwner()&&['pending','failed','configuration_required','uncertain'].includes(item.state)){
-        const retrySingle=action('Повторить только эту доставку',null,()=>safe(async()=>{
+        const retrySingle=action('Повторить только эту доставку','server-delivery-retry-one-'+item.id,()=>safe(async()=>{
           const siteId=state.siteId;
           const reason=deliveryReason.value.trim();
           if(!siteId||!reason)throw Error('Укажите причину повтора в настройках уведомлений');
