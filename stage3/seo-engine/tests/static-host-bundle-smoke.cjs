@@ -6,9 +6,11 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),
  path=require('node:path'),crypto=require('node:crypto'),
  os=require('node:os'),vm=require('node:vm');
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+const PREVIEW=require('../lib/static-host-preview.cjs');
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'cms-seo-static-stage-'));
 try{
- const source=path.join(root,'official'),site={siteId:'pilot',pages:[{path:'/'},{path:'/about/'}]};
+ const source=path.join(root,'official'),site={siteId:'pilot',language:'en',
+  pages:[{path:'/'},{path:'/about/'}],redirects:[{from:'/old/',to:'/about/'}]};
  fs.mkdirSync(source);
  const inputs={
   'index.html':'<!doctype html><html><body><main>Home</main></body></html>',
@@ -67,12 +69,24 @@ try{
  const ledger=JSON.parse(fs.readFileSync(path.join(output,'upload-inventory.json'),'utf8'));
  assert.equal(ledger.sourceManifestIncludedInPublicRoot,false);
  assert.equal(ledger.filesVerified,9);
+ const preview=PREVIEW.load(output);
+ assert.equal(PREVIEW.route(preview,'GET','/').status,200);
+ assert.equal(PREVIEW.route(preview,'GET','/about/').status,200);
+ assert.equal(PREVIEW.route(preview,'HEAD','/robots.txt').status,200);
+ assert.equal(PREVIEW.route(preview,'GET','/old/').status,301);
+ assert.equal(PREVIEW.route(preview,'GET','/old/').headers.Location,'/about/');
+ assert.equal(PREVIEW.route(preview,'GET','/absent/').status,404);
+ assert.equal(PREVIEW.route(preview,'GET','/release-manifest.json').status,404);
+ assert.equal(PREVIEW.route(preview,'POST','/').status,405);
+ assert.equal(preview.liveRewriteVerified,false);
  assert.throws(()=>B.prepare(site,release,source,output,'cloudflare-pages'),/overwrite/);
  assert.throws(()=>B.inventory(site,release,source,'unsupported'),/supported provider/);
  const second=path.join(root,'nginx-out');
  B.prepare(site,release,source,second,'nginx');
  assert.ok(fs.existsSync(path.join(second,'nginx-redirects.conf')));
  assert.ok(!fs.existsSync(path.join(second,'public','_redirects')));
+ fs.appendFileSync(path.join(output,'public','about','index.html'),'corrupted');
+ assert.throws(()=>PREVIEW.load(output),/changed or escaped/);
  fs.appendFileSync(path.join(source,'assets/logo.webp'),'tamper');
  assert.throws(()=>B.inventory(site,release,source,'apache'),/changed since SHA256/);
  console.log('Static upload: copy root/aliases/assets/search; host redirects; strip private manifest; SHA256 anti-tamper PASS');
