@@ -209,7 +209,7 @@ final class ContractValidator
     }
     public function validate(mixed $site): array
     {
-        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu', 'designTokens', 'language']);
+        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu', 'designTokens', 'language', 'branding']);
         DesignGraph::tokens($site['designTokens']??null);
         if (array_key_exists('menu',$site)) self::menu($site['menu']);
         if (array_key_exists('theme',$site)) self::theme($site['theme']);
@@ -258,6 +258,24 @@ final class ContractValidator
                     $ids[$variant['id']] = true; $widths[$variant['width']] = true;
                 }
             }
+        }
+        if(array_key_exists('branding',$site)){
+            $branding=$site['branding'];
+            self::keys($branding,['logoAssetId','mobileLogoAssetId','faviconAssetId','logoWidth']);
+            foreach(['logoAssetId','mobileLogoAssetId','faviconAssetId'] as $key){
+                if(!array_key_exists($key,$branding))continue;
+                $id=$branding[$key];
+                self::must(is_string($id)&&($id===''||
+                    in_array($assets[$id]??null,['image/png','image/jpeg','image/webp'],true)),
+                    'Brand must use existing raster media');
+                if($key==='faviconAssetId'&&$id!=='')
+                    self::must(($assets[$id]??null)==='image/png','Favicon must be PNG');
+            }
+            self::must(empty($branding['mobileLogoAssetId'])||!empty($branding['logoAssetId']),
+                'Mobile logo requires desktop logo');
+            if(array_key_exists('logoWidth',$branding))
+                self::must(is_int($branding['logoWidth'])&&$branding['logoWidth']>=48&&$branding['logoWidth']<=320,
+                    'Invalid site logo width');
         }
         if (isset($site['theme']['fontFiles'])) {
             $faces=$site['theme']['fontFiles'];
