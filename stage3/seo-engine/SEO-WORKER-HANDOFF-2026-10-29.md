@@ -115,3 +115,9 @@ node stage3/seo-engine/bin/prepare-first-site.cjs \
 - Не трогать ничего за пределами `stage3/seo-engine/**`; PR/merge/deploy разрешены только ведущему. Никаких постоянных просьб к пользователю выбрать следующий шаг.
 
 Это историческая передача отдельного worker; актуальный SHA всегда подтверждается live GitHub, потому что интегратор работает параллельно.
+
+## 7. Последние технические замечания к передаче
+
+- В `verify-deployed-site.cjs` перечитываются и сверяются SHA256 **всех** важных исходных файлов до и после анализа: owner published record, sealed handoff, official manifest, первая `CANDIDATE-STATUS.json`, `seo-report/summary.json`, `static-upload/upload-inventory.json`, полный `public-site.zip`, при обновлении upgrade impact + rollback ZIP, и публичные JSON. Для 190 MB ZIP SHA256 читается чанками 1 MiB. Это обнаруживает обычные race/подмены файлов между началом и концом read-only проверки, но не криптографическая подпись и не полная атомарность хостинга.
+- В текущей активной ветке ведущего к 29.10 появились правки `stage3/server/PublicRenderer.php` (в том числе адаптивная галерея), `stage3/runtime-export/**`, `stage3/docs/APPROVED-SITE-PACKAGE.md`. На момент последнего прочтения SEO `publisher-media.cjs` покрывает legacy `content.media` и вложенные DesignGraph image nodes, как и текущий PHP fallback, но **после интеграции необходим настоящий Node+PHP smoke** с новыми section templates, вместо предположения о полном соответствии.
+- Для новых `bin/verify-deployed-site.cjs` и `bin/compare-public-cdn.cjs` нового PR/Actions на worker commit нет; проверены CJS syntax и выборочные actual-code V8 scenarios, а не весь репозиторий. Ведущий должен запускать указанные Node smoke после интеграции.
