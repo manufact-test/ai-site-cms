@@ -29,11 +29,12 @@ const report={format:'manufact-seo-first-site-live-acceptance-review-v1',
   realFormOccurrencesExpected:1,operatorFormPostReceipts:0,
   passedFormReceipts:0,failedFormReceipts:0,operatorFormInventorySigned:false,
   missingFormPages:[{page:'/contact/',expected:1,passed:0}],
-  perPageFormReceipts:{}}};
+  perPageFormReceipts:{},perFormChecks:[{page:'/contact/',sectionId:'contact-lead',state:'missing'}]}};
 const bundle={format:'manufact-seo-review-bundle-v1',readOnly:true,siteId:site,
  approvedSiteSource:{fileSha256:source},
  localPhpForms:{format:'manufact-seo-local-php-forms-v1',observedForms:1,
-  pages:[{path:'/',actualForms:0},{path:'/contact/',actualForms:1}]}};
+  pages:[{path:'/',actualForms:0,formInstances:[]},
+   {path:'/contact/',actualForms:1,formInstances:[{sectionId:'contact-lead'}]}]}};
 const data={firstSite:{summary,bundle,postDeploy:post,summarySha,postDeploySha:postSha},
  liveAcceptance:{report,contract,contractSha}};
 const w=WORK.build(data);
@@ -61,9 +62,14 @@ assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
 const fakeSuccess={...report,status:'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION',
  checks:{...report.checks,pending:0,passed:10,operatorFormPostReceipts:1,
   passedFormReceipts:1,operatorFormInventorySigned:true,
-  missingFormPages:[],perPageFormReceipts:{'/contact/':1}}};
+  missingFormPages:[],perPageFormReceipts:{'/contact/':1},
+  perFormChecks:[{page:'/contact/',sectionId:'contact-lead',state:'passed'}]}};
 assert(WORK.build({...data,liveAcceptance:{...data.liveAcceptance,report:fakeSuccess}})
  .humanHtml.includes('REQUIRES-OWNER-AUTHORIZATION'));
+assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
+ report:{...fakeSuccess,checks:{...fakeSuccess.checks,
+  perFormChecks:[{page:'/contact/',sectionId:'fake-section',state:'passed'}]}}}}),
+ /unknown, duplicate or invalid/);
 assert.throws(()=>WORK.build({...data,firstSite:{...data.firstSite,
  postDeploy:{...post,disposition:'NOT-READY',postDeployBlockingReasons:[{code:'bad'}]},
  },liveAcceptance:{...data.liveAcceptance,report:fakeSuccess}}),/different release/);

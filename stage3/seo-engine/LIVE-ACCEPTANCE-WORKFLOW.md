@@ -1,3 +1,9 @@
+## 29 October 2026 — exact PHP form-instance acceptance
+
+The original PHP audit `bundle.json.localPhpForms.pages[].formInstances` now contains **only** the Site v1 sectionId for each verified lead form observed in the page's actual local PHP HTML, never POST data, HMAC markers, recipients or private tokens. Human operator templates include `required.formRefsByPage` (route → exact section IDs). Each `formTests[].formRef` MUST equal the original sectionId on that route. Fabricated references no longer count; unidentifiable, duplicated, extra or missing PHP form instances require repair and recapture before creating a human template.
+
+The private review emits `checks.perFormChecks` with passed/failed/missing for **every** form and the local HTML workspace shows individual missing sections; aggregate form counts cannot substitute another form. Legacy private evidence without these section identities must be regenerated. No automatic browser, authorized POST, inbox/delivery verification, release, deploy, client approval or CMS modification is performed. The lead must independently authenticate all real-world receipts and get client approval.
+
 ## Final worker handoff update — 29 October 2026
 
 **New actual client-acceptance functionality:** The original local PHP audit `seo-report/bundle.json -> localPhpForms.pages` now controls the mandatory number of **real form POST receipts per public page**, not just a site-wide total. The private human acceptance template pins the PHP bundle SHA256, identifies form expectations per route and rejects receipts on pages where no form was observed, duplicated route+form IDs, and excess receipts. The private `human.html` workspace displays each source-bound page's actual confirmed/expected receipt count and refuses manipulated totals. An all-pass operator attestation still does **not** prove real client signature or grant deployment authorization.

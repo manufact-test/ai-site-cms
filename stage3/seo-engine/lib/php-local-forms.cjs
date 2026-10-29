@@ -42,12 +42,14 @@ function review(site,snapshot,publishedVersion=null){
   const page=site.pages.find(p=>p.id===observed.id&&p.path===observed.path);
   if(!page)throw Error('PHP form page identity mismatch');
   const expected=page.sections.filter(s=>!s.designGraph&&['lead-form','lead-form-flex'].includes(s.component));
-  const actual=forms(observed.html);let checked=0;
+  const actual=forms(observed.html);let checked=0,formInstances=[];
   if(actual.length!==expected.length)add(page,null,'count-drift','Published form count differs from sealed Site v1.');
   for(const section of expected){
    const found=sectionForms(observed.html,section.id);
    if(found.length!==1){add(page,section.id,'markup-drift','Published section has no unique lead form.');continue;}
    checked++;
+   // Store only the verified Site v1 section identity, never field values or tokens.
+   formInstances.push(Object.freeze({sectionId:section.id}));
    const form=found[0],a=form.attrs,of=name=>form.inputs.filter(x=>x.name===name);
    if(a.method?.toLowerCase()!=='post'||a['accept-charset']?.toLowerCase()!=='utf-8')
     add(page,section.id,'method-encoding','Lead form must submit POST UTF-8.');
@@ -122,7 +124,9 @@ function review(site,snapshot,publishedVersion=null){
      add(page,section.id,'step-navigation-drift','Published step navigation or progress status is incomplete.');
    }
   }
-  pages.push(Object.freeze({pageId:page.id,path:page.path,expectedForms:expected.length,actualForms:actual.length,checkedFormSections:checked}));
+  pages.push(Object.freeze({pageId:page.id,path:page.path,expectedForms:expected.length,
+   actualForms:actual.length,checkedFormSections:checked,
+   formInstances:Object.freeze(formInstances)}));
  }
  if(publishedVersion!==null&&(!Number.isSafeInteger(publishedVersion)||publishedVersion<1))
   throw Error('Invalid expected published form version');

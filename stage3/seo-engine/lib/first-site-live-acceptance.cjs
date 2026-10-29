@@ -81,26 +81,36 @@ function inputs(contract,upload,post,summary,hashes,bundle){
   (forms.consistentRelease===null||forms.consistentRelease===summary.publishedVersion)&&
   forms.actualPostPerformed===false&&forms.deliveriesProven===false,
   'actual PHP per-page form inventory differs from original published technical summary');
- const byPage=new Map();
+ const byPage=new Map(),refsByPage=new Map();
  for(const p of forms.pages){
   requireThat(p&&pages.includes(p.path)&&!byPage.has(p.path)&&
    Number.isSafeInteger(p.actualForms)&&p.actualForms>=0&&p.actualForms<=40&&
    Number.isSafeInteger(p.expectedForms)&&p.expectedForms>=0&&p.expectedForms<=40&&
    Number.isSafeInteger(p.checkedFormSections)&&p.checkedFormSections>=0,
    'local PHP form inventory contains an invalid or duplicated public route');
+  // A count cannot authenticate WHICH of multiple forms the operator checked.
+  // Require that every observed HTML form has a unique, source-bound section ID.
+  requireThat(p.expectedForms===p.actualForms&&p.checkedFormSections===p.actualForms&&
+   Array.isArray(p.formInstances)&&p.formInstances.length===p.actualForms&&
+   p.formInstances.every(x=>x&&typeof x.sectionId==='string'&&
+    /^[a-z][a-z0-9-]{2,79}$/.test(x.sectionId))&&
+   new Set(p.formInstances.map(x=>x.sectionId)).size===p.actualForms,
+   'PHP lead form identities are incomplete, duplicated or differ from the observed page; fix technical drift first');
   byPage.set(p.path,p.actualForms);
+  refsByPage.set(p.path,p.formInstances.map(x=>x.sectionId).sort());
  }
  requireThat([...byPage.values()].reduce((a,n)=>a+n,0)===forms.observedForms,
   'actual PHP per-page form totals differ from aggregate report');
  return {pages,formOccurrences:summary.forms.markupObserved,
-  formOccurrencesByPage:Object.fromEntries([...byPage].sort(([a],[b])=>a.localeCompare(b)))};
+  formOccurrencesByPage:Object.fromEntries([...byPage].sort(([a],[b])=>a.localeCompare(b))),
+  formRefsByPage:Object.fromEntries([...refsByPage].sort(([a],[b])=>a.localeCompare(b)))};
 }
 function task(id,kind,page,viewport,label){
  return {id,kind,page,viewport,label,state:'unreviewed',
   observedAt:null,checkedBy:'',evidenceRef:'',notes:''};
 }
 function template(contract,upload,post,summary,hashes,bundle){
- const {pages,formOccurrences,formOccurrencesByPage}=
+ const {pages,formOccurrences,formOccurrencesByPage,formRefsByPage}=
   inputs(contract,upload,post,summary,hashes,bundle);
  const tasks=[];
  for(const page of pages)for(const viewport of ['desktop','tablet','mobile'])
@@ -119,10 +129,11 @@ function template(contract,upload,post,summary,hashes,bundle){
    observedPublicHttpsHostClaim:post.publishedHost},
   required:{pages,viewports:['desktop','tablet','mobile'],
    browserChecks:pages.length*3,manualChecks:HOST_CHECKS.length,
-   observedPhpFormOccurrences:formOccurrences,formOccurrencesByPage},
+   observedPhpFormOccurrences:formOccurrences,formOccurrencesByPage,formRefsByPage},
   tasks,formTests:[],
   limitations:[
    'These are human claims tied to an offline release, not authenticated browser recordings.',
+   'Each formTests.formRef must match a real sectionId in required.formRefsByPage[page], never an arbitrary label.',
    'All form instances need an actual authorized POST and notification/persistence receipt; never store POST bodies or tokens.',
    'Complete checkmarks alone NEVER authorize deployment, declare real client approval or override technical blockers.',
    'Store this private template and all evidence outside GitHub.']
@@ -181,6 +192,8 @@ function review(original,filled,post){
   requireThat(!forms.has(id),'duplicate form checks cannot count twice');
   requireThat(original.required.formOccurrencesByPage[f.page]>0,
    'real POST observation does not correspond to a form on this published PHP page');
+  requireThat(original.required.formRefsByPage[f.page]?.includes(f.formRef),
+   'real POST formRef must identify the exact observed PHP sectionId on this page');
   forms.add(id);
   if(f.state==='passed'){
    formPassed++;
@@ -198,6 +211,10 @@ function review(original,filled,post){
   (formCountByPage.get(page)||0)<=count),
   'real POST receipts exceed observed published PHP forms on a page');
  const enoughForms=!missingFormPages.length&&!formFailed;
+ // Non-sensitive per-form map, created from original PHP audit and manual receipts.
+ const outcome=new Map(filled.formTests.map(x=>[x.page+'#'+x.formRef,x.state]));
+ const perFormChecks=Object.entries(original.required.formRefsByPage).flatMap(([page,refs])=>
+  refs.map(sectionId=>({page,sectionId,state:outcome.get(page+'#'+sectionId)||'missing'})));
  const technicalMatched=post?.format===POST&&
   post.disposition==='TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED'&&
   !post.postDeployBlockingReasons?.length&&
@@ -218,7 +235,8 @@ function review(original,filled,post){
   checks:{required:original.tasks.length,passed,failed,pending,
    realFormOccurrencesExpected:required,operatorFormPostReceipts:filled.formTests.length,
    passedFormReceipts:formPassed,failedFormReceipts:formFailed,
-   missingFormPages,perPageFormReceipts:Object.fromEntries([...formCountByPage].sort()),
+   missingFormPages,perFormChecks,
+   perPageFormReceipts:Object.fromEntries([...formCountByPage].sort()),
    operatorFormInventorySigned:filled.tasks.some(x=>x.id==='manual:real-form-inventory'&&x.state==='passed')},
   originalTechnicalEvidenceMatched:technicalMatched,
   manualOnly:true,clientApprovalAuthenticated:false,actualNetworkCalls:0,
@@ -240,6 +258,10 @@ function markdown(r){
  'Pages with missing actual form receipts: '+r.checks.missingFormPages.length+
   (r.checks.missingFormPages.length?' ('+
     r.checks.missingFormPages.map(x=>x.page+' '+x.passed+'/'+x.expected).join('; ')+')':''),
+ 'Individual PHP forms still missing POST: '+
+  r.checks.perFormChecks.filter(x=>x.state==='missing').map(x=>x.page+'#'+x.sectionId).join(', '),
+ 'Individual PHP forms with failed POST: '+
+  r.checks.perFormChecks.filter(x=>x.state==='failed').map(x=>x.page+'#'+x.sectionId).join(', '),
  'Independent live technical evidence matched: '+r.originalTechnicalEvidenceMatched,
  'Owner manual final authorization: NOT PROVIDED BY THIS TOOL.','',
  '## Reminders','',

@@ -26,12 +26,14 @@ const bundle={format:'manufact-seo-review-bundle-v1',readOnly:true,siteId:'site-
  approvedSiteSource:{fileSha256:c},release:{blockers:[]},
  localPhpForms:{format:'manufact-seo-local-php-forms-v1',observedForms:1,
  consistentRelease:7,actualPostPerformed:false,deliveriesProven:false,
- pages:[{path:'/',expectedForms:0,actualForms:0,checkedFormSections:0},
- {path:'/contact/',expectedForms:1,actualForms:1,checkedFormSections:1}]}};
+ pages:[{path:'/',expectedForms:0,actualForms:0,checkedFormSections:0,formInstances:[]},
+ {path:'/contact/',expectedForms:1,actualForms:1,checkedFormSections:1,
+  formInstances:[{sectionId:'contact-lead'}]}]}};
 const original=FLOW.template(contract,upload,post,summary,hashes,bundle);
 assert.deepEqual(original.required.pages,['/','/contact/']);
 assert.equal(original.required.browserChecks,6);
 assert.deepEqual(original.required.formOccurrencesByPage,{'/':0,'/contact/':1});
+assert.deepEqual(original.required.formRefsByPage,{'/':[],'/contact/':['contact-lead']});
 assert.equal(original.pinned.originalPhpReviewBundleSha256,e);
 assert.equal(original.tasks.length,6+FLOW.HOST_CHECKS.length);
 assert.equal(FLOW.review(original,original,post).status,'HUMAN-EVIDENCE-INCOMPLETE');
@@ -41,11 +43,14 @@ for(const t of reviewed.tasks){
  t.evidenceRef='private://browser-check';t.notes='';
 }
 assert.equal(FLOW.review(original,reviewed,post).status,'HUMAN-EVIDENCE-INCOMPLETE');
-reviewed.formTests=[{page:'/contact/',formRef:'lead-main',state:'passed',
+reviewed.formTests=[{page:'/contact/',formRef:'contact-lead',state:'passed',
  observedAt:'2026-10-29',checkedBy:'Lead',evidenceRef:'private://form-receipt',notes:''}];
 const done=FLOW.review(original,reviewed,post);
 assert.equal(done.status,'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION');
+assert.deepEqual(done.checks.perFormChecks,[{page:'/contact/',sectionId:'contact-lead',state:'passed'}]);
 assert.equal(done.releaseAuthorized,false);
+assert.throws(()=>FLOW.review(original,{...reviewed,formTests:[
+ {...reviewed.formTests[0],formRef:'invented-form'}]},post),/exact observed PHP sectionId/);
 assert.equal(done.clientApprovalAuthenticated,false);
 assert.throws(()=>FLOW.review(original,{...reviewed,tasks:reviewed.tasks.slice(1)},post),/count differs/);
 assert.throws(()=>FLOW.review(original,{...reviewed,formTests:[...reviewed.formTests,...reviewed.formTests]},post),/duplicate form/);
@@ -54,13 +59,16 @@ assert.equal(FLOW.review(original,reviewed,{...post,disposition:'NOT-READY'}).st
 assert.throws(()=>FLOW.template(contract,upload,{...post,publishedVersion:8},summary,hashes,bundle),/differs/);
 assert.throws(()=>FLOW.template(contract,upload,post,summary,hashes,{
  ...bundle,localPhpForms:{...bundle.localPhpForms,
- pages:[{path:'/',expectedForms:1,actualForms:1,checkedFormSections:1},
- {path:'/contact/',expectedForms:1,actualForms:1,checkedFormSections:1}]}}),/totals/);
+ pages:[{path:'/',expectedForms:1,actualForms:1,checkedFormSections:1,
+  formInstances:[{sectionId:'home-lead'}]},
+ {path:'/contact/',expectedForms:1,actualForms:1,checkedFormSections:1,
+  formInstances:[{sectionId:'contact-lead'}]}]}}),/totals/);
 assert.throws(()=>FLOW.review(original,{...reviewed,formTests:[
  {...reviewed.formTests[0],page:'/'}]},post),/does not correspond/);
 const differentPage={...bundle,localPhpForms:{...bundle.localPhpForms,
- pages:[{path:'/',expectedForms:1,actualForms:1,checkedFormSections:1},
- {path:'/contact/',expectedForms:0,actualForms:0,checkedFormSections:0}]}};
+ pages:[{path:'/',expectedForms:1,actualForms:1,checkedFormSections:1,
+  formInstances:[{sectionId:'home-lead'}]},
+ {path:'/contact/',expectedForms:0,actualForms:0,checkedFormSections:0,formInstances:[]}]}};
 const homeForm=FLOW.template(contract,upload,post,summary,hashes,differentPage);
 const badPage=JSON.parse(JSON.stringify(homeForm));
 for(const t of badPage.tasks){
@@ -69,4 +77,20 @@ for(const t of badPage.tasks){
 }
 badPage.formTests=[reviewed.formTests[0]];
 assert.throws(()=>FLOW.review(homeForm,badPage,post),/does not correspond/);
+// Two real lead forms on one page cannot be replaced by arbitrary receipts.
+const twoBundle={...bundle,localPhpForms:{...bundle.localPhpForms,observedForms:2,
+ pages:[{path:'/',expectedForms:0,actualForms:0,checkedFormSections:0,formInstances:[]},
+ {path:'/contact/',expectedForms:2,actualForms:2,checkedFormSections:2,
+  formInstances:[{sectionId:'contact-primary'},{sectionId:'contact-secondary'}]}]}};
+const two=FLOW.template(contract,upload,post,{...summary,forms:{markupObserved:2}},hashes,twoBundle);
+const half=JSON.parse(JSON.stringify(two));
+for(const t of half.tasks){t.state='passed';t.observedAt='2026-10-29';
+ t.checkedBy='Lead';t.evidenceRef='private://browser';}
+half.formTests=[{...reviewed.formTests[0],formRef:'contact-primary'}];
+assert.equal(FLOW.review(two,half,post).status,'HUMAN-EVIDENCE-INCOMPLETE');
+assert.deepEqual(FLOW.review(two,half,post).checks.perFormChecks.map(x=>x.state),['passed','missing']);
+assert.throws(()=>FLOW.review(two,{...half,formTests:[
+ half.formTests[0],{...half.formTests[0],formRef:'invented-form'}]},post),/exact observed PHP sectionId/);
+half.formTests.push({...half.formTests[0],formRef:'contact-secondary'});
+assert.equal(FLOW.review(two,half,post).status,'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION');
 console.log('live first-site operator acceptance matrix smoke PASS (synthetic, no live network)');

@@ -75,7 +75,9 @@ function main(argv){
    '# Real-world first-site manual verification','',
    'Only complete tasks actually observed in a REAL browser on the deployed HTTPS site.',
    'For each page and desktop/tablet/mobile, set state passed/failed with operator, date and private evidence reference.',
-   'Use formTests [] for EACH observed form POST on the EXACT published page (the required.formOccurrencesByPage map identifies the expected number on each route): {"page":"/","formRef":"contact-form","state":"passed","observedAt":"YYYY-MM-DD","checkedBy":"operator","evidenceRef":"private://receipt-id","notes":""}.',
+   'Copy the exact original sectionId from required.formRefsByPage[page] for EVERY actual form on EVERY deployed page.',
+   'Use formTests [] only for real authorized POSTs, with formRef equal to source sectionId: {"page":"/contact/","formRef":"contact-lead","state":"passed","observedAt":"YYYY-MM-DD","checkedBy":"operator","evidenceRef":"private://receipt-id","notes":""}.',
+   'Do not invent formRef identifiers. If any PHP form is unmapped or duplicated, repair and recapture the original candidate.',
    'Never store HMAC, POST bodies, email recipient addresses or credentials in this input.',
    'Then run this CLI review with --filled. Do not treat its summary as a live site release approval.',''
   ].join('\n');
