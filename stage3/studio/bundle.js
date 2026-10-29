@@ -331,13 +331,14 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
         fail(node.id,'formatted fragments require a heading or paragraph');
       let sum='';
       for(const run of node.runs){
-        keys(run,['text','strong','italic','color'],node.id+'/run');
+        keys(run,['text','strong','italic','color','href'],node.id+'/run');
         if(typeof run.text!=='string'||run.text.length<1||run.text.length>1500||
           /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(run.text))
           fail(node.id,'invalid formatted fragment');
         for(const key of ['strong','italic'])if(own(run,key)&&typeof run[key]!=='boolean')
           fail(node.id,'invalid fragment emphasis');
         if(own(run,'color'))resolve(run.color,'colors',tokens,node.id+'/run/color');
+        if(own(run,'href')&&!validHref(run.href))fail(node.id,'invalid fragment link');
         sum+=run.text;
       }
       if(sum!==node.text)fail(node.id,'formatted fragments must equal the editable plain text');
@@ -599,6 +600,10 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       if(run.strong)part='<strong>'+part+'</strong>';
       if(run.italic)part='<em>'+part+'</em>';
       if(run.color)part='<span style="color:'+resolve(run.color,'colors',tokens,n.id+'/run/color')+'">'+part+'</span>';
+      if(run.href){
+        const href=run.href.startsWith('/')?safeMount+run.href:run.href;
+        part='<a href="'+attr(href)+'"'+(href.startsWith('https://')?' rel="noopener noreferrer"':'')+'>'+part+'</a>';
+      }
       return part;
     }).join('');
   };
@@ -1455,6 +1460,7 @@ function inspectSite(raw,regInput){
           for(const node of nodes||[]){
             if(node.type==='heading')pushHeading(page,section,headings,Number(node.level)||2,node.text,node.id);
             if(['button','link','image'].includes(node.type)&&node.href)checkLink(node.href,page,section.id,null,node.id);
+            for(const run of node.runs||[])if(run.href)checkLink(run.href,page,section.id,null,node.id);
             if(node.children)walk(node.children);
           }
         };
@@ -1662,6 +1668,7 @@ function rewritePageLinks(site,from,to){
     }
     const walk=node=>{
       if(typeof node.href==='string')rewrite(node,'href');
+      for(const run of node.runs||[])if(typeof run.href==='string')rewrite(run,'href');
       for(const child of node.children||[])walk(child);
     };
     for(const root of section.designGraph?.nodes||[])walk(root);
@@ -1683,6 +1690,7 @@ function rewriteSectionAnchors(site,from,to,sectionId){
       if(isObj(item.values))visit(item.values,'behavior.href');
     const walk=node=>{
       if(typeof node.href==='string')visit(node,'href');
+      for(const run of node.runs||[])if(typeof run.href==='string')visit(run,'href');
       for(const child of node.children||[])walk(child);
     };
     for(const root of section.designGraph?.nodes||[])walk(root);
@@ -3564,6 +3572,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                     kind:'link',value:node.href,issue:issue?.kind||'',
                     message:issue?.message||''});
                 }
+                for(const [runIndex,run] of (node.runs||[]).entries()){
+                  if(!run.href?.startsWith('/')||run.href.startsWith('//'))continue;
+                  const issue=linkFindings.find(item=>item.pageId===page.id&&
+                    item.sectionId===section.id&&item.nodeId===node.id&&item.path===run.href);
+                  rows.push({...common,path:'href',runIndex,
+                    fieldLabel:'Ссылка в тексте · '+node.id+' / '+(runIndex+1),
+                    kind:'link',value:run.href,issue:issue?.kind||'',message:issue?.message||''});
+                }
                 if(node.backgroundMedia){
                   for(const id of [node.backgroundMedia.assetId,node.backgroundMedia.tabletAssetId,node.backgroundMedia.mobileAssetId])if(id)referenced.add(id);
                 }
@@ -3703,14 +3719,16 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             return null;
           };
           element=find(section.designGraph.nodes);
-          if(!element||((row.kind==='link'&&element.type!=='button')||
+          if(!element||(row.kind==='link'&&row.runIndex===undefined&&
+              !['button','link','image'].includes(element.type))||
               (row.mediaKind==='video'&&element.type!=='video')||
               (row.mediaKind==='poster'&&element.type!=='video')||
-              (row.mediaKind==='image'&&element.type!=='image')))
+              (row.mediaKind==='image'&&element.type!=='image'))
             throw Error('Графовый узел изменился. Обновите список.');
-          if((element[row.path]||'')!==row.value)
+          const holder=row.runIndex===undefined?element:element.runs?.[row.runIndex];
+          if(!holder||(holder[row.path]||'')!==row.value)
             throw Error('Узел изменился с момента выбора.');
-          if(to)element[row.path]=to;else delete element[row.path];
+          if(to)holder[row.path]=to;else delete holder[row.path];
         }else{
           element=[...section.elements,...(section.items||[])].find(item=>item.id===row.elementId);
           if(!element||element.values[row.path]!==row.value)
@@ -6092,6 +6110,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
               if(color.value.trim())node.runs[i].color=color.value.trim();
               else delete node.runs[i].color;
             }));
+            const href=make('input');href.type='text';href.className='control';
+            href.placeholder='/contacts/ или https://...';href.value=fragment.href||'';
+            href.setAttribute('aria-label','Ссылка фрагмента '+(i+1));
+            href.addEventListener('change',()=>applyRuns(node=>{
+              if(href.value.trim())node.runs[i].href=href.value.trim();
+              else delete node.runs[i].href;
+            }));
             const up=button('↑','btn small',()=>applyRuns(node=>{
               [node.runs[i-1],node.runs[i]]=[node.runs[i],node.runs[i-1]];
             }));up.disabled=i===0;up.setAttribute('aria-label','Поднять фрагмент '+(i+1));
@@ -6102,7 +6127,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
               node.runs.splice(i,1);if(node.runs.length<2)delete node.runs;
             }));
             line.append(words,make('label','Жирный '),strong,make('label','Курсив '),italic,
-              make('label','Цвет'),color,up,down,remove);rows.append(line);
+              make('label','Цвет'),color,make('label','Ссылка'),href,up,down,remove);rows.append(line);
           });
           editor.append(rows);
           const add=button('+ Фрагмент','btn small',()=>applyRuns(node=>{
