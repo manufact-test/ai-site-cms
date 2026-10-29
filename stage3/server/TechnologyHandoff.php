@@ -118,7 +118,7 @@ final class TechnologyHandoff
         foreach($site['assets'] as $asset) {
             foreach(array_merge([['id'=>$asset['id'],'src'=>$asset['src']]],$asset['variants']??[]) as $part) {
                 $relative=ltrim($part['src'],'/');
-                if(!preg_match('~^assets/[a-z][a-z0-9-]{2,79}\.(?:png|jpg|webp|mp4)$~D',$relative)
+                if(!preg_match('~^assets/[a-z][a-z0-9-]{2,79}\.(?:png|jpg|webp|mp4|woff2)$~D',$relative)
                     ||!str_starts_with($relative,'assets/'.$part['id'].'.')) throw new InvalidArgumentException('Unsafe asset');
                 $media=$sites->image($id,$part['id']);
                 if($media['mime']!==$asset['mime']
