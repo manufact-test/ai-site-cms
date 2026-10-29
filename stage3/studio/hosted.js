@@ -2651,6 +2651,27 @@
             note:item.note,scrollY:item.scrollY,
             resolved:report.revision===openedRevision&&item.resolved});
         }
+        if(remoteBusy)throw Error('Другая операция с замечаниями ещё выполняется');
+        if(storedReview.available){
+          // Server accepts ONLY open findings; never restore previous sign-offs
+          // or operator identities from an untrusted local JSON file.
+          remoteBusy=true;findingAdd.disabled=true;importReview.disabled=true;
+          try{
+            const result=await api(reviewEndpoint,'POST',{
+              action:'import',expectedRevision:openedRevision,
+              findings:incoming.filter(x=>!x.resolved).map(({pageId,path,device,scrollY,note})=>
+                ({pageId,path,device,scrollY,note}))
+            });
+            replaceRemote(result);
+            for(const row of incoming)reviewed.get(row.pageId)?.delete(row.device);
+            notice('На сервер записано замечаний: '+result.added+
+              (report.revision===openedRevision?'':' · старая ревизия: перепроверить'));
+          }finally{
+            remoteBusy=false;importReview.disabled=false;
+            if(dialog.open){drawFindings();updateReviewed();syncActions();}
+          }
+          return;
+        }
         let added=0;
         for(const row of incoming){
           if(manualFindings.some(f=>f.pageId===row.pageId&&f.device===row.device
@@ -2659,8 +2680,8 @@
           reviewed.get(row.pageId)?.delete(row.device);
         }
         drawFindings();updateReviewed();syncActions();
-        notice('Замечания загружены: '+added+
-          (report.revision===openedRevision?'':' · другая ревизия: проверьте заново'));
+        notice('Локально загружено: '+added+
+          ' · для долговременного хранения скачайте JSON');
       })().catch(e=>notice('Импорт замечаний отклонён: '+e.message,true));
     });
     copyFindings.addEventListener('click',()=>{
