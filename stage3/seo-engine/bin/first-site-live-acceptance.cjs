@@ -5,6 +5,7 @@
  */
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const FLOW=require('../lib/first-site-live-acceptance.cjs');
+const DESK=require('../lib/first-site-live-acceptance-editor.cjs');
 const PRIVATE=require('../lib/private-output-policy.cjs');
 const PREVIEW=require('../lib/static-host-preview.cjs');
 const ZIP=require('../lib/static-upload-zip-verify.cjs');
@@ -72,6 +73,7 @@ function main(argv){
  if(o.action==='template'){
   content['live-acceptance-template.json']=JSON.stringify(template,null,2)+'\n';
   content['LIVE-FORM-POST-WORKSHEET.md']=FLOW.formWorksheet(template);
+  content['LIVE-ACCEPTANCE-DESK.html']=DESK.render(template);
   content['LIVE-ACCEPTANCE-INSTRUCTIONS.md']=[
    '# Real-world first-site manual verification','',
    'Only complete tasks actually observed in a REAL browser on the deployed HTTPS site.',

@@ -1,3 +1,5 @@
+**30 Oct 2026: Operator UI** — private `LIVE-ACCEPTANCE-DESK.html` generated beside the v2 live acceptance template. Offline responsive evidence checklist and manual form POST/delivery receipt editor, import/export source-bound JSON, CSP prevents network; Node review remains mandatory. See [LIVE-ACCEPTANCE-WORKFLOW.md](LIVE-ACCEPTANCE-WORKFLOW.md).
+
 **Operator usability:** First-site human template now includes an automatically generated PRIVATE `LIVE-FORM-POST-WORKSHEET.md` enumerating each source-backed published form and its required POST/delivery/manual receipt. This is never evidence of a performed POST, not a deploy command. See [LIVE-ACCEPTANCE-WORKFLOW.md](LIVE-ACCEPTANCE-WORKFLOW.md).
 
 ## 29 October 2026 — exact PHP form-instance acceptance
