@@ -4,7 +4,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 
 const safeRoute = /^\/(?:[a-z0-9-]+\/)*$/;
-const safeAsset = /^assets\/[a-z][a-z0-9-]{2,79}\.(?:png|jpg|webp|mp4)$/;
+const safeAsset = /^assets\/[a-z][a-z0-9-]{2,79}\.(?:png|jpg|webp|mp4|woff2)$/;
 const safeSearch = new Set(['robots.txt', 'sitemap.xml']);
 const safeStyle = /^styles\/site-[a-f0-9]{64}\.css$/;
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
