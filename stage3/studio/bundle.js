@@ -1053,7 +1053,11 @@ const FOOTER_DOMAINS=Object.freeze({
   tiktok:['tiktok.com'],x:['x.com','twitter.com'],github:['github.com']
 });
 function validFooter(footer,pages){
-  objectKeys(footer,['description','email','phone','links','socials'],'site.footer');
+  objectKeys(footer,['description','email','phone','links','socials','style','layout'],'site.footer');
+  if(own(footer,'style')&&!['light','dark','primary'].includes(footer.style))
+    fail('Invalid footer color style');
+  if(own(footer,'layout')&&!['columns','stacked'].includes(footer.layout))
+    fail('Invalid footer layout');
   const plain=(v,max)=>typeof v==='string'&&v.length<=max&&!/[\x00-\x1f]/.test(v);
   if(!plain(footer.description,300)||!plain(footer.email,254)||!plain(footer.phone,32))
     fail('Invalid footer description or contacts');
@@ -3089,11 +3093,16 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       control.addEventListener('change',()=>{changed(control.value);updatePreview();});
       return control;
     };
+    const style=select([['light','Светлый'],['dark','Тёмный'],['primary','Фирменный цвет']],
+      'light',v=>{draft.style=v;});
+    const layout=select([['columns','Колонки'],['stacked','Один столбец']],
+      'columns',v=>{draft.layout=v;});
     const description=entry('',300,v=>{draft.description=v;},'textarea');
     description.rows=3;
     const email=entry('',254,v=>{draft.email=v;},'email');
     const phone=entry('',32,v=>{draft.phone=v;},'tel');
     form.append(
+      labelField('Оформление подвала',style),labelField('Сетка подвала',layout),
       labelField('Описание компании (до 300 символов)',description),
       labelField('Публичный email (необязательно)',email),
       labelField('Телефон (необязательно)',phone)
@@ -3151,6 +3160,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     }
     function updatePreview(){
       preview.replaceChildren();
+      preview.style.background=(draft.style||'light')==='dark'?'#152539':
+        (draft.style||'light')==='primary'?'var(--cms-primary)':'var(--cms-surface)';
+      preview.style.color=(draft.style||'light')==='light'?'var(--cms-text)':'#fff';
       const title=document.createElement('strong');
       title.textContent=session.current.title;
       preview.append(title);
@@ -3173,6 +3185,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const open=()=>{
       const site=session.current;
       draft=cp(site.footer||{description:'',email:'',phone:'',links:[],socials:[]});
+      style.value=draft.style||'light';layout.value=draft.layout||'columns';
       description.value=draft.description;email.value=draft.email;phone.value=draft.phone;
       renderRows();dlg.showModal();
     };
@@ -3212,7 +3225,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const email=f.email?'<a href="mailto:'+e(f.email)+'">'+e(f.email)+'</a>':'';
     const phone=f.phone?'<a href="tel:'+e(f.phone.replace(/[^0-9+]/g,''))+'">'+
       e(f.phone)+'</a>':'';
-    return '<style>.cms-preview-site-footer{background:var(--cms-surface);border-top:1px solid #dce5ee;padding:32px 24px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;overflow-wrap:anywhere}.cms-preview-site-footer p{white-space:pre-line}.cms-preview-site-footer ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:12px}.cms-preview-site-footer address{display:grid;gap:8px;font-style:normal}.cms-preview-site-footer small{grid-column:1/-1}@media(max-width:650px){.cms-preview-site-footer{grid-template-columns:1fr}}</style>'+
+    const color=(f.style||'light')==='dark'?'#152539':(f.style||'light')==='primary'?'var(--cms-primary)':'var(--cms-surface)';
+    const textColor=(f.style||'light')==='light'?'var(--cms-text)':'#fff';
+    const grid=(f.layout||'columns')==='stacked'?'1fr':'repeat(3,minmax(0,1fr))';
+    return '<style>.cms-preview-site-footer{background:'+color+';color:'+textColor+';grid-template-columns:'+grid+';border-top:1px solid #dce5ee;padding:32px 24px;display:grid;gap:16px;overflow-wrap:anywhere}.cms-preview-site-footer p{white-space:pre-line}.cms-preview-site-footer ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:12px}.cms-preview-site-footer address{display:grid;gap:8px;font-style:normal}.cms-preview-site-footer small{grid-column:1/-1}@media(max-width:650px){.cms-preview-site-footer{grid-template-columns:1fr}}</style>'+
       '<footer class="cms-preview-site-footer"><div><strong>'+e(site.title)+'</strong>'+
       (f.description?'<p>'+e(f.description)+'</p>':'')+'</div>'+
       '<div>'+(legal?'<nav aria-label="Footer navigation"><ul>'+legal+'</ul></nav>':'')+
