@@ -70,6 +70,7 @@ jobs:
       - name: Server syntax and one full HTTP persistence/publish E2E
         run: |
           for file in stage3/server/*.php stage3/server/public/*.php stage3/server/bin/*.php; do php -l "$file"; done
+          php stage3/tests/smtp-config-smoke.php
           php stage3/tests/graph-interactions-smoke.php
           php stage3/tests/archive-bundle-smoke.php
           node stage3/tests/server-e2e.cjs
