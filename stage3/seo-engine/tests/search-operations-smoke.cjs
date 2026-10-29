@@ -63,4 +63,21 @@ const changed=JSON.parse(JSON.stringify(observations[2]));
 changed.searchContext={...changed.searchContext,searchType:'image'};
 assert.throws(()=>HISTORY.build([...entries.slice(0,2),{
  report:changed,sha256:'0'.repeat(64)}]),/signature|Incomparable/);
+const BRIDGE=require('../lib/search-cms-handoff.cjs');
+const manifestFolder=path.resolve(BASE,'../components');
+const manifests=fs.readdirSync(manifestFolder).filter(name=>name.endsWith('.json'))
+ .map(name=>JSON.parse(fs.readFileSync(path.join(manifestFolder,name),'utf8')));
+const accepted=JSON.parse(JSON.stringify(ledger));
+accepted.actions[0].status='accepted';
+accepted.actions[0].assignedTo='Manual reviewer';
+accepted.actions[0].reason='Investigate observed traffic decline before proposing copy';
+accepted.actions[0].decisionAt='2026-10-29';
+const ownerReview=LEDGER.review(history,rawHash,accepted);
+const packet=BRIDGE.build(site,manifests,blueprint,history,ownerReview,rawHash);
+assert(packet.summary.activeWorkPackets>=1);
+assert.equal(packet.active[0].currentSiteRevisionFingerprint,packet.currentSiteFingerprint);
+assert.equal(packet.active[0].existingEditorTargets.metaFields.length,5);
+assert.equal(packet.active[0].automaticApplication,false);
+assert.equal(packet.active[0].releaseAuthorized,false);
+assert(BRIDGE.markdown(packet).includes('Existing CMS SEO field'));
 process.stdout.write('Search operations focused smoke PASS: multi-period history, source-locked decisions, approved internal-link evidence.\n');

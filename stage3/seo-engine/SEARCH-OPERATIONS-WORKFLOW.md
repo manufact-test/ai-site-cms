@@ -112,3 +112,31 @@ The new private-output policy refuses to create any GSC evidence or human decisi
 - Run only the focused offline smoke: node stage3/seo-engine/tests/search-operations-smoke.cjs. Real GSC export and customer result not confirmed by worker.
 
 Prioritize useful product capabilities over artificial testing. Lead alone decides dashboard / Studio integration.
+
+
+## 7. NEW — accepted search tasks to exact CMS human work packets
+
+The fourth substantial product direction bridges observed GSC history + accepted human ledger decisions back to the current **validated Site v1 authoring contract** without patching or changing CMS data.
+
+From a verified owner-published CMS Site v1, a matching approved Blueprint, the current Search History and the user-edited ledger:
+
+~~~bash
+node stage3/seo-engine/bin/prepare-search-cms-handoff.cjs \
+  --blueprint /ABS/private/approved-blueprint.json \
+  --site /ABS/private/actual-owner-published-site-v1.json \
+  --history /ABS/private/NEW-search-history/search-history.json \
+  --ledger /ABS/private/edited-search-actions.json \
+  --out /ABS/private/NEW-cms-search-work-packets
+~~~
+
+Optional: --manifests /ABS/component-manifests, otherwise the actual stage3/components registry. This command runs the current authoritative Site v1 SEO audit first and refuses different site IDs, wrong exact Blueprint raw SHA256 or stale action ledger SHA256.
+
+Outputs, private and OUTSIDE Git checkout:
+
+- cms-search-work-packets.json: exact current Site v1 fingerprint, observed search signals, human accepted/in-progress task bindings, existing page SEO fields (title, description, robots, OG title/description), approved Blueprint target values, manifest-backed existing element proposals (heading and CTA only when unambiguous), section IDs/manifest versions, current authoring links counts, and mandatory manual checks.
+- cms-search-work-packets.md: readable task-by-task handoff with page IDs, source field values and next human steps.
+- PRIVATE-README.txt: no automated Save, Publish or release permission.
+
+Separate result groups are active, reportedComplete, notSelected (including pending/rejected/deferred) and blocked by current Site v1 page/route drift. **Completed-reported is never called verified.** Accepted SEO task means approval to investigate, not that its wording should automatically overwrite the approved Blueprint or customer CMS override.
+
+This is intentionally compatible with the existing field-proposals.cjs and approved Blueprint contracts instead of inventing an independent editor. The lead must independently authenticate the owner-published source revision and verify real browser/public HTTPS/form behavior after any actual CMS changes.
