@@ -267,6 +267,10 @@ async function execute(){
   await page.locator('#server-approved-review').waitFor({timeout:20000});
   assert.equal(await page.locator('#server-approved-prototypes img').count(),3,
     'Operator must inspect desktop/tablet/mobile visual evidence before database writes');
+  assert.equal(await page.locator('#server-approved-video-review video').count(),1,
+    'A real sealed MP4 must be available for owner review before first database write');
+  assert.match(await page.locator('#server-approved-video-review video').getAttribute('src'),/^blob:/,
+    'Approval reviews original local bytes without an external URL');
   assert.equal(await page.locator('#server-approved-prototypes iframe').count(),3,
     'Three responsive real site previews are required next to approved prototypes');
   const live=page.locator('iframe[data-preview-device="desktop"]');
