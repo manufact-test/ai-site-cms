@@ -4001,6 +4001,29 @@
             overflowY:'auto',padding:'12px',background:'#f5f5f5',borderRadius:'10px'});
           panel.append(content);details.append(panel);
         }
+        // Owner may inspect the ORIGINAL verified video locally, before any
+        // draft is created. Object URLs remain tab-local and are revoked on close.
+        const videoReview=element('section','');
+        videoReview.id='server-approved-video-review';
+        const videos=media.filter(entry=>entry.video);
+        videoReview.hidden=!videos.length;
+        if(videos.length){
+          videoReview.append(element('h3',null,'Видео из утверждённого пакета'));
+          videoReview.append(element('p',null,
+            'Сверьте оригинальный MP4 и его обложку. Видео открывается только из выбранной папки; публикация и отправка данных не выполняются.'));
+          for(const entry of videos){
+            const row=element('details','hosted-backup-summary');
+            row.append(element('summary',null,entry.alt+' · '+entry.original.name+
+              ' · '+(entry.original.size/1048576).toFixed(2)+' МиБ'));
+            const player=document.createElement('video');
+            player.controls=true;player.muted=true;player.playsInline=true;
+            player.preload='metadata';
+            player.setAttribute('aria-label',entry.alt);
+            Object.assign(player.style,{width:'100%',maxWidth:'640px',maxHeight:'360px',display:'block'});
+            const local=URL.createObjectURL(entry.original);
+            objectUrls.push(local);player.src=local;row.append(player);videoReview.append(row);
+          }
+        }
         const actions=element('div','');
         Object.assign(actions.style,{display:'flex',justifyContent:'flex-end',flexWrap:'wrap',gap:'12px',marginTop:'18px'});
         const cancel=action('Отмена','server-approved-review-cancel',()=>dialog.close('cancel'));
@@ -4018,7 +4041,7 @@
           actions.append(acknowledgement);
         }
         actions.append(cancel,confirmButton);
-        dialog.append(heading,summary,description,pageLabel,previews,details,actions);
+        dialog.append(heading,summary,description,pageLabel,previews,details,videoReview,actions);
         document.body.append(dialog);
         const pageImageUrls=new Map();
         const showPage=async()=>{
