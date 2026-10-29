@@ -97,7 +97,7 @@ if ($path === '/robots.txt' || $path === '/sitemap.xml') {
     if ($_SERVER['REQUEST_METHOD'] !== 'HEAD') readfile($release.'/'.$name);
     exit;
 }
-if (preg_match('~^/assets/([a-z][a-z0-9-]{2,79}\.(png|jpg|webp|mp4))$~D',$path,$match)) {
+if (preg_match('~^/assets/([a-z][a-z0-9-]{2,79}\.(png|jpg|webp|mp4|woff2))$~D',$path,$match)) {
     $asset=null;
     foreach($manifest['assets'] as $candidate) {
         if($candidate['file']==='assets/'.$match[1]){$asset=$candidate;break;}
@@ -107,7 +107,7 @@ if (preg_match('~^/assets/([a-z][a-z0-9-]{2,79}\.(png|jpg|webp|mp4))$~D',$path,$
     if(!is_file($file)||is_link($file)){http_response_code(503);exit;}
     $size=filesize($file);
     if(!is_int($size)||$size<1){http_response_code(503);exit;}
-    $mime=['png'=>'image/png','jpg'=>'image/jpeg','webp'=>'image/webp','mp4'=>'video/mp4'][$match[2]];
+    $mime=['png'=>'image/png','jpg'=>'image/jpeg','webp'=>'image/webp','mp4'=>'video/mp4','woff2'=>'font/woff2'][$match[2]];
     $etag='"'.$asset['sha256'].'"';
     header('Content-Type: '.$mime);
     header('Cache-Control: public, max-age=31536000, immutable');
