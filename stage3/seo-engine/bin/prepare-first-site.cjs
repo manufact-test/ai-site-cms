@@ -6,6 +6,7 @@
 const fs=require('node:fs'),path=require('node:path');
 const FIRST=require('./first-site-check.cjs');
 const UPLOAD=require('./prepare-static-upload.cjs');
+const ZIP=require('../lib/static-upload-zip.cjs');
 const REQUIRED=['approved-site','published-site','blueprint','origin','static-export','provider','workspace'];
 const OPTIONAL=['owner-edit-review','php-capture','previous-report','public-http-evidence',
  'public-media-evidence','public-media-digests','delivery-status','visual-review-status'];
@@ -59,6 +60,10 @@ async function main(argv){
  const deployed=UPLOAD.create(toArgs(uploadArgs));
  if(deployed.officialManifestSha256!==first.summary.staticExport.staticManifestSha256)
   throw Error('First-site PHP capture and prepared static upload refer to different official static exports');
+ const archive=ZIP.zip(path.join(staging,'static-upload'),path.join(staging,'public-site.zip'));
+ if(archive.officialManifestSha256!==deployed.officialManifestSha256||
+    archive.files!==deployed.files||!archive.containsOnlyVerifiedPublicUpload)
+  throw Error('Generated site ZIP does not match independently verified static upload');
  const release=first.summary.release;
  const status=release.blockingGates>0?'TECHNICAL-BLOCKED':'MANUAL-ACCEPTANCE-REQUIRED';
  const record={
@@ -67,6 +72,9 @@ async function main(argv){
   officialStaticManifestSha256:deployed.officialManifestSha256,
   publishedVersion:deployed.publishedVersion,
   staticUploadRelativeDir:'static-upload/public',
+  publicArchiveRelativeFile:'public-site.zip',
+  publicArchiveSha256:archive.sha256,
+  publicArchiveBytes:archive.archiveBytes,
   technicalReviewRelativeDir:'seo-report',
   phpEvidenceRelativeDir:'local-php-evidence',
   blockingGates:release.blockingGates,
@@ -93,6 +101,8 @@ async function main(argv){
   '- local-php-evidence/ — private captured PHP HTML/media, never upload it',
   '- static-upload/public/ — ONLY folder intended for later operator-managed upload',
   '- static-upload/HANDOFF.md — provider-specific details and real HTTPS checks',
+  '- public-site.zip — deterministic PUBLIC-only upload archive; no owner manifests, API or diagnostics',
+  '- ZIP SHA256: '+archive.sha256,
   '',
   '## Mandatory sign-off still outstanding',
   '',
@@ -119,6 +129,7 @@ async function main(argv){
  return Object.freeze({workspace:root,siteId:record.siteId,status,
   blockingGates:record.blockingGates,publishedVersion:record.publishedVersion,
   provider:o.provider,stagedPublicFiles:deployed.files,
+  publicArchiveSha256:archive.sha256,publicArchiveBytes:archive.archiveBytes,
   publicManifestSha256:record.officialStaticManifestSha256,
   actualHostWrites:0,manualReleaseRequired:true});
  }catch(error){
