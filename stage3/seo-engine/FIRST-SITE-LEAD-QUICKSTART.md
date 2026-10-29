@@ -1,3 +1,15 @@
+## 30 October 2026 — one cohesive first-client human acceptance workflow
+
+**Current SEO worker branch delivers an operator-usable first-site acceptance loop**: local PHP form sections are recorded by actual `page`+`sectionId`, a v2 live acceptance template generates a private offline responsive `LIVE-ACCEPTANCE-DESK.html`, and operators can fill browser/device/manual checks and separate real POST versus destination delivery receipts without hand-editing JSON. Download the private filled JSON and run the original strict `first-site-live-acceptance.cjs review`; this produces `live-acceptance-review.json`, `live-acceptance-review.md`, and source-specific `LIVE-ACCEPTANCE-NEXT-ACTIONS.json/.md`. The private SEO operator workspace's `human.html` shows each unresolved browser/manual task and form. Failed forms with **no actual POST** are correctly recorded as failure without invented submission evidence. No automated POST, actual browser verification, authenticated client approval or GO.
+
+After integrating the whole SEO subtree into your own branch, regenerate the **local PHP candidate first**, then the **public/capture** phase and human v2 template; old v1 manual files cannot prove the new source/proof contract. Keep all evidence and HTML editor files outside GitHub. Run the new single focused smoke from your lead checkout:
+
+~~~bash
+node stage3/seo-engine/tests/first-site-live-evidence-pipeline-smoke.cjs
+~~~
+
+Then conduct real browser, authorized test POST, actual destination confirmation, client signoff and independent review on the exact owner-published PHP/static ZIP. **Only the CMS lead merges/publishes; the SEO worker does not.**
+
 ## Final worker handoff update — 29 October 2026
 
 **New actual client-acceptance functionality:** The original local PHP audit `seo-report/bundle.json -> localPhpForms.pages` now controls the mandatory number of **real form POST receipts per public page**, not just a site-wide total. The private human acceptance template pins the PHP bundle SHA256, identifies form expectations per route and rejects receipts on pages where no form was observed, duplicated route+form IDs, and excess receipts. The private `human.html` workspace displays each source-bound page's actual confirmed/expected receipt count and refuses manipulated totals. An all-pass operator attestation still does **not** prove real client signature or grant deployment authorization.
