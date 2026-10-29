@@ -1046,6 +1046,44 @@ function validMenu(m){
     (m.ctaPageId!==''&&!m.ctaLabel.trim())||(m.ctaPageId===''&&m.ctaLabel!==''))
     fail('Invalid site menu settings');
 }
+const FOOTER_DOMAINS=Object.freeze({
+  instagram:['instagram.com'],facebook:['facebook.com','fb.com'],
+  linkedin:['linkedin.com'],youtube:['youtube.com','youtu.be'],
+  telegram:['t.me'],whatsapp:['wa.me','whatsapp.com'],
+  tiktok:['tiktok.com'],x:['x.com','twitter.com'],github:['github.com']
+});
+function validFooter(footer,pages){
+  objectKeys(footer,['description','email','phone','links','socials'],'site.footer');
+  const plain=(v,max)=>typeof v==='string'&&v.length<=max&&!/[\x00-\x1f]/.test(v);
+  if(!plain(footer.description,300)||!plain(footer.email,254)||!plain(footer.phone,32))
+    fail('Invalid footer description or contacts');
+  if(footer.email&&!/^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,24}$/.test(footer.email))
+    fail('Invalid footer email');
+  if(footer.phone&&(!/^\+?[0-9 ()-]{6,32}$/.test(footer.phone)||
+    footer.phone.replace(/\D/g,'').length<6))fail('Invalid footer phone');
+  if(!Array.isArray(footer.links)||footer.links.length>8||
+    !Array.isArray(footer.socials)||footer.socials.length>8)fail('Too many footer links');
+  const pageIds=new Set(pages.map(page=>page.id)),seenPages=new Set(),seenNetworks=new Set();
+  for(const link of footer.links){
+    objectKeys(link,['label','pageId'],'footer.link');
+    if(!plain(link.label,70)||!link.label.trim()||typeof link.pageId!=='string'||
+      !pageIds.has(link.pageId)||seenPages.has(link.pageId))fail('Unknown or duplicated footer page');
+    seenPages.add(link.pageId);
+  }
+  for(const social of footer.socials){
+    objectKeys(social,['network','url'],'footer.social');
+    if(typeof social.network!=='string'||!FOOTER_DOMAINS[social.network]||
+      typeof social.url!=='string'||social.url.length>300||
+      seenNetworks.has(social.network)||/[\x00-\x20<>"']/.test(social.url))
+      fail('Invalid footer social URL');
+    let url;try{url=new URL(social.url);}catch(_){fail('Invalid footer HTTPS address');}
+    const host=url.hostname.toLowerCase();
+    if(url.protocol!=='https:'||url.username||url.password||url.port||
+      !FOOTER_DOMAINS[social.network].some(d=>host===d||host==='www.'+d))
+      fail('Footer social URL must match its declared HTTPS domain');
+    seenNetworks.add(social.network);
+  }
+}
 function validMenuRelations(raw){
   const pages=new Map(raw.pages.map(page=>[page.id,page]));
   for(const page of raw.pages){
@@ -1173,7 +1211,7 @@ function validateSharedSections(groups){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding','footer'],'site');
   GRAPH_HOST.validateTokens(raw.designTokens);
   if(own(raw,'menu'))validMenu(raw.menu);
   if(own(raw,'theme'))validTheme(raw.theme);
@@ -1212,6 +1250,7 @@ function validateSite(raw,regInput){
   }
   if(own(raw,'theme'))validFontFiles(raw.theme,assetMimes);
   if(own(raw,'branding'))validBranding(raw.branding,assetMimes);
+  if(own(raw,'footer'))validFooter(raw.footer,raw.pages);
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
   const ids=new Set([raw.siteId,...assetIds]),paths=new Set(),sharedGroups=new Map();
   for(const page of raw.pages){
@@ -1878,6 +1917,7 @@ function structure(raw,manifests,command){
       for(const child of c.pages)if(child.navigation?.parentId===page.id)
         delete child.navigation.parentId;
       if(c.menu?.ctaPageId===page.id){c.menu.ctaPageId='';c.menu.ctaLabel='';}
+      if(c.footer?.links)c.footer.links=c.footer.links.filter(link=>link.pageId!==page.id);
       if(c.redirects){
         c.redirects=c.redirects.filter(r=>r.to!==page.path);
         if(!c.redirects.length)delete c.redirects;
@@ -2043,6 +2083,7 @@ function changes(raw,manifests){
   if(s.base.language!==s.current.language)diff.push({kind:'site-language-updated'});
   if(JSON.stringify(s.base.designTokens)!==JSON.stringify(s.current.designTokens))diff.push({kind:'design-tokens-updated'});
   if(JSON.stringify(s.base.menu)!==JSON.stringify(s.current.menu))diff.push({kind:'menu-updated'});
+  if(JSON.stringify(s.base.footer)!==JSON.stringify(s.current.footer))diff.push({kind:'site-footer-updated'});
   if(JSON.stringify(s.base.assets)!==JSON.stringify(s.current.assets))
     diff.push({kind:'media-library-updated'});
   if(JSON.stringify(s.base.redirects||[])!==JSON.stringify(s.current.redirects||[]))
@@ -3009,6 +3050,175 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     tools.append(theme,seo);$('pages').before(tools);
   }
 
+
+  // Page-ID-based global footer. Internal paths are resolved at render time,
+  // so a page rename changes every footer link without string rewrites.
+  function initFooterEditor(){
+    const dlg=document.createElement('dialog');
+    dlg.id='cms-footer-editor';dlg.className='cms-settings-dialog';
+    Object.assign(dlg.style,{width:'min(920px,95vw)',maxHeight:'90vh',overflow:'auto'});
+    const heading=document.createElement('h2');heading.textContent='Подвал сайта · контакты и ссылки';
+    const help=document.createElement('p');
+    help.textContent='Один подвал для всех страниц. Внутренние ссылки привязаны к страницам; внешние — только проверенные HTTPS-адреса соцсетей. Сохранение и публикация отдельно.';
+    const form=document.createElement('div');form.className='cms-settings-grid';
+    const rows=document.createElement('div');
+    const preview=document.createElement('section');preview.id='cms-footer-editor-preview';
+    preview.style.cssText='padding:18px;border:1px solid #d1dce9;border-radius:12px;margin:18px 0;background:var(--cms-surface)';
+    const actions=document.createElement('div');actions.className='cms-settings-actions';
+    let draft=null;
+    const networks=['instagram','facebook','linkedin','youtube','telegram',
+      'whatsapp','tiktok','x','github'];
+    const labelField=(title,node)=>{
+      const label=document.createElement('label');label.textContent=title;
+      label.append(node);return label;
+    };
+    const entry=(value,max,changed,kind='text')=>{
+      const control=document.createElement(kind==='textarea'?'textarea':'input');
+      if(kind!=='textarea')control.type=kind;
+      control.className='control';control.maxLength=max;control.value=value;
+      control.addEventListener('input',()=>{changed(control.value);updatePreview();});
+      return control;
+    };
+    const select=(options,value,changed)=>{
+      const control=document.createElement('select');control.className='control';
+      for(const [id,name] of options){
+        const option=document.createElement('option');
+        option.value=id;option.textContent=name;control.append(option);
+      }
+      control.value=value;
+      control.addEventListener('change',()=>{changed(control.value);updatePreview();});
+      return control;
+    };
+    const description=entry('',300,v=>{draft.description=v;},'textarea');
+    description.rows=3;
+    const email=entry('',254,v=>{draft.email=v;},'email');
+    const phone=entry('',32,v=>{draft.phone=v;},'tel');
+    form.append(
+      labelField('Описание компании (до 300 символов)',description),
+      labelField('Публичный email (необязательно)',email),
+      labelField('Телефон (необязательно)',phone)
+    );
+    const links=document.createElement('div');links.id='cms-footer-internal-links';
+    const socials=document.createElement('div');socials.id='cms-footer-social-links';
+    const linkHeader=document.createElement('h3');linkHeader.textContent='Полезные и юридические страницы';
+    const socialHeader=document.createElement('h3');socialHeader.textContent='Социальные сети';
+    const linkAdd=button('+ Добавить страницу','btn small',()=>{
+      if(draft.links.length>=8){notice('Не более 8 ссылок в подвале',true);return;}
+      const first=session.current.pages.find(p=>!draft.links.some(x=>x.pageId===p.id));
+      if(!first){notice('Все страницы уже представлены в подвале',true);return;}
+      draft.links.push({label:first.title.slice(0,70),pageId:first.id});renderRows();
+    });
+    const socialAdd=button('+ Добавить соцсеть','btn small',()=>{
+      if(draft.socials.length>=8){notice('Не более 8 соцсетей',true);return;}
+      const first=networks.find(x=>!draft.socials.some(item=>item.network===x));
+      if(!first){notice('Все социальные сети уже выбраны',true);return;}
+      draft.socials.push({network:first,url:'https://'+
+        ({instagram:'instagram.com',facebook:'facebook.com',linkedin:'linkedin.com',
+          youtube:'youtube.com',telegram:'t.me',whatsapp:'wa.me',tiktok:'tiktok.com',
+          x:'x.com',github:'github.com'})[first]+'/'});
+      renderRows();
+    });
+    function renderRows(){
+      links.replaceChildren();socials.replaceChildren();
+      const availablePages=session.current.pages.map(p=>[p.id,p.title+' · '+p.path]);
+      draft.links.forEach((item,i)=>{
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:end;gap:8px;flex-wrap:wrap;padding:8px 0';
+        const link=select(availablePages,item.pageId,v=>{item.pageId=v;});
+        const name=entry(item.label,70,v=>{item.label=v;});
+        link.style.minWidth='180px';name.style.minWidth='180px';
+        const remove=button('Удалить','btn small',()=>{
+          draft.links.splice(i,1);renderRows();
+        });
+        row.append(labelField('Страница',link),labelField('Название ссылки',name),remove);
+        links.append(row);
+      });
+      draft.socials.forEach((item,i)=>{
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:end;gap:8px;flex-wrap:wrap;padding:8px 0';
+        const network=select(networks.map(n=>[n,n]),item.network,v=>{item.network=v;});
+        const url=entry(item.url,300,v=>{item.url=v;},'url');
+        url.style.minWidth='min(330px,75vw)';
+        const remove=button('Удалить','btn small',()=>{
+          draft.socials.splice(i,1);renderRows();
+        });
+        row.append(labelField('Сервис',network),labelField('HTTPS-ссылка',url),remove);
+        socials.append(row);
+      });
+      linkAdd.disabled=draft.links.length>=8;
+      socialAdd.disabled=draft.socials.length>=8;
+      updatePreview();
+    }
+    function updatePreview(){
+      preview.replaceChildren();
+      const title=document.createElement('strong');
+      title.textContent=session.current.title;
+      preview.append(title);
+      if(draft.description){
+        const summary=document.createElement('p');summary.textContent=draft.description;
+        summary.style.whiteSpace='pre-line';preview.append(summary);
+      }
+      const detail=document.createElement('small');
+      detail.textContent=[draft.email,draft.phone].filter(Boolean).join(' · ');
+      preview.append(detail);
+      const l=document.createElement('p');
+      l.textContent='Страницы: '+draft.links.map(x=>x.label).join(' · ')+
+        (draft.links.length?'':'нет');
+      preview.append(l);
+      const network=document.createElement('p');
+      network.textContent='Социальные сети: '+draft.socials.map(x=>x.network).join(' · ')+
+        (draft.socials.length?'':'нет');
+      preview.append(network);
+    }
+    const open=()=>{
+      const site=session.current;
+      draft=cp(site.footer||{description:'',email:'',phone:'',links:[],socials:[]});
+      description.value=draft.description;email.value=draft.email;phone.value=draft.phone;
+      renderRows();dlg.showModal();
+    };
+    const apply=()=>{
+      try{
+        const site=cp(session.current);site.footer=cp(draft);
+        session=D.replaceSite(session,manifests,site,session.revision);
+        dlg.close();draw();
+        notice('Подвал изменён в черновике. Сохраните сайт и опубликуйте отдельно.');
+      }catch(error){notice('Подвал не принят: '+error.message,true);}
+    };
+    const save=button('Применить к черновику','btn primary',apply);
+    save.id='cms-footer-editor-apply';
+    actions.append(save,button('Закрыть','btn',()=>dlg.close()));
+    dlg.append(heading,help,form,linkHeader,links,linkAdd,
+      socialHeader,socials,socialAdd,preview,actions);
+    document.body.append(dlg);
+    const trigger=button('Подвал · контакты и ссылки','btn small',open);
+    trigger.id='cms-open-footer';
+    document.querySelector('.cms-site-settings').append(trigger);
+  }
+
+  // Pre-import static three-device previews must include the actual global
+  // footer, not only body sections. All values come from the typed contract.
+  function previewFooter(site){
+    const e=escapeHtml,f=site.footer;
+    if(!f)return '<footer>'+e(site.title)+'</footer>';
+    const pageById=new Map(site.pages.map(page=>[page.id,page]));
+    const legal=f.links.map(item=>'<li><a href="'+e(pageById.get(item.pageId).path)+'">'+
+      e(item.label)+'</a></li>').join('');
+    const socialNames={instagram:'Instagram',facebook:'Facebook',linkedin:'LinkedIn',
+      youtube:'YouTube',telegram:'Telegram',whatsapp:'WhatsApp',
+      tiktok:'TikTok',x:'X',github:'GitHub'};
+    const socials=f.socials.map(item=>'<li><a href="'+e(item.url)+
+      '" target="_blank" rel="noopener noreferrer nofollow">'+
+      e(socialNames[item.network])+'</a></li>').join('');
+    const email=f.email?'<a href="mailto:'+e(f.email)+'">'+e(f.email)+'</a>':'';
+    const phone=f.phone?'<a href="tel:'+e(f.phone.replace(/[^0-9+]/g,''))+'">'+
+      e(f.phone)+'</a>':'';
+    return '<style>.cms-preview-site-footer{background:var(--cms-surface);border-top:1px solid #dce5ee;padding:32px 24px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;overflow-wrap:anywhere}.cms-preview-site-footer p{white-space:pre-line}.cms-preview-site-footer ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:12px}.cms-preview-site-footer address{display:grid;gap:8px;font-style:normal}.cms-preview-site-footer small{grid-column:1/-1}@media(max-width:650px){.cms-preview-site-footer{grid-template-columns:1fr}}</style>'+
+      '<footer class="cms-preview-site-footer"><div><strong>'+e(site.title)+'</strong>'+
+      (f.description?'<p>'+e(f.description)+'</p>':'')+'</div>'+
+      '<div>'+(legal?'<nav aria-label="Footer navigation"><ul>'+legal+'</ul></nav>':'')+
+      (socials?'<nav aria-label="Social media"><ul>'+socials+'</ul></nav>':'')+'</div>'+
+      '<address>'+email+phone+'</address><small>© '+e(site.title)+'</small></footer>';
+  }
 
   // A single Undo-able menu editor, independent of the selected component.
   // All relationships reference immutable page IDs, not URLs.
@@ -8065,7 +8275,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             '<details class="cms-menu-mobile"><summary>Меню</summary><nav>'+common+'</nav></details>')+
           '</header>';
         const root=first.slice(0,start).replace('<html lang="ru">','<html lang="'+escapeHtml(checked.language||'ru')+'">');
-        return root+navigation+docs.map((doc,i)=>'<div class="cms-preview-bound-section" data-cms-section-id="'+escapeHtml(page.sections[i].id)+'">'+doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))+'</div>').join('')+first.slice(end);
+        return root+navigation+docs.map((doc,i)=>'<div class="cms-preview-bound-section" data-cms-section-id="'+escapeHtml(page.sections[i].id)+'">'+doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))+'</div>').join('')+previewFooter(checked)+first.slice(end);
       }finally{session=prior;previewAssetSources=priorSources;}
     },
     applyComposition:site=>{
@@ -8125,7 +8335,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
+  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initFooterEditor();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
 })();
 'use strict';
 // A single owner-reviewed composition path for offline and authenticated Studio.
