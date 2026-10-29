@@ -197,13 +197,17 @@ $richSite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
   'id'=>'graph-rich-heading','type'=>'heading','level'=>2,
   'text'=>'Сильное <слово>',
   'runs'=>[['text'=>'Сильное ','strong'=>true,'color'=>'@accent'],
-    ['text'=>'<слово>','italic'=>true]]];
+    ['text'=>'<слово>','italic'=>true,'href'=>'/contact/']]];
 $validator->validate($richSite);
 $richHtml=PublicRenderer::html($richSite,'/');
 graphTest(str_contains($richHtml,'<strong>Сильное </strong>')&&
-  str_contains($richHtml,'<em>&lt;слово&gt;</em>')&&
+  str_contains($richHtml,'<a href="/published/site-industrial-demo/contact/"><em>&lt;слово&gt;</em></a>')&&
   !str_contains($richHtml,'<слово>'),
   'PHP semantic rich fragments and HTML escaping');
+$badLink=$richSite;
+$badLink['pages'][0]['sections'][2]['designGraph']['nodes'][count($richSite['pages'][0]['sections'][2]['designGraph']['nodes'])-1]['runs'][1]['href']='javascript:alert(1)';
+try{$validator->validate($badLink);throw new RuntimeException('Unsafe rich link accepted');}
+catch(InvalidArgumentException $expected){}
 $badRich=$richSite;
 $badRich['pages'][0]['sections'][2]['designGraph']['nodes'][count($richSite['pages'][0]['sections'][2]['designGraph']['nodes'])-1]['runs'][0]['color']='expression(1)';
 try{$validator->validate($badRich);throw new RuntimeException('Unsafe rich fragment accepted');}
