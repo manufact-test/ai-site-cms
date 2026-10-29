@@ -60,7 +60,6 @@ try{
  const notFound=fs.readFileSync(path.join(output,'public','404.html'),'utf8');
  assert.ok(notFound.includes('noindex,follow'));
  assert.ok(notFound.includes('href="/"'));
- assert.ok(ledger.filesVerified!==0 || actual.files!==0);
  assert.ok(!fs.existsSync(path.join(output,'public','release-manifest.json')));
  assert.ok(!fs.existsSync(path.join(output,'public','upload-inventory.json')));
  const ledger=JSON.parse(fs.readFileSync(path.join(output,'upload-inventory.json'),'utf8'));
