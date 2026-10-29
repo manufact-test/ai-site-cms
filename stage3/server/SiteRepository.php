@@ -318,7 +318,7 @@ final class SiteRepository
             if ($stored !== $asset['mime']) {
                 throw new \InvalidArgumentException('Media must be uploaded to this site before referencing it');
             }
-            $ext = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp','video/mp4'=>'mp4'][$stored] ?? null;
+            $ext = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp','video/mp4'=>'mp4','font/woff2'=>'woff2'][$stored] ?? null;
             if ($ext === null || $asset['src'] !== '/assets/' . $asset['id'] . '.' . $ext) {
                 throw new \InvalidArgumentException('Media path does not match stored image');
             }
@@ -340,6 +340,42 @@ final class SiteRepository
                 }
             }
         }
+    }
+
+    /** One immutable local font upload; never touches a live publication. */
+    public function uploadFont(string $siteId,string $base64,string $label,int $expectedRevision,?string $sha=null): array
+    {
+        if(strlen($base64)<64||strlen($base64)>1400000
+            ||preg_match('~^[A-Za-z0-9+/]+={0,2}$~D',$base64)!==1)
+            throw new \InvalidArgumentException('Invalid WOFF2 upload encoding');
+        $bytes=base64_decode($base64,true);
+        if(!is_string($bytes))throw new \InvalidArgumentException('Cannot decode WOFF2');
+        $digest=FontGuard::validate($bytes,$sha);
+        if(trim($label)===''||strlen($label)>200||preg_match('/[\x00-\x1f]/',$label))
+            throw new \InvalidArgumentException('Font description required');
+        return $this->atomic(function()use($siteId,$bytes,$label,$expectedRevision,$digest):array {
+            $draft=$this->getDraft($siteId);
+            if($draft['revision']!==$expectedRevision)
+                throw new Conflict('Draft changed during WOFF2 upload');
+            $site=$draft['site'];
+            if(count($site['assets'])>=300)throw new \InvalidArgumentException('Media collection full');
+            $id='asset-'.bin2hex(random_bytes(10));
+            $asset=['id'=>$id,'src'=>'/assets/'.$id.'.woff2',
+                'mime'=>'font/woff2','alt'=>$label];
+            $site['assets'][]=$asset;
+            $this->validator->validate($site);
+            $now=$this->now();
+            $sql=$this->db->prepare('INSERT INTO stage3_media (site_id,asset_id,mime,sha256,bytes,created_at) VALUES (?,?,?,?,?,?)');
+            foreach([$siteId,$id,'font/woff2',$digest] as $i=>$value)$sql->bindValue($i+1,$value);
+            $sql->bindValue(5,$bytes,PDO::PARAM_LOB);$sql->bindValue(6,$now);$sql->execute();
+            $revision=$expectedRevision+1;
+            $body=self::encode($site);
+            $update=$this->db->prepare('UPDATE stage3_drafts SET revision=?,body=?,updated_at=? WHERE site_id=? AND revision=?');
+            $update->execute([$revision,$body,$now,$siteId,$expectedRevision]);
+            if($update->rowCount()!==1)throw new Conflict('Concurrent font upload');
+            $this->saveRevision($siteId,$revision,$body,$now);
+            return ['site'=>$site,'revision'=>$revision,'asset'=>$asset,'sha256'=>$digest];
+        });
     }
 
     /** Stores bounded, validated MP4 bytes inside the existing site media store. */
