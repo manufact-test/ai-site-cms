@@ -4,6 +4,7 @@
 // private release-manifest, owner records and reports never enter the archive.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const PREVIEW=require('./static-host-preview.cjs');
+const VERIFY=require('./static-upload-zip-verify.cjs');
 const FORMAT='manufact-seo-static-upload-zip-v1';
 const CRC_TABLE=Uint32Array.from({length:256},(_,i)=>{
  let c=i;for(let j=0;j<8;j++)c=(c&1)?0xedb88320^(c>>>1):c>>>1;
@@ -46,7 +47,7 @@ function zip(bundleDir,zipFile){
  const tempDir=fs.mkdtempSync(path.join(parent,'.seo-zip-incomplete-'));
  const temp=path.join(tempDir,'upload.zip');
  const fd=fs.openSync(temp,'wx',0o600);
- let open=true;
+ let open=true,promoted=false;
  try{
   const central=[];let offset=0,storedBytes=0;
   const write=x=>{let done=0;while(done<x.length){
@@ -80,19 +81,13 @@ function zip(bundleDir,zipFile){
   eocd.writeUInt32LE(centralBytes,12);eocd.writeUInt32LE(centralOffset,16);
   write(eocd);fs.fsyncSync(fd);fs.closeSync(fd);open=false;
   if(fs.existsSync(output))throw Error('Another file appeared at the ZIP destination');
-  fs.renameSync(temp,output);
-  // Bound memory: checksum the final ZIP in 1 MiB blocks instead of
-  // allocating an additional potentially 180MB copy of the archive.
-  const digestContext=crypto.createHash('sha256'),reader=fs.openSync(output,'r');
-  try{
-   const chunk=Buffer.alloc(1048576);
-   for(;;){
-    const n=fs.readSync(reader,chunk,0,chunk.length,null);
-    if(!n)break;
-    digestContext.update(chunk.subarray(0,n));
-   }
-  }finally{fs.closeSync(reader);}
-  const digest=digestContext.digest('hex');
+  fs.renameSync(temp,output);promoted=true;
+  const verified=VERIFY.verify(output,bundleDir);
+  if(verified.fileCount!==ordered.length||
+     verified.verifiedPayloadBytes!==storedBytes||
+     verified.officialManifestSha256!==snapshot.inventory.officialStaticManifestSha256)
+   throw Error('Complete output ZIP failed independent archive/inventory parity');
+  const digest=verified.sha256;
   return Object.freeze({format:FORMAT,output,sha256:digest,files:central.length,
    payloadBytes:storedBytes,archiveBytes:fs.statSync(output).size,
    sourceSiteId:snapshot.inventory.siteId,
@@ -103,6 +98,7 @@ function zip(bundleDir,zipFile){
    remoteUploadPerformed:false,manualReviewRequired:true});
  }catch(error){
   if(open){try{fs.closeSync(fd);}catch{}}
+  if(promoted){try{fs.rmSync(output,{force:true});}catch{}}
   throw error;
  }finally{
   fs.rmSync(tempDir,{recursive:true,force:true});
