@@ -461,9 +461,14 @@ async function stop(){
   assert.equal(afterRouting.body.liveDeliveryVerified,false);
   // A currently LIVE form must remain in launch readiness if its section
   // was removed from an unpublished draft. Public requests still reach it.
-  const publishedOnly=structuredClone(formDraft);
+  // Use the clean portable fixture; the prior formDraft already refers to
+  // uploaded media owned by ANOTHER site, which a new isolated site must reject.
+  const publishedOnly=structuredClone(fixture);
   publishedOnly.siteId='site-form-live-readiness';
-  assert.equal((await request('POST','/api/sites',{site:publishedOnly})).status,201);
+  publishedOnly.pages[1].sections.push(require(path.join(root,'stage3/sdk/contract.cjs'))
+    .sectionFrom(formDef,'section-quote-form'));
+  const launched=(await request('POST','/api/sites',{site:publishedOnly}));
+  assert.equal(launched.status,201,JSON.stringify(launched.body));
   assert.equal((await request('POST','/api/sites/'+publishedOnly.siteId+'/publish',
     {expectedRevision:1})).status,200);
   const deletedFromDraft=structuredClone(publishedOnly);
