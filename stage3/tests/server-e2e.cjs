@@ -699,6 +699,8 @@ async function stop(){
   const leads=(await request('GET',endpoint+'/submissions')).body.submissions;
   assert.equal(leads.length,1);
   assert.equal(leads[0].email,'client@example.test');
+  assert.equal(leads[0].delivery.email,'configuration_required',
+    'Owner inbox exposes actual lead transport state without recipient details');
   assert.equal(leads[0].status,'new');
   assert.equal((await request('POST',endpoint+'/submissions/'+leads[0].submission_id+'/review',{})).status,200);
   assert.equal((await request('GET',endpoint+'/submissions')).body.submissions[0].status,'reviewed');
@@ -734,6 +736,10 @@ async function stop(){
   assert.equal(csv.status,200);
   assert.match(csv.headers.get('content-type'),/^text\/csv/);
   assert.match(csv.headers.get('cache-control'),/no-store/);
+  assert.match(csv.body,/Email transport status \(not receipt\)/);
+  assert.match(csv.body,/Telegram transport status \(not receipt\)/);
+  assert.match(csv.body,/configuration_required/,
+    'Private CSV and visible inbox share the same transport-state inventory');
   assert.match(csv.body,/client@example.test/);
   assert.equal(csv.body.split('client@example.test').length-1,4);
   assert.equal((await request('POST',endpoint+'/submissions/bulk-review',
