@@ -433,3 +433,8 @@ Publisher now marks exactly one image inside the **first page section**'s Design
 ### 29 Oct — hosted public PHP standard HEAD requests
 
 The built-in public CMS PHP renderer now accepts `HEAD` for exact published pages, the same-origin connection identity, sitemap/robots, permanent redirects and maintenance responses, alongside existing GET. Successful published HTML returns the exact negotiated Content-Length and representation-specific ETag/Vary as GET without returning the document body; 304 still bypasses page render and HEAD for nonexistent routes stays 404. The independent PHP site already offered HEAD. This makes HTTP monitoring, caches and visitor tooling more predictable, while not proving live customer DNS/TLS or visual acceptance. Public forms remain POST-only and are not touched.
+
+
+### 29 Oct — immutable CSS host headers for static deliveries
+
+D4 ZIP generation now includes scoped, optional `mod_headers` Apache rules (for HTML and built Next Static document roots) and equivalent Nginx configuration guidance so the single content-addressed `styles/site-<sha256>.css` can be cached for a year without making page HTML immutable. Unsupported Apache mod_headers configurations remain deployable due to `<IfModule>`. Published PHP visitor CSS has the same immutable header directly in its router. Site and form transport rules remain unchanged. D4/D5/D6 still only prepare/rehearse local artifacts; no actual DNS/hosting modification.

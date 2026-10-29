@@ -43,6 +43,15 @@ function apache(redirects){
        ||!(/^\/(?:[a-z0-9-]+\/)*$/).test(to))fail('unsafe redirect for Apache');
     rules.push('RewriteRule ^'+from.slice(1).replace(/\/$/,'')+'/?$ '+to+' [R=301,L,NE]');
   }
+  // The filename embeds the exact SHA-256; browsers can safely reuse CSS for a year.
+  // mod_headers is optional on shared hosting, so do not break sites without it.
+  rules.push('','# One immutable stylesheet shared by every published page.',
+    '<IfModule mod_headers.c>',
+    '<FilesMatch "^site-[a-f0-9]{64}\\.css$">',
+    'Header set Cache-Control "public, max-age=31536000, immutable"',
+    'Header set X-Content-Type-Options "nosniff"',
+    '</FilesMatch>',
+    '</IfModule>');
   return Buffer.from(rules.join('\n')+'\n');
 }
 function nginx(routes){
@@ -52,6 +61,12 @@ function nginx(routes){
     lines.push('location = '+from+' { return 301 '+to+'; }');
     lines.push('location = '+from.replace(/\/$/,'')+' { return 301 '+to+'; }');
   }
+  lines.push('# An immutable, content-addressed shared site stylesheet.',
+    'location ~ ^/styles/site-[a-f0-9]{64}\\.css$ {',
+    '  add_header Cache-Control "public, max-age=31536000, immutable";',
+    '  add_header X-Content-Type-Options "nosniff";',
+    '  try_files $uri =404;',
+    '}');
   lines.push('location / { try_files $uri $uri/ =404; }');
   return Buffer.from(lines.join('\n')+'\n');
 }

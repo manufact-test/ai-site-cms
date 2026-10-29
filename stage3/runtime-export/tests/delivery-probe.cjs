@@ -72,6 +72,10 @@ try{
   assert.match(String(entries.get('deploy/.htaccess')),/RewriteRule \^old\/\?\$ \/about\/ \[R=301,L,NE\]/);
   assert.match(String(entries.get('handoff/nginx-redirects.example.conf')),/return 301 \/about\//);
   assert.match(String(entries.get('handoff/INSTALL.txt')),/DOCUMENT|host document root|document root/i);
+  assert.match(String(entries.get('deploy/.htaccess')),/site-\[a-f0-9\]/,
+    'Static Apache configuration caches only content-addressed styles');
+  assert.match(String(entries.get('handoff/nginx-redirects.example.conf')),/styles\/site-/,
+    'Nginx hosting example includes immutable shared stylesheet caching');
   assert.match(refuses('prepare-delivery.cjs',html,zipFile),/refused|overwrite/i);
   assert.match(refuses('prepare-delivery.cjs',html,path.join(tmp,'wrong.zip'),
     '--expect-origin=https://another.test'),/origin differs/);

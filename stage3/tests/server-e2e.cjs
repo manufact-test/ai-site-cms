@@ -27,7 +27,8 @@ async function request(method,route,data,headers={}){
   const set=result.headers.get('set-cookie');
   if(set)cookie=set.split(';',1)[0];
   const type=result.headers.get('content-type')||'';
-  const body=type.startsWith('application/json')?await result.json():await result.text();
+  const body=method==='HEAD'?'':type.startsWith('application/json')?
+    await result.json():await result.text();
   return {status:result.status,body,headers:result.headers};
 }
 async function runServer(){
