@@ -72,13 +72,23 @@ function verifyMp4(bytes){
   return counts.ftyp===1&&counts.moov===1&&counts.mdat===1;
 }
 
+/* Same bounded WOFF2 header invariants as the private PHP font uploader. */
+function verifyWoff2(bytes){
+  if(bytes.length<48||bytes.length>1048576||bytes.toString('ascii',0,4)!=='wOF2')return false;
+  const flavor=bytes.subarray(4,8),kind=flavor.toString('ascii');
+  return (flavor.equals(Buffer.from([0,1,0,0]))||['OTTO','true'].includes(kind))&&
+    bytes.readUInt32BE(8)===bytes.length&&bytes.readUInt16BE(12)>0&&
+    bytes.readUInt16BE(12)<=128&&bytes.readUInt16BE(14)===0&&
+    bytes.readUInt32BE(16)>=12&&bytes.readUInt32BE(16)<=33554432&&
+    bytes.readUInt32BE(20)>0&&bytes.readUInt32BE(20)<=bytes.length-48;
+}
 function preflight(folder){
   const root=fs.realpathSync(folder),stat=fs.statSync(root);
   if(!stat.isDirectory())throw Error('Expected a handoff folder');
   let total=0;
   function read(file,limit){
     if(typeof file!=='string'||file.length>200||
-      !/^[a-zA-Z0-9_/-]+\.(?:json|md|txt|png|jpe?g|webp|mp4)$/.test(file)||
+      !/^[a-zA-Z0-9_/-]+\.(?:json|md|txt|png|jpe?g|webp|mp4|woff2)$/.test(file)||
       file.split('/').includes('..'))
       throw Error('Unsafe or unsupported handoff path: '+String(file));
     const target=path.resolve(root,file),resolved=fs.realpathSync(target);
@@ -129,12 +139,16 @@ function preflight(folder){
   }
   if(site.assets.length>300)throw Error('Too many media assets');
   for(const asset of site.assets){
-    if(asset.mime!=='video/mp4'&&!SIGNATURES[asset.mime])
-      throw Error('Handoff accepts PNG/JPEG/WebP and MP4 only: '+asset.id);
+    if(!['video/mp4','font/woff2'].includes(asset.mime)&&!SIGNATURES[asset.mime])
+      throw Error('Handoff accepts raster, MP4 and WOFF2 only: '+asset.id);
     const file=asset.src.replace(/^\/assets\//,'assets/');
     if(file===asset.src)throw Error('Asset path not site-scoped: '+asset.id);
-    const video=asset.mime==='video/mp4';
-    const bytes=recorded(file,read(file,video?16777216:1000000));
+    const video=asset.mime==='video/mp4',font=asset.mime==='font/woff2';
+    const bytes=recorded(file,read(file,video?16777216:font?1048576:1000000));
+    if(font){
+      if(!verifyWoff2(bytes))throw Error('Invalid WOFF2 structure or size: '+file);
+      continue;
+    }
     if(video){
       if(typeof asset.alt!=='string'||!asset.alt.trim())
         throw Error('MP4 needs a nonempty accessible description: '+asset.id);
