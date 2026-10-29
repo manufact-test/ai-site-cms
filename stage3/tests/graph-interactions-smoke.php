@@ -191,4 +191,22 @@ $iconsHtml=PublicRenderer::html($iconsSite,'/');
 graphTest(str_contains($iconsHtml,'width="48" height="48" fill="none" stroke="currentColor" stroke-width="3"')&&
   str_contains($iconsHtml,'aria-label="Точка на карте"'),
   'PHP icon catalog uses typed size/stroke and semantic label');
+
+$richSite=$site;
+$richSite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+  'id'=>'graph-rich-heading','type'=>'heading','level'=>2,
+  'text'=>'Сильное <слово>',
+  'runs'=>[['text'=>'Сильное ','strong'=>true,'color'=>'@accent'],
+    ['text'=>'<слово>','italic'=>true]]];
+$validator->validate($richSite);
+$richHtml=PublicRenderer::html($richSite,'/');
+graphTest(str_contains($richHtml,'<strong>Сильное </strong>')&&
+  str_contains($richHtml,'<em>&lt;слово&gt;</em>')&&
+  !str_contains($richHtml,'<слово>'),
+  'PHP semantic rich fragments and HTML escaping');
+$badRich=$richSite;
+$badRich['pages'][0]['sections'][2]['designGraph']['nodes'][count($richSite['pages'][0]['sections'][2]['designGraph']['nodes'])-1]['runs'][0]['color']='expression(1)';
+try{$validator->validate($badRich);throw new RuntimeException('Unsafe rich fragment accepted');}
+catch(InvalidArgumentException $expected){}
+
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";
