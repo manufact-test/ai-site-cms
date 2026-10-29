@@ -117,8 +117,12 @@ function prepare(site,release,sourceDir,outputRoot,provider){
     parent.startsWith(source+path.sep))
   throw Error('Upload directory must be isolated from immutable official export');
  const plan=inventory(site,release,source,provider);
- fs.mkdirSync(output,{mode:0o700});
- const upload=path.join(output,'public');
+ // Stage under the same filesystem and make final output visible ONLY when
+ // every byte and operator document has passed validation. Never leave a
+ // plausible-looking half-built release at the requested final path.
+ const staging=fs.mkdtempSync(path.join(parent,'.seo-static-incomplete-'));
+ try{
+ const upload=path.join(staging,'public');
  fs.mkdirSync(upload,{mode:0o700});
  const copy=(rel,bytes)=>{
   const file=path.join(upload,rel);
@@ -176,7 +180,7 @@ function prepare(site,release,sourceDir,outputRoot,provider){
   'must still be tested separately. No network request or host write was made.',
   ''
  ].join('\n');
- fs.writeFileSync(path.join(output,'HANDOFF.md'),handoff,{flag:'wx',mode:0o600});
+ fs.writeFileSync(path.join(staging,'HANDOFF.md'),handoff,{flag:'wx',mode:0o600});
  const result={
   format:FORMAT,siteId:plan.siteId,provider,origin:plan.origin,
   publishedVersion:plan.publishedVersion,sourceRevisionClaim:plan.sourceRevisionClaim,
@@ -190,11 +194,24 @@ function prepare(site,release,sourceDir,outputRoot,provider){
   realHttp301NotTested:true,actualNetworkRequests:0,actualHostWrites:0,
   manualDeploymentRequired:true,clientApproved:false
  };
- fs.writeFileSync(path.join(output,'upload-inventory.json'),JSON.stringify(result,null,2)+'\n',
+ fs.writeFileSync(path.join(staging,'upload-inventory.json'),JSON.stringify(result,null,2)+'\n',
   {flag:'wx',mode:0o600});
  if(provider==='nginx')
-  fs.writeFileSync(path.join(output,'nginx-redirects.conf'),plan.plan.nginx.content,
+  fs.writeFileSync(path.join(staging,'nginx-redirects.conf'),plan.plan.nginx.content,
    {flag:'wx',mode:0o600});
+ // Read the staged directory back through the real preview loader; it
+ // performs an independent on-disk ledger walk including 404/301/fingerprint.
+ const PREVIEW=require('./static-host-preview.cjs');
+ const inspected=PREVIEW.load(staging);
+ if(inspected.files.size!==plan.records.length||
+    inspected.inventory.officialStaticManifestSha256!==plan.officialManifestSha256)
+  throw Error('Staged upload failed independent file-ledger integrity preflight');
+ if(fs.existsSync(output))throw Error('The final static upload output appeared while preparing the candidate');
+ fs.renameSync(staging,output);
+ }catch(error){
+  fs.rmSync(staging,{recursive:true,force:true});
+  throw error;
+ }
  return Object.freeze({output,provider,files:plan.records.length,
   bytes:plan.totalPayloadBytes,officialManifestSha256:plan.officialManifestSha256,
   publishedVersion:plan.publishedVersion,actualHostWrites:0,publicHttpRequests:0,
