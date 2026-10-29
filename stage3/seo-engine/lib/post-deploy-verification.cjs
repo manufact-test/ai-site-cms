@@ -75,6 +75,30 @@ function inspect(candidate,site,release,publicHttp,publicMedia,byteReport,cohort
     status.blockingGateIds.length!==status.blockingGates||
     status.status!==(status.blockingGates>0?'TECHNICAL-BLOCKED':'MANUAL-ACCEPTANCE-REQUIRED'))
   throw Error('Private candidate technical blockers or upgrade report conflict with original PHP/SEO release findings');
+ if(impact){
+  if(typeof status.rollbackArchiveSha256!=='string'||
+     !DIGEST.test(status.rollbackArchiveSha256)||
+     status.rollbackOfficialManifestSha256!==impact.oldManifestSha256||
+     status.rollbackPublishedVersion!==impact.oldVersion)
+   throw Error('Previous verified rollback fingerprint is missing or belongs to a different release');
+  const rollbackFile=path.join(root,'rollback-public-site.zip'),
+   rollbackStat=fs.lstatSync(rollbackFile);
+  if(!rollbackStat.isFile()||rollbackStat.isSymbolicLink()||
+     rollbackStat.size<22||rollbackStat.size>190000000||
+     rollbackStat.size!==status.rollbackArchiveBytes)
+   throw Error('Private rollback ZIP is missing, oversized or incomplete');
+  const fd=fs.openSync(rollbackFile,'r'),hash=crypto.createHash('sha256');
+  try{
+   const chunk=Buffer.alloc(1048576);
+   for(;;){
+    const count=fs.readSync(fd,chunk,0,chunk.length,null);
+    if(!count)break;
+    hash.update(chunk.subarray(0,count));
+   }
+  }finally{fs.closeSync(fd);}
+  if(hash.digest('hex')!==status.rollbackArchiveSha256)
+   throw Error('Private rollback ZIP SHA256 changed after release candidate preparation');
+ }
  const staging=path.join(root,'static-upload');
  const upload=PREVIEW.load(staging);
  if(upload.inventory.siteId!==site.siteId||
