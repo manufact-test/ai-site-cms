@@ -92,7 +92,7 @@ function validateStyle(style,tokens,at,mode='base'){
     align:['start','center','end','stretch','between'],justify:['start','center','end','stretch','between'],
     alignSelf:['auto','start','center','end','stretch'],position:['static','relative','absolute'],
     textAlign:['left','center','right'],flexWrap:['nowrap','wrap'],
-    fontFamily:['inherit','system','arial','georgia','serif','mono'],
+    fontFamily:['inherit','system','arial','georgia','serif','mono','site-body','site-heading'],
     objectFit:['cover','contain','fill','none'],aspectRatio:['auto','square','portrait','landscape','wide'],
     overflow:['visible','hidden','auto'],shadow:['none','soft','medium','strong'],justifySelf:['auto','start','center','end','stretch'],alignContent:['start','center','end','stretch','between'],gridAutoFlow:['row','column','row-dense','column-dense'],textDecoration:['none','underline','line-through'],whiteSpace:['normal','nowrap','pre-line'],
     fontStyle:['normal','italic'],textTransform:['none','uppercase','lowercase','capitalize'],textWrap:['wrap','balance','pretty','nowrap'],wordBreak:['normal','break-all','break-word'],textOverflow:['clip','ellipsis'],textShadow:['none','soft','strong'],gridColumnsPreset:['sidebar-left','sidebar-right','wide-center','editorial'],transformOrigin:['center','top-left','top-right','bottom-left','bottom-right'],isolation:['auto','isolate'],mixBlendMode:['normal','multiply','screen','overlay','darken','lighten'],clipShape:['none','circle','ellipse','diagonal','hexagon'],borderStyle:['solid','dashed','dotted','double'],filterPreset:['none','grayscale','sepia','contrast','vibrant']
@@ -523,7 +523,8 @@ function declarations(style,t){
     }
     if(k==='fontFamily'){
       put('font-family',{inherit:'inherit',system:'system-ui,Arial,sans-serif',arial:'Arial,sans-serif',
-        georgia:'Georgia,serif',serif:'ui-serif,Georgia,serif',mono:'ui-monospace,monospace'}[value]);continue;
+        georgia:'Georgia,serif',serif:'ui-serif,Georgia,serif',mono:'ui-monospace,monospace',
+        'site-body':'var(--cms-font)','site-heading':'var(--cms-heading-font)'}[value]);continue;
     }
     if(k==='aspectRatio'){
       put('aspect-ratio',{auto:'auto',square:'1/1',portrait:'3/4',landscape:'4/3',wide:'16/9'}[value]);continue;
@@ -980,7 +981,7 @@ function fieldMap(def){return new Map(def.fields.map(f=>[f.path,f]));}
 
 const DEFAULT_THEME=Object.freeze({background:'#f7f9fc',surface:'#ffffff',text:'#172a43',primary:'#0a5bff',font:'system',maxWidth:1140,bodySize:16,lineHeight:'normal',headingScale:'normal',buttonStyle:'solid',buttonRadius:9,buttonText:'#ffffff'});
 function validTheme(t){
-  objectKeys(t,['background','surface','text','primary','font','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText'],'theme');
+  objectKeys(t,['background','surface','text','primary','font','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText','fontFiles'],'theme');
   for(const k of ['background','surface','text','primary'])
     if(typeof t[k]!=='string'||!/^#[0-9a-fA-F]{6}$/.test(t[k]))fail('Invalid theme color',k);
   if(!['system','arial','georgia'].includes(t.font)||!Number.isInteger(t.maxWidth)||t.maxWidth<680||t.maxWidth>1600)fail('Invalid theme font or width');
@@ -990,6 +991,15 @@ function validTheme(t){
   if(own(t,'buttonStyle')&&!['solid','outline','pill'].includes(t.buttonStyle))fail('Invalid global button style');
   if(own(t,'buttonRadius')&&(!Number.isInteger(t.buttonRadius)||t.buttonRadius<0||t.buttonRadius>32))fail('Invalid global button radius');
   if(own(t,'buttonText')&&(typeof t.buttonText!=='string'||!/^#[0-9a-fA-F]{6}$/.test(t.buttonText)))fail('Invalid global button text color');
+}
+function validFontFiles(theme,assetMimes){
+  if(!own(theme,'fontFiles'))return;
+  const faces=theme.fontFiles;
+  objectKeys(faces,['body','heading'],'theme.fontFiles');
+  if(!Object.keys(faces).length)fail('At least one local font required');
+  for(const [role,assetId] of Object.entries(faces))
+    if(typeof assetId!=='string'||assetMimes.get(assetId)!=='font/woff2')
+      fail('Local font must reference a site-owned WOFF2 asset',role);
 }
 function validSeo(s,assetMimes){
   objectKeys(s,['title','description','robots','ogTitle','ogDescription','ogImage'],'seo');
@@ -1158,8 +1168,8 @@ function validateSite(raw,regInput){
   const assetIds=new Set(),assetMimes=new Map(),imageIds=new Set();
   for(const asset of raw.assets){
     objectKeys(asset,['id','src','alt','mime','variants','width','height'],'asset');id(asset.id,'asset.id');
-    if(assetIds.has(asset.id)||!['image/png','image/webp','image/jpeg','image/svg+xml','video/mp4'].includes(asset.mime)||
-      typeof asset.src!=='string'||!/^\/assets\/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg|mp4)$/.test(asset.src)||
+    if(assetIds.has(asset.id)||!['image/png','image/webp','image/jpeg','image/svg+xml','video/mp4','font/woff2'].includes(asset.mime)||
+      typeof asset.src!=='string'||!/^\/assets\/[a-zA-Z0-9/_-]+\.(png|webp|jpg|jpeg|svg|mp4|woff2)$/.test(asset.src)||
       typeof asset.alt!=='string'||asset.alt.length>200||/[\x00-\x1f]/.test(asset.alt))fail('Invalid asset',asset.id);
     const hasWidth=own(asset,'width'),hasHeight=own(asset,'height');
     if(hasWidth!==hasHeight||(hasWidth&&(!['image/png','image/jpeg','image/webp'].includes(asset.mime)||
@@ -1167,8 +1177,9 @@ function validateSite(raw,regInput){
       !Number.isInteger(asset.height)||asset.height<1||asset.height>4096)))
       fail('Invalid intrinsic image dimensions',asset.id);
     assetIds.add(asset.id);assetMimes.set(asset.id,asset.mime);
-    if(asset.mime!=='video/mp4')imageIds.add(asset.id);
+    if(asset.mime.startsWith('image/'))imageIds.add(asset.id);
     if(asset.mime==='video/mp4'&&asset.src!=='/assets/'+asset.id+'.mp4')fail('Invalid video path',asset.id);
+    if(asset.mime==='font/woff2'&&asset.src!=='/assets/'+asset.id+'.woff2')fail('Invalid WOFF2 font path',asset.id);
     if(asset.variants!==undefined){
       if(!Array.isArray(asset.variants)||asset.variants.length>3)fail('Invalid responsive variants',asset.id);
       const widths=new Set(),ext={'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[asset.mime];
@@ -1183,6 +1194,7 @@ function validateSite(raw,regInput){
       }
     }
   }
+  if(own(raw,'theme'))validFontFiles(raw.theme,assetMimes);
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
   const ids=new Set([raw.siteId,...assetIds]),paths=new Set(),sharedGroups=new Map();
   for(const page of raw.pages){
@@ -2688,7 +2700,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const dlg=document.createElement('dialog');dlg.className='cms-settings-dialog';dlg.id='cms-settings-dialog';
     const header=document.createElement('h2'),tip=document.createElement('small'),grid=document.createElement('div');
     grid.className='cms-settings-grid';const actions=document.createElement('div');actions.className='cms-settings-actions';
-    const fields={},themeKeys=['background','surface','text','primary','font','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText'],globalKeys=[...themeKeys,'language'];
+    const fields={},themeKeys=['background','surface','text','primary','font','font-body','font-heading','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText'],globalKeys=[...themeKeys,'language'];
     const metaKeys=['seo-title','seo-description','seo-robots','seo-og-title','seo-og-description','seo-og-image','nav-label','nav-hidden'];
     const add=(name,labelText,type='text',max)=>{
       const wrap=document.createElement('label');wrap.textContent=labelText;
@@ -2702,6 +2714,22 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     for(const [value,text] of [['system','Системный'],['arial','Arial'],['georgia','Georgia']]){
       const option=document.createElement('option');option.value=value;option.textContent=text;font.append(option);
     }
+    add('font-body','Локальный WOFF2 для основного текста','select');
+    add('font-heading','Локальный WOFF2 для заголовков','select');
+    const refreshFonts=()=>{
+      for(const [key,label] of [['font-body','Стандартный шрифт сайта'],
+        ['font-heading','Как основной текст']]){
+        const field=fields[key],current=field.value;
+        field.replaceChildren();
+        const defaultOption=document.createElement('option');
+        defaultOption.value='';defaultOption.textContent=label;field.append(defaultOption);
+        for(const asset of session.current.assets.filter(a=>a.mime==='font/woff2')){
+          const option=document.createElement('option');
+          option.value=asset.id;option.textContent=asset.alt||asset.id;field.append(option);
+        }
+        field.value=current;
+      }
+    };
     const width=add('maxWidth','Максимальная ширина (680–1600 px)','number');width.min='680';width.max='1600';
     const bodySize=add('bodySize','Размер основного текста (14–22 px)','number');bodySize.min='14';bodySize.max='22';bodySize.step='1';
     const lineHeight=add('lineHeight','Межстрочный интервал','select');
@@ -2844,7 +2872,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       seoPreview.hidden=kind!=='seo';
       if(kind==='theme'){
         const t={...C.DEFAULT_THEME,...session.current.theme};
-        for(const key of themeKeys)fields[key].value=t[key];
+        refreshFonts();
+        for(const key of themeKeys.filter(key=>!key.startsWith('font-')))fields[key].value=t[key];
+        fields['font-body'].value=t.fontFiles?.body||'';
+        fields['font-heading'].value=t.fontFiles?.heading||'';
         fields.language.value=session.current.language||'ru';
       }else{
         const p=current().page,seo=p.seo||{},nav=p.navigation||{};
@@ -2870,6 +2901,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             lineHeight:fields.lineHeight.value,headingScale:fields.headingScale.value,
             buttonStyle:fields.buttonStyle.value,buttonRadius:Number(fields.buttonRadius.value),
             buttonText:fields.buttonText.value};
+          const fontFiles={};
+          if(fields['font-body'].value)fontFiles.body=fields['font-body'].value;
+          if(fields['font-heading'].value)fontFiles.heading=fields['font-heading'].value;
+          if(Object.keys(fontFiles).length)site.theme.fontFiles=fontFiles;
           site.language=fields.language.value;
         }else{
           const p=site.pages.find(p=>p.id===chosenPage);
@@ -5733,7 +5768,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           justify:['start','center','end','stretch','between'],
           position:['static','relative','absolute'],textAlign:['left','center','right'],
           flexWrap:['nowrap','wrap'],alignSelf:['auto','start','center','end','stretch'],
-          fontFamily:['inherit','system','arial','georgia','serif','mono'],
+          fontFamily:['inherit','system','arial','georgia','serif','mono','site-body','site-heading'],
           objectFit:['cover','contain','fill','none'],
           aspectRatio:['auto','square','portrait','landscape','wide'],
           overflow:['visible','hidden','auto'],shadow:['none','soft','medium','strong'],
@@ -7543,15 +7578,32 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const buttonColor=t.buttonStyle==='outline'?'var(--cms-primary)':e(t.buttonText);
     const buttonRadius=t.buttonStyle==='pill'?'999px':Number(t.buttonRadius)+'px';
     const buttonShadow=t.buttonStyle==='outline'?'inset 0 0 0 2px var(--cms-primary)':'none';
-    const palette='<style>:root{--cms-bg:'+e(t.background)+';--cms-surface:'+e(t.surface)+
+    const fontAssets=new Map(session.current.assets.map(asset=>[asset.id,asset]));
+    let faceCss='',bodyFont=t.font==='georgia'?'Georgia,serif':
+      t.font==='arial'?'Arial,sans-serif':'system-ui,Arial,sans-serif';
+    let headingFont=bodyFont;
+    for(const role of ['body','heading']){
+      const id=t.fontFiles?.[role];
+      if(!id||fontAssets.get(id)?.mime!=='font/woff2')continue;
+      const source=previewAssetSources?.[id]||(
+        HOSTED?'/api/sites/'+encodeURIComponent(session.current.siteId)+'/media/'+encodeURIComponent(id):null);
+      if(!source)continue;
+      const family=role==='body'?'CMS Site Body':'CMS Site Heading';
+      faceCss+='@font-face{font-family:"'+family+'";src:url("'+e(source)+
+        '") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}';
+      if(role==='body')bodyFont='"CMS Site Body",'+bodyFont;
+      else headingFont='"CMS Site Heading",'+bodyFont;
+    }
+    if(!t.fontFiles?.heading)headingFont=bodyFont;
+    const palette='<style>'+faceCss+':root{--cms-bg:'+e(t.background)+';--cms-surface:'+e(t.surface)+
       ';--cms-text:'+e(t.text)+';--cms-primary:'+e(t.primary)+';--cms-width:'+t.maxWidth+
-      'px;--cms-font:'+(t.font==='georgia'?'Georgia,serif':t.font==='arial'?'Arial,sans-serif':'system-ui,Arial,sans-serif')+
+      'px;--cms-font:'+bodyFont+';--cms-heading-font:'+headingFont+
       ';--cms-body-size:'+Number(t.bodySize)+'px;--cms-line-height:'+lineHeights[t.lineHeight]+
       ';--cms-h2-size:'+headingSizes[t.headingScale]+';--cms-button-bg:'+buttonBackground+
       ';--cms-button-color:'+buttonColor+';--cms-button-text:'+e(t.buttonText)+
       ';--cms-button-radius:'+buttonRadius+';--cms-button-shadow:'+buttonShadow+'}'+
       'body{background:var(--cms-bg)!important;color:var(--cms-text)!important;font-family:var(--cms-font)!important;font-size:var(--cms-body-size)!important;line-height:var(--cms-line-height)!important}'+
-      'h2{font-size:var(--cms-h2-size)!important}'+
+      'h1,h2,h3,h4,h5,h6{font-family:var(--cms-heading-font)!important}h2{font-size:var(--cms-h2-size)!important}'+
       '.action{background:var(--cms-button-bg)!important;color:var(--cms-button-color)!important;border-radius:var(--cms-button-radius)!important;box-shadow:var(--cms-button-shadow)!important}'+
       '.card{background:var(--cms-surface)!important}section{max-width:var(--cms-width);margin-inline:auto}</style>';
     let content='';
