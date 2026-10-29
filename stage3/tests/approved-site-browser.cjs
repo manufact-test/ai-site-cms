@@ -123,6 +123,9 @@ async function execute(){
   for(const name of ['desktop','tablet','mobile'])
     fs.writeFileSync(path.join(folder,'prototypes',name+'.png'),examplePng);
   fs.writeFileSync(path.join(folder,'assets','asset-external-hero.png'),examplePng);
+  const approvedVideo=Buffer.from(fs.readFileSync(path.join(root,
+    'stage3/tests/fixtures/tiny-h264.mp4.b64'),'utf8').trim(),'base64');
+  fs.writeFileSync(path.join(folder,'assets','asset-external-film.mp4'),approvedVideo);
   fs.writeFileSync(path.join(folder,'client-explanation.md'),'Browser-only fixture: client-facing explanation for the full approved prototype.');
   fs.writeFileSync(path.join(folder,'implementation-spec.md'),'Browser-only fixture: source of truth for component properties, responsive behavior, and CTA.');
   fs.writeFileSync(path.join(folder,'handoff.json'),JSON.stringify({
@@ -134,7 +137,9 @@ async function execute(){
   const external=await page.evaluate(()=>{
     const site=window.Stage3Editor.fromBrief('site-approved-browser','Внешний готовый сайт');
     site.assets=[{id:'asset-external-hero',src:'/assets/asset-external-hero.png',
-      mime:'image/png',alt:'Фото внешнего сайта'}];
+      mime:'image/png',alt:'Фото внешнего сайта'},
+      {id:'asset-external-film',src:'/assets/asset-external-film.mp4',
+        mime:'video/mp4',alt:'Видеопрезентация утверждённого сайта'}];
     site.pages[0].seo={title:'Внешний готовый сайт',description:'Проверка подключения внешнего сайта',
       robots:'index',ogImage:'asset-external-hero'};
     const faq=window.Stage3Editor.manifests().find(x=>x.id==='faq-accordion');
@@ -186,6 +191,9 @@ async function execute(){
     const row=(id,values)=>({id,type:'table-row',styles:{},
       children:values.map((v,i)=>cell(id+'-cell-'+(i+1),v))});
     rich.push(
+      {id:'approved-film',type:'video',assetId:'asset-external-film',
+        posterAssetId:'asset-external-hero',alt:'Видеопрезентация утверждённого сайта',
+        loop:false,styles:{widthPercent:100,aspectRatio:'wide'}},
       {id:'approved-rich-link',type:'link',text:'Перейти к началу',href:'/',styles:{textDecoration:'underline'},
         states:{active:{opacity:70,borderColor:'@accent',borderStyle:'dotted'}}},
       {id:'approved-rich-quote',type:'quote',text:'Цитата из согласованной спецификации',
@@ -329,7 +337,7 @@ async function execute(){
   await page.waitForFunction(()=>!document.getElementById('server-approved-import').disabled);
   const unfinished=(await (await page.request.get(
     origin+'/api/sites/site-approved-browser')).json());
-  assert.equal(unfinished.site.assets.length,1,'Interrupted import retains one isolated media file');
+  assert.equal(unfinished.site.assets.length,2,'Interrupted import retains image and MP4 bytes in private site');
   assert.equal(unfinished.site.pages[0].sections.length,2,
     'Server stores only the unpublished seed until final manifest Save');
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),404,
@@ -391,10 +399,15 @@ async function execute(){
   const resumed=(await (await page.request.get(origin+'/api/sites/site-approved-browser')).json());
   assert.equal(resumed.revision,unfinished.revision+1,
     'Cross-session recovery reuses stored media and adds ONLY final Save revision');
-  assert.equal(resumed.site.assets.length,1,'Continuation never duplicates immutable asset IDs');
+  assert.equal(resumed.site.assets.length,2,'Continuation never duplicates immutable image or MP4');
   const imported=await page.evaluate(()=>window.Stage3Editor.getSite());
   assert.equal(imported.siteId,'site-approved-browser');
-  assert.equal(imported.assets.length,1);
+  assert.equal(imported.assets.length,2);
+  const importedVideo=imported.assets.find(asset=>asset.mime==='video/mp4');
+  assert.ok(importedVideo&&importedVideo.id!=='asset-external-film');
+  const privateVideo=await page.request.get(origin+'/api/sites/site-approved-browser/media/'+importedVideo.id);
+  assert.equal(privateVideo.status(),200);
+  assert.deepEqual(await privateVideo.body(),approvedVideo,'The exact sealed MP4 bytes survive import and recovery');
   const evidenceRoute=origin+'/api/sites/site-approved-browser/approval-evidence';
   const approvalIndexResponse=await page.request.get(evidenceRoute);
   assert.equal(approvalIndexResponse.status(),200,'Owner can access private approved evidence archive');
@@ -781,6 +794,11 @@ async function execute(){
   assert.equal(await visitor.locator('.cmsdg-n-approved-rich-table tbody tr').count(),3,
     'PHP publication renders rows from the imported typed table');
   assert.equal(await visitor.locator('.cmsdg-n-approved-rich-table thead th').count(),4);
+  const filmSrc=await visitor.locator('.cmsdg-n-approved-film source').getAttribute('src');
+  assert.equal(filmSrc,'/published/site-approved-browser/assets/'+importedVideo.id+'.mp4');
+  const publicFilm=await page.request.get(origin+filmSrc);
+  assert.equal(publicFilm.status(),200,'Imported MP4 is published only with the approved site');
+  assert.deepEqual(await publicFilm.body(),approvedVideo);
   assert.equal(await visitor.locator('.cmsdg-n-approved-rich-gallery img').count(),3,
     'Published gallery uses actual site-owned photos');
   assert.match(await visitor.locator('.cmsdg-n-approved-rich-quote').innerText(),/Технический редактор/);
