@@ -506,6 +506,13 @@ final class Api
                             $body['pageId'],$body['path'],$body['device'],$body['scrollY'],
                             $body['note'],$principal['username']));
                     }
+                    if ($op==='import') {
+                        if(!is_array($body['findings']??null))
+                            throw new InvalidArgumentException('Review findings array required');
+                        $this->auditDetail='Imported open visual findings';
+                        $this->response(200,$this->sites->visualReviewImport($review[1],
+                            $revision,$body['findings'],$principal['username']));
+                    }
                     if ($op==='resolve') {
                         if(!is_string($body['findingId']??null)||!is_int($body['expectedVersion']??null))
                             throw new InvalidArgumentException('Finding ID and optimistic version required');
