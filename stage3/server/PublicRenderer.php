@@ -349,7 +349,7 @@ JS;
             .$cta.$mobile.'</div></header>';
     }
 
-    private static function themeCss(array $site,string $mount): string
+    private static function themeCss(array $site,string $mount,?string $assetBasePath=null): string
     {
         $t = array_merge(['background'=>'#f7f9fc','surface'=>'#ffffff','text'=>'#172a43',
             'primary'=>'#0a5bff','font'=>'system','maxWidth'=>1140,'bodySize'=>16,
@@ -365,7 +365,8 @@ JS;
             // Exact same-site WOFF2 asset was checked by the typed contract.
             $asset=$assets[$id];
             $family=$role==='body'?'CMS Site Body':'CMS Site Heading';
-            $faceCss.='@font-face{font-family:"'.$family.'";src:url("'.$mount.$asset['src'].
+            $source=$assetBasePath!==null?rtrim($assetBasePath,'/').'/'.$id:$mount.$asset['src'];
+            $faceCss.='@font-face{font-family:"'.$family.'";src:url("'.$source.
                 '") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}';
             if($role==='body')$bodyFont='"CMS Site Body",'.$bodyFont;
             else $headingFont='"CMS Site Heading",'.$bodyFont;
@@ -900,11 +901,11 @@ JS;
         }
 
         $previewHead=$preview
-            ? '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'none\'; style-src \'unsafe-inline\'; img-src \'self\' data:; media-src \'self\'; connect-src \'none\'; form-action \'none\'; object-src \'none\'; frame-src \'none\'; base-uri \'none\'"><meta name="robots" content="noindex,nofollow"><style>a{pointer-events:none!important;cursor:default!important}</style>'
+            ? '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'none\'; style-src \'unsafe-inline\'; img-src \'self\' data:; media-src \'self\'; font-src \'self\'; connect-src \'none\'; form-action \'none\'; object-src \'none\'; frame-src \'none\'; base-uri \'none\'"><meta name="robots" content="noindex,nofollow"><style>a{pointer-events:none!important;cursor:default!important}</style>'
             : '';
         return '<!doctype html><html lang="'.$language.'"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1">' . $previewHead
-            . '<title>' . $title . '</title>' . $description . $robots . $canonical . $social . '<style>' . self::themeCss($site,$mount)
+            . '<title>' . $title . '</title>' . $description . $robots . $canonical . $social . '<style>' . self::themeCss($site,$mount,$assetBasePath)
             . '*,*:before,*:after{box-sizing:border-box}body{margin:0;background:var(--cms-bg);color:var(--cms-text);font:var(--cms-body-size)/var(--cms-line-height) var(--cms-font)}h1,h2,h3,h4,h5,h6{font-family:var(--cms-heading-font)}'
             . 'header,main,footer{max-width:var(--cms-width);margin:auto;padding:24px}nav{display:flex;flex-wrap:wrap;gap:18px}a{color:inherit}'
             . 'section{padding:64px 24px;border-bottom:1px solid #e2e8f0}h1{font-size:var(--title-desktop);color:var(--title-color);line-height:1.1;max-width:960px}'
