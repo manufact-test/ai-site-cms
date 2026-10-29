@@ -35,6 +35,18 @@ trait VisualReview
         return $this->visualReviewInstalled=$q->fetchColumn()!==false;
     }
 
+    /** Serialize publication and review writes on the SAME saved revision. */
+    private function lockVisualDraftRevision(string $siteId,int $revision): void
+    {
+        $sql='SELECT revision FROM stage3_drafts WHERE site_id=?';
+        if($this->driver==='mysql')$sql.=' FOR UPDATE';
+        $q=$this->db->prepare($sql);$q->execute([$siteId]);
+        $current=$q->fetchColumn();
+        if($current===false)throw new NotFound('Unknown visual review site');
+        if((int)$current!==$revision)
+            throw new Conflict('Draft revision changed; reopen visual review');
+    }
+
     /** Explicitly authorized CLI upgrade for a DEDICATED already-existing CMS database. */
     public function upgradeVisualReviewSchema(): void
     {
@@ -99,6 +111,7 @@ trait VisualReview
             if($page['id']===$pageId&&$page['path']===$path){$valid=true;break;}
         if(!$valid)throw new NotFound('Visual review page is not in current draft');
         return $this->atomic(function()use($siteId,$revision,$pageId,$path,$device,$scrollY,$note,$operator):array{
+            $this->lockVisualDraftRevision($siteId,$revision);
             $count=$this->db->prepare('SELECT COUNT(*) FROM stage3_visual_findings WHERE site_id=? AND draft_revision=?');
             $count->execute([$siteId,$revision]);
             if((int)$count->fetchColumn()>=200)
@@ -120,6 +133,7 @@ trait VisualReview
         if($this->getDraft($siteId)['revision']!==$revision)
             throw new Conflict('Draft revision changed; reopen visual review');
         return $this->atomic(function()use($siteId,$revision,$findingId,$expectedVersion,$operator):array{
+            $this->lockVisualDraftRevision($siteId,$revision);
             $q=$this->db->prepare("UPDATE stage3_visual_findings SET state='resolved', version=version+1, resolved_by=?,resolved_at=? WHERE site_id=? AND draft_revision=? AND finding_id=? AND version=? AND state='open'");
             $q->execute([$operator,$this->now(),$siteId,$revision,$findingId,$expectedVersion]);
             if($q->rowCount()!==1)throw new Conflict('Visual finding was resolved or changed; reload before retrying');
@@ -131,6 +145,7 @@ trait VisualReview
     private function assertNoOpenVisualFindings(string $siteId,int $revision): void
     {
         if(!$this->hasVisualReviewTable())return; // legacy sites require opt-in upgrade before enabling this feature
+        $this->lockVisualDraftRevision($siteId,$revision);
         $q=$this->db->prepare("SELECT COUNT(*) FROM stage3_visual_findings WHERE site_id=? AND draft_revision=? AND state='open'");
         $q->execute([$siteId,$revision]);
         if((int)$q->fetchColumn()>0)
