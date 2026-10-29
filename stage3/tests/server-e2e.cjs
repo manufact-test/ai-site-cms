@@ -267,6 +267,11 @@ async function stop(){
     publicOrigin:'https://client.example',formCollector:null,
     remoteIdentity:{...remoteIdentity,debug:'private'}})).status,422,
     'Unknown identity fields refused, never interpreted as proof');
+  /* The independent live verifier is inert in CI; only its pure validation and
+     public-IP filters run. Real DNS/HTTPS requires an explicit owner CLI action. */
+  const liveVerifier=spawnSync('node',['stage3/runtime-export/tests/live-connection.cjs'],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(liveVerifier.status,0,liveVerifier.stderr);
   // Site operations: owner-only CAS toggle, immediate visitor isolation, no release mutation.
   const operations=await request('GET',endpoint+'/operations');
   assert.equal(operations.status,200);

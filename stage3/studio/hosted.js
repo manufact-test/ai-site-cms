@@ -69,6 +69,21 @@
   externalIdentity.placeholder='{"format":"manufact-ai-site-connection-v1","siteId":"...", ...}';
   const externalSummary=element('div','hosted-backup-summary');
   externalSummary.id='server-connection-external-result';
+  const externalLiveGuide=element('details','hosted-backup-summary');
+  externalLiveGuide.id='server-connection-external-https-guide';
+  externalLiveGuide.append(element('summary',null,'Проверить настоящий HTTPS автоматически на разрешённом компьютере'),
+    element('p',null,'После скачивания опубликованного D2 JSON-пакета владелец может выполнить '+
+      'одну команду на своём компьютере. Она сверяет TLS, публичный HTTP, главную страницу и SHA-256, '+
+      'не отправляя заявки и не изменяя сайт. В CMS команда не запускается.'));
+  const externalLiveCommand=element('pre');
+  externalLiveCommand.style.whiteSpace='pre-wrap';
+  externalLiveCommand.style.overflowWrap='anywhere';
+  const refreshExternalCommand=()=>{externalLiveCommand.textContent=
+    'node stage3/runtime-export/bin/verify-live-release.cjs /ABS/published-vN-handoff.json '+
+    (externalOrigin.value.trim()||'https://your-public-domain.tld');};
+  externalOrigin.addEventListener('input',refreshExternalCommand);
+  refreshExternalCommand();
+  externalLiveGuide.append(externalLiveCommand);
   const externalCompare=action('Сравнить SHA-256 независимого выпуска','server-connection-compare',()=>safe(async()=>{
     if(!state.siteId||!isOwner())throw Error('Доступно только владельцу CMS');
     let identity;
@@ -109,7 +124,7 @@
     externalField('HTTPS-сборщик форм из того же выпуска (если есть)','server-connection-external-collector',externalCollector),
     externalOpen,
     externalField('JSON из /_cms-connect.json','server-connection-external-identity',externalIdentity),
-    externalCompare,externalSummary);
+    externalCompare,externalSummary,externalLiveGuide);
   connectionDialog.insertBefore(externalConnection,connectionClose);
   async function checkConnection(){
     if(!state.siteId||!isOwner())throw Error('Проверка подключения доступна владельцу');

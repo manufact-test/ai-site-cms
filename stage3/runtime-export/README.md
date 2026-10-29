@@ -36,3 +36,8 @@ D4 verified offline ZIP handover: [D4-VERIFIED-DELIVERY.md](./D4-VERIFIED-DELIVE
 D5 one-command shipment and local readiness audit: [D5-SHIPMENT-PREFLIGHT.md](./D5-SHIPMENT-PREFLIGHT.md).
 
 D6 actual loopback rehearsal from independently verified ZIP (HTML/Next Static simulated host, genuine independent PHP router): [D6-LOCAL-HTTP-REHEARSAL.md](./D6-LOCAL-HTTP-REHEARSAL.md). D5 --http-rehearsal opt-in integrates the local HTTP evidence in the same shipment receipt, with no production contact.
+
+
+### 29 Oct 2026 — operator-run live HTTPS verification, no remote call during development
+
+An additional independent CLI utility `node stage3/runtime-export/bin/verify-live-release.cjs /ABS/published-vN-handoff.json https://client-domain.tld` provides a **real read-only external HTTPS comparison** when and only when the owner chooses an authorized target and executes it on their own workstation. It validates the local immutable handoff's manifest SHA; resolves a public DNS hostname, refuses IPv4 literals, local/internal/test names and reserved/private IPv4, pins the vetted public IPv4 to an HTTPS certificate-validated connection, and never follows redirects. It reads exactly `GET /_cms-connect.json` (bounded JSON) and `HEAD /` (homepage HTTP 200, HTML type), compares site ID/version/revision/manifest SHA and optionally canonical origin, and emits a JSON report with explicit booleans. It makes no form submissions and does not deploy. Production or external DNS were **not contacted** by the developer; CI runs only the tiny pure-validation offline test. A matched certificate, HTTP response and identity still cannot confirm visual quality, client signoff or delivery of an actual form. Owner-only acceptance gate remains untouched.
