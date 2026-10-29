@@ -231,6 +231,7 @@ final class SiteRepository
                 throw new Conflict('Stale editor revision; reload before saving');
             }
             $this->saveRevision($id, $expectedRevision + 1, $body, $now);
+            $this->carryOpenVisualFindings($id,$expectedRevision,$expectedRevision + 1,$site);
             return ['site' => $site, 'revision' => $expectedRevision + 1];
         });
     }
