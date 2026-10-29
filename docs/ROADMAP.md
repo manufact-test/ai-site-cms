@@ -457,3 +457,15 @@ D4 bundles for standalone HTML and built Next Static now include **scoped visito
 - Модули CMS, внешний согласованный дизайн и реальное окружение клиента эти изменения не подменяют: `#187/#193` остаются `partial`, owner acceptance = 0. **Реальный LCP/TTFB/CWV, TLS, качество и доставка лидов этим не подтверждены.**
 
 Следующие действия: один настоящий **sealed approved-site-v2** от владельца + три утверждённых макета; реальная цепочка import→edit→save→publish→review→rollback, затем согласованные host/Email/Telegram проверки с отдельным разрешением. Не продлевать работу бесконечными synthetic performance dashboards, если нет реального сайта. История инженерного perf-контракта — в D5/D6 и [v6 главной передачи](../handoffs/lead-integrator/MAIN-HANDOFF-v6.0-2026-10-29.md).
+
+
+## 29 October 2026 — operational Email transport and lead-specific delivery recovery
+
+The lead integrator completed a user-facing forms/lead batch on the dedicated main-chat branch. **No external message was sent** and no customer database, production deployment, PR, main branch or SEO-worker files were changed.
+
+- Private server-side **verified TLS SMTP** is now an opt-in alternative to PHP `mail()`: STARTTLS/587 or implicit TLS/465, authenticated PLAIN/LOGIN after TLS, OpenSSL certificate/hostname validation, bounded reads/writes/timeouts and MIME Base64 lead text. Invalid SMTP environment never silently falls back to unprotected mail. The existing accepted/failed/uncertain states continue to distinguish transport acceptance from verified receipt.
+- Hosted Studio shows the effective Email transport and precise SMTP configuration failures. Owner-only `POST /api/sites/{id}/delivery/retry-one` and a per-attempt UI control permit one explicit retry (including separate uncertain-send confirmation) using delivery ID, state and monotonic attempt counter with compare-and-swap. Bulk retry remains available. Recipient snapshots are preserved.
+- Existing private lead CSV exports now include two separate per-lead Email/Telegram transport statuses, clearly labeled as **not recipient receipts**; no recipient addresses, credentials or private channel settings are included. CSV size/filter and injection safeguards remain.
+- Existing server HTTP E2E covers explicit confirmation and stale retry refusal; one small no-network SMTP configuration test is run in the existing `contract` job. Configuration and owner guidance: [stage3/docs/SMTP-DELIVERY.md](../stage3/docs/SMTP-DELIVERY.md).
+
+This is **functional engineering**, not proof that an actual customer got an Email/Telegram notification. Requirement #80 stays `partial`; counters remain 124 implemented candidates / 5 partial / 6 owner-environment gates, owner accepted 0. The next work is still the first real approved-v2 site and authorized delivery/host acceptance. Final SHA and matching CI should be recorded against the actual branch HEAD, not a prior documentation checkpoint.
