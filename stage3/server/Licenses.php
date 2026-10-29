@@ -31,7 +31,7 @@ trait Licenses
         $tables = $this->driver === 'sqlite'
             ? $this->db->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")->fetchAll(PDO::FETCH_COLUMN)
             : $this->db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
-        if (array_diff($expected,$tables) || array_diff($tables,[...$expected,'stage3_site_licenses','stage3_video_uploads','stage3_video_chunks','stage3_delivery_settings','stage3_delivery_outbox','stage3_delivery_routes','stage3_lead_workflow','stage3_lead_events','stage3_site_operations','stage3_site_incidents','stage3_approval_evidence'])) {
+        if (array_diff($expected,$tables) || array_diff($tables,[...$expected,'stage3_site_licenses','stage3_video_uploads','stage3_video_chunks','stage3_delivery_settings','stage3_delivery_outbox','stage3_delivery_routes','stage3_lead_workflow','stage3_lead_events','stage3_site_operations','stage3_site_incidents','stage3_approval_evidence','stage3_visual_findings'])) {
             throw new RuntimeException('Licence upgrade requires dedicated Stage3 schema and completed access upgrade');
         }
         if (!in_array('stage3_site_licenses',$tables,true)) $this->db->exec($this->licenseSchema());
