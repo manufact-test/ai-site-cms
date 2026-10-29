@@ -2452,6 +2452,16 @@
           'Источник: '+form.sources.join(' + ')+
           ' · '+(form.inboxOnly?'только приватный журнал заявок':
               'уведомления настроены, доставка не доказана')));
+        const publishedPages=form.pages.filter(page=>page.source==='published');
+        for(const pageInfo of publishedPages){
+          const link=element('a','btn','Открыть опубликованную форму: '+pageInfo.path);
+          link.href='/published/'+encodeURIComponent(site.siteId)+pageInfo.path;
+          link.target='_blank';link.rel='noopener noreferrer';
+          link.setAttribute('aria-label','В новой вкладке открыть страницу с реальной формой '+pageInfo.path);
+          entry.append(link);
+        }
+        if(!publishedPages.length)entry.append(element('small',null,
+          'Форма пока только в черновике. Отправлять её до публикации нельзя.'));
         for(const [channel,info] of Object.entries(form.channels)){
           const label=info.status==='disabled'?'отключён':
             info.status==='configuration_required'?'CONFIGURATION_REQUIRED ('+info.reason+')':
