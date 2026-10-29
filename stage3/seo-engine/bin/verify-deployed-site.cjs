@@ -9,11 +9,11 @@ const STATIC=require('../lib/php-local-static-export.cjs');
 const VERIFY=require('../lib/post-deploy-verification.cjs');
 const REQUIRED=['candidate','approved-site','published-site','static-export',
  'public-http-evidence','public-media-digests','out'];
-const OPTIONAL=['public-media-evidence','owner-edit-review','previous-public-http'];
+const OPTIONAL=['public-media-evidence','owner-edit-review','previous-public-http','previous-public-media-digests'];
 function parse(argv){
  if(!Array.isArray(argv)||argv.length%2||argv.length<REQUIRED.length*2||
     argv.length>(REQUIRED.length+OPTIONAL.length)*2)
-  throw Error('Usage: node stage3/seo-engine/bin/verify-deployed-site.cjs --candidate /ABS/private-first-site-candidate --approved-site /ABS/sealed-v2 --published-site /ABS/owner-published.json --static-export /ABS/official-static-export --public-http-evidence /ABS/public-https.json --public-media-digests /ABS/public-GET-sha256.json --out /ABS/NEW-private-verification [--public-media-evidence /ABS/public-HEAD.json] [--owner-edit-review /ABS/published-owner-edits-review.json] [--previous-public-http /ABS/earlier-public-https.json]');
+  throw Error('Usage: node stage3/seo-engine/bin/verify-deployed-site.cjs --candidate /ABS/private-first-site-candidate --approved-site /ABS/sealed-v2 --published-site /ABS/owner-published.json --static-export /ABS/official-static-export --public-http-evidence /ABS/public-https.json --public-media-digests /ABS/public-GET-sha256.json --out /ABS/NEW-private-verification [--public-media-evidence /ABS/public-HEAD.json] [--owner-edit-review /ABS/published-owner-edits-review.json] [--previous-public-http /ABS/earlier-public-https.json] [--previous-public-media-digests /ABS/earlier-public-GET-sha256.json]');
  const opts={};
  for(let i=0;i<argv.length;i+=2){
   const key=argv[i]?.startsWith('--')?argv[i].slice(2):null,v=argv[i+1];
@@ -21,6 +21,8 @@ function parse(argv){
      opts[key])throw Error('Unknown, duplicate or non-absolute post-deploy verification flag');
   opts[key]=v;
  }
+ if(opts['previous-public-media-digests']&&!opts['previous-public-http'])
+  throw Error('Earlier media digest must be supplied together with earlier public HTTPS capture');
  if(REQUIRED.some(x=>!opts[x]))throw Error('Post-deploy check requires private candidate, owner source, official static export and HTTPS GET SHA256 receipts');
  return opts;
 }
@@ -41,7 +43,8 @@ function main(argv){
   o['public-http-evidence'],o['public-media-digests'],
   ...(o['public-media-evidence']?[o['public-media-evidence']]:[]),
   ...(o['owner-edit-review']?[o['owner-edit-review']]:[]),
-  ...(o['previous-public-http']?[o['previous-public-http']]:[])];
+  ...(o['previous-public-http']?[o['previous-public-http']]:[]),
+  ...(o['previous-public-media-digests']?[o['previous-public-media-digests']]:[])];
  const crypto=require('node:crypto'),pinned=inputs.map(file=>{
   const stat=fs.lstatSync(file);
   if(!stat.isFile()||stat.isSymbolicLink()||stat.size<5||stat.size>36000000)
@@ -50,7 +53,7 @@ function main(argv){
  });
  const verdict=VERIFY.readAndInspect(o.candidate,site,release,
   o['public-http-evidence'],o['public-media-evidence']??null,o['public-media-digests'],
-  o['previous-public-http']??null);
+  o['previous-public-http']??null,o['previous-public-media-digests']??null);
  for(let i=0;i<inputs.length;i++){
   const current=crypto.createHash('sha256').update(fs.readFileSync(inputs[i])).digest('hex');
   if(pinned[i]!==current)
