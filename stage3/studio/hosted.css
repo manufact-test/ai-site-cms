@@ -246,3 +246,12 @@
 .hosted-launch-visual-index-rows .btn{width:100%;text-align:left;justify-content:flex-start;white-space:normal;overflow-wrap:anywhere;font-size:12px}
 .hosted-launch-visual-index-rows small{font-size:12px;opacity:.8}
 .hosted-launch-review-storage{font-size:11px;line-height:1.5;color:#d9e8ef}
+
+/* Read-only historical operator ledger; no mutation or inherited sign-offs. */
+.hosted-launch-review-history{display:grid;gap:10px;padding:10px;border:1px solid #628293;border-radius:8px;background:#102835}
+.hosted-launch-review-history[hidden]{display:none!important}
+.hosted-launch-review-history-revisions{display:flex;flex-wrap:wrap;gap:7px;max-height:130px;overflow:auto}
+.hosted-launch-review-history-revisions .btn{font-size:11px}
+.hosted-launch-review-history-details{display:grid;gap:6px;max-height:185px;overflow:auto}
+.hosted-launch-review-history-details strong{font-size:12px}
+.hosted-launch-review-history-details p{font-size:11px;padding:7px;margin:0;border:1px solid #506c78;border-radius:6px;white-space:normal;overflow-wrap:anywhere}
