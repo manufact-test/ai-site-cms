@@ -71,7 +71,7 @@ function verify(archive,bundle){
     if(got!==n)throw Error('ZIP contains truncated public bytes');
     const part=chunk.subarray(0,n);digest.update(part);checksum=CRC(checksum,part);j+=n;
    }
-   if(digest.digest('hex')!==entry.sha256||(checksum^0xffffffff)!==crc)
+   if(digest.digest('hex')!==entry.sha256||((checksum^0xffffffff)>>>0)!==crc)
     throw Error('ZIP archive entry SHA256/CRC32 differs from the approved public upload');
    expectedLocalCursor=dataAt+stored;
    centralCursor+=46+nameLen;found.add(name);total+=stored;
