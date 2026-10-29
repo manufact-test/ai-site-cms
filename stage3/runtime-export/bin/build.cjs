@@ -7,6 +7,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const crypto = require('node:crypto');
 const {inspect} = require('../lib/verify.cjs');
 
 const [release, target, destination] = process.argv.slice(2);
@@ -54,6 +55,14 @@ function compile() {
       const templates = path.join(sourcePath,'next');
       copyTree(path.join(templates,'lib'),path.join(temp,'lib'));
       copyTree(path.join(templates,'app'),path.join(temp,'app'));
+      // Bind the Next visitor to the EXACT FIRST-PARTY published PHP form
+      // wizard: release HTML is integrity-checked, but must never become an
+      // unchecked executable script in an independent Next runtime.
+      const publisher=fs.readFileSync(path.join(__dirname,'../../server/PublicRenderer.php'),'utf8');
+      const matched=publisher.match(/public static function formStepsScript\(\): string[\s\S]*?return <<<'JS'\n([\s\S]*?)\nJS;/);
+      if(!matched)fail('trusted publisher form wizard contract missing');
+      const wizardHash=crypto.createHash('sha256').update(matched[1].trimEnd()).digest('hex');
+      put(temp,'lib/wizard-contract.js','export const expectedWizardSha256='+JSON.stringify(wizardHash)+';\n');
       const publicDir = path.join(temp,'public');
       fs.mkdirSync(publicDir);
       // Identical public release identity on Next Static and SSR. No CMS
