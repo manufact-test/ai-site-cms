@@ -238,6 +238,8 @@ function build(site,manifests,blueprint,options={}){
    negativeRouteProbed:options.publicStatic.negativeRouteProbed??false,
    publicRootWindowRechecked:options.publicStatic.publicRootWindowRechecked??false,
    publicRootWindowStable:options.publicStatic.publicRootWindowStable??null,
+   publicReleaseMarkerObserved:options.publicStatic.publicReleaseMarkerObserved??false,
+   publicReleaseMarkerMatched:options.publicStatic.publicReleaseMarkerMatched??false,
    internalArtifactProbes:options.publicStatic.internalArtifactProbes??0,
    internalArtifactPublicHttp200:options.publicStatic.internalArtifactPublicHttp200??null,
    pages:options.publicStatic.pages,
