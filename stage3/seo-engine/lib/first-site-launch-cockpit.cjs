@@ -5,9 +5,10 @@
 const FIRST='manufact-seo-first-site-check-v1',BUNDLE='manufact-seo-review-bundle-v1';
 const POST='manufact-seo-post-deploy-release-verification-v1';
 const FORMAT='manufact-seo-first-site-launch-cockpit-v1',SHA=/^[0-9a-f]{64}$/;
+const OPERATOR='manufact-seo-first-site-operator-review-v1';
 const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-function validate(summary,bundle=null,post=null){
+function validate(summary,bundle=null,post=null,operatorReview=null,summarySha=null){
  if(summary?.format!==FIRST||typeof summary.siteId!=='string'||!SHA.test(summary.sourceSiteSha256||'')||
   summary.automaticRelease!==false||!summary.release||
   !Number.isSafeInteger(summary.release.blockingGates)||summary.release.blockingGates<0||
@@ -40,6 +41,16 @@ function validate(summary,bundle=null,post=null){
   if(post.disposition==='NOT-READY'&&!post.postDeployBlockingReasons.length)
    throw Error('Post-deploy NOT-READY must disclose its blocking reasons');
  }
+ if(operatorReview&&(
+  operatorReview.format!==OPERATOR||operatorReview.readOnly!==true||
+  operatorReview.siteId!==summary.siteId||!SHA.test(summarySha||'')||
+  operatorReview.sourceSummarySha256!==summarySha||
+  operatorReview.sealedSiteSha256!==summary.sourceSiteSha256||
+  operatorReview.publishedVersion!==summary.publishedVersion||
+  operatorReview.releaseAuthorized!==false||
+  operatorReview.summary?.openOriginalTechnicalGates!==summary.release.blockingGates||
+  !Array.isArray(operatorReview.tasks)))
+  throw Error('Operator checklist review is stale or not pinned to this exact first-site report');
  return true;
 }
 const presentation=[
@@ -63,8 +74,8 @@ function status(value,isCount){
  }
  return value===true?['Reported matched','seen']:value===false?['Reported mismatch','attention']:['UNKNOWN','unknown'];
 }
-function render(summary,bundle=null,post=null){
- validate(summary,bundle,post);
+function render(summary,bundle=null,post=null,operatorReview=null,summarySha=null){
+ validate(summary,bundle,post,operatorReview,summarySha);
  let disposition=summary.release.blockingGates>0?'BLOCKED BY FIRST-SITE GATES':
   !post?'LOCAL REVIEW — PUBLICATION NOT VERIFIED':
   post.disposition==='NOT-READY'?'POST-DEPLOY NOT READY':
@@ -99,6 +110,10 @@ function render(summary,bundle=null,post=null){
    '<li>No blocking reasons in the supplied post-deploy report; independent signoff remains mandatory.</li>')+
   '</ul></section>':
   '<section class="panel"><h2>Post-deploy evidence absent</h2><p>The public site has not been authenticated or verified by this cockpit. Run existing post-deploy procedure only after the lead manually publishes.</p></section>';
+ const operatorSection=operatorReview?'<section class="panel"><h2>Operator task ledger (human assertions only)</h2>'+
+  '<p class="muted">Reported completion cannot clear original technical gates or authenticate approval.</p>'+
+  '<div class="checks">'+operatorReview.tasks.map(x=>'<article class="check"><div><strong>'+esc(x.taskId)+'</strong><p>'+esc(x.label)+'</p></div>'+
+   '<span class="tag '+(x.state==='operator-checked'?'seen':'unknown')+'">'+esc(x.state)+'</span></article>').join('')+'</div></section>':'';
  const manual=[
   'Verify the correct actual owner-published Site v1 revision, manual edits and saved version.',
   'Confirm real browser page content, keyboard/focus interactions and mobile/tablet/desktop rendering.',
@@ -143,14 +158,16 @@ function render(summary,bundle=null,post=null){
  '<p class="muted">Reported match does not authenticate real live host, final CMS revision or client acceptance.</p>'+
  '<div class="checks">'+checks+'</div></section>'+
  '<section class="panel"><h2>Technical blockers from original review</h2><ul>'+blockerRows+'</ul></section>'+
- postRows+'<section class="panel"><h2>Mandatory operator acceptance</h2>'+
+ postRows+operatorSection+'<section class="panel"><h2>Mandatory operator acceptance</h2>'+
  '<p class="notice">The lead must perform all applicable real browser, forms, public host and owner checks. Nothing on this screen is a publish approval.</p>'+
  '<ol class="manual">'+manual.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol></section>'+
  '<footer>Offline private read-only launch report · No network calls, CMS edits, PR, merge, deploy or client publication.</footer></main></body></html>';
  return {format:FORMAT,version:1,siteId:summary.siteId,readOnly:true,
   disposition,releaseAuthorized:false,html,summary:{
    blockingGates:summary.release.blockingGates,manualChecks:summary.release.mandatoryManualChecks,
-   postDeployEvidenceSupplied:!!post,technicalMatchClaimed:!!post&&post.disposition==='TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED',
+   postDeployEvidenceSupplied:!!post,operatorReviewSupplied:!!operatorReview,
+   humanReportedChecks:operatorReview?.summary?.operatorCheckedAssertions??null,
+   technicalMatchClaimed:!!post&&post.disposition==='TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED',
    actualClientSignoffVerified:false}};
 }
 module.exports=Object.freeze({FORMAT,validate,render});

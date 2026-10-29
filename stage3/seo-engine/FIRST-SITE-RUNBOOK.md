@@ -405,3 +405,8 @@ The one-command \`prepare-first-site\` additionally generates \`public-site.zip\
 ## Optional local launch cockpit (read-only)
 
 Once this runbook's regular first-site-check command has produced a private summary.json/bundle.json, the lead may use bin/build-first-site-cockpit.cjs to render a local operator-only HTML view. After manual publication, an independently produced post-deploy-summary.json may be added. This never replaces the operational checks or changes release approval. Full command, source guards, privacy and caveats: [FIRST-SITE-COCKPIT.md](FIRST-SITE-COCKPIT.md). Do not upload the cockpit HTML to the published customer site.
+
+
+## Source-bound operator launch ledger (optional)
+
+Generate and review a private human first-site acceptance ledger after original technical report. It references all current blocker IDs plus six manual browser/form/public-host/client-approval checks; never auto-closes any technical gate. The first-site cockpit may display its source-pinned status without altering release disposition. See [FIRST-SITE-OPERATOR-LEDGER.md](FIRST-SITE-OPERATOR-LEDGER.md) for operator commands, source hash guards and privacy.

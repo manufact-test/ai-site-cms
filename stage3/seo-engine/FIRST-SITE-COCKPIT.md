@@ -67,3 +67,7 @@ node stage3/seo-engine/bin/build-first-site-cockpit.cjs --help
 ~~~
 
 This synthetic check is not an integrated PHP/Chromium/Node CI run, and cannot replace the real first-client test. All real launch operations are solely the responsibility of the main developer.
+
+## Optional source-pinned operator ledger
+
+A separate human task ledger is now available; see [FIRST-SITE-OPERATOR-LEDGER.md](FIRST-SITE-OPERATOR-LEDGER.md). It maps original first-site blocker gate IDs and mandatory human launch checks to private operator status records. First generate/review the ledger using bin/manage-first-site-acceptance.cjs, then optionally add --operator-review /ABS/private/first-site-operator-review.json when running bin/build-first-site-cockpit.cjs. The cockpit verifies the original summary JSON SHA256 matches the source-pinned operator review. A recorded operator-checked status NEVER closes the original technical blocker or grants publication.

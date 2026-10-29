@@ -36,4 +36,15 @@ assert.equal(verified.releaseAuthorized,false);
 assert.throws(()=>COCKPIT.render(summary,bundle,post),/contradicts/);
 assert.throws(()=>COCKPIT.render(cleaned,cleanBundle,{...post,officialStaticManifestSha256:'c'.repeat(64)}),/mismatches/);
 assert.throws(()=>COCKPIT.render(summary,{...bundle,release:{blockers:[]}}),/blocking gate/);
+const operator={format:'manufact-seo-first-site-operator-review-v1',siteId:summary.siteId,
+ readOnly:true,sourceSummarySha256:'c'.repeat(64),sealedSiteSha256:sha,
+ publishedVersion:7,releaseAuthorized:false,
+ summary:{openOriginalTechnicalGates:1,operatorCheckedAssertions:1},
+ tasks:[{taskId:'gate:first-site-missing-live-form-POST',state:'operator-checked',
+  label:'Owner reported manual check (not authenticated)'}]};
+const operatorView=COCKPIT.render(summary,bundle,null,operator,'c'.repeat(64));
+assert.equal(operatorView.summary.operatorReviewSupplied,true);
+assert.equal(operatorView.disposition,'BLOCKED BY FIRST-SITE GATES');
+assert(operatorView.html.includes('Operator task ledger'));
+assert.throws(()=>COCKPIT.render(summary,bundle,null,operator,'d'.repeat(64)),/stale/);
 process.stdout.write('Private first-site cockpit focused smoke PASS.\n');
