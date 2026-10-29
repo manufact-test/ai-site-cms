@@ -49,13 +49,36 @@ const SIGNATURES={
     buffer.toString('ascii',8,12)==='WEBP'
 };
 const MIME={'png':'image/png','jpeg':'image/jpeg','jpg':'image/jpeg','webp':'image/webp'};
+/* Keep the approved MP4 preflight aligned with the existing PHP VideoGuard.
+   No decoding or executing untrusted media; only bounded top-level MP4 boxes. */
+function verifyMp4(bytes){
+  if(bytes.length<100||bytes.length>16777216)return false;
+  let offset=0,brand=null;
+  const counts={ftyp:0,moov:0,mdat:0};
+  while(offset<bytes.length){
+    if(bytes.length-offset<8)return false;
+    const size=bytes.readUInt32BE(offset);
+    const type=bytes.toString('ascii',offset+4,offset+8);
+    if(size<8||size>bytes.length-offset||!['ftyp','moov','mdat','free'].includes(type))
+      return false;
+    if(offset===0){
+      if(type!=='ftyp'||size<16||size>128)return false;
+      brand=bytes.toString('ascii',offset+8,offset+12);
+      if(!['isom','iso2','mp41','mp42','avc1'].includes(brand))return false;
+    }
+    if(type in counts)counts[type]++;
+    offset+=size;
+  }
+  return counts.ftyp===1&&counts.moov===1&&counts.mdat===1;
+}
+
 function preflight(folder){
   const root=fs.realpathSync(folder),stat=fs.statSync(root);
   if(!stat.isDirectory())throw Error('Expected a handoff folder');
   let total=0;
   function read(file,limit){
     if(typeof file!=='string'||file.length>200||
-      !/^[a-zA-Z0-9_/-]+\.(?:json|md|txt|png|jpe?g|webp)$/.test(file)||
+      !/^[a-zA-Z0-9_/-]+\.(?:json|md|txt|png|jpe?g|webp|mp4)$/.test(file)||
       file.split('/').includes('..'))
       throw Error('Unsafe or unsupported handoff path: '+String(file));
     const target=path.resolve(root,file),resolved=fs.realpathSync(target);
@@ -106,12 +129,16 @@ function preflight(folder){
   }
   if(site.assets.length>300)throw Error('Too many media assets');
   for(const asset of site.assets){
-    if(!SIGNATURES[asset.mime])
-      throw Error('Handoff accepts PNG/JPEG/WebP only; upload video/SVG in Studio: '+asset.id);
-    const ext=asset.mime==='image/jpeg'?'jpg':asset.mime.split('/')[1];
+    if(asset.mime!=='video/mp4'&&!SIGNATURES[asset.mime])
+      throw Error('Handoff accepts PNG/JPEG/WebP and MP4 only: '+asset.id);
     const file=asset.src.replace(/^\/assets\//,'assets/');
     if(file===asset.src)throw Error('Asset path not site-scoped: '+asset.id);
-    const bytes=recorded(file,read(file,1000000));
+    const video=asset.mime==='video/mp4';
+    const bytes=recorded(file,read(file,video?16777216:1000000));
+    if(video){
+      if(!verifyMp4(bytes))throw Error('Invalid MP4 structure or size: '+file);
+      continue; // No dimensions or responsive variants for MP4 (typed contract enforces).
+    }
     if(bytes.length<20||!verifyRaster(bytes,asset.mime))
       throw Error('Image bytes and declared MIME do not match: '+file);
     if(asset.mime==='image/png'&&asset.width!==undefined){
