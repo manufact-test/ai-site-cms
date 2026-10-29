@@ -79,6 +79,7 @@ function review(folder,site,source,index){
  }
  return Object.freeze({format:FORMAT,siteId:site.siteId,
   publishedSourceSealedV2:true,expectedKinds:expected.size,
+  sealedPackageSha256:hash,
   ownerArchiveKindsChecked:checked,missingKinds:missing,mismatchedKinds:mismatched,
   exactSealedPackageFound:Boolean(match),ownerArchiveMarkedComplete:match?.complete===true,
   findings:Object.freeze(findings),

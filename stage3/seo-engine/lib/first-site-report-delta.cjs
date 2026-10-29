@@ -130,6 +130,8 @@ function build(previous,currentSummary,currentBundle){
   pb.visualReview.ownerApiAvailable===currentBundle.visualReview.ownerApiAvailable);
  const ownerApprovalComparable=Boolean(pb.approvalArchive&&currentBundle.approvalArchive&&
   pb.approvalArchive.sourceHashReadFromVerifiedHandoff===true&&
+  typeof pb.approvalArchive.sealedPackageSha256==='string'&&
+  pb.approvalArchive.sealedPackageSha256===currentBundle.approvalArchive.sealedPackageSha256&&
   currentBundle.approvalArchive.sourceHashReadFromVerifiedHandoff===true);
  const staticDeploymentComparable=Boolean(pb.publicStaticParity&&currentBundle.publicStaticParity&&
   pb.publicStaticParity.comparable&&currentBundle.publicStaticParity.comparable&&
