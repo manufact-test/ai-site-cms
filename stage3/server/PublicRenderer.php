@@ -188,6 +188,10 @@ final class PublicRenderer
     const steps=[...form.querySelectorAll('.lead-step')];
     if(steps.length<2)continue;
     form.dataset.wizardReady='yes';
+    // Browser constraint validation runs BEFORE submit events. Hidden later
+    // steps must not block Enter on the current step, so the wizard performs
+    // the SAME native checkValidity checks itself in step order.
+    form.noValidate=true;
     const progress=form.querySelector('.lead-step-progress');
     const progressLabels={
       ru:['Шаг','из'],en:['Step','of'],pl:['Krok','z'],
@@ -222,27 +226,52 @@ final class PublicRenderer
       }
       return true;
     };
-    const show=index=>{
+    const show=(index,focus=false)=>{
       current=index;
       steps.forEach((step,i)=>{step.hidden=i!==index;});
       form.dataset.currentStep=String(index);
       submit.hidden=index!==steps.length-1;
-      progress.textContent=progressWords[0]+' '+(index+1)+' '+progressWords[1]+' '+steps.length+' — '+steps[index].querySelector('legend').textContent;
+      const legend=steps[index].querySelector('legend');
+      progress.textContent=progressWords[0]+' '+(index+1)+' '+progressWords[1]+' '+steps.length+' — '+legend.textContent;
       updateConditions();
+      if(focus){
+        legend.tabIndex=-1;
+        legend.focus({preventScroll:true});
+      }
     };
     form.addEventListener('change',updateConditions);
     form.addEventListener('click',event=>{
       const next=event.target.closest('[data-step-next]');
       const back=event.target.closest('[data-step-back]');
       if(next&&form.contains(next)&&current<steps.length-1){
-        if(valid(current))show(current+1);
-      }else if(back&&form.contains(back)&&current>0)show(current-1);
+        if(valid(current))show(current+1,true);
+      }else if(back&&form.contains(back)&&current>0)show(current-1,true);
     });
     form.addEventListener('submit',event=>{
       if(current<steps.length-1){
         event.preventDefault();
-        if(valid(current))show(current+1);
-      }else updateConditions();
+        if(valid(current))show(current+1,true);
+        return;
+      }
+      // The real final submit MUST validate previous hidden steps AND
+      // consent, even though noValidate disables the browser's premature
+      // whole-form check. The server remains authoritative too.
+      updateConditions();
+      for(let index=0;index<steps.length;index++){
+        const invalid=[...steps[index].querySelectorAll('input,select,textarea')]
+          .find(input=>!input.disabled&&!input.checkValidity());
+        if(invalid){
+          event.preventDefault();
+          if(index!==current)show(index,true);
+          invalid.reportValidity();
+          return;
+        }
+      }
+      const consent=form.querySelector('.lead-consent input');
+      if(consent&&!consent.checkValidity()){
+        event.preventDefault();
+        consent.reportValidity();
+      }
     });
     form.classList.add('is-stepped');
     show(0);
