@@ -113,7 +113,7 @@ final class DesignGraph
             'alignSelf'=>['auto','start','center','end','stretch'],
             'position'=>['static','relative','absolute'],'textAlign'=>['left','center','right'],
             'flexWrap'=>['nowrap','wrap'],
-            'fontFamily'=>['inherit','system','arial','georgia','serif','mono'],
+            'fontFamily'=>['inherit','system','arial','georgia','serif','mono','site-body','site-heading'],
             'objectFit'=>['cover','contain','fill','none'],
             'aspectRatio'=>['auto','square','portrait','landscape','wide'],
             'overflow'=>['visible','hidden','auto'],'shadow'=>['none','soft','medium','strong'],'justifySelf'=>['auto','start','center','end','stretch'],'alignContent'=>['start','center','end','stretch','between'],'gridAutoFlow'=>['row','column','row-dense','column-dense'],'textDecoration'=>['none','underline','line-through'],'whiteSpace'=>['normal','nowrap','pre-line'],
@@ -507,7 +507,8 @@ final class DesignGraph
                 $put('font-family',[
                     'inherit'=>'inherit','system'=>'system-ui,Arial,sans-serif',
                     'arial'=>'Arial,sans-serif','georgia'=>'Georgia,serif',
-                    'serif'=>'ui-serif,Georgia,serif','mono'=>'ui-monospace,monospace'][$value]);
+                    'serif'=>'ui-serif,Georgia,serif','mono'=>'ui-monospace,monospace',
+                    'site-body'=>'var(--cms-font)','site-heading'=>'var(--cms-heading-font)'][$value]);
                 continue;
             }
             if($key==='aspectRatio'){
