@@ -15,6 +15,7 @@ function render(review,contract,contractSha,first,firstSha,postSha){
   review.siteId!==first?.summary?.siteId||review.siteId!==contract.siteId||
   review.publishedVersion!==first.summary.publishedVersion||
   review.officialStaticManifestSha256!==first.summary.staticExport?.staticManifestSha256||
+  review.observedPublicHttpsHostClaim!==first.postDeploy?.publishedHost||
   review.officialStaticManifestSha256!==contract.identity?.officialStaticManifestSha256||
   review.ownerSourceRevisionClaim!==first.summary.ownerPublishedSourceRevisionClaim||
   contract.inputSha256?.summary!==firstSha||contract.inputSha256?.post!==postSha||
@@ -69,7 +70,8 @@ function render(review,contract,contractSha,first,firstSha,postSha){
   '<style>:root{font-family:system-ui,Segoe UI,Arial,sans-serif;color:#173445;background:#f3f7fa}*{box-sizing:border-box}body{margin:0}main{max-width:950px;margin:auto;padding:26px}header{background:#143e4c;color:white;padding:32px;border-radius:18px}h1{line-height:1.2}header p{color:#cfe3e8}section{border:1px solid #d7e4ea;background:white;border-radius:14px;margin-top:17px;padding:22px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.fact{padding:15px;border:1px solid #e0e8ed;border-radius:10px}.fact small{display:block;color:#607480}.fact b{font-size:24px}.status{font-weight:800;color:#ffc978;overflow-wrap:anywhere}p,li{line-height:1.65}a{color:#08796d}@media(max-width:600px){main{padding:12px}header{padding:24px}}</style>'+
   '</head><body><main><header><p>MANUFACT · OWNER-ONLY REVIEW</p>'+
   '<h1>Human First-Site Acceptance</h1><p>Site '+esc(review.siteId)+
-  ' · Owner-reported version '+esc(review.publishedVersion)+'</p><p class="status">'+
+  ' · Owner-reported version '+esc(review.publishedVersion)+
+  ' · Operator-reported HTTPS host '+esc(review.observedPublicHttpsHostClaim)+'</p><p class="status">'+
   esc(review.status)+'</p></header><section><h2>Operator evidence counts</h2><div class="grid">'+
   facts.map(([k,v])=>'<div class="fact"><small>'+esc(k)+'</small><b>'+esc(v)+'</b></div>').join('')+
   '</div></section><section><h2>What remains independent of this report</h2><ul>'+

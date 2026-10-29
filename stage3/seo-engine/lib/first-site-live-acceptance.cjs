@@ -86,7 +86,8 @@ function template(contract,upload,post,summary,hashes){
    publishedVersion:contract.identity.publishedVersion,
    sourceRevisionClaim:contract.identity.claimedOwnerSourceRevision,
    officialStaticManifestSha256:contract.identity.officialStaticManifestSha256,
-   publicZipSha256:contract.identity.publicZipSha256},
+   publicZipSha256:contract.identity.publicZipSha256,
+   observedPublicHttpsHostClaim:post.publishedHost},
   required:{pages,viewports:['desktop','tablet','mobile'],
    browserChecks:pages.length*3,manualChecks:HOST_CHECKS.length,
    observedPhpFormOccurrences:formOccurrences},
@@ -172,6 +173,7 @@ function review(original,filled,post){
   ownerSourceRevisionClaim:original.pinned.sourceRevisionClaim,
   publishedVersion:original.pinned.publishedVersion,
   officialStaticManifestSha256:original.pinned.officialStaticManifestSha256,
+  observedPublicHttpsHostClaim:original.pinned.observedPublicHttpsHostClaim,
   status:state,
   checks:{required:original.tasks.length,passed,failed,pending,
    realFormOccurrencesExpected:required,operatorFormPostReceipts:filled.formTests.length,
@@ -188,6 +190,7 @@ function markdown(r){
  requireThat(r?.format===RESULT,'review summary format is invalid');
  return ['# First-site real-world human acceptance review','',
  'Site: '+r.siteId,'Published version: '+r.publishedVersion,
+ 'Operator-reported HTTPS host: '+(r.observedPublicHttpsHostClaim||'UNKNOWN'),
  'Disposition: **'+r.status+'**','',
  'Browser/manual checks: '+r.checks.passed+' passed, '+r.checks.failed+' failed, '+
   r.checks.pending+' awaiting evidence.',

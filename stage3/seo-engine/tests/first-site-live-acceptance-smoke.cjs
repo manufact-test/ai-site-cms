@@ -16,7 +16,8 @@ const upload={format:'manufact-seo-static-upload-bundle-v1',siteId:'site-1',
 const post={format:'manufact-seo-post-deploy-release-verification-v1',siteId:'site-1',
  publishedVersion:7,officialStaticManifestSha256:b,candidatePublicZipSha256:a,
  finalReleaseAuthorized:false,originalCandidateBlockingGates:0,
- postDeployBlockingReasons:[],disposition:'TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED'};
+ postDeployBlockingReasons:[],disposition:'TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED',
+ publishedHost:'https://example.org'};
 const summary={format:'manufact-seo-first-site-check-v1',siteId:'site-1',
  publishedVersion:7,sourceSiteSha256:c,ownerPublishedSourceRevisionClaim:8,
  release:{blockingGates:0},forms:{markupObserved:1}};
