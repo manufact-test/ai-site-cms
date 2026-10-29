@@ -643,6 +643,17 @@ async function execute(){
     '?revision='+revisionInfo.revision)).json()).findings;
   assert.equal(savedFindings.length,2,'Imported JSON notes are permanently stored with attribution');
   assert.ok(savedFindings.every(row=>row.resolved&&row.resolvedBy));
+  await page.locator('#server-launch-visual-history-open').click();
+  await page.locator('#server-launch-review-history .hosted-launch-review-history-revisions button').first()
+    .waitFor({timeout:10000});
+  await page.locator('#server-launch-review-history .hosted-launch-review-history-revisions button')
+    .first().click();
+  await page.waitForFunction(()=>document.querySelector(
+    '#server-launch-review-history .hosted-launch-review-history-details')
+    ?.textContent?.includes('Макет на ПК: отступы отличаются'));
+  assert.match(await page.locator('#server-launch-review-history').innerText(),
+    /только просмотр|текущая/);
+  await page.locator('#server-launch-visual-history-open').click();
   await page.locator('#server-launch-pages [data-page-id="'+interiorPage.id+'"]').click();
   await page.locator('#server-launch-compare-modes [data-compare-mode="approved-compare"]').click();
   await page.waitForFunction(()=>{
