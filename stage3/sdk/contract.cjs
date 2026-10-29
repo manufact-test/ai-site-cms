@@ -172,6 +172,19 @@ function validMenu(m){
     (m.ctaPageId!==''&&!m.ctaLabel.trim())||(m.ctaPageId===''&&m.ctaLabel!==''))
     fail('Invalid site menu settings');
 }
+function validHeader(h,pages){
+  objectKeys(h,['notice','noticePageId','email','phone','tone','mobile'],'site.header');
+  const plain=(v,max)=>typeof v==='string'&&v.length<=max&&!/[\x00-\x1f]/.test(v);
+  if(!plain(h.notice,180)||!plain(h.email,254)||!plain(h.phone,32)||
+    !['light','dark','primary'].includes(h.tone)||!['show','hide'].includes(h.mobile)||
+    typeof h.noticePageId!=='string'||
+    (h.noticePageId!==''&&(!h.notice.trim()||!pages.some(p=>p.id===h.noticePageId))))
+    fail('Invalid site header fields');
+  if(h.email&&!/^[a-zA-Z0-9.!#$%&'*+\/=?^_\x60{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,24}$/.test(h.email))
+    fail('Invalid header email');
+  if(h.phone&&(!/^\+?[0-9 ()-]{6,32}$/.test(h.phone)||h.phone.replace(/\D/g,'').length<6))
+    fail('Invalid header phone');
+}
 const FOOTER_DOMAINS=Object.freeze({
   instagram:['instagram.com'],facebook:['facebook.com','fb.com'],
   linkedin:['linkedin.com'],youtube:['youtube.com','youtu.be'],
@@ -341,7 +354,7 @@ function validateSharedSections(groups){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding','footer'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding','footer','header'],'site');
   GRAPH_HOST.validateTokens(raw.designTokens);
   if(own(raw,'menu'))validMenu(raw.menu);
   if(own(raw,'theme'))validTheme(raw.theme);
@@ -381,6 +394,7 @@ function validateSite(raw,regInput){
   if(own(raw,'theme'))validFontFiles(raw.theme,assetMimes);
   if(own(raw,'branding'))validBranding(raw.branding,assetMimes);
   if(own(raw,'footer'))validFooter(raw.footer,raw.pages);
+  if(own(raw,'header'))validHeader(raw.header,raw.pages);
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
   const ids=new Set([raw.siteId,...assetIds]),paths=new Set(),sharedGroups=new Map();
   for(const page of raw.pages){
