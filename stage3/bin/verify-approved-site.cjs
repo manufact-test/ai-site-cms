@@ -136,6 +136,8 @@ function preflight(folder){
     const video=asset.mime==='video/mp4';
     const bytes=recorded(file,read(file,video?16777216:1000000));
     if(video){
+      if(typeof asset.alt!=='string'||!asset.alt.trim())
+        throw Error('MP4 needs a nonempty accessible description: '+asset.id);
       if(!verifyMp4(bytes))throw Error('Invalid MP4 structure or size: '+file);
       continue; // No dimensions or responsive variants for MP4 (typed contract enforces).
     }
