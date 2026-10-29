@@ -69,6 +69,17 @@ trait VisualReview
         $this->visualReviewInstalled=true;
     }
 
+    private static function visualNoteValid(mixed $note): bool
+    {
+        if(!is_string($note)||strlen($note)>2000||preg_match('//u',$note)!==1
+            ||preg_match('/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]/',$note))
+            return false;
+        // UTF-8 byte length is NOT character count. Polish/Russian/Belarusian
+        // prose must get the same 500-character limit as English comments.
+        $length=preg_match_all('/[\\s\\S]/u',$note);
+        return is_int($length)&&$length>=3&&$length<=500;
+    }
+
     private function visualReviewRows(string $siteId,int $revision): array
     {
         $q=$this->db->prepare('SELECT finding_id,page_id,page_path,device,scroll_y,note,state,version,created_by,created_at,resolved_by,resolved_at FROM stage3_visual_findings WHERE site_id=? AND draft_revision=? ORDER BY created_at,finding_id LIMIT 201');
@@ -127,8 +138,7 @@ trait VisualReview
     {
         if(!$this->hasVisualReviewTable())throw new RuntimeException('Visual review schema upgrade required');
         if(!in_array($device,['desktop','tablet','mobile'],true)||$scrollY<0||$scrollY>60000
-            ||strlen($note)<3||strlen($note)>500||preg_match('//u',$note)!==1
-            ||preg_match('/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]/',$note))
+            ||!self::visualNoteValid($note))
             throw new InvalidArgumentException('Invalid visual review note or device');
         $draft=$this->getDraft($siteId);
         if($revision!==$draft['revision'])throw new Conflict('Draft revision changed; reopen visual review');
@@ -170,9 +180,7 @@ trait VisualReview
                 ||!isset($pages[$item['pageId']])||$pages[$item['pageId']]!==$item['path']
                 ||!in_array($item['device'],['desktop','tablet','mobile'],true)
                 ||$item['scrollY']<0||$item['scrollY']>60000
-                ||strlen($item['note'])<3||strlen($item['note'])>500
-                ||preg_match('//u',$item['note'])!==1
-                ||preg_match('/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]/',$item['note']))
+                ||!self::visualNoteValid($item['note']))
                 throw new InvalidArgumentException('Invalid imported review finding');
             $items[]=$item;
         }
@@ -276,10 +284,7 @@ trait VisualReview
             self::archiveCheck($hasPage,'visual finding refers to a different source revision/page');
             self::archiveCheck(in_array($r['device'],['desktop','tablet','mobile'],true)
                 &&is_int($r['scrollY'])&&$r['scrollY']>=0&&$r['scrollY']<=60000
-                &&is_bool($r['resolved'])&&is_string($r['note'])
-                &&strlen($r['note'])>=3&&strlen($r['note'])<=500
-                &&preg_match('//u',$r['note'])===1
-                &&preg_match('/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]/',$r['note'])!==1,
+                &&is_bool($r['resolved'])&&self::visualNoteValid($r['note']),
                 'invalid archived visual note');
             foreach(['createdBy','resolvedBy'] as $person){
                 $value=$r[$person];
