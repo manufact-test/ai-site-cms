@@ -101,6 +101,19 @@ async function stop(){
       {cwd:root,env:{...env,STAGE3_ALLOW_VIDEO_UPGRADE:'YES'},encoding:'utf8'});
     assert.equal(upgraded.status,0,upgraded.stderr);
   }
+  // Existing dedicated CMS databases require an EXPLICIT CLI upgrade.
+  const oldReview=spawnSync('php',['-r',
+    '$db=new PDO(getenv("STAGE3_DSN"));$db->exec("DROP TABLE stage3_visual_findings");'],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(oldReview.status,0,oldReview.stderr);
+  assert.notEqual(spawnSync('php',['stage3/server/bin/upgrade-visual-review.php'],
+    {cwd:root,env,encoding:'utf8'}).status,0,
+    'Visual review schema must never migrate without owner CLI opt-in');
+  for(let i=0;i<2;i++){
+    const upgrade=spawnSync('php',['stage3/server/bin/upgrade-visual-review.php'],
+      {cwd:root,env:{...env,STAGE3_ALLOW_VISUAL_REVIEW_UPGRADE:'YES'},encoding:'utf8'});
+    assert.equal(upgrade.status,0,upgrade.stderr);
+  }
   // Offline engine package is separate from public visitor ZIPs. Packaging
   // never deploys, migrates, overwrites, accepts hidden files or trusts its
   // own unsigned manifest as a security signature.
@@ -2436,6 +2449,68 @@ async function stop(){
     assert.equal(rendered.status,200);
     assert.match(rendered.body,/Синхронный заголовок/);
   }
+  // Revision-bound visual review: real PHP/SQLite persistence, no spoofable
+  // published state, optimistic concurrency, atomic bulk import, and carry on
+  // Save so an operator cannot bypass an issue by saving the same draft again.
+  const visualSite=structuredClone(fixture);
+  visualSite.siteId='site-visual-ci';
+  assert.equal((await request('POST','/api/sites',{site:visualSite})).status,201);
+  const visualPath='/api/sites/site-visual-ci/visual-review';
+  const startReview=await request('GET',visualPath+'?revision=1');
+  assert.equal(startReview.status,200);
+  assert.equal(startReview.body.available,true);
+  assert.equal(startReview.body.openCount,0);
+  const note1=await request('POST',visualPath,{action:'create',expectedRevision:1,
+    pageId:visualSite.pages[0].id,path:'/',device:'mobile',
+    scrollY:420,note:'Главный заголовок перекрывает фото на телефоне'});
+  assert.equal(note1.status,201,JSON.stringify(note1.body));
+  assert.equal(note1.body.openCount,1);
+  assert.equal(note1.body.findings[0].createdBy,'testowner');
+  const firstFinding=note1.body.findings[0];
+  assert.match(firstFinding.findingId,/^visual-[a-f0-9]{24}$/);
+  assert.equal((await request('POST','/api/sites/site-visual-ci/publish',
+    {expectedRevision:1})).status,409,'Raw publish API cannot bypass open visual issues');
+  assert.equal((await request('POST',visualPath,{action:'resolve',expectedRevision:1,
+    findingId:firstFinding.findingId,expectedVersion:9})).status,409);
+  const badImport=await request('POST',visualPath,{action:'import',expectedRevision:1,
+    findings:[{pageId:visualSite.pages[1].id,path:'/contact/',device:'desktop',
+      scrollY:10,note:'Расстояния в нижнем блоке различаются'},
+      {pageId:visualSite.pages[0].id,path:'https://evil.example',device:'mobile',
+        scrollY:0,note:'Чужой URL'}]});
+  assert.equal(badImport.status,422,'Invalid import rejects entire batch');
+  assert.equal((await request('GET',visualPath+'?revision=1')).body.openCount,1);
+  const importRows=[{pageId:visualSite.pages[1].id,path:'/contact/',device:'desktop',
+    scrollY:10,note:'Расстояния в нижнем блоке различаются'}];
+  const importedReview=await request('POST',visualPath,
+    {action:'import',expectedRevision:1,findings:importRows});
+  assert.equal(importedReview.status,200,JSON.stringify(importedReview.body));
+  assert.equal(importedReview.body.added,1);
+  assert.equal((await request('POST',visualPath,
+    {action:'import',expectedRevision:1,findings:importRows})).body.added,0);
+  assert.equal((await request('GET',visualPath+'?revision=1')).body.openCount,2);
+  const advancedVisual=await request('POST','/api/sites/site-visual-ci/save',
+    {expectedRevision:1,site:visualSite});
+  assert.equal(advancedVisual.status,200,JSON.stringify(advancedVisual.body));
+  assert.equal(advancedVisual.body.revision,2);
+  assert.equal((await request('POST',visualPath,{action:'resolve',expectedRevision:1,
+    findingId:firstFinding.findingId,expectedVersion:1})).status,409);
+  const continued=await request('GET',visualPath+'?revision=2');
+  assert.equal(continued.status,200);
+  assert.equal(continued.body.openCount,2,'Open issues carried to next saved revision');
+  assert.equal((await request('POST','/api/sites/site-visual-ci/publish',
+    {expectedRevision:2})).status,409);
+  for(const item of continued.body.findings){
+    const fixed=await request('POST',visualPath,{action:'resolve',expectedRevision:2,
+      findingId:item.findingId,expectedVersion:item.version});
+    assert.equal(fixed.status,200,JSON.stringify(fixed.body));
+  }
+  assert.equal((await request('GET',visualPath+'?revision=2')).body.openCount,0);
+  assert.equal((await request('POST','/api/sites/site-visual-ci/publish',
+    {expectedRevision:2})).status,200,'Resolve all observations before release');
+  assert.equal((await request('POST',visualPath,{action:'resolve',expectedRevision:2,
+    findingId:continued.body.findings[0].findingId,expectedVersion:1})).status,409);
+  assert.equal((await request('GET',visualPath+'?revision=1')).status,409);
+  assert.equal((await request('GET','/published/site-visual-ci/')).status,200);
   assert.equal((await request('POST','/api/logout',{})).status,200);
   assert.equal((await request('GET','/api/sites/'+id+'/connection-check')).status,401);
   assert.equal((await request('GET',endpoint)).status,401);
