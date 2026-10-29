@@ -38,6 +38,62 @@ async function execute(){
   // no unrelated editorial excursions before the acceptance workflow.
   const origin=await start();
   browser=await chromium.launch({executablePath:chrome,headless:true,args:['--no-sandbox']});
+  // One actual Chromium keyboard journey against the EXACT PHP-published
+  // form wizard (the same SHA-pinned script used by standalone Next pages).
+  const nativeWizard=spawnSync('php',['-r',
+    'require "stage3/server/bootstrap.php";echo Manufact\\Stage3\\PublicRenderer::formStepsScript();'],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(nativeWizard.status,0,nativeWizard.stderr);
+  assert.match(nativeWizard.stdout,/progressLabels/);
+  const keyboard=await browser.newPage();
+  try{
+    await keyboard.setContent('<!doctype html><html lang="pl"><body>'+
+      '<form data-multi-step="yes" action="/not-actually-submitted" method="post">'+
+      '<p class="lead-step-progress" role="status"></p>'+
+      '<fieldset class="lead-step"><legend>Kontakt</legend>'+
+      '<input name="name" minlength="2" required><input name="email" type="email" required>'+
+      '<button data-step-next type="button">Dalej</button></fieldset>'+
+      '<fieldset class="lead-step"><legend>Zapytanie</legend>'+
+      '<select name="type"><option value="basic">Basic</option><option value="extra">Extra</option></select>'+
+      '<div data-condition-source="type" data-condition-option="1" data-condition-required="yes">'+
+      '<input name="detail" required></div>'+
+      '<textarea name="message" minlength="10" required></textarea>'+
+      '<button data-step-back type="button">Wstecz</button></fieldset>'+
+      '<label class="lead-consent"><input type="checkbox" required name="consent"></label>'+
+      '<button type="submit" class="lead-submit">Wyślij</button></form></body></html>');
+    await keyboard.evaluate(script=>{
+      const node=document.createElement('script');node.textContent=script;
+      document.body.append(node);
+      window.receivedForm=false;
+      document.querySelector('form').addEventListener('submit',event=>{
+        window.receivedForm=!event.defaultPrevented;event.preventDefault();
+      });
+    },nativeWizard.stdout);
+    assert.equal(await keyboard.locator('form').evaluate(f=>f.noValidate),true);
+    assert.match(await keyboard.locator('.lead-step-progress').innerText(),/Krok 1 z 2/);
+    await keyboard.locator('[name="name"]').fill('Anna');
+    await keyboard.locator('[name="email"]').fill('anna@example.test');
+    await keyboard.locator('[name="email"]').press('Enter');
+    assert.equal(await keyboard.locator('form').getAttribute('data-current-step'),'1',
+      'Enter advances despite a required input in the later hidden step');
+    await keyboard.locator('[data-step-back]').click();
+    assert.equal(await keyboard.locator('form').getAttribute('data-current-step'),'0');
+    await keyboard.locator('[data-step-next]').click();
+    await keyboard.locator('[name="message"]').fill('Request details please');
+    await keyboard.locator('[name="type"]').selectOption('extra');
+    assert.equal(await keyboard.locator('[name="detail"]').isDisabled(),false);
+    await keyboard.locator('.lead-submit').click();
+    assert.equal(await keyboard.evaluate(()=>window.receivedForm),false,
+      'Conditional required form fields cannot be bypassed');
+    await keyboard.locator('[name="detail"]').fill('Model A');
+    await keyboard.locator('.lead-submit').click();
+    assert.equal(await keyboard.evaluate(()=>window.receivedForm),false,
+      'Mandatory consent cannot be bypassed by noValidate');
+    await keyboard.locator('[name="consent"]').check();
+    await keyboard.locator('.lead-submit').click();
+    assert.equal(await keyboard.evaluate(()=>window.receivedForm),true,
+      'All previously hidden steps, conditions and consent accepted');
+  }finally{await keyboard.close();}
   const ctx=await browser.newContext({viewport:{width:1400,height:1000}});
   const page=await ctx.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
