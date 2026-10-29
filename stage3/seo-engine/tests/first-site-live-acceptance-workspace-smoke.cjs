@@ -43,6 +43,9 @@ assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
  report:{...report,releaseAuthorized:true}}}),/false authorization/);
 assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
  report:{...report,siteId:'another-site'}}}),/different release/);
+assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
+ report:{...report,status:'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION'}}}),
+ /different release|unsupported/);
 const fakeSuccess={...report,status:'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION',
  checks:{...report.checks,pending:0,passed:10,operatorFormPostReceipts:1,
   passedFormReceipts:1,operatorFormInventorySigned:true}};

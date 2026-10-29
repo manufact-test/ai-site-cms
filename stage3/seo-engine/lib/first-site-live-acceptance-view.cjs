@@ -43,6 +43,15 @@ function render(review,contract,contractSha,first,firstSha,postSha){
    review.checks.failedFormReceipts>0||
    review.checks.passedFormReceipts<review.checks.realFormOccurrencesExpected))
   throw Error('Human acceptance cannot be combined with a different release, original evidence or false authorization');
+ const technicalMatched=first.postDeploy.disposition==='TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED'&&
+  first.postDeploy.originalCandidateBlockingGates===0&&
+  first.postDeploy.postDeployBlockingReasons.length===0;
+ const expectedStatus=!technicalMatched?'TECHNICAL-EVIDENCE-BLOCKED':
+  review.checks.failed||review.checks.failedFormReceipts?'HUMAN-OBSERVATIONS-FAILED':
+  review.checks.pending||review.checks.passedFormReceipts<review.checks.realFormOccurrencesExpected?
+   'HUMAN-EVIDENCE-INCOMPLETE':'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION';
+ if(review.status!==expectedStatus)
+  throw Error('Human acceptance summary claims a status unsupported by the technical or operator evidence counts');
  const facts=[
   ['Observed browser/manual checks',review.checks.required],
   ['Operator-declared passed',review.checks.passed],
