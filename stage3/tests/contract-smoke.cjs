@@ -71,7 +71,7 @@ test('semantic formatted inline heading fragments are safe and copyable',()=>{
   refuses(()=>sdk.validateSite(mismatch,manifests),'formatted and plain text cannot diverge');
   const unsafe=same(site);unsafe.pages[0].sections[0].designGraph.nodes[0].runs[1].color='url(javascript:1)';
   refuses(()=>sdk.validateSite(unsafe,manifests),'unsafe CSS rejected');
-  const foreign=same(site);foreign.pages[0].sections[0].designGraph.nodes[0].runs[1].href='https://evil.example';
+  const foreign=same(site);foreign.pages[0].sections[0].designGraph.nodes[0].runs[1].onClick='alert(1)';
   refuses(()=>sdk.validateSite(foreign,manifests),'arbitrary fragment links forbidden');
 });
 
