@@ -250,6 +250,10 @@ function review(original,filled,post){
   observedPublicHttpsHostClaim:original.pinned.observedPublicHttpsHostClaim,
   status:state,
   checks:{required:original.tasks.length,passed,failed,pending,
+   perTaskChecks:original.tasks.map(x=>{
+    const value=filled.tasks.find(t=>t.id===x.id);
+    return {id:x.id,kind:x.kind,page:x.page,viewport:x.viewport,state:value.state};
+   }),
    realFormOccurrencesExpected:required,operatorFormPostReceipts:filled.formTests.length,
    passedFormReceipts:formPassed,failedFormReceipts:formFailed,
    submittedFormEvidenceReceipts:filled.formTests.length,

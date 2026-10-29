@@ -5,6 +5,7 @@
  */
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const FLOW=require('../lib/first-site-live-acceptance.cjs');
+const FOLLOW=require('../lib/first-site-live-followup.cjs');
 const DESK=require('../lib/first-site-live-acceptance-editor.cjs');
 const PRIVATE=require('../lib/private-output-policy.cjs');
 const PREVIEW=require('../lib/static-host-preview.cjs');
@@ -91,6 +92,9 @@ function main(argv){
   content['live-acceptance-review.json']=JSON.stringify({
    ...result,sourceEditedAcceptanceSha256:filled.sha256},null,2)+'\n';
   content['live-acceptance-review.md']=FLOW.markdown(result);
+  const next=FOLLOW.build(result);
+  content['LIVE-ACCEPTANCE-NEXT-ACTIONS.json']=JSON.stringify(next,null,2)+'\n';
+  content['LIVE-ACCEPTANCE-NEXT-ACTIONS.md']=FOLLOW.markdown(next);
  }
  content['PRIVATE-README.txt']='Private operator attestation only. No browser, POST, TLS, client approval or deploy is executed. Never upload/commit.\n';
  const parent=fs.realpathSync(path.dirname(output));

@@ -2,6 +2,7 @@
 /* Offline shape/guardrail check, not a real client browser/form signoff. */
 const assert=require('node:assert/strict');
 const FLOW=require('../lib/first-site-live-acceptance.cjs');
+const FOLLOW=require('../lib/first-site-live-followup.cjs');
 const a='a'.repeat(64),b='b'.repeat(64),c='c'.repeat(64),d='d'.repeat(64),e='e'.repeat(64);
 const contract={format:'manufact-seo-first-site-lead-relay-v1',readOnly:true,
  deploymentAuthorized:false,siteId:'site-1',
@@ -59,6 +60,12 @@ assert.deepEqual(done.checks.perFormChecks,[{page:'/contact/',sectionId:'contact
 assert.equal(done.checks.submittedFormEvidenceReceipts,1);
 assert.equal(done.checks.confirmedFormDeliveryReceipts,1);
 assert.equal(done.releaseAuthorized,false);
+assert.equal(FOLLOW.build(done).actions.length,1); // only independent owner authorization remains
+assert.equal(FOLLOW.build(done).actions[0].id,'authorization:independent-owner-signoff');
+assert.equal(FOLLOW.build(FLOW.review(original,original,post)).counts.browser,6);
+assert.equal(FOLLOW.build(FLOW.review(original,original,post)).counts.form,1);
+assert(FOLLOW.markdown(FOLLOW.build(done)).includes('NOT AUTHENTICATED'));
+assert.throws(()=>FOLLOW.build({...done,checks:{...done.checks,perTaskChecks:[]}}),/totals/);
 assert.throws(()=>FLOW.review(original,{...reviewed,formTests:[
  {...reviewed.formTests[0],deliveryEvidenceRef:reviewed.formTests[0].submissionEvidenceRef}]},post),/independent destination-side/);
 assert.throws(()=>FLOW.review(original,{...reviewed,formTests:[
