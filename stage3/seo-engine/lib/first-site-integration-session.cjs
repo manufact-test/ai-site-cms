@@ -73,7 +73,14 @@ function steps(config,root){
   const candidate=path.join(root,'candidate');
   return Object.freeze([
    {key:'prepare',cli:'prepare-first-site.cjs',argv:flags({...inps,workspace:candidate}, {...PREP_KEYS,workspace:'workspace'})},
-   {key:'relay',cli:'build-first-site-lead-relay.cjs',argv:flags({candidate,out:path.join(root,'lead-relay')},{candidate:'candidate',out:'out'})}
+   {key:'relay',cli:'build-first-site-lead-relay.cjs',argv:flags({candidate,out:path.join(root,'lead-relay')},{candidate:'candidate',out:'out'})},
+   {key:'acceptance-template',cli:'manage-first-site-acceptance.cjs',
+    argv:['template','--summary',path.join(candidate,'seo-report','summary.json'),
+     '--bundle',path.join(candidate,'seo-report','bundle.json'),
+     '--out',path.join(root,'human-acceptance-template')]},
+   {key:'workspace',cli:'build-seo-operator-workspace.cjs',
+    argv:['--config',path.join(root,'workspace-config.json'),
+     '--out',path.join(root,'operator-workspace')]}
   ]);
  }
  if(c.phase==='public'){
@@ -83,18 +90,25 @@ function steps(config,root){
     argv:flags({...inps,out}, {...VERIFY_KEYS,out:'out'})},
    {key:'relay',cli:'build-first-site-lead-relay.cjs',
     argv:flags({candidate:inps.candidate,postDeploy:path.join(out,'post-deploy-summary.json'),
-     out:path.join(root,'lead-relay')}, {candidate:'candidate',postDeploy:'post-deploy',out:'out'})}
+     out:path.join(root,'lead-relay')}, {candidate:'candidate',postDeploy:'post-deploy',out:'out'})},
+   {key:'workspace',cli:'build-seo-operator-workspace.cjs',
+    argv:['--config',path.join(root,'workspace-config.json'),
+     '--out',path.join(root,'operator-workspace')]}
   ]);
  }
  return Object.freeze([
   {key:'relay',cli:'build-first-site-lead-relay.cjs',
-   argv:flags({...inps,out:path.join(root,'lead-relay')},{...RELAY_KEYS,out:'out'})}
+   argv:flags({...inps,out:path.join(root,'lead-relay')},{...RELAY_KEYS,out:'out'})},
+  {key:'workspace',cli:'build-seo-operator-workspace.cjs',
+   argv:['--config',path.join(root,'workspace-config.json'),
+    '--out',path.join(root,'operator-workspace')]}
  ]);
 }
 function summary(config,outputs){
  const c=validate(config);
  const plan=steps(c,outputs.root);
- const expected=c.phase==='local'?['prepare','relay']:c.phase==='public'?['verify','relay']:['relay'];
+ const expected=c.phase==='local'?['prepare','relay','acceptance-template','workspace']:
+  c.phase==='public'?['verify','relay','workspace']:['relay','workspace'];
  assert(expected.every(k=>outputs[k]&&typeof outputs[k]==='object'),
   'stage results are incomplete');
  const result={format:'manufact-seo-first-site-integration-session-v1',version:1,
@@ -106,10 +120,15 @@ function summary(config,outputs){
   integrationDisposition:outputs.relay.stage||null,
   integrationReportRelativePath:'lead-relay/INTEGRATION-CONTRACT.json',
   instructionsRelativePath:'lead-relay/LEAD-NEXT-ACTIONS.md',
+  privateOperatorWorkspaceRelativeFile:'operator-workspace/index.html',
+  humanAcceptanceTemplateCreated:c.phase==='local',
+  ...(c.phase==='local'?{humanAcceptanceTemplateRelativeFile:
+   'human-acceptance-template/first-site-operator-template.json'}:{}),
   ...(c.phase==='local'?{candidateRelativeDir:'candidate'}:{}),
   ...(c.phase==='public'?{postDeployRelativeDir:'post-deploy'}:{}),
   verifiedStages:plan.map(s=>s.key),
-  sitePublicationAuthorized:false,realNetworkCallsBySession:0,
+  sitePublicationAuthorized:false,externalPublicNetworkCallsBySession:0,
+  localhostPhpGetMayOccur:c.phase==='local',
   hostWritesBySession:0,automaticClientSignoff:false,
   manualOwnerActionRequired:true};
  assert(typeof result.siteId==='string'&&result.siteId.length>0,
