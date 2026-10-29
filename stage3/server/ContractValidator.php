@@ -175,6 +175,54 @@ final class ContractValidator
             'Invalid global menu settings');
     }
 
+    private static function footer(mixed $footer,array $pages): void
+    {
+        self::keys($footer,['description','email','phone','links','socials']);
+        foreach(['description'=>300,'email'=>254,'phone'=>32] as $key=>$max)
+            self::must(is_string($footer[$key]??null)&&strlen($footer[$key])<=$max
+                &&preg_match('/[\x00-\x1f]/',$footer[$key])!==1,'Invalid footer text or contacts');
+        $email=$footer['email'];$phone=$footer['phone'];
+        self::must($email===''||preg_match('/^[a-zA-Z0-9.!#$%&\x27*+\/=?^_`{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,24}$/D',$email)===1,
+            'Invalid footer email');
+        self::must($phone===''||(preg_match('/^\+?[0-9 ()-]{6,32}$/D',$phone)===1
+            &&preg_match_all('/[0-9]/',$phone)>=6),'Invalid footer phone');
+        self::must(is_array($footer['links']??null)&&array_is_list($footer['links'])
+            &&count($footer['links'])<=8&&is_array($footer['socials']??null)
+            &&array_is_list($footer['socials'])&&count($footer['socials'])<=8,'Invalid footer collections');
+        $pageIds=array_column($pages,'id');$seen=[];
+        foreach($footer['links'] as $link){
+            self::keys($link,['label','pageId']);
+            self::must(is_string($link['label']??null)&&strlen($link['label'])<=70
+                &&trim($link['label'])!==''&&preg_match('/[\x00-\x1f]/',$link['label'])!==1
+                &&is_string($link['pageId']??null)&&in_array($link['pageId'],$pageIds,true)
+                &&!isset($seen[$link['pageId']]),'Invalid footer page link');
+            $seen[$link['pageId']]=true;
+        }
+        $domains=[
+            'instagram'=>['instagram.com'],'facebook'=>['facebook.com','fb.com'],
+            'linkedin'=>['linkedin.com'],'youtube'=>['youtube.com','youtu.be'],
+            'telegram'=>['t.me'],'whatsapp'=>['wa.me','whatsapp.com'],
+            'tiktok'=>['tiktok.com'],'x'=>['x.com','twitter.com'],'github'=>['github.com']];
+        $seen=[];
+        foreach($footer['socials'] as $social){
+            self::keys($social,['network','url']);
+            $network=$social['network']??null;$url=$social['url']??null;
+            self::must(is_string($network)&&isset($domains[$network])&&!isset($seen[$network])
+                &&is_string($url)&&strlen($url)<=300
+                &&preg_match('/[\x00-\x20<>"\x27]/',$url)!==1,'Invalid social link');
+            $parts=parse_url($url);
+            self::must(is_array($parts)&&($parts['scheme']??null)==='https'
+                &&!isset($parts['user'])&&!isset($parts['pass'])&&!isset($parts['port'])
+                &&isset($parts['host']),'Footer social HTTPS required');
+            $host=strtolower($parts['host']);
+            self::must(in_array($host,$domains[$network],true)
+                ||(str_starts_with($host,'www.')
+                    &&in_array(substr($host,4),$domains[$network],true)),
+                'Footer social host mismatches network');
+            $seen[$network]=true;
+        }
+    }
+
     /** Normalize one linked instance without its page/element/graph IDs. */
     private static function sharedShape(array $section): array
     {
@@ -209,7 +257,7 @@ final class ContractValidator
     }
     public function validate(mixed $site): array
     {
-        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu', 'designTokens', 'language', 'branding']);
+        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu', 'designTokens', 'language', 'branding', 'footer']);
         DesignGraph::tokens($site['designTokens']??null);
         if (array_key_exists('menu',$site)) self::menu($site['menu']);
         if (array_key_exists('theme',$site)) self::theme($site['theme']);
@@ -259,6 +307,7 @@ final class ContractValidator
                 }
             }
         }
+        if(array_key_exists('footer',$site))self::footer($site['footer'],$site['pages']);
         if(array_key_exists('branding',$site)){
             $branding=$site['branding'];
             self::keys($branding,['logoAssetId','mobileLogoAssetId','faviconAssetId','logoWidth']);
