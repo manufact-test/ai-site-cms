@@ -51,6 +51,7 @@ try{
    name==='node:crypto'?crypto:name==='./php-local-static-export.cjs'?STATIC:
    name==='./static-host-rewrites.cjs'?{build:()=>({origin:release.origin,...redirects})}:
    name==='./static-host-headers.cjs'?{build:()=>({content:'/*\n  X-Content-Type-Options: nosniff\n'})}:
+   name==='./static-host-preview.cjs'?PREVIEW:
    (()=>{throw Error('Unexpected require '+name)})(),mod,mod.exports,Buffer);
  const B=mod.exports;
  const inv=B.inventory(site,release,source,'cloudflare-pages');
