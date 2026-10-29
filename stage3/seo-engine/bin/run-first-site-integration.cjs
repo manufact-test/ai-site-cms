@@ -18,6 +18,7 @@ const LIVE=require('./first-site-live-acceptance.cjs');
 const CAPTURE=require('./capture-public-https.cjs');
 const HTTPS=require('../lib/public-https-capture.cjs');
 const CANDIDATE=require('../lib/first-site-candidate-preflight.cjs');
+const PIN=require('../lib/first-site-session-source-pin.cjs');
 const ROOT=fs.realpathSync(path.resolve(__dirname,'../../..'));
 const LIMIT=120000;
 const HELP='Usage: node stage3/seo-engine/bin/run-first-site-integration.cjs --config /ABS/private/integration-session.json --out /ABS/NEW-private-session [--preflight-only]';
@@ -123,9 +124,13 @@ async function main(argv){
  if(target===opt.config||target.startsWith(opt.config+path.sep))
   throw Error('Private session must not overwrite its config');
  const info=preflight(read.config,target);
+ // Freeze every user-supplied file that matters to the exact launch record
+ // before the first localhost/public GET, including the potentially large ZIP.
+ const sourcePin=PIN.capture(read.config);
  if(opt.preflightOnly){
   process.stdout.write('FIRST-SITE PREFLIGHT (NO WORK EXECUTED): '+
-   JSON.stringify({...info,approvedForProduction:false})+'\n');
+   JSON.stringify({...info,sourceFilesPinned:sourcePin.pinnedRoles.length,
+    approvedForProduction:false})+'\n');
   return info;
  }
  const startSha=read.sha256;
@@ -184,6 +189,7 @@ async function main(argv){
   const finalConfig=readConfig(opt.config);
   if(finalConfig.sha256!==startSha)
    throw Error('Private session config changed during stage execution; discard all stages');
+  PIN.unchanged(sourcePin,PIN.capture(read.config));
   const relayFile=fs.readFileSync(path.join(root,'lead-relay','INTEGRATION-CONTRACT.json'));
   const verifiedOutputs={
    relaySha256:sha(relayFile),
@@ -203,6 +209,8 @@ async function main(argv){
   };
   fs.writeFileSync(path.join(root,'INTEGRATION-SESSION.json'),
    JSON.stringify({...result,sessionConfigSha256:startSha,sourcePreflight:info.source,
+    privateSourceEvidenceSha256:sourcePin.sha256ByRole,
+    sourceMutationsRejected:true,
     verifiedOutputSha256:verifiedOutputs},null,2)+'\n',
    {flag:'wx',mode:0o600});
   fs.writeFileSync(path.join(root,'INTEGRATION-SESSION-HANDOFF.md'),
