@@ -323,6 +323,7 @@ function structure(raw,manifests,command){
       for(const child of c.pages)if(child.navigation?.parentId===page.id)
         delete child.navigation.parentId;
       if(c.menu?.ctaPageId===page.id){c.menu.ctaPageId='';c.menu.ctaLabel='';}
+      if(c.footer?.links)c.footer.links=c.footer.links.filter(link=>link.pageId!==page.id);
       if(c.redirects){
         c.redirects=c.redirects.filter(r=>r.to!==page.path);
         if(!c.redirects.length)delete c.redirects;
@@ -488,6 +489,7 @@ function changes(raw,manifests){
   if(s.base.language!==s.current.language)diff.push({kind:'site-language-updated'});
   if(JSON.stringify(s.base.designTokens)!==JSON.stringify(s.current.designTokens))diff.push({kind:'design-tokens-updated'});
   if(JSON.stringify(s.base.menu)!==JSON.stringify(s.current.menu))diff.push({kind:'menu-updated'});
+  if(JSON.stringify(s.base.footer)!==JSON.stringify(s.current.footer))diff.push({kind:'site-footer-updated'});
   if(JSON.stringify(s.base.assets)!==JSON.stringify(s.current.assets))
     diff.push({kind:'media-library-updated'});
   if(JSON.stringify(s.base.redirects||[])!==JSON.stringify(s.current.redirects||[]))
