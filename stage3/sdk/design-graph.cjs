@@ -89,7 +89,7 @@ function validateStyle(style,tokens,at,mode='base'){
     align:['start','center','end','stretch','between'],justify:['start','center','end','stretch','between'],
     alignSelf:['auto','start','center','end','stretch'],position:['static','relative','absolute'],
     textAlign:['left','center','right'],flexWrap:['nowrap','wrap'],
-    fontFamily:['inherit','system','arial','georgia','serif','mono'],
+    fontFamily:['inherit','system','arial','georgia','serif','mono','site-body','site-heading'],
     objectFit:['cover','contain','fill','none'],aspectRatio:['auto','square','portrait','landscape','wide'],
     overflow:['visible','hidden','auto'],shadow:['none','soft','medium','strong'],justifySelf:['auto','start','center','end','stretch'],alignContent:['start','center','end','stretch','between'],gridAutoFlow:['row','column','row-dense','column-dense'],textDecoration:['none','underline','line-through'],whiteSpace:['normal','nowrap','pre-line'],
     fontStyle:['normal','italic'],textTransform:['none','uppercase','lowercase','capitalize'],textWrap:['wrap','balance','pretty','nowrap'],wordBreak:['normal','break-all','break-word'],textOverflow:['clip','ellipsis'],textShadow:['none','soft','strong'],gridColumnsPreset:['sidebar-left','sidebar-right','wide-center','editorial'],transformOrigin:['center','top-left','top-right','bottom-left','bottom-right'],isolation:['auto','isolate'],mixBlendMode:['normal','multiply','screen','overlay','darken','lighten'],clipShape:['none','circle','ellipse','diagonal','hexagon'],borderStyle:['solid','dashed','dotted','double'],filterPreset:['none','grayscale','sepia','contrast','vibrant']
@@ -520,7 +520,8 @@ function declarations(style,t){
     }
     if(k==='fontFamily'){
       put('font-family',{inherit:'inherit',system:'system-ui,Arial,sans-serif',arial:'Arial,sans-serif',
-        georgia:'Georgia,serif',serif:'ui-serif,Georgia,serif',mono:'ui-monospace,monospace'}[value]);continue;
+        georgia:'Georgia,serif',serif:'ui-serif,Georgia,serif',mono:'ui-monospace,monospace',
+        'site-body':'var(--cms-font)','site-heading':'var(--cms-heading-font)'}[value]);continue;
     }
     if(k==='aspectRatio'){
       put('aspect-ratio',{auto:'auto',square:'1/1',portrait:'3/4',landscape:'4/3',wide:'16/9'}[value]);continue;
