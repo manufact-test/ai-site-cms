@@ -486,6 +486,7 @@ JS;
         }
         $siteId = $site['siteId'];
         $mount = $basePath ?? '/published/' . rawurlencode($siteId);
+        $language=self::language($site);
         $header=self::siteHeader($site,$path,$mount);
         $body = '';
         foreach ($page['sections'] as $section) {
@@ -786,7 +787,6 @@ JS;
             }
         }
         $publicOrigin = self::origin($publicOrigin);
-        $language=self::language($site);
         $socialLocale=self::socialLocale($language);
         $seo = $page['seo'] ?? ['title'=>'','description'=>'','robots'=>'index'];
         $titleValue=trim((string)($seo['title']??''))!==''?trim((string)$seo['title']):$page['title'].' | '.$site['title'];
