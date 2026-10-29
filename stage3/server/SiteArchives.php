@@ -106,7 +106,8 @@ trait SiteArchives
                 'publishedVersion' => $active === false ? null : (int)$active,
                 'revisions' => $revisions, 'releases' => $releases, 'media' => $media,
                 'templates' => $this->sectionTemplates($id), 'submissions' => $leads,
-                'approvalEvidence' => $this->exportApprovalArchiveRows($id)];
+                'approvalEvidence' => $this->exportApprovalArchiveRows($id),
+                'visualFindings' => $this->exportVisualReviewArchiveRows($id)];
             $archive = ['format' => 'manufact-site-backup-v2', 'payload' => $payload,
                 'sha256' => hash('sha256', self::encode($payload))];
             self::archiveCheck(strlen(self::encode($archive)) <= $limit - 1024, 'exceeds export limit');
@@ -137,14 +138,18 @@ trait SiteArchives
         self::archiveCheck(preg_match('/^[a-z][a-z0-9-]{2,79}$/D', $target) === 1, 'invalid target site ID');
         $p = $archive['payload'];
         $isV2=$archive['format']==='manufact-site-backup-v2';
-        self::archiveKeys($p, $isV2
-            ? ['siteId','createdAt','draft','publishedVersion','revisions','releases','media','templates','submissions','approvalEvidence']
-            : ['siteId','createdAt','draft','publishedVersion','revisions','releases','media','templates','submissions']);
+        $keys=['siteId','createdAt','draft','publishedVersion','revisions','releases','media','templates','submissions'];
+        if($isV2)$keys[]='approvalEvidence';
+        // Legacy backup-v2 remains valid without the newly added optional
+        // review ledger. The payload checksum still covers whatever is present.
+        if($isV2&&array_key_exists('visualFindings',$p))$keys[]='visualFindings';
+        self::archiveKeys($p,$keys);
         self::archiveCheck(is_string($p['siteId']) && preg_match('/^[a-z][a-z0-9-]{2,79}$/D', $p['siteId']) === 1, 'invalid source site');
         self::archiveDate($p['createdAt']);
         if($isV2)$p['approvalEvidence']=$this->validateApprovalArchiveRows(
             $p['approvalEvidence'],$p['siteId']);
         else $p['approvalEvidence']=[];
+        if(!isset($p['visualFindings']))$p['visualFindings']=[];
         foreach (['revisions' => 5000, 'releases' => 5000, 'media' => 3000, 'templates' => 60, 'submissions' => 50000] as $key => $limit) {
             self::archiveCheck(is_array($p[$key]) && array_is_list($p[$key]) && count($p[$key]) <= $limit, 'invalid or oversized ' . $key);
         }
@@ -203,6 +208,8 @@ trait SiteArchives
         unset($r);
         self::archiveCheck($revisionMap && max(array_keys($revisionMap)) === $p['draft']['revision']
             && ($revisionMap[$p['draft']['revision']] ?? null) === $p['draft']['site'], 'current draft/history mismatch');
+        self::archiveCheck(is_array($p['visualFindings']),'invalid visual review archive');
+        $p['visualFindings']=$this->validateVisualReviewArchiveRows($p['visualFindings'],$revisionMap);
         $releaseMap = [];
         foreach ($p['releases'] as &$r) {
             self::archiveKeys($r, ['version','sourceRevision','site','publishedAt']);
@@ -324,6 +331,7 @@ trait SiteArchives
             'revisions' => count($p['revisions']), 'releases' => count($p['releases']), 'images' => count($p['media']),
             'templates' => count($p['templates']), 'submissions' => count($p['submissions']),
             'approvalFiles' => count($p['approvalEvidence']),
+            'visualFindings' => count($p['visualFindings']),
             'approvalPackages' => count(array_unique(array_column($p['approvalEvidence'],'packageSha'))),
             'formerPublishedVersion' => $p['publishedVersion'], 'willPublish' => false];
     }
@@ -340,6 +348,7 @@ trait SiteArchives
             $q = $this->db->prepare('INSERT INTO stage3_drafts (site_id,revision,body,updated_at) VALUES (?,?,?,?)');
             $q->execute([$target, $p['draft']['revision'], self::encode($p['draft']['site']), $this->now()]);
             foreach ($p['revisions'] as $r) $this->saveRevision($target, $r['revision'], self::encode($r['site']), $r['createdAt']);
+            $this->restoreVisualReviewArchiveRows($target,$p['visualFindings']);
             $q = $this->db->prepare('INSERT INTO stage3_media (site_id,asset_id,mime,sha256,bytes,created_at) VALUES (?,?,?,?,?,?)');
             foreach ($p['media'] as $m) {
                 foreach ([$target, $m['id'], $m['mime'], $m['sha256']] as $i => $v) $q->bindValue($i + 1, $v);
