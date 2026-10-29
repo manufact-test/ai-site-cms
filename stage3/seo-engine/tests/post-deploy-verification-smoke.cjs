@@ -32,7 +32,7 @@ try{
     origin:'https://example.org/',provider:'netlify'}})},
   './static-upload-zip-verify.cjs':{verify:()=>({
     sha256:zipSha,officialManifestSha256:manifest,publishedVersion:7})},
-  './public-media-byte-verification.cjs':{isVerified:x=>x===byteReport},
+  './public-media-byte-verification.cjs':{isVerified:x=>x?.format==='sha256'},
   './public-static-parity.cjs':{review:()=>parity},
   './delivery-evidence.cjs':{assertEvidence:()=>true},
   './media-delivery.cjs':{assertEvidence:()=>true}
