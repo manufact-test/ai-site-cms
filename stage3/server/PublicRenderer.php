@@ -23,6 +23,20 @@ final class PublicRenderer
         return in_array($language,['ru','en','pl','de','be','uk'],true)?$language:'ru';
     }
 
+    /** Publisher-owned visitor chrome, never free-form HTML or translation code. */
+    private static function ui(string $lang,string $key): string
+    {
+        $values=[
+            'ru'=>['menu'=>'Меню','primary'=>'Основная навигация','mobile'=>'Мобильная навигация','back'=>'Назад','next'=>'Далее','website'=>'Website','moved'=>'Страница перемещена','go'=>'Перейти'],
+            'en'=>['menu'=>'Menu','primary'=>'Main navigation','mobile'=>'Mobile navigation','back'=>'Back','next'=>'Next','website'=>'Website','moved'=>'Page moved','go'=>'Open page'],
+            'pl'=>['menu'=>'Menu','primary'=>'Nawigacja główna','mobile'=>'Nawigacja mobilna','back'=>'Wstecz','next'=>'Dalej','website'=>'Website','moved'=>'Strona przeniesiona','go'=>'Przejdź'],
+            'de'=>['menu'=>'Menü','primary'=>'Hauptnavigation','mobile'=>'Mobile Navigation','back'=>'Zurück','next'=>'Weiter','website'=>'Website','moved'=>'Seite verschoben','go'=>'Zur Seite'],
+            'be'=>['menu'=>'Меню','primary'=>'Асноўная навігацыя','mobile'=>'Мабільная навігацыя','back'=>'Назад','next'=>'Далей','website'=>'Website','moved'=>'Старонка перамешчана','go'=>'Перайсці'],
+            'uk'=>['menu'=>'Меню','primary'=>'Основна навігація','mobile'=>'Мобільна навігація','back'=>'Назад','next'=>'Далі','website'=>'Website','moved'=>'Сторінку переміщено','go'=>'Перейти']
+        ];
+        return $values[$lang][$key]??$values['ru'][$key];
+    }
+
     private static function socialLocale(string $language): string
     {
         return ['ru'=>'ru_RU','en'=>'en_US','pl'=>'pl_PL','de'=>'de_DE','be'=>'be_BY','uk'=>'uk_UA'][$language]??'ru_RU';
@@ -175,6 +189,11 @@ final class PublicRenderer
     if(steps.length<2)continue;
     form.dataset.wizardReady='yes';
     const progress=form.querySelector('.lead-step-progress');
+    const progressLabels={
+      ru:['Шаг','из'],en:['Step','of'],pl:['Krok','z'],
+      de:['Schritt','von'],be:['Крок','з'],uk:['Крок','із']
+    };
+    const progressWords=progressLabels[document.documentElement.lang]||progressLabels.ru;
     const submit=form.querySelector('.lead-submit');
     let current=0;
     const conditions=[...form.querySelectorAll('[data-condition-source]')];
@@ -208,7 +227,7 @@ final class PublicRenderer
       steps.forEach((step,i)=>{step.hidden=i!==index;});
       form.dataset.currentStep=String(index);
       submit.hidden=index!==steps.length-1;
-      progress.textContent='Шаг '+(index+1)+' из '+steps.length+' — '+steps[index].querySelector('legend').textContent;
+      progress.textContent=progressWords[0]+' '+(index+1)+' '+progressWords[1]+' '+steps.length+' — '+steps[index].querySelector('legend').textContent;
       updateConditions();
     };
     form.addEventListener('change',updateConditions);
@@ -271,6 +290,7 @@ JS;
 
     private static function siteHeader(array $site,string $path,string $mount): string
     {
+        $lang=self::language($site);
         $menu=$site['menu']??['style'=>'default','sticky'=>false,'mobile'=>'collapsible',
             'ctaPageId'=>'','ctaLabel'=>''];
         $classes='cms-site-header cms-menu-'.$menu['style'].($menu['sticky']?' cms-menu-sticky':'');
@@ -287,12 +307,12 @@ JS;
             }
         }
         $mobile=$menu['mobile']==='expanded'
-            ? '<nav class="cms-mobile-inline" aria-label="Мобильная навигация">'.$tree.'</nav>'
-            : '<details class="cms-mobile-menu"><summary>Меню</summary>'
-                .'<nav aria-label="Мобильная навигация">'.$tree.'</nav></details>';
+            ? '<nav class="cms-mobile-inline" aria-label="'.self::ui($lang,'mobile').'">'.$tree.'</nav>'
+            : '<details class="cms-mobile-menu"><summary>'.self::ui($lang,'menu').'</summary>'
+                .'<nav aria-label="'.self::ui($lang,'mobile').'">'.$tree.'</nav></details>';
         return '<header class="'.$classes.'"><div class="cms-header-inner">'
             .'<a class="cms-brand" href="'.self::h($mount.'/').'">'.$brand.'</a>'
-            .'<nav class="cms-nav-desktop" aria-label="Основная навигация">'.$tree.'</nav>'
+            .'<nav class="cms-nav-desktop" aria-label="'.self::ui($lang,'primary').'">'.$tree.'</nav>'
             .$cta.$mobile.'</div></header>';
     }
 
@@ -415,8 +435,8 @@ JS;
         return '<!doctype html><html lang="'.$language.'"><head><meta charset="utf-8">'
             .'<meta name="robots" content="noindex,follow">'
             .'<meta http-equiv="refresh" content="0;url='.$value.'">'
-            .'<title>Страница перемещена</title></head><body>'
-            .'<p>Страница перемещена: <a href="'.$value.'">Перейти</a></p></body></html>';
+            .'<title>'.self::ui($language,'moved').'</title></head><body>'
+            .'<p>'.self::ui($language,'moved').': <a href="'.$value.'">'.self::ui($language,'go').'</a></p></body></html>';
     }
 
     public static function html(array $site, string $path, ?string $basePath = null, ?string $collectorBase = null, int $publishedVersion = 0, ?string $publicOrigin = null, ?string $assetBasePath = null, bool $preview = false): ?string
@@ -682,8 +702,8 @@ JS;
                         $formFields .= '<fieldset class="lead-step"><legend>' . self::h($step['title']) . '</legend>';
                         foreach ($step['fields'] as $fieldName) $formFields .= $fields[$fieldName];
                         $formFields .= '<div class="lead-step-nav">';
-                        if ($index > 0) $formFields .= '<button type="button" class="lead-step-back" data-step-back>Назад</button>';
-                        if ($index < count($steps)-1) $formFields .= '<button type="button" class="lead-step-next" data-step-next>Далее</button>';
+                        if ($index > 0) $formFields .= '<button type="button" class="lead-step-back" data-step-back>'.self::ui($language,'back').'</button>';
+                        if ($index < count($steps)-1) $formFields .= '<button type="button" class="lead-step-next" data-step-next>'.self::ui($language,'next').'</button>';
                         $formFields .= '</div></fieldset>';
                     }
                 }
