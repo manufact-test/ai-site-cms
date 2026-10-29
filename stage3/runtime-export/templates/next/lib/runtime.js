@@ -34,6 +34,7 @@ export function metadataFor(route){
   const description=value('description');
   const robots=value('robots');
   const canonical=tag(html,/<link rel="canonical" href="([^"]*)"/i);
+  const iconUrl=tag(html,/<link rel="icon" type="image\/png" href="([^"]*)"/i);
   const ogTitle=value('og:title','property')||title;
   const ogDescription=value('og:description','property')||description;
   const ogImage=value('og:image','property');
@@ -44,6 +45,7 @@ export function metadataFor(route){
   const twitterImageAlt=value('twitter:image:alt');
   return {
     title,description,
+    ...(iconUrl?{icons:{icon:[{url:iconUrl,type:'image/png'}]}}:{}),
     ...(robots?{robots}:{}),
     ...(canonical?{alternates:{canonical}}:{}),
     openGraph:{type:'website',title:ogTitle,description:ogDescription,
