@@ -108,17 +108,22 @@ function handler(snapshot){
   throw Error('Static preview refuses a mutable or unverified upload directory');
  return (req,res)=>{
   const result=route(snapshot,req.method,req.url);
-  res.writeHead(result.status,result.headers);
-  if(!result.file||req.method==='HEAD'){res.end();return;}
-  // Files were SHA-verified before listening; recheck each read in case an
-  // operator edits the staged folder during preview.
-  const recorded=snapshot.files.get(result.file),file=path.join(snapshot.root,result.file);
-  const bytes=fs.readFileSync(file);
-  if(!recorded||hash(bytes)!==recorded.sha256||bytes.length!==recorded.size){
-   // Do not serve content from a moved/replaced release. Headers not yet
-   // flushed until writeHead() may require closing connection on failure.
-   res.destroy(Error('Preview source changed since SHA256 verification'));return;
+  if(!result.file||req.method==='HEAD'){
+   res.writeHead(result.status,result.headers);res.end();return;
   }
+  // Operator may modify the staged folder while browsing. Reject tampering
+  // BEFORE flushing a success response; never return changed HTML/media.
+  let bytes;
+  try{
+   const recorded=snapshot.files.get(result.file),file=path.join(snapshot.root,result.file);
+   bytes=fs.readFileSync(file);
+   if(!recorded||hash(bytes)!==recorded.sha256||bytes.length!==recorded.size)
+    throw Error('Static preview file changed from approved SHA256 ledger');
+  }catch{
+   res.writeHead(503,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'});
+   res.end('Static preview asset changed; stop preview and rebuild.');return;
+  }
+  res.writeHead(result.status,result.headers);
   res.end(bytes);
  };
 }
