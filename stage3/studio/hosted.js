@@ -2739,7 +2739,9 @@
           const note=offline?item?.text:item?.note;
           if(!item||!valid.has(item.pageId)||!Object.hasOwn(widths,item.device)
             ||typeof note!=='string'||[...note].length<3||[...note].length>500
-            ||/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]/.test(note)
+            ||[...note].some(ch=>{
+              const n=ch.charCodeAt(0);return (n<32&&n!==9&&n!==10&&n!==13)||n===127;
+            })
             ||!Number.isInteger(item.scrollY)||item.scrollY<0||item.scrollY>60000
             ||typeof item.resolved!=='boolean'
             ||site.pages.find(p=>p.id===item.pageId)?.path!==item.path)
