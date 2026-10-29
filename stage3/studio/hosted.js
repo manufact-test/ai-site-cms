@@ -1402,6 +1402,26 @@
       row.append(element('strong',null,(item.channel==='email'?'Email':'Telegram')+' · '+(labels[item.state]||item.state)));
       row.append(element('small',null,item.submissionId+' · попыток: '+item.attempts+' · '+item.updatedAt+
         (item.lastError?' · '+item.lastError:'')));
+      if(isOwner()&&['pending','failed','configuration_required','uncertain'].includes(item.state)){
+        const retrySingle=action('Повторить только эту доставку',null,()=>safe(async()=>{
+          const siteId=state.siteId;
+          const reason=deliveryReason.value.trim();
+          if(!siteId||!reason)throw Error('Укажите причину повтора в настройках уведомлений');
+          const includeUncertain=item.state==='uncertain';
+          const warning=includeUncertain
+            ?'Результат прежней отправки неизвестен. Повтор может создать дублирующее уведомление. Повторить только эту попытку?'
+            :'Повторить только это уведомление по сохранённому получателю? Это реальная отправка, не тест.';
+          if(!confirm(warning))return;
+          const result=await api('/api/sites/'+encodeURIComponent(siteId)+'/delivery/retry-one','POST',{
+            deliveryId:item.id,expectedState:item.state,expectedAttempts:item.attempts,
+            includeUncertain,reason,confirm:true
+          });
+          if(siteId!==state.siteId)return;
+          renderDelivery(result);
+          notice('Запрошен повтор одной доставки. Проверьте обновлённый статус.');
+        }));
+        row.append(retrySingle);
+      }
       deliveryRecent.append(row);
     }
   }
