@@ -106,6 +106,15 @@ try{
   assert.ok(reportHtml.httpRehearsal.checks.some(x=>x.name==='301 /old/'&&x.ok));
   assert.ok(reportHtml.httpRehearsal.checks.some(x=>x.name==='FORMS READ-ONLY POST /'&&x.ok));
   assert.equal(reportHtml.stats.pages,2);
+  assert.equal(reportHtml.performance.format,'manufact-offline-performance-envelope-v1');
+  assert.equal(reportHtml.performance.pages.length,2);
+  assert.equal(reportHtml.performance.pages[0].route,'/');
+  assert.ok(reportHtml.performance.pages[0].htmlBytes>100);
+  assert.ok(reportHtml.performance.pages[0].htmlGzipEstimateBytes>0);
+  assert.equal(reportHtml.performance.totals.publishedMediaBytes,
+    fs.statSync(path.join(html,png.file)).size);
+  assert.equal(reportHtml.performance.totals.unreferencedInHtmlMediaCount,1);
+  assert.ok(reportHtml.performance.notice.includes('LCP'));
   assert.equal(reportHtml.readiness,'requires-operator-approval');
   assert.equal(success('verify-delivery.cjs',shippedHtml.zip).sha256,shippedHtml.zipSha256);
   const auditHtml=success('audit-delivery.cjs',shippedHtml.zip,

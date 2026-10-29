@@ -8,6 +8,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {inspect}=require('../bin/verify-delivery.cjs');
 const {readArchive,hash}=require('./delivery-zip.cjs');
+const {inspectPerformance}=require('./performance-envelope.cjs');
 
 const capture=(html,tag,attr)=> {
   const reg=new RegExp('<'+tag+'\\b[^>]*>','gi');
@@ -135,6 +136,8 @@ function audit(zipFile,expectedOrigin=null){
     const dir=m.technology==='php'||m.technology==='next-ssr'?'deploy/data/':'deploy/';
     return sum+(archive.get(dir+p.file)?.length??0);
   },0);
+  const performance=inspectPerformance(archive,pub,m.technology);
+  for(const item of performance.findings)findings.push(item);
   const counts={blockers:findings.filter(x=>x.severity==='blocker').length,
     warnings:findings.filter(x=>x.severity==='warning').length,
     manual:findings.filter(x=>x.severity==='manual').length};
@@ -147,7 +150,7 @@ function audit(zipFile,expectedOrigin=null){
       sharedCssFileCount,sharedCssBytes,publishedHtmlBytes,
       repeatedInlineCssBytesAvoided:Math.max(0,pub.pages.length-1)*sharedCssBytes},
     expectedOrigin,publicOrigin:m.publicOrigin??null,
-    findings:findings.slice(0,500),findingsTruncated:findings.length>500,
+    performance,findings:findings.slice(0,500),findingsTruncated:findings.length>500,
     notice:'Offline integrity and published-HTML audit only; no actual host, TLS, email, forms or production deployment verified.'};
 }
 module.exports={audit};
