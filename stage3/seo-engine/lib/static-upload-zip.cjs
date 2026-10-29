@@ -81,7 +81,18 @@ function zip(bundleDir,zipFile){
   write(eocd);fs.fsyncSync(fd);fs.closeSync(fd);open=false;
   if(fs.existsSync(output))throw Error('Another file appeared at the ZIP destination');
   fs.renameSync(temp,output);
-  const digest=crypto.createHash('sha256').update(fs.readFileSync(output)).digest('hex');
+  // Bound memory: checksum the final ZIP in 1 MiB blocks instead of
+  // allocating an additional potentially 180MB copy of the archive.
+  const digestContext=crypto.createHash('sha256'),reader=fs.openSync(output,'r');
+  try{
+   const chunk=Buffer.alloc(1048576);
+   for(;;){
+    const n=fs.readSync(reader,chunk,0,chunk.length,null);
+    if(!n)break;
+    digestContext.update(chunk.subarray(0,n));
+   }
+  }finally{fs.closeSync(reader);}
+  const digest=digestContext.digest('hex');
   return Object.freeze({format:FORMAT,output,sha256:digest,files:central.length,
    payloadBytes:storedBytes,archiveBytes:fs.statSync(output).size,
    sourceSiteId:snapshot.inventory.siteId,
