@@ -792,54 +792,8 @@ async function execute(){
   for(const width of ['desktop','tablet','mobile']){
     assert.equal(homeEvidence.references[width].sha256,evidence.prototypes[width].sha256);
     const ref=interiorEvidence.references[width];
-    assert.match(ref.source,new RegExp('interior-'+width+'\\.png
-  // Owner can restore imported site's previously saved version without mutating
-  // public content: stale drafts and published pages are separate snapshots.
-  // Save/Publish reload the server snapshot and may reset the inspector focus.
-  // Re-select the exact imported FAQ before changing the next private draft.
-  await page.locator('#pages .nav-entry').first().click();
-  await page.locator('#sections .nav-entry').last().click();
-  assert.match(await page.locator('#inspector-title').innerText(),/FAQ/);
-  await page.locator('#elements .cms-repeat-row').last().locator('button.element').click();
-  await page.locator('#fields [data-field="content.question"]').fill('Черновик, который нужно откатить');
-  await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
-  const preRestoreRevision=(await (await page.request.get(
-    origin+'/api/sites/site-approved-browser')).json()).revision;
-  await page.locator('#save').click();
-  await page.locator('#versions .version').first()
-    .getByText('Ревизия #'+(preRestoreRevision+1)).waitFor();
-  await page.locator('#versions .version').nth(1).click();
-  await page.locator('#server-status')
-    .getByText(new RegExp('Черновик #'+(preRestoreRevision+2))).waitFor();
-  assert.deepEqual((await page.evaluate(()=>window.Stage3Editor.getSite()))
-    .pages[0].sections.find(s=>s.id==='section-approved-faq')
-    .items.map(i=>i.values['content.question']),
-    ['Как оформить заказ?','Что входит в комплект?'],
-    'Restored previous server revision of imported website');
-  await visitor.reload();
-  assert.deepEqual(await visitor.locator('section.faq summary').allInnerTexts(),
-    ['Как оформить заказ?','Что входит в комплект?'],
-    'Restoring a private revision never changes the public site');
-
-  await page.locator('#server-logout').click();
-  await page.locator('#server-login:not([hidden])').waitFor();
-  assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,
-    'Real public visitor remains accessible without CMS login');
-  assert.deepEqual(errors,[],'No unhandled browser script exceptions');
-  await visitorCtx.close();
-  console.log('STAGE3 APPROVED SITE CHROMIUM E2E PASS: sealed folder, 3 preview sizes, real media, FAQ order, SEO, draft, publish and restore');
-}
-execute().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{
-  if(browser)await browser.close();
-  if(php&&php.exitCode===null){
-    const stopped=new Promise(resolve=>php.once('exit',resolve));
-    php.kill('SIGTERM');
-    await Promise.race([stopped,new Promise(resolve=>setTimeout(resolve,1500))]);
-  }
-  fs.rmSync(temp,{recursive:true,force:true});
-});
-));
-    assert.ok(fs.existsSync(path.join(evidenceDir,ref.file)));
+    assert.ok(ref.source.endsWith('interior-'+width+'.png'));
+        assert.ok(fs.existsSync(path.join(evidenceDir,ref.file)));
     assert.equal(ref.sha256,require('node:crypto').createHash('sha256')
       .update(fs.readFileSync(path.join(evidenceDir,ref.file))).digest('hex'));
     assert.notEqual(ref.file,homeEvidence.references[width].file);
