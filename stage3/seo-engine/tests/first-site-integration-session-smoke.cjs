@@ -58,6 +58,11 @@ const observed=PLAN.summary(captured,{root:home,
 assert.equal(observed.externalPublicNetworkCallsBySession,11);
 assert.equal(observed.liveHttpsCapturePerformed,true);
 assert.equal(observed.sitePublicationAuthorized,false);
+assert(PLAN.markdown(observed,{sourceRevisionClaim:9,publishedVersion:7,
+ sealedApprovedSourceSha256:'a'.repeat(64),officialStaticManifestSha256:'b'.repeat(64)})
+ .includes('Actual live HTTPS/asset GETs performed in this session: 11'));
+assert(PLAN.markdown(s).includes('NOT PROVIDED'));
+assert.throws(()=>PLAN.markdown({...observed,sitePublicationAuthorized:true}),/non-authorizing/);
 assert.throws(()=>PLAN.validate({...captured,inputs:{...captured.inputs,
  origin:'http://www.manufact-client.org/'}}),/HTTPS root/);
 assert.throws(()=>PLAN.validate({...captured,inputs:{...captured.inputs,

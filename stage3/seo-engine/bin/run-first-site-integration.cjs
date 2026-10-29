@@ -195,6 +195,8 @@ async function main(argv){
    JSON.stringify({...result,sessionConfigSha256:startSha,sourcePreflight:info.source,
     verifiedOutputSha256:verifiedOutputs},null,2)+'\n',
    {flag:'wx',mode:0o600});
+  fs.writeFileSync(path.join(root,'INTEGRATION-SESSION-HANDOFF.md'),
+   PLAN.markdown(result,info.source),{flag:'wx',mode:0o600});
   fs.writeFileSync(path.join(root,'PRIVATE-README.txt'),
    'Private operator-only first-site session. Never publish, upload or commit. Only verified PUBLIC static files from candidate/static-upload/public may be considered by authorized lead.\n',
    {flag:'wx',mode:0o600});

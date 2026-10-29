@@ -192,4 +192,53 @@ function summary(config,outputs){
   'post-deploy and lead relay site IDs conflict');
  return Object.freeze(result);
 }
-module.exports=Object.freeze({FORMAT,PHASES,validate,steps,summary});
+function markdown(session,source=null){
+ assert(session?.format==='manufact-seo-first-site-integration-session-v1'&&
+  session.readOnly===true&&session.sitePublicationAuthorized===false&&
+  session.manualOwnerActionRequired===true,
+  'operator handoff requires the original non-authorizing integration result');
+ const s=x=>String(x??'').replace(/[\r\n|<>]/g,' ').slice(0,180);
+ const lines=['# MANUFACT SEO — first-client private integration session','',
+  'Site: '+s(session.siteId),
+  'Phase: '+s(session.phase),
+  'Operator disposition: '+s(session.integrationDisposition||'NOT-OBSERVED'),
+  'Owner/client publication approval: **NOT PROVIDED**','',
+  '## Source contract',''];
+ if(source){
+  lines.push('Owner-published sourceRevision claim: '+s(source.sourceRevisionClaim),
+   'Approved Site v2 source SHA256: '+s(source.sealedApprovedSourceSha256),
+   'Official static manifest SHA256: '+s(source.officialStaticManifestSha256),
+   'Published CMS version: '+s(source.publishedVersion),'');
+ }else lines.push('No current owner-authenticated revision in search phase; rely on exact saved release ZIP / post-deploy report hashes.','');
+ lines.push('## Stage products','');
+ if(session.candidateRelativeDir)lines.push('- Candidate: '+session.candidateRelativeDir);
+ if(session.capturedPublicHttpRelativeFile){
+  lines.push('- Real HTTPS GET transcript: '+session.capturedPublicHttpRelativeFile,
+   '- Real public media GET SHA256 transcript: '+session.capturedPublicMediaSha256RelativeFile);
+ }
+ if(session.postDeployRelativeDir)lines.push('- Read-only public verification: '+session.postDeployRelativeDir);
+ if(session.humanAcceptanceTemplateRelativeFile)
+  lines.push('- Unfilled local manual acceptance: '+session.humanAcceptanceTemplateRelativeFile);
+ if(session.liveAcceptanceTemplateRelativeFile)
+  lines.push('- Unfilled real browser/device/form acceptance: '+session.liveAcceptanceTemplateRelativeFile);
+ lines.push('- Exact source/ZIP release relay: '+session.integrationReportRelativePath,
+  '- Lead next actions: '+session.instructionsRelativePath,
+  '- Private operator HTML dashboard: '+session.privateOperatorWorkspaceRelativeFile,
+  '', 'Stages: '+session.verifiedStages.map(s).join(' → '),
+  '', '## Network and authority boundaries','',
+  '- Actual live HTTPS/asset GETs performed in this session: '+
+   session.externalPublicNetworkCallsBySession,
+  '- Actual localhost PHP GETs: '+(session.localhostPhpGetMayOccur?
+   'Yes; local phase collects localhost PHP evidence':'No'),
+  '- No form POST, CMS write, public deployment, PR, merge or client authorization.',
+  '- Public DNS/TLS, visual parity, form delivery, owner revision and client signature require independent lead review.',
+  '- Never upload this private session or customer report files; only a separately owner-approved PUBLIC candidate archive may be deployed.',
+  '', '## What to do next','');
+ if(session.phase==='local')lines.push('Lead: review PHP/static blockers and the original owner source, preview verified public-only ZIP, then approve or reject before any deployment.');
+ else if(session.phase==='public'||session.phase==='public-capture')
+  lines.push('Lead: independently authenticate the public host and release, inspect failed HTTP/media checks, fill the page/device/form template using actual browser and authorized delivery receipts.');
+ else lines.push('SEO operator: inspect real GSC indexing/search observations and ask the owner to approve any CMS implementation packet; missing URLs are UNKNOWN.');
+ lines.push('','**This is an operator evidence index, NEVER permission to deploy.**','');
+ return lines.join('\n');
+}
+module.exports=Object.freeze({FORMAT,PHASES,validate,steps,summary,markdown});
