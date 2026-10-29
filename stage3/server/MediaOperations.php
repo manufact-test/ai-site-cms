@@ -17,6 +17,9 @@ trait MediaOperations
         $record=static function(mixed $id,array $where)use(&$uses):void{
             if(is_string($id)&&$id!==''&&isset($uses[$id]))$uses[$id][]=$where;
         };
+        foreach(['logoAssetId','mobileLogoAssetId','faviconAssetId'] as $role)
+            $record($site['branding'][$role]??null,
+                ['location'=>'branding.'.$role,'pageTitle'=>'Все страницы']);
         foreach(['body','heading'] as $role)
             $record($site['theme']['fontFiles'][$role]??null,
                 ['location'=>'theme.fontFiles.'.$role,'pageTitle'=>'Все страницы']);
@@ -119,6 +122,10 @@ trait MediaOperations
         }
         $before=self::mediaReferences($candidate);
         $counts=[];foreach($map as $from=>$to)$counts[$from]=count($before[$from]);
+        foreach(['logoAssetId','mobileLogoAssetId','faviconAssetId'] as $role){
+            $id=$candidate['branding'][$role]??null;
+            if(is_string($id)&&isset($map[$id]))$candidate['branding'][$role]=$map[$id];
+        }
         foreach(['body','heading'] as $role){
             $id=$candidate['theme']['fontFiles'][$role]??null;
             if(is_string($id)&&isset($map[$id]))$candidate['theme']['fontFiles'][$role]=$map[$id];
