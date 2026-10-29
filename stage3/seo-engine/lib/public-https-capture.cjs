@@ -152,6 +152,25 @@ async function capture(site,rawOrigin,transport={address,request}){
   securityProbes.push({path:protectedPath,requestUrl:url,status:reply.status,
    bodySha256:crypto.createHash('sha256').update(reply.body,'utf8').digest('hex')});
  }
+ const markerUrl=resource(base,'/ai-site-release.json');
+ const markerReply=await fetch(markerUrl,4096);
+ let publicReleaseMarker={url:markerUrl,status:markerReply.status,valid:false,
+  format:null,officialManifestSha256:null,publishedVersion:null};
+ if(markerReply.status===200&&markerReply.contentType.split(';')[0].trim().toLowerCase()==='application/json'){
+  try{
+   const record=JSON.parse(markerReply.body);
+   if(record&&typeof record==='object'&&!Array.isArray(record)&&
+      Object.keys(record).sort().join(',')===
+       'format,officialManifestSha256,publishedVersion'&&
+      record.format==='manufact-ai-public-release-marker-v1'&&
+      typeof record.officialManifestSha256==='string'&&
+      /^[a-f0-9]{64}$/.test(record.officialManifestSha256)&&
+      Number.isSafeInteger(record.publishedVersion)&&record.publishedVersion>0)
+    publicReleaseMarker={url:markerUrl,status:200,valid:true,
+     format:record.format,officialManifestSha256:record.officialManifestSha256,
+     publishedVersion:record.publishedVersion};
+  }catch{} // Never retain malformed public body or operator secrets.
+ }
  const robotsUrl=resource(base,'/robots.txt'),sitemapUrl=resource(base,'/sitemap.xml');
  const robotsReply=await fetch(robotsUrl,LIMIT_ROBOTS);
  const sitemapReply=await fetch(sitemapUrl,LIMIT_SITEMAP);
@@ -164,11 +183,12 @@ async function capture(site,rawOrigin,transport={address,request}){
  }
  const evidence={format:DELIVERY.FORMAT,siteId:site.siteId,
   origin:base.href,capturedAt:new Date().toISOString(),pages,negativeProbe,securityProbes,
+  publicReleaseMarker,
   robots:{status:robotsReply.status,url:robotsUrl,contentType:robotsReply.contentType,body:robotsReply.body},
   sitemap:{status:sitemapReply.status,url:sitemapUrl,contentType:sitemapReply.contentType,body:sitemapReply.body},
   redirects};
  DELIVERY.assertEvidence(evidence);
- return Object.freeze({evidence,bytes:total,requests:pages.length+redirects.length+7,
+ return Object.freeze({evidence,bytes:total,requests:pages.length+redirects.length+8,
   captureActuallyPerformed:true,publicHttpsTransportChecked:true,
   servedRevisionAuthenticated:false,formsDelivered:false,automaticRelease:false});
 }
