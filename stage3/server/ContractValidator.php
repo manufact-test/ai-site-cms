@@ -175,6 +175,25 @@ final class ContractValidator
             'Invalid global menu settings');
     }
 
+    private static function header(mixed $h,array $pages): void
+    {
+        self::keys($h,['notice','noticePageId','email','phone','tone','mobile']);
+        foreach(['notice'=>180,'email'=>254,'phone'=>32] as $key=>$max)
+            self::must(is_string($h[$key]??null)&&mb_strlen($h[$key],'UTF-8')<=$max
+                &&preg_match('/[\x00-\x1f]/',$h[$key])!==1,'Invalid header text');
+        self::must(is_string($h['noticePageId']??null)
+            &&in_array($h['tone']??null,['light','dark','primary'],true)
+            &&in_array($h['mobile']??null,['show','hide'],true),
+            'Invalid header settings');
+        self::must($h['noticePageId']===''||(trim($h['notice'])!==''&&
+            in_array($h['noticePageId'],array_column($pages,'id'),true)),
+            'Invalid header page destination');
+        self::must($h['email']===''||preg_match('/^[a-zA-Z0-9.!#$%&\x27*+\/=?^_\x60{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,24}$/D',$h['email'])===1,
+            'Invalid header email');
+        self::must($h['phone']===''||(preg_match('/^\+?[0-9 ()-]{6,32}$/D',$h['phone'])===1
+            &&preg_match_all('/[0-9]/',$h['phone'])>=6),'Invalid header phone');
+    }
+
     private static function footer(mixed $footer,array $pages): void
     {
         self::keys($footer,['description','email','phone','links','socials','style','layout']);
@@ -261,9 +280,10 @@ final class ContractValidator
     }
     public function validate(mixed $site): array
     {
-        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu', 'designTokens', 'language', 'branding', 'footer']);
+        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu', 'designTokens', 'language', 'branding', 'footer', 'header']);
         DesignGraph::tokens($site['designTokens']??null);
         if (array_key_exists('menu',$site)) self::menu($site['menu']);
+        if (array_key_exists('header',$site)) self::header($site['header'],$site['pages']??[]);
         if (array_key_exists('theme',$site)) self::theme($site['theme']);
         self::must(!array_key_exists('language',$site) || in_array($site['language'],['ru','en','pl','de','be','uk'],true), 'Invalid site language');
         self::must(($site['format'] ?? null) === 'manufact-ai-site-v1'

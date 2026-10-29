@@ -170,6 +170,49 @@
     },
     "designTokens": {
       "$ref": "#/$defs/designTokens"
+    },
+    "header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notice",
+        "noticePageId",
+        "email",
+        "phone",
+        "tone",
+        "mobile"
+      ],
+      "properties": {
+        "notice": {
+          "type": "string",
+          "maxLength": 180
+        },
+        "noticePageId": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 254
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "tone": {
+          "enum": [
+            "light",
+            "dark",
+            "primary"
+          ]
+        },
+        "mobile": {
+          "enum": [
+            "show",
+            "hide"
+          ]
+        }
+      }
     }
   },
   "$defs": {
