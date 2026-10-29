@@ -75,7 +75,6 @@ async function capture(folder,rawUrl,destination){
         seen.set(file,hash);
         fs.copyFileSync(full,path.join(out,file));
         images[device]={file,sha256:hash,width:widths[device],source};
-        referenceFiles.push(file);
       }
       item._reviewReferences=images;
     }
