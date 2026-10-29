@@ -9,7 +9,7 @@ const MAX_SUMMARY=800000,MAX_BUNDLE=42000000;
 const GROUPS=['localPhpHead','localPhpNavigation','localPhpGraph','localPhpComponents',
  'localPhpForms','localPhpMedia','localPhpPublication','localPhpTheme',
  'localPhpSemantics','localPhpFootprint','localPhpStaticExport',
- 'deliveryEvidence','mediaEvidence','deliveryReadiness','visualReview','publicStaticParity','publicMediaBytes'];
+ 'deliveryEvidence','mediaEvidence','deliveryReadiness','visualReview','approvalArchive','publicStaticParity','publicMediaBytes'];
 const GATES={
  'local-php-head-indexation-or-origin':'localPhpHead',
  'local-php-semantic-and-route-integrity':'localPhpSemantics',
@@ -22,6 +22,8 @@ const GATES={
  'owner-form-notification-intent':'deliveryReadiness',
  'unresolved-owner-visual-review':'visualReview',
  'owner-visual-review-unavailable':'visualReview',
+ 'owner-approved-prototype-archive-incomplete':'approvalArchive',
+ 'owner-approved-prototype-archive-review':'approvalArchive',
  'public-static-deployment-drift':'publicStaticParity',
  'public-static-deployment-coverage':'publicStaticParity',
  'public-static-csp-blocks-site':'publicStaticParity',
@@ -126,6 +128,9 @@ function build(previous,currentSummary,currentBundle){
  const ownerVisualComparable=Boolean(pb.visualReview&&currentBundle.visualReview&&
   pb.visualReview.sourceRevisionClaim===currentBundle.visualReview.sourceRevisionClaim&&
   pb.visualReview.ownerApiAvailable===currentBundle.visualReview.ownerApiAvailable);
+ const ownerApprovalComparable=Boolean(pb.approvalArchive&&currentBundle.approvalArchive&&
+  pb.approvalArchive.sourceHashReadFromVerifiedHandoff===true&&
+  currentBundle.approvalArchive.sourceHashReadFromVerifiedHandoff===true);
  const staticDeploymentComparable=Boolean(pb.publicStaticParity&&currentBundle.publicStaticParity&&
   pb.publicStaticParity.comparable&&currentBundle.publicStaticParity.comparable&&
   pb.publicStaticParity.claimedPublicOrigin===currentBundle.publicStaticParity.claimedPublicOrigin&&
@@ -140,6 +145,7 @@ function build(previous,currentSummary,currentBundle){
   key==='publicStaticParity'?staticDeploymentComparable:
   key==='deliveryReadiness'?ownerDeliveryComparable:
   key==='visualReview'?ownerVisualComparable:
+  key==='approvalArchive'?ownerApprovalComparable:
   ['deliveryEvidence','mediaEvidence'].includes(key)?publicOriginComparable:true;
  const commonGroups=GROUPS.filter(key=>pb[key]&&currentBundle[key]&&groupComparable(key));
  const groupsOnlyPrior=GROUPS.filter(key=>pb[key]&&(!currentBundle[key]||!groupComparable(key)));
@@ -252,7 +258,9 @@ function build(previous,currentSummary,currentBundle){
    'not comparable; manifest, host or evidence changed')+'.',
   'Public static deployment cohort: '+(staticDeploymentComparable?'same public origin/export published version':
    'not comparable; one release/host/scope changed')+'.',
-  'Owner visual findings revision cohort: '+(ownerVisualComparable?
+  'Owner sealed approval archive cohort: '+(ownerApprovalComparable?
+   'same verified sealed source fingerprint':'not comparable; missing or changed archive evidence')+'.',
+  'Owner visual findings revision cohort: '(ownerVisualComparable?
    'same published source revision and schema availability':
    'not comparable; visual notes belong to other revision or review availability differs')+'.',
   'Owner delivery configuration cohort: '+(ownerDeliveryComparable?'same published version, snapshot only':
@@ -302,6 +310,7 @@ function build(previous,currentSummary,currentBundle){
    currentStaticExportVersion:newExportVersion,
    ownerDeliveryConfigurationComparable:ownerDeliveryComparable,
    ownerVisualReviewComparable:ownerVisualComparable,
+   ownerApprovalArchiveComparable:ownerApprovalComparable,
    publicStaticDeploymentComparable:staticDeploymentComparable,
    publicMediaBytesComparable,
    publicEvidenceOriginComparable:publicOriginComparable,
