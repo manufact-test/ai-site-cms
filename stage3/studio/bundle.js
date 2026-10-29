@@ -313,7 +313,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
     }else if(node.type==='image'){
       if(own(node,'href')&&!validHref(node.href))fail(node.id,'unsafe media action');
       if(typeof node.assetId!=='string'||!assetIds.has(node.assetId)||
-        mediaKinds.get(node.assetId)==='video/mp4'||own(node,'posterAssetId')||own(node,'loop')||
+        !/^image\//.test(mediaKinds.get(node.assetId)||'')||own(node,'posterAssetId')||own(node,'loop')||
         typeof node.alt!=='string'||node.alt.length>200||/[\x00-\x1f]/.test(node.alt)||
         own(node,'text')||own(node,'level')||own(node,'icon'))fail(node.id,'invalid image binding');
     }else{
@@ -1304,7 +1304,7 @@ function inspectSite(raw,regInput){
   const checkMedia=(assetId,page,section,elementId)=>{
     if(typeof assetId!=='string'||!assetId)return;
     const asset=site.assets.find(item=>item.id===assetId);
-    if(!asset||asset.mime==='video/mp4')return;
+    if(!asset||!asset.mime.startsWith('image/'))return;
     const key=page.id+'|'+section.id+'|'+assetId;
     if(imageUses.has(key))return;
     imageUses.add(key);
