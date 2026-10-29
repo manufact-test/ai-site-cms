@@ -601,6 +601,14 @@ async function execute(){
   const serverReview=await (await page.request.get(visualUrl+
     '?revision='+(await (await page.request.get(origin+'/api/sites/site-approved-browser')).json()).revision)).json();
   assert.equal(serverReview.openCount,1,'Actual operator note must be stored in SQLite');
+  assert.match(await page.locator('#server-launch-visual-index').innerText(),
+    /Открытые замечания по сайту: 1/);
+  await page.locator('#server-launch-visual-index-rows button').first().click();
+  await page.waitForFunction(()=>document.querySelector('#server-launch-preview-status')
+    ?.textContent?.includes('PHP-страница целиком'),null,{timeout:15000});
+  assert.match(await page.locator('#server-launch-finding-list').innerText(),
+    /отступы отличаются/);
+
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),true,
     'Open visual discrepancy blocks human sign-off for selected device');
   await page.locator('#server-launch-finding-list').getByRole('button',{name:/Отметить замечание исправленным/}).click();
