@@ -849,7 +849,7 @@ async function execute(){
   await visitor.setViewportSize({width:375,height:800});
   const footerMobile=await footer.locator('.cms-footer-inner').evaluate(el=>
     getComputedStyle(el).gridTemplateColumns.trim());
-  assert.equal(footerMobile.split(/\\s+/).length,1,
+  assert.equal(footerMobile.split(' ').filter(Boolean).length,1,
     'Footer collapses to one column for real mobile Chromium viewport');
   await visitor.setViewportSize({width:1280,height:900});
   assert.equal(await visitor.locator('h1').innerText(),'Редактируется после подключения');
