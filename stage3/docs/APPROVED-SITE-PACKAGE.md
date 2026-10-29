@@ -790,3 +790,24 @@ Set `site.theme.fontFiles` optionally to `{"body":"asset-brand-body","heading":"
 The offline seal and verify tools include exact WOFF2 bytes in the v2 package SHA-256 map. Studio rejects a wrong extension, oversized or malformed header or changed checksum before import; it then stores the font via the existing role-controlled private draft API, remaps theme references and saves the exact custom page design. The owner can also upload WOFF2 through the media library and bind it under **«Стили и язык сайта»**, including separate fonts for body and headings. One immutable same-site font URL is served in hosted PHP, independent PHP and static/Next visitor exports; `@font-face` uses `font-display:swap`, no Google Fonts or other external requests. Studio preview uses either verified local data bytes during sealed import or same-origin private media in authenticated drafts. Site backup/restore and guarded media maintenance preserve font references, while standalone release manifests record each exported font's SHA-256.
 
 The WOFF2 parser checks bounded wrapper/header consistency and SHA-256, **not** the full OpenType glyph internals; the browser's font decoder and owner-approved three-device review are required for actual typography acceptance. The first-party original CI font exercises decoding and full-site import, but it is not a real client's licensed typeface or proof of visual fidelity.
+
+## Site-wide customer branding — real header logos and PNG favicon (29 October 2026)
+
+The approved site's optional top-level `branding` object lets the external developer preserve a customer's brand without replacing the entire navigation with a fixed template. Example:
+
+```json
+"branding": {
+  "logoAssetId": "asset-company-logo",
+  "mobileLogoAssetId": "asset-company-mark",
+  "faviconAssetId": "asset-company-favicon",
+  "logoWidth": 176
+}
+```
+
+Each ID must reference an actual **site-owned** existing PNG, JPEG or WebP entry in `site.assets`, from the same approved sealed folder; `faviconAssetId` specifically requires PNG for predictable browser support. All keys are optional. A separate mobile logo requires a desktop logo; without a selected logo, the historical accessible text title remains. `logoWidth` is an integer between **48 and 320 CSS pixels** and defaults to 154. Use appropriately sized, cropped transparent images for logos rather than relying on huge source images. Favicons should be a square PNG; a formal dimension/crop quality check remains a client visual acceptance matter.
+
+In authenticated Studio, first upload all image files through the existing media library (or import them as part of the signed folder). Under **«Стили и язык сайта»**, choose the desktop logo, optional mobile variant and PNG favicon. The dialog previews these choices. The settings participate in regular **Undo / Save / Publish / rollback** semantics; no new direct public write is introduced. The browser header uses one accessible home link and a real responsive `<picture>`, with the smaller logo activated at widths up to 900px. The favicon uses the original same-site immutable image URL, not a data URI or an external service.
+
+The server and JS contracts reject unknown media, video/font-as-logo, non-PNG favicon, mobile-only logo and invalid widths. Approved-v2 imports remap all three branding IDs to the immutable server IDs along with content media and fonts. Media-maintenance audits and guarded replacements count global branding usage so logos are never silently considered unused. Existing isolated backup/restore, PHP/HTML/Next Static/Next SSR exports include the unchanged image bytes and their checksums. Next metadata explicitly carries the favicon because visitor head tags cannot be assumed to survive React rendering. Sites without a `branding` object continue with the original text brand and no favicon.
+
+The successful synthetic CI check verifies cross-session import recovery and real PHP/Chromium publishing of two separate logo IDs and the favicon. It does **not** demonstrate that a customer's actual approved logo is the correct size/color or grant owner GO. The source designer must still compare desktop, tablet and mobile mockups in the owner's visual review.
