@@ -63,6 +63,15 @@ function inventory(site,release,sourceDir,provider){
   '<style>body{font:normal 18px/1.5 system-ui,sans-serif;max-width:50rem;margin:12vh auto;'+
   'padding:1.5rem;color:#172338}h1{font-size:2rem}a{color:#154dc3}</style></head>'+
   '<body><main><h1>404 — '+notFoundText+'</h1><p><a href="/">Home</a></p></main></body></html>\n';
+ const releaseMarker=JSON.stringify({
+  format:'manufact-ai-public-release-marker-v1',
+  officialManifestSha256:release.manifestSha256,
+  publishedVersion:release.publishedVersion
+ })+'\n';
+ if(seen.has('ai-site-release.json'))throw Error('Official export contains conflicting public release marker');
+ out.push(Object.freeze({file:'ai-site-release.json',kind:'release-marker',
+  sha256:sha(Buffer.from(releaseMarker,'utf8')),
+  size:Buffer.byteLength(releaseMarker,'utf8')}));
  if(seen.has('404.html'))throw Error('Official static export already has a conflicting 404.html');
  out.push(Object.freeze({file:'404.html',sha256:sha(Buffer.from(notFound,'utf8')),
   size:Buffer.byteLength(notFound,'utf8'),kind:'not-found'}));
@@ -88,9 +97,10 @@ function inventory(site,release,sourceDir,provider){
   officialManifestSha256:release.manifestSha256,sourceRoot:root,
   records:Object.freeze(out),expectedUploadFileCount:out.length,
   totalPayloadBytes:budget+Buffer.byteLength(notFound,'utf8')+
+   Buffer.byteLength(releaseMarker,'utf8')+
    (extra?Buffer.byteLength(extra.body,'utf8'):0)+
    (publicHeaders?Buffer.byteLength(publicHeaders.content,'utf8'):0),
-  notFound,publicHeaders,
+  notFound,releaseMarker,publicHeaders,
   staticExportManifestPubliclyExposed:false,extra,plan,
   actualNetworkRequests:0,actualHostWrites:0,manualDeploymentRequired:true
  });
@@ -117,6 +127,7 @@ function prepare(site,release,sourceDir,outputRoot,provider){
  for(const record of plan.records){
   const bytes=record.kind==='hosting-redirects'?Buffer.from(plan.extra.body,'utf8'):
    record.kind==='hosting-headers'?Buffer.from(plan.publicHeaders.content,'utf8'):
+   record.kind==='release-marker'?Buffer.from(plan.releaseMarker,'utf8'):
    record.kind==='not-found'?Buffer.from(plan.notFound,'utf8'):
    fs.readFileSync(path.join(source,record.file));
   if(sha(bytes)!==record.sha256||bytes.length!==record.size)
@@ -143,6 +154,8 @@ function prepare(site,release,sourceDir,outputRoot,provider){
   'Upload ONLY the contents of ./public to the approved hosting root.',
   'Do not upload this operator folder: upload-inventory.json and HANDOFF.md are private.',
   'The official release-manifest.json is intentionally EXCLUDED from public upload.',
+  'Public ai-site-release.json includes ONLY official manifest SHA256 + publishedVersion, not sourceRevision or owner API secrets.',
+  'Verify this marker over actual production HTTPS after deployment; it is a correlation marker, not a signed cryptographic attestation.',
   'The old-page HTML fallbacks are carried for compatibility; server MUST return real 301.',
   'A top-level 404.html is generated with noindex: necessary to disable Cloudflare Pages default SPA fallback.',
   'Netlify/Cloudflare Pages: generated _headers config applies nosniff, referrer policy and HTML revalidation; CSP remains manual until browser/form testing.',
