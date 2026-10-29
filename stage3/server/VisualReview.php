@@ -88,12 +88,38 @@ trait VisualReview
     public function visualReviewStatus(string $siteId,int $revision): array
     {
         $draft=$this->getDraft($siteId);
-        if($revision!==$draft['revision'])throw new Conflict('Visual review belongs to a different saved draft revision');
+        if($revision<1||$revision>$draft['revision'])
+            throw new Conflict('Visual review revision does not exist');
+        if($revision!==$draft['revision']){
+            $q=$this->db->prepare('SELECT revision FROM stage3_revisions WHERE site_id=? AND revision=?');
+            $q->execute([$siteId,$revision]);
+            if($q->fetchColumn()===false)throw new NotFound('Unknown historical review revision');
+        }
+        $historical=$revision!==$draft['revision'];
         if(!$this->hasVisualReviewTable())return ['available'=>false,'revision'=>$revision,
-            'findings'=>[],'openCount'=>0,'migrationRequired'=>true];
+            'historical'=>$historical,'findings'=>[],'openCount'=>0,'migrationRequired'=>true];
         $rows=$this->visualReviewRows($siteId,$revision);
-        return ['available'=>true,'revision'=>$revision,'findings'=>$rows,
+        return ['available'=>true,'revision'=>$revision,'historical'=>$historical,
+            'findings'=>$rows,
             'openCount'=>count(array_filter($rows,static fn(array $row):bool=>!$row['resolved']))];
+    }
+
+    /** Bounded read-only review history. Current draft and prior revisions are separate. */
+    public function visualReviewHistory(string $siteId): array
+    {
+        $draft=$this->getDraft($siteId);
+        if(!$this->hasVisualReviewTable())return ['available'=>false,
+            'currentRevision'=>$draft['revision'],'revisions'=>[]];
+        $q=$this->db->prepare("SELECT draft_revision,COUNT(*) AS total,
+            SUM(CASE WHEN state='open' THEN 1 ELSE 0 END) AS open_count
+            FROM stage3_visual_findings WHERE site_id=?
+            GROUP BY draft_revision ORDER BY draft_revision DESC LIMIT 100");
+        $q->execute([$siteId]);
+        $entries=array_map(static fn(array $row):array=>[
+            'revision'=>(int)$row['draft_revision'],'total'=>(int)$row['total'],
+            'open'=>(int)$row['open_count']
+        ],$q->fetchAll(PDO::FETCH_ASSOC));
+        return ['available'=>true,'currentRevision'=>$draft['revision'],'revisions'=>$entries];
     }
 
     public function visualReviewCreate(string $siteId,int $revision,string $pageId,string $path,
