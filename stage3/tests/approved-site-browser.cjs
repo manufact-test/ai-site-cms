@@ -148,7 +148,9 @@ async function execute(){
         mime:'video/mp4',alt:'Видеопрезентация утверждённого сайта'},
       {id:'asset-external-font',src:'/assets/asset-external-font.woff2',
         mime:'font/woff2',alt:'CMS original CI typeface'}];
-    site.theme.fontFiles={body:'asset-external-font',heading:'asset-external-font'};
+    site.theme={background:'#f7f9fc',surface:'#ffffff',text:'#172a43',
+      primary:'#0a5bff',font:'system',maxWidth:1140,
+      fontFiles:{body:'asset-external-font',heading:'asset-external-font'}};
     site.pages[0].seo={title:'Внешний готовый сайт',description:'Проверка подключения внешнего сайта',
       robots:'index',ogImage:'asset-external-hero'};
     const faq=window.Stage3Editor.manifests().find(x=>x.id==='faq-accordion');
