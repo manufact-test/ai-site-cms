@@ -53,6 +53,18 @@ function inventory(site,release,sourceDir,provider){
  }
  // A private release manifest contains source revision / internal metadata.
  // Never expose it as part of a publicly served static upload root.
+ const lang=['en','ru','pl','de'].includes(site.language)?site.language:'en';
+ const notFoundText=lang==='ru'?'Страница не найдена':lang==='pl'?'Nie znaleziono strony':
+  lang==='de'?'Seite nicht gefunden':'Page not found';
+ const notFound='<!doctype html><html lang="'+lang+'"><head><meta charset="utf-8">'+
+  '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+  '<meta name="robots" content="noindex,follow"><title>404 — '+notFoundText+'</title>'+
+  '<style>body{font:normal 18px/1.5 system-ui,sans-serif;max-width:50rem;margin:12vh auto;'+
+  'padding:1.5rem;color:#172338}h1{font-size:2rem}a{color:#154dc3}</style></head>'+
+  '<body><main><h1>404 — '+notFoundText+'</h1><p><a href="/">Home</a></p></main></body></html>\n';
+ if(seen.has('404.html'))throw Error('Official static export already has a conflicting 404.html');
+ out.push(Object.freeze({file:'404.html',sha256:sha(Buffer.from(notFound,'utf8')),
+  size:Buffer.byteLength(notFound,'utf8'),kind:'not-found'}));
  const extra=provider==='apache'?{name:'.htaccess',body:plan.apache.content}:
   provider==='netlify'?{name:'_redirects',body:plan.netlify.content}:
   provider==='cloudflare-pages'?{name:'_redirects',body:plan.cloudflarePages.content}:null;
@@ -66,7 +78,9 @@ function inventory(site,release,sourceDir,provider){
   publishedVersion:release.publishedVersion,sourceRevisionClaim:release.sourceRevision,
   officialManifestSha256:release.manifestSha256,sourceRoot:root,
   records:Object.freeze(out),expectedUploadFileCount:out.length,
-  totalPayloadBytes:budget+(extra?Buffer.byteLength(extra.body,'utf8'):0),
+  totalPayloadBytes:budget+Buffer.byteLength(notFound,'utf8')+
+   (extra?Buffer.byteLength(extra.body,'utf8'):0),
+  notFound,
   staticExportManifestPubliclyExposed:false,extra,plan,
   actualNetworkRequests:0,actualHostWrites:0,manualDeploymentRequired:true
  });
@@ -92,6 +106,7 @@ function prepare(site,release,sourceDir,outputRoot,provider){
  };
  for(const record of plan.records){
   const bytes=record.kind==='hosting-redirects'?Buffer.from(plan.extra.body,'utf8'):
+   record.kind==='not-found'?Buffer.from(plan.notFound,'utf8'):
    fs.readFileSync(path.join(source,record.file));
   if(sha(bytes)!==record.sha256||bytes.length!==record.size)
    throw Error('Official source asset changed during static upload staging');
@@ -118,6 +133,8 @@ function prepare(site,release,sourceDir,outputRoot,provider){
   'Do not upload this operator folder: upload-inventory.json and HANDOFF.md are private.',
   'The official release-manifest.json is intentionally EXCLUDED from public upload.',
   'The old-page HTML fallbacks are carried for compatibility; server MUST return real 301.',
+  'A top-level 404.html is generated with noindex: necessary to disable Cloudflare Pages default SPA fallback.',
+  'Apache/Nginx operators must also confirm their error_page/ErrorDocument emits true HTTP 404.',
   'NEVER deploy a partial directory or merge it with an existing stale public root.',
   '',
   provider==='apache'?'Apache: .htaccess is part of upload root. Confirm AllowOverride and mod_rewrite.':
