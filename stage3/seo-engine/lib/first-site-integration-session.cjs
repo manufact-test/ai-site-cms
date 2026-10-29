@@ -11,6 +11,8 @@ const PHASES=Object.freeze({
     'publicHttpEvidence','publicMediaDigests'],
   optional:['publicMediaEvidence','ownerEditReview','previousPublicHttp',
     'previousPublicMediaDigests']},
+ 'public-capture':{required:['candidate','approvedSite','publishedSite','staticExport','origin'],
+  optional:['ownerEditReview','previousPublicHttp','previousPublicMediaDigests']},
  search:{required:['candidate','postDeploy','blueprint'],
   optional:['indexing','searchHistory','liveAcceptanceReview','liveAcceptanceContract']}
 });
@@ -26,6 +28,9 @@ const VERIFY_KEYS={candidate:'candidate',approvedSite:'approved-site',publishedS
  publicMediaDigests:'public-media-digests',publicMediaEvidence:'public-media-evidence',
  ownerEditReview:'owner-edit-review',previousPublicHttp:'previous-public-http',
  previousPublicMediaDigests:'previous-public-media-digests'};
+const CAPTURE_KEYS={approvedSite:'approved-site',publishedSite:'published-site',
+ origin:'origin',out:'out',ownerEditReview:'owner-edit-review',
+ staticExport:'static-export',mediaDigestOut:'media-digest-out'};
 const RELAY_KEYS={candidate:'candidate',postDeploy:'post-deploy',
  blueprint:'blueprint',indexing:'indexing',searchHistory:'search-history'};
 const assert=(ok,msg)=>{if(!ok)throw Error('First-site integration session: '+msg)};
@@ -45,7 +50,8 @@ function validate(value){
  for(const [k,v] of Object.entries(o)){
   assert(typeof v==='string'&&v.length>0&&v.length<4096&&v.trim()===v,
    'invalid input value '+k);
-  if(value.phase==='local'&&['provider','origin'].includes(k))continue;
+  if(value.phase==='local'&&['provider','origin'].includes(k)||
+   value.phase==='public-capture'&&k==='origin')continue;
   assert(path.isAbsolute(v)&&path.normalize(v)===v,
    'all private source file and folder paths must be normalized absolute paths: '+k);
  }
@@ -57,6 +63,17 @@ function validate(value){
    !u.username&&!u.password&&!u.search&&!u.hash&&
    /^\/published\/[a-z0-9-]+\/$/.test(u.pathname),
    'PHP acceptance must use an exact localhost-only /published/SITE-ID/ origin');
+ }
+ if(value.phase==='public-capture'){
+  let u;try{u=new URL(o.origin)}catch{throw Error('Invalid public HTTPS origin')}
+  assert(u.protocol==='https:'&&u.pathname==='/'&&u.port===''&&
+   !u.username&&!u.password&&!u.search&&!u.hash&&
+   /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(u.hostname)&&
+   !/(?:^|\.)(?:localhost|local|internal|test|example|invalid)$/.test(u.hostname)&&
+   !/^\d+(?:\.\d+){3}$/.test(u.hostname),
+   'live public capture requires an explicit DNS HTTPS root without custom port');
+  assert(!o.previousPublicMediaDigests||o.previousPublicHttp,
+   'previous media SHA256 receipts require matching previous HTTPS capture');
  }
  if(value.phase==='search'){
   assert(o.indexing||o.searchHistory,'Search follow-up needs a genuine indexing or history report');
@@ -85,11 +102,19 @@ function steps(config,root){
      '--out',path.join(root,'operator-workspace')]}
   ]);
  }
- if(c.phase==='public'){
-  const out=path.join(root,'post-deploy');
+ if(c.phase==='public'||c.phase==='public-capture'){
+  const out=path.join(root,'post-deploy'),fresh=c.phase==='public-capture';
+  const observed=fresh?{
+   publicHttpEvidence:path.join(root,'captured-public-http.json'),
+   publicMediaDigests:path.join(root,'captured-public-media-sha256.json')
+  }:inps;
+  const capture=fresh?[{key:'capture',cli:'capture-public-https.cjs',
+   argv:flags({...inps,out:observed.publicHttpEvidence,
+    mediaDigestOut:observed.publicMediaDigests},CAPTURE_KEYS)}]:[];
   return Object.freeze([
+   ...capture,
    {key:'verify',cli:'verify-deployed-site.cjs',
-    argv:flags({...inps,out}, {...VERIFY_KEYS,out:'out'})},
+    argv:flags({...inps,...observed,out}, {...VERIFY_KEYS,out:'out'})},
    {key:'relay',cli:'build-first-site-lead-relay.cjs',
     argv:flags({candidate:inps.candidate,postDeploy:path.join(out,'post-deploy-summary.json'),
      out:path.join(root,'lead-relay')}, {candidate:'candidate',postDeploy:'post-deploy',out:'out'})},
@@ -115,12 +140,16 @@ function summary(config,outputs){
  const c=validate(config);
  const plan=steps(c,outputs.root);
  const expected=c.phase==='local'?['prepare','relay','acceptance-template','workspace']:
-  c.phase==='public'?['verify','relay','live-acceptance-template','workspace']:['relay','workspace'];
+  c.phase==='public'?['verify','relay','live-acceptance-template','workspace']:
+  c.phase==='public-capture'?['capture','verify','relay','live-acceptance-template','workspace']:
+  ['relay','workspace'];
  assert(expected.every(k=>outputs[k]&&typeof outputs[k]==='object'),
   'stage results are incomplete');
  const result={format:'manufact-seo-first-site-integration-session-v1',version:1,
   phase:c.phase,readOnly:true,siteId:outputs.relay.siteId,
-  localCandidatePrepared:c.phase==='local',publicVerificationSupplied:c.phase==='public',
+  localCandidatePrepared:c.phase==='local',
+  publicVerificationSupplied:['public','public-capture'].includes(c.phase),
+  liveHttpsCapturePerformed:c.phase==='public-capture',
   searchFollowupSupplied:c.phase==='search',
   candidateDisposition:outputs.prepare?.status||null,
   postDeployDisposition:outputs.verify?.status||null,
@@ -129,20 +158,34 @@ function summary(config,outputs){
   instructionsRelativePath:'lead-relay/LEAD-NEXT-ACTIONS.md',
   privateOperatorWorkspaceRelativeFile:'operator-workspace/index.html',
   humanAcceptanceTemplateCreated:c.phase==='local',
-  liveAcceptanceTemplateCreated:c.phase==='public',
-  ...(c.phase==='public'?{liveAcceptanceTemplateRelativeFile:
+  liveAcceptanceTemplateCreated:['public','public-capture'].includes(c.phase),
+  ...(['public','public-capture'].includes(c.phase)?{liveAcceptanceTemplateRelativeFile:
    'live-acceptance-template/live-acceptance-template.json'}:{}),
   ...(c.phase==='local'?{humanAcceptanceTemplateRelativeFile:
    'human-acceptance-template/first-site-operator-template.json'}:{}),
   ...(c.phase==='local'?{candidateRelativeDir:'candidate'}:{}),
-  ...(c.phase==='public'?{postDeployRelativeDir:'post-deploy'}:{}),
+  ...(['public','public-capture'].includes(c.phase)?{postDeployRelativeDir:'post-deploy'}:{}),
+  ...(c.phase==='public-capture'?{
+   capturedPublicHttpRelativeFile:'captured-public-http.json',
+   capturedPublicMediaSha256RelativeFile:'captured-public-media-sha256.json'}:{}),
   verifiedStages:plan.map(s=>s.key),
-  sitePublicationAuthorized:false,externalPublicNetworkCallsBySession:0,
+  sitePublicationAuthorized:false,
+  externalPublicNetworkCallsBySession:c.phase==='public-capture'?
+   outputs.capture.requests+outputs.capture.publicMediaGetRequests:0,
+  publicHttpsReadOnlyGetPerformed:c.phase==='public-capture',
   localhostPhpGetMayOccur:c.phase==='local',
   hostWritesBySession:0,automaticClientSignoff:false,
   manualOwnerActionRequired:true};
  assert(typeof result.siteId==='string'&&result.siteId.length>0,
   'lead relay result lacks source-bound site ID');
+ if(outputs.capture){
+  assert(outputs.capture.siteId===result.siteId&&
+   outputs.capture.publicHttpsTransportCaptured===true&&
+   outputs.capture.rootWindowMatched===true&&outputs.capture.mediaShaVerified===true&&
+   Number.isSafeInteger(outputs.capture.requests)&&outputs.capture.requests>=2&&
+   Number.isSafeInteger(outputs.capture.publicMediaGetRequests)&&outputs.capture.publicMediaGetRequests>=0,
+   'live public HTTPS/asset capture must have valid read-only GET receipts for this exact site');
+ }
  if(outputs.prepare)assert(outputs.prepare.siteId===result.siteId,
   'candidate and lead relay site IDs conflict');
  if(outputs.verify)assert(outputs.verify.siteId===result.siteId,

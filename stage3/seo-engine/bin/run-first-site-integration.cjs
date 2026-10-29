@@ -15,6 +15,8 @@ const RELAY=require('./build-first-site-lead-relay.cjs');
 const ACCEPT=require('./manage-first-site-acceptance.cjs');
 const WORKSPACE=require('./build-seo-operator-workspace.cjs');
 const LIVE=require('./first-site-live-acceptance.cjs');
+const CAPTURE=require('./capture-public-https.cjs');
+const HTTPS=require('../lib/public-https-capture.cjs');
 const ROOT=fs.realpathSync(path.resolve(__dirname,'../../..'));
 const LIMIT=120000;
 const HELP='Usage: node stage3/seo-engine/bin/run-first-site-integration.cjs --config /ABS/private/integration-session.json --out /ABS/NEW-private-session [--preflight-only]';
@@ -48,7 +50,8 @@ function preflight(config,output){
  const c=PLAN.validate(config),sources={},target=PRIVATE.privateOutput(output);
  const root=fs.realpathSync(path.dirname(target));
  for(const [key,raw] of Object.entries(c.inputs)){
-  if(c.phase==='local'&&['origin','provider'].includes(key))continue;
+  if(c.phase==='local'&&['origin','provider'].includes(key)||
+     c.phase==='public-capture'&&key==='origin')continue;
   const typ=['approvedSite','staticExport','candidate','previousUpload','previousReport'].includes(key)?'dir':'file';
   const resolved=outside(raw,typ);
   if(resolved===root||root.startsWith(resolved+path.sep)||
@@ -59,7 +62,7 @@ function preflight(config,output){
  // These are the same canonical owner/approved validators used by actual PHP
  // capture and post-deployment verifier. No stand-in synthetic source accepted.
  let source=null;
- if(c.phase==='local'||c.phase==='public'){
+ if(['local','public','public-capture'].includes(c.phase)){
   const sealed=BRIDGE.load(c.inputs.approvedSite);
   const owner=FIRST.readPublishedSite(c.inputs.publishedSite);
   if(!Number.isSafeInteger(owner.sourceRevision)||owner.sourceRevision<1)
@@ -69,6 +72,11 @@ function preflight(config,output){
   const release=EXPORT.read(c.inputs.staticExport,published.site);
   if(release.publishedVersion!==owner.version||release.sourceRevision!==owner.sourceRevision)
    throw Error('Official export does not match owner-published CMS version and sourceRevision');
+  if(c.phase==='public-capture'){
+   const u=HTTPS.origin(c.inputs.origin,published.site.siteId);
+   if(u.pathname!=='/'||release.origin!==u.origin)
+    throw Error('Actual public HTTPS root must exactly match the official static export origin');
+  }
   if(c.phase==='local'){
    const plan=FIRST.readBlueprint(c.inputs.blueprint);
    if(plan.siteId!==published.site.siteId)
@@ -104,7 +112,7 @@ async function main(argv){
  let success=false;
  try{
   const operations={
-   prepare:PREP.main,verify:VERIFY.main,relay:RELAY.main,
+   prepare:PREP.main,capture:CAPTURE.main,verify:VERIFY.main,relay:RELAY.main,
    'acceptance-template':argv=>{
     ACCEPT.main(argv);
     const bytes=fs.readFileSync(path.join(root,'human-acceptance-template','first-site-operator-template.json'));
@@ -128,7 +136,8 @@ async function main(argv){
     const src={format:'manufact-seo-operator-workspace-config-v1',
      firstSite:{summary:path.join(candidate,'seo-report','summary.json'),
       bundle:path.join(candidate,'seo-report','bundle.json'),
-      ...(read.config.phase==='public'?{postDeploy:path.join(root,'post-deploy','post-deploy-summary.json')}:
+      ...(['public','public-capture'].includes(read.config.phase)?
+       {postDeploy:path.join(root,'post-deploy','post-deploy-summary.json')}:
        read.config.phase==='search'?{postDeploy:inps.postDeploy}:{})},
      ...(read.config.phase==='search'&&inps.searchHistory?
       {search:{history:inps.searchHistory}}:{}),
@@ -163,8 +172,12 @@ async function main(argv){
     {liveAcceptanceTemplateSha256:results['live-acceptance-template'].templateSha256}:{}),
    ...(read.config.phase==='local'?
     {candidateStatusSha256:sha(fs.readFileSync(path.join(root,'candidate','CANDIDATE-STATUS.json')))}:{}),
-   ...(read.config.phase==='public'?
-    {postDeploySummarySha256:sha(fs.readFileSync(path.join(root,'post-deploy','post-deploy-summary.json')))}:{})
+   ...(['public','public-capture'].includes(read.config.phase)?
+    {postDeploySummarySha256:sha(fs.readFileSync(path.join(root,'post-deploy','post-deploy-summary.json')))}:{}),
+   ...(read.config.phase==='public-capture'?{
+    capturedPublicHttpSha256:sha(fs.readFileSync(path.join(root,'captured-public-http.json'))),
+    capturedMediaDigestsSha256:sha(fs.readFileSync(path.join(root,'captured-public-media-sha256.json')))
+   }:{})
   };
   fs.writeFileSync(path.join(root,'INTEGRATION-SESSION.json'),
    JSON.stringify({...result,sessionConfigSha256:startSha,sourcePreflight:info.source,

@@ -39,6 +39,35 @@ assert.equal(PLAN.summary(p,{root:home,verify:{siteId:'my-site',status:'NOT-READ
 assert.throws(()=>PLAN.summary(p,{root:home,verify:{siteId:'different'},
  relay:{siteId:'my-site'},'live-acceptance-template':{siteId:'my-site'},
  workspace:{siteId:'my-site'}}),/site IDs conflict/);
+const captured={format:PLAN.FORMAT,phase:'public-capture',
+ inputs:{candidate,approvedSite:'/tmp/sealed',publishedSite:'/tmp/published.json',
+  staticExport:'/tmp/export',origin:'https://www.manufact-client.org/'}};
+const live=PLAN.steps(captured,home);
+assert.deepEqual(live.map(x=>x.key),
+ ['capture','verify','relay','live-acceptance-template','workspace']);
+assert.equal(live[0].argv[live[0].argv.indexOf('--media-digest-out')+1],
+ '/tmp/private-first-site-new/captured-public-media-sha256.json');
+assert.equal(live[1].argv[live[1].argv.indexOf('--public-http-evidence')+1],
+ '/tmp/private-first-site-new/captured-public-http.json');
+const observed=PLAN.summary(captured,{root:home,
+ capture:{siteId:'my-site',requests:8,publicMediaGetRequests:3,
+  publicHttpsTransportCaptured:true,rootWindowMatched:true,mediaShaVerified:true},
+ verify:{siteId:'my-site',status:'NOT-READY'},
+ relay:{siteId:'my-site',stage:'PUBLIC-TECHNICAL-BLOCKED'},
+ 'live-acceptance-template':{siteId:'my-site'},workspace:{siteId:'my-site'}});
+assert.equal(observed.externalPublicNetworkCallsBySession,11);
+assert.equal(observed.liveHttpsCapturePerformed,true);
+assert.equal(observed.sitePublicationAuthorized,false);
+assert.throws(()=>PLAN.validate({...captured,inputs:{...captured.inputs,
+ origin:'http://www.manufact-client.org/'}}),/HTTPS root/);
+assert.throws(()=>PLAN.validate({...captured,inputs:{...captured.inputs,
+ origin:'https://127.0.0.1/'}}),/HTTPS root/);
+assert.throws(()=>PLAN.summary(captured,{root:home,
+ capture:{siteId:'other-site',requests:8,publicMediaGetRequests:3,
+  publicHttpsTransportCaptured:true,rootWindowMatched:true,mediaShaVerified:true},
+ verify:{siteId:'my-site'},relay:{siteId:'my-site'},
+ 'live-acceptance-template':{siteId:'my-site'},workspace:{siteId:'my-site'}}),
+ /exact site/);
 const f={format:PLAN.FORMAT,phase:'search',
  inputs:{candidate,postDeploy:'/tmp/post.json',blueprint:'/tmp/blueprint.json',
  indexing:'/tmp/indexing.json',searchHistory:'/tmp/history.json'}};
