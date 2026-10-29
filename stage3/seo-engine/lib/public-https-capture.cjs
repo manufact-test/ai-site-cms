@@ -140,6 +140,18 @@ async function capture(site,rawOrigin,transport={address,request}){
  const negativeProbe={path:missingPath,requestUrl:missingUrl,status:missingReply.status,
   contentType:missingReply.contentType,
   bodySha256:crypto.createHash('sha256').update(missingReply.body,'utf8').digest('hex')};
+ // Detect accidentally public operator/official release files without storing
+ // any of their potentially sensitive contents. A 200 must block approval.
+ const forbiddenPublic=[
+  '/release-manifest.json','/upload-inventory.json',
+  '/CANDIDATE-STATUS.json','/CANDIDATE-HANDOFF.md'
+ ];
+ const securityProbes=[];
+ for(const protectedPath of forbiddenPublic){
+  const url=resource(base,protectedPath),reply=await fetch(url,128000);
+  securityProbes.push({path:protectedPath,requestUrl:url,status:reply.status,
+   bodySha256:crypto.createHash('sha256').update(reply.body,'utf8').digest('hex')});
+ }
  const robotsUrl=resource(base,'/robots.txt'),sitemapUrl=resource(base,'/sitemap.xml');
  const robotsReply=await fetch(robotsUrl,LIMIT_ROBOTS);
  const sitemapReply=await fetch(sitemapUrl,LIMIT_SITEMAP);
@@ -151,12 +163,12 @@ async function capture(site,rawOrigin,transport={address,request}){
   redirects.push({from:alias.from,requestUrl,status:reply.status,location:reply.location});
  }
  const evidence={format:DELIVERY.FORMAT,siteId:site.siteId,
-  origin:base.href,capturedAt:new Date().toISOString(),pages,negativeProbe,
+  origin:base.href,capturedAt:new Date().toISOString(),pages,negativeProbe,securityProbes,
   robots:{status:robotsReply.status,url:robotsUrl,contentType:robotsReply.contentType,body:robotsReply.body},
   sitemap:{status:sitemapReply.status,url:sitemapUrl,contentType:sitemapReply.contentType,body:sitemapReply.body},
   redirects};
  DELIVERY.assertEvidence(evidence);
- return Object.freeze({evidence,bytes:total,requests:pages.length+redirects.length+3,
+ return Object.freeze({evidence,bytes:total,requests:pages.length+redirects.length+7,
   captureActuallyPerformed:true,publicHttpsTransportChecked:true,
   servedRevisionAuthenticated:false,formsDelivered:false,automaticRelease:false});
 }
