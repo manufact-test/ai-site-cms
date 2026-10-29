@@ -6,7 +6,7 @@ const CAND='manufact-seo-first-site-candidate-v1';
 const FIRST='manufact-seo-first-site-check-v1';
 const UPLOAD='manufact-seo-static-upload-bundle-v1';
 const POST='manufact-seo-post-deploy-release-verification-v1';
-const INDEX='manufact-seo-search-indexing-intelligence-v1';
+const INDEX='manufact-seo-indexing-intelligence-v1';
 const HISTORY='manufact-seo-search-history-v1';
 function assert(condition,message){if(!condition)throw Error('Integration relay: '+message);}
 function exactOrigin(value){
@@ -29,7 +29,7 @@ function build(input){
   c.publishedVersion===s.publishedVersion&&c.publishedVersion===u.publishedVersion,
   'owner-published version differs between the three local artifacts');
  assert(Number.isSafeInteger(s.ownerPublishedSourceRevisionClaim)&&
-  s.ownerPublishedSourceRevisionClaim>0,'owner-published sourceRevision claim is absent');
+  s.ownerPublishedSourceRevisionClaim>=0,'owner-published sourceRevision claim is absent');
  assert(SHA.test(s.sourceSiteSha256||'')&&SHA.test(c.officialStaticManifestSha256||'')&&
   c.officialStaticManifestSha256===s.staticExport?.staticManifestSha256&&
   c.officialStaticManifestSha256===u.officialStaticManifestSha256,

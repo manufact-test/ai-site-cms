@@ -71,3 +71,9 @@
 Следующему чату НЕ надо просить пользователя повторять историю проекта: всё здесь и в перечисленных workflow docs. Не задавать лишних вопросов; действовать автономно и отправлять законченные блоки. Пользователь ценит скорость, продуктовую цель и правду о степени готовности.
 
 **Этот чат заканчивает работу после финального документального коммита. Новый SEO worker продолжает независимую ветку, ведущий интегрирует отдельно.**
+
+## Дополнение SEO-разработчика — 29.10.2026: контракт передачи ведущему
+
+Созданы `lib/first-site-lead-relay.cjs`, `bin/build-first-site-lead-relay.cjs`, `tests/first-site-lead-relay-smoke.cjs` и `LEAD-INTEGRATION-RELAY.md`. Команда проверяет исходный private first-site candidate, подлинные байты публичного static upload / ZIP и их SHA256, связывает official manifest, owner-published version + sourceRevision claim и original technical gates. Опционально сверяет ранее сделанный post-deploy summary и GSC indexing/search history по exact Blueprint raw SHA256/siteId/HTTPS origin. Выдаёт частный `INTEGRATION-CONTRACT.json` и `LEAD-NEXT-ACTIONS.md`. Никаких Save/Publish/PR/deploy, Google auth, client-approved public site, реальных POST/браузера. Код не интегрирован ведущим; Node CI на SEO ветке по-прежнему не подтверждён. Следующий реальный шаг — ведущий берёт пакет на первом owner-published client site, проводит PHP/static/HTTPS/browser/form/client acceptance.
+
+Точное состояние SHA и Actions сверять непосредственно перед интеграцией, старые из этого файла не являются текущим HEAD.
