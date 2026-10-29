@@ -62,6 +62,17 @@ graphTest(str_contains($html,'<picture class="cmsdg-picture">')&&
     'PHP renders phone art-direction as real mounted picture source');
 graphTest(str_contains($html,'<source media="(max-width:900px)" srcset="/published/site-industrial-demo/assets/'),
     'PHP renders tablet art-direction as real mounted picture source');
+graphTest(str_contains($html,'<img loading="lazy" class="cmsdg-n-graph-art-directed"'),
+    'Graph below the first page section must retain lazy image loading');
+$firstGraphSite=$site;
+$frontGraph=array_splice($firstGraphSite['pages'][0]['sections'],2,1)[0];
+array_unshift($firstGraphSite['pages'][0]['sections'],$frontGraph);
+$validator->validate($firstGraphSite);
+$firstGraphHtml=PublicRenderer::html($firstGraphSite,'/');
+graphTest(str_contains($firstGraphHtml,
+    '<img loading="eager" fetchpriority="high" class="cmsdg-n-graph-art-directed"'),
+    'Top-section Design Graph image must receive one actual visitor LCP hint');
+
 unset($rich); // Avoid leaking PHP reference semantics into copied negative fixtures.
 $brokenDevice=$site;
 $brokenDevice['pages'][0]['sections'][2]['designGraph']['nodes'][6]['responsiveMedia']['mobileAssetId']='asset-foreign';
