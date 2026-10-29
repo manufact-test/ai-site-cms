@@ -2459,6 +2459,16 @@
           entry.append(element('p',info.status==='configuration_required'?
             'hosted-launch-forms-warning':null,(channelsText[channel]||channel)+': '+label));
         }
+        const configure=action('К настройкам этой формы','',()=>{
+          dialog.close();
+          deliveryPanel.scrollIntoView({behavior:'smooth',block:'start'});
+          if([...routeForm.options].some(option=>option.value===form.sectionId)){
+            routeForm.value=form.sectionId;
+            routeForm.dispatchEvent(new Event('change',{bubbles:true}));
+          }
+          routeForm.focus();
+        });
+        entry.append(configure);
         launchFormsRows.append(entry);
       }
       if(formReadiness.queue.failed||formReadiness.queue.uncertain||
