@@ -17,6 +17,28 @@ const same=x=>JSON.parse(JSON.stringify(x));
 const reg=sdk.registry(manifests);
 const hero=manifests[0],highlights=manifests[1],contact=manifests[2];
 
+test('site-wide branding only binds same-site raster logos and PNG favicon',()=>{
+  const base=same(initial);
+  base.assets=[
+    {id:'asset-brand-png',src:'/assets/asset-brand-png.png',mime:'image/png',alt:'Customer logo'},
+    {id:'asset-brand-mobile',src:'/assets/asset-brand-mobile.webp',mime:'image/webp',alt:'Mobile customer logo'},
+    {id:'asset-brand-jpeg',src:'/assets/asset-brand-jpeg.jpg',mime:'image/jpeg',alt:'Other graphic'}
+  ];
+  base.branding={logoAssetId:'asset-brand-png',mobileLogoAssetId:'asset-brand-mobile',
+    faviconAssetId:'asset-brand-png',logoWidth:176};
+  sdk.validateSite(base,manifests);
+  const foreign=same(base);foreign.branding.logoAssetId='asset-other-site';
+  refuses(()=>sdk.validateSite(foreign,manifests),'Cannot bind logos from another site');
+  const jpegIcon=same(base);jpegIcon.branding.faviconAssetId='asset-brand-jpeg';
+  refuses(()=>sdk.validateSite(jpegIcon,manifests),'Favicon must be PNG');
+  const mobileOnly=same(base);delete mobileOnly.branding.logoAssetId;
+  refuses(()=>sdk.validateSite(mobileOnly,manifests),'Mobile needs a desktop logo');
+  const tiny=same(base);tiny.branding.logoWidth=20;
+  refuses(()=>sdk.validateSite(tiny,manifests),'Brand logo width must be bounded');
+  const noBrand=same(initial);
+  sdk.validateSite(noBrand,manifests); // Existing custom sites remain backward-compatible.
+});
+
 test('externally authored section is graph-only and fail-closed on browser contract',()=>{
   const site=same(initial),section=sdk.sectionFrom(
     manifests.find(m=>m.id==='custom-section'),'section-unique-layout');
