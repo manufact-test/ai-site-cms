@@ -61,6 +61,16 @@ function compare(site,release,http,media=null,byteReport=null){
    actualHostRequestsByThisReview:0,publicSiteApproval:false});
   accepted.add(unscoped);return unscoped;
  }
+ const publicMarker=http.publicReleaseMarker||null;
+ const markerMatched=Boolean(publicMarker?.valid&&
+  publicMarker.officialManifestSha256===release.manifestSha256&&
+  publicMarker.publishedVersion===release.publishedVersion);
+ if(!publicMarker||publicMarker.status===404)
+  add('public-release-marker-missing','warning',null,
+   'Public host does not expose the non-secret CMS release fingerprint; deployment version remains uncorrelated.');
+ else if(!markerMatched)
+  add('public-release-marker-mismatch','error',null,
+   'Public host fingerprint is missing, malformed or differs from owner-approved official static manifest SHA256/version.');
  const rootWindow=http.rootRecheck;
  if(!rootWindow)add('public-root-not-rechecked','warning',null,
   'No final root HTML/status SHA256 recheck was supplied after public page/media capture; deployment consistency is unverified.');
@@ -268,11 +278,13 @@ function compare(site,release,http,media=null,byteReport=null){
   negativeRouteStatus:negative?.status??null,negativeRouteProbed:Boolean(negative),
   publicRootWindowRechecked:Boolean(rootWindow),
   publicRootWindowStable:rootWindow?.matched??null,
+  publicReleaseMarkerObserved:Boolean(publicMarker),
+  publicReleaseMarkerMatched:markerMatched,
   internalArtifactProbes:operatorArtifacts?.length??0,
   internalArtifactPublicHttp200:operatorArtifacts?.filter(x=>x.status===200).length??null,
   pages:Object.freeze(pages),assets:Object.freeze(assets),
   auxiliary:Object.freeze(auxiliary),findings:Object.freeze(findings),
-  allComparedSurfacesMatched:blockers===0&&Boolean(operatorArtifacts)&&
+  allComparedSurfacesMatched:blockers===0&&markerMatched&&Boolean(operatorArtifacts)&&
    operatorArtifacts.every(x=>x.status!==200)&&rootWindow?.matched===true&&Boolean(negative)&&
    [404,410].includes(negative.status)&&
    assets.length===(site.assets||[]).length&&assets.every(x=>x.checked&&x.matched)&&
