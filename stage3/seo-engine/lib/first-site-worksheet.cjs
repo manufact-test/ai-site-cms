@@ -12,10 +12,12 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   throw Error('Operator worksheet requires one matching site and verified PHP report');
  const fields=['localHead','localForms','localMedia','localComponents','localGraph','localNavigation','localTheme','localSemantics','localFootprint','localStaticExport','publication'];
  const all=fields.flatMap(key=>(phpHtml[key]?.findings||[]).map(x=>({...x,group:key})));
+ const ownerVisual=bundle.visualReview||null;
  const ownerDelivery=bundle.deliveryReadiness||null;
  const publicStatic=bundle.publicStaticParity||null;
  const publicMediaBytes=bundle.publicMediaBytes||null;
  if(phpCapture)for(const x of phpCapture.findings||[])all.push({...x,group:'lead-php-screenshots'});
+ if(ownerVisual)for(const x of ownerVisual.findings||[])all.push({...x,group:'owner-visual-observations'});
  if(ownerDelivery)for(const x of ownerDelivery.findings||[])all.push({...x,group:'owner-form-delivery'});
  if(publicStatic)for(const x of publicStatic.findings||[])all.push({...x,group:'public-static-deployment'});
  if(publicMediaBytes)for(const x of publicMediaBytes.findings||[])all.push({...x,group:'public-media-byte-integrity'});
@@ -39,6 +41,10 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   '- Release status: '+clean(bundle.release.decision)+
     '; блокирующих gates: '+stats.releaseBlockingGates+
     '; реальных PHP findings: '+stats.actualFindings+'.',
+  '- Owner published visual review: '+(ownerVisual?(
+    'revision '+ownerVisual.sourceRevisionClaim+', open '+ownerVisual.openCount+
+    ', resolved '+ownerVisual.resolvedCount+', available '+ownerVisual.ownerApiAvailable):
+    'НЕ ПРЕДОСТАВЛЕН')+'.',
   '- Public operator file exposure probes: '+(bundle.publicStaticParity?.internalArtifactProbes??'НЕ ПРОВЕРЕНО')+
    '; exposed HTTP 2xx: '+(bundle.publicStaticParity?.internalArtifactPublicSuccess2xx??'НЕ ПРОВЕРЕНО')+'.',
   '- Public HTTPS acquisition window: '+(bundle.publicStaticParity?.publicRootWindowRechecked?

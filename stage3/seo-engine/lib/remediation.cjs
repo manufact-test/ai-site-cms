@@ -48,7 +48,7 @@ function level(code,severity){
 function work(site,manifests,blueprint,options={}){
  const plan=checkBlueprint(blueprint);
  if(site.siteId!==plan.siteId)throw Error('Remediation siteId mismatch');
- if(!options||typeof options!=='object'||Array.isArray(options)||Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','delivery','media','phpCapture','phpHtml','deliveryReadiness','publicStatic','publicMediaBytes'].includes(k)))throw Error('Unsupported remediation option');
+ if(!options||typeof options!=='object'||Array.isArray(options)||Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','delivery','media','phpCapture','phpHtml','deliveryReadiness','visualReview','publicStatic','publicMediaBytes'].includes(k)))throw Error('Unsupported remediation option');
  if(options.phpCapture&&(!PHP_CAPTURE.isVerifiedCapture(options.phpCapture)||options.phpCapture.siteId!==site.siteId))
   throw Error('Remediation requires source-bound verified PHP screenshot evidence');
  if(options.publicMediaBytes&&(!PUBLIC_BYTES.isVerified(options.publicMediaBytes)||options.publicMediaBytes.siteId!==site.siteId))
@@ -210,6 +210,8 @@ function work(site,manifests,blueprint,options={}){
   issueTask(x,'php-local-footprint');
  if(options.phpHtml?.localStaticExport)for(const x of options.phpHtml.localStaticExport.findings)
   issueTask(x,'php-local-static-export');
+ if(options.visualReview)for(const x of options.visualReview.findings)
+  issueTask(x,'owner-visual-review');
  if(options.deliveryReadiness)for(const x of options.deliveryReadiness.findings)
   issueTask(x,'owner-form-delivery');
  if(options.publicStatic)for(const x of options.publicStatic.findings)

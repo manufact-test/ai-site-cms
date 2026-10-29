@@ -66,6 +66,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const localHeadReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-head:')&&s.severity!=='error'));
   const localFormErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-form:')&&s.severity==='error'));
   const localFormReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-form:')&&s.severity!=='error'));
+ const ownerVisualErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-visual:')&&s.severity==='error'));
+ const ownerVisualReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-visual:')&&s.severity!=='error'));
  const ownerDeliveryErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-delivery:')&&s.severity==='error'));
  const ownerDeliveryReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-delivery:')&&s.severity!=='error'));
  const phpCapture=options.phpCapture||null;
@@ -131,6 +133,10 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(localFormErrors.length)add(blockers,'local-php-form-markup',
    'Repair observed PHP lead form action, release and anti-spam markup',
    'Captured HTML disagrees with the public form contract. No POST or delivery has been attempted.',localFormErrors);
+ if(ownerVisualErrors.length)add(blockers,'unresolved-owner-visual-review',
+  'The owner API reports unresolved visual findings for the exact published source revision. Review them by page/device before release.',ownerVisualErrors);
+ if(ownerVisualReviews.length)add(reviews,'owner-visual-review-unavailable',
+  'Owner visual-review schema is unavailable or incomplete. Manual three-device review remains essential.',ownerVisualReviews);
  if(ownerDeliveryErrors.length)add(blockers,'owner-form-delivery-configuration',
   'Owner API reports missing or unusable per-form notification channels. Correct delivery configuration; this does NOT test actual submission.',ownerDeliveryErrors);
  if(ownerDeliveryReviews.length)add(reviews,'owner-form-notification-intent',
