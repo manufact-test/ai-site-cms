@@ -12,7 +12,10 @@ function mediaIndex(e,marker,siteId,origin){
     e.publishedVersion!==marker.publishedVersion||
     !Array.isArray(e.resources)||e.resources.length>1200||
     !Number.isSafeInteger(e.totalReceivedBytes)||e.totalReceivedBytes<0||
-    e.totalReceivedBytes>180000000||e.bytesStoredInEvidence!==false||
+    e.totalReceivedBytes>180000000||e.transport!=='explicit-public-https-get'||
+    e.realBinaryGetPerformed!==true||
+    typeof e.capturedAt!=='string'||!Number.isFinite(Date.parse(e.capturedAt))||
+    e.bytesStoredInEvidence!==false||
     e.postsPerformed!==false||e.redirectsFollowed!==false)
   throw Error('Public media digest transcript is not tied to the observed official release');
  const map=new Map();let total=0;
@@ -35,6 +38,12 @@ function mediaIndex(e,marker,siteId,origin){
 }
 function compare(previous,current,previousMedia=null,currentMedia=null){
  DELIVERY.assertEvidence(previous);DELIVERY.assertEvidence(current);
+ let root;
+ try{
+  root=new URL(current.origin);
+  if(root.protocol!=='https:'||root.pathname!=='/'||root.search||root.hash||
+     root.username||root.password)throw Error('invalid static root');
+ }catch{throw Error('Public CDN drift comparison requires genuine HTTPS static-root observations');}
  if(previous.siteId!==current.siteId||previous.origin!==current.origin)
   throw Error('CDN drift comparison requires the same exact HTTPS origin/mount and CMS siteId');
  const a=previous.publicReleaseMarker,b=current.publicReleaseMarker;
