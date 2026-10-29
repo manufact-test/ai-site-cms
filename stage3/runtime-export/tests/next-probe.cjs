@@ -101,7 +101,7 @@ async function probe() {
   assert.match(String(zipTree.get('deploy/old/index.html')),/Moved/);
   assert.ok(zipTree.has('deploy/assets/image-abc.png'));
   assert.ok(zipTree.has('deploy/'+sheet.file),'Next Static output must ship immutable CSS');
-  assert.match(String(zipTree.get('deploy/index.html')),/styles\\/site-[a-f0-9]{64}\\.css/);
+  assert.ok(String(zipTree.get('deploy/index.html')).includes('/'+sheet.file));
   assert.equal(String(zipTree.get('deploy/'+sheet.file)),sharedCss);
   const port=await freePort();
   const child=spawn('npm',['run','start','--','-p',String(port),'-H','127.0.0.1'],
@@ -130,7 +130,7 @@ async function probe() {
     assert.equal(cssResponse.status,200,'Next SSR must publish shared CSS');
     assert.equal(await cssResponse.text(),sharedCss);
     const ssrHtml=await (await fetch(origin+'/')).text();
-    assert.match(ssrHtml,/styles\\/site-[a-f0-9]{64}\\.css/);
+    assert.ok(ssrHtml.includes('/'+sheet.file));
     const image=await fetch(origin+'/assets/image-abc.png');
     assert.equal(image.status,200);
     assert.deepEqual(Buffer.from(await image.arrayBuffer()),fs.readFileSync(path.join(dir,img.file)));
