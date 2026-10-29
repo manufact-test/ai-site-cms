@@ -321,13 +321,33 @@ JS;
         return $links.'</ul>';
     }
 
-    private static function siteHeader(array $site,string $path,string $mount): string
+    private static function siteHeader(array $site,string $path,string $mount,?string $assetBasePath=null): string
     {
         $lang=self::language($site);
         $menu=$site['menu']??['style'=>'default','sticky'=>false,'mobile'=>'collapsible',
             'ctaPageId'=>'','ctaLabel'=>''];
         $classes='cms-site-header cms-menu-'.$menu['style'].($menu['sticky']?' cms-menu-sticky':'');
         $brand=self::h($site['title']);
+        $branding=$site['branding']??[];
+        $indexed=[];foreach($site['assets'] as $asset)$indexed[$asset['id']]=$asset;
+        $mediaUrl=static function(string $id)use($indexed,$mount,$assetBasePath): string{
+            if(!isset($indexed[$id]))throw new \RuntimeException('Unknown site branding asset');
+            return ($assetBasePath===null?$mount.$indexed[$id]['src']:
+                rtrim($assetBasePath,'/').'/'.$id);
+        };
+        $desktopLogo=(string)($branding['logoAssetId']??'');
+        $mobileLogo=(string)($branding['mobileLogoAssetId']??'');
+        $brandHtml=$brand;
+        if($desktopLogo!==''){
+            $picture='<picture class="cms-brand-picture">';
+            if($mobileLogo!=='')
+                $picture.='<source media="(max-width:900px)" srcset="'.
+                    self::h($mediaUrl($mobileLogo)).'">';
+            $picture.='<img src="'.self::h($mediaUrl($desktopLogo)).
+                '" alt="" aria-hidden="true" decoding="async" width="'.
+                (int)($branding['logoWidth']??154).'"></picture>';
+            $brandHtml=$picture.'<span class="cms-sr-only">'.$brand.'</span>';
+        }
         $tree=self::menuTree($site,$path,$mount);
         $cta='';
         if ($menu['ctaPageId']!=='') {
@@ -344,7 +364,7 @@ JS;
             : '<details class="cms-mobile-menu"><summary>'.self::ui($lang,'menu').'</summary>'
                 .'<nav aria-label="'.self::ui($lang,'mobile').'">'.$tree.'</nav></details>';
         return '<header class="'.$classes.'"><div class="cms-header-inner">'
-            .'<a class="cms-brand" href="'.self::h($mount.'/').'">'.$brand.'</a>'
+            .'<a class="cms-brand" href="'.self::h($mount.'/').'" aria-label="'.$brand.'">'.$brandHtml.'</a>'
             .'<nav class="cms-nav-desktop" aria-label="'.self::ui($lang,'primary').'">'.$tree.'</nav>'
             .$cta.$mobile.'</div></header>';
     }
@@ -380,7 +400,8 @@ JS;
         $buttonColor=$buttonStyle==='outline'?'var(--cms-primary)':$t['buttonText'];
         $buttonShadow=$buttonStyle==='outline'?'inset 0 0 0 2px var(--cms-primary)':'none';
         $buttonRadius=$buttonStyle==='pill'?'999px':$t['buttonRadius'].'px';
-        return $faceCss.':root{--cms-bg:'.$t['background'].';--cms-surface:'.$t['surface'].';--cms-text:'.$t['text'].
+        $logoWidth=(int)($site['branding']['logoWidth']??154);
+        return $faceCss.':root{--cms-logo-width:'.$logoWidth.'px;--cms-bg:'.$t['background'].';--cms-surface:'.$t['surface'].';--cms-text:'.$t['text'].
             ';--cms-primary:'.$t['primary'].';--cms-width:'.$t['maxWidth'].'px;--cms-font:'.$bodyFont.';--cms-heading-font:'.$headingFont.
             ';--cms-body-size:'.$t['bodySize'].'px;--cms-line-height:'.$lineHeights[$t['lineHeight']].
             ';--cms-h2-size:'.$headingSizes[$t['headingScale']].';--cms-button-bg:'.$buttonBg.
@@ -519,7 +540,7 @@ JS;
         $siteId = $site['siteId'];
         $mount = $basePath ?? '/published/' . rawurlencode($siteId);
         $language=self::language($site);
-        $header=self::siteHeader($site,$path,$mount);
+        $header=self::siteHeader($site,$path,$mount,$assetBasePath);
         $body = '';
         foreach ($page['sections'] as $sectionIndex=>$section) {
             $beforeSkin = strlen($body);
@@ -900,12 +921,21 @@ JS;
             }
         }
 
+        $favicon='';
+        $faviconId=(string)($site['branding']['faviconAssetId']??'');
+        if($faviconId!==''){
+            $indexed=[];foreach($site['assets'] as $asset)$indexed[$asset['id']]=$asset;
+            $faviconUrl=$assetBasePath===null
+                ?$mount.$indexed[$faviconId]['src']
+                :rtrim($assetBasePath,'/').'/'.$faviconId;
+            $favicon='<link rel="icon" type="image/png" href="'.self::h($faviconUrl).'">';
+        }
         $previewHead=$preview
             ? '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'none\'; style-src \'unsafe-inline\'; img-src \'self\' data:; media-src \'self\'; font-src \'self\'; connect-src \'none\'; form-action \'none\'; object-src \'none\'; frame-src \'none\'; base-uri \'none\'"><meta name="robots" content="noindex,nofollow"><style>a{pointer-events:none!important;cursor:default!important}</style>'
             : '';
         return '<!doctype html><html lang="'.$language.'"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1">' . $previewHead
-            . '<title>' . $title . '</title>' . $description . $robots . $canonical . $social . '<style>' . self::themeCss($site,$mount,$assetBasePath)
+            . '<title>' . $title . '</title>' . $description . $robots . $canonical . $social . $favicon . '<style>' . self::themeCss($site,$mount,$assetBasePath)
             . '*,*:before,*:after{box-sizing:border-box}body{margin:0;background:var(--cms-bg);color:var(--cms-text);font:var(--cms-body-size)/var(--cms-line-height) var(--cms-font)}h1,h2,h3,h4,h5,h6{font-family:var(--cms-heading-font)}'
             . 'header,main,footer{max-width:var(--cms-width);margin:auto;padding:24px}nav{display:flex;flex-wrap:wrap;gap:18px}a{color:inherit}'
             . 'section{padding:64px 24px;border-bottom:1px solid #e2e8f0}h1{font-size:var(--title-desktop);color:var(--title-color);line-height:1.1;max-width:960px}'
@@ -923,7 +953,7 @@ JS;
             . '.cms-corners-soft>section :is(article,.review,figure,img,.action,details){border-radius:12px}.cms-corners-round>section :is(article,.review,figure,img,.action,details){border-radius:28px}'
             . '.cms-button-solid>section .action{background:var(--cms-primary);color:var(--cms-button-text);box-shadow:none}.cms-button-outline>section .action{background:transparent;color:var(--cms-primary);box-shadow:inset 0 0 0 2px currentColor}.cms-button-pill>section .action{border-radius:999px}'
             . '.cms-surface-paper>section{background:var(--cms-surface)}.cms-surface-tint>section{background:#ecf4fc}.cms-surface-dark>section{background:#112536;color:#f5f9fe}.cms-surface-dark>section a:not(.action){color:#cdefff}.cms-spacing-tight>section{padding-top:25px;padding-bottom:25px}.cms-spacing-airy>section{padding-top:110px;padding-bottom:110px}.cms-align-center>section{text-align:center}.cms-align-center>section>p{margin-left:auto;margin-right:auto}'
-            . '.cms-site-header{position:relative;z-index:20;max-width:none;background:var(--cms-surface);border-bottom:1px solid #dae4ef;padding:0}.cms-menu-sticky{position:sticky;top:0}.cms-header-inner{max-width:var(--cms-width);margin:0 auto;min-height:74px;padding:14px 24px;display:flex;gap:22px;align-items:center}.cms-brand{text-decoration:none;font-weight:800;font-size:19px;white-space:nowrap}.cms-nav-desktop{flex:1;min-width:0}.cms-menu-list{list-style:none;margin:0;padding:0;display:flex;align-items:center;gap:4px}.cms-menu-list a{display:block;padding:10px 12px;text-decoration:none;border-radius:9px;font-weight:600;font-size:14px}.cms-menu-list a:hover,.cms-menu-list a:focus-visible{background:#e9eff8;outline-offset:2px}.cms-menu-list a[aria-current=page]{color:var(--cms-primary);box-shadow:inset 0 -2px 0 var(--cms-primary)}.cms-nav-item{position:relative}.cms-nav-desktop .cms-nav-submenu{display:none;position:absolute;left:0;top:100%;min-width:190px;max-width:320px;background:var(--cms-surface);box-shadow:0 12px 28px #09233e23;border:1px solid #dae4ef;border-radius:12px;padding:7px;list-style:none}.cms-nav-desktop .cms-nav-item:hover>.cms-nav-submenu,.cms-nav-desktop .cms-nav-item:focus-within>.cms-nav-submenu{display:block}.cms-menu-cta{background:var(--cms-button-bg);color:var(--cms-button-color);box-shadow:var(--cms-button-shadow);text-decoration:none;border-radius:var(--cms-button-radius);padding:11px 16px;font-weight:700;white-space:nowrap}.cms-menu-quiet{background:var(--cms-bg)}.cms-menu-bold{border-bottom:3px solid var(--cms-primary)}.cms-menu-bold .cms-brand{color:var(--cms-primary)}.cms-mobile-menu,.cms-mobile-inline{display:none}'
+            . '.cms-site-header{position:relative;z-index:20;max-width:none;background:var(--cms-surface);border-bottom:1px solid #dae4ef;padding:0}.cms-menu-sticky{position:sticky;top:0}.cms-header-inner{max-width:var(--cms-width);margin:0 auto;min-height:74px;padding:14px 24px;display:flex;gap:22px;align-items:center}.cms-brand{text-decoration:none;font-weight:800;font-size:19px;white-space:nowrap;flex-shrink:0;min-width:0}.cms-brand-picture{display:block;max-width:100%}.cms-brand-picture img{display:block;width:var(--cms-logo-width);max-width:min(100%,320px);height:auto;max-height:56px;object-fit:contain}.cms-nav-desktop{flex:1;min-width:0}.cms-menu-list{list-style:none;margin:0;padding:0;display:flex;align-items:center;gap:4px}.cms-menu-list a{display:block;padding:10px 12px;text-decoration:none;border-radius:9px;font-weight:600;font-size:14px}.cms-menu-list a:hover,.cms-menu-list a:focus-visible{background:#e9eff8;outline-offset:2px}.cms-menu-list a[aria-current=page]{color:var(--cms-primary);box-shadow:inset 0 -2px 0 var(--cms-primary)}.cms-nav-item{position:relative}.cms-nav-desktop .cms-nav-submenu{display:none;position:absolute;left:0;top:100%;min-width:190px;max-width:320px;background:var(--cms-surface);box-shadow:0 12px 28px #09233e23;border:1px solid #dae4ef;border-radius:12px;padding:7px;list-style:none}.cms-nav-desktop .cms-nav-item:hover>.cms-nav-submenu,.cms-nav-desktop .cms-nav-item:focus-within>.cms-nav-submenu{display:block}.cms-menu-cta{background:var(--cms-button-bg);color:var(--cms-button-color);box-shadow:var(--cms-button-shadow);text-decoration:none;border-radius:var(--cms-button-radius);padding:11px 16px;font-weight:700;white-space:nowrap}.cms-menu-quiet{background:var(--cms-bg)}.cms-menu-bold{border-bottom:3px solid var(--cms-primary)}.cms-menu-bold .cms-brand{color:var(--cms-primary)}.cms-mobile-menu,.cms-mobile-inline{display:none}'
             . '@media(max-width:900px){.cms-header-inner{flex-wrap:wrap;gap:10px;min-height:64px}.cms-nav-desktop{display:none}.cms-mobile-menu,.cms-mobile-inline{display:block;order:3;width:100%}.cms-mobile-menu>summary{cursor:pointer;list-style:revert;padding:9px 0;font-weight:700}.cms-mobile-menu .cms-menu-list,.cms-mobile-inline .cms-menu-list{display:block}.cms-mobile-menu .cms-menu-list a,.cms-mobile-inline .cms-menu-list a{padding:10px 6px}.cms-mobile-menu .cms-nav-submenu,.cms-mobile-inline .cms-nav-submenu{list-style:none;margin:0 0 5px 14px;padding:0 0 0 12px;border-left:2px solid #d0dce9}.cms-menu-cta{margin-left:auto;font-size:13px;padding:10px 12px}}'
             . '@media(max-width:900px){h1{font-size:var(--title-tablet)}}'
             . '@media(max-width:600px){.cms-mobile-align-left>section{text-align:left}.cms-mobile-align-center>section{text-align:center}.cms-mobile-spacing-tight>section{padding-top:24px;padding-bottom:24px}.cms-mobile-spacing-normal>section{padding-top:40px;padding-bottom:40px}.cms-mobile-spacing-airy>section{padding-top:72px;padding-bottom:72px}section{padding:40px 8px}.hero{padding-block:48px}.feature-grid{grid-template-columns:1fr}.story-layout{grid-template-columns:1fr}h1{font-size:var(--title-mobile)}}'
