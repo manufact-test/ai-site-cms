@@ -39,6 +39,8 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   '- Release status: '+clean(bundle.release.decision)+
     '; блокирующих gates: '+stats.releaseBlockingGates+
     '; реальных PHP findings: '+stats.actualFindings+'.',
+  '- Public operator file exposure probes: '+(bundle.publicStaticParity?.internalArtifactProbes??'НЕ ПРОВЕРЕНО')+
+   '; served HTTP 200: '+(bundle.publicStaticParity?.internalArtifactPublicHttp200??'НЕ ПРОВЕРЕНО')+'.',
   '- Public HTTPS acquisition window: '+(bundle.publicStaticParity?.publicRootWindowRechecked?
    (bundle.publicStaticParity.publicRootWindowStable?'root SHA256 stable':'BLOCKED: root changed'):
    'НЕ ПРОВЕРЕНО')+'.',
