@@ -8,6 +8,7 @@ const BYTES=require('./public-media-byte-verification.cjs');
 const PUBLIC=require('./public-static-parity.cjs');
 const DELIVERY=require('./delivery-evidence.cjs');
 const MEDIA=require('./media-delivery.cjs');
+const CDN=require('./public-cdn-drift.cjs');
 const FORMAT='manufact-seo-post-deploy-release-verification-v1';
 const DIGEST=/^[a-f0-9]{64}$/;
 function input(file,max=2000000){
@@ -34,7 +35,7 @@ function freshness(httpCaptured,digestCaptured,nowMs=Date.now()){
   maximumAgeMinutes:120,maximumGapMinutes:30,
   liveEvidenceOriginAuthenticated:false});
 }
-function inspect(candidate,site,release,publicHttp,publicMedia,byteReport,cohort=null){
+function inspect(candidate,site,release,publicHttp,publicMedia,byteReport,cohort=null,previousCdn=null){
  if(!candidate||typeof candidate!=='string'||!path.isAbsolute(candidate)||
     !site||!Array.isArray(site.pages)||!release||release.siteId!==site.siteId)
   throw Error('Post-deploy review requires exact official published source and private candidate folder');
@@ -127,6 +128,10 @@ function inspect(candidate,site,release,publicHttp,publicMedia,byteReport,cohort
  if(!cohort||cohort.cohortFresh!==true)
   blockers.push({code:'public-evidence-stale-or-mixed',
    reason:'Public HTTPS page and media SHA256 capture must be within two hours of verification and no more than thirty minutes apart. Capture a fresh coherent public deployment snapshot.',count:1});
+ if(previousCdn?.sameOfficialReleaseComparable&&previousCdn.criticalDriftCount>0)
+  blockers.push({code:'unchanged-release-public-cdn-drift',
+   reason:'Two HTTPS captures disagree about page bytes, redirect rules, indexing metadata or other public behavior despite an unchanged official release marker.',
+   count:previousCdn.criticalDriftCount});
  if(status.blockingGates||status.status==='TECHNICAL-BLOCKED')
   blockers.push({code:'candidate-has-unresolved-technical-gates',
    reason:'Existing locally prepared CMS/SEO candidate was already technically blocked; post-deploy matching cannot override those gates.',
@@ -148,6 +153,10 @@ function inspect(candidate,site,release,publicHttp,publicMedia,byteReport,cohort
   matchedPublicReleaseMarker:parity.publicReleaseMarkerMatched,
   rootCaptureWindowStable:parity.publicRootWindowStable,
   publicEvidenceCohortFresh:cohort?.cohortFresh??null,
+  earlierPublicCaptureCompared:Boolean(previousCdn),
+  unchangedReleaseObservedCdnDrift:previousCdn?.sameOfficialReleaseComparable?
+   previousCdn.criticalDriftCount:null,
+  earlierPublicCaptureReviewCodes:previousCdn?.newProblems.map(x=>x.code)??[],
   publicEvidenceAgeMinutes:cohort?.publicHttpAgeMinutes??null,
   mediaSha256EvidenceAgeMinutes:cohort?.mediaSha256AgeMinutes??null,
   publicMediaEvidenceGapMinutes:cohort?.captureGapMinutes??null,
@@ -177,13 +186,14 @@ function inspect(candidate,site,release,publicHttp,publicMedia,byteReport,cohort
   limitations:'The inputs are privately saved operator-collected HTTPS transcripts. This offline check does not authenticate DNS/TLS origin, actual production process revision, forms POST, recipients, rendered browser output, or client signoff.'});
  return result;
 }
-function readAndInspect(candidate,site,release,httpFile,mediaFile,byteFile){
+function readAndInspect(candidate,site,release,httpFile,mediaFile,byteFile,previousHttpFile=null){
  const http=input(httpFile,36000000),media=mediaFile?input(mediaFile,1800000):null;
  if(media)MEDIA.assertEvidence(media);
  DELIVERY.assertEvidence(http);
  const byteEvidence=input(byteFile,1800000);
  const bytes=BYTES.review(site,release,byteEvidence);
  const cohort=freshness(http.capturedAt,byteEvidence.capturedAt);
- return inspect(candidate,site,release,http,media,bytes,cohort);
+ const previousCdn=previousHttpFile?CDN.compare(input(previousHttpFile,36000000),http):null;
+ return inspect(candidate,site,release,http,media,bytes,cohort,previousCdn);
 }
 module.exports=Object.freeze({FORMAT,freshness,inspect,readAndInspect});
