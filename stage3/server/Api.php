@@ -444,6 +444,11 @@ final class Api
                 if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
                 $this->response(200,$this->sites->approvalEvidenceIndex($proofList[1]));
             }
+            if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/visual-review$~D',$path,$review)) {
+                if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
+                $revision=self::revision(filter_var($_GET['revision']??null,FILTER_VALIDATE_INT,FILTER_NULL_ON_FAILURE));
+                $this->response(200,$this->sites->visualReviewStatus($review[1],$revision));
+            }
             if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/connection-check$~D',$path,$connection)) {
                 if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
                 $this->response(200,$this->sites->connectionCheck($connection[1]));
@@ -485,6 +490,30 @@ final class Api
                     $this->auditDetail='Immutable approved source evidence '.$body['kind'];
                     $this->response(201,$this->sites->recordApprovalEvidence($proofUpload[1],
                         $body['packageSha'],$body['kind'],$body['sha256'],$body['base64']));
+                }
+                if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/visual-review$~D',$path,$review)) {
+                    if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
+                    $revision=self::revision($body['expectedRevision']??null);
+                    $op=$body['action']??null;
+                    if ($op==='create') {
+                        foreach(['pageId','path','device','note'] as $key)
+                            if(!is_string($body[$key]??null))
+                                throw new InvalidArgumentException('Invalid visual finding fields');
+                        if(!is_int($body['scrollY']??null))
+                            throw new InvalidArgumentException('Visual scroll position required');
+                        $this->auditDetail='Visual finding recorded for '.$body['device'];
+                        $this->response(201,$this->sites->visualReviewCreate($review[1],$revision,
+                            $body['pageId'],$body['path'],$body['device'],$body['scrollY'],
+                            $body['note'],$principal['username']));
+                    }
+                    if ($op==='resolve') {
+                        if(!is_string($body['findingId']??null)||!is_int($body['expectedVersion']??null))
+                            throw new InvalidArgumentException('Finding ID and optimistic version required');
+                        $this->auditDetail='Visual finding resolved '.$body['findingId'];
+                        $this->response(200,$this->sites->visualReviewResolve($review[1],$revision,
+                            $body['findingId'],$body['expectedVersion'],$principal['username']));
+                    }
+                    throw new InvalidArgumentException('Unknown visual review action');
                 }
                 if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/operations$~D',$path,$op)) {
                     if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
