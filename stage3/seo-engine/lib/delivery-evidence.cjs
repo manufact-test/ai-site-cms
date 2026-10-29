@@ -39,7 +39,7 @@ function assertEvidence(e){
   !e.origin||typeof e.origin!=='string')throw Error('Invalid HTTP delivery evidence');
  const u=urlFrom(e.origin,'capture origin');
  if(!u.pathname.endsWith('/'))throw Error('Capture origin must end with / (including mount)');
- if(Object.keys(e).some(k=>!['format','siteId','origin','pages','robots','sitemap','redirects','capturedAt','negativeProbe','rootRecheck','securityProbes'].includes(k)))
+ if(Object.keys(e).some(k=>!['format','siteId','origin','pages','robots','sitemap','redirects','capturedAt','negativeProbe','rootRecheck','securityProbes','publicReleaseMarker'].includes(k)))
   throw Error('Unsupported delivery evidence field');
  if(e.capturedAt!==undefined&&(typeof e.capturedAt!=='string'||
   !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(e.capturedAt)||
@@ -81,6 +81,18 @@ function assertEvidence(e){
       !Number.isInteger(r.status)||r.status<100||r.status>599||
       typeof r.bodySha256!=='string'||!/^[a-f0-9]{64}$/.test(r.bodySha256)))
    throw Error('Invalid public hidden-file status probes; only fixed paths and SHA256 receipts permitted');
+ }
+ if(e.publicReleaseMarker!==undefined){
+  const r=e.publicReleaseMarker;
+  if(!r||typeof r!=='object'||Array.isArray(r)||
+     Object.keys(r).some(k=>!['url','status','valid','format','officialManifestSha256','publishedVersion'].includes(k))||
+     r.url!==base(e.origin,'/ai-site-release.json').href||
+     !Number.isInteger(r.status)||r.status<100||r.status>599||typeof r.valid!=='boolean'||
+     (r.valid?(r.status!==200||r.format!=='manufact-ai-public-release-marker-v1'||
+        typeof r.officialManifestSha256!=='string'||!/^[a-f0-9]{64}$/.test(r.officialManifestSha256)||
+        !Number.isSafeInteger(r.publishedVersion)||r.publishedVersion<1):
+       (r.format!==null||r.officialManifestSha256!==null||r.publishedVersion!==null)))
+   throw Error('Invalid public CMS release marker evidence; only bounded version/digest metadata allowed');
  }
  const used=new Set();
  for(const p of e.pages){
@@ -321,6 +333,10 @@ function review(site,evidence){
    }
   }
  }
+ if(evidence.publicReleaseMarker&&!evidence.publicReleaseMarker.valid&&
+    evidence.publicReleaseMarker.status===200)
+  add('delivery:public-release-marker-malformed','warning',null,'/ai-site-release.json',
+   'Public HTTPS deployment advertises a CMS release marker but not in the expected safe schema.');
  if(evidence.securityProbes)for(const p of evidence.securityProbes){
   if(p.status===200)add('delivery:operator-artifact-exposed','error',null,p.path,
    'A public HTTPS host appears to serve internal CMS release/owner diagnostics. Do not launch until these paths are inaccessible.');
@@ -344,6 +360,7 @@ function review(site,evidence){
    sitemapKind:parsed?.kind??null,
    negativeRouteStatus:evidence.negativeProbe?.status??null,
    soft404ProbePerformed:Boolean(evidence.negativeProbe),
+   publicReleaseMarkerObserved:evidence.publicReleaseMarker?.valid??false,
    internalArtifactExposureProbes:evidence.securityProbes?.length??0,
    internalArtifactPublicHttp200:evidence.securityProbes?.filter(p=>p.status===200).length??null,
    publicRootRechecked:Boolean(evidence.rootRecheck),
