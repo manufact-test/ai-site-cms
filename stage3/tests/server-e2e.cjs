@@ -1276,6 +1276,7 @@ async function stop(){
   const legacyLeadArchive=structuredClone(archive);
   legacyLeadArchive.format='manufact-site-backup-v1';
   delete legacyLeadArchive.payload.approvalEvidence;
+  delete legacyLeadArchive.payload.visualFindings;
   for(const lead of legacyLeadArchive.payload.submissions){
     delete lead.workflow;delete lead.workflowEvents;
   }
