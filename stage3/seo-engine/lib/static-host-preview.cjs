@@ -10,7 +10,8 @@ const ROUTE=/^\/(?:[a-z0-9-]+\/)*$/;
 const hash=x=>crypto.createHash('sha256').update(x).digest('hex');
 const MAX_FILES=1405,MAX_PAYLOAD=180000000;
 const TYPES={'.html':'text/html; charset=utf-8','.txt':'text/plain; charset=utf-8',
- '.xml':'application/xml; charset=utf-8','.png':'image/png','.jpg':'image/jpeg',
+ '.xml':'application/xml; charset=utf-8','.json':'application/json; charset=utf-8',
+ '.png':'image/png','.jpg':'image/jpeg',
  '.webp':'image/webp','.mp4':'video/mp4'};
 function load(bundle){
  const folder=fs.realpathSync(bundle);
@@ -38,7 +39,7 @@ function load(bundle){
      xfile.file==='release-manifest.json'||xfile.file.startsWith('.')&&xfile.file!=='.htaccess'||
      xfile.file.includes('/.')||entries.has(xfile.file)||!SHA.test(xfile.sha256)||
      !Number.isSafeInteger(xfile.size)||xfile.size<1||xfile.size>12000000||
-     !['html','redirect-fallback','media','search','not-found','hosting-redirects','hosting-headers'].includes(xfile.kind))
+     !['html','redirect-fallback','media','search','not-found','hosting-redirects','hosting-headers','release-marker'].includes(xfile.kind))
    throw Error('Static upload file has a bad ledger path, checksum or category');
   const full=path.join(pub,xfile.file),fstat=fs.lstatSync(full);
   if(!full.startsWith(pub+path.sep)||!fstat.isFile()||fstat.isSymbolicLink()||
@@ -57,6 +58,14 @@ function load(bundle){
    else if(!entries.has(rel))throw Error('Unlisted file in public upload root: '+rel);
   }
  };walk(pub);
+ if(!entries.has('ai-site-release.json')||
+    entries.get('ai-site-release.json').kind!=='release-marker')
+  throw Error('Public version fingerprint must be included in a deployable static upload');
+ const marker=JSON.parse(fs.readFileSync(path.join(pub,'ai-site-release.json'),'utf8'));
+ if(marker.format!=='manufact-ai-public-release-marker-v1'||
+    marker.officialManifestSha256!==x.officialStaticManifestSha256||
+    marker.publishedVersion!==x.publishedVersion||Object.keys(marker).length!==3)
+  throw Error('Public release fingerprint does not match the private verified upload inventory');
  if(!entries.has('index.html')||!entries.has('404.html')||
     entries.get('404.html').kind!=='not-found')
   throw Error('Static upload requires real index and 404 documents');
@@ -96,7 +105,7 @@ function route(snapshot,method,requestUrl){
  const raw=pathname==='/'?'index.html':pathname.endsWith('/')?
   pathname.slice(1)+'index.html':pathname.slice(1);
  const entry=snapshot.files.get(raw);
- if(!entry||!['html','media','search'].includes(entry.kind))
+ if(!entry||!['html','media','search','release-marker'].includes(entry.kind))
   return {status:404,headers:{...base,'X-Robots-Tag':'noindex'},file:'404.html'};
  const headers={...base,'Content-Type':TYPES[path.extname(raw)]||'application/octet-stream',
   'Content-Length':String(entry.size)};
