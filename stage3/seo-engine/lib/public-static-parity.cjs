@@ -66,6 +66,18 @@ function compare(site,release,http,media=null,byteReport=null){
   'No final root HTML/status SHA256 recheck was supplied after public page/media capture; deployment consistency is unverified.');
  else if(!rootWindow.matched)add('public-root-window-drift','error',null,
   'Public static homepage changed during page/media evidence collection; discard this mixed release evidence.');
+ const operatorArtifacts=http.securityProbes||null;
+ if(!operatorArtifacts)add('operator-file-probes-not-captured','warning',null,
+  'No public HTTP observations were supplied for private release-manifest/operator files; exposure is unverified.');
+ else for(const item of operatorArtifacts){
+  if(item.status===200)add('operator-file-publicly-served','error',null,
+   'Static hosting is publicly serving a file intended only for owner/operator use; exclude release manifests and private reports.',
+   {field:'internalPublicFile.status',href:item.path});
+  if(item.status>=300&&item.status<400)
+   add('operator-file-redirect','warning',null,
+    'A private operator file path unexpectedly redirects; confirm no sensitive files are served.',
+    {href:item.path});
+ }
  const negative=http.negativeProbe;
  if(!negative)add('negative-route-not-captured','warning',null,
   'Public HTTPS transcript does not include the safe nonexistent-route probe; soft-404 behavior is unverified.');
@@ -256,9 +268,12 @@ function compare(site,release,http,media=null,byteReport=null){
   negativeRouteStatus:negative?.status??null,negativeRouteProbed:Boolean(negative),
   publicRootWindowRechecked:Boolean(rootWindow),
   publicRootWindowStable:rootWindow?.matched??null,
+  internalArtifactProbes:operatorArtifacts?.length??0,
+  internalArtifactPublicHttp200:operatorArtifacts?.filter(x=>x.status===200).length??null,
   pages:Object.freeze(pages),assets:Object.freeze(assets),
   auxiliary:Object.freeze(auxiliary),findings:Object.freeze(findings),
-  allComparedSurfacesMatched:blockers===0&&rootWindow?.matched===true&&Boolean(negative)&&
+  allComparedSurfacesMatched:blockers===0&&Boolean(operatorArtifacts)&&
+   operatorArtifacts.every(x=>x.status!==200)&&rootWindow?.matched===true&&Boolean(negative)&&
    [404,410].includes(negative.status)&&
    assets.length===(site.assets||[]).length&&assets.every(x=>x.checked&&x.matched)&&
    checkedResponsiveVariants===responsiveVariants,
