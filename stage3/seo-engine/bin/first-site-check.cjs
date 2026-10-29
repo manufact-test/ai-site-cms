@@ -12,6 +12,7 @@ const WORKSHEET=require('../lib/first-site-worksheet.cjs');
 const PROGRESS=require('../lib/first-site-report-delta.cjs');
 const STATIC_EXPORT=require('../lib/php-local-static-export.cjs');
 const DELIVERY_READY=require('../lib/php-local-delivery-readiness.cjs');
+const VISUAL=require('../lib/php-local-visual-review.cjs');
 const PUBLIC_STATIC=require('../lib/public-static-parity.cjs');
 const PUBLIC_BYTES=require('../lib/public-media-byte-verification.cjs');
 const DELIVERY=require('../lib/delivery-evidence.cjs');
@@ -19,12 +20,12 @@ const MEDIA=require('../lib/media-delivery.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
 const {auditSite}=require('../lib/analyze.cjs');
 const REQUIRED=['approved-site','blueprint','origin','evidence','report'];
-const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review','static-export','public-http-evidence','public-media-evidence','delivery-status','public-media-digests'];
+const OPTIONAL=['php-capture','published-site','previous-report','owner-edit-review','static-export','public-http-evidence','public-media-evidence','delivery-status','visual-review-status','public-media-digests'];
 function parse(argv){
  const opts={};
  if(!Array.isArray(argv)||argv.length<REQUIRED.length*2||
   argv.length>(REQUIRED.length+OPTIONAL.length)*2||argv.length%2)
-  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json] [--static-export /ABS/official-static-release] [--public-http-evidence /ABS/public-http-transcript.json] [--public-media-evidence /ABS/public-media-transcript.json] [--delivery-status /ABS/private-owner-delivery.json] [--public-media-digests /ABS/public-media-sha256.json]');
+  throw Error('Usage: node stage3/seo-engine/bin/first-site-check.cjs --approved-site /ABS/SEALED --blueprint /ABS/blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --evidence /ABS/new-evidence --report /ABS/new-report [--php-capture /ABS/lead/evidence.json] [--published-site /ABS/owner-exported-published-site.json] [--previous-report /ABS/previous-report] [--owner-edit-review /ABS/manual-owner-review.json] [--static-export /ABS/official-static-release] [--public-http-evidence /ABS/public-http-transcript.json] [--public-media-evidence /ABS/public-media-transcript.json] [--delivery-status /ABS/private-owner-delivery.json] [--visual-review-status /ABS/private-owner-visual-review.json] [--public-media-digests /ABS/public-media-sha256.json]');
  for(let i=0;i<argv.length;i+=2){
   const name=argv[i]?.startsWith('--')?argv[i].slice(2):null;
   if(![...REQUIRED,...OPTIONAL].includes(name)||!argv[i+1]||opts[name])throw Error('Unknown, missing or duplicate first-site option');
@@ -92,6 +93,8 @@ function manifests(){
 async function main(argv){
  const o=parse(argv),approved=BRIDGE.load(o['approved-site']);
  const published=o['published-site']?readPublishedSite(o['published-site']):null;
+ if(o['visual-review-status']&&(!published||!published.sourceRevision))
+  throw Error('--visual-review-status requires pinned published owner sourceRevision');
  if(o['delivery-status']&&!published)
   throw Error('--delivery-status requires a pinned --published-site owner API JSON');
  if(o['public-media-digests']&&!o['static-export'])
@@ -116,6 +119,7 @@ async function main(argv){
  const publicHttpSha=o['public-http-evidence']?fileSha256(o['public-http-evidence']):null;
  const publicMediaSha=o['public-media-evidence']?fileSha256(o['public-media-evidence']):null;
  const deliveryStatusSha=o['delivery-status']?fileSha256(o['delivery-status']):null;
+ const visualStatusSha=o['visual-review-status']?fileSha256(o['visual-review-status']):null;
  const publicDigestsSha=o['public-media-digests']?fileSha256(o['public-media-digests']):null;
  const previous=o['previous-report']?PROGRESS.read(o['previous-report']):null;
  if(previous&&([report,evidence].some(target=>{
@@ -172,11 +176,20 @@ async function main(argv){
  if(publicHttpSha&&fileSha256(o['public-http-evidence'])!==publicHttpSha||
     publicMediaSha&&fileSha256(o['public-media-evidence'])!==publicMediaSha||
     deliveryStatusSha&&fileSha256(o['delivery-status'])!==deliveryStatusSha||
+    visualStatusSha&&fileSha256(o['visual-review-status'])!==visualStatusSha||
     publicDigestsSha&&fileSha256(o['public-media-digests'])!==publicDigestsSha)
   throw Error('Public evidence file changed during PHP capture; discard mixed source report');
  if(checked.localStaticExport&&checked.localStaticExport.sourceRevisionClaim!==published.sourceRevision)
   throw Error('Official static export sourceRevision conflicts with owner CMS published sourceRevision');
  if(!PHP.isVerified(checked))throw Error('First-site PHP evidence was not source-bound verified');
+ let ownerVisualReview=null;
+ if(o['visual-review-status']){
+  const stat=fs.lstatSync(o['visual-review-status']);
+  if(stat.isSymbolicLink()||!stat.isFile()||stat.size<50||stat.size>300000)
+   throw Error('Unsafe or oversized owner visual-review API JSON file');
+  ownerVisualReview=VISUAL.review(fresh.site,
+   JSON.parse(fs.readFileSync(o['visual-review-status'],'utf8')),published.sourceRevision);
+ }
  let deliveryReadiness=null;
  if(o['delivery-status']){
   const stat=fs.lstatSync(o['delivery-status']);
@@ -190,6 +203,7 @@ async function main(argv){
   ...(screenshots?{phpCapture:screenshots}:{}),
   ...(publicHttp?{delivery:publicHttp}:{}),
   ...(publicMedia?{media:publicMedia}:{}),
+  ...(ownerVisualReview?{visualReview:ownerVisualReview}:{}),
   ...(deliveryReadiness?{deliveryReadiness}:{}),
   ...(publicStatic?{publicStatic}:{}),
   ...(publicMediaBytes?{publicMediaBytes}:{})
@@ -292,6 +306,13 @@ async function main(argv){
   typedComponents:{actualPhpSectionsChecked:checked.localComponents?.checkedTypedSections??null,
    actualFindings:checked.localComponents?.findings.length??null,
    browserInteractionVerified:false},
+  visualReview:{supplied:Boolean(ownerVisualReview),
+   publishedSourceRevisionClaim:published?.sourceRevision??null,
+   visualNotesForPinnedRevision:ownerVisualReview?.checkedFindingCount??null,
+   openFindings:ownerVisualReview?.openCount??null,
+   resolvedFindings:ownerVisualReview?.resolvedCount??null,
+   affectedPageCount:ownerVisualReview?.pagesWithOpenFindings??null,
+   clientApprovalVerified:false,operatorNotesExposed:false},
   deliveryReadiness:{supplied:Boolean(deliveryReadiness),
    expectedPublishedVersion:fresh.source.publishedVersion??null,
    publishedFormsChecked:deliveryReadiness?.checkedForms??null,
