@@ -704,6 +704,23 @@
       global.append(field('Вид меню',style),field('Закрепить вверху при прокрутке',sticky),
         field('На мобильных',mobile),field('Куда ведёт кнопка',dest),
         field('Текст кнопки',cta));
+      const header=draft.header||{notice:'',noticePageId:'',email:'',phone:'',tone:'light',mobile:'show'};
+      draft.header=header;
+      const title=document.createElement('h3');title.textContent='Верхняя полоса · информация и контакты';
+      const note=textField(header.notice,180,v=>{header.notice=v;if(!v.trim())header.noticePageId='';});
+      note.id='cms-header-notice';
+      const noticePage=select([['','Без ссылки'],...draft.pages.map(p=>[p.id,p.title])],
+        header.noticePageId,v=>{header.noticePageId=v;});
+      noticePage.id='cms-header-notice-page';
+      const phone=textField(header.phone,32,v=>{header.phone=v;});phone.id='cms-header-phone';
+      const email=textField(header.email,254,v=>{header.email=v;});email.id='cms-header-email';
+      const tone=select([['light','Светлая'],['dark','Тёмная'],['primary','Фирменный цвет']],
+        header.tone,v=>{header.tone=v;});
+      const mobileTop=select([['show','Показывать'],['hide','Скрывать полосу']],
+        header.mobile,v=>{header.mobile=v;});
+      global.append(title,field('Сообщение',note),field('Ссылка сообщения на страницу',noticePage),
+        field('Телефон',phone),field('Email',email),field('Цвет полосы',tone),
+        field('На мобильном экране',mobileTop));
       draft.pages.forEach((page,i)=>{
         const nav=page.navigation||{label:'',hidden:false};page.navigation=nav;
         const row=document.createElement('fieldset');row.dataset.menuPage=page.id;
@@ -5699,8 +5716,21 @@
         const cta=buttonPage?'<a class="cms-menu-cta" href="'+escapeHtml(buttonPage.path)+'">'+
           escapeHtml(menu.ctaLabel)+'</a>':'';
         const common='<ul class="cms-menu-links">'+links('')+'</ul>';
-        const navigation='<style>.cms-menu-preview{padding:16px;background:var(--cms-surface);color:var(--cms-text);border-bottom:1px solid #dde6ed;display:flex;align-items:center;gap:20px;flex-wrap:wrap}.cms-menu-preview a{text-decoration:none;color:var(--cms-text)}.cms-menu-preview a[aria-current=page]{color:var(--cms-primary);font-weight:800}.cms-menu-links{display:flex;flex-wrap:wrap;list-style:none;gap:12px;padding:0;margin:0}.cms-menu-links ul{list-style:none;margin:0;padding:0 0 0 15px}.cms-menu-cta{margin-left:auto;padding:9px 14px;border-radius:var(--cms-button-radius);background:var(--cms-button-bg);color:var(--cms-button-color)!important;box-shadow:var(--cms-button-shadow)}.cms-menu-mobile{display:none}@media(max-width:640px){.cms-menu-preview .cms-menu-desktop{display:none}.cms-menu-mobile{display:block;width:100%}.cms-menu-mobile .cms-menu-links{display:block}.cms-menu-mobile summary{cursor:pointer}}</style>'+
-          '<header class="cms-menu-preview"><strong>'+escapeHtml(checked.title)+'</strong>'+
+        const top=checked.header;
+        let previewTop='';
+        if(top&&(top.notice||top.phone||top.email)){
+          const linked=checked.pages.find(p=>p.id===top.noticePageId);
+          const notice=escapeHtml(top.notice);
+          const noticeHtml=linked?'<a href="'+escapeHtml(linked.path)+'">'+notice+'</a>':notice;
+          const contacts=(top.phone?'<a href="tel:'+escapeHtml(top.phone.replace(/[^0-9+]/g,''))+'">'+
+            escapeHtml(top.phone)+'</a>':'')+
+            (top.email?'<a href="mailto:'+escapeHtml(top.email)+'">'+escapeHtml(top.email)+'</a>':'');
+          previewTop='<div class="cms-topbar-preview cms-topbar-preview-'+top.tone+
+            (top.mobile==='hide'?' cms-topbar-preview-hide':'')+'">'+
+            (top.notice?'<span>'+noticeHtml+'</span>':'')+'<span>'+contacts+'</span></div>';
+        }
+        const navigation='<style>.cms-menu-preview{padding:16px;background:var(--cms-surface);color:var(--cms-text);border-bottom:1px solid #dde6ed;display:flex;align-items:center;gap:20px;flex-wrap:wrap}.cms-menu-preview a{text-decoration:none;color:var(--cms-text)}.cms-menu-preview a[aria-current=page]{color:var(--cms-primary);font-weight:800}.cms-menu-links{display:flex;flex-wrap:wrap;list-style:none;gap:12px;padding:0;margin:0}.cms-menu-links ul{list-style:none;margin:0;padding:0 0 0 15px}.cms-menu-cta{margin-left:auto;padding:9px 14px;border-radius:var(--cms-button-radius);background:var(--cms-button-bg);color:var(--cms-button-color)!important;box-shadow:var(--cms-button-shadow)}.cms-menu-mobile{display:none}.cms-topbar-preview{flex-basis:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:8px 16px;margin:-16px -16px 0;background:var(--cms-surface);border-bottom:1px solid #dce5ee;font-size:13px}.cms-topbar-preview a{color:inherit}.cms-topbar-preview span{display:flex;flex-wrap:wrap;gap:10px}.cms-topbar-preview-dark{background:#152539;color:#fff}.cms-topbar-preview-primary{background:var(--cms-primary);color:#fff}@media(max-width:640px){.cms-topbar-preview-hide{display:none}}@media(max-width:640px){.cms-menu-preview .cms-menu-desktop{display:none}.cms-menu-mobile{display:block;width:100%}.cms-menu-mobile .cms-menu-links{display:block}.cms-menu-mobile summary{cursor:pointer}}</style>'+
+          '<header class="cms-menu-preview">'+previewTop+'<strong>'+escapeHtml(checked.title)+'</strong>'+
           '<nav class="cms-menu-desktop" aria-label="Навигация">'+common+'</nav>'+cta+
           (menu.mobile==='expanded'?'<nav class="cms-menu-mobile">'+common+'</nav>':
             '<details class="cms-menu-mobile"><summary>Меню</summary><nav>'+common+'</nav></details>')+
