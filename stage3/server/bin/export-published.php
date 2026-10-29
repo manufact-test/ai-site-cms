@@ -68,6 +68,7 @@ try {
         'sourceRevision' => $published['sourceRevision'],
         'pages' => [],
         'assets' => [],
+        'stylesheets' => [],
         'formCollector' => $forms ? $collectorBase : null,
         'publicOrigin' => $exportOrigin,
         'redirects' => [],
@@ -103,6 +104,7 @@ try {
                 failExport('Responsive variant SHA256 mismatch');
           }
         }
+        $sharedCss=null;$sharedFile=null;
         foreach ($site['pages'] as $page) {
             $path = $page['path'];
             $relative = ltrim($path, '/') . 'index.html';
@@ -115,15 +117,24 @@ try {
                 failExport('Cannot create page directory');
             }
             $html = PublicRenderer::html($site, $path, '', $forms ? $collectorBase : null, $published['version'], $exportOrigin);
-            if ($html === null || file_put_contents($temp . '/' . $relative, $html, LOCK_EX) === false) {
+            if ($html === null) failExport('Cannot render published page');
+            $split=PublicRenderer::externalizeBaseCss($html);
+            if($sharedCss===null){$sharedCss=$split['css'];$sharedFile=$split['file'];}
+            elseif($sharedCss!==$split['css']||$sharedFile!==$split['file'])
+                failExport('Global styles differ between pages');
+            if(file_put_contents($temp.'/'.$relative,$split['html'],LOCK_EX)===false)
                 failExport('Cannot write published page');
-            }
             $manifest['pages'][] = [
                 'path' => $path,
                 'file' => $relative,
-                'sha256' => hash('sha256', $html)
+                'sha256' => hash('sha256', $split['html'])
             ];
         }
+        if($sharedCss===null||$sharedFile===null)failExport('Global stylesheet missing');
+        if(!mkdir($temp.'/styles',0755,true)||
+            file_put_contents($temp.'/'.$sharedFile,$sharedCss,LOCK_EX)===false)
+            failExport('Cannot write immutable stylesheet');
+        $manifest['stylesheets'][]=['file'=>$sharedFile,'sha256'=>hash('sha256',$sharedCss)];
         // Static hosting cannot issue HTTP status 301 without provider-specific rewrite
         // rules. Export a noindex HTML fallback plus explicit redirect manifest data.
         foreach ($site['redirects']??[] as $redirect) {

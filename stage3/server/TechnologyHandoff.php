@@ -39,7 +39,7 @@ final class TechnologyHandoff
         if ($forms) FormGateway::secret();
         $assets=0;
         foreach ($site['assets'] as $a) $assets += 1 + count($a['variants'] ?? []);
-        if (count($site['pages']) + $assets + count($site['redirects'] ?? []) + 3 > self::MAX_FILES) {
+        if (count($site['pages']) + $assets + count($site['redirects'] ?? []) + 4 > self::MAX_FILES) {
             throw new InvalidArgumentException('Published release exceeds bounded handoff file count');
         }
         $fingerprint=hash('sha256',json_encode([$siteId,$version,$site,$origin,$collector],
@@ -112,7 +112,7 @@ final class TechnologyHandoff
             return hash('sha256',$bytes);
         };
         $manifest=['format'=>'manufact-ai-static-site-v1','siteId'=>$id,'publishedVersion'=>$version,
-            'sourceRevision'=>$revision,'pages'=>[],'assets'=>[],
+            'sourceRevision'=>$revision,'pages'=>[],'assets'=>[],'stylesheets'=>[],
             'formCollector'=>$o['forms']?$o['collector']:null,
             'publicOrigin'=>$o['origin'],'redirects'=>[]];
         foreach($site['assets'] as $asset) {
@@ -129,13 +129,21 @@ final class TechnologyHandoff
                     'width'=>$part['width']??null,'file'=>$relative,'mime'=>$asset['mime'],'sha256'=>$sha];
             }
         }
+        $sharedCss=null;$sharedFile=null;
         foreach($site['pages'] as $page) {
             if(preg_match(self::ROUTE,$page['path'])!==1)throw new InvalidArgumentException('Unsafe page path');
             $relative=ltrim($page['path'],'/').'index.html';
             $html=PublicRenderer::html($site,$page['path'],'',$o['collector'],$version,$o['origin']);
             if(!is_string($html))throw new RuntimeException('Missing published page');
-            $manifest['pages'][]=['path'=>$page['path'],'file'=>$relative,'sha256'=>$add($relative,$html)];
+            $split=PublicRenderer::externalizeBaseCss($html);
+            if($sharedCss===null){$sharedCss=$split['css'];$sharedFile=$split['file'];}
+            elseif($sharedCss!==$split['css']||$sharedFile!==$split['file'])
+                throw new RuntimeException('Global styles differ between pages');
+            $manifest['pages'][]=['path'=>$page['path'],'file'=>$relative,'sha256'=>$add($relative,$split['html'])];
         }
+        if($sharedCss===null||$sharedFile===null)
+            throw new RuntimeException('Cannot export global CSS without pages');
+        $manifest['stylesheets'][]=['file'=>$sharedFile,'sha256'=>$add($sharedFile,$sharedCss)];
         foreach($site['redirects']??[] as $redirect) {
             if(preg_match(self::ROUTE,$redirect['from'])!==1||$redirect['from']==='/')
                 throw new InvalidArgumentException('Invalid redirect path');

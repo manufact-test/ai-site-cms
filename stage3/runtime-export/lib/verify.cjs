@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const safeRoute = /^\/(?:[a-z0-9-]+\/)*$/;
 const safeAsset = /^assets\/[a-z][a-z0-9-]{2,79}\.(?:png|jpg|webp|mp4)$/;
 const safeSearch = new Set(['robots.txt', 'sitemap.xml']);
+const safeStyle = /^styles\/site-[a-f0-9]{64}\.css$/;
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const insist = (truth, why) => { if (!truth) throw new Error('Runtime export rejected: ' + why); };
 
@@ -71,6 +72,19 @@ function inspect(root) {
     insist(asset && safeAsset.test(asset.file) && typeof asset.id === 'string'
       && asset.file.startsWith('assets/' + asset.id + '.'), 'unsafe media file');
     verifyFile(asset.file, asset.sha256);
+  }
+  if (m.stylesheets !== undefined) {
+    insist(Array.isArray(m.stylesheets) && m.stylesheets.length===1,
+      'expected one immutable base stylesheet');
+    for (const style of m.stylesheets) {
+      insist(style && typeof style.file==='string' && safeStyle.test(style.file)
+        && style.file==='styles/site-'+style.sha256+'.css',
+        'invalid content-addressed global CSS');
+      verifyFile(style.file,style.sha256);
+      for(const [route,html] of pages)
+        insist(html.includes('<link rel="stylesheet" href="/'+style.file+'">'),
+          'stylesheet missing from route '+route);
+    }
   }
   if (m.searchFiles !== undefined) {
     insist(m.searchFiles && typeof m.searchFiles === 'object' && !Array.isArray(m.searchFiles), 'invalid search metadata');

@@ -1,5 +1,6 @@
 import React from 'react';
-import {language} from '../lib/runtime.js';
+import {language,sharedStylesheetHref} from '../lib/runtime.js';
 export default function RootLayout({children}) {
-  return <html lang={language()}><body style={{margin:0}}>{children}</body></html>;
+  const css=sharedStylesheetHref();
+  return <html lang={language()}><head>{css?<link rel="stylesheet" href={css}/>:null}</head><body style={{margin:0}}>{children}</body></html>;
 }

@@ -37,6 +37,24 @@ if ($path === '/_cms-connect.json') {
     }
     exit;
 }
+// Public immutable CSS route; source bytes stay in private data/ on PHP hosting.
+if(preg_match('~^/styles/(site-[a-f0-9]{64}\.css)$~D',$path,$styleMatch)){
+    $relative='styles/'.$styleMatch[1];$listed=null;
+    foreach($manifest['stylesheets']??[] as $style)
+        if(($style['file']??null)===$relative){$listed=$style;break;}
+    if($listed===null){http_response_code(404);exit;}
+    $file=$release.'/'.$relative;
+    if(!is_file($file)||is_link($file)){http_response_code(503);exit;}
+    header('Content-Type: text/css; charset=utf-8');
+    header('Cache-Control: public, max-age=31536000, immutable');
+    header('ETag: "'.$listed['sha256'].'"');
+    if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))==='"'.$listed['sha256'].'"'){
+        http_response_code(304);exit;
+    }
+    header('Content-Length: '.filesize($file));
+    if(($_SERVER['REQUEST_METHOD']??'GET')!=='HEAD')readfile($file);
+    exit;
+}
 if ($path === '/robots.txt' || $path === '/sitemap.xml') {
     $name = ltrim($path, '/');
     if (!isset($manifest['searchFiles'][$name])) { http_response_code(404); exit; }

@@ -472,6 +472,22 @@ JS;
             .'<p>'.self::ui($language,'moved').': <a href="'.$value.'">'.self::ui($language,'go').'</a></p></body></html>';
     }
 
+    /** Extract the ONE trusted global CSS block into a content-addressed file.
+     * Per-section and Design Graph CSS remain in each page; old inline releases work.
+     * @return array{css:string,file:string,html:string}
+     */
+    public static function externalizeBaseCss(string $html): array
+    {
+        if(preg_match('~<style>([^<]+)</style></head>~s',$html,$match,PREG_OFFSET_CAPTURE)!==1)
+            throw new \RuntimeException('Missing published global stylesheet');
+        $css=$match[1][0];
+        $file='styles/site-'.hash('sha256',$css).'.css';
+        $position=$match[0][1];
+        return ['css'=>$css,'file'=>$file,
+            'html'=>substr_replace($html,'<link rel="stylesheet" href="/'.$file.'"></head>',
+                $position,strlen($match[0][0]))];
+    }
+
     public static function html(array $site, string $path, ?string $basePath = null, ?string $collectorBase = null, int $publishedVersion = 0, ?string $publicOrigin = null, ?string $assetBasePath = null, bool $preview = false): ?string
     {
         $page = null;

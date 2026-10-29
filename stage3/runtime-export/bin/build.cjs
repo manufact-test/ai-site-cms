@@ -72,6 +72,11 @@ function compile() {
         publishedVersion:manifest.publishedVersion,sourceRevision:manifest.sourceRevision,
         releaseManifestSha256:sha256
       },null,2)+'\n');
+      for (const style of manifest.stylesheets??[]) {
+        const dest=path.join(publicDir,style.file);
+        fs.mkdirSync(path.dirname(dest),{recursive:true});
+        fs.copyFileSync(path.join(release,style.file),dest,fs.constants.COPYFILE_EXCL);
+      }
       for (const asset of manifest.assets) {
         const to = path.join(publicDir,asset.file);
         fs.mkdirSync(path.dirname(to),{recursive:true});

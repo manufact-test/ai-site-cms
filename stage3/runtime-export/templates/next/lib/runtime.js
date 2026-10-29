@@ -19,6 +19,7 @@ const decode=text=>String(text??'').replace(/&(#x[\da-f]+|#\d+|amp|quot|apos|lt|
   return _;
 });
 export const routeFromSlug=slug=>slug?.length?'/'+slug.join('/')+'/':'/';
+export const sharedStylesheetHref=()=>manifest.stylesheets?.[0]?'/'+manifest.stylesheets[0].file:null;
 const entry=route=>manifest.pages.find(p=>p.path===route)??manifest.redirects.find(p=>p.from===route);
 const htmlFor=route=>{
   const item=entry(route);
