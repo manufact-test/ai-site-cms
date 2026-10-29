@@ -833,7 +833,9 @@ async function execute(){
     assert.equal(await offline.locator('#original').getAttribute('src'),
       interiorEvidence.references.desktop.file);
     await offline.locator('#modes [data-mode="overlay"]').click();
-    await offline.locator('#opacity-control').fill('72');
+    await offline.locator('#opacity-control').evaluate(input=>{
+      input.value='72';input.dispatchEvent(new Event('input',{bubbles:true}));
+    });
     assert.equal(await offline.locator('#overlay-image').evaluate(x=>x.style.opacity),'0.72');
     await offline.locator('#devices [data-device="mobile"]').click();
     assert.match(await offline.locator('#reference-status').innerText(),/interior-mobile.png/);
@@ -868,7 +870,8 @@ async function execute(){
       name:'wrong-project.json',mimeType:'application/json',
       buffer:Buffer.from(JSON.stringify(forged))
     });
-    await offline.locator('#status').getByText(/Импорт отклонён/).waitFor();
+    await offline.waitForFunction(()=>document.querySelector('#status')
+      ?.textContent?.includes('Импорт отклонён'),null,{timeout:5000});
     assert.match(await offline.locator('#overview').innerText(),/открытых замечаний: 1/);
     // Bring the portable non-approved notes back to the same immutable source
     // in owner Studio; only OPEN findings can be recorded, never sign-offs.
