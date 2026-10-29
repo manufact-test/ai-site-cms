@@ -7,13 +7,14 @@ const fs=require('node:fs'),path=require('node:path');
 const FIRST=require('./first-site-check.cjs');
 const UPLOAD=require('./prepare-static-upload.cjs');
 const ZIP=require('../lib/static-upload-zip.cjs');
+const IMPACT=require('../lib/static-upload-impact.cjs');
 const REQUIRED=['approved-site','published-site','blueprint','origin','static-export','provider','workspace'];
 const OPTIONAL=['owner-edit-review','php-capture','previous-report','public-http-evidence',
- 'public-media-evidence','public-media-digests','delivery-status','visual-review-status'];
+ 'public-media-evidence','public-media-digests','delivery-status','visual-review-status','previous-upload'];
 function parse(argv){
  if(!Array.isArray(argv)||argv.length%2||argv.length<REQUIRED.length*2||
     argv.length>(REQUIRED.length+OPTIONAL.length)*2)
-  throw Error('Usage: node stage3/seo-engine/bin/prepare-first-site.cjs --approved-site /ABS/SEALED --published-site /ABS/owner-published.json --blueprint /ABS/approved-blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --static-export /ABS/official-static-export --provider apache|nginx|netlify|cloudflare-pages --workspace /ABS/NEW-private-workspace [--owner-edit-review /ABS/owner-review.json] [--php-capture /ABS/lead-screenshots.json] [--public-http-evidence /ABS/public-http.json] [--public-media-evidence /ABS/media-head.json] [--public-media-digests /ABS/media-sha256.json] [--delivery-status /ABS/owner-form-delivery.json] [--visual-review-status /ABS/owner-visual-review.json] [--previous-report /ABS/prior-report]');
+  throw Error('Usage: node stage3/seo-engine/bin/prepare-first-site.cjs --approved-site /ABS/SEALED --published-site /ABS/owner-published.json --blueprint /ABS/approved-blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --static-export /ABS/official-static-export --provider apache|nginx|netlify|cloudflare-pages --workspace /ABS/NEW-private-workspace [--owner-edit-review /ABS/owner-review.json] [--php-capture /ABS/lead-screenshots.json] [--public-http-evidence /ABS/public-http.json] [--public-media-evidence /ABS/media-head.json] [--public-media-digests /ABS/media-sha256.json] [--delivery-status /ABS/owner-form-delivery.json] [--visual-review-status /ABS/owner-visual-review.json] [--previous-report /ABS/prior-report] [--previous-upload /ABS/prior-private-static-upload]');
  const o={};
  for(let i=0;i<argv.length;i+=2){
   const key=argv[i]?.startsWith('--')?argv[i].slice(2):null;
@@ -49,7 +50,7 @@ async function main(argv){
   blueprint:o.blueprint,origin:o.origin,'static-export':o['static-export'],
   evidence:path.join(staging,'local-php-evidence'),report:path.join(staging,'seo-report')
  };
- for(const key of OPTIONAL)if(o[key])args[key]=o[key];
+ for(const key of OPTIONAL)if(o[key]&&key!=='previous-upload')args[key]=o[key];
  const first=await FIRST.main(toArgs(args));
  const uploadArgs={
   'approved-site':o['approved-site'],'published-site':o['published-site'],
@@ -64,8 +65,26 @@ async function main(argv){
  if(archive.officialManifestSha256!==deployed.officialManifestSha256||
     archive.files!==deployed.files||!archive.containsOnlyVerifiedPublicUpload)
   throw Error('Generated site ZIP does not match independently verified static upload');
+ const oldImpact=o['previous-upload']?
+  IMPACT.loadAndCompare(o['previous-upload'],path.join(staging,'static-upload')):null;
+ if(oldImpact){
+  fs.writeFileSync(path.join(staging,'UPGRADE-IMPACT.json'),
+   JSON.stringify(oldImpact,null,2)+'\n',{flag:'wx',mode:0o600});
+  const impactLines=[
+   '# Static CMS previous-to-new release impact (operator-only)','',
+   'New candidate changes '+oldImpact.pages.changed.length+' existing pages, adds '+
+    oldImpact.pages.added.length+' and removes '+oldImpact.pages.removed.length+'.',
+   'Blocking upgrade risks: '+oldImpact.blockerCount+'.',
+   ...oldImpact.risks.map(r=>'- ['+r.severity+'] '+r.type+
+      (r.path?' '+r.path:'')+': '+r.message),
+   '', 'No live site state or published CDN was contacted.',''
+  ];
+  fs.writeFileSync(path.join(staging,'UPGRADE-IMPACT.md'),impactLines.join('\n'),
+   {flag:'wx',mode:0o600});
+ }
  const release=first.summary.release;
- const status=release.blockingGates>0?'TECHNICAL-BLOCKED':'MANUAL-ACCEPTANCE-REQUIRED';
+ const upgradeBlockers=oldImpact?.blockerCount??0;
+ const status=release.blockingGates+upgradeBlockers>0?'TECHNICAL-BLOCKED':'MANUAL-ACCEPTANCE-REQUIRED';
  const record={
   format:'manufact-seo-first-site-candidate-v1',siteId:first.summary.siteId,
   localhostOrigin:first.summary.origin,provider:o.provider,
@@ -77,8 +96,11 @@ async function main(argv){
   publicArchiveBytes:archive.archiveBytes,
   technicalReviewRelativeDir:'seo-report',
   phpEvidenceRelativeDir:'local-php-evidence',
-  blockingGates:release.blockingGates,
-  blockingGateIds:release.blockerIds,
+  blockingGates:release.blockingGates+upgradeBlockers,
+  blockingGateIds:[...release.blockerIds,
+    ...oldImpact?.risks.filter(x=>x.severity==='error').map(x=>'upgrade:'+x.type)||[]],
+  upgradeCompared:Boolean(oldImpact),
+  upgradeBlockingRisks:upgradeBlockers,
   reviewGates:release.reviewGates,
   manualChecksRequired:release.mandatoryManualChecks,
   status,operatorMustApprove:true,
@@ -107,6 +129,7 @@ async function main(argv){
   '## Mandatory sign-off still outstanding',
   '',
   '- [ ] Resolve all '+record.blockingGates+' technical blockers: '+(record.blockingGateIds.join(', ')||'none recorded')+'.',
+  ...(oldImpact?['- UPGRADE-IMPACT.md/JSON: verified previous-to-new page, 301, noindex and media changes; '+upgradeBlockers+' blockers.']:[]),
   '- [ ] Verify owner-authorized published version, current owner edits and actual PHP process revision.',
   '- [ ] Compare desktop/tablet/mobile against the three client-approved static prototypes.',
   '- [ ] Test all forms with genuine authorized POST in development/production, persistence and recipient delivery.',
@@ -127,7 +150,8 @@ async function main(argv){
  if(fs.existsSync(root))throw Error('First-site final workspace appeared during staging');
  fs.renameSync(staging,root);
  return Object.freeze({workspace:root,siteId:record.siteId,status,
-  blockingGates:record.blockingGates,publishedVersion:record.publishedVersion,
+  blockingGates:record.blockingGates,upgradeBlockingRisks:upgradeBlockers,
+  publishedVersion:record.publishedVersion,
   provider:o.provider,stagedPublicFiles:deployed.files,
   publicArchiveSha256:archive.sha256,publicArchiveBytes:archive.archiveBytes,
   publicManifestSha256:record.officialStaticManifestSha256,
