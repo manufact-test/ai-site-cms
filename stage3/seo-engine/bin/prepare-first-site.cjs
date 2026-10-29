@@ -67,6 +67,13 @@ async function main(argv){
   throw Error('Generated site ZIP does not match independently verified static upload');
  const oldImpact=o['previous-upload']?
   IMPACT.loadAndCompare(o['previous-upload'],path.join(staging,'static-upload')):null;
+ const rollbackArchive=oldImpact?ZIP.zip(o['previous-upload'],
+  path.join(staging,'rollback-public-site.zip')):null;
+ if(rollbackArchive&&(
+    rollbackArchive.sourceSiteId!==first.summary.siteId||
+    rollbackArchive.publishedVersion!==oldImpact.oldVersion||
+    rollbackArchive.officialManifestSha256!==oldImpact.oldManifestSha256))
+  throw Error('Rollback ZIP verification differs from the chosen previous static site release');
  if(oldImpact){
   fs.writeFileSync(path.join(staging,'UPGRADE-IMPACT.json'),
    JSON.stringify(oldImpact,null,2)+'\n',{flag:'wx',mode:0o600});
@@ -101,6 +108,13 @@ async function main(argv){
     ...oldImpact?.risks.filter(x=>x.severity==='error').map(x=>'upgrade:'+x.type)||[]],
   upgradeCompared:Boolean(oldImpact),
   upgradeBlockingRisks:upgradeBlockers,
+  ...(rollbackArchive?{
+   rollbackArchiveRelativeFile:'rollback-public-site.zip',
+   rollbackArchiveSha256:rollbackArchive.sha256,
+   rollbackArchiveBytes:rollbackArchive.archiveBytes,
+   rollbackPublishedVersion:rollbackArchive.publishedVersion,
+   rollbackOfficialManifestSha256:rollbackArchive.officialManifestSha256
+  }:{}),
   reviewGates:release.reviewGates,
   manualChecksRequired:release.mandatoryManualChecks,
   status,operatorMustApprove:true,
@@ -129,7 +143,9 @@ async function main(argv){
   '## Mandatory sign-off still outstanding',
   '',
   '- [ ] Resolve all '+record.blockingGates+' technical blockers: '+(record.blockingGateIds.join(', ')||'none recorded')+'.',
-  ...(oldImpact?['- UPGRADE-IMPACT.md/JSON: verified previous-to-new page, 301, noindex and media changes; '+upgradeBlockers+' blockers.']:[]),
+  ...(oldImpact?['- UPGRADE-IMPACT.md/JSON: verified previous-to-new page, 301, noindex and media changes; '+upgradeBlockers+' blockers.',
+   '- rollback-public-site.zip — SHA256 checked previous PUBLIC static files only. Requires separate manual deployment; does not undo CMS DB edits.',
+   '- Previous public archive SHA256: '+rollbackArchive.sha256]:[]),
   '- [ ] Verify owner-authorized published version, current owner edits and actual PHP process revision.',
   '- [ ] Compare desktop/tablet/mobile against the three client-approved static prototypes.',
   '- [ ] Test all forms with genuine authorized POST in development/production, persistence and recipient delivery.',
@@ -154,6 +170,7 @@ async function main(argv){
   publishedVersion:record.publishedVersion,
   provider:o.provider,stagedPublicFiles:deployed.files,
   publicArchiveSha256:archive.sha256,publicArchiveBytes:archive.archiveBytes,
+  rollbackArchiveSha256:rollbackArchive?.sha256??null,
   publicManifestSha256:record.officialStaticManifestSha256,
   actualHostWrites:0,manualReleaseRequired:true});
  }catch(error){
