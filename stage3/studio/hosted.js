@@ -2672,6 +2672,12 @@
       if(!formReadiness.collectorSecretConfigured)
         launchFormsRows.append(element('p','hosted-launch-forms-warning',
           'Не задан ключ приёма заявок STAGE3_FORM_SECRET. Реальная отправка не готова.'));
+      if(formReadiness.dispatch?.mode==='queue')
+        launchFormsRows.append(element('p','hosted-launch-forms-warning',
+          'Режим приватной очереди: ответ посетителю не ждёт внешнюю отправку. Работа CLI-worker/cron на этом хосте НЕ подтверждена; проверьте отдельно, иначе уведомления останутся в очереди.'));
+      if(formReadiness.dispatch?.valid===false)
+        launchFormsRows.append(element('p','hosted-launch-forms-warning',
+          'Ошибка STAGE3_DELIVERY_DISPATCH_MODE: безопасно выбрана очередь, исправьте серверную настройку.'));
       if(!formReadiness.forms.length)
         launchFormsRows.append(element('p',null,'В черновике и текущей публикации нет форм.'));
       for(const form of formReadiness.forms){
