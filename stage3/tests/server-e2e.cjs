@@ -494,7 +494,7 @@ async function stop(){
     '$q=$db->prepare("INSERT INTO stage3_audit (event_id,actor,action,site_id,outcome,detail,created_at) VALUES (?,?,?,?,?,?,?)");'+
     'foreach([["delivery-probe-attempt","requested"],["delivery-probe-result","accepted"]] as $r){'+
     '$q->execute(["event-".bin2hex(random_bytes(12)),"ci",$r[0],"site-industrial-demo",$r[1],'+
-    '"probe-bbbbbbbbbbbbbbbb form=section-quote-form channel=email".($r[0]==="delivery-probe-result"?" error=none":""),gmdate("Y-m-d\\TH:i:s\\Z")]);}'],
+    '"probe-bbbbbbbbbbbbbbbb form=section-quote-form channel=email".($r[0]==="delivery-probe-result"?" error=none":""),gmdate("Y-m-d\\TH:i:s\\Z",time()-3600)]);}'],
     {cwd:root,env,encoding:'utf8'});
   assert.equal(legacySeed.status,0,legacySeed.stderr);
   const legacyProbe=(await request('GET',probePath+'s')).body.probes
@@ -505,7 +505,7 @@ async function stop(){
   assert.equal((await request('POST',probePath+'/receipt',
     {probeId:'probe-bbbbbbbbbbbbbbbb',received:false})).status,200,
     'A previously created audit-only probe may still record one receipt observation');
-    assert.equal((await request('GET',probePath+'s')).body.probes[0].ownerReceived,true);
+  assert.equal((await request('GET',probePath+'s')).body.probes[0].ownerReceived,true);
   assert.equal((await request('GET',launchFormsPath)).body.forms[0].manualRoutingTests[0].ownerReceived,true);
   assert.equal((await request('GET',endpoint+'/submissions')).body.submissions.length,0,
     'Only audit metadata, never fake customer submissions, may be created by a routing test');
