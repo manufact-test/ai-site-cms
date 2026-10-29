@@ -2231,6 +2231,7 @@ async function stop(){
   // alone does not execute the source wizard's script.
   const nextForms=structuredClone(fixture);
   nextForms.siteId='site-react-wizard-ci';
+  nextForms.language='pl';
   const wizard=csdk.sectionFrom(richDefs.find(x=>x.id==='lead-form-flex'),'section-react-wizard');
   wizard.formSteps=[
     {title:'Контакт',fields:['name','email']},
@@ -2242,6 +2243,18 @@ async function stop(){
     {expectedRevision:1})).status,200);
   const wizPublic=(await request('GET','/published/site-react-wizard-ci/contact/')).body;
   assert.match(wizPublic,/data-multi-step="yes"/);
+  assert.match(wizPublic,/<html lang="pl">/);
+  assert.match(wizPublic,/<summary>Menu<\/summary>/);
+  assert.match(wizPublic,/aria-label="Nawigacja główna"/);
+  assert.match(wizPublic,/data-step-next>Dalej<\/button>/);
+  assert.match(wizPublic,/data-step-back>Wstecz<\/button>/);
+  assert.match(wizPublic,/pl:\['Krok','z'\]/);
+  const localizedRedirect=spawnSync('php',['-r',
+    'require "stage3/server/bootstrap.php";echo Manufact\\Stage3\\PublicRenderer::staticRedirect("/contact/","pl");'],
+    {cwd:root,encoding:'utf8'});
+  assert.equal(localizedRedirect.status,0,localizedRedirect.stderr);
+  assert.match(localizedRedirect.stdout,/Strona przeniesiona/);
+  assert.match(localizedRedirect.stdout,/Przejdź/);
   assert.match(wizPublic,/for\(const form of document\.querySelectorAll\('form\[data-multi-step\]'\)\)/);
   const wizardRelease=path.join(dbdir,'react-wizard-export');
   const wizardExport=spawnSync('php',['stage3/server/bin/export-published.php',
@@ -2257,7 +2270,15 @@ async function stop(){
       wizardRelease,technology,output],{cwd:root,encoding:'utf8'});
     assert.equal(built.status,0,built.stderr);
     const source=fs.readFileSync(path.join(output,'lib/runtime.js'),'utf8');
-    assert.match(source,/Script,\{id:'cms-form-steps',strategy:'afterInteractive'\}/);
+    assert.match(source,/cms-form-steps-/);
+    assert.match(source,/expectedWizardSha256/);
+    const verifiedHash=fs.readFileSync(path.join(output,'lib/wizard-contract.js'),'utf8');
+    assert.match(verifiedHash,/expectedWizardSha256="[a-f0-9]{64}"/);
+    const publisherScript=fs.readFileSync(path.join(root,'stage3/server/PublicRenderer.php'),'utf8')
+      .match(/public static function formStepsScript\(\): string[\s\S]*?return <<<'JS'\n([\s\S]*?)\nJS;/)?.[1]?.trimEnd();
+    assert.ok(publisherScript,'Trusted publisher wizard expected');
+    assert.ok(verifiedHash.includes(hash(Buffer.from(publisherScript))));
+    assert.match(source,/Unexpected visitor script/);
     assert.match(source,/Unexpected visitor script/);
     assert.match(fs.readFileSync(path.join(output,'data/contact/index.html'),'utf8'),
       /data-multi-step="yes"/);
