@@ -38,19 +38,22 @@ async function main(argv){
      parent===source||parent.startsWith(source+path.sep))
    throw Error('Candidate workspace must be outside the sealed source and official static export');
  }
- fs.mkdirSync(root,{mode:0o700});
+ // The requested FINAL workspace does not exist until all PHP, SEO, static
+ // and operator reports are complete. Clean up a failed same-filesystem stage.
+ const staging=fs.mkdtempSync(path.join(parent,'.seo-first-site-incomplete-'));
+ try{
  const toArgs=opts=>Object.entries(opts).flatMap(([k,v])=>['--'+k,v]);
  const args={
   'approved-site':o['approved-site'],'published-site':o['published-site'],
   blueprint:o.blueprint,origin:o.origin,'static-export':o['static-export'],
-  evidence:path.join(root,'local-php-evidence'),report:path.join(root,'seo-report')
+  evidence:path.join(staging,'local-php-evidence'),report:path.join(staging,'seo-report')
  };
  for(const key of OPTIONAL)if(o[key])args[key]=o[key];
  const first=await FIRST.main(toArgs(args));
  const uploadArgs={
   'approved-site':o['approved-site'],'published-site':o['published-site'],
   'static-export':o['static-export'],provider:o.provider,
-  out:path.join(root,'static-upload')
+  out:path.join(staging,'static-upload')
  };
  if(o['owner-edit-review'])uploadArgs['owner-edit-review']=o['owner-edit-review'];
  const deployed=UPLOAD.create(toArgs(uploadArgs));
@@ -107,18 +110,24 @@ async function main(argv){
   'No CMS write, GitHub merge/PR, production upload, public POST or live release was attempted.',
   ''
  ].join('\n');
- fs.writeFileSync(path.join(root,'CANDIDATE-STATUS.json'),JSON.stringify(record,null,2)+'\n',
+ fs.writeFileSync(path.join(staging,'CANDIDATE-STATUS.json'),JSON.stringify(record,null,2)+'\n',
   {flag:'wx',mode:0o600});
- fs.writeFileSync(path.join(root,'CANDIDATE-HANDOFF.md'),markdown,
+ fs.writeFileSync(path.join(staging,'CANDIDATE-HANDOFF.md'),markdown,
   {flag:'wx',mode:0o600});
+ if(fs.existsSync(root))throw Error('First-site final workspace appeared during staging');
+ fs.renameSync(staging,root);
  return Object.freeze({workspace:root,siteId:record.siteId,status,
   blockingGates:record.blockingGates,publishedVersion:record.publishedVersion,
   provider:o.provider,stagedPublicFiles:deployed.files,
   publicManifestSha256:record.officialStaticManifestSha256,
   actualHostWrites:0,manualReleaseRequired:true});
+ }catch(error){
+  fs.rmSync(staging,{recursive:true,force:true});
+  throw error;
+ }
 }
 if(require.main===module)
  main(process.argv.slice(2)).then(x=>process.stdout.write('FIRST SITE PREPARATION: '+JSON.stringify(x)+'\n'))
   .catch(e=>{process.stderr.write('First-site candidate refused: '+e.message+
-    ' — inspect and quarantine any partial workspace before rerun.\n');process.exitCode=1;});
+    ' — incomplete staging was discarded and final workspace not promoted.\n');process.exitCode=1;});
 module.exports=Object.freeze({parse,main});
