@@ -40,7 +40,7 @@ trait ApprovalEvidence
         $optional=['stage3_site_licenses','stage3_video_uploads','stage3_video_chunks',
             'stage3_delivery_settings','stage3_delivery_outbox','stage3_delivery_routes','stage3_lead_workflow',
             'stage3_lead_events','stage3_site_operations','stage3_site_incidents',
-            'stage3_approval_evidence'];
+            'stage3_approval_evidence','stage3_visual_findings'];
         $tables=$this->driver==='sqlite'
             ?$this->db->query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")->fetchAll(PDO::FETCH_COLUMN)
             :$this->db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
