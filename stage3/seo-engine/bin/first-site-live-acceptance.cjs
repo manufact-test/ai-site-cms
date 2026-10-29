@@ -54,6 +54,7 @@ function main(argv){
  const contract=read(o.contract,500000);
  const post=read(o['post-deploy'],2500000);
  const uploadFile=read(path.join(folder,'static-upload','upload-inventory.json'),800000);
+ const bundleFile=read(path.join(folder,'seo-report','bundle.json'),12000000);
  const bundle=PREVIEW.load(path.join(folder,'static-upload'));
  const archive=ZIP.verify(path.join(folder,'public-site.zip'),path.join(folder,'static-upload'));
  if(archive.sha256!==contract.json.identity?.publicZipSha256||
@@ -62,8 +63,10 @@ function main(argv){
   archive.sha256!==candidate.json.publicArchiveSha256)
   throw Error('Public ZIP or candidate differs from original lead-reviewed release');
  const hashes={contract:contract.sha256,candidate:candidate.sha256,
-  summary:summary.sha256,upload:uploadFile.sha256,post:post.sha256};
- const template=FLOW.template(contract.json,bundle.inventory,post.json,summary.json,hashes);
+  summary:summary.sha256,upload:uploadFile.sha256,post:post.sha256,
+  bundle:bundleFile.sha256};
+ const template=FLOW.template(contract.json,bundle.inventory,post.json,summary.json,
+  hashes,bundleFile.json);
  const content={};
  if(o.action==='template'){
   content['live-acceptance-template.json']=JSON.stringify(template,null,2)+'\n';
@@ -71,7 +74,7 @@ function main(argv){
    '# Real-world first-site manual verification','',
    'Only complete tasks actually observed in a REAL browser on the deployed HTTPS site.',
    'For each page and desktop/tablet/mobile, set state passed/failed with operator, date and private evidence reference.',
-   'Use formTests [] for EACH observed form POST: {"page":"/","formRef":"contact-form","state":"passed","observedAt":"YYYY-MM-DD","checkedBy":"operator","evidenceRef":"private://receipt-id","notes":""}.',
+   'Use formTests [] for EACH observed form POST on the EXACT published page (the required.formOccurrencesByPage map identifies the expected number on each route): {"page":"/","formRef":"contact-form","state":"passed","observedAt":"YYYY-MM-DD","checkedBy":"operator","evidenceRef":"private://receipt-id","notes":""}.',
    'Never store HMAC, POST bodies, email recipient addresses or credentials in this input.',
    'Then run this CLI review with --filled. Do not treat its summary as a live site release approval.',''
   ].join('\n');
@@ -92,6 +95,7 @@ function main(argv){
   for(const [source,expected,max] of [
    [path.join(folder,'CANDIDATE-STATUS.json'),candidate.sha256,800000],
    [path.join(folder,'seo-report','summary.json'),summary.sha256,3600000],
+   [path.join(folder,'seo-report','bundle.json'),bundleFile.sha256,12000000],
    [path.join(folder,'static-upload','upload-inventory.json'),uploadFile.sha256,800000],
    [o.contract,contract.sha256,500000],
    [o['post-deploy'],post.sha256,2500000]

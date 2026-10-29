@@ -31,7 +31,7 @@ function pagesFromUpload(upload){
   new Set(pages).size===pages.length,'invalid or duplicated public page routes');
  return pages.sort();
 }
-function inputs(contract,upload,post,summary,hashes){
+function inputs(contract,upload,post,summary,hashes,bundle){
  requireThat(contract?.format===CONTRACT&&contract.readOnly===true&&
   contract.deploymentAuthorized===false&&
   contract.identity&&SHA.test(contract.identity.publicZipSha256||''),
@@ -66,14 +66,42 @@ function inputs(contract,upload,post,summary,hashes){
  requireThat(Number.isSafeInteger(summary.forms?.markupObserved)&&summary.forms.markupObserved>=0,
   'exact actual PHP form markup count is missing; cannot build all-form acceptance');
  const pages=pagesFromUpload(upload);
- return {pages,formOccurrences:summary.forms.markupObserved};
+ requireThat(bundle?.format==='manufact-seo-review-bundle-v1'&&bundle.readOnly===true&&
+  bundle.siteId===summary.siteId&&bundle.approvedSiteSource?.fileSha256===summary.sourceSiteSha256&&
+  Array.isArray(bundle.release?.blockers)&&
+  bundle.release.blockers.length===summary.release.blockingGates&&
+  JSON.stringify(bundle.release.blockers.map(x=>x.gateId).sort())===
+   JSON.stringify(summary.release.blockerIds.slice().sort())&&
+  SHA.test(hashes.bundle||''),
+  'original SHA256-pinned local PHP review bundle is required for per-page form coverage');
+ const forms=bundle.localPhpForms;
+ requireThat(forms?.format==='manufact-seo-local-php-forms-v1'&&
+  Array.isArray(forms.pages)&&forms.pages.length===pages.length&&
+  forms.observedForms===summary.forms.markupObserved&&
+  forms.expectedPublishedVersion===summary.publishedVersion&&
+  forms.actualPostPerformed===false&&forms.deliveriesProven===false,
+  'actual PHP per-page form inventory differs from original published technical summary');
+ const byPage=new Map();
+ for(const p of forms.pages){
+  requireThat(p&&pages.includes(p.path)&&!byPage.has(p.path)&&
+   Number.isSafeInteger(p.actualForms)&&p.actualForms>=0&&p.actualForms<=40&&
+   Number.isSafeInteger(p.expectedForms)&&p.expectedForms>=0&&p.expectedForms<=40&&
+   Number.isSafeInteger(p.checkedFormSections)&&p.checkedFormSections>=0,
+   'local PHP form inventory contains an invalid or duplicated public route');
+  byPage.set(p.path,p.actualForms);
+ }
+ requireThat([...byPage.values()].reduce((a,n)=>a+n,0)===forms.observedForms,
+  'actual PHP per-page form totals differ from aggregate report');
+ return {pages,formOccurrences:summary.forms.markupObserved,
+  formOccurrencesByPage:Object.fromEntries([...byPage].sort(([a],[b])=>a.localeCompare(b)))};
 }
 function task(id,kind,page,viewport,label){
  return {id,kind,page,viewport,label,state:'unreviewed',
   observedAt:null,checkedBy:'',evidenceRef:'',notes:''};
 }
-function template(contract,upload,post,summary,hashes){
- const {pages,formOccurrences}=inputs(contract,upload,post,summary,hashes);
+function template(contract,upload,post,summary,hashes,bundle){
+ const {pages,formOccurrences,formOccurrencesByPage}=
+  inputs(contract,upload,post,summary,hashes,bundle);
  const tasks=[];
  for(const page of pages)for(const viewport of ['desktop','tablet','mobile'])
   tasks.push(task('page:'+page+':'+viewport,'browser',page,viewport,
@@ -83,6 +111,7 @@ function template(contract,upload,post,summary,hashes){
  return Object.freeze({format:FORMAT,version:1,siteId:contract.siteId,
   pinned:{contractSha256:hashes.contract,sourceSummarySha256:hashes.summary,
    publicUploadSha256:hashes.upload,postDeploySha256:hashes.post,
+   originalPhpReviewBundleSha256:hashes.bundle,
    publishedVersion:contract.identity.publishedVersion,
    sourceRevisionClaim:contract.identity.claimedOwnerSourceRevision,
    officialStaticManifestSha256:contract.identity.officialStaticManifestSha256,
@@ -90,7 +119,7 @@ function template(contract,upload,post,summary,hashes){
    observedPublicHttpsHostClaim:post.publishedHost},
   required:{pages,viewports:['desktop','tablet','mobile'],
    browserChecks:pages.length*3,manualChecks:HOST_CHECKS.length,
-   observedPhpFormOccurrences:formOccurrences},
+   observedPhpFormOccurrences:formOccurrences,formOccurrencesByPage},
   tasks,formTests:[],
   limitations:[
    'These are human claims tied to an offline release, not authenticated browser recordings.',
@@ -138,7 +167,7 @@ function review(original,filled,post){
  }
  requireThat(Array.isArray(filled.formTests)&&filled.formTests.length<=300,
   'form POST receipt list must be a bounded operator input');
- const forms=new Set();let formPassed=0,formFailed=0;
+ const forms=new Set(),formCountByPage=new Map();let formPassed=0,formFailed=0;
  for(const f of filled.formTests){
   requireThat(f&&original.required.pages.includes(f.page)&&
    typeof f.formRef==='string'&&/^[a-z0-9][a-z0-9_-]{1,79}$/.test(f.formRef)&&
@@ -150,14 +179,22 @@ function review(original,filled,post){
    'unsafe, incomplete or ungrounded real form POST observation');
   const id=f.page+'#'+f.formRef;
   requireThat(!forms.has(id),'duplicate form checks cannot count twice');
+  requireThat(original.required.formOccurrencesByPage[f.page]>0,
+   'real POST observation does not correspond to a form on this published PHP page');
   forms.add(id);
-  if(f.state==='passed')formPassed++;else formFailed++;
+  if(f.state==='passed'){
+   formPassed++;
+   formCountByPage.set(f.page,(formCountByPage.get(f.page)||0)+1);
+  }else formFailed++;
  }
  // PHP occurrences are an upper-bound work queue, not an authenticated unique
  // form-inventory. A manual inventory approval remains mandatory even when
  // checked count is large enough.
  const required=original.required.observedPhpFormOccurrences;
- const enoughForms=formPassed>=required&&!formFailed;
+ const missingFormPages=Object.entries(original.required.formOccurrencesByPage)
+  .filter(([page,count])=>(formCountByPage.get(page)||0)<count)
+  .map(([page,count])=>({page,expected:count,passed:formCountByPage.get(page)||0}));
+ const enoughForms=!missingFormPages.length&&!formFailed;
  const technicalMatched=post?.format===POST&&
   post.disposition==='TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED'&&
   !post.postDeployBlockingReasons?.length&&
@@ -178,6 +215,7 @@ function review(original,filled,post){
   checks:{required:original.tasks.length,passed,failed,pending,
    realFormOccurrencesExpected:required,operatorFormPostReceipts:filled.formTests.length,
    passedFormReceipts:formPassed,failedFormReceipts:formFailed,
+   missingFormPages,perPageFormReceipts:Object.fromEntries([...formCountByPage].sort()),
    operatorFormInventorySigned:filled.tasks.some(x=>x.id==='manual:real-form-inventory'&&x.state==='passed')},
   originalTechnicalEvidenceMatched:technicalMatched,
   manualOnly:true,clientApprovalAuthenticated:false,actualNetworkCalls:0,
@@ -196,6 +234,9 @@ function markdown(r){
   r.checks.pending+' awaiting evidence.',
  'Real form POST receipts: '+r.checks.passedFormReceipts+' passed / '+
   r.checks.realFormOccurrencesExpected+' actual PHP occurrences expected.',
+ 'Pages with missing actual form receipts: '+r.checks.missingFormPages.length+
+  (r.checks.missingFormPages.length?' ('+
+    r.checks.missingFormPages.map(x=>x.page+' '+x.passed+'/'+x.expected).join('; ')+')':''),
  'Independent live technical evidence matched: '+r.originalTechnicalEvidenceMatched,
  'Owner manual final authorization: NOT PROVIDED BY THIS TOOL.','',
  '## Reminders','',
