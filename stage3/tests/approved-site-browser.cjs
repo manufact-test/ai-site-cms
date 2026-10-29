@@ -126,6 +126,12 @@ async function execute(){
   const approvedVideo=Buffer.from(fs.readFileSync(path.join(root,
     'stage3/tests/fixtures/tiny-h264.mp4.b64'),'utf8').trim(),'base64');
   fs.writeFileSync(path.join(folder,'assets','asset-external-film.mp4'),approvedVideo);
+  // Original 448-byte WOFF2 built from original rectangles and A/B glyphs;
+  // unlike a fake header, Chromium can decode and display this tiny font.
+  const approvedFont=Buffer.from(fs.readFileSync(path.join(root,
+    'stage3/tests/fixtures/ci-original-woff2.b64'),'utf8').trim(),'base64');
+  assert.equal(approvedFont.length,448);
+  fs.writeFileSync(path.join(folder,'assets','asset-external-font.woff2'),approvedFont);
   fs.writeFileSync(path.join(folder,'client-explanation.md'),'Browser-only fixture: client-facing explanation for the full approved prototype.');
   fs.writeFileSync(path.join(folder,'implementation-spec.md'),'Browser-only fixture: source of truth for component properties, responsive behavior, and CTA.');
   fs.writeFileSync(path.join(folder,'handoff.json'),JSON.stringify({
@@ -139,7 +145,10 @@ async function execute(){
     site.assets=[{id:'asset-external-hero',src:'/assets/asset-external-hero.png',
       mime:'image/png',alt:'Фото внешнего сайта'},
       {id:'asset-external-film',src:'/assets/asset-external-film.mp4',
-        mime:'video/mp4',alt:'Видеопрезентация утверждённого сайта'}];
+        mime:'video/mp4',alt:'Видеопрезентация утверждённого сайта'},
+      {id:'asset-external-font',src:'/assets/asset-external-font.woff2',
+        mime:'font/woff2',alt:'CMS original CI typeface'}];
+    site.theme.fontFiles={body:'asset-external-font',heading:'asset-external-font'};
     site.pages[0].seo={title:'Внешний готовый сайт',description:'Проверка подключения внешнего сайта',
       robots:'index',ogImage:'asset-external-hero'};
     const faq=window.Stage3Editor.manifests().find(x=>x.id==='faq-accordion');
@@ -341,7 +350,7 @@ async function execute(){
   await page.waitForFunction(()=>!document.getElementById('server-approved-import').disabled);
   const unfinished=(await (await page.request.get(
     origin+'/api/sites/site-approved-browser')).json());
-  assert.equal(unfinished.site.assets.length,2,'Interrupted import retains image and MP4 bytes in private site');
+  assert.equal(unfinished.site.assets.length,3,'Interrupted import retains image, MP4 and WOFF2 in private site');
   assert.equal(unfinished.site.pages[0].sections.length,2,
     'Server stores only the unpublished seed until final manifest Save');
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),404,
@@ -403,10 +412,17 @@ async function execute(){
   const resumed=(await (await page.request.get(origin+'/api/sites/site-approved-browser')).json());
   assert.equal(resumed.revision,unfinished.revision+1,
     'Cross-session recovery reuses stored media and adds ONLY final Save revision');
-  assert.equal(resumed.site.assets.length,2,'Continuation never duplicates immutable image or MP4');
+  assert.equal(resumed.site.assets.length,3,'Continuation never duplicates immutable image, MP4 or WOFF2');
   const imported=await page.evaluate(()=>window.Stage3Editor.getSite());
   assert.equal(imported.siteId,'site-approved-browser');
-  assert.equal(imported.assets.length,2);
+  assert.equal(imported.assets.length,3);
+  const importedFont=imported.assets.find(asset=>asset.mime==='font/woff2');
+  assert.ok(importedFont&&importedFont.id!=='asset-external-font');
+  assert.equal(imported.theme.fontFiles.body,importedFont.id);
+  assert.equal(imported.theme.fontFiles.heading,importedFont.id);
+  const actualFont=await page.request.get(origin+'/api/sites/site-approved-browser/media/'+importedFont.id);
+  assert.equal(actualFont.status(),200);
+  assert.deepEqual(await actualFont.body(),approvedFont);
   const importedVideo=imported.assets.find(asset=>asset.mime==='video/mp4');
   assert.ok(importedVideo&&importedVideo.id!=='asset-external-film');
   const privateVideo=await page.request.get(origin+'/api/sites/site-approved-browser/media/'+importedVideo.id);
@@ -798,6 +814,15 @@ async function execute(){
   assert.equal(await visitor.locator('.cmsdg-n-approved-rich-table tbody tr').count(),3,
     'PHP publication renders rows from the imported typed table');
   assert.equal(await visitor.locator('.cmsdg-n-approved-rich-table thead th').count(),4);
+  const expectedFontUrl='/published/site-approved-browser/assets/'+importedFont.id+'.woff2';
+  const deliveredFont=await page.request.get(origin+expectedFontUrl);
+  assert.equal(deliveredFont.status(),200);
+  assert.equal(deliveredFont.headers()['content-type'],'font/woff2');
+  assert.deepEqual(await deliveredFont.body(),approvedFont);
+  assert.ok(await visitor.evaluate(async()=>{
+    const faces=await document.fonts.load('16px "CMS Site Body"','ABab');
+    return faces.length>0&&faces.every(face=>face.status==='loaded');
+  }),'Real WOFF2 font is decodable in published Chromium visitor');
   const filmSrc=await visitor.locator('.cmsdg-n-approved-film source').getAttribute('src');
   assert.equal(filmSrc,'/published/site-approved-browser/assets/'+importedVideo.id+'.mp4');
   const publicFilm=await page.request.get(origin+filmSrc);
