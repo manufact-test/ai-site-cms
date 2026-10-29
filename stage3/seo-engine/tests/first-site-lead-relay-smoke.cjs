@@ -35,7 +35,7 @@ assert.equal(r.clientApproved,false);
 assert.throws(()=>R.build({...raw,post:{...post,candidatePublicZipSha256:d},
  inputSha256:{...hashes,post:d}}),/another candidate/);
 assert.throws(()=>R.build({...raw,candidate:{...candidate,blockingGates:1}}),/blockers/);
-const indexing={format:'manufact-seo-search-indexing-intelligence-v1',readOnly:true,
+const indexing={format:'manufact-seo-indexing-intelligence-v1',readOnly:true,
  siteId:'demo',blueprintSha256:d,publicOrigin:'https://example.org/',summary:{actions:3}};
 const history={format:'manufact-seo-search-history-v1',readOnly:true,
  siteId:'demo',blueprintSha256:d,publicOrigin:'https://example.org/',summary:{actions:5}};
