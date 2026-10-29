@@ -140,3 +140,7 @@ Outputs, private and OUTSIDE Git checkout:
 Separate result groups are active, reportedComplete, notSelected (including pending/rejected/deferred) and blocked by current Site v1 page/route drift. **Completed-reported is never called verified.** Accepted SEO task means approval to investigate, not that its wording should automatically overwrite the approved Blueprint or customer CMS override.
 
 This is intentionally compatible with the existing field-proposals.cjs and approved Blueprint contracts instead of inventing an independent editor. The lead must independently authenticate the owner-published source revision and verify real browser/public HTTPS/form behavior after any actual CMS changes.
+
+## 8. Private release and operations dashboard
+
+See [SEARCH-RELEASE-AND-DASHBOARD.md](SEARCH-RELEASE-AND-DASHBOARD.md). It provides source-pinned owner-declared release comparison against actual operator-provided GSC periods, plus an offline HTML dashboard for all page metrics, manual SEO statuses and release follow-up. A click difference is **not causal evidence**. Dashboard HTML is PRIVATE, not a CMS static site export, and must never be uploaded to public hosting.
