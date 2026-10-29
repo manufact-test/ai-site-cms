@@ -31,9 +31,14 @@ function render(review,contract,contractSha,first,firstSha,postSha){
      'failedFormReceipts'].every(k=>Number.isSafeInteger(review.checks[k])&&review.checks[k]>=0)||
   review.checks.operatorFormPostReceipts!==review.checks.passedFormReceipts+
     review.checks.failedFormReceipts||
+  review.originalTechnicalEvidenceMatched!==
+   (first.postDeploy.disposition==='TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED'&&
+    first.postDeploy.originalCandidateBlockingGates===0&&
+    !first.postDeploy.postDeployBlockingReasons?.length)||
   review.status==='OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION'&&(
    first.postDeploy.disposition!=='TECHNICALLY-MATCHED-MANUAL-SIGNOFF-REQUIRED'||
    review.checks.pending>0||review.checks.failed>0||
+   review.checks.operatorFormInventorySigned!==true||
    review.checks.failedFormReceipts>0||
    review.checks.passedFormReceipts<review.checks.realFormOccurrencesExpected))
   throw Error('Human acceptance cannot be combined with a different release, original evidence or false authorization');

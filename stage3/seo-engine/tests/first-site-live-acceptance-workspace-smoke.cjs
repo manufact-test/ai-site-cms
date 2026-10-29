@@ -21,10 +21,10 @@ const report={format:'manufact-seo-first-site-live-acceptance-review-v1',
  siteId:site,publishedVersion:9,ownerSourceRevisionClaim:11,
  sourceContractSha256:contractSha,officialStaticManifestSha256:manifest,
  releaseAuthorized:false,clientApprovalAuthenticated:false,
- status:'HUMAN-EVIDENCE-INCOMPLETE',
+ status:'HUMAN-EVIDENCE-INCOMPLETE',originalTechnicalEvidenceMatched:true,
  checks:{required:10,passed:7,failed:0,pending:3,
   realFormOccurrencesExpected:1,operatorFormPostReceipts:0,
-  passedFormReceipts:0,failedFormReceipts:0}};
+  passedFormReceipts:0,failedFormReceipts:0,operatorFormInventorySigned:false}};
 const data={firstSite:{summary,postDeploy:post,summarySha,postDeploySha:postSha},
  liveAcceptance:{report,contract,contractSha}};
 const w=WORK.build(data);
@@ -41,10 +41,20 @@ assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
 assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
  report:{...report,siteId:'another-site'}}}),/different release/);
 const fakeSuccess={...report,status:'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION',
- checks:{...report.checks,pending:0,passed:10,operatorFormPostReceipts:1,passedFormReceipts:1}};
+ checks:{...report.checks,pending:0,passed:10,operatorFormPostReceipts:1,
+  passedFormReceipts:1,operatorFormInventorySigned:true}};
 assert(WORK.build({...data,liveAcceptance:{...data.liveAcceptance,report:fakeSuccess}})
  .humanHtml.includes('REQUIRES-OWNER-AUTHORIZATION'));
 assert.throws(()=>WORK.build({...data,firstSite:{...data.firstSite,
  postDeploy:{...post,disposition:'NOT-READY',postDeployBlockingReasons:[{code:'bad'}]},
  },liveAcceptance:{...data.liveAcceptance,report:fakeSuccess}}),/different release/);
+const CONFIG=require('../bin/build-seo-operator-workspace.cjs');
+const privateConfig={format:CONFIG.CONFIG,firstSite:{summary:'/tmp/first.json',
+ postDeploy:'/tmp/public.json'},liveAcceptance:{report:'/tmp/human.json',
+ contract:'/tmp/source-relay.json'}};
+assert.equal(CONFIG.readConfiguration(privateConfig).liveAcceptance.contract,'/tmp/source-relay.json');
+assert.throws(()=>CONFIG.readConfiguration({...privateConfig,
+ liveAcceptance:{report:'/tmp/human.json'}}),/incomplete/);
+assert.throws(()=>CONFIG.readConfiguration({...privateConfig,
+ liveAcceptance:{report:'relative.json',contract:'/tmp/relay.json'}}),/absolute/);
 process.stdout.write('Source-pinned human acceptance in SEO workspace smoke PASS.\n');
