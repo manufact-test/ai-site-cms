@@ -52,6 +52,29 @@ function inspect(candidate,site,release,publicHttp,publicMedia,byteReport,cohort
     status.operatorMustApprove!==true||
     status.remoteDeployPerformed!==false||status.actualHostWrites!==0)
   throw Error('Candidate status is not tied to this exact official published revision');
+ // Independently cross-check the first-site technical snapshot rather than
+ // trusting a hand-editable CANDIDATE-STATUS.json alone.
+ const summary=input(path.join(root,'seo-report','summary.json'),3600000);
+ if(summary.format!=='manufact-seo-first-site-check-v1'||
+    summary.siteId!==site.siteId||summary.publishedVersion!==release.publishedVersion||
+    summary.ownerPublishedSourceRevisionClaim!==release.sourceRevision||
+    summary.staticExport?.staticManifestSha256!==release.manifestSha256||
+    !summary.release||!Number.isSafeInteger(summary.release.blockingGates)||
+    summary.release.blockingGates<0||!Array.isArray(summary.release.blockerIds)||
+    summary.release.blockerIds.length!==summary.release.blockingGates)
+  throw Error('Private original PHP/SEO launch report does not match current owner-published source version');
+ const upgradeFile=path.join(root,'UPGRADE-IMPACT.json'),isUpgrade=fs.existsSync(upgradeFile);
+ const impact=isUpgrade?input(upgradeFile,2000000):null;
+ if(isUpgrade!==Boolean(status.upgradeCompared)||
+    (impact&&(!Number.isSafeInteger(impact.blockerCount)||
+      impact.blockerCount<0||impact.siteId!==site.siteId||
+      impact.newManifestSha256!==release.manifestSha256||
+      impact.newVersion!==release.publishedVersion))||
+    status.blockingGates!==summary.release.blockingGates+(impact?.blockerCount??0)||
+    status.upgradeBlockingRisks!==(impact?.blockerCount??0)||
+    status.blockingGateIds.length!==status.blockingGates||
+    status.status!==(status.blockingGates>0?'TECHNICAL-BLOCKED':'MANUAL-ACCEPTANCE-REQUIRED'))
+  throw Error('Private candidate technical blockers or upgrade report conflict with original PHP/SEO release findings');
  const staging=path.join(root,'static-upload');
  const upload=PREVIEW.load(staging);
  if(upload.inventory.siteId!==site.siteId||
