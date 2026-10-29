@@ -78,7 +78,7 @@ function inputs(contract,upload,post,summary,hashes,bundle){
  requireThat(forms?.format==='manufact-seo-local-php-forms-v1'&&
   Array.isArray(forms.pages)&&forms.pages.length===pages.length&&
   forms.observedForms===summary.forms.markupObserved&&
-  forms.expectedPublishedVersion===summary.publishedVersion&&
+  (forms.consistentRelease===null||forms.consistentRelease===summary.publishedVersion)&&
   forms.actualPostPerformed===false&&forms.deliveriesProven===false,
   'actual PHP per-page form inventory differs from original published technical summary');
  const byPage=new Map();

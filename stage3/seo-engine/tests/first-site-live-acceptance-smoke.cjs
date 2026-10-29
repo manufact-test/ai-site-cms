@@ -20,12 +20,12 @@ const post={format:'manufact-seo-post-deploy-release-verification-v1',siteId:'si
  publishedHost:'https://example.org'};
 const summary={format:'manufact-seo-first-site-check-v1',siteId:'site-1',
  publishedVersion:7,sourceSiteSha256:c,ownerPublishedSourceRevisionClaim:8,
- release:{blockingGates:0},forms:{markupObserved:1}};
+ release:{blockingGates:0,blockerIds:[]},forms:{markupObserved:1}};
 const hashes={contract:e,candidate:a,summary:b,upload:c,post:d,bundle:e};
 const bundle={format:'manufact-seo-review-bundle-v1',readOnly:true,siteId:'site-1',
  approvedSiteSource:{fileSha256:c},release:{blockers:[]},
  localPhpForms:{format:'manufact-seo-local-php-forms-v1',observedForms:1,
- expectedPublishedVersion:7,actualPostPerformed:false,deliveriesProven:false,
+ consistentRelease:7,actualPostPerformed:false,deliveriesProven:false,
  pages:[{path:'/',expectedForms:0,actualForms:0,checkedFormSections:0},
  {path:'/contact/',expectedForms:1,actualForms:1,checkedFormSections:1}]}};
 const original=FLOW.template(contract,upload,post,summary,hashes,bundle);
