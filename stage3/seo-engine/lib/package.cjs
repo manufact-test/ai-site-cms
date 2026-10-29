@@ -242,6 +242,7 @@ function build(site,manifests,blueprint,options={}){
    publicReleaseMarkerMatched:options.publicStatic.publicReleaseMarkerMatched??false,
    internalArtifactProbes:options.publicStatic.internalArtifactProbes??0,
    internalArtifactPublicHttp200:options.publicStatic.internalArtifactPublicHttp200??null,
+   internalArtifactPublicSuccess2xx:options.publicStatic.internalArtifactPublicSuccess2xx??null,
    pages:options.publicStatic.pages,
    assets:options.publicStatic.assets,
    auxiliary:options.publicStatic.auxiliary,
