@@ -31,11 +31,15 @@ async function freePort() {
   return port;
 }
 async function probe() {
+  /* Exercise the current D2 release shape, not only legacy inline CSS.
+     The real Next build must emit and load one shared CSS for both pages. */
+  const sharedCss='body{font-family:system-ui}.probe{color:#123456}';
+  const sheet=put('styles/site-'+hash(sharedCss)+'.css',sharedCss);
   const page = (title,body) => '<!doctype html><html lang="en"><head><meta charset="utf-8">'
     +'<title>'+title+'</title><meta name="description" content="Page '+title+'">'
     +'<meta property="og:title" content="'+title+'">'
     +'<link rel="canonical" href="https://example.test/'+(title==='Home'?'':'about/')+'">'
-    +'<style>body{font-family:system-ui}.probe{color:#123456}</style></head>'
+    +'<link rel="stylesheet" href="/'+sheet.file+'"></head>'
     +'<body><header><a href="/about/">About</a></header><main class="probe">'+body+'</main></body></html>';
   const home=put('index.html',page('Home','Visible CMS published home'));
   const about=put('about/index.html',page('About','Visible CMS published about'));
@@ -47,6 +51,7 @@ async function probe() {
     publishedVersion:2,sourceRevision:7,
     pages:[{path:'/',...home},{path:'/about/',...about}],
     assets:[{id:'image-abc',parentId:'image-abc',mime:'image/png',...img}],
+    stylesheets:[{file:sheet.file,sha256:sheet.sha256}],
     redirects:[{from:'/old/',to:'/about/',...old}],
     formCollector:null,publicOrigin:'https://example.test'
   },null,2));
@@ -95,6 +100,9 @@ async function probe() {
   assert.match(String(zipTree.get('deploy/about/index.html')),/Visible CMS published about/);
   assert.match(String(zipTree.get('deploy/old/index.html')),/Moved/);
   assert.ok(zipTree.has('deploy/assets/image-abc.png'));
+  assert.ok(zipTree.has('deploy/'+sheet.file),'Next Static output must ship immutable CSS');
+  assert.match(String(zipTree.get('deploy/index.html')),/styles\\/site-[a-f0-9]{64}\\.css/);
+  assert.equal(String(zipTree.get('deploy/'+sheet.file)),sharedCss);
   const port=await freePort();
   const child=spawn('npm',['run','start','--','-p',String(port),'-H','127.0.0.1'],
     {cwd:targets.ssr,env:{...process.env,NEXT_TELEMETRY_DISABLED:'1'},detached:true,
@@ -118,6 +126,11 @@ async function probe() {
     const redirect=await fetch(origin+'/old/',{redirect:'manual'});
     assert.equal(redirect.status,301);
     assert.equal(new URL(redirect.headers.get('location'),origin).pathname,'/about/');
+    const cssResponse=await fetch(origin+'/'+sheet.file);
+    assert.equal(cssResponse.status,200,'Next SSR must publish shared CSS');
+    assert.equal(await cssResponse.text(),sharedCss);
+    const ssrHtml=await (await fetch(origin+'/')).text();
+    assert.match(ssrHtml,/styles\\/site-[a-f0-9]{64}\\.css/);
     const image=await fetch(origin+'/assets/image-abc.png');
     assert.equal(image.status,200);
     assert.deepEqual(Buffer.from(await image.arrayBuffer()),fs.readFileSync(path.join(dir,img.file)));
