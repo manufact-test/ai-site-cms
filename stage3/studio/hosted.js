@@ -1173,6 +1173,29 @@
     renderDelivery(result);
     notice('Маршрут формы сохранён. Ранее принятые заявки сохраняют получателя.');
   }));
+  // Owner-confirmed external transport test for the saved form route; no fake lead.
+  const routeProbeChannel=element('select','control');routeProbeChannel.id='server-delivery-form-probe-channel';
+  for(const [value,name] of [['email','Email'],['telegram','Telegram']]){
+    const option=element('option',null,name);option.value=value;routeProbeChannel.append(option);
+  }
+  const routeProbeReport=element('small',null,'Сначала сохраните маршрут. Проверка не создаёт заявку.');
+  routeProbeReport.id='server-delivery-form-probe-status';
+  routeProbeReport.setAttribute('role','status');
+  const routeProbeSend=action('Отправить тест маршрута','server-delivery-form-probe',()=>safe(async()=>{
+    if(!state.siteId||!isOwner()||!selectedRoute())throw Error('Выберите сохранённую форму');
+    const sectionId=routeForm.value,channel=routeProbeChannel.value;
+    if(!confirm('Отправить ОДНО тестовое сообщение через сохранённый '+
+      (channel==='email'?'Email':'Telegram')+' маршрут формы '+sectionId+
+      '? Это реальный внешний запрос, но не заявка посетителя. Продолжить?'))return;
+    const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/delivery/probe','POST',
+      {sectionId,channel,confirm:true});
+    const labels={accepted:'Принято транспортом',failed:'Транспорт отклонил',
+      uncertain:'Результат отправки неизвестен',configuration_required:'Нужна настройка'};
+    routeProbeReport.textContent=(labels[result.state]||result.state)+' · '+result.probeId+
+      (result.error?' · '+result.error:'')+
+      '. Проверьте получение у адресата вручную. В журнал заявок ничего не добавлено.';
+    routeProbeReport.dataset.error=String(result.state!=='accepted');
+  }));
   const routeModeInputs=()=>{
     routeEmail.disabled=routeEmailMode.value!=='custom';
     routeTelegram.disabled=routeTelegramMode.value!=='custom';
@@ -1184,6 +1207,8 @@
     routeEmail.value=route?.emailRecipient||'';
     routeTelegram.value=route?.telegramChatId||'';
     routeSave.disabled=!route;
+    routeProbeSend.disabled=!route||!isOwner();
+    routeProbeReport.textContent='Сохраните маршрут перед тестом. Он не создаёт заявку.';
     routeModeInputs();
   };
   routeForm.addEventListener('change',refreshRouteInputs);
@@ -1204,7 +1229,8 @@
     deliveryField('Email получателя',routeEmail),deliveryField('Telegram: режим',routeTelegramMode),
     deliveryField('Telegram чат',routeTelegram),
     element('small',null,'Получатель сохраняется с новой заявкой. Правки маршрута не перенаправляют старую очередь.'),
-    routeSave);
+    routeSave,element('strong',null,'Ручная проверка маршрута'),
+    deliveryField('Канал теста',routeProbeChannel),routeProbeSend,routeProbeReport);
   const deliveryActions=element('div','hosted-delivery-actions');
   deliveryActions.append(deliverySave,deliveryRefresh,deliveryRetry,deliveryRetryUncertain);
   deliveryPanel.append(deliveryTitle,deliveryHelp,deliveryReport,deliveryFields,
@@ -2502,7 +2528,8 @@
       }
       launchFormsRows.append(element('small',null,
         'Это только локальный аудит настроек. Письмо/Telegram не отправляется. '+
-        'Тестовую заявку и фактическую доставку владелец должен проверить отдельно.'));
+        'Для проверки маршрута откройте настройки формы и вручную отправьте тест. ' +
+        'Получение в почте/Telegram должен подтвердить сам владелец.'));
     };
     launchFormsRefresh.addEventListener('click',()=>safe(async()=>{
       if(!isOwner()||!state.siteId||state.siteId!==site.siteId)return;

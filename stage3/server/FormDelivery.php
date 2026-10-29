@@ -75,6 +75,64 @@ trait FormDelivery
         return ['ready'=>false,'reason'=>'unknown_channel'];
     }
 
+
+    /**
+     * Explicit owner-only manual routing test. Never creates a lead, outbox
+     * entry or fake delivery evidence. Reservation is audited before I/O.
+     */
+    public function probeFormDelivery(string $siteId,string $sectionId,string $channel,string $operator): array
+    {
+        $this->getDraft($siteId);
+        if(!preg_match('/^[a-z][a-z0-9-]{2,79}$/D',$sectionId)
+            ||!in_array($channel,['email','telegram'],true))
+            throw new InvalidArgumentException('Choose a valid form and channel');
+        if(!in_array($sectionId,array_column($this->editableDeliveryForms($siteId),'sectionId'),true))
+            throw new NotFound('Form is not in the current draft or publication');
+        $settings=$this->deliverySettingsRow($siteId)
+            ??['email_enabled'=>0,'email_recipient'=>'','telegram_enabled'=>0,'telegram_chat_id'=>''];
+        $recipient=$this->deliveryTarget($channel,$settings,$this->formRouteRow($siteId,$sectionId));
+        if($recipient===null)throw new InvalidArgumentException('Channel is disabled for this form');
+        if($recipient==='')throw new InvalidArgumentException('Save a recipient for this form first');
+        $transport=$this->deliveryTransport($channel);
+        if(!$transport['ready'])
+            throw new InvalidArgumentException('Transport is not configured: '.$transport['reason']);
+        if(($channel==='email'&&(!filter_var($recipient,FILTER_VALIDATE_EMAIL)
+                ||strlen($recipient)>254||preg_match('/[\r\n]/',$recipient)))
+            ||($channel==='telegram'&&!preg_match('/^-?\d{1,20}$/D',$recipient)))
+            throw new InvalidArgumentException('Saved destination is invalid');
+        $probeId='probe-'.bin2hex(random_bytes(8));
+        // Serialized by the existing dedicated DB transaction. No concurrent
+        // owner tabs can bypass three attempts per site per fifteen minutes.
+        $this->atomic(function()use($siteId,$sectionId,$channel,$operator,$probeId):void{
+            $q=$this->db->prepare("SELECT COUNT(*) FROM stage3_audit
+                WHERE site_id=? AND action='delivery-probe-attempt' AND created_at>=?");
+            $q->execute([$siteId,gmdate('Y-m-d\TH:i:s\Z',time()-900)]);
+            if((int)$q->fetchColumn()>=3)
+                throw new Conflict('Maximum three routing tests per site in 15 minutes');
+            $this->audit($operator,'delivery-probe-attempt',$siteId,'requested',
+                $probeId.' form='.$sectionId.' channel='.$channel);
+        });
+        $message="MANUFACT AI Site CMS — ROUTING TEST (NOT A CLIENT LEAD)\n".
+            "Site ID: ".$siteId."\nForm: ".$sectionId."\nChannel: ".$channel.
+            "\nTest ID: ".$probeId."\nUTC: ".$this->now().
+            "\nCheck the intended inbox/chat manually. This message contains no customer data.";
+        try{
+            $result=$channel==='email'
+                ?$this->sendDeliveryEmail($recipient,$siteId,$message,'CMS routing test ['.$siteId.']')
+                :$this->sendDeliveryTelegram($recipient,$message);
+        }catch(Throwable $e){
+            $result=['state'=>'uncertain','error'=>'transport_exception'];
+        }
+        $state=$result['state']??'uncertain';
+        $this->audit($operator,'delivery-probe-result',$siteId,$state,
+            $probeId.' form='.$sectionId.' channel='.$channel.' error='.($result['error']??'none'));
+        return ['format'=>'manufact-form-delivery-probe-v1','siteId'=>$siteId,
+            'sectionId'=>$sectionId,'channel'=>$channel,'probeId'=>$probeId,
+            'state'=>$state,'error'=>$result['error']??null,
+            'leadCreated'=>false,'externalReceiptConfirmed'=>false,
+            'note'=>'Transport acceptance is not inbox receipt; check the intended recipient manually.'];
+    }
+
     public function deliveryStatus(string $siteId): array
     {
         $this->getDraft($siteId);
@@ -287,13 +345,13 @@ trait FormDelivery
         $q->execute([$state,$error,$accepted,$this->now(),$id]);
     }
 
-    private function sendDeliveryEmail(string $recipient,string $siteId,string $message): array
+    private function sendDeliveryEmail(string $recipient,string $siteId,string $message,?string $subject=null): array
     {
         $from=(string)getenv('STAGE3_MAIL_FROM');
         if(!filter_var($from,FILTER_VALIDATE_EMAIL)||preg_match('/[\r\n]/',$from))
             return ['state'=>'configuration_required','error'=>'sender_invalid'];
         $headers="From: ".$from."\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8";
-        try{$accepted=mail($recipient,'New website inquiry ['.$siteId.']',$message,$headers);}
+        try{$accepted=mail($recipient,$subject??('New website inquiry ['.$siteId.']'),$message,$headers);}
         catch(Throwable $e){return ['state'=>'failed','error'=>'mail_exception'];}
         return $accepted?['state'=>'accepted','error'=>null]:['state'=>'failed','error'=>'mail_rejected'];
     }

@@ -435,6 +435,13 @@ async function stop(){
   assert.ok(!JSON.stringify(beforeRouting.body).includes('CI-only-form-secret'),
     'Read-only readiness must not include private collector secret');
   const deliveryRoute=endpoint+'/delivery';
+  const probePath=deliveryRoute+'/probe';
+  assert.equal((await request('POST',probePath,{sectionId:'section-quote-form',channel:'email'})).status,422,
+    'An explicit owner confirmation is required');
+  assert.equal((await request('POST',probePath,{sectionId:'section-quote-form',
+    channel:'email',confirm:true})).status,422,'Disabled channels do not send');
+  assert.equal((await request('POST',probePath,{sectionId:'not-a-real-form',
+    channel:'telegram',confirm:true})).status,404);
   const deliverySetup=await request('POST',deliveryRoute,{emailEnabled:true,emailRecipient:'leads@example.test',
     telegramEnabled:false,telegramChatId:'',expectedVersion:0,reason:'CI delivery setup'});
   assert.equal(deliverySetup.status,200,JSON.stringify(deliverySetup.body));
@@ -450,6 +457,12 @@ async function stop(){
     telegramMode:'off',telegramChatId:'',expectedVersion:0,reason:'Route industrial inquiries'});
   assert.equal(routed.status,200,JSON.stringify(routed.body));
   assert.equal(routed.body.routes.find(r=>r.sectionId==='section-quote-form').version,1);
+  const probeWithoutSender=await request('POST',probePath,{sectionId:'section-quote-form',
+    channel:'email',confirm:true});
+  assert.equal(probeWithoutSender.status,422,'Missing sender cannot send email');
+  assert.match(probeWithoutSender.body.error,/sender_missing/);
+  assert.equal((await request('GET',endpoint+'/submissions')).body.submissions.length,0,
+    'Routing probes may not create synthetic customer leads');
   const afterRouting=await request('GET',launchFormsPath);
   assert.equal(afterRouting.status,200,JSON.stringify(afterRouting.body));
   assert.equal(afterRouting.body.formCount,1);

@@ -376,3 +376,10 @@ A final lead-chat product pass added a practical read-only form readiness path w
 
 **Transfer:** `handoffs/lead-integrator/MAIN-HANDOFF-v5.0-2026-10-29.md`. This replaces v4 as the entry document. Before future code, new lead must confirm actual branch HEAD **and matching** Actions result; historical SHA in docs is not authoritative.
 
+
+
+## 29 October 2026 — manual per-form delivery probe
+
+The current hosted Studio notification panel now offers an **owner-confirmed, form-specific Email/Telegram test** against the saved effective form route. The endpoint `POST /api/sites/{siteId}/delivery/probe` requires `{sectionId,channel,confirm:true}` and owner authentication, normal session CSRF and same-origin protections. It never runs from GET, preview, launch-readiness refresh or automatically. Disabled or unconfigured routes fail before I/O. Tests are atomically audit-reserved at **max 3 per site per 15 minutes** (no new table, migration, background task or email/Telegram API credentials in client output). Each test includes a distinct ID and explicit NOT A CLIENT LEAD wording; no customer submission, outbox item, public site change or retry is manufactured. The previous live notification route and ordinary customer inquiries remain unchanged.
+
+The response is only a local *transport result*, not recipient receipt: even `accepted` does not verify that a human got a message. The owner must explicitly verify the target inbox/chat on a separately authorized environment. The site readiness continues to show `liveDeliveryVerified:false`, `ownerAcceptanceConfirmed:false`. #80 stays **partial**, 135 required engineering counts and 0 owner-accepted unchanged. No test message was actually sent during development, no production/Hostinger/SEO/main/PR/merge/deploy or real DB touched.

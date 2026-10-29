@@ -917,7 +917,7 @@ final class Api
                 $this->auditDetail='import '.($pending['args'][3]??'').' from '.$sourceId;
                 $this->response(200,$this->sites->applyCrossSiteCollection(...$pending['args']));
             }
-            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/delivery(?:/(retry|routes))?$~D',$path,$deliveryMatch)) {
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/delivery(?:/(retry|routes|probe))?$~D',$path,$deliveryMatch)) {
                 $siteId=$deliveryMatch[1];$operation=$deliveryMatch[2]??null;
                 if($method==='GET'&&$operation===null)
                     $this->response(200,$this->sites->deliveryStatus($siteId));
@@ -941,6 +941,15 @@ final class Api
                     $this->response(200,$this->sites->saveFormDeliveryRoute($siteId,$body['sectionId'],
                         $principal['username'],$body['expectedVersion'],$body['emailMode'],$body['emailRecipient'],
                         $body['telegramMode'],$body['telegramChatId'],$body['reason']));
+                }
+                if($method==='POST'&&$operation==='probe'){
+                    if($principal['role']!=='owner')$this->response(403,['error'=>'Owner only']);
+                    if(!is_string($body['sectionId']??null)||!is_string($body['channel']??null)
+                        ||($body['confirm']??null)!==true)
+                        throw new InvalidArgumentException('Form, channel and explicit owner confirmation required');
+                    $this->auditDetail='Owner-requested form routing probe; no customer lead';
+                    $this->response(200,$this->sites->probeFormDelivery($siteId,$body['sectionId'],
+                        $body['channel'],$principal['username']));
                 }
                 if($method==='POST'&&$operation==='retry'){
                     if(!is_string($body['reason']??null)||!is_bool($body['includeUncertain']??null))
