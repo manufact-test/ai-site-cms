@@ -328,13 +328,14 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
         fail(node.id,'formatted fragments require a heading or paragraph');
       let sum='';
       for(const run of node.runs){
-        keys(run,['text','strong','italic','color'],node.id+'/run');
+        keys(run,['text','strong','italic','color','href'],node.id+'/run');
         if(typeof run.text!=='string'||run.text.length<1||run.text.length>1500||
           /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(run.text))
           fail(node.id,'invalid formatted fragment');
         for(const key of ['strong','italic'])if(own(run,key)&&typeof run[key]!=='boolean')
           fail(node.id,'invalid fragment emphasis');
         if(own(run,'color'))resolve(run.color,'colors',tokens,node.id+'/run/color');
+        if(own(run,'href')&&!validHref(run.href))fail(node.id,'invalid fragment link');
         sum+=run.text;
       }
       if(sum!==node.text)fail(node.id,'formatted fragments must equal the editable plain text');
@@ -596,6 +597,10 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       if(run.strong)part='<strong>'+part+'</strong>';
       if(run.italic)part='<em>'+part+'</em>';
       if(run.color)part='<span style="color:'+resolve(run.color,'colors',tokens,n.id+'/run/color')+'">'+part+'</span>';
+      if(run.href){
+        const href=run.href.startsWith('/')?safeMount+run.href:run.href;
+        part='<a href="'+attr(href)+'"'+(href.startsWith('https://')?' rel="noopener noreferrer"':'')+'>'+part+'</a>';
+      }
       return part;
     }).join('');
   };
