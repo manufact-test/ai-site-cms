@@ -33,6 +33,7 @@ final class SiteRepository
     use LinkOperations;
     use SiteOperations;
     use ApprovalEvidence;
+    use VisualReview;
     private string $driver;
     public function __construct(private PDO $db, private ContractValidator $validator)
     {
@@ -73,7 +74,7 @@ final class SiteRepository
             "CREATE TABLE stage3_notifications (site_id $id NOT NULL, submission_id $id NOT NULL, created_at VARCHAR(35) NOT NULL, seen_at VARCHAR(35) NULL, PRIMARY KEY(site_id, submission_id))$tail",
             "CREATE TABLE stage3_section_templates (site_id $id NOT NULL, template_id $id NOT NULL, title VARCHAR(160) NOT NULL, component VARCHAR(80) NOT NULL, body $big NOT NULL, created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id,template_id))$tail"
         ];
-        foreach (array_merge($schema, $this->accessSchema(), [$this->licenseSchema()], $this->deliverySchema(), $this->videoUploadSchema(), $this->leadWorkflowSchema(), $this->operationsSchema(), $this->approvalSchema()) as $sql) {
+        foreach (array_merge($schema, $this->accessSchema(), [$this->licenseSchema()], $this->deliverySchema(), $this->videoUploadSchema(), $this->leadWorkflowSchema(), $this->operationsSchema(), $this->approvalSchema(), $this->visualReviewSchema()) as $sql) {
             $this->db->exec($sql);
         }
     }
@@ -261,6 +262,7 @@ final class SiteRepository
                 throw new Conflict('Stale draft cannot be published');
             }
             $site = $this->validator->validate($draft['site']);
+            $this->assertNoOpenVisualFindings($id,$expectedRevision);
             PublicRenderer::assertPublishable($site);
             $this->assertStoredAssets($id, $site);
             foreach ($site['pages'] as $page) {
