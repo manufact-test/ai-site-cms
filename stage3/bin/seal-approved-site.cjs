@@ -30,10 +30,12 @@ function seal(folder,version,options={}){
   const names=namedFiles(site,refs),hashes={};
   const videoPaths=new Set(site.assets.filter(asset=>asset.mime==='video/mp4')
     .map(asset=>asset.src.replace(/^\/assets\//,'assets/')));
+  const fontPaths=new Set(site.assets.filter(asset=>asset.mime==='font/woff2')
+    .map(asset=>asset.src.slice(1)));
   let bytesUsed=0;
   for(const relative of names){
     if(typeof relative!=='string'||relative.length>200||
-      !/^[a-zA-Z0-9_/-]+\.(?:json|md|txt|png|jpe?g|webp|mp4)$/.test(relative)||
+      !/^[a-zA-Z0-9_/-]+\.(?:json|md|txt|png|jpe?g|webp|mp4|woff2)$/.test(relative)||
       relative.split('/').includes('..'))throw Error('Unsafe file path: '+String(relative));
     const actual=fs.realpathSync(path.resolve(root,relative));
     if(!actual.startsWith(root+path.sep)||!fs.statSync(actual).isFile())
@@ -41,7 +43,7 @@ function seal(folder,version,options={}){
     const max=relative===refs.site?500000:
       [refs.desktop,refs.tablet,refs.mobile].includes(relative)||pageRefs.has(relative)?8000000:
       [refs.clientExplanation,refs.implementationSpec].includes(relative)?200000:
-      videoPaths.has(relative)?16777216:1000000;
+      videoPaths.has(relative)?16777216:fontPaths.has(relative)?1048576:1000000;
     const length=fs.statSync(actual).size;bytesUsed+=length;
     if(length<1||length>max||bytesUsed>100*1024*1024)
       throw Error('Invalid handoff size or total exceeded 100MB: '+relative);
