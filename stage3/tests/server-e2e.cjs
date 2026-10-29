@@ -491,6 +491,13 @@ async function stop(){
   assert.match(sent.body,/заявка сохранена/);
   assert.ok(sent.body.includes('href="'+formReturn+'"'));
   assert.match(sent.body,/Вернуться на сайт/);
+  const firstDeliveryEvidence=(await request('GET',launchFormsPath)).body;
+  assert.equal(firstDeliveryEvidence.forms[0].savedSubmissionCount,1,
+    'Prelaunch report counts real persisted submissions for this form only');
+  assert.equal(firstDeliveryEvidence.forms[0].deliveryEvidence.email.configuration_required,1,
+    'Transport failure is attributed to the right form, not disguised as success');
+  assert.equal(firstDeliveryEvidence.forms[0].externalDeliveryVerified,false);
+
   // Destination is frozen at receipt: changing routing cannot redirect the
   // already queued private lead to a different recipient.
   const queuedRecipient=spawnSync('php',['-r',
@@ -522,6 +529,11 @@ async function stop(){
   assert.equal((await postForm(values)).status,429);
   delivery=(await request('GET',deliveryRoute)).body;
   assert.equal(delivery.totals.configuration_required,5,'Every accepted lead keeps a durable delivery state');
+  const fiveEvidence=(await request('GET',launchFormsPath)).body;
+  assert.equal(fiveEvidence.forms[0].savedSubmissionCount,5);
+  assert.equal(fiveEvidence.forms[0].deliveryEvidence.email.configuration_required,5);
+  assert.equal(fiveEvidence.liveDeliveryVerified,false);
+
 
   // A bounded CLI worker recovers pending jobs after an interrupted public request.
   const workerDenied=spawnSync('php',['stage3/server/bin/process-delivery-queue.php'],
