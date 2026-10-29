@@ -444,6 +444,10 @@ final class Api
                 if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
                 $this->response(200,$this->sites->approvalEvidenceIndex($proofList[1]));
             }
+            if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/visual-review/history$~D',$path,$reviewHistory)) {
+                if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
+                $this->response(200,$this->sites->visualReviewHistory($reviewHistory[1]));
+            }
             if ($method==='GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/visual-review$~D',$path,$review)) {
                 if ($principal['role']!=='owner') $this->response(403,['error'=>'Owner only']);
                 $revision=self::revision(filter_var($_GET['revision']??null,FILTER_VALIDATE_INT,FILTER_NULL_ON_FAILURE));
