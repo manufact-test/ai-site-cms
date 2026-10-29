@@ -10,11 +10,11 @@ const ZIP=require('../lib/static-upload-zip.cjs');
 const IMPACT=require('../lib/static-upload-impact.cjs');
 const REQUIRED=['approved-site','published-site','blueprint','origin','static-export','provider','workspace'];
 const OPTIONAL=['owner-edit-review','php-capture','previous-report','public-http-evidence',
- 'public-media-evidence','public-media-digests','delivery-status','visual-review-status','previous-upload'];
+ 'public-media-evidence','public-media-digests','delivery-status','visual-review-status','approval-archive-index','previous-upload'];
 function parse(argv){
  if(!Array.isArray(argv)||argv.length%2||argv.length<REQUIRED.length*2||
     argv.length>(REQUIRED.length+OPTIONAL.length)*2)
-  throw Error('Usage: node stage3/seo-engine/bin/prepare-first-site.cjs --approved-site /ABS/SEALED --published-site /ABS/owner-published.json --blueprint /ABS/approved-blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --static-export /ABS/official-static-export --provider apache|nginx|netlify|cloudflare-pages --workspace /ABS/NEW-private-workspace [--owner-edit-review /ABS/owner-review.json] [--php-capture /ABS/lead-screenshots.json] [--public-http-evidence /ABS/public-http.json] [--public-media-evidence /ABS/media-head.json] [--public-media-digests /ABS/media-sha256.json] [--delivery-status /ABS/owner-form-delivery.json] [--visual-review-status /ABS/owner-visual-review.json] [--previous-report /ABS/prior-report] [--previous-upload /ABS/prior-private-static-upload]');
+  throw Error('Usage: node stage3/seo-engine/bin/prepare-first-site.cjs --approved-site /ABS/SEALED --published-site /ABS/owner-published.json --blueprint /ABS/approved-blueprint.json --origin http://127.0.0.1:PORT/published/SITE-ID/ --static-export /ABS/official-static-export --provider apache|nginx|netlify|cloudflare-pages --workspace /ABS/NEW-private-workspace [--owner-edit-review /ABS/owner-review.json] [--php-capture /ABS/lead-screenshots.json] [--public-http-evidence /ABS/public-http.json] [--public-media-evidence /ABS/media-head.json] [--public-media-digests /ABS/media-sha256.json] [--delivery-status /ABS/owner-form-delivery.json] [--visual-review-status /ABS/owner-visual-review.json] [--approval-archive-index /ABS/owner-approval-index.json] [--previous-report /ABS/prior-report] [--previous-upload /ABS/prior-private-static-upload]');
  const o={};
  for(let i=0;i<argv.length;i+=2){
   const key=argv[i]?.startsWith('--')?argv[i].slice(2):null;

@@ -37,7 +37,7 @@ function build(site,manifests,blueprint,options={}){
  if(!site||site.siteId!==plan.siteId)throw Error('Review package siteId mismatch');
  if(!Array.isArray(manifests))throw Error('Review package requires current manifests');
  if(!options||typeof options!=='object'||Array.isArray(options)||
-    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource','phpCapture','phpHtml','deliveryReadiness','visualReview','publicStatic','publicMediaBytes'].includes(k)))
+    Object.keys(options).some(k=>!['snapshot','viewports','baselineSite','decisions','priorDecisions','delivery','media','acceptance','approvedSource','phpCapture','phpHtml','deliveryReadiness','visualReview','approvalArchive','publicStatic','publicMediaBytes'].includes(k)))
   throw Error('Unsupported review-package options');
  // A sealed package is verified by the lead CLI before this read-only review.
  const approvedSource=options.approvedSource||null;
@@ -63,6 +63,11 @@ function build(site,manifests,blueprint,options={}){
     options.deliveryReadiness.siteId!==site.siteId||
     options.deliveryReadiness.pinnedPublishedVersion!==approvedSource?.publishedVersion))
   throw Error('Form delivery status report not bound to pinned owner-published Site v1 version');
+ if(options.approvalArchive&&(
+    options.approvalArchive.format!=='manufact-seo-owner-approval-archive-v1'||
+    options.approvalArchive.siteId!==site.siteId||
+    approvedSource?.packageFormat!=='manufact-approved-site-handoff-v2'))
+  throw Error('Owner approval archive must match a sealed v2 source');
  if(options.visualReview&&(
     options.visualReview.format!=='manufact-seo-owner-visual-review-v1'||
     options.visualReview.siteId!==site.siteId||
@@ -184,6 +189,8 @@ function build(site,manifests,blueprint,options={}){
    localPhpFormFindings:options.phpHtml?.localForms?.findings.length??null,
   ownerFormDeliveryFindings:options.deliveryReadiness?.findings.length??null,
   ownerVisualReviewOpenFindings:options.visualReview?.openCount??null,
+  ownerApprovedPrototypeArchiveMissing:options.approvalArchive?.missingKinds??null,
+  ownerApprovedPrototypeArchiveMismatches:options.approvalArchive?.mismatchedKinds??null,
   ownerVisualReviewBlockedPages:options.visualReview?.pagesWithOpenFindings??null,
   ownerFormsWithConfiguredChannels:options.deliveryReadiness?.configuredForms??null,
   localPhpObservedPublicOrigin:options.phpHtml?.localHead?.publicOriginObservedInSitemap??null,
@@ -321,6 +328,13 @@ function build(site,manifests,blueprint,options={}){
     findings:options.phpHtml.localComponents.findings,
     runtimeInteractionsTested:false,releaseAuthorized:false
    }:null,
+  approvalArchive:options.approvalArchive?{
+   ...options.approvalArchive,
+   prototypeImageBytesExposed:false,
+   clientExplanationsExposed:false,
+   operatorIdentityExposed:false,
+   clientApprovalSignatureVerified:false
+  }:null,
   visualReview:options.visualReview?{
    format:options.visualReview.format,
    siteId:options.visualReview.siteId,

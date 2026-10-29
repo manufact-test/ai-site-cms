@@ -66,6 +66,8 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  const localHeadReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-head:')&&s.severity!=='error'));
   const localFormErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-form:')&&s.severity==='error'));
   const localFormReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-form:')&&s.severity!=='error'));
+ const ownerApprovalErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-approval:')&&s.severity==='error'));
+ const ownerApprovalReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-approval:')&&s.severity!=='error'));
  const ownerVisualErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-visual:')&&s.severity==='error'));
  const ownerVisualReviews=find(t=>t.sources.some(s=>s.code?.startsWith('php-visual:')&&s.severity!=='error'));
  const ownerDeliveryErrors=find(t=>t.sources.some(s=>s.code?.startsWith('php-delivery:')&&s.severity==='error'));
@@ -133,6 +135,10 @@ function assess(site,manifests,blueprint,options={},precomputedBacklog=null){
  if(localFormErrors.length)add(blockers,'local-php-form-markup',
    'Repair observed PHP lead form action, release and anti-spam markup',
    'Captured HTML disagrees with the public form contract. No POST or delivery has been attempted.',localFormErrors);
+ if(ownerApprovalErrors.length)add(blockers,'owner-approved-prototype-archive-incomplete',
+  'The CMS private owner approval archive omits, corrupts or mismatches sealed v2 mockup/source SHA256 entries. Repair the immutable archive before release.',ownerApprovalErrors);
+ if(ownerApprovalReviews.length)add(reviews,'owner-approved-prototype-archive-review',
+  'Inspect owner-only prototype archive for incomplete approval history; do not equate source presence with actual client signoff.',ownerApprovalReviews);
  if(ownerVisualErrors.length)add(blockers,'unresolved-owner-visual-review',
   'The owner API reports unresolved visual findings for the exact published source revision. Review them by page/device before release.',ownerVisualErrors);
  if(ownerVisualReviews.length)add(reviews,'owner-visual-review-unavailable',

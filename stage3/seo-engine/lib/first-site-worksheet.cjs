@@ -12,11 +12,13 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   throw Error('Operator worksheet requires one matching site and verified PHP report');
  const fields=['localHead','localForms','localMedia','localComponents','localGraph','localNavigation','localTheme','localSemantics','localFootprint','localStaticExport','publication'];
  const all=fields.flatMap(key=>(phpHtml[key]?.findings||[]).map(x=>({...x,group:key})));
+ const ownerArchive=bundle.approvalArchive||null;
  const ownerVisual=bundle.visualReview||null;
  const ownerDelivery=bundle.deliveryReadiness||null;
  const publicStatic=bundle.publicStaticParity||null;
  const publicMediaBytes=bundle.publicMediaBytes||null;
  if(phpCapture)for(const x of phpCapture.findings||[])all.push({...x,group:'lead-php-screenshots'});
+ if(ownerArchive)for(const x of ownerArchive.findings||[])all.push({...x,group:'owner-approved-prototypes'});
  if(ownerVisual)for(const x of ownerVisual.findings||[])all.push({...x,group:'owner-visual-observations'});
  if(ownerDelivery)for(const x of ownerDelivery.findings||[])all.push({...x,group:'owner-form-delivery'});
  if(publicStatic)for(const x of publicStatic.findings||[])all.push({...x,group:'public-static-deployment'});
@@ -41,6 +43,10 @@ function build({site,source,phpHtml,phpCapture=null,bundle}){
   '- Release status: '+clean(bundle.release.decision)+
     '; блокирующих gates: '+stats.releaseBlockingGates+
     '; реальных PHP findings: '+stats.actualFindings+'.',
+  '- CMS owner approved source archive: '+(ownerArchive?(
+    'matched sealed package '+ownerArchive.exactSealedPackageFound+', verified entries '+
+    ownerArchive.ownerArchiveKindsChecked+'/'+ownerArchive.expectedKinds):
+    'НЕ ПРЕДОСТАВЛЕН')+' (client signature NOT verified).',
   '- Owner published visual review: '+(ownerVisual?(
     'revision '+ownerVisual.sourceRevisionClaim+', open '+ownerVisual.openCount+
     ', resolved '+ownerVisual.resolvedCount+', available '+ownerVisual.ownerApiAvailable):
