@@ -5,6 +5,7 @@
 const LAUNCH=require('./first-site-launch-cockpit.cjs');
 const SEARCH=require('./search-ops-dashboard.cjs');
 const INDEX=require('./search-indexing-view.cjs');
+const HUMAN=require('./first-site-live-acceptance-view.cjs');
 const FORMAT='manufact-seo-operator-workspace-v1';
 const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -12,13 +13,18 @@ function build(input){
  if(!input||typeof input!=='object'||Array.isArray(input)||
   !input.firstSite&&!input.search&&!input.indexing)throw Error('Operator workspace needs launch, search or indexing report inputs');
  const first=input.firstSite||null,search=input.search||null,indexing=input.indexing||null;
+ const human=input.liveAcceptance||null;
+ if(human&&(!first?.summary||!first.postDeploy||!human.report||!human.contract))
+  throw Error('Human acceptance needs a first-site source, public post-deploy report and exact original lead contract');
  if(first&&!first.summary||search&&!search.history)throw Error('Operator workspace input missing report source');
  const launch=first?LAUNCH.render(first.summary,first.bundle||null,first.postDeploy||null,
   first.operatorReview||null,first.summarySha):null;
  const visibility=search?SEARCH.render(search.history,search.historySha,search.decisions||null,search.releases||null):null;
  const indexed=indexing?INDEX.render(indexing):null;
- const siteId=launch?.siteId||visibility?.summary.siteId||indexed?.summary.siteId;
- if([launch?.siteId,visibility?.summary.siteId,indexed?.summary.siteId].filter(Boolean).some(x=>x!==siteId))
+ const manual=human?HUMAN.render(human.report,human.contract,human.contractSha,first,
+  first.summarySha,first.postDeploySha):null;
+ const siteId=launch?.siteId||visibility?.summary.siteId||indexed?.summary.siteId||manual?.siteId;
+ if([launch?.siteId,visibility?.summary.siteId,indexed?.summary.siteId,manual?.siteId].filter(Boolean).some(x=>x!==siteId))
   throw Error('Cannot combine launch, search and indexing evidence from different customer sites');
  if(indexed&&visibility&&indexing.blueprintSha256!==search.history.blueprintSha256)
   throw Error('Search History and URL Indexing reports need the same approved Blueprint bytes');
@@ -31,7 +37,10 @@ function build(input){
    state:'OBSERVATIONAL SEO DATA — HUMAN REVIEW',kind:'search',counts:visibility.summary}]:[]),
   ...(indexed?[{href:'indexing.html',name:'URL Indexing Intelligence',
    sub:'Approved Blueprint robots, operator-supplied indexed/excluded URL observations and manual indexability checks',
-   state:'INDEX STATUS — OPERATOR REPORTED',kind:'indexing',counts:indexed.summary}]:[])
+   state:'INDEX STATUS — OPERATOR REPORTED',kind:'indexing',counts:indexed.summary}]:[]),
+  ...(manual?[{href:'human.html',name:'Real-World Human Acceptance',
+   sub:'Source-bound browser/page/device and actual form POST operator attestations; never an automatic release approval',
+   state:manual.status,kind:'human',counts:manual.summary}]:[])
  ];
  const next=[
   ...(launch?.summary.blockingGates?['Resolve '+launch.summary.blockingGates+
@@ -41,11 +50,12 @@ function build(input){
   ...(visibility?.summary.tasks?['Have the owner/editor review '+visibility.summary.tasks+
    ' observed SEO task(s); no copy or CMS change is automatically authorized.']:[]),
   ...(indexed?.summary.actions?['Inspect '+indexed.summary.actions+' indexing anomaly or mapping prompt(s) manually in live URL Inspection.']:[]),
+  ...(manual?['Review original private human/browser/form evidence independently; operator checkmarks do not prove a real authenticated customer signoff.']:[]),
   ...(launch&&!visibility?['After launch and real Search Console data accumulation, add the private Search History to this workspace.']:[]),
   ...(!launch&&visibility?['For first-site technical acceptance add the existing first-site-check summary and optional post-deploy evidence.']:[])
  ];
  const cards=sections.map(s=>'<a class="card" href="'+s.href+'"><div class="kicker">'+
-  (s.kind==='launch'?'LAUNCH OPERATIONS':s.kind==='indexing'?'URL INDEXING':'POST-LAUNCH SEARCH')+'</div><h2>'+esc(s.name)+'</h2>'+
+  (s.kind==='launch'?'LAUNCH OPERATIONS':s.kind==='indexing'?'URL INDEXING':s.kind==='human'?'HUMAN ACCEPTANCE':'POST-LAUNCH SEARCH')+'</div><h2>'+esc(s.name)+'</h2>'+
   '<p>'+esc(s.sub)+'</p><span class="state">'+esc(s.state)+'</span><span class="go">Open private report →</span></a>').join('');
  const css=[
  ':root{--back:#f3f7fa;--ink:#172f45;--muted:#5c7182;--line:#dbe5eb}',
@@ -76,7 +86,9 @@ function build(input){
   '<footer>Private local report bundle · No network calls · Input hashes recorded separately · Do not upload or commit.</footer></main></body></html>';
  return {format:FORMAT,readOnly:true,siteId,homeHtml:html,launchHtml:launch?.html||null,
   searchHtml:visibility?.html||null,indexingHtml:indexed?.html||null,
+  humanHtml:manual?.html||null,
   overview:{launchIncluded:!!launch,searchIncluded:!!visibility,indexingIncluded:!!indexed,
+   humanAcceptanceIncluded:!!manual,humanAcceptanceStatus:manual?.status??null,
    indexingActionCount:indexed?.summary.actions??null,
    technicalBlockers:launch?.summary.blockingGates??null,
    postDeploySupplied:launch?.summary.postDeployEvidenceSupplied??false,

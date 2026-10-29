@@ -60,7 +60,8 @@ function inputs(contract,upload,post,summary,hashes){
   contract.inputSha256?.post===hashes.post,
   'source input bytes differ from the original lead relay; rebuild it');
  requireThat(Number.isSafeInteger(summary.release?.blockingGates)&&
-  summary.release.blockingGates>=0&&summary.release.blockingGates===contract.evidence.originalLocalBlockers,
+  summary.release.blockingGates>=0&&summary.release.blockingGates<=contract.evidence.originalLocalBlockers&&
+  contract.evidence.originalLocalBlockers===post.originalCandidateBlockingGates,
   'original technical blockers changed');
  requireThat(Number.isSafeInteger(summary.forms?.markupObserved)&&summary.forms.markupObserved>=0,
   'exact actual PHP form markup count is missing; cannot build all-form acceptance');

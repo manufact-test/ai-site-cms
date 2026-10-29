@@ -27,11 +27,11 @@ function input(file,max){
 }
 function readConfiguration(source){
  if(source?.format!==CONFIG||typeof source!=='object'||Array.isArray(source)||
-   Object.keys(source).some(k=>!['format','firstSite','search','indexing'].includes(k))||
+   Object.keys(source).some(k=>!['format','firstSite','search','indexing','liveAcceptance'].includes(k))||
    !source.firstSite&&!source.search&&!source.indexing)
   throw Error('Private workspace configuration needs firstSite or search inputs');
  const shapes={firstSite:['summary','bundle','postDeploy','operatorReview'],
-  search:['history','decisions','releases']};
+  search:['history','decisions','releases'],liveAcceptance:['report','contract']};
  if(source.indexing&&(!source.indexing.report||Object.keys(source.indexing).some(k=>k!=='report')||
    typeof source.indexing.report!=='string'||!path.isAbsolute(source.indexing.report)))
   throw Error('Indexing workspace source must be a private absolute report path');
@@ -39,7 +39,8 @@ function readConfiguration(source){
   const s=source[kind];
   if(!s)continue;
   if(typeof s!=='object'||Array.isArray(s)||Object.keys(s).some(k=>!names.includes(k))||
-   !s[kind==='firstSite'?'summary':'history'])
+   !s[kind==='firstSite'?'summary':kind==='search'?'history':'report']||
+   kind==='liveAcceptance'&&!s.contract)
    throw Error('Unsupported or incomplete '+kind+' workspace input fields');
   for(const key of names)if(s[key]!==undefined&&(!path.isAbsolute(s[key]||'')||
     typeof s[key]!=='string'))throw Error('Workspace input must be an absolute private path');
@@ -65,10 +66,16 @@ function main(argv){
  };
  const first=collect('firstSite',{summary:1500000,bundle:45000000,postDeploy:2500000,operatorReview:2000000});
  const search=collect('search',{history:4500000,decisions:2500000,releases:4500000});
- if(first)first.summarySha=digests.firstSite.summary;
+ if(first){
+  first.summarySha=digests.firstSite.summary;
+  first.postDeploySha=digests.firstSite.postDeploy||null;
+ }
  if(search)search.historySha=digests.search.history;
  const indexing=collect('indexing',{report:4500000});
- const workspace=WORK.build({firstSite:first,search,indexing:indexing?.report||null});
+ const human=collect('liveAcceptance',{report:2500000,contract:2500000});
+ if(human)human.contractSha=digests.liveAcceptance.contract;
+ const workspace=WORK.build({firstSite:first,search,indexing:indexing?.report||null,
+  liveAcceptance:human});
  const out=PRIVATE.privateOutput(args.out);
  fs.mkdirSync(out,{mode:0o700,recursive:false});
  function write(name,content){
@@ -79,6 +86,7 @@ function main(argv){
  if(workspace.launchHtml)write('launch.html',workspace.launchHtml);
  if(workspace.searchHtml)write('search.html',workspace.searchHtml);
  if(workspace.indexingHtml)write('indexing.html',workspace.indexingHtml);
+ if(workspace.humanHtml)write('human.html',workspace.humanHtml);
  write('workspace-manifest.json',JSON.stringify({format:workspace.format,siteId:workspace.siteId,
   readOnly:true,overview:workspace.overview,inputSHA256:digests,configSHA256:input(args.config,150000).sha256,
   releaseAuthorized:false,limitations:workspace.limitations},null,2)+'\n');
