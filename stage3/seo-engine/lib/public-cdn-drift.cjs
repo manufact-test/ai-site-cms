@@ -5,7 +5,35 @@
 const crypto=require('node:crypto'),DELIVERY=require('./delivery-evidence.cjs');
 const FORMAT='manufact-seo-public-cdn-drift-v1';
 const digest=s=>crypto.createHash('sha256').update(s,'utf8').digest('hex');
-function compare(previous,current){
+function mediaIndex(e,marker,siteId,origin){
+ if(!e||e.format!=='manufact-seo-public-static-media-bytes-v1'||
+    e.siteId!==siteId||e.origin!==origin||!marker?.valid||
+    e.officialStaticManifestSha256!==marker.officialManifestSha256||
+    e.publishedVersion!==marker.publishedVersion||
+    !Array.isArray(e.resources)||e.resources.length>1200||
+    !Number.isSafeInteger(e.totalReceivedBytes)||e.totalReceivedBytes<0||
+    e.totalReceivedBytes>180000000||e.bytesStoredInEvidence!==false||
+    e.postsPerformed!==false||e.redirectsFollowed!==false)
+  throw Error('Public media digest transcript is not tied to the observed official release');
+ const map=new Map();let total=0;
+ for(const a of e.resources){
+  if(!a||typeof a.assetId!=='string'||!/^[a-z][a-z0-9-]{2,79}$/.test(a.assetId)||
+     map.has(a.assetId)||!/^\/assets\/[a-z][a-z0-9-]{2,79}\.(?:png|jpg|webp|mp4)$/.test(a.path)||
+     a.url!==origin.slice(0,-1)+a.path||!/^[a-f0-9]{64}$/.test(a.sha256||'')||
+     !/^[a-f0-9]{64}$/.test(a.expectedSha256||'')||
+     !Number.isInteger(a.status)||a.status<100||a.status>599||
+     !Number.isSafeInteger(a.bytes)||a.bytes<0||a.bytes>12000000||
+     typeof a.mime!=='string'||a.mime.length>150||
+     a.hashMatched!==(a.status===200&&a.sha256===a.expectedSha256)||
+     typeof a.lengthMatched!=='boolean'||typeof a.mimeMatched!=='boolean')
+   throw Error('Unsafe, duplicate or inconsistent observed media digest entry');
+  total+=a.bytes;map.set(a.assetId,a);
+ }
+ if(total!==e.totalReceivedBytes)
+  throw Error('Observed media digest receipt has an inconsistent byte count');
+ return map;
+}
+function compare(previous,current,previousMedia=null,currentMedia=null){
  DELIVERY.assertEvidence(previous);DELIVERY.assertEvidence(current);
  if(previous.siteId!==current.siteId||previous.origin!==current.origin)
   throw Error('CDN drift comparison requires the same exact HTTPS origin/mount and CMS siteId');
@@ -13,6 +41,10 @@ function compare(previous,current){
  const comparable=Boolean(a?.valid&&b?.valid&&
   a.officialManifestSha256===b.officialManifestSha256&&
   a.publishedVersion===b.publishedVersion);
+ if(Boolean(previousMedia)!==Boolean(currentMedia))
+  throw Error('CDN media comparison requires BOTH previous and current public SHA256 GET receipts');
+ const oldMedia=previousMedia?mediaIndex(previousMedia,a,previous.siteId,previous.origin):null;
+ const newMedia=currentMedia?mediaIndex(currentMedia,b,current.siteId,current.origin):null;
  const issues=[],review=[],add=(list,code,route,message)=>list.push(Object.freeze({
   code:'public-cdn:'+code,path:route,message,
   source:'operator-supplied-public-https-transcripts',
@@ -54,6 +86,20 @@ function compare(previous,current){
   for(const [route] of afterRedirects)if(!beforeRedirects.has(route))
    add(issues,'unexpected-new-301',route,
     'Public redirect appeared without a corresponding new official release.');
+  if(oldMedia&&newMedia){
+   for(const [assetId,p] of oldMedia){
+    const q=newMedia.get(assetId);
+    if(!q)add(issues,'media-variant-no-longer-captured',p.path,
+      'A previously verified public media asset/variant disappeared from new HTTPS digest evidence.');
+    else if(p.sha256!==q.sha256||p.status!==q.status||
+      p.bytes!==q.bytes||p.mime!==q.mime||q.expectedSha256!==p.expectedSha256)
+     add(issues,'media-bytes-or-cache-drift',p.path,
+      'Public media SHA256/status/MIME/length changed despite an unchanged official release fingerprint.');
+   }
+   for(const [assetId,q]of newMedia)if(!oldMedia.has(assetId))
+    add(issues,'unexpected-new-media-variant',q.path,
+      'An unrecognized public media variant appeared without an official release change.');
+  }
   for(const key of ['robots','sitemap']){
    const old=previous[key],next=current[key];
    if(!old||!next||old.status!==next.status||digest(old.body)!==digest(next.body))
@@ -89,6 +135,9 @@ function compare(previous,current){
   sameOfficialReleaseComparable:comparable,
   publiclyObservedPagesPrevious:previous.pages.length,
   publiclyObservedPagesCurrent:current.pages.length,
+  publicMediaDigestSnapshotsCompared:Boolean(oldMedia&&newMedia)&&comparable,
+  oldPublicMediaResources:oldMedia?.size??null,
+  newPublicMediaResources:newMedia?.size??null,
   newProblems:Object.freeze(issues),manualReviews:Object.freeze(review),
   criticalDriftCount:issues.length,reviewCount:review.length,
   verdict:issues.length?'INVESTIGATE-DRIFT':
@@ -99,4 +148,4 @@ function compare(previous,current){
   clientApprovalVerified:false,automaticReleaseDecision:false,
   limitations:'Only compares saved operator-provided HTTP captures. A saved transcript cannot independently prove live production state, TLS identity, active CMS source revision or user consent.'});
 }
-module.exports=Object.freeze({FORMAT,compare});
+module.exports=Object.freeze({FORMAT,mediaIndex,compare});
