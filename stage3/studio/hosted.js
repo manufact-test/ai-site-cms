@@ -3679,6 +3679,8 @@
           throw Error('Медиафайл пуст или превышает допустимый размер: '+item.id);
         if(video&&(item.variants!==undefined||!item.src.endsWith('.mp4')))
           throw Error('MP4 не может содержать responsive варианты: '+item.id);
+        if(video&&(!item.alt||!item.alt.trim()))
+          throw Error('Для MP4 нужно доступное описание в site.json: '+item.id);
         const variants=[];
         for(const variant of item.variants||[]){
           const file=required(variant.src.replace(/^\/assets\//,'assets/'));
@@ -3687,6 +3689,21 @@
         }
         media.push({id:item.id,original,variants,alt:item.alt,video});
       }
+      // Same total bound as the offline sealed package. Reject oversized
+      // customer transfers BEFORE creating a partially imported site.
+      const filesForImport=new Set([refs.site,refs.desktop,refs.tablet,refs.mobile,
+        refs.clientExplanation,refs.implementationSpec]);
+      for(const devices of Object.values(pageReferences))
+        for(const bp of ['desktop','tablet','mobile'])filesForImport.add(devices[bp]);
+      for(const entry of media){
+        filesForImport.add(entry.original.webkitRelativePath.split('/').slice(1).join('/'));
+        for(const variant of entry.variants)
+          filesForImport.add(variant.file.webkitRelativePath.split('/').slice(1).join('/'));
+      }
+      let totalImportBytes=manifestFile.size;
+      for(const filePath of filesForImport)totalImportBytes+=required(filePath).size;
+      if(totalImportBytes>100*1024*1024)
+        throw Error('Утверждённый пакет превышает 100 МиБ — нужен более компактный комплект');
       // Lock v2 to the exact visual evidence, client explanation, source
       // and all media bytes BEFORE any draft is created or anything is uploaded.
       if(handoff.format==='manufact-approved-site-handoff-v2'){
